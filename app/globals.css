@@ -147,3 +147,399 @@
 
 @media(max-width:1550px){.battle-ui-v7 .battle-layout{grid-template-columns:220px minmax(680px,1fr) 270px;gap:8px;padding:8px}.battle-ui-v7 .top-player-card{grid-template-columns:62px 1fr 76px;padding-right:12px}.battle-ui-v7 .identity-portrait{width:58px;height:58px}.battle-ui-v7 .identity-portrait>img:first-child{width:50px;height:50px}.battle-ui-v7 .opponent-table-row{grid-template-columns:70px minmax(120px,.55fr) minmax(330px,1.4fr) 82px}.battle-ui-v7 .hex-arena{transform:translate(-50%,-50%) scale(.88)}.battle-ui-v7 .active-brawler.foe{right:22px}.battle-ui-v7 .active-brawler.me{left:22px}.battle-ui-v7 .player-roster{grid-template-columns:repeat(3,140px)}.battle-ui-v7 .player-roster button{width:140px;grid-template-columns:60px 1fr}.battle-ui-v7 .player-roster img{width:60px}.battle-ui-v7 .hand-dock{grid-template-columns:100px minmax(500px,1fr) 0}.battle-ui-v7 .hand-dock.has-inspector{grid-template-columns:100px minmax(480px,1fr) 250px}.battle-ui-v7 .hand-fan button{width:98px;height:142px;flex-basis:98px}.battle-ui-v7 .hand-fan{height:146px}.battle-ui-v7 .hand-inspector{padding:.75rem}}
 @media(max-width:1220px){.battle-ui-v7{min-width:1080px}.battle-ui-v7 .battle-topbar{grid-template-columns:280px 1fr 260px}.battle-ui-v7 .top-player-card{grid-template-columns:54px 1fr 68px}.battle-ui-v7 .identity-portrait{width:50px;height:50px}.battle-ui-v7 .identity-portrait>img:first-child{width:44px;height:44px}.battle-ui-v7 .battle-layout{grid-template-columns:190px minmax(650px,1fr) 240px}.battle-ui-v7 .local-profile{grid-template-columns:52px 1fr 58px}.battle-ui-v7 .local-portrait{width:48px;height:70px}.battle-ui-v7 .opponent-table-row{grid-template-columns:62px 120px 1fr 74px}.battle-ui-v7 .opponent-roster article{grid-template-columns:46px 1fr}.battle-ui-v7 .opponent-roster img{width:46px}.battle-ui-v7 .combatants img,.battle-ui-v7 .combatants article>i{width:72px;height:72px}.battle-ui-v7 .zone-panel{grid-template-rows:96px 64px}.battle-ui-v7 .hero-zone,.battle-ui-v7 .small-pile{height:96px}.battle-ui-v7 .hand-dock.has-inspector{grid-template-columns:90px minmax(520px,1fr) 220px}.battle-ui-v7 .hand-fan{justify-content:flex-start;overflow-x:auto}.battle-ui-v7 .hand-fan button{width:92px;height:136px;flex-basis:92px}}
+
+/* V8 match screen — playmat-style layout without a bitmap playmat */
+.battle-ui-v7{
+  position:relative;
+  height:100dvh;
+  min-height:720px;
+  display:grid;
+  grid-template-rows:minmax(0,1fr);
+  overflow:hidden;
+  background:#020304;
+}
+
+/* Compact, centred command header. Player identity now lives on the table rail. */
+.battle-ui-v7 .battle-topbar{
+  position:absolute;
+  z-index:60;
+  top:9px;
+  left:50%;
+  width:clamp(620px,48vw,780px);
+  min-height:70px;
+  height:70px;
+  transform:translateX(-50%);
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:stretch;
+  padding:0;
+  overflow:visible;
+  background:linear-gradient(180deg,rgba(17,19,21,.97),rgba(3,5,7,.97));
+  border:1px solid #7b2d25;
+  box-shadow:0 10px 28px rgba(0,0,0,.72),inset 0 0 22px rgba(255,80,42,.08);
+  clip-path:polygon(18px 0,calc(100% - 18px) 0,100% 50%,calc(100% - 18px) 100%,18px 100%,0 50%);
+}
+.battle-ui-v7 .phase-command{
+  min-width:0;
+  padding:6px 16px 5px 22px;
+  justify-content:center;
+  background:linear-gradient(90deg,rgba(67,13,10,.28),transparent 85%);
+  overflow:visible;
+}
+.battle-ui-v7 .phase-command:before,.battle-ui-v7 .phase-command:after{display:none}
+.battle-ui-v7 .phase-kicker{font-size:.5rem;letter-spacing:.14em}
+.battle-ui-v7 .phase-command h1{margin:.06rem 0 .12rem;font-size:1.25rem}
+.battle-ui-v7 .major-phase-track i{min-width:55px;padding:.12rem .38rem;font-size:.44rem}
+.battle-ui-v7 .brawl-step-track{position:absolute;left:50%;top:68px;height:17px;transform:translateX(-50%);padding:0 12px;background:rgba(2,5,7,.9);border:1px solid rgba(123,45,37,.7);border-top:0}
+.battle-ui-v7 .brawl-step-track i{min-width:48px;padding:.08rem .3rem;font-size:.39rem}
+.battle-ui-v7 .battle-utilities{gap:7px;padding:7px 18px 7px 8px;background:linear-gradient(90deg,transparent,rgba(72,14,10,.28))}
+.battle-ui-v7 .turn-badge{min-width:44px;padding-right:7px}
+.battle-ui-v7 .turn-badge small{font-size:.42rem}
+.battle-ui-v7 .turn-badge strong{font-size:1.15rem}
+.battle-ui-v7 .battle-utilities .timer{min-width:92px;padding:.35rem .5rem;background:#180706}
+.battle-ui-v7 .battle-utilities .timer small{font-size:.4rem}
+.battle-ui-v7 .battle-utilities .timer strong{font-size:1rem}
+.battle-ui-v7 .concede-button{min-height:34px;padding:0 .4rem;font-size:.48rem}
+
+/* The board gets the vertical space that used to be occupied by the hand dock. */
+.battle-ui-v7 .battle-layout{
+  height:100%;
+  min-height:0;
+  display:grid;
+  grid-template-columns:240px minmax(700px,1fr) 286px;
+  gap:10px;
+  padding:10px;
+  overflow:hidden;
+  isolation:isolate;
+  background:
+    radial-gradient(circle at 50% 48%,rgba(162,38,21,.25),transparent 35%),
+    linear-gradient(180deg,#07090b 0,#030405 49%,#080302 100%);
+}
+.battle-ui-v7 .battle-left-column,.battle-ui-v7 .battle-right-column{gap:9px}
+.battle-ui-v7 .opponent-profile{
+  min-height:100px;
+  display:grid;
+  grid-template-columns:58px minmax(0,1fr) 62px;
+  align-items:center;
+  gap:8px;
+  padding:9px 10px;
+  background:linear-gradient(110deg,rgba(82,17,12,.58),rgba(4,8,10,.97) 76%);
+  border-right:1px solid #743027;
+  clip-path:polygon(0 0,95% 0,100% 12px,100% 100%,0 100%);
+}
+.battle-ui-v7 .opponent-profile .identity-portrait{width:52px;height:52px}
+.battle-ui-v7 .opponent-profile .identity-portrait>img:first-child{width:45px;height:45px}
+.battle-ui-v7 .opponent-profile .identity-faction{width:22px;height:22px}
+.battle-ui-v7 .opponent-profile .identity-copy small{font-size:.45rem}
+.battle-ui-v7 .opponent-profile .identity-copy strong{font-size:.82rem}
+.battle-ui-v7 .opponent-profile .identity-copy span{font-size:.52rem}
+.battle-ui-v7 .opponent-profile .round-score{padding-left:7px}
+.battle-ui-v7 .opponent-profile .round-score strong{font-size:1.25rem}
+.battle-ui-v7 .table-log{flex:1;min-height:160px}
+.battle-ui-v7 .local-profile{min-height:104px}
+
+/* Gradient-only battlefield; the generated axial grid is the visible play surface. */
+.battle-ui-v7 .battle-board-column{
+  position:relative;
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+  border:1px solid rgba(150,56,45,.65);
+  clip-path:polygon(22px 0,calc(100% - 22px) 0,100% 100%,0 100%);
+  background:
+    radial-gradient(circle at 50% 48%,rgba(245,75,28,.38) 0,rgba(127,24,13,.18) 24%,transparent 47%),
+    linear-gradient(115deg,rgba(70,10,8,.82),rgba(8,11,14,.97) 38%,rgba(78,13,9,.76) 72%,rgba(4,7,9,.98));
+  box-shadow:inset 0 0 70px rgba(0,0,0,.78),0 18px 42px rgba(0,0,0,.65);
+}
+.battle-ui-v7 .official-playmat{
+  position:absolute;
+  z-index:0;
+  inset:0;
+  background:
+    linear-gradient(90deg,rgba(0,0,0,.6),transparent 18% 82%,rgba(0,0,0,.6)),
+    radial-gradient(circle at 50% 50%,rgba(255,112,39,.18),transparent 36%),
+    linear-gradient(180deg,rgba(255,255,255,.025),transparent 22% 78%,rgba(0,0,0,.32));
+  border:0;
+  box-shadow:none;
+  filter:none;
+  clip-path:none;
+}
+.battle-ui-v7 .official-playmat:before{
+  content:"";
+  position:absolute;
+  inset:0;
+  opacity:.26;
+  background-image:
+    linear-gradient(30deg,rgba(255,255,255,.035) 12%,transparent 12.5%,transparent 87%,rgba(255,255,255,.035) 87.5%),
+    linear-gradient(150deg,rgba(255,255,255,.035) 12%,transparent 12.5%,transparent 87%,rgba(255,255,255,.035) 87.5%);
+  background-size:72px 126px;
+  pointer-events:none;
+}
+.battle-ui-v7 .official-playmat:after{background:radial-gradient(circle at 50% 48%,rgba(255,164,74,.16),transparent 33%),linear-gradient(180deg,rgba(0,0,0,.08),transparent 15% 82%,rgba(0,0,0,.46))}
+
+/* Playmat-like opponent shelf at the top edge. */
+.battle-ui-v7 .opponent-table-row{
+  top:86px;
+  left:18px;
+  right:18px;
+  height:112px;
+  grid-template-columns:74px minmax(120px,.58fr) minmax(320px,1.35fr) 82px;
+  gap:8px;
+  padding:6px 9px;
+  background:linear-gradient(180deg,rgba(3,7,9,.88),rgba(20,6,5,.52));
+  border-color:rgba(154,57,47,.62);
+  backdrop-filter:blur(5px);
+}
+.battle-ui-v7 .card-pile{width:54px;height:80px}
+.battle-ui-v7 .opponent-hand{height:82px}
+.battle-ui-v7 .mini-card-back{width:52px;height:78px}
+.battle-ui-v7 .opponent-roster article{height:78px;grid-template-columns:46px minmax(0,1fr)}
+.battle-ui-v7 .opponent-roster img{width:46px;height:70px}
+
+/* Radius-four grid: one full extra perimeter around the former field. */
+.battle-ui-v7 .hex-arena{
+  position:absolute;
+  z-index:4;
+  left:50%;
+  top:51%;
+  width:840px;
+  height:610px;
+  transform:translate(-50%,-50%);
+}
+.battle-ui-v7 .field-hex,.battle-ui-v7 .battle-core-field.axial button{
+  --hex-w:70px;
+  --hex-h:61px;
+  left:calc(50% + (var(--q) * 52.5px));
+  top:calc(50% + (var(--q) * 30.5px) + (var(--r) * 61px));
+  width:var(--hex-w);
+  height:var(--hex-h);
+}
+.battle-ui-v7 .field-hex{
+  background:linear-gradient(145deg,rgba(255,105,52,.085),rgba(0,0,0,.14));
+  box-shadow:inset 0 0 0 1px rgba(255,202,154,.27),0 0 9px rgba(255,61,25,.035);
+}
+.battle-ui-v7 .field-hex:nth-child(2n){background:linear-gradient(145deg,rgba(255,157,83,.055),rgba(0,0,0,.17))}
+.battle-ui-v7 .battle-core-field.axial button{filter:drop-shadow(0 6px 7px rgba(0,0,0,.85))}
+.battle-ui-v7 .active-brawler{width:132px;padding:6px}
+.battle-ui-v7 .active-brawler.foe{right:6%;top:24%}
+.battle-ui-v7 .active-brawler.me{left:6%;bottom:25%}
+.battle-ui-v7 .active-brawler>img{height:86px}
+
+/* Player team and interaction prompt sit on the lower playmat edge. */
+.battle-ui-v7 .player-roster{left:14px;bottom:12px;grid-template-columns:repeat(3,142px);gap:7px}
+.battle-ui-v7 .player-roster button{width:142px;height:94px;grid-template-columns:62px 1fr}
+.battle-ui-v7 .player-roster img{width:62px;height:84px}
+.battle-ui-v7 .table-context{bottom:188px;max-width:410px;padding:.5rem .8rem}
+
+/* Hero and the requested hand/deck/discard/energy counters float at bottom right. */
+.battle-ui-v7 .board-hero-zone{
+  position:absolute;
+  z-index:18;
+  right:14px;
+  bottom:82px;
+  width:82px;
+  height:112px;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  background:linear-gradient(155deg,rgba(6,10,12,.96),rgba(42,10,8,.9));
+  border:1px solid #7a3028;
+  box-shadow:0 10px 22px rgba(0,0,0,.58);
+  clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+}
+.battle-ui-v7 .board-hero-zone label{position:absolute;z-index:2;left:4px;top:4px;padding:2px 3px;background:rgba(0,0,0,.78);font-size:.42rem;font-weight:900}
+.battle-ui-v7 .board-hero-zone img{width:100%;height:100%;object-fit:contain}
+.battle-ui-v7 .board-hero-zone>span{font-size:.46rem;color:#77858b;font-weight:900}
+.battle-ui-v7 .board-hero-zone b{position:absolute;right:4px;bottom:4px;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#050809;border:1px solid #fff;font-size:.58rem}
+.battle-ui-v7 .floating-counters{
+  position:absolute;
+  z-index:22;
+  right:12px;
+  bottom:12px;
+  display:flex;
+  align-items:flex-end;
+  gap:5px;
+  pointer-events:none;
+}
+.battle-ui-v7 .floating-counters article{
+  min-width:64px;
+  height:58px;
+  display:grid;
+  align-content:center;
+  justify-items:center;
+  padding:5px 8px;
+  background:linear-gradient(155deg,rgba(5,10,12,.94),rgba(38,9,7,.9));
+  border:1px solid #713028;
+  box-shadow:0 9px 19px rgba(0,0,0,.62);
+  clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);
+}
+.battle-ui-v7 .floating-counters span{color:#aab7bc;font-size:.42rem;font-weight:900;letter-spacing:.08em}
+.battle-ui-v7 .floating-counters strong{margin-top:2px;color:#fff;font-size:1.25rem;line-height:1}
+.battle-ui-v7 .floating-counters .energy-counter{min-width:82px;border-color:#b64a3a}
+.battle-ui-v7 .floating-counters .energy-counter strong{color:#ffb08e}
+
+/* Right rail is now reserved for combat state and the batch. */
+.battle-ui-v7 .battle-right-column{padding-top:84px}
+.battle-ui-v7 .combat-preview{flex:0 0 auto}
+.battle-ui-v7 .batch-panel{flex:1;max-height:none;min-height:150px}
+.battle-ui-v7 .batch-panel>div{max-height:calc(100% - 46px)}
+
+/* Floating, fanned hand. There is intentionally no bottom dock background. */
+.battle-ui-v7 .hand-dock,
+.battle-ui-v7 .hand-dock.has-inspector{
+  position:absolute;
+  z-index:42;
+  left:50%;
+  bottom:4px;
+  width:clamp(520px,43vw,760px);
+  height:198px;
+  display:block;
+  transform:translateX(-50%);
+  padding:0;
+  overflow:visible;
+  background:none;
+  border:0;
+  box-shadow:none;
+  pointer-events:none;
+}
+.battle-ui-v7 .hand-label{display:none}
+.battle-ui-v7 .hand-fan{
+  position:absolute;
+  left:50%;
+  bottom:0;
+  width:max-content;
+  max-width:none;
+  height:168px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:visible;
+  padding:0 18px;
+  transform:translateX(-50%);
+  pointer-events:auto;
+}
+.battle-ui-v7 .hand-fan button{
+  position:relative;
+  width:112px;
+  height:158px;
+  flex:0 0 112px;
+  margin-left:-29px;
+  padding:0;
+  border:0;
+  background:none;
+  transform:translateX(var(--fan-shift,0)) translateY(var(--fan-lift,0)) rotate(var(--fan-angle,0deg));
+  transform-origin:50% 100%;
+  filter:drop-shadow(0 9px 7px rgba(0,0,0,.9));
+  transition:transform .16s ease,filter .16s ease,opacity .16s ease;
+}
+.battle-ui-v7 .hand-fan button:first-child{margin-left:0}
+.battle-ui-v7 .hand-fan button.available:hover,.battle-ui-v7 .hand-fan button.selected{
+  z-index:20;
+  transform:translateX(var(--fan-shift,0)) translateY(-24px) rotate(0deg) scale(1.08);
+  filter:drop-shadow(0 0 15px #ff673e) drop-shadow(0 10px 8px #000);
+}
+.battle-ui-v7 .hand-fan button.unavailable{opacity:.58;filter:saturate(.52) brightness(.72) drop-shadow(0 8px 7px #000)}
+.battle-ui-v7 .hand-fan button.unavailable:hover{z-index:18;opacity:.86;transform:translateX(var(--fan-shift,0)) translateY(-16px) rotate(0deg) scale(1.04)}
+.battle-ui-v7 .hand-fan img{width:100%;height:100%;object-fit:contain}
+.battle-ui-v7 .table-actions{
+  position:absolute;
+  left:50%;
+  bottom:164px;
+  width:max-content;
+  max-width:90vw;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.45rem;
+  transform:translateX(-50%);
+  pointer-events:auto;
+}
+.battle-ui-v7 .table-actions .hex-button{min-width:138px;min-height:38px;padding:.48rem .85rem;font-size:.58rem}
+.battle-ui-v7 .hand-inspector{
+  position:absolute;
+  left:-240px;
+  bottom:27px;
+  width:224px;
+  min-height:122px;
+  display:flex;
+  padding:.8rem;
+  border:1px solid #6f2a24;
+  background:linear-gradient(145deg,rgba(27,7,6,.96),rgba(3,8,10,.94));
+  box-shadow:0 12px 25px rgba(0,0,0,.72);
+  clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+  pointer-events:none;
+}
+.battle-ui-v7 .hand-inspector>strong{font-size:.86rem}
+.battle-ui-v7 .hand-inspector p{font-size:.59rem}
+
+/* The placement view uses the same non-bitmap field and the expanded radius-four matrix. */
+.tabletop-placement .matrix-panel{
+  min-height:700px;
+  background:
+    radial-gradient(circle at 50% 49%,rgba(242,80,30,.42),transparent 33%),
+    linear-gradient(125deg,#40100b,#10171b 45%,#4d130c);
+  border-color:#a83a30;
+  box-shadow:inset 0 0 80px #000,0 20px 50px rgba(0,0,0,.45);
+}
+.tabletop-placement .matrix-heading{color:#fff}
+.tabletop-placement .matrix-heading .eyebrow{color:#ffb18f}
+.tabletop-placement .matrix-legend{color:#fff}
+.tabletop-placement .hex-matrix{width:760px;height:650px;top:54%}
+.tabletop-placement .matrix-cell{
+  --hex-w:66px;
+  --hex-h:57px;
+  left:calc(50% + (var(--q) * 49.5px));
+  top:calc(50% + (var(--q) * 28.5px) + (var(--r) * 57px));
+  width:var(--hex-w);
+  height:var(--hex-h);
+  background:rgba(255,91,44,.055);
+  outline-color:rgba(255,220,192,.2);
+}
+.tabletop-placement .matrix-cell:not(.occupied):not(.legal){box-shadow:inset 0 0 0 1px rgba(255,210,176,.08)}
+
+@media(max-width:1550px){
+  .battle-ui-v7 .battle-layout{grid-template-columns:218px minmax(650px,1fr) 260px;gap:8px;padding:8px}
+  .battle-ui-v7 .battle-topbar{width:clamp(600px,47vw,710px)}
+  .battle-ui-v7 .hex-arena{transform:translate(-50%,-50%) scale(.9)}
+  .battle-ui-v7 .opponent-table-row{grid-template-columns:66px 112px 1fr 74px}
+  .battle-ui-v7 .player-roster{grid-template-columns:repeat(3,128px)}
+  .battle-ui-v7 .player-roster button{width:128px;grid-template-columns:56px 1fr}
+  .battle-ui-v7 .player-roster img{width:56px}
+  .battle-ui-v7 .hand-dock,.battle-ui-v7 .hand-dock.has-inspector{width:clamp(500px,42vw,680px)}
+  .battle-ui-v7 .hand-fan button{width:102px;height:148px;flex-basis:102px;margin-left:-27px}
+  .battle-ui-v7 .hand-fan{height:158px}
+  .battle-ui-v7 .table-actions{bottom:154px}
+  .battle-ui-v7 .table-context{bottom:178px}
+  .battle-ui-v7 .hand-inspector{left:-214px;width:202px}
+  .battle-ui-v7 .floating-counters article{min-width:58px}
+  .battle-ui-v7 .floating-counters .energy-counter{min-width:74px}
+}
+
+@media(max-width:1220px){
+  .battle-ui-v7{min-width:1080px}
+  .battle-ui-v7 .battle-layout{grid-template-columns:190px minmax(630px,1fr) 238px}
+  .battle-ui-v7 .battle-topbar{width:610px}
+  .battle-ui-v7 .major-phase-track i{min-width:49px}
+  .battle-ui-v7 .battle-right-column{padding-top:82px}
+  .battle-ui-v7 .hex-arena{transform:translate(-50%,-50%) scale(.82)}
+  .battle-ui-v7 .active-brawler.foe{right:2%}
+  .battle-ui-v7 .active-brawler.me{left:2%}
+  .battle-ui-v7 .player-roster{grid-template-columns:repeat(3,116px)}
+  .battle-ui-v7 .player-roster button{width:116px;height:88px;grid-template-columns:50px 1fr}
+  .battle-ui-v7 .player-roster img{width:50px;height:78px}
+  .battle-ui-v7 .floating-counters{gap:3px}
+  .battle-ui-v7 .floating-counters article{min-width:52px;padding:4px 6px}
+  .battle-ui-v7 .floating-counters .energy-counter{min-width:68px}
+  .battle-ui-v7 .board-hero-zone{width:72px;height:100px}
+  .battle-ui-v7 .hand-dock,.battle-ui-v7 .hand-dock.has-inspector{width:590px}
+  .battle-ui-v7 .hand-inspector{display:none}
+}
+
+@media(max-width:850px){
+  .tabletop-placement .hex-matrix{transform:translate(-50%,-50%) scale(.86)}
+}
+
+/* Keep all four resource counters clear of the floating hand. */
+.battle-ui-v7 .floating-counters{display:grid;grid-template-columns:repeat(2,64px);align-items:stretch}
+.battle-ui-v7 .floating-counters article,.battle-ui-v7 .floating-counters .energy-counter{min-width:0;width:64px}
+.battle-ui-v7 .board-hero-zone{bottom:142px}

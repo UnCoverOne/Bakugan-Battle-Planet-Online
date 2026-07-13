@@ -153,10 +153,11 @@ export type MatchState = {
   log: { id: string; at: number; kind: "game" | "random" | "system" | "connection"; message: string }[];
 };
 
-// Radius-three axial board: a true hexagon containing 37 legal cells.
-export const HEX_CELLS = Array.from({ length: 7 }, (_, qIndex) => qIndex - 3).flatMap((q) =>
-  Array.from({ length: 7 }, (_, rIndex) => rIndex - 3)
-    .filter((r) => Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r)) <= 3)
+// Radius-four axial board: a true hexagon containing 61 legal cells.
+// Existing radius-three cell IDs stay stable so saved matches remain compatible.
+export const HEX_CELLS = Array.from({ length: 9 }, (_, qIndex) => qIndex - 4).flatMap((q) =>
+  Array.from({ length: 9 }, (_, rIndex) => rIndex - 4)
+    .filter((r) => Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r)) <= 4)
     .map((r) => ({ id: `h${q + 3}-${r + 3}`, q, r })),
 );
 export const CENTER_CELL = "h3-3";

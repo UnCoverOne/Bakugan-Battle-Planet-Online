@@ -40,7 +40,7 @@ test("the complete supplied Battle Planet catalogue is normalized and playable",
 });
 
 test("the Hide Matrix is a radius-three axial hex and placement remains connected", () => {
-  assert.equal(HEX_CELLS.length, 37); assert.ok(HEX_CELLS.some((cell) => cell.id === CENTER_CELL && cell.q === 0 && cell.r === 0));
+  assert.equal(HEX_CELLS.length, 61); assert.ok(HEX_CELLS.some((cell) => cell.id === CENTER_CELL && cell.q === 0 && cell.r === 0));
   const state = buildPlacedMatch(); assert.equal(state.placements[0].cell, CENTER_CELL); assert.equal(state.placements.length, 12); assert.equal(state.phase, "energize");
   for (let index = 1; index < state.placements.length; index += 1) {
     const current = HEX_CELLS.find((cell) => cell.id === state.placements[index].cell)!;

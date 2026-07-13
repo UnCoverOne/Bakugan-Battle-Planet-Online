@@ -404,11 +404,6 @@ function FullMatchScreen({ match, playerId, faction, error, logFilter, setLogFil
     : match.phase === "damage" ? `${match.pendingDamage} damage remaining` : match.stepLabel;
   return <section className="table-match battle-ui-v7" data-faction={faction.toLowerCase()}>
     <header className="table-phasebar battle-topbar">
-      <section className="top-player-card opponent" aria-label="Opponent status">
-        <div className="identity-portrait"><img src={foeBakugan?.art ?? foe.bakugan[0]?.art} alt="" /><img className="identity-faction" src={`/assets/${foeFaction.toLowerCase()}.png`} alt={`${foeFaction} faction`} /></div>
-        <div className="identity-copy"><small>OPPONENT • {foe.connected ? "CONNECTED" : "RECONNECTING"}</small><strong>{foe.name}</strong><span>{foeFaction} Brawler</span></div>
-        <div className="round-score"><span>ROUNDS WON</span><strong>{foeScore}/{roundTarget}</strong></div>
-      </section>
       <section className="phase-command">
         <span className="phase-kicker">{majorPhase} PHASE • {match.stepLabel}</span>
         <h1>{phaseTitle[match.phase] ?? match.stepLabel}</h1>
@@ -420,6 +415,11 @@ function FullMatchScreen({ match, playerId, faction, error, logFilter, setLogFil
 
     <main className="tabletop battle-layout">
       <aside className="battle-left-column">
+        <section className="rail-card top-player-card opponent-profile" aria-label="Opponent status">
+          <div className="identity-portrait"><img src={foeBakugan?.art ?? foe.bakugan[0]?.art} alt="" /><img className="identity-faction" src={`/assets/${foeFaction.toLowerCase()}.png`} alt={`${foeFaction} faction`} /></div>
+          <div className="identity-copy"><small>OPPONENT • {foe.connected ? "CONNECTED" : "RECONNECTING"}</small><strong>{foe.name}</strong><span>{foeFaction} Brawler</span></div>
+          <div className="round-score"><span>ROUNDS WON</span><strong>{foeScore}/{roundTarget}</strong></div>
+        </section>
         <section className={`rail-card table-log ${logOpen ? "open" : "closed"}`}>
           <button className="table-panel-title" onClick={() => setLogOpen((open) => !open)}>EVENT LOG <span>{logOpen ? "−" : "+"}</span></button>
           {logOpen && <><select value={logFilter} onChange={(event) => setLogFilter(event.target.value)}><option value="all">Player events</option><option value="game">Gameplay</option><option value="system">System</option><option value="connection">Connection</option></select><div>{filteredLog.slice(-9).reverse().map((item) => <p className={item.kind} key={item.id}><time>{new Date(item.at).toLocaleTimeString([], { minute:"2-digit", second:"2-digit" })}</time>{item.message}</p>)}</div></>}
@@ -451,6 +451,14 @@ function FullMatchScreen({ match, playerId, faction, error, logFilter, setLogFil
 
         <section className="player-roster" aria-label="Your Bakugan">{me.bakugan.map((bakugan) => <button key={bakugan.id} className={`${match.selected[playerId] === bakugan.id ? "active" : ""} ${bakugan.open ? "open" : "closed"}`} disabled={match.phase !== "selection" || bakugan.open || !!match.selected[playerId]} onClick={() => command("select", { bakuganId: bakugan.id }, (state) => selectBakugan(state, playerId, bakugan.id))}><img src={bakugan.art} alt={bakugan.name} /><span><strong>{bakugan.name}</strong><small>{bakugan.bPower}B • {bakugan.damage}D</small><em>{match.selected[playerId] === bakugan.id ? "BRAWLING" : bakugan.open ? "OPEN" : "CLOSED"}</em></span></button>)}</section>
         <section className={`table-context ${myTurn ? "is-yours" : "is-waiting"}`} aria-live="polite"><span className="eyebrow">{myTurn ? "YOUR ACTION" : "OPPONENT ACTION"}</span><strong>{activeInstruction}</strong>{error && <small className="error-message">{error}</small>}</section>
+
+        <article className="board-hero-zone" aria-label="Your Hero zone"><label>HERO ZONE</label>{me.heroes.at(-1) ? <img src={me.heroes.at(-1)!.art} alt={me.heroes.at(-1)!.name} /> : <span>EMPTY</span>}<b>{me.heroes.length}</b></article>
+        <section className="floating-counters" aria-label="Your card and energy counts">
+          <article><span>HAND</span><strong>{me.hand.length}</strong></article>
+          <article><span>DECK</span><strong>{me.deck}</strong></article>
+          <article><span>DISCARD</span><strong>{me.discard.length}</strong></article>
+          <article className="energy-counter"><span>ENERGY</span><strong>{me.energy}/{me.maxEnergy}</strong></article>
+        </section>
       </section>
 
       <aside className="battle-right-column">
@@ -458,18 +466,11 @@ function FullMatchScreen({ match, playerId, faction, error, logFilter, setLogFil
 
         <section className="rail-card batch-panel"><header><span>BATCH</span><b>{match.batch.length}</b></header>{match.batch.length ? <div>{[...match.batch].reverse().map((item, index) => <article key={item.id}><span>{index + 1}</span><img src={item.card.art} alt={item.card.name} /><div><strong>{item.card.name}</strong><small>{index === 0 ? "RESOLVES NEXT" : "WAITING"}</small></div></article>)}</div> : <p>No cards or abilities are waiting to resolve.</p>}</section>
 
-        <section className="zone-panel" aria-label="Your public zones">
-          <article className="hero-zone"><label>HERO ZONE</label>{me.heroes.at(-1) ? <img src={me.heroes.at(-1)!.art} alt={me.heroes.at(-1)!.name} /> : <span>EMPTY</span>}<b>{me.heroes.length}</b></article>
-          <article className="small-pile"><label>DISCARD</label>{me.discard.at(-1) ? <img src={me.discard.at(-1)!.art} alt="Top of discard pile" /> : <span>EMPTY</span>}<b>{me.discard.length}</b></article>
-          <article className="small-pile card-back"><label>DECK</label><span>CARD STACK</span><b>{me.deck}</b></article>
-          <article className="energy-zone"><img src="/assets/symbols/energy.png" alt="" /><div><label>ENERGY</label><strong>{me.energy}/{me.maxEnergy}</strong><span>{me.energy} charged • {Math.max(0, me.maxEnergy - me.energy)} spent</span></div></article>
-        </section>
       </aside>
     </main>
 
     <footer className={`hand-dock ${focusedCard ? "has-inspector" : ""}`}>
-      <div className="hand-label"><span className="eyebrow">HAND</span><strong>{me.hand.length}</strong><small>{match.phase === "energize" ? "Choose a card to energize" : match.phase === "handLimit" ? "Choose cards to discard" : myTurn ? "Playable cards are illuminated" : "Review your options"}</small></div>
-      <div className="hand-fan">{me.hand.map((card, index) => { const available = canChooseHand(card); return <button key={card.id} className={`${pendingCardId === card.id || limitCards.includes(card.id) ? "selected" : ""} ${available ? "available" : "unavailable"}`} style={{ "--hand-index": index, "--hand-count": me.hand.length } as React.CSSProperties} aria-disabled={!available} onMouseEnter={() => setFocusedCardId(card.id)} onMouseLeave={() => setFocusedCardId("")} onFocus={() => setFocusedCardId(card.id)} onBlur={() => setFocusedCardId("")} onClick={() => chooseHandCard(card)} title={`${card.name} • ${card.cost} Energy • ${card.effect}`}><img src={card.art} alt={card.name} />{pendingCardId === card.id && <span className="hand-card-state">SELECTED</span>}{!available && <i className="card-lock">{typeof card.cost === "number" && card.cost > me.energy ? `${card.cost} ENERGY` : "NOT LEGAL"}</i>}</button>; })}</div>
+      <div className="hand-fan">{me.hand.map((card, index) => { const available = canChooseHand(card); const fanOffset = index - (me.hand.length - 1) / 2; return <button key={card.id} className={`${pendingCardId === card.id || limitCards.includes(card.id) ? "selected" : ""} ${available ? "available" : "unavailable"}`} style={{ "--fan-angle": `${fanOffset * 3.4}deg`, "--fan-lift": `${Math.abs(fanOffset) * 5}px`, "--fan-shift": `${fanOffset * 3}px` } as React.CSSProperties} aria-disabled={!available} onMouseEnter={() => setFocusedCardId(card.id)} onMouseLeave={() => setFocusedCardId("")} onFocus={() => setFocusedCardId(card.id)} onBlur={() => setFocusedCardId("")} onClick={() => chooseHandCard(card)} title={`${card.name} • ${card.cost} Energy • ${card.effect}`}><img src={card.art} alt={card.name} />{pendingCardId === card.id && <span className="hand-card-state">SELECTED</span>}{!available && <i className="card-lock">{typeof card.cost === "number" && card.cost > me.energy ? `${card.cost} ENERGY` : "NOT LEGAL"}</i>}</button>; })}</div>
       {focusedCard && <aside className="hand-inspector visible" aria-live="polite"><div><Badge tone={affordability(focusedCard) ? "gold" : "red"}>{focusedCard.cost} ENERGY</Badge><small>{focusedCard.type}</small></div><strong>{focusedCard.name}</strong><p>{focusedCard.effect || "No printed effect."}</p></aside>}
       <div className="table-actions">
         {match.phase === "energize" && !me.energizedThisTurn && <AppButton tone="ghost" onClick={() => command("energize", {}, (state) => energizeCard(state, playerId))}>SKIP ENERGIZE</AppButton>}
