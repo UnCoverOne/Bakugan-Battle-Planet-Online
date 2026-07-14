@@ -8,10 +8,10 @@ import {
   type CardChoices, type CoreType, type GameCard, type MatchState,
 } from "../lib/game";
 import { BAKUGAN, CARDS, CORES, RULE_ENTRIES, STARTER_DECKS, deckErrors, deckIsLegal, makePlayer, type DeckFormat, type DeckRecord } from "../lib/data";
+import { mergeSnapshots, normalizeSnapshot, type AppRoute as Route, type AppSettings, type BrawlerProfile as Profile, type MatchResultRecord as ResultRecord, type UserSnapshot } from "../lib/persistence";
 
-type Route = "entry" | "dashboard" | "decks" | "builder" | "compendium" | "play" | "lobby" | "placement" | "match" | "result" | "history" | "profile" | "settings";
-type Profile = { name: string; faction: string; signedIn: boolean };
-type ResultRecord = { id: string; result: string; opponent: string; score: string; reason: string; at: string; log: MatchState["log"] };
+type AuthUser = { id: string; email: string; displayName: string; faction: string; createdAt: number };
+type SyncStatus = "checking" | "local" | "loading" | "saving" | "synced" | "offline" | "error";
 
 const NAV: { route: Route; label: string; key: string }[] = [
   { route: "dashboard", label: "Dashboard", key: "01" }, { route: "play", label: "Play", key: "02" },
@@ -31,15 +31,22 @@ const CORE_BACK_ART: Record<CoreType, string> = {
 
 function useStoredState<T>(key: string, initial: T) {
   const [value, setValue] = useState<T>(initial);
-  const loaded = useRef(false);
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    let saved: T | null = null;
-    try { const raw = localStorage.getItem(key); if (raw) saved = JSON.parse(raw); } catch {}
-    const id = window.setTimeout(() => { if (saved) setValue(saved); loaded.current = true; }, 0);
+    const id = window.setTimeout(() => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) setValue(JSON.parse(raw) as T);
+      } catch {}
+      setReady(true);
+    }, 0);
     return () => window.clearTimeout(id);
   }, [key]);
-  useEffect(() => { if (loaded.current) localStorage.setItem(key, JSON.stringify(value)); }, [key, value]);
-  return [value, setValue] as const;
+  useEffect(() => {
+    if (!ready) return;
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  }, [key, ready, value]);
+  return [value, setValue, ready] as const;
 }
 
 function AppButton({ children, onClick, tone = "blue", disabled = false, type = "button", title }: { children: React.ReactNode; onClick?: () => void; tone?: "blue" | "red" | "gold" | "ghost"; disabled?: boolean; type?: "button" | "submit"; title?: string }) {
@@ -58,15 +65,17 @@ function CardArt({ card, small = false, onClick, selected = false }: { card: typ
   return <button className={`card-art ${small ? "small" : ""} ${selected ? "selected" : ""}`} onClick={onClick} title={`${card.name}: ${card.effect}`}><img src={card.art} alt={card.name} /><span>{card.name}</span></button>;
 }
 
-function Shell({ route, setRoute, profile, children, match }: { route: Route; setRoute: (r: Route) => void; profile: Profile; children: React.ReactNode; match: MatchState | null }) {
+function Shell({ route, setRoute, profile, authUser, syncStatus, children, match }: { route: Route; setRoute: (r: Route) => void; profile: Profile; authUser: AuthUser | null; syncStatus: SyncStatus; children: React.ReactNode; match: MatchState | null }) {
   const immersiveMatch = route === "match";
+  const syncLabel = authUser ? (syncStatus === "saving" ? "Saving…" : syncStatus === "synced" ? "Cloud synced" : syncStatus === "offline" ? "Offline • queued" : syncStatus === "error" ? "Sync issue" : "Connecting…") : "Saved on this device";
   return <div className={`app-shell ${immersiveMatch ? "immersive-match" : ""}`}>
     {!immersiveMatch && <header className="topbar">
       <button className="brand" onClick={() => setRoute("dashboard")} aria-label="Bakugan Battle Planet Online dashboard"><img src="/assets/logo.png" alt="Bakugan Battle Planet" /><span>TCG ONLINE</span></button>
       <nav aria-label="Primary navigation">{NAV.map((item) => <button key={item.route} className={route === item.route ? "active" : ""} onClick={() => setRoute(item.route)}><i>{item.key}</i>{item.label}</button>)}</nav>
       <div className="top-actions">
         {match && !["result"].includes(match.phase) && <button className="resume-chip" onClick={() => setRoute(match.phase === "placement" ? "placement" : match.phase === "lobby" ? "lobby" : "match")}><span className="pulse" /> Resume match</button>}
-        <button className="profile-chip" onClick={() => setRoute("profile")}><span>{profile.name.slice(0, 2).toUpperCase()}</span><div>{profile.name}<small>{profile.faction} Brawler</small></div></button>
+        <span className={`sync-chip ${syncStatus}`} title={authUser ? `Signed in as ${authUser.email}` : "Guest data is stored in this browser"}><i>{authUser ? "☁" : "▣"}</i>{syncLabel}</span>
+        <button className="profile-chip" onClick={() => setRoute("profile")}><span>{profile.name.slice(0, 2).toUpperCase()}</span><div>{profile.name}<small>{profile.faction} • {authUser ? "Account" : "Local"}</small></div></button>
         <button className="menu-button" onClick={() => setRoute("settings")} aria-label="Settings">☰</button>
       </div>
     </header>}
@@ -79,30 +88,296 @@ function PageHeader({ eyebrow, title, copy, art, actions }: { eyebrow: string; t
 }
 
 export default function Home() {
-  const [route, setRoute] = useState<Route>("entry");
-  const [profile, setProfile] = useStoredState<Profile>("bbp-profile", { name: "DanBrawler", faction: "Pyrus", signedIn: false });
-  const [decks, setDecks] = useStoredState<DeckRecord[]>("bbp-decks-complete-set-v4", STARTER_DECKS);
-  const [history, setHistory] = useStoredState<ResultRecord[]>("bbp-history", []);
-  const [settings, setSettings] = useStoredState("bbp-settings", { reducedMotion: false, highContrast: false, sound: true, cardScale: 100, logDetail: "All events", challenges: "Everyone" });
-  const [selectedDeckId, setSelectedDeckId] = useState("deck-pyrus");
-  const [builderDeck, setBuilderDeck] = useState<DeckRecord | null>(null);
-  const [deckQuery, setDeckQuery] = useState("");
-  const [compendiumQuery, setCompendiumQuery] = useState("");
-  const [compendiumTab, setCompendiumTab] = useState<"cards" | "rules" | "rulings">("cards");
-  const [format, setFormat] = useState<"bo1" | "bo3">("bo1");
-  const [matchMode, setMatchMode] = useState<"solo" | "online" | "join">("solo");
-  const [joinCode, setJoinCode] = useState("");
-  const [match, setMatch] = useState<MatchState | null>(null);
-  const [online, setOnline] = useState(false);
+  const defaultSettings: AppSettings = { reducedMotion: false, highContrast: false, sound: true, cardScale: 100, logDetail: "All events", challenges: "Everyone" };
+  const [route, setRoute, routeReady] = useStoredState<Route>("bbp-route-v1", "entry");
+  const [profile, setProfile, profileReady] = useStoredState<Profile>("bbp-profile", { name: "DanBrawler", faction: "Pyrus", signedIn: false });
+  const [decks, setDecks, decksReady] = useStoredState<DeckRecord[]>("bbp-decks-complete-set-v4", STARTER_DECKS);
+  const [history, setHistory, historyReady] = useStoredState<ResultRecord[]>("bbp-history", []);
+  const [settings, setSettings, settingsReady] = useStoredState<AppSettings>("bbp-settings", defaultSettings);
+  const [selectedDeckId, setSelectedDeckId, selectedDeckReady] = useStoredState("bbp-selected-deck-v1", "deck-pyrus");
+  const [builderDeck, setBuilderDeck, builderReady] = useStoredState<DeckRecord | null>("bbp-builder-draft-v1", null);
+  const [deckQuery, setDeckQuery, deckQueryReady] = useStoredState("bbp-deck-query-v1", "");
+  const [compendiumQuery, setCompendiumQuery, compendiumQueryReady] = useStoredState("bbp-compendium-query-v1", "");
+  const [compendiumTab, setCompendiumTab, compendiumTabReady] = useStoredState<"cards" | "rules" | "rulings">("bbp-compendium-tab-v1", "cards");
+  const [format, setFormat, formatReady] = useStoredState<"bo1" | "bo3">("bbp-match-format-v1", "bo1");
+  const [matchMode, setMatchMode, matchModeReady] = useStoredState<"solo" | "online" | "join">("bbp-match-mode-v1", "solo");
+  const [joinCode, setJoinCode, joinCodeReady] = useStoredState("bbp-join-code-v1", "");
+  const [match, setMatch, matchReady] = useStoredState<MatchState | null>("bbp-active-match-v1", null);
+  const [online, setOnline, onlineReady] = useStoredState("bbp-active-match-online-v1", false);
+  const [selectedCore, setSelectedCore, selectedCoreReady] = useStoredState("bbp-selected-core-v1", "");
+  const [logFilter, setLogFilter, logFilterReady] = useStoredState("bbp-log-filter-v1", "all");
+  const [replay, setReplay, replayReady] = useStoredState<ResultRecord | null>("bbp-open-replay-v1", null);
+  const [replayIndex, setReplayIndex, replayIndexReady] = useStoredState("bbp-replay-index-v1", 0);
+  const [playerId, setPlayerId, playerIdReady] = useStoredState("bbp-player-id", "player");
+  const [localModifiedAt, setLocalModifiedAt, modifiedReady] = useStoredState("bbp-local-modified-at-v1", 0);
   const [matchError, setMatchError] = useState("");
-  const [selectedCore, setSelectedCore] = useState("");
-  const [logFilter, setLogFilter] = useState("all");
-  const [replay, setReplay] = useState<ResultRecord | null>(null);
-  const [replayIndex, setReplayIndex] = useState(0);
   const [toast, setToast] = useState("");
-  const [playerId] = useState(() => typeof window === "undefined" ? "player" : (localStorage.getItem("bbp-player-id") || uid()));
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("checking");
+  const [cloudRevision, setCloudRevision] = useState(0);
+  const [cloudReady, setCloudReady] = useState(false);
+  const snapshotRef = useRef<UserSnapshot | null>(null);
+  const authBooted = useRef(false);
+  const dirtyStarted = useRef(false);
+  const applyingSnapshot = useRef(false);
+  const cloudRevisionRef = useRef(0);
+  const lastSyncedModifiedAt = useRef(-1);
 
-  useEffect(() => { if (typeof window !== "undefined") localStorage.setItem("bbp-player-id", playerId); }, [playerId]);
+  const persistenceReady = [routeReady, profileReady, decksReady, historyReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, selectedCoreReady, logFilterReady, replayReady, replayIndexReady, playerIdReady, modifiedReady].every(Boolean);
+
+  const currentSnapshot: UserSnapshot = {
+    schemaVersion: 1,
+    updatedAt: localModifiedAt,
+    profile,
+    decks: decks.slice(0, 50),
+    history: history.slice(0, 200),
+    settings,
+    route,
+    selectedDeckId,
+    builderDeck,
+    deckQuery,
+    compendiumQuery,
+    compendiumTab,
+    format,
+    matchMode,
+    joinCode,
+    match,
+    online,
+    selectedCore,
+    logFilter,
+    replay,
+    replayIndex,
+    playerId,
+  };
+  useEffect(() => { snapshotRef.current = currentSnapshot; cloudRevisionRef.current = cloudRevision; });
+
+  const applyUserSnapshot = (incoming: UserSnapshot, forceEntered = false) => {
+    const fallback = snapshotRef.current ?? currentSnapshot;
+    const next = normalizeSnapshot(incoming, fallback);
+    applyingSnapshot.current = true;
+    setProfile({ ...next.profile, signedIn: forceEntered ? true : next.profile.signedIn });
+    setDecks(next.decks);
+    setHistory(next.history);
+    setSettings(next.settings);
+    setRoute(forceEntered && next.route === "entry" ? "dashboard" : next.route);
+    setSelectedDeckId(next.selectedDeckId);
+    setBuilderDeck(next.builderDeck);
+    setDeckQuery(next.deckQuery);
+    setCompendiumQuery(next.compendiumQuery);
+    setCompendiumTab(next.compendiumTab);
+    setFormat(next.format);
+    setMatchMode(next.matchMode);
+    setJoinCode(next.joinCode);
+    setMatch(next.match);
+    setOnline(next.online);
+    setSelectedCore(next.selectedCore);
+    setLogFilter(next.logFilter);
+    setReplay(next.replay);
+    setReplayIndex(next.replayIndex);
+    setPlayerId(next.playerId);
+    setLocalModifiedAt(next.updatedAt);
+    window.setTimeout(() => { applyingSnapshot.current = false; }, 80);
+  };
+
+  const putCloudSnapshot = async (snapshot: UserSnapshot, expectedRevision: number) => {
+    const response = await fetch("/api/user-data", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedRevision, data: snapshot }) });
+    const data = await response.json() as { revision?: number; updatedAt?: number; data?: UserSnapshot | null; error?: string };
+    if (!response.ok) {
+      if (response.status === 409 && data.data) {
+        const remote = normalizeSnapshot(data.data, snapshot);
+        const merged = { ...mergeSnapshots(snapshot, remote), updatedAt: Date.now() };
+        setCloudRevision(data.revision ?? expectedRevision);
+        applyUserSnapshot(merged, true);
+        window.setTimeout(() => setLocalModifiedAt(Date.now()), 140);
+        return { ...data, conflict: true };
+      }
+      throw new Error(data.error ?? "Could not save cloud data.");
+    }
+    setCloudRevision(data.revision ?? expectedRevision + 1);
+    return { ...data, conflict: false };
+  };
+
+  const loadCloudData = async (user: AuthUser) => {
+    setCloudReady(false);
+    setSyncStatus("loading");
+    const response = await fetch("/api/user-data", { cache: "no-store" });
+    const data = await response.json() as { revision?: number; updatedAt?: number; data?: UserSnapshot | null; error?: string };
+    if (!response.ok) throw new Error(data.error ?? "Could not load cloud data.");
+    const local = snapshotRef.current ?? currentSnapshot;
+    setCloudRevision(data.revision ?? 0);
+    let restored: UserSnapshot;
+    if (data.data) {
+      const remote = normalizeSnapshot(data.data, local);
+      const merged = mergeSnapshots(local, remote);
+      const mergedForAccount: UserSnapshot = { ...merged, profile: { ...merged.profile, signedIn: true } };
+      const changedByMerge = JSON.stringify({ ...mergedForAccount, updatedAt: 0 }) !== JSON.stringify({ ...remote, updatedAt: 0, profile: { ...remote.profile, signedIn: true } });
+      restored = changedByMerge ? { ...mergedForAccount, updatedAt: Date.now() } : mergedForAccount;
+      applyUserSnapshot(restored, true);
+      lastSyncedModifiedAt.current = changedByMerge ? -1 : restored.updatedAt;
+    } else {
+      restored = {
+        ...local,
+        updatedAt: Math.max(Date.now(), local.updatedAt),
+        profile: {
+          ...local.profile,
+          name: local.profile.name || user.displayName,
+          faction: local.profile.faction || user.faction,
+          signedIn: true,
+        },
+      };
+      applyUserSnapshot(restored, true);
+      await putCloudSnapshot(restored, 0);
+      lastSyncedModifiedAt.current = restored.updatedAt;
+    }
+    setCloudReady(true);
+    setSyncStatus("synced");
+    return restored;
+  };
+
+  const authenticate = async (action: "login" | "signup", payload: { email: string; password: string; displayName?: string; faction?: string }) => {
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...payload }) });
+      const data = await response.json() as { user?: AuthUser; error?: string };
+      if (!response.ok || !data.user) throw new Error(data.error ?? "Account request failed.");
+      setAuthUser(data.user);
+      if (action === "signup") setProfile((current) => ({ ...current, name: payload.displayName || current.name, faction: payload.faction || current.faction, signedIn: true }));
+      else setProfile((current) => ({ ...current, signedIn: true }));
+      let restored: UserSnapshot | null = null;
+      try { restored = await loadCloudData(data.user); }
+      catch (syncError) {
+        setCloudReady(true);
+        setSyncStatus(navigator.onLine ? "error" : "offline");
+        setAuthError(syncError instanceof Error ? syncError.message : "Signed in, but cloud data could not be loaded.");
+      }
+      setRoute(restored && restored.route !== "entry" ? restored.route : "dashboard");
+      setToast(action === "signup" ? "Account created. Local data is ready to sync." : "Signed in. Account session restored.");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Account request failed.");
+      setSyncStatus("local");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const signOutAccount = async () => {
+    try { await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "logout" }) }); } catch {}
+    setAuthUser(null);
+    setCloudReady(false);
+    setCloudRevision(0);
+    setSyncStatus("local");
+    setProfile((current) => ({ ...current, signedIn: false }));
+    setRoute("entry");
+    setToast("Signed out. A local copy remains on this device.");
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "change-password", currentPassword, newPassword }) });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) throw new Error(data.error ?? "Could not change password.");
+    setToast("Password changed. Other sessions were signed out.");
+  };
+
+  const deleteAccount = async (confirmation: string) => {
+    const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) throw new Error(data.error ?? "Could not delete account.");
+    setAuthUser(null);
+    setCloudReady(false);
+    setSyncStatus("local");
+    setProfile((current) => ({ ...current, signedIn: false }));
+    setRoute("entry");
+    setToast("Account deleted. The local browser copy has been retained.");
+  };
+
+  const saveAccountProfile = async () => {
+    if (!authUser) { setToast("Profile changes are saved on this device."); return; }
+    const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "update-profile", displayName: profile.name, faction: profile.faction }) });
+    const data = await response.json() as { user?: AuthUser; error?: string };
+    if (!response.ok || !data.user) throw new Error(data.error ?? "Could not update account profile.");
+    setAuthUser(data.user);
+    setLocalModifiedAt(Date.now());
+    setToast("Account profile updated and queued for sync.");
+  };
+
+  useEffect(() => {
+    if (!persistenceReady || playerId !== "player") return;
+    setPlayerId(uid());
+  }, [persistenceReady, playerId]);
+
+  useEffect(() => {
+    if (!persistenceReady) return;
+    if (!dirtyStarted.current) { dirtyStarted.current = true; return; }
+    if (applyingSnapshot.current) { applyingSnapshot.current = false; return; }
+    setLocalModifiedAt(Date.now());
+  }, [profile, decks, history, settings, route, selectedDeckId, builderDeck, deckQuery, compendiumQuery, compendiumTab, format, matchMode, joinCode, match?.version, online, selectedCore, logFilter, replay, replayIndex, playerId, persistenceReady]);
+
+  useEffect(() => {
+    if (!persistenceReady || authBooted.current) return;
+    authBooted.current = true;
+    let cancelled = false;
+    (async () => {
+      setAuthChecking(true);
+      try {
+        const response = await fetch("/api/auth", { cache: "no-store" });
+        const data = await response.json() as { user?: AuthUser | null };
+        if (cancelled) return;
+        if (response.ok && data.user) {
+          setAuthUser(data.user);
+          setProfile((current) => ({ ...current, signedIn: true }));
+          try { await loadCloudData(data.user); }
+          catch (syncError) {
+            if (!cancelled) {
+              setCloudReady(true);
+              setSyncStatus(navigator.onLine ? "error" : "offline");
+              setAuthError(syncError instanceof Error ? syncError.message : "Cloud data could not be loaded.");
+              if (route === "entry") setRoute("dashboard");
+            }
+          }
+        } else {
+          setSyncStatus("local");
+          if (!profile.signedIn && route !== "entry") setRoute("entry");
+        }
+      } catch {
+        if (!cancelled) setSyncStatus(profile.signedIn ? "offline" : "local");
+      } finally {
+        if (!cancelled) setAuthChecking(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [persistenceReady]);
+
+  useEffect(() => {
+    if (!authUser || !cloudReady || !persistenceReady || applyingSnapshot.current) return;
+    const id = window.setTimeout(async () => {
+      const snapshot = snapshotRef.current;
+      if (!snapshot) return;
+      setSyncStatus("saving");
+      if (snapshot.updatedAt === lastSyncedModifiedAt.current) { setSyncStatus("synced"); return; }
+      try {
+        const saved = await putCloudSnapshot({ ...snapshot, profile: { ...snapshot.profile, signedIn: true } }, cloudRevisionRef.current);
+        if (!saved.conflict) lastSyncedModifiedAt.current = snapshot.updatedAt;
+        setSyncStatus(saved.conflict ? "loading" : "synced");
+      } catch (error) {
+        setSyncStatus(navigator.onLine ? "error" : "offline");
+        setAuthError(error instanceof Error ? error.message : "Cloud sync failed.");
+      }
+    }, 900);
+    return () => window.clearTimeout(id);
+  }, [authUser?.id, cloudReady, localModifiedAt, persistenceReady]);
+
+  useEffect(() => {
+    const onlineHandler = () => { if (authUser) { setSyncStatus("loading"); setLocalModifiedAt(Date.now()); } };
+    const offlineHandler = () => { if (authUser) setSyncStatus("offline"); };
+    window.addEventListener("online", onlineHandler);
+    window.addEventListener("offline", offlineHandler);
+    return () => { window.removeEventListener("online", onlineHandler); window.removeEventListener("offline", offlineHandler); };
+  }, [authUser?.id]);
+
   useEffect(() => { document.documentElement.dataset.contrast = settings.highContrast ? "high" : "normal"; document.documentElement.dataset.motion = settings.reducedMotion ? "reduced" : "full"; }, [settings]);
   useEffect(() => { if (!toast) return; const id = setTimeout(() => setToast(""), 2800); return () => clearTimeout(id); }, [toast]);
 
@@ -216,7 +491,8 @@ export default function Home() {
     setSelectedDeckId(builderDeck.id); setToast(deckIsLegal(builderDeck) ? "Deck saved and validated." : "Draft saved with legality issues.");
   };
 
-  if (route === "entry") return <Entry profile={profile} setProfile={setProfile} onEnter={() => { setProfile({ ...profile, signedIn: true }); setRoute("dashboard"); }} />;
+  if (!persistenceReady) return <BootScreen label="RESTORING LOCAL BRAWLER DATA" />;
+  if (route === "entry") return <Entry profile={profile} setProfile={setProfile} authChecking={authChecking} authBusy={authBusy} authError={authError} onGuest={() => { setAuthError(""); setProfile({ ...profile, signedIn: true }); setRoute("dashboard"); setSyncStatus("local"); }} onAuthenticate={authenticate} />;
 
   let content: React.ReactNode;
   if (route === "dashboard") content = <Dashboard profile={profile} decks={decks} history={history} match={match} setRoute={setRoute} selectDeck={setSelectedDeckId} />;
@@ -229,19 +505,34 @@ export default function Home() {
   else if (route === "match") content = <FullMatchScreen match={match} playerId={playerId} faction={profile.faction} error={matchError} logFilter={logFilter} setLogFilter={setLogFilter} command={command} />;
   else if (route === "result") content = <ResultScreen match={match} playerId={playerId} history={history} nextGame={() => command("next-game", undefined, startNextSeriesGame)} dashboard={() => { setMatch(null); setOnline(false); setRoute("dashboard"); }} openReplay={() => { const item = history[0]; if (item) { setReplay(item); setReplayIndex(item.log.length - 1); setRoute("history"); } }} />;
   else if (route === "history") content = <HistoryScreen history={history} replay={replay} setReplay={setReplay} replayIndex={replayIndex} setReplayIndex={setReplayIndex} />;
-  else if (route === "profile") content = <ProfileScreen profile={profile} setProfile={setProfile} history={history} decks={decks} />;
-  else content = <SettingsScreen settings={settings} setSettings={setSettings} signOut={() => { setProfile({ ...profile, signedIn: false }); setRoute("entry"); }} />;
+  else if (route === "profile") content = <ProfileScreen profile={profile} setProfile={setProfile} history={history} decks={decks} authUser={authUser} saveProfile={() => saveAccountProfile().catch((error) => setToast(error instanceof Error ? error.message : "Could not save profile."))} />;
+  else content = <SettingsScreen settings={settings} setSettings={setSettings} authUser={authUser} syncStatus={syncStatus} syncError={authError} signOut={signOutAccount} openAccount={() => { setAuthError(""); setRoute("entry"); }} syncNow={() => { setSyncStatus(authUser ? "loading" : "local"); setLocalModifiedAt(Date.now()); }} changePassword={changePassword} deleteAccount={deleteAccount} />;
 
-  return <Shell route={route} setRoute={setRoute} profile={profile} match={match}>{content}{toast && <div className="toast" role="status">{toast}</div>}</Shell>;
+  return <Shell route={route} setRoute={setRoute} profile={profile} authUser={authUser} syncStatus={syncStatus} match={match}>{content}{toast && <div className="toast" role="status">{toast}</div>}</Shell>;
 }
 
-function Entry({ profile, setProfile, onEnter }: { profile: Profile; setProfile: (p: Profile) => void; onEnter: () => void }) {
+function Entry({ profile, setProfile, authChecking, authBusy, authError, onGuest, onAuthenticate }: { profile: Profile; setProfile: React.Dispatch<React.SetStateAction<Profile>>; authChecking: boolean; authBusy: boolean; authError: string; onGuest: () => void; onAuthenticate: (action: "login" | "signup", payload: { email: string; password: string; displayName?: string; faction?: string }) => Promise<void> }) {
+  const [mode, setMode] = useState<"guest" | "login" | "signup">("guest");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [formError, setFormError] = useState("");
+  const factions = ["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"];
+  const submitAccount = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setFormError("");
+    if (mode === "guest") return;
+    if (mode === "signup" && password !== confirmPassword) { setFormError("Passwords do not match."); return; }
+    await onAuthenticate(mode, { email, password, displayName: profile.name, faction: profile.faction });
+  };
   return <main className="entry-page">
     <header className="public-header"><img src="/assets/logo.png" alt="Bakugan Battle Planet" /><nav><a href="#features">Features</a><a href="#rules">Rules</a><a href="#accessibility">Accessibility</a></nav><span>ORIGINAL 2019 RULESET</span></header>
-    <section className="entry-hero"><div className="entry-art"><img src="/assets/brawlers.png" alt="The Awesome Brawlers and their Bakugan" /></div><div className="entry-copy"><Badge tone="red">ONLINE TCG VERTICAL SLICE</Badge><h1>ANSWER THE CALL<br /><em>TO BRAWL.</em></h1><p>Build a Battle Planet deck, construct the Hide Matrix, and play a fully rules-guided match against a friend or training opponent.</p>
-      <form className="signin-panel" onSubmit={(e) => { e.preventDefault(); onEnter(); }}><label>BRAWLER NAME<input value={profile.name} maxLength={20} onChange={(e) => setProfile({ ...profile, name: e.target.value })} required /></label><label>PREFERRED FACTION<select value={profile.faction} onChange={(e) => setProfile({ ...profile, faction: e.target.value })}>{["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"].map((f) => <option key={f}>{f}</option>)}</select></label><AppButton type="submit" tone="red">ENTER THE ARENA</AppButton><small>Profile and preferences are saved on this device. Online rooms use a server-authoritative match state.</small></form>
+    <section className="entry-hero"><div className="entry-art"><img src="/assets/brawlers.png" alt="The Awesome Brawlers and their Bakugan" /></div><div className="entry-copy"><Badge tone="red">PERSISTENT TCG ACCOUNT SYSTEM</Badge><h1>ANSWER THE CALL<br /><em>TO BRAWL.</em></h1><p>Continue locally on this device, or create an account to sync decks, settings, match history, drafts, and resumable state across devices.</p>
+      <div className="auth-tabs" role="tablist" aria-label="Access options"><button className={mode === "guest" ? "active" : ""} onClick={() => { setMode("guest"); setFormError(""); }}>LOCAL PROFILE</button><button className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setFormError(""); }}>LOG IN</button><button className={mode === "signup" ? "active" : ""} onClick={() => { setMode("signup"); setFormError(""); }}>SIGN UP</button></div>
+      {mode === "guest" ? <form className="signin-panel account-panel" onSubmit={(event) => { event.preventDefault(); onGuest(); }}><div className="storage-callout"><strong>DEVICE-LOCAL MODE</strong><span>Your decks, settings, drafts, history, and active state remain in this browser after refreshes and restarts.</span></div><label>BRAWLER NAME<input value={profile.name} maxLength={20} onChange={(event) => setProfile({ ...profile, name: event.target.value })} required /></label><label>PREFERRED FACTION<select value={profile.faction} onChange={(event) => setProfile({ ...profile, faction: event.target.value })}>{factions.map((faction) => <option key={faction}>{faction}</option>)}</select></label><AppButton type="submit" tone="red">CONTINUE ON THIS DEVICE</AppButton><small>You can link this local profile to an account later without deleting the browser copy.</small></form>
+      : <form className="signin-panel account-panel" onSubmit={submitAccount}>{mode === "signup" && <><label>BRAWLER NAME<input value={profile.name} maxLength={20} onChange={(event) => setProfile({ ...profile, name: event.target.value })} required /></label><label>PREFERRED FACTION<select value={profile.faction} onChange={(event) => setProfile({ ...profile, faction: event.target.value })}>{factions.map((faction) => <option key={faction}>{faction}</option>)}</select></label></>}<label>EMAIL ADDRESS<input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label><label>PASSWORD<input type="password" minLength={10} maxLength={128} autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} required /></label>{mode === "signup" && <label>CONFIRM PASSWORD<input type="password" minLength={10} maxLength={128} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required /></label>}{(formError || authError) && <p className="error-message" role="alert">{formError || authError}</p>}<AppButton type="submit" tone="red" disabled={authBusy || authChecking}>{authChecking ? "CHECKING SESSION…" : authBusy ? "CONNECTING…" : mode === "login" ? "LOG IN & SYNC" : "CREATE ACCOUNT & SYNC"}</AppButton><small>Passwords are hashed on the server. Login sessions use secure, HTTP-only cookies. Local data is merged with the account copy.</small></form>}
     </div></section>
-    <section id="features" className="entry-features"><article><strong>01</strong><h2>BUILD</h2><p>Three Bakugan, six BakuCores, and a validated 40-card deck.</p></article><article><strong>02</strong><h2>BRAWL</h2><p>Secret targets, calculated rolls, priority, Flips, damage, and logs.</p></article><article><strong>03</strong><h2>REPLAY</h2><p>Review decisive events and every published random result.</p></article></section>
+    <section id="features" className="entry-features"><article><strong>01</strong><h2>PERSIST</h2><p>Return to the same page, draft, deck, or active match after restarting the browser.</p></article><article><strong>02</strong><h2>PLAY LOCAL</h2><p>Logged-out Brawlers retain their data using browser storage.</p></article><article><strong>03</strong><h2>SYNC</h2><p>Accounts carry decks, settings, records, and state between devices.</p></article></section>
   </main>;
 }
 
@@ -707,17 +998,39 @@ function HistoryScreen({ history, replay, setReplay, replayIndex, setReplayIndex
     : <section className="replay-page"><header><button onClick={() => setReplay(null)}>← HISTORY</button><div><span className="eyebrow">REPLAY {replay.id}</span><h2>{replay.result} vs {replay.opponent}</h2></div><AppButton tone="ghost" onClick={() => navigator.clipboard?.writeText(location.href)}>SHARE</AppButton></header><div className="replay-theatre"><div className="replay-event"><Badge tone={replay.log[replayIndex]?.kind === "random" ? "gold" : "blue"}>{replay.log[replayIndex]?.kind.toUpperCase()}</Badge><h2>{replay.log[replayIndex]?.message}</h2><small>{new Date(replay.log[replayIndex]?.at ?? 0).toLocaleTimeString()}</small></div><div className="replay-board"><img src="/assets/playmat.webp" alt="Battlefield reconstruction" /></div><aside>{replay.log.map((event, i) => <button className={i === replayIndex ? "active" : ""} key={event.id} onClick={() => setReplayIndex(i)}><span>{i + 1}</span>{event.message}</button>)}</aside></div><div className="replay-controls"><button onClick={() => setReplayIndex(Math.max(0, replayIndex - 1))}>◀ STEP</button><input type="range" min="0" max={Math.max(0, replay.log.length - 1)} value={replayIndex} onChange={(e) => setReplayIndex(Number(e.target.value))} /><button onClick={() => setReplayIndex(Math.min(replay.log.length - 1, replayIndex + 1))}>STEP ▶</button><Badge>{replayIndex + 1} / {replay.log.length}</Badge></div></section>}</>;
 }
 
-function ProfileScreen({ profile, setProfile, history, decks }: { profile: Profile; setProfile: (p: Profile) => void; history: ResultRecord[]; decks: DeckRecord[] }) {
+function ProfileScreen({ profile, setProfile, history, decks, authUser, saveProfile }: { profile: Profile; setProfile: React.Dispatch<React.SetStateAction<Profile>>; history: ResultRecord[]; decks: DeckRecord[]; authUser: AuthUser | null; saveProfile: () => void }) {
   return <><PageHeader eyebrow="BRAWLER IDENTITY" title={profile.name.toUpperCase()} copy="Manage the public information other Brawlers see in challenges, rooms, and shared records." art={`/assets/${profile.faction.toLowerCase() === "aurelus" ? "brawlers-group" : profile.faction.toLowerCase()}.png`} />
-    <section className="profile-layout"><article className="panel profile-card"><div className={`large-avatar ${factionClass(profile.faction)}`}>{profile.name.slice(0, 2).toUpperCase()}</div><label>DISPLAY NAME<input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} /></label><label>PREFERRED FACTION<select value={profile.faction} onChange={(e) => setProfile({ ...profile, faction: e.target.value })}>{["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"].map((f) => <option key={f}>{f}</option>)}</select></label><AppButton tone="red">SAVE PROFILE</AppButton></article><article className="panel profile-stats"><span className="eyebrow">BRAWLER RECORD</span><h2>ORIGINAL BATTLE PLANET</h2><div className="stat-grid"><Metric label="Matches" value={history.length} /><Metric label="Victories" value={history.filter((h) => h.result === "Victor").length} /><Metric label="Legal decks" value={decks.filter(deckIsLegal).length} /><Metric label="Public decks" value={decks.filter((d) => d.visibility === "Public").length} /></div><h3>PUBLIC DECKS</h3>{decks.filter((d) => d.visibility === "Public").map((d) => <div className="public-deck" key={d.id}><strong>{d.name}</strong><span>{d.factions.join(" • ")}</span><Badge tone="gold">LEGAL</Badge></div>)}</article></section></>;
+    <section className="profile-layout"><article className="panel profile-card"><div className={`large-avatar ${factionClass(profile.faction)}`}>{profile.name.slice(0, 2).toUpperCase()}</div><Badge tone={authUser ? "gold" : "blue"}>{authUser ? "CLOUD ACCOUNT" : "LOCAL PROFILE"}</Badge>{authUser && <small className="account-email">{authUser.email}</small>}<label>DISPLAY NAME<input value={profile.name} maxLength={20} onChange={(event) => setProfile({ ...profile, name: event.target.value })} /></label><label>PREFERRED FACTION<select value={profile.faction} onChange={(event) => setProfile({ ...profile, faction: event.target.value })}>{["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"].map((faction) => <option key={faction}>{faction}</option>)}</select></label><AppButton tone="red" onClick={saveProfile}>SAVE PROFILE</AppButton><small>{authUser ? "Profile changes sync to signed-in devices." : "Profile changes are retained in this browser."}</small></article><article className="panel profile-stats"><span className="eyebrow">BRAWLER RECORD</span><h2>ORIGINAL BATTLE PLANET</h2><div className="stat-grid"><Metric label="Matches" value={history.length} /><Metric label="Victories" value={history.filter((item) => item.result === "Victor").length} /><Metric label="Legal decks" value={decks.filter(deckIsLegal).length} /><Metric label="Public decks" value={decks.filter((deck) => deck.visibility === "Public").length} /></div><h3>PUBLIC DECKS</h3>{decks.filter((deck) => deck.visibility === "Public").map((deck) => <div className="public-deck" key={deck.id}><strong>{deck.name}</strong><span>{deck.factions.join(" • ")}</span><Badge tone="gold">LEGAL</Badge></div>)}</article></section></>;
 }
 
-function SettingsScreen({ settings, setSettings, signOut }: { settings: { reducedMotion: boolean; highContrast: boolean; sound: boolean; cardScale: number; logDetail: string; challenges: string }; setSettings: (s: typeof settings) => void; signOut: () => void }) {
-  const clearLocalProfile = () => { localStorage.clear(); window.location.reload(); };
-  return <><PageHeader eyebrow="CLIENT PREFERENCES" title="SETTINGS" copy="Accessibility, audio, display, privacy, challenge, and account controls." art="/assets/haos.png" />
-    <section className="settings-grid"><article className="panel"><h2>ACCESSIBILITY</h2><Toggle label="Reduced motion" copy="Replace camera moves and flashes with static emphasis." checked={settings.reducedMotion} onChange={(v) => setSettings({ ...settings, reducedMotion: v })} /><Toggle label="High contrast" copy="Increase panel, border, and focus contrast." checked={settings.highContrast} onChange={(v) => setSettings({ ...settings, highContrast: v })} /><label className="range-setting"><span>Card scale <b>{settings.cardScale}%</b></span><input type="range" min="80" max="140" value={settings.cardScale} onChange={(e) => setSettings({ ...settings, cardScale: Number(e.target.value) })} /></label></article><article className="panel"><h2>AUDIO & MATCH LOG</h2><Toggle label="Interface and match audio" copy="Phase calls, priority, and result cues." checked={settings.sound} onChange={(v) => setSettings({ ...settings, sound: v })} /><label>DEFAULT LOG DETAIL<select value={settings.logDetail} onChange={(e) => setSettings({ ...settings, logDetail: e.target.value })}><option>All events</option><option>Gameplay only</option><option>Random results</option></select></label></article><article className="panel"><h2>PRIVACY & SOCIAL</h2><label>WHO CAN CHALLENGE YOU<select value={settings.challenges} onChange={(e) => setSettings({ ...settings, challenges: e.target.value })}><option>Everyone</option><option>Friends only</option><option>No one</option></select></label><Toggle label="Allow replay links" copy="Share privacy-safe completed match records." checked onChange={() => {}} /><button className="text-button">MANAGE BLOCKED BRAWLERS →</button></article><article className="panel danger-zone"><h2>ACCOUNT</h2><p>Device-local profile data can be cleared at sign out. Match records stored by the site remain governed by the service privacy policy.</p><AppButton tone="ghost" onClick={signOut}>SIGN OUT</AppButton><button className="danger-text" onClick={clearLocalProfile}>DELETE LOCAL PROFILE DATA</button></article></section></>;
+function SettingsScreen({ settings, setSettings, authUser, syncStatus, syncError, signOut, openAccount, syncNow, changePassword, deleteAccount }: { settings: AppSettings; setSettings: React.Dispatch<React.SetStateAction<AppSettings>>; authUser: AuthUser | null; syncStatus: SyncStatus; syncError: string; signOut: () => Promise<void>; openAccount: () => void; syncNow: () => void; changePassword: (currentPassword: string, newPassword: string) => Promise<void>; deleteAccount: (confirmation: string) => Promise<void> }) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [accountError, setAccountError] = useState("");
+  const [accountBusy, setAccountBusy] = useState(false);
+  const clearLocalProfile = () => { if (window.confirm("Delete all Bakugan TCG Online data stored in this browser?")) { localStorage.clear(); window.location.reload(); } };
+  const submitPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAccountBusy(true);
+    setAccountError("");
+    try { await changePassword(currentPassword, newPassword); setCurrentPassword(""); setNewPassword(""); }
+    catch (error) { setAccountError(error instanceof Error ? error.message : "Could not change password."); }
+    finally { setAccountBusy(false); }
+  };
+  const removeAccount = async () => {
+    setAccountBusy(true);
+    setAccountError("");
+    try { await deleteAccount(confirmation); }
+    catch (error) { setAccountError(error instanceof Error ? error.message : "Could not delete account."); }
+    finally { setAccountBusy(false); }
+  };
+  return <><PageHeader eyebrow="CLIENT PREFERENCES" title="SETTINGS" copy="Accessibility, audio, display, privacy, challenge, local storage, cloud sync, and account controls." art="/assets/haos.png" />
+    <section className="settings-grid"><article className="panel"><h2>ACCESSIBILITY</h2><Toggle label="Reduced motion" copy="Replace camera moves and flashes with static emphasis." checked={settings.reducedMotion} onChange={(value) => setSettings({ ...settings, reducedMotion: value })} /><Toggle label="High contrast" copy="Increase panel, border, and focus contrast." checked={settings.highContrast} onChange={(value) => setSettings({ ...settings, highContrast: value })} /><label className="range-setting"><span>Card scale <b>{settings.cardScale}%</b></span><input type="range" min="80" max="140" value={settings.cardScale} onChange={(event) => setSettings({ ...settings, cardScale: Number(event.target.value) })} /></label></article><article className="panel"><h2>AUDIO & MATCH LOG</h2><Toggle label="Interface and match audio" copy="Phase calls, priority, and result cues." checked={settings.sound} onChange={(value) => setSettings({ ...settings, sound: value })} /><label>DEFAULT LOG DETAIL<select value={settings.logDetail} onChange={(event) => setSettings({ ...settings, logDetail: event.target.value })}><option>All events</option><option>Gameplay only</option><option>Random results</option></select></label></article><article className="panel"><h2>PRIVACY & SOCIAL</h2><label>WHO CAN CHALLENGE YOU<select value={settings.challenges} onChange={(event) => setSettings({ ...settings, challenges: event.target.value })}><option>Everyone</option><option>Friends only</option><option>No one</option></select></label><Toggle label="Allow replay links" copy="Share privacy-safe completed match records." checked onChange={() => {}} /><button className="text-button">MANAGE BLOCKED BRAWLERS →</button></article>
+      <article className="panel account-management"><div className="panel-heading"><div><span className="eyebrow">DATA & ACCOUNT</span><h2>{authUser ? "CLOUD SYNC" : "LOCAL STORAGE"}</h2></div><Badge tone={syncStatus === "synced" ? "gold" : syncStatus === "error" ? "red" : "blue"}>{syncStatus.toUpperCase()}</Badge></div>{authUser ? <><div className="account-summary"><strong>{authUser.email}</strong><span>Decks, drafts, history, settings, and resumable state sync automatically.</span></div>{syncError && syncStatus === "error" && <p className="error-message">{syncError}</p>}<div className="account-actions"><AppButton tone="blue" onClick={syncNow}>SYNC NOW</AppButton><AppButton tone="ghost" onClick={signOut}>SIGN OUT</AppButton></div><form className="password-form" onSubmit={submitPassword}><h3>CHANGE PASSWORD</h3><label>CURRENT PASSWORD<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /></label><label>NEW PASSWORD<input type="password" autoComplete="new-password" minLength={10} maxLength={128} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /></label><AppButton type="submit" tone="ghost" disabled={accountBusy}>UPDATE PASSWORD</AppButton></form><div className="delete-account"><h3>DELETE ACCOUNT</h3><p>This removes the cloud account and synced copy. The local browser copy remains until you delete it separately.</p><label>TYPE DELETE TO CONFIRM<input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label><button className="danger-text" disabled={accountBusy || confirmation.toUpperCase() !== "DELETE"} onClick={removeAccount}>DELETE CLOUD ACCOUNT</button></div></> : <><div className="storage-callout"><strong>SAVED ON THIS DEVICE</strong><span>Refreshes and browser restarts retain your decks, settings, drafts, match history, and active state.</span></div><AppButton tone="red" onClick={openAccount}>SIGN UP OR LOG IN TO SYNC</AppButton></>}{accountError && <p className="error-message" role="alert">{accountError}</p>}<hr /><button className="danger-text" onClick={clearLocalProfile}>DELETE LOCAL BROWSER DATA</button></article></section></>;
 }
 
 function Toggle({ label, copy, checked, onChange }: { label: string; copy: string; checked: boolean; onChange: (v: boolean) => void }) { return <label className="toggle-row"><div><strong>{label}</strong><small>{copy}</small></div><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /><span /></label>; }
 function Timer({ deadline }: { deadline: number }) { const [now, setNow] = useState(0); useEffect(() => { const tick = () => setNow(Date.now()); const start = window.setTimeout(tick, 0); const i = window.setInterval(tick, 1000); return () => { window.clearTimeout(start); window.clearInterval(i); }; }, []); const seconds = Math.max(0, Math.ceil((deadline - (now || deadline - 30_000)) / 1000)); return <div className={`timer ${seconds <= 10 ? "warning" : ""}`}><small>TIME REMAINING</small><strong>00:{String(seconds).padStart(2, "0")}</strong></div>; }
+function BootScreen({ label }: { label: string }) { return <main className="boot-screen"><img src="/assets/logo.png" alt="Bakugan Battle Planet" /><span className="pulse" /><h1>{label}</h1><p>Restoring decks, settings, drafts, history, and active state…</p></main>; }
 function Empty({ title }: { title: string }) { return <section className="empty-page"><img src="/assets/logo.png" alt="" /><h1>{title}</h1><p>Return to the dashboard and start a new match.</p></section>; }

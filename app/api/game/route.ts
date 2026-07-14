@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     if (body.action === "get") {
       if (body.playerId) {
         const player = state.players.find((p) => p.id === body.playerId);
-        if (player) { player.lastSeen = Date.now(); player.connected = true; state.version += 1; await save(state.code, state, record.previous); }
+        if (player) { player.lastSeen = Date.now(); player.connected = true; await save(state.code, state, record.previous); }
       }
       return json({ state: redactForPlayer(state, body.playerId ?? "") });
     }

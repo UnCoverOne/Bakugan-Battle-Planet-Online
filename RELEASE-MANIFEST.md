@@ -7,7 +7,7 @@
 - Optimized full-card images: 364
 - Optimized BakuCore images: 52
 - Runtime: Cloudflare Worker plus static assets
-- Persistent storage: Cloudflare D1 binding `DB`
+- Persistent storage: browser `localStorage` for guests; Cloudflare D1 binding `DB` for matches, accounts, sessions, and cross-device sync
 
 ## Self-host additions
 
@@ -24,11 +24,23 @@
 - Added active phase progress, turn status, stronger priority instructions, and expanded combat math.
 - Centred the hand, corrected BakuCore and card-back assets, mirrored the opponent zones, restored visible actions, and unified card inspectors.
 
+## Persistence and account revision
+
+- Added versioned browser persistence for navigation, decks, drafts, settings, history, replay state, and active matches.
+- Added guest/local-profile flow with browser-retained data after refresh, restart, and sign-out.
+- Added sign-up, login, logout, password change, account deletion, and profile update APIs.
+- Added PBKDF2 password hashing, opaque hashed session tokens, secure HTTP-only cookies, and D1 account/session tables.
+- Added optimistic-revision cloud snapshots with deterministic merge and retry behaviour.
+- Added sync status UI and account controls in the entry, profile, top navigation, and settings screens.
+
 ## Verification completed
 
 - `npm ci`: passed with the locked dependency tree.
 - `npm run build`: passed; Vinext produced the Worker and client assets.
 - artifact validation: passed; the ESM Worker exposes `default.fetch`.
+- game-engine tests: passed.
+- persistence merge tests: passed.
+- password hashing and validation tests: passed.
 - rendered application test: passed.
 - `npm run lint`: completed with zero errors and existing non-blocking warnings.
 - Wrangler deployment dry run: passed; detected 487 static files and both `DB` and `ASSETS` bindings.

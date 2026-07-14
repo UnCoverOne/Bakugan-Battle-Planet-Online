@@ -1,13 +1,13 @@
 # Bakugan: Battle Planet Online
 
-A full-stack, browser-playable vertical slice of the 2019 Bakugan: Battle Planet TCG. It includes the Battle Planet card catalogue and artwork, deck building, account/profile UI, match setup, training play, room-code multiplayer, the shared BakuCore field, server-authoritative game state, best-of-one/best-of-three matches, reconnect handling, undo restrictions, logs, timers, and the tabletop match interface.
+A full-stack, browser-playable vertical slice of the 2019 Bakugan: Battle Planet TCG. It includes the Battle Planet card catalogue and artwork, deck building, persistent guest profiles, email/password accounts, cross-device data sync, match setup, training play, room-code multiplayer, the shared BakuCore field, server-authoritative game state, best-of-one/best-of-three matches, reconnect handling, undo restrictions, logs, timers, and the tabletop match interface.
 
 ## Stack
 
 - Next.js 16 App Router and React 19
 - Vinext and the Cloudflare Vite plugin
 - Cloudflare Workers for the application/API runtime
-- Cloudflare D1 for durable match state
+- Cloudflare D1 for durable match state, account records, sessions, and synced user data
 - Wrangler 4 for local development and deployment
 
 ## Quick start
@@ -37,12 +37,24 @@ Read [SELF_HOSTING.md](SELF_HOSTING.md) for the complete local, GitHub, Cloudfla
 
 ## Important deployment note
 
-This is a full-stack application, not a static export. Room-code multiplayer calls `/api/game` and stores match state in the `DB` D1 binding. Use Cloudflare Workers (shown in the same **Workers & Pages** area of Cloudflare's dashboard). A static-only Cloudflare Pages or GitHub Pages deployment will render assets but cannot run matches.
+This is a full-stack application, not a static export. Room-code multiplayer calls `/api/game`; account access uses `/api/auth`; and cross-device persistence uses `/api/user-data`. All durable server data uses the `DB` D1 binding. Use Cloudflare Workers (shown in the same **Workers & Pages** area of Cloudflare's dashboard). A static-only Cloudflare Pages or GitHub Pages deployment will render assets but cannot run matches, accounts, or cloud sync.
+
+
+## Persistence and accounts
+
+- Logged-out users keep decks, settings, drafts, match history, navigation state, and an active match in browser `localStorage`.
+- Signed-in users receive the same local durability plus automatic D1-backed cloud sync across devices.
+- Cloud writes use an optimistic revision number. When two devices edit concurrently, the client merges unique decks and history records, keeps the newest UI state, and retries.
+- Passwords are never stored in plaintext. The server derives a salted PBKDF2-SHA-256 hash and stores only the hash, salt, and iteration count.
+- Login uses an opaque session token in a `HttpOnly`, `SameSite=Lax` cookie; only a SHA-256 hash of the token is stored in D1.
+- Signing out retains the browser copy. Deleting an account removes the cloud copy but deliberately leaves local data until the user separately deletes browser data.
 
 ## Main project areas
 
 - `app/` — UI, routes, and server API
 - `lib/game.ts` — deterministic game rules and state transitions
+- `lib/persistence.ts` — versioned browser/cloud snapshots and conflict merging
+- `lib/account-server.ts` — password hashing, session cookies, and account helpers
 - `lib/catalog.generated.json` — Battle Planet card catalogue
 - `public/assets/` — card, BakuCore, playmat, logo, symbol, and visual assets
 - `db/` and `drizzle/` — D1 schema and migration

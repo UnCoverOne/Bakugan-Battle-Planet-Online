@@ -10,7 +10,7 @@ Cloudflare Workers Builds or GitHub Actions
         |
         +--> Cloudflare Worker + static assets
         |
-        +--> Cloudflare D1 (match state)
+        +--> Cloudflare D1 (matches, accounts, sessions, synced user data)
 ```
 
 ## 1. What you need
@@ -63,9 +63,10 @@ Initialize the remote schema:
 
 ```bash
 npx wrangler d1 execute bakugan-battle-planet-online --remote --file=./drizzle/0000_sad_silver_centurion.sql --config wrangler.jsonc
+npx wrangler d1 execute bakugan-battle-planet-online --remote --file=./drizzle/0001_accounts_and_sync.sql --config wrangler.jsonc
 ```
 
-The API also creates the same table defensively on first use, but applying the migration makes deployment state explicit.
+The APIs also create the tables defensively on first use, but applying both migrations makes deployment state explicit.
 
 ## 4. Build and validate
 
@@ -91,6 +92,8 @@ Wrangler builds and deploys the site, then prints a `*.workers.dev` URL. Open it
 4. On browser B, join with the room code.
 5. Ready both players, place the twelve BakuCores, and advance through energize, selection, secret targeting, roll, brawl, damage, end, and result states.
 6. Refresh one browser during the match and confirm it reconnects within 30 seconds.
+7. Create an account, edit a deck or setting, then log in from a second browser profile and confirm that the data appears there.
+8. Sign out and confirm that the browser copy remains available through **Local Profile** mode.
 
 ## 6. Put the project on GitHub
 
@@ -167,7 +170,7 @@ After the Worker deploys:
 
 ## 9. Why this package uses Workers instead of static Pages
 
-The interface is not only HTML/CSS/JavaScript. `/api/game` enforces legal actions, saves hidden and public match state, handles priority, applies random roll results, supports undo restrictions, and checks the 30-second reconnect window. Static Cloudflare Pages and GitHub Pages cannot run that API.
+The interface is not only HTML/CSS/JavaScript. `/api/game` enforces legal actions and match state; `/api/auth` manages accounts and secure sessions; and `/api/user-data` synchronizes versioned user snapshots. Static Cloudflare Pages and GitHub Pages cannot run those APIs.
 
 Cloudflare shows Workers and Pages in the same dashboard area. For this codebase, deploy it as a Worker with static assets and D1. Converting it to a Pages project would require repackaging the Vinext Worker as Pages advanced-mode Functions and recreating its bindings; it provides no practical free-tier advantage for this build.
 
@@ -193,7 +196,7 @@ Export the production database before destructive schema changes:
 npx wrangler d1 export bakugan-battle-planet-online --remote --output=backup.sql --config wrangler.jsonc
 ```
 
-`backup.sql` may contain player-selected names and match history. Store it privately and do not commit it.
+`backup.sql` may contain player-selected names, email addresses, password hashes and salts, hashed session tokens, deck data, settings, and match history. Store it privately, restrict access, and do not commit it.
 
 ## 11. Updating the site
 
@@ -255,3 +258,15 @@ Review Cloudflare's current Workers and D1 usage dashboards. Limits and pricing 
 - Cloudflare Workers Builds: https://developers.cloudflare.com/workers/ci-cd/builds/
 - Cloudflare GitHub Actions: https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
 - GitHub repository creation: https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository
+
+### Accounts work locally but not after deployment
+
+Confirm that `0001_accounts_and_sync.sql` was applied and that the deployed Worker has the `DB` binding. Account routes are `/api/auth` and `/api/user-data`; both require the Worker runtime and cannot operate on a static-only host.
+
+### Cloud sync reports a conflict
+
+This usually means another device saved first. The client automatically merges unique decks and match-history records, keeps the newer general state, and retries. Leave the page open briefly or use **Settings > Sync now**.
+
+### Security notes
+
+Production traffic should remain on HTTPS. Cloudflare Workers provides HTTPS on `workers.dev` and custom domains. Session cookies become `Secure` automatically on HTTPS. Rotate or remove old D1 backups according to your privacy policy.
