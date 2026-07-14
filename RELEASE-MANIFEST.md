@@ -1,7 +1,7 @@
 # Release manifest
 
 - Package: Bakugan Battle Planet Online self-hostable source
-- Prepared: 2026-07-13
+- Prepared: 2026-07-14
 - Website source revision: the Git commit used to build this archive (`git rev-parse HEAD`).
 - Card catalogue records: 374
 - Optimized full-card images: 364
@@ -22,6 +22,7 @@
 - Enlarged the legal play area, true axial hex matrix, BakuCores, Bakugan, hand, and match HUD.
 - Moved primary card interaction to the hand with legal-state styling and a readable card inspector.
 - Added active phase progress, turn status, stronger priority instructions, and expanded combat math.
+- Centred the hand, corrected BakuCore and card-back assets, mirrored the opponent zones, restored visible actions, and unified card inspectors.
 
 ## Verification completed
 

@@ -1581,3 +1581,141 @@
   .battle-ui-v7 .table-actions.floating-action-window{left:8px;bottom:8px;width:174px;max-width:174px;padding:8px}
   .battle-ui-v7 .battle-left-column{padding-bottom:168px}
 }
+
+/* V11 match screen — centred hand, true opponent mirror and corrected physical assets */
+
+/* The hand is centred against the entire viewport, independent of the board rails. */
+.battle-ui-v7 .hand-dock,
+.battle-ui-v7 .hand-dock.has-inspector{
+  left:50%;
+  transform:translateX(-50%);
+}
+.battle-ui-v7 .hand-fan button.unavailable,
+.battle-ui-v7 .hand-fan button.unavailable:hover{
+  opacity:1;
+  filter:drop-shadow(0 9px 7px rgba(0,0,0,.9));
+}
+
+/* The opponent is a true horizontal mirror: public zones left, Character cards right. */
+.battle-ui-v7 .opponent-roster.physical-character-row{
+  left:auto;
+  right:0;
+  justify-content:flex-end;
+}
+.battle-ui-v7 .opponent-zone-shelf{
+  left:0;
+  right:auto;
+}
+.battle-ui-v7 .opponent-hand-shelf{
+  left:50%;
+}
+
+/* Vertically mirror the opponent's zones: discard/deck above, wide Hero Zone below. */
+.battle-ui-v7 .opponent-zone-shelf .lower-zone-row{grid-row:1}
+.battle-ui-v7 .opponent-zone-shelf .hero-physical-zone{grid-row:2}
+.battle-ui-v7 .player-zone-shelf .hero-physical-zone{grid-row:1}
+.battle-ui-v7 .player-zone-shelf .lower-zone-row{grid-row:2}
+
+/* Hero Zones span exactly the combined discard/deck width without stretching played cards. */
+.battle-ui-v7 .hero-physical-zone{
+  width:100%;
+  height:var(--physical-card-h);
+}
+.battle-ui-v7 .hero-physical-zone .physical-stack{
+  width:100%;
+  height:var(--physical-card-h);
+  display:grid;
+  place-items:center;
+}
+.battle-ui-v7 .hero-physical-zone .physical-stack.face-up-stack img{
+  width:var(--physical-card-w);
+  height:var(--physical-card-h);
+  object-fit:contain;
+}
+.battle-ui-v7 .hero-physical-zone .physical-stack.empty>span{justify-self:center}
+
+/* Reset inherited badge sizing so every supplied Core back fills one exact grid hex. */
+.battle-ui-v7 .battle-core-field.axial button.face-down .core-back,
+.tabletop-placement .matrix-cell.occupied .placement-core-back{
+  left:0!important;
+  right:0!important;
+  top:0!important;
+  bottom:0!important;
+  width:auto!important;
+  height:auto!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  border-radius:0!important;
+  transform:none!important;
+  clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);
+  background:#0b0d0e;
+}
+.battle-ui-v7 .battle-core-field.axial button.face-down .core-back img,
+.tabletop-placement .matrix-cell.occupied .placement-core-back img{
+  left:50%;
+  top:50%;
+  right:auto;
+  bottom:auto;
+  width:116%;
+  height:116%;
+  object-fit:cover;
+  transform:translate(-50%,-50%);
+  transform-origin:center;
+}
+.tabletop-placement .matrix-cell.occupied>b{
+  right:-7px;
+  bottom:-6px;
+}
+
+/* Keep action controls in the left column flow so they cannot fall behind the mat or hand. */
+.battle-ui-v7 .battle-left-column{padding-bottom:0}
+.battle-ui-v7 .table-actions.floating-action-window{
+  position:relative;
+  z-index:82;
+  left:auto;
+  right:auto;
+  bottom:auto;
+  width:100%;
+  max-width:none;
+  min-height:0;
+  flex:0 0 auto;
+  display:flex;
+  transform:none;
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+}
+
+/* Hand-card and Character-card explainers share one stable middle-left location. */
+.battle-ui-v7 .table-card-inspector,
+.battle-ui-v7 .character-card-inspector{
+  position:absolute;
+  z-index:58;
+  left:18px;
+  top:50%;
+  bottom:auto;
+  width:242px;
+  min-height:142px;
+  transform:translateY(-50%) translateZ(42px);
+}
+
+@media(max-width:1550px){
+  .battle-ui-v7 .hand-dock,.battle-ui-v7 .hand-dock.has-inspector{left:50%}
+  .battle-ui-v7 .opponent-roster.physical-character-row{left:auto;right:0}
+  .battle-ui-v7 .opponent-zone-shelf{left:0;right:auto}
+  .battle-ui-v7 .opponent-hand-shelf{left:50%}
+}
+
+@media(max-width:1220px){
+  .battle-ui-v7 .hand-dock,.battle-ui-v7 .hand-dock.has-inspector{left:50%}
+  .battle-ui-v7 .table-actions.floating-action-window{left:auto;bottom:auto;width:100%;max-width:none;padding:8px}
+  .battle-ui-v7 .battle-left-column{padding-bottom:0}
+  .battle-ui-v7 .table-card-inspector,.battle-ui-v7 .character-card-inspector{left:10px;width:205px}
+}
+
+/* Final V11 alignment refinements. */
+.battle-ui-v7 .opponent-roster.physical-character-row{flex-direction:row-reverse}
+.battle-ui-v7 .battle-core-field.axial button.face-down .core-back img,
+.tabletop-placement .matrix-cell.occupied .placement-core-back img{
+  width:128%;
+  height:128%;
+}
