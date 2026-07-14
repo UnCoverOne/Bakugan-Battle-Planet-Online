@@ -39,6 +39,8 @@ export const BAKUGAN: Bakugan[] = characterCards.map((character) => ({
   evoStack: [],
 }));
 
+export type DeckFormat = "standard" | "singleton";
+
 export type DeckRecord = {
   id: string;
   name: string;
@@ -48,6 +50,7 @@ export type DeckRecord = {
   cardIds: string[];
   updatedAt: string;
   visibility: "Private" | "Public";
+  format?: DeckFormat;
 };
 
 const buildDeck = (factions: Faction[]) => {
@@ -70,24 +73,36 @@ const pyrusTeam = ["bb-343", "bb-360", "bb-311"];
 const aquosTeam = ["bb-283", "bb-331", "bb-302"];
 const darkusTeam = ["bb-312", "bb-368", "bb-331"];
 export const STARTER_DECKS: DeckRecord[] = [
-  { id:"deck-pyrus",name:"Pyrus Fury",factions:["Pyrus","Ventus","Darkus"],bakuganIds:pyrusTeam,coreIds:coreLoadout(pyrusTeam),cardIds:buildDeck(["Pyrus","Ventus","Darkus"]),updatedAt:"Today",visibility:"Private" },
-  { id:"deck-aquos",name:"Aquos Control",factions:["Aquos","Haos","Aurelus"],bakuganIds:aquosTeam,coreIds:coreLoadout(aquosTeam),cardIds:buildDeck(["Aquos","Haos","Aurelus"]),updatedAt:"Today",visibility:"Public" },
-  { id:"deck-darkus",name:"Darkus Strike",factions:["Darkus","Ventus","Haos"],bakuganIds:darkusTeam,coreIds:coreLoadout(darkusTeam),cardIds:buildDeck(["Darkus","Ventus","Haos"]),updatedAt:"Today",visibility:"Private" },
+  { id:"deck-pyrus",name:"Pyrus Fury",factions:["Pyrus","Ventus","Darkus"],bakuganIds:pyrusTeam,coreIds:coreLoadout(pyrusTeam),cardIds:buildDeck(["Pyrus","Ventus","Darkus"]),updatedAt:"Today",visibility:"Private",format:"standard" },
+  { id:"deck-aquos",name:"Aquos Control",factions:["Aquos","Haos","Aurelus"],bakuganIds:aquosTeam,coreIds:coreLoadout(aquosTeam),cardIds:buildDeck(["Aquos","Haos","Aurelus"]),updatedAt:"Today",visibility:"Public",format:"standard" },
+  { id:"deck-darkus",name:"Darkus Strike",factions:["Darkus","Ventus","Haos"],bakuganIds:darkusTeam,coreIds:coreLoadout(darkusTeam),cardIds:buildDeck(["Darkus","Ventus","Haos"]),updatedAt:"Today",visibility:"Private",format:"standard" },
 ];
 
 export const deckErrors = (deck: DeckRecord) => {
-  const errors: string[] = []; const bakugan = deck.bakuganIds.map((id) => BAKUGAN.find((item) => item.id === id)).filter(Boolean) as Bakugan[];
-  const cards = deck.cardIds.map((id) => CARD_BY_ID.get(id)).filter(Boolean) as GameCard[]; const cores = deck.coreIds.map((id) => CORES.find((core) => core.id === id)).filter(Boolean) as Core[];
-  if (deck.cardIds.length !== 40) errors.push("Deck must contain exactly 40 cards.");
-  if (bakugan.length !== 3 || new Set(deck.bakuganIds).size !== 3) errors.push("Choose three distinct Character cards.");
-  if (cores.length !== 6 || new Set(deck.coreIds).size !== 6) errors.push("Choose six distinct BakuCores.");
-  const factions = new Set(bakugan.map((item) => item.faction)); if (cards.some((card) => !card.factions.some((faction) => factions.has(faction)))) errors.push("Every deck card must share a faction with the team.");
-  const counts = new Map<string, number>(); for (const card of cards) { const key = `${card.name}|${card.effect}`; counts.set(key, (counts.get(key) ?? 0) + 1); }
-  if ([...counts.values()].some((count) => count > 3)) errors.push("No more than three copies of a card are allowed.");
-  const required = bakugan.flatMap((item) => item.character.coreTypes).sort(); const selected = cores.map((core) => core.type).sort();
+  const errors: string[] = [];
+  const format: DeckFormat = deck.format ?? "standard";
+  const cardCopyLimit = format === "singleton" ? 1 : 3;
+  const coreCopyLimit = format === "singleton" ? 1 : 6;
+  const bakugan = deck.bakuganIds.map((id) => BAKUGAN.find((item) => item.id === id)).filter(Boolean) as Bakugan[];
+  const cards = deck.cardIds.map((id) => CARD_BY_ID.get(id)).filter(Boolean) as GameCard[];
+  const cores = deck.coreIds.map((id) => CORES.find((core) => core.id === id)).filter(Boolean) as Core[];
+  if (deck.cardIds.length !== 40) errors.push("Main Deck must contain exactly 40 cards.");
+  if (bakugan.length !== 3 || new Set(deck.bakuganIds).size !== 3) errors.push("Bakugan Team must contain three distinct Character cards.");
+  if (cores.length !== 6) errors.push("Hide Matrix Kit must contain exactly six BakuCores.");
+  const factions = new Set(bakugan.map((item) => item.faction));
+  if (cards.some((card) => !card.factions.some((faction) => factions.has(faction)))) errors.push("Every Main Deck card must share a faction with the Bakugan Team.");
+  const cardCounts = new Map<string, number>();
+  for (const card of cards) { const key = `${card.name}|${card.effect}`; cardCounts.set(key, (cardCounts.get(key) ?? 0) + 1); }
+  if ([...cardCounts.values()].some((count) => count > cardCopyLimit)) errors.push(`${format === "singleton" ? "Singleton" : "Standard"} allows no more than ${cardCopyLimit} cop${cardCopyLimit === 1 ? "y" : "ies"} of any Main Deck card.`);
+  const coreCounts = new Map<string, number>();
+  for (const id of deck.coreIds) coreCounts.set(id, (coreCounts.get(id) ?? 0) + 1);
+  if ([...coreCounts.values()].some((count) => count > coreCopyLimit)) errors.push(`${format === "singleton" ? "Singleton" : "Standard"} allows no more than ${coreCopyLimit} cop${coreCopyLimit === 1 ? "y" : "ies"} of any BakuCore.`);
+  const required = bakugan.flatMap((item) => item.character.coreTypes).sort();
+  const selected = cores.map((core) => core.type).sort();
   if (required.join("|") !== selected.join("|")) errors.push("BakuCore types must exactly match the six Character indicators.");
   return errors;
 };
+
 export const deckIsLegal = (deck: DeckRecord) => deckErrors(deck).length === 0;
 
 const instance = (card: GameCard, playerId: string, index: number): GameCard => ({ ...card, id: `${card.catalogId}-${playerId}-${index}-${Math.random().toString(36).slice(2, 6)}` });

@@ -7,7 +7,7 @@ import {
   setReady, startNextSeriesGame, targetCore, totalDamage, totalPower, uid,
   type CardChoices, type CoreType, type GameCard, type MatchState,
 } from "../lib/game";
-import { BAKUGAN, CARDS, CORES, RULE_ENTRIES, STARTER_DECKS, deckIsLegal, makePlayer, type DeckRecord } from "../lib/data";
+import { BAKUGAN, CARDS, CORES, RULE_ENTRIES, STARTER_DECKS, deckErrors, deckIsLegal, makePlayer, type DeckFormat, type DeckRecord } from "../lib/data";
 
 type Route = "entry" | "dashboard" | "decks" | "builder" | "compendium" | "play" | "lobby" | "placement" | "match" | "result" | "history" | "profile" | "settings";
 type Profile = { name: string; faction: string; signedIn: boolean };
@@ -206,7 +206,8 @@ export default function Home() {
 
   const addCard = (cardId: string) => setBuilderDeck((deck) => {
     const card = CARDS.find((candidate) => candidate.catalogId === cardId); const copies = deck?.cardIds.filter((id) => id === cardId).length ?? 0;
-    return deck && card && card.type !== "Character" && deck.cardIds.length < 40 && copies < 3 ? { ...deck, cardIds: [...deck.cardIds, cardId] } : deck;
+    const copyLimit = (deck?.format ?? "standard") === "singleton" ? 1 : 3;
+    return deck && card && card.type !== "Character" && deck.cardIds.length < 40 && copies < copyLimit ? { ...deck, cardIds: [...deck.cardIds, cardId] } : deck;
   });
   const removeCard = (cardId: string) => setBuilderDeck((deck) => { if (!deck) return deck; const next = [...deck.cardIds]; const i = next.indexOf(cardId); if (i >= 0) next.splice(i, 1); return { ...deck, cardIds: next }; });
   const saveBuilder = () => {
@@ -256,21 +257,189 @@ function Dashboard({ profile, decks, history, match, setRoute, selectDeck }: { p
 
 function DeckLibrary({ decks, query, setQuery, selectedDeckId, selectDeck, setDecks, openBuilder }: { decks: DeckRecord[]; query: string; setQuery: (q: string) => void; selectedDeckId: string; selectDeck: (id: string) => void; setDecks: React.Dispatch<React.SetStateAction<DeckRecord[]>>; openBuilder: (d: DeckRecord) => void }) {
   const filtered = decks.filter((d) => d.name.toLowerCase().includes(query.toLowerCase()));
-  const create = () => openBuilder({ id: uid(), name: "Untitled Battle Deck", factions: [...STARTER_DECKS[0].factions], bakuganIds: [...STARTER_DECKS[0].bakuganIds], coreIds: [...STARTER_DECKS[0].coreIds], cardIds: [], updatedAt: "Draft", visibility: "Private" });
+  const create = () => openBuilder({ id: uid(), name: "Untitled Battle Deck", factions: [...STARTER_DECKS[0].factions], bakuganIds: [...STARTER_DECKS[0].bakuganIds], coreIds: [...STARTER_DECKS[0].coreIds], cardIds: [], updatedAt: "Draft", visibility: "Private", format: "standard" });
   return <><PageHeader eyebrow="DECK MANAGEMENT" title="DECK LIBRARY" copy="Organize, validate, duplicate, publish, and prepare your Battle Planet decks." art="/assets/pyrus.png" actions={<><AppButton tone="red" onClick={create}>+ CREATE DECK</AppButton><AppButton tone="ghost" onClick={() => document.getElementById("deck-search")?.focus()}>IMPORT CODE</AppButton></>} />
     <section className="toolbar"><label className="search-box">⌕<input id="deck-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search decks…" /></label><Badge>{filtered.length} / 50 DECKS</Badge><button>ALL FACTIONS⌄</button><button>ALL LEGALITY⌄</button><button>LAST UPDATED⌄</button></section>
     <section className="deck-grid">{filtered.map((deck) => { const legal = deckIsLegal(deck); return <article key={deck.id} className={`deck-tile ${selectedDeckId === deck.id ? "selected" : ""}`} onClick={() => selectDeck(deck.id)}><div className={`deck-cover ${factionClass(deck.factions[0])}`}><img src={BAKUGAN.find((b) => b.id === deck.bakuganIds[0])?.art} alt="" /><span>{deck.visibility}</span><strong>{deck.name}</strong></div><div className="deck-meta"><div>{deck.factions.map((f) => <i className={factionClass(f)} key={f} title={f} />)}</div><Badge tone={legal ? "gold" : "red"}>{legal ? "LEGAL" : `${40 - deck.cardIds.length} CARD ISSUE`}</Badge><p>{deck.cardIds.length} cards • 3 Bakugan • 6 Cores</p><small>Updated {deck.updatedAt}</small></div><div className="tile-actions"><button onClick={(e) => { e.stopPropagation(); openBuilder(deck); }}>EDIT</button><button onClick={(e) => { e.stopPropagation(); const copy = { ...deck, id: uid(), name: `${deck.name} Copy`, updatedAt: "Just now" }; setDecks((items) => [copy, ...items]); }}>DUPLICATE</button><button className="danger" onClick={(e) => { e.stopPropagation(); setDecks((items) => items.filter((d) => d.id !== deck.id)); }}>DELETE</button></div></article>; })}</section></>;
 }
 
 function DeckBuilder({ deck, setDeck, addCard, removeCard, save, back }: { deck: DeckRecord; setDeck: (d: DeckRecord) => void; addCard: (id: string) => void; removeCard: (id: string) => void; save: () => void; back: () => void }) {
-  const legal = deckIsLegal(deck); const mainCards = CARDS.filter((card) => card.type !== "Character"); const counts = mainCards.map((card) => ({ card, count: deck.cardIds.filter((id) => id === card.catalogId).length }));
-  return <section className="builder-page"><header className="builder-header"><button onClick={back}>← DECK LIBRARY</button><input value={deck.name} onChange={(e) => setDeck({ ...deck, name: e.target.value })} /><Badge tone={legal ? "gold" : "red"}>{legal ? "LEGAL DECK" : "DRAFT • ISSUES"}</Badge><span>Autosaved locally</span><AppButton tone="red" onClick={save}>SAVE DECK</AppButton></header>
-    <div className="builder-layout"><aside className="catalog panel"><div className="panel-heading"><div><span className="eyebrow">COMPLETE CARD CATALOGUE</span><h2>ADD MAIN-DECK CARDS</h2></div><Badge>{mainCards.length} SHOWN</Badge></div><input className="full-search" placeholder="Search name or effect…" />
-      <div className="catalog-grid">{mainCards.map((card) => { const copies = deck.cardIds.filter((id) => id === card.catalogId).length; return <div key={card.id}><CardArt card={card} small /><AppButton onClick={() => addCard(card.catalogId)} disabled={deck.cardIds.length >= 40 || copies >= 3}>ADD {copies ? `(${copies}/3)` : ""}</AppButton></div>; })}</div></aside>
-      <main className="deck-workspace"><section className="team-builder panel"><div className="panel-heading"><div><span className="eyebrow">BAKUGAN TEAM • 93 CHARACTER CARDS</span><h2>CHOOSE THREE</h2></div><Badge tone="gold">{deck.bakuganIds.length} / 3</Badge></div><div className="bakugan-slots complete-roster">{BAKUGAN.map((b) => { const active = deck.bakuganIds.includes(b.id); return <button className={`${active ? "active" : ""} ${factionClass(b.faction)}`} key={b.id} onClick={() => { const next = active ? deck.bakuganIds.filter((id) => id !== b.id) : deck.bakuganIds.length < 3 ? [...deck.bakuganIds, b.id] : deck.bakuganIds; setDeck({ ...deck, bakuganIds: next, factions: [...new Set(next.map((id) => BAKUGAN.find((candidate) => candidate.id === id)?.faction).filter(Boolean))] as string[] }); }}><img src={b.art} alt="" /><strong>{b.name}</strong><small>{b.bPower}B • {b.damage}D • {b.character.coreTypes.join(" + ")}</small><small>ACC {b.rollAccuracy}% • DOUBLE {b.doubleCoreChance}%</small></button>; })}</div></section>
-      <section className="core-builder panel"><div className="panel-heading"><div><span className="eyebrow">HIDE MATRIX KIT</span><h2>SIX BAKUCORES</h2></div><Badge tone="gold">{deck.coreIds.length} / 6</Badge></div><div className="core-row">{CORES.map((core) => <button className={deck.coreIds.includes(core.id) ? "active" : ""} key={core.id} onClick={() => { const active = deck.coreIds.includes(core.id); const next = active ? deck.coreIds.filter((id) => id !== core.id) : deck.coreIds.length < 6 ? [...deck.coreIds, core.id] : deck.coreIds; setDeck({ ...deck, coreIds: next }); }}><img src={core.art} alt={core.name} /><span>{core.name}</span></button>)}</div></section>
-      <section className="deck-list panel"><div className="panel-heading"><div><span className="eyebrow">MAIN DECK</span><h2>40-CARD LIST</h2></div><Badge tone={deck.cardIds.length === 40 ? "gold" : "red"}>{deck.cardIds.length} / 40</Badge></div>{counts.map(({ card, count }) => count > 0 && <div className="deck-list-row" key={card.id}><img src={card.art} alt="" /><strong>{card.name}</strong><span>{card.type} • {card.cost} Energy</span><button onClick={() => removeCard(card.id)}>−</button><b>{count}</b><button onClick={() => addCard(card.id)}>+</button></div>)}</section></main>
-      <aside className="validation-panel panel"><span className="eyebrow">FULL RULE VALIDATION</span><h2>{legal ? "READY FOR BATTLE" : "DECK INCOMPLETE"}</h2><ul><li className={deck.bakuganIds.length === 3 ? "ok" : "bad"}>Exactly 3 distinct Characters ({deck.bakuganIds.length}/3)</li><li className={deck.coreIds.length === 6 ? "ok" : "bad"}>Exactly 6 matching BakuCores ({deck.coreIds.length}/6)</li><li className={deck.cardIds.length === 40 ? "ok" : "bad"}>Exactly 40 cards ({deck.cardIds.length}/40)</li><li className={Math.max(0, ...counts.map((item) => item.count)) <= 3 ? "ok" : "bad"}>Maximum 3 copies per card</li><li className="ok">Faction identity enforced</li></ul><Metric label="Average Energy" value={(deck.cardIds.reduce((sum, id) => { const cost = CARDS.find((card) => card.catalogId === id)?.cost; return sum + (typeof cost === "number" ? cost : 0); }, 0) / Math.max(1, deck.cardIds.length)).toFixed(1)} /><Metric label="Action cards" value={deck.cardIds.filter((id) => CARDS.find((c) => c.catalogId === id)?.type === "Action").length} /><Metric label="Flip cards" value={deck.cardIds.filter((id) => CARDS.find((c) => c.catalogId === id)?.type === "Flip").length} /></aside></div></section>;
+  const [catalogTab, setCatalogTab] = useState<"cards" | "bakugan" | "cores">("cards");
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("All");
+  const [factionFilter, setFactionFilter] = useState("All");
+  const [setFilter, setSetFilter] = useState("All");
+  const [rarityFilter, setRarityFilter] = useState("All");
+  const [costFilter, setCostFilter] = useState("All");
+  const [sortBy, setSortBy] = useState<"id" | "name" | "cost" | "rarity">("id");
+
+  const format: DeckFormat = deck.format ?? "standard";
+  const cardCopyLimit = format === "singleton" ? 1 : 3;
+  const coreCopyLimit = format === "singleton" ? 1 : 6;
+  const mainCards = CARDS.filter((card) => card.type !== "Character");
+  const errors = deckErrors(deck);
+  const legal = errors.length === 0;
+  const selectedBakugan = deck.bakuganIds.map((id) => BAKUGAN.find((item) => item.id === id)).filter(Boolean) as typeof BAKUGAN;
+  const selectedCores = deck.coreIds.map((id) => CORES.find((item) => item.id === id)).filter(Boolean) as typeof CORES;
+  const cardCounts = mainCards.map((card) => ({ card, count: deck.cardIds.filter((id) => id === card.catalogId).length })).filter((item) => item.count > 0);
+  const rarityOrder = ["Common", "Rare", "Super Rare", "Awesome Rare", "Bakugan Elite", "N/A"];
+  const setName = (id: string) => id.startsWith("bb-") ? "Battle Brawlers" : "Other";
+  const query = catalogQuery.trim().toLowerCase();
+  const energyValues = [...new Set(mainCards.map((card) => String(card.cost)))].sort((a, b) => Number(a) - Number(b));
+
+  const filteredCards = mainCards.filter((card) => {
+    const matchesQuery = !query || `${card.displayName} ${card.effect}`.toLowerCase().includes(query);
+    return matchesQuery
+      && (typeFilter === "All" || card.type === typeFilter)
+      && (factionFilter === "All" || card.factions.includes(factionFilter as never))
+      && (setFilter === "All" || setName(card.catalogId) === setFilter)
+      && (rarityFilter === "All" || card.rarity === rarityFilter)
+      && (costFilter === "All" || String(card.cost) === costFilter);
+  }).sort((a, b) => {
+    if (sortBy === "name") return a.displayName.localeCompare(b.displayName);
+    if (sortBy === "cost") return (typeof a.cost === "number" ? a.cost : 99) - (typeof b.cost === "number" ? b.cost : 99) || a.number - b.number;
+    if (sortBy === "rarity") return rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity) || a.number - b.number;
+    return a.number - b.number;
+  });
+
+  const filteredBakugan = BAKUGAN.filter((bakugan) => {
+    const matchesQuery = !query || `${bakugan.name} ${bakugan.faction}`.toLowerCase().includes(query);
+    return matchesQuery
+      && (factionFilter === "All" || bakugan.faction === factionFilter)
+      && (setFilter === "All" || setName(bakugan.id) === setFilter);
+  }).sort((a, b) => sortBy === "name" ? a.name.localeCompare(b.name) : Number(a.id.replace(/\D/g, "")) - Number(b.id.replace(/\D/g, "")));
+
+  const filteredCores = CORES.filter((core) => {
+    const matchesQuery = !query || `${core.name} ${core.type}`.toLowerCase().includes(query);
+    return matchesQuery && (typeFilter === "All" || core.type === typeFilter);
+  }).sort((a, b) => sortBy === "name" ? a.name.localeCompare(b.name) : a.number - b.number);
+
+  const requiredCoreTypes = selectedBakugan.flatMap((bakugan) => bakugan.character.coreTypes);
+  const coreTypes = ["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"];
+  const cardTypeCounts = ["Action", "Flip", "Hero", "Evo"].map((type) => ({ type, count: deck.cardIds.filter((id) => CARDS.find((card) => card.catalogId === id)?.type === type).length }));
+  const factionMismatchCount = deck.cardIds.filter((id) => {
+    const card = CARDS.find((candidate) => candidate.catalogId === id);
+    return !!card && !card.factions.some((faction) => deck.factions.includes(faction));
+  }).length;
+  const teamIssue = deck.bakuganIds.length !== 3 || new Set(deck.bakuganIds).size !== deck.bakuganIds.length;
+  const coreTypeIssue = [...requiredCoreTypes].sort().join("|") !== selectedCores.map((core) => core.type).sort().join("|");
+  const coreIssue = deck.coreIds.length !== 6 || coreTypeIssue || selectedCores.some((core) => deck.coreIds.filter((id) => id === core.id).length > coreCopyLimit);
+  const deckIssue = deck.cardIds.length !== 40 || factionMismatchCount > 0 || cardCounts.some(({ count }) => count > cardCopyLimit);
+
+  const updateTeam = (bakuganId: string) => {
+    const active = deck.bakuganIds.includes(bakuganId);
+    const next = active ? deck.bakuganIds.filter((id) => id !== bakuganId) : deck.bakuganIds.length < 3 ? [...deck.bakuganIds, bakuganId] : deck.bakuganIds;
+    setDeck({
+      ...deck,
+      bakuganIds: next,
+      factions: [...new Set(next.map((id) => BAKUGAN.find((candidate) => candidate.id === id)?.faction).filter(Boolean))] as string[],
+    });
+  };
+  const addCore = (coreId: string) => {
+    const copies = deck.coreIds.filter((id) => id === coreId).length;
+    if (deck.coreIds.length >= 6 || copies >= coreCopyLimit) return;
+    setDeck({ ...deck, coreIds: [...deck.coreIds, coreId] });
+  };
+  const removeCore = (coreId: string) => {
+    const next = [...deck.coreIds];
+    const index = next.lastIndexOf(coreId);
+    if (index >= 0) next.splice(index, 1);
+    setDeck({ ...deck, coreIds: next });
+  };
+  const changeTab = (tab: "cards" | "bakugan" | "cores") => {
+    setCatalogTab(tab);
+    setTypeFilter("All");
+    setFactionFilter("All");
+    setSetFilter("All");
+    setRarityFilter("All");
+    setCostFilter("All");
+    setSortBy("id");
+  };
+
+  return <section className="builder-page builder-v2">
+    <header className="builder-header">
+      <button onClick={back}>← DECK LIBRARY</button>
+      <input value={deck.name} onChange={(event) => setDeck({ ...deck, name: event.target.value })} aria-label="Deck name" />
+      <label className="builder-format"><span>FORMAT</span><select value={format} onChange={(event) => setDeck({ ...deck, format: event.target.value as DeckFormat })}><option value="standard">Standard</option><option value="singleton">Singleton</option></select></label>
+      <Badge tone={legal ? "gold" : "red"}>{legal ? "LEGAL DECK" : `${errors.length} ISSUE${errors.length === 1 ? "" : "S"}`}</Badge>
+      <span>Autosaved locally</span>
+      <AppButton tone="red" onClick={save}>SAVE DECK</AppButton>
+    </header>
+
+    <div className="builder-layout builder-equal-columns">
+      <aside className="catalog panel builder-catalog-column">
+        <div className="catalog-title-row"><div><span className="eyebrow">COMPLETE CATALOGUE</span><h2>ADD GAME PIECES</h2></div><Badge>{catalogTab === "cards" ? filteredCards.length : catalogTab === "bakugan" ? filteredBakugan.length : filteredCores.length} SHOWN</Badge></div>
+        <div className="catalog-tabs" role="tablist" aria-label="Game piece catalogue">
+          <button className={catalogTab === "cards" ? "active" : ""} onClick={() => changeTab("cards")}>CARDS</button>
+          <button className={catalogTab === "bakugan" ? "active" : ""} onClick={() => changeTab("bakugan")}>BAKUGAN</button>
+          <button className={catalogTab === "cores" ? "active" : ""} onClick={() => changeTab("cores")}>CORES</button>
+        </div>
+        <label className="catalog-search"><span>SEARCH</span><input value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder={catalogTab === "cards" ? "Name or effect…" : "Name…"} /></label>
+        <div className="catalog-filters">
+          {(catalogTab === "cards" || catalogTab === "cores") && <label><span>{catalogTab === "cards" ? "CARD TYPE" : "CORE TYPE"}</span><select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}><option>All</option>{(catalogTab === "cards" ? ["Action", "Flip", "Hero", "Evo"] : coreTypes).map((type) => <option key={type}>{type}</option>)}</select></label>}
+          {catalogTab !== "cores" && <label><span>FACTION</span><select value={factionFilter} onChange={(event) => setFactionFilter(event.target.value)}><option>All</option>{["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"].map((faction) => <option key={faction}>{faction}</option>)}</select></label>}
+          {catalogTab !== "cores" && <label><span>SET</span><select value={setFilter} onChange={(event) => setSetFilter(event.target.value)}><option>All</option><option>Battle Brawlers</option></select></label>}
+          {catalogTab === "cards" && <label><span>RARITY</span><select value={rarityFilter} onChange={(event) => setRarityFilter(event.target.value)}><option>All</option>{rarityOrder.map((rarity) => <option key={rarity}>{rarity}</option>)}</select></label>}
+          {catalogTab === "cards" && <label><span>ENERGY COST</span><select value={costFilter} onChange={(event) => setCostFilter(event.target.value)}><option>All</option>{energyValues.map((cost) => <option key={cost}>{cost}</option>)}</select></label>}
+          <label><span>SORT BY</span><select value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)}><option value="id">ID</option><option value="name">Name</option>{catalogTab === "cards" && <><option value="cost">Energy Cost</option><option value="rarity">Rarity</option></>}</select></label>
+        </div>
+        <div className={`catalog-results ${catalogTab}`}>
+          {catalogTab === "cards" && filteredCards.map((card) => {
+            const copies = deck.cardIds.filter((id) => id === card.catalogId).length;
+            const atLimit = copies >= cardCopyLimit || deck.cardIds.length >= 40;
+            return <article className="catalog-piece card-piece" key={card.id}>
+              <img src={card.art} alt={card.displayName} />
+              <div className="catalog-piece-copy"><strong>{card.displayName}</strong><span>{card.type} • {card.faction} • {card.cost} Energy</span><small>{card.rarity}</small></div>
+              <div className="catalog-piece-actions"><b>{copies}/{cardCopyLimit}</b><button disabled={atLimit} onClick={() => addCard(card.catalogId)}>{atLimit ? "LIMIT" : "+ ADD"}</button></div>
+            </article>;
+          })}
+          {catalogTab === "bakugan" && filteredBakugan.map((bakugan) => {
+            const active = deck.bakuganIds.includes(bakugan.id);
+            return <article className={`catalog-piece bakugan-piece ${active ? "selected" : ""} ${factionClass(bakugan.faction)}`} key={bakugan.id}>
+              <img src={bakugan.art} alt={bakugan.name} />
+              <div className="catalog-piece-copy"><strong>{bakugan.name}</strong><span>{bakugan.faction} • {bakugan.bPower}B • {bakugan.damage}D</span><small>{bakugan.character.coreTypes.join(" + ")}</small></div>
+              <div className="catalog-piece-actions"><b>{active ? "1/1" : "0/1"}</b><button disabled={!active && deck.bakuganIds.length >= 3} onClick={() => updateTeam(bakugan.id)}>{active ? "REMOVE" : "+ ADD"}</button></div>
+            </article>;
+          })}
+          {catalogTab === "cores" && filteredCores.map((core) => {
+            const copies = deck.coreIds.filter((id) => id === core.id).length;
+            const atLimit = copies >= coreCopyLimit || deck.coreIds.length >= 6;
+            return <article className={`catalog-piece core-piece ${copies ? "selected" : ""}`} key={core.id}>
+              <img src={core.art} alt={core.name} />
+              <div className="catalog-piece-copy"><strong>{core.name}</strong><span>{core.type} • Core #{core.number}</span><small>{requiredCoreTypes.includes(core.type) ? "Required by selected Bakugan" : "Not currently required"}</small></div>
+              <div className="catalog-piece-actions"><b>{copies}/{coreCopyLimit}</b><div><button disabled={!copies} onClick={() => removeCore(core.id)}>−</button><button disabled={atLimit} onClick={() => addCore(core.id)}>+</button></div></div>
+            </article>;
+          })}
+          {((catalogTab === "cards" && !filteredCards.length) || (catalogTab === "bakugan" && !filteredBakugan.length) || (catalogTab === "cores" && !filteredCores.length)) && <div className="catalog-empty"><strong>NO RESULTS</strong><span>Adjust the search or filters.</span></div>}
+        </div>
+      </aside>
+
+      <main className="deck-workspace builder-deck-column">
+        <section className={`deck-validation-summary ${legal ? "legal" : "illegal"}`}>
+          <div><span className="eyebrow">{format.toUpperCase()} FORMAT</span><h2>{legal ? "READY FOR BATTLE" : "DECK REQUIRES ATTENTION"}</h2><p>{format === "standard" ? "Up to three copies of each Main Deck card and six copies of a BakuCore." : "One copy of each Main Deck card, Character, and BakuCore."}</p></div>
+          <Badge tone={legal ? "gold" : "red"}>{legal ? "LEGAL" : `${errors.length} OPEN`}</Badge>
+          {!legal && <ul>{errors.map((error) => <li key={error}>{error}</li>)}</ul>}
+        </section>
+
+        <section className={`team-builder panel selected-section ${teamIssue ? "has-issues" : ""}`}>
+          <div className="panel-heading"><div><span className="eyebrow">BAKUGAN TEAM</span><h2>SELECTED BAKUGAN</h2></div><Badge tone={teamIssue ? "red" : "gold"}>{deck.bakuganIds.length} / 3</Badge></div>
+          <div className="selected-bakugan-grid">{[0, 1, 2].map((index) => { const bakugan = selectedBakugan[index]; return bakugan ? <article className={factionClass(bakugan.faction)} key={bakugan.id}><img src={bakugan.art} alt={bakugan.name} /><div><strong>{bakugan.name}</strong><span>{bakugan.faction} • {bakugan.bPower}B • {bakugan.damage}D</span><small>{bakugan.character.coreTypes.join(" + ")}</small></div><button onClick={() => updateTeam(bakugan.id)}>REMOVE</button></article> : <div className="empty-selection-slot" key={index}><b>+</b><span>BAKUGAN SLOT {index + 1}</span></div>; })}</div>
+        </section>
+
+        <section className={`core-builder panel selected-section ${coreIssue ? "has-issues" : ""}`}>
+          <div className="panel-heading"><div><span className="eyebrow">HIDE MATRIX KIT</span><h2>SELECTED BAKUCORES</h2></div><Badge tone={coreIssue ? "red" : "gold"}>{deck.coreIds.length} / 6</Badge></div>
+          <div className="core-requirement-strip"><span>ALLOWED CORE TYPES</span><div>{coreTypes.map((type) => { const required = requiredCoreTypes.filter((item) => item === type).length; const selected = selectedCores.filter((core) => core.type === type).length; return <i className={`${required ? "required" : "not-required"} ${selected === required ? "met" : "unmet"}`} key={type}>{type}<b>{selected}/{required}</b></i>; })}</div></div>
+          <div className="selected-core-grid">{[0, 1, 2, 3, 4, 5].map((index) => { const core = selectedCores[index]; return core ? <article key={`${core.id}-${index}`}><img src={core.art} alt={core.name} /><strong>{core.name}</strong><span>{core.type}</span><button onClick={() => removeCore(core.id)}>REMOVE</button></article> : <div className="empty-selection-slot core-empty" key={index}><b>+</b><span>CORE SLOT {index + 1}</span></div>; })}</div>
+        </section>
+
+        <section className={`deck-list panel selected-section ${deckIssue ? "has-issues" : ""}`}>
+          <div className="panel-heading"><div><span className="eyebrow">MAIN DECK</span><h2>40-CARD LIST</h2></div><Badge tone={deckIssue ? "red" : "gold"}>{deck.cardIds.length} / 40</Badge></div>
+          <div className="deck-type-summary">{cardTypeCounts.map(({ type, count }) => <div key={type}><span>{type}</span><strong>{count}</strong></div>)}<div className={factionMismatchCount ? "warning" : ""}><span>Faction issues</span><strong>{factionMismatchCount}</strong></div></div>
+          <div className="selected-card-list">{cardCounts.length ? cardCounts.sort((a, b) => a.card.type.localeCompare(b.card.type) || a.card.displayName.localeCompare(b.card.displayName)).map(({ card, count }) => <article key={card.id}><img src={card.art} alt={card.displayName} /><div><strong>{card.displayName}</strong><span>{card.type} • {card.faction} • {card.cost} Energy • {card.rarity}</span><small>{card.effect}</small></div><div className="deck-quantity-controls"><button onClick={() => removeCard(card.catalogId)}>−</button><b>{count}</b><button disabled={count >= cardCopyLimit || deck.cardIds.length >= 40} onClick={() => addCard(card.catalogId)}>+</button></div></article>) : <div className="empty-deck-list"><strong>NO MAIN-DECK CARDS SELECTED</strong><span>Use the Cards tab in the catalogue to build the deck.</span></div>}</div>
+        </section>
+      </main>
+    </div>
+  </section>;
 }
 
 function Compendium({ query, setQuery, tab, setTab }: { query: string; setQuery: (q: string) => void; tab: "cards" | "rules" | "rulings"; setTab: (t: "cards" | "rules" | "rulings") => void }) {
