@@ -1,6 +1,6 @@
 const SESSION_COOKIE = "bbp_session";
 const SESSION_DAYS = 30;
-const PASSWORD_ITERATIONS = 210_000;
+const PASSWORD_ITERATIONS = 75_000;
 const encoder = new TextEncoder();
 
 export type AccountUser = {
