@@ -1119,3 +1119,465 @@
   border:1px solid rgba(255,255,255,.82);
   font-size:.45rem;
 }
+
+/* V10 match screen — mirrored physical tabletop, typed BakuCore backs and spaced play zones */
+.battle-ui-v7{
+  --physical-card-w:92px;
+  --physical-card-h:132px;
+  --physical-card-gap:10px;
+}
+
+/* A brighter red mat while retaining depth and the generated hex lattice. */
+.battle-ui-v7 .playmat-surface{
+  overflow:hidden;
+  border-color:#d64b32;
+  background:
+    radial-gradient(circle at 50% 47%,rgba(255,208,92,.44) 0,rgba(255,88,26,.42) 18%,rgba(198,28,15,.33) 38%,transparent 58%),
+    linear-gradient(118deg,#5e0906 0,#a5150c 24%,#ef3217 49%,#9d1009 74%,#3a0506 100%);
+  box-shadow:
+    0 30px 48px rgba(0,0,0,.82),
+    0 7px 0 rgba(45,4,4,.98),
+    inset 0 0 82px rgba(35,0,0,.68),
+    inset 0 0 0 1px rgba(255,205,174,.25);
+}
+.battle-ui-v7 .playmat-surface .official-playmat{
+  z-index:0;
+  inset:0;
+  opacity:1;
+  background:
+    linear-gradient(90deg,rgba(33,0,0,.55),transparent 14% 86%,rgba(33,0,0,.55)),
+    radial-gradient(circle at 50% 49%,rgba(255,221,122,.24),transparent 37%),
+    repeating-linear-gradient(150deg,rgba(255,255,255,.025) 0 2px,transparent 2px 44px),
+    linear-gradient(180deg,rgba(255,255,255,.035),transparent 19% 80%,rgba(35,0,0,.32));
+}
+.battle-ui-v7 .playmat-surface:after{
+  z-index:70;
+  border-color:rgba(255,192,161,.22);
+  box-shadow:inset 0 0 48px rgba(42,0,0,.5);
+}
+
+/* Every concealed card uses the supplied, authentic Bakugan card back. */
+.battle-ui-v7 .card-back,
+.battle-ui-v7 .mini-card-back{
+  background-color:#170504;
+  background-image:url('/assets/card-back-reference.png');
+  background-position:center;
+  background-repeat:no-repeat;
+  background-size:100% 100%;
+}
+
+/* Opponent and player zones are exact vertical mirrors across the centre of the mat. */
+.battle-ui-v7 .opponent-table-row.mirrored-table-row{
+  position:absolute;
+  z-index:18;
+  top:18px;
+  left:22px;
+  right:22px;
+  height:288px;
+  display:block;
+  padding:0;
+  overflow:visible;
+  background:none;
+  border:0;
+  clip-path:none;
+  backdrop-filter:none;
+  transform:translateZ(18px);
+  pointer-events:auto;
+}
+.battle-ui-v7 .opponent-roster.physical-character-row,
+.battle-ui-v7 .player-roster.physical-character-row{
+  position:absolute;
+  display:flex;
+  align-items:flex-start;
+  gap:var(--physical-card-gap);
+  overflow:visible;
+}
+.battle-ui-v7 .opponent-roster.physical-character-row{
+  left:0;
+  top:46px;
+  justify-content:flex-start;
+}
+.battle-ui-v7 .player-roster.physical-character-row{
+  z-index:22;
+  left:22px;
+  bottom:24px;
+  align-items:flex-end;
+  transform:translateZ(24px);
+}
+.battle-ui-v7 .opponent-roster.physical-character-row>article,
+.battle-ui-v7 .player-roster.physical-character-row>button{
+  position:relative;
+  width:var(--physical-card-w);
+  height:var(--physical-card-h);
+  min-width:var(--physical-card-w);
+  display:block;
+  padding:0;
+  overflow:visible;
+  opacity:1;
+  background:#040607;
+  border:1px solid rgba(170,184,188,.82);
+  border-radius:4px;
+  box-shadow:0 10px 15px rgba(0,0,0,.8);
+  transform:none;
+  transition:transform .16s ease,filter .16s ease,border-color .16s ease,box-shadow .16s ease;
+}
+.battle-ui-v7 .opponent-roster.physical-character-row>article{cursor:help}
+.battle-ui-v7 .opponent-roster.physical-character-row>article.closed,
+.battle-ui-v7 .player-roster.physical-character-row>button.closed{filter:saturate(.76) brightness(.82)}
+.battle-ui-v7 .opponent-roster.physical-character-row>article.open,
+.battle-ui-v7 .player-roster.physical-character-row>button.open{filter:saturate(1.04) brightness(1)}
+.battle-ui-v7 .opponent-roster.physical-character-row>article:hover,
+.battle-ui-v7 .opponent-roster.physical-character-row>article:focus-visible,
+.battle-ui-v7 .player-roster.physical-character-row>button:hover,
+.battle-ui-v7 .player-roster.physical-character-row>button:focus-visible{
+  z-index:28;
+  transform:translateY(-7px) scale(1.04);
+  filter:brightness(1.08) drop-shadow(0 0 10px rgba(255,111,55,.65));
+  outline:none;
+}
+.battle-ui-v7 .opponent-roster.physical-character-row>article.active,
+.battle-ui-v7 .player-roster.physical-character-row>button.active{
+  z-index:29;
+  opacity:1;
+  border-color:#ffd45f;
+  transform:translateY(-8px) scale(1.055);
+  filter:saturate(1.15) brightness(1.1) drop-shadow(0 0 13px rgba(255,105,37,.98));
+  box-shadow:0 0 0 2px rgba(255,83,28,.95),0 0 26px rgba(255,73,20,.86),0 12px 18px rgba(0,0,0,.84);
+}
+.battle-ui-v7 .opponent-roster img.physical-character-card,
+.battle-ui-v7 .player-roster img.physical-character-card{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:contain;
+}
+.battle-ui-v7 .card-state-ribbon{display:none!important}
+
+/* Captured Cores sit fully above their Character card and are never clipped. */
+.battle-ui-v7 .held-core-fan{
+  z-index:34;
+  top:-40px;
+  min-width:54px;
+  height:48px;
+}
+.battle-ui-v7 .player-roster .held-core-fan{top:-40px}
+.battle-ui-v7 .held-core-fan img{
+  width:56px!important;
+  height:49px!important;
+  margin-left:-18px;
+  object-fit:contain!important;
+  filter:drop-shadow(0 5px 5px rgba(0,0,0,.95));
+}
+
+/* The hidden opponent hand mirrors the player's hand at the far edge. */
+.battle-ui-v7 .opponent-hand-shelf{
+  position:absolute;
+  left:56%;
+  top:0;
+  width:430px;
+  height:148px;
+  transform:translateX(-50%);
+  display:grid;
+  justify-items:center;
+  pointer-events:none;
+}
+.battle-ui-v7 .opponent-hand-shelf>label{
+  margin-bottom:3px;
+  color:#d9e1e3;
+  font-size:.46rem;
+  font-weight:900;
+  letter-spacing:.1em;
+  text-shadow:0 2px 3px #000;
+}
+.battle-ui-v7 .opponent-hand{
+  width:max-content;
+  height:132px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:0 18px;
+  overflow:visible;
+}
+.battle-ui-v7 .mini-card-back{
+  width:82px;
+  height:118px;
+  margin-left:-25px;
+  border:1px solid #de654b;
+  border-radius:4px;
+  box-shadow:0 7px 10px rgba(0,0,0,.82);
+  transform:rotate(calc((var(--i,0) - 3) * 1.8deg));
+  transform-origin:50% 0;
+}
+.battle-ui-v7 .mini-card-back:first-child{margin-left:0}
+
+/* Hero is above a same-sized discard/deck row for both players. */
+.battle-ui-v7 .physical-zone-shelf{
+  position:absolute;
+  z-index:24;
+  width:calc(var(--physical-card-w) + var(--physical-card-w) + var(--physical-card-gap));
+  height:calc(var(--physical-card-h) + var(--physical-card-h) + var(--physical-card-gap));
+  display:grid;
+  grid-template-rows:var(--physical-card-h) var(--physical-card-h);
+  justify-items:center;
+  gap:var(--physical-card-gap);
+  overflow:visible;
+  transform:translateZ(26px);
+}
+.battle-ui-v7 .opponent-zone-shelf{
+  right:0;
+  top:0;
+}
+.battle-ui-v7 .player-zone-shelf{
+  right:22px;
+  bottom:24px;
+  align-items:initial;
+}
+.battle-ui-v7 .lower-zone-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  gap:var(--physical-card-gap);
+}
+.battle-ui-v7 .physical-zone{
+  position:relative;
+  width:var(--physical-card-w);
+  height:var(--physical-card-h);
+  display:block;
+  padding:0;
+}
+.battle-ui-v7 .physical-zone label{
+  left:4px;
+  top:4px;
+  padding:3px 5px;
+  font-size:.42rem;
+  letter-spacing:.07em;
+  background:rgba(0,0,0,.82);
+  border-color:rgba(255,255,255,.18);
+}
+.battle-ui-v7 .physical-stack,
+.battle-ui-v7 .card-pile{
+  width:var(--physical-card-w);
+  height:var(--physical-card-h);
+  border-radius:4px;
+}
+.battle-ui-v7 .physical-stack.face-up-stack img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+.battle-ui-v7 .physical-stack.empty>span{font-size:.48rem}
+.battle-ui-v7 .physical-stack>b{
+  right:-8px;
+  bottom:-7px;
+  width:25px;
+  height:25px;
+  font-size:.58rem;
+}
+.battle-ui-v7 .opponent-energy-counter{
+  position:absolute;
+  right:calc(100% + 10px);
+  top:0;
+  min-width:68px;
+  height:50px;
+  display:grid;
+  align-content:center;
+  justify-items:center;
+  padding:5px 8px;
+  background:linear-gradient(155deg,rgba(5,10,12,.94),rgba(53,8,6,.92));
+  border:1px solid #a33d2f;
+  box-shadow:0 8px 16px rgba(0,0,0,.68);
+}
+.battle-ui-v7 .opponent-energy-counter span{color:#b8c4c8;font-size:.4rem;font-weight:900;letter-spacing:.08em}
+.battle-ui-v7 .opponent-energy-counter strong{font-size:1rem}
+
+/* Type-specific attached art is now the actual face-down appearance of each Core. */
+.battle-ui-v7 .battle-core-field.axial button.face-down .core-back,
+.tabletop-placement .matrix-cell.occupied .placement-core-back{
+  inset:0;
+  overflow:hidden;
+  clip-path:polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%);
+  background:#0b0d0e;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.46),0 6px 9px rgba(0,0,0,.75);
+}
+.battle-ui-v7 .battle-core-field.axial button.face-down .core-back:before,
+.battle-ui-v7 .battle-core-field.axial button.face-down .core-back i,
+.tabletop-placement .matrix-cell.occupied .placement-core-back:before,
+.tabletop-placement .matrix-cell.occupied .placement-core-back i{display:none}
+.battle-ui-v7 .battle-core-field.axial button.face-down .core-back img,
+.tabletop-placement .matrix-cell.occupied .placement-core-back img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+  transform:scale(1.04);
+}
+.battle-ui-v7 .battle-core-field.axial button.face-down.targetable .core-back img{filter:brightness(1.16)}
+.battle-ui-v7 .battle-core-field.axial button.face-down.targeted .core-back img{filter:brightness(1.32) drop-shadow(0 0 10px #ffdd68)}
+
+/* The centre field is deliberately clear of all physical card zones. */
+.battle-ui-v7 .hex-arena{
+  left:52%;
+  top:50%;
+  transform:translate(-50%,-50%) scale(.66) translateZ(8px);
+}
+
+/* Counters float above the user's stacked zone rather than covering it. */
+.battle-ui-v7 .floating-counters{
+  z-index:30;
+  right:22px;
+  bottom:calc(34px + var(--physical-card-h) + var(--physical-card-h) + var(--physical-card-gap));
+  gap:6px;
+}
+
+/* Character hover information reuses the same inspector component as hand cards. */
+.battle-ui-v7 .character-card-inspector{
+  position:absolute;
+  z-index:58;
+  left:18px;
+  top:50%;
+  bottom:auto;
+  width:242px;
+  min-height:142px;
+  transform:translateY(-50%) translateZ(42px);
+  border-left:1px solid #6f2a24;
+  background:linear-gradient(145deg,rgba(38,7,5,.97),rgba(3,8,10,.96));
+  box-shadow:0 14px 28px rgba(0,0,0,.78);
+}
+.battle-ui-v7 .character-card-inspector .character-stats{
+  display:flex;
+  gap:8px;
+  margin:.1rem 0 .42rem;
+}
+.battle-ui-v7 .character-card-inspector .character-stats b{
+  padding:.28rem .42rem;
+  color:#fff;
+  background:#160706;
+  border:1px solid #713027;
+  font-size:.58rem;
+}
+
+/* The player hand is larger and shifted right, leaving the bottom-left action window clear. */
+.battle-ui-v7 .hand-dock,
+.battle-ui-v7 .hand-dock.has-inspector{
+  left:56%;
+  width:clamp(660px,52vw,950px);
+  height:255px;
+}
+.battle-ui-v7 .hand-fan{height:218px}
+.battle-ui-v7 .hand-fan button{
+  width:142px;
+  height:202px;
+  flex-basis:142px;
+  margin-left:-39px;
+}
+.battle-ui-v7 .hand-fan button.available:hover,
+.battle-ui-v7 .hand-fan button.selected{
+  transform:translateX(var(--fan-shift,0)) translateY(-31px) rotate(0deg) scale(1.085);
+}
+.battle-ui-v7 .hand-inspector:not(.character-card-inspector){left:-250px;bottom:38px}
+
+/* All action controls live in a dedicated floating window in the bottom-left rail. */
+.battle-ui-v7 .battle-left-column{padding-bottom:174px}
+.battle-ui-v7 .table-actions.floating-action-window{
+  position:absolute;
+  z-index:82;
+  left:10px;
+  bottom:10px;
+  width:230px;
+  max-width:230px;
+  min-height:154px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+  gap:7px;
+  padding:10px;
+  transform:none;
+  pointer-events:auto;
+  background:linear-gradient(150deg,rgba(31,7,5,.98),rgba(3,8,10,.98));
+  border:1px solid #8a3328;
+  box-shadow:0 15px 32px rgba(0,0,0,.78),inset 0 0 22px rgba(255,77,36,.06);
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+}
+.battle-ui-v7 .floating-action-title{
+  color:#ff8d72;
+  font-size:.55rem;
+  font-weight:900;
+  letter-spacing:.13em;
+}
+.battle-ui-v7 .floating-action-copy{
+  color:#c0cbd0;
+  font-size:.52rem;
+  line-height:1.35;
+}
+.battle-ui-v7 .table-actions.floating-action-window .hex-button{
+  width:100%;
+  min-width:0;
+  min-height:34px;
+  padding:.42rem .55rem;
+  font-size:.54rem;
+}
+.battle-ui-v7 .table-actions.floating-action-window .undo-table{
+  width:100%;
+  padding:.38rem;
+  border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.035);
+  font-size:.5rem;
+}
+
+/* The central instruction remains readable without colliding with the hand or zones. */
+.battle-ui-v7 .table-context{bottom:226px;max-width:390px}
+
+@media(max-width:1550px){
+  .battle-ui-v7{
+    --physical-card-w:82px;
+    --physical-card-h:118px;
+    --physical-card-gap:8px;
+  }
+  .battle-ui-v7 .opponent-table-row.mirrored-table-row{left:16px;right:16px;top:16px;height:258px}
+  .battle-ui-v7 .opponent-roster.physical-character-row{top:40px}
+  .battle-ui-v7 .player-roster.physical-character-row{left:16px;bottom:18px}
+  .battle-ui-v7 .player-zone-shelf{right:16px;bottom:18px}
+  .battle-ui-v7 .opponent-hand-shelf{width:370px}
+  .battle-ui-v7 .mini-card-back{width:72px;height:104px;margin-left:-23px}
+  .battle-ui-v7 .held-core-fan{top:-36px}
+  .battle-ui-v7 .player-roster .held-core-fan{top:-36px}
+  .battle-ui-v7 .held-core-fan img{width:50px!important;height:44px!important}
+  .battle-ui-v7 .hex-arena{left:52%;transform:translate(-50%,-50%) scale(.60) translateZ(8px)}
+  .battle-ui-v7 .floating-counters{right:16px;bottom:calc(27px + var(--physical-card-h) + var(--physical-card-h) + var(--physical-card-gap))}
+  .battle-ui-v7 .hand-dock,.battle-ui-v7 .hand-dock.has-inspector{left:56%;width:clamp(610px,51vw,820px);height:232px}
+  .battle-ui-v7 .hand-fan{height:197px}
+  .battle-ui-v7 .hand-fan button{width:126px;height:182px;flex-basis:126px;margin-left:-35px}
+  .battle-ui-v7 .table-context{bottom:207px}
+  .battle-ui-v7 .table-actions.floating-action-window{width:208px;max-width:208px}
+}
+
+@media(max-width:1220px){
+  .battle-ui-v7{
+    --physical-card-w:72px;
+    --physical-card-h:104px;
+    --physical-card-gap:6px;
+  }
+  .battle-ui-v7 .opponent-table-row.mirrored-table-row{left:10px;right:10px;top:14px;height:226px}
+  .battle-ui-v7 .opponent-roster.physical-character-row{top:35px}
+  .battle-ui-v7 .player-roster.physical-character-row{left:10px;bottom:14px}
+  .battle-ui-v7 .player-zone-shelf{right:10px;bottom:14px}
+  .battle-ui-v7 .opponent-hand-shelf{width:320px;height:118px}
+  .battle-ui-v7 .opponent-hand{height:110px}
+  .battle-ui-v7 .mini-card-back{width:62px;height:90px;margin-left:-20px}
+  .battle-ui-v7 .held-core-fan{top:-31px}
+  .battle-ui-v7 .player-roster .held-core-fan{top:-31px}
+  .battle-ui-v7 .held-core-fan img{width:43px!important;height:38px!important;margin-left:-14px}
+  .battle-ui-v7 .hex-arena{left:52%;transform:translate(-50%,-50%) scale(.52) translateZ(8px)}
+  .battle-ui-v7 .floating-counters{display:flex;right:10px;bottom:calc(22px + var(--physical-card-h) + var(--physical-card-h) + var(--physical-card-gap))}
+  .battle-ui-v7 .opponent-energy-counter{display:none}
+  .battle-ui-v7 .hand-dock,.battle-ui-v7 .hand-dock.has-inspector{left:56%;width:650px;height:214px}
+  .battle-ui-v7 .hand-fan{height:181px}
+  .battle-ui-v7 .hand-fan button{width:112px;height:164px;flex-basis:112px;margin-left:-32px}
+  .battle-ui-v7 .table-context{bottom:190px}
+  .battle-ui-v7 .character-card-inspector{width:205px;left:10px}
+  .battle-ui-v7 .table-actions.floating-action-window{left:8px;bottom:8px;width:174px;max-width:174px;padding:8px}
+  .battle-ui-v7 .battle-left-column{padding-bottom:168px}
+}
