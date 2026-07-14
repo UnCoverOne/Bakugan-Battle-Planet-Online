@@ -786,7 +786,37 @@ function LegacyMatchScreen({ match, playerId, error, logFilter, setLogFilter, co
     <footer className="match-hand"><div><span className="eyebrow">YOUR HAND</span><strong>{me.hand.length} CARDS</strong></div>{me.hand.map((card) => <img key={card.id} src={card.art} alt={card.name} title={`${card.name}: ${card.effect}`} />)}<div className="energy-pool"><img src="/assets/symbols/energy.png" alt="Energy" /><strong>{me.energy}/{me.maxEnergy}</strong><span>ENERGY</span></div></footer></section>;
 }
 
+function useBattleViewport() {
+  const [viewport, setViewport] = useState({ scale: 1, width: 1680, height: 900 });
+  useEffect(() => {
+    const update = () => {
+      const visualViewport = window.visualViewport;
+      const width = Math.max(1, visualViewport?.width ?? window.innerWidth);
+      const height = Math.max(1, visualViewport?.height ?? window.innerHeight);
+      // The match screen is a dense, fixed-composition tabletop. Scale it from
+      // both axes so short laptop windows and browser zoom never crop the hand,
+      // player zones, or action rail. The virtual canvas grows by the inverse
+      // amount, so the scaled result still fills the complete viewport.
+      const scale = Math.max(0.5, Math.min(1, width / 1180, height / 900));
+      setViewport({
+        scale,
+        width: Math.ceil(width / scale),
+        height: Math.ceil(height / scale),
+      });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+    };
+  }, []);
+  return viewport;
+}
+
 function FullMatchScreen({ match, playerId, faction, error, logFilter, setLogFilter, command }: { match: MatchState | null; playerId: string; faction: string; error: string; logFilter: string; setLogFilter: (v: string) => void; command: (action: string, payload?: Record<string, unknown>, localFn?: (s: MatchState) => MatchState) => void }) {
+  const battleViewport = useBattleViewport();
   const [pendingCardId, setPendingCardId] = useState("");
   const [choices, setChoices] = useState<CardChoices>({});
   const [limitCards, setLimitCards] = useState<string[]>([]);
@@ -875,6 +905,11 @@ function FullMatchScreen({ match, playerId, faction, error, logFilter, setLogFil
     : priorityWindow ? (myTurn ? "Play a card from your hand or pass priority" : `Priority: ${foe.name}`)
     : match.phase === "damage" ? `${match.pendingDamage} damage remaining` : match.stepLabel;
   return <section className="table-match battle-ui-v7" data-faction={faction.toLowerCase()}>
+    <div className="battle-scale-stage" style={{
+      "--battle-scale": battleViewport.scale,
+      width: `${battleViewport.width}px`,
+      height: `${battleViewport.height}px`,
+    } as React.CSSProperties}>
     <header className="table-phasebar battle-topbar">
       <section className="phase-command">
         <span className="phase-kicker">{majorPhase} PHASE • {match.stepLabel}</span>
@@ -965,6 +1000,7 @@ function FullMatchScreen({ match, playerId, faction, error, logFilter, setLogFil
 
     {pending && specs.length > 0 && <div className="table-modal-backdrop"><section className="table-choice-modal"><header><img src={pending.art} alt={pending.name} /><div><Badge>{pending.type}</Badge><h2>{pending.name}</h2><p>{pending.effect || "No printed effect"}</p></div></header><ChoiceEditor state={match} playerId={playerId} card={pending} specs={specs} choices={choices} setChoices={setChoices} toggleChoice={toggleChoice} /><div className="cast-actions"><AppButton tone="red" onClick={playPending}>ADD TO BATCH</AppButton><AppButton tone="ghost" onClick={() => { setPendingCardId(""); setChoices({}); }}>CANCEL</AppButton></div></section></div>}
     {match.phase === "damage" && match.pendingLoser === playerId && match.revealedFlip && <div className="table-modal-backdrop"><section className="table-choice-modal flip-choice"><header><img src={match.revealedFlip.art} alt={match.revealedFlip.name} /><div><Badge tone="gold">REVEALED FLIP</Badge><h2>{match.revealedFlip.name}</h2><p>{match.revealedFlip.effect}</p><strong>{match.pendingDamage} DAMAGE REMAINING</strong></div></header><div className="cast-actions"><AppButton tone="red" disabled={typeof match.revealedFlip.cost === "number" && match.revealedFlip.cost + (match.frostStrike[match.damageOrigin] ?? 0) > me.energy} onClick={() => command("damage", { cardId: match.revealedFlip!.id }, (state) => resolveDamage(state, playerId, match.revealedFlip!.id))}>PLAY FLIP</AppButton><AppButton tone="ghost" onClick={() => command("damage", {}, (state) => resolveDamage(state, playerId))}>DECLINE • CONTINUE DAMAGE</AppButton></div></section></div>}
+    </div>
   </section>;
 }
 
