@@ -51,13 +51,22 @@ export function NewGameScreenTester() {
   if (enabled && route === "match") return <GameScreen onExit={exit} />;
   if (route !== "play") return null;
 
-  return <aside className="new-game-screen-test-control" aria-label="Experimental game screen">
-    <div>
-      <small>EXPERIMENTAL CLIENT</small>
+  return <aside aria-label="Experimental game screen" style={{
+    position: "fixed", right: 20, bottom: 20, zIndex: 200,
+    display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", gap: 16,
+    width: "min(520px, calc(100vw - 40px))", padding: "14px 16px",
+    border: "1px solid rgba(246,181,27,.7)", background: "rgba(2,8,13,.96)",
+    boxShadow: "0 16px 40px rgba(0,0,0,.65)", color: "#fff",
+  }}>
+    <div style={{ display: "grid", gap: 4 }}>
+      <small style={{ color: "#f6b51b", fontWeight: 900, letterSpacing: ".12em" }}>EXPERIMENTAL CLIENT</small>
       <strong>NEW GAME SCREEN</strong>
-      <span>Use the blank standalone battlefield after lobby and BakuCore placement.</span>
+      <span style={{ color: "#a8c0c9", fontSize: 12, lineHeight: 1.35 }}>Use the blank standalone battlefield after lobby and BakuCore placement. Press Esc to return to Play.</span>
     </div>
-    <button type="button" role="switch" aria-checked={enabled} onClick={toggle}>
+    <button type="button" role="switch" aria-checked={enabled} onClick={toggle} style={{
+      minWidth: 104, padding: "10px 12px", border: `1px solid ${enabled ? "#f6b51b" : "#6b8088"}`,
+      background: enabled ? "#f6b51b" : "#071216", color: enabled ? "#111" : "#fff", fontWeight: 900,
+    }}>
       {enabled ? "ENABLED" : "DISABLED"}
     </button>
   </aside>;
