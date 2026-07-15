@@ -6,8 +6,8 @@ import styles from "./GameScreen.module.css";
 /**
  * Standalone replacement game-screen scaffold.
  *
- * This component is intentionally empty. Future interface work can be built
- * here without touching the existing match screen or game engine.
+ * The play area is presentation-only for now, keeping the new screen isolated
+ * from the existing match state and game engine while the layout is developed.
  */
 export function GameScreen({ onExit }: { onExit?: () => void }) {
   useEffect(() => {
@@ -21,5 +21,9 @@ export function GameScreen({ onExit }: { onExit?: () => void }) {
     return () => window.removeEventListener("keydown", exitOnEscape);
   }, [onExit]);
 
-  return <div className={styles.screen} />;
+  return (
+    <div className={styles.screen}>
+      <div className={styles.playArea} aria-label="Experimental game play area" />
+    </div>
+  );
 }
