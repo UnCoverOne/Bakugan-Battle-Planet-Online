@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { NewGameScreenTester } from "../components/game-screen-v2/NewGameScreenTester";
 
 export const metadata: Metadata = {
   title: "Bakugan Battle Planet Online",
@@ -20,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>{children}<NewGameScreenTester /></body>
     </html>
   );
 }
