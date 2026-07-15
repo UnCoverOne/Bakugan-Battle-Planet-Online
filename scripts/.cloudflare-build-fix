@@ -1,1 +1,0 @@
-Cloudflare Pages may check out shell scripts without executable permissions. Build wrappers invoke helper scripts through bash explicitly so deployment does not depend on Git file mode preservation.
