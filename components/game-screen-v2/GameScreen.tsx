@@ -13,13 +13,27 @@ const HEX_X_STEP = HEX_RADIUS * 1.5;
 const COLUMN_RADIUS = Math.ceil(GRID_WIDTH / (HEX_X_STEP * 2)) + 2;
 const ROW_RADIUS = Math.ceil(GRID_HEIGHT / (HEX_HEIGHT * 2)) + 3;
 
+type ZoneOwner = "player" | "opponent";
 type CharacterCardSlot = 1 | 2 | 3;
 type CardStackZoneKind = "discard-pile" | "deck";
+type CardStackZoneDefinition = {
+  kind: CardStackZoneKind;
+  lines: readonly string[];
+};
 
-const CHARACTER_CARD_SLOTS: readonly CharacterCardSlot[] = [1, 2, 3];
-const CARD_STACK_ZONES: readonly { kind: CardStackZoneKind; lines: readonly string[] }[] = [
+const PLAYER_CHARACTER_CARD_SLOTS: readonly CharacterCardSlot[] = [1, 2, 3];
+const OPPONENT_CHARACTER_CARD_SLOTS: readonly CharacterCardSlot[] = [3, 2, 1];
+
+const PLAYER_CARD_STACK_ZONES: readonly CardStackZoneDefinition[] = [
   { kind: "discard-pile", lines: ["Discard", "Pile"] },
   { kind: "deck", lines: ["Deck"] },
+];
+
+// The opponent layout is a 180-degree spatial mirror of the local player's
+// layout, so Deck appears on the viewer's left and Discard Pile on the right.
+const OPPONENT_CARD_STACK_ZONES: readonly CardStackZoneDefinition[] = [
+  { kind: "deck", lines: ["Deck"] },
+  { kind: "discard-pile", lines: ["Discard", "Pile"] },
 ];
 
 function hexPoints(cx: number, cy: number) {
@@ -56,19 +70,24 @@ const HEX_GRID = Array.from(
   && hex.cy <= GRID_HEIGHT + HEX_HEIGHT
 ));
 
+function ownerLabel(owner: ZoneOwner) {
+  return owner === "player" ? "Your" : "Opponent";
+}
+
 /**
- * A stable presentation slot for one Bakugan Character card. The data
- * attributes give the future game-screen adapter a predictable target without
- * coupling this scaffold to MatchState before the interaction layer is ready.
+ * A stable presentation slot for one Bakugan Character card. Ownership and
+ * unique zone identifiers let the future adapter place each player's cards in
+ * the correct mirrored area without coupling this scaffold to MatchState yet.
  */
-function CharacterCardZone({ slot }: { slot: CharacterCardSlot }) {
+function CharacterCardZone({ owner, slot }: { owner: ZoneOwner; slot: CharacterCardSlot }) {
   return (
     <li
       className={styles.characterCardZone}
       data-zone-kind="character-card"
-      data-zone-id={`character-card-${slot}`}
+      data-zone-owner={owner}
+      data-zone-id={`${owner}-character-card-${slot}`}
       data-slot={slot}
-      aria-label={`Character Card ${slot} zone`}
+      aria-label={`${ownerLabel(owner)} Character Card ${slot} zone`}
     >
       <span>Character</span>
       <span>Card {slot}</span>
@@ -77,17 +96,26 @@ function CharacterCardZone({ slot }: { slot: CharacterCardSlot }) {
 }
 
 /**
- * Stable presentation slots for the player's deck and discard pile. These are
+ * Stable presentation slots for each player's deck and discard pile. These are
  * layout-only targets until the new screen is connected to live match data.
  */
-function CardStackZone({ kind, lines }: { kind: CardStackZoneKind; lines: readonly string[] }) {
+function CardStackZone({
+  owner,
+  kind,
+  lines,
+}: {
+  owner: ZoneOwner;
+  kind: CardStackZoneKind;
+  lines: readonly string[];
+}) {
   const label = lines.join(" ");
   return (
     <li
       className={styles.cardStackZone}
       data-zone-kind={kind}
-      data-zone-id={kind}
-      aria-label={`${label} zone`}
+      data-zone-owner={owner}
+      data-zone-id={`${owner}-${kind}`}
+      aria-label={`${ownerLabel(owner)} ${label} zone`}
     >
       {lines.map((line) => <span key={line}>{line}</span>)}
     </li>
@@ -95,21 +123,66 @@ function CardStackZone({ kind, lines }: { kind: CardStackZoneKind; lines: readon
 }
 
 /**
- * A wide, persistent-card area aligned to the complete width of the deck and
- * discard zones below it. It is presentation-only until Hero cards are wired
- * to the game-screen adapter.
+ * A wide persistent-card area aligned to the combined width of the associated
+ * deck and discard zones.
  */
-function HeroZone() {
+function HeroZone({ owner }: { owner: ZoneOwner }) {
   return (
     <div
       className={styles.heroZone}
       data-zone-kind="hero"
-      data-zone-id="hero"
-      aria-label="Hero zone"
+      data-zone-owner={owner}
+      data-zone-id={`${owner}-hero`}
+      aria-label={`${ownerLabel(owner)} Hero zone`}
     >
       <span>Hero</span>
       <span>Zone</span>
     </div>
+  );
+}
+
+function PlayerZoneLayout({ owner }: { owner: ZoneOwner }) {
+  const isOpponent = owner === "opponent";
+  const characterSlots = isOpponent
+    ? OPPONENT_CHARACTER_CARD_SLOTS
+    : PLAYER_CHARACTER_CARD_SLOTS;
+  const cardStackZones = isOpponent
+    ? OPPONENT_CARD_STACK_ZONES
+    : PLAYER_CARD_STACK_ZONES;
+
+  return (
+    <>
+      <section
+        className={`${styles.characterCardArea} ${
+          isOpponent ? styles.opponentCharacterCardArea : styles.playerCharacterCardArea
+        }`}
+        data-zone-owner={owner}
+        data-zone-group="character-cards"
+        aria-label={`${ownerLabel(owner)} Bakugan Character card area`}
+      >
+        <ol className={styles.characterCardZones}>
+          {characterSlots.map((slot) => (
+            <CharacterCardZone key={`${owner}-${slot}`} owner={owner} slot={slot} />
+          ))}
+        </ol>
+      </section>
+
+      <section
+        className={`${styles.cardStackArea} ${
+          isOpponent ? styles.opponentCardStackArea : styles.playerCardStackArea
+        }`}
+        data-zone-owner={owner}
+        data-zone-group="play-area-cards"
+        aria-label={`${ownerLabel(owner)} Hero, deck, and discard pile area`}
+      >
+        <HeroZone owner={owner} />
+        <ol className={styles.cardStackZones}>
+          {cardStackZones.map((zone) => (
+            <CardStackZone key={`${owner}-${zone.kind}`} owner={owner} {...zone} />
+          ))}
+        </ol>
+      </section>
+    </>
   );
 }
 
@@ -156,18 +229,8 @@ export function GameScreen({ onExit }: { onExit?: () => void }) {
           </g>
         </svg>
 
-        <section className={styles.characterCardArea} aria-label="Bakugan Character card area">
-          <ol className={styles.characterCardZones}>
-            {CHARACTER_CARD_SLOTS.map((slot) => <CharacterCardZone key={slot} slot={slot} />)}
-          </ol>
-        </section>
-
-        <section className={styles.cardStackArea} aria-label="Hero, deck, and discard pile area">
-          <HeroZone />
-          <ol className={styles.cardStackZones}>
-            {CARD_STACK_ZONES.map((zone) => <CardStackZone key={zone.kind} {...zone} />)}
-          </ol>
-        </section>
+        <PlayerZoneLayout owner="opponent" />
+        <PlayerZoneLayout owner="player" />
       </div>
     </div>
   );
