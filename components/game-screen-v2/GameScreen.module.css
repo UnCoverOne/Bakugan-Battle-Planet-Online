@@ -92,11 +92,11 @@
     inset 0 0 12px rgba(79, 181, 255, 0.16);
   color: #fff;
   font-family: "Arial Narrow", Impact, Arial, sans-serif;
-  font-size: clamp(0.48rem, 0.95vw, 0.92rem);
+  font-size: clamp(0.4rem, 0.76vw, 0.78rem);
   font-style: italic;
   font-weight: 900;
   line-height: 1.18;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.035em;
   text-align: center;
   text-transform: uppercase;
   text-shadow: 0 1px 4px #000;
@@ -106,5 +106,7 @@
   display: block;
   width: 100%;
   max-width: 100%;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
