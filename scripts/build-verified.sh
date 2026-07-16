@@ -4,7 +4,10 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ "${SITES_ENV_READY:-}" != "1" ]]; then
-  exec bash "${script_dir}/sites-env.sh" -- "$0" "$@"
+  # Run the build script through bash after sites-env prepares the writable
+  # Cloudflare build environment. Do not execute $0 directly because GitHub's
+  # contents API may preserve this file without the executable bit.
+  exec bash "${script_dir}/sites-env.sh" -- bash "$0" "$@"
 fi
 
 command -v timeout >/dev/null || {
