@@ -20,6 +20,18 @@ type CardStackZoneDefinition = {
   kind: CardStackZoneKind;
   lines: readonly string[];
 };
+type OwnerZoneCounts = {
+  hero: number;
+  deck: number;
+  discardPile: number;
+};
+
+export type GameScreenZoneCounts = Record<ZoneOwner, OwnerZoneCounts>;
+
+const EMPTY_ZONE_COUNTS: GameScreenZoneCounts = {
+  player: { hero: 0, deck: 0, discardPile: 0 },
+  opponent: { hero: 0, deck: 0, discardPile: 0 },
+};
 
 const PLAYER_CHARACTER_CARD_SLOTS: readonly CharacterCardSlot[] = [1, 2, 3];
 const OPPONENT_CHARACTER_CARD_SLOTS: readonly CharacterCardSlot[] = [3, 2, 1];
@@ -74,6 +86,14 @@ function ownerLabel(owner: ZoneOwner) {
   return owner === "player" ? "Your" : "Opponent";
 }
 
+function safeCount(value: number) {
+  return Math.max(0, Math.floor(Number.isFinite(value) ? value : 0));
+}
+
+function stackCount(counts: OwnerZoneCounts, kind: CardStackZoneKind) {
+  return safeCount(kind === "deck" ? counts.deck : counts.discardPile);
+}
+
 /**
  * A stable presentation slot for one Bakugan Character card. Ownership and
  * unique zone identifiers let the future adapter place each player's cards in
@@ -103,21 +123,26 @@ function CardStackZone({
   owner,
   kind,
   lines,
+  count,
 }: {
   owner: ZoneOwner;
   kind: CardStackZoneKind;
   lines: readonly string[];
+  count: number;
 }) {
   const label = lines.join(" ");
+  const cardCount = safeCount(count);
   return (
     <li
       className={styles.cardStackZone}
       data-zone-kind={kind}
       data-zone-owner={owner}
       data-zone-id={`${owner}-${kind}`}
-      aria-label={`${ownerLabel(owner)} ${label} zone`}
+      data-card-count={cardCount}
+      aria-label={`${ownerLabel(owner)} ${label} zone, ${cardCount} cards`}
     >
       {lines.map((line) => <span key={line}>{line}</span>)}
+      <strong className={styles.zoneCount} aria-hidden="true">{cardCount}</strong>
     </li>
   );
 }
@@ -126,22 +151,25 @@ function CardStackZone({
  * A wide persistent-card area aligned to the combined width of the associated
  * deck and discard zones.
  */
-function HeroZone({ owner }: { owner: ZoneOwner }) {
+function HeroZone({ owner, count }: { owner: ZoneOwner; count: number }) {
+  const cardCount = safeCount(count);
   return (
     <div
       className={styles.heroZone}
       data-zone-kind="hero"
       data-zone-owner={owner}
       data-zone-id={`${owner}-hero`}
-      aria-label={`${ownerLabel(owner)} Hero zone`}
+      data-card-count={cardCount}
+      aria-label={`${ownerLabel(owner)} Hero zone, ${cardCount} cards`}
     >
       <span>Hero</span>
       <span>Zone</span>
+      <strong className={styles.zoneCount} aria-hidden="true">{cardCount}</strong>
     </div>
   );
 }
 
-function PlayerZoneLayout({ owner }: { owner: ZoneOwner }) {
+function PlayerZoneLayout({ owner, counts }: { owner: ZoneOwner; counts: OwnerZoneCounts }) {
   const isOpponent = owner === "opponent";
   const characterSlots = isOpponent
     ? OPPONENT_CHARACTER_CARD_SLOTS
@@ -175,10 +203,15 @@ function PlayerZoneLayout({ owner }: { owner: ZoneOwner }) {
         data-zone-group="play-area-cards"
         aria-label={`${ownerLabel(owner)} Hero, deck, and discard pile area`}
       >
-        <HeroZone owner={owner} />
+        <HeroZone owner={owner} count={counts.hero} />
         <ol className={styles.cardStackZones}>
           {cardStackZones.map((zone) => (
-            <CardStackZone key={`${owner}-${zone.kind}`} owner={owner} {...zone} />
+            <CardStackZone
+              key={`${owner}-${zone.kind}`}
+              owner={owner}
+              {...zone}
+              count={stackCount(counts, zone.kind)}
+            />
           ))}
         </ol>
       </section>
@@ -192,7 +225,13 @@ function PlayerZoneLayout({ owner }: { owner: ZoneOwner }) {
  * The play area is presentation-only for now, keeping the new screen isolated
  * from the existing match state and game engine while the layout is developed.
  */
-export function GameScreen({ onExit }: { onExit?: () => void }) {
+export function GameScreen({
+  onExit,
+  zoneCounts = EMPTY_ZONE_COUNTS,
+}: {
+  onExit?: () => void;
+  zoneCounts?: GameScreenZoneCounts;
+}) {
   useEffect(() => {
     if (!onExit) return;
     const exitOnEscape = (event: KeyboardEvent) => {
@@ -229,8 +268,8 @@ export function GameScreen({ onExit }: { onExit?: () => void }) {
           </g>
         </svg>
 
-        <PlayerZoneLayout owner="opponent" />
-        <PlayerZoneLayout owner="player" />
+        <PlayerZoneLayout owner="opponent" counts={zoneCounts.opponent} />
+        <PlayerZoneLayout owner="player" counts={zoneCounts.player} />
       </div>
     </div>
   );
