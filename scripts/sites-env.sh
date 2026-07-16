@@ -2,7 +2,13 @@
 set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-runtime_root="${SITES_RUNTIME_ROOT:-${project_root}/.sites-runtime}"
+
+# Keep writable build caches outside the repository. Cloudflare Pages may
+# validate the project root as an asset directory during its redirected
+# Wrangler deployment; placing npm's cache under the repo can therefore make a
+# cache blob look like a deployable asset and trigger the 25 MiB file limit.
+runtime_parent="${TMPDIR:-/tmp}"
+runtime_root="${SITES_RUNTIME_ROOT:-${runtime_parent%/}/bakugan-sites-runtime}"
 
 mkdir -p \
   "${runtime_root}/home" \
