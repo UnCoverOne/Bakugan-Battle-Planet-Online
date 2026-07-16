@@ -128,7 +128,7 @@
   pointer-events: none;
 }
 
-.characterCardZone span {
+.zoneLabel {
   position: relative;
   z-index: 1;
   display: block;
@@ -140,6 +140,21 @@
   word-break: normal;
   text-align: left;
   transform: none;
+}
+
+.characterCardImage,
+.discardCardImage {
+  position: absolute;
+  inset: calc(var(--zone-fill-inset) + 1px);
+  z-index: 2;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 2px;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
 }
 
 .cardStackArea {
@@ -199,6 +214,29 @@
   aspect-ratio: 10 / 7;
 }
 
+.heroCardStack {
+  position: absolute;
+  inset: calc(var(--zone-fill-inset) + 1px);
+  z-index: 2;
+  overflow: hidden;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.heroCardImage {
+  position: absolute;
+  top: 5%;
+  left: var(--hero-left);
+  z-index: calc(2 + var(--hero-order));
+  width: 28%;
+  height: 90%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  object-fit: cover;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.48);
+  user-select: none;
+}
+
 .cardStackZones {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -212,26 +250,35 @@
   aspect-ratio: 5 / 7;
 }
 
-.heroZone span,
-.cardStackZone span {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: auto;
-  margin: 0;
-  padding: 0;
-  white-space: nowrap;
-  overflow-wrap: normal;
-  word-break: normal;
-  text-align: left;
-  transform: none;
+.deckBackStack {
+  position: absolute;
+  inset: calc(var(--zone-fill-inset) + 1px);
+  z-index: 2;
+  overflow: hidden;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.deckBackCard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: calc(2 + var(--deck-order));
+  width: 74%;
+  aspect-ratio: 875 / 1224;
+  transform: translate(calc(-50% + var(--deck-x)), calc(-50% + var(--deck-y)));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 2px;
+  object-fit: cover;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.52);
+  user-select: none;
 }
 
 .zoneCount {
   position: absolute;
   right: 0;
   bottom: 0;
-  z-index: 4;
+  z-index: 20;
   display: grid;
   place-items: center;
   width: clamp(1.3rem, 2.15vw, 2rem);
