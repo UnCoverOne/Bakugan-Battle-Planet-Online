@@ -18,6 +18,8 @@
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },
   "dependencies": {
+    "@fontsource/lato": "5.2.7",
+    "@fontsource/titillium-web": "5.2.8",
     "drizzle-orm": "0.45.2",
     "next": "16.2.6",
     "react": "19.2.6",
