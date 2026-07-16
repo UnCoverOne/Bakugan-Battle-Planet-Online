@@ -1,7 +1,24 @@
 import type { Metadata } from "next";
+import { Lato, Titillium_Web } from "next/font/google";
 import "./globals.css";
 import "./design-system.css";
 import { NewGameScreenTester } from "../components/game-screen-v2/NewGameScreenTester";
+
+const lato = Lato({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-lato",
+});
+
+const titilliumWeb = Titillium_Web({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-titillium-web",
+});
 
 export const metadata: Metadata = {
   title: "Bakugan Battle Planet Online",
@@ -21,15 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Titillium+Web:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-        />
-      </head>
+    <html lang="en" className={`${lato.variable} ${titilliumWeb.variable}`}>
       <body>{children}<NewGameScreenTester /></body>
     </html>
   );
