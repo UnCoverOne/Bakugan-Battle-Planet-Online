@@ -94,7 +94,7 @@
   color: #fff;
   font-family: "Arial Narrow", Impact, Arial, sans-serif;
   font-size: clamp(0.4rem, 0.76vw, 0.78rem);
-  font-style: italic;
+  font-style: normal;
   font-weight: 900;
   line-height: 1.18;
   letter-spacing: 0.035em;
@@ -104,9 +104,9 @@
 }
 
 .characterCardZone span {
-  display: block;
+  display: inline-block;
   justify-self: center;
-  width: auto;
+  width: max-content;
   max-width: 100%;
   margin: 0;
   padding: 0;
@@ -114,4 +114,6 @@
   overflow-wrap: normal;
   word-break: normal;
   text-align: center;
+  transform: skewX(-8deg);
+  transform-origin: center center;
 }
