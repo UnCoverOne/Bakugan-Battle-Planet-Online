@@ -14,7 +14,6 @@
   --font-body: var(--font-lato), Arial, sans-serif;
   --font-display: var(--font-titillium-web), Arial, sans-serif;
   --font-weight-regular: 400;
-  --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
   /* Typography rhythm */
@@ -162,7 +161,7 @@ h6 {
   font-style: normal;
 }
 
-/* Avoid synthetic ultra-bold text. The official type system uses 400–700. */
+/* Avoid synthetic ultra-bold text. The official type system uses 400 and 700. */
 .eyebrow,
 .hex-button,
 .badge,
