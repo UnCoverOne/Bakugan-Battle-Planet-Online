@@ -59,7 +59,7 @@
   position: absolute;
   z-index: 2;
   left: 2.8%;
-  bottom: 3.8%;
+  bottom: 10%;
   width: 25%;
 }
 
@@ -121,13 +121,8 @@
   position: absolute;
   z-index: 2;
   right: 2.8%;
-  bottom: 3.8%;
+  bottom: 10%;
   width: 16.2%;
-}
-
-.characterCardArea,
-.cardStackArea {
-  transform: translateY(-20%);
 }
 
 .cardStackZones {
