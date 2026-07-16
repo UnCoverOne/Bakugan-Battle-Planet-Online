@@ -2,17 +2,17 @@
  * Bakugan Battle Planet design system
  *
  * The archived official Bakugan website used Lato for body copy and
- * Titillium Web for headings, navigation and action text. next/font supplies
- * both families as local build assets, so every device receives the same
- * typography instead of substituting Impact, Arial Narrow or another system
- * font. The official site's custom "Bakugan" face was an icon font and is not
- * used for readable interface text.
+ * Titillium Web for headings, navigation and action text. Fontsource packages
+ * bundle the selected Latin font files with the application, so every device
+ * receives the same typography without relying on a system substitute or a
+ * third-party font request. The official site's custom "Bakugan" face was an
+ * icon font and is not used for readable interface text.
  */
 
 :root {
   /* Typography families */
-  --font-body: var(--font-lato), Arial, sans-serif;
-  --font-display: var(--font-titillium-web), Arial, sans-serif;
+  --font-body: "Lato", Arial, sans-serif;
+  --font-display: "Titillium Web", Arial, sans-serif;
   --font-weight-regular: 400;
   --font-weight-bold: 700;
 
