@@ -13,6 +13,10 @@ const HEX_X_STEP = HEX_RADIUS * 1.5;
 const COLUMN_RADIUS = Math.ceil(GRID_WIDTH / (HEX_X_STEP * 2)) + 2;
 const ROW_RADIUS = Math.ceil(GRID_HEIGHT / (HEX_HEIGHT * 2)) + 3;
 
+type CharacterCardSlot = 1 | 2 | 3;
+
+const CHARACTER_CARD_SLOTS: readonly CharacterCardSlot[] = [1, 2, 3];
+
 function hexPoints(cx: number, cy: number) {
   return Array.from({ length: 6 }, (_, index) => {
     const angle = index * Math.PI / 3;
@@ -46,6 +50,26 @@ const HEX_GRID = Array.from(
   && hex.cy >= -HEX_HEIGHT
   && hex.cy <= GRID_HEIGHT + HEX_HEIGHT
 ));
+
+/**
+ * A stable presentation slot for one Bakugan Character card. The data
+ * attributes give the future game-screen adapter a predictable target without
+ * coupling this scaffold to MatchState before the interaction layer is ready.
+ */
+function CharacterCardZone({ slot }: { slot: CharacterCardSlot }) {
+  return (
+    <li
+      className={styles.characterCardZone}
+      data-zone-kind="character-card"
+      data-zone-id={`character-card-${slot}`}
+      data-slot={slot}
+      aria-label={`Character Card ${slot} zone`}
+    >
+      <span>Character</span>
+      <span>Card {slot}</span>
+    </li>
+  );
+}
 
 /**
  * Standalone replacement game-screen scaffold.
@@ -89,6 +113,12 @@ export function GameScreen({ onExit }: { onExit?: () => void }) {
             {HEX_GRID.map((hex) => <polygon key={hex.key} points={hex.points} />)}
           </g>
         </svg>
+
+        <section className={styles.characterCardArea} aria-label="Bakugan Character card area">
+          <ol className={styles.characterCardZones}>
+            {CHARACTER_CARD_SLOTS.map((slot) => <CharacterCardZone key={slot} slot={slot} />)}
+          </ol>
+        </section>
       </div>
     </div>
   );
