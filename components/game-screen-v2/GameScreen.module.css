@@ -54,3 +54,50 @@
   stroke-width: 1.25;
   vector-effect: non-scaling-stroke;
 }
+
+.characterCardArea {
+  position: absolute;
+  z-index: 2;
+  left: 2.8%;
+  bottom: 3.8%;
+  width: 25%;
+}
+
+.characterCardZones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.characterCardZone {
+  position: relative;
+  display: grid;
+  place-content: center;
+  aspect-ratio: 5 / 7;
+  min-width: 0;
+  overflow: hidden;
+  border: 2px solid rgba(67, 171, 255, 0.96);
+  border-radius: 3px;
+  background: rgba(0, 12, 25, 0.2);
+  box-shadow:
+    0 0 10px rgba(44, 154, 255, 0.58),
+    0 0 22px rgba(31, 127, 255, 0.26),
+    inset 0 0 12px rgba(79, 181, 255, 0.16);
+  color: #fff;
+  font-family: "Arial Narrow", Impact, Arial, sans-serif;
+  font-size: clamp(0.48rem, 0.95vw, 0.92rem);
+  font-style: italic;
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+  text-shadow: 0 1px 4px #000;
+}
+
+.characterCardZone span {
+  display: block;
+}
