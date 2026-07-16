@@ -1,6 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
+import type { CSSProperties } from "react";
+import type { GameCard, MatchState } from "../../lib/game";
+import {
+  EMPTY_GAME_SCREEN_ZONE_STATE,
+  buildGameScreenZoneState,
+  deckBackAssetCount,
+  heroCardLayout,
+  safeCardCount,
+  type GameScreenOwnerState,
+  type ZoneOwner,
+} from "./gameScreenState";
 import styles from "./GameScreen.module.css";
 
 const GRID_WIDTH = 1800;
@@ -12,8 +23,8 @@ const HEX_HEIGHT = Math.sqrt(3) * HEX_RADIUS;
 const HEX_X_STEP = HEX_RADIUS * 1.5;
 const COLUMN_RADIUS = Math.ceil(GRID_WIDTH / (HEX_X_STEP * 2)) + 2;
 const ROW_RADIUS = Math.ceil(GRID_HEIGHT / (HEX_HEIGHT * 2)) + 3;
+const CARD_BACK_ART = "/assets/card-back.png";
 
-type ZoneOwner = "player" | "opponent";
 type CharacterCardSlot = 1 | 2 | 3;
 type CardStackZoneKind = "discard-pile" | "deck";
 type CardStackZoneDefinition = {
@@ -86,20 +97,27 @@ function ownerLabel(owner: ZoneOwner) {
   return owner === "player" ? "Your" : "Opponent";
 }
 
-function safeCount(value: number) {
-  return Math.max(0, Math.floor(Number.isFinite(value) ? value : 0));
-}
-
 function stackCount(counts: OwnerZoneCounts, kind: CardStackZoneKind) {
-  return safeCount(kind === "deck" ? counts.deck : counts.discardPile);
+  return safeCardCount(kind === "deck" ? counts.deck : counts.discardPile);
 }
 
-/**
- * A stable presentation slot for one Bakugan Character card. Ownership and
- * unique zone identifiers let the future adapter place each player's cards in
- * the correct mirrored area without coupling this scaffold to MatchState yet.
- */
-function CharacterCardZone({ owner, slot }: { owner: ZoneOwner; slot: CharacterCardSlot }) {
+function ZoneLabel({ lines }: { lines: readonly string[] }) {
+  return <>{lines.map((line) => <span className={styles.zoneLabel} key={line}>{line}</span>)}</>;
+}
+
+function CharacterCardZone({
+  owner,
+  slot,
+  card,
+}: {
+  owner: ZoneOwner;
+  slot: CharacterCardSlot;
+  card?: GameCard;
+}) {
+  const label = card
+    ? `${ownerLabel(owner)} Character Card ${slot}: ${card.displayName || card.name}`
+    : `${ownerLabel(owner)} Character Card ${slot} zone`;
+
   return (
     <li
       className={styles.characterCardZone}
@@ -107,31 +125,79 @@ function CharacterCardZone({ owner, slot }: { owner: ZoneOwner; slot: CharacterC
       data-zone-owner={owner}
       data-zone-id={`${owner}-character-card-${slot}`}
       data-slot={slot}
-      aria-label={`${ownerLabel(owner)} Character Card ${slot} zone`}
+      data-card-id={card?.id}
+      aria-label={label}
     >
-      <span>Character</span>
-      <span>Card {slot}</span>
+      {card ? (
+        <img
+          className={styles.characterCardImage}
+          src={card.art}
+          alt={card.displayName || card.name}
+          draggable={false}
+        />
+      ) : <ZoneLabel lines={["Character", `Card ${slot}`]} />}
     </li>
   );
 }
 
-/**
- * Stable presentation slots for each player's deck and discard pile. These are
- * layout-only targets until the new screen is connected to live match data.
- */
+function DeckStack({ count, owner }: { count: number; owner: ZoneOwner }) {
+  const visualCount = deckBackAssetCount(count);
+  if (visualCount === 0) return null;
+
+  return (
+    <div className={styles.deckBackStack} aria-hidden="true">
+      {Array.from({ length: visualCount }, (_, index) => {
+        const centredIndex = index - (visualCount - 1) / 2;
+        const style = {
+          "--deck-x": `${centredIndex * 1.8}px`,
+          "--deck-y": `${centredIndex * -1.25}px`,
+          "--deck-order": index,
+        } as CSSProperties;
+        return (
+          <img
+            className={styles.deckBackCard}
+            src={CARD_BACK_ART}
+            alt=""
+            draggable={false}
+            data-zone-owner={owner}
+            style={style}
+            key={`${owner}-deck-back-${index}`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function DiscardCard({ card }: { card: GameCard | null }) {
+  if (!card) return null;
+  return (
+    <img
+      className={styles.discardCardImage}
+      src={card.art}
+      alt={card.displayName || card.name}
+      draggable={false}
+    />
+  );
+}
+
 function CardStackZone({
   owner,
   kind,
   lines,
   count,
+  latestDiscard,
 }: {
   owner: ZoneOwner;
   kind: CardStackZoneKind;
   lines: readonly string[];
   count: number;
+  latestDiscard: GameCard | null;
 }) {
   const label = lines.join(" ");
-  const cardCount = safeCount(count);
+  const cardCount = safeCardCount(count);
+  const hasVisual = kind === "deck" ? cardCount > 0 : Boolean(latestDiscard);
+
   return (
     <li
       className={styles.cardStackZone}
@@ -139,20 +205,44 @@ function CardStackZone({
       data-zone-owner={owner}
       data-zone-id={`${owner}-${kind}`}
       data-card-count={cardCount}
+      data-top-card-id={kind === "discard-pile" ? latestDiscard?.id : undefined}
       aria-label={`${ownerLabel(owner)} ${label} zone, ${cardCount} cards`}
     >
-      {lines.map((line) => <span key={line}>{line}</span>)}
+      {!hasVisual && <ZoneLabel lines={lines} />}
+      {kind === "deck"
+        ? <DeckStack count={cardCount} owner={owner} />
+        : <DiscardCard card={latestDiscard} />}
       <strong className={styles.zoneCount} aria-hidden="true">{cardCount}</strong>
     </li>
   );
 }
 
-/**
- * A wide persistent-card area aligned to the combined width of the associated
- * deck and discard zones.
- */
-function HeroZone({ owner, count }: { owner: ZoneOwner; count: number }) {
-  const cardCount = safeCount(count);
+function HeroStack({ cards }: { cards: readonly GameCard[] }) {
+  if (!cards.length) return null;
+  const layout = heroCardLayout(cards.length);
+
+  return (
+    <div className={styles.heroCardStack}>
+      {cards.map((card, index) => {
+        const left = layout.startPercent + index * layout.stepPercent;
+        const style = { "--hero-left": `${left}%`, "--hero-order": index } as CSSProperties;
+        return (
+          <img
+            className={styles.heroCardImage}
+            src={card.art}
+            alt={card.displayName || card.name}
+            draggable={false}
+            style={style}
+            key={card.id}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function HeroZone({ owner, cards, count }: { owner: ZoneOwner; cards: readonly GameCard[]; count: number }) {
+  const cardCount = safeCardCount(count);
   return (
     <div
       className={styles.heroZone}
@@ -162,14 +252,22 @@ function HeroZone({ owner, count }: { owner: ZoneOwner; count: number }) {
       data-card-count={cardCount}
       aria-label={`${ownerLabel(owner)} Hero zone, ${cardCount} cards`}
     >
-      <span>Hero</span>
-      <span>Zone</span>
+      {!cards.length && <ZoneLabel lines={["Hero", "Zone"]} />}
+      <HeroStack cards={cards} />
       <strong className={styles.zoneCount} aria-hidden="true">{cardCount}</strong>
     </div>
   );
 }
 
-function PlayerZoneLayout({ owner, counts }: { owner: ZoneOwner; counts: OwnerZoneCounts }) {
+function PlayerZoneLayout({
+  owner,
+  counts,
+  state,
+}: {
+  owner: ZoneOwner;
+  counts: OwnerZoneCounts;
+  state: GameScreenOwnerState;
+}) {
   const isOpponent = owner === "opponent";
   const characterSlots = isOpponent
     ? OPPONENT_CHARACTER_CARD_SLOTS
@@ -190,7 +288,12 @@ function PlayerZoneLayout({ owner, counts }: { owner: ZoneOwner; counts: OwnerZo
       >
         <ol className={styles.characterCardZones}>
           {characterSlots.map((slot) => (
-            <CharacterCardZone key={`${owner}-${slot}`} owner={owner} slot={slot} />
+            <CharacterCardZone
+              key={`${owner}-${slot}`}
+              owner={owner}
+              slot={slot}
+              card={state.characterCards[slot - 1]}
+            />
           ))}
         </ol>
       </section>
@@ -203,7 +306,7 @@ function PlayerZoneLayout({ owner, counts }: { owner: ZoneOwner; counts: OwnerZo
         data-zone-group="play-area-cards"
         aria-label={`${ownerLabel(owner)} Hero, deck, and discard pile area`}
       >
-        <HeroZone owner={owner} count={counts.hero} />
+        <HeroZone owner={owner} cards={state.heroCards} count={counts.hero} />
         <ol className={styles.cardStackZones}>
           {cardStackZones.map((zone) => (
             <CardStackZone
@@ -211,6 +314,7 @@ function PlayerZoneLayout({ owner, counts }: { owner: ZoneOwner; counts: OwnerZo
               owner={owner}
               {...zone}
               count={stackCount(counts, zone.kind)}
+              latestDiscard={state.latestDiscard}
             />
           ))}
         </ol>
@@ -219,17 +323,15 @@ function PlayerZoneLayout({ owner, counts }: { owner: ZoneOwner; counts: OwnerZo
   );
 }
 
-/**
- * Standalone replacement game-screen scaffold.
- *
- * The play area is presentation-only for now, keeping the new screen isolated
- * from the existing match state and game engine while the layout is developed.
- */
 export function GameScreen({
   onExit,
+  match,
+  playerId,
   zoneCounts = EMPTY_ZONE_COUNTS,
 }: {
   onExit?: () => void;
+  match?: MatchState | null;
+  playerId?: string;
   zoneCounts?: GameScreenZoneCounts;
 }) {
   useEffect(() => {
@@ -242,6 +344,24 @@ export function GameScreen({
     window.addEventListener("keydown", exitOnEscape);
     return () => window.removeEventListener("keydown", exitOnEscape);
   }, [onExit]);
+
+  const zoneState = match
+    ? buildGameScreenZoneState(match, playerId)
+    : EMPTY_GAME_SCREEN_ZONE_STATE;
+  const resolvedCounts: GameScreenZoneCounts = match
+    ? {
+      player: {
+        hero: zoneState.player.heroCards.length,
+        deck: zoneState.player.deckCount,
+        discardPile: zoneState.player.discardCount,
+      },
+      opponent: {
+        hero: zoneState.opponent.heroCards.length,
+        deck: zoneState.opponent.deckCount,
+        discardPile: zoneState.opponent.discardCount,
+      },
+    }
+    : zoneCounts;
 
   return (
     <div className={styles.screen}>
@@ -268,8 +388,8 @@ export function GameScreen({
           </g>
         </svg>
 
-        <PlayerZoneLayout owner="opponent" counts={zoneCounts.opponent} />
-        <PlayerZoneLayout owner="player" counts={zoneCounts.player} />
+        <PlayerZoneLayout owner="opponent" counts={resolvedCounts.opponent} state={zoneState.opponent} />
+        <PlayerZoneLayout owner="player" counts={resolvedCounts.player} state={zoneState.player} />
       </div>
     </div>
   );
