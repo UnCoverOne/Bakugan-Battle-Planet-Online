@@ -18,25 +18,25 @@
   aspect-ratio: 1.8 / 1;
   max-height: 90dvh;
   overflow: hidden;
-  border: 2px solid rgba(50, 160, 255, 0.92);
+  border: 2px solid rgba(210, 45, 45, 0.95);
   background:
     radial-gradient(
       circle at 50% 50%,
       rgba(255, 194, 38, 0.94) 0%,
       rgba(244, 96, 24, 0.79) 18%,
       rgba(145, 24, 16, 0.53) 44%,
-      rgba(4, 1, 1, 0.97) 88%
+      rgba(48, 4, 8, 0.97) 88%
     ),
     repeating-conic-gradient(
       from -3deg at 50% 50%,
-      rgba(255, 132, 40, 0.5) 0deg 2deg,
-      rgba(198, 42, 28, 0.5) 2deg 5deg,
-      rgba(87, 16, 13, 0.5) 5deg 9deg,
-      rgba(8, 2, 2, 0.5) 9deg 14deg
+      rgba(255, 132, 40, 0.25) 0deg 2deg,
+      rgba(198, 42, 28, 0.25) 2deg 5deg,
+      rgba(87, 16, 13, 0.25) 5deg 9deg,
+      rgba(8, 2, 2, 0.25) 9deg 14deg
     );
   box-shadow:
-    0 0 18px rgba(30, 145, 255, 0.36),
-    inset 0 0 14px rgba(40, 155, 255, 0.16);
+    0 0 18px rgba(210, 45, 45, 0.32),
+    inset 0 0 14px rgba(210, 45, 45, 0.14);
 }
 
 .hexGrid {
@@ -92,13 +92,10 @@
   min-width: 0;
   overflow: hidden;
   padding: clamp(0.65rem, 1.15vw, 1.1rem) clamp(0.45rem, 0.9vw, 0.9rem);
-  border: 2px solid rgba(67, 171, 255, 0.96);
+  border: 2px solid rgba(140, 140, 140, 0.82);
   border-radius: 3px;
-  background: rgba(28, 28, 28, 0.96);
-  box-shadow:
-    0 0 10px rgba(44, 154, 255, 0.58),
-    0 0 22px rgba(31, 127, 255, 0.26),
-    inset 0 0 12px rgba(79, 181, 255, 0.16);
+  background: rgba(16, 16, 16, 0.77);
+  box-shadow: none;
   color: #fff;
   font-family: var(--font-display);
   font-size: clamp(0.4rem, 0.76vw, 0.78rem);
@@ -157,13 +154,10 @@
   min-width: 0;
   overflow: hidden;
   padding: clamp(0.65rem, 1.15vw, 1.1rem) clamp(0.45rem, 0.9vw, 0.9rem);
-  border: 2px solid rgba(67, 171, 255, 0.96);
+  border: 2px solid rgba(140, 140, 140, 0.82);
   border-radius: 3px;
-  background: rgba(28, 28, 28, 0.96);
-  box-shadow:
-    0 0 10px rgba(44, 154, 255, 0.58),
-    0 0 22px rgba(31, 127, 255, 0.26),
-    inset 0 0 12px rgba(79, 181, 255, 0.16);
+  background: rgba(16, 16, 16, 0.77);
+  box-shadow: none;
   color: #fff;
   font-family: var(--font-display);
   font-size: clamp(0.4rem, 0.76vw, 0.78rem);
