@@ -76,7 +76,7 @@
   position: relative;
   display: grid;
   align-items: center;
-  justify-items: stretch;
+  justify-items: center;
   align-content: center;
   row-gap: clamp(0.22rem, 0.45vw, 0.5rem);
   box-sizing: border-box;
@@ -104,10 +104,9 @@
 }
 
 .characterCardZone span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
+  display: block;
+  justify-self: center;
+  width: auto;
   max-width: 100%;
   margin: 0;
   padding: 0;
