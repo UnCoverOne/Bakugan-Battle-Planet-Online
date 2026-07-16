@@ -14,7 +14,7 @@ const lato = Lato({
 
 const titilliumWeb = Titillium_Web({
   subsets: ["latin"],
-  weight: ["400", "600", "700"],
+  weight: ["400", "700"],
   style: ["normal", "italic"],
   display: "swap",
   variable: "--font-titillium-web",
