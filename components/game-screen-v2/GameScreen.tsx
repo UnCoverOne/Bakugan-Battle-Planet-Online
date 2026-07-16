@@ -77,6 +77,24 @@ function CharacterCardZone({ slot }: { slot: CharacterCardSlot }) {
 }
 
 /**
+ * A full-width presentation area for Hero cards that remain in play. It is a
+ * layout-only target until the experimental screen is connected to match data.
+ */
+function HeroZone() {
+  return (
+    <div
+      className={styles.heroZone}
+      data-zone-kind="hero"
+      data-zone-id="hero"
+      role="region"
+      aria-label="Hero zone"
+    >
+      <span>Hero</span>
+    </div>
+  );
+}
+
+/**
  * Stable presentation slots for the player's deck and discard pile. These are
  * layout-only targets until the new screen is connected to live match data.
  */
@@ -143,7 +161,8 @@ export function GameScreen({ onExit }: { onExit?: () => void }) {
           </ol>
         </section>
 
-        <section className={styles.cardStackArea} aria-label="Deck and discard pile area">
+        <section className={styles.cardStackArea} aria-label="Hero, deck and discard pile area">
+          <HeroZone />
           <ol className={styles.cardStackZones}>
             {CARD_STACK_ZONES.map((zone) => <CardStackZone key={zone.kind} {...zone} />)}
           </ol>
