@@ -14,8 +14,13 @@ const COLUMN_RADIUS = Math.ceil(GRID_WIDTH / (HEX_X_STEP * 2)) + 2;
 const ROW_RADIUS = Math.ceil(GRID_HEIGHT / (HEX_HEIGHT * 2)) + 3;
 
 type CharacterCardSlot = 1 | 2 | 3;
+type CardStackZoneKind = "discard-pile" | "deck";
 
 const CHARACTER_CARD_SLOTS: readonly CharacterCardSlot[] = [1, 2, 3];
+const CARD_STACK_ZONES: readonly { kind: CardStackZoneKind; lines: readonly string[] }[] = [
+  { kind: "discard-pile", lines: ["Discard", "Pile"] },
+  { kind: "deck", lines: ["Deck"] },
+];
 
 function hexPoints(cx: number, cy: number) {
   return Array.from({ length: 6 }, (_, index) => {
@@ -72,6 +77,24 @@ function CharacterCardZone({ slot }: { slot: CharacterCardSlot }) {
 }
 
 /**
+ * Stable presentation slots for the player's deck and discard pile. These are
+ * layout-only targets until the new screen is connected to live match data.
+ */
+function CardStackZone({ kind, lines }: { kind: CardStackZoneKind; lines: readonly string[] }) {
+  const label = lines.join(" ");
+  return (
+    <li
+      className={styles.cardStackZone}
+      data-zone-kind={kind}
+      data-zone-id={kind}
+      aria-label={`${label} zone`}
+    >
+      {lines.map((line) => <span key={line}>{line}</span>)}
+    </li>
+  );
+}
+
+/**
  * Standalone replacement game-screen scaffold.
  *
  * The play area is presentation-only for now, keeping the new screen isolated
@@ -117,6 +140,12 @@ export function GameScreen({ onExit }: { onExit?: () => void }) {
         <section className={styles.characterCardArea} aria-label="Bakugan Character card area">
           <ol className={styles.characterCardZones}>
             {CHARACTER_CARD_SLOTS.map((slot) => <CharacterCardZone key={slot} slot={slot} />)}
+          </ol>
+        </section>
+
+        <section className={styles.cardStackArea} aria-label="Deck and discard pile area">
+          <ol className={styles.cardStackZones}>
+            {CARD_STACK_ZONES.map((zone) => <CardStackZone key={zone.kind} {...zone} />)}
           </ol>
         </section>
       </div>
