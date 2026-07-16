@@ -92,10 +92,10 @@
     0 0 22px rgba(31, 127, 255, 0.26),
     inset 0 0 12px rgba(79, 181, 255, 0.16);
   color: #fff;
-  font-family: Impact, "Arial Narrow", Arial, sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(0.4rem, 0.76vw, 0.78rem);
   font-style: normal;
-  font-weight: 900;
+  font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
   line-height: 1.18;
@@ -154,10 +154,10 @@
     0 0 22px rgba(31, 127, 255, 0.26),
     inset 0 0 12px rgba(79, 181, 255, 0.16);
   color: #fff;
-  font-family: Impact, "Arial Narrow", Arial, sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(0.4rem, 0.76vw, 0.78rem);
   font-style: normal;
-  font-weight: 900;
+  font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
   line-height: 1.18;

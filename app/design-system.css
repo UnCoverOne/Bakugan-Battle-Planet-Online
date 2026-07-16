@@ -1,0 +1,164 @@
+/*
+ * Bakugan Battle Planet design system
+ *
+ * The archived official Bakugan site used Lato for body copy and
+ * Titillium Web for headings, navigation and action text. These variables
+ * make those roles explicit so components do not depend on device fonts such
+ * as Impact or Arial Narrow.
+ */
+
+:root {
+  /* Typography */
+  --font-body: "Lato", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Titillium Web", "Arial Narrow", Arial, sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-bold: 700;
+  --tracking-label: 0.08em;
+  --tracking-display: 0.025em;
+
+  /* Official-site brand anchors */
+  --brand-red: #eb1d25;
+  --brand-blue: #00aeef;
+  --brand-ink: #01131a;
+  --brand-black: #000;
+  --brand-white: #fff;
+  --brand-gray: #7f7f7f;
+
+  /* Shared interface tokens */
+  --surface-canvas: #02080d;
+  --surface-panel: #08232f;
+  --surface-panel-raised: #0d303d;
+  --border-subtle: rgba(166, 225, 246, 0.25);
+  --text-primary: #f7fbfd;
+  --text-secondary: #a8c0c9;
+  --focus-color: var(--brand-blue);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --radius-small: 3px;
+  --radius-medium: 4px;
+
+  /* Compatibility aliases for the existing application styles. */
+  --ink: var(--surface-canvas);
+  --panel: var(--surface-panel);
+  --panel2: var(--surface-panel-raised);
+  --line: var(--border-subtle);
+  --text: var(--text-primary);
+  --muted: var(--text-secondary);
+  --cyan: var(--brand-blue);
+  --red: var(--brand-red);
+}
+
+html {
+  font-family: var(--font-body);
+  font-synthesis: none;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-body);
+}
+
+body {
+  font-weight: var(--font-weight-regular);
+  line-height: 1.45;
+}
+
+strong,
+b {
+  font-weight: var(--font-weight-bold);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.eyebrow,
+.hex-button,
+.badge,
+.brand,
+.resume-chip,
+.menu-button,
+.panel-index,
+.topbar nav button,
+.table-panel-title,
+.phase-kicker,
+[data-zone-kind] {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-bold);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-style: italic;
+  line-height: 1;
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+}
+
+.eyebrow,
+.hex-button,
+.badge,
+.resume-chip,
+.topbar nav button,
+.table-panel-title,
+.phase-kicker,
+[data-zone-kind] {
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+/* Avoid synthetic ultra-bold text. The official type system uses 400 and 700. */
+.eyebrow,
+.hex-button,
+.badge,
+.brand,
+.resume-chip,
+.menu-button,
+.panel-index,
+.topbar nav button,
+.profile-chip > span,
+.profile-chip div,
+.text-button,
+.panel-heading button,
+.ruling-panel > button,
+.reference-card button,
+[data-zone-kind] {
+  font-weight: var(--font-weight-bold);
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 3px solid var(--focus-color);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px var(--brand-black);
+}
+
+::selection {
+  color: var(--brand-white);
+  background: var(--brand-red);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
