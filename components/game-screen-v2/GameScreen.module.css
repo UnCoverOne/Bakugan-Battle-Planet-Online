@@ -125,6 +125,11 @@
   width: 16.2%;
 }
 
+.characterCardArea,
+.cardStackArea {
+  transform: translateY(-20%);
+}
+
 .cardStackZones {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
