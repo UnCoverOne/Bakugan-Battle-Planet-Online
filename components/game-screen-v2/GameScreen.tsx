@@ -95,6 +95,25 @@ function CardStackZone({ kind, lines }: { kind: CardStackZoneKind; lines: readon
 }
 
 /**
+ * A wide, persistent-card area aligned to the complete width of the deck and
+ * discard zones below it. It is presentation-only until Hero cards are wired
+ * to the game-screen adapter.
+ */
+function HeroZone() {
+  return (
+    <div
+      className={styles.heroZone}
+      data-zone-kind="hero"
+      data-zone-id="hero"
+      aria-label="Hero zone"
+    >
+      <span>Hero</span>
+      <span>Zone</span>
+    </div>
+  );
+}
+
+/**
  * Standalone replacement game-screen scaffold.
  *
  * The play area is presentation-only for now, keeping the new screen isolated
@@ -143,7 +162,8 @@ export function GameScreen({ onExit }: { onExit?: () => void }) {
           </ol>
         </section>
 
-        <section className={styles.cardStackArea} aria-label="Deck and discard pile area">
+        <section className={styles.cardStackArea} aria-label="Hero, deck, and discard pile area">
+          <HeroZone />
           <ol className={styles.cardStackZones}>
             {CARD_STACK_ZONES.map((zone) => <CardStackZone key={zone.kind} {...zone} />)}
           </ol>
