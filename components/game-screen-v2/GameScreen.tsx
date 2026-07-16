@@ -216,9 +216,9 @@ export function GameScreen({ onExit }: { onExit?: () => void }) {
           <defs>
             <radialGradient id="game-screen-hex-fade" cx="50%" cy="50%" r="70%">
               <stop offset="0%" stopColor="white" stopOpacity="0.9" />
-              <stop offset="48%" stopColor="white" stopOpacity="0.72" />
-              <stop offset="74%" stopColor="white" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="black" stopOpacity="0" />
+              <stop offset="38%" stopColor="white" stopOpacity="0.72" />
+              <stop offset="59%" stopColor="white" stopOpacity="0.3" />
+              <stop offset="80%" stopColor="black" stopOpacity="0" />
             </radialGradient>
             <mask id="game-screen-hex-mask">
               <rect width={GRID_WIDTH} height={GRID_HEIGHT} fill="url(#game-screen-hex-fade)" />
