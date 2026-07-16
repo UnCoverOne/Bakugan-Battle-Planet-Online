@@ -29,10 +29,10 @@
     ),
     repeating-conic-gradient(
       from -3deg at 50% 50%,
-      #ff8428 0deg 2deg,
-      #c62a1c 2deg 5deg,
-      #57100d 5deg 9deg,
-      #080202 9deg 14deg
+      rgba(255, 132, 40, 0.5) 0deg 2deg,
+      rgba(198, 42, 28, 0.5) 2deg 5deg,
+      rgba(87, 16, 13, 0.5) 5deg 9deg,
+      rgba(8, 2, 2, 0.5) 9deg 14deg
     );
   box-shadow:
     0 0 18px rgba(30, 145, 255, 0.36),
@@ -50,7 +50,7 @@
 
 .hexGrid polygon {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.68);
+  stroke: rgba(255, 255, 255, 0.54);
   stroke-width: 1.25;
   vector-effect: non-scaling-stroke;
 }
@@ -84,8 +84,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: clamp(0.22rem, 0.45vw, 0.5rem);
   box-sizing: border-box;
   aspect-ratio: 5 / 7;
@@ -94,7 +94,7 @@
   padding: clamp(0.65rem, 1.15vw, 1.1rem) clamp(0.45rem, 0.9vw, 0.9rem);
   border: 2px solid rgba(67, 171, 255, 0.96);
   border-radius: 3px;
-  background: rgba(48, 48, 48, 0.94);
+  background: rgba(28, 28, 28, 0.96);
   box-shadow:
     0 0 10px rgba(44, 154, 255, 0.58),
     0 0 22px rgba(31, 127, 255, 0.26),
@@ -108,20 +108,20 @@
   font-feature-settings: "tnum" 1;
   line-height: 1.18;
   letter-spacing: 0.035em;
-  text-align: center;
+  text-align: left;
   text-transform: uppercase;
   text-shadow: 0 1px 4px #000;
 }
 
 .characterCardZone span {
   display: block;
-  width: 100%;
+  width: auto;
   margin: 0;
   padding: 0;
   white-space: nowrap;
   overflow-wrap: normal;
   word-break: normal;
-  text-align: center;
+  text-align: left;
   transform: none;
 }
 
@@ -150,8 +150,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: clamp(0.22rem, 0.45vw, 0.5rem);
   box-sizing: border-box;
   min-width: 0;
@@ -159,7 +159,7 @@
   padding: clamp(0.65rem, 1.15vw, 1.1rem) clamp(0.45rem, 0.9vw, 0.9rem);
   border: 2px solid rgba(67, 171, 255, 0.96);
   border-radius: 3px;
-  background: rgba(48, 48, 48, 0.94);
+  background: rgba(28, 28, 28, 0.96);
   box-shadow:
     0 0 10px rgba(44, 154, 255, 0.58),
     0 0 22px rgba(31, 127, 255, 0.26),
@@ -173,7 +173,7 @@
   font-feature-settings: "tnum" 1;
   line-height: 1.18;
   letter-spacing: 0.035em;
-  text-align: center;
+  text-align: left;
   text-transform: uppercase;
   text-shadow: 0 1px 4px #000;
 }
@@ -199,12 +199,12 @@
 .heroZone span,
 .cardStackZone span {
   display: block;
-  width: 100%;
+  width: auto;
   margin: 0;
   padding: 0;
   white-space: nowrap;
   overflow-wrap: normal;
   word-break: normal;
-  text-align: center;
+  text-align: left;
   transform: none;
 }
