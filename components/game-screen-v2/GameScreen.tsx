@@ -5,9 +5,13 @@ import styles from "./GameScreen.module.css";
 
 const GRID_WIDTH = 1800;
 const GRID_HEIGHT = 1000;
-const HEX_RADIUS = 52;
+const GRID_CENTER_X = GRID_WIDTH / 2;
+const GRID_CENTER_Y = GRID_HEIGHT / 2;
+const HEX_RADIUS = 52 * 0.8;
 const HEX_HEIGHT = Math.sqrt(3) * HEX_RADIUS;
 const HEX_X_STEP = HEX_RADIUS * 1.5;
+const COLUMN_RADIUS = Math.ceil(GRID_WIDTH / (HEX_X_STEP * 2)) + 2;
+const ROW_RADIUS = Math.ceil(GRID_HEIGHT / (HEX_HEIGHT * 2)) + 3;
 
 function hexPoints(cx: number, cy: number) {
   return Array.from({ length: 6 }, (_, index) => {
@@ -16,20 +20,32 @@ function hexPoints(cx: number, cy: number) {
   }).join(" ");
 }
 
+/**
+ * Build the grid outwards from axial coordinate 0,0. This guarantees that a
+ * complete hexagon is centred precisely on the middle of the 1800 x 1000
+ * play-area coordinate system, which future Hide Matrix positions can share.
+ */
 const HEX_GRID = Array.from(
-  { length: Math.ceil(GRID_WIDTH / HEX_X_STEP) + 3 },
-  (_, columnIndex) => columnIndex - 1,
-).flatMap((column) => {
-  const cx = column * HEX_X_STEP;
-  const rowOffset = Math.abs(column % 2) * HEX_HEIGHT / 2;
-  return Array.from(
-    { length: Math.ceil(GRID_HEIGHT / HEX_HEIGHT) + 3 },
-    (_, rowIndex) => rowIndex - 1,
-  ).map((row) => ({
-    key: `${column}:${row}`,
-    points: hexPoints(cx, row * HEX_HEIGHT + rowOffset),
-  }));
-});
+  { length: COLUMN_RADIUS * 2 + 1 },
+  (_, columnIndex) => columnIndex - COLUMN_RADIUS,
+).flatMap((q) => Array.from(
+  { length: ROW_RADIUS * 2 + 1 },
+  (_, rowIndex) => rowIndex - ROW_RADIUS,
+).map((r) => {
+  const cx = GRID_CENTER_X + q * HEX_X_STEP;
+  const cy = GRID_CENTER_Y + (r + q / 2) * HEX_HEIGHT;
+  return {
+    key: `${q}:${r}`,
+    cx,
+    cy,
+    points: hexPoints(cx, cy),
+  };
+})).filter((hex) => (
+  hex.cx >= -HEX_RADIUS
+  && hex.cx <= GRID_WIDTH + HEX_RADIUS
+  && hex.cy >= -HEX_HEIGHT
+  && hex.cy <= GRID_HEIGHT + HEX_HEIGHT
+));
 
 /**
  * Standalone replacement game-screen scaffold.
