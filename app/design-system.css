@@ -1,18 +1,31 @@
 /*
  * Bakugan Battle Planet design system
  *
- * The archived official Bakugan site used Lato for body copy and
- * Titillium Web for headings, navigation and action text. These variables
- * make those roles explicit so components do not depend on device fonts such
- * as Impact or Arial Narrow.
+ * The archived official Bakugan website used Lato for body copy and
+ * Titillium Web for headings, navigation and action text. next/font supplies
+ * both families as local build assets, so every device receives the same
+ * typography instead of substituting Impact, Arial Narrow or another system
+ * font. The official site's custom "Bakugan" face was an icon font and is not
+ * used for readable interface text.
  */
 
 :root {
-  /* Typography */
-  --font-body: "Lato", "Helvetica Neue", Arial, sans-serif;
-  --font-display: "Titillium Web", "Arial Narrow", Arial, sans-serif;
+  /* Typography families */
+  --font-body: var(--font-lato), Arial, sans-serif;
+  --font-display: var(--font-titillium-web), Arial, sans-serif;
   --font-weight-regular: 400;
+  --font-weight-semibold: 600;
   --font-weight-bold: 700;
+
+  /* Typography rhythm */
+  --type-xs: 0.6875rem;
+  --type-sm: 0.8125rem;
+  --type-md: 1rem;
+  --type-lg: 1.25rem;
+  --type-xl: 1.75rem;
+  --type-2xl: 2.5rem;
+  --leading-body: 1.45;
+  --leading-display: 1;
   --tracking-label: 0.08em;
   --tracking-display: 0.025em;
 
@@ -33,6 +46,7 @@
   --text-secondary: #a8c0c9;
   --focus-color: var(--brand-blue);
 
+  /* Spacing and shape */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -73,8 +87,9 @@ textarea {
 }
 
 body {
+  font-size: var(--type-md);
   font-weight: var(--font-weight-regular);
-  line-height: 1.45;
+  line-height: var(--leading-body);
 }
 
 strong,
@@ -82,6 +97,10 @@ b {
   font-weight: var(--font-weight-bold);
 }
 
+/*
+ * Display typography follows the official site's strongest visual language:
+ * Titillium Web, bold, condensed-looking, and italic for major headings.
+ */
 h1,
 h2,
 h3,
@@ -110,7 +129,7 @@ h4,
 h5,
 h6 {
   font-style: italic;
-  line-height: 1;
+  line-height: var(--leading-display);
   letter-spacing: var(--tracking-display);
   text-transform: uppercase;
 }
@@ -127,7 +146,23 @@ h6 {
   text-transform: uppercase;
 }
 
-/* Avoid synthetic ultra-bold text. The official type system uses 400 and 700. */
+/*
+ * Controls stay upright for clarity. Italics are reserved for headings and
+ * emphasis, preventing every label from competing for attention.
+ */
+.hex-button,
+.badge,
+.brand,
+.resume-chip,
+.menu-button,
+.topbar nav button,
+.table-panel-title,
+.phase-kicker,
+[data-zone-kind] {
+  font-style: normal;
+}
+
+/* Avoid synthetic ultra-bold text. The official type system uses 400–700. */
 .eyebrow,
 .hex-button,
 .badge,
