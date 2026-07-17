@@ -1,9 +1,11 @@
 import type { GameCard, MatchState } from "../../lib/game";
 
+const IDEAL_ANGLE_STEP_DEGREES = 5.25;
+const MIN_FAN_SPAN_DEGREES = 7.5;
+const MAX_FAN_SPAN_DEGREES = 42;
+
 export type HandCardPosition = {
-  leftPercent: number;
   rotationDegrees: number;
-  dropPixels: number;
   zIndex: number;
 };
 
@@ -17,27 +19,30 @@ export function playerHandCards(
   return Array.isArray(player.hand) ? player.hand : [];
 }
 
+export function handFanSpanDegrees(cardCount: number): number {
+  const count = Math.max(0, Math.floor(Number.isFinite(cardCount) ? cardCount : 0));
+  if (count <= 1) return 0;
+  return Math.min(
+    MAX_FAN_SPAN_DEGREES,
+    Math.max(MIN_FAN_SPAN_DEGREES, (count - 1) * IDEAL_ANGLE_STEP_DEGREES),
+  );
+}
+
 export function handCardLayout(cardCount: number): readonly HandCardPosition[] {
   const count = Math.max(0, Math.floor(Number.isFinite(cardCount) ? cardCount : 0));
   if (count === 0) return [];
-  if (count === 1) {
-    return [{ leftPercent: 50, rotationDegrees: 0, dropPixels: 0, zIndex: 1 }];
-  }
+  if (count === 1) return [{ rotationDegrees: 0, zIndex: 100 }];
 
-  const spreadPercent = Math.min(64, (count - 1) * 9);
-  const stepPercent = spreadPercent / (count - 1);
+  const spanDegrees = handFanSpanDegrees(count);
+  const stepDegrees = spanDegrees / (count - 1);
   const centre = (count - 1) / 2;
-  const halfRange = Math.max(1, centre);
-  const maxRotation = Math.min(8, (count - 1) * 2.2);
 
   return Array.from({ length: count }, (_, index) => {
-    const centredIndex = index - centre;
-    const normalized = centredIndex / halfRange;
+    const rotationDegrees = -spanDegrees / 2 + stepDegrees * index;
+    const distanceFromCentre = Math.abs(index - centre);
     return {
-      leftPercent: 50 - spreadPercent / 2 + stepPercent * index,
-      rotationDegrees: normalized * maxRotation,
-      dropPixels: Math.abs(normalized) * 13,
-      zIndex: index + 1,
+      rotationDegrees: Math.abs(rotationDegrees) < 1e-10 ? 0 : rotationDegrees,
+      zIndex: Math.round((count - distanceFromCentre) * 100),
     };
   });
 }

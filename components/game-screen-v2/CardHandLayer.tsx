@@ -27,9 +27,7 @@ export function CardHandLayer({
         {cards.map((card, index) => {
           const position = layout[index];
           const style = {
-            "--hand-left": `${position.leftPercent}%`,
             "--hand-rotation": `${position.rotationDegrees}deg`,
-            "--hand-drop": `${position.dropPixels}px`,
             zIndex: position.zIndex,
           } as CSSProperties;
 
@@ -41,12 +39,14 @@ export function CardHandLayer({
               key={card.id}
               title={card.displayName || card.name}
             >
-              <img
-                className={styles.handCardImage}
-                src={card.art}
-                alt={card.displayName || card.name}
-                draggable={false}
-              />
+              <div className={styles.handCardSurface}>
+                <img
+                  className={styles.handCardImage}
+                  src={card.art}
+                  alt={card.displayName || card.name}
+                  draggable={false}
+                />
+              </div>
             </li>
           );
         })}
