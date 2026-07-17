@@ -9,9 +9,20 @@
 }
 
 .matrixCore {
+  pointer-events: all;
+  cursor: pointer;
   filter:
     drop-shadow(0 4px 5px rgba(0, 0, 0, 0.72))
     drop-shadow(0 0 3px rgba(255, 255, 255, 0.2));
+  transition: filter 170ms ease;
+  will-change: filter;
+}
+
+.matrixCore:hover {
+  filter:
+    drop-shadow(0 4px 5px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.92))
+    drop-shadow(0 0 11px rgba(255, 255, 255, 0.5));
 }
 
 :global([data-zone-kind="character-card"]) {
@@ -45,8 +56,26 @@
   transform-origin: center bottom;
   object-fit: contain;
   object-position: center;
+  pointer-events: auto;
+  cursor: pointer;
   filter:
     drop-shadow(0 3px 3px rgba(0, 0, 0, 0.7))
     drop-shadow(0 0 2px rgba(255, 255, 255, 0.24));
+  transition: filter 170ms ease;
+  will-change: filter;
   user-select: none;
+}
+
+.heldCore:hover {
+  filter:
+    drop-shadow(0 3px 3px rgba(0, 0, 0, 0.68))
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.92))
+    drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matrixCore,
+  .heldCore {
+    transition: none;
+  }
 }
