@@ -22,42 +22,30 @@ export type TurnProgressItem<Key extends string> = {
 };
 
 export const TURN_PHASES: readonly TurnProgressItem<TurnPhaseKey>[] = [
-  { key: "start", label: "Start Phase", phase: "start", glyph: "✦" },
-  { key: "roll", label: "Roll Phase", phase: "roll", glyph: "⬡" },
-  { key: "brawl", label: "Brawl Phase", phase: "brawl", glyph: "✕" },
-  { key: "end", label: "End Phase", phase: "end", glyph: "◌" },
+  { key: "start", label: "Start", phase: "start", glyph: "✦" },
+  { key: "roll", label: "Roll", phase: "roll", glyph: "⬡" },
+  { key: "brawl", label: "Brawl", phase: "brawl", glyph: "✕" },
+  { key: "end", label: "End", phase: "end", glyph: "◌" },
 ];
 
 export const TURN_STEPS: readonly TurnProgressItem<TurnStepKey>[] = [
-  { key: "draw", label: "Draw Step", phase: "start", glyph: "▤" },
-  { key: "energize", label: "Energize Step", phase: "start", glyph: "ϟ" },
-  { key: "selection", label: "Selection Step", phase: "roll", glyph: "◎" },
-  { key: "rolling", label: "Rolling Step", phase: "roll", glyph: "↻" },
-  { key: "power", label: "Power Step", phase: "brawl", glyph: "B" },
-  { key: "victor", label: "Victor Step", phase: "brawl", glyph: "♛" },
-  { key: "damage", label: "Damage Step", phase: "brawl", glyph: "✹" },
-  { key: "retracting", label: "Retracting Step", phase: "brawl", glyph: "↙" },
-  { key: "play", label: "Play Step", phase: "end", glyph: "▶" },
-  { key: "charge", label: "Charge Step", phase: "end", glyph: "↯" },
-  { key: "reset", label: "Reset Step", phase: "end", glyph: "⟳" },
+  { key: "draw", label: "Draw", phase: "start", glyph: "▤" },
+  { key: "energize", label: "Energize", phase: "start", glyph: "ϟ" },
+  { key: "selection", label: "Selection", phase: "roll", glyph: "◎" },
+  { key: "rolling", label: "Rolling", phase: "roll", glyph: "↻" },
+  { key: "power", label: "Power", phase: "brawl", glyph: "B" },
+  { key: "victor", label: "Victor", phase: "brawl", glyph: "♛" },
+  { key: "damage", label: "Damage", phase: "brawl", glyph: "✹" },
+  { key: "retracting", label: "Retracting", phase: "brawl", glyph: "↙" },
+  { key: "play", label: "Play", phase: "end", glyph: "▶" },
+  { key: "charge", label: "Charge", phase: "end", glyph: "↯" },
+  { key: "reset", label: "Reset", phase: "end", glyph: "⟳" },
 ];
 
 export function turnStepsForPhase(
   phaseKey: TurnPhaseKey,
 ): readonly TurnProgressItem<TurnStepKey>[] {
   return TURN_STEPS.filter((step) => step.phase === phaseKey);
-}
-
-export function remainingStepSeconds(deadline: number, now = Date.now()) {
-  if (!Number.isFinite(deadline) || !Number.isFinite(now)) return 0;
-  return Math.max(0, Math.ceil((deadline - now) / 1000));
-}
-
-export function formatStepCountdown(totalSeconds: number) {
-  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
-  const minutes = Math.floor(safeSeconds / 60);
-  const seconds = safeSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 export type TurnProgressState = {
@@ -98,6 +86,17 @@ function stepFromLabel(label: string): TurnStepKey | null {
   if (/charge step/.test(normalized)) return "charge";
   if (/reset|discard to seven/.test(normalized)) return "reset";
   return null;
+}
+
+export function remainingStepSeconds(deadline: number, now: number): number {
+  return Math.max(0, Math.ceil((deadline - now) / 1000));
+}
+
+export function formatStepCountdown(seconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainder = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
 }
 
 export function resolveTurnProgress(
