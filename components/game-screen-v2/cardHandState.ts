@@ -1,4 +1,4 @@
-import type { GameCard, MatchState } from "../../lib/game";
+import type { GameCard, MatchState, PlayerState } from "../../lib/game";
 
 const IDEAL_ANGLE_STEP_DEGREES = 5.25;
 const MIN_FAN_SPAN_DEGREES = 7.5;
@@ -9,14 +9,34 @@ export type HandCardPosition = {
   zIndex: number;
 };
 
+function handPlayers(
+  match: MatchState | null | undefined,
+  playerId: string | undefined,
+): { player: PlayerState | null; opponent: PlayerState | null } {
+  if (!match?.players.length) return { player: null, opponent: null };
+  const player = match.players.find((candidate) => candidate.id === playerId)
+    ?? match.players[0]
+    ?? null;
+  const opponent = player
+    ? match.players.find((candidate) => candidate.id !== player.id) ?? null
+    : null;
+  return { player, opponent };
+}
+
 export function playerHandCards(
   match: MatchState | null | undefined,
   playerId: string | undefined,
 ): readonly GameCard[] {
-  if (!match?.players.length) return [];
-  const player = match.players.find((candidate) => candidate.id === playerId)
-    ?? match.players[0];
-  return Array.isArray(player.hand) ? player.hand : [];
+  const { player } = handPlayers(match, playerId);
+  return Array.isArray(player?.hand) ? player.hand : [];
+}
+
+export function opponentHandCardCount(
+  match: MatchState | null | undefined,
+  playerId: string | undefined,
+): number {
+  const { opponent } = handPlayers(match, playerId);
+  return Array.isArray(opponent?.hand) ? opponent.hand.length : 0;
 }
 
 export function handFanSpanDegrees(cardCount: number): number {

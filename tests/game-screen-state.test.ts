@@ -12,6 +12,7 @@ import {
 import {
   handCardLayout,
   handFanSpanDegrees,
+  opponentHandCardCount,
   playerHandCards,
 } from "../components/game-screen-v2/cardHandState";
 
@@ -71,6 +72,17 @@ test("the player hand uses an exact symmetric radial fan at any card count", () 
   assert.equal(handFanSpanDegrees(40), 42);
 });
 
+test("the opponent hand exposes its card count without exposing card faces", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  opponent.hand = opponent.hand.slice(0, 2);
+  const match = createMatch("HIDDEN", "bo1", [player, opponent]);
+
+  assert.equal(opponentHandCardCount(match, player.id), 2);
+  assert.equal(opponentHandCardCount(match, opponent.id), player.hand.length);
+  assert.equal(opponentHandCardCount(null, player.id), 0);
+});
+
 test("live match state populates both players' card zones", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
   const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
@@ -101,6 +113,7 @@ test("live match state populates both players' card zones", () => {
     playerHandCards(match, player.id).map((card) => card.id),
     player.hand.map((card) => card.id),
   );
+  assert.equal(opponentHandCardCount(match, player.id), opponent.hand.length);
 });
 
 test("picked-up BakuCores leave the Hide Matrix and attach to their Bakugan", () => {
