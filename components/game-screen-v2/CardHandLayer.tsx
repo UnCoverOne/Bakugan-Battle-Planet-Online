@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
 import type { GameCard, MatchState } from "../../lib/game";
 import {
   boundedHandFanGeometry,
@@ -11,6 +11,10 @@ import {
   playerHandCards,
   type HandFanGeometry,
 } from "./cardHandState";
+import {
+  handCardIsActionable,
+  type HandActionMode,
+} from "./matchHudState";
 import styles from "./CardHandLayer.module.css";
 
 const CARD_BACK_ART = "/assets/card-back.png";
@@ -185,12 +189,32 @@ function handLayerStyle(bounds: HandViewportBounds | null) {
 function PlayerHand({
   cards,
   bounds,
+  match,
+  playerId,
+  actionMode,
+  selectedCardId,
+  onCardSelect,
 }: {
   cards: readonly GameCard[];
   bounds: HandViewportBounds | null;
+  match: MatchState | null;
+  playerId?: string;
+  actionMode: HandActionMode;
+  selectedCardId: string;
+  onCardSelect?: (cardId: string) => void;
 }) {
   if (!cards.length) return null;
   const layout = handCardLayout(cards.length, bounds?.geometry.spanDegrees);
+
+  const selectWithKeyboard = (
+    event: KeyboardEvent<HTMLLIElement>,
+    cardId: string,
+    actionable: boolean,
+  ) => {
+    if (!actionable || !onCardSelect || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    onCardSelect(cardId);
+  };
 
   return (
     <section
@@ -200,19 +224,32 @@ function PlayerHand({
       data-zone-kind="hand"
       data-zone-owner="player"
       data-card-count={cards.length}
+      data-action-mode={actionMode ?? undefined}
       data-safe-width={bounds ? Math.round(bounds.safeWidth) : undefined}
       data-rendered-width={bounds ? Math.round(bounds.geometry.renderedWidth) : undefined}
     >
       <ol className={styles.handCards}>
         {cards.map((card, index) => {
           const position = layout[index];
+          const actionable = handCardIsActionable(match, playerId, card, actionMode);
+          const selected = actionable && card.id === selectedCardId;
           return (
             <li
-              className={styles.handCard}
+              className={`${styles.handCard} ${actionable ? styles.actionableHandCard : ""} ${selected ? styles.selectedHandCard : ""}`}
               data-card-id={card.id}
+              data-actionable={actionable ? "true" : "false"}
+              data-selected={selected ? "true" : "false"}
               style={cardStyle(position.rotationDegrees, position.zIndex, "player")}
               key={card.id}
               title={card.displayName || card.name}
+              role={actionable ? "button" : undefined}
+              tabIndex={actionable ? 0 : undefined}
+              aria-pressed={actionable ? selected : undefined}
+              aria-label={actionable
+                ? `${card.displayName || card.name}, choose for ${actionMode === "energize" ? "Energize" : "Play Card"}`
+                : undefined}
+              onClick={() => actionable && onCardSelect?.(card.id)}
+              onKeyDown={(event) => selectWithKeyboard(event, card.id, actionable)}
             >
               <div className={styles.handCardSurface}>
                 <img
@@ -278,9 +315,15 @@ function OpponentHand({
 export function CardHandLayer({
   match,
   playerId,
+  actionMode = null,
+  selectedCardId = "",
+  onCardSelect,
 }: {
   match: MatchState | null;
   playerId?: string;
+  actionMode?: HandActionMode;
+  selectedCardId?: string;
+  onCardSelect?: (cardId: string) => void;
 }) {
   const cards = playerHandCards(match, playerId);
   const opponentCardCount = opponentHandCardCount(match, playerId);
@@ -291,7 +334,15 @@ export function CardHandLayer({
   return (
     <>
       <OpponentHand cardCount={opponentCardCount} bounds={opponentBounds} />
-      <PlayerHand cards={cards} bounds={playerBounds} />
+      <PlayerHand
+        cards={cards}
+        bounds={playerBounds}
+        match={match}
+        playerId={playerId}
+        actionMode={actionMode}
+        selectedCardId={selectedCardId}
+        onCardSelect={onCardSelect}
+      />
     </>
   );
 }
