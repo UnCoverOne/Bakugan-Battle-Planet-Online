@@ -11,26 +11,29 @@ import {
   turnStepsForPhase,
 } from "../components/game-screen-v2/turnProgressState";
 
-test("turn progress exposes the four rules phases and eleven rules steps", () => {
+test("turn progress exposes concise phase and step names", () => {
   assert.deepEqual(
     TURN_PHASES.map((phase) => phase.label),
-    ["Start Phase", "Roll Phase", "Brawl Phase", "End Phase"],
+    ["Start", "Roll", "Brawl", "End"],
   );
   assert.deepEqual(
     TURN_STEPS.map((step) => step.label),
     [
-      "Draw Step",
-      "Energize Step",
-      "Selection Step",
-      "Rolling Step",
-      "Power Step",
-      "Victor Step",
-      "Damage Step",
-      "Retracting Step",
-      "Play Step",
-      "Charge Step",
-      "Reset Step",
+      "Draw",
+      "Energize",
+      "Selection",
+      "Rolling",
+      "Power",
+      "Victor",
+      "Damage",
+      "Retracting",
+      "Play",
+      "Charge",
+      "Reset",
     ],
+  );
+  assert.ok(
+    [...TURN_PHASES, ...TURN_STEPS].every((item) => !/\b(?:phase|step)\b/i.test(item.label)),
   );
 });
 
