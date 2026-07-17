@@ -6,6 +6,7 @@ import {
   TURN_PHASES,
   TURN_STEPS,
   resolveTurnProgress,
+  turnStepsForPhase,
 } from "../components/game-screen-v2/turnProgressState";
 
 test("turn progress exposes the four rules phases and eleven rules steps", () => {
@@ -28,6 +29,25 @@ test("turn progress exposes the four rules phases and eleven rules steps", () =>
       "Charge Step",
       "Reset Step",
     ],
+  );
+});
+
+test("the steps row contains only steps from the active phase", () => {
+  assert.deepEqual(
+    turnStepsForPhase("start").map((step) => step.key),
+    ["draw", "energize"],
+  );
+  assert.deepEqual(
+    turnStepsForPhase("roll").map((step) => step.key),
+    ["selection", "rolling"],
+  );
+  assert.deepEqual(
+    turnStepsForPhase("brawl").map((step) => step.key),
+    ["power", "victor", "damage", "retracting"],
+  );
+  assert.deepEqual(
+    turnStepsForPhase("end").map((step) => step.key),
+    ["play", "charge", "reset"],
   );
 });
 
@@ -59,6 +79,10 @@ test("turn progress follows live engine phases and step labels", () => {
     assert.equal(progress.stepKey, expectedStep);
     assert.ok(progress.phaseIndex >= 0);
     assert.ok(progress.stepIndex >= 0);
+    assert.ok(
+      turnStepsForPhase(progress.phaseKey).some((step) => step.key === progress.stepKey),
+      "the active step must be present in the current phase row",
+    );
   }
 
   match.turn = 0;
