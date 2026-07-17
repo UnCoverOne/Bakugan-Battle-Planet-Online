@@ -18,6 +18,10 @@ import {
   opponentHandCardCount,
   playerHandCards,
 } from "../components/game-screen-v2/cardHandState";
+import {
+  cardPreviewKind,
+  cardPreviewSide,
+} from "../components/game-screen-v2/cardPreviewState";
 
 test("deck card backs scale from zero to ten assets", () => {
   assert.equal(deckBackAssetCount(0), 0);
@@ -111,6 +115,20 @@ test("tall viewports move the hand with the playmat instead of below it", () => 
   assert.equal(handViewportEdgeOffset(1000, 48, 952, "opponent"), 0);
   assert.equal(handViewportEdgeOffset(1600, 250, 1350, "player"), 202);
   assert.equal(handViewportEdgeOffset(1600, 250, 1350, "opponent"), 202);
+});
+
+test("card previews recognize card faces and backs and open on the opposite side", () => {
+  assert.equal(cardPreviewKind("/assets/cards/full/001.webp"), "face");
+  assert.equal(
+    cardPreviewKind("https://example.test/assets/cards/full/002.webp?revision=3"),
+    "face",
+  );
+  assert.equal(cardPreviewKind("/assets/card-back.png"), "back");
+  assert.equal(cardPreviewKind("/assets/core-backs/fist.png"), null);
+
+  assert.equal(cardPreviewSide(200, 1200), "right");
+  assert.equal(cardPreviewSide(1000, 1200), "left");
+  assert.equal(cardPreviewSide(600, 1200), "right");
 });
 
 test("the opponent hand exposes its card count without exposing card faces", () => {
