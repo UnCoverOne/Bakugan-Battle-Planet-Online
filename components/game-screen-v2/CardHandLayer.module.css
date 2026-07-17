@@ -10,7 +10,12 @@
   height: calc(var(--hand-card-width) + var(--hand-hover-lift) + 4rem);
   transform: translateX(-50%);
   overflow: visible;
+  visibility: hidden;
   pointer-events: none;
+}
+
+.handLayer[data-safe-width] {
+  visibility: visible;
 }
 
 .playerHandLayer {
