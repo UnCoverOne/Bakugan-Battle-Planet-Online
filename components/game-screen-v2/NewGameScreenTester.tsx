@@ -7,6 +7,7 @@ import { BakuCoreLayer } from "./BakuCoreLayer";
 import { CardHandLayer } from "./CardHandLayer";
 import { CardPreviewLayer } from "./CardPreviewLayer";
 import { GameScreen } from "./GameScreen";
+import { TurnProgressTracker } from "./TurnProgressTracker";
 
 const ROUTE_KEY = "bbp-route-v1";
 const SETTINGS_KEY = "bbp-settings";
@@ -133,6 +134,7 @@ export function NewGameScreenTester() {
           onExit={exit}
           onTapEnergyCard={tapEnergy}
         />
+        <TurnProgressTracker match={storedState.match} />
         <BakuCoreLayer
           match={storedState.match}
           playerId={storedState.playerId}

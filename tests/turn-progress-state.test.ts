@@ -1,0 +1,66 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { STARTER_DECKS, makePlayer } from "../lib/data";
+import { createMatch } from "../lib/game";
+import {
+  TURN_PHASES,
+  TURN_STEPS,
+  resolveTurnProgress,
+} from "../components/game-screen-v2/turnProgressState";
+
+test("turn progress exposes the four rules phases and eleven rules steps", () => {
+  assert.deepEqual(
+    TURN_PHASES.map((phase) => phase.label),
+    ["Start Phase", "Roll Phase", "Brawl Phase", "End Phase"],
+  );
+  assert.deepEqual(
+    TURN_STEPS.map((step) => step.label),
+    [
+      "Draw Step",
+      "Energize Step",
+      "Selection Step",
+      "Rolling Step",
+      "Power Step",
+      "Victor Step",
+      "Damage Step",
+      "Retracting Step",
+      "Play Step",
+      "Charge Step",
+      "Reset Step",
+    ],
+  );
+});
+
+test("turn progress follows live engine phases and step labels", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const match = createMatch("TRACKER", "bo1", [player, opponent]);
+  match.turn = 1;
+
+  const cases = [
+    ["energize", "Turn 1 • Energize Step", "start", "energize"],
+    ["selection", "Roll Phase • Selection Step", "roll", "selection"],
+    ["target", "Roll Phase • Secret target selection", "roll", "rolling"],
+    ["power", "Brawl Phase • Power Step", "brawl", "power"],
+    ["victor", "Brawl Phase • Victor Step", "brawl", "victor"],
+    ["damage", "Damage Step • 5 incoming", "brawl", "damage"],
+    ["postDamage", "Damage Step • Post-damage priority", "brawl", "retracting"],
+    ["endPlay", "End Phase • Play Step", "end", "play"],
+    ["endPlay", "End Phase • Charge Step", "end", "charge"],
+    ["handLimit", "End Phase • Discard to seven", "end", "reset"],
+  ] as const;
+
+  for (const [phase, stepLabel, expectedPhase, expectedStep] of cases) {
+    match.phase = phase;
+    match.stepLabel = stepLabel;
+    const progress = resolveTurnProgress(match);
+    assert.ok(progress);
+    assert.equal(progress.phaseKey, expectedPhase);
+    assert.equal(progress.stepKey, expectedStep);
+    assert.ok(progress.phaseIndex >= 0);
+    assert.ok(progress.stepIndex >= 0);
+  }
+
+  match.turn = 0;
+  assert.equal(resolveTurnProgress(match), null);
+});

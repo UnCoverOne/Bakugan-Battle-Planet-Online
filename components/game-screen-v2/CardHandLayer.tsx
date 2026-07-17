@@ -16,6 +16,7 @@ import styles from "./CardHandLayer.module.css";
 const CARD_BACK_ART = "/assets/card-back.png";
 const MIN_ZONE_GAP = 16;
 const MAX_ZONE_GAP = 24;
+const MIN_TRACKER_GAP = 10;
 
 type HandOwner = "player" | "opponent";
 
@@ -67,6 +68,9 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
       const stackArea = playArea.querySelector<HTMLElement>(
         `[data-zone-owner="${owner}"][data-zone-group="play-area-cards"]`,
       );
+      const turnTracker = owner === "opponent"
+        ? document.querySelector<HTMLElement>("[data-turn-progress-tracker]")
+        : null;
       const obstacleRects = [characterArea, stackArea]
         .filter((element): element is HTMLElement => Boolean(element))
         .map((element) => element.getBoundingClientRect())
@@ -106,15 +110,19 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
         desiredCardWidth: fixedCardWidth,
         radiusRatio: compact ? 5.4 : 8.35,
       });
+      const playmatEdgeOffset = handViewportEdgeOffset(
+        window.innerHeight,
+        playRect.top,
+        playRect.bottom,
+        owner,
+      );
+      const trackerClearance = turnTracker
+        ? Math.ceil(turnTracker.getBoundingClientRect().bottom + Math.max(MIN_TRACKER_GAP, zoneGap * 0.5))
+        : 0;
       const nextBounds: HandViewportBounds = {
         centerX: (safeLeft + safeRight) / 2,
         safeWidth,
-        edgeOffset: handViewportEdgeOffset(
-          window.innerHeight,
-          playRect.top,
-          playRect.bottom,
-          owner,
-        ),
+        edgeOffset: Math.max(playmatEdgeOffset, trackerClearance),
         geometry,
       };
 
@@ -128,9 +136,13 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
       const playArea = document.querySelector<HTMLElement>(
         '[aria-label="Experimental game play area"]',
       );
+      const turnTracker = owner === "opponent"
+        ? document.querySelector<HTMLElement>("[data-turn-progress-tracker]")
+        : null;
       observer = new ResizeObserver(measure);
       const elements = [
         playArea,
+        turnTracker,
         playArea?.querySelector<HTMLElement>(
           `[data-zone-owner="${owner}"][data-zone-group="character-cards"]`,
         ),
