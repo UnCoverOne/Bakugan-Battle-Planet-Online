@@ -1,0 +1,14 @@
+/*
+ * The supplied card scans contain opaque pixels at their extreme square
+ * corners. Clip every card face and card back to the physical card silhouette
+ * so the surrounding interface shows through instead of rendering white
+ * corner wedges. The small inset also removes the one-pixel matte left by
+ * scan resampling without noticeably trimming the printed card border.
+ */
+img[src*="/assets/cards/full/"],
+img[src$="/assets/card-back.png"] {
+  display: block;
+  background-color: transparent;
+  border-radius: 4.6% / 3.3% !important;
+  clip-path: inset(0.85% round 4.6% / 3.3%);
+}
