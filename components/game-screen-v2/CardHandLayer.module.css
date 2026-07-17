@@ -1,6 +1,6 @@
 .handLayer {
   --hand-card-width: clamp(4.7rem, 7.2vw, 7.25rem);
-  --hand-fan-radius: calc(var(--hand-card-width) * 3.75);
+  --hand-fan-radius: calc(var(--hand-card-width) * 6.5);
   position: fixed;
   left: 50%;
   bottom: 0;
@@ -48,7 +48,7 @@
 @media (max-width: 760px) {
   .handLayer {
     --hand-card-width: clamp(3.4rem, 12vw, 5rem);
-    --hand-fan-radius: calc(var(--hand-card-width) * 3.5);
+    --hand-fan-radius: calc(var(--hand-card-width) * 4.25);
     width: 96vw;
     height: clamp(7.5rem, 21dvh, 11rem);
   }
