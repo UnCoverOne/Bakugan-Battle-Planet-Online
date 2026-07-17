@@ -31,18 +31,18 @@ export function handFanSpanDegrees(cardCount: number): number {
 export function handCardLayout(cardCount: number): readonly HandCardPosition[] {
   const count = Math.max(0, Math.floor(Number.isFinite(cardCount) ? cardCount : 0));
   if (count === 0) return [];
-  if (count === 1) return [{ rotationDegrees: 0, zIndex: 100 }];
+  if (count === 1) return [{ rotationDegrees: 0, zIndex: 1 }];
 
   const spanDegrees = handFanSpanDegrees(count);
   const stepDegrees = spanDegrees / (count - 1);
-  const centre = (count - 1) / 2;
 
   return Array.from({ length: count }, (_, index) => {
     const rotationDegrees = -spanDegrees / 2 + stepDegrees * index;
-    const distanceFromCentre = Math.abs(index - centre);
     return {
       rotationDegrees: Math.abs(rotationDegrees) < 1e-10 ? 0 : rotationDegrees,
-      zIndex: Math.round((count - distanceFromCentre) * 100),
+      // Cards are ordered left-to-right. Increasing the stacking level makes
+      // every card on the right overlap the card immediately to its left.
+      zIndex: index + 1,
     };
   });
 }
