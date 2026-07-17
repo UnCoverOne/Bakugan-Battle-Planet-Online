@@ -5,6 +5,8 @@ import { createMatch } from "../lib/game";
 import {
   TURN_PHASES,
   TURN_STEPS,
+  formatStepCountdown,
+  remainingStepSeconds,
   resolveTurnProgress,
   turnStepsForPhase,
 } from "../components/game-screen-v2/turnProgressState";
@@ -49,6 +51,20 @@ test("the steps row contains only steps from the active phase", () => {
     turnStepsForPhase("end").map((step) => step.key),
     ["play", "charge", "reset"],
   );
+});
+
+test("step countdown rounds up, stops at zero, and formats as minutes and seconds", () => {
+  const now = 1_000_000;
+  assert.equal(remainingStepSeconds(now + 35_001, now), 36);
+  assert.equal(remainingStepSeconds(now + 35_000, now), 35);
+  assert.equal(remainingStepSeconds(now - 1, now), 0);
+  assert.equal(remainingStepSeconds(Number.NaN, now), 0);
+
+  assert.equal(formatStepCountdown(0), "00:00");
+  assert.equal(formatStepCountdown(9), "00:09");
+  assert.equal(formatStepCountdown(65), "01:05");
+  assert.equal(formatStepCountdown(125), "02:05");
+  assert.equal(formatStepCountdown(-10), "00:00");
 });
 
 test("turn progress follows live engine phases and step labels", () => {

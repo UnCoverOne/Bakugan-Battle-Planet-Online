@@ -48,6 +48,18 @@ export function turnStepsForPhase(
   return TURN_STEPS.filter((step) => step.phase === phaseKey);
 }
 
+export function remainingStepSeconds(deadline: number, now = Date.now()) {
+  if (!Number.isFinite(deadline) || !Number.isFinite(now)) return 0;
+  return Math.max(0, Math.ceil((deadline - now) / 1000));
+}
+
+export function formatStepCountdown(totalSeconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 export type TurnProgressState = {
   phaseKey: TurnPhaseKey;
   stepKey: TurnStepKey;
