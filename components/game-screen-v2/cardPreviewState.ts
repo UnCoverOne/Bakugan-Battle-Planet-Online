@@ -4,7 +4,7 @@ export type CardPreviewOrigin = "board" | "hand";
 
 const CARD_FACE_PATH = "/assets/cards/full/";
 const CARD_BACK_PATH = "/assets/card-back.png";
-const EXCLUDED_PREVIEW_ZONES = new Set(["deck", "discard-pile"]);
+const EXCLUDED_PREVIEW_ZONES = new Set(["deck", "discard-pile", "energy"]);
 
 function sourcePathname(source: string): string {
   if (!source) return "";
