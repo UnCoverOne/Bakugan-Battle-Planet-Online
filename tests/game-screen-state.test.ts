@@ -9,6 +9,10 @@ import {
   heroCardLayout,
   hideMatrixPlacements,
 } from "../components/game-screen-v2/gameScreenState";
+import {
+  handCardLayout,
+  playerHandCards,
+} from "../components/game-screen-v2/cardHandState";
 
 test("deck card backs scale from zero to ten assets", () => {
   assert.equal(deckBackAssetCount(0), 0);
@@ -29,6 +33,24 @@ test("Hero cards compress their spacing as the stack grows", () => {
   assert.ok(sixCards.stepPercent > twelveCards.stepPercent);
   assert.ok(twoCards.startPercent >= 2.375);
   assert.ok(twelveCards.startPercent >= 2.375);
+});
+
+test("the player hand forms a centred, slightly fanned row", () => {
+  const singleCard = handCardLayout(1);
+  const fiveCards = handCardLayout(5);
+  const twelveCards = handCardLayout(12);
+
+  assert.deepEqual(singleCard, [
+    { leftPercent: 50, rotationDegrees: 0, dropPixels: 0, zIndex: 1 },
+  ]);
+  assert.equal(fiveCards.length, 5);
+  assert.ok(fiveCards[0].leftPercent < 50);
+  assert.equal(fiveCards[2].leftPercent, 50);
+  assert.ok(fiveCards.at(-1)!.leftPercent > 50);
+  assert.ok(fiveCards[0].rotationDegrees < 0);
+  assert.ok(fiveCards.at(-1)!.rotationDegrees > 0);
+  assert.equal(twelveCards[0].leftPercent, 18);
+  assert.equal(twelveCards.at(-1)!.leftPercent, 82);
 });
 
 test("live match state populates both players' card zones", () => {
@@ -56,6 +78,10 @@ test("live match state populates both players' card zones", () => {
   assert.deepEqual(
     zones.opponent.characterCards.map((card) => card.catalogId),
     opponent.bakugan.map((bakugan) => bakugan.character.catalogId),
+  );
+  assert.deepEqual(
+    playerHandCards(match, player.id).map((card) => card.id),
+    player.hand.map((card) => card.id),
   );
 });
 
