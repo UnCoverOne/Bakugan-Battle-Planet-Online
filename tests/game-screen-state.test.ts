@@ -85,22 +85,23 @@ test("the player hand uses an exact symmetric radial fan at any card count", () 
   assert.equal(handFanSpanDegrees(40), 42);
 });
 
-test("the radial hand always fits inside its protected playmat corridor", () => {
+test("the radial hand keeps every card the same size and compresses only spacing", () => {
+  const desiredCardWidth = 116;
   for (const safeWidth of [320, 480, 680, 920]) {
     for (const cardCount of [1, 5, 12, 40]) {
       const geometry = boundedHandFanGeometry({
         cardCount,
         safeWidth,
-        desiredCardWidth: 116,
-        minimumCardWidth: 60,
+        desiredCardWidth,
         radiusRatio: 8.35,
       });
 
-      assert.ok(geometry.cardWidth <= 116);
+      assert.equal(geometry.cardWidth, desiredCardWidth);
+      assert.equal(geometry.fanRadius, desiredCardWidth * 8.35);
       assert.ok(geometry.spanDegrees <= handFanSpanDegrees(cardCount));
       assert.ok(
         geometry.renderedWidth <= safeWidth + 1e-7,
-        `${cardCount} cards should fit inside ${safeWidth}px`,
+        `${cardCount} fixed-size cards should fit inside ${safeWidth}px by overlapping more`,
       );
       assert.ok(
         Math.abs(
@@ -114,6 +115,22 @@ test("the radial hand always fits inside its protected playmat corridor", () => 
       );
     }
   }
+
+  const tight = boundedHandFanGeometry({
+    cardCount: 40,
+    safeWidth: 320,
+    desiredCardWidth,
+    radiusRatio: 8.35,
+  });
+  const roomy = boundedHandFanGeometry({
+    cardCount: 40,
+    safeWidth: 920,
+    desiredCardWidth,
+    radiusRatio: 8.35,
+  });
+  assert.equal(tight.cardWidth, roomy.cardWidth);
+  assert.ok(tight.spanDegrees < roomy.spanDegrees);
+  assert.equal(roomy.spanDegrees, handFanSpanDegrees(40));
 });
 
 test("tall viewports move the hand with the playmat instead of below it", () => {
