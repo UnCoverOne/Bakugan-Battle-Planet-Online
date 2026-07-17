@@ -4,6 +4,7 @@ export type CardPreviewOrigin = "board" | "hand";
 
 const CARD_FACE_PATH = "/assets/cards/full/";
 const CARD_BACK_PATH = "/assets/card-back.png";
+const EXCLUDED_PREVIEW_ZONES = new Set(["deck", "discard-pile"]);
 
 function sourcePathname(source: string): string {
   if (!source) return "";
@@ -19,6 +20,10 @@ export function cardPreviewKind(source: string): CardPreviewKind | null {
   if (pathname.includes(CARD_FACE_PATH)) return "face";
   if (pathname.endsWith(CARD_BACK_PATH)) return "back";
   return null;
+}
+
+export function cardPreviewZoneAllowed(zoneKind: string | null | undefined): boolean {
+  return !zoneKind || !EXCLUDED_PREVIEW_ZONES.has(zoneKind);
 }
 
 export function cardPreviewSide(
