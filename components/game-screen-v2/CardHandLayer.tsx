@@ -14,10 +14,15 @@ const CARD_BACK_ART = "/assets/card-back.png";
 type HandOwner = "player" | "opponent";
 
 function cardStyle(rotationDegrees: number, zIndex: number, owner: HandOwner) {
+  // The opponent fan is mirrored around the top pivot so its visual order
+  // still runs left-to-right while the card backs face the opponent.
+  const displayedRotation = owner === "opponent" ? -rotationDegrees : rotationDegrees;
   return {
-    // The opponent fan is mirrored around the top pivot so its visual order
-    // still runs left-to-right while the card backs face the opponent.
-    "--hand-rotation": `${owner === "opponent" ? -rotationDegrees : rotationDegrees}deg`,
+    "--hand-rotation": `${displayedRotation}deg`,
+    // The player hover treatment applies this opposite rotation inside the
+    // already-positioned card, leaving the card in its fan slot while making
+    // the face perfectly upright.
+    "--hand-counter-rotation": `${-displayedRotation}deg`,
     zIndex,
   } as CSSProperties;
 }
