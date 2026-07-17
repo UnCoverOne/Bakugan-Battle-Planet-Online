@@ -94,25 +94,27 @@ export function TurnProgressTracker({ match }: { match: MatchState | null }) {
       data-turn-progress-tracker
       aria-label={`Round ${round}: ${activePhase.label}, ${activeStep.label}`}
     >
-      <div className={styles.metaBar}>
-        <span className={styles.roundLabel} aria-label={`Current round ${round}`}>
-          <span>Round</span>
-          <strong>{round}</strong>
-        </span>
-        <StepCountdown deadline={match?.deadline ?? 0} />
+      <span className={styles.roundLabel} aria-label={`Current round ${round}`}>
+        <span>Round Count</span>
+        <strong>{round}</strong>
+      </span>
+
+      <div className={styles.progressHud} aria-label="Turn progress">
+        <ProgressRow
+          label="Phase"
+          items={TURN_PHASES}
+          activeKey={progress.phaseKey}
+          activeIndex={progress.phaseIndex}
+        />
+        <ProgressRow
+          label="Step"
+          items={visibleSteps}
+          activeKey={progress.stepKey}
+          activeIndex={Math.max(0, visibleStepIndex)}
+        />
       </div>
-      <ProgressRow
-        label="Phase"
-        items={TURN_PHASES}
-        activeKey={progress.phaseKey}
-        activeIndex={progress.phaseIndex}
-      />
-      <ProgressRow
-        label="Step"
-        items={visibleSteps}
-        activeKey={progress.stepKey}
-        activeIndex={Math.max(0, visibleStepIndex)}
-      />
+
+      <StepCountdown deadline={match?.deadline ?? 0} />
     </aside>
   );
 }
