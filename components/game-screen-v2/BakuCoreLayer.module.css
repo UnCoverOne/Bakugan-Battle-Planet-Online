@@ -14,15 +14,24 @@
     drop-shadow(0 0 3px rgba(255, 255, 255, 0.2));
 }
 
+:global([data-zone-kind="character-card"]) {
+  overflow: visible !important;
+}
+
 .heldCoreFan {
   position: absolute;
-  top: 2%;
+  top: -30%;
   left: 50%;
   z-index: 40;
   width: 92%;
-  height: 38%;
+  height: 42%;
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+:global([data-zone-owner="opponent"][data-zone-kind="character-card"]) > .heldCoreFan {
+  top: auto;
+  bottom: -30%;
 }
 
 .heldCore {
