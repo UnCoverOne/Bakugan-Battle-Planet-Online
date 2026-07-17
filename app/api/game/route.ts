@@ -3,6 +3,7 @@ import {
   placeCore, playCard, redactForPlayer, resolveDamage, selectBakugan, setReady,
   startNextSeriesGame, targetCore, type CardChoices, type MatchState, type PlayerState,
 } from "../../../lib/game";
+import { tapEnergyCard } from "../../../lib/energy";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,7 @@ export async function POST(request: Request) {
       case "ready": state = setReady(state, body.playerId); break;
       case "place": state = placeCore(state, body.playerId, String(p.coreId ?? ""), String(p.cell ?? "")); break;
       case "energize": state = energizeCard(state, body.playerId, p.cardId ? String(p.cardId) : undefined); break;
+      case "tap-energy": state = tapEnergyCard(state, body.playerId, String(p.cardId ?? "")); break;
       case "select": state = selectBakugan(state, body.playerId, String(p.bakuganId ?? "")); break;
       case "target": state = targetCore(state, body.playerId, String(p.cell ?? "")); break;
       case "play": state = playCard(state, body.playerId, String(p.cardId ?? ""), choices); break;

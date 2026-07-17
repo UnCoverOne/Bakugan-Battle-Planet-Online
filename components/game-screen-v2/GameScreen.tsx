@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import type { GameCard, MatchState } from "../../lib/game";
+import {
+  energyCardCanTap,
+  energyZoneViews,
+  type EnergyZoneView,
+} from "../../lib/energy";
 import {
   EMPTY_GAME_SCREEN_ZONE_STATE,
   buildGameScreenZoneState,
@@ -24,6 +29,7 @@ const HEX_X_STEP = HEX_RADIUS * 1.5;
 const COLUMN_RADIUS = Math.ceil(GRID_WIDTH / (HEX_X_STEP * 2)) + 2;
 const ROW_RADIUS = Math.ceil(GRID_HEIGHT / (HEX_HEIGHT * 2)) + 3;
 const CARD_BACK_ART = "/assets/card-back.png";
+const ENERGY_SYMBOL_ART = "/assets/symbols/energy.svg";
 
 type CharacterCardSlot = 1 | 2 | 3;
 type CardStackZoneKind = "discard-pile" | "deck";
@@ -36,6 +42,7 @@ type OwnerZoneCounts = {
   deck: number;
   discardPile: number;
 };
+type EnergyTapHandler = (cardId: string) => void | Promise<void>;
 
 export type GameScreenZoneCounts = Record<ZoneOwner, OwnerZoneCounts>;
 
@@ -259,14 +266,124 @@ function HeroZone({ owner, cards, count }: { owner: ZoneOwner; cards: readonly G
   );
 }
 
+function EnergyCardStack({
+  owner,
+  energy,
+  pendingCardId,
+  onTap,
+  canTap,
+}: {
+  owner: ZoneOwner;
+  energy: EnergyZoneView;
+  pendingCardId?: string;
+  onTap?: EnergyTapHandler;
+  canTap?: (cardId: string) => boolean;
+}) {
+  if (!energy.cards.length) return null;
+  const layout = heroCardLayout(energy.cards.length);
+  const tappedIds = new Set(energy.tappedEnergyIds);
+
+  return (
+    <div className={styles.energyCardStack}>
+      {energy.cards.map((card, index) => {
+        const tapped = tappedIds.has(card.id);
+        const actionable = owner === "player"
+          && Boolean(onTap)
+          && !tapped
+          && pendingCardId !== card.id
+          && (canTap?.(card.id) ?? true);
+        const left = layout.startPercent + index * layout.stepPercent;
+        const style = {
+          "--energy-left": `${left}%`,
+          "--energy-order": index,
+        } as CSSProperties;
+
+        return (
+          <button
+            type="button"
+            className={`${styles.energyCard} ${tapped ? styles.energyCardTapped : ""}`}
+            style={style}
+            data-card-id={card.id}
+            data-tapped={tapped ? "true" : "false"}
+            aria-pressed={tapped}
+            aria-label={tapped
+              ? `${ownerLabel(owner)} Energy card ${index + 1}, tapped`
+              : `${ownerLabel(owner)} Energy card ${index + 1}${owner === "player" ? ", tap to generate 1 Energy" : ""}`}
+            disabled={!actionable}
+            onClick={() => onTap?.(card.id)}
+            key={card.id}
+          >
+            <img
+              src={CARD_BACK_ART}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function EnergyZone({
+  owner,
+  energy,
+  pendingCardId,
+  onTap,
+  canTap,
+}: {
+  owner: ZoneOwner;
+  energy: EnergyZoneView;
+  pendingCardId?: string;
+  onTap?: EnergyTapHandler;
+  canTap?: (cardId: string) => boolean;
+}) {
+  return (
+    <div
+      className={styles.energyZone}
+      data-zone-kind="energy"
+      data-zone-owner={owner}
+      data-zone-id={`${owner}-energy`}
+      data-card-count={energy.cards.length}
+      data-available-energy={energy.availableEnergy}
+      aria-label={`${ownerLabel(owner)} Energy Card zone, ${energy.availableEnergy} available Energy from ${energy.cards.length} cards`}
+    >
+      {!energy.cards.length && <ZoneLabel lines={["Energy", "Card Zone"]} />}
+      <EnergyCardStack
+        owner={owner}
+        energy={energy}
+        pendingCardId={pendingCardId}
+        onTap={onTap}
+        canTap={canTap}
+      />
+      <strong
+        className={styles.energyIndicator}
+        aria-label={`${energy.availableEnergy} available Energy`}
+      >
+        <span>{energy.availableEnergy}</span>
+        <img src={ENERGY_SYMBOL_ART} alt="Energy" draggable={false} />
+      </strong>
+    </div>
+  );
+}
+
 function PlayerZoneLayout({
   owner,
   counts,
   state,
+  energy,
+  pendingEnergyCardId,
+  onTapEnergyCard,
+  canTapEnergyCard,
 }: {
   owner: ZoneOwner;
   counts: OwnerZoneCounts;
   state: GameScreenOwnerState;
+  energy: EnergyZoneView;
+  pendingEnergyCardId?: string;
+  onTapEnergyCard?: EnergyTapHandler;
+  canTapEnergyCard?: (cardId: string) => boolean;
 }) {
   const isOpponent = owner === "opponent";
   const characterSlots = isOpponent
@@ -304,20 +421,29 @@ function PlayerZoneLayout({
         }`}
         data-zone-owner={owner}
         data-zone-group="play-area-cards"
-        aria-label={`${ownerLabel(owner)} Hero, deck, and discard pile area`}
+        aria-label={`${ownerLabel(owner)} Energy, Hero, deck, and discard pile area`}
       >
-        <HeroZone owner={owner} cards={state.heroCards} count={counts.hero} />
-        <ol className={styles.cardStackZones}>
-          {cardStackZones.map((zone) => (
-            <CardStackZone
-              key={`${owner}-${zone.kind}`}
-              owner={owner}
-              {...zone}
-              count={stackCount(counts, zone.kind)}
-              latestDiscard={state.latestDiscard}
-            />
-          ))}
-        </ol>
+        <EnergyZone
+          owner={owner}
+          energy={energy}
+          pendingCardId={pendingEnergyCardId}
+          onTap={onTapEnergyCard}
+          canTap={canTapEnergyCard}
+        />
+        <div className={styles.cardStackMain}>
+          <HeroZone owner={owner} cards={state.heroCards} count={counts.hero} />
+          <ol className={styles.cardStackZones}>
+            {cardStackZones.map((zone) => (
+              <CardStackZone
+                key={`${owner}-${zone.kind}`}
+                owner={owner}
+                {...zone}
+                count={stackCount(counts, zone.kind)}
+                latestDiscard={state.latestDiscard}
+              />
+            ))}
+          </ol>
+        </div>
       </section>
     </>
   );
@@ -325,15 +451,20 @@ function PlayerZoneLayout({
 
 export function GameScreen({
   onExit,
+  onTapEnergyCard,
   match,
   playerId,
   zoneCounts = EMPTY_ZONE_COUNTS,
 }: {
   onExit?: () => void;
+  onTapEnergyCard?: EnergyTapHandler;
   match?: MatchState | null;
   playerId?: string;
   zoneCounts?: GameScreenZoneCounts;
 }) {
+  const [pendingEnergyCardId, setPendingEnergyCardId] = useState("");
+  const [energyError, setEnergyError] = useState("");
+
   useEffect(() => {
     if (!onExit) return;
     const exitOnEscape = (event: KeyboardEvent) => {
@@ -348,6 +479,7 @@ export function GameScreen({
   const zoneState = match
     ? buildGameScreenZoneState(match, playerId)
     : EMPTY_GAME_SCREEN_ZONE_STATE;
+  const energyState = energyZoneViews(match, playerId);
   const resolvedCounts: GameScreenZoneCounts = match
     ? {
       player: {
@@ -362,6 +494,19 @@ export function GameScreen({
       },
     }
     : zoneCounts;
+
+  const tapEnergy = async (cardId: string) => {
+    if (!onTapEnergyCard || pendingEnergyCardId) return;
+    setPendingEnergyCardId(cardId);
+    setEnergyError("");
+    try {
+      await onTapEnergyCard(cardId);
+    } catch (error) {
+      setEnergyError(error instanceof Error ? error.message : "Energy card could not be tapped.");
+    } finally {
+      setPendingEnergyCardId("");
+    }
+  };
 
   return (
     <div className={styles.screen}>
@@ -388,9 +533,23 @@ export function GameScreen({
           </g>
         </svg>
 
-        <PlayerZoneLayout owner="opponent" counts={resolvedCounts.opponent} state={zoneState.opponent} />
-        <PlayerZoneLayout owner="player" counts={resolvedCounts.player} state={zoneState.player} />
+        <PlayerZoneLayout
+          owner="opponent"
+          counts={resolvedCounts.opponent}
+          state={zoneState.opponent}
+          energy={energyState.opponent}
+        />
+        <PlayerZoneLayout
+          owner="player"
+          counts={resolvedCounts.player}
+          state={zoneState.player}
+          energy={energyState.player}
+          pendingEnergyCardId={pendingEnergyCardId}
+          onTapEnergyCard={tapEnergy}
+          canTapEnergyCard={(cardId) => energyCardCanTap(match, playerId, cardId)}
+        />
       </div>
+      {energyError && <div className={styles.energyError} role="alert">{energyError}</div>}
     </div>
   );
 }

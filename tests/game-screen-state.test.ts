@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import { HEX_CELLS, createMatch } from "../lib/game";
 import {
+  energyCardCanTap,
+  energyZoneViews,
+  tapEnergyCard,
+} from "../lib/energy";
+import {
   buildGameScreenZoneState,
   deckBackAssetCount,
   heldCorePlacements,
@@ -138,6 +143,45 @@ test("card previews follow hand and playmat placement rules", () => {
   assert.equal(cardPreviewZoneAllowed("hand"), true);
   assert.equal(cardPreviewZoneAllowed("deck"), false);
   assert.equal(cardPreviewZoneAllowed("discard-pile"), false);
+  assert.equal(cardPreviewZoneAllowed("energy"), false);
+});
+
+test("tapping a face-down Energy card generates exactly one available Energy", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const energyCard = player.hand.shift();
+  assert.ok(energyCard);
+  player.energyZone.push(energyCard);
+  player.maxEnergy = 1;
+  player.energy = 1;
+
+  const match = createMatch("ENERGY", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "power";
+
+  const before = energyZoneViews(match, player.id).player;
+  assert.equal(before.cards.length, 1);
+  assert.equal(before.availableEnergy, 0);
+  assert.equal(energyCardCanTap(match, player.id, energyCard.id), true);
+
+  const tapped = tapEnergyCard(match, player.id, energyCard.id);
+  const after = energyZoneViews(tapped, player.id).player;
+  assert.equal(after.availableEnergy, 1);
+  assert.deepEqual(after.tappedEnergyIds, [energyCard.id]);
+  assert.equal(energyCardCanTap(tapped, player.id, energyCard.id), false);
+  assert.match(tapped.log.at(-1)?.message ?? "", /generated 1 Energy/);
+  assert.throws(
+    () => tapEnergyCard(tapped, player.id, energyCard.id),
+    /already tapped/,
+  );
+
+  const startStep = structuredClone(match);
+  startStep.phase = "energize";
+  assert.equal(energyCardCanTap(startStep, player.id, energyCard.id), false);
+  assert.throws(
+    () => tapEnergyCard(startStep, player.id, energyCard.id),
+    /cannot be tapped during this phase/,
+  );
 });
 
 test("the opponent hand exposes its card count without exposing card faces", () => {

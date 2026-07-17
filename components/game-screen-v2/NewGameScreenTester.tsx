@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MatchState } from "../../lib/game";
+import { tapEnergyCard } from "../../lib/energy";
 import { BakuCoreLayer } from "./BakuCoreLayer";
 import { CardHandLayer } from "./CardHandLayer";
 import { CardPreviewLayer } from "./CardPreviewLayer";
@@ -10,12 +11,15 @@ import { GameScreen } from "./GameScreen";
 const ROUTE_KEY = "bbp-route-v1";
 const SETTINGS_KEY = "bbp-settings";
 const MATCH_KEY = "bbp-active-match-v1";
+const ONLINE_KEY = "bbp-active-match-online-v1";
 const PLAYER_KEY = "bbp-player-id";
+const MATCH_UPDATE_EVENT = "bbp-match-state-updated";
 
 type StoredGameScreenState = {
   route: string;
   enabled: boolean;
   match: MatchState | null;
+  online: boolean;
   playerId?: string;
 };
 
@@ -35,6 +39,7 @@ function readStoredState(): StoredGameScreenState {
     route: parseStoredValue(localStorage.getItem(ROUTE_KEY), "entry"),
     enabled: Boolean(settings.useNewGameScreen),
     match: parseStoredValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
+    online: parseStoredValue(localStorage.getItem(ONLINE_KEY), false),
     playerId: parseStoredValue<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
   };
 }
@@ -44,6 +49,7 @@ export function NewGameScreenTester() {
     route: "entry",
     enabled: false,
     match: null,
+    online: false,
     playerId: undefined,
   });
   const previousRawState = useRef("");
@@ -54,6 +60,7 @@ export function NewGameScreenTester() {
         localStorage.getItem(ROUTE_KEY),
         localStorage.getItem(SETTINGS_KEY),
         localStorage.getItem(MATCH_KEY),
+        localStorage.getItem(ONLINE_KEY),
         localStorage.getItem(PLAYER_KEY),
       ].join("\u0000");
 
@@ -70,6 +77,40 @@ export function NewGameScreenTester() {
       window.removeEventListener("storage", update);
     };
   }, []);
+
+  const publishMatch = (next: MatchState) => {
+    localStorage.setItem(MATCH_KEY, JSON.stringify(next));
+    previousRawState.current = "";
+    setStoredState((current) => ({ ...current, match: next }));
+    window.dispatchEvent(new CustomEvent<MatchState>(MATCH_UPDATE_EVENT, { detail: next }));
+  };
+
+  const tapEnergy = async (cardId: string) => {
+    const current = readStoredState();
+    const match = current.match;
+    const actorId = current.playerId ?? match?.players[0]?.id;
+    if (!match || !actorId) throw new Error("No active match is available.");
+
+    if (!current.online) {
+      publishMatch(tapEnergyCard(match, actorId, cardId));
+      return;
+    }
+
+    const response = await fetch("/api/game", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "tap-energy",
+        code: match.code,
+        playerId: actorId,
+        expectedVersion: match.version,
+        payload: { cardId },
+      }),
+    });
+    const data = await response.json() as { state?: MatchState; error?: string };
+    if (data.state) publishMatch(data.state);
+    if (!response.ok) throw new Error(data.error ?? "Energy card could not be tapped.");
+  };
 
   const toggle = () => {
     let settings: Record<string, unknown> = {};
@@ -90,6 +131,7 @@ export function NewGameScreenTester() {
           match={storedState.match}
           playerId={storedState.playerId}
           onExit={exit}
+          onTapEnergyCard={tapEnergy}
         />
         <BakuCoreLayer
           match={storedState.match}
