@@ -7,7 +7,7 @@
   left: 50%;
   z-index: 10030;
   width: min(82vw, 1220px);
-  height: calc(var(--hand-card-width) * 1.4 + var(--hand-hover-lift) + 1rem);
+  height: calc(var(--hand-card-width) + var(--hand-hover-lift) + 4rem);
   transform: translateX(-50%);
   overflow: visible;
   pointer-events: none;
