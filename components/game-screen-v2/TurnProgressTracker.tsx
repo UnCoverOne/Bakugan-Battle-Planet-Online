@@ -64,14 +64,14 @@ export function TurnProgressTracker({ match }: { match: MatchState | null }) {
       aria-label={`Turn ${match?.turn ?? 0}: ${activePhase.label}, ${activeStep.label}`}
     >
       <ProgressRow
-        label="Phases"
+        label="Phase"
         items={TURN_PHASES}
         activeKey={progress.phaseKey}
         activeIndex={progress.phaseIndex}
         kind="phase"
       />
       <ProgressRow
-        label="Steps"
+        label="Step"
         items={visibleSteps}
         activeKey={progress.stepKey}
         activeIndex={Math.max(0, visibleStepIndex)}
