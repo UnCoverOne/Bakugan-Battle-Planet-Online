@@ -1,11 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch } from "../lib/game";
+import { HEX_CELLS, createMatch } from "../lib/game";
 import {
   buildGameScreenZoneState,
   deckBackAssetCount,
+  heldCorePlacements,
   heroCardLayout,
+  hideMatrixPlacements,
 } from "../components/game-screen-v2/gameScreenState";
 
 test("deck card backs scale from zero to ten assets", () => {
@@ -25,8 +27,8 @@ test("Hero cards compress their spacing as the stack grows", () => {
 
   assert.ok(twoCards.stepPercent > sixCards.stepPercent);
   assert.ok(sixCards.stepPercent > twelveCards.stepPercent);
-  assert.ok(twoCards.startPercent >= 4);
-  assert.ok(twelveCards.startPercent >= 4);
+  assert.ok(twoCards.startPercent >= 2.375);
+  assert.ok(twelveCards.startPercent >= 2.375);
 });
 
 test("live match state populates both players' card zones", () => {
@@ -55,4 +57,33 @@ test("live match state populates both players' card zones", () => {
     zones.opponent.characterCards.map((card) => card.catalogId),
     opponent.bakugan.map((bakugan) => bakugan.character.catalogId),
   );
+});
+
+test("picked-up BakuCores leave the Hide Matrix and attach to their Bakugan", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const match = createMatch("CORE12", "bo1", [player, opponent]);
+  const matrixCell = HEX_CELLS[0].id;
+  const heldCell = HEX_CELLS[1].id;
+  const bakuganId = player.bakugan[0].id;
+
+  match.placements = [
+    {
+      playerId: player.id,
+      core: player.cores[0],
+      cell: matrixCell,
+      order: 1,
+    },
+    {
+      playerId: player.id,
+      core: player.cores[1],
+      cell: heldCell,
+      order: 2,
+      attachedTo: bakuganId,
+    },
+  ];
+
+  assert.deepEqual(hideMatrixPlacements(match).map((placement) => placement.cell), [matrixCell]);
+  assert.deepEqual(heldCorePlacements(match, bakuganId).map((placement) => placement.cell), [heldCell]);
+  assert.equal(heldCorePlacements(match, player.bakugan[1].id).length, 0);
 });

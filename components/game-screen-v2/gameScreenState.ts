@@ -1,4 +1,4 @@
-import type { GameCard, MatchState, PlayerState } from "../../lib/game";
+import type { GameCard, MatchState, Placement, PlayerState } from "../../lib/game";
 
 export type ZoneOwner = "player" | "opponent";
 
@@ -59,6 +59,21 @@ export function heroCardLayout(cardCount: number) {
     startPercent: Math.max(2.375, (100 - occupiedWidthPercent) / 2),
     stepPercent,
   };
+}
+
+export function hideMatrixPlacements(
+  match: MatchState | null | undefined,
+): readonly Placement[] {
+  return match?.placements.filter((placement) => !placement.attachedTo) ?? [];
+}
+
+export function heldCorePlacements(
+  match: MatchState | null | undefined,
+  bakuganId: string,
+): readonly Placement[] {
+  return match?.placements
+    .filter((placement) => placement.attachedTo === bakuganId)
+    .sort((a, b) => a.order - b.order) ?? [];
 }
 
 function ownerState(player?: PlayerState): GameScreenOwnerState {
