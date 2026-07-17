@@ -42,6 +42,12 @@ export const TURN_STEPS: readonly TurnProgressItem<TurnStepKey>[] = [
   { key: "reset", label: "Reset Step", phase: "end", glyph: "⟳" },
 ];
 
+export function turnStepsForPhase(
+  phaseKey: TurnPhaseKey,
+): readonly TurnProgressItem<TurnStepKey>[] {
+  return TURN_STEPS.filter((step) => step.phase === phaseKey);
+}
+
 export type TurnProgressState = {
   phaseKey: TurnPhaseKey;
   stepKey: TurnStepKey;

@@ -2,11 +2,12 @@
   position: fixed;
   top: clamp(0.35rem, 1dvh, 0.75rem);
   left: 50%;
-  z-index: 10070;
+  z-index: 20000;
   display: grid;
   gap: clamp(0.16rem, 0.35vw, 0.34rem);
   box-sizing: border-box;
-  width: min(94vw, 72rem);
+  width: max-content;
+  max-width: calc(100vw - 0.5rem);
   padding: clamp(0.35rem, 0.65vw, 0.65rem) clamp(0.45rem, 0.85vw, 0.85rem);
   transform: translateX(-50%);
   border: 1px solid rgba(255, 255, 255, 0.28);
@@ -25,10 +26,12 @@
 
 .row {
   display: grid;
-  grid-template-columns: clamp(2.8rem, 4.8vw, 4.5rem) minmax(0, 1fr);
+  grid-template-columns: max-content max-content;
   align-items: center;
+  justify-content: center;
   gap: clamp(0.25rem, 0.55vw, 0.55rem);
-  min-width: 0;
+  width: max-content;
+  max-width: 100%;
 }
 
 .rowTitle {
@@ -39,15 +42,17 @@
   letter-spacing: 0.16em;
   text-align: right;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .track {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: clamp(0.12rem, 0.32vw, 0.34rem);
-  min-width: 0;
+  width: max-content;
+  max-width: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -153,21 +158,20 @@
 
 @media (max-width: 760px) {
   .tracker {
-    width: calc(100vw - 0.5rem);
+    width: max-content;
+    max-width: calc(100vw - 0.5rem);
     padding: 0.28rem 0.3rem;
     border-radius: 0.42rem;
   }
 
   .row {
-    grid-template-columns: 1.7rem minmax(0, 1fr);
+    grid-template-columns: max-content max-content;
     gap: 0.16rem;
   }
 
   .rowTitle {
     font-size: 0.4rem;
     letter-spacing: 0.06em;
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
   }
 
   .track {
