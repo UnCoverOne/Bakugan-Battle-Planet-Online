@@ -95,14 +95,15 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
 
       const safeWidth = Math.max(1, safeRight - safeLeft);
       const compact = window.innerWidth <= 760;
-      const desiredCardWidth = compact
+      // Rule 1: card dimensions are stable for a given viewport. The geometry
+      // solver is allowed to compress only the angular spacing between cards.
+      const fixedCardWidth = compact
         ? clamp(window.innerWidth * 0.12, 54.4, 80)
         : clamp(window.innerWidth * 0.072, 75.2, 116);
       const geometry = boundedHandFanGeometry({
         cardCount,
         safeWidth,
-        desiredCardWidth,
-        minimumCardWidth: compact ? 44 : 60,
+        desiredCardWidth: fixedCardWidth,
         radiusRatio: compact ? 5.4 : 8.35,
       });
       const nextBounds: HandViewportBounds = {
