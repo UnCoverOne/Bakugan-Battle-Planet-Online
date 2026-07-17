@@ -3,6 +3,7 @@ import {
   TURN_PHASES,
   TURN_STEPS,
   resolveTurnProgress,
+  turnStepsForPhase,
   type TurnProgressItem,
 } from "./turnProgressState";
 import styles from "./TurnProgressTracker.module.css";
@@ -53,6 +54,8 @@ export function TurnProgressTracker({ match }: { match: MatchState | null }) {
 
   const activePhase = TURN_PHASES[progress.phaseIndex];
   const activeStep = TURN_STEPS[progress.stepIndex];
+  const visibleSteps = turnStepsForPhase(progress.phaseKey);
+  const visibleStepIndex = visibleSteps.findIndex((step) => step.key === progress.stepKey);
 
   return (
     <aside
@@ -69,9 +72,9 @@ export function TurnProgressTracker({ match }: { match: MatchState | null }) {
       />
       <ProgressRow
         label="Steps"
-        items={TURN_STEPS}
+        items={visibleSteps}
         activeKey={progress.stepKey}
-        activeIndex={progress.stepIndex}
+        activeIndex={Math.max(0, visibleStepIndex)}
         kind="step"
       />
     </aside>
