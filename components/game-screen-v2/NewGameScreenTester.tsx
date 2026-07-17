@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MatchState } from "../../lib/game";
+import { BakuCoreLayer } from "./BakuCoreLayer";
 import { GameScreen } from "./GameScreen";
 
 const ROUTE_KEY = "bbp-route-v1";
@@ -82,11 +83,17 @@ export function NewGameScreenTester() {
 
   if (storedState.enabled && storedState.route === "match") {
     return (
-      <GameScreen
-        match={storedState.match}
-        playerId={storedState.playerId}
-        onExit={exit}
-      />
+      <>
+        <GameScreen
+          match={storedState.match}
+          playerId={storedState.playerId}
+          onExit={exit}
+        />
+        <BakuCoreLayer
+          match={storedState.match}
+          playerId={storedState.playerId}
+        />
+      </>
     );
   }
   if (storedState.route !== "play") return null;
