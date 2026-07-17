@@ -1,0 +1,57 @@
+.preview {
+  position: fixed;
+  top: 50%;
+  z-index: 10080;
+  transform: translateY(-50%);
+  pointer-events: none;
+  filter:
+    drop-shadow(0 0.45rem 0.7rem rgba(0, 0, 0, 0.72))
+    drop-shadow(0 0 0.3rem rgba(255, 255, 255, 0.35));
+  animation: card-preview-enter 120ms ease-out both;
+}
+
+.previewLeft {
+  left: clamp(0.75rem, 1.8vw, 2rem);
+  transform-origin: left center;
+}
+
+.previewRight {
+  right: clamp(0.75rem, 1.8vw, 2rem);
+  transform-origin: right center;
+}
+
+.previewImage {
+  display: block;
+  width: min(17.5rem, 24vw);
+  height: auto;
+  max-height: calc(100dvh - 2rem);
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 4.6% / 3.3%;
+  object-fit: contain;
+  object-position: center;
+  background: transparent;
+  user-select: none;
+}
+
+@keyframes card-preview-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@media (max-width: 760px) {
+  .previewImage {
+    width: min(10.5rem, 36vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview {
+    animation: none;
+  }
+}
