@@ -14,8 +14,8 @@ import {
 import styles from "./CardHandLayer.module.css";
 
 const CARD_BACK_ART = "/assets/card-back.png";
-const MIN_ZONE_GAP = 10;
-const MAX_ZONE_GAP = 18;
+const MIN_ZONE_GAP = 16;
+const MAX_ZONE_GAP = 24;
 
 type HandOwner = "player" | "opponent";
 
@@ -38,13 +38,13 @@ function sameBounds(
   previous: HandViewportBounds | null,
   next: HandViewportBounds,
 ) {
-  return Boolean(previous)
-    && approximatelyEqual(previous!.centerX, next.centerX)
-    && approximatelyEqual(previous!.safeWidth, next.safeWidth)
-    && approximatelyEqual(previous!.edgeOffset, next.edgeOffset)
-    && approximatelyEqual(previous!.geometry.cardWidth, next.geometry.cardWidth)
-    && approximatelyEqual(previous!.geometry.fanRadius, next.geometry.fanRadius)
-    && approximatelyEqual(previous!.geometry.spanDegrees, next.geometry.spanDegrees);
+  if (!previous) return false;
+  return approximatelyEqual(previous.centerX, next.centerX)
+    && approximatelyEqual(previous.safeWidth, next.safeWidth)
+    && approximatelyEqual(previous.edgeOffset, next.edgeOffset)
+    && approximatelyEqual(previous.geometry.cardWidth, next.geometry.cardWidth)
+    && approximatelyEqual(previous.geometry.fanRadius, next.geometry.fanRadius)
+    && approximatelyEqual(previous.geometry.spanDegrees, next.geometry.spanDegrees);
 }
 
 function useHandViewportBounds(owner: HandOwner, cardCount: number) {
@@ -61,10 +61,10 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
       if (!playArea) return;
 
       const playRect = playArea.getBoundingClientRect();
-      const characterArea = document.querySelector<HTMLElement>(
+      const characterArea = playArea.querySelector<HTMLElement>(
         `[data-zone-owner="${owner}"][data-zone-group="character-cards"]`,
       );
-      const stackArea = document.querySelector<HTMLElement>(
+      const stackArea = playArea.querySelector<HTMLElement>(
         `[data-zone-owner="${owner}"][data-zone-group="play-area-cards"]`,
       );
       const obstacleRects = [characterArea, stackArea]
@@ -124,13 +124,16 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
       measure();
       if (typeof ResizeObserver === "undefined") return;
 
+      const playArea = document.querySelector<HTMLElement>(
+        '[aria-label="Experimental game play area"]',
+      );
       observer = new ResizeObserver(measure);
       const elements = [
-        document.querySelector<HTMLElement>('[aria-label="Experimental game play area"]'),
-        document.querySelector<HTMLElement>(
+        playArea,
+        playArea?.querySelector<HTMLElement>(
           `[data-zone-owner="${owner}"][data-zone-group="character-cards"]`,
         ),
-        document.querySelector<HTMLElement>(
+        playArea?.querySelector<HTMLElement>(
           `[data-zone-owner="${owner}"][data-zone-group="play-area-cards"]`,
         ),
       ];
