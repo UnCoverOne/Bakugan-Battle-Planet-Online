@@ -145,14 +145,18 @@
 .characterCardImage,
 .discardCardImage {
   position: absolute;
-  inset: calc(var(--zone-fill-inset) + 1px);
+  left: 50%;
+  top: 50%;
   z-index: 2;
-  width: auto;
-  height: auto;
+  box-sizing: border-box;
+  width: 90%;
+  height: 90%;
   min-width: 0;
   min-height: 0;
+  transform: translate(-50%, -50%);
   border-radius: 2px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   pointer-events: none;
   user-select: none;
 }
@@ -216,7 +220,7 @@
 
 .heroCardStack {
   position: absolute;
-  inset: calc(var(--zone-fill-inset) + 1px);
+  inset: 0;
   z-index: 2;
   overflow: hidden;
   border-radius: 2px;
@@ -225,14 +229,17 @@
 
 .heroCardImage {
   position: absolute;
-  top: 5%;
+  top: 50%;
   left: var(--hero-left);
   z-index: calc(2 + var(--hero-order));
-  width: 28%;
-  height: 90%;
+  box-sizing: border-box;
+  width: 42.75%;
+  height: 85.5%;
+  transform: translateY(-50%);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 2px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.48);
   user-select: none;
 }
@@ -252,7 +259,7 @@
 
 .deckBackStack {
   position: absolute;
-  inset: calc(var(--zone-fill-inset) + 1px);
+  inset: 0;
   z-index: 2;
   overflow: hidden;
   border-radius: 2px;
@@ -264,12 +271,14 @@
   left: 50%;
   top: 50%;
   z-index: calc(2 + var(--deck-order));
-  width: 74%;
-  aspect-ratio: 875 / 1224;
+  box-sizing: border-box;
+  width: 90%;
+  height: 90%;
   transform: translate(calc(-50% + var(--deck-x)), calc(-50% + var(--deck-y)));
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 2px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.52);
   user-select: none;
 }
