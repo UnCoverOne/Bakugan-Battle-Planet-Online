@@ -21,6 +21,7 @@ import {
 import {
   cardPreviewKind,
   cardPreviewSide,
+  cardPreviewZoneAllowed,
 } from "../components/game-screen-v2/cardPreviewState";
 
 test("deck card backs scale from zero to ten assets", () => {
@@ -117,7 +118,7 @@ test("tall viewports move the hand with the playmat instead of below it", () => 
   assert.equal(handViewportEdgeOffset(1600, 250, 1350, "opponent"), 202);
 });
 
-test("card previews recognize card faces and backs and open on the opposite side", () => {
+test("card previews follow hand and playmat placement rules", () => {
   assert.equal(cardPreviewKind("/assets/cards/full/001.webp"), "face");
   assert.equal(
     cardPreviewKind("https://example.test/assets/cards/full/002.webp?revision=3"),
@@ -129,6 +130,14 @@ test("card previews recognize card faces and backs and open on the opposite side
   assert.equal(cardPreviewSide(200, 1200), "right");
   assert.equal(cardPreviewSide(1000, 1200), "left");
   assert.equal(cardPreviewSide(600, 1200), "right");
+  assert.equal(cardPreviewSide(200, 1200, "hand"), "left");
+  assert.equal(cardPreviewSide(1000, 1200, "hand"), "left");
+
+  assert.equal(cardPreviewZoneAllowed("character-card"), true);
+  assert.equal(cardPreviewZoneAllowed("hero"), true);
+  assert.equal(cardPreviewZoneAllowed("hand"), true);
+  assert.equal(cardPreviewZoneAllowed("deck"), false);
+  assert.equal(cardPreviewZoneAllowed("discard-pile"), false);
 });
 
 test("the opponent hand exposes its card count without exposing card faces", () => {
