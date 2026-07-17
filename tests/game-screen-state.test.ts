@@ -11,6 +11,7 @@ import {
 } from "../components/game-screen-v2/gameScreenState";
 import {
   handCardLayout,
+  handFanSpanDegrees,
   playerHandCards,
 } from "../components/game-screen-v2/cardHandState";
 
@@ -35,22 +36,39 @@ test("Hero cards compress their spacing as the stack grows", () => {
   assert.ok(twelveCards.startPercent >= 2.375);
 });
 
-test("the player hand forms a centred, slightly fanned row", () => {
-  const singleCard = handCardLayout(1);
-  const fiveCards = handCardLayout(5);
-  const twelveCards = handCardLayout(12);
+test("the player hand uses an exact symmetric radial fan at any card count", () => {
+  const approximatelyEqual = (left: number, right: number) => {
+    assert.ok(Math.abs(left - right) < 1e-9, `${left} should equal ${right}`);
+  };
 
-  assert.deepEqual(singleCard, [
-    { leftPercent: 50, rotationDegrees: 0, dropPixels: 0, zIndex: 1 },
+  assert.deepEqual(handCardLayout(1), [
+    { rotationDegrees: 0, zIndex: 100 },
   ]);
-  assert.equal(fiveCards.length, 5);
-  assert.ok(fiveCards[0].leftPercent < 50);
-  assert.equal(fiveCards[2].leftPercent, 50);
-  assert.ok(fiveCards.at(-1)!.leftPercent > 50);
-  assert.ok(fiveCards[0].rotationDegrees < 0);
-  assert.ok(fiveCards.at(-1)!.rotationDegrees > 0);
-  assert.equal(twelveCards[0].leftPercent, 18);
-  assert.equal(twelveCards.at(-1)!.leftPercent, 82);
+
+  for (const count of [2, 5, 6, 12, 40]) {
+    const layout = handCardLayout(count);
+    assert.equal(layout.length, count);
+    approximatelyEqual(
+      layout[0].rotationDegrees,
+      -layout.at(-1)!.rotationDegrees,
+    );
+
+    const expectedStep = handFanSpanDegrees(count) / (count - 1);
+    for (let index = 1; index < layout.length; index += 1) {
+      approximatelyEqual(
+        layout[index].rotationDegrees - layout[index - 1].rotationDegrees,
+        expectedStep,
+      );
+    }
+
+    const centreIndex = Math.floor((count - 1) / 2);
+    assert.ok(layout[centreIndex].zIndex > layout[0].zIndex);
+    assert.ok(layout[centreIndex].zIndex > layout.at(-1)!.zIndex);
+  }
+
+  assert.equal(handCardLayout(5)[2].rotationDegrees, 0);
+  assert.equal(handFanSpanDegrees(12), 42);
+  assert.equal(handFanSpanDegrees(40), 42);
 });
 
 test("live match state populates both players' card zones", () => {
