@@ -42,7 +42,7 @@ test("the player hand uses an exact symmetric radial fan at any card count", () 
   };
 
   assert.deepEqual(handCardLayout(1), [
-    { rotationDegrees: 0, zIndex: 100 },
+    { rotationDegrees: 0, zIndex: 1 },
   ]);
 
   for (const count of [2, 5, 6, 12, 40]) {
@@ -59,14 +59,10 @@ test("the player hand uses an exact symmetric radial fan at any card count", () 
         layout[index].rotationDegrees - layout[index - 1].rotationDegrees,
         expectedStep,
       );
-    }
-
-    const maximumZIndex = Math.max(...layout.map((position) => position.zIndex));
-    assert.ok(maximumZIndex >= layout[0].zIndex);
-    assert.ok(maximumZIndex >= layout.at(-1)!.zIndex);
-    if (count > 2) {
-      assert.ok(maximumZIndex > layout[0].zIndex);
-      assert.ok(maximumZIndex > layout.at(-1)!.zIndex);
+      assert.ok(
+        layout[index].zIndex > layout[index - 1].zIndex,
+        "each card to the right should overlap the card to its left",
+      );
     }
   }
 
