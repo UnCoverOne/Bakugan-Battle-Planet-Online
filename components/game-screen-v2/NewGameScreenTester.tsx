@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MatchState } from "../../lib/game";
 import { BakuCoreLayer } from "./BakuCoreLayer";
 import { CardHandLayer } from "./CardHandLayer";
+import { CardPreviewLayer } from "./CardPreviewLayer";
 import { GameScreen } from "./GameScreen";
 
 const ROUTE_KEY = "bbp-route-v1";
@@ -98,6 +99,7 @@ export function NewGameScreenTester() {
           match={storedState.match}
           playerId={storedState.playerId}
         />
+        <CardPreviewLayer />
       </>
     );
   }
