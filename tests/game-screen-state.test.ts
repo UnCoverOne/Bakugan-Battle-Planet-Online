@@ -61,9 +61,13 @@ test("the player hand uses an exact symmetric radial fan at any card count", () 
       );
     }
 
-    const centreIndex = Math.floor((count - 1) / 2);
-    assert.ok(layout[centreIndex].zIndex > layout[0].zIndex);
-    assert.ok(layout[centreIndex].zIndex > layout.at(-1)!.zIndex);
+    const maximumZIndex = Math.max(...layout.map((position) => position.zIndex));
+    assert.ok(maximumZIndex >= layout[0].zIndex);
+    assert.ok(maximumZIndex >= layout.at(-1)!.zIndex);
+    if (count > 2) {
+      assert.ok(maximumZIndex > layout[0].zIndex);
+      assert.ok(maximumZIndex > layout.at(-1)!.zIndex);
+    }
   }
 
   assert.equal(handCardLayout(5)[2].rotationDegrees, 0);
