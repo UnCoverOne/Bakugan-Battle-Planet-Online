@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./design-system.css";
+import "./card-art-transparency.css";
 import { NewGameScreenTester } from "../components/game-screen-v2/NewGameScreenTester";
 
 export const metadata: Metadata = {
