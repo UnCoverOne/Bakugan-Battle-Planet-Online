@@ -85,43 +85,37 @@ export function handFanRenderedWidth(
 }
 
 /**
- * Fit a fan into the space between the Character Cards and the Deck/Discard
- * area. It keeps the requested radius-to-card ratio, first scales the entire
- * fan uniformly, and only tightens the angle when the minimum useful card size
- * would otherwise cross a protected playmat zone.
+ * Fit a fan between the Character Cards and the play-area card zones without
+ * ever changing the established card size. When the ideal fan is too wide,
+ * equal angular spacing is compressed until the complete fan fits. A corridor
+ * narrower than one card is the only unsatisfiable case; card-size consistency
+ * deliberately takes precedence over shrinking the card.
  */
 export function boundedHandFanGeometry({
   cardCount,
   safeWidth,
   desiredCardWidth,
-  minimumCardWidth,
   radiusRatio,
 }: {
   cardCount: number;
   safeWidth: number;
   desiredCardWidth: number;
-  minimumCardWidth: number;
+  /** @deprecated Card size is fixed; retained for call-site compatibility. */
+  minimumCardWidth?: number;
   radiusRatio: number;
 }): HandFanGeometry {
   const count = Math.max(0, Math.floor(Number.isFinite(cardCount) ? cardCount : 0));
   const widthLimit = Math.max(1, finiteNonNegative(safeWidth, 1));
-  const desiredWidth = Math.max(1, finiteNonNegative(desiredCardWidth, 1));
-  const minimumWidth = Math.min(
-    desiredWidth,
-    Math.max(1, finiteNonNegative(minimumCardWidth, 1)),
-  );
+  const cardWidth = Math.max(1, finiteNonNegative(desiredCardWidth, 1));
   const ratio = finiteNonNegative(radiusRatio);
+  const fanRadius = cardWidth * ratio;
   const desiredSpan = handFanSpanDegrees(count);
-
-  const unitRenderedWidth = handFanRenderedWidth(1, ratio, desiredSpan);
-  let cardWidth = Math.min(desiredWidth, widthLimit / Math.max(1, unitRenderedWidth));
   let spanDegrees = desiredSpan;
 
-  if (cardWidth < minimumWidth) {
-    cardWidth = Math.min(minimumWidth, widthLimit);
-    const fanRadius = cardWidth * ratio;
-
-    if (handFanRenderedWidth(cardWidth, fanRadius, desiredSpan) > widthLimit) {
+  if (handFanRenderedWidth(cardWidth, fanRadius, desiredSpan) > widthLimit) {
+    if (widthLimit <= cardWidth) {
+      spanDegrees = 0;
+    } else {
       let low = 0;
       let high = desiredSpan;
       for (let iteration = 0; iteration < 40; iteration += 1) {
@@ -136,7 +130,6 @@ export function boundedHandFanGeometry({
     }
   }
 
-  const fanRadius = cardWidth * ratio;
   return {
     cardWidth,
     fanRadius,
