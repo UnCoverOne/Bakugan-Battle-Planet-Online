@@ -18,16 +18,14 @@ function ProgressRow<Key extends string>({
   items,
   activeKey,
   activeIndex,
-  kind,
 }: {
   label: string;
   items: readonly TurnProgressItem<Key>[];
   activeKey: Key;
   activeIndex: number;
-  kind: "phase" | "step";
 }) {
   return (
-    <div className={`${styles.row} ${kind === "phase" ? styles.phaseRow : styles.stepRow}`}>
+    <div className={styles.row}>
       <span className={styles.rowTitle}>{label}</span>
       <ol className={styles.track}>
         {items.map((item, index) => {
@@ -108,14 +106,12 @@ export function TurnProgressTracker({ match }: { match: MatchState | null }) {
         items={TURN_PHASES}
         activeKey={progress.phaseKey}
         activeIndex={progress.phaseIndex}
-        kind="phase"
       />
       <ProgressRow
         label="Step"
         items={visibleSteps}
         activeKey={progress.stepKey}
         activeIndex={Math.max(0, visibleStepIndex)}
-        kind="step"
       />
     </aside>
   );
