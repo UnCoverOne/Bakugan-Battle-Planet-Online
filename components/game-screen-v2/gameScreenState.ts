@@ -41,22 +41,22 @@ export function deckBackAssetCount(deckCount: number) {
 }
 
 /**
- * Hero cards use the same physical width as cards in the single-card zones.
+ * Hero cards use the same physical dimensions as cards in the single-card zones.
  * Their horizontal gap compresses as the stack grows while the complete stack
  * remains centred inside the wider Hero zone.
  */
 export function heroCardLayout(cardCount: number) {
   const count = safeCardCount(cardCount);
-  const cardWidthPercent = 47.5;
+  const cardWidthPercent = 42.75;
   if (count <= 1) {
     return { startPercent: (100 - cardWidthPercent) / 2, stepPercent: 0 };
   }
 
-  const usableSpreadPercent = 48;
+  const usableSpreadPercent = 52.5;
   const stepPercent = Math.min(12, usableSpreadPercent / (count - 1));
   const occupiedWidthPercent = cardWidthPercent + stepPercent * (count - 1);
   return {
-    startPercent: Math.max(2.25, (100 - occupiedWidthPercent) / 2),
+    startPercent: Math.max(2.375, (100 - occupiedWidthPercent) / 2),
     stepPercent,
   };
 }
