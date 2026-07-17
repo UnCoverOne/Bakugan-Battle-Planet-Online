@@ -10,8 +10,11 @@ import {
   hideMatrixPlacements,
 } from "../components/game-screen-v2/gameScreenState";
 import {
+  boundedHandFanGeometry,
   handCardLayout,
+  handFanRenderedWidth,
   handFanSpanDegrees,
+  handViewportEdgeOffset,
   opponentHandCardCount,
   playerHandCards,
 } from "../components/game-screen-v2/cardHandState";
@@ -70,6 +73,44 @@ test("the player hand uses an exact symmetric radial fan at any card count", () 
   assert.equal(handCardLayout(5)[2].rotationDegrees, 0);
   assert.equal(handFanSpanDegrees(12), 42);
   assert.equal(handFanSpanDegrees(40), 42);
+});
+
+test("the radial hand always fits inside its protected playmat corridor", () => {
+  for (const safeWidth of [320, 480, 680, 920]) {
+    for (const cardCount of [1, 5, 12, 40]) {
+      const geometry = boundedHandFanGeometry({
+        cardCount,
+        safeWidth,
+        desiredCardWidth: 116,
+        minimumCardWidth: 60,
+        radiusRatio: 8.35,
+      });
+
+      assert.ok(geometry.cardWidth <= 116);
+      assert.ok(geometry.spanDegrees <= handFanSpanDegrees(cardCount));
+      assert.ok(
+        geometry.renderedWidth <= safeWidth + 1e-7,
+        `${cardCount} cards should fit inside ${safeWidth}px`,
+      );
+      assert.ok(
+        Math.abs(
+          geometry.renderedWidth
+          - handFanRenderedWidth(
+            geometry.cardWidth,
+            geometry.fanRadius,
+            geometry.spanDegrees,
+          )
+        ) < 1e-7,
+      );
+    }
+  }
+});
+
+test("tall viewports move the hand with the playmat instead of below it", () => {
+  assert.equal(handViewportEdgeOffset(1000, 48, 952, "player"), 0);
+  assert.equal(handViewportEdgeOffset(1000, 48, 952, "opponent"), 0);
+  assert.equal(handViewportEdgeOffset(1600, 250, 1350, "player"), 202);
+  assert.equal(handViewportEdgeOffset(1600, 250, 1350, "opponent"), 202);
 });
 
 test("the opponent hand exposes its card count without exposing card faces", () => {

@@ -1,23 +1,29 @@
 .handLayer {
-  --hand-card-width: clamp(4.7rem, 7.2vw, 7.25rem);
-  --hand-fan-radius: clamp(40rem, 60vw, 60rem);
+  --hand-card-width: 7.25rem;
+  --hand-fan-radius: 60rem;
   --hand-hover-lift: clamp(2.25rem, 5dvh, 3.5rem);
+  --hand-anchor-offset: 0px;
   position: fixed;
   left: 50%;
   z-index: 10030;
   width: min(82vw, 1220px);
-  height: clamp(9.5rem, 25dvh, 17rem);
+  height: calc(var(--hand-card-width) + var(--hand-hover-lift) + 4rem);
   transform: translateX(-50%);
   overflow: visible;
+  visibility: hidden;
   pointer-events: none;
 }
 
+.handLayer[data-safe-width] {
+  visibility: visible;
+}
+
 .playerHandLayer {
-  bottom: 0;
+  bottom: var(--hand-anchor-offset);
 }
 
 .opponentHandLayer {
-  top: 0;
+  top: var(--hand-anchor-offset);
 }
 
 .handCards {
@@ -37,7 +43,7 @@
 }
 
 .playerHandLayer .handCard {
-  bottom: clamp(0.5rem, 1.2dvh, 1rem);
+  bottom: clamp(0.5rem, 0.7vw, 1rem);
   transform: translateX(-50%) rotate(var(--hand-rotation));
   transform-origin: 50% calc(100% + var(--hand-fan-radius));
   pointer-events: auto;
@@ -45,7 +51,7 @@
 }
 
 .opponentHandLayer .handCard {
-  top: clamp(0.5rem, 1.2dvh, 1rem);
+  top: clamp(0.5rem, 0.7vw, 1rem);
   transform: translateX(-50%) rotate(var(--hand-rotation));
   transform-origin: 50% calc(0% - var(--hand-fan-radius));
 }
@@ -100,10 +106,9 @@
 
 @media (max-width: 760px) {
   .handLayer {
-    --hand-card-width: clamp(3.4rem, 12vw, 5rem);
-    --hand-fan-radius: clamp(18.5rem, 65vw, 27rem);
+    --hand-card-width: 5rem;
+    --hand-fan-radius: 27rem;
     --hand-hover-lift: clamp(1.65rem, 4.5dvh, 2.6rem);
     width: 96vw;
-    height: clamp(7.5rem, 21dvh, 11rem);
   }
 }
