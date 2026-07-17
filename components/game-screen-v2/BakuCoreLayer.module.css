@@ -1,0 +1,43 @@
+.matrixLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.matrixCore {
+  filter:
+    drop-shadow(0 4px 5px rgba(0, 0, 0, 0.72))
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.2));
+}
+
+.heldCoreFan {
+  position: absolute;
+  top: 2%;
+  left: 50%;
+  z-index: 40;
+  width: 92%;
+  height: 38%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.heldCore {
+  position: absolute;
+  top: 0;
+  left: calc(50% + var(--held-core-x));
+  z-index: calc(40 + var(--held-core-order));
+  width: 38%;
+  height: 100%;
+  transform: translateX(-50%) rotate(var(--held-core-rotation));
+  transform-origin: center bottom;
+  object-fit: contain;
+  object-position: center;
+  filter:
+    drop-shadow(0 3px 3px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 2px rgba(255, 255, 255, 0.24));
+  user-select: none;
+}
