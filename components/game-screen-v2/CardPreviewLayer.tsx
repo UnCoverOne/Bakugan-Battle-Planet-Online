@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   cardPreviewKind,
   cardPreviewSide,
+  cardPreviewZoneAllowed,
   type CardPreviewOrigin,
   type CardPreviewSide,
 } from "./cardPreviewState";
@@ -21,10 +22,6 @@ type PreviewTarget = {
 };
 
 const CHARACTER_ZONE_SELECTOR = '[data-zone-kind="character-card"]';
-const EXCLUDED_ZONE_SELECTOR = [
-  '[data-zone-kind="deck"]',
-  '[data-zone-kind="discard-pile"]',
-].join(",");
 
 function imageSource(image: HTMLImageElement): string {
   return image.currentSrc || image.getAttribute("src") || "";
@@ -39,7 +36,9 @@ function previewTargetFromPointer(target: EventTarget | null): PreviewTarget | n
 
   // The deck and discard pile keep their existing hover glow but never open an
   // enlarged card preview, even when their image is the pointer target.
-  if (target.closest(EXCLUDED_ZONE_SELECTOR)) return null;
+  const zoneKind = target.closest<HTMLElement>("[data-zone-kind]")
+    ?.getAttribute("data-zone-kind");
+  if (!cardPreviewZoneAllowed(zoneKind)) return null;
 
   // Hand cards are individually wrapped, including hidden opponent cards. Read
   // from the nearest hand item before considering generic card images so every
