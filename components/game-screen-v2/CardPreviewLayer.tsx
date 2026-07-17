@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   cardPreviewKind,
   cardPreviewSide,
+  type CardPreviewOrigin,
   type CardPreviewSide,
 } from "./cardPreviewState";
 import styles from "./CardPreviewLayer.module.css";
@@ -14,8 +15,13 @@ type CardPreview = {
   side: CardPreviewSide;
 };
 
-const DIRECT_ZONE_SELECTOR = [
-  '[data-zone-kind="character-card"]',
+type PreviewTarget = {
+  image: HTMLImageElement;
+  origin: CardPreviewOrigin;
+};
+
+const CHARACTER_ZONE_SELECTOR = '[data-zone-kind="character-card"]';
+const EXCLUDED_ZONE_SELECTOR = [
   '[data-zone-kind="deck"]',
   '[data-zone-kind="discard-pile"]',
 ].join(",");
@@ -28,32 +34,38 @@ function isPreviewableCardImage(image: HTMLImageElement | null): image is HTMLIm
   return Boolean(image && cardPreviewKind(imageSource(image)));
 }
 
-function previewImageFromTarget(target: EventTarget | null): HTMLImageElement | null {
+function previewTargetFromPointer(target: EventTarget | null): PreviewTarget | null {
   if (!(target instanceof Element)) return null;
+
+  // The deck and discard pile keep their existing hover glow but never open an
+  // enlarged card preview, even when their image is the pointer target.
+  if (target.closest(EXCLUDED_ZONE_SELECTOR)) return null;
+
+  // Hand cards are individually wrapped, including hidden opponent cards. Read
+  // from the nearest hand item before considering generic card images so every
+  // hand preview can use the same fixed left-side location.
+  const handCard = target.closest("li");
+  if (handCard?.closest('[data-zone-kind="hand"]')) {
+    const handImage = handCard.querySelector<HTMLImageElement>("img");
+    if (isPreviewableCardImage(handImage)) {
+      return { image: handImage, origin: "hand" };
+    }
+  }
 
   const directImage = target instanceof HTMLImageElement
     ? target
     : target.closest<HTMLImageElement>("img");
-  if (isPreviewableCardImage(directImage)) return directImage;
-
-  // Hand cards are individually wrapped, including hidden opponent cards. Use
-  // the nearest list item so moving over a card's surface never selects a
-  // different overlapping card from the same hand.
-  const handCard = target.closest("li");
-  if (handCard?.closest('[data-zone-kind="hand"]')) {
-    const handImage = handCard.querySelector<HTMLImageElement>("img");
-    if (isPreviewableCardImage(handImage)) return handImage;
+  if (isPreviewableCardImage(directImage)) {
+    return { image: directImage, origin: "board" };
   }
 
-  // Character, deck, and discard artwork deliberately ignores pointer events
-  // so the entire physical piece receives its existing hover treatment. Read
-  // the card image from that hovered piece instead of requiring the image to
-  // be the pointer target.
-  const zone = target.closest<HTMLElement>(DIRECT_ZONE_SELECTOR);
-  if (!zone) return null;
-  const images = Array.from(zone.querySelectorAll<HTMLImageElement>("img"))
-    .filter(isPreviewableCardImage);
-  return images.at(-1) ?? null;
+  // Character artwork deliberately ignores pointer events so the entire card
+  // receives its existing hover treatment. Read the card image from the zone.
+  const characterZone = target.closest<HTMLElement>(CHARACTER_ZONE_SELECTOR);
+  if (!characterZone) return null;
+  const image = Array.from(characterZone.querySelectorAll<HTMLImageElement>("img"))
+    .find(isPreviewableCardImage);
+  return image ? { image, origin: "board" } : null;
 }
 
 function samePreview(previous: CardPreview | null, next: CardPreview | null) {
@@ -76,24 +88,28 @@ export function CardPreviewLayer() {
         return;
       }
 
-      const image = previewImageFromTarget(event.target);
-      if (!image) {
+      const target = previewTargetFromPointer(event.target);
+      if (!target) {
         clearPreview();
         return;
       }
 
-      const src = imageSource(image);
+      const src = imageSource(target.image);
       const kind = cardPreviewKind(src);
       if (!kind) {
         clearPreview();
         return;
       }
 
-      const rect = image.getBoundingClientRect();
+      const rect = target.image.getBoundingClientRect();
       const next: CardPreview = {
         src,
-        label: image.alt.trim() || (kind === "back" ? "Hidden card" : "Card"),
-        side: cardPreviewSide(rect.left + rect.width / 2, window.innerWidth),
+        label: target.image.alt.trim() || (kind === "back" ? "Hidden card" : "Card"),
+        side: cardPreviewSide(
+          rect.left + rect.width / 2,
+          window.innerWidth,
+          target.origin,
+        ),
       };
       setPreview((previous) => samePreview(previous, next) ? previous : next);
     };
