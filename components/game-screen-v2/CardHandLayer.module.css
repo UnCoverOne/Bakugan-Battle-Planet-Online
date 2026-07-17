@@ -1,0 +1,54 @@
+.handLayer {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 10030;
+  width: min(74vw, 1100px);
+  height: clamp(8.8rem, 23dvh, 15.5rem);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.handCards {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.handCard {
+  position: absolute;
+  left: var(--hand-left);
+  bottom: clamp(0.5rem, 1.2dvh, 1rem);
+  width: clamp(4.7rem, 7.2vw, 7.25rem);
+  aspect-ratio: 5 / 7;
+  transform:
+    translateX(-50%)
+    translateY(var(--hand-drop))
+    rotate(var(--hand-rotation));
+  transform-origin: center 122%;
+  filter: drop-shadow(0 0.4rem 0.55rem rgba(0, 0, 0, 0.58));
+}
+
+.handCardImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 3px;
+  object-fit: contain;
+  object-position: center;
+  user-select: none;
+}
+
+@media (max-width: 760px) {
+  .handLayer {
+    width: 94vw;
+    height: clamp(7rem, 19dvh, 10rem);
+  }
+
+  .handCard {
+    width: clamp(3.4rem, 12vw, 5rem);
+  }
+}
