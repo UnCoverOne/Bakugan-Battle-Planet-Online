@@ -26,8 +26,13 @@
   left: 50%;
   bottom: clamp(0.5rem, 1.2dvh, 1rem);
   width: var(--hand-card-width);
-  margin-left: calc(var(--hand-card-width) / -2);
   aspect-ratio: 5 / 7;
+  transform: translateX(-50%);
+}
+
+.handCardSurface {
+  width: 100%;
+  height: 100%;
   transform: rotate(var(--hand-rotation));
   transform-origin: 50% calc(100% + var(--hand-fan-radius));
   filter: drop-shadow(0 0.4rem 0.55rem rgba(0, 0, 0, 0.58));
