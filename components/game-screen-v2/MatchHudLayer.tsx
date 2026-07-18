@@ -19,13 +19,6 @@ type MatchActionHandler = () => void | Promise<void>;
 type PlayCardHandler = (cardId: string, choices: CardChoices) => void | Promise<void>;
 type EnergizeCardHandler = (cardId: string) => void | Promise<void>;
 
-function profileArt(match: MatchState, player: PlayerState) {
-  const selectedId = match.selected[player.id];
-  return player.bakugan.find((bakugan) => bakugan.id === selectedId)?.art
-    ?? player.bakugan[0]?.art
-    ?? "/assets/card-back.png";
-}
-
 function PlayerStatusHud({
   match,
   player,
@@ -39,7 +32,6 @@ function PlayerStatusHud({
   const target = matchRoundTarget(match);
   const wins = match.series[player.id] ?? 0;
   const multipleRounds = match.format === "bo3";
-  const faction = player.bakugan[0]?.faction ?? "Pyrus";
 
   return (
     <section
@@ -47,10 +39,6 @@ function PlayerStatusHud({
       data-priority={hasPriority ? "true" : "false"}
       aria-label={`${position === "player" ? "Your" : "Opponent"} player details: ${player.name}${hasPriority ? ", has priority" : ""}`}
     >
-      <div className={styles.profileIcon}>
-        <img src={profileArt(match, player)} alt="" draggable={false} />
-        <span className={styles.factionMark} aria-label={`${faction} faction`}>{faction.slice(0, 1)}</span>
-      </div>
       <div className={styles.playerCopy}>
         <small>{position === "player" ? "PLAYER" : "OPPONENT"}</small>
         <strong>{player.name}</strong>
