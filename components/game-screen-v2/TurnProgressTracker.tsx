@@ -13,6 +13,7 @@ import {
   type TurnProgressItem,
 } from "./turnProgressState";
 import styles from "./TurnProgressTracker.module.css";
+import tooltipStyles from "./TurnProgressTooltip.module.css";
 
 function ProgressRow<Key extends string>({
   label,
@@ -34,7 +35,7 @@ function ProgressRow<Key extends string>({
           const completed = index < activeIndex;
           return (
             <li
-              className={`${styles.item} ${active ? styles.active : ""} ${completed ? styles.completed : ""}`}
+              className={`${styles.item} ${tooltipStyles.tooltipItem} ${active ? styles.active : ""} ${completed ? styles.completed : ""}`}
               data-active={active ? "true" : "false"}
               data-completed={completed ? "true" : "false"}
               data-tooltip={item.label}
