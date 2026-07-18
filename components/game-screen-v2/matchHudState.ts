@@ -5,9 +5,18 @@ import {
   type MatchState,
   type PlayerState,
 } from "../../lib/game";
+import {
+  playerCanDrawTurnCard,
+} from "../../lib/turnStart";
 
 export type HandActionMode = "play" | "energize" | null;
-export type MatchHudActionKey = "play-card" | "energize-card" | "pass-turn" | "select";
+export type MatchHudActionKey =
+  | "draw-card"
+  | "play-card"
+  | "energize-card"
+  | "skip-energize"
+  | "pass-turn"
+  | "select";
 
 export const PRIORITY_WINDOW_PHASES = [
   "preRoll",
@@ -82,6 +91,19 @@ export function canEnergizeCard(
   );
 }
 
+export function canSkipEnergizing(
+  match: MatchState | null | undefined,
+  playerId?: string,
+) {
+  const { player } = resolveHudPlayers(match, playerId);
+  return Boolean(
+    match
+    && player
+    && match.phase === "energize"
+    && !player.energizedThisTurn,
+  );
+}
+
 export function handCardIsActionable(
   match: MatchState | null | undefined,
   playerId: string | undefined,
@@ -110,12 +132,14 @@ export function visibleMatchHudActions({
   mode,
   selectedCardId,
   selectionPending,
+  now = Date.now(),
 }: {
   match: MatchState | null | undefined;
   playerId?: string;
   mode: HandActionMode;
   selectedCardId: string;
   selectionPending: boolean;
+  now?: number;
 }): MatchHudActions {
   const { player } = resolveHudPlayers(match, playerId);
   const playCards = playableHandCards(match, player?.id);
@@ -123,8 +147,10 @@ export function visibleMatchHudActions({
   const canPass = Boolean(match && player && isPriorityWindow(match) && match.priority === player.id);
   const selectedPlayable = playCards.some((card) => card.id === selectedCardId);
   return {
+    "draw-card": playerCanDrawTurnCard(match, player?.id, now),
     "play-card": canPlay,
     "energize-card": canEnergizeCard(match, player?.id),
+    "skip-energize": canSkipEnergizing(match, player?.id),
     "pass-turn": canPass,
     select: Boolean(
       selectionPending
@@ -136,20 +162,41 @@ export function visibleMatchHudActions({
 }
 
 /**
- * The compact action HUD owns two permanent positions. Select, Energize, and
- * Play Card reuse the primary position. Pass is always reserved for the second
- * position so it never moves beneath the pointer as game state changes.
+ * The compact Action HUD owns two permanent positions. Draw, Select,
+ * Energize, and Play Card reuse the primary position. Pass remains in the
+ * second position whenever it is legal; Skip Energizing may use that frame
+ * only during the non-priority Energize Step.
  */
 export function compactMatchHudSlots(actions: MatchHudActions): CompactMatchHudSlots {
   const primary: MatchHudActionKey | null = actions.select
     ? "select"
-    : actions["energize-card"]
-      ? "energize-card"
-      : actions["play-card"]
-        ? "play-card"
-        : null;
-  const pass: MatchHudActionKey | null = actions["pass-turn"] ? "pass-turn" : null;
-  return [primary, pass];
+    : actions["draw-card"]
+      ? "draw-card"
+      : actions["energize-card"]
+        ? "energize-card"
+        : actions["play-card"]
+          ? "play-card"
+          : null;
+  const secondary: MatchHudActionKey | null = actions["pass-turn"]
+    ? "pass-turn"
+    : actions["skip-energize"]
+      ? "skip-energize"
+      : null;
+  return [primary, secondary];
+}
+
+export function shouldAutomaticallyPass(
+  match: MatchState | null | undefined,
+  playerId?: string,
+) {
+  const actions = visibleMatchHudActions({
+    match,
+    playerId,
+    mode: null,
+    selectedCardId: "",
+    selectionPending: false,
+  });
+  return actions["pass-turn"] && !actions["play-card"];
 }
 
 function activeBakuganId(match: MatchState, player: PlayerState) {
