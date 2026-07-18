@@ -18,7 +18,8 @@ function withTurnStartMetadata(match: MatchState): TurnStartMatchState {
 }
 
 function drawIds(match: MatchState | null | undefined) {
-  return withTurnStartMetadata(match as MatchState).drawnPlayerIds ?? [];
+  if (!match) return [];
+  return withTurnStartMetadata(match).drawnPlayerIds ?? [];
 }
 
 export function drawStepIsPending(match: MatchState | null | undefined) {
@@ -98,9 +99,15 @@ export function preparePendingDraw(input: MatchState, now = Date.now()): MatchSt
   }
 
   const state = withTurnStartMetadata(cloneMatch(input));
+  const recentTurnEntries = state.log.slice(-(state.players.length + 2));
   for (const player of state.players) {
-    const drawnCard = player.hand.pop();
-    if (drawnCard) player.deckCards.unshift(drawnCard);
+    const legacyDrawFailed = recentTurnEntries.some((item) => (
+      item.message === `${player.name} could not draw because their deck is empty.`
+    ));
+    if (!legacyDrawFailed) {
+      const drawnCard = player.hand.pop();
+      if (drawnCard) player.deckCards.unshift(drawnCard);
+    }
     player.deck = player.deckCards.length;
   }
 
