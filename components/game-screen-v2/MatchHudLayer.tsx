@@ -15,12 +15,14 @@ import {
   type HandActionMode,
   type MatchHudActionKey,
 } from "./matchHudState";
+import { characterSelectionCanConfirm } from "./selectionState";
 import styles from "./MatchHudLayer.module.css";
 import shapeStyles from "./PlayerHudShape.module.css";
 
 type MatchActionHandler = () => void | Promise<void>;
 type PlayCardHandler = (cardId: string, choices: CardChoices) => void | Promise<void>;
 type EnergizeCardHandler = (cardId: string) => void | Promise<void>;
+type SelectCharacterHandler = (bakuganId: string) => void | Promise<void>;
 
 function PlayerStatusHud({
   match,
@@ -100,25 +102,31 @@ export function MatchHudLayer({
   playerId,
   handMode,
   selectedHandCardId,
+  selectedCharacterId,
   onHandModeChange,
   onSelectedHandCardChange,
+  onSelectedCharacterChange,
   onDrawCard,
   onPlayCard,
   onEnergizeCard,
   onSkipEnergize,
   onPassTurn,
+  onSelectCharacter,
 }: {
   match: MatchState | null;
   playerId?: string;
   handMode: HandActionMode;
   selectedHandCardId: string;
+  selectedCharacterId: string;
   onHandModeChange: (mode: HandActionMode) => void;
   onSelectedHandCardChange: (cardId: string) => void;
+  onSelectedCharacterChange: (bakuganId: string) => void;
   onDrawCard: MatchActionHandler;
   onPlayCard: PlayCardHandler;
   onEnergizeCard: EnergizeCardHandler;
   onSkipEnergize: MatchActionHandler;
   onPassTurn: MatchActionHandler;
+  onSelectCharacter: SelectCharacterHandler;
 }) {
   const [selectionPending, setSelectionPending] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -143,7 +151,7 @@ export function MatchHudLayer({
 
   const playable = playableHandCards(match, player.id);
   const selectedCard = player.hand.find((card) => card.id === selectedHandCardId);
-  const actions = visibleMatchHudActions({
+  const baseActions = visibleMatchHudActions({
     match,
     playerId: player.id,
     mode: handMode,
@@ -151,6 +159,15 @@ export function MatchHudLayer({
     selectionPending,
     now,
   });
+  const characterSelectionReady = characterSelectionCanConfirm(
+    match,
+    player.id,
+    selectedCharacterId,
+  );
+  const actions = {
+    ...baseActions,
+    select: baseActions.select || characterSelectionReady,
+  };
   const actionSlots = compactMatchHudSlots(actions);
 
   const run = async (handler: MatchActionHandler) => {
@@ -161,6 +178,7 @@ export function MatchHudLayer({
       await handler();
       onHandModeChange(null);
       onSelectedHandCardChange("");
+      onSelectedCharacterChange("");
       setSelectionPending(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The action could not be completed.");
@@ -173,6 +191,7 @@ export function MatchHudLayer({
     if (handMode === mode) return false;
     onHandModeChange(mode);
     onSelectedHandCardChange("");
+    onSelectedCharacterChange("");
     setSelectionPending(false);
     setError("");
     return true;
@@ -204,6 +223,10 @@ export function MatchHudLayer({
   };
 
   const confirmSelection = () => {
+    if (characterSelectionReady) {
+      void run(() => onSelectCharacter(selectedCharacterId));
+      return;
+    }
     if (!selectedCard || !selectionPending) return;
     const choices = defaultCardChoices(match, player.id, selectedCard);
     void run(() => onPlayCard(selectedCard.id, choices));
@@ -241,7 +264,7 @@ export function MatchHudLayer({
     },
     select: {
       label: "Select",
-      active: selectionPending,
+      active: selectionPending || characterSelectionReady,
       onClick: confirmSelection,
     },
   };

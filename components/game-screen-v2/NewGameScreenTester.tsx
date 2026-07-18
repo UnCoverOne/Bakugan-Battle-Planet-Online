@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   concedeMatch,
   energizeCard,
   passPriority,
   playCard,
+  selectBakugan,
   type CardChoices,
   type MatchState,
 } from "../../lib/game";
@@ -24,6 +25,7 @@ import { CardPreviewLayer } from "./CardPreviewLayer";
 import { GameMenuHud } from "./GameMenuHud";
 import { GameScreen } from "./GameScreen";
 import { MatchHudLayer } from "./MatchHudLayer";
+import { SelectionInteractionLayer } from "./SelectionInteractionLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
 import {
   shouldAutomaticallyPass,
@@ -91,6 +93,7 @@ export function NewGameScreenTester() {
   });
   const [handActionMode, setHandActionMode] = useState<HandActionMode>(null);
   const [selectedHandCardId, setSelectedHandCardId] = useState("");
+  const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const previousRawState = useRef("");
   const automaticActionKey = useRef("");
 
@@ -199,6 +202,12 @@ export function NewGameScreenTester() {
     (match, actorId) => passPriority(match, actorId),
   );
 
+  const selectCharacter = (bakuganId: string) => submitMatchAction(
+    "select",
+    { bakuganId },
+    (match, actorId) => selectBakugan(match, actorId, bakuganId),
+  );
+
   const concede = async () => {
     await submitMatchAction(
       "concede",
@@ -238,6 +247,7 @@ export function NewGameScreenTester() {
       && !localPlayer!.energizedThisTurn;
     setHandActionMode(energizing ? "energize" : null);
     setSelectedHandCardId("");
+    setSelectedCharacterId("");
   }, [storedState.match?.phase, localPlayer?.energizedThisTurn]);
 
   useEffect(() => {
@@ -277,6 +287,7 @@ export function NewGameScreenTester() {
       || !actorId
       || handActionMode
       || selectedHandCardId
+      || selectedCharacterId
       || !shouldAutomaticallyPass(match, actorId)
     ) return;
 
@@ -297,7 +308,23 @@ export function NewGameScreenTester() {
     storedState.playerId,
     handActionMode,
     selectedHandCardId,
+    selectedCharacterId,
   ]);
+
+  const clearSelections = useCallback(() => {
+    setSelectedHandCardId("");
+    setSelectedCharacterId("");
+  }, []);
+
+  const toggleHandCardSelection = useCallback((cardId: string) => {
+    setSelectedHandCardId((current) => current === cardId ? "" : cardId);
+    setSelectedCharacterId("");
+  }, []);
+
+  const toggleCharacterSelection = useCallback((bakuganId: string) => {
+    setSelectedCharacterId(bakuganId);
+    setSelectedHandCardId("");
+  }, []);
 
   const toggle = () => {
     const settings = readSettings();
@@ -319,19 +346,29 @@ export function NewGameScreenTester() {
           onExit={exit}
           onTapEnergyCard={tapEnergy}
         />
+        <SelectionInteractionLayer
+          match={storedState.match}
+          playerId={storedState.playerId}
+          selectedCharacterId={selectedCharacterId}
+          onCharacterSelectionChange={toggleCharacterSelection}
+          onClearSelections={clearSelections}
+        />
         <TurnProgressTracker match={storedState.match} />
         <MatchHudLayer
           match={storedState.match}
           playerId={storedState.playerId}
           handMode={handActionMode}
           selectedHandCardId={selectedHandCardId}
+          selectedCharacterId={selectedCharacterId}
           onHandModeChange={setHandActionMode}
           onSelectedHandCardChange={setSelectedHandCardId}
+          onSelectedCharacterChange={setSelectedCharacterId}
           onDrawCard={drawCard}
           onPlayCard={playHandCard}
           onEnergizeCard={energizeHandCard}
           onSkipEnergize={skipEnergizing}
           onPassTurn={passTurn}
+          onSelectCharacter={selectCharacter}
         />
         <GameMenuHud
           automaticDraw={storedState.automaticDraw}
@@ -350,9 +387,9 @@ export function NewGameScreenTester() {
           playerId={storedState.playerId}
           actionMode={handActionMode}
           selectedCardId={selectedHandCardId}
-          onCardSelect={setSelectedHandCardId}
+          onCardSelect={toggleHandCardSelection}
         />
-        <CardPreviewLayer />
+        <CardPreviewLayer match={storedState.match} />
       </>
     );
   }
