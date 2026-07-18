@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { CardChoices, MatchState, PlayerState } from "../../lib/game";
 import {
   cardRequiresSelection,
+  compactMatchHudSlots,
   defaultCardChoices,
   handCardIsActionable,
   matchRoundTarget,
@@ -67,14 +68,12 @@ function PlayerStatusHud({
 function ActionButton({
   action,
   label,
-  visible,
   active = false,
   busy,
   onClick,
 }: {
   action: MatchHudActionKey;
   label: string;
-  visible: boolean;
   active?: boolean;
   busy: boolean;
   onClick: () => void;
@@ -84,11 +83,8 @@ function ActionButton({
       type="button"
       className={styles.actionButton}
       data-action={action}
-      data-visible={visible ? "true" : "false"}
       data-active={active ? "true" : "false"}
-      aria-hidden={!visible}
-      tabIndex={visible ? 0 : -1}
-      disabled={!visible || busy}
+      disabled={busy}
       onClick={onClick}
     >
       {label}
@@ -138,6 +134,7 @@ export function MatchHudLayer({
     selectedCardId: selectedHandCardId,
     selectionPending,
   });
+  const actionSlots = compactMatchHudSlots(actions);
 
   const run = async (handler: MatchActionHandler) => {
     if (busy) return;
@@ -196,6 +193,33 @@ export function MatchHudLayer({
     void run(() => onPlayCard(selectedCard.id, choices));
   };
 
+  const actionConfig: Record<MatchHudActionKey, {
+    label: string;
+    active: boolean;
+    onClick: () => void;
+  }> = {
+    "play-card": {
+      label: "Play Card",
+      active: handMode === "play" && !selectionPending,
+      onClick: playSelectedCard,
+    },
+    "energize-card": {
+      label: "Energize Card",
+      active: handMode === "energize",
+      onClick: energizeSelectedCard,
+    },
+    "pass-turn": {
+      label: "Pass Turn",
+      active: false,
+      onClick: () => void run(onPassTurn),
+    },
+    select: {
+      label: "Select",
+      active: selectionPending,
+      onClick: confirmSelection,
+    },
+  };
+
   const instruction = error
     || (handMode === "play"
       ? selectedCard
@@ -220,39 +244,21 @@ export function MatchHudLayer({
           <small>{match.stepLabel}</small>
         </header>
         <div className={styles.actionGrid}>
-          <ActionButton
-            action="play-card"
-            label="Play Card"
-            visible={actions["play-card"]}
-            active={handMode === "play"}
-            busy={busy}
-            onClick={playSelectedCard}
-          />
-          <ActionButton
-            action="energize-card"
-            label="Energize Card"
-            visible={actions["energize-card"]}
-            active={handMode === "energize"}
-            busy={busy}
-            onClick={energizeSelectedCard}
-          />
-          <ActionButton
-            action="pass-turn"
-            label="Pass Turn"
-            visible={actions["pass-turn"]}
-            busy={busy}
-            onClick={() => void run(onPassTurn)}
-          />
-          <ActionButton
-            action="select"
-            label="Select"
-            visible={actions.select}
-            active={selectionPending}
-            busy={busy}
-            onClick={confirmSelection}
-          />
+          {actionSlots.map((action, slotIndex) => (
+            <div className={styles.actionSlot} data-filled={action ? "true" : "false"} key={slotIndex}>
+              {action ? (
+                <ActionButton
+                  action={action}
+                  label={actionConfig[action].label}
+                  active={actionConfig[action].active}
+                  busy={busy}
+                  onClick={actionConfig[action].onClick}
+                />
+              ) : null}
+            </div>
+          ))}
         </div>
-        <p data-error={error ? "true" : "false"}>{instruction}</p>
+        <p data-error={error ? "true" : "false"} title={instruction}>{instruction}</p>
       </section>
     </>
   );
