@@ -7,8 +7,8 @@
 .tooltipItem::before {
   content: attr(data-tooltip);
   position: absolute;
+  top: calc(100% + 0.42rem);
   left: 50%;
-  bottom: calc(100% + 0.42rem);
   z-index: 6;
   min-width: max-content;
   padding: 0.3rem 0.44rem;
@@ -25,7 +25,7 @@
   text-transform: uppercase;
   white-space: nowrap;
   opacity: 0;
-  transform: translate(-50%, 0.18rem);
+  transform: translate(-50%, -0.18rem);
   transition: opacity 120ms ease, transform 120ms ease;
   pointer-events: none;
 }
