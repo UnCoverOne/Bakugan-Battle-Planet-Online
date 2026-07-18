@@ -1,0 +1,47 @@
+.tooltipItem {
+  position: relative;
+  pointer-events: auto;
+  outline: none;
+}
+
+.tooltipItem::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.42rem);
+  z-index: 6;
+  min-width: max-content;
+  padding: 0.3rem 0.44rem;
+  border: 1px solid rgba(226, 76, 70, 0.55);
+  clip-path: polygon(0.28rem 0, 100% 0, 100% calc(100% - 0.28rem), calc(100% - 0.28rem) 100%, 0 100%, 0 0.28rem);
+  background: rgba(8, 10, 13, 0.97);
+  color: #fff;
+  box-shadow: 0 0.35rem 0.65rem rgba(0, 0, 0, 0.58);
+  font-family: var(--font-display);
+  font-size: clamp(0.5rem, 0.64vw, 0.62rem);
+  font-weight: 900;
+  letter-spacing: 0.055em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, 0.18rem);
+  transition: opacity 120ms ease, transform 120ms ease;
+  pointer-events: none;
+}
+
+.tooltipItem:not([data-active="true"]):hover::before,
+.tooltipItem:not([data-active="true"]):focus-visible::before {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.tooltipItem:focus-visible {
+  filter: drop-shadow(0 0 0.18rem rgba(255, 88, 72, 0.46));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltipItem::before {
+    transition: none;
+  }
+}
