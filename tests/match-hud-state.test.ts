@@ -3,14 +3,34 @@ import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import { createMatch } from "../lib/game";
 import {
+  drawStepIsPending,
+  drawTurnCard,
+  playerCanDrawTurnCard,
+  preparePendingDraw,
+} from "../lib/turnStart";
+import {
   compactMatchHudSlots,
   defaultCardChoices,
   handCardIsActionable,
   matchRoundTarget,
   playableHandCards,
   resolveHudPlayers,
+  shouldAutomaticallyPass,
   visibleMatchHudActions,
+  type MatchHudActions,
 } from "../components/game-screen-v2/matchHudState";
+
+function actionState(overrides: Partial<MatchHudActions> = {}): MatchHudActions {
+  return {
+    "draw-card": false,
+    "play-card": false,
+    "energize-card": false,
+    "skip-energize": false,
+    "pass-turn": false,
+    select: false,
+    ...overrides,
+  };
+}
 
 test("player HUD details resolve from the local player perspective", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
@@ -45,13 +65,9 @@ test("action HUD exposes only actions legal in the current game window", () => {
       selectedCardId: "",
       selectionPending: false,
     }),
-    {
-      "play-card": true,
-      "energize-card": false,
-      "pass-turn": true,
-      select: false,
-    },
+    actionState({ "play-card": true, "pass-turn": true }),
   );
+  assert.equal(shouldAutomaticallyPass(match, player.id), false);
 
   match.priority = opponent.id;
   assert.deepEqual(
@@ -62,50 +78,64 @@ test("action HUD exposes only actions legal in the current game window", () => {
       selectedCardId: "",
       selectionPending: false,
     }),
-    {
-      "play-card": false,
-      "energize-card": false,
-      "pass-turn": false,
-      select: false,
-    },
+    actionState(),
   );
 });
 
 test("the compact Action HUD keeps Pass in its permanent second slot", () => {
-  assert.deepEqual(compactMatchHudSlots({
+  assert.deepEqual(compactMatchHudSlots(actionState({
     "play-card": true,
-    "energize-card": false,
     "pass-turn": true,
-    select: false,
-  }), ["play-card", "pass-turn"]);
+  })), ["play-card", "pass-turn"]);
 
-  assert.deepEqual(compactMatchHudSlots({
+  assert.deepEqual(compactMatchHudSlots(actionState({
     "play-card": true,
-    "energize-card": false,
     "pass-turn": true,
     select: true,
-  }), ["select", "pass-turn"]);
+  })), ["select", "pass-turn"]);
 
-  assert.deepEqual(compactMatchHudSlots({
-    "play-card": false,
+  assert.deepEqual(compactMatchHudSlots(actionState({
+    "draw-card": true,
+  })), ["draw-card", null]);
+
+  assert.deepEqual(compactMatchHudSlots(actionState({
     "energize-card": true,
-    "pass-turn": false,
-    select: false,
-  }), ["energize-card", null]);
+    "skip-energize": true,
+  })), ["energize-card", "skip-energize"]);
 
-  assert.deepEqual(compactMatchHudSlots({
-    "play-card": false,
-    "energize-card": false,
+  assert.deepEqual(compactMatchHudSlots(actionState({
     "pass-turn": true,
-    select: false,
-  }), [null, "pass-turn"]);
+  })), [null, "pass-turn"]);
 
-  assert.deepEqual(compactMatchHudSlots({
-    "play-card": false,
-    "energize-card": false,
-    "pass-turn": false,
-    select: false,
-  }), [null, null]);
+  assert.deepEqual(compactMatchHudSlots(actionState()), [null, null]);
+});
+
+test("the prepared Draw Step waits three seconds in the first turn and requires each player to draw", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const match = createMatch("HUDDRAW", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "energize";
+  match.stepLabel = "Turn 1 • Energize Step";
+
+  for (const participant of match.players) {
+    const card = participant.deckCards.shift();
+    assert.ok(card);
+    participant.hand.push(card);
+    participant.deck = participant.deckCards.length;
+  }
+  const prepared = preparePendingDraw(match, 1_000);
+  assert.equal(drawStepIsPending(prepared), true);
+  assert.equal(playerCanDrawTurnCard(prepared, player.id, 3_999), false);
+  assert.equal(playerCanDrawTurnCard(prepared, player.id, 4_000), true);
+  assert.throws(() => drawTurnCard(prepared, player.id, 3_999), /has not begun/i);
+
+  const afterPlayer = drawTurnCard(prepared, player.id, 4_000);
+  assert.equal(afterPlayer.phase, "retract");
+  assert.equal(playerCanDrawTurnCard(afterPlayer, player.id, 4_000), false);
+  const afterBoth = drawTurnCard(afterPlayer, opponent.id, 4_000);
+  assert.equal(afterBoth.phase, "energize");
+  assert.match(afterBoth.stepLabel, /Energize Step/);
 });
 
 test("Energize and card-selection states make only eligible hand cards actionable", () => {
@@ -126,6 +156,7 @@ test("Energize and card-selection states make only eligible hand cards actionabl
     selectionPending: false,
   });
   assert.equal(energizeActions["energize-card"], true);
+  assert.equal(energizeActions["skip-energize"], true);
   assert.equal(energizeActions["play-card"], false);
 
   player.energizedThisTurn = true;
