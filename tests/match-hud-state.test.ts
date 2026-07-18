@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import { createMatch } from "../lib/game";
 import {
+  compactMatchHudSlots,
   defaultCardChoices,
   handCardIsActionable,
   matchRoundTarget,
@@ -68,6 +69,36 @@ test("action HUD exposes only actions legal in the current game window", () => {
       select: false,
     },
   );
+});
+
+test("the compact Action HUD reuses two stable button slots", () => {
+  assert.deepEqual(compactMatchHudSlots({
+    "play-card": true,
+    "energize-card": false,
+    "pass-turn": true,
+    select: false,
+  }), ["play-card", "pass-turn"]);
+
+  assert.deepEqual(compactMatchHudSlots({
+    "play-card": true,
+    "energize-card": false,
+    "pass-turn": true,
+    select: true,
+  }), ["select", "pass-turn"]);
+
+  assert.deepEqual(compactMatchHudSlots({
+    "play-card": false,
+    "energize-card": true,
+    "pass-turn": false,
+    select: false,
+  }), ["energize-card", null]);
+
+  assert.deepEqual(compactMatchHudSlots({
+    "play-card": false,
+    "energize-card": false,
+    "pass-turn": true,
+    select: false,
+  }), ["pass-turn", null]);
 });
 
 test("Energize and card-selection states make only eligible hand cards actionable", () => {
