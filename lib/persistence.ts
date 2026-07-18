@@ -3,7 +3,17 @@ import type { MatchState } from "./game";
 
 export type AppRoute = "entry" | "dashboard" | "decks" | "builder" | "compendium" | "play" | "lobby" | "placement" | "match" | "result" | "history" | "profile" | "settings";
 export type BrawlerProfile = { name: string; faction: string; signedIn: boolean };
-export type AppSettings = { reducedMotion: boolean; highContrast: boolean; sound: boolean; cardScale: number; logDetail: string; challenges: string; useNewGameScreen?: boolean };
+export type AppSettings = {
+  reducedMotion: boolean;
+  highContrast: boolean;
+  sound: boolean;
+  cardScale: number;
+  logDetail: string;
+  challenges: string;
+  useNewGameScreen?: boolean;
+  automaticDraw?: boolean;
+  automaticPass?: boolean;
+};
 export type MatchResultRecord = { id: string; result: string; opponent: string; score: string; reason: string; at: string; log: MatchState["log"] };
 
 export type UserSnapshot = {
