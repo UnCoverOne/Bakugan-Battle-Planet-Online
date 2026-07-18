@@ -1,0 +1,92 @@
+:global([data-zone-kind="character-card"][data-character-selectable="true"]) {
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    filter 150ms ease,
+    transform 150ms ease;
+}
+
+:global([data-zone-kind="character-card"][data-character-selectable="true"]:hover),
+:global([data-zone-kind="character-card"][data-character-selectable="true"]:focus-visible) {
+  border-color: rgba(255, 119, 101, 0.92);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.3),
+    0 0 0.55rem rgba(255, 67, 54, 0.35);
+  filter: brightness(1.08);
+  outline: none;
+}
+
+:global([data-zone-kind="character-card"][data-character-selected="true"]) {
+  border-color: #fff1d1;
+  box-shadow:
+    0 0 0 2px rgba(255, 85, 65, 0.86),
+    0 0 0.8rem rgba(255, 70, 52, 0.5),
+    inset 0 0 0.6rem rgba(255, 99, 78, 0.14);
+  filter: brightness(1.12);
+  transform: translateY(-0.2rem);
+}
+
+.confirmButton {
+  position: absolute;
+  inset: 2px;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0.18rem 0.26rem;
+  border: 1px solid rgba(255, 112, 94, 0.78);
+  clip-path: polygon(0.26rem 0, 100% 0, 100% calc(100% - 0.26rem), calc(100% - 0.26rem) 100%, 0 100%, 0 0.26rem);
+  background: linear-gradient(180deg, rgba(88, 30, 34, 0.98), rgba(40, 15, 20, 0.98));
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(0.46rem, 0.6vw, 0.58rem);
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-transform: uppercase;
+  cursor: pointer;
+  filter: drop-shadow(0 0 0.18rem rgba(255, 73, 58, 0.28));
+}
+
+.confirmButton:hover:not(:disabled),
+.confirmButton:focus-visible {
+  border-color: rgba(255, 226, 214, 0.95);
+  background: linear-gradient(180deg, rgba(116, 38, 42, 0.99), rgba(54, 18, 23, 0.99));
+  outline: none;
+}
+
+.confirmButton:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.visuallyHidden {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 760px) {
+  .confirmButton {
+    inset: 1px;
+    font-size: 0.42rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global([data-zone-kind="character-card"][data-character-selectable="true"]) {
+    transition: none;
+  }
+}
