@@ -20,7 +20,7 @@ type SelectionInteractionLayerProps = {
   match: MatchState | null;
   playerId?: string;
   selectedCharacterId: string;
-  selectedHandCardId: string;
+  selectedHandCardId?: string;
   onCharacterSelectionChange: (bakuganId: string) => void;
   onClearSelections: () => void;
 };
@@ -46,7 +46,7 @@ export function SelectionInteractionLayer({
   match,
   playerId,
   selectedCharacterId,
-  selectedHandCardId,
+  selectedHandCardId = "",
   onCharacterSelectionChange,
   onClearSelections,
 }: SelectionInteractionLayerProps) {
