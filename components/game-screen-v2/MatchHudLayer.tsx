@@ -38,6 +38,7 @@ function PlayerStatusHud({
     <section
       className={`${styles.playerHud} ${position === "player" ? styles.localPlayerHud : styles.opponentPlayerHud}`}
       data-priority={hasPriority ? "true" : "false"}
+      data-multiple-rounds={multipleRounds ? "true" : "false"}
       aria-label={`${position === "player" ? "Your" : "Opponent"} player details: ${player.name}${hasPriority ? ", has priority" : ""}`}
     >
       <div className={styles.playerCopy}>
