@@ -1,0 +1,41 @@
+.selectionStyleAnchor {
+  display: none;
+}
+
+:global([data-zone-kind="character-card"][data-zone-owner="player"][data-character-selectable="true"]) {
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    filter 150ms ease,
+    transform 150ms ease;
+}
+
+:global([data-zone-kind="character-card"][data-zone-owner="player"][data-character-selectable="true"]:hover),
+:global([data-zone-kind="character-card"][data-zone-owner="player"][data-character-selectable="true"]:focus-visible) {
+  z-index: 20;
+  border-color: rgba(238, 244, 248, 0.92);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.34),
+    0 0 0.5rem rgba(255, 255, 255, 0.25),
+    0 0 0.85rem rgba(226, 63, 53, 0.28);
+  filter: brightness(1.06);
+  outline: none;
+}
+
+:global([data-zone-kind="character-card"][data-zone-owner="player"][data-character-selected="true"]) {
+  z-index: 22;
+  border-color: rgba(255, 103, 84, 0.98);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.58),
+    0 0 0.42rem rgba(255, 255, 255, 0.32),
+    0 0 0.9rem rgba(255, 66, 50, 0.5);
+  filter: brightness(1.12);
+  transform: translateY(-0.22rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global([data-zone-kind="character-card"][data-zone-owner="player"][data-character-selectable="true"]) {
+    transition: none;
+  }
+}
