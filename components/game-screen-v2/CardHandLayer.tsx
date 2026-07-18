@@ -210,10 +210,11 @@ function PlayerHand({
     event: KeyboardEvent<HTMLLIElement>,
     cardId: string,
     actionable: boolean,
+    selected: boolean,
   ) => {
     if (!actionable || !onCardSelect || (event.key !== "Enter" && event.key !== " ")) return;
     event.preventDefault();
-    onCardSelect(cardId);
+    onCardSelect(selected ? "" : cardId);
   };
 
   return (
@@ -246,10 +247,10 @@ function PlayerHand({
               tabIndex={actionable ? 0 : undefined}
               aria-pressed={actionable ? selected : undefined}
               aria-label={actionable
-                ? `${card.displayName || card.name}, choose for ${actionMode === "energize" ? "Energize" : "Play Card"}`
+                ? `${card.displayName || card.name}, ${selected ? "selected; activate to deselect" : `choose for ${actionMode === "energize" ? "Energize" : "Play Card"}`}`
                 : undefined}
-              onClick={() => actionable && onCardSelect?.(card.id)}
-              onKeyDown={(event) => selectWithKeyboard(event, card.id, actionable)}
+              onClick={() => actionable && onCardSelect?.(selected ? "" : card.id)}
+              onKeyDown={(event) => selectWithKeyboard(event, card.id, actionable, selected)}
             >
               <div className={styles.handCardSurface}>
                 <img
@@ -329,6 +330,23 @@ export function CardHandLayer({
   const opponentCardCount = opponentHandCardCount(match, playerId);
   const playerBounds = useHandViewportBounds("player", cards.length);
   const opponentBounds = useHandViewportBounds("opponent", opponentCardCount);
+
+  useEffect(() => {
+    if (!onCardSelect || !selectedCardId) return;
+    const playArea = document.querySelector<HTMLElement>(
+      '[aria-label="Experimental game play area"]',
+    );
+    if (!playArea) return;
+    const clearOnBlankSpace = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('[data-zone-kind], [data-zone-group], button, [role="button"]')) return;
+      onCardSelect("");
+    };
+    playArea.addEventListener("click", clearOnBlankSpace);
+    return () => playArea.removeEventListener("click", clearOnBlankSpace);
+  }, [onCardSelect, selectedCardId]);
+
   if (!cards.length && !opponentCardCount) return null;
 
   return (
