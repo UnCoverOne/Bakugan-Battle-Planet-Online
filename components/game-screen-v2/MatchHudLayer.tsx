@@ -16,6 +16,7 @@ import {
   type MatchHudActionKey,
 } from "./matchHudState";
 import styles from "./MatchHudLayer.module.css";
+import shapeStyles from "./PlayerHudShape.module.css";
 
 type MatchActionHandler = () => void | Promise<void>;
 type PlayCardHandler = (cardId: string, choices: CardChoices) => void | Promise<void>;
@@ -37,7 +38,7 @@ function PlayerStatusHud({
 
   return (
     <section
-      className={`${styles.playerHud} ${position === "player" ? styles.localPlayerHud : styles.opponentPlayerHud}`}
+      className={`${styles.playerHud} ${position === "player" ? styles.localPlayerHud : styles.opponentPlayerHud} ${position === "opponent" ? shapeStyles.opponentShape : ""}`}
       data-priority={hasPriority ? "true" : "false"}
       data-multiple-rounds={multipleRounds ? "true" : "false"}
       aria-label={`${position === "player" ? "Your" : "Opponent"} player details: ${player.name}${hasPriority ? ", has priority" : ""}`}
