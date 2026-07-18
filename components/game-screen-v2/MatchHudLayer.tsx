@@ -215,6 +215,10 @@ export function MatchHudLayer({
   };
 
   const energizeSelectedCard = () => {
+    // Energize is a confirmation action, not a mode toggle. An early press must
+    // leave the hand in a selectable state so the player can choose a card next.
+    if (handMode !== "energize") onHandModeChange("energize");
+    setSelectionPending(false);
     if (!selectedCard || !handCardIsActionable(match, player.id, selectedCard, "energize")) {
       setError("Choose a highlighted card from your hand, then press Energize Card.");
       return;
