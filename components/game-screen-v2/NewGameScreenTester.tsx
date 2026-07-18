@@ -1,13 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { MatchState } from "../../lib/game";
+import {
+  energizeCard,
+  passPriority,
+  playCard,
+  type CardChoices,
+  type MatchState,
+} from "../../lib/game";
 import { tapEnergyCard } from "../../lib/energy";
 import { BakuCoreLayer } from "./BakuCoreLayer";
 import { CardHandLayer } from "./CardHandLayer";
 import { CardPreviewLayer } from "./CardPreviewLayer";
 import { GameScreen } from "./GameScreen";
+import { MatchHudLayer } from "./MatchHudLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
+import type { HandActionMode } from "./matchHudState";
 
 const ROUTE_KEY = "bbp-route-v1";
 const SETTINGS_KEY = "bbp-settings";
@@ -23,6 +31,8 @@ type StoredGameScreenState = {
   online: boolean;
   playerId?: string;
 };
+
+type LocalMatchAction = (match: MatchState, actorId: string) => MatchState;
 
 function parseStoredValue<T>(raw: string | null, fallback: T): T {
   if (raw == null) return fallback;
@@ -53,6 +63,8 @@ export function NewGameScreenTester() {
     online: false,
     playerId: undefined,
   });
+  const [handActionMode, setHandActionMode] = useState<HandActionMode>(null);
+  const [selectedHandCardId, setSelectedHandCardId] = useState("");
   const previousRawState = useRef("");
 
   useEffect(() => {
@@ -79,6 +91,11 @@ export function NewGameScreenTester() {
     };
   }, []);
 
+  useEffect(() => {
+    setHandActionMode(null);
+    setSelectedHandCardId("");
+  }, [storedState.match?.phase, storedState.match?.version]);
+
   const publishMatch = (next: MatchState) => {
     localStorage.setItem(MATCH_KEY, JSON.stringify(next));
     previousRawState.current = "";
@@ -86,14 +103,18 @@ export function NewGameScreenTester() {
     window.dispatchEvent(new CustomEvent<MatchState>(MATCH_UPDATE_EVENT, { detail: next }));
   };
 
-  const tapEnergy = async (cardId: string) => {
+  const submitMatchAction = async (
+    action: string,
+    payload: Record<string, unknown>,
+    localAction: LocalMatchAction,
+  ) => {
     const current = readStoredState();
     const match = current.match;
     const actorId = current.playerId ?? match?.players[0]?.id;
     if (!match || !actorId) throw new Error("No active match is available.");
 
     if (!current.online) {
-      publishMatch(tapEnergyCard(match, actorId, cardId));
+      publishMatch(localAction(match, actorId));
       return;
     }
 
@@ -101,17 +122,41 @@ export function NewGameScreenTester() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        action: "tap-energy",
+        action,
         code: match.code,
         playerId: actorId,
         expectedVersion: match.version,
-        payload: { cardId },
+        payload,
       }),
     });
     const data = await response.json() as { state?: MatchState; error?: string };
     if (data.state) publishMatch(data.state);
-    if (!response.ok) throw new Error(data.error ?? "Energy card could not be tapped.");
+    if (!response.ok) throw new Error(data.error ?? "The match action could not be completed.");
   };
+
+  const tapEnergy = (cardId: string) => submitMatchAction(
+    "tap-energy",
+    { cardId },
+    (match, actorId) => tapEnergyCard(match, actorId, cardId),
+  );
+
+  const playHandCard = (cardId: string, choices: CardChoices) => submitMatchAction(
+    "play",
+    { cardId, choices },
+    (match, actorId) => playCard(match, actorId, cardId, choices),
+  );
+
+  const energizeHandCard = (cardId: string) => submitMatchAction(
+    "energize",
+    { cardId },
+    (match, actorId) => energizeCard(match, actorId, cardId),
+  );
+
+  const passTurn = () => submitMatchAction(
+    "pass",
+    {},
+    (match, actorId) => passPriority(match, actorId),
+  );
 
   const toggle = () => {
     let settings: Record<string, unknown> = {};
@@ -135,6 +180,17 @@ export function NewGameScreenTester() {
           onTapEnergyCard={tapEnergy}
         />
         <TurnProgressTracker match={storedState.match} />
+        <MatchHudLayer
+          match={storedState.match}
+          playerId={storedState.playerId}
+          handMode={handActionMode}
+          selectedHandCardId={selectedHandCardId}
+          onHandModeChange={setHandActionMode}
+          onSelectedHandCardChange={setSelectedHandCardId}
+          onPlayCard={playHandCard}
+          onEnergizeCard={energizeHandCard}
+          onPassTurn={passTurn}
+        />
         <BakuCoreLayer
           match={storedState.match}
           playerId={storedState.playerId}
@@ -142,6 +198,9 @@ export function NewGameScreenTester() {
         <CardHandLayer
           match={storedState.match}
           playerId={storedState.playerId}
+          actionMode={handActionMode}
+          selectedCardId={selectedHandCardId}
+          onCardSelect={setSelectedHandCardId}
         />
         <CardPreviewLayer />
       </>
