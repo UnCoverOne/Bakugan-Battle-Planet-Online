@@ -48,7 +48,7 @@ function nearestCardId(target: Element): string {
 }
 
 function imageCanIdentifyCard(image: HTMLImageElement, cardId: string) {
-  return Boolean(cardPreviewKind(imageSource(image)) || cardId || image.alt.trim());
+  return Boolean(cardPreviewKind(imageSource(image)) || cardId);
 }
 
 function previewTargetFromPointer(target: EventTarget | null): PreviewTarget | null {
