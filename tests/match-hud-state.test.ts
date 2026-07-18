@@ -97,7 +97,7 @@ test("Energize and card-selection states make only eligible hand cards actionabl
 test("cards that require choices expose Select and receive deterministic defaults", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
   const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
-  const targetedCard = CARDS.find((card) => card.type === "Action" && /enemy|opposing|bakugan/i.test(card.effect));
+  const targetedCard = CARDS.find((card) => card.type === "Evo");
   assert.ok(targetedCard);
   player.hand = [{ ...targetedCard, id: "targeted-action" }];
   player.energy = 20;
@@ -118,12 +118,5 @@ test("cards that require choices expose Select and receive deterministic default
   assert.equal(actions.select, true);
 
   const choices = defaultCardChoices(match, player.id, player.hand[0]);
-  assert.ok(
-    choices.targetBakuganId
-    || choices.targetPlayerId
-    || choices.targetHeroId
-    || choices.targetEnergyId
-    || choices.coreCell,
-    "a targeted card should receive at least one deterministic selection",
-  );
+  assert.equal(choices.targetBakuganId, player.bakugan[0].id);
 });
