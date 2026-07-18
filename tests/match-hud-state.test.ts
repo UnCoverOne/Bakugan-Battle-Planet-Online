@@ -71,7 +71,7 @@ test("action HUD exposes only actions legal in the current game window", () => {
   );
 });
 
-test("the compact Action HUD reuses two stable button slots", () => {
+test("the compact Action HUD keeps Pass in its permanent second slot", () => {
   assert.deepEqual(compactMatchHudSlots({
     "play-card": true,
     "energize-card": false,
@@ -98,7 +98,14 @@ test("the compact Action HUD reuses two stable button slots", () => {
     "energize-card": false,
     "pass-turn": true,
     select: false,
-  }), ["pass-turn", null]);
+  }), [null, "pass-turn"]);
+
+  assert.deepEqual(compactMatchHudSlots({
+    "play-card": false,
+    "energize-card": false,
+    "pass-turn": false,
+    select: false,
+  }), [null, null]);
 });
 
 test("Energize and card-selection states make only eligible hand cards actionable", () => {
