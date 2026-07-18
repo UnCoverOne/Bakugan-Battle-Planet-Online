@@ -220,19 +220,6 @@ export function MatchHudLayer({
     },
   };
 
-  const instruction = error
-    || (handMode === "play"
-      ? selectedCard
-        ? selectionPending
-          ? `Confirm the selections for ${selectedCard.displayName || selectedCard.name}.`
-          : `Press Play Card again to play ${selectedCard.displayName || selectedCard.name}.`
-        : "Choose a highlighted card from your hand."
-      : handMode === "energize"
-        ? selectedCard
-          ? `Press Energize Card again to Energize ${selectedCard.displayName || selectedCard.name}.`
-          : "Choose a highlighted card from your hand."
-        : "Available actions update with the current game state.");
-
   return (
     <>
       <PlayerStatusHud match={match} player={opponent} position="opponent" />
@@ -241,11 +228,15 @@ export function MatchHudLayer({
       <section className={styles.actionHud} aria-label="Available player actions">
         <header>
           <span>ACTIONS</span>
-          <small>{match.stepLabel}</small>
         </header>
         <div className={styles.actionGrid}>
           {actionSlots.map((action, slotIndex) => (
-            <div className={styles.actionSlot} data-filled={action ? "true" : "false"} key={slotIndex}>
+            <div
+              className={styles.actionSlot}
+              data-filled={action ? "true" : "false"}
+              data-slot={slotIndex === 0 ? "primary" : "pass"}
+              key={slotIndex}
+            >
               {action ? (
                 <ActionButton
                   action={action}
@@ -258,7 +249,7 @@ export function MatchHudLayer({
             </div>
           ))}
         </div>
-        <p data-error={error ? "true" : "false"} title={instruction}>{instruction}</p>
+        {error ? <p className={styles.visuallyHidden} role="alert">{error}</p> : null}
       </section>
     </>
   );

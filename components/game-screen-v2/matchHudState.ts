@@ -136,9 +136,9 @@ export function visibleMatchHudActions({
 }
 
 /**
- * The compact action HUD owns two reusable button positions. Select replaces
- * Play Card while a choice is pending, Energize reuses the primary position,
- * and Pass occupies the remaining position only when priority permits it.
+ * The compact action HUD owns two permanent positions. Select, Energize, and
+ * Play Card reuse the primary position. Pass is always reserved for the second
+ * position so it never moves beneath the pointer as game state changes.
  */
 export function compactMatchHudSlots(actions: MatchHudActions): CompactMatchHudSlots {
   const primary: MatchHudActionKey | null = actions.select
@@ -148,9 +148,8 @@ export function compactMatchHudSlots(actions: MatchHudActions): CompactMatchHudS
       : actions["play-card"]
         ? "play-card"
         : null;
-  const secondary: MatchHudActionKey | null = actions["pass-turn"] ? "pass-turn" : null;
-  if (!primary) return [secondary, null];
-  return [primary, secondary];
+  const pass: MatchHudActionKey | null = actions["pass-turn"] ? "pass-turn" : null;
+  return [primary, pass];
 }
 
 function activeBakuganId(match: MatchState, player: PlayerState) {
