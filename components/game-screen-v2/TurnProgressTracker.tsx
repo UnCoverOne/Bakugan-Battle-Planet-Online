@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { MatchState } from "../../lib/game";
+import { drawStepTimerState } from "../../lib/turnStart";
 import {
   TURN_PHASES,
   TURN_STEPS,
@@ -36,9 +37,10 @@ function ProgressRow<Key extends string>({
               className={`${styles.item} ${active ? styles.active : ""} ${completed ? styles.completed : ""}`}
               data-active={active ? "true" : "false"}
               data-completed={completed ? "true" : "false"}
+              data-tooltip={item.label}
               aria-current={active ? "step" : undefined}
               aria-label={`${item.label}${active ? ", active" : completed ? ", completed" : ""}`}
-              title={item.label}
+              tabIndex={0}
               key={item.key}
             >
               <span className={styles.glyph} aria-hidden="true">{item.glyph}</span>
@@ -51,7 +53,7 @@ function ProgressRow<Key extends string>({
   );
 }
 
-function StepCountdown({ deadline }: { deadline: number }) {
+function StepCountdown({ match }: { match: MatchState }) {
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
@@ -59,20 +61,24 @@ function StepCountdown({ deadline }: { deadline: number }) {
     update();
     const interval = window.setInterval(update, 250);
     return () => window.clearInterval(interval);
-  }, [deadline]);
+  }, [match.deadline, match.phase, match.stepLabel]);
 
-  const seconds = now == null ? null : remainingStepSeconds(deadline, now);
+  const drawTimer = now == null ? null : drawStepTimerState(match, now);
+  const seconds = now == null
+    ? null
+    : drawTimer?.seconds ?? remainingStepSeconds(match.deadline, now);
   const display = seconds == null ? "--:--" : formatStepCountdown(seconds);
   const expiring = seconds != null && seconds <= 10;
+  const timerLabel = drawTimer?.label ?? "Step Timer";
 
   return (
     <time
       className={styles.timer}
       data-expiring={expiring ? "true" : "false"}
       dateTime={seconds == null ? undefined : `PT${seconds}S`}
-      aria-label={seconds == null ? "Step timer loading" : `${seconds} seconds remaining in this step`}
+      aria-label={seconds == null ? "Step timer loading" : `${seconds} seconds remaining for ${timerLabel}`}
     >
-      <span>Step Timer</span>
+      <span>{timerLabel}</span>
       <strong>{display}</strong>
     </time>
   );
@@ -80,13 +86,13 @@ function StepCountdown({ deadline }: { deadline: number }) {
 
 export function TurnProgressTracker({ match }: { match: MatchState | null }) {
   const progress = resolveTurnProgress(match);
-  if (!progress) return null;
+  if (!progress || !match) return null;
 
   const activePhase = TURN_PHASES[progress.phaseIndex];
   const activeStep = TURN_STEPS[progress.stepIndex];
   const visibleSteps = turnStepsForPhase(progress.phaseKey);
   const visibleStepIndex = visibleSteps.findIndex((step) => step.key === progress.stepKey);
-  const round = match?.turn ?? 0;
+  const round = match.turn ?? 0;
 
   return (
     <aside
@@ -114,7 +120,7 @@ export function TurnProgressTracker({ match }: { match: MatchState | null }) {
         />
       </div>
 
-      <StepCountdown deadline={match?.deadline ?? 0} />
+      <StepCountdown match={match} />
     </aside>
   );
 }
