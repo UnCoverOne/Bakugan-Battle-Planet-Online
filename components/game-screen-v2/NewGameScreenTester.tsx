@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  concedeMatch,
   energizeCard,
   passPriority,
   playCard,
@@ -9,13 +10,25 @@ import {
   type MatchState,
 } from "../../lib/game";
 import { tapEnergyCard } from "../../lib/energy";
+import {
+  drawStepIsPending,
+  drawTurnCard,
+  playerCanDrawTurnCard,
+  playerHasDrawnTurnCard,
+  preparePendingDraw,
+  type TurnStartMatchState,
+} from "../../lib/turnStart";
 import { BakuCoreLayer } from "./BakuCoreLayer";
 import { CardHandLayer } from "./CardHandLayer";
 import { CardPreviewLayer } from "./CardPreviewLayer";
+import { GameMenuHud } from "./GameMenuHud";
 import { GameScreen } from "./GameScreen";
 import { MatchHudLayer } from "./MatchHudLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
-import type { HandActionMode } from "./matchHudState";
+import {
+  shouldAutomaticallyPass,
+  type HandActionMode,
+} from "./matchHudState";
 
 const ROUTE_KEY = "bbp-route-v1";
 const SETTINGS_KEY = "bbp-settings";
@@ -27,6 +40,8 @@ const MATCH_UPDATE_EVENT = "bbp-match-state-updated";
 type StoredGameScreenState = {
   route: string;
   enabled: boolean;
+  automaticDraw: boolean;
+  automaticPass: boolean;
   match: MatchState | null;
   online: boolean;
   playerId?: string;
@@ -34,21 +49,30 @@ type StoredGameScreenState = {
 
 type LocalMatchAction = (match: MatchState, actorId: string) => MatchState;
 
+type ExperimentalSettings = {
+  useNewGameScreen?: boolean;
+  automaticDraw?: boolean;
+  automaticPass?: boolean;
+  [key: string]: unknown;
+};
+
 function parseStoredValue<T>(raw: string | null, fallback: T): T {
   if (raw == null) return fallback;
   try { return JSON.parse(raw) as T; }
   catch { return fallback; }
 }
 
-function readStoredState(): StoredGameScreenState {
-  const settings = parseStoredValue<{ useNewGameScreen?: boolean }>(
-    localStorage.getItem(SETTINGS_KEY),
-    {},
-  );
+function readSettings(): ExperimentalSettings {
+  return parseStoredValue<ExperimentalSettings>(localStorage.getItem(SETTINGS_KEY), {});
+}
 
+function readStoredState(): StoredGameScreenState {
+  const settings = readSettings();
   return {
     route: parseStoredValue(localStorage.getItem(ROUTE_KEY), "entry"),
     enabled: Boolean(settings.useNewGameScreen),
+    automaticDraw: Boolean(settings.automaticDraw),
+    automaticPass: Boolean(settings.automaticPass),
     match: parseStoredValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
     online: parseStoredValue(localStorage.getItem(ONLINE_KEY), false),
     playerId: parseStoredValue<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
@@ -59,6 +83,8 @@ export function NewGameScreenTester() {
   const [storedState, setStoredState] = useState<StoredGameScreenState>({
     route: "entry",
     enabled: false,
+    automaticDraw: false,
+    automaticPass: false,
     match: null,
     online: false,
     playerId: undefined,
@@ -66,6 +92,7 @@ export function NewGameScreenTester() {
   const [handActionMode, setHandActionMode] = useState<HandActionMode>(null);
   const [selectedHandCardId, setSelectedHandCardId] = useState("");
   const previousRawState = useRef("");
+  const automaticActionKey = useRef("");
 
   useEffect(() => {
     const update = () => {
@@ -91,11 +118,6 @@ export function NewGameScreenTester() {
     };
   }, []);
 
-  useEffect(() => {
-    setHandActionMode(null);
-    setSelectedHandCardId("");
-  }, [storedState.match?.phase, storedState.match?.version]);
-
   const publishMatch = (next: MatchState) => {
     localStorage.setItem(MATCH_KEY, JSON.stringify(next));
     previousRawState.current = "";
@@ -114,7 +136,7 @@ export function NewGameScreenTester() {
     if (!match || !actorId) throw new Error("No active match is available.");
 
     if (!current.online) {
-      publishMatch(localAction(match, actorId));
+      publishMatch(preparePendingDraw(localAction(match, actorId)));
       return;
     }
 
@@ -140,6 +162,19 @@ export function NewGameScreenTester() {
     (match, actorId) => tapEnergyCard(match, actorId, cardId),
   );
 
+  const drawCard = () => submitMatchAction(
+    "draw",
+    {},
+    (match, actorId) => {
+      let next = drawTurnCard(match, actorId);
+      const trainingBot = next.players.find((player) => player.id === "training-bot");
+      if (trainingBot && playerCanDrawTurnCard(next, trainingBot.id)) {
+        next = drawTurnCard(next, trainingBot.id);
+      }
+      return next;
+    },
+  );
+
   const playHandCard = (cardId: string, choices: CardChoices) => submitMatchAction(
     "play",
     { cardId, choices },
@@ -152,15 +187,120 @@ export function NewGameScreenTester() {
     (match, actorId) => energizeCard(match, actorId, cardId),
   );
 
+  const skipEnergizing = () => submitMatchAction(
+    "energize",
+    {},
+    (match, actorId) => energizeCard(match, actorId),
+  );
+
   const passTurn = () => submitMatchAction(
     "pass",
     {},
     (match, actorId) => passPriority(match, actorId),
   );
 
+  const concede = async () => {
+    await submitMatchAction(
+      "concede",
+      {},
+      (match, actorId) => concedeMatch(match, actorId),
+    );
+    localStorage.setItem(ROUTE_KEY, JSON.stringify("result"));
+    window.location.reload();
+  };
+
+  const updatePreference = (key: "automaticDraw" | "automaticPass", enabled: boolean) => {
+    const settings = readSettings();
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, [key]: enabled }));
+    previousRawState.current = "";
+    setStoredState((current) => ({ ...current, [key]: enabled }));
+  };
+
+  const openSettings = () => {
+    localStorage.setItem(ROUTE_KEY, JSON.stringify("settings"));
+    window.location.reload();
+  };
+
+  useEffect(() => {
+    const match = storedState.match;
+    if (!match || storedState.online) return;
+    const prepared = preparePendingDraw(match);
+    if (prepared !== match) publishMatch(prepared);
+  }, [storedState.match?.phase, storedState.match?.stepLabel, storedState.match?.turn, storedState.online]);
+
+  const localPlayer = storedState.match?.players.find((player) => (
+    player.id === (storedState.playerId ?? storedState.match?.players[0]?.id)
+  ));
+
+  useEffect(() => {
+    const energizing = storedState.match?.phase === "energize"
+      && Boolean(localPlayer)
+      && !localPlayer!.energizedThisTurn;
+    setHandActionMode(energizing ? "energize" : null);
+    setSelectedHandCardId("");
+  }, [storedState.match?.phase, localPlayer?.energizedThisTurn]);
+
+  useEffect(() => {
+    const match = storedState.match as TurnStartMatchState | null;
+    const actorId = storedState.playerId ?? match?.players[0]?.id;
+    if (
+      !storedState.automaticDraw
+      || !match
+      || !actorId
+      || !drawStepIsPending(match)
+      || playerHasDrawnTurnCard(match, actorId)
+    ) return;
+
+    const delay = Math.max(0, (match.drawReadyAt ?? Date.now()) - Date.now());
+    const key = `draw:${match.version}:${actorId}`;
+    const timeout = window.setTimeout(() => {
+      if (automaticActionKey.current === key) return;
+      automaticActionKey.current = key;
+      void drawCard().catch(() => {
+        if (automaticActionKey.current === key) automaticActionKey.current = "";
+      });
+    }, delay);
+    return () => window.clearTimeout(timeout);
+  }, [
+    storedState.automaticDraw,
+    storedState.match?.phase,
+    storedState.match?.version,
+    storedState.playerId,
+  ]);
+
+  useEffect(() => {
+    const match = storedState.match;
+    const actorId = storedState.playerId ?? match?.players[0]?.id;
+    if (
+      !storedState.automaticPass
+      || !match
+      || !actorId
+      || handActionMode
+      || selectedHandCardId
+      || !shouldAutomaticallyPass(match, actorId)
+    ) return;
+
+    const key = `pass:${match.version}:${actorId}`;
+    if (automaticActionKey.current === key) return;
+    automaticActionKey.current = key;
+    const timeout = window.setTimeout(() => {
+      void passTurn().catch(() => {
+        if (automaticActionKey.current === key) automaticActionKey.current = "";
+      });
+    }, 180);
+    return () => window.clearTimeout(timeout);
+  }, [
+    storedState.automaticPass,
+    storedState.match?.phase,
+    storedState.match?.priority,
+    storedState.match?.version,
+    storedState.playerId,
+    handActionMode,
+    selectedHandCardId,
+  ]);
+
   const toggle = () => {
-    let settings: Record<string, unknown> = {};
-    try { settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}"); } catch {}
+    const settings = readSettings();
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, useNewGameScreen: !storedState.enabled }));
     window.location.reload();
   };
@@ -187,9 +327,19 @@ export function NewGameScreenTester() {
           selectedHandCardId={selectedHandCardId}
           onHandModeChange={setHandActionMode}
           onSelectedHandCardChange={setSelectedHandCardId}
+          onDrawCard={drawCard}
           onPlayCard={playHandCard}
           onEnergizeCard={energizeHandCard}
+          onSkipEnergize={skipEnergizing}
           onPassTurn={passTurn}
+        />
+        <GameMenuHud
+          automaticDraw={storedState.automaticDraw}
+          automaticPass={storedState.automaticPass}
+          onAutomaticDrawChange={(enabled) => updatePreference("automaticDraw", enabled)}
+          onAutomaticPassChange={(enabled) => updatePreference("automaticPass", enabled)}
+          onConcede={concede}
+          onOpenSettings={openSettings}
         />
         <BakuCoreLayer
           match={storedState.match}

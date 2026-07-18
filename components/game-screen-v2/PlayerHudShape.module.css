@@ -1,0 +1,11 @@
+.opponentShape::before,
+.opponentShape::after {
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--corner-cut)),
+    calc(100% - var(--corner-cut)) 100%,
+    var(--corner-cut) 100%,
+    0 calc(100% - var(--corner-cut))
+  );
+}

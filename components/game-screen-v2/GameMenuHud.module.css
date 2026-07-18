@@ -1,0 +1,267 @@
+.menuButton {
+  position: fixed;
+  top: clamp(0.45rem, 1vw, 0.9rem);
+  right: clamp(0.45rem, 1vw, 0.9rem);
+  z-index: 20040;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-height: clamp(2.3rem, 3.4vw, 3rem);
+  padding: 0.45rem 0.72rem;
+  border: 1px solid rgba(220, 67, 63, 0.76);
+  clip-path: polygon(0 0.48rem, 0.48rem 0, 100% 0, 100% 100%, 0 100%);
+  background: linear-gradient(180deg, rgba(25, 16, 19, 0.97), rgba(6, 9, 12, 0.97));
+  color: #fff;
+  box-shadow: 0 0.42rem 0.7rem rgba(0, 0, 0, 0.65);
+  font-family: var(--font-display);
+  cursor: pointer;
+}
+
+.menuButton span {
+  color: #ff5a4d;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(0.86rem, 1.1vw, 1.08rem);
+  line-height: 1;
+}
+
+.menuButton strong {
+  font-size: clamp(0.52rem, 0.68vw, 0.66rem);
+  letter-spacing: 0.1em;
+}
+
+.menuButton:hover,
+.menuButton:focus-visible {
+  border-color: rgba(255, 112, 94, 0.95);
+  outline: none;
+  filter: drop-shadow(0 0 0.18rem rgba(255, 73, 58, 0.22));
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20045;
+  background: rgba(0, 0, 0, 0.44);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.scrim[data-open="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20050;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  width: min(22rem, calc(100vw - 2rem));
+  padding: clamp(1rem, 2.2vw, 1.45rem);
+  border-left: 1px solid rgba(225, 69, 65, 0.72);
+  background:
+    linear-gradient(135deg, rgba(255, 79, 64, 0.055), transparent 32%),
+    linear-gradient(180deg, rgba(20, 12, 16, 0.99), rgba(5, 8, 11, 0.99));
+  color: #fff;
+  box-shadow: -1.2rem 0 2.5rem rgba(0, 0, 0, 0.58);
+  font-family: var(--font-display);
+  transform: translateX(104%);
+  transition: transform 220ms ease;
+  pointer-events: none;
+}
+
+.drawer[data-open="true"] {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.drawer header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(220, 77, 70, 0.3);
+}
+
+.drawer header div {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.drawer header small {
+  color: #ff5a4d;
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.13em;
+}
+
+.drawer header strong {
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+.drawer header button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(205, 214, 220, 0.28);
+  background: rgba(8, 11, 14, 0.7);
+  color: #fff;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
+.options {
+  display: grid;
+  align-content: start;
+  gap: 0.7rem;
+  padding: 1rem 0;
+}
+
+.toggleRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.78rem;
+  border: 1px solid rgba(201, 210, 217, 0.18);
+  clip-path: polygon(0.38rem 0, 100% 0, 100% calc(100% - 0.38rem), calc(100% - 0.38rem) 100%, 0 100%, 0 0.38rem);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.toggleRow > span {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.toggleRow strong {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.toggleRow small {
+  color: rgba(205, 214, 220, 0.68);
+  font-family: system-ui, sans-serif;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.toggleRow input {
+  appearance: none;
+  position: relative;
+  width: 2.5rem;
+  height: 1.3rem;
+  margin: 0;
+  border: 1px solid rgba(184, 194, 201, 0.4);
+  border-radius: 999px;
+  background: rgba(30, 35, 40, 0.95);
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.toggleRow input::after {
+  content: "";
+  position: absolute;
+  top: 0.16rem;
+  left: 0.16rem;
+  width: 0.86rem;
+  height: 0.86rem;
+  border-radius: 50%;
+  background: #c7ced3;
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.toggleRow input:checked {
+  border-color: rgba(255, 91, 75, 0.88);
+  background: rgba(111, 28, 32, 0.96);
+}
+
+.toggleRow input:checked::after {
+  background: #fff2ec;
+  transform: translateX(1.18rem);
+}
+
+.toggleRow input:focus-visible {
+  outline: 2px solid rgba(255, 109, 92, 0.72);
+  outline-offset: 2px;
+}
+
+.menuActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(220, 77, 70, 0.3);
+}
+
+.menuActions button {
+  min-height: 2.65rem;
+  border: 1px solid rgba(206, 215, 221, 0.3);
+  clip-path: polygon(0.36rem 0, 100% 0, 100% calc(100% - 0.36rem), calc(100% - 0.36rem) 100%, 0 100%, 0 0.36rem);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.settingsButton {
+  background: linear-gradient(180deg, rgba(35, 41, 47, 0.98), rgba(13, 17, 21, 0.98));
+}
+
+.concedeButton {
+  border-color: rgba(255, 91, 75, 0.65) !important;
+  background: linear-gradient(180deg, rgba(112, 29, 35, 0.98), rgba(47, 13, 18, 0.98));
+}
+
+.menuActions button:hover:not(:disabled),
+.menuActions button:focus-visible {
+  border-color: rgba(255, 118, 100, 0.9);
+  outline: none;
+  filter: brightness(1.12);
+}
+
+.menuActions button:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
+.drawer > p {
+  margin: 0.65rem 0 0;
+  color: #ffb2a7;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+}
+
+@media (max-width: 760px) {
+  .menuButton {
+    min-height: 2.2rem;
+    padding: 0.36rem 0.52rem;
+  }
+
+  .menuButton strong {
+    display: none;
+  }
+
+  .drawer {
+    width: min(20rem, calc(100vw - 0.5rem));
+    padding: 0.9rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .drawer,
+  .toggleRow input,
+  .toggleRow input::after {
+    transition: none;
+  }
+}

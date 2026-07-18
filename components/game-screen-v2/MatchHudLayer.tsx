@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CardChoices, MatchState, PlayerState } from "../../lib/game";
+import { drawStepIsPending } from "../../lib/turnStart";
 import {
   cardRequiresSelection,
   compactMatchHudSlots,
@@ -15,6 +16,7 @@ import {
   type MatchHudActionKey,
 } from "./matchHudState";
 import styles from "./MatchHudLayer.module.css";
+import shapeStyles from "./PlayerHudShape.module.css";
 
 type MatchActionHandler = () => void | Promise<void>;
 type PlayCardHandler = (cardId: string, choices: CardChoices) => void | Promise<void>;
@@ -36,14 +38,14 @@ function PlayerStatusHud({
 
   return (
     <section
-      className={`${styles.playerHud} ${position === "player" ? styles.localPlayerHud : styles.opponentPlayerHud}`}
+      className={`${styles.playerHud} ${position === "player" ? styles.localPlayerHud : styles.opponentPlayerHud} ${position === "opponent" ? shapeStyles.opponentShape : ""}`}
       data-priority={hasPriority ? "true" : "false"}
       data-multiple-rounds={multipleRounds ? "true" : "false"}
       aria-label={`${position === "player" ? "Your" : "Opponent"} player details: ${player.name}${hasPriority ? ", has priority" : ""}`}
     >
       <div className={styles.playerCopy}>
         <small>{position === "player" ? "PLAYER" : "OPPONENT"}</small>
-        <strong>{player.name}</strong>
+        <strong title={player.name}>{player.name}</strong>
         <span>{player.connected ? "CONNECTED" : "RECONNECTING"}</span>
       </div>
       <div
@@ -100,8 +102,10 @@ export function MatchHudLayer({
   selectedHandCardId,
   onHandModeChange,
   onSelectedHandCardChange,
+  onDrawCard,
   onPlayCard,
   onEnergizeCard,
+  onSkipEnergize,
   onPassTurn,
 }: {
   match: MatchState | null;
@@ -110,19 +114,30 @@ export function MatchHudLayer({
   selectedHandCardId: string;
   onHandModeChange: (mode: HandActionMode) => void;
   onSelectedHandCardChange: (cardId: string) => void;
+  onDrawCard: MatchActionHandler;
   onPlayCard: PlayCardHandler;
   onEnergizeCard: EnergizeCardHandler;
+  onSkipEnergize: MatchActionHandler;
   onPassTurn: MatchActionHandler;
 }) {
   const [selectionPending, setSelectionPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
   const { player, opponent } = resolveHudPlayers(match, playerId);
 
   useEffect(() => {
     setSelectionPending(false);
     setError("");
   }, [match?.phase, match?.version, selectedHandCardId]);
+
+  useEffect(() => {
+    if (!drawStepIsPending(match)) return;
+    const update = () => setNow(Date.now());
+    update();
+    const interval = window.setInterval(update, 250);
+    return () => window.clearInterval(interval);
+  }, [match?.phase, match?.version]);
 
   if (!match || !player || !opponent) return null;
 
@@ -134,6 +149,7 @@ export function MatchHudLayer({
     mode: handMode,
     selectedCardId: selectedHandCardId,
     selectionPending,
+    now,
   });
   const actionSlots = compactMatchHudSlots(actions);
 
@@ -180,9 +196,8 @@ export function MatchHudLayer({
   };
 
   const energizeSelectedCard = () => {
-    if (chooseMode("energize")) return;
     if (!selectedCard || !handCardIsActionable(match, player.id, selectedCard, "energize")) {
-      setError("Choose a highlighted card from your hand, then press Energize Card again.");
+      setError("Choose a highlighted card from your hand, then press Energize Card.");
       return;
     }
     void run(() => onEnergizeCard(selectedCard.id));
@@ -199,6 +214,11 @@ export function MatchHudLayer({
     active: boolean;
     onClick: () => void;
   }> = {
+    "draw-card": {
+      label: "Draw",
+      active: false,
+      onClick: () => void run(onDrawCard),
+    },
     "play-card": {
       label: "Play Card",
       active: handMode === "play" && !selectionPending,
@@ -208,6 +228,11 @@ export function MatchHudLayer({
       label: "Energize Card",
       active: handMode === "energize",
       onClick: energizeSelectedCard,
+    },
+    "skip-energize": {
+      label: "Skip Energizing",
+      active: false,
+      onClick: () => void run(onSkipEnergize),
     },
     "pass-turn": {
       label: "Pass Turn",

@@ -4,6 +4,7 @@ import {
   startNextSeriesGame, targetCore, type CardChoices, type MatchState, type PlayerState,
 } from "../../../lib/game";
 import { tapEnergyCard } from "../../../lib/energy";
+import { drawTurnCard, preparePendingDraw } from "../../../lib/turnStart";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,7 @@ export async function POST(request: Request) {
     switch (body.action) {
       case "ready": state = setReady(state, body.playerId); break;
       case "place": state = placeCore(state, body.playerId, String(p.coreId ?? ""), String(p.cell ?? "")); break;
+      case "draw": state = drawTurnCard(state, body.playerId); break;
       case "energize": state = energizeCard(state, body.playerId, p.cardId ? String(p.cardId) : undefined); break;
       case "tap-energy": state = tapEnergyCard(state, body.playerId, String(p.cardId ?? "")); break;
       case "select": state = selectBakugan(state, body.playerId, String(p.bakuganId ?? "")); break;
@@ -117,6 +119,7 @@ export async function POST(request: Request) {
       }
       default: return json({ error: "Unknown match command." }, 400);
     }
+    state = preparePendingDraw(state);
     const actor = state.players.find((player) => player.id === body.playerId); if (actor) { actor.lastSeen = Date.now(); actor.connected = true; }
     await save(state.code, state, before);
     return json({ state: redactForPlayer(state, body.playerId) });
