@@ -2,9 +2,10 @@
   position: fixed;
   top: 50%;
   right: clamp(0.75rem, 1.8vw, 2rem);
-  z-index: 10080;
+  z-index: 20120;
   transform: translateY(-50%);
   transform-origin: right center;
+  backface-visibility: hidden;
   pointer-events: none;
   filter:
     drop-shadow(0 0.45rem 0.7rem rgba(0, 0, 0, 0.72))
@@ -20,6 +21,7 @@
   max-height: calc(100dvh - 2rem);
   border: 1px solid rgba(255, 255, 255, 0.52);
   border-radius: 4.6% / 3.3%;
+  backface-visibility: hidden;
   user-select: none;
 }
 
@@ -132,6 +134,10 @@
     opacity: 1;
     transform: translateY(-50%) scale(1);
   }
+}
+
+:global(html[data-viewport-changing="true"]) .preview {
+  animation-play-state: paused;
 }
 
 @media (max-width: 760px) {
