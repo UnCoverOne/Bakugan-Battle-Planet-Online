@@ -26,6 +26,7 @@ import {
 import {
   cardPreviewKind,
   cardPreviewSide,
+  cardPreviewSideForZoneOwner,
   cardPreviewZoneAllowed,
 } from "../components/game-screen-v2/cardPreviewState";
 
@@ -58,7 +59,6 @@ test("the player hand uses an exact symmetric radial fan at any card count", () 
   assert.deepEqual(handCardLayout(1), [
     { rotationDegrees: 0, zIndex: 1 },
   ]);
-
   for (const count of [2, 5, 6, 12, 40]) {
     const layout = handCardLayout(count);
     assert.equal(layout.length, count);
@@ -154,12 +154,16 @@ test("card previews follow hand and playmat placement rules", () => {
   assert.equal(cardPreviewSide(600, 1200), "right");
   assert.equal(cardPreviewSide(200, 1200, "hand"), "left");
   assert.equal(cardPreviewSide(1000, 1200, "hand"), "left");
+  assert.equal(cardPreviewSideForZoneOwner("player"), "right");
+  assert.equal(cardPreviewSideForZoneOwner("opponent"), "left");
+  assert.equal(cardPreviewSideForZoneOwner(undefined), null);
 
   assert.equal(cardPreviewZoneAllowed("character-card"), true);
   assert.equal(cardPreviewZoneAllowed("hero"), true);
   assert.equal(cardPreviewZoneAllowed("hand"), true);
+  assert.equal(cardPreviewZoneAllowed("discard-pile"), true);
+  assert.equal(cardPreviewZoneAllowed("discard-browser"), true);
   assert.equal(cardPreviewZoneAllowed("deck"), false);
-  assert.equal(cardPreviewZoneAllowed("discard-pile"), false);
   assert.equal(cardPreviewZoneAllowed("energy"), false);
 });
 
@@ -232,6 +236,7 @@ test("live match state populates both players' card zones", () => {
   );
   assert.equal(zones.player.heroCards.length, 1);
   assert.equal(zones.player.latestDiscard?.id, discarded.id);
+  assert.deepEqual(zones.player.discardCards.map((card) => card.id), [discarded.id]);
   assert.equal(zones.player.discardCount, 1);
   assert.equal(zones.player.deckCount, player.deckCards.length);
   assert.deepEqual(
