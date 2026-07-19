@@ -22,6 +22,24 @@ export function EnergyAffordabilityLayer({
   playerId?: string;
 }) {
   useEffect(() => {
+    const { player } = resolveHudPlayers(match, playerId);
+    if (!player) return;
+    let frame = window.requestAnimationFrame(() => {
+      frame = 0;
+      for (const cardElement of document.querySelectorAll<HTMLElement>(HAND_CARD_SELECTOR)) {
+        const card = player.hand.find((candidate) => candidate.id === cardElement.dataset.cardId);
+        if (card) cardElement.dataset.cardType = card.type;
+      }
+    });
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      for (const cardElement of document.querySelectorAll<HTMLElement>(HAND_CARD_SELECTOR)) {
+        delete cardElement.dataset.cardType;
+      }
+    };
+  }, [match, playerId]);
+
+  useEffect(() => {
     const energyZone = document.querySelector<HTMLElement>(ENERGY_ZONE_SELECTOR);
     if (!energyZone) return;
 
