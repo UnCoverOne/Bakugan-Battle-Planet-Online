@@ -4,10 +4,10 @@ import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   createMatch,
   passPriority,
+  playCard,
   type MatchState,
   type PendingEffect,
 } from "../lib/game";
-import { playCardAndPassPriority } from "../lib/priority";
 import {
   brawlCombatants,
   brawlIsEngaged,
@@ -71,24 +71,31 @@ test("the Brawl HUD exposes both engaged active Bakugan and live modifiers", () 
   assert.equal(powerStepStatus(match).active, true);
 });
 
-test("a played Power Step card enters the batch and transfers priority", () => {
+test("a Power Step card enters the batch while its controller retains priority", () => {
   const match = engagedPowerMatch();
   const player = match.players[0];
-  const opponent = match.players[1];
   const card = CARDS.find((candidate) => (
     candidate.type === "Action"
     && candidate.cost !== "X"
     && candidate.cost <= 3
   ));
   assert.ok(card);
-  player.hand = [{ ...card, id: "power-action" }];
-  player.energy = 3;
+  player.hand = [
+    { ...card, id: "power-action-one" },
+    { ...card, id: "power-action-two" },
+  ];
+  player.energy = 6;
 
-  const next = playCardAndPassPriority(match, player.id, "power-action", {});
-  assert.equal(next.batch.length, 1);
-  assert.equal(next.batch[0].card.id, "power-action");
-  assert.equal(next.priority, opponent.id);
-  assert.deepEqual(next.passes, []);
+  const afterFirstPlay = playCard(match, player.id, "power-action-one", {});
+  assert.equal(afterFirstPlay.batch.length, 1);
+  assert.equal(afterFirstPlay.batch[0].card.id, "power-action-one");
+  assert.equal(afterFirstPlay.priority, player.id);
+  assert.deepEqual(afterFirstPlay.passes, []);
+
+  const afterSecondPlay = playCard(afterFirstPlay, player.id, "power-action-two", {});
+  assert.equal(afterSecondPlay.batch.length, 2);
+  assert.equal(afterSecondPlay.batch[1].card.id, "power-action-two");
+  assert.equal(afterSecondPlay.priority, player.id);
 });
 
 test("the newest batch effect is displayed on the left and resolves first", () => {
