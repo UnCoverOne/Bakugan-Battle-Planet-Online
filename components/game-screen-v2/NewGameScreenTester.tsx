@@ -34,7 +34,10 @@ import { CardPreviewLayer } from "./CardPreviewLayer";
 import { GameMenuHud } from "./GameMenuHud";
 import { GameScreen } from "./GameScreen";
 import { MatchHudLayer } from "./MatchHudLayer";
-import { MATCH_UPDATE_EVENT } from "./MatchStateCoordinator";
+import {
+  MATCH_UPDATE_EVENT,
+  writeCoordinatedMatch,
+} from "./MatchStateCoordinator";
 import { SelectionInteractionLayer } from "./SelectionInteractionLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
 import {
@@ -97,11 +100,19 @@ function readStoredState(): StoredGameScreenState {
   };
 }
 
-function stateIsNewer(current: MatchState | null, incoming: MatchState) {
-  return !current
-    || current.id !== incoming.id
-    || current.code !== incoming.code
-    || incoming.version > current.version;
+function trainingBotCanAct(match: MatchState) {
+  const bot = match.players.find((player) => player.id === "training-bot");
+  if (!bot) return false;
+  if (playerCanDrawTurnCard(match, bot.id)) return true;
+  if (match.phase === "energize" && !bot.energizedThisTurn) return true;
+  if (match.phase === "selection" && !match.selected[bot.id]) return true;
+  if (
+    match.phase === "target"
+    && (playerCanSelectRollTarget(match, bot.id) || playerCanConfirmRoll(match, bot.id))
+  ) return true;
+  if (PRIORITY_PHASES.has(match.phase) && match.priority === bot.id) return true;
+  if (match.phase === "damage" && match.pendingLoser === bot.id && match.revealedFlip) return true;
+  return match.phase === "handLimit" && match.priority === bot.id;
 }
 
 function advanceTrainingBot(match: MatchState): MatchState | null {
@@ -200,14 +211,9 @@ export function NewGameScreenTester() {
   }, []);
 
   const publishMatch = useCallback((next: MatchState) => {
-    const current = parseStoredValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null);
-    if (!stateIsNewer(current, next)) return false;
-    localStorage.setItem(MATCH_KEY, JSON.stringify(next));
+    if (!writeCoordinatedMatch(next)) return false;
     previousRawState.current = "";
     setStoredState((stored) => ({ ...stored, match: next }));
-    // MatchStateCoordinator emits this event for accepted writes. Dispatching it
-    // here as well keeps this component compatible if rendered in isolation.
-    window.dispatchEvent(new CustomEvent<MatchState>(MATCH_UPDATE_EVENT, { detail: next }));
     return true;
   }, []);
 
@@ -326,12 +332,16 @@ export function NewGameScreenTester() {
   // legal phase is revisited after the resulting version is published.
   useEffect(() => {
     const match = storedState.match;
-    if (!storedState.enabled || storedState.route !== "match" || storedState.online || !match) return;
+    if (
+      !storedState.enabled
+      || storedState.route !== "match"
+      || storedState.online
+      || !match
+      || !trainingBotCanAct(match)
+    ) return;
+
     const key = `${match.id}:${match.version}:${match.phase}`;
     if (botActionKey.current === key) return;
-    const preview = advanceTrainingBot(match);
-    if (!preview) return;
-
     botActionKey.current = key;
     const timeout = window.setTimeout(() => {
       const latest = readStoredState().match;
@@ -339,6 +349,9 @@ export function NewGameScreenTester() {
       try {
         const next = advanceTrainingBot(latest);
         if (next) publishMatch(preparePendingDraw(next));
+      } catch {
+        // A concurrent player action can close the bot's window before this
+        // timer executes. The next accepted version will schedule a fresh check.
       } finally {
         if (botActionKey.current === key) botActionKey.current = "";
       }
