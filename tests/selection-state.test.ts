@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch } from "../lib/game";
+import { createMatch, selectBakugan } from "../lib/game";
 import {
   confirmRoll,
   playerCanConfirmRoll,
@@ -48,6 +48,36 @@ test("all Character Cards become selectable when every Bakugan is open", () => {
 
   match.phase = "power";
   assert.equal(selectableCharacterBakugan(match, player.id).length, 0);
+});
+
+test("an open winner retains its BakuCores until that Bakugan is closed", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const match = createMatch("HOLD01", "bo1", [player, opponent]);
+  const winner = player.bakugan[0];
+  const heldCell = "h3-3";
+  winner.open = true;
+  winner.heldCoreCells = [heldCell];
+  match.placements = [{
+    playerId: player.id,
+    core: player.cores[0],
+    cell: heldCell,
+    order: 1,
+    attachedTo: winner.id,
+  }];
+  match.turn = 2;
+  match.phase = "selection";
+
+  const selectedAnother = selectBakugan(match, player.id, player.bakugan[1].id);
+  assert.equal(selectedAnother.players[0].bakugan[0].open, true);
+  assert.deepEqual(selectedAnother.players[0].bakugan[0].heldCoreCells, [heldCell]);
+  assert.equal(selectedAnother.placements[0].attachedTo, winner.id);
+
+  const allOpen = structuredClone(match);
+  allOpen.players[0].bakugan.forEach((bakugan) => { bakugan.open = true; });
+  const retracted = selectBakugan(allOpen, player.id, allOpen.players[0].bakugan[1].id);
+  assert.deepEqual(retracted.players[0].bakugan[0].heldCoreCells, []);
+  assert.equal(retracted.placements[0].attachedTo, undefined);
 });
 
 test("a confirmed Character Card becomes the persistent active Bakugan", () => {
