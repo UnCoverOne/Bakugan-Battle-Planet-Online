@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import type { GameCard, MatchState } from "../../lib/game";
 import {
   energyCardCanTap,
@@ -30,6 +31,7 @@ const COLUMN_RADIUS = Math.ceil(GRID_WIDTH / (HEX_X_STEP * 2)) + 2;
 const ROW_RADIUS = Math.ceil(GRID_HEIGHT / (HEX_HEIGHT * 2)) + 3;
 const CARD_BACK_ART = "/assets/card-back.png";
 const ENERGY_SYMBOL_ART = "/assets/symbols/energy.svg";
+const CARD_PREVIEW_CLEAR_EVENT = "bbp-card-preview-clear";
 
 type CharacterCardSlot = 1 | 2 | 3;
 type CardStackZoneKind = "discard-pile" | "deck";
@@ -194,26 +196,45 @@ function CardStackZone({
   lines,
   count,
   latestDiscard,
+  discardOpen,
+  onOpenDiscard,
 }: {
   owner: ZoneOwner;
   kind: CardStackZoneKind;
   lines: readonly string[];
   count: number;
   latestDiscard: GameCard | null;
+  discardOpen: boolean;
+  onOpenDiscard: (owner: ZoneOwner) => void;
 }) {
   const label = lines.join(" ");
   const cardCount = safeCardCount(count);
   const hasVisual = kind === "deck" ? cardCount > 0 : Boolean(latestDiscard);
+  const canOpenDiscard = kind === "discard-pile" && cardCount > 0;
+  const openDiscard = () => {
+    if (canOpenDiscard) onOpenDiscard(owner);
+  };
 
   return (
     <li
-      className={styles.cardStackZone}
+      className={`${styles.cardStackZone} ${canOpenDiscard ? styles.cardStackZoneInteractive : ""}`}
       data-zone-kind={kind}
       data-zone-owner={owner}
       data-zone-id={`${owner}-${kind}`}
+      data-card-id={kind === "discard-pile" ? latestDiscard?.id : undefined}
       data-card-count={cardCount}
       data-top-card-id={kind === "discard-pile" ? latestDiscard?.id : undefined}
-      aria-label={`${ownerLabel(owner)} ${label} zone, ${cardCount} cards`}
+      role={canOpenDiscard ? "button" : undefined}
+      tabIndex={canOpenDiscard ? 0 : undefined}
+      aria-haspopup={canOpenDiscard ? "dialog" : undefined}
+      aria-expanded={canOpenDiscard ? discardOpen : undefined}
+      aria-label={`${ownerLabel(owner)} ${label} zone, ${cardCount} cards${canOpenDiscard ? ", open discard pile" : ""}`}
+      onClick={openDiscard}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openDiscard();
+      }}
     >
       {!hasVisual && <ZoneLabel lines={lines} />}
       {kind === "deck"
@@ -376,6 +397,8 @@ function PlayerZoneLayout({
   pendingEnergyCardId,
   onTapEnergyCard,
   canTapEnergyCard,
+  openDiscardOwner,
+  onOpenDiscard,
 }: {
   owner: ZoneOwner;
   counts: OwnerZoneCounts;
@@ -384,6 +407,8 @@ function PlayerZoneLayout({
   pendingEnergyCardId?: string;
   onTapEnergyCard?: EnergyTapHandler;
   canTapEnergyCard?: (cardId: string) => boolean;
+  openDiscardOwner: ZoneOwner | null;
+  onOpenDiscard: (owner: ZoneOwner) => void;
 }) {
   const isOpponent = owner === "opponent";
   const characterSlots = isOpponent
@@ -440,12 +465,94 @@ function PlayerZoneLayout({
                 {...zone}
                 count={stackCount(counts, zone.kind)}
                 latestDiscard={state.latestDiscard}
+                discardOpen={openDiscardOwner === owner}
+                onOpenDiscard={onOpenDiscard}
               />
             ))}
           </ol>
         </div>
       </section>
     </>
+  );
+}
+
+function DiscardPileModal({
+  owner,
+  cards,
+  onClose,
+}: {
+  owner: ZoneOwner;
+  cards: readonly GameCard[];
+  onClose: () => void;
+}) {
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+  const closeButton = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    setPortalRoot(document.body);
+  }, []);
+
+  useEffect(() => {
+    closeButton.current?.focus();
+  }, [portalRoot]);
+
+  if (!portalRoot) return null;
+  const newestFirst = [...cards].reverse();
+  const titleId = `${owner}-discard-pile-title`;
+
+  return createPortal(
+    <div
+      className={styles.discardModalBackdrop}
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        className={styles.discardModal}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        data-zone-kind="discard-browser"
+        data-zone-owner={owner}
+      >
+        <header className={styles.discardModalHeader}>
+          <div>
+            <span>{owner === "player" ? "YOUR CARDS" : "OPPONENT CARDS"}</span>
+            <h2 id={titleId}>DISCARD PILE</h2>
+            <p>{cards.length} card{cards.length === 1 ? "" : "s"} • newest first</p>
+          </div>
+          <button
+            ref={closeButton}
+            type="button"
+            className={styles.discardModalClose}
+            onClick={onClose}
+            aria-label="Close discard pile"
+          >
+            ×
+          </button>
+        </header>
+        <div className={styles.discardModalGrid}>
+          {newestFirst.map((card, index) => (
+            <figure
+              className={styles.discardModalCard}
+              data-card-id={card.id}
+              key={card.id}
+            >
+              <img
+                src={card.art}
+                alt={card.displayName || card.name}
+                draggable={false}
+              />
+              <figcaption>
+                <strong>{card.displayName || card.name}</strong>
+                <span>{index === 0 ? "Newest" : `#${cards.length - index}`}</span>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+    </div>,
+    portalRoot,
   );
 }
 
@@ -464,17 +571,7 @@ export function GameScreen({
 }) {
   const [pendingEnergyCardId, setPendingEnergyCardId] = useState("");
   const [energyError, setEnergyError] = useState("");
-
-  useEffect(() => {
-    if (!onExit) return;
-    const exitOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      onExit();
-    };
-    window.addEventListener("keydown", exitOnEscape);
-    return () => window.removeEventListener("keydown", exitOnEscape);
-  }, [onExit]);
+  const [openDiscardOwner, setOpenDiscardOwner] = useState<ZoneOwner | null>(null);
 
   const zoneState = match
     ? buildGameScreenZoneState(match, playerId)
@@ -495,6 +592,31 @@ export function GameScreen({
     }
     : zoneCounts;
 
+  const closeDiscard = () => setOpenDiscardOwner(null);
+  const openDiscard = (owner: ZoneOwner) => {
+    if (!zoneState[owner].discardCards.length) return;
+    window.dispatchEvent(new Event(CARD_PREVIEW_CLEAR_EVENT));
+    setOpenDiscardOwner(owner);
+  };
+
+  useEffect(() => {
+    if (!onExit && !openDiscardOwner) return;
+    const exitOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      if (openDiscardOwner) closeDiscard();
+      else onExit?.();
+    };
+    window.addEventListener("keydown", exitOnEscape);
+    return () => window.removeEventListener("keydown", exitOnEscape);
+  }, [onExit, openDiscardOwner]);
+
+  useEffect(() => {
+    if (openDiscardOwner && !zoneState[openDiscardOwner].discardCards.length) {
+      setOpenDiscardOwner(null);
+    }
+  }, [match?.version, openDiscardOwner]);
+
   const tapEnergy = async (cardId: string) => {
     if (!onTapEnergyCard || pendingEnergyCardId) return;
     setPendingEnergyCardId(cardId);
@@ -508,48 +630,65 @@ export function GameScreen({
     }
   };
 
-  return (
-    <div className={styles.screen}>
-      <div className={styles.playArea} aria-label="Experimental game play area">
-        <svg
-          className={styles.hexGrid}
-          viewBox={`0 0 ${GRID_WIDTH} ${GRID_HEIGHT}`}
-          preserveAspectRatio="xMidYMid meet"
-          aria-hidden="true"
-        >
-          <defs>
-            <radialGradient id="game-screen-hex-fade" cx="50%" cy="50%" r="70%">
-              <stop offset="0%" stopColor="white" stopOpacity="0.9" />
-              <stop offset="38%" stopColor="white" stopOpacity="0.72" />
-              <stop offset="59%" stopColor="white" stopOpacity="0.3" />
-              <stop offset="80%" stopColor="black" stopOpacity="0" />
-            </radialGradient>
-            <mask id="game-screen-hex-mask">
-              <rect width={GRID_WIDTH} height={GRID_HEIGHT} fill="url(#game-screen-hex-fade)" />
-            </mask>
-          </defs>
-          <g mask="url(#game-screen-hex-mask)">
-            {HEX_GRID.map((hex) => <polygon key={hex.key} points={hex.points} />)}
-          </g>
-        </svg>
+  const openDiscardCards = openDiscardOwner
+    ? zoneState[openDiscardOwner].discardCards
+    : [];
 
-        <PlayerZoneLayout
-          owner="opponent"
-          counts={resolvedCounts.opponent}
-          state={zoneState.opponent}
-          energy={energyState.opponent}
-        />
-        <PlayerZoneLayout
-          owner="player"
-          counts={resolvedCounts.player}
-          state={zoneState.player}
-          energy={energyState.player}
-          pendingEnergyCardId={pendingEnergyCardId}
-          onTapEnergyCard={tapEnergy}
-          canTapEnergyCard={(cardId) => energyCardCanTap(match, playerId, cardId)}
-        />
+  return (
+    <>
+      <div className={styles.screen}>
+        <div className={styles.playArea} aria-label="Experimental game play area">
+          <svg
+            className={styles.hexGrid}
+            viewBox={`0 0 ${GRID_WIDTH} ${GRID_HEIGHT}`}
+            preserveAspectRatio="xMidYMid meet"
+            aria-hidden="true"
+          >
+            <defs>
+              <radialGradient id="game-screen-hex-fade" cx="50%" cy="50%" r="70%">
+                <stop offset="0%" stopColor="white" stopOpacity="0.9" />
+                <stop offset="38%" stopColor="white" stopOpacity="0.72" />
+                <stop offset="59%" stopColor="white" stopOpacity="0.3" />
+                <stop offset="80%" stopColor="black" stopOpacity="0" />
+              </radialGradient>
+              <mask id="game-screen-hex-mask">
+                <rect width={GRID_WIDTH} height={GRID_HEIGHT} fill="url(#game-screen-hex-fade)" />
+              </mask>
+            </defs>
+            <g mask="url(#game-screen-hex-mask)">
+              {HEX_GRID.map((hex) => <polygon key={hex.key} points={hex.points} />)}
+            </g>
+          </svg>
+
+          <PlayerZoneLayout
+            owner="opponent"
+            counts={resolvedCounts.opponent}
+            state={zoneState.opponent}
+            energy={energyState.opponent}
+            openDiscardOwner={openDiscardOwner}
+            onOpenDiscard={openDiscard}
+          />
+          <PlayerZoneLayout
+            owner="player"
+            counts={resolvedCounts.player}
+            state={zoneState.player}
+            energy={energyState.player}
+            pendingEnergyCardId={pendingEnergyCardId}
+            onTapEnergyCard={tapEnergy}
+            canTapEnergyCard={(cardId) => energyCardCanTap(match, playerId, cardId)}
+            openDiscardOwner={openDiscardOwner}
+            onOpenDiscard={openDiscard}
+          />
+        </div>
+        {energyError && <div className={styles.energyError} role="alert">{energyError}</div>}
       </div>
-      {energyError && <div className={styles.energyError} role="alert">{energyError}</div>}
-    </div>
+      {openDiscardOwner && openDiscardCards.length ? (
+        <DiscardPileModal
+          owner={openDiscardOwner}
+          cards={openDiscardCards}
+          onClose={closeDiscard}
+        />
+      ) : null}
+    </>
   );
 }
