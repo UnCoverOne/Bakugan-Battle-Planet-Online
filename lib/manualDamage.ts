@@ -146,6 +146,20 @@ export function flipDamageCard(input: MatchState, playerId: string) {
   return state;
 }
 
+function drawRemainingDamageToHand(state: MatchState, playerId: string, amount: number) {
+  const player = playerById(state, playerId);
+  if (!player) return;
+  let drawn = 0;
+  while (drawn < amount) {
+    const card = player.deckCards.shift();
+    if (!card) break;
+    player.hand.push(card);
+    drawn += 1;
+  }
+  player.deck = player.deckCards.length;
+  log(state, "game", `${player.name} put ${drawn} remaining damage card${drawn === 1 ? "" : "s"} into their hand.`);
+}
+
 export function resolveManualDamage(
   input: MatchState,
   playerId: string,
@@ -183,17 +197,24 @@ export function resolveManualDamage(
 
   const remainingDamage = input.pendingDamage;
   const cost = effectiveCardEnergyCost(input, playerId, flip, choices);
-  let prepared = prepareEnergyPayment(input, playerId, cost);
+  const prepared = prepareEnergyPayment(input, playerId, cost);
   const preparedPlayer = playerById(prepared, playerId)!;
   preparedPlayer.discard = preparedPlayer.discard.filter((card) => card.id !== flip.id);
 
-  // Existing Flip resolution already handles the printed effect and destination.
-  // Give it an empty automatic-damage queue, then restore the remaining manual
-  // queue only when this Flip did not stop the attack.
+  // Existing Flip resolution handles the printed effect and final destination.
+  // Give it an empty automatic queue, then restore the manual queue when the
+  // Flip neither stops nor replaces the remaining damage procedure.
   prepared.pendingDamage = 0;
-  let resolved = resolveDamage(prepared, playerId, flip.id, choices);
+  const resolved = resolveDamage(prepared, playerId, flip.id, choices);
   const stopped = flipStopsDamage(input, flip) || flip.name === "Blackhole";
-  if (!stopped && remainingDamage > 0 && resolved.phase !== "result") {
+  const movesRemainingToHand = flip.name === "Brain Geyser";
+
+  if (movesRemainingToHand && remainingDamage > 0 && resolved.phase !== "result") {
+    drawRemainingDamageToHand(resolved, playerId, remainingDamage);
+    resolved.pendingDamage = 0;
+    resolved.pendingLoser = playerId;
+    enterPostDamage(resolved);
+  } else if (!stopped && remainingDamage > 0 && resolved.phase !== "result") {
     resolved.phase = "damage";
     resolved.stepLabel = `Damage Step • ${remainingDamage} cards to flip`;
     resolved.priority = playerId;
