@@ -9,12 +9,28 @@ import {
   rollTargetCanConfirm,
   selectRollTarget,
 } from "../lib/rolling";
+import { cardPreviewSideForZone } from "../components/game-screen-v2/cardPreviewState";
 import {
   activeBakuganId,
   characterSelectionCanConfirm,
   playerActionTooltip,
   selectableCharacterBakugan,
 } from "../components/game-screen-v2/selectionState";
+
+test("card previews use only hard zone and owner rules", () => {
+  assert.equal(cardPreviewSideForZone("character-card", "player"), "right");
+  assert.equal(cardPreviewSideForZone("hand", "player"), "left");
+  assert.equal(cardPreviewSideForZone("discard-pile", "player"), "left");
+  assert.equal(cardPreviewSideForZone("discard-browser", "player"), "left");
+  assert.equal(cardPreviewSideForZone("hero", "player"), "left");
+  assert.equal(cardPreviewSideForZone("character-card", "opponent"), "left");
+  assert.equal(cardPreviewSideForZone("discard-pile", "opponent"), "right");
+  assert.equal(cardPreviewSideForZone("discard-browser", "opponent"), "right");
+  assert.equal(cardPreviewSideForZone("hero", "opponent"), "right");
+  assert.equal(cardPreviewSideForZone("hand", "opponent"), "left");
+  assert.equal(cardPreviewSideForZone("batch", "player"), "left");
+  assert.equal(cardPreviewSideForZone("batch", "opponent"), "left");
+});
 
 test("the Selection Step exposes only closed Character Cards", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
