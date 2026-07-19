@@ -1,0 +1,225 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20160;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: clamp(0.75rem, 2.5vw, 2rem);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(3px);
+}
+
+.dialog {
+  position: relative;
+  box-sizing: border-box;
+  width: min(48rem, calc(100vw - 1.5rem));
+  max-height: calc(100dvh - 1.5rem);
+  overflow: auto;
+  padding: clamp(1rem, 2vw, 1.65rem);
+  clip-path: polygon(1.25rem 0, 100% 0, 100% calc(100% - 1.25rem), calc(100% - 1.25rem) 100%, 0 100%, 0 1.25rem);
+  border: 1px solid rgba(255, 87, 73, 0.78);
+  background:
+    linear-gradient(135deg, rgba(139, 18, 29, 0.25), transparent 42%),
+    linear-gradient(180deg, rgba(18, 21, 25, 0.99), rgba(5, 8, 11, 0.99));
+  box-shadow: 0 1.2rem 3.5rem rgba(0, 0, 0, 0.78), 0 0 1rem rgba(226, 40, 37, 0.24);
+  color: #fff;
+  font-family: var(--font-display);
+}
+
+.header {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+}
+
+.header small {
+  color: #ff6656;
+  font-size: clamp(0.55rem, 0.75vw, 0.72rem);
+  font-weight: 950;
+  letter-spacing: 0.16em;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 2.3rem);
+  line-height: 1;
+}
+
+.header p {
+  margin: 0.2rem 0 0;
+  color: rgba(225, 232, 236, 0.72);
+  font-family: system-ui, sans-serif;
+  font-size: clamp(0.72rem, 1vw, 0.94rem);
+  line-height: 1.4;
+  text-transform: none;
+}
+
+.flipLayout {
+  display: grid;
+  grid-template-columns: minmax(8rem, 30%) minmax(0, 1fr);
+  gap: clamp(0.8rem, 2vw, 1.4rem);
+  align-items: stretch;
+}
+
+.flipArt {
+  display: block;
+  width: 100%;
+  max-height: 24rem;
+  object-fit: contain;
+  filter: drop-shadow(0 0.55rem 0.75rem rgba(0, 0, 0, 0.68));
+}
+
+.flipCopy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.flipCopy strong {
+  font-size: clamp(1.1rem, 2vw, 1.7rem);
+  text-transform: uppercase;
+}
+
+.flipCopy p {
+  margin: 0.5rem 0;
+  color: rgba(235, 239, 242, 0.86);
+  font-family: system-ui, sans-serif;
+  font-size: clamp(0.72rem, 1vw, 0.95rem);
+  line-height: 1.45;
+}
+
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.metrics span {
+  padding: 0.34rem 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: clamp(0.58rem, 0.78vw, 0.75rem);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.2rem, 1fr));
+  gap: clamp(0.55rem, 1.3vw, 0.9rem);
+  max-height: min(52dvh, 30rem);
+  margin: 0;
+  padding: 0.2rem;
+  overflow: auto;
+  list-style: none;
+}
+
+.cardButton {
+  position: relative;
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.38rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(7, 10, 14, 0.78);
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cardButton[data-selected="true"] {
+  border-color: rgba(255, 103, 85, 0.96);
+  box-shadow: 0 0 0.7rem rgba(255, 58, 45, 0.42), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  transform: translateY(-0.2rem);
+}
+
+.cardButton:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.cardButton img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  object-fit: contain;
+}
+
+.cardButton strong {
+  overflow: hidden;
+  font-size: clamp(0.58rem, 0.82vw, 0.8rem);
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardButton span {
+  color: rgba(222, 229, 233, 0.6);
+  font-family: system-ui, sans-serif;
+  font-size: 0.62rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.action {
+  min-width: 10rem;
+  padding: 0.68rem 0.9rem;
+  border: 1px solid rgba(255, 98, 81, 0.78);
+  background: linear-gradient(180deg, rgba(125, 20, 29, 0.98), rgba(48, 7, 12, 0.98));
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(0.68rem, 0.92vw, 0.9rem);
+  font-weight: 950;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.actionSecondary {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(18, 23, 28, 0.96);
+}
+
+.action:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.error {
+  margin: 0.75rem 0 0;
+  color: #ff8b7e;
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+@media (max-width: 650px) {
+  .flipLayout {
+    grid-template-columns: minmax(5rem, 24%) minmax(0, 1fr);
+  }
+
+  .cards {
+    grid-template-columns: repeat(auto-fill, minmax(4.8rem, 1fr));
+  }
+
+  .action {
+    flex: 1 1 10rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardButton {
+    transition: none;
+  }
+}
