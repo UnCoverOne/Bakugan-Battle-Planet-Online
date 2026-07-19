@@ -12,6 +12,8 @@ declare global {
   interface Window {
     __bbpMatchStorageCoordinated?: boolean;
     __bbpAuthorizedMatchWrite?: boolean;
+    __bbpAuthorizedRouteWrite?: boolean;
+    __bbpAuthorizedSettingsWrite?: boolean;
   }
 }
 
@@ -39,6 +41,24 @@ function experimentalClientOwnsMatch() {
   );
   const route = parseValue(window.localStorage.getItem(ROUTE_KEY), "entry");
   return Boolean(settings.useNewGameScreen) && route === "match";
+}
+
+export function writeExperimentalRoute(route: string) {
+  window.__bbpAuthorizedRouteWrite = true;
+  try {
+    window.localStorage.setItem(ROUTE_KEY, JSON.stringify(route));
+  } finally {
+    window.__bbpAuthorizedRouteWrite = false;
+  }
+}
+
+export function writeExperimentalSettings(settings: Record<string, unknown>) {
+  window.__bbpAuthorizedSettingsWrite = true;
+  try {
+    window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } finally {
+    window.__bbpAuthorizedSettingsWrite = false;
+  }
 }
 
 /**
@@ -72,10 +92,10 @@ export function writeCoordinatedMatch(next: MatchState) {
 
 /**
  * The legacy screen, experimental screen, BakuCore layer, and Brawl layer all
- * share one localStorage match document. This guard makes that document
- * monotonic and gives the experimental client exclusive ownership while it is
- * visible. Every accepted write emits a same-tab event so all gameplay layers
- * update immediately instead of waiting for their polling loop.
+ * share browser persistence. This guard makes the match document monotonic and
+ * gives the visible experimental client exclusive ownership of match, route,
+ * and gameplay-setting writes while it is active. Every accepted match write
+ * emits a same-tab event so all gameplay layers update immediately.
  */
 export function MatchStateCoordinator() {
   useLayoutEffect(() => {
@@ -84,19 +104,25 @@ export function MatchStateCoordinator() {
 
     const originalSetItem = Storage.prototype.setItem;
     const coordinatedSetItem: typeof Storage.prototype.setItem = function setItem(key, value) {
-      if (this === window.localStorage && key === MATCH_KEY) {
-        if (experimentalClientOwnsMatch() && !window.__bbpAuthorizedMatchWrite) return;
+      if (this === window.localStorage) {
+        const experimentalActive = experimentalClientOwnsMatch();
+        if (key === ROUTE_KEY && experimentalActive && !window.__bbpAuthorizedRouteWrite) return;
+        if (key === SETTINGS_KEY && experimentalActive && !window.__bbpAuthorizedSettingsWrite) return;
 
-        const currentRaw = window.localStorage.getItem(MATCH_KEY);
-        if (currentRaw === value) return;
-        const current = parseMatch(currentRaw);
-        const incoming = parseMatch(value);
-        if (!incomingStateIsNewer(current, incoming)) return;
-        originalSetItem.call(this, key, value);
-        window.dispatchEvent(new CustomEvent<MatchState | null>(MATCH_UPDATE_EVENT, {
-          detail: incoming,
-        }));
-        return;
+        if (key === MATCH_KEY) {
+          if (experimentalActive && !window.__bbpAuthorizedMatchWrite) return;
+
+          const currentRaw = window.localStorage.getItem(MATCH_KEY);
+          if (currentRaw === value) return;
+          const current = parseMatch(currentRaw);
+          const incoming = parseMatch(value);
+          if (!incomingStateIsNewer(current, incoming)) return;
+          originalSetItem.call(this, key, value);
+          window.dispatchEvent(new CustomEvent<MatchState | null>(MATCH_UPDATE_EVENT, {
+            detail: incoming,
+          }));
+          return;
+        }
       }
       originalSetItem.call(this, key, value);
     };
@@ -108,6 +134,8 @@ export function MatchStateCoordinator() {
       }
       window.__bbpMatchStorageCoordinated = false;
       window.__bbpAuthorizedMatchWrite = false;
+      window.__bbpAuthorizedRouteWrite = false;
+      window.__bbpAuthorizedSettingsWrite = false;
     };
   }, []);
 
