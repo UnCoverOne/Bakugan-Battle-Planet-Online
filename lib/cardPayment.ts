@@ -46,6 +46,7 @@ function costConditionActive(
 ) {
   const lower = text.toLowerCase();
   const opponent = state.players.find((candidate) => candidate.id !== player.id);
+  if (lower.includes("flow")) return player.cardsPlayedThisTurn > 1;
   if (lower.includes("fury")) return player.hand.length === 0;
   if (lower.includes("turbo")) return Boolean(opponent && player.maxEnergy > opponent.maxEnergy);
   if (lower.includes("domination")) {
@@ -57,6 +58,11 @@ function costConditionActive(
     return held > opposingHeld;
   }
   if (lower.includes("sacrifice")) return Boolean(choices.discardCardIds?.length);
+  if (lower.includes("only have one open bakugan")) {
+    return player.bakugan.filter((bakugan) => bakugan.open).length === 1;
+  }
+  if (lower.includes("three or more heroes")) return player.heroes.length >= 3;
+  if (lower.includes("five or more hero")) return player.heroes.length >= 5;
   return false;
 }
 
