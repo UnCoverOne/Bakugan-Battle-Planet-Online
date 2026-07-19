@@ -3,6 +3,13 @@ import assert from "node:assert/strict";
 import { STARTER_DECKS, makePlayer } from "../lib/data";
 import { createMatch } from "../lib/game";
 import {
+  confirmRoll,
+  playerCanConfirmRoll,
+  rollResultSignature,
+  rollTargetCanConfirm,
+  selectRollTarget,
+} from "../lib/rolling";
+import {
   activeBakuganId,
   characterSelectionCanConfirm,
   playerActionTooltip,
@@ -74,4 +81,36 @@ test("the action tooltip guides selection and confirmation", () => {
 
   match.selected[player.id] = player.bakugan[0].id;
   assert.equal(playerActionTooltip({ match, playerId: player.id }), "");
+});
+
+test("BakuCore targets are selected before both players confirm the Roll", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const match = createMatch("ROLL01", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "target";
+  match.stepLabel = "Roll Phase • BakuCore Selection";
+  match.selected[player.id] = player.bakugan[0].id;
+  match.selected[opponent.id] = opponent.bakugan[0].id;
+  match.placements = [
+    { playerId: player.id, core: player.cores[0], cell: "h3-3", order: 1 },
+    { playerId: opponent.id, core: opponent.cores[0], cell: "h3-2", order: 2 },
+  ];
+
+  assert.equal(rollTargetCanConfirm(match, player.id, "h3-3"), true);
+  const playerTargeted = selectRollTarget(match, player.id, "h3-3");
+  assert.deepEqual(playerTargeted.rolls, {});
+  const bothTargeted = selectRollTarget(playerTargeted, opponent.id, "h3-2");
+  assert.equal(playerCanConfirmRoll(bothTargeted, player.id), true);
+  assert.equal(playerCanConfirmRoll(bothTargeted, opponent.id), true);
+
+  const playerReady = confirmRoll(bothTargeted, player.id);
+  assert.deepEqual(playerReady.rolls, {});
+  assert.deepEqual(playerReady.passes, [player.id]);
+
+  const rolled = confirmRoll(playerReady, opponent.id);
+  assert.equal(rolled.phase, "power");
+  assert.ok(rolled.rolls[player.id]);
+  assert.ok(rolled.rolls[opponent.id]);
+  assert.notEqual(rollResultSignature(rolled), "");
 });

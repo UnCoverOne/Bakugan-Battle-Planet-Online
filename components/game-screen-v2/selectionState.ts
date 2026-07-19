@@ -1,4 +1,5 @@
 import type { Bakugan, MatchState, PlayerState } from "../../lib/game";
+import { playerCanConfirmRoll } from "../../lib/rolling";
 import { playerCanDrawTurnCard } from "../../lib/turnStart";
 
 const PRIORITY_PHASES = new Set([
@@ -83,7 +84,11 @@ export function playerActionTooltip({
   }
 
   if (match.phase === "target" && !match.targets[player.id]) {
-    return "Select an available BakuCore on the playmat.";
+    return "Select an available BakuCore on the playmat, then press Select.";
+  }
+
+  if (playerCanConfirmRoll(match, player.id)) {
+    return "Both targets are locked. Press Roll in the Action HUD.";
   }
 
   if (PRIORITY_PHASES.has(match.phase) && match.priority === player.id) {
