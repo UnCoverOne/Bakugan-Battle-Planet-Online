@@ -3,6 +3,7 @@ import {
   totalPower,
   type Bakugan,
   type Core,
+  type Faction,
   type MatchState,
   type PendingEffect,
   type PlayerState,
@@ -51,9 +52,9 @@ function signed(value: number) {
   return value > 0 ? `+${value}` : String(value);
 }
 
-function coreBonuses(core: Core, faction: string) {
+function coreBonuses(core: Core, faction: Faction) {
   const conditional = !core.conditionalFactions?.length
-    || core.conditionalFactions.includes(faction as Core["conditionalFactions"][number]);
+    || core.conditionalFactions.includes(faction);
   return {
     power: core.bonus + (conditional ? core.conditionalBonus ?? 0 : 0),
     damage: core.damageBonus + (conditional ? core.conditionalDamage ?? 0 : 0),
