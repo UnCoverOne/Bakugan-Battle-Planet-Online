@@ -1,9 +1,15 @@
 import {
-  concedeMatch, createMatch, discardToHandLimit, energizeCard, nextTurn, passPriority,
-  placeCore, playCard, redactForPlayer, resolveDamage, selectBakugan, setReady,
+  concedeMatch, createMatch, discardToHandLimit, energizeCard, nextTurn,
+  placeCore, redactForPlayer, selectBakugan, setReady,
   startNextSeriesGame, type CardChoices, type MatchState, type PlayerState,
 } from "../../../lib/game";
+import { playCardWithAutoEnergy } from "../../../lib/cardPayment";
 import { tapEnergyCard } from "../../../lib/energy";
+import {
+  flipDamageCard,
+  passPriorityWithManualDamage,
+  resolveManualDamage,
+} from "../../../lib/manualDamage";
 import { confirmRoll, selectRollTarget } from "../../../lib/rolling";
 import { drawTurnCard, preparePendingDraw } from "../../../lib/turnStart";
 
@@ -171,8 +177,6 @@ export async function POST(request: Request) {
     }
     await hydratePresence(record.state);
 
-    // Resolve disconnects through the same atomic write path as every other
-    // gameplay transition. If another request won the race, continue from it.
     const beforeDisconnect = structuredClone(record.state);
     let state = checkDisconnects(record.state);
     if (state !== record.state) {
@@ -226,10 +230,10 @@ export async function POST(request: Request) {
       case "select": state = selectBakugan(state, body.playerId, String(payload.bakuganId ?? "")); break;
       case "target": state = selectRollTarget(state, body.playerId, String(payload.cell ?? "")); break;
       case "roll": state = confirmRoll(state, body.playerId); break;
-      // The acting player retains priority after adding an object to the Batch.
-      case "play": state = playCard(state, body.playerId, String(payload.cardId ?? ""), choices); break;
-      case "pass": state = passPriority(state, body.playerId); break;
-      case "damage": state = resolveDamage(state, body.playerId, payload.cardId ? String(payload.cardId) : undefined, choices); break;
+      case "play": state = playCardWithAutoEnergy(state, body.playerId, String(payload.cardId ?? ""), choices); break;
+      case "pass": state = passPriorityWithManualDamage(state, body.playerId); break;
+      case "flip-damage": state = flipDamageCard(state, body.playerId); break;
+      case "damage": state = resolveManualDamage(state, body.playerId, payload.cardId ? String(payload.cardId) : undefined, choices); break;
       case "hand-limit": state = discardToHandLimit(state, body.playerId, Array.isArray(payload.cardIds) ? payload.cardIds.map(String) : []); break;
       case "concede": state = concedeMatch(state, body.playerId); break;
       case "next-turn": state = nextTurn(state); break;
