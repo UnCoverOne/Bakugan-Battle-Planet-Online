@@ -12,9 +12,12 @@ export function AssetFreshness() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
+    const wasControlled = Boolean(navigator.serviceWorker.controller);
     const reloadKey = `bbp-asset-worker-reload:${BUILD_ID}`;
     const onControllerChange = () => {
-      if (sessionStorage.getItem(reloadKey) === "done") return;
+      // A first-time visitor does not need a second page load. Only an existing
+      // controlled client reloads when a newer deployment takes ownership.
+      if (!wasControlled || sessionStorage.getItem(reloadKey) === "done") return;
       sessionStorage.setItem(reloadKey, "done");
       window.location.reload();
     };
