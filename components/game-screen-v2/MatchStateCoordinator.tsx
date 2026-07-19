@@ -106,7 +106,12 @@ export function MatchStateCoordinator() {
     const coordinatedSetItem: typeof Storage.prototype.setItem = function setItem(key, value) {
       if (this === window.localStorage) {
         const experimentalActive = experimentalClientOwnsMatch();
-        if (key === ROUTE_KEY && experimentalActive && !window.__bbpAuthorizedRouteWrite) return;
+        if (key === ROUTE_KEY && experimentalActive && !window.__bbpAuthorizedRouteWrite) {
+          const requestedRoute = parseValue(value, "");
+          const currentMatch = parseMatch(window.localStorage.getItem(MATCH_KEY));
+          const authoritativeResult = requestedRoute === "result" && currentMatch?.phase === "result";
+          if (!authoritativeResult) return;
+        }
         if (key === SETTINGS_KEY && experimentalActive && !window.__bbpAuthorizedSettingsWrite) return;
 
         if (key === MATCH_KEY) {
