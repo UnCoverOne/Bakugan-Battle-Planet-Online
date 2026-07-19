@@ -1,10 +1,9 @@
 import {
   concedeMatch, createMatch, discardToHandLimit, energizeCard, nextTurn, passPriority,
-  placeCore, redactForPlayer, resolveDamage, selectBakugan, setReady,
+  placeCore, playCard, redactForPlayer, resolveDamage, selectBakugan, setReady,
   startNextSeriesGame, type CardChoices, type MatchState, type PlayerState,
 } from "../../../lib/game";
 import { tapEnergyCard } from "../../../lib/energy";
-import { playCardAndPassPriority } from "../../../lib/priority";
 import { confirmRoll, selectRollTarget } from "../../../lib/rolling";
 import { drawTurnCard, preparePendingDraw } from "../../../lib/turnStart";
 
@@ -20,7 +19,16 @@ type Body = {
   payload?: Record<string, unknown>;
 };
 
-const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { "cache-control": "no-store" } });
+type MatchRecord = {
+  state: MatchState;
+  previous: MatchState | null;
+  raw: string;
+};
+
+const json = (value: unknown, status = 200) => Response.json(value, {
+  status,
+  headers: { "cache-control": "no-store, max-age=0" },
+});
 
 async function getDatabase() {
   const { env } = await import("cloudflare:workers");
@@ -36,16 +44,38 @@ async function ensureSchema() {
   ]);
 }
 
-async function load(code: string) {
+async function load(code: string): Promise<MatchRecord | null> {
   const database = await getDatabase();
-  const row = await database.prepare("SELECT state_json, previous_state_json FROM matches WHERE code = ?").bind(code).first<{ state_json: string; previous_state_json: string | null }>();
-  return row ? { state: JSON.parse(row.state_json) as MatchState, previous: row.previous_state_json ? JSON.parse(row.previous_state_json) as MatchState : null } : null;
+  const row = await database.prepare("SELECT state_json, previous_state_json FROM matches WHERE code = ?")
+    .bind(code)
+    .first<{ state_json: string; previous_state_json: string | null }>();
+  return row ? {
+    state: JSON.parse(row.state_json) as MatchState,
+    previous: row.previous_state_json ? JSON.parse(row.previous_state_json) as MatchState : null,
+    raw: row.state_json,
+  } : null;
 }
 
-async function save(code: string, next: MatchState, previous: MatchState | null) {
+/**
+ * Compare-and-swap the complete match document. Polling heartbeats and player
+ * actions can arrive at the Worker simultaneously; conditioning the UPDATE on
+ * the exact state that was read prevents an older request from overwriting a
+ * newer phase or step.
+ */
+async function save(
+  code: string,
+  next: MatchState,
+  previous: MatchState | null,
+  expectedStateJson?: string,
+) {
   const database = await getDatabase();
-  await database.prepare("UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ?")
-    .bind(JSON.stringify(next), previous ? JSON.stringify(previous) : null, Date.now(), code).run();
+  const statement = expectedStateJson == null
+    ? database.prepare("UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ?")
+      .bind(JSON.stringify(next), previous ? JSON.stringify(previous) : null, Date.now(), code)
+    : database.prepare("UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ? AND state_json = ?")
+      .bind(JSON.stringify(next), previous ? JSON.stringify(previous) : null, Date.now(), code, expectedStateJson);
+  const result = await statement.run();
+  return Number(result.meta?.changes ?? 0) > 0;
 }
 
 function checkDisconnects(state: MatchState) {
@@ -55,9 +85,18 @@ function checkDisconnects(state: MatchState) {
   if (!disconnected) return state;
   const winner = state.players.find((p) => p.id !== disconnected.id)!;
   disconnected.connected = false;
-  const resolved = concedeMatch(state, disconnected.id); resolved.resultReason = "Opponent disconnected (30-second grace expired)";
+  const resolved = concedeMatch(state, disconnected.id);
+  resolved.resultReason = "Opponent disconnected (30-second grace expired)";
   resolved.log.push({ id: `${now}-disconnect`, at: now, kind: "connection", message: `${disconnected.name}'s reconnect window expired. ${winner.name} wins.` });
   return resolved;
+}
+
+async function latestConflict(code: string, playerId: string, message = "Match state changed. Resynchronising.") {
+  const latest = await load(code);
+  return json({
+    error: message,
+    state: latest ? redactForPlayer(latest.state, playerId) : undefined,
+  }, latest ? 409 : 404);
 }
 
 export async function POST(request: Request) {
@@ -73,31 +112,68 @@ export async function POST(request: Request) {
         .bind(code, JSON.stringify(state), Date.now()).run();
       return json({ state: redactForPlayer(state, body.player.id) });
     }
+
     if (!body.code) return json({ error: "Room code required." }, 400);
-    const record = await load(body.code.toUpperCase());
+    const code = body.code.toUpperCase();
+    let record = await load(code);
     if (!record) return json({ error: "Match room not found." }, 404);
+
+    // Resolve disconnects through the same atomic write path as every other
+    // state transition. If another request won the race, continue from it.
+    const beforeDisconnect = structuredClone(record.state);
     let state = checkDisconnects(record.state);
+    const disconnectedRaw = JSON.stringify(state);
+    if (disconnectedRaw !== record.raw) {
+      const saved = await save(state.code, state, beforeDisconnect, record.raw);
+      if (!saved) {
+        record = await load(code);
+        if (!record) return json({ error: "Match room not found." }, 404);
+        state = record.state;
+      } else {
+        record = { state, previous: beforeDisconnect, raw: disconnectedRaw };
+      }
+    }
+
     if (body.action === "get") {
       if (body.playerId) {
         const player = state.players.find((p) => p.id === body.playerId);
-        if (player) { player.lastSeen = Date.now(); player.connected = true; await save(state.code, state, record.previous); }
+        if (player) {
+          player.lastSeen = Date.now();
+          player.connected = true;
+          const saved = await save(state.code, state, record.previous, record.raw);
+          if (!saved) {
+            const latest = await load(code);
+            if (latest) state = latest.state;
+          }
+        }
       }
       return json({ state: redactForPlayer(state, body.playerId ?? "") });
     }
+
     if (body.action === "join") {
       if (!body.player) return json({ error: "Player profile required." }, 400);
       if (state.players.length >= 2 && !state.players.some((p) => p.id === body.player!.id)) return json({ error: "Room is full." }, 409);
       if (!state.players.some((p) => p.id === body.player!.id)) {
-        state.players.push(body.player); state.series[body.player.id] = 0; state.version += 1;
+        const before = structuredClone(state);
+        state.players.push(body.player);
+        state.series[body.player.id] = 0;
+        state.version += 1;
         state.log.push({ id: `${Date.now()}-join`, at: Date.now(), kind: "connection", message: `${body.player.name} joined the room.` });
-        await save(state.code, state, record.state);
+        if (!await save(state.code, state, before, record.raw)) {
+          return latestConflict(code, body.player.id);
+        }
       }
       return json({ state: redactForPlayer(state, body.player.id) });
     }
+
     if (!body.playerId || !state.players.some((p) => p.id === body.playerId)) return json({ error: "Unknown player." }, 403);
-    if (body.expectedVersion != null && body.expectedVersion !== state.version) return json({ error: "Match state changed. Resynchronising.", state: redactForPlayer(state, body.playerId) }, 409);
+    if (body.expectedVersion != null && body.expectedVersion !== state.version) {
+      return json({ error: "Match state changed. Resynchronising.", state: redactForPlayer(state, body.playerId) }, 409);
+    }
+
     const before = structuredClone(state);
-    const p = body.payload ?? {}; const choices = (p.choices ?? {}) as CardChoices;
+    const p = body.payload ?? {};
+    const choices = (p.choices ?? {}) as CardChoices;
     switch (body.action) {
       case "ready": state = setReady(state, body.playerId); break;
       case "place": state = placeCore(state, body.playerId, String(p.coreId ?? ""), String(p.cell ?? "")); break;
@@ -107,7 +183,8 @@ export async function POST(request: Request) {
       case "select": state = selectBakugan(state, body.playerId, String(p.bakuganId ?? "")); break;
       case "target": state = selectRollTarget(state, body.playerId, String(p.cell ?? "")); break;
       case "roll": state = confirmRoll(state, body.playerId); break;
-      case "play": state = playCardAndPassPriority(state, body.playerId, String(p.cardId ?? ""), choices); break;
+      // The acting player retains priority after adding an object to the Batch.
+      case "play": state = playCard(state, body.playerId, String(p.cardId ?? ""), choices); break;
       case "pass": state = passPriority(state, body.playerId); break;
       case "damage": state = resolveDamage(state, body.playerId, p.cardId ? String(p.cardId) : undefined, choices); break;
       case "hand-limit": state = discardToHandLimit(state, body.playerId, Array.isArray(p.cardIds) ? p.cardIds.map(String) : []); break;
@@ -116,15 +193,23 @@ export async function POST(request: Request) {
       case "next-game": state = startNextSeriesGame(state); break;
       case "undo": {
         if (!record.previous || state.priority !== body.playerId || ["target", "damage", "result"].includes(state.phase)) return json({ error: "Undo is no longer available after hidden or random information is revealed." }, 409);
-        state = record.previous; state.version = before.version + 1;
+        state = record.previous;
+        state.version = before.version + 1;
         state.log.push({ id: `${Date.now()}-undo`, at: Date.now(), kind: "system", message: `${state.players.find((x) => x.id === body.playerId)?.name} used undo before passing priority.` });
         break;
       }
       default: return json({ error: "Unknown match command." }, 400);
     }
+
     state = preparePendingDraw(state);
-    const actor = state.players.find((player) => player.id === body.playerId); if (actor) { actor.lastSeen = Date.now(); actor.connected = true; }
-    await save(state.code, state, before);
+    const actor = state.players.find((player) => player.id === body.playerId);
+    if (actor) {
+      actor.lastSeen = Date.now();
+      actor.connected = true;
+    }
+    if (!await save(state.code, state, before, record.raw)) {
+      return latestConflict(code, body.playerId);
+    }
     return json({ state: redactForPlayer(state, body.playerId) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Match command failed.";
