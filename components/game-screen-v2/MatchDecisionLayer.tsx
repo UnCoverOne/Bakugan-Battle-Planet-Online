@@ -1,37 +1,102 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { MatchState } from "../../lib/game";
+import {
+  discardToHandLimit,
+  resolveDamage,
+  type MatchState,
+} from "../../lib/game";
+import {
+  MATCH_UPDATE_EVENT,
+  writeCoordinatedMatch,
+} from "./MatchStateCoordinator";
 import styles from "./MatchDecisionLayer.module.css";
 
-type DecisionHandler = () => void | Promise<void>;
-type DamageHandler = (cardId?: string) => void | Promise<void>;
-type DiscardHandler = (cardIds: string[]) => void | Promise<void>;
+const ROUTE_KEY = "bbp-route-v1";
+const SETTINGS_KEY = "bbp-settings";
+const MATCH_KEY = "bbp-active-match-v1";
+const ONLINE_KEY = "bbp-active-match-online-v1";
+const PLAYER_KEY = "bbp-player-id";
 
-export function MatchDecisionLayer({
-  match,
-  playerId,
-  onResolveDamage,
-  onDiscardToHandLimit,
-}: {
+type DecisionState = {
+  active: boolean;
   match: MatchState | null;
+  online: boolean;
   playerId?: string;
-  onResolveDamage: DamageHandler;
-  onDiscardToHandLimit: DiscardHandler;
-}) {
+};
+
+type DecisionHandler = () => void | Promise<void>;
+type LocalDecision = (match: MatchState, playerId: string) => MatchState;
+
+function parseValue<T>(raw: string | null, fallback: T): T {
+  if (raw == null) return fallback;
+  try { return JSON.parse(raw) as T; }
+  catch { return fallback; }
+}
+
+function readDecisionState(): DecisionState {
+  const settings = parseValue<Record<string, unknown>>(localStorage.getItem(SETTINGS_KEY), {});
+  const route = parseValue(localStorage.getItem(ROUTE_KEY), "entry");
+  return {
+    active: Boolean(settings.useNewGameScreen) && route === "match",
+    match: parseValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
+    online: parseValue(localStorage.getItem(ONLINE_KEY), false),
+    playerId: parseValue<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
+  };
+}
+
+export function MatchDecisionLayer() {
+  const [decision, setDecision] = useState<DecisionState>({
+    active: false,
+    match: null,
+    online: false,
+    playerId: undefined,
+  });
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const player = match?.players.find((candidate) => candidate.id === playerId)
+
+  useEffect(() => {
+    let previousRaw = "";
+    const update = () => {
+      const raw = [
+        localStorage.getItem(ROUTE_KEY),
+        localStorage.getItem(SETTINGS_KEY),
+        localStorage.getItem(MATCH_KEY),
+        localStorage.getItem(ONLINE_KEY),
+        localStorage.getItem(PLAYER_KEY),
+      ].join("\u0000");
+      if (raw === previousRaw) return;
+      previousRaw = raw;
+      setDecision(readDecisionState());
+    };
+    update();
+    const interval = window.setInterval(update, 500);
+    window.addEventListener("storage", update);
+    window.addEventListener(MATCH_UPDATE_EVENT, update as EventListener);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("storage", update);
+      window.removeEventListener(MATCH_UPDATE_EVENT, update as EventListener);
+    };
+  }, []);
+
+  const match = decision.match;
+  const player = match?.players.find((candidate) => candidate.id === decision.playerId)
     ?? match?.players[0];
   const damageDecision = Boolean(
-    match
+    decision.active
+    && match
     && player
     && match.phase === "damage"
     && match.pendingLoser === player.id
     && match.revealedFlip,
   );
-  const requiredDiscards = match && player && match.phase === "handLimit" && match.priority === player.id
+  const requiredDiscards = decision.active
+    && match
+    && player
+    && match.phase === "handLimit"
+    && match.priority === player.id
     ? Math.max(0, player.hand.length - 7)
     : 0;
   const handSignature = useMemo(
@@ -44,7 +109,41 @@ export function MatchDecisionLayer({
     setError("");
   }, [match?.phase, match?.version, handSignature]);
 
-  if (!match || !player || (!damageDecision && requiredDiscards <= 0)) return null;
+  if (!decision.active || !match || !player || (!damageDecision && requiredDiscards <= 0)) return null;
+
+  const submit = async (
+    action: "damage" | "hand-limit",
+    payload: Record<string, unknown>,
+    localDecision: LocalDecision,
+  ) => {
+    const current = readDecisionState();
+    const currentMatch = current.match;
+    const actorId = current.playerId ?? currentMatch?.players[0]?.id;
+    if (!currentMatch || !actorId) throw new Error("No active match is available.");
+
+    if (!current.online) {
+      if (!writeCoordinatedMatch(localDecision(currentMatch, actorId))) {
+        throw new Error("The match changed before the decision was applied.");
+      }
+      return;
+    }
+
+    const response = await fetch("/api/game", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action,
+        code: currentMatch.code,
+        playerId: actorId,
+        expectedVersion: currentMatch.version,
+        payload,
+      }),
+    });
+    const data = await response.json() as { state?: MatchState; error?: string };
+    if (data.state) writeCoordinatedMatch(data.state);
+    if (!response.ok) throw new Error(data.error ?? "The match decision could not be completed.");
+  };
 
   const run = async (handler: DecisionHandler) => {
     if (busy) return;
@@ -67,6 +166,11 @@ export function MatchDecisionLayer({
       : 0;
     const effectiveCost = printedCost + frostStrike;
     const affordable = effectiveCost <= player.energy;
+    const resolveFlip = (cardId?: string) => submit(
+      "damage",
+      cardId ? { cardId } : {},
+      (state, actorId) => resolveDamage(state, actorId, cardId),
+    );
     return (
       <div className={styles.backdrop} role="presentation">
         <section
@@ -95,7 +199,7 @@ export function MatchDecisionLayer({
                   type="button"
                   className={styles.action}
                   disabled={busy || !affordable}
-                  onClick={() => void run(() => onResolveDamage(flip.id))}
+                  onClick={() => void run(() => resolveFlip(flip.id))}
                 >
                   {affordable ? "Play Flip" : "Not Enough Energy"}
                 </button>
@@ -103,7 +207,7 @@ export function MatchDecisionLayer({
                   type="button"
                   className={`${styles.action} ${styles.actionSecondary}`}
                   disabled={busy}
-                  onClick={() => void run(() => onResolveDamage())}
+                  onClick={() => void run(() => resolveFlip())}
                 >
                   Decline • Continue Damage
                 </button>
@@ -124,6 +228,11 @@ export function MatchDecisionLayer({
       return current.length < requiredDiscards ? [...current, cardId] : current;
     });
   };
+  const confirmDiscard = () => submit(
+    "hand-limit",
+    { cardIds: selectedCardIds },
+    (state, actorId) => discardToHandLimit(state, actorId, selectedCardIds),
+  );
 
   return (
     <div className={styles.backdrop} role="presentation">
@@ -164,7 +273,7 @@ export function MatchDecisionLayer({
             type="button"
             className={styles.action}
             disabled={busy || selectedCardIds.length !== requiredDiscards}
-            onClick={() => void run(() => onDiscardToHandLimit(selectedCardIds))}
+            onClick={() => void run(confirmDiscard)}
           >
             Discard {selectedCardIds.length}/{requiredDiscards}
           </button>
