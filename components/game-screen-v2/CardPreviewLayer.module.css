@@ -1,23 +1,15 @@
 .preview {
   position: fixed;
   top: 50%;
+  right: clamp(0.75rem, 1.8vw, 2rem);
   z-index: 10080;
   transform: translateY(-50%);
+  transform-origin: right center;
   pointer-events: none;
   filter:
     drop-shadow(0 0.45rem 0.7rem rgba(0, 0, 0, 0.72))
     drop-shadow(0 0 0.3rem rgba(255, 255, 255, 0.35));
   animation: card-preview-enter 120ms ease-out both;
-}
-
-.previewLeft {
-  left: clamp(0.75rem, 1.8vw, 2rem);
-  transform-origin: left center;
-}
-
-.previewRight {
-  right: clamp(0.75rem, 1.8vw, 2rem);
-  transform-origin: right center;
 }
 
 .previewImage,
