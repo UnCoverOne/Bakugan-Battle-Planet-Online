@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./design-system.css";
 import "./card-art-transparency.css";
+import { BrawlExperienceLayer } from "../components/game-screen-v2/BrawlExperienceLayer";
 import { NewGameScreenTester } from "../components/game-screen-v2/NewGameScreenTester";
 
 export const metadata: Metadata = {
@@ -31,7 +32,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Titillium+Web:ital,wght@0,400;0,700;1,400;1,700&display=swap"
         />
       </head>
-      <body>{children}<NewGameScreenTester /></body>
+      <body>{children}<NewGameScreenTester /><BrawlExperienceLayer /></body>
     </html>
   );
 }
