@@ -5,6 +5,7 @@ import {
   type MatchState,
   type PlayerState,
 } from "../../lib/game";
+import { cardEnergyPaymentState } from "../../lib/cardPayment";
 import {
   playerCanDrawTurnCard,
 } from "../../lib/turnStart";
@@ -16,6 +17,8 @@ export type MatchHudActionKey =
   | "energize-card"
   | "skip-energize"
   | "pass-turn"
+  | "play-flip"
+  | "skip-flip"
   | "select";
 
 export const PRIORITY_WINDOW_PHASES = [
@@ -70,10 +73,12 @@ export function playableHandCards(
 ): readonly GameCard[] {
   const { player } = resolveHudPlayers(match, playerId);
   if (!match || !player || !isPriorityWindow(match) || match.priority !== player.id) return [];
+  // Affordability is deliberately not a selection filter. Players may inspect
+  // and select any otherwise legal card; the authoritative payment action then
+  // spends generated Energy, auto-taps the shortfall, or reports insufficiency.
   return player.hand.filter((card) => (
     card.type !== "Flip"
     && card.type !== "Character"
-    && cardIsAffordable(card, player)
   ));
 }
 
@@ -101,6 +106,20 @@ export function canSkipEnergizing(
     && player
     && match.phase === "energize"
     && !player.energizedThisTurn,
+  );
+}
+
+export function revealedFlipDecision(
+  match: MatchState | null | undefined,
+  playerId?: string,
+) {
+  const { player } = resolveHudPlayers(match, playerId);
+  return Boolean(
+    match
+    && player
+    && match.phase === "damage"
+    && match.pendingLoser === player.id
+    && match.revealedFlip,
   );
 }
 
@@ -163,12 +182,15 @@ export function visibleMatchHudActions({
   const canPlay = Boolean(playCards.length);
   const canPass = Boolean(match && player && isPriorityWindow(match) && match.priority === player.id);
   const selectedPlayable = playCards.some((card) => card.id === selectedCardId);
+  const flipDecision = revealedFlipDecision(match, player?.id);
   return {
     "draw-card": playerCanDrawTurnCard(match, player?.id, now),
     "play-card": canPlay,
     "energize-card": canEnergizeCard(match, player?.id),
     "skip-energize": canSkipEnergizing(match, player?.id),
     "pass-turn": canPass,
+    "play-flip": flipDecision,
+    "skip-flip": flipDecision,
     select: Boolean(
       selectionPending
       && mode === "play"
@@ -179,12 +201,17 @@ export function visibleMatchHudActions({
 }
 
 /**
- * The compact Action HUD owns two permanent positions. Draw, Select,
- * Energize, and Play Card reuse the primary position. Pass remains in the
- * second position whenever it is legal; Skip Energizing may use that frame
- * only during the non-priority Energize Step.
+ * The compact Action HUD owns two permanent positions. Flip decisions override
+ * the normal priority controls so Play and Skip remain the only available
+ * actions until the selected Flip is resolved.
  */
 export function compactMatchHudSlots(actions: MatchHudActions): CompactMatchHudSlots {
+  if (actions["play-flip"] || actions["skip-flip"]) {
+    return [
+      actions["play-flip"] ? "play-flip" : null,
+      actions["skip-flip"] ? "skip-flip" : null,
+    ];
+  }
   const primary: MatchHudActionKey | null = actions.select
     ? "select"
     : actions["draw-card"]
@@ -273,7 +300,10 @@ export function defaultCardChoices(
       .slice(0, 1)
       .map((candidate) => candidate.id);
   }
-  if (specs.has("xValue")) choices.xValue = Math.min(player.energy, 1);
+  if (specs.has("xValue")) {
+    const payment = cardEnergyPaymentState(match, player.id, card, choices);
+    choices.xValue = Math.min(payment?.totalEnergy ?? player.energy, 1);
+  }
   if (specs.has("mode")) choices.mode = /damage/i.test(lower) ? "damage" : "power";
 
   return choices;
