@@ -9,7 +9,6 @@ import {
   type CSSProperties,
 } from "react";
 import {
-  cloneMatch,
   passPriority,
   type MatchState,
   type PendingEffect,
@@ -153,9 +152,7 @@ export function BrawlExperienceLayer() {
   const [pulsingBakugan, setPulsingBakugan] = useState<Set<string>>(new Set());
   const rawState = useRef("");
   const previousBatch = useRef<PendingEffect[]>([]);
-  const previousBatchForPriority = useRef<string[]>([]);
   const previousStats = useRef<Record<string, string>>({});
-  const localCorrectionKey = useRef("");
   const botActionKey = useRef("");
   const resolutionTimer = useRef<number | null>(null);
   const burstTimer = useRef<number | null>(null);
@@ -257,45 +254,6 @@ export function BrawlExperienceLayer() {
     if (pulseTimer.current != null) window.clearTimeout(pulseTimer.current);
     pulseTimer.current = window.setTimeout(() => setPulsingBakugan(new Set()), 760);
   }, [combatants]);
-
-  useEffect(() => {
-    const match = experience.match;
-    if (!experience.active || experience.online || !match || match.phase !== "power") {
-      previousBatchForPriority.current = match?.batch.map((effect) => effect.id) ?? [];
-      return;
-    }
-    const previousIds = previousBatchForPriority.current;
-    const currentIds = match.batch.map((effect) => effect.id);
-    const added = match.batch.filter((effect) => !previousIds.includes(effect.id));
-    previousBatchForPriority.current = currentIds;
-    const playedCard = added.find((effect) => (
-      effect.kind === "card" && effect.controllerId === match.priority
-    ));
-    if (!playedCard) return;
-
-    const key = `${match.version}:${playedCard.id}`;
-    if (localCorrectionKey.current === key) return;
-    localCorrectionKey.current = key;
-    const timeout = window.setTimeout(() => {
-      const current = readExperienceState().match;
-      if (!current || current.version !== match.version || current.phase !== "power") return;
-      const opponent = current.players.find((player) => player.id !== playedCard.controllerId);
-      if (!opponent || current.priority !== playedCard.controllerId) return;
-      const next = cloneMatch(current);
-      next.priority = opponent.id;
-      next.passes = [];
-      next.version += 1;
-      next.deadline = Date.now() + 40_000;
-      next.log.push({
-        id: `${Date.now()}-priority-${next.version}`,
-        at: Date.now(),
-        kind: "game",
-        message: `${opponent.name} received priority after the batch changed.`,
-      });
-      publishMatch(next);
-    }, 60);
-    return () => window.clearTimeout(timeout);
-  }, [experience.active, experience.online, experience.match]);
 
   useEffect(() => {
     const match = experience.match;
