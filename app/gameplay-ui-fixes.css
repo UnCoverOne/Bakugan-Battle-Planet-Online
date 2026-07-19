@@ -210,6 +210,95 @@ body > div:has(#roll-result-title) {
   white-space: normal !important;
 }
 
+/* The top Batch object is the newly added object because the presentation is
+   reversed into resolution order. Give only that object a clear add animation;
+   the remaining objects stay visually anchored instead of all replaying their
+   entrance animation whenever the Batch changes. */
+[aria-label$="effects in the batch"] figure:not([data-resolving="true"]) {
+  animation: none !important;
+}
+
+[aria-label$="effects in the batch"] figure:first-child:not([data-resolving="true"]) {
+  animation: bbp-stack-object-add 420ms cubic-bezier(0.16, 0.86, 0.24, 1.08) both !important;
+}
+
+[aria-label$="effects in the batch"] figure > div:first-child {
+  box-sizing: border-box !important;
+  padding: clamp(0.18rem, 0.34vw, 0.3rem) !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(133, 145, 154, 0.7) 45%, rgba(28, 34, 39, 0.98)) !important;
+  filter:
+    drop-shadow(0 0.42rem 0.52rem rgba(0, 0, 0, 0.72))
+    drop-shadow(0 0 0.32rem rgba(255, 255, 255, 0.76)) !important;
+}
+
+[aria-label$="effects in the batch"] figure[data-owner="opponent"] > div:first-child {
+  background:
+    linear-gradient(145deg, rgba(255, 137, 119, 0.98), rgba(178, 40, 37, 0.84) 48%, rgba(48, 7, 10, 0.98)) !important;
+  filter:
+    drop-shadow(0 0.42rem 0.52rem rgba(0, 0, 0, 0.72))
+    drop-shadow(0 0 0.42rem rgba(255, 64, 49, 0.86)) !important;
+}
+
+[aria-label$="effects in the batch"] figure > div:first-child::after {
+  inset: clamp(0.28rem, 0.48vw, 0.42rem) !important;
+  border: 2px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.72),
+    inset 0 0 0.38rem rgba(255, 255, 255, 0.22) !important;
+}
+
+[aria-label$="effects in the batch"] figure[data-owner="opponent"] > div:first-child::after {
+  border-color: rgba(255, 211, 203, 0.96) !important;
+  box-shadow:
+    0 0 0 1px rgba(62, 4, 8, 0.86),
+    inset 0 0 0.45rem rgba(255, 74, 60, 0.3) !important;
+}
+
+[aria-label$="effects in the batch"] figure > div:first-child img {
+  width: 132% !important;
+  height: 132% !important;
+  transform: scale(1.06) !important;
+  transform-origin: center 28% !important;
+  object-fit: cover !important;
+  object-position: center 28% !important;
+}
+
+[aria-label$="effects in the batch"] figure:first-child:not([data-resolving="true"]) > div:first-child::before {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  z-index: 2;
+  transform: translateX(-75%) rotate(20deg);
+  background: linear-gradient(90deg, transparent 35%, rgba(255, 255, 255, 0.76), transparent 65%);
+  pointer-events: none;
+  animation: bbp-stack-frame-sweep 460ms ease-out both;
+}
+
+@keyframes bbp-stack-object-add {
+  0% {
+    opacity: 0;
+    transform: translateY(2.3rem) scale(0.52) rotate(-9deg);
+    filter: brightness(1.8);
+  }
+  58% {
+    opacity: 1;
+    transform: translateY(-0.22rem) scale(1.1) rotate(1.5deg);
+    filter: brightness(1.28);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+    filter: brightness(1);
+  }
+}
+
+@keyframes bbp-stack-frame-sweep {
+  from { transform: translateX(-75%) rotate(20deg); opacity: 0; }
+  35% { opacity: 0.9; }
+  to { transform: translateX(75%) rotate(20deg); opacity: 0; }
+}
+
 /* Keep the transformed battlefield on one composited paint island. Browser zoom
    otherwise repeatedly promotes and demotes the SVG, card, and HUD layers. */
 [aria-label="Experimental game play area"] {
@@ -264,5 +353,10 @@ html[data-viewport-changing="true"] body > div:has(#roll-result-title) * {
 @media (prefers-reduced-motion: reduce) {
   [aria-label="Active Brawl statistics, effects, and modifiers"] article > div:nth-child(3) {
     transition: none !important;
+  }
+
+  [aria-label$="effects in the batch"] figure,
+  [aria-label$="effects in the batch"] figure > div:first-child::before {
+    animation: none !important;
   }
 }
