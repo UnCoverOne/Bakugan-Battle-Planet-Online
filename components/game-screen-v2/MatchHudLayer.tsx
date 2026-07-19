@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CardChoices, MatchState, PlayerState } from "../../lib/game";
+import { cardEnergyPaymentState } from "../../lib/cardPayment";
 import { drawStepIsPending } from "../../lib/turnStart";
 import {
   cardRequiresSelection,
@@ -111,6 +112,8 @@ export function MatchHudLayer({
   onEnergizeCard,
   onSkipEnergize,
   onPassTurn,
+  onPlayFlip,
+  onSkipFlip,
   onSelectCharacter,
 }: {
   match: MatchState | null;
@@ -126,6 +129,8 @@ export function MatchHudLayer({
   onEnergizeCard: EnergizeCardHandler;
   onSkipEnergize: MatchActionHandler;
   onPassTurn: MatchActionHandler;
+  onPlayFlip: PlayCardHandler;
+  onSkipFlip: MatchActionHandler;
   onSelectCharacter: SelectCharacterHandler;
 }) {
   const [selectionPending, setSelectionPending] = useState(false);
@@ -215,8 +220,6 @@ export function MatchHudLayer({
   };
 
   const energizeSelectedCard = () => {
-    // Energize is a confirmation action, not a mode toggle. An early press must
-    // leave the hand in a selectable state so the player can choose a card next.
     if (handMode !== "energize") onHandModeChange("energize");
     setSelectionPending(false);
     if (!selectedCard || !handCardIsActionable(match, player.id, selectedCard, "energize")) {
@@ -234,6 +237,18 @@ export function MatchHudLayer({
     if (!selectedCard || !selectionPending) return;
     const choices = defaultCardChoices(match, player.id, selectedCard);
     void run(() => onPlayCard(selectedCard.id, choices));
+  };
+
+  const playRevealedFlip = () => {
+    const flip = match.revealedFlip;
+    if (!flip) return;
+    const choices = defaultCardChoices(match, player.id, flip);
+    const payment = cardEnergyPaymentState(match, player.id, flip, choices);
+    if (payment?.kind === "insufficient") {
+      setError(`Not enough Energy. ${payment.cost} required, ${payment.totalEnergy} available.`);
+      return;
+    }
+    void run(() => onPlayFlip(flip.id, choices));
   };
 
   const actionConfig: Record<MatchHudActionKey, {
@@ -265,6 +280,16 @@ export function MatchHudLayer({
       label: "Pass Turn",
       active: false,
       onClick: () => void run(onPassTurn),
+    },
+    "play-flip": {
+      label: "Play",
+      active: true,
+      onClick: playRevealedFlip,
+    },
+    "skip-flip": {
+      label: "Skip",
+      active: false,
+      onClick: () => void run(onSkipFlip),
     },
     select: {
       label: "Select",
@@ -302,8 +327,17 @@ export function MatchHudLayer({
             </div>
           ))}
         </div>
-        {error ? <p className={styles.visuallyHidden} role="alert">{error}</p> : null}
       </section>
+
+      {error ? (
+        <div className={styles.errorPopup} role="alertdialog" aria-modal="true" aria-label="Action unavailable">
+          <div>
+            <strong>Action unavailable</strong>
+            <p>{error}</p>
+          </div>
+          <button type="button" onClick={() => setError("")} aria-label="Close message">×</button>
+        </div>
+      ) : null}
     </>
   );
 }
