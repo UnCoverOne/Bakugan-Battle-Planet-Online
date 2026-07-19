@@ -1,0 +1,58 @@
+[data-zone-id="player-energy"][data-payment-state] .energyIndicator,
+[data-zone-id="player-energy"][data-payment-state] strong[aria-label$="available Energy"] {
+  transition:
+    border-color 120ms ease,
+    color 120ms ease,
+    filter 120ms ease,
+    box-shadow 120ms ease;
+}
+
+[data-zone-id="player-energy"][data-payment-state="ready"] .energyIndicator,
+[data-zone-id="player-energy"][data-payment-state="ready"] strong[aria-label$="available Energy"] {
+  border-color: rgba(255, 255, 255, 1) !important;
+  color: #fff !important;
+  box-shadow:
+    0 0 0.18rem rgba(255, 255, 255, 0.96),
+    0 0 0.72rem rgba(255, 255, 255, 0.68),
+    inset 0 0 0.35rem rgba(255, 255, 255, 0.16) !important;
+}
+
+[data-zone-id="player-energy"][data-payment-state="auto-tap"] .energyIndicator,
+[data-zone-id="player-energy"][data-payment-state="auto-tap"] strong[aria-label$="available Energy"] {
+  border-color: rgba(255, 214, 69, 1) !important;
+  color: #ffe36b !important;
+  box-shadow:
+    0 0 0.18rem rgba(255, 221, 89, 0.98),
+    0 0 0.82rem rgba(255, 192, 32, 0.74),
+    inset 0 0 0.35rem rgba(255, 213, 68, 0.18) !important;
+}
+
+[data-zone-id="player-energy"][data-payment-state="insufficient"] .energyIndicator,
+[data-zone-id="player-energy"][data-payment-state="insufficient"] strong[aria-label$="available Energy"] {
+  border-color: rgba(255, 68, 68, 1) !important;
+  color: #ff6868 !important;
+  box-shadow:
+    0 0 0.18rem rgba(255, 61, 61, 0.96),
+    0 0 0.82rem rgba(219, 20, 30, 0.78),
+    inset 0 0 0.35rem rgba(255, 45, 45, 0.18) !important;
+}
+
+[data-zone-id="player-energy"] [data-auto-tap-needed="true"] {
+  z-index: 95 !important;
+  filter:
+    drop-shadow(0 0 0.18rem rgba(255, 244, 164, 1))
+    drop-shadow(0 0 0.62rem rgba(255, 205, 43, 0.94))
+    drop-shadow(0 0.35rem 0.45rem rgba(0, 0, 0, 0.62)) !important;
+  animation: bbp-energy-needed 720ms ease-in-out infinite alternate;
+}
+
+@keyframes bbp-energy-needed {
+  from { filter: drop-shadow(0 0 0.12rem rgba(255, 244, 164, 0.86)) drop-shadow(0 0 0.38rem rgba(255, 205, 43, 0.7)); }
+  to { filter: drop-shadow(0 0 0.24rem rgba(255, 255, 218, 1)) drop-shadow(0 0 0.86rem rgba(255, 195, 25, 1)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-zone-id="player-energy"] [data-auto-tap-needed="true"] {
+    animation: none;
+  }
+}
