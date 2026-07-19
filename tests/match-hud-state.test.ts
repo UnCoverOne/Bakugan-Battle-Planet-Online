@@ -28,6 +28,8 @@ function actionState(overrides: Partial<MatchHudActions> = {}): MatchHudActions 
     "energize-card": false,
     "skip-energize": false,
     "pass-turn": false,
+    "play-flip": false,
+    "skip-flip": false,
     select: false,
     ...overrides,
   };
@@ -83,6 +85,23 @@ test("action HUD exposes only actions legal in the current game window", () => {
   );
 });
 
+test("otherwise legal cards remain selectable even before enough Energy is generated", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const expensive = CARDS.find((card) => card.type === "Action" && typeof card.cost === "number" && card.cost >= 4);
+  assert.ok(expensive);
+  player.hand = [{ ...expensive, id: "expensive-action" }];
+  player.energy = 0;
+  player.energyZone = [];
+  const match = createMatch("HUDPAY", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "power";
+  match.priority = player.id;
+
+  assert.deepEqual(playableHandCards(match, player.id).map((card) => card.id), ["expensive-action"]);
+  assert.equal(handCardIsActionable(match, player.id, player.hand[0], "play"), true);
+});
+
 test("the compact Action HUD keeps Pass in its permanent second slot", () => {
   assert.deepEqual(compactMatchHudSlots(actionState({
     "play-card": true,
@@ -109,6 +128,30 @@ test("the compact Action HUD keeps Pass in its permanent second slot", () => {
   })), [null, "pass-turn"]);
 
   assert.deepEqual(compactMatchHudSlots(actionState()), [null, null]);
+});
+
+test("a revealed Flip replaces the Action HUD with Play and Skip", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const flip = CARDS.find((card) => card.type === "Flip");
+  assert.ok(flip);
+  const match = createMatch("HUDFLP", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "damage";
+  match.pendingLoser = player.id;
+  match.pendingDamage = 2;
+  match.revealedFlip = { ...flip, id: "revealed-flip" };
+
+  const actions = visibleMatchHudActions({
+    match,
+    playerId: player.id,
+    mode: null,
+    selectedCardId: "",
+    selectionPending: false,
+  });
+  assert.equal(actions["play-flip"], true);
+  assert.equal(actions["skip-flip"], true);
+  assert.deepEqual(compactMatchHudSlots(actions), ["play-flip", "skip-flip"]);
 });
 
 test("the prepared Draw Step waits three seconds in the first turn and requires each player to draw", () => {
