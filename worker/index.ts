@@ -19,12 +19,23 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
+function withCacheHeaders(response: Response, cacheControl: string) {
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", cacheControl);
+  headers.set("cdn-cache-control", cacheControl);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function isFingerprintedAsset(pathname: string) {
+  return /(?:^|[._-])[a-f0-9]{8,}(?:[._-]|$)/i.test(pathname);
+}
+
 // Image security config. SVG sources with .svg extension auto-skip the
 // optimization endpoint on the client side (served directly, no proxy).
-// To route SVGs through the optimizer (with security headers), set
-// dangerouslyAllowSVG: true in next.config.js and uncomment below:
-// const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
-
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -40,7 +51,28 @@ const worker = {
       }, allowedWidths);
     }
 
-    return handler.fetch(request, env, ctx);
+    if (
+      request.method === "GET"
+      && (url.pathname.startsWith("/assets/") || url.pathname === "/favicon.svg" || url.pathname === "/sw.js")
+    ) {
+      const asset = await env.ASSETS.fetch(request);
+      if (asset.status !== 404) {
+        const immutable = isFingerprintedAsset(url.pathname) && url.pathname !== "/sw.js";
+        return withCacheHeaders(
+          asset,
+          immutable
+            ? "public, max-age=31536000, immutable"
+            : "public, max-age=0, must-revalidate",
+        );
+      }
+    }
+
+    const response = await handler.fetch(request, env, ctx);
+    const contentType = response.headers.get("content-type") ?? "";
+    if (request.method === "GET" && (contentType.includes("text/html") || contentType.includes("text/x-component"))) {
+      return withCacheHeaders(response, "no-cache, max-age=0, must-revalidate");
+    }
+    return response;
   },
 };
 

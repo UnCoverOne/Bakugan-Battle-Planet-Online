@@ -8,12 +8,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import {
-  cloneMatch,
-  passPriority,
-  type MatchState,
-  type PendingEffect,
-} from "../../lib/game";
+import type { MatchState, PendingEffect } from "../../lib/game";
 import {
   brawlCombatants,
   effectAnimationKind,
@@ -60,9 +55,13 @@ function readExperienceState(): ExperienceState {
   };
 }
 
-function publishMatch(match: MatchState) {
-  localStorage.setItem(MATCH_KEY, JSON.stringify(match));
-  window.dispatchEvent(new CustomEvent<MatchState>(MATCH_UPDATE_EVENT, { detail: match }));
+function sameHudPosition(previous: HudPosition | null, next: HudPosition) {
+  return Boolean(
+    previous
+    && Math.abs(previous.left - next.left) < 0.5
+    && Math.abs(previous.top - next.top) < 0.5
+    && Math.abs(previous.maxWidth - next.maxWidth) < 0.5
+  );
 }
 
 function effectLabel(effect: PendingEffect) {
@@ -153,10 +152,7 @@ export function BrawlExperienceLayer() {
   const [pulsingBakugan, setPulsingBakugan] = useState<Set<string>>(new Set());
   const rawState = useRef("");
   const previousBatch = useRef<PendingEffect[]>([]);
-  const previousBatchForPriority = useRef<string[]>([]);
   const previousStats = useRef<Record<string, string>>({});
-  const localCorrectionKey = useRef("");
-  const botActionKey = useRef("");
   const resolutionTimer = useRef<number | null>(null);
   const burstTimer = useRef<number | null>(null);
   const pulseTimer = useRef<number | null>(null);
@@ -175,7 +171,7 @@ export function BrawlExperienceLayer() {
       setExperience(readExperienceState());
     };
     update();
-    const interval = window.setInterval(update, 200);
+    const interval = window.setInterval(update, 500);
     window.addEventListener("storage", update);
     window.addEventListener(MATCH_UPDATE_EVENT, update as EventListener);
     return () => {
@@ -203,15 +199,22 @@ export function BrawlExperienceLayer() {
     const heroZone = document.querySelector<HTMLElement>('[data-zone-id="player-hero"]');
     if (!heroZone) return;
     let observer: ResizeObserver | null = null;
+    let frame = 0;
+
     const measure = () => {
-      const rect = heroZone.getBoundingClientRect();
-      setHudPosition({
-        left: rect.left + rect.width / 2,
-        top: Math.max(10, rect.top - 10),
-        maxWidth: Math.min(window.innerWidth - 24, Math.max(430, rect.width * 2.65)),
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const rect = heroZone.getBoundingClientRect();
+        const next = {
+          left: rect.left + rect.width / 2,
+          top: Math.max(10, rect.top - 10),
+          maxWidth: Math.min(window.innerWidth - 24, Math.max(430, rect.width * 2.65)),
+        };
+        setHudPosition((previous) => sameHudPosition(previous, next) ? previous : next);
       });
     };
-    const frame = window.requestAnimationFrame(measure);
+
+    measure();
     if (typeof ResizeObserver !== "undefined") {
       observer = new ResizeObserver(measure);
       observer.observe(heroZone);
@@ -257,63 +260,6 @@ export function BrawlExperienceLayer() {
     if (pulseTimer.current != null) window.clearTimeout(pulseTimer.current);
     pulseTimer.current = window.setTimeout(() => setPulsingBakugan(new Set()), 760);
   }, [combatants]);
-
-  useEffect(() => {
-    const match = experience.match;
-    if (!experience.active || experience.online || !match || match.phase !== "power") {
-      previousBatchForPriority.current = match?.batch.map((effect) => effect.id) ?? [];
-      return;
-    }
-    const previousIds = previousBatchForPriority.current;
-    const currentIds = match.batch.map((effect) => effect.id);
-    const added = match.batch.filter((effect) => !previousIds.includes(effect.id));
-    previousBatchForPriority.current = currentIds;
-    const playedCard = added.find((effect) => (
-      effect.kind === "card" && effect.controllerId === match.priority
-    ));
-    if (!playedCard) return;
-
-    const key = `${match.version}:${playedCard.id}`;
-    if (localCorrectionKey.current === key) return;
-    localCorrectionKey.current = key;
-    const timeout = window.setTimeout(() => {
-      const current = readExperienceState().match;
-      if (!current || current.version !== match.version || current.phase !== "power") return;
-      const opponent = current.players.find((player) => player.id !== playedCard.controllerId);
-      if (!opponent || current.priority !== playedCard.controllerId) return;
-      const next = cloneMatch(current);
-      next.priority = opponent.id;
-      next.passes = [];
-      next.version += 1;
-      next.deadline = Date.now() + 40_000;
-      next.log.push({
-        id: `${Date.now()}-priority-${next.version}`,
-        at: Date.now(),
-        kind: "game",
-        message: `${opponent.name} received priority after the batch changed.`,
-      });
-      publishMatch(next);
-    }, 60);
-    return () => window.clearTimeout(timeout);
-  }, [experience.active, experience.online, experience.match]);
-
-  useEffect(() => {
-    const match = experience.match;
-    if (!experience.active || experience.online || !match || match.phase !== "power") return;
-    const bot = match.players.find((player) => player.id === "training-bot");
-    if (!bot || match.priority !== bot.id) return;
-    const key = `${match.version}:${bot.id}`;
-    if (botActionKey.current === key) return;
-    botActionKey.current = key;
-
-    const timeout = window.setTimeout(() => {
-      const current = readExperienceState().match;
-      if (!current || current.version !== match.version || current.phase !== "power" || current.priority !== bot.id) return;
-      try { publishMatch(passPriority(current, bot.id)); }
-      catch { botActionKey.current = ""; }
-    }, 650);
-    return () => window.clearTimeout(timeout);
-  }, [experience.active, experience.online, experience.match]);
 
   useEffect(() => () => {
     if (resolutionTimer.current != null) window.clearTimeout(resolutionTimer.current);

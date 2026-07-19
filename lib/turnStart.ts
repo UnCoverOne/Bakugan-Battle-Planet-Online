@@ -134,6 +134,9 @@ export function preparePendingDraw(input: MatchState, now = Date.now()): MatchSt
       ? `Turn ${state.turn} is ready. The Draw Step begins in three seconds.`
       : `Turn ${state.turn} began. Both players must draw a card.`,
   });
+  // Preparing Draw changes the authoritative phase and must therefore advance
+  // the same monotonic version used by online conflict checks and same-tab sync.
+  state.version += 1;
   return state;
 }
 

@@ -125,7 +125,9 @@ test("the prepared Draw Step waits three seconds in the first turn and requires 
     participant.hand.push(card);
     participant.deck = participant.deckCards.length;
   }
+  const versionBeforePreparation = match.version;
   const prepared = preparePendingDraw(match, 1_000);
+  assert.equal(prepared.version, versionBeforePreparation + 1);
   assert.equal(drawStepIsPending(prepared), true);
   assert.equal(playerCanDrawTurnCard(prepared, player.id, 3_999), false);
   assert.equal(playerCanDrawTurnCard(prepared, player.id, 4_000), true);

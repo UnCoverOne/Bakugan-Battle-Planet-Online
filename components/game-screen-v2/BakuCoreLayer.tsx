@@ -19,6 +19,7 @@ import {
   heldCorePlacements,
   type ZoneOwner,
 } from "./gameScreenState";
+import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { RollResultLayer } from "./RollResultLayer";
 import styles from "./BakuCoreLayer.module.css";
 
@@ -30,9 +31,7 @@ const HEX_RADIUS = 52 * 0.8;
 const HEX_HEIGHT = Math.sqrt(3) * HEX_RADIUS;
 const HEX_X_STEP = HEX_RADIUS * 1.5;
 const MATRIX_CORE_SIZE = 80;
-const MATCH_KEY = "bbp-active-match-v1";
 const ONLINE_KEY = "bbp-active-match-online-v1";
-const MATCH_UPDATE_EVENT = "bbp-match-state-updated";
 
 const CORE_BACK_ART: Record<CoreType, string> = {
   Fist: "/assets/core-backs/fist.png",
@@ -79,9 +78,12 @@ function storedBoolean(key: string) {
   catch { return false; }
 }
 
-function publishMatch(next: MatchState) {
-  localStorage.setItem(MATCH_KEY, JSON.stringify(next));
-  window.dispatchEvent(new CustomEvent<MatchState>(MATCH_UPDATE_EVENT, { detail: next }));
+function samePortalTargets(previous: PortalTargets, next: PortalTargets) {
+  if (previous.playArea !== next.playArea || previous.actionSlot !== next.actionSlot) return false;
+  const previousEntries = Object.entries(previous.characterZones);
+  const nextEntries = Object.entries(next.characterZones);
+  return previousEntries.length === nextEntries.length
+    && nextEntries.every(([key, element]) => previous.characterZones[key] === element);
 }
 
 function ownerPlayers(match: MatchState | null, playerId?: string) {
@@ -148,15 +150,12 @@ export function BakuCoreLayer({
           if (zone) characterZones[key] = zone;
         }
       }
-      setTargets({ playArea, actionSlot, characterZones });
+      const next = { playArea, actionSlot, characterZones };
+      setTargets((previous) => samePortalTargets(previous, next) ? previous : next);
     };
 
     const frame = window.requestAnimationFrame(measure);
-    window.addEventListener("resize", measure);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("resize", measure);
-    };
+    return () => window.cancelAnimationFrame(frame);
   }, [match?.id, playerId]);
 
   useEffect(() => {
@@ -239,10 +238,11 @@ export function BakuCoreLayer({
     setError("");
     try {
       if (!storedBoolean(ONLINE_KEY)) {
-        publishMatch(localAction(match, actorId));
+        writeCoordinatedMatch(localAction(match, actorId));
       } else {
         const response = await fetch("/api/game", {
           method: "POST",
+          cache: "no-store",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             action,
@@ -253,7 +253,7 @@ export function BakuCoreLayer({
           }),
         });
         const data = await response.json() as { state?: MatchState; error?: string };
-        if (data.state) publishMatch(data.state);
+        if (data.state) writeCoordinatedMatch(data.state);
         if (!response.ok) throw new Error(data.error ?? "The BakuCore action could not be completed.");
       }
       setSelectedCoreCell("");

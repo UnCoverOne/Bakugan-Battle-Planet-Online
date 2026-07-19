@@ -210,6 +210,35 @@ body > div:has(#roll-result-title) {
   white-space: normal !important;
 }
 
+/* Keep the transformed battlefield on one composited paint island. Browser zoom
+   otherwise repeatedly promotes and demotes the SVG, card, and HUD layers. */
+[aria-label="Experimental game play area"] {
+  isolation: isolate;
+  contain: layout paint style;
+  backface-visibility: hidden;
+  transform-style: flat;
+}
+
+[aria-label="Experimental game play area"] img,
+[aria-label="Experimental game play area"] svg,
+[data-card-preview-side] img,
+[aria-label="Active Brawl statistics, effects, and modifiers"] img {
+  backface-visibility: hidden;
+}
+
+/* ViewportStabilityGuard applies this only for the short burst of resize events
+   emitted by browser zoom. Layout still updates, but decorative transitions and
+   animations cannot restart on every intermediate zoom value. */
+html[data-viewport-changing="true"] [aria-label="Experimental game play area"] *,
+html[data-viewport-changing="true"] [data-zone-kind="hand"] *,
+html[data-viewport-changing="true"] [aria-label="BakuCores in the Hide Matrix"] *,
+html[data-viewport-changing="true"] [aria-label="Active Brawl statistics, effects, and modifiers"] *,
+html[data-viewport-changing="true"] [data-card-preview-side],
+html[data-viewport-changing="true"] body > div:has(#roll-result-title) * {
+  transition: none !important;
+  animation-play-state: paused !important;
+}
+
 @media (max-width: 760px) {
   [aria-label="Active Brawl statistics, effects, and modifiers"] {
     right: 0.5rem !important;

@@ -3,8 +3,12 @@ import "./globals.css";
 import "./design-system.css";
 import "./card-art-transparency.css";
 import "./gameplay-ui-fixes.css";
+import { AssetFreshness } from "../components/AssetFreshness";
 import { BrawlExperienceLayer } from "../components/game-screen-v2/BrawlExperienceLayer";
+import { MatchDecisionLayer } from "../components/game-screen-v2/MatchDecisionLayer";
+import { MatchStateCoordinator } from "../components/game-screen-v2/MatchStateCoordinator";
 import { NewGameScreenTester } from "../components/game-screen-v2/NewGameScreenTester";
+import { ViewportStabilityGuard } from "../components/game-screen-v2/ViewportStabilityGuard";
 
 export const metadata: Metadata = {
   title: "Bakugan Battle Planet Online",
@@ -33,7 +37,15 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Titillium+Web:ital,wght@0,400;0,700;1,400;1,700&display=swap"
         />
       </head>
-      <body>{children}<NewGameScreenTester /><BrawlExperienceLayer /></body>
+      <body>
+        <MatchStateCoordinator />
+        <ViewportStabilityGuard />
+        <AssetFreshness />
+        {children}
+        <NewGameScreenTester />
+        <BrawlExperienceLayer />
+        <MatchDecisionLayer />
+      </body>
     </html>
   );
 }
