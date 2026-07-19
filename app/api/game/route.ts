@@ -1,10 +1,9 @@
 import {
   concedeMatch, createMatch, discardToHandLimit, energizeCard, nextTurn, passPriority,
-  placeCore, redactForPlayer, resolveDamage, selectBakugan, setReady,
+  placeCore, playCard, redactForPlayer, resolveDamage, selectBakugan, setReady,
   startNextSeriesGame, type CardChoices, type MatchState, type PlayerState,
 } from "../../../lib/game";
 import { tapEnergyCard } from "../../../lib/energy";
-import { playCardAndPassPriority } from "../../../lib/priority";
 import { confirmRoll, selectRollTarget } from "../../../lib/rolling";
 import { drawTurnCard, preparePendingDraw } from "../../../lib/turnStart";
 
@@ -107,7 +106,7 @@ export async function POST(request: Request) {
       case "select": state = selectBakugan(state, body.playerId, String(p.bakuganId ?? "")); break;
       case "target": state = selectRollTarget(state, body.playerId, String(p.cell ?? "")); break;
       case "roll": state = confirmRoll(state, body.playerId); break;
-      case "play": state = playCardAndPassPriority(state, body.playerId, String(p.cardId ?? ""), choices); break;
+      case "play": state = playCard(state, body.playerId, String(p.cardId ?? ""), choices); break;
       case "pass": state = passPriority(state, body.playerId); break;
       case "damage": state = resolveDamage(state, body.playerId, p.cardId ? String(p.cardId) : undefined, choices); break;
       case "hand-limit": state = discardToHandLimit(state, body.playerId, Array.isArray(p.cardIds) ? p.cardIds.map(String) : []); break;
