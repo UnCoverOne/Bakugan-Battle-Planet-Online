@@ -104,6 +104,23 @@ export function canSkipEnergizing(
   );
 }
 
+/**
+ * The Energize Step is already a dedicated hand-selection window. Treat it as
+ * energize mode immediately so players can select a card before touching the
+ * confirmation button.
+ */
+export function resolvedHandActionMode(
+  match: MatchState | null | undefined,
+  playerId: string | undefined,
+  requestedMode: HandActionMode,
+): HandActionMode {
+  const { player } = resolveHudPlayers(match, playerId);
+  if (match?.phase === "energize" && player && !player.energizedThisTurn) {
+    return "energize";
+  }
+  return requestedMode;
+}
+
 export function handCardIsActionable(
   match: MatchState | null | undefined,
   playerId: string | undefined,
