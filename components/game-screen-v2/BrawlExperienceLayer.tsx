@@ -268,17 +268,19 @@ export function BrawlExperienceLayer() {
     const currentIds = match.batch.map((effect) => effect.id);
     const added = match.batch.filter((effect) => !previousIds.includes(effect.id));
     previousBatchForPriority.current = currentIds;
-    const newest = added.at(-1);
-    if (!newest || match.priority !== newest.controllerId) return;
+    const playedCard = added.find((effect) => (
+      effect.kind === "card" && effect.controllerId === match.priority
+    ));
+    if (!playedCard) return;
 
-    const key = `${match.version}:${newest.id}`;
+    const key = `${match.version}:${playedCard.id}`;
     if (localCorrectionKey.current === key) return;
     localCorrectionKey.current = key;
     const timeout = window.setTimeout(() => {
       const current = readExperienceState().match;
       if (!current || current.version !== match.version || current.phase !== "power") return;
-      const opponent = current.players.find((player) => player.id !== newest.controllerId);
-      if (!opponent || current.priority !== newest.controllerId) return;
+      const opponent = current.players.find((player) => player.id !== playedCard.controllerId);
+      if (!opponent || current.priority !== playedCard.controllerId) return;
       const next = cloneMatch(current);
       next.priority = opponent.id;
       next.passes = [];
