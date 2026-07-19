@@ -1,0 +1,506 @@
+.brawlHud {
+  position: fixed;
+  z-index: 10074;
+  box-sizing: border-box;
+  max-height: min(42dvh, 25rem);
+  transform: translate(-50%, -100%);
+  overflow: hidden;
+  clip-path: polygon(0.9rem 0, calc(100% - 0.9rem) 0, 100% 0.9rem, 100% calc(100% - 0.9rem), calc(100% - 0.9rem) 100%, 0.9rem 100%, 0 calc(100% - 0.9rem), 0 0.9rem);
+  border: 1px solid rgba(255, 92, 78, 0.72);
+  background:
+    linear-gradient(90deg, rgba(140, 18, 27, 0.2), transparent 28%, transparent 72%, rgba(140, 18, 27, 0.2)),
+    rgba(5, 8, 12, 0.94);
+  box-shadow:
+    0 0.7rem 1.7rem rgba(0, 0, 0, 0.62),
+    0 0 0.7rem rgba(222, 39, 39, 0.2);
+  color: #f7f9fa;
+  font-family: var(--font-display);
+  pointer-events: none;
+  animation: brawl-hud-enter 220ms ease-out both;
+}
+
+.brawlHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 1.75rem;
+  padding: 0.34rem 0.72rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.13);
+  background: linear-gradient(90deg, rgba(188, 25, 35, 0.66), rgba(34, 11, 15, 0.88) 48%, rgba(188, 25, 35, 0.36));
+  text-transform: uppercase;
+}
+
+.brawlHeader span,
+.brawlHeader small {
+  color: rgba(238, 242, 244, 0.72);
+  font-size: clamp(0.48rem, 0.62vw, 0.68rem);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.brawlHeader strong {
+  overflow: hidden;
+  color: #ff574b;
+  font-size: clamp(0.62rem, 0.82vw, 0.9rem);
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 0 0.3rem rgba(255, 67, 54, 0.28);
+}
+
+.combatants {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.1rem minmax(0, 1fr);
+  gap: 0.25rem;
+  align-items: stretch;
+  padding: 0.5rem;
+}
+
+.combatant {
+  min-width: 0;
+  padding: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: rgba(10, 14, 18, 0.76);
+  transition: filter 180ms ease, box-shadow 180ms ease;
+}
+
+.combatant[data-owner="player"] {
+  border-left-color: rgba(255, 255, 255, 0.7);
+}
+
+.combatant[data-owner="opponent"] {
+  border-right-color: rgba(255, 79, 65, 0.82);
+}
+
+.combatant[data-pulse="true"] {
+  animation: combatant-stat-pulse 720ms ease-out both;
+}
+
+.combatantHeading {
+  display: grid;
+  grid-template-columns: clamp(2.2rem, 3.7vw, 3.6rem) minmax(0, 1fr);
+  gap: 0.48rem;
+  align-items: center;
+}
+
+.combatantArtFrame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: rgba(97, 106, 113, 0.42);
+}
+
+.combatantArtFrame span {
+  position: absolute;
+  z-index: 0;
+  font-size: 1.15rem;
+  font-weight: 950;
+}
+
+.combatantArtFrame img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.combatantName {
+  display: grid;
+  min-width: 0;
+}
+
+.combatantName small,
+.combatantName span {
+  overflow: hidden;
+  color: rgba(210, 218, 223, 0.66);
+  font-size: clamp(0.43rem, 0.56vw, 0.6rem);
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.combatantName strong {
+  overflow: hidden;
+  font-size: clamp(0.7rem, 0.98vw, 1.02rem);
+  font-weight: 950;
+  letter-spacing: 0.025em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 0.42rem;
+}
+
+.stat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  min-width: 0;
+  padding: 0.28rem 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.stat span,
+.stat small {
+  color: rgba(215, 224, 229, 0.68);
+  font-size: clamp(0.4rem, 0.5vw, 0.54rem);
+  font-weight: 900;
+  letter-spacing: 0.07em;
+}
+
+.stat small {
+  grid-column: 1 / -1;
+}
+
+.stat strong {
+  color: #fff;
+  font-size: clamp(0.9rem, 1.3vw, 1.35rem);
+  font-weight: 950;
+  line-height: 0.9;
+}
+
+.combatant[data-owner="opponent"] .stat strong {
+  color: #ff5a4d;
+}
+
+.detailColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+.detailColumns section {
+  min-width: 0;
+}
+
+.detailColumns h3 {
+  margin: 0 0 0.18rem;
+  color: rgba(255, 94, 80, 0.82);
+  font-size: clamp(0.42rem, 0.54vw, 0.58rem);
+  letter-spacing: 0.1em;
+}
+
+.detailColumns ul {
+  display: grid;
+  gap: 0.12rem;
+  max-height: 3.5rem;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+}
+
+.detailColumns li {
+  overflow: hidden;
+  color: rgba(228, 233, 236, 0.74);
+  font-family: system-ui, sans-serif;
+  font-size: clamp(0.42rem, 0.56vw, 0.6rem);
+  font-weight: 620;
+  line-height: 1.23;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.versus {
+  align-self: center;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: clamp(0.75rem, 1.05vw, 1rem);
+  font-weight: 950;
+  font-style: italic;
+  text-align: center;
+  text-shadow:
+    0 0 0.25rem rgba(255, 255, 255, 0.4),
+    0 0 0.6rem rgba(222, 33, 33, 0.38);
+}
+
+.batchHud {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 10068;
+  display: grid;
+  justify-items: center;
+  gap: 0.38rem;
+  max-width: calc(100vw - 2rem);
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-family: var(--font-display);
+  pointer-events: none;
+}
+
+.batchTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  padding: 0.18rem 0.55rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(3, 6, 9, 0.68);
+  text-transform: uppercase;
+}
+
+.batchTitle strong {
+  color: #ff5548;
+  font-size: clamp(0.62rem, 0.78vw, 0.82rem);
+  letter-spacing: 0.12em;
+}
+
+.batchTitle span {
+  color: rgba(224, 231, 235, 0.7);
+  font-size: clamp(0.4rem, 0.52vw, 0.56rem);
+  font-weight: 850;
+  letter-spacing: 0.1em;
+}
+
+.batchRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(0.32rem, 0.75vw, 0.78rem);
+  max-width: calc(100vw - 2rem);
+  padding: 0.45rem 0.7rem;
+  overflow: visible;
+  animation: batch-row-shift 180ms ease-out both;
+}
+
+.batchEffect {
+  display: grid;
+  justify-items: center;
+  gap: 0.18rem;
+  width: clamp(3.5rem, 5.7vw, 5.8rem);
+  margin: 0;
+  animation: batch-effect-enter 210ms cubic-bezier(0.18, 0.8, 0.25, 1) both;
+  animation-delay: calc(var(--batch-order) * 22ms);
+}
+
+.batchEffect[data-resolving="true"] {
+  animation: batch-effect-resolve 740ms cubic-bezier(0.22, 0.75, 0.2, 1) both;
+}
+
+.batchHex {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: rgba(36, 43, 49, 0.96);
+  filter:
+    drop-shadow(0 0.35rem 0.42rem rgba(0, 0, 0, 0.65))
+    drop-shadow(0 0 0.22rem rgba(255, 255, 255, 0.5));
+}
+
+.batchEffect[data-owner="opponent"] .batchHex {
+  filter:
+    drop-shadow(0 0.35rem 0.42rem rgba(0, 0, 0, 0.65))
+    drop-shadow(0 0 0.34rem rgba(255, 58, 45, 0.72));
+}
+
+.batchHex::after {
+  content: "";
+  position: absolute;
+  inset: 0.18rem;
+  z-index: 3;
+  clip-path: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  pointer-events: none;
+}
+
+.batchEffect[data-owner="opponent"] .batchHex::after {
+  border-color: rgba(255, 74, 60, 0.84);
+}
+
+.batchHex > span {
+  position: absolute;
+  z-index: 0;
+  font-size: 1.2rem;
+  font-weight: 950;
+}
+
+.batchHex img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.batchEffect figcaption {
+  display: grid;
+  justify-items: center;
+  width: 130%;
+  min-width: 0;
+  text-align: center;
+}
+
+.batchEffect figcaption small {
+  color: rgba(255, 102, 87, 0.86);
+  font-size: clamp(0.36rem, 0.46vw, 0.48rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.batchEffect figcaption strong {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  color: rgba(242, 245, 247, 0.88);
+  font-size: clamp(0.43rem, 0.56vw, 0.6rem);
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.effectBurst {
+  position: fixed;
+  left: 50%;
+  top: 56%;
+  z-index: 10071;
+  display: grid;
+  justify-items: center;
+  width: min(24rem, calc(100vw - 2rem));
+  transform: translate(-50%, -50%);
+  padding: 0.7rem 1rem;
+  clip-path: polygon(1rem 0, calc(100% - 1rem) 0, 100% 50%, calc(100% - 1rem) 100%, 1rem 100%, 0 50%);
+  background: rgba(5, 8, 12, 0.9);
+  color: #fff;
+  font-family: var(--font-display);
+  text-align: center;
+  pointer-events: none;
+  animation: effect-burst 980ms ease-out both;
+}
+
+.effectBurst[data-owner="player"] {
+  box-shadow: 0 0 1.2rem rgba(255, 255, 255, 0.42);
+}
+
+.effectBurst[data-owner="opponent"] {
+  box-shadow: 0 0 1.2rem rgba(255, 53, 43, 0.48);
+}
+
+.effectBurst[data-kind="power"] { border: 1px solid rgba(255, 224, 104, 0.82); }
+.effectBurst[data-kind="damage"] { border: 1px solid rgba(255, 72, 58, 0.9); }
+.effectBurst[data-kind="draw"] { border: 1px solid rgba(91, 184, 255, 0.82); }
+.effectBurst[data-kind="energy"] { border: 1px solid rgba(255, 255, 255, 0.78); }
+.effectBurst[data-kind="negate"] { border: 1px solid rgba(188, 113, 255, 0.88); }
+.effectBurst[data-kind="ability"] { border: 1px solid rgba(255, 255, 255, 0.44); }
+
+.effectBurst span {
+  color: rgba(255, 95, 80, 0.88);
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.effectBurst strong {
+  font-size: clamp(0.82rem, 1.25vw, 1.2rem);
+  text-transform: uppercase;
+}
+
+.effectBurst p {
+  display: -webkit-box;
+  max-width: 100%;
+  margin: 0.18rem 0 0;
+  overflow: hidden;
+  color: rgba(229, 234, 237, 0.76);
+  font-family: system-ui, sans-serif;
+  font-size: clamp(0.52rem, 0.7vw, 0.72rem);
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@keyframes brawl-hud-enter {
+  from { opacity: 0; transform: translate(-50%, calc(-100% + 0.45rem)) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+}
+
+@keyframes combatant-stat-pulse {
+  0% { filter: brightness(1); box-shadow: none; }
+  38% { filter: brightness(1.28); box-shadow: inset 0 0 1rem rgba(255, 255, 255, 0.18); }
+  100% { filter: brightness(1); box-shadow: none; }
+}
+
+@keyframes batch-row-shift {
+  from { opacity: 0.85; transform: translateX(-0.7rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes batch-effect-enter {
+  from { opacity: 0; transform: translateX(-0.75rem) scale(0.84); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes batch-effect-resolve {
+  0% { opacity: 1; transform: scale(1); filter: brightness(1); }
+  38% { opacity: 1; transform: scale(1.16); filter: brightness(1.7); }
+  100% { opacity: 0; transform: scale(0.18) rotate(18deg); filter: brightness(2.2); }
+}
+
+@keyframes effect-burst {
+  0% { opacity: 0; transform: translate(-50%, -42%) scale(0.72); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -58%) scale(1.02); }
+}
+
+@media (max-width: 760px) {
+  .brawlHud {
+    max-height: 44dvh;
+  }
+
+  .brawlHeader {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+    text-align: center;
+  }
+
+  .brawlHeader small {
+    display: none;
+  }
+
+  .combatants {
+    grid-template-columns: minmax(0, 1fr) 1.45rem minmax(0, 1fr);
+  }
+
+  .detailColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .detailColumns section:nth-child(2) {
+    display: none;
+  }
+
+  .batchEffect {
+    width: clamp(2.8rem, 12vw, 4rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brawlHud,
+  .combatant[data-pulse="true"],
+  .batchRow,
+  .batchEffect,
+  .batchEffect[data-resolving="true"],
+  .effectBurst {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+  }
+}
