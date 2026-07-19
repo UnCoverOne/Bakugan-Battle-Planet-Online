@@ -3,14 +3,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   concedeMatch,
+  discardToHandLimit,
   energizeCard,
   passPriority,
   playCard,
+  resolveDamage,
   selectBakugan,
   type CardChoices,
   type MatchState,
 } from "../../lib/game";
 import { tapEnergyCard } from "../../lib/energy";
+import {
+  availableRollTargets,
+  confirmRoll,
+  playerCanConfirmRoll,
+  playerCanSelectRollTarget,
+  selectRollTarget,
+} from "../../lib/rolling";
 import {
   drawStepIsPending,
   drawTurnCard,
@@ -25,6 +34,7 @@ import { CardPreviewLayer } from "./CardPreviewLayer";
 import { GameMenuHud } from "./GameMenuHud";
 import { GameScreen } from "./GameScreen";
 import { MatchHudLayer } from "./MatchHudLayer";
+import { MATCH_UPDATE_EVENT } from "./MatchStateCoordinator";
 import { SelectionInteractionLayer } from "./SelectionInteractionLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
 import {
@@ -37,7 +47,13 @@ const SETTINGS_KEY = "bbp-settings";
 const MATCH_KEY = "bbp-active-match-v1";
 const ONLINE_KEY = "bbp-active-match-online-v1";
 const PLAYER_KEY = "bbp-player-id";
-const MATCH_UPDATE_EVENT = "bbp-match-state-updated";
+const PRIORITY_PHASES = new Set<MatchState["phase"]>([
+  "preRoll",
+  "power",
+  "victor",
+  "postDamage",
+  "endPlay",
+]);
 
 type StoredGameScreenState = {
   route: string;
@@ -81,6 +97,65 @@ function readStoredState(): StoredGameScreenState {
   };
 }
 
+function stateIsNewer(current: MatchState | null, incoming: MatchState) {
+  return !current
+    || current.id !== incoming.id
+    || current.code !== incoming.code
+    || incoming.version > current.version;
+}
+
+function advanceTrainingBot(match: MatchState): MatchState | null {
+  const bot = match.players.find((player) => player.id === "training-bot");
+  if (!bot) return null;
+
+  if (playerCanDrawTurnCard(match, bot.id)) {
+    return drawTurnCard(match, bot.id);
+  }
+
+  if (match.phase === "energize" && !bot.energizedThisTurn) {
+    return energizeCard(match, bot.id, bot.hand[0]?.id);
+  }
+
+  if (match.phase === "selection" && !match.selected[bot.id]) {
+    const closed = bot.bakugan.filter((bakugan) => !bakugan.open);
+    return selectBakugan(match, bot.id, (closed[0] ?? bot.bakugan[0]).id);
+  }
+
+  if (match.phase === "target") {
+    if (playerCanSelectRollTarget(match, bot.id)) {
+      const localTarget = Object.entries(match.targets)
+        .find(([playerId]) => playerId !== bot.id)?.[1];
+      const targets = availableRollTargets(match);
+      const cell = targets.find((placement) => placement.cell !== localTarget)?.cell
+        ?? targets[0]?.cell;
+      return cell ? selectRollTarget(match, bot.id, cell) : null;
+    }
+    if (playerCanConfirmRoll(match, bot.id)) {
+      return confirmRoll(match, bot.id);
+    }
+  }
+
+  if (PRIORITY_PHASES.has(match.phase) && match.priority === bot.id) {
+    return passPriority(match, bot.id);
+  }
+
+  if (match.phase === "damage" && match.pendingLoser === bot.id && match.revealedFlip) {
+    const cost = typeof match.revealedFlip.cost === "number" ? match.revealedFlip.cost : 0;
+    return resolveDamage(
+      match,
+      bot.id,
+      cost <= bot.energy ? match.revealedFlip.id : undefined,
+    );
+  }
+
+  if (match.phase === "handLimit" && match.priority === bot.id) {
+    const amount = Math.max(0, bot.hand.length - 7);
+    return discardToHandLimit(match, bot.id, bot.hand.slice(0, amount).map((card) => card.id));
+  }
+
+  return null;
+}
+
 export function NewGameScreenTester() {
   const [storedState, setStoredState] = useState<StoredGameScreenState>({
     route: "entry",
@@ -96,6 +171,7 @@ export function NewGameScreenTester() {
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const previousRawState = useRef("");
   const automaticActionKey = useRef("");
+  const botActionKey = useRef("");
 
   useEffect(() => {
     const update = () => {
@@ -113,20 +189,27 @@ export function NewGameScreenTester() {
     };
 
     update();
-    const interval = window.setInterval(update, 200);
+    const interval = window.setInterval(update, 500);
     window.addEventListener("storage", update);
+    window.addEventListener(MATCH_UPDATE_EVENT, update as EventListener);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("storage", update);
+      window.removeEventListener(MATCH_UPDATE_EVENT, update as EventListener);
     };
   }, []);
 
-  const publishMatch = (next: MatchState) => {
+  const publishMatch = useCallback((next: MatchState) => {
+    const current = parseStoredValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null);
+    if (!stateIsNewer(current, next)) return false;
     localStorage.setItem(MATCH_KEY, JSON.stringify(next));
     previousRawState.current = "";
-    setStoredState((current) => ({ ...current, match: next }));
+    setStoredState((stored) => ({ ...stored, match: next }));
+    // MatchStateCoordinator emits this event for accepted writes. Dispatching it
+    // here as well keeps this component compatible if rendered in isolation.
     window.dispatchEvent(new CustomEvent<MatchState>(MATCH_UPDATE_EVENT, { detail: next }));
-  };
+    return true;
+  }, []);
 
   const submitMatchAction = async (
     action: string,
@@ -145,6 +228,7 @@ export function NewGameScreenTester() {
 
     const response = await fetch("/api/game", {
       method: "POST",
+      cache: "no-store",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         action,
@@ -235,7 +319,115 @@ export function NewGameScreenTester() {
     if (!match || storedState.online) return;
     const prepared = preparePendingDraw(match);
     if (prepared !== match) publishMatch(prepared);
-  }, [storedState.match?.phase, storedState.match?.stepLabel, storedState.match?.turn, storedState.online]);
+  }, [storedState.match?.phase, storedState.match?.stepLabel, storedState.match?.turn, storedState.online, publishMatch]);
+
+  // The experimental client no longer relies on the hidden legacy screen to
+  // advance the Training AI. One version-keyed action runs at a time, and every
+  // legal phase is revisited after the resulting version is published.
+  useEffect(() => {
+    const match = storedState.match;
+    if (!storedState.enabled || storedState.route !== "match" || storedState.online || !match) return;
+    const key = `${match.id}:${match.version}:${match.phase}`;
+    if (botActionKey.current === key) return;
+    const preview = advanceTrainingBot(match);
+    if (!preview) return;
+
+    botActionKey.current = key;
+    const timeout = window.setTimeout(() => {
+      const latest = readStoredState().match;
+      if (!latest || latest.id !== match.id || latest.version !== match.version) return;
+      try {
+        const next = advanceTrainingBot(latest);
+        if (next) publishMatch(preparePendingDraw(next));
+      } finally {
+        if (botActionKey.current === key) botActionKey.current = "";
+      }
+    }, 520);
+    return () => window.clearTimeout(timeout);
+  }, [
+    storedState.enabled,
+    storedState.route,
+    storedState.online,
+    storedState.match?.id,
+    storedState.match?.phase,
+    storedState.match?.priority,
+    storedState.match?.version,
+    publishMatch,
+  ]);
+
+  // Poll without overlapping requests. Responses are accepted only when their
+  // version is newer, preventing delayed GETs from making the board jump back.
+  useEffect(() => {
+    const match = storedState.match;
+    if (!storedState.enabled || storedState.route !== "match" || !storedState.online || !match?.code) return;
+
+    let disposed = false;
+    let timer = 0;
+    let controller: AbortController | null = null;
+
+    const schedule = () => {
+      if (disposed) return;
+      timer = window.setTimeout(poll, document.hidden ? 2600 : 1100);
+    };
+
+    const poll = async () => {
+      if (disposed) return;
+      const current = readStoredState();
+      const currentMatch = current.match;
+      const actorId = current.playerId ?? currentMatch?.players[0]?.id;
+      if (!currentMatch?.code || !actorId || !current.online) return schedule();
+
+      controller = new AbortController();
+      try {
+        const response = await fetch("/api/game", {
+          method: "POST",
+          cache: "no-store",
+          signal: controller.signal,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            action: "get",
+            code: currentMatch.code,
+            playerId: actorId,
+            expectedVersion: currentMatch.version,
+          }),
+        });
+        const data = await response.json() as { state?: MatchState };
+        if (data.state) publishMatch(data.state);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          // A later poll or focus event will retry without interrupting play.
+        }
+      } finally {
+        controller = null;
+        schedule();
+      }
+    };
+
+    const refreshNow = () => {
+      window.clearTimeout(timer);
+      controller?.abort();
+      void poll();
+    };
+    const onVisibility = () => { if (!document.hidden) refreshNow(); };
+
+    void poll();
+    window.addEventListener("focus", refreshNow);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+      controller?.abort();
+      window.removeEventListener("focus", refreshNow);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [
+    storedState.enabled,
+    storedState.route,
+    storedState.online,
+    storedState.match?.code,
+    storedState.playerId,
+    publishMatch,
+  ]);
 
   const localPlayer = storedState.match?.players.find((player) => (
     player.id === (storedState.playerId ?? storedState.match?.players[0]?.id)
@@ -310,6 +502,13 @@ export function NewGameScreenTester() {
     selectedHandCardId,
     selectedCharacterId,
   ]);
+
+  useEffect(() => {
+    if (storedState.online || storedState.match?.phase !== "result" || storedState.route !== "match") return;
+    localStorage.setItem(ROUTE_KEY, JSON.stringify("result"));
+    const timeout = window.setTimeout(() => window.location.reload(), 250);
+    return () => window.clearTimeout(timeout);
+  }, [storedState.online, storedState.match?.phase, storedState.route]);
 
   const clearSelections = useCallback(() => {
     setSelectedHandCardId("");
