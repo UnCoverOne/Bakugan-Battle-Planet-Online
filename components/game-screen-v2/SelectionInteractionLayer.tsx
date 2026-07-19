@@ -31,6 +31,15 @@ type TooltipPosition = {
   maxWidth: number;
 };
 
+function sameTooltipPosition(previous: TooltipPosition | null, next: TooltipPosition) {
+  return Boolean(
+    previous
+    && Math.abs(previous.left - next.left) < 0.5
+    && Math.abs(previous.top - next.top) < 0.5
+    && Math.abs(previous.maxWidth - next.maxWidth) < 0.5
+  );
+}
+
 function playerForZone(
   match: MatchState | null,
   localPlayer: PlayerState | null,
@@ -173,15 +182,19 @@ export function SelectionInteractionLayer({
     let observer: ResizeObserver | null = null;
 
     const measure = () => {
-      const rect = area.getBoundingClientRect();
-      setTooltipPosition({
-        left: rect.left + rect.width / 2,
-        top: Math.max(8, rect.top - 10),
-        maxWidth: Math.max(180, rect.width * 1.55),
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const rect = area.getBoundingClientRect();
+        const next = {
+          left: rect.left + rect.width / 2,
+          top: Math.max(8, rect.top - 10),
+          maxWidth: Math.max(180, rect.width * 1.55),
+        };
+        setTooltipPosition((previous) => sameTooltipPosition(previous, next) ? previous : next);
       });
     };
 
-    frame = window.requestAnimationFrame(measure);
+    measure();
     if (typeof ResizeObserver !== "undefined") {
       observer = new ResizeObserver(measure);
       observer.observe(area);
