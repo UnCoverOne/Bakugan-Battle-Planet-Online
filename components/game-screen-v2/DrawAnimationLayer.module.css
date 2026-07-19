@@ -67,29 +67,19 @@
     opacity: 0.94;
     transform: translate3d(0, 0, 0) scale(1) rotateZ(-1deg);
   }
-  18% {
+  20% {
     opacity: 1;
-    transform: translate3d(
-      calc(var(--draw-delta-x) * 0.12),
-      calc(var(--draw-delta-y) * 0.1 - 1.2rem),
-      5rem
-    ) scale(1.08) rotateZ(4deg);
+    transform: translate3d(0, -1.35rem, 5rem) scale(1.08) rotateZ(4deg);
     filter:
       drop-shadow(0 0.7rem 0.85rem rgba(0, 0, 0, 0.68))
       drop-shadow(0 0 0.55rem rgba(255, 255, 255, 0.96));
   }
-  64% {
+  82% {
     opacity: 1;
-    transform: translate3d(
-      calc(var(--draw-delta-x) * 0.74),
-      calc(var(--draw-delta-y) * 0.7 - 2rem),
-      3rem
-    ) scale(
-      calc(1 + (var(--draw-scale-x) - 1) * 0.7),
-      calc(1 + (var(--draw-scale-y) - 1) * 0.7)
-    ) rotateZ(-2deg);
+    transform: translate3d(var(--draw-delta-x), calc(var(--draw-delta-y) - 0.35rem), 0)
+      scale(var(--draw-scale-x), var(--draw-scale-y)) rotateZ(-1deg);
   }
-  88% {
+  94% {
     opacity: 1;
     transform: translate3d(var(--draw-delta-x), var(--draw-delta-y), 0)
       scale(var(--draw-scale-x), var(--draw-scale-y)) rotateZ(0);
