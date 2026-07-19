@@ -13,11 +13,18 @@ export function AssetFreshness() {
     if (!("serviceWorker" in navigator)) return;
 
     const wasControlled = Boolean(navigator.serviceWorker.controller);
+    const existingBrowserData = Boolean(
+      localStorage.getItem("bbp-settings")
+      || localStorage.getItem("bbp-profile")
+      || localStorage.getItem("bbp-active-match-v1"),
+    );
+    const reloadAfterClaim = wasControlled || existingBrowserData;
     const reloadKey = `bbp-asset-worker-reload:${BUILD_ID}`;
     const onControllerChange = () => {
-      // A first-time visitor does not need a second page load. Only an existing
-      // controlled client reloads when a newer deployment takes ownership.
-      if (!wasControlled || sessionStorage.getItem(reloadKey) === "done") return;
+      // Fresh visitors do not need a second page load. Existing installations do:
+      // their first controlled reload bypasses any artwork cached under the old
+      // pre-service-worker policy.
+      if (!reloadAfterClaim || sessionStorage.getItem(reloadKey) === "done") return;
       sessionStorage.setItem(reloadKey, "done");
       window.location.reload();
     };
