@@ -14,6 +14,7 @@ import {
   handCardIsActionable,
   matchRoundTarget,
   playableHandCards,
+  resolvedHandActionMode,
   resolveHudPlayers,
   shouldAutomaticallyPass,
   visibleMatchHudActions,
@@ -147,6 +148,7 @@ test("Energize and card-selection states make only eligible hand cards actionabl
   const card = player.hand[0];
   assert.ok(card);
 
+  assert.equal(resolvedHandActionMode(match, player.id, null), "energize");
   assert.equal(handCardIsActionable(match, player.id, card, "energize"), true);
   const energizeActions = visibleMatchHudActions({
     match,
@@ -160,6 +162,7 @@ test("Energize and card-selection states make only eligible hand cards actionabl
   assert.equal(energizeActions["play-card"], false);
 
   player.energizedThisTurn = true;
+  assert.equal(resolvedHandActionMode(match, player.id, null), null);
   assert.equal(handCardIsActionable(match, player.id, card, "energize"), false);
 });
 

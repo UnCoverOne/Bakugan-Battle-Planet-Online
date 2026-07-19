@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./design-system.css";
 import "./card-art-transparency.css";
+import "./gameplay-ui-fixes.css";
 import { BrawlExperienceLayer } from "../components/game-screen-v2/BrawlExperienceLayer";
 import { NewGameScreenTester } from "../components/game-screen-v2/NewGameScreenTester";
 

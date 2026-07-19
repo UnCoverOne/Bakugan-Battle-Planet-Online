@@ -13,6 +13,7 @@ import {
 } from "./cardHandState";
 import {
   handCardIsActionable,
+  resolvedHandActionMode,
   type HandActionMode,
 } from "./matchHudState";
 import styles from "./CardHandLayer.module.css";
@@ -329,6 +330,7 @@ export function CardHandLayer({
   const opponentCardCount = opponentHandCardCount(match, playerId);
   const playerBounds = useHandViewportBounds("player", cards.length);
   const opponentBounds = useHandViewportBounds("opponent", opponentCardCount);
+  const effectiveActionMode = resolvedHandActionMode(match, playerId, actionMode);
   if (!cards.length && !opponentCardCount) return null;
 
   return (
@@ -339,7 +341,7 @@ export function CardHandLayer({
         bounds={playerBounds}
         match={match}
         playerId={playerId}
-        actionMode={actionMode}
+        actionMode={effectiveActionMode}
         selectedCardId={selectedCardId}
         onCardSelect={onCardSelect}
       />

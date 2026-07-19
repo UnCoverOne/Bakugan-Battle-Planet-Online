@@ -1,0 +1,145 @@
+:root {
+  --bbp-action-tooltip-layer: 20018;
+  --bbp-card-preview-layer: 20120;
+  --bbp-roll-result-layer: 20140;
+}
+
+/* Enlarged card previews and the modal Roll Results must remain readable above
+   contextual action guidance. */
+[data-card-preview-side] {
+  z-index: var(--bbp-card-preview-layer) !important;
+}
+
+body > div:has(#roll-result-title) {
+  z-index: var(--bbp-roll-result-layer) !important;
+}
+
+/* Keep the OPEN badge on a stable single-line height instead of allowing the
+   perspective-transformed Character zone to stretch its padding. */
+[data-zone-kind="character-card"][data-character-open="true"]::after {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: auto !important;
+  height: clamp(0.72rem, 1.05vw, 0.96rem) !important;
+  min-width: 52% !important;
+  min-height: 0 !important;
+  padding: 0 clamp(0.24rem, 0.42vw, 0.4rem) !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+}
+
+/* The Brawl HUD is intentionally compact and right-aligned near the local Hero
+   zone. The fixed right edge prevents its inline anchor from pushing it beyond
+   the viewport on narrower desktop layouts. */
+[aria-label="Active Brawl statistics, effects, and modifiers"] {
+  left: auto !important;
+  right: clamp(0.65rem, 1.2vw, 1rem) !important;
+  width: min(26rem, calc(100vw - 1.5rem)) !important;
+  max-height: min(31dvh, 14.5rem) !important;
+  transform: translateY(-100%) !important;
+  clip-path: polygon(
+    0.55rem 0,
+    calc(100% - 0.55rem) 0,
+    100% 0.55rem,
+    100% calc(100% - 0.55rem),
+    calc(100% - 0.55rem) 100%,
+    0.55rem 100%,
+    0 calc(100% - 0.55rem),
+    0 0.55rem
+  ) !important;
+  animation: none !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] > header {
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  gap: 0.35rem !important;
+  min-height: 1.24rem !important;
+  padding: 0.2rem 0.45rem !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] > header span,
+[aria-label="Active Brawl statistics, effects, and modifiers"] > header small {
+  font-size: clamp(0.34rem, 0.46vw, 0.48rem) !important;
+  letter-spacing: 0.08em !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] > header strong {
+  font-size: clamp(0.46rem, 0.6vw, 0.62rem) !important;
+  letter-spacing: 0.055em !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] > div {
+  grid-template-columns: minmax(0, 1fr) 1.25rem minmax(0, 1fr) !important;
+  gap: 0.15rem !important;
+  padding: 0.28rem !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article {
+  padding: 0.25rem !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:first-child {
+  grid-template-columns: clamp(1.6rem, 2.6vw, 2.25rem) minmax(0, 1fr) !important;
+  gap: 0.28rem !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:first-child small,
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:first-child span {
+  font-size: clamp(0.31rem, 0.4vw, 0.42rem) !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:first-child strong {
+  font-size: clamp(0.5rem, 0.7vw, 0.72rem) !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:nth-child(2) {
+  gap: 0.18rem !important;
+  margin-top: 0.22rem !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:nth-child(2) > div {
+  padding: 0.15rem 0.22rem !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:nth-child(2) span,
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:nth-child(2) small {
+  font-size: clamp(0.28rem, 0.36vw, 0.38rem) !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:nth-child(2) strong {
+  font-size: clamp(0.68rem, 0.9vw, 0.92rem) !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:nth-child(3) {
+  gap: 0.18rem !important;
+  margin-top: 0.2rem !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:nth-child(3) h3 {
+  margin-bottom: 0.1rem !important;
+  font-size: clamp(0.29rem, 0.37vw, 0.39rem) !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:nth-child(3) ul {
+  gap: 0.06rem !important;
+  max-height: 2rem !important;
+}
+
+[aria-label="Active Brawl statistics, effects, and modifiers"] article > div:nth-child(3) li {
+  font-size: clamp(0.29rem, 0.39vw, 0.41rem) !important;
+  line-height: 1.14 !important;
+}
+
+@media (max-width: 760px) {
+  [aria-label="Active Brawl statistics, effects, and modifiers"] {
+    right: 0.5rem !important;
+    width: min(22rem, calc(100vw - 1rem)) !important;
+    max-height: min(35dvh, 13rem) !important;
+  }
+
+  [aria-label="Active Brawl statistics, effects, and modifiers"] > header {
+    grid-template-columns: 1fr !important;
+    gap: 0.05rem !important;
+  }
+}
