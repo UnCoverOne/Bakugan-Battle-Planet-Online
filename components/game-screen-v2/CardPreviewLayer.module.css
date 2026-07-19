@@ -1,16 +1,26 @@
 .preview {
   position: fixed;
   top: 50%;
-  right: clamp(0.75rem, 1.8vw, 2rem);
   z-index: 20120;
   transform: translateY(-50%);
-  transform-origin: right center;
   backface-visibility: hidden;
   pointer-events: none;
   filter:
     drop-shadow(0 0.45rem 0.7rem rgba(0, 0, 0, 0.72))
     drop-shadow(0 0 0.3rem rgba(255, 255, 255, 0.35));
   animation: card-preview-enter 120ms ease-out both;
+}
+
+.previewLeft {
+  left: clamp(0.75rem, 1.8vw, 2rem);
+  right: auto;
+  transform-origin: left center;
+}
+
+.previewRight {
+  left: auto;
+  right: clamp(0.75rem, 1.8vw, 2rem);
+  transform-origin: right center;
 }
 
 .previewImage,
@@ -30,6 +40,17 @@
   object-fit: contain;
   object-position: center;
   background: transparent;
+}
+
+.preview[data-card-preview-type="Flip"] .previewImage,
+.preview[data-card-preview-type="Flip"] .placeholder {
+  width: min(27rem, 39vw);
+  max-height: min(72dvh, 19rem);
+  border-radius: 3.3% / 4.6%;
+}
+
+.preview[data-card-preview-type="Flip"] .placeholder {
+  aspect-ratio: 7 / 5;
 }
 
 .placeholder {
@@ -144,6 +165,11 @@
   .previewImage,
   .placeholder {
     width: min(10.5rem, 36vw);
+  }
+
+  .preview[data-card-preview-type="Flip"] .previewImage,
+  .preview[data-card-preview-type="Flip"] .placeholder {
+    width: min(16rem, 58vw);
   }
 
   .placeholder {
