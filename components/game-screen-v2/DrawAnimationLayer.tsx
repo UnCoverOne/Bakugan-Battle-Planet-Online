@@ -14,8 +14,19 @@ import styles from "./DrawAnimationLayer.module.css";
 
 const CARD_BACK_ART = "/assets/card-back.png";
 const DRAW_ANIMATION_MS = 760;
+const ROUTE_KEY = "bbp-route-v1";
+const SETTINGS_KEY = "bbp-settings";
+const MATCH_KEY = "bbp-active-match-v1";
+const PLAYER_KEY = "bbp-player-id";
+const MATCH_UPDATE_EVENT = "bbp-match-state-updated";
 
 type HandOwner = "player" | "opponent";
+
+type StoredDrawState = {
+  active: boolean;
+  match: MatchState | null;
+  playerId?: string;
+};
 
 type DrawFlight = {
   id: string;
@@ -41,6 +52,25 @@ type PendingFlight = {
   delay: number;
 };
 
+function parseStoredValue<T>(raw: string | null, fallback: T): T {
+  if (raw == null) return fallback;
+  try { return JSON.parse(raw) as T; }
+  catch { return fallback; }
+}
+
+function readStoredDrawState(): StoredDrawState {
+  const settings = parseStoredValue<Record<string, unknown>>(
+    localStorage.getItem(SETTINGS_KEY),
+    {},
+  );
+  const route = parseStoredValue(localStorage.getItem(ROUTE_KEY), "entry");
+  return {
+    active: Boolean(settings.useNewGameScreen) && route === "match",
+    match: parseStoredValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
+    playerId: parseStoredValue<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
+  };
+}
+
 function handCardById(hand: HTMLElement, cardId: string) {
   return [...hand.querySelectorAll<HTMLElement>("[data-card-id]")]
     .find((element) => element.dataset.cardId === cardId) ?? null;
@@ -52,34 +82,64 @@ function cardRect(element: HTMLElement) {
   return rect.width > 0 && rect.height > 0 ? rect : null;
 }
 
-export function DrawAnimationLayer({
-  match,
-  playerId,
-}: {
-  match: MatchState | null;
-  playerId?: string;
-}) {
+export function DrawAnimationLayer() {
+  const [stored, setStored] = useState<StoredDrawState>({
+    active: false,
+    match: null,
+    playerId: undefined,
+  });
   const [flights, setFlights] = useState<DrawFlight[]>([]);
   const previousMatch = useRef<MatchState | null>(null);
   const hiddenTargets = useRef(new Map<string, HTMLElement>());
-  const mounted = useRef(true);
+  const rawState = useRef("");
+  const mounted = useRef(false);
 
-  useEffect(() => () => {
-    mounted.current = false;
-    for (const target of hiddenTargets.current.values()) {
-      delete target.dataset.drawAnimationTarget;
-    }
-    hiddenTargets.current.clear();
+  useEffect(() => {
+    mounted.current = true;
+    const update = () => {
+      const raw = [
+        localStorage.getItem(ROUTE_KEY),
+        localStorage.getItem(SETTINGS_KEY),
+        localStorage.getItem(MATCH_KEY),
+        localStorage.getItem(PLAYER_KEY),
+      ].join("\u0000");
+      if (raw === rawState.current) return;
+      rawState.current = raw;
+      setStored(readStoredDrawState());
+    };
+
+    update();
+    const interval = window.setInterval(update, 500);
+    window.addEventListener("storage", update);
+    window.addEventListener(MATCH_UPDATE_EVENT, update as EventListener);
+    return () => {
+      mounted.current = false;
+      window.clearInterval(interval);
+      window.removeEventListener("storage", update);
+      window.removeEventListener(MATCH_UPDATE_EVENT, update as EventListener);
+      for (const target of hiddenTargets.current.values()) {
+        delete target.dataset.drawAnimationTarget;
+      }
+      hiddenTargets.current.clear();
+    };
   }, []);
 
   const finishFlight = (id: string) => {
     const target = hiddenTargets.current.get(id);
     if (target) delete target.dataset.drawAnimationTarget;
     hiddenTargets.current.delete(id);
-    setFlights((current) => current.filter((flight) => flight.id !== id));
+    if (mounted.current) {
+      setFlights((current) => current.filter((flight) => flight.id !== id));
+    }
   };
 
   useLayoutEffect(() => {
+    const match = stored.match;
+    if (!stored.active) {
+      previousMatch.current = null;
+      return;
+    }
+
     const previous = previousMatch.current;
     previousMatch.current = match;
     if (!previous || !match || previous.id !== match.id) return;
@@ -87,7 +147,7 @@ export function DrawAnimationLayer({
     const transitions = drawTransitions(previous, match);
     if (!transitions.length) return;
 
-    const localPlayerId = playerId ?? match.players[0]?.id;
+    const localPlayerId = stored.playerId ?? match.players[0]?.id;
     const pending: PendingFlight[] = [];
 
     for (const transition of transitions) {
@@ -163,9 +223,9 @@ export function DrawAnimationLayer({
       window.cancelAnimationFrame(frame);
       for (const item of pending) finishFlight(item.id);
     };
-  }, [match?.id, match?.version, playerId]);
+  }, [stored.active, stored.match?.id, stored.match?.version, stored.playerId]);
 
-  if (!flights.length || typeof document === "undefined") return null;
+  if (!stored.active || !flights.length || typeof document === "undefined") return null;
 
   return createPortal(
     <div className={styles.layer} aria-hidden="true">
