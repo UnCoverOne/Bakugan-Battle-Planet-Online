@@ -10,6 +10,7 @@ import {
 import {
   buildGameScreenZoneState,
   deckBackAssetCount,
+  heldCoreFanLayout,
   heldCorePlacements,
   heroCardLayout,
   hideMatrixPlacements,
@@ -25,10 +26,9 @@ import {
 } from "../components/game-screen-v2/cardHandState";
 import {
   cardPreviewKind,
-  cardPreviewSide,
-  cardPreviewSideForZoneOwner,
   cardPreviewZoneAllowed,
 } from "../components/game-screen-v2/cardPreviewState";
+import { drawTransitions } from "../components/game-screen-v2/drawAnimationState";
 
 test("deck card backs scale from zero to ten assets", () => {
   assert.equal(deckBackAssetCount(0), 0);
@@ -51,6 +51,18 @@ test("Hero cards compress their spacing as the stack grows", () => {
   assert.ok(twelveCards.startPercent >= 2.375);
 });
 
+test("held BakuCore zones compress the Core fan as they fill", () => {
+  const oneCore = heldCoreFanLayout(1);
+  const sixCores = heldCoreFanLayout(6);
+  const twelveCores = heldCoreFanLayout(12);
+
+  assert.equal(oneCore.stepPercent, 0);
+  assert.equal(oneCore.rotationStepDegrees, 0);
+  assert.ok(sixCores.widthPercent < oneCore.widthPercent);
+  assert.ok(twelveCores.widthPercent < sixCores.widthPercent);
+  assert.ok(twelveCores.stepPercent < sixCores.stepPercent);
+});
+
 test("the player hand uses an exact symmetric radial fan at any card count", () => {
   const approximatelyEqual = (left: number, right: number) => {
     assert.ok(Math.abs(left - right) < 1e-9, `${left} should equal ${right}`);
@@ -66,7 +78,6 @@ test("the player hand uses an exact symmetric radial fan at any card count", () 
       layout[0].rotationDegrees,
       -layout.at(-1)!.rotationDegrees,
     );
-
     const expectedStep = handFanSpanDegrees(count) / (count - 1);
     for (let index = 1; index < layout.length; index += 1) {
       approximatelyEqual(
@@ -79,7 +90,6 @@ test("the player hand uses an exact symmetric radial fan at any card count", () 
       );
     }
   }
-
   assert.equal(handCardLayout(5)[2].rotationDegrees, 0);
   assert.equal(handFanSpanDegrees(12), 42);
   assert.equal(handFanSpanDegrees(40), 42);
@@ -95,7 +105,6 @@ test("the radial hand keeps every card the same size and compresses only spacing
         desiredCardWidth,
         radiusRatio: 8.35,
       });
-
       assert.equal(geometry.cardWidth, desiredCardWidth);
       assert.equal(geometry.fanRadius, desiredCardWidth * 8.35);
       assert.ok(geometry.spanDegrees <= handFanSpanDegrees(cardCount));
@@ -115,7 +124,6 @@ test("the radial hand keeps every card the same size and compresses only spacing
       );
     }
   }
-
   const tight = boundedHandFanGeometry({
     cardCount: 40,
     safeWidth: 320,
@@ -140,7 +148,7 @@ test("tall viewports move the hand with the playmat instead of below it", () => 
   assert.equal(handViewportEdgeOffset(1600, 250, 1350, "opponent"), 202);
 });
 
-test("card previews follow hand and playmat placement rules", () => {
+test("card previews recognise card artwork without calculating a viewport side", () => {
   assert.equal(cardPreviewKind("/assets/cards/full/001.webp"), "face");
   assert.equal(
     cardPreviewKind("https://example.test/assets/cards/full/002.webp?revision=3"),
@@ -149,15 +157,6 @@ test("card previews follow hand and playmat placement rules", () => {
   assert.equal(cardPreviewKind("/assets/card-back.png"), "back");
   assert.equal(cardPreviewKind("/assets/core-backs/fist.png"), null);
 
-  assert.equal(cardPreviewSide(200, 1200), "right");
-  assert.equal(cardPreviewSide(1000, 1200), "left");
-  assert.equal(cardPreviewSide(600, 1200), "right");
-  assert.equal(cardPreviewSide(200, 1200, "hand"), "left");
-  assert.equal(cardPreviewSide(1000, 1200, "hand"), "left");
-  assert.equal(cardPreviewSideForZoneOwner("player"), "right");
-  assert.equal(cardPreviewSideForZoneOwner("opponent"), "left");
-  assert.equal(cardPreviewSideForZoneOwner(undefined), null);
-
   assert.equal(cardPreviewZoneAllowed("character-card"), true);
   assert.equal(cardPreviewZoneAllowed("hero"), true);
   assert.equal(cardPreviewZoneAllowed("hand"), true);
@@ -165,6 +164,29 @@ test("card previews follow hand and playmat placement rules", () => {
   assert.equal(cardPreviewZoneAllowed("discard-browser"), true);
   assert.equal(cardPreviewZoneAllowed("deck"), false);
   assert.equal(cardPreviewZoneAllowed("energy"), false);
+});
+
+test("draw transitions require a matching deck loss and hand gain", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const before = createMatch("DRAWFX", "bo1", [player, opponent]);
+  const after = structuredClone(before);
+  const drawn = after.players[0].deckCards.shift();
+  assert.ok(drawn);
+  after.players[0].deck = after.players[0].deckCards.length;
+  after.players[0].hand.push(drawn);
+  after.version += 1;
+
+  const transitions = drawTransitions(before, after);
+  assert.equal(transitions.length, 1);
+  assert.equal(transitions[0].playerId, player.id);
+  assert.equal(transitions[0].count, 1);
+  assert.equal(transitions[0].cards[0].id, drawn.id);
+
+  const handOnly = structuredClone(before);
+  handOnly.players[0].hand.push({ ...handOnly.players[0].hand[0], id: "effect-card" });
+  handOnly.version += 1;
+  assert.deepEqual(drawTransitions(before, handOnly), []);
 });
 
 test("tapping a face-down Energy card generates exactly one available Energy", () => {
