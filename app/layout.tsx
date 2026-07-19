@@ -4,6 +4,7 @@ import "./design-system.css";
 import "./card-art-transparency.css";
 import "./gameplay-ui-fixes.css";
 import "./bakucore-zones.css";
+import "./energy-payment.css";
 import { AssetFreshness } from "../components/AssetFreshness";
 import { BrawlExperienceLayer } from "../components/game-screen-v2/BrawlExperienceLayer";
 import { DrawAnimationLayer } from "../components/game-screen-v2/DrawAnimationLayer";
