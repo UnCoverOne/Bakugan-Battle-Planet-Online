@@ -57,23 +57,24 @@ async function load(code: string): Promise<MatchRecord | null> {
 }
 
 /**
- * Compare-and-swap the complete match document. Polling heartbeats and player
- * actions can arrive at the Worker simultaneously; conditioning the UPDATE on
- * the exact state that was read prevents an older request from overwriting a
- * newer phase or step.
+ * Compare-and-swap on the authoritative gameplay version. Heartbeat requests
+ * are allowed to update same-version presence metadata before an action saves,
+ * but a heartbeat that finishes after a newer action can no longer overwrite
+ * that action. Concurrent gameplay actions still compete for the same version,
+ * so exactly one transition wins.
  */
 async function save(
   code: string,
   next: MatchState,
   previous: MatchState | null,
-  expectedStateJson?: string,
+  expectedVersion?: number,
 ) {
   const database = await getDatabase();
-  const statement = expectedStateJson == null
+  const statement = expectedVersion == null
     ? database.prepare("UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ?")
       .bind(JSON.stringify(next), previous ? JSON.stringify(previous) : null, Date.now(), code)
-    : database.prepare("UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ? AND state_json = ?")
-      .bind(JSON.stringify(next), previous ? JSON.stringify(previous) : null, Date.now(), code, expectedStateJson);
+    : database.prepare("UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ? AND CAST(json_extract(state_json, '$.version') AS INTEGER) = ?")
+      .bind(JSON.stringify(next), previous ? JSON.stringify(previous) : null, Date.now(), code, expectedVersion);
   const result = await statement.run();
   return Number(result.meta?.changes ?? 0) > 0;
 }
@@ -124,7 +125,7 @@ export async function POST(request: Request) {
     let state = checkDisconnects(record.state);
     const disconnectedRaw = JSON.stringify(state);
     if (disconnectedRaw !== record.raw) {
-      const saved = await save(state.code, state, beforeDisconnect, record.raw);
+      const saved = await save(state.code, state, beforeDisconnect, beforeDisconnect.version);
       if (!saved) {
         record = await load(code);
         if (!record) return json({ error: "Match room not found." }, 404);
@@ -138,9 +139,10 @@ export async function POST(request: Request) {
       if (body.playerId) {
         const player = state.players.find((p) => p.id === body.playerId);
         if (player) {
+          const heartbeatVersion = state.version;
           player.lastSeen = Date.now();
           player.connected = true;
-          const saved = await save(state.code, state, record.previous, record.raw);
+          const saved = await save(state.code, state, record.previous, heartbeatVersion);
           if (!saved) {
             const latest = await load(code);
             if (latest) state = latest.state;
@@ -159,7 +161,7 @@ export async function POST(request: Request) {
         state.series[body.player.id] = 0;
         state.version += 1;
         state.log.push({ id: `${Date.now()}-join`, at: Date.now(), kind: "connection", message: `${body.player.name} joined the room.` });
-        if (!await save(state.code, state, before, record.raw)) {
+        if (!await save(state.code, state, before, before.version)) {
           return latestConflict(code, body.player.id);
         }
       }
@@ -207,7 +209,7 @@ export async function POST(request: Request) {
       actor.lastSeen = Date.now();
       actor.connected = true;
     }
-    if (!await save(state.code, state, before, record.raw)) {
+    if (!await save(state.code, state, before, before.version)) {
       return latestConflict(code, body.playerId);
     }
     return json({ state: redactForPlayer(state, body.playerId) });
