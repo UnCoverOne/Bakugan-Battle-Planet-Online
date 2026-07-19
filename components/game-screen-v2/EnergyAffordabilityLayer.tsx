@@ -3,7 +3,11 @@
 import { useEffect } from "react";
 import type { MatchState } from "../../lib/game";
 import { cardEnergyPaymentState } from "../../lib/cardPayment";
-import { isPriorityWindow, resolveHudPlayers } from "./matchHudState";
+import {
+  defaultCardChoices,
+  isPriorityWindow,
+  resolveHudPlayers,
+} from "./matchHudState";
 
 const HAND_CARD_SELECTOR = '[data-zone-kind="hand"][data-zone-owner="player"] [data-card-id]';
 const ENERGY_ZONE_SELECTOR = '[data-zone-id="player-energy"]';
@@ -69,7 +73,8 @@ export function EnergyAffordabilityLayer({
         return;
       }
 
-      const payment = cardEnergyPaymentState(match, player.id, card);
+      const choices = defaultCardChoices(match, player.id, card);
+      const payment = cardEnergyPaymentState(match, player.id, card, choices);
       if (!payment) {
         clear();
         return;
