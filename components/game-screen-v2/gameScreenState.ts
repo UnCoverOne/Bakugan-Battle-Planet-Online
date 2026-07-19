@@ -7,6 +7,7 @@ export type GameScreenOwnerState = {
   heroCards: readonly GameCard[];
   deckCount: number;
   discardCount: number;
+  discardCards: readonly GameCard[];
   latestDiscard: GameCard | null;
 };
 
@@ -17,6 +18,7 @@ const EMPTY_OWNER_STATE: GameScreenOwnerState = {
   heroCards: [],
   deckCount: 0,
   discardCount: 0,
+  discardCards: [],
   latestDiscard: null,
 };
 
@@ -88,6 +90,7 @@ function ownerState(player?: PlayerState): GameScreenOwnerState {
     heroCards: Array.isArray(player.heroes) ? player.heroes : [],
     deckCount,
     discardCount: discard.length,
+    discardCards: discard,
     latestDiscard: discard.at(-1) ?? null,
   };
 }

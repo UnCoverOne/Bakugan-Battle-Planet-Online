@@ -1,10 +1,11 @@
 export type CardPreviewKind = "face" | "back";
 export type CardPreviewSide = "left" | "right";
 export type CardPreviewOrigin = "board" | "hand";
+export type CardPreviewZoneOwner = "player" | "opponent";
 
 const CARD_FACE_PATH = "/assets/cards/full/";
 const CARD_BACK_PATH = "/assets/card-back.png";
-const EXCLUDED_PREVIEW_ZONES = new Set(["deck", "discard-pile", "energy"]);
+const EXCLUDED_PREVIEW_ZONES = new Set(["deck", "energy"]);
 
 function sourcePathname(source: string): string {
   if (!source) return "";
@@ -24,6 +25,19 @@ export function cardPreviewKind(source: string): CardPreviewKind | null {
 
 export function cardPreviewZoneAllowed(zoneKind: string | null | undefined): boolean {
   return !zoneKind || !EXCLUDED_PREVIEW_ZONES.has(zoneKind);
+}
+
+/**
+ * Fixed playmat zones should not change preview side while their artwork lifts,
+ * scales, or is remeasured during hover. The local player's zones live on the
+ * left and preview on the right; the opponent's zones do the inverse.
+ */
+export function cardPreviewSideForZoneOwner(
+  owner: string | null | undefined,
+): CardPreviewSide | null {
+  if (owner === "player") return "right";
+  if (owner === "opponent") return "left";
+  return null;
 }
 
 export function cardPreviewSide(
