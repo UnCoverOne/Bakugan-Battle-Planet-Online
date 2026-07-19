@@ -58,24 +58,52 @@ async function load(code: string): Promise<MatchRecord | null> {
 
 /**
  * Compare-and-swap on the authoritative gameplay version. Heartbeat requests
- * are allowed to update same-version presence metadata before an action saves,
- * but a heartbeat that finishes after a newer action can no longer overwrite
- * that action. Concurrent gameplay actions still compete for the same version,
- * so exactly one transition wins.
+ * may update same-version presence metadata before an action saves, but a
+ * heartbeat that finishes after a newer action can no longer overwrite it.
+ * Concurrent gameplay actions still compete for the same version, so exactly
+ * one transition wins.
  */
-async function save(
+async function saveTransition(
   code: string,
   next: MatchState,
   previous: MatchState | null,
-  expectedVersion?: number,
+  expectedVersion: number,
 ) {
   const database = await getDatabase();
-  const statement = expectedVersion == null
-    ? database.prepare("UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ?")
-      .bind(JSON.stringify(next), previous ? JSON.stringify(previous) : null, Date.now(), code)
-    : database.prepare("UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ? AND CAST(json_extract(state_json, '$.version') AS INTEGER) = ?")
-      .bind(JSON.stringify(next), previous ? JSON.stringify(previous) : null, Date.now(), code, expectedVersion);
-  const result = await statement.run();
+  const result = await database.prepare(
+    "UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ? AND CAST(json_extract(state_json, '$.version') AS INTEGER) = ?",
+  ).bind(
+    JSON.stringify(next),
+    previous ? JSON.stringify(previous) : null,
+    Date.now(),
+    code,
+    expectedVersion,
+  ).run();
+  return Number(result.meta?.changes ?? 0) > 0;
+}
+
+/**
+ * Heartbeats use an exact-document comparison. If both players ping together,
+ * the loser reloads and retries so one player's lastSeen update cannot erase the
+ * other's. A gameplay transition changes the document/version and therefore
+ * always defeats an older heartbeat.
+ */
+async function saveHeartbeat(
+  code: string,
+  next: MatchState,
+  previous: MatchState | null,
+  expectedStateJson: string,
+) {
+  const database = await getDatabase();
+  const result = await database.prepare(
+    "UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ? AND state_json = ?",
+  ).bind(
+    JSON.stringify(next),
+    previous ? JSON.stringify(previous) : null,
+    Date.now(),
+    code,
+    expectedStateJson,
+  ).run();
   return Number(result.meta?.changes ?? 0) > 0;
 }
 
@@ -125,7 +153,7 @@ export async function POST(request: Request) {
     let state = checkDisconnects(record.state);
     const disconnectedRaw = JSON.stringify(state);
     if (disconnectedRaw !== record.raw) {
-      const saved = await save(state.code, state, beforeDisconnect, beforeDisconnect.version);
+      const saved = await saveTransition(state.code, state, beforeDisconnect, beforeDisconnect.version);
       if (!saved) {
         record = await load(code);
         if (!record) return json({ error: "Match room not found." }, 404);
@@ -137,16 +165,28 @@ export async function POST(request: Request) {
 
     if (body.action === "get") {
       if (body.playerId) {
-        const player = state.players.find((p) => p.id === body.playerId);
-        if (player) {
-          const heartbeatVersion = state.version;
+        let heartbeatRecord = record;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          const heartbeatState = structuredClone(heartbeatRecord.state);
+          const player = heartbeatState.players.find((candidate) => candidate.id === body.playerId);
+          if (!player) break;
           player.lastSeen = Date.now();
           player.connected = true;
-          const saved = await save(state.code, state, record.previous, heartbeatVersion);
-          if (!saved) {
-            const latest = await load(code);
-            if (latest) state = latest.state;
+          if (await saveHeartbeat(
+            heartbeatState.code,
+            heartbeatState,
+            heartbeatRecord.previous,
+            heartbeatRecord.raw,
+          )) {
+            state = heartbeatState;
+            break;
           }
+
+          const latest = await load(code);
+          if (!latest) break;
+          state = latest.state;
+          if (latest.state.version !== heartbeatRecord.state.version) break;
+          heartbeatRecord = latest;
         }
       }
       return json({ state: redactForPlayer(state, body.playerId ?? "") });
@@ -161,7 +201,7 @@ export async function POST(request: Request) {
         state.series[body.player.id] = 0;
         state.version += 1;
         state.log.push({ id: `${Date.now()}-join`, at: Date.now(), kind: "connection", message: `${body.player.name} joined the room.` });
-        if (!await save(state.code, state, before, before.version)) {
+        if (!await saveTransition(state.code, state, before, before.version)) {
           return latestConflict(code, body.player.id);
         }
       }
@@ -209,7 +249,7 @@ export async function POST(request: Request) {
       actor.lastSeen = Date.now();
       actor.connected = true;
     }
-    if (!await save(state.code, state, before, before.version)) {
+    if (!await saveTransition(state.code, state, before, before.version)) {
       return latestConflict(code, body.playerId);
     }
     return json({ state: redactForPlayer(state, body.playerId) });
