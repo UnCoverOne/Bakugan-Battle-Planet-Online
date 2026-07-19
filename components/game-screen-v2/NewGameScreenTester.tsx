@@ -37,6 +37,8 @@ import { MatchHudLayer } from "./MatchHudLayer";
 import {
   MATCH_UPDATE_EVENT,
   writeCoordinatedMatch,
+  writeExperimentalRoute,
+  writeExperimentalSettings,
 } from "./MatchStateCoordinator";
 import { SelectionInteractionLayer } from "./SelectionInteractionLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
@@ -304,19 +306,19 @@ export function NewGameScreenTester() {
       {},
       (match, actorId) => concedeMatch(match, actorId),
     );
-    localStorage.setItem(ROUTE_KEY, JSON.stringify("result"));
+    writeExperimentalRoute("result");
     window.location.reload();
   };
 
   const updatePreference = (key: "automaticDraw" | "automaticPass", enabled: boolean) => {
     const settings = readSettings();
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, [key]: enabled }));
+    writeExperimentalSettings({ ...settings, [key]: enabled });
     previousRawState.current = "";
     setStoredState((current) => ({ ...current, [key]: enabled }));
   };
 
   const openSettings = () => {
-    localStorage.setItem(ROUTE_KEY, JSON.stringify("settings"));
+    writeExperimentalRoute("settings");
     window.location.reload();
   };
 
@@ -518,7 +520,7 @@ export function NewGameScreenTester() {
 
   useEffect(() => {
     if (storedState.online || storedState.match?.phase !== "result" || storedState.route !== "match") return;
-    localStorage.setItem(ROUTE_KEY, JSON.stringify("result"));
+    writeExperimentalRoute("result");
     const timeout = window.setTimeout(() => window.location.reload(), 250);
     return () => window.clearTimeout(timeout);
   }, [storedState.online, storedState.match?.phase, storedState.route]);
@@ -540,12 +542,12 @@ export function NewGameScreenTester() {
 
   const toggle = () => {
     const settings = readSettings();
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, useNewGameScreen: !storedState.enabled }));
+    writeExperimentalSettings({ ...settings, useNewGameScreen: !storedState.enabled });
     window.location.reload();
   };
 
   const exit = () => {
-    localStorage.setItem(ROUTE_KEY, JSON.stringify("play"));
+    writeExperimentalRoute("play");
     window.location.reload();
   };
 
