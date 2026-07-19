@@ -63,6 +63,30 @@ export function heroCardLayout(cardCount: number) {
   };
 }
 
+/**
+ * Held BakuCores remain centred above their Bakugan. As the zone fills, the
+ * individual Cores become slightly smaller and overlap more rather than
+ * overflowing into the neighbouring Character Card zones.
+ */
+export function heldCoreFanLayout(coreCount: number) {
+  const count = safeCardCount(coreCount);
+  if (count <= 1) {
+    return {
+      stepPercent: 0,
+      widthPercent: 38,
+      rotationStepDegrees: 0,
+    };
+  }
+
+  const widthPercent = Math.max(20, 38 - (count - 1) * 2.7);
+  const usableSpreadPercent = Math.max(48, 78 - widthPercent);
+  return {
+    stepPercent: usableSpreadPercent / (count - 1),
+    widthPercent,
+    rotationStepDegrees: Math.min(5.5, 18 / (count - 1)),
+  };
+}
+
 export function hideMatrixPlacements(
   match: MatchState | null | undefined,
 ): readonly Placement[] {
