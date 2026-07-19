@@ -7,13 +7,14 @@ export type DrawTransition = {
 };
 
 function deckCount(player: MatchState["players"][number]) {
-  return Array.isArray(player.deckCards) ? player.deckCards.length : player.deck;
+  return Number.isFinite(player.deck) ? player.deck : player.deckCards.length;
 }
 
 /**
  * Detect only hand gains that are paired with cards leaving the same player's
  * deck. This avoids animating cards that return from discard, enter from an
- * effect, or are restored by a state resynchronisation.
+ * effect, or are restored by a state resynchronisation. The public deck count
+ * is used so hidden opponent deck contents still produce an animation.
  */
 export function drawTransitions(
   previous: MatchState | null | undefined,
