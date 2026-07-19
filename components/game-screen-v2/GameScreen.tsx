@@ -18,8 +18,10 @@ import {
   type GameScreenOwnerState,
   type ZoneOwner,
 } from "./gameScreenState";
-import styles from "./GameScreen.module.css";
+import gameStyles from "./GameScreen.module.css";
+import discardStyles from "./DiscardPileLayer.module.css";
 
+const styles = { ...gameStyles, ...discardStyles };
 const GRID_WIDTH = 1800;
 const GRID_HEIGHT = 1000;
 const GRID_CENTER_X = GRID_WIDTH / 2;
