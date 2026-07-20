@@ -4,6 +4,7 @@ import "./design-system.css";
 import "./card-art-transparency.css";
 import "./gameplay-ui-fixes.css";
 import "./energy-payment.css";
+import "./discard-flip-orientation.css";
 import { AssetFreshness } from "../components/AssetFreshness";
 import { BakuCorePresentationProvider } from "../components/game-screen-v2/BakuCorePresentation";
 import { BrawlExperienceLayer } from "../components/game-screen-v2/BrawlExperienceLayer";
