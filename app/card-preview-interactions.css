@@ -1,0 +1,15 @@
+/* The Batch HUD deliberately ignores pointer input outside its effect objects so
+   it never blocks the playmat. Re-enable hit testing on the individual effects,
+   which are the actual card-preview targets. */
+[data-zone-kind="batch"] figure[data-card-id] {
+  pointer-events: auto !important;
+  cursor: pointer;
+}
+
+/* BakuCore art is square and was using a 23rem preview intended for full cards.
+   Keep the same left-side preview behaviour at exactly half that footprint. */
+[data-card-preview-kind="core"] > img,
+[data-card-preview-kind="core"] > article {
+  width: min(11.5rem, 16vw) !important;
+  max-height: min(36dvh, 11.5rem) !important;
+}
