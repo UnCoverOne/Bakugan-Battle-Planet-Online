@@ -7,7 +7,11 @@ import {
   hasPendingDraws,
   pendingDrawCountForPlayer,
 } from "../lib/drawQueue";
-import { evoCanTarget, legalEvoTargets } from "../lib/evo";
+import {
+  characterCardIsFaceUp,
+  evoCanTarget,
+  legalEvoTargets,
+} from "../lib/evo";
 import { createMatch, type GameCard } from "../lib/game";
 import { passPriorityWithManualDamage } from "../lib/manualDamage";
 import { drawTurnCard, playerCanDrawTurnCard } from "../lib/turnStart";
@@ -27,7 +31,7 @@ function compatibleEvo(player: ReturnType<typeof makePlayer>) {
   return card;
 }
 
-function giveEnergy(player: ReturnType<typeof makePlayer>, amount = 12) {
+function giveEnergy(player: ReturnType<typeof makePlayer>, amount = 20) {
   player.energyZone = player.deckCards.splice(0, amount);
   player.maxEnergy = player.energyZone.length;
   player.energy = 0;
@@ -38,7 +42,7 @@ function resolveTopBatch(match: ReturnType<typeof createMatch>, playerId: string
   return passPriorityWithManualDamage(firstPass, opponentId);
 }
 
-test("Evos target only matching Characters, remain stacked, and turn a closed Character face up", () => {
+test("Evos target only matching Characters, remain stacked, and turn the Character face up", () => {
   const { player, opponent } = players();
   const source = compatibleEvo(player);
   const target = player.bakugan.find((bakugan) => evoCanTarget(source, bakugan));
@@ -58,7 +62,8 @@ test("Evos target only matching Characters, remain stacked, and turn a closed Ch
   });
   const resolved = resolveTopBatch(played, player.id, opponent.id);
   const resolvedTarget = resolved.players[0].bakugan.find((bakugan) => bakugan.id === target.id)!;
-  assert.equal(resolvedTarget.open, true);
+  assert.equal(resolvedTarget.open, false, "playing an Evo must not falsely open the physical Bakugan");
+  assert.equal(characterCardIsFaceUp(resolvedTarget), true);
   assert.deepEqual(resolvedTarget.evoStack.map((card) => card.id), [firstEvo.id]);
 
   const secondEvo = { ...structuredClone(source), id: "evo-second" };
