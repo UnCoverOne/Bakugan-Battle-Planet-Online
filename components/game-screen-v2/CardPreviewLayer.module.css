@@ -2,22 +2,34 @@
   position: fixed;
   top: 50%;
   z-index: 20120;
-  transform: translateY(-50%);
+  contain: layout paint style;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-50%) scale(0.97);
   backface-visibility: hidden;
   pointer-events: none;
   filter:
     drop-shadow(0 0.45rem 0.7rem rgba(0, 0, 0, 0.72))
     drop-shadow(0 0 0.3rem rgba(255, 255, 255, 0.35));
-  animation: card-preview-enter 120ms ease-out both;
+  transition:
+    opacity 100ms ease-out,
+    transform 100ms ease-out;
+  will-change: opacity, transform;
 }
 
-.previewLeft {
+.preview[data-card-preview-visible="true"] {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) scale(1);
+}
+
+.preview[data-card-preview-side="left"] {
   left: clamp(0.75rem, 1.8vw, 2rem);
   right: auto;
   transform-origin: left center;
 }
 
-.previewRight {
+.preview[data-card-preview-side="right"] {
   left: auto;
   right: clamp(0.75rem, 1.8vw, 2rem);
   transform-origin: right center;
@@ -42,14 +54,14 @@
   background: transparent;
 }
 
-.preview[data-card-preview-type="Flip"] .previewImage,
-.preview[data-card-preview-type="Flip"] .placeholder {
+.preview[data-card-preview-orientation="horizontal"] .previewImage,
+.preview[data-card-preview-orientation="horizontal"] .placeholder {
   width: min(27rem, 39vw);
   max-height: min(72dvh, 19rem);
   border-radius: 3.3% / 4.6%;
 }
 
-.preview[data-card-preview-type="Flip"] .placeholder {
+.preview[data-card-preview-orientation="horizontal"] .placeholder {
   aspect-ratio: 7 / 5;
 }
 
@@ -146,19 +158,8 @@
   border-top: 1px solid rgba(255, 255, 255, 0.13);
 }
 
-@keyframes card-preview-enter {
-  from {
-    opacity: 0;
-    transform: translateY(-50%) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(-50%) scale(1);
-  }
-}
-
 :global(html[data-viewport-changing="true"]) .preview {
-  animation-play-state: paused;
+  transition: none;
 }
 
 @media (max-width: 760px) {
@@ -167,8 +168,8 @@
     width: min(10.5rem, 36vw);
   }
 
-  .preview[data-card-preview-type="Flip"] .previewImage,
-  .preview[data-card-preview-type="Flip"] .placeholder {
+  .preview[data-card-preview-orientation="horizontal"] .previewImage,
+  .preview[data-card-preview-orientation="horizontal"] .placeholder {
     width: min(16rem, 58vw);
   }
 
@@ -180,6 +181,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .preview {
-    animation: none;
+    transition: none;
   }
 }

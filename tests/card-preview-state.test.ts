@@ -1,0 +1,72 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  activateCardPreviewTarget,
+  cardPreviewOrientation,
+  cardPreviewRequestIsCurrent,
+  cardPreviewSideForZone,
+  cardPreviewZoneAllowed,
+  clearCardPreviewTarget,
+  EMPTY_CARD_PREVIEW_OWNERSHIP,
+  releaseCardPreviewTarget,
+} from "../components/game-screen-v2/cardPreviewState";
+
+test("card previews accept only explicit card zones", () => {
+  for (const zone of [
+    "character-card",
+    "hand",
+    "discard-pile",
+    "discard-browser",
+    "hero",
+    "batch",
+  ]) {
+    assert.equal(cardPreviewZoneAllowed(zone), true, `${zone} should be previewable`);
+  }
+  assert.equal(cardPreviewZoneAllowed("deck"), false);
+  assert.equal(cardPreviewZoneAllowed("energy"), false);
+  assert.equal(cardPreviewZoneAllowed(""), false);
+  assert.equal(cardPreviewZoneAllowed(undefined), false);
+});
+
+test("preview sides follow hard zone rules without geometry", () => {
+  assert.equal(cardPreviewSideForZone("character-card", "player"), "right");
+  assert.equal(cardPreviewSideForZone("hand", "player"), "left");
+  assert.equal(cardPreviewSideForZone("discard-pile", "player"), "left");
+  assert.equal(cardPreviewSideForZone("discard-browser", "player"), "left");
+  assert.equal(cardPreviewSideForZone("hero", "player"), "left");
+
+  assert.equal(cardPreviewSideForZone("character-card", "opponent"), "left");
+  assert.equal(cardPreviewSideForZone("hand", "opponent"), "left");
+  assert.equal(cardPreviewSideForZone("discard-pile", "opponent"), "right");
+  assert.equal(cardPreviewSideForZone("discard-browser", "opponent"), "right");
+  assert.equal(cardPreviewSideForZone("hero", "opponent"), "right");
+  assert.equal(cardPreviewSideForZone("batch", "player"), "left");
+  assert.equal(cardPreviewSideForZone("batch", "opponent"), "left");
+});
+
+test("Flip previews are horizontal while other cards are vertical", () => {
+  assert.equal(cardPreviewOrientation("Flip"), "horizontal");
+  assert.equal(cardPreviewOrientation("Action"), "vertical");
+  assert.equal(cardPreviewOrientation("Character"), "vertical");
+});
+
+test("stale preview requests cannot replace a newer target", () => {
+  const first = activateCardPreviewTarget(EMPTY_CARD_PREVIEW_OWNERSHIP, "card-a");
+  assert.equal(cardPreviewRequestIsCurrent(first, "card-a", first.generation), true);
+
+  const second = activateCardPreviewTarget(first, "card-b");
+  assert.equal(second.generation, first.generation + 1);
+  assert.equal(cardPreviewRequestIsCurrent(second, "card-a", first.generation), false);
+  assert.equal(cardPreviewRequestIsCurrent(second, "card-b", second.generation), true);
+
+  const staleRelease = releaseCardPreviewTarget(second, "card-a");
+  assert.equal(staleRelease, second);
+
+  const released = releaseCardPreviewTarget(second, "card-b");
+  assert.equal(released.targetId, "");
+  assert.equal(released.generation, second.generation + 1);
+  assert.equal(cardPreviewRequestIsCurrent(released, "card-b", second.generation), false);
+
+  const cleared = clearCardPreviewTarget(released);
+  assert.equal(cleared.generation, released.generation + 1);
+});
