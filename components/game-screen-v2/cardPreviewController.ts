@@ -1,4 +1,4 @@
-import type { CardType, GameCard, MatchState } from "../../lib/game";
+import type { CardType, Core, GameCard, MatchState } from "../../lib/game";
 import {
   cardPreviewOrientation,
   cardPreviewSideForZone,
@@ -25,17 +25,29 @@ export type CardPreviewDescriptor = {
   label: string;
   side: CardPreviewSide;
   orientation: CardPreviewOrientation;
+  previewKind: "card" | "core";
   cardType?: CardType;
   details: CardPreviewDetails;
 };
 
+export type PreviewElement = HTMLElement | SVGElement;
+
 type ZoneMetadata = {
-  zone: HTMLElement;
+  zone: PreviewElement;
   zoneKind: CardPreviewZoneKind;
   zoneOwner: string;
 };
 
 const MISSING_ART_PATTERN = /card-missing\.svg(?:$|[?#])/i;
+const FACE_DOWN_CORE_PATTERN = /^Face-down\b/i;
+
+function isPreviewElement(element: Element): element is PreviewElement {
+  return element instanceof HTMLElement || element instanceof SVGElement;
+}
+
+function elementData(element: Element, key: string) {
+  return isPreviewElement(element) ? element.dataset[key] ?? "" : "";
+}
 
 function imageSource(image: HTMLImageElement | null): string {
   return image?.currentSrc || image?.getAttribute("src") || "";
@@ -81,55 +93,101 @@ function detailsForCard(card: GameCard): CardPreviewDetails {
   };
 }
 
-function zoneMetadata(element: Element): ZoneMetadata | null {
-  const zone = element.closest<HTMLElement>("[data-zone-kind]");
-  const zoneKind = zone?.dataset.zoneKind;
-  if (!zone || !cardPreviewZoneAllowed(zoneKind)) return null;
-  if (zoneKind === "hand" && zone.dataset.zoneOwner === "opponent" && zone.dataset.hidden === "true") {
-    return null;
-  }
-  return { zone, zoneKind, zoneOwner: zone.dataset.zoneOwner ?? "" };
+function signed(value: number, suffix: string) {
+  if (!value) return "";
+  return `${value > 0 ? "+" : ""}${value} ${suffix}`;
 }
 
-export function previewElementFromTarget(target: EventTarget | null): HTMLElement | null {
+function detailsForCore(core: Core): CardPreviewDetails {
+  const baseStats = [
+    signed(core.bonus, "B-Power"),
+    signed(core.damageBonus, "Damage"),
+    core.frostStrike ? `+${core.frostStrike} FrostStrike` : "",
+    core.shadowStrike ? "ShadowStrike" : "",
+  ].filter(Boolean);
+  const conditionalStats = [
+    signed(core.conditionalBonus ?? 0, "B-Power"),
+    signed(core.conditionalDamage ?? 0, "Damage"),
+  ].filter(Boolean);
+  const condition = core.conditionalFactions?.length
+    ? `When attached to ${core.conditionalFactions.join(" or ")}: ${conditionalStats.join(" • ") || "conditional bonus"}.`
+    : "";
+  return {
+    name: core.name,
+    type: `${core.type} BakuCore`,
+    faction: core.conditionalFactions?.join(" / ") ?? "",
+    cost: "",
+    effect: condition || baseStats.join(" • ") || "This BakuCore has a conditional printed modifier.",
+    mechanics: core.shadowStrike ? "ShadowStrike" : core.frostStrike ? "FrostStrike" : "",
+    stats: baseStats.join(" • "),
+    cores: core.type,
+  };
+}
+
+function zoneMetadata(element: Element): ZoneMetadata | null {
+  const zone = element.closest("[data-zone-kind]");
+  const zoneKind = zone ? elementData(zone, "zoneKind") : "";
+  if (!zone || !isPreviewElement(zone) || !cardPreviewZoneAllowed(zoneKind)) return null;
+  if (zoneKind === "hand" && elementData(zone, "zoneOwner") === "opponent" && elementData(zone, "hidden") === "true") {
+    return null;
+  }
+  return { zone, zoneKind, zoneOwner: elementData(zone, "zoneOwner") };
+}
+
+export function previewElementFromTarget(target: EventTarget | null): PreviewElement | null {
   if (!(target instanceof Element)) return null;
+  const core = target.closest("[data-core-cell]");
+  if (core && isPreviewElement(core)) return core;
+
   const metadata = zoneMetadata(target);
   if (!metadata) return null;
   switch (metadata.zoneKind) {
     case "character-card":
     case "discard-pile":
-      return metadata.zone.dataset.cardId || metadata.zone.dataset.topCardId ? metadata.zone : null;
-    case "hand":
-      return target.closest<HTMLElement>("li[data-card-id]");
-    case "discard-browser":
-      return target.closest<HTMLElement>("figure[data-card-id]");
-    case "hero": {
-      const image = target instanceof HTMLImageElement ? target : target.closest<HTMLImageElement>("img");
-      return image && metadata.zone.contains(image) ? image : null;
+      return elementData(metadata.zone, "cardId") || elementData(metadata.zone, "topCardId")
+        ? metadata.zone
+        : null;
+    case "hand": {
+      const card = target.closest("li[data-card-id]");
+      return card && isPreviewElement(card) ? card : null;
     }
-    case "batch":
-      return target.closest<HTMLElement>("figure[data-card-id]");
+    case "discard-browser":
+    case "batch": {
+      const card = target.closest("figure[data-card-id]");
+      return card && isPreviewElement(card) ? card : null;
+    }
+    case "hero": {
+      const image = target instanceof HTMLImageElement ? target : target.closest("img");
+      return image instanceof HTMLImageElement && metadata.zone.contains(image) ? image : null;
+    }
     default:
       return null;
   }
 }
 
-function cardImage(element: HTMLElement, metadata: ZoneMetadata) {
+function cardImage(element: PreviewElement, metadata: ZoneMetadata) {
   return metadata.zoneKind === "hero" && element instanceof HTMLImageElement
     ? element
     : element.querySelector<HTMLImageElement>("img");
 }
 
-function resolveCard(match: MatchState | null, element: HTMLElement, metadata: ZoneMetadata) {
+function resolveCard(match: MatchState | null, element: PreviewElement, metadata: ZoneMetadata) {
   const cards = cardsInMatch(match);
   const cardId = metadata.zoneKind === "discard-pile"
-    ? metadata.zone.dataset.topCardId ?? metadata.zone.dataset.cardId ?? ""
-    : element.dataset.cardId ?? metadata.zone.dataset.cardId ?? "";
+    ? elementData(metadata.zone, "topCardId") || elementData(metadata.zone, "cardId")
+    : elementData(element, "cardId") || elementData(metadata.zone, "cardId");
   if (cardId) {
     const byId = cards.find((card) => card.id === cardId);
     if (byId) return byId;
   }
-  if (metadata.zoneKind !== "hero") return null;
+
+  const catalogId = elementData(element, "cardCatalogId") || elementData(metadata.zone, "cardCatalogId");
+  if (catalogId) {
+    const byCatalog = cards.find((card) => card.catalogId === catalogId);
+    if (byCatalog) return byCatalog;
+  }
+
+  if (metadata.zoneKind !== "hero" && metadata.zoneKind !== "batch") return null;
   const image = cardImage(element, metadata);
   const sourcePath = normalizedPath(imageSource(image));
   const label = image?.alt.trim().toLowerCase() ?? "";
@@ -140,14 +198,42 @@ function resolveCard(match: MatchState | null, element: HTMLElement, metadata: Z
   )) ?? null;
 }
 
+function describeCorePreview(
+  match: MatchState | null,
+  element: PreviewElement,
+  elementToken: string,
+): CardPreviewDescriptor | null {
+  const cell = elementData(element, "coreCell");
+  const placement = match?.placements.find((candidate) => candidate.cell === cell);
+  if (!placement) return null;
+  const ariaLabel = element.getAttribute("aria-label") ?? "";
+  const revealed = Boolean(placement.attachedTo) || Boolean(ariaLabel && !FACE_DOWN_CORE_PATTERN.test(ariaLabel));
+  if (!revealed) return null;
+  const core = placement.core;
+  const identity = [cell, core.id, core.art, core.name, "left", "core"].join("\u0000");
+  return {
+    targetId: `${elementToken}:${identity}`,
+    src: core.art,
+    label: core.name,
+    side: "left",
+    orientation: "core",
+    previewKind: "core",
+    details: detailsForCore(core),
+  };
+}
+
 export function describePreviewElement(
   match: MatchState | null,
-  element: HTMLElement,
+  element: PreviewElement,
   elementToken: string,
 ): CardPreviewDescriptor | null {
   if (!element.isConnected) return null;
+  if (elementData(element, "coreCell")) {
+    return describeCorePreview(match, element, elementToken);
+  }
+
   const metadata = zoneMetadata(element);
-  if (!metadata) return null;
+  if (!metadata || metadata.zoneKind === "bakucore") return null;
   const card = resolveCard(match, element, metadata);
   if (!card) return null;
   const side = cardPreviewSideForZone(metadata.zoneKind, metadata.zoneOwner);
@@ -159,9 +245,37 @@ export function describePreviewElement(
     label: card.displayName || card.name || "Card",
     side,
     orientation,
+    previewKind: "card",
     cardType: card.type,
     details: detailsForCard(card),
   };
+}
+
+/**
+ * Discard presentation is based on card data, while the existing discard DOM is
+ * intentionally generic. Keep its type metadata synchronized without making
+ * card-preview ownership depend on image load events or pointer geometry.
+ */
+export function synchronizeDiscardCardTypes(
+  match: MatchState | null,
+  root: ParentNode,
+) {
+  const cards = cardsInMatch(match);
+  const byId = new Map(cards.map((card) => [card.id, card]));
+  const elements = root.querySelectorAll<HTMLElement>(
+    '[data-zone-kind="discard-pile"], [data-zone-kind="discard-browser"] figure[data-card-id]',
+  );
+  for (const element of elements) {
+    const cardId = element.dataset.topCardId || element.dataset.cardId || "";
+    const card = byId.get(cardId);
+    if (!card) {
+      delete element.dataset.cardType;
+      delete element.dataset.cardCatalogId;
+      continue;
+    }
+    element.dataset.cardType = card.type;
+    element.dataset.cardCatalogId = card.catalogId;
+  }
 }
 
 export function decodePreviewArtwork(source: string): Promise<boolean> {
