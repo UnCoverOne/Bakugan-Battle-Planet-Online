@@ -8,15 +8,23 @@ type AsyncAction = () => void | Promise<void>;
 export function GameMenuHud({
   automaticDraw,
   automaticPass,
+  soundEnabled,
+  undoAvailable,
   onAutomaticDrawChange,
   onAutomaticPassChange,
+  onSoundEnabledChange,
+  onUndo,
   onConcede,
   onOpenSettings,
 }: {
   automaticDraw: boolean;
   automaticPass: boolean;
+  soundEnabled: boolean;
+  undoAvailable: boolean;
   onAutomaticDrawChange: (enabled: boolean) => void;
   onAutomaticPassChange: (enabled: boolean) => void;
+  onSoundEnabledChange: (enabled: boolean) => void;
+  onUndo: AsyncAction;
   onConcede: AsyncAction;
   onOpenSettings: () => void;
 }) {
@@ -97,6 +105,14 @@ export function GameMenuHud({
 
           <label className={styles.toggleRow}>
             <span>
+              <strong>Gameplay Sounds</strong>
+              <small>Play lightweight cues for cards, rolls, damage and turns.</small>
+            </span>
+            <input type="checkbox" role="switch" checked={soundEnabled} onChange={(event) => onSoundEnabledChange(event.target.checked)} />
+          </label>
+
+          <label className={styles.toggleRow}>
+            <span>
               <strong>Automatic Pass</strong>
               <small>Pass priority when no playable action is available.</small>
             </span>
@@ -110,6 +126,9 @@ export function GameMenuHud({
         </div>
 
         <div className={styles.menuActions}>
+          <button type="button" disabled={busy || !undoAvailable} onClick={() => void onUndo()}>
+            Undo Latest Card
+          </button>
           <button type="button" className={styles.settingsButton} onClick={onOpenSettings}>
             Settings
           </button>

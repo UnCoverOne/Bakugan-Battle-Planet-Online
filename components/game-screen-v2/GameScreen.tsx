@@ -26,6 +26,7 @@ import {
 import gameStyles from "./GameScreen.module.css";
 import discardStyles from "./DiscardPileLayer.module.css";
 import coreStyles from "./HeldBakuCoreZone.module.css";
+import { ResponsiveCardImage } from "./ResponsiveCardImage";
 
 const styles = { ...gameStyles, ...discardStyles, ...coreStyles };
 const GRID_WIDTH = 1800;
@@ -190,10 +191,11 @@ function CharacterCardZone({
         aria-label={label}
       >
         {card ? (
-          <img
+          <ResponsiveCardImage
             className={styles.characterCardImage}
             src={card.art}
             alt={card.displayName || card.name}
+            eager={bakugan?.open}
             draggable={false}
           />
         ) : <ZoneLabel lines={["Character", `Card ${slot}`]} />}
@@ -234,7 +236,7 @@ function DeckStack({ count, owner }: { count: number; owner: ZoneOwner }) {
 function DiscardCard({ card }: { card: GameCard | null }) {
   if (!card) return null;
   return (
-    <img
+    <ResponsiveCardImage
       className={styles.discardCardImage}
       src={card.art}
       alt={card.displayName || card.name}
@@ -308,7 +310,7 @@ function HeroStack({ cards }: { cards: readonly GameCard[] }) {
         const left = layout.startPercent + index * layout.stepPercent;
         const style = { "--hero-left": `${left}%`, "--hero-order": index } as CSSProperties;
         return (
-          <img
+          <ResponsiveCardImage
             className={styles.heroCardImage}
             src={card.art}
             alt={card.displayName || card.name}
@@ -592,7 +594,7 @@ function DiscardPileModal({
               data-card-id={card.id}
               key={card.id}
             >
-              <img
+              <ResponsiveCardImage
                 src={card.art}
                 alt={card.displayName || card.name}
                 draggable={false}
@@ -693,7 +695,7 @@ export function GameScreen({
   return (
     <>
       <div className={styles.screen}>
-        <div className={styles.playArea} aria-label="Experimental game play area">
+        <div className={styles.playArea} data-gameplay-surface="true" aria-label="Game play area">
           <svg
             className={styles.hexGrid}
             viewBox={`0 0 ${GRID_WIDTH} ${GRID_HEIGHT}`}

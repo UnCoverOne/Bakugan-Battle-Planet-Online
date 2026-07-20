@@ -57,7 +57,9 @@ export type TurnProgressState = {
 
 const DEFAULT_PROGRESS_BY_ENGINE_PHASE: Record<Phase, Pick<TurnProgressState, "phaseKey" | "stepKey">> = {
   lobby: { phaseKey: "start", stepKey: "draw" },
+  startingPlayer: { phaseKey: "start", stepKey: "draw" },
   placement: { phaseKey: "start", stepKey: "draw" },
+  draw: { phaseKey: "start", stepKey: "draw" },
   energize: { phaseKey: "start", stepKey: "energize" },
   selection: { phaseKey: "roll", stepKey: "selection" },
   preRoll: { phaseKey: "roll", stepKey: "selection" },
@@ -89,6 +91,7 @@ function stepFromLabel(label: string): TurnStepKey | null {
 }
 
 export function remainingStepSeconds(deadline: number, now: number): number {
+  if (!Number.isFinite(deadline) || !Number.isFinite(now)) return 0;
   return Math.max(0, Math.ceil((deadline - now) / 1000));
 }
 

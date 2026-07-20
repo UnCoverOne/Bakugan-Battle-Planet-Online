@@ -11,14 +11,10 @@ import { createPortal } from "react-dom";
 import type { GameCard, MatchState } from "../../lib/game";
 import { drawTransitions } from "./drawAnimationState";
 import styles from "./DrawAnimationLayer.module.css";
+import { useMatchSelector } from "./matchStore";
 
 const CARD_BACK_ART = "/assets/card-back.png";
 const DRAW_ANIMATION_MS = 760;
-const ROUTE_KEY = "bbp-route-v1";
-const SETTINGS_KEY = "bbp-settings";
-const MATCH_KEY = "bbp-active-match-v1";
-const PLAYER_KEY = "bbp-player-id";
-const MATCH_UPDATE_EVENT = "bbp-match-state-updated";
 
 type HandOwner = "player" | "opponent";
 
@@ -52,25 +48,6 @@ type PendingFlight = {
   delay: number;
 };
 
-function parseStoredValue<T>(raw: string | null, fallback: T): T {
-  if (raw == null) return fallback;
-  try { return JSON.parse(raw) as T; }
-  catch { return fallback; }
-}
-
-function readStoredDrawState(): StoredDrawState {
-  const settings = parseStoredValue<Record<string, unknown>>(
-    localStorage.getItem(SETTINGS_KEY),
-    {},
-  );
-  const route = parseStoredValue(localStorage.getItem(ROUTE_KEY), "entry");
-  return {
-    active: Boolean(settings.useNewGameScreen) && route === "match",
-    match: parseStoredValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
-    playerId: parseStoredValue<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
-  };
-}
-
 function handCardById(hand: HTMLElement, cardId: string) {
   return [...hand.querySelectorAll<HTMLElement>("[data-card-id]")]
     .find((element) => element.dataset.cardId === cardId) ?? null;
@@ -83,40 +60,20 @@ function cardRect(element: HTMLElement) {
 }
 
 export function DrawAnimationLayer() {
-  const [stored, setStored] = useState<StoredDrawState>({
-    active: false,
-    match: null,
-    playerId: undefined,
-  });
+  const stored = useMatchSelector((state): StoredDrawState => ({
+    active: state.route === "match",
+    match: state.match,
+    playerId: state.playerId,
+  }));
   const [flights, setFlights] = useState<DrawFlight[]>([]);
   const previousMatch = useRef<MatchState | null>(null);
   const hiddenTargets = useRef(new Map<string, HTMLElement>());
-  const rawState = useRef("");
   const mounted = useRef(false);
 
   useEffect(() => {
     mounted.current = true;
-    const update = () => {
-      const raw = [
-        localStorage.getItem(ROUTE_KEY),
-        localStorage.getItem(SETTINGS_KEY),
-        localStorage.getItem(MATCH_KEY),
-        localStorage.getItem(PLAYER_KEY),
-      ].join("\u0000");
-      if (raw === rawState.current) return;
-      rawState.current = raw;
-      setStored(readStoredDrawState());
-    };
-
-    update();
-    const interval = window.setInterval(update, 500);
-    window.addEventListener("storage", update);
-    window.addEventListener(MATCH_UPDATE_EVENT, update as EventListener);
     return () => {
       mounted.current = false;
-      window.clearInterval(interval);
-      window.removeEventListener("storage", update);
-      window.removeEventListener(MATCH_UPDATE_EVENT, update as EventListener);
       for (const target of hiddenTargets.current.values()) {
         delete target.dataset.drawAnimationTarget;
       }

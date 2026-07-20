@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { CardChoices, MatchState, PlayerState } from "../../lib/game";
+import { cardChoiceSpec, type CardChoices, type MatchState, type PlayerState } from "../../lib/game";
 import { cardEnergyPaymentState } from "../../lib/cardPayment";
 import { legalEvoTargets, selectedEvoTargetId } from "../../lib/evo";
 import { drawStepIsPending } from "../../lib/turnStart";
 import {
-  cardRequiresSelection,
   compactMatchHudSlots,
-  defaultCardChoices,
   handCardIsActionable,
   matchRoundTarget,
   playableHandCards,
@@ -19,6 +17,7 @@ import {
   type MatchHudActionKey,
 } from "./matchHudState";
 import { characterSelectionCanConfirm } from "./selectionState";
+import { CardChoiceEditor } from "./CardChoiceEditor";
 import styles from "./MatchHudLayer.module.css";
 import shapeStyles from "./PlayerHudShape.module.css";
 
@@ -137,12 +136,14 @@ export function MatchHudLayer({
 }) {
   const [selectionPending, setSelectionPending] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [flipChoiceOpen, setFlipChoiceOpen] = useState(false);
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const { player, opponent } = resolveHudPlayers(match, playerId);
 
   useEffect(() => {
     setSelectionPending(false);
+    setFlipChoiceOpen(false);
     setError("");
   }, [match?.phase, match?.version, selectedHandCardId]);
 
@@ -216,11 +217,9 @@ export function MatchHudLayer({
       return;
     }
 
-    if (cardRequiresSelection(match, player.id, card.id)) {
-      setSelectionPending(true);
-      setError("");
-      return;
-    }
+    // The authoritative choice queue owns every required selection. Preparing
+    // the play does not spend Energy or move the card until all choosers lock
+    // valid answers.
     void run(() => onPlayCard(card.id, {}));
   };
 
@@ -240,19 +239,33 @@ export function MatchHudLayer({
       return;
     }
     if (!selectedCard || !selectionPending) return;
-    const choices = defaultCardChoices(match, player.id, selectedCard);
-    void run(() => onPlayCard(selectedCard.id, choices));
   };
 
   const playRevealedFlip = () => {
     const flip = match.revealedFlip;
     if (!flip) return;
-    const choices = defaultCardChoices(match, player.id, flip);
+    if (cardChoiceSpec(match, player.id, flip).length) {
+      setFlipChoiceOpen(true);
+      return;
+    }
+    const choices: CardChoices = {};
     const payment = cardEnergyPaymentState(match, player.id, flip, choices);
     if (payment?.kind === "insufficient") {
       setError(`Not enough Energy. ${payment.cost} required, ${payment.totalEnergy} available.`);
       return;
     }
+    void run(() => onPlayFlip(flip.id, choices));
+  };
+
+  const confirmFlipChoices = (choices: CardChoices) => {
+    const flip = match.revealedFlip;
+    if (!flip) return;
+    const payment = cardEnergyPaymentState(match, player.id, flip, choices);
+    if (payment?.kind === "insufficient") {
+      setError(`Not enough Energy. ${payment.cost} required, ${payment.totalEnergy} available.`);
+      return;
+    }
+    setFlipChoiceOpen(false);
     void run(() => onPlayFlip(flip.id, choices));
   };
 
@@ -342,6 +355,16 @@ export function MatchHudLayer({
           </div>
           <button type="button" onClick={() => setError("")} aria-label="Close message">×</button>
         </div>
+      ) : null}
+      {flipChoiceOpen && match.revealedFlip ? (
+        <CardChoiceEditor
+          match={match}
+          playerId={player.id}
+          card={match.revealedFlip}
+          title={`Play ${match.revealedFlip.displayName || match.revealedFlip.name}`}
+          onCancel={() => setFlipChoiceOpen(false)}
+          onSubmit={confirmFlipChoices}
+        />
       ) : null}
     </>
   );

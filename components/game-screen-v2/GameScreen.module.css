@@ -511,3 +511,40 @@
     transition: none;
   }
 }
+
+/* Three deliberately composed table layouts. Elements do not inherit a
+   continuously shrunken desktop canvas at tablet and phone breakpoints. */
+@media (min-width: 701px) and (max-width: 1100px) {
+  .playArea {
+    width: 96vw;
+    max-height: 92dvh;
+    aspect-ratio: 4 / 3;
+    transform: rotateX(2deg);
+  }
+  .characterCardArea { width: 31%; }
+  .cardStackArea { width: 39%; }
+  .playerCharacterCardArea { left: 2%; bottom: 7%; }
+  .opponentCharacterCardArea { top: 7%; right: 2%; }
+  .playerCardStackArea { right: 2%; bottom: 7%; }
+  .opponentCardStackArea { top: 7%; left: 2%; }
+}
+
+@media (max-width: 700px) {
+  .screen { place-items: stretch; perspective: none; }
+  .playArea {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    aspect-ratio: auto;
+    transform: none;
+    border-width: 1px;
+  }
+  .characterCardArea { width: 43%; }
+  .cardStackArea { width: 49%; gap: 2%; }
+  .playerCharacterCardArea { left: 1.5%; bottom: 14%; }
+  .opponentCharacterCardArea { top: 7%; right: 1.5%; }
+  .playerCardStackArea { right: 1.5%; bottom: 14%; }
+  .opponentCardStackArea { top: 7%; left: 1.5%; }
+  .heroZone, .energyZone { aspect-ratio: 9 / 7; }
+  .zoneLabel { font-size: .52rem; }
+}

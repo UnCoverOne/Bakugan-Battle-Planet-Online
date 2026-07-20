@@ -10,9 +10,10 @@ export type AppSettings = {
   cardScale: number;
   logDetail: string;
   challenges: string;
-  useNewGameScreen?: boolean;
   automaticDraw?: boolean;
   automaticPass?: boolean;
+  soundEnabled?: boolean;
+  soundVolume?: number;
 };
 export type MatchResultRecord = { id: string; result: string; opponent: string; score: string; reason: string; at: string; log: MatchState["log"] };
 

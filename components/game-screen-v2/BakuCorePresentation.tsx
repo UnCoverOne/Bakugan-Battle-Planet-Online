@@ -16,10 +16,7 @@ import {
   rollPresentationStorageKey,
   type RollPresentationRecord,
 } from "./bakuCorePresentationState";
-
-const MATCH_KEY = "bbp-active-match-v1";
-const PLAYER_KEY = "bbp-player-id";
-const MATCH_UPDATE_EVENT = "bbp-match-state-updated";
+import { useMatchSelector } from "./matchStore";
 
 type StoredPresentationMatch = {
   match: MatchState | null;
@@ -51,13 +48,6 @@ function parseStoredValue<T>(raw: string | null, fallback: T): T {
   catch { return fallback; }
 }
 
-function readStoredMatch(): StoredPresentationMatch {
-  return {
-    match: parseStoredValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
-    playerId: parseStoredValue<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
-  };
-}
-
 function readPresentationRecord(key: string): RollPresentationRecord | null {
   return parseStoredValue<RollPresentationRecord | null>(localStorage.getItem(key), null);
 }
@@ -67,24 +57,11 @@ function writePresentationRecord(key: string, record: RollPresentationRecord) {
 }
 
 export function BakuCorePresentationProvider({ children }: { children: ReactNode }) {
-  const [stored, setStored] = useState<StoredPresentationMatch>({ match: null, playerId: undefined });
+  const stored = useMatchSelector((state): StoredPresentationMatch => ({ match: state.match, playerId: state.playerId }));
   const [record, setRecord] = useState<RollPresentationRecord | null>(null);
   const [rollResultOpen, setRollResultOpen] = useState(false);
   const [deferredCoreCells, setDeferredCoreCells] = useState<readonly string[]>([]);
   const [transferringCoreCells, setTransferringCoreCells] = useState<readonly string[]>([]);
-
-  useEffect(() => {
-    const update = () => setStored(readStoredMatch());
-    update();
-    const interval = window.setInterval(update, 500);
-    window.addEventListener("storage", update);
-    window.addEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("storage", update);
-      window.removeEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    };
-  }, []);
 
   const signature = rollResultSignature(stored.match);
   const cells = useMemo(() => rollResultCells(stored.match), [stored.match]);

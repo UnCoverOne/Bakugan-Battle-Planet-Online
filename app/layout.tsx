@@ -10,12 +10,14 @@ import "./gameplay-card-presentation.css";
 import { AssetFreshness } from "../components/AssetFreshness";
 import { BakuCorePresentationProvider } from "../components/game-screen-v2/BakuCorePresentation";
 import { BrawlExperienceLayer } from "../components/game-screen-v2/BrawlExperienceLayer";
+import { ChoiceQueueLayer } from "../components/game-screen-v2/ChoiceQueueLayer";
 import { DrawAnimationLayer } from "../components/game-screen-v2/DrawAnimationLayer";
 import { GameplayCardPresentationLayer } from "../components/game-screen-v2/GameplayCardPresentationLayer";
+import { GameplaySoundLayer } from "../components/game-screen-v2/GameplaySoundLayer";
 import { MatchCommunicationLayer } from "../components/game-screen-v2/MatchCommunicationLayer";
 import { MatchDecisionLayer } from "../components/game-screen-v2/MatchDecisionLayer";
 import { MatchStateCoordinator } from "../components/game-screen-v2/MatchStateCoordinator";
-import { NewGameScreenTester } from "../components/game-screen-v2/NewGameScreenTester";
+import { GameplayClient } from "../components/game-screen-v2/GameplayClient";
 import { ViewportStabilityGuard } from "../components/game-screen-v2/ViewportStabilityGuard";
 
 export const metadata: Metadata = {
@@ -51,12 +53,14 @@ export default function RootLayout({
           <ViewportStabilityGuard />
           <AssetFreshness />
           {children}
-          <NewGameScreenTester />
+          <GameplayClient />
           <GameplayCardPresentationLayer />
           <MatchCommunicationLayer />
           <DrawAnimationLayer />
           <BrawlExperienceLayer />
           <MatchDecisionLayer />
+          <ChoiceQueueLayer />
+          <GameplaySoundLayer />
         </BakuCorePresentationProvider>
       </body>
     </html>

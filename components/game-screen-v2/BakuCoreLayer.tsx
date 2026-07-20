@@ -24,6 +24,7 @@ import { coreTransferDestination } from "./bakuCorePresentationState";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { RollResultLayer } from "./RollResultLayer";
 import styles from "./BakuCoreLayer.module.css";
+import { readMatchStore } from "./matchStore";
 
 const GRID_WIDTH = 1800;
 const GRID_HEIGHT = 1000;
@@ -33,7 +34,6 @@ const HEX_RADIUS = 52 * 0.8;
 const HEX_HEIGHT = Math.sqrt(3) * HEX_RADIUS;
 const HEX_X_STEP = HEX_RADIUS * 1.5;
 const MATRIX_CORE_SIZE = 80;
-const ONLINE_KEY = "bbp-active-match-online-v1";
 
 const CORE_BACK_ART: Record<CoreType, string> = {
   Fist: "/assets/core-backs/fist.png",
@@ -69,11 +69,6 @@ function cellPosition(cellId: string) {
     x: GRID_CENTER_X + cell.q * HEX_X_STEP,
     y: GRID_CENTER_Y + (cell.r + cell.q / 2) * HEX_HEIGHT,
   };
-}
-
-function storedBoolean(key: string) {
-  try { return Boolean(JSON.parse(localStorage.getItem(key) ?? "false")); }
-  catch { return false; }
 }
 
 function samePortalTargets(previous: PortalTargets, next: PortalTargets) {
@@ -211,7 +206,7 @@ export function BakuCoreLayer({
       frame = window.requestAnimationFrame(() => {
         const next = {
           playArea: document.querySelector<HTMLElement>(
-            '[aria-label="Experimental game play area"]',
+            '[data-gameplay-surface="true"]',
           ),
           actionSlot: document.querySelector<HTMLElement>(
             '[aria-label="Available player actions"] [data-slot="primary"]',
@@ -242,7 +237,7 @@ export function BakuCoreLayer({
   useEffect(() => {
     const onBlankPlaymat = (event: PointerEvent) => {
       if (!(event.target instanceof Element)) return;
-      if (!event.target.closest('[aria-label="Experimental game play area"]')) return;
+      if (!event.target.closest('[data-gameplay-surface="true"]')) return;
       if (event.target.closest("[data-core-cell], button, [role=button], input, select, textarea, a")) return;
       setSelectedCoreCell("");
     };
@@ -293,13 +288,14 @@ export function BakuCoreLayer({
     setBusy(true);
     setError("");
     try {
-      if (!storedBoolean(ONLINE_KEY)) {
+      const stored = readMatchStore();
+      if (!stored.online) {
         writeCoordinatedMatch(localAction(match, actorId));
       } else {
         const response = await fetch("/api/game", {
           method: "POST",
           cache: "no-store",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", ...(stored.capability ? { "x-match-capability": stored.capability } : {}) },
           body: JSON.stringify({
             action,
             code: match.code,

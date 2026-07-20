@@ -12,9 +12,21 @@
     {
       "binding": "DB",
       "database_name": "bakugan-battle-planet-online",
-      "database_id": "0db23d77-e217-4d83-999c-06077e827a7f"
+      "database_id": "0db23d77-e217-4d83-999c-06077e827a7f",
+      "migrations_dir": "migrations"
     }
   ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "MATCHES", "class_name": "MatchRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["MatchRoom"] }
+  ],
+  "triggers": {
+    "crons": ["17 */6 * * *"]
+  },
   "observability": {
     "enabled": true
   }

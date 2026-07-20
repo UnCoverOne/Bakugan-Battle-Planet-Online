@@ -222,6 +222,12 @@ export function drawTurnCard(
     state.drawnPlayerIds = [...drawIds(state), player.id];
   }
 
+  const nextDrawer = state.players.find((candidate) => remainingDraws(state, candidate.id) > 0);
+  if (nextDrawer) {
+    state.priority = nextDrawer.id;
+    state.deadline = now + DRAW_STEP_DURATION_MS;
+  }
+
   if (state.players.every((candidate) => remainingDraws(state, candidate.id) <= 0)) {
     state.phase = "energize";
     state.priority = state.startingPlayer;

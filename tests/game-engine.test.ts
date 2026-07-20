@@ -2,10 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { BAKUGAN, CARDS, CORES, STARTER_DECKS, deckErrors, makePlayer } from "../lib/data";
 import {
-  CENTER_CELL, HEX_CELLS, cardChoiceSpec, createMatch, discardToHandLimit, energizeCard,
+  CENTER_CELL, HEX_CELLS, beginCorePlacement, cardChoiceSpec, createMatch, discardToHandLimit, energizeCard,
   legalPlacementCells, passPriority, placeCore, playCard, resolveDamage, selectBakugan,
   setReady, startNextSeriesGame, targetCore, totalPower, type MatchState,
 } from "../lib/game";
+import { drawTurnCard } from "../lib/turnStart";
 
 const passWindow = (state: MatchState) => {
   state = passPriority(state, state.priority); return passPriority(state, state.priority);
@@ -14,16 +15,26 @@ const passWindow = (state: MatchState) => {
 const buildPlacedMatch = () => {
   const a = makePlayer("a", "Alpha", STARTER_DECKS[0]); const b = makePlayer("b", "Beta", STARTER_DECKS[1]);
   let state = setReady(setReady(createMatch("TEST01", "bo3", [a, b]), "a"), "b");
+  assert.equal(state.phase, "startingPlayer");
+  state = beginCorePlacement(state, Number.POSITIVE_INFINITY);
   assert.deepEqual(legalPlacementCells(state), [CENTER_CELL]);
   for (let index = 0; index < 12; index += 1) {
-    const player = state.players[index % 2]; const core = player.cores[Math.floor(index / 2)];
+    const player = state.players.find((candidate) => candidate.id === state.priority)!;
+    const core = player.cores[state.placements.filter((placement) => placement.playerId === player.id).length];
     state = placeCore(state, player.id, core.id, legalPlacementCells(state)[0]);
   }
   return state;
 };
 
+const completeTurnDraws = (input: MatchState) => {
+  let state = input;
+  for (const player of state.players) state = drawTurnCard(state, player.id, Number.POSITIVE_INFINITY);
+  return state;
+};
+
 const reachPower = () => {
   let state = buildPlacedMatch();
+  state = completeTurnDraws(state);
   state = energizeCard(state, "a", state.players[0].hand[0].id); state = energizeCard(state, "b", state.players[1].hand[0].id);
   state = selectBakugan(state, "a", state.players[0].bakugan[0].id); state = selectBakugan(state, "b", state.players[1].bakugan[0].id);
   state = passWindow(state); assert.equal(state.phase, "target");
@@ -41,7 +52,7 @@ test("the complete supplied Battle Planet catalogue is normalized and playable",
 
 test("the Hide Matrix is a radius-three axial hex and placement remains connected", () => {
   assert.equal(HEX_CELLS.length, 61); assert.ok(HEX_CELLS.some((cell) => cell.id === CENTER_CELL && cell.q === 0 && cell.r === 0));
-  const state = buildPlacedMatch(); assert.equal(state.placements[0].cell, CENTER_CELL); assert.equal(state.placements.length, 12); assert.equal(state.phase, "energize");
+  const state = buildPlacedMatch(); assert.equal(state.placements[0].cell, CENTER_CELL); assert.equal(state.placements.length, 12); assert.equal(state.phase, "draw");
   for (let index = 1; index < state.placements.length; index += 1) {
     const current = HEX_CELLS.find((cell) => cell.id === state.placements[index].cell)!;
     assert.ok(state.placements.slice(0, index).some((placed) => { const prior = HEX_CELLS.find((cell) => cell.id === placed.cell)!; return (Math.abs(current.q-prior.q)+Math.abs(current.r-prior.r)+Math.abs(current.q+current.r-prior.q-prior.r))/2 === 1; }));
@@ -49,7 +60,8 @@ test("the Hide Matrix is a radius-three axial hex and placement remains connecte
 });
 
 test("the full turn enters Draw/Energize, Selection, pre-roll priority, target and Power", () => {
-  let state = buildPlacedMatch(); assert.equal(state.players[0].hand.length, 6); assert.equal(state.phase, "energize");
+  let state = buildPlacedMatch(); assert.equal(state.players[0].hand.length, 5); assert.equal(state.phase, "draw");
+  state = completeTurnDraws(state); assert.equal(state.players[0].hand.length, 6); assert.equal(state.phase, "energize");
   state = energizeCard(state, "a", state.players[0].hand[0].id); state = energizeCard(state, "b"); assert.equal(state.phase, "selection");
   assert.equal(state.players[0].maxEnergy, 1); assert.equal(state.players[1].maxEnergy, 0);
   state = selectBakugan(state, "a", state.players[0].bakugan[0].id); state = selectBakugan(state, "b", state.players[1].bakugan[0].id); assert.equal(state.phase, "preRoll");
@@ -103,11 +115,11 @@ test("the End Phase charges Energy, enforces seven cards, and begins the next St
   if (state.phase === "postDamage") state = passWindow(state); assert.equal(state.phase,"endPlay"); const currentWinner=state.players.find((player)=>player.id===winner.id)!; currentWinner.hand.push(...currentWinner.deckCards.splice(0, Math.max(0, 9-currentWinner.hand.length))); currentWinner.deck=currentWinner.deckCards.length;
   state = passWindow(state); assert.equal(state.phase,"handLimit"); const actor=state.players.find((player) => player.id===state.priority)!; state=discardToHandLimit(state,actor.id,actor.hand.slice(0,actor.hand.length-7).map((card)=>card.id));
   const nextOver=state.players.find((player)=>state.phase==="handLimit"&&player.id===state.priority); if(nextOver) state=discardToHandLimit(state,nextOver.id,nextOver.hand.slice(0,nextOver.hand.length-7).map((card)=>card.id));
-  assert.equal(state.phase,"energize"); assert.equal(state.turn,2); assert.ok(state.players.every((player)=>player.energy===player.maxEnergy));
+  assert.equal(state.phase,"draw"); assert.equal(state.turn,2); assert.ok(state.players.every((player)=>player.energy===player.maxEnergy));
 });
 
 test("best-of-three creates a fully reset second game", () => {
   let state = reachPower(); const winner = state.players[0]; const attacking = winner.bakugan.find((bakugan) => bakugan.id === state.selected[winner.id])!; attacking.open = true; state.rolls[winner.id].result = "open-no-core"; state.powerBoost[attacking.id] = 9999; state = passWindow(state);
   const loser = state.players[1]; loser.discard.push(...loser.deckCards); loser.deckCards = []; loser.deck = 0; state = passWindow(state); assert.equal(state.phase,"result"); assert.equal(state.series[winner.id],1);
-  state = startNextSeriesGame(state); assert.equal(state.gameNumber,2); assert.equal(state.phase,"placement"); assert.equal(state.placements.length,0); assert.ok(state.players.every((player)=>player.deckCards.length===35&&player.hand.length===5));
+  state = startNextSeriesGame(state); assert.equal(state.gameNumber,2); assert.equal(state.phase,"startingPlayer"); assert.equal(state.placements.length,0); assert.ok(state.players.every((player)=>player.deckCards.length===35&&player.hand.length===5));
 });
