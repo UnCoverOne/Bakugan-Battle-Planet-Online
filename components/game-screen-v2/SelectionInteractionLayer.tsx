@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import type { MatchState, PlayerState } from "../../lib/game";
+import { legalEvoTargets } from "../../lib/evo";
 import { drawStepIsPending } from "../../lib/turnStart";
 import {
   playerActionTooltip,
@@ -14,7 +15,16 @@ import styles from "./SelectionInteractionLayer.module.css";
 const CHARACTER_ZONE_SELECTOR = '[data-zone-kind="character-card"]';
 const PLAYER_CHARACTER_ZONE_SELECTOR = `${CHARACTER_ZONE_SELECTOR}[data-zone-owner="player"]`;
 const PLAYER_CHARACTER_AREA_SELECTOR = '[data-zone-owner="player"][data-zone-group="character-cards"]';
+const PLAYER_SELECTED_HAND_CARD_SELECTOR = '[data-zone-kind="hand"][data-zone-owner="player"] li[data-selected="true"][data-card-id]';
 const PLAY_AREA_SELECTOR = '[aria-label="Experimental game play area"]';
+
+const PRIORITY_PHASES = new Set([
+  "preRoll",
+  "power",
+  "victor",
+  "postDamage",
+  "endPlay",
+]);
 
 type SelectionInteractionLayerProps = {
   match: MatchState | null;
@@ -51,6 +61,10 @@ function playerForZone(
     : match.players.find((player) => player.id !== localPlayer.id) ?? null;
 }
 
+function selectedHandCardFromDocument() {
+  return document.querySelector<HTMLElement>(PLAYER_SELECTED_HAND_CARD_SELECTOR)?.dataset.cardId ?? "";
+}
+
 export function SelectionInteractionLayer({
   match,
   playerId,
@@ -61,13 +75,46 @@ export function SelectionInteractionLayer({
 }: SelectionInteractionLayerProps) {
   const [now, setNow] = useState(() => Date.now());
   const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
+  const [domSelectedHandCardId, setDomSelectedHandCardId] = useState("");
+  const [selectedEvoTargetId, setSelectedEvoTargetId] = useState("");
+  const effectiveSelectedHandCardId = selectedHandCardId || domSelectedHandCardId;
+  const localPlayer = selectionPlayer(match, playerId);
+  const selectedHandCard = localPlayer?.hand.find((card) => card.id === effectiveSelectedHandCardId);
+  const evoTargetIds = new Set(
+    selectedHandCard?.type === "Evo"
+      && match
+      && localPlayer
+      && PRIORITY_PHASES.has(match.phase)
+      && match.priority === localPlayer.id
+      ? legalEvoTargets(match, localPlayer.id, selectedHandCard).map((bakugan) => bakugan.id)
+      : [],
+  );
+  const evoSelectionActive = evoTargetIds.size > 0;
   const prompt = playerActionTooltip({
     match,
     playerId,
     selectedCharacterId,
-    selectedHandCardId,
+    selectedHandCardId: effectiveSelectedHandCardId,
+    selectedEvoTargetId,
     now,
   });
+
+  useEffect(() => {
+    const update = () => setDomSelectedHandCardId(selectedHandCardFromDocument());
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-selected", "data-card-id"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setSelectedEvoTargetId("");
+  }, [effectiveSelectedHandCardId, match?.phase, match?.priority]);
 
   useEffect(() => {
     if (!drawStepIsPending(match)) return;
@@ -79,7 +126,7 @@ export function SelectionInteractionLayer({
 
   useEffect(() => {
     const player = selectionPlayer(match, playerId);
-    const selectableIds = new Set(
+    const normalSelectableIds = new Set(
       selectableCharacterBakugan(match, playerId).map((bakugan) => bakugan.id),
     );
     const zones = Array.from(document.querySelectorAll<HTMLElement>(CHARACTER_ZONE_SELECTOR));
@@ -89,8 +136,17 @@ export function SelectionInteractionLayer({
       const slot = Math.max(0, Number(zone.dataset.slot ?? 1) - 1);
       const bakugan = ownerPlayer?.bakugan[slot];
       const localZone = zone.dataset.zoneOwner === "player";
-      const selectable = Boolean(localZone && bakugan && selectableIds.has(bakugan.id));
-      const selected = Boolean(localZone && bakugan && bakugan.id === selectedCharacterId && selectable);
+      const normalSelectable = Boolean(localZone && bakugan && normalSelectableIds.has(bakugan.id));
+      const evoSelectable = Boolean(localZone && bakugan && evoTargetIds.has(bakugan.id));
+      const selectable = normalSelectable || evoSelectable;
+      const selected = Boolean(
+        localZone
+        && bakugan
+        && (
+          (normalSelectable && bakugan.id === selectedCharacterId)
+          || (evoSelectable && bakugan.id === selectedEvoTargetId)
+        ),
+      );
       const active = Boolean(bakugan && ownerPlayer && match?.selected[ownerPlayer.id] === bakugan.id);
       const open = Boolean(bakugan?.open);
 
@@ -100,6 +156,8 @@ export function SelectionInteractionLayer({
       zone.dataset.characterSelected = selected ? "true" : "false";
       zone.dataset.characterActive = active ? "true" : "false";
       zone.dataset.characterOpen = open ? "true" : "false";
+      zone.dataset.evoTarget = evoSelectable ? "true" : "false";
+      zone.dataset.evoTargetSelected = evoSelectable && selected ? "true" : "false";
       zone.setAttribute("aria-pressed", selected ? "true" : "false");
       if (active) zone.setAttribute("aria-current", "true");
       else zone.removeAttribute("aria-current");
@@ -107,6 +165,9 @@ export function SelectionInteractionLayer({
       if (selectable) {
         zone.tabIndex = 0;
         zone.setAttribute("role", "button");
+        if (evoSelectable && bakugan) {
+          zone.setAttribute("aria-label", `${bakugan.name}, legal Evo target${selected ? ", selected" : ""}`);
+        }
       } else {
         zone.removeAttribute("tabindex");
         zone.removeAttribute("role");
@@ -117,6 +178,10 @@ export function SelectionInteractionLayer({
       if (zone.dataset.characterSelectable !== "true") return;
       const bakuganId = zone.dataset.bakuganId ?? "";
       if (!bakuganId) return;
+      if (zone.dataset.evoTarget === "true") {
+        setSelectedEvoTargetId((current) => current === bakuganId ? "" : bakuganId);
+        return;
+      }
       onCharacterSelectionChange(
         bakuganId === selectedCharacterId ? "" : bakuganId,
       );
@@ -133,6 +198,7 @@ export function SelectionInteractionLayer({
       const playArea = event.target.closest<HTMLElement>(PLAY_AREA_SELECTOR);
       if (!playArea) return;
       if (event.target.closest("button, [role=button], input, select, textarea, a")) return;
+      setSelectedEvoTargetId("");
       onClearSelections();
     };
 
@@ -156,6 +222,8 @@ export function SelectionInteractionLayer({
         delete zone.dataset.characterSelected;
         delete zone.dataset.characterActive;
         delete zone.dataset.characterOpen;
+        delete zone.dataset.evoTarget;
+        delete zone.dataset.evoTargetSelected;
         zone.removeAttribute("aria-pressed");
         zone.removeAttribute("aria-current");
         zone.removeAttribute("tabindex");
@@ -166,6 +234,9 @@ export function SelectionInteractionLayer({
     match,
     playerId,
     selectedCharacterId,
+    selectedEvoTargetId,
+    effectiveSelectedHandCardId,
+    evoSelectionActive,
     onCharacterSelectionChange,
     onClearSelections,
   ]);
