@@ -12,6 +12,7 @@ import { BakuCorePresentationProvider } from "../components/game-screen-v2/BakuC
 import { BrawlExperienceLayer } from "../components/game-screen-v2/BrawlExperienceLayer";
 import { DrawAnimationLayer } from "../components/game-screen-v2/DrawAnimationLayer";
 import { GameplayCardPresentationLayer } from "../components/game-screen-v2/GameplayCardPresentationLayer";
+import { MatchCommunicationLayer } from "../components/game-screen-v2/MatchCommunicationLayer";
 import { MatchDecisionLayer } from "../components/game-screen-v2/MatchDecisionLayer";
 import { MatchStateCoordinator } from "../components/game-screen-v2/MatchStateCoordinator";
 import { NewGameScreenTester } from "../components/game-screen-v2/NewGameScreenTester";
@@ -52,6 +53,7 @@ export default function RootLayout({
           {children}
           <NewGameScreenTester />
           <GameplayCardPresentationLayer />
+          <MatchCommunicationLayer />
           <DrawAnimationLayer />
           <BrawlExperienceLayer />
           <MatchDecisionLayer />
