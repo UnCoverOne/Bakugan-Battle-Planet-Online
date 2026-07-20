@@ -1,4 +1,5 @@
 import type { Bakugan, MatchState, PlayerState } from "../../lib/game";
+import { legalEvoTargets } from "../../lib/evo";
 import { playerCanConfirmRoll } from "../../lib/rolling";
 import { playerCanDrawTurnCard } from "../../lib/turnStart";
 
@@ -55,19 +56,21 @@ export function playerActionTooltip({
   playerId,
   selectedCharacterId,
   selectedHandCardId,
+  selectedEvoTargetId,
   now = Date.now(),
 }: {
   match: MatchState | null | undefined;
   playerId?: string;
   selectedCharacterId?: string;
   selectedHandCardId?: string;
+  selectedEvoTargetId?: string;
   now?: number;
 }): string {
   const player = selectionPlayer(match, playerId);
   if (!match || !player) return "";
 
   if (playerCanDrawTurnCard(match, player.id, now)) {
-    return "Press Draw in the Action HUD.";
+    return "Press Draw in the Action HUD for the next card.";
   }
 
   if (match.phase === "energize" && !player.energizedThisTurn) {
@@ -92,6 +95,14 @@ export function playerActionTooltip({
   }
 
   if (PRIORITY_PHASES.has(match.phase) && match.priority === player.id) {
+    const selectedCard = player.hand.find((card) => card.id === selectedHandCardId);
+    if (selectedCard?.type === "Evo") {
+      const target = legalEvoTargets(match, player.id, selectedCard)
+        .find((bakugan) => bakugan.id === selectedEvoTargetId);
+      return target
+        ? `Press Play Card to evolve ${target.name}.`
+        : `Select the matching ${selectedCard.evolvesFrom ?? "Bakugan"} Character Card for this Evo.`;
+    }
     return selectedHandCardId
       ? "Press Play Card to use the selected card, or deselect it to choose another action."
       : "Select a playable card from your hand, or press Pass Turn.";
