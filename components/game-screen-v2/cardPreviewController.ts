@@ -109,6 +109,8 @@ export function previewElementFromTarget(target: EventTarget | null): HTMLElemen
     }
     case "batch":
       return target.closest<HTMLElement>("figure[data-card-id]");
+    default:
+      return null;
   }
 }
 
