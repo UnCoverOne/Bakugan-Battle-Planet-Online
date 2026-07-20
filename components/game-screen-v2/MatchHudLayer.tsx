@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CardChoices, MatchState, PlayerState } from "../../lib/game";
 import { cardEnergyPaymentState } from "../../lib/cardPayment";
+import { legalEvoTargets, selectedEvoTargetId } from "../../lib/evo";
 import { drawStepIsPending } from "../../lib/turnStart";
 import {
   cardRequiresSelection,
@@ -11,6 +12,7 @@ import {
   handCardIsActionable,
   matchRoundTarget,
   playableHandCards,
+  resolvedHandActionMode,
   resolveHudPlayers,
   visibleMatchHudActions,
   type HandActionMode,
@@ -154,12 +156,13 @@ export function MatchHudLayer({
 
   if (!match || !player || !opponent) return null;
 
+  const effectiveHandMode = resolvedHandActionMode(match, player.id, handMode);
   const playable = playableHandCards(match, player.id);
   const selectedCard = player.hand.find((card) => card.id === selectedHandCardId);
   const baseActions = visibleMatchHudActions({
     match,
     playerId: player.id,
-    mode: handMode,
+    mode: effectiveHandMode,
     selectedCardId: selectedHandCardId,
     selectionPending,
     now,
@@ -192,25 +195,27 @@ export function MatchHudLayer({
     }
   };
 
-  const chooseMode = (mode: Exclude<HandActionMode, null>) => {
-    if (handMode === mode) return false;
-    onHandModeChange(mode);
-    onSelectedHandCardChange("");
-    onSelectedCharacterChange("");
-    setSelectionPending(false);
-    setError("");
-    return true;
-  };
-
   const playSelectedCard = () => {
-    if (chooseMode("play")) return;
     const card = selectedCard && playable.some((candidate) => candidate.id === selectedCard.id)
       ? selectedCard
       : null;
     if (!card) {
-      setError("Choose a highlighted card from your hand, then press Play Card again.");
+      setError("Select a highlighted card from your hand, then press Play Card.");
       return;
     }
+
+    if (card.type === "Evo") {
+      const targetId = selectedEvoTargetId();
+      const target = legalEvoTargets(match, player.id, card)
+        .find((candidate) => candidate.id === targetId);
+      if (!target) {
+        setError(`Select your matching ${card.evolvesFrom ?? "Bakugan"} Character Card, then press Play Card.`);
+        return;
+      }
+      void run(() => onPlayCard(card.id, { targetBakuganId: target.id }));
+      return;
+    }
+
     if (cardRequiresSelection(match, player.id, card.id)) {
       setSelectionPending(true);
       setError("");
@@ -263,12 +268,12 @@ export function MatchHudLayer({
     },
     "play-card": {
       label: "Play Card",
-      active: handMode === "play" && !selectionPending,
+      active: effectiveHandMode === "play" && !selectionPending,
       onClick: playSelectedCard,
     },
     "energize-card": {
       label: "Energize Card",
-      active: handMode === "energize",
+      active: effectiveHandMode === "energize",
       onClick: energizeSelectedCard,
     },
     "skip-energize": {
