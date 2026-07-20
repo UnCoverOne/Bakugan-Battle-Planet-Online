@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { BAKUGAN, CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
-  beginCorePlacement, createMatch, legalPlacementCells, passPriority, placeCore, playCard,
+  beginCorePlacement, createMatch, legalPlacementCells, normalizeMatchState, passPriority, placeCore, playCard,
   setReady, type GameCard, type MatchState,
 } from "../lib/game";
 import {
@@ -105,4 +105,20 @@ test("all catalogue cards compile to executable modular programs and non-Ultra r
   const standard = BAKUGAN.filter((bakugan) => !/\bUltra\b/i.test(bakugan.name));
   assert.ok(standard.length > 0);
   assert.ok(standard.every((bakugan) => bakugan.rollAccuracy === 90 && bakugan.doubleCoreChance === 5));
+});
+
+test("legacy resumable matches are upgraded before current client and engine code reads them", () => {
+  const legacy = createMatch("OLD123", "bo1", players());
+  delete (legacy as Partial<MatchState>).triggerOrders;
+  delete (legacy as Partial<MatchState>).informationEpoch;
+  delete (legacy as Partial<MatchState>).priorityEpoch;
+  delete (legacy as Partial<MatchState>).initialStartingPlayer;
+  delete (legacy as Partial<MatchState>).startingPlayerRevealedAt;
+
+  const restored = normalizeMatchState(legacy);
+  assert.deepEqual(restored.triggerOrders, []);
+  assert.equal(restored.informationEpoch, 0);
+  assert.equal(restored.priorityEpoch, 0);
+  assert.equal(restored.initialStartingPlayer, restored.startingPlayer);
+  assert.equal(restored.startingPlayerRevealedAt, 0);
 });

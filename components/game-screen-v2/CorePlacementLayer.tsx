@@ -14,7 +14,17 @@ const CORE_BACK_ART: Record<CoreType, string> = {
   Helix: "/assets/core-backs/helix.png",
 };
 
-export function CorePlacementLayer({ match, playerId }: { match: MatchState | null; playerId?: string }) {
+export function CorePlacementLayer({
+  match,
+  playerId,
+  startupError = "",
+  onRetryStart,
+}: {
+  match: MatchState | null;
+  playerId?: string;
+  startupError?: string;
+  onRetryStart?: () => void;
+}) {
   const [selectedCoreId, setSelectedCoreId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -57,6 +67,11 @@ export function CorePlacementLayer({ match, playerId }: { match: MatchState | nu
       <h1>{startingPlayer?.name ?? "Selecting…"}</h1>
       <p>places the first BakuCore</p>
       <span className={styles.audit}>Audited random event • {match.code}</span>
+      {startupError ? <div className={styles.startupError} role="alert">
+        <strong>The match could not start automatically.</strong>
+        <span>{startupError}</span>
+        <button type="button" onClick={onRetryStart}>Retry</button>
+      </div> : null}
     </section>;
   }
 

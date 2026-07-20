@@ -97,6 +97,7 @@ export function GameplayClient() {
   const [handActionMode, setHandActionMode] = useState<HandActionMode>(null);
   const [selectedHandCardId, setSelectedHandCardId] = useState("");
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
+  const [startupError, setStartupError] = useState("");
   const automaticActionKey = useRef("");
   const botActionKey = useRef("");
 
@@ -260,8 +261,29 @@ export function GameplayClient() {
     const match = storedState.match;
     if (storedState.route !== "match" || match?.phase !== "startingPlayer") return;
     const delay = Math.max(0, match.startingPlayerRevealedAt - Date.now());
-    const timeout = window.setTimeout(() => void beginPlacement().catch(() => undefined), delay);
-    return () => window.clearTimeout(timeout);
+    let cancelled = false;
+    let retryTimer = 0;
+    const attempt = async (remainingAttempts: number) => {
+      if (cancelled || readMatchStore().match?.phase !== "startingPlayer") return;
+      try {
+        await beginPlacement();
+        if (!cancelled) setStartupError("");
+      } catch (cause) {
+        if (cancelled || readMatchStore().match?.phase !== "startingPlayer") return;
+        if (remainingAttempts > 0) {
+          retryTimer = window.setTimeout(() => void attempt(remainingAttempts - 1), 900);
+          return;
+        }
+        setStartupError(cause instanceof Error ? cause.message : "The server did not advance the match.");
+      }
+    };
+    setStartupError("");
+    const timeout = window.setTimeout(() => void attempt(2), delay);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
   }, [storedState.route, storedState.match?.phase, storedState.match?.startingPlayerRevealedAt]);
 
   useEffect(() => {
@@ -467,7 +489,17 @@ export function GameplayClient() {
           match={storedState.match}
           playerId={storedState.playerId}
         />
-        <CorePlacementLayer match={storedState.match} playerId={storedState.playerId} />
+        <CorePlacementLayer
+          match={storedState.match}
+          playerId={storedState.playerId}
+          startupError={startupError}
+          onRetryStart={() => {
+            setStartupError("");
+            void beginPlacement().catch((cause) => {
+              setStartupError(cause instanceof Error ? cause.message : "The server did not advance the match.");
+            });
+          }}
+        />
         <CardHandLayer
           match={storedState.match}
           playerId={storedState.playerId}

@@ -235,6 +235,26 @@ const entry = (state: MatchState, kind: MatchState["log"][number]["kind"], messa
 };
 const withVersion = (state: MatchState) => { state.version += 1; return state; };
 export const cloneMatch = (state: MatchState): MatchState => JSON.parse(JSON.stringify(state));
+
+/** Upgrade resumable snapshots created before current engine fields existed. */
+export const normalizeMatchState = (input: MatchState): MatchState => {
+  const state = cloneMatch(input);
+  state.triggerOrders = Array.isArray(state.triggerOrders) ? state.triggerOrders : [];
+  state.informationEpoch = Number.isFinite(state.informationEpoch) ? Number(state.informationEpoch) : 0;
+  state.priorityEpoch = Number.isFinite(state.priorityEpoch) ? Number(state.priorityEpoch) : 0;
+  state.initialStartingPlayer = state.initialStartingPlayer || state.startingPlayer || state.players[0]?.id || "";
+  state.startingPlayerRevealedAt = Number.isFinite(state.startingPlayerRevealedAt)
+    ? Number(state.startingPlayerRevealedAt)
+    : 0;
+  state.batch = Array.isArray(state.batch) ? state.batch : [];
+  state.passes = Array.isArray(state.passes) ? state.passes : [];
+  state.placements = Array.isArray(state.placements) ? state.placements : [];
+  state.selected = state.selected && typeof state.selected === "object" ? state.selected : {};
+  state.targets = state.targets && typeof state.targets === "object" ? state.targets : {};
+  state.rolls = state.rolls && typeof state.rolls === "object" ? state.rolls : {};
+  state.log = Array.isArray(state.log) ? state.log : [];
+  return state;
+};
 const otherPlayer = (state: MatchState, playerId: string) => state.players.find((player) => player.id !== playerId)!;
 const playerById = (state: MatchState, playerId: string) => state.players.find((player) => player.id === playerId)!;
 const syncDeck = (player: PlayerState) => { player.deck = player.deckCards.length; };

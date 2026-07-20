@@ -1,5 +1,5 @@
 import type { DeckRecord } from "./data";
-import type { MatchState } from "./game";
+import { normalizeMatchState, type MatchState } from "./game";
 
 export type AppRoute = "entry" | "dashboard" | "decks" | "builder" | "compendium" | "play" | "lobby" | "placement" | "match" | "result" | "history" | "profile" | "settings";
 export type BrawlerProfile = { name: string; faction: string; signedIn: boolean };
@@ -70,7 +70,9 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
     format: candidate.format === "bo3" ? "bo3" : "bo1",
     matchMode: ["solo", "online", "join"].includes(candidate.matchMode ?? "") ? candidate.matchMode! : "solo",
     joinCode: typeof candidate.joinCode === "string" ? candidate.joinCode.slice(0, 6) : "",
-    match: candidate.match && typeof candidate.match === "object" ? candidate.match : null,
+    match: candidate.match && typeof candidate.match === "object"
+      ? normalizeMatchState(candidate.match)
+      : null,
     online: Boolean(candidate.online),
     selectedCore: typeof candidate.selectedCore === "string" ? candidate.selectedCore : "",
     logFilter: typeof candidate.logFilter === "string" ? candidate.logFilter : "all",

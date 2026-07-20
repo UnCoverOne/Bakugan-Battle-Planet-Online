@@ -6,6 +6,7 @@ import {
 } from "../lib/game";
 import { BAKUGAN, CARDS, CORES, RULE_ENTRIES, STARTER_DECKS, deckErrors, deckIsLegal, makePlayer, type CanonicalPlayerSelection, type DeckFormat, type DeckRecord } from "../lib/data";
 import { mergeSnapshots, normalizeSnapshot, type AppRoute as Route, type AppSettings, type BrawlerProfile as Profile, type MatchResultRecord as ResultRecord, type UserSnapshot } from "../lib/persistence";
+import { MATCH_UPDATE_EVENT, readMatchStore } from "../components/game-screen-v2/matchStore";
 
 type AuthUser = { id: string; email: string; displayName: string; faction: string; createdAt: number };
 type SyncStatus = "checking" | "local" | "loading" | "saving" | "synced" | "offline" | "error";
@@ -118,6 +119,41 @@ export default function Home() {
   const lastSyncedModifiedAt = useRef(-1);
 
   const persistenceReady = [routeReady, profileReady, decksReady, historyReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, selectedCoreReady, logFilterReady, replayReady, replayIndexReady, playerIdReady, capabilityReady, modifiedReady].every(Boolean);
+
+  // The setup/dashboard shell still owns non-game navigation while the typed
+  // match store owns live gameplay. Keep the small shared boundary in sync in
+  // both directions so entering a match cannot leave GameplayClient looking at
+  // the previous `play` route (which renders only the empty gameplay host).
+  useEffect(() => {
+    const synchronizeFromMatchStore = () => {
+      const stored = readMatchStore();
+      setRoute((current) => current === stored.route ? current : stored.route as Route);
+      setOnline((current) => current === stored.online ? current : stored.online);
+      setPlayerId((current) => current === stored.playerId || !stored.playerId ? current : stored.playerId!);
+      setMatchCapability((current) => current === (stored.capability ?? "") ? current : stored.capability ?? "");
+      setSettings((current) => JSON.stringify(current) === JSON.stringify(stored.settings)
+        ? current
+        : { ...current, ...stored.settings });
+      setMatch((current) => JSON.stringify(current) === JSON.stringify(stored.match) ? current : stored.match);
+    };
+    window.addEventListener(MATCH_UPDATE_EVENT, synchronizeFromMatchStore);
+    return () => window.removeEventListener(MATCH_UPDATE_EVENT, synchronizeFromMatchStore);
+  }, []);
+
+  useEffect(() => {
+    if (!persistenceReady) return;
+    // useStoredState's persistence effects are registered first and have
+    // already written these values by the time this effect runs.
+    window.dispatchEvent(new Event(MATCH_UPDATE_EVENT));
+  }, [
+    persistenceReady,
+    route,
+    online,
+    playerId,
+    matchCapability,
+    settings,
+    match,
+  ]);
 
   const currentSnapshot: UserSnapshot = {
     schemaVersion: 1,
