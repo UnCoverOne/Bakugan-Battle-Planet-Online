@@ -6,6 +6,8 @@ import {
   type PlayerState,
 } from "../../lib/game";
 import { cardEnergyPaymentState } from "../../lib/cardPayment";
+import { hasPendingDraws } from "../../lib/drawQueue";
+import { legalEvoTargets } from "../../lib/evo";
 import {
   playerCanDrawTurnCard,
 } from "../../lib/turnStart";
@@ -72,13 +74,20 @@ export function playableHandCards(
   playerId?: string,
 ): readonly GameCard[] {
   const { player } = resolveHudPlayers(match, playerId);
-  if (!match || !player || !isPriorityWindow(match) || match.priority !== player.id) return [];
+  if (
+    !match
+    || !player
+    || hasPendingDraws(match)
+    || !isPriorityWindow(match)
+    || match.priority !== player.id
+  ) return [];
   // Affordability is deliberately not a selection filter. Players may inspect
   // and select any otherwise legal card; the authoritative payment action then
   // spends generated Energy, auto-taps the shortfall, or reports insufficiency.
   return player.hand.filter((card) => (
     card.type !== "Flip"
     && card.type !== "Character"
+    && (card.type !== "Evo" || legalEvoTargets(match, player.id, card).length > 0)
   ));
 }
 
@@ -90,6 +99,7 @@ export function canEnergizeCard(
   return Boolean(
     match
     && player
+    && !hasPendingDraws(match)
     && match.phase === "energize"
     && !player.energizedThisTurn
     && player.hand.length,
@@ -104,6 +114,7 @@ export function canSkipEnergizing(
   return Boolean(
     match
     && player
+    && !hasPendingDraws(match)
     && match.phase === "energize"
     && !player.energizedThisTurn,
   );
@@ -124,9 +135,9 @@ export function revealedFlipDecision(
 }
 
 /**
- * The Energize Step is already a dedicated hand-selection window. Treat it as
- * energize mode immediately so players can select a card before touching the
- * confirmation button.
+ * Both dedicated hand windows are active before the Action HUD is pressed.
+ * During priority the player selects a legal card first and Play Card is the
+ * single confirmation click, matching the already-direct Energize flow.
  */
 export function resolvedHandActionMode(
   match: MatchState | null | undefined,
@@ -134,8 +145,11 @@ export function resolvedHandActionMode(
   requestedMode: HandActionMode,
 ): HandActionMode {
   const { player } = resolveHudPlayers(match, playerId);
-  if (match?.phase === "energize" && player && !player.energizedThisTurn) {
+  if (match?.phase === "energize" && player && !player.energizedThisTurn && !hasPendingDraws(match)) {
     return "energize";
+  }
+  if (match && player && playableHandCards(match, player.id).length > 0) {
+    return "play";
   }
   return requestedMode;
 }
@@ -180,7 +194,13 @@ export function visibleMatchHudActions({
   const { player } = resolveHudPlayers(match, playerId);
   const playCards = playableHandCards(match, player?.id);
   const canPlay = Boolean(playCards.length);
-  const canPass = Boolean(match && player && isPriorityWindow(match) && match.priority === player.id);
+  const canPass = Boolean(
+    match
+    && player
+    && !hasPendingDraws(match)
+    && isPriorityWindow(match)
+    && match.priority === player.id,
+  );
   const selectedPlayable = playCards.some((card) => card.id === selectedCardId);
   const flipDecision = revealedFlipDecision(match, player?.id);
   return {
@@ -263,7 +283,9 @@ export function defaultCardChoices(
   const choices: CardChoices = {};
 
   if (specs.has("targetBakugan")) {
-    choices.targetBakuganId = activeBakuganId(match, targetOwner);
+    choices.targetBakuganId = card.type === "Evo"
+      ? legalEvoTargets(match, player.id, card)[0]?.id
+      : activeBakuganId(match, targetOwner);
   }
   if (specs.has("targetPlayer")) {
     choices.targetPlayerId = /choose yourself|you may choose yourself/i.test(lower)
