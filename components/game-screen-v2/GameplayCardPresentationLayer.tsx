@@ -9,6 +9,7 @@ import styles from "./GameplayCardPresentationLayer.module.css";
 const MATCH_KEY = "bbp-active-match-v1";
 const PLAYER_KEY = "bbp-player-id";
 const CHARACTER_ZONE_SELECTOR = '[data-zone-kind="character-card"]';
+const CHARACTER_SLOT_SELECTOR = "[data-character-slot]";
 const HAND_CARD_SELECTOR = '[data-zone-kind="hand"] li[data-card-id]';
 
 type StoredPresentationState = {
@@ -51,6 +52,30 @@ function playerPair(match: MatchState, playerId?: string) {
   return { player, opponent };
 }
 
+function characterSlotForZone(zone: HTMLElement) {
+  return zone.closest<HTMLElement>(CHARACTER_SLOT_SELECTOR);
+}
+
+function clearCharacterSlotMetadata(zone: HTMLElement) {
+  const slot = characterSlotForZone(zone);
+  if (!slot) return;
+  delete slot.dataset.characterActive;
+  delete slot.dataset.faction;
+  delete slot.dataset.evoCount;
+}
+
+function setCharacterSlotMetadata(
+  zone: HTMLElement,
+  bakugan: Bakugan,
+  active: boolean,
+) {
+  const slot = characterSlotForZone(zone);
+  if (!slot) return;
+  slot.dataset.characterActive = active ? "true" : "false";
+  slot.dataset.faction = bakugan.faction;
+  slot.dataset.evoCount = String(bakugan.evoStack.length);
+}
+
 export function GameplayCardPresentationLayer() {
   const [stored, setStored] = useState<StoredPresentationState>({ match: null, playerId: undefined });
   const [targets, setTargets] = useState<readonly EvoPortalTarget[]>([]);
@@ -76,28 +101,34 @@ export function GameplayCardPresentationLayer() {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
         const { match, playerId } = storedRef.current;
+        const zones = document.querySelectorAll<HTMLElement>(CHARACTER_ZONE_SELECTOR);
         if (!match) {
+          for (const zone of zones) clearCharacterSlotMetadata(zone);
           setTargets([]);
           return;
         }
         const { player, opponent } = playerPair(match, playerId);
         const nextTargets: EvoPortalTarget[] = [];
-        const zones = document.querySelectorAll<HTMLElement>(CHARACTER_ZONE_SELECTOR);
         for (const zone of zones) {
           const owner = zone.dataset.zoneOwner;
           const slotIndex = Math.max(0, Number(zone.dataset.slot ?? 1) - 1);
           const ownerPlayer = owner === "player" ? player : opponent;
           const bakugan = ownerPlayer?.bakugan[slotIndex];
-          if (!bakugan) {
+          if (!bakugan || !ownerPlayer) {
             delete zone.dataset.faction;
+            delete zone.dataset.evoCount;
+            delete zone.dataset.evoTopId;
+            clearCharacterSlotMetadata(zone);
             continue;
           }
           const topCard = bakugan.evoStack.at(-1) ?? bakugan.character;
+          const active = match.selected[ownerPlayer.id] === bakugan.id;
           zone.dataset.cardId = topCard.id;
           zone.dataset.cardType = topCard.type;
           zone.dataset.faction = bakugan.faction;
           zone.dataset.evoCount = String(bakugan.evoStack.length);
           zone.dataset.evoTopId = bakugan.evoStack.at(-1)?.id ?? "";
+          setCharacterSlotMetadata(zone, bakugan, active);
           if (bakugan.evoStack.length) {
             nextTargets.push({
               key: `${owner}-${slotIndex + 1}-${bakugan.id}`,

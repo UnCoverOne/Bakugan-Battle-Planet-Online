@@ -37,16 +37,30 @@ test("cards that cannot be played remain at full visual opacity", () => {
   assert.doesNotMatch(handCss, /data-actionable="false"[^}]*grayscale/);
 });
 
-test("the active Character card receives a subtle faction-colored glow", () => {
-  assert.match(layer, /zone\.dataset\.faction\s*=\s*bakugan\.faction/);
-  assert.match(css, /data-character-active="true"[\s\S]*box-shadow/);
+test("the active Character halo is drawn on the unclipped slot", () => {
+  assert.match(layer, /slot\.dataset\.characterActive\s*=\s*active\s*\?\s*"true"\s*:\s*"false"/);
+  assert.match(layer, /slot\.dataset\.faction\s*=\s*bakugan\.faction/);
+  assert.match(css, /\[data-character-slot\]::after[\s\S]*aspect-ratio:\s*5\s*\/\s*7/);
+  assert.match(css, /data-character-slot\]\[data-character-active="true"\]::after[\s\S]*box-shadow/);
+  assert.doesNotMatch(css, /data-zone-kind="character-card"\]\[data-character-active="true"\][\s\S]*box-shadow/);
   for (const faction of ["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"]) {
     assert.match(css, new RegExp(`data-faction="${faction}"`));
   }
 });
 
-test("Evo presentation uses the top Evo as the Character-zone preview identity", () => {
+test("Haos uses a light-blue active Character glow", () => {
+  const haosRule = css.match(
+    /data-faction="Haos"\][\s\S]*?\{([\s\S]*?)\}/,
+  )?.[1] ?? "";
+  assert.match(haosRule, /rgba\(189,\s*232,\s*255/);
+  assert.match(haosRule, /rgba\(92,\s*188,\s*255/);
+});
+
+test("Evo presentation hides the base Character and owns the top layer", () => {
   assert.match(layer, /bakugan\.evoStack\.at\(-1\)\s*\?\?\s*bakugan\.character/);
   assert.match(layer, /zone\.dataset\.cardId\s*=\s*topCard\.id/);
+  assert.match(layer, /zone\.dataset\.evoCount\s*=\s*String\(bakugan\.evoStack\.length\)/);
   assert.match(layer, /bakugan\.evoStack\.map/);
+  assert.match(css, /data-evo-count\]:not\(\[data-evo-count="0"\]\)\s*>\s*img[\s\S]*visibility:\s*hidden\s*!important/);
+  assert.match(css, /data-evo-stack="true"\][\s\S]*z-index:\s*120\s*!important/);
 });
