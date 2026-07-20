@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
+import { evoCanTarget } from "../lib/evo";
 import { createMatch } from "../lib/game";
 import {
   drawStepIsPending,
@@ -47,7 +48,7 @@ test("player HUD details resolve from the local player perspective", () => {
   assert.equal(matchRoundTarget({ format: "bo1" }), 1);
 });
 
-test("action HUD exposes only actions legal in the current game window", () => {
+test("priority immediately enables legal hand cards before Play Card is pressed", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
   const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
   const actionCard = CARDS.find((card) => card.type === "Action" && card.cost !== "X" && card.cost <= 3);
@@ -59,12 +60,14 @@ test("action HUD exposes only actions legal in the current game window", () => {
   match.phase = "power";
   match.priority = player.id;
 
+  assert.equal(resolvedHandActionMode(match, player.id, null), "play");
+  assert.equal(handCardIsActionable(match, player.id, player.hand[0], "play"), true);
   assert.deepEqual(playableHandCards(match, player.id).map((card) => card.id), ["playable-action"]);
   assert.deepEqual(
     visibleMatchHudActions({
       match,
       playerId: player.id,
-      mode: null,
+      mode: "play",
       selectedCardId: "",
       selectionPending: false,
     }),
@@ -73,6 +76,7 @@ test("action HUD exposes only actions legal in the current game window", () => {
   assert.equal(shouldAutomaticallyPass(match, player.id), false);
 
   match.priority = opponent.id;
+  assert.equal(resolvedHandActionMode(match, player.id, null), null);
   assert.deepEqual(
     visibleMatchHudActions({
       match,
@@ -211,12 +215,17 @@ test("Energize and card-selection states make only eligible hand cards actionabl
   assert.equal(handCardIsActionable(match, player.id, card, "energize"), false);
 });
 
-test("cards that require choices expose Select and receive deterministic defaults", () => {
+test("legal Evos receive a matching Character default and still expose Select when requested", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
   const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
-  const targetedCard = CARDS.find((card) => card.type === "Evo");
-  assert.ok(targetedCard);
-  player.hand = [{ ...targetedCard, id: "targeted-action" }];
+  const targetedCard = CARDS.find((card) => (
+    card.type === "Evo"
+    && player.bakugan.some((bakugan) => evoCanTarget(card, bakugan))
+  ));
+  assert.ok(targetedCard, "starter team should have at least one compatible Evo");
+  const legalTarget = player.bakugan.find((bakugan) => evoCanTarget(targetedCard, bakugan));
+  assert.ok(legalTarget);
+  player.hand = [{ ...targetedCard, id: "targeted-evo" }];
   player.energy = 20;
   const match = createMatch("HUDSEL", "bo1", [player, opponent]);
   match.turn = 1;
@@ -229,11 +238,11 @@ test("cards that require choices expose Select and receive deterministic default
     match,
     playerId: player.id,
     mode: "play",
-    selectedCardId: "targeted-action",
+    selectedCardId: "targeted-evo",
     selectionPending: true,
   });
   assert.equal(actions.select, true);
 
   const choices = defaultCardChoices(match, player.id, player.hand[0]);
-  assert.equal(choices.targetBakuganId, player.bakugan[0].id);
+  assert.equal(choices.targetBakuganId, legalTarget.id);
 });
