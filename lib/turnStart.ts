@@ -1,4 +1,4 @@
-import { cloneMatch, type MatchState } from "./game";
+import { cloneMatch, type GameCard, type MatchState } from "./game";
 
 const FIRST_DRAW_DELAY_MS = 3_000;
 const DRAW_STEP_DURATION_MS = 35_000;
@@ -20,6 +20,26 @@ function withTurnStartMetadata(match: MatchState): TurnStartMatchState {
 function drawIds(match: MatchState | null | undefined) {
   if (!match) return [];
   return withTurnStartMetadata(match).drawnPlayerIds ?? [];
+}
+
+function isStrata(card: GameCard) {
+  return card.name === "Strata"
+    || /all players draw an additional card each turn/i.test(card.effect);
+}
+
+/**
+ * Strata is a global ongoing Hero effect. Every copy in play adds one card to
+ * every player's normal Draw Step. The cards are still drawn only when that
+ * player confirms Draw through the Action HUD.
+ */
+export function additionalTurnDrawCount(match: MatchState | null | undefined) {
+  return match?.players.reduce((total, player) => (
+    total + player.heroes.filter(isStrata).length
+  ), 0) ?? 0;
+}
+
+export function turnDrawCount(match: MatchState | null | undefined) {
+  return 1 + additionalTurnDrawCount(match);
 }
 
 export function drawStepIsPending(match: MatchState | null | undefined) {
@@ -154,21 +174,31 @@ export function drawTurnCard(
   const player = state.players.find((candidate) => candidate.id === playerId);
   if (!player) throw new Error("Unknown player.");
 
-  const card = player.deckCards.shift();
-  if (card) {
+  const requested = turnDrawCount(state);
+  let drawn = 0;
+  while (drawn < requested) {
+    const card = player.deckCards.shift();
+    if (!card) break;
     player.hand.push(card);
+    drawn += 1;
+  }
+
+  if (drawn > 0) {
     state.log.push({
       id: `${now}-draw-${player.id}`,
       at: now,
       kind: "game",
-      message: `${player.name} drew a card for the Draw Step.`,
+      message: requested > 1
+        ? `${player.name} pressed Draw and drew ${drawn} cards for the Draw Step (${requested - 1} additional from Strata).`
+        : `${player.name} drew a card for the Draw Step.`,
     });
-  } else {
+  }
+  if (drawn < requested) {
     state.log.push({
       id: `${now}-draw-empty-${player.id}`,
       at: now,
       kind: "game",
-      message: `${player.name} could not draw because their deck is empty.`,
+      message: `${player.name} could not draw ${requested - drawn} card${requested - drawn === 1 ? "" : "s"} because their deck is empty.`,
     });
   }
   player.deck = player.deckCards.length;

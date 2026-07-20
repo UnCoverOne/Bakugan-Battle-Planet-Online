@@ -1,13 +1,14 @@
 export type CardPreviewKind = "face" | "back";
 export type CardPreviewSide = "left" | "right";
-export type CardPreviewOrientation = "vertical" | "horizontal";
+export type CardPreviewOrientation = "vertical" | "horizontal" | "core";
 export type CardPreviewZoneKind =
   | "character-card"
   | "hand"
   | "discard-pile"
   | "discard-browser"
   | "hero"
-  | "batch";
+  | "batch"
+  | "bakucore";
 
 export type CardPreviewOwnership = Readonly<{
   targetId: string;
@@ -28,6 +29,7 @@ const ALLOWED_PREVIEW_ZONES = new Set<CardPreviewZoneKind>([
   "discard-browser",
   "hero",
   "batch",
+  "bakucore",
 ]);
 
 function sourcePathname(source: string): string {
@@ -48,7 +50,7 @@ export function cardPreviewKind(source: string): CardPreviewKind | null {
 
 /**
  * Unknown elements are deliberately rejected. A preview can be created only
- * from one of the explicitly supported card zones.
+ * from one of the explicitly supported card or revealed-BakuCore zones.
  */
 export function cardPreviewZoneAllowed(
   zoneKind: string | null | undefined,
@@ -73,7 +75,9 @@ export function cardPreviewSideForZone(
   if (zoneKind === "hero") {
     return zoneOwner === "opponent" ? "right" : "left";
   }
-  if (zoneKind === "hand" || zoneKind === "batch") return "left";
+  if (zoneKind === "hand" || zoneKind === "batch" || zoneKind === "bakucore") {
+    return "left";
+  }
   return "left";
 }
 

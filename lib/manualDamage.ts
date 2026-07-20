@@ -32,6 +32,50 @@ function log(state: MatchState, kind: MatchState["log"][number]["kind"], message
   });
 }
 
+function isStrata(card: GameCard) {
+  return card.name === "Strata"
+    || /all players draw an additional card each turn/i.test(card.effect);
+}
+
+/**
+ * The legacy generic effect parser interpreted Strata as an immediate one-shot
+ * draw when the Hero resolved. Undo only those appended cards so Strata remains
+ * in play and its ongoing modifier can be applied by the player-confirmed Draw
+ * Step on subsequent turns.
+ */
+function reconcileResolvedStrata(input: MatchState, next: MatchState) {
+  const newlyResolved = next.players.reduce((count, player) => {
+    const before = input.players.find((candidate) => candidate.id === player.id);
+    const beforeIds = new Set(before?.heroes.map((hero) => hero.id) ?? []);
+    return count + player.heroes.filter((hero) => !beforeIds.has(hero.id) && isStrata(hero)).length;
+  }, 0);
+  if (!newlyResolved) return next;
+
+  for (const player of next.players) {
+    const before = input.players.find((candidate) => candidate.id === player.id);
+    if (!before) continue;
+    const deckReduction = Math.max(0, before.deckCards.length - player.deckCards.length);
+    const handIncrease = Math.max(0, player.hand.length - before.hand.length);
+    let restore = Math.min(newlyResolved, deckReduction, handIncrease);
+    while (restore > 0) {
+      const card = player.hand.pop();
+      if (!card) break;
+      player.deckCards.unshift(card);
+      restore -= 1;
+    }
+    player.deck = player.deckCards.length;
+  }
+
+  const existingLogLength = input.log.length;
+  next.log = [
+    ...next.log.slice(0, existingLogLength),
+    ...next.log.slice(existingLogLength).filter((entry) => (
+      !/could not draw because their deck is empty/i.test(entry.message)
+    )),
+  ];
+  return next;
+}
+
 function enterPostDamage(state: MatchState) {
   state.phase = "postDamage";
   state.stepLabel = "Damage Step • Post-damage priority";
@@ -58,7 +102,7 @@ function flipStopsDamage(state: MatchState, card: GameCard) {
  * amount so the visible client can flip them one click at a time.
  */
 export function passPriorityWithManualDamage(input: MatchState, playerId: string) {
-  const next = passPriority(input, playerId);
+  const next = reconcileResolvedStrata(input, passPriority(input, playerId));
   if (input.phase !== "victor" || next.phase === "victor" || !next.pendingLoser) return next;
 
   const beforeLoser = playerById(input, next.pendingLoser);
