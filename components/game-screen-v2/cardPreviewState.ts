@@ -1,9 +1,34 @@
 export type CardPreviewKind = "face" | "back";
 export type CardPreviewSide = "left" | "right";
+export type CardPreviewOrientation = "vertical" | "horizontal";
+export type CardPreviewZoneKind =
+  | "character-card"
+  | "hand"
+  | "discard-pile"
+  | "discard-browser"
+  | "hero"
+  | "batch";
+
+export type CardPreviewOwnership = Readonly<{
+  targetId: string;
+  generation: number;
+}>;
+
+export const EMPTY_CARD_PREVIEW_OWNERSHIP: CardPreviewOwnership = {
+  targetId: "",
+  generation: 0,
+};
 
 const CARD_FACE_PATH = "/assets/cards/full/";
 const CARD_BACK_PATH = "/assets/card-back.png";
-const EXCLUDED_PREVIEW_ZONES = new Set(["deck", "energy"]);
+const ALLOWED_PREVIEW_ZONES = new Set<CardPreviewZoneKind>([
+  "character-card",
+  "hand",
+  "discard-pile",
+  "discard-browser",
+  "hero",
+  "batch",
+]);
 
 function sourcePathname(source: string): string {
   if (!source) return "";
@@ -21,8 +46,14 @@ export function cardPreviewKind(source: string): CardPreviewKind | null {
   return null;
 }
 
-export function cardPreviewZoneAllowed(zoneKind: string | null | undefined): boolean {
-  return !zoneKind || !EXCLUDED_PREVIEW_ZONES.has(zoneKind);
+/**
+ * Unknown elements are deliberately rejected. A preview can be created only
+ * from one of the explicitly supported card zones.
+ */
+export function cardPreviewZoneAllowed(
+  zoneKind: string | null | undefined,
+): zoneKind is CardPreviewZoneKind {
+  return Boolean(zoneKind && ALLOWED_PREVIEW_ZONES.has(zoneKind as CardPreviewZoneKind));
 }
 
 /**
@@ -44,4 +75,51 @@ export function cardPreviewSideForZone(
   }
   if (zoneKind === "hand" || zoneKind === "batch") return "left";
   return "left";
+}
+
+export function cardPreviewOrientation(cardType: string | null | undefined): CardPreviewOrientation {
+  return cardType === "Flip" ? "horizontal" : "vertical";
+}
+
+/**
+ * Every target change advances a generation. Asynchronous artwork work may
+ * commit only when both the target and generation still match.
+ */
+export function activateCardPreviewTarget(
+  ownership: CardPreviewOwnership,
+  targetId: string,
+): CardPreviewOwnership {
+  if (ownership.targetId === targetId) return ownership;
+  return {
+    targetId,
+    generation: ownership.generation + 1,
+  };
+}
+
+export function releaseCardPreviewTarget(
+  ownership: CardPreviewOwnership,
+  targetId: string,
+): CardPreviewOwnership {
+  if (!targetId || ownership.targetId !== targetId) return ownership;
+  return {
+    targetId: "",
+    generation: ownership.generation + 1,
+  };
+}
+
+export function clearCardPreviewTarget(
+  ownership: CardPreviewOwnership,
+): CardPreviewOwnership {
+  return {
+    targetId: "",
+    generation: ownership.generation + 1,
+  };
+}
+
+export function cardPreviewRequestIsCurrent(
+  ownership: CardPreviewOwnership,
+  targetId: string,
+  generation: number,
+): boolean {
+  return ownership.targetId === targetId && ownership.generation === generation;
 }
