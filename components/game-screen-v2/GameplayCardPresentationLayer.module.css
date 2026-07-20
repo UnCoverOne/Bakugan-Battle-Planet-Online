@@ -1,0 +1,60 @@
+.evoStack {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.evoCard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: calc(8 + var(--evo-order));
+  display: block;
+  box-sizing: border-box;
+  width: 90%;
+  height: 90%;
+  transform:
+    translate(
+      calc(-50% + var(--evo-offset-x)),
+      calc(-50% + var(--evo-offset-y))
+    );
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 2px;
+  background: rgba(8, 10, 13, 0.96);
+  object-fit: contain;
+  object-position: center;
+  box-shadow:
+    0 0.18rem 0.3rem rgba(0, 0, 0, 0.56),
+    0 0 0.18rem rgba(255, 255, 255, 0.16);
+  user-select: none;
+}
+
+.evoBadge {
+  position: absolute;
+  right: 4%;
+  bottom: 4%;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  padding: 0.12rem 0.28rem;
+  border: 1px solid rgba(255, 224, 121, 0.94);
+  border-radius: 999px;
+  background: rgba(6, 9, 12, 0.94);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(0.48rem, 0.68vw, 0.68rem);
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 1px 2px #000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .evoCard {
+    transition: none;
+  }
+}
