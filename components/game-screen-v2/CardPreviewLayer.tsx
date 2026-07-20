@@ -13,7 +13,9 @@ import {
   decodePreviewArtwork,
   describePreviewElement,
   previewElementFromTarget,
+  synchronizeDiscardCardTypes,
   type CardPreviewDescriptor,
+  type PreviewElement,
 } from "./cardPreviewController";
 import styles from "./CardPreviewLayer.module.css";
 
@@ -30,9 +32,9 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
     descriptor: null,
   });
   const matchRef = useRef<MatchState | null>(match ?? null);
-  const pointerElement = useRef<HTMLElement | null>(null);
-  const focusElement = useRef<HTMLElement | null>(null);
-  const elementTokens = useRef(new WeakMap<HTMLElement, string>());
+  const pointerElement = useRef<PreviewElement | null>(null);
+  const focusElement = useRef<PreviewElement | null>(null);
+  const elementTokens = useRef(new WeakMap<PreviewElement, string>());
   const nextElementToken = useRef(1);
   const ownership = useRef<CardPreviewOwnership>(EMPTY_CARD_PREVIEW_OWNERSHIP);
   const pendingFrame = useRef<number | null>(null);
@@ -45,7 +47,7 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
     pendingFrame.current = null;
   }, []);
 
-  const tokenForElement = useCallback((element: HTMLElement) => {
+  const tokenForElement = useCallback((element: PreviewElement) => {
     const existing = elementTokens.current.get(element);
     if (existing) return existing;
     const token = `preview-target-${nextElementToken.current}`;
@@ -98,16 +100,17 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
   }, [requestPreview, tokenForElement]);
 
   useEffect(() => {
+    synchronizeDiscardCardTypes(match ?? null, document);
     reconcileTargets();
   }, [match, reconcileTargets]);
 
   useEffect(() => {
-    const setPointerTarget = (element: HTMLElement | null) => {
+    const setPointerTarget = (element: PreviewElement | null) => {
       if (pointerElement.current === element) return;
       pointerElement.current = element;
       reconcileTargets();
     };
-    const setFocusTarget = (element: HTMLElement | null) => {
+    const setFocusTarget = (element: PreviewElement | null) => {
       if (focusElement.current === element) return;
       focusElement.current = element;
       reconcileTargets();
@@ -149,6 +152,7 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
       if (mutationFrame) return;
       mutationFrame = window.requestAnimationFrame(() => {
         mutationFrame = 0;
+        synchronizeDiscardCardTypes(matchRef.current, document);
         if (
           (pointerElement.current && !pointerElement.current.isConnected)
           || (focusElement.current && !focusElement.current.isConnected)
@@ -193,6 +197,7 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
       data-card-preview-status={renderState.status}
       data-card-preview-side={descriptor?.side ?? "left"}
       data-card-preview-orientation={descriptor?.orientation ?? "vertical"}
+      data-card-preview-kind={descriptor?.previewKind ?? "card"}
       data-card-preview-type={descriptor?.cardType}
     >
       {descriptor && !fallback ? (
