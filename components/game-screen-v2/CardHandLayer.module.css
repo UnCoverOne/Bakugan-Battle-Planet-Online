@@ -98,25 +98,26 @@
     drop-shadow(0 0.88rem 0.7rem rgba(0, 0, 0, 0.64));
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .playerHandLayer .handCard:hover {
-    z-index: 10000 !important;
-  }
+/* Inspection is independent from playability. Every card in the local hand
+   lifts, straightens, and glows whenever the browser is actually hovering it.
+   Do not gate this behind primary-input media features: hybrid devices can
+   report a coarse primary pointer while a mouse is producing hover events. */
+.playerHandLayer .handCard:hover,
+.playerHandLayer .handCard:focus-visible {
+  z-index: 10000 !important;
+}
 
-  .playerHandLayer .handCard:hover .handCardSurface {
-    transform:
-      rotate(var(--hand-counter-rotation))
-      translateY(calc(0px - var(--hand-hover-lift)));
-    filter:
-      drop-shadow(0 0 0.22rem rgba(255, 255, 255, 0.95))
-      drop-shadow(0 0 0.72rem rgba(255, 255, 255, 0.72))
-      drop-shadow(0 0.85rem 0.7rem rgba(0, 0, 0, 0.62));
-  }
-
-  .playerHandLayer[data-action-mode] .handCard[data-actionable="false"]:hover .handCardSurface {
-    transform: none;
-    filter: grayscale(0.5) drop-shadow(0 0.28rem 0.42rem rgba(0, 0, 0, 0.48));
-  }
+.playerHandLayer .handCard:hover .handCardSurface,
+.playerHandLayer .handCard:focus-visible .handCardSurface,
+.playerHandLayer[data-action-mode] .handCard[data-actionable="false"]:hover .handCardSurface {
+  opacity: 1;
+  transform:
+    rotate(var(--hand-counter-rotation))
+    translateY(calc(0px - var(--hand-hover-lift)));
+  filter:
+    drop-shadow(0 0 0.22rem rgba(255, 255, 255, 0.95))
+    drop-shadow(0 0 0.72rem rgba(255, 255, 255, 0.72))
+    drop-shadow(0 0.85rem 0.7rem rgba(0, 0, 0, 0.62));
 }
 
 .handCardImage {
