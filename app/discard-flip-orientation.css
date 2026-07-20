@@ -1,0 +1,41 @@
+/* Flip scans are landscape so the printed face is upright. Discard zones still
+   represent physical cards: rotate the complete scan into a vertical 5:7 card
+   silhouette, while the enlarged preview deliberately keeps the scan landscape. */
+[data-zone-kind="discard-pile"][data-card-type="Flip"] {
+  overflow: hidden !important;
+}
+
+[data-zone-kind="discard-pile"][data-card-type="Flip"] > img {
+  left: 50% !important;
+  top: 50% !important;
+  width: 126% !important;
+  height: 90% !important;
+  transform: translate(-50%, -50%) rotate(90deg) !important;
+  transform-origin: center !important;
+  object-fit: contain !important;
+}
+
+[data-zone-kind="discard-pile"][data-card-type="Flip"]:hover > img {
+  transform: translate(-50%, -50%) rotate(90deg) translateX(-0.15rem) !important;
+}
+
+[data-zone-kind="discard-browser"] figure[data-card-type="Flip"] {
+  overflow: hidden;
+}
+
+[data-zone-kind="discard-browser"] figure[data-card-type="Flip"] > img {
+  width: 140% !important;
+  max-width: none !important;
+  height: auto !important;
+  aspect-ratio: 7 / 5 !important;
+  margin: 20% -20% !important;
+  transform: rotate(90deg) !important;
+  transform-origin: center !important;
+  object-fit: contain !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-zone-kind="discard-pile"][data-card-type="Flip"] > img {
+    transition: none !important;
+  }
+}
