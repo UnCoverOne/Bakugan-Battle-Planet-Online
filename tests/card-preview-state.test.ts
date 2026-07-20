@@ -11,7 +11,7 @@ import {
   releaseCardPreviewTarget,
 } from "../components/game-screen-v2/cardPreviewState";
 
-test("card previews accept only explicit card zones", () => {
+test("card previews accept only explicit card and revealed-Core zones", () => {
   for (const zone of [
     "character-card",
     "hand",
@@ -19,6 +19,7 @@ test("card previews accept only explicit card zones", () => {
     "discard-browser",
     "hero",
     "batch",
+    "bakucore",
   ]) {
     assert.equal(cardPreviewZoneAllowed(zone), true, `${zone} should be previewable`);
   }
@@ -42,6 +43,8 @@ test("preview sides follow hard zone rules without geometry", () => {
   assert.equal(cardPreviewSideForZone("hero", "opponent"), "right");
   assert.equal(cardPreviewSideForZone("batch", "player"), "left");
   assert.equal(cardPreviewSideForZone("batch", "opponent"), "left");
+  assert.equal(cardPreviewSideForZone("bakucore", "player"), "left");
+  assert.equal(cardPreviewSideForZone("bakucore", "opponent"), "left");
 });
 
 test("Flip previews are horizontal while other cards are vertical", () => {
