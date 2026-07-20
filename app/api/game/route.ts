@@ -4,6 +4,7 @@ import {
   startNextSeriesGame, type CardChoices, type MatchState, type PlayerState,
 } from "../../../lib/game";
 import { playCardWithAutoEnergy } from "../../../lib/cardPayment";
+import { addChatMessage } from "../../../lib/chat";
 import { tapEnergyCard } from "../../../lib/energy";
 import {
   flipDamageCard,
@@ -235,6 +236,7 @@ export async function POST(request: Request) {
       case "flip-damage": state = flipDamageCard(state, body.playerId); break;
       case "damage": state = resolveManualDamage(state, body.playerId, payload.cardId ? String(payload.cardId) : undefined, choices); break;
       case "hand-limit": state = discardToHandLimit(state, body.playerId, Array.isArray(payload.cardIds) ? payload.cardIds.map(String) : []); break;
+      case "chat": state = addChatMessage(state, body.playerId, String(payload.message ?? "")); break;
       case "concede": state = concedeMatch(state, body.playerId); break;
       case "next-turn": state = nextTurn(state); break;
       case "next-game": state = startNextSeriesGame(state); break;
@@ -248,13 +250,14 @@ export async function POST(request: Request) {
       default: return json({ error: "Unknown match command." }, 400);
     }
 
-    state = preparePendingDraw(state);
+    if (body.action !== "chat") state = preparePendingDraw(state);
     const actor = state.players.find((player) => player.id === body.playerId);
     if (actor) {
       actor.lastSeen = Date.now();
       actor.connected = true;
     }
-    if (!await saveTransition(state.code, state, before, before.version)) {
+    const previous = body.action === "chat" ? record.previous : before;
+    if (!await saveTransition(state.code, state, previous, before.version)) {
       return latestConflict(code, body.playerId);
     }
     return json({ state: redactForPlayer(state, body.playerId) });
