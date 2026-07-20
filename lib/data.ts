@@ -30,8 +30,14 @@ export const BAKUGAN: Bakugan[] = characterCards.map((character) => ({
   faction: character.faction,
   bPower: character.bPower!,
   damage: character.damage!,
-  rollAccuracy: Math.min(95, 78 + (character.number % 17)),
-  doubleCoreChance: 8 + ((character.number * 7) % 25),
+  // Non-Ultra toys share the simulator baseline requested by the ruleset.
+  // Ultra profiles retain their differentiated physical-roll data.
+  rollAccuracy: /\bUltra\b/i.test(character.displayName)
+    ? Math.min(95, 78 + (character.number % 17))
+    : 90,
+  doubleCoreChance: /\bUltra\b/i.test(character.displayName)
+    ? 8 + ((character.number * 7) % 25)
+    : 5,
   art: character.art,
   character,
   open: false,
@@ -105,11 +111,38 @@ export const deckErrors = (deck: DeckRecord) => {
 
 export const deckIsLegal = (deck: DeckRecord) => deckErrors(deck).length === 0;
 
-const instance = (card: GameCard, playerId: string, index: number): GameCard => ({ ...card, id: `${card.catalogId}-${playerId}-${index}-${Math.random().toString(36).slice(2, 6)}` });
+const instance = (card: GameCard, playerId: string, index: number): GameCard => ({
+  ...card,
+  id: `${card.catalogId}-${playerId}-${index}-${globalThis.crypto?.randomUUID?.() ?? secureIndex(0x1_0000_0000).toString(36)}`,
+});
+export type CanonicalPlayerSelection = {
+  playerId: string;
+  name: string;
+  deck: Pick<DeckRecord, "name" | "bakuganIds" | "coreIds" | "cardIds" | "format">;
+  cosmetics?: { avatar?: string; playmat?: string; cardBack?: string };
+};
+
+const secureIndex = (maximum: number) => {
+  if (maximum <= 1) return 0;
+  const cryptoApi = globalThis.crypto;
+  if (!cryptoApi?.getRandomValues) return Math.floor(Math.random() * maximum);
+  const limit = Math.floor(0x1_0000_0000 / maximum) * maximum;
+  const value = new Uint32Array(1);
+  do cryptoApi.getRandomValues(value); while (value[0] >= limit);
+  return value[0] % maximum;
+};
+
+const shuffleCanonical = <T,>(values: T[]) => {
+  for (let index = values.length - 1; index > 0; index -= 1) {
+    const swap = secureIndex(index + 1);
+    [values[index], values[swap]] = [values[swap], values[index]];
+  }
+};
+
 export const makePlayer = (id: string, name: string, deck: DeckRecord): PlayerState => {
   if (!deckIsLegal(deck)) throw new Error(deckErrors(deck).join(" "));
   const deckCards = deck.cardIds.map((key, index) => instance(CARD_BY_ID.get(key)!, id, index));
-  for (let index = deckCards.length - 1; index > 0; index -= 1) { const swap = Math.floor(Math.random() * (index + 1)); [deckCards[index], deckCards[swap]] = [deckCards[swap], deckCards[index]]; }
+  shuffleCanonical(deckCards);
   const hand = deckCards.splice(0, 5);
   const bakugan = deck.bakuganIds.map((key, index) => {
     const base = BAKUGAN.find((item) => item.id === key)!; const character = instance(base.character, id, 100 + index);
@@ -120,6 +153,27 @@ export const makePlayer = (id: string, name: string, deck: DeckRecord): PlayerSt
     energy:0,maxEnergy:0,ready:false,connected:true,lastSeen:Date.now(),energizedThisTurn:false,cardsPlayedThisTurn:0,
   };
 };
+
+export function makeCanonicalPlayer(selection: CanonicalPlayerSelection): PlayerState {
+  const playerId = String(selection.playerId ?? "").trim().slice(0, 80);
+  const name = String(selection.name ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 40);
+  if (!playerId || !name) throw new Error("A valid player ID and display name are required.");
+  const deck: DeckRecord = {
+    id: `server-${playerId}`,
+    name: String(selection.deck?.name ?? "Online Deck").trim().slice(0, 60),
+    bakuganIds: Array.isArray(selection.deck?.bakuganIds) ? selection.deck.bakuganIds.map(String) : [],
+    coreIds: Array.isArray(selection.deck?.coreIds) ? selection.deck.coreIds.map(String) : [],
+    cardIds: Array.isArray(selection.deck?.cardIds) ? selection.deck.cardIds.map(String) : [],
+    format: selection.deck?.format === "singleton" ? "singleton" : "standard",
+    factions: [],
+    updatedAt: new Date().toISOString(),
+    visibility: "Private",
+  };
+  // makePlayer resolves every submitted ID against the immutable server
+  // catalogue, performs complete deck validation, creates card instances and
+  // cryptographically shuffles the canonical deck.
+  return makePlayer(playerId, name, deck);
+}
 
 export const RULE_ENTRIES = [
   { title:"Start Phase",category:"Turn structure",body:"Both players draw, then the starting player and opponent each choose whether to Energize one card. Cards and abilities cannot be played during this phase." },

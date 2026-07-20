@@ -3,11 +3,9 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { Bakugan, MatchState } from "../../lib/game";
-import { MATCH_UPDATE_EVENT } from "./MatchStateCoordinator";
 import styles from "./GameplayCardPresentationLayer.module.css";
+import { useMatchSelector } from "./matchStore";
 
-const MATCH_KEY = "bbp-active-match-v1";
-const PLAYER_KEY = "bbp-player-id";
 const CHARACTER_ZONE_SELECTOR = '[data-zone-kind="character-card"]';
 const CHARACTER_SLOT_SELECTOR = "[data-character-slot]";
 const HAND_CARD_SELECTOR = '[data-zone-kind="hand"] li[data-card-id]';
@@ -22,19 +20,6 @@ type EvoPortalTarget = {
   element: HTMLElement;
   bakugan: Bakugan;
 };
-
-function parseStoredValue<T>(raw: string | null, fallback: T): T {
-  if (raw == null) return fallback;
-  try { return JSON.parse(raw) as T; }
-  catch { return fallback; }
-}
-
-function readStoredState(): StoredPresentationState {
-  return {
-    match: parseStoredValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
-    playerId: parseStoredValue<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
-  };
-}
 
 function sameTargets(previous: readonly EvoPortalTarget[], next: readonly EvoPortalTarget[]) {
   return previous.length === next.length && previous.every((target, index) => (
@@ -77,23 +62,10 @@ function setCharacterSlotMetadata(
 }
 
 export function GameplayCardPresentationLayer() {
-  const [stored, setStored] = useState<StoredPresentationState>({ match: null, playerId: undefined });
+  const stored = useMatchSelector((state): StoredPresentationState => ({ match: state.match, playerId: state.playerId }));
   const [targets, setTargets] = useState<readonly EvoPortalTarget[]>([]);
   const storedRef = useRef(stored);
   storedRef.current = stored;
-
-  useEffect(() => {
-    const update = () => setStored(readStoredState());
-    update();
-    const interval = window.setInterval(update, 500);
-    window.addEventListener("storage", update);
-    window.addEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("storage", update);
-      window.removeEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    };
-  }, []);
 
   useEffect(() => {
     let frame = 0;

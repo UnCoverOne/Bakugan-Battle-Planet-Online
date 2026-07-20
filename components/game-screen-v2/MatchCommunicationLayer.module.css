@@ -1,5 +1,5 @@
 .eventDock {
-  --event-tab-width: 2.25rem;
+  --event-tab-width: 1.7rem;
   position: fixed;
   left: 0;
   top: 50%;
@@ -21,7 +21,7 @@
 .eventPanel {
   position: relative;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -33,6 +33,31 @@
   color: #fff;
   font-family: var(--font-display);
   pointer-events: auto;
+}
+
+.eventFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  padding: 0.42rem 0.55rem;
+  border-bottom: 1px solid rgba(217, 77, 67, 0.2);
+}
+
+.eventFilters button {
+  padding: 0.22rem 0.38rem;
+  border: 1px solid rgba(205, 218, 226, 0.22);
+  border-radius: 999px;
+  background: rgba(255,255,255,.03);
+  color: rgba(233,239,243,.72);
+  font-size: .48rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.eventFilters button[aria-pressed="true"] {
+  border-color: rgba(255, 102, 85, .8);
+  background: rgba(145, 34, 35, .4);
+  color: #fff;
 }
 
 .eventPanel > header {
@@ -162,6 +187,8 @@
   color: #fff;
   cursor: pointer;
   pointer-events: auto;
+  align-self: center;
+  height: 9.5rem;
 }
 
 .eventToggle span {
@@ -213,6 +240,31 @@
   color: #fff;
   font-family: var(--font-display);
   pointer-events: auto;
+  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.chatBox[data-focused="false"] {
+  border-color: transparent;
+  background: linear-gradient(0deg, rgba(2,6,9,.78), rgba(2,6,9,.32) 62%, transparent);
+  box-shadow: none;
+}
+
+.chatBox[data-focused="false"] > header,
+.chatBox[data-focused="false"] .chatForm {
+  opacity: .12;
+}
+
+.chatBox[data-focused="false"] .chatMessages {
+  mask-image: linear-gradient(to top, #000 64%, transparent);
+}
+
+.chatBox[data-focused="false"] .chatMessage,
+.chatBox[data-focused="false"] .chatMessage p,
+.chatBox[data-focused="false"] .chatMessage strong {
+  border-color: transparent;
+  background: transparent;
+  color: #fff;
+  text-shadow: 0 1px 3px #000;
 }
 
 .chatBox > header {

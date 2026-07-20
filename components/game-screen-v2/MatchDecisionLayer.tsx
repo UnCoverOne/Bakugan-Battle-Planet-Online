@@ -5,17 +5,9 @@ import {
   discardToHandLimit,
   type MatchState,
 } from "../../lib/game";
-import {
-  MATCH_UPDATE_EVENT,
-  writeCoordinatedMatch,
-} from "./MatchStateCoordinator";
+import { writeCoordinatedMatch } from "./MatchStateCoordinator";
+import { readMatchStore, useMatchSelector } from "./matchStore";
 import styles from "./MatchDecisionLayer.module.css";
-
-const ROUTE_KEY = "bbp-route-v1";
-const SETTINGS_KEY = "bbp-settings";
-const MATCH_KEY = "bbp-active-match-v1";
-const ONLINE_KEY = "bbp-active-match-online-v1";
-const PLAYER_KEY = "bbp-player-id";
 
 type DecisionState = {
   active: boolean;
@@ -26,62 +18,20 @@ type DecisionState = {
 
 type LocalDecision = (match: MatchState, playerId: string) => MatchState;
 
-function parseValue<T>(raw: string | null, fallback: T): T {
-  if (raw == null) return fallback;
-  try { return JSON.parse(raw) as T; }
-  catch { return fallback; }
-}
-
-function readDecisionState(): DecisionState {
-  const settings = parseValue<Record<string, unknown>>(localStorage.getItem(SETTINGS_KEY), {});
-  const route = parseValue(localStorage.getItem(ROUTE_KEY), "entry");
-  return {
-    active: Boolean(settings.useNewGameScreen) && route === "match",
-    match: parseValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
-    online: parseValue(localStorage.getItem(ONLINE_KEY), false),
-    playerId: parseValue<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
-  };
-}
-
 /**
  * Flip decisions are now presented by the permanent Action HUD. This layer is
  * retained only for the end-of-turn hand-limit choice.
  */
 export function MatchDecisionLayer() {
-  const [decision, setDecision] = useState<DecisionState>({
-    active: false,
-    match: null,
-    online: false,
-    playerId: undefined,
-  });
+  const decision = useMatchSelector((state): DecisionState => ({
+    active: state.route === "match",
+    match: state.match,
+    online: state.online,
+    playerId: state.playerId,
+  }));
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    let previousRaw = "";
-    const update = () => {
-      const raw = [
-        localStorage.getItem(ROUTE_KEY),
-        localStorage.getItem(SETTINGS_KEY),
-        localStorage.getItem(MATCH_KEY),
-        localStorage.getItem(ONLINE_KEY),
-        localStorage.getItem(PLAYER_KEY),
-      ].join("\u0000");
-      if (raw === previousRaw) return;
-      previousRaw = raw;
-      setDecision(readDecisionState());
-    };
-    update();
-    const interval = window.setInterval(update, 500);
-    window.addEventListener("storage", update);
-    window.addEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("storage", update);
-      window.removeEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    };
-  }, []);
 
   const match = decision.match;
   const player = match?.players.find((candidate) => candidate.id === decision.playerId)
@@ -109,7 +59,7 @@ export function MatchDecisionLayer() {
     payload: Record<string, unknown>,
     localDecision: LocalDecision,
   ) => {
-    const current = readDecisionState();
+    const current = readMatchStore();
     const currentMatch = current.match;
     const actorId = current.playerId ?? currentMatch?.players[0]?.id;
     if (!currentMatch || !actorId) throw new Error("No active match is available.");
@@ -124,7 +74,7 @@ export function MatchDecisionLayer() {
     const response = await fetch("/api/game", {
       method: "POST",
       cache: "no-store",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(current.capability ? { "x-match-capability": current.capability } : {}) },
       body: JSON.stringify({
         action: "hand-limit",
         code: currentMatch.code,
@@ -169,11 +119,11 @@ export function MatchDecisionLayer() {
         className={styles.dialog}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="experimental-hand-limit-title"
+        aria-labelledby="hand-limit-title"
       >
         <header className={styles.header}>
           <small>END PHASE • HAND LIMIT</small>
-          <h2 id="experimental-hand-limit-title">Discard to seven cards</h2>
+          <h2 id="hand-limit-title">Discard to seven cards</h2>
           <p>Select exactly {requiredDiscards} card{requiredDiscards === 1 ? "" : "s"}. The turn advances after the discard is confirmed.</p>
         </header>
         <ul className={styles.cards} aria-label="Cards available to discard">

@@ -16,7 +16,7 @@ const CHARACTER_ZONE_SELECTOR = '[data-zone-kind="character-card"]';
 const PLAYER_CHARACTER_ZONE_SELECTOR = `${CHARACTER_ZONE_SELECTOR}[data-zone-owner="player"]`;
 const PLAYER_CHARACTER_AREA_SELECTOR = '[data-zone-owner="player"][data-zone-group="character-cards"]';
 const PLAYER_SELECTED_HAND_CARD_SELECTOR = '[data-zone-kind="hand"][data-zone-owner="player"] li[data-selected="true"][data-card-id]';
-const PLAY_AREA_SELECTOR = '[aria-label="Experimental game play area"]';
+const PLAY_AREA_SELECTOR = '[data-gameplay-surface="true"]';
 
 const PRIORITY_PHASES = new Set([
   "preRoll",

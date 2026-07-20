@@ -1,6 +1,6 @@
 const SESSION_COOKIE = "bbp_session";
 const SESSION_DAYS = 30;
-const PASSWORD_ITERATIONS = 75_000;
+const PASSWORD_ITERATIONS = 600_000;
 const encoder = new TextEncoder();
 
 export type AccountUser = {
@@ -26,17 +26,6 @@ export async function getDatabase() {
   const { env } = await import("cloudflare:workers");
   if (!env.DB) throw new Error("The account database is unavailable.");
   return env.DB;
-}
-
-export async function ensureAccountSchema() {
-  const db = await getDatabase();
-  await db.batch([
-    db.prepare("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE COLLATE NOCASE, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, password_iterations INTEGER NOT NULL, display_name TEXT NOT NULL, faction TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
-    db.prepare("CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)"),
-    db.prepare("CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions(user_id)"),
-    db.prepare("CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions(expires_at)"),
-    db.prepare("CREATE TABLE IF NOT EXISTS user_data (user_id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 0, data_json TEXT NOT NULL, updated_at INTEGER NOT NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)"),
-  ]);
 }
 
 function toBase64Url(bytes: Uint8Array) {
@@ -133,7 +122,6 @@ export async function revokeSession(request: Request) {
 }
 
 export async function getSessionUser(request: Request): Promise<AccountUser | null> {
-  await ensureAccountSchema();
   const token = parseCookie(request.headers.get("cookie"), SESSION_COOKIE);
   if (!token) return null;
   const db = await getDatabase();

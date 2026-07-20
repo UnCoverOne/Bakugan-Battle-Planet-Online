@@ -3,14 +3,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { addChatMessage, chatEntries, eventLogEntries, normalizeChatMessage } from "../../lib/chat";
 import type { MatchState } from "../../lib/game";
-import { MATCH_UPDATE_EVENT, writeCoordinatedMatch } from "./MatchStateCoordinator";
+import { writeCoordinatedMatch } from "./MatchStateCoordinator";
+import { readMatchStore, useMatchSelector } from "./matchStore";
 import styles from "./MatchCommunicationLayer.module.css";
-
-const ROUTE_KEY = "bbp-route-v1";
-const SETTINGS_KEY = "bbp-settings";
-const MATCH_KEY = "bbp-active-match-v1";
-const ONLINE_KEY = "bbp-active-match-online-v1";
-const PLAYER_KEY = "bbp-player-id";
 
 type CommunicationState = {
   active: boolean;
@@ -18,23 +13,6 @@ type CommunicationState = {
   match: MatchState | null;
   playerId?: string;
 };
-
-function parseValue<T>(raw: string | null, fallback: T): T {
-  if (raw == null) return fallback;
-  try { return JSON.parse(raw) as T; }
-  catch { return fallback; }
-}
-
-function readCommunicationState(): CommunicationState {
-  const settings = parseValue<Record<string, unknown>>(localStorage.getItem(SETTINGS_KEY), {});
-  const route = parseValue(localStorage.getItem(ROUTE_KEY), "entry");
-  return {
-    active: Boolean(settings.useNewGameScreen) && route === "match",
-    online: parseValue(localStorage.getItem(ONLINE_KEY), false),
-    match: parseValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
-    playerId: parseValue<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
-  };
-}
 
 function timeLabel(at: number) {
   return new Date(at).toLocaleTimeString([], {
@@ -52,48 +30,26 @@ function eventKindLabel(kind: string) {
 }
 
 export function MatchCommunicationLayer() {
-  const [communication, setCommunication] = useState<CommunicationState>({
-    active: false,
-    online: false,
-    match: null,
-    playerId: undefined,
-  });
+  const communication = useMatchSelector((state): CommunicationState => ({
+    active: state.route === "match",
+    online: state.online,
+    match: state.match,
+    playerId: state.playerId,
+  }));
   const [eventLogOpen, setEventLogOpen] = useState(false);
+  const [eventFilter, setEventFilter] = useState("all");
+  const [chatFocused, setChatFocused] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const rawState = useRef("");
   const eventScroll = useRef<HTMLDivElement | null>(null);
   const chatScroll = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const update = () => {
-      const raw = [
-        localStorage.getItem(ROUTE_KEY),
-        localStorage.getItem(SETTINGS_KEY),
-        localStorage.getItem(MATCH_KEY),
-        localStorage.getItem(ONLINE_KEY),
-        localStorage.getItem(PLAYER_KEY),
-      ].join("\u0000");
-      if (raw === rawState.current) return;
-      rawState.current = raw;
-      setCommunication(readCommunicationState());
-    };
-    update();
-    const interval = window.setInterval(update, 500);
-    window.addEventListener("storage", update);
-    window.addEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("storage", update);
-      window.removeEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    };
-  }, []);
 
   const events = useMemo(
     () => eventLogEntries(communication.match),
     [communication.match],
   );
+  const filteredEvents = useMemo(() => eventFilter === "all" ? events : events.filter((entry) => entry.kind === eventFilter), [events, eventFilter]);
   const messages = useMemo(
     () => chatEntries(communication.match),
     [communication.match],
@@ -115,7 +71,8 @@ export function MatchCommunicationLayer() {
     event.preventDefault();
     if (sending) return;
     const message = normalizeChatMessage(draft);
-    const current = readCommunicationState();
+    const stored = readMatchStore();
+    const current: CommunicationState = { active: stored.route === "match", online: stored.online, match: stored.match, playerId: stored.playerId };
     const currentMatch = current.match;
     const currentActorId = current.playerId ?? currentMatch?.players[0]?.id;
     if (!message || !currentMatch || !currentActorId) return;
@@ -132,7 +89,7 @@ export function MatchCommunicationLayer() {
           const response = await fetch("/api/game", {
             method: "POST",
             cache: "no-store",
-            headers: { "content-type": "application/json" },
+            headers: { "content-type": "application/json", ...(stored.capability ? { "x-match-capability": stored.capability } : {}) },
             body: JSON.stringify({
               action: "chat",
               code: expectedState.code,
@@ -174,10 +131,15 @@ export function MatchCommunicationLayer() {
               <span>MATCH RECORD</span>
               <h2>EVENT LOG</h2>
             </div>
-            <strong>{events.length}</strong>
+            <strong>{filteredEvents.length}</strong>
           </header>
+          <nav className={styles.eventFilters} aria-label="Event filters">
+            {["all", "game", "random", "system", "connection"].map((kind) => (
+              <button type="button" key={kind} aria-pressed={eventFilter === kind} onClick={() => setEventFilter(kind)}>{kind}</button>
+            ))}
+          </nav>
           <div className={styles.eventEntries} ref={eventScroll}>
-            {events.length ? events.map((entry) => (
+            {filteredEvents.length ? filteredEvents.map((entry) => (
               <article className={styles.eventEntry} data-kind={entry.kind} key={entry.id}>
                 <div>
                   <span>{eventKindLabel(entry.kind)}</span>
@@ -200,7 +162,14 @@ export function MatchCommunicationLayer() {
         </button>
       </div>
 
-      <section className={styles.chatBox} aria-label="Match chat" data-chat-box="true">
+      <section
+        className={styles.chatBox}
+        aria-label="Match chat"
+        data-chat-box="true"
+        data-focused={chatFocused ? "true" : "false"}
+        onFocusCapture={() => setChatFocused(true)}
+        onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setChatFocused(false); }}
+      >
         <header>
           <div>
             <span>PLAYER COMMS</span>

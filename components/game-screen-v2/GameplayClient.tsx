@@ -2,30 +2,24 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  beginCorePlacement,
   concedeMatch,
   discardToHandLimit,
   energizeCard,
+  prepareCardPlay,
   selectBakugan,
   type CardChoices,
   type MatchState,
 } from "../../lib/game";
-import {
-  cardEnergyPaymentState,
-  playCardWithAutoEnergy,
-} from "../../lib/cardPayment";
+import { advanceOpponentAi, opponentAiCanAct } from "../../lib/opponentAi";
+import { canUndoLatest, undoLatestAction } from "../../lib/undo";
+import { playCardWithAutoEnergy } from "../../lib/cardPayment";
 import { tapEnergyCard } from "../../lib/energy";
 import {
   flipDamageCard,
   passPriorityWithManualDamage,
   resolveManualDamage,
 } from "../../lib/manualDamage";
-import {
-  availableRollTargets,
-  confirmRoll,
-  playerCanConfirmRoll,
-  playerCanSelectRollTarget,
-  selectRollTarget,
-} from "../../lib/rolling";
 import {
   drawStepIsPending,
   drawTurnCard,
@@ -37,43 +31,33 @@ import {
 import { BakuCoreLayer } from "./BakuCoreLayer";
 import { CardHandLayer } from "./CardHandLayer";
 import { CardPreviewLayer } from "./CardPreviewLayer";
+import { CorePlacementLayer } from "./CorePlacementLayer";
 import { DamageStepLayer } from "./DamageStepLayer";
 import { EnergyAffordabilityLayer } from "./EnergyAffordabilityLayer";
 import { GameMenuHud } from "./GameMenuHud";
 import { GameScreen } from "./GameScreen";
 import { MatchHudLayer } from "./MatchHudLayer";
 import {
-  MATCH_UPDATE_EVENT,
   writeCoordinatedMatch,
-  writeExperimentalRoute,
-  writeExperimentalSettings,
+  writeGameRoute,
+  writeGameSettings,
 } from "./MatchStateCoordinator";
+import { readMatchStore, useMatchSelector } from "./matchStore";
 import { SelectionInteractionLayer } from "./SelectionInteractionLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
 import {
-  defaultCardChoices,
+  cardRequiresSelection,
   shouldAutomaticallyPass,
   type HandActionMode,
 } from "./matchHudState";
 
-const ROUTE_KEY = "bbp-route-v1";
 const SETTINGS_KEY = "bbp-settings";
-const MATCH_KEY = "bbp-active-match-v1";
-const ONLINE_KEY = "bbp-active-match-online-v1";
-const PLAYER_KEY = "bbp-player-id";
-const PRIORITY_PHASES = new Set<MatchState["phase"]>([
-  "preRoll",
-  "power",
-  "victor",
-  "postDamage",
-  "endPlay",
-]);
 
 type StoredGameScreenState = {
   route: string;
-  enabled: boolean;
   automaticDraw: boolean;
   automaticPass: boolean;
+  soundEnabled: boolean;
   match: MatchState | null;
   online: boolean;
   playerId?: string;
@@ -81,10 +65,10 @@ type StoredGameScreenState = {
 
 type LocalMatchAction = (match: MatchState, actorId: string) => MatchState;
 
-type ExperimentalSettings = {
-  useNewGameScreen?: boolean;
+type GameplaySettings = {
   automaticDraw?: boolean;
   automaticPass?: boolean;
+  soundEnabled?: boolean;
   [key: string]: unknown;
 };
 
@@ -94,146 +78,30 @@ function parseStoredValue<T>(raw: string | null, fallback: T): T {
   catch { return fallback; }
 }
 
-function readSettings(): ExperimentalSettings {
-  return parseStoredValue<ExperimentalSettings>(localStorage.getItem(SETTINGS_KEY), {});
+function readSettings(): GameplaySettings {
+  return parseStoredValue<GameplaySettings>(localStorage.getItem(SETTINGS_KEY), {});
 }
 
-function readStoredState(): StoredGameScreenState {
-  const settings = readSettings();
-  return {
-    route: parseStoredValue(localStorage.getItem(ROUTE_KEY), "entry"),
-    enabled: Boolean(settings.useNewGameScreen),
-    automaticDraw: Boolean(settings.automaticDraw),
-    automaticPass: Boolean(settings.automaticPass),
-    match: parseStoredValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
-    online: parseStoredValue(localStorage.getItem(ONLINE_KEY), false),
-    playerId: parseStoredValue<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
-  };
-}
-
-function trainingBotCanAct(match: MatchState) {
-  const bot = match.players.find((player) => player.id === "training-bot");
-  if (!bot) return false;
-  if (playerCanDrawTurnCard(match, bot.id)) return true;
-  if (match.phase === "energize" && !bot.energizedThisTurn) return true;
-  if (match.phase === "selection" && !match.selected[bot.id]) return true;
-  if (
-    match.phase === "target"
-    && (playerCanSelectRollTarget(match, bot.id) || playerCanConfirmRoll(match, bot.id))
-  ) return true;
-  if (
-    match.phase === "damage"
-    && match.pendingLoser === bot.id
-    && (Boolean(match.revealedFlip) || match.pendingDamage > 0)
-  ) return true;
-  if (PRIORITY_PHASES.has(match.phase) && match.priority === bot.id) return true;
-  return match.phase === "handLimit" && match.priority === bot.id;
-}
-
-function advanceTrainingBot(match: MatchState): MatchState | null {
-  const bot = match.players.find((player) => player.id === "training-bot");
-  if (!bot) return null;
-
-  if (playerCanDrawTurnCard(match, bot.id)) {
-    return drawTurnCard(match, bot.id);
-  }
-
-  if (match.phase === "energize" && !bot.energizedThisTurn) {
-    return energizeCard(match, bot.id, bot.hand[0]?.id);
-  }
-
-  if (match.phase === "selection" && !match.selected[bot.id]) {
-    const closed = bot.bakugan.filter((bakugan) => !bakugan.open);
-    return selectBakugan(match, bot.id, (closed[0] ?? bot.bakugan[0]).id);
-  }
-
-  if (match.phase === "target") {
-    if (playerCanSelectRollTarget(match, bot.id)) {
-      const localTarget = Object.entries(match.targets)
-        .find(([playerId]) => playerId !== bot.id)?.[1];
-      const targets = availableRollTargets(match);
-      const cell = targets.find((placement) => placement.cell !== localTarget)?.cell
-        ?? targets[0]?.cell;
-      return cell ? selectRollTarget(match, bot.id, cell) : null;
-    }
-    if (playerCanConfirmRoll(match, bot.id)) {
-      return confirmRoll(match, bot.id);
-    }
-  }
-
-  if (match.phase === "damage" && match.pendingLoser === bot.id) {
-    if (!match.revealedFlip) return match.pendingDamage > 0 ? flipDamageCard(match, bot.id) : null;
-    const choices = defaultCardChoices(match, bot.id, match.revealedFlip);
-    const payment = cardEnergyPaymentState(match, bot.id, match.revealedFlip, choices);
-    const play = payment && payment.kind !== "insufficient";
-    return resolveManualDamage(
-      match,
-      bot.id,
-      play ? match.revealedFlip.id : undefined,
-      choices,
-    );
-  }
-
-  if (PRIORITY_PHASES.has(match.phase) && match.priority === bot.id) {
-    return passPriorityWithManualDamage(match, bot.id);
-  }
-
-  if (match.phase === "handLimit" && match.priority === bot.id) {
-    const amount = Math.max(0, bot.hand.length - 7);
-    return discardToHandLimit(match, bot.id, bot.hand.slice(0, amount).map((card) => card.id));
-  }
-
-  return null;
-}
-
-export function NewGameScreenTester() {
-  const [storedState, setStoredState] = useState<StoredGameScreenState>({
-    route: "entry",
-    enabled: false,
-    automaticDraw: false,
-    automaticPass: false,
-    match: null,
-    online: false,
-    playerId: undefined,
-  });
+export function GameplayClient() {
+  const storedState = useMatchSelector((state): StoredGameScreenState => ({
+    route: state.route,
+    automaticDraw: Boolean(state.settings.automaticDraw),
+    automaticPass: Boolean(state.settings.automaticPass),
+    soundEnabled: state.settings.soundEnabled == null
+      ? state.settings.sound !== false
+      : state.settings.soundEnabled !== false,
+    match: state.match,
+    online: state.online,
+    playerId: state.playerId,
+  }));
   const [handActionMode, setHandActionMode] = useState<HandActionMode>(null);
   const [selectedHandCardId, setSelectedHandCardId] = useState("");
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
-  const previousRawState = useRef("");
   const automaticActionKey = useRef("");
   const botActionKey = useRef("");
 
-  useEffect(() => {
-    const update = () => {
-      const rawState = [
-        localStorage.getItem(ROUTE_KEY),
-        localStorage.getItem(SETTINGS_KEY),
-        localStorage.getItem(MATCH_KEY),
-        localStorage.getItem(ONLINE_KEY),
-        localStorage.getItem(PLAYER_KEY),
-      ].join("\u0000");
-
-      if (rawState === previousRawState.current) return;
-      previousRawState.current = rawState;
-      setStoredState(readStoredState());
-    };
-
-    update();
-    const interval = window.setInterval(update, 500);
-    window.addEventListener("storage", update);
-    window.addEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("storage", update);
-      window.removeEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    };
-  }, []);
-
   const publishMatch = useCallback((next: MatchState) => {
-    if (!writeCoordinatedMatch(next)) return false;
-    previousRawState.current = "";
-    setStoredState((stored) => ({ ...stored, match: next }));
-    return true;
+    return writeCoordinatedMatch(next);
   }, []);
 
   const submitMatchAction = async (
@@ -241,7 +109,7 @@ export function NewGameScreenTester() {
     payload: Record<string, unknown>,
     localAction: LocalMatchAction,
   ) => {
-    const current = readStoredState();
+    const current = readMatchStore();
     const match = current.match;
     const actorId = current.playerId ?? match?.players[0]?.id;
     if (!match || !actorId) throw new Error("No active match is available.");
@@ -254,7 +122,10 @@ export function NewGameScreenTester() {
     const response = await fetch("/api/game", {
       method: "POST",
       cache: "no-store",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(current.capability ? { "x-match-capability": current.capability } : {}),
+      },
       body: JSON.stringify({
         action,
         code: match.code,
@@ -274,6 +145,18 @@ export function NewGameScreenTester() {
     (match, actorId) => tapEnergyCard(match, actorId, cardId),
   );
 
+  const beginPlacement = () => submitMatchAction(
+    "begin-placement",
+    {},
+    (match) => beginCorePlacement(match),
+  );
+
+  const undo = () => submitMatchAction(
+    "undo",
+    {},
+    (match, actorId) => undoLatestAction(match, actorId),
+  );
+
   const drawCard = () => submitMatchAction(
     "draw",
     {},
@@ -287,11 +170,18 @@ export function NewGameScreenTester() {
     },
   );
 
-  const playHandCard = (cardId: string, choices: CardChoices) => submitMatchAction(
-    "play",
-    { cardId, choices },
-    (match, actorId) => playCardWithAutoEnergy(match, actorId, cardId, choices),
-  );
+  const playHandCard = (cardId: string, choices: CardChoices) => {
+    const current = readMatchStore();
+    const actorId = current.playerId ?? current.match?.players[0]?.id;
+    const requiresChoice = Boolean(current.match && actorId && cardRequiresSelection(current.match, actorId, cardId));
+    return submitMatchAction(
+      requiresChoice && !Object.keys(choices).length ? "prepare-play" : "play",
+      { cardId, choices },
+      (match, localActorId) => requiresChoice && !Object.keys(choices).length
+        ? prepareCardPlay(match, localActorId, cardId)
+        : playCardWithAutoEnergy(match, localActorId, cardId, choices),
+    );
+  };
 
   const energizeHandCard = (cardId: string) => submitMatchAction(
     "energize",
@@ -341,19 +231,21 @@ export function NewGameScreenTester() {
       {},
       (match, actorId) => concedeMatch(match, actorId),
     );
-    writeExperimentalRoute("result");
+    writeGameRoute("result");
     window.location.reload();
   };
 
-  const updatePreference = (key: "automaticDraw" | "automaticPass", enabled: boolean) => {
+  const updatePreference = (key: "automaticDraw" | "automaticPass" | "soundEnabled", enabled: boolean) => {
     const settings = readSettings();
-    writeExperimentalSettings({ ...settings, [key]: enabled });
-    previousRawState.current = "";
-    setStoredState((current) => ({ ...current, [key]: enabled }));
+    writeGameSettings({
+      ...settings,
+      [key]: enabled,
+      ...(key === "soundEnabled" ? { sound: enabled } : {}),
+    });
   };
 
   const openSettings = () => {
-    writeExperimentalRoute("settings");
+    writeGameRoute("settings");
     window.location.reload();
   };
 
@@ -366,111 +258,51 @@ export function NewGameScreenTester() {
 
   useEffect(() => {
     const match = storedState.match;
+    if (storedState.route !== "match" || match?.phase !== "startingPlayer") return;
+    const delay = Math.max(0, match.startingPlayerRevealedAt - Date.now());
+    const timeout = window.setTimeout(() => void beginPlacement().catch(() => undefined), delay);
+    return () => window.clearTimeout(timeout);
+  }, [storedState.route, storedState.match?.phase, storedState.match?.startingPlayerRevealedAt]);
+
+  useEffect(() => {
+    const match = storedState.match;
     if (
-      !storedState.enabled
-      || storedState.route !== "match"
+      storedState.route !== "match"
       || storedState.online
       || !match
-      || !trainingBotCanAct(match)
     ) return;
+
+    const waitingForDrawWindow = match.phase === "draw"
+      && (match.drawRemainingByPlayer?.["training-bot"] ?? 0) > 0;
+    if (!waitingForDrawWindow && !opponentAiCanAct(match, "training-bot")) return;
 
     const key = `${match.id}:${match.version}:${match.phase}`;
     if (botActionKey.current === key) return;
     botActionKey.current = key;
+    const drawDelay = waitingForDrawWindow
+      ? Math.max(0, (match.drawReadyAt ?? 0) - Date.now())
+      : 0;
     const timeout = window.setTimeout(() => {
-      const latest = readStoredState().match;
+      const latest = readMatchStore().match;
       if (!latest || latest.id !== match.id || latest.version !== match.version) return;
       try {
-        const next = advanceTrainingBot(latest);
-        if (next) publishMatch(preparePendingDraw(next));
+        const next = advanceOpponentAi(latest, "training-bot");
+        if (next) publishMatch(next);
       } catch {
         // A concurrent player action can close the bot's window before this
         // timer executes. The next accepted version schedules a fresh check.
       } finally {
         if (botActionKey.current === key) botActionKey.current = "";
       }
-    }, 520);
+    }, Math.max(520, drawDelay));
     return () => window.clearTimeout(timeout);
   }, [
-    storedState.enabled,
     storedState.route,
     storedState.online,
     storedState.match?.id,
     storedState.match?.phase,
     storedState.match?.priority,
     storedState.match?.version,
-    publishMatch,
-  ]);
-
-  useEffect(() => {
-    const match = storedState.match;
-    if (!storedState.enabled || storedState.route !== "match" || !storedState.online || !match?.code) return;
-
-    let disposed = false;
-    let timer = 0;
-    let controller: AbortController | null = null;
-
-    const schedule = () => {
-      if (disposed) return;
-      timer = window.setTimeout(poll, document.hidden ? 2600 : 1100);
-    };
-
-    const poll = async () => {
-      if (disposed) return;
-      const current = readStoredState();
-      const currentMatch = current.match;
-      const actorId = current.playerId ?? currentMatch?.players[0]?.id;
-      if (!currentMatch?.code || !actorId || !current.online) return schedule();
-
-      controller = new AbortController();
-      try {
-        const response = await fetch("/api/game", {
-          method: "POST",
-          cache: "no-store",
-          signal: controller.signal,
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            action: "get",
-            code: currentMatch.code,
-            playerId: actorId,
-            expectedVersion: currentMatch.version,
-          }),
-        });
-        const data = await response.json() as { state?: MatchState };
-        if (data.state) publishMatch(data.state);
-      } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          // A later poll or focus event retries without interrupting play.
-        }
-      } finally {
-        controller = null;
-        schedule();
-      }
-    };
-
-    const refreshNow = () => {
-      window.clearTimeout(timer);
-      controller?.abort();
-      void poll();
-    };
-    const onVisibility = () => { if (!document.hidden) refreshNow(); };
-
-    void poll();
-    window.addEventListener("focus", refreshNow);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      disposed = true;
-      window.clearTimeout(timer);
-      controller?.abort();
-      window.removeEventListener("focus", refreshNow);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [
-    storedState.enabled,
-    storedState.route,
-    storedState.online,
-    storedState.match?.code,
-    storedState.playerId,
     publishMatch,
   ]);
 
@@ -550,7 +382,7 @@ export function NewGameScreenTester() {
 
   useEffect(() => {
     if (storedState.online || storedState.match?.phase !== "result" || storedState.route !== "match") return;
-    writeExperimentalRoute("result");
+    writeGameRoute("result");
     const timeout = window.setTimeout(() => window.location.reload(), 250);
     return () => window.clearTimeout(timeout);
   }, [storedState.online, storedState.match?.phase, storedState.route]);
@@ -570,18 +402,12 @@ export function NewGameScreenTester() {
     setSelectedHandCardId("");
   }, []);
 
-  const toggle = () => {
-    const settings = readSettings();
-    writeExperimentalSettings({ ...settings, useNewGameScreen: !storedState.enabled });
-    window.location.reload();
-  };
-
   const exit = () => {
-    writeExperimentalRoute("play");
+    writeGameRoute("play");
     window.location.reload();
   };
 
-  if (storedState.enabled && storedState.route === "match") {
+  if (storedState.route === "match") {
     return (
       <>
         <GameScreen
@@ -628,8 +454,12 @@ export function NewGameScreenTester() {
         <GameMenuHud
           automaticDraw={storedState.automaticDraw}
           automaticPass={storedState.automaticPass}
+          soundEnabled={storedState.soundEnabled}
           onAutomaticDrawChange={(enabled) => updatePreference("automaticDraw", enabled)}
           onAutomaticPassChange={(enabled) => updatePreference("automaticPass", enabled)}
+          onSoundEnabledChange={(enabled) => updatePreference("soundEnabled", enabled)}
+          undoAvailable={canUndoLatest(storedState.match, storedState.playerId ?? storedState.match?.players[0]?.id)}
+          onUndo={undo}
           onConcede={concede}
           onOpenSettings={openSettings}
         />
@@ -637,6 +467,7 @@ export function NewGameScreenTester() {
           match={storedState.match}
           playerId={storedState.playerId}
         />
+        <CorePlacementLayer match={storedState.match} playerId={storedState.playerId} />
         <CardHandLayer
           match={storedState.match}
           playerId={storedState.playerId}
@@ -648,25 +479,5 @@ export function NewGameScreenTester() {
       </>
     );
   }
-  if (storedState.route !== "play") return null;
-
-  return <aside aria-label="Experimental game screen" style={{
-    position: "fixed", right: 20, bottom: 20, zIndex: 200,
-    display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", gap: 16,
-    width: "min(520px, calc(100vw - 40px))", padding: "14px 16px",
-    border: "1px solid rgba(246,181,27,.7)", background: "rgba(2,8,13,.96)",
-    boxShadow: "0 16px 40px rgba(0,0,0,.65)", color: "#fff",
-  }}>
-    <div style={{ display: "grid", gap: 4 }}>
-      <small style={{ color: "#f6b51b", fontWeight: 900, letterSpacing: ".12em" }}>EXPERIMENTAL CLIENT</small>
-      <strong>NEW GAME SCREEN</strong>
-      <span style={{ color: "#a8c0c9", fontSize: 12, lineHeight: 1.35 }}>Use the standalone battlefield after lobby and BakuCore placement. Press Esc to return to Play.</span>
-    </div>
-    <button type="button" role="switch" aria-checked={storedState.enabled} onClick={toggle} style={{
-      minWidth: 104, padding: "10px 12px", border: `1px solid ${storedState.enabled ? "#f6b51b" : "#6b8088"}`,
-      background: storedState.enabled ? "#f6b51b" : "#071216", color: storedState.enabled ? "#111" : "#fff", fontWeight: 900,
-    }}>
-      {storedState.enabled ? "ENABLED" : "DISABLED"}
-    </button>
-  </aside>;
+  return null;
 }

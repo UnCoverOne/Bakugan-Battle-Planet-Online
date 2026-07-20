@@ -17,13 +17,7 @@ import {
   type BrawlCombatantView,
 } from "./brawlState";
 import styles from "./BrawlExperienceLayer.module.css";
-
-const ROUTE_KEY = "bbp-route-v1";
-const SETTINGS_KEY = "bbp-settings";
-const MATCH_KEY = "bbp-active-match-v1";
-const ONLINE_KEY = "bbp-active-match-online-v1";
-const PLAYER_KEY = "bbp-player-id";
-const MATCH_UPDATE_EVENT = "bbp-match-state-updated";
+import { useMatchSelector } from "./matchStore";
 
 type ExperienceState = {
   active: boolean;
@@ -37,23 +31,6 @@ type HudPosition = {
   top: number;
   maxWidth: number;
 };
-
-function parseValue<T>(raw: string | null, fallback: T): T {
-  if (raw == null) return fallback;
-  try { return JSON.parse(raw) as T; }
-  catch { return fallback; }
-}
-
-function readExperienceState(): ExperienceState {
-  const settings = parseValue<Record<string, unknown>>(localStorage.getItem(SETTINGS_KEY), {});
-  const route = parseValue(localStorage.getItem(ROUTE_KEY), "entry");
-  return {
-    active: Boolean(settings.useNewGameScreen) && route === "match",
-    online: parseValue(localStorage.getItem(ONLINE_KEY), false),
-    match: parseValue<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
-    playerId: parseValue<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
-  };
-}
 
 function sameHudPosition(previous: HudPosition | null, next: HudPosition) {
   return Boolean(
@@ -140,46 +117,21 @@ function BrawlCombatant({
 }
 
 export function BrawlExperienceLayer() {
-  const [experience, setExperience] = useState<ExperienceState>({
-    active: false,
-    online: false,
-    match: null,
-    playerId: undefined,
-  });
+  const experience = useMatchSelector((state): ExperienceState => ({
+    active: state.route === "match",
+    online: state.online,
+    match: state.match,
+    playerId: state.playerId,
+  }));
   const [hudPosition, setHudPosition] = useState<HudPosition | null>(null);
   const [resolvingEffect, setResolvingEffect] = useState<PendingEffect | null>(null);
   const [effectBurst, setEffectBurst] = useState<PendingEffect | null>(null);
   const [pulsingBakugan, setPulsingBakugan] = useState<Set<string>>(new Set());
-  const rawState = useRef("");
   const previousBatch = useRef<PendingEffect[]>([]);
   const previousStats = useRef<Record<string, string>>({});
   const resolutionTimer = useRef<number | null>(null);
   const burstTimer = useRef<number | null>(null);
   const pulseTimer = useRef<number | null>(null);
-
-  useEffect(() => {
-    const update = () => {
-      const raw = [
-        localStorage.getItem(ROUTE_KEY),
-        localStorage.getItem(SETTINGS_KEY),
-        localStorage.getItem(MATCH_KEY),
-        localStorage.getItem(ONLINE_KEY),
-        localStorage.getItem(PLAYER_KEY),
-      ].join("\u0000");
-      if (raw === rawState.current) return;
-      rawState.current = raw;
-      setExperience(readExperienceState());
-    };
-    update();
-    const interval = window.setInterval(update, 500);
-    window.addEventListener("storage", update);
-    window.addEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("storage", update);
-      window.removeEventListener(MATCH_UPDATE_EVENT, update as EventListener);
-    };
-  }, []);
 
   const combatants = useMemo(
     () => brawlCombatants(experience.match, experience.playerId),

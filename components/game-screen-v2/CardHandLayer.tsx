@@ -17,6 +17,7 @@ import {
   type HandActionMode,
 } from "./matchHudState";
 import styles from "./CardHandLayer.module.css";
+import { LikelyCardImagePreloader, ResponsiveCardImage } from "./ResponsiveCardImage";
 
 const CARD_BACK_ART = "/assets/card-back.png";
 const MIN_ZONE_GAP = 16;
@@ -61,7 +62,7 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
 
     const measure = () => {
       const playArea = document.querySelector<HTMLElement>(
-        '[aria-label="Experimental game play area"]',
+        '[data-gameplay-surface="true"]',
       );
       if (!playArea) return;
 
@@ -131,7 +132,7 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
       if (typeof ResizeObserver === "undefined") return;
 
       const playArea = document.querySelector<HTMLElement>(
-        '[aria-label="Experimental game play area"]',
+        '[data-gameplay-surface="true"]',
       );
       observer = new ResizeObserver(measure);
       const elements = [
@@ -253,10 +254,11 @@ function PlayerHand({
               onKeyDown={(event) => selectWithKeyboard(event, card.id, actionable)}
             >
               <div className={styles.handCardSurface}>
-                <img
+                <ResponsiveCardImage
                   className={styles.handCardImage}
                   src={card.art}
                   alt={card.displayName || card.name}
+                  eager
                   draggable={false}
                 />
               </div>
@@ -298,11 +300,11 @@ function OpponentHand({
             key={`opponent-hidden-card-${index}`}
           >
             <div className={styles.handCardSurface}>
-              <img
+              <ResponsiveCardImage
                 className={`${styles.handCardImage} ${styles.opponentCardBack}`}
                 src={CARD_BACK_ART}
                 alt=""
-                aria-hidden="true"
+                ariaHidden
                 draggable={false}
               />
             </div>
@@ -335,6 +337,7 @@ export function CardHandLayer({
 
   return (
     <>
+      <LikelyCardImagePreloader sources={cards.filter((card) => handCardIsActionable(match, playerId, card, effectiveActionMode)).map((card) => card.art)} />
       <OpponentHand cardCount={opponentCardCount} bounds={opponentBounds} />
       <PlayerHand
         cards={cards}

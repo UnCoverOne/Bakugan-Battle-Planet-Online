@@ -42,12 +42,12 @@ test("a card uses already generated Energy without tapping extra cards", () => {
   assert.equal(payment?.kind, "ready");
   assert.equal(payment?.autoTapCardIds.length, 0);
 
-  const played = playCardWithAutoEnergy(match, player.id, card.id);
+  const played = playCardWithAutoEnergy(match, player.id, card.id, { confirmed: true });
   const updated = played.players[0] as EnergyTrackedPlayer;
   assert.equal(updated.energy, 1);
   assert.equal(updated.tappedEnergyIds?.length, 3);
   assert.equal(updated.hand.length, 0);
-  assert.equal(updated.batch.at(-1)?.card.id, card.id);
+  assert.equal(played.batch.at(-1)?.card.id, card.id);
 });
 
 test("a card automatically taps only the Energy cards needed for its shortfall", () => {
@@ -57,7 +57,7 @@ test("a card automatically taps only the Energy cards needed for its shortfall",
   assert.equal(payment?.shortfall, 2);
   assert.deepEqual(payment?.autoTapCardIds, ["energy-card-1", "energy-card-2"]);
 
-  const played = playCardWithAutoEnergy(match, player.id, card.id);
+  const played = playCardWithAutoEnergy(match, player.id, card.id, { confirmed: true });
   const updated = played.players[0] as EnergyTrackedPlayer;
   assert.equal(updated.energy, 0);
   assert.deepEqual(updated.tappedEnergyIds, [

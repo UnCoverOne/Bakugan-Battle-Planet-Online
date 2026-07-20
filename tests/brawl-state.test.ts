@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   createMatch,
+  cardChoiceSpec,
   passPriority,
   type MatchState,
   type PendingEffect,
@@ -79,10 +80,14 @@ test("a played Power Step card enters the batch and transfers priority", () => {
     candidate.type === "Action"
     && candidate.cost !== "X"
     && candidate.cost <= 3
+    && cardChoiceSpec(match, player.id, candidate).length === 0
   ));
   assert.ok(card);
   player.hand = [{ ...card, id: "power-action" }];
+  player.energyZone = Array.from({ length: 3 }, (_, index) => ({ ...card, id: `power-energy-${index}` }));
+  player.maxEnergy = 3;
   player.energy = 3;
+  Object.assign(player, { energyTapTurn: 1, tappedEnergyIds: player.energyZone.map((energy) => energy.id) });
 
   const next = playCardAndPassPriority(match, player.id, "power-action", {});
   assert.equal(next.batch.length, 1);
