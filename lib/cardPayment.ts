@@ -6,6 +6,8 @@ import {
   type MatchState,
   type PlayerState,
 } from "./game";
+import { hasPendingDraws } from "./drawQueue";
+import { legalEvoTargets } from "./evo";
 
 type EnergyTrackedPlayer = PlayerState & {
   tappedEnergyIds?: string[];
@@ -210,9 +212,20 @@ export function playCardWithAutoEnergy(
   cardId: string,
   choices: CardChoices = {},
 ) {
+  if (hasPendingDraws(input)) {
+    throw new Error("Complete every pending Draw action before playing another card.");
+  }
   const player = playerById(input, playerId);
   const card = player?.hand.find((candidate) => candidate.id === cardId);
   if (!player || !card) return playCard(input, playerId, cardId, choices);
+  if (card.type === "Evo") {
+    const target = legalEvoTargets(input, playerId, card)
+      .find((candidate) => candidate.id === choices.targetBakuganId);
+    if (!target) {
+      throw new Error(`Select your matching ${card.evolvesFrom ?? "Bakugan"} Character Card for this Evo.`);
+    }
+    choices = { ...choices, targetBakuganId: target.id };
+  }
   const cost = effectiveCardEnergyCost(input, playerId, card, choices);
   return playCard(prepareEnergyPayment(input, playerId, cost), playerId, cardId, choices);
 }
