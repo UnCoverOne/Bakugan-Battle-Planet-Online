@@ -1,0 +1,34 @@
+/* Keep the discard browser approximately twenty percent narrower at every
+   viewport scale while retaining the existing modal's internal responsive grid. */
+[data-zone-kind="discard-browser"] {
+  width: min(54.4rem, calc(80vw - 1.6rem)) !important;
+}
+
+/* Flip scans are landscape, but a card in hand still occupies the same physical
+   vertical 5:7 silhouette as every other card. Rotate and crop the scan inside
+   that fixed silhouette rather than shrinking it with object-fit: contain. */
+[data-zone-kind="hand"] li[data-card-type="Flip"] .handCardSurface,
+[data-zone-kind="hand"] li[data-card-type="Flip"] > div {
+  position: relative;
+  overflow: hidden;
+}
+
+[data-zone-kind="hand"] li[data-card-type="Flip"] img {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: 140% !important;
+  max-width: none !important;
+  height: auto !important;
+  aspect-ratio: 7 / 5 !important;
+  transform: translate(-50%, -50%) rotate(90deg) !important;
+  transform-origin: center !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+@media (max-width: 760px) {
+  [data-zone-kind="discard-browser"] {
+    width: calc(80vw - 0.8rem) !important;
+  }
+}
