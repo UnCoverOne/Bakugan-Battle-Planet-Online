@@ -88,10 +88,14 @@ export function GameplayCardPresentationLayer() {
           const slotIndex = Math.max(0, Number(zone.dataset.slot ?? 1) - 1);
           const ownerPlayer = owner === "player" ? player : opponent;
           const bakugan = ownerPlayer?.bakugan[slotIndex];
-          if (!bakugan) continue;
+          if (!bakugan) {
+            delete zone.dataset.faction;
+            continue;
+          }
           const topCard = bakugan.evoStack.at(-1) ?? bakugan.character;
           zone.dataset.cardId = topCard.id;
           zone.dataset.cardType = topCard.type;
+          zone.dataset.faction = bakugan.faction;
           zone.dataset.evoCount = String(bakugan.evoStack.length);
           zone.dataset.evoTopId = bakugan.evoStack.at(-1)?.id ?? "";
           if (bakugan.evoStack.length) {
