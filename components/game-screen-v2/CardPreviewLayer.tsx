@@ -26,6 +26,17 @@ type PreviewRenderState = {
 
 const CARD_PREVIEW_CLEAR_EVENT = "bbp-card-preview-clear";
 
+/**
+ * Clicking a hand card gives it DOM focus so it can remain selected. That focus
+ * is gameplay state, not inspection intent. Hand previews therefore belong to
+ * the live pointer target only; other zones may still use keyboard focus.
+ */
+export function previewElementFromFocusTarget(target: EventTarget | null): PreviewElement | null {
+  const element = previewElementFromTarget(target);
+  if (!element || element.closest('[data-zone-kind="hand"]')) return null;
+  return element;
+}
+
 export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
   const [renderState, setRenderState] = useState<PreviewRenderState>({
     status: "idle",
@@ -135,12 +146,12 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
       if (next !== current) setPointerTarget(next);
     };
     const onFocusIn = (event: FocusEvent) => {
-      setFocusTarget(previewElementFromTarget(event.target));
+      setFocusTarget(previewElementFromFocusTarget(event.target));
     };
     const onFocusOut = (event: FocusEvent) => {
-      const current = previewElementFromTarget(event.target);
+      const current = previewElementFromFocusTarget(event.target);
       if (!current || focusElement.current !== current) return;
-      const next = previewElementFromTarget(event.relatedTarget);
+      const next = previewElementFromFocusTarget(event.relatedTarget);
       if (next !== current) setFocusTarget(next);
     };
     const onVisibilityChange = () => {
