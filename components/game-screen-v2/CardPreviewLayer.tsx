@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { GameCard, MatchState } from "../../lib/game";
+import { useEffect, useState } from "react";
+import type { CardType, GameCard, MatchState } from "../../lib/game";
 import {
   cardPreviewKind,
-  cardPreviewSide,
-  cardPreviewSideForZoneOwner,
+  cardPreviewSideForZone,
   cardPreviewZoneAllowed,
-  type CardPreviewOrigin,
   type CardPreviewSide,
 } from "./cardPreviewState";
 import styles from "./CardPreviewLayer.module.css";
@@ -28,15 +26,16 @@ type CardPreview = {
   src: string;
   label: string;
   side: CardPreviewSide;
+  cardType?: CardType;
   details?: CardDetails;
   signature: string;
 };
 
 type PreviewTarget = {
   image: HTMLImageElement;
-  origin: CardPreviewOrigin;
   cardId: string;
-  fixedSide: CardPreviewSide | null;
+  side: CardPreviewSide;
+  fallbackLabel: string;
 };
 
 const CHARACTER_ZONE_SELECTOR = '[data-zone-kind="character-card"]';
@@ -51,34 +50,59 @@ function nearestCardId(target: Element): string {
   return target.closest<HTMLElement>("[data-card-id]")?.dataset.cardId ?? "";
 }
 
-function fixedSideForElement(target: Element) {
-  const owner = target.closest<HTMLElement>("[data-zone-owner]")?.dataset.zoneOwner;
-  return cardPreviewSideForZoneOwner(owner);
+function imageCanIdentifyCard(image: HTMLImageElement, cardId: string) {
+  return Boolean(cardPreviewKind(imageSource(image)) || cardId || image.getAttribute("src"));
 }
 
-function imageCanIdentifyCard(image: HTMLImageElement, cardId: string) {
-  return Boolean(cardPreviewKind(imageSource(image)) || cardId);
+function zoneMetadata(target: Element) {
+  const explicitZone = target.closest<HTMLElement>("[data-zone-kind]");
+  if (explicitZone) {
+    return {
+      zoneKind: explicitZone.dataset.zoneKind,
+      zoneOwner: explicitZone.dataset.zoneOwner,
+      zone: explicitZone,
+    };
+  }
+
+  const batch = target.closest<HTMLElement>('[aria-label$="effects in the batch"]');
+  if (batch) {
+    return {
+      zoneKind: "batch",
+      zoneOwner: target.closest<HTMLElement>("figure")?.dataset.owner,
+      zone: batch,
+    };
+  }
+
+  return { zoneKind: undefined, zoneOwner: undefined, zone: null };
 }
 
 function previewTargetFromPointer(target: EventTarget | null): PreviewTarget | null {
   if (!(target instanceof Element)) return null;
-
-  const zoneKind = target.closest<HTMLElement>("[data-zone-kind]")
-    ?.getAttribute("data-zone-kind");
-  if (!cardPreviewZoneAllowed(zoneKind)) return null;
+  const metadata = zoneMetadata(target);
+  if (!cardPreviewZoneAllowed(metadata.zoneKind)) return null;
+  if (
+    metadata.zoneKind === "hand"
+    && metadata.zoneOwner === "opponent"
+    && metadata.zone?.dataset.hidden === "true"
+  ) {
+    return null;
+  }
+  const side = cardPreviewSideForZone(metadata.zoneKind, metadata.zoneOwner);
 
   const handCard = target.closest("li");
   if (handCard?.closest('[data-zone-kind="hand"]')) {
     const handImage = handCard.querySelector<HTMLImageElement>("img");
     const cardId = nearestCardId(handCard);
     if (handImage && imageCanIdentifyCard(handImage, cardId)) {
-      return { image: handImage, origin: "hand", cardId, fixedSide: null };
+      return {
+        image: handImage,
+        cardId,
+        side,
+        fallbackLabel: handCard.getAttribute("title") ?? "Card",
+      };
     }
   }
 
-  // Resolve complete zones before individual images. Character artwork moves on
-  // hover, so deriving its side from the animated image rectangle can briefly
-  // put the preview on the wrong edge of the viewport.
   const characterZone = target.closest<HTMLElement>(CHARACTER_ZONE_SELECTOR);
   if (characterZone) {
     const image = characterZone.querySelector<HTMLImageElement>("img");
@@ -86,9 +110,9 @@ function previewTargetFromPointer(target: EventTarget | null): PreviewTarget | n
     return image && imageCanIdentifyCard(image, cardId)
       ? {
         image,
-        origin: "board",
         cardId,
-        fixedSide: fixedSideForElement(characterZone),
+        side,
+        fallbackLabel: characterZone.getAttribute("aria-label") ?? "Character Card",
       }
       : null;
   }
@@ -100,9 +124,9 @@ function previewTargetFromPointer(target: EventTarget | null): PreviewTarget | n
     return image && imageCanIdentifyCard(image, cardId)
       ? {
         image,
-        origin: "board",
         cardId,
-        fixedSide: fixedSideForElement(discardZone),
+        side,
+        fallbackLabel: image.alt || "Discarded card",
       }
       : null;
   }
@@ -110,19 +134,20 @@ function previewTargetFromPointer(target: EventTarget | null): PreviewTarget | n
   const directImage = target instanceof HTMLImageElement
     ? target
     : target.closest<HTMLImageElement>("img");
-  if (directImage) {
-    const cardId = nearestCardId(directImage);
-    if (imageCanIdentifyCard(directImage, cardId)) {
-      return {
-        image: directImage,
-        origin: "board",
-        cardId,
-        fixedSide: fixedSideForElement(directImage),
-      };
+  if (!directImage) return null;
+  const cardId = nearestCardId(directImage);
+  const batchName = directImage.closest("figure")
+    ?.querySelector<HTMLElement>("figcaption strong")
+    ?.textContent
+    ?.trim();
+  return imageCanIdentifyCard(directImage, cardId)
+    ? {
+      image: directImage,
+      cardId,
+      side,
+      fallbackLabel: directImage.alt.trim() || batchName || "Card",
     }
-  }
-
-  return null;
+    : null;
 }
 
 function cardsInMatch(match: MatchState | null): GameCard[] {
@@ -140,21 +165,37 @@ function cardsInMatch(match: MatchState | null): GameCard[] {
   return cards;
 }
 
+function normalizedPath(source: string) {
+  try {
+    return new URL(source, "https://bakugan-preview.invalid").pathname;
+  } catch {
+    return source.split(/[?#]/, 1)[0] ?? "";
+  }
+}
+
 function resolveCard(
   match: MatchState | null,
   cardId: string,
   label: string,
+  source: string,
 ): GameCard | null {
   const cards = cardsInMatch(match);
   if (cardId) {
     const byId = cards.find((card) => card.id === cardId);
     if (byId) return byId;
   }
+  const sourcePath = normalizedPath(source);
+  if (sourcePath) {
+    const byArt = cards.find((card) => normalizedPath(card.art) === sourcePath);
+    if (byArt) return byArt;
+  }
   const normalized = label.trim().toLowerCase();
   if (!normalized) return null;
   return cards.find((card) => (
     card.displayName.toLowerCase() === normalized
     || card.name.toLowerCase() === normalized
+    || normalized.endsWith(`: ${card.displayName.toLowerCase()}`)
+    || normalized.endsWith(`: ${card.name.toLowerCase()}`)
   )) ?? null;
 }
 
@@ -183,40 +224,9 @@ function samePreview(previous: CardPreview | null, next: CardPreview | null) {
 
 export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
   const [preview, setPreview] = useState<CardPreview | null>(null);
-  const activeTarget = useRef("");
-  const previewFrame = useRef<number | null>(null);
 
   useEffect(() => {
-    const cancelPendingPreview = () => {
-      if (previewFrame.current == null) return;
-      window.cancelAnimationFrame(previewFrame.current);
-      previewFrame.current = null;
-    };
-
-    const clearPreview = () => {
-      activeTarget.current = "";
-      cancelPendingPreview();
-      setPreview((previous) => previous ? null : previous);
-    };
-
-    const presentPreview = (targetKey: string, next: CardPreview) => {
-      if (targetKey === activeTarget.current) {
-        setPreview((previous) => samePreview(previous, next) ? previous : next);
-        return;
-      }
-
-      // Remove the old card before the next target is painted. Without this
-      // hand-to-board and animated-zone transitions can expose the old side for
-      // one frame before React applies the new target's fixed placement.
-      activeTarget.current = targetKey;
-      cancelPendingPreview();
-      setPreview(null);
-      previewFrame.current = window.requestAnimationFrame(() => {
-        previewFrame.current = null;
-        if (activeTarget.current !== targetKey) return;
-        setPreview((previous) => samePreview(previous, next) ? previous : next);
-      });
-    };
+    const clearPreview = () => setPreview((previous) => previous ? null : previous);
 
     const updateFromTarget = (eventTarget: EventTarget | null) => {
       const target = previewTargetFromPointer(eventTarget);
@@ -227,34 +237,25 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
 
       const src = imageSource(target.image);
       const kind = cardPreviewKind(src);
-      const label = target.image.alt.trim() || (kind === "back" ? "Hidden card" : "Card");
-      const card = resolveCard(match ?? null, target.cardId, label);
+      const label = target.image.alt.trim() || target.fallbackLabel || (kind === "back" ? "Hidden card" : "Card");
+      const card = resolveCard(match ?? null, target.cardId, label, src);
       const failedImage = !src
         || /card-missing\.svg(?:$|[?#])/i.test(src)
         || (target.image.complete && target.image.naturalWidth === 0);
       const loadedImage = target.image.complete && target.image.naturalWidth > 0;
-      const rect = target.image.getBoundingClientRect();
-      const side = target.fixedSide ?? cardPreviewSide(
-        rect.left + rect.width / 2,
-        window.innerWidth,
-        target.origin,
-      );
-      const targetKey = [
-        target.origin,
-        target.cardId || src || label,
-        side,
-      ].join(":");
 
       if (card && (failedImage || (!kind && !loadedImage))) {
         const details = detailsForCard(card);
-        presentPreview(targetKey, {
+        const next: CardPreview = {
           mode: "placeholder",
           src: "",
           label: details.name,
-          side,
+          side: target.side,
+          cardType: card.type,
           details,
-          signature: `placeholder:${card.id}:${side}:${details.effect}`,
-        });
+          signature: `placeholder:${card.id}:${target.side}:${details.effect}`,
+        };
+        setPreview((previous) => samePreview(previous, next) ? previous : next);
         return;
       }
 
@@ -263,13 +264,15 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
         return;
       }
 
-      presentPreview(targetKey, {
+      const next: CardPreview = {
         mode: "image",
         src,
-        label,
-        side,
-        signature: `image:${src}:${label}:${side}`,
-      });
+        label: card?.displayName || card?.name || label,
+        side: target.side,
+        cardType: card?.type,
+        signature: `image:${src}:${label}:${target.side}:${card?.type ?? "unknown"}`,
+      };
+      setPreview((previous) => samePreview(previous, next) ? previous : next);
     };
 
     const updatePreview = (event: PointerEvent) => {
@@ -296,7 +299,6 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
     window.addEventListener("blur", clearPreview);
     window.addEventListener(CARD_PREVIEW_CLEAR_EVENT, clearPreview);
     return () => {
-      cancelPendingPreview();
       document.removeEventListener("pointermove", updatePreview);
       document.removeEventListener("pointerover", updatePreview);
       document.removeEventListener("error", refreshImageState, true);
@@ -311,12 +313,13 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
 
   return (
     <aside
-      className={`${styles.preview} ${
-        preview.side === "left" ? styles.previewLeft : styles.previewRight
-      }`}
+      className={`${styles.preview} ${preview.side === "left" ? styles.previewLeft : styles.previewRight}`}
       aria-label={`${preview.label} enlarged preview`}
+      data-card-preview="true"
       data-card-preview-side={preview.side}
       data-card-preview-mode={preview.mode}
+      data-card-preview-type={preview.cardType}
+      key={`${preview.side}:${preview.signature}`}
     >
       {preview.mode === "image" ? (
         <img

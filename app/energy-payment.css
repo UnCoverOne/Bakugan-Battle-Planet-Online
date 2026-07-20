@@ -1,0 +1,132 @@
+[data-zone-id="player-energy"][data-payment-state] .energyIndicator,
+[data-zone-id="player-energy"][data-payment-state] strong[aria-label$="available Energy"] {
+  transition:
+    border-color 120ms ease,
+    color 120ms ease,
+    filter 120ms ease,
+    box-shadow 120ms ease;
+}
+
+[data-zone-id="player-energy"][data-payment-state="ready"] .energyIndicator,
+[data-zone-id="player-energy"][data-payment-state="ready"] strong[aria-label$="available Energy"] {
+  border-color: rgba(255, 255, 255, 1) !important;
+  color: #fff !important;
+  box-shadow:
+    0 0 0.18rem rgba(255, 255, 255, 0.96),
+    0 0 0.72rem rgba(255, 255, 255, 0.68),
+    inset 0 0 0.35rem rgba(255, 255, 255, 0.16) !important;
+}
+
+[data-zone-id="player-energy"][data-payment-state="auto-tap"] .energyIndicator,
+[data-zone-id="player-energy"][data-payment-state="auto-tap"] strong[aria-label$="available Energy"] {
+  border-color: rgba(255, 214, 69, 1) !important;
+  color: #ffe36b !important;
+  box-shadow:
+    0 0 0.18rem rgba(255, 221, 89, 0.98),
+    0 0 0.82rem rgba(255, 192, 32, 0.74),
+    inset 0 0 0.35rem rgba(255, 213, 68, 0.18) !important;
+}
+
+[data-zone-id="player-energy"][data-payment-state="insufficient"] .energyIndicator,
+[data-zone-id="player-energy"][data-payment-state="insufficient"] strong[aria-label$="available Energy"] {
+  border-color: rgba(255, 68, 68, 1) !important;
+  color: #ff6868 !important;
+  box-shadow:
+    0 0 0.18rem rgba(255, 61, 61, 0.96),
+    0 0 0.82rem rgba(219, 20, 30, 0.78),
+    inset 0 0 0.35rem rgba(255, 45, 45, 0.18) !important;
+}
+
+[data-zone-id="player-energy"] [data-auto-tap-needed="true"] {
+  z-index: 95 !important;
+  filter:
+    drop-shadow(0 0 0.18rem rgba(255, 244, 164, 1))
+    drop-shadow(0 0 0.62rem rgba(255, 205, 43, 0.94))
+    drop-shadow(0 0.35rem 0.45rem rgba(0, 0, 0, 0.62)) !important;
+  animation: bbp-energy-needed 720ms ease-in-out infinite alternate;
+}
+
+/* Flip artwork is printed horizontally. Rotate only the hand artwork so every
+   physical card keeps the same vertical hand silhouette; enlarged previews use
+   the unrotated horizontal face. */
+[data-zone-kind="hand"][data-zone-owner="player"] [data-card-type="Flip"] > div {
+  position: relative;
+  overflow: hidden;
+  border-radius: 3px;
+}
+
+[data-zone-kind="hand"][data-zone-owner="player"] [data-card-type="Flip"] img {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: 140% !important;
+  height: 71.5% !important;
+  transform: translate(-50%, -50%) rotate(90deg) !important;
+  transform-origin: center !important;
+  object-fit: contain !important;
+}
+
+[role="alertdialog"][aria-label="Action unavailable"] {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 20340;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  width: min(30rem, calc(100vw - 2rem));
+  padding: 0.9rem 1rem;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255, 91, 80, 0.98);
+  clip-path: polygon(0.65rem 0, 100% 0, 100% calc(100% - 0.65rem), calc(100% - 0.65rem) 100%, 0 100%, 0 0.65rem);
+  background:
+    linear-gradient(135deg, rgba(143, 18, 26, 0.32), transparent 48%),
+    rgba(14, 7, 10, 0.99);
+  color: #fff;
+  box-shadow:
+    0 1rem 2.8rem rgba(0, 0, 0, 0.78),
+    0 0 1rem rgba(255, 50, 43, 0.3);
+}
+
+[role="alertdialog"][aria-label="Action unavailable"] strong {
+  display: block;
+  margin-bottom: 0.18rem;
+  color: #ff665a;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+[role="alertdialog"][aria-label="Action unavailable"] p {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+[role="alertdialog"][aria-label="Action unavailable"] button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 1.35rem;
+  cursor: pointer;
+}
+
+@keyframes bbp-energy-needed {
+  from { filter: drop-shadow(0 0 0.12rem rgba(255, 244, 164, 0.86)) drop-shadow(0 0 0.38rem rgba(255, 205, 43, 0.7)); }
+  to { filter: drop-shadow(0 0 0.24rem rgba(255, 255, 218, 1)) drop-shadow(0 0 0.86rem rgba(255, 195, 25, 1)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-zone-id="player-energy"] [data-auto-tap-needed="true"] {
+    animation: none;
+  }
+}

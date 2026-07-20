@@ -1,8 +1,9 @@
 .preview {
   position: fixed;
   top: 50%;
-  z-index: 10080;
+  z-index: 20120;
   transform: translateY(-50%);
+  backface-visibility: hidden;
   pointer-events: none;
   filter:
     drop-shadow(0 0.45rem 0.7rem rgba(0, 0, 0, 0.72))
@@ -12,10 +13,12 @@
 
 .previewLeft {
   left: clamp(0.75rem, 1.8vw, 2rem);
+  right: auto;
   transform-origin: left center;
 }
 
 .previewRight {
+  left: auto;
   right: clamp(0.75rem, 1.8vw, 2rem);
   transform-origin: right center;
 }
@@ -28,6 +31,7 @@
   max-height: calc(100dvh - 2rem);
   border: 1px solid rgba(255, 255, 255, 0.52);
   border-radius: 4.6% / 3.3%;
+  backface-visibility: hidden;
   user-select: none;
 }
 
@@ -36,6 +40,17 @@
   object-fit: contain;
   object-position: center;
   background: transparent;
+}
+
+.preview[data-card-preview-type="Flip"] .previewImage,
+.preview[data-card-preview-type="Flip"] .placeholder {
+  width: min(27rem, 39vw);
+  max-height: min(72dvh, 19rem);
+  border-radius: 3.3% / 4.6%;
+}
+
+.preview[data-card-preview-type="Flip"] .placeholder {
+  aspect-ratio: 7 / 5;
 }
 
 .placeholder {
@@ -142,10 +157,19 @@
   }
 }
 
+:global(html[data-viewport-changing="true"]) .preview {
+  animation-play-state: paused;
+}
+
 @media (max-width: 760px) {
   .previewImage,
   .placeholder {
     width: min(10.5rem, 36vw);
+  }
+
+  .preview[data-card-preview-type="Flip"] .previewImage,
+  .preview[data-card-preview-type="Flip"] .placeholder {
+    width: min(16rem, 58vw);
   }
 
   .placeholder {

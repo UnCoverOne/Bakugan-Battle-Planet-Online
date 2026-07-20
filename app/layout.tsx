@@ -3,8 +3,11 @@ import "./globals.css";
 import "./design-system.css";
 import "./card-art-transparency.css";
 import "./gameplay-ui-fixes.css";
+import "./bakucore-zones.css";
+import "./energy-payment.css";
 import { AssetFreshness } from "../components/AssetFreshness";
 import { BrawlExperienceLayer } from "../components/game-screen-v2/BrawlExperienceLayer";
+import { DrawAnimationLayer } from "../components/game-screen-v2/DrawAnimationLayer";
 import { MatchDecisionLayer } from "../components/game-screen-v2/MatchDecisionLayer";
 import { MatchStateCoordinator } from "../components/game-screen-v2/MatchStateCoordinator";
 import { NewGameScreenTester } from "../components/game-screen-v2/NewGameScreenTester";
@@ -43,6 +46,7 @@ export default function RootLayout({
         <AssetFreshness />
         {children}
         <NewGameScreenTester />
+        <DrawAnimationLayer />
         <BrawlExperienceLayer />
         <MatchDecisionLayer />
       </body>

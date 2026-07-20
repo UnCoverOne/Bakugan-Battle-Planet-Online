@@ -5,14 +5,20 @@ import {
   concedeMatch,
   discardToHandLimit,
   energizeCard,
-  passPriority,
-  playCard,
-  resolveDamage,
   selectBakugan,
   type CardChoices,
   type MatchState,
 } from "../../lib/game";
+import {
+  cardEnergyPaymentState,
+  playCardWithAutoEnergy,
+} from "../../lib/cardPayment";
 import { tapEnergyCard } from "../../lib/energy";
+import {
+  flipDamageCard,
+  passPriorityWithManualDamage,
+  resolveManualDamage,
+} from "../../lib/manualDamage";
 import {
   availableRollTargets,
   confirmRoll,
@@ -31,6 +37,8 @@ import {
 import { BakuCoreLayer } from "./BakuCoreLayer";
 import { CardHandLayer } from "./CardHandLayer";
 import { CardPreviewLayer } from "./CardPreviewLayer";
+import { DamageStepLayer } from "./DamageStepLayer";
+import { EnergyAffordabilityLayer } from "./EnergyAffordabilityLayer";
 import { GameMenuHud } from "./GameMenuHud";
 import { GameScreen } from "./GameScreen";
 import { MatchHudLayer } from "./MatchHudLayer";
@@ -43,6 +51,7 @@ import {
 import { SelectionInteractionLayer } from "./SelectionInteractionLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
 import {
+  defaultCardChoices,
   shouldAutomaticallyPass,
   type HandActionMode,
 } from "./matchHudState";
@@ -112,8 +121,12 @@ function trainingBotCanAct(match: MatchState) {
     match.phase === "target"
     && (playerCanSelectRollTarget(match, bot.id) || playerCanConfirmRoll(match, bot.id))
   ) return true;
+  if (
+    match.phase === "damage"
+    && match.pendingLoser === bot.id
+    && (Boolean(match.revealedFlip) || match.pendingDamage > 0)
+  ) return true;
   if (PRIORITY_PHASES.has(match.phase) && match.priority === bot.id) return true;
-  if (match.phase === "damage" && match.pendingLoser === bot.id && match.revealedFlip) return true;
   return match.phase === "handLimit" && match.priority === bot.id;
 }
 
@@ -148,17 +161,21 @@ function advanceTrainingBot(match: MatchState): MatchState | null {
     }
   }
 
-  if (PRIORITY_PHASES.has(match.phase) && match.priority === bot.id) {
-    return passPriority(match, bot.id);
-  }
-
-  if (match.phase === "damage" && match.pendingLoser === bot.id && match.revealedFlip) {
-    const cost = typeof match.revealedFlip.cost === "number" ? match.revealedFlip.cost : 0;
-    return resolveDamage(
+  if (match.phase === "damage" && match.pendingLoser === bot.id) {
+    if (!match.revealedFlip) return match.pendingDamage > 0 ? flipDamageCard(match, bot.id) : null;
+    const choices = defaultCardChoices(match, bot.id, match.revealedFlip);
+    const payment = cardEnergyPaymentState(match, bot.id, match.revealedFlip, choices);
+    const play = payment && payment.kind !== "insufficient";
+    return resolveManualDamage(
       match,
       bot.id,
-      cost <= bot.energy ? match.revealedFlip.id : undefined,
+      play ? match.revealedFlip.id : undefined,
+      choices,
     );
+  }
+
+  if (PRIORITY_PHASES.has(match.phase) && match.priority === bot.id) {
+    return passPriorityWithManualDamage(match, bot.id);
   }
 
   if (match.phase === "handLimit" && match.priority === bot.id) {
@@ -273,7 +290,7 @@ export function NewGameScreenTester() {
   const playHandCard = (cardId: string, choices: CardChoices) => submitMatchAction(
     "play",
     { cardId, choices },
-    (match, actorId) => playCard(match, actorId, cardId, choices),
+    (match, actorId) => playCardWithAutoEnergy(match, actorId, cardId, choices),
   );
 
   const energizeHandCard = (cardId: string) => submitMatchAction(
@@ -291,7 +308,25 @@ export function NewGameScreenTester() {
   const passTurn = () => submitMatchAction(
     "pass",
     {},
-    (match, actorId) => passPriority(match, actorId),
+    (match, actorId) => passPriorityWithManualDamage(match, actorId),
+  );
+
+  const flipDamage = () => submitMatchAction(
+    "flip-damage",
+    {},
+    (match, actorId) => flipDamageCard(match, actorId),
+  );
+
+  const playFlip = (cardId: string, choices: CardChoices) => submitMatchAction(
+    "damage",
+    { cardId, choices },
+    (match, actorId) => resolveManualDamage(match, actorId, cardId, choices),
+  );
+
+  const skipFlip = () => submitMatchAction(
+    "damage",
+    {},
+    (match, actorId) => resolveManualDamage(match, actorId),
   );
 
   const selectCharacter = (bakuganId: string) => submitMatchAction(
@@ -329,9 +364,6 @@ export function NewGameScreenTester() {
     if (prepared !== match) publishMatch(prepared);
   }, [storedState.match?.phase, storedState.match?.stepLabel, storedState.match?.turn, storedState.online, publishMatch]);
 
-  // The experimental client no longer relies on the hidden legacy screen to
-  // advance the Training AI. One version-keyed action runs at a time, and every
-  // legal phase is revisited after the resulting version is published.
   useEffect(() => {
     const match = storedState.match;
     if (
@@ -353,7 +385,7 @@ export function NewGameScreenTester() {
         if (next) publishMatch(preparePendingDraw(next));
       } catch {
         // A concurrent player action can close the bot's window before this
-        // timer executes. The next accepted version will schedule a fresh check.
+        // timer executes. The next accepted version schedules a fresh check.
       } finally {
         if (botActionKey.current === key) botActionKey.current = "";
       }
@@ -370,8 +402,6 @@ export function NewGameScreenTester() {
     publishMatch,
   ]);
 
-  // Poll without overlapping requests. Responses are accepted only when their
-  // version is newer, preventing delayed GETs from making the board jump back.
   useEffect(() => {
     const match = storedState.match;
     if (!storedState.enabled || storedState.route !== "match" || !storedState.online || !match?.code) return;
@@ -410,7 +440,7 @@ export function NewGameScreenTester() {
         if (data.state) publishMatch(data.state);
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
-          // A later poll or focus event will retry without interrupting play.
+          // A later poll or focus event retries without interrupting play.
         }
       } finally {
         controller = null;
@@ -582,7 +612,18 @@ export function NewGameScreenTester() {
           onEnergizeCard={energizeHandCard}
           onSkipEnergize={skipEnergizing}
           onPassTurn={passTurn}
+          onPlayFlip={playFlip}
+          onSkipFlip={skipFlip}
           onSelectCharacter={selectCharacter}
+        />
+        <DamageStepLayer
+          match={storedState.match}
+          playerId={storedState.playerId}
+          onFlipDamageCard={flipDamage}
+        />
+        <EnergyAffordabilityLayer
+          match={storedState.match}
+          playerId={storedState.playerId}
         />
         <GameMenuHud
           automaticDraw={storedState.automaticDraw}

@@ -314,7 +314,11 @@ export function BrawlExperienceLayer() {
       ) : null}
 
       {combinedBatch.length ? (
-        <aside className={styles.batchHud} aria-label={`${combinedBatch.length} effects in the batch`}>
+        <aside
+          className={styles.batchHud}
+          aria-label={`${combinedBatch.length} effects in the batch`}
+          data-zone-kind="batch"
+        >
           <div className={styles.batchTitle}>
             <strong>BATCH</strong>
             <span>RESOLVES LEFT TO RIGHT</span>
@@ -328,6 +332,7 @@ export function BrawlExperienceLayer() {
                 <figure
                   className={styles.batchEffect}
                   data-owner={local ? "player" : "opponent"}
+                  data-card-id={effect.card.id}
                   data-resolving={resolving ? "true" : "false"}
                   style={{ "--batch-order": index } as CSSProperties}
                   title={`${effect.card.displayName || effect.card.name}: ${effect.card.effect}`}
@@ -335,7 +340,7 @@ export function BrawlExperienceLayer() {
                 >
                   <div className={styles.batchHex}>
                     <span aria-hidden="true">{(effect.card.displayName || effect.card.name).slice(0, 1)}</span>
-                    <img src={effect.card.art} alt="" aria-hidden="true" draggable={false} />
+                    <img src={effect.card.art} alt={effect.card.displayName || effect.card.name} draggable={false} />
                   </div>
                   <figcaption>
                     <small>{effectLabel(effect)}</small>

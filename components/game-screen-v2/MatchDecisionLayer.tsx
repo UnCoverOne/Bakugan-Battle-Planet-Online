@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   discardToHandLimit,
-  resolveDamage,
   type MatchState,
 } from "../../lib/game";
 import {
@@ -25,7 +24,6 @@ type DecisionState = {
   playerId?: string;
 };
 
-type DecisionHandler = () => void | Promise<void>;
 type LocalDecision = (match: MatchState, playerId: string) => MatchState;
 
 function parseValue<T>(raw: string | null, fallback: T): T {
@@ -45,6 +43,10 @@ function readDecisionState(): DecisionState {
   };
 }
 
+/**
+ * Flip decisions are now presented by the permanent Action HUD. This layer is
+ * retained only for the end-of-turn hand-limit choice.
+ */
 export function MatchDecisionLayer() {
   const [decision, setDecision] = useState<DecisionState>({
     active: false,
@@ -84,14 +86,6 @@ export function MatchDecisionLayer() {
   const match = decision.match;
   const player = match?.players.find((candidate) => candidate.id === decision.playerId)
     ?? match?.players[0];
-  const damageDecision = Boolean(
-    decision.active
-    && match
-    && player
-    && match.phase === "damage"
-    && match.pendingLoser === player.id
-    && match.revealedFlip,
-  );
   const requiredDiscards = decision.active
     && match
     && player
@@ -109,10 +103,9 @@ export function MatchDecisionLayer() {
     setError("");
   }, [match?.phase, match?.version, handSignature]);
 
-  if (!decision.active || !match || !player || (!damageDecision && requiredDiscards <= 0)) return null;
+  if (!decision.active || !match || !player || requiredDiscards <= 0) return null;
 
   const submit = async (
-    action: "damage" | "hand-limit",
     payload: Record<string, unknown>,
     localDecision: LocalDecision,
   ) => {
@@ -133,7 +126,7 @@ export function MatchDecisionLayer() {
       cache: "no-store",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        action,
+        action: "hand-limit",
         code: currentMatch.code,
         playerId: actorId,
         expectedVersion: currentMatch.version,
@@ -145,80 +138,21 @@ export function MatchDecisionLayer() {
     if (!response.ok) throw new Error(data.error ?? "The match decision could not be completed.");
   };
 
-  const run = async (handler: DecisionHandler) => {
-    if (busy) return;
+  const run = async () => {
+    if (busy || selectedCardIds.length !== requiredDiscards) return;
     setBusy(true);
     setError("");
     try {
-      await handler();
+      await submit(
+        { cardIds: selectedCardIds },
+        (state, actorId) => discardToHandLimit(state, actorId, selectedCardIds),
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The decision could not be completed.");
     } finally {
       setBusy(false);
     }
   };
-
-  if (damageDecision && match.revealedFlip) {
-    const flip = match.revealedFlip;
-    const printedCost = typeof flip.cost === "number" ? flip.cost : 0;
-    const frostStrike = match.damageOrigin
-      ? match.frostStrike[match.damageOrigin] ?? 0
-      : 0;
-    const effectiveCost = printedCost + frostStrike;
-    const affordable = effectiveCost <= player.energy;
-    const resolveFlip = (cardId?: string) => submit(
-      "damage",
-      cardId ? { cardId } : {},
-      (state, actorId) => resolveDamage(state, actorId, cardId),
-    );
-    return (
-      <div className={styles.backdrop} role="presentation">
-        <section
-          className={styles.dialog}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="experimental-flip-title"
-        >
-          <header className={styles.header}>
-            <small>DAMAGE STEP • REVEALED FLIP</small>
-            <h2 id="experimental-flip-title">Choose whether to play the Flip</h2>
-            <p>The Damage Step cannot continue until this revealed card is played or declined.</p>
-          </header>
-          <div className={styles.flipLayout}>
-            <img className={styles.flipArt} src={flip.art} alt={flip.displayName || flip.name} draggable={false} />
-            <div className={styles.flipCopy}>
-              <strong>{flip.displayName || flip.name}</strong>
-              <p>{flip.effect || "No printed effect."}</p>
-              <div className={styles.metrics}>
-                <span>{match.pendingDamage} damage remaining</span>
-                <span>{effectiveCost} Energy to play</span>
-                <span>{player.energy} Energy available</span>
-              </div>
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  className={styles.action}
-                  disabled={busy || !affordable}
-                  onClick={() => void run(() => resolveFlip(flip.id))}
-                >
-                  {affordable ? "Play Flip" : "Not Enough Energy"}
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.action} ${styles.actionSecondary}`}
-                  disabled={busy}
-                  onClick={() => void run(() => resolveFlip())}
-                >
-                  Decline • Continue Damage
-                </button>
-              </div>
-              {error ? <p className={styles.error} role="alert">{error}</p> : null}
-            </div>
-          </div>
-        </section>
-      </div>
-    );
-  }
 
   const selected = new Set(selectedCardIds);
   const toggleCard = (cardId: string) => {
@@ -228,11 +162,6 @@ export function MatchDecisionLayer() {
       return current.length < requiredDiscards ? [...current, cardId] : current;
     });
   };
-  const confirmDiscard = () => submit(
-    "hand-limit",
-    { cardIds: selectedCardIds },
-    (state, actorId) => discardToHandLimit(state, actorId, selectedCardIds),
-  );
 
   return (
     <div className={styles.backdrop} role="presentation">
@@ -273,7 +202,7 @@ export function MatchDecisionLayer() {
             type="button"
             className={styles.action}
             disabled={busy || selectedCardIds.length !== requiredDiscards}
-            onClick={() => void run(confirmDiscard)}
+            onClick={() => void run()}
           >
             Discard {selectedCardIds.length}/{requiredDiscards}
           </button>
