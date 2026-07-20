@@ -7,6 +7,11 @@ const css = readFileSync(
   "utf8",
 );
 
+const handCss = readFileSync(
+  new URL("../components/game-screen-v2/CardHandLayer.module.css", import.meta.url),
+  "utf8",
+);
+
 const layer = readFileSync(
   new URL("../components/game-screen-v2/GameplayCardPresentationLayer.tsx", import.meta.url),
   "utf8",
@@ -22,6 +27,22 @@ test("Flip cards fill the same vertical hand silhouette as regular cards", () =>
   assert.match(css, /aspect-ratio:\s*7\s*\/\s*5\s*!important/);
   assert.match(css, /rotate\(90deg\)\s*!important/);
   assert.match(layer, /element\.dataset\.cardType\s*=\s*card\.type/);
+});
+
+test("cards that cannot be played remain at full visual opacity", () => {
+  const nonActionableRule = handCss.match(
+    /\.playerHandLayer\[data-action-mode\][\s\S]*?\.handCard\[data-actionable="false"\][\s\S]*?\{([\s\S]*?)\}/,
+  )?.[1] ?? "";
+  assert.doesNotMatch(nonActionableRule, /opacity\s*:\s*(?:0|\.[0-9])/);
+  assert.doesNotMatch(handCss, /data-actionable="false"[^}]*grayscale/);
+});
+
+test("the active Character card receives a subtle faction-colored glow", () => {
+  assert.match(layer, /zone\.dataset\.faction\s*=\s*bakugan\.faction/);
+  assert.match(css, /data-character-active="true"[\s\S]*box-shadow/);
+  for (const faction of ["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"]) {
+    assert.match(css, new RegExp(`data-faction="${faction}"`));
+  }
 });
 
 test("Evo presentation uses the top Evo as the Character-zone preview identity", () => {

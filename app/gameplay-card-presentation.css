@@ -27,6 +27,57 @@
   object-position: center !important;
 }
 
+/* The active Bakugan is already identified by the gameplay selection layer.
+   Give its Character pile a restrained faction-colored edge and halo without
+   changing the card's scale, position, hover treatment, or preview ownership. */
+[data-zone-kind="character-card"][data-character-active="true"] {
+  --active-character-edge: rgba(255, 255, 255, 0.72);
+  --active-character-glow: rgba(255, 255, 255, 0.24);
+  border-color: var(--active-character-edge) !important;
+  box-shadow:
+    0 0 0 1px var(--active-character-edge),
+    0 0 0.34rem var(--active-character-glow),
+    0 0 0.78rem var(--active-character-glow),
+    inset 0 0 0.3rem rgba(255, 255, 255, 0.08) !important;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+[data-zone-kind="character-card"][data-character-active="true"][data-faction="Pyrus"] {
+  --active-character-edge: rgba(255, 119, 78, 0.86);
+  --active-character-glow: rgba(237, 55, 38, 0.28);
+}
+
+[data-zone-kind="character-card"][data-character-active="true"][data-faction="Aquos"] {
+  --active-character-edge: rgba(94, 197, 255, 0.88);
+  --active-character-glow: rgba(24, 128, 255, 0.28);
+}
+
+[data-zone-kind="character-card"][data-character-active="true"][data-faction="Darkus"] {
+  --active-character-edge: rgba(198, 120, 255, 0.86);
+  --active-character-glow: rgba(132, 52, 220, 0.3);
+}
+
+[data-zone-kind="character-card"][data-character-active="true"][data-faction="Haos"] {
+  --active-character-edge: rgba(255, 249, 211, 0.92);
+  --active-character-glow: rgba(255, 225, 116, 0.25);
+}
+
+[data-zone-kind="character-card"][data-character-active="true"][data-faction="Ventus"] {
+  --active-character-edge: rgba(118, 235, 134, 0.87);
+  --active-character-glow: rgba(38, 179, 91, 0.28);
+}
+
+[data-zone-kind="character-card"][data-character-active="true"][data-faction="Aurelus"] {
+  --active-character-edge: rgba(255, 216, 105, 0.88);
+  --active-character-glow: rgba(212, 153, 34, 0.28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-zone-kind="character-card"][data-character-active="true"] {
+    transition: none;
+  }
+}
+
 @media (max-width: 760px) {
   [data-zone-kind="discard-browser"] {
     width: calc(80vw - 0.8rem) !important;
