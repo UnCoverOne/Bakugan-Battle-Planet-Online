@@ -6,10 +6,12 @@ import "./gameplay-ui-fixes.css";
 import "./energy-payment.css";
 import "./discard-flip-orientation.css";
 import "./card-preview-interactions.css";
+import "./gameplay-card-presentation.css";
 import { AssetFreshness } from "../components/AssetFreshness";
 import { BakuCorePresentationProvider } from "../components/game-screen-v2/BakuCorePresentation";
 import { BrawlExperienceLayer } from "../components/game-screen-v2/BrawlExperienceLayer";
 import { DrawAnimationLayer } from "../components/game-screen-v2/DrawAnimationLayer";
+import { GameplayCardPresentationLayer } from "../components/game-screen-v2/GameplayCardPresentationLayer";
 import { MatchDecisionLayer } from "../components/game-screen-v2/MatchDecisionLayer";
 import { MatchStateCoordinator } from "../components/game-screen-v2/MatchStateCoordinator";
 import { NewGameScreenTester } from "../components/game-screen-v2/NewGameScreenTester";
@@ -49,6 +51,7 @@ export default function RootLayout({
           <AssetFreshness />
           {children}
           <NewGameScreenTester />
+          <GameplayCardPresentationLayer />
           <DrawAnimationLayer />
           <BrawlExperienceLayer />
           <MatchDecisionLayer />

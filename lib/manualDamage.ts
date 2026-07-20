@@ -5,11 +5,18 @@ import {
   type CardChoices,
   type GameCard,
   type MatchState,
+  type PendingEffect,
 } from "./game";
 import {
   effectiveCardEnergyCost,
   prepareEnergyPayment,
 } from "./cardPayment";
+import {
+  hasPendingDraws,
+  reconcileAttackDrawEffects,
+  reconcileResolvedDrawEffect,
+} from "./drawQueue";
+import { reconcileResolvedEvos } from "./evo";
 
 const DAMAGE_DECISION_MS = 35_000;
 const POST_DAMAGE_MS = 25_000;
@@ -96,13 +103,25 @@ function flipStopsDamage(state: MatchState, card: GameCard) {
   return Boolean(faction && /\[Stop\]/i.test(text) && listed.includes(faction));
 }
 
+function resolvingBatchObject(input: MatchState): PendingEffect | null {
+  return input.passes.length >= 1 ? input.batch.at(-1) ?? null : null;
+}
+
 /**
  * The legacy engine resolves all ordinary damage cards immediately when the
  * Victor window closes. Restore those cards and retain only the calculated
  * amount so the visible client can flip them one click at a time.
  */
 export function passPriorityWithManualDamage(input: MatchState, playerId: string) {
-  const next = reconcileResolvedStrata(input, passPriority(input, playerId));
+  if (hasPendingDraws(input)) {
+    throw new Error("Complete every pending Draw action before passing priority.");
+  }
+  const resolving = resolvingBatchObject(input);
+  let next = passPriority(input, playerId);
+  next = reconcileResolvedStrata(input, next);
+  next = reconcileResolvedEvos(input, next);
+  next = reconcileResolvedDrawEffect(input, next, resolving);
+
   if (input.phase !== "victor" || next.phase === "victor" || !next.pendingLoser) return next;
 
   const beforeLoser = playerById(input, next.pendingLoser);
@@ -130,7 +149,7 @@ export function passPriorityWithManualDamage(input: MatchState, playerId: string
     next.deadline = Date.now() + DAMAGE_DECISION_MS;
   }
   log(next, "game", `${afterLoser.name} must manually flip ${calculatedDamage} damage card${calculatedDamage === 1 ? "" : "s"}.`);
-  return next;
+  return reconcileAttackDrawEffects(input, next, calculatedDamage);
 }
 
 export function playerCanFlipDamage(
@@ -268,5 +287,12 @@ export function resolveManualDamage(
     resolved.revealedFlip = undefined;
     resolved.deadline = Date.now() + DAMAGE_DECISION_MS;
   }
-  return resolved;
+
+  return reconcileResolvedDrawEffect(prepared, resolved, {
+    id: `${flip.id}-manual-resolution`,
+    controllerId: playerId,
+    card: flip,
+    choices,
+    kind: "card",
+  });
 }

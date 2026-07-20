@@ -1,4 +1,9 @@
 import { cloneMatch, type GameCard, type MatchState } from "./game";
+import {
+  activePendingDraw,
+  drawPendingCard,
+  playerCanResolvePendingDraw,
+} from "./drawQueue";
 
 const FIRST_DRAW_DELAY_MS = 3_000;
 const DRAW_STEP_DURATION_MS = 35_000;
@@ -9,6 +14,7 @@ export type TurnStartMetadata = {
   drawReadyAt?: number;
   drawDeadline?: number;
   drawnPlayerIds?: string[];
+  drawRemainingByPlayer?: Record<string, number>;
 };
 
 export type TurnStartMatchState = MatchState & TurnStartMetadata;
@@ -22,6 +28,17 @@ function drawIds(match: MatchState | null | undefined) {
   return withTurnStartMetadata(match).drawnPlayerIds ?? [];
 }
 
+function remainingDraws(
+  match: MatchState | null | undefined,
+  playerId: string,
+) {
+  if (!match) return 0;
+  const state = withTurnStartMetadata(match);
+  const stored = state.drawRemainingByPlayer?.[playerId];
+  if (stored != null) return Math.max(0, stored);
+  return drawIds(state).includes(playerId) ? 0 : turnDrawCount(state);
+}
+
 function isStrata(card: GameCard) {
   return card.name === "Strata"
     || /all players draw an additional card each turn/i.test(card.effect);
@@ -29,8 +46,8 @@ function isStrata(card: GameCard) {
 
 /**
  * Strata is a global ongoing Hero effect. Every copy in play adds one card to
- * every player's normal Draw Step. The cards are still drawn only when that
- * player confirms Draw through the Action HUD.
+ * every player's normal Draw Step. Each individual card still requires its own
+ * Draw confirmation in the Action HUD.
  */
 export function additionalTurnDrawCount(match: MatchState | null | undefined) {
   return match?.players.reduce((total, player) => (
@@ -47,7 +64,7 @@ export function drawStepIsPending(match: MatchState | null | undefined) {
   const state = withTurnStartMetadata(match);
   return state.turn > 0
     && state.drawPreparedTurn === state.turn
-    && drawIds(state).length < state.players.length;
+    && state.players.some((player) => remainingDraws(state, player.id) > 0);
 }
 
 export function drawStepIsWaiting(
@@ -62,7 +79,7 @@ export function playerHasDrawnTurnCard(
   match: MatchState | null | undefined,
   playerId?: string,
 ) {
-  return Boolean(playerId && match && drawIds(match).includes(playerId));
+  return Boolean(playerId && match && remainingDraws(match, playerId) <= 0);
 }
 
 export function playerCanDrawTurnCard(
@@ -70,13 +87,15 @@ export function playerCanDrawTurnCard(
   playerId?: string,
   now = Date.now(),
 ) {
+  if (playerCanResolvePendingDraw(match, playerId)) return true;
+  if (activePendingDraw(match)) return false;
   return Boolean(
     match
     && playerId
     && drawStepIsPending(match)
     && !drawStepIsWaiting(match, now)
     && match.players.some((player) => player.id === playerId)
-    && !playerHasDrawnTurnCard(match, playerId),
+    && remainingDraws(match, playerId) > 0,
   );
 }
 
@@ -132,10 +151,14 @@ export function preparePendingDraw(input: MatchState, now = Date.now()): MatchSt
   }
 
   const delay = state.turn === 1 ? FIRST_DRAW_DELAY_MS : 0;
+  const entitlement = turnDrawCount(state);
   state.drawPreparedTurn = state.turn;
   state.drawReadyAt = now + delay;
   state.drawDeadline = state.drawReadyAt + DRAW_STEP_DURATION_MS;
   state.drawnPlayerIds = [];
+  state.drawRemainingByPlayer = Object.fromEntries(
+    state.players.map((player) => [player.id, entitlement]),
+  );
   state.phase = "retract";
   state.priority = state.startingPlayer;
   state.passes = [];
@@ -152,10 +175,8 @@ export function preparePendingDraw(input: MatchState, now = Date.now()): MatchSt
     kind: "game",
     message: delay
       ? `Turn ${state.turn} is ready. The Draw Step begins in three seconds.`
-      : `Turn ${state.turn} began. Both players must draw a card.`,
+      : `Turn ${state.turn} began. Both players must complete ${entitlement} Draw action${entitlement === 1 ? "" : "s"}.`,
   });
-  // Preparing Draw changes the authoritative phase and must therefore advance
-  // the same monotonic version used by online conflict checks and same-tab sync.
   state.version += 1;
   return state;
 }
@@ -165,8 +186,12 @@ export function drawTurnCard(
   playerId: string,
   now = Date.now(),
 ): MatchState {
+  if (playerCanResolvePendingDraw(input, playerId)) {
+    return drawPendingCard(input, playerId);
+  }
   if (!playerCanDrawTurnCard(input, playerId, now)) {
     if (drawStepIsWaiting(input, now)) throw new Error("The Draw Step has not begun yet.");
+    if (activePendingDraw(input)) throw new Error("The other player must complete their effect draws first.");
     throw new Error("You cannot draw a turn card now.");
   }
 
@@ -174,37 +199,30 @@ export function drawTurnCard(
   const player = state.players.find((candidate) => candidate.id === playerId);
   if (!player) throw new Error("Unknown player.");
 
-  const requested = turnDrawCount(state);
-  let drawn = 0;
-  while (drawn < requested) {
-    const card = player.deckCards.shift();
-    if (!card) break;
-    player.hand.push(card);
-    drawn += 1;
-  }
-
-  if (drawn > 0) {
-    state.log.push({
-      id: `${now}-draw-${player.id}`,
-      at: now,
-      kind: "game",
-      message: requested > 1
-        ? `${player.name} pressed Draw and drew ${drawn} cards for the Draw Step (${requested - 1} additional from Strata).`
-        : `${player.name} drew a card for the Draw Step.`,
-    });
-  }
-  if (drawn < requested) {
-    state.log.push({
-      id: `${now}-draw-empty-${player.id}`,
-      at: now,
-      kind: "game",
-      message: `${player.name} could not draw ${requested - drawn} card${requested - drawn === 1 ? "" : "s"} because their deck is empty.`,
-    });
-  }
+  const beforeRemaining = remainingDraws(state, playerId);
+  const card = player.deckCards.shift();
+  if (card) player.hand.push(card);
   player.deck = player.deckCards.length;
-  state.drawnPlayerIds = [...drawIds(state), player.id];
+  const afterRemaining = Math.max(0, beforeRemaining - 1);
+  state.drawRemainingByPlayer = {
+    ...(state.drawRemainingByPlayer ?? {}),
+    [playerId]: afterRemaining,
+  };
 
-  if (state.players.every((candidate) => state.drawnPlayerIds!.includes(candidate.id))) {
+  state.log.push({
+    id: `${now}-draw-${player.id}-${beforeRemaining}`,
+    at: now,
+    kind: "game",
+    message: card
+      ? `${player.name} pressed Draw and drew one card for the Draw Step${afterRemaining ? ` (${afterRemaining} remaining)` : ""}.`
+      : `${player.name} pressed Draw but skipped the draw because their deck is empty${afterRemaining ? ` (${afterRemaining} remaining)` : ""}.`,
+  });
+
+  if (afterRemaining <= 0 && !drawIds(state).includes(player.id)) {
+    state.drawnPlayerIds = [...drawIds(state), player.id];
+  }
+
+  if (state.players.every((candidate) => remainingDraws(state, candidate.id) <= 0)) {
     state.phase = "energize";
     state.priority = state.startingPlayer;
     state.passes = [];
@@ -214,7 +232,7 @@ export function drawTurnCard(
       id: `${now}-energize-step-${state.turn}`,
       at: now,
       kind: "game",
-      message: "Both players completed the Draw Step and may Energize once.",
+      message: "Both players completed every Draw action and may Energize once.",
     });
   }
 
