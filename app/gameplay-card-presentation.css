@@ -27,53 +27,91 @@
   object-position: center !important;
 }
 
-/* The active Bakugan is already identified by the gameplay selection layer.
-   Give its Character pile a restrained faction-colored edge and halo without
-   changing the card's scale, position, hover treatment, or preview ownership. */
-[data-zone-kind="character-card"][data-character-active="true"] {
-  --active-character-edge: rgba(255, 255, 255, 0.72);
-  --active-character-glow: rgba(255, 255, 255, 0.24);
-  border-color: var(--active-character-edge) !important;
+/* The Character zone itself clips its card artwork, and its ::after pseudo-element
+   is also shared by hover and OPEN-state presentation. An outer box-shadow on that
+   clipped element therefore cannot produce a reliable halo. Draw the active halo
+   on the unclipped Character slot instead, sized only to the card row. */
+[data-character-slot] {
+  --active-character-edge: rgba(255, 255, 255, 0.8);
+  --active-character-glow: rgba(255, 255, 255, 0.34);
+  isolation: isolate;
+}
+
+[data-character-slot]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+[data-character-slot] > [data-zone-kind="character-card"] {
+  position: relative;
+  z-index: 1;
+}
+
+[data-character-slot][data-character-active="true"]::after {
+  border-color: var(--active-character-edge);
   box-shadow:
     0 0 0 1px var(--active-character-edge),
-    0 0 0.34rem var(--active-character-glow),
-    0 0 0.78rem var(--active-character-glow),
-    inset 0 0 0.3rem rgba(255, 255, 255, 0.08) !important;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+    0 0 0.52rem 0.08rem var(--active-character-glow),
+    0 0 1.18rem 0.2rem var(--active-character-glow);
+  opacity: 1;
 }
 
-[data-zone-kind="character-card"][data-character-active="true"][data-faction="Pyrus"] {
-  --active-character-edge: rgba(255, 119, 78, 0.86);
-  --active-character-glow: rgba(237, 55, 38, 0.28);
+[data-character-slot][data-character-active="true"][data-faction="Pyrus"] {
+  --active-character-edge: rgba(255, 119, 78, 0.92);
+  --active-character-glow: rgba(237, 55, 38, 0.38);
 }
 
-[data-zone-kind="character-card"][data-character-active="true"][data-faction="Aquos"] {
-  --active-character-edge: rgba(94, 197, 255, 0.88);
-  --active-character-glow: rgba(24, 128, 255, 0.28);
+[data-character-slot][data-character-active="true"][data-faction="Aquos"] {
+  --active-character-edge: rgba(94, 197, 255, 0.94);
+  --active-character-glow: rgba(24, 128, 255, 0.4);
 }
 
-[data-zone-kind="character-card"][data-character-active="true"][data-faction="Darkus"] {
-  --active-character-edge: rgba(198, 120, 255, 0.86);
-  --active-character-glow: rgba(132, 52, 220, 0.3);
+[data-character-slot][data-character-active="true"][data-faction="Darkus"] {
+  --active-character-edge: rgba(198, 120, 255, 0.92);
+  --active-character-glow: rgba(132, 52, 220, 0.42);
 }
 
-[data-zone-kind="character-card"][data-character-active="true"][data-faction="Haos"] {
-  --active-character-edge: rgba(255, 249, 211, 0.92);
-  --active-character-glow: rgba(255, 225, 116, 0.25);
+[data-character-slot][data-character-active="true"][data-faction="Haos"] {
+  --active-character-edge: rgba(189, 232, 255, 0.96);
+  --active-character-glow: rgba(92, 188, 255, 0.4);
 }
 
-[data-zone-kind="character-card"][data-character-active="true"][data-faction="Ventus"] {
-  --active-character-edge: rgba(118, 235, 134, 0.87);
-  --active-character-glow: rgba(38, 179, 91, 0.28);
+[data-character-slot][data-character-active="true"][data-faction="Ventus"] {
+  --active-character-edge: rgba(118, 235, 134, 0.93);
+  --active-character-glow: rgba(38, 179, 91, 0.4);
 }
 
-[data-zone-kind="character-card"][data-character-active="true"][data-faction="Aurelus"] {
-  --active-character-edge: rgba(255, 216, 105, 0.88);
-  --active-character-glow: rgba(212, 153, 34, 0.28);
+[data-character-slot][data-character-active="true"][data-faction="Aurelus"] {
+  --active-character-edge: rgba(255, 216, 105, 0.94);
+  --active-character-glow: rgba(212, 153, 34, 0.4);
+}
+
+/* The base Character image remains in the DOM for the zone's permanent structure,
+   but it must not compete with an Evo pile. Only direct child images are hidden;
+   the nested Evo artwork and badge remain visible above the empty card face. */
+[data-zone-kind="character-card"][data-evo-count]:not([data-evo-count="0"]) > img {
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+[data-zone-kind="character-card"] > [data-evo-stack="true"] {
+  z-index: 120 !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-zone-kind="character-card"][data-character-active="true"] {
+  [data-character-slot]::after {
     transition: none;
   }
 }
