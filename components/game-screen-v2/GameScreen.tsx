@@ -9,19 +9,25 @@ import {
   energyZoneViews,
   type EnergyZoneView,
 } from "../../lib/energy";
+import { useBakuCorePresentation } from "./BakuCorePresentation";
 import {
   EMPTY_GAME_SCREEN_ZONE_STATE,
   buildGameScreenZoneState,
+  buildHeldCoreZoneState,
   deckBackAssetCount,
+  heldCoreFanLayout,
   heroCardLayout,
   safeCardCount,
+  type CharacterCardSlot,
   type GameScreenOwnerState,
+  type HeldCoreZoneView,
   type ZoneOwner,
 } from "./gameScreenState";
 import gameStyles from "./GameScreen.module.css";
 import discardStyles from "./DiscardPileLayer.module.css";
+import coreStyles from "./HeldBakuCoreZone.module.css";
 
-const styles = { ...gameStyles, ...discardStyles };
+const styles = { ...gameStyles, ...discardStyles, ...coreStyles };
 const GRID_WIDTH = 1800;
 const GRID_HEIGHT = 1000;
 const GRID_CENTER_X = GRID_WIDTH / 2;
@@ -35,7 +41,6 @@ const CARD_BACK_ART = "/assets/card-back.png";
 const ENERGY_SYMBOL_ART = "/assets/symbols/energy.svg";
 const CARD_PREVIEW_CLEAR_EVENT = "bbp-card-preview-clear";
 
-type CharacterCardSlot = 1 | 2 | 3;
 type CardStackZoneKind = "discard-pile" | "deck";
 type CardStackZoneDefinition = {
   kind: CardStackZoneKind;
@@ -63,8 +68,6 @@ const PLAYER_CARD_STACK_ZONES: readonly CardStackZoneDefinition[] = [
   { kind: "deck", lines: ["Deck"] },
 ];
 
-// The opponent layout is a 180-degree spatial mirror of the local player's
-// layout, so Deck appears on the viewer's left and Discard Pile on the right.
 const OPPONENT_CARD_STACK_ZONES: readonly CardStackZoneDefinition[] = [
   { kind: "deck", lines: ["Deck"] },
   { kind: "discard-pile", lines: ["Discard", "Pile"] },
@@ -77,11 +80,6 @@ function hexPoints(cx: number, cy: number) {
   }).join(" ");
 }
 
-/**
- * Build the grid outwards from axial coordinate 0,0. This guarantees that a
- * complete hexagon is centred precisely on the middle of the 1800 x 1000
- * play-area coordinate system, which future Hide Matrix positions can share.
- */
 const HEX_GRID = Array.from(
   { length: COLUMN_RADIUS * 2 + 1 },
   (_, columnIndex) => columnIndex - COLUMN_RADIUS,
@@ -116,37 +114,90 @@ function ZoneLabel({ lines }: { lines: readonly string[] }) {
   return <>{lines.map((line) => <span className={styles.zoneLabel} key={line}>{line}</span>)}</>;
 }
 
-function CharacterCardZone({
+function HeldCoreZone({
   owner,
-  slot,
-  card,
+  zone,
 }: {
   owner: ZoneOwner;
-  slot: CharacterCardSlot;
-  card?: GameCard;
+  zone: HeldCoreZoneView;
 }) {
+  const { slot, bakugan, placements } = zone;
+  const layout = heldCoreFanLayout(placements.length);
+  const label = bakugan
+    ? `${bakugan.name} BakuCore zone, ${placements.length} BakuCore${placements.length === 1 ? "" : "s"}`
+    : `${ownerLabel(owner)} Character Card ${slot} BakuCore zone, 0 BakuCores`;
+
+  return (
+    <div
+      className={styles.heldCoreZone}
+      data-core-zone-id={`${owner}-bakucore-${slot}`}
+      data-zone-owner={owner}
+      data-slot={slot}
+      data-bakugan-id={bakugan?.id}
+      data-core-count={placements.length}
+      aria-label={label}
+    >
+      <span className={styles.heldCoreZoneLabel} aria-hidden="true">BAKUCORE</span>
+      {placements.map((placement, index) => {
+        const centredIndex = index - (placements.length - 1) / 2;
+        const style = {
+          "--held-core-left": `${50 + centredIndex * layout.stepPercent}%`,
+          "--held-core-width": `${layout.widthPercent}%`,
+          "--held-core-rotation": `${centredIndex * layout.rotationStepDegrees}deg`,
+          "--held-core-order": index,
+        } as CSSProperties;
+        return (
+          <img
+            className={styles.heldCore}
+            src={placement.core.art}
+            alt={placement.core.name}
+            draggable={false}
+            data-core-cell={placement.cell}
+            style={style}
+            key={placement.cell}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function CharacterCardZone({
+  owner,
+  zone,
+}: {
+  owner: ZoneOwner;
+  zone: HeldCoreZoneView;
+}) {
+  const { slot, bakugan } = zone;
+  const card = bakugan?.character;
   const label = card
     ? `${ownerLabel(owner)} Character Card ${slot}: ${card.displayName || card.name}`
     : `${ownerLabel(owner)} Character Card ${slot} zone`;
 
   return (
-    <li
-      className={styles.characterCardZone}
-      data-zone-kind="character-card"
-      data-zone-owner={owner}
-      data-zone-id={`${owner}-character-card-${slot}`}
-      data-slot={slot}
-      data-card-id={card?.id}
-      aria-label={label}
-    >
-      {card ? (
-        <img
-          className={styles.characterCardImage}
-          src={card.art}
-          alt={card.displayName || card.name}
-          draggable={false}
-        />
-      ) : <ZoneLabel lines={["Character", `Card ${slot}`]} />}
+    <li className={styles.characterCardSlot} data-character-slot={slot}>
+      <HeldCoreZone owner={owner} zone={zone} />
+      <div
+        className={styles.characterCardZone}
+        data-zone-kind="character-card"
+        data-zone-owner={owner}
+        data-zone-id={`${owner}-character-card-${slot}`}
+        data-slot={slot}
+        data-bakugan-id={bakugan?.id}
+        data-card-id={card?.id}
+        data-character-open={bakugan?.open ? "true" : "false"}
+        aria-label={label}
+      >
+        {card ? (
+          <img
+            className={styles.characterCardImage}
+            src={card.art}
+            alt={card.displayName || card.name}
+            draggable={false}
+          />
+        ) : <ZoneLabel lines={["Character", `Card ${slot}`]} />}
+      </div>
     </li>
   );
 }
@@ -395,6 +446,7 @@ function PlayerZoneLayout({
   owner,
   counts,
   state,
+  coreZones,
   energy,
   pendingEnergyCardId,
   onTapEnergyCard,
@@ -405,6 +457,7 @@ function PlayerZoneLayout({
   owner: ZoneOwner;
   counts: OwnerZoneCounts;
   state: GameScreenOwnerState;
+  coreZones: readonly HeldCoreZoneView[];
   energy: EnergyZoneView;
   pendingEnergyCardId?: string;
   onTapEnergyCard?: EnergyTapHandler;
@@ -435,8 +488,7 @@ function PlayerZoneLayout({
             <CharacterCardZone
               key={`${owner}-${slot}`}
               owner={owner}
-              slot={slot}
-              card={state.characterCards[slot - 1]}
+              zone={coreZones[slot - 1] ?? { slot, bakugan: null, placements: [] }}
             />
           ))}
         </ol>
@@ -574,10 +626,12 @@ export function GameScreen({
   const [pendingEnergyCardId, setPendingEnergyCardId] = useState("");
   const [energyError, setEnergyError] = useState("");
   const [openDiscardOwner, setOpenDiscardOwner] = useState<ZoneOwner | null>(null);
+  const { hiddenCoreCells } = useBakuCorePresentation();
 
   const zoneState = match
     ? buildGameScreenZoneState(match, playerId)
     : EMPTY_GAME_SCREEN_ZONE_STATE;
+  const heldCoreZones = buildHeldCoreZoneState(match, playerId, hiddenCoreCells);
   const energyState = energyZoneViews(match, playerId);
   const resolvedCounts: GameScreenZoneCounts = match
     ? {
@@ -617,7 +671,7 @@ export function GameScreen({
     if (openDiscardOwner && !zoneState[openDiscardOwner].discardCards.length) {
       setOpenDiscardOwner(null);
     }
-  }, [match?.version, openDiscardOwner]);
+  }, [match?.version, openDiscardOwner, zoneState]);
 
   const tapEnergy = async (cardId: string) => {
     if (!onTapEnergyCard || pendingEnergyCardId) return;
@@ -666,6 +720,7 @@ export function GameScreen({
             owner="opponent"
             counts={resolvedCounts.opponent}
             state={zoneState.opponent}
+            coreZones={heldCoreZones.opponent}
             energy={energyState.opponent}
             openDiscardOwner={openDiscardOwner}
             onOpenDiscard={openDiscard}
@@ -674,6 +729,7 @@ export function GameScreen({
             owner="player"
             counts={resolvedCounts.player}
             state={zoneState.player}
+            coreZones={heldCoreZones.player}
             energy={energyState.player}
             pendingEnergyCardId={pendingEnergyCardId}
             onTapEnergyCard={tapEnergy}
