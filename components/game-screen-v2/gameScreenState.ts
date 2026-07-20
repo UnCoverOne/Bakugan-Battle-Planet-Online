@@ -1,8 +1,16 @@
-import type { GameCard, MatchState, Placement, PlayerState } from "../../lib/game";
+import type {
+  Bakugan,
+  GameCard,
+  MatchState,
+  Placement,
+  PlayerState,
+} from "../../lib/game";
 
 export type ZoneOwner = "player" | "opponent";
+export type CharacterCardSlot = 1 | 2 | 3;
 
 export type GameScreenOwnerState = {
+  bakugan: readonly Bakugan[];
   characterCards: readonly GameCard[];
   heroCards: readonly GameCard[];
   deckCount: number;
@@ -13,7 +21,16 @@ export type GameScreenOwnerState = {
 
 export type GameScreenZoneState = Record<ZoneOwner, GameScreenOwnerState>;
 
+export type HeldCoreZoneView = {
+  slot: CharacterCardSlot;
+  bakugan: Bakugan | null;
+  placements: readonly Placement[];
+};
+
+export type HeldCoreZoneState = Record<ZoneOwner, readonly HeldCoreZoneView[]>;
+
 const EMPTY_OWNER_STATE: GameScreenOwnerState = {
+  bakugan: [],
   characterCards: [],
   heroCards: [],
   deckCount: 0,
@@ -22,9 +39,20 @@ const EMPTY_OWNER_STATE: GameScreenOwnerState = {
   latestDiscard: null,
 };
 
+const EMPTY_HELD_CORE_ZONES: readonly HeldCoreZoneView[] = [1, 2, 3].map((slot) => ({
+  slot: slot as CharacterCardSlot,
+  bakugan: null,
+  placements: [],
+}));
+
 export const EMPTY_GAME_SCREEN_ZONE_STATE: GameScreenZoneState = {
   player: EMPTY_OWNER_STATE,
   opponent: EMPTY_OWNER_STATE,
+};
+
+export const EMPTY_HELD_CORE_ZONE_STATE: HeldCoreZoneState = {
+  player: EMPTY_HELD_CORE_ZONES,
+  opponent: EMPTY_HELD_CORE_ZONES,
 };
 
 export function safeCardCount(value: number) {
@@ -66,7 +94,7 @@ export function heroCardLayout(cardCount: number) {
 /**
  * Held BakuCores remain centred above their Bakugan. As the zone fills, the
  * individual Cores become slightly smaller and overlap more rather than
- * overflowing into the neighbouring Character Card zones.
+ * overflowing into neighbouring Character Card zones.
  */
 export function heldCoreFanLayout(coreCount: number) {
   const count = safeCardCount(coreCount);
@@ -110,6 +138,7 @@ function ownerState(player?: PlayerState): GameScreenOwnerState {
   const discard = Array.isArray(player.discard) ? player.discard : [];
 
   return {
+    bakugan: player.bakugan,
     characterCards: player.bakugan.slice(0, 3).map((bakugan) => bakugan.character),
     heroCards: Array.isArray(player.heroes) ? player.heroes : [],
     deckCount,
@@ -119,18 +148,59 @@ function ownerState(player?: PlayerState): GameScreenOwnerState {
   };
 }
 
+function ownerPlayers(
+  match: MatchState | null | undefined,
+  playerId: string | undefined,
+) {
+  if (!match?.players.length) return { player: undefined, opponent: undefined };
+  const player = match.players.find((candidate) => candidate.id === playerId)
+    ?? match.players[0];
+  const opponent = match.players.find((candidate) => candidate.id !== player.id);
+  return { player, opponent };
+}
+
 export function buildGameScreenZoneState(
   match: MatchState | null | undefined,
   playerId: string | undefined,
 ): GameScreenZoneState {
-  if (!match?.players.length) return EMPTY_GAME_SCREEN_ZONE_STATE;
-
-  const player = match.players.find((candidate) => candidate.id === playerId)
-    ?? match.players[0];
-  const opponent = match.players.find((candidate) => candidate.id !== player.id);
+  const players = ownerPlayers(match, playerId);
+  if (!players.player) return EMPTY_GAME_SCREEN_ZONE_STATE;
 
   return {
-    player: ownerState(player),
-    opponent: ownerState(opponent),
+    player: ownerState(players.player),
+    opponent: ownerState(players.opponent),
+  };
+}
+
+/**
+ * Produce all six permanent BakuCore zones from match state. Hidden cells are
+ * presentation-only: they are omitted while Roll Results or a transfer sprite is
+ * active, but the underlying attachment remains authoritative in the match.
+ */
+export function buildHeldCoreZoneState(
+  match: MatchState | null | undefined,
+  playerId: string | undefined,
+  hiddenCells: Iterable<string> = [],
+): HeldCoreZoneState {
+  const players = ownerPlayers(match, playerId);
+  if (!players.player) return EMPTY_HELD_CORE_ZONE_STATE;
+  const hidden = new Set(hiddenCells);
+
+  const zonesFor = (player?: PlayerState): readonly HeldCoreZoneView[] => (
+    [1, 2, 3] as const
+  ).map((slot) => {
+    const bakugan = player?.bakugan[slot - 1] ?? null;
+    return {
+      slot,
+      bakugan,
+      placements: bakugan
+        ? heldCorePlacements(match, bakugan.id).filter((placement) => !hidden.has(placement.cell))
+        : [],
+    };
+  });
+
+  return {
+    player: zonesFor(players.player),
+    opponent: zonesFor(players.opponent),
   };
 }

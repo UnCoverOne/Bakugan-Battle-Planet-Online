@@ -3,9 +3,9 @@ import "./globals.css";
 import "./design-system.css";
 import "./card-art-transparency.css";
 import "./gameplay-ui-fixes.css";
-import "./bakucore-zones.css";
 import "./energy-payment.css";
 import { AssetFreshness } from "../components/AssetFreshness";
+import { BakuCorePresentationProvider } from "../components/game-screen-v2/BakuCorePresentation";
 import { BrawlExperienceLayer } from "../components/game-screen-v2/BrawlExperienceLayer";
 import { DrawAnimationLayer } from "../components/game-screen-v2/DrawAnimationLayer";
 import { MatchDecisionLayer } from "../components/game-screen-v2/MatchDecisionLayer";
@@ -41,14 +41,16 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <MatchStateCoordinator />
-        <ViewportStabilityGuard />
-        <AssetFreshness />
-        {children}
-        <NewGameScreenTester />
-        <DrawAnimationLayer />
-        <BrawlExperienceLayer />
-        <MatchDecisionLayer />
+        <BakuCorePresentationProvider>
+          <MatchStateCoordinator />
+          <ViewportStabilityGuard />
+          <AssetFreshness />
+          {children}
+          <NewGameScreenTester />
+          <DrawAnimationLayer />
+          <BrawlExperienceLayer />
+          <MatchDecisionLayer />
+        </BakuCorePresentationProvider>
       </body>
     </html>
   );

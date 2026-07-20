@@ -1,0 +1,116 @@
+.characterCardSlot {
+  position: relative;
+  display: grid;
+  grid-template-rows: clamp(1.3rem, 2.35vw, 2.5rem) auto;
+  gap: clamp(0.18rem, 0.38vw, 0.4rem);
+  min-width: 0;
+  overflow: visible;
+}
+
+.characterCardSlot > [data-zone-kind="character-card"] {
+  width: 100%;
+}
+
+.heldCoreZone {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+  border: 1px solid rgba(224, 230, 235, 0.34);
+  border-radius: 0.18rem;
+  background:
+    linear-gradient(180deg, rgba(22, 27, 33, 0.76), rgba(9, 12, 16, 0.28));
+  box-shadow:
+    inset 0 0 0.5rem rgba(255, 255, 255, 0.055),
+    0 0.28rem 0.5rem rgba(0, 0, 0, 0.38);
+  pointer-events: none;
+}
+
+.heldCoreZone::before,
+.heldCoreZone::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  width: 18%;
+  height: 1px;
+  background: rgba(255, 98, 82, 0.58);
+}
+
+.heldCoreZone::before {
+  left: 7%;
+}
+
+.heldCoreZone::after {
+  right: 7%;
+}
+
+.heldCoreZone[data-core-count="0"] {
+  border-color: rgba(212, 218, 224, 0.2);
+  background: rgba(13, 16, 20, 0.18);
+}
+
+.heldCoreZoneLabel {
+  position: absolute;
+  left: 50%;
+  bottom: 0.12rem;
+  z-index: 1;
+  transform: translateX(-50%);
+  color: rgba(218, 224, 229, 0.42);
+  font-family: var(--font-display);
+  font-size: clamp(0.27rem, 0.43vw, 0.42rem);
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.heldCore {
+  position: absolute;
+  top: 44%;
+  left: var(--held-core-left);
+  z-index: calc(4 + var(--held-core-order));
+  display: block;
+  width: var(--held-core-width);
+  height: 92%;
+  max-width: none;
+  transform: translate(-50%, -50%) rotate(var(--held-core-rotation));
+  transform-origin: center;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: auto;
+  cursor: pointer;
+  filter:
+    drop-shadow(0 3px 3px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 2px rgba(255, 255, 255, 0.24));
+  transition: filter 170ms ease, transform 170ms ease, width 170ms ease;
+  will-change: filter, transform;
+  user-select: none;
+}
+
+.heldCore:hover {
+  z-index: 80;
+  transform: translate(-50%, calc(-50% - 0.12rem)) rotate(var(--held-core-rotation)) scale(1.05);
+  filter:
+    drop-shadow(0 3px 3px rgba(0, 0, 0, 0.68))
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.92))
+    drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+}
+
+@media (max-width: 760px) {
+  .characterCardSlot {
+    grid-template-rows: clamp(1rem, 5vw, 1.5rem) auto;
+    gap: 0.14rem;
+  }
+
+  .heldCoreZoneLabel {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heldCore {
+    transition: none;
+  }
+}

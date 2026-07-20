@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { HEX_CELLS, type CoreType, type MatchState } from "../../lib/game";
 import {
@@ -10,15 +16,11 @@ import {
   confirmRoll,
   playerCanConfirmRoll,
   playerCanSelectRollTarget,
-  rollResultCells,
-  rollResultSignature,
   rollTargetCanConfirm,
   selectRollTarget,
 } from "../../lib/rolling";
-import {
-  heldCorePlacements,
-  type ZoneOwner,
-} from "./gameScreenState";
+import { useBakuCorePresentation } from "./BakuCorePresentation";
+import { coreTransferDestination } from "./bakuCorePresentationState";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { RollResultLayer } from "./RollResultLayer";
 import styles from "./BakuCoreLayer.module.css";
@@ -44,25 +46,21 @@ const CORE_BACK_ART: Record<CoreType, string> = {
 type PortalTargets = {
   playArea: HTMLElement | null;
   actionSlot: HTMLElement | null;
-  characterZones: Record<string, HTMLElement>;
 };
 
 type LocalMatchAction = (match: MatchState, actorId: string) => MatchState;
 
-type CoreTransferOffset = {
-  x: number;
-  y: number;
+type TransferGeometry = {
+  sourceX: number;
+  sourceY: number;
+  destinationX: number;
+  destinationY: number;
 };
 
 const EMPTY_TARGETS: PortalTargets = {
   playArea: null,
   actionSlot: null,
-  characterZones: {},
 };
-
-function zoneKey(owner: ZoneOwner, slot: number) {
-  return `${owner}-character-card-${slot}`;
-}
 
 function cellPosition(cellId: string) {
   const cell = HEX_CELLS.find((candidate) => candidate.id === cellId);
@@ -79,41 +77,113 @@ function storedBoolean(key: string) {
 }
 
 function samePortalTargets(previous: PortalTargets, next: PortalTargets) {
-  if (previous.playArea !== next.playArea || previous.actionSlot !== next.actionSlot) return false;
-  const previousEntries = Object.entries(previous.characterZones);
-  const nextEntries = Object.entries(next.characterZones);
-  return previousEntries.length === nextEntries.length
-    && nextEntries.every(([key, element]) => previous.characterZones[key] === element);
+  return previous.playArea === next.playArea && previous.actionSlot === next.actionSlot;
 }
 
-function ownerPlayers(match: MatchState | null, playerId?: string) {
-  if (!match?.players.length) return [];
-  const player = match.players.find((candidate) => candidate.id === playerId)
-    ?? match.players[0];
-  const opponent = match.players.find((candidate) => candidate.id !== player.id);
-  return [
-    { owner: "player" as const, player },
-    { owner: "opponent" as const, player: opponent },
-  ];
+function sameTransferGeometry(previous: TransferGeometry | null, next: TransferGeometry) {
+  return Boolean(
+    previous
+    && Math.abs(previous.sourceX - next.sourceX) < 0.5
+    && Math.abs(previous.sourceY - next.sourceY) < 0.5
+    && Math.abs(previous.destinationX - next.destinationX) < 0.5
+    && Math.abs(previous.destinationY - next.destinationY) < 0.5
+  );
 }
 
-function transferOffset(
-  playArea: HTMLElement | null,
-  zone: HTMLElement,
-  cell: string,
-): CoreTransferOffset {
-  const position = cellPosition(cell);
-  if (!playArea || !position) return { x: 0, y: 0 };
-  const playRect = playArea.getBoundingClientRect();
-  const zoneRect = zone.getBoundingClientRect();
-  const sourceX = playRect.left + position.x / GRID_WIDTH * playRect.width;
-  const sourceY = playRect.top + position.y / GRID_HEIGHT * playRect.height;
-  const destinationX = zoneRect.left + zoneRect.width / 2;
-  const destinationY = zoneRect.top - zoneRect.height * 0.16;
-  return {
-    x: sourceX - destinationX,
-    y: sourceY - destinationY,
-  };
+function CoreTransferSprite({
+  match,
+  playerId,
+  playArea,
+  cell,
+}: {
+  match: MatchState;
+  playerId?: string;
+  playArea: HTMLElement;
+  cell: string;
+}) {
+  const [geometry, setGeometry] = useState<TransferGeometry | null>(null);
+  const placement = match.placements.find((candidate) => candidate.cell === cell);
+  const destination = coreTransferDestination(match, playerId, cell);
+
+  useLayoutEffect(() => {
+    if (!placement || !destination) {
+      setGeometry(null);
+      return;
+    }
+
+    let frame = 0;
+    let resizeObserver: ResizeObserver | null = null;
+    const mutationObserver = new MutationObserver(() => measure());
+
+    const measure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const source = cellPosition(cell);
+        const target = document.querySelector<HTMLElement>(
+          `[data-core-zone-id="${destination.owner}-bakucore-${destination.slot}"]`,
+        );
+        if (!source || !target || !target.isConnected || !playArea.isConnected) {
+          setGeometry(null);
+          return;
+        }
+
+        const playRect = playArea.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        if (!playRect.width || !playRect.height || !playArea.clientWidth || !playArea.clientHeight) {
+          setGeometry(null);
+          return;
+        }
+
+        const scaleX = playArea.clientWidth / playRect.width;
+        const scaleY = playArea.clientHeight / playRect.height;
+        const next = {
+          sourceX: source.x / GRID_WIDTH * playArea.clientWidth,
+          sourceY: source.y / GRID_HEIGHT * playArea.clientHeight,
+          destinationX: (targetRect.left + targetRect.width / 2 - playRect.left) * scaleX,
+          destinationY: (targetRect.top + targetRect.height / 2 - playRect.top) * scaleY,
+        };
+        setGeometry((previous) => sameTransferGeometry(previous, next) ? previous : next);
+
+        if (!resizeObserver && typeof ResizeObserver !== "undefined") {
+          resizeObserver = new ResizeObserver(measure);
+          resizeObserver.observe(playArea);
+          resizeObserver.observe(target);
+        }
+      });
+    };
+
+    measure();
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      mutationObserver.disconnect();
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+    };
+  }, [cell, destination?.owner, destination?.slot, placement, playArea]);
+
+  if (!placement || !geometry) return null;
+  const style = {
+    "--transfer-source-x": `${geometry.sourceX}px`,
+    "--transfer-source-y": `${geometry.sourceY}px`,
+    "--transfer-destination-x": `${geometry.destinationX}px`,
+    "--transfer-destination-y": `${geometry.destinationY}px`,
+  } as CSSProperties;
+
+  return (
+    <img
+      className={styles.transferCore}
+      src={placement.core.art}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      data-core-cell={cell}
+      style={style}
+    />
+  );
 }
 
 export function BakuCoreLayer({
@@ -127,35 +197,39 @@ export function BakuCoreLayer({
   const [selectedCoreCell, setSelectedCoreCell] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [rollResultOpen, setRollResultOpen] = useState(false);
-  const [deferredCoreCells, setDeferredCoreCells] = useState<string[]>([]);
-  const [transferringCoreCells, setTransferringCoreCells] = useState<string[]>([]);
-  const lastRollSignature = useRef("");
-  const transferDelay = useRef<number | null>(null);
-  const transferEnd = useRef<number | null>(null);
+  const {
+    rollResultOpen,
+    deferredCoreCells,
+    transferringCoreCells,
+    dismissRollResult,
+  } = useBakuCorePresentation();
 
   useEffect(() => {
+    let frame = 0;
     const measure = () => {
-      const playArea = document.querySelector<HTMLElement>(
-        '[aria-label="Experimental game play area"]',
-      );
-      const actionSlot = document.querySelector<HTMLElement>(
-        '[aria-label="Available player actions"] [data-slot="primary"]',
-      );
-      const characterZones: Record<string, HTMLElement> = {};
-      for (const owner of ["player", "opponent"] as const) {
-        for (const slot of [1, 2, 3]) {
-          const key = zoneKey(owner, slot);
-          const zone = document.querySelector<HTMLElement>(`[data-zone-id="${key}"]`);
-          if (zone) characterZones[key] = zone;
-        }
-      }
-      const next = { playArea, actionSlot, characterZones };
-      setTargets((previous) => samePortalTargets(previous, next) ? previous : next);
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const next = {
+          playArea: document.querySelector<HTMLElement>(
+            '[aria-label="Experimental game play area"]',
+          ),
+          actionSlot: document.querySelector<HTMLElement>(
+            '[aria-label="Available player actions"] [data-slot="primary"]',
+          ),
+        };
+        setTargets((previous) => samePortalTargets(previous, next) ? previous : next);
+      });
     };
 
-    const frame = window.requestAnimationFrame(measure);
-    return () => window.cancelAnimationFrame(frame);
+    measure();
+    const observer = new MutationObserver(measure);
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", measure);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
   }, [match?.id, playerId]);
 
   useEffect(() => {
@@ -176,23 +250,6 @@ export function BakuCoreLayer({
     return () => document.removeEventListener("pointerdown", onBlankPlaymat);
   }, []);
 
-  useEffect(() => {
-    const signature = rollResultSignature(match);
-    if (!signature || signature === lastRollSignature.current) return;
-    lastRollSignature.current = signature;
-    if (transferDelay.current != null) window.clearTimeout(transferDelay.current);
-    if (transferEnd.current != null) window.clearTimeout(transferEnd.current);
-    const cells = rollResultCells(match);
-    setDeferredCoreCells(cells);
-    setTransferringCoreCells([]);
-    setRollResultOpen(true);
-  }, [match]);
-
-  useEffect(() => () => {
-    if (transferDelay.current != null) window.clearTimeout(transferDelay.current);
-    if (transferEnd.current != null) window.clearTimeout(transferEnd.current);
-  }, []);
-
   const localPlayer = match?.players.find((candidate) => candidate.id === playerId)
     ?? match?.players[0];
   const actorId = playerId ?? localPlayer?.id;
@@ -205,7 +262,6 @@ export function BakuCoreLayer({
   const rollReady = playerCanConfirmRoll(match, actorId);
   const primaryAction = selectReady ? "select" : rollReady ? "roll" : null;
   const deferredSet = new Set(deferredCoreCells);
-  const transferringSet = new Set(transferringCoreCells);
   const visiblePlacements = match?.placements.filter((placement) => (
     !placement.attachedTo || deferredSet.has(placement.cell)
   )) ?? [];
@@ -288,17 +344,6 @@ export function BakuCoreLayer({
     });
   };
 
-  const dismissRollResult = () => {
-    setRollResultOpen(false);
-    if (!deferredCoreCells.length) return;
-    const cells = [...deferredCoreCells];
-    transferDelay.current = window.setTimeout(() => {
-      setDeferredCoreCells([]);
-      setTransferringCoreCells(cells);
-      transferEnd.current = window.setTimeout(() => setTransferringCoreCells([]), 920);
-    }, 1000);
-  };
-
   const toggleCore = (cell: string) => {
     if (!selectable || !availableCells.has(cell)) return;
     setSelectedCoreCell((current) => current === cell ? "" : cell);
@@ -310,96 +355,66 @@ export function BakuCoreLayer({
     toggleCore(cell);
   };
 
-  const players = ownerPlayers(match, playerId);
-
   return (
     <>
       {targets.playArea && createPortal(
-        <svg
-          className={styles.matrixLayer}
-          viewBox={`0 0 ${GRID_WIDTH} ${GRID_HEIGHT}`}
-          preserveAspectRatio="xMidYMid meet"
-          aria-label="BakuCores in the Hide Matrix"
-        >
-          {visiblePlacements.map((placement) => {
-            const position = cellPosition(placement.cell);
-            if (!position) return null;
-            const canSelect = selectable && availableCells.has(placement.cell);
-            const selected = selectedCoreCell === placement.cell && canSelect;
-            const playerLanded = localRollCells.has(placement.cell);
-            const opponentLanded = opponentRollCells.has(placement.cell);
-            const revealed = playerLanded || opponentLanded || deferredSet.has(placement.cell);
-            return (
-              <g
-                key={placement.cell}
-                data-core-cell={placement.cell}
-                data-bakucore-interactive={canSelect ? "true" : "false"}
-                role={canSelect ? "button" : undefined}
-                tabIndex={canSelect ? 0 : undefined}
-                aria-pressed={canSelect ? selected : undefined}
-                aria-label={`${revealed ? placement.core.name : `Face-down ${placement.core.type} BakuCore`}${canSelect ? ", select as roll target" : ""}`}
-                onClick={() => toggleCore(placement.cell)}
-                onKeyDown={(event) => coreKeyDown(event, placement.cell)}
-              >
-                <title>{revealed ? placement.core.name : `Face-down ${placement.core.type} BakuCore`}</title>
-                <image
-                  className={`${styles.matrixCore} ${canSelect ? styles.matrixCoreSelectable : ""} ${selected ? styles.matrixCoreSelected : ""} ${playerLanded ? styles.matrixCorePlayerLanded : ""} ${opponentLanded ? styles.matrixCoreOpponentLanded : ""}`}
-                  href={revealed ? placement.core.art : CORE_BACK_ART[placement.core.type]}
-                  x={position.x - MATRIX_CORE_SIZE / 2}
-                  y={position.y - MATRIX_CORE_SIZE / 2}
-                  width={MATRIX_CORE_SIZE}
-                  height={MATRIX_CORE_SIZE}
-                  preserveAspectRatio="xMidYMid meet"
+        <>
+          <svg
+            className={styles.matrixLayer}
+            viewBox={`0 0 ${GRID_WIDTH} ${GRID_HEIGHT}`}
+            preserveAspectRatio="xMidYMid meet"
+            aria-label="BakuCores in the Hide Matrix"
+          >
+            {visiblePlacements.map((placement) => {
+              const position = cellPosition(placement.cell);
+              if (!position) return null;
+              const canSelect = selectable && availableCells.has(placement.cell);
+              const selected = selectedCoreCell === placement.cell && canSelect;
+              const playerLanded = localRollCells.has(placement.cell);
+              const opponentLanded = opponentRollCells.has(placement.cell);
+              const revealed = playerLanded || opponentLanded || deferredSet.has(placement.cell);
+              return (
+                <g
+                  key={placement.cell}
+                  data-core-cell={placement.cell}
+                  data-bakucore-interactive={canSelect ? "true" : "false"}
+                  role={canSelect ? "button" : undefined}
+                  tabIndex={canSelect ? 0 : undefined}
+                  aria-pressed={canSelect ? selected : undefined}
+                  aria-label={`${revealed ? placement.core.name : `Face-down ${placement.core.type} BakuCore`}${canSelect ? ", select as roll target" : ""}`}
+                  onClick={() => toggleCore(placement.cell)}
+                  onKeyDown={(event) => coreKeyDown(event, placement.cell)}
+                >
+                  <title>{revealed ? placement.core.name : `Face-down ${placement.core.type} BakuCore`}</title>
+                  <image
+                    className={`${styles.matrixCore} ${canSelect ? styles.matrixCoreSelectable : ""} ${selected ? styles.matrixCoreSelected : ""} ${playerLanded ? styles.matrixCorePlayerLanded : ""} ${opponentLanded ? styles.matrixCoreOpponentLanded : ""}`}
+                    href={revealed ? placement.core.art : CORE_BACK_ART[placement.core.type]}
+                    x={position.x - MATRIX_CORE_SIZE / 2}
+                    y={position.y - MATRIX_CORE_SIZE / 2}
+                    width={MATRIX_CORE_SIZE}
+                    height={MATRIX_CORE_SIZE}
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                </g>
+              );
+            })}
+          </svg>
+          {match && transferringCoreCells.length ? (
+            <div className={styles.transferLayer} aria-hidden="true">
+              {transferringCoreCells.map((cell) => (
+                <CoreTransferSprite
+                  match={match}
+                  playerId={playerId}
+                  playArea={targets.playArea!}
+                  cell={cell}
+                  key={`${match.id}:${match.turn}:${cell}`}
                 />
-              </g>
-            );
-          })}
-        </svg>,
+              ))}
+            </div>
+          ) : null}
+        </>,
         targets.playArea,
       )}
-
-      {players.flatMap(({ owner, player }) => (
-        player?.bakugan.map((bakugan, index) => {
-          const held = heldCorePlacements(match, bakugan.id)
-            .filter((placement) => !deferredSet.has(placement.cell));
-          const target = targets.characterZones[zoneKey(owner, index + 1)];
-          if (!target) return null;
-          const spacing = held.length <= 1 ? 0 : Math.min(24, 62 / (held.length - 1));
-          return createPortal(
-            <div
-              className={styles.heldCoreZone}
-              data-core-count={held.length}
-              aria-label={`${bakugan.name} BakuCore zone, ${held.length} BakuCore${held.length === 1 ? "" : "s"}`}
-            >
-              <span className={styles.heldCoreZoneLabel} aria-hidden="true">BAKUCORE</span>
-              {held.map((placement, heldIndex) => {
-                const centredIndex = heldIndex - (held.length - 1) / 2;
-                const offset = transferOffset(targets.playArea, target, placement.cell);
-                const moving = transferringSet.has(placement.cell);
-                const style = {
-                  "--held-core-x": `${centredIndex * spacing}%`,
-                  "--held-core-rotation": `${centredIndex * Math.min(6, 18 / Math.max(1, held.length - 1))}deg`,
-                  "--held-core-order": heldIndex,
-                  "--transfer-x": `${offset.x}px`,
-                  "--transfer-y": `${offset.y}px`,
-                } as CSSProperties;
-                return (
-                  <img
-                    className={`${styles.heldCore} ${moving ? styles.heldCoreTransferring : ""}`}
-                    src={placement.core.art}
-                    alt={placement.core.name}
-                    draggable={false}
-                    style={style}
-                    key={placement.cell}
-                  />
-                );
-              })}
-            </div>,
-            target,
-            `${owner}-${bakugan.id}-held-core-zone`,
-          );
-        }) ?? []
-      ))}
 
       {targets.actionSlot && primaryAction ? createPortal(
         <button
