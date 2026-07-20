@@ -72,10 +72,9 @@
   will-change: transform, filter;
 }
 
-.playerHandLayer[data-action-mode] .handCard[data-actionable="false"] .handCardSurface {
-  opacity: 0.5;
-  filter: grayscale(0.5) drop-shadow(0 0.28rem 0.42rem rgba(0, 0, 0, 0.48));
-}
+/* Playability affects interaction only. Cards remain fully visible so the hand
+   never implies that an unplayable card is hidden, disabled, or unavailable for
+   inspection. */
 
 .actionableHandCard .handCardSurface {
   filter:
