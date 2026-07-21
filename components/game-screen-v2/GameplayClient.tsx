@@ -430,6 +430,25 @@ export function GameplayClient() {
   };
 
   if (storedState.route === "match") {
+    const placementActive = storedState.match != null
+      && (storedState.match.phase === "startingPlayer" || storedState.match.phase === "placement");
+
+    if (placementActive) {
+      return (
+        <CorePlacementLayer
+          match={storedState.match}
+          playerId={storedState.playerId}
+          startupError={startupError}
+          onRetryStart={() => {
+            setStartupError("");
+            void beginPlacement().catch((cause) => {
+              setStartupError(cause instanceof Error ? cause.message : "The server did not advance the match.");
+            });
+          }}
+        />
+      );
+    }
+
     return (
       <>
         <GameScreen
@@ -488,17 +507,6 @@ export function GameplayClient() {
         <BakuCoreLayer
           match={storedState.match}
           playerId={storedState.playerId}
-        />
-        <CorePlacementLayer
-          match={storedState.match}
-          playerId={storedState.playerId}
-          startupError={startupError}
-          onRetryStart={() => {
-            setStartupError("");
-            void beginPlacement().catch((cause) => {
-              setStartupError(cause instanceof Error ? cause.message : "The server did not advance the match.");
-            });
-          }}
         />
         <CardHandLayer
           match={storedState.match}
