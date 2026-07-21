@@ -1,6 +1,6 @@
 import {
   beginCorePlacement, cancelCardChoice, concedeMatch, createMatch, discardToHandLimit, energizeCard, nextTurn,
-  legalPlacementCells, orderTriggers, placeCore, prepareCardPlay, redactForPlayer, selectBakugan, setReady,
+  legalPlacementCells, normalizeMatchState, orderTriggers, placeCore, prepareCardPlay, redactForPlayer, selectBakugan, setReady,
   startNextSeriesGame, submitCardChoice, type CardChoices, type MatchState,
 } from "../../../lib/game";
 import { makeCanonicalPlayer, type CanonicalPlayerSelection } from "../../../lib/data";
@@ -135,8 +135,10 @@ async function load(code: string): Promise<MatchRecord | null> {
     .bind(code)
     .first<{ state_json: string; previous_state_json: string | null }>();
   return row ? {
-    state: JSON.parse(row.state_json) as MatchState,
-    previous: row.previous_state_json ? JSON.parse(row.previous_state_json) as MatchState : null,
+    state: normalizeMatchState(JSON.parse(row.state_json) as MatchState),
+    previous: row.previous_state_json
+      ? normalizeMatchState(JSON.parse(row.previous_state_json) as MatchState)
+      : null,
   } : null;
 }
 
@@ -179,6 +181,13 @@ async function saveTransition(
 }
 
 function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
+  // The reveal is presentation-only. As soon as it finishes, any authenticated
+  // match request may advance the authoritative state. Previously this branch
+  // sat below the general deadline guard, so a failed client transition left
+  // the match frozen for another 30 seconds.
+  if (input.phase === "startingPlayer" && now >= input.startingPlayerRevealedAt) {
+    return beginCorePlacement(input, now);
+  }
   if (now <= input.deadline || ["lobby", "result"].includes(input.phase)) return input;
   const state = structuredClone(input);
   const actorId = state.priority;
@@ -204,7 +213,6 @@ function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
   }
   const triggerOrder = state.triggerOrders.find((request) => request.controllerId === actorId && !request.orderedIds);
   if (triggerOrder) return orderTriggers(state, actorId, triggerOrder.id, triggerOrder.triggerIds);
-  if (state.phase === "startingPlayer") return beginCorePlacement(state, now);
   if (state.phase === "placement") {
     const used = new Set(state.placements.filter((placement) => placement.playerId === actorId).map((placement) => placement.core.id));
     const core = actor.cores.find((candidate) => !used.has(candidate.id));

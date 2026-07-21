@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import type { MatchState } from "../../lib/game";
+import { normalizeMatchState, type MatchState } from "../../lib/game";
 
 export const MATCH_KEY = "bbp-active-match-v1";
 export const PREVIOUS_MATCH_KEY = "bbp-previous-match-v2";
@@ -45,13 +45,14 @@ function parse<T>(value: string | null, fallback: T): T {
 export function readMatchStore(): MatchStoreSnapshot {
   if (typeof window === "undefined") return EMPTY;
   const settings = parse<MatchClientSettings>(localStorage.getItem(SETTINGS_KEY), {});
+  const storedMatch = parse<MatchState | null>(localStorage.getItem(MATCH_KEY), null);
   return {
     route: parse(localStorage.getItem(ROUTE_KEY), "entry"),
     online: parse(localStorage.getItem(ONLINE_KEY), false),
     playerId: parse<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
     capability: parse<string | undefined>(localStorage.getItem(CAPABILITY_KEY), undefined),
     settings,
-    match: parse<MatchState | null>(localStorage.getItem(MATCH_KEY), null),
+    match: storedMatch ? normalizeMatchState(storedMatch) : null,
   };
 }
 

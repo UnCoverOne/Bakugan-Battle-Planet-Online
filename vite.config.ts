@@ -19,7 +19,9 @@ const buildId = (
 
 const localBindingConfig = {
   main: "./worker/index.ts",
-  compatibility_flags: ["nodejs_compat"],
+  // vinext already enables `nodejs_compat` for the RSC worker. Repeating it
+  // here makes recent Miniflare releases reject the local worker before Vite
+  // can start ("Compatibility flag specified multiple times").
   d1_databases: d1
     ? [
         {
