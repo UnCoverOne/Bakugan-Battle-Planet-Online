@@ -30,13 +30,12 @@ export const BAKUGAN: Bakugan[] = characterCards.map((character) => ({
   faction: character.faction,
   bPower: character.bPower!,
   damage: character.damage!,
-  // Non-Ultra toys share the simulator baseline requested by the ruleset.
-  // Ultra profiles retain their differentiated physical-roll data.
+  // The simulator uses the explicitly configured physical-roll profiles.
   rollAccuracy: /\bUltra\b/i.test(character.displayName)
-    ? Math.min(95, 78 + (character.number % 17))
+    ? 85
     : 90,
   doubleCoreChance: /\bUltra\b/i.test(character.displayName)
-    ? 8 + ((character.number * 7) % 25)
+    ? 10
     : 5,
   art: character.art,
   character,
@@ -93,6 +92,9 @@ export const deckErrors = (deck: DeckRecord) => {
   const cards = deck.cardIds.map((id) => CARD_BY_ID.get(id)).filter(Boolean) as GameCard[];
   const cores = deck.coreIds.map((id) => CORES.find((core) => core.id === id)).filter(Boolean) as Core[];
   if (deck.cardIds.length !== 40) errors.push("Main Deck must contain exactly 40 cards.");
+  if (cards.length !== deck.cardIds.length) errors.push("Every Main Deck catalogue ID must identify exactly one card.");
+  if (bakugan.length !== deck.bakuganIds.length) errors.push("Every Bakugan catalogue ID must identify exactly one Character card.");
+  if (cores.length !== deck.coreIds.length) errors.push("Every BakuCore catalogue ID must identify exactly one BakuCore.");
   if (bakugan.length !== 3 || new Set(deck.bakuganIds).size !== 3) errors.push("Bakugan Team must contain three distinct Character cards.");
   if (cores.length !== 6) errors.push("Hide Matrix Kit must contain exactly six BakuCores.");
   const factions = new Set(bakugan.map((item) => item.faction));

@@ -41,30 +41,3 @@ export function characterCardIsFaceUp(bakugan: Bakugan | null | undefined) {
   return Boolean(bakugan && (bakugan.open || (bakugan as CharacterFaceState).characterFaceUp));
 }
 
-/**
- * The base engine already keeps every Evo underneath the newest one and uses the
- * top card for statistics. Character-card orientation is deliberately separate
- * from the physical Bakugan's open state: playing an Evo flips the Character
- * face up, but does not create a false open Bakugan or Team Attack participant.
- */
-export function reconcileResolvedEvos(input: MatchState, next: MatchState) {
-  for (const nextPlayer of next.players) {
-    const beforePlayer = input.players.find((candidate) => candidate.id === nextPlayer.id);
-    if (!beforePlayer) continue;
-    for (const nextBakugan of nextPlayer.bakugan) {
-      const beforeBakugan = beforePlayer.bakugan.find((candidate) => candidate.id === nextBakugan.id);
-      if (!beforeBakugan || nextBakugan.evoStack.length <= beforeBakugan.evoStack.length) continue;
-      const wasFaceDown = !characterCardIsFaceUp(nextBakugan);
-      (nextBakugan as CharacterFaceState).characterFaceUp = true;
-      if (wasFaceDown) {
-        next.log.push({
-          id: `${Date.now()}-evo-face-up-${next.log.length}`,
-          at: Date.now(),
-          kind: "game",
-          message: `${nextBakugan.name}'s Character card was turned face up before its Evo entered play.`,
-        });
-      }
-    }
-  }
-  return next;
-}

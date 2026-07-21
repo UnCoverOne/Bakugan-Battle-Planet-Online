@@ -125,14 +125,11 @@ export function localUndoSnapshot() {
 
 let transport: WebSocket | null = null;
 let fallbackTimer = 0;
-let heartbeatTimer = 0;
 let transportIdentity = "";
 
 function stopTransport() {
   if (fallbackTimer) window.clearInterval(fallbackTimer);
-  if (heartbeatTimer) window.clearInterval(heartbeatTimer);
   fallbackTimer = 0;
-  heartbeatTimer = 0;
   transport?.close();
   transport = null;
   transportIdentity = "";
@@ -177,19 +174,11 @@ function startTransport(state: MatchStoreSnapshot) {
     transport.addEventListener("open", () => {
       if (fallbackTimer) window.clearInterval(fallbackTimer);
       fallbackTimer = 0;
-      transport?.send("ping");
-      heartbeatTimer = window.setInterval(() => {
-        if (transport?.readyState === WebSocket.OPEN) transport.send("ping");
-      }, 15_000);
     });
     transport.addEventListener("close", () => {
-      if (heartbeatTimer) window.clearInterval(heartbeatTimer);
-      heartbeatTimer = 0;
       startFallback(readMatchStore());
     });
     transport.addEventListener("error", () => {
-      if (heartbeatTimer) window.clearInterval(heartbeatTimer);
-      heartbeatTimer = 0;
       startFallback(readMatchStore());
     });
   } catch {

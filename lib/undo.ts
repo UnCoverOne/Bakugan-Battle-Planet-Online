@@ -10,6 +10,7 @@ export function canUndoLatest(match: MatchState | null | undefined, playerId?: s
     && match.priority === playerId
     && match.informationEpoch === window.informationEpoch
     && match.priorityEpoch === window.priorityEpoch
+    && !window.irreversibleInformation
     && match.batch.some((effect) => effect.id === window.batchObjectId)
     && window.snapshot,
   );
@@ -43,6 +44,7 @@ export function closeUndoForPriority(input: MatchState) {
 
 export function revealHiddenInformation(input: MatchState) {
   input.informationEpoch += 1;
+  if (input.undoWindow) input.undoWindow.irreversibleInformation = true;
   input.undoWindow = undefined;
   return input;
 }

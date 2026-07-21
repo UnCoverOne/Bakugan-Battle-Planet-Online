@@ -1,7 +1,8 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { redactForPlayer, type MatchState } from "../lib/game";
+import { concedeMatch, normalizeMatchState, redactForPlayer, type MatchState } from "../lib/game";
+import { nextMatchAlarmAt, resolveExpiredDeadline } from "../lib/deadlines";
 
 interface Env {
   ASSETS: Fetcher;
@@ -37,7 +38,7 @@ export class MatchRoom {
 
   private async publish(match: MatchState) {
     await this.state.storage.put("snapshot", match);
-    await this.state.storage.setAlarm(Date.now() + 2 * 60 * 60 * 1000);
+    await this.state.storage.setAlarm(nextMatchAlarmAt(match));
     for (const socket of this.state.getWebSockets()) {
       const attachment = socket.deserializeAttachment?.() as { playerId?: string } | undefined;
       if (attachment?.playerId) socket.send(JSON.stringify({ type: "state", state: redactForPlayer(match, attachment.playerId) }));
@@ -81,6 +82,9 @@ export class MatchRoom {
     const server = pair[1];
     server.serializeAttachment?.({ playerId });
     this.state.acceptWebSocket(server, [playerId]);
+    await this.env.DB.prepare(
+      "INSERT INTO match_presence (code, player_id, last_seen, connected) VALUES (?, ?, ?, 1) ON CONFLICT(code, player_id) DO UPDATE SET last_seen = excluded.last_seen, connected = 1",
+    ).bind(code, playerId, Date.now()).run();
     let snapshot = await this.state.storage.get<MatchState>("snapshot");
     if (!snapshot) {
       const row = await this.env.DB.prepare("SELECT state_json FROM matches WHERE code = ?").bind(code).first<{ state_json: string }>();
@@ -90,24 +94,12 @@ export class MatchRoom {
       }
     }
     if (snapshot) server.send(JSON.stringify({ type: "state", state: redactForPlayer(snapshot, playerId) }));
-    await this.state.storage.setAlarm(Date.now() + 2 * 60 * 60 * 1000);
+    if (snapshot) await this.state.storage.setAlarm(nextMatchAlarmAt(snapshot));
     return new Response(null, {
       status: 101,
       webSocket: client,
       headers: { "sec-websocket-protocol": "bbp-match-v1" },
     } as ResponseInit & { webSocket: WebSocket });
-  }
-
-  async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer) {
-    if (String(message) !== "ping") return;
-    const attachment = socket.deserializeAttachment?.() as { playerId?: string } | undefined;
-    const snapshot = await this.state.storage.get<MatchState>("snapshot");
-    if (attachment?.playerId && snapshot?.code) {
-      await this.env.DB.prepare(
-        "INSERT INTO match_presence (code, player_id, last_seen, connected) VALUES (?, ?, ?, 1) ON CONFLICT(code, player_id) DO UPDATE SET last_seen = excluded.last_seen, connected = 1",
-      ).bind(snapshot.code, attachment.playerId, Date.now()).run();
-    }
-    socket.send(JSON.stringify({ type: "pong", at: Date.now() }));
   }
 
   async webSocketClose(socket: WebSocket) {
@@ -116,13 +108,55 @@ export class MatchRoom {
     if (attachment?.playerId && snapshot?.code) {
       await this.env.DB.prepare("UPDATE match_presence SET connected = 0, last_seen = ? WHERE code = ? AND player_id = ?")
         .bind(Date.now(), snapshot.code, attachment.playerId).run();
+      await this.state.storage.setAlarm(Math.min(nextMatchAlarmAt(snapshot), Date.now() + 2 * 60 * 1_000));
     }
   }
   async webSocketError(socket: WebSocket) { await this.webSocketClose(socket); }
 
   async alarm() {
-    if (!this.state.getWebSockets().length) await this.state.storage.deleteAll();
-    else await this.state.storage.setAlarm(Date.now() + 2 * 60 * 60 * 1000);
+    const stored = await this.state.storage.get<MatchState>("snapshot");
+    if (!stored) return;
+    const now = Date.now();
+    const snapshot = normalizeMatchState(stored);
+    if (["lobby", "result"].includes(snapshot.phase)) {
+      if (!this.state.getWebSockets().length) await this.state.storage.deleteAll();
+      else await this.state.storage.setAlarm(nextMatchAlarmAt(snapshot, now));
+      return;
+    }
+
+    let next = resolveExpiredDeadline(snapshot, now);
+    if (next.version === snapshot.version) {
+      const presence = await this.env.DB.prepare(
+        "SELECT player_id, last_seen FROM match_presence WHERE code = ? AND connected = 0 ORDER BY last_seen ASC LIMIT 1",
+      ).bind(snapshot.code).first<{ player_id: string; last_seen: number }>();
+      if (presence && now - Number(presence.last_seen) >= 2 * 60 * 1_000) {
+        next = concedeMatch(snapshot, presence.player_id);
+        next.resultReason = "Opponent abandoned the match";
+        next.log.push({
+          id: `${now}-abandonment`, at: now, kind: "system",
+          message: `${snapshot.players.find((player) => player.id === presence.player_id)?.name ?? "A player"} abandoned the match after two minutes disconnected.`,
+        });
+      }
+    }
+
+    if (next.version !== snapshot.version) {
+      const saved = await this.env.DB.prepare(
+        "UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ? AND CAST(json_extract(state_json, '$.version') AS INTEGER) = ?",
+      ).bind(JSON.stringify(next), JSON.stringify(snapshot), now, snapshot.code, snapshot.version).run();
+      if (Number(saved.meta?.changes ?? 0) > 0) {
+        if (next.version % 5 === 0 || next.phase === "result") await this.env.DB.prepare(
+          "INSERT OR REPLACE INTO match_snapshots (code, version, state_json, created_at) VALUES (?, ?, ?, ?)",
+        ).bind(snapshot.code, next.version, JSON.stringify(next), now).run();
+        await this.publish(next);
+        return;
+      }
+      const row = await this.env.DB.prepare("SELECT state_json FROM matches WHERE code = ?")
+        .bind(snapshot.code).first<{ state_json: string }>();
+      if (row?.state_json) await this.publish(normalizeMatchState(JSON.parse(row.state_json) as MatchState));
+      return;
+    }
+
+    await this.state.storage.setAlarm(Math.max(now + 30_000, nextMatchAlarmAt(snapshot, now)));
   }
 }
 

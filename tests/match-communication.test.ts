@@ -69,6 +69,6 @@ test("the communication layer provides a left slide-out Event Log and chat besid
 
 test("online chat uses the authoritative match endpoint without replacing gameplay undo history", () => {
   assert.match(route, /case "chat":\s*state\s*=\s*addChatMessage/);
-  assert.match(route, /body\.action\s*!==\s*"chat"\)\s*state\s*=\s*preparePendingDraw/);
+  assert.doesNotMatch(route, /preparePendingDraw|reconcile|rewind/i);
   assert.match(route, /body\.action\s*===\s*"chat"\s*\?\s*record\.previous\s*:\s*before/);
 });

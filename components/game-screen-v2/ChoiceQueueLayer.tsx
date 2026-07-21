@@ -17,7 +17,7 @@ function valuesFor(answers: CardChoices, field: ChoiceField) {
 
 function assign(answers: CardChoices, field: ChoiceField, values: string[]) {
   const next = { ...answers };
-  if (["discardCardIds", "handCardIds", "targetEnergyIds"].includes(field.id)) Object.assign(next, { [field.id]: values });
+  if (["discardCardIds", "handCardIds", "targetEnergyIds", "orderedCardIds"].includes(field.id)) Object.assign(next, { [field.id]: values });
   else if (field.id === "xValue") next.xValue = Number(values[0] ?? 0);
   else if (field.id === "confirmed") next.confirmed = values[0] === "yes";
   else Object.assign(next, { [field.id]: values[0] });
@@ -122,7 +122,7 @@ export function ChoiceQueueLayer() {
         <header>
           <small>{triggerOrder ? "SIMULTANEOUS TRIGGERS" : pending?.schema.simultaneous ? "PRIVATE SIMULTANEOUS CHOICE" : "PLAYER CHOICE"}</small>
           <h2 id="choice-queue-title">{triggerOrder ? `Order ${triggerOrder.event} triggers` : pending?.schema.sourceName}</h2>
-          <p>{triggerOrder ? "The first trigger listed enters the batch first and resolves last." : "Every required choice is validated by the match server before the card enters the batch."}</p>
+          <p>{triggerOrder ? "The first trigger listed enters the batch first and resolves last." : "Each required choice is requested and validated only when its clause resolves."}</p>
         </header>
 
         {fields.map((field) => {

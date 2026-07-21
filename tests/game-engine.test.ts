@@ -3,13 +3,24 @@ import assert from "node:assert/strict";
 import { BAKUGAN, CARDS, CORES, STARTER_DECKS, deckErrors, makePlayer } from "../lib/data";
 import {
   CENTER_CELL, HEX_CELLS, beginCorePlacement, cardChoiceSpec, createMatch, discardToHandLimit, energizeCard,
-  legalPlacementCells, passPriority, placeCore, playCard, resolveDamage, selectBakugan,
+  legalPlacementCells, passPriority, placeCore, playCard, selectBakugan,
   setReady, startNextSeriesGame, targetCore, totalPower, type MatchState,
 } from "../lib/game";
 import { drawTurnCard } from "../lib/turnStart";
+import { flipDamageCard, resolveManualDamage } from "../lib/manualDamage";
 
 const passWindow = (state: MatchState) => {
   state = passPriority(state, state.priority); return passPriority(state, state.priority);
+};
+
+const settleDamage = (input: MatchState) => {
+  let state = input;
+  while (state.phase === "damage") {
+    state = state.revealedFlip
+      ? resolveManualDamage(state, state.pendingLoser)
+      : flipDamageCard(state, state.pendingLoser);
+  }
+  return state;
 };
 
 const buildPlacedMatch = () => {
@@ -99,19 +110,23 @@ test("damage flips cards one at a time, pauses on a Flip, and Stop ends the atta
   attacking.open = true; state.rolls[wantedWinner.id].result = "open-no-core"; state.powerBoost[attacking.id] = 9999; state = passWindow(state); assert.equal(state.phase,"victor");
   const loser = state.players[1]; const stop = { ...CARDS.find((card) => card.name === `Halt ${attacking.faction}` || card.name === `Counter ${attacking.faction}` || card.name === `Block ${attacking.faction}` || card.name === `Repel ${attacking.faction}`)!, id:"stop-flip" };
   loser.deckCards = [stop, ...loser.deckCards]; loser.deck = loser.deckCards.length; loser.energy = 10; state = passWindow(state);
-  assert.equal(state.phase,"damage"); assert.equal(state.revealedFlip?.id,"stop-flip"); state = resolveDamage(state,loser.id,"stop-flip"); assert.equal(state.phase,"postDamage"); assert.equal(state.pendingDamage,0);
+  assert.equal(state.phase,"damage"); assert.equal(state.revealedFlip, undefined); state = flipDamageCard(state, loser.id);
+  assert.equal(state.revealedFlip?.id,"stop-flip"); state = resolveManualDamage(state,loser.id,"stop-flip"); assert.equal(state.phase,"postDamage"); assert.equal(state.pendingDamage,0);
 });
 
 test("a Team Attack combines open Bakugan, then all attackers retract", () => {
   let state = reachPower(); const winner = state.players[0]; winner.bakugan.forEach((bakugan) => { bakugan.open = true; }); const attacking = winner.bakugan.find((bakugan) => bakugan.id === state.selected[winner.id])!; state.rolls[winner.id].result = "open-no-core"; state.powerBoost[attacking.id] = 9999;
   state = passWindow(state); const loser = state.players[1]; loser.deckCards = [CARDS.find((card) => card.type !== "Flip")!, ...loser.deckCards]; loser.deck = loser.deckCards.length; state = passWindow(state); assert.equal(state.teamAttack,true);
-  while (state.phase === "damage" && state.revealedFlip) state = resolveDamage(state,loser.id); if (state.phase === "postDamage") state = passWindow(state);
+  while (state.phase === "damage") {
+    state = state.revealedFlip ? resolveManualDamage(state, loser.id) : flipDamageCard(state, loser.id);
+  }
+  if (state.phase === "postDamage") state = passWindow(state);
   assert.equal(state.phase,"endPlay"); assert.ok(state.players.find((player)=>player.id===winner.id)!.bakugan.every((bakugan) => !bakugan.open));
 });
 
 test("the End Phase charges Energy, enforces seven cards, and begins the next Start Phase", () => {
   let state = reachPower(); const winner = state.players[0]; const attacking = winner.bakugan.find((bakugan) => bakugan.id === state.selected[winner.id])!; attacking.open = true; state.rolls[winner.id].result = "open-no-core"; state.powerBoost[attacking.id] = 9999; state = passWindow(state);
-  const loser = state.players[1]; loser.deckCards = loser.deckCards.filter((card) => card.type !== "Flip"); loser.deck = loser.deckCards.length; state = passWindow(state);
+  const loser = state.players[1]; loser.deckCards = loser.deckCards.filter((card) => card.type !== "Flip"); loser.deck = loser.deckCards.length; state = settleDamage(passWindow(state));
   if (state.phase === "postDamage") state = passWindow(state); assert.equal(state.phase,"endPlay"); const currentWinner=state.players.find((player)=>player.id===winner.id)!; currentWinner.hand.push(...currentWinner.deckCards.splice(0, Math.max(0, 9-currentWinner.hand.length))); currentWinner.deck=currentWinner.deckCards.length;
   state = passWindow(state); assert.equal(state.phase,"handLimit"); const actor=state.players.find((player) => player.id===state.priority)!; state=discardToHandLimit(state,actor.id,actor.hand.slice(0,actor.hand.length-7).map((card)=>card.id));
   const nextOver=state.players.find((player)=>state.phase==="handLimit"&&player.id===state.priority); if(nextOver) state=discardToHandLimit(state,nextOver.id,nextOver.hand.slice(0,nextOver.hand.length-7).map((card)=>card.id));
@@ -120,6 +135,6 @@ test("the End Phase charges Energy, enforces seven cards, and begins the next St
 
 test("best-of-three creates a fully reset second game", () => {
   let state = reachPower(); const winner = state.players[0]; const attacking = winner.bakugan.find((bakugan) => bakugan.id === state.selected[winner.id])!; attacking.open = true; state.rolls[winner.id].result = "open-no-core"; state.powerBoost[attacking.id] = 9999; state = passWindow(state);
-  const loser = state.players[1]; loser.discard.push(...loser.deckCards); loser.deckCards = []; loser.deck = 0; state = passWindow(state); assert.equal(state.phase,"result"); assert.equal(state.series[winner.id],1);
+  const loser = state.players[1]; loser.discard.push(...loser.deckCards); loser.deckCards = []; loser.deck = 0; state = settleDamage(passWindow(state)); assert.equal(state.phase,"result"); assert.equal(state.series[winner.id],1);
   state = startNextSeriesGame(state); assert.equal(state.gameNumber,2); assert.equal(state.phase,"startingPlayer"); assert.equal(state.placements.length,0); assert.ok(state.players.every((player)=>player.deckCards.length===35&&player.hand.length===5));
 });

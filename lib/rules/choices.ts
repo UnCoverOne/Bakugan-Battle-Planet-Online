@@ -1,4 +1,4 @@
-import type { CardChoices, GameCard, MatchState, PlayerState } from "../game";
+import type { CardChoices, GameCard, MatchState } from "../game";
 
 export type ChoiceKind =
   | "confirm"
@@ -9,6 +9,8 @@ export type ChoiceKind =
   | "energy"
   | "core"
   | "hand-cards"
+  | "deck-card"
+  | "deck-order"
   | "number"
   | "mode";
 
@@ -44,13 +46,20 @@ export type ChoiceSchema = {
 
 export type PendingCardChoice = {
   id: string;
-  kind: "card-play" | "trigger";
+  kind: "card-play" | "trigger" | "resolution";
   controllerId: string;
   cardId: string;
   schema: ChoiceSchema;
   answers: Record<string, CardChoices>;
   createdVersion: number;
   beforeState?: string;
+  pendingEffectId?: string;
+  instructionIndex?: number;
+  resumePriority?: string;
+  resumeDeadline?: number;
+  resumeStepLabel?: string;
+  /** Set as soon as an opponent/private answer makes rewind unsafe. */
+  irreversibleInformation?: boolean;
 };
 
 const NUMBER_WORDS: Record<string, number> = {
@@ -134,10 +143,20 @@ function targetOwner(match: MatchState, controllerId: string, text: string) {
 }
 
 function bakuganOptions(match: MatchState, controllerId: string, card: GameCard) {
+  if (/retract a Bakugan/i.test(card.effect)) {
+    return match.players.flatMap((owner) => owner.bakugan
+      .filter((bakugan) => !/didn'?t open this turn/i.test(card.effect) || bakugan.openedTurn !== match.turn)
+      .map((bakugan) => option(bakugan.id, `${bakugan.name} • ${bakugan.open ? "Open" : "Closed"}`, owner.id)));
+  }
   const owner = targetOwner(match, controllerId, card.effect);
   if (card.type === "Evo") {
+    const normalized = (value: string | null | undefined) => String(value ?? "")
+      .replace(/\s*\(Battle Brawlers\)\s*$/i, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
     return owner.bakugan
-      .filter((bakugan) => bakugan.name === card.evolvesFrom && bakugan.faction === card.faction)
+      .filter((bakugan) => normalized(bakugan.name) === normalized(card.evolvesFrom) && bakugan.faction === card.faction)
       .map((bakugan) => option(bakugan.id, `${bakugan.name} • ${bakugan.faction}`, owner.id));
   }
   return owner.bakugan.map((bakugan) => option(
@@ -150,12 +169,7 @@ function bakuganOptions(match: MatchState, controllerId: string, card: GameCard)
 function cardUsesBakuganTarget(card: GameCard) {
   const text = card.effect;
   return card.type === "Evo"
-    || /(?:choose|target|your|enemy|opposing|non-\[[a-z]+\]) (?:an? )?bakugan|on this|this bakugan/i.test(text);
-}
-
-function handChoiceRange(card: GameCard, player: PlayerState) {
-  const available = player.hand.filter((candidate) => candidate.id !== card.id).length;
-  return selectionRange(card.effect, available);
+    || /(?:choose|target|your|enemy|opposing|non-\[[a-z]+\]) (?:an? )?bakugan|retract a bakugan|on this|this bakugan/i.test(text);
 }
 
 function modeOptions(card: GameCard) {
@@ -173,57 +187,94 @@ export function buildChoiceSchema(
   match: MatchState,
   controllerId: string,
   card: GameCard,
+  sourceText = card.effect,
+  priorChoices: CardChoices = {},
 ): ChoiceSchema {
   const player = playerById(match, controllerId);
   const opponent = opponentOf(match, controllerId);
-  const text = card.effect;
+  const text = sourceText;
+  const contextualCard = sourceText === card.effect ? card : { ...card, effect: sourceText };
   const chooserId = choiceController(match, controllerId, text);
+  const controllerChooser = controllerId;
+  const opponentChooser = opponent.id;
   const fields: ChoiceField[] = [];
 
   if (/\bmay\b/i.test(text)) {
-    fields.push(field("confirmed", "confirm", "Use this optional effect?", chooserId, [
+    fields.push(field("confirmed", "confirm", "Use this optional effect?", /opponent may/i.test(text) ? opponentChooser : controllerChooser, [
       option("yes", "Yes"),
       option("no", "No"),
     ]));
   }
 
-  if (cardUsesBakuganTarget(card)) {
-    fields.push(field("targetBakuganId", "bakugan", "Choose a Bakugan", chooserId, bakuganOptions(match, controllerId, card)));
+  if (cardUsesBakuganTarget(contextualCard)) {
+    const bakuganChooser = /opponent chooses (?:an? )?Bakugan/i.test(text) ? opponentChooser : controllerChooser;
+    fields.push(field("targetBakuganId", "bakugan", "Choose a Bakugan", bakuganChooser, bakuganOptions(match, controllerId, contextualCard)));
   }
   if (/choose a player/i.test(text)) {
-    fields.push(field("targetPlayerId", "player", "Choose a player", chooserId, match.players.map((candidate) => option(candidate.id, candidate.name, candidate.id))));
+    fields.push(field("targetPlayerId", "player", "Choose a player", controllerChooser, match.players.map((candidate) => option(candidate.id, candidate.name, candidate.id))));
   }
   if (/destroy a hero|choose a hero|take control of a hero|energize (?:it|that hero)/i.test(text)) {
     const owners = /enemy|opponent/i.test(text) ? [opponent] : match.players;
-    fields.push(field("targetHeroId", "hero", "Choose a Hero", chooserId, owners.flatMap((owner) => owner.heroes.map((hero) => option(hero.id, hero.name, owner.id)))));
+    const maximumCost = text.match(/cost (\d+) \[Energy\] or less/i)?.[1];
+    fields.push(field("targetHeroId", "hero", "Choose a Hero", chooserId, owners.flatMap((owner) => owner.heroes
+      .filter((hero) => maximumCost == null || (typeof hero.cost === "number" && hero.cost <= Number(maximumCost)))
+      .map((hero) => option(hero.id, hero.name, owner.id)))));
   }
   if (/destroy an evo|choose an evo/i.test(text)) {
-    fields.push(field("targetEvoId", "evo", "Choose an Evo", chooserId, match.players.flatMap((owner) => owner.bakugan.flatMap((bakugan) => bakugan.evoStack.map((evo) => option(evo.id, evo.name, owner.id))))));
+    fields.push(field("targetEvoId", "evo", "Choose an Evo", chooserId, match.players.flatMap((owner) => owner.bakugan.flatMap((bakugan) => bakugan.evoStack
+      .filter((evo) => !/not played this turn/i.test(text) || evo.playedTurn !== match.turn)
+      .map((evo) => option(evo.id, evo.name, owner.id))))));
   }
   if (/destroy (?:an?|two) (?:enemy )?energy|choose an energy/i.test(text)) {
     const owners = /enemy|opponent/i.test(text) ? [opponent] : match.players;
     const amount = /two energy/i.test(text) ? 2 : 1;
     fields.push(field("targetEnergyIds", "energy", "Choose Energy", chooserId, owners.flatMap((owner) => owner.energyZone.map((energy) => option(energy.id, "Face-down Energy", owner.id))), amount, amount, "private"));
   }
-  if (/attach a bakucore|remove (?:an|a) (?:enemy )?bakugan(?:'s)? bakucore|choose a bakucore/i.test(text)) {
+  if (/attach a bakucore|remove (?:an|a) (?:enemy )?bakugan(?:'s)? bakucore|choose a bakucore|turn a bakucore .*face up/i.test(text)) {
     const remove = /remove/i.test(text);
     const options = remove
       ? match.players.flatMap((owner) => owner.bakugan.flatMap((bakugan) => bakugan.heldCoreCells.map((cell) => option(cell, `Core held by ${bakugan.name}`, owner.id))))
-      : match.placements.filter((placement) => !placement.attachedTo).map((placement) => option(placement.cell, `${placement.core.type} Core`, placement.playerId));
+      : match.placements.filter((placement) => !placement.attachedTo && !placement.revealed).map((placement) => option(placement.cell, `${placement.core.type} Core`, placement.playerId));
     fields.push(field("coreCell", "core", "Choose a BakuCore", chooserId, options));
   }
 
   const selectsHandCards = /sacrifice|discard (?:a|an|one|two|three|any|up to)|cards? from your hand|play a card from your hand for free|shuffle .*cards? from your hand/i.test(text);
   if (selectsHandCards) {
-    const range = handChoiceRange(card, player);
+    const affectedPlayer = priorChoices.targetPlayerId
+      ? playerById(match, priorChoices.targetPlayerId)
+      : /your opponent discards|opponent discards/i.test(text) ? opponent : player;
+    const range = selectionRange(text, affectedPlayer.hand.filter((candidate) => candidate.id !== card.id).length);
     fields.push(field(
       /sacrifice|discard/i.test(text) ? "discardCardIds" : "handCardIds",
       "hand-cards",
       /sacrifice/i.test(text) ? "Choose cards to sacrifice" : /discard/i.test(text) ? "Choose cards to discard" : "Choose cards",
-      chooserId,
-      player.hand.filter((candidate) => candidate.id !== card.id).map((candidate) => option(candidate.id, candidate.displayName || candidate.name, player.id)),
+      affectedPlayer.id,
+      affectedPlayer.hand.filter((candidate) => candidate.id !== card.id).map((candidate) => option(candidate.id, candidate.displayName || candidate.name, affectedPlayer.id)),
       range.minimum,
       range.maximum,
+      "private",
+    ));
+  }
+
+  if (/search your deck/i.test(text)) {
+    const requestedType = text.match(/for an? (Action|Hero|Evo|Flip)/i)?.[1];
+    const options = player.deckCards
+      .filter((candidate) => !requestedType || candidate.type === requestedType)
+      .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, player.id));
+    fields.push(field("deckCardId", "deck-card", "Choose a card from your deck", controllerChooser, options, options.length ? 1 : 0, 1, "private"));
+  }
+
+  const reorder = text.match(/(?:look at|reveal) the top (a|an|one|two|three|four|five|\d+) cards?.*any order/i);
+  if (reorder) {
+    const amount = Math.min(numberValue(reorder[1]), player.deckCards.length);
+    fields.push(field(
+      "orderedCardIds",
+      "deck-order",
+      "Choose the new top-to-bottom order",
+      controllerChooser,
+      player.deckCards.slice(0, amount).map((candidate) => option(candidate.id, candidate.displayName || candidate.name, player.id)),
+      amount,
+      amount,
       "private",
     ));
   }
@@ -233,9 +284,10 @@ export function buildChoiceSchema(
     fields.push(field("xValue", "number", "Choose X", chooserId, Array.from({ length: maximum + 1 }, (_, value) => option(String(value), String(value))), 1, 1));
   }
 
-  const modes = modeOptions(card);
+  const modes = modeOptions(contextualCard);
   if (modes.length && !fields.some((candidate) => candidate.id === "confirmed" && modes.every((candidate) => candidate.id === "yes" || candidate.id === "no"))) {
-    fields.push(field("mode", "mode", "Choose an effect", chooserId, modes));
+    const modeChooser = /opponent chooses|chosen by an opponent/i.test(text) ? opponentChooser : controllerChooser;
+    fields.push(field("mode", "mode", "Choose an effect", modeChooser, modes));
   }
 
   const simultaneous = /each player (?:secretly )?chooses|both players (?:secretly )?choose|simultaneously/i.test(text);
@@ -254,7 +306,7 @@ export function buildChoiceSchema(
   }
 
   return {
-    id: `${match.id}:${match.version}:${card.id}:choices`,
+    id: `${match.id}:${match.version}:${card.id}:${sourceText}:choices`,
     sourceId: card.id,
     sourceName: card.displayName || card.name,
     controllerId,

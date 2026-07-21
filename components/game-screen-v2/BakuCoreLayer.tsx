@@ -368,7 +368,7 @@ export function BakuCoreLayer({
               const selected = selectedCoreCell === placement.cell && canSelect;
               const playerLanded = localRollCells.has(placement.cell);
               const opponentLanded = opponentRollCells.has(placement.cell);
-              const revealed = playerLanded || opponentLanded || deferredSet.has(placement.cell);
+              const revealed = Boolean(placement.revealed) || playerLanded || opponentLanded || deferredSet.has(placement.cell);
               return (
                 <g
                   key={placement.cell}

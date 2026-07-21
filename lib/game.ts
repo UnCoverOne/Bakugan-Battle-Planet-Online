@@ -5,7 +5,8 @@ import {
   schemaIsComplete,
   validateChoices,
 } from "./rules/choices";
-import { compileCardEffect } from "./rules/effects";
+import { executeRuleProgram } from "./rules/executor";
+import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
 
 export type Faction = "Pyrus" | "Aquos" | "Darkus" | "Haos" | "Ventus" | "Aurelus";
 export type CoreType = "Fist" | "Flaming Fist" | "Shield" | "Magic Shield" | "Helix";
@@ -29,6 +30,8 @@ export type GameCard = {
   coreTypes: CoreType[];
   evolvesFrom: string | null;
   art: string;
+  /** Turn in which this physical card instance entered play. */
+  playedTurn?: number;
 };
 
 export type Bakugan = {
@@ -44,6 +47,8 @@ export type Bakugan = {
   open: boolean;
   heldCoreCells: string[];
   evoStack: GameCard[];
+  /** Turn in which this Bakugan most recently opened. */
+  openedTurn?: number;
 };
 
 export type Core = {
@@ -79,9 +84,11 @@ export type PlayerState = {
   lastSeen: number;
   energizedThisTurn: boolean;
   cardsPlayedThisTurn: number;
+  /** Publicly revealed top-deck card awaiting a linked free-play decision. */
+  revealedDeckCardId?: string;
 };
 
-export type Placement = { playerId: string; core: Core; cell: string; order: number; attachedTo?: string };
+export type Placement = { playerId: string; core: Core; cell: string; order: number; attachedTo?: string; revealed?: boolean };
 export type RollOutcome = {
   playerId: string;
   bakuganId: string;
@@ -104,6 +111,8 @@ export type CardChoices = {
   coreCell?: string;
   discardCardIds?: string[];
   handCardIds?: string[];
+  orderedCardIds?: string[];
+  deckCardId?: string;
   xValue?: number;
   mode?: string;
   confirmed?: boolean;
@@ -119,6 +128,10 @@ export type PendingEffect = {
   effect?: string;
   sourceId?: string;
   negated?: boolean;
+  /** Next compiled instruction to execute. Persisted so a choice can suspend resolution. */
+  instructionIndex?: number;
+  /** Clause-scoped answers keyed by compiled instruction index. */
+  resolvedChoices?: Record<string, CardChoices>;
 };
 
 export type TriggerOrderRequest = {
@@ -138,6 +151,8 @@ export type UndoWindow = {
   batchObjectId: string;
   informationEpoch: number;
   priorityEpoch: number;
+  /** True once preparation or resolution exposed information that cannot be put back. */
+  irreversibleInformation: boolean;
   snapshot?: string;
 };
 
@@ -173,6 +188,7 @@ export type MatchState = {
   batch: PendingEffect[];
   pendingChoice?: import("./rules/choices").PendingCardChoice;
   triggerOrders: TriggerOrderRequest[];
+  collectedEventKeys: string[];
   informationEpoch: number;
   priorityEpoch: number;
   undoWindow?: UndoWindow;
@@ -240,6 +256,7 @@ export const cloneMatch = (state: MatchState): MatchState => JSON.parse(JSON.str
 export const normalizeMatchState = (input: MatchState): MatchState => {
   const state = cloneMatch(input);
   state.triggerOrders = Array.isArray(state.triggerOrders) ? state.triggerOrders : [];
+  state.collectedEventKeys = Array.isArray(state.collectedEventKeys) ? state.collectedEventKeys : [];
   state.informationEpoch = Number.isFinite(state.informationEpoch) ? Number(state.informationEpoch) : 0;
   state.priorityEpoch = Number.isFinite(state.priorityEpoch) ? Number(state.priorityEpoch) : 0;
   state.initialStartingPlayer = state.initialStartingPlayer || state.startingPlayer || state.players[0]?.id || "";
@@ -258,9 +275,12 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
 const otherPlayer = (state: MatchState, playerId: string) => state.players.find((player) => player.id !== playerId)!;
 const playerById = (state: MatchState, playerId: string) => state.players.find((player) => player.id === playerId)!;
 const syncDeck = (player: PlayerState) => { player.deck = player.deckCards.length; };
-const wordNumber = (word?: string) => ({ a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5 }[String(word).toLowerCase()] ?? (Number(word) || 1));
-
 const drawCards = (state: MatchState, player: PlayerState, amount: number) => {
+  if (amount > 0) {
+    state.informationEpoch += 1;
+    if (state.undoWindow) state.undoWindow.irreversibleInformation = true;
+    state.undoWindow = undefined;
+  }
   for (let index = 0; index < amount; index += 1) {
     const card = player.deckCards.shift();
     if (!card) { entry(state, "game", `${player.name} could not draw because their deck is empty.`); break; }
@@ -277,11 +297,19 @@ const discardFromHand = (state: MatchState, player: PlayerState, amount: number,
     if (index >= 0) { const [card]=player.hand.splice(index,1); player.discard.push(card); discarded.push(card); }
   }
   entry(state, "game", `${player.name} discarded ${Math.min(amount, ids.length)} card${amount === 1 ? "" : "s"}.`);
-  const active=activeBakugan(state,player.id); const sources=[...(active?[topCard(active)]:[]),...player.heroes];
-  for(const source of sources) if(/When you discard a card/i.test(source.effect)) queueTrigger(state,player.id,source,source.effect,{targetBakuganId:active?.id});
-  for(const card of discarded) if(/If this is discarded, you may play it for free/i.test(card.effect)) {
-    player.discard=player.discard.filter((candidate)=>candidate.id!==card.id); state.batch.push({id:uid(),controllerId:player.id,card,choices:{},kind:"trigger"});
-  }
+  const active = activeBakugan(state, player.id);
+  emitGameEvent(state, {
+    id: `${state.turn}:discard:${discarded.map((card) => card.id).join(",")}:${state.version}`,
+    type: "discard",
+    playerId: player.id,
+    targetBakuganId: active?.id,
+    sourceCards: discarded,
+  });
+  if (player.hand.length === 0) emitGameEvent(state, {
+    id: `${state.turn}:hand-empty:${player.id}:${state.version}`,
+    type: "hand-empty",
+    playerId: player.id,
+  });
 };
 
 const shuffle = <T,>(values: T[]) => {
@@ -303,7 +331,7 @@ export const createMatch = (code: string, format: "bo1" | "bo3", players: Player
     priority: startingPlayer, placementTurn: 0, placements: [], selected: {}, targets: {}, rolls: {},
     powerBoost: {}, damageBoost: {}, frostStrike: {}, doubleStrike: {}, shadowStrike: {}, passes: [], batch: [], victorByDamage: false,
     pendingDamage: 0, pendingLoser: "", damageOrigin: "", teamAttack: false, delayedRetracts: [], copyNextAction: {}, brawlWinner: "", winner: "", resultReason: "",
-    triggerOrders: [], informationEpoch: 0, priorityEpoch: 0,
+    triggerOrders: [], collectedEventKeys: [], informationEpoch: 0, priorityEpoch: 0,
     deadline: deadlineFor("lobby"),
     log: [{ id: "start", at: Date.now(), kind: "system", message: `Match ${code} created • ${format.toUpperCase()} • complete Battle Planet rules` }],
   };
@@ -369,6 +397,7 @@ const beginTurn = (state: MatchState) => {
   state.selected = {}; state.targets = {}; state.rolls = {}; state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {};
   state.doubleStrike = {}; state.shadowStrike = {}; state.batch = []; state.victorByDamage = false; state.pendingDamage = 0;
   state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.delayedRetracts = []; state.winner = "";
+  state.collectedEventKeys = [];
   for (const player of state.players) {
     player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0;
   }
@@ -414,6 +443,7 @@ export const selectBakugan = (input: MatchState, playerId: string, bakuganId: st
   const bakugan = player.bakugan.find((candidate) => candidate.id === bakuganId);
   if (!bakugan || bakugan.open) throw new Error("Choose a closed Bakugan.");
   state.selected[playerId] = bakuganId; entry(state, "game", `${player.name} selected a closed Bakugan.`);
+  emitGameEvent(state, { id: `${state.turn}:select:${playerId}:${bakuganId}`, type: "select", playerId, targetBakuganId: bakuganId });
   if (state.players.every((candidate) => state.selected[candidate.id])) {
     setPhase(state, "preRoll", "Roll Phase • Pre-roll priority", state.startingPlayer);
     entry(state, "game", "Both players selected. The pre-roll priority window is open.");
@@ -516,16 +546,24 @@ const performRolls = (state: MatchState) => {
   resolveCoreCollisions(state, outcomes);
   state.informationEpoch += 1;
   state.undoWindow = undefined;
+  const openedPlayerIds: string[] = [];
   for (const roll of outcomes) {
     state.rolls[roll.playerId] = roll; const player = playerById(state, roll.playerId); const bakugan = player.bakugan.find((candidate) => candidate.id === roll.bakuganId)!;
     bakugan.open = roll.result !== "miss";
     if (bakugan.open) {
+      openedPlayerIds.push(player.id);
+      (bakugan as Bakugan & { openedTurn?: number }).openedTurn = state.turn;
       for (const cell of roll.cores) { const placement = state.placements.find((candidate) => candidate.cell === cell); if (placement) placement.attachedTo = bakugan.id; }
       bakugan.heldCoreCells.push(...roll.cores.filter((cell) => !bakugan.heldCoreCells.includes(cell)));
     }
   }
   setPhase(state, "power", "Brawl Phase • Power Step", state.startingPlayer);
-  queueOpenTriggers(state);
+  emitGameEvent(state, {
+    id: `${state.turn}:open:${openedPlayerIds.sort().join("+")}`,
+    type: "open",
+    playerId: "*",
+    playerIds: openedPlayerIds,
+  });
 };
 
 export const targetCore = (input: MatchState, playerId: string, cell: string) => {
@@ -552,6 +590,22 @@ const conditionActive = (state: MatchState, player: PlayerState, text: string, c
   if (lower.includes("only have one open bakugan")) return player.bakugan.filter((bakugan) => bakugan.open).length === 1;
   if (lower.includes("three or more heroes")) return player.heroes.length >= 3;
   if (lower.includes("five or more hero")) return player.heroes.length >= 5;
+  if (lower.includes("15 or more energy")) return player.energyZone.length >= 15;
+  if (lower.includes("played two or more cards this turn")) return player.cardsPlayedThisTurn >= 2;
+  if (lower.includes("if you do")) return choices.confirmed !== false && Boolean(
+    choices.discardCardIds?.length || choices.handCardIds?.length || choices.targetHeroId || choices.targetBakuganId,
+  );
+  if (/damage rating\] becomes 10 or greater/i.test(text)) {
+    const bakugan = chooseBakugan(state, player.id, choices);
+    return Boolean(bakugan && (topCard(bakugan).damage ?? bakugan.damage) + (state.damageBoost[bakugan.id] ?? 0) >= 10);
+  }
+  const controlledHero = text.match(/if you control ([^,.]+)/i)?.[1]?.trim().toLowerCase();
+  if (controlledHero) return player.heroes.some((hero) => hero.name.toLowerCase() === controlledHero);
+  if (/not a Flip card/i.test(text)) {
+    const revealedId = (player as PlayerState & { revealedDeckCardId?: string }).revealedDeckCardId;
+    const revealed = player.deckCards.find((card) => card.id === revealedId);
+    return Boolean(revealed && revealed.type !== "Flip");
+  }
   return false;
 };
 
@@ -561,13 +615,14 @@ const statValues = (text: string, pattern: RegExp, condition: boolean) => {
   return values.reduce((sum, value) => sum + value, 0);
 };
 
-const scaleStat = (state: MatchState, player: PlayerState, text: string, value: number, stat: "power" | "damage" | "frost") => {
+const scaleStat = (state: MatchState, player: PlayerState, text: string, value: number, stat: "power" | "damage" | "frost" | "draw") => {
   const faction = text.match(/for each \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan on your team/i)?.[1] as Faction | undefined;
   if (faction) return value * player.bakugan.filter((bakugan) => bakugan.faction === faction).length;
   if (/for each Flip card in your discard pile/i.test(text)) return value * player.discard.filter((card) => card.type === "Flip").length;
   if (/for each Hero you have in play/i.test(text)) return value * player.heroes.length;
   if (/for each Energy card you have/i.test(text)) return value * player.maxEnergy;
   if (/for each BakuCore that your Bakugan hold/i.test(text)) return value * player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
+  if (/sacrificed-card/i.test(text) || /sacrifice/i.test(text)) return value;
   if (/for every other card you played this turn/i.test(text)) return value * Math.max(1, player.cardsPlayedThisTurn - 1);
   if (stat === "power" && /for each 1 \[Damage Rating\] your Bakugan has/i.test(text)) {
     const bakugan = activeBakugan(state, player.id); return value * (bakugan ? staticModifier(state, bakugan, player).damage : 0);
@@ -587,6 +642,7 @@ export const cardChoiceSpec = (state: MatchState, playerId: string, card: GameCa
     energy: "targetEnergy",
     core: "core",
     "hand-cards": "multiHand",
+    "deck-card": "deckCard",
     number: "xValue",
     mode: "mode",
     confirm: "mode",
@@ -604,7 +660,7 @@ const queueTrigger = (state: MatchState, controllerId: string, source: GameCard,
 const stageSimultaneousTriggers = (state: MatchState, event: string, triggers: PendingEffect[]) => {
   if (!triggers.length) return;
   const apnap = [...state.players].sort((a, b) => Number(b.id === state.startingPlayer) - Number(a.id === state.startingPlayer));
-  state.triggerOrders = apnap.map((player) => {
+  const requests = apnap.map((player) => {
     const controlled = triggers.filter((trigger) => trigger.controllerId === player.id);
     return {
       id: uid(),
@@ -615,6 +671,7 @@ const stageSimultaneousTriggers = (state: MatchState, event: string, triggers: P
       orderedIds: controlled.length <= 1 ? controlled.map((trigger) => trigger.id) : undefined,
     };
   }).filter((request) => request.triggers.length);
+  state.triggerOrders.push(...requests);
   if (state.triggerOrders.some((request) => !request.orderedIds)) {
     state.stepLabel = `${event} • Order simultaneous triggers`;
     state.priority = state.triggerOrders.find((request) => !request.orderedIds)!.controllerId;
@@ -649,19 +706,69 @@ export const orderTriggers = (input: MatchState, playerId: string, requestId: st
   return withVersion(state);
 };
 
-const queueOpenTriggers = (state: MatchState) => {
+export type GameEvent = {
+  id: string;
+  type: "select" | "open" | "discard" | "card-play" | "victor" | "attack" | "damage-taken" | "hand-empty" | "end-turn";
+  playerId: string;
+  playerIds?: string[];
+  cardType?: CardType;
+  targetBakuganId?: string;
+  sourceCards?: GameCard[];
+};
+
+const triggerMatchesEvent = (text: string, event: GameEvent) => {
+  if (event.type === "select") return /when you select a Bakugan to roll/i.test(text);
+  if (event.type === "open") return /when this opens|when you open a Bakugan/i.test(text);
+  if (event.type === "discard") return /when you discard a card|if this is discarded/i.test(text);
+  if (event.type === "card-play") {
+    const typed = text.match(/when you play an? (Action|Hero|Evo|Flip)/i)?.[1];
+    return typed ? typed === event.cardType : /when you play (?:a card|this(?: card)?)/i.test(text);
+  }
+  if (event.type === "victor") return /\bVictor\s*[-:]/i.test(text);
+  if (event.type === "attack") return /when one of your Bakugan attacks|if you deal \d+ or more damage/i.test(text);
+  if (event.type === "damage-taken") return /if you take damage/i.test(text);
+  if (event.type === "hand-empty") return /when you have no cards in hand|when your hand is empty/i.test(text);
+  return /at the end of (?:your |the )?turn|end of turn/i.test(text);
+};
+
+/** Collect every triggered instruction for one authoritative event before any enters the batch. */
+export const collectTriggersForEvent = (state: MatchState, event: GameEvent) => {
+  if (state.collectedEventKeys.includes(event.id)) return [];
+  state.collectedEventKeys.push(event.id);
   const triggers: PendingEffect[] = [];
-  for (const player of state.players) {
-    const bakugan = activeBakugan(state, player.id); if (!bakugan?.open) continue;
-    const sources = [topCard(bakugan), ...player.heroes];
+  for (const owner of state.players) {
+    if (event.playerIds && !event.playerIds.includes(owner.id)) continue;
+    if (event.playerId !== "*" && event.type !== "end-turn" && owner.id !== event.playerId) continue;
+    const active = activeBakugan(state, owner.id);
+    const sources = [...(active ? [topCard(active)] : []), ...owner.heroes, ...(event.sourceCards ?? [])];
+    const seen = new Set<string>();
     for (const source of sources) {
-      if (/when this opens/i.test(source.effect) || /when you open a Bakugan/i.test(source.effect)) triggers.push({
-        id: uid(), controllerId: player.id, card: source, sourceId: source.id, effect: source.effect,
-        choices: { targetBakuganId: bakugan.id }, kind: "trigger",
-      });
+      if (seen.has(source.id)) continue;
+      seen.add(source.id);
+      const program = compileCardEffect(source);
+      for (const instruction of program.instructions) {
+        if (!instruction.actions.some((action) => action.kind === "trigger") || !triggerMatchesEvent(instruction.sourceText, event)) continue;
+        if (event.type === "end-turn" && /end of your turn/i.test(instruction.sourceText) && owner.id !== event.playerId) continue;
+        if (/if you deal \d+ or more damage/i.test(instruction.sourceText) && event.type === "attack" && state.pendingDamage < 10) continue;
+        triggers.push({
+          id: uid(),
+          controllerId: owner.id,
+          card: source,
+          sourceId: source.id,
+          effect: source.name === "Dan Kouzo" ? source.effect : instruction.sourceText,
+          choices: { targetBakuganId: event.targetBakuganId ?? active?.id },
+          kind: "trigger",
+        });
+      }
     }
   }
-  stageSimultaneousTriggers(state, "Open", triggers);
+  return triggers;
+};
+
+export const emitGameEvent = (state: MatchState, event: GameEvent) => {
+  const triggers = collectTriggersForEvent(state, event);
+  stageSimultaneousTriggers(state, event.type, triggers);
+  return triggers;
 };
 
 const effectiveCost = (state: MatchState, player: PlayerState, card: GameCard, choices: CardChoices) => {
@@ -707,8 +814,11 @@ export const prepareCardPlay = (input: MatchState, playerId: string, cardId: str
   const card = player.hand.find((candidate) => candidate.id === cardId);
   if (!card) throw new Error("That card is not in your hand.");
   if (card.type === "Flip" || card.type === "Character") throw new Error("That card cannot be played from hand.");
-  const schema = buildChoiceSchema(state, playerId, card);
-  if (!schemaHasLegalCompletion(schema)) throw new Error(`${card.name} has no legal choice and cannot be played.`);
+  // Targets, modes, optional clauses and opponent decisions are chosen only
+  // when the relevant instruction resolves. X is a payment parameter and is
+  // therefore the sole choice made before the card enters the batch.
+  const paymentCard = card.cost === "X" ? { ...card, type: "Action" as const } : card;
+  const schema = buildChoiceSchema(state, playerId, paymentCard, card.cost === "X" ? "Choose a value for X." : "");
   if (!schema.fields.length) return playCard(state, playerId, cardId, {});
   state.pendingChoice = {
     id: uid(),
@@ -719,6 +829,7 @@ export const prepareCardPlay = (input: MatchState, playerId: string, cardId: str
     answers: {},
     createdVersion: state.version,
     beforeState: JSON.stringify({ ...input, pendingChoice: undefined, undoWindow: undefined }),
+    irreversibleInformation: false,
   };
   const firstChooser = schema.fields[0]?.chooserId ?? playerId;
   state.priority = firstChooser;
@@ -730,7 +841,7 @@ export const prepareCardPlay = (input: MatchState, playerId: string, cardId: str
 
 export const cancelCardChoice = (input: MatchState, playerId: string) => {
   const state = cloneMatch(input);
-  if (!state.pendingChoice || state.pendingChoice.controllerId !== playerId || Object.keys(state.pendingChoice.answers).length) {
+  if (!state.pendingChoice || state.pendingChoice.kind === "resolution" || state.pendingChoice.controllerId !== playerId || Object.keys(state.pendingChoice.answers).length) {
     throw new Error("This card choice can no longer be cancelled.");
   }
   const card = playerById(state, playerId).hand.find((candidate) => candidate.id === state.pendingChoice!.cardId);
@@ -748,8 +859,12 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
   if (!pending.schema.fields.some((field) => field.chooserId === playerId)) throw new Error("This choice belongs to another player.");
   validateChoices(pending.schema, playerId, choices);
   pending.answers[playerId] = choices;
-  if (playerId !== pending.controllerId || pending.schema.fields.some((field) => field.chooserId === playerId && field.visibility === "private")) {
+  const irreversible = playerId !== pending.controllerId
+    || pending.schema.fields.some((field) => field.chooserId === playerId && field.visibility === "private");
+  if (irreversible) {
+    pending.irreversibleInformation = true;
     state.informationEpoch += 1;
+    if (state.undoWindow) state.undoWindow.irreversibleInformation = true;
     state.undoWindow = undefined;
   }
   entry(state, "game", `${playerById(state, playerId).name} locked ${pending.schema.simultaneous ? "a private" : "a"} choice for ${pending.schema.sourceName}.`);
@@ -759,10 +874,29 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
     return withVersion(state);
   }
   const merged = mergeChoiceAnswers(pending.schema, pending.answers);
+  if (pending.kind === "resolution") {
+    const effect = state.batch.find((candidate) => candidate.id === pending.pendingEffectId);
+    if (!effect || pending.instructionIndex == null) throw new Error("The resolving batch object is no longer available.");
+    effect.resolvedChoices = { ...(effect.resolvedChoices ?? {}), [String(pending.instructionIndex)]: merged };
+    state.pendingChoice = undefined;
+    state.priority = pending.resumePriority ?? state.startingPlayer;
+    state.deadline = pending.resumeDeadline ?? deadlineFor(state.phase);
+    state.stepLabel = pending.resumeStepLabel ?? state.stepLabel;
+    const completed = resolvePendingEffect(state, effect);
+    if (completed) {
+      state.batch = state.batch.filter((candidate) => candidate.id !== effect.id);
+      if (!hasQueuedEffectDraw(state)) {
+        state.priority = state.startingPlayer;
+        state.deadline = deadlineFor(state.phase);
+      }
+      if (state.phase === "damage" && state.pendingDamage <= 0 && !state.revealedFlip) finishDamage(state);
+    }
+    return withVersion(state);
+  }
   return playCard(state, pending.controllerId, pending.cardId, merged);
 };
 
-const splitWhenPlayedEffect = (effect: string) => {
+export const splitWhenPlayedEffect = (effect: string) => {
   const sentences = effect.split(/(?<=\.)\s+/);
   const triggerIndex = sentences.findIndex((sentence) => /when you play this(?: card)?/i.test(sentence));
   if (triggerIndex < 0) return { cardEffect: effect, triggerEffect: "" };
@@ -776,38 +910,32 @@ const splitWhenPlayedEffect = (effect: string) => {
 
 export const playCard = (input: MatchState, playerId: string, cardId: string, choices: CardChoices = {}) => {
   const state = cloneMatch(input); const player = playerById(state, playerId);
+  const preparationWasIrreversible = Boolean(state.pendingChoice?.irreversibleInformation);
   const undoSnapshot = state.pendingChoice?.beforeState
     ?? JSON.stringify({ ...input, pendingChoice: undefined, undoWindow: undefined });
   if (!["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase) || state.priority !== playerId) throw new Error("You do not have priority in a card-play window.");
   const index = player.hand.findIndex((card) => card.id === cardId); if (index < 0) throw new Error("That card is not in your hand.");
   const card = player.hand[index]; if (card.type === "Flip" || card.type === "Character") throw new Error("Flip cards are played only when revealed by damage; Characters begin outside the deck.");
-  const schema = buildChoiceSchema(state, playerId, card);
-  if (!schemaHasLegalCompletion(schema)) throw new Error(`${card.name} has no legal choice and cannot be played.`);
-  const prepared = state.pendingChoice?.cardId === cardId && state.pendingChoice.controllerId === playerId
-    && schemaIsComplete(state.pendingChoice.schema, state.pendingChoice.answers);
-  if (schema.fields.length && !prepared) {
-    if (schema.fields.some((field) => field.chooserId !== playerId)) throw new Error("This card requires the other player to make a choice. Prepare the card play first.");
-    validateChoices(schema, playerId, choices);
-  }
+  if (card.cost === "X" && !Number.isFinite(choices.xValue)) throw new Error("Choose X before paying for this card.");
   state.pendingChoice = undefined;
-  if (card.type === "Evo") {
-    const target = player.bakugan.find((bakugan) => bakugan.id === choices.targetBakuganId) ?? activeBakugan(state, playerId);
-    if (!target || target.name !== card.evolvesFrom || target.faction !== card.faction) throw new Error(`Choose your ${card.evolvesFrom} for this Evo.`);
-    choices.targetBakuganId = target.id;
-  }
-  if (card.effect.toLowerCase().includes("sacrifice") && choices.discardCardIds?.length) discardFromHand(state, player, choices.discardCardIds.length, choices.discardCardIds);
+  card.playedTurn = state.turn;
   const cost = effectiveCost(state, player, card, choices); payEnergy(state, player, cost); player.hand.splice(index, 1); player.cardsPlayedThisTurn += 1;
   const split = splitWhenPlayedEffect(card.effect);
   const batchObject: PendingEffect = { id: uid(), controllerId: playerId, card, effect: split.cardEffect, choices, kind: "card" };
   state.batch.push(batchObject); state.passes = [];
   if (split.triggerEffect) queueTrigger(state, playerId, card, split.triggerEffect, choices);
   if (card.type === "Action") {
-    const selected = activeBakugan(state, playerId); const activeSource = selected ? topCard(selected) : undefined;
-    if (activeSource && /when you play an Action on this/i.test(activeSource.effect)) queueTrigger(state, playerId, activeSource, activeSource.effect, { targetBakuganId: selected!.id });
     const toshi = player.heroes.find((hero) => hero.name === "Toshi");
     if (toshi && player.cardsPlayedThisTurn === 1) state.batch.push({ id: uid(), controllerId: playerId, card: { ...card, id:`${card.id}-toshi-copy` }, choices, kind:"copy" });
     if ((state.copyNextAction[playerId] ?? 0) > 0) { state.copyNextAction[playerId] -= 1; state.batch.push({ id: uid(), controllerId: playerId, card: { ...card, id:`${card.id}-next-copy` }, choices, kind:"copy" }); }
   }
+  emitGameEvent(state, {
+    id: `${state.turn}:card-play:${card.id}`,
+    type: "card-play",
+    playerId,
+    cardType: card.type,
+    targetBakuganId: activeBakugan(state, playerId)?.id,
+  });
   entry(state, "game", `${player.name} added ${card.name} to the batch for ${cost} Energy.`);
   state.undoWindow = {
     actorId: playerId,
@@ -817,6 +945,7 @@ export const playCard = (input: MatchState, playerId: string, cardId: string, ch
     batchObjectId: batchObject.id,
     informationEpoch: state.informationEpoch,
     priorityEpoch: state.priorityEpoch,
+    irreversibleInformation: preparationWasIrreversible,
     snapshot: undoSnapshot,
   };
   return withVersion(state);
@@ -828,128 +957,486 @@ const chooseBakugan = (state: MatchState, controllerId: string, choices: CardCho
     ?? activeBakugan(state, owner.id) ?? owner.bakugan.find((bakugan) => bakugan.open) ?? owner.bakugan[0];
 };
 
-const searchDeck = (state: MatchState, player: PlayerState, type?: CardType) => {
-  const index = player.deckCards.findIndex((card) => !type || card.type === type); if (index < 0) return;
-  const [card] = player.deckCards.splice(index, 1); player.hand.push(card); shuffle(player.deckCards); syncDeck(player);
-  entry(state, "game", `${player.name} searched, revealed ${card.name}, put it into hand, then shuffled.`);
+const destroyHero = (state: MatchState, controllerId: string, choices: CardChoices, allEnemy: boolean) => {
+  const owners = allEnemy ? [otherPlayer(state, controllerId)] : state.players;
+  for (const owner of owners) {
+    const selected = allEnemy ? owner.heroes : owner.heroes.filter((hero) => hero.id === choices.targetHeroId);
+    if (!selected.length) continue;
+    const ids = new Set(selected.map((hero) => hero.id));
+    owner.heroes = owner.heroes.filter((hero) => !ids.has(hero.id));
+    owner.discard.push(...selected);
+  }
 };
 
-const destroyHero = (state: MatchState, controllerId: string, choices: CardChoices, all = false) => {
-  const opponent = otherPlayer(state, controllerId); const targets = all ? [...opponent.heroes] : opponent.heroes.filter((hero) => !choices.targetHeroId || hero.id === choices.targetHeroId).slice(0, 1);
-  opponent.heroes = opponent.heroes.filter((hero) => !targets.some((target) => target.id === hero.id)); opponent.discard.push(...targets);
-};
-const destroyEvo = (state: MatchState, controllerId: string, choices: CardChoices, all = false) => {
-  const opponent = otherPlayer(state, controllerId);
-  for (const bakugan of opponent.bakugan) {
-    if (all || bakugan.evoStack.some((evo) => evo.id === choices.targetEvoId)) opponent.discard.push(...bakugan.evoStack.splice(all ? 0 : Math.max(0, bakugan.evoStack.length - 1)));
+const destroyEvo = (state: MatchState, controllerId: string, choices: CardChoices, allEnemy: boolean) => {
+  const owners = allEnemy ? [otherPlayer(state, controllerId)] : state.players;
+  for (const owner of owners) for (const bakugan of owner.bakugan) {
+    const selected = allEnemy ? [...bakugan.evoStack] : bakugan.evoStack.filter((evo) => evo.id === choices.targetEvoId);
+    if (!selected.length) continue;
+    const ids = new Set(selected.map((evo) => evo.id));
+    bakugan.evoStack = bakugan.evoStack.filter((evo) => !ids.has(evo.id));
+    owner.discard.push(...selected);
   }
-};
-const destroyEnergy = (state: MatchState, controllerId: string, count: number, selected: string[] = []) => {
-  const opponent = otherPlayer(state, controllerId);
-  const ids = selected.length ? selected.slice(0, count) : opponent.energyZone.slice(0, count).map((card) => card.id);
-  const destroyed = opponent.energyZone.filter((card) => ids.includes(card.id));
-  opponent.energyZone = opponent.energyZone.filter((card) => !ids.includes(card.id));
-  opponent.discard.push(...destroyed);
-  opponent.maxEnergy = opponent.energyZone.length; opponent.energy = Math.min(opponent.energy, opponent.maxEnergy);
 };
 
-const applyEffect = (state: MatchState, pending: PendingEffect) => {
-  const { card, controllerId, choices } = pending; const player = playerById(state, controllerId); const opponent = otherPlayer(state, controllerId);
-  const program = compileCardEffect(card, pending.effect ?? card.effect);
-  const text = program.source; const lower = text.toLowerCase();
-  if (choices.confirmed === false) {
-    if (pending.kind === "card" && card.type === "Hero") player.heroes.push(card);
-    else if (pending.kind === "card" && card.type === "Evo") {
-      const evoTarget = player.bakugan.find((bakugan) => bakugan.id === choices.targetBakuganId);
-      if (evoTarget) evoTarget.evoStack.push(card);
-    } else if (pending.kind === "card" && card.type === "Action") player.discard.push(card);
-    entry(state, "game", `${player.name} declined the optional effect of ${card.name}.`);
-    return;
+const destroyEnergy = (state: MatchState, controllerId: string, amount: number, selectedIds: string[]) => {
+  const opponent = otherPlayer(state, controllerId);
+  const ids = new Set(selectedIds.slice(0, amount));
+  const selected = opponent.energyZone.filter((card) => ids.has(card.id));
+  if (selected.length !== Math.min(amount, opponent.energyZone.length)) return;
+  opponent.energyZone = opponent.energyZone.filter((card) => !ids.has(card.id));
+  opponent.discard.push(...selected);
+  opponent.maxEnergy = opponent.energyZone.length;
+  opponent.energy = Math.min(opponent.energy, opponent.maxEnergy);
+  state.informationEpoch += 1;
+  state.undoWindow = undefined;
+};
+
+const instructionChoices = (pending: PendingEffect, instructionIndex: number) => Object.entries(pending.resolvedChoices ?? {})
+  .filter(([index]) => Number(index) <= instructionIndex)
+  .sort(([left], [right]) => Number(left) - Number(right))
+  .reduce<CardChoices>((merged, [, answers]) => ({ ...merged, ...answers }), { ...pending.choices });
+
+type EffectDrawState = MatchState & {
+  pendingDrawQueue?: Array<{ id: string; playerId: string; remaining: number; total: number; sourceName: string }>;
+  pendingDrawResumePriority?: string;
+  pendingDrawResumeDeadline?: number;
+  pendingDrawResumeStepLabel?: string;
+};
+
+const enqueueEffectDraw = (state: MatchState, player: PlayerState, amount: number, sourceName: string) => {
+  if (amount <= 0) return;
+  const queued = state as EffectDrawState;
+  if (!queued.pendingDrawQueue?.length) {
+    queued.pendingDrawResumePriority = state.priority;
+    queued.pendingDrawResumeDeadline = state.deadline;
+    queued.pendingDrawResumeStepLabel = state.stepLabel;
   }
-  const preferEnemy = /^-|enemy|opposing|non-\[/.test(lower) && !/one of your/.test(lower); const target = chooseBakugan(state, controllerId, choices, preferEnemy);
-  const factionCondition = [...text.matchAll(/If \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/gi)].some((match) => target?.faction === match[1]);
-  const condition = conditionActive(state, player, text, choices) || factionCondition;
-  if (card.type === "Hero") player.heroes.push(card);
-  if (card.type === "Evo") {
-    const evoTarget = player.bakugan.find((bakugan) => bakugan.id === choices.targetBakuganId); if (evoTarget) evoTarget.evoStack.push(card);
+  queued.pendingDrawQueue = [...(queued.pendingDrawQueue ?? []), {
+    id: uid(),
+    playerId: player.id,
+    remaining: amount,
+    total: amount,
+    sourceName,
+  }];
+  const active = queued.pendingDrawQueue[0];
+  state.priority = active.playerId;
+  state.stepLabel = `${active.sourceName} • Draw ${active.remaining} card${active.remaining === 1 ? "" : "s"}`;
+  state.deadline = Date.now() + 35_000;
+};
+
+const hasQueuedEffectDraw = (state: MatchState) => Boolean((state as EffectDrawState).pendingDrawQueue?.length);
+
+const ruleConditionIsActive = (
+  state: MatchState,
+  pending: PendingEffect,
+  instruction: RuleInstruction,
+) => {
+  if (instruction.condition.kind === "always") return true;
+  if (instruction.condition.kind === "victor") return pending.kind === "trigger";
+  if (pending.kind === "trigger" && instruction.actions.some((action) => action.kind === "trigger")) return true;
+  const player = playerById(state, pending.controllerId);
+  const choices = instructionChoices(pending, pending.instructionIndex ?? 0);
+  if (instruction.condition.kind === "faction") {
+    return chooseBakugan(state, pending.controllerId, choices)?.faction === instruction.condition.faction;
   }
-  if (/negate an action card/i.test(text)) {
-    const index = state.batch.map((effect) => effect.card.type).lastIndexOf("Action");
-    if (index >= 0) { const [negated] = state.batch.splice(index, 1); playerById(state, negated.controllerId).discard.push(negated.card); if (/copy its effect/i.test(text)) state.batch.push({ ...negated, id: uid(), controllerId, kind: "copy", choices }); }
+  return conditionActive(state, player, instruction.sourceText, choices);
+};
+
+const executeRuleAction = (
+  state: MatchState,
+  pending: PendingEffect,
+  instruction: RuleInstruction,
+  action: RuleAction,
+  instructionIndex: number,
+) => {
+  const { card, controllerId } = pending;
+  const choices = instructionChoices(pending, instructionIndex);
+  const player = playerById(state, controllerId);
+  const opponent = otherPlayer(state, controllerId);
+  const text = instruction.sourceText;
+  const lower = text.toLowerCase();
+  const preferEnemy = /^-|enemy|opposing|non-\[/.test(lower) && !/one of your/.test(lower);
+  const target = chooseBakugan(state, controllerId, choices, preferEnemy);
+
+  switch (action.kind) {
+    case "choice":
+    case "trigger":
+    case "continuous":
+    case "cost":
+      return;
+    case "modify-stat": {
+      if (pending.kind === "card" && ["Hero", "Evo"].includes(card.type) && action.duration === "while-source-in-play") return;
+      if (card.name === "Gravity Shift" && (
+        (choices.mode === "damage" && action.stat === "power")
+        || (choices.mode === "power" && action.stat === "damage")
+      )) return;
+      let amount = scaleStat(state, player, text, action.amount, action.stat);
+      if (action.scale === "sacrificed-card") amount *= choices.discardCardIds?.length ?? 0;
+      const targets = action.scope === "all-enemy" ? opponent.bakugan
+        : action.scope === "all-friendly" ? player.bakugan
+          : target ? [target] : [];
+      for (const selected of targets) {
+        if (action.stat === "power") state.powerBoost[selected.id] = (state.powerBoost[selected.id] ?? 0) + amount;
+        else if (action.stat === "damage") state.damageBoost[selected.id] = (state.damageBoost[selected.id] ?? 0) + amount;
+        else state.frostStrike[selected.id] = (state.frostStrike[selected.id] ?? 0) + amount;
+      }
+      return;
+    }
+    case "grant-keyword":
+      if (!target) return;
+      if (action.keyword === "DoubleStrike") state.doubleStrike[target.id] = true;
+      else if (action.keyword === "ShadowStrike") state.shadowStrike[target.id] = true;
+      else if (action.keyword === "FrostStrike") state.frostStrike[target.id] = (state.frostStrike[target.id] ?? 0) + (action.value ?? 1);
+      else if (action.keyword === "Stop" && flipStopsDamage(state, card)) {
+        state.pendingDamage = 0;
+        state.revealedFlip = undefined;
+      }
+      return;
+    case "draw": {
+      const amount = action.scale ? Math.max(0, scaleStat(state, player, text, action.amount, "draw")) : action.amount;
+      enqueueEffectDraw(state, player, amount, card.displayName || card.name);
+      return;
+    }
+    case "discard": {
+      const affected = choices.targetPlayerId
+        ? playerById(state, choices.targetPlayerId)
+        : /your opponent|opponent discards/i.test(text) ? opponent : player;
+      const selected = choices.discardCardIds ?? choices.handCardIds ?? [];
+      discardFromHand(state, affected, Math.min(action.maximum, selected.length || action.amount), selected);
+      return;
+    }
+    case "energize":
+      if (action.source === "deck") {
+        for (let index = 0; index < action.amount; index += 1) {
+          const energyCard = player.deckCards.shift();
+          if (energyCard) player.energyZone.push(energyCard);
+        }
+        player.maxEnergy = player.energyZone.length;
+        syncDeck(player);
+      } else if (action.source === "hero") {
+        for (const owner of state.players) {
+          const index = owner.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
+          if (index >= 0) {
+            owner.energyZone.push(...owner.heroes.splice(index, 1));
+            owner.maxEnergy = owner.energyZone.length;
+            break;
+          }
+        }
+      } else if (action.source === "self" && !player.energyZone.some((candidate) => candidate.id === card.id)) {
+        for (const owner of state.players) owner.heroes = owner.heroes.filter((candidate) => candidate.id !== card.id);
+        player.discard = player.discard.filter((candidate) => candidate.id !== card.id);
+        player.energyZone.push(card);
+        player.maxEnergy = player.energyZone.length;
+      }
+      return;
+    case "generate-energy":
+      player.energy += Math.max(0, scaleStat(state, player, text, action.amount, "draw"));
+      return;
+    case "set-stat":
+      if (target) {
+        if (action.stat === "power") state.powerBoost[target.id] = action.value - (topCard(target).bPower ?? target.bPower);
+        else state.damageBoost[target.id] = action.value - (topCard(target).damage ?? target.damage);
+      }
+      return;
+    case "set-rule":
+      if (action.rule === "victor-stat") state.victorByDamage = action.value === "damage";
+      return;
+    case "damage-to-hand": {
+      const amount = state.pendingDamage;
+      for (let index = 0; index < amount; index += 1) {
+        const damageCard = player.deckCards.shift();
+        if (!damageCard) break;
+        player.hand.push(damageCard);
+      }
+      syncDeck(player);
+      state.pendingDamage = 0;
+      state.informationEpoch += 1;
+      state.undoWindow = undefined;
+      entry(state, "game", `${player.name} put all remaining damage into their hand.`);
+      return;
+    }
+    case "end-turn":
+      state.pendingDamage = 0;
+      state.revealedFlip = undefined;
+      state.batch = [];
+      beginTurn(state);
+      entry(state, "game", `${card.name} ended the turn${action.recharge ? "" : " without recharging Energy"}.`);
+      return;
+    case "shuffle-deck":
+      shuffle(player.deckCards);
+      syncDeck(player);
+      return;
+    case "move": {
+      if (action.verb === "destroy" && action.object === "hero" && /destroy this/i.test(text)) {
+        for (const owner of state.players) {
+          const destroyed = owner.heroes.filter((hero) => hero.id === pending.sourceId || hero.id === card.id);
+          owner.heroes = owner.heroes.filter((hero) => !destroyed.some((candidate) => candidate.id === hero.id));
+          owner.discard.push(...destroyed);
+        }
+      } else if (action.verb === "destroy" && action.object === "hero") destroyHero(state, controllerId, choices, action.amount > 2);
+      else if (action.verb === "destroy" && action.object === "evo") destroyEvo(state, controllerId, choices, action.amount > 2);
+      else if (action.verb === "destroy" && action.object === "energy") {
+        destroyEnergy(state, controllerId, action.amount, choices.targetEnergyIds ?? []);
+      } else if (action.verb === "control" && action.object === "hero") {
+        const index = opponent.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
+        if (index >= 0) player.heroes.push(...opponent.heroes.splice(index, 1));
+      } else if (action.verb === "retract" && action.object === "bakugan" && target) retractBakugan(state, target);
+      else if (action.verb === "attach" && action.object === "bakucore" && target) {
+        const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell && !candidate.attachedTo);
+        if (placement) {
+          placement.attachedTo = target.id;
+          target.heldCoreCells.push(placement.cell);
+        }
+      } else if (action.verb === "remove" && action.object === "bakucore") {
+        const owners = action.amount > 2 ? [opponent] : state.players;
+        for (const owner of owners) for (const bakugan of owner.bakugan) {
+          const cells = action.amount > 2 ? [...bakugan.heldCoreCells] : bakugan.heldCoreCells.filter((cell) => cell === choices.coreCell);
+          for (const cell of cells) {
+            const placement = state.placements.find((candidate) => candidate.cell === cell);
+            if (placement) delete placement.attachedTo;
+          }
+          bakugan.heldCoreCells = bakugan.heldCoreCells.filter((cell) => !cells.includes(cell));
+        }
+      } else if (action.verb === "return" && action.object === "bakucore") {
+        const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell);
+        if (placement) {
+          delete placement.attachedTo;
+          placement.revealed = false;
+        }
+      } else if (action.verb === "return" && action.object === "card") {
+        if (!player.hand.some((candidate) => candidate.id === card.id)) player.hand.push(card);
+      } else if (action.verb === "shuffle" && action.object === "card") {
+        const ids = choices.handCardIds ?? choices.discardCardIds ?? [];
+        const moved = player.discard.filter((candidate) => ids.includes(candidate.id)).slice(0, action.amount);
+        player.discard = player.discard.filter((candidate) => !moved.some((card) => card.id === candidate.id));
+        player.deckCards.push(...moved);
+        shuffle(player.deckCards);
+        syncDeck(player);
+      }
+      return;
+    }
+    case "reveal": {
+      if (action.object === "bakucore") {
+        const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell && !candidate.attachedTo);
+        if (placement) {
+          placement.revealed = true;
+          entry(state, "game", `${player.name} turned ${placement.core.name} face up in the Hide Matrix.`);
+        }
+      } else {
+        const revealed = player.deckCards[0];
+        if (revealed) {
+          (player as PlayerState & { revealedDeckCardId?: string }).revealedDeckCardId = revealed.id;
+          state.informationEpoch += 1;
+          state.undoWindow = undefined;
+          entry(state, "game", `${player.name} revealed ${revealed.name} from the top of their deck.`);
+        }
+      }
+      return;
+    }
+    case "reorder-deck": {
+      const ids = choices.orderedCardIds ?? [];
+      const top = player.deckCards.slice(0, action.amount);
+      if (ids.length !== top.length || new Set(ids).size !== ids.length || ids.some((id) => !top.some((card) => card.id === id))) return;
+      const byId = new Map(top.map((candidate) => [candidate.id, candidate]));
+      player.deckCards.splice(0, top.length, ...ids.map((id) => byId.get(id)!));
+      syncDeck(player);
+      state.informationEpoch += 1;
+      state.undoWindow = undefined;
+      entry(state, "game", `${player.name} reordered the top ${top.length} cards of their deck.`);
+      return;
+    }
+    case "play": {
+      if (action.source === "hand") {
+        const selectedId = choices.handCardIds?.[0];
+        const index = player.hand.findIndex((candidate) => candidate.id === selectedId);
+        if (index < 0) return;
+        const [selected] = player.hand.splice(index, 1);
+        selected.playedTurn = state.turn;
+        player.cardsPlayedThisTurn += 1;
+        state.batch.push({ id: uid(), controllerId, card: selected, choices: {}, kind: "card" });
+        emitGameEvent(state, { id: `${state.turn}:card-play:${selected.id}`, type: "card-play", playerId: controllerId, cardType: selected.type });
+        entry(state, "game", `${player.name} played ${selected.name} from hand for free.`);
+        return;
+      }
+      if (action.source === "self") {
+        for (const owner of state.players) owner.discard = owner.discard.filter((candidate) => candidate.id !== card.id);
+        card.playedTurn = state.turn;
+        player.cardsPlayedThisTurn += 1;
+        state.batch.push({ id: uid(), controllerId, card, choices, kind: "card" });
+        emitGameEvent(state, { id: `${state.turn}:card-play:${card.id}`, type: "card-play", playerId: controllerId, cardType: card.type });
+        entry(state, "game", `${player.name} played discarded ${card.name} for free.`);
+        return;
+      }
+      const tracked = player as PlayerState & { revealedDeckCardId?: string };
+      const index = player.deckCards.findIndex((candidate) => candidate.id === tracked.revealedDeckCardId);
+      if (choices.confirmed === false || index < 0 || player.deckCards[index].type === "Flip") {
+        delete tracked.revealedDeckCardId;
+        return;
+      }
+      const [revealed] = player.deckCards.splice(index, 1);
+      syncDeck(player);
+      revealed.playedTurn = state.turn;
+      player.cardsPlayedThisTurn += 1;
+      state.batch.push({ id: uid(), controllerId, card: revealed, choices: {}, kind: "card" });
+      delete tracked.revealedDeckCardId;
+      emitGameEvent(state, { id: `${state.turn}:card-play:${revealed.id}`, type: "card-play", playerId: controllerId, cardType: revealed.type });
+      entry(state, "game", `${player.name} played the revealed ${revealed.name} for free.`);
+      return;
+    }
+    case "attack": {
+      state.pendingLoser = opponent.id;
+      state.pendingDamage = action.amount;
+      state.damageOrigin = pending.sourceId ?? pending.card.id;
+      state.damageFaction = action.faction as Faction;
+      setPhase(state, "damage", `Damage Step • ${action.amount} incoming`, opponent.id);
+      entry(state, "game", `${pending.card.name} made a ${action.faction ?? "separate"} attack for ${action.amount}.`);
+      return;
+    }
+    case "negate": {
+      const index = state.batch.map((effect, candidateIndex) => (
+        effect.id !== pending.id && (action.cardType === "any" || effect.card.type === action.cardType)
+          ? candidateIndex
+          : -1
+      )).filter((candidate) => candidate >= 0).at(-1) ?? -1;
+      if (index >= 0) {
+        const [negated] = state.batch.splice(index, 1);
+        playerById(state, negated.controllerId).discard.push(negated.card);
+        if (action.copy) state.batch.push({ ...negated, id: uid(), controllerId, kind: "copy" });
+      }
+      return;
+    }
+    case "search": {
+      const index = player.deckCards.findIndex((candidate) => (
+        candidate.id === choices.deckCardId
+        && (!action.cardType || candidate.type === action.cardType)
+      ));
+      if (index >= 0) {
+        const [found] = player.deckCards.splice(index, 1);
+        player.hand.push(found);
+        shuffle(player.deckCards);
+        syncDeck(player);
+        state.informationEpoch += 1;
+        state.undoWindow = undefined;
+        entry(state, "game", `${player.name} searched, revealed ${found.name}, put it into hand, then shuffled.`);
+      }
+      return;
+    }
+    case "copy":
+      if (action.target === "next-action") state.copyNextAction[controllerId] = (state.copyNextAction[controllerId] ?? 0) + 1;
+      return;
+    case "rules-text": {
+      const setPower = text.match(/\[B\] becomes (\d+)/i);
+      if (target && setPower) state.powerBoost[target.id] = Number(setPower[1]) - (topCard(target).bPower ?? target.bPower);
+      if (/victor is decided by highest \[damage rating\]/i.test(text)) state.victorByDamage = true;
+      if (/retract your Bakugan at the end of the turn/i.test(text) && target) state.delayedRetracts.push(target.id);
+      if (/return this to (?:your )?hand|put this into your hand/i.test(text)) player.hand.push(card);
+      else if (/bottom of your deck/i.test(text)) {
+        player.deckCards.push(card);
+        syncDeck(player);
+      }
+      return;
+    }
   }
-  if (/negate a hero card/i.test(text)) {
-    const index = state.batch.map((effect) => effect.card.type).lastIndexOf("Hero"); if (index >= 0) playerById(state, state.batch[index].controllerId).discard.push(state.batch.splice(index, 1)[0].card);
+};
+
+function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
+  const program = compileCardEffect(pending.card, pending.effect ?? pending.card.effect);
+  const result = executeRuleProgram(program, {
+    conditionIsActive: (instruction) => ruleConditionIsActive(state, pending, instruction),
+    beforeInstruction: (instruction, instructionIndex) => {
+      const existing = pending.resolvedChoices?.[String(instructionIndex)];
+      if (existing) return existing.confirmed === false ? "skip" : "continue";
+      const schema = buildChoiceSchema(
+        state,
+        pending.controllerId,
+        pending.card,
+        instruction.sourceText,
+        instructionChoices(pending, instructionIndex),
+      );
+      schema.fields = schema.fields.filter((field) => !(field.id === "xValue" && pending.choices.xValue != null));
+      if (!schema.fields.length) return "continue";
+      if (!schemaHasLegalCompletion(schema)) {
+        entry(state, "game", `${pending.card.name}: the clause had no legal choice and did nothing.`);
+        return "skip";
+      }
+      state.pendingChoice = {
+        id: uid(),
+        kind: "resolution",
+        controllerId: pending.controllerId,
+        cardId: pending.card.id,
+        schema,
+        answers: {},
+        createdVersion: state.version,
+        pendingEffectId: pending.id,
+        instructionIndex,
+        resumePriority: state.priority,
+        resumeDeadline: state.deadline,
+        resumeStepLabel: state.stepLabel,
+        irreversibleInformation: false,
+      };
+      state.priority = schema.fields[0]?.chooserId ?? pending.controllerId;
+      state.stepLabel = `${pending.card.displayName || pending.card.name} • Resolve clause ${instructionIndex + 1}`;
+      state.deadline = Date.now() + 35_000;
+      pending.instructionIndex = instructionIndex;
+      return "suspend";
+    },
+    execute: (action, instruction, cursor) => {
+      executeRuleAction(state, pending, instruction, action, cursor.instructionIndex);
+      pending.instructionIndex = cursor.instructionIndex;
+    },
+  }, pending.instructionIndex ?? 0);
+
+  if (!result.completed) return false;
+  pending.instructionIndex = result.instructionIndex;
+  const player = playerById(state, pending.controllerId);
+  const choices = {
+    ...pending.choices,
+    ...Object.values(pending.resolvedChoices ?? {}).reduce<CardChoices>((merged, answer) => ({ ...merged, ...answer }), {}),
+  };
+  if (pending.kind === "card" && pending.card.type === "Hero"
+    && !player.heroes.some((card) => card.id === pending.card.id)
+    && !player.energyZone.some((card) => card.id === pending.card.id)) {
+    player.heroes.push(pending.card);
+  } else if (pending.kind === "card" && pending.card.type === "Evo") {
+    const target = player.bakugan.find((bakugan) => bakugan.id === choices.targetBakuganId);
+    const normalizedName = (value: string | null | undefined) => String(value ?? "")
+      .replace(/\s*\(Battle Brawlers\)\s*$/i, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+    if (target
+      && normalizedName(target.name) === normalizedName(pending.card.evolvesFrom)
+      && target.faction === pending.card.faction) {
+      target.evoStack.push(pending.card);
+      const wasFaceDown = !target.open && !(target as Bakugan & { characterFaceUp?: boolean }).characterFaceUp;
+      (target as Bakugan & { characterFaceUp?: boolean }).characterFaceUp = true;
+      if (wasFaceDown) entry(state, "game", `${target.name}'s Character card was turned face up before its Evo entered play.`);
+    } else player.discard.push(pending.card);
+  } else if (pending.kind === "card" && pending.card.type === "Action"
+    && !player.hand.some((card) => card.id === pending.card.id)
+    && !player.discard.some((card) => card.id === pending.card.id)
+    && !player.energyZone.some((card) => card.id === pending.card.id)) {
+    player.discard.push(pending.card);
+  } else if (pending.kind === "card" && pending.card.type === "Flip"
+    && !player.hand.some((card) => card.id === pending.card.id)
+    && !player.discard.some((card) => card.id === pending.card.id)
+    && !player.energyZone.some((card) => card.id === pending.card.id)) {
+    player.discard.push(pending.card);
   }
-  const resolvesStats = ["Action","Flip"].includes(card.type) || pending.kind !== "card" || /^When you play this/i.test(text);
-  let bPower = resolvesStats ? scaleStat(state, player, text, statValues(text, /([+-]\d+)\s*\[B\]/gi, condition), "power") : 0;
-  let damage = resolvesStats ? scaleStat(state, player, text, statValues(text, /([+-]\d+)\s*\[Damage (?:Rating|Power)\]/gi, condition), "damage") : 0;
-  if (card.name === "Gravity Shift") { if (choices.mode === "damage") bPower = 0; else damage = 0; }
-  if (card.name === "Shock and Awe") { const enemy = activeBakugan(state, opponent.id); if (enemy) state.powerBoost[enemy.id] = (state.powerBoost[enemy.id] ?? 0) - 300; }
-  if (target && bPower) state.powerBoost[target.id] = (state.powerBoost[target.id] ?? 0) + bPower;
-  if (target && damage) state.damageBoost[target.id] = (state.damageBoost[target.id] ?? 0) + damage;
-  const setPower = text.match(/\[B\] becomes (\d+)/i); if (target && setPower) state.powerBoost[target.id] = Number(setPower[1]) - topCard(target).bPower!;
-  const frost = scaleStat(state, player, text, statValues(text, /\+?(\d+)\s*\[FrostStrike\]/gi, condition), "frost"); if (target && frost) state.frostStrike[target.id] = (state.frostStrike[target.id] ?? 0) + frost;
-  const tagged = /(Flow|Fury|Turbo|Domination|Sacrifice)/i.test(text);
-  if (target && /\[Double ?Strike\]/i.test(text) && (!tagged || condition)) state.doubleStrike[target.id] = true;
-  if (target && /\[ShadowStrike\]/i.test(text) && (!tagged || condition)) state.shadowStrike[target.id] = true;
-  const draw = text.match(/draw (a|an|one|two|three|\d+) card/i); const drawCondition = !/if the Bakugan's \[Damage Rating\] becomes 10 or greater/i.test(text) || (target ? staticModifier(state,target,player).damage >= 10 : false);
-  if (draw && drawCondition && (!tagged || condition || !/(Flow|Fury|Turbo|Domination)/i.test(text))) drawCards(state, player, wordNumber(draw[1]));
-  if (/all players draw an additional card/i.test(text)) state.players.forEach((candidate) => drawCards(state, candidate, 1));
-  if (/choose a player to discard two cards/i.test(text)) discardFromHand(state, choices.targetPlayerId === player.id ? player : opponent, 2);
-  else if (/choose a player to discard a card|your opponent discards a card/i.test(text)) discardFromHand(state, choices.targetPlayerId === player.id ? player : opponent, 1);
-  if (/search your deck for an action/i.test(text)) searchDeck(state, player, "Action"); else if (/search your deck for a hero/i.test(text)) searchDeck(state, player, "Hero");
-  if (/destroy all enemy heroes/i.test(text)) destroyHero(state, controllerId, choices, true); else if (/destroy a hero/i.test(text)) destroyHero(state, controllerId, choices);
-  if (/destroy all enemy evos/i.test(text)) destroyEvo(state, controllerId, choices, true); else if (/destroy an evo/i.test(text)) destroyEvo(state, controllerId, choices);
-  const selectedEnergy = choices.targetEnergyIds ?? (choices.targetEnergyId ? [choices.targetEnergyId] : []);
-  if (/destroy two energy/i.test(text) && condition) destroyEnergy(state, controllerId, 2, selectedEnergy); else if (/destroy an (?:enemy )?energy/i.test(text)) destroyEnergy(state, controllerId, 1, selectedEnergy);
-  if (/take control of a hero/i.test(text)) {
-    const index = opponent.heroes.findIndex((hero) => !choices.targetHeroId || hero.id === choices.targetHeroId); if (index >= 0) player.heroes.push(...opponent.heroes.splice(index,1));
-  }
-  if (/victor is decided by highest \[damage rating\]/i.test(text)) state.victorByDamage = true;
-  if (/retract (?:a|one of your) bakugan/i.test(text) && target) retractBakugan(state, target);
-  if (/attach a bakucore from the field/i.test(text) && target) {
-    const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell && !candidate.attachedTo); if (placement) { placement.attachedTo = target.id; target.heldCoreCells.push(placement.cell); }
-  }
-  if (/remove all bakucores enemy bakugan hold/i.test(text)) opponent.bakugan.forEach((bakugan) => { if (bakugan.open) { for (const cell of bakugan.heldCoreCells) { const p = state.placements.find((candidate) => candidate.cell === cell); if (p) delete p.attachedTo; } bakugan.heldCoreCells = []; } });
-  if (/remove an enemy bakugan's bakucore/i.test(text)) {
-    const enemy = chooseBakugan(state, controllerId, choices, true); const cell = choices.coreCell ?? enemy?.heldCoreCells[0]; if (enemy && cell) { enemy.heldCoreCells = enemy.heldCoreCells.filter((candidate) => candidate !== cell); const p = state.placements.find((candidate) => candidate.cell === cell); if (p) delete p.attachedTo; }
-  }
-  if (/retract your Bakugan at the end of the turn/i.test(text) && target) state.delayedRetracts.push(target.id);
-  const gainEnergy = text.match(/\+(\d+) \[Energy\]/i); if (gainEnergy) player.energy += Number(gainEnergy[1]);
-  const topEnergy = text.match(/energize the top (one|two|\d+)? ?cards? of (?:your|their) deck/i); if (topEnergy) {
-    for (let index = 0; index < wordNumber(topEnergy[1]); index += 1) { const energyCard = player.deckCards.shift(); if (energyCard) player.energyZone.push(energyCard); }
-    player.maxEnergy = player.energyZone.length; syncDeck(player);
-  }
-  if (/each player may energize the top two/i.test(text)) for (const candidate of state.players) {
-    for (let index=0; index<2; index+=1) { const energyCard=candidate.deckCards.shift(); if(energyCard) candidate.energyZone.push(energyCard); }
-    candidate.maxEnergy=candidate.energyZone.length; syncDeck(candidate);
-  }
-  if (/choose a Hero\. Its controller must Energize it/i.test(text)) {
-    const owners=state.players; for(const owner of owners){ const index=owner.heroes.findIndex((hero)=>!choices.targetHeroId||hero.id===choices.targetHeroId); if(index>=0){ owner.energyZone.push(...owner.heroes.splice(index,1)); owner.maxEnergy=owner.energyZone.length; break; } }
-  }
-  if (/energize this uncharged/i.test(text) && card.type !== "Hero" && card.type !== "Evo") { player.energyZone.push(card); player.maxEnergy = player.energyZone.length; }
-  if ((/return this to (?:your )?hand|put this into your hand/i.test(text)) && (!tagged || condition)) player.hand.push(card);
-  else if (/bottom of your deck/i.test(text)) { player.deckCards.push(card); syncDeck(player); }
-  else if (card.type === "Action") player.discard.push(card);
-  if (card.name === "Blackhole") { state.pendingDamage = 0; state.revealedFlip = undefined; finishDamage(state); return; }
-  if (card.name === "Brain Geyser" && state.pendingDamage > 0) {
-    while (state.pendingDamage > 0 && player.deckCards.length) { player.hand.push(player.deckCards.shift()!); state.pendingDamage -= 1; } syncDeck(player);
-  }
-  if (card.name === "Luck Aura" && choices.handCardIds?.[0]) {
-    const index=player.hand.findIndex((candidate)=>candidate.id===choices.handCardIds![0]); if(index>=0){ const [free]=player.hand.splice(index,1); state.batch.push({id:uid(),controllerId,card:free,choices:{},kind:"card"}); }
-  }
-  if (/Shuffle (a|one|two|three|\d+) cards? from your discard pile into your deck/i.test(text)) {
-    const amount=wordNumber(text.match(/Shuffle (a|one|two|three|\d+)/i)?.[1]); player.deckCards.push(...player.discard.splice(0,amount)); shuffle(player.deckCards); syncDeck(player);
-  }
-  if (/Copy the next Action you play/i.test(text)) state.copyNextAction[controllerId]=(state.copyNextAction[controllerId]??0)+1;
-  if (card.name === "Sifting Ashes") discardFromHand(state, player, 2, choices.handCardIds);
-  if (card.name === "Cyndeus Stand" && choices.handCardIds?.length) {
-    const moved = player.hand.filter((candidate) => choices.handCardIds!.includes(candidate.id)); player.hand = player.hand.filter((candidate) => !choices.handCardIds!.includes(candidate.id)); player.deckCards.push(...moved); shuffle(player.deckCards); state.damageBoost[target.id] = (state.damageBoost[target.id] ?? 0) + moved.length;
-  }
-  if (card.name === "Endless Growth") {
-    const x = choices.xValue ?? 0; if (choices.mode === "damage") state.damageBoost[target.id] = (state.damageBoost[target.id] ?? 0) + x; else state.powerBoost[target.id] = (state.powerBoost[target.id] ?? 0) + x * 100;
-  }
-  entry(state, "game", `${card.name} resolved: ${card.effect || "no printed effect"}`);
+  entry(state, "game", `${pending.card.name} finished resolving its structured RuleAction program.`);
+  return true;
+}
+
+const applyEffect = (state: MatchState, pending: PendingEffect) => resolvePendingEffect(state, pending);
+
+/** Start an already-paid effect without mutating and then reconstructing state. */
+export const resolveStructuredEffect = (input: MatchState, pending: PendingEffect) => {
+  const state = cloneMatch(input);
+  if (!state.batch.some((candidate) => candidate.id === pending.id)) state.batch.push(pending);
+  const live = state.batch.find((candidate) => candidate.id === pending.id)!;
+  if (resolvePendingEffect(state, live)) state.batch = state.batch.filter((candidate) => candidate.id !== live.id);
+  return withVersion(state);
 };
 
 const staticModifier = (state: MatchState, bakugan: Bakugan, owner: PlayerState) => {
@@ -1014,8 +1501,8 @@ const declareVictor = (state: MatchState) => {
   }
   state.brawlWinner = winnerId; state.startingPlayer = winnerId; setPhase(state, "victor", "Brawl Phase • Victor Step", winnerId);
   entry(state, "game", `${playerById(state, winnerId).name} was declared Victor by ${state.victorByDamage ? "Damage Rating" : "B-Power"}.`);
-  const winner = playerById(state, winnerId); const bakugan = activeBakugan(state, winnerId);
-  if (bakugan) for (const source of [topCard(bakugan), ...winner.heroes]) if (/Victor\s*[-:]/i.test(source.effect)) queueTrigger(state, winnerId, source, source.effect, { targetBakuganId: bakugan.id });
+  const bakugan = activeBakugan(state, winnerId);
+  emitGameEvent(state, { id: `${state.turn}:victor:${winnerId}`, type: "victor", playerId: winnerId, targetBakuganId: bakugan?.id });
 };
 
 const beginDamage = (state: MatchState) => {
@@ -1025,11 +1512,8 @@ const beginDamage = (state: MatchState) => {
   if (stats.double) damage *= 2;
   state.pendingLoser = loser.id; state.pendingDamage = Math.max(0, damage); state.damageOrigin = attacking.id; state.damageFaction = attacking.faction;
   setPhase(state, "damage", `Damage Step • ${damage} incoming`, loser.id); entry(state, "game", `${winner.name} attacks for ${damage}${state.teamAttack ? " as a Team Attack" : ""}.`);
-  for(const hero of winner.heroes){
-    if(/When one of your Bakugan attacks, draw a card/i.test(hero.effect)) drawCards(state,winner,1);
-    if(damage>=10&&/If you deal 10 or more damage/i.test(hero.effect)) drawCards(state,winner,3);
-  }
-  revealDamage(state);
+  emitGameEvent(state, { id: `${state.turn}:attack:${attacking.id}`, type: "attack", playerId: winner.id, targetBakuganId: attacking.id });
+  if (damage > 0) emitGameEvent(state, { id: `${state.turn}:damage-taken:${loser.id}`, type: "damage-taken", playerId: loser.id });
 };
 
 const flipStopsDamage = (state: MatchState, card: GameCard) => {
@@ -1039,38 +1523,8 @@ const flipStopsDamage = (state: MatchState, card: GameCard) => {
   const listed = [...text.matchAll(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/gi)].map((match) => match[1]); return /\[Stop\]/i.test(text) && listed.includes(faction);
 };
 
-const revealDamage = (state: MatchState) => {
-  const player = playerById(state, state.pendingLoser);
-  while (state.pendingDamage > 0) {
-    const card = player.deckCards.shift(); syncDeck(player);
-    if (!card) { winGame(state, otherPlayer(state, player.id).id, "Deck-out damage"); return; }
-    state.pendingDamage -= 1;
-    if (card.type === "Flip") { state.revealedFlip = card; state.deadline = deadlineFor("damage"); entry(state, "game", `${player.name} revealed Flip: ${card.name}.`); return; }
-    player.discard.push(card); entry(state, "game", `${player.name} flipped ${card.name} as damage (${state.pendingDamage} remaining).`);
-  }
-  finishDamage(state);
-};
-
 const finishDamage = (state: MatchState) => {
   state.revealedFlip = undefined; setPhase(state, "postDamage", "Damage Step • Post-damage priority", state.startingPlayer);
-};
-
-export const resolveDamage = (input: MatchState, playerId: string, flipCardId?: string, choices: CardChoices = {}) => {
-  const state = cloneMatch(input); const player = playerById(state, playerId);
-  if (state.phase !== "damage" || state.pendingLoser !== playerId || !state.revealedFlip) throw new Error("There is no revealed Flip decision for you.");
-  const flip = state.revealedFlip; state.revealedFlip = undefined;
-  if (flipCardId) {
-    if (flip.id !== flipCardId) throw new Error("Only the currently revealed Flip may be played.");
-    const schema = buildChoiceSchema(state, playerId, flip);
-    if (!schemaHasLegalCompletion(schema)) throw new Error(`${flip.name} has no legal choice and cannot be played.`);
-    if (schema.fields.length) validateChoices(schema, playerId, choices);
-    const cost = effectiveCost(state, player, flip, choices); payEnergy(state, player, cost);
-    if (flipStopsDamage(state, flip)) state.pendingDamage = 0;
-    applyEffect(state, { id: uid(), controllerId: playerId, card: flip, choices, kind: "card" });
-    if (!player.hand.some((card) => card.id === flip.id) && !player.energyZone.some((card) => card.id === flip.id)) player.discard.push(flip);
-    entry(state, "game", `${player.name} played ${flip.name} for ${cost} Energy.`);
-  } else { player.discard.push(flip); entry(state, "game", `${player.name} declined ${flip.name}.`); }
-  revealDamage(state); return withVersion(state);
 };
 
 const advanceEmptyBatch = (state: MatchState) => {
@@ -1082,8 +1536,9 @@ const advanceEmptyBatch = (state: MatchState) => {
     if (state.teamAttack) playerById(state, state.brawlWinner).bakugan.forEach((bakugan) => retractBakugan(state, bakugan));
     setPhase(state, "endPlay", "End Phase • Play Step", state.startingPlayer);
   } else if (state.phase === "endPlay") {
+    emitGameEvent(state, { id: `${state.turn}:end-turn`, type: "end-turn", playerId: state.startingPlayer });
+    if (state.batch.length || state.triggerOrders.length) return;
     for (const player of state.players) for (const bakugan of player.bakugan) if (state.delayedRetracts.includes(bakugan.id)) retractBakugan(state,bakugan);
-    for (const player of state.players) if(player.hand.length===0&&player.heroes.some((hero)=>hero.name==="Barbara Kouzo")) drawCards(state,player,1);
     for (const player of state.players) { player.energy = player.maxEnergy; }
     state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {}; state.doubleStrike = {}; state.shadowStrike = {};
     const over = state.players.find((player) => player.hand.length > 7);
@@ -1093,6 +1548,7 @@ const advanceEmptyBatch = (state: MatchState) => {
 
 export const passPriority = (input: MatchState, playerId: string) => {
   const state = cloneMatch(input);
+  if (hasQueuedEffectDraw(state)) throw new Error("Complete every pending Draw action before passing priority.");
   if (state.pendingChoice) throw new Error("Complete the pending player choice before passing priority.");
   if (state.triggerOrders.some((request) => !request.orderedIds)) throw new Error("Order every simultaneous trigger before passing priority.");
   if (!["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase) || state.priority !== playerId) throw new Error("You do not have priority.");
@@ -1102,7 +1558,14 @@ export const passPriority = (input: MatchState, playerId: string) => {
   if (state.passes.length < 2) { state.priority = other.id; state.deadline = deadlineFor(state.phase); return withVersion(state); }
   state.passes = [];
   if (state.batch.length) {
-    const pending = state.batch.pop()!; if (!pending.negated) applyEffect(state, pending); state.priority = state.startingPlayer; state.deadline = deadlineFor(state.phase);
+    const pending = state.batch.at(-1)!;
+    const completed = pending.negated || applyEffect(state, pending);
+    if (!completed) return withVersion(state);
+    state.batch = state.batch.filter((candidate) => candidate.id !== pending.id);
+    if (!hasQueuedEffectDraw(state)) {
+      state.priority = state.startingPlayer;
+      state.deadline = deadlineFor(state.phase);
+    }
   } else advanceEmptyBatch(state);
   return withVersion(state);
 };
@@ -1111,7 +1574,10 @@ export const discardToHandLimit = (input: MatchState, playerId: string, cardIds:
   const state = cloneMatch(input); const player = playerById(state, playerId);
   if (state.phase !== "handLimit" || state.priority !== playerId || cardIds.length !== player.hand.length - 7) throw new Error("Select exactly enough cards to keep seven.");
   discardFromHand(state, player, cardIds.length, cardIds); const next = state.players.find((candidate) => candidate.hand.length > 7);
-  if (next) state.priority = next.id; else beginTurn(state); return withVersion(state);
+  if (next) state.priority = next.id;
+  else if (state.batch.length || state.triggerOrders.length) setPhase(state, "endPlay", "End Phase • Resolve discard triggers", state.startingPlayer);
+  else beginTurn(state);
+  return withVersion(state);
 };
 
 const winGame = (state: MatchState, winnerId: string, reason: string) => {
@@ -1157,6 +1623,11 @@ export const redactForPlayer = (input: MatchState, playerId: string) => {
   if (state.pendingChoice) {
     delete state.pendingChoice.beforeState;
     for (const chooserId of Object.keys(state.pendingChoice.answers)) if (chooserId !== playerId) delete state.pendingChoice.answers[chooserId];
+    state.pendingChoice.schema.fields = state.pendingChoice.schema.fields.map((field) => (
+      field.visibility === "private" && field.chooserId !== playerId
+        ? { ...field, options: [] }
+        : field
+    ));
   }
   if (state.phase === "target") for (const id of Object.keys(state.targets)) if (id !== playerId) delete state.targets[id];
   const hiddenCard = (id: string): GameCard => ({
@@ -1166,7 +1637,7 @@ export const redactForPlayer = (input: MatchState, playerId: string) => {
     art: "/assets/cards/card-missing.svg",
   });
   for (const placement of state.placements) {
-    if (!placement.attachedTo && placement.playerId !== playerId) {
+    if (!placement.attachedTo && !placement.revealed && placement.playerId !== playerId) {
       const type = placement.core.type;
       const backs: Record<CoreType, string> = {
         Fist: "/assets/core-backs/fist.png", "Flaming Fist": "/assets/core-backs/flaming-fist.png",

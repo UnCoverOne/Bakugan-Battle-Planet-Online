@@ -1,7 +1,8 @@
 import {
   cloneMatch,
-  passPriority,
-  resolveDamage,
+  emitGameEvent,
+  resolveStructuredEffect,
+  splitWhenPlayedEffect,
   type CardChoices,
   type GameCard,
   type MatchState,
@@ -11,12 +12,6 @@ import {
   effectiveCardEnergyCost,
   prepareEnergyPayment,
 } from "./cardPayment";
-import {
-  hasPendingDraws,
-  reconcileAttackDrawEffects,
-  reconcileResolvedDrawEffect,
-} from "./drawQueue";
-import { reconcileResolvedEvos } from "./evo";
 
 const DAMAGE_DECISION_MS = 35_000;
 const POST_DAMAGE_MS = 25_000;
@@ -39,50 +34,6 @@ function log(state: MatchState, kind: MatchState["log"][number]["kind"], message
   });
 }
 
-function isStrata(card: GameCard) {
-  return card.name === "Strata"
-    || /all players draw an additional card each turn/i.test(card.effect);
-}
-
-/**
- * The legacy generic effect parser interpreted Strata as an immediate one-shot
- * draw when the Hero resolved. Undo only those appended cards so Strata remains
- * in play and its ongoing modifier can be applied by the player-confirmed Draw
- * Step on subsequent turns.
- */
-function reconcileResolvedStrata(input: MatchState, next: MatchState) {
-  const newlyResolved = next.players.reduce((count, player) => {
-    const before = input.players.find((candidate) => candidate.id === player.id);
-    const beforeIds = new Set(before?.heroes.map((hero) => hero.id) ?? []);
-    return count + player.heroes.filter((hero) => !beforeIds.has(hero.id) && isStrata(hero)).length;
-  }, 0);
-  if (!newlyResolved) return next;
-
-  for (const player of next.players) {
-    const before = input.players.find((candidate) => candidate.id === player.id);
-    if (!before) continue;
-    const deckReduction = Math.max(0, before.deckCards.length - player.deckCards.length);
-    const handIncrease = Math.max(0, player.hand.length - before.hand.length);
-    let restore = Math.min(newlyResolved, deckReduction, handIncrease);
-    while (restore > 0) {
-      const card = player.hand.pop();
-      if (!card) break;
-      player.deckCards.unshift(card);
-      restore -= 1;
-    }
-    player.deck = player.deckCards.length;
-  }
-
-  const existingLogLength = input.log.length;
-  next.log = [
-    ...next.log.slice(0, existingLogLength),
-    ...next.log.slice(existingLogLength).filter((entry) => (
-      !/could not draw because their deck is empty/i.test(entry.message)
-    )),
-  ];
-  return next;
-}
-
 function enterPostDamage(state: MatchState) {
   state.phase = "postDamage";
   state.stepLabel = "Damage Step • Post-damage priority";
@@ -103,55 +54,6 @@ function flipStopsDamage(state: MatchState, card: GameCard) {
   return Boolean(faction && /\[Stop\]/i.test(text) && listed.includes(faction));
 }
 
-function resolvingBatchObject(input: MatchState): PendingEffect | null {
-  return input.passes.length >= 1 ? input.batch.at(-1) ?? null : null;
-}
-
-/**
- * The legacy engine resolves all ordinary damage cards immediately when the
- * Victor window closes. Restore those cards and retain only the calculated
- * amount so the visible client can flip them one click at a time.
- */
-export function passPriorityWithManualDamage(input: MatchState, playerId: string) {
-  if (hasPendingDraws(input)) {
-    throw new Error("Complete every pending Draw action before passing priority.");
-  }
-  const resolving = resolvingBatchObject(input);
-  let next = passPriority(input, playerId);
-  next = reconcileResolvedStrata(input, next);
-  next = reconcileResolvedEvos(input, next);
-  next = reconcileResolvedDrawEffect(input, next, resolving);
-
-  if (input.phase !== "victor" || next.phase === "victor" || !next.pendingLoser) return next;
-
-  const beforeLoser = playerById(input, next.pendingLoser);
-  const afterLoser = playerById(next, next.pendingLoser);
-  if (!beforeLoser || !afterLoser) return next;
-
-  const removedCards = Math.max(0, beforeLoser.deckCards.length - afterLoser.deckCards.length);
-  const calculatedDamage = Math.max(0, next.pendingDamage + removedCards);
-  afterLoser.deckCards = structuredClone(beforeLoser.deckCards);
-  afterLoser.deck = afterLoser.deckCards.length;
-  afterLoser.discard = structuredClone(beforeLoser.discard);
-  next.series = structuredClone(input.series);
-  next.winner = "";
-  next.resultReason = "";
-  next.pendingDamage = calculatedDamage;
-  next.revealedFlip = undefined;
-  next.passes = [];
-
-  if (calculatedDamage <= 0) {
-    enterPostDamage(next);
-  } else {
-    next.phase = "damage";
-    next.stepLabel = `Damage Step • ${calculatedDamage} cards to flip`;
-    next.priority = next.pendingLoser;
-    next.deadline = Date.now() + DAMAGE_DECISION_MS;
-  }
-  log(next, "game", `${afterLoser.name} must manually flip ${calculatedDamage} damage card${calculatedDamage === 1 ? "" : "s"}.`);
-  return reconcileAttackDrawEffects(input, next, calculatedDamage);
-}
-
 export function playerCanFlipDamage(
   state: MatchState | null | undefined,
   playerId: string | undefined,
@@ -162,7 +64,8 @@ export function playerCanFlipDamage(
     && state.phase === "damage"
     && state.pendingLoser === playerId
     && state.pendingDamage > 0
-    && !state.revealedFlip,
+    && !state.revealedFlip
+    && !state.pendingChoice,
   );
 }
 
@@ -175,6 +78,9 @@ export function flipDamageCard(input: MatchState, playerId: string) {
   const player = playerById(state, playerId)!;
   const card = player.deckCards.shift();
   player.deck = player.deckCards.length;
+  state.informationEpoch += 1;
+  state.undoWindow = undefined;
+
   if (!card) {
     const winner = otherPlayer(state, playerId);
     if (!winner) throw new Error("The opposing player could not be found.");
@@ -209,20 +115,6 @@ export function flipDamageCard(input: MatchState, playerId: string) {
   return state;
 }
 
-function drawRemainingDamageToHand(state: MatchState, playerId: string, amount: number) {
-  const player = playerById(state, playerId);
-  if (!player) return;
-  let drawn = 0;
-  while (drawn < amount) {
-    const card = player.deckCards.shift();
-    if (!card) break;
-    player.hand.push(card);
-    drawn += 1;
-  }
-  player.deck = player.deckCards.length;
-  log(state, "game", `${player.name} put ${drawn} remaining damage card${drawn === 1 ? "" : "s"} into their hand.`);
-}
-
 export function resolveManualDamage(
   input: MatchState,
   playerId: string,
@@ -231,12 +123,7 @@ export function resolveManualDamage(
 ) {
   const player = playerById(input, playerId);
   const flip = input.revealedFlip;
-  if (
-    input.phase !== "damage"
-    || input.pendingLoser !== playerId
-    || !player
-    || !flip
-  ) {
+  if (input.phase !== "damage" || input.pendingLoser !== playerId || !player || !flip) {
     throw new Error("There is no revealed Flip decision for you.");
   }
 
@@ -254,45 +141,44 @@ export function resolveManualDamage(
     return state;
   }
 
-  if (flip.id !== flipCardId) {
-    throw new Error("Only the currently selected Flip card may be played.");
-  }
+  if (flip.id !== flipCardId) throw new Error("Only the currently selected Flip card may be played.");
 
-  const remainingDamage = input.pendingDamage;
   const cost = effectiveCardEnergyCost(input, playerId, flip, choices);
   const prepared = prepareEnergyPayment(input, playerId, cost);
   const preparedPlayer = playerById(prepared, playerId)!;
+  preparedPlayer.energy = Math.max(0, preparedPlayer.energy - cost);
   preparedPlayer.discard = preparedPlayer.discard.filter((card) => card.id !== flip.id);
+  prepared.revealedFlip = undefined;
 
-  // Existing Flip resolution handles the printed effect and final destination.
-  // Give it an empty automatic queue, then restore the manual queue when the
-  // Flip neither stops nor replaces the remaining damage procedure.
-  prepared.pendingDamage = 0;
-  const resolved = resolveDamage(prepared, playerId, flip.id, choices);
-  const stopped = flipStopsDamage(input, flip) || flip.name === "Blackhole";
-  const movesRemainingToHand = flip.name === "Brain Geyser";
-
-  if (movesRemainingToHand && remainingDamage > 0 && resolved.phase !== "result") {
-    drawRemainingDamageToHand(resolved, playerId, remainingDamage);
-    resolved.pendingDamage = 0;
-    resolved.pendingLoser = playerId;
-    enterPostDamage(resolved);
-  } else if (!stopped && remainingDamage > 0 && resolved.phase !== "result") {
-    resolved.phase = "damage";
-    resolved.stepLabel = `Damage Step • ${remainingDamage} cards to flip`;
-    resolved.priority = playerId;
-    resolved.passes = [];
-    resolved.pendingLoser = playerId;
-    resolved.pendingDamage = remainingDamage;
-    resolved.revealedFlip = undefined;
-    resolved.deadline = Date.now() + DAMAGE_DECISION_MS;
-  }
-
-  return reconcileResolvedDrawEffect(prepared, resolved, {
-    id: `${flip.id}-manual-resolution`,
+  if (flipStopsDamage(prepared, flip)) prepared.pendingDamage = 0;
+  const split = splitWhenPlayedEffect(flip.effect);
+  const pending: PendingEffect = {
+    id: `${flip.id}-damage-resolution-${prepared.version}`,
     controllerId: playerId,
     card: flip,
+    effect: split.cardEffect,
     choices,
     kind: "card",
+  };
+  const resolved = resolveStructuredEffect(prepared, pending);
+  emitGameEvent(resolved, {
+    id: `${resolved.turn}:card-play:${flip.id}`,
+    type: "card-play",
+    playerId,
+    cardType: "Flip",
+    sourceCards: split.triggerEffect ? [flip] : undefined,
   });
+  log(resolved, "game", `${player.name} played ${flip.name} for ${cost} Energy.`);
+
+  if (!resolved.pendingChoice) {
+    if (resolved.pendingDamage <= 0) enterPostDamage(resolved);
+    else {
+      resolved.phase = "damage";
+      resolved.stepLabel = `Damage Step • ${resolved.pendingDamage} cards to flip`;
+      resolved.priority = playerId;
+      resolved.passes = [];
+      resolved.deadline = Date.now() + DAMAGE_DECISION_MS;
+    }
+  }
+  return resolved;
 }

@@ -12,8 +12,7 @@ import {
   evoCanTarget,
   legalEvoTargets,
 } from "../lib/evo";
-import { createMatch, type GameCard } from "../lib/game";
-import { passPriorityWithManualDamage } from "../lib/manualDamage";
+import { createMatch, passPriority, submitCardChoice, type CardChoices, type GameCard } from "../lib/game";
 import { drawTurnCard, playerCanDrawTurnCard } from "../lib/turnStart";
 
 function players() {
@@ -38,8 +37,16 @@ function giveEnergy(player: ReturnType<typeof makePlayer>, amount = 20) {
 }
 
 function resolveTopBatch(match: ReturnType<typeof createMatch>, playerId: string, opponentId: string) {
-  const firstPass = passPriorityWithManualDamage(match, playerId);
-  return passPriorityWithManualDamage(firstPass, opponentId);
+  const firstPass = passPriority(match, playerId);
+  let resolved = passPriority(firstPass, opponentId);
+  while (resolved.pendingChoice) {
+    const pending = resolved.pendingChoice;
+    const field = pending.schema.fields.find((candidate) => !pending.answers[candidate.chooserId]);
+    assert.ok(field);
+    const choices = { [field.id]: field.id === "confirmed" ? true : field.options[0]?.id } as CardChoices;
+    resolved = submitCardChoice(resolved, field.chooserId, choices);
+  }
+  return resolved;
 }
 
 test("Evos target only matching Characters, remain stacked, and turn the Character face up", () => {
@@ -99,7 +106,7 @@ test("a resolving multi-draw effect creates one Draw action for each card", () =
   const handBefore = player.hand.length;
   const deckBefore = player.deckCards.length;
 
-  const resolved = passPriorityWithManualDamage(match, player.id);
+  const resolved = passPriority(match, player.id);
   assert.equal(hasPendingDraws(resolved), true);
   assert.equal(activePendingDraw(resolved)?.remaining, 3);
   assert.equal(pendingDrawCountForPlayer(resolved, player.id), 3);
@@ -107,7 +114,7 @@ test("a resolving multi-draw effect creates one Draw action for each card", () =
   assert.equal(resolved.players[0].deckCards.length, deckBefore);
   assert.equal(playerCanDrawTurnCard(resolved, player.id), true);
   assert.throws(
-    () => passPriorityWithManualDamage(resolved, player.id),
+    () => passPriority(resolved, player.id),
     /pending Draw/i,
   );
 

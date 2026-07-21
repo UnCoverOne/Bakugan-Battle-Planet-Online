@@ -7,7 +7,7 @@ import {
   drawStepIsPending,
   drawTurnCard,
   playerCanDrawTurnCard,
-  preparePendingDraw,
+  type TurnStartMatchState,
 } from "../lib/turnStart";
 import {
   compactMatchHudSlots,
@@ -158,30 +158,26 @@ test("a revealed Flip replaces the Action HUD with Play and Skip", () => {
   assert.deepEqual(compactMatchHudSlots(actions), ["play-flip", "skip-flip"]);
 });
 
-test("the prepared Draw Step waits three seconds in the first turn and requires each player to draw", () => {
+test("the Draw Step is created explicitly before mutation, waits three seconds, and requires each player to draw", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
   const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
   const match = createMatch("HUDDRAW", "bo1", [player, opponent]);
-  match.turn = 1;
-  match.phase = "energize";
-  match.stepLabel = "Turn 1 • Energize Step";
-
-  for (const participant of match.players) {
-    const card = participant.deckCards.shift();
-    assert.ok(card);
-    participant.hand.push(card);
-    participant.deck = participant.deckCards.length;
-  }
-  const versionBeforePreparation = match.version;
-  const prepared = preparePendingDraw(match, 1_000);
-  assert.equal(prepared.version, versionBeforePreparation + 1);
+  const prepared = match as TurnStartMatchState;
+  prepared.turn = 1;
+  prepared.phase = "draw";
+  prepared.stepLabel = "Turn 1 • Draw Step begins in 3 seconds";
+  prepared.drawPreparedTurn = 1;
+  prepared.drawReadyAt = 4_000;
+  prepared.drawDeadline = 39_000;
+  prepared.drawnPlayerIds = [];
+  prepared.drawRemainingByPlayer = { [player.id]: 1, [opponent.id]: 1 };
   assert.equal(drawStepIsPending(prepared), true);
   assert.equal(playerCanDrawTurnCard(prepared, player.id, 3_999), false);
   assert.equal(playerCanDrawTurnCard(prepared, player.id, 4_000), true);
   assert.throws(() => drawTurnCard(prepared, player.id, 3_999), /has not begun/i);
 
   const afterPlayer = drawTurnCard(prepared, player.id, 4_000);
-  assert.equal(afterPlayer.phase, "retract");
+  assert.equal(afterPlayer.phase, "draw");
   assert.equal(playerCanDrawTurnCard(afterPlayer, player.id, 4_000), false);
   const afterBoth = drawTurnCard(afterPlayer, opponent.id, 4_000);
   assert.equal(afterBoth.phase, "energize");

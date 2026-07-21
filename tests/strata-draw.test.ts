@@ -1,8 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch } from "../lib/game";
-import { passPriorityWithManualDamage } from "../lib/manualDamage";
+import { createMatch, passPriority } from "../lib/game";
 import {
   drawTurnCard,
   playerHasDrawnTurnCard,
@@ -46,7 +45,7 @@ test("resolving Strata does not immediately draw cards", () => {
     hand: candidate.hand.length,
     deck: candidate.deckCards.length,
   }]));
-  const resolved = passPriorityWithManualDamage(match, player.id);
+  const resolved = passPriority(match, player.id);
 
   assert.ok(resolved.players[0].heroes.some((hero) => hero.id === strata.id));
   for (const candidate of resolved.players) {

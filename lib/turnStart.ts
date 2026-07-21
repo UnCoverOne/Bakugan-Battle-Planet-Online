@@ -5,7 +5,6 @@ import {
   playerCanResolvePendingDraw,
 } from "./drawQueue";
 
-const FIRST_DRAW_DELAY_MS = 3_000;
 const DRAW_STEP_DURATION_MS = 35_000;
 const ENERGIZE_STEP_DURATION_MS = 35_000;
 
@@ -119,67 +118,6 @@ export function drawStepTimerState(
   };
 }
 
-/**
- * The legacy engine currently enters Energize after automatically drawing.
- * Convert that transition into a dedicated, player-confirmed Draw Step by
- * returning those just-drawn cards to the top of each deck. The temporary
- * retract engine phase prevents legacy Energize automation from firing while
- * the Draw Step is pending; the visible step label remains Draw.
- */
-export function preparePendingDraw(input: MatchState, now = Date.now()): MatchState {
-  const current = withTurnStartMetadata(input);
-  if (
-    current.turn <= 0
-    || current.phase !== "energize"
-    || current.drawPreparedTurn === current.turn
-    || !/Energize Step/i.test(current.stepLabel)
-  ) {
-    return input;
-  }
-
-  const state = withTurnStartMetadata(cloneMatch(input));
-  const recentTurnEntries = state.log.slice(-(state.players.length + 2));
-  for (const player of state.players) {
-    const legacyDrawFailed = recentTurnEntries.some((item) => (
-      item.message === `${player.name} could not draw because their deck is empty.`
-    ));
-    if (!legacyDrawFailed) {
-      const drawnCard = player.hand.pop();
-      if (drawnCard) player.deckCards.unshift(drawnCard);
-    }
-    player.deck = player.deckCards.length;
-  }
-
-  const delay = state.turn === 1 ? FIRST_DRAW_DELAY_MS : 0;
-  const entitlement = turnDrawCount(state);
-  state.drawPreparedTurn = state.turn;
-  state.drawReadyAt = now + delay;
-  state.drawDeadline = state.drawReadyAt + DRAW_STEP_DURATION_MS;
-  state.drawnPlayerIds = [];
-  state.drawRemainingByPlayer = Object.fromEntries(
-    state.players.map((player) => [player.id, entitlement]),
-  );
-  state.phase = "retract";
-  state.priority = state.startingPlayer;
-  state.passes = [];
-  state.stepLabel = delay
-    ? `Turn ${state.turn} • Draw Step begins in 3 seconds`
-    : `Turn ${state.turn} • Draw Step`;
-  state.deadline = state.drawDeadline;
-  state.log = state.log.filter((item) => !item.message.includes(
-    `Turn ${state.turn} began. Both players drew a card and may Energize once.`,
-  ));
-  state.log.push({
-    id: `${now}-draw-step-${state.turn}`,
-    at: now,
-    kind: "game",
-    message: delay
-      ? `Turn ${state.turn} is ready. The Draw Step begins in three seconds.`
-      : `Turn ${state.turn} began. Both players must complete ${entitlement} Draw action${entitlement === 1 ? "" : "s"}.`,
-  });
-  state.version += 1;
-  return state;
-}
 
 export function drawTurnCard(
   input: MatchState,

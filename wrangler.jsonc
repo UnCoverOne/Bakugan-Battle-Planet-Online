@@ -8,6 +8,12 @@
     "directory": "./dist/client",
     "binding": "ASSETS"
   },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "cache": {
+    "enabled": true
+  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -28,6 +34,7 @@
     "crons": ["17 */6 * * *"]
   },
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "head_sampling_rate": 1
   }
 }

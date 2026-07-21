@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   beginCorePlacement,
   concedeMatch,
-  discardToHandLimit,
   energizeCard,
+  passPriority,
   prepareCardPlay,
   selectBakugan,
   type CardChoices,
@@ -17,7 +17,6 @@ import { playCardWithAutoEnergy } from "../../lib/cardPayment";
 import { tapEnergyCard } from "../../lib/energy";
 import {
   flipDamageCard,
-  passPriorityWithManualDamage,
   resolveManualDamage,
 } from "../../lib/manualDamage";
 import {
@@ -25,7 +24,6 @@ import {
   drawTurnCard,
   playerCanDrawTurnCard,
   playerHasDrawnTurnCard,
-  preparePendingDraw,
   type TurnStartMatchState,
 } from "../../lib/turnStart";
 import { BakuCoreLayer } from "./BakuCoreLayer";
@@ -116,7 +114,7 @@ export function GameplayClient() {
     if (!match || !actorId) throw new Error("No active match is available.");
 
     if (!current.online) {
-      publishMatch(preparePendingDraw(localAction(match, actorId)));
+      publishMatch(localAction(match, actorId));
       return;
     }
 
@@ -199,7 +197,7 @@ export function GameplayClient() {
   const passTurn = () => submitMatchAction(
     "pass",
     {},
-    (match, actorId) => passPriorityWithManualDamage(match, actorId),
+    (match, actorId) => passPriority(match, actorId),
   );
 
   const flipDamage = () => submitMatchAction(
@@ -249,13 +247,6 @@ export function GameplayClient() {
     writeGameRoute("settings");
     window.location.reload();
   };
-
-  useEffect(() => {
-    const match = storedState.match;
-    if (!match || storedState.online) return;
-    const prepared = preparePendingDraw(match);
-    if (prepared !== match) publishMatch(prepared);
-  }, [storedState.match?.phase, storedState.match?.stepLabel, storedState.match?.turn, storedState.online, publishMatch]);
 
   useEffect(() => {
     const match = storedState.match;

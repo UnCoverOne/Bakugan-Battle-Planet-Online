@@ -7,6 +7,7 @@ const gameplay = readFileSync(new URL("../components/game-screen-v2/GameplayClie
 const placement = readFileSync(new URL("../components/game-screen-v2/CorePlacementLayer.tsx", import.meta.url), "utf8");
 const placementStyles = readFileSync(new URL("../components/game-screen-v2/CorePlacementLayer.module.css", import.meta.url), "utf8");
 const route = readFileSync(new URL("../app/api/game/route.ts", import.meta.url), "utf8");
+const deadlines = readFileSync(new URL("../lib/deadlines.ts", import.meta.url), "utf8");
 
 test("the setup shell publishes route and match changes to the gameplay store", () => {
   assert.match(page, /readMatchStore/);
@@ -18,7 +19,8 @@ test("the starting-player transition retries and exposes a manual recovery contr
   assert.match(gameplay, /attempt\(2\)/);
   assert.match(gameplay, /setStartupError/);
   assert.match(placement, />Retry<\/button>/);
-  assert.match(route, /input\.phase === "startingPlayer" && now >= input\.startingPlayerRevealedAt/);
+  assert.match(route, /resolveExpiredDeadline/);
+  assert.match(deadlines, /input\.phase === "startingPlayer" && now >= input\.startingPlayerRevealedAt/);
 });
 
 

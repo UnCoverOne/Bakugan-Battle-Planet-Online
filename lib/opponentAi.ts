@@ -7,16 +7,16 @@ import {
   orderTriggers,
   placeCore,
   prepareCardPlay,
+  passPriority,
   selectBakugan,
   submitCardChoice,
-  totalDamage,
   totalPower,
   type CardChoices,
   type GameCard,
   type MatchState,
 } from "./game";
 import { cardEnergyPaymentState, playCardWithAutoEnergy } from "./cardPayment";
-import { flipDamageCard, passPriorityWithManualDamage, resolveManualDamage } from "./manualDamage";
+import { flipDamageCard, resolveManualDamage } from "./manualDamage";
 import { availableRollTargets, confirmRoll, playerCanConfirmRoll, playerCanSelectRollTarget, selectRollTarget } from "./rolling";
 import { drawTurnCard, playerCanDrawTurnCard } from "./turnStart";
 import { buildChoiceSchema, type ChoiceField } from "./rules/choices";
@@ -49,7 +49,7 @@ function cardValue(match: MatchState, playerId: string, card: GameCard, choices:
 }
 
 function setChoice(choices: CardChoices, field: ChoiceField, values: string[]) {
-  if (field.id === "discardCardIds" || field.id === "handCardIds" || field.id === "targetEnergyIds") {
+  if (field.id === "discardCardIds" || field.id === "handCardIds" || field.id === "targetEnergyIds" || field.id === "orderedCardIds") {
     Object.assign(choices, { [field.id]: values });
   } else if (field.id === "xValue") choices.xValue = Number(values[0] ?? 0);
   else if (field.id === "confirmed") choices.confirmed = values[0] !== "no";
@@ -215,7 +215,7 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
       const schema = buildChoiceSchema(input, playerId, best.card);
       return schema.fields.length ? prepareCardPlay(input, playerId, best.card.id) : playCardWithAutoEnergy(input, playerId, best.card.id, best.choices);
     }
-    return passPriorityWithManualDamage(input, playerId);
+    return passPriority(input, playerId);
   }
   if (input.phase === "handLimit" && input.priority === playerId) {
     const amount = Math.max(0, player.hand.length - 7);

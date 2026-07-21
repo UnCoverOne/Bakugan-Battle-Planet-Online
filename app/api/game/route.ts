@@ -1,7 +1,7 @@
 import {
   beginCorePlacement, cancelCardChoice, concedeMatch, createMatch, discardToHandLimit, energizeCard, nextTurn,
-  legalPlacementCells, normalizeMatchState, orderTriggers, placeCore, prepareCardPlay, redactForPlayer, selectBakugan, setReady,
-  startNextSeriesGame, submitCardChoice, type CardChoices, type MatchState,
+  normalizeMatchState, orderTriggers, placeCore, prepareCardPlay, redactForPlayer, selectBakugan, setReady,
+  passPriority, startNextSeriesGame, submitCardChoice, type CardChoices, type MatchState,
 } from "../../../lib/game";
 import { makeCanonicalPlayer, type CanonicalPlayerSelection } from "../../../lib/data";
 import { playCardWithAutoEnergy } from "../../../lib/cardPayment";
@@ -9,12 +9,12 @@ import { addChatMessage } from "../../../lib/chat";
 import { tapEnergyCard } from "../../../lib/energy";
 import {
   flipDamageCard,
-  passPriorityWithManualDamage,
   resolveManualDamage,
 } from "../../../lib/manualDamage";
-import { confirmRoll, playerCanConfirmRoll, playerCanSelectRollTarget, selectRollTarget } from "../../../lib/rolling";
-import { drawTurnCard, playerCanDrawTurnCard, preparePendingDraw } from "../../../lib/turnStart";
+import { confirmRoll, selectRollTarget } from "../../../lib/rolling";
+import { drawTurnCard } from "../../../lib/turnStart";
 import { undoLatestAction } from "../../../lib/undo";
+import { resolveExpiredDeadline } from "../../../lib/deadlines";
 import { assertSameOrigin, requestClientKey } from "../../../lib/request-security";
 
 export const dynamic = "force-dynamic";
@@ -180,82 +180,11 @@ async function saveTransition(
   return true;
 }
 
-function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
-  // The reveal is presentation-only. As soon as it finishes, any authenticated
-  // match request may advance the authoritative state. Previously this branch
-  // sat below the general deadline guard, so a failed client transition left
-  // the match frozen for another 30 seconds.
-  if (input.phase === "startingPlayer" && now >= input.startingPlayerRevealedAt) {
-    return beginCorePlacement(input, now);
-  }
-  if (now <= input.deadline || ["lobby", "result"].includes(input.phase)) return input;
-  const state = structuredClone(input);
-  const actorId = state.priority;
-  const actor = state.players.find((player) => player.id === actorId);
-  if (!actor) return input;
-  if (state.pendingChoice) {
-    const fields = state.pendingChoice.schema.fields.filter((candidate) => candidate.chooserId === actorId);
-    if (!fields.length) return input;
-    const timeoutChoices: Record<string, unknown> = {};
-    const confirmation = fields.find((field) => field.id === "confirmed");
-    if (confirmation?.options.some((option) => option.id === "no")) {
-      timeoutChoices.confirmed = false;
-    } else {
-      for (const field of fields) {
-        const selected = field.options.slice(0, field.minimum).map((option) => option.id);
-        if (field.id === "xValue") timeoutChoices[field.id] = Number(selected[0] ?? 0);
-        else if (field.id === "confirmed") timeoutChoices[field.id] = selected[0] !== "no";
-        else if (["targetEnergyIds", "discardCardIds", "handCardIds"].includes(field.id)) timeoutChoices[field.id] = selected;
-        else if (selected[0] != null) timeoutChoices[field.id] = selected[0];
-      }
-    }
-    return submitCardChoice(state, actorId, timeoutChoices as CardChoices);
-  }
-  const triggerOrder = state.triggerOrders.find((request) => request.controllerId === actorId && !request.orderedIds);
-  if (triggerOrder) return orderTriggers(state, actorId, triggerOrder.id, triggerOrder.triggerIds);
-  if (state.phase === "placement") {
-    const used = new Set(state.placements.filter((placement) => placement.playerId === actorId).map((placement) => placement.core.id));
-    const core = actor.cores.find((candidate) => !used.has(candidate.id));
-    const cell = legalPlacementCells(state)[0];
-    return core && cell ? placeCore(state, actorId, core.id, cell) : input;
-  }
-  if (state.phase === "draw" && playerCanDrawTurnCard(state, actorId, now)) return drawTurnCard(state, actorId, now);
-  if (state.phase === "energize" && !actor.energizedThisTurn) return energizeCard(state, actorId);
-  if (state.phase === "selection" && !state.selected[actorId]) {
-    const bakugan = actor.bakugan.find((candidate) => !candidate.open) ?? actor.bakugan[0];
-    return bakugan ? selectBakugan(state, actorId, bakugan.id) : input;
-  }
-  if (state.phase === "target") {
-    if (playerCanSelectRollTarget(state, actorId)) {
-      const target = state.placements.find((placement) => !placement.attachedTo);
-      return target ? selectRollTarget(state, actorId, target.cell) : input;
-    }
-    if (playerCanConfirmRoll(state, actorId)) return confirmRoll(state, actorId);
-  }
-  if (state.phase === "damage" && state.pendingLoser === actorId) {
-    if (state.revealedFlip) return resolveManualDamage(state, actorId);
-    if (state.pendingDamage > 0) return flipDamageCard(state, actorId);
-  }
-  if (["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase)) return passPriorityWithManualDamage(state, actorId);
-  if (state.phase === "handLimit") {
-    const amount = Math.max(0, actor.hand.length - 7);
-    return discardToHandLimit(state, actorId, actor.hand.slice(0, amount).map((card) => card.id));
-  }
-  return input;
-}
-
 async function touchPresence(code: string, playerId: string, now = Date.now()) {
   const database = await getDatabase();
   await database.prepare(
     "INSERT INTO match_presence (code, player_id, last_seen, connected) VALUES (?, ?, ?, 1) ON CONFLICT(code, player_id) DO UPDATE SET last_seen = excluded.last_seen, connected = 1",
   ).bind(code, playerId, now).run();
-}
-
-async function markPresenceDisconnected(code: string, playerId: string) {
-  const database = await getDatabase();
-  await database.prepare(
-    "UPDATE match_presence SET connected = 0 WHERE code = ? AND player_id = ?",
-  ).bind(code, playerId).run();
 }
 
 /**
@@ -279,19 +208,6 @@ async function hydratePresence(state: MatchState) {
     player.connected = Boolean(presence.connected);
   }
   return state;
-}
-
-function checkDisconnects(state: MatchState) {
-  if (["lobby", "result"].includes(state.phase) || state.players.length < 2) return state;
-  const now = Date.now();
-  const disconnected = state.players.find((player) => now - player.lastSeen > 30_000);
-  if (!disconnected) return state;
-  const winner = state.players.find((player) => player.id !== disconnected.id)!;
-  disconnected.connected = false;
-  const resolved = concedeMatch(state, disconnected.id);
-  resolved.resultReason = "Opponent disconnected (30-second grace expired)";
-  resolved.log.push({ id: `${now}-disconnect`, at: now, kind: "connection", message: `${disconnected.name}'s reconnect window expired. ${winner.name} wins.` });
-  return resolved;
 }
 
 async function latestConflict(code: string, playerId: string, message = "Match state changed. Resynchronising.") {
@@ -345,21 +261,7 @@ export async function POST(request: Request) {
     }
     await hydratePresence(record.state);
 
-    const beforeDisconnect = structuredClone(record.state);
-    let state = checkDisconnects(record.state);
-    if (state !== record.state) {
-      const disconnected = state.players.find((player) => !player.connected);
-      if (disconnected) await markPresenceDisconnected(code, disconnected.id);
-      const saved = await saveTransition(state.code, state, beforeDisconnect, beforeDisconnect.version, !coordinated);
-      if (!saved) {
-        record = await load(code);
-        if (!record) return json({ error: "Match room not found." }, 404);
-        state = await hydratePresence(record.state);
-      } else {
-        record = { state, previous: beforeDisconnect };
-      }
-    }
-
+    let state = record.state;
     const beforeDeadline = structuredClone(state);
     const timed = resolveExpiredDeadline(state);
     if (timed !== state) {
@@ -416,7 +318,7 @@ export async function POST(request: Request) {
       case "choice": state = submitCardChoice(state, body.playerId, choices); break;
       case "cancel-choice": state = cancelCardChoice(state, body.playerId); break;
       case "order-triggers": state = orderTriggers(state, body.playerId, String(payload.requestId ?? ""), Array.isArray(payload.orderedIds) ? payload.orderedIds.map(String) : []); break;
-      case "pass": state = passPriorityWithManualDamage(state, body.playerId); break;
+      case "pass": state = passPriority(state, body.playerId); break;
       case "flip-damage": state = flipDamageCard(state, body.playerId); break;
       case "damage": state = resolveManualDamage(state, body.playerId, payload.cardId ? String(payload.cardId) : undefined, choices); break;
       case "hand-limit": state = discardToHandLimit(state, body.playerId, Array.isArray(payload.cardIds) ? payload.cardIds.map(String) : []); break;
@@ -428,7 +330,6 @@ export async function POST(request: Request) {
       default: return json({ error: "Unknown match command." }, 400);
     }
 
-    if (body.action !== "chat") state = preparePendingDraw(state);
     const actor = state.players.find((player) => player.id === body.playerId);
     if (actor) {
       actor.lastSeen = Date.now();

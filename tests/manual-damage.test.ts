@@ -1,10 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, type PlayerState } from "../lib/game";
+import { createMatch, passPriority, type PlayerState } from "../lib/game";
 import {
   flipDamageCard,
-  passPriorityWithManualDamage,
   playerCanFlipDamage,
   resolveManualDamage,
 } from "../lib/manualDamage";
@@ -116,9 +115,9 @@ test("the Victor window enters manual damage without consuming the loser deck", 
   loser.bakugan[0].open = true;
   const deckBefore = loser.deckCards.map((card) => card.id);
 
-  const firstPass = passPriorityWithManualDamage(match, winner.id);
+  const firstPass = passPriority(match, winner.id);
   assert.equal(firstPass.phase, "victor");
-  const damage = passPriorityWithManualDamage(firstPass, loser.id);
+  const damage = passPriority(firstPass, loser.id);
   assert.equal(damage.phase, "damage");
   assert.ok(damage.pendingDamage > 0);
   assert.equal(damage.revealedFlip, undefined);
