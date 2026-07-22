@@ -213,6 +213,26 @@
   color: #fff;
 }
 
+.doubleCoreBadge {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  padding: 0.28rem 0.44rem;
+  border: 1px solid rgba(var(--result-accent), 0.48);
+  background: rgba(var(--result-accent), 0.1);
+  color: rgb(var(--result-accent));
+  font-size: clamp(0.48rem, 0.66vw, 0.62rem);
+  font-weight: 950;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.resultCopy .resultNote {
+  margin-top: 0.5rem;
+  color: rgba(225, 232, 236, 0.72);
+  font-size: clamp(0.55rem, 0.75vw, 0.7rem);
+  line-height: 1.35;
+}
+
 .landedCores {
   display: flex;
   flex-wrap: wrap;
@@ -270,6 +290,7 @@
     transform: translateY(0) scale(1);
   }
 }
+
 
 @keyframes roll-card-enter {
   from {

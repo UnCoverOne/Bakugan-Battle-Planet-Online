@@ -36,7 +36,11 @@ function engagedPowerMatch() {
       result: "open-no-core",
       cores: [],
       accuracyRoll: 50,
+      deviationRoll: 5000,
       doubleRoll: 50,
+      secondCoreRoll: 5000,
+      doubleCore: false,
+      path: [],
       note: "Test roll",
     };
   }

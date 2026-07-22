@@ -17,6 +17,7 @@ import {
   playerCanConfirmRoll,
   playerCanSelectRollTarget,
   rollTargetCanConfirm,
+  rollResultSignature,
   selectRollTarget,
 } from "../../lib/rolling";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
@@ -34,6 +35,7 @@ const HEX_RADIUS = 52 * 0.8;
 const HEX_HEIGHT = Math.sqrt(3) * HEX_RADIUS;
 const HEX_X_STEP = HEX_RADIUS * 1.5;
 const MATRIX_CORE_SIZE = 80;
+const ROLL_TRACE_DURATION_MS = 1800;
 
 const CORE_BACK_ART: Record<CoreType, string> = {
   Fist: "/assets/core-backs/fist.png",
@@ -70,6 +72,102 @@ function cellPosition(cellId: string) {
     y: GRID_CENTER_Y + (cell.r + cell.q / 2) * HEX_HEIGHT,
   };
 }
+
+function rollTracePath(points: readonly { x: number; y: number }[]) {
+  if (points.length < 2) return "";
+  if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  const [start, control, end, secondary] = points;
+  return `M ${start.x} ${start.y} Q ${control.x} ${control.y} ${end.x} ${end.y}`
+    + (secondary ? ` L ${secondary.x} ${secondary.y}` : "");
+}
+
+function traceResultLabel(result: MatchState["rolls"][string]["result"]) {
+  switch (result) {
+    case "miss-closed": return "MISS • CLOSED";
+    case "open-no-core": return "OPEN • NO CORE";
+    case "intended-core": return "INTENDED CORE";
+    case "overshoot": return "OVERSHOOT";
+    case "undershoot": return "UNDERSHOOT";
+    case "skew-left": return "SKEW LEFT";
+    case "skew-right": return "SKEW RIGHT";
+    case "path-intercept": return "MAGNET-PHASE INTERCEPT";
+  }
+}
+
+function RollTraceLayer({
+  match,
+  localPlayerId,
+  signature,
+}: {
+  match: MatchState;
+  localPlayerId: string;
+  signature: string;
+}) {
+  const ordered = [
+    match.players.find((player) => player.id === localPlayerId) ?? match.players[0],
+    ...match.players.filter((player) => player.id !== localPlayerId),
+  ];
+  return (
+    <svg
+      className={styles.rollTraceLayer}
+      viewBox={`0 0 ${GRID_WIDTH} ${GRID_HEIGHT}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label="Animated Bakugan roll paths"
+    >
+      <rect className={styles.rollTraceVeil} width={GRID_WIDTH} height={GRID_HEIGHT} />
+      {ordered.map((player, index) => {
+        const roll = match.rolls[player.id];
+        if (!roll?.path?.length) return null;
+        const target = cellPosition(roll.target);
+        const endpoint = roll.path.at(-1)!;
+        const local = player.id === localPlayerId;
+        return (
+          <g
+            className={styles.rollTrace}
+            data-owner={local ? "player" : "opponent"}
+            style={{ "--trace-order": index } as CSSProperties}
+            key={`${signature}:${player.id}`}
+          >
+            {target ? (
+              <circle
+                className={styles.rollTraceTarget}
+                cx={target.x}
+                cy={target.y}
+                r={MATRIX_CORE_SIZE * 0.62}
+              />
+            ) : null}
+            <path
+              className={styles.rollTraceGlow}
+              d={rollTracePath(roll.path)}
+              pathLength={1}
+            />
+            <path
+              className={styles.rollTracePath}
+              d={rollTracePath(roll.path)}
+              pathLength={1}
+            />
+            <circle
+              className={styles.rollTraceEndpoint}
+              cx={endpoint.x}
+              cy={endpoint.y}
+              r={13}
+            />
+            <text
+              className={styles.rollTraceLabel}
+              x={Math.min(GRID_WIDTH - 250, Math.max(250, endpoint.x))}
+              y={Math.min(GRID_HEIGHT - 42, Math.max(42, endpoint.y - 62))}
+              textAnchor="middle"
+            >
+              {traceResultLabel(roll.result)}{roll.doubleCore ? " • DOUBLE CORE" : ""}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 
 function samePortalTargets(previous: PortalTargets, next: PortalTargets) {
   return previous.playArea === next.playArea && previous.actionSlot === next.actionSlot;
@@ -192,12 +290,36 @@ export function BakuCoreLayer({
   const [selectedCoreCell, setSelectedCoreCell] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [tracingSignature, setTracingSignature] = useState("");
   const {
     rollResultOpen,
     deferredCoreCells,
     transferringCoreCells,
     dismissRollResult,
   } = useBakuCorePresentation();
+  const resultSignature = rollResultSignature(match);
+  const hasRollPaths = Boolean(
+    resultSignature
+    && match?.players.some((player) => (match.rolls[player.id]?.path?.length ?? 0) >= 2),
+  );
+
+  useLayoutEffect(() => {
+    if (!rollResultOpen || !resultSignature || !hasRollPaths) {
+      setTracingSignature("");
+      return;
+    }
+    setTracingSignature(resultSignature);
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const timeout = window.setTimeout(
+      () => setTracingSignature((current) => current === resultSignature ? "" : current),
+      reducedMotion ? 40 : ROLL_TRACE_DURATION_MS,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [rollResultOpen, resultSignature, hasRollPaths]);
+
+  const tracingRoll = rollResultOpen
+    && hasRollPaths
+    && tracingSignature === resultSignature;
 
   useEffect(() => {
     let frame = 0;
@@ -395,6 +517,13 @@ export function BakuCoreLayer({
               );
             })}
           </svg>
+          {match && tracingRoll ? (
+            <RollTraceLayer
+              match={match}
+              localPlayerId={playerId ?? match.players[0]?.id}
+              signature={resultSignature}
+            />
+          ) : null}
           {match && transferringCoreCells.length ? (
             <div className={styles.transferLayer} aria-hidden="true">
               {transferringCoreCells.map((cell) => (
@@ -429,7 +558,7 @@ export function BakuCoreLayer({
       <RollResultLayer
         match={match}
         playerId={playerId}
-        open={rollResultOpen}
+        open={rollResultOpen && !tracingRoll}
         onDismiss={dismissRollResult}
       />
       {error ? <p className={styles.visuallyHidden} role="alert">{error}</p> : null}

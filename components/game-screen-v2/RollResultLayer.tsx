@@ -6,11 +6,14 @@ import styles from "./RollResultLayer.module.css";
 
 function resultLabel(result: RollOutcome["result"]) {
   switch (result) {
-    case "target-core": return "Direct Hit";
-    case "adjacent-core": return "Adjacent BakuCore";
-    case "double-core": return "Double BakuCore";
+    case "intended-core": return "Intended BakuCore";
+    case "overshoot": return "Overshoot";
+    case "undershoot": return "Undershoot";
+    case "skew-left": return "Skewed Left";
+    case "skew-right": return "Skewed Right";
+    case "path-intercept": return "Magnet-Phase Intercept";
     case "open-no-core": return "Opened — No BakuCore";
-    case "miss": return "Miss";
+    case "miss-closed": return "Missed — Remained Closed";
   }
 }
 
@@ -92,9 +95,13 @@ export function RollResultLayer({
                   <h3>{resultLabel(outcome.result)}</h3>
                   <p>{bakugan?.name ?? "Bakugan"}</p>
                   <dl>
-                    <div><dt>Accuracy</dt><dd>{outcome.accuracyRoll}</dd></div>
-                    <div><dt>Double</dt><dd>{outcome.doubleRoll}</dd></div>
+                    <div><dt>Accuracy</dt><dd>{outcome.accuracyRoll} / {bakugan?.rollAccuracy ?? 0}</dd></div>
+                    <div><dt>Double</dt><dd>{outcome.doubleRoll} / {bakugan?.doubleCoreChance ?? 0}</dd></div>
                   </dl>
+                  {outcome.doubleCore ? (
+                    <span className={styles.doubleCoreBadge}>Second BakuCore picked up</span>
+                  ) : null}
+                  <p className={styles.resultNote}>{outcome.note}</p>
                   <div className={styles.landedCores} data-empty={landed.length ? "false" : "true"}>
                     {landed.length ? landed.map((placement) => placement ? (
                       <figure key={placement.cell}>

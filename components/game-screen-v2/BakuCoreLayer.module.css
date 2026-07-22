@@ -56,6 +56,90 @@
   animation: opponent-core-pulse 900ms ease-in-out infinite alternate;
 }
 
+.rollTraceLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 46;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.rollTraceVeil {
+  fill: rgba(1, 3, 6, 0.54);
+  animation: roll-trace-veil 180ms ease-out both;
+}
+
+.rollTrace {
+  --trace-color: 255, 238, 132;
+}
+
+.rollTrace[data-owner="opponent"] {
+  --trace-color: 255, 79, 66;
+}
+
+.rollTraceTarget {
+  fill: none;
+  stroke: rgba(var(--trace-color), 0.78);
+  stroke-width: 5;
+  stroke-dasharray: 13 10;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: roll-trace-target 760ms ease-in-out infinite alternate;
+}
+
+.rollTraceGlow,
+.rollTracePath {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: roll-trace-draw 1250ms cubic-bezier(0.2, 0.72, 0.18, 1) both;
+  animation-delay: calc(var(--trace-order) * 120ms);
+}
+
+.rollTraceGlow {
+  stroke: rgba(var(--trace-color), 0.28);
+  stroke-width: 26;
+  filter: blur(7px);
+}
+
+.rollTracePath {
+  stroke: rgb(var(--trace-color));
+  stroke-width: 9;
+  filter:
+    drop-shadow(0 0 4px rgba(var(--trace-color), 0.95))
+    drop-shadow(0 0 12px rgba(var(--trace-color), 0.58));
+}
+
+.rollTraceEndpoint {
+  fill: rgb(var(--trace-color));
+  stroke: #fff;
+  stroke-width: 4;
+  opacity: 0;
+  filter: drop-shadow(0 0 12px rgba(var(--trace-color), 0.95));
+  animation: roll-trace-endpoint 260ms ease-out both;
+  animation-delay: calc(var(--trace-order) * 120ms + 1080ms);
+}
+
+.rollTraceLabel {
+  fill: #fff;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.92);
+  stroke-width: 8;
+  stroke-linejoin: round;
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-style: italic;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  animation: roll-trace-label 300ms ease-out both;
+  animation-delay: calc(var(--trace-order) * 120ms + 1120ms);
+}
+
 .transferLayer {
   position: absolute;
   inset: 0;
@@ -150,6 +234,7 @@
   }
 }
 
+
 @keyframes opponent-core-pulse {
   from {
     filter:
@@ -165,6 +250,31 @@
       drop-shadow(0 0 22px rgba(255, 39, 31, 0.9));
     transform: scale(1.11);
   }
+}
+
+@keyframes roll-trace-veil {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes roll-trace-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes roll-trace-target {
+  from { opacity: 0.48; transform: scale(0.92) rotate(0deg); }
+  to { opacity: 1; transform: scale(1.08) rotate(12deg); }
+}
+
+@keyframes roll-trace-endpoint {
+  from { opacity: 0; transform: scale(0.35); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes roll-trace-label {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes core-transfer {
@@ -207,8 +317,18 @@
   }
 
   .matrixCorePlayerLanded,
-  .matrixCoreOpponentLanded {
+  .matrixCoreOpponentLanded,
+  .rollTraceTarget {
     animation: none;
+  }
+
+  .rollTraceGlow,
+  .rollTracePath,
+  .rollTraceEndpoint,
+  .rollTraceLabel,
+  .rollTraceVeil {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
   }
 
   .transferCore {

@@ -61,12 +61,13 @@ function coreBonuses(core: Core, faction: Faction) {
   };
 }
 
+
 export function brawlIsEngaged(match: MatchState | null | undefined) {
   if (!match || !BRAWL_PHASES.has(match.phase) || match.players.length < 2) return false;
   return match.players.every((player) => {
     const bakugan = activeBakugan(match, player);
     const roll = match.rolls[player.id];
-    return Boolean(bakugan?.open && roll && roll.result !== "miss");
+    return Boolean(bakugan?.open && roll && roll.result !== "miss-closed");
   });
 }
 
