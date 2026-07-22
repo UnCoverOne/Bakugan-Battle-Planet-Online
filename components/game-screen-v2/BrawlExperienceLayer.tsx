@@ -16,6 +16,7 @@ import {
   powerStepStatus,
   type BrawlCombatantView,
 } from "./brawlState";
+import { useBakuCorePresentation } from "./BakuCorePresentation";
 import styles from "./BrawlExperienceLayer.module.css";
 import { useMatchSelector } from "./matchStore";
 
@@ -117,6 +118,7 @@ function BrawlCombatant({
 }
 
 export function BrawlExperienceLayer() {
+  const { rollPresentationPending } = useBakuCorePresentation();
   const experience = useMatchSelector((state): ExperienceState => ({
     active: state.route === "match",
     online: state.online,
@@ -144,7 +146,7 @@ export function BrawlExperienceLayer() {
   const status = powerStepStatus(experience.match);
 
   useLayoutEffect(() => {
-    if (!experience.active || combatants.length !== 2) {
+    if (!experience.active || rollPresentationPending || combatants.length !== 2) {
       setHudPosition(null);
       return;
     }
@@ -179,7 +181,7 @@ export function BrawlExperienceLayer() {
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
     };
-  }, [experience.active, combatants.length]);
+  }, [experience.active, rollPresentationPending, combatants.length]);
 
   useEffect(() => {
     const current = experience.match?.batch ?? [];
@@ -238,7 +240,7 @@ export function BrawlExperienceLayer() {
 
   return (
     <>
-      {combatants.length === 2 && hudPosition ? (
+      {!rollPresentationPending && combatants.length === 2 && hudPosition ? (
         <aside
           className={styles.brawlHud}
           style={hudStyle}

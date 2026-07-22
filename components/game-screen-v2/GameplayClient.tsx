@@ -35,6 +35,7 @@ import { EnergyAffordabilityLayer } from "./EnergyAffordabilityLayer";
 import { GameMenuHud } from "./GameMenuHud";
 import { GameScreen } from "./GameScreen";
 import { MatchHudLayer } from "./MatchHudLayer";
+import { PhaseTransitionLayer } from "./PhaseTransitionLayer";
 import {
   writeCoordinatedMatch,
   writeGameRoute,
@@ -456,6 +457,7 @@ export function GameplayClient() {
           onClearSelections={clearSelections}
         />
         <TurnProgressTracker match={storedState.match} />
+        <PhaseTransitionLayer match={storedState.match} />
         <MatchHudLayer
           match={storedState.match}
           playerId={storedState.playerId}

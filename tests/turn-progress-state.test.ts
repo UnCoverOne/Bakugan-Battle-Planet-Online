@@ -1,15 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { STARTER_DECKS, makePlayer } from "../lib/data";
 import { createMatch } from "../lib/game";
 import {
   TURN_PHASES,
   TURN_STEPS,
+  describeTurnTransition,
   formatStepCountdown,
+  presentedTurnProgress,
   remainingStepSeconds,
   resolveTurnProgress,
+  turnProgressSnapshot,
   turnStepsForPhase,
 } from "../components/game-screen-v2/turnProgressState";
+
+const transitionLayer = readFileSync(
+  new URL("../components/game-screen-v2/PhaseTransitionLayer.tsx", import.meta.url),
+  "utf8",
+);
+const transitionStyles = readFileSync(
+  new URL("../components/game-screen-v2/PhaseTransitionLayer.module.css", import.meta.url),
+  "utf8",
+);
 
 test("turn progress exposes concise phase and step names", () => {
   assert.deepEqual(
@@ -106,4 +119,67 @@ test("turn progress follows live engine phases and step labels", () => {
 
   match.turn = 0;
   assert.equal(resolveTurnProgress(match), null);
+});
+
+test("transitions distinguish round, phase and step changes without replaying stable progress", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const match = createMatch("TRANSITION", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "draw";
+  match.stepLabel = "Turn 1 • Draw Step";
+
+  const draw = turnProgressSnapshot(match);
+  assert.ok(draw);
+  assert.equal(describeTurnTransition(null, draw)?.scope, "round");
+  assert.equal(describeTurnTransition(draw, draw), null);
+
+  match.phase = "energize";
+  match.stepLabel = "Turn 1 • Energize Step";
+  const energize = turnProgressSnapshot(match);
+  assert.equal(describeTurnTransition(draw, energize)?.scope, "step");
+
+  match.phase = "selection";
+  match.stepLabel = "Roll Phase • Selection Step";
+  const selection = turnProgressSnapshot(match);
+  const rollPhase = describeTurnTransition(energize, selection);
+  assert.equal(rollPhase?.scope, "phase");
+  assert.equal(rollPhase?.announcement, "Round 1. Roll Phase, Selection Step began.");
+
+  match.phase = "preRoll";
+  match.stepLabel = "preRoll • Priority";
+  assert.equal(
+    describeTurnTransition(selection, turnProgressSnapshot(match)),
+    null,
+    "an internal priority window must not impersonate a new player-facing step",
+  );
+});
+
+test("the Brawl callout waits for the existing roll presentation to settle", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const match = createMatch("ROLL-HANDOFF", "bo1", [player, opponent]);
+  match.turn = 2;
+  match.phase = "target";
+  match.stepLabel = "Roll Phase • Rolling Step";
+  const rolling = turnProgressSnapshot(match);
+  assert.ok(rolling);
+
+  match.phase = "power";
+  match.stepLabel = "Brawl Phase • Power Step";
+  const power = turnProgressSnapshot(match);
+  assert.ok(power);
+  assert.equal(presentedTurnProgress(power, rolling, true)?.signature, rolling.signature);
+  assert.equal(presentedTurnProgress(power, rolling, false)?.signature, power.signature);
+  assert.equal(describeTurnTransition(rolling, power)?.scope, "phase");
+});
+
+test("phase transitions are non-blocking, accessible, and reduced-motion safe", () => {
+  assert.match(transitionLayer, /PHASE_TRANSITION_DURATION_MS = 2100/);
+  assert.match(transitionLayer, /role="status" aria-live="polite" aria-atomic="true"/);
+  assert.match(transitionLayer, /rollPresentationPending/);
+  assert.match(transitionStyles, /pointer-events: none/);
+  assert.match(transitionStyles, /data-turn-transition-step="energize"/);
+  assert.match(transitionStyles, /prefers-reduced-motion: reduce/);
+  assert.match(transitionStyles, /\.callout \{[\s\S]*animation: none/);
 });

@@ -12,6 +12,7 @@ import {
 import type { MatchState } from "../../lib/game";
 import { rollResultCells, rollResultSignature } from "../../lib/rolling";
 import {
+  rollPresentationIsPending,
   rollPresentationStage,
   rollPresentationStorageKey,
   type RollPresentationRecord,
@@ -25,6 +26,7 @@ type StoredPresentationMatch = {
 
 type BakuCorePresentationValue = {
   rollResultOpen: boolean;
+  rollPresentationPending: boolean;
   deferredCoreCells: readonly string[];
   transferringCoreCells: readonly string[];
   hiddenCoreCells: ReadonlySet<string>;
@@ -34,6 +36,7 @@ type BakuCorePresentationValue = {
 const EMPTY_SET = new Set<string>();
 const EMPTY_PRESENTATION: BakuCorePresentationValue = {
   rollResultOpen: false,
+  rollPresentationPending: false,
   deferredCoreCells: [],
   transferringCoreCells: [],
   hiddenCoreCells: EMPTY_SET,
@@ -130,15 +133,22 @@ export function BakuCorePresentationProvider({ children }: { children: ReactNode
     () => new Set([...deferredCoreCells, ...transferringCoreCells]),
     [deferredCoreCells, transferringCoreCells],
   );
+  const rollPresentationPending = rollPresentationIsPending(signature, record, {
+    open: rollResultOpen,
+    deferredCoreCells,
+    transferringCoreCells,
+  });
 
   const value = useMemo<BakuCorePresentationValue>(() => ({
     rollResultOpen,
+    rollPresentationPending,
     deferredCoreCells,
     transferringCoreCells,
     hiddenCoreCells,
     dismissRollResult,
   }), [
     rollResultOpen,
+    rollPresentationPending,
     deferredCoreCells,
     transferringCoreCells,
     hiddenCoreCells,

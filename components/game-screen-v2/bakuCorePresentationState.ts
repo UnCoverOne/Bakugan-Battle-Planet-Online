@@ -83,6 +83,23 @@ export function rollPresentationStage(
   return EMPTY_STAGE;
 }
 
+export function rollPresentationIsPending(
+  signature: string,
+  record: RollPresentationRecord | null,
+  stage: Pick<RollPresentationStage, "open" | "deferredCoreCells" | "transferringCoreCells">,
+) {
+  return Boolean(
+    signature
+    && (
+      record?.signature !== signature
+      || record.dismissedAt == null
+      || stage.open
+      || stage.deferredCoreCells.length
+      || stage.transferringCoreCells.length
+    )
+  );
+}
+
 export function coreTransferDestination(
   match: MatchState | null | undefined,
   playerId: string | undefined,

@@ -10,6 +10,7 @@ import {
   CORE_TRANSFER_DELAY_MS,
   CORE_TRANSFER_DURATION_MS,
   coreTransferDestination,
+  rollPresentationIsPending,
   rollPresentationStage,
 } from "../components/game-screen-v2/bakuCorePresentationState";
 
@@ -78,6 +79,7 @@ test("roll presentation reconstructs open, waiting, transferring, and settled st
   const opened = rollPresentationStage(signature, cells, null, 10_000);
   assert.equal(opened.open, true);
   assert.deepEqual(opened.deferredCoreCells, cells);
+  assert.equal(rollPresentationIsPending(signature, null, opened), true);
 
   const dismissedAt = 20_000;
   const waiting = rollPresentationStage(
@@ -109,4 +111,8 @@ test("roll presentation reconstructs open, waiting, transferring, and settled st
   assert.equal(settled.open, false);
   assert.deepEqual(settled.deferredCoreCells, []);
   assert.deepEqual(settled.transferringCoreCells, []);
+  assert.equal(
+    rollPresentationIsPending(signature, { signature, dismissedAt }, settled),
+    false,
+  );
 });

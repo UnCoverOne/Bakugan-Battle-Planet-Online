@@ -55,6 +55,22 @@ export type TurnProgressState = {
   stepIndex: number;
 };
 
+export type TurnProgressSnapshot = TurnProgressState & {
+  round: number;
+  signature: string;
+  phaseLabel: string;
+  phaseGlyph: string;
+  stepLabel: string;
+  stepGlyph: string;
+};
+
+export type TurnTransitionScope = "round" | "phase" | "step";
+
+export type TurnTransition = TurnProgressSnapshot & {
+  scope: TurnTransitionScope;
+  announcement: string;
+};
+
 const DEFAULT_PROGRESS_BY_ENGINE_PHASE: Record<Phase, Pick<TurnProgressState, "phaseKey" | "stepKey">> = {
   lobby: { phaseKey: "start", stepKey: "draw" },
   startingPlayer: { phaseKey: "start", stepKey: "draw" },
@@ -117,5 +133,69 @@ export function resolveTurnProgress(
     stepKey,
     phaseIndex: TURN_PHASES.findIndex((candidate) => candidate.key === phaseKey),
     stepIndex: TURN_STEPS.findIndex((candidate) => candidate.key === stepKey),
+  };
+}
+
+function snapshotFor(
+  round: number,
+  phaseKey: TurnPhaseKey,
+  stepKey: TurnStepKey,
+): TurnProgressSnapshot {
+  const phaseIndex = TURN_PHASES.findIndex((candidate) => candidate.key === phaseKey);
+  const stepIndex = TURN_STEPS.findIndex((candidate) => candidate.key === stepKey);
+  const phase = TURN_PHASES[phaseIndex];
+  const step = TURN_STEPS[stepIndex];
+  return {
+    round,
+    phaseKey,
+    stepKey,
+    phaseIndex,
+    stepIndex,
+    signature: `${round}:${phaseKey}:${stepKey}`,
+    phaseLabel: phase.label,
+    phaseGlyph: phase.glyph,
+    stepLabel: step.label,
+    stepGlyph: step.glyph,
+  };
+}
+
+export function turnProgressSnapshot(
+  match: Pick<MatchState, "phase" | "stepLabel" | "turn"> | null | undefined,
+): TurnProgressSnapshot | null {
+  const progress = resolveTurnProgress(match);
+  if (!progress || !match) return null;
+  return snapshotFor(match.turn, progress.phaseKey, progress.stepKey);
+}
+
+/**
+ * The authoritative state enters Power as soon as rolls resolve, while the
+ * client still has the roll trace, result, and Core transfer to present. Keep
+ * the transition callout on Rolling until that existing sequence has settled.
+ */
+export function presentedTurnProgress(
+  live: TurnProgressSnapshot | null,
+  previous: TurnProgressSnapshot | null,
+  rollPresentationPending: boolean,
+): TurnProgressSnapshot | null {
+  if (!live) return null;
+  if (!rollPresentationPending || live.phaseKey !== "brawl") return live;
+  if (previous?.phaseKey === "roll") return previous;
+  return snapshotFor(live.round, "roll", "rolling");
+}
+
+export function describeTurnTransition(
+  previous: TurnProgressSnapshot | null,
+  current: TurnProgressSnapshot | null,
+): TurnTransition | null {
+  if (!current || previous?.signature === current.signature) return null;
+  const scope: TurnTransitionScope = !previous || previous.round !== current.round
+    ? "round"
+    : previous.phaseKey !== current.phaseKey
+      ? "phase"
+      : "step";
+  return {
+    ...current,
+    scope,
+    announcement: `Round ${current.round}. ${current.phaseLabel} Phase, ${current.stepLabel} Step began.`,
   };
 }
