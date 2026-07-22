@@ -75,7 +75,7 @@ function parseBody(value: unknown): Body {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("A JSON object is required.");
   const body = value as Record<string, unknown>;
   if (typeof body.action !== "string" || !ACTIONS.has(body.action)) throw new Error("A valid action is required.");
-  if (body.code != null && (typeof body.code !== "string" || !/^[A-Z2-9]{6}$/i.test(body.code))) throw new Error("Room code is invalid.");
+  if (body.action !== "create" && body.code != null && (typeof body.code !== "string" || !/^[A-Z2-9]{6}$/i.test(body.code))) throw new Error("Room code is invalid.");
   if (body.playerId != null && typeof body.playerId !== "string") throw new Error("Player ID is invalid.");
   if (body.expectedVersion != null && (!Number.isInteger(body.expectedVersion) || Number(body.expectedVersion) < 0)) throw new Error("Expected version is invalid.");
   if (body.payload != null && (typeof body.payload !== "object" || Array.isArray(body.payload))) throw new Error("Action payload is invalid.");
@@ -347,3 +347,4 @@ export async function POST(request: Request) {
     return json({ error: message }, 400);
   }
 }
+

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   HEX_CELLS,
@@ -8,6 +9,15 @@ import {
   rotationPhaseOpenCell,
   type MatchState,
 } from "../lib/game";
+
+const rollLayer = readFileSync(new URL("../components/game-screen-v2/BakuCoreLayer.tsx", import.meta.url), "utf8");
+const rollStyles = readFileSync(new URL("../components/game-screen-v2/BakuCoreLayer.module.css", import.meta.url), "utf8");
+
+test("the roll trace draws deliberately and pauses for readable outcome labels", () => {
+  assert.match(rollLayer, /ROLL_TRACE_DURATION_MS = 4600/);
+  assert.match(rollStyles, /roll-trace-draw 1800ms/);
+  assert.match(rollStyles, /var\(--trace-order\) \* 250ms \+ 1800ms/);
+});
 
 function cell(q: number, r: number) {
   const found = HEX_CELLS.find((candidate) => candidate.q === q && candidate.r === r);
@@ -134,3 +144,4 @@ test("Accuracy remains the majority gate for the intended result", () => {
   assert.equal(results.filter((outcome) => outcome.result === "intended-core").length, 90);
   assert.equal(results.filter((outcome) => outcome.result !== "intended-core").length, 10);
 });
+

@@ -35,7 +35,9 @@ const HEX_RADIUS = 52 * 0.8;
 const HEX_HEIGHT = Math.sqrt(3) * HEX_RADIUS;
 const HEX_X_STEP = HEX_RADIUS * 1.5;
 const MATRIX_CORE_SIZE = 80;
-const ROLL_TRACE_DURATION_MS = 1800;
+// The trace draws first, then remains on-screen long enough to read both
+// outcome labels before the detailed result dialog replaces it.
+const ROLL_TRACE_DURATION_MS = 4600;
 
 const CORE_BACK_ART: Record<CoreType, string> = {
   Fist: "/assets/core-backs/fist.png",
@@ -568,3 +570,4 @@ export function BakuCoreLayer({
     </>
   );
 }
+

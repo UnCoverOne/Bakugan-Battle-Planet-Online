@@ -705,9 +705,31 @@ function bestPlayableCard(match: MatchState, playerId: string) {
   return player.hand
     .filter((card) => card.type !== "Flip" && card.type !== "Character")
     .map((card) => {
+      const program = compileCardEffect(card);
       const choices = chooseCardChoices(match, playerId, card);
       const payment = cardEnergyPaymentState(match, playerId, card, choices);
-      return { card, choices, payment, score: cardValue(match, playerId, card, choices) };
+      const temporaryCombat = program.instructions.some((instruction) => instruction.actions.some(
+        (action) => (
+          action.kind === "set-stat"
+          || action.kind === "set-rule"
+          || ((action.kind === "modify-stat" || action.kind === "grant-keyword")
+            && action.duration !== "while-source-in-play"
+            && action.duration !== "next-card")
+        ),
+      ));
+      const uniquePreRollValue = program.instructions.some((instruction) => (
+        /(?:before|when) (?:you )?(?:select|roll)|select a Bakugan to roll|turn a BakuCore .*face up/i.test(instruction.sourceText)
+        && instruction.actions.some((action) => ![
+          "modify-stat", "grant-keyword", "set-stat", "set-rule", "choice", "trigger",
+        ].includes(action.kind))
+      ));
+      const timingLegal = match.phase !== "preRoll" || !temporaryCombat || uniquePreRollValue;
+      return {
+        card,
+        choices,
+        payment,
+        score: timingLegal ? cardValue(match, playerId, card, choices) : Number.NEGATIVE_INFINITY,
+      };
     })
     .filter((candidate) => candidate.payment && candidate.payment.kind !== "insufficient")
     .sort((a, b) => b.score - a.score)[0];
@@ -824,3 +846,4 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
   }
   return null;
 }
+

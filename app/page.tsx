@@ -430,7 +430,8 @@ export default function Home() {
 
   const api = async (action: string, payload?: Record<string, unknown>, explicitCode?: string, selection?: CanonicalPlayerSelection) => {
     setMatchError("");
-    const response = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json", ...(matchCapability ? { "x-match-capability": matchCapability } : {}) }, body: JSON.stringify({ action, code: explicitCode ?? match?.code, playerId, expectedVersion: match?.version, format, selection, payload }) });
+    const code = action === "create" ? undefined : explicitCode ?? match?.code;
+    const response = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json", ...(matchCapability ? { "x-match-capability": matchCapability } : {}) }, body: JSON.stringify({ action, code, playerId, expectedVersion: match?.version, format, selection, payload }) });
     const data = await response.json() as { state?: MatchState; capability?: string; error?: string };
     if (!response.ok) { if (data.state) setMatch(data.state); throw new Error(data.error ?? "Match request failed."); }
     if (data.capability) setMatchCapability(data.capability);
@@ -800,3 +801,4 @@ function Toggle({ label, copy, checked, onChange }: { label: string; copy: strin
 function Timer({ deadline }: { deadline: number }) { const [now, setNow] = useState(0); useEffect(() => { const tick = () => setNow(Date.now()); const start = window.setTimeout(tick, 0); const i = window.setInterval(tick, 1000); return () => { window.clearTimeout(start); window.clearInterval(i); }; }, []); const seconds = Math.max(0, Math.ceil((deadline - (now || deadline - 30_000)) / 1000)); return <div className={`timer ${seconds <= 10 ? "warning" : ""}`}><small>TIME REMAINING</small><strong>00:{String(seconds).padStart(2, "0")}</strong></div>; }
 function BootScreen({ label }: { label: string }) { return <main className="boot-screen"><img src="/assets/logo.png" alt="Bakugan Battle Planet" /><span className="pulse" /><h1>{label}</h1><p>Restoring decks, settings, drafts, history, and active state…</p></main>; }
 function Empty({ title }: { title: string }) { return <section className="empty-page"><img src="/assets/logo.png" alt="" /><h1>{title}</h1><p>Return to the dashboard and start a new match.</p></section>; }
+

@@ -18,7 +18,7 @@ const seeds: CoreSeed[] = [
 ];
 const sign = (value: number, suffix: string) => value ? `${value > 0 ? "+" : ""}${value}${suffix}` : "";
 export const CORES: Core[] = seeds.map(([number, type, bonus, damageBonus, extra = {}]) => ({
-  id: `core-${number}`, number, type, bonus, damageBonus, ...extra,
+  id: `core-${number}`, catalogId: `core-${number}`, number, type, bonus, damageBonus, ...extra,
   name: `${type} ${[sign(bonus, "B"), sign(damageBonus, "D"), extra.frostStrike ? `+${extra.frostStrike} FrostStrike` : "", extra.shadowStrike ? "ShadowStrike" : ""].filter(Boolean).join(" / ") || "conditional"}`,
   art: `/assets/cores/full/${number}.webp`,
 }));
@@ -117,6 +117,11 @@ const instance = (card: GameCard, playerId: string, index: number): GameCard => 
   ...card,
   id: `${card.catalogId}-${playerId}-${index}-${globalThis.crypto?.randomUUID?.() ?? secureIndex(0x1_0000_0000).toString(36)}`,
 });
+const coreInstance = (core: Core, playerId: string, index: number): Core => ({
+  ...core,
+  catalogId: core.catalogId ?? core.id,
+  id: `${core.catalogId ?? core.id}-${playerId}-core-${index}-${globalThis.crypto?.randomUUID?.() ?? secureIndex(0x1_0000_0000).toString(36)}`,
+});
 export type CanonicalPlayerSelection = {
   playerId: string;
   name: string;
@@ -151,7 +156,7 @@ export const makePlayer = (id: string, name: string, deck: DeckRecord): PlayerSt
     return { ...base, id: `${base.id}-${id}`, character, open:false, heldCoreCells:[], evoStack:[] };
   });
   return {
-    id,name,bakugan,cores:deck.coreIds.map((key) => CORES.find((core) => core.id === key)!),deck:deckCards.length,deckCards,hand,discard:[],energyZone:[],heroes:[],
+    id,name,bakugan,cores:deck.coreIds.map((key, index) => coreInstance(CORES.find((core) => core.id === key)!, id, index)),deck:deckCards.length,deckCards,hand,discard:[],energyZone:[],heroes:[],
     energy:0,maxEnergy:0,ready:false,connected:true,lastSeen:Date.now(),energizedThisTurn:false,cardsPlayedThisTurn:0,
   };
 };
@@ -191,3 +196,4 @@ export const RULE_ENTRIES = [
   { title:"Undo",category:"Platform",body:"Undo restores the immediately previous state only before priority passes or new hidden/random information is revealed." },
   { title:"Disconnect",category:"Platform",body:"A disconnected player has 30 seconds to reconnect before the remaining player wins." },
 ];
+

@@ -53,6 +53,8 @@ export type Bakugan = {
 
 export type Core = {
   id: string;
+  /** Immutable catalogue identity shared by physically separate copies. */
+  catalogId?: string;
   number: number;
   name: string;
   type: CoreType;
@@ -280,6 +282,28 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
   state.batch = Array.isArray(state.batch) ? state.batch : [];
   state.passes = Array.isArray(state.passes) ? state.passes : [];
   state.placements = Array.isArray(state.placements) ? state.placements : [];
+  for (const player of state.players) {
+    const legacyIds = new Map<string, Core[]>();
+    player.cores = player.cores.map((core, index) => {
+      const catalogId = core.catalogId ?? core.id;
+      const instance = core.catalogId
+        ? core
+        : { ...core, catalogId, id: `${catalogId}-${player.id}-core-${index}` };
+      const copies = legacyIds.get(catalogId) ?? [];
+      copies.push(instance);
+      legacyIds.set(catalogId, copies);
+      return instance;
+    });
+    const usedInstances = new Set<string>();
+    for (const placement of state.placements.filter((item) => item.playerId === player.id)) {
+      const catalogId = placement.core.catalogId ?? placement.core.id;
+      const instance = (legacyIds.get(catalogId) ?? []).find((core) => !usedInstances.has(core.id));
+      if (instance) {
+        placement.core = instance;
+        usedInstances.add(instance.id);
+      }
+    }
+  }
   state.selected = state.selected && typeof state.selected === "object" ? state.selected : {};
   state.targets = state.targets && typeof state.targets === "object" ? state.targets : {};
   state.rolls = state.rolls && typeof state.rolls === "object" ? state.rolls : {};
@@ -1944,6 +1968,7 @@ export const redactForPlayer = (input: MatchState, playerId: string) => {
       };
       placement.core = {
         id: `hidden-core-${placement.cell}`,
+        catalogId: "hidden",
         number: 0,
         name: "Face-down BakuCore",
         type,
@@ -1962,3 +1987,4 @@ export const redactForPlayer = (input: MatchState, playerId: string) => {
   }
   return state;
 };
+

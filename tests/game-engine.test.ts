@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { BAKUGAN, CARDS, CORES, STARTER_DECKS, deckErrors, makePlayer } from "../lib/data";
 import {
   CENTER_CELL, HEX_CELLS, beginCorePlacement, cardChoiceSpec, createMatch, discardToHandLimit, energizeCard,
-  legalPlacementCells, passPriority, placeCore, playCard, selectBakugan,
+  legalPlacementCells, normalizeMatchState, passPriority, placeCore, playCard, selectBakugan,
   setReady, startNextSeriesGame, targetCore, totalPower, type MatchState,
 } from "../lib/game";
 import { drawTurnCard } from "../lib/turnStart";
@@ -68,6 +68,48 @@ test("the Hide Matrix is a radius-three axial hex and placement remains connecte
     const current = HEX_CELLS.find((cell) => cell.id === state.placements[index].cell)!;
     assert.ok(state.placements.slice(0, index).some((placed) => { const prior = HEX_CELLS.find((cell) => cell.id === placed.cell)!; return (Math.abs(current.q-prior.q)+Math.abs(current.r-prior.r)+Math.abs(current.q+current.r-prior.q-prior.r))/2 === 1; }));
   }
+});
+
+test("separate copies of the same BakuCore catalogue entry can both be placed", () => {
+  const source = STARTER_DECKS.find((deck) => {
+    const types = deck.coreIds.map((id) => CORES.find((core) => core.id === id)?.type);
+    return types.some((type, index) => types.indexOf(type) !== index);
+  });
+  assert.ok(source);
+  const coreIds = [...source.coreIds];
+  const firstIndex = coreIds.findIndex((id, index) => (
+    coreIds.findIndex((candidate) => CORES.find((core) => core.id === candidate)?.type
+      === CORES.find((core) => core.id === id)?.type) !== index
+  ));
+  assert.ok(firstIndex > 0);
+  const matchingIndex = coreIds.findIndex((id, index) => index < firstIndex
+    && CORES.find((core) => core.id === id)?.type === CORES.find((core) => core.id === coreIds[firstIndex])?.type);
+  coreIds[firstIndex] = coreIds[matchingIndex];
+  const duplicateDeck = { ...source, coreIds };
+  assert.deepEqual(deckErrors(duplicateDeck), []);
+
+  const player = makePlayer("copies", "Copies", duplicateDeck);
+  const opponent = makePlayer("other", "Other", STARTER_DECKS[1]);
+  const copies = player.cores.filter((core) => core.catalogId === coreIds[matchingIndex]);
+  assert.equal(copies.length, 2);
+  assert.notEqual(copies[0].id, copies[1].id);
+
+  let match = createMatch("COPY02", "bo1", [player, opponent]);
+  match.phase = "placement";
+  match.priority = player.id;
+  match = placeCore(match, player.id, copies[0].id, CENTER_CELL);
+  match.priority = player.id;
+  match = placeCore(match, player.id, copies[1].id, legalPlacementCells(match)[0]);
+  assert.deepEqual(
+    match.placements.filter((placement) => placement.playerId === player.id)
+      .map((placement) => placement.core.catalogId),
+    [coreIds[matchingIndex], coreIds[matchingIndex]],
+  );
+
+  const legacy = createMatch("LEGACY", "bo1", [player, opponent]);
+  legacy.players[0].cores = copies.map((core) => ({ ...core, id: core.catalogId!, catalogId: undefined }));
+  const upgraded = normalizeMatchState(legacy);
+  assert.equal(new Set(upgraded.players[0].cores.map((core) => core.id)).size, 2);
 });
 
 test("the full turn enters Draw/Energize, Selection, pre-roll priority, target and Power", () => {
@@ -138,3 +180,4 @@ test("best-of-three creates a fully reset second game", () => {
   const loser = state.players[1]; loser.discard.push(...loser.deckCards); loser.deckCards = []; loser.deck = 0; state = settleDamage(passWindow(state)); assert.equal(state.phase,"result"); assert.equal(state.series[winner.id],1);
   state = startNextSeriesGame(state); assert.equal(state.gameNumber,2); assert.equal(state.phase,"startingPlayer"); assert.equal(state.placements.length,0); assert.ok(state.players.every((player)=>player.deckCards.length===35&&player.hand.length===5));
 });
+

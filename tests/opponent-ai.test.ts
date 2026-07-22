@@ -327,7 +327,7 @@ test("temporary combat boosts are not spent after their relevant window", () => 
   assert.equal(next.batch.length, 0);
 });
 
-test("pre-roll combat value is risk-adjusted while persistent setup remains useful later", () => {
+test("pre-roll temporary combat cards are withheld while true pre-roll setup remains eligible", () => {
   const boost = card("Pre-roll Boost", "+500 [B].", "Action", 1);
   const aiBakugan = bakugan("ai-b", "Aquos", 500, 5);
   const ai = player("ai", [aiBakugan], [], [boost]);
@@ -345,7 +345,32 @@ test("pre-roll combat value is risk-adjusted while persistent setup remains usef
 
   const boosted = advanceOpponentAi(preRoll, ai.id);
   assert.ok(boosted);
-  assert.equal(boosted.players[0].hand.some((candidate) => candidate.id === boost.id), false);
+  assert.equal(boosted.players[0].hand.some((candidate) => candidate.id === boost.id), true);
+  assert.equal(boosted.batch.length, 0);
+
+  const scoutingBoost = card(
+    "Pre-roll Scouting",
+    "+500 [B]. Turn a BakuCore on the field face up.",
+    "Action",
+    0,
+  );
+  const scoutingAi = player("scouting-ai", [bakugan("scout-b", "Aquos", 500, 5)], [], [scoutingBoost]);
+  const scoutingHuman = player("scouting-human", [bakugan("human-scout", "Pyrus", 500, 5)]);
+  const scouting = matchWith(scoutingAi, scoutingHuman, "preRoll");
+  scouting.selected[scoutingAi.id] = scoutingAi.bakugan[0].id;
+  scouting.selected[scoutingHuman.id] = scoutingHuman.bakugan[0].id;
+  scouting.placements = [{
+    playerId: scoutingHuman.id,
+    core: core("scouting-target", 100),
+    cell: CENTER_CELL,
+    order: 1,
+  }];
+  const prepared = advanceOpponentAi(scouting, scoutingAi.id);
+  assert.ok(prepared);
+  assert.ok(
+    prepared.pendingChoice?.cardId === scoutingBoost.id
+      || !prepared.players[0].hand.some((candidate) => candidate.id === scoutingBoost.id),
+  );
 
   const hero = card("Persistent Hero", "Your Bakugan have +200 [B].", "Hero", 0);
   const setupAi = player("ai", [aiBakugan], [], [hero]);
@@ -420,3 +445,4 @@ test("Bakugan selection includes reachable Core and faction synergy", () => {
   assert.ok(next);
   assert.equal(next.selected[ai.id], synergistic.id);
 });
+

@@ -23,6 +23,11 @@ test("the starting-player transition retries and exposes a manual recovery contr
   assert.match(deadlines, /input\.phase === "startingPlayer" && now >= input\.startingPlayerRevealedAt/);
 });
 
+test("creating an online room never submits or validates a stale room code", () => {
+  assert.match(page, /const code = action === "create" \? undefined : explicitCode \?\? match\?\.code/);
+  assert.match(route, /body\.action !== "create" && body\.code != null/);
+});
+
 
 test("BakuCore placement is an exclusive opaque phase screen", () => {
   const placementBranch = gameplay.indexOf("if (placementActive)");
@@ -43,3 +48,4 @@ test("BakuCore placement is an exclusive opaque phase screen", () => {
   assert.match(placementStyles, /rgb\(82, 9, 13\), rgb\(0, 0, 0\)/);
   assert.match(placementStyles, /rgb\(168,22,29\), #010203 64%/);
 });
+
