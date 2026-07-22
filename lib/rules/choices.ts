@@ -169,7 +169,7 @@ function bakuganOptions(match: MatchState, controllerId: string, card: GameCard)
 function cardUsesBakuganTarget(card: GameCard) {
   const text = card.effect;
   return card.type === "Evo"
-    || /(?:choose|target|your|enemy|opposing|non-\[[a-z]+\]) (?:an? )?bakugan|retract a bakugan|on this|this bakugan/i.test(text);
+    || /(?:choose(?:s)?|target|your|enemy|opposing|non-\[[a-z]+\]) (?:an? )?bakugan|retract a bakugan|on this|this bakugan/i.test(text);
 }
 
 function modeOptions(card: GameCard) {
