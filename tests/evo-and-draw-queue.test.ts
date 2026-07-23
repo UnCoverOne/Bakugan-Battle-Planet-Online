@@ -14,6 +14,8 @@ import {
 } from "../lib/evo";
 import { createMatch, passPriority, submitCardChoice, type CardChoices, type GameCard } from "../lib/game";
 import { drawTurnCard, playerCanDrawTurnCard } from "../lib/turnStart";
+import { buildChoiceSchema } from "../lib/rules/choices";
+import { compileCardEffect } from "../lib/rules/effects";
 
 function players() {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
@@ -128,4 +130,39 @@ test("a resolving multi-draw effect creates one Draw action for each card", () =
   assert.equal(afterThree.players[0].hand.length, handBefore + 3);
   assert.equal(afterThree.players[0].deckCards.length, deckBefore - 3);
   assert.equal(hasPendingDraws(afterThree), false);
+});
+
+test("Everett Ray and Aquos Hyper Fangzor do not create false resolution choices", () => {
+  const { player, opponent } = players();
+  const match = createMatch("NOFAKE", "bo1", [player, opponent]);
+  const everett = CARDS.find((card) => card.name === "Everett Ray" && card.type === "Hero");
+  assert.ok(everett);
+  const everettSchema = buildChoiceSchema(match, player.id, everett);
+  assert.deepEqual(everettSchema.fields, []);
+
+  const powerAction = compileCardEffect(everett).instructions
+    .flatMap((instruction) => instruction.actions)
+    .find((action) => action.kind === "modify-stat" && action.stat === "power");
+  if (powerAction?.kind !== "modify-stat") throw new Error("Everett Ray must compile a B-Power modifier.");
+  assert.equal(powerAction.scope, "all-friendly");
+
+  const fangzor = CARDS.find((card) => (
+    card.type === "Evo"
+    && card.faction === "Aquos"
+    && /Hyper Fangzor/i.test(card.displayName || card.name)
+    && /when you play this,? draw three cards/i.test(card.effect)
+  ));
+  assert.ok(fangzor);
+  const triggerInstruction = compileCardEffect(fangzor).instructions.find((instruction) => (
+    instruction.actions.some((action) => action.kind === "trigger")
+  ));
+  assert.ok(triggerInstruction);
+  const triggerSchema = buildChoiceSchema(
+    match,
+    player.id,
+    fangzor,
+    triggerInstruction.sourceText,
+    { targetBakuganId: player.bakugan[0].id },
+  );
+  assert.deepEqual(triggerSchema.fields, []);
 });

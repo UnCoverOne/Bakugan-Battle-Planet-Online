@@ -581,10 +581,13 @@ const rollLane = (
   .sort((a, b) => a.along - b.along || a.placement.order - b.placement.order);
 
 /**
- * A Bakugan's magnet returns to the same downward phase after four BakuCores.
- * The target is assigned a one-based position in the ordered roll lane; the
- * earliest Core with the same position modulo four is the first one that opens
- * the Bakugan.
+ * A Bakugan's magnet returns to the same downward phase after travelling four
+ * BakuCore lengths. The intended target calibrates the downward phase, then an
+ * earlier Core can intercept at four, eight, and subsequent Core lengths.
+ *
+ * Axial cell distance measures the physical slots in the Hide Matrix rather
+ * than counting only occupied placements, so empty slots still advance the
+ * Bakugan's rotation.
  */
 export const rotationPhaseOpenCell = (
   state: MatchState,
@@ -592,12 +595,16 @@ export const rotationPhaseOpenCell = (
   targetCell: string,
 ) => {
   const playerIndex = state.players.findIndex((player) => player.id === playerId);
-  if (playerIndex < 0) return targetCell;
-  const lane = rollLane(state, playerIndex, targetCell)
-    .filter((candidate) => candidate.along <= 1.001);
-  const targetIndex = lane.findIndex((candidate) => candidate.placement.cell === targetCell);
-  if (targetIndex < 0) return targetCell;
-  return lane[targetIndex % 4]?.placement.cell ?? targetCell;
+  const target = cellAt(targetCell);
+  if (playerIndex < 0 || !target) return targetCell;
+  const intercept = rollLane(state, playerIndex, targetCell).find((candidate) => {
+    if (candidate.placement.cell === targetCell || candidate.along >= 0.999) return false;
+    const candidateCell = cellAt(candidate.placement.cell);
+    if (!candidateCell) return false;
+    const coreLengths = distance(candidateCell, target);
+    return coreLengths > 0 && coreLengths % 4 === 0;
+  });
+  return intercept?.placement.cell ?? targetCell;
 };
 
 const adjacentAvailablePlacements = (state: MatchState, cellId: string) => {

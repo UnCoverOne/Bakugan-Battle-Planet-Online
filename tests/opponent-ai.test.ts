@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   CENTER_CELL,
   HEX_CELLS,
@@ -12,6 +13,11 @@ import {
   type PlayerState,
 } from "../lib/game";
 import { advanceOpponentAi, chooseCardChoices } from "../lib/opponentAi";
+
+const gameplayClient = readFileSync(
+  new URL("../components/game-screen-v2/GameplayClient.tsx", import.meta.url),
+  "utf8",
+);
 
 let serial = 0;
 
@@ -446,3 +452,8 @@ test("Bakugan selection includes reachable Core and faction synergy", () => {
   assert.equal(next.selected[ai.id], synergistic.id);
 });
 
+test("training AI waits until the roll presentation is completely clear", () => {
+  assert.match(gameplayClient, /const \{ rollPresentationPending \} = useBakuCorePresentation\(\)/);
+  assert.match(gameplayClient, /storedState\.online[\s\S]{0,120}\|\| rollPresentationPending/);
+  assert.match(gameplayClient, /storedState\.match\?\.version,[\s\S]{0,120}rollPresentationPending/);
+});

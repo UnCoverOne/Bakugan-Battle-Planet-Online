@@ -79,8 +79,10 @@ function compileClause(text: string): RuleAction[] {
   const actions: RuleAction[] = [];
   const duration = durationFor(text);
   const scale = /sacrifice/i.test(text) ? "sacrificed-card" : scaleFor(text);
-  const scope = /all enemy Bakugan/i.test(text) ? "all-enemy" as const
-    : /all (?:of )?your Bakugan/i.test(text) ? "all-friendly" as const
+  const scope = /all enemy Bakugan|(?:enemy|opposing) Bakugan (?:have|get)/i.test(text)
+    ? "all-enemy" as const
+    : /all (?:of )?your Bakugan|your Bakugan (?:have|get)/i.test(text)
+      ? "all-friendly" as const
       : "target" as const;
   for (const match of text.matchAll(/([+-]\d+)\s*\[B\]/gi)) actions.push({ kind: "modify-stat", stat: "power", amount: Number(match[1]), scale, duration, scope });
   for (const match of text.matchAll(/([+-]\d+)\s*\[Damage (?:Rating|Power)\]/gi)) actions.push({ kind: "modify-stat", stat: "damage", amount: Number(match[1]), scale, duration, scope });
