@@ -39,10 +39,25 @@ jobs:
         run: npm ci
 
       - name: Run complete test suite
-        run: npm test
+        id: tests
+        continue-on-error: true
+        run: npm test > validation-output.log 2>&1
+
+      - name: Upload validation output
+        if: steps.tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-output
+          path: validation-output.log
+
+      - name: Fail after preserving output
+        if: steps.tests.outcome == 'failure'
+        run: exit 1
 
       - name: Commit validated implementation
+        if: steps.tests.outcome == 'success'
         run: |
+          rm -f validation-output.log
           rm scripts/apply-requested-fixes.mjs
           rm .github/workflows/apply-requested-gameplay-fixes.yml
           git config user.name "github-actions[bot]"
