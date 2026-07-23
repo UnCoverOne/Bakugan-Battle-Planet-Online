@@ -1,7 +1,7 @@
 import {
   clearSessionCookie, createPasswordRecord, createSession, getDatabase,
-  getSessionUser, getUserByEmail, normalizeEmail, publicUser, revokeSession,
-  validateAccountInput, verifyPassword,
+  getSessionUser, getUserByEmail, normalizeEmail, passwordRecordNeedsUpgrade,
+  publicUser, revokeSession, validateAccountInput, verifyPassword,
 } from "../../../lib/account-server";
 import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../../lib/request-security";
 
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       const row = await getUserByEmail(email);
       const valid = row ? await verifyPassword(String(body.password ?? ""), row) : false;
       if (!row || !valid) return json({ error: "Email or password is incorrect." }, 401);
-      if (row.password_iterations < 600_000) {
+      if (passwordRecordNeedsUpgrade(row.password_iterations)) {
         const upgraded = await createPasswordRecord(String(body.password));
         await db.prepare("UPDATE users SET password_hash = ?, password_salt = ?, password_iterations = ?, updated_at = ? WHERE id = ?")
           .bind(upgraded.hash, upgraded.salt, upgraded.iterations, Date.now(), row.id).run();
