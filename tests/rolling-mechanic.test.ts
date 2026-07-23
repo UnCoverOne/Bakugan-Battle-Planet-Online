@@ -9,9 +9,14 @@ import {
   rotationPhaseOpenCell,
   type MatchState,
 } from "../lib/game";
+import {
+  orientMatrixPoint,
+  playerUsesOppositeMatrixPerspective,
+} from "../components/game-screen-v2/matrixPerspectiveState";
 
 const rollLayer = readFileSync(new URL("../components/game-screen-v2/BakuCoreLayer.tsx", import.meta.url), "utf8");
 const rollStyles = readFileSync(new URL("../components/game-screen-v2/BakuCoreLayer.module.css", import.meta.url), "utf8");
+const placementLayer = readFileSync(new URL("../components/game-screen-v2/CorePlacementLayer.tsx", import.meta.url), "utf8");
 
 test("the roll trace draws deliberately and pauses for readable outcome labels", () => {
   assert.match(rollLayer, /ROLL_TRACE_DURATION_MS = 4600/);
@@ -145,3 +150,32 @@ test("Accuracy remains the majority gate for the intended result", () => {
   assert.equal(results.filter((outcome) => outcome.result !== "intended-core").length, 10);
 });
 
+test("empty Hide Matrix slots still advance the four-Core rotation phase", () => {
+  const first = cell(0, 4);
+  const target = cell(0, 0);
+  const gapped = rollMatch([first, target], target);
+  assert.equal(rotationPhaseOpenCell(gapped, "player-a", target), first);
+  assert.deepEqual(resolve(gapped, 1, 1).cores, [first]);
+
+  const threeLengthsAway = cell(0, 3);
+  const shortGap = rollMatch([threeLengthsAway, target], target);
+  assert.equal(rotationPhaseOpenCell(shortGap, "player-a", target), target);
+});
+
+test("four-Core physical spacing is symmetric from the opposite player's edge", () => {
+  const first = cell(0, -4);
+  const target = cell(0, 0);
+  const match = rollMatch([first, target], target);
+  assert.equal(rotationPhaseOpenCell(match, "player-b", target), first);
+});
+
+test("each local player sees and interacts with the Hide Matrix from their own side", () => {
+  const match = rollMatch([cell(0, 0)]);
+  assert.equal(playerUsesOppositeMatrixPerspective(match, "player-a"), false);
+  assert.equal(playerUsesOppositeMatrixPerspective(match, "player-b"), true);
+  assert.deepEqual(orientMatrixPoint({ x: 240, y: 180 }, false, 1800, 1000), { x: 240, y: 180 });
+  assert.deepEqual(orientMatrixPoint({ x: 240, y: 180 }, true, 1800, 1000), { x: 1560, y: 820 });
+  assert.match(rollLayer, /playerUsesOppositeMatrixPerspective/);
+  assert.match(rollLayer, /orientMatrixPath/);
+  assert.match(placementLayer, /oppositePerspective\s*\?\s*-cell\.q\s*:\s*cell\.q/);
+});

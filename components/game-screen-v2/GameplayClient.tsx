@@ -27,6 +27,7 @@ import {
   type TurnStartMatchState,
 } from "../../lib/turnStart";
 import { BakuCoreLayer } from "./BakuCoreLayer";
+import { useBakuCorePresentation } from "./BakuCorePresentation";
 import { CardHandLayer } from "./CardHandLayer";
 import { CardPreviewLayer } from "./CardPreviewLayer";
 import { CorePlacementLayer } from "./CorePlacementLayer";
@@ -99,6 +100,7 @@ export function GameplayClient() {
   const [startupError, setStartupError] = useState("");
   const automaticActionKey = useRef("");
   const botActionKey = useRef("");
+  const { rollPresentationPending } = useBakuCorePresentation();
 
   const publishMatch = useCallback((next: MatchState) => {
     return writeCoordinatedMatch(next);
@@ -284,6 +286,7 @@ export function GameplayClient() {
       storedState.route !== "match"
       || storedState.online
       || !match
+      || rollPresentationPending
     ) return;
 
     const waitingForDrawWindow = match.phase === "draw"
@@ -317,6 +320,7 @@ export function GameplayClient() {
     storedState.match?.phase,
     storedState.match?.priority,
     storedState.match?.version,
+    rollPresentationPending,
     publishMatch,
   ]);
 

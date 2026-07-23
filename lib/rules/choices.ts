@@ -166,10 +166,12 @@ function bakuganOptions(match: MatchState, controllerId: string, card: GameCard)
   ));
 }
 
-function cardUsesBakuganTarget(card: GameCard) {
-  const text = card.effect;
-  return card.type === "Evo"
-    || /(?:choose(?:s)?|target|your|enemy|opposing|non-\[[a-z]+\]) (?:an? )?bakugan|retract a bakugan|on this|this bakugan/i.test(text);
+function cardUsesBakuganTarget(card: GameCard, includeIntrinsicCardTarget: boolean) {
+  const selectionText = card.effect
+    .replace(/\b(?:all (?:of )?)?your Bakugan (?:have|get)\b[^.]*\.?/gi, "")
+    .replace(/\b(?:all )?(?:enemy|opposing) Bakugan (?:have|get)\b[^.]*\.?/gi, "");
+  return (includeIntrinsicCardTarget && card.type === "Evo")
+    || /(?:choose(?:s)?|target|your|enemy|opposing|non-\[[a-z]+\]) (?:an? )?bakugan|retract a bakugan|on this|this bakugan/i.test(selectionText);
 }
 
 function modeOptions(card: GameCard) {
@@ -206,7 +208,8 @@ export function buildChoiceSchema(
     ]));
   }
 
-  if (cardUsesBakuganTarget(contextualCard)) {
+  const includeIntrinsicCardTarget = sourceText === card.effect && !priorChoices.targetBakuganId;
+  if (cardUsesBakuganTarget(contextualCard, includeIntrinsicCardTarget)) {
     const bakuganChooser = /opponent chooses (?:an? )?Bakugan/i.test(text) ? opponentChooser : controllerChooser;
     fields.push(field("targetBakuganId", "bakugan", "Choose a Bakugan", bakuganChooser, bakuganOptions(match, controllerId, contextualCard)));
   }

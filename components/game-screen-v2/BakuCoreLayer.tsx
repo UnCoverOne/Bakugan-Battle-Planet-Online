@@ -26,6 +26,11 @@ import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { RollResultLayer } from "./RollResultLayer";
 import styles from "./BakuCoreLayer.module.css";
 import { readMatchStore } from "./matchStore";
+import {
+  orientMatrixPath,
+  orientMatrixPoint,
+  playerUsesOppositeMatrixPerspective,
+} from "./matrixPerspectiveState";
 
 const GRID_WIDTH = 1800;
 const GRID_HEIGHT = 1000;
@@ -66,13 +71,13 @@ const EMPTY_TARGETS: PortalTargets = {
   actionSlot: null,
 };
 
-function cellPosition(cellId: string) {
+function cellPosition(cellId: string, oppositePerspective = false) {
   const cell = HEX_CELLS.find((candidate) => candidate.id === cellId);
   if (!cell) return null;
-  return {
+  return orientMatrixPoint({
     x: GRID_CENTER_X + cell.q * HEX_X_STEP,
     y: GRID_CENTER_Y + (cell.r + cell.q / 2) * HEX_HEIGHT,
-  };
+  }, oppositePerspective, GRID_WIDTH, GRID_HEIGHT);
 }
 
 function rollTracePath(points: readonly { x: number; y: number }[]) {
@@ -100,10 +105,12 @@ function RollTraceLayer({
   match,
   localPlayerId,
   signature,
+  oppositePerspective,
 }: {
   match: MatchState;
   localPlayerId: string;
   signature: string;
+  oppositePerspective: boolean;
 }) {
   const ordered = [
     match.players.find((player) => player.id === localPlayerId) ?? match.players[0],
@@ -121,8 +128,9 @@ function RollTraceLayer({
       {ordered.map((player, index) => {
         const roll = match.rolls[player.id];
         if (!roll?.path?.length) return null;
-        const target = cellPosition(roll.target);
-        const endpoint = roll.path.at(-1)!;
+        const target = cellPosition(roll.target, oppositePerspective);
+        const path = orientMatrixPath(roll.path, oppositePerspective, GRID_WIDTH, GRID_HEIGHT);
+        const endpoint = path.at(-1)!;
         const local = player.id === localPlayerId;
         return (
           <g
@@ -141,12 +149,12 @@ function RollTraceLayer({
             ) : null}
             <path
               className={styles.rollTraceGlow}
-              d={rollTracePath(roll.path)}
+              d={rollTracePath(path)}
               pathLength={1}
             />
             <path
               className={styles.rollTracePath}
-              d={rollTracePath(roll.path)}
+              d={rollTracePath(path)}
               pathLength={1}
             />
             <circle
@@ -190,11 +198,13 @@ function CoreTransferSprite({
   playerId,
   playArea,
   cell,
+  oppositePerspective,
 }: {
   match: MatchState;
   playerId?: string;
   playArea: HTMLElement;
   cell: string;
+  oppositePerspective: boolean;
 }) {
   const [geometry, setGeometry] = useState<TransferGeometry | null>(null);
   const placement = match.placements.find((candidate) => candidate.cell === cell);
@@ -213,7 +223,7 @@ function CoreTransferSprite({
     const measure = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
-        const source = cellPosition(cell);
+        const source = cellPosition(cell, oppositePerspective);
         const target = document.querySelector<HTMLElement>(
           `[data-core-zone-id="${destination.owner}-bakucore-${destination.slot}"]`,
         );
@@ -258,7 +268,7 @@ function CoreTransferSprite({
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
     };
-  }, [cell, destination?.owner, destination?.slot, placement, playArea]);
+  }, [cell, destination?.owner, destination?.slot, oppositePerspective, placement, playArea]);
 
   if (!placement || !geometry) return null;
   const style = {
@@ -372,6 +382,7 @@ export function BakuCoreLayer({
   const localPlayer = match?.players.find((candidate) => candidate.id === playerId)
     ?? match?.players[0];
   const actorId = playerId ?? localPlayer?.id;
+  const oppositePerspective = playerUsesOppositeMatrixPerspective(match, actorId);
   const selectable = playerCanSelectRollTarget(match, actorId);
   const availableCells = useMemo(
     () => new Set(availableRollTargets(match).map((placement) => placement.cell)),
@@ -484,9 +495,10 @@ export function BakuCoreLayer({
             viewBox={`0 0 ${GRID_WIDTH} ${GRID_HEIGHT}`}
             preserveAspectRatio="xMidYMid meet"
             aria-label="BakuCores in the Hide Matrix"
+            data-perspective={oppositePerspective ? "opposite" : "local"}
           >
             {visiblePlacements.map((placement) => {
-              const position = cellPosition(placement.cell);
+              const position = cellPosition(placement.cell, oppositePerspective);
               if (!position) return null;
               const canSelect = selectable && availableCells.has(placement.cell);
               const selected = selectedCoreCell === placement.cell && canSelect;
@@ -524,6 +536,7 @@ export function BakuCoreLayer({
               match={match}
               localPlayerId={playerId ?? match.players[0]?.id}
               signature={resultSignature}
+              oppositePerspective={oppositePerspective}
             />
           ) : null}
           {match && transferringCoreCells.length ? (
@@ -534,6 +547,7 @@ export function BakuCoreLayer({
                   playerId={playerId}
                   playArea={targets.playArea!}
                   cell={cell}
+                  oppositePerspective={oppositePerspective}
                   key={`${match.id}:${match.turn}:${cell}`}
                 />
               ))}

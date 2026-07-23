@@ -4,6 +4,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { HEX_CELLS, legalPlacementCells, placeCore, type CoreType, type MatchState } from "../../lib/game";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore } from "./matchStore";
+import { playerUsesOppositeMatrixPerspective } from "./matrixPerspectiveState";
 import styles from "./CorePlacementLayer.module.css";
 
 const CORE_BACK_ART: Record<CoreType, string> = {
@@ -29,6 +30,7 @@ export function CorePlacementLayer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const actorId = playerId ?? match?.players[0]?.id;
+  const oppositePerspective = playerUsesOppositeMatrixPerspective(match, actorId);
   const player = match?.players.find((candidate) => candidate.id === actorId);
   const startingPlayer = match?.players.find((candidate) => candidate.id === match.initialStartingPlayer);
   const legal = useMemo(() => match ? legalPlacementCells(match) : [], [match?.version]);
@@ -87,11 +89,14 @@ export function CorePlacementLayer({
           <span>{core.name}</span>
         </button>)}
       </aside>
-      <div className={styles.matrix} aria-label="Face-down BakuCore matrix">
+      <div className={styles.matrix} aria-label="Face-down BakuCore matrix" data-perspective={oppositePerspective ? "opposite" : "local"}>
         {HEX_CELLS.map((cell) => {
           const placement = match.placements.find((candidate) => candidate.cell === cell.id);
           const available = mine && Boolean(selectedCoreId) && legal.includes(cell.id);
-          const position = { "--q": cell.q, "--r": cell.r } as CSSProperties;
+          const position = {
+            "--q": oppositePerspective ? -cell.q : cell.q,
+            "--r": oppositePerspective ? -cell.r : cell.r,
+          } as CSSProperties;
           return <button type="button" key={cell.id} className={styles.cell} style={position} disabled={!available} data-occupied={Boolean(placement)} data-legal={available} onClick={() => void submit(selectedCoreId, cell.id)}>
             {placement ? <img src={CORE_BACK_ART[placement.core.type]} alt="Face-down BakuCore" width="104" height="90" /> : <span>{available ? "+" : ""}</span>}
           </button>;
