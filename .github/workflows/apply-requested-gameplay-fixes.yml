@@ -36,7 +36,7 @@ jobs:
         run: node scripts/apply-requested-fixes.mjs
 
       - name: Install dependencies
-        run: npm run install:ci
+        run: npm ci
 
       - name: Run complete test suite
         run: npm test
