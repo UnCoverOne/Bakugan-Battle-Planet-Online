@@ -1,6 +1,8 @@
 const SESSION_COOKIE = "bbp_session";
 const SESSION_DAYS = 30;
-const PASSWORD_ITERATIONS = 600_000;
+/** Cloudflare Workers currently rejects PBKDF2 requests above this count. */
+export const PASSWORD_ITERATIONS = 100_000;
+const MAX_PBKDF2_ITERATIONS = 100_000;
 const encoder = new TextEncoder();
 
 export type AccountUser = {
@@ -51,6 +53,9 @@ async function sha256(value: string) {
 }
 
 async function derivePassword(password: string, salt: Uint8Array, iterations: number) {
+  if (!Number.isSafeInteger(iterations) || iterations < 1 || iterations > MAX_PBKDF2_ITERATIONS) {
+    throw new Error(`The stored password parameters are unsupported (PBKDF2 supports at most ${MAX_PBKDF2_ITERATIONS} iterations).`);
+  }
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
   const saltBuffer = salt.buffer.slice(salt.byteOffset, salt.byteOffset + salt.byteLength) as ArrayBuffer;
   const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: saltBuffer, iterations }, key, 256);
@@ -76,6 +81,10 @@ export function validateAccountInput(email: string, password: string, displayNam
   if (password.length < 10 || password.length > 128) throw new Error("Password must be between 10 and 128 characters.");
   if (displayName != null && (!displayName.trim() || displayName.trim().length > 20)) throw new Error("Brawler name must be between 1 and 20 characters.");
   return normalized;
+}
+
+export function passwordRecordNeedsUpgrade(iterations: number) {
+  return Number.isSafeInteger(iterations) && iterations > 0 && iterations < PASSWORD_ITERATIONS;
 }
 
 export async function createPasswordRecord(password: string) {
