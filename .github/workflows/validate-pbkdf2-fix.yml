@@ -1,0 +1,27 @@
+name: Validate PBKDF2 fix
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - lib/account-server.ts
+      - app/api/auth/route.ts
+      - tests/auth-crypto.test.ts
+      - .github/workflows/validate-pbkdf2-fix.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: npm test
