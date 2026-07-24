@@ -64,7 +64,7 @@ jobs:
           before_trigger = '[/when (?:your )?opponent plays/i, "CARD_PLAYED", "opponent"],'
           after_trigger = '[/when (?:your |an )?opponent plays/i, "CARD_PLAYED", "opponent"],'
           before_cost = '    let effects = parseAtomicEffects(card, clause);\n    if (REPLACEMENT_CARD_NUMBERS.has(card.number)'
-          after_cost = '    let effects = parseAtomicEffects(card, clause);\n    if (card.number === 152) effects = effects.filter((effect) => effect.kind !== "discard");\n    if (REPLACEMENT_CARD_NUMBERS.has(card.number)'
+          after_cost = '    let effects = parseAtomicEffects(card, clause);\n    if (card.number === 152) effects = effects.filter((effect) => effect.kind !== "discard");\n    if (!effects.length) effects = [{ kind: "sequence", effects: [] }];\n    if (REPLACEMENT_CARD_NUMBERS.has(card.number)'
           if before_trigger not in source:
               raise SystemExit('opponent trigger anchor is missing')
           if before_cost not in source:
