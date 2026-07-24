@@ -94,28 +94,29 @@ test("contested Brawls still expose two active combatants and descriptive roll l
   assert.equal(brawlRollLabel("path-intercept"), "OPEN • PATH INTERCEPT");
 });
 
-test("the compact Brawl Preview keeps Effects and Modifiers hover-only", async () => {
+test("the larger Brawl Preview uses a floating hover window for Effects and Modifiers", async () => {
   const css = await readFile(
     new URL("../components/game-screen-v2/BrawlPreviewEnhancements.module.css", import.meta.url),
     "utf8",
   );
 
-  assert.match(css, /max-width:\s*min\(23rem/);
+  assert.match(css, /max-width:\s*min\(32rem/);
   assert.match(
     css,
-    /article\s*>\s*div:nth-child\(3\)\s*\{[\s\S]*?display:\s*none;/,
+    /article\s*>\s*div:first-child\s*>\s*div:last-child\s+strong\s*\{[\s\S]*?white-space:\s*normal;/,
   );
   assert.match(
     css,
-    /article:hover\s*>\s*div:nth-child\(3\)\s*\{[\s\S]*?display:\s*grid;/,
+    /article\s*>\s*div:nth-child\(3\)\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?visibility:\s*hidden;/,
   );
   assert.match(
     css,
-    /article\s*>\s*div:first-child\s*>\s*div:first-child,[\s\S]*?display:\s*none;/,
+    /article:hover\s*>\s*div:nth-child\(3\)\s*\{[\s\S]*?visibility:\s*visible;/,
   );
+  assert.match(css, /\.brawlPreview::before\s*\{/);
 });
 
-test("step callouts linger and Selection focuses the Hide Matrix", async () => {
+test("Selection focuses Character Cards while Rolling focuses the Hide Matrix", async () => {
   const [source, css] = await Promise.all([
     readFile(
       new URL("../components/game-screen-v2/PhaseTransitionLayer.tsx", import.meta.url),
@@ -130,11 +131,19 @@ test("step callouts linger and Selection focuses the Hide Matrix", async () => {
   assert.match(source, /PHASE_TRANSITION_DURATION_MS\s*=\s*4200/);
   assert.match(
     source,
-    /case\s+"selection":[\s\S]*?primarySelector:\s*'\[aria-label="BakuCores in the Hide Matrix"\]'/,
+    /case\s+"selection":[\s\S]*?primarySelector:\s*'\[data-zone-group="character-cards"\]\[data-zone-owner="player"\]'/,
+  );
+  assert.match(
+    source,
+    /case\s+"rolling":[\s\S]*?primarySelector:\s*'\[aria-label="BakuCores in the Hide Matrix"\]'/,
   );
   assert.match(css, /animation:\s*transition-callout\s+4000ms/);
   assert.match(
     css,
-    /data-turn-transition-step="selection"\]\s*\[aria-label="BakuCores in the Hide Matrix"\]/,
+    /data-turn-transition-step="selection"\]\s*\[data-zone-kind="character-card"\]/,
+  );
+  assert.match(
+    css,
+    /data-turn-transition-step="rolling"\]\s*\[aria-label="BakuCores in the Hide Matrix"\]/,
   );
 });
