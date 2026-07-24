@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
+import { resolveExpiredDeadline } from "../lib/deadlines";
 import {
   createMatch,
   passPriority,
@@ -100,6 +101,13 @@ function passWindow(input: MatchState) {
   let match = passPriority(input, input.priority);
   match = passPriority(match, match.priority);
   return match;
+}
+
+function enterRollingStep() {
+  let match = rollPhaseMatch();
+  match = selectBakugan(match, match.players[0].id, match.players[0].bakugan[0].id);
+  match = selectBakugan(match, match.players[1].id, match.players[1].bakugan[0].id);
+  return passWindow(match);
 }
 
 test("the Brawl Preview keeps both selected Bakugan visible when one roll misses", () => {
@@ -244,10 +252,12 @@ test("the Roll Phase advances from Selection priority to Rolling without bouncin
 
   match = selectRollTarget(match, player.id, match.placements[0].cell);
   assert.equal(match.phase, "target");
+  assert.equal(match.priority, opponent.id);
   assert.match(match.stepLabel, /Rolling Step/);
   assert.equal(turnProgressSnapshot(match)?.stepKey, "rolling");
 
   match = selectRollTarget(match, opponent.id, match.placements[1].cell);
+  assert.equal(match.priority, player.id);
   assert.match(match.stepLabel, /Confirm rolls/);
   assert.equal(turnProgressSnapshot(match)?.stepKey, "rolling");
 
@@ -257,6 +267,7 @@ test("the Roll Phase advances from Selection priority to Rolling without bouncin
   assert.equal(playerCanConfirmRoll(playerView, player.id), true);
 
   match = confirmRoll(match, player.id);
+  assert.equal(match.priority, opponent.id);
   assert.match(match.stepLabel, /Waiting for all players to roll/);
   assert.equal(turnProgressSnapshot(match)?.stepKey, "rolling");
 
@@ -268,4 +279,25 @@ test("the Roll Phase advances from Selection priority to Rolling without bouncin
   match = confirmRoll(match, opponent.id);
   assert.equal(match.phase, "power");
   assert.equal(turnProgressSnapshot(match)?.stepKey, "power");
+});
+
+test("Rolling Step deadlines advance the player who still needs to act", () => {
+  let match = enterRollingStep();
+  const player = match.players[0];
+  const opponent = match.players[1];
+
+  match = selectRollTarget(match, player.id, match.placements[0].cell);
+  assert.equal(match.priority, opponent.id);
+
+  match = resolveExpiredDeadline(match, Number.POSITIVE_INFINITY);
+  assert.equal(match.phase, "target");
+  assert.equal(allRollTargetsSelected(match), true);
+  assert.equal(match.priority, player.id);
+
+  match = resolveExpiredDeadline(match, Number.POSITIVE_INFINITY);
+  assert.equal(match.phase, "target");
+  assert.equal(match.priority, opponent.id);
+
+  match = resolveExpiredDeadline(match, Number.POSITIVE_INFINITY);
+  assert.equal(match.phase, "power");
 });
