@@ -26,7 +26,21 @@ jobs:
           node-version: 22.13.0
           cache: npm
       - name: Apply kernel migration
-        run: node scripts/apply-native-rules-kernel.mjs
+        id: migration
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/apply-native-rules-kernel.mjs 2>&1 | tee migration.log
+      - name: Upload migration diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-rules-kernel-migration
+          path: migration.log
+          retention-days: 3
+      - name: Enforce migration
+        run: test "${{ steps.migration.outcome }}" = "success"
       - name: Remove one-time migration files
         run: rm scripts/apply-native-rules-kernel.mjs .github/workflows/apply-native-rules-kernel.yml
       - run: npm ci
