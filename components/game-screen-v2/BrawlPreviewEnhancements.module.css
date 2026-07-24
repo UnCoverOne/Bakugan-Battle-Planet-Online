@@ -1,0 +1,137 @@
+.brawlPreview[data-preview-state="single-open"] {
+  border-color: rgba(255, 173, 70, 0.86);
+  box-shadow:
+    0 0.7rem 1.7rem rgba(0, 0, 0, 0.62),
+    0 0 0.9rem rgba(255, 139, 45, 0.28);
+}
+
+.singleOpenHeader {
+  background:
+    linear-gradient(90deg, rgba(177, 55, 24, 0.76), rgba(37, 15, 12, 0.92) 48%, rgba(194, 94, 25, 0.46));
+}
+
+.singleOpenHeader strong {
+  color: #ffb151;
+  text-shadow: 0 0 0.38rem rgba(255, 139, 45, 0.42);
+}
+
+.openCombatant {
+  position: relative;
+}
+
+.openCombatant::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid transparent;
+  pointer-events: none;
+}
+
+.brawlPreview[data-preview-state="single-open"] .openCombatant::after {
+  border-color: rgba(255, 177, 75, 0.42);
+  animation: advancing-combatant-pulse 1500ms ease-in-out infinite;
+}
+
+.missedCombatant {
+  position: relative;
+  border-color: rgba(128, 139, 149, 0.32) !important;
+  background:
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.022) 0 0.32rem, transparent 0.32rem 0.64rem),
+    rgba(7, 10, 13, 0.82) !important;
+  filter: saturate(0.22) brightness(0.68);
+}
+
+.missedCombatant::after {
+  content: "MISSED • CLOSED";
+  position: absolute;
+  right: 0.45rem;
+  bottom: 0.42rem;
+  z-index: 4;
+  padding: 0.16rem 0.34rem;
+  border: 1px solid rgba(205, 216, 223, 0.24);
+  background: rgba(0, 0, 0, 0.72);
+  color: rgba(230, 236, 239, 0.72);
+  font-size: clamp(0.38rem, 0.48vw, 0.52rem);
+  font-weight: 950;
+  letter-spacing: 0.09em;
+}
+
+.missMark {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.26);
+  color: rgba(255, 255, 255, 0.78);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(1.4rem, 2.4vw, 2.35rem);
+  font-style: normal;
+  font-weight: 300;
+  line-height: 1;
+  text-shadow: 0 0 0.4rem rgba(0, 0, 0, 0.9);
+}
+
+.rollStatus {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 0.18rem;
+  padding: 0.11rem 0.3rem;
+  overflow: hidden;
+  border: 1px solid rgba(113, 222, 255, 0.34);
+  background: rgba(29, 112, 142, 0.18);
+  color: rgba(173, 231, 250, 0.9);
+  font-family: var(--font-display);
+  font-size: clamp(0.38rem, 0.48vw, 0.52rem);
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rollStatus[data-participating="false"] {
+  border-color: rgba(194, 204, 211, 0.25);
+  background: rgba(101, 111, 119, 0.17);
+  color: rgba(218, 224, 228, 0.68);
+}
+
+.resolvedVersus {
+  color: #ffb151 !important;
+  font-size: clamp(1rem, 1.45vw, 1.42rem) !important;
+  text-shadow:
+    0 0 0.25rem rgba(255, 255, 255, 0.26),
+    0 0 0.65rem rgba(255, 136, 44, 0.54) !important;
+  animation: resolved-arrow 1100ms ease-in-out infinite;
+}
+
+@keyframes advancing-combatant-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 rgba(255, 177, 75, 0); }
+  50% { box-shadow: inset 0 0 0.72rem rgba(255, 177, 75, 0.2); }
+}
+
+@keyframes resolved-arrow {
+  0%, 100% { transform: translateX(-0.08rem); opacity: 0.72; }
+  50% { transform: translateX(0.12rem); opacity: 1; }
+}
+
+@media (max-width: 760px) {
+  .missedCombatant::after {
+    display: none;
+  }
+
+  .rollStatus {
+    max-width: 8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brawlPreview[data-preview-state="single-open"] .openCombatant::after,
+  .resolvedVersus {
+    animation: none;
+  }
+}
