@@ -12,6 +12,7 @@ on:
       - "components/game-screen-v2/TurnProgressTracker.tsx"
       - "components/game-screen-v2/PhaseTransitionLayer.tsx"
       - "tests/brawl-presentation.test.ts"
+      - "tests/roll-phase-presentation.test.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/roll-phase-regression.yml"
@@ -26,6 +27,7 @@ on:
       - "components/game-screen-v2/TurnProgressTracker.tsx"
       - "components/game-screen-v2/PhaseTransitionLayer.tsx"
       - "tests/brawl-presentation.test.ts"
+      - "tests/roll-phase-presentation.test.ts"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/roll-phase-regression.yml"
@@ -44,5 +46,5 @@ jobs:
           node-version: 22.13.0
           cache: npm
       - run: npm ci
-      - run: node --import tsx --test tests/brawl-presentation.test.ts
+      - run: node --import tsx --test tests/brawl-presentation.test.ts tests/roll-phase-presentation.test.ts
       - run: npm run lint
