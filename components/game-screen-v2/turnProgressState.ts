@@ -78,7 +78,7 @@ const DEFAULT_PROGRESS_BY_ENGINE_PHASE: Record<Phase, Pick<TurnProgressState, "p
   draw: { phaseKey: "start", stepKey: "draw" },
   energize: { phaseKey: "start", stepKey: "energize" },
   selection: { phaseKey: "roll", stepKey: "selection" },
-  preRoll: { phaseKey: "roll", stepKey: "selection" },
+  preRoll: { phaseKey: "roll", stepKey: "rolling" },
   target: { phaseKey: "roll", stepKey: "rolling" },
   power: { phaseKey: "brawl", stepKey: "power" },
   victor: { phaseKey: "brawl", stepKey: "victor" },
@@ -94,8 +94,10 @@ function stepFromLabel(label: string): TurnStepKey | null {
   const normalized = label.toLowerCase();
   if (/draw step/.test(normalized)) return "draw";
   if (/energize/.test(normalized)) return "energize";
-  if (/selection/.test(normalized) && !/target/.test(normalized)) return "selection";
-  if (/rolling|secret target|roll step/.test(normalized)) return "rolling";
+  if (/pre-roll|rolling|secret target|bakucore target|choose bakucore|roll step/.test(normalized)) {
+    return "rolling";
+  }
+  if (/selection/.test(normalized)) return "selection";
   if (/power step/.test(normalized)) return "power";
   if (/victor step/.test(normalized)) return "victor";
   if (/damage/.test(normalized) && !/post-damage/.test(normalized)) return "damage";
@@ -199,4 +201,3 @@ export function describeTurnTransition(
     announcement: `Round ${current.round}. ${current.phaseLabel} Phase, ${current.stepLabel} Step began.`,
   };
 }
-
