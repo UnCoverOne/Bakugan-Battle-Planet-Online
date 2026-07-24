@@ -7,9 +7,25 @@ import {
 } from "./game";
 
 const ROLL_CONFIRMATION_MS = 30_000;
+const ROLL_TARGET_LOCK_PREFIX = "roll-target-locked:";
 const CHOOSE_ROLL_TARGETS_LABEL = "Roll Phase • Rolling Step • Choose BakuCore targets";
 const CONFIRM_ROLLS_LABEL = "Roll Phase • Rolling Step • Confirm rolls";
 const WAITING_FOR_ROLLS_LABEL = "Roll Phase • Rolling Step • Waiting for all players to roll";
+
+function targetLockMarker(playerId: string) {
+  return `${ROLL_TARGET_LOCK_PREFIX}${playerId}`;
+}
+
+function rollTargetLockedPlayers(
+  match: MatchState | null | undefined,
+): ReadonlySet<string> {
+  if (!match || match.phase !== "target") return new Set();
+  return new Set(match.players.flatMap((player) => (
+    match.targets[player.id] || match.passes.includes(targetLockMarker(player.id))
+      ? [player.id]
+      : []
+  )));
+}
 
 export function availableRollTargets(
   match: MatchState | null | undefined,
@@ -20,10 +36,9 @@ export function availableRollTargets(
 export function allRollTargetsSelected(
   match: MatchState | null | undefined,
 ) {
-  return Boolean(
-    match?.players.length
-    && match.players.every((player) => Boolean(match.targets[player.id])),
-  );
+  if (!match?.players.length || match.phase !== "target") return false;
+  const locked = rollTargetLockedPlayers(match);
+  return match.players.every((player) => locked.has(player.id));
 }
 
 export function playerCanSelectRollTarget(
@@ -34,7 +49,7 @@ export function playerCanSelectRollTarget(
     match
     && playerId
     && match.phase === "target"
-    && !match.targets[playerId]
+    && !rollTargetLockedPlayers(match).has(playerId)
     && availableRollTargets(match).length,
   );
 }
@@ -54,9 +69,9 @@ export function rollTargetCanConfirm(
 export function rollReadyPlayers(
   match: MatchState | null | undefined,
 ): readonly string[] {
-  return match?.phase === "target" && allRollTargetsSelected(match)
-    ? match.passes
-    : [];
+  if (match?.phase !== "target" || !allRollTargetsSelected(match)) return [];
+  const playerIds = new Set(match.players.map((player) => player.id));
+  return match.passes.filter((entry) => playerIds.has(entry));
 }
 
 export function playerCanConfirmRoll(
@@ -86,7 +101,13 @@ export function selectRollTarget(
   }
 
   state.targets[playerId] = cell;
-  state.passes = [];
+  // Opposing target values are removed from each online player's redacted
+  // snapshot. Publish only lock markers through the existing target-phase pass
+  // storage so both clients can know when Roll is legal without learning which
+  // BakuCore the opponent chose.
+  state.passes = state.players
+    .filter((player) => Boolean(state.targets[player.id]))
+    .map((player) => targetLockMarker(player.id));
   state.version += 1;
   state.deadline = Date.now() + ROLL_CONFIRMATION_MS;
   const player = state.players.find((candidate) => candidate.id === playerId);
@@ -124,7 +145,7 @@ export function confirmRoll(
     message: `${player?.name ?? "Player"} is ready to roll.`,
   });
 
-  if (state.passes.length < state.players.length) {
+  if (rollReadyPlayers(state).length < state.players.length) {
     state.version += 1;
     state.stepLabel = WAITING_FOR_ROLLS_LABEL;
     state.deadline = Date.now() + ROLL_CONFIRMATION_MS;
