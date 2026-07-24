@@ -108,6 +108,9 @@ export function selectRollTarget(
   state.passes = state.players
     .filter((player) => Boolean(state.targets[player.id]))
     .map((player) => targetLockMarker(player.id));
+  const locked = rollTargetLockedPlayers(state);
+  const waitingForTarget = state.players.find((player) => !locked.has(player.id));
+  state.priority = waitingForTarget?.id ?? state.startingPlayer;
   state.version += 1;
   state.deadline = Date.now() + ROLL_CONFIRMATION_MS;
   const player = state.players.find((candidate) => candidate.id === playerId);
@@ -137,6 +140,9 @@ export function confirmRoll(
 
   const state = cloneMatch(input);
   state.passes.push(playerId);
+  const ready = new Set(rollReadyPlayers(state));
+  const waitingToRoll = state.players.find((candidate) => !ready.has(candidate.id));
+  state.priority = waitingToRoll?.id ?? state.startingPlayer;
   const player = state.players.find((candidate) => candidate.id === playerId);
   state.log.push({
     id: `${Date.now()}-roll-ready-${state.version}`,
@@ -145,7 +151,7 @@ export function confirmRoll(
     message: `${player?.name ?? "Player"} is ready to roll.`,
   });
 
-  if (rollReadyPlayers(state).length < state.players.length) {
+  if (ready.size < state.players.length) {
     state.version += 1;
     state.stepLabel = WAITING_FOR_ROLLS_LABEL;
     state.deadline = Date.now() + ROLL_CONFIRMATION_MS;
