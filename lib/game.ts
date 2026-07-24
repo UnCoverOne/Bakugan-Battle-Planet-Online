@@ -1,5 +1,6 @@
 import {
   buildChoiceSchema,
+  buildChoiceSchemaFromSpecs,
   mergeChoiceAnswers,
   schemaHasLegalCompletion,
   schemaIsComplete,
@@ -7,6 +8,14 @@ import {
 } from "./rules/choices";
 import { executeRuleProgram } from "./rules/executor";
 import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
+import { ruleDefinitionForCard } from "./rules/catalogue";
+import { cardCostBreakdown } from "./rules/costs";
+import { canonicalEvoTargetAllowed } from "./rules/identity";
+import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
+import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
+import { registerReplacement } from "./rules/replacements";
+import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
+import { collectRuleTriggers } from "./rules/triggers";
 
 // Backward-compatible server/test entry point. The interactive client imports
 // the clearer manual-damage name directly.
@@ -278,6 +287,8 @@ export const cloneMatch = (state: MatchState): MatchState => JSON.parse(JSON.str
 /** Upgrade resumable snapshots created before current engine fields existed. */
 export const normalizeMatchState = (input: MatchState): MatchState => {
   const state = cloneMatch(input);
+  ensureRulesState(state);
+  normalizeRuleObjects(state);
   state.triggerOrders = Array.isArray(state.triggerOrders) ? state.triggerOrders : [];
   state.collectedEventKeys = Array.isArray(state.collectedEventKeys) ? state.collectedEventKeys : [];
   state.informationEpoch = Number.isFinite(state.informationEpoch) ? Number(state.informationEpoch) : 0;
@@ -970,28 +981,28 @@ const scaleStat = (state: MatchState, player: PlayerState, text: string, value: 
   return value;
 };
 
-export const cardChoiceSpec = (state: MatchState, playerId: string, card: GameCard) => {
-  const mapping: Record<string, string> = {
-    bakugan: "targetBakugan",
-    player: "targetPlayer",
-    hero: "targetHero",
-    evo: "targetEvo",
-    energy: "targetEnergy",
-    core: "core",
-    "hand-cards": "multiHand",
-    "deck-card": "deckCard",
-    number: "xValue",
+export const cardChoiceSpec = (_state: MatchState, _playerId: string, card: GameCard) => {
+  const mapping: Partial<Record<keyof CardChoices, string>> = {
+    targetBakuganId: "targetBakugan",
+    targetPlayerId: "targetPlayer",
+    targetHeroId: "targetHero",
+    targetEvoId: "targetEvo",
+    targetEnergyId: "targetEnergy",
+    targetEnergyIds: "targetEnergy",
+    coreCell: "core",
+    discardCardIds: "discard",
+    handCardIds: "multiHand",
+    orderedCardIds: "deckOrder",
+    deckCardId: "deckCard",
+    xValue: "xValue",
     mode: "mode",
-    confirm: "mode",
+    confirmed: "mode",
   };
-  return [...new Set(buildChoiceSchema(state, playerId, card).fields.map((item) => (
-    item.id === "discardCardIds" ? "discard" : mapping[item.kind]
-  )))];
-};
-
-const queueTrigger = (state: MatchState, controllerId: string, source: GameCard, effect: string, choices: CardChoices = {}) => {
-  state.batch.push({ id: uid(), controllerId, card: source, sourceId: source.id, effect, choices, kind: "trigger" });
-  entry(state, "game", `${source.name} triggered and entered the batch.`);
+  const definition = ruleDefinitionForCard(card);
+  return [...new Set(definition.play.choices
+    .filter((choice) => choice.timing === "announce" || choice.timing === "pay")
+    .map((choice) => mapping[choice.id])
+    .filter((value): value is string => Boolean(value)))];
 };
 
 const stageSimultaneousTriggers = (state: MatchState, event: string, triggers: PendingEffect[]) => {
@@ -1053,53 +1064,26 @@ export type GameEvent = {
   sourceCards?: GameCard[];
 };
 
-const triggerMatchesEvent = (text: string, event: GameEvent) => {
-  if (event.type === "select") return /when you select a Bakugan to roll/i.test(text);
-  if (event.type === "open") return /when this opens|when you open a Bakugan/i.test(text);
-  if (event.type === "discard") return /when you discard a card|if this is discarded/i.test(text);
-  if (event.type === "card-play") {
-    const typed = text.match(/when you play an? (Action|Hero|Evo|Flip)/i)?.[1];
-    return typed ? typed === event.cardType : /when you play (?:a card|this(?: card)?)/i.test(text);
-  }
-  if (event.type === "victor") return /\bVictor\s*[-:]/i.test(text);
-  if (event.type === "attack") return /when one of your Bakugan attacks|if you deal \d+ or more damage/i.test(text);
-  if (event.type === "damage-taken") return /if you take damage/i.test(text);
-  if (event.type === "hand-empty") return /when you have no cards in hand|when your hand is empty/i.test(text);
-  return /at the end of (?:your |the )?turn|end of turn/i.test(text);
-};
-
-/** Collect every triggered instruction for one authoritative event before any enters the batch. */
+/** Collect typed triggered abilities for one authoritative game event. */
 export const collectTriggersForEvent = (state: MatchState, event: GameEvent) => {
   if (state.collectedEventKeys.includes(event.id)) return [];
   state.collectedEventKeys.push(event.id);
-  const triggers: PendingEffect[] = [];
-  for (const owner of state.players) {
-    if (event.playerIds && !event.playerIds.includes(owner.id)) continue;
-    if (event.playerId !== "*" && event.type !== "end-turn" && owner.id !== event.playerId) continue;
-    const active = activeBakugan(state, owner.id);
-    const sources = [...(active ? [topCard(active)] : []), ...owner.heroes, ...(event.sourceCards ?? [])];
-    const seen = new Set<string>();
-    for (const source of sources) {
-      if (seen.has(source.id)) continue;
-      seen.add(source.id);
-      const program = compileCardEffect(source);
-      for (const instruction of program.instructions) {
-        if (!instruction.actions.some((action) => action.kind === "trigger") || !triggerMatchesEvent(instruction.sourceText, event)) continue;
-        if (event.type === "end-turn" && /end of your turn/i.test(instruction.sourceText) && owner.id !== event.playerId) continue;
-        if (/if you deal \d+ or more damage/i.test(instruction.sourceText) && event.type === "attack" && state.pendingDamage < 10) continue;
-        triggers.push({
-          id: uid(),
-          controllerId: owner.id,
-          card: source,
-          sourceId: source.id,
-          effect: source.name === "Dan Kouzo" ? source.effect : instruction.sourceText,
-          choices: { targetBakuganId: event.targetBakuganId ?? active?.id },
-          kind: "trigger",
-        });
-      }
-    }
-  }
-  return triggers;
+  const names = {
+    select: "BAKUGAN_SELECTED", open: "BAKUGAN_OPENED", discard: "CARD_DISCARDED",
+    "card-play": "CARD_PLAYED", victor: "VICTOR_DECLARED", attack: "ATTACK_CREATED",
+    "damage-taken": "DAMAGE_TAKEN", "hand-empty": "HAND_EMPTIED", "end-turn": "TURN_ENDED",
+  } as const;
+  return collectRuleTriggers(state, {
+    id: event.id,
+    name: names[event.type],
+    actorId: event.playerId === "*" ? state.startingPlayer : event.playerId,
+    controllerId: event.playerId === "*" ? undefined : event.playerId,
+    card: event.sourceCards?.[0],
+    cardType: event.cardType,
+    targetBakuganId: event.targetBakuganId,
+    amount: event.type === "attack" ? state.pendingDamage : undefined,
+    createdAt: Date.now(),
+  }) as PendingEffect[];
 };
 
 export const emitGameEvent = (state: MatchState, event: GameEvent) => {
@@ -1108,17 +1092,9 @@ export const emitGameEvent = (state: MatchState, event: GameEvent) => {
   return triggers;
 };
 
-const effectiveCost = (state: MatchState, player: PlayerState, card: GameCard, choices: CardChoices) => {
-  let cost = card.cost === "X" ? Math.max(0, Math.min(player.energy, choices.xValue ?? 0)) : card.cost;
-  const text = card.effect.toLowerCase(); const opponent = otherPlayer(state, player.id);
-  if (card.type === "Evo") cost -= player.heroes.filter((hero) => hero.name === "Shun Kazami").length;
-  if (card.type === "Flip") cost -= player.heroes.filter((hero) => hero.name === "Lightning").length;
-  if (text.includes("costs 2 [energy] less") && player.cardsPlayedThisTurn) cost -= 2 * player.cardsPlayedThisTurn;
-  if (text.includes("costs 3 [energy] less") && player.bakugan.reduce((sum, b) => sum + b.heldCoreCells.length, 0) > opponent.bakugan.reduce((sum, b) => sum + b.heldCoreCells.length, 0)) cost -= 3;
-  if ((text.includes("this is free") || text.includes("play this for free")) && conditionActive(state, player, text, choices)) cost = 0;
-  if (card.type === "Flip" && state.damageOrigin) cost += state.frostStrike[state.damageOrigin] ?? 0;
-  return Math.max(0, cost);
-};
+const effectiveCost = (state: MatchState, player: PlayerState, card: GameCard, choices: CardChoices) => (
+  cardCostBreakdown(state, player.id, card, choices).total
+);
 
 const payEnergy = (state: MatchState, player: PlayerState, amount: number) => {
   const tracked = player as PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
@@ -1151,11 +1127,10 @@ export const prepareCardPlay = (input: MatchState, playerId: string, cardId: str
   const card = player.hand.find((candidate) => candidate.id === cardId);
   if (!card) throw new Error("That card is not in your hand.");
   if (card.type === "Flip" || card.type === "Character") throw new Error("That card cannot be played from hand.");
-  // Targets, modes, optional clauses and opponent decisions are chosen only
-  // when the relevant instruction resolves. X is a payment parameter and is
-  // therefore the sole choice made before the card enters the batch.
-  const paymentCard = card.cost === "X" ? { ...card, type: "Action" as const } : card;
-  const schema = buildChoiceSchema(state, playerId, paymentCard, card.cost === "X" ? "Choose a value for X." : "");
+  const definition = ruleDefinitionForCard(card);
+  const announce = buildChoiceSchemaFromSpecs(state, playerId, card, definition.play.choices, "announce");
+  const payment = buildChoiceSchemaFromSpecs(state, playerId, card, definition.play.choices, "pay");
+  const schema = { ...announce, fields: [...announce.fields, ...payment.fields] };
   if (!schema.fields.length) return playCard(state, playerId, cardId, {});
   state.pendingChoice = {
     id: uid(),
@@ -1257,14 +1232,17 @@ export const playCard = (input: MatchState, playerId: string, cardId: string, ch
   state.pendingChoice = undefined;
   card.playedTurn = state.turn;
   const cost = effectiveCost(state, player, card, choices); payEnergy(state, player, cost); player.hand.splice(index, 1); player.cardsPlayedThisTurn += 1;
-  const split = splitWhenPlayedEffect(card.effect);
-  const batchObject: PendingEffect = { id: uid(), controllerId: playerId, card, effect: split.cardEffect, choices, kind: "card" };
+  const definition = ruleDefinitionForCard(card);
+  const ability = definition.abilities.find((candidate) => candidate.kind !== "triggered") ?? definition.abilities[0];
+  const batchObject = createRuleObject({ controllerId: playerId, card, ability, choices, kind: "card" });
   state.batch.push(batchObject); state.passes = [];
-  if (split.triggerEffect) queueTrigger(state, playerId, card, split.triggerEffect, choices);
   if (card.type === "Action") {
     const toshi = player.heroes.find((hero) => hero.name === "Toshi");
-    if (toshi && player.cardsPlayedThisTurn === 1) state.batch.push({ id: uid(), controllerId: playerId, card: { ...card, id:`${card.id}-toshi-copy` }, choices, kind:"copy" });
-    if ((state.copyNextAction[playerId] ?? 0) > 0) { state.copyNextAction[playerId] -= 1; state.batch.push({ id: uid(), controllerId: playerId, card: { ...card, id:`${card.id}-next-copy` }, choices, kind:"copy" }); }
+    if (toshi && player.cardsPlayedThisTurn === 1) state.batch.push(copyRuleObject(batchObject, playerId));
+    if ((state.copyNextAction[playerId] ?? 0) > 0) {
+      state.copyNextAction[playerId] -= 1;
+      state.batch.push(copyRuleObject(batchObject, playerId));
+    }
   }
   emitGameEvent(state, {
     id: `${state.turn}:card-play:${card.id}`,
@@ -1369,15 +1347,14 @@ const ruleConditionIsActive = (
   pending: PendingEffect,
   instruction: RuleInstruction,
 ) => {
-  if (instruction.condition.kind === "always") return true;
-  if (instruction.condition.kind === "victor") return pending.kind === "trigger";
-  if (pending.kind === "trigger" && instruction.actions.some((action) => action.kind === "trigger")) return true;
   const player = playerById(state, pending.controllerId);
   const choices = instructionChoices(pending, pending.instructionIndex ?? 0);
+  if (instruction.condition.kind === "selection-made") return Boolean(choices[instruction.condition.choiceId]);
+  if (instruction.condition.kind === "printed") return conditionActive(state, player, instruction.condition.text, choices);
   if (instruction.condition.kind === "faction") {
     return chooseBakugan(state, pending.controllerId, choices)?.faction === instruction.condition.faction;
   }
-  return conditionActive(state, player, instruction.sourceText, choices);
+  return ruleConditionActive(state, player, instruction.condition);
 };
 
 const executeRuleAction = (
@@ -1399,8 +1376,33 @@ const executeRuleAction = (
   switch (action.kind) {
     case "choice":
     case "trigger":
-    case "continuous":
     case "cost":
+      return;
+    case "continuous": {
+      const rules = ensureRulesState(state);
+      const modifier = {
+        ...structuredClone(action.modifier),
+        id: `${pending.id}:${action.modifier.id}`,
+        controllerId,
+        source: pending.sourceId
+          ? { kind: "card" as const, instanceId: pending.sourceId, catalogId: pending.card.catalogId as `bb-${number}` }
+          : action.modifier.source,
+        createdTurn: state.turn,
+      };
+      rules.modifiers = rules.modifiers.filter((candidate) => candidate.id !== modifier.id);
+      rules.modifiers.push(modifier);
+      return;
+    }
+    case "replacement":
+    case "prevention":
+      registerReplacement(state, {
+        id: `${pending.id}:${instructionIndex}:${action.kind}`,
+        source: pending.sourceId
+          ? { kind: "card", instanceId: pending.sourceId, catalogId: pending.card.catalogId as `bb-${number}` }
+          : { kind: "card", instanceId: pending.card.id, catalogId: pending.card.catalogId as `bb-${number}` },
+        controllerId,
+        effect: action,
+      });
       return;
     case "modify-stat": {
       if (pending.kind === "card" && ["Hero", "Evo"].includes(card.type) && action.duration === "while-source-in-play") return;
@@ -1631,15 +1633,23 @@ const executeRuleAction = (
       return;
     }
     case "negate": {
-      const index = state.batch.map((effect, candidateIndex) => (
-        effect.id !== pending.id && (action.cardType === "any" || effect.card.type === action.cardType)
-          ? candidateIndex
-          : -1
-      )).filter((candidate) => candidate >= 0).at(-1) ?? -1;
+      const selectedId = typeof choices.mode === "string" ? choices.mode : undefined;
+      const index = state.batch.findIndex((effect) => (
+        effect.id !== pending.id
+        && (!selectedId || effect.id === selectedId)
+        && (action.cardType === "any" || effect.card.type === action.cardType)
+      ));
       if (index >= 0) {
         const [negated] = state.batch.splice(index, 1);
-        playerById(state, negated.controllerId).discard.push(negated.card);
-        if (action.copy) state.batch.push({ ...negated, id: uid(), controllerId, kind: "copy" });
+        if (isRuleObject(negated)) negateRuleObject(negated);
+        if (negated.kind === "card" && ["Action", "Flip"].includes(negated.card.type)) {
+          const owner = playerById(state, negated.controllerId);
+          if (!owner.discard.some((candidate) => candidate.id === negated.card.id)) owner.discard.push(negated.card);
+        }
+        if (action.copy) {
+          const typed = isRuleObject(negated) ? negated : normalizeRuleObjects({ ...state, batch: [negated] }).batch[0];
+          if (isRuleObject(typed)) state.batch.push(copyRuleObject(typed, controllerId));
+        }
       }
       return;
     }
@@ -1678,6 +1688,7 @@ const executeRuleAction = (
 };
 
 function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
+  if (isRuleObject(pending)) beginRuleObjectResolution(pending);
   const program = compileCardEffect(pending.card, pending.effect ?? pending.card.effect);
   const result = executeRuleProgram(program, {
     conditionIsActive: (instruction) => ruleConditionIsActive(state, pending, instruction),
@@ -1737,14 +1748,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
     player.heroes.push(pending.card);
   } else if (pending.kind === "card" && pending.card.type === "Evo") {
     const target = player.bakugan.find((bakugan) => bakugan.id === choices.targetBakuganId);
-    const normalizedName = (value: string | null | undefined) => String(value ?? "")
-      .replace(/\s*\(Battle Brawlers\)\s*$/i, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
-    if (target
-      && normalizedName(target.name) === normalizedName(pending.card.evolvesFrom)
-      && target.faction === pending.card.faction) {
+    if (target && canonicalEvoTargetAllowed(ruleDefinitionForCard(pending.card), target)) {
       target.evoStack.push(pending.card);
       const wasFaceDown = !target.open && !(target as Bakugan & { characterFaceUp?: boolean }).characterFaceUp;
       (target as Bakugan & { characterFaceUp?: boolean }).characterFaceUp = true;
@@ -1761,7 +1765,8 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
     && !player.energyZone.some((card) => card.id === pending.card.id)) {
     player.discard.push(pending.card);
   }
-  entry(state, "game", `${pending.card.name} finished resolving its structured RuleAction program.`);
+  if (isRuleObject(pending)) completeRuleObject(pending);
+  entry(state, "game", `${pending.card.name} finished resolving its typed rule program.`);
   return true;
 }
 
@@ -1777,35 +1782,14 @@ export const resolveStructuredEffect = (input: MatchState, pending: PendingEffec
 };
 
 const staticModifier = (state: MatchState, bakugan: Bakugan, owner: PlayerState) => {
-  const card = topCard(bakugan); let power = card.bPower ?? bakugan.bPower; let damage = card.damage ?? bakugan.damage; let frost = 0; let double = false; let shadow = false;
-  const sources = [card, ...owner.heroes];
-  for (const source of sources) {
-    const text = source.effect; const lower = text.toLowerCase();
-    for (const [code, coreType] of Object.entries(coreCode)) if (new RegExp(`\\[${code}\\]`, "i").test(text) && hasCoreType(state, bakugan, coreType)) {
-      power += statValues(text, /([+-]\d+)\s*\[B\]/gi, true); damage += statValues(text, /([+-]\d+)\s*\[Damage Rating\]/gi, true);
-      frost += statValues(text, /\+?(\d+)\s*\[FrostStrike\]/gi, true); double ||= /Double ?Strike/i.test(text); shadow ||= /ShadowStrike/i.test(text);
-    }
-    const staticCondition = !/(Fury|Turbo|Domination)/i.test(text) || conditionActive(state,owner,text,{}) || /\.\s*\+\d/.test(text);
-    if (source.type === "Hero" && staticCondition && (/your bakugan have|to your attacks/.test(lower)) && (!/\[(aquos|pyrus|darkus|haos|ventus|aurelus)\]/i.test(text) || text.toLowerCase().includes(`[${bakugan.faction.toLowerCase()}]`))) {
-      power += statValues(text, /([+-]\d+)\s*\[B\]/gi, true); damage += statValues(text, /([+-]\d+)\s*\[Damage Rating\]/gi, true);
-      frost += statValues(text, /\+?(\d+)\s*\[FrostStrike\]/gi, true); double ||= /Double ?Strike/i.test(text); shadow ||= /ShadowStrike/i.test(text);
-    }
-  }
-  const opponent=otherPlayer(state,owner.id);
-  for(const hero of opponent.heroes){
-    const text=hero.effect; const lower=text.toLowerCase();
-    if(lower.includes("opposing bakugan")){ power+=statValues(text,/([+-]\d+)\s*\[B\]/gi,true); damage+=statValues(text,/([+-]\d+)\s*\[Damage Rating\]/gi,true); }
-    const non=text.match(/Non-\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan get ([+-]\d+) \[B\]/i); if(non&&bakugan.faction!==non[1]) power+=Number(non[2]);
-  }
-  for (const core of heldCores(state, bakugan)) {
-    const conditional = !core.conditionalFactions?.length || core.conditionalFactions.includes(bakugan.faction);
-    power += core.bonus + (conditional ? core.conditionalBonus ?? 0 : 0); damage += core.damageBonus + (conditional ? core.conditionalDamage ?? 0 : 0);
-    frost += core.frostStrike ?? 0; shadow ||= core.shadowStrike ?? false;
-  }
-  const powerTemp = state.powerBoost[bakugan.id] ?? 0; const damageTemp = state.damageBoost[bakugan.id] ?? 0;
-  shadow ||= state.shadowStrike[bakugan.id] ?? false; double ||= state.doubleStrike[bakugan.id] ?? false; frost += state.frostStrike[bakugan.id] ?? 0;
-  power += shadow && powerTemp < 0 ? 0 : powerTemp; damage += shadow && damageTemp < 0 ? 0 : damageTemp;
-  return { power: Math.max(0, power), damage: Math.max(0, damage), frost, double, shadow };
+  const evaluated = evaluateBakuganCharacteristics(state, bakugan, owner);
+  return {
+    power: evaluated.power,
+    damage: evaluated.damage,
+    frost: evaluated.frostStrike,
+    double: evaluated.doubleStrike,
+    shadow: evaluated.shadowStrike,
+  };
 };
 
 export const totalPower = (state: MatchState, playerId: string) => {
@@ -1878,6 +1862,10 @@ const advanceEmptyBatch = (state: MatchState) => {
     for (const player of state.players) for (const bakugan of player.bakugan) if (state.delayedRetracts.includes(bakugan.id)) retractBakugan(state,bakugan);
     for (const player of state.players) { player.energy = player.maxEnergy; }
     state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {}; state.doubleStrike = {}; state.shadowStrike = {};
+    const rules = ensureRulesState(state);
+    rules.modifiers = rules.modifiers.filter((modifier) => modifier.duration !== "turn");
+    rules.replacements = rules.replacements.filter((replacement) => replacement.effect.kind !== "prevention");
+    rules.triggerUsage = {};
     const over = state.players.find((player) => player.hand.length > 7);
     if (over) setPhase(state, "handLimit", "End Phase • Discard to seven", over.id); else beginTurn(state);
   }

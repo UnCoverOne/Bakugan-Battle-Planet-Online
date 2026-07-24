@@ -23,24 +23,6 @@ const settleDamage = (input: MatchState) => {
   return state;
 };
 
-const settleEndPhase = (input: MatchState) => {
-  let state = input;
-  for (let guard = 0; state.phase === "handLimit" || state.phase === "endPlay"; guard += 1) {
-    if (guard >= 40) throw new Error("End Phase did not settle within 40 transitions.");
-    if (state.phase === "handLimit") {
-      const actor = state.players.find((player) => player.id === state.priority)!;
-      state = discardToHandLimit(
-        state,
-        actor.id,
-        actor.hand.slice(0, actor.hand.length - 7).map((card) => card.id),
-      );
-    } else {
-      state = passWindow(state);
-    }
-  }
-  return state;
-};
-
 const buildPlacedMatch = () => {
   const a = makePlayer("a", "Alpha", STARTER_DECKS[0]); const b = makePlayer("b", "Beta", STARTER_DECKS[1]);
   let state = setReady(setReady(createMatch("TEST01", "bo3", [a, b]), "a"), "b");
@@ -149,11 +131,12 @@ test("priority is retained, the batch is LIFO, and an Action resolves only after
   assert.equal(state.batch.length, 0); assert.equal(state.phase, "power"); assert.ok((state.damageBoost[target.id] ?? 0) >= 3); assert.ok(state.players.find((candidate) => candidate.id === actor)!.discard.some((card) => card.name === "Fireball"));
 });
 
-test("Hero, Evo, Action, Flip and X-cost cards expose and enforce their appropriate paths", () => {
+test("Hero, Evo, Action, Flip and X-cost cards expose typed announcement and payment paths", () => {
   const state = reachPower(); const player = state.players[0];
   const evo = CARDS.find((card) => card.type === "Evo" && card.evolvesFrom === player.bakugan[0].name && card.faction === player.bakugan[0].faction);
   const xCard = CARDS.find((card) => card.cost === "X")!; const sacrifice = CARDS.find((card) => card.effect.toLowerCase().includes("sacrifice"))!;
-  assert.ok(evo); assert.ok(cardChoiceSpec(state, player.id, evo!).includes("targetBakugan")); assert.ok(cardChoiceSpec(state, player.id, xCard).includes("xValue")); assert.ok(cardChoiceSpec(state, player.id, sacrifice).includes("discard"));
+  assert.ok(evo); assert.ok(cardChoiceSpec(state, player.id, evo!).includes("targetBakugan")); assert.ok(cardChoiceSpec(state, player.id, xCard).includes("xValue"));
+  assert.equal(cardChoiceSpec(state, player.id, sacrifice).includes("discard"), false, "Sacrifice choices are made during resolution, not announcement.");
   assert.equal(CARDS.filter((card) => card.type === "Flip").length, 49); assert.equal(CARDS.filter((card) => card.type === "Hero").length, 29);
 });
 
@@ -165,13 +148,15 @@ test("B-Power ties use Energy-cost flips and the Victor Step precedes sequential
   state = passWindow(state); assert.equal(state.phase,"victor"); assert.equal(state.brawlWinner,"a"); assert.ok(state.log.some((entry) => entry.message.includes("tie-break")));
 });
 
-test("damage flips cards one at a time, pauses on a Flip, and Stop ends the attack", () => {
+test("damage Flips enter the batch, open a response window, and Stop ends damage only on resolution", () => {
   let state = reachPower(); const wantedWinner = state.players[0]; const attacking = wantedWinner.bakugan.find((bakugan) => bakugan.id === state.selected[wantedWinner.id])!;
   attacking.open = true; state.rolls[wantedWinner.id].result = "open-no-core"; state.powerBoost[attacking.id] = 9999; state = passWindow(state); assert.equal(state.phase,"victor");
   const loser = state.players[1]; const stop = { ...CARDS.find((card) => card.name === `Halt ${attacking.faction}` || card.name === `Counter ${attacking.faction}` || card.name === `Block ${attacking.faction}` || card.name === `Repel ${attacking.faction}`)!, id:"stop-flip" };
   loser.deckCards = [stop, ...loser.deckCards]; loser.deck = loser.deckCards.length; loser.energy = 10; state = passWindow(state);
   assert.equal(state.phase,"damage"); assert.equal(state.revealedFlip, undefined); state = flipDamageCard(state, loser.id);
-  assert.equal(state.revealedFlip?.id,"stop-flip"); state = resolveManualDamage(state,loser.id,"stop-flip"); assert.equal(state.phase,"postDamage"); assert.equal(state.pendingDamage,0);
+  assert.equal(state.revealedFlip?.id,"stop-flip"); const remaining = state.pendingDamage;
+  state = resolveManualDamage(state,loser.id,"stop-flip"); assert.equal(state.phase,"postDamage"); assert.equal(state.pendingDamage,remaining); assert.equal(state.batch.some((object) => object.card.id === "stop-flip"), true);
+  state = passWindow(state); assert.equal(state.batch.length,0); assert.equal(state.pendingDamage,0);
 });
 
 test("a Team Attack combines open Bakugan, then all attackers retract", () => {
@@ -184,12 +169,18 @@ test("a Team Attack combines open Bakugan, then all attackers retract", () => {
   assert.equal(state.phase,"endPlay"); assert.ok(state.players.find((player)=>player.id===winner.id)!.bakugan.every((bakugan) => !bakugan.open));
 });
 
-test("the End Phase charges Energy, enforces seven cards, and begins the next Start Phase", () => {
+test("the End Phase charges Energy, enforces seven cards, resolves discard triggers, and begins the next Start Phase", () => {
   let state = reachPower(); const winner = state.players[0]; const attacking = winner.bakugan.find((bakugan) => bakugan.id === state.selected[winner.id])!; attacking.open = true; state.rolls[winner.id].result = "open-no-core"; state.powerBoost[attacking.id] = 9999; state = passWindow(state);
   const loser = state.players[1]; loser.deckCards = loser.deckCards.filter((card) => card.type !== "Flip"); loser.deck = loser.deckCards.length; state = settleDamage(passWindow(state));
   if (state.phase === "postDamage") state = passWindow(state); assert.equal(state.phase,"endPlay"); const currentWinner=state.players.find((player)=>player.id===winner.id)!; currentWinner.hand.push(...currentWinner.deckCards.splice(0, Math.max(0, 9-currentWinner.hand.length))); currentWinner.deck=currentWinner.deckCards.length;
-  state = passWindow(state); assert.equal(state.phase,"handLimit");
-  state = settleEndPhase(state);
+  state = passWindow(state); assert.equal(state.phase,"handLimit"); const actor=state.players.find((player) => player.id===state.priority)!; state=discardToHandLimit(state,actor.id,actor.hand.slice(0,actor.hand.length-7).map((card)=>card.id));
+  const nextOver=state.players.find((player)=>state.phase==="handLimit"&&player.id===state.priority); if(nextOver) state=discardToHandLimit(state,nextOver.id,nextOver.hand.slice(0,nextOver.hand.length-7).map((card)=>card.id));
+  let triggerWindows = 0;
+  while (state.phase === "endPlay" && triggerWindows < 20) {
+    state = passWindow(state);
+    triggerWindows += 1;
+  }
+  assert.ok(triggerWindows < 20, "Discard-trigger resolution must terminate.");
   assert.equal(state.phase,"draw"); assert.equal(state.turn,2); assert.ok(state.players.every((player)=>player.energy===player.maxEnergy));
 });
 

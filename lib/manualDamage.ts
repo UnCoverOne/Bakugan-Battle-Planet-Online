@@ -1,39 +1,27 @@
-import {
-  cloneMatch,
-  emitGameEvent,
-  resolveStructuredEffect,
-  splitWhenPlayedEffect,
-  type CardChoices,
-  type GameCard,
-  type MatchState,
-  type PendingEffect,
-} from "./game";
-import {
-  effectiveCardEnergyCost,
-  prepareEnergyPayment,
-} from "./cardPayment";
+import { cloneMatch, type CardChoices, type GameCard, type MatchState } from "./game";
+import { beginCardPayment, commitCardPayment, prepareDeclaredEnergyPayment } from "./rules/costs";
+import { ruleDefinitionForCard } from "./rules/catalogue";
+import { createRuleObject } from "./rules/objects";
+import { ensureRulesState } from "./rules/state";
+import { emitRuleEvent } from "./rules/triggers";
 
 const DAMAGE_DECISION_MS = 35_000;
 const POST_DAMAGE_MS = 25_000;
 const RESULT_MS = 120_000;
 
+type DamageResumeRules = ReturnType<typeof ensureRulesState> & {
+  damageResume?: { playerId: string; previousPhase: "damage"; revealedFlipId: string };
+};
+
 function playerById(state: MatchState, playerId: string) {
   return state.players.find((player) => player.id === playerId);
 }
-
 function otherPlayer(state: MatchState, playerId: string) {
   return state.players.find((player) => player.id !== playerId);
 }
-
 function log(state: MatchState, kind: MatchState["log"][number]["kind"], message: string) {
-  state.log.push({
-    id: `${Date.now()}-manual-damage-${state.log.length}`,
-    at: Date.now(),
-    kind,
-    message,
-  });
+  state.log.push({ id: `${Date.now()}-manual-damage-${state.log.length}`, at: Date.now(), kind, message });
 }
-
 function enterPostDamage(state: MatchState) {
   state.phase = "postDamage";
   state.stepLabel = "Damage Step • Post-damage priority";
@@ -43,44 +31,19 @@ function enterPostDamage(state: MatchState) {
   state.deadline = Date.now() + POST_DAMAGE_MS;
 }
 
-function flipStopsDamage(state: MatchState, card: GameCard) {
-  const text = card.effect;
-  const faction = state.damageFaction;
-  if (/\[Stop\] an attack/i.test(text)) return true;
-  const non = text.match(/\[Stop\] non-\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/i);
-  if (non) return Boolean(faction && faction !== non[1]);
-  const listed = [...text.matchAll(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/gi)]
-    .map((match) => match[1]);
-  return Boolean(faction && /\[Stop\]/i.test(text) && listed.includes(faction));
-}
-
-export function playerCanFlipDamage(
-  state: MatchState | null | undefined,
-  playerId: string | undefined,
-) {
-  return Boolean(
-    state
-    && playerId
-    && state.phase === "damage"
-    && state.pendingLoser === playerId
-    && state.pendingDamage > 0
-    && !state.revealedFlip
-    && !state.pendingChoice,
-  );
+export function playerCanFlipDamage(state: MatchState | null | undefined, playerId: string | undefined) {
+  return Boolean(state && playerId && state.phase === "damage" && state.pendingLoser === playerId
+    && state.pendingDamage > 0 && !state.revealedFlip && !state.pendingChoice);
 }
 
 export function flipDamageCard(input: MatchState, playerId: string) {
-  if (!playerCanFlipDamage(input, playerId)) {
-    throw new Error("The next damage card cannot be flipped now.");
-  }
-
+  if (!playerCanFlipDamage(input, playerId)) throw new Error("The next damage card cannot be flipped now.");
   const state = cloneMatch(input);
   const player = playerById(state, playerId)!;
   const card = player.deckCards.shift();
   player.deck = player.deckCards.length;
   state.informationEpoch += 1;
   state.undoWindow = undefined;
-
   if (!card) {
     const winner = otherPlayer(state, playerId);
     if (!winner) throw new Error("The opposing player could not be found.");
@@ -94,23 +57,19 @@ export function flipDamageCard(input: MatchState, playerId: string) {
     state.version += 1;
     return state;
   }
-
   state.pendingDamage = Math.max(0, state.pendingDamage - 1);
   player.discard.push(card);
   log(state, "game", `${player.name} flipped ${card.name} as damage (${state.pendingDamage} remaining).`);
-
   if (card.type === "Flip") {
     state.revealedFlip = card;
     state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
     state.priority = playerId;
     state.deadline = Date.now() + DAMAGE_DECISION_MS;
-  } else if (state.pendingDamage <= 0) {
-    enterPostDamage(state);
-  } else {
+  } else if (state.pendingDamage <= 0) enterPostDamage(state);
+  else {
     state.stepLabel = `Damage Step • ${state.pendingDamage} cards to flip`;
     state.deadline = Date.now() + DAMAGE_DECISION_MS;
   }
-
   state.version += 1;
   return state;
 }
@@ -126,7 +85,6 @@ export function resolveManualDamage(
   if (input.phase !== "damage" || input.pendingLoser !== playerId || !player || !flip) {
     throw new Error("There is no revealed Flip decision for you.");
   }
-
   if (!flipCardId) {
     const state = cloneMatch(input);
     state.revealedFlip = undefined;
@@ -140,46 +98,57 @@ export function resolveManualDamage(
     state.version += 1;
     return state;
   }
+  if (flip.id !== flipCardId) throw new Error("Only the currently revealed Flip card may be played.");
 
-  if (flip.id !== flipCardId) throw new Error("Only the currently selected Flip card may be played.");
+  const state = cloneMatch(input);
+  const statePlayer = playerById(state, playerId)!;
+  const stateFlip = state.revealedFlip!;
+  const payment = beginCardPayment(state, playerId, stateFlip, choices);
+  prepareDeclaredEnergyPayment(state, playerId, payment.calculatedCost);
+  commitCardPayment(state, playerId);
+  statePlayer.discard = statePlayer.discard.filter((card) => card.id !== stateFlip.id);
+  state.revealedFlip = undefined;
 
-  const cost = effectiveCardEnergyCost(input, playerId, flip, choices);
-  const prepared = prepareEnergyPayment(input, playerId, cost);
-  const preparedPlayer = playerById(prepared, playerId)!;
-  preparedPlayer.energy = Math.max(0, preparedPlayer.energy - cost);
-  preparedPlayer.discard = preparedPlayer.discard.filter((card) => card.id !== flip.id);
-  prepared.revealedFlip = undefined;
+  const definition = ruleDefinitionForCard(stateFlip);
+  const ability = definition.abilities.find((candidate) => candidate.kind === "spell") ?? definition.abilities[0];
+  const object = createRuleObject({ controllerId: playerId, card: stateFlip, ability, choices, kind: "card" });
+  state.batch.push(object);
+  const rules = ensureRulesState(state) as DamageResumeRules;
+  rules.damageResume = { playerId, previousPhase: "damage", revealedFlipId: stateFlip.id };
 
-  if (flipStopsDamage(prepared, flip)) prepared.pendingDamage = 0;
-  const split = splitWhenPlayedEffect(flip.effect);
-  const pending: PendingEffect = {
-    id: `${flip.id}-damage-resolution-${prepared.version}`,
+  // Damage is paused in a normal priority window. Stop and all other text are
+  // applied only if this exact batch object resolves and are therefore negatable.
+  state.phase = "postDamage";
+  state.stepLabel = `Damage Step • Respond to ${stateFlip.displayName || stateFlip.name}`;
+  state.priority = playerId;
+  state.passes = [];
+  state.deadline = Date.now() + POST_DAMAGE_MS;
+  emitRuleEvent(state, {
+    id: `${state.turn}:card-play:${stateFlip.id}`,
+    name: "CARD_PLAYED",
+    actorId: playerId,
     controllerId: playerId,
-    card: flip,
-    effect: split.cardEffect,
-    choices,
-    kind: "card",
-  };
-  const resolved = resolveStructuredEffect(prepared, pending);
-  emitGameEvent(resolved, {
-    id: `${resolved.turn}:card-play:${flip.id}`,
-    type: "card-play",
-    playerId,
+    card: stateFlip,
     cardType: "Flip",
-    sourceCards: split.triggerEffect ? [flip] : undefined,
+    createdAt: Date.now(),
   });
-  log(resolved, "game", `${player.name} played ${flip.name} for ${cost} Energy.`);
-
-  if (!resolved.pendingChoice) {
-    if (resolved.pendingDamage <= 0) enterPostDamage(resolved);
-    else {
-      resolved.phase = "damage";
-      resolved.stepLabel = `Damage Step • ${resolved.pendingDamage} cards to flip`;
-      resolved.priority = playerId;
-      resolved.passes = [];
-      resolved.deadline = Date.now() + DAMAGE_DECISION_MS;
-    }
-  }
-  return resolved;
+  log(state, "game", `${player.name} added ${stateFlip.name} to the batch for ${payment.calculatedCost} Energy.`);
+  state.version += 1;
+  return state;
 }
 
+export function resumeDamageAfterFlipWindow(state: MatchState) {
+  const rules = ensureRulesState(state) as DamageResumeRules;
+  const resume = rules.damageResume;
+  if (!resume || state.batch.length || state.pendingChoice) return state;
+  delete rules.damageResume;
+  if (state.pendingDamage <= 0) enterPostDamage(state);
+  else {
+    state.phase = "damage";
+    state.stepLabel = `Damage Step • ${state.pendingDamage} cards to flip`;
+    state.priority = resume.playerId;
+    state.passes = [];
+    state.deadline = Date.now() + DAMAGE_DECISION_MS;
+  }
+  return state;
+}
