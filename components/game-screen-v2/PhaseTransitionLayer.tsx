@@ -22,8 +22,8 @@ import {
 import styles from "./PhaseTransitionLayer.module.css";
 import cueStyles from "./PhaseTransitionCues.module.css";
 
-export const PHASE_TRANSITION_DURATION_MS = 2100;
-const REDUCED_TRANSITION_DURATION_MS = 1250;
+export const PHASE_TRANSITION_DURATION_MS = 4200;
+const REDUCED_TRANSITION_DURATION_MS = 2600;
 
 type TargetBox = {
   left: number;
@@ -52,7 +52,11 @@ function reducedMotionRequested() {
     || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
-function ownerForPlayer(match: MatchState | null, localPlayerId: string | undefined, playerId: string) {
+function ownerForPlayer(
+  match: MatchState | null,
+  localPlayerId: string | undefined,
+  playerId: string,
+) {
   const resolvedLocalId = localPlayerId ?? match?.players[0]?.id;
   return playerId && playerId === resolvedLocalId ? "player" : "opponent";
 }
@@ -77,8 +81,8 @@ function transitionPlan(
       };
     case "selection":
       return {
-        hint: "Choose one closed Bakugan for this turn's roll.",
-        primarySelector: '[data-zone-group="character-cards"][data-zone-owner="player"]',
+        hint: "Choose a closed Bakugan while surveying the Hide Matrix.",
+        primarySelector: '[aria-label="BakuCores in the Hide Matrix"]',
       };
     case "rolling":
       return {
