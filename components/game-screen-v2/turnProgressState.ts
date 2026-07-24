@@ -157,17 +157,17 @@ export function turnProgressSnapshot(
 
 /**
  * The authoritative state enters Power as soon as rolls resolve, while the
- * client still has the roll trace, result, and Core transfer to present. Keep
- * the transition callout on Rolling until that existing sequence has settled.
+ * client still has the roll trace, result, and Core transfer to present. Always
+ * pin that pending presentation to Rolling; carrying an arbitrary previous Roll
+ * snapshot could preserve Selection if the target update was batched or skipped.
  */
 export function presentedTurnProgress(
   live: TurnProgressSnapshot | null,
-  previous: TurnProgressSnapshot | null,
+  _previous: TurnProgressSnapshot | null,
   rollPresentationPending: boolean,
 ): TurnProgressSnapshot | null {
   if (!live) return null;
   if (!rollPresentationPending || live.phaseKey !== "brawl") return live;
-  if (previous?.phaseKey === "roll") return previous;
   return snapshotFor(live.round, "roll", "rolling");
 }
 
