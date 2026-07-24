@@ -18,6 +18,7 @@ import {
 } from "./brawlState";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
 import styles from "./BrawlExperienceLayer.module.css";
+import previewStyles from "./BrawlPreviewEnhancements.module.css";
 import { useMatchSelector } from "./matchStore";
 
 type ExperienceState = {
@@ -51,7 +52,6 @@ function effectLabel(effect: PendingEffect) {
 function phaseName(phase: MatchState["phase"]) {
   if (phase === "power") return "POWER STEP";
   if (phase === "victor") return "VICTOR STEP";
-  if (phase === "damage" || phase === "postDamage") return "DAMAGE STEP";
   return "BRAWL";
 }
 
@@ -64,34 +64,49 @@ function BrawlCombatant({
   owner: "player" | "opponent";
   pulsing: boolean;
 }) {
+  const effectivePower = view.participating ? view.power : "—";
+  const effectiveDamage = view.participating ? view.damage : "—";
   return (
     <article
-      className={styles.combatant}
+      className={`${styles.combatant} ${
+        view.participating ? previewStyles.openCombatant : previewStyles.missedCombatant
+      }`}
       data-owner={owner}
       data-pulse={pulsing ? "true" : "false"}
+      data-participating={view.participating ? "true" : "false"}
+      data-roll-result={view.rollResult ?? "pending"}
+      aria-label={`${view.playerName}: ${view.bakuganName}. ${view.rollLabel}.`}
     >
       <div className={styles.combatantHeading}>
         <div className={styles.combatantArtFrame}>
           <span aria-hidden="true">{view.bakuganName.slice(0, 1)}</span>
           <img src={view.art} alt="" aria-hidden="true" draggable={false} />
+          {!view.participating ? <i className={previewStyles.missMark} aria-hidden="true">×</i> : null}
         </div>
         <div className={styles.combatantName}>
           <small>{owner === "player" ? "PLAYER" : "OPPONENT"} • {view.faction}</small>
           <strong>{view.bakuganName}</strong>
           <span>{view.cardName}</span>
+          <em
+            className={previewStyles.rollStatus}
+            data-participating={view.participating ? "true" : "false"}
+            title={view.rollNote}
+          >
+            {view.rollLabel}
+          </em>
         </div>
       </div>
 
       <div className={styles.statRow}>
         <div className={styles.stat} data-stat="power">
           <span>B-POWER</span>
-          <strong>{view.power}</strong>
-          <small>BASE {view.basePower}</small>
+          <strong>{effectivePower}</strong>
+          <small>BASE {view.basePower}{view.participating ? "" : " • CLOSED"}</small>
         </div>
         <div className={styles.stat} data-stat="damage">
           <span>DAMAGE</span>
-          <strong>{view.damage}</strong>
-          <small>BASE {view.baseDamage}</small>
+          <strong>{effectiveDamage}</strong>
+          <small>BASE {view.baseDamage}{view.participating ? "" : " • NOT ATTACKING"}</small>
         </div>
       </div>
 
@@ -204,7 +219,7 @@ export function BrawlExperienceLayer() {
     const nextStats: Record<string, string> = {};
     const changed = new Set<string>();
     for (const view of combatants) {
-      nextStats[view.bakuganId] = `${view.power}:${view.damage}:${view.modifiers.join("|")}`;
+      nextStats[view.bakuganId] = `${view.power}:${view.damage}:${view.participating}:${view.modifiers.join("|")}`;
       const previous = previousStats.current[view.bakuganId];
       if (previous && previous !== nextStats[view.bakuganId]) changed.add(view.bakuganId);
     }
@@ -227,6 +242,21 @@ export function BrawlExperienceLayer() {
     ?? experience.match.players[0];
   const priorityName = experience.match.players.find((player) => player.id === experience.match?.priority)?.name
     ?? "Waiting";
+  const missedCombatant = combatants.find((view) => !view.participating);
+  const advancingCombatant = missedCombatant
+    ? combatants.find((view) => view.participating)
+    : null;
+  const previewState = missedCombatant ? "single-open" : "contested";
+  const headerHeadline = missedCombatant && advancingCombatant
+    ? `${missedCombatant.playerName} MISSED • ${advancingCombatant.playerName} ADVANCES`
+    : status.active
+      ? `PRIORITY • ${priorityName}`
+      : experience.match.stepLabel;
+  const headerDetail = missedCombatant
+    ? "ONE BAKUGAN OPEN • AUTOMATIC VICTOR"
+    : status.active
+      ? `PASSES ${status.consecutivePasses}/2 • BATCH ${status.batchCount}`
+      : "ACTIVE BAKUGAN";
   const combinedBatch = resolvingEffect
     && !batch.some((effect) => effect.id === resolvingEffect.id)
     ? [resolvingEffect, ...batch]
@@ -242,14 +272,15 @@ export function BrawlExperienceLayer() {
     <>
       {!rollPresentationPending && combatants.length === 2 && hudPosition ? (
         <aside
-          className={styles.brawlHud}
+          className={`${styles.brawlHud} ${previewStyles.brawlPreview}`}
           style={hudStyle}
-          aria-label="Active Brawl statistics, effects, and modifiers"
+          data-preview-state={previewState}
+          aria-label="Active Brawl statistics, effects, modifiers, and roll outcomes"
         >
-          <header className={styles.brawlHeader}>
+          <header className={`${styles.brawlHeader} ${missedCombatant ? previewStyles.singleOpenHeader : ""}`}>
             <span>{phaseName(experience.match.phase)}</span>
-            <strong>{status.active ? `PRIORITY • ${priorityName}` : experience.match.stepLabel}</strong>
-            <small>{status.active ? `PASSES ${status.consecutivePasses}/2 • BATCH ${status.batchCount}` : "ACTIVE BAKUGAN"}</small>
+            <strong>{headerHeadline}</strong>
+            <small>{headerDetail}</small>
           </header>
           <div className={styles.combatants}>
             <BrawlCombatant
@@ -257,7 +288,9 @@ export function BrawlExperienceLayer() {
               owner="player"
               pulsing={pulsingBakugan.has(combatants[0].bakuganId)}
             />
-            <span className={styles.versus} aria-hidden="true">VS</span>
+            <span className={`${styles.versus} ${missedCombatant ? previewStyles.resolvedVersus : ""}`} aria-hidden="true">
+              {missedCombatant ? "→" : "VS"}
+            </span>
             <BrawlCombatant
               view={combatants[1]}
               owner="opponent"
@@ -323,4 +356,3 @@ export function BrawlExperienceLayer() {
     </>
   );
 }
-
