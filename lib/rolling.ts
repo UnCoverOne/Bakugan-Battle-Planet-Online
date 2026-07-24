@@ -7,6 +7,9 @@ import {
 } from "./game";
 
 const ROLL_CONFIRMATION_MS = 30_000;
+const CHOOSE_ROLL_TARGETS_LABEL = "Roll Phase • Rolling Step • Choose BakuCore targets";
+const CONFIRM_ROLLS_LABEL = "Roll Phase • Rolling Step • Confirm rolls";
+const WAITING_FOR_ROLLS_LABEL = "Roll Phase • Rolling Step • Waiting for all players to roll";
 
 export function availableRollTargets(
   match: MatchState | null | undefined,
@@ -94,9 +97,12 @@ export function selectRollTarget(
     message: `${player?.name ?? "Player"} locked a secret BakuCore target.`,
   });
 
+  // Target choice is an action inside the Rolling Step. Avoid ambiguous status
+  // copy such as "BakuCore Selection", which previously made label-based UI
+  // progress incorrectly jump back to the Selection Step.
   state.stepLabel = allRollTargetsSelected(state)
-    ? "Roll Phase • Rolling Step"
-    : "Roll Phase • BakuCore Selection";
+    ? CONFIRM_ROLLS_LABEL
+    : CHOOSE_ROLL_TARGETS_LABEL;
   return state;
 }
 
@@ -120,6 +126,7 @@ export function confirmRoll(
 
   if (state.passes.length < state.players.length) {
     state.version += 1;
+    state.stepLabel = WAITING_FOR_ROLLS_LABEL;
     state.deadline = Date.now() + ROLL_CONFIRMATION_MS;
     return state;
   }
@@ -152,4 +159,3 @@ export function rollResultCells(
   if (!match) return [];
   return [...new Set(match.players.flatMap((player) => match.rolls[player.id]?.cores ?? []))];
 }
-
