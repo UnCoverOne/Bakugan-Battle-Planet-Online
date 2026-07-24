@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, type MatchState, type RollOutcome } from "../lib/game";
+import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
+import {
+  createMatch,
+  passPriority,
+  playCard,
+  selectBakugan,
+  type MatchState,
+  type RollOutcome,
+} from "../lib/game";
+import { confirmRoll, selectRollTarget } from "../lib/rolling";
 import {
   brawlCombatants,
   brawlIsEngaged,
@@ -63,6 +71,28 @@ function previewMatch(phase: MatchState["phase"], opponentMissed = true) {
   playerBakugan.open = true;
   opponentBakugan.open = !opponentMissed;
   match.brawlWinner = opponentMissed ? player.id : "";
+  return match;
+}
+
+function rollPhaseMatch() {
+  const player = makePlayer("player", "Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("opponent", "Opponent", STARTER_DECKS[1]);
+  const match = createMatch("ROLL01", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "selection";
+  match.stepLabel = "Roll Phase • Selection Step";
+  match.startingPlayer = player.id;
+  match.priority = player.id;
+  match.placements = [
+    { playerId: player.id, core: player.cores[0], cell: "h3-3", order: 1 },
+    { playerId: opponent.id, core: opponent.cores[0], cell: "h3-2", order: 2 },
+  ];
+  return match;
+}
+
+function passWindow(input: MatchState) {
+  let match = passPriority(input, input.priority);
+  match = passPriority(match, match.priority);
   return match;
 }
 
@@ -149,7 +179,7 @@ test("Selection focuses Character Cards while Rolling focuses the Hide Matrix", 
   );
 });
 
-test("BakuCore target selection is presented as part of the Rolling Step", () => {
+test("Selection owns pre-roll priority while BakuCore targeting belongs to Rolling", () => {
   const selection = turnProgressSnapshot({
     phase: "selection",
     stepLabel: "Roll Phase • Selection Step",
@@ -157,12 +187,12 @@ test("BakuCore target selection is presented as part of the Rolling Step", () =>
   });
   const preRoll = turnProgressSnapshot({
     phase: "preRoll",
-    stepLabel: "Roll Phase • Pre-roll priority",
+    stepLabel: "A card named Rolling Damage is resolving",
     turn: 1,
   });
-  const localTarget = turnProgressSnapshot({
+  const ambiguousTarget = turnProgressSnapshot({
     phase: "target",
-    stepLabel: "Roll Phase • Choose BakuCore targets",
+    stepLabel: "Roll Phase • BakuCore Selection",
     turn: 1,
   });
   const secretTarget = turnProgressSnapshot({
@@ -172,7 +202,54 @@ test("BakuCore target selection is presented as part of the Rolling Step", () =>
   });
 
   assert.equal(selection?.stepKey, "selection");
-  assert.equal(preRoll?.stepKey, "rolling");
-  assert.equal(localTarget?.stepKey, "rolling");
+  assert.equal(preRoll?.stepKey, "selection");
+  assert.equal(ambiguousTarget?.stepKey, "rolling");
   assert.equal(secretTarget?.stepKey, "rolling");
+});
+
+test("the Roll Phase advances from Selection priority to Rolling without bouncing back", () => {
+  let match = rollPhaseMatch();
+  const player = match.players[0];
+  const opponent = match.players[1];
+
+  match = selectBakugan(match, player.id, player.bakugan[0].id);
+  match = selectBakugan(match, opponent.id, opponent.bakugan[0].id);
+  assert.equal(match.phase, "preRoll");
+  assert.equal(turnProgressSnapshot(match)?.stepKey, "selection");
+
+  const printedFireball = CARDS.find((card) => card.number === 93);
+  assert.ok(printedFireball);
+  const priorityCard = { ...printedFireball, id: "pre-roll-priority-card" };
+  match.players[0].hand.push(priorityCard);
+  match.players[0].energy = 10;
+  match = playCard(match, player.id, priorityCard.id);
+  assert.equal(match.phase, "preRoll");
+  assert.equal(match.batch.length, 1);
+  assert.equal(turnProgressSnapshot(match)?.stepKey, "selection");
+
+  match = passWindow(match);
+  assert.equal(match.phase, "preRoll");
+  assert.equal(match.batch.length, 0);
+  assert.equal(turnProgressSnapshot(match)?.stepKey, "selection");
+
+  match = passWindow(match);
+  assert.equal(match.phase, "target");
+  assert.equal(turnProgressSnapshot(match)?.stepKey, "rolling");
+
+  match = selectRollTarget(match, player.id, match.placements[0].cell);
+  assert.equal(match.phase, "target");
+  assert.match(match.stepLabel, /Rolling Step/);
+  assert.equal(turnProgressSnapshot(match)?.stepKey, "rolling");
+
+  match = selectRollTarget(match, opponent.id, match.placements[1].cell);
+  assert.match(match.stepLabel, /Confirm rolls/);
+  assert.equal(turnProgressSnapshot(match)?.stepKey, "rolling");
+
+  match = confirmRoll(match, player.id);
+  assert.match(match.stepLabel, /Waiting for all players to roll/);
+  assert.equal(turnProgressSnapshot(match)?.stepKey, "rolling");
+
+  match = confirmRoll(match, opponent.id);
+  assert.equal(match.phase, "power");
+  assert.equal(turnProgressSnapshot(match)?.stepKey, "power");
 });
