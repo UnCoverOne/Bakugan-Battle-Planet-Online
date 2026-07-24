@@ -48,3 +48,4 @@ export function revealHiddenInformation(input: MatchState) {
   input.undoWindow = undefined;
   return input;
 }
+

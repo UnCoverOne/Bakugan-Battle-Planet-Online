@@ -297,3 +297,4 @@ export function decodePreviewArtwork(source: string): Promise<boolean> {
     if (image.complete) queueMicrotask(() => finish(image.naturalWidth > 0));
   });
 }
+

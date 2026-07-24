@@ -3,7 +3,7 @@ import {
   getSessionUser, getUserByEmail, normalizeEmail, passwordRecordNeedsUpgrade,
   publicUser, revokeSession, validateAccountInput, verifyPassword,
 } from "../../../lib/account-server";
-import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../../lib/request-security";
+import { assertSameOrigin, enforceD1RateLimit, RateLimitError, requestClientKey } from "../../../lib/request-security";
 
 export const dynamic = "force-dynamic";
 
@@ -93,6 +93,7 @@ export async function POST(request: Request) {
     }
     return json({ error: "Unknown account action." }, 400);
   } catch (error) {
+    if (error instanceof RateLimitError) return Response.json({ error: error.message, retryAfter: error.retryAfterSeconds }, { status: 429, headers: { "cache-control": "no-store", "retry-after": String(error.retryAfterSeconds) } });
     return json({ error: error instanceof Error ? error.message : "Account request failed." }, 400);
   }
 }

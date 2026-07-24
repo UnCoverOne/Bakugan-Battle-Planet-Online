@@ -229,3 +229,4 @@ export function playCardWithAutoEnergy(
   const cost = effectiveCardEnergyCost(input, playerId, card, choices);
   return playCard(prepareEnergyPayment(input, playerId, cost), playerId, cardId, choices);
 }
+

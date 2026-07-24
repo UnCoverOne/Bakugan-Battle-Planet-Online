@@ -165,15 +165,47 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
-function withCacheHeaders(response: Response, cacheControl: string) {
+const SECURITY_HEADERS: Record<string, string> = {
+  "content-security-policy": [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "connect-src 'self' ws: wss:",
+    "font-src 'self' data:",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "img-src 'self' data: blob:",
+    "media-src 'self' blob:",
+    "object-src 'none'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "worker-src 'self' blob:",
+  ].join("; "),
+  "permissions-policy": "camera=(), display-capture=(), geolocation=(), microphone=(), payment=(), usb=()",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+};
+
+function withSecurityHeaders(response: Response) {
   const headers = new Headers(response.headers);
-  headers.set("cache-control", cacheControl);
-  headers.set("cdn-cache-control", cacheControl);
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
     headers,
   });
+}
+
+function withCacheHeaders(response: Response, cacheControl: string) {
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", cacheControl);
+  headers.set("cdn-cache-control", cacheControl);
+  return withSecurityHeaders(new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  }));
 }
 
 function isFingerprintedAsset(pathname: string, searchParams?: URLSearchParams) {
@@ -210,13 +242,14 @@ const worker = {
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
-      return handleImageOptimization(request, {
+      const optimized = await handleImageOptimization(request, {
         fetchAsset: (path) => env.ASSETS.fetch(new Request(new URL(path, request.url))),
         transformImage: async (body, { width, format, quality }) => {
           const result = await env.IMAGES.input(body).transform(width > 0 ? { width } : {}).output({ format, quality });
           return result.response();
         },
       }, allowedWidths);
+      return withSecurityHeaders(optimized);
     }
 
     if (
@@ -226,11 +259,16 @@ const worker = {
       const asset = await env.ASSETS.fetch(request);
       if (asset.status !== 404) {
         const immutable = isFingerprintedAsset(url.pathname, url.searchParams) && url.pathname !== "/sw.js";
+        const artwork = /^\/assets\/(?:cards|cores)\//.test(url.pathname);
         return withCacheHeaders(
           asset,
           immutable
             ? "public, max-age=31536000, immutable"
-            : "public, max-age=0, must-revalidate",
+            : artwork
+              ? "public, max-age=604800, stale-while-revalidate=2592000"
+              : url.pathname === "/sw.js"
+                ? "no-cache, max-age=0, must-revalidate"
+                : "public, max-age=86400, stale-while-revalidate=604800",
         );
       }
     }
@@ -240,7 +278,7 @@ const worker = {
     if (request.method === "GET" && (contentType.includes("text/html") || contentType.includes("text/x-component"))) {
       return withCacheHeaders(response, "no-cache, max-age=0, must-revalidate");
     }
-    return response;
+    return withSecurityHeaders(response);
   },
   async scheduled(controller: ScheduledController, env: Env) {
     await runScheduled(controller, env);
@@ -250,8 +288,10 @@ const worker = {
 async function runScheduled(_controller: ScheduledController, env: Env) {
   const cutoff = Date.now();
   await env.DB.batch([
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS rum_events (id TEXT PRIMARY KEY, route TEXT NOT NULL, metric TEXT NOT NULL, value REAL NOT NULL, device TEXT NOT NULL, created_at INTEGER NOT NULL)"),
     env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(cutoff),
     env.DB.prepare("DELETE FROM rate_limits WHERE window_start < ?").bind(cutoff - 86_400_000),
+    env.DB.prepare("DELETE FROM rum_events WHERE created_at < ?").bind(cutoff - 7_776_000_000),
     env.DB.prepare("DELETE FROM match_snapshots WHERE created_at < ?").bind(cutoff - 2_592_000_000),
     env.DB.prepare("DELETE FROM match_presence WHERE code IN (SELECT code FROM matches WHERE updated_at < ?)").bind(cutoff - 2_592_000_000),
     env.DB.prepare("DELETE FROM matches WHERE updated_at < ?").bind(cutoff - 2_592_000_000),

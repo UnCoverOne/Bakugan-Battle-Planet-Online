@@ -53,3 +53,4 @@ export function addChatMessage(
   state.version += 1;
   return state;
 }
+

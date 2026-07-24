@@ -41,3 +41,4 @@ export function characterCardIsFaceUp(bakugan: Bakugan | null | undefined) {
   return Boolean(bakugan && (bakugan.open || (bakugan as CharacterFaceState).characterFaceUp));
 }
 
+

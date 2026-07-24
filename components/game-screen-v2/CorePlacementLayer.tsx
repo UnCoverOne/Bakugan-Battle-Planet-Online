@@ -107,3 +107,4 @@ export function CorePlacementLayer({
     {error && <p className={styles.error} role="alert">{error}</p>}
   </section>;
 }
+

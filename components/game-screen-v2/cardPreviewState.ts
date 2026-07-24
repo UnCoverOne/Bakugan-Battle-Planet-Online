@@ -127,3 +127,4 @@ export function cardPreviewRequestIsCurrent(
 ): boolean {
   return ownership.targetId === targetId && ownership.generation === generation;
 }
+

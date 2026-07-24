@@ -79,3 +79,4 @@ export function nextMatchAlarmAt(match: MatchState, now = Date.now()) {
     : match.deadline;
   return Math.max(now + 1_000, Number.isFinite(deadline) ? deadline : now + 30_000);
 }
+

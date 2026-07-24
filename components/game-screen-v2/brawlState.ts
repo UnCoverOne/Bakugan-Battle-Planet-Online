@@ -183,3 +183,4 @@ export function powerStepStatus(match: MatchState | null | undefined) {
     topEffectId: match?.phase === "power" ? batchTopEffect(match)?.id ?? "" : "",
   };
 }
+

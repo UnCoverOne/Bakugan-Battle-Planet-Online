@@ -49,3 +49,4 @@
 @media (max-width: 700px) { .layer { padding: .65rem; } .layer header p { display: none; } .layout { grid-template-columns: 1fr; grid-template-rows: 7.2rem 1fr; } .tray { grid-template-columns: repeat(3, 1fr); padding: .5rem; } .tray > strong { grid-column: 1/-1; font-size: .65rem; } .tray button { display: block; padding: .2rem; font-size: 0; } .tray img { width: 100%; height: 2.4rem; } .matrix { min-height: 0; } .cell { left: calc(50% + (var(--q) * 2.85rem)); top: calc(50% + ((var(--r) + var(--q) * .5) * 3.3rem)); width: 3.35rem; height: 2.9rem; } }
 @media (prefers-reduced-motion: reduce) { .coin, .reveal h1 { animation: none; } }
 
+

@@ -4,7 +4,9 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ "${SITES_ENV_READY:-}" != "1" ]]; then
-  exec "${script_dir}/sites-env.sh" -- "$0" "$@"
+  # GitHub's contents API does not preserve executable bits for these helper
+  # scripts, so always invoke the environment wrapper through bash.
+  exec bash "${script_dir}/sites-env.sh" -- bash "$0" "$@"
 fi
 
 command -v flock >/dev/null || {
@@ -24,7 +26,7 @@ command -v sha256sum >/dev/null || {
   exit 69
 }
 
-runtime_root="${SITES_PROJECT_ROOT}/.sites-runtime"
+runtime_root="$(dirname "${HOME}")"
 expected_home="${runtime_root}/home"
 expected_cache="${runtime_root}/npm-cache"
 

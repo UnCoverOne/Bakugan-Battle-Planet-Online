@@ -40,3 +40,4 @@ export function drawTransitions(
     return [{ playerId: player.id, count, cards }];
   });
 }
+

@@ -2,30 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./design-system.css";
 import "./card-art-transparency.css";
-import "./gameplay-ui-fixes.css";
-import "./energy-payment.css";
-import "./discard-flip-orientation.css";
-import "./card-preview-interactions.css";
-import "./gameplay-card-presentation.css";
 import { AssetFreshness } from "../components/AssetFreshness";
-import { BakuCorePresentationProvider } from "../components/game-screen-v2/BakuCorePresentation";
-import { BrawlExperienceLayer } from "../components/game-screen-v2/BrawlExperienceLayer";
-import { ChoiceQueueLayer } from "../components/game-screen-v2/ChoiceQueueLayer";
-import { DrawAnimationLayer } from "../components/game-screen-v2/DrawAnimationLayer";
-import { GameplayCardPresentationLayer } from "../components/game-screen-v2/GameplayCardPresentationLayer";
-import { GameplaySoundLayer } from "../components/game-screen-v2/GameplaySoundLayer";
-import { MatchCommunicationLayer } from "../components/game-screen-v2/MatchCommunicationLayer";
-import { MatchDecisionLayer } from "../components/game-screen-v2/MatchDecisionLayer";
-import { MatchStateCoordinator } from "../components/game-screen-v2/MatchStateCoordinator";
-import { GameplayClient } from "../components/game-screen-v2/GameplayClient";
-import { ViewportStabilityGuard } from "../components/game-screen-v2/ViewportStabilityGuard";
+import { ServiceWorkerRegistration } from "../components/ServiceWorkerRegistration";
+import { WebVitalsReporter } from "../components/WebVitalsReporter";
 
 export const metadata: Metadata = {
   title: "Bakugan Battle Planet Online",
   description: "Build a Battle Planet deck, construct the Hide Matrix, and play a rules-guided online Bakugan TCG match.",
-  other: {
-    "codex-preview": "development",
-  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
@@ -39,29 +22,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Titillium+Web:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-        />
-      </head>
       <body>
-        <BakuCorePresentationProvider>
-          <MatchStateCoordinator />
-          <ViewportStabilityGuard />
-          <AssetFreshness />
-          {children}
-          <GameplayClient />
-          <GameplayCardPresentationLayer />
-          <MatchCommunicationLayer />
-          <DrawAnimationLayer />
-          <BrawlExperienceLayer />
-          <MatchDecisionLayer />
-          <ChoiceQueueLayer />
-          <GameplaySoundLayer />
-        </BakuCorePresentationProvider>
+        <AssetFreshness />
+        <ServiceWorkerRegistration />
+        <WebVitalsReporter />
+        {children}
       </body>
     </html>
   );

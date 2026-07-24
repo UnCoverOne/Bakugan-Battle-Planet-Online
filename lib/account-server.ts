@@ -150,3 +150,4 @@ export async function getUserByEmail(email: string) {
 export function publicUser(row: Pick<UserRow, "id" | "email" | "display_name" | "faction" | "created_at">): AccountUser {
   return { id: row.id, email: row.email, displayName: row.display_name, faction: row.faction, createdAt: row.created_at };
 }
+

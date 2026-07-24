@@ -7,6 +7,15 @@ type RateLimitDatabase = {
   };
 };
 
+export class RateLimitError extends Error {
+  readonly retryAfterSeconds: number;
+  constructor(retryAfterSeconds: number) {
+    super("Rate limit exceeded. Try again shortly.");
+    this.name = "RateLimitError";
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
 export function assertSameOrigin(request: Request) {
   const fetchSite = request.headers.get("sec-fetch-site");
   if (fetchSite === "cross-site") throw new Error("Cross-site state changes are not allowed.");
@@ -29,7 +38,7 @@ export async function enforceD1RateLimit(
   ).bind(key, windowStart).run();
   const row = await database.prepare("SELECT count FROM rate_limits WHERE key = ? AND window_start = ?")
     .bind(key, windowStart).first<{ count: number }>();
-  if (Number(row?.count ?? 0) > maximum) throw new Error("Rate limit exceeded. Try again shortly.");
+  if (Number(row?.count ?? 0) > maximum) throw new RateLimitError(Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000)));
 }
 
 export function requestClientKey(request: Request) {

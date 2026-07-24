@@ -152,3 +152,4 @@ export function rollResultCells(
   if (!match) return [];
   return [...new Set(match.players.flatMap((player) => match.rolls[player.id]?.cores ?? []))];
 }
+

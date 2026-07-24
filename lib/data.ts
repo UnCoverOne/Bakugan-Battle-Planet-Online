@@ -56,6 +56,11 @@ export type DeckRecord = {
   updatedAt: string;
   visibility: "Private" | "Public";
   format?: DeckFormat;
+  revision?: number;
+  favourite?: boolean;
+  tags?: string[];
+  notes?: string;
+  conflictOf?: string;
 };
 
 const buildDeck = (factions: Faction[]) => {
@@ -78,9 +83,9 @@ const pyrusTeam = ["bb-343", "bb-360", "bb-311"];
 const aquosTeam = ["bb-283", "bb-331", "bb-302"];
 const darkusTeam = ["bb-312", "bb-368", "bb-331"];
 export const STARTER_DECKS: DeckRecord[] = [
-  { id:"deck-pyrus",name:"Pyrus Fury",factions:["Pyrus","Ventus","Darkus"],bakuganIds:pyrusTeam,coreIds:coreLoadout(pyrusTeam),cardIds:buildDeck(["Pyrus","Ventus","Darkus"]),updatedAt:"Today",visibility:"Private",format:"standard" },
-  { id:"deck-aquos",name:"Aquos Control",factions:["Aquos","Haos","Aurelus"],bakuganIds:aquosTeam,coreIds:coreLoadout(aquosTeam),cardIds:buildDeck(["Aquos","Haos","Aurelus"]),updatedAt:"Today",visibility:"Public",format:"standard" },
-  { id:"deck-darkus",name:"Darkus Strike",factions:["Darkus","Ventus","Haos"],bakuganIds:darkusTeam,coreIds:coreLoadout(darkusTeam),cardIds:buildDeck(["Darkus","Ventus","Haos"]),updatedAt:"Today",visibility:"Private",format:"standard" },
+  { id:"deck-pyrus",name:"Pyrus Fury",factions:["Pyrus","Ventus","Darkus"],bakuganIds:pyrusTeam,coreIds:coreLoadout(pyrusTeam),cardIds:buildDeck(["Pyrus","Ventus","Darkus"]),updatedAt:"2026-07-24T00:00:00.000Z",visibility:"Private",format:"standard",revision:1 },
+  { id:"deck-aquos",name:"Aquos Control",factions:["Aquos","Haos","Aurelus"],bakuganIds:aquosTeam,coreIds:coreLoadout(aquosTeam),cardIds:buildDeck(["Aquos","Haos","Aurelus"]),updatedAt:"2026-07-24T00:00:00.000Z",visibility:"Public",format:"standard",revision:1 },
+  { id:"deck-darkus",name:"Darkus Strike",factions:["Darkus","Ventus","Haos"],bakuganIds:darkusTeam,coreIds:coreLoadout(darkusTeam),cardIds:buildDeck(["Darkus","Ventus","Haos"]),updatedAt:"2026-07-24T00:00:00.000Z",visibility:"Private",format:"standard",revision:1 },
 ];
 
 export const deckErrors = (deck: DeckRecord) => {
@@ -196,4 +201,3 @@ export const RULE_ENTRIES = [
   { title:"Undo",category:"Platform",body:"Undo restores the immediately previous state only before priority passes or new hidden/random information is revealed." },
   { title:"Disconnect",category:"Platform",body:"A disconnected player has 30 seconds to reconnect before the remaining player wins." },
 ];
-

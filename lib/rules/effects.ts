@@ -224,3 +224,4 @@ export function estimateProgramValue(program: RuleProgram, match: MatchState, pl
   if (choices.confirmed === false) value = 0;
   return value;
 }
+

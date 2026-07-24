@@ -368,3 +368,4 @@ export function mergeChoiceAnswers(schema: ChoiceSchema, answers: Record<string,
   }
   return merged;
 }
+

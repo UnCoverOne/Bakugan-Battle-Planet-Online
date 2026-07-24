@@ -35,3 +35,4 @@ export function orientMatrixPath(
     ? points.map((point) => orientMatrixPoint(point, true, width, height))
     : points;
 }
+

@@ -24,3 +24,4 @@ export function responsiveCardSourceSet(source: string) {
   if (source.endsWith(".svg")) return undefined;
   return IMAGE_WIDTHS.map((width) => `${optimizedCardSource(source, width)} ${width}w`).join(", ");
 }
+

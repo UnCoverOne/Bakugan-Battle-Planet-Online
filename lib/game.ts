@@ -8,6 +8,10 @@ import {
 import { executeRuleProgram } from "./rules/executor";
 import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
 
+// Backward-compatible server/test entry point. The interactive client imports
+// the clearer manual-damage name directly.
+export { resolveManualDamage as resolveDamage } from "./manualDamage";
+
 export type Faction = "Pyrus" | "Aquos" | "Darkus" | "Haos" | "Ventus" | "Aurelus";
 export type CoreType = "Fist" | "Flaming Fist" | "Shield" | "Magic Shield" | "Helix";
 export type CardType = "Action" | "Flip" | "Hero" | "Evo" | "Character";
@@ -30,6 +34,9 @@ export type GameCard = {
   coreTypes: CoreType[];
   evolvesFrom: string | null;
   art: string;
+  source?: string;
+  hasProvidedScan?: boolean;
+  slug?: string;
   /** Turn in which this physical card instance entered play. */
   playedTurn?: number;
 };
@@ -1994,4 +2001,3 @@ export const redactForPlayer = (input: MatchState, playerId: string) => {
   }
   return state;
 };
-
