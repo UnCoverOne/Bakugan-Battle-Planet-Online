@@ -98,6 +98,32 @@ test("property fuzzing rejects invalid commands without mutating the input", () 
   }
 });
 
+test("property fuzzing accepts seeded legal command sequences deterministically", () => {
+  let state = initial();
+  const start = structuredClone(state);
+  const commands: CommandEnvelope[] = [];
+  let seed = 0x85ebca6b;
+  const random = () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return seed >>> 0; };
+  for (let iteration = 0; iteration < 200; iteration += 1) {
+    const actorId = random() % 2 === 0 ? "p1" : "p2";
+    const command = { type: "CHAT", message: `legal-fuzz-${iteration}-${random()}` } as const;
+    const input = structuredClone(state);
+    const issued = envelope(state, `legal-fuzz-${iteration}`, actorId, command);
+    const result = reduceMatch(state, issued);
+    assert.equal(result.state.version, input.version + 1);
+    assert.deepEqual(state, input, "A legal reducer transition must not mutate its input snapshot.");
+    commands.push(issued);
+    state = result.state;
+  }
+  const replay = replayCommands(start, commands);
+  assert.deepEqual(replay.state, state);
+  for (const playerId of ["p1", "p2"]) {
+    const projection = projectMatchForPlayer(state, playerId);
+    assert.equal(JSON.stringify(projection).includes("fixture-p1-hand-0") && playerId === "p2", false);
+    assert.equal(JSON.stringify(projection).includes("fixture-p2-hand-0") && playerId === "p1", false);
+  }
+});
+
 test("runtime budgets fail closed at the declared effect-step limit", () => {
   assert.throws(() => withEngineRuntimeBudget(() => {
     for (let index = 0; index <= MAX_EFFECT_STEPS_PER_COMMAND; index += 1) consumeEffectStep();
