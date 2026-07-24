@@ -1,0 +1,39 @@
+name: Fix End Phase Regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/fix-end-phase-regression.mjs"
+      - ".github/workflows/fix-end-phase-regression.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: node scripts/fix-end-phase-regression.mjs
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+      - name: Commit deterministic regression helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/game-engine.test.ts
+          git commit -m 'test: resolve End Phase choices deterministically'
+          git push origin HEAD:${{ github.head_ref }}
