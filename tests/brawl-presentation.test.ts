@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { STARTER_DECKS, makePlayer } from "../lib/data";
 import { createMatch, type MatchState, type RollOutcome } from "../lib/game";
@@ -91,4 +92,49 @@ test("contested Brawls still expose two active combatants and descriptive roll l
   assert.ok(views.every((view) => view.participating));
   assert.equal(brawlRollLabel("intended-core"), "OPEN • INTENDED CORE");
   assert.equal(brawlRollLabel("path-intercept"), "OPEN • PATH INTERCEPT");
+});
+
+test("the compact Brawl Preview keeps Effects and Modifiers hover-only", async () => {
+  const css = await readFile(
+    new URL("../components/game-screen-v2/BrawlPreviewEnhancements.module.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(css, /max-width:\s*min\(23rem/);
+  assert.match(
+    css,
+    /article\s*>\s*div:nth-child\(3\)\s*\{[\s\S]*?display:\s*none;/,
+  );
+  assert.match(
+    css,
+    /article:hover\s*>\s*div:nth-child\(3\)\s*\{[\s\S]*?display:\s*grid;/,
+  );
+  assert.match(
+    css,
+    /article\s*>\s*div:first-child\s*>\s*div:first-child,[\s\S]*?display:\s*none;/,
+  );
+});
+
+test("step callouts linger and Selection focuses the Hide Matrix", async () => {
+  const [source, css] = await Promise.all([
+    readFile(
+      new URL("../components/game-screen-v2/PhaseTransitionLayer.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../components/game-screen-v2/PhaseTransitionLayer.module.css", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(source, /PHASE_TRANSITION_DURATION_MS\s*=\s*4200/);
+  assert.match(
+    source,
+    /case\s+"selection":[\s\S]*?primarySelector:\s*'\[aria-label="BakuCores in the Hide Matrix"\]'/,
+  );
+  assert.match(css, /animation:\s*transition-callout\s+4000ms/);
+  assert.match(
+    css,
+    /data-turn-transition-step="selection"\]\s*\[aria-label="BakuCores in the Hide Matrix"\]/,
+  );
 });
