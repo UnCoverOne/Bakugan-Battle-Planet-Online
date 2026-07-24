@@ -140,7 +140,7 @@
 
 :global(html[data-turn-transition-step="draw"] [data-zone-kind="deck"]),
 :global(html[data-turn-transition-step="energize"] [data-zone-kind="energy"]),
-:global(html[data-turn-transition-step="selection"] [aria-label="BakuCores in the Hide Matrix"]),
+:global(html[data-turn-transition-step="selection"] [data-zone-kind="character-card"]),
 :global(html[data-turn-transition-step="rolling"] [aria-label="BakuCores in the Hide Matrix"]),
 :global(html[data-turn-transition-step="play"] [data-zone-kind="hand"]),
 :global(html[data-turn-transition-step="charge"] [data-zone-kind="energy"]),
