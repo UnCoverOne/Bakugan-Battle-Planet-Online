@@ -27,6 +27,11 @@ function modifierActive(state: MatchState, player: PlayerState, modifier: CostEf
   return !("condition" in modifier) || ruleConditionActive(state, player, modifier.condition);
 }
 
+function choiceHasValue(choices: CardChoices, id: keyof CardChoices) {
+  const selected = choices[id];
+  return Array.isArray(selected) ? selected.length > 0 : selected !== undefined && selected !== false && selected !== "";
+}
+
 export function cardCostBreakdown(
   state: MatchState,
   playerId: string,
@@ -43,16 +48,20 @@ export function cardCostBreakdown(
   let freeBase = false;
   const additionalCosts: CardCostBreakdown["additionalCosts"] = [];
 
-  // Printed continuous reducers are represented as typed play cost modifiers.
   for (const modifier of definition.play.costModifiers) {
     if (!modifierActive(state, player, modifier)) continue;
-    if (modifier.kind === "cost-reduce") reductions += modifier.amount;
-    else if (modifier.kind === "cost-increase") increases += modifier.amount;
+    if (modifier.kind === "cost-reduce") {
+      const variableMultiplier = definition.sourceText.includes("for each card you played this turn")
+        ? Math.max(0, player.cardsPlayedThisTurn)
+        : definition.sourceText.includes("for each BakuCore that your Bakugan hold")
+          ? player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0)
+          : 1;
+      reductions += modifier.amount * variableMultiplier;
+    } else if (modifier.kind === "cost-increase") increases += modifier.amount;
     else if (modifier.kind === "cost-free") freeBase = true;
     else if (modifier.kind === "cost-discard") additionalCosts.push({ kind: "discard", amount: modifier.amount, choiceId: modifier.choiceId });
     else if (modifier.kind === "cost-alternative") {
-      const selected = modifier.components.some((component) => component.kind === "cost-discard"
-        && Boolean(choices[component.choiceId]?.length));
+      const selected = modifier.components.some((component) => component.kind === "cost-discard" && choiceHasValue(choices, component.choiceId));
       if (selected) {
         freeBase = true;
         for (const component of modifier.components) if (component.kind === "cost-discard") {
@@ -62,17 +71,8 @@ export function cardCostBreakdown(
     }
   }
 
-  // Existing Battle Planet Hero reducers are native static cost modifiers.
   if (card.type === "Evo") reductions += player.heroes.filter((hero) => hero.name === "Shun Kazami").length;
   if (card.type === "Flip") reductions += player.heroes.filter((hero) => hero.name === "Lightning").length;
-
-  // Flow-style variable reductions consume the typed amount once per matching
-  // game fact rather than rescanning text during payment.
-  for (const modifier of definition.play.costModifiers) {
-    if (modifier.kind !== "cost-reduce") continue;
-    if (definition.sourceText.includes("for each card you played this turn")) reductions += modifier.amount * Math.max(0, player.cardsPlayedThisTurn - 1);
-    if (definition.sourceText.includes("for each BakuCore that your Bakugan hold")) reductions += modifier.amount * player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
-  }
 
   const frostStrike = card.type === "Flip" && state.damageOrigin ? activeFrostStrike(state, state.damageOrigin) : 0;
   const base = freeBase ? 0 : printed;
@@ -125,18 +125,13 @@ export function prepareDeclaredEnergyPayment(state: MatchState, playerId: string
   const player = playerById(state, playerId) as EnergyTrackedPlayer;
   const rules = ensureRulesState(state);
   const payment = rules.pendingPayment;
-  if (!payment || payment.playerId !== playerId || payment.status !== "declared") {
-    throw new Error("Energy can only be uncharged for a declared card payment.");
-  }
+  if (!payment || payment.playerId !== playerId || payment.status !== "declared") throw new Error("Energy can only be uncharged for a declared card payment.");
   if (payment.calculatedCost !== amount) throw new Error("The declared payment amount changed before payment completed.");
-
   if (player.energyTapTurn !== state.turn) {
     player.energyTapTurn = state.turn;
     player.tappedEnergyIds = [];
     player.energy = 0;
-  } else {
-    player.tappedEnergyIds = activeTappedEnergyIds(player, state.turn);
-  }
+  } else player.tappedEnergyIds = activeTappedEnergyIds(player, state.turn);
   const current = availableEnergy(player, state.turn);
   const required = Math.max(0, amount - current);
   const tapped = new Set(player.tappedEnergyIds);
@@ -156,7 +151,6 @@ export function commitCardPayment(state: MatchState, playerId: string) {
   const player = playerById(state, playerId);
   if (player.energy < payment.calculatedCost) throw new Error("The declared Energy cost has not been generated.");
   for (const additional of payment.additionalCosts) {
-    if (additional.kind !== "discard") continue;
     const ids = new Set(additional.cardIds);
     const cards = player.hand.filter((card) => ids.has(card.id));
     if (cards.length !== ids.size) throw new Error("An additional-cost card is no longer in hand.");
