@@ -8,11 +8,27 @@ const json = (value: unknown, status = 200) => Response.json(value, {
   headers: { "cache-control": "no-store" },
 });
 
+async function getRulingsDatabase() {
+  const db = await getDatabase();
+  await db.batch([
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS ruling_requests (id TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, card_id TEXT, question TEXT NOT NULL, source_url TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'answered', 'published', 'withdrawn')), answer TEXT, administrator_id TEXT REFERENCES users(id) ON DELETE SET NULL, submitted_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, published_at INTEGER)",
+    ),
+    db.prepare(
+      "CREATE INDEX IF NOT EXISTS ruling_requests_user_submitted_idx ON ruling_requests (user_id, submitted_at)",
+    ),
+    db.prepare(
+      "CREATE INDEX IF NOT EXISTS ruling_requests_status_submitted_idx ON ruling_requests (status, submitted_at)",
+    ),
+  ]);
+  return db;
+}
+
 export async function GET(request: Request) {
   try {
     const user = await getSessionUser(request);
     if (!user) return json({ error: "Sign in is required." }, 401);
-    const db = await getDatabase();
+    const db = await getRulingsDatabase();
     const rows = await db.prepare(
       "SELECT id, card_id, question, status, answer, submitted_at, updated_at FROM ruling_requests WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 100",
     ).bind(user.id).all();
@@ -27,7 +43,7 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     const user = await getSessionUser(request);
     if (!user) return json({ error: "Sign in is required." }, 401);
-    const db = await getDatabase();
+    const db = await getRulingsDatabase();
     await enforceD1RateLimit(db, `ruling:${user.id}:${requestClientKey(request)}`, 5, 60_000);
     const body = await request.json() as { cardId?: unknown; question?: unknown; sourceUrl?: unknown };
     const cardId = typeof body.cardId === "string" ? body.cardId.trim().slice(0, 80) : null;
