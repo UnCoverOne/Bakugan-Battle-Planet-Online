@@ -23,6 +23,24 @@ const settleDamage = (input: MatchState) => {
   return state;
 };
 
+const settleEndPhase = (input: MatchState) => {
+  let state = input;
+  for (let guard = 0; state.phase === "handLimit" || state.phase === "endPlay"; guard += 1) {
+    if (guard >= 40) throw new Error("End Phase did not settle within 40 transitions.");
+    if (state.phase === "handLimit") {
+      const actor = state.players.find((player) => player.id === state.priority)!;
+      state = discardToHandLimit(
+        state,
+        actor.id,
+        actor.hand.slice(0, actor.hand.length - 7).map((card) => card.id),
+      );
+    } else {
+      state = passWindow(state);
+    }
+  }
+  return state;
+};
+
 const buildPlacedMatch = () => {
   const a = makePlayer("a", "Alpha", STARTER_DECKS[0]); const b = makePlayer("b", "Beta", STARTER_DECKS[1]);
   let state = setReady(setReady(createMatch("TEST01", "bo3", [a, b]), "a"), "b");
@@ -170,8 +188,8 @@ test("the End Phase charges Energy, enforces seven cards, and begins the next St
   let state = reachPower(); const winner = state.players[0]; const attacking = winner.bakugan.find((bakugan) => bakugan.id === state.selected[winner.id])!; attacking.open = true; state.rolls[winner.id].result = "open-no-core"; state.powerBoost[attacking.id] = 9999; state = passWindow(state);
   const loser = state.players[1]; loser.deckCards = loser.deckCards.filter((card) => card.type !== "Flip"); loser.deck = loser.deckCards.length; state = settleDamage(passWindow(state));
   if (state.phase === "postDamage") state = passWindow(state); assert.equal(state.phase,"endPlay"); const currentWinner=state.players.find((player)=>player.id===winner.id)!; currentWinner.hand.push(...currentWinner.deckCards.splice(0, Math.max(0, 9-currentWinner.hand.length))); currentWinner.deck=currentWinner.deckCards.length;
-  state = passWindow(state); assert.equal(state.phase,"handLimit"); const actor=state.players.find((player) => player.id===state.priority)!; state=discardToHandLimit(state,actor.id,actor.hand.slice(0,actor.hand.length-7).map((card)=>card.id));
-  const nextOver=state.players.find((player)=>state.phase==="handLimit"&&player.id===state.priority); if(nextOver) state=discardToHandLimit(state,nextOver.id,nextOver.hand.slice(0,nextOver.hand.length-7).map((card)=>card.id));
+  state = passWindow(state); assert.equal(state.phase,"handLimit");
+  state = settleEndPhase(state);
   assert.equal(state.phase,"draw"); assert.equal(state.turn,2); assert.ok(state.players.every((player)=>player.energy===player.maxEnergy));
 });
 
@@ -180,4 +198,3 @@ test("best-of-three creates a fully reset second game", () => {
   const loser = state.players[1]; loser.discard.push(...loser.deckCards); loser.deckCards = []; loser.deck = 0; state = settleDamage(passWindow(state)); assert.equal(state.phase,"result"); assert.equal(state.series[winner.id],1);
   state = startNextSeriesGame(state); assert.equal(state.gameNumber,2); assert.equal(state.phase,"startingPlayer"); assert.equal(state.placements.length,0); assert.ok(state.players.every((player)=>player.deckCards.length===35&&player.hand.length===5));
 });
-

@@ -7,6 +7,39 @@ export const matches = sqliteTable("matches", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+export const matchEvents = sqliteTable("match_events", {
+  code: text("code").notNull(),
+  sequence: integer("sequence").notNull(),
+  commandId: text("command_id").notNull(),
+  eventType: text("event_type").notNull(),
+  actorId: text("actor_id").notNull(),
+  visibility: text("visibility").notNull(),
+  visibleTo: text("visible_to"),
+  payloadJson: text("payload_json").notNull(),
+  engineVersion: text("engine_version").notNull(),
+  rulesVersion: text("rules_version").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.code, table.sequence] }),
+  index("match_events_command_idx").on(table.code, table.commandId),
+  index("match_events_type_sequence_idx").on(table.code, table.eventType, table.sequence),
+]);
+
+export const matchCommands = sqliteTable("match_commands", {
+  code: text("code").notNull(),
+  commandId: text("command_id").notNull(),
+  actorId: text("actor_id").notNull(),
+  expectedVersion: integer("expected_version").notNull(),
+  resultVersion: integer("result_version").notNull(),
+  requestHash: text("request_hash").notNull(),
+  eventSequenceStart: integer("event_sequence_start").notNull(),
+  eventSequenceEnd: integer("event_sequence_end").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.code, table.commandId] }),
+  index("match_commands_result_version_idx").on(table.code, table.resultVersion),
+]);
+
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),

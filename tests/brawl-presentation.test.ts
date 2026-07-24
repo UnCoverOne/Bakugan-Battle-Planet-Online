@@ -234,8 +234,11 @@ test("the Roll Phase advances from Selection priority to Rolling without bouncin
   const printedFireball = CARDS.find((card) => card.number === 93);
   assert.ok(printedFireball);
   const priorityCard = { ...printedFireball, id: "pre-roll-priority-card" };
+  const paymentEnergy = match.players[0].deckCards.shift()!;
   match.players[0].hand.push(priorityCard);
-  match.players[0].energy = 10;
+  match.players[0].energyZone.push(paymentEnergy);
+  match.players[0].maxEnergy = 1;
+  match.players[0].energy = 1;
   match = playCard(match, player.id, priorityCard.id);
   assert.equal(match.phase, "preRoll");
   assert.equal(match.batch.length, 1);

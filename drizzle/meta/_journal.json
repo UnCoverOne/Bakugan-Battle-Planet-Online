@@ -15,6 +15,13 @@
       "when": 1784045743463,
       "tag": "0001_accounts_and_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784912400000,
+      "tag": "0002_engine_event_log",
+      "breakpoints": true
     }
   ]
 }
