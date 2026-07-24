@@ -1,146 +1,79 @@
-import {
-  cloneMatch,
-  type GameCard,
-  type MatchState,
-  type PlayerState,
-} from "./game";
+import { cloneMatch, type GameCard, type MatchState, type PlayerState } from "./game";
+import { activeTappedEnergyIds, availableEnergy } from "./rules/costs";
+import { ensureRulesState } from "./rules/state";
 
-type EnergyPlayerState = PlayerState & {
-  tappedEnergyIds?: string[];
-  energyTapTurn?: number;
-};
-
+type EnergyPlayerState = PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
 export type EnergyZoneView = {
   cards: readonly GameCard[];
   tappedEnergyIds: readonly string[];
   availableEnergy: number;
   maxEnergy: number;
 };
+export type EnergyZoneViews = { player: EnergyZoneView; opponent: EnergyZoneView };
+const EMPTY_ENERGY_ZONE_VIEW: EnergyZoneView = { cards: [], tappedEnergyIds: [], availableEnergy: 0, maxEnergy: 0 };
 
-export type EnergyZoneViews = {
-  player: EnergyZoneView;
-  opponent: EnergyZoneView;
-};
-
-const EMPTY_ENERGY_ZONE_VIEW: EnergyZoneView = {
-  cards: [],
-  tappedEnergyIds: [],
-  availableEnergy: 0,
-  maxEnergy: 0,
-};
-
-const BLOCKED_TAP_PHASES = new Set<MatchState["phase"]>([
-  "lobby",
-  "placement",
-  "energize",
-  "result",
-]);
-
-function safeEnergy(value: number): number {
-  return Math.max(0, Math.floor(Number.isFinite(value) ? value : 0));
-}
-
-function activeTappedIds(player: EnergyPlayerState, turn: number): string[] {
-  if (player.energyTapTurn !== turn || !Array.isArray(player.tappedEnergyIds)) return [];
-  const energyCardIds = new Set(player.energyZone.map((card) => card.id));
-  return player.tappedEnergyIds.filter((id) => energyCardIds.has(id));
-}
-
-export function energyZoneView(
-  player: PlayerState | null | undefined,
-  turn: number,
-): EnergyZoneView {
+export function energyZoneView(player: PlayerState | null | undefined, turn: number): EnergyZoneView {
   if (!player) return EMPTY_ENERGY_ZONE_VIEW;
-  const energyPlayer = player as EnergyPlayerState;
-  const cards = Array.isArray(player.energyZone) ? player.energyZone : [];
-  const currentTurn = Number.isFinite(turn) ? Math.max(0, Math.floor(turn)) : 0;
-  const isCurrentTurn = energyPlayer.energyTapTurn === currentTurn;
-
+  const tracked = player as EnergyPlayerState;
   return {
-    cards,
-    tappedEnergyIds: activeTappedIds(energyPlayer, currentTurn),
-    // Older matches used `energy` as automatically charged Energy. Until a
-    // player taps a card in the current turn, expose zero generated Energy so
-    // the new physical interaction remains authoritative.
-    availableEnergy: isCurrentTurn ? safeEnergy(player.energy) : 0,
-    maxEnergy: cards.length,
+    cards: player.energyZone,
+    tappedEnergyIds: activeTappedEnergyIds(tracked, turn),
+    availableEnergy: availableEnergy(tracked, turn),
+    maxEnergy: player.energyZone.length,
   };
 }
 
-export function energyZoneViews(
-  match: MatchState | null | undefined,
-  playerId: string | undefined,
-): EnergyZoneViews {
-  if (!match?.players.length) {
-    return { player: EMPTY_ENERGY_ZONE_VIEW, opponent: EMPTY_ENERGY_ZONE_VIEW };
-  }
-
-  const player = match.players.find((candidate) => candidate.id === playerId)
-    ?? match.players[0];
-  const opponent = match.players.find((candidate) => candidate.id !== player.id);
-
+export function energyZoneViews(match: MatchState | null | undefined, playerId: string | undefined): EnergyZoneViews {
+  if (!match?.players.length) return { player: EMPTY_ENERGY_ZONE_VIEW, opponent: EMPTY_ENERGY_ZONE_VIEW };
+  const player = match.players.find((candidate) => candidate.id === playerId) ?? match.players[0];
   return {
     player: energyZoneView(player, match.turn),
-    opponent: energyZoneView(opponent, match.turn),
+    opponent: energyZoneView(match.players.find((candidate) => candidate.id !== player.id), match.turn),
   };
 }
 
-export function energyCardCanTap(
-  match: MatchState | null | undefined,
-  playerId: string | undefined,
-  cardId: string,
-): boolean {
-  if (!match || !playerId || BLOCKED_TAP_PHASES.has(match.phase)) return false;
+export function energyCardCanTap(match: MatchState | null | undefined, playerId: string | undefined, cardId: string) {
+  if (!match || !playerId) return false;
+  const payment = ensureRulesState(match).pendingPayment;
+  if (!payment || payment.playerId !== playerId || payment.status !== "declared") return false;
   const player = match.players.find((candidate) => candidate.id === playerId) as EnergyPlayerState | undefined;
-  if (!player?.energyZone.some((card) => card.id === cardId)) return false;
-  return !activeTappedIds(player, match.turn).includes(cardId);
+  return Boolean(player?.energyZone.some((card) => card.id === cardId)
+    && !activeTappedEnergyIds(player, match.turn).includes(cardId)
+    && availableEnergy(player, match.turn) < payment.calculatedCost);
 }
 
 /**
- * Tap one face-down Energy card to generate one available Energy.
- *
- * `energyTapTurn` makes the new manual resource model backwards compatible
- * with saved matches that predate individual tapped-card state. The first tap
- * in a turn clears the old automatically charged value, then every distinct
- * card tapped during that turn contributes exactly one Energy.
+ * Uncharge one Energy card for the currently declared payment. Energy cannot be
+ * generated speculatively or outside a card/ability payment transaction.
  */
-export function tapEnergyCard(
-  input: MatchState,
-  playerId: string,
-  cardId: string,
-): MatchState {
+export function tapEnergyCard(input: MatchState, playerId: string, cardId: string): MatchState {
   const state = cloneMatch(input);
-  if (BLOCKED_TAP_PHASES.has(state.phase)) {
-    throw new Error("Energy cards cannot be tapped during this phase.");
+  const rules = ensureRulesState(state);
+  const payment = rules.pendingPayment;
+  if (!payment || payment.playerId !== playerId || payment.status !== "declared") {
+    throw new Error("Energy cards can only be uncharged while paying for an announced card or ability.");
   }
-
   const player = state.players.find((candidate) => candidate.id === playerId) as EnergyPlayerState | undefined;
   if (!player) throw new Error("Unknown player.");
   const card = player.energyZone.find((candidate) => candidate.id === cardId);
   if (!card) throw new Error("That card is not in your Energy Card zone.");
-
   if (player.energyTapTurn !== state.turn) {
     player.energyTapTurn = state.turn;
     player.tappedEnergyIds = [];
     player.energy = 0;
-  } else {
-    player.tappedEnergyIds = activeTappedIds(player, state.turn);
-  }
-
-  if (player.tappedEnergyIds.includes(cardId)) {
-    throw new Error("That Energy card is already tapped.");
-  }
-
+  } else player.tappedEnergyIds = activeTappedEnergyIds(player, state.turn);
+  if (player.tappedEnergyIds.includes(cardId)) throw new Error("That Energy card is already uncharged.");
+  if (player.energy >= payment.calculatedCost) throw new Error("The declared payment already has enough Energy.");
   player.tappedEnergyIds.push(cardId);
+  payment.selectedEnergyIds.push(cardId);
+  player.energy += 1;
   player.maxEnergy = player.energyZone.length;
-  player.energy = safeEnergy(player.energy) + 1;
   state.version += 1;
   state.log.push({
     id: `${Date.now()}-energy-${state.log.length}`,
     at: Date.now(),
     kind: "game",
-    message: `${player.name} tapped an Energy card and generated 1 Energy.`,
+    message: `${player.name} uncharged an Energy card for the declared payment.`,
   });
   return state;
 }
-
