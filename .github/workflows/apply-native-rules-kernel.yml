@@ -25,6 +25,24 @@ jobs:
         with:
           node-version: 22.13.0
           cache: npm
+      - name: Preserve target-code placeholders
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-native-rules-kernel.mjs')
+          source = path.read_text()
+          anchor = 'let source = await readFile(path, "utf8");\n'
+          placeholders = '''let source = await readFile(path, "utf8");
+          const card = { id: "${card.id}" };
+          const pending = { id: "${pending.id}" };
+          const action = { modifier: { id: "${action.modifier.id}" }, kind: "${action.kind}" };
+          const instructionIndex = "${instructionIndex}";
+          '''
+          if anchor not in source:
+              raise SystemExit('placeholder anchor is missing')
+          path.write_text(source.replace(anchor, placeholders, 1))
+          PY
       - name: Apply kernel migration
         shell: bash
         run: |
