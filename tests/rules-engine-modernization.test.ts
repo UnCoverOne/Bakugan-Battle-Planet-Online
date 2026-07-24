@@ -1,0 +1,161 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
+import { createMatch, type Core } from "../lib/game";
+import {
+  allRuleDefinitions,
+  cardCostBreakdown,
+  ensureRulesState,
+  evaluateBakuganCharacteristics,
+  ruleDefinitionForCard,
+  UnsupportedCardTextError,
+  validateCardAgainstRules,
+} from "../lib/rules";
+import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
+import { canonicalEvoTargetAllowed } from "../lib/rules/identity";
+import { createRuleObject } from "../lib/rules/objects";
+import { emitRuleEvent } from "../lib/rules/triggers";
+
+function match() {
+  const first = makePlayer("first", "First", STARTER_DECKS[0]);
+  const second = makePlayer("second", "Second", STARTER_DECKS[1]);
+  const state = createMatch("RULES3", "bo1", [first, second]);
+  state.turn = 1;
+  state.phase = "power";
+  state.startingPlayer = first.id;
+  state.priority = first.id;
+  state.selected = { [first.id]: first.bakugan[0].id, [second.id]: second.bakugan[0].id };
+  first.bakugan[0].open = true;
+  second.bakugan[0].open = true;
+  return state;
+}
+
+test("the reviewed typed catalogue covers every Battle Planet card exactly", () => {
+  const definitions = allRuleDefinitions();
+  assert.equal(definitions.length, 374);
+  assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 374);
+  assert.equal(CARDS.length, 374);
+  for (const card of CARDS) assert.equal(validateCardAgainstRules(card), true);
+  assert.ok(definitions.every((definition) => definition.sourceText.length > 0 || definition.cardType === "Character"));
+  assert.ok(definitions.every((definition) => definition.abilities.every((ability) => ability.instructions.length > 0)));
+});
+
+test("unknown or modified card text is rejected rather than resolving partially", () => {
+  const source = CARDS.find((card) => card.number === 2)!;
+  assert.throws(() => ruleDefinitionForCard({ ...source, effect: `${source.effect} Unsupported text.` }), (error: unknown) => error instanceof UnsupportedCardTextError && error.code === "CARD_TEXT_MISMATCH");
+  assert.throws(() => ruleDefinitionForCard({ ...source, catalogId: "custom-card" }), (error: unknown) => error instanceof UnsupportedCardTextError && error.code === "UNKNOWN_CARD_DEFINITION");
+});
+
+test("instead clauses are single typed replacement branches, not additive actions", () => {
+  for (const number of [7, 22, 24, 27, 32, 48, 50, 52, 92, 97, 107, 121, 125, 136]) {
+    const card = CARDS.find((candidate) => candidate.number === number)!;
+    const spell = ruleDefinitionForCard(card).abilities.find((ability) => ability.kind === "spell")!;
+    const replacement = spell.instructions.flatMap((instruction) => instruction.effects).find((effect) => effect.kind === "conditional" && effect.replacement);
+    assert.ok(replacement, `${card.name} must have a typed replacement branch`);
+  }
+});
+
+test("rule objects are serializable resumable objects with stable definition identity", () => {
+  const state = match();
+  const card = CARDS.find((candidate) => candidate.number === 2)!;
+  const ability = ruleDefinitionForCard(card).abilities.find((candidate) => candidate.kind === "spell")!;
+  const object = createRuleObject({ controllerId: state.players[0].id, card, ability });
+  const roundTrip = JSON.parse(JSON.stringify(object));
+  assert.equal(roundTrip.rulesObjectVersion, 3);
+  assert.equal(roundTrip.definitionId, "bb-2");
+  assert.deepEqual(roundTrip.cursor, { instructionIndex: 0, effectIndex: 0 });
+  assert.equal(roundTrip.status, "pending");
+});
+
+test("continuous layers apply ShadowStrike as negative-modifier filtering", () => {
+  const state = match();
+  const player = state.players[0];
+  const bakugan = player.bakugan[0];
+  const printed = bakugan.character.bPower ?? bakugan.bPower;
+  const hostileCore: Core = { ...player.cores[0], id: "shadow-negative-core", catalogId: "test-core", bonus: -500, damageBonus: -3, shadowStrike: true };
+  state.placements = [{ playerId: player.id, core: hostileCore, cell: "h3-3", order: 1, attachedTo: bakugan.id }];
+  bakugan.heldCoreCells = ["h3-3"];
+  const evaluated = evaluateBakuganCharacteristics(state, bakugan, player);
+  assert.equal(evaluated.power, printed);
+  assert.ok(evaluated.shadowStrike);
+  assert.ok(evaluated.prevented.some((entry) => entry.amount === -500));
+});
+
+test("active FrostStrike from the layered modifier system increases Flip costs", () => {
+  const state = match();
+  const attacker = state.players[0];
+  const defender = state.players[1];
+  const attackerBakugan = attacker.bakugan[0];
+  state.damageOrigin = attackerBakugan.id;
+  ensureRulesState(state).modifiers.push({
+    id: "test-frost",
+    source: { kind: "bakugan", id: attackerBakugan.id, characterCatalogId: attackerBakugan.character.catalogId as `bb-${number}` },
+    controllerId: attacker.id,
+    target: "active-friendly",
+    targetBakuganId: attackerBakugan.id,
+    keyword: "FrostStrike",
+    amount: 3,
+    layer: "temporary",
+    duration: "turn",
+    createdTurn: state.turn,
+  });
+  const flip = CARDS.find((card) => card.type === "Flip" && typeof card.cost === "number")!;
+  const cost = cardCostBreakdown(state, defender.id, flip);
+  assert.equal(cost.frostStrike, 3);
+  assert.equal(cost.total, Number(flip.cost) + 3);
+});
+
+test("opponent-caused declarative triggers create typed rule objects", () => {
+  const state = match();
+  const bill = { ...CARDS.find((card) => card.name === "Bill Kouzo")!, id: "bill-in-play" };
+  state.players[0].heroes.push(bill);
+  const flip = CARDS.find((card) => card.type === "Flip")!;
+  emitRuleEvent(state, { id: "opponent-flip", name: "CARD_PLAYED", actorId: state.players[1].id, controllerId: state.players[1].id, card: flip, cardType: "Flip", createdAt: Date.now() });
+  assert.ok(state.batch.some((object) => object.card.id === bill.id && object.kind === "trigger"));
+});
+
+test("choice timing is explicit for announce, pay, and resolve", () => {
+  const state = match();
+  const absorb = CARDS.find((card) => card.number === 1)!;
+  const absorbDefinition = ruleDefinitionForCard(absorb);
+  assert.ok(absorbDefinition.play.choices.some((choice) => choice.timing === "announce" && choice.selector === "batch-object"));
+  const sacrifice = ruleDefinitionForCard(CARDS.find((card) => card.number === 32)!);
+  assert.ok(sacrifice.abilities.flatMap((ability) => ability.instructions).flatMap((instruction) => instruction.choices).some((choice) => choice.id === "discardCardIds" && choice.timing === "resolve"));
+  const shadowTrap = ruleDefinitionForCard(CARDS.find((card) => card.number === 152)!);
+  assert.ok(shadowTrap.play.choices.some((choice) => choice.id === "discardCardIds" && choice.timing === "pay"));
+  const schema = buildChoiceSchemaFromSpecs(state, state.players[0].id, absorb, absorbDefinition.play.choices, "announce");
+  assert.equal(schema.fields[0]?.id, "mode");
+});
+
+test("additional costs are separate from spell effects", () => {
+  const definition = ruleDefinitionForCard(CARDS.find((card) => card.number === 152)!);
+  assert.ok(definition.play.costModifiers.some((effect) => effect.kind === "cost-alternative"));
+  assert.ok(definition.play.costModifiers.some((effect) => effect.kind === "cost-discard"));
+  assert.ok(definition.abilities.flatMap((ability) => ability.instructions).flatMap((instruction) => instruction.effects).every((effect) => effect.kind !== "discard"));
+});
+
+test("Evo targeting uses canonical Character identity rather than display names", () => {
+  const evo = CARDS.find((card) => card.type === "Evo")!;
+  const definition = ruleDefinitionForCard(evo);
+  assert.equal(definition.play.evolvesFrom.length, 1);
+  const state = match();
+  const canonical = state.players.flatMap((player) => player.bakugan).find((bakugan) => definition.play.evolvesFrom.includes(bakugan.character.catalogId as `bb-${number}`));
+  if (canonical) assert.equal(canonicalEvoTargetAllowed(definition, canonical), true);
+  const wrong = structuredClone(state.players[0].bakugan[0]);
+  wrong.name = evo.evolvesFrom ?? wrong.name;
+  wrong.faction = evo.faction;
+  wrong.character = { ...wrong.character, catalogId: definition.play.evolvesFrom[0] === "bb-1" ? "bb-2" : "bb-1" };
+  assert.equal(canonicalEvoTargetAllowed(definition, wrong), false);
+});
+
+test("the game reducer has no card-resolution compatibility adapter", async () => {
+  const [reducer, pipeline, effects] = await Promise.all([
+    readFile(new URL("../lib/engine/reducer.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/engine/play-pipeline.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/rules/effects.ts", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(reducer, /executePlayPipeline|playCardWithAutoEnergy|resolveManualDamage|submitCardChoice\(/);
+  assert.doesNotMatch(pipeline, /executePlayPipeline|Compatibility play pipeline|legacy card resolver/i);
+  assert.doesNotMatch(effects, /matchAll\(|compileClause\(|conditionFor\(/);
+});
