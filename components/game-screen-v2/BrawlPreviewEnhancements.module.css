@@ -1,3 +1,82 @@
+.brawlPreview {
+  max-width: min(23rem, calc(100vw - 1.5rem));
+  pointer-events: none;
+}
+
+.brawlPreview > header {
+  min-height: 1.4rem;
+  padding: 0.25rem 0.55rem;
+}
+
+.brawlPreview > header small {
+  display: none;
+}
+
+.brawlPreview > div {
+  align-items: start;
+  padding: 0.32rem;
+}
+
+.brawlPreview article {
+  padding: 0.34rem;
+  cursor: help;
+  pointer-events: auto;
+}
+
+/* The compact state shows only the Bakugan name, roll/open status, and stats. */
+.brawlPreview article > div:first-child {
+  display: block;
+}
+
+.brawlPreview article > div:first-child > div:first-child,
+.brawlPreview article > div:first-child > div:last-child small,
+.brawlPreview article > div:first-child > div:last-child span {
+  display: none;
+}
+
+.brawlPreview article > div:first-child > div:last-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.brawlPreview article > div:first-child > div:last-child strong {
+  font-size: clamp(0.62rem, 0.82vw, 0.84rem);
+}
+
+.brawlPreview article > div:nth-child(2) {
+  gap: 0.24rem;
+  margin-top: 0.28rem;
+}
+
+.brawlPreview article > div:nth-child(2) > div {
+  padding: 0.22rem 0.3rem;
+}
+
+.brawlPreview article > div:nth-child(2) strong {
+  font-size: clamp(0.78rem, 1.05vw, 1.05rem);
+}
+
+.brawlPreview article > div:nth-child(2) small {
+  font-size: clamp(0.34rem, 0.43vw, 0.46rem);
+}
+
+/* Effects and modifiers remain available without consuming persistent HUD space. */
+.brawlPreview article > div:nth-child(3) {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  padding-top: 0.38rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.brawlPreview article:hover > div:nth-child(3) {
+  display: grid;
+  animation: brawl-details-reveal 150ms ease-out both;
+}
+
 .brawlPreview[data-preview-state="single-open"] {
   border-color: rgba(255, 173, 70, 0.86);
   box-shadow:
@@ -41,53 +120,28 @@
   filter: saturate(0.22) brightness(0.68);
 }
 
-.missedCombatant::after {
-  content: "MISSED • CLOSED";
-  position: absolute;
-  right: 0.45rem;
-  bottom: 0.42rem;
-  z-index: 4;
-  padding: 0.16rem 0.34rem;
-  border: 1px solid rgba(205, 216, 223, 0.24);
-  background: rgba(0, 0, 0, 0.72);
-  color: rgba(230, 236, 239, 0.72);
-  font-size: clamp(0.38rem, 0.48vw, 0.52rem);
-  font-weight: 950;
-  letter-spacing: 0.09em;
-}
-
+/* The roll-status chip already communicates the miss in the compact layout. */
+.missedCombatant::after,
 .missMark {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  display: grid;
-  place-items: center;
-  background: rgba(0, 0, 0, 0.26);
-  color: rgba(255, 255, 255, 0.78);
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: clamp(1.4rem, 2.4vw, 2.35rem);
-  font-style: normal;
-  font-weight: 300;
-  line-height: 1;
-  text-shadow: 0 0 0.4rem rgba(0, 0, 0, 0.9);
+  display: none;
 }
 
 .rollStatus {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  max-width: 100%;
-  margin-top: 0.18rem;
-  padding: 0.11rem 0.3rem;
+  max-width: 7.5rem;
+  margin: 0;
+  padding: 0.1rem 0.27rem;
   overflow: hidden;
   border: 1px solid rgba(113, 222, 255, 0.34);
   background: rgba(29, 112, 142, 0.18);
   color: rgba(173, 231, 250, 0.9);
   font-family: var(--font-display);
-  font-size: clamp(0.38rem, 0.48vw, 0.52rem);
+  font-size: clamp(0.34rem, 0.44vw, 0.47rem);
   font-style: normal;
   font-weight: 950;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   line-height: 1.1;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -102,11 +156,16 @@
 
 .resolvedVersus {
   color: #ffb151 !important;
-  font-size: clamp(1rem, 1.45vw, 1.42rem) !important;
+  font-size: clamp(0.9rem, 1.2vw, 1.16rem) !important;
   text-shadow:
     0 0 0.25rem rgba(255, 255, 255, 0.26),
     0 0 0.65rem rgba(255, 136, 44, 0.54) !important;
   animation: resolved-arrow 1100ms ease-in-out infinite;
+}
+
+@keyframes brawl-details-reveal {
+  from { opacity: 0; transform: translateY(-0.18rem); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes advancing-combatant-pulse {
@@ -120,18 +179,32 @@
 }
 
 @media (max-width: 760px) {
-  .missedCombatant::after {
-    display: none;
+  .brawlPreview {
+    max-width: min(21rem, calc(100vw - 1rem));
+  }
+
+  .brawlPreview article > div:first-child > div:last-child {
+    grid-template-columns: 1fr;
+    gap: 0.16rem;
+  }
+
+  .brawlPreview article:hover > div:nth-child(3) {
+    grid-template-columns: 1fr;
+  }
+
+  .brawlPreview article:hover > div:nth-child(3) section:nth-child(2) {
+    display: block;
   }
 
   .rollStatus {
-    max-width: 8rem;
+    max-width: 6.6rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .brawlPreview[data-preview-state="single-open"] .openCombatant::after,
-  .resolvedVersus {
+  .resolvedVersus,
+  .brawlPreview article:hover > div:nth-child(3) {
     animation: none;
   }
 }
