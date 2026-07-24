@@ -169,12 +169,18 @@ test("a Team Attack combines open Bakugan, then all attackers retract", () => {
   assert.equal(state.phase,"endPlay"); assert.ok(state.players.find((player)=>player.id===winner.id)!.bakugan.every((bakugan) => !bakugan.open));
 });
 
-test("the End Phase charges Energy, enforces seven cards, and begins the next Start Phase", () => {
+test("the End Phase charges Energy, enforces seven cards, resolves discard triggers, and begins the next Start Phase", () => {
   let state = reachPower(); const winner = state.players[0]; const attacking = winner.bakugan.find((bakugan) => bakugan.id === state.selected[winner.id])!; attacking.open = true; state.rolls[winner.id].result = "open-no-core"; state.powerBoost[attacking.id] = 9999; state = passWindow(state);
   const loser = state.players[1]; loser.deckCards = loser.deckCards.filter((card) => card.type !== "Flip"); loser.deck = loser.deckCards.length; state = settleDamage(passWindow(state));
   if (state.phase === "postDamage") state = passWindow(state); assert.equal(state.phase,"endPlay"); const currentWinner=state.players.find((player)=>player.id===winner.id)!; currentWinner.hand.push(...currentWinner.deckCards.splice(0, Math.max(0, 9-currentWinner.hand.length))); currentWinner.deck=currentWinner.deckCards.length;
   state = passWindow(state); assert.equal(state.phase,"handLimit"); const actor=state.players.find((player) => player.id===state.priority)!; state=discardToHandLimit(state,actor.id,actor.hand.slice(0,actor.hand.length-7).map((card)=>card.id));
   const nextOver=state.players.find((player)=>state.phase==="handLimit"&&player.id===state.priority); if(nextOver) state=discardToHandLimit(state,nextOver.id,nextOver.hand.slice(0,nextOver.hand.length-7).map((card)=>card.id));
+  let triggerWindows = 0;
+  while (state.phase === "endPlay" && triggerWindows < 20) {
+    state = passWindow(state);
+    triggerWindows += 1;
+  }
+  assert.ok(triggerWindows < 20, "Discard-trigger resolution must terminate.");
   assert.equal(state.phase,"draw"); assert.equal(state.turn,2); assert.ok(state.players.every((player)=>player.energy===player.maxEnergy));
 });
 
