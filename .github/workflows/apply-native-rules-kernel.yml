@@ -1,0 +1,47 @@
+name: Apply Native Rules Kernel
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/apply-native-rules-kernel.mjs"
+      - ".github/workflows/apply-native-rules-kernel.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - name: Apply kernel migration
+        run: node scripts/apply-native-rules-kernel.mjs
+      - name: Remove one-time migration files
+        run: rm scripts/apply-native-rules-kernel.mjs .github/workflows/apply-native-rules-kernel.yml
+      - run: npm ci
+      - name: Validate migrated kernel
+        run: |
+          npm run build
+          npm run test:rules
+          npm run test:engine
+          npm run lint
+      - name: Commit native kernel
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'refactor(game): remove legacy rules compatibility hooks'
+          git push origin HEAD:${{ github.head_ref }}
