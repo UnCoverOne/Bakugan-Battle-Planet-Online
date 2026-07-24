@@ -8,6 +8,7 @@ import {
   brawlIsEngaged,
   brawlRollLabel,
 } from "../components/game-screen-v2/brawlState";
+import { turnProgressSnapshot } from "../components/game-screen-v2/turnProgressState";
 
 function roll(
   playerId: string,
@@ -146,4 +147,32 @@ test("Selection focuses Character Cards while Rolling focuses the Hide Matrix", 
     css,
     /data-turn-transition-step="rolling"\]\s*\[aria-label="BakuCores in the Hide Matrix"\]/,
   );
+});
+
+test("BakuCore target selection is presented as part of the Rolling Step", () => {
+  const selection = turnProgressSnapshot({
+    phase: "selection",
+    stepLabel: "Roll Phase • Selection Step",
+    turn: 1,
+  });
+  const preRoll = turnProgressSnapshot({
+    phase: "preRoll",
+    stepLabel: "Roll Phase • Pre-roll priority",
+    turn: 1,
+  });
+  const localTarget = turnProgressSnapshot({
+    phase: "target",
+    stepLabel: "Roll Phase • Choose BakuCore targets",
+    turn: 1,
+  });
+  const secretTarget = turnProgressSnapshot({
+    phase: "target",
+    stepLabel: "Roll Phase • Secret target selection",
+    turn: 1,
+  });
+
+  assert.equal(selection?.stepKey, "selection");
+  assert.equal(preRoll?.stepKey, "rolling");
+  assert.equal(localTarget?.stepKey, "rolling");
+  assert.equal(secretTarget?.stepKey, "rolling");
 });
