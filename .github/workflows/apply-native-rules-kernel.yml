@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 22.13.0
           cache: npm
-      - name: Preserve target-code placeholders
+      - name: Prepare migration transform
         shell: bash
         run: |
           python3 - <<'PY'
@@ -39,9 +39,14 @@ jobs:
           const action = { modifier: { id: "${action.modifier.id}" }, kind: "${action.kind}" };
           const instructionIndex = "${instructionIndex}";
           '''
+          duplicate = '  "const stageSimultaneousTriggers =",\n  "remove legacy direct trigger queue",'
+          replacement = '  "",\n  "remove legacy direct trigger queue",'
           if anchor not in source:
               raise SystemExit('placeholder anchor is missing')
-          path.write_text(source.replace(anchor, placeholders, 1))
+          if duplicate not in source:
+              raise SystemExit('trigger staging migration anchor is missing')
+          source = source.replace(anchor, placeholders, 1).replace(duplicate, replacement, 1)
+          path.write_text(source)
           PY
       - name: Apply kernel migration
         shell: bash
