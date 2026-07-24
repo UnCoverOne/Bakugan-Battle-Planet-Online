@@ -53,7 +53,7 @@ jobs:
         run: |
           set -o pipefail
           node scripts/apply-native-rules-kernel.mjs 2>&1 | tee migration.log
-      - name: Finalize typed catalogue semantics
+      - name: Finalize typed catalogue and kernel semantics
         shell: bash
         run: |
           python3 - <<'PY'
@@ -61,15 +61,59 @@ jobs:
 
           catalogue = Path('lib/rules/catalogue.ts')
           source = catalogue.read_text()
-          before_trigger = '[/when (?:your )?opponent plays/i, "CARD_PLAYED", "opponent"],'
-          after_trigger = '[/when (?:your |an )?opponent plays/i, "CARD_PLAYED", "opponent"],'
-          before_cost = '    let effects = parseAtomicEffects(card, clause);\n    if (REPLACEMENT_CARD_NUMBERS.has(card.number)'
-          after_cost = '    let effects = parseAtomicEffects(card, clause);\n    if (card.number === 152) effects = effects.filter((effect) => effect.kind !== "discard");\n    if (!effects.length) effects = [{ kind: "sequence", effects: [] }];\n    if (REPLACEMENT_CARD_NUMBERS.has(card.number)'
-          if before_trigger not in source:
-              raise SystemExit('opponent trigger anchor is missing')
-          if before_cost not in source:
-              raise SystemExit('additional-cost anchor is missing')
-          catalogue.write_text(source.replace(before_trigger, after_trigger, 1).replace(before_cost, after_cost, 1))
+          replacements = [
+              (
+                  '[/when (?:your )?opponent plays/i, "CARD_PLAYED", "opponent"],',
+                  '[/when (?:your |an )?opponent plays/i, "CARD_PLAYED", "opponent"],',
+                  'opponent trigger',
+              ),
+              (
+                  '    let effects = parseAtomicEffects(card, clause);\n    if (REPLACEMENT_CARD_NUMBERS.has(card.number)',
+                  '    let effects = parseAtomicEffects(card, clause);\n    if (card.number === 152) effects = effects.filter((effect) => effect.kind !== "discard");\n    if (!effects.length) effects = [{ kind: "sequence", effects: [] }];\n    if (REPLACEMENT_CARD_NUMBERS.has(card.number)',
+                  'cost-only instruction',
+              ),
+              (
+                  '  const timing = /when you play this|\\bmay\\b/i.test(text) ? "resolve" : defaultTiming;',
+                  '  const timing = /when you play this|\\bmay\\b|\\bSacrifice\\b/i.test(text) ? "resolve" : defaultTiming;',
+                  'Sacrifice choice timing',
+              ),
+          ]
+          for old, new, label in replacements:
+              if old not in source:
+                  raise SystemExit(f'{label} anchor is missing')
+              source = source.replace(old, new, 1)
+          catalogue.write_text(source)
+
+          game = Path('lib/game.ts')
+          game_source = game.read_text()
+          start = game_source.find('export const cardChoiceSpec =')
+          end = game_source.find('\n\nconst stageSimultaneousTriggers', start)
+          if start < 0 or end < 0:
+              raise SystemExit('typed cardChoiceSpec range is missing')
+          direct_choice_spec = '''export const cardChoiceSpec = (_state: MatchState, _playerId: string, card: GameCard) => {
+            const mapping: Partial<Record<keyof CardChoices, string>> = {
+              targetBakuganId: "targetBakugan",
+              targetPlayerId: "targetPlayer",
+              targetHeroId: "targetHero",
+              targetEvoId: "targetEvo",
+              targetEnergyId: "targetEnergy",
+              targetEnergyIds: "targetEnergy",
+              coreCell: "core",
+              discardCardIds: "discard",
+              handCardIds: "multiHand",
+              orderedCardIds: "deckOrder",
+              deckCardId: "deckCard",
+              xValue: "xValue",
+              mode: "mode",
+              confirmed: "mode",
+            };
+            const definition = ruleDefinitionForCard(card);
+            return [...new Set(definition.play.choices
+              .filter((choice) => choice.timing === "announce" || choice.timing === "pay")
+              .map((choice) => mapping[choice.id])
+              .filter((value): value is string => Boolean(value)))];
+          };'''
+          game.write_text(game_source[:start] + direct_choice_spec + game_source[end:])
 
           tests = Path('tests/rules-engine-modernization.test.ts')
           test_source = tests.read_text()
