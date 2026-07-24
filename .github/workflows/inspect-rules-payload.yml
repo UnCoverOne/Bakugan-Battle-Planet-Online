@@ -1,0 +1,32 @@
+name: Inspect Rules Payload
+
+on:
+  push:
+    branches:
+      - agent/modern-rules-engine
+    paths:
+      - ".upgrade-parts/**"
+      - ".github/workflows/inspect-rules-payload.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode and inspect payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .upgrade-parts/*.b64 | tr -d '\n\r ' | base64 --decode > /tmp/rules-payload.xz
+          file /tmp/rules-payload.xz
+          xz --test /tmp/rules-payload.xz
+          xz --decompress --stdout /tmp/rules-payload.xz > /tmp/rules-payload
+          file /tmp/rules-payload
+          printf '%s\n' '--- payload preview ---'
+          head -c 512 /tmp/rules-payload | od -An -tx1c
+          printf '%s\n' '--- tar listing (when applicable) ---'
+          tar -tf /tmp/rules-payload 2>/dev/null | head -200 || true
