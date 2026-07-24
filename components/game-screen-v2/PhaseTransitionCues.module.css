@@ -1,0 +1,514 @@
+.cueLayer {
+  --cue-target-x: 50vw;
+  --cue-target-y: 50vh;
+  --cue-target-width: 0px;
+  --cue-target-height: 0px;
+  --cue-secondary-x: var(--cue-target-x);
+  --cue-secondary-y: var(--cue-target-y);
+}
+
+.cueLayer::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at var(--cue-target-x) var(--cue-target-y), rgba(255, 91, 68, 0.11), transparent 18rem),
+    radial-gradient(circle at 50% 50%, transparent 0 11rem, rgba(0, 0, 0, 0.12) 32rem, rgba(0, 0, 0, 0.28));
+  opacity: 0;
+  animation: cue-veil 2050ms ease-out both;
+}
+
+.callout {
+  z-index: 8;
+}
+
+.hint {
+  display: block;
+  grid-column: 2;
+  max-width: min(31rem, 58vw);
+  margin-top: 0.2rem;
+  overflow: hidden;
+  color: rgba(226, 233, 237, 0.76);
+  font-family: system-ui, sans-serif;
+  font-size: clamp(0.46rem, 0.64vw, 0.66rem);
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.targetBeacon {
+  position: fixed;
+  z-index: 6;
+  box-sizing: border-box;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  border: 2px solid rgba(255, 94, 75, 0.9);
+  clip-path: polygon(0.8rem 0, calc(100% - 0.8rem) 0, 100% 0.8rem, 100% calc(100% - 0.8rem), calc(100% - 0.8rem) 100%, 0.8rem 100%, 0 calc(100% - 0.8rem), 0 0.8rem);
+  box-shadow:
+    inset 0 0 1.25rem rgba(255, 75, 57, 0.13),
+    0 0 0.75rem rgba(255, 75, 57, 0.36);
+  opacity: 0;
+  pointer-events: none;
+  animation: target-beacon 1720ms cubic-bezier(0.2, 0.78, 0.2, 1) 130ms both;
+}
+
+.targetBeacon::before,
+.targetBeacon::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 238, 230, 0.82);
+  box-shadow: 0 0 0.45rem rgba(255, 88, 67, 0.74);
+}
+
+.targetBeacon::before {
+  left: 50%;
+  top: -0.4rem;
+  width: 1px;
+  height: calc(100% + 0.8rem);
+}
+
+.targetBeacon::after {
+  left: -0.4rem;
+  top: 50%;
+  width: calc(100% + 0.8rem);
+  height: 1px;
+}
+
+.secondaryBeacon {
+  border-color: rgba(255, 189, 83, 0.66);
+  box-shadow:
+    inset 0 0 1rem rgba(255, 174, 68, 0.1),
+    0 0 0.6rem rgba(255, 174, 68, 0.24);
+  animation-delay: 280ms;
+}
+
+.connector {
+  position: fixed;
+  z-index: 5;
+  height: 2px;
+  overflow: visible;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, rgba(255, 103, 82, 0), rgba(255, 103, 82, 0.92) 42%, rgba(255, 232, 220, 0.8));
+  box-shadow: 0 0 0.5rem rgba(255, 77, 58, 0.52);
+  opacity: 0;
+  pointer-events: none;
+  animation: connector-draw 1460ms cubic-bezier(0.2, 0.78, 0.2, 1) 180ms both;
+}
+
+.connector::after {
+  content: "";
+  position: absolute;
+  right: -0.2rem;
+  top: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-top: 2px solid rgba(255, 238, 230, 0.92);
+  border-right: 2px solid rgba(255, 238, 230, 0.92);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.secondaryConnector {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 185, 76, 0.72));
+  box-shadow: 0 0 0.36rem rgba(255, 171, 57, 0.38);
+  animation-delay: 340ms;
+}
+
+.stepCue {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cuePiece {
+  --piece-index-offset: calc(var(--cue-piece) - 3);
+  --piece-offset: calc(var(--piece-index-offset) * 1rem);
+  --piece-row: -1;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 1.65rem;
+  aspect-ratio: 1;
+  margin: -0.825rem;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  background: linear-gradient(145deg, rgba(255, 105, 82, 0.96), rgba(100, 12, 22, 0.96));
+  box-shadow: 0 0 0.55rem rgba(255, 71, 54, 0.38);
+  color: #fff;
+  opacity: 0;
+}
+
+.cuePiece:nth-child(even) {
+  --piece-row: 1;
+}
+
+.cuePiece i {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+}
+
+/* Draw: card backs visibly travel from the deck focus to the hand focus. */
+.cueLayer[data-step="draw"] .cuePiece {
+  left: var(--cue-target-x);
+  top: var(--cue-target-y);
+  width: 1.05rem;
+  height: 1.48rem;
+  aspect-ratio: auto;
+  margin: -0.74rem -0.525rem;
+  clip-path: polygon(0.15rem 0, 100% 0, 100% calc(100% - 0.15rem), calc(100% - 0.15rem) 100%, 0 100%, 0 0.15rem);
+  background:
+    linear-gradient(135deg, transparent 35%, rgba(255, 255, 255, 0.32) 36% 38%, transparent 39%),
+    linear-gradient(145deg, #8d1720, #25070b);
+  animation: cue-draw-card 1500ms cubic-bezier(0.18, 0.76, 0.22, 1) both;
+  animation-delay: calc(var(--cue-piece) * 55ms + 120ms);
+}
+
+/* Energize: a chosen card rotates face-down while moving into the Energy zone. */
+.cueLayer[data-step="energize"] .cuePiece {
+  left: var(--cue-target-x);
+  top: var(--cue-target-y);
+  width: 1.06rem;
+  height: 1.48rem;
+  aspect-ratio: auto;
+  margin: -0.74rem -0.53rem;
+  clip-path: polygon(0.14rem 0, 100% 0, 100% calc(100% - 0.14rem), calc(100% - 0.14rem) 100%, 0 100%, 0 0.14rem);
+  animation: cue-energize-card 1620ms cubic-bezier(0.16, 0.82, 0.22, 1) both;
+  animation-delay: calc(var(--cue-piece) * 48ms + 90ms);
+}
+
+/* Selection: three-by-three hex pips bracket the Character Card area. */
+.cueLayer[data-step="selection"] .cuePiece {
+  left: var(--cue-target-x);
+  top: var(--cue-target-y);
+  animation: cue-selection-lock 1560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--cue-piece) * 55ms + 90ms);
+}
+
+/* Rolling: reticle segments rotate and collapse onto the BakuCore field. */
+.cueLayer[data-step="rolling"] .cuePiece {
+  left: var(--cue-target-x);
+  top: var(--cue-target-y);
+  width: 2.2rem;
+  margin: -1.1rem;
+  clip-path: none;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: rgba(255, 100, 77, 0.9);
+  border-right-color: rgba(255, 226, 215, 0.7);
+  background: transparent;
+  box-shadow: none;
+  animation: cue-roll-reticle 1740ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--cue-piece) * 35ms + 60ms);
+}
+
+.cueLayer[data-step="rolling"] .cuePiece:nth-child(even) {
+  --piece-row: 1;
+}
+
+.cuePiece i {
+  display: none;
+}
+
+/* Power: opposing B glyphs collide over the combat comparison. */
+.cueLayer[data-step="power"] .cuePiece {
+  left: var(--cue-target-x);
+  top: var(--cue-target-y);
+  animation: cue-power-collision 1640ms cubic-bezier(0.12, 0.82, 0.2, 1) both;
+  animation-delay: calc(var(--cue-piece) * 42ms + 70ms);
+}
+
+.cueLayer[data-step="power"] .cuePiece:nth-child(even) {
+  background: linear-gradient(145deg, rgba(226, 236, 241, 0.96), rgba(78, 92, 104, 0.96));
+  color: #13191e;
+}
+
+/* Victor: one crown settles directly over the winning combatant. */
+.cueLayer[data-step="victor"] .cuePiece {
+  display: none;
+}
+
+.cueLayer[data-step="victor"] .cuePiece:first-child {
+  left: var(--cue-target-x);
+  top: var(--cue-target-y);
+  display: grid;
+  width: 3.4rem;
+  margin: -1.7rem;
+  clip-path: polygon(0 28%, 20% 48%, 34% 12%, 50% 48%, 66% 12%, 80% 48%, 100% 28%, 88% 88%, 12% 88%);
+  background: linear-gradient(180deg, #fff0a8, #e38d22 72%, #75400e);
+  color: #351700;
+  animation: cue-victor-crown 1760ms cubic-bezier(0.18, 0.82, 0.2, 1) both;
+}
+
+.cueLayer[data-step="victor"] .cuePiece:first-child i {
+  display: none;
+}
+
+/* Damage: sharp card shards streak into the damaged player's deck. */
+.cueLayer[data-step="damage"] .cuePiece {
+  left: 50%;
+  top: 50%;
+  width: 0.7rem;
+  height: 1.55rem;
+  aspect-ratio: auto;
+  margin: -0.775rem -0.35rem;
+  clip-path: polygon(50% 0, 100% 100%, 42% 76%, 0 100%);
+  animation: cue-damage-strike 1450ms cubic-bezier(0.18, 0.82, 0.2, 1) both;
+  animation-delay: calc(var(--cue-piece) * 48ms + 120ms);
+}
+
+/* Retracting: alternating pips travel back to both Character Card areas. */
+.cueLayer[data-step="retracting"] .cuePiece {
+  left: 50%;
+  top: 50%;
+  animation: cue-retract-primary 1500ms cubic-bezier(0.25, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--cue-piece) * 45ms + 110ms);
+}
+
+.cueLayer[data-step="retracting"] .cuePiece:nth-child(even) {
+  animation-name: cue-retract-secondary;
+}
+
+/* Play: a readable fan rises from the player's hand. */
+.cueLayer[data-step="play"] .cuePiece {
+  left: var(--cue-target-x);
+  top: var(--cue-target-y);
+  width: 1rem;
+  height: 1.4rem;
+  aspect-ratio: auto;
+  margin: -0.7rem -0.5rem;
+  clip-path: polygon(0.12rem 0, 100% 0, 100% calc(100% - 0.12rem), calc(100% - 0.12rem) 100%, 0 100%, 0 0.12rem);
+  animation: cue-play-fan 1580ms cubic-bezier(0.16, 0.82, 0.22, 1) both;
+  animation-delay: calc(var(--cue-piece) * 40ms + 90ms);
+}
+
+/* Charge: lightning pips rotate upright around both Energy zones. */
+.cueLayer[data-step="charge"] .cuePiece {
+  left: var(--cue-target-x);
+  top: var(--cue-target-y);
+  animation: cue-charge-energy 1550ms cubic-bezier(0.2, 0.78, 0.2, 1) both;
+  animation-delay: calc(var(--cue-piece) * 42ms + 90ms);
+}
+
+/* Reset: horizontal scan bars wash the full play surface clean. */
+.cueLayer[data-step="reset"] .cuePiece {
+  left: calc(var(--cue-target-x) - var(--cue-target-width) / 2);
+  top: calc(var(--cue-target-y) - var(--cue-target-height) / 2);
+  width: var(--cue-target-width);
+  height: 2px;
+  aspect-ratio: auto;
+  margin: 0;
+  clip-path: none;
+  border: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 103, 80, 0.82), transparent);
+  box-shadow: 0 0 0.7rem rgba(255, 75, 55, 0.42);
+  animation: cue-reset-sweep 1540ms ease-in-out both;
+  animation-delay: calc(var(--cue-piece) * 55ms + 70ms);
+}
+
+:global([data-transition-focus="primary"]),
+:global([data-transition-focus="secondary"]) {
+  outline: 1px solid rgba(255, 102, 81, 0.7);
+  outline-offset: 0.25rem;
+  animation: transition-focus-pulse 1600ms ease-out both !important;
+}
+
+:global([data-transition-focus="secondary"]) {
+  outline-color: rgba(255, 184, 78, 0.58);
+  animation-delay: 180ms !important;
+}
+
+:global(html[data-turn-transition-step="rolling"] [data-transition-focus="primary"]) {
+  animation-name: transition-focus-reticle !important;
+}
+
+:global(html[data-turn-transition-step="damage"] [data-transition-focus="primary"]) {
+  animation-name: transition-focus-damage !important;
+}
+
+:global(html[data-turn-transition-step="victor"] [data-transition-focus="primary"]) {
+  animation-name: transition-focus-victor !important;
+}
+
+@keyframes cue-veil {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  76% { opacity: 0.72; }
+  100% { opacity: 0; }
+}
+
+@keyframes target-beacon {
+  0% { opacity: 0; transform: scale(1.2); }
+  18% { opacity: 1; transform: scale(1.035); }
+  58% { opacity: 0.76; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.985); }
+}
+
+@keyframes connector-draw {
+  0% { opacity: 0; clip-path: inset(0 100% 0 0); }
+  18% { opacity: 0.92; }
+  54% { clip-path: inset(0 0 0 0); }
+  78% { opacity: 0.58; }
+  100% { opacity: 0; clip-path: inset(0 0 0 0); }
+}
+
+@keyframes cue-draw-card {
+  0% { opacity: 0; transform: translate(0, 0) rotate(-18deg) scale(0.72); }
+  18% { opacity: 0.94; }
+  72% { opacity: 0.86; transform: translate(calc(var(--cue-secondary-x) - var(--cue-target-x)), calc(var(--cue-secondary-y) - var(--cue-target-y))) rotate(8deg) scale(1); }
+  100% { opacity: 0; transform: translate(calc(var(--cue-secondary-x) - var(--cue-target-x)), calc(var(--cue-secondary-y) - var(--cue-target-y) - 0.7rem)) rotate(0) scale(0.9); }
+}
+
+@keyframes cue-energize-card {
+  0% { opacity: 0; transform: translate(calc(var(--piece-offset) * 0.7), 0.8rem) rotate(calc(var(--piece-index-offset) * 5deg)) scale(0.72); }
+  20% { opacity: 0.92; }
+  72% { opacity: 0.9; transform: translate(calc(var(--cue-secondary-x) - var(--cue-target-x)), calc(var(--cue-secondary-y) - var(--cue-target-y))) rotate(90deg) scale(1); }
+  100% { opacity: 0; transform: translate(calc(var(--cue-secondary-x) - var(--cue-target-x)), calc(var(--cue-secondary-y) - var(--cue-target-y))) rotate(90deg) scale(0.82); }
+}
+
+@keyframes cue-selection-lock {
+  0% { opacity: 0; transform: translate(calc(var(--piece-offset) * 2.2), -4.2rem) scale(0.35) rotate(45deg); }
+  22% { opacity: 0.9; }
+  62% { opacity: 0.9; transform: translate(calc(var(--piece-offset) * 1.25), calc(var(--piece-row) * 1rem)) scale(1) rotate(0); }
+  100% { opacity: 0; transform: translate(calc(var(--piece-offset) * 1.1), calc(var(--piece-row) * 0.7rem)) scale(0.78); }
+}
+
+@keyframes cue-roll-reticle {
+  0% { opacity: 0; transform: rotate(calc(var(--cue-piece) * 52deg)) scale(2.7); }
+  18% { opacity: 0.9; }
+  68% { opacity: 0.9; transform: rotate(calc(var(--cue-piece) * 52deg + 300deg)) scale(1); }
+  100% { opacity: 0; transform: rotate(calc(var(--cue-piece) * 52deg + 390deg)) scale(0.72); }
+}
+
+@keyframes cue-power-collision {
+  0% { opacity: 0; transform: translateX(calc((var(--cue-piece) - 3) * 16vw)) scale(0.45) rotate(calc(var(--piece-index-offset) * 5deg)); }
+  20% { opacity: 1; }
+  62% { opacity: 1; transform: translateX(calc(var(--piece-offset) * 1.35)) scale(1.08) rotate(0); }
+  78% { opacity: 0.9; transform: translateX(calc(var(--piece-offset) * 0.45)) scale(0.8); }
+  100% { opacity: 0; transform: translateX(0) scale(0.2); }
+}
+
+@keyframes cue-victor-crown {
+  0% { opacity: 0; transform: translateY(-7rem) rotate(-14deg) scale(0.5); }
+  22% { opacity: 1; }
+  66% { opacity: 1; transform: translateY(calc(var(--cue-target-height) * -0.43 - 1.8rem)) rotate(0) scale(1); }
+  82% { opacity: 0.94; transform: translateY(calc(var(--cue-target-height) * -0.43 - 1.55rem)) scale(0.94); }
+  100% { opacity: 0; transform: translateY(calc(var(--cue-target-height) * -0.43 - 1.7rem)) scale(0.86); }
+}
+
+@keyframes cue-damage-strike {
+  0% { opacity: 0; transform: translate(calc(var(--piece-offset) * -0.6), calc(var(--piece-offset) * 0.25)) rotate(calc(var(--piece-index-offset) * 8deg)) scale(0.4); }
+  18% { opacity: 1; }
+  72% { opacity: 0.95; transform: translate(calc(var(--cue-target-x) - 50vw), calc(var(--cue-target-y) - 50vh)) rotate(calc(120deg + var(--piece-index-offset) * 8deg)) scale(1); }
+  100% { opacity: 0; transform: translate(calc(var(--cue-target-x) - 50vw), calc(var(--cue-target-y) - 50vh)) rotate(170deg) scale(0.25); }
+}
+
+@keyframes cue-retract-primary {
+  0% { opacity: 0; transform: scale(1.25); }
+  22% { opacity: 0.9; }
+  72% { opacity: 0.9; transform: translate(calc(var(--cue-target-x) - 50vw + var(--piece-offset)), calc(var(--cue-target-y) - 50vh)) scale(0.78) rotate(180deg); }
+  100% { opacity: 0; transform: translate(calc(var(--cue-target-x) - 50vw), calc(var(--cue-target-y) - 50vh)) scale(0.2) rotate(260deg); }
+}
+
+@keyframes cue-retract-secondary {
+  0% { opacity: 0; transform: scale(1.25); }
+  22% { opacity: 0.9; }
+  72% { opacity: 0.9; transform: translate(calc(var(--cue-secondary-x) - 50vw + var(--piece-offset)), calc(var(--cue-secondary-y) - 50vh)) scale(0.78) rotate(-180deg); }
+  100% { opacity: 0; transform: translate(calc(var(--cue-secondary-x) - 50vw), calc(var(--cue-secondary-y) - 50vh)) scale(0.2) rotate(-260deg); }
+}
+
+@keyframes cue-play-fan {
+  0% { opacity: 0; transform: translate(calc(var(--piece-offset) * 0.2), 3.8rem) rotate(0) scale(0.52); }
+  20% { opacity: 0.94; }
+  66% { opacity: 0.94; transform: translate(calc(var(--piece-offset) * 1.15), -2.4rem) rotate(calc(var(--piece-index-offset) * 4deg)) scale(1); }
+  100% { opacity: 0; transform: translate(calc(var(--piece-offset) * 1.3), -3rem) rotate(calc(var(--piece-index-offset) * 5deg)) scale(0.86); }
+}
+
+@keyframes cue-charge-energy {
+  0% { opacity: 0; transform: translate(calc(var(--piece-offset) * 1.4), 2.2rem) rotate(90deg) scale(0.5); }
+  24% { opacity: 0.95; }
+  68% { opacity: 0.95; transform: translate(calc(var(--piece-offset) * 1.15), -1.1rem) rotate(0) scale(1); }
+  100% { opacity: 0; transform: translate(calc(var(--piece-offset) * 1.05), -1.4rem) rotate(0) scale(0.82); }
+}
+
+@keyframes cue-reset-sweep {
+  0% { opacity: 0; transform: translateY(0) scaleX(0.25); }
+  18% { opacity: 0.9; }
+  72% { opacity: 0.75; transform: translateY(calc(var(--cue-target-height) * 0.9)) scaleX(1); }
+  100% { opacity: 0; transform: translateY(var(--cue-target-height)) scaleX(1); }
+}
+
+@keyframes transition-focus-pulse {
+  0% { outline-color: transparent; filter: none; }
+  22% { outline-color: rgba(255, 112, 91, 0.92); filter: drop-shadow(0 0 0.55rem rgba(255, 88, 68, 0.56)); }
+  72% { outline-color: rgba(255, 112, 91, 0.5); filter: drop-shadow(0 0 0.35rem rgba(255, 88, 68, 0.32)); }
+  100% { outline-color: transparent; filter: none; }
+}
+
+@keyframes transition-focus-reticle {
+  0% { outline-color: transparent; filter: none; }
+  20% { outline-color: rgba(255, 112, 91, 0.92); filter: drop-shadow(0 0 0.85rem rgba(255, 76, 57, 0.64)); }
+  55% { outline-offset: 0.65rem; filter: drop-shadow(0 0 0.45rem rgba(255, 76, 57, 0.4)); }
+  100% { outline-color: transparent; outline-offset: 0.15rem; filter: none; }
+}
+
+@keyframes transition-focus-damage {
+  0% { outline-color: transparent; filter: none; }
+  18%, 34%, 50% { outline-color: rgba(255, 76, 57, 0.98); filter: drop-shadow(0 0 0.9rem rgba(255, 51, 36, 0.74)); }
+  26%, 42%, 58% { outline-color: rgba(255, 196, 92, 0.72); filter: drop-shadow(0 0 0.38rem rgba(255, 139, 45, 0.42)); }
+  100% { outline-color: transparent; filter: none; }
+}
+
+@keyframes transition-focus-victor {
+  0% { outline-color: transparent; filter: none; }
+  24% { outline-color: rgba(255, 205, 95, 0.96); filter: drop-shadow(0 0 0.8rem rgba(255, 177, 53, 0.68)); }
+  75% { outline-color: rgba(255, 205, 95, 0.54); filter: drop-shadow(0 0 0.42rem rgba(255, 177, 53, 0.38)); }
+  100% { outline-color: transparent; filter: none; }
+}
+
+@media (max-width: 760px) {
+  .hint {
+    max-width: 16rem;
+    font-size: 0.42rem;
+  }
+
+  .targetBeacon::before,
+  .targetBeacon::after,
+  .secondaryConnector {
+    display: none;
+  }
+
+  .cuePiece {
+    transform: scale(0.78);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cueLayer::before,
+  .connector,
+  .stepCue {
+    display: none;
+  }
+
+  .targetBeacon {
+    opacity: 0.82;
+    animation: none;
+  }
+
+  :global([data-transition-focus="primary"]),
+  :global([data-transition-focus="secondary"]) {
+    filter: none !important;
+    animation: none !important;
+  }
+}
