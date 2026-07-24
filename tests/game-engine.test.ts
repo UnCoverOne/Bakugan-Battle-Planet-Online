@@ -3,11 +3,12 @@ import assert from "node:assert/strict";
 import { BAKUGAN, CARDS, CORES, STARTER_DECKS, deckErrors, makePlayer } from "../lib/data";
 import {
   CENTER_CELL, HEX_CELLS, beginCorePlacement, cardChoiceSpec, createMatch, discardToHandLimit, energizeCard,
-  legalPlacementCells, normalizeMatchState, passPriority, placeCore, playCard, selectBakugan,
-  setReady, startNextSeriesGame, targetCore, totalPower, type MatchState,
+  legalPlacementCells, normalizeMatchState, orderTriggers, passPriority, placeCore, playCard, selectBakugan,
+  setReady, startNextSeriesGame, submitCardChoice, targetCore, totalPower, type MatchState,
 } from "../lib/game";
 import { drawTurnCard } from "../lib/turnStart";
 import { flipDamageCard, resolveManualDamage } from "../lib/manualDamage";
+import { timeoutChoicesForFields } from "../lib/engine/timeout-policy";
 
 const passWindow = (state: MatchState) => {
   state = passPriority(state, state.priority); return passPriority(state, state.priority);
@@ -176,11 +177,19 @@ test("the End Phase charges Energy, enforces seven cards, resolves discard trigg
   state = passWindow(state); assert.equal(state.phase,"handLimit"); const actor=state.players.find((player) => player.id===state.priority)!; state=discardToHandLimit(state,actor.id,actor.hand.slice(0,actor.hand.length-7).map((card)=>card.id));
   const nextOver=state.players.find((player)=>state.phase==="handLimit"&&player.id===state.priority); if(nextOver) state=discardToHandLimit(state,nextOver.id,nextOver.hand.slice(0,nextOver.hand.length-7).map((card)=>card.id));
   let triggerWindows = 0;
-  while (state.phase === "endPlay" && triggerWindows < 20) {
-    state = passWindow(state);
+  while (state.phase === "endPlay" && triggerWindows < 40) {
+    if (state.pendingChoice) {
+      const fields = state.pendingChoice.schema.fields.filter((field) => field.chooserId === state.priority);
+      state = submitCardChoice(state, state.priority, timeoutChoicesForFields(state, state.priority, fields));
+    } else {
+      const triggerOrder = state.triggerOrders.find((request) => request.controllerId === state.priority && !request.orderedIds);
+      state = triggerOrder
+        ? orderTriggers(state, state.priority, triggerOrder.id, triggerOrder.triggerIds)
+        : passWindow(state);
+    }
     triggerWindows += 1;
   }
-  assert.ok(triggerWindows < 20, "Discard-trigger resolution must terminate.");
+  assert.ok(triggerWindows < 40, "Discard-trigger and choice resolution must terminate.");
   assert.equal(state.phase,"draw"); assert.equal(state.turn,2); assert.ok(state.players.every((player)=>player.energy===player.maxEnergy));
 });
 
