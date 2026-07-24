@@ -53,6 +53,32 @@ jobs:
         run: |
           set -o pipefail
           node scripts/apply-native-rules-kernel.mjs 2>&1 | tee migration.log
+      - name: Finalize typed catalogue semantics
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          catalogue = Path('lib/rules/catalogue.ts')
+          source = catalogue.read_text()
+          before_trigger = '[/when (?:your )?opponent plays/i, "CARD_PLAYED", "opponent"],'
+          after_trigger = '[/when (?:your |an )?opponent plays/i, "CARD_PLAYED", "opponent"],'
+          before_cost = '    let effects = parseAtomicEffects(card, clause);\n    if (REPLACEMENT_CARD_NUMBERS.has(card.number)'
+          after_cost = '    let effects = parseAtomicEffects(card, clause);\n    if (card.number === 152) effects = effects.filter((effect) => effect.kind !== "discard");\n    if (REPLACEMENT_CARD_NUMBERS.has(card.number)'
+          if before_trigger not in source:
+              raise SystemExit('opponent trigger anchor is missing')
+          if before_cost not in source:
+              raise SystemExit('additional-cost anchor is missing')
+          catalogue.write_text(source.replace(before_trigger, after_trigger, 1).replace(before_cost, after_cost, 1))
+
+          tests = Path('tests/rules-engine-modernization.test.ts')
+          test_source = tests.read_text()
+          old = '  assert.ok(definitions.every((definition) => definition.sourceText.length > 0 || definition.cardType === "Character"));'
+          new = '  assert.ok(definitions.every((definition) => definition.implementationStatus === "complete"));'
+          if old not in test_source:
+              raise SystemExit('catalogue completeness assertion anchor is missing')
+          tests.write_text(test_source.replace(old, new, 1))
+          PY
       - name: Upload migration diagnostics
         if: always()
         uses: actions/upload-artifact@v4
