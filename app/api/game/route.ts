@@ -1,26 +1,29 @@
-import {
-  beginCorePlacement, cancelCardChoice, concedeMatch, createMatch, discardToHandLimit, energizeCard, nextTurn,
-  normalizeMatchState, orderTriggers, placeCore, prepareCardPlay, redactForPlayer, selectBakugan, setReady,
-  passPriority, startNextSeriesGame, submitCardChoice, type CardChoices, type MatchState,
-} from "../../../lib/game";
+import { normalizeMatchState, type MatchState } from "../../../lib/game";
 import { makeCanonicalPlayer, type CanonicalPlayerSelection } from "../../../lib/data";
-import { playCardWithAutoEnergy } from "../../../lib/cardPayment";
-import { addChatMessage } from "../../../lib/chat";
-import { tapEnergyCard } from "../../../lib/energy";
 import {
-  flipDamageCard,
-  resolveManualDamage,
-} from "../../../lib/manualDamage";
-import { confirmRoll, selectRollTarget } from "../../../lib/rolling";
-import { drawTurnCard } from "../../../lib/turnStart";
-import { undoLatestAction } from "../../../lib/undo";
-import { resolveExpiredDeadline } from "../../../lib/deadlines";
+  apiActionToCommand,
+  canonicalJson,
+  ensureEngineEventStore,
+  findCommandReceipt,
+  initializeMatch,
+  loadPersistedCommand,
+  normalizeEngineState,
+  persistInitialMatch,
+  persistTransition,
+  projectEventsForPlayer,
+  projectMatchForPlayer,
+  reduceMatch,
+  type ApiAction,
+  type CommandEnvelope,
+  type EngineBackedMatchState,
+} from "../../../lib/engine";
 import { assertSameOrigin, requestClientKey } from "../../../lib/request-security";
 
 export const dynamic = "force-dynamic";
 
 type Body = {
   action: string;
+  commandId?: string;
   code?: string;
   playerId?: string;
   expectedVersion?: number;
@@ -30,7 +33,7 @@ type Body = {
 };
 
 type MatchRecord = {
-  state: MatchState;
+  state: EngineBackedMatchState;
   previous: MatchState | null;
 };
 
@@ -48,6 +51,7 @@ const json = (value: unknown, status = 200) => Response.json(value, {
 async function getDatabase() {
   const { env } = await import("cloudflare:workers");
   if (!env.DB) throw new Error("The match database is unavailable.");
+  await ensureEngineEventStore(env.DB);
   return env.DB;
 }
 
@@ -65,6 +69,7 @@ async function publishMatchState(state: MatchState) {
 
 const encoder = new TextEncoder();
 const CAPABILITY_HEADER = "x-match-capability";
+const COMMAND_ID_HEADER = "x-command-id";
 const ACTIONS = new Set([
   "create", "join", "get", "ready", "begin-placement", "place", "draw", "energize", "tap-energy",
   "select", "target", "roll", "prepare-play", "play", "choice", "cancel-choice", "order-triggers",
@@ -77,6 +82,7 @@ function parseBody(value: unknown): Body {
   if (typeof body.action !== "string" || !ACTIONS.has(body.action)) throw new Error("A valid action is required.");
   if (body.action !== "create" && body.code != null && (typeof body.code !== "string" || !/^[A-Z2-9]{6}$/i.test(body.code))) throw new Error("Room code is invalid.");
   if (body.playerId != null && typeof body.playerId !== "string") throw new Error("Player ID is invalid.");
+  if (body.commandId != null && (typeof body.commandId !== "string" || !/^[A-Za-z0-9._:-]{8,160}$/.test(body.commandId))) throw new Error("Command ID is invalid.");
   if (body.expectedVersion != null && (!Number.isInteger(body.expectedVersion) || Number(body.expectedVersion) < 0)) throw new Error("Expected version is invalid.");
   if (body.payload != null && (typeof body.payload !== "object" || Array.isArray(body.payload))) throw new Error("Action payload is invalid.");
   return body as Body;
@@ -98,6 +104,28 @@ function roomCode() {
   const bytes = new Uint8Array(6);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (value) => alphabet[value % alphabet.length]).join("");
+}
+
+async function commandIdentity(
+  request: Request,
+  body: Body,
+  code: string,
+  playerId: string,
+  expectedVersion: number,
+) {
+  const requestHash = await digest(canonicalJson({
+    code,
+    playerId,
+    expectedVersion,
+    action: body.action,
+    format: body.format,
+    selection: body.selection,
+    payload: body.payload ?? {},
+  }));
+  const supplied = body.commandId ?? request.headers.get(COMMAND_ID_HEADER);
+  const commandId = supplied || `cmd-${requestHash}`;
+  if (!/^[A-Za-z0-9._:-]{8,160}$/.test(commandId)) throw new Error("Command ID is invalid.");
+  return { commandId, requestHash };
 }
 
 async function authenticateSeat(request: Request, code: string, playerId: string) {
@@ -135,49 +163,11 @@ async function load(code: string): Promise<MatchRecord | null> {
     .bind(code)
     .first<{ state_json: string; previous_state_json: string | null }>();
   return row ? {
-    state: normalizeMatchState(JSON.parse(row.state_json) as MatchState),
+    state: normalizeEngineState(normalizeMatchState(JSON.parse(row.state_json) as MatchState)),
     previous: row.previous_state_json
       ? normalizeMatchState(JSON.parse(row.previous_state_json) as MatchState)
       : null,
   } : null;
-}
-
-/**
- * Compare-and-swap on the authoritative gameplay version. Presence pings live
- * in a separate table, so they cannot conflict with or be erased by gameplay
- * transitions. Concurrent gameplay actions still compete for the same version,
- * allowing exactly one transition to win.
- */
-async function saveTransition(
-  code: string,
-  next: MatchState,
-  previous: MatchState | null,
-  expectedVersion: number,
-  broadcast = true,
-) {
-  const chat = next.log.filter((entry) => String(entry.kind) === "chat").slice(-100);
-  const events = next.log.filter((entry) => String(entry.kind) !== "chat").slice(-400);
-  const retained = new Set([...chat, ...events].map((entry) => entry.id));
-  next.log = next.log.filter((entry) => retained.has(entry.id));
-  const database = await getDatabase();
-  const result = await database.prepare(
-    "UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ? AND CAST(json_extract(state_json, '$.version') AS INTEGER) = ?",
-  ).bind(
-    JSON.stringify(next),
-    previous ? JSON.stringify(previous) : null,
-    Date.now(),
-    code,
-    expectedVersion,
-  ).run();
-  const saved = Number(result.meta?.changes ?? 0) > 0;
-  if (!saved) return false;
-  if (next.version % 5 === 0 || next.phase === "result") {
-    await database.prepare(
-      "INSERT OR REPLACE INTO match_snapshots (code, version, state_json, created_at) VALUES (?, ?, ?, ?)",
-    ).bind(code, next.version, JSON.stringify(next), Date.now()).run();
-  }
-  if (broadcast) await publishMatchState(next);
-  return true;
 }
 
 async function touchPresence(code: string, playerId: string, now = Date.now()) {
@@ -187,10 +177,7 @@ async function touchPresence(code: string, playerId: string, now = Date.now()) {
   ).bind(code, playerId, now).run();
 }
 
-/**
- * Existing matches pre-date the presence table, so missing rows are seeded from
- * their last persisted timestamps before the table becomes authoritative.
- */
+/** Existing snapshots pre-date the presence table, so missing rows are seeded. */
 async function hydratePresence(state: MatchState) {
   const database = await getDatabase();
   await database.batch(state.players.map((player) => database.prepare(
@@ -215,8 +202,75 @@ async function latestConflict(code: string, playerId: string, message = "Match s
   if (latest) await hydratePresence(latest.state);
   return json({
     error: message,
-    state: latest ? redactForPlayer(latest.state, playerId) : undefined,
+    state: latest ? projectMatchForPlayer(latest.state, playerId) : undefined,
   }, latest ? 409 : 404);
+}
+
+async function duplicateCommandResponse(
+  database: D1Database,
+  state: EngineBackedMatchState,
+  playerId: string,
+  commandId: string,
+  requestHash: string,
+) {
+  const embedded = findCommandReceipt(state, commandId);
+  const persisted = embedded ? null : await loadPersistedCommand(database, state.code, commandId);
+  const receipt = embedded ?? (persisted ? {
+    commandId: persisted.command_id,
+    actorId: persisted.actor_id,
+    expectedVersion: persisted.expected_version,
+    resultVersion: persisted.result_version,
+    requestHash: persisted.request_hash,
+    issuedAt: persisted.created_at,
+    eventSequenceStart: persisted.event_sequence_start,
+    eventSequenceEnd: persisted.event_sequence_end,
+  } : undefined);
+  if (!receipt) return null;
+  if (receipt.requestHash !== requestHash) {
+    return json({ error: "This command ID was already used for a different request." }, 409);
+  }
+  return json({
+    state: projectMatchForPlayer(state, playerId),
+    events: [],
+    commandId,
+    duplicate: true,
+    previousVersion: receipt.expectedVersion,
+    newVersion: receipt.resultVersion,
+  });
+}
+
+async function applyExpiredDeadline(
+  state: EngineBackedMatchState,
+  previous: MatchState | null,
+  coordinated: boolean,
+) {
+  const now = Date.now();
+  const commandId = `deadline:${state.id}:${state.version}:${state.deadline}`;
+  const requestHash = await digest(commandId);
+  const envelope: CommandEnvelope = {
+    commandId,
+    gameId: state.id,
+    actorId: "system",
+    expectedVersion: state.version,
+    issuedAt: now,
+    randomSeed: secureToken(32),
+    requestHash,
+    command: { type: "RESOLVE_DEADLINE" },
+  };
+  const result = reduceMatch(state, envelope);
+  if (!result.changed || !result.receipt) return { state, previous };
+  const database = await getDatabase();
+  const saved = await persistTransition(database, {
+    code: state.code,
+    next: result.state,
+    previous: state,
+    expectedVersion: state.version,
+    events: result.events,
+    receipt: result.receipt,
+  });
+  if (!saved) return null;
+  if (!coordinated) await publishMatchState(result.state);
+  return { state: result.state, previous: state };
 }
 
 export async function POST(request: Request) {
@@ -227,26 +281,43 @@ export async function POST(request: Request) {
     const body = parseBody(await request.json());
     const clientKey = requestClientKey(request);
     await enforceRateLimit(`${clientKey}:${body.action === "chat" ? "chat" : "game"}`, body.action === "chat" ? 30 : 180, 60_000);
+
     if (body.action === "create") {
       if (!body.selection || !body.format) return json({ error: "Missing canonical match setup." }, 400);
       const player = makeCanonicalPlayer(body.selection);
       const database = await getDatabase();
+      const issuedAt = Date.now();
+      const identity = await commandIdentity(request, body, "NEW", player.id, 0);
+      const baseSeed = secureToken(32);
       let code = "";
-      let state: MatchState | null = null;
+      let result: ReturnType<typeof initializeMatch> | null = null;
       for (let attempt = 0; attempt < 12; attempt += 1) {
         code = roomCode();
-        state = createMatch(code, body.format, [player]);
-        const inserted = await database.prepare("INSERT OR IGNORE INTO matches (code, state_json, previous_state_json, updated_at) VALUES (?, ?, NULL, ?)")
-          .bind(code, JSON.stringify(state), Date.now()).run();
-        if (Number(inserted.meta?.changes ?? 0) > 0) break;
-        state = null;
+        result = initializeMatch(code, body.format, [player], {
+          commandId: identity.commandId,
+          actorId: player.id,
+          issuedAt,
+          randomSeed: `${baseSeed}:${code}`,
+          requestHash: identity.requestHash,
+        });
+        if (!result.receipt) throw new Error("Match initialization did not produce a command receipt.");
+        if (await persistInitialMatch(database, result.state, result.events, result.receipt)) break;
+        result = null;
       }
-      if (!state) return json({ error: "A unique room code could not be allocated." }, 503);
+      if (!result) return json({ error: "A unique room code could not be allocated." }, 503);
       const capability = await registerSeat(code, player.id);
-      await touchPresence(code, player.id);
-      await publishMatchState(state);
-      console.info(JSON.stringify({ event: "match_created", correlationId, code, playerId: player.id, version: state.version }));
-      return json({ state: redactForPlayer(state, player.id), capability });
+      await touchPresence(code, player.id, issuedAt);
+      if (!coordinated) await publishMatchState(result.state);
+      console.info(JSON.stringify({ event: "match_created", correlationId, commandId: identity.commandId, code, playerId: player.id, version: result.state.version }));
+      return json({
+        state: projectMatchForPlayer(result.state, player.id),
+        events: projectEventsForPlayer(result.events, player.id),
+        commandId: identity.commandId,
+        duplicate: false,
+        previousVersion: 0,
+        newVersion: result.state.version,
+        capability,
+      });
     }
 
     if (!body.code) return json({ error: "Room code required." }, 400);
@@ -261,90 +332,123 @@ export async function POST(request: Request) {
     }
     await hydratePresence(record.state);
 
-    let state = record.state;
-    const beforeDeadline = structuredClone(state);
-    const timed = resolveExpiredDeadline(state);
-    if (timed !== state) {
-      if (!await saveTransition(code, timed, beforeDeadline, beforeDeadline.version, !coordinated)) return latestConflict(code, body.playerId ?? "");
-      state = timed;
-      record = { state, previous: beforeDeadline };
-    }
+    const deadlineResult = await applyExpiredDeadline(record.state, record.previous, coordinated);
+    if (!deadlineResult) return latestConflict(code, body.playerId ?? "");
+    record = deadlineResult;
+    const state = record.state;
 
     if (body.action === "get") {
-      return json({ state: redactForPlayer(state, body.playerId ?? "") });
+      return json({ state: projectMatchForPlayer(state, body.playerId ?? "") });
     }
 
     if (body.action === "join") {
       if (!body.selection) return json({ error: "Canonical player selection required." }, 400);
       const player = makeCanonicalPlayer(body.selection);
-      if (state.players.length >= 2 && !state.players.some((candidate) => candidate.id === player.id)) return json({ error: "Room is full." }, 409);
-      if (!state.players.some((candidate) => candidate.id === player.id)) {
-        const before = structuredClone(state);
-        state.players.push(player);
-        state.series[player.id] = 0;
-        state.version += 1;
-        state.log.push({ id: `${Date.now()}-join`, at: Date.now(), kind: "connection", message: `${player.name} joined the room.` });
-        if (!await saveTransition(state.code, state, before, before.version, !coordinated)) {
-          return latestConflict(code, player.id);
-        }
-        const capability = await registerSeat(code, player.id);
-        await touchPresence(code, player.id);
-        return json({ state: redactForPlayer(state, player.id), capability });
+      if (state.players.some((candidate) => candidate.id === player.id)) {
+        if (!await authenticateSeat(request, code, player.id)) return json({ error: "A valid seat capability is required to reconnect." }, 403);
+        return json({ state: projectMatchForPlayer(state, player.id) });
       }
-      if (!await authenticateSeat(request, code, player.id)) return json({ error: "A valid seat capability is required to reconnect." }, 403);
-      return json({ state: redactForPlayer(state, player.id) });
+      if (state.players.length >= 2) return json({ error: "Room is full." }, 409);
+
+      const expectedVersion = body.expectedVersion ?? state.version;
+      const identity = await commandIdentity(request, body, code, player.id, expectedVersion);
+      const database = await getDatabase();
+      const duplicate = await duplicateCommandResponse(database, state, player.id, identity.commandId, identity.requestHash);
+      if (duplicate) return duplicate;
+      if (expectedVersion !== state.version) return latestConflict(code, player.id);
+
+      const envelope: CommandEnvelope = {
+        commandId: identity.commandId,
+        gameId: state.id,
+        actorId: player.id,
+        expectedVersion,
+        issuedAt: Date.now(),
+        randomSeed: secureToken(32),
+        requestHash: identity.requestHash,
+        command: { type: "JOIN_PLAYER", player },
+      };
+      const result = reduceMatch(state, envelope);
+      if (!result.receipt) throw new Error("Join did not produce a command receipt.");
+      const saved = await persistTransition(database, {
+        code,
+        next: result.state,
+        previous: state,
+        expectedVersion,
+        events: result.events,
+        receipt: result.receipt,
+      });
+      if (!saved) return latestConflict(code, player.id);
+      const capability = await registerSeat(code, player.id);
+      await touchPresence(code, player.id, envelope.issuedAt);
+      if (!coordinated) await publishMatchState(result.state);
+      return json({
+        state: projectMatchForPlayer(result.state, player.id),
+        events: projectEventsForPlayer(result.events, player.id),
+        commandId: identity.commandId,
+        duplicate: false,
+        previousVersion: expectedVersion,
+        newVersion: result.state.version,
+        capability,
+      });
     }
 
     if (!body.playerId) return json({ error: "Unknown player." }, 403);
-    if (body.expectedVersion != null && body.expectedVersion !== state.version) {
-      return json({ error: "Match state changed. Resynchronising.", state: redactForPlayer(state, body.playerId) }, 409);
+    const expectedVersion = body.expectedVersion ?? state.version;
+    const identity = await commandIdentity(request, body, code, body.playerId, expectedVersion);
+    const database = await getDatabase();
+    const duplicate = await duplicateCommandResponse(database, state, body.playerId, identity.commandId, identity.requestHash);
+    if (duplicate) return duplicate;
+    if (expectedVersion !== state.version) {
+      return json({ error: "Match state changed. Resynchronising.", state: projectMatchForPlayer(state, body.playerId) }, 409);
     }
 
-    const before = structuredClone(state);
     const payload = body.payload ?? {};
-    const choices = (payload.choices ?? {}) as CardChoices;
-    switch (body.action) {
-      case "ready": state = setReady(state, body.playerId); break;
-      case "begin-placement": state = beginCorePlacement(state); break;
-      case "place": state = placeCore(state, body.playerId, String(payload.coreId ?? ""), String(payload.cell ?? "")); break;
-      case "draw": state = drawTurnCard(state, body.playerId); break;
-      case "energize": state = energizeCard(state, body.playerId, payload.cardId ? String(payload.cardId) : undefined); break;
-      case "tap-energy": state = tapEnergyCard(state, body.playerId, String(payload.cardId ?? "")); break;
-      case "select": state = selectBakugan(state, body.playerId, String(payload.bakuganId ?? "")); break;
-      case "target": state = selectRollTarget(state, body.playerId, String(payload.cell ?? "")); break;
-      case "roll": state = confirmRoll(state, body.playerId); break;
-      case "prepare-play": state = prepareCardPlay(state, body.playerId, String(payload.cardId ?? "")); break;
-      case "play": state = playCardWithAutoEnergy(state, body.playerId, String(payload.cardId ?? ""), choices); break;
-      case "choice": state = submitCardChoice(state, body.playerId, choices); break;
-      case "cancel-choice": state = cancelCardChoice(state, body.playerId); break;
-      case "order-triggers": state = orderTriggers(state, body.playerId, String(payload.requestId ?? ""), Array.isArray(payload.orderedIds) ? payload.orderedIds.map(String) : []); break;
-      case "pass": state = passPriority(state, body.playerId); break;
-      case "flip-damage": state = flipDamageCard(state, body.playerId); break;
-      case "damage": state = resolveManualDamage(state, body.playerId, payload.cardId ? String(payload.cardId) : undefined, choices); break;
-      case "hand-limit": state = discardToHandLimit(state, body.playerId, Array.isArray(payload.cardIds) ? payload.cardIds.map(String) : []); break;
-      case "chat": state = addChatMessage(state, body.playerId, String(payload.message ?? "")); break;
-      case "concede": state = concedeMatch(state, body.playerId); break;
-      case "next-turn": state = nextTurn(state); break;
-      case "next-game": state = startNextSeriesGame(state); break;
-      case "undo": state = undoLatestAction(state, body.playerId); break;
-      default: return json({ error: "Unknown match command." }, 400);
-    }
-
-    const actor = state.players.find((player) => player.id === body.playerId);
-    if (actor) {
-      actor.lastSeen = Date.now();
-      actor.connected = true;
-    }
+    const envelope: CommandEnvelope = {
+      commandId: identity.commandId,
+      gameId: state.id,
+      actorId: body.playerId,
+      expectedVersion,
+      issuedAt: Date.now(),
+      randomSeed: secureToken(32),
+      requestHash: identity.requestHash,
+      command: apiActionToCommand(body.action as ApiAction, payload),
+    };
+    const before = structuredClone(state) as EngineBackedMatchState;
+    const result = reduceMatch(state, envelope);
+    if (!result.changed || !result.receipt) throw new Error("The command did not produce a persistent transition.");
     const previous = body.action === "chat" ? record.previous : before;
-    if (!await saveTransition(state.code, state, previous, before.version, !coordinated)) {
+    if (!await persistTransition(database, {
+      code,
+      next: result.state,
+      previous,
+      expectedVersion,
+      events: result.events,
+      receipt: result.receipt,
+    })) {
       return latestConflict(code, body.playerId);
     }
-    console.info(JSON.stringify({ event: "match_action", correlationId, code, action: body.action, playerId: body.playerId, version: state.version }));
-    return json({ state: redactForPlayer(state, body.playerId) });
+    if (!coordinated) await publishMatchState(result.state);
+    console.info(JSON.stringify({
+      event: "match_action",
+      correlationId,
+      commandId: identity.commandId,
+      code,
+      action: body.action,
+      playerId: body.playerId,
+      previousVersion: expectedVersion,
+      version: result.state.version,
+    }));
+    return json({
+      state: projectMatchForPlayer(result.state, body.playerId),
+      events: projectEventsForPlayer(result.events, body.playerId),
+      commandId: identity.commandId,
+      duplicate: false,
+      previousVersion: expectedVersion,
+      newVersion: result.state.version,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Match command failed.";
     console.error(JSON.stringify({ event: "match_action_failed", correlationId, message }));
     return json({ error: message }, 400);
   }
 }
-
