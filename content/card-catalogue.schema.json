@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bakugan-battle-planet-online.invalid/schemas/card-catalogue-v1.json",
+  "title": "Bakugan Battle Planet card catalogue",
+  "type": "array",
+  "minItems": 374,
+  "maxItems": 374,
+  "items": {
+    "type": "object",
+    "required": ["id", "number", "name", "displayName", "faction", "factions", "type", "cost", "rarity", "effect", "mechanics", "bPower", "damage", "coreTypes", "evolvesFrom", "art", "slug"],
+    "additionalProperties": true,
+    "properties": {
+      "id": { "type": "string", "pattern": "^bb-[1-9][0-9]*$" },
+      "number": { "type": "integer", "minimum": 1, "maximum": 374 },
+      "name": { "type": "string", "minLength": 1 },
+      "displayName": { "type": "string", "minLength": 1 },
+      "faction": { "enum": ["Aquos", "Pyrus", "Darkus", "Haos", "Ventus", "Aurelus"] },
+      "factions": { "type": "array", "minItems": 1, "uniqueItems": true },
+      "type": { "enum": ["Action", "Flip", "Hero", "Evo", "Character"] },
+      "cost": { "oneOf": [{ "type": "integer", "minimum": 0 }, { "const": "X" }] },
+      "effect": { "type": "string" },
+      "mechanics": { "type": "array", "items": { "type": "string" } },
+      "coreTypes": { "type": "array", "items": { "enum": ["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"] } },
+      "art": { "type": "string", "pattern": "^/assets/" },
+      "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+    }
+  }
+}

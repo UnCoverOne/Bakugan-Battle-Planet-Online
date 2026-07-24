@@ -1,4 +1,5 @@
 import type { MatchState } from "../game";
+import type { EngineObservation } from "./observability";
 import { ENGINE_METADATA_KEY, type CommandReceipt, type EngineBackedMatchState, type GameEvent } from "./types";
 
 let schemaReady: Promise<void> | undefined;
@@ -45,6 +46,20 @@ function engineSchemaStatements(database: D1Database) {
       PRIMARY KEY (code, command_id)
     )`),
     database.prepare("CREATE INDEX IF NOT EXISTS match_commands_result_version_idx ON match_commands (code, result_version)"),
+    database.prepare(`CREATE TABLE IF NOT EXISTS engine_observations (
+      id integer PRIMARY KEY AUTOINCREMENT,
+      code text,
+      command_id text,
+      kind text NOT NULL,
+      metric text NOT NULL,
+      value real NOT NULL,
+      duration_ms real,
+      context_json text NOT NULL,
+      details_json text,
+      created_at integer NOT NULL
+    )`),
+    database.prepare("CREATE INDEX IF NOT EXISTS engine_observations_code_created_idx ON engine_observations (code, created_at)"),
+    database.prepare("CREATE INDEX IF NOT EXISTS engine_observations_kind_created_idx ON engine_observations (kind, created_at)"),
   ];
 }
 
@@ -101,7 +116,7 @@ function eventInsert(
     String(event.actorId),
     event.visibility,
     event.visibleTo ?? null,
-    JSON.stringify(event.payload),
+    JSON.stringify({ ...event.payload, __versions: { engineVersion: event.engineVersion, rulesVersion: event.rulesVersion, cardCatalogueVersion: event.cardCatalogueVersion, digitalAdaptationVersion: event.digitalAdaptationVersion, contentSchemaVersion: event.contentSchemaVersion } }),
     event.engineVersion,
     event.rulesVersion,
     event.createdAt,
@@ -216,4 +231,11 @@ export async function persistTransition(
 
   const results = await database.batch(statements);
   return Number(results[0]?.meta?.changes ?? 0) > 0;
+}
+
+export async function recordEngineObservation(database: D1Database, observation: EngineObservation) {
+  await ensureEngineEventStore(database);
+  await database.prepare(`INSERT INTO engine_observations (code, command_id, kind, metric, value, duration_ms, context_json, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(observation.context.gameId ?? null, observation.context.commandId ?? null, observation.kind, observation.metric, observation.value, observation.durationMs ?? null, JSON.stringify(observation.context), observation.details ? JSON.stringify(observation.details) : null, observation.createdAt)
+    .run();
 }

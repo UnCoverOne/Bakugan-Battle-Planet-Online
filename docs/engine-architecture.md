@@ -94,3 +94,8 @@ The rules-engine CI gate requires the production Worker build, complete typed-ca
 ## Persistence transaction
 
 The compare-and-swap state update, domain event inserts, command receipt, and periodic snapshot are submitted in one D1 batch. Event and receipt inserts are conditioned on the saved snapshot's `lastCommandId`, so a losing concurrent command cannot append history for a state it did not commit. Presence remains separate from gameplay state.
+
+
+## Content, QA and operations
+
+The schema-controlled catalogue, provenance hierarchy, independent version profile, event-oriented response contract, conformance suite, observability and runtime budgets are documented in [`content-and-operations.md`](./content-and-operations.md).

@@ -5,6 +5,8 @@ export type RulesObjectStatus = "pending" | "resolving" | "resolved" | "negated"
 export type ChoiceTiming = "announce" | "pay" | "resolve";
 export type ChoiceVisibility = "public" | "private" | "secret-until-reveal";
 export type RulesDuration = "instant" | "turn" | "while-source-active" | "next-card" | "permanent";
+export type RuleCitation = { sourceId: string; locator: string; note?: string };
+export type RuleProvenance = { authorityOrder: string[]; citations: RuleCitation[]; reviewed: boolean };
 export type ModifierLayer = "base" | "set" | "core" | "continuous" | "temporary" | "protection" | "final";
 
 export type EntitySelector =
@@ -136,7 +138,11 @@ export type RuleDefinition = {
   faction: Faction;
   factions: Faction[];
   implementationStatus: "complete";
-  rulesVersion: "bp-rules-3";
+  rulesVersion: string;
+  contentVersion: string;
+  sourceTextFingerprint: string;
+  provenance: RuleProvenance;
+  goldenTestIds: string[];
   play: CardPlayDefinition;
   abilities: AbilityDefinition[];
 };

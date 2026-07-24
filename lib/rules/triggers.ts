@@ -1,4 +1,5 @@
 import type { CardType, GameCard, MatchState, PlayerState } from "../game";
+import { consumeTriggerCreation } from "../engine/limits";
 import { ruleDefinitionForCard } from "./catalogue";
 import { ruleConditionActive } from "./modifiers";
 import type { RuleObject, TriggerDefinition, TriggerEventName } from "./model";
@@ -70,13 +71,15 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
       }
     }
   }
-  return collected
+  const objects = collected
     .sort((left, right) => {
       const leftActive = Number(left.owner.id === state.startingPlayer);
       const rightActive = Number(right.owner.id === state.startingPlayer);
       return rightActive - leftActive || left.object.id.localeCompare(right.object.id);
     })
     .map((entry) => entry.object);
+  consumeTriggerCreation(objects.length);
+  return objects;
 }
 
 export function emitRuleEvent(state: MatchState, event: RuleEvent) {

@@ -1,8 +1,7 @@
-import catalogJson from "./catalog.generated.json";
+import { CONTROLLED_CATALOGUE } from "./content/catalogue";
 import type { Bakugan, Core, CoreType, Faction, GameCard, PlayerState } from "./game";
 
-type CatalogRecord = Omit<GameCard, "id" | "catalogId"> & { id: string; source?: string; hasProvidedScan?: boolean; slug?: string };
-const records = catalogJson as unknown as CatalogRecord[];
+const records = CONTROLLED_CATALOGUE;
 export const CARDS: GameCard[] = records.map((record) => ({ ...record, id: record.id, catalogId: record.id }));
 export const CARD_BY_ID = new Map(CARDS.map((card) => [card.catalogId, card]));
 

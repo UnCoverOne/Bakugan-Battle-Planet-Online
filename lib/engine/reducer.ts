@@ -30,6 +30,8 @@ import {
 } from "./events";
 import { assertCommandAllowedInPhase, assertValidPhaseTransition, structuredPhaseFor } from "./phase-machine";
 import { withDeterministicRuntime } from "./runtime";
+import { assertStateWithinRuntimeLimits, consumePendingChoice, engineFaultFromLimit, EngineRuntimeLimitError, withEngineRuntimeBudget } from "./limits";
+import { clearDecisionTimeouts } from "./timeout-policy";
 import {
   ENGINE_VERSION,
   RULES_VERSION,
@@ -41,6 +43,7 @@ import {
   type GameCommand,
   type InitializeMatchOptions,
   type ReduceResult,
+  type UnsequencedGameEvent,
 } from "./types";
 
 function assertEnvelope(state: MatchState, envelope: CommandEnvelope) {
@@ -110,13 +113,41 @@ export function reduceMatch(input: MatchState, envelope: CommandEnvelope): Reduc
     return { state: before, events: [], receipt: existing, duplicate: true, changed: false };
   }
   assertEnvelope(before, envelope);
+  const currentMetadata = ensureEngineMetadata(before);
+  if (currentMetadata.fault?.suspended && !["CHAT", "CONCEDE"].includes(envelope.command.type)) throw new EngineCommandError("MATCH_SUSPENDED", `Match suspended for engine investigation: ${currentMetadata.fault.code}.`);
   assertCommandAllowedInPhase(before, envelope.command);
-  const next = withDeterministicRuntime({ now: envelope.issuedAt, randomSeed: envelope.randomSeed }, () => (
-    dispatchCommand(before, String(envelope.actorId), envelope.command, envelope.issuedAt)
-  )) as EngineBackedMatchState;
+  let next: EngineBackedMatchState;
+  let runtimeBudget: NonNullable<ReturnType<typeof ensureEngineMetadata>["runtimeBudget"]>;
+  try {
+    const budgeted = withEngineRuntimeBudget(() => withDeterministicRuntime({ now: envelope.issuedAt, randomSeed: envelope.randomSeed }, () => {
+      const candidate = dispatchCommand(before, String(envelope.actorId), envelope.command, envelope.issuedAt) as EngineBackedMatchState;
+      consumePendingChoice(Number(Boolean(candidate.pendingChoice)) + candidate.triggerOrders.filter((request) => !request.orderedIds).length);
+      assertStateWithinRuntimeLimits(candidate);
+      return candidate;
+    }));
+    next = budgeted.value;
+    runtimeBudget = budgeted.budget;
+  } catch (error) {
+    if (!(error instanceof EngineRuntimeLimitError)) throw error;
+    const faulted = normalizeEngineState(before);
+    faulted.version = before.version + 1;
+    const metadata = ensureEngineMetadata(faulted);
+    metadata.fault = engineFaultFromLimit(error, faulted, envelope.commandId, envelope.issuedAt);
+    const faultEvents: UnsequencedGameEvent[] = [
+      { type: "COMMAND_ACCEPTED", actorId: envelope.actorId, visibility: "server", payload: { commandType: envelope.command.type, expectedVersion: envelope.expectedVersion } },
+      { type: "ENGINE_FAULT", actorId: "system", visibility: "public", payload: { code: metadata.fault.code, metric: metadata.fault.metric, limit: metadata.fault.limit, actual: metadata.fault.actual, suspended: true } },
+      { type: "COMMAND_COMPLETED", actorId: envelope.actorId, visibility: "public", payload: { commandType: envelope.command.type, previousVersion: before.version, newVersion: faulted.version, faulted: true } },
+    ];
+    const events = sequenceEvents(faulted, envelope, faultEvents);
+    const receipt = buildReceipt(envelope, faulted.version, events);
+    appendCommandReceipt(faulted, receipt);
+    return { state: faulted, events, receipt, duplicate: false, changed: true, faulted: true };
+  }
   normalizeRuleObjects(next);
   ensureRulesState(next);
-  ensureEngineMetadata(next);
+  const nextMetadata = ensureEngineMetadata(next);
+  nextMetadata.runtimeBudget = runtimeBudget;
+  if (envelope.actorId !== "system" && envelope.command.type !== "RESOLVE_DEADLINE") clearDecisionTimeouts(next, String(envelope.actorId));
   const changed = next.version !== before.version || JSON.stringify(next) !== JSON.stringify(before);
   if (!changed) {
     if (envelope.command.type === "RESOLVE_DEADLINE") return { state: before, events: [], duplicate: false, changed: false };

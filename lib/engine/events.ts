@@ -1,6 +1,10 @@
 import { cloneMatch, type GameCard, type MatchState } from "../game";
 import { structuredPhaseFor } from "./phase-machine";
 import {
+  APPLICATION_VERSION,
+  CARD_CATALOGUE_VERSION,
+  CONTENT_SCHEMA_VERSION,
+  DIGITAL_ADAPTATION_VERSION,
   ENGINE_METADATA_KEY,
   ENGINE_SCHEMA_VERSION,
   ENGINE_VERSION,
@@ -99,9 +103,14 @@ function summarizeCommand(envelope: CommandEnvelope) {
 
 export function ensureEngineMetadata(state: EngineBackedMatchState): EngineMetadata {
   const current = state[ENGINE_METADATA_KEY];
-  if (current?.schemaVersion === ENGINE_SCHEMA_VERSION) {
+  if (current) {
+    current.schemaVersion = ENGINE_SCHEMA_VERSION;
+    current.applicationVersion = current.applicationVersion || APPLICATION_VERSION;
     current.engineVersion = current.engineVersion || ENGINE_VERSION;
     current.rulesVersion = current.rulesVersion || RULES_VERSION;
+    current.cardCatalogueVersion = current.cardCatalogueVersion || CARD_CATALOGUE_VERSION;
+    current.digitalAdaptationVersion = current.digitalAdaptationVersion || DIGITAL_ADAPTATION_VERSION;
+    current.contentSchemaVersion = current.contentSchemaVersion || CONTENT_SCHEMA_VERSION;
     current.nextEventSequence = Number.isInteger(current.nextEventSequence) && current.nextEventSequence > 0
       ? current.nextEventSequence
       : 1;
@@ -112,8 +121,12 @@ export function ensureEngineMetadata(state: EngineBackedMatchState): EngineMetad
 
   const metadata: EngineMetadata = {
     schemaVersion: ENGINE_SCHEMA_VERSION,
+    applicationVersion: APPLICATION_VERSION,
     engineVersion: ENGINE_VERSION,
     rulesVersion: RULES_VERSION,
+    cardCatalogueVersion: CARD_CATALOGUE_VERSION,
+    digitalAdaptationVersion: DIGITAL_ADAPTATION_VERSION,
+    contentSchemaVersion: CONTENT_SCHEMA_VERSION,
     nextEventSequence: 1,
     phase: structuredPhaseFor(state.phase),
     receipts: [],
@@ -159,8 +172,11 @@ export function sequenceEvents(
     gameId: state.id,
     commandId: envelope.commandId,
     sequence: metadata.nextEventSequence++,
-    engineVersion: ENGINE_VERSION,
-    rulesVersion: RULES_VERSION,
+    engineVersion: metadata.engineVersion,
+    rulesVersion: metadata.rulesVersion,
+    cardCatalogueVersion: metadata.cardCatalogueVersion,
+    digitalAdaptationVersion: metadata.digitalAdaptationVersion,
+    contentSchemaVersion: metadata.contentSchemaVersion,
     createdAt: envelope.issuedAt,
   }));
   return sequenced;
