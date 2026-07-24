@@ -1,0 +1,48 @@
+name: Roll Phase Regression Check
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "lib/game.ts"
+      - "lib/rolling.ts"
+      - "lib/deadlines.ts"
+      - "components/game-screen-v2/turnProgressState.ts"
+      - "components/game-screen-v2/TurnProgressTracker.tsx"
+      - "components/game-screen-v2/PhaseTransitionLayer.tsx"
+      - "tests/brawl-presentation.test.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/roll-phase-regression.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "lib/game.ts"
+      - "lib/rolling.ts"
+      - "lib/deadlines.ts"
+      - "components/game-screen-v2/turnProgressState.ts"
+      - "components/game-screen-v2/TurnProgressTracker.tsx"
+      - "components/game-screen-v2/PhaseTransitionLayer.tsx"
+      - "tests/brawl-presentation.test.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/roll-phase-regression.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: node --import tsx --test tests/brawl-presentation.test.ts
+      - run: npm run lint
