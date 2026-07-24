@@ -1,0 +1,96 @@
+name: Rules Engine Check
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "lib/rules/**"
+      - "lib/engine/**"
+      - "lib/game.ts"
+      - "lib/cardPayment.ts"
+      - "lib/manualDamage.ts"
+      - "lib/energy.ts"
+      - "lib/evo.ts"
+      - "tests/rules-engine-modernization.test.ts"
+      - "tests/game-engine.test.ts"
+      - "package.json"
+      - ".github/workflows/rules-engine.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "lib/rules/**"
+      - "lib/engine/**"
+      - "lib/game.ts"
+      - "lib/cardPayment.ts"
+      - "lib/manualDamage.ts"
+      - "lib/energy.ts"
+      - "lib/evo.ts"
+      - "tests/rules-engine-modernization.test.ts"
+      - "tests/game-engine.test.ts"
+      - "package.json"
+      - ".github/workflows/rules-engine.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Build
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+      - name: Typed rules tests
+        id: rules
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:rules 2>&1 | tee rules.log
+      - name: Engine regression tests
+        id: engine
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:engine 2>&1 | tee engine.log
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee lint.log
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rules-engine-diagnostics
+          path: |
+            build.log
+            rules.log
+            engine.log
+            lint.log
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Enforce results
+        if: always()
+        shell: bash
+        run: |
+          test "${{ steps.build.outcome }}" = "success"
+          test "${{ steps.rules.outcome }}" = "success"
+          test "${{ steps.engine.outcome }}" = "success"
+          test "${{ steps.lint.outcome }}" = "success"
