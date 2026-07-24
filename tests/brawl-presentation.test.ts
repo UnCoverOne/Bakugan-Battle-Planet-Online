@@ -6,11 +6,17 @@ import {
   createMatch,
   passPriority,
   playCard,
+  redactForPlayer,
   selectBakugan,
   type MatchState,
   type RollOutcome,
 } from "../lib/game";
-import { confirmRoll, selectRollTarget } from "../lib/rolling";
+import {
+  allRollTargetsSelected,
+  confirmRoll,
+  playerCanConfirmRoll,
+  selectRollTarget,
+} from "../lib/rolling";
 import {
   brawlCombatants,
   brawlIsEngaged,
@@ -245,9 +251,19 @@ test("the Roll Phase advances from Selection priority to Rolling without bouncin
   assert.match(match.stepLabel, /Confirm rolls/);
   assert.equal(turnProgressSnapshot(match)?.stepKey, "rolling");
 
+  const playerView = redactForPlayer(match, player.id);
+  assert.equal(playerView.targets[opponent.id], undefined);
+  assert.equal(allRollTargetsSelected(playerView), true);
+  assert.equal(playerCanConfirmRoll(playerView, player.id), true);
+
   match = confirmRoll(match, player.id);
   assert.match(match.stepLabel, /Waiting for all players to roll/);
   assert.equal(turnProgressSnapshot(match)?.stepKey, "rolling");
+
+  const opponentView = redactForPlayer(match, opponent.id);
+  assert.equal(opponentView.targets[player.id], undefined);
+  assert.equal(allRollTargetsSelected(opponentView), true);
+  assert.equal(playerCanConfirmRoll(opponentView, opponent.id), true);
 
   match = confirmRoll(match, opponent.id);
   assert.equal(match.phase, "power");
