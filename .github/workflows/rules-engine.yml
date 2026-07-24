@@ -38,7 +38,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -67,6 +67,13 @@ jobs:
         run: |
           set -o pipefail
           npm run test:engine 2>&1 | tee engine.log
+      - name: Complete repository regression suite
+        id: full-suite
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee full-suite.log
       - name: Lint
         id: lint
         continue-on-error: true
@@ -83,6 +90,7 @@ jobs:
             build.log
             rules.log
             engine.log
+            full-suite.log
             lint.log
           if-no-files-found: warn
           retention-days: 7
@@ -93,4 +101,5 @@ jobs:
           test "${{ steps.build.outcome }}" = "success"
           test "${{ steps.rules.outcome }}" = "success"
           test "${{ steps.engine.outcome }}" = "success"
+          test "${{ steps.full-suite.outcome }}" = "success"
           test "${{ steps.lint.outcome }}" = "success"
