@@ -71,14 +71,23 @@ export type TurnTransition = TurnProgressSnapshot & {
   announcement: string;
 };
 
-const DEFAULT_PROGRESS_BY_ENGINE_PHASE: Record<Phase, Pick<TurnProgressState, "phaseKey" | "stepKey">> = {
+/**
+ * The engine phase is the authoritative source for phase/step progress.
+ * `stepLabel` is mutable status copy: card resolution, private targeting, and
+ * waiting messages can contain words such as "selection" or "damage" without
+ * changing the rules step. Inferring progress from that copy caused the Roll
+ * Phase to bounce back to Selection while BakuCore targets were being chosen.
+ */
+const PROGRESS_BY_ENGINE_PHASE: Record<Phase, Pick<TurnProgressState, "phaseKey" | "stepKey">> = {
   lobby: { phaseKey: "start", stepKey: "draw" },
   startingPlayer: { phaseKey: "start", stepKey: "draw" },
   placement: { phaseKey: "start", stepKey: "draw" },
   draw: { phaseKey: "start", stepKey: "draw" },
   energize: { phaseKey: "start", stepKey: "energize" },
   selection: { phaseKey: "roll", stepKey: "selection" },
-  preRoll: { phaseKey: "roll", stepKey: "rolling" },
+  // Selecting a Bakugan and the following card-play priority window are both
+  // part of the Selection Step. Rolling begins only after that window closes.
+  preRoll: { phaseKey: "roll", stepKey: "selection" },
   target: { phaseKey: "roll", stepKey: "rolling" },
   power: { phaseKey: "brawl", stepKey: "power" },
   victor: { phaseKey: "brawl", stepKey: "victor" },
@@ -89,24 +98,6 @@ const DEFAULT_PROGRESS_BY_ENGINE_PHASE: Record<Phase, Pick<TurnProgressState, "p
   handLimit: { phaseKey: "end", stepKey: "reset" },
   result: { phaseKey: "end", stepKey: "reset" },
 };
-
-function stepFromLabel(label: string): TurnStepKey | null {
-  const normalized = label.toLowerCase();
-  if (/draw step/.test(normalized)) return "draw";
-  if (/energize/.test(normalized)) return "energize";
-  if (/pre-roll|rolling|secret target|bakucore target|choose bakucore|roll step/.test(normalized)) {
-    return "rolling";
-  }
-  if (/selection/.test(normalized)) return "selection";
-  if (/power step/.test(normalized)) return "power";
-  if (/victor step/.test(normalized)) return "victor";
-  if (/damage/.test(normalized) && !/post-damage/.test(normalized)) return "damage";
-  if (/retract|post-damage/.test(normalized)) return "retracting";
-  if (/play step/.test(normalized)) return "play";
-  if (/charge step/.test(normalized)) return "charge";
-  if (/reset|discard to seven/.test(normalized)) return "reset";
-  return null;
-}
 
 export function remainingStepSeconds(deadline: number, now: number): number {
   if (!Number.isFinite(deadline) || !Number.isFinite(now)) return 0;
@@ -125,16 +116,11 @@ export function resolveTurnProgress(
 ): TurnProgressState | null {
   if (!match || match.turn <= 0 || match.phase === "lobby" || match.phase === "placement") return null;
 
-  const fallback = DEFAULT_PROGRESS_BY_ENGINE_PHASE[match.phase];
-  const stepKey = stepFromLabel(match.stepLabel) ?? fallback.stepKey;
-  const step = TURN_STEPS.find((candidate) => candidate.key === stepKey);
-  const phaseKey = step?.phase ?? fallback.phaseKey;
-
+  const progress = PROGRESS_BY_ENGINE_PHASE[match.phase];
   return {
-    phaseKey,
-    stepKey,
-    phaseIndex: TURN_PHASES.findIndex((candidate) => candidate.key === phaseKey),
-    stepIndex: TURN_STEPS.findIndex((candidate) => candidate.key === stepKey),
+    ...progress,
+    phaseIndex: TURN_PHASES.findIndex((candidate) => candidate.key === progress.phaseKey),
+    stepIndex: TURN_STEPS.findIndex((candidate) => candidate.key === progress.stepKey),
   };
 }
 
