@@ -81,8 +81,8 @@ function transitionPlan(
       };
     case "selection":
       return {
-        hint: "Choose a closed Bakugan while surveying the Hide Matrix.",
-        primarySelector: '[aria-label="BakuCores in the Hide Matrix"]',
+        hint: "Choose one closed Bakugan for this turn's roll.",
+        primarySelector: '[data-zone-group="character-cards"][data-zone-owner="player"]',
       };
     case "rolling":
       return {
