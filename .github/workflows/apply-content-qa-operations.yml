@@ -27,11 +27,11 @@ jobs:
           cache: npm
       - name: Materialize and apply migration
         run: |
-          cat scripts/apply-content-qa-operations.part-* | base64 -d | gzip -d > /tmp/apply-content-qa-operations.mjs
-          node /tmp/apply-content-qa-operations.mjs
+          cat scripts/apply-content-qa-operations.part-* | base64 -d | gzip -d > scripts/apply-content-qa-operations.mjs
+          node scripts/apply-content-qa-operations.mjs
       - run: npm ci
       - run: npm run content:lock
-      - run: rm scripts/apply-content-qa-operations.mjs.gz.b64 scripts/apply-content-qa-operations.part-* .github/workflows/apply-content-qa-operations.yml
+      - run: rm scripts/apply-content-qa-operations.mjs scripts/apply-content-qa-operations.mjs.gz.b64 scripts/apply-content-qa-operations.part-* .github/workflows/apply-content-qa-operations.yml
       - run: npm run validate:content
       - run: npm run test:content
       - run: npm run test:quality
