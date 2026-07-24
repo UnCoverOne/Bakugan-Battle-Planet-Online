@@ -87,6 +87,10 @@ The public phase value remains available to clients while the engine maintains a
 
 `lib/engine/play-pipeline.ts` now contains presentation and event metadata only: source zone, payment mode, copy status, response-window behavior, and destination. It is not an execution adapter. Card commands are executed directly by `lib/rules/runtime.ts`.
 
+## Validation contract
+
+The rules-engine CI gate requires the production Worker build, complete typed-catalogue tests, deterministic engine and gameplay regressions, and lint to pass together. The former `test:gameplay:legacy` alias has been removed; there is no alternate compatibility suite that can bypass the native rules path.
+
 ## Persistence transaction
 
 The compare-and-swap state update, domain event inserts, command receipt, and periodic snapshot are submitted in one D1 batch. Event and receipt inserts are conditioned on the saved snapshot's `lastCommandId`, so a losing concurrent command cannot append history for a state it did not commit. Presence remains separate from gameplay state.
