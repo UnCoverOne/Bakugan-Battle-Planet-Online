@@ -52,7 +52,9 @@ This is a full-stack application, not a static export. Room-code multiplayer cal
 ## Main project areas
 
 - `app/` — UI, routes, and server API
-- `lib/game.ts` — deterministic game rules and state transitions
+- `lib/engine/` — typed commands, deterministic reduction, phase validation, domain events, idempotency, persistence, and client projections
+- `lib/game.ts` — Battle Planet rules and legacy-compatible state transitions used behind the engine boundary
+- `docs/engine-architecture.md` — command, reducer, event-store, projection, and migration architecture
 - `lib/persistence.ts` — versioned browser/cloud snapshots and conflict merging
 - `lib/account-server.ts` — password hashing, session cookies, and account helpers
 - `lib/catalog.generated.json` — Battle Planet card catalogue
