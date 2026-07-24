@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { CARDS } from "../lib/data";
 import {
   CENTER_CELL,
   HEX_CELLS,
@@ -16,34 +17,11 @@ import { advanceOpponentAi } from "../lib/opponentAi";
 
 let serial = 0;
 
-function card(
-  name: string,
-  effect: string,
-  type: GameCard["type"] = "Action",
-  cost: number | "X" = 0,
-  extra: Partial<GameCard> = {},
-): GameCard {
+function printedCard(number: number, instanceId?: string): GameCard {
+  const source = CARDS.find((candidate) => candidate.number === number);
+  assert.ok(source, `Missing catalogue card ${number}`);
   serial += 1;
-  return {
-    id: extra.id ?? `card-${serial}`,
-    catalogId: extra.catalogId ?? `catalog-${serial}`,
-    number: serial,
-    name,
-    displayName: name,
-    faction: extra.faction ?? "Aquos",
-    factions: extra.factions ?? [extra.faction ?? "Aquos"],
-    type,
-    cost,
-    rarity: "",
-    effect,
-    mechanics: [],
-    bPower: null,
-    damage: null,
-    coreTypes: [],
-    evolvesFrom: null,
-    art: "",
-    ...extra,
-  };
+  return { ...source, id: instanceId ?? `printed-card-${number}-${serial}` };
 }
 
 function bakugan(
@@ -53,14 +31,14 @@ function bakugan(
   damage: number,
   extra: Partial<Bakugan> = {},
 ): Bakugan {
-  const character = card(`${id} Character`, "", "Character", 0, {
+  const printedCharacter = CARDS.find((candidate) => candidate.type === "Character" && candidate.faction === faction);
+  assert.ok(printedCharacter, `Missing ${faction} Character definition`);
+  const character: GameCard = {
+    ...printedCharacter,
     id: `${id}-character`,
-    catalogId: `${id}-character`,
-    faction,
-    factions: [faction],
     bPower,
     damage,
-  });
+  };
   return {
     id,
     name: id,
@@ -137,7 +115,7 @@ function matchWith(
 function addEnergy(owner: PlayerState, amount: number) {
   owner.energyZone = Array.from(
     { length: amount },
-    (_, index) => card(`Energy ${index}`, "", "Action", 0),
+    (_, index) => printedCard(10, `${owner.id}-energy-${index}`),
   );
   owner.maxEnergy = amount;
 }
@@ -196,10 +174,10 @@ function cell(q: number, r: number) {
 }
 
 test("AI does not spend a pure temporary combat card after its Bakugan misses", () => {
-  const boost = card("Missed Boost", "+1000 [B].", "Action", 1);
+  const boost = printedCard(16, "missed-boost"); // Ice Wall: +900 B for 4 Energy.
   const ai = player("ai", [bakugan("ai-b", "Aquos", 500, 5)], [], [boost]);
   const human = player("human", [bakugan("human-b", "Pyrus", 500, 5)]);
-  addEnergy(ai, 1);
+  addEnergy(ai, 4);
   const match = matchWith(ai, human);
   setBrawl(match, ai, human, false, true);
 
@@ -210,10 +188,10 @@ test("AI does not spend a pure temporary combat card after its Bakugan misses", 
 });
 
 test("AI keeps a temporary B-Power card that cannot turn a loss into a win", () => {
-  const boost = card("Too Small", "+500 [B].", "Action", 1);
+  const boost = printedCard(49, "too-small-boost"); // Smoke Armor: +500 B for 3 Energy.
   const ai = player("ai", [bakugan("ai-b", "Aquos", 500, 5)], [], [boost]);
   const human = player("human", [bakugan("human-b", "Pyrus", 1200, 5)]);
-  addEnergy(ai, 1);
+  addEnergy(ai, 3);
   const match = matchWith(ai, human);
   setBrawl(match, ai, human, true, true);
 
@@ -224,10 +202,10 @@ test("AI keeps a temporary B-Power card that cannot turn a loss into a win", () 
 });
 
 test("AI commits a temporary B-Power card when the complete effect wins the Brawl", () => {
-  const boost = card("Winning Boost", "+500 [B].", "Action", 1);
+  const boost = printedCard(49, "winning-boost"); // Smoke Armor: +500 B for 3 Energy.
   const ai = player("ai", [bakugan("ai-b", "Aquos", 500, 5)], [], [boost]);
   const human = player("human", [bakugan("human-b", "Pyrus", 900, 5)]);
-  addEnergy(ai, 1);
+  addEnergy(ai, 3);
   const match = matchWith(ai, human);
   setBrawl(match, ai, human, true, true);
 
@@ -238,10 +216,11 @@ test("AI commits a temporary B-Power card when the complete effect wins the Braw
 });
 
 test("independent card value remains playable even when its combat clause is insufficient", () => {
-  const utility = card("Study the Fight", "+100 [B]. Draw a card.", "Action", 0);
+  const utility = printedCard(2, "study-the-fight"); // Aquos Shield: +200 B and conditional draw.
   const ai = player("ai", [bakugan("ai-b", "Aquos", 500, 5)], [], [utility]);
   const human = player("human", [bakugan("human-b", "Pyrus", 1500, 5)]);
-  ai.deckCards = [card("Draw target", "")];
+  addEnergy(ai, 2);
+  ai.deckCards = [printedCard(10, "draw-target")];
   ai.deck = 1;
   const match = matchWith(ai, human);
   setBrawl(match, ai, human, true, true);
