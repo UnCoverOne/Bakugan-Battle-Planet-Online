@@ -7,6 +7,7 @@ import {
   type MatchState,
   type PendingEffect,
   type PlayerState,
+  type RollOutcome,
 } from "../../lib/game";
 
 export const BRAWL_PHASES = new Set([
@@ -15,6 +16,16 @@ export const BRAWL_PHASES = new Set([
   "damage",
   "postDamage",
   "retract",
+]);
+
+/**
+ * The preview is useful while players are comparing the active Bakugan and
+ * resolving Victor triggers. The Damage step replaces that decision space with
+ * the deck-flip interface, so the preview deliberately closes at that boundary.
+ */
+export const BRAWL_PREVIEW_PHASES = new Set([
+  "power",
+  "victor",
 ]);
 
 export type BrawlCombatantView = {
@@ -31,6 +42,10 @@ export type BrawlCombatantView = {
   baseDamage: number;
   effects: string[];
   modifiers: string[];
+  participating: boolean;
+  rollResult: RollOutcome["result"] | null;
+  rollLabel: string;
+  rollNote: string;
 };
 
 function activeBakugan(match: MatchState, player: PlayerState): Bakugan | null {
@@ -61,14 +76,30 @@ function coreBonuses(core: Core, faction: Faction) {
   };
 }
 
+export function brawlRollLabel(result: RollOutcome["result"] | null | undefined) {
+  switch (result) {
+    case "miss-closed": return "MISS • CLOSED";
+    case "open-no-core": return "OPEN • NO CORE";
+    case "intended-core": return "OPEN • INTENDED CORE";
+    case "overshoot": return "OPEN • OVERSHOOT";
+    case "undershoot": return "OPEN • UNDERSHOOT";
+    case "skew-left": return "OPEN • SKEW LEFT";
+    case "skew-right": return "OPEN • SKEW RIGHT";
+    case "path-intercept": return "OPEN • PATH INTERCEPT";
+    default: return "ROLL PENDING";
+  }
+}
 
 export function brawlIsEngaged(match: MatchState | null | undefined) {
-  if (!match || !BRAWL_PHASES.has(match.phase) || match.players.length < 2) return false;
-  return match.players.every((player) => {
-    const bakugan = activeBakugan(match, player);
-    const roll = match.rolls[player.id];
-    return Boolean(bakugan?.open && roll && roll.result !== "miss-closed");
-  });
+  if (!match || !BRAWL_PREVIEW_PHASES.has(match.phase) || match.players.length < 2) return false;
+  const combatants = match.players.map((player) => ({
+    bakugan: activeBakugan(match, player),
+    roll: match.rolls[player.id],
+  }));
+  return combatants.every(({ bakugan, roll }) => Boolean(bakugan && roll))
+    && combatants.some(({ bakugan, roll }) => Boolean(
+      bakugan?.open && roll && roll.result !== "miss-closed",
+    ));
 }
 
 export function brawlCombatantView(
@@ -77,6 +108,10 @@ export function brawlCombatantView(
 ): BrawlCombatantView | null {
   const bakugan = activeBakugan(match, player);
   if (!bakugan) return null;
+  const roll = match.rolls[player.id];
+  const participating = Boolean(
+    bakugan.open && roll && roll.result !== "miss-closed",
+  );
   const card = topCard(bakugan);
   const cores = heldCores(match, bakugan);
   const coreTotals = cores.reduce((totals, core) => {
@@ -90,12 +125,19 @@ export function brawlCombatantView(
   const baseDamage = card.damage ?? bakugan.damage;
   const temporaryPower = match.powerBoost[bakugan.id] ?? 0;
   const temporaryDamage = match.damageBoost[bakugan.id] ?? 0;
-  const power = totalPower(match, player.id);
-  const damage = totalDamage(match, player.id);
-  const continuousPower = power - basePower - coreTotals.power - temporaryPower;
-  const continuousDamage = damage - baseDamage - coreTotals.damage - temporaryDamage;
+  const power = participating ? totalPower(match, player.id) : 0;
+  const damage = participating ? totalDamage(match, player.id) : 0;
+  const continuousPower = participating
+    ? power - basePower - coreTotals.power - temporaryPower
+    : 0;
+  const continuousDamage = participating
+    ? damage - baseDamage - coreTotals.damage - temporaryDamage
+    : 0;
   const modifiers: string[] = [];
 
+  if (!participating) {
+    modifiers.push("Roll result • Missed and remained closed");
+  }
   for (const core of cores) {
     const bonus = coreBonuses(core, bakugan.faction);
     const values = [
@@ -137,6 +179,10 @@ export function brawlCombatantView(
     baseDamage,
     effects: effects.length ? effects : ["No printed or continuous effects"],
     modifiers,
+    participating,
+    rollResult: roll?.result ?? null,
+    rollLabel: brawlRollLabel(roll?.result),
+    rollNote: roll?.note ?? "The roll result is not available.",
   };
 }
 
@@ -183,4 +229,3 @@ export function powerStepStatus(match: MatchState | null | undefined) {
     topEffectId: match?.phase === "power" ? batchTopEffect(match)?.id ?? "" : "",
   };
 }
-
