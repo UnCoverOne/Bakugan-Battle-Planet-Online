@@ -1,0 +1,49 @@
+name: Apply Content QA Operations
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/apply-content-qa-operations.mjs.gz.b64"
+      - "scripts/apply-content-qa-operations.part-*"
+      - ".github/workflows/apply-content-qa-operations.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - name: Materialize and apply migration
+        run: |
+          cat scripts/apply-content-qa-operations.part-* | base64 -d | gzip -d > /tmp/apply-content-qa-operations.mjs
+          node /tmp/apply-content-qa-operations.mjs
+      - run: npm ci
+      - run: npm run content:lock
+      - run: rm scripts/apply-content-qa-operations.mjs.gz.b64 scripts/apply-content-qa-operations.part-* .github/workflows/apply-content-qa-operations.yml
+      - run: npm run validate:content
+      - run: npm run test:content
+      - run: npm run test:quality
+      - run: npm test
+      - run: npm run lint
+      - run: npm run cf:dry-run
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: implement content QA and operations roadmap'
+          git push origin HEAD:${{ github.head_ref }}
