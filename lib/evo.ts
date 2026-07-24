@@ -1,24 +1,12 @@
 import type { Bakugan, GameCard, MatchState } from "./game";
+import { ruleDefinitionForCard } from "./rules/catalogue";
+import { canonicalEvoTargetAllowed } from "./rules/identity";
 
-type CharacterFaceState = Bakugan & {
-  characterFaceUp?: boolean;
-};
-
-function normalizedName(value: string | null | undefined) {
-  return String(value ?? "")
-    .replace(/\s*\(Battle Brawlers\)\s*$/i, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
+type CharacterFaceState = Bakugan & { characterFaceUp?: boolean };
 
 export function evoCanTarget(card: GameCard | null | undefined, bakugan: Bakugan | null | undefined) {
-  if (!card || card.type !== "Evo" || !bakugan || !card.evolvesFrom) return false;
-  const matchesName = normalizedName(card.evolvesFrom) === normalizedName(bakugan.name);
-  const matchesFaction = card.factions?.length
-    ? card.factions.includes(bakugan.faction)
-    : card.faction === bakugan.faction;
-  return matchesName && matchesFaction;
+  if (!card || card.type !== "Evo" || !bakugan) return false;
+  return canonicalEvoTargetAllowed(ruleDefinitionForCard(card), bakugan);
 }
 
 export function legalEvoTargets(
@@ -40,5 +28,3 @@ export function selectedEvoTargetId(root: ParentNode = document) {
 export function characterCardIsFaceUp(bakugan: Bakugan | null | undefined) {
   return Boolean(bakugan && (bakugan.open || (bakugan as CharacterFaceState).characterFaceUp));
 }
-
-
