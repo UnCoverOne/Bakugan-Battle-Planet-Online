@@ -1,12 +1,26 @@
-name: Opponent AI Check
+name: Opponent AI Regression Check
 
 on:
-  push:
-    branches:
-      - agent/opponent-ai-tactics
   pull_request:
     branches:
       - main
+    paths:
+      - "lib/opponentAi*.ts"
+      - "lib/game.ts"
+      - "lib/rules/**"
+      - "tests/opponent-ai*.test.ts"
+      - "package.json"
+      - "package-lock.json"
+  push:
+    branches:
+      - main
+    paths:
+      - "lib/opponentAi*.ts"
+      - "lib/game.ts"
+      - "lib/rules/**"
+      - "tests/opponent-ai*.test.ts"
+      - "package.json"
+      - "package-lock.json"
 
 permissions:
   contents: read
