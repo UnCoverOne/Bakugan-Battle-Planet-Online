@@ -37,7 +37,7 @@ test("the reviewed typed catalogue covers every Battle Planet card exactly", () 
   assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 374);
   assert.equal(CARDS.length, 374);
   for (const card of CARDS) assert.equal(validateCardAgainstRules(card), true);
-  assert.ok(definitions.every((definition) => definition.sourceText.length > 0 || definition.cardType === "Character"));
+  assert.ok(definitions.every((definition) => definition.implementationStatus === "complete"));
   assert.ok(definitions.every((definition) => definition.abilities.every((ability) => ability.instructions.length > 0)));
 });
 

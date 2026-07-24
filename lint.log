@@ -1,0 +1,128 @@
+
+> bakugan-battle-planet-online@0.1.0 lint
+> bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next
+
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/app/error.tsx
+  18:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/app/loading.tsx
+  4:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/app/not-found.tsx
+  6:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/app/offline/page.tsx
+  11:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/app/page.tsx
+   158:43   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   166:98   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   187:5    warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   200:10   warning  'CardArt' is defined but never used                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+   201:152  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   240:123  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   258:213  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   374:6    warning  React Hook useEffect has missing dependencies: 'decks', 'history', 'setBuilderDeck', 'setReplay', 'setReplayIndex', and 'setSelectedDeckId'. Either include them or remove the dependency array                                                                                          react-hooks/exhaustive-deps
+   394:6    warning  React Hook useEffect has missing dependencies: 'setMatch', 'setMatchCapability', 'setOnline', 'setPlayerId', and 'setSettings'. Either include them or remove the dependency array                                                                                                       react-hooks/exhaustive-deps
+   599:6    warning  React Hook useEffect has a missing dependency: 'setPlayerId'. Either include it or remove the dependency array                                                                                                                                                                           react-hooks/exhaustive-deps
+   606:6    warning  React Hook useEffect has a missing dependency: 'setLocalModifiedAt'. Either include it or remove the dependency array                                                                                                                                                                    react-hooks/exhaustive-deps
+   641:6    warning  React Hook useEffect has missing dependencies: 'loadCloudData', 'profile.signedIn', 'route', 'setProfile', and 'setRoute'. Either include them or remove the dependency array                                                                                                            react-hooks/exhaustive-deps
+   660:6    warning  React Hook useEffect has missing dependencies: 'authUser' and 'putCloudSnapshot'. Either include them or remove the dependency array                                                                                                                                                     react-hooks/exhaustive-deps
+   668:6    warning  React Hook useEffect has missing dependencies: 'authUser' and 'setLocalModifiedAt'. Either include them or remove the dependency array                                                                                                                                                   react-hooks/exhaustive-deps
+   684:6    warning  React Hook useEffect has missing dependencies: 'match', 'pushHistory', 'route', and 'setRoute'. Either include them or remove the dependency array                                                                                                                                       react-hooks/exhaustive-deps
+   691:6    warning  React Hook useEffect has missing dependencies: 'match' and 'setRoute'. Either include them or remove the dependency array                                                                                                                                                                react-hooks/exhaustive-deps
+   849:39   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   850:64   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   887:272  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   979:84   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   994:263  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1059:6    warning  React Hook useEffect has a missing dependency: 'deck'. Either include it or remove the dependency array                                                                                                                                                                                  react-hooks/exhaustive-deps
+  1283:15   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1292:15   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1311:203  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1317:170  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1441:338  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1453:183  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1466:75   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1474:660  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1510:10   warning  'Timer' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  1511:90   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1512:87   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/BakuCoreLayer.tsx
+  271:6  warning  React Hook useLayoutEffect has a missing dependency: 'destination'. Either include it or remove the dependency array                                                                                                                                                                     react-hooks/exhaustive-deps
+  282:5  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  369:6  warning  React Hook useEffect has a missing dependency: 'match?.players'. Either include it or remove the dependency array                                                                                                                                                                        react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/BakuCorePresentation.tsx
+  117:6  warning  React Hook useEffect has a missing dependency: 'cells'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/BrawlExperienceLayer.tsx
+   83:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  330:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/CardPreviewLayer.tsx
+  215:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/ChoiceQueueLayer.tsx
+  67:6  warning  React Hook useEffect has a missing dependency: 'triggerOrder?.triggerIds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/CorePlacementLayer.tsx
+   36:72  warning  React Hook useMemo has a missing dependency: 'match'. Either include it or remove the dependency array                                                                                                                                                                                   react-hooks/exhaustive-deps
+   88:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  101:26  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/DrawAnimationLayer.tsx
+   77:42  warning  The ref value 'hiddenTargets.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'hiddenTargets.current' to a variable inside the effect, and use that variable in the cleanup function                react-hooks/exhaustive-deps
+  183:6   warning  React Hook useLayoutEffect has a missing dependency: 'stored.match'. Either include it or remove the dependency array                                                                                                                                                                    react-hooks/exhaustive-deps
+  214:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  221:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/GameScreen.tsx
+  151:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  221:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  392:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  441:9   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/GameplayCardPresentationLayer.tsx
+  152:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/GameplayClient.tsx
+  281:6  warning  React Hook useEffect has missing dependencies: 'beginPlacement' and 'storedState.match'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  316:6  warning  React Hook useEffect has a missing dependency: 'storedState.match'. Either include it or remove the dependency array                         react-hooks/exhaustive-deps
+  338:6  warning  React Hook useEffect has a missing dependency: 'localPlayer'. Either include it or remove the dependency array                               react-hooks/exhaustive-deps
+  361:6  warning  React Hook useEffect has missing dependencies: 'drawCard' and 'storedState.match'. Either include them or remove the dependency array        react-hooks/exhaustive-deps
+  390:6  warning  React Hook useEffect has missing dependencies: 'passTurn' and 'storedState.match'. Either include them or remove the dependency array        react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/GameplaySoundLayer.tsx
+  71:6  warning  React Hook useEffect has a missing dependency: 'match'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/MatchDecisionLayer.tsx
+  142:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/MatchHudLayer.tsx
+  156:6  warning  React Hook useEffect has a missing dependency: 'match'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/ResponsiveCardImage.tsx
+  24:10  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  50:6   warning  React Hook useEffect has a missing dependency: 'sources'. Either include it or remove the dependency array                                                                                                                                                                               react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/RollResultLayer.tsx
+   83:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  108:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/SelectionInteractionLayer.tsx
+  125:6  warning  React Hook useEffect has a missing dependency: 'match'. Either include it or remove the dependency array         react-hooks/exhaustive-deps
+  233:6  warning  React Hook useEffect has a missing dependency: 'evoTargetIds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts
+  928:7  warning  'hasCoreType' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  929:7  warning  'coreCode' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  960:7  warning  'statValues' is assigned a value but never used   @typescript-eslint/no-unused-vars
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/manualDamage.ts
+  1:45  warning  'GameCard' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 75 problems (0 errors, 75 warnings)
+

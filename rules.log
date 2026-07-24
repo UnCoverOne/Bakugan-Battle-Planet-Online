@@ -1,0 +1,69 @@
+
+> bakugan-battle-planet-online@0.1.0 test:rules
+> node --import tsx --test tests/rules-engine-modernization.test.ts
+
+TAP version 13
+# Subtest: the reviewed typed catalogue covers every Battle Planet card exactly
+ok 1 - the reviewed typed catalogue covers every Battle Planet card exactly
+  ---
+  duration_ms: 1.576851
+  ...
+# Subtest: unknown or modified card text is rejected rather than resolving partially
+ok 2 - unknown or modified card text is rejected rather than resolving partially
+  ---
+  duration_ms: 0.466807
+  ...
+# Subtest: instead clauses are single typed replacement branches, not additive actions
+ok 3 - instead clauses are single typed replacement branches, not additive actions
+  ---
+  duration_ms: 0.330541
+  ...
+# Subtest: rule objects are serializable resumable objects with stable definition identity
+ok 4 - rule objects are serializable resumable objects with stable definition identity
+  ---
+  duration_ms: 3.32346
+  ...
+# Subtest: continuous layers apply ShadowStrike as negative-modifier filtering
+ok 5 - continuous layers apply ShadowStrike as negative-modifier filtering
+  ---
+  duration_ms: 8.589526
+  ...
+# Subtest: active FrostStrike from the layered modifier system increases Flip costs
+ok 6 - active FrostStrike from the layered modifier system increases Flip costs
+  ---
+  duration_ms: 1.064849
+  ...
+# Subtest: opponent-caused declarative triggers create typed rule objects
+ok 7 - opponent-caused declarative triggers create typed rule objects
+  ---
+  duration_ms: 1.153877
+  ...
+# Subtest: choice timing is explicit for announce, pay, and resolve
+ok 8 - choice timing is explicit for announce, pay, and resolve
+  ---
+  duration_ms: 1.196105
+  ...
+# Subtest: additional costs are separate from spell effects
+ok 9 - additional costs are separate from spell effects
+  ---
+  duration_ms: 0.349787
+  ...
+# Subtest: Evo targeting uses canonical Character identity rather than display names
+ok 10 - Evo targeting uses canonical Character identity rather than display names
+  ---
+  duration_ms: 1.354113
+  ...
+# Subtest: the game reducer has no card-resolution compatibility adapter
+ok 11 - the game reducer has no card-resolution compatibility adapter
+  ---
+  duration_ms: 14.973662
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 562.655637

@@ -52,7 +52,7 @@ function conditionFor(text: string): RuleCondition {
 
 function triggerFor(text: string): TriggerDefinition | undefined {
   const table: Array<[RegExp, TriggerEventName, TriggerDefinition["relationship"]]> = [
-    [/when (?:your )?opponent plays/i, "CARD_PLAYED", "opponent"],
+    [/when (?:your |an )?opponent plays/i, "CARD_PLAYED", "opponent"],
     [/when you play|when this is played/i, "CARD_PLAYED", "controller"],
     [/when you select a Bakugan/i, "BAKUGAN_SELECTED", "controller"],
     [/when this opens|when you open a Bakugan/i, "BAKUGAN_OPENED", "controller"],
@@ -188,6 +188,8 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   return clauses.map((clause, index) => {
     const condition = conditionFor(clause);
     let effects = parseAtomicEffects(card, clause);
+    if (card.number === 152) effects = effects.filter((effect) => effect.kind !== "discard");
+    if (!effects.length) effects = [{ kind: "sequence", effects: [] }];
     if (REPLACEMENT_CARD_NUMBERS.has(card.number) && /instead/i.test(clause)) {
       const parts = clause.split(/\binstead\b/i);
       const before = parseAtomicEffects(card, parts[0] ?? "");
@@ -219,7 +221,7 @@ function choice(
 
 function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec["timing"]): ChoiceSpec[] {
   const result: ChoiceSpec[] = [];
-  const timing = /when you play this|\bmay\b/i.test(text) ? "resolve" : defaultTiming;
+  const timing = /when you play this|\bmay\b|\bSacrifice\b/i.test(text) ? "resolve" : defaultTiming;
   if (card.type === "Evo" && defaultTiming === "announce") result.push(choice("targetBakuganId", "announce", "chosen-bakugan", "Choose the matching Character"));
   if (/choose (?:a|an|one).*Bakugan|target .*Bakugan|retract a Bakugan/i.test(text)) result.push(choice("targetBakuganId", timing, "chosen-bakugan", "Choose a Bakugan"));
   if (/choose a player/i.test(text)) result.push(choice("targetPlayerId", timing, "controller", "Choose a player"));
