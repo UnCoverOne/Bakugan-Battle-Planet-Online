@@ -17,10 +17,12 @@ export type RuleEvent = {
   createdAt: number;
 };
 
-function activeSources(state: MatchState, owner: PlayerState) {
+function activeSources(state: MatchState, owner: PlayerState, event: RuleEvent) {
   const selected = owner.bakugan.find((bakugan) => bakugan.id === state.selected[owner.id]);
   const top = selected ? selected.evoStack.at(-1) ?? selected.character : undefined;
-  return [...(top ? [top] : []), ...owner.heroes];
+  const playedSource = event.card && (event.controllerId ?? event.actorId) === owner.id ? event.card : undefined;
+  const sources = [...(top ? [top] : []), ...owner.heroes, ...(playedSource ? [playedSource] : [])];
+  return sources.filter((source, index) => sources.findIndex((candidate) => candidate.id === source.id) === index);
 }
 
 function relationshipMatches(trigger: TriggerDefinition, ownerId: string, event: RuleEvent) {
@@ -45,7 +47,7 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
   const rules = ensureRulesState(state);
   const collected: Array<{ owner: PlayerState; object: RuleObject }> = [];
   for (const owner of state.players) {
-    for (const source of activeSources(state, owner)) {
+    for (const source of activeSources(state, owner, event)) {
       const definition = ruleDefinitionForCard(source);
       for (const ability of definition.abilities) {
         if (ability.kind !== "triggered" || !ability.trigger || !triggerMatches(ability.trigger, owner, event, state)) continue;
@@ -53,7 +55,18 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
         if (ability.trigger.limit && rules.triggerUsage[key]) continue;
         if (ability.trigger.limit) rules.triggerUsage[key] = (rules.triggerUsage[key] ?? 0) + 1;
         const choices = event.targetBakuganId ? { targetBakuganId: event.targetBakuganId } : {};
-        collected.push({ owner, object: createRuleObject({ controllerId: owner.id, card: source, ability, kind: "trigger", choices, sourceId: source.id, createdByEventId: event.id }) });
+        collected.push({
+          owner,
+          object: createRuleObject({
+            controllerId: owner.id,
+            card: source,
+            ability,
+            kind: "trigger",
+            choices,
+            sourceId: source.id,
+            createdByEventId: event.id,
+          }),
+        });
       }
     }
   }
