@@ -1,0 +1,98 @@
+name: Engine Modernization Check
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/api/game/route.ts"
+      - "lib/engine/**"
+      - "lib/game.ts"
+      - "lib/cardPayment.ts"
+      - "lib/manualDamage.ts"
+      - "db/schema.ts"
+      - "drizzle/**"
+      - "tests/engine-architecture.test.ts"
+      - "tests/game-engine.test.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/engine-modernization.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "app/api/game/route.ts"
+      - "lib/engine/**"
+      - "lib/game.ts"
+      - "lib/cardPayment.ts"
+      - "lib/manualDamage.ts"
+      - "db/schema.ts"
+      - "drizzle/**"
+      - "tests/engine-architecture.test.ts"
+      - "tests/game-engine.test.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/engine-modernization.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Build
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+      - name: Engine tests
+        id: engine-tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:engine 2>&1 | tee engine-tests.log
+      - name: Presentation tests
+        id: presentation-tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          node --import tsx --test tests/brawl-presentation.test.ts tests/roll-phase-presentation.test.ts 2>&1 | tee presentation-tests.log
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee lint.log
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-modernization-diagnostics
+          path: |
+            build.log
+            engine-tests.log
+            presentation-tests.log
+            lint.log
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Enforce results
+        if: always()
+        shell: bash
+        run: |
+          test "${{ steps.build.outcome }}" = "success"
+          test "${{ steps.engine-tests.outcome }}" = "success"
+          test "${{ steps.presentation-tests.outcome }}" = "success"
+          test "${{ steps.lint.outcome }}" = "success"
