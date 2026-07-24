@@ -12,7 +12,7 @@ export {
   normalizeEngineState,
 } from "./events";
 export { structuredPhaseFor } from "./phase-machine";
-export { executePlayPipeline, isPlayPipelineCommand, playContextFor, type PlayContext } from "./play-pipeline";
+export { isPlayPipelineCommand, playContextFor, type PlayContext } from "./play-pipeline";
 export { projectEventsForPlayer, projectMatchForPlayer, type PublicGameEvent } from "./projection";
 export { initializeMatch, reduceMatch } from "./reducer";
 export { SeededRandomSource, withDeterministicRuntime, type RandomSource } from "./runtime";
