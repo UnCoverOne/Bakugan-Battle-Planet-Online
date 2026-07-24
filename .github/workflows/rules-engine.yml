@@ -68,7 +68,7 @@ jobs:
           set -o pipefail
           npm run test:engine 2>&1 | tee engine.log
       - name: Complete repository regression suite
-        id: full-suite
+        id: full_suite
         continue-on-error: true
         shell: bash
         run: |
@@ -101,5 +101,5 @@ jobs:
           test "${{ steps.build.outcome }}" = "success"
           test "${{ steps.rules.outcome }}" = "success"
           test "${{ steps.engine.outcome }}" = "success"
-          test "${{ steps.full-suite.outcome }}" = "success"
+          test "${{ steps.full_suite.outcome }}" = "success"
           test "${{ steps.lint.outcome }}" = "success"
