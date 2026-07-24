@@ -1,3 +1,4 @@
+import { consumeEffectStep } from "../engine/limits";
 import { UnsupportedCardTextError } from "./catalogue";
 import type { RuleAction, RuleInstruction, RuleProgram } from "./effects";
 
@@ -29,6 +30,7 @@ function executeAction(
   cursor: RuleExecutionCursor,
   context: RuleExecutionContext,
 ) {
+  consumeEffectStep();
   if (action.kind === "conditional") {
     const branchInstruction = nestedInstruction(instruction, action.condition, action.whenTrue);
     const selected = context.conditionIsActive(branchInstruction) ? action.whenTrue : (action.whenFalse ?? []);

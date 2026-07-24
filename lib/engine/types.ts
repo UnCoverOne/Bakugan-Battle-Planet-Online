@@ -1,8 +1,11 @@
 import type { CardChoices, MatchState, PlayerState } from "../game";
+import { APPLICATION_VERSION, CARD_CATALOGUE_VERSION, CONTENT_SCHEMA_VERSION, DIGITAL_ADAPTATION_VERSION, GAME_ENGINE_VERSION, RULES_PROFILE_VERSION, type GameVersionProfile } from "../content/versions";
 
-export const ENGINE_SCHEMA_VERSION = 1 as const;
-export const ENGINE_VERSION = "3.0.0";
-export const RULES_VERSION = "battle-planet-rules-v3";
+export const ENGINE_SCHEMA_VERSION = 2 as const;
+export const ENGINE_VERSION = GAME_ENGINE_VERSION;
+export const RULES_VERSION = RULES_PROFILE_VERSION;
+export { APPLICATION_VERSION, CARD_CATALOGUE_VERSION, CONTENT_SCHEMA_VERSION, DIGITAL_ADAPTATION_VERSION };
+export type { GameVersionProfile };
 export const ENGINE_METADATA_KEY = "__engine" as const;
 export const MAX_EMBEDDED_COMMAND_RECEIPTS = 128;
 
@@ -56,7 +59,7 @@ export type GameEventType =
   | "PHASE_CHANGED" | "PRIORITY_CHANGED" | "CARD_MOVED" | "ENERGY_CHANGED"
   | "BAKUGAN_OPEN_STATE_CHANGED" | "BAKUCORE_ATTACHMENT_CHANGED" | "BATCH_OBJECT_ADDED"
   | "BATCH_OBJECT_REMOVED" | "PENDING_DAMAGE_CHANGED" | "LOG_ENTRY_ADDED" | "GAME_ENDED"
-  | "DEADLINE_RESOLVED";
+  | "DEADLINE_RESOLVED" | "ENGINE_FAULT";
 export type UnsequencedGameEvent = {
   type: GameEventType;
   actorId: CommandActorId;
@@ -70,6 +73,9 @@ export type GameEvent = UnsequencedGameEvent & {
   sequence: number;
   engineVersion: string;
   rulesVersion: string;
+  cardCatalogueVersion: string;
+  digitalAdaptationVersion: string;
+  contentSchemaVersion: number;
   createdAt: number;
 };
 export type CommandReceipt = {
@@ -82,14 +88,22 @@ export type CommandReceipt = {
   eventSequenceStart: number;
   eventSequenceEnd: number;
 };
+export type EngineFault = { code: string; message: string; metric?: string; limit?: number; actual?: number; commandId: string; phase: MatchState["phase"]; createdAt: number; suspended: true };
 export type EngineMetadata = {
   schemaVersion: typeof ENGINE_SCHEMA_VERSION;
+  applicationVersion: string;
   engineVersion: string;
   rulesVersion: string;
+  cardCatalogueVersion: string;
+  digitalAdaptationVersion: string;
+  contentSchemaVersion: number;
   nextEventSequence: number;
   lastCommandId?: string;
   phase: StructuredPhase;
   receipts: CommandReceipt[];
+  fault?: EngineFault;
+  runtimeBudget?: { triggerChainDepth: number; effectSteps: number; replacementIterations: number; pendingChoices: number };
+  timeoutStrikes?: Record<string, { decision: number; connectionGrace: number }>;
 };
 export type EngineBackedMatchState = MatchState & { [ENGINE_METADATA_KEY]?: EngineMetadata };
 export type ReduceResult = {
@@ -98,6 +112,7 @@ export type ReduceResult = {
   receipt?: CommandReceipt;
   duplicate: boolean;
   changed: boolean;
+  faulted?: boolean;
 };
 export type InitializeMatchOptions = {
   commandId: string;

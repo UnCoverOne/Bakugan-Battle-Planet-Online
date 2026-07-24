@@ -1,3 +1,5 @@
+import { textFingerprint } from "../content/catalogue";
+import { CARD_CATALOGUE_VERSION, RULES_PROFILE_VERSION } from "../content/versions";
 import { CARDS } from "../data";
 import type { CardChoices, CardType, Faction, GameCard } from "../game";
 import type {
@@ -15,6 +17,7 @@ import type {
   TriggerDefinition,
   TriggerEventName,
 } from "./model";
+import { provenanceForDefinition, validateDefinitionProvenance } from "./provenance";
 
 const NUMBER_WORDS: Record<string, number> = {
   a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5,
@@ -295,19 +298,27 @@ function abilityDefinitions(card: GameCard): AbilityDefinition[] {
   return result;
 }
 
-const DEFINITIONS = Object.freeze(CARDS.map((card): RuleDefinition => ({
-  cardId: cardId(card),
-  printingId: cardId(card),
-  sourceText: card.effect,
-  cardName: card.displayName || card.name,
-  cardType: card.type,
-  faction: card.faction,
-  factions: card.factions,
-  implementationStatus: "complete",
-  rulesVersion: "bp-rules-3",
-  play: playDefinition(card),
-  abilities: abilityDefinitions(card),
-})));
+function definitionForCard(card: GameCard): RuleDefinition {
+  const abilities = abilityDefinitions(card);
+  return {
+    cardId: cardId(card),
+    printingId: cardId(card),
+    sourceText: card.effect,
+    sourceTextFingerprint: textFingerprint(card.effect),
+    cardName: card.displayName || card.name,
+    cardType: card.type,
+    faction: card.faction,
+    factions: card.factions,
+    implementationStatus: "complete",
+    rulesVersion: RULES_PROFILE_VERSION,
+    contentVersion: CARD_CATALOGUE_VERSION,
+    play: playDefinition(card),
+    abilities,
+    provenance: provenanceForDefinition(card, abilities),
+    goldenTestIds: [`card-golden:${cardId(card)}`],
+  };
+}
+const DEFINITIONS = Object.freeze(CARDS.map(definitionForCard));
 const BY_ID = new Map(DEFINITIONS.map((definition) => [definition.cardId, definition]));
 
 export class UnsupportedCardTextError extends Error {
@@ -330,6 +341,9 @@ export function ruleDefinitionForCard(card: GameCard): RuleDefinition {
 
 export function validateCardAgainstRules(card: GameCard) {
   const definition = ruleDefinitionForCard(card);
+  if (definition.sourceTextFingerprint !== textFingerprint(card.effect)) throw new UnsupportedCardTextError("CARD_TEXT_MISMATCH", `${card.name} has an invalid text fingerprint.`);
+  const provenanceErrors = validateDefinitionProvenance(definition);
+  if (provenanceErrors.length) throw new UnsupportedCardTextError("UNSUPPORTED_RULE_NODE", provenanceErrors.join(" "));
   for (const ability of definition.abilities) for (const instruction of ability.instructions) {
     if (!instruction.effects.length) throw new UnsupportedCardTextError("UNSUPPORTED_RULE_NODE", `${card.name} has an empty typed instruction.`);
     if (instruction.effects.some((effect) => effect.kind === "unsupported")) throw new UnsupportedCardTextError("UNSUPPORTED_RULE_NODE", `${card.name} contains an unsupported rule node.`);

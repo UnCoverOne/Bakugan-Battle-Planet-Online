@@ -14,3 +14,5 @@ export { applyReplacements, registerReplacement, removeReplacement } from "./rep
 export { ensureRulesState, normalizeRuleObjects } from "./state";
 export { collectRuleTriggers, emitRuleEvent, conditionStillValidAtResolution } from "./triggers";
 export type * from "./model";
+
+export { RULES_SOURCES, RULES_SOURCE_BY_ID, provenanceForDefinition, validateDefinitionProvenance, type RulesSource } from "./provenance";

@@ -1,0 +1,54 @@
+name: Content Quality and Operations
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "content/**"
+      - "lib/content/**"
+      - "lib/rules/**"
+      - "lib/engine/**"
+      - "lib/deadlines.ts"
+      - "app/api/game/route.ts"
+      - "scripts/content-lock.mts"
+      - "scripts/validate-content.mts"
+      - "tests/content-pipeline.test.ts"
+      - "tests/quality-assurance.test.ts"
+      - "package.json"
+      - ".github/workflows/content-quality-operations.yml"
+  push:
+    branches: [main]
+    paths:
+      - "content/**"
+      - "lib/content/**"
+      - "lib/rules/**"
+      - "lib/engine/**"
+      - "lib/deadlines.ts"
+      - "app/api/game/route.ts"
+      - "scripts/content-lock.mts"
+      - "scripts/validate-content.mts"
+      - "tests/content-pipeline.test.ts"
+      - "tests/quality-assurance.test.ts"
+      - "package.json"
+      - ".github/workflows/content-quality-operations.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: npm run validate:content
+      - run: npm run test:content
+      - run: npm run test:quality
+      - run: npm test
+      - run: npm run lint
+      - run: npm run cf:dry-run

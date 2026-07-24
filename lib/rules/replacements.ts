@@ -1,4 +1,5 @@
 import type { MatchState } from "../game";
+import { consumeReplacementIteration, EngineRuntimeLimitError, MAX_REPLACEMENT_ITERATIONS } from "../engine/limits";
 import { ruleConditionActive } from "./modifiers";
 import type { ProposedEvent, RuleAction, RuleSourceReference } from "./model";
 import { ensureRulesState } from "./state";
@@ -59,7 +60,8 @@ export function applyReplacements(state: MatchState, proposed: ProposedEvent): R
   const appliedIds: string[] = [];
   let preventedAmount = 0;
 
-  for (let iteration = 0; event && iteration < 50; iteration += 1) {
+  for (let iteration = 0; event && iteration < MAX_REPLACEMENT_ITERATIONS; iteration += 1) {
+    consumeReplacementIteration();
     const applicable = rules.replacements
       .filter((replacement) => !appliedIds.includes(replacement.id) && replacement.effect.event === event!.kind)
       .filter((replacement) => ruleConditionActive(state, controllerFor(state, replacement.controllerId), replacement.effect.condition))
@@ -81,6 +83,6 @@ export function applyReplacements(state: MatchState, proposed: ProposedEvent): R
     }
   }
 
-  if (event && appliedIds.length >= 50) throw new Error("Replacement processing exceeded the safety limit.");
+  if (event && appliedIds.length >= MAX_REPLACEMENT_ITERATIONS) throw new EngineRuntimeLimitError("replacementIterations", MAX_REPLACEMENT_ITERATIONS, MAX_REPLACEMENT_ITERATIONS + 1);
   return { event, appliedIds, preventedAmount };
 }

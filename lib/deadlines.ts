@@ -1,5 +1,6 @@
 import {
   beginCorePlacement,
+  concedeMatch,
   discardToHandLimit,
   energizeCard,
   legalPlacementCells,
@@ -8,12 +9,12 @@ import {
   placeCore,
   selectBakugan,
   submitCardChoice,
-  type CardChoices,
   type MatchState,
 } from "./game";
 import { flipDamageCard, resolveManualDamage } from "./manualDamage";
 import { confirmRoll, playerCanConfirmRoll, playerCanSelectRollTarget, selectRollTarget } from "./rolling";
 import { drawTurnCard, playerCanDrawTurnCard } from "./turnStart";
+import { applyConnectionGrace, recordDecisionTimeout, timeoutChoicesForFields } from "./engine/timeout-policy";
 
 /** Deterministic timeout policy shared by HTTP recovery and Durable Object alarms. */
 export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
@@ -23,20 +24,13 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
   const actorId = state.priority;
   const actor = state.players.find((player) => player.id === actorId);
   if (!actor) return input;
+  if (!actor.connected && applyConnectionGrace(state, actorId, now)) return state;
+  const decisionTimeouts = recordDecisionTimeout(state, actorId);
+  if (decisionTimeouts >= 3 && ["preRoll", "power", "victor", "damage", "postDamage", "endPlay", "handLimit"].includes(state.phase)) return concedeMatch(state, actorId);
   if (state.pendingChoice) {
     const fields = state.pendingChoice.schema.fields.filter((candidate) => candidate.chooserId === actorId);
     if (!fields.length) return input;
-    const timeoutChoices: Record<string, unknown> = {};
-    const confirmation = fields.find((field) => field.id === "confirmed");
-    if (confirmation?.options.some((option) => option.id === "no")) timeoutChoices.confirmed = false;
-    else for (const field of fields) {
-      const selected = field.options.slice(0, field.minimum).map((option) => option.id);
-      if (field.id === "xValue") timeoutChoices[field.id] = Number(selected[0] ?? 0);
-      else if (field.id === "confirmed") timeoutChoices[field.id] = selected[0] !== "no";
-      else if (["targetEnergyIds", "discardCardIds", "handCardIds", "orderedCardIds"].includes(field.id)) timeoutChoices[field.id] = selected;
-      else if (selected[0] != null) timeoutChoices[field.id] = selected[0];
-    }
-    return submitCardChoice(state, actorId, timeoutChoices as CardChoices);
+    return submitCardChoice(state, actorId, timeoutChoicesForFields(state, actorId, fields));
   }
   const triggerOrder = state.triggerOrders.find((request) => request.controllerId === actorId && !request.orderedIds);
   if (triggerOrder) return orderTriggers(state, actorId, triggerOrder.id, triggerOrder.triggerIds);

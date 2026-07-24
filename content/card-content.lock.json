@@ -1,0 +1,3727 @@
+{
+  "generatedBy": "scripts/content-lock.mts",
+  "versions": {
+    "applicationVersion": "0.1.0",
+    "engineVersion": "4.0.0",
+    "rulesVersion": "battle-planet-rules-v4",
+    "cardCatalogueVersion": "battle-planet-cards-v1",
+    "digitalAdaptationVersion": "digital-roll-profile-v1",
+    "contentSchemaVersion": 1
+  },
+  "manifest": {
+    "schemaVersion": 1,
+    "catalogueVersion": "battle-planet-cards-v1",
+    "cardCount": 374,
+    "textFingerprint": "e631cc80"
+  },
+  "cards": [
+    {
+      "cardId": "bb-1",
+      "textFingerprint": "fffaae13",
+      "implementationFingerprint": "e3a60d2b",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-1"
+    },
+    {
+      "cardId": "bb-2",
+      "textFingerprint": "8784b863",
+      "implementationFingerprint": "4bff064b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-2"
+    },
+    {
+      "cardId": "bb-3",
+      "textFingerprint": "a6f12410",
+      "implementationFingerprint": "cc89339f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-3"
+    },
+    {
+      "cardId": "bb-4",
+      "textFingerprint": "2f23c500",
+      "implementationFingerprint": "374b2f32",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-4"
+    },
+    {
+      "cardId": "bb-5",
+      "textFingerprint": "4b23d4bc",
+      "implementationFingerprint": "f9218c98",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-5"
+    },
+    {
+      "cardId": "bb-6",
+      "textFingerprint": "97eed550",
+      "implementationFingerprint": "4b216de4",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-6"
+    },
+    {
+      "cardId": "bb-7",
+      "textFingerprint": "4265ec82",
+      "implementationFingerprint": "8794bb16",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary"
+      ],
+      "goldenTestId": "card-golden:bb-7"
+    },
+    {
+      "cardId": "bb-8",
+      "textFingerprint": "30c1ca0a",
+      "implementationFingerprint": "ddf296af",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-8"
+    },
+    {
+      "cardId": "bb-9",
+      "textFingerprint": "9dac8caf",
+      "implementationFingerprint": "93a46515",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-9"
+    },
+    {
+      "cardId": "bb-10",
+      "textFingerprint": "a45c1dad",
+      "implementationFingerprint": "2543a7f7",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-10"
+    },
+    {
+      "cardId": "bb-11",
+      "textFingerprint": "78c07511",
+      "implementationFingerprint": "6fbbd6ce",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-11"
+    },
+    {
+      "cardId": "bb-12",
+      "textFingerprint": "896193ab",
+      "implementationFingerprint": "9a205d1d",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-12"
+    },
+    {
+      "cardId": "bb-13",
+      "textFingerprint": "47f29da0",
+      "implementationFingerprint": "400091e2",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-13"
+    },
+    {
+      "cardId": "bb-14",
+      "textFingerprint": "c4770d6f",
+      "implementationFingerprint": "3b322141",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-14"
+    },
+    {
+      "cardId": "bb-15",
+      "textFingerprint": "b22bed32",
+      "implementationFingerprint": "205cf4f2",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-15"
+    },
+    {
+      "cardId": "bb-16",
+      "textFingerprint": "4dfb70d5",
+      "implementationFingerprint": "9ef1f15b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-16"
+    },
+    {
+      "cardId": "bb-17",
+      "textFingerprint": "d6f40c8a",
+      "implementationFingerprint": "88533200",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-17"
+    },
+    {
+      "cardId": "bb-18",
+      "textFingerprint": "1f0c896d",
+      "implementationFingerprint": "5e91ad15",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-18"
+    },
+    {
+      "cardId": "bb-19",
+      "textFingerprint": "3e0c2f08",
+      "implementationFingerprint": "684ec37a",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-19"
+    },
+    {
+      "cardId": "bb-20",
+      "textFingerprint": "3c6cfe2e",
+      "implementationFingerprint": "bf032ce6",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-20"
+    },
+    {
+      "cardId": "bb-21",
+      "textFingerprint": "c398a9e8",
+      "implementationFingerprint": "9fa34d68",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-21"
+    },
+    {
+      "cardId": "bb-22",
+      "textFingerprint": "e6a9464d",
+      "implementationFingerprint": "62cb613e",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary"
+      ],
+      "goldenTestId": "card-golden:bb-22"
+    },
+    {
+      "cardId": "bb-23",
+      "textFingerprint": "3b80384b",
+      "implementationFingerprint": "5ca77efd",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-23"
+    },
+    {
+      "cardId": "bb-24",
+      "textFingerprint": "81cd348f",
+      "implementationFingerprint": "c96fe352",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary"
+      ],
+      "goldenTestId": "card-golden:bb-24"
+    },
+    {
+      "cardId": "bb-25",
+      "textFingerprint": "2bde7154",
+      "implementationFingerprint": "7fba6c4e",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-25"
+    },
+    {
+      "cardId": "bb-26",
+      "textFingerprint": "02877ba6",
+      "implementationFingerprint": "aea6ff02",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-26"
+    },
+    {
+      "cardId": "bb-27",
+      "textFingerprint": "508c6fa3",
+      "implementationFingerprint": "ac009813",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary"
+      ],
+      "goldenTestId": "card-golden:bb-27"
+    },
+    {
+      "cardId": "bb-28",
+      "textFingerprint": "7f962b47",
+      "implementationFingerprint": "aa75afa2",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-28"
+    },
+    {
+      "cardId": "bb-29",
+      "textFingerprint": "d8519a88",
+      "implementationFingerprint": "4d1934c4",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-29"
+    },
+    {
+      "cardId": "bb-30",
+      "textFingerprint": "824171ca",
+      "implementationFingerprint": "2eca7936",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-30"
+    },
+    {
+      "cardId": "bb-31",
+      "textFingerprint": "15a11fd0",
+      "implementationFingerprint": "a1ef1f60",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-31"
+    },
+    {
+      "cardId": "bb-32",
+      "textFingerprint": "4f5e040c",
+      "implementationFingerprint": "13092ac7",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-32"
+    },
+    {
+      "cardId": "bb-33",
+      "textFingerprint": "61a01904",
+      "implementationFingerprint": "7bba6006",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-33"
+    },
+    {
+      "cardId": "bb-34",
+      "textFingerprint": "581793a5",
+      "implementationFingerprint": "5ce2f6fb",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-34"
+    },
+    {
+      "cardId": "bb-35",
+      "textFingerprint": "d002c7e1",
+      "implementationFingerprint": "09c78589",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-35"
+    },
+    {
+      "cardId": "bb-36",
+      "textFingerprint": "f228a7be",
+      "implementationFingerprint": "dae1a5d2",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-36"
+    },
+    {
+      "cardId": "bb-37",
+      "textFingerprint": "bedee107",
+      "implementationFingerprint": "5eaf22ea",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-37"
+    },
+    {
+      "cardId": "bb-38",
+      "textFingerprint": "be975afe",
+      "implementationFingerprint": "0170ca16",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-38"
+    },
+    {
+      "cardId": "bb-39",
+      "textFingerprint": "0e580650",
+      "implementationFingerprint": "4e53e885",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-39"
+    },
+    {
+      "cardId": "bb-40",
+      "textFingerprint": "2eb6ceba",
+      "implementationFingerprint": "33b383c4",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-40"
+    },
+    {
+      "cardId": "bb-41",
+      "textFingerprint": "b02f32a3",
+      "implementationFingerprint": "ab22b1a4",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-41"
+    },
+    {
+      "cardId": "bb-42",
+      "textFingerprint": "8b20e472",
+      "implementationFingerprint": "bca45b48",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-42"
+    },
+    {
+      "cardId": "bb-43",
+      "textFingerprint": "acac73ce",
+      "implementationFingerprint": "1281ce06",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-43"
+    },
+    {
+      "cardId": "bb-44",
+      "textFingerprint": "7e9083c2",
+      "implementationFingerprint": "99d72a53",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-44"
+    },
+    {
+      "cardId": "bb-45",
+      "textFingerprint": "02877ba6",
+      "implementationFingerprint": "50ecce54",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-45"
+    },
+    {
+      "cardId": "bb-46",
+      "textFingerprint": "326e8986",
+      "implementationFingerprint": "d50f59be",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-46"
+    },
+    {
+      "cardId": "bb-47",
+      "textFingerprint": "e2aa45ad",
+      "implementationFingerprint": "030c5fe6",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-47"
+    },
+    {
+      "cardId": "bb-48",
+      "textFingerprint": "e23316a2",
+      "implementationFingerprint": "61d3a372",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-48"
+    },
+    {
+      "cardId": "bb-49",
+      "textFingerprint": "75ff9891",
+      "implementationFingerprint": "7877b96f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-49"
+    },
+    {
+      "cardId": "bb-50",
+      "textFingerprint": "d953ad41",
+      "implementationFingerprint": "f7513dba",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-50"
+    },
+    {
+      "cardId": "bb-51",
+      "textFingerprint": "81ff9bae",
+      "implementationFingerprint": "ba8bed74",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-51"
+    },
+    {
+      "cardId": "bb-52",
+      "textFingerprint": "226a6946",
+      "implementationFingerprint": "fb1411dd",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-52"
+    },
+    {
+      "cardId": "bb-53",
+      "textFingerprint": "19342bec",
+      "implementationFingerprint": "74d90674",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-53"
+    },
+    {
+      "cardId": "bb-54",
+      "textFingerprint": "a18e7a48",
+      "implementationFingerprint": "c1b7acfc",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-54"
+    },
+    {
+      "cardId": "bb-55",
+      "textFingerprint": "acf8f2aa",
+      "implementationFingerprint": "c194ab2a",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-55"
+    },
+    {
+      "cardId": "bb-56",
+      "textFingerprint": "4dfb70d5",
+      "implementationFingerprint": "91590d23",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-56"
+    },
+    {
+      "cardId": "bb-57",
+      "textFingerprint": "a0389cb9",
+      "implementationFingerprint": "29de2f1f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-57"
+    },
+    {
+      "cardId": "bb-58",
+      "textFingerprint": "01b0cf8a",
+      "implementationFingerprint": "d499994a",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-58"
+    },
+    {
+      "cardId": "bb-59",
+      "textFingerprint": "89a05587",
+      "implementationFingerprint": "118f1b7d",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-59"
+    },
+    {
+      "cardId": "bb-60",
+      "textFingerprint": "fce684a7",
+      "implementationFingerprint": "f0011eb3",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-60"
+    },
+    {
+      "cardId": "bb-61",
+      "textFingerprint": "5116322b",
+      "implementationFingerprint": "52f118b1",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-61"
+    },
+    {
+      "cardId": "bb-62",
+      "textFingerprint": "edccd8e3",
+      "implementationFingerprint": "1be6c3d6",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-62"
+    },
+    {
+      "cardId": "bb-63",
+      "textFingerprint": "056b1c0a",
+      "implementationFingerprint": "8c5afb60",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-63"
+    },
+    {
+      "cardId": "bb-64",
+      "textFingerprint": "887b5cee",
+      "implementationFingerprint": "34b173f0",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-64"
+    },
+    {
+      "cardId": "bb-65",
+      "textFingerprint": "defa7d56",
+      "implementationFingerprint": "3d1bd666",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-65"
+    },
+    {
+      "cardId": "bb-66",
+      "textFingerprint": "687b915d",
+      "implementationFingerprint": "750af857",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-66"
+    },
+    {
+      "cardId": "bb-67",
+      "textFingerprint": "d002c7e1",
+      "implementationFingerprint": "752518ff",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-67"
+    },
+    {
+      "cardId": "bb-68",
+      "textFingerprint": "0d17ba18",
+      "implementationFingerprint": "e16d8560",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-68"
+    },
+    {
+      "cardId": "bb-69",
+      "textFingerprint": "0da8822f",
+      "implementationFingerprint": "bd3eef55",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-69"
+    },
+    {
+      "cardId": "bb-70",
+      "textFingerprint": "6ce5c315",
+      "implementationFingerprint": "c03cba47",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-70"
+    },
+    {
+      "cardId": "bb-71",
+      "textFingerprint": "02725908",
+      "implementationFingerprint": "60398834",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-71"
+    },
+    {
+      "cardId": "bb-72",
+      "textFingerprint": "e28de0d0",
+      "implementationFingerprint": "689adbe8",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-72"
+    },
+    {
+      "cardId": "bb-73",
+      "textFingerprint": "e7543320",
+      "implementationFingerprint": "bb7b2476",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-73"
+    },
+    {
+      "cardId": "bb-74",
+      "textFingerprint": "581793a5",
+      "implementationFingerprint": "533ac343",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-74"
+    },
+    {
+      "cardId": "bb-75",
+      "textFingerprint": "a14d5ec7",
+      "implementationFingerprint": "012fbf96",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-75"
+    },
+    {
+      "cardId": "bb-76",
+      "textFingerprint": "350e57a7",
+      "implementationFingerprint": "4035c1e9",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-76"
+    },
+    {
+      "cardId": "bb-77",
+      "textFingerprint": "0b27d03c",
+      "implementationFingerprint": "428e4838",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-77"
+    },
+    {
+      "cardId": "bb-78",
+      "textFingerprint": "0953a793",
+      "implementationFingerprint": "b0423d5e",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-78"
+    },
+    {
+      "cardId": "bb-79",
+      "textFingerprint": "1c4a8b44",
+      "implementationFingerprint": "1ea9ea64",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-79"
+    },
+    {
+      "cardId": "bb-80",
+      "textFingerprint": "06bda023",
+      "implementationFingerprint": "ab333efe",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-80"
+    },
+    {
+      "cardId": "bb-81",
+      "textFingerprint": "77e05993",
+      "implementationFingerprint": "787d0bd5",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-81"
+    },
+    {
+      "cardId": "bb-82",
+      "textFingerprint": "04bfd95f",
+      "implementationFingerprint": "c9e70223",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-82"
+    },
+    {
+      "cardId": "bb-83",
+      "textFingerprint": "28e5403b",
+      "implementationFingerprint": "20df9115",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-83"
+    },
+    {
+      "cardId": "bb-84",
+      "textFingerprint": "1738c830",
+      "implementationFingerprint": "493fe2ac",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-84"
+    },
+    {
+      "cardId": "bb-85",
+      "textFingerprint": "f19aa321",
+      "implementationFingerprint": "51625d01",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-85"
+    },
+    {
+      "cardId": "bb-86",
+      "textFingerprint": "d8b5a9ac",
+      "implementationFingerprint": "beaa10c1",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-86"
+    },
+    {
+      "cardId": "bb-87",
+      "textFingerprint": "2b08aae5",
+      "implementationFingerprint": "c9dd0fcb",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-87"
+    },
+    {
+      "cardId": "bb-88",
+      "textFingerprint": "f137d50d",
+      "implementationFingerprint": "4907c741",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-88"
+    },
+    {
+      "cardId": "bb-89",
+      "textFingerprint": "0da77534",
+      "implementationFingerprint": "2af6fe8a",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-89"
+    },
+    {
+      "cardId": "bb-90",
+      "textFingerprint": "ccd090f8",
+      "implementationFingerprint": "2775094c",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-90"
+    },
+    {
+      "cardId": "bb-91",
+      "textFingerprint": "47f29da0",
+      "implementationFingerprint": "7151689a",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-91"
+    },
+    {
+      "cardId": "bb-92",
+      "textFingerprint": "40f7c79f",
+      "implementationFingerprint": "c26719ed",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary"
+      ],
+      "goldenTestId": "card-golden:bb-92"
+    },
+    {
+      "cardId": "bb-93",
+      "textFingerprint": "4d61541f",
+      "implementationFingerprint": "9461dd13",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-93"
+    },
+    {
+      "cardId": "bb-94",
+      "textFingerprint": "0ad0bc9f",
+      "implementationFingerprint": "d9156935",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-94"
+    },
+    {
+      "cardId": "bb-95",
+      "textFingerprint": "2e333afb",
+      "implementationFingerprint": "b1a65a32",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-95"
+    },
+    {
+      "cardId": "bb-96",
+      "textFingerprint": "3b80384b",
+      "implementationFingerprint": "99a50305",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-96"
+    },
+    {
+      "cardId": "bb-97",
+      "textFingerprint": "5af963bc",
+      "implementationFingerprint": "b8cd3a90",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary"
+      ],
+      "goldenTestId": "card-golden:bb-97"
+    },
+    {
+      "cardId": "bb-98",
+      "textFingerprint": "4f5f6236",
+      "implementationFingerprint": "225341e6",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-98"
+    },
+    {
+      "cardId": "bb-99",
+      "textFingerprint": "02b585b2",
+      "implementationFingerprint": "5d025d4b",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-99"
+    },
+    {
+      "cardId": "bb-100",
+      "textFingerprint": "4dfb70d5",
+      "implementationFingerprint": "e1231ed3",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-100"
+    },
+    {
+      "cardId": "bb-101",
+      "textFingerprint": "5116322b",
+      "implementationFingerprint": "3763d7d5",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-101"
+    },
+    {
+      "cardId": "bb-102",
+      "textFingerprint": "a6726958",
+      "implementationFingerprint": "e41143e9",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-102"
+    },
+    {
+      "cardId": "bb-103",
+      "textFingerprint": "4849909e",
+      "implementationFingerprint": "4b97a458",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-103"
+    },
+    {
+      "cardId": "bb-104",
+      "textFingerprint": "870468a2",
+      "implementationFingerprint": "40a14cbd",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-104"
+    },
+    {
+      "cardId": "bb-105",
+      "textFingerprint": "37fe7944",
+      "implementationFingerprint": "1b669eb0",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-105"
+    },
+    {
+      "cardId": "bb-106",
+      "textFingerprint": "40496f65",
+      "implementationFingerprint": "759bce1f",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-106"
+    },
+    {
+      "cardId": "bb-107",
+      "textFingerprint": "68e84f4c",
+      "implementationFingerprint": "b6ae1fcc",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary"
+      ],
+      "goldenTestId": "card-golden:bb-107"
+    },
+    {
+      "cardId": "bb-108",
+      "textFingerprint": "82abb7c8",
+      "implementationFingerprint": "78b1a9c9",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-108"
+    },
+    {
+      "cardId": "bb-109",
+      "textFingerprint": "897e9613",
+      "implementationFingerprint": "56417af3",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-109"
+    },
+    {
+      "cardId": "bb-110",
+      "textFingerprint": "67673758",
+      "implementationFingerprint": "b2237a5e",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-110"
+    },
+    {
+      "cardId": "bb-111",
+      "textFingerprint": "7077d9dc",
+      "implementationFingerprint": "f2032512",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-111"
+    },
+    {
+      "cardId": "bb-112",
+      "textFingerprint": "67ed9a2d",
+      "implementationFingerprint": "e523856f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-112"
+    },
+    {
+      "cardId": "bb-113",
+      "textFingerprint": "9b84e569",
+      "implementationFingerprint": "a128d77d",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-113"
+    },
+    {
+      "cardId": "bb-114",
+      "textFingerprint": "a0f3bd10",
+      "implementationFingerprint": "7e739eb6",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-114"
+    },
+    {
+      "cardId": "bb-115",
+      "textFingerprint": "ab4aa1aa",
+      "implementationFingerprint": "3d3e80bf",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-115"
+    },
+    {
+      "cardId": "bb-116",
+      "textFingerprint": "e8e86da5",
+      "implementationFingerprint": "f3880284",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-116"
+    },
+    {
+      "cardId": "bb-117",
+      "textFingerprint": "f17f4f96",
+      "implementationFingerprint": "81a246de",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-117"
+    },
+    {
+      "cardId": "bb-118",
+      "textFingerprint": "1e225ad7",
+      "implementationFingerprint": "3b8537eb",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-118"
+    },
+    {
+      "cardId": "bb-119",
+      "textFingerprint": "e0c6356b",
+      "implementationFingerprint": "a9bb2bc4",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-119"
+    },
+    {
+      "cardId": "bb-120",
+      "textFingerprint": "0ae7b743",
+      "implementationFingerprint": "1d39d1ed",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-120"
+    },
+    {
+      "cardId": "bb-121",
+      "textFingerprint": "58c85448",
+      "implementationFingerprint": "2ffdd35d",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary"
+      ],
+      "goldenTestId": "card-golden:bb-121"
+    },
+    {
+      "cardId": "bb-122",
+      "textFingerprint": "8eeb55fe",
+      "implementationFingerprint": "49288938",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bbpo-digital-policy"
+      ],
+      "goldenTestId": "card-golden:bb-122"
+    },
+    {
+      "cardId": "bb-123",
+      "textFingerprint": "6b06c2d9",
+      "implementationFingerprint": "79988077",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-123"
+    },
+    {
+      "cardId": "bb-124",
+      "textFingerprint": "d053e2c2",
+      "implementationFingerprint": "6570a4b0",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-124"
+    },
+    {
+      "cardId": "bb-125",
+      "textFingerprint": "dd042ee1",
+      "implementationFingerprint": "b1cc388c",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary"
+      ],
+      "goldenTestId": "card-golden:bb-125"
+    },
+    {
+      "cardId": "bb-126",
+      "textFingerprint": "ba261efe",
+      "implementationFingerprint": "dbf5d036",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-126"
+    },
+    {
+      "cardId": "bb-127",
+      "textFingerprint": "6c964ae4",
+      "implementationFingerprint": "dc32451c",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-127"
+    },
+    {
+      "cardId": "bb-128",
+      "textFingerprint": "5095b255",
+      "implementationFingerprint": "8f2e5396",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-128"
+    },
+    {
+      "cardId": "bb-129",
+      "textFingerprint": "4d61541f",
+      "implementationFingerprint": "1ecd0625",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-129"
+    },
+    {
+      "cardId": "bb-130",
+      "textFingerprint": "08d721bc",
+      "implementationFingerprint": "3c23f272",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-130"
+    },
+    {
+      "cardId": "bb-131",
+      "textFingerprint": "d2986661",
+      "implementationFingerprint": "1bd97dd1",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-131"
+    },
+    {
+      "cardId": "bb-132",
+      "textFingerprint": "ae226db8",
+      "implementationFingerprint": "2b0390be",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-132"
+    },
+    {
+      "cardId": "bb-133",
+      "textFingerprint": "a0389cb9",
+      "implementationFingerprint": "e97a3711",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-133"
+    },
+    {
+      "cardId": "bb-134",
+      "textFingerprint": "df8506c5",
+      "implementationFingerprint": "896db941",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-134"
+    },
+    {
+      "cardId": "bb-135",
+      "textFingerprint": "62062f22",
+      "implementationFingerprint": "e6cd3b44",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-135"
+    },
+    {
+      "cardId": "bb-136",
+      "textFingerprint": "1cc0aa42",
+      "implementationFingerprint": "8a118069",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-glossary"
+      ],
+      "goldenTestId": "card-golden:bb-136"
+    },
+    {
+      "cardId": "bb-137",
+      "textFingerprint": "83d4d662",
+      "implementationFingerprint": "168ff4ad",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-137"
+    },
+    {
+      "cardId": "bb-138",
+      "textFingerprint": "c75efd69",
+      "implementationFingerprint": "a0c631db",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-138"
+    },
+    {
+      "cardId": "bb-139",
+      "textFingerprint": "0abc7654",
+      "implementationFingerprint": "a0e22b8a",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-139"
+    },
+    {
+      "cardId": "bb-140",
+      "textFingerprint": "21d27348",
+      "implementationFingerprint": "b3377aaa",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-140"
+    },
+    {
+      "cardId": "bb-141",
+      "textFingerprint": "cc7adc86",
+      "implementationFingerprint": "03afb9a2",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-141"
+    },
+    {
+      "cardId": "bb-142",
+      "textFingerprint": "121167c2",
+      "implementationFingerprint": "dea4c104",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-142"
+    },
+    {
+      "cardId": "bb-143",
+      "textFingerprint": "f7eca348",
+      "implementationFingerprint": "d75f69de",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-143"
+    },
+    {
+      "cardId": "bb-144",
+      "textFingerprint": "648de438",
+      "implementationFingerprint": "0bf22186",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-144"
+    },
+    {
+      "cardId": "bb-145",
+      "textFingerprint": "dbac1457",
+      "implementationFingerprint": "2429ef31",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-145"
+    },
+    {
+      "cardId": "bb-146",
+      "textFingerprint": "343f1eb0",
+      "implementationFingerprint": "dcfdd431",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-146"
+    },
+    {
+      "cardId": "bb-147",
+      "textFingerprint": "c33c3da7",
+      "implementationFingerprint": "2b21ba4b",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-147"
+    },
+    {
+      "cardId": "bb-148",
+      "textFingerprint": "cc7adc86",
+      "implementationFingerprint": "7781d936",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-148"
+    },
+    {
+      "cardId": "bb-149",
+      "textFingerprint": "ac0489f9",
+      "implementationFingerprint": "7fc200dd",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-149"
+    },
+    {
+      "cardId": "bb-150",
+      "textFingerprint": "5d1d63b0",
+      "implementationFingerprint": "93613784",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-150"
+    },
+    {
+      "cardId": "bb-151",
+      "textFingerprint": "7185f79c",
+      "implementationFingerprint": "433a7978",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-151"
+    },
+    {
+      "cardId": "bb-152",
+      "textFingerprint": "aa6f0f3a",
+      "implementationFingerprint": "d6d7ae28",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-152"
+    },
+    {
+      "cardId": "bb-153",
+      "textFingerprint": "d8519a88",
+      "implementationFingerprint": "c7e72bcc",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-153"
+    },
+    {
+      "cardId": "bb-154",
+      "textFingerprint": "ee8ac081",
+      "implementationFingerprint": "6c2c7d3c",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-154"
+    },
+    {
+      "cardId": "bb-155",
+      "textFingerprint": "21d27348",
+      "implementationFingerprint": "cc86e202",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-155"
+    },
+    {
+      "cardId": "bb-156",
+      "textFingerprint": "c33c3da7",
+      "implementationFingerprint": "35b04cdb",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-156"
+    },
+    {
+      "cardId": "bb-157",
+      "textFingerprint": "cc7adc86",
+      "implementationFingerprint": "4aee6c66",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-157"
+    },
+    {
+      "cardId": "bb-158",
+      "textFingerprint": "b232e98c",
+      "implementationFingerprint": "dc4cb3e0",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-158"
+    },
+    {
+      "cardId": "bb-159",
+      "textFingerprint": "265d3e77",
+      "implementationFingerprint": "5bcec49d",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-159"
+    },
+    {
+      "cardId": "bb-160",
+      "textFingerprint": "92fb9650",
+      "implementationFingerprint": "f79cc662",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-160"
+    },
+    {
+      "cardId": "bb-161",
+      "textFingerprint": "cc6504bc",
+      "implementationFingerprint": "63551a88",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-161"
+    },
+    {
+      "cardId": "bb-162",
+      "textFingerprint": "a24e193e",
+      "implementationFingerprint": "3a600be8",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-162"
+    },
+    {
+      "cardId": "bb-163",
+      "textFingerprint": "c651d98d",
+      "implementationFingerprint": "5faa5514",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-163"
+    },
+    {
+      "cardId": "bb-164",
+      "textFingerprint": "130780c6",
+      "implementationFingerprint": "1d4968d6",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-164"
+    },
+    {
+      "cardId": "bb-165",
+      "textFingerprint": "1ed6736e",
+      "implementationFingerprint": "374914f7",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-165"
+    },
+    {
+      "cardId": "bb-166",
+      "textFingerprint": "21d27348",
+      "implementationFingerprint": "a7ebe782",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-166"
+    },
+    {
+      "cardId": "bb-167",
+      "textFingerprint": "16c3ea8a",
+      "implementationFingerprint": "a7acad40",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-167"
+    },
+    {
+      "cardId": "bb-168",
+      "textFingerprint": "b93bee1a",
+      "implementationFingerprint": "7cd2b4a8",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-168"
+    },
+    {
+      "cardId": "bb-169",
+      "textFingerprint": "f7eca348",
+      "implementationFingerprint": "3a04333a",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-169"
+    },
+    {
+      "cardId": "bb-170",
+      "textFingerprint": "7185f79c",
+      "implementationFingerprint": "ad87211c",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-170"
+    },
+    {
+      "cardId": "bb-171",
+      "textFingerprint": "f0dde243",
+      "implementationFingerprint": "027c1e77",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-171"
+    },
+    {
+      "cardId": "bb-172",
+      "textFingerprint": "b3ff3817",
+      "implementationFingerprint": "2871ef6d",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-172"
+    },
+    {
+      "cardId": "bb-173",
+      "textFingerprint": "0110759a",
+      "implementationFingerprint": "4dd6d771",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-173"
+    },
+    {
+      "cardId": "bb-174",
+      "textFingerprint": "b9e00fc8",
+      "implementationFingerprint": "850d1069",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-174"
+    },
+    {
+      "cardId": "bb-175",
+      "textFingerprint": "38af1428",
+      "implementationFingerprint": "e9e572f2",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-175"
+    },
+    {
+      "cardId": "bb-176",
+      "textFingerprint": "db4728cb",
+      "implementationFingerprint": "8a5bb67b",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-176"
+    },
+    {
+      "cardId": "bb-177",
+      "textFingerprint": "df8506c5",
+      "implementationFingerprint": "ca28717b",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-177"
+    },
+    {
+      "cardId": "bb-178",
+      "textFingerprint": "c33c3da7",
+      "implementationFingerprint": "4582299f",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-178"
+    },
+    {
+      "cardId": "bb-179",
+      "textFingerprint": "deb8fe6b",
+      "implementationFingerprint": "2847a0e5",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-179"
+    },
+    {
+      "cardId": "bb-180",
+      "textFingerprint": "62f7441e",
+      "implementationFingerprint": "0d056a86",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-180"
+    },
+    {
+      "cardId": "bb-181",
+      "textFingerprint": "f7eca348",
+      "implementationFingerprint": "f6fd32ba",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-181"
+    },
+    {
+      "cardId": "bb-182",
+      "textFingerprint": "80f25b5a",
+      "implementationFingerprint": "41e850d0",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-182"
+    },
+    {
+      "cardId": "bb-183",
+      "textFingerprint": "ea083063",
+      "implementationFingerprint": "5c6c7cec",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-183"
+    },
+    {
+      "cardId": "bb-184",
+      "textFingerprint": "495d3b73",
+      "implementationFingerprint": "7169c9ed",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-184"
+    },
+    {
+      "cardId": "bb-185",
+      "textFingerprint": "bf909d57",
+      "implementationFingerprint": "37d1ac61",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-185"
+    },
+    {
+      "cardId": "bb-186",
+      "textFingerprint": "360597e6",
+      "implementationFingerprint": "fe9e6718",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-186"
+    },
+    {
+      "cardId": "bb-187",
+      "textFingerprint": "eadd2476",
+      "implementationFingerprint": "2597fa6a",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bbpo-digital-policy"
+      ],
+      "goldenTestId": "card-golden:bb-187"
+    },
+    {
+      "cardId": "bb-188",
+      "textFingerprint": "1875ce71",
+      "implementationFingerprint": "9a441f59",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-188"
+    },
+    {
+      "cardId": "bb-189",
+      "textFingerprint": "55da040d",
+      "implementationFingerprint": "14578047",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-189"
+    },
+    {
+      "cardId": "bb-190",
+      "textFingerprint": "65ff5736",
+      "implementationFingerprint": "2d765730",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-190"
+    },
+    {
+      "cardId": "bb-191",
+      "textFingerprint": "9a9c8afd",
+      "implementationFingerprint": "71cd5099",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-191"
+    },
+    {
+      "cardId": "bb-192",
+      "textFingerprint": "2f51e85c",
+      "implementationFingerprint": "57dcba10",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-192"
+    },
+    {
+      "cardId": "bb-193",
+      "textFingerprint": "f3397590",
+      "implementationFingerprint": "aa1c4b1e",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-193"
+    },
+    {
+      "cardId": "bb-194",
+      "textFingerprint": "e7a80805",
+      "implementationFingerprint": "6eb53b78",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-194"
+    },
+    {
+      "cardId": "bb-195",
+      "textFingerprint": "eb6594ae",
+      "implementationFingerprint": "4d0ed68d",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-195"
+    },
+    {
+      "cardId": "bb-196",
+      "textFingerprint": "9665b3a0",
+      "implementationFingerprint": "1281c7ae",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-196"
+    },
+    {
+      "cardId": "bb-197",
+      "textFingerprint": "0a29c9bb",
+      "implementationFingerprint": "0df91cbb",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-197"
+    },
+    {
+      "cardId": "bb-198",
+      "textFingerprint": "b75226ac",
+      "implementationFingerprint": "8d83ca74",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-198"
+    },
+    {
+      "cardId": "bb-199",
+      "textFingerprint": "bf0c70f5",
+      "implementationFingerprint": "acd458e6",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-199"
+    },
+    {
+      "cardId": "bb-200",
+      "textFingerprint": "d1cdf728",
+      "implementationFingerprint": "8ed0ca67",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-200"
+    },
+    {
+      "cardId": "bb-201",
+      "textFingerprint": "ed83692b",
+      "implementationFingerprint": "fffe50cb",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-201"
+    },
+    {
+      "cardId": "bb-202",
+      "textFingerprint": "0ab05049",
+      "implementationFingerprint": "efaf2798",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-202"
+    },
+    {
+      "cardId": "bb-203",
+      "textFingerprint": "11b8e826",
+      "implementationFingerprint": "d4ae2155",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-203"
+    },
+    {
+      "cardId": "bb-204",
+      "textFingerprint": "e592beac",
+      "implementationFingerprint": "4ccaf9f1",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-204"
+    },
+    {
+      "cardId": "bb-205",
+      "textFingerprint": "05023ba3",
+      "implementationFingerprint": "87f41254",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-205"
+    },
+    {
+      "cardId": "bb-206",
+      "textFingerprint": "e5588efd",
+      "implementationFingerprint": "6394dffa",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-206"
+    },
+    {
+      "cardId": "bb-207",
+      "textFingerprint": "3ee861de",
+      "implementationFingerprint": "9f9f8bc7",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-207"
+    },
+    {
+      "cardId": "bb-208",
+      "textFingerprint": "a28b84d5",
+      "implementationFingerprint": "f38e6819",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-208"
+    },
+    {
+      "cardId": "bb-209",
+      "textFingerprint": "a6146be9",
+      "implementationFingerprint": "d97fd376",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-209"
+    },
+    {
+      "cardId": "bb-210",
+      "textFingerprint": "edfc9c3f",
+      "implementationFingerprint": "b45429d8",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-210"
+    },
+    {
+      "cardId": "bb-211",
+      "textFingerprint": "50cb69a9",
+      "implementationFingerprint": "f49c4330",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-211"
+    },
+    {
+      "cardId": "bb-212",
+      "textFingerprint": "c30f76cb",
+      "implementationFingerprint": "0293fa90",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-212"
+    },
+    {
+      "cardId": "bb-213",
+      "textFingerprint": "b5208283",
+      "implementationFingerprint": "87d130a9",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-213"
+    },
+    {
+      "cardId": "bb-214",
+      "textFingerprint": "093e57cd",
+      "implementationFingerprint": "6c424fb5",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-214"
+    },
+    {
+      "cardId": "bb-215",
+      "textFingerprint": "afc1536f",
+      "implementationFingerprint": "893223c7",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-215"
+    },
+    {
+      "cardId": "bb-216",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "d2c416aa",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-216"
+    },
+    {
+      "cardId": "bb-217",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "403a35af",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-217"
+    },
+    {
+      "cardId": "bb-218",
+      "textFingerprint": "c812f76e",
+      "implementationFingerprint": "e075d151",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-218"
+    },
+    {
+      "cardId": "bb-219",
+      "textFingerprint": "b74b911f",
+      "implementationFingerprint": "f2bab09c",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-219"
+    },
+    {
+      "cardId": "bb-220",
+      "textFingerprint": "eaee4145",
+      "implementationFingerprint": "c52e3191",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-220"
+    },
+    {
+      "cardId": "bb-221",
+      "textFingerprint": "7bd18917",
+      "implementationFingerprint": "9472a4de",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-221"
+    },
+    {
+      "cardId": "bb-222",
+      "textFingerprint": "30c1cb71",
+      "implementationFingerprint": "5ce12468",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-222"
+    },
+    {
+      "cardId": "bb-223",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "fd3c399e",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-223"
+    },
+    {
+      "cardId": "bb-224",
+      "textFingerprint": "92b69066",
+      "implementationFingerprint": "a97b5823",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-224"
+    },
+    {
+      "cardId": "bb-225",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "678a7ee5",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-225"
+    },
+    {
+      "cardId": "bb-226",
+      "textFingerprint": "6863a676",
+      "implementationFingerprint": "0efc74b7",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-226"
+    },
+    {
+      "cardId": "bb-227",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "53a86832",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-227"
+    },
+    {
+      "cardId": "bb-228",
+      "textFingerprint": "1f2f3a07",
+      "implementationFingerprint": "9dde74fc",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-228"
+    },
+    {
+      "cardId": "bb-229",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "1227bd2a",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-229"
+    },
+    {
+      "cardId": "bb-230",
+      "textFingerprint": "1157c710",
+      "implementationFingerprint": "ad9eed83",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-230"
+    },
+    {
+      "cardId": "bb-231",
+      "textFingerprint": "6ddcabc1",
+      "implementationFingerprint": "851fa50c",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-231"
+    },
+    {
+      "cardId": "bb-232",
+      "textFingerprint": "a9972e91",
+      "implementationFingerprint": "44537525",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-232"
+    },
+    {
+      "cardId": "bb-233",
+      "textFingerprint": "4b970fb1",
+      "implementationFingerprint": "0878cdd4",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-233"
+    },
+    {
+      "cardId": "bb-234",
+      "textFingerprint": "3309e221",
+      "implementationFingerprint": "0dfd4861",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-234"
+    },
+    {
+      "cardId": "bb-235",
+      "textFingerprint": "9feb204d",
+      "implementationFingerprint": "e66f2bed",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-235"
+    },
+    {
+      "cardId": "bb-236",
+      "textFingerprint": "ebb1178e",
+      "implementationFingerprint": "22df3c02",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-236"
+    },
+    {
+      "cardId": "bb-237",
+      "textFingerprint": "b0f8e33d",
+      "implementationFingerprint": "995682e0",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-237"
+    },
+    {
+      "cardId": "bb-238",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "31f64cb9",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-238"
+    },
+    {
+      "cardId": "bb-239",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "7c9c2b4b",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-239"
+    },
+    {
+      "cardId": "bb-240",
+      "textFingerprint": "7b3565a3",
+      "implementationFingerprint": "772283d8",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-240"
+    },
+    {
+      "cardId": "bb-241",
+      "textFingerprint": "f761d832",
+      "implementationFingerprint": "81f7a0e6",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-241"
+    },
+    {
+      "cardId": "bb-242",
+      "textFingerprint": "c8d5268e",
+      "implementationFingerprint": "135d0621",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-242"
+    },
+    {
+      "cardId": "bb-243",
+      "textFingerprint": "3f3c015d",
+      "implementationFingerprint": "1af0bfbf",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-243"
+    },
+    {
+      "cardId": "bb-244",
+      "textFingerprint": "f1321ccb",
+      "implementationFingerprint": "7295b45c",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-244"
+    },
+    {
+      "cardId": "bb-245",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "fba684f8",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-245"
+    },
+    {
+      "cardId": "bb-246",
+      "textFingerprint": "64aff8b7",
+      "implementationFingerprint": "f4675679",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-246"
+    },
+    {
+      "cardId": "bb-247",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "fdd95a11",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-247"
+    },
+    {
+      "cardId": "bb-248",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "40b30c6f",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-248"
+    },
+    {
+      "cardId": "bb-249",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "442670a4",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-249"
+    },
+    {
+      "cardId": "bb-250",
+      "textFingerprint": "ade263b2",
+      "implementationFingerprint": "e7ebe836",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-250"
+    },
+    {
+      "cardId": "bb-251",
+      "textFingerprint": "50a75349",
+      "implementationFingerprint": "32df5a8b",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-251"
+    },
+    {
+      "cardId": "bb-252",
+      "textFingerprint": "14fa1ba3",
+      "implementationFingerprint": "63f574a7",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-252"
+    },
+    {
+      "cardId": "bb-253",
+      "textFingerprint": "016834ca",
+      "implementationFingerprint": "4d96634f",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-253"
+    },
+    {
+      "cardId": "bb-254",
+      "textFingerprint": "8db6aaba",
+      "implementationFingerprint": "ff81de62",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-254"
+    },
+    {
+      "cardId": "bb-255",
+      "textFingerprint": "19a4144e",
+      "implementationFingerprint": "a5e61307",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-255"
+    },
+    {
+      "cardId": "bb-256",
+      "textFingerprint": "3c2db017",
+      "implementationFingerprint": "155f88d2",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-256"
+    },
+    {
+      "cardId": "bb-257",
+      "textFingerprint": "d2d95f8f",
+      "implementationFingerprint": "43e258d2",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-257"
+    },
+    {
+      "cardId": "bb-258",
+      "textFingerprint": "98a8a7f2",
+      "implementationFingerprint": "49b44fb1",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-258"
+    },
+    {
+      "cardId": "bb-259",
+      "textFingerprint": "40e8601c",
+      "implementationFingerprint": "b67dff5e",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-259"
+    },
+    {
+      "cardId": "bb-260",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "e27ad1d0",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-260"
+    },
+    {
+      "cardId": "bb-261",
+      "textFingerprint": "43dd058f",
+      "implementationFingerprint": "a3136f11",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-261"
+    },
+    {
+      "cardId": "bb-262",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "e05ee47e",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-262"
+    },
+    {
+      "cardId": "bb-263",
+      "textFingerprint": "e7268f69",
+      "implementationFingerprint": "fcfeeb19",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-263"
+    },
+    {
+      "cardId": "bb-264",
+      "textFingerprint": "ea3074d3",
+      "implementationFingerprint": "90ff72eb",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-264"
+    },
+    {
+      "cardId": "bb-265",
+      "textFingerprint": "5364f494",
+      "implementationFingerprint": "b379665a",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-265"
+    },
+    {
+      "cardId": "bb-266",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "bd0ed530",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-266"
+    },
+    {
+      "cardId": "bb-267",
+      "textFingerprint": "8cce2f0d",
+      "implementationFingerprint": "6a7dad4b",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-267"
+    },
+    {
+      "cardId": "bb-268",
+      "textFingerprint": "6080a2a4",
+      "implementationFingerprint": "ae67e099",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-268"
+    },
+    {
+      "cardId": "bb-269",
+      "textFingerprint": "b4f74666",
+      "implementationFingerprint": "cdd884b4",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-269"
+    },
+    {
+      "cardId": "bb-270",
+      "textFingerprint": "24fcdfef",
+      "implementationFingerprint": "ac274a9a",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-270"
+    },
+    {
+      "cardId": "bb-271",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "551bd15f",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-271"
+    },
+    {
+      "cardId": "bb-272",
+      "textFingerprint": "e362cd00",
+      "implementationFingerprint": "bc2f9747",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-272"
+    },
+    {
+      "cardId": "bb-273",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "f36f61d6",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-273"
+    },
+    {
+      "cardId": "bb-274",
+      "textFingerprint": "abd04800",
+      "implementationFingerprint": "304cb95d",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-274"
+    },
+    {
+      "cardId": "bb-275",
+      "textFingerprint": "9d99ccc0",
+      "implementationFingerprint": "42c21506",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-275"
+    },
+    {
+      "cardId": "bb-276",
+      "textFingerprint": "97c20866",
+      "implementationFingerprint": "72ec05ec",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-276"
+    },
+    {
+      "cardId": "bb-277",
+      "textFingerprint": "eac3ce89",
+      "implementationFingerprint": "8d44a6cd",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-277"
+    },
+    {
+      "cardId": "bb-278",
+      "textFingerprint": "7658b6f2",
+      "implementationFingerprint": "0dae29bb",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-278"
+    },
+    {
+      "cardId": "bb-279",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "e526b816",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-279"
+    },
+    {
+      "cardId": "bb-280",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "9d0ade83",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-280"
+    },
+    {
+      "cardId": "bb-281",
+      "textFingerprint": "8e672fef",
+      "implementationFingerprint": "bb947df2",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-public-rulings"
+      ],
+      "goldenTestId": "card-golden:bb-281"
+    },
+    {
+      "cardId": "bb-282",
+      "textFingerprint": "f42b67a8",
+      "implementationFingerprint": "e6324560",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-282"
+    },
+    {
+      "cardId": "bb-283",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "2c016c4b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-283"
+    },
+    {
+      "cardId": "bb-284",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "1c6f35ef",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-284"
+    },
+    {
+      "cardId": "bb-285",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "6180383b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-285"
+    },
+    {
+      "cardId": "bb-286",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "11a440c7",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-286"
+    },
+    {
+      "cardId": "bb-287",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "c6244413",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-287"
+    },
+    {
+      "cardId": "bb-288",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "591f5bbf",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-288"
+    },
+    {
+      "cardId": "bb-289",
+      "textFingerprint": "2e7c526e",
+      "implementationFingerprint": "c0c7f098",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-289"
+    },
+    {
+      "cardId": "bb-290",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "b3b146ff",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-290"
+    },
+    {
+      "cardId": "bb-291",
+      "textFingerprint": "d39f2480",
+      "implementationFingerprint": "37729496",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-291"
+    },
+    {
+      "cardId": "bb-292",
+      "textFingerprint": "cfeb9f07",
+      "implementationFingerprint": "04e17ad7",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-292"
+    },
+    {
+      "cardId": "bb-293",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "b1d67b3b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-293"
+    },
+    {
+      "cardId": "bb-294",
+      "textFingerprint": "79ad6067",
+      "implementationFingerprint": "7a2b1f85",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-294"
+    },
+    {
+      "cardId": "bb-295",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "f4f2ce67",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-295"
+    },
+    {
+      "cardId": "bb-296",
+      "textFingerprint": "551d0d19",
+      "implementationFingerprint": "e85c7517",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-296"
+    },
+    {
+      "cardId": "bb-297",
+      "textFingerprint": "47b48374",
+      "implementationFingerprint": "f664a3f4",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-297"
+    },
+    {
+      "cardId": "bb-298",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "38dbe40f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-298"
+    },
+    {
+      "cardId": "bb-299",
+      "textFingerprint": "e63ce4a4",
+      "implementationFingerprint": "2cf1b858",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-299"
+    },
+    {
+      "cardId": "bb-300",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "794e8953",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-300"
+    },
+    {
+      "cardId": "bb-301",
+      "textFingerprint": "357d00a2",
+      "implementationFingerprint": "fa260860",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-301"
+    },
+    {
+      "cardId": "bb-302",
+      "textFingerprint": "6a3b3656",
+      "implementationFingerprint": "516ea682",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-302"
+    },
+    {
+      "cardId": "bb-303",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "4480ee57",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-303"
+    },
+    {
+      "cardId": "bb-304",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "a38656bb",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-304"
+    },
+    {
+      "cardId": "bb-305",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "b5bbc93f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-305"
+    },
+    {
+      "cardId": "bb-306",
+      "textFingerprint": "35f6c537",
+      "implementationFingerprint": "f103578b",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-306"
+    },
+    {
+      "cardId": "bb-307",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "bfd6b7d7",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-307"
+    },
+    {
+      "cardId": "bb-308",
+      "textFingerprint": "1f8242c7",
+      "implementationFingerprint": "f677105b",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-308"
+    },
+    {
+      "cardId": "bb-309",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "9348710f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-309"
+    },
+    {
+      "cardId": "bb-310",
+      "textFingerprint": "8b08629b",
+      "implementationFingerprint": "0aee25d5",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-310"
+    },
+    {
+      "cardId": "bb-311",
+      "textFingerprint": "42e9918b",
+      "implementationFingerprint": "ce1cc661",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-311"
+    },
+    {
+      "cardId": "bb-312",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "057e4cab",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-312"
+    },
+    {
+      "cardId": "bb-313",
+      "textFingerprint": "7b3565a3",
+      "implementationFingerprint": "c479b6e9",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-313"
+    },
+    {
+      "cardId": "bb-314",
+      "textFingerprint": "7b3565a3",
+      "implementationFingerprint": "bec51dcd",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-314"
+    },
+    {
+      "cardId": "bb-315",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "ebb1a9ef",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-315"
+    },
+    {
+      "cardId": "bb-316",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "aa45233b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-316"
+    },
+    {
+      "cardId": "bb-317",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "180dd56b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-317"
+    },
+    {
+      "cardId": "bb-318",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "a3809ba7",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-318"
+    },
+    {
+      "cardId": "bb-319",
+      "textFingerprint": "82ad0ed9",
+      "implementationFingerprint": "b6d7c521",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-319"
+    },
+    {
+      "cardId": "bb-320",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "b39708fb",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-320"
+    },
+    {
+      "cardId": "bb-321",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "e370077b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-321"
+    },
+    {
+      "cardId": "bb-322",
+      "textFingerprint": "c056cca9",
+      "implementationFingerprint": "890cd95b",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-322"
+    },
+    {
+      "cardId": "bb-323",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "4286981b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-323"
+    },
+    {
+      "cardId": "bb-324",
+      "textFingerprint": "42648c5f",
+      "implementationFingerprint": "020c0831",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-324"
+    },
+    {
+      "cardId": "bb-325",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "5514a3d3",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-325"
+    },
+    {
+      "cardId": "bb-326",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "801a568b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-326"
+    },
+    {
+      "cardId": "bb-327",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "4f6b14c3",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-327"
+    },
+    {
+      "cardId": "bb-328",
+      "textFingerprint": "f359f30f",
+      "implementationFingerprint": "a6ef3d0a",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-328"
+    },
+    {
+      "cardId": "bb-329",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "86d2cc2b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-329"
+    },
+    {
+      "cardId": "bb-330",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "6c7355ef",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-330"
+    },
+    {
+      "cardId": "bb-331",
+      "textFingerprint": "58e84a01",
+      "implementationFingerprint": "2db812a9",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-331"
+    },
+    {
+      "cardId": "bb-332",
+      "textFingerprint": "50306296",
+      "implementationFingerprint": "8322a9d8",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-332"
+    },
+    {
+      "cardId": "bb-333",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "3d7815a7",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-333"
+    },
+    {
+      "cardId": "bb-334",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "c5e10b9f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-334"
+    },
+    {
+      "cardId": "bb-335",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "38fb050b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-335"
+    },
+    {
+      "cardId": "bb-336",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "3bc1c833",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-336"
+    },
+    {
+      "cardId": "bb-337",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "ec742967",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-337"
+    },
+    {
+      "cardId": "bb-338",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "ff6a05df",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-338"
+    },
+    {
+      "cardId": "bb-339",
+      "textFingerprint": "47b48374",
+      "implementationFingerprint": "227c0f04",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-339"
+    },
+    {
+      "cardId": "bb-340",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "01e5ab0b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-340"
+    },
+    {
+      "cardId": "bb-341",
+      "textFingerprint": "f1f1fd2d",
+      "implementationFingerprint": "996982bd",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-341"
+    },
+    {
+      "cardId": "bb-342",
+      "textFingerprint": "58dc33ff",
+      "implementationFingerprint": "29d79e49",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-342"
+    },
+    {
+      "cardId": "bb-343",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "f9fc0a9f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-343"
+    },
+    {
+      "cardId": "bb-344",
+      "textFingerprint": "435301ad",
+      "implementationFingerprint": "8e62b121",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-344"
+    },
+    {
+      "cardId": "bb-345",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "bc11485f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-345"
+    },
+    {
+      "cardId": "bb-346",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "4ae1cdbb",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-346"
+    },
+    {
+      "cardId": "bb-347",
+      "textFingerprint": "9ab3756d",
+      "implementationFingerprint": "9dee449f",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-347"
+    },
+    {
+      "cardId": "bb-348",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "dc821c3b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-348"
+    },
+    {
+      "cardId": "bb-349",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "78f2836f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-349"
+    },
+    {
+      "cardId": "bb-350",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "ec3a4597",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-350"
+    },
+    {
+      "cardId": "bb-351",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "bb1c9607",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-351"
+    },
+    {
+      "cardId": "bb-352",
+      "textFingerprint": "32bf95ff",
+      "implementationFingerprint": "a624b79d",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-352"
+    },
+    {
+      "cardId": "bb-353",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "f6e7680b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-353"
+    },
+    {
+      "cardId": "bb-354",
+      "textFingerprint": "6dbaa030",
+      "implementationFingerprint": "2db96b4c",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-354"
+    },
+    {
+      "cardId": "bb-355",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "e5da7e8f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-355"
+    },
+    {
+      "cardId": "bb-356",
+      "textFingerprint": "a220dd22",
+      "implementationFingerprint": "c81c1502",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-356"
+    },
+    {
+      "cardId": "bb-357",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "9c578b3b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-357"
+    },
+    {
+      "cardId": "bb-358",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "743884e7",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-358"
+    },
+    {
+      "cardId": "bb-359",
+      "textFingerprint": "4aa46535",
+      "implementationFingerprint": "fc6479fb",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-359"
+    },
+    {
+      "cardId": "bb-360",
+      "textFingerprint": "2eecff06",
+      "implementationFingerprint": "bc0e0601",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-360"
+    },
+    {
+      "cardId": "bb-361",
+      "textFingerprint": "8564e0cc",
+      "implementationFingerprint": "bc636490",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-361"
+    },
+    {
+      "cardId": "bb-362",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "460e223b",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-362"
+    },
+    {
+      "cardId": "bb-363",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "e30fabeb",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-363"
+    },
+    {
+      "cardId": "bb-364",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "bd87fcdb",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-364"
+    },
+    {
+      "cardId": "bb-365",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "156d69db",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-365"
+    },
+    {
+      "cardId": "bb-366",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "14843f83",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-366"
+    },
+    {
+      "cardId": "bb-367",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "a634cd43",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-367"
+    },
+    {
+      "cardId": "bb-368",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "b115fef3",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-368"
+    },
+    {
+      "cardId": "bb-369",
+      "textFingerprint": "2fc5c210",
+      "implementationFingerprint": "05d2b69e",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-369"
+    },
+    {
+      "cardId": "bb-370",
+      "textFingerprint": "b4075e9c",
+      "implementationFingerprint": "61b4dbe0",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-370"
+    },
+    {
+      "cardId": "bb-371",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "5a34c0bb",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-371"
+    },
+    {
+      "cardId": "bb-372",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "85958fc3",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-372"
+    },
+    {
+      "cardId": "bb-373",
+      "textFingerprint": "6b50d633",
+      "implementationFingerprint": "c8d49d9c",
+      "provenanceSources": [
+        "bp-card-printing",
+        "bp-complete-rulebook"
+      ],
+      "goldenTestId": "card-golden:bb-373"
+    },
+    {
+      "cardId": "bb-374",
+      "textFingerprint": "811c9dc5",
+      "implementationFingerprint": "9e8b619f",
+      "provenanceSources": [
+        "bp-card-printing"
+      ],
+      "goldenTestId": "card-golden:bb-374"
+    }
+  ]
+}

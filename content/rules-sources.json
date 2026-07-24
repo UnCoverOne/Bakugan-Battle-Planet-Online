@@ -1,0 +1,37 @@
+[
+  {
+    "id": "bp-public-rulings",
+    "title": "Public Ruling Questions for Justin Gary and Gary Arant",
+    "kind": "official-ruling",
+    "priority": 400,
+    "scope": "Specific questions, errata, timing clarifications, card identity and unusual interactions"
+  },
+  {
+    "id": "bp-complete-rulebook",
+    "title": "Bakugan Battle Planet Official Complete Rulebook",
+    "kind": "comprehensive-rules",
+    "priority": 300,
+    "scope": "General game procedures, priority, batch, damage, keywords, zones and win conditions"
+  },
+  {
+    "id": "bp-glossary",
+    "title": "Bakugan Battle Planet Glossary",
+    "kind": "official-glossary",
+    "priority": 200,
+    "scope": "Defined terms, selections, copying and keyword summaries"
+  },
+  {
+    "id": "bp-card-printing",
+    "title": "Battle Planet card printing",
+    "kind": "printed-card",
+    "priority": 100,
+    "scope": "Printed characteristics and card text for one canonical catalogue record"
+  },
+  {
+    "id": "bbpo-digital-policy",
+    "title": "Bakugan Battle Planet Online digital adaptation policy",
+    "kind": "product-policy",
+    "priority": 50,
+    "scope": "Digital rolling profiles, timeout behavior and online-only operational rules"
+  }
+]
