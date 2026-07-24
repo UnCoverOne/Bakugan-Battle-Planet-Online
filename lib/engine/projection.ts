@@ -17,5 +17,15 @@ export function projectEventsForPlayer(
 ): PublicGameEvent[] {
   return events
     .filter((event) => event.visibility === "public" || (event.visibility === "controller" && event.visibleTo === playerId))
-    .map(({ visibility: _visibility, visibleTo: _visibleTo, ...event }) => event);
+    .map((event) => ({
+      gameId: event.gameId,
+      commandId: event.commandId,
+      sequence: event.sequence,
+      type: event.type,
+      actorId: event.actorId,
+      payload: event.payload,
+      engineVersion: event.engineVersion,
+      rulesVersion: event.rulesVersion,
+      createdAt: event.createdAt,
+    }));
 }
