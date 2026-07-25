@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 import { CARDS } from "../lib/data";
 import { cardArtSource } from "../lib/content/card-art";
@@ -6,6 +8,8 @@ import { CARD_SET_INFO, cardCollectorLabel, cardSetCode } from "../lib/content/c
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 
 const bySet = (set: "BB" | "BR" | "AA") => CARDS.filter((card) => cardSetCode(card) === set);
+
+const repositoryAssetExists = (assetPath: string) => existsSync(join(process.cwd(), "public", assetPath.replace(/^\//, "")));
 
 test("Bakugan Resurgence and Age of Aurelus are fully addressable", () => {
   assert.equal(bySet("BB").length, 374);
@@ -28,26 +32,32 @@ test("collector labels are set-aware", () => {
   assert.equal(cardCollectorLabel(CARDS.find((card) => card.catalogId === "aa-1")!), "1/220 AA");
 });
 
-test("every extension card has rules provenance and a usable art source", () => {
+test("every extension card has rules provenance and a self-hosted art source", () => {
   for (const card of CARDS.filter((candidate) => cardSetCode(candidate) !== "BB")) {
     const definition = ruleDefinitionForCard(card);
     assert.equal(definition.cardId, card.catalogId);
     assert.equal(definition.sourceText, card.effect);
     assert.ok(definition.provenance.citations.some((citation) => citation.sourceId === "bp-card-printing"));
-    assert.ok(card.art.startsWith("https://bakugan.wiki/") || card.art === "/assets/cards/card-missing.svg");
+    if (card.hasProvidedScan) {
+      const set = cardSetCode(card).toLowerCase();
+      assert.equal(card.art, `/assets/cards/sets/${set}/full/${card.catalogId}.webp`);
+      assert.ok(repositoryAssetExists(card.art), `${card.catalogId} full scan is missing`);
+      assert.ok(repositoryAssetExists(cardArtSource(card, "thumbnail")), `${card.catalogId} thumbnail is missing`);
+    } else {
+      assert.equal(card.art, "/assets/cards/card-missing.svg");
+    }
+    assert.ok(!/^https?:\/\//i.test(card.art), `${card.catalogId} must not rely on external artwork`);
   }
 });
 
-test("card art resolution preserves set-qualified scan sources", () => {
+test("card art resolution preserves set-qualified local scan sources", () => {
   const battleBrawlers = CARDS.find((card) => card.catalogId === "bb-1")!;
   const resurgence = CARDS.find((card) => card.catalogId === "br-1")!;
   const ageOfAurelus = CARDS.find((card) => card.catalogId === "aa-1")!;
 
   assert.equal(cardArtSource(battleBrawlers, "thumbnail"), "/assets/cards/thumb/1.webp");
-  assert.equal(cardArtSource(resurgence, "thumbnail"), resurgence.art);
-  assert.equal(cardArtSource(ageOfAurelus, "thumbnail"), ageOfAurelus.art);
-  assert.match(resurgence.art, /^https:\/\/bakugan\.wiki\//);
-  assert.match(ageOfAurelus.art, /^https:\/\/bakugan\.wiki\//);
+  assert.equal(cardArtSource(resurgence, "thumbnail"), "/assets/cards/sets/br/thumb/br-1.webp");
+  assert.equal(cardArtSource(ageOfAurelus, "thumbnail"), "/assets/cards/sets/aa/thumb/aa-1.webp");
 });
 
 test("Evo identities prefer the matching card set and faction", () => {
