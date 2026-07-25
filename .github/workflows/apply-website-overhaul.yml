@@ -23,9 +23,14 @@ jobs:
       - name: Reconstruct and apply validated overhaul patch
         run: |
           set -euo pipefail
-          for part in 00 01 02 03 04 05; do
-            git show 79aeb422b95a30dfd426231eacb36d54d70642a8:.website-overhaul-patch/part-${part}
-          done | base64 --decode | gzip --decompress > /tmp/website-overhaul.patch
+          {
+            git show 79aeb422b95a30dfd426231eacb36d54d70642a8:.website-overhaul-patch/part-00
+            git show 79aeb422b95a30dfd426231eacb36d54d70642a8:.website-overhaul-patch/part-01
+            cat .website-overhaul-patch/part-02a .website-overhaul-patch/part-02b
+            git show 79aeb422b95a30dfd426231eacb36d54d70642a8:.website-overhaul-patch/part-03
+            git show 79aeb422b95a30dfd426231eacb36d54d70642a8:.website-overhaul-patch/part-04
+            git show 79aeb422b95a30dfd426231eacb36d54d70642a8:.website-overhaul-patch/part-05
+          } | base64 --decode | gzip --decompress > /tmp/website-overhaul.patch
           echo "f5b79ffc59308c3e67b36d02c34182415af15f27818f80129adf3802f0cee3dc  /tmp/website-overhaul.patch" | sha256sum --check
           git apply --index --exclude=.github/workflows/repository-export.yml /tmp/website-overhaul.patch
           git rm --ignore-unmatch .github/workflows/apply-website-overhaul.yml .github/workflows/repository-export.yml
