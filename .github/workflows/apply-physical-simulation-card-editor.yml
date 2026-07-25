@@ -1,0 +1,52 @@
+name: Apply Physical Simulation and Card Editor
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/apply-physical-simulation-card-editor.mjs"
+      - ".github/workflows/apply-physical-simulation-card-editor.yml"
+      - "lib/rules/physical-simulation.ts"
+      - "lib/content/card-authoring.ts"
+      - "components/card-editor/**"
+      - "app/tools/card-editor/**"
+      - "tests/physical-simulation.test.ts"
+      - "tests/card-authoring.test.ts"
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - name: Integrate physical simulation and authoring tools
+        run: node scripts/apply-physical-simulation-card-editor.mjs
+      - run: npm ci
+      - run: npm run content:lock
+      - run: npm run validate:content
+      - run: npm run test:simulation
+      - run: npm run test:authoring
+      - run: npm test
+      - run: npm run lint
+      - run: npm run cf:dry-run
+      - name: Commit validated native implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git reset -- .github/workflows/apply-physical-simulation-card-editor.yml scripts/apply-physical-simulation-card-editor.mjs
+          git commit -m 'feat: formalize physical simulation and add card editor'
+          git push origin HEAD:${{ github.head_ref }}
