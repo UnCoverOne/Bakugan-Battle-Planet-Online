@@ -116,7 +116,7 @@ test("all-closed physical attempts repeat as explicit replay-visible attempts", 
   const values = [
     99, 0, 99, 0,
     99, 0, 99, 0,
-    99, 9_999, 99, 0,
+    99, 3_500, 99, 0,
     99, 0, 99, 0,
   ];
   const result = simulatePhysicalRollStep(state, HEX_CELLS, queue(values));
@@ -166,8 +166,9 @@ test("primary pickups take precedence over a Double Core secondary pickup", () =
 });
 
 test("out-of-range random sources are rejected", () => {
+  const state = targetState();
   assert.throws(
-    () => resolvePhysicalRollOutcome(targetState(), HEX_CELLS, targetState().players[0], () => 100),
+    () => resolvePhysicalRollOutcome(state, HEX_CELLS, state.players[0], () => 100),
     (error: unknown) => error instanceof PhysicalSimulationError && error.code === "INVALID_RANDOM_VALUE",
   );
 });
