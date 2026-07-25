@@ -318,6 +318,22 @@ function definitionForCard(card: GameCard): RuleDefinition {
     goldenTestIds: [`card-golden:${cardId(card)}`],
   };
 }
+export function authorRuleDefinitionForCard(
+  card: GameCard,
+): RuleDefinition & { implementationStatus: "draft" } {
+  const definition = definitionForCard(card);
+  return {
+    ...definition,
+    implementationStatus: "draft",
+    provenance: {
+      authorityOrder: [...definition.provenance.authorityOrder],
+      citations: definition.provenance.citations.map((citation) => ({ ...citation })),
+      reviewed: false,
+    },
+    goldenTestIds: [],
+  };
+}
+
 const DEFINITIONS = Object.freeze(CARDS.map(definitionForCard));
 const BY_ID = new Map(DEFINITIONS.map((definition) => [definition.cardId, definition]));
 
@@ -341,6 +357,7 @@ export function ruleDefinitionForCard(card: GameCard): RuleDefinition {
 
 export function validateCardAgainstRules(card: GameCard) {
   const definition = ruleDefinitionForCard(card);
+  if (definition.implementationStatus !== "complete") throw new UnsupportedCardTextError("UNSUPPORTED_RULE_NODE", `${card.name} is not a reviewed production definition.`);
   if (definition.sourceTextFingerprint !== textFingerprint(card.effect)) throw new UnsupportedCardTextError("CARD_TEXT_MISMATCH", `${card.name} has an invalid text fingerprint.`);
   const provenanceErrors = validateDefinitionProvenance(definition);
   if (provenanceErrors.length) throw new UnsupportedCardTextError("UNSUPPORTED_RULE_NODE", provenanceErrors.join(" "));

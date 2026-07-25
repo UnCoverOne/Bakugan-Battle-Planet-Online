@@ -16,6 +16,18 @@ import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRu
 import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
 import { collectRuleTriggers } from "./rules/triggers";
+import {
+  BATTLE_PLANET_PHYSICAL_SIMULATION_PROFILE,
+  PhysicalSimulationError,
+  physicalRotationPhaseOpenCell,
+  resolvePhysicalRollOutcome,
+  simulatePhysicalRollStep,
+} from "./rules/physical-simulation";
+import {
+  EngineRuntimeLimitError,
+  MAX_PHYSICAL_ROLL_ATTEMPTS,
+  consumePhysicalRollAttempt,
+} from "./engine/limits";
 
 // Backward-compatible server/test entry point. The interactive client imports
 // the clearer manual-damage name directly.
@@ -108,6 +120,13 @@ export type PlayerState = {
 
 export type Placement = { playerId: string; core: Core; cell: string; order: number; attachedTo?: string; revealed?: boolean };
 export type RollPathPoint = { x: number; y: number };
+export type PhysicalCollisionDecision = {
+  kind: "primary-contested" | "secondary-yielded";
+  coreCell: string;
+  winnerPlayerId: string;
+  affectedPlayerId: string;
+  policy: string;
+};
 export type RollResult =
   | "miss-closed"
   | "open-no-core"
@@ -131,6 +150,12 @@ export type RollOutcome = {
   doubleCore: boolean;
   path: RollPathPoint[];
   note: string;
+  /** Versioned digital-adaptation profile that interpreted the physical roll. */
+  simulationProfileId?: string;
+  /** One-based attempt number when every Bakugan remained closed and the step repeated. */
+  attempt?: number;
+  /** Structured contested-pickup decisions retained for replay and diagnostics. */
+  collisionDecisions?: PhysicalCollisionDecision[];
 };
 
 export type CardChoices = {
@@ -519,389 +544,90 @@ export const selectBakugan = (input: MatchState, playerId: string, bakuganId: st
   return withVersion(state);
 };
 
-const ROLL_GRID_WIDTH = 1800;
-const ROLL_GRID_HEIGHT = 1000;
-const ROLL_GRID_CENTER_X = ROLL_GRID_WIDTH / 2;
-const ROLL_GRID_CENTER_Y = ROLL_GRID_HEIGHT / 2;
-const ROLL_HEX_RADIUS = 52 * 0.8;
-const ROLL_HEX_HEIGHT = Math.sqrt(3) * ROLL_HEX_RADIUS;
-const ROLL_HEX_X_STEP = ROLL_HEX_RADIUS * 1.5;
-const ROLL_LANE_HALF_WIDTH = 42;
-
-type ProjectedPlacement = {
-  placement: Placement;
-  point: RollPathPoint;
-  along: number;
-  lateral: number;
-};
-
-const rollCellPoint = (cellId: string): RollPathPoint | undefined => {
-  const cell = cellAt(cellId);
-  if (!cell) return undefined;
-  return {
-    x: ROLL_GRID_CENTER_X + cell.q * ROLL_HEX_X_STEP,
-    y: ROLL_GRID_CENTER_Y + (cell.r + cell.q / 2) * ROLL_HEX_HEIGHT,
-  };
-};
-
-const rollStartPoint = (playerIndex: number): RollPathPoint => ({
-  x: ROLL_GRID_CENTER_X,
-  y: playerIndex === 0 ? ROLL_GRID_HEIGHT + 90 : -90,
-});
-
-const vectorBetween = (from: RollPathPoint, to: RollPathPoint) => ({
-  x: to.x - from.x,
-  y: to.y - from.y,
-});
-const vectorLength = (vector: RollPathPoint) => Math.hypot(vector.x, vector.y);
-const dot = (a: RollPathPoint, b: RollPathPoint) => a.x * b.x + a.y * b.y;
-const cross = (a: RollPathPoint, b: RollPathPoint) => a.x * b.y - a.y * b.x;
-const roundedPoint = (point: RollPathPoint): RollPathPoint => ({
-  x: Math.round(point.x * 10) / 10,
-  y: Math.round(point.y * 10) / 10,
-});
-const interpolatePoint = (from: RollPathPoint, to: RollPathPoint, amount: number): RollPathPoint => ({
-  x: from.x + (to.x - from.x) * amount,
-  y: from.y + (to.y - from.y) * amount,
-});
-
-const projectedPlacements = (
-  state: MatchState,
-  playerIndex: number,
-  targetCell: string,
-): ProjectedPlacement[] => {
-  const start = rollStartPoint(playerIndex);
-  const target = rollCellPoint(targetCell);
-  if (!target) return [];
-  const lane = vectorBetween(start, target);
-  const laneLength = Math.max(1, vectorLength(lane));
-  const laneLengthSquared = laneLength * laneLength;
-  return state.placements
-    .filter((placement) => !placement.attachedTo)
-    .map((placement) => {
-      const point = rollCellPoint(placement.cell)!;
-      const offset = vectorBetween(start, point);
-      return {
-        placement,
-        point,
-        along: dot(offset, lane) / laneLengthSquared,
-        lateral: cross(lane, offset) / laneLength,
-      };
-    });
-};
-
-const rollLane = (
-  state: MatchState,
-  playerIndex: number,
-  targetCell: string,
-) => projectedPlacements(state, playerIndex, targetCell)
-  .filter((candidate) => candidate.along > 0 && Math.abs(candidate.lateral) <= ROLL_LANE_HALF_WIDTH)
-  .sort((a, b) => a.along - b.along || a.placement.order - b.placement.order);
-
-/**
- * A Bakugan's magnet returns to the same downward phase after travelling four
- * BakuCore lengths. The intended target calibrates the downward phase, then an
- * earlier Core can intercept at four, eight, and subsequent Core lengths.
- *
- * Axial cell distance measures the physical slots in the Hide Matrix rather
- * than counting only occupied placements, so empty slots still advance the
- * Bakugan's rotation.
- */
 export const rotationPhaseOpenCell = (
   state: MatchState,
   playerId: string,
   targetCell: string,
-) => {
-  const playerIndex = state.players.findIndex((player) => player.id === playerId);
-  const target = cellAt(targetCell);
-  if (playerIndex < 0 || !target) return targetCell;
-  const intercept = rollLane(state, playerIndex, targetCell).find((candidate) => {
-    if (candidate.placement.cell === targetCell || candidate.along >= 0.999) return false;
-    const candidateCell = cellAt(candidate.placement.cell);
-    if (!candidateCell) return false;
-    const coreLengths = distance(candidateCell, target);
-    return coreLengths > 0 && coreLengths % 4 === 0;
-  });
-  return intercept?.placement.cell ?? targetCell;
-};
-
-const adjacentAvailablePlacements = (state: MatchState, cellId: string) => {
-  const cell = cellAt(cellId);
-  if (!cell) return [];
-  return state.placements.filter((placement) => {
-    const other = cellAt(placement.cell);
-    return !placement.attachedTo && other && placement.cell !== cellId && distance(cell, other) === 1;
-  });
-};
-
-type WeightedRollOption = {
-  result: RollOutcome["result"];
-  weight: number;
-  placement?: Placement;
-};
-
-const chooseWeightedRollOption = (
-  options: WeightedRollOption[],
-  roll: number,
-) => {
-  const total = options.reduce((sum, option) => sum + option.weight, 0);
-  let cursor = ((Math.max(1, roll) - 1) % 10_000) / 10_000 * total;
-  for (const option of options) {
-    cursor -= option.weight;
-    if (cursor < 0) return option;
-  }
-  return options.at(-1)!;
-};
-
-const missOptions = (
-  state: MatchState,
-  playerIndex: number,
-  targetCell: string,
-): WeightedRollOption[] => {
-  const projected = projectedPlacements(state, playerIndex, targetCell);
-  const target = projected.find((candidate) => candidate.placement.cell === targetCell);
-  if (!target) return [
-    { result: "miss-closed", weight: 60 },
-    { result: "open-no-core", weight: 40 },
-  ];
-  const lane = projected
-    .filter((candidate) => Math.abs(candidate.lateral) <= ROLL_LANE_HALF_WIDTH)
-    .sort((a, b) => a.along - b.along || a.placement.order - b.placement.order);
-  const undershoot = [...lane]
-    .filter((candidate) => candidate.along < target.along - 0.001)
-    .sort((a, b) => b.along - a.along)[0]?.placement;
-  const overshoot = lane
-    .filter((candidate) => candidate.along > target.along + 0.001)
-    .sort((a, b) => a.along - b.along)[0]?.placement;
-  const adjacent = adjacentAvailablePlacements(state, targetCell)
-    .map((placement) => projected.find((candidate) => candidate.placement.cell === placement.cell)!)
-    .filter(Boolean);
-  // Screen-space Y points down, so a negative cross-product is visually left
-  // when looking from the start position toward the target.
-  const left = adjacent
-    .filter((candidate) => candidate.lateral < -ROLL_LANE_HALF_WIDTH * 0.35)
-    .sort((a, b) => Math.abs(a.lateral) - Math.abs(b.lateral) || a.placement.order - b.placement.order)[0]?.placement;
-  const right = adjacent
-    .filter((candidate) => candidate.lateral > ROLL_LANE_HALF_WIDTH * 0.35)
-    .sort((a, b) => Math.abs(a.lateral) - Math.abs(b.lateral) || a.placement.order - b.placement.order)[0]?.placement;
-  return [
-    { result: "miss-closed", weight: 30 },
-    { result: "open-no-core", weight: 20 },
-    ...(undershoot ? [{ result: "undershoot" as const, weight: 15, placement: undershoot }] : []),
-    ...(overshoot ? [{ result: "overshoot" as const, weight: 10, placement: overshoot }] : []),
-    ...(left ? [{ result: "skew-left" as const, weight: 12.5, placement: left }] : []),
-    ...(right ? [{ result: "skew-right" as const, weight: 12.5, placement: right }] : []),
-  ];
-};
-
-const selectSecondCore = (
-  state: MatchState,
-  primaryCell: string,
-  start: RollPathPoint,
-  target: RollPathPoint,
-  roll: number,
-) => {
-  const direction = vectorBetween(start, target);
-  const directionLength = Math.max(1, vectorLength(direction));
-  const unit = { x: direction.x / directionLength, y: direction.y / directionLength };
-  const primary = rollCellPoint(primaryCell);
-  if (!primary) return undefined;
-  const categories: Record<"before" | "after" | "side", Placement[]> = {
-    before: [],
-    after: [],
-    side: [],
-  };
-  for (const placement of adjacentAvailablePlacements(state, primaryCell)) {
-    const point = rollCellPoint(placement.cell)!;
-    const offset = vectorBetween(primary, point);
-    const along = dot(offset, unit);
-    const lateral = cross(unit, offset);
-    if (Math.abs(lateral) > Math.abs(along) * 1.15) categories.side.push(placement);
-    else if (along < 0) categories.before.push(placement);
-    else categories.after.push(placement);
-  }
-  const choices = [
-    ...(categories.before.length ? [{ category: "before" as const, weight: 40 }] : []),
-    ...(categories.after.length ? [{ category: "after" as const, weight: 40 }] : []),
-    ...(categories.side.length ? [{ category: "side" as const, weight: 20 }] : []),
-  ];
-  if (!choices.length) return undefined;
-  const total = choices.reduce((sum, choice) => sum + choice.weight, 0);
-  let cursor = ((Math.max(1, roll) - 1) % 10_000) / 10_000 * total;
-  let selected = choices.at(-1)!;
-  for (const choice of choices) {
-    cursor -= choice.weight;
-    if (cursor < 0) { selected = choice; break; }
-  }
-  const candidates = categories[selected.category].sort((a, b) => a.order - b.order);
-  return candidates[(Math.max(1, roll) - 1) % candidates.length];
-};
-
-const buildRollPath = (
-  start: RollPathPoint,
-  intended: RollPathPoint,
-  result: RollOutcome["result"],
-  deviationRoll: number,
-  primary?: RollPathPoint,
-  secondary?: RollPathPoint,
-) => {
-  const direction = vectorBetween(start, intended);
-  const length = Math.max(1, vectorLength(direction));
-  const perpendicular = { x: -direction.y / length, y: direction.x / length };
-  const varianceDirection = deviationRoll % 2 === 0 ? 1 : -1;
-  const endpoint = primary ?? (
-    result === "miss-closed"
-      ? {
-        ...interpolatePoint(start, intended, 0.72),
-        x: interpolatePoint(start, intended, 0.72).x + perpendicular.x * 82 * varianceDirection,
-        y: interpolatePoint(start, intended, 0.72).y + perpendicular.y * 82 * varianceDirection,
-      }
-      : {
-        x: intended.x + perpendicular.x * 76 * varianceDirection,
-        y: intended.y + perpendicular.y * 76 * varianceDirection,
-      }
-  );
-  const curve = result === "skew-left" ? -54
-    : result === "skew-right" ? 54
-      : ((deviationRoll % 17) - 8) * 1.4;
-  const midpoint = interpolatePoint(start, endpoint, 0.54);
-  const points = [
-    roundedPoint(start),
-    roundedPoint({
-      x: midpoint.x + perpendicular.x * curve,
-      y: midpoint.y + perpendicular.y * curve,
-    }),
-    roundedPoint(endpoint),
-  ];
-  if (secondary) points.push(roundedPoint(secondary));
-  return points;
-};
+) => physicalRotationPhaseOpenCell(
+  state,
+  HEX_CELLS,
+  playerId,
+  targetCell,
+  BATTLE_PLANET_PHYSICAL_SIMULATION_PROFILE,
+);
 
 export const resolveRollOutcome = (
   state: MatchState,
   player: PlayerState,
   randomRoll: (maximum: number) => number = secureRandomInt,
-): RollOutcome => {
-  const bakugan = player.bakugan.find((candidate) => candidate.id === state.selected[player.id])!;
-  const intended = state.targets[player.id];
-  const playerIndex = state.players.findIndex((candidate) => candidate.id === player.id);
-  const start = rollStartPoint(playerIndex);
-  const intendedPoint = rollCellPoint(intended)!;
-  const accuracyRoll = randomRoll(100) + 1;
-  const deviationRoll = randomRoll(10_000) + 1;
-  const doubleRoll = randomRoll(100) + 1;
-  const secondCoreRoll = randomRoll(10_000) + 1;
-  let result: RollOutcome["result"];
-  let primary: Placement | undefined;
-
-  if (accuracyRoll <= bakugan.rollAccuracy) {
-    const openedCell = rotationPhaseOpenCell(state, player.id, intended);
-    primary = state.placements.find((placement) => placement.cell === openedCell && !placement.attachedTo);
-    result = openedCell === intended ? "intended-core" : "path-intercept";
-  } else {
-    const option = chooseWeightedRollOption(missOptions(state, playerIndex, intended), deviationRoll);
-    result = option.result;
-    primary = option.placement;
-  }
-
-  const cores = primary ? [primary.cell] : [];
-  let secondary: Placement | undefined;
-  if (primary && doubleRoll <= bakugan.doubleCoreChance) {
-    secondary = selectSecondCore(state, primary.cell, start, intendedPoint, secondCoreRoll);
-    if (secondary) cores.push(secondary.cell);
-  }
-  const doubleCore = Boolean(secondary);
-  const resolvedTarget = primary?.cell ?? intended;
-  const primaryPoint = primary ? rollCellPoint(primary.cell) : undefined;
-  const secondaryPoint = secondary ? rollCellPoint(secondary.cell) : undefined;
-  const notes: Record<RollOutcome["result"], string> = {
-    "miss-closed": "The roll left the pickup lane and the Bakugan remained closed.",
-    "open-no-core": "The Bakugan opened outside every available BakuCore pickup window.",
-    "intended-core": "The roll stayed inside the intended lane and opened on the selected BakuCore.",
-    overshoot: "The roll carried beyond the selected BakuCore and opened on the next farther Core.",
-    undershoot: "The roll stopped short and opened on the nearest closer Core.",
-    "skew-left": "The roll skewed left and opened on an adjacent BakuCore.",
-    "skew-right": "The roll skewed right and opened on an adjacent BakuCore.",
-    "path-intercept": "The magnet's four-Core rotation phase faced down on an earlier Core in the lane.",
-  };
-  const note = notes[result] + (doubleCore
-    ? " The second-Core check then selected before/after/side with 40/40/20 weighting."
-    : "");
-  return {
-    playerId: player.id,
-    bakuganId: bakugan.id,
-    target: intended,
-    resolvedTarget,
-    result,
-    cores,
-    accuracyRoll,
-    deviationRoll,
-    doubleRoll,
-    secondCoreRoll,
-    doubleCore,
-    path: buildRollPath(start, intendedPoint, result, deviationRoll, primaryPoint, secondaryPoint),
-    note,
-  };
-};
-
-const resolveCoreCollisions = (state: MatchState, outcomes: RollOutcome[]) => {
-  const claimed = new Set<string>();
-  const quality = (roll: RollOutcome) => {
-    const player = playerById(state, roll.playerId);
-    const bakugan = player.bakugan.find((candidate) => candidate.id === roll.bakuganId)!;
-    return roll.accuracyRoll / Math.max(1, bakugan.rollAccuracy);
-  };
-  const ordered = [...outcomes].sort((a, b) => quality(a) - quality(b) || a.playerId.localeCompare(b.playerId));
-
-  // Primary pickups always take precedence over second-Core pickups.
-  for (const roll of ordered) {
-    if (roll.result === "miss-closed" || roll.result === "open-no-core") continue;
-    const desired = roll.cores[0];
-    if (desired && !claimed.has(desired)) {
-      claimed.add(desired);
-    } else {
-      roll.result = "open-no-core";
-      roll.cores = [];
-      roll.doubleCore = false;
-      roll.path = roll.path.slice(0, 3);
-      roll.note += " The pickup was contested; the more accurate roll collected the Core, so this Bakugan opened without one.";
-    }
-  }
-
-  for (const roll of ordered) {
-    if (roll.cores.length > 1) {
-      const second = roll.cores[1];
-      if (claimed.has(second)) {
-        roll.cores = roll.cores.slice(0, 1);
-        roll.doubleCore = false;
-        roll.path = roll.path.slice(0, 3);
-        roll.note += " The second BakuCore was already collected by a primary pickup.";
-      } else {
-        claimed.add(second);
-      }
-    }
-  }
-  return outcomes;
-};
+): RollOutcome => resolvePhysicalRollOutcome(
+  state,
+  HEX_CELLS,
+  player,
+  randomRoll,
+  BATTLE_PLANET_PHYSICAL_SIMULATION_PROFILE,
+);
 
 const performRolls = (state: MatchState) => {
-  let outcomes: RollOutcome[] = [];
-  do {
-    outcomes = state.players.map((player) => resolveRollOutcome(state, player));
-    for (const roll of outcomes) entry(state, "random", `${playerById(state, roll.playerId).name}: accuracy ${roll.accuracyRoll}/100, double ${roll.doubleRoll}/100 → ${roll.result}. ${roll.note}`);
-    if (outcomes.every((roll) => roll.result === "miss-closed")) entry(state, "game", "Both Bakugan missed and remained closed. The Rolling Step repeats immediately.");
-  } while (outcomes.every((roll) => roll.result === "miss-closed"));
-  resolveCoreCollisions(state, outcomes);
+  const simulation = (() => {
+    try {
+      return simulatePhysicalRollStep(
+        state,
+        HEX_CELLS,
+        secureRandomInt,
+        BATTLE_PLANET_PHYSICAL_SIMULATION_PROFILE,
+        { onAttempt: () => consumePhysicalRollAttempt() },
+      );
+    } catch (error) {
+      if (error instanceof PhysicalSimulationError && error.code === "ROLL_ATTEMPT_LIMIT") {
+        throw new EngineRuntimeLimitError(
+          "physicalRollAttempts",
+          MAX_PHYSICAL_ROLL_ATTEMPTS,
+          MAX_PHYSICAL_ROLL_ATTEMPTS + 1,
+        );
+      }
+      throw error;
+    }
+  })();
+  for (const attempt of simulation.attempts) {
+    for (const roll of attempt.outcomes) {
+      entry(
+        state,
+        "random",
+        `${playerById(state, roll.playerId).name}: physical ${simulation.profileId} attempt ${attempt.attempt}, accuracy ${roll.accuracyRoll}/100, double ${roll.doubleRoll}/100 → ${roll.result}. ${roll.note}`,
+      );
+    }
+    if (attempt.repeated) {
+      entry(
+        state,
+        "game",
+        `Physical roll attempt ${attempt.attempt} left every Bakugan closed. The Rolling Step repeats under ${simulation.profileId}.`,
+      );
+    }
+  }
+  for (const decision of simulation.collisionDecisions) {
+    entry(
+      state,
+      "game",
+      `Physical collision on ${decision.coreCell}: ${playerById(state, decision.winnerPlayerId).name} kept the pickup; ${playerById(state, decision.affectedPlayerId).name} was resolved by ${decision.policy}.`,
+    );
+  }
+  const outcomes = simulation.outcomes;
   state.informationEpoch += 1;
   state.undoWindow = undefined;
   const openedPlayerIds: string[] = [];
   for (const roll of outcomes) {
-    state.rolls[roll.playerId] = roll; const player = playerById(state, roll.playerId); const bakugan = player.bakugan.find((candidate) => candidate.id === roll.bakuganId)!;
+    state.rolls[roll.playerId] = roll;
+    const player = playerById(state, roll.playerId);
+    const bakugan = player.bakugan.find((candidate) => candidate.id === roll.bakuganId)!;
     bakugan.open = roll.result !== "miss-closed";
     if (bakugan.open) {
       openedPlayerIds.push(player.id);
       (bakugan as Bakugan & { openedTurn?: number }).openedTurn = state.turn;
-      for (const cell of roll.cores) { const placement = state.placements.find((candidate) => candidate.cell === cell); if (placement) placement.attachedTo = bakugan.id; }
+      for (const cell of roll.cores) {
+        const placement = state.placements.find((candidate) => candidate.cell === cell);
+        if (placement) placement.attachedTo = bakugan.id;
+      }
       bakugan.heldCoreCells.push(...roll.cores.filter((cell) => !bakugan.heldCoreCells.includes(cell)));
     }
   }
@@ -913,7 +639,6 @@ const performRolls = (state: MatchState) => {
     playerIds: openedPlayerIds,
   });
 };
-
 export const targetCore = (input: MatchState, playerId: string, cell: string) => {
   const state = cloneMatch(input);
   if (state.phase !== "target" || !state.placements.some((placement) => placement.cell === cell && !placement.attachedTo)) throw new Error("Choose an available Core in the Hide Matrix.");

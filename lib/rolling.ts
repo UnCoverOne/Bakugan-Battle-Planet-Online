@@ -176,7 +176,7 @@ export function rollResultSignature(
     .filter((roll): roll is RollOutcome => Boolean(roll));
   if (outcomes.length !== match.players.length) return "";
   return `${match.gameNumber}:${match.turn}:${outcomes
-    .map((roll) => `${roll.playerId}:${roll.result}:${roll.accuracyRoll}:${roll.deviationRoll}:${roll.doubleRoll}:${roll.secondCoreRoll}:${roll.cores.join(",")}`)
+    .map((roll) => `${roll.playerId}:${roll.simulationProfileId ?? "legacy"}:${roll.attempt ?? 1}:${roll.result}:${roll.accuracyRoll}:${roll.deviationRoll}:${roll.doubleRoll}:${roll.secondCoreRoll}:${roll.cores.join(",")}`)
     .join("|")}`;
 }
 

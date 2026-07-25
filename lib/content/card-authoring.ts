@@ -133,8 +133,8 @@ export function normalizeCardDraft(value: unknown): CardDraft {
     mechanics: Array.isArray(candidate.mechanics)
       ? [...new Set(candidate.mechanics.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean))]
       : [],
-    bPower: candidate.bPower == null || candidate.bPower === "" as never ? null : Number(candidate.bPower),
-    damage: candidate.damage == null || candidate.damage === "" as never ? null : Number(candidate.damage),
+    bPower: candidate.bPower == null || String(candidate.bPower).trim() === "" ? null : Number(candidate.bPower),
+    damage: candidate.damage == null || String(candidate.damage).trim() === "" ? null : Number(candidate.damage),
     coreTypes,
     evolvesFrom: typeof candidate.evolvesFrom === "string" && candidate.evolvesFrom.trim() ? candidate.evolvesFrom.trim() : null,
     art: typeof candidate.art === "string" && candidate.art.trim() ? candidate.art.trim() : "/assets/cards/card-missing.svg",
