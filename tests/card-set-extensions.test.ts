@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CARDS } from "../lib/data";
+import { cardArtSource } from "../lib/content/card-art";
 import { CARD_SET_INFO, cardCollectorLabel, cardSetCode } from "../lib/content/catalogue";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 
@@ -35,6 +36,18 @@ test("every extension card has rules provenance and a usable art source", () => 
     assert.ok(definition.provenance.citations.some((citation) => citation.sourceId === "bp-card-printing"));
     assert.ok(card.art.startsWith("https://bakugan.wiki/") || card.art === "/assets/cards/card-missing.svg");
   }
+});
+
+test("card art resolution preserves set-qualified scan sources", () => {
+  const battleBrawlers = CARDS.find((card) => card.catalogId === "bb-1")!;
+  const resurgence = CARDS.find((card) => card.catalogId === "br-1")!;
+  const ageOfAurelus = CARDS.find((card) => card.catalogId === "aa-1")!;
+
+  assert.equal(cardArtSource(battleBrawlers, "thumbnail"), "/assets/cards/thumb/1.webp");
+  assert.equal(cardArtSource(resurgence, "thumbnail"), resurgence.art);
+  assert.equal(cardArtSource(ageOfAurelus, "thumbnail"), ageOfAurelus.art);
+  assert.match(resurgence.art, /^https:\/\/bakugan\.wiki\//);
+  assert.match(ageOfAurelus.art, /^https:\/\/bakugan\.wiki\//);
 });
 
 test("Evo identities prefer the matching card set and faction", () => {
