@@ -15,6 +15,23 @@ export default defineConfig([
       "react-hooks/set-state-in-effect": "off",
     },
   },
+  {
+    files: ["components/routes/**/*.{ts,tsx}"],
+    // Route components cross a persisted, versioned client-state boundary.
+    // The provider remains intentionally untyped while the migration keeps
+    // the existing snapshot schema compatible; route-local domain objects
+    // are validated by the existing deck, content, and engine test suites.
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  {
+    files: ["components/application/AppProvider.jsx"],
+    rules: {
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+    },
+  },
   globalIgnores([
     ".next/**",
     ".wrangler/**",

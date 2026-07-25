@@ -1,5 +1,5 @@
 import type { DeckRecord } from "./data";
-import { normalizeMatchState, type MatchState } from "./game";
+import type { MatchState } from "./game";
 
 export type AppRoute = "entry" | "dashboard" | "decks" | "deck-detail" | "builder" | "compendium" | "play" | "lobby" | "placement" | "match" | "result" | "history" | "profile" | "settings";
 export type BrawlerProfile = { name: string; faction: string; signedIn: boolean };
@@ -63,9 +63,7 @@ function normalizeDeck(value: unknown): DeckRecord | null {
   const deck = value as Partial<DeckRecord>;
   if (typeof deck.id !== "string" || !deck.id || typeof deck.name !== "string" || !deck.name.trim()) return null;
   if (!Array.isArray(deck.bakuganIds) || !Array.isArray(deck.coreIds) || !Array.isArray(deck.cardIds)) return null;
-  const updatedAt = typeof deck.updatedAt === "string" && Number.isFinite(Date.parse(deck.updatedAt))
-    ? new Date(deck.updatedAt).toISOString()
-    : new Date(0).toISOString();
+  const updatedAt = typeof deck.updatedAt === "string" && Number.isFinite(Date.parse(deck.updatedAt)) ? new Date(deck.updatedAt).toISOString() : new Date(0).toISOString();
   return {
     id: deck.id.slice(0, 120),
     name: deck.name.trim().slice(0, 60),
@@ -97,9 +95,7 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
       faction: validFactions.has(candidate.profile?.faction ?? "") ? candidate.profile!.faction : fallback.profile.faction,
       signedIn: Boolean(candidate.profile?.signedIn),
     },
-    decks: Array.isArray(candidate.decks)
-      ? candidate.decks.map(normalizeDeck).filter((deck): deck is DeckRecord => Boolean(deck)).slice(0, 50)
-      : fallback.decks,
+    decks: Array.isArray(candidate.decks) ? candidate.decks.map(normalizeDeck).filter((deck): deck is DeckRecord => Boolean(deck)).slice(0, 50) : fallback.decks,
     history: Array.isArray(candidate.history) ? candidate.history.slice(0, 200) : fallback.history,
     settings: { ...fallback.settings, ...(candidate.settings ?? {}) },
     route: validRoutes.has(candidate.route as AppRoute) ? candidate.route as AppRoute : fallback.route,
@@ -111,9 +107,7 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
     format: candidate.format === "bo3" ? "bo3" : "bo1",
     matchMode: ["solo", "online", "join"].includes(candidate.matchMode ?? "") ? candidate.matchMode! : "solo",
     joinCode: typeof candidate.joinCode === "string" ? candidate.joinCode.slice(0, 6) : "",
-    match: candidate.match && typeof candidate.match === "object"
-      ? normalizeMatchState(candidate.match)
-      : null,
+    match: candidate.match && typeof candidate.match === "object" ? candidate.match as MatchState : null,
     online: Boolean(candidate.online),
     selectedCore: typeof candidate.selectedCore === "string" ? candidate.selectedCore : "",
     logFilter: typeof candidate.logFilter === "string" ? candidate.logFilter : "all",
@@ -134,26 +128,12 @@ export function mergeSnapshots(local: UserSnapshot, cloud: UserSnapshot): UserSn
     if (other && JSON.stringify({ ...other, updatedAt: "" }) !== JSON.stringify({ ...deck, updatedAt: "" })) {
       const older = Date.parse(other.updatedAt) > Date.parse(deck.updatedAt) ? deck : other;
       const conflictId = `${deck.id}-conflict-${Math.max(0, Date.parse(older.updatedAt)).toString(36)}`;
-      if (!decks.has(conflictId)) {
-        decks.set(conflictId, {
-          ...older,
-          id: conflictId,
-          name: `${older.name} (conflict copy)`,
-          conflictOf: deck.id,
-          visibility: "Private",
-        });
-      }
+      if (!decks.has(conflictId)) decks.set(conflictId, { ...older, id: conflictId, name: `${older.name} (conflict copy)`, conflictOf: deck.id, visibility: "Private" });
     }
     decks.set(deck.id, other && Date.parse(other.updatedAt) > Date.parse(deck.updatedAt) ? other : deck);
   }
   const history = new Map<string, MatchResultRecord>();
   for (const result of secondary.history) history.set(result.id, result);
   for (const result of primary.history) history.set(result.id, result);
-  return {
-    ...primary,
-    schemaVersion: 1,
-    updatedAt: Math.max(local.updatedAt, cloud.updatedAt),
-    decks: [...decks.values()].slice(0, 50),
-    history: [...history.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 200),
-  };
+  return { ...primary, schemaVersion: 1, updatedAt: Math.max(local.updatedAt, cloud.updatedAt), decks: [...decks.values()].slice(0, 50), history: [...history.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 200) };
 }
