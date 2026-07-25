@@ -1,0 +1,66 @@
+name: Physical Simulation and Card Authoring
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/rules/physical-simulation.ts"
+      - "lib/game.ts"
+      - "lib/rolling.ts"
+      - "lib/content/card-authoring.ts"
+      - "lib/content/versions.ts"
+      - "lib/rules/catalogue.ts"
+      - "lib/rules/model.ts"
+      - "lib/engine/limits.ts"
+      - "lib/engine/types.ts"
+      - "components/card-editor/**"
+      - "app/tools/card-editor/**"
+      - "scripts/card-author.mts"
+      - "tests/physical-simulation.test.ts"
+      - "tests/card-authoring.test.ts"
+      - "content/conformance-matrix.json"
+      - "content/card-content.lock.json"
+      - "package.json"
+      - ".github/workflows/physical-simulation-authoring.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/rules/physical-simulation.ts"
+      - "lib/game.ts"
+      - "lib/rolling.ts"
+      - "lib/content/card-authoring.ts"
+      - "lib/content/versions.ts"
+      - "lib/rules/catalogue.ts"
+      - "lib/rules/model.ts"
+      - "lib/engine/limits.ts"
+      - "lib/engine/types.ts"
+      - "components/card-editor/**"
+      - "app/tools/card-editor/**"
+      - "scripts/card-author.mts"
+      - "tests/physical-simulation.test.ts"
+      - "tests/card-authoring.test.ts"
+      - "content/conformance-matrix.json"
+      - "content/card-content.lock.json"
+      - "package.json"
+      - ".github/workflows/physical-simulation-authoring.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: npm run validate:content
+      - run: npm run test:simulation
+      - run: npm run test:authoring
+      - run: npm test
+      - run: npm run lint
+      - run: npm run cf:dry-run

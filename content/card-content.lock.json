@@ -5,7 +5,7 @@
     "engineVersion": "4.0.0",
     "rulesVersion": "battle-planet-rules-v4",
     "cardCatalogueVersion": "battle-planet-cards-v1",
-    "digitalAdaptationVersion": "digital-roll-profile-v1",
+    "digitalAdaptationVersion": "physical-simulation-v2",
     "contentSchemaVersion": 1
   },
   "manifest": {

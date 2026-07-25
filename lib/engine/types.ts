@@ -102,7 +102,7 @@ export type EngineMetadata = {
   phase: StructuredPhase;
   receipts: CommandReceipt[];
   fault?: EngineFault;
-  runtimeBudget?: { triggerChainDepth: number; effectSteps: number; replacementIterations: number; pendingChoices: number };
+  runtimeBudget?: { triggerChainDepth: number; effectSteps: number; replacementIterations: number; pendingChoices: number; physicalRollAttempts: number };
   timeoutStrikes?: Record<string, { decision: number; connectionGrace: number }>;
 };
 export type EngineBackedMatchState = MatchState & { [ENGINE_METADATA_KEY]?: EngineMetadata };

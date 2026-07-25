@@ -1,20 +1,128 @@
 [
-  {"id":"shared-core","area":"rolling","requirement":"Both Bakugan may attach to the same BakuCore and receive its bonus.","test":"tests/game-engine.test.ts","status":"covered"},
-  {"id":"flip-response","area":"damage","requirement":"A played Flip enters the batch and Stop fails when the Flip is negated.","test":"tests/game-engine.test.ts","status":"covered"},
-  {"id":"empty-tiebreak-loss","area":"victor","requirement":"A player unable to flip for a tie-break loses immediately.","test":"tests/game-engine.test.ts","status":"covered"},
-  {"id":"empty-tiebreak-draw","area":"victor","requirement":"A simultaneous empty tie-break is a draw.","test":"tests/game-engine.test.ts","status":"covered"},
-  {"id":"replacement-branch","area":"rules","requirement":"Instead effects apply only the selected branch.","test":"tests/rules-engine-modernization.test.ts","status":"covered"},
-  {"id":"intervening-condition","area":"triggers","requirement":"A trigger with an unmet intervening condition does not resolve.","test":"tests/rules-engine-modernization.test.ts","status":"covered"},
-  {"id":"opponent-trigger","area":"triggers","requirement":"Opponent-caused triggers are collected for the correct controller.","test":"tests/rules-engine-modernization.test.ts","status":"covered"},
-  {"id":"shadowstrike-filtering","area":"continuous","requirement":"ShadowStrike filters card, Hero, BakuCore and temporary reductions.","test":"tests/rules-engine-modernization.test.ts","status":"covered"},
-  {"id":"froststrike-cost","area":"cost","requirement":"All active FrostStrike sources increase Flip costs.","test":"tests/rules-engine-modernization.test.ts","status":"covered"},
-  {"id":"multi-core-clause","area":"continuous","requirement":"Only the held BakuCore icon clause applies.","test":"tests/quality-assurance.test.ts","status":"covered"},
-  {"id":"independent-copy","area":"batch","requirement":"Copied effects receive independent choices.","test":"tests/rules-engine-modernization.test.ts","status":"covered"},
-  {"id":"negate-source-zone","area":"batch","requirement":"Negating an ability does not discard its in-play source.","test":"tests/quality-assurance.test.ts","status":"covered"},
-  {"id":"free-evo-identity","area":"identity","requirement":"Free-play Evo still requires a canonical Character target.","test":"tests/rules-engine-modernization.test.ts","status":"covered"},
-  {"id":"starting-player-order","area":"turn-order","requirement":"Starting player makes ordered setup decisions first.","test":"tests/game-engine.test.ts","status":"covered"},
-  {"id":"payment-bound-energy","area":"cost","requirement":"Energy cannot be tapped without an active payment.","test":"tests/rules-engine-modernization.test.ts","status":"covered"},
-  {"id":"catalogue-complete","area":"content","requirement":"Every card has a complete typed definition.","test":"tests/content-pipeline.test.ts","status":"covered"},
-  {"id":"golden-card-coverage","area":"quality","requirement":"Every card is represented in the generated golden coverage index.","test":"tests/content-pipeline.test.ts","status":"covered"},
-  {"id":"mandatory-ci","area":"quality","requirement":"Default CI runs gameplay, content, deterministic replay, redaction and fuzz gates.","test":".github/workflows/content-quality-operations.yml","status":"covered"}
+  {
+    "id": "contested-core-collision",
+    "area": "rolling",
+    "requirement": "A contested primary pickup is awarded by normalized accuracy and the other Bakugan opens without a Core.",
+    "test": "tests/physical-simulation.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "flip-response",
+    "area": "damage",
+    "requirement": "A played Flip enters the batch and Stop fails when the Flip is negated.",
+    "test": "tests/game-engine.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "empty-tiebreak-loss",
+    "area": "victor",
+    "requirement": "A player unable to flip for a tie-break loses immediately.",
+    "test": "tests/game-engine.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "empty-tiebreak-draw",
+    "area": "victor",
+    "requirement": "A simultaneous empty tie-break is a draw.",
+    "test": "tests/game-engine.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "replacement-branch",
+    "area": "rules",
+    "requirement": "Instead effects apply only the selected branch.",
+    "test": "tests/rules-engine-modernization.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "intervening-condition",
+    "area": "triggers",
+    "requirement": "A trigger with an unmet intervening condition does not resolve.",
+    "test": "tests/rules-engine-modernization.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "opponent-trigger",
+    "area": "triggers",
+    "requirement": "Opponent-caused triggers are collected for the correct controller.",
+    "test": "tests/rules-engine-modernization.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "shadowstrike-filtering",
+    "area": "continuous",
+    "requirement": "ShadowStrike filters card, Hero, BakuCore and temporary reductions.",
+    "test": "tests/rules-engine-modernization.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "froststrike-cost",
+    "area": "cost",
+    "requirement": "All active FrostStrike sources increase Flip costs.",
+    "test": "tests/rules-engine-modernization.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "multi-core-clause",
+    "area": "continuous",
+    "requirement": "Only the held BakuCore icon clause applies.",
+    "test": "tests/quality-assurance.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "independent-copy",
+    "area": "batch",
+    "requirement": "Copied effects receive independent choices.",
+    "test": "tests/rules-engine-modernization.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "negate-source-zone",
+    "area": "batch",
+    "requirement": "Negating an ability does not discard its in-play source.",
+    "test": "tests/quality-assurance.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "free-evo-identity",
+    "area": "identity",
+    "requirement": "Free-play Evo still requires a canonical Character target.",
+    "test": "tests/rules-engine-modernization.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "starting-player-order",
+    "area": "turn-order",
+    "requirement": "Starting player makes ordered setup decisions first.",
+    "test": "tests/game-engine.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "payment-bound-energy",
+    "area": "cost",
+    "requirement": "Energy cannot be tapped without an active payment.",
+    "test": "tests/rules-engine-modernization.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "catalogue-complete",
+    "area": "content",
+    "requirement": "Every card has a complete typed definition.",
+    "test": "tests/content-pipeline.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "golden-card-coverage",
+    "area": "quality",
+    "requirement": "Every card is represented in the generated golden coverage index.",
+    "test": "tests/content-pipeline.test.ts",
+    "status": "covered"
+  },
+  {
+    "id": "mandatory-ci",
+    "area": "quality",
+    "requirement": "Default CI runs gameplay, content, deterministic replay, redaction and fuzz gates.",
+    "test": ".github/workflows/content-quality-operations.yml",
+    "status": "covered"
+  }
 ]

@@ -137,7 +137,7 @@ export type RuleDefinition = {
   cardType: CardType;
   faction: Faction;
   factions: Faction[];
-  implementationStatus: "complete";
+  implementationStatus: "draft" | "complete";
   rulesVersion: string;
   contentVersion: string;
   sourceTextFingerprint: string;
