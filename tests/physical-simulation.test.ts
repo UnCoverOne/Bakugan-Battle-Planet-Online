@@ -113,13 +113,18 @@ test("all-closed physical attempts repeat as explicit replay-visible attempts", 
     selected.rollAccuracy = 0;
     selected.doubleCoreChance = 0;
   });
+  const profile = structuredClone(BATTLE_PLANET_PHYSICAL_SIMULATION_PROFILE) as PhysicalSimulationProfile;
+  profile.missWeights.undershoot = 0;
+  profile.missWeights.overshoot = 0;
+  profile.missWeights.skewLeft = 0;
+  profile.missWeights.skewRight = 0;
   const values = [
     99, 0, 99, 0,
     99, 0, 99, 0,
-    99, 3_500, 99, 0,
+    99, 7_000, 99, 0,
     99, 0, 99, 0,
   ];
-  const result = simulatePhysicalRollStep(state, HEX_CELLS, queue(values));
+  const result = simulatePhysicalRollStep(state, HEX_CELLS, queue(values), profile);
   assert.equal(result.attempts.length, 2);
   assert.equal(result.attempts[0].repeated, true);
   assert.equal(result.attempts[1].repeated, false);
