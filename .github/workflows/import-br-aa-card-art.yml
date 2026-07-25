@@ -1,0 +1,42 @@
+name: Import BR and AA Card Art
+
+on:
+  push:
+    branches:
+      - fix/self-host-br-aa-card-art
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: fix/self-host-br-aa-card-art
+      - name: Download supplied card-art archive
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --output /tmp/br-aa-card-art.tar.gz https://at.adobe.com/r3xxsGExDmoFKPdu
+          echo "3fd4ffd456932c7f1ccf53119d9e27bc873d16c945974f0852a17b068a80c6d5  /tmp/br-aa-card-art.tar.gz" | sha256sum --check
+      - name: Import repository-hosted assets
+        run: |
+          set -euo pipefail
+          rm -rf public/assets/cards/sets/br public/assets/cards/sets/aa
+          mkdir -p public/assets/cards/sets
+          tar -xzf /tmp/br-aa-card-art.tar.gz -C public/assets/cards/sets
+          test "$(find public/assets/cards/sets/br public/assets/cards/sets/aa -type f -name '*.webp' | wc -l | tr -d ' ')" = "852"
+      - name: Commit supplied assets
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/assets/cards/sets
+          if git diff --cached --quiet; then
+            echo "Card art is already imported."
+            exit 0
+          fi
+          git commit -m "assets: self-host BR and AA card art"
+          git push origin HEAD:fix/self-host-br-aa-card-art
