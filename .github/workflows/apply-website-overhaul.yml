@@ -20,7 +20,7 @@ jobs:
         with:
           ref: agent/website-overhaul
           fetch-depth: 0
-      - name: Reconstruct and apply validated overhaul patch
+      - name: Reconstruct validated overhaul patch
         run: |
           set -euo pipefail
           {
@@ -31,7 +31,13 @@ jobs:
             git show 79aeb422b95a30dfd426231eacb36d54d70642a8:.website-overhaul-patch/part-04
             git show 79aeb422b95a30dfd426231eacb36d54d70642a8:.website-overhaul-patch/part-05
           } | base64 --decode | gzip --decompress > /tmp/website-overhaul.patch
-          echo "f5b79ffc59308c3e67b36d02c34182415af15f27818f80129adf3802f0cee3dc  /tmp/website-overhaul.patch" | sha256sum --check
+      - name: Verify overhaul patch checksum
+        run: echo "f5b79ffc59308c3e67b36d02c34182415af15f27818f80129adf3802f0cee3dc  /tmp/website-overhaul.patch" | sha256sum --check
+      - name: Verify overhaul patch applies cleanly
+        run: git apply --check --exclude=.github/workflows/repository-export.yml /tmp/website-overhaul.patch
+      - name: Apply and commit overhaul
+        run: |
+          set -euo pipefail
           git apply --index --exclude=.github/workflows/repository-export.yml /tmp/website-overhaul.patch
           git rm --ignore-unmatch .github/workflows/apply-website-overhaul.yml .github/workflows/repository-export.yml
           rm -rf .website-overhaul-patch
