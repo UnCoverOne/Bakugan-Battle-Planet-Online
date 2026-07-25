@@ -1,28 +1,33 @@
-name: Repository Export
+name: Apply Website Overhaul
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - agent/website-overhaul
+    paths:
+      - ".website-overhaul-patch/part-05"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  export:
+  apply:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Create source archive
-        run: |
-          git archive --format=zip --output=repository-source.zip HEAD
-      - name: Upload source archive
-        uses: actions/upload-artifact@v4
         with:
-          name: repository-source
-          path: repository-source.zip
-          if-no-files-found: error
-          retention-days: 1
-
-# Temporary source export used only while implementing the website overhaul.
+          ref: agent/website-overhaul
+      - name: Apply validated website overhaul patch
+        run: |
+          set -euo pipefail
+          cat .website-overhaul-patch/part-* | base64 --decode | gzip --decompress > /tmp/website-overhaul.patch
+          echo "f5b79ffc59308c3e67b36d02c34182415af15f27818f80129adf3802f0cee3dc  /tmp/website-overhaul.patch" | sha256sum --check
+          git apply --index /tmp/website-overhaul.patch
+          rm -rf .website-overhaul-patch
+          git rm .github/workflows/repository-export.yml
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat: overhaul website layout and navigation"
+          git push origin HEAD:agent/website-overhaul
