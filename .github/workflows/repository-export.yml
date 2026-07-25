@@ -24,3 +24,5 @@ jobs:
           path: repository-source.zip
           if-no-files-found: error
           retention-days: 1
+
+# Temporary workflow used only while implementing the BR and AA card sets.
