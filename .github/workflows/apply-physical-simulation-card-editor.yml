@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "scripts/apply-physical-simulation-card-editor.mjs"
+      - "scripts/repair-physical-integration-script.mjs"
       - ".github/workflows/apply-physical-simulation-card-editor.yml"
       - "lib/rules/physical-simulation.ts"
       - "lib/content/card-authoring.ts"
@@ -30,6 +31,8 @@ jobs:
         with:
           node-version: 22.13.0
           cache: npm
+      - name: Repair generated integration source
+        run: node scripts/repair-physical-integration-script.mjs
       - name: Integrate physical simulation and authoring tools
         shell: bash
         run: |
@@ -58,6 +61,6 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git reset -- .github/workflows/apply-physical-simulation-card-editor.yml scripts/apply-physical-simulation-card-editor.mjs integration.log
+          git reset -- .github/workflows/apply-physical-simulation-card-editor.yml scripts/apply-physical-simulation-card-editor.mjs scripts/repair-physical-integration-script.mjs integration.log
           git commit -m 'feat: formalize physical simulation and add card editor'
           git push origin HEAD:${{ github.head_ref }}
