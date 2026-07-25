@@ -173,7 +173,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     "font-src 'self' data:",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "img-src 'self' data: blob:",
+    "img-src 'self' data: blob: https://bakugan.wiki https://*.bakugan.wiki",
     "media-src 'self' blob:",
     "object-src 'none'",
     "script-src 'self' 'unsafe-inline'",
