@@ -25,4 +25,4 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-# Temporary workflow used only while completing BR/AA runtime automation.
+# Temporary source export used only while implementing the website overhaul.
