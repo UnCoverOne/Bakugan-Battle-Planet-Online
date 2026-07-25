@@ -92,6 +92,8 @@ jobs:
             engine.log
             full-suite.log
             lint.log
+            tests/game-engine.test.ts
+            tests/rules-engine-modernization.test.ts
           if-no-files-found: warn
           retention-days: 7
       - name: Enforce results
