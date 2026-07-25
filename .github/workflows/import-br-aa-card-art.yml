@@ -1,4 +1,4 @@
-name: Import BR and AA Card Art
+name: Finalize Self-Hosted BR and AA Card Art
 
 on:
   push:
@@ -9,34 +9,153 @@ permissions:
   contents: write
 
 jobs:
-  import:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           ref: fix/self-host-br-aa-card-art
-      - name: Download supplied card-art archive
+      - name: Point the catalogue at supplied repository assets
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str):
+              target = Path(path)
+              content = target.read_text()
+              if old not in content:
+                  raise SystemExit(f"Expected source text was not found in {path}")
+              target.write_text(content.replace(old, new))
+
+          replace(
+              "lib/content/card-set-extensions.ts",
+              '''function scanUrl(filename: string) {
+            if (!filename) return "/assets/cards/card-missing.svg";
+            return `https://bakugan.wiki/wiki/Special:Redirect/file/${encodeURIComponent(filename)}`;
+          }''',
+              '''function scanUrl(setCode: "BR" | "AA", id: string, filename: string) {
+            if (!filename) return "/assets/cards/card-missing.svg";
+            return `/assets/cards/sets/${setCode.toLowerCase()}/full/${id}.webp`;
+          }''',
+          )
+          replace(
+              "lib/content/card-set-extensions.ts",
+              "art: scanUrl(scanFilename),",
+              "art: scanUrl(setCode, id, scanFilename),",
+          )
+          replace(
+              "lib/content/catalogue.ts",
+              '''if (!(card.art?.startsWith("/assets/") || card.art?.startsWith("https://bakugan.wiki/"))) errors.push(`${card.id}: art must be a repository asset or approved scan URL.`);''',
+              '''if (!card.art?.startsWith("/assets/")) errors.push(`${card.id}: art must be a self-hosted repository asset.`);''',
+          )
+          replace(
+              "lib/content/card-art.ts",
+              ''' * pairs; BR and AA scans use their canonical remote MediaWiki file redirect.''',
+              ''' * pairs; BR and AA scans use supplied, repository-hosted full/thumbnail pairs.''',
+          )
+          replace(
+              "lib/content/card-art.ts",
+              '''    && source.startsWith("/assets/cards/full/")
+            ) {
+              return source.replace("/assets/cards/full/", "/assets/cards/thumb/");''',
+              '''    && (source.startsWith("/assets/cards/full/") || /^\\/assets\\/cards\\/sets\\/(?:br|aa)\\/full\\//.test(source))
+            ) {
+              return source.replace("/full/", "/thumb/");''',
+          )
+          replace(
+              "worker/index.ts",
+              '''    "img-src 'self' data: blob: https://bakugan.wiki https://*.bakugan.wiki",''',
+              '''    "img-src 'self' data: blob:",''',
+          )
+
+          Path("tests/card-set-extensions.test.ts").write_text('''import assert from "node:assert/strict";
+          import { existsSync } from "node:fs";
+          import { join } from "node:path";
+          import test from "node:test";
+          import { CARDS } from "../lib/data";
+          import { cardArtSource } from "../lib/content/card-art";
+          import { CARD_SET_INFO, cardCollectorLabel, cardSetCode } from "../lib/content/catalogue";
+          import { ruleDefinitionForCard } from "../lib/rules/catalogue";
+
+          const bySet = (set: "BB" | "BR" | "AA") => CARDS.filter((card) => cardSetCode(card) === set);
+
+          test("Bakugan Resurgence and Age of Aurelus are fully addressable", () => {
+            assert.equal(bySet("BB").length, 374);
+            assert.equal(bySet("BR").length, 249);
+            assert.equal(bySet("AA").length, 220);
+            assert.equal(CARDS.length, 843);
+            assert.equal(CARD_SET_INFO.BR.collectorTotal, 248);
+            assert.equal(CARD_SET_INFO.AA.collectorTotal, 220);
+          });
+
+          test("the duplicate Bakugan Resurgence 221 printings retain separate catalogue identities", () => {
+            const printings = bySet("BR").filter((card) => card.number === 221);
+            assert.deepEqual(printings.map((card) => card.catalogId).sort(), ["br-221-artulean-ultra", "br-221-pyravian-ultra"]);
+            assert.deepEqual(printings.map((card) => card.displayName).sort(), ["Artulean Ultra", "Pyravian Ultra"]);
+          });
+
+          test("collector labels are set-aware", () => {
+            assert.equal(cardCollectorLabel(CARDS.find((card) => card.catalogId === "bb-1")!), "1/374 BB");
+            assert.equal(cardCollectorLabel(CARDS.find((card) => card.catalogId === "br-1")!), "1/248 BR");
+            assert.equal(cardCollectorLabel(CARDS.find((card) => card.catalogId === "aa-1")!), "1/220 AA");
+          });
+
+          test("every extension card has rules provenance and a self-hosted art source", () => {
+            for (const card of CARDS.filter((candidate) => cardSetCode(candidate) !== "BB")) {
+              const definition = ruleDefinitionForCard(card);
+              assert.equal(definition.cardId, card.catalogId);
+              assert.equal(definition.sourceText, card.effect);
+              assert.ok(definition.provenance.citations.some((citation) => citation.sourceId === "bp-card-printing"));
+              if (card.hasProvidedScan) {
+                const set = cardSetCode(card).toLowerCase();
+                assert.equal(card.art, `/assets/cards/sets/${set}/full/${card.catalogId}.webp`);
+                assert.ok(existsSync(join(process.cwd(), "public", card.art)), `${card.catalogId} full scan is missing`);
+                assert.ok(existsSync(join(process.cwd(), "public", cardArtSource(card, "thumbnail"))), `${card.catalogId} thumbnail is missing`);
+              } else {
+                assert.equal(card.art, "/assets/cards/card-missing.svg");
+              }
+              assert.ok(!/^https?:\\/\\//i.test(card.art), `${card.catalogId} must not rely on external artwork`);
+            }
+          });
+
+          test("card art resolution preserves set-qualified local scan sources", () => {
+            const battleBrawlers = CARDS.find((card) => card.catalogId === "bb-1")!;
+            const resurgence = CARDS.find((card) => card.catalogId === "br-1")!;
+            const ageOfAurelus = CARDS.find((card) => card.catalogId === "aa-1")!;
+
+            assert.equal(cardArtSource(battleBrawlers, "thumbnail"), "/assets/cards/thumb/1.webp");
+            assert.equal(cardArtSource(resurgence, "thumbnail"), "/assets/cards/sets/br/thumb/br-1.webp");
+            assert.equal(cardArtSource(ageOfAurelus, "thumbnail"), "/assets/cards/sets/aa/thumb/aa-1.webp");
+          });
+
+          test("Evo identities prefer the matching card set and faction", () => {
+            const examples = ["br-90", "aa-77", "aa-125"];
+            for (const id of examples) {
+              const card = CARDS.find((candidate) => candidate.catalogId === id)!;
+              const definition = ruleDefinitionForCard(card);
+              assert.equal(card.type, "Evo");
+              assert.equal(definition.play.evolvesFrom.length, 1, `${id} should resolve one canonical Character`);
+              assert.ok(definition.play.evolvesFrom[0].startsWith(`${id.split("-")[0]}-`));
+            }
+          });
+          '''.replace(/^          /gm, ""))
+
+          rendered = Path("tests/rendered-html.test.mjs")
+          content = rendered.read_text()
+          content = content.replace(
+              '''  assert.match(contentSecurityPolicy, /img-src[^;]*https:\\/\\/bakugan\\.wiki/);''',
+              '''  assert.match(contentSecurityPolicy, /img-src 'self' data: blob:/);
+            assert.doesNotMatch(contentSecurityPolicy, /https?:\\/\\//);''',
+          )
+          rendered.write_text(content)
+          PY
+      - name: Remove temporary importer and commit
         run: |
           set -euo pipefail
-          curl --fail --location --retry 3 --output /tmp/br-aa-card-art.tar.gz https://at.adobe.com/r3xxsGExDmoFKPdu
-          echo "3fd4ffd456932c7f1ccf53119d9e27bc873d16c945974f0852a17b068a80c6d5  /tmp/br-aa-card-art.tar.gz" | sha256sum --check
-      - name: Import repository-hosted assets
-        run: |
-          set -euo pipefail
-          rm -rf public/assets/cards/sets/br public/assets/cards/sets/aa
-          mkdir -p public/assets/cards/sets
-          tar -xzf /tmp/br-aa-card-art.tar.gz -C public/assets/cards/sets
-          test "$(find public/assets/cards/sets/br public/assets/cards/sets/aa -type f -name '*.webp' | wc -l | tr -d ' ')" = "852"
-      - name: Commit supplied assets
-        run: |
-          set -euo pipefail
+          git rm .github/workflows/import-br-aa-card-art.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/assets/cards/sets
-          if git diff --cached --quiet; then
-            echo "Card art is already imported."
-            exit 0
-          fi
-          git commit -m "assets: self-host BR and AA card art"
+          git add lib/content/card-set-extensions.ts lib/content/catalogue.ts lib/content/card-art.ts worker/index.ts tests/card-set-extensions.test.ts tests/rendered-html.test.mjs
+          git commit -m "fix: serve BR and AA art from local assets"
           git push origin HEAD:fix/self-host-br-aa-card-art
