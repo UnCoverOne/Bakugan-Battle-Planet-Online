@@ -55,8 +55,8 @@ const reachPower = () => {
 };
 
 test("the complete supplied Battle Planet catalogue is normalized and playable", () => {
-  assert.equal(CARDS.length, 374); assert.equal(BAKUGAN.length, 93); assert.equal(CORES.length, 52);
-  assert.deepEqual(Object.fromEntries(["Action","Flip","Hero","Evo","Character"].map((type) => [type, CARDS.filter((card) => card.type === type).length])), { Action:137, Flip:49, Hero:29, Evo:66, Character:93 });
+  assert.equal(CARDS.length, 843); assert.equal(BAKUGAN.length, 236); assert.equal(CORES.length, 52);
+  assert.deepEqual(Object.fromEntries(["Action","Flip","Hero","Evo","Character"].map((type) => [type, CARDS.filter((card) => card.type === type).length])), { Action:246, Flip:82, Hero:47, Evo:232, Character:236 });
   assert.ok(CARDS.every((card) => card.effect != null && card.mechanics && card.art));
   assert.ok(CARDS.filter((card) => ["Character","Evo"].includes(card.type)).every((card) => card.bPower != null && card.damage != null));
   assert.ok(STARTER_DECKS.every((deck) => deckErrors(deck).length === 0));
@@ -138,7 +138,7 @@ test("Hero, Evo, Action, Flip and X-cost cards expose typed announcement and pay
   const xCard = CARDS.find((card) => card.cost === "X")!; const sacrifice = CARDS.find((card) => card.effect.toLowerCase().includes("sacrifice"))!;
   assert.ok(evo); assert.ok(cardChoiceSpec(state, player.id, evo!).includes("targetBakugan")); assert.ok(cardChoiceSpec(state, player.id, xCard).includes("xValue"));
   assert.equal(cardChoiceSpec(state, player.id, sacrifice).includes("discard"), false, "Sacrifice choices are made during resolution, not announcement.");
-  assert.equal(CARDS.filter((card) => card.type === "Flip").length, 49); assert.equal(CARDS.filter((card) => card.type === "Hero").length, 29);
+  assert.equal(CARDS.filter((card) => card.type === "Flip").length, 82); assert.equal(CARDS.filter((card) => card.type === "Hero").length, 47);
 });
 
 test("B-Power ties use Energy-cost flips and the Victor Step precedes sequential damage", () => {

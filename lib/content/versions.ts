@@ -1,10 +1,10 @@
-export const APPLICATION_VERSION = "0.1.0" as const;
-export const GAME_ENGINE_VERSION = "4.0.0" as const;
-export const RULES_PROFILE_VERSION = "battle-planet-rules-v4" as const;
-export const CARD_CATALOGUE_VERSION = "battle-planet-cards-v1" as const;
+export const APPLICATION_VERSION = "0.2.0" as const;
+export const GAME_ENGINE_VERSION = "4.1.0" as const;
+export const RULES_PROFILE_VERSION = "battle-planet-rules-v5" as const;
+export const CARD_CATALOGUE_VERSION = "battle-planet-cards-v2-bb-br-aa" as const;
 export const PHYSICAL_SIMULATION_VERSION = "physical-simulation-v2" as const;
 export const DIGITAL_ADAPTATION_VERSION = PHYSICAL_SIMULATION_VERSION;
-export const CONTENT_SCHEMA_VERSION = 1 as const;
+export const CONTENT_SCHEMA_VERSION = 2 as const;
 
 export type GameVersionProfile = {
   applicationVersion: typeof APPLICATION_VERSION;

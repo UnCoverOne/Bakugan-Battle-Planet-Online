@@ -33,9 +33,9 @@ function match() {
 
 test("the reviewed typed catalogue covers every Battle Planet card exactly", () => {
   const definitions = allRuleDefinitions();
-  assert.equal(definitions.length, 374);
-  assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 374);
-  assert.equal(CARDS.length, 374);
+  assert.equal(definitions.length, 843);
+  assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 843);
+  assert.equal(CARDS.length, 843);
   for (const card of CARDS) assert.equal(validateCardAgainstRules(card), true);
   assert.ok(definitions.every((definition) => definition.implementationStatus === "complete"));
   assert.ok(definitions.every((definition) => definition.abilities.every((ability) => ability.instructions.length > 0)));
