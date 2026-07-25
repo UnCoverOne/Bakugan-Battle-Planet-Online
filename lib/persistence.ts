@@ -55,6 +55,8 @@ export type UserSnapshot = {
   playerId: string;
 };
 
+export type SnapshotPreference = "merge" | "local" | "cloud";
+
 const validRoutes = new Set<AppRoute>(["entry", "dashboard", "decks", "deck-detail", "builder", "compendium", "play", "lobby", "placement", "match", "result", "history", "profile", "settings"]);
 const validFactions = new Set(["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"]);
 
@@ -117,6 +119,50 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
   };
 }
 
+function retainDeviceState(snapshot: UserSnapshot, device: UserSnapshot): UserSnapshot {
+  return {
+    ...snapshot,
+    profile: { ...snapshot.profile, signedIn: device.profile.signedIn },
+    route: device.route,
+    deckQuery: device.deckQuery,
+    compendiumQuery: device.compendiumQuery,
+    compendiumTab: device.compendiumTab,
+    joinCode: device.joinCode,
+    match: device.match,
+    online: device.online,
+    selectedCore: device.selectedCore,
+    logFilter: device.logFilter,
+    replay: device.replay,
+    replayIndex: device.replayIndex,
+    playerId: device.playerId,
+  };
+}
+
+export function toCloudSnapshot(snapshot: UserSnapshot): UserSnapshot {
+  return {
+    ...snapshot,
+    profile: { ...snapshot.profile, signedIn: false },
+    route: "dashboard",
+    deckQuery: "",
+    compendiumQuery: "",
+    compendiumTab: "cards",
+    joinCode: "",
+    match: null,
+    online: false,
+    selectedCore: "",
+    logFilter: "all",
+    replay: null,
+    replayIndex: 0,
+    playerId: "",
+  };
+}
+
+export function selectSnapshot(local: UserSnapshot, cloud: UserSnapshot, preference: SnapshotPreference = "merge"): UserSnapshot {
+  if (preference === "local") return retainDeviceState(local, local);
+  if (preference === "cloud") return retainDeviceState(cloud, local);
+  return mergeSnapshots(local, cloud);
+}
+
 export function mergeSnapshots(local: UserSnapshot, cloud: UserSnapshot): UserSnapshot {
   const localIsNewer = local.updatedAt > cloud.updatedAt;
   const primary = localIsNewer ? local : cloud;
@@ -135,5 +181,12 @@ export function mergeSnapshots(local: UserSnapshot, cloud: UserSnapshot): UserSn
   const history = new Map<string, MatchResultRecord>();
   for (const result of secondary.history) history.set(result.id, result);
   for (const result of primary.history) history.set(result.id, result);
-  return { ...primary, schemaVersion: 1, updatedAt: Math.max(local.updatedAt, cloud.updatedAt), decks: [...decks.values()].slice(0, 50), history: [...history.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 200) };
+  const merged = {
+    ...primary,
+    schemaVersion: 1 as const,
+    updatedAt: Math.max(local.updatedAt, cloud.updatedAt),
+    decks: [...decks.values()].slice(0, 50),
+    history: [...history.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 200),
+  };
+  return retainDeviceState(merged, local);
 }
