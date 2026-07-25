@@ -33,5 +33,6 @@ test("renders production metadata and security headers", async () => {
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   const contentSecurityPolicy = response.headers.get("content-security-policy") ?? "";
   assert.match(contentSecurityPolicy, /frame-ancestors 'none'/);
-  assert.match(contentSecurityPolicy, /img-src[^;]*https:\/\/bakugan\.wiki/);
+  assert.match(contentSecurityPolicy, /img-src 'self' data: blob:/);
+  assert.doesNotMatch(contentSecurityPolicy, /https?:\/\//);
 });

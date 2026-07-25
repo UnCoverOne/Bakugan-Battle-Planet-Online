@@ -108,7 +108,7 @@ export function validateControlledCatalogue(
     if (typeof card.effect !== "string") errors.push(`${card.id}: effect text must be a string.`);
     if (!Array.isArray(card.mechanics)) errors.push(`${card.id}: mechanics must be an array.`);
     if (!Array.isArray(card.coreTypes)) errors.push(`${card.id}: coreTypes must be an array.`);
-    if (!(card.art?.startsWith("/assets/") || card.art?.startsWith("https://bakugan.wiki/"))) errors.push(`${card.id}: art must be a repository asset or approved scan URL.`);
+    if (!card.art?.startsWith("/assets/")) errors.push(`${card.id}: art must be a self-hosted repository asset.`);
     if (!card.slug?.trim()) errors.push(`${card.id}: missing stable slug.`);
     else if (slugs.has(card.slug)) errors.push(`${card.id}: duplicate slug ${card.slug}.`);
     else slugs.add(card.slug);

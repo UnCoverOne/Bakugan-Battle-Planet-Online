@@ -71,9 +71,9 @@ function mechanicsFor(effect: string) {
   return [...mechanics];
 }
 
-function scanUrl(filename: string) {
+function scanUrl(setCode: "BR" | "AA", id: string, filename: string) {
   if (!filename) return "/assets/cards/card-missing.svg";
-  return `https://bakugan.wiki/wiki/Special:Redirect/file/${encodeURIComponent(filename)}`;
+  return `/assets/cards/sets/${setCode.toLowerCase()}/full/${id}.webp`;
 }
 
 export function recordsFromRows(
@@ -101,7 +101,7 @@ export function recordsFromRows(
       damage,
       coreTypes,
       evolvesFrom: evolvesFrom || null,
-      art: scanUrl(scanFilename),
+      art: scanUrl(setCode, id, scanFilename),
       hasProvidedScan: Boolean(scanFilename),
       source: `${setName} supplied workbook${scanFilename ? " and card scan" : ""}`,
       slug: `${setCode.toLowerCase()}-${number}-${slugify(displayName)}`,

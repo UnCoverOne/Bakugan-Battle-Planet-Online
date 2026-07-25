@@ -5,8 +5,8 @@ export type CardArtVariant = "full" | "thumbnail";
 
 /**
  * Resolves the correct image source for a card without assuming that collector
- * numbers are globally unique. Battle Brawlers scans have local full/thumbnail
- * pairs; BR and AA scans use their canonical remote MediaWiki file redirect.
+ * numbers are globally unique. Every supplied scan is served from this site's
+ * own assets, with separate full and thumbnail variants for each card set.
  */
 export function cardArtSource(
   card: Pick<GameCard, "art" | "hasProvidedScan">,
@@ -16,9 +16,12 @@ export function cardArtSource(
   if (
     variant === "thumbnail"
     && card.hasProvidedScan
-    && source.startsWith("/assets/cards/full/")
+    && (
+      source.startsWith("/assets/cards/full/")
+      || /^\/assets\/cards\/sets\/(?:br|aa)\/full\//.test(source)
+    )
   ) {
-    return source.replace("/assets/cards/full/", "/assets/cards/thumb/");
+    return source.replace("/full/", "/thumb/");
   }
   return source;
 }
