@@ -42,7 +42,7 @@ test("achievement totals derive from saved decks and match records", () => {
   assert.ok(achievements.some((achievement) => achievement.id === "online" && achievement.unlocked));
 });
 
-test("Home uses a full-width angular banner and a compact single-screen desktop layout", () => {
+test("Home uses balanced angular geometry and naturally fits a desktop viewport", () => {
   const dashboard = source("components/routes/DashboardScreen.tsx");
   const layout = source("app/layout.tsx");
   const css = source("app/home-layout.css");
@@ -51,17 +51,19 @@ test("Home uses a full-width angular banner and a compact single-screen desktop 
   assert.match(dashboard, /home-achievement-summary/);
   assert.match(dashboard, /home-featured-deck/);
   assert.match(dashboard, /home-profile-strip/);
-  assert.match(dashboard, /home-achievement-icon/);
-  assert.match(dashboard, /slice\(0, 3\)/);
+  assert.match(dashboard, /AchievementGlyph/);
+  assert.match(dashboard, /\.filter\(\(achievement\) => achievement\.unlocked\)\.reverse\(\)/);
+  assert.match(dashboard, /cardArtSource\(featuredLead, "full"\)/);
   assert.doesNotMatch(dashboard, /of \{achievements\.length\} unlocked/);
   assert.doesNotMatch(dashboard, /<span className="eyebrow">ACHIEVEMENTS/);
   assert.doesNotMatch(dashboard, /<span className="eyebrow">NEWEST PUBLIC DECK/);
   assert.doesNotMatch(dashboard, /PageHeader/);
   assert.match(layout, /home-layout\.css/);
+  assert.match(css, /--home-cut-lg:18px;--home-cut-sm:8px/);
   assert.match(css, /\.bakugan-home-hero\{[^}]*width:100%/);
-  assert.match(css, /clip-path:polygon/);
-  assert.match(css, /height:calc\(100dvh - 76px\)/);
-  assert.match(css, /grid-template-columns:minmax\(300px,\.82fr\) minmax\(0,1\.18fr\)/);
+  assert.match(css, /grid-template-columns:minmax\(360px,\.84fr\) minmax\(560px,1\.16fr\)/);
+  assert.match(css, /grid-template-rows:clamp\(250px,32vh,285px\) clamp\(270px,34vh,310px\) 70px/);
+  assert.doesNotMatch(css, /main-stage:has\(\.bakugan-home\)\{[^}]*overflow:hidden/);
 });
 
 test("the overhaul leaves the immersive Match implementation outside its source changes", () => {
