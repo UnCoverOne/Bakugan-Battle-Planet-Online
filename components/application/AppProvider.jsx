@@ -11,7 +11,7 @@ const defaults = {
   profile: { name: "DanBrawler", faction: "Pyrus", signedIn: false },
   settings: { reducedMotion: false, highContrast: false, sound: true, cardScale: 100, logDetail: "All events", challenges: "Everyone", replayLinks: true },
 };
-const paths = { entry: "/", dashboard: "/dashboard", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/history", profile: "/profile", settings: "/settings" };
+const paths = { entry: "/", dashboard: "/dashboard", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/profile/records", profile: "/profile", settings: "/settings" };
 
 let storageReportTimer = null;
 let pendingStorageDetail = null;

@@ -3,18 +3,51 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "../application/AppProvider";
+import { deckLeadCard } from "../../lib/data";
+import { cardArtSource } from "../../lib/content/card-art";
 import { AppButton, Badge, Metric, PageHeader, deckLooksComplete } from "../application/ui";
 
 export function PlayScreen() {
   const { format, setFormat, matchMode, setMatchMode, selectedDeck, decks, selectedDeckId, setSelectedDeckId, joinCode, setJoinCode, startSolo, createOnline, joinOnline, matchError } = useApp();
+  const legalDecks = decks.filter(deckLooksComplete);
+  const chosenLead = selectedDeck ? deckLeadCard(selectedDeck) : undefined;
+  const begin = () => void (matchMode === "solo" ? startSolo() : matchMode === "online" ? createOnline() : joinOnline());
   return <>
-    <PageHeader eyebrow="MATCH CONFIGURATION" title="CHOOSE THE BATTLE" copy="Lock a deck, match structure, and opponent path. Card definitions stay out of this route and load only when a match actually starts." art="/assets/pyrus.png" />
-    <section className="setup-layout"><div className="panel setup-form"><div className="step-heading"><span>01</span><div><small>MATCH MODE</small><h2>WHO WILL YOU BRAWL?</h2></div></div><div className="choice-grid"><button className={matchMode === "solo" ? "active" : ""} onClick={() => setMatchMode("solo")}><strong>TRAINING AI</strong><span>Immediate full match</span></button><button className={matchMode === "online" ? "active" : ""} onClick={() => setMatchMode("online")}><strong>CREATE ONLINE ROOM</strong><span>Share a six-character code</span></button><button className={matchMode === "join" ? "active" : ""} onClick={() => setMatchMode("join")}><strong>JOIN ROOM</strong><span>Enter an opponent code</span></button></div>
-      <div className="step-heading"><span>02</span><div><small>MATCH STRUCTURE</small><h2>HOW MANY GAMES?</h2></div></div><div className="format-toggle"><button className={format === "bo1" ? "active" : ""} onClick={() => setFormat("bo1")}><b>BO1</b><strong>BEST OF ONE</strong><span>First game wins the match</span></button><button className={format === "bo3" ? "active" : ""} onClick={() => setFormat("bo3")}><b>BO3</b><strong>BEST OF THREE</strong><span>First to two game wins</span></button></div>
-      <div className="step-heading"><span>03</span><div><small>LOCKED DECK</small><h2>SELECT YOUR ARSENAL</h2></div></div>{decks.length ? <select className="deck-select" value={selectedDeckId || selectedDeck?.id} onChange={(event) => setSelectedDeckId(event.target.value)}>{decks.map((deck: any) => <option value={deck.id} key={deck.id}>{deck.name} — {deckLooksComplete(deck) ? "COMPLETE" : "DRAFT"}</option>)}</select> : <div className="storage-callout"><strong>NO DECKS AVAILABLE</strong><span>Open the Deck Library to restore starter decks or create a draft.</span><Link href="/decks">OPEN DECK LIBRARY →</Link></div>}
-      {matchMode === "join" && <label className="join-code">ROOM CODE<input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} maxLength={6} placeholder="BP7K3M" /></label>}{matchError && <p className="error-message" role="alert">{matchError}</p>}
-      <AppButton tone="red" disabled={!selectedDeck || !deckLooksComplete(selectedDeck) || (matchMode === "join" && joinCode.length < 5)} onClick={() => void (matchMode === "solo" ? startSolo() : matchMode === "online" ? createOnline() : joinOnline())}>{matchMode === "solo" ? "START TRAINING MATCH" : matchMode === "online" ? "CREATE ONLINE ROOM" : "JOIN ONLINE ROOM"}</AppButton></div>
-      <aside className="panel match-preview"><span className="eyebrow">MATCH PREVIEW</span><h2>{format === "bo1" ? "BEST OF ONE" : "BEST OF THREE"}</h2><div className="preview-deck"><img src="/assets/brawlers-group.png" alt="" /><strong>{selectedDeck?.name ?? "No deck selected"}</strong><Badge tone={deckLooksComplete(selectedDeck) ? "gold" : "red"}>{deckLooksComplete(selectedDeck) ? "COMPLETE" : "DRAFT"}</Badge></div><ul><li>Original Battle Planet ruleset</li><li>Alternating twelve-Core placement</li><li>Secret targets and server RNG</li><li>Complexity-based priority timers</li><li>30-second reconnect grace</li><li>Gameplay bundle loads on match entry</li></ul></aside></section>
+    <section className="compact-page-heading"><div><span className="eyebrow">MATCH SETUP</span><h1>Choose the battle</h1><p>Select a mode, a legal deck, and the match structure.</p></div></section>
+    <section className="play-setup-v2">
+      <div className="panel play-setup-main">
+        <section className="setup-section"><div className="section-number">1</div><div><h2>Match mode</h2><p>Choose how you want to enter the Brawl.</p></div></section>
+        <div className="mode-card-grid">
+          <button className={matchMode === "solo" ? "active" : ""} onClick={() => setMatchMode("solo")}><strong>Training</strong><span>Play a full match against the AI.</span></button>
+          <button className={matchMode === "online" ? "active" : ""} onClick={() => setMatchMode("online")}><strong>Create room</strong><span>Start a private online room and share its code.</span></button>
+          <button className={matchMode === "join" ? "active" : ""} onClick={() => setMatchMode("join")}><strong>Join room</strong><span>Enter a code from another Brawler.</span></button>
+        </div>
+
+        <section className="setup-section"><div className="section-number">2</div><div><h2>Select your deck</h2><p>Decks are represented by the Lead card selected in the Deck Builder.</p></div></section>
+        {decks.length ? <div className="play-deck-grid">{decks.map((deck: any) => {
+          const lead = deckLeadCard(deck);
+          const legal = deckLooksComplete(deck);
+          const active = (selectedDeckId || selectedDeck?.id) === deck.id;
+          return <button key={deck.id} disabled={!legal} className={`${active ? "active" : ""} ${!legal ? "disabled" : ""}`} onClick={() => setSelectedDeckId(deck.id)}>
+            <div className="play-deck-art">{lead ? <img src={cardArtSource(lead, "thumbnail")} alt={`${lead.displayName}, lead card for ${deck.name}`}/> : <img src="/assets/cards/card-missing.svg" alt="No Lead card selected"/>}</div>
+            <div><strong>{deck.name}</strong><span>{deck.factions.join(" • ")}</span><Badge tone={legal ? "gold" : "red"}>{legal ? "LEGAL" : "DRAFT"}</Badge></div>
+          </button>;
+        })}</div> : <div className="storage-callout"><strong>NO DECKS AVAILABLE</strong><span>Create or restore a deck before starting a match.</span><Link href="/decks">OPEN MY DECKS →</Link></div>}
+
+        <section className="setup-section"><div className="section-number">3</div><div><h2>Match format</h2><p>Choose the number of games in the match.</p></div></section>
+        <div className="format-toggle modern"><button className={format === "bo1" ? "active" : ""} onClick={() => setFormat("bo1")}><b>BO1</b><strong>Best of one</strong><span>First game wins the match.</span></button><button className={format === "bo3" ? "active" : ""} onClick={() => setFormat("bo3")}><b>BO3</b><strong>Best of three</strong><span>First to two game wins.</span></button></div>
+        {matchMode === "join" && <label className="join-code modern">Room code<input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} maxLength={6} placeholder="BP7K3M" /></label>}
+        {matchError && <p className="error-message" role="alert">{matchError}</p>}
+      </div>
+      <aside className="panel play-confirmation">
+        <span className="eyebrow">READY CHECK</span>
+        <div className="confirmation-lead">{chosenLead ? <img src={cardArtSource(chosenLead, "thumbnail")} alt=""/> : <img src="/assets/cards/card-missing.svg" alt=""/>}</div>
+        <h2>{selectedDeck?.name ?? "Select a deck"}</h2>
+        <dl><div><dt>Mode</dt><dd>{matchMode === "solo" ? "Training" : matchMode === "online" ? "Create online room" : "Join online room"}</dd></div><div><dt>Format</dt><dd>{format === "bo1" ? "Best of one" : "Best of three"}</dd></div><div><dt>Legal decks</dt><dd>{legalDecks.length}</dd></div></dl>
+        <details><summary>Match rules</summary><ul><li>Original Battle Planet ruleset</li><li>Alternating twelve-Core placement</li><li>Server-authoritative random outcomes</li><li>30-second reconnect grace online</li></ul></details>
+        <AppButton tone="red" disabled={!selectedDeck || !deckLooksComplete(selectedDeck) || (matchMode === "join" && joinCode.length < 5)} onClick={begin}>{matchMode === "solo" ? "START TRAINING MATCH" : matchMode === "online" ? "CREATE ONLINE ROOM" : "JOIN ONLINE ROOM"}</AppButton>
+      </aside>
+    </section>
   </>;
 }
 
@@ -44,9 +77,9 @@ export function ResultScreen() {
     if (!item) return;
     setReplay(item);
     setReplayIndex(Math.max(0, item.log.length - 1));
-    router.push(`/history/${encodeURIComponent(item.id)}`);
+    router.push(`/profile/records/${encodeURIComponent(item.id)}`);
   };
-  return <section className={`result-page ${won ? "victory" : "defeat"}`}><img className="result-art" src="/assets/winner.png" alt="" /><div className="result-content"><Badge tone={won ? "gold" : "red"}>{complete ? "MATCH COMPLETE" : "SERIES INTERMISSION"}</Badge><h1>{won ? "VICTOR" : "DEFEAT"}</h1><p>{match.resultReason}</p><div className="series-score">{match.players.map((player: any) => <div key={player.id}><strong>{player.name}</strong><span>{match.series[player.id] ?? 0}</span></div>)}</div><div className="result-stats"><Metric label="Game" value={`${match.gameNumber}`} /><Metric label="Format" value={match.format.toUpperCase()} /><Metric label="Events" value={match.log.length} /><Metric label="Random results" value={match.log.filter((event: any) => event.kind === "random").length} /></div><div className="result-actions">{!complete && <AppButton tone="red" onClick={() => void nextSeriesGame()}>NEXT GAME • NEW MATRIX</AppButton>}<AppButton tone="gold" onClick={openReplay}>VIEW REPLAY</AppButton><AppButton tone="ghost" onClick={leaveMatch}>DASHBOARD</AppButton></div><small>Result stored in Match History • {history[0]?.at}</small></div></section>;
+  return <section className={`result-page ${won ? "victory" : "defeat"}`}><img className="result-art" src="/assets/winner.png" alt="" /><div className="result-content"><Badge tone={won ? "gold" : "red"}>{complete ? "MATCH COMPLETE" : "SERIES INTERMISSION"}</Badge><h1>{won ? "VICTOR" : "DEFEAT"}</h1><p>{match.resultReason}</p><div className="series-score">{match.players.map((player: any) => <div key={player.id}><strong>{player.name}</strong><span>{match.series[player.id] ?? 0}</span></div>)}</div><div className="result-stats"><Metric label="Game" value={`${match.gameNumber}`} /><Metric label="Format" value={match.format.toUpperCase()} /><Metric label="Events" value={match.log.length} /><Metric label="Random results" value={match.log.filter((event: any) => event.kind === "random").length} /></div><div className="result-actions">{!complete && <AppButton tone="red" onClick={() => void nextSeriesGame()}>NEXT GAME • NEW MATRIX</AppButton>}<AppButton tone="gold" onClick={openReplay}>VIEW MATCH RECORD</AppButton><AppButton tone="ghost" onClick={leaveMatch}>DASHBOARD</AppButton></div><small>Result stored in Match Records • {history[0]?.at}</small></div></section>;
 }
 
 function Empty({ title }: { title: string }) {

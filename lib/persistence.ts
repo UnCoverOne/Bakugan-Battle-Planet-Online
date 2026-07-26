@@ -81,6 +81,10 @@ function normalizeDeck(value: unknown): DeckRecord | null {
     tags: Array.isArray(deck.tags) ? deck.tags.filter((tag): tag is string => typeof tag === "string").map((tag) => tag.trim().slice(0, 24)).filter(Boolean).slice(0, 12) : [],
     notes: typeof deck.notes === "string" ? deck.notes.slice(0, 2_000) : "",
     conflictOf: typeof deck.conflictOf === "string" ? deck.conflictOf.slice(0, 120) : undefined,
+    leadCardId: typeof deck.leadCardId === "string" && deck.cardIds.includes(deck.leadCardId) ? deck.leadCardId.slice(0, 120) : deck.cardIds[0],
+    creator: typeof deck.creator === "string" ? deck.creator.trim().slice(0, 40) : undefined,
+    description: typeof deck.description === "string" ? deck.description.trim().slice(0, 500) : undefined,
+    publishedAt: typeof deck.publishedAt === "string" && Number.isFinite(Date.parse(deck.publishedAt)) ? new Date(deck.publishedAt).toISOString() : undefined,
   };
 }
 
