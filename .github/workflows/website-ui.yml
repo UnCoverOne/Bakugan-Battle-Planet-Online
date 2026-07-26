@@ -1,0 +1,51 @@
+name: Website UI Check
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/**/*.css"
+      - "app/layout.tsx"
+      - "components/application/**"
+      - "components/routes/**"
+      - "tests/website-overhaul.test.ts"
+      - "tests/route-architecture.test.ts"
+      - "tests/non-game-workflows.test.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/website-ui.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "app/**/*.css"
+      - "app/layout.tsx"
+      - "components/application/**"
+      - "components/routes/**"
+      - "tests/website-overhaul.test.ts"
+      - "tests/route-architecture.test.ts"
+      - "tests/non-game-workflows.test.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/website-ui.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Website workflow tests
+        run: node --import tsx --test tests/website-overhaul.test.ts tests/route-architecture.test.ts tests/non-game-workflows.test.ts
+      - run: npm run lint
+      - run: npm run cf:dry-run

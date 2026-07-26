@@ -42,6 +42,20 @@ test("achievement totals derive from saved decks and match records", () => {
   assert.ok(achievements.some((achievement) => achievement.id === "online" && achievement.unlocked));
 });
 
+test("Home uses a split hero, horizontal engagement panels, and a profile-stat strip", () => {
+  const dashboard = source("components/routes/DashboardScreen.tsx");
+  const layout = source("app/layout.tsx");
+  const css = source("app/home-layout.css");
+  assert.match(dashboard, /bakugan-home-hero/);
+  assert.match(dashboard, /home-feature-grid/);
+  assert.match(dashboard, /home-achievement-summary/);
+  assert.match(dashboard, /home-featured-deck/);
+  assert.match(dashboard, /home-profile-strip/);
+  assert.doesNotMatch(dashboard, /PageHeader/);
+  assert.match(layout, /home-layout\.css/);
+  assert.match(css, /grid-template-columns:minmax\(300px,\.82fr\) minmax\(0,1\.18fr\)/);
+});
+
 test("the overhaul leaves the immersive Match implementation outside its source changes", () => {
   const css = source("app/website-overhaul.css");
   assert.match(css, /immersive Match screen is intentionally untouched/);
