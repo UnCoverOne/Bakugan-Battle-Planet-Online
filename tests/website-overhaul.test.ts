@@ -42,7 +42,7 @@ test("achievement totals derive from saved decks and match records", () => {
   assert.ok(achievements.some((achievement) => achievement.id === "online" && achievement.unlocked));
 });
 
-test("Home uses balanced angular geometry and naturally fits a desktop viewport", () => {
+test("Home uses a vibrant, uncropped hero and fills a standard desktop viewport", () => {
   const dashboard = source("components/routes/DashboardScreen.tsx");
   const layout = source("app/layout.tsx");
   const css = source("app/home-layout.css");
@@ -60,9 +60,13 @@ test("Home uses balanced angular geometry and naturally fits a desktop viewport"
   assert.doesNotMatch(dashboard, /PageHeader/);
   assert.match(layout, /home-layout\.css/);
   assert.match(css, /--home-cut-lg:18px;--home-cut-sm:8px/);
-  assert.match(css, /\.bakugan-home-hero\{[^}]*width:100%/);
-  assert.match(css, /grid-template-columns:minmax\(360px,\.84fr\) minmax\(560px,1\.16fr\)/);
-  assert.match(css, /grid-template-rows:clamp\(250px,32vh,285px\) clamp\(270px,34vh,310px\) 70px/);
+  assert.match(css, /\.bakugan-home\{[^}]*background:url\('\/assets\/burst\.jpg'\)/);
+  assert.match(css, /\.bakugan-home-hero\{[^}]*width:100%[^}]*clip-path:none/);
+  assert.match(css, /\.bakugan-home-hero-art img\{[^}]*left:-8%[^}]*width:108%/);
+  assert.match(css, /\.bakugan-home-hero-copy \.hex-button\.red\{[^}]*min-width:170px[^}]*min-height:52px/);
+  assert.match(css, /width:min\(1520px,calc\(100% - 2\.5rem\)\)/);
+  assert.match(css, /height:calc\(100dvh - 88px\)/);
+  assert.match(css, /grid-template-rows:minmax\(320px,1\.08fr\) minmax\(310px,\.92fr\) 76px/);
   assert.doesNotMatch(css, /main-stage:has\(\.bakugan-home\)\{[^}]*overflow:hidden/);
 });
 
