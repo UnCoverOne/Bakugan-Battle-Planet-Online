@@ -16,6 +16,8 @@ test("the primary shell uses the approved four-item top navigation and profile m
   assert.match(shell, /Achievements/);
   assert.match(shell, /Settings/);
   assert.match(shell, /Log Out/);
+  assert.match(shell, /function SyncGlyph/);
+  assert.match(shell, /className="sync-icon"/);
 });
 
 test("history is routed through profile and public deck browsing has dedicated routes", () => {
@@ -42,32 +44,35 @@ test("achievement totals derive from saved decks and match records", () => {
   assert.ok(achievements.some((achievement) => achievement.id === "online" && achievement.unlocked));
 });
 
-test("Home uses a vibrant, uncropped hero and fills a standard desktop viewport", () => {
+test("Home uses the upgraded Pyrus hero, card fan, and intended desktop proportions", () => {
   const dashboard = source("components/routes/DashboardScreen.tsx");
   const layout = source("app/layout.tsx");
   const css = source("app/home-layout.css");
   assert.match(dashboard, /bakugan-home-hero/);
   assert.match(dashboard, /home-feature-grid/);
   assert.match(dashboard, /home-achievement-summary/);
-  assert.match(dashboard, /home-featured-deck/);
+  assert.match(dashboard, /Achievement progress/);
+  assert.match(dashboard, /home-featured-deck-stack/);
+  assert.match(dashboard, /home-featured-deck-card/);
+  assert.match(dashboard, /featured\.bakuganIds\.map/);
+  assert.match(dashboard, /CARD_BY_ID/);
+  assert.match(dashboard, /hero-pyrus\.svg/);
+  assert.match(dashboard, /button-arrow/);
   assert.match(dashboard, /home-profile-strip/);
   assert.match(dashboard, /AchievementGlyph/);
   assert.match(dashboard, /\.filter\(\(achievement\) => achievement\.unlocked\)\.reverse\(\)/);
-  assert.match(dashboard, /cardArtSource\(featuredLead, "full"\)/);
+  assert.doesNotMatch(dashboard, /home-featured-deck-art/);
   assert.doesNotMatch(dashboard, /of \{achievements\.length\} unlocked/);
-  assert.doesNotMatch(dashboard, /<span className="eyebrow">ACHIEVEMENTS/);
-  assert.doesNotMatch(dashboard, /<span className="eyebrow">NEWEST PUBLIC DECK/);
   assert.doesNotMatch(dashboard, /PageHeader/);
   assert.match(layout, /home-layout\.css/);
-  assert.match(css, /--home-cut-lg:18px;--home-cut-sm:8px/);
-  assert.match(css, /\.bakugan-home\{[^}]*background:url\('\/assets\/burst\.jpg'\)/);
-  assert.match(css, /\.bakugan-home-hero\{[^}]*width:100%[^}]*clip-path:none/);
-  assert.match(css, /\.bakugan-home-hero-art img\{[^}]*left:-8%[^}]*width:108%/);
-  assert.match(css, /\.bakugan-home-hero-copy \.hex-button\.red\{[^}]*min-width:170px[^}]*min-height:52px/);
-  assert.match(css, /width:min\(1520px,calc\(100% - 2\.5rem\)\)/);
-  assert.match(css, /height:calc\(100dvh - 88px\)/);
-  assert.match(css, /grid-template-rows:minmax\(320px,1\.08fr\) minmax\(310px,\.92fr\) 76px/);
-  assert.doesNotMatch(css, /main-stage:has\(\.bakugan-home\)\{[^}]*overflow:hidden/);
+  assert.match(css, /--home-max: 1470px/);
+  assert.match(css, /height: calc\(100dvh - 76px\)/);
+  assert.match(css, /grid-template-rows: minmax\(360px, 1\.08fr\) minmax\(330px, \.92fr\) 84px/);
+  assert.match(css, /grid-template-columns: minmax\(390px, \.59fr\) minmax\(720px, 1fr\)/);
+  assert.match(css, /\.home-featured-deck-card:nth-child\(4\)/);
+  assert.match(css, /\.bakugan-home-hero-art img[\s\S]*height: 174%/);
+  assert.doesNotMatch(css, /height: calc\(100dvh - 88px\)/);
+  assert.doesNotMatch(css, /main-stage:has\(\.bakugan-home\)[^{]*\{[^}]*overflow: hidden/);
 });
 
 test("the overhaul leaves the immersive Match implementation outside its source changes", () => {
