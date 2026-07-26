@@ -11,6 +11,7 @@ test("the primary shell uses the approved four-item top navigation and profile m
   for (const label of ["Home", "Play", "Decks", "Compendium"]) assert.match(shell, new RegExp(`label: "${label}"`));
   assert.doesNotMatch(shell, /label: "History"/);
   assert.match(shell, /mobile-bottom-nav/);
+  assert.match(shell, /profile-popover-stats/);
   assert.match(shell, /View Profile/);
   assert.match(shell, /Achievements/);
   assert.match(shell, /Settings/);
