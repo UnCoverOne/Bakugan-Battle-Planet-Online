@@ -7,14 +7,22 @@ import { cardArtSource } from "../../lib/content/card-art";
 import { useApp } from "../application/AppProvider";
 import { Badge, deckLooksComplete, factionClass } from "../application/ui";
 
+const achievementIcon = (category: string, unlocked: boolean) => {
+  if (unlocked) return "✓";
+  if (category === "Battle") return "⚔";
+  if (category === "Deck Building") return "▰";
+  if (category === "Online Play") return "⌁";
+  if (category === "Compendium") return "◇";
+  return "✦";
+};
+
 export function DashboardScreen() {
   const { profile, decks, history, match } = useApp();
   const achievements = achievementsFor(decks, history);
-  const unlocked = achievements.filter((achievement) => achievement.unlocked);
-  const nextAchievements = achievements
+  const incompleteAchievements = achievements
     .filter((achievement) => !achievement.unlocked)
-    .sort((left, right) => (right.current / right.target) - (left.current / left.target))
-    .slice(0, 3);
+    .sort((left, right) => (right.current / right.target) - (left.current / left.target));
+  const closestAchievements = (incompleteAchievements.length ? incompleteAchievements : achievements.slice(-3)).slice(0, 3);
   const wins = history.filter((item: { result?: string }) => item.result === "Victor").length;
   const winRate = history.length ? Math.round((wins / history.length) * 100) : 0;
   const completeDecks = decks.filter(deckLooksComplete);
@@ -24,8 +32,9 @@ export function DashboardScreen() {
   ].sort((a, b) => Date.parse(b.publishedAt ?? b.updatedAt) - Date.parse(a.publishedAt ?? a.updatedAt));
   const featured = publicDecks[0];
   const featuredLead = featured ? deckLeadCard(featured) : undefined;
+  const activeMatch = Boolean(match && match.phase !== "result");
 
-  return <div className="bakugan-home">
+  return <div className={`bakugan-home ${activeMatch ? "has-active-match" : ""}`}>
     <section className="bakugan-home-hero">
       <div className="bakugan-home-hero-copy">
         <p className="home-kicker">Welcome back, {profile.name}</p>
@@ -39,25 +48,24 @@ export function DashboardScreen() {
       </div>
     </section>
 
-    {match && match.phase !== "result" && <section className="active-match-card">
+    {activeMatch && match && <section className="active-match-card">
       <div><span className="pulse"/><span className="eyebrow">ACTIVE MATCH</span><h2>{match.code ? `Room ${match.code}` : "Battle in progress"}</h2><p>{match.stepLabel ?? "Return to your current Brawl."}</p></div>
       <Link className="hex-button blue" href={match.phase === "lobby" ? "/play/lobby" : "/play/match"}>RESUME MATCH</Link>
     </section>}
 
     <section className="home-feature-grid">
       <article className="panel home-achievement-summary">
-        <div className="panel-heading"><div><span className="eyebrow">ACHIEVEMENTS</span><h2>Closest milestones</h2></div><Link href="/profile/achievements">VIEW ALL →</Link></div>
-        <div className="home-achievement-total"><strong>{unlocked.length}</strong><span>of {achievements.length} unlocked</span></div>
+        <div className="panel-heading"><h2>Closest achievements</h2><Link href="/profile/achievements">VIEW ALL →</Link></div>
         <div className="home-achievement-list">
-          {nextAchievements.length ? nextAchievements.map((achievement) => <div className="home-achievement-row" key={achievement.id}>
-            <div><strong>{achievement.name}</strong><small>{achievement.current} / {achievement.target}</small></div>
-            <progress aria-label={`${achievement.name}: ${achievement.current} of ${achievement.target}`} max={achievement.target} value={achievement.current}/>
-          </div>) : <div className="home-achievement-complete"><strong>Every current achievement is unlocked.</strong><p>Your Battle Planet record is complete for this achievement set.</p></div>}
+          {closestAchievements.map((achievement) => <div className="home-achievement-row" key={achievement.id}>
+            <span className="home-achievement-icon" aria-hidden="true">{achievementIcon(achievement.category, achievement.unlocked)}</span>
+            <div className="home-achievement-copy"><div><strong>{achievement.name}</strong><small>{achievement.unlocked ? "Complete" : `${achievement.current} / ${achievement.target}`}</small></div><p>{achievement.description}</p><progress aria-label={`${achievement.name}: ${achievement.current} of ${achievement.target}`} max={achievement.target} value={achievement.current}/></div>
+          </div>)}
         </div>
       </article>
 
       <article className="panel home-featured-deck">
-        <div className="panel-heading"><div><span className="eyebrow">NEWEST PUBLIC DECK</span><h2>Community spotlight</h2></div><Link href="/decks/public">BROWSE ALL →</Link></div>
+        <div className="panel-heading"><h2>Featured public deck</h2><Link href="/decks/public">BROWSE ALL →</Link></div>
         {featured ? <div className="home-featured-deck-layout">
           <div className={`home-featured-deck-art ${factionClass(featured.factions[0] ?? "Pyrus")}`}>
             {featuredLead ? <img src={cardArtSource(featuredLead, "thumbnail")} alt={`${featuredLead.displayName}, lead card for ${featured.name}`}/> : <img src="/assets/cards/card-missing.svg" alt="Lead card artwork unavailable"/>}
