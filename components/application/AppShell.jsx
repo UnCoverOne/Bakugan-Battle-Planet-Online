@@ -23,6 +23,12 @@ const TITLES = {
   settings: "Settings",
 };
 
+function SyncGlyph({ cloud }) {
+  return cloud
+    ? <svg className="sync-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.3 18.25h9.05a4.15 4.15 0 0 0 .55-8.26A5.6 5.6 0 0 0 6.24 8.7a4.78 4.78 0 0 0 1.06 9.55Z"/></svg>
+    : <svg className="sync-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M8 7h8M8 10h8M9 17h6"/></svg>;
+}
+
 export function AppShell({ children }) {
   const pathname = usePathname();
   const { ready, route, profile, decks, history, authUser, syncStatus, storageHealth, match, toast, signOutAccount } = useApp();
@@ -91,7 +97,7 @@ export function AppShell({ children }) {
       })}</nav>
       <div className="top-actions">
         {match && match.phase !== "result" && <Link className="resume-chip" href={match.phase === "lobby" ? "/play/lobby" : "/play/match"}><span className="pulse"/> Resume match</Link>}
-        <span className={`sync-dot ${syncTone}`} title={syncTitle} aria-label={syncTitle}>{authUser ? "☁" : "▣"}</span>
+        <span className={`sync-dot ${syncTone}`} title={syncTitle} aria-label={syncTitle}><SyncGlyph cloud={Boolean(authUser)}/></span>
         <div className="profile-menu-wrap" ref={menuRef}>
           <button className={`profile-avatar-button ${profileActive ? "active" : ""}`} type="button" aria-haspopup="menu" aria-expanded={profileOpen} onClick={() => setProfileOpen((open) => !open)}>
             <span>{profile.name.slice(0, 2).toUpperCase()}</span><span className="sr-only">Open profile menu</span>
