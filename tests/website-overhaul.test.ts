@@ -42,7 +42,7 @@ test("achievement totals derive from saved decks and match records", () => {
   assert.ok(achievements.some((achievement) => achievement.id === "online" && achievement.unlocked));
 });
 
-test("Home uses a split hero, horizontal engagement panels, and a profile-stat strip", () => {
+test("Home uses a full-width angular banner and a compact single-screen desktop layout", () => {
   const dashboard = source("components/routes/DashboardScreen.tsx");
   const layout = source("app/layout.tsx");
   const css = source("app/home-layout.css");
@@ -51,8 +51,16 @@ test("Home uses a split hero, horizontal engagement panels, and a profile-stat s
   assert.match(dashboard, /home-achievement-summary/);
   assert.match(dashboard, /home-featured-deck/);
   assert.match(dashboard, /home-profile-strip/);
+  assert.match(dashboard, /home-achievement-icon/);
+  assert.match(dashboard, /slice\(0, 3\)/);
+  assert.doesNotMatch(dashboard, /of \{achievements\.length\} unlocked/);
+  assert.doesNotMatch(dashboard, /<span className="eyebrow">ACHIEVEMENTS/);
+  assert.doesNotMatch(dashboard, /<span className="eyebrow">NEWEST PUBLIC DECK/);
   assert.doesNotMatch(dashboard, /PageHeader/);
   assert.match(layout, /home-layout\.css/);
+  assert.match(css, /\.bakugan-home-hero\{[^}]*width:100%/);
+  assert.match(css, /clip-path:polygon/);
+  assert.match(css, /height:calc\(100dvh - 76px\)/);
   assert.match(css, /grid-template-columns:minmax\(300px,\.82fr\) minmax\(0,1\.18fr\)/);
 });
 
