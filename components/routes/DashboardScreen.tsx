@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { achievementsFor } from "../../lib/achievements";
-import { PUBLIC_DECKS, deckLeadCard, type DeckRecord } from "../../lib/data";
+import { CARD_BY_ID, PUBLIC_DECKS, deckLeadCard, type DeckRecord } from "../../lib/data";
 import { cardArtSource } from "../../lib/content/card-art";
+import type { GameCard } from "../../lib/game";
 import { useApp } from "../application/AppProvider";
 import { Badge, deckLooksComplete, factionClass } from "../application/ui";
 
@@ -35,6 +36,14 @@ export function DashboardScreen() {
   ].sort((a, b) => Date.parse(b.publishedAt ?? b.updatedAt) - Date.parse(a.publishedAt ?? a.updatedAt));
   const featured = publicDecks[0];
   const featuredLead = featured ? deckLeadCard(featured) : undefined;
+  const previewSeen = new Set<string>();
+  const featuredPreviewCards: GameCard[] = featured
+    ? [...featured.bakuganIds.map((id) => CARD_BY_ID.get(id)), featuredLead].filter((card): card is GameCard => {
+      if (!card || previewSeen.has(card.catalogId)) return false;
+      previewSeen.add(card.catalogId);
+      return true;
+    })
+    : [];
   const activeMatch = Boolean(match && match.phase !== "result");
 
   return <div className={`bakugan-home ${activeMatch ? "has-active-match" : ""}`}>
@@ -43,22 +52,25 @@ export function DashboardScreen() {
         <p className="home-kicker">Welcome back, {profile.name}</p>
         <h1><span>Brawler</span><strong>Command</strong></h1>
         <p>Build your arsenal, prepare your Bakugan team, and choose your next Battle Planet Brawl.</p>
-        <div className="hero-actions"><Link className="hex-button red" href="/play">PLAY</Link><Link className="hex-button ghost" href="/decks">DECKS</Link></div>
+        <div className="hero-actions">
+          <Link className="hex-button red" href="/play"><span>PLAY</span><span className="button-arrow" aria-hidden="true">›</span></Link>
+          <Link className="hex-button ghost" href="/decks"><span>DECKS</span><span className="button-arrow" aria-hidden="true">›</span></Link>
+        </div>
       </div>
       <div className="bakugan-home-hero-art">
         <div className="bakugan-home-energy" aria-hidden="true"/>
-        <img src="/assets/brawlers-group.png" alt="Bakugan Brawlers ready for battle"/>
+        <img src="/assets/home/hero-pyrus.svg" alt="Pyrus Bakugan charging into battle"/>
       </div>
     </section>
 
     {activeMatch && match && <section className="active-match-card">
       <div><span className="pulse"/><span className="eyebrow">ACTIVE MATCH</span><h2>{match.code ? `Room ${match.code}` : "Battle in progress"}</h2><p>{match.stepLabel ?? "Return to your current Brawl."}</p></div>
-      <Link className="hex-button blue" href={match.phase === "lobby" ? "/play/lobby" : "/play/match"}>RESUME MATCH</Link>
+      <Link className="hex-button blue" href={match.phase === "lobby" ? "/play/lobby" : "/play/match"}><span>RESUME MATCH</span><span className="button-arrow" aria-hidden="true">›</span></Link>
     </section>}
 
     <section className="home-feature-grid">
       <article className="panel home-achievement-summary">
-        <div className="panel-heading"><h2>Closest achievements</h2><Link href="/profile/achievements">VIEW ALL →</Link></div>
+        <div className="panel-heading"><h2>Achievement progress</h2><Link href="/profile/achievements">VIEW ALL →</Link></div>
         <div className="home-achievement-list">
           {closestAchievements.map((achievement) => <div className={`home-achievement-row ${achievement.unlocked ? "complete" : ""}`} key={achievement.id}>
             <span className="home-achievement-icon"><AchievementGlyph category={achievement.category} unlocked={achievement.unlocked}/></span>
@@ -74,15 +86,17 @@ export function DashboardScreen() {
       <article className="panel home-featured-deck">
         <div className="panel-heading"><h2>Featured public deck</h2><Link href="/decks/public">BROWSE ALL →</Link></div>
         {featured ? <div className="home-featured-deck-layout">
-          <div className={`home-featured-deck-art ${factionClass(featured.factions[0] ?? "Pyrus")}`}>
-            {featuredLead ? <img src={cardArtSource(featuredLead, "full")} alt={`${featuredLead.displayName}, lead card for ${featured.name}`}/> : <img src="/assets/cards/card-missing.svg" alt="Lead card artwork unavailable"/>}
+          <div className={`home-featured-deck-stack ${factionClass(featured.factions[0] ?? "Pyrus")}`} aria-label={`Featured cards from ${featured.name}`}>
+            {featuredPreviewCards.length ? featuredPreviewCards.map((card) => <div className="home-featured-deck-card" key={card.catalogId}>
+              <img src={cardArtSource(card, "full")} alt={card.displayName}/>
+            </div>) : <img className="home-featured-deck-placeholder" src="/assets/cards/card-missing.svg" alt="Featured deck artwork unavailable"/>}
           </div>
           <div className="home-featured-deck-copy">
             <div className="home-featured-deck-badges"><Badge tone="gold">{deckLooksComplete(featured) ? "LEGAL" : "DRAFT"}</Badge><Badge>{featured.factions.join(" • ")}</Badge></div>
             <h3>{featured.name}</h3>
             <p className="home-featured-deck-creator">by {featured.creator ?? "Community Brawler"}</p>
             <p className="home-featured-deck-description">{featured.description ?? "A public Battle Planet deck ready to explore and copy."}</p>
-            <Link className="hex-button ghost" href={`/decks/public/${encodeURIComponent(featured.id)}`}>VIEW DECK</Link>
+            <Link className="hex-button ghost" href={`/decks/public/${encodeURIComponent(featured.id)}`}><span>VIEW DECK</span><span className="button-arrow" aria-hidden="true">›</span></Link>
           </div>
         </div> : <div className="empty-state"><strong>NO PUBLIC DECKS YET</strong><p>Publish a deck from My Decks to feature it here.</p></div>}
       </article>
