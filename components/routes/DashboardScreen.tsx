@@ -1,29 +1,69 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { achievementsFor } from "../../lib/achievements";
+import { PUBLIC_DECKS, deckLeadCard, type DeckRecord } from "../../lib/data";
+import { cardArtSource } from "../../lib/content/card-art";
 import { useApp } from "../application/AppProvider";
-import { AppButton, Badge, PageHeader, deckLooksComplete } from "../application/ui";
+import { Badge, Metric, PageHeader, deckLooksComplete, factionClass } from "../application/ui";
 
 export function DashboardScreen() {
-  const router = useRouter();
-  const { profile, decks, history, match, setSelectedDeckId, setReplay, setReplayIndex } = useApp();
-  const legal = decks.filter(deckLooksComplete);
-  const openReplay = (id: string) => {
-    const record = history.find((item: { id: string }) => item.id === id);
-    if (!record) return;
-    setReplay(record);
-    setReplayIndex(Math.max(0, record.log.length - 1));
-    router.push(`/history/${encodeURIComponent(record.id)}`);
-  };
+  const { profile, decks, history, match } = useApp();
+  const achievements = achievementsFor(decks, history);
+  const unlocked = achievements.filter((achievement) => achievement.unlocked);
+  const nextAchievements = achievements.filter((achievement) => !achievement.unlocked).slice(0, 2);
+  const wins = history.filter((item: { result?: string }) => item.result === "Victor").length;
+  const winRate = history.length ? Math.round((wins / history.length) * 100) : 0;
+  const completeDecks = decks.filter(deckLooksComplete);
+  const publicDecks = [
+    ...decks.filter((deck: DeckRecord) => deck.visibility === "Public").map((deck: DeckRecord) => ({ ...deck, creator: profile.name, publishedAt: deck.publishedAt ?? deck.updatedAt })),
+    ...PUBLIC_DECKS,
+  ].sort((a, b) => Date.parse(b.publishedAt ?? b.updatedAt) - Date.parse(a.publishedAt ?? a.updatedAt));
+  const featured = publicDecks[0];
+  const featuredLead = featured ? deckLeadCard(featured) : undefined;
+
   return <>
-    <PageHeader eyebrow={`WELCOME BACK, ${profile.name.toUpperCase()}`} title="BRAWLER COMMAND" copy="Your next Brawl, complete decks, and recent results—one decision away." art="/assets/brawlers-group.png" actions={<><Link className="hex-button red" href="/play">PLAY NOW</Link><Link className="hex-button ghost" href="/builder/new">BUILD A DECK</Link></>} />
-    {match && match.phase !== "result" && <section className="alert-strip"><div><span className="pulse" /><strong>ACTIVE MATCH</strong><p>{match.code} • {match.stepLabel}</p></div><Link className="hex-button blue" href={match.phase === "lobby" ? "/play/lobby" : "/play/match"}>RESUME</Link></section>}
-    <section className="dashboard-grid">
-      <article className="panel play-panel"><span className="panel-index">01</span><h2>READY TO BRAWL?</h2><p>{legal.length} complete decks available • BO1 and BO3 enabled</p><div className="team-silhouette"><img src="/assets/pyrus.png" alt="" /><img src="/assets/aquos.png" alt="" /><img src="/assets/darkus.png" alt="" /></div><Link className="hex-button red" href="/play">CHOOSE THE BATTLE</Link></article>
-      <article className="panel"><div className="panel-heading"><div><span className="eyebrow">RECENT DECKS</span><h2>YOUR ARSENAL</h2></div><Link href="/decks">VIEW ALL →</Link></div><div className="mini-decks">{decks.slice(0, 3).map((deck: any) => <button key={deck.id} onClick={() => { setSelectedDeckId(deck.id); router.push(`/builder/${encodeURIComponent(deck.id)}`); }}><span className={`faction-${(deck.factions[0] ?? "Pyrus").toLowerCase()}`} /><strong>{deck.name}</strong><small>{deck.cardIds.length} cards • {deckLooksComplete(deck) ? "COMPLETE" : "DRAFT"}</small></button>)}</div>{!decks.length && <div className="empty-state"><strong>NO DECKS YET</strong><p>Open the Deck Library to restore starter decks, or create a fresh draft.</p><AppButton tone="ghost" onClick={() => router.push("/builder/new")}>CREATE A DECK</AppButton></div>}</article>
-      <article className="panel results-panel"><div className="panel-heading"><div><span className="eyebrow">MATCH ARCHIVE</span><h2>RECENT RESULTS</h2></div><Link href="/history">OPEN HISTORY →</Link></div>{history.length ? history.slice(0, 4).map((item: any) => <button className="result-row" key={item.id} onClick={() => openReplay(item.id)} aria-label={`Open replay: ${item.result} against ${item.opponent}`}><Badge tone={item.result === "Victor" ? "gold" : "red"}>{item.result}</Badge><span>vs {item.opponent}</span><strong>{item.score}</strong><small>{item.reason}</small></button>) : <div className="empty-state"><strong>NO MATCHES RECORDED</strong><p>Your completed Brawls and replays will appear here.</p><Link className="hex-button ghost" href="/play">START A TRAINING MATCH</Link></div>}</article>
-      <article className="panel ruling-panel"><span className="eyebrow">LATEST PLATFORM RULING</span><h2>ROLL CALCULATION IS PUBLIC</h2><p>Accuracy, Double Core, adjacency weighting, and four-Core rotation results are published in the match log after resolution.</p><Link href="/compendium/rulings/second-core-adjacency-weighting">OPEN RULING →</Link></article>
+    <PageHeader
+      eyebrow={`WELCOME BACK, ${profile.name.toUpperCase()}`}
+      title="BRAWLER COMMAND"
+      copy="Build your arsenal, track your progress, and enter the next Bakugan Brawl."
+      art="/assets/brawlers-group.png"
+      actions={<><Link className="hex-button red" href="/play">PLAY</Link><Link className="hex-button ghost" href="/decks">DECKS</Link></>}
+    />
+    {match && match.phase !== "result" && <section className="active-match-card">
+      <div><span className="pulse"/><span className="eyebrow">ACTIVE MATCH</span><h2>{match.code ? `Room ${match.code}` : "Battle in progress"}</h2><p>{match.stepLabel ?? "Return to your current Brawl."}</p></div>
+      <Link className="hex-button blue" href={match.phase === "lobby" ? "/play/lobby" : "/play/match"}>RESUME MATCH</Link>
+    </section>}
+
+    <section className="home-engagement-grid">
+      <article className="panel achievement-preview">
+        <div className="panel-heading"><div><span className="eyebrow">ACHIEVEMENTS</span><h2>{unlocked.length} UNLOCKED</h2></div><Link href="/profile/achievements">VIEW ALL →</Link></div>
+        <div className="achievement-progress-ring" aria-label={`${unlocked.length} of ${achievements.length} achievements unlocked`}><strong>{unlocked.length}</strong><span>of {achievements.length}</span></div>
+        <div className="achievement-preview-list">
+          {nextAchievements.length ? nextAchievements.map((achievement) => <div key={achievement.id}><span>{achievement.name}</span><progress max={achievement.target} value={achievement.current}/><small>{achievement.current} / {achievement.target}</small></div>) : <p>Every current achievement is unlocked.</p>}
+        </div>
+      </article>
+
+      <article className="panel home-stats">
+        <div className="panel-heading"><div><span className="eyebrow">BRAWLER STATS</span><h2>YOUR RECORD</h2></div><Link href="/profile">VIEW PROFILE →</Link></div>
+        <div className="home-stat-grid">
+          <Metric label="Games played" value={history.length}/>
+          <Metric label="Games won" value={wins}/>
+          <Metric label="Win rate" value={`${winRate}%`}/>
+          <Metric label="Complete decks" value={completeDecks.length}/>
+        </div>
+        <p className="home-stat-note">{completeDecks[0] ? `${completeDecks[0].name} is ready for your next match.` : "Complete a deck to unlock the full Play setup."}</p>
+      </article>
+
+      <article className="panel newest-public-deck">
+        <div className="panel-heading"><div><span className="eyebrow">NEWEST PUBLIC DECK</span><h2>COMMUNITY SPOTLIGHT</h2></div><Link href="/decks/public">BROWSE PUBLIC DECKS →</Link></div>
+        {featured ? <div className="featured-public-deck">
+          <div className={`featured-public-art ${factionClass(featured.factions[0] ?? "Pyrus")}`}>
+            {featuredLead && <img src={cardArtSource(featuredLead, "thumbnail")} alt={`${featuredLead.displayName}, lead card for ${featured.name}`}/>}
+          </div>
+          <div><div className="hero-actions"><Badge tone="gold">{deckLooksComplete(featured) ? "LEGAL" : "DRAFT"}</Badge><Badge>{featured.factions.join(" • ")}</Badge></div><h3>{featured.name}</h3><p>by {featured.creator ?? "Community Brawler"}</p><p>{featured.description ?? "A public Battle Planet deck ready to explore and copy."}</p><Link className="hex-button ghost" href={`/decks/public/${encodeURIComponent(featured.id)}`}>VIEW DECK</Link></div>
+        </div> : <div className="empty-state"><strong>NO PUBLIC DECKS YET</strong><p>Publish a deck from My Decks to feature it here.</p></div>}
+      </article>
     </section>
   </>;
 }

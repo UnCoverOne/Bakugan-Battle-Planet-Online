@@ -1,11 +1,11 @@
 "use client";
-export function AppButton({ children, onClick, tone = "blue", disabled = false, type = "button", title }) {
+export function AppButton({ children, onClick = undefined, tone = "blue", disabled = false, type = "button", title = undefined }) {
     return <button className={`hex-button ${tone}`} onClick={onClick} disabled={disabled} type={type} title={title}>{children}</button>;
 }
 export function Badge({ children, tone = "blue" }) {
     return <span className={`badge ${tone}`}>{children}</span>;
 }
-export function Metric({ icon, label, value }) {
+export function Metric({ icon = undefined, label, value }) {
     return <div className="metric">{icon && <img src={icon} alt=""/>}<div><span>{label}</span><strong>{value}</strong></div></div>;
 }
 export function PageHeader({ eyebrow, title, copy, art, actions }) {

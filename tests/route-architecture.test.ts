@@ -6,6 +6,8 @@ const routes = [
   "app/(workspace)/dashboard/page.tsx",
   "app/(workspace)/decks/page.tsx",
   "app/(workspace)/decks/[id]/page.tsx",
+  "app/(workspace)/decks/public/page.tsx",
+  "app/(workspace)/decks/public/[id]/page.tsx",
   "app/(workspace)/builder/[id]/page.tsx",
   "app/(workspace)/compendium/[[...segments]]/page.tsx",
   "app/(workspace)/play/page.tsx",
@@ -13,7 +15,7 @@ const routes = [
   "app/(workspace)/play/match/page.tsx",
   "app/(workspace)/play/result/page.tsx",
   "app/(workspace)/history/[[...segments]]/page.tsx",
-  "app/(workspace)/profile/page.tsx",
+  "app/(workspace)/profile/[[...segments]]/page.tsx",
   "app/(workspace)/settings/page.tsx",
 ];
 const source = (path: string) => readFileSync(path, "utf8");

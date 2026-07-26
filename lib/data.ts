@@ -60,6 +60,10 @@ export type DeckRecord = {
   tags?: string[];
   notes?: string;
   conflictOf?: string;
+  leadCardId?: string;
+  creator?: string;
+  description?: string;
+  publishedAt?: string;
 };
 
 const buildDeck = (factions: Faction[]) => {
@@ -81,11 +85,25 @@ const coreLoadout = (bakuganIds: string[]) => {
 const pyrusTeam = ["bb-343", "bb-360", "bb-311"];
 const aquosTeam = ["bb-283", "bb-331", "bb-302"];
 const darkusTeam = ["bb-312", "bb-368", "bb-331"];
+const pyrusCards = buildDeck(["Pyrus","Ventus","Darkus"]);
+const aquosCards = buildDeck(["Aquos","Haos","Aurelus"]);
+const darkusCards = buildDeck(["Darkus","Ventus","Haos"]);
 export const STARTER_DECKS: DeckRecord[] = [
-  { id:"deck-pyrus",name:"Pyrus Fury",factions:["Pyrus","Ventus","Darkus"],bakuganIds:pyrusTeam,coreIds:coreLoadout(pyrusTeam),cardIds:buildDeck(["Pyrus","Ventus","Darkus"]),updatedAt:"2026-07-24T00:00:00.000Z",visibility:"Private",format:"standard",revision:1 },
-  { id:"deck-aquos",name:"Aquos Control",factions:["Aquos","Haos","Aurelus"],bakuganIds:aquosTeam,coreIds:coreLoadout(aquosTeam),cardIds:buildDeck(["Aquos","Haos","Aurelus"]),updatedAt:"2026-07-24T00:00:00.000Z",visibility:"Public",format:"standard",revision:1 },
-  { id:"deck-darkus",name:"Darkus Strike",factions:["Darkus","Ventus","Haos"],bakuganIds:darkusTeam,coreIds:coreLoadout(darkusTeam),cardIds:buildDeck(["Darkus","Ventus","Haos"]),updatedAt:"2026-07-24T00:00:00.000Z",visibility:"Private",format:"standard",revision:1 },
+  { id:"deck-pyrus",name:"Pyrus Fury",factions:["Pyrus","Ventus","Darkus"],bakuganIds:pyrusTeam,coreIds:coreLoadout(pyrusTeam),cardIds:pyrusCards,leadCardId:pyrusCards[0],updatedAt:"2026-07-24T00:00:00.000Z",visibility:"Private",format:"standard",revision:1 },
+  { id:"deck-aquos",name:"Aquos Control",factions:["Aquos","Haos","Aurelus"],bakuganIds:aquosTeam,coreIds:coreLoadout(aquosTeam),cardIds:aquosCards,leadCardId:aquosCards[0],updatedAt:"2026-07-24T00:00:00.000Z",visibility:"Public",format:"standard",revision:1 },
+  { id:"deck-darkus",name:"Darkus Strike",factions:["Darkus","Ventus","Haos"],bakuganIds:darkusTeam,coreIds:coreLoadout(darkusTeam),cardIds:darkusCards,leadCardId:darkusCards[0],updatedAt:"2026-07-24T00:00:00.000Z",visibility:"Private",format:"standard",revision:1 },
 ];
+
+export const PUBLIC_DECKS: DeckRecord[] = [
+  { ...STARTER_DECKS[1], id: "public-aquos-control", name: "Aurelus Tide Control", visibility: "Public", creator: "Mira Nova", description: "A patient Aquos control list that converts efficient Heroes and late-game Aurelus threats into a decisive Brawl.", publishedAt: "2026-07-25T18:00:00.000Z", updatedAt: "2026-07-25T18:00:00.000Z" },
+  { ...STARTER_DECKS[0], id: "public-pyrus-fury", name: "Pyrus Fury", visibility: "Public", creator: "DanBrawler", description: "Fast pressure, flexible combat tricks, and a Pyrus-led plan built to finish Brawls before the opponent stabilizes.", publishedAt: "2026-07-23T15:30:00.000Z", updatedAt: "2026-07-23T15:30:00.000Z" },
+  { ...STARTER_DECKS[2], id: "public-darkus-strike", name: "Darkus Strike", visibility: "Public", creator: "Magnus", description: "Darkus disruption backed by Ventus tempo and Haos protection for a resilient midrange strategy.", publishedAt: "2026-07-21T20:00:00.000Z", updatedAt: "2026-07-21T20:00:00.000Z" },
+];
+
+export const deckLeadCard = (deck: Pick<DeckRecord, "leadCardId" | "cardIds">) => {
+  const selected = deck.leadCardId && deck.cardIds.includes(deck.leadCardId) ? deck.leadCardId : deck.cardIds[0];
+  return selected ? CARD_BY_ID.get(selected) : undefined;
+};
 
 export const deckErrors = (deck: DeckRecord) => {
   const errors: string[] = [];

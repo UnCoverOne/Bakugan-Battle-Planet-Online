@@ -3,6 +3,7 @@ import "./globals.css";
 import "./design-system.css";
 import "./card-art-transparency.css";
 import "./route-shell.css";
+import "./website-overhaul.css";
 import { AppProvider } from "../components/application/AppProvider";
 import { AppShell } from "../components/application/AppShell";
 import { AssetFreshness } from "../components/AssetFreshness";

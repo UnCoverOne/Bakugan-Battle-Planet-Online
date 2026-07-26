@@ -6,7 +6,7 @@ export const DECK_CODE_PREFIX = "BBP1.";
 type DeckCodePayload = {
   schema: 1;
   exportedAt: string;
-  deck: Pick<DeckRecord, "name" | "bakuganIds" | "coreIds" | "cardIds" | "visibility" | "format">;
+  deck: Pick<DeckRecord, "name" | "bakuganIds" | "coreIds" | "cardIds" | "visibility" | "format" | "leadCardId" | "description">;
 };
 
 const textEncoder = new TextEncoder();
@@ -54,6 +54,8 @@ export function encodeDeckCode(deck: DeckRecord) {
       cardIds: [...deck.cardIds],
       visibility: deck.visibility,
       format: deck.format ?? "standard",
+      leadCardId: deck.leadCardId,
+      description: deck.description,
     },
   };
   return `${DECK_CODE_PREFIX}${bytesToBase64Url(textEncoder.encode(JSON.stringify(payload)))}`;
@@ -87,6 +89,8 @@ export function decodeDeckCode(code: string, createId: () => string): DeckRecord
     format,
     updatedAt: now,
     revision: 1,
+    leadCardId: typeof payload.deck.leadCardId === "string" && payload.deck.cardIds.includes(payload.deck.leadCardId) ? payload.deck.leadCardId : payload.deck.cardIds[0],
+    description: typeof payload.deck.description === "string" ? payload.deck.description.slice(0, 500) : undefined,
   };
 }
 
