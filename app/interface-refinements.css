@@ -3,6 +3,55 @@
   clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%);
 }
 
+/* Home actions use layered polygons so the left edge is genuinely square and
+   the border follows every edge of the arrow instead of clipping a rectangle. */
+.bakugan-home .hex-button {
+  --home-button-fill: rgba(0, 0, 0, .42);
+  --home-button-border: rgba(255, 255, 255, .58);
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  border: 0;
+  background: transparent !important;
+  clip-path: none;
+}
+
+.bakugan-home .hex-button::before,
+.bakugan-home .hex-button::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 0 100%);
+}
+
+.bakugan-home .hex-button::before {
+  inset: 0;
+  z-index: -2;
+  background: var(--home-button-border);
+}
+
+.bakugan-home .hex-button::after {
+  inset: 1px;
+  z-index: -1;
+  background: var(--home-button-fill);
+}
+
+.bakugan-home .hex-button.red {
+  --home-button-fill: linear-gradient(135deg, #c8171c, var(--red));
+}
+
+.bakugan-home .hex-button.blue {
+  --home-button-fill: #006d97;
+}
+
+.bakugan-home .hex-button.gold {
+  --home-button-fill: #9c6900;
+}
+
+.bakugan-home .hex-button.ghost {
+  --home-button-fill: rgba(0, 0, 0, .42);
+}
+
 .bakugan-home-hero-copy h1 {
   font-family: "RBNo31Display", "Arial Narrow", Arial, sans-serif;
   font-style: italic;
@@ -33,17 +82,17 @@
 
 .play-button-glow {
   display: inline-flex;
-  filter: drop-shadow(0 0 9px rgba(255, 43, 53, .85)) drop-shadow(0 0 22px rgba(255, 43, 53, .58));
+  filter: drop-shadow(0 0 5px rgba(255, 43, 53, .55)) drop-shadow(0 0 12px rgba(255, 43, 53, .26));
   transition: filter 160ms ease, transform 160ms ease;
 }
 
 .play-button-glow:hover,
 .play-button-glow:focus-within {
-  filter: drop-shadow(0 0 13px rgba(255, 62, 71, 1)) drop-shadow(0 0 34px rgba(255, 43, 53, .78));
+  filter: drop-shadow(0 0 7px rgba(255, 62, 71, .7)) drop-shadow(0 0 18px rgba(255, 43, 53, .36));
   transform: translateY(-1px);
 }
 
 .play-button-glow .hex-button.red {
   filter: none !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22);
+  box-shadow: none;
 }
