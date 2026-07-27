@@ -122,8 +122,8 @@ test("large secondary-route card scans use full assets", () => {
   assert.doesNotMatch(play, /cardArtSource\([^)]*,\s*"thumbnail"\)/);
   assert.match(compendium, /cardArtSource\(card,\s*"full"\)/);
   assert.doesNotMatch(compendium, /cardArtSource\(card,\s*detail\s*\?\s*"full"\s*:\s*"thumbnail"\)/);
-  assert.match(decks, /deck-cover[\s\S]*cardArtSource\(lead,\s*"full"\)/);
-  assert.match(decks, /deck-detail-lead[\s\S]*cardArtSource\(lead,\s*"full"\)/);
+  assert.match(decks, /function CharacterFan[\s\S]*cardArtSource\(character\.character,\s*"full"\)/);
+  assert.match(decks, /detailTeam[\s\S]*cardArtSource\(item!\.character,\s*"full"\)/);
 });
 
 test("shared primitives expose stable visual-regression selectors", () => {
@@ -210,3 +210,4 @@ test("deck names, metadata, and visual coverage retain their stabilization contr
   assert.match(visualSuite, /visible route panels must retain the shared chamfer/);
   assert.match(visualSuite, /the focused control must expose a visible indicator/);
 });
+
