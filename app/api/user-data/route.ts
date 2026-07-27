@@ -1,5 +1,6 @@
 import { getDatabase, getSessionUser } from "../../../lib/account-server";
 import { assertSameOrigin, enforceD1RateLimit, RateLimitError, requestClientKey } from "../../../lib/request-security";
+import { validateDeck, type DeckRecord } from "../../../lib/data";
 
 export const dynamic = "force-dynamic";
 const MAX_SYNC_BYTES = 4_000_000;
@@ -18,6 +19,11 @@ function validateSnapshot(value: unknown) {
     if (!Array.isArray(deck.bakuganIds) || deck.bakuganIds.length > 3 || !deck.bakuganIds.every((id) => typeof id === "string")) throw new Error(`Deck ${index + 1} has an invalid Bakugan Team.`);
     if (!Array.isArray(deck.coreIds) || deck.coreIds.length > 6 || !deck.coreIds.every((id) => typeof id === "string")) throw new Error(`Deck ${index + 1} has an invalid BakuCore kit.`);
     if (!Array.isArray(deck.cardIds) || deck.cardIds.length > 40 || !deck.cardIds.every((id) => typeof id === "string")) throw new Error(`Deck ${index + 1} has an invalid Main Deck.`);
+    const validation = validateDeck(deck as unknown as DeckRecord);
+    if (!validation.isLegal) {
+      const firstIssue = validation.issues[0];
+      throw new Error(`Deck ${index + 1} [${firstIssue.code}]: ${firstIssue.message}`);
+    }
   }
   for (const [index, candidate] of snapshot.history.entries()) {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error(`History record ${index + 1} is invalid.`);
@@ -76,3 +82,4 @@ export async function PUT(request: Request) {
     return json({ error: error instanceof Error ? error.message : "Could not save synced data." }, 400);
   }
 }
+
