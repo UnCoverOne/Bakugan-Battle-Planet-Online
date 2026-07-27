@@ -1,0 +1,432 @@
+/* Shared non-match visual language derived from the approved Home screen. */
+.app-shell:not(.immersive-match),
+.entry-page {
+  --font-body: "Lato", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Titillium Web", "Arial Narrow", Arial, sans-serif;
+  --font-large: "RBNo31Display", "Arial Narrow", Arial, sans-serif;
+  --site-panel-fill: linear-gradient(160deg, rgba(8, 34, 45, .985), rgba(2, 12, 17, .995) 78%);
+  --site-panel-border: rgba(44, 191, 235, .42);
+}
+
+.app-shell:not(.immersive-match),
+.app-shell:not(.immersive-match) button,
+.app-shell:not(.immersive-match) input,
+.app-shell:not(.immersive-match) select,
+.app-shell:not(.immersive-match) textarea,
+.entry-page,
+.entry-page button,
+.entry-page input,
+.entry-page select,
+.entry-page textarea {
+  font-family: var(--font-body);
+}
+
+.app-shell:not(.immersive-match) .main-stage h1,
+.entry-page h1 {
+  font-family: var(--font-large);
+  font-style: italic;
+  font-weight: 700;
+  font-synthesis: none;
+  letter-spacing: -.018em;
+  text-transform: uppercase;
+}
+
+.app-shell:not(.immersive-match) .main-stage h2,
+.app-shell:not(.immersive-match) .main-stage h3,
+.app-shell:not(.immersive-match) .main-stage h4,
+.app-shell:not(.immersive-match) .eyebrow,
+.app-shell:not(.immersive-match) .badge,
+.app-shell:not(.immersive-match) .hex-button,
+.app-shell:not(.immersive-match) .deck-area-tabs,
+.app-shell:not(.immersive-match) .profile-tabs,
+.app-shell:not(.immersive-match) .settings-section-nav,
+.entry-page h2,
+.entry-page h3,
+.entry-page .hex-button {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+}
+
+/* Page titles use the same restrained metallic treatment as the light half of
+   the Home title, while retaining each route's existing size and layout. */
+.app-shell:not(.immersive-match) :is(
+  .compact-page-heading h1,
+  .page-hero h1,
+  .deck-detail-hero h1,
+  .profile-banner h1,
+  .builder-header h1
+) {
+  color: #e8ecef;
+  text-shadow: none;
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .app-shell:not(.immersive-match) :is(
+    .compact-page-heading h1,
+    .page-hero h1,
+    .deck-detail-hero h1,
+    .profile-banner h1,
+    .builder-header h1
+  ) {
+    background: linear-gradient(180deg, #fff 0%, #eef1f3 31%, #aeb7bd 48%, #e8ecef 63%, #929da4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+.app-shell:not(.immersive-match) .compact-page-heading h1 {
+  font-size: clamp(2.75rem, 4.65vw, 5rem);
+  margin: .2rem 0 .45rem;
+}
+
+.app-shell:not(.immersive-match) .compact-page-heading p,
+.app-shell:not(.immersive-match) .page-hero p {
+  font-size: 1.02rem;
+}
+
+/* Use the centred Home navigation treatment everywhere outside the immersive
+   match screen. Equal outer tracks keep the four links centred in the viewport. */
+.app-shell:not(.immersive-match) .overhaul-topbar {
+  height: 76px;
+  grid-template-columns: 1fr auto 1fr;
+  padding: 0 clamp(1rem, 2.6vw, 2.75rem);
+  border-bottom-color: rgba(151, 220, 244, .24);
+  background: rgba(1, 6, 10, .92);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .42);
+}
+
+.app-shell:not(.immersive-match) .overhaul-topbar .brand {
+  height: 76px;
+  justify-self: start;
+  gap: .6rem;
+}
+
+.app-shell:not(.immersive-match) .overhaul-topbar .brand img {
+  width: 80px;
+  height: 70px;
+}
+
+.app-shell:not(.immersive-match) .overhaul-topbar .brand span {
+  font-family: var(--font-display);
+  font-size: .9rem;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: .14em;
+}
+
+.app-shell:not(.immersive-match) .overhaul-topbar > nav {
+  height: 100%;
+  justify-self: center;
+  gap: .1rem;
+}
+
+.app-shell:not(.immersive-match) .overhaul-topbar > nav a {
+  position: relative;
+  min-width: 116px;
+  justify-content: center;
+  padding: 0 1.35rem;
+  border: 0;
+  border-radius: 0;
+  color: #c1cbd0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.app-shell:not(.immersive-match) .overhaul-topbar > nav a:hover,
+.app-shell:not(.immersive-match) .overhaul-topbar > nav a.active {
+  color: #fff;
+  background: linear-gradient(180deg, rgba(0, 174, 234, .03), rgba(0, 174, 234, .2));
+}
+
+.app-shell:not(.immersive-match) .overhaul-topbar > nav a.active::after {
+  left: 17%;
+  right: 17%;
+  height: 3px;
+  background: #13c2ff;
+  box-shadow: 0 0 16px rgba(19, 194, 255, .95);
+}
+
+.app-shell:not(.immersive-match) .overhaul-topbar .top-actions {
+  justify-self: end;
+}
+
+.app-shell:not(.immersive-match) .sync-dot {
+  width: 40px;
+  height: 40px;
+  color: #fff;
+  background: rgba(4, 17, 24, .9);
+}
+
+.app-shell:not(.immersive-match) .profile-avatar-button {
+  width: 48px;
+  height: 48px;
+  border-color: rgba(239, 46, 50, .86);
+  box-shadow: 0 0 0 2px rgba(239, 46, 50, .12);
+}
+
+.app-shell:not(.immersive-match) .profile-avatar-button > span:first-child {
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(145deg, #f33a3f, #991117);
+}
+
+.app-shell:not(.immersive-match) .profile-popover {
+  border-radius: 0;
+  background: var(--site-panel-fill);
+}
+
+/* All directional actions use the Home button construction: square left edge,
+   arrow point on the right, and two nested polygons for a consistent border. */
+.app-shell:not(.immersive-match) .hex-button,
+.entry-page .hex-button {
+  --site-button-fill: rgba(0, 8, 13, .88);
+  --site-button-border: rgba(255, 255, 255, .58);
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 0;
+  outline: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  clip-path: none;
+  transition: transform 160ms ease;
+}
+
+.app-shell:not(.immersive-match) .hex-button::before,
+.app-shell:not(.immersive-match) .hex-button::after,
+.entry-page .hex-button::before,
+.entry-page .hex-button::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.app-shell:not(.immersive-match) .hex-button::before,
+.entry-page .hex-button::before {
+  inset: 0;
+  z-index: -2;
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 50%, calc(100% - 20px) 100%, 0 100%);
+  background: var(--site-button-border);
+}
+
+.app-shell:not(.immersive-match) .hex-button::after,
+.entry-page .hex-button::after {
+  inset: 1px;
+  z-index: -1;
+  clip-path: polygon(0 0, calc(100% - 19px) 0, 100% 50%, calc(100% - 19px) 100%, 0 100%);
+  background: var(--site-button-fill);
+  transition: filter 160ms ease;
+}
+
+.app-shell:not(.immersive-match) .hex-button.red,
+.entry-page .hex-button.red {
+  --site-button-fill: linear-gradient(135deg, #c8171c, var(--red));
+}
+
+.app-shell:not(.immersive-match) .hex-button.blue,
+.entry-page .hex-button.blue {
+  --site-button-fill: #006d97;
+}
+
+.app-shell:not(.immersive-match) .hex-button.gold,
+.entry-page .hex-button.gold {
+  --site-button-fill: #9c6900;
+}
+
+.app-shell:not(.immersive-match) .hex-button.ghost,
+.entry-page .hex-button.ghost {
+  --site-button-fill: rgba(0, 8, 13, .88);
+}
+
+.app-shell:not(.immersive-match) .hex-button:hover,
+.entry-page .hex-button:hover {
+  transform: translateY(-1px);
+  filter: none;
+}
+
+.app-shell:not(.immersive-match) .hex-button:hover::after,
+.entry-page .hex-button:hover::after {
+  filter: brightness(1.12);
+}
+
+.app-shell:not(.immersive-match) .hex-button:focus-visible,
+.entry-page .hex-button:focus-visible {
+  outline: 0;
+  box-shadow: none !important;
+  filter: drop-shadow(0 0 5px rgba(19, 194, 255, .65));
+}
+
+.app-shell:not(.immersive-match) .hex-button:focus-visible::before,
+.entry-page .hex-button:focus-visible::before {
+  background: #fff;
+}
+
+/* Carry the Home panel palette through route surfaces without clipping menus
+   or card controls that deliberately extend beyond their containers. */
+.app-shell:not(.immersive-match) .main-stage .panel,
+.app-shell:not(.immersive-match) :is(
+  .play-setup-main,
+  .play-confirmation,
+  .overhaul-toolbar,
+  .import-drawer,
+  .rules-contents,
+  .rule-article,
+  .settings-section-nav,
+  .settings-content,
+  .profile-edit-modal,
+  .ruling-submission-modal,
+  .compendium-filters
+) {
+  border-color: var(--site-panel-border);
+  border-radius: 0;
+  background: var(--site-panel-fill);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, .32);
+}
+
+.app-shell:not(.immersive-match) :is(input, select, textarea, .search-box) {
+  border-radius: 0;
+}
+
+.app-shell:not(.immersive-match) :is(.deck-area-tabs a, .profile-tabs a) {
+  font-family: var(--font-display);
+  font-size: .88rem;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.app-shell:not(.immersive-match) .mobile-bottom-nav a {
+  font-family: var(--font-display);
+  font-style: italic;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+/* Match the public entry header to the authenticated navigation bar. */
+.public-header {
+  height: 76px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  padding: 0 clamp(1rem, 2.6vw, 2.75rem);
+  border-bottom-color: rgba(151, 220, 244, .24);
+  background: rgba(1, 6, 10, .92);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .42);
+}
+
+.public-header img {
+  width: 80px;
+  height: 70px;
+  justify-self: start;
+}
+
+.public-header nav {
+  height: 100%;
+  justify-self: center;
+  gap: .1rem;
+}
+
+.public-header nav a {
+  min-width: 116px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.35rem;
+  color: #c1cbd0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: .055em;
+}
+
+.public-header nav a:hover {
+  color: #fff;
+  background: linear-gradient(180deg, rgba(0, 174, 234, .03), rgba(0, 174, 234, .2));
+}
+
+.public-header > span {
+  justify-self: end;
+}
+
+@media (max-width: 1100px) {
+  .app-shell:not(.immersive-match) .overhaul-topbar {
+    grid-template-columns: minmax(72px, 1fr) auto minmax(92px, 1fr);
+    padding: 0 1rem;
+  }
+
+  .app-shell:not(.immersive-match) .overhaul-topbar .brand span {
+    display: none;
+  }
+
+  .app-shell:not(.immersive-match) .overhaul-topbar > nav a {
+    min-width: 88px;
+    padding: 0 .75rem;
+    font-size: .94rem;
+  }
+}
+
+@media (max-width: 820px) {
+  .app-shell:not(.immersive-match) .overhaul-topbar {
+    height: 64px;
+    grid-template-columns: 1fr auto;
+    padding: 0 .85rem;
+  }
+
+  .app-shell:not(.immersive-match) .overhaul-topbar .brand {
+    height: 64px;
+  }
+
+  .app-shell:not(.immersive-match) .overhaul-topbar .brand img {
+    width: 58px;
+    height: 56px;
+  }
+
+  .app-shell:not(.immersive-match) .overhaul-topbar > nav {
+    display: none;
+  }
+
+  .app-shell:not(.immersive-match) .sync-dot {
+    display: none;
+  }
+
+  .app-shell:not(.immersive-match) .main-stage {
+    min-height: calc(100vh - 64px);
+    padding-bottom: 78px;
+  }
+
+  .app-shell:not(.immersive-match) .compact-page-heading h1 {
+    font-size: 2.8rem;
+  }
+
+  .public-header {
+    height: 72px;
+    grid-template-columns: auto 1fr;
+    padding: 0 1rem;
+  }
+
+  .public-header img {
+    width: 64px;
+    height: 62px;
+  }
+
+  .public-header nav {
+    display: none;
+  }
+
+  .public-header > span {
+    justify-self: end;
+  }
+}
