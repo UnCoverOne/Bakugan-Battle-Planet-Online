@@ -1,12 +1,53 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
 import { CARD_BY_ID, PUBLIC_DECKS, deckLeadCard, type DeckRecord } from "../../lib/data";
 import { cardArtSource } from "../../lib/content/card-art";
 import type { GameCard } from "../../lib/game";
 import { useApp } from "../application/AppProvider";
 import { Badge, deckLooksComplete, factionClass } from "../application/ui";
+
+const HERO_PARTS = Array.from(
+  { length: 8 },
+  (_, index) => `/assets/home/hero-pyrus/part-${String(index + 1).padStart(2, "0")}.txt`,
+);
+
+let highResolutionHeroPromise: Promise<string> | undefined;
+
+function loadHighResolutionHero() {
+  highResolutionHeroPromise ??= Promise.all(
+    HERO_PARTS.map(async (path) => {
+      const response = await fetch(path, { cache: "force-cache" });
+      if (!response.ok) throw new Error(`Unable to load Home hero segment: ${path}`);
+      return (await response.text()).trim();
+    }),
+  ).then((parts) => `data:image/webp;base64,${parts.join("")}`);
+
+  return highResolutionHeroPromise;
+}
+
+function useHighResolutionHero() {
+  const [source, setSource] = useState("/assets/home/hero-pyrus.svg");
+
+  useEffect(() => {
+    let active = true;
+    loadHighResolutionHero()
+      .then((heroSource) => {
+        if (active) setSource(heroSource);
+      })
+      .catch(() => {
+        if (active) setSource("/assets/home/hero-pyrus.svg");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return source;
+}
 
 function AchievementGlyph({ category, unlocked }: { category: string; unlocked: boolean }) {
   if (unlocked) return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>;
@@ -29,6 +70,7 @@ function HeroSpeedLines() {
 
 export function DashboardScreen() {
   const { profile, decks, history, match } = useApp();
+  const heroSource = useHighResolutionHero();
   const achievements = achievementsFor(decks, history);
   const incompleteAchievements = achievements
     .filter((achievement) => !achievement.unlocked)
@@ -70,7 +112,7 @@ export function DashboardScreen() {
       <div className="bakugan-home-hero-art">
         <HeroSpeedLines/>
         <div className="bakugan-home-energy" aria-hidden="true"/>
-        <img src="/assets/home/hero-pyrus.svg" alt="Pyrus Bakugan charging into battle"/>
+        <img src={heroSource} width="560" height="537" decoding="async" alt="Pyrus Bakugan charging into battle"/>
       </div>
     </section>
 
