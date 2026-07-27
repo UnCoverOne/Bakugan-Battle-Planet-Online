@@ -1,0 +1,232 @@
+@import url("https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Titillium+Web:ital,wght@0,600;0,700;1,600;1,700&display=swap");
+
+/* Final concept-fidelity pass for the Home route. Kept separate from the
+   structural layout so the approved proportions remain easy to review. */
+.app-shell:has(.bakugan-home) {
+  --font-body: "Lato", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Titillium Web", "Arial Narrow", Arial, sans-serif;
+}
+
+.app-shell:has(.bakugan-home),
+.app-shell:has(.bakugan-home) button,
+.app-shell:has(.bakugan-home) input,
+.app-shell:has(.bakugan-home) select,
+.app-shell:has(.bakugan-home) textarea {
+  font-family: var(--font-body);
+}
+
+.app-shell:has(.bakugan-home) .overhaul-topbar nav a,
+.bakugan-home h1,
+.bakugan-home h2,
+.bakugan-home h3,
+.bakugan-home .hex-button,
+.bakugan-home .badge,
+.bakugan-home .home-profile-stat span {
+  font-family: var(--font-display);
+}
+
+.app-shell:has(.bakugan-home) .overhaul-topbar nav a {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: .055em;
+}
+
+.app-shell:has(.bakugan-home) .overhaul-topbar .brand span {
+  font-size: .9rem;
+}
+
+/* The structural stylesheet used Impact explicitly, which is much wider and
+   heavier than the approved condensed display face. */
+.bakugan-home-hero-copy h1 {
+  font-family: var(--font-display);
+  font-size: clamp(5rem, 6.45vw, 7.7rem);
+  font-weight: 700;
+  line-height: .79;
+  letter-spacing: -.035em;
+}
+
+.home-kicker {
+  margin-bottom: .7rem;
+  font-size: .9rem;
+  letter-spacing: .17em;
+}
+
+.bakugan-home-hero-copy > p:last-of-type {
+  max-width: 590px;
+  margin-top: 1.2rem;
+  font-size: clamp(1.08rem, 1.25vw, 1.24rem);
+  line-height: 1.46;
+}
+
+.bakugan-home-hero-copy .hero-actions {
+  gap: 1.1rem;
+  margin-top: 1.55rem;
+}
+
+.bakugan-home .hex-button {
+  clip-path: polygon(11px 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 11px 100%, 0 calc(100% - 11px), 0 11px);
+  font-weight: 700;
+  letter-spacing: .065em;
+}
+
+.bakugan-home-hero-copy .hex-button.red {
+  min-width: 250px;
+  min-height: 58px;
+  padding: .8rem 1.45rem .8rem 2rem;
+  font-size: 1.18rem;
+}
+
+.bakugan-home-hero-copy .hex-button.ghost {
+  min-width: 218px;
+  min-height: 56px;
+  padding: .78rem 1.35rem .78rem 1.85rem;
+  font-size: 1.08rem;
+}
+
+.bakugan-home .button-arrow {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.35;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+/* Remove the conflicting gradient angles. The individual elements below all
+   share one rotation, so they remain parallel and taper consistently. */
+.bakugan-home-hero::before {
+  background:
+    linear-gradient(109deg, transparent 0 38.5%, rgba(0, 174, 234, .16) 38.7% 47.5%, transparent 47.7%),
+    repeating-linear-gradient(109deg, transparent 0 96px, rgba(255,255,255,.018) 97px 98px);
+}
+
+.bakugan-home-hero-art::before {
+  background: radial-gradient(ellipse at 80% 46%, rgba(255, 61, 45, .24), transparent 45%);
+}
+
+.bakugan-home-speed-lines {
+  position: absolute;
+  inset: -20% -8% -20% 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bakugan-home-speed-lines span {
+  position: absolute;
+  right: -4%;
+  width: var(--line-width, 74%);
+  height: var(--line-height, 2px);
+  opacity: var(--line-opacity, .62);
+  transform: rotate(-17deg);
+  transform-origin: right center;
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(239, 46, 50, .06) 16%, rgba(239, 46, 50, .58) 72%, transparent 100%);
+  filter: drop-shadow(0 0 4px rgba(239, 46, 50, .24));
+}
+
+.bakugan-home-speed-lines span:nth-child(1) { top: 18%; --line-width: 82%; --line-opacity: .28; }
+.bakugan-home-speed-lines span:nth-child(2) { top: 28%; --line-width: 70%; --line-height: 3px; --line-opacity: .5; }
+.bakugan-home-speed-lines span:nth-child(3) { top: 39%; --line-width: 94%; --line-opacity: .26; }
+.bakugan-home-speed-lines span:nth-child(4) { top: 50%; --line-width: 62%; --line-height: 3px; --line-opacity: .68; }
+.bakugan-home-speed-lines span:nth-child(5) { top: 61%; --line-width: 86%; --line-opacity: .36; }
+.bakugan-home-speed-lines span:nth-child(6) { top: 72%; --line-width: 73%; --line-height: 3px; --line-opacity: .55; }
+.bakugan-home-speed-lines span:nth-child(7) { top: 83%; --line-width: 91%; --line-opacity: .25; }
+
+.bakugan-home-hero-art img {
+  image-rendering: auto;
+  backface-visibility: hidden;
+}
+
+.home-feature-grid .panel-heading {
+  height: 54px;
+}
+
+.home-feature-grid .panel-heading h2 {
+  font-size: clamp(1.5rem, 1.68vw, 1.82rem);
+  font-weight: 700;
+}
+
+.home-feature-grid .panel-heading > a {
+  font-size: .78rem;
+}
+
+.home-achievement-copy strong {
+  font-size: .98rem;
+}
+
+.home-achievement-copy small {
+  font-size: .8rem;
+}
+
+.home-achievement-copy p {
+  margin-top: .26rem;
+  font-size: .82rem;
+}
+
+.home-featured-deck-copy h3 {
+  font-size: clamp(2.15rem, 2.55vw, 2.8rem);
+  font-weight: 700;
+}
+
+.home-featured-deck-creator {
+  font-size: .9rem;
+}
+
+.home-featured-deck-description {
+  font-size: .96rem;
+  line-height: 1.48;
+}
+
+.home-featured-deck-copy .hex-button {
+  min-width: 184px;
+  min-height: 47px;
+  font-size: .86rem;
+}
+
+.home-profile-identity strong {
+  font-size: 1.22rem;
+}
+
+.home-profile-identity small {
+  font-size: .79rem;
+}
+
+.home-profile-stat strong {
+  font-size: 1.82rem;
+}
+
+.home-profile-stat span {
+  font-size: .72rem;
+}
+
+@media (min-width: 1101px) and (min-height: 900px) {
+  .bakugan-home {
+    min-height: 900px;
+    grid-template-rows: minmax(405px, 1.08fr) minmax(350px, .94fr) 96px;
+  }
+
+  .home-profile-strip {
+    min-height: 96px;
+  }
+}
+
+@media (max-width: 1320px) {
+  .bakugan-home-hero-copy h1 {
+    font-size: clamp(4.6rem, 6.2vw, 6.5rem);
+  }
+
+  .bakugan-home-hero-copy .hex-button.red { min-width: 220px; }
+  .bakugan-home-hero-copy .hex-button.ghost { min-width: 192px; }
+}
+
+@media (max-width: 820px) {
+  .bakugan-home-hero-copy h1 {
+    font-size: clamp(3.75rem, 14vw, 6rem);
+  }
+
+  .home-kicker { font-size: .8rem; }
+  .bakugan-home-hero-copy > p:last-of-type { font-size: 1rem; }
+}
