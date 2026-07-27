@@ -144,6 +144,7 @@ export function AppProvider({ children }) {
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
   const [syncStatus, setSyncStatus] = useState("checking");
+  const [syncConflict, setSyncConflict] = useState(null);
   const [storageHealth, setStorageHealth] = useState({ status: "checking", message: "Checking whether this browser can save data…", savedAt: null });
   const [matchError, setMatchError] = useState("");
   const [toast, setToast] = useState("");
@@ -219,30 +220,26 @@ export function AppProvider({ children }) {
     setTimeout(() => { applying.current = false; }, 120);
   }, [setBuilderDeck, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDecks, setFormat, setHistory, setJoinCode, setMatch, setMatchMode, setModifiedAt, setOnline, setPlayerId, setProfile, setReplay, setReplayIndex, setSelectedDeckId, setSettings]);
 
-  const putCloud = useCallback(async (data, revision, retryConflict = true) => {
-    const send = async (snapshotToSend, expectedRevision) => {
-      const response = await fetch("/api/user-data", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedRevision, data: toCloudSnapshot(snapshotToSend) }) });
-      const result = await response.json();
-      return { response, result };
-    };
-
-    let { response, result } = await send(data, revision);
+  const putCloud = useCallback(async (data, revision, allowConflictChoice = true) => {
+    const response = await fetch("/api/user-data", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expectedRevision: revision, data: toCloudSnapshot(data) }),
+    });
+    const result = await response.json();
     if (response.status === 409 && result.data) {
       const remote = normalizeSnapshot(result.data, data);
-      const merged = { ...selectSnapshot(data, remote, "merge"), updatedAt: Date.now() };
-      cloudRevision.current = result.revision ?? revision;
-      applySnapshot(merged, true);
-      if (!retryConflict) throw new Error("Cloud data kept changing. Wait a moment and sync again.");
-      ({ response, result } = await send(merged, cloudRevision.current));
-      if (response.status === 409) throw new Error("Cloud data kept changing. Wait a moment and sync again.");
-      if (!response.ok) throw new Error(result.error ?? "Could not save cloud data.");
-      cloudRevision.current = result.revision ?? cloudRevision.current + 1;
-      return { snapshot: merged, conflict: true };
+      const pending = { local: data, cloud: remote, revision: result.revision ?? revision };
+      cloudRevision.current = pending.revision;
+      if (!allowConflictChoice) throw new Error("Cloud data changed again. Review both copies before retrying.");
+      setSyncConflict(pending);
+      setSyncStatus("conflict");
+      return { snapshot: data, conflict: true, pending: true };
     }
     if (!response.ok) throw new Error(result.error ?? "Could not save cloud data.");
     cloudRevision.current = result.revision ?? revision + 1;
-    return { snapshot: data, conflict: false };
-  }, [applySnapshot]);
+    return { snapshot: data, conflict: false, pending: false };
+  }, []);
 
   const loadCloud = useCallback(async (strategy = "merge") => {
     cloudLoaded.current = false;
@@ -262,6 +259,10 @@ export function AppProvider({ children }) {
     let syncedCopy = accountCopy;
     if (!remote || localCloudCopy !== remoteCloudCopy) {
       const saved = await putCloud(accountCopy, cloudRevision.current);
+      if (saved.pending) {
+        cloudLoaded.current = true;
+        return accountCopy;
+      }
       syncedCopy = saved.snapshot;
     }
     lastSynced.current = syncedCopy.updatedAt;
@@ -272,7 +273,7 @@ export function AppProvider({ children }) {
   }, [applySnapshot, putCloud]);
 
   const syncToCloud = useCallback(async (force = false) => {
-    if (!authUser || !ready || applying.current || !cloudLoaded.current || syncing.current) return false;
+    if (!authUser || !ready || applying.current || !cloudLoaded.current || syncing.current || syncConflict) return false;
     const current = snapshotRef.current;
     if (!current || (!force && current.updatedAt === lastSynced.current)) return false;
     if (!navigator.onLine) {
@@ -283,6 +284,7 @@ export function AppProvider({ children }) {
     setSyncStatus("saving");
     try {
       const saved = await putCloud(current, cloudRevision.current);
+      if (saved.pending) return false;
       lastSynced.current = saved.snapshot.updatedAt;
       setAuthError("");
       setSyncStatus("synced");
@@ -294,7 +296,7 @@ export function AppProvider({ children }) {
     } finally {
       syncing.current = false;
     }
-  }, [authUser, putCloud, ready]);
+  }, [authUser, putCloud, ready, syncConflict]);
 
   useEffect(() => {
     if (!ready || booted.current) return;
@@ -326,10 +328,10 @@ export function AppProvider({ children }) {
     return () => clearTimeout(id);
   }, [durableStateFingerprint, ready, setModifiedAt]);
   useEffect(() => {
-    if (!authUser || !ready || !cloudLoaded.current || modifiedAt === lastSynced.current) return;
+    if (!authUser || !ready || !cloudLoaded.current || modifiedAt === lastSynced.current || syncConflict) return;
     const id = setTimeout(() => { void syncToCloud(false); }, AUTO_SYNC_DELAY_MS);
     return () => clearTimeout(id);
-  }, [authUser, modifiedAt, ready, syncToCloud]);
+  }, [authUser, modifiedAt, ready, syncConflict, syncToCloud]);
 
   const authenticate = useCallback(async (action, payload) => {
     setAuthBusy(true); setAuthError("");
@@ -344,7 +346,7 @@ export function AppProvider({ children }) {
     finally { setAuthBusy(false); }
   }, [loadCloud, router, setProfile]);
   const continueAsGuest = useCallback(() => { setProfile((current) => ({ ...current, signedIn: true })); setSyncStatus("local"); router.push("/dashboard"); }, [router, setProfile]);
-  const signOutAccount = useCallback(async () => { try { await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "logout" }) }); } catch {} cloudLoaded.current = false; setAuthUser(null); setProfile((current) => ({ ...current, signedIn: false })); setSyncStatus("local"); router.push("/"); }, [router, setProfile]);
+  const signOutAccount = useCallback(async () => { try { await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "logout" }) }); } catch {} cloudLoaded.current = false; setSyncConflict(null); setAuthUser(null); setProfile((current) => ({ ...current, signedIn: false })); setSyncStatus("local"); router.push("/"); }, [router, setProfile]);
   const saveAccountProfile = useCallback(async () => { if (!authUser) return notify("Profile changes are saved on this device."); const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "update-profile", displayName: profile.name, faction: profile.faction }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not update account profile."); setAuthUser(result.user); setModifiedAt(Date.now()); }, [authUser, notify, profile.faction, profile.name, setModifiedAt]);
   const changePassword = useCallback(async (currentPassword, newPassword) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "change-password", currentPassword, newPassword }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not change password."); notify("Password changed. Other sessions were signed out."); }, [notify]);
   const deleteAccount = useCallback(async (confirmation) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not delete account."); cloudLoaded.current = false; setAuthUser(null); setProfile((current) => ({ ...current, signedIn: false })); router.push("/"); }, [router, setProfile]);
@@ -375,8 +377,32 @@ export function AppProvider({ children }) {
   const readyMatch = useCallback(async () => { if (!match) return; try { if (online) await api("ready"); else { const { setReady } = await import("../../lib/game"); setMatch(setReady(match, playerId)); } } catch (error) { setMatchError(error.message); } }, [api, match, online, playerId, setMatch]);
   const nextSeriesGame = useCallback(async () => { if (!match) return; try { if (online) await api("next-game"); else { const { startNextSeriesGame } = await import("../../lib/game"); setMatch(startNextSeriesGame(match)); } router.push("/play/match"); } catch (error) { setMatchError(error.message); } }, [api, match, online, router, setMatch]);
   const leaveMatch = useCallback(() => { setMatch(null); setOnline(false); setMatchCapability(""); router.push("/dashboard"); }, [router, setMatch, setMatchCapability, setOnline]);
+  const resolveSyncConflict = useCallback(async (preference) => {
+    const pending = syncConflict;
+    if (!pending || syncing.current) return false;
+    const selected = { ...selectSnapshot(pending.local, pending.cloud, preference), updatedAt: Date.now() };
+    syncing.current = true;
+    setSyncConflict(null);
+    setSyncStatus("saving");
+    applySnapshot(selected, true);
+    try {
+      const saved = await putCloud(selected, pending.revision, false);
+      lastSynced.current = saved.snapshot.updatedAt;
+      cloudLoaded.current = true;
+      setAuthError("");
+      setSyncStatus("synced");
+      return true;
+    } catch (error) {
+      setSyncConflict(pending);
+      setAuthError(error.message);
+      setSyncStatus(navigator.onLine ? "conflict" : "offline");
+      return false;
+    } finally {
+      syncing.current = false;
+    }
+  }, [applySnapshot, putCloud, syncConflict]);
   const syncNow = useCallback(() => { void syncToCloud(true); }, [syncToCloud]);
 
-  const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, settings, setSettings, selectedDeckId, setSelectedDeckId, selectedDeck, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchError, toast, notify, authUser, authChecking, authBusy, authError, syncStatus, storageHealth, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, startSolo, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch }), [authBusy, authChecking, authError, authUser, authenticate, builderDeck, changePassword, compendiumQuery, compendiumTab, continueAsGuest, createOnline, deckQuery, decks, deleteAccount, format, history, joinCode, joinOnline, leaveMatch, match, matchError, matchMode, nextSeriesGame, notify, online, playerId, profile, ready, readyMatch, replay, replayIndex, route, saveAccountProfile, selectedDeck, selectedDeckId, settings, signOutAccount, startSolo, storageHealth, syncNow, syncStatus, toast]);
+  const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, settings, setSettings, selectedDeckId, setSelectedDeckId, selectedDeck, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchError, toast, notify, authUser, authChecking, authBusy, authError, syncStatus, syncConflict, resolveSyncConflict, storageHealth, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, startSolo, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch }), [authBusy, authChecking, authError, authUser, authenticate, builderDeck, changePassword, compendiumQuery, compendiumTab, continueAsGuest, createOnline, deckQuery, decks, deleteAccount, format, history, joinCode, joinOnline, leaveMatch, match, matchError, matchMode, nextSeriesGame, notify, online, playerId, profile, ready, readyMatch, replay, replayIndex, route, saveAccountProfile, selectedDeck, selectedDeckId, settings, signOutAccount, startSolo, storageHealth, syncConflict, resolveSyncConflict, syncNow, syncStatus, toast]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
