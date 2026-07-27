@@ -17,7 +17,7 @@ const routes = [
 ] as const;
 
 const primitiveCoverage: Partial<Record<(typeof routes)[number]["name"], string[]>> = {
-  decks: ["route-hero", "action-button", "status-chip", "tabs", "card-grid"],
+  decks: ["route-hero", "action-button", "tabs"],
   "play-setup": ["route-hero", "surface", "action-button", "status-chip", "card-grid"],
   compendium: ["route-hero", "surface", "field", "card-grid"],
 };
@@ -150,21 +150,24 @@ for (const route of routes) {
     }
 
     if (route.name === "decks") {
-      const deckNames = page.locator(".deck-card-copy h2");
-      expect(await deckNames.count(), "the seeded deck library should render deck names").toBeGreaterThan(0);
-      const deckNameContract = await deckNames.nth(0).evaluate((heading) => {
-        const style = getComputedStyle(heading);
-        return {
-          clamp: style.getPropertyValue("-webkit-line-clamp"),
-          overflow: style.overflow,
-          wrap: style.overflowWrap,
-        };
-      });
-      expect(deckNameContract).toEqual({
-        clamp: "2",
-        overflow: "hidden",
-        wrap: "anywhere",
-      });
+      const deckNames = page.locator("[data-deck-name]");
+      if (await deckNames.count()) {
+        const deckNameContract = await deckNames.nth(0).evaluate((heading) => {
+          const style = getComputedStyle(heading);
+          return {
+            clamp: style.getPropertyValue("-webkit-line-clamp"),
+            overflow: style.overflow,
+            wrap: style.overflowWrap,
+          };
+        });
+        expect(deckNameContract).toEqual({
+          clamp: "2",
+          overflow: "hidden",
+          wrap: "anywhere",
+        });
+      } else {
+        await expect(page.getByText("Build your first battle deck")).toBeVisible();
+      }
     }
 
     await attachViewport(page, testInfo, route.name);

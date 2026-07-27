@@ -1,5 +1,6 @@
 import { CONTROLLED_CATALOGUE } from "./content/catalogue";
 import type { Bakugan, Core, CoreType, Faction, GameCard, PlayerState } from "./game";
+import { deckValidationMessages, validateDeckConstruction } from "./deck-validation";
 
 const records = CONTROLLED_CATALOGUE;
 export const CARDS: GameCard[] = records.map((record) => ({ ...record, id: record.id, catalogId: record.id }));
@@ -64,6 +65,8 @@ export type DeckRecord = {
   creator?: string;
   description?: string;
   publishedAt?: string;
+  sourceDeckId?: string;
+  sourceCreator?: string;
 };
 
 const buildDeck = (factions: Faction[]) => {
@@ -105,35 +108,15 @@ export const deckLeadCard = (deck: Pick<DeckRecord, "leadCardId" | "cardIds">) =
   return selected ? CARD_BY_ID.get(selected) : undefined;
 };
 
-export const deckErrors = (deck: DeckRecord) => {
-  const errors: string[] = [];
-  const format: DeckFormat = deck.format ?? "standard";
-  const cardCopyLimit = format === "singleton" ? 1 : 3;
-  const coreCopyLimit = format === "singleton" ? 1 : 6;
-  const bakugan = deck.bakuganIds.map((id) => BAKUGAN.find((item) => item.id === id)).filter(Boolean) as Bakugan[];
-  const cards = deck.cardIds.map((id) => CARD_BY_ID.get(id)).filter(Boolean) as GameCard[];
-  const cores = deck.coreIds.map((id) => CORES.find((core) => core.id === id)).filter(Boolean) as Core[];
-  if (deck.cardIds.length !== 40) errors.push("Main Deck must contain exactly 40 cards.");
-  if (cards.length !== deck.cardIds.length) errors.push("Every Main Deck catalogue ID must identify exactly one card.");
-  if (bakugan.length !== deck.bakuganIds.length) errors.push("Every Bakugan catalogue ID must identify exactly one Character card.");
-  if (cores.length !== deck.coreIds.length) errors.push("Every BakuCore catalogue ID must identify exactly one BakuCore.");
-  if (bakugan.length !== 3 || new Set(deck.bakuganIds).size !== 3) errors.push("Bakugan Team must contain three distinct Character cards.");
-  if (cores.length !== 6) errors.push("Hide Matrix Kit must contain exactly six BakuCores.");
-  const factions = new Set(bakugan.map((item) => item.faction));
-  if (cards.some((card) => !card.factions.some((faction) => factions.has(faction)))) errors.push("Every Main Deck card must share a faction with the Bakugan Team.");
-  const cardCounts = new Map<string, number>();
-  for (const card of cards) { const key = `${card.name}|${card.effect}`; cardCounts.set(key, (cardCounts.get(key) ?? 0) + 1); }
-  if ([...cardCounts.values()].some((count) => count > cardCopyLimit)) errors.push(`${format === "singleton" ? "Singleton" : "Standard"} allows no more than ${cardCopyLimit} cop${cardCopyLimit === 1 ? "y" : "ies"} of any Main Deck card.`);
-  const coreCounts = new Map<string, number>();
-  for (const id of deck.coreIds) coreCounts.set(id, (coreCounts.get(id) ?? 0) + 1);
-  if ([...coreCounts.values()].some((count) => count > coreCopyLimit)) errors.push(`${format === "singleton" ? "Singleton" : "Standard"} allows no more than ${coreCopyLimit} cop${coreCopyLimit === 1 ? "y" : "ies"} of any BakuCore.`);
-  const required = bakugan.flatMap((item) => item.character.coreTypes).sort();
-  const selected = cores.map((core) => core.type).sort();
-  if (required.join("|") !== selected.join("|")) errors.push("BakuCore types must exactly match the six Character indicators.");
-  return errors;
+const deckValidationCatalogue = {
+  cards: CARD_BY_ID,
+  characters: new Map(BAKUGAN.map((bakugan) => [bakugan.id, bakugan])),
+  cores: new Map(CORES.map((core) => [core.id, core])),
 };
 
-export const deckIsLegal = (deck: DeckRecord) => deckErrors(deck).length === 0;
+export const validateDeck = (deck: DeckRecord) => validateDeckConstruction(deck, deckValidationCatalogue);
+export const deckErrors = (deck: DeckRecord) => deckValidationMessages(validateDeck(deck));
+export const deckIsLegal = (deck: DeckRecord) => validateDeck(deck).isLegal;
 
 const instance = (card: GameCard, playerId: string, index: number): GameCard => ({
   ...card,
@@ -218,3 +201,4 @@ export const RULE_ENTRIES = [
   { title:"Undo",category:"Platform",body:"Undo restores the immediately previous state only before priority passes or new hidden/random information is revealed." },
   { title:"Disconnect",category:"Platform",body:"A disconnected player has 30 seconds to reconnect before the remaining player wins." },
 ];
+

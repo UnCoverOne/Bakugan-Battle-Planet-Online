@@ -3,16 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "../application/AppProvider";
-import { deckLeadCard } from "../../lib/data";
+import { deckIsLegal, deckLeadCard, validateDeck } from "../../lib/data";
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
-import { AppButton, Badge, Metric, PageHeader, deckLooksComplete } from "../application/ui";
+import { AppButton, Badge, Metric, PageHeader } from "../application/ui";
 import { ActionButton, CardGrid, Field, RouteHero, StatusChip, Surface } from "../design-system/primitives";
 import styles from "./PlayRoutes.module.css";
 
 export function PlayScreen() {
   const { format, setFormat, matchMode, setMatchMode, selectedDeck, decks, selectedDeckId, setSelectedDeckId, joinCode, setJoinCode, startSolo, createOnline, joinOnline, matchError } = useApp();
-  const legalDecks = decks.filter(deckLooksComplete);
+  const legalDecks = decks.filter(deckIsLegal);
   const chosenLead = selectedDeck ? deckLeadCard(selectedDeck) : undefined;
   const begin = () => void (matchMode === "solo" ? startSolo() : matchMode === "online" ? createOnline() : joinOnline());
   return <div className={styles.route}>
@@ -29,7 +29,7 @@ export function PlayScreen() {
         <section className="setup-section"><div className="section-number">2</div><div><h2>Select your deck</h2><p>Decks are represented by the Lead card selected in the Deck Builder.</p></div></section>
         {decks.length ? <CardGrid className={`play-deck-grid ${styles.deckGrid}`} minCardWidth="18rem">{decks.map((deck: any) => {
           const lead = deckLeadCard(deck);
-          const legal = deckLooksComplete(deck);
+          const legal = deckIsLegal(deck);
           const active = (selectedDeckId || selectedDeck?.id) === deck.id;
           return <button key={deck.id} disabled={!legal} className={`${active ? "active" : ""} ${!legal ? "disabled" : ""}`} onClick={() => setSelectedDeckId(deck.id)}>
             <div className="play-deck-art">{lead ? <img src={cardArtSource(lead, "full")} loading="lazy" decoding="async" alt={`${lead.displayName}, lead card for ${deck.name}`}/> : <img src="/assets/cards/card-missing.svg" alt="No Lead card selected"/>}</div>
@@ -49,7 +49,8 @@ export function PlayScreen() {
         {selectedDeck && <StatusChip tone="info">{deckSetName(selectedDeck).toUpperCase()}</StatusChip>}
         <dl><div><dt>Mode</dt><dd>{matchMode === "solo" ? "Training" : matchMode === "online" ? "Create online room" : "Join online room"}</dd></div><div><dt>Format</dt><dd>{format === "bo1" ? "Best of one" : "Best of three"}</dd></div><div><dt>Legal decks</dt><dd>{legalDecks.length}</dd></div></dl>
         <details><summary>Match rules</summary><ul><li>Original Battle Planet ruleset</li><li>Alternating twelve-Core placement</li><li>Server-authoritative random outcomes</li><li>30-second reconnect grace online</li></ul></details>
-        <ActionButton disabled={!selectedDeck || !deckLooksComplete(selectedDeck) || (matchMode === "join" && joinCode.length < 5)} onClick={begin}>{matchMode === "solo" ? "START TRAINING MATCH" : matchMode === "online" ? "CREATE ONLINE ROOM" : "JOIN ONLINE ROOM"}</ActionButton>
+        {selectedDeck && !deckIsLegal(selectedDeck) && <p className="error-message" role="alert">{validateDeck(selectedDeck).issues[0]?.message}</p>}
+        <ActionButton disabled={!selectedDeck || !deckIsLegal(selectedDeck) || (matchMode === "join" && joinCode.length < 5)} onClick={begin}>{matchMode === "solo" ? "START TRAINING MATCH" : matchMode === "online" ? "CREATE ONLINE ROOM" : "JOIN ONLINE ROOM"}</ActionButton>
       </Surface>
     </section>
   </div>;
