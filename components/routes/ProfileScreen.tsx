@@ -273,7 +273,7 @@ function Overview({
     : 0;
   return (
     <div className={styles.overviewGrid}>
-      <main className={styles.primaryColumn}>
+      <section className={styles.primaryColumn}>
         <Surface className={styles.metricsPanel}>
           <div className={styles.panelHeading}>
             <div>
@@ -337,7 +337,7 @@ function Overview({
             />
           )}
         </Surface>
-      </main>
+      </section>
 
       <aside className={styles.secondaryColumn}>
         <Surface className={styles.deckShowcase}>
