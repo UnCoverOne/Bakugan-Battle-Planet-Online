@@ -8,8 +8,10 @@ import "./home-layout.css";
 import "./home-fidelity.css";
 import "./home-polish.css";
 import "./interface-refinements.css";
+import "./site-consistency.css";
 import { AppProvider } from "../components/application/AppProvider";
 import { AppShell } from "../components/application/AppShell";
+import { DisplayFontLoader } from "../components/application/DisplayFontLoader";
 import { AssetFreshness } from "../components/AssetFreshness";
 import { ServiceWorkerRegistration } from "../components/ServiceWorkerRegistration";
 import { WebVitalsReporter } from "../components/WebVitalsReporter";
@@ -30,6 +32,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
+        <DisplayFontLoader />
         <AssetFreshness />
         <ServiceWorkerRegistration />
         <WebVitalsReporter />
