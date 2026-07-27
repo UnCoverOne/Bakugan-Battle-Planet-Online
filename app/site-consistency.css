@@ -182,6 +182,10 @@
   background: var(--site-panel-fill);
 }
 
+.app-shell.secondary-route .badge {
+  font-size: var(--type-meta);
+}
+
 /* All directional actions use the Home button construction: square left edge,
    arrow point on the right, and two nested polygons for a consistent border. */
 .app-shell:not(.immersive-match) .hex-button,
@@ -273,21 +277,16 @@
   background: #fff;
 }
 
-/* Carry the Home panel palette through route surfaces without clipping menus
-   or card controls that deliberately extend beyond their containers. */
-.app-shell:not(.immersive-match) .main-stage .panel,
+/* Keep legacy account surfaces on the shared palette. Migrated Decks, Play,
+   and Compendium surfaces are intentionally owned by their CSS Modules. */
 .app-shell:not(.immersive-match) :is(
-  .play-setup-main,
-  .play-confirmation,
-  .overhaul-toolbar,
-  .import-drawer,
-  .rules-contents,
-  .rule-article,
+  .profile-overview-grid > .panel,
+  .achievement-card,
+  .record-table,
+  .record-detail-layout > .panel,
   .settings-section-nav,
   .settings-content,
-  .profile-edit-modal,
-  .ruling-submission-modal,
-  .compendium-filters
+  .profile-edit-modal
 ) {
   border-color: var(--site-panel-border);
   border-radius: 0;

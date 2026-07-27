@@ -167,6 +167,12 @@
   min-height: calc(100vh - 76px);
 }
 
+.builder :global(small),
+.builder :global(span),
+.builder :global(label) {
+  font-size: var(--type-meta);
+}
+
 .builder :global(.builder-header) {
   top: 76px;
   border-radius: 0;
