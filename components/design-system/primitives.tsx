@@ -22,7 +22,7 @@ export function Surface({
   elevation = "raised",
   ...props
 }: SurfaceProps) {
-  return <Tag className={join(styles.surface, styles[elevation], className)} {...props} />;
+  return <Tag {...props} data-ui="surface" className={join(styles.surface, styles[elevation], className)} />;
 }
 
 export function RouteHero({
@@ -41,7 +41,7 @@ export function RouteHero({
   className?: string;
 }) {
   return (
-    <header className={join(styles.routeHero, className)}>
+    <header data-ui="route-hero" className={join(styles.routeHero, className)}>
       <div className={styles.routeHeroCopy}>
         <span className={styles.eyebrow}>{eyebrow}</span>
         <h1>{title}</h1>
@@ -60,7 +60,7 @@ export function ActionButton({
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   tone?: "primary" | "secondary" | "danger" | "quiet";
 }) {
-  return <button className={join(styles.actionButton, styles[tone], className)} {...props} />;
+  return <button {...props} data-ui="action-button" className={join(styles.actionButton, styles[tone], className)} />;
 }
 
 export function StatusChip({
@@ -70,7 +70,7 @@ export function StatusChip({
 }: HTMLAttributes<HTMLSpanElement> & {
   tone?: "neutral" | "info" | "success" | "warning" | "danger";
 }) {
-  return <span className={join(styles.statusChip, styles[tone], className)} {...props} />;
+  return <span {...props} data-ui="status-chip" className={join(styles.statusChip, styles[tone], className)} />;
 }
 
 export function Tabs({
@@ -78,7 +78,7 @@ export function Tabs({
   className,
   ...props
 }: HTMLAttributes<HTMLElement> & { label: string }) {
-  return <nav className={join(styles.tabs, className)} aria-label={label} {...props} />;
+  return <nav {...props} data-ui="tabs" className={join(styles.tabs, className)} aria-label={label} />;
 }
 
 export function Field({
@@ -93,7 +93,7 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <label className={join(styles.field, className)}>
+    <label data-ui="field" className={join(styles.field, className)}>
       <span>{label}</span>
       {children}
       {hint && <small>{hint}</small>}
@@ -109,9 +109,10 @@ export function CardGrid({
 }: HTMLAttributes<HTMLElement> & { minCardWidth?: string }) {
   return (
     <section
+      {...props}
+      data-ui="card-grid"
       className={join(styles.cardGrid, className)}
       style={{ ...style, "--card-grid-min": minCardWidth } as CSSProperties}
-      {...props}
     />
   );
 }
