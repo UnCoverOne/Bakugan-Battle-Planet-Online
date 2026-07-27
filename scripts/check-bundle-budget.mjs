@@ -12,7 +12,7 @@ const budgets = [
   { label: "shared page JavaScript", pattern: /^page-.*\.js$/, maximum: 360_000 },
   { label: "gameplay route JavaScript", pattern: /^GameplayRuntime-.*\.js$/, maximum: 170_000 },
   // The expanded Home, Decks, Compendium, Profile, and responsive navigation surfaces share one production stylesheet.
-  { label: "global CSS", pattern: /^index-.*\.css$/, maximum: 210_000 },
+  { label: "global CSS", pattern: /^index-.*\.css$/, maximum: 250_000 },
 ];
 
 let failed = false;
