@@ -1,5 +1,22 @@
+"use client";
+
 import Link from "next/link";
+import { SystemState } from "../../components/application/SystemState";
+import { ActionButton } from "../../components/design-system/primitives";
 
 export default function WorkspaceNotFound() {
-  return <main className="empty-page"><img src="/assets/logo.png" alt="" /><h1>ROUTE NOT FOUND</h1><p>The requested deck, reference, replay, or workspace route is unavailable.</p><Link className="hex-button red" href="/dashboard">RETURN TO DASHBOARD</Link></main>;
+  return (
+    <SystemState
+      tone="notFound"
+      eyebrow="Route not found"
+      title="This destination is unavailable"
+      message="The requested deck, card, replay, or workspace route may have moved, become private, or been removed."
+      actions={
+        <>
+          <ActionButton onClick={() => history.back()}>Go back</ActionButton>
+          <Link href="/dashboard">Return home</Link>
+        </>
+      }
+    />
+  );
 }

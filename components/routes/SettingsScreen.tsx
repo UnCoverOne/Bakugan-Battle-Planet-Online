@@ -1,40 +1,603 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "../application/AppProvider";
-import { AppButton, Badge, Toggle } from "../application/ui";
+import {
+  ConfirmationDialog,
+  SyncConflictPanel,
+} from "../application/SystemState";
+import { downloadTextFile } from "../application/ui";
+import {
+  ActionButton,
+  Field,
+  RouteHero,
+  StatusChip,
+  Surface,
+} from "../design-system/primitives";
+import styles from "./SettingsScreen.module.css";
 
-const SECTIONS = ["Interface", "Accessibility", "Audio", "Gameplay", "Privacy", "Data & Sync", "Account"] as const;
-type Section = typeof SECTIONS[number];
+const SECTIONS = [
+  "Account",
+  "Gameplay",
+  "Audio & visual",
+  "Accessibility",
+  "Data & sync",
+  "Privacy",
+  "Danger zone",
+] as const;
+type Section = (typeof SECTIONS)[number];
+type ConfirmAction = "local" | "account" | null;
 
 export function SettingsScreen() {
   const router = useRouter();
-  const { settings, setSettings, authUser, syncStatus, authError, storageHealth, signOutAccount, syncNow, changePassword, deleteAccount } = useApp();
-  const [section, setSection] = useState<Section>("Interface");
+  const {
+    settings,
+    setSettings,
+    profile,
+    decks,
+    history,
+    selectedDeckId,
+    authUser,
+    syncStatus,
+    syncConflict,
+    resolveSyncConflict,
+    authError,
+    storageHealth,
+    signOutAccount,
+    syncNow,
+    changePassword,
+    deleteAccount,
+  } = useApp();
+  const [section, setSection] = useState<Section>("Account");
+  const [savedField, setSavedField] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [accountError, setAccountError] = useState("");
   const [accountBusy, setAccountBusy] = useState(false);
-  const clearLocalProfile = () => { if (window.confirm("Delete all Bakugan TCG Online data stored in this browser?")) { localStorage.clear(); sessionStorage.clear(); window.location.reload(); } };
-  const submitPassword = async (event: React.FormEvent) => { event.preventDefault(); setAccountBusy(true); setAccountError(""); try { await changePassword(currentPassword, newPassword); setCurrentPassword(""); setNewPassword(""); } catch (error) { setAccountError(error instanceof Error ? error.message : "Could not change password."); } finally { setAccountBusy(false); } };
-  const removeAccount = async () => { setAccountBusy(true); setAccountError(""); try { await deleteAccount(confirmation); } catch (error) { setAccountError(error instanceof Error ? error.message : "Could not delete account."); } finally { setAccountBusy(false); } };
-  const storageTitle = storageHealth.status === "error" ? "Latest changes not saved" : storageHealth.status === "saved" ? "Saved on this device" : "Local storage ready";
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  return <>
-    <section className="compact-page-heading"><div><span className="eyebrow">CLIENT PREFERENCES</span><h1>Settings</h1><p>Control the interface, accessibility, privacy, local storage, cloud sync, and account.</p></div></section>
-    <section className="settings-layout-v2">
-      <nav className="settings-section-nav panel" aria-label="Settings sections">{SECTIONS.map((item) => <button className={section === item ? "active" : ""} key={item} onClick={() => setSection(item)}>{item}</button>)}</nav>
-      <main className="settings-content panel">
-        {section === "Interface" && <><h2>Interface</h2><p className="settings-intro">Adjust how cards and general application elements are displayed.</p><label className="range-setting"><span>Card scale <b>{settings.cardScale}%</b></span><input type="range" min="80" max="140" value={settings.cardScale} onChange={(event) => setSettings({ ...settings, cardScale: Number(event.target.value) })}/></label></>}
-        {section === "Accessibility" && <><h2>Accessibility</h2><Toggle label="Reduced motion" copy="Replace camera moves and flashes with static emphasis." checked={settings.reducedMotion} onChange={(value) => setSettings({ ...settings, reducedMotion: value })}/><Toggle label="High contrast" copy="Increase panel, border, and focus contrast." checked={settings.highContrast} onChange={(value) => setSettings({ ...settings, highContrast: value })}/></>}
-        {section === "Audio" && <><h2>Audio</h2><Toggle label="Interface and match audio" copy="Phase calls, priority, and result cues." checked={settings.sound} onChange={(value) => setSettings({ ...settings, sound: value, soundEnabled: value })}/></>}
-        {section === "Gameplay" && <><h2>Gameplay preferences</h2><label>Default match-log detail<select value={settings.logDetail} onChange={(event) => setSettings({ ...settings, logDetail: event.target.value })}><option>All events</option><option>Gameplay only</option><option>Random results</option></select></label><p className="settings-note">These preferences affect supporting information around matches. The Match screen layout itself is unchanged by this overhaul.</p></>}
-        {section === "Privacy" && <><h2>Privacy</h2><Toggle label="Allow match-record links" copy="Enable copyable links to locally retained completed match records." checked={settings.replayLinks ?? true} onChange={(value) => setSettings({ ...settings, replayLinks: value })}/><p className="settings-note">Friend challenges and block management are not shown until supporting social services exist.</p></>}
-        {section === "Data & Sync" && <><div className="settings-title-row"><div><h2>{authUser ? "Cloud sync" : "Local storage"}</h2><p>{authUser ? "Sync durable account data between signed-in devices." : "Your decks, records, and settings are stored in this browser."}</p></div><Badge tone={syncStatus === "synced" || storageHealth.status === "saved" ? "gold" : syncStatus === "error" || storageHealth.status === "error" ? "red" : "blue"}>{authUser ? syncStatus.toUpperCase() : storageHealth.status.toUpperCase()}</Badge></div>{authUser ? <><div className="settings-callout"><strong>{authUser.email}</strong><span>Decks, drafts, records, settings, and deck preferences sync after changes settle. Searches, replay position, room codes, active matches, and device identity remain device-local.</span></div>{authError && syncStatus === "error" && <p className="error-message">{authError}</p>}<div className="hero-actions"><AppButton tone="blue" onClick={syncNow}>SYNC NOW</AppButton><AppButton tone="ghost" onClick={() => void signOutAccount()}>LOG OUT</AppButton></div></> : <><div className={`settings-callout ${storageHealth.status === "error" ? "storage-failed" : ""}`}><strong>{storageTitle}</strong><span>{storageHealth.message}{storageHealth.savedAt ? ` Last successful save: ${new Date(storageHealth.savedAt).toLocaleString()}.` : ""}</span></div><AppButton tone="red" onClick={() => router.push("/")}>SIGN UP OR LOG IN TO SYNC</AppButton></>}</>}
-        {section === "Account" && <><h2>Account</h2>{authUser ? <><div className="settings-callout"><strong>{authUser.email}</strong><span>Signed in to the Bakugan Battle Planet Online account service.</span></div><form className="password-form" onSubmit={submitPassword}><h3>Change password</h3><label>Current password<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required/></label><label>New password<input type="password" autoComplete="new-password" minLength={10} maxLength={128} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required/></label><AppButton type="submit" tone="ghost" disabled={accountBusy}>UPDATE PASSWORD</AppButton></form><section className="danger-zone-v2"><h3>Danger zone</h3><div><h4>Delete cloud account</h4><p>This removes the cloud account and synced copy. The local browser copy remains until deleted separately.</p><label>Type DELETE to confirm<input value={confirmation} onChange={(event) => setConfirmation(event.target.value)}/></label><button className="danger-text" disabled={accountBusy || confirmation.toUpperCase() !== "DELETE"} onClick={() => void removeAccount()}>DELETE CLOUD ACCOUNT</button></div><div><h4>Delete local browser data</h4><p>Remove all locally stored decks, records, settings, drafts, and active state from this browser.</p><button className="danger-text" onClick={clearLocalProfile}>DELETE LOCAL BROWSER DATA</button></div></section></> : <><p>Sign in to manage a cloud account, password, and synced data.</p><AppButton tone="red" onClick={() => router.push("/")}>SIGN UP OR LOG IN</AppButton><section className="danger-zone-v2"><h3>Danger zone</h3><div><h4>Delete local browser data</h4><p>Remove all locally stored decks, records, settings, drafts, and active state from this browser.</p><button className="danger-text" onClick={clearLocalProfile}>DELETE LOCAL BROWSER DATA</button></div></section></>}{accountError && <p className="error-message" role="alert">{accountError}</p>}</>}
-      </main>
+  useEffect(
+    () => () => {
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+    },
+    [],
+  );
+
+  const saveSetting = (key: string, value: unknown, label: string) => {
+    setSettings({ ...settings, [key]: value });
+    setSavedField(`${label} saved`);
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSavedField(""), 2200);
+  };
+
+  const submitPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAccountBusy(true);
+    setAccountError("");
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setSavedField("Password updated");
+    } catch (error) {
+      setAccountError(
+        error instanceof Error ? error.message : "Could not change password.",
+      );
+    } finally {
+      setAccountBusy(false);
+    }
+  };
+
+  const removeAccount = async () => {
+    setAccountBusy(true);
+    setAccountError("");
+    try {
+      await deleteAccount(confirmation);
+      setConfirmAction(null);
+    } catch (error) {
+      setAccountError(
+        error instanceof Error ? error.message : "Could not delete account.",
+      );
+    } finally {
+      setAccountBusy(false);
+    }
+  };
+
+  const clearLocalProfile = () => {
+    for (const storage of [localStorage, sessionStorage]) {
+      for (let index = storage.length - 1; index >= 0; index -= 1) {
+        const key = storage.key(index);
+        if (key?.startsWith("bbp-")) storage.removeItem(key);
+      }
+    }
+    window.location.assign("/");
+  };
+
+  const exportData = () => {
+    const payload = {
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      profile: { name: profile.name, faction: profile.faction },
+      decks,
+      history,
+      settings,
+      selectedDeckId,
+    };
+    downloadTextFile(
+      `bakugan-brawler-data-${new Date().toISOString().slice(0, 10)}.json`,
+      JSON.stringify(payload, null, 2),
+      "application/json",
+    );
+    setSavedField("Data export downloaded");
+  };
+
+  const storageTitle =
+    storageHealth.status === "error"
+      ? "Latest changes not saved"
+      : storageHealth.status === "saved"
+        ? "Saved on this device"
+        : "Local storage ready";
+
+  return (
+    <div className={styles.route}>
+      <RouteHero
+        className={styles.hero}
+        eyebrow="Client preferences"
+        title="Settings"
+        description="Preferences save immediately. Identity, password, and destructive changes always require an explicit action."
+        aside={
+          <div className={styles.saveStatus} role="status" aria-live="polite">
+            <StatusChip tone={savedField ? "success" : "neutral"}>
+              {savedField || "Ready"}
+            </StatusChip>
+            <small>{authUser ? `Cloud: ${syncStatus}` : storageTitle}</small>
+          </div>
+        }
+      />
+      <section className={styles.layout}>
+        <nav className={styles.sectionNav} aria-label="Settings categories">
+          {SECTIONS.map((item) => (
+            <button
+              type="button"
+              aria-current={section === item ? "page" : undefined}
+              className={section === item ? styles.active : ""}
+              key={item}
+              onClick={() => setSection(item)}
+            >
+              {item}
+            </button>
+          ))}
+        </nav>
+        <main className={styles.content}>
+          {section === "Account" && (
+            <SettingsSection
+              title="Account"
+              description="Manage the signed-in account and credentials."
+            >
+              {authUser ? (
+                <>
+                  <Surface className={styles.accountSummary}>
+                    <div>
+                      <span>Signed in as</span>
+                      <strong>{authUser.email}</strong>
+                    </div>
+                    <ActionButton
+                      tone="secondary"
+                      onClick={() => void signOutAccount()}
+                    >
+                      Log out
+                    </ActionButton>
+                  </Surface>
+                  <form
+                    className={styles.passwordForm}
+                    onSubmit={submitPassword}
+                  >
+                    <h3>Change password</h3>
+                    <Field label="Current password">
+                      <input
+                        type="password"
+                        autoComplete="current-password"
+                        value={currentPassword}
+                        onChange={(event) =>
+                          setCurrentPassword(event.target.value)
+                        }
+                        required
+                      />
+                    </Field>
+                    <Field label="New password" hint="Use 10–128 characters.">
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={10}
+                        maxLength={128}
+                        value={newPassword}
+                        onChange={(event) => setNewPassword(event.target.value)}
+                        required
+                      />
+                    </Field>
+                    <ActionButton
+                      type="submit"
+                      tone="secondary"
+                      disabled={accountBusy}
+                    >
+                      Update password
+                    </ActionButton>
+                  </form>
+                </>
+              ) : (
+                <Surface className={styles.callout}>
+                  <div>
+                    <strong>Device-local profile</strong>
+                    <p>
+                      Sign in to sync decks, records, settings, and drafts
+                      between devices.
+                    </p>
+                  </div>
+                  <ActionButton onClick={() => router.push("/")}>
+                    Sign up or log in
+                  </ActionButton>
+                </Surface>
+              )}
+              {accountError && (
+                <p className={styles.error} role="alert">
+                  {accountError}
+                </p>
+              )}
+            </SettingsSection>
+          )}
+
+          {section === "Gameplay" && (
+            <SettingsSection
+              title="Gameplay"
+              description="Control supporting information around matches."
+            >
+              <Field label="Default match-log detail">
+                <select
+                  value={settings.logDetail}
+                  onChange={(event) =>
+                    saveSetting(
+                      "logDetail",
+                      event.target.value,
+                      "Match-log detail",
+                    )
+                  }
+                >
+                  <option>All events</option>
+                  <option>Gameplay only</option>
+                  <option>Random results</option>
+                </select>
+              </Field>
+              <p className={styles.note}>
+                This changes supporting match information only; the current
+                Match screen composition remains unchanged.
+              </p>
+            </SettingsSection>
+          )}
+
+          {section === "Audio & visual" && (
+            <SettingsSection
+              title="Audio & visual"
+              description="Adjust feedback and card presentation."
+            >
+              <SettingToggle
+                label="Interface and match audio"
+                copy="Phase calls, priority, and result cues."
+                checked={settings.sound}
+                onChange={(value) => {
+                  setSettings({
+                    ...settings,
+                    sound: value,
+                    soundEnabled: value,
+                  });
+                  setSavedField("Audio preference saved");
+                  if (savedTimer.current) clearTimeout(savedTimer.current);
+                  savedTimer.current = setTimeout(
+                    () => setSavedField(""),
+                    2200,
+                  );
+                }}
+              />
+              <label className={styles.rangeSetting}>
+                <span>
+                  <strong>Card scale</strong>
+                  <small>
+                    Adjust supported card previews from 80% to 140%.
+                  </small>
+                </span>
+                <b>{settings.cardScale}%</b>
+                <input
+                  type="range"
+                  min="80"
+                  max="140"
+                  value={settings.cardScale}
+                  onChange={(event) =>
+                    saveSetting(
+                      "cardScale",
+                      Number(event.target.value),
+                      "Card scale",
+                    )
+                  }
+                />
+              </label>
+            </SettingsSection>
+          )}
+
+          {section === "Accessibility" && (
+            <SettingsSection
+              title="Accessibility"
+              description="Reduce sensory load and strengthen interface legibility."
+            >
+              <SettingToggle
+                label="Reduced motion"
+                copy="Disable parallax, energy sweeps, card tilt, and non-essential transition travel."
+                checked={settings.reducedMotion}
+                onChange={(value) =>
+                  saveSetting("reducedMotion", value, "Reduced motion")
+                }
+              />
+              <SettingToggle
+                label="High contrast"
+                copy="Increase panel, border, selection, and focus contrast."
+                checked={settings.highContrast}
+                onChange={(value) =>
+                  saveSetting("highContrast", value, "High contrast")
+                }
+              />
+              <Surface className={styles.accessibilityNote}>
+                <strong>Keyboard and screen-reader support</strong>
+                <p>
+                  Route announcements, skip navigation, visible focus
+                  indicators, labelled filters, and meaningful state messages
+                  are always enabled.
+                </p>
+              </Surface>
+            </SettingsSection>
+          )}
+
+          {section === "Data & sync" && (
+            <SettingsSection
+              title="Data & sync"
+              description={
+                authUser
+                  ? "Review cloud state and resolve conflicts before data is overwritten."
+                  : "Review storage health and keep a portable backup."
+              }
+            >
+              {syncConflict && (
+                <SyncConflictPanel
+                  conflict={syncConflict}
+                  busy={accountBusy}
+                  onResolve={(preference) => {
+                    setAccountBusy(true);
+                    void resolveSyncConflict(preference).finally(() =>
+                      setAccountBusy(false),
+                    );
+                  }}
+                />
+              )}
+              <Surface
+                className={`${styles.syncCard} ${storageHealth.status === "error" ? styles.failed : ""}`}
+              >
+                <div>
+                  <StatusChip
+                    tone={
+                      syncStatus === "synced" ||
+                      storageHealth.status === "saved"
+                        ? "success"
+                        : syncStatus === "error" ||
+                            storageHealth.status === "error"
+                          ? "danger"
+                          : syncStatus === "conflict"
+                            ? "warning"
+                            : "info"
+                    }
+                  >
+                    {authUser ? syncStatus : storageHealth.status}
+                  </StatusChip>
+                  <h3>
+                    {authUser ? "Cloud and device storage" : storageTitle}
+                  </h3>
+                  <p>
+                    {authUser
+                      ? "Decks, drafts, records, settings, and deck preferences sync. Searches, replay position, room codes, active matches, and device identity remain local."
+                      : storageHealth.message}
+                  </p>
+                  {storageHealth.savedAt && (
+                    <small>
+                      Last device save:{" "}
+                      {new Date(storageHealth.savedAt).toLocaleString()}
+                    </small>
+                  )}
+                  {authError && syncStatus === "error" && (
+                    <p className={styles.error}>{authError}</p>
+                  )}
+                </div>
+                {authUser && (
+                  <ActionButton
+                    tone="secondary"
+                    onClick={() => void syncNow()}
+                    disabled={
+                      syncStatus === "saving" || syncStatus === "conflict"
+                    }
+                  >
+                    Sync now
+                  </ActionButton>
+                )}
+              </Surface>
+              <Surface className={styles.exportCard}>
+                <div>
+                  <h3>Export local data</h3>
+                  <p>
+                    Download a readable JSON backup before deleting browser data
+                    or moving between unsupported environments.
+                  </p>
+                </div>
+                <ActionButton tone="secondary" onClick={exportData}>
+                  Download export
+                </ActionButton>
+              </Surface>
+            </SettingsSection>
+          )}
+
+          {section === "Privacy" && (
+            <SettingsSection
+              title="Privacy"
+              description="Control what can be shared outside this device."
+            >
+              <SettingToggle
+                label="Allow match-record links"
+                copy="Enable copyable links to locally retained completed match records."
+                checked={settings.replayLinks ?? true}
+                onChange={(value) =>
+                  saveSetting("replayLinks", value, "Match-record links")
+                }
+              />
+              <Surface className={styles.privacyCard}>
+                <h3>Public deck attribution</h3>
+                <p>
+                  Published decks show the creator name captured at publication.
+                  Copies retain source attribution but become private, editable
+                  decks.
+                </p>
+              </Surface>
+            </SettingsSection>
+          )}
+
+          {section === "Danger zone" && (
+            <SettingsSection
+              title="Danger zone"
+              description="Destructive actions are isolated here and never save immediately."
+            >
+              {authUser && (
+                <Surface className={styles.dangerCard}>
+                  <div>
+                    <h3>Delete cloud account</h3>
+                    <p>
+                      Removes the account and synced cloud copy. Device-local
+                      data remains until deleted separately.
+                    </p>
+                    <Field label="Type DELETE to enable">
+                      <input
+                        value={confirmation}
+                        onChange={(event) =>
+                          setConfirmation(event.target.value)
+                        }
+                      />
+                    </Field>
+                  </div>
+                  <ActionButton
+                    tone="danger"
+                    disabled={
+                      accountBusy || confirmation.toUpperCase() !== "DELETE"
+                    }
+                    onClick={() => setConfirmAction("account")}
+                  >
+                    Delete cloud account
+                  </ActionButton>
+                </Surface>
+              )}
+              <Surface className={styles.dangerCard}>
+                <div>
+                  <h3>Delete local browser data</h3>
+                  <p>
+                    Removes locally stored decks, records, settings, drafts, and
+                    active state from this browser. Export first if you need a
+                    backup.
+                  </p>
+                </div>
+                <div className={styles.dangerActions}>
+                  <ActionButton tone="secondary" onClick={exportData}>
+                    Export first
+                  </ActionButton>
+                  <ActionButton
+                    tone="danger"
+                    onClick={() => setConfirmAction("local")}
+                  >
+                    Delete local data
+                  </ActionButton>
+                </div>
+              </Surface>
+              {accountError && (
+                <p className={styles.error} role="alert">
+                  {accountError}
+                </p>
+              )}
+            </SettingsSection>
+          )}
+        </main>
+      </section>
+
+      {confirmAction === "local" && (
+        <ConfirmationDialog
+          title="Delete local browser data?"
+          objectName="All Bakugan Battle Planet Online data on this browser"
+          consequence="Decks, records, settings, drafts, and active state on this device will be permanently removed. Cloud data is unaffected."
+          confirmLabel="Delete local data"
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={clearLocalProfile}
+        />
+      )}
+      {confirmAction === "account" && (
+        <ConfirmationDialog
+          title="Delete cloud account?"
+          objectName={authUser?.email ?? "Current account"}
+          consequence="The account and synced cloud copy will be permanently removed. The current browser copy remains until separately deleted."
+          confirmLabel="Delete cloud account"
+          busy={accountBusy}
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={() => void removeAccount()}
+        />
+      )}
+    </div>
+  );
+}
+
+function SettingsSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={styles.settingsSection}>
+      <header>
+        <h2>{title}</h2>
+        <p>{description}</p>
+      </header>
+      <div className={styles.sectionBody}>{children}</div>
     </section>
-  </>;
+  );
+}
+
+function SettingToggle({
+  label,
+  copy,
+  checked,
+  onChange,
+}: {
+  label: string;
+  copy: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className={styles.toggle}>
+      <span>
+        <strong>{label}</strong>
+        <small>{copy}</small>
+      </span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <i aria-hidden="true" />
+    </label>
+  );
 }
