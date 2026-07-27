@@ -17,6 +17,16 @@ function AchievementGlyph({ category, unlocked }: { category: string; unlocked: 
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.1 5.4 5.7.3-4.4 3.7 1.5 5.6-4.9-3-4.9 3 1.5-5.6-4.4-3.7 5.7-.3L12 3Z"/></svg>;
 }
 
+function ChevronArrow() {
+  return <svg className="button-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 4 8 8-8 8"/></svg>;
+}
+
+function HeroSpeedLines() {
+  return <div className="bakugan-home-speed-lines" aria-hidden="true">
+    <span/><span/><span/><span/><span/><span/><span/>
+  </div>;
+}
+
 export function DashboardScreen() {
   const { profile, decks, history, match } = useApp();
   const achievements = achievementsFor(decks, history);
@@ -53,11 +63,12 @@ export function DashboardScreen() {
         <h1><span>Brawler</span><strong>Command</strong></h1>
         <p>Build your arsenal, prepare your Bakugan team, and choose your next Battle Planet Brawl.</p>
         <div className="hero-actions">
-          <Link className="hex-button red" href="/play"><span>PLAY</span><span className="button-arrow" aria-hidden="true">›</span></Link>
-          <Link className="hex-button ghost" href="/decks"><span>DECKS</span><span className="button-arrow" aria-hidden="true">›</span></Link>
+          <Link className="hex-button red" href="/play"><span>PLAY</span><ChevronArrow/></Link>
+          <Link className="hex-button ghost" href="/decks"><span>DECKS</span><ChevronArrow/></Link>
         </div>
       </div>
       <div className="bakugan-home-hero-art">
+        <HeroSpeedLines/>
         <div className="bakugan-home-energy" aria-hidden="true"/>
         <img src="/assets/home/hero-pyrus.svg" alt="Pyrus Bakugan charging into battle"/>
       </div>
@@ -65,7 +76,7 @@ export function DashboardScreen() {
 
     {activeMatch && match && <section className="active-match-card">
       <div><span className="pulse"/><span className="eyebrow">ACTIVE MATCH</span><h2>{match.code ? `Room ${match.code}` : "Battle in progress"}</h2><p>{match.stepLabel ?? "Return to your current Brawl."}</p></div>
-      <Link className="hex-button blue" href={match.phase === "lobby" ? "/play/lobby" : "/play/match"}><span>RESUME MATCH</span><span className="button-arrow" aria-hidden="true">›</span></Link>
+      <Link className="hex-button blue" href={match.phase === "lobby" ? "/play/lobby" : "/play/match"}><span>RESUME MATCH</span><ChevronArrow/></Link>
     </section>}
 
     <section className="home-feature-grid">
@@ -96,7 +107,7 @@ export function DashboardScreen() {
             <h3>{featured.name}</h3>
             <p className="home-featured-deck-creator">by {featured.creator ?? "Community Brawler"}</p>
             <p className="home-featured-deck-description">{featured.description ?? "A public Battle Planet deck ready to explore and copy."}</p>
-            <Link className="hex-button ghost" href={`/decks/public/${encodeURIComponent(featured.id)}`}><span>VIEW DECK</span><span className="button-arrow" aria-hidden="true">›</span></Link>
+            <Link className="hex-button ghost" href={`/decks/public/${encodeURIComponent(featured.id)}`}><span>VIEW DECK</span><ChevronArrow/></Link>
           </div>
         </div> : <div className="empty-state"><strong>NO PUBLIC DECKS YET</strong><p>Publish a deck from My Decks to feature it here.</p></div>}
       </article>
