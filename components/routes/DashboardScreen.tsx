@@ -17,7 +17,7 @@ const HERO_PARTS = Array.from(
 
 const DISPLAY_FONT_PARTS = Array.from(
   { length: 4 },
-  (_, index) => `/assets/home/rbno31-ultra/part-${String(index + 1).padStart(2, "0")}.txt`,
+  (_, index) => `/assets/home/rbno31-bold-italic/part-${String(index + 1).padStart(2, "0")}.txt`,
 );
 
 let highResolutionHeroPromise: Promise<string> | undefined;
@@ -54,11 +54,11 @@ function loadDisplayFont() {
     return Promise.resolve();
   }
 
-  displayFontPromise ??= loadTextParts(DISPLAY_FONT_PARTS, "RBNo3.1 font")
+  displayFontPromise ??= loadTextParts(DISPLAY_FONT_PARTS, "RBNo3.1 Bold Italic font")
     .then((parts) => new FontFace(
       "RBNo31Display",
       decodeBase64(parts.join("")),
-      { style: "normal", weight: "900" },
+      { style: "italic", weight: "700" },
     ).load())
     .then((font) => {
       document.fonts.add(font);
