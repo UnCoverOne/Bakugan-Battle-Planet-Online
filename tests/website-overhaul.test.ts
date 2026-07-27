@@ -125,3 +125,88 @@ test("large secondary-route card scans use full assets", () => {
   assert.match(decks, /deck-cover[\s\S]*cardArtSource\(lead,\s*"full"\)/);
   assert.match(decks, /deck-detail-lead[\s\S]*cardArtSource\(lead,\s*"full"\)/);
 });
+
+test("shared primitives expose stable visual-regression selectors", () => {
+  const primitives = source("components/design-system/primitives.tsx");
+  for (const selector of [
+    "surface",
+    "route-hero",
+    "action-button",
+    "status-chip",
+    "tabs",
+    "field",
+    "card-grid",
+  ]) {
+    assert.match(primitives, new RegExp(`data-ui="${selector}"`));
+  }
+});
+
+test("legacy global rules no longer neutralize migrated route primitives", () => {
+  const consistency = source("app/site-consistency.css");
+  const legacy = source("app/website-overhaul.css");
+  assert.doesNotMatch(consistency, /\.main-stage \.panel/);
+  for (const selector of [
+    "play-setup-main",
+    "play-confirmation",
+    "overhaul-toolbar",
+    "import-drawer",
+    "rules-contents",
+    "rule-article",
+    "ruling-submission-modal",
+    "compendium-filters",
+  ]) {
+    assert.doesNotMatch(consistency, new RegExp(`\\.${selector}[,\\n)]`));
+  }
+  assert.doesNotMatch(
+    legacy,
+    /\.compendium-filters\{[^}]*?(?:clip-path:none|border-radius:[1-9])/,
+  );
+  for (const selector of [
+    String.raw`\.play-setup-main,\.play-confirmation`,
+    String.raw`\.overhaul-toolbar`,
+    String.raw`\.import-drawer`,
+    String.raw`\.overhaul-deck-card`,
+    String.raw`\.deck-card-main`,
+    String.raw`\.public-deck-card`,
+    String.raw`\.public-deck-lead`,
+    String.raw`\.deck-detail-lead`,
+    String.raw`\.deck-detail-v2 \.panel`,
+    String.raw`\.deck-team-strip>div`,
+    String.raw`\.overhaul-builder \.deck-validation-summary\.compact`,
+    String.raw`\.reference-card\.compact`,
+  ]) {
+    assert.doesNotMatch(
+      legacy,
+      new RegExp(`${selector}\\{[^}]*(?:clip-path:none|border-radius:[1-9])`),
+    );
+  }
+});
+
+test("deck names, metadata, and visual coverage retain their stabilization contracts", () => {
+  const decks = source("components/routes/DeckRoutes.module.css");
+  const visualConfig = source("playwright.visual.config.ts");
+  const visualSuite = source("tests/visual/foundation.spec.ts");
+  assert.match(decks, /-webkit-line-clamp:\s*2/);
+  assert.match(decks, /overflow-wrap:\s*anywhere/);
+  assert.match(source("app/globals.css"), /--type-meta:\.75rem/);
+  for (const width of [390, 768, 1440, 1920]) {
+    assert.match(visualConfig, new RegExp(`width: ${width}`));
+  }
+  for (const route of [
+    "/decks",
+    "/decks/public",
+    "/builder/deck-pyrus",
+    "/play",
+    "/compendium",
+    "/compendium/rules",
+    "/profile",
+    "/profile/records",
+    "/settings",
+  ]) {
+    assert.match(visualSuite, new RegExp(route.replaceAll("/", "\\/")));
+  }
+  assert.match(visualSuite, /metadata must remain at least 12px/);
+  assert.match(visualSuite, /full scans must not be enlarged beyond source width/);
+  assert.match(visualSuite, /visible route panels must retain the shared chamfer/);
+  assert.match(visualSuite, /the focused control must expose a visible indicator/);
+});
