@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "../application/AppProvider";
 import { deckLeadCard } from "../../lib/data";
+import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
 import { AppButton, Badge, Metric, PageHeader, deckLooksComplete } from "../application/ui";
 
@@ -30,7 +31,7 @@ export function PlayScreen() {
           const active = (selectedDeckId || selectedDeck?.id) === deck.id;
           return <button key={deck.id} disabled={!legal} className={`${active ? "active" : ""} ${!legal ? "disabled" : ""}`} onClick={() => setSelectedDeckId(deck.id)}>
             <div className="play-deck-art">{lead ? <img src={cardArtSource(lead, "thumbnail")} alt={`${lead.displayName}, lead card for ${deck.name}`}/> : <img src="/assets/cards/card-missing.svg" alt="No Lead card selected"/>}</div>
-            <div><strong>{deck.name}</strong><span>{deck.factions.join(" • ")}</span><Badge tone={legal ? "gold" : "red"}>{legal ? "LEGAL" : "DRAFT"}</Badge></div>
+            <div><strong>{deck.name}</strong><span>{deck.factions.join(" • ")}</span><Badge tone="blue">{deckSetName(deck).toUpperCase()}</Badge><Badge tone={legal ? "gold" : "red"}>{legal ? "LEGAL" : "DRAFT"}</Badge></div>
           </button>;
         })}</div> : <div className="storage-callout"><strong>NO DECKS AVAILABLE</strong><span>Create or restore a deck before starting a match.</span><Link href="/decks">OPEN MY DECKS →</Link></div>}
 
@@ -43,6 +44,7 @@ export function PlayScreen() {
         <span className="eyebrow">READY CHECK</span>
         <div className="confirmation-lead">{chosenLead ? <img src={cardArtSource(chosenLead, "thumbnail")} alt=""/> : <img src="/assets/cards/card-missing.svg" alt=""/>}</div>
         <h2>{selectedDeck?.name ?? "Select a deck"}</h2>
+        {selectedDeck && <Badge tone="blue">{deckSetName(selectedDeck).toUpperCase()}</Badge>}
         <dl><div><dt>Mode</dt><dd>{matchMode === "solo" ? "Training" : matchMode === "online" ? "Create online room" : "Join online room"}</dd></div><div><dt>Format</dt><dd>{format === "bo1" ? "Best of one" : "Best of three"}</dd></div><div><dt>Legal decks</dt><dd>{legalDecks.length}</dd></div></dl>
         <details><summary>Match rules</summary><ul><li>Original Battle Planet ruleset</li><li>Alternating twelve-Core placement</li><li>Server-authoritative random outcomes</li><li>30-second reconnect grace online</li></ul></details>
         <AppButton tone="red" disabled={!selectedDeck || !deckLooksComplete(selectedDeck) || (matchMode === "join" && joinCode.length < 5)} onClick={begin}>{matchMode === "solo" ? "START TRAINING MATCH" : matchMode === "online" ? "CREATE ONLINE ROOM" : "JOIN ONLINE ROOM"}</AppButton>
