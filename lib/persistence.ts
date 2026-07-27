@@ -85,6 +85,8 @@ function normalizeDeck(value: unknown): DeckRecord | null {
     creator: typeof deck.creator === "string" ? deck.creator.trim().slice(0, 40) : undefined,
     description: typeof deck.description === "string" ? deck.description.trim().slice(0, 500) : undefined,
     publishedAt: typeof deck.publishedAt === "string" && Number.isFinite(Date.parse(deck.publishedAt)) ? new Date(deck.publishedAt).toISOString() : undefined,
+    sourceDeckId: typeof deck.sourceDeckId === "string" ? deck.sourceDeckId.slice(0, 120) : undefined,
+    sourceCreator: typeof deck.sourceCreator === "string" ? deck.sourceCreator.trim().slice(0, 40) : undefined,
   };
 }
 
@@ -194,3 +196,4 @@ export function mergeSnapshots(local: UserSnapshot, cloud: UserSnapshot): UserSn
   };
   return retainDeviceState(merged, local);
 }
+
