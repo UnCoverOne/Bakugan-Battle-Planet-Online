@@ -6,13 +6,15 @@
 /* Home actions use layered polygons so the left edge is genuinely square and
    the border follows every edge of the arrow instead of clipping a rectangle. */
 .bakugan-home .hex-button {
-  --home-button-fill: rgba(0, 0, 0, .42);
+  --home-button-fill: rgba(0, 8, 13, .88);
   --home-button-border: rgba(255, 255, 255, .58);
   position: relative;
   z-index: 0;
   isolation: isolate;
   border: 0;
+  outline: 0;
   background: transparent !important;
+  box-shadow: none !important;
   clip-path: none;
 }
 
@@ -48,8 +50,9 @@
   --home-button-fill: #9c6900;
 }
 
-.bakugan-home .hex-button.ghost {
-  --home-button-fill: rgba(0, 0, 0, .42);
+.bakugan-home .hex-button.ghost,
+.bakugan-home .home-featured-deck-copy .hex-button {
+  --home-button-fill: rgba(0, 8, 13, .88);
 }
 
 .bakugan-home-hero-copy h1 {
@@ -88,11 +91,20 @@
 
 .play-button-glow:hover,
 .play-button-glow:focus-within {
-  filter: drop-shadow(0 0 7px rgba(255, 62, 71, .7)) drop-shadow(0 0 18px rgba(255, 43, 53, .36));
+  filter: drop-shadow(0 0 6px rgba(255, 62, 71, .62)) drop-shadow(0 0 14px rgba(255, 43, 53, .3));
   transform: translateY(-1px);
 }
 
-.play-button-glow .hex-button.red {
+/* Override the earlier rectangular hover box-shadow that sat beneath the
+   polygon button and became visible as a square outline. */
+.play-button-glow .hex-button.red,
+.play-button-glow .hex-button.red:hover,
+.play-button-glow .hex-button.red:focus,
+.play-button-glow .hex-button.red:focus-visible,
+.play-button-glow:hover .hex-button.red,
+.play-button-glow:focus-within .hex-button.red {
   filter: none !important;
-  box-shadow: none;
+  box-shadow: none !important;
+  outline: 0 !important;
+  background: transparent !important;
 }
