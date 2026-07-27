@@ -187,7 +187,7 @@ export function DashboardScreen() {
       </article>
 
       <article className="panel home-featured-deck">
-        <div className="panel-heading"><h2>Featured public deck</h2><Link href="/decks/public">BROWSE ALL →</Link></div>
+        <div className="panel-heading"><h2>Featured deck</h2><Link href="/decks/public">BROWSE ALL →</Link></div>
         {featured ? <div className="home-featured-deck-layout">
           <div className={`home-featured-deck-stack ${factionClass(featured.factions[0] ?? "Pyrus")}`} aria-label={`Featured cards from ${featured.name}`}>
             {featuredPreviewCards.length ? featuredPreviewCards.map((card) => <div className="home-featured-deck-card" key={card.catalogId}>
@@ -195,7 +195,7 @@ export function DashboardScreen() {
             </div>) : <img className="home-featured-deck-placeholder" src="/assets/cards/card-missing.svg" alt="Featured deck artwork unavailable"/>}
           </div>
           <div className="home-featured-deck-copy">
-            <div className="home-featured-deck-badges"><Badge tone="gold">{deckLooksComplete(featured) ? "LEGAL" : "DRAFT"}</Badge><Badge>{featured.factions.join(" • ")}</Badge></div>
+            <div className="home-featured-deck-badges"><Badge tone="gold">BATTLE BRAWLERS</Badge><Badge>{featured.factions.join(" • ")}</Badge></div>
             <h3>{featured.name}</h3>
             <p className="home-featured-deck-creator">by {featured.creator ?? "Community Brawler"}</p>
             <p className="home-featured-deck-description">{featured.description ?? "A public Battle Planet deck ready to explore and copy."}</p>
