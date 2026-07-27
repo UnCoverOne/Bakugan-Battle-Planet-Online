@@ -1,0 +1,22 @@
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 360px;
+  aspect-ratio: 5 / 7;
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+.tile {
+  margin-inline: auto;
+}
+
+.inspector {
+  width: min(100%, 360px);
+  margin-inline: auto;
+}
+
+.thumbnail {
+  width: min(100%, 80px);
+}

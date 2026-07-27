@@ -23,13 +23,21 @@
 }
 
 .toolbar {
+  position: sticky;
+  top: 76px;
+  z-index: 80;
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   max-width: none;
   margin: var(--space-5) auto 0;
   display: grid;
   grid-template-columns: minmax(16rem, 1fr) auto;
   gap: var(--space-4);
-  padding: 0;
+  padding: var(--space-3);
+  border: 1px solid rgba(91, 196, 226, .22);
+  background: rgba(1, 10, 14, .94);
+  box-shadow: var(--elevation-2);
+  backdrop-filter: blur(18px);
+  clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
 }
 
 .search {
@@ -40,67 +48,167 @@
   min-height: 3rem;
 }
 
-.filters {
+.resultsToolbar {
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
-  max-width: none;
-  margin: var(--space-4) auto var(--space-5);
+  margin: var(--space-4) auto;
   display: grid;
-  grid-template-columns: repeat(3, minmax(10rem, 1fr)) auto;
+  grid-template-columns: minmax(9rem, 1fr) auto auto auto;
   align-items: end;
   gap: var(--space-3);
-  padding: var(--space-4);
-  border-radius: 0;
 }
 
-.filters > span {
+.resultsToolbar > div:first-child {
   align-self: center;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.resultsToolbar > div:first-child span {
+  color: var(--text-muted);
+  font-size: var(--type-meta);
+}
+
+.resultsToolbar > label {
+  min-width: 11rem;
+}
+
+.densityTabs {
+  min-height: 3rem;
+}
+
+.shareResults {
+  min-height: 3rem;
+  padding: 0 var(--space-4);
+  border: 1px solid rgba(91, 196, 226, .34);
+  color: var(--text-primary);
+  background: rgba(4, 23, 31, .86);
+  font-weight: 800;
+}
+
+.mobileFilterButton {
+  display: none;
+}
+
+.workspace {
+  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: 13.75rem minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.workspaceSelected {
+  grid-template-columns: 13.75rem minmax(0, 1fr) auto;
+}
+
+.filterRail {
+  position: sticky;
+  top: 10.25rem;
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  max-height: calc(100dvh - 11.5rem);
+  overflow-y: auto;
+}
+
+.filterHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid rgba(91, 196, 226, .18);
+}
+
+.filterHeading span {
+  color: var(--brand-blue-bright);
+  font-size: var(--type-meta);
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.filterHeading h2 {
+  margin: .15rem 0 0;
+  font-size: 1.25rem;
+}
+
+.filterHeading button {
+  min-height: 2.25rem;
+  padding-inline: var(--space-2);
+  border: 0;
+  color: var(--text-muted);
+  background: transparent;
+  font-weight: 800;
+}
+
+.filterHeading button:hover,
+.filterHeading button:focus-visible {
+  color: var(--brand-blue-bright);
+}
+
+.gallery {
+  min-width: 0;
 }
 
 .cardGrid {
-  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
+  width: 100%;
   max-width: none;
-  margin-inline: auto;
+  margin: 0;
   padding: 0;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.5rem), 1fr));
-  gap: var(--space-5);
+  gap: var(--space-4);
 }
 
-.cardGrid :global(.reference-card.compact) {
+.cardGridCompact {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.25rem), 1fr));
+  gap: var(--space-3);
+}
+
+.cardTile {
   min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(91, 196, 226, .2);
   border-radius: 0;
+  color: inherit;
+  text-align: left;
   background: rgba(3, 16, 22, .94);
   clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
   transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
 
-.cardGrid :global(.reference-card.compact:hover),
-.cardGrid :global(.reference-card.compact:focus-visible) {
+.cardTile:hover,
+.cardTile:focus-visible,
+.cardTileSelected {
   border-color: var(--brand-blue-bright);
   box-shadow: var(--elevation-2), 0 0 24px rgba(0, 174, 239, .2);
   transform: translateY(-2px);
 }
 
-.cardGrid :global(.reference-art) {
-  aspect-ratio: 5 / 7;
+.cardTileSelected {
+  border-width: 2px;
+  box-shadow: var(--elevation-2), inset 4px 0 0 var(--brand-blue-bright), 0 0 30px rgba(0, 174, 239, .24);
+}
+
+.cardArt {
   min-height: 0;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 5 / 7;
   padding: var(--space-3) var(--space-3) 0;
   background: radial-gradient(circle at 50% 40%, rgba(20, 116, 148, .18), transparent 66%), #01070a;
 }
 
-.cardGrid :global(.reference-art img) {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: auto;
-}
-
-.cardGrid :global(.reference-card-copy) {
+.cardCopy {
   display: grid;
   gap: var(--space-2);
   padding: var(--space-4);
 }
 
-.cardGrid :global(.reference-card-copy > strong) {
+.cardCopy > strong {
   min-height: 2.3em;
   display: -webkit-box;
   overflow: hidden;
@@ -111,29 +219,113 @@
   line-height: 1.15;
 }
 
-.cardGrid :global(.reference-card-copy small),
+.cardCopy small,
 .route :global(.rule-article small),
-.route :global(.modern-rulings small),
-.detail :global(dt),
-.detail :global(dd) {
+.route :global(.modern-rulings small) {
+  color: var(--text-muted);
   font-size: var(--type-meta);
   line-height: 1.45;
 }
 
-.cardGrid :global(.reference-card-badges) {
+.cardBadges {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.cardGrid :global(.reference-card-badges .badge) {
+.cardGridCompact .cardArt {
+  padding: var(--space-2) var(--space-2) 0;
+}
+
+.cardGridCompact .cardCopy {
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+.cardGridCompact .cardCopy > strong {
+  min-height: 2.2em;
+  font-size: .9rem;
+}
+
+.cardGridCompact .cardCopy small {
+  display: none;
+}
+
+.cardGridCompact .cardBadges > span:nth-child(2) {
+  display: none;
+}
+
+.pagination {
+  min-height: 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.pagination button {
+  min-height: 2.75rem;
+  padding: 0 var(--space-4);
+  border: 1px solid rgba(91, 196, 226, .28);
+  color: var(--text-primary);
+  background: rgba(3, 20, 27, .86);
+  font-weight: 800;
+}
+
+.pagination button:disabled {
+  opacity: .42;
+}
+
+.pagination span {
+  color: var(--text-muted);
   font-size: var(--type-meta);
 }
 
-.route :global(.catalog-pagination) {
-  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
-  max-width: none;
-  margin-inline: auto;
+.emptyResults {
+  min-height: 26rem;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-7);
+  text-align: center;
+}
+
+.emptyResults > span {
+  color: var(--brand-blue-bright);
+  font-size: 2rem;
+}
+
+.emptyResults h2,
+.emptyResults p {
+  margin: 0;
+}
+
+.emptyResults p {
+  max-width: 32rem;
+  color: var(--text-muted);
+}
+
+.filterBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: none;
+  align-items: end;
+  background: rgba(0, 5, 8, .78);
+  backdrop-filter: blur(10px);
+}
+
+.filterSheet {
+  width: 100%;
+  max-height: min(88dvh, 52rem);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
+  overflow-y: auto;
+  clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% 100%, 0 100%, 0 var(--chamfer-panel));
 }
 
 .route :global(.rules-contents),
@@ -145,60 +337,129 @@
   clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
 }
 
-.detail {
-  min-height: calc(100vh - 76px);
-}
+@media (max-width: 1180px) {
+  .workspace,
+  .workspaceSelected {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
 
-.detail :global(.card-detail-nav),
-.detail :global(.card-detail-layout) {
-  width: min(calc(100% - (2 * var(--space-5))), var(--content-standard));
-  max-width: none;
-}
+  .workspace:not(.workspaceSelected) {
+    grid-template-columns: 1fr;
+  }
 
-.detail :global(.card-detail-layout > img) {
-  width: 100%;
-  height: auto;
-  max-height: 72vh;
-  object-fit: contain;
-  image-rendering: auto;
-}
+  .filterRail {
+    display: none;
+  }
 
-.detail :global(.card-detail-layout > article) {
-  border-radius: 0;
-  clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
+  .mobileFilterButton {
+    display: inline-flex;
+  }
+
+  .resultsToolbar {
+    grid-template-columns: minmax(8rem, 1fr) auto auto auto auto;
+  }
 }
 
 @media (max-width: 900px) {
   .toolbar {
+    position: relative;
+    top: auto;
     grid-template-columns: 1fr;
   }
 
-  .filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .resultsToolbar {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+
+  .resultsToolbar > div:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .resultsToolbar > label {
+    min-width: 0;
+  }
+
+  .shareResults {
+    display: none;
+  }
+
+  .workspace,
+  .workspaceSelected {
+    grid-template-columns: 1fr;
+  }
+
+  .filterBackdrop {
+    display: flex;
   }
 }
 
 @media (max-width: 700px) {
   .toolbar,
-  .filters,
-  .cardGrid,
-  .route :global(.catalog-pagination),
-  .detail :global(.card-detail-nav),
-  .detail :global(.card-detail-layout) {
+  .resultsToolbar,
+  .workspace {
     width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
   }
 
-  .filters {
-    grid-template-columns: 1fr;
+  .toolbar {
+    margin-top: var(--space-4);
   }
 
   .sourceSummary {
     min-width: 0;
   }
+
+  .densityTabs {
+    grid-column: 1 / -1;
+  }
+
+  .cardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+
+  .cardGridCompact {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .cardArt {
+    padding: var(--space-2) var(--space-2) 0;
+  }
+
+  .cardCopy {
+    padding: var(--space-3);
+  }
+
+  .cardCopy > strong {
+    font-size: .9rem;
+  }
+
+  .cardGridCompact .cardCopy {
+    padding: var(--space-2);
+  }
+
+  .cardGridCompact .cardBadges {
+    display: none;
+  }
+
+  .pagination {
+    gap: var(--space-2);
+  }
+
+  .pagination button {
+    padding-inline: var(--space-3);
+  }
+}
+
+@media (max-width: 420px) {
+  .cardGridCompact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cardGrid :global(.reference-card.compact) {
+  .cardTile {
     transition: none;
   }
 }
