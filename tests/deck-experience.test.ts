@@ -62,7 +62,8 @@ test("all legality boundaries delegate to the centralized engine", async () => {
     read("components/routes/DeckRoutes.tsx"),
   ]);
   assert.match(data, /validateDeckConstruction/);
-  assert.match(play, /deckIsLegal/);
+  assert.match(play, /validateDeck\(chosenDeck\)/);
+  assert.match(play, /playSetupStartBlockers/);
   assert.match(server, /validateDeck\(deck as unknown as DeckRecord\)/);
   assert.match(server, /firstIssue\.code/);
   assert.match(decks, /const report = useMemo\(\(\) => validateDeck\(deck\)/);

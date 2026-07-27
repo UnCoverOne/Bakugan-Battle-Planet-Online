@@ -795,8 +795,11 @@ function ValidationPanel({ report, compact = false }: { report: DeckValidationRe
   );
 }
 
-export function DeckBuilderScreen({ id }: { id: string }) {
+export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: string; returnTo?: string }) {
   const router = useRouter();
+  const returnTo = requestedReturn?.startsWith("/") && !requestedReturn.startsWith("//")
+    ? requestedReturn
+    : null;
   const {
     decks,
     setDecks,
@@ -900,13 +903,13 @@ export function DeckBuilderScreen({ id }: { id: string }) {
     setBuilderDeck(null);
     setSaveState("saved");
     notify("Legal deck saved.");
-    router.push(`/decks/${encodeURIComponent(next.id)}`);
+    router.push(returnTo ?? `/decks/${encodeURIComponent(next.id)}`);
   };
 
   return (
     <section className={styles.builder}>
       <header className={styles.builderHeader}>
-        <Link href="/decks">← My Decks</Link>
+        <Link href={returnTo ?? "/decks"}>{returnTo ? "← Match setup" : "← My Decks"}</Link>
         <input aria-label="Deck name" value={deck.name} onChange={(event) => commit({ ...deck, name: event.target.value })} />
         <label>Format<select value={deck.format ?? "standard"} onChange={(event) => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}><option value="standard">Standard</option><option value="singleton">Singleton</option></select></label>
         <label>Visibility<select value={deck.visibility} onChange={(event) => commit({ ...deck, visibility: event.target.value as DeckRecord["visibility"] })}><option>Private</option><option>Public</option></select></label>
