@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
 import { CARD_BY_ID, PUBLIC_DECKS, deckLeadCard, type DeckRecord } from "../../lib/data";
+import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
 import type { GameCard } from "../../lib/game";
 import { useApp } from "../application/AppProvider";
@@ -33,7 +34,6 @@ function loadTextParts(paths: string[], label: string) {
 }
 
 function loadHighResolutionHero() {
-  // The previous loader used data:image/webp;base64; AVIF preserves the supplied 960 × 920 source more efficiently.
   highResolutionHeroPromise ??= loadTextParts(HERO_PARTS, "Home hero")
     .then((parts) => `data:image/avif;base64,${parts.join("")}`);
 
@@ -155,7 +155,7 @@ export function DashboardScreen() {
         <h1><span>Battle</span><strong>Planet</strong></h1>
         <p>Build your arsenal, prepare your Bakugan team, and choose your next Battle Planet Brawl.</p>
         <div className="hero-actions">
-          <Link className="hex-button red" href="/play"><span>PLAY</span><ChevronArrow/></Link>
+          <span className="play-button-glow"><Link className="hex-button red" href="/play"><span>PLAY</span><ChevronArrow/></Link></span>
           <Link className="hex-button ghost" href="/decks"><span>DECKS</span><ChevronArrow/></Link>
         </div>
       </div>
@@ -195,7 +195,7 @@ export function DashboardScreen() {
             </div>) : <img className="home-featured-deck-placeholder" src="/assets/cards/card-missing.svg" alt="Featured deck artwork unavailable"/>}
           </div>
           <div className="home-featured-deck-copy">
-            <div className="home-featured-deck-badges"><Badge tone="gold">BATTLE BRAWLERS</Badge><Badge>{featured.factions.join(" • ")}</Badge></div>
+            <div className="home-featured-deck-badges"><Badge tone="gold">{deckSetName(featured).toUpperCase()}</Badge><Badge>{featured.factions.join(" • ")}</Badge></div>
             <h3>{featured.name}</h3>
             <p className="home-featured-deck-creator">by {featured.creator ?? "Community Brawler"}</p>
             <p className="home-featured-deck-description">{featured.description ?? "A public Battle Planet deck ready to explore and copy."}</p>
