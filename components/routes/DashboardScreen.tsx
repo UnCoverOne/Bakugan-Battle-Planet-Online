@@ -10,22 +10,71 @@ import { useApp } from "../application/AppProvider";
 import { Badge, deckLooksComplete, factionClass } from "../application/ui";
 
 const HERO_PARTS = Array.from(
-  { length: 8 },
-  (_, index) => `/assets/home/hero-pyrus/part-${String(index + 1).padStart(2, "0")}.txt`,
+  { length: 6 },
+  (_, index) => `/assets/home/hero-pyrus-960/part-${String(index + 1).padStart(2, "0")}.txt`,
+);
+
+const DISPLAY_FONT_PARTS = Array.from(
+  { length: 4 },
+  (_, index) => `/assets/home/rbno31-ultra/part-${String(index + 1).padStart(2, "0")}.txt`,
 );
 
 let highResolutionHeroPromise: Promise<string> | undefined;
+let displayFontPromise: Promise<void> | undefined;
 
-function loadHighResolutionHero() {
-  highResolutionHeroPromise ??= Promise.all(
-    HERO_PARTS.map(async (path) => {
+function loadTextParts(paths: string[], label: string) {
+  return Promise.all(
+    paths.map(async (path) => {
       const response = await fetch(path, { cache: "force-cache" });
-      if (!response.ok) throw new Error(`Unable to load Home hero segment: ${path}`);
+      if (!response.ok) throw new Error(`Unable to load ${label} segment: ${path}`);
       return (await response.text()).trim();
     }),
-  ).then((parts) => `data:image/webp;base64,${parts.join("")}`);
+  );
+}
+
+function loadHighResolutionHero() {
+  // The previous loader used data:image/webp;base64; AVIF preserves the supplied 960 × 920 source more efficiently.
+  highResolutionHeroPromise ??= loadTextParts(HERO_PARTS, "Home hero")
+    .then((parts) => `data:image/avif;base64,${parts.join("")}`);
 
   return highResolutionHeroPromise;
+}
+
+function decodeBase64(value: string) {
+  const binary = window.atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes.buffer;
+}
+
+function loadDisplayFont() {
+  if (typeof window === "undefined" || typeof FontFace === "undefined") {
+    return Promise.resolve();
+  }
+
+  displayFontPromise ??= loadTextParts(DISPLAY_FONT_PARTS, "RBNo3.1 font")
+    .then((parts) => new FontFace(
+      "RBNo31Display",
+      decodeBase64(parts.join("")),
+      { style: "normal", weight: "900" },
+    ).load())
+    .then((font) => {
+      document.fonts.add(font);
+    })
+    .catch((error) => {
+      displayFontPromise = undefined;
+      throw error;
+    });
+
+  return displayFontPromise;
+}
+
+function useHomeDisplayFont() {
+  useEffect(() => {
+    void loadDisplayFont().catch(() => undefined);
+  }, []);
 }
 
 function useHighResolutionHero() {
@@ -70,6 +119,7 @@ function HeroSpeedLines() {
 
 export function DashboardScreen() {
   const { profile, decks, history, match } = useApp();
+  useHomeDisplayFont();
   const heroSource = useHighResolutionHero();
   const achievements = achievementsFor(decks, history);
   const incompleteAchievements = achievements
@@ -102,7 +152,7 @@ export function DashboardScreen() {
     <section className="bakugan-home-hero">
       <div className="bakugan-home-hero-copy">
         <p className="home-kicker">Welcome back, {profile.name}</p>
-        <h1><span>Brawler</span><strong>Command</strong></h1>
+        <h1><span>Battle</span><strong>Planet</strong></h1>
         <p>Build your arsenal, prepare your Bakugan team, and choose your next Battle Planet Brawl.</p>
         <div className="hero-actions">
           <Link className="hex-button red" href="/play"><span>PLAY</span><ChevronArrow/></Link>
@@ -112,7 +162,7 @@ export function DashboardScreen() {
       <div className="bakugan-home-hero-art">
         <HeroSpeedLines/>
         <div className="bakugan-home-energy" aria-hidden="true"/>
-        <img src={heroSource} width="560" height="537" decoding="async" alt="Pyrus Bakugan charging into battle"/>
+        <img src={heroSource} width="960" height="920" decoding="async" alt="Pyrus Bakugan charging into battle"/>
       </div>
     </section>
 

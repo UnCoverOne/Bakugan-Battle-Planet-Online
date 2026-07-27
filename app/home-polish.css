@@ -1,0 +1,72 @@
+/* Final Home hero treatment using the supplied RBNo3.1 family and 960 × 920 artwork. */
+.bakugan-home-hero-copy h1 {
+  font-family: "RBNo31Display", "Arial Narrow", Arial, sans-serif;
+  font-size: clamp(5.25rem, 6.2vw, 7.25rem);
+  font-style: normal;
+  font-weight: 900;
+  line-height: .78;
+  letter-spacing: -.03em;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .5));
+}
+
+.bakugan-home-hero-copy h1 span {
+  background: none;
+  color: #f1f3f4;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: #f1f3f4;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, .22),
+    0 0 14px rgba(255, 255, 255, .08);
+}
+
+.bakugan-home-hero-copy h1 strong {
+  background: none;
+  color: #ff2935;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: #ff2935;
+  font-weight: 900;
+  text-shadow:
+    0 0 12px rgba(255, 41, 53, .38),
+    0 0 30px rgba(255, 41, 53, .18);
+}
+
+.bakugan-home-hero-copy .hex-button.red {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .18),
+    0 0 14px rgba(255, 48, 57, .55),
+    0 0 32px rgba(255, 48, 57, .28);
+  filter:
+    drop-shadow(0 0 8px rgba(255, 48, 57, .48))
+    drop-shadow(0 0 18px rgba(255, 48, 57, .24));
+  transition: filter 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.bakugan-home-hero-copy .hex-button.red:hover,
+.bakugan-home-hero-copy .hex-button.red:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .25),
+    0 0 20px rgba(255, 54, 64, .72),
+    0 0 44px rgba(255, 54, 64, .38);
+  filter:
+    drop-shadow(0 0 11px rgba(255, 54, 64, .65))
+    drop-shadow(0 0 24px rgba(255, 54, 64, .35));
+}
+
+.bakugan-home-hero-art img {
+  image-rendering: auto;
+  backface-visibility: hidden;
+}
+
+@media (max-width: 1320px) {
+  .bakugan-home-hero-copy h1 {
+    font-size: clamp(4.7rem, 6.5vw, 6.25rem);
+  }
+}
+
+@media (max-width: 820px) {
+  .bakugan-home-hero-copy h1 {
+    font-size: clamp(3.9rem, 14vw, 5.2rem);
+  }
+}
