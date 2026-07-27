@@ -48,6 +48,7 @@ test("Home uses the upgraded Pyrus hero, card fan, and intended desktop proporti
   const dashboard = source("components/routes/DashboardScreen.tsx");
   const layout = source("app/layout.tsx");
   const css = source("app/home-layout.css");
+  const fidelity = source("app/home-fidelity.css");
   assert.match(dashboard, /bakugan-home-hero/);
   assert.match(dashboard, /home-feature-grid/);
   assert.match(dashboard, /home-achievement-summary/);
@@ -57,7 +58,10 @@ test("Home uses the upgraded Pyrus hero, card fan, and intended desktop proporti
   assert.match(dashboard, /featured\.bakuganIds\.map/);
   assert.match(dashboard, /CARD_BY_ID/);
   assert.match(dashboard, /hero-pyrus\.svg/);
-  assert.match(dashboard, /button-arrow/);
+  assert.match(dashboard, /ChevronArrow/);
+  assert.match(dashboard, /HeroSpeedLines/);
+  assert.match(dashboard, /useHighResolutionHero/);
+  assert.match(dashboard, /data:image\/webp;base64/);
   assert.match(dashboard, /home-profile-strip/);
   assert.match(dashboard, /AchievementGlyph/);
   assert.match(dashboard, /\.filter\(\(achievement\) => achievement\.unlocked\)\.reverse\(\)/);
@@ -65,12 +69,25 @@ test("Home uses the upgraded Pyrus hero, card fan, and intended desktop proporti
   assert.doesNotMatch(dashboard, /of \{achievements\.length\} unlocked/);
   assert.doesNotMatch(dashboard, /PageHeader/);
   assert.match(layout, /home-layout\.css/);
+  assert.match(layout, /home-fidelity\.css/);
   assert.match(css, /--home-max: 1470px/);
   assert.match(css, /height: calc\(100dvh - 76px\)/);
   assert.match(css, /grid-template-rows: minmax\(360px, 1\.08fr\) minmax\(330px, \.92fr\) 84px/);
   assert.match(css, /grid-template-columns: minmax\(390px, \.59fr\) minmax\(720px, 1fr\)/);
   assert.match(css, /\.home-featured-deck-card:nth-child\(4\)/);
   assert.match(css, /\.bakugan-home-hero-art img[\s\S]*height: 174%/);
+  assert.match(fidelity, /Titillium Web/);
+  assert.match(fidelity, /Lato/);
+  assert.match(fidelity, /rotate\(-17deg\)/);
+  assert.match(fidelity, /clip-path: polygon\(0 50%, 100% 0, 100% 100%\)/);
+  assert.match(fidelity, /font-size: clamp\(5rem/);
+  assert.match(fidelity, /\.button-arrow/);
+  for (let part = 1; part <= 8; part += 1) {
+    assert.equal(
+      existsSync(`public/assets/home/hero-pyrus/part-${String(part).padStart(2, "0")}.txt`),
+      true,
+    );
+  }
   assert.doesNotMatch(css, /height: calc\(100dvh - 88px\)/);
   assert.doesNotMatch(css, /main-stage:has\(\.bakugan-home\)[^{]*\{[^}]*overflow: hidden/);
 });
