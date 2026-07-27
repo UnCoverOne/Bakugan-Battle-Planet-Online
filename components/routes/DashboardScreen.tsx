@@ -15,10 +15,18 @@ const HERO_PARTS = Array.from(
   (_, index) => `/assets/home/hero-pyrus-960/part-${String(index + 1).padStart(2, "0")}.txt`,
 );
 
-const DISPLAY_FONT_PARTS = Array.from(
-  { length: 4 },
-  (_, index) => `/assets/home/rbno31-bold-italic/part-${String(index + 1).padStart(2, "0")}.txt`,
-);
+const DISPLAY_FONT_PARTS = [
+  "/assets/home/rbno31-bold-italic/part-01.txt",
+  "/assets/home/rbno31-bold-italic/part-02a.txt",
+  "/assets/home/rbno31-bold-italic/part-02b.txt",
+  "/assets/home/rbno31-bold-italic/part-02c.txt",
+  "/assets/home/rbno31-bold-italic/part-02d.txt",
+  "/assets/home/rbno31-bold-italic/part-02e.txt",
+  "/assets/home/rbno31-bold-italic/part-02f.txt",
+  "/assets/home/rbno31-bold-italic/part-02g.txt",
+  "/assets/home/rbno31-bold-italic/part-03.txt",
+  "/assets/home/rbno31-bold-italic/part-04.txt",
+];
 
 let highResolutionHeroPromise: Promise<string> | undefined;
 let displayFontPromise: Promise<void> | undefined;
