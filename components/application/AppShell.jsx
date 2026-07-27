@@ -34,6 +34,7 @@ export function AppShell({ children }) {
   const { ready, route, profile, decks, history, authUser, syncStatus, storageHealth, match, toast, signOutAccount } = useApp();
   const immersiveMatch = pathname === "/play/match";
   const publicEntry = pathname === "/";
+  const secondaryRoute = !immersiveMatch && !publicEntry && !pathname.startsWith("/dashboard");
   const mainRef = useRef(null);
   const menuRef = useRef(null);
   const [isOnline, setIsOnline] = useState(true);
@@ -87,7 +88,7 @@ export function AppShell({ children }) {
   const title = TITLES[pathname.split("/").filter(Boolean)[0] ?? "dashboard"] ?? TITLES[route] ?? "Bakugan Battle Planet Online";
   const profileActive = pathname.startsWith("/profile") || pathname.startsWith("/settings") || pathname.startsWith("/history");
 
-  return <div className={`app-shell ${immersiveMatch ? "immersive-match" : ""}`}>
+  return <div className={`app-shell ${immersiveMatch ? "immersive-match" : ""} ${secondaryRoute ? "secondary-route" : ""}`}>
     <a className="skip-link" href="#main-content">Skip to main content</a>
     {!immersiveMatch && <header className="topbar overhaul-topbar">
       <Link className="brand" href="/dashboard" aria-label="Bakugan Battle Planet Online home"><img src="/assets/logo.png" alt="Bakugan Battle Planet"/><span>TCG ONLINE</span></Link>

@@ -98,3 +98,30 @@ test("the overhaul leaves the immersive Match implementation outside its source 
   assert.doesNotMatch(css, /\.gameplay-match-host\s*\{/);
   assert.doesNotMatch(css, /\.game-screen/);
 });
+
+test("secondary routes use shared primitives and route-owned CSS Modules", () => {
+  const primitives = source("components/design-system/primitives.tsx");
+  const layout = source("app/layout.tsx");
+  for (const primitive of ["Surface", "RouteHero", "ActionButton", "StatusChip", "Tabs", "Field", "CardGrid"]) {
+    assert.match(primitives, new RegExp(`export function ${primitive}`));
+  }
+  for (const route of ["DeckRoutes", "PlayRoutes", "CompendiumScreen"]) {
+    assert.equal(existsSync(`components/routes/${route}.module.css`), true);
+    assert.match(source(`components/routes/${route}.tsx`), new RegExp(`import styles from ["']\\.\\/${route}\\.module\\.css["']`));
+  }
+  assert.doesNotMatch(layout, /design-system\.css/);
+  assert.match(source("app/globals.css"), /--content-wide:/);
+  assert.match(source("app/globals.css"), /--type-meta:\.75rem/);
+  assert.match(source("app/globals.css"), /--chamfer-panel:/);
+});
+
+test("large secondary-route card scans use full assets", () => {
+  const play = source("components/routes/PlayRoutes.tsx");
+  const compendium = source("components/routes/CompendiumScreen.tsx");
+  const decks = source("components/routes/DeckRoutes.tsx");
+  assert.doesNotMatch(play, /cardArtSource\([^)]*,\s*"thumbnail"\)/);
+  assert.match(compendium, /cardArtSource\(card,\s*"full"\)/);
+  assert.doesNotMatch(compendium, /cardArtSource\(card,\s*detail\s*\?\s*"full"\s*:\s*"thumbnail"\)/);
+  assert.match(decks, /deck-cover[\s\S]*cardArtSource\(lead,\s*"full"\)/);
+  assert.match(decks, /deck-detail-lead[\s\S]*cardArtSource\(lead,\s*"full"\)/);
+});

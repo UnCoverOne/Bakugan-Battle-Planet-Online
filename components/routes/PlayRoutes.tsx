@@ -7,16 +7,18 @@ import { deckLeadCard } from "../../lib/data";
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
 import { AppButton, Badge, Metric, PageHeader, deckLooksComplete } from "../application/ui";
+import { ActionButton, CardGrid, Field, RouteHero, StatusChip, Surface } from "../design-system/primitives";
+import styles from "./PlayRoutes.module.css";
 
 export function PlayScreen() {
   const { format, setFormat, matchMode, setMatchMode, selectedDeck, decks, selectedDeckId, setSelectedDeckId, joinCode, setJoinCode, startSolo, createOnline, joinOnline, matchError } = useApp();
   const legalDecks = decks.filter(deckLooksComplete);
   const chosenLead = selectedDeck ? deckLeadCard(selectedDeck) : undefined;
   const begin = () => void (matchMode === "solo" ? startSolo() : matchMode === "online" ? createOnline() : joinOnline());
-  return <>
-    <section className="compact-page-heading"><div><span className="eyebrow">MATCH SETUP</span><h1>Choose the battle</h1><p>Select a mode, a legal deck, and the match structure.</p></div></section>
-    <section className="play-setup-v2">
-      <div className="panel play-setup-main">
+  return <div className={styles.route}>
+    <RouteHero eyebrow="MATCH SETUP" title="Choose the battle" description="Select a mode, a legal deck, and the match structure." />
+    <section className={`play-setup-v2 ${styles.setup}`}>
+      <Surface className={`panel play-setup-main ${styles.main}`}>
         <section className="setup-section"><div className="section-number">1</div><div><h2>Match mode</h2><p>Choose how you want to enter the Brawl.</p></div></section>
         <div className="mode-card-grid">
           <button className={matchMode === "solo" ? "active" : ""} onClick={() => setMatchMode("solo")}><strong>Training</strong><span>Play a full match against the AI.</span></button>
@@ -25,32 +27,32 @@ export function PlayScreen() {
         </div>
 
         <section className="setup-section"><div className="section-number">2</div><div><h2>Select your deck</h2><p>Decks are represented by the Lead card selected in the Deck Builder.</p></div></section>
-        {decks.length ? <div className="play-deck-grid">{decks.map((deck: any) => {
+        {decks.length ? <CardGrid className={`play-deck-grid ${styles.deckGrid}`} minCardWidth="18rem">{decks.map((deck: any) => {
           const lead = deckLeadCard(deck);
           const legal = deckLooksComplete(deck);
           const active = (selectedDeckId || selectedDeck?.id) === deck.id;
           return <button key={deck.id} disabled={!legal} className={`${active ? "active" : ""} ${!legal ? "disabled" : ""}`} onClick={() => setSelectedDeckId(deck.id)}>
-            <div className="play-deck-art">{lead ? <img src={cardArtSource(lead, "thumbnail")} alt={`${lead.displayName}, lead card for ${deck.name}`}/> : <img src="/assets/cards/card-missing.svg" alt="No Lead card selected"/>}</div>
-            <div><strong>{deck.name}</strong><span>{deck.factions.join(" • ")}</span><Badge tone="blue">{deckSetName(deck).toUpperCase()}</Badge><Badge tone={legal ? "gold" : "red"}>{legal ? "LEGAL" : "DRAFT"}</Badge></div>
+            <div className="play-deck-art">{lead ? <img src={cardArtSource(lead, "full")} loading="lazy" decoding="async" alt={`${lead.displayName}, lead card for ${deck.name}`}/> : <img src="/assets/cards/card-missing.svg" alt="No Lead card selected"/>}</div>
+            <div><strong>{deck.name}</strong><span>{deck.factions.join(" • ")}</span><StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip><StatusChip tone={legal ? "success" : "danger"}>{legal ? "LEGAL" : "DRAFT"}</StatusChip></div>
           </button>;
-        })}</div> : <div className="storage-callout"><strong>NO DECKS AVAILABLE</strong><span>Create or restore a deck before starting a match.</span><Link href="/decks">OPEN MY DECKS →</Link></div>}
+        })}</CardGrid> : <div className="storage-callout"><strong>NO DECKS AVAILABLE</strong><span>Create or restore a deck before starting a match.</span><Link href="/decks">OPEN MY DECKS →</Link></div>}
 
         <section className="setup-section"><div className="section-number">3</div><div><h2>Match format</h2><p>Choose the number of games in the match.</p></div></section>
         <div className="format-toggle modern"><button className={format === "bo1" ? "active" : ""} onClick={() => setFormat("bo1")}><b>BO1</b><strong>Best of one</strong><span>First game wins the match.</span></button><button className={format === "bo3" ? "active" : ""} onClick={() => setFormat("bo3")}><b>BO3</b><strong>Best of three</strong><span>First to two game wins.</span></button></div>
-        {matchMode === "join" && <label className="join-code modern">Room code<input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} maxLength={6} placeholder="BP7K3M" /></label>}
+        {matchMode === "join" && <Field className={`join-code modern ${styles.roomCode}`} label="Room code"><input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} maxLength={6} placeholder="BP7K3M" /></Field>}
         {matchError && <p className="error-message" role="alert">{matchError}</p>}
-      </div>
-      <aside className="panel play-confirmation">
+      </Surface>
+      <Surface as="aside" className={`panel play-confirmation ${styles.confirmation}`} elevation="overlay">
         <span className="eyebrow">READY CHECK</span>
-        <div className="confirmation-lead">{chosenLead ? <img src={cardArtSource(chosenLead, "thumbnail")} alt=""/> : <img src="/assets/cards/card-missing.svg" alt=""/>}</div>
+        <div className="confirmation-lead">{chosenLead ? <img src={cardArtSource(chosenLead, "full")} decoding="async" alt=""/> : <img src="/assets/cards/card-missing.svg" alt=""/>}</div>
         <h2>{selectedDeck?.name ?? "Select a deck"}</h2>
-        {selectedDeck && <Badge tone="blue">{deckSetName(selectedDeck).toUpperCase()}</Badge>}
+        {selectedDeck && <StatusChip tone="info">{deckSetName(selectedDeck).toUpperCase()}</StatusChip>}
         <dl><div><dt>Mode</dt><dd>{matchMode === "solo" ? "Training" : matchMode === "online" ? "Create online room" : "Join online room"}</dd></div><div><dt>Format</dt><dd>{format === "bo1" ? "Best of one" : "Best of three"}</dd></div><div><dt>Legal decks</dt><dd>{legalDecks.length}</dd></div></dl>
         <details><summary>Match rules</summary><ul><li>Original Battle Planet ruleset</li><li>Alternating twelve-Core placement</li><li>Server-authoritative random outcomes</li><li>30-second reconnect grace online</li></ul></details>
-        <AppButton tone="red" disabled={!selectedDeck || !deckLooksComplete(selectedDeck) || (matchMode === "join" && joinCode.length < 5)} onClick={begin}>{matchMode === "solo" ? "START TRAINING MATCH" : matchMode === "online" ? "CREATE ONLINE ROOM" : "JOIN ONLINE ROOM"}</AppButton>
-      </aside>
+        <ActionButton disabled={!selectedDeck || !deckLooksComplete(selectedDeck) || (matchMode === "join" && joinCode.length < 5)} onClick={begin}>{matchMode === "solo" ? "START TRAINING MATCH" : matchMode === "online" ? "CREATE ONLINE ROOM" : "JOIN ONLINE ROOM"}</ActionButton>
+      </Surface>
     </section>
-  </>;
+  </div>;
 }
 
 export function LobbyScreen() {

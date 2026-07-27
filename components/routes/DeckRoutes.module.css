@@ -1,0 +1,213 @@
+.route {
+  min-height: calc(100vh - 76px);
+  padding-bottom: var(--space-9);
+}
+
+.heroUtilities {
+  min-width: min(32rem, 100%);
+  display: grid;
+  justify-items: end;
+  gap: var(--space-4);
+}
+
+.route :global(.overhaul-toolbar) {
+  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
+  max-width: none;
+  margin: var(--space-5) auto;
+  padding: var(--space-4);
+  gap: var(--space-3);
+  border-color: var(--border-subtle);
+  border-radius: 0;
+  background: rgba(3, 16, 22, .9);
+  clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
+  box-shadow: var(--elevation-1);
+}
+
+.route :global(.overhaul-toolbar label:not(.search-box)),
+.route :global(.overhaul-toolbar small),
+.route :global(.deck-card-copy small),
+.route :global(.deck-card-list span),
+.route :global(.lead-summary span),
+.route :global(.public-deck-card small),
+.route :global(.builder-page small),
+.route :global(.builder-page span) {
+  font-size: var(--type-meta);
+}
+
+.route :global(.import-drawer) {
+  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
+  max-width: none;
+  margin: 0 auto var(--space-5);
+  border-radius: 0;
+  clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
+}
+
+.deckGrid {
+  margin-top: var(--space-5);
+}
+
+.deckCard {
+  --surface-chamfer: var(--chamfer-panel);
+  min-height: 13.5rem;
+  overflow: visible;
+  border-radius: 0;
+  clip-path: none;
+}
+
+.deckCard :global(.deck-card-main) {
+  min-height: 13.5rem;
+  display: grid;
+  grid-template-columns: minmax(8.25rem, 35%) minmax(0, 1fr);
+  border-radius: 0;
+  clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
+}
+
+.deckCard :global(.deck-cover) {
+  height: 100%;
+  min-height: 13.5rem;
+  padding: var(--space-3);
+}
+
+.deckCard :global(.deck-cover img) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+.deckCard :global(.deck-card-copy) {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.deckCard :global(.deck-card-copy h2) {
+  min-height: 2.25em;
+  margin: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  line-height: 1.12;
+}
+
+.deckCard :global(.deck-card-copy p) {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--type-label);
+  line-height: 1.4;
+}
+
+.deckCard :global(.deck-card-copy > div) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
+.deckCard :global(.deck-card-copy > small) {
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.deckCard:global(.selected) {
+  border-color: var(--brand-blue-bright);
+  box-shadow: inset 4px 0 0 var(--brand-blue-bright), 0 0 0 1px rgba(53, 201, 255, .45), 0 0 28px rgba(0, 174, 239, .24);
+}
+
+.deckCard :global(.deck-card-menu) {
+  z-index: 10;
+}
+
+.deckCard :global(.deck-card-menu summary),
+.deckCard :global(.deck-card-menu > div) {
+  border-radius: 0;
+}
+
+.route :global(.public-deck-grid) {
+  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
+  max-width: none;
+  margin-inline: auto;
+  gap: var(--space-5);
+}
+
+.route :global(.public-deck-card),
+.route :global(.deck-detail-v2 .panel),
+.route :global(.deck-team-strip > div),
+.route :global(.overhaul-builder .deck-validation-summary.compact) {
+  border-radius: 0;
+  clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
+}
+
+.route :global(.public-deck-lead),
+.route :global(.deck-detail-lead) {
+  border-radius: 0;
+}
+
+.route :global(.public-deck-lead img),
+.route :global(.deck-detail-lead img) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+.route :global(.deck-detail-hero),
+.route :global(.deck-detail-v2) {
+  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
+  max-width: none;
+}
+
+.builder {
+  min-height: calc(100vh - 76px);
+}
+
+.builder :global(.builder-header) {
+  top: 76px;
+  border-radius: 0;
+}
+
+.builder :global(.panel),
+.builder :global(.deck-validation-summary) {
+  border-radius: 0;
+  clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
+}
+
+@media (max-width: 780px) {
+  .heroUtilities {
+    min-width: 0;
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .deckCard :global(.deck-card-main) {
+    grid-template-columns: 7.25rem minmax(0, 1fr);
+  }
+
+  .deckCard :global(.deck-card-copy) {
+    padding: var(--space-4);
+  }
+
+  .route :global(.overhaul-toolbar),
+  .route :global(.import-drawer),
+  .route :global(.public-deck-grid),
+  .route :global(.deck-detail-hero),
+  .route :global(.deck-detail-v2) {
+    width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
+  }
+}
+
+@media (max-width: 520px) {
+  .deckCard :global(.deck-card-main) {
+    grid-template-columns: 1fr;
+  }
+
+  .deckCard :global(.deck-cover) {
+    min-height: 12rem;
+  }
+}

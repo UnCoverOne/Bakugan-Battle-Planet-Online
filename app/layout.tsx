@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import "./design-system.css";
 import "./card-art-transparency.css";
 import "./route-shell.css";
 import "./website-overhaul.css";

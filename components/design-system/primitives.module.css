@@ -1,0 +1,278 @@
+.surface {
+  --surface-chamfer: var(--chamfer-panel);
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: var(--surface-panel);
+  clip-path: polygon(
+    var(--surface-chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--surface-chamfer)),
+    calc(100% - var(--surface-chamfer)) 100%,
+    0 100%,
+    0 var(--surface-chamfer)
+  );
+}
+
+.flat {
+  box-shadow: var(--elevation-1);
+}
+
+.raised {
+  background: var(--surface-panel-raised);
+  box-shadow: var(--elevation-2);
+}
+
+.overlay {
+  background: var(--surface-overlay);
+  box-shadow: var(--elevation-3);
+}
+
+.routeHero {
+  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
+  min-height: 12rem;
+  margin-inline: auto;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-7);
+  padding: var(--space-8) 0 var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.routeHeroCopy {
+  min-width: 0;
+  max-width: 52rem;
+}
+
+.routeHero h1 {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: var(--type-route-title);
+  line-height: .9;
+}
+
+.routeHero p {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--type-body-large);
+  line-height: 1.55;
+}
+
+.eyebrow {
+  color: var(--brand-blue-bright);
+  font-family: var(--font-display);
+  font-size: var(--type-meta);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.routeHeroAside {
+  flex: 0 1 auto;
+}
+
+.actionButton {
+  --button-fill: var(--brand-blue-deep);
+  position: relative;
+  min-height: 2.875rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: .65rem 1.45rem .65rem 1.15rem;
+  border: 1px solid rgba(255, 255, 255, .45);
+  border-radius: 0;
+  background: var(--button-fill);
+  color: var(--text-primary);
+  clip-path: polygon(0 0, calc(100% - .9rem) 0, 100% 50%, calc(100% - .9rem) 100%, 0 100%);
+  font-family: var(--font-display);
+  font-size: var(--type-label);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  transition: filter 160ms ease, transform 160ms ease;
+}
+
+.actionButton:hover:not(:disabled) {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
+.primary {
+  --button-fill: linear-gradient(135deg, #c8171c, var(--brand-red));
+}
+
+.secondary {
+  --button-fill: var(--brand-blue-deep);
+}
+
+.danger {
+  --button-fill: #7f171c;
+}
+
+.quiet {
+  --button-fill: rgba(1, 12, 17, .82);
+}
+
+.statusChip {
+  min-height: 1.625rem;
+  display: inline-flex;
+  align-items: center;
+  padding: .25rem .65rem;
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: #17313b;
+  color: var(--text-primary);
+  clip-path: polygon(.4rem 0, 100% 0, calc(100% - .4rem) 100%, 0 100%);
+  font-family: var(--font-display);
+  font-size: var(--type-meta);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: .055em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.info {
+  background: #07536c;
+}
+
+.success {
+  background: #185a35;
+}
+
+.warning {
+  background: #745000;
+}
+
+.danger {
+  background: #8c1a1e;
+}
+
+.tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  border: 1px solid var(--border-subtle);
+  background: var(--border-subtle);
+  clip-path: polygon(.55rem 0, 100% 0, calc(100% - .55rem) 100%, 0 100%);
+}
+
+.tabs > :global(a),
+.tabs > :global(button) {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-4);
+  border: 0;
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--type-label);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: .045em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.tabs > :global(.active),
+.tabs > :global([aria-current="page"]) {
+  background: var(--brand-blue-deep);
+  color: var(--text-primary);
+  box-shadow: inset 0 -3px 0 var(--brand-blue-bright);
+}
+
+.field {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--type-meta);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.field :is(input, select, textarea) {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  padding: .65rem .8rem;
+  font-family: var(--font-body);
+  font-size: var(--type-body);
+  font-style: normal;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.field small {
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: var(--type-meta);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+.cardGrid {
+  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-grid-min)), 1fr));
+  gap: var(--space-5);
+}
+
+@media (max-width: 700px) {
+  .routeHero {
+    width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
+    min-height: auto;
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding-block: var(--space-6) var(--space-5);
+  }
+
+  .routeHeroAside {
+    width: 100%;
+  }
+
+  .tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .tabs > :global(a),
+  .tabs > :global(button) {
+    flex: 1 0 auto;
+  }
+
+  .cardGrid {
+    width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
+    gap: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .actionButton {
+    transition: none;
+  }
+}
