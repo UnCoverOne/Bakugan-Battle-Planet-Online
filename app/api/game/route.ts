@@ -1,5 +1,6 @@
 import { normalizeMatchState, type MatchState } from "../../../lib/game";
 import { makeCanonicalPlayer, type CanonicalPlayerSelection } from "../../../lib/data";
+import { applyDatabaseCardOverrides } from "../../../lib/administration-server";
 import {
   apiActionToCommand,
   canonicalJson,
@@ -295,6 +296,9 @@ export async function POST(request: Request) {
     const body = parseBody(await request.json());
     const clientKey = requestClientKey(request);
     await enforceRateLimit(`${clientKey}:${body.action === "chat" ? "chat" : "game"}`, body.action === "chat" ? 30 : 180, 60_000);
+    if (body.action === "create" || body.action === "join") {
+      await applyDatabaseCardOverrides(await getDatabase());
+    }
 
     if (body.action === "create") {
       if (!body.selection || !body.format) return json({ error: "Missing canonical match setup." }, 400);

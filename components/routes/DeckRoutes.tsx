@@ -139,6 +139,23 @@ const publicDecksFor = (decks: DeckRecord[], playerName = "You") => [
   ...PUBLIC_DECKS,
 ].filter((deck, index, all) => all.findIndex((candidate) => candidate.id === deck.id) === index);
 
+function usePublicDeckCatalogue(decks: DeckRecord[], playerName: string) {
+  const fallback = useMemo(() => publicDecksFor(decks, playerName), [decks, playerName]);
+  const [remote, setRemote] = useState<DeckRecord[] | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/public-decks", { cache: "no-store" })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok || !Array.isArray(result.decks)) throw new Error(result.error ?? "Public decks are unavailable.");
+        if (active) setRemote(result.decks);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [fallback.length]);
+  return remote ?? fallback;
+}
+
 function useOnlineStatus() {
   const [online, setOnline] = useState(true);
   useEffect(() => {
@@ -569,9 +586,9 @@ export function PublicDeckLibraryScreen() {
   const [legality, setLegality] = useState("All");
   const [sort, setSort] = useState("Updated");
   const [view, setView] = useState<LibraryView>("grid");
+  const allPublic = usePublicDeckCatalogue(decks, profile.name);
   if (!ready) return <DeckLibrarySkeleton />;
 
-  const allPublic = publicDecksFor(decks, profile.name);
   const reports = new Map<string, DeckValidationResult>(
     allPublic.map((deck): [string, DeckValidationResult] => [deck.id, validateDeck(deck)]),
   );
@@ -692,8 +709,9 @@ function PublicDeckTile({
 
 export function PublicDeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
-  const { decks, profile, setDecks, notify } = useApp();
-  const deck = publicDecksFor(decks, profile.name).find((item) => item.id === id);
+  const { decks, profile, setDecks, setBuilderDeck, notify, authUser } = useApp();
+  const publicDecks = usePublicDeckCatalogue(decks, profile.name);
+  const deck = publicDecks.find((item) => item.id === id);
   if (!deck) return <MissingDeck id={id} publicDeck />;
   const copy = () => {
     if (decks.length >= DECK_LIMIT) return notify(`Deck limit reached (${DECK_LIMIT}).`);
@@ -715,6 +733,27 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
     notify(`${next.name} copied to My Decks.`);
     router.push(`/decks/${encodeURIComponent(next.id)}`);
   };
+  const editAsAdministrator = () => {
+    setBuilderDeck(clone(deck));
+    router.push(`/builder/${encodeURIComponent(`admin-public:${deck.id}`)}?returnTo=${encodeURIComponent(`/decks/public/${deck.id}`)}`);
+  };
+  const deleteAsAdministrator = async () => {
+    if (!globalThis.confirm(`Delete public deck “${deck.name}”? This cannot be undone.`)) return;
+    try {
+      const response = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "public-delete", id: deck.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Public deck could not be deleted.");
+      notify(`${deck.name} deleted.`);
+      router.push("/decks/public");
+      router.refresh();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Public deck could not be deleted.");
+    }
+  };
   return (
     <DeckDetailPresentation
       deck={deck}
@@ -722,6 +761,12 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
       actions={(
         <>
           <ActionButton onClick={copy} disabled={!validateDeck(deck).isLegal}>Copy to My Decks</ActionButton>
+          {authUser?.roles?.includes("administrator") && (
+            <>
+              <ActionButton tone="secondary" onClick={editAsAdministrator}>Edit as Administrator</ActionButton>
+              <ActionButton tone="quiet" onClick={() => void deleteAsAdministrator()}>Delete Deck</ActionButton>
+            </>
+          )}
           <Link className={styles.textAction} href="/decks/public">Back to Public Decks</Link>
         </>
       )}
@@ -874,8 +919,13 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     notify,
     promptAccount,
   } = useApp();
-  const source = id === "new" ? builderDeck : decks.find((item: DeckRecord) => item.id === id);
+  const adminPublicId = id.startsWith("admin-public:") ? id.slice("admin-public:".length) : null;
+  const adminAiId = id.startsWith("admin-ai:") ? id.slice("admin-ai:".length) : null;
+  const adminResourceId = adminPublicId ?? adminAiId;
+  const administratorEdit = Boolean(adminResourceId);
+  const source = administratorEdit ? builderDeck : id === "new" ? builderDeck : decks.find((item: DeckRecord) => item.id === id);
   const [deck, setDeck] = useState<DeckRecord>(() => clone(source ?? blankDraft(decks)));
+  const [remoteLoading, setRemoteLoading] = useState(administratorEdit && !source);
   const [builderView, setBuilderView] = useState<BuilderView>("gallery");
   const [galleryQuery, setGalleryQuery] = useState("");
   const [deckQuery, setDeckQuery] = useState("");
@@ -898,6 +948,38 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   const [saveName, setSaveName] = useState(deck.name);
   const [saveDescription, setSaveDescription] = useState(deck.description ?? "");
   const [saveVisibility, setSaveVisibility] = useState<DeckRecord["visibility"]>(deck.visibility);
+
+  useEffect(() => {
+    if (!administratorEdit || source || !adminResourceId) {
+      setRemoteLoading(false);
+      return;
+    }
+    let active = true;
+    const section = adminPublicId ? "public-decks" : "ai-decks";
+    fetch(`/api/admin?section=${section}&id=${encodeURIComponent(adminResourceId)}`, { cache: "no-store" })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Administrator deck could not be loaded.");
+        const loaded = result.decks?.[0]?.deck;
+        if (!loaded) throw new Error("Administrator deck not found.");
+        if (active) {
+          const next = clone(loaded);
+          setDeck(next);
+          setSaveName(next.name);
+          setSaveDescription(next.description ?? "");
+          setSaveVisibility(adminPublicId ? "Public" : "Private");
+          setBuilderDeck(next);
+          setRemoteLoading(false);
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          notify(error instanceof Error ? error.message : "Administrator deck could not be loaded.");
+          setRemoteLoading(false);
+        }
+      });
+    return () => { active = false; };
+  }, [adminPublicId, adminResourceId, administratorEdit, notify, setBuilderDeck, source]);
 
   useEffect(() => {
     setBuilderDeck(deck);
@@ -1087,35 +1169,59 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   const openSaveDialog = () => {
     setSaveName(deck.name);
     setSaveDescription(deck.description ?? "");
-    setSaveVisibility(report.isLegal ? deck.visibility : deck.visibility === "Public" ? "Draft" : deck.visibility);
+    setSaveVisibility(adminPublicId ? "Public" : adminAiId ? "Private" : report.isLegal ? deck.visibility : deck.visibility === "Public" ? "Draft" : deck.visibility);
     setActiveMenu({ surface: "deck", panel: "save" });
   };
 
-  const save = () => {
+  const save = async () => {
     const latest = validateDeck(deck);
     const name = saveName.trim();
     if (!name) {
       notify("Enter a deck name before saving.");
       return;
     }
-    if (saveVisibility === "Public" && !latest.isLegal) {
-      notify(`Public decks must be valid: ${latest.issues[0].message}`);
+    if ((saveVisibility === "Public" || adminAiId) && !latest.isLegal) {
+      notify(`${adminAiId ? "AI" : "Public"} decks must be valid: ${latest.issues[0].message}`);
       return;
     }
-    if (decks.length >= DECK_LIMIT && id === "new") {
+    if (decks.length >= DECK_LIMIT && id === "new" && !administratorEdit) {
       notify(`Deck limit reached (${DECK_LIMIT}).`);
       return;
     }
     const next = {
       ...deck,
-      id: id === "new" ? deck.id : id,
+      id: administratorEdit ? adminResourceId! : id === "new" ? deck.id : id,
       name,
       description: saveDescription.trim() || undefined,
-      visibility: saveVisibility,
+      visibility: adminPublicId ? "Public" as const : adminAiId ? "Private" as const : saveVisibility,
       leadCardId: deck.leadCardId ?? deck.cardIds[0],
       updatedAt: new Date().toISOString(),
       revision: (deck.revision ?? 0) + 1,
     };
+    if (administratorEdit) {
+      try {
+        const response = await fetch("/api/admin", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            action: adminPublicId ? "public-update" : "ai-update",
+            id: adminResourceId,
+            deck: next,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Administrator deck could not be saved.");
+        setBuilderDeck(null);
+        setSaveState("saved");
+        setActiveMenu(null);
+        notify(`${adminPublicId ? "Public" : "AI"} deck updated.`);
+        router.push(returnTo ?? "/admin?tab=ai");
+      } catch (error) {
+        setSaveState("error");
+        notify(error instanceof Error ? error.message : "Administrator deck could not be saved.");
+      }
+      return;
+    }
     setDecks((items: DeckRecord[]) => [next, ...items.filter((item) => item.id !== next.id)]);
     setSelectedDeckId(next.id);
     setBuilderDeck(null);
@@ -1126,11 +1232,15 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     router.push(returnTo ?? `/decks/${encodeURIComponent(next.id)}`);
   };
 
+  if (remoteLoading) {
+    return <div className={styles.route}><DeckState tone="loading" role="status" title="Loading administrator deck" copy="Retrieving the server-owned deck record…" /></div>;
+  }
+
   return (
     <section className={styles.builder}>
       <header className={styles.builderHeader}>
-        <Link href={returnTo ?? "/decks"}>{returnTo ? "← Match setup" : "← My Decks"}</Link>
-        <div className={styles.builderDeckIdentity}><span>Edit Deck</span><strong>{deck.name}</strong></div>
+        <Link href={returnTo ?? "/decks"}>{administratorEdit ? "← Administrator" : returnTo ? "← Match setup" : "← My Decks"}</Link>
+        <div className={styles.builderDeckIdentity}><span>{administratorEdit ? "Administrator Edit" : "Edit Deck"}</span><strong>{deck.name}</strong></div>
         <label>Format<select value={deck.format ?? "standard"} onChange={(event) => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}><option value="standard">Standard</option><option value="singleton">Singleton</option></select></label>
         <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
         <StatusChip tone={report.isLegal ? "success" : "danger"}>{report.isLegal ? "Legal" : `${report.issues.length} issues`}</StatusChip>
@@ -1453,8 +1563,8 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
             <>
               <ActionButton tone="quiet" onClick={() => setActiveMenu(null)}>Cancel</ActionButton>
               <ActionButton
-                disabled={!saveName.trim() || (saveVisibility === "Public" && !report.isLegal)}
-                onClick={save}
+                disabled={!saveName.trim() || ((saveVisibility === "Public" || Boolean(adminAiId)) && !report.isLegal)}
+                onClick={() => void save()}
               >
                 Save Deck
               </ActionButton>
@@ -1487,7 +1597,15 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
           </div>
           <fieldset className={styles.builderVisibilityOptions}>
             <legend>Visibility</legend>
-            {([
+            {administratorEdit ? (
+              <label>
+                <input type="radio" name="deck-visibility" checked readOnly />
+                <span>
+                  <strong>{adminPublicId ? "Public" : "AI Deck"}</strong>
+                  <small>{adminPublicId ? "Visible in the Public Deck library." : "Available only to the Training AI deck pool."}</small>
+                </span>
+              </label>
+            ) : ([
               ["Draft", "Only visible to you."],
               ["Private", "Only visible through its link."],
               ["Public", "Visible in the Public Deck library."],
@@ -1508,7 +1626,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
               );
             })}
           </fieldset>
-          {!report.isLegal && (
+          {!report.isLegal && !administratorEdit && (
             <p className={styles.builderPublicRequirement} role="status">
               Public visibility requires a valid {deck.format ?? "standard"} deck. Draft and Private decks can be saved with issues.
             </p>

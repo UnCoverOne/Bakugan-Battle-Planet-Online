@@ -1,5 +1,8 @@
 const SESSION_COOKIE = "bbp_session";
 const SESSION_DAYS = 30;
+export const BOOTSTRAP_ADMIN_EMAIL = "uncover250@gmail.com";
+export const ACCOUNT_ROLES = ["administrator", "moderator"] as const;
+export type AccountRole = typeof ACCOUNT_ROLES[number];
 /** Cloudflare Workers currently rejects PBKDF2 requests above this count. */
 export const PASSWORD_ITERATIONS = 100_000;
 const MAX_PBKDF2_ITERATIONS = 100_000;
@@ -11,6 +14,7 @@ export type AccountUser = {
   displayName: string;
   faction: string;
   createdAt: number;
+  roles: AccountRole[];
 };
 
 type UserRow = {
@@ -28,6 +32,51 @@ export async function getDatabase() {
   const { env } = await import("cloudflare:workers");
   if (!env.DB) throw new Error("The account database is unavailable.");
   return env.DB;
+}
+
+export type AccountDatabase = D1Database;
+
+let administrationSchemaReady = false;
+
+export async function ensureAdministrationSchema(db: AccountDatabase) {
+  if (administrationSchemaReady) return;
+  await db.batch([
+    db.prepare("CREATE TABLE IF NOT EXISTS account_roles (user_id TEXT NOT NULL, role TEXT NOT NULL, assigned_by TEXT, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, role), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS account_roles_role_idx ON account_roles(role)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS account_bans (user_id TEXT PRIMARY KEY NOT NULL, reason TEXT NOT NULL DEFAULT '', banned_by TEXT, banned_at INTEGER NOT NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS admin_resources (resource_type TEXT NOT NULL, resource_id TEXT NOT NULL, data_json TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, updated_by TEXT, updated_at INTEGER NOT NULL, PRIMARY KEY (resource_type, resource_id))"),
+    db.prepare("CREATE INDEX IF NOT EXISTS admin_resources_type_enabled_idx ON admin_resources(resource_type, enabled)"),
+  ]);
+  administrationSchemaReady = true;
+}
+
+export async function getAccountRoles(
+  db: AccountDatabase,
+  user: Pick<AccountUser, "id" | "email">,
+): Promise<AccountRole[]> {
+  await ensureAdministrationSchema(db);
+  const response = await db.prepare("SELECT role FROM account_roles WHERE user_id = ? ORDER BY role")
+    .bind(user.id).all() as { results?: Array<{ role: string }> };
+  const roles = (response.results ?? [])
+    .map((row: { role: string }) => row.role)
+    .filter((role: string): role is AccountRole => ACCOUNT_ROLES.includes(role as AccountRole));
+  if (normalizeEmail(user.email) === BOOTSTRAP_ADMIN_EMAIL && !roles.includes("administrator")) {
+    roles.unshift("administrator");
+  }
+  return [...new Set(roles)];
+}
+
+export async function getAccountBan(db: AccountDatabase, userId: string) {
+  await ensureAdministrationSchema(db);
+  return await db.prepare("SELECT reason, banned_at FROM account_bans WHERE user_id = ?")
+    .bind(userId).first() as { reason: string; banned_at: number } | null;
+}
+
+export async function requireAdministrator(request: Request) {
+  const user = await getSessionUser(request);
+  if (!user) throw new Error("Sign in is required.");
+  if (!user.roles.includes("administrator")) throw new Error("Administrator access is required.");
+  return user;
 }
 
 function toBase64Url(bytes: Uint8Array) {
@@ -134,11 +183,14 @@ export async function getSessionUser(request: Request): Promise<AccountUser | nu
   const token = parseCookie(request.headers.get("cookie"), SESSION_COOKIE);
   if (!token) return null;
   const db = await getDatabase();
+  await ensureAdministrationSchema(db);
   const now = Date.now();
   const row = await db.prepare("SELECT users.id, users.email, users.display_name, users.faction, users.created_at FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token_hash = ? AND sessions.expires_at > ?")
     .bind(await sha256(token), now).first<{ id: string; email: string; display_name: string; faction: string; created_at: number }>();
   if (!row) return null;
-  return { id: row.id, email: row.email, displayName: row.display_name, faction: row.faction, createdAt: row.created_at };
+  if (await getAccountBan(db, row.id)) return null;
+  const user = { id: row.id, email: row.email, displayName: row.display_name, faction: row.faction, createdAt: row.created_at };
+  return { ...user, roles: await getAccountRoles(db, user) };
 }
 
 export async function getUserByEmail(email: string) {
@@ -147,7 +199,9 @@ export async function getUserByEmail(email: string) {
     .bind(normalizeEmail(email)).first<UserRow>();
 }
 
-export function publicUser(row: Pick<UserRow, "id" | "email" | "display_name" | "faction" | "created_at">): AccountUser {
-  return { id: row.id, email: row.email, displayName: row.display_name, faction: row.faction, createdAt: row.created_at };
+export function publicUser(
+  row: Pick<UserRow, "id" | "email" | "display_name" | "faction" | "created_at">,
+  roles: AccountRole[] = [],
+): AccountUser {
+  return { id: row.id, email: row.email, displayName: row.display_name, faction: row.faction, createdAt: row.created_at, roles };
 }
-

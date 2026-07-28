@@ -12,7 +12,7 @@ const defaults = {
   profile: { name: "DanBrawler", faction: "Pyrus", signedIn: false },
   settings: { reducedMotion: false, highContrast: false, sound: true, cardScale: 100, logDetail: "All events", challenges: "Everyone", replayLinks: true },
 };
-const paths = { entry: "/", dashboard: "/", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/profile/records", profile: "/profile", settings: "/settings" };
+const paths = { entry: "/", dashboard: "/", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/profile/records", profile: "/profile", settings: "/settings", admin: "/admin" };
 
 let storageReportTimer = null;
 let pendingStorageDetail = null;
@@ -23,6 +23,7 @@ export function routeForPath(pathname) {
   if (first === "decks") return second ? "deck-detail" : "decks";
   if (first === "builder") return "builder";
   if (first === "compendium") return "compendium";
+  if (first === "admin") return "admin";
   if (first === "history") return "history";
   if (["dashboard", "profile", "settings"].includes(first)) return first;
   if (first === "play") return second === "lobby" ? "lobby" : second === "match" ? "match" : second === "result" ? "result" : "play";
@@ -151,6 +152,7 @@ export function AppProvider({ children }) {
   const [toast, setToast] = useState("");
   const [accountPrompt, setAccountPrompt] = useState(null);
   const [accountAccessMode, setAccountAccessMode] = useState(null);
+  const [catalogueRevision, setCatalogueRevision] = useState(0);
   const snapshotRef = useRef(null);
   const booted = useRef(false);
   const applying = useRef(false);
@@ -223,6 +225,27 @@ export function AppProvider({ children }) {
     const id = setTimeout(() => setToast(""), 2800);
     return () => clearTimeout(id);
   }, [toast]);
+  useEffect(() => {
+    if (!ready) return;
+    let active = true;
+    const refreshCatalogue = async () => {
+      try {
+        const response = await fetch("/api/card-overrides", { cache: "no-store" });
+        const result = await response.json();
+        if (!response.ok || !Array.isArray(result.overrides)) return;
+        const data = await import("../../lib/data");
+        data.applyCardOverrides(result.overrides);
+        if (active) setCatalogueRevision((value) => value + 1);
+      } catch {}
+    };
+    void refreshCatalogue();
+    const listener = () => { void refreshCatalogue(); };
+    addEventListener("bbp-card-overrides-updated", listener);
+    return () => {
+      active = false;
+      removeEventListener("bbp-card-overrides-updated", listener);
+    };
+  }, [ready]);
 
   const applySnapshot = useCallback((incoming, signedIn = false) => {
     const fallback = snapshotRef.current;
@@ -437,7 +460,7 @@ export function AppProvider({ children }) {
     return result.state;
   }, [format, match, matchCapability, playerId, setMatch, setMatchCapability]);
   const selection = useCallback((deck) => ({ playerId, name: profile.name, deck: { name: deck.name, bakuganIds: [...deck.bakuganIds], coreIds: [...deck.coreIds], cardIds: [...deck.cardIds], format: deck.format } }), [playerId, profile.name]);
-  const startSolo = useCallback(async () => { if (!selectedDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before starting a match." }; } setMatchError(""); try { const [{ createMatch, setReady }, data] = await Promise.all([import("../../lib/game"), import("../../lib/data")]); if (!data.deckIsLegal(selectedDeck)) throw new Error("Select a legal deck first."); const code = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase(); const state = createMatch(code, format, [data.makePlayer(playerId, profile.name, selectedDeck), data.makePlayer("training-bot", "Mira Nova • Training AI", data.STARTER_DECKS[1])]); setOnline(false); setMatch(setReady(setReady(state, playerId), "training-bot")); router.push("/play/match"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "Training match could not be started."; setMatchError(message); return { ok: false, error: message }; } }, [format, playerId, profile.name, router, selectedDeck, setMatch, setOnline]);
+  const startSolo = useCallback(async () => { if (!selectedDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before starting a match." }; } setMatchError(""); try { const [{ createMatch, setReady }, data] = await Promise.all([import("../../lib/game"), import("../../lib/data")]); if (!data.deckIsLegal(selectedDeck)) throw new Error("Select a legal deck first."); let aiDeck = data.STARTER_DECKS[1]; try { const response = await fetch("/api/ai-decks", { cache: "no-store" }); const result = await response.json(); if (response.ok && result.deck && data.deckIsLegal(result.deck)) aiDeck = result.deck; } catch {} const code = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase(); const state = createMatch(code, format, [data.makePlayer(playerId, profile.name, selectedDeck), data.makePlayer("training-bot", "Mira Nova • Training AI", aiDeck)]); setOnline(false); setMatch(setReady(setReady(state, playerId), "training-bot")); router.push("/play/match"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "Training match could not be started."; setMatchError(message); return { ok: false, error: message }; } }, [format, playerId, profile.name, router, selectedDeck, setMatch, setOnline]);
   const createOnline = useCallback(async () => { if (!selectedDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before creating a room." }; } try { setMatchCapability(""); const state = await api("create", undefined, undefined, selection(selectedDeck)); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be created."; setMatchError(message); return { ok: false, error: message }; } }, [api, router, selectedDeck, selection, setMatch, setMatchCapability, setOnline]);
   const joinOnline = useCallback(async () => { if (!selectedDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before joining a room." }; } try { const state = await api("join", undefined, joinCode.toUpperCase(), selection(selectedDeck)); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be joined."; setMatchError(message); return { ok: false, error: message }; } }, [api, joinCode, router, selectedDeck, selection, setMatch, setOnline]);
   const readyMatch = useCallback(async () => { if (!match) return; try { if (online) await api("ready"); else { const { setReady } = await import("../../lib/game"); setMatch(setReady(match, playerId)); } } catch (error) { setMatchError(error.message); } }, [api, match, online, playerId, setMatch]);
@@ -469,6 +492,6 @@ export function AppProvider({ children }) {
   }, [applySnapshot, putCloud, syncConflict]);
   const syncNow = useCallback(() => { void syncToCloud(true); }, [syncToCloud]);
 
-  const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, settings, setSettings, selectedDeckId, setSelectedDeckId, selectedDeck, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchError, toast, notify, authUser, authChecking, authBusy, authError, syncStatus, syncConflict, resolveSyncConflict, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, startSolo, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch }), [accountAccessMode, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, changePassword, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, createOnline, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, joinCode, guestData, joinOnline, leaveMatch, match, matchError, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, requestAccountAccess, profile, ready, readyMatch, replay, replayIndex, route, saveAccountProfile, selectedDeck, selectedDeckId, settings, signOutAccount, startSolo, storageHealth, syncConflict, resolveSyncConflict, syncNow, syncStatus, toast]);
+  const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, settings, setSettings, selectedDeckId, setSelectedDeckId, selectedDeck, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchError, toast, notify, authUser, authChecking, authBusy, authError, syncStatus, syncConflict, resolveSyncConflict, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, startSolo, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch, catalogueRevision }), [accountAccessMode, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, catalogueRevision, changePassword, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, createOnline, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, joinCode, guestData, joinOnline, leaveMatch, match, matchError, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, requestAccountAccess, profile, ready, readyMatch, replay, replayIndex, route, saveAccountProfile, selectedDeck, selectedDeckId, settings, signOutAccount, startSolo, storageHealth, syncConflict, resolveSyncConflict, syncNow, syncStatus, toast]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
