@@ -18,6 +18,21 @@ test("the primary shell uses the approved four-item top navigation and profile m
   assert.match(shell, /Log Out/);
   assert.match(shell, /function SyncGlyph/);
   assert.match(shell, /className="sync-icon"/);
+  assert.match(shell, /aria-label="Open profile menu"/);
+  assert.match(shell, /aria-controls="profile-menu"/);
+  assert.match(shell, /id="profile-menu"/);
+
+  const mobileNavigation = shell.slice(
+    shell.indexOf('<nav className="mobile-bottom-nav"'),
+    shell.indexOf("{toast &&"),
+  );
+  assert.match(mobileNavigation, /NAV\.map/);
+  assert.doesNotMatch(mobileNavigation, /href="\/profile"/);
+  assert.doesNotMatch(mobileNavigation, />Profile<\/span>/);
+  assert.match(
+    source("app/website-overhaul.css"),
+    /\.mobile-bottom-nav\{[^}]*grid-template-columns:repeat\(4,1fr\)/,
+  );
 });
 
 test("history is routed through profile and public deck browsing has dedicated routes", () => {
