@@ -1,0 +1,36 @@
+.backdrop{position:fixed;z-index:1200;inset:0;display:grid;place-items:center;padding:1rem;background:rgba(0,5,8,.88);backdrop-filter:blur(10px)}
+.dialog{width:min(100%,42rem);max-height:min(92dvh,52rem);overflow:auto;padding:1.4rem;background:var(--surface-overlay);border:1px solid var(--border-strong);box-shadow:var(--elevation-3);clip-path:polygon(var(--chamfer-panel) 0,100% 0,100% calc(100% - var(--chamfer-panel)),calc(100% - var(--chamfer-panel)) 100%,0 100%,0 var(--chamfer-panel))}
+.header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border-subtle)}
+.header span,.eyebrow{display:block;color:var(--brand-blue-bright);font-size:var(--type-meta);font-weight:700;letter-spacing:var(--tracking-label);text-transform:uppercase}
+.header h2{margin:.3rem 0 0;font-size:clamp(2rem,6vw,3.25rem)}
+.close{width:2.75rem;height:2.75rem;flex:0 0 auto;border:1px solid var(--border-strong);background:var(--surface-input);font-size:1.25rem}
+.form{display:grid;gap:1rem;padding-top:1rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:.85rem}
+.field{display:grid;gap:.4rem;color:var(--text-secondary);font-size:var(--type-meta);font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.field input,.field select{width:100%;min-height:3rem;padding:.7rem .8rem;background:var(--surface-input);border:1px solid var(--border-strong)}
+.help{margin:-.35rem 0 0;color:var(--text-muted);font-size:var(--type-meta);line-height:1.5}
+.error{margin:0;padding:.75rem 1rem;background:rgba(235,29,37,.16);border:1px solid rgba(255,103,107,.72);color:#ffd8d9}
+.actions{display:flex;justify-content:flex-end;gap:.7rem;flex-wrap:wrap;padding-top:.35rem}
+.primary,.secondary,.quiet{min-height:3rem;padding:.7rem 1.1rem;border:1px solid rgba(255,255,255,.35);font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.primary{background:linear-gradient(135deg,#c8171c,var(--brand-red))}
+.secondary{background:#075b77}
+.quiet{background:var(--surface-input);color:var(--text-secondary)}
+.transferIntro{margin:0;color:var(--text-secondary);line-height:1.55}
+.summary{display:flex;flex-wrap:wrap;gap:.5rem;margin:0;padding:0;list-style:none}
+.summary li{padding:.45rem .65rem;background:rgba(0,174,239,.1);border:1px solid rgba(53,201,255,.28);font-size:var(--type-meta)}
+.choices{display:grid;gap:.65rem;margin:0;padding:0;border:0}
+.choices legend{margin-bottom:.6rem;font-weight:800}
+.choice{display:grid;grid-template-columns:auto 1fr;gap:.65rem;padding:.85rem;background:rgba(255,255,255,.035);border:1px solid var(--border-subtle);cursor:pointer}
+.choice:has(input:checked){border-color:var(--brand-blue-bright);background:rgba(0,174,239,.12)}
+.choice input{margin-top:.2rem}
+.choice strong,.choice span{display:block}
+.choice span{margin-top:.2rem;color:var(--text-secondary);font-size:var(--type-meta);line-height:1.45}
+.notice{padding:.85rem 1rem;background:rgba(85,198,107,.1);border-left:4px solid #55c66b;color:var(--text-secondary);line-height:1.5}
+.prompt{position:fixed;z-index:1100;right:1.25rem;bottom:1.25rem;width:min(calc(100% - 2rem),25rem);padding:1rem 1.05rem;background:var(--surface-overlay);border:1px solid var(--border-strong);box-shadow:var(--elevation-3);clip-path:polygon(.75rem 0,100% 0,100% calc(100% - .75rem),calc(100% - .75rem) 100%,0 100%,0 .75rem)}
+.prompt strong,.prompt p{display:block}
+.prompt strong{font-family:var(--font-display);font-size:1.1rem;font-style:italic;text-transform:uppercase}
+.prompt p{margin:.35rem 0 .8rem;color:var(--text-secondary);font-size:.875rem;line-height:1.45}
+.promptActions{display:flex;gap:.5rem;flex-wrap:wrap}
+.promptActions button{min-height:2.5rem;padding:.5rem .7rem;border:1px solid var(--border-strong);background:#075b77;font-size:var(--type-meta);font-weight:800;text-transform:uppercase}
+.promptActions button:last-child{background:transparent;color:var(--text-muted)}
+@media(max-width:700px){.backdrop{padding:0}.dialog{width:100%;height:100dvh;max-height:none;padding:1rem;border:0;clip-path:none}.grid{grid-template-columns:1fr}.prompt{right:.75rem;bottom:5.75rem;width:calc(100% - 1.5rem)}}
