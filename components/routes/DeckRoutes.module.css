@@ -631,7 +631,7 @@
   top: 76px;
   min-height: 5rem;
   display: grid;
-  grid-template-columns: auto minmax(13rem, 1fr) repeat(2, auto) auto auto minmax(8rem, auto) auto;
+  grid-template-columns: auto minmax(13rem, 1fr) auto auto auto minmax(8rem, auto) auto;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-5);
@@ -651,7 +651,6 @@
   text-transform: uppercase;
 }
 
-.builderHeader > input,
 .builderHeader select {
   min-height: 2.65rem;
   padding: .55rem .75rem;
@@ -661,11 +660,28 @@
   font-size: var(--type-body);
 }
 
-.builderHeader > input {
+.builderDeckIdentity {
+  min-width: 0;
+  display: grid;
+  gap: .15rem;
+}
+
+.builderDeckIdentity span {
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: var(--type-meta);
+  font-style: italic;
+  text-transform: uppercase;
+}
+
+.builderDeckIdentity strong {
+  overflow: hidden;
   font-family: var(--font-display);
   font-size: 1.15rem;
   font-style: italic;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .builderHeader label {
@@ -741,6 +757,21 @@
 .builderSideTitle h2 {
   margin: .2rem 0 0;
   font-size: 1.45rem;
+}
+
+.builderGalleryTabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: var(--space-1);
+  border: 1px solid var(--border-strong);
+  background: rgba(2, 15, 21, .92);
+}
+
+.builderGalleryTabs button {
+  min-width: 0;
+  min-height: 2.85rem;
+  padding-inline: var(--space-2);
+  font-size: var(--type-meta);
 }
 
 .builderToolbar {
@@ -1093,8 +1124,7 @@
   background: transparent;
 }
 
-.builderCoreSlot img,
-.builderCorePreview img {
+.builderCoreSlot img {
   width: 100%;
   aspect-ratio: 1;
   object-fit: contain;
@@ -1119,11 +1149,6 @@
   text-align: center;
 }
 
-.builderCorePreview img {
-  opacity: .18;
-  filter: grayscale(.4);
-}
-
 .builderCorePreview > span {
   color: var(--brand-blue-bright);
   font-size: 1.5rem;
@@ -1133,6 +1158,40 @@
   margin-top: -.8rem;
   color: rgba(255, 255, 255, .68);
   font-size: .64rem;
+}
+
+.bakuCoreBack {
+  width: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: .25rem;
+  padding: 15%;
+  opacity: .24;
+  color: white;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, .12), transparent 54%),
+    linear-gradient(145deg, #31383d, #111517 64%, #3c4449);
+  clip-path: polygon(25% 4%, 75% 4%, 98% 50%, 75% 96%, 25% 96%, 2% 50%);
+  filter: grayscale(.2);
+}
+
+.bakuCoreBack > span {
+  font-size: clamp(1.25rem, 2.4vw, 2rem);
+  line-height: 1;
+}
+
+.bakuCoreBack > strong {
+  max-width: 100%;
+  margin: 0;
+  color: white;
+  font-family: var(--font-display);
+  font-size: .6rem;
+  font-style: italic;
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .builderMainDeckSection {
@@ -1328,6 +1387,90 @@
   gap: var(--space-3);
 }
 
+.builderSaveFields {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.builderSaveFields input,
+.builderSaveFields textarea {
+  width: 100%;
+  padding: .7rem .8rem;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.builderSaveFields textarea {
+  resize: vertical;
+}
+
+.builderDescriptionPrompt,
+.builderPublicRequirement {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  color: #ffd47d;
+  font-size: var(--type-meta);
+  line-height: 1.45;
+}
+
+.builderVisibilityOptions {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.builderVisibilityOptions legend {
+  margin-bottom: var(--space-2);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--type-label);
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.builderVisibilityOptions label {
+  min-width: 0;
+  min-height: 4rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  background: rgba(4, 24, 32, .76);
+}
+
+.builderVisibilityOptions label:has(input:checked) {
+  border-color: var(--brand-blue-bright);
+  background: rgba(0, 174, 239, .14);
+}
+
+.builderVisibilityOptions input {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--brand-blue-bright);
+}
+
+.builderVisibilityOptions span {
+  min-width: 0;
+  display: grid;
+  gap: .2rem;
+}
+
+.builderVisibilityOptions small {
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.builderVisibilityDisabled {
+  opacity: .5;
+}
+
 .builderIssueList {
   display: grid;
   gap: var(--space-3);
@@ -1395,17 +1538,16 @@
 
 .builderInspectorOverlay {
   z-index: 1350;
-  place-items: stretch;
-  padding: 0;
-  background: rgba(0, 4, 7, .94);
+  place-items: center;
+  padding: var(--space-5);
+  background: rgba(0, 4, 7, .82);
 }
 
 .builderInspectorOverlay > [data-ui="card-inspector"] {
-  width: 100vw;
-  height: 100dvh;
-  max-width: none;
-  border: 0;
-  clip-path: none;
+  width: min(72rem, calc(100vw - (2 * var(--space-5))));
+  height: min(82dvh, 50rem);
+  max-width: 72rem;
+  border: 1px solid var(--border-strong);
 }
 
 .builderCoreInspector {
@@ -1551,7 +1693,7 @@
   }
 
   .builderHeader {
-    grid-template-columns: auto minmax(12rem, 1fr) auto auto auto auto;
+    grid-template-columns: auto minmax(12rem, 1fr) auto auto auto;
   }
 
   .builderHeader > label,
@@ -1634,7 +1776,7 @@
 
   .builderHeader {
     top: 76px;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     padding: var(--space-2) var(--space-4);
   }
 
@@ -1642,10 +1784,6 @@
   .builderHeader > [data-ui="status-chip"],
   .saveState {
     display: none;
-  }
-
-  .builderHeader > input {
-    min-width: 0;
   }
 
   .builderMobileTabs {
@@ -1679,7 +1817,8 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .builderMenuBackdrop {
+  .builderMenuBackdrop,
+  .builderInspectorOverlay {
     place-items: stretch;
     padding: 0;
   }
@@ -1688,6 +1827,14 @@
     width: 100vw;
     height: 100dvh;
     max-height: none;
+    border: 0;
+    clip-path: none;
+  }
+
+  .builderInspectorOverlay > [data-ui="card-inspector"] {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
     border: 0;
     clip-path: none;
   }
