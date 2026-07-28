@@ -356,6 +356,7 @@ export function AppShell({ children }) {
       )}
       {accountAccessMode && !authUser && (
         <AccountAccessModal
+          key={accountAccessMode}
           mode={accountAccessMode}
           onClose={closeAccountAccess}
         />
