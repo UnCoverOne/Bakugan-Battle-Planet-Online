@@ -19,10 +19,11 @@ function validateSnapshot(value: unknown) {
     if (!Array.isArray(deck.bakuganIds) || deck.bakuganIds.length > 3 || !deck.bakuganIds.every((id) => typeof id === "string")) throw new Error(`Deck ${index + 1} has an invalid Bakugan Team.`);
     if (!Array.isArray(deck.coreIds) || deck.coreIds.length > 6 || !deck.coreIds.every((id) => typeof id === "string")) throw new Error(`Deck ${index + 1} has an invalid BakuCore kit.`);
     if (!Array.isArray(deck.cardIds) || deck.cardIds.length > 40 || !deck.cardIds.every((id) => typeof id === "string")) throw new Error(`Deck ${index + 1} has an invalid Main Deck.`);
+    if (!["Draft", "Private", "Public"].includes(String(deck.visibility))) throw new Error(`Deck ${index + 1} has an invalid visibility.`);
     const validation = validateDeck(deck as unknown as DeckRecord);
-    if (!validation.isLegal) {
+    if (deck.visibility === "Public" && !validation.isLegal) {
       const firstIssue = validation.issues[0];
-      throw new Error(`Deck ${index + 1} [${firstIssue.code}]: ${firstIssue.message}`);
+      throw new Error(`Public deck ${index + 1} [${firstIssue.code}]: ${firstIssue.message}`);
     }
   }
   for (const [index, candidate] of snapshot.history.entries()) {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
 import { cardArtSource } from "../../lib/content/card-art";
 import {
@@ -45,11 +45,12 @@ const FACTIONS = ["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"];
 
 type LibraryView = "grid" | "list";
 type BuilderView = "gallery" | "deck";
-type BuilderCategory = "all" | "cards" | "characters" | "cores";
-type BuilderSort = "name-asc" | "name-desc" | "cost-asc" | "cost-desc" | "count-desc";
+type BuilderCategory = "cards" | "characters" | "cores";
+type BuilderSort = "name-asc" | "name-desc" | "id-asc" | "cost-asc" | "cost-desc" | "count-desc";
 type BuilderMenu =
   | { surface: "gallery" | "deck"; panel: "filter" | "sort" }
-  | { surface: "team" | "cores" | "mainDeck"; panel: "issues" };
+  | { surface: "team" | "cores" | "mainDeck"; panel: "issues" }
+  | { surface: "deck"; panel: "save" };
 type BuilderInspection =
   | { kind: "card"; card: GameCard }
   | { kind: "core"; coreId: string };
@@ -66,6 +67,14 @@ const FACTION_SYMBOLS: Record<string, string> = {
   Haos: "/assets/symbols/factions/haos.png",
   Pyrus: "/assets/symbols/factions/pyrus.png",
   Ventus: "/assets/symbols/factions/ventus.png",
+};
+
+const CORE_BACK_SYMBOLS: Record<string, string> = {
+  Fist: "✊",
+  "Flaming Fist": "♨",
+  Shield: "⬟",
+  "Magic Shield": "✦",
+  Helix: "↻",
 };
 
 const referenceSlug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -87,6 +96,7 @@ const builderItemCost = (item: BuilderGalleryItem) => {
 
 const sortBuilderItems = (left: BuilderGalleryItem, right: BuilderGalleryItem, sort: BuilderSort) => {
   if (sort === "name-desc") return right.name.localeCompare(left.name);
+  if (sort === "id-asc") return left.id.localeCompare(right.id, undefined, { numeric: true }) || left.name.localeCompare(right.name);
   if (sort === "cost-asc" || sort === "cost-desc") {
     const difference = builderItemCost(left) - builderItemCost(right);
     return (sort === "cost-desc" ? -difference : difference) || left.name.localeCompare(right.name);
@@ -114,13 +124,13 @@ const blankDraft = (decks: DeckRecord[]): DeckRecord => ({
   cardIds: [],
   leadCardId: undefined,
   updatedAt: new Date().toISOString(),
-  visibility: "Private",
+  visibility: "Draft",
   revision: 1,
 });
 
 const publicDecksFor = (decks: DeckRecord[], playerName = "You") => [
   ...decks
-    .filter((deck) => deck.visibility === "Public")
+    .filter((deck) => deck.visibility === "Public" && validateDeck(deck).isLegal)
     .map((deck) => ({
       ...deck,
       creator: deck.creator ?? playerName,
@@ -869,10 +879,10 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   const [builderView, setBuilderView] = useState<BuilderView>("gallery");
   const [galleryQuery, setGalleryQuery] = useState("");
   const [deckQuery, setDeckQuery] = useState("");
-  const [galleryCategory, setGalleryCategory] = useState<BuilderCategory>("all");
+  const [galleryCategory, setGalleryCategory] = useState<BuilderCategory>("characters");
   const [gallerySort, setGallerySort] = useState<BuilderSort>("name-asc");
   const [deckSort, setDeckSort] = useState<BuilderSort>("name-asc");
-  const [factionFilters, setFactionFilters] = useState<string[]>(source?.factions ?? []);
+  const [factionFilters, setFactionFilters] = useState<string[]>([...new Set(source?.factions ?? [])]);
   const [factionFilterAuto, setFactionFilterAuto] = useState(Boolean(source?.bakuganIds.length));
   const [galleryTypes, setGalleryTypes] = useState<string[]>([]);
   const [gallerySet, setGallerySet] = useState("All");
@@ -885,6 +895,9 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   const [inspection, setInspection] = useState<BuilderInspection | null>(null);
   const [inspectorTab, setInspectorTab] = useState<CardInspectorTab>("overview");
   const [saveState, setSaveState] = useState<"saved" | "dirty" | "error">("saved");
+  const [saveName, setSaveName] = useState(deck.name);
+  const [saveDescription, setSaveDescription] = useState(deck.description ?? "");
+  const [saveVisibility, setSaveVisibility] = useState<DeckRecord["visibility"]>(deck.visibility);
 
   useEffect(() => {
     setBuilderDeck(deck);
@@ -959,6 +972,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       if (
         factionFilters.length
         && card
+        && (item.kind === "card" || !factionFilterAuto)
         && !card.factions.some((faction) => factionFilters.includes(faction))
       ) return false;
       if (galleryTypes.length) {
@@ -980,6 +994,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     gallerySet,
     gallerySort,
     galleryTypes,
+    factionFilterAuto,
   ]);
 
   const mainDeckCards = useMemo(() => grouped.filter(({ card }) => {
@@ -1065,14 +1080,26 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     setCurrent(current.includes(value) ? current.filter((candidate) => candidate !== value) : [...current, value]);
   };
   const activeGalleryFilterCount = factionFilters.length + galleryTypes.length
-    + (galleryCategory === "all" ? 0 : 1) + (gallerySet === "All" ? 0 : 1) + (galleryCost === "All" ? 0 : 1);
+    + (gallerySet === "All" ? 0 : 1) + (galleryCost === "All" ? 0 : 1);
   const activeDeckFilterCount = deckFactionFilters.length + deckTypes.length
     + (deckSet === "All" ? 0 : 1) + (deckCost === "All" ? 0 : 1);
 
+  const openSaveDialog = () => {
+    setSaveName(deck.name);
+    setSaveDescription(deck.description ?? "");
+    setSaveVisibility(report.isLegal ? deck.visibility : deck.visibility === "Public" ? "Draft" : deck.visibility);
+    setActiveMenu({ surface: "deck", panel: "save" });
+  };
+
   const save = () => {
     const latest = validateDeck(deck);
-    if (!latest.isLegal) {
-      notify(`Deck cannot be saved: ${latest.issues[0].message}`);
+    const name = saveName.trim();
+    if (!name) {
+      notify("Enter a deck name before saving.");
+      return;
+    }
+    if (saveVisibility === "Public" && !latest.isLegal) {
+      notify(`Public decks must be valid: ${latest.issues[0].message}`);
       return;
     }
     if (decks.length >= DECK_LIMIT && id === "new") {
@@ -1082,6 +1109,9 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     const next = {
       ...deck,
       id: id === "new" ? deck.id : id,
+      name,
+      description: saveDescription.trim() || undefined,
+      visibility: saveVisibility,
       leadCardId: deck.leadCardId ?? deck.cardIds[0],
       updatedAt: new Date().toISOString(),
       revision: (deck.revision ?? 0) + 1,
@@ -1090,7 +1120,8 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     setSelectedDeckId(next.id);
     setBuilderDeck(null);
     setSaveState("saved");
-    notify("Legal deck saved.");
+    setActiveMenu(null);
+    notify(latest.isLegal ? `${saveVisibility} deck saved.` : `Deck saved with ${latest.issues.length} legality issues.`);
     promptAccount("deck-saved");
     router.push(returnTo ?? `/decks/${encodeURIComponent(next.id)}`);
   };
@@ -1099,15 +1130,14 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     <section className={styles.builder}>
       <header className={styles.builderHeader}>
         <Link href={returnTo ?? "/decks"}>{returnTo ? "← Match setup" : "← My Decks"}</Link>
-        <input aria-label="Deck name" value={deck.name} onChange={(event) => commit({ ...deck, name: event.target.value })} />
+        <div className={styles.builderDeckIdentity}><span>Edit Deck</span><strong>{deck.name}</strong></div>
         <label>Format<select value={deck.format ?? "standard"} onChange={(event) => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}><option value="standard">Standard</option><option value="singleton">Singleton</option></select></label>
-        <label>Visibility<select value={deck.visibility} onChange={(event) => commit({ ...deck, visibility: event.target.value as DeckRecord["visibility"] })}><option>Private</option><option>Public</option></select></label>
         <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
         <StatusChip tone={report.isLegal ? "success" : "danger"}>{report.isLegal ? "Legal" : `${report.issues.length} issues`}</StatusChip>
         <span className={`${styles.saveState} ${styles[`saveState_${saveState}`]}`}>
           {saveState === "error" ? "Draft not saved" : saveState === "dirty" ? "Saving draft…" : "Draft saved locally"}
         </span>
-        <ActionButton disabled={!report.isLegal || saveState === "error"} onClick={save}>Save Deck</ActionButton>
+        <ActionButton disabled={saveState === "error"} onClick={openSaveDialog}>Save Deck</ActionButton>
       </header>
       <Tabs className={styles.builderMobileTabs} label="Deck Builder sections">
         {(["gallery", "deck"] as BuilderView[]).map((value) => (
@@ -1122,6 +1152,23 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
             <div><span>Collection</span><h2>Card Gallery</h2></div>
             <StatusChip>{galleryItems.length} shown</StatusChip>
           </div>
+          <Tabs className={styles.builderGalleryTabs} label="Card Gallery sections">
+            {([
+              ["characters", "Character Cards"],
+              ["cores", "Cores"],
+              ["cards", "Main Deck Cards"],
+            ] as Array<[BuilderCategory, string]>).map(([value, label]) => (
+              <button
+                type="button"
+                className={galleryCategory === value ? "active" : ""}
+                aria-pressed={galleryCategory === value}
+                onClick={() => setGalleryCategory(value)}
+                key={value}
+              >
+                {label}
+              </button>
+            ))}
+          </Tabs>
           <BuilderToolbar
             label="Card Gallery"
             query={galleryQuery}
@@ -1137,7 +1184,6 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
                 setFactionFilters(factionFilters.filter((candidate) => candidate !== faction));
               }}>{factionFilterAuto ? "Team faction" : "Faction"}: {faction} ×</button>
             ))}
-            {galleryCategory !== "all" && <button onClick={() => setGalleryCategory("all")}>Category: {galleryCategory} ×</button>}
             {galleryTypes.map((value) => <button key={value} onClick={() => setGalleryTypes(galleryTypes.filter((candidate) => candidate !== value))}>Type: {value} ×</button>)}
             {gallerySet !== "All" && <button onClick={() => setGallerySet("All")}>Set: {gallerySet} ×</button>}
             {galleryCost !== "All" && <button onClick={() => setGalleryCost("All")}>Cost: {galleryCost} ×</button>}
@@ -1160,7 +1206,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
               copy="Clear one or more filters to return cards, Character cards, and BakuCores to the gallery."
               action={<ActionButton tone="quiet" onClick={() => {
                 setGalleryQuery("");
-                setGalleryCategory("all");
+                setGalleryCategory("characters");
                 setFactionFilters([]);
                 setFactionFilterAuto(false);
                 setGalleryTypes([]);
@@ -1216,7 +1262,6 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
                 const requiredType = requiredCoreTypes[index];
                 const selectedId = selectedCoreSlots[index];
                 const core = selectedId ? CORES.find((candidate) => candidate.id === selectedId) : null;
-                const preview = requiredType ? CORES.find((candidate) => candidate.type === requiredType) : null;
                 return core ? (
                   <article className={styles.builderCoreSlot} key={`${core.id}-${index}`}>
                     <button onClick={() => inspectCore(core.id)}><img src={core.art} alt={core.name} /></button>
@@ -1225,8 +1270,9 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
                   </article>
                 ) : (
                   <div className={styles.builderCorePreview} key={`empty-${index}`}>
-                    {preview ? <img src={preview.art} alt="" /> : <span>◇</span>}
-                    <strong>{requiredType ?? "Choose Character"}</strong>
+                    {requiredType
+                      ? <BakuCoreBack type={requiredType} />
+                      : <><span>◇</span><strong>Choose Character</strong></>}
                   </div>
                 );
               })}
@@ -1311,6 +1357,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
             {([
               ["name-asc", "Name A–Z"],
               ["name-desc", "Name Z–A"],
+              ["id-asc", "Card ID"],
               ["cost-asc", "Energy low–high"],
               ["cost-desc", "Energy high–low"],
               ["count-desc", "Copies high–low"],
@@ -1343,7 +1390,6 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
             <>
               <ActionButton tone="quiet" onClick={() => {
                 if (activeMenu.surface === "gallery") {
-                  setGalleryCategory("all");
                   setFactionFilters([]);
                   setFactionFilterAuto(false);
                   setGalleryTypes([]);
@@ -1360,18 +1406,6 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
             </>
           )}
         >
-          {activeMenu.surface === "gallery" && (
-            <fieldset className={styles.builderFilterGroup}>
-              <legend>Gallery category</legend>
-              <div>
-                {(["all", "cards", "characters", "cores"] as BuilderCategory[]).map((value) => (
-                  <button className={galleryCategory === value ? styles.builderFilterSelected : ""} type="button" key={value} onClick={() => setGalleryCategory(value)}>
-                    {value === "all" ? "All pieces" : value === "cards" ? "Main Deck cards" : value === "characters" ? "Character cards" : "BakuCores"}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-          )}
           <BuilderFilterGroup
             title="Factions"
             values={FACTIONS}
@@ -1407,6 +1441,78 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
               </select>
             </Field>
           </div>
+        </BuilderMenuDialog>
+      )}
+
+      {activeMenu?.panel === "save" && (
+        <BuilderMenuDialog
+          title="Save Deck"
+          eyebrow={report.isLegal ? "Ready to save" : `Saving with ${report.issues.length} legality issues`}
+          onClose={() => setActiveMenu(null)}
+          footer={(
+            <>
+              <ActionButton tone="quiet" onClick={() => setActiveMenu(null)}>Cancel</ActionButton>
+              <ActionButton
+                disabled={!saveName.trim() || (saveVisibility === "Public" && !report.isLegal)}
+                onClick={save}
+              >
+                Save Deck
+              </ActionButton>
+            </>
+          )}
+        >
+          <div className={styles.builderSaveFields}>
+            <Field label="Deck name">
+              <input
+                value={saveName}
+                maxLength={60}
+                autoFocus
+                onChange={(event) => setSaveName(event.target.value)}
+              />
+            </Field>
+            <Field label="Deck description">
+              <textarea
+                value={saveDescription}
+                maxLength={500}
+                rows={5}
+                placeholder="Describe how this deck plays…"
+                onChange={(event) => setSaveDescription(event.target.value)}
+              />
+            </Field>
+            {!saveDescription.trim() && (
+              <p className={styles.builderDescriptionPrompt}>
+                Add a deck description for this deck to be eligible for featuring on the Home Page.
+              </p>
+            )}
+          </div>
+          <fieldset className={styles.builderVisibilityOptions}>
+            <legend>Visibility</legend>
+            {([
+              ["Draft", "Only visible to you."],
+              ["Private", "Only visible through its link."],
+              ["Public", "Visible in the Public Deck library."],
+            ] as Array<[DeckRecord["visibility"], string]>).map(([value, description]) => {
+              const disabled = value === "Public" && !report.isLegal;
+              return (
+                <label className={disabled ? styles.builderVisibilityDisabled : ""} key={value}>
+                  <input
+                    type="radio"
+                    name="deck-visibility"
+                    value={value}
+                    checked={saveVisibility === value}
+                    disabled={disabled}
+                    onChange={() => setSaveVisibility(value)}
+                  />
+                  <span><strong>{value}</strong><small>{description}</small></span>
+                </label>
+              );
+            })}
+          </fieldset>
+          {!report.isLegal && (
+            <p className={styles.builderPublicRequirement} role="status">
+              Public visibility requires a valid {deck.format ?? "standard"} deck. Draft and Private decks can be saved with issues.
+            </p>
+          )}
         </BuilderMenuDialog>
       )}
 
@@ -1459,6 +1565,15 @@ function BuilderToolbar({
       </label>
       <button type="button" onClick={onSort} aria-label={`Sort ${label}`}>↕ <span>Sort</span></button>
       <button type="button" onClick={onFilter} aria-label={`Filter ${label}`}>◇ <span>Filter{filterCount ? ` (${filterCount})` : ""}</span></button>
+    </div>
+  );
+}
+
+function BakuCoreBack({ type }: { type: string }) {
+  return (
+    <div className={styles.bakuCoreBack} aria-label={`${type} BakuCore reverse`}>
+      <span aria-hidden="true">{CORE_BACK_SYMBOLS[type] ?? "⬟"}</span>
+      <strong>{type}</strong>
     </div>
   );
 }
@@ -1561,11 +1676,51 @@ function BuilderMenuDialog({
   footer?: ReactNode;
   onClose: () => void;
 }) {
+  const dialogRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!dialog) return;
+    const focusableSelector = [
+      "button:not([disabled])",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      "[href]",
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(",");
+    const focusable = () => [...dialog.querySelectorAll<HTMLElement>(focusableSelector)]
+      .filter((element) => !element.hidden && element.getClientRects().length > 0);
+    queueMicrotask(() => {
+      const candidates = focusable();
+      (dialog.querySelector<HTMLElement>("[autofocus]") ?? candidates[0])?.focus();
+    });
+    const trapFocus = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const candidates = focusable();
+      if (!candidates.length) return;
+      const first = candidates[0];
+      const last = candidates[candidates.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    dialog.addEventListener("keydown", trapFocus);
+    return () => {
+      dialog.removeEventListener("keydown", trapFocus);
+      returnFocus?.focus();
+    };
+  }, []);
+
   return (
     <div className={styles.builderMenuBackdrop} onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
-      <section className={styles.builderMenuDialog} role="dialog" aria-modal="true" aria-label={title}>
+      <section ref={dialogRef} className={styles.builderMenuDialog} role="dialog" aria-modal="true" aria-label={title}>
         <header><div><span>{eyebrow}</span><h2>{title}</h2></div><button type="button" onClick={onClose} aria-label={`Close ${title}`}>×</button></header>
         <div className={styles.builderMenuBody}>{children}</div>
         {footer && <footer>{footer}</footer>}
