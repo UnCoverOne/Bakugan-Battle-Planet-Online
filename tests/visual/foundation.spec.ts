@@ -65,6 +65,16 @@ test("mobile shell shares the desktop account menu and primary tabs", async ({ p
 
   const accountMenu = page.locator("#profile-menu");
   await expect(accountMenu).toBeVisible();
+  const [menuBounds, viewport] = await Promise.all([
+    accountMenu.boundingBox(),
+    Promise.resolve(page.viewportSize()),
+  ]);
+  expect(menuBounds).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(menuBounds!.x).toBeGreaterThanOrEqual(0);
+  expect(menuBounds!.y).toBeGreaterThanOrEqual(64);
+  expect(menuBounds!.x + menuBounds!.width).toBeLessThanOrEqual(viewport!.width);
+  expect(menuBounds!.y + menuBounds!.height).toBeLessThanOrEqual(viewport!.height);
   await expect(accountMenu.getByRole("link", { name: "View Profile" })).toBeVisible();
   await expect(accountMenu.getByRole("link", { name: "Achievements" })).toBeVisible();
   await expect(accountMenu.getByRole("link", { name: "Settings" })).toBeVisible();

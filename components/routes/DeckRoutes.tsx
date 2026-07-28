@@ -69,12 +69,12 @@ const FACTION_SYMBOLS: Record<string, string> = {
   Ventus: "/assets/symbols/factions/ventus.png",
 };
 
-const CORE_BACK_SYMBOLS: Record<string, string> = {
-  Fist: "✊",
-  "Flaming Fist": "♨",
-  Shield: "⬟",
-  "Magic Shield": "✦",
-  Helix: "↻",
+const CORE_BACK_IMAGES: Record<string, string> = {
+  Fist: "/assets/bakucores/backs/fist.png",
+  "Flaming Fist": "/assets/bakucores/backs/flaming-fist.png",
+  Shield: "/assets/bakucores/backs/shield.png",
+  "Magic Shield": "/assets/bakucores/backs/magic-shield.png",
+  Helix: "/assets/bakucores/backs/helix.png",
 };
 
 const referenceSlug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -1689,9 +1689,12 @@ function BuilderToolbar({
 
 function BakuCoreBack({ type }: { type: string }) {
   return (
-    <div className={styles.bakuCoreBack} aria-label={`${type} BakuCore reverse`}>
-      <span aria-hidden="true">{CORE_BACK_SYMBOLS[type] ?? "⬟"}</span>
-      <strong>{type}</strong>
+    <div className={styles.bakuCoreBack}>
+      <img
+        src={CORE_BACK_IMAGES[type] ?? CORE_BACK_IMAGES.Shield}
+        alt={`${type} BakuCore reverse`}
+        decoding="async"
+      />
     </div>
   );
 }
