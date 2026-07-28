@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { DashboardScreen } from "../../../components/routes/DashboardScreen";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Dashboard" };
-export default function DashboardPage() { return <DashboardScreen />; }
+export default function DashboardAliasPage() {
+  redirect("/");
+}
