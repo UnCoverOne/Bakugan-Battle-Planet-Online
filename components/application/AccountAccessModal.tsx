@@ -23,6 +23,7 @@ export function AccountAccessModal({
     authChecking,
     authError,
     authenticate,
+    requestAccountAccess,
   } = useApp();
   const [step, setStep] = useState<"details" | "transfer">("details");
   const [displayName, setDisplayName] = useState(profile.name);
@@ -184,6 +185,15 @@ export function AccountAccessModal({
             {(formError || authError) && (
               <p className={styles.error} role="alert">{formError || authError}</p>
             )}
+            <p className={styles.switchMode}>
+              {mode === "login" ? "New to Battle Planet?" : "Already have an account?"}
+              <button
+                type="button"
+                onClick={() => requestAccountAccess(mode === "login" ? "signup" : "login")}
+              >
+                {mode === "login" ? "Register" : "Log in"}
+              </button>
+            </p>
             <div className={styles.actions}>
               <button className={styles.quiet} type="button" onClick={onClose}>Continue as guest</button>
               <button className={styles.primary} type="submit" disabled={authBusy || authChecking}>
