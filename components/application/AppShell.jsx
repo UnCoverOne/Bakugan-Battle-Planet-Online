@@ -6,10 +6,14 @@ import { useEffect, useRef, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
 import { VersionMismatchScreen } from "./SystemState";
+import {
+  AccountAccessModal,
+  GuestAccountPrompt,
+} from "./AccountAccessModal";
 import { useApp } from "./AppProvider";
 
 const NAV = [
-  { href: "/dashboard", label: "Home", icon: "⌂" },
+  { href: "/", label: "Home", icon: "⌂" },
   { href: "/play", label: "Play", icon: "▶" },
   { href: "/decks", label: "Decks", icon: "▤" },
   { href: "/compendium", label: "Compendium", icon: "◇" },
@@ -51,16 +55,18 @@ export function AppShell({ children }) {
     storageHealth,
     match,
     toast,
+    accountPrompt,
+    dismissAccountPrompt,
     signOutAccount,
   } = useApp();
   const immersiveMatch = pathname === "/play/match";
-  const publicEntry = pathname === "/";
-  const secondaryRoute =
-    !immersiveMatch && !publicEntry && !pathname.startsWith("/dashboard");
+  const homeRoute = pathname === "/" || pathname.startsWith("/dashboard");
+  const secondaryRoute = !immersiveMatch && !homeRoute;
   const mainRef = useRef(null);
   const menuRef = useRef(null);
   const [isOnline, setIsOnline] = useState(true);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [accountMode, setAccountMode] = useState(null);
   const [versionMismatch, setVersionMismatch] = useState(false);
 
   useEffect(() => {
@@ -101,26 +107,16 @@ export function AppShell({ children }) {
 
   useEffect(() => {
     setProfileOpen(false);
-    if (immersiveMatch || publicEntry || !ready) return;
+    if (immersiveMatch || !ready) return;
     const frame = window.requestAnimationFrame(() => {
       const target = mainRef.current?.querySelector("h1") ?? mainRef.current;
       target?.setAttribute("tabindex", "-1");
       target?.focus();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [immersiveMatch, pathname, publicEntry, ready]);
+  }, [immersiveMatch, pathname, ready]);
 
   if (!ready) return <BootScreen />;
-  if (publicEntry)
-    return (
-      <>
-        {children}
-        {versionMismatch && (
-          <VersionMismatchScreen onRefresh={() => window.location.reload()} />
-        )}
-      </>
-    );
-
   const achievements = achievementsFor(decks, history);
   const unlocked = achievements.filter(
     (achievement) => achievement.unlocked,
@@ -166,7 +162,7 @@ export function AppShell({ children }) {
         <header className="topbar overhaul-topbar">
           <Link
             className="brand"
-            href="/dashboard"
+            href="/"
             aria-label="Bakugan Battle Planet Online home"
           >
             <img src="/assets/logo.png" alt="Bakugan Battle Planet" />
@@ -175,7 +171,9 @@ export function AppShell({ children }) {
           <nav aria-label="Primary navigation">
             {NAV.map((item) => {
               const active =
-                pathname === item.href || pathname.startsWith(`${item.href}/`);
+                item.href === "/"
+                  ? homeRoute
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   key={item.href}
@@ -232,7 +230,7 @@ export function AppShell({ children }) {
                     </span>
                     <div>
                       <strong>{profile.name}</strong>
-                      <small>{profile.faction} Brawler</small>
+                      <small>{authUser ? `${profile.faction} Brawler` : "Guest · saved on this device"}</small>
                     </div>
                   </div>
                   <div className="profile-popover-stats">
@@ -247,21 +245,48 @@ export function AppShell({ children }) {
                   </div>
                   <nav aria-label="Profile menu">
                     <Link role="menuitem" href="/profile">
-                      View Profile
+                      {authUser ? "View Profile" : "View local profile"}
                     </Link>
-                    <Link role="menuitem" href="/profile/achievements">
-                      Achievements
-                    </Link>
+                    {authUser && (
+                      <Link role="menuitem" href="/profile/achievements">
+                        Achievements
+                      </Link>
+                    )}
                     <Link role="menuitem" href="/settings">
                       Settings
                     </Link>
-                    <button
-                      role="menuitem"
-                      type="button"
-                      onClick={() => void signOutAccount()}
-                    >
-                      Log Out
-                    </button>
+                    {authUser ? (
+                      <button
+                        role="menuitem"
+                        type="button"
+                        onClick={() => void signOutAccount()}
+                      >
+                        Log Out
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          role="menuitem"
+                          type="button"
+                          onClick={() => {
+                            setProfileOpen(false);
+                            setAccountMode("login");
+                          }}
+                        >
+                          Log In
+                        </button>
+                        <button
+                          role="menuitem"
+                          type="button"
+                          onClick={() => {
+                            setProfileOpen(false);
+                            setAccountMode("signup");
+                          }}
+                        >
+                          Register
+                        </button>
+                      </>
+                    )}
                   </nav>
                 </div>
               )}
@@ -296,7 +321,9 @@ export function AppShell({ children }) {
         <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
           {NAV.map((item) => {
             const active =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+              item.href === "/"
+                ? homeRoute
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
@@ -310,6 +337,26 @@ export function AppShell({ children }) {
             );
           })}
         </nav>
+      )}
+      {accountPrompt && !authUser && (
+        <GuestAccountPrompt
+          reason={accountPrompt}
+          onLogin={() => {
+            dismissAccountPrompt();
+            setAccountMode("login");
+          }}
+          onRegister={() => {
+            dismissAccountPrompt();
+            setAccountMode("signup");
+          }}
+          onDismiss={dismissAccountPrompt}
+        />
+      )}
+      {accountMode && !authUser && (
+        <AccountAccessModal
+          mode={accountMode}
+          onClose={() => setAccountMode(null)}
+        />
       )}
       {toast && (
         <div className="toast" role="status">
