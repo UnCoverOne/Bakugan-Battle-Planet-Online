@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { normalizeSnapshot, selectSnapshot, toCloudSnapshot } from "../../lib/persistence";
+import { summarizeGuestData } from "../../lib/guest-data";
 
 const STORAGE_EVENT = "bbp-storage-status";
 const AUTO_SYNC_DELAY_MS = 8_000;
@@ -11,14 +12,14 @@ const defaults = {
   profile: { name: "DanBrawler", faction: "Pyrus", signedIn: false },
   settings: { reducedMotion: false, highContrast: false, sound: true, cardScale: 100, logDetail: "All events", challenges: "Everyone", replayLinks: true },
 };
-const paths = { entry: "/", dashboard: "/dashboard", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/profile/records", profile: "/profile", settings: "/settings" };
+const paths = { entry: "/", dashboard: "/", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/profile/records", profile: "/profile", settings: "/settings" };
 
 let storageReportTimer = null;
 let pendingStorageDetail = null;
 
 export function routeForPath(pathname) {
   const [first, second] = pathname.split("/").filter(Boolean);
-  if (!first) return "entry";
+  if (!first) return "dashboard";
   if (first === "decks") return second ? "deck-detail" : "decks";
   if (first === "builder") return "builder";
   if (first === "compendium") return "compendium";
@@ -148,6 +149,8 @@ export function AppProvider({ children }) {
   const [storageHealth, setStorageHealth] = useState({ status: "checking", message: "Checking whether this browser can save data…", savedAt: null });
   const [matchError, setMatchError] = useState("");
   const [toast, setToast] = useState("");
+  const [accountPrompt, setAccountPrompt] = useState(null);
+  const [accountAccessMode, setAccountAccessMode] = useState(null);
   const snapshotRef = useRef(null);
   const booted = useRef(false);
   const applying = useRef(false);
@@ -156,12 +159,26 @@ export function AppProvider({ children }) {
   const syncing = useRef(false);
   const lastSynced = useRef(-1);
   const durableFingerprint = useRef(null);
+  const promptedAccountMoments = useRef(new Set());
   const ready = [profileReady, decksReady, historyReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, replayReady, replayIndexReady, playerReady, capabilityReady, modifiedReady].every(Boolean);
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId) ?? decks[0];
   const notify = useCallback((message) => setToast(message), []);
+  const promptAccount = useCallback((reason) => {
+    if (!authUser) setAccountPrompt(reason);
+  }, [authUser]);
+  const dismissAccountPrompt = useCallback(() => setAccountPrompt(null), []);
+  const requestAccountAccess = useCallback((mode) => {
+    setAccountPrompt(null);
+    setAccountAccessMode(mode);
+  }, []);
+  const closeAccountAccess = useCallback(() => setAccountAccessMode(null), []);
 
   const snapshot = useMemo(() => ({ schemaVersion: 1, updatedAt: modifiedAt, profile, decks, history: history.slice(0, 200), settings, route, selectedDeckId, builderDeck, deckQuery, compendiumQuery, compendiumTab, format, matchMode, joinCode, match, online, selectedCore: "", logFilter: "all", replay, replayIndex, playerId }), [builderDeck, compendiumQuery, compendiumTab, deckQuery, decks, format, history, joinCode, match, matchMode, modifiedAt, online, playerId, profile, replay, replayIndex, route, selectedDeckId, settings]);
   useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
+  const guestData = useMemo(
+    () => summarizeGuestData({ profile, decks, history, settings, builderDeck, match }),
+    [builderDeck, decks, history, match, profile, settings],
+  );
 
   const durableStateFingerprint = useMemo(() => JSON.stringify({ profile: { name: profile.name, faction: profile.faction }, decks, history, settings, selectedDeckId, builderDeck, format, matchMode }), [builderDeck, decks, format, history, matchMode, profile.faction, profile.name, selectedDeckId, settings]);
 
@@ -334,19 +351,63 @@ export function AppProvider({ children }) {
   }, [authUser, modifiedAt, ready, syncConflict, syncToCloud]);
 
   const authenticate = useCallback(async (action, payload) => {
-    setAuthBusy(true); setAuthError("");
+    setAuthBusy(true);
+    setAuthError("");
     try {
-      const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...payload }) });
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action, ...payload }),
+      });
       const result = await response.json();
       if (!response.ok || !result.user) throw new Error(result.error ?? "Account request failed.");
-      setAuthUser(result.user); setProfile((current) => ({ ...current, name: action === "signup" ? payload.displayName || current.name : current.name, faction: action === "signup" ? payload.faction || current.faction : current.faction, signedIn: true }));
-      const restored = await loadCloud(action === "signup" ? "local" : payload.syncStrategy ?? "merge");
-      router.push(restored.route === "entry" ? "/dashboard" : paths[restored.route]);
-    } catch (error) { setAuthError(error.message); setSyncStatus("local"); }
-    finally { setAuthBusy(false); }
-  }, [loadCloud, router, setProfile]);
-  const continueAsGuest = useCallback(() => { setProfile((current) => ({ ...current, signedIn: true })); setSyncStatus("local"); router.push("/dashboard"); }, [router, setProfile]);
-  const signOutAccount = useCallback(async () => { try { await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "logout" }) }); } catch {} cloudLoaded.current = false; setSyncConflict(null); setAuthUser(null); setProfile((current) => ({ ...current, signedIn: false })); setSyncStatus("local"); router.push("/"); }, [router, setProfile]);
+      setAuthUser(result.user);
+      setProfile((current) => ({
+        ...current,
+        name: action === "signup" ? payload.displayName || current.name : current.name,
+        faction: action === "signup" ? payload.faction || current.faction : current.faction,
+        signedIn: true,
+      }));
+      await loadCloud(action === "signup" ? "local" : payload.syncStrategy ?? "merge");
+      const returnTo =
+        typeof payload.returnTo === "string" &&
+        payload.returnTo.startsWith("/") &&
+        !payload.returnTo.startsWith("//")
+          ? payload.returnTo
+          : pathname || "/";
+      setAccountPrompt(null);
+      setAccountAccessMode(null);
+      router.replace(returnTo);
+      return { ok: true, user: result.user };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Account request failed.";
+      setAuthError(message);
+      setSyncStatus("local");
+      return { ok: false, error: message };
+    } finally {
+      setAuthBusy(false);
+    }
+  }, [loadCloud, pathname, router, setProfile]);
+  const continueAsGuest = useCallback(() => {
+    setProfile((current) => ({ ...current, signedIn: false }));
+    setSyncStatus("local");
+    router.push("/");
+  }, [router, setProfile]);
+  const signOutAccount = useCallback(async () => {
+    try {
+      await fetch("/api/auth", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+    } catch {}
+    cloudLoaded.current = false;
+    setSyncConflict(null);
+    setAuthUser(null);
+    setProfile((current) => ({ ...current, signedIn: false }));
+    setSyncStatus("local");
+    router.push("/");
+  }, [router, setProfile]);
   const saveAccountProfile = useCallback(async () => { if (!authUser) return notify("Profile changes are saved on this device."); const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "update-profile", displayName: profile.name, faction: profile.faction }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not update account profile."); setAuthUser(result.user); setModifiedAt(Date.now()); }, [authUser, notify, profile.faction, profile.name, setModifiedAt]);
   const changePassword = useCallback(async (currentPassword, newPassword) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "change-password", currentPassword, newPassword }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not change password."); notify("Password changed. Other sessions were signed out."); }, [notify]);
   const deleteAccount = useCallback(async (confirmation) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not delete account."); cloudLoaded.current = false; setAuthUser(null); setProfile((current) => ({ ...current, signedIn: false })); router.push("/"); }, [router, setProfile]);
@@ -358,8 +419,13 @@ export function AppProvider({ children }) {
       const record = { id, result: match.winner === playerId ? "Victor" : "Defeat", opponent: match.players.find((player) => player.id !== playerId)?.name ?? "Opponent", score: Object.values(match.series).join("–"), reason: match.resultReason, at: new Date().toISOString(), startedAt: new Date(match.log[0]?.at ?? Date.now()).toISOString(), format: match.format, mode: online ? "online" : "training", schemaVersion: 1, log: match.log };
       setHistory((items) => [record, ...items]); setReplay(record); setReplayIndex(Math.max(0, record.log.length - 1));
     }
+    const promptKey = `match:${match.id}:${match.gameNumber}`;
+    if (!authUser && !promptedAccountMoments.current.has(promptKey)) {
+      promptedAccountMoments.current.add(promptKey);
+      setAccountPrompt("match-complete");
+    }
     if (pathname !== "/play/result") router.replace("/play/result");
-  }, [history, match, online, pathname, playerId, router, setHistory, setReplay, setReplayIndex]);
+  }, [authUser, history, match, online, pathname, playerId, router, setHistory, setReplay, setReplayIndex]);
 
   const api = useCallback(async (action, payload, code, selection) => {
     setMatchError("");
@@ -403,6 +469,6 @@ export function AppProvider({ children }) {
   }, [applySnapshot, putCloud, syncConflict]);
   const syncNow = useCallback(() => { void syncToCloud(true); }, [syncToCloud]);
 
-  const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, settings, setSettings, selectedDeckId, setSelectedDeckId, selectedDeck, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchError, toast, notify, authUser, authChecking, authBusy, authError, syncStatus, syncConflict, resolveSyncConflict, storageHealth, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, startSolo, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch }), [authBusy, authChecking, authError, authUser, authenticate, builderDeck, changePassword, compendiumQuery, compendiumTab, continueAsGuest, createOnline, deckQuery, decks, deleteAccount, format, history, joinCode, joinOnline, leaveMatch, match, matchError, matchMode, nextSeriesGame, notify, online, playerId, profile, ready, readyMatch, replay, replayIndex, route, saveAccountProfile, selectedDeck, selectedDeckId, settings, signOutAccount, startSolo, storageHealth, syncConflict, resolveSyncConflict, syncNow, syncStatus, toast]);
+  const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, settings, setSettings, selectedDeckId, setSelectedDeckId, selectedDeck, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchError, toast, notify, authUser, authChecking, authBusy, authError, syncStatus, syncConflict, resolveSyncConflict, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, startSolo, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch }), [accountAccessMode, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, changePassword, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, createOnline, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, joinCode, guestData, joinOnline, leaveMatch, match, matchError, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, requestAccountAccess, profile, ready, readyMatch, replay, replayIndex, route, saveAccountProfile, selectedDeck, selectedDeckId, settings, signOutAccount, startSolo, storageHealth, syncConflict, resolveSyncConflict, syncNow, syncStatus, toast]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

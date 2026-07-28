@@ -45,6 +45,7 @@ export function SettingsScreen() {
     authError,
     storageHealth,
     signOutAccount,
+    requestAccountAccess,
     syncNow,
     changePassword,
     deleteAccount,
@@ -236,8 +237,8 @@ export function SettingsScreen() {
                       between devices.
                     </p>
                   </div>
-                  <ActionButton onClick={() => router.push("/")}>
-                    Sign up or log in
+                  <ActionButton onClick={() => requestAccountAccess("signup")}>
+                    Register or log in
                   </ActionButton>
                 </Surface>
               )}

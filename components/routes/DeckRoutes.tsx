@@ -808,6 +808,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     setSelectedDeckId,
     storageHealth,
     notify,
+    promptAccount,
   } = useApp();
   const source = id === "new" ? builderDeck : decks.find((item: DeckRecord) => item.id === id);
   const [deck, setDeck] = useState<DeckRecord>(() => clone(source ?? blankDraft(decks)));
@@ -903,6 +904,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     setBuilderDeck(null);
     setSaveState("saved");
     notify("Legal deck saved.");
+    promptAccount("deck-saved");
     router.push(returnTo ?? `/decks/${encodeURIComponent(next.id)}`);
   };
 
