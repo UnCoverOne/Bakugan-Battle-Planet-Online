@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -82,7 +83,17 @@ test("team selection drives a removable faction filter and ordered BakuCore prev
   assert.match(route, /selectedCoreSlots/);
   assert.match(route, /BakuCoreBack/);
   assert.match(route, /BakuCore reverse/);
+  assert.match(route, /CORE_BACK_IMAGES/);
+  assert.match(route, /<img\s+[\s\S]*?src=\{CORE_BACK_IMAGES\[type\]/);
   assert.match(css, /\.bakuCoreBack\s*\{[^}]*opacity:\s*\.24/s);
+  assert.match(css, /\.bakuCoreBack\s*>\s*img\s*\{[^}]*object-fit:\s*contain/s);
+  for (const slug of ["fist", "flaming-fist", "shield", "magic-shield", "helix"]) {
+    assert.equal(
+      existsSync(new URL(`../public/assets/bakucores/backs/${slug}.png`, import.meta.url)),
+      true,
+      `missing ${slug} BakuCore reverse asset`,
+    );
+  }
   assert.match(route, /FACTION_SYMBOLS/);
 });
 
@@ -123,7 +134,7 @@ test("Save Deck dialog owns metadata and permits invalid non-public decks", asyn
     "eligible for featuring on the Home Page",
     "Draft and Private decks can be saved with issues.",
   ]) assert.match(route, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.match(route, /saveVisibility === "Public" && !latest\.isLegal/);
+  assert.match(route, /\(saveVisibility === "Public" \|\| adminAiId\) && !latest\.isLegal/);
   assert.match(data, /visibility:\s*"Draft" \| "Private" \| "Public"/);
   assert.match(persistence, /deck\.visibility === "Draft" \? "Draft"/);
   assert.match(server, /deck\.visibility === "Public" && !validation\.isLegal/);

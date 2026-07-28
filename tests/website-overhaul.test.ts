@@ -29,9 +29,18 @@ test("the primary shell uses the approved four-item top navigation and profile m
   assert.match(mobileNavigation, /NAV\.map/);
   assert.doesNotMatch(mobileNavigation, /href="\/profile"/);
   assert.doesNotMatch(mobileNavigation, />Profile<\/span>/);
+  const shellCss = source("app/website-overhaul.css");
   assert.match(
-    source("app/website-overhaul.css"),
+    shellCss,
     /\.mobile-bottom-nav\{[^}]*grid-template-columns:repeat\(4,1fr\)/,
+  );
+  assert.match(
+    shellCss,
+    /@media \(max-width:820px\)\{[\s\S]*?\.profile-popover\{position:absolute;left:auto;right:0;top:calc\(100% \+ 8px\);bottom:auto;/,
+  );
+  assert.doesNotMatch(
+    shellCss,
+    /@media \(max-width:820px\)\{[\s\S]*?\.profile-popover\{position:fixed;/,
   );
 });
 

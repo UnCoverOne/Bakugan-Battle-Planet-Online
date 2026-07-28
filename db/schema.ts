@@ -69,6 +69,35 @@ export const userData = sqliteTable("user_data", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+export const accountRoles = sqliteTable("account_roles", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: text("role").notNull(),
+  assignedBy: text("assigned_by"),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.role] }),
+  index("account_roles_role_idx").on(table.role),
+]);
+
+export const accountBans = sqliteTable("account_bans", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  reason: text("reason").notNull().default(""),
+  bannedBy: text("banned_by"),
+  bannedAt: integer("banned_at").notNull(),
+});
+
+export const adminResources = sqliteTable("admin_resources", {
+  resourceType: text("resource_type").notNull(),
+  resourceId: text("resource_id").notNull(),
+  dataJson: text("data_json").notNull(),
+  enabled: integer("enabled").notNull().default(1),
+  updatedBy: text("updated_by"),
+  updatedAt: integer("updated_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.resourceType, table.resourceId] }),
+  index("admin_resources_type_enabled_idx").on(table.resourceType, table.enabled),
+]);
+
 export const rateLimits = sqliteTable("rate_limits", {
   key: text("key").notNull(),
   windowStart: integer("window_start").notNull(),

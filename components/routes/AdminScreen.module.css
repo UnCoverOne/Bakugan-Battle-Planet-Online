@@ -1,0 +1,70 @@
+.route{width:min(100% - 2rem,var(--content-wide));margin:0 auto;padding:1.5rem 0 5rem}
+.tabs{position:sticky;z-index:20;top:4.25rem;margin:1rem 0 0;padding:.45rem;background:rgba(2,14,20,.96);border:1px solid var(--border-strong);box-shadow:var(--elevation-2)}
+.tabs a{min-height:3rem;padding:.8rem 1.2rem;text-decoration:none}
+.section{display:grid;gap:1rem;margin-top:1rem}
+.sectionHeading{display:flex;justify-content:space-between;align-items:end;gap:1.5rem;padding:1.2rem;background:var(--surface-panel);border:1px solid var(--border-subtle)}
+.sectionHeading span,.cardEditor header span{color:var(--brand-blue-bright);font-size:var(--type-meta);font-weight:900;letter-spacing:var(--tracking-label)}
+.sectionHeading h2,.cardEditor h3{margin:.2rem 0 0;font-size:var(--type-section-title)}
+.sectionHeading p,.cardEditor p{margin:.35rem 0 0;color:var(--text-secondary);line-height:1.5}
+.addDeck{display:flex;align-items:end;gap:.6rem;min-width:min(100%,28rem)}
+.addDeck label{flex:1}
+.state,.denied{padding:2rem;text-align:center}
+.denied{display:grid;place-items:center;gap:.7rem;margin:10vh auto;width:min(100%,38rem)}
+.denied>span{display:grid;place-items:center;width:3rem;height:3rem;border:2px solid #ff5057;border-radius:50%;color:#ff8589;font-size:1.5rem;font-weight:900}
+.denied h1,.denied p{margin:0}
+.denied p{color:var(--text-secondary)}
+.denied a{color:var(--brand-blue-bright)}
+.deckRows,.userRows{display:grid;gap:.65rem}
+.deckRow{display:grid;grid-template-columns:8rem minmax(0,1fr) auto auto;align-items:center;gap:1rem;padding:1rem}
+.deckRow h3,.deckRow p,.userRow h3,.userRow p{margin:0}
+.deckRow p,.userRow p{color:var(--text-secondary)}
+.switch{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:.5rem;font-weight:900}
+.switch input{width:1.2rem;height:1.2rem;accent-color:var(--brand-blue)}
+.rowActions,.userActions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:.45rem}
+.rowActions button,.userActions button,.userActions select{min-height:2.5rem;padding:.5rem .7rem;background:#073244;border:1px solid var(--border-strong);color:var(--text-primary);font-weight:800}
+.danger{background:rgba(121,15,20,.64)!important;border-color:#d84a50!important;color:#ffd5d6!important}
+.cardToolbar,.userToolbar{display:grid;grid-template-columns:minmax(16rem,1.7fr) repeat(2,minmax(10rem,.65fr));gap:.75rem;padding:1rem}
+.userToolbar{grid-template-columns:minmax(16rem,1.7fr) repeat(3,minmax(9rem,.6fr))}
+.cardManagement{display:grid;grid-template-columns:minmax(18rem,.72fr) minmax(0,1.28fr);gap:1rem;min-height:40rem}
+.cardList,.cardEditor{overflow:hidden}
+.cardList>header,.cardEditor>header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem;border-bottom:1px solid var(--border-subtle)}
+.cardList>header span{color:var(--text-muted)}
+.cardList>div{max-height:68vh;overflow:auto}
+.cardList button{display:grid;width:100%;grid-template-columns:7rem minmax(0,1fr);gap:.2rem .65rem;padding:.75rem 1rem;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--border-subtle);color:var(--text-primary)}
+.cardList button:hover,.cardList button.selected{background:rgba(0,174,239,.12);box-shadow:inset 3px 0 0 var(--brand-blue)}
+.cardList button span{grid-row:1/3;color:var(--brand-blue-bright);font-family:monospace}
+.cardList button small{color:var(--text-secondary)}
+.cardEditor{padding-bottom:1rem}
+.cardEditor>label,.cardEditor>p,.cardEditor>.rowActions{margin:1rem}
+.cardEditor textarea{min-height:48vh;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2;resize:vertical}
+.emptyEditor{display:grid;place-content:center;min-height:30rem;text-align:center}
+.emptyEditor p{color:var(--text-secondary)}
+.userRow{display:grid;grid-template-columns:minmax(15rem,1.25fr) auto minmax(14rem,.8fr) minmax(7rem,.45fr);gap:1rem;align-items:center;padding:1rem}
+.userIdentity{display:flex;align-items:center;gap:.8rem;min-width:0}
+.userIdentity>span{display:grid;flex:0 0 auto;place-items:center;width:3rem;height:3rem;background:#0b4d65;border:1px solid var(--brand-blue);font-weight:900}
+.userIdentity div{min-width:0}
+.userIdentity p{overflow:hidden;text-overflow:ellipsis}
+.userIdentity small,.userStatus small{display:block;color:var(--text-muted)}
+.userCounts{display:flex;gap:.8rem}
+.userCounts span{display:grid;text-align:center;color:var(--text-secondary)}
+.userCounts strong{color:var(--text-primary);font-size:1.2rem}
+.roles{display:flex;flex-wrap:wrap;gap:.5rem}
+.roles label{display:flex;align-items:center;gap:.35rem;padding:.45rem .55rem;background:rgba(255,255,255,.04);border:1px solid var(--border-subtle)}
+.userStatus{display:grid;gap:.3rem}
+.userActions{grid-column:1/-1;padding-top:.75rem;border-top:1px solid var(--border-subtle)}
+.userActions select{margin-right:auto}
+@media(max-width:1000px){
+  .deckRow{grid-template-columns:7rem 1fr auto}.deckRow .rowActions{grid-column:1/-1}
+  .cardManagement{grid-template-columns:1fr}.cardList>div{max-height:32rem}
+  .userRow{grid-template-columns:1fr auto}.roles,.userStatus{grid-column:auto}.userActions{grid-column:1/-1}
+  .userToolbar{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+  .route{width:min(100% - 1rem,var(--content-wide));padding-top:.5rem}
+  .tabs{top:.25rem;display:grid;grid-template-columns:1fr}.tabs a{text-align:center}
+  .sectionHeading{align-items:stretch;flex-direction:column}.addDeck{display:grid;grid-template-columns:1fr;min-width:0}
+  .deckRow,.userRow{grid-template-columns:1fr}.deckRow>*{grid-column:1}.rowActions,.userActions{justify-content:stretch}.rowActions button,.userActions button,.userActions select{flex:1}
+  .cardToolbar,.userToolbar{grid-template-columns:1fr}
+  .cardList button{grid-template-columns:5.5rem minmax(0,1fr)}
+  .userCounts{justify-content:flex-start}.roles,.userStatus{grid-column:1}
+}

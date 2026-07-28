@@ -5,6 +5,12 @@ import { deckValidationMessages, validateDeckConstruction } from "./deck-validat
 const records = CONTROLLED_CATALOGUE;
 export const CARDS: GameCard[] = records.map((record) => ({ ...record, id: record.id, catalogId: record.id }));
 export const CARD_BY_ID = new Map(CARDS.map((card) => [card.catalogId, card]));
+const BASE_CARD_BY_ID = new Map(CARDS.map((card) => [card.catalogId, {
+  ...card,
+  factions: [...card.factions],
+  mechanics: [...card.mechanics],
+  coreTypes: [...card.coreTypes],
+}]));
 
 type CoreSeed = [number, CoreType, number, number, Partial<Core>?];
 const seeds: CoreSeed[] = [
@@ -43,6 +49,52 @@ export const BAKUGAN: Bakugan[] = characterCards.map((character) => ({
   heldCoreCells: [],
   evoStack: [],
 }));
+
+export type CardOverrideRecord = {
+  catalogId: string;
+  card: Partial<GameCard> & Record<string, unknown>;
+};
+
+export function applyCardOverrides(overrides: CardOverrideRecord[]) {
+  for (const card of CARDS) {
+    const base = BASE_CARD_BY_ID.get(card.catalogId);
+    if (!base) continue;
+    for (const key of Object.keys(card)) {
+      if (!(key in base)) delete (card as unknown as Record<string, unknown>)[key];
+    }
+    Object.assign(card, base, {
+      factions: [...base.factions],
+      mechanics: [...base.mechanics],
+      coreTypes: [...base.coreTypes],
+    });
+  }
+  for (const override of overrides) {
+    const card = CARD_BY_ID.get(override.catalogId);
+    if (!card || !override.card || typeof override.card !== "object") continue;
+    const immutable = { id: card.id, catalogId: card.catalogId };
+    Object.assign(card, override.card, immutable);
+    const bakugan = BAKUGAN.find((candidate) => candidate.id === card.catalogId);
+    if (bakugan) {
+      bakugan.name = card.displayName;
+      bakugan.faction = card.faction;
+      bakugan.bPower = card.bPower ?? bakugan.bPower;
+      bakugan.damage = card.damage ?? bakugan.damage;
+      bakugan.art = card.art;
+      bakugan.character = card;
+    }
+  }
+  for (const bakugan of BAKUGAN) {
+    const card = CARD_BY_ID.get(bakugan.id);
+    if (!card) continue;
+    bakugan.name = card.displayName;
+    bakugan.faction = card.faction;
+    bakugan.bPower = card.bPower ?? bakugan.bPower;
+    bakugan.damage = card.damage ?? bakugan.damage;
+    bakugan.art = card.art;
+    bakugan.character = card;
+  }
+  return CARDS;
+}
 
 export type DeckFormat = "standard" | "singleton";
 
@@ -201,4 +253,3 @@ export const RULE_ENTRIES = [
   { title:"Undo",category:"Platform",body:"Undo restores the immediately previous state only before priority passes or new hidden/random information is revealed." },
   { title:"Disconnect",category:"Platform",body:"A disconnected player has 30 seconds to reconnect before the remaining player wins." },
 ];
-

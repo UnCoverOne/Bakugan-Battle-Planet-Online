@@ -27,6 +27,7 @@ const TITLES = {
   history: "Match Records",
   profile: "Profile",
   settings: "Settings",
+  admin: "Administrator",
 };
 
 function SyncGlyph({ cloud }) {
@@ -151,7 +152,8 @@ export function AppShell({ children }) {
   const profileActive =
     pathname.startsWith("/profile") ||
     pathname.startsWith("/settings") ||
-    pathname.startsWith("/history");
+    pathname.startsWith("/history") ||
+    pathname.startsWith("/admin");
 
   return (
     <div
@@ -257,6 +259,11 @@ export function AppShell({ children }) {
                     <Link role="menuitem" href="/settings">
                       Settings
                     </Link>
+                    {authUser?.roles?.includes("administrator") && (
+                      <Link role="menuitem" href="/admin">
+                        Administrator
+                      </Link>
+                    )}
                     {authUser ? (
                       <button
                         role="menuitem"

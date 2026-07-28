@@ -1,6 +1,6 @@
 import {
   clearSessionCookie, createPasswordRecord, createSession, getDatabase,
-  getSessionUser, getUserByEmail, normalizeEmail, passwordRecordNeedsUpgrade,
+  getAccountBan, getAccountRoles, getSessionUser, getUserByEmail, normalizeEmail, passwordRecordNeedsUpgrade,
   publicUser, revokeSession, validateAccountInput, verifyPassword,
 } from "../../../lib/account-server";
 import { assertSameOrigin, enforceD1RateLimit, RateLimitError, requestClientKey } from "../../../lib/request-security";
@@ -39,7 +39,8 @@ export async function POST(request: Request) {
       const now = Date.now();
       await db.prepare("INSERT INTO users (id, email, password_hash, password_salt, password_iterations, display_name, faction, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(id, email, password.hash, password.salt, password.iterations, displayName, faction, now, now).run();
-      return json({ user: { id, email, displayName, faction, createdAt: now } }, 201, await createSession(request, id));
+      const user = { id, email, displayName, faction, createdAt: now };
+      return json({ user: { ...user, roles: await getAccountRoles(db, user) } }, 201, await createSession(request, id));
     }
 
     if (action === "login") {
@@ -47,12 +48,13 @@ export async function POST(request: Request) {
       const row = await getUserByEmail(email);
       const valid = row ? await verifyPassword(String(body.password ?? ""), row) : false;
       if (!row || !valid) return json({ error: "Email or password is incorrect." }, 401);
+      if (await getAccountBan(db, row.id)) return json({ error: "This account has been banned." }, 403);
       if (passwordRecordNeedsUpgrade(row.password_iterations)) {
         const upgraded = await createPasswordRecord(String(body.password));
         await db.prepare("UPDATE users SET password_hash = ?, password_salt = ?, password_iterations = ?, updated_at = ? WHERE id = ?")
           .bind(upgraded.hash, upgraded.salt, upgraded.iterations, Date.now(), row.id).run();
       }
-      return json({ user: publicUser(row) }, 200, await createSession(request, row.id));
+      return json({ user: publicUser(row, await getAccountRoles(db, row)) }, 200, await createSession(request, row.id));
     }
 
     if (action === "logout") {

@@ -329,7 +329,7 @@
   .mobile-bottom-nav a.active::before{content:"";position:absolute;top:0;left:50%;width:35px;height:3px;transform:translateX(-50%);background:var(--cyan)}
   .top-actions .resume-chip{position:fixed;left:1rem;right:1rem;bottom:76px;z-index:75;width:auto;min-height:42px;font-size:.7rem;background:#0a4c66;box-shadow:0 8px 24px rgba(0,0,0,.45)}
   .top-actions .resume-chip .pulse{margin-right:.45rem}
-  .profile-popover{position:fixed;left:.75rem;right:.75rem;top:auto;bottom:76px;width:auto}
+  .profile-popover{position:absolute;left:auto;right:0;top:calc(100% + 8px);bottom:auto;width:min(300px,calc(100vw - 1.5rem));max-height:calc(100dvh - 88px);overflow-y:auto}
   .compact-page-heading{padding:1.55rem 1rem 1rem;align-items:flex-start;flex-direction:column}
   .compact-page-heading h1{font-size:2.4rem}
   .page-hero{min-height:320px;padding:2rem 1.1rem}
