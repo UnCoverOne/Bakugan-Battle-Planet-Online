@@ -54,7 +54,7 @@ export type DeckRecord = {
   coreIds: string[];
   cardIds: string[];
   updatedAt: string;
-  visibility: "Private" | "Public";
+  visibility: "Draft" | "Private" | "Public";
   format?: DeckFormat;
   revision?: number;
   favourite?: boolean;
