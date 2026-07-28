@@ -57,6 +57,9 @@ export function AppShell({ children }) {
     toast,
     accountPrompt,
     dismissAccountPrompt,
+    accountAccessMode,
+    requestAccountAccess,
+    closeAccountAccess,
     signOutAccount,
   } = useApp();
   const immersiveMatch = pathname === "/play/match";
@@ -66,7 +69,6 @@ export function AppShell({ children }) {
   const menuRef = useRef(null);
   const [isOnline, setIsOnline] = useState(true);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [accountMode, setAccountMode] = useState(null);
   const [versionMismatch, setVersionMismatch] = useState(false);
 
   useEffect(() => {
@@ -270,7 +272,7 @@ export function AppShell({ children }) {
                           type="button"
                           onClick={() => {
                             setProfileOpen(false);
-                            setAccountMode("login");
+                            requestAccountAccess("login");
                           }}
                         >
                           Log In
@@ -280,7 +282,7 @@ export function AppShell({ children }) {
                           type="button"
                           onClick={() => {
                             setProfileOpen(false);
-                            setAccountMode("signup");
+                            requestAccountAccess("signup");
                           }}
                         >
                           Register
@@ -343,19 +345,19 @@ export function AppShell({ children }) {
           reason={accountPrompt}
           onLogin={() => {
             dismissAccountPrompt();
-            setAccountMode("login");
+            requestAccountAccess("login");
           }}
           onRegister={() => {
             dismissAccountPrompt();
-            setAccountMode("signup");
+            requestAccountAccess("signup");
           }}
           onDismiss={dismissAccountPrompt}
         />
       )}
-      {accountMode && !authUser && (
+      {accountAccessMode && !authUser && (
         <AccountAccessModal
-          mode={accountMode}
-          onClose={() => setAccountMode(null)}
+          mode={accountAccessMode}
+          onClose={closeAccountAccess}
         />
       )}
       {toast && (
