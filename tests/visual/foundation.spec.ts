@@ -40,6 +40,37 @@ async function waitForWorkspace(page: Page) {
     .toBe(true);
 }
 
+test("mobile shell shares the desktop account menu and primary tabs", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "Mobile shell contract");
+
+  await page.goto("/dashboard");
+  await waitForWorkspace(page);
+
+  const bottomNavigation = page.locator(".mobile-bottom-nav");
+  await expect(bottomNavigation).toBeVisible();
+  await expect(bottomNavigation.locator("a")).toHaveCount(4);
+  await expect(bottomNavigation.locator("a span")).toHaveText([
+    "Home",
+    "Play",
+    "Decks",
+    "Compendium",
+  ]);
+  await expect(bottomNavigation.getByText("Profile", { exact: true })).toHaveCount(0);
+
+  const accountTrigger = page.getByRole("button", {
+    name: "Open profile menu",
+  });
+  await expect(accountTrigger).toBeVisible();
+  await accountTrigger.click();
+
+  const accountMenu = page.locator("#profile-menu");
+  await expect(accountMenu).toBeVisible();
+  await expect(accountMenu.getByRole("link", { name: "View Profile" })).toBeVisible();
+  await expect(accountMenu.getByRole("link", { name: "Achievements" })).toBeVisible();
+  await expect(accountMenu.getByRole("link", { name: "Settings" })).toBeVisible();
+  await expect(accountMenu.getByRole("button", { name: "Log Out" })).toBeVisible();
+});
+
 async function attachViewport(page: Page, testInfo: TestInfo, routeName: string) {
   await testInfo.attach(`${routeName}-${testInfo.project.name}`, {
     body: await page.screenshot({ animations: "disabled", fullPage: false }),
