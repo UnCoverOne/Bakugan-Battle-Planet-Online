@@ -209,7 +209,9 @@ export function AppShell({ children }) {
               <button
                 className={`profile-avatar-button ${profileActive ? "active" : ""}`}
                 type="button"
+                aria-label="Open profile menu"
                 aria-haspopup="menu"
+                aria-controls="profile-menu"
                 aria-expanded={profileOpen}
                 onClick={() => setProfileOpen((open) => !open)}
               >
@@ -217,7 +219,11 @@ export function AppShell({ children }) {
                 <span className="sr-only">Open profile menu</span>
               </button>
               {profileOpen && (
-                <div className="profile-popover" role="menu">
+                <div
+                  id="profile-menu"
+                  className="profile-popover"
+                  role="menu"
+                >
                   <div className="profile-popover-heading">
                     <span
                       className={`profile-popover-avatar faction-${profile.faction.toLowerCase()}`}
@@ -303,16 +309,6 @@ export function AppShell({ children }) {
               </Link>
             );
           })}
-          <Link
-            href="/profile"
-            aria-current={profileActive ? "page" : undefined}
-            className={profileActive ? "active" : ""}
-          >
-            <i className="mobile-avatar">
-              {profile.name.slice(0, 2).toUpperCase()}
-            </i>
-            <span>Profile</span>
-          </Link>
         </nav>
       )}
       {toast && (
