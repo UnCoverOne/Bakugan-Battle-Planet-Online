@@ -26,18 +26,71 @@ test("Deck Library includes the complete responsive library composition", async 
   assert.match(css, /\.deckCardSelected/);
 });
 
-test("Deck Builder exposes team, Main Deck, catalogue, inspector, legality, and save status", async () => {
-  const route = await read("components/routes/DeckRoutes.tsx");
+test("Deck Builder uses a two-sided desktop workbench and two mobile tabs", async () => {
+  const [route, css] = await Promise.all([
+    read("components/routes/DeckRoutes.tsx"),
+    read("components/routes/DeckRoutes.module.css"),
+  ]);
   for (const contract of [
-    "BuilderTeam",
-    "BuilderDeckList",
-    "BuilderCatalogue",
-    "BuilderInspector",
-    "ValidationPanel",
+    "Card Gallery",
+    "Current Deck",
+    "Bakugan Character Cards",
+    "BakuCores",
+    "Main Deck",
+    'type BuilderView = "gallery" | "deck"',
     "Draft saved locally",
     "Save Deck",
-    "Energy curve",
   ]) assert.match(route, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(css, /\.builderLayout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.builderMobileTabs\s*\{[^}]*display:\s*none/s);
+  assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builderMobileTabs\s*\{[^}]*display:\s*grid/s);
+});
+
+test("Deck Builder cards expose quantities, shared full-screen inspection, and section issue dialogs", async () => {
+  const [route, css] = await Promise.all([
+    read("components/routes/DeckRoutes.tsx"),
+    read("components/routes/DeckRoutes.module.css"),
+  ]);
+  for (const contract of [
+    "BuilderGalleryCard",
+    "copies in deck",
+    "BuilderRequirementHeader",
+    "BuilderIssues",
+    "CardInspector",
+    'mode="embedded"',
+    "builderInspectorOverlay",
+    "requirements satisfied",
+  ]) assert.match(route, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(css, /\.builderInspectorOverlay\s*>\s*\[data-ui="card-inspector"\]\s*\{[^}]*width:\s*100vw[^}]*height:\s*100dvh/s);
+  assert.match(css, /\.builderInfoValid\s*\{[^}]*border:\s*2px solid white/s);
+  assert.match(css, /\.builderInfoInvalid\s*\{[^}]*#ff5057/s);
+});
+
+test("team selection drives a removable faction filter and ordered BakuCore previews", async () => {
+  const [route, css] = await Promise.all([
+    read("components/routes/DeckRoutes.tsx"),
+    read("components/routes/DeckRoutes.module.css"),
+  ]);
+  assert.match(route, /if \(adding \|\| factionFilterAuto\) setFactionFilters\(nextFactions\)/);
+  assert.match(route, /setFactionFilterAuto\(false\)/);
+  assert.match(route, /Team faction/);
+  assert.match(route, /selectedCoreSlots/);
+  assert.match(css, /opacity:\s*\.18/);
+  assert.match(route, /FACTION_SYMBOLS/);
+});
+
+test("Card Gallery and Main Deck each provide search, sort, filter, and responsive dialogs", async () => {
+  const [route, css] = await Promise.all([
+    read("components/routes/DeckRoutes.tsx"),
+    read("components/routes/DeckRoutes.module.css"),
+  ]);
+  assert.ok((route.match(/<BuilderToolbar/g) ?? []).length >= 2);
+  assert.match(route, /surface: "gallery", panel: "sort"/);
+  assert.match(route, /surface: "gallery", panel: "filter"/);
+  assert.match(route, /surface: "deck", panel: "sort"/);
+  assert.match(route, /surface: "deck", panel: "filter"/);
+  assert.match(css, /\.builderMenuDialog\s*\{[^}]*width:\s*min\(100%,\s*34rem\)/s);
+  assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builderMenuDialog\s*\{[^}]*width:\s*100vw[^}]*height:\s*100dvh/s);
 });
 
 test("public copying and read-only details reuse validation and preserve attribution", async () => {
