@@ -156,6 +156,36 @@
   border-color: rgba(94, 178, 211, .24);
 }
 
+.showcaseDeckToggle {
+  position: absolute;
+  z-index: 5;
+  top: .75rem;
+  right: .75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 2rem;
+  padding: 0 .65rem;
+  border: 1px solid rgba(108, 217, 239, .42);
+  background: rgba(1, 13, 19, .9);
+  color: #dff5f8;
+  font: inherit;
+  font-size: var(--type-meta);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.showcaseDeckToggle[aria-pressed="true"] {
+  border-color: rgba(255, 211, 86, .68);
+  background: rgba(94, 65, 7, .88);
+  color: #ffe17d;
+}
+
+.showcaseDeckToggle:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
 .deckCard_list {
   min-height: 12rem;
 }
