@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
+import { deriveSyncIndicator } from "../../lib/client-status";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
 import { VersionMismatchScreen } from "./SystemState";
 import {
@@ -125,26 +126,12 @@ export function AppShell({ children }) {
     (achievement) => achievement.unlocked,
   ).length;
   const wins = history.filter((record) => record.result === "Victor").length;
-  const syncTone = authUser
-    ? syncStatus
-    : storageHealth.status === "error"
-      ? "error"
-      : storageHealth.status === "saved"
-        ? "synced"
-        : "checking";
-  const syncTitle = authUser
-    ? syncStatus === "saving"
-      ? "Saving to cloud"
-      : syncStatus === "synced"
-        ? "Cloud synced"
-        : syncStatus === "offline"
-          ? "Offline; sync queued"
-          : syncStatus === "conflict"
-            ? "Sync conflict; review Settings"
-            : syncStatus === "error"
-              ? "Cloud sync issue"
-              : "Connecting to cloud"
-    : storageHealth.message;
+  const syncIndicator = deriveSyncIndicator({
+    authenticated: Boolean(authUser),
+    syncStatus,
+    storageStatus: storageHealth.status,
+    storageMessage: storageHealth.message,
+  });
   const title =
     TITLES[pathname.split("/").filter(Boolean)[0] ?? "dashboard"] ??
     TITLES[route] ??
@@ -201,9 +188,9 @@ export function AppShell({ children }) {
             )}
             <Link
               href={syncStatus === "conflict" ? "/settings" : "/profile"}
-              className={`sync-dot ${syncTone}`}
-              title={syncTitle}
-              aria-label={syncTitle}
+              className={`sync-dot ${syncIndicator.tone}`}
+              title={syncIndicator.title}
+              aria-label={syncIndicator.title}
             >
               <SyncGlyph cloud={Boolean(authUser)} />
             </Link>
