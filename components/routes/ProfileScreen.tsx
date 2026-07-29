@@ -18,6 +18,7 @@ import {
   Surface,
   Tabs,
 } from "../design-system/primitives";
+import { AchievementsScreen } from "./AchievementsScreen";
 import styles from "./ProfileScreen.module.css";
 
 type ProfileSection = "overview" | "achievements" | "records";
@@ -56,7 +57,6 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
   const [saved, setSaved] = useState("");
   const [draftName, setDraftName] = useState(profile.name);
   const [draftFaction, setDraftFaction] = useState(profile.faction);
-  const [achievementFilter, setAchievementFilter] = useState("All");
   const [recordFilter, setRecordFilter] = useState("all");
   const achievements = achievementsFor(decks, history);
   const wins = history.filter((item: any) => item.result === "Victor").length;
@@ -79,6 +79,16 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
   const activeRecord = recordId
     ? (history.find((item: any) => item.id === recordId) ?? replay)
     : null;
+
+  if (section === "achievements") {
+    return (
+      <AchievementsScreen
+        achievements={achievements}
+        view={segments[1]}
+      />
+    );
+  }
+
   const saveProfile = async () => {
     const nextName = draftName.trim().replace(/\s+/g, " ") || profile.name;
     setSaving(true);
@@ -170,13 +180,6 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
           authUser={authUser}
           syncStatus={syncStatus}
           storageHealth={storageHealth}
-        />
-      )}
-      {section === "achievements" && (
-        <AchievementsPanel
-          achievements={achievements}
-          filter={achievementFilter}
-          setFilter={setAchievementFilter}
         />
       )}
       {section === "records" && (
@@ -454,71 +457,6 @@ function Metric({ label, value }: { label: string; value: string | number }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
-  );
-}
-
-function AchievementsPanel({
-  achievements,
-  filter,
-  setFilter,
-}: {
-  achievements: ReturnType<typeof achievementsFor>;
-  filter: string;
-  setFilter: (value: string) => void;
-}) {
-  const visible = achievements.filter(
-    (achievement) =>
-      filter === "All" ||
-      (filter === "Unlocked"
-        ? achievement.unlocked
-        : filter === "In progress"
-          ? !achievement.unlocked && achievement.current > 0
-          : !achievement.unlocked && achievement.current === 0),
-  );
-  return (
-    <section className={styles.section}>
-      <header className={styles.sectionToolbar}>
-        <div>
-          <span>Progression</span>
-          <h2>Achievements</h2>
-        </div>
-        <Field label="Show">
-          <select
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-          >
-            <option>All</option>
-            <option>Unlocked</option>
-            <option>In progress</option>
-            <option>Locked</option>
-          </select>
-        </Field>
-      </header>
-      <div className={styles.achievementGrid}>
-        {visible.map((achievement) => (
-          <Surface
-            as="article"
-            className={`${styles.achievementCard} ${achievement.unlocked ? styles.unlocked : ""}`}
-            key={achievement.id}
-          >
-            <div className={styles.achievementTop}>
-              <span aria-hidden="true">{achievement.unlocked ? "✓" : "◇"}</span>
-              <StatusChip tone={achievement.unlocked ? "success" : "neutral"}>
-                {achievement.category}
-              </StatusChip>
-            </div>
-            <h3>{achievement.name}</h3>
-            <p>{achievement.description}</p>
-            <progress max={achievement.target} value={achievement.current} />
-            <small>
-              {achievement.unlocked
-                ? "Unlocked"
-                : `${achievement.current} / ${achievement.target}`}
-            </small>
-          </Surface>
-        ))}
-      </div>
-    </section>
   );
 }
 
