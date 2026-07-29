@@ -26,6 +26,10 @@ import {
 } from "../../lib/reference";
 import { DECK_LIMIT, decodeDeckCode, deckTextList, encodeDeckCode, uniqueDeckName } from "../../lib/deck-transfer";
 import { deckSetName } from "../../lib/deck-set";
+import {
+  PROFILE_SHOWCASE_LIMIT,
+  toggleShowcaseId,
+} from "../../lib/profile-customization";
 import { useApp } from "../application/AppProvider";
 import { copyText, downloadTextFile, formatTimestamp } from "../application/ui";
 import { CardInspector } from "../cards/CardInspector";
@@ -320,6 +324,8 @@ export function DeckLibraryScreen() {
     setBuilderDeck,
     storageHealth,
     notify,
+    profile,
+    setProfile,
   } = useApp();
   const [faction, setFaction] = useState("All");
   const [legality, setLegality] = useState("All");
@@ -398,6 +404,25 @@ export function DeckLibraryScreen() {
     if (selectedDeckId === deck.id) setSelectedDeckId("");
     notify(`${deck.name} deleted.`);
   };
+  const toggleDeckShowcase = (deck: DeckRecord) => {
+    if (deck.visibility !== "Public") {
+      notify("Only Public decks can be showcased on your Profile.");
+      return;
+    }
+    const result = toggleShowcaseId(profile.showcaseDeckIds, deck.id);
+    if (result.reachedLimit) {
+      notify(
+        `Your Profile can showcase up to ${PROFILE_SHOWCASE_LIMIT} Public decks.`,
+      );
+      return;
+    }
+    setProfile({ ...profile, showcaseDeckIds: result.ids });
+    notify(
+      result.ids.includes(deck.id)
+        ? `${deck.name} added to your Profile showcase.`
+        : `${deck.name} removed from your Profile showcase.`,
+    );
+  };
 
   return (
     <div className={styles.route}>
@@ -470,6 +495,10 @@ export function DeckLibraryScreen() {
               deck={deck}
               report={reports.get(deck.id)!}
               selected={selectedDeckId === deck.id}
+              showcased={
+                deck.visibility === "Public" &&
+                (profile.showcaseDeckIds ?? []).includes(deck.id)
+              }
               view={view}
               onOpen={() => router.push(`/decks/${encodeURIComponent(deck.id)}`)}
               onSelect={() => {
@@ -479,6 +508,7 @@ export function DeckLibraryScreen() {
               onEdit={() => router.push(`/builder/${encodeURIComponent(deck.id)}`)}
               onDuplicate={() => duplicate(deck)}
               onDelete={() => remove(deck)}
+              onToggleShowcase={() => toggleDeckShowcase(deck)}
             />
           ))}
         </CardGrid>
@@ -515,22 +545,26 @@ function DeckTile({
   deck,
   report,
   selected,
+  showcased,
   view,
   onOpen,
   onSelect,
   onEdit,
   onDuplicate,
   onDelete,
+  onToggleShowcase,
 }: {
   deck: DeckRecord;
   report: DeckValidationResult;
   selected: boolean;
+  showcased: boolean;
   view: LibraryView;
   onOpen: () => void;
   onSelect: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onToggleShowcase: () => void;
 }) {
   return (
     <Surface
@@ -539,6 +573,23 @@ function DeckTile({
       data-selected-for-play={selected || undefined}
       elevation={selected ? "overlay" : "raised"}
     >
+      <button
+        className={styles.showcaseDeckToggle}
+        type="button"
+        aria-pressed={showcased}
+        disabled={deck.visibility !== "Public"}
+        title={
+          deck.visibility === "Public"
+            ? showcased
+              ? "Remove from Profile showcase"
+              : "Showcase on Profile"
+            : "Only Public decks can be showcased"
+        }
+        onClick={onToggleShowcase}
+      >
+        <span aria-hidden="true">{showcased ? "★" : "☆"}</span>
+        {showcased ? "Showcased" : "Showcase"}
+      </button>
       {selected && <div className={styles.selectedBanner}><span /> Selected for Play</div>}
       <button className={styles.deckCardMain} onClick={onOpen} aria-label={`View ${deck.name}`}>
         <CharacterFan deck={deck} compact={view === "list"} />
