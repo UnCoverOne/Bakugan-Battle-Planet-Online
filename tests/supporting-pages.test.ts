@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
+import {
+  deriveSyncIndicator,
+  hasClientVersionMismatch,
+} from "../lib/client-status";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
@@ -110,4 +114,80 @@ test("cloud conflicts pause automatic overwrite until a user resolves them", () 
     provider,
     /selectSnapshot\(pending\.local, pending\.cloud, preference\)/,
   );
+});
+
+
+test("client freshness compares authoritative build identities without duplicate registration", () => {
+  assert.equal(hasClientVersionMismatch("build-a", "build-a"), false);
+  assert.equal(hasClientVersionMismatch("development", "build-b"), false);
+  assert.equal(hasClientVersionMismatch("build-a", "build-b"), true);
+
+  const freshness = source("components/AssetFreshness.tsx");
+  const layout = source("app/layout.tsx");
+  const versionApi = source("app/api/version/route.ts");
+
+  assert.match(freshness, /fetch\(\s*`\/api\/version\?client=/);
+  assert.match(freshness, /\.register\("\/sw\.js"/);
+  assert.match(freshness, /hasClientVersionMismatch\(BUILD_ID, serverBuildId\)/);
+  assert.doesNotMatch(freshness, /existingBrowserData|notifyAfterClaim/);
+  assert.doesNotMatch(layout, /ServiceWorkerRegistration/);
+  assert.equal(existsSync("components/ServiceWorkerRegistration.tsx"), false);
+  assert.match(versionApi, /BUILD_ID/);
+  assert.match(versionApi, /no-store, no-cache, must-revalidate/);
+});
+
+test("sync indicator distinguishes healthy, working, warning, and error states", () => {
+  assert.deepEqual(
+    deriveSyncIndicator({
+      authenticated: false,
+      syncStatus: "local",
+      storageStatus: "ready",
+      storageMessage: "Local storage is ready.",
+    }),
+    { tone: "synced", title: "Device data ready" },
+  );
+  assert.equal(
+    deriveSyncIndicator({
+      authenticated: false,
+      syncStatus: "local",
+      storageStatus: "saved",
+      storageMessage: "Saved.",
+    }).tone,
+    "synced",
+  );
+  assert.equal(
+    deriveSyncIndicator({
+      authenticated: true,
+      syncStatus: "loading",
+      storageStatus: "ready",
+      storageMessage: "Ready.",
+    }).tone,
+    "working",
+  );
+  assert.equal(
+    deriveSyncIndicator({
+      authenticated: true,
+      syncStatus: "offline",
+      storageStatus: "ready",
+      storageMessage: "Ready.",
+    }).tone,
+    "warning",
+  );
+  assert.equal(
+    deriveSyncIndicator({
+      authenticated: true,
+      syncStatus: "conflict",
+      storageStatus: "ready",
+      storageMessage: "Ready.",
+    }).tone,
+    "error",
+  );
+
+  const shell = source("components/application/AppShell.jsx");
+  const css = source("app/website-overhaul.css");
+  assert.match(shell, /deriveSyncIndicator/);
+  assert.match(shell, /syncIndicator\.tone/);
+  assert.match(shell, /syncIndicator\.title/);
+  assert.match(css, /\.sync-dot\.working/);
+  assert.match(css, /\.sync-dot\.warning/);
 });
