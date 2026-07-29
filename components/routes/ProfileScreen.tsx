@@ -289,13 +289,6 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
           Overview
         </Link>
         <Link
-          aria-current={section === "achievements" ? "page" : undefined}
-          className={section === "achievements" ? "active" : ""}
-          href="/profile/achievements"
-        >
-          Achievements
-        </Link>
-        <Link
           aria-current={section === "records" ? "page" : undefined}
           className={section === "records" ? "active" : ""}
           href="/profile/records"
@@ -320,11 +313,13 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
             }
           >
             <button
-              className={styles.coverEdit}
+              className={`${styles.editButton} ${styles.coverEdit}`}
               type="button"
+              aria-label="Edit cover"
+              title="Edit cover"
               onClick={() => setDialog("cover")}
             >
-              Edit cover
+              <PencilIcon />
             </button>
             <div className={styles.identityContent}>
               <div className={styles.portraitWrap}>
@@ -334,10 +329,12 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                 />
                 <button
                   type="button"
-                  className={styles.portraitEdit}
+                  className={`${styles.editButton} ${styles.portraitEdit}`}
+                  aria-label="Edit picture"
+                  title="Edit picture"
                   onClick={() => setDialog("avatar")}
                 >
-                  Edit picture
+                  <PencilIcon />
                 </button>
               </div>
               <div className={styles.identityCopy}>
@@ -345,8 +342,14 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                 <h1>{profile.name}</h1>
                 <div className={styles.titleLine}>
                   <strong>{selectedTitle.label}</strong>
-                  <button type="button" onClick={() => setDialog("title")}>
-                    Edit title
+                  <button
+                    className={`${styles.editButton} ${styles.titleEdit}`}
+                    type="button"
+                    aria-label="Edit title"
+                    title="Edit title"
+                    onClick={() => setDialog("title")}
+                  >
+                    <PencilIcon />
                   </button>
                 </div>
                 <div className={styles.factionIdentity}>
@@ -738,6 +741,15 @@ function ProfileModal({
         {children}
       </Surface>
     </div>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Z" />
+      <path d="m14.06 4.19 2.37-2.37a1 1 0 0 1 1.42 0l4.33 4.33a1 1 0 0 1 0 1.42l-2.37 2.37-5.75-5.75Z" />
+    </svg>
   );
 }
 
