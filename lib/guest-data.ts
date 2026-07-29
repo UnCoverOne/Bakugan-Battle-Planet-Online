@@ -30,7 +30,14 @@ const DEFAULT_SETTINGS = {
 export function summarizeGuestData(snapshot: GuestSnapshot): GuestDataSummary {
   const profileCustomized =
     snapshot.profile.name.trim() !== DEFAULT_PROFILE.name ||
-    snapshot.profile.faction !== DEFAULT_PROFILE.faction;
+    snapshot.profile.faction !== DEFAULT_PROFILE.faction ||
+    Boolean(snapshot.profile.avatar) ||
+    (snapshot.profile.titleId !== undefined &&
+      snapshot.profile.titleId !== "battle-planet-brawler") ||
+    (snapshot.profile.coverId !== undefined &&
+      snapshot.profile.coverId !== "battle-planet") ||
+    Boolean(snapshot.profile.showcaseAchievementIds?.length) ||
+    Boolean(snapshot.profile.showcaseDeckIds?.length);
   const settingsCustomized =
     snapshot.settings.reducedMotion !== DEFAULT_SETTINGS.reducedMotion ||
     snapshot.settings.highContrast !== DEFAULT_SETTINGS.highContrast ||

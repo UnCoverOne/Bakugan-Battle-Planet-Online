@@ -11,6 +11,7 @@ import {
   AccountAccessModal,
   GuestAccountPrompt,
 } from "./AccountAccessModal";
+import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { useApp } from "./AppProvider";
 
 const NAV = [
@@ -204,7 +205,10 @@ export function AppShell({ children }) {
                 aria-expanded={profileOpen}
                 onClick={() => setProfileOpen((open) => !open)}
               >
-                <span>{profile.name.slice(0, 2).toUpperCase()}</span>
+                <ProfileAvatar
+                  profile={profile}
+                  className="profile-avatar-control"
+                />
                 <span className="sr-only">Open profile menu</span>
               </button>
               {profileOpen && (
@@ -214,11 +218,10 @@ export function AppShell({ children }) {
                   role="menu"
                 >
                   <div className="profile-popover-heading">
-                    <span
+                    <ProfileAvatar
+                      profile={profile}
                       className={`profile-popover-avatar faction-${profile.faction.toLowerCase()}`}
-                    >
-                      {profile.name.slice(0, 2).toUpperCase()}
-                    </span>
+                    />
                     <div>
                       <strong>{profile.name}</strong>
                       <small>{authUser ? `${profile.faction} Brawler` : "Guest · saved on this device"}</small>

@@ -16,28 +16,30 @@ test("Profile and Settings own their presentation through shared primitives", ()
       implementation,
       new RegExp(`import styles from ["']\\.\\/${route}\\.module\\.css["']`),
     );
-    assert.match(implementation, /RouteHero/);
+    if (route === "SettingsScreen") assert.match(implementation, /RouteHero/);
     assert.match(implementation, /Surface/);
     assert.match(implementation, /StatusChip/);
     assert.doesNotMatch(implementation, /className=["']panel/);
   }
 });
 
-test("Profile presents reliable records, recent matches, public decks, and owner-only data", () => {
+test("Profile presents customizable identity, reliable statistics, and selected showcases", () => {
   const profile = source("components/routes/ProfileScreen.tsx");
   for (const contract of [
-    "Reliable record",
-    "Recent matches",
-    "Deck not recorded",
-    "Public showcase",
-    "Owner-only",
-    "Data status",
-    "Statistics use completed match records",
+    "Edit picture",
+    "Edit title",
+    "Edit cover",
+    "Win Rate",
+    "Games Won",
+    "Games Played",
+    "Showcased Achievements",
+    "Public Decks",
   ])
     assert.match(profile, new RegExp(contract));
   assert.match(profile, /validateDeck\(deck\)/);
-  assert.match(profile, /publicDecks\.slice\(0, 3\)/);
-  assert.match(profile, /do not infer rank, streaks, or achievements/);
+  assert.match(profile, /profile\.showcaseAchievementIds/);
+  assert.match(profile, /profile\.showcaseDeckIds/);
+  assert.doesNotMatch(profile, />Edit identity</);
 });
 
 test("Settings uses immediate feedback and isolates destructive actions", () => {
