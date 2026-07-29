@@ -110,7 +110,9 @@
   --profile-faction: #ef2e32;
   position: relative;
   isolation: isolate;
-  min-height: 28rem;
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-height: 0;
   aspect-ratio: 16 / 9;
   display: flex;
   align-items: end;
@@ -145,6 +147,8 @@
 }
 
 .identityContent {
+  width: 100%;
+  min-width: 0;
   display: flex;
   align-items: end;
   gap: clamp(1.2rem, 3vw, 2.5rem);
@@ -152,17 +156,26 @@
 
 .portraitWrap {
   position: relative;
+  width: clamp(7rem, 14vw, 11rem);
+  max-width: 100%;
+  aspect-ratio: 1;
+  min-width: 0;
   flex: 0 0 auto;
 }
 
 .profilePortrait {
-  width: clamp(7rem, 14vw, 11rem);
-  height: clamp(7rem, 14vw, 11rem);
+  width: 100%;
+  height: 100%;
   display: grid;
   place-items: center;
+  max-width: 100%;
+  aspect-ratio: 1;
+  box-sizing: border-box;
   overflow: hidden;
+  contain: paint;
   border: 2px solid color-mix(in srgb, var(--profile-faction) 74%, white);
   border-radius: 50%;
+  clip-path: circle(50% at 50% 50%);
   background:
     radial-gradient(circle, color-mix(in srgb, var(--profile-faction) 42%, #07151d), #020b10 72%);
   color: white;
@@ -172,33 +185,51 @@
   box-shadow: 0 0 2.5rem color-mix(in srgb, var(--profile-faction) 32%, transparent);
 }
 
-.portraitEdit,
-.coverEdit,
-.titleLine button {
-  min-height: 2.2rem;
-  padding: 0 .75rem;
-  border: 1px solid rgba(132, 226, 245, .42);
-  background: rgba(0, 12, 18, .86);
+.editButton {
+  width: 2.5rem;
+  height: 2.5rem;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid rgba(132, 226, 245, .56);
+  border-radius: 50%;
+  background: rgba(0, 12, 18, .9);
   color: #dff8fc;
-  font: inherit;
-  font-size: var(--type-meta);
-  font-weight: 900;
   cursor: pointer;
+  box-shadow: 0 .3rem 1rem rgba(0, 0, 0, .36);
+}
+
+.editButton:hover,
+.editButton:focus-visible {
+  border-color: #a8f1ff;
+  background: rgba(8, 48, 62, .96);
+}
+
+.editButton svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  display: block;
+  fill: currentColor;
 }
 
 .portraitEdit {
   position: absolute;
-  right: 50%;
-  bottom: -.6rem;
-  min-width: max-content;
-  transform: translateX(50%);
+  right: 0;
+  bottom: 0;
 }
 
 .coverEdit {
   position: absolute;
   z-index: 2;
-  top: 1.2rem;
-  right: 1.2rem;
+  top: clamp(.7rem, 2vw, 1.2rem);
+  right: clamp(.7rem, 2vw, 1.2rem);
+}
+
+.titleEdit {
+  width: 2rem;
+  height: 2rem;
 }
 
 .identityCopy {
@@ -218,24 +249,33 @@
 }
 
 .identityCopy h1 {
+  max-width: 100%;
   margin: 0;
+  overflow: hidden;
   color: white;
   font-size: clamp(2.2rem, 6vw, 5.2rem);
   letter-spacing: -.04em;
   line-height: .96;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .titleLine,
 .factionIdentity {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: .75rem;
 }
 
 .titleLine strong {
+  min-width: 0;
+  overflow: hidden;
   color: #ffe083;
   font-size: clamp(1rem, 2vw, 1.35rem);
   letter-spacing: .04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .factionIdentity img {
@@ -991,24 +1031,89 @@
   }
 
   .identityCard {
-    min-height: 24rem;
-    aspect-ratio: auto;
-    padding: 4.8rem 1.2rem 1.8rem;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+    padding: clamp(.7rem, 3.2vw, 1.2rem);
     background-position: 62% 24%;
   }
 
+  .identityCard::after {
+    background:
+      linear-gradient(0deg, rgba(0, 7, 11, .86), rgba(0, 7, 11, .08) 82%),
+      linear-gradient(90deg, rgba(0, 7, 11, .62), transparent 76%);
+  }
+
   .identityContent {
-    align-items: start;
-    flex-direction: column;
+    align-items: end;
+    flex-direction: row;
+    gap: clamp(.65rem, 3vw, 1.2rem);
+  }
+
+  .portraitWrap {
+    width: clamp(4rem, 21vw, 6rem);
+    max-width: 24%;
   }
 
   .profilePortrait {
-    width: 7.25rem;
-    height: 7.25rem;
+    font-size: clamp(1rem, 5vw, 1.65rem);
+  }
+
+  .identityCopy {
+    overflow: hidden;
+    gap: clamp(.12rem, .8vw, .35rem);
+    padding-bottom: 0;
+  }
+
+  .eyebrow {
+    font-size: clamp(.5rem, 1.8vw, .68rem);
+    letter-spacing: .1em;
   }
 
   .identityCopy h1 {
-    font-size: clamp(2.35rem, 14vw, 4rem);
+    font-size: clamp(1.35rem, 7.5vw, 2.6rem);
+  }
+
+  .titleLine,
+  .factionIdentity {
+    gap: clamp(.3rem, 1.5vw, .55rem);
+  }
+
+  .titleLine strong {
+    font-size: clamp(.7rem, 2.9vw, 1rem);
+  }
+
+  .factionIdentity img {
+    width: clamp(1rem, 4vw, 1.45rem);
+    height: clamp(1rem, 4vw, 1.45rem);
+  }
+
+  .factionIdentity span {
+    font-size: clamp(.62rem, 2.5vw, .86rem);
+  }
+
+  .editButton {
+    width: clamp(2rem, 7vw, 2.35rem);
+    height: clamp(2rem, 7vw, 2.35rem);
+  }
+
+  .editButton svg {
+    width: clamp(.85rem, 3vw, 1rem);
+    height: clamp(.85rem, 3vw, 1rem);
+  }
+
+  .portraitEdit {
+    right: -.05rem;
+    bottom: -.05rem;
+  }
+
+  .coverEdit {
+    top: clamp(.45rem, 2vw, .75rem);
+    right: clamp(.45rem, 2vw, .75rem);
+  }
+
+  .titleEdit {
+    width: clamp(1.65rem, 6vw, 1.9rem);
+    height: clamp(1.65rem, 6vw, 1.9rem);
   }
 
   .achievementShowcaseGrid,
@@ -1065,11 +1170,6 @@
 
   .stats > div {
     min-height: 5.5rem;
-  }
-
-  .titleLine {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .showcaseSection {
