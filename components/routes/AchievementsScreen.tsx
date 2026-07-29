@@ -58,7 +58,15 @@ function formatCompletion(value: string | null) {
   }).format(new Date(value))}`;
 }
 
-function AchievementCard({ achievement }: { achievement: Achievement }) {
+function AchievementCard({
+  achievement,
+  showcased,
+  onToggleShowcase,
+}: {
+  achievement: Achievement;
+  showcased: boolean;
+  onToggleShowcase: (achievement: Achievement) => void;
+}) {
   const percentage = Math.round(
     (achievement.current / achievement.target) * 100,
   );
@@ -78,6 +86,23 @@ function AchievementCard({ achievement }: { achievement: Achievement }) {
         >
           {achievement.category}
         </StatusChip>
+        <button
+          className={styles.showcaseToggle}
+          type="button"
+          aria-pressed={showcased}
+          disabled={!achievement.unlocked}
+          title={
+            achievement.unlocked
+              ? showcased
+                ? "Remove from Profile showcase"
+                : "Showcase on Profile"
+              : "Complete this achievement before showcasing it"
+          }
+          onClick={() => onToggleShowcase(achievement)}
+        >
+          <span aria-hidden="true">{showcased ? "★" : "☆"}</span>
+          {showcased ? "Showcased" : "Showcase"}
+        </button>
       </div>
       <div className={styles.cardCopy}>
         <h3>{achievement.name}</h3>
@@ -117,9 +142,13 @@ function EmptyAchievements({ status }: { status: AchievementStatus }) {
 export function AchievementsScreen({
   achievements,
   view,
+  showcaseIds = [],
+  onToggleShowcase,
 }: {
   achievements: Achievement[];
   view?: string;
+  showcaseIds?: string[];
+  onToggleShowcase: (achievement: Achievement) => void;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -243,6 +272,8 @@ export function AchievementsScreen({
               {sortAchievements(visible, activeStatus).map((achievement) => (
                 <AchievementCard
                   achievement={achievement}
+                  showcased={showcaseIds.includes(achievement.id)}
+                  onToggleShowcase={onToggleShowcase}
                   key={achievement.id}
                 />
               ))}
@@ -274,6 +305,8 @@ export function AchievementsScreen({
                   {sorted.slice(0, 3).map((achievement) => (
                     <AchievementCard
                       achievement={achievement}
+                      showcased={showcaseIds.includes(achievement.id)}
+                      onToggleShowcase={onToggleShowcase}
                       key={achievement.id}
                     />
                   ))}
