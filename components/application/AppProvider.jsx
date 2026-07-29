@@ -9,7 +9,16 @@ const STORAGE_EVENT = "bbp-storage-status";
 const AUTO_SYNC_DELAY_MS = 8_000;
 const DURABLE_DIRTY_DELAY_MS = 750;
 const defaults = {
-  profile: { name: "DanBrawler", faction: "Pyrus", signedIn: false },
+  profile: {
+    name: "DanBrawler",
+    faction: "Pyrus",
+    signedIn: false,
+    avatar: "",
+    titleId: "battle-planet-brawler",
+    coverId: "battle-planet",
+    showcaseAchievementIds: [],
+    showcaseDeckIds: [],
+  },
   settings: { reducedMotion: false, highContrast: false, sound: true, cardScale: 100, logDetail: "All events", challenges: "Everyone", replayLinks: true },
 };
 const paths = { entry: "/", dashboard: "/", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/profile/records", profile: "/profile", settings: "/settings", admin: "/admin" };
@@ -182,7 +191,29 @@ export function AppProvider({ children }) {
     [builderDeck, decks, history, match, profile, settings],
   );
 
-  const durableStateFingerprint = useMemo(() => JSON.stringify({ profile: { name: profile.name, faction: profile.faction }, decks, history, settings, selectedDeckId, builderDeck, format, matchMode }), [builderDeck, decks, format, history, matchMode, profile.faction, profile.name, selectedDeckId, settings]);
+  const durableStateFingerprint = useMemo(() => JSON.stringify({ profile, decks, history, settings, selectedDeckId, builderDeck, format, matchMode }), [builderDeck, decks, format, history, matchMode, profile, selectedDeckId, settings]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const eligibleDeckIds = new Set(
+      decks
+        .filter((deck) => deck.visibility === "Public")
+        .map((deck) => deck.id),
+    );
+    setProfile((current) => {
+      const selected = Array.isArray(current.showcaseDeckIds)
+        ? current.showcaseDeckIds
+        : [];
+      const eligible = selected.filter((id) => eligibleDeckIds.has(id)).slice(0, 3);
+      if (
+        selected.length === eligible.length &&
+        selected.every((id, index) => id === eligible[index])
+      ) {
+        return current;
+      }
+      return { ...current, showcaseDeckIds: eligible };
+    });
+  }, [decks, ready, setProfile]);
 
   useEffect(() => {
     const listener = (event) => setStorageHealth(event.detail);
