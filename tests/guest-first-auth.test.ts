@@ -61,6 +61,18 @@ test("guest-data detection ignores a fresh profile and identifies meaningful pro
   assert.match(populated.labels.join(" · "), /saved deck/);
   assert.match(populated.labels.join(" · "), /match record/);
   assert.match(populated.labels.join(" · "), /custom Brawler profile/);
+
+  const customizedIdentity = summarizeGuestData(guestSnapshot({
+    profile: {
+      name: "DanBrawler",
+      faction: "Pyrus",
+      signedIn: false,
+      avatar: "preset:bb-343",
+      showcaseAchievementIds: ["first-win"],
+    },
+  }));
+  assert.equal(customizedIdentity.profileCustomized, true);
+  assert.match(customizedIdentity.labels.join(" · "), /custom Brawler profile/);
 });
 
 test("data-choice step appears only when meaningful guest data exists", () => {
