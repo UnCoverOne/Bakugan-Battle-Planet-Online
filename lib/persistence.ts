@@ -1,8 +1,23 @@
 import type { DeckRecord } from "./data";
 import type { MatchState } from "./game";
+import {
+  normalizeProfileAvatar,
+  normalizeProfileCover,
+  normalizeProfileTitle,
+  normalizeShowcaseIds,
+} from "./profile-customization";
 
 export type AppRoute = "entry" | "dashboard" | "decks" | "deck-detail" | "builder" | "compendium" | "play" | "lobby" | "placement" | "match" | "result" | "history" | "profile" | "settings";
-export type BrawlerProfile = { name: string; faction: string; signedIn: boolean };
+export type BrawlerProfile = {
+  name: string;
+  faction: string;
+  signedIn: boolean;
+  avatar?: string;
+  titleId?: string;
+  coverId?: string;
+  showcaseAchievementIds?: string[];
+  showcaseDeckIds?: string[];
+};
 export type AppSettings = {
   reducedMotion: boolean;
   highContrast: boolean;
@@ -102,6 +117,13 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
       name: typeof candidate.profile?.name === "string" && candidate.profile.name.trim() ? candidate.profile.name.slice(0, 20) : fallback.profile.name,
       faction: validFactions.has(candidate.profile?.faction ?? "") ? candidate.profile!.faction : fallback.profile.faction,
       signedIn: Boolean(candidate.profile?.signedIn),
+      avatar: normalizeProfileAvatar(candidate.profile?.avatar),
+      titleId: normalizeProfileTitle(candidate.profile?.titleId),
+      coverId: normalizeProfileCover(candidate.profile?.coverId),
+      showcaseAchievementIds: normalizeShowcaseIds(
+        candidate.profile?.showcaseAchievementIds,
+      ),
+      showcaseDeckIds: normalizeShowcaseIds(candidate.profile?.showcaseDeckIds),
     },
     decks: Array.isArray(candidate.decks) ? candidate.decks.map(normalizeDeck).filter((deck): deck is DeckRecord => Boolean(deck)).slice(0, 50) : fallback.decks,
     history: Array.isArray(candidate.history) ? candidate.history.slice(0, 200) : fallback.history,
