@@ -171,6 +171,7 @@ const uniqueMetric = <T>(
   for (const item of ordered) {
     const date = validDate(dateFor(item));
     for (const raw of valuesFor(item)) {
+      if (typeof raw !== "string") continue;
       const value = raw.trim().toLowerCase();
       if (!value || unique.has(value)) continue;
       unique.add(value);
@@ -195,7 +196,7 @@ export function achievementStatus(current: number, target: number): AchievementS
 
 export function achievementsFor(
   decks: DeckRecord[],
-  history: MatchResultRecord[],
+  history: Array<Partial<MatchResultRecord>>,
 ): Achievement[] {
   const matches = history.filter(
     (record) => !/disconnect|abandon/i.test(record.reason ?? ""),
@@ -218,7 +219,11 @@ export function achievementsFor(
     bo3Games: countMetric(matches.filter((record) => record.format === "bo3"), (record) => record.at),
     onlineGames: countMetric(onlineGames, (record) => record.at),
     onlineWins: countMetric(onlineGames.filter((record) => record.result === "Victor"), (record) => record.at),
-    onlineOpponents: uniqueMetric(onlineGames, (record) => [record.opponent], (record) => record.at),
+    onlineOpponents: uniqueMetric(
+      onlineGames,
+      (record) => (typeof record.opponent === "string" ? [record.opponent] : []),
+      (record) => record.at,
+    ),
     uniqueMainCards: uniqueMetric(decks, (deck) => deck.cardIds, (deck) => deck.updatedAt),
     uniqueCharacters: uniqueMetric(decks, (deck) => deck.bakuganIds, (deck) => deck.updatedAt),
     uniqueCores: uniqueMetric(decks, (deck) => deck.coreIds, (deck) => deck.updatedAt),
