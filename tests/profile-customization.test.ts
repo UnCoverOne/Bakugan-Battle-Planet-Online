@@ -66,7 +66,18 @@ test("profile route implements four-section customization and cropping", () => {
     assert.match(implementation, new RegExp(contract));
   }
   assert.doesNotMatch(implementation, />Edit identity</);
+  assert.doesNotMatch(implementation, />\s*Achievements\s*<\/Link>/);
+  assert.equal((implementation.match(/<PencilIcon \/>/g) ?? []).length, 3);
   assert.match(styles, /aspect-ratio:\s*16\s*\/\s*9/);
+  assert.doesNotMatch(styles, /aspect-ratio:\s*auto/);
+  assert.match(
+    styles,
+    /\.profilePortrait\s*\{[\s\S]*?border-radius:\s*50%[\s\S]*?clip-path:\s*circle/,
+  );
+  assert.match(
+    styles,
+    /\.editButton\s*\{[\s\S]*?border-radius:\s*50%/,
+  );
   assert.match(styles, /\.achievementShowcaseGrid/);
   assert.match(styles, /\.deckShowcaseGrid/);
 });
