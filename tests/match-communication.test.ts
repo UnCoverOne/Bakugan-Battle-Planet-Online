@@ -56,15 +56,19 @@ test("chat validation rejects empty messages and caps the payload", () => {
   assert.equal(normalizeChatMessage("x".repeat(CHAT_MESSAGE_LIMIT + 20)).length, CHAT_MESSAGE_LIMIT);
 });
 
-test("the communication layer provides a left slide-out Event Log and chat beside the player HUD", () => {
+test("the communication layer provides docked Event Log and responsive chat drawers", () => {
   assert.match(layer, /className=\{styles\.eventDock\}/);
   assert.match(layer, /aria-label="Event Log"/);
   assert.match(layer, /aria-expanded=\{eventLogOpen\}/);
+  assert.match(layer, /className=\{styles\.chatDock\}/);
+  assert.match(layer, /className=\{styles\.chatHandle\}/);
+  assert.match(layer, /aria-expanded=\{chatOpen\}/);
   assert.match(layer, /className=\{styles\.chatBox\}/);
   assert.match(layer, /aria-label="Chat message"/);
   assert.match(layer, /maxLength=\{240\}/);
   assert.match(css, /\.eventDock[\s\S]*left:\s*0[\s\S]*translate\(calc\(-100%\s*\+\s*var\(--event-tab-width\)\)/);
   assert.match(css, /\.chatBox[\s\S]*right:\s*calc\(var\(--screen-edge\)\s*\+\s*var\(--player-hud-width\)\s*\+\s*var\(--chat-gap\)\)/);
+  assert.match(css, /@media \(max-width:\s*760px\) and \(orientation:\s*portrait\)[\s\S]*\.chatDock[\s\S]*right:\s*0[\s\S]*translate\(calc\(100%\s*-\s*var\(--chat-handle-width\)\),\s*-50%\)/);
 });
 
 test("online chat uses the authoritative match endpoint without replacing gameplay undo history", () => {
