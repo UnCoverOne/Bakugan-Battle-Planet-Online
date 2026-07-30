@@ -37,6 +37,7 @@ export function MatchCommunicationLayer() {
     playerId: state.playerId,
   }));
   const [eventLogOpen, setEventLogOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [eventFilter, setEventFilter] = useState("all");
   const [chatFocused, setChatFocused] = useState(false);
   const [draft, setDraft] = useState("");
@@ -162,7 +163,20 @@ export function MatchCommunicationLayer() {
         </button>
       </div>
 
-      <section
+      <div className={styles.chatDock} data-open={chatOpen ? "true" : "false"}>
+        <button
+          type="button"
+          className={styles.chatHandle}
+          aria-controls="match-chat-panel"
+          aria-expanded={chatOpen}
+          aria-label={chatOpen ? "Close match chat" : "Open match chat"}
+          onClick={() => setChatOpen((open) => !open)}
+        >
+          <span>CHAT</span>
+          <strong>{chatOpen ? "›" : "‹"}</strong>
+        </button>
+        <section
+        id="match-chat-panel"
         className={styles.chatBox}
         aria-label="Match chat"
         data-chat-box="true"
@@ -206,7 +220,8 @@ export function MatchCommunicationLayer() {
           </button>
         </form>
         {error ? <p className={styles.chatError} role="alert">{error}</p> : null}
-      </section>
+        </section>
+      </div>
     </>
   );
 }
