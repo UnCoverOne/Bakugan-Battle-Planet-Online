@@ -176,50 +176,50 @@ export function MatchCommunicationLayer() {
           <strong>{chatOpen ? "›" : "‹"}</strong>
         </button>
         <section
-        id="match-chat-panel"
-        className={styles.chatBox}
-        aria-label="Match chat"
-        data-chat-box="true"
-        data-focused={chatFocused ? "true" : "false"}
-        onFocusCapture={() => setChatFocused(true)}
-        onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setChatFocused(false); }}
-      >
-        <header>
-          <div>
-            <span>PLAYER COMMS</span>
-            <strong>CHAT</strong>
+          id="match-chat-panel"
+          className={styles.chatBox}
+          aria-label="Match chat"
+          data-chat-box="true"
+          data-focused={chatFocused ? "true" : "false"}
+          onFocusCapture={() => setChatFocused(true)}
+          onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setChatFocused(false); }}
+        >
+          <header>
+            <div>
+              <span>PLAYER COMMS</span>
+              <strong>CHAT</strong>
+            </div>
+            <small>{communication.online ? "ONLINE" : "LOCAL"}</small>
+          </header>
+          <div className={styles.chatMessages} ref={chatScroll} aria-live="polite">
+            {messages.length ? messages.map((message) => {
+              const local = message.playerId === actorId;
+              return (
+                <article className={styles.chatMessage} data-local={local ? "true" : "false"} key={message.id}>
+                  <div>
+                    <strong>{message.author}</strong>
+                    <time dateTime={new Date(message.at).toISOString()}>{timeLabel(message.at)}</time>
+                  </div>
+                  <p>{message.message}</p>
+                </article>
+              );
+            }) : <p className={styles.emptyState}>No messages yet.</p>}
           </div>
-          <small>{communication.online ? "ONLINE" : "LOCAL"}</small>
-        </header>
-        <div className={styles.chatMessages} ref={chatScroll} aria-live="polite">
-          {messages.length ? messages.map((message) => {
-            const local = message.playerId === actorId;
-            return (
-              <article className={styles.chatMessage} data-local={local ? "true" : "false"} key={message.id}>
-                <div>
-                  <strong>{message.author}</strong>
-                  <time dateTime={new Date(message.at).toISOString()}>{timeLabel(message.at)}</time>
-                </div>
-                <p>{message.message}</p>
-              </article>
-            );
-          }) : <p className={styles.emptyState}>No messages yet.</p>}
-        </div>
-        <form className={styles.chatForm} onSubmit={sendChat}>
-          <input
-            type="text"
-            value={draft}
-            maxLength={240}
-            aria-label="Chat message"
-            placeholder="Type a message…"
-            autoComplete="off"
-            onChange={(event) => setDraft(event.target.value)}
-          />
-          <button type="submit" disabled={sending || !normalizeChatMessage(draft)}>
-            {sending ? "…" : "SEND"}
-          </button>
-        </form>
-        {error ? <p className={styles.chatError} role="alert">{error}</p> : null}
+          <form className={styles.chatForm} onSubmit={sendChat}>
+            <input
+              type="text"
+              value={draft}
+              maxLength={240}
+              aria-label="Chat message"
+              placeholder="Type a message…"
+              autoComplete="off"
+              onChange={(event) => setDraft(event.target.value)}
+            />
+            <button type="submit" disabled={sending || !normalizeChatMessage(draft)}>
+              {sending ? "…" : "SEND"}
+            </button>
+          </form>
+          {error ? <p className={styles.chatError} role="alert">{error}</p> : null}
         </section>
       </div>
     </>
