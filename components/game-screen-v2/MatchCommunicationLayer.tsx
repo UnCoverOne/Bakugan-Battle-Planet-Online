@@ -91,19 +91,15 @@ export function MatchCommunicationLayer() {
   }, [eventLogOpen, chatOpen]);
 
   const toggleEventLog = () => {
-    setEventLogOpen((open) => {
-      const next = !open;
-      if (next) setChatOpen(false);
-      return next;
-    });
+    const next = !eventLogOpen;
+    setEventLogOpen(next);
+    if (next) setChatOpen(false);
   };
 
   const toggleChat = () => {
-    setChatOpen((open) => {
-      const next = !open;
-      if (next) setEventLogOpen(false);
-      return next;
-    });
+    const next = !chatOpen;
+    setChatOpen(next);
+    if (next) setEventLogOpen(false);
   };
 
   const sendChat = async (event: FormEvent<HTMLFormElement>) => {
