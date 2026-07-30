@@ -195,10 +195,10 @@ export function BrawlExperienceLayer() {
         const next = {
           left: clamp(
             rect.left + rect.width / 2,
-            viewportLeft + edgeGap + halfWidth,
+            viewportLeft + edgeGap + dockHandleWidth + halfWidth,
             viewportLeft + viewportWidth - edgeGap - halfWidth,
           ),
-          dockedLeft: viewportLeft + viewportWidth - dockHandleWidth + halfWidth,
+          dockedLeft: viewportLeft + viewportWidth + halfWidth,
           top: Math.max(10, rect.top - 10),
           maxWidth,
         };
