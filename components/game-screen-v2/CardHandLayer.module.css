@@ -160,9 +160,11 @@
 
   .opponentHandLayer {
     top: calc(env(safe-area-inset-top, 0px) + 5.35rem);
+    transform: translate(-50%, -20%);
   }
 
   .playerHandLayer {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 6.2rem);
+    transform: translate(-50%, 20%);
   }
 }
