@@ -23,6 +23,7 @@ const snapshot = (overrides: Partial<UserSnapshot> = {}): UserSnapshot => ({
   updatedAt: 100,
   profile: { name: "Local Brawler", faction: "Pyrus", signedIn: true },
   decks: [deck("local-deck", "Local Deck", "2026-01-01T00:00:00.000Z")],
+  deletedDecks: [],
   history: [],
   settings: { reducedMotion: false, highContrast: false, sound: true, cardScale: 100, logDetail: "All events", challenges: "Everyone" },
   route: "match",
@@ -119,4 +120,71 @@ test("automatic merge uses the newer durable snapshot and retains local session 
   assert.equal(merged.deckQuery, local.deckQuery);
   assert.equal(merged.playerId, local.playerId);
   assert.equal(merged.match, local.match);
+});
+
+
+test("same-ID deck edits choose the newest revision without manufacturing conflict copies", () => {
+  const local = snapshot({
+    updatedAt: 200,
+    decks: [deck("shared", "Newest", "2026-03-02T00:00:00.000Z")],
+  });
+  const cloud = snapshot({
+    updatedAt: 100,
+    decks: [deck("shared", "Older", "2026-03-01T00:00:00.000Z")],
+  });
+
+  const merged = mergeSnapshots(local, cloud);
+
+  assert.deepEqual(merged.decks.map((candidate) => candidate.id), ["shared"]);
+  assert.equal(merged.decks[0].name, "Newest");
+  assert.equal(merged.decks.some((candidate) => candidate.name.includes("conflict copy")), false);
+});
+
+test("a deck deletion tombstone prevents an older device copy from being restored", () => {
+  const deletedAt = "2026-03-02T00:00:00.000Z";
+  const local = snapshot({
+    updatedAt: Date.parse(deletedAt),
+    decks: [],
+    deletedDecks: [{ id: "shared", deletedAt }],
+  });
+  const cloud = snapshot({
+    updatedAt: 100,
+    decks: [deck("shared", "Stale copy", "2026-03-01T00:00:00.000Z")],
+  });
+
+  const merged = mergeSnapshots(local, cloud);
+
+  assert.equal(merged.decks.some((candidate) => candidate.id === "shared"), false);
+  assert.deepEqual(merged.deletedDecks, [{ id: "shared", deletedAt }]);
+});
+
+test("an intentional recreation newer than a deletion removes the tombstone", () => {
+  const local = snapshot({
+    updatedAt: 300,
+    decks: [deck("shared", "Recreated", "2026-03-03T00:00:00.000Z")],
+  });
+  const cloud = snapshot({
+    updatedAt: 200,
+    decks: [],
+    deletedDecks: [{ id: "shared", deletedAt: "2026-03-02T00:00:00.000Z" }],
+  });
+
+  const merged = mergeSnapshots(local, cloud);
+
+  assert.equal(merged.decks[0].name, "Recreated");
+  assert.deepEqual(merged.deletedDecks, []);
+});
+
+test("cloud selection does not union stale browser decks into a resumed account session", () => {
+  const local = snapshot({ decks: [deck("stale-local", "Stale", "2026-03-01T00:00:00.000Z")] });
+  const cloud = snapshot({
+    updatedAt: 200,
+    decks: [deck("cloud-only", "Cloud", "2026-03-02T00:00:00.000Z")],
+  });
+
+  const restored = selectSnapshot(local, cloud, "cloud");
+
+  assert.deepEqual(restored.decks.map((candidate) => candidate.id), ["cloud-only"]);
+  assert.equal(restored.route, local.route);
+  assert.equal(restored.playerId, local.playerId);
 });
