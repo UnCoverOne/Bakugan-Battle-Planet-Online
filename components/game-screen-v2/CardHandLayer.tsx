@@ -101,10 +101,13 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
 
       const safeWidth = Math.max(1, safeRight - safeLeft);
       const compact = window.innerWidth <= 760;
-      const portraitHandScale = compact
-        && window.matchMedia("(orientation: portrait)").matches
-        ? 1.2
-        : 1;
+      const portrait = compact
+        && window.matchMedia("(orientation: portrait)").matches;
+      const portraitHandScale = portrait ? 1.2 : 1;
+      const portraitFanScale = portrait ? 1.4 : 1;
+      const geometrySafeWidth = portrait
+        ? Math.max(1, Math.min(playRect.width - zoneGap * 2, safeWidth * portraitFanScale))
+        : safeWidth;
       // Rule 1: card dimensions are stable for a given viewport. The geometry
       // solver is allowed to compress only the angular spacing between cards.
       const baseCardWidth = compact
@@ -113,13 +116,14 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
       const fixedCardWidth = baseCardWidth * portraitHandScale;
       const geometry = boundedHandFanGeometry({
         cardCount,
-        safeWidth,
+        safeWidth: geometrySafeWidth,
         desiredCardWidth: fixedCardWidth,
         radiusRatio: compact ? 5.4 : 8.35,
+        renderedWidthScale: portraitFanScale,
       });
       const nextBounds: HandViewportBounds = {
         centerX: (safeLeft + safeRight) / 2,
-        safeWidth,
+        safeWidth: geometrySafeWidth,
         edgeOffset: handViewportEdgeOffset(
           window.innerHeight,
           playRect.top,
