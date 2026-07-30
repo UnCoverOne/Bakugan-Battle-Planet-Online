@@ -16,6 +16,7 @@ import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
 import { canonicalEvoTargetAllowed } from "../lib/rules/identity";
 import { createRuleObject } from "../lib/rules/objects";
 import { emitRuleEvent } from "../lib/rules/triggers";
+import { executeRuleProgram } from "../lib/rules/executor";
 
 function match() {
   const first = makePlayer("first", "First", STARTER_DECKS[0]);
@@ -54,6 +55,30 @@ test("instead clauses are single typed replacement branches, not additive action
     const replacement = spell.instructions.flatMap((instruction) => instruction.effects).find((effect) => effect.kind === "conditional" && effect.replacement);
     assert.ok(replacement, `${card.name} must have a typed replacement branch`);
   }
+});
+
+test("Flow replacement clauses resolve the enhanced effect instead of the base effect", () => {
+  const card = CARDS.find((candidate) => candidate.catalogId === "bb-24")!;
+  const definition = ruleDefinitionForCard(card);
+  const spell = definition.abilities.find((ability) => ability.kind === "spell")!;
+  const program = { cardId: definition.cardId, source: card.effect, instructions: spell.instructions };
+  const resolvedPower = (flowActive: boolean) => {
+    const amounts: number[] = [];
+    executeRuleProgram(program, {
+      conditionIsActive: (instruction) => (
+        instruction.condition.kind === "always"
+        || (instruction.condition.kind === "flow" && flowActive)
+      ),
+      beforeInstruction: () => "continue",
+      execute: (action) => {
+        if (action.kind === "modify-stat" && action.stat === "power") amounts.push(action.amount);
+      },
+    });
+    return amounts;
+  };
+
+  assert.deepEqual(resolvedPower(false), [200]);
+  assert.deepEqual(resolvedPower(true), [400]);
 });
 
 test("rule objects are serializable resumable objects with stable definition identity", () => {
