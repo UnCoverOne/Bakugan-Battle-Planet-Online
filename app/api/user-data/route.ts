@@ -11,6 +11,14 @@ function validateSnapshot(value: unknown) {
   const snapshot = value as Record<string, unknown>;
   if (snapshot.schemaVersion !== 1) throw new Error("Unsupported sync-data schema version.");
   if (!Array.isArray(snapshot.decks) || snapshot.decks.length > 50) throw new Error("Sync data may contain at most 50 decks.");
+  if (snapshot.deletedDecks !== undefined) {
+    if (!Array.isArray(snapshot.deletedDecks) || snapshot.deletedDecks.length > 200) throw new Error("Sync data may contain at most 200 deleted-deck records.");
+    for (const [index, candidate] of snapshot.deletedDecks.entries()) {
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error(`Deleted-deck record ${index + 1} is invalid.`);
+      const deletion = candidate as Record<string, unknown>;
+      if (typeof deletion.id !== "string" || !deletion.id || typeof deletion.deletedAt !== "string" || !Number.isFinite(Date.parse(deletion.deletedAt))) throw new Error(`Deleted-deck record ${index + 1} has an invalid ID or timestamp.`);
+    }
+  }
   if (!Array.isArray(snapshot.history) || snapshot.history.length > 200) throw new Error("Sync data may contain at most 200 history records.");
   for (const [index, candidate] of snapshot.decks.entries()) {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error(`Deck ${index + 1} is invalid.`);
