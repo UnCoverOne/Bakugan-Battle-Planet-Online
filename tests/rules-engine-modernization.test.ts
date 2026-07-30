@@ -269,3 +269,87 @@ test("the game reducer has no card-resolution compatibility adapter", async () =
   assert.doesNotMatch(pipeline, /executePlayPipeline|Compatibility play pipeline|legacy card resolver/i);
   assert.doesNotMatch(effects, /matchAll\(|compileClause\(|conditionFor\(/);
 });
+
+test("Character and Evo held-Core bonuses are active only for their printed Core types", () => {
+  const state = match();
+  const player = state.players[0];
+  const bakugan = player.bakugan[0];
+  const cubbo = CARDS.find((card) => card.catalogId === "br-167")!;
+  const turtonium = CARDS.find((card) => card.catalogId === "br-178")!;
+  assert.ok(cubbo && turtonium);
+
+  assert.deepEqual(conditionFor("[MS] or [FF]: +600 [B]."), {
+    kind: "held-core-type",
+    coreTypes: ["Magic Shield", "Flaming Fist"],
+  });
+  assert.deepEqual(conditionFor("[HE]: +100 [B] and +3 [Damage Rating]."), {
+    kind: "held-core-type",
+    coreTypes: ["Helix"],
+  });
+  for (const [symbol, type] of [
+    ["FT", "Fist"],
+    ["FF", "Flaming Fist"],
+    ["SD", "Shield"],
+    ["MS", "Magic Shield"],
+    ["HE", "Helix"],
+  ] as const) {
+    assert.deepEqual(conditionFor(`[${symbol}]: +100 [B].`), {
+      kind: "held-core-type",
+      coreTypes: [type],
+    });
+  }
+
+  const hold = (type: Core["type"]) => {
+    const heldCore: Core = {
+      id: `held-${type}`,
+      catalogId: `held-${type}`,
+      number: 999,
+      name: type,
+      type,
+      bonus: 0,
+      damageBonus: 0,
+      art: "",
+    };
+    state.placements = [{
+      playerId: player.id,
+      core: heldCore,
+      cell: "held-core-cell",
+      order: 1,
+      attachedTo: bakugan.id,
+    }];
+    bakugan.heldCoreCells = ["held-core-cell"];
+  };
+
+  bakugan.character = { ...cubbo, id: "aquos-cubbo" };
+  bakugan.evoStack = [];
+  bakugan.faction = "Aquos";
+  bakugan.open = true;
+  bakugan.heldCoreCells = [];
+  state.placements = [];
+  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).power, 100);
+
+  hold("Shield");
+  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).power, 100);
+  hold("Magic Shield");
+  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).power, 700);
+  hold("Flaming Fist");
+  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).power, 700);
+
+  bakugan.character = { ...turtonium, id: "aquos-turtonium-ultra" };
+  bakugan.heldCoreCells = [];
+  state.placements = [];
+  assert.deepEqual(
+    (({ power, damage }) => ({ power, damage }))(evaluateBakuganCharacteristics(state, bakugan, player)),
+    { power: 500, damage: 2 },
+  );
+  hold("Helix");
+  assert.deepEqual(
+    (({ power, damage }) => ({ power, damage }))(evaluateBakuganCharacteristics(state, bakugan, player)),
+    { power: 600, damage: 5 },
+  );
+  hold("Fist");
+  assert.deepEqual(
+    (({ power, damage }) => ({ power, damage }))(evaluateBakuganCharacteristics(state, bakugan, player)),
+    { power: 500, damage: 2 },
+  );
+});
