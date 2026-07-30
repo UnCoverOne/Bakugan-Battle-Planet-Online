@@ -1,3 +1,42 @@
+.communicationButtons {
+  display: none;
+}
+
+.communicationButton {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 2.65rem;
+  height: 2.65rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 91, 75, 0.9);
+  clip-path: polygon(0.42rem 0, 100% 0, 100% calc(100% - 0.42rem), calc(100% - 0.42rem) 100%, 0 100%, 0 0.42rem);
+  background: linear-gradient(180deg, rgba(129, 25, 33, 0.98), rgba(37, 10, 15, 0.98));
+  color: #fff;
+  cursor: pointer;
+  filter: drop-shadow(0 0.35rem 0.48rem rgba(0, 0, 0, 0.62));
+}
+
+.communicationButton[data-active="true"],
+.communicationButton:hover,
+.communicationButton:focus-visible {
+  border-color: #ff8d7c;
+  background: linear-gradient(180deg, rgba(174, 38, 42, 0.99), rgba(61, 13, 19, 0.99));
+  outline: none;
+}
+
+.buttonIcon {
+  display: block;
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .eventDock {
   --event-tab-width: 1.7rem;
   position: fixed;
@@ -501,17 +540,43 @@
 /* Portrait phones place chat in a right-edge drawer. Only its handle occupies
    the gameplay surface while closed. */
 @media (max-width: 760px) and (orientation: portrait) {
+  .communicationButtons {
+    position: fixed;
+    left: max(0.25rem, env(safe-area-inset-left, 0px));
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 3rem);
+    z-index: 20060;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 3rem;
+    pointer-events: auto;
+  }
+
+  .eventDock {
+    --event-tab-width: 0px;
+    display: block;
+    width: min(20rem, calc(100vw - 0.75rem));
+    transform: translate(-100%, -50%);
+  }
+
+  .eventDock[data-open="true"] {
+    transform: translate(0, -50%);
+  }
+
+  .eventToggle {
+    display: none;
+  }
+
   .chatDock {
     --chat-handle-width: 2rem;
     position: fixed;
     top: 50%;
     right: 0;
     z-index: 20055;
-    display: grid;
-    grid-template-columns: var(--chat-handle-width) minmax(0, 1fr);
+    display: block;
     width: min(22rem, calc(100vw - 0.75rem));
     height: min(72dvh, 34rem);
-    transform: translate(calc(100% - var(--chat-handle-width)), -50%);
+    transform: translate(100%, -50%);
     filter: drop-shadow(0 0.7rem 1.4rem rgba(0, 0, 0, 0.68));
     transition: transform 220ms cubic-bezier(0.2, 0.78, 0.2, 1);
     pointer-events: none;
@@ -522,7 +587,7 @@
   }
 
   .chatHandle {
-    display: grid;
+    display: none;
     grid-template-rows: auto auto;
     place-items: center;
     align-content: center;
