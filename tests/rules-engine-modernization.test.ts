@@ -157,6 +157,41 @@ test("continuous layers apply ShadowStrike as negative-modifier filtering", () =
   assert.ok(evaluated.prevented.some((entry) => entry.amount === -500));
 });
 
+test("typed cost reductions scale Everett Ray and active Hero reducers without discounting themselves", () => {
+  const state = match();
+  const player = state.players[0];
+  const everett = CARDS.find((card) => card.catalogId === "bb-188")!;
+  const everettReduction = ruleDefinitionForCard(everett).play.costModifiers.find((modifier) => modifier.kind === "cost-reduce");
+  assert.deepEqual(everettReduction, {
+    kind: "cost-reduce",
+    amount: 2,
+    duration: "instant",
+    condition: { kind: "always" },
+    appliesTo: "self",
+    scale: "cards-played-this-turn",
+  });
+
+  for (const [cardsPlayed, expected] of [[0, 6], [1, 4], [2, 2], [3, 0]] as const) {
+    player.cardsPlayedThisTurn = cardsPlayed;
+    assert.equal(cardCostBreakdown(state, player.id, everett).total, expected);
+  }
+
+  const shun = CARDS.find((card) => card.catalogId === "bb-191")!;
+  const lightning = CARDS.find((card) => card.catalogId === "bb-198")!;
+  const strata = CARDS.find((card) => card.catalogId === "br-80")!;
+  assert.equal(cardCostBreakdown(state, player.id, shun).total, 2);
+  assert.equal(cardCostBreakdown(state, player.id, lightning).total, 2);
+  assert.equal(cardCostBreakdown(state, player.id, strata).total, 3);
+
+  player.heroes = [{ ...shun, id: "active-shun" }, { ...lightning, id: "active-lightning" }, { ...strata, id: "active-strata" }];
+  const evo = CARDS.find((card) => card.type === "Evo" && card.cost !== "X" && !/cost/i.test(card.effect))!;
+  const flip = CARDS.find((card) => card.type === "Flip" && card.cost !== "X" && !/cost/i.test(card.effect))!;
+  const hero = CARDS.find((card) => card.type === "Hero" && card.cost !== "X" && !/cost/i.test(card.effect))!;
+  assert.equal(cardCostBreakdown(state, player.id, evo).reductions, 1);
+  assert.equal(cardCostBreakdown(state, player.id, flip).reductions, 1);
+  assert.equal(cardCostBreakdown(state, player.id, hero).reductions, 2);
+});
+
 test("active FrostStrike from the layered modifier system increases Flip costs", () => {
   const state = match();
   const attacker = state.players[0];
