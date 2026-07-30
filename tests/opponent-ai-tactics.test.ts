@@ -5,6 +5,8 @@ import {
   CENTER_CELL,
   HEX_CELLS,
   createMatch,
+  passPriority,
+  prepareCardPlay,
   type Bakugan,
   type Core,
   type Faction,
@@ -14,6 +16,7 @@ import {
   type RollOutcome,
 } from "../lib/game";
 import { advanceOpponentAi } from "../lib/opponentAi";
+import { ruleDefinitionForCard } from "../lib/rules";
 
 let serial = 0;
 
@@ -254,4 +257,38 @@ test("Core placement branches instead of extending a player-facing straight line
   const placedCell = HEX_CELLS.find((candidate) => candidate.id === placed?.cell);
   assert.ok(placedCell);
   assert.notEqual(placedCell.q, 0);
+});
+
+test("AI Evo with optional unimplemented reminder text resolves after both players pass", () => {
+  const evoSource = CARDS.find((card) => card.catalogId === "br-158");
+  assert.ok(evoSource);
+  const definition = ruleDefinitionForCard(evoSource);
+  const characterSource = CARDS.find((card) => (
+    card.type === "Character" && definition.play.evolvesFrom.includes(card.catalogId as `bb-${number}`)
+  ));
+  assert.ok(characterSource);
+
+  const evo = { ...evoSource, id: "ai-maximus-gorthion" };
+  const target = bakugan("ai-gorthion", characterSource.faction, characterSource.bPower ?? 0, characterSource.damage ?? 0, {
+    character: { ...characterSource, id: "ai-gorthion-character" },
+    name: characterSource.displayName || characterSource.name,
+  });
+  const ai = player("ai", [target], [], [evo]);
+  const human = player("human", [bakugan("human-b", "Pyrus", 500, 5)]);
+  addEnergy(ai, Number(evo.cost));
+  ai.energy = Number(evo.cost);
+  let state = prepareCardPlay(matchWith(ai, human), ai.id, evo.id);
+  assert.equal(state.pendingChoice?.kind, "card-play");
+
+  state = advanceOpponentAi(state, ai.id)!;
+  assert.equal(state.batch.at(-1)?.card.id, evo.id);
+  assert.equal(state.pendingChoice, undefined);
+
+  state = advanceOpponentAi(state, ai.id)!;
+  assert.equal(state.priority, human.id);
+  state = passPriority(state, human.id);
+
+  assert.equal(state.pendingChoice, undefined);
+  assert.equal(state.batch.length, 0);
+  assert.equal(state.players[0].bakugan[0].evoStack.at(-1)?.id, evo.id);
 });
