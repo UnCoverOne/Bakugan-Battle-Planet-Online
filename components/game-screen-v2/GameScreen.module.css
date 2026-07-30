@@ -638,14 +638,22 @@
     bottom: calc(env(safe-area-inset-bottom, 0px) + 13.5rem);
   }
 
-  .opponentCharacterCardArea,
-  .opponentCardStackArea {
+  .opponentCharacterCardArea {
     transform: translateY(-40%);
   }
 
-  .playerCharacterCardArea,
-  .playerCardStackArea {
+  .playerCharacterCardArea {
     transform: translateY(40%);
+  }
+
+  /* Card-stack zones are taller than the Character Card group. Use the
+     Character group’s 40% shift so their outer edges stay aligned. */
+  .opponentCardStackArea {
+    transform: translateY(calc(-7.3845vw - clamp(0.4rem, 2vw, 0.6rem) - 0.056rem));
+  }
+
+  .playerCardStackArea {
+    transform: translateY(calc(7.3845vw + clamp(0.4rem, 2vw, 0.6rem) + 0.056rem));
   }
 
   .heroZone,
