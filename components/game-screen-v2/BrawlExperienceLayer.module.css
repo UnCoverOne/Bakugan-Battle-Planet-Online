@@ -1,6 +1,9 @@
 .brawlHud {
+  --brawl-dock-handle-width: 2rem;
   position: fixed;
   z-index: 10074;
+  display: grid;
+  grid-template-columns: var(--brawl-dock-handle-width) minmax(0, 1fr);
   box-sizing: border-box;
   max-height: min(42dvh, 25rem);
   transform: translate(-50%, -100%);
@@ -16,7 +19,52 @@
   color: #f7f9fa;
   font-family: var(--font-display);
   pointer-events: none;
+  transition: left 220ms cubic-bezier(0.2, 0.78, 0.2, 1);
+  will-change: left;
   animation: brawl-hud-enter 220ms ease-out both;
+}
+
+.brawlPanel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.brawlDockHandle {
+  position: relative;
+  z-index: 4;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: var(--brawl-dock-handle-width);
+  height: 3.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 91, 75, 0.9);
+  border-left: 0;
+  background: linear-gradient(180deg, rgba(129, 25, 33, 0.98), rgba(37, 10, 15, 0.98));
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.brawlDockHandle:hover,
+.brawlDockHandle:focus-visible,
+.brawlDockHandle[aria-pressed="true"] {
+  border-color: #ff8d7c;
+  background: linear-gradient(180deg, rgba(174, 38, 42, 0.99), rgba(61, 13, 19, 0.99));
+  outline: none;
+}
+
+.brawlDockHandle svg {
+  display: block;
+  width: 0.9rem;
+  height: 0.9rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .brawlHeader {
@@ -500,6 +548,7 @@
   .batchEffect,
   .batchEffect[data-resolving="true"],
   .effectBurst {
+    transition: none;
     animation-duration: 1ms;
     animation-iteration-count: 1;
   }
