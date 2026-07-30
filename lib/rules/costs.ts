@@ -48,12 +48,23 @@ export function cardCostBreakdown(
   let freeBase = false;
   const additionalCosts: CardCostBreakdown["additionalCosts"] = [];
 
-  for (const modifier of definition.play.costModifiers) {
+  const selfModifiers = definition.play.costModifiers.filter((modifier) => (
+    !("appliesTo" in modifier) || modifier.appliesTo !== "controller"
+  ));
+  const controlledModifiers = player.heroes.flatMap((hero) => (
+    ruleDefinitionForCard(hero).play.costModifiers.filter((modifier) => (
+      modifier.kind === "cost-reduce"
+      && modifier.appliesTo === "controller"
+      && (!modifier.cardType || modifier.cardType === card.type)
+    ))
+  ));
+
+  for (const modifier of [...selfModifiers, ...controlledModifiers]) {
     if (!modifierActive(state, player, modifier)) continue;
     if (modifier.kind === "cost-reduce") {
-      const variableMultiplier = definition.sourceText.includes("for each card you played this turn")
+      const variableMultiplier = modifier.scale === "cards-played-this-turn"
         ? Math.max(0, player.cardsPlayedThisTurn)
-        : definition.sourceText.includes("for each BakuCore that your Bakugan hold")
+        : modifier.scale === "held-bakucore"
           ? player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0)
           : 1;
       reductions += modifier.amount * variableMultiplier;
@@ -71,8 +82,6 @@ export function cardCostBreakdown(
     }
   }
 
-  if (card.type === "Evo") reductions += player.heroes.filter((hero) => hero.name === "Shun Kazami").length;
-  if (card.type === "Flip") reductions += player.heroes.filter((hero) => hero.name === "Lightning").length;
 
   const frostStrike = card.type === "Flip" && state.damageOrigin ? activeFrostStrike(state, state.damageOrigin) : 0;
   const base = freeBase ? 0 : printed;
@@ -171,3 +180,4 @@ export function cancelCardPayment(state: MatchState, playerId: string) {
   }
   return state;
 }
+
