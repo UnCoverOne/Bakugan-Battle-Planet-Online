@@ -41,6 +41,10 @@ type TooltipPosition = {
   maxWidth: number;
 };
 
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
 function sameTooltipPosition(previous: TooltipPosition | null, next: TooltipPosition) {
   return Boolean(
     previous
@@ -256,10 +260,23 @@ export function SelectionInteractionLayer({
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
         const rect = area.getBoundingClientRect();
+        const viewport = window.visualViewport;
+        const viewportLeft = viewport?.offsetLeft ?? 0;
+        const viewportWidth = viewport?.width ?? window.innerWidth;
+        const edgeGap = 8;
+        const maxWidth = Math.min(
+          Math.max(180, rect.width * 1.55),
+          Math.max(1, viewportWidth - edgeGap * 2),
+        );
+        const halfWidth = maxWidth / 2;
         const next = {
-          left: rect.left + rect.width / 2,
+          left: clamp(
+            rect.left + rect.width / 2,
+            viewportLeft + edgeGap + halfWidth,
+            viewportLeft + viewportWidth - edgeGap - halfWidth,
+          ),
           top: Math.max(8, rect.top - 10),
-          maxWidth: Math.max(180, rect.width * 1.55),
+          maxWidth,
         };
         setTooltipPosition((previous) => sameTooltipPosition(previous, next) ? previous : next);
       });
