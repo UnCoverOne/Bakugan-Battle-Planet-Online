@@ -555,7 +555,8 @@
   .eventDock {
     --event-tab-width: 0px;
     display: block;
-    width: min(20rem, calc(100vw - 0.75rem));
+    width: min(18rem, calc(100vw - 0.75rem));
+    height: min(56dvh, 24rem);
     transform: translate(-100%, -50%);
   }
 
@@ -574,8 +575,8 @@
     right: 0;
     z-index: 20055;
     display: block;
-    width: min(22rem, calc(100vw - 0.75rem));
-    height: min(72dvh, 34rem);
+    width: min(18rem, calc(100vw - 0.75rem));
+    height: min(56dvh, 24rem);
     transform: translate(100%, -50%);
     filter: drop-shadow(0 0.7rem 1.4rem rgba(0, 0, 0, 0.68));
     transition: transform 220ms cubic-bezier(0.2, 0.78, 0.2, 1);
