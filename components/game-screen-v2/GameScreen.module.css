@@ -603,13 +603,57 @@
     border-width: 1px;
   }
 
+  .hexGrid {
+    transform: scale(1.4);
+    transform-origin: center;
+  }
+
   .characterCardArea {
     width: 43%;
   }
 
   .cardStackArea {
-    width: 49%;
-    gap: 2%;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(3, auto);
+    width: 24.5%;
+    gap: clamp(0.4rem, 2vw, 0.6rem);
+  }
+
+  .cardStackMain,
+  .opponentCardStackArea .cardStackMain {
+    display: contents;
+  }
+
+  /* Stack each owner's zones vertically without changing their rendered size.
+     The opponent order is mirrored so Hero remains the centre-facing zone. */
+  .playerCardStackArea .heroZone {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .playerCardStackArea > .energyZone {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .playerCardStackArea .cardStackZones {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .opponentCardStackArea .cardStackZones {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .opponentCardStackArea > .energyZone {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .opponentCardStackArea .heroZone {
+    grid-column: 1;
+    grid-row: 3;
   }
 
   /* Mirror the player side's 7.3rem hand-to-zone separation: the opponent
