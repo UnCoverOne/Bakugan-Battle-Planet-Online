@@ -2,8 +2,6 @@
   --brawl-dock-handle-width: 2rem;
   position: fixed;
   z-index: 10074;
-  display: grid;
-  grid-template-columns: var(--brawl-dock-handle-width) minmax(0, 1fr);
   box-sizing: border-box;
   max-height: min(42dvh, 25rem);
   transform: translate(-50%, -100%);
@@ -24,24 +22,21 @@
   animation: brawl-hud-enter 220ms ease-out both;
 }
 
-.brawlPanel {
-  min-width: 0;
-  overflow: hidden;
-}
-
 .brawlDockHandle {
-  position: relative;
+  position: absolute;
+  left: 0;
+  top: 50%;
   z-index: 4;
-  align-self: center;
   display: grid;
   place-items: center;
+  box-sizing: border-box;
   width: var(--brawl-dock-handle-width);
   height: 3.5rem;
   min-width: 0;
   margin: 0;
   padding: 0;
+  transform: translateY(-50%);
   border: 1px solid rgba(255, 91, 75, 0.9);
-  border-left: 0;
   background: linear-gradient(180deg, rgba(129, 25, 33, 0.98), rgba(37, 10, 15, 0.98));
   color: #fff;
   cursor: pointer;
