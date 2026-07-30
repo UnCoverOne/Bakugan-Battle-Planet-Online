@@ -646,6 +646,20 @@
     grid-row: 1;
   }
 
+  /* Deck and Discard use the same 5:7 dimensions as each Character Card
+     slot. Preserve the outer alignment of the mirrored owner stacks. */
+  .cardStackZones {
+    width: 113.312%;
+  }
+
+  .playerCardStackArea .cardStackZones {
+    justify-self: end;
+  }
+
+  .opponentCardStackArea .cardStackZones {
+    justify-self: start;
+  }
+
   .opponentCardStackArea > .energyZone {
     grid-column: 1;
     grid-row: 2;
