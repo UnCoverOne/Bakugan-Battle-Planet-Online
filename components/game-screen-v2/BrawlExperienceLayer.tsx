@@ -30,6 +30,7 @@ type ExperienceState = {
 
 type HudPosition = {
   left: number;
+  dockedLeft: number;
   top: number;
   maxWidth: number;
 };
@@ -42,6 +43,7 @@ function sameHudPosition(previous: HudPosition | null, next: HudPosition) {
   return Boolean(
     previous
     && Math.abs(previous.left - next.left) < 0.5
+    && Math.abs(previous.dockedLeft - next.dockedLeft) < 0.5
     && Math.abs(previous.top - next.top) < 0.5
     && Math.abs(previous.maxWidth - next.maxWidth) < 0.5
   );
@@ -145,6 +147,7 @@ export function BrawlExperienceLayer() {
     playerId: state.playerId,
   }));
   const [hudPosition, setHudPosition] = useState<HudPosition | null>(null);
+  const [brawlDocked, setBrawlDocked] = useState(false);
   const [resolvingEffect, setResolvingEffect] = useState<PendingEffect | null>(null);
   const [effectBurst, setEffectBurst] = useState<PendingEffect | null>(null);
   const [pulsingBakugan, setPulsingBakugan] = useState<Set<string>>(new Set());
@@ -167,6 +170,7 @@ export function BrawlExperienceLayer() {
   useLayoutEffect(() => {
     if (!experience.active || rollPresentationPending || combatants.length !== 2) {
       setHudPosition(null);
+      setBrawlDocked(false);
       return;
     }
     const heroZone = document.querySelector<HTMLElement>('[data-zone-id="player-hero"]');
@@ -187,12 +191,14 @@ export function BrawlExperienceLayer() {
           Math.max(430, rect.width * 2.65),
         );
         const halfWidth = maxWidth / 2;
+        const dockHandleWidth = 32;
         const next = {
           left: clamp(
             rect.left + rect.width / 2,
             viewportLeft + edgeGap + halfWidth,
             viewportLeft + viewportWidth - edgeGap - halfWidth,
           ),
+          dockedLeft: viewportLeft + viewportWidth - dockHandleWidth + halfWidth,
           top: Math.max(10, rect.top - 10),
           maxWidth,
         };
@@ -280,7 +286,7 @@ export function BrawlExperienceLayer() {
     : batch;
   const batchKey = combinedBatch.map((effect) => effect.id).join("|");
   const hudStyle = hudPosition ? {
-    left: hudPosition.left,
+    left: brawlDocked ? hudPosition.dockedLeft : hudPosition.left,
     top: hudPosition.top,
     width: `${hudPosition.maxWidth}px`,
   } as CSSProperties : undefined;
@@ -292,8 +298,21 @@ export function BrawlExperienceLayer() {
           className={`${styles.brawlHud} ${previewStyles.brawlPreview}`}
           style={hudStyle}
           data-preview-state={previewState}
+          data-docked={brawlDocked ? "true" : "false"}
           aria-label="Active Brawl statistics, effects, modifiers, and roll outcomes"
         >
+          <button
+            type="button"
+            className={styles.brawlDockHandle}
+            aria-label={brawlDocked ? "Restore Brawl Preview" : "Dock Brawl Preview to the right"}
+            aria-pressed={brawlDocked}
+            onClick={() => setBrawlDocked((docked) => !docked)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d={brawlDocked ? "m15 6-6 6 6 6" : "m9 6 6 6-6 6"} />
+            </svg>
+          </button>
+          <div className={styles.brawlPanel}>
           <header className={`${styles.brawlHeader} ${missedCombatant ? previewStyles.singleOpenHeader : ""}`}>
             <span>{phaseName(experience.match.phase)}</span>
             <strong>{headerHeadline}</strong>
@@ -313,6 +332,7 @@ export function BrawlExperienceLayer() {
               owner="opponent"
               pulsing={pulsingBakugan.has(combatants[1].bakuganId)}
             />
+          </div>
           </div>
         </aside>
       ) : null}
