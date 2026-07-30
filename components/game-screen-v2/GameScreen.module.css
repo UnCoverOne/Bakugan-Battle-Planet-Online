@@ -612,14 +612,16 @@
     gap: 2%;
   }
 
+  /* Mirror the player side's 7.3rem hand-to-zone separation: the opponent
+     hand begins at 5.35rem and the card zones follow immediately beneath it. */
   .opponentCharacterCardArea {
-    top: calc(env(safe-area-inset-top, 0px) + 5.35rem);
+    top: calc(env(safe-area-inset-top, 0px) + 12.65rem);
     right: 1.5%;
     bottom: auto;
   }
 
   .opponentCardStackArea {
-    top: calc(env(safe-area-inset-top, 0px) + 5.35rem);
+    top: calc(env(safe-area-inset-top, 0px) + 12.65rem);
     left: 1.5%;
     bottom: auto;
   }
