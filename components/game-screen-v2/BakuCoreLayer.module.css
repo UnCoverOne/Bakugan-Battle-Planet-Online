@@ -341,7 +341,7 @@
 @media (max-width: 760px) and (orientation: portrait) {
   .matrixLayer,
   .rollTraceLayer {
-    transform: scale(1.2);
+    transform: scale(1.4);
     transform-origin: center;
   }
 }
