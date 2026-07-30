@@ -158,8 +158,25 @@ export function MatchCommunicationLayer() {
           aria-label={eventLogOpen ? "Close Event Log" : "Open Event Log"}
           onClick={() => setEventLogOpen((open) => !open)}
         >
-          <span>EVENT LOG</span>
-          <strong>{eventLogOpen ? "‹" : "›"}</strong>
+          <svg
+            className={styles.handleIcon}
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <circle cx="4" cy="6" r="1" />
+            <circle cx="4" cy="12" r="1" />
+            <circle cx="4" cy="18" r="1" />
+            <path d="M8 6h12M8 12h12M8 18h12" />
+          </svg>
+          <svg
+            className={styles.handleChevron}
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d={eventLogOpen ? "M15 18l-6-6 6-6" : "m9 6 6 6-6 6"} />
+          </svg>
         </button>
       </div>
 
@@ -172,8 +189,23 @@ export function MatchCommunicationLayer() {
           aria-label={chatOpen ? "Close match chat" : "Open match chat"}
           onClick={() => setChatOpen((open) => !open)}
         >
-          <span>CHAT</span>
-          <strong>{chatOpen ? "›" : "‹"}</strong>
+          <svg
+            className={styles.handleIcon}
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M4 5h16v11H9l-5 4V5Z" />
+            <path d="M8 9h8M8 12h5" />
+          </svg>
+          <svg
+            className={styles.handleChevron}
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d={chatOpen ? "m9 6 6 6-6 6" : "M15 18l-6-6 6-6"} />
+          </svg>
         </button>
         <section
           id="match-chat-panel"
