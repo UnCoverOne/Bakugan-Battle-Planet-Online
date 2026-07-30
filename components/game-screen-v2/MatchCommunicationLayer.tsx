@@ -45,6 +45,9 @@ export function MatchCommunicationLayer() {
   const [error, setError] = useState("");
   const eventScroll = useRef<HTMLDivElement | null>(null);
   const chatScroll = useRef<HTMLDivElement | null>(null);
+  const eventDock = useRef<HTMLDivElement | null>(null);
+  const chatDock = useRef<HTMLDivElement | null>(null);
+  const communicationButtons = useRef<HTMLDivElement | null>(null);
 
   const events = useMemo(
     () => eventLogEntries(communication.match),
@@ -67,6 +70,41 @@ export function MatchCommunicationLayer() {
     const element = chatScroll.current;
     if (element) element.scrollTop = element.scrollHeight;
   }, [messages.length]);
+
+  useEffect(() => {
+    if (!eventLogOpen && !chatOpen) return;
+
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (
+        communicationButtons.current?.contains(target)
+        || eventDock.current?.contains(target)
+        || chatDock.current?.contains(target)
+      ) return;
+      setEventLogOpen(false);
+      setChatOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePress);
+  }, [eventLogOpen, chatOpen]);
+
+  const toggleEventLog = () => {
+    setEventLogOpen((open) => {
+      const next = !open;
+      if (next) setChatOpen(false);
+      return next;
+    });
+  };
+
+  const toggleChat = () => {
+    setChatOpen((open) => {
+      const next = !open;
+      if (next) setEventLogOpen(false);
+      return next;
+    });
+  };
 
   const sendChat = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -125,8 +163,45 @@ export function MatchCommunicationLayer() {
 
   return (
     <>
-      <div className={styles.eventDock} data-open={eventLogOpen ? "true" : "false"}>
-        <aside className={styles.eventPanel} aria-label="Event Log" aria-hidden={!eventLogOpen}>
+      <div
+        ref={communicationButtons}
+        className={styles.communicationButtons}
+        aria-label="Match communication controls"
+      >
+        <button
+          type="button"
+          className={styles.communicationButton}
+          data-active={eventLogOpen ? "true" : "false"}
+          aria-controls="match-event-log-panel"
+          aria-expanded={eventLogOpen}
+          aria-label={eventLogOpen ? "Close Event Log" : "Open Event Log"}
+          onClick={toggleEventLog}
+        >
+          <svg className={styles.buttonIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="4" cy="6" r="1" />
+            <circle cx="4" cy="12" r="1" />
+            <circle cx="4" cy="18" r="1" />
+            <path d="M8 6h12M8 12h12M8 18h12" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className={styles.communicationButton}
+          data-active={chatOpen ? "true" : "false"}
+          aria-controls="match-chat-panel"
+          aria-expanded={chatOpen}
+          aria-label={chatOpen ? "Close match chat" : "Open match chat"}
+          onClick={toggleChat}
+        >
+          <svg className={styles.buttonIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 5h16v11H9l-5 4V5Z" />
+            <path d="M8 9h8M8 12h5" />
+          </svg>
+        </button>
+      </div>
+
+      <div ref={eventDock} className={styles.eventDock} data-open={eventLogOpen ? "true" : "false"}>
+        <aside id="match-event-log-panel" className={styles.eventPanel} aria-label="Event Log" aria-hidden={!eventLogOpen}>
           <header>
             <div>
               <span>MATCH RECORD</span>
@@ -156,7 +231,7 @@ export function MatchCommunicationLayer() {
           className={styles.eventToggle}
           aria-expanded={eventLogOpen}
           aria-label={eventLogOpen ? "Close Event Log" : "Open Event Log"}
-          onClick={() => setEventLogOpen((open) => !open)}
+          onClick={toggleEventLog}
         >
           <svg
             className={styles.handleIcon}
@@ -180,14 +255,14 @@ export function MatchCommunicationLayer() {
         </button>
       </div>
 
-      <div className={styles.chatDock} data-open={chatOpen ? "true" : "false"}>
+      <div ref={chatDock} className={styles.chatDock} data-open={chatOpen ? "true" : "false"}>
         <button
           type="button"
           className={styles.chatHandle}
           aria-controls="match-chat-panel"
           aria-expanded={chatOpen}
           aria-label={chatOpen ? "Close match chat" : "Open match chat"}
-          onClick={() => setChatOpen((open) => !open)}
+          onClick={toggleChat}
         >
           <svg
             className={styles.handleIcon}
