@@ -150,7 +150,8 @@
 }
 
 /* On portrait phones the hands use the whole horizontal lane because the card
-   zones are separated vertically instead of acting as side obstacles. */
+   zones are separated vertically instead of acting as side obstacles. The
+   opponent hand starts after the tallest opponent zone stack plus a gutter. */
 @media (max-width: 760px) and (orientation: portrait) {
   .handLayer {
     left: 50% !important;
@@ -158,7 +159,7 @@
   }
 
   .opponentHandLayer {
-    top: calc(env(safe-area-inset-top, 0px) + 5.35rem + 55vw);
+    top: calc(env(safe-area-inset-top, 0px) + 5.35rem + 37vw + 0.5rem);
   }
 
   .playerHandLayer {

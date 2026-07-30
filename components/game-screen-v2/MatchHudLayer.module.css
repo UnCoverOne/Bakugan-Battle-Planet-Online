@@ -323,36 +323,31 @@
   }
 }
 
-/* Full-width portrait HUD bands. Their offsets match the Turn Progress and
-   hand bands so the mobile interface has one deterministic vertical order. */
+/* Portrait phones keep the compact Status HUD width from the mobile layout.
+   Only the Action HUD forms a full-width bottom band. */
 @media (max-width: 760px) and (orientation: portrait) {
-  .playerHud,
-  .actionHud {
-    --corner-cut: 0.42rem;
-    --hud-width: 100vw;
-    width: 100vw;
-    max-width: none;
-    z-index: 20030;
-  }
-
   .opponentPlayerHud {
     top: calc(env(safe-area-inset-top, 0px) + 2.35rem);
-    right: 0;
-    left: 0;
+    right: auto;
+    left: max(0.25rem, env(safe-area-inset-left, 0px));
     --hud-height: 3rem;
   }
 
   .localPlayerHud {
-    right: 0;
+    right: max(0.25rem, env(safe-area-inset-right, 0px));
     bottom: calc(env(safe-area-inset-bottom, 0px) + 3rem);
-    left: 0;
+    left: auto;
     --hud-height: 3rem;
   }
 
   .actionHud {
+    --corner-cut: 0.42rem;
+    --hud-width: 100vw;
     right: 0;
     bottom: 0;
     left: 0;
+    width: 100vw;
+    max-width: none;
     --hud-height: calc(3rem + env(safe-area-inset-bottom, 0px));
     padding-bottom: calc(0.2rem + env(safe-area-inset-bottom, 0px));
   }
