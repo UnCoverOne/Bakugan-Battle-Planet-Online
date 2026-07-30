@@ -45,11 +45,17 @@ export type MatchResultRecord = {
   log: MatchState["log"];
 };
 
+export type DeletedDeckRecord = {
+  id: string;
+  deletedAt: string;
+};
+
 export type UserSnapshot = {
   schemaVersion: 1;
   updatedAt: number;
   profile: BrawlerProfile;
   decks: DeckRecord[];
+  deletedDecks?: DeletedDeckRecord[];
   history: MatchResultRecord[];
   settings: AppSettings;
   route: AppRoute;
@@ -105,9 +111,60 @@ function normalizeDeck(value: unknown): DeckRecord | null {
   };
 }
 
+function timestamp(value: string) {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeDeletedDecks(value: unknown): DeletedDeckRecord[] {
+  if (!Array.isArray(value)) return [];
+  const byId = new Map<string, DeletedDeckRecord>();
+  for (const candidate of value) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const deletion = candidate as Partial<DeletedDeckRecord>;
+    if (typeof deletion.id !== "string" || !deletion.id || typeof deletion.deletedAt !== "string") continue;
+    const deletedAt = timestamp(deletion.deletedAt);
+    if (!deletedAt) continue;
+    const normalized = { id: deletion.id.slice(0, 120), deletedAt: new Date(deletedAt).toISOString() };
+    const current = byId.get(normalized.id);
+    if (!current || timestamp(normalized.deletedAt) > timestamp(current.deletedAt)) byId.set(normalized.id, normalized);
+  }
+  return [...byId.values()]
+    .sort((left, right) => timestamp(right.deletedAt) - timestamp(left.deletedAt))
+    .slice(0, 200);
+}
+
+function reconcileDeckState(decks: DeckRecord[], deletedDecks: DeletedDeckRecord[]) {
+  const byId = new Map<string, DeckRecord>();
+  for (const deck of decks) {
+    const current = byId.get(deck.id);
+    if (!current || timestamp(deck.updatedAt) > timestamp(current.updatedAt)) byId.set(deck.id, deck);
+  }
+  const deletions = new Map(normalizeDeletedDecks(deletedDecks).map((deletion) => [deletion.id, deletion]));
+  for (const [id, deletion] of deletions) {
+    const deck = byId.get(id);
+    if (deck && timestamp(deck.updatedAt) > timestamp(deletion.deletedAt)) {
+      deletions.delete(id);
+    } else {
+      byId.delete(id);
+    }
+  }
+  return {
+    decks: [...byId.values()].slice(0, 50),
+    deletedDecks: [...deletions.values()]
+      .sort((left, right) => timestamp(right.deletedAt) - timestamp(left.deletedAt))
+      .slice(0, 200),
+  };
+}
+
 export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserSnapshot {
   if (!value || typeof value !== "object") return fallback;
   const candidate = value as Partial<UserSnapshot>;
+  const deletedDecks = normalizeDeletedDecks(candidate.deletedDecks);
+  const normalizedDecks = Array.isArray(candidate.decks)
+    ? candidate.decks.map(normalizeDeck).filter((deck): deck is DeckRecord => Boolean(deck))
+    : fallback.decks;
+  const deckState = reconcileDeckState(normalizedDecks, deletedDecks);
   return {
     ...fallback,
     ...candidate,
@@ -125,7 +182,8 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
       ),
       showcaseDeckIds: normalizeShowcaseIds(candidate.profile?.showcaseDeckIds),
     },
-    decks: Array.isArray(candidate.decks) ? candidate.decks.map(normalizeDeck).filter((deck): deck is DeckRecord => Boolean(deck)).slice(0, 50) : fallback.decks,
+    decks: deckState.decks,
+    deletedDecks: deckState.deletedDecks,
     history: Array.isArray(candidate.history) ? candidate.history.slice(0, 200) : fallback.history,
     settings: { ...fallback.settings, ...(candidate.settings ?? {}) },
     route: validRoutes.has(candidate.route as AppRoute) ? candidate.route as AppRoute : fallback.route,
@@ -195,17 +253,10 @@ export function mergeSnapshots(local: UserSnapshot, cloud: UserSnapshot): UserSn
   const localIsNewer = local.updatedAt > cloud.updatedAt;
   const primary = localIsNewer ? local : cloud;
   const secondary = localIsNewer ? cloud : local;
-  const decks = new Map<string, DeckRecord>();
-  for (const deck of secondary.decks) decks.set(deck.id, deck);
-  for (const deck of primary.decks) {
-    const other = decks.get(deck.id);
-    if (other && JSON.stringify({ ...other, updatedAt: "" }) !== JSON.stringify({ ...deck, updatedAt: "" })) {
-      const older = Date.parse(other.updatedAt) > Date.parse(deck.updatedAt) ? deck : other;
-      const conflictId = `${deck.id}-conflict-${Math.max(0, Date.parse(older.updatedAt)).toString(36)}`;
-      if (!decks.has(conflictId)) decks.set(conflictId, { ...older, id: conflictId, name: `${older.name} (conflict copy)`, conflictOf: deck.id, visibility: "Private" });
-    }
-    decks.set(deck.id, other && Date.parse(other.updatedAt) > Date.parse(deck.updatedAt) ? other : deck);
-  }
+  const deckState = reconcileDeckState(
+    [...primary.decks, ...secondary.decks],
+    [...(primary.deletedDecks ?? []), ...(secondary.deletedDecks ?? [])],
+  );
   const history = new Map<string, MatchResultRecord>();
   for (const result of secondary.history) history.set(result.id, result);
   for (const result of primary.history) history.set(result.id, result);
@@ -213,7 +264,8 @@ export function mergeSnapshots(local: UserSnapshot, cloud: UserSnapshot): UserSn
     ...primary,
     schemaVersion: 1 as const,
     updatedAt: Math.max(local.updatedAt, cloud.updatedAt),
-    decks: [...decks.values()].slice(0, 50),
+    decks: deckState.decks,
+    deletedDecks: deckState.deletedDecks,
     history: [...history.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 200),
   };
   return retainDeviceState(merged, local);

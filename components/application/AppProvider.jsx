@@ -132,7 +132,8 @@ export function AppProvider({ children }) {
   const router = useRouter();
   const route = routeForPath(pathname);
   const [profile, setProfile, profileReady] = useStoredState("bbp-profile", defaults.profile);
-  const [decks, setDecks, decksReady] = useStoredState("bbp-decks-complete-set-v4", [], { debounceMs: 750 });
+  const [decks, setStoredDecks, decksReady] = useStoredState("bbp-decks-complete-set-v4", [], { debounceMs: 750 });
+  const [deletedDecks, setDeletedDecks, deletedDecksReady] = useStoredState("bbp-deleted-decks-v1", [], { debounceMs: 750, report: false });
   const [history, setHistory, historyReady] = useStoredState("bbp-history", [], { debounceMs: 750 });
   const [settings, setSettings, settingsReady] = useStoredState("bbp-settings", defaults.settings);
   const [selectedDeckId, setSelectedDeckId, selectedDeckReady] = useStoredState("bbp-selected-deck-v1", "", { debounceMs: 300 });
@@ -150,6 +151,27 @@ export function AppProvider({ children }) {
   const [playerId, setPlayerId, playerReady] = useStoredState("bbp-player-id", "player", { debounceMs: 300, report: false });
   const [matchCapability, setMatchCapability, capabilityReady] = useStoredState("bbp-match-capability-v2", "", { storage: "session", debounceMs: 100, report: false, migrateFromLocal: true });
   const [modifiedAt, setModifiedAt, modifiedReady] = useStoredState("bbp-local-modified-at-v1", 0, { debounceMs: 500, report: false });
+  const decksRef = useRef(decks);
+  useEffect(() => { decksRef.current = decks; }, [decks]);
+  const setDecks = useCallback((update) => {
+    const current = decksRef.current;
+    const next = typeof update === "function" ? update(current) : update;
+    const nextIds = new Set(next.map((deck) => deck.id));
+    const removed = current.filter((deck) => !nextIds.has(deck.id));
+    decksRef.current = next;
+    if (removed.length || next.length) {
+      const deletedAt = new Date().toISOString();
+      setDeletedDecks((items) => {
+        const tombstones = new Map(items.map((item) => [item.id, item]));
+        for (const deck of removed) tombstones.set(deck.id, { id: deck.id, deletedAt });
+        for (const deck of next) tombstones.delete(deck.id);
+        return [...tombstones.values()]
+          .sort((left, right) => Date.parse(right.deletedAt) - Date.parse(left.deletedAt))
+          .slice(0, 200);
+      });
+    }
+    setStoredDecks(next);
+  }, [setDeletedDecks, setStoredDecks]);
   const [authUser, setAuthUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
@@ -171,7 +193,7 @@ export function AppProvider({ children }) {
   const lastSynced = useRef(-1);
   const durableFingerprint = useRef(null);
   const promptedAccountMoments = useRef(new Set());
-  const ready = [profileReady, decksReady, historyReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, replayReady, replayIndexReady, playerReady, capabilityReady, modifiedReady].every(Boolean);
+  const ready = [profileReady, decksReady, deletedDecksReady, historyReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, replayReady, replayIndexReady, playerReady, capabilityReady, modifiedReady].every(Boolean);
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId) ?? decks[0];
   const notify = useCallback((message) => setToast(message), []);
   const promptAccount = useCallback((reason) => {
@@ -184,14 +206,14 @@ export function AppProvider({ children }) {
   }, []);
   const closeAccountAccess = useCallback(() => setAccountAccessMode(null), []);
 
-  const snapshot = useMemo(() => ({ schemaVersion: 1, updatedAt: modifiedAt, profile, decks, history: history.slice(0, 200), settings, route, selectedDeckId, builderDeck, deckQuery, compendiumQuery, compendiumTab, format, matchMode, joinCode, match, online, selectedCore: "", logFilter: "all", replay, replayIndex, playerId }), [builderDeck, compendiumQuery, compendiumTab, deckQuery, decks, format, history, joinCode, match, matchMode, modifiedAt, online, playerId, profile, replay, replayIndex, route, selectedDeckId, settings]);
+  const snapshot = useMemo(() => ({ schemaVersion: 1, updatedAt: modifiedAt, profile, decks, deletedDecks, history: history.slice(0, 200), settings, route, selectedDeckId, builderDeck, deckQuery, compendiumQuery, compendiumTab, format, matchMode, joinCode, match, online, selectedCore: "", logFilter: "all", replay, replayIndex, playerId }), [builderDeck, compendiumQuery, compendiumTab, deckQuery, decks, deletedDecks, format, history, joinCode, match, matchMode, modifiedAt, online, playerId, profile, replay, replayIndex, route, selectedDeckId, settings]);
   useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
   const guestData = useMemo(
     () => summarizeGuestData({ profile, decks, history, settings, builderDeck, match }),
     [builderDeck, decks, history, match, profile, settings],
   );
 
-  const durableStateFingerprint = useMemo(() => JSON.stringify({ profile, decks, history, settings, selectedDeckId, builderDeck, format, matchMode }), [builderDeck, decks, format, history, matchMode, profile, selectedDeckId, settings]);
+  const durableStateFingerprint = useMemo(() => JSON.stringify({ profile, decks, deletedDecks, history, settings, selectedDeckId, builderDeck, format, matchMode }), [builderDeck, decks, deletedDecks, format, history, matchMode, profile, selectedDeckId, settings]);
 
   useEffect(() => {
     if (!ready) return;
@@ -284,12 +306,13 @@ export function AppProvider({ children }) {
     const next = normalizeSnapshot(incoming, fallback);
     applying.current = true;
     setProfile({ ...next.profile, signedIn: signedIn || next.profile.signedIn });
-    setDecks(next.decks); setHistory(next.history); setSettings(next.settings); setSelectedDeckId(next.selectedDeckId);
+    decksRef.current = next.decks;
+    setStoredDecks(next.decks); setDeletedDecks(next.deletedDecks ?? []); setHistory(next.history); setSettings(next.settings); setSelectedDeckId(next.selectedDeckId);
     setBuilderDeck(next.builderDeck); setDeckQuery(next.deckQuery); setCompendiumQuery(next.compendiumQuery); setCompendiumTab(next.compendiumTab);
     setFormat(next.format); setMatchMode(next.matchMode); setJoinCode(next.joinCode); setMatch(next.match); setOnline(next.online);
     setReplay(next.replay); setReplayIndex(next.replayIndex); setPlayerId(next.playerId); setModifiedAt(next.updatedAt);
     setTimeout(() => { applying.current = false; }, 120);
-  }, [setBuilderDeck, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDecks, setFormat, setHistory, setJoinCode, setMatch, setMatchMode, setModifiedAt, setOnline, setPlayerId, setProfile, setReplay, setReplayIndex, setSelectedDeckId, setSettings]);
+  }, [setBuilderDeck, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDeletedDecks, setStoredDecks, setFormat, setHistory, setJoinCode, setMatch, setMatchMode, setModifiedAt, setOnline, setPlayerId, setProfile, setReplay, setReplayIndex, setSelectedDeckId, setSettings]);
 
   const putCloud = useCallback(async (data, revision, allowConflictChoice = true) => {
     const response = await fetch("/api/user-data", {
@@ -379,7 +402,7 @@ export function AppProvider({ children }) {
         const result = await response.json();
         if (!cancelled && response.ok && result.user) {
           setAuthUser(result.user); setProfile((current) => ({ ...current, signedIn: true }));
-          try { await loadCloud("merge"); } catch (error) { setAuthError(error.message); setSyncStatus(navigator.onLine ? "error" : "offline"); }
+          try { await loadCloud("cloud"); } catch (error) { setAuthError(error.message); setSyncStatus(navigator.onLine ? "error" : "offline"); }
         } else if (!cancelled) setSyncStatus("local");
       } catch { if (!cancelled) setSyncStatus(profile.signedIn ? "offline" : "local"); }
       finally { if (!cancelled) setAuthChecking(false); }
