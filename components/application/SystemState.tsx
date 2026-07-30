@@ -193,8 +193,8 @@ export function SyncConflictPanel({
         </ActionButton>
       </div>
       <small>
-        Merge keeps both deck versions when they differ and makes recovery
-        copies private.
+        Merge keeps each deck’s most recently edited version and carries
+        deletions across devices.
       </small>
     </Surface>
   );
