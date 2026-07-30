@@ -132,14 +132,18 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
       clearPreview();
     };
 
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+      // Touch devices have no persistent hover target. Keep the tapped card as
+      // the inspection target until the player taps another card or UI area.
+      setPointerTarget(previewElementFromTarget(event.target));
+    };
     const onPointerOver = (event: PointerEvent) => {
-      if (event.pointerType === "touch") {
-        setPointerTarget(null);
-        return;
-      }
+      if (event.pointerType === "touch") return;
       setPointerTarget(previewElementFromTarget(event.target));
     };
     const onPointerOut = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
       const current = previewElementFromTarget(event.target);
       if (!current || pointerElement.current !== current) return;
       const next = previewElementFromTarget(event.relatedTarget);
@@ -172,6 +176,7 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
+    document.addEventListener("pointerdown", onPointerDown, { passive: true });
     document.addEventListener("pointerover", onPointerOver, { passive: true });
     document.addEventListener("pointerout", onPointerOut, { passive: true });
     document.addEventListener("focusin", onFocusIn);
@@ -184,6 +189,7 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
       observer.disconnect();
       cancelPendingFrame();
       ownership.current = clearCardPreviewTarget(ownership.current);
+      document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("pointerover", onPointerOver);
       document.removeEventListener("pointerout", onPointerOut);
       document.removeEventListener("focusin", onFocusIn);
