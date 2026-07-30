@@ -32,6 +32,7 @@ export type RuleCondition =
   | { kind: "cards-played"; comparison: "at-least" | "more-than"; amount: number }
   | { kind: "hero-count"; comparison: "at-least"; amount: number }
   | { kind: "core-count"; relationship: "more-than-opponent" | "at-least"; amount?: number }
+  | { kind: "open-bakugan-count"; comparison: "exactly" | "at-least" | "at-most" | "more-than" | "fewer-than"; amount: number }
   | { kind: "selection-made"; choiceId: keyof CardChoices }
   | { kind: "printed"; text: string };
 
