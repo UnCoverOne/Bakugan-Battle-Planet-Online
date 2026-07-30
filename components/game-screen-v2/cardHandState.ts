@@ -96,6 +96,7 @@ export function boundedHandFanGeometry({
   safeWidth,
   desiredCardWidth,
   radiusRatio,
+  renderedWidthScale,
 }: {
   cardCount: number;
   safeWidth: number;
@@ -103,31 +104,34 @@ export function boundedHandFanGeometry({
   /** @deprecated Card size is fixed; retained for call-site compatibility. */
   minimumCardWidth?: number;
   radiusRatio: number;
+  /** Horizontal rendered-width multiplier applied before the safety bound. */
+  renderedWidthScale?: number;
 }): HandFanGeometry {
   const count = Math.max(0, Math.floor(Number.isFinite(cardCount) ? cardCount : 0));
   const widthLimit = Math.max(1, finiteNonNegative(safeWidth, 1));
   const cardWidth = Math.max(1, finiteNonNegative(desiredCardWidth, 1));
   const ratio = finiteNonNegative(radiusRatio);
   const fanRadius = cardWidth * ratio;
-  const desiredSpan = handFanSpanDegrees(count);
-  let spanDegrees = desiredSpan;
+  const naturalSpan = handFanSpanDegrees(count);
+  const naturalRenderedWidth = handFanRenderedWidth(cardWidth, fanRadius, naturalSpan);
+  const requestedScale = Number.isFinite(renderedWidthScale)
+    ? Math.max(0, renderedWidthScale ?? 1)
+    : 1;
+  const targetRenderedWidth = Math.min(widthLimit, naturalRenderedWidth * requestedScale);
+  let spanDegrees = 0;
 
-  if (handFanRenderedWidth(cardWidth, fanRadius, desiredSpan) > widthLimit) {
-    if (widthLimit <= cardWidth) {
-      spanDegrees = 0;
-    } else {
-      let low = 0;
-      let high = desiredSpan;
-      for (let iteration = 0; iteration < 40; iteration += 1) {
-        const middle = (low + high) / 2;
-        if (handFanRenderedWidth(cardWidth, fanRadius, middle) <= widthLimit) {
-          low = middle;
-        } else {
-          high = middle;
-        }
+  if (naturalSpan > 0 && targetRenderedWidth > cardWidth) {
+    let low = 0;
+    let high = 179;
+    for (let iteration = 0; iteration < 40; iteration += 1) {
+      const middle = (low + high) / 2;
+      if (handFanRenderedWidth(cardWidth, fanRadius, middle) <= targetRenderedWidth) {
+        low = middle;
+      } else {
+        high = middle;
       }
-      spanDegrees = low;
     }
+    spanDegrees = low;
   }
 
   return {
