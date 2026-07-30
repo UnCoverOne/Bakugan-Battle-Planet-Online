@@ -257,6 +257,12 @@
   }
 }
 
+@media (max-width: 760px) and (orientation: portrait) {
+  .menuButton {
+    top: calc(env(safe-area-inset-top, 0px) + 2.6rem);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scrim,
   .drawer,
