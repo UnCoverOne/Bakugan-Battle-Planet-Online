@@ -67,6 +67,9 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
       if (!playArea) return;
 
       const playRect = playArea.getBoundingClientRect();
+      const compact = window.innerWidth <= 760;
+      const portrait = compact
+        && window.matchMedia("(orientation: portrait)").matches;
       const characterArea = playArea.querySelector<HTMLElement>(
         `[data-zone-owner="${owner}"][data-zone-group="character-cards"]`,
       );
@@ -82,10 +85,12 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
       let safeLeft = playRect.left + zoneGap;
       let safeRight = playRect.right - zoneGap;
 
-      if (obstacleRects.length === 2) {
+      // Portrait card zones occupy separate vertical bands, so they do not
+      // reduce the Hand's horizontal lane. Landscape keeps the zone corridor.
+      if (!portrait && obstacleRects.length === 2) {
         safeLeft = Math.max(safeLeft, obstacleRects[0].right + zoneGap);
         safeRight = Math.min(safeRight, obstacleRects[1].left - zoneGap);
-      } else {
+      } else if (!portrait) {
         // The zones normally exist before this layer measures. This fallback
         // preserves their known mirrored footprints during the first frame.
         safeLeft = Math.max(safeLeft, playRect.left + playRect.width * 0.29);
@@ -100,9 +105,6 @@ function useHandViewportBounds(owner: HandOwner, cardCount: number) {
       }
 
       const safeWidth = Math.max(1, safeRight - safeLeft);
-      const compact = window.innerWidth <= 760;
-      const portrait = compact
-        && window.matchMedia("(orientation: portrait)").matches;
       const portraitHandScale = portrait ? 1.2 : 1;
       const portraitFanScale = portrait ? 1.4 : 1;
       const geometrySafeWidth = portrait
