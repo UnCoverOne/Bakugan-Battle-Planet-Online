@@ -2,7 +2,7 @@ import type { CardType, Faction, GameCard } from "../game";
 import type { RuleAction, RuleCondition, RulesCardId, RulesDuration, TriggerDefinition, TriggerEventName } from "./model";
 
 const NUMBER_WORDS: Record<string, number> = {
-  a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5,
+  no: 0, a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5,
   six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
 };
 
@@ -30,6 +30,20 @@ export function conditionFor(text: string): RuleCondition {
   if (/\bVictor\b/i.test(text)) return { kind: "victor" };
   if (/two or more cards this turn/i.test(text)) return { kind: "cards-played", comparison: "at-least", amount: 2 };
   if (/three or more Hero/i.test(text)) return { kind: "hero-count", comparison: "at-least", amount: 3 };
+  const openBakuganCount = text.match(
+    /\bif you\s+(only have|have only|have exactly|have at least|have at most|have more than|have fewer than|have)\s+(no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)(\s+or more)?\s+open Bakugan\b/i,
+  );
+  if (openBakuganCount) {
+    const wording = openBakuganCount[1].toLowerCase();
+    const amount = numberValue(openBakuganCount[2], 0);
+    let comparison: Extract<RuleCondition, { kind: "open-bakugan-count" }>["comparison"] = "at-least";
+    if (/only|exactly/.test(wording) || amount === 0) comparison = "exactly";
+    else if (/at most/.test(wording)) comparison = "at-most";
+    else if (/more than/.test(wording)) comparison = "more-than";
+    else if (/fewer than/.test(wording)) comparison = "fewer-than";
+    else if (/at least/.test(wording) || openBakuganCount[3]) comparison = "at-least";
+    return { kind: "open-bakugan-count", comparison, amount };
+  }
   const faction = text.match(/If (?:you have )?(?:an? )?\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/i)?.[1] as Faction | undefined;
   if (faction) return { kind: "faction", faction };
   return { kind: "always" };
