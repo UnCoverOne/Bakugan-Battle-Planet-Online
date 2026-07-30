@@ -312,7 +312,6 @@ export function BrawlExperienceLayer() {
               <path d={brawlDocked ? "m15 6-6 6 6 6" : "m9 6 6 6-6 6"} />
             </svg>
           </button>
-          <div className={styles.brawlPanel}>
           <header className={`${styles.brawlHeader} ${missedCombatant ? previewStyles.singleOpenHeader : ""}`}>
             <span>{phaseName(experience.match.phase)}</span>
             <strong>{headerHeadline}</strong>
@@ -332,7 +331,6 @@ export function BrawlExperienceLayer() {
               owner="opponent"
               pulsing={pulsingBakugan.has(combatants[1].bakuganId)}
             />
-          </div>
           </div>
         </aside>
       ) : null}
