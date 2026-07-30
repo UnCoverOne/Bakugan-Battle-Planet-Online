@@ -57,6 +57,14 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
       const opposing = opponent?.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0) ?? 0;
       return held > opposing;
     }
+    case "open-bakugan-count": {
+      const open = player.bakugan.filter((bakugan) => bakugan.open).length;
+      if (condition.comparison === "exactly") return open === condition.amount;
+      if (condition.comparison === "at-least") return open >= condition.amount;
+      if (condition.comparison === "at-most") return open <= condition.amount;
+      if (condition.comparison === "more-than") return open > condition.amount;
+      return open < condition.amount;
+    }
     case "selection-made": return true;
     case "printed": return false;
   }
