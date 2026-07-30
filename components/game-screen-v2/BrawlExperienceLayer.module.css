@@ -24,7 +24,7 @@
 
 .brawlDockHandle {
   position: absolute;
-  left: 0;
+  left: calc(0px - var(--brawl-dock-handle-width));
   top: 50%;
   z-index: 4;
   display: grid;
@@ -37,6 +37,7 @@
   padding: 0;
   transform: translateY(-50%);
   border: 1px solid rgba(255, 91, 75, 0.9);
+  border-right: 0;
   background: linear-gradient(180deg, rgba(129, 25, 33, 0.98), rgba(37, 10, 15, 0.98));
   color: #fff;
   cursor: pointer;
