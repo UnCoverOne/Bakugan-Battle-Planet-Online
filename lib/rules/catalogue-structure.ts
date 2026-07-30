@@ -101,10 +101,51 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   return result.filter((item, index, values) => values.findIndex((candidate) => candidate.id === item.id && candidate.timing === item.timing) === index);
 }
 
+function reductionScaleFor(text: string): Extract<CostEffect, { kind: "cost-reduce" }>["scale"] {
+  if (/for each card you (?:have )?played this turn/i.test(text)) return "cards-played-this-turn";
+  if (/for each BakuCore that your Bakugan hold/i.test(text)) return "held-bakucore";
+  return undefined;
+}
+
 function costModifiersFor(card: GameCard): CostEffect[] {
   const result: CostEffect[] = [];
   const text = card.effect;
-  for (const match of text.matchAll(/costs? (\d+) \[Energy\] less/gi)) result.push({ kind: "cost-reduce", amount: Number(match[1]), duration: durationFor(text), condition: conditionFor(text) });
+
+  // A card's own play-cost adjustment must explicitly name "this". Static
+  // reducers such as Shun, Lightning, and Strata target cards played later and
+  // are evaluated from their active Hero source by the cost calculator.
+  for (const match of text.matchAll(/\bthis\s+costs?\s+(\d+)\s+\[Energy\]\s+less(?:\s+to\s+(?:play|use))?(?:\s+for\s+each\s+[^.]+)?/gi)) {
+    result.push({
+      kind: "cost-reduce",
+      amount: Number(match[1]),
+      duration: "instant",
+      condition: conditionFor(text),
+      appliesTo: "self",
+      scale: reductionScaleFor(match[0]),
+    });
+  }
+
+  const controlledCardReduction = text.match(/\b(?:your\s+)?(Action|Hero|Flip)\s+cards?\s+cost(?:\s+you)?\s+(\d+)\s+\[Energy\]\s+less\b/i);
+  if (controlledCardReduction) {
+    result.push({
+      kind: "cost-reduce",
+      amount: Number(controlledCardReduction[2]),
+      duration: "while-source-active",
+      cardType: controlledCardReduction[1] as GameCard["type"],
+      appliesTo: "controller",
+    });
+  }
+  const controlledEvoReduction = text.match(/\bEvos?\s+cost(?:\s+you)?\s+(\d+)\s+\[Energy\]\s+less\b/i);
+  if (controlledEvoReduction) {
+    result.push({
+      kind: "cost-reduce",
+      amount: Number(controlledEvoReduction[1]),
+      duration: "while-source-active",
+      cardType: "Evo",
+      appliesTo: "controller",
+    });
+  }
+
   if (/play this for free|this is free/i.test(text)) result.push({ kind: "cost-free", duration: durationFor(text), condition: conditionFor(text) });
   if (ruleCardId(card) === "bb-152") {
     result.push({ kind: "cost-discard", amount: 1, choiceId: "discardCardIds" });
@@ -168,3 +209,4 @@ export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
   }
   return result;
 }
+
