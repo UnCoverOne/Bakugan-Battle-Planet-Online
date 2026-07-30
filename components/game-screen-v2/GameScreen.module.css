@@ -638,6 +638,16 @@
     bottom: calc(env(safe-area-inset-bottom, 0px) + 13.5rem);
   }
 
+  .opponentCharacterCardArea,
+  .opponentCardStackArea {
+    transform: translateY(-20%);
+  }
+
+  .playerCharacterCardArea,
+  .playerCardStackArea {
+    transform: translateY(20%);
+  }
+
   .heroZone,
   .energyZone {
     aspect-ratio: 9 / 7;
