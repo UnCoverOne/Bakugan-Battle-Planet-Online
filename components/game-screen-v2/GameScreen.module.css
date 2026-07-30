@@ -640,12 +640,12 @@
 
   .opponentCharacterCardArea,
   .opponentCardStackArea {
-    transform: translateY(-20%);
+    transform: translateY(-40%);
   }
 
   .playerCharacterCardArea,
   .playerCardStackArea {
-    transform: translateY(20%);
+    transform: translateY(40%);
   }
 
   .heroZone,
