@@ -241,9 +241,17 @@ function CoreTransferSprite({
 
         const scaleX = playArea.clientWidth / playRect.width;
         const scaleY = playArea.clientHeight / playRect.height;
+        const matrixScale = window.innerWidth <= 760
+          && window.matchMedia("(orientation: portrait)").matches
+          ? 1.2
+          : 1;
+        const scaledSource = {
+          x: GRID_CENTER_X + (source.x - GRID_CENTER_X) * matrixScale,
+          y: GRID_CENTER_Y + (source.y - GRID_CENTER_Y) * matrixScale,
+        };
         const next = {
-          sourceX: source.x / GRID_WIDTH * playArea.clientWidth,
-          sourceY: source.y / GRID_HEIGHT * playArea.clientHeight,
+          sourceX: scaledSource.x / GRID_WIDTH * playArea.clientWidth,
+          sourceY: scaledSource.y / GRID_HEIGHT * playArea.clientHeight,
           destinationX: (targetRect.left + targetRect.width / 2 - playRect.left) * scaleX,
           destinationY: (targetRect.top + targetRect.height / 2 - playRect.top) * scaleY,
         };
