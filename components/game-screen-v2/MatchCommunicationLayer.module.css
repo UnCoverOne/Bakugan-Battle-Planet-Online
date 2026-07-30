@@ -188,7 +188,7 @@
   cursor: pointer;
   pointer-events: auto;
   align-self: center;
-  height: 7.6rem;
+  height: 6.08rem;
 }
 
 .eventToggle span {
@@ -520,7 +520,7 @@
     place-items: center;
     align-self: center;
     width: var(--chat-handle-width);
-    height: 7.2rem;
+    height: 6.08rem;
     min-width: 0;
     padding: 0.65rem 0.2rem 0.5rem;
     border: 1px solid rgba(255, 91, 75, 0.9);
