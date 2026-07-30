@@ -70,8 +70,10 @@ export type TriggerDefinition = {
   limit?: { kind: "once-per-turn" | "first-each-turn"; key: string };
 };
 
+export type CostScale = "cards-played-this-turn" | "held-bakucore";
+
 export type CostEffect =
-  | { kind: "cost-reduce"; amount: number; duration: RulesDuration; cardType?: CardType; condition?: RuleCondition }
+  | { kind: "cost-reduce"; amount: number; duration: RulesDuration; cardType?: CardType; condition?: RuleCondition; appliesTo?: "self" | "controller"; scale?: CostScale }
   | { kind: "cost-increase"; amount: number; duration: RulesDuration; cardType?: CardType; condition?: RuleCondition }
   | { kind: "cost-free"; duration: RulesDuration; condition?: RuleCondition }
   | { kind: "cost-discard"; amount: number; choiceId: keyof CardChoices }
@@ -225,3 +227,4 @@ export type RulesState = {
   triggerUsage: Record<string, number>;
   pendingPayment?: RulesPayment;
 };
+
