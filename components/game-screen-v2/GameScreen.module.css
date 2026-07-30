@@ -591,3 +591,57 @@
   .zoneLabel { font-size: .52rem; }
 }
 
+/* Portrait mobile gameplay composition. The HUDs and hands own fixed viewport
+   bands; the playmat zones remain inside the gameplay surface between them. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .playArea {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    aspect-ratio: auto;
+    transform: none;
+    border-width: 1px;
+  }
+
+  .characterCardArea {
+    width: 43%;
+  }
+
+  .cardStackArea {
+    width: 49%;
+    gap: 2%;
+  }
+
+  .opponentCharacterCardArea {
+    top: calc(env(safe-area-inset-top, 0px) + 5.35rem);
+    right: 1.5%;
+    bottom: auto;
+  }
+
+  .opponentCardStackArea {
+    top: calc(env(safe-area-inset-top, 0px) + 5.35rem);
+    left: 1.5%;
+    bottom: auto;
+  }
+
+  .playerCharacterCardArea {
+    left: 1.5%;
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 13.5rem);
+  }
+
+  .playerCardStackArea {
+    right: 1.5%;
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 13.5rem);
+  }
+
+  .heroZone,
+  .energyZone {
+    aspect-ratio: 9 / 7;
+  }
+
+  .zoneLabel {
+    font-size: 0.52rem;
+  }
+}

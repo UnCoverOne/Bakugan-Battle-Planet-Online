@@ -148,3 +148,20 @@
     width: 96vw;
   }
 }
+
+/* On portrait phones the hands use the whole horizontal lane because the card
+   zones are separated vertically instead of acting as side obstacles. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .handLayer {
+    left: 50% !important;
+    width: 96vw !important;
+  }
+
+  .opponentHandLayer {
+    top: calc(env(safe-area-inset-top, 0px) + 5.35rem + 55vw);
+  }
+
+  .playerHandLayer {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 6.2rem);
+  }
+}
