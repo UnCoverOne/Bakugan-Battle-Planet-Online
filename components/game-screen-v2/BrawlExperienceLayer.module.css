@@ -5,8 +5,8 @@
   box-sizing: border-box;
   max-height: min(42dvh, 25rem);
   transform: translate(-50%, -100%);
-  overflow: hidden;
-  clip-path: polygon(0.9rem 0, calc(100% - 0.9rem) 0, 100% 0.9rem, 100% calc(100% - 0.9rem), calc(100% - 0.9rem) 100%, 0.9rem 100%, 0 calc(100% - 0.9rem), 0 0.9rem);
+  overflow: visible;
+  clip-path: none;
   border: 1px solid rgba(255, 92, 78, 0.72);
   background:
     linear-gradient(90deg, rgba(140, 18, 27, 0.2), transparent 28%, transparent 72%, rgba(140, 18, 27, 0.2)),
