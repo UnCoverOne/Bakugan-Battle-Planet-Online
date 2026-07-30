@@ -186,12 +186,12 @@ export function BrawlExperienceLayer() {
         const viewportLeft = viewport?.offsetLeft ?? 0;
         const viewportWidth = viewport?.width ?? window.innerWidth;
         const edgeGap = 12;
+        const dockHandleWidth = 32;
         const maxWidth = Math.min(
-          Math.max(1, viewportWidth - edgeGap * 2),
+          Math.max(1, viewportWidth - edgeGap * 2 - dockHandleWidth),
           Math.max(430, rect.width * 2.65),
         );
         const halfWidth = maxWidth / 2;
-        const dockHandleWidth = 32;
         const next = {
           left: clamp(
             rect.left + rect.width / 2,
