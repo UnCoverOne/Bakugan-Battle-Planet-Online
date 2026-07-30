@@ -1412,6 +1412,16 @@ const executeRuleAction = (
   }
 };
 
+function ruleActionIsExecutable(action: RuleAction): boolean {
+  if (action.kind === "choice") return false;
+  if (action.kind === "sequence") return action.effects.some(ruleActionIsExecutable);
+  if (action.kind === "conditional") {
+    return action.whenTrue.some(ruleActionIsExecutable)
+      || Boolean(action.whenFalse?.some(ruleActionIsExecutable));
+  }
+  return true;
+}
+
 function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
   if (isRuleObject(pending)) beginRuleObjectResolution(pending);
   const program = compileCardEffect(pending.card, pending.effect ?? pending.card.effect);
@@ -1420,6 +1430,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
     beforeInstruction: (instruction, instructionIndex) => {
       const existing = pending.resolvedChoices?.[String(instructionIndex)];
       if (existing) return existing.confirmed === false ? "skip" : "continue";
+      if (!instruction.effects.some(ruleActionIsExecutable)) return "continue";
       const schema = buildChoiceSchema(
         state,
         pending.controllerId,
