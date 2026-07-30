@@ -1,4 +1,4 @@
-import type { CardType, Faction, GameCard } from "../game";
+import type { CardType, CoreType, Faction, GameCard } from "../game";
 import type { RuleAction, RuleCondition, RulesCardId, RulesDuration, TriggerDefinition, TriggerEventName } from "./model";
 
 const NUMBER_WORDS: Record<string, number> = {
@@ -22,7 +22,24 @@ export function durationFor(text: string): RulesDuration {
   return "instant";
 }
 
+const CORE_TYPE_BY_SYMBOL: Record<string, CoreType> = {
+  FT: "Fist",
+  FF: "Flaming Fist",
+  SD: "Shield",
+  MS: "Magic Shield",
+  HE: "Helix",
+};
+
 export function conditionFor(text: string): RuleCondition {
+  const heldCorePrefix = text.match(
+    /^\s*(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:/i,
+  )?.[1];
+  if (heldCorePrefix) {
+    const coreTypes = [...heldCorePrefix.matchAll(/\[(FT|FF|SD|MS|HE)\]/gi)]
+      .map((match) => CORE_TYPE_BY_SYMBOL[match[1].toUpperCase()])
+      .filter((coreType, index, values) => values.indexOf(coreType) === index);
+    return { kind: "held-core-type", coreTypes };
+  }
   if (/\bFury\b/i.test(text)) return { kind: "fury" };
   if (/\bTurbo\b/i.test(text)) return { kind: "turbo" };
   if (/\bDomination\b/i.test(text)) return { kind: "domination" };
