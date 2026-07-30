@@ -34,6 +34,10 @@ type HudPosition = {
   maxWidth: number;
 };
 
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
 function sameHudPosition(previous: HudPosition | null, next: HudPosition) {
   return Boolean(
     previous
@@ -174,10 +178,23 @@ export function BrawlExperienceLayer() {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
         const rect = heroZone.getBoundingClientRect();
+        const viewport = window.visualViewport;
+        const viewportLeft = viewport?.offsetLeft ?? 0;
+        const viewportWidth = viewport?.width ?? window.innerWidth;
+        const edgeGap = 12;
+        const maxWidth = Math.min(
+          Math.max(1, viewportWidth - edgeGap * 2),
+          Math.max(430, rect.width * 2.65),
+        );
+        const halfWidth = maxWidth / 2;
         const next = {
-          left: rect.left + rect.width / 2,
+          left: clamp(
+            rect.left + rect.width / 2,
+            viewportLeft + edgeGap + halfWidth,
+            viewportLeft + viewportWidth - edgeGap - halfWidth,
+          ),
           top: Math.max(10, rect.top - 10),
-          maxWidth: Math.min(window.innerWidth - 24, Math.max(430, rect.width * 2.65)),
+          maxWidth,
         };
         setHudPosition((previous) => sameHudPosition(previous, next) ? previous : next);
       });
