@@ -53,8 +53,8 @@ This is a full-stack application, not a static export. Room-code multiplayer cal
 ## Persistence and accounts
 
 - Logged-out users keep decks, settings, drafts, match history, navigation state, and an active match in browser `localStorage`.
-- Signed-in users receive the same local durability plus automatic D1-backed cloud sync across devices.
-- Cloud writes use an optimistic revision number. When two devices edit concurrently, the client merges unique decks and history records, keeps the newest UI state, and retries.
+- Signed-in users use D1 as the durable account source; browser storage is an offline cache and is not merged back into the account on every resumed session.
+- Cloud writes use an optimistic revision number. When two devices edit concurrently, the client merges unique decks and history records, keeps the newest edit for each shared deck, carries deck deletions with bounded tombstones, and retries after explicit conflict review.
 - Passwords are never stored in plaintext. The server derives a salted PBKDF2-SHA-256 hash and stores only the hash, salt, and iteration count.
 - Login uses an opaque session token in a `HttpOnly`, `SameSite=Lax` cookie; only a SHA-256 hash of the token is stored in D1.
 - Signing out retains the browser copy. Deleting an account removes the cloud copy but deliberately leaves local data until the user separately deletes browser data.
