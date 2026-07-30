@@ -9,6 +9,7 @@ import {
   ensureRulesState,
   evaluateBakuganCharacteristics,
   ruleDefinitionForCard,
+  ruleConditionActive,
   UnsupportedCardTextError,
   validateCardAgainstRules,
 } from "../lib/rules";
@@ -17,6 +18,7 @@ import { canonicalEvoTargetAllowed } from "../lib/rules/identity";
 import { createRuleObject } from "../lib/rules/objects";
 import { emitRuleEvent } from "../lib/rules/triggers";
 import { executeRuleProgram } from "../lib/rules/executor";
+import { conditionFor } from "../lib/rules/catalogue-primitives";
 
 function match() {
   const first = makePlayer("first", "First", STARTER_DECKS[0]);
@@ -79,6 +81,54 @@ test("Flow replacement clauses resolve the enhanced effect instead of the base e
 
   assert.deepEqual(resolvedPower(false), [200]);
   assert.deepEqual(resolvedPower(true), [400]);
+});
+
+test("open Bakugan count parser preserves exact and threshold comparisons", () => {
+  assert.deepEqual(conditionFor("If you only have one open Bakugan."), { kind: "open-bakugan-count", comparison: "exactly", amount: 1 });
+  assert.deepEqual(conditionFor("If you have only two open Bakugan."), { kind: "open-bakugan-count", comparison: "exactly", amount: 2 });
+  assert.deepEqual(conditionFor("If you have three or more open Bakugan."), { kind: "open-bakugan-count", comparison: "at-least", amount: 3 });
+  assert.deepEqual(conditionFor("If you have at most two open Bakugan."), { kind: "open-bakugan-count", comparison: "at-most", amount: 2 });
+  assert.deepEqual(conditionFor("If you have more than one open Bakugan."), { kind: "open-bakugan-count", comparison: "more-than", amount: 1 });
+  assert.deepEqual(conditionFor("If you have fewer than three open Bakugan."), { kind: "open-bakugan-count", comparison: "fewer-than", amount: 3 });
+  assert.deepEqual(conditionFor("If you have no open Bakugan."), { kind: "open-bakugan-count", comparison: "exactly", amount: 0 });
+});
+
+test("Ice Elation and Solitude resolve only with exactly one open Bakugan", () => {
+  const state = match();
+  const player = state.players[0];
+  const cases = [
+    { catalogId: "bb-14", stat: "damage", amount: 8 },
+    { catalogId: "bb-21", stat: "power", amount: 1000 },
+  ] as const;
+
+  for (const expected of cases) {
+    const card = CARDS.find((candidate) => candidate.catalogId === expected.catalogId)!;
+    const definition = ruleDefinitionForCard(card);
+    const spell = definition.abilities.find((ability) => ability.kind === "spell")!;
+    const program = { cardId: definition.cardId, source: card.effect, instructions: spell.instructions };
+    assert.deepEqual(spell.instructions[0].condition, {
+      kind: "open-bakugan-count",
+      comparison: "exactly",
+      amount: 1,
+    });
+
+    for (const openCount of [0, 1, 2, 3]) {
+      player.bakugan.forEach((bakugan, index) => { bakugan.open = index < openCount; });
+      const amounts: number[] = [];
+      executeRuleProgram(program, {
+        conditionIsActive: (instruction) => ruleConditionActive(state, player, instruction.condition),
+        beforeInstruction: () => "continue",
+        execute: (action) => {
+          if (action.kind === "modify-stat" && action.stat === expected.stat) amounts.push(action.amount);
+        },
+      });
+      assert.deepEqual(
+        amounts,
+        openCount === 1 ? [expected.amount] : [],
+        `${card.name} with ${openCount} open Bakugan`,
+      );
+    }
+  }
 });
 
 test("rule objects are serializable resumable objects with stable definition identity", () => {
