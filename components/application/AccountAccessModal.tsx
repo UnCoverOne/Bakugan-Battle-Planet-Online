@@ -219,7 +219,7 @@ export function AccountAccessModal({
               <fieldset className={styles.choices}>
                 <legend>After login, use which data?</legend>
                 {([
-                  ["merge", "Merge safely", "Keep device and cloud decks. Conflicting deck edits become private recovery copies."],
+                  ["merge", "Merge safely", "Combine device and cloud decks, keep the newest edit for each deck, and preserve deletions."],
                   ["local", "Use this device", "Upload this device’s durable progress to the account."],
                   ["cloud", "Use cloud copy", "Keep the account copy while leaving device-only session state intact."],
                 ] as const).map(([value, title, copy]) => (
