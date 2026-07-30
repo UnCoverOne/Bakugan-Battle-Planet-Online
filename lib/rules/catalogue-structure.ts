@@ -16,7 +16,7 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   const clauses = normalized
     ? normalized.split(/(?<=\.)\s+|\n+/).map((clause) => clause.trim()).filter(Boolean)
     : [""];
-  return clauses.map((clause, index) => {
+  const instructions = clauses.map((clause, index) => {
     const condition = conditionFor(clause);
     let effects = parseAtomicEffects(card, clause);
     if (ruleCardId(card) === "bb-152") effects = effects.filter((effect) => effect.kind !== "discard");
@@ -36,6 +36,35 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
       sourceText: clause,
     };
   });
+
+  // Printed conditional bonuses such as "+200 [B]. Flow ... +400 [B] instead."
+  // replace the preceding base sentence. Keep the condition on the branch rather
+  // than the whole instruction so the base effect still resolves when it is false.
+  if (!REPLACEMENT_CARD_IDS.has(ruleCardId(card))) return instructions;
+  for (let index = 1; index < instructions.length; index += 1) {
+    const current = instructions[index];
+    if (current.condition.kind === "always" || !/\binstead\b/i.test(current.sourceText)) continue;
+    const previous = instructions[index - 1];
+    const replacementText = current.sourceText.split(/\binstead\b/i)[0] ?? "";
+    const effects: RuleAction[] = [{
+      kind: "conditional",
+      condition: current.condition,
+      whenTrue: parseAtomicEffects(card, replacementText),
+      whenFalse: previous.effects,
+      replacement: true,
+    }];
+    const sourceText = `${previous.sourceText} ${current.sourceText}`;
+    instructions.splice(index - 1, 2, {
+      ...previous,
+      condition: { kind: "always" },
+      effects,
+      actions: effects,
+      choices: choicesForText(card, sourceText, "resolve"),
+      sourceText,
+    });
+    index -= 1;
+  }
+  return instructions;
 }
 
 function choice(
