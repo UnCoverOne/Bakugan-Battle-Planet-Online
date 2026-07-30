@@ -89,14 +89,13 @@ test("snapshot normalization enforces the 50-deck ceiling and safe routes", () =
   assert.equal(normalized.decks[0].updatedAt, new Date(0).toISOString());
 });
 
-test("same-ID concurrent deck changes preserve a private conflict copy", () => {
+test("same-ID concurrent deck changes keep the newest edit without manufacturing a copy", () => {
   const local = snapshot(200);
   const cloud = snapshot(100);
   local.decks = [{ ...STARTER_DECKS[0], id: "shared", name: "Local edit", updatedAt: "2026-07-24T10:00:00.000Z" }];
   cloud.decks = [{ ...STARTER_DECKS[0], id: "shared", name: "Cloud edit", updatedAt: "2026-07-24T09:00:00.000Z" }];
   const merged = mergeSnapshots(local, cloud);
-  assert.equal(merged.decks.find((deck) => deck.id === "shared")?.name, "Local edit");
-  const conflict = merged.decks.find((deck) => deck.conflictOf === "shared");
-  assert.equal(conflict?.name, "Cloud edit (conflict copy)");
-  assert.equal(conflict?.visibility, "Private");
+  assert.deepEqual(merged.decks.map((deck) => deck.id), ["shared"]);
+  assert.equal(merged.decks[0].name, "Local edit");
+  assert.equal(merged.decks.some((deck) => deck.conflictOf === "shared"), false);
 });
