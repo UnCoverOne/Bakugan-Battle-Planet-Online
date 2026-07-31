@@ -195,9 +195,11 @@ export function DeckInspectionLayer() {
                 <button
                   type="button"
                   className={styles.cardButton}
+                  data-selectable={selectable ? "true" : "false"}
+                  aria-disabled={selectable ? undefined : "true"}
                   aria-pressed={selectionField ? selected : undefined}
                   aria-label={`${card.displayName || card.name}, deck position ${index + 1}${selectable ? ", select this card" : ""}`}
-                  disabled={!selectable}
+                  tabIndex={selectable ? 0 : -1}
                   onClick={() => {
                     if (selectable) setSelectedId((current) => current === option.id && !selectionRequired ? "" : option.id);
                   }}
