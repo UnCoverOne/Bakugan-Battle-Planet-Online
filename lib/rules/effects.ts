@@ -31,6 +31,37 @@ export function cardProgramIsExecutable(program: RuleProgram) {
   ));
 }
 
+function leafRuleActions(actions: readonly TypedRuleAction[]): TypedRuleAction[] {
+  const result: TypedRuleAction[] = [];
+  for (const action of actions) {
+    if (action.kind === "conditional") {
+      result.push(...leafRuleActions(action.whenTrue));
+      result.push(...leafRuleActions(action.whenFalse ?? []));
+    } else if (action.kind === "replacement") {
+      result.push(...leafRuleActions(action.replaceWith));
+    } else if (action.kind === "sequence") {
+      result.push(...leafRuleActions(action.effects));
+    } else {
+      result.push(action);
+    }
+  }
+  return result;
+}
+
+function temporaryCombatAction(action: TypedRuleAction) {
+  if (action.kind === "set-stat" || action.kind === "set-rule") return true;
+  return (action.kind === "modify-stat" || action.kind === "grant-keyword")
+    && action.duration !== "while-source-active"
+    && action.duration !== "next-card";
+}
+
+function pureTemporaryCombatProgram(program: RuleProgram) {
+  const substantive = leafRuleActions(
+    program.instructions.flatMap((instruction) => instruction.effects),
+  );
+  return substantive.length > 0 && substantive.every(temporaryCombatAction);
+}
+
 function actionValue(action: TypedRuleAction, match: MatchState) {
   switch (action.kind) {
     case "modify-stat": return action.amount * (action.stat === "power" ? 0.012 : action.stat === "damage" ? 0.9 : 0.65);
@@ -56,6 +87,12 @@ function actionValue(action: TypedRuleAction, match: MatchState) {
 
 export function estimateProgramValue(program: RuleProgram, match: MatchState, playerId: string, choices: CardChoices = {}) {
   if (!match.players.some((candidate) => candidate.id === playerId)) return -Infinity;
+
+  // Before the roll, the opponent AI has no Brawl result to react to. Preserve
+  // pure turn-duration combat modifiers until the Power Step; cards with any
+  // independent utility (reroll, draw, reveal, triggered setup, etc.) remain eligible.
+  if (match.phase === "preRoll" && pureTemporaryCombatProgram(program)) return -Infinity;
+
   let value = 0;
   for (const instruction of program.instructions) {
     for (const action of instruction.effects) value += actionValue(action, match);
