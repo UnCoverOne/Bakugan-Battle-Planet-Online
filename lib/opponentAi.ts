@@ -3,7 +3,9 @@ import {
   HEX_CELLS,
   cloneMatch,
   legalPlacementCells,
+  passPriority,
   placeCore,
+  playerCanActivateIntrinsicReroll,
   rotationPhaseOpenCell,
   totalDamage,
   totalPower,
@@ -91,6 +93,12 @@ function substantiveLeafActions(action: RuleAction): RuleAction[] {
   return nested.length ? nested.flatMap(substantiveLeafActions) : [action];
 }
 
+function cardLeafActions(card: GameCard, source = card.effect) {
+  return compileCardEffect(card, source).instructions
+    .flatMap((instruction) => instruction.actions)
+    .flatMap(substantiveLeafActions);
+}
+
 function pureTemporaryCombatProgram(card: GameCard, includeNested = false) {
   const program = compileCardEffect(card);
   const actions = program.instructions.flatMap((instruction) => instruction.actions);
@@ -100,6 +108,71 @@ function pureTemporaryCombatProgram(card: GameCard, includeNested = false) {
   return substantive.length > 0
     && substantive.some(actionIsTemporaryCombat)
     && substantive.every(actionIsTemporaryCombat);
+}
+
+function shouldReserveDrawRerollCard(match: MatchState, card: GameCard) {
+  if (match.phase !== "preRoll") return false;
+  const actions = cardLeafActions(card);
+  const optionalControllerReroll = actions.some((action) => (
+    action.kind === "reroll"
+    && action.target === "controller"
+    && !action.mandatory
+  ));
+  if (!optionalControllerReroll) return false;
+  const independent = actions.filter((action) => action.kind !== "reroll");
+  // A phase-insensitive draw remains available during the Power Step, where the
+  // AI can also decide whether the Reroll is actually useful. Spending the card
+  // before either roll gives away that option for no additional benefit.
+  return independent.length > 0 && independent.every((action) => action.kind === "draw");
+}
+
+function sourceHasPrintedIntrinsicReroll(match: MatchState, playerId: string) {
+  const bakugan = activeBakugan(match, playerId);
+  const roll = match.rolls[playerId];
+  if (!bakugan || roll?.result !== "miss-closed") return false;
+  const source = bakugan.evoStack.at(-1) ?? bakugan.character;
+  if (!(["Character", "Evo"] as const).includes(source.type as "Character" | "Evo")) return false;
+  if (!source.mechanics.some((mechanic) => mechanic.toLowerCase() === "reroll")) return false;
+  return /\byou may Reroll(?: this)? (?:once each turn|any time) if you miss a Roll with it\b/i.test(source.effect)
+    || /\bif you miss a Roll with (?:this|it)[^.]*,? you may Reroll (?:this|it)\b/i.test(source.effect);
+}
+
+function effectContainsReroll(match: MatchState, effectId: string) {
+  const effect = match.batch.find((candidate) => candidate.id === effectId);
+  if (!effect) return false;
+  try {
+    return cardLeafActions(effect.card, effect.effect ?? effect.card.effect)
+      .some((action) => action.kind === "reroll");
+  } catch {
+    return false;
+  }
+}
+
+function rerollTransitionAuthorized(
+  input: MatchState,
+  next: MatchState,
+  playerId: string,
+) {
+  if (input.phase === "reroll" || next.phase !== "reroll") return true;
+  const pending = next.pendingReroll;
+  if (!pending) return false;
+  if (pending.sourceEffectId) return effectContainsReroll(next, pending.sourceEffectId);
+  return pending.playerId === playerId
+    && playerCanActivateIntrinsicReroll(input, playerId)
+    && sourceHasPrintedIntrinsicReroll(input, playerId);
+}
+
+function validateAiTransition(
+  input: MatchState,
+  next: MatchState | null,
+  playerId: string,
+) {
+  if (!next || rerollTransitionAuthorized(input, next, playerId)) return next;
+  // A bare miss is not permission to Reroll. Reject any speculative transition
+  // that is not backed by a resolving Reroll action or a printed intrinsic
+  // ability, and take the normal priority pass instead.
+  const passed = passPriority(input, playerId);
+  return rerollTransitionAuthorized(input, passed, playerId) ? passed : null;
 }
 
 function restoreShadowStrikePenalty(
@@ -303,15 +376,22 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
   if (!player) return null;
   const suppressed = new Set(
     player.hand
-      .filter((card) => shouldSuppressTemporaryCombatCard(input, playerId, card))
+      .filter((card) => (
+        shouldSuppressTemporaryCombatCard(input, playerId, card)
+        || shouldReserveDrawRerollCard(input, card)
+      ))
       .map((card) => card.id),
   );
-  if (!suppressed.size) return advanceBaseOpponentAi(input, playerId);
-  const filtered = cloneMatch(input);
-  const filteredPlayer = playerById(filtered, playerId)!;
-  filteredPlayer.hand = filteredPlayer.hand.filter((card) => !suppressed.has(card.id));
-  const next = advanceBaseOpponentAi(filtered, playerId);
-  return next ? restoreSuppressedHandCards(input, next, playerId, suppressed) : null;
+  const working = suppressed.size ? cloneMatch(input) : input;
+  if (suppressed.size) {
+    const filteredPlayer = playerById(working, playerId)!;
+    filteredPlayer.hand = filteredPlayer.hand.filter((card) => !suppressed.has(card.id));
+  }
+  const next = advanceBaseOpponentAi(working, playerId);
+  const restored = next && suppressed.size
+    ? restoreSuppressedHandCards(input, next, playerId, suppressed)
+    : next;
+  return validateAiTransition(input, restored, playerId);
 }
 
 function cellById(cellId: string) {
