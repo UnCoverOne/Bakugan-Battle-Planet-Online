@@ -110,7 +110,9 @@ export function CoreReturnPlacementLayer({
           data-perspective={oppositePerspective ? "opposite" : "local"}
         >
           {HEX_CELLS.map((cell) => {
-            const placement = match.placements.find((candidate) => candidate.cell === cell.id);
+            const placement = match.placements.find((candidate) => (
+              candidate.cell === cell.id && !candidate.attachedTo
+            ));
             const available = mine && Boolean(selectedCoreId) && legal.includes(cell.id);
             const position = {
               "--q": oppositePerspective ? -cell.q : cell.q,
