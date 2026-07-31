@@ -75,13 +75,16 @@ test("guest-data detection ignores a fresh profile and identifies meaningful pro
   assert.match(customizedIdentity.labels.join(" · "), /custom Brawler profile/);
 });
 
-test("data-choice step appears only when meaningful guest data exists", () => {
+test("data import is offered once during registration and never during login", () => {
   const modal = source("components/application/AccountAccessModal.tsx");
-  assert.match(modal, /if \(guestData\.hasMeaningfulData\)/);
+  assert.match(modal, /mode === "signup" && guestData\.hasMeaningfulData/);
   assert.match(modal, /setStep\("transfer"\)/);
-  assert.match(modal, /Merge safely/);
-  assert.match(modal, /Use this device/);
-  assert.match(modal, /Use cloud copy/);
+  assert.match(modal, /only time local guest data can be added/);
+  assert.match(modal, /Bring local data/);
+  assert.match(modal, /Start with an empty account/);
+  assert.match(modal, /importLocalData: mode === "signup"/);
+  assert.doesNotMatch(modal, /After login, use which data/);
+  assert.doesNotMatch(modal, /Use cloud copy/);
   assert.match(modal, /returnTo: pathname/);
 });
 
@@ -94,4 +97,13 @@ test("deck saves and completed matches trigger dismissible, non-blocking account
   assert.match(prompt, /Not now/);
   assert.match(prompt, /Deck saved on this device/);
   assert.match(prompt, /Match complete/);
+});
+
+
+test("signed-in routes block instead of falling back to guest data", () => {
+  const shell = source("components/application/AppShell.jsx");
+  assert.match(shell, /authUser && !accountDataReady/);
+  assert.match(shell, /Cloud data could not be loaded/);
+  assert.match(shell, /local guest data is isolated/);
+  assert.match(shell, /retryCloudLoad/);
 });
