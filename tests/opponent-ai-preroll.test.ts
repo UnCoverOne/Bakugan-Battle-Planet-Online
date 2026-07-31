@@ -16,7 +16,7 @@ function namedCard(displayName: string, instanceId?: string): GameCard {
   const source = CARDS.find((candidate) => candidate.displayName === displayName);
   assert.ok(source, `Missing catalogue card ${displayName}`);
   serial += 1;
-  return { ...source, id: instanceId ?? `printed-card-${source.catalogId}-${serial}` };
+  return { ...source, id: instanceId ?? `printed-card-${serial}` };
 }
 
 function bakugan(id: string, faction: Faction, bPower: number, damage: number): Bakugan {
@@ -104,8 +104,10 @@ test("AI holds Wave Slash until it has Brawl information", () => {
 
   const next = advanceOpponentAi(match, ai.id);
   assert.ok(next);
+  const nextAi = next.players.find((candidate) => candidate.id === ai.id);
+  assert.ok(nextAi);
   assert.equal(next.batch.length, 0);
   assert.equal(next.priority, human.id);
-  assert.ok(next.players[0].hand.some((card) => card.id === waveSlash.id));
-  assert.equal(next.players[0].cardsPlayedThisTurn, 0);
+  assert.ok(nextAi.hand.some((card) => card.id === waveSlash.id));
+  assert.equal(nextAi.cardsPlayedThisTurn, 0);
 });
