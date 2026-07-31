@@ -316,8 +316,8 @@ export function AppShell({ children }) {
       )}
       {!immersiveMatch && syncStatus === "conflict" && (
         <Link className="storage-error-banner" href="/settings" role="alert">
-          Cloud sync paused. Compare the device and cloud copies in Settings
-          before choosing a version.
+          Cloud sync paused. Compare the pending and cloud account revisions in
+          Settings before choosing a version.
         </Link>
       )}
       {!immersiveMatch && !authUser && storageHealth.status === "error" && (
