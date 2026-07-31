@@ -49,3 +49,18 @@ test("catalogue and reference data are route-local and gameplay is dynamically i
   assert.match(runtime, /import\(["']\.\.\/game-screen-v2\/GameplayRuntime["']\)/);
   assert.match(runtime, /ssr:\s*false/);
 });
+
+test("the match route primes live provider state before gameplay mounts", () => {
+  const runtime = source("components/routes/MatchRuntime.tsx");
+  const store = source("components/game-screen-v2/matchStore.ts");
+
+  assert.match(runtime, /useApp\(\)/);
+  assert.match(runtime, /primeMatchStore\(\{/);
+  assert.match(runtime, /bootstrappedMatchId !== match\.id/);
+  assert.match(runtime, /MATCH COULD NOT BE RESTORED/);
+
+  assert.match(store, /export function primeMatchStore/);
+  assert.match(store, /gameplayRouteForPathname\(window\.location\.pathname\)/);
+  assert.match(store, /readStorage\(sessionStorage, CAPABILITY_KEY\)/);
+  assert.match(store, /candidate\.version >= snapshot\.match\.version/);
+});
