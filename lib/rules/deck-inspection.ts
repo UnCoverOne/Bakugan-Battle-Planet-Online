@@ -62,7 +62,7 @@ function sourcePosition(card: GameCard, sourceText: string) {
 }
 
 function dependsOnInspectedCards(text: string) {
-  return /^(?:put\s+(?:them|those cards)|if\s+(?:it(?:['’]?s)?|they|the revealed card|any of (?:them|those cards))|(?:then\s+)?(?:choose|select|play|put)\s+(?:one|it|them|those cards))/i.test(
+  return /^(?:put\s+(?:them|those cards|the rest)|if\s+(?:it(?:['’]?s)?|they|the revealed card|any of (?:them|those cards))|(?:then\s+)?(?:choose|select|play|put)\s+(?:one|it|them|those cards|the chosen card))/i.test(
     normalizeText(text),
   );
 }
@@ -165,8 +165,17 @@ function choicesForGroup(
 function mergedInstruction(group: readonly InstructionEntry[], window: DeckWindow): RuleInstruction {
   const sourceText = group.map((entry) => normalizeText(entry.instruction.sourceText)).join(" ");
   const allowReorder = /\bput\s+(?:them|those cards)\s+on top of (?:your|the) deck\s+in any order\b/i.test(sourceText);
-  const allowSelection = /\b(?:choose|select)\s+(?:a|an|one)\s+(?:of\s+)?(?:them|those cards)\b|\b(?:play|put)\s+one\s+of\s+(?:them|those cards)\b/i.test(sourceText);
-  const effects = mergeEffects(group, window, allowReorder);
+  const selectionToHand = /\bput\s+(?:(?:one|a card)\s+of\s+(?:them|those cards)|the chosen card)\s+into your hand\b/i.test(sourceText);
+  const allowSelection = selectionToHand
+    || /\b(?:choose|select)\s+(?:a|an|one)\s+(?:of\s+)?(?:them|those cards)\b|\b(?:play|put)\s+one\s+of\s+(?:them|those cards)\b/i.test(sourceText);
+  let effects = mergeEffects(group, window, allowReorder);
+  if (selectionToHand) {
+    effects = effects.filter((action) => !(action.kind === "reorder-deck" && action.amount === 0));
+    if (!effects.some((action) => action.kind === "reorder-deck" && action.amount === window.count)) {
+      effects.push({ kind: "reorder-deck", amount: window.count });
+    }
+    effects.push({ kind: "draw", amount: 1 });
+  }
   return {
     ...group[0].instruction,
     sourceText,
