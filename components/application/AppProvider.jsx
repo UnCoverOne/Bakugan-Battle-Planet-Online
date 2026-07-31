@@ -59,8 +59,52 @@ function reportStorage(detail) {
   }, 250);
 }
 
+const LOCAL_SNAPSHOT_KEYS = {
+  profile: "bbp-profile",
+  decks: "bbp-decks-complete-set-v4",
+  deletedDecks: "bbp-deleted-decks-v1",
+  history: "bbp-history",
+  settings: "bbp-settings",
+  selectedDeckId: "bbp-selected-deck-v1",
+  builderDeck: "bbp-builder-draft-v1",
+  format: "bbp-match-format-v1",
+  matchMode: "bbp-match-mode-v1",
+  updatedAt: "bbp-local-modified-at-v1",
+};
+
+function asGuestSnapshot(snapshot) {
+  return { ...snapshot, profile: { ...snapshot.profile, signedIn: false } };
+}
+
+function writeGuestSnapshot(snapshot) {
+  const guest = asGuestSnapshot(snapshot);
+  try {
+    for (const [field, key] of Object.entries(LOCAL_SNAPSHOT_KEYS)) {
+      localStorage.setItem(key, JSON.stringify(guest[field]));
+    }
+  } catch {}
+  return guest;
+}
+
+function readGuestSnapshot(fallback) {
+  try {
+    const stored = {};
+    for (const [field, key] of Object.entries(LOCAL_SNAPSHOT_KEYS)) {
+      const value = localStorage.getItem(key);
+      if (value !== null) stored[field] = JSON.parse(value);
+    }
+    return normalizeSnapshot({
+      ...fallback,
+      ...stored,
+      profile: { ...(stored.profile ?? fallback.profile), signedIn: false },
+    }, fallback);
+  } catch {
+    return asGuestSnapshot(fallback);
+  }
+}
+
 function useStoredState(key, initial, options = {}) {
-  const { storage = "local", debounceMs = 500, report = true, migrateFromLocal = false } = options;
+  const { storage = "local", debounceMs = 500, report = true, migrateFromLocal = false, persist = true } = options;
   const initialRef = useRef(initial);
   const [value, setValue] = useState(initial);
   const [ready, setReady] = useState(false);
@@ -95,7 +139,7 @@ function useStoredState(key, initial, options = {}) {
   }, [key, migrateFromLocal, storage]);
 
   useEffect(() => {
-    if (!ready || blocked.current) return;
+    if (!ready || blocked.current || !persist) return;
     let serialized;
     try {
       serialized = JSON.stringify(value);
@@ -115,7 +159,7 @@ function useStoredState(key, initial, options = {}) {
       }
     }, debounceMs);
     return () => clearTimeout(id);
-  }, [debounceMs, key, ready, report, storage, value]);
+  }, [debounceMs, key, persist, ready, report, storage, value]);
 
   return [value, setValue, ready];
 }
@@ -131,18 +175,20 @@ export function AppProvider({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const route = routeForPath(pathname);
-  const [profile, setProfile, profileReady] = useStoredState("bbp-profile", defaults.profile);
-  const [decks, setStoredDecks, decksReady] = useStoredState("bbp-decks-complete-set-v4", [], { debounceMs: 750 });
-  const [deletedDecks, setDeletedDecks, deletedDecksReady] = useStoredState("bbp-deleted-decks-v1", [], { debounceMs: 750, report: false });
-  const [history, setHistory, historyReady] = useStoredState("bbp-history", [], { debounceMs: 750 });
-  const [settings, setSettings, settingsReady] = useStoredState("bbp-settings", defaults.settings);
-  const [selectedDeckId, setSelectedDeckId, selectedDeckReady] = useStoredState("bbp-selected-deck-v1", "", { debounceMs: 300 });
-  const [builderDeck, setBuilderDeck, builderReady] = useStoredState("bbp-builder-draft-v1", null, { debounceMs: 750 });
+  const [dataScope, setDataScope] = useState("checking");
+  const persistLocal = dataScope === "local";
+  const [profile, setProfile, profileReady] = useStoredState("bbp-profile", defaults.profile, { persist: persistLocal });
+  const [decks, setStoredDecks, decksReady] = useStoredState("bbp-decks-complete-set-v4", [], { debounceMs: 750, persist: persistLocal });
+  const [deletedDecks, setDeletedDecks, deletedDecksReady] = useStoredState("bbp-deleted-decks-v1", [], { debounceMs: 750, report: false, persist: persistLocal });
+  const [history, setHistory, historyReady] = useStoredState("bbp-history", [], { debounceMs: 750, persist: persistLocal });
+  const [settings, setSettings, settingsReady] = useStoredState("bbp-settings", defaults.settings, { persist: persistLocal });
+  const [selectedDeckId, setSelectedDeckId, selectedDeckReady] = useStoredState("bbp-selected-deck-v1", "", { debounceMs: 300, persist: persistLocal });
+  const [builderDeck, setBuilderDeck, builderReady] = useStoredState("bbp-builder-draft-v1", null, { debounceMs: 750, persist: persistLocal });
   const [deckQuery, setDeckQuery, deckQueryReady] = useStoredState("bbp-deck-query-v1", "", { storage: "session", debounceMs: 500, report: false, migrateFromLocal: true });
   const [compendiumQuery, setCompendiumQuery, compendiumQueryReady] = useStoredState("bbp-compendium-query-v1", "", { storage: "session", debounceMs: 500, report: false, migrateFromLocal: true });
   const [compendiumTab, setCompendiumTab, compendiumTabReady] = useStoredState("bbp-compendium-tab-v1", "cards", { storage: "session", debounceMs: 300, report: false, migrateFromLocal: true });
-  const [format, setFormat, formatReady] = useStoredState("bbp-match-format-v1", "bo1", { debounceMs: 300 });
-  const [matchMode, setMatchMode, matchModeReady] = useStoredState("bbp-match-mode-v1", "solo", { debounceMs: 300 });
+  const [format, setFormat, formatReady] = useStoredState("bbp-match-format-v1", "bo1", { debounceMs: 300, persist: persistLocal });
+  const [matchMode, setMatchMode, matchModeReady] = useStoredState("bbp-match-mode-v1", "solo", { debounceMs: 300, persist: persistLocal });
   const [joinCode, setJoinCode, joinCodeReady] = useStoredState("bbp-join-code-v1", "", { storage: "session", debounceMs: 300, report: false, migrateFromLocal: true });
   const [match, setMatch, matchReady] = useStoredState("bbp-active-match-v1", null, { debounceMs: 300, report: false });
   const [online, setOnline, onlineReady] = useStoredState("bbp-active-match-online-v1", false, { debounceMs: 300, report: false });
@@ -150,7 +196,7 @@ export function AppProvider({ children }) {
   const [replayIndex, setReplayIndex, replayIndexReady] = useStoredState("bbp-replay-index-v1", 0, { storage: "session", debounceMs: 250, report: false, migrateFromLocal: true });
   const [playerId, setPlayerId, playerReady] = useStoredState("bbp-player-id", "player", { debounceMs: 300, report: false });
   const [matchCapability, setMatchCapability, capabilityReady] = useStoredState("bbp-match-capability-v2", "", { storage: "session", debounceMs: 100, report: false, migrateFromLocal: true });
-  const [modifiedAt, setModifiedAt, modifiedReady] = useStoredState("bbp-local-modified-at-v1", 0, { debounceMs: 500, report: false });
+  const [modifiedAt, setModifiedAt, modifiedReady] = useStoredState("bbp-local-modified-at-v1", 0, { debounceMs: 500, report: false, persist: persistLocal });
   const decksRef = useRef(decks);
   useEffect(() => { decksRef.current = decks; }, [decks]);
   const setDecks = useCallback((update) => {
@@ -185,6 +231,7 @@ export function AppProvider({ children }) {
   const [accountAccessMode, setAccountAccessMode] = useState(null);
   const [catalogueRevision, setCatalogueRevision] = useState(0);
   const snapshotRef = useRef(null);
+  const guestSnapshotRef = useRef(null);
   const booted = useRef(false);
   const applying = useRef(false);
   const cloudLoaded = useRef(false);
@@ -208,6 +255,9 @@ export function AppProvider({ children }) {
 
   const snapshot = useMemo(() => ({ schemaVersion: 1, updatedAt: modifiedAt, profile, decks, deletedDecks, history: history.slice(0, 200), settings, route, selectedDeckId, builderDeck, deckQuery, compendiumQuery, compendiumTab, format, matchMode, joinCode, match, online, selectedCore: "", logFilter: "all", replay, replayIndex, playerId }), [builderDeck, compendiumQuery, compendiumTab, deckQuery, decks, deletedDecks, format, history, joinCode, match, matchMode, modifiedAt, online, playerId, profile, replay, replayIndex, route, selectedDeckId, settings]);
   useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
+  useEffect(() => {
+    if (ready && dataScope === "local") guestSnapshotRef.current = asGuestSnapshot(snapshot);
+  }, [dataScope, ready, snapshot]);
   const guestData = useMemo(
     () => summarizeGuestData({ profile, decks, history, settings, builderDeck, match }),
     [builderDeck, decks, history, match, profile, settings],
@@ -243,8 +293,11 @@ export function AppProvider({ children }) {
     return () => removeEventListener(STORAGE_EVENT, listener);
   }, []);
   useEffect(() => {
-    if (ready && storageHealth.status === "checking") setStorageHealth({ status: "ready", message: "Local storage is ready. Changes are saved after a short pause.", savedAt: null });
-  }, [ready, storageHealth.status]);
+    if (!ready || storageHealth.status !== "checking" || dataScope === "checking") return;
+    setStorageHealth(dataScope === "account"
+      ? { status: "ready", message: "Account data is loaded from and saved to the cloud.", savedAt: null }
+      : { status: "ready", message: "Local storage is ready. Changes are saved after a short pause.", savedAt: null });
+  }, [dataScope, ready, storageHealth.status]);
   useEffect(() => {
     if (ready && playerId === "player") setPlayerId(crypto.randomUUID?.() ?? `player-${Date.now().toString(36)}`);
   }, [playerId, ready, setPlayerId]);
@@ -335,7 +388,7 @@ export function AppProvider({ children }) {
     return { snapshot: data, conflict: false, pending: false };
   }, []);
 
-  const loadCloud = useCallback(async (strategy = "merge") => {
+  const loadCloud = useCallback(async (strategy = "cloud", account = null) => {
     cloudLoaded.current = false;
     setSyncStatus("loading");
     const response = await fetch("/api/user-data", { cache: "no-store" });
@@ -345,8 +398,33 @@ export function AppProvider({ children }) {
     const local = snapshotRef.current;
     if (!local) throw new Error("Local data is still loading.");
     const remote = result.data ? normalizeSnapshot(result.data, local) : null;
-    const restored = remote ? selectSnapshot(local, remote, strategy) : { ...local, updatedAt: Math.max(local.updatedAt, Date.now()) };
-    const accountCopy = { ...restored, profile: { ...restored.profile, signedIn: true } };
+    const emptyAccount = {
+      ...local,
+      updatedAt: Date.now(),
+      profile: { ...defaults.profile, name: account?.displayName ?? defaults.profile.name, faction: account?.faction ?? defaults.profile.faction, signedIn: true },
+      decks: [],
+      deletedDecks: [],
+      history: [],
+      settings: { ...defaults.settings },
+      selectedDeckId: "",
+      builderDeck: null,
+      format: "bo1",
+      matchMode: "solo",
+    };
+    const restored = remote
+      ? selectSnapshot(local, remote, strategy)
+      : strategy === "local"
+        ? { ...local, updatedAt: Math.max(local.updatedAt, Date.now()) }
+        : emptyAccount;
+    const accountCopy = {
+      ...restored,
+      profile: {
+        ...restored.profile,
+        name: account?.displayName ?? restored.profile.name,
+        faction: account?.faction ?? restored.profile.faction,
+        signedIn: true,
+      },
+    };
     applySnapshot(accountCopy, true);
     const localCloudCopy = JSON.stringify(toCloudSnapshot(accountCopy));
     const remoteCloudCopy = remote ? JSON.stringify(toCloudSnapshot(remote)) : null;
@@ -401,11 +479,24 @@ export function AppProvider({ children }) {
         const response = await fetch("/api/auth", { cache: "no-store" });
         const result = await response.json();
         if (!cancelled && response.ok && result.user) {
-          setAuthUser(result.user); setProfile((current) => ({ ...current, signedIn: true }));
-          try { await loadCloud("cloud"); } catch (error) { setAuthError(error.message); setSyncStatus(navigator.onLine ? "error" : "offline"); }
-        } else if (!cancelled) setSyncStatus("local");
-      } catch { if (!cancelled) setSyncStatus(profile.signedIn ? "offline" : "local"); }
-      finally { if (!cancelled) setAuthChecking(false); }
+          const guest = snapshotRef.current ? writeGuestSnapshot(snapshotRef.current) : null;
+          if (guest) guestSnapshotRef.current = guest;
+          setDataScope("account");
+          setAuthUser(result.user);
+          setProfile((current) => ({ ...current, signedIn: true }));
+          try { await loadCloud("cloud", result.user); } catch (error) { setAuthError(error.message); setSyncStatus(navigator.onLine ? "error" : "offline"); }
+        } else if (!cancelled) {
+          setProfile((current) => ({ ...current, signedIn: false }));
+          setDataScope("local");
+          setSyncStatus("local");
+        }
+      } catch {
+        if (!cancelled) {
+          setProfile((current) => ({ ...current, signedIn: false }));
+          setDataScope("local");
+          setSyncStatus("local");
+        }
+      } finally { if (!cancelled) setAuthChecking(false); }
     })();
     return () => { cancelled = true; };
   }, [loadCloud, profile.signedIn, ready, setProfile]);
@@ -430,6 +521,7 @@ export function AppProvider({ children }) {
   const authenticate = useCallback(async (action, payload) => {
     setAuthBusy(true);
     setAuthError("");
+    let sessionEstablished = false;
     try {
       const response = await fetch("/api/auth", {
         method: "POST",
@@ -438,6 +530,10 @@ export function AppProvider({ children }) {
       });
       const result = await response.json();
       if (!response.ok || !result.user) throw new Error(result.error ?? "Account request failed.");
+      sessionEstablished = true;
+      const guest = snapshotRef.current ? writeGuestSnapshot(snapshotRef.current) : null;
+      if (guest) guestSnapshotRef.current = guest;
+      setDataScope("account");
       setAuthUser(result.user);
       setProfile((current) => ({
         ...current,
@@ -445,7 +541,7 @@ export function AppProvider({ children }) {
         faction: action === "signup" ? payload.faction || current.faction : current.faction,
         signedIn: true,
       }));
-      await loadCloud(action === "signup" ? "local" : payload.syncStrategy ?? "merge");
+      await loadCloud(action === "signup" ? "local" : "cloud", result.user);
       const returnTo =
         typeof payload.returnTo === "string" &&
         payload.returnTo.startsWith("/") &&
@@ -459,7 +555,8 @@ export function AppProvider({ children }) {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Account request failed.";
       setAuthError(message);
-      setSyncStatus("local");
+      if (!sessionEstablished) setDataScope("local");
+      setSyncStatus(sessionEstablished ? (navigator.onLine ? "error" : "offline") : "local");
       return { ok: false, error: message };
     } finally {
       setAuthBusy(false);
@@ -471,23 +568,39 @@ export function AppProvider({ children }) {
     router.push("/");
   }, [router, setProfile]);
   const signOutAccount = useCallback(async () => {
+    setAuthBusy(true);
     try {
-      await fetch("/api/auth", {
+      const saved = await syncToCloud(true);
+      if (!saved) {
+        notify("Sign out paused because account changes have not reached the cloud.");
+        return false;
+      }
+      const response = await fetch("/api/auth", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "logout" }),
       });
-    } catch {}
-    cloudLoaded.current = false;
-    setSyncConflict(null);
-    setAuthUser(null);
-    setProfile((current) => ({ ...current, signedIn: false }));
-    setSyncStatus("local");
-    router.push("/");
-  }, [router, setProfile]);
+      if (!response.ok) throw new Error("Could not end the account session.");
+      const fallback = guestSnapshotRef.current ?? snapshotRef.current;
+      const guest = fallback ? readGuestSnapshot(fallback) : null;
+      cloudLoaded.current = false;
+      setSyncConflict(null);
+      setAuthUser(null);
+      if (guest) applySnapshot(guest, false);
+      setDataScope("local");
+      setSyncStatus("local");
+      router.push("/");
+      return true;
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Could not sign out safely.");
+      return false;
+    } finally {
+      setAuthBusy(false);
+    }
+  }, [applySnapshot, notify, router, syncToCloud]);
   const saveAccountProfile = useCallback(async () => { if (!authUser) return notify("Profile changes are saved on this device."); const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "update-profile", displayName: profile.name, faction: profile.faction }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not update account profile."); setAuthUser(result.user); setModifiedAt(Date.now()); }, [authUser, notify, profile.faction, profile.name, setModifiedAt]);
   const changePassword = useCallback(async (currentPassword, newPassword) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "change-password", currentPassword, newPassword }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not change password."); notify("Password changed. Other sessions were signed out."); }, [notify]);
-  const deleteAccount = useCallback(async (confirmation) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not delete account."); cloudLoaded.current = false; setAuthUser(null); setProfile((current) => ({ ...current, signedIn: false })); router.push("/"); }, [router, setProfile]);
+  const deleteAccount = useCallback(async (confirmation) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not delete account."); const fallback = guestSnapshotRef.current ?? snapshotRef.current; const guest = fallback ? readGuestSnapshot(fallback) : null; cloudLoaded.current = false; setAuthUser(null); if (guest) applySnapshot(guest, false); setDataScope("local"); setSyncStatus("local"); router.push("/"); }, [applySnapshot, router]);
 
   useEffect(() => {
     if (match?.phase !== "result" || !match.winner) return;

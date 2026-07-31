@@ -6,7 +6,7 @@ import { useApp } from "./AppProvider";
 import styles from "./AccountAccessModal.module.css";
 
 export type AccountAccessMode = "login" | "signup";
-type SyncStrategy = "merge" | "local" | "cloud";
+type SyncStrategy = "local" | "cloud";
 
 export function AccountAccessModal({
   mode,
@@ -31,7 +31,6 @@ export function AccountAccessModal({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  const [strategy, setStrategy] = useState<SyncStrategy>("merge");
   const [formError, setFormError] = useState("");
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -76,7 +75,7 @@ export function AccountAccessModal({
     setFormError("");
     const error = validateDetails();
     if (error) return setFormError(error);
-    if (guestData.hasMeaningfulData) {
+    if (mode === "signup" && guestData.hasMeaningfulData) {
       setStep("transfer");
       return;
     }
@@ -85,7 +84,7 @@ export function AccountAccessModal({
 
   const submitTransfer = async (event: FormEvent) => {
     event.preventDefault();
-    await finish(mode === "signup" ? "local" : strategy);
+    await finish("local");
   };
 
   return (
@@ -100,10 +99,10 @@ export function AccountAccessModal({
       >
         <header className={styles.header}>
           <div>
-            <span>{step === "transfer" ? "Protect local progress" : "Brawler account"}</span>
+            <span>{step === "transfer" ? "One-time import" : "Brawler account"}</span>
             <h2 id="account-access-title">
               {step === "transfer"
-                ? "Choose your data"
+                ? "Bring guest data into your account"
                 : mode === "login"
                   ? "Log in"
                   : "Register"}
@@ -168,6 +167,11 @@ export function AccountAccessModal({
               />
             </label>
             <p className={styles.help}>Use 10–128 characters. A unique passphrase is recommended.</p>
+            {mode === "login" && (
+              <p className={styles.notice}>
+                Logging in loads account data only. Guest data saved on this device stays separate and returns when you log out.
+              </p>
+            )}
             {mode === "signup" && (
               <label className={styles.field}>
                 Confirm password
@@ -210,41 +214,19 @@ export function AccountAccessModal({
         ) : (
           <form className={styles.form} onSubmit={submitTransfer}>
             <p className={styles.transferIntro}>
-              This device has guest progress. Choose how it should join the account before cloud sync begins.
+              This is the only opportunity to import this device’s guest progress into the new account.
             </p>
             <ul className={styles.summary} aria-label="Guest data found">
               {guestData.labels.map((label: string) => <li key={label}>{label}</li>)}
             </ul>
-            {mode === "login" ? (
-              <fieldset className={styles.choices}>
-                <legend>After login, use which data?</legend>
-                {([
-                  ["merge", "Merge safely", "Combine device and cloud decks, keep the newest edit for each deck, and preserve deletions."],
-                  ["local", "Use this device", "Upload this device’s durable progress to the account."],
-                  ["cloud", "Use cloud copy", "Keep the account copy while leaving device-only session state intact."],
-                ] as const).map(([value, title, copy]) => (
-                  <label className={styles.choice} key={value}>
-                    <input
-                      type="radio"
-                      name="sync-strategy"
-                      value={value}
-                      checked={strategy === value}
-                      onChange={() => setStrategy(value)}
-                    />
-                    <span><strong>{title}</strong><span>{copy}</span></span>
-                  </label>
-                ))}
-              </fieldset>
-            ) : (
-              <p className={styles.notice}>
-                Your guest decks, settings, draft, and eligible match records will be brought into the new account. A recoverable device copy remains available during transfer.
-              </p>
-            )}
+            <p className={styles.notice}>
+              Your guest decks, settings, draft, and eligible match records will be copied into the new account. The local guest copy remains separate and unchanged.
+            </p>
             {authError && <p className={styles.error} role="alert">{authError}</p>}
             <div className={styles.actions}>
               <button className={styles.quiet} type="button" disabled={authBusy} onClick={() => setStep("details")}>Back</button>
               <button className={styles.primary} type="submit" disabled={authBusy}>
-                {authBusy ? "Protecting progress…" : mode === "login" ? "Log in & continue" : "Create account & bring data"}
+                {authBusy ? "Protecting progress…" : "Create account & import data"}
               </button>
             </div>
           </form>
