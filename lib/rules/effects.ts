@@ -58,7 +58,7 @@ function temporaryCombatAction(action: TypedRuleAction) {
 function pureTemporaryCombatProgram(program: RuleProgram) {
   const substantive = leafRuleActions(
     program.instructions.flatMap((instruction) => instruction.effects),
-  ).filter((action) => action.kind !== "trigger");
+  );
   return substantive.length > 0 && substantive.every(temporaryCombatAction);
 }
 
@@ -90,7 +90,7 @@ export function estimateProgramValue(program: RuleProgram, match: MatchState, pl
 
   // Before the roll, the opponent AI has no Brawl result to react to. Preserve
   // pure turn-duration combat modifiers until the Power Step; cards with any
-  // independent utility (reroll, draw, reveal, etc.) remain eligible.
+  // independent utility (reroll, draw, reveal, triggered setup, etc.) remain eligible.
   if (match.phase === "preRoll" && pureTemporaryCombatProgram(program)) return -Infinity;
 
   let value = 0;
