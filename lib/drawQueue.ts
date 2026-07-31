@@ -1,5 +1,6 @@
 import {
   cloneMatch,
+  resumePendingEffectAfterDraw,
   type GameCard,
   type MatchState,
 } from "./game";
@@ -12,6 +13,7 @@ export type PendingDrawRequest = {
   remaining: number;
   total: number;
   sourceName: string;
+  sourceEffectId?: string;
 };
 
 export type DrawQueueMetadata = {
@@ -141,6 +143,7 @@ export function drawPendingCard(input: MatchState, playerId: string) {
 
   const state = queuedState(cloneMatch(input));
   const active = state.pendingDrawQueue![0];
+  const completedSourceEffectId = active.sourceEffectId;
   const player = playerById(state, playerId);
   if (!player) throw new Error("Unknown player.");
   const card = player.deckCards.shift();
@@ -167,6 +170,7 @@ export function drawPendingCard(input: MatchState, playerId: string) {
     delete state.pendingDrawResumePriority;
     delete state.pendingDrawResumeDeadline;
     delete state.pendingDrawResumeStepLabel;
+    resumePendingEffectAfterDraw(state, completedSourceEffectId);
   }
   state.version += 1;
   return state;

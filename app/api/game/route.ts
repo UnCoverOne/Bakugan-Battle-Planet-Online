@@ -92,7 +92,7 @@ const CAPABILITY_HEADER = "x-match-capability";
 const COMMAND_ID_HEADER = "x-command-id";
 const ACTIONS = new Set([
   "create", "join", "get", "ready", "begin-placement", "place", "draw", "energize", "tap-energy",
-  "select", "target", "roll", "prepare-play", "play", "choice", "cancel-choice", "order-triggers",
+  "select", "target", "roll", "reroll", "prepare-play", "play", "choice", "cancel-choice", "order-triggers",
   "pass", "flip-damage", "damage", "hand-limit", "chat", "concede", "next-turn", "next-game", "undo",
 ]);
 

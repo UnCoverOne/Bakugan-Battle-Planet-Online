@@ -1,13 +1,16 @@
 import {
   HEX_CELLS,
+  activateIntrinsicReroll,
   beginCorePlacement,
   cancelCardChoice,
+  cardRerollTimingLegal,
   cloneMatch,
   discardToHandLimit,
   energizeCard,
   legalPlacementCells,
   orderTriggers,
   placeCore,
+  playerCanActivateIntrinsicReroll,
   prepareCardPlay,
   passPriority,
   resolveRollOutcome,
@@ -302,6 +305,15 @@ function cardValue(
       if (action.kind === "negate") {
         value += negateValue(match, playerId, program) - (match.batch.length ? 5 : -3);
       }
+      if (action.kind === "reroll" && match.phase === "power") {
+        const targetId = action.target === "opponent" ? opponentOf(match, playerId)?.id : playerId;
+        const roll = targetId ? match.rolls[targetId] : undefined;
+        if (roll) {
+          const missedCore = roll.result === "miss-closed";
+          const opponentTarget = action.target === "opponent";
+          value += missedCore === !opponentTarget ? 4.5 : -1.5;
+        }
+      }
     }
   }
   if (card.type === "Hero") value += 2.4 + Math.max(0, 4 - match.turn) * 0.35;
@@ -422,7 +434,14 @@ function optionScore(
     if (/play a card from your hand for free/i.test(card.effect)) {
       return owner?.id === chooserId ? future : -future;
     }
-    if (/sacrifice/i.test(card.effect)) return sacrificedCardBenefit(card) - future;
+    if (/sacrifice/i.test(card.effect)) {
+      const rerollBenefit = /\bReroll\b/i.test(card.effect)
+        && match.phase === "power"
+        && match.rolls[controllerId]?.result === "miss-closed"
+        ? 6
+        : 0;
+      return sacrificedCardBenefit(card) + rerollBenefit - future;
+    }
     if (/discard|shuffle .*from your hand/i.test(card.effect)) return -future;
     return future;
   }
@@ -566,7 +585,7 @@ function fallbackChoiceCard(pending: PendingCardChoice): GameCard {
     type: "Action",
     cost: 0,
     rarity: "",
-    effect: "",
+    effect: pending.kind === "forced-discard" ? "discard cards" : "",
     mechanics: [],
     bPower: null,
     damage: null,
@@ -704,6 +723,7 @@ function bestPlayableCard(match: MatchState, playerId: string) {
   const player = playerById(match, playerId)!;
   return player.hand
     .filter((card) => card.type !== "Flip" && card.type !== "Character")
+    .filter((card) => cardRerollTimingLegal(match, playerId, card))
     .map((card) => {
       const program = compileCardEffect(card);
       const choices = chooseCardChoices(match, playerId, card);
@@ -750,7 +770,7 @@ export function opponentAiCanAct(match: MatchState, playerId: string) {
   if (match.phase === "energize" && !player.energizedThisTurn) return true;
   if (match.phase === "selection" && !match.selected[playerId]) return true;
   if (
-    match.phase === "target"
+    (match.phase === "target" || match.phase === "reroll")
     && (playerCanSelectRollTarget(match, playerId) || playerCanConfirmRoll(match, playerId))
   ) return true;
   if (match.phase === "damage" && match.pendingLoser === playerId) return true;
@@ -768,7 +788,7 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
     && !pending.answers[playerId]
   ) {
     const source = pendingSource(input, pending);
-    if (!source && pending.kind !== "resolution") {
+    if (!source && !["resolution", "forced-discard"].includes(pending.kind)) {
       return cancelCardChoice(input, pending.controllerId);
     }
     const card = source
@@ -804,7 +824,7 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
   if (input.phase === "selection" && !input.selected[playerId]) {
     return selectBakugan(input, playerId, bestBakugan(input, playerId).id);
   }
-  if (input.phase === "target") {
+  if (input.phase === "target" || input.phase === "reroll") {
     if (playerCanSelectRollTarget(input, playerId)) {
       const target = bestRollTarget(input, playerId);
       return target ? selectRollTarget(input, playerId, target.cell) : null;
@@ -828,6 +848,9 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
     );
   }
   if (PRIORITY_PHASES.has(input.phase) && input.priority === playerId) {
+    if (playerCanActivateIntrinsicReroll(input, playerId)) {
+      return activateIntrinsicReroll(input, playerId);
+    }
     const best = bestPlayableCard(input, playerId);
     if (best && best.score > 0.75) {
       const schema = buildChoiceSchema(input, playerId, best.card);

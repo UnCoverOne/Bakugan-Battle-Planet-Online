@@ -25,6 +25,7 @@ import {
 function actionState(overrides: Partial<MatchHudActions> = {}): MatchHudActions {
   return {
     "draw-card": false,
+    "activate-reroll": false,
     "play-card": false,
     "energize-card": false,
     "skip-energize": false,
@@ -111,6 +112,12 @@ test("the compact Action HUD keeps Pass in its permanent second slot", () => {
     "play-card": true,
     "pass-turn": true,
   })), ["play-card", "pass-turn"]);
+
+  assert.deepEqual(compactMatchHudSlots(actionState({
+    "play-card": true,
+    "activate-reroll": true,
+    "pass-turn": true,
+  })), ["play-card", "activate-reroll", "pass-turn"]);
 
   assert.deepEqual(compactMatchHudSlots(actionState({
     "play-card": true,

@@ -1,6 +1,6 @@
 import type { Bakugan, MatchState, PlayerState } from "../../lib/game";
 import { legalEvoTargets } from "../../lib/evo";
-import { playerCanConfirmRoll } from "../../lib/rolling";
+import { playerCanConfirmRoll, playerCanSelectRollTarget } from "../../lib/rolling";
 import { playerCanDrawTurnCard } from "../../lib/turnStart";
 
 const PRIORITY_PHASES = new Set([
@@ -86,12 +86,16 @@ export function playerActionTooltip({
       : "Select a Character Card, then press Select in the Action HUD.";
   }
 
-  if (match.phase === "target" && !match.targets[player.id]) {
-    return "Select an available BakuCore on the playmat, then press Select.";
+  if (playerCanSelectRollTarget(match, player.id)) {
+    return match.phase === "reroll"
+      ? "Select an available BakuCore for the Reroll, then press Select."
+      : "Select an available BakuCore on the playmat, then press Select.";
   }
 
   if (playerCanConfirmRoll(match, player.id)) {
-    return "Both targets are locked. Press Roll in the Action HUD.";
+    return match.phase === "reroll"
+      ? "The Reroll target is locked. Press Roll in the Action HUD."
+      : "Both targets are locked. Press Roll in the Action HUD.";
   }
 
   if (PRIORITY_PHASES.has(match.phase) && match.priority === player.id) {

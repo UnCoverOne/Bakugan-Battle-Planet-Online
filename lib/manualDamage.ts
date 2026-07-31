@@ -1,4 +1,10 @@
-import { cloneMatch, type CardChoices, type GameCard, type MatchState } from "./game";
+import {
+  cloneMatch,
+  resumePendingEffectAfterDamage,
+  type CardChoices,
+  type GameCard,
+  type MatchState,
+} from "./game";
 import { beginCardPayment, commitCardPayment, prepareDeclaredEnergyPayment } from "./rules/costs";
 import { ruleDefinitionForCard } from "./rules/catalogue";
 import { createRuleObject } from "./rules/objects";
@@ -23,6 +29,7 @@ function log(state: MatchState, kind: MatchState["log"][number]["kind"], message
   state.log.push({ id: `${Date.now()}-manual-damage-${state.log.length}`, at: Date.now(), kind, message });
 }
 function enterPostDamage(state: MatchState) {
+  if (resumePendingEffectAfterDamage(state)) return;
   state.phase = "postDamage";
   state.stepLabel = "Damage Step • Post-damage priority";
   state.priority = state.startingPlayer;
@@ -106,6 +113,9 @@ export function resolveManualDamage(
   const payment = beginCardPayment(state, playerId, stateFlip, choices);
   prepareDeclaredEnergyPayment(state, playerId, payment.calculatedCost);
   commitCardPayment(state, playerId);
+  // A Flip is still the next card played for effects such as Superfuel.
+  // Consume the complete stacked reduction after its payment is calculated.
+  state.nextCardCostReduction[playerId] = 0;
   statePlayer.discard = statePlayer.discard.filter((card) => card.id !== stateFlip.id);
   state.revealedFlip = undefined;
 
@@ -140,7 +150,9 @@ export function resolveManualDamage(
 export function resumeDamageAfterFlipWindow(state: MatchState) {
   const rules = ensureRulesState(state) as DamageResumeRules;
   const resume = rules.damageResume;
-  if (!resume || state.batch.length || state.pendingChoice) return state;
+  const suspendedSourceId = state.pendingEffectDamageResume?.sourceEffectId;
+  const unresolvedBatch = state.batch.some((object) => object.id !== suspendedSourceId);
+  if (!resume || unresolvedBatch || state.pendingChoice) return state;
   delete rules.damageResume;
   if (state.pendingDamage <= 0) enterPostDamage(state);
   else {

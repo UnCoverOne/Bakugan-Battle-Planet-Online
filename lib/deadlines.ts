@@ -30,7 +30,7 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
   if (!actor) return input;
   if (!actor.connected && applyConnectionGrace(state, actorId, now)) return state;
   const decisionTimeouts = recordDecisionTimeout(state, actorId);
-  if (decisionTimeouts >= 3 && ["preRoll", "power", "victor", "damage", "postDamage", "retract", "endPlay", "handLimit"].includes(state.phase)) return concedeMatch(state, actorId);
+  if (decisionTimeouts >= 3 && ["preRoll", "power", "victor", "damage", "postDamage", "reroll", "retract", "endPlay", "handLimit"].includes(state.phase)) return concedeMatch(state, actorId);
   if (state.pendingChoice) {
     const fields = state.pendingChoice.schema.fields.filter((candidate) => candidate.chooserId === actorId);
     if (!fields.length) return input;
@@ -55,7 +55,7 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
     const bakugan = actor.bakugan.find((candidate) => !candidate.open) ?? actor.bakugan[0];
     return bakugan ? selectBakugan(state, actorId, bakugan.id) : input;
   }
-  if (state.phase === "target") {
+  if (state.phase === "target" || state.phase === "reroll") {
     if (playerCanSelectRollTarget(state, actorId)) {
       const target = state.placements.find((placement) => !placement.attachedTo);
       return target ? selectRollTarget(state, actorId, target.cell) : input;

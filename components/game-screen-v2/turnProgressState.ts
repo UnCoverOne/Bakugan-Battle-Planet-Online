@@ -89,6 +89,7 @@ const PROGRESS_BY_ENGINE_PHASE: Record<Phase, Pick<TurnProgressState, "phaseKey"
   // part of the Selection Step. Rolling begins only after that window closes.
   preRoll: { phaseKey: "roll", stepKey: "selection" },
   target: { phaseKey: "roll", stepKey: "rolling" },
+  reroll: { phaseKey: "roll", stepKey: "rolling" },
   power: { phaseKey: "brawl", stepKey: "power" },
   victor: { phaseKey: "brawl", stepKey: "victor" },
   damage: { phaseKey: "brawl", stepKey: "damage" },

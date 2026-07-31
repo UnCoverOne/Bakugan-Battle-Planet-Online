@@ -20,6 +20,7 @@ export type GameCommand =
   | { type: "SELECT_BAKUGAN"; bakuganId: string }
   | { type: "SELECT_ROLL_TARGET"; cell: string }
   | { type: "CONFIRM_ROLL" }
+  | { type: "ACTIVATE_REROLL" }
   | { type: "PREPARE_CARD_PLAY"; cardId: string }
   | { type: "PLAY_CARD"; cardId: string; choices: CardChoices }
   | { type: "SUBMIT_CARD_CHOICE"; choices: CardChoices }
@@ -50,7 +51,7 @@ export type CommandEnvelope = {
 export type StructuredPhase =
   | { area: "lobby"; step: "ready"; legacy: MatchState["phase"] }
   | { area: "setup"; step: "starting-player" | "core-placement" | "draw" | "energize"; legacy: MatchState["phase"] }
-  | { area: "roll"; step: "selection" | "pre-roll-priority" | "targeting-and-rolling"; legacy: MatchState["phase"] }
+  | { area: "roll"; step: "selection" | "pre-roll-priority" | "targeting-and-rolling" | "reroll"; legacy: MatchState["phase"] }
   | { area: "brawl"; step: "power" | "victor" | "damage" | "post-damage" | "retract" | "end-play" | "hand-limit"; legacy: MatchState["phase"] }
   | { area: "result"; step: "match-result"; legacy: MatchState["phase"] };
 export type EventVisibility = "public" | "controller" | "server";

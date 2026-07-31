@@ -112,10 +112,13 @@ function RollTraceLayer({
   signature: string;
   oppositePerspective: boolean;
 }) {
+  const currentRerollPlayers = new Set(match.players
+    .filter((player) => match.rolls[player.id]?.rerollSequence === match.rerollSequence)
+    .map((player) => player.id));
   const ordered = [
     match.players.find((player) => player.id === localPlayerId) ?? match.players[0],
     ...match.players.filter((player) => player.id !== localPlayerId),
-  ];
+  ].filter((player) => !currentRerollPlayers.size || currentRerollPlayers.has(player.id));
   return (
     <svg
       className={styles.rollTraceLayer}
@@ -371,7 +374,7 @@ export function BakuCoreLayer({
 
   useEffect(() => {
     const resolvedActorId = playerId ?? match?.players[0]?.id;
-    if (match?.phase !== "target" || (resolvedActorId && match.targets[resolvedActorId])) {
+    if (!["target", "reroll"].includes(match?.phase ?? "") || (resolvedActorId && match.targets[resolvedActorId])) {
       setSelectedCoreCell("");
     }
   }, [match?.phase, match?.version, match?.targets, playerId]);
@@ -586,8 +589,8 @@ export function BakuCoreLayer({
         onDismiss={dismissRollResult}
       />
       {error ? <p className={styles.visuallyHidden} role="alert">{error}</p> : null}
-      {match?.phase === "target" && allRollTargetsSelected(match) && !rollReady && !primaryAction ? (
-        <span className={styles.visuallyHidden}>Waiting for the opponent to roll.</span>
+      {["target", "reroll"].includes(match?.phase ?? "") && allRollTargetsSelected(match) && !rollReady && !primaryAction ? (
+        <span className={styles.visuallyHidden}>{match?.phase === "reroll" ? "Waiting for the Reroll." : "Waiting for the opponent to roll."}</span>
       ) : null}
     </>
   );

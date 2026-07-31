@@ -31,7 +31,7 @@ export type ChoiceSchema = {
 };
 export type PendingCardChoice = {
   id: string;
-  kind: "card-play" | "trigger" | "resolution" | "payment";
+  kind: "card-play" | "trigger" | "resolution" | "payment" | "forced-discard";
   controllerId: string;
   cardId: string;
   schema: ChoiceSchema;
@@ -105,7 +105,11 @@ function optionsFor(match: MatchState, controllerId: string, card: GameCard, spe
         .map((placement) => option(placement.cell, placement.attachedTo ? `Attached ${placement.core.type} Core` : `${placement.core.type} Core`, placement.playerId));
     case "hand-card": {
       const owner = spec.chooser === "opponent" ? opponent : controller;
-      return owner.hand.filter((candidate) => candidate.id !== card.id).map((candidate) => option(candidate.id, candidate.displayName || candidate.name, owner.id));
+      const active = owner.bakugan.find((bakugan) => bakugan.id === match.selected[owner.id]);
+      return owner.hand
+        .filter((candidate) => candidate.id !== card.id && (!spec.cardType || candidate.type === spec.cardType))
+        .filter((candidate) => candidate.type !== "Evo" || !spec.cardType || Boolean(active && canonicalEvoTargetAllowed(ruleDefinitionForCard(candidate), active)))
+        .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, owner.id));
     }
     case "deck-card":
       return controller.deckCards
@@ -200,7 +204,19 @@ export function buildChoiceSchema(
   const specs = timing === "announce" || timing === "pay"
     ? definition.play.choices
     : instructionSpecs;
-  const filtered = specs.filter((spec) => !(spec.id === "targetBakuganId" && priorChoices.targetBakuganId));
+  let filtered = specs.filter((spec) => !(spec.id === "targetBakuganId" && priorChoices.targetBakuganId));
+  if (/\b(?:may|must)\s+Reroll\b|\bto\s+Reroll\b/i.test(sourceText)) {
+    const targetId = /opponent(?:'s)?|opposing Bakugan|their Bakugan/i.test(sourceText)
+      ? opponentOf(match, controllerId).id
+      : controllerId;
+    const bothMissed = match.players.every((player) => match.rolls[player.id]?.result === "miss-closed");
+    const rerollUnavailable = match.phase !== "power"
+      || bothMissed
+      || !match.selected[targetId]
+      || !match.rolls[targetId]
+      || !match.placements.some((placement) => !placement.attachedTo);
+    if (rerollUnavailable) filtered = [];
+  }
   return buildChoiceSchemaFromSpecs(match, controllerId, card, filtered, timing);
 }
 
