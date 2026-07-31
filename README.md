@@ -52,12 +52,14 @@ This is a full-stack application, not a static export. Room-code multiplayer cal
 
 ## Persistence and accounts
 
-- Logged-out users keep decks, settings, drafts, match history, navigation state, and an active match in browser `localStorage`.
-- Signed-in users use D1 as the durable account source; browser storage is an offline cache and is not merged back into the account on every resumed session.
-- Cloud writes use an optimistic revision number. When two devices edit concurrently, the client merges unique decks and history records, keeps the newest edit for each shared deck, carries deck deletions with bounded tombstones, and retries after explicit conflict review.
+- Logged-out users keep decks, settings, drafts, match history, navigation state, and active state in browser storage.
+- Registration is the only local-to-account import boundary. The user may import the current guest data or create an empty account; the selected initial snapshot is stored atomically with the new account.
+- Existing-account login always loads D1 account data and never merges guest browser data. If account data cannot be loaded, signed-in routes remain blocked instead of falling back to the guest snapshot.
+- While signed in, guest browser storage is read-only and unchanged. Account edits use in-memory account state and are written only to D1; logging out flushes pending writes and restores the preserved guest snapshot.
+- Cloud writes use an optimistic revision number. When two signed-in sessions edit concurrently, the client can merge account revisions, keeps the newest edit for each shared deck, and carries deck deletions with bounded tombstones.
 - Passwords are never stored in plaintext. The server derives a salted PBKDF2-SHA-256 hash and stores only the hash, salt, and iteration count.
 - Login uses an opaque session token in a `HttpOnly`, `SameSite=Lax` cookie; only a SHA-256 hash of the token is stored in D1.
-- Signing out retains the browser copy. Deleting an account removes the cloud copy but deliberately leaves local data until the user separately deletes browser data.
+- Deleting an account removes its cloud data and restores the separate guest data saved in that browser.
 
 ## Main project areas
 
