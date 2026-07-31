@@ -7,9 +7,11 @@ import {
   redactForPlayer,
   resolveStructuredEffect,
   submitCardChoice,
+  type CardType,
   type GameCard,
   type PendingEffect,
 } from "../lib/game";
+import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
 import { enhanceDeckInspectionAbilities } from "../lib/rules/deck-inspection";
 import { compileCardEffect } from "../lib/rules/effects";
@@ -25,6 +27,12 @@ function deckCard(source: GameCard, index: number) {
   return { ...source, id: `deck-window-${index}` };
 }
 
+function catalogueCardOfType(type: CardType, index = 0) {
+  const source = CARDS.filter((card) => card.type === type)[index];
+  assert.ok(source, `Missing ${type} catalogue card ${index}`);
+  return source;
+}
+
 function matchWithKnownDeck() {
   const alpha = makePlayer("a", "Alpha", STARTER_DECKS[0]);
   const beta = makePlayer("b", "Beta", STARTER_DECKS[1]);
@@ -37,6 +45,21 @@ function matchWithKnownDeck() {
   state.startingPlayer = "a";
   state.priority = "a";
   state.stepLabel = "Brawl Phase • Power Step";
+  return state;
+}
+
+function matchWithMixedDeck() {
+  const state = matchWithKnownDeck();
+  const cards = [
+    catalogueCardOfType("Action", 0),
+    catalogueCardOfType("Hero", 0),
+    catalogueCardOfType("Flip", 0),
+    catalogueCardOfType("Evo", 0),
+    catalogueCardOfType("Action", 1),
+    catalogueCardOfType("Hero", 1),
+  ].map(deckCard);
+  state.players[0].deckCards = cards;
+  state.players[0].deck = cards.length;
   return state;
 }
 
@@ -169,12 +192,107 @@ test("Dan Kouzo reveals the top card publicly while retaining the optional play 
   assert.equal(publicField?.options[0].card?.displayName, state.players[0].deckCards[0].displayName);
 });
 
-test("the gameplay runtime mounts distinct draggable look and reveal presentations", async () => {
-  const [layer, styles, runtime, genericChoices] = await Promise.all([
+test("Toshi opens a private full-deck browser while limiting selection to Action cards", () => {
+  const state = matchWithMixedDeck();
+  const toshi = catalogueCard("bb-193", "toshi-search-instance");
+  const instruction = compileCardEffect(toshi).instructions.find((candidate) => (
+    /search your deck for an Action card/i.test(candidate.sourceText)
+  ));
+  assert.ok(instruction);
+
+  const viewerSpec = instruction.choices.find((choice) => choice.id === "orderedCardIds");
+  const selectionSpec = instruction.choices.find((choice) => choice.id === "deckCardId");
+  assert.ok(viewerSpec);
+  assert.ok(selectionSpec);
+  assert.equal(viewerSpec.minimum, 0);
+  assert.equal(viewerSpec.maximum, 0);
+  assert.match(viewerSpec.label, /search all cards in your deck/i);
+  assert.equal(selectionSpec.cardType, "Action");
+  assert.equal(ruleDefinitionForCard(toshi).play.choices.some((choice) => (
+    choice.id === "orderedCardIds" || choice.id === "deckCardId"
+  )), false);
+
+  const schema = buildChoiceSchemaFromSpecs(state, "a", toshi, instruction.choices, "resolve");
+  const viewer = schema.fields.find((field) => field.id === "orderedCardIds");
+  const selection = schema.fields.find((field) => field.id === "deckCardId");
+  assert.ok(viewer);
+  assert.ok(selection);
+  assert.equal(viewer.kind, "deck-order");
+  assert.equal(viewer.visibility, "private");
+  assert.equal(viewer.minimum, 0);
+  assert.equal(viewer.maximum, 0);
+  assert.deepEqual(
+    viewer.options.map((option) => option.id),
+    state.players[0].deckCards.map((card) => card.id),
+  );
+  assert.ok(viewer.options.every((option) => option.card?.id === option.id));
+  assert.ok(selection.options.length > 0);
+  assert.ok(selection.options.every((option) => option.card?.type === "Action"));
+
+  state.pendingChoice = {
+    id: "private-full-deck-search",
+    kind: "resolution",
+    controllerId: "a",
+    cardId: toshi.id,
+    schema,
+    answers: {},
+    createdVersion: state.version,
+  };
+  const opponentView = redactForPlayer(state, "b");
+  assert.equal(opponentView.pendingChoice?.schema.fields.find((field) => field.id === "orderedCardIds")?.options.length, 0);
+  assert.equal(opponentView.pendingChoice?.schema.fields.find((field) => field.id === "deckCardId")?.options.length, 0);
+});
+
+test("Lia search moves the selected Hero to hand and leaves every other card in the shuffled deck", () => {
+  const initial = matchWithMixedDeck();
+  const lia = catalogueCard("bb-202", "lia-search-resolution");
+  const deckBefore = initial.players[0].deckCards.map((card) => card.id);
+  const handBefore = initial.players[0].hand.length;
+  const epochBefore = initial.informationEpoch;
+
+  const instruction = compileCardEffect(lia).instructions.find((candidate) => (
+    /search your deck for a Hero card/i.test(candidate.sourceText)
+  ));
+  assert.ok(instruction);
+  const effect = pendingEffect(lia);
+  effect.effect = instruction.sourceText;
+  let state = resolveStructuredEffect(initial, effect);
+  const viewer = state.pendingChoice?.schema.fields.find((field) => field.id === "orderedCardIds");
+  const selection = state.pendingChoice?.schema.fields.find((field) => field.id === "deckCardId");
+  assert.ok(viewer);
+  assert.ok(selection);
+  assert.equal(viewer.options.length, deckBefore.length);
+  assert.ok(selection.options.every((option) => option.card?.type === "Hero"));
+
+  const selected = selection.options[0];
+  assert.ok(selected);
+  state = submitCardChoice(state, "a", { deckCardId: selected.id });
+
+  const player = state.players[0];
+  assert.equal(state.pendingChoice, undefined);
+  assert.equal(player.hand.length, handBefore + 1);
+  assert.equal(player.hand.at(-1)?.id, selected.id);
+  assert.equal(player.deckCards.some((card) => card.id === selected.id), false);
+  assert.equal(player.deck, deckBefore.length - 1);
+  assert.deepEqual(
+    new Set(player.deckCards.map((card) => card.id)),
+    new Set(deckBefore.filter((id) => id !== selected.id)),
+  );
+  assert.ok(state.informationEpoch > epochBefore);
+  assert.ok(state.log.some((entry) => (
+    entry.message.includes("searched, revealed")
+    && entry.message.includes("then shuffled")
+  )));
+});
+
+test("the gameplay runtime mounts distinct draggable, reveal, and full-deck search presentations", async () => {
+  const [layer, styles, searchStyles, runtime, genericChoices, engine] = await Promise.all([
     readFile(new URL("../components/game-screen-v2/DeckInspectionLayer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../components/game-screen-v2/DeckInspectionLayer.module.css", import.meta.url), "utf8"),
+    readFile(new URL("../components/game-screen-v2/DeckSearchLayer.module.css", import.meta.url), "utf8"),
     readFile(new URL("../components/game-screen-v2/GameplayRuntime.tsx", import.meta.url), "utf8"),
     readFile(new URL("../components/game-screen-v2/ChoiceQueueLayer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/game.ts", import.meta.url), "utf8"),
   ]);
   assert.match(layer, /data-deck-inspection-mode/);
   assert.match(layer, /draggable=\{allowReorder/);
@@ -183,9 +301,16 @@ test("the gameplay runtime mounts distinct draggable look and reveal presentatio
   assert.match(layer, /resolvedOrder/);
   assert.match(layer, /PUBLIC DECK REVEAL/);
   assert.match(layer, /PRIVATE DECK VIEW/);
+  assert.match(layer, /PRIVATE DECK SEARCH/);
+  assert.match(layer, /isFullDeckSearchField/);
+  assert.match(layer, /eligibleIds/);
   assert.match(styles, /\.revealPanel/);
   assert.match(styles, /\.moveControls/);
+  assert.match(searchStyles, /\.searchPanel/);
+  assert.match(searchStyles, /\.searchCards/);
+  assert.match(searchStyles, /\[data-eligible="false"\]/);
   assert.match(runtime, /<DeckInspectionLayer \/>/);
   assert.ok(runtime.indexOf("<DeckInspectionLayer />") < runtime.indexOf("<ChoiceQueueLayer />"));
   assert.match(genericChoices, /deckInspectionActive/);
+  assert.match(engine, /case "search": \{[\s\S]*shuffle\(player\.deckCards\)/);
 });
