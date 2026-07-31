@@ -75,30 +75,17 @@ test("guest-data detection ignores a fresh profile and identifies meaningful pro
   assert.match(customizedIdentity.labels.join(" · "), /custom Brawler profile/);
 });
 
-test("registration is the only guest-data import opportunity", () => {
+test("data import is offered once during registration and never during login", () => {
   const modal = source("components/application/AccountAccessModal.tsx");
   assert.match(modal, /mode === "signup" && guestData\.hasMeaningfulData/);
   assert.match(modal, /setStep\("transfer"\)/);
-  assert.match(modal, /only opportunity to import/);
-  assert.match(modal, /await finish\(mode === "login" \? "cloud" : "local"\)/);
-  assert.match(modal, /await finish\("local"\)/);
-  assert.doesNotMatch(modal, /Merge safely/);
-  assert.doesNotMatch(modal, /Use this device/);
-  assert.match(modal, /Logging in loads account data only/);
+  assert.match(modal, /only time local guest data can be added/);
+  assert.match(modal, /Bring local data/);
+  assert.match(modal, /Start with an empty account/);
+  assert.match(modal, /importLocalData: mode === "signup"/);
+  assert.doesNotMatch(modal, /After login, use which data/);
+  assert.doesNotMatch(modal, /Use cloud copy/);
   assert.match(modal, /returnTo: pathname/);
-});
-
-test("authenticated state never persists into guest local storage and sign-out flushes first", () => {
-  const provider = source("components/application/AppProvider.jsx");
-  assert.match(provider, /const \[dataScope, setDataScope\] = useState\("checking"\)/);
-  assert.match(provider, /const persistLocal = dataScope === "local"/);
-  assert.match(provider, /blocked\.current \|\| !persist/);
-  assert.match(provider, /persist: persistLocal/);
-  assert.match(provider, /writeGuestSnapshot\(snapshotRef\.current\)/);
-  assert.match(provider, /await loadCloud\(action === "signup" \? "local" : "cloud", result\.user\)/);
-  assert.doesNotMatch(provider, /payload\.syncStrategy \?\? "merge"/);
-  assert.match(provider, /const saved = await syncToCloud\(true\)[\s\S]*action: "logout"/);
-  assert.match(provider, /readGuestSnapshot\(fallback\)[\s\S]*applySnapshot\(guest, false\)[\s\S]*setDataScope\("local"\)/);
 });
 
 test("deck saves and completed matches trigger dismissible, non-blocking account prompts", () => {
@@ -110,4 +97,13 @@ test("deck saves and completed matches trigger dismissible, non-blocking account
   assert.match(prompt, /Not now/);
   assert.match(prompt, /Deck saved on this device/);
   assert.match(prompt, /Match complete/);
+});
+
+
+test("signed-in routes block instead of falling back to guest data", () => {
+  const shell = source("components/application/AppShell.jsx");
+  assert.match(shell, /authUser && !accountDataReady/);
+  assert.match(shell, /Cloud data could not be loaded/);
+  assert.match(shell, /local guest data is isolated/);
+  assert.match(shell, /retryCloudLoad/);
 });

@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import { mergeSnapshots, selectSnapshot, toCloudSnapshot, type UserSnapshot } from "../lib/persistence";
+import {
+  createRegistrationSnapshot,
+  mergeSnapshots,
+  selectSnapshot,
+  toCloudSnapshot,
+  type UserSnapshot,
+} from "../lib/persistence";
+
+const source = (path: string) => readFileSync(path, "utf8");
 
 const deck = (id: string, name: string, updatedAt: string) => ({
   id,
@@ -187,4 +196,52 @@ test("cloud selection does not union stale browser decks into a resumed account 
   assert.deepEqual(restored.decks.map((candidate) => candidate.id), ["cloud-only"]);
   assert.equal(restored.route, local.route);
   assert.equal(restored.playerId, local.playerId);
+});
+
+
+test("registration is the only boundary that can import guest data", () => {
+  const local = snapshot({
+    profile: { name: "Guest", faction: "Pyrus", signedIn: false },
+    decks: [deck("guest-deck", "Guest Deck", "2026-03-01T00:00:00.000Z")],
+    builderDeck: deck("draft", "Draft", "2026-03-01T00:00:00.000Z"),
+  });
+  const identity = { displayName: "Account Brawler", faction: "Aquos" };
+
+  const imported = createRegistrationSnapshot(local, identity, true, 500);
+  const fresh = createRegistrationSnapshot(local, identity, false, 500);
+
+  assert.deepEqual(imported.decks.map((candidate) => candidate.id), ["guest-deck"]);
+  assert.equal(imported.builderDeck?.id, "draft");
+  assert.equal(imported.profile.name, "Account Brawler");
+  assert.equal(imported.profile.faction, "Aquos");
+  assert.equal(imported.match, null);
+  assert.equal(imported.playerId, "");
+
+  assert.deepEqual(fresh.decks, []);
+  assert.deepEqual(fresh.history, []);
+  assert.equal(fresh.builderDeck, null);
+  assert.equal(fresh.selectedDeckId, "");
+  assert.equal(fresh.profile.name, "Account Brawler");
+  assert.equal(fresh.profile.faction, "Aquos");
+});
+
+test("signed-in persistence never writes guest browser keys", () => {
+  const provider = source("components/application/AppProvider.jsx");
+  assert.match(provider, /const writeLocal = persistenceScope === "local"/);
+  assert.match(provider, /blocked\.current \|\| !writeEnabled/);
+  assert.ok((provider.match(/writeEnabled: writeLocal/g) ?? []).length >= 20);
+  assert.match(provider, /setPersistenceScope\("cloud"\)/);
+  assert.match(provider, /guestSnapshot\.current/);
+  assert.match(provider, /applySnapshot\(guestSnapshot\.current, false\)/);
+  assert.doesNotMatch(provider, /loadCloud\(action === "signup"/);
+});
+
+test("registration creates its initial account snapshot atomically", () => {
+  const authRoute = source("app/api/auth/route.ts");
+  const userDataRoute = source("app/api/user-data/route.ts");
+  assert.match(authRoute, /validateUserSnapshot\(body\.initialData\)/);
+  assert.match(authRoute, /db\.batch\(\[/);
+  assert.match(authRoute, /INSERT INTO user_data/);
+  assert.match(authRoute, /revision: 1/);
+  assert.match(userDataRoute, /validateUserSnapshot\(body\.data\)/);
 });
