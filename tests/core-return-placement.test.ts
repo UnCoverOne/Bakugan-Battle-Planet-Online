@@ -1,0 +1,164 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { STARTER_DECKS, makePlayer } from "../lib/data";
+import {
+  CENTER_CELL,
+  beginCorePlacement,
+  cloneMatch,
+  createMatch,
+  legalPlacementCells,
+  placeCore,
+  setReady,
+  type MatchState,
+} from "../lib/game";
+import {
+  captureCoreReturns,
+  legalCoreReturnCells,
+  pendingCoreReturnsForPlayer,
+  placeCoreOrReturnCore,
+} from "../lib/coreReturns";
+
+function buildPlacedMatch() {
+  const a = makePlayer("a", "Alpha", STARTER_DECKS[0]);
+  const b = makePlayer("b", "Beta", STARTER_DECKS[1]);
+  let state = setReady(setReady(createMatch("RETURN", "bo1", [a, b]), "a"), "b");
+  state = beginCorePlacement(state, Number.POSITIVE_INFINITY);
+  for (let index = 0; index < 12; index += 1) {
+    const player = state.players.find((candidate) => candidate.id === state.priority)!;
+    const core = player.cores[state.placements.filter((placement) => placement.playerId === player.id).length];
+    state = placeCore(state, player.id, core.id, legalPlacementCells(state)[0]);
+  }
+  return state;
+}
+
+function detachForLegacyRetraction(state: MatchState, playerId: string, cell: string) {
+  const player = state.players.find((candidate) => candidate.id === playerId)!;
+  const placement = state.placements.find((candidate) => candidate.cell === cell)!;
+  const bakugan = player.bakugan.find((candidate) => candidate.id === placement.attachedTo)!;
+  bakugan.open = false;
+  bakugan.heldCoreCells = bakugan.heldCoreCells.filter((candidate) => candidate !== cell);
+  delete placement.attachedTo;
+}
+
+test("ordinary retraction asks the retracting player to choose a new legal Core position", () => {
+  const before = buildPlacedMatch();
+  const player = before.players[0];
+  const bakugan = player.bakugan[0];
+  const placement = before.placements.find((candidate) => candidate.playerId === player.id)!;
+  bakugan.open = true;
+  bakugan.heldCoreCells = [placement.cell];
+  placement.attachedTo = bakugan.id;
+
+  const after = cloneMatch(before);
+  after.phase = "endPlay";
+  after.stepLabel = "End Phase • Play Step";
+  after.priority = before.startingPlayer;
+  after.version += 1;
+  detachForLegacyRetraction(after, player.id, placement.cell);
+
+  const pending = captureCoreReturns(before, after);
+  assert.equal(pending.phase, "retract");
+  assert.equal(pending.priority, player.id);
+  assert.equal(pending.placements.some((candidate) => candidate.core.id === placement.core.id), false);
+  assert.equal(pendingCoreReturnsForPlayer(pending, player.id)[0]?.core.id, placement.core.id);
+
+  const legal = legalCoreReturnCells(pending);
+  const destination = legal.find((cell) => cell !== placement.cell);
+  assert.ok(destination, "a legal position other than the old cell is available");
+  const returned = placeCoreOrReturnCore(pending, player.id, placement.core.id, destination);
+  assert.equal(returned.phase, "endPlay");
+  assert.equal(returned.placements.find((candidate) => candidate.core.id === placement.core.id)?.cell, destination);
+  assert.equal(pendingCoreReturnsForPlayer(returned, player.id).length, 0);
+});
+
+test("the non-Victor returns Cores before a Team Attack Victor", () => {
+  const before = buildPlacedMatch();
+  const winner = before.players[0];
+  const loser = before.players[1];
+  const winnerPlacement = before.placements.find((candidate) => candidate.playerId === winner.id)!;
+  const loserPlacement = before.placements.find((candidate) => candidate.playerId === loser.id)!;
+  const winnerBakugan = winner.bakugan[0];
+  const loserBakugan = loser.bakugan[0];
+  winnerBakugan.open = true;
+  loserBakugan.open = true;
+  winnerBakugan.heldCoreCells = [winnerPlacement.cell];
+  loserBakugan.heldCoreCells = [loserPlacement.cell];
+  winnerPlacement.attachedTo = winnerBakugan.id;
+  loserPlacement.attachedTo = loserBakugan.id;
+  before.phase = "postDamage";
+  before.pendingLoser = loser.id;
+  before.brawlWinner = winner.id;
+  before.teamAttack = true;
+
+  const after = cloneMatch(before);
+  after.phase = "endPlay";
+  after.stepLabel = "End Phase • Play Step";
+  after.version += 1;
+  detachForLegacyRetraction(after, loser.id, loserPlacement.cell);
+  detachForLegacyRetraction(after, winner.id, winnerPlacement.cell);
+
+  let pending = captureCoreReturns(before, after);
+  assert.equal(pending.priority, loser.id);
+  pending = placeCoreOrReturnCore(
+    pending,
+    loser.id,
+    loserPlacement.core.id,
+    legalCoreReturnCells(pending)[0],
+  );
+  assert.equal(pending.phase, "retract");
+  assert.equal(pending.priority, winner.id);
+  pending = placeCoreOrReturnCore(
+    pending,
+    winner.id,
+    winnerPlacement.core.id,
+    legalCoreReturnCells(pending)[0],
+  );
+  assert.equal(pending.phase, "endPlay");
+});
+
+test("the retracting player places an attached Core even when the opponent originally supplied it", () => {
+  const before = buildPlacedMatch();
+  const holder = before.players[0];
+  const supplied = before.placements.find((candidate) => candidate.playerId === before.players[1].id)!;
+  const bakugan = holder.bakugan[0];
+  bakugan.open = true;
+  bakugan.heldCoreCells = [supplied.cell];
+  supplied.attachedTo = bakugan.id;
+
+  const after = cloneMatch(before);
+  after.phase = "endPlay";
+  after.version += 1;
+  detachForLegacyRetraction(after, holder.id, supplied.cell);
+  const pending = captureCoreReturns(before, after);
+  const item = pendingCoreReturnsForPlayer(pending, holder.id)[0];
+  assert.equal(item.ownerId, before.players[1].id);
+
+  const returned = placeCoreOrReturnCore(pending, holder.id, item.core.id, legalCoreReturnCells(pending)[0]);
+  assert.equal(returned.placements.find((placement) => placement.core.id === item.core.id)?.playerId, before.players[1].id);
+});
+
+test("moving an attached Core directly to another Bakugan is not treated as a return", () => {
+  const before = buildPlacedMatch();
+  const placement = before.placements[0];
+  const first = before.players[0].bakugan[0];
+  const second = before.players[1].bakugan[0];
+  first.open = true;
+  second.open = true;
+  first.heldCoreCells = [placement.cell];
+  placement.attachedTo = first.id;
+
+  const after = cloneMatch(before);
+  after.version += 1;
+  after.players[0].bakugan[0].heldCoreCells = [];
+  after.players[1].bakugan[0].heldCoreCells = [placement.cell];
+  after.placements[0].attachedTo = second.id;
+  const unchanged = captureCoreReturns(before, after);
+  assert.notEqual(unchanged.phase, "retract");
+  assert.equal(unchanged.placements[0].attachedTo, second.id);
+});
+
+test("an empty field still accepts the first returned Core in the centre", () => {
+  const state = buildPlacedMatch();
+  state.placements = [];
+  assert.deepEqual(legalPlacementCells(state), [CENTER_CELL]);
+});
