@@ -25,13 +25,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if ! compgen -G '.github/reroll-patch/chunk-*' > /dev/null; then
+            echo "Reroll patch is already applied."
+            exit 0
+          fi
           cat .github/reroll-patch/chunk-* > /tmp/reroll.patch.gz.b64
           echo "11ca5a6b521946e473aa2892be168395a19ccb00481430e720227f53c3e2ce40  /tmp/reroll.patch.gz.b64" | sha256sum --check
           base64 -d /tmp/reroll.patch.gz.b64 | gzip -d > /tmp/reroll.patch
           echo "2555dba154bf59116cf0bca159900a7cffc4d1a5e39b1bafc4b9f6d92e26f504  /tmp/reroll.patch" | sha256sum --check
-          git apply --index /tmp/reroll.patch
+          git apply --index --exclude=.github/workflows/rules-engine.yml /tmp/reroll.patch
           git rm -r .github/reroll-patch
-          git rm .github/workflows/apply-reroll-patch.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "feat: implement authoritative reroll mechanics"
