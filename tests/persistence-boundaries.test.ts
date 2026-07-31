@@ -8,6 +8,7 @@ import {
   toCloudSnapshot,
   type UserSnapshot,
 } from "../lib/persistence";
+import { readJsonResponse } from "../lib/json-response";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
@@ -244,6 +245,7 @@ test("registration creates its initial account snapshot atomically", () => {
   assert.match(authRoute, /INSERT INTO user_data/);
   assert.match(authRoute, /revision: 1/);
   assert.match(userDataRoute, /validateUserSnapshot\(body\.data\)/);
+  assert.match(userDataRoute, /const json = .*Response\.json/);
 });
 
 
@@ -254,4 +256,20 @@ test("signed-in bootstrap keeps the cloud loader stable while auth state changes
   assert.doesNotMatch(provider, /user = authUser/);
   assert.doesNotMatch(provider, /\[applySnapshot, authUser, putCloud\]/);
   assert.match(provider, /finally \{ if \(!cancelled\) setAuthChecking\(false\); \}/);
+});
+
+
+test("account JSON responses reject empty or malformed bodies with a controlled error", async () => {
+  await assert.rejects(
+    () => readJsonResponse(new Response(null, { status: 502 }), "Cloud data returned an invalid response."),
+    /Cloud data returned an invalid response\. \(HTTP 502\)\./,
+  );
+  await assert.rejects(
+    () => readJsonResponse(new Response("<html>upstream failure</html>", { status: 503 }), "Cloud data returned an invalid response."),
+    /Cloud data returned an invalid response\. \(HTTP 503\)\./,
+  );
+  assert.deepEqual(
+    await readJsonResponse(new Response('{"revision":3}', { status: 200 }), "Cloud data returned an invalid response."),
+    { revision: 3 },
+  );
 });
