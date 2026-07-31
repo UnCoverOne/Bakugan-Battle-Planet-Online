@@ -111,10 +111,15 @@ export function DeckInspectionLayer() {
 
   const submit = async (confirmed: boolean) => {
     if (!isChooser || busy || (confirmed && !canConfirm)) return;
+    // Selection-based effects consume the selected card first while preserving
+    // the visible relative order of every remaining inspected card.
+    const resolvedOrder = selectionField && selectedId
+      ? [selectedId, ...orderedIds.filter((id) => id !== selectedId)]
+      : orderedIds;
     const answers: CardChoices = confirmationField && !confirmed
       ? { confirmed: false }
       : {
-        orderedCardIds: orderedIds,
+        orderedCardIds: resolvedOrder,
         ...(selectionField && selectedId ? { deckCardId: selectedId } : {}),
         ...(confirmationField ? { confirmed: true } : {}),
       };
