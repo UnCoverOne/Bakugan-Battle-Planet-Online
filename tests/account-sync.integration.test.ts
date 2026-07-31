@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  buildAccountSyncRequest,
+  buildChangedAccountSyncRequests,
   buildAccountSyncRequests,
+  changedAccountEntityKeys,
   isAccountCacheDirty,
   readAccountCache,
+  resolveEntityConflicts,
   retryDelayMs,
   writeAccountCache,
 } from "../lib/account-sync";
@@ -19,7 +21,6 @@ import {
 import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_BRAWLER_PROFILE,
-  mergeSnapshots,
   type UserSnapshot,
 } from "../lib/persistence";
 
@@ -114,21 +115,28 @@ async function drainLatest(
   revisions: EntityRevisionMap,
 ) {
   let acknowledged = 0;
+  let baseline: UserSnapshot | null = null;
   let attempts = 0;
   while (acknowledged < getVersion()) {
     if (++attempts > 12) throw new Error("sync did not converge");
     const target = getVersion();
     const current = getSnapshot();
-    const request = JSON.parse(
-      JSON.stringify(buildAccountSyncRequest(current, revisions)),
-    ) as UserDataSyncRequest;
+    const request = JSON.parse(JSON.stringify(
+      buildChangedAccountSyncRequests(current, baseline, revisions)[0],
+    )) as UserDataSyncRequest;
     const result = await server.put(request);
     Object.assign(revisions, result.revisions);
     if (result.status === 409 && result.data) {
-      const merged = mergeSnapshots(current, result.data);
+      const merged = resolveEntityConflicts(
+        current,
+        result.data,
+        result.conflicts ?? request.entities.map((entity) => entityKey(entity.type, entity.id)),
+      );
       Object.assign(current, merged);
+      baseline = result.data;
       continue;
     }
+    baseline = result.data;
     acknowledged = target;
   }
   return acknowledged;
@@ -141,6 +149,7 @@ test("offline account edits survive a browser close in a user-namespaced outbox"
   writeAccountCache(storage, {
     userId: "user-a",
     snapshot: local,
+    acknowledgedSnapshot: snapshot(),
     revisions: {},
     version: 3,
     acknowledgedVersion: 2,
@@ -149,7 +158,34 @@ test("offline account edits survive a browser close in a user-namespaced outbox"
   const reopened = readAccountCache(storage, "user-a", snapshot());
   assert.equal(isAccountCacheDirty(reopened), true);
   assert.equal(reopened?.snapshot.settings.highContrast, true);
+  assert.equal(reopened?.acknowledgedSnapshot?.settings.highContrast, false);
   assert.equal(readAccountCache(storage, "user-b", snapshot()), null);
+});
+
+test("the outbox sends only entities changed since the cloud acknowledgement", () => {
+  const baseline = snapshot("Remote profile");
+  const local = structuredClone(baseline);
+  local.settings.sound = false;
+  local.updatedAt = 2;
+
+  assert.deepEqual(changedAccountEntityKeys(local, baseline), ["settings:main"]);
+  const request = buildChangedAccountSyncRequests(local, baseline, {})[0];
+  assert.deepEqual(
+    request.entities.map((entity) => entityKey(entity.type, entity.id)),
+    ["settings:main"],
+  );
+  assert.equal(request.entities.some((entity) => entity.type === "profile"), false);
+});
+
+test("automatic conflict resolution keeps the pending entity and adopts unrelated cloud updates", () => {
+  const local = snapshot("Old profile");
+  local.settings.sound = false;
+  const remote = snapshot("Updated on another device");
+  remote.updatedAt = 3;
+
+  const resolved = resolveEntityConflicts(local, remote, ["settings:main"]);
+  assert.equal(resolved.profile.name, "Updated on another device");
+  assert.equal(resolved.settings.sound, false);
 });
 
 test("a delayed write drains an edit made while the first request is in flight", async () => {

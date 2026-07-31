@@ -13,7 +13,8 @@ import {
   toCloudSnapshot,
 } from "../../lib/persistence";
 import {
-  buildAccountSyncRequests,
+  buildChangedAccountSyncRequests,
+  changedAccountEntityKeys,
   isAccountCacheDirty,
   readAccountCache,
   removeAccountCache,
@@ -223,7 +224,6 @@ export function AppProvider({ children }) {
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
   const [syncStatus, setSyncStatus] = useState("checking");
-  const [syncConflict, setSyncConflict] = useState(null);
   const [storageHealth, setStorageHealth] = useState({ status: "checking", message: "Checking whether this browser can save data…", savedAt: null });
   const [matchError, setMatchError] = useState("");
   const [toast, setToast] = useState("");
@@ -244,6 +244,7 @@ export function AppProvider({ children }) {
   const retryAttempt = useRef(0);
   const localVersion = useRef(0);
   const acknowledgedVersion = useRef(0);
+  const acknowledgedSnapshot = useRef(null);
   const activeAccountId = useRef("");
   const durableFingerprint = useRef(null);
   const promptedAccountMoments = useRef(new Set());
@@ -381,6 +382,7 @@ export function AppProvider({ children }) {
       writeAccountCache(localStorage, {
         userId,
         snapshot: toCloudSnapshot(data),
+        acknowledgedSnapshot: acknowledgedSnapshot.current,
         revisions: accountRevisions.current,
         version: localVersion.current,
         acknowledgedVersion: acknowledgedVersion.current,
@@ -406,7 +408,6 @@ export function AppProvider({ children }) {
     activeAccountId.current = "";
     cloudLoaded.current = false;
     setAccountDataReady(false);
-    setSyncConflict(null);
     setPersistenceScope("local");
     setAuthUser(null);
     if (guestSnapshot.current) applySnapshot(readGuestSnapshot(guestSnapshot.current), false);
@@ -416,9 +417,9 @@ export function AppProvider({ children }) {
     router.push("/");
   }, [applySnapshot, authUser?.id, notify, persistAccountRecovery, router]);
 
-  const putCloud = useCallback(async (data) => {
+  const putCloud = useCallback(async (data, baseline) => {
     let latest = { revisions: accountRevisions.current, data: null, errors: [] };
-    for (const batch of buildAccountSyncRequests(data, accountRevisions.current)) {
+    for (const batch of buildChangedAccountSyncRequests(data, baseline, accountRevisions.current)) {
       const response = await fetch("/api/user-data", {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -499,6 +500,9 @@ export function AppProvider({ children }) {
     const durableAccount = cached && cachedDirty
       ? cached.snapshot
       : remote ?? cached?.snapshot ?? emptyAccount;
+    acknowledgedSnapshot.current = remote
+      ?? cached?.acknowledgedSnapshot
+      ?? (!cachedDirty ? cached?.snapshot ?? null : null);
     const restored = strategy === "merge" && remote
       ? selectSnapshot(device, mergeSnapshots(durableAccount, remote), "cloud")
       : selectSnapshot(device, durableAccount, "cloud");
@@ -526,7 +530,7 @@ export function AppProvider({ children }) {
   }, [applySnapshot, leaveAccountLocally, persistAccountRecovery]);
 
   const syncToCloud = useCallback(async (force = false) => {
-    if (!authUser || !accountDataReady || !ready || applying.current || !cloudLoaded.current || syncConflict) return false;
+    if (!authUser || !accountDataReady || !ready || applying.current || !cloudLoaded.current) return false;
     if (force) syncRequested.current = true;
     if (syncing.current) {
       syncRequested.current = true;
@@ -546,30 +550,60 @@ export function AppProvider({ children }) {
         const targetVersion = localVersion.current;
         persistAccountRecovery(authUser.id, current);
         setSyncStatus("saving");
-        const saved = await putCloud(current);
+        const saved = await putCloud(current, acknowledgedSnapshot.current);
         accountRevisions.current = saved.revisions ?? accountRevisions.current;
         if (saved.conflict && saved.data) {
           const remote = {
             ...normalizeSnapshot(saved.data, current),
             updatedAt: Number(saved.updatedAt) || saved.data.updatedAt || 0,
           };
-          setSyncConflict({
-            local: current,
-            cloud: remote,
-            revisions: saved.revisions ?? accountRevisions.current,
-            conflicts: Array.isArray(saved.conflicts) ? saved.conflicts : [],
-          });
-          setSyncStatus("conflict");
-          persistAccountRecovery(authUser.id, current);
-          return false;
+          const latestLocal = snapshotRef.current ?? current;
+          const localWins = [
+            ...(Array.isArray(saved.conflicts) ? saved.conflicts : []),
+            ...changedAccountEntityKeys(latestLocal, current),
+          ];
+          acknowledgedSnapshot.current = remote;
+          const reconciled = resolveEntityConflicts(
+            latestLocal,
+            remote,
+            [...new Set(localWins)],
+          );
+          const resolved = {
+            ...reconciled,
+            profile: { ...reconciled.profile, signedIn: true },
+          };
+          applySnapshot(resolved, true);
+          syncRequested.current = true;
+          persistAccountRecovery(authUser.id, resolved);
+          continue;
         }
         if (Array.isArray(saved.errors) && saved.errors.length) {
           throw new Error(saved.errors.map((item) => item.error).join(" "));
         }
+        if (saved.data) {
+          const remote = {
+            ...normalizeSnapshot(saved.data, current),
+            updatedAt: Number(saved.updatedAt) || saved.data.updatedAt || 0,
+          };
+          const latestLocal = snapshotRef.current ?? current;
+          const localWins = changedAccountEntityKeys(latestLocal, current);
+          acknowledgedSnapshot.current = remote;
+          const reconciled = resolveEntityConflicts(
+            latestLocal,
+            remote,
+            localWins,
+          );
+          applySnapshot(
+            { ...reconciled, profile: { ...reconciled.profile, signedIn: true } },
+            true,
+          );
+        } else {
+          acknowledgedSnapshot.current = toCloudSnapshot(current);
+        }
         acknowledgedVersion.current = Math.max(acknowledgedVersion.current, targetVersion);
         retryAttempt.current = 0;
         setAuthError("");
-        persistAccountRecovery(authUser.id, current);
+        persistAccountRecovery(authUser.id, snapshotRef.current ?? current);
       } while (
         syncRequested.current ||
         localVersion.current > acknowledgedVersion.current
@@ -597,7 +631,7 @@ export function AppProvider({ children }) {
         queueMicrotask(() => { void syncRunner.current?.(); });
       }
     }
-  }, [accountDataReady, authUser, leaveAccountLocally, persistAccountRecovery, putCloud, ready, syncConflict]);
+  }, [accountDataReady, applySnapshot, authUser, leaveAccountLocally, persistAccountRecovery, putCloud, ready]);
   useEffect(() => {
     syncRunner.current = syncToCloud;
   }, [syncToCloud]);
@@ -821,40 +855,6 @@ export function AppProvider({ children }) {
   const readyMatch = useCallback(async () => { if (!match) return; try { if (online) await api("ready"); else { const { setReady } = await import("../../lib/game"); setMatch(setReady(match, playerId)); } } catch (error) { setMatchError(error.message); } }, [api, match, online, playerId, setMatch]);
   const nextSeriesGame = useCallback(async () => { if (!match) return; try { if (online) await api("next-game"); else { const { startNextSeriesGame } = await import("../../lib/game"); setMatch(startNextSeriesGame(match)); } router.push("/play/match"); } catch (error) { setMatchError(error.message); } }, [api, match, online, router, setMatch]);
   const leaveMatch = useCallback(() => { setMatch(null); setOnline(false); setMatchCapability(""); router.push("/dashboard"); }, [router, setMatch, setMatchCapability, setOnline]);
-  const resolveSyncConflict = useCallback(async (preference) => {
-    const pending = syncConflict;
-    if (!pending) return false;
-    accountRevisions.current = pending.revisions ?? accountRevisions.current;
-    let selected;
-    if (preference === "cloud") {
-      selected = selectSnapshot(pending.local, pending.cloud, "cloud");
-    } else if (preference === "local") {
-      selected = resolveEntityConflicts(
-        { ...pending.local, updatedAt: Math.max(Date.now(), pending.cloud.updatedAt + 1) },
-        pending.cloud,
-        pending.conflicts,
-      );
-    } else {
-      selected = resolveEntityConflicts(
-        pending.local,
-        pending.cloud,
-        pending.conflicts,
-      );
-    }
-    const resolved = {
-      ...selected,
-      updatedAt: Date.now(),
-      profile: { ...selected.profile, signedIn: true },
-    };
-    applySnapshot(resolved, true);
-    localVersion.current += 1;
-    persistAccountRecovery(authUser?.id || activeAccountId.current, resolved);
-    setSyncConflict(null);
-    setSyncStatus(navigator.onLine ? "saving" : "offline");
-    syncRequested.current = true;
-    setTimeout(() => { void syncRunner.current?.(true); }, 150);
-    return true;
-  }, [applySnapshot, authUser?.id, persistAccountRecovery, syncConflict]);
   const syncNow = useCallback(() => syncToCloud(true), [syncToCloud]);
   const retryCloudLoad = useCallback(async () => {
     if (!authUser) return false;
@@ -869,6 +869,6 @@ export function AppProvider({ children }) {
     }
   }, [authUser, loadCloud]);
 
-  const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, settings, setSettings, selectedDeckId, setSelectedDeckId, selectedDeck, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchError, toast, notify, authUser, authChecking, accountDataReady, authBusy, authError, syncStatus, syncConflict, resolveSyncConflict, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, retryCloudLoad, startSolo, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch, catalogueRevision }), [accountAccessMode, accountDataReady, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, catalogueRevision, changePassword, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, createOnline, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, joinCode, guestData, joinOnline, leaveMatch, match, matchError, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, requestAccountAccess, profile, ready, readyMatch, replay, replayIndex, route, saveAccountProfile, selectedDeck, selectedDeckId, settings, signOutAccount, startSolo, storageHealth, syncConflict, resolveSyncConflict, retryCloudLoad, syncNow, syncStatus, toast]);
+  const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, settings, setSettings, selectedDeckId, setSelectedDeckId, selectedDeck, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchError, toast, notify, authUser, authChecking, accountDataReady, authBusy, authError, syncStatus, syncConflict: null, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, retryCloudLoad, startSolo, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch, catalogueRevision }), [accountAccessMode, accountDataReady, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, catalogueRevision, changePassword, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, createOnline, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, joinCode, guestData, joinOnline, leaveMatch, match, matchError, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, requestAccountAccess, profile, ready, readyMatch, replay, replayIndex, retryCloudLoad, route, saveAccountProfile, selectedDeck, selectedDeckId, settings, signOutAccount, startSolo, storageHealth, syncNow, syncStatus, toast]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

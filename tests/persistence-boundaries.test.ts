@@ -266,6 +266,7 @@ test("signed-in bootstrap survives auth-triggered dependency rerenders", () => {
 
 test("account sync uses a durable serialized outbox with lifecycle retries", () => {
   const provider = source("components/application/AppProvider.jsx");
+  const shell = source("components/application/AppShell.jsx");
   const accountSync = source("lib/account-sync.ts");
   assert.match(provider, /writeAccountCache\(localStorage/);
   assert.match(accountSync, /bbp-account-cache-v2/);
@@ -276,6 +277,11 @@ test("account sync uses a durable serialized outbox with lifecycle retries", () 
   assert.match(provider, /addEventListener\("online"/);
   assert.match(provider, /document\.addEventListener\("visibilitychange"/);
   assert.match(provider, /addEventListener\("pagehide"/);
+  assert.match(provider, /buildChangedAccountSyncRequests/);
+  assert.match(provider, /acknowledgedSnapshot\.current/);
+  assert.doesNotMatch(provider, /setSyncStatus\("conflict"\)/);
+  assert.doesNotMatch(provider, /resolveSyncConflict/);
+  assert.doesNotMatch(shell, /Cloud sync paused/);
 });
 
 test("session expiry and recovery logout retain unsynced account data", () => {

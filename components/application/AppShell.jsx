@@ -212,7 +212,7 @@ export function AppShell({ children }) {
               </Link>
             )}
             <Link
-              href={syncStatus === "conflict" ? "/settings" : "/profile"}
+              href="/profile"
               className={`sync-dot ${syncIndicator.tone}`}
               title={syncIndicator.title}
               aria-label={syncIndicator.title}
@@ -324,12 +324,6 @@ export function AppShell({ children }) {
             ? "The loaded account session remains available; cloud writes will retry when the connection returns."
             : "Device-local features remain available; cloud services and public updates are unavailable."}
         </div>
-      )}
-      {!immersiveMatch && syncStatus === "conflict" && (
-        <Link className="storage-error-banner" href="/settings" role="alert">
-          Cloud sync paused. Compare the pending and cloud account revisions in
-          Settings before choosing a version.
-        </Link>
       )}
       {!immersiveMatch && !authUser && storageHealth.status === "error" && (
         <div className="storage-error-banner" role="alert">

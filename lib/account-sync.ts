@@ -1,10 +1,10 @@
 import {
+  entityKey,
   snapshotToSyncRequest,
   type EntityRevisionMap,
   type UserDataSyncRequest,
 } from "./user-data-entities";
 import {
-  mergeSnapshots,
   normalizeSnapshot,
   selectSnapshot,
   type UserSnapshot,
@@ -16,6 +16,7 @@ export type AccountCache = {
   schemaVersion: 2;
   userId: string;
   snapshot: UserSnapshot;
+  acknowledgedSnapshot?: UserSnapshot | null;
   revisions: EntityRevisionMap;
   version: number;
   acknowledgedVersion: number;
@@ -57,6 +58,9 @@ export function readAccountCache(
       schemaVersion: 2,
       userId,
       snapshot: normalizeSnapshot(parsed.snapshot, fallback),
+      acknowledgedSnapshot: parsed.acknowledgedSnapshot
+        ? normalizeSnapshot(parsed.acknowledgedSnapshot, fallback)
+        : null,
       revisions:
         parsed.revisions && typeof parsed.revisions === "object"
           ? parsed.revisions
@@ -134,6 +138,102 @@ export function buildAccountSyncRequests(
     : [{ schemaVersion: full.schemaVersion, entities: [], history: [] }];
 }
 
+function comparableEntity(entity: UserDataSyncRequest["entities"][number]) {
+  const data =
+    entity.type === "preferences" && entity.data && typeof entity.data === "object"
+      ? Object.fromEntries(
+          Object.entries(entity.data as Record<string, unknown>).filter(
+            ([key]) => key !== "updatedAt",
+          ),
+        )
+      : entity.data;
+  return JSON.stringify({
+    type: entity.type,
+    id: entity.id,
+    data,
+    deletedAt: entity.deletedAt ?? null,
+  });
+}
+
+export function changedAccountEntityKeys(
+  snapshot: UserSnapshot,
+  acknowledgedSnapshot: UserSnapshot | null,
+) {
+  const current = snapshotToSyncRequest(snapshot, {}).entities;
+  if (!acknowledgedSnapshot) {
+    return current.map((entity) => entityKey(entity.type, entity.id));
+  }
+  const acknowledged = new Map(
+    snapshotToSyncRequest(acknowledgedSnapshot, {}).entities.map((entity) => [
+      entityKey(entity.type, entity.id),
+      comparableEntity(entity),
+    ]),
+  );
+  return current
+    .filter(
+      (entity) =>
+        acknowledged.get(entityKey(entity.type, entity.id)) !==
+        comparableEntity(entity),
+    )
+    .map((entity) => entityKey(entity.type, entity.id));
+}
+
+export function buildChangedAccountSyncRequests(
+  snapshot: UserSnapshot,
+  acknowledgedSnapshot: UserSnapshot | null,
+  revisions: EntityRevisionMap,
+  maximumBytes = 750_000,
+) {
+  const changedKeys = new Set(
+    changedAccountEntityKeys(snapshot, acknowledgedSnapshot),
+  );
+  const acknowledgedHistory = new Set(
+    (acknowledgedSnapshot?.history ?? []).map((record) => record.id),
+  );
+  const full = snapshotToSyncRequest(snapshot, revisions);
+  const pending: UserDataSyncRequest = {
+    ...full,
+    entities: full.entities.filter((entity) =>
+      changedKeys.has(entityKey(entity.type, entity.id)),
+    ),
+    history: full.history.filter(
+      (record) => !acknowledgedHistory.has(record.id),
+    ),
+  };
+  const batches: UserDataSyncRequest[] = [];
+  let current: UserDataSyncRequest = {
+    schemaVersion: pending.schemaVersion,
+    entities: [],
+    history: [],
+  };
+  const size = (value: UserDataSyncRequest) =>
+    new TextEncoder().encode(JSON.stringify(value)).byteLength;
+  const pushCurrent = () => {
+    if (!current.entities.length && !current.history.length) return;
+    batches.push(current);
+    current = { schemaVersion: pending.schemaVersion, entities: [], history: [] };
+  };
+  for (const entity of pending.entities) {
+    const candidate = { ...current, entities: [...current.entities, entity] };
+    if (size(candidate) > maximumBytes && current.entities.length) pushCurrent();
+    current.entities.push(entity);
+  }
+  for (const record of pending.history) {
+    const candidate = { ...current, history: [...current.history, record] };
+    if (
+      size(candidate) > maximumBytes &&
+      (current.entities.length || current.history.length)
+    ) {
+      pushCurrent();
+    }
+    current.history.push(record);
+  }
+  pushCurrent();
+  return batches.length
+    ? batches
+    : [{ schemaVersion: pending.schemaVersion, entities: [], history: [] }];
+}
+
 export function retryDelayMs(attempt: number, retryAfterSeconds = 0) {
   if (retryAfterSeconds > 0) return Math.min(60_000, retryAfterSeconds * 1_000);
   return Math.min(60_000, 1_000 * 2 ** Math.min(6, Math.max(0, attempt)));
@@ -145,8 +245,11 @@ export function resolveEntityConflicts(
   conflicts: string[],
 ) {
   const resolved = selectSnapshot(local, remote, "cloud");
-  if (local.updatedAt < remote.updatedAt) return resolved;
-  const deckState = mergeSnapshots(local, remote);
+  const history = new Map(remote.history.map((record) => [record.id, record]));
+  for (const record of local.history) history.set(record.id, record);
+  resolved.history = [...history.values()]
+    .sort((left, right) => Date.parse(right.at) - Date.parse(left.at))
+    .slice(0, 200);
   for (const key of conflicts) {
     if (key === "profile:main") resolved.profile = local.profile;
     if (key === "settings:main") resolved.settings = local.settings;
@@ -158,14 +261,16 @@ export function resolveEntityConflicts(
     if (key === "draft:main") resolved.builderDeck = local.builderDeck;
     if (key.startsWith("deck:")) {
       const id = key.slice("deck:".length);
-      resolved.decks = [
-        ...resolved.decks.filter((deck) => deck.id !== id),
-        ...deckState.decks.filter((deck) => deck.id === id),
-      ];
-      resolved.deletedDecks = [
-        ...(resolved.deletedDecks ?? []).filter((deletion) => deletion.id !== id),
-        ...(deckState.deletedDecks ?? []).filter((deletion) => deletion.id === id),
-      ];
+      const localDeck = local.decks.find((deck) => deck.id === id);
+      const localDeletion = (local.deletedDecks ?? []).find(
+        (deletion) => deletion.id === id,
+      );
+      resolved.decks = resolved.decks.filter((deck) => deck.id !== id);
+      resolved.deletedDecks = (resolved.deletedDecks ?? []).filter(
+        (deletion) => deletion.id !== id,
+      );
+      if (localDeck) resolved.decks.push(localDeck);
+      if (localDeletion) resolved.deletedDecks.push(localDeletion);
     }
   }
   resolved.updatedAt = Math.max(local.updatedAt, remote.updatedAt);
