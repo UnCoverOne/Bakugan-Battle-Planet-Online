@@ -218,6 +218,54 @@ test("AI commits a temporary B-Power card when the complete effect wins the Braw
   assert.equal(next.players[0].hand.some((candidate) => candidate.id === boost.id), false);
 });
 
+test("AI keeps Tides when it already has the higher B-Power", () => {
+  const tides = printedCard(24, "redundant-tides");
+  assert.equal(tides.displayName || tides.name, "Tides");
+  const ai = player("ai", [bakugan("ai-b", "Aquos", 900, 5)], [], [tides]);
+  const human = player("human", [bakugan("human-b", "Pyrus", 700, 5)]);
+  ai.cardsPlayedThisTurn = 1;
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.ok(next.players[0].hand.some((candidate) => candidate.id === tides.id));
+});
+
+test("AI plays Tides when its active Flow branch changes the projected Victor", () => {
+  const tides = printedCard(24, "winning-tides");
+  assert.equal(tides.displayName || tides.name, "Tides");
+  const ai = player("ai", [bakugan("ai-b", "Aquos", 500, 5)], [], [tides]);
+  const human = player("human", [bakugan("human-b", "Pyrus", 800, 5)]);
+  ai.cardsPlayedThisTurn = 1;
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, tides.id);
+  assert.equal(next.players[0].hand.some((candidate) => candidate.id === tides.id), false);
+});
+
+test("AI keeps Tides when its Flow bonus still cannot win the Brawl", () => {
+  const tides = printedCard(24, "insufficient-tides");
+  assert.equal(tides.displayName || tides.name, "Tides");
+  const ai = player("ai", [bakugan("ai-b", "Aquos", 500, 5)], [], [tides]);
+  const human = player("human", [bakugan("human-b", "Pyrus", 1000, 5)]);
+  ai.cardsPlayedThisTurn = 1;
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.ok(next.players[0].hand.some((candidate) => candidate.id === tides.id));
+});
+
 test("independent card value remains playable even when its combat clause is insufficient", () => {
   const utility = printedCard(2, "study-the-fight"); // Aquos Shield: +200 B and conditional draw.
   const ai = player("ai", [bakugan("ai-b", "Aquos", 500, 5)], [], [utility]);
