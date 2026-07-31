@@ -232,6 +232,7 @@ export function AppProvider({ children }) {
   const [catalogueRevision, setCatalogueRevision] = useState(0);
   const snapshotRef = useRef(null);
   const booted = useRef(false);
+  const mounted = useRef(false);
   const applying = useRef(false);
   const cloudLoaded = useRef(false);
   const accountRevisions = useRef({});
@@ -267,6 +268,11 @@ export function AppProvider({ children }) {
   );
 
   const durableStateFingerprint = useMemo(() => JSON.stringify({ profile, decks, deletedDecks, history, settings, selectedDeckId, builderDeck, format, matchMode }), [builderDeck, decks, deletedDecks, format, history, matchMode, profile, selectedDeckId, settings]);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!ready) return;
@@ -599,7 +605,6 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!ready || booted.current) return;
     booted.current = true;
-    let cancelled = false;
     (async () => {
       try {
         const response = await fetch("/api/auth", {
@@ -607,7 +612,7 @@ export function AppProvider({ children }) {
           signal: AbortSignal.timeout(12_000),
         });
         const result = await readJsonResponse(response, "Account session returned an invalid response.");
-        if (!cancelled && response.ok && result.user) {
+        if (mounted.current && response.ok && result.user) {
           let skippedSession = "";
           try { skippedSession = localStorage.getItem("bbp-skipped-account-session-v1") || ""; } catch {}
           if (skippedSession === result.user.id) {
@@ -630,21 +635,20 @@ export function AppProvider({ children }) {
           setPersistenceScope("cloud");
           setAuthUser(result.user);
           await loadCloud("cloud", result.user);
-        } else if (!cancelled) {
+        } else if (mounted.current) {
           setProfile((current) => ({ ...current, signedIn: false }));
           setPersistenceScope("local");
           setSyncStatus("local");
         }
       } catch {
-        if (!cancelled) {
+        if (mounted.current) {
           setProfile((current) => ({ ...current, signedIn: false }));
           setPersistenceScope("local");
           setSyncStatus("local");
         }
       }
-      finally { if (!cancelled) setAuthChecking(false); }
+      finally { if (mounted.current) setAuthChecking(false); }
     })();
-    return () => { cancelled = true; };
   }, [loadCloud, ready, setProfile]);
 
   useEffect(() => {
