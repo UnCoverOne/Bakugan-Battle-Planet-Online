@@ -69,6 +69,30 @@ export const userData = sqliteTable("user_data", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+export const userDataEntities = sqliteTable("user_data_entities", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  revision: integer("revision").notNull().default(0),
+  dataJson: text("data_json"),
+  deletedAt: text("deleted_at"),
+  updatedAt: integer("updated_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.entityType, table.entityId] }),
+  index("user_data_entities_user_updated_idx").on(table.userId, table.updatedAt),
+]);
+
+export const userMatchHistory = sqliteTable("user_match_history", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  eventId: text("event_id").notNull(),
+  dataJson: text("data_json").notNull(),
+  occurredAt: text("occurred_at").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.eventId] }),
+  index("user_match_history_user_occurred_idx").on(table.userId, table.occurredAt),
+]);
+
 export const accountRoles = sqliteTable("account_roles", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   role: text("role").notNull(),

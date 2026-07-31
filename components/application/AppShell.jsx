@@ -125,13 +125,24 @@ export function AppShell({ children }) {
     return () => window.cancelAnimationFrame(frame);
   }, [immersiveMatch, pathname, ready]);
 
+  const requestLogout = async () => {
+    if (await signOutAccount()) return;
+    if (
+      window.confirm(
+        "Cloud save could not finish. Log out anyway and keep the unsynced account recovery copy in this browser?",
+      )
+    ) {
+      await signOutAccount({ retainUnsynced: true });
+    }
+  };
+
   if (!ready || authChecking) return <BootScreen />;
   if (authUser && !accountDataReady) {
     return (
       <AccountDataScreen
         error={authError}
         onRetry={() => void retryCloudLoad()}
-        onLogout={() => void signOutAccount()}
+        onLogout={() => void requestLogout()}
       />
     );
   }
@@ -271,7 +282,7 @@ export function AppShell({ children }) {
                       <button
                         role="menuitem"
                         type="button"
-                        onClick={() => void signOutAccount()}
+                        onClick={() => void requestLogout()}
                       >
                         Log Out
                       </button>

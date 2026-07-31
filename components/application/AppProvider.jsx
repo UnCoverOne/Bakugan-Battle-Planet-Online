@@ -7,10 +7,20 @@ import {
   createRegistrationSnapshot,
   DEFAULT_APP_SETTINGS,
   DEFAULT_BRAWLER_PROFILE,
+  mergeSnapshots,
   normalizeSnapshot,
   selectSnapshot,
   toCloudSnapshot,
 } from "../../lib/persistence";
+import {
+  buildAccountSyncRequests,
+  isAccountCacheDirty,
+  readAccountCache,
+  removeAccountCache,
+  resolveEntityConflicts,
+  retryDelayMs,
+  writeAccountCache,
+} from "../../lib/account-sync";
 import { summarizeGuestData } from "../../lib/guest-data";
 import { readJsonResponse } from "../../lib/json-response";
 
@@ -224,10 +234,16 @@ export function AppProvider({ children }) {
   const booted = useRef(false);
   const applying = useRef(false);
   const cloudLoaded = useRef(false);
-  const cloudRevision = useRef(0);
+  const accountRevisions = useRef({});
   const guestSnapshot = useRef(null);
   const syncing = useRef(false);
-  const lastSynced = useRef(-1);
+  const syncRequested = useRef(false);
+  const syncRunner = useRef(null);
+  const retryTimer = useRef(null);
+  const retryAttempt = useRef(0);
+  const localVersion = useRef(0);
+  const acknowledgedVersion = useRef(0);
+  const activeAccountId = useRef("");
   const durableFingerprint = useRef(null);
   const promptedAccountMoments = useRef(new Set());
   const ready = [profileReady, decksReady, deletedDecksReady, historyReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, replayReady, replayIndexReady, playerReady, capabilityReady, modifiedReady].every(Boolean);
@@ -342,6 +358,7 @@ export function AppProvider({ children }) {
     const fallback = snapshotRef.current;
     if (!fallback) return;
     const next = normalizeSnapshot(incoming, fallback);
+    snapshotRef.current = next;
     applying.current = true;
     setProfile({ ...next.profile, signedIn: signedIn || next.profile.signedIn });
     decksRef.current = next.decks;
@@ -352,86 +369,232 @@ export function AppProvider({ children }) {
     setTimeout(() => { applying.current = false; }, 120);
   }, [setBuilderDeck, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDeletedDecks, setStoredDecks, setFormat, setHistory, setJoinCode, setMatch, setMatchMode, setModifiedAt, setOnline, setPlayerId, setProfile, setReplay, setReplayIndex, setSelectedDeckId, setSettings]);
 
-  const putCloud = useCallback(async (data, revision, allowConflictChoice = true) => {
-    const response = await fetch("/api/user-data", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ expectedRevision: revision, data: toCloudSnapshot(data) }),
-    });
-    const result = await readJsonResponse(response, "Cloud save returned an invalid response.");
-    if (response.status === 409 && result.data) {
-      const remote = normalizeSnapshot(result.data, data);
-      const pending = { local: data, cloud: remote, revision: result.revision ?? revision };
-      cloudRevision.current = pending.revision;
-      if (!allowConflictChoice) throw new Error("Cloud data changed again. Review both copies before retrying.");
-      setSyncConflict(pending);
-      setSyncStatus("conflict");
-      return { snapshot: data, conflict: true, pending: true };
+  const persistAccountRecovery = useCallback((userId, data = snapshotRef.current) => {
+    if (!userId || !data) return false;
+    try {
+      writeAccountCache(localStorage, {
+        userId,
+        snapshot: toCloudSnapshot(data),
+        revisions: accountRevisions.current,
+        version: localVersion.current,
+        acknowledgedVersion: acknowledgedVersion.current,
+      });
+      return true;
+    } catch {
+      reportStorage({
+        status: "error",
+        message: "Account recovery data could not be saved in this browser.",
+        savedAt: null,
+      });
+      return false;
     }
-    if (!response.ok) throw new Error(result.error ?? "Could not save cloud data.");
-    cloudRevision.current = result.revision ?? revision + 1;
-    return { snapshot: data, conflict: false, pending: false };
+  }, []);
+
+  const leaveAccountLocally = useCallback((message = "", retainSession = false) => {
+    const userId = activeAccountId.current || authUser?.id || "";
+    persistAccountRecovery(userId);
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    if (retainSession && userId) {
+      try { localStorage.setItem("bbp-skipped-account-session-v1", userId); } catch {}
+    }
+    activeAccountId.current = "";
+    cloudLoaded.current = false;
+    setAccountDataReady(false);
+    setSyncConflict(null);
+    setPersistenceScope("local");
+    setAuthUser(null);
+    if (guestSnapshot.current) applySnapshot(readGuestSnapshot(guestSnapshot.current), false);
+    setSyncStatus("local");
+    setAuthError("");
+    if (message) notify(message);
+    router.push("/");
+  }, [applySnapshot, authUser?.id, notify, persistAccountRecovery, router]);
+
+  const putCloud = useCallback(async (data) => {
+    let latest = { revisions: accountRevisions.current, data: null, errors: [] };
+    for (const batch of buildAccountSyncRequests(data, accountRevisions.current)) {
+      const response = await fetch("/api/user-data", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(batch),
+      });
+      const result = await readJsonResponse(response, "Cloud save returned an invalid response.");
+      if (response.status === 401) {
+        const error = new Error("Your account session expired. Unsynced changes remain saved in this browser.");
+        error.code = "SESSION_EXPIRED";
+        throw error;
+      }
+      if (response.status === 409 && result.data) {
+        return { ...result, conflict: true };
+      }
+      if (!response.ok) {
+        const error = new Error(result.error ?? "Could not save cloud data.");
+        error.retryAfter = Number(result.retryAfter) || 0;
+        throw error;
+      }
+      latest = {
+        ...result,
+        errors: [...latest.errors, ...(Array.isArray(result.errors) ? result.errors : [])],
+      };
+      accountRevisions.current = result.revisions ?? accountRevisions.current;
+    }
+    return { ...latest, conflict: false };
   }, []);
 
   const loadCloud = useCallback(async (strategy = "cloud", user) => {
     if (!user) throw new Error("Sign in is required.");
+    activeAccountId.current = user.id;
     cloudLoaded.current = false;
-    setAccountDataReady(false);
     setSyncStatus("loading");
-    const response = await fetch("/api/user-data", { cache: "no-store" });
-    const result = await readJsonResponse(response, "Cloud data returned an invalid response.");
-    if (!response.ok) throw new Error(result.error ?? "Could not load cloud data.");
-    cloudRevision.current = result.revision ?? 0;
     const device = snapshotRef.current;
     if (!device) throw new Error("Browser data is still loading.");
-    const emptyAccount = createEmptyAccountSnapshot(device, user, result.updatedAt || Date.now());
-    const remote = result.data ? normalizeSnapshot(result.data, emptyAccount) : null;
-    const restored = remote
-      ? strategy === "merge"
-        ? selectSnapshot(emptyAccount, remote, "merge")
-        : remote
-      : emptyAccount;
+    const cached = readAccountCache(localStorage, user.id, device);
+    if (cached) {
+      accountRevisions.current = cached.revisions;
+      localVersion.current = cached.version;
+      acknowledgedVersion.current = cached.acknowledgedVersion;
+      const cachedCopy = {
+        ...selectSnapshot(device, cached.snapshot, "cloud"),
+        profile: { ...cached.snapshot.profile, signedIn: true },
+      };
+      applySnapshot(cachedCopy, true);
+      cloudLoaded.current = true;
+      setAccountDataReady(true);
+    }
+    let result = null;
+    let loadError = null;
+    try {
+      const response = await fetch("/api/user-data", {
+        cache: "no-store",
+        signal: AbortSignal.timeout(12_000),
+      });
+      result = await readJsonResponse(response, "Cloud data returned an invalid response.");
+      if (response.status === 401) {
+        const error = new Error("Your account session expired. Unsynced changes remain saved in this browser.");
+        error.code = "SESSION_EXPIRED";
+        throw error;
+      }
+      if (!response.ok) throw new Error(result.error ?? "Could not load cloud data.");
+    } catch (error) {
+      if (error?.code === "SESSION_EXPIRED") {
+        leaveAccountLocally(error.message);
+        return null;
+      }
+      loadError = error;
+    }
+    const emptyAccount = createEmptyAccountSnapshot(device, user, result?.updatedAt || Date.now());
+    const remote = result?.data ? normalizeSnapshot(result.data, emptyAccount) : null;
+    const cachedDirty = isAccountCacheDirty(cached);
+    accountRevisions.current = cachedDirty
+      ? cached?.revisions ?? {}
+      : result?.revisions ?? cached?.revisions ?? {};
+    localVersion.current = cached?.version ?? 0;
+    acknowledgedVersion.current = cached?.acknowledgedVersion ?? 0;
+    const durableAccount = cached && cachedDirty
+      ? cached.snapshot
+      : remote ?? cached?.snapshot ?? emptyAccount;
+    const restored = strategy === "merge" && remote
+      ? selectSnapshot(device, mergeSnapshots(durableAccount, remote), "cloud")
+      : selectSnapshot(device, durableAccount, "cloud");
     const accountCopy = { ...restored, profile: { ...restored.profile, signedIn: true } };
     applySnapshot(accountCopy, true);
-    let syncedCopy = accountCopy;
-    if (!remote) {
-      const saved = await putCloud(accountCopy, cloudRevision.current);
-      if (saved.pending) return accountCopy;
-      syncedCopy = saved.snapshot;
+    if (!remote && !cached) {
+      localVersion.current = 1;
+      acknowledgedVersion.current = 0;
     }
-    lastSynced.current = syncedCopy.updatedAt;
     cloudLoaded.current = true;
     setAccountDataReady(true);
-    setAuthError("");
-    setSyncStatus("synced");
-    return syncedCopy;
-  }, [applySnapshot, putCloud]);
+    persistAccountRecovery(user.id, accountCopy);
+    if (loadError) {
+      setAuthError(loadError instanceof Error ? loadError.message : "Cloud data could not be loaded.");
+      setSyncStatus(navigator.onLine ? "error" : "offline");
+    } else if (localVersion.current > acknowledgedVersion.current || !remote) {
+      setSyncStatus(navigator.onLine ? "saving" : "offline");
+      syncRequested.current = true;
+      queueMicrotask(() => { void syncRunner.current?.(); });
+    } else {
+      setAuthError("");
+      setSyncStatus("synced");
+    }
+    return accountCopy;
+  }, [applySnapshot, leaveAccountLocally, persistAccountRecovery]);
 
   const syncToCloud = useCallback(async (force = false) => {
-    if (!authUser || !accountDataReady || !ready || applying.current || !cloudLoaded.current || syncing.current || syncConflict) return false;
-    const current = snapshotRef.current;
-    if (!current || (!force && current.updatedAt === lastSynced.current)) return false;
+    if (!authUser || !accountDataReady || !ready || applying.current || !cloudLoaded.current || syncConflict) return false;
+    if (force) syncRequested.current = true;
+    if (syncing.current) {
+      syncRequested.current = true;
+      return false;
+    }
+    if (!force && localVersion.current <= acknowledgedVersion.current) return true;
     if (!navigator.onLine) {
       setSyncStatus("offline");
       return false;
     }
     syncing.current = true;
-    setSyncStatus("saving");
     try {
-      const saved = await putCloud(current, cloudRevision.current);
-      if (saved.pending) return false;
-      lastSynced.current = saved.snapshot.updatedAt;
-      setAuthError("");
+      do {
+        syncRequested.current = false;
+        const current = snapshotRef.current;
+        if (!current) return false;
+        const targetVersion = localVersion.current;
+        persistAccountRecovery(authUser.id, current);
+        setSyncStatus("saving");
+        const saved = await putCloud(current);
+        accountRevisions.current = saved.revisions ?? accountRevisions.current;
+        if (saved.conflict && saved.data) {
+          const remote = {
+            ...normalizeSnapshot(saved.data, current),
+            updatedAt: Number(saved.updatedAt) || saved.data.updatedAt || 0,
+          };
+          setSyncConflict({
+            local: current,
+            cloud: remote,
+            revisions: saved.revisions ?? accountRevisions.current,
+            conflicts: Array.isArray(saved.conflicts) ? saved.conflicts : [],
+          });
+          setSyncStatus("conflict");
+          persistAccountRecovery(authUser.id, current);
+          return false;
+        }
+        if (Array.isArray(saved.errors) && saved.errors.length) {
+          throw new Error(saved.errors.map((item) => item.error).join(" "));
+        }
+        acknowledgedVersion.current = Math.max(acknowledgedVersion.current, targetVersion);
+        retryAttempt.current = 0;
+        setAuthError("");
+        persistAccountRecovery(authUser.id, current);
+      } while (
+        syncRequested.current ||
+        localVersion.current > acknowledgedVersion.current
+      );
       setSyncStatus("synced");
       return true;
     } catch (error) {
-      setAuthError(error.message);
+      if (error?.code === "SESSION_EXPIRED") {
+        leaveAccountLocally(error.message);
+        return false;
+      }
+      const message = error instanceof Error ? error.message : "Could not save cloud data.";
+      setAuthError(message);
       setSyncStatus(navigator.onLine ? "error" : "offline");
+      const delay = retryDelayMs(retryAttempt.current++, Number(error?.retryAfter) || 0);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      retryTimer.current = setTimeout(() => {
+        retryTimer.current = null;
+        void syncRunner.current?.();
+      }, delay);
       return false;
     } finally {
       syncing.current = false;
+      if (syncRequested.current && navigator.onLine) {
+        queueMicrotask(() => { void syncRunner.current?.(); });
+      }
     }
-  }, [accountDataReady, authUser, putCloud, ready, syncConflict]);
+  }, [accountDataReady, authUser, leaveAccountLocally, persistAccountRecovery, putCloud, ready, syncConflict]);
+  useEffect(() => {
+    syncRunner.current = syncToCloud;
+  }, [syncToCloud]);
 
   useEffect(() => {
     if (!ready || booted.current) return;
@@ -439,15 +602,34 @@ export function AppProvider({ children }) {
     let cancelled = false;
     (async () => {
       try {
-        const response = await fetch("/api/auth", { cache: "no-store" });
+        const response = await fetch("/api/auth", {
+          cache: "no-store",
+          signal: AbortSignal.timeout(12_000),
+        });
         const result = await readJsonResponse(response, "Account session returned an invalid response.");
         if (!cancelled && response.ok && result.user) {
+          let skippedSession = "";
+          try { skippedSession = localStorage.getItem("bbp-skipped-account-session-v1") || ""; } catch {}
+          if (skippedSession === result.user.id) {
+            try {
+              const logoutResponse = await fetch("/api/auth", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ action: "logout" }),
+              });
+              if (logoutResponse.ok) localStorage.removeItem("bbp-skipped-account-session-v1");
+            } catch {}
+            setProfile((current) => ({ ...current, signedIn: false }));
+            setPersistenceScope("local");
+            setSyncStatus("local");
+            return;
+          }
           guestSnapshot.current = snapshotRef.current
             ? { ...snapshotRef.current, profile: { ...snapshotRef.current.profile, signedIn: false } }
             : null;
           setPersistenceScope("cloud");
           setAuthUser(result.user);
-          try { await loadCloud("cloud", result.user); } catch (error) { setAuthError(error.message); setSyncStatus(navigator.onLine ? "error" : "offline"); }
+          await loadCloud("cloud", result.user);
         } else if (!cancelled) {
           setProfile((current) => ({ ...current, signedIn: false }));
           setPersistenceScope("local");
@@ -477,10 +659,36 @@ export function AppProvider({ children }) {
     return () => clearTimeout(id);
   }, [durableStateFingerprint, ready, setModifiedAt]);
   useEffect(() => {
-    if (!authUser || !accountDataReady || !ready || !cloudLoaded.current || modifiedAt === lastSynced.current || syncConflict) return;
+    if (!authUser || !accountDataReady || !ready || !cloudLoaded.current || applying.current) return;
+    const current = snapshotRef.current;
+    if (!current) return;
+    const dirtySnapshot = { ...current, updatedAt: Date.now() };
+    snapshotRef.current = dirtySnapshot;
+    setModifiedAt(dirtySnapshot.updatedAt);
+    localVersion.current += 1;
+    syncRequested.current = true;
+    persistAccountRecovery(authUser.id, dirtySnapshot);
     const id = setTimeout(() => { void syncToCloud(false); }, AUTO_SYNC_DELAY_MS);
     return () => clearTimeout(id);
-  }, [accountDataReady, authUser, modifiedAt, ready, syncConflict, syncToCloud]);
+  }, [accountDataReady, authUser, durableStateFingerprint, persistAccountRecovery, ready, setModifiedAt, syncToCloud]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    const resume = () => {
+      if (navigator.onLine && (document.visibilityState === "visible" || document.visibilityState === undefined)) {
+        void syncRunner.current?.();
+      }
+    };
+    const preserve = () => { persistAccountRecovery(authUser.id); };
+    addEventListener("online", resume);
+    document.addEventListener("visibilitychange", resume);
+    addEventListener("pagehide", preserve);
+    return () => {
+      removeEventListener("online", resume);
+      document.removeEventListener("visibilitychange", resume);
+      removeEventListener("pagehide", preserve);
+    };
+  }, [authUser, persistAccountRecovery]);
 
   const authenticate = useCallback(async (action, payload) => {
     setAuthBusy(true);
@@ -513,20 +721,7 @@ export function AppProvider({ children }) {
         : null;
       setPersistenceScope("cloud");
       setAuthUser(result.user);
-      if (action === "signup" && registrationData) {
-        const accountCopy = {
-          ...registrationData,
-          profile: { ...registrationData.profile, signedIn: true },
-        };
-        applySnapshot(accountCopy, true);
-        cloudRevision.current = result.revision ?? 1;
-        lastSynced.current = accountCopy.updatedAt;
-        cloudLoaded.current = true;
-        setAccountDataReady(true);
-        setSyncStatus("synced");
-      } else {
-        await loadCloud("cloud", result.user);
-      }
+      await loadCloud("cloud", result.user);
       const returnTo =
         typeof payload.returnTo === "string" &&
         payload.returnTo.startsWith("/") &&
@@ -545,44 +740,51 @@ export function AppProvider({ children }) {
     } finally {
       setAuthBusy(false);
     }
-  }, [applySnapshot, loadCloud, pathname, router]);
+  }, [loadCloud, pathname, router]);
   const continueAsGuest = useCallback(() => {
     setProfile((current) => ({ ...current, signedIn: false }));
     setSyncStatus("local");
     router.push("/");
   }, [router, setProfile]);
-  const signOutAccount = useCallback(async () => {
-    if (cloudLoaded.current) {
-      const saved = await syncToCloud(true);
-      if (!saved) {
-        notify("Log out paused because account changes could not be saved.");
+  const signOutAccount = useCallback(async ({ retainUnsynced = false } = {}) => {
+    const dirty = localVersion.current > acknowledgedVersion.current;
+    if (dirty && !retainUnsynced) {
+      await syncToCloud(true);
+      if (localVersion.current > acknowledgedVersion.current) {
+        persistAccountRecovery(authUser?.id || activeAccountId.current);
+        notify("Unsynced account changes are safe in this browser. Confirm recovery logout to continue.");
         return false;
       }
     }
+    let serverEnded = false;
     try {
       const response = await fetch("/api/auth", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "logout" }),
       });
-      if (!response.ok) throw new Error("Could not end the account session.");
+      serverEnded = response.ok || response.status === 401;
+      if (!serverEnded) throw new Error("Could not end the account session.");
     } catch (error) {
-      notify(error instanceof Error ? error.message : "Could not end the account session.");
-      return false;
+      if (!retainUnsynced) {
+        notify("The server could not end the session. Confirm recovery logout to leave this device safely.");
+        return false;
+      }
     }
-    cloudLoaded.current = false;
-    setAccountDataReady(false);
-    setSyncConflict(null);
-    setPersistenceScope("local");
-    setAuthUser(null);
-    if (guestSnapshot.current) applySnapshot(readGuestSnapshot(guestSnapshot.current), false);
-    setSyncStatus("local");
-    router.push("/");
+    if (serverEnded) {
+      try { localStorage.removeItem("bbp-skipped-account-session-v1"); } catch {}
+    }
+    leaveAccountLocally(
+      retainUnsynced && dirty
+        ? "Logged out. Unsynced account recovery data remains on this device."
+        : "",
+      retainUnsynced && !serverEnded,
+    );
     return true;
-  }, [applySnapshot, notify, router, syncToCloud]);
+  }, [authUser?.id, leaveAccountLocally, notify, persistAccountRecovery, syncToCloud]);
   const saveAccountProfile = useCallback(async () => { if (!authUser) return notify("Profile changes are saved on this device."); const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "update-profile", displayName: profile.name, faction: profile.faction }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not update account profile."); setAuthUser(result.user); setModifiedAt(Date.now()); }, [authUser, notify, profile.faction, profile.name, setModifiedAt]);
   const changePassword = useCallback(async (currentPassword, newPassword) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "change-password", currentPassword, newPassword }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not change password."); notify("Password changed. Other sessions were signed out."); }, [notify]);
-  const deleteAccount = useCallback(async (confirmation) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not delete account."); cloudLoaded.current = false; setAccountDataReady(false); setPersistenceScope("local"); setAuthUser(null); if (guestSnapshot.current) applySnapshot(readGuestSnapshot(guestSnapshot.current), false); setSyncStatus("local"); router.push("/"); }, [applySnapshot, router]);
+  const deleteAccount = useCallback(async (confirmation) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not delete account."); if (authUser?.id) { try { removeAccountCache(localStorage, authUser.id); } catch {} } activeAccountId.current = ""; cloudLoaded.current = false; setAccountDataReady(false); setPersistenceScope("local"); setAuthUser(null); if (guestSnapshot.current) applySnapshot(readGuestSnapshot(guestSnapshot.current), false); setSyncStatus("local"); router.push("/"); }, [applySnapshot, authUser?.id, router]);
 
   useEffect(() => {
     if (match?.phase !== "result" || !match.winner) return;
@@ -617,28 +819,38 @@ export function AppProvider({ children }) {
   const leaveMatch = useCallback(() => { setMatch(null); setOnline(false); setMatchCapability(""); router.push("/dashboard"); }, [router, setMatch, setMatchCapability, setOnline]);
   const resolveSyncConflict = useCallback(async (preference) => {
     const pending = syncConflict;
-    if (!pending || syncing.current) return false;
-    const selected = { ...selectSnapshot(pending.local, pending.cloud, preference), updatedAt: Date.now() };
-    syncing.current = true;
-    setSyncConflict(null);
-    setSyncStatus("saving");
-    applySnapshot(selected, true);
-    try {
-      const saved = await putCloud(selected, pending.revision, false);
-      lastSynced.current = saved.snapshot.updatedAt;
-      cloudLoaded.current = true;
-      setAuthError("");
-      setSyncStatus("synced");
-      return true;
-    } catch (error) {
-      setSyncConflict(pending);
-      setAuthError(error.message);
-      setSyncStatus(navigator.onLine ? "conflict" : "offline");
-      return false;
-    } finally {
-      syncing.current = false;
+    if (!pending) return false;
+    accountRevisions.current = pending.revisions ?? accountRevisions.current;
+    let selected;
+    if (preference === "cloud") {
+      selected = selectSnapshot(pending.local, pending.cloud, "cloud");
+    } else if (preference === "local") {
+      selected = resolveEntityConflicts(
+        { ...pending.local, updatedAt: Math.max(Date.now(), pending.cloud.updatedAt + 1) },
+        pending.cloud,
+        pending.conflicts,
+      );
+    } else {
+      selected = resolveEntityConflicts(
+        pending.local,
+        pending.cloud,
+        pending.conflicts,
+      );
     }
-  }, [applySnapshot, putCloud, syncConflict]);
+    const resolved = {
+      ...selected,
+      updatedAt: Date.now(),
+      profile: { ...selected.profile, signedIn: true },
+    };
+    applySnapshot(resolved, true);
+    localVersion.current += 1;
+    persistAccountRecovery(authUser?.id || activeAccountId.current, resolved);
+    setSyncConflict(null);
+    setSyncStatus(navigator.onLine ? "saving" : "offline");
+    syncRequested.current = true;
+    setTimeout(() => { void syncRunner.current?.(true); }, 150);
+    return true;
+  }, [applySnapshot, authUser?.id, persistAccountRecovery, syncConflict]);
   const syncNow = useCallback(() => syncToCloud(true), [syncToCloud]);
   const retryCloudLoad = useCallback(async () => {
     if (!authUser) return false;

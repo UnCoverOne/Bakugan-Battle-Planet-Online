@@ -244,7 +244,9 @@ test("registration creates its initial account snapshot atomically", () => {
   assert.match(authRoute, /db\.batch\(\[/);
   assert.match(authRoute, /INSERT INTO user_data/);
   assert.match(authRoute, /revision: 1/);
-  assert.match(userDataRoute, /validateUserSnapshot\(body\.data\)/);
+  assert.match(userDataRoute, /validateEntityUpdate\(candidate\)/);
+  assert.match(userDataRoute, /user_data_entities/);
+  assert.match(userDataRoute, /user_match_history/);
   assert.match(userDataRoute, /const json = .*Response\.json/);
 });
 
@@ -252,10 +254,34 @@ test("registration creates its initial account snapshot atomically", () => {
 test("signed-in bootstrap keeps the cloud loader stable while auth state changes", () => {
   const provider = source("components/application/AppProvider.jsx");
   assert.match(provider, /const loadCloud = useCallback\(async \(strategy = "cloud", user\) =>/);
-  assert.match(provider, /\}, \[applySnapshot, putCloud\]\);/);
+  assert.match(provider, /activeAccountId\.current = user\.id/);
   assert.doesNotMatch(provider, /user = authUser/);
-  assert.doesNotMatch(provider, /\[applySnapshot, authUser, putCloud\]/);
+  assert.match(provider, /AbortSignal\.timeout\(12_000\)/);
   assert.match(provider, /finally \{ if \(!cancelled\) setAuthChecking\(false\); \}/);
+});
+
+test("account sync uses a durable serialized outbox with lifecycle retries", () => {
+  const provider = source("components/application/AppProvider.jsx");
+  const accountSync = source("lib/account-sync.ts");
+  assert.match(provider, /writeAccountCache\(localStorage/);
+  assert.match(accountSync, /bbp-account-cache-v2/);
+  assert.match(provider, /localVersion\.current > acknowledgedVersion\.current/);
+  assert.match(provider, /do \{/);
+  assert.match(provider, /syncRequested\.current/);
+  assert.match(provider, /retryDelayMs/);
+  assert.match(provider, /addEventListener\("online"/);
+  assert.match(provider, /document\.addEventListener\("visibilitychange"/);
+  assert.match(provider, /addEventListener\("pagehide"/);
+});
+
+test("session expiry and recovery logout retain unsynced account data", () => {
+  const provider = source("components/application/AppProvider.jsx");
+  const shell = source("components/application/AppShell.jsx");
+  assert.match(provider, /error\.code = "SESSION_EXPIRED"/);
+  assert.match(provider, /leaveAccountLocally\(error\.message\)/);
+  assert.match(provider, /retainUnsynced/);
+  assert.match(provider, /bbp-skipped-account-session-v1/);
+  assert.match(shell, /keep the unsynced account recovery copy/);
 });
 
 
