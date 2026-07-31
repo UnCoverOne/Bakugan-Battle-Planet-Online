@@ -83,7 +83,11 @@ export function recordsFromRows(
   const setName = setCode === "BR" ? "Bakugan Resurgence" : "Age of Aurelus";
   return rows.map((row) => {
     const [id, number, rarityCode, displayName, faction, type, cost, effect, bPower, damage, coreOne, coreTwo, evolvesFrom, scanFilename] = row;
-    const internalName = type === "Character" || type === "Evo" ? `${faction} ${displayName}` : displayName;
+    const internalName = type === "Character" || type === "Evo"
+      ? `${faction} ${displayName}`
+      : id === "br-80"
+        ? "Strata (Bakugan Resurgence)"
+        : displayName;
     const coreTypes = [coreOne, coreTwo].map((token) => CORES[token]).filter(Boolean) as ControlledCardRecord["coreTypes"];
     return {
       id,
