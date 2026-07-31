@@ -6,9 +6,13 @@ import type { RuleDefinition, RuleProgram } from "./model";
 import { provenanceForDefinition, validateDefinitionProvenance } from "./provenance";
 import { ruleCardId } from "./catalogue-primitives";
 import { abilityDefinitionsForCard, playDefinitionForCard } from "./catalogue-structure";
+import {
+  enhanceDeckInspectionAbilities,
+  enhanceDeckInspectionPlayDefinition,
+} from "./deck-inspection";
 
 function definitionForCard(card: GameCard): RuleDefinition {
-  const abilities = abilityDefinitionsForCard(card);
+  const abilities = enhanceDeckInspectionAbilities(card, abilityDefinitionsForCard(card));
   return {
     cardId: ruleCardId(card),
     printingId: ruleCardId(card),
@@ -21,7 +25,7 @@ function definitionForCard(card: GameCard): RuleDefinition {
     implementationStatus: "complete",
     rulesVersion: RULES_PROFILE_VERSION,
     contentVersion: CARD_CATALOGUE_VERSION,
-    play: playDefinitionForCard(card),
+    play: enhanceDeckInspectionPlayDefinition(card, playDefinitionForCard(card)),
     abilities,
     provenance: provenanceForDefinition(card, abilities),
     goldenTestIds: [`card-golden:${ruleCardId(card)}`],
