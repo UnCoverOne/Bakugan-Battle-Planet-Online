@@ -153,13 +153,13 @@ export function SyncConflictPanel({
         <StatusChip tone="warning">Sync conflict</StatusChip>
         <h3>Choose which account data to keep</h3>
         <p>
-          The device and cloud changed independently. Nothing will be
+          This signed-in session and another cloud revision changed independently. Nothing will be
           overwritten until you choose.
         </p>
       </header>
       <div className={styles.comparison}>
         <article>
-          <span>This device</span>
+          <span>Pending account changes</span>
           <strong>{local.updated}</strong>
           <small>
             {local.decks} decks · {local.matches} matches
@@ -182,7 +182,7 @@ export function SyncConflictPanel({
           onClick={() => onResolve("local")}
           disabled={busy}
         >
-          Use this device
+          Use pending changes
         </ActionButton>
         <ActionButton
           tone="secondary"
