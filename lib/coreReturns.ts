@@ -31,6 +31,7 @@ export type CoreReturnMatchState = MatchState & {
 };
 
 const RETURN_WINDOW_MS = 45_000;
+const RESUME_WINDOW_MS = 35_000;
 
 const asCoreReturnState = (state: MatchState) => state as CoreReturnMatchState;
 
@@ -60,11 +61,17 @@ function addLog(state: MatchState, message: string) {
 function restoreInterruptedPhase(state: CoreReturnMatchState) {
   const resume = state.coreReturnResume;
   if (resume) {
+    const now = Date.now();
+    const refreshedDeadline = Math.max(resume.deadline, now + RESUME_WINDOW_MS);
     state.phase = resume.phase;
     state.stepLabel = resume.stepLabel;
     state.priority = resume.priority;
     state.passes = [...resume.passes];
-    state.deadline = resume.deadline;
+    state.deadline = refreshedDeadline;
+    if (resume.phase === "draw") {
+      state.drawReadyAt = Math.min(state.drawReadyAt ?? now, now);
+      state.drawDeadline = refreshedDeadline;
+    }
   }
   delete state.pendingCoreReturns;
   delete state.coreReturnResume;
