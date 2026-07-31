@@ -363,7 +363,7 @@ export function SettingsScreen() {
               title="Data & sync"
               description={
                 authUser
-                  ? "Review cloud state and resolve conflicts before data is overwritten."
+                  ? "Review account-cloud state and resolve revision conflicts."
                   : "Review storage health and keep a portable backup."
               }
             >
@@ -399,11 +399,11 @@ export function SettingsScreen() {
                     {authUser ? syncStatus : storageHealth.status}
                   </StatusChip>
                   <h3>
-                    {authUser ? "Cloud and device storage" : storageTitle}
+                    {authUser ? "Cloud account data" : storageTitle}
                   </h3>
                   <p>
                     {authUser
-                      ? "Decks, drafts, records, settings, and deck preferences sync. Searches, replay position, room codes, active matches, and device identity remain local."
+                      ? "While logged in, the app uses account data only. Local guest data stays unchanged in this browser and returns after logout."
                       : storageHealth.message}
                   </p>
                   {storageHealth.savedAt && (
@@ -430,10 +430,10 @@ export function SettingsScreen() {
               </Surface>
               <Surface className={styles.exportCard}>
                 <div>
-                  <h3>Export local data</h3>
+                  <h3>{authUser ? "Export account data" : "Export local data"}</h3>
                   <p>
-                    Download a readable JSON backup before deleting browser data
-                    or moving between unsupported environments.
+                    Download a readable JSON backup of the data currently in use
+                    before a destructive action.
                   </p>
                 </div>
                 <ActionButton tone="secondary" onClick={exportData}>
@@ -477,8 +477,8 @@ export function SettingsScreen() {
                   <div>
                     <h3>Delete cloud account</h3>
                     <p>
-                      Removes the account and synced cloud copy. Device-local
-                      data remains until deleted separately.
+                      Removes the account and its cloud data. The separate local
+                      guest data remains until deleted explicitly.
                     </p>
                     <Field label="Type DELETE to enable">
                       <input
@@ -504,9 +504,9 @@ export function SettingsScreen() {
                 <div>
                   <h3>Delete local browser data</h3>
                   <p>
-                    Removes locally stored decks, records, settings, drafts, and
-                    active state from this browser. Export first if you need a
-                    backup.
+                    Removes the separate guest decks, records, settings, drafts,
+                    and active state saved in this browser. Signed-in account
+                    data is unaffected.
                   </p>
                 </div>
                 <div className={styles.dangerActions}>
@@ -535,7 +535,7 @@ export function SettingsScreen() {
         <ConfirmationDialog
           title="Delete local browser data?"
           objectName="All Bakugan Battle Planet Online data on this browser"
-          consequence="Decks, records, settings, drafts, and active state on this device will be permanently removed. Cloud data is unaffected."
+          consequence="Guest decks, records, settings, drafts, and active state in this browser will be permanently removed. Account cloud data is unaffected."
           confirmLabel="Delete local data"
           onCancel={() => setConfirmAction(null)}
           onConfirm={clearLocalProfile}
@@ -545,7 +545,7 @@ export function SettingsScreen() {
         <ConfirmationDialog
           title="Delete cloud account?"
           objectName={authUser?.email ?? "Current account"}
-          consequence="The account and synced cloud copy will be permanently removed. The current browser copy remains until separately deleted."
+          consequence="The account and its cloud data will be permanently removed. The separate guest data in this browser remains until explicitly deleted."
           confirmLabel="Delete cloud account"
           busy={accountBusy}
           onCancel={() => setConfirmAction(null)}
