@@ -8,6 +8,7 @@ import "../../app/gameplay-card-presentation.css";
 import { BakuCorePresentationProvider } from "./BakuCorePresentation";
 import { BrawlExperienceLayer } from "./BrawlExperienceLayer";
 import { ChoiceQueueLayer } from "./ChoiceQueueLayer";
+import { DeckInspectionLayer } from "./DeckInspectionLayer";
 import { DrawAnimationLayer } from "./DrawAnimationLayer";
 import { GameplayCardPresentationLayer } from "./GameplayCardPresentationLayer";
 import { GameplaySoundLayer } from "./GameplaySoundLayer";
@@ -33,6 +34,7 @@ export function GameplayRuntime() {
       <DrawAnimationLayer />
       <BrawlExperienceLayer />
       <MatchDecisionLayer />
+      <DeckInspectionLayer />
       <ChoiceQueueLayer />
       <GameplaySoundLayer />
     </BakuCorePresentationProvider>
