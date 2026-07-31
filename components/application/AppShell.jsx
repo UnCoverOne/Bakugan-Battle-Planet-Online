@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
 import { deriveSyncIndicator } from "../../lib/client-status";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
-import { VersionMismatchScreen } from "./SystemState";
+import { SystemState, VersionMismatchScreen } from "./SystemState";
 import {
   AccountAccessModal,
   GuestAccountPrompt,
@@ -54,6 +54,10 @@ export function AppShell({ children }) {
     decks,
     history,
     authUser,
+    authChecking,
+    accountDataReady,
+    authError,
+    retryCloudLoad,
     syncStatus,
     storageHealth,
     match,
@@ -121,7 +125,16 @@ export function AppShell({ children }) {
     return () => window.cancelAnimationFrame(frame);
   }, [immersiveMatch, pathname, ready]);
 
-  if (!ready) return <BootScreen />;
+  if (!ready || authChecking) return <BootScreen />;
+  if (authUser && !accountDataReady) {
+    return (
+      <AccountDataScreen
+        error={authError}
+        onRetry={() => void retryCloudLoad()}
+        onLogout={() => void signOutAccount()}
+      />
+    );
+  }
   const achievements = achievementsFor(decks, history);
   const unlocked = achievements.filter(
     (achievement) => achievement.unlocked,
@@ -295,8 +308,10 @@ export function AppShell({ children }) {
       )}
       {!immersiveMatch && !isOnline && (
         <div className="offline-banner" role="status">
-          <strong>Offline.</strong> Device-local features remain available;
-          cloud sync and public updates are queued.
+          <strong>Offline.</strong>{" "}
+          {authUser
+            ? "The loaded account session remains available; cloud writes will retry when the connection returns."
+            : "Device-local features remain available; cloud services and public updates are unavailable."}
         </div>
       )}
       {!immersiveMatch && syncStatus === "conflict" && (
@@ -305,7 +320,7 @@ export function AppShell({ children }) {
           before choosing a version.
         </Link>
       )}
-      {!immersiveMatch && storageHealth.status === "error" && (
+      {!immersiveMatch && !authUser && storageHealth.status === "error" && (
         <div className="storage-error-banner" role="alert">
           {storageHealth.message}
         </div>
@@ -370,13 +385,37 @@ export function AppShell({ children }) {
   );
 }
 
+function AccountDataScreen({ error, onRetry, onLogout }) {
+  return (
+    <main className="boot-screen">
+      <SystemState
+        tone={error ? "error" : "loading"}
+        eyebrow="Account data"
+        title={error ? "Cloud data could not be loaded" : "Loading account data"}
+        message={
+          error ||
+          "Your local guest data is isolated while the signed-in account snapshot loads."
+        }
+        actions={
+          error ? (
+            <>
+              <button type="button" onClick={onRetry}>Try again</button>
+              <button type="button" onClick={onLogout}>Log out</button>
+            </>
+          ) : undefined
+        }
+      />
+    </main>
+  );
+}
+
 function BootScreen() {
   return (
     <main className="boot-screen">
       <img src="/assets/logo.png" alt="Bakugan Battle Planet" />
       <span className="pulse" />
-      <h1>RESTORING LOCAL BRAWLER DATA</h1>
-      <p>Restoring decks, settings, drafts, history, and active state…</p>
+      <h1>LOADING BRAWLER DATA</h1>
+      <p>Checking the session before selecting local or account storage…</p>
     </main>
   );
 }
