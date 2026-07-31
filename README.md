@@ -52,14 +52,14 @@ This is a full-stack application, not a static export. Room-code multiplayer cal
 
 ## Persistence and accounts
 
-- Logged-out users keep decks, settings, drafts, match history, navigation state, and an active match in browser `localStorage`.
-- Registration is the only time guest data can be imported into an account. Normal login always loads the existing account copy and never merges browser data.
-- Signed-in durable data lives in the account's D1 snapshot. It is held in memory while the session is active and is never written over the separate guest `localStorage` snapshot.
-- Cloud writes use an optimistic revision number. Concurrent account sessions can review a revision conflict, while deck deletions remain protected by bounded tombstones.
-- Sign-out first flushes the current account snapshot to D1. If that save cannot complete, sign-out pauses instead of discarding recent changes; after a successful sign-out, the untouched guest snapshot is restored.
+- Logged-out users keep decks, settings, drafts, match history, navigation state, and active state in browser storage.
+- Registration is the only local-to-account import boundary. The user may import the current guest data or create an empty account; the selected initial snapshot is stored atomically with the new account.
+- Existing-account login always loads D1 account data and never merges guest browser data. If account data cannot be loaded, signed-in routes remain blocked instead of falling back to the guest snapshot.
+- While signed in, guest browser storage is read-only and unchanged. Account edits use in-memory account state and are written only to D1; logging out flushes pending writes and restores the preserved guest snapshot.
+- Cloud writes use an optimistic revision number. When two signed-in sessions edit concurrently, the client can merge account revisions, keeps the newest edit for each shared deck, and carries deck deletions with bounded tombstones.
 - Passwords are never stored in plaintext. The server derives a salted PBKDF2-SHA-256 hash and stores only the hash, salt, and iteration count.
 - Login uses an opaque session token in a `HttpOnly`, `SameSite=Lax` cookie; only a SHA-256 hash of the token is stored in D1.
-- Deleting an account removes its cloud copy and restores the separate guest data saved on that browser.
+- Deleting an account removes its cloud data and restores the separate guest data saved in that browser.
 
 ## Main project areas
 
