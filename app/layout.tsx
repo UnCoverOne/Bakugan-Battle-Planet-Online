@@ -13,7 +13,6 @@ import { AppShell } from "../components/application/AppShell";
 import { DisplayFontLoader } from "../components/application/DisplayFontLoader";
 import { AssetFreshness } from "../components/AssetFreshness";
 import { WebVitalsReporter } from "../components/WebVitalsReporter";
-import { DeckInspectionHost } from "../components/game-screen-v2/DeckInspectionHost";
 
 export const metadata: Metadata = {
   title: {
@@ -36,7 +35,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <WebVitalsReporter />
         <AppProvider>
           <AppShell>{children}</AppShell>
-          <DeckInspectionHost />
         </AppProvider>
       </body>
     </html>
