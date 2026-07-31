@@ -1,6 +1,7 @@
 import {
+  CENTER_CELL,
+  HEX_CELLS,
   cloneMatch,
-  legalPlacementCells,
   placeCore,
   type Core,
   type MatchState,
@@ -38,8 +39,51 @@ const asCoreReturnState = (state: MatchState) => state as CoreReturnMatchState;
 const returnKey = (item: Pick<PendingCoreReturn, "core" | "originalCell" | "sourceBakuganId">) =>
   `${item.core.id}:${item.originalCell}:${item.sourceBakuganId}`;
 
+const hexDistance = (a: { q: number; r: number }, b: { q: number; r: number }) =>
+  (Math.abs(a.q - b.q) + Math.abs(a.r - b.r) + Math.abs((a.q + a.r) - (b.q + b.r))) / 2;
+
 function playerForBakugan(state: MatchState, bakuganId: string) {
   return state.players.find((player) => player.bakugan.some((bakugan) => bakugan.id === bakuganId));
+}
+
+function legalReturnCells(state: MatchState) {
+  const fieldPlacements = state.placements.filter((placement) => !placement.attachedTo);
+  if (!fieldPlacements.length) return [CENTER_CELL];
+  const occupied = new Set(fieldPlacements.map((placement) => placement.cell));
+  return HEX_CELLS.filter((cell) => (
+    !occupied.has(cell.id)
+    && fieldPlacements.some((placement) => {
+      const neighbour = HEX_CELLS.find((candidate) => candidate.id === placement.cell);
+      return Boolean(neighbour && hexDistance(cell, neighbour) === 1);
+    })
+  )).map((cell) => cell.id);
+}
+
+/**
+ * A held Core is no longer physically occupying its old hex. If another Core
+ * returns to that hex, move the held placement to an internal identity cell so
+ * the engine can keep Core references unique without reserving an empty field
+ * position.
+ */
+function releaseHeldCellReference(state: MatchState, fieldCell: string) {
+  for (const placement of state.placements.filter((candidate) => (
+    candidate.cell === fieldCell && Boolean(candidate.attachedTo)
+  ))) {
+    const heldCell = `held:${placement.core.id}`;
+    const holder = state.players
+      .flatMap((player) => player.bakugan)
+      .find((bakugan) => bakugan.id === placement.attachedTo);
+    if (holder) {
+      let replaced = false;
+      holder.heldCoreCells = holder.heldCoreCells.map((cell) => {
+        if (cell !== fieldCell) return cell;
+        replaced = true;
+        return heldCell;
+      });
+      if (!replaced && !holder.heldCoreCells.includes(heldCell)) holder.heldCoreCells.push(heldCell);
+    }
+    placement.cell = heldCell;
+  }
 }
 
 function preferredPlayerOrder(state: MatchState) {
@@ -91,7 +135,7 @@ function placeReturnedCoreMutable(
   if (state.phase !== "retract" || state.priority !== playerId) {
     throw new Error("It is not your BakuCore return turn.");
   }
-  if (!legalPlacementCells(state).includes(cell)) {
+  if (!legalReturnCells(state).includes(cell)) {
     throw new Error("That Core position is not legal on the connected hex grid.");
   }
   const pending = state.pendingCoreReturns ?? [];
@@ -101,6 +145,7 @@ function placeReturnedCoreMutable(
     throw new Error("That BakuCore is already on the field.");
   }
 
+  releaseHeldCellReference(state, cell);
   const order = state.placements.reduce((highest, placement) => Math.max(highest, placement.order), 0) + 1;
   state.placements.push({
     playerId: item.ownerId,
@@ -129,7 +174,7 @@ function autoPlaceTrainingBotReturns(state: CoreReturnMatchState) {
     const item = (state.pendingCoreReturns ?? [])
       .filter((candidate) => candidate.placerId === "training-bot")
       .sort((a, b) => a.sequence - b.sequence)[0];
-    const cell = legalPlacementCells(state)[0];
+    const cell = legalReturnCells(state)[0];
     if (!item || !cell) break;
     placeReturnedCoreMutable(state, "training-bot", item.core.id, cell);
   }
@@ -225,7 +270,7 @@ export function pendingCoreReturnsForPlayer(match: MatchState | null, playerId?:
 }
 
 export function legalCoreReturnCells(match: MatchState | null) {
-  return match?.phase === "retract" ? legalPlacementCells(match) : [];
+  return match?.phase === "retract" ? legalReturnCells(match) : [];
 }
 
 export function placeCoreOrReturnCore(
