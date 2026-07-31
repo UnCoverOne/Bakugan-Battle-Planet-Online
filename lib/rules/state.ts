@@ -3,6 +3,42 @@ import type { RuleObject, RulesState } from "./model";
 
 export type RulesBackedMatchState = MatchState & { rules?: RulesState };
 
+const PYRUS_NOBILIOUS_ULTRA_ID = "br-227";
+const PYRUS_NOBILIOUS_ULTRA_EFFECT = "[MS] or [FF]: +200 [B].";
+
+/**
+ * A historical malformed card snapshot placed Nobilious Ultra's +200 B-Power
+ * bonus into Damage. Match snapshots preserve physical card instances, so the
+ * bad value could survive after the catalogue/parser was corrected. Repair the
+ * known instance shape and discard the impossible legacy +200 Damage modifier;
+ * the printed continuous ability then supplies the correct +200 B-Power while
+ * a Magic Shield or Flaming Fist is held.
+ */
+function repairPyrusNobiliousUltraState(state: MatchState) {
+  const affectedCharacterIds = new Set<string>();
+  for (const player of state.players ?? []) {
+    for (const bakugan of player.bakugan ?? []) {
+      if (bakugan.character?.catalogId !== PYRUS_NOBILIOUS_ULTRA_ID) continue;
+      affectedCharacterIds.add(bakugan.character.id);
+      bakugan.character.bPower = 500;
+      bakugan.character.damage = 2;
+      bakugan.character.effect = PYRUS_NOBILIOUS_ULTRA_EFFECT;
+      bakugan.bPower = 500;
+      bakugan.damage = 2;
+      if (state.damageBoost?.[bakugan.id] === 200) delete state.damageBoost[bakugan.id];
+    }
+  }
+  if (!affectedCharacterIds.size || !state.rules?.modifiers?.length) return;
+  state.rules.modifiers = state.rules.modifiers.filter((modifier) => {
+    const sourceId = "instanceId" in modifier.source ? modifier.source.instanceId : "";
+    return !(
+      affectedCharacterIds.has(sourceId)
+      && modifier.stat === "damage"
+      && modifier.amount === 200
+    );
+  });
+}
+
 export function ensureRulesState(input: MatchState): RulesState {
   const state = input as RulesBackedMatchState;
   if (!state.rules || state.rules.version !== 3) {
@@ -11,6 +47,7 @@ export function ensureRulesState(input: MatchState): RulesState {
   state.rules.modifiers = Array.isArray(state.rules.modifiers) ? state.rules.modifiers : [];
   state.rules.replacements = Array.isArray(state.rules.replacements) ? state.rules.replacements : [];
   state.rules.triggerUsage = state.rules.triggerUsage && typeof state.rules.triggerUsage === "object" ? state.rules.triggerUsage : {};
+  repairPyrusNobiliousUltraState(state);
   return state.rules;
 }
 
