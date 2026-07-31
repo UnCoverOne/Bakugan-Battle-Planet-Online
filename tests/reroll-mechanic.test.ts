@@ -468,7 +468,7 @@ test("successful Superfuel copies stack and the complete reduction is consumed b
 });
 
 test("a stacked Superfuel reduction is consumed by a played Flip card", () => {
-  let state = buildPlacedMatch();
+  const state = buildPlacedMatch();
   establishRolls(state, "open-no-core", "open-no-core");
   const printing = CARDS.find((card) => card.type === "Flip" && card.cost !== "X" && card.cost <= 6);
   assert.ok(printing);
