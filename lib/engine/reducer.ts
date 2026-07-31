@@ -6,13 +6,13 @@ import {
   discardToHandLimit,
   energizeCard,
   nextTurn,
-  placeCore,
   selectBakugan,
   setReady,
   startNextSeriesGame,
   type MatchState,
   type PlayerState,
 } from "../game";
+import { captureCoreReturns, placeCoreOrReturnCore } from "../coreReturns";
 import { addChatMessage } from "../chat";
 import { confirmRoll, selectRollTarget } from "../rolling";
 import { drawTurnCard } from "../turnStart";
@@ -73,7 +73,7 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
   switch (command.type) {
     case "SET_READY": return setReady(input, actorId);
     case "BEGIN_CORE_PLACEMENT": return beginCorePlacement(input, issuedAt);
-    case "PLACE_CORE": return placeCore(input, actorId, command.coreId, command.cell);
+    case "PLACE_CORE": return placeCoreOrReturnCore(input, actorId, command.coreId, command.cell);
     case "DRAW_TURN_CARD": return drawTurnCard(input, actorId);
     case "ENERGIZE": return energizeCard(input, actorId, command.cardId);
     case "SELECT_BAKUGAN": return selectBakugan(input, actorId, command.bakuganId);
@@ -120,7 +120,8 @@ export function reduceMatch(input: MatchState, envelope: CommandEnvelope): Reduc
   let runtimeBudget: NonNullable<ReturnType<typeof ensureEngineMetadata>["runtimeBudget"]>;
   try {
     const budgeted = withEngineRuntimeBudget(() => withDeterministicRuntime({ now: envelope.issuedAt, randomSeed: envelope.randomSeed }, () => {
-      const candidate = dispatchCommand(before, String(envelope.actorId), envelope.command, envelope.issuedAt) as EngineBackedMatchState;
+      const dispatched = dispatchCommand(before, String(envelope.actorId), envelope.command, envelope.issuedAt);
+      const candidate = captureCoreReturns(before, dispatched) as EngineBackedMatchState;
       consumePendingChoice(Number(Boolean(candidate.pendingChoice)) + candidate.triggerOrders.filter((request) => !request.orderedIds).length);
       assertStateWithinRuntimeLimits(candidate);
       return candidate;
