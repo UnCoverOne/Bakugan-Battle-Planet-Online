@@ -29,6 +29,10 @@ export type MatchStoreSnapshot = {
   match: MatchState | null;
 };
 
+export type MatchStoreBootstrap = Partial<Omit<MatchStoreSnapshot, "match">> & {
+  match?: MatchState | null;
+};
+
 const EMPTY: MatchStoreSnapshot = {
   route: "entry",
   online: false,
@@ -42,15 +46,50 @@ function parse<T>(value: string | null, fallback: T): T {
   catch { return fallback; }
 }
 
+function readStorage(storage: Storage, key: string) {
+  try { return storage.getItem(key); }
+  catch { return null; }
+}
+
+function writeStorage(storage: Storage, key: string, value: unknown) {
+  try {
+    if (value == null || value === "") storage.removeItem(key);
+    else storage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Match routes are authoritative while their client bundle is mounted. This
+ * prevents a stale, debounced route value in localStorage from making the
+ * gameplay tree render nothing after App Router navigation.
+ */
+export function gameplayRouteForPathname(pathname: string) {
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+  if (normalized === "/play/match" || normalized.startsWith("/play/match/")) return "match";
+  if (normalized === "/play/lobby" || normalized.startsWith("/play/lobby/")) return "lobby";
+  if (normalized === "/play/result" || normalized.startsWith("/play/result/")) return "result";
+  if (normalized === "/play" || normalized.startsWith("/play/")) return "play";
+  return null;
+}
+
 export function readMatchStore(): MatchStoreSnapshot {
   if (typeof window === "undefined") return EMPTY;
-  const settings = parse<MatchClientSettings>(localStorage.getItem(SETTINGS_KEY), {});
-  const storedMatch = parse<MatchState | null>(localStorage.getItem(MATCH_KEY), null);
+  const routeFromLocation = gameplayRouteForPathname(window.location.pathname);
+  const settings = parse<MatchClientSettings>(readStorage(localStorage, SETTINGS_KEY), {});
+  const storedMatch = parse<MatchState | null>(readStorage(localStorage, MATCH_KEY), null);
+  const capability = parse<string | undefined>(
+    readStorage(sessionStorage, CAPABILITY_KEY)
+      ?? readStorage(localStorage, CAPABILITY_KEY),
+    undefined,
+  );
   return {
-    route: parse(localStorage.getItem(ROUTE_KEY), "entry"),
-    online: parse(localStorage.getItem(ONLINE_KEY), false),
-    playerId: parse<string | undefined>(localStorage.getItem(PLAYER_KEY), undefined),
-    capability: parse<string | undefined>(localStorage.getItem(CAPABILITY_KEY), undefined),
+    route: routeFromLocation ?? parse(readStorage(localStorage, ROUTE_KEY), "entry"),
+    online: parse(readStorage(localStorage, ONLINE_KEY), false),
+    playerId: parse<string | undefined>(readStorage(localStorage, PLAYER_KEY), undefined),
+    capability,
     settings,
     match: storedMatch ? normalizeMatchState(storedMatch) : null,
   };
@@ -60,19 +99,26 @@ let snapshot = EMPTY;
 let initialized = false;
 const listeners = new Set<() => void>();
 
+function snapshotsMatch(left: MatchStoreSnapshot, right: MatchStoreSnapshot) {
+  return left.route === right.route
+    && left.online === right.online
+    && left.playerId === right.playerId
+    && left.capability === right.capability
+    && left.match?.id === right.match?.id
+    && left.match?.version === right.match?.version
+    && JSON.stringify(left.settings) === JSON.stringify(right.settings);
+}
+
+function notify() {
+  for (const listener of listeners) listener();
+}
+
 function refresh() {
   if (typeof window === "undefined") return;
   const next = readMatchStore();
-  const unchanged = snapshot.route === next.route
-    && snapshot.online === next.online
-    && snapshot.playerId === next.playerId
-    && snapshot.capability === next.capability
-    && snapshot.match?.id === next.match?.id
-    && snapshot.match?.version === next.match?.version
-    && JSON.stringify(snapshot.settings) === JSON.stringify(next.settings);
-  if (unchanged) return;
+  if (snapshotsMatch(snapshot, next)) return;
   snapshot = next;
-  for (const listener of listeners) listener();
+  notify();
 }
 
 function initialize() {
@@ -97,6 +143,58 @@ function getSnapshot() {
 export function useMatchSelector<T>(selector: (state: MatchStoreSnapshot) => T) {
   const state = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY);
   return selector(state);
+}
+
+/**
+ * Atomically hands the AppProvider's in-memory match state to the route-local
+ * gameplay store before GameplayRuntime mounts. The provider intentionally
+ * debounces durable browser writes, so relying on localStorage alone creates a
+ * race where /play/match sees route="play" and match=null and renders a blank
+ * immersive shell.
+ */
+export function primeMatchStore(next: MatchStoreBootstrap) {
+  if (typeof window === "undefined") return EMPTY;
+  initialize();
+
+  let primedMatch = snapshot.match;
+  let acceptedMatch = false;
+  if (next.match !== undefined) {
+    const candidate = next.match ? normalizeMatchState(next.match) : null;
+    acceptedMatch = candidate == null
+      || snapshot.match == null
+      || snapshot.match.id !== candidate.id
+      || candidate.version >= snapshot.match.version;
+    if (acceptedMatch) primedMatch = candidate;
+  }
+
+  const primed: MatchStoreSnapshot = {
+    route: next.route
+      ?? gameplayRouteForPathname(window.location.pathname)
+      ?? snapshot.route,
+    online: next.online ?? snapshot.online,
+    playerId: next.playerId ?? snapshot.playerId,
+    capability: next.capability ?? snapshot.capability,
+    settings: next.settings
+      ? { ...snapshot.settings, ...next.settings }
+      : snapshot.settings,
+    match: primedMatch,
+  };
+
+  if (next.route !== undefined) writeStorage(localStorage, ROUTE_KEY, primed.route);
+  if (next.online !== undefined) writeStorage(localStorage, ONLINE_KEY, primed.online);
+  if (next.playerId !== undefined) writeStorage(localStorage, PLAYER_KEY, primed.playerId);
+  if (next.capability !== undefined) {
+    writeStorage(sessionStorage, CAPABILITY_KEY, primed.capability);
+    try { localStorage.removeItem(CAPABILITY_KEY); } catch {}
+  }
+  if (next.settings !== undefined) writeStorage(localStorage, SETTINGS_KEY, primed.settings);
+  if (next.match !== undefined && acceptedMatch) writeStorage(localStorage, MATCH_KEY, primed.match);
+
+  if (!snapshotsMatch(snapshot, primed)) {
+    snapshot = primed;
+    notify();
+  }
+  return snapshot;
 }
 
 export function publishMatch(next: MatchState, rememberPrevious = true) {
@@ -193,4 +291,3 @@ export function useMatchTransport() {
     return () => stopTransport();
   }, [identity]);
 }
-
