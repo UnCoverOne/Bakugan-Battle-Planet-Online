@@ -253,13 +253,15 @@ test("registration creates its initial account snapshot atomically", () => {
 });
 
 
-test("signed-in bootstrap keeps the cloud loader stable while auth state changes", () => {
+test("signed-in bootstrap survives auth-triggered dependency rerenders", () => {
   const provider = source("components/application/AppProvider.jsx");
   assert.match(provider, /const loadCloud = useCallback\(async \(strategy = "cloud", user\) =>/);
   assert.match(provider, /activeAccountId\.current = user\.id/);
   assert.doesNotMatch(provider, /user = authUser/);
   assert.match(provider, /AbortSignal\.timeout\(12_000\)/);
-  assert.match(provider, /finally \{ if \(!cancelled\) setAuthChecking\(false\); \}/);
+  assert.match(provider, /mounted\.current = true/);
+  assert.match(provider, /finally \{ if \(mounted\.current\) setAuthChecking\(false\); \}/);
+  assert.doesNotMatch(provider, /return \(\) => \{ cancelled = true; \}/);
 });
 
 test("account sync uses a durable serialized outbox with lifecycle retries", () => {
