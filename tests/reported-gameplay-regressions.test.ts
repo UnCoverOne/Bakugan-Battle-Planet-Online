@@ -4,6 +4,7 @@ import { CARDS } from "../lib/data";
 import {
   CENTER_CELL,
   createMatch,
+  nextTurn,
   type Bakugan,
   type Core,
   type Faction,
@@ -233,4 +234,24 @@ test("Bakugan Resurgence Strata does not inherit Battle Brawlers Strata's draw e
   match.players[0].heroes = [resurgenceStrata, battleBrawlersStrata];
   assert.equal(additionalTurnDrawCount(match), 1);
   assert.equal(turnDrawCount(match), 2);
+
+  const resurgenceTurn = matchWith(
+    player("resurgence", [bakugan("resurgence-b", "Aquos")]),
+    player("opponent", [bakugan("opponent-b", "Pyrus")]),
+    "endPlay",
+  );
+  resurgenceTurn.players[0].heroes = [resurgenceStrata];
+  const nextResurgenceTurn = nextTurn(resurgenceTurn);
+  assert.equal(nextResurgenceTurn.drawRemainingByPlayer?.resurgence, 1);
+  assert.equal(nextResurgenceTurn.drawRemainingByPlayer?.opponent, 1);
+
+  const battleBrawlersTurn = matchWith(
+    player("battle-brawlers", [bakugan("battle-brawlers-b", "Aquos")]),
+    player("other", [bakugan("other-b", "Pyrus")]),
+    "endPlay",
+  );
+  battleBrawlersTurn.players[0].heroes = [battleBrawlersStrata];
+  const nextBattleBrawlersTurn = nextTurn(battleBrawlersTurn);
+  assert.equal(nextBattleBrawlersTurn.drawRemainingByPlayer?.["battle-brawlers"], 2);
+  assert.equal(nextBattleBrawlersTurn.drawRemainingByPlayer?.other, 2);
 });
