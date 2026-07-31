@@ -6,11 +6,14 @@ import {
   legalPlacementCells,
   orderTriggers,
   passPriority,
-  placeCore,
   selectBakugan,
   submitCardChoice,
   type MatchState,
 } from "./game";
+import {
+  pendingCoreReturnsForPlayer,
+  placeCoreOrReturnCore,
+} from "./coreReturns";
 import { flipDamageCard, resolveManualDamage } from "./manualDamage";
 import { confirmRoll, playerCanConfirmRoll, playerCanSelectRollTarget, selectRollTarget } from "./rolling";
 import { drawTurnCard, playerCanDrawTurnCard } from "./turnStart";
@@ -26,7 +29,7 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
   if (!actor) return input;
   if (!actor.connected && applyConnectionGrace(state, actorId, now)) return state;
   const decisionTimeouts = recordDecisionTimeout(state, actorId);
-  if (decisionTimeouts >= 3 && ["preRoll", "power", "victor", "damage", "postDamage", "endPlay", "handLimit"].includes(state.phase)) return concedeMatch(state, actorId);
+  if (decisionTimeouts >= 3 && ["preRoll", "power", "victor", "damage", "postDamage", "retract", "endPlay", "handLimit"].includes(state.phase)) return concedeMatch(state, actorId);
   if (state.pendingChoice) {
     const fields = state.pendingChoice.schema.fields.filter((candidate) => candidate.chooserId === actorId);
     if (!fields.length) return input;
@@ -34,11 +37,16 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
   }
   const triggerOrder = state.triggerOrders.find((request) => request.controllerId === actorId && !request.orderedIds);
   if (triggerOrder) return orderTriggers(state, actorId, triggerOrder.id, triggerOrder.triggerIds);
+  if (state.phase === "retract") {
+    const core = pendingCoreReturnsForPlayer(state, actorId)[0]?.core;
+    const cell = legalPlacementCells(state)[0];
+    return core && cell ? placeCoreOrReturnCore(state, actorId, core.id, cell) : input;
+  }
   if (state.phase === "placement") {
     const used = new Set(state.placements.filter((placement) => placement.playerId === actorId).map((placement) => placement.core.id));
     const core = actor.cores.find((candidate) => !used.has(candidate.id));
     const cell = legalPlacementCells(state)[0];
-    return core && cell ? placeCore(state, actorId, core.id, cell) : input;
+    return core && cell ? placeCoreOrReturnCore(state, actorId, core.id, cell) : input;
   }
   if (state.phase === "draw" && playerCanDrawTurnCard(state, actorId, now)) return drawTurnCard(state, actorId, now);
   if (state.phase === "energize" && !actor.energizedThisTurn) return energizeCard(state, actorId);
@@ -73,4 +81,3 @@ export function nextMatchAlarmAt(match: MatchState, now = Date.now()) {
     : match.deadline;
   return Math.max(now + 1_000, Number.isFinite(deadline) ? deadline : now + 30_000);
 }
-
