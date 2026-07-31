@@ -6,7 +6,7 @@ The app now saves all durable client state in browser storage, including the cur
 
 ## Logged-out users
 
-The entry screen offers **Local Profile** mode. No account is required, and data remains on that browser until the user explicitly deletes local browser data. Signing out of a cloud account keeps the current local copy.
+No account is required, and guest data remains in browser storage until the user explicitly deletes it. While an account is active, that guest snapshot is left unchanged and is restored on logout.
 
 ## Accounts and sync
 
@@ -17,8 +17,11 @@ New `/api/auth` and `/api/user-data` routes provide:
 - Profile updates
 - Password changes with all other sessions revoked
 - Account deletion
-- Automatic cross-device synchronization
-- Optimistic concurrency with deck/history merging on conflicts
+- A single atomic guest-data import choice during registration
+- Existing-account login that loads account data only
+- Guest browser storage isolated from all signed-in writes
+- Automatic cross-device synchronization with logout flushing
+- Optimistic concurrency with account-revision conflict handling
 
 ## Security
 
