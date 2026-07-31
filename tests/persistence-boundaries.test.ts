@@ -245,3 +245,13 @@ test("registration creates its initial account snapshot atomically", () => {
   assert.match(authRoute, /revision: 1/);
   assert.match(userDataRoute, /validateUserSnapshot\(body\.data\)/);
 });
+
+
+test("signed-in bootstrap keeps the cloud loader stable while auth state changes", () => {
+  const provider = source("components/application/AppProvider.jsx");
+  assert.match(provider, /const loadCloud = useCallback\(async \(strategy = "cloud", user\) =>/);
+  assert.match(provider, /\}, \[applySnapshot, putCloud\]\);/);
+  assert.doesNotMatch(provider, /user = authUser/);
+  assert.doesNotMatch(provider, /\[applySnapshot, authUser, putCloud\]/);
+  assert.match(provider, /finally \{ if \(!cancelled\) setAuthChecking\(false\); \}/);
+});
