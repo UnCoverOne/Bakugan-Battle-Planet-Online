@@ -149,7 +149,8 @@ test("offline account edits survive a browser close in a user-namespaced outbox"
   writeAccountCache(storage, {
     userId: "user-a",
     snapshot: local,
-    acknowledgedSnapshot: snapshot(),
+    pendingEntityKeys: ["settings:main"],
+    acknowledgedHistoryIds: [],
     revisions: {},
     version: 3,
     acknowledgedVersion: 2,
@@ -158,7 +159,7 @@ test("offline account edits survive a browser close in a user-namespaced outbox"
   const reopened = readAccountCache(storage, "user-a", snapshot());
   assert.equal(isAccountCacheDirty(reopened), true);
   assert.equal(reopened?.snapshot.settings.highContrast, true);
-  assert.equal(reopened?.acknowledgedSnapshot?.settings.highContrast, false);
+  assert.deepEqual(reopened?.pendingEntityKeys, ["settings:main"]);
   assert.equal(readAccountCache(storage, "user-b", snapshot()), null);
 });
 

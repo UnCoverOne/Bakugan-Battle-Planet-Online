@@ -16,7 +16,8 @@ export type AccountCache = {
   schemaVersion: 2;
   userId: string;
   snapshot: UserSnapshot;
-  acknowledgedSnapshot?: UserSnapshot | null;
+  pendingEntityKeys?: string[];
+  acknowledgedHistoryIds?: string[];
   revisions: EntityRevisionMap;
   version: number;
   acknowledgedVersion: number;
@@ -58,9 +59,12 @@ export function readAccountCache(
       schemaVersion: 2,
       userId,
       snapshot: normalizeSnapshot(parsed.snapshot, fallback),
-      acknowledgedSnapshot: parsed.acknowledgedSnapshot
-        ? normalizeSnapshot(parsed.acknowledgedSnapshot, fallback)
-        : null,
+      pendingEntityKeys: Array.isArray(parsed.pendingEntityKeys)
+        ? parsed.pendingEntityKeys.filter((key): key is string => typeof key === "string")
+        : undefined,
+      acknowledgedHistoryIds: Array.isArray(parsed.acknowledgedHistoryIds)
+        ? parsed.acknowledgedHistoryIds.filter((id): id is string => typeof id === "string")
+        : undefined,
       revisions:
         parsed.revisions && typeof parsed.revisions === "object"
           ? parsed.revisions
@@ -183,12 +187,16 @@ export function buildChangedAccountSyncRequests(
   acknowledgedSnapshot: UserSnapshot | null,
   revisions: EntityRevisionMap,
   maximumBytes = 750_000,
+  pendingEntityKeys?: string[] | null,
+  acknowledgedHistoryIds?: string[] | null,
 ) {
   const changedKeys = new Set(
-    changedAccountEntityKeys(snapshot, acknowledgedSnapshot),
+    pendingEntityKeys
+      ?? changedAccountEntityKeys(snapshot, acknowledgedSnapshot),
   );
   const acknowledgedHistory = new Set(
-    (acknowledgedSnapshot?.history ?? []).map((record) => record.id),
+    acknowledgedHistoryIds
+      ?? (acknowledgedSnapshot?.history ?? []).map((record) => record.id),
   );
   const full = snapshotToSyncRequest(snapshot, revisions);
   const pending: UserDataSyncRequest = {

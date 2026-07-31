@@ -245,6 +245,8 @@ export function AppProvider({ children }) {
   const localVersion = useRef(0);
   const acknowledgedVersion = useRef(0);
   const acknowledgedSnapshot = useRef(null);
+  const pendingEntityKeys = useRef(null);
+  const acknowledgedHistoryIds = useRef(null);
   const activeAccountId = useRef("");
   const durableFingerprint = useRef(null);
   const promptedAccountMoments = useRef(new Set());
@@ -382,7 +384,13 @@ export function AppProvider({ children }) {
       writeAccountCache(localStorage, {
         userId,
         snapshot: toCloudSnapshot(data),
-        acknowledgedSnapshot: acknowledgedSnapshot.current,
+        pendingEntityKeys: changedAccountEntityKeys(
+          data,
+          acknowledgedSnapshot.current,
+        ),
+        acknowledgedHistoryIds: (acknowledgedSnapshot.current?.history ?? []).map(
+          (record) => record.id,
+        ),
         revisions: accountRevisions.current,
         version: localVersion.current,
         acknowledgedVersion: acknowledgedVersion.current,
@@ -419,7 +427,14 @@ export function AppProvider({ children }) {
 
   const putCloud = useCallback(async (data, baseline) => {
     let latest = { revisions: accountRevisions.current, data: null, errors: [] };
-    for (const batch of buildChangedAccountSyncRequests(data, baseline, accountRevisions.current)) {
+    for (const batch of buildChangedAccountSyncRequests(
+      data,
+      baseline,
+      accountRevisions.current,
+      750_000,
+      pendingEntityKeys.current,
+      acknowledgedHistoryIds.current,
+    )) {
       const response = await fetch("/api/user-data", {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -501,8 +516,13 @@ export function AppProvider({ children }) {
       ? cached.snapshot
       : remote ?? cached?.snapshot ?? emptyAccount;
     acknowledgedSnapshot.current = remote
-      ?? cached?.acknowledgedSnapshot
       ?? (!cachedDirty ? cached?.snapshot ?? null : null);
+    pendingEntityKeys.current = cachedDirty
+      ? cached?.pendingEntityKeys ?? null
+      : null;
+    acknowledgedHistoryIds.current = cachedDirty
+      ? cached?.acknowledgedHistoryIds ?? null
+      : null;
     const restored = strategy === "merge" && remote
       ? selectSnapshot(device, mergeSnapshots(durableAccount, remote), "cloud")
       : selectSnapshot(device, durableAccount, "cloud");
@@ -560,9 +580,12 @@ export function AppProvider({ children }) {
           const latestLocal = snapshotRef.current ?? current;
           const localWins = [
             ...(Array.isArray(saved.conflicts) ? saved.conflicts : []),
+            ...(pendingEntityKeys.current ?? []),
             ...changedAccountEntityKeys(latestLocal, current),
           ];
           acknowledgedSnapshot.current = remote;
+          pendingEntityKeys.current = null;
+          acknowledgedHistoryIds.current = null;
           const reconciled = resolveEntityConflicts(
             latestLocal,
             remote,
@@ -588,6 +611,8 @@ export function AppProvider({ children }) {
           const latestLocal = snapshotRef.current ?? current;
           const localWins = changedAccountEntityKeys(latestLocal, current);
           acknowledgedSnapshot.current = remote;
+          pendingEntityKeys.current = null;
+          acknowledgedHistoryIds.current = null;
           const reconciled = resolveEntityConflicts(
             latestLocal,
             remote,
