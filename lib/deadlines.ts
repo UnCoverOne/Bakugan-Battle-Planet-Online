@@ -11,6 +11,7 @@ import {
   type MatchState,
 } from "./game";
 import {
+  legalCoreReturnCells,
   pendingCoreReturnsForPlayer,
   placeCoreOrReturnCore,
 } from "./coreReturns";
@@ -39,7 +40,7 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
   if (triggerOrder) return orderTriggers(state, actorId, triggerOrder.id, triggerOrder.triggerIds);
   if (state.phase === "retract") {
     const core = pendingCoreReturnsForPlayer(state, actorId)[0]?.core;
-    const cell = legalPlacementCells(state)[0];
+    const cell = legalCoreReturnCells(state)[0];
     return core && cell ? placeCoreOrReturnCore(state, actorId, core.id, cell) : input;
   }
   if (state.phase === "placement") {
