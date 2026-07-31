@@ -3,6 +3,8 @@ import { assertSameOrigin, enforceD1RateLimit, RateLimitError, requestClientKey 
 import { MAX_SYNC_BYTES, validateUserSnapshot } from "../../../lib/user-data-server";
 
 export const dynamic = "force-dynamic";
+const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { "cache-control": "no-store" } });
+
 export async function GET(request: Request) {
   try {
     const user = await getSessionUser(request);

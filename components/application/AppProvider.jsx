@@ -12,6 +12,7 @@ import {
   toCloudSnapshot,
 } from "../../lib/persistence";
 import { summarizeGuestData } from "../../lib/guest-data";
+import { readJsonResponse } from "../../lib/json-response";
 
 const STORAGE_EVENT = "bbp-storage-status";
 const AUTO_SYNC_DELAY_MS = 500;
@@ -357,7 +358,7 @@ export function AppProvider({ children }) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ expectedRevision: revision, data: toCloudSnapshot(data) }),
     });
-    const result = await response.json();
+    const result = await readJsonResponse(response, "Cloud save returned an invalid response.");
     if (response.status === 409 && result.data) {
       const remote = normalizeSnapshot(result.data, data);
       const pending = { local: data, cloud: remote, revision: result.revision ?? revision };
@@ -378,7 +379,7 @@ export function AppProvider({ children }) {
     setAccountDataReady(false);
     setSyncStatus("loading");
     const response = await fetch("/api/user-data", { cache: "no-store" });
-    const result = await response.json();
+    const result = await readJsonResponse(response, "Cloud data returned an invalid response.");
     if (!response.ok) throw new Error(result.error ?? "Could not load cloud data.");
     cloudRevision.current = result.revision ?? 0;
     const device = snapshotRef.current;
@@ -439,7 +440,7 @@ export function AppProvider({ children }) {
     (async () => {
       try {
         const response = await fetch("/api/auth", { cache: "no-store" });
-        const result = await response.json();
+        const result = await readJsonResponse(response, "Account session returned an invalid response.");
         if (!cancelled && response.ok && result.user) {
           guestSnapshot.current = snapshotRef.current
             ? { ...snapshotRef.current, profile: { ...snapshotRef.current.profile, signedIn: false } }
@@ -504,7 +505,7 @@ export function AppProvider({ children }) {
           ...(registrationData ? { initialData: registrationData } : {}),
         }),
       });
-      const result = await response.json();
+      const result = await readJsonResponse(response, "Account request returned an invalid response.");
       if (!response.ok || !result.user) throw new Error(result.error ?? "Account request failed.");
       sessionEstablished = true;
       guestSnapshot.current = snapshotRef.current
