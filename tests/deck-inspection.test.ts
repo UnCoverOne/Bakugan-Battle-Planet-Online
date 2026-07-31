@@ -169,12 +169,11 @@ test("Dan Kouzo reveals the top card publicly while retaining the optional play 
   assert.equal(publicField?.options[0].card?.displayName, state.players[0].deckCards[0].displayName);
 });
 
-test("the gameplay shell mounts distinct draggable look and reveal presentations", async () => {
-  const [layer, styles, layout, host, genericChoices] = await Promise.all([
+test("the gameplay runtime mounts distinct draggable look and reveal presentations", async () => {
+  const [layer, styles, runtime, genericChoices] = await Promise.all([
     readFile(new URL("../components/game-screen-v2/DeckInspectionLayer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../components/game-screen-v2/DeckInspectionLayer.module.css", import.meta.url), "utf8"),
-    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../components/game-screen-v2/DeckInspectionHost.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/game-screen-v2/GameplayRuntime.tsx", import.meta.url), "utf8"),
     readFile(new URL("../components/game-screen-v2/ChoiceQueueLayer.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(layer, /data-deck-inspection-mode/);
@@ -186,8 +185,7 @@ test("the gameplay shell mounts distinct draggable look and reveal presentations
   assert.match(layer, /PRIVATE DECK VIEW/);
   assert.match(styles, /\.revealPanel/);
   assert.match(styles, /\.moveControls/);
-  assert.match(layout, /<DeckInspectionHost \/>/);
-  assert.match(host, /dynamic\(/);
-  assert.match(host, /pathname === "\/play\/match"/);
+  assert.match(runtime, /<DeckInspectionLayer \/>/);
+  assert.ok(runtime.indexOf("<DeckInspectionLayer />") < runtime.indexOf("<ChoiceQueueLayer />"));
   assert.match(genericChoices, /deckInspectionActive/);
 });
