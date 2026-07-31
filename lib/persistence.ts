@@ -77,6 +77,28 @@ export type UserSnapshot = {
 };
 
 export type SnapshotPreference = "merge" | "local" | "cloud";
+export type AccountIdentity = { displayName: string; faction: string };
+
+export const DEFAULT_BRAWLER_PROFILE: BrawlerProfile = {
+  name: "DanBrawler",
+  faction: "Pyrus",
+  signedIn: false,
+  avatar: "",
+  titleId: "battle-planet-brawler",
+  coverId: "battle-planet",
+  showcaseAchievementIds: [],
+  showcaseDeckIds: [],
+};
+
+export const DEFAULT_APP_SETTINGS: AppSettings = {
+  reducedMotion: false,
+  highContrast: false,
+  sound: true,
+  cardScale: 100,
+  logDetail: "All events",
+  challenges: "Everyone",
+  replayLinks: true,
+};
 
 const validRoutes = new Set<AppRoute>(["entry", "dashboard", "decks", "deck-detail", "builder", "compendium", "play", "lobby", "placement", "match", "result", "history", "profile", "settings"]);
 const validFactions = new Set(["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"]);
@@ -241,6 +263,49 @@ export function toCloudSnapshot(snapshot: UserSnapshot): UserSnapshot {
     replayIndex: 0,
     playerId: "",
   };
+}
+
+export function createEmptyAccountSnapshot(
+  device: UserSnapshot,
+  identity: AccountIdentity,
+  updatedAt = Date.now(),
+): UserSnapshot {
+  return {
+    ...toCloudSnapshot(device),
+    updatedAt,
+    profile: {
+      ...DEFAULT_BRAWLER_PROFILE,
+      name: identity.displayName.trim().slice(0, 20) || DEFAULT_BRAWLER_PROFILE.name,
+      faction: validFactions.has(identity.faction) ? identity.faction : DEFAULT_BRAWLER_PROFILE.faction,
+    },
+    decks: [],
+    deletedDecks: [],
+    history: [],
+    settings: { ...DEFAULT_APP_SETTINGS },
+    selectedDeckId: "",
+    builderDeck: null,
+    format: "bo1",
+    matchMode: "solo",
+  };
+}
+
+export function createRegistrationSnapshot(
+  local: UserSnapshot,
+  identity: AccountIdentity,
+  importLocalData: boolean,
+  updatedAt = Date.now(),
+): UserSnapshot {
+  if (!importLocalData) return createEmptyAccountSnapshot(local, identity, updatedAt);
+  return toCloudSnapshot({
+    ...local,
+    updatedAt,
+    profile: {
+      ...local.profile,
+      name: identity.displayName.trim().slice(0, 20) || DEFAULT_BRAWLER_PROFILE.name,
+      faction: validFactions.has(identity.faction) ? identity.faction : DEFAULT_BRAWLER_PROFILE.faction,
+      signedIn: false,
+    },
+  });
 }
 
 export function selectSnapshot(local: UserSnapshot, cloud: UserSnapshot, preference: SnapshotPreference = "merge"): UserSnapshot {
