@@ -104,28 +104,55 @@ export async function resetCardOverride(db: Database, catalogId: string) {
 
 export async function listManagedPublicDecks(db: Database): Promise<ManagedDeck[]> {
   await ensureAdministrationSchema(db);
-  const userRows = await db.prepare(
-    "SELECT users.id, users.display_name, user_data.data_json FROM user_data JOIN users ON users.id = user_data.user_id LEFT JOIN account_bans ON account_bans.user_id = users.id WHERE account_bans.user_id IS NULL",
-  ).all() as {
-    results?: Array<{ id: string; display_name: string; data_json: string }>;
+  type UserDeckRow = {
+    id: string;
+    display_name: string;
+    data_json: string;
   };
+
+  let entityRows: UserDeckRow[] = [];
+  let entitySchemaAvailable = true;
+  try {
+    const result = await db.prepare(
+      "SELECT users.id, users.display_name, user_data_entities.data_json FROM user_data_entities JOIN users ON users.id = user_data_entities.user_id LEFT JOIN account_bans ON account_bans.user_id = users.id WHERE user_data_entities.entity_type = 'deck' AND user_data_entities.deleted_at IS NULL AND user_data_entities.data_json IS NOT NULL AND account_bans.user_id IS NULL",
+    ).all() as { results?: UserDeckRow[] };
+    entityRows = result.results ?? [];
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !/no such table:\\s*user_data_entities/i.test(error.message)
+    ) {
+      throw error;
+    }
+    entitySchemaAvailable = false;
+  }
+
+  const legacyResult = await db.prepare(
+    `SELECT users.id, users.display_name, user_data.data_json FROM user_data JOIN users ON users.id = user_data.user_id LEFT JOIN account_bans ON account_bans.user_id = users.id WHERE account_bans.user_id IS NULL${entitySchemaAvailable ? " AND NOT EXISTS (SELECT 1 FROM user_data_entities WHERE user_data_entities.user_id = users.id)" : ""}`,
+  ).all() as { results?: UserDeckRow[] };
+
   const managed: ManagedDeck[] = PUBLIC_DECKS.map((deck) => ({
     deck: cloneDeck(deck),
     source: { kind: "builtin" as const },
   }));
-  for (const row of userRows.results ?? []) {
+  const addUserDeck = (row: UserDeckRow, deck: DeckRecord) => {
+    if (deck.visibility !== "Public") return;
+    managed.push({
+      deck: {
+        ...cloneDeck(deck),
+        creator: deck.creator ?? row.display_name,
+        publishedAt: deck.publishedAt ?? deck.updatedAt,
+      },
+      source: { kind: "user", userId: row.id },
+    });
+  };
+  for (const row of entityRows) {
+    const deck = parseJson<DeckRecord | null>(row.data_json, null);
+    if (deck) addUserDeck(row, deck);
+  }
+  for (const row of legacyResult.results ?? []) {
     const snapshot = parseJson<{ decks?: DeckRecord[] }>(row.data_json, {});
-    for (const deck of snapshot.decks ?? []) {
-      if (deck.visibility !== "Public") continue;
-      managed.push({
-        deck: {
-          ...cloneDeck(deck),
-          creator: deck.creator ?? row.display_name,
-          publishedAt: deck.publishedAt ?? deck.updatedAt,
-        },
-        source: { kind: "user", userId: row.id },
-      });
-    }
+    for (const deck of snapshot.decks ?? []) addUserDeck(row, deck);
   }
   const overrides = await resourceRows(db, "public-deck");
   for (const row of overrides) {
@@ -156,6 +183,33 @@ async function writeUserDeck(
   deckId: string,
   replacement: DeckRecord | null,
 ) {
+  let entity: { revision: number; data_json: string | null; deleted_at: string | null } | null = null;
+  try {
+    entity = await db.prepare(
+      "SELECT revision, data_json, deleted_at FROM user_data_entities WHERE user_id = ? AND entity_type = 'deck' AND entity_id = ?",
+    ).bind(userId, deckId).first() as typeof entity;
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !/no such table:\\s*user_data_entities/i.test(error.message)
+    ) {
+      throw error;
+    }
+  }
+
+  if (entity?.data_json && !entity.deleted_at) {
+    const now = Date.now();
+    const result = replacement
+      ? await db.prepare(
+        "UPDATE user_data_entities SET revision = revision + 1, data_json = ?, deleted_at = NULL, updated_at = ? WHERE user_id = ? AND entity_type = 'deck' AND entity_id = ? AND revision = ?",
+      ).bind(JSON.stringify(replacement), now, userId, deckId, entity.revision).run()
+      : await db.prepare(
+        "UPDATE user_data_entities SET revision = revision + 1, data_json = NULL, deleted_at = ?, updated_at = ? WHERE user_id = ? AND entity_type = 'deck' AND entity_id = ? AND revision = ?",
+      ).bind(new Date(now).toISOString(), now, userId, deckId, entity.revision).run();
+    if (!result.meta?.changes) throw new Error("The public deck changed. Reload and try again.");
+    return;
+  }
+
   const row = await db.prepare("SELECT revision, data_json FROM user_data WHERE user_id = ?")
     .bind(userId).first() as { revision: number; data_json: string } | null;
   if (!row) throw new Error("The deck owner's account data no longer exists.");
