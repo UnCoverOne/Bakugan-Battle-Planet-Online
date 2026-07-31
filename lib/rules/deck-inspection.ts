@@ -27,6 +27,10 @@ type DeckWindow = {
   count: number;
 };
 
+type DeckSearch = {
+  cardType?: GameCard["type"];
+};
+
 type InstructionEntry = {
   abilityIndex: number;
   instructionIndex: number;
@@ -51,6 +55,16 @@ function deckWindowFor(text: string): DeckWindow | null {
   return {
     mode: /^reveal$/i.test(match[1]) ? "reveal" : "look",
     count: numberValue(match[2], 1),
+  };
+}
+
+function deckSearchFor(text: string): DeckSearch | null {
+  const match = normalizeText(text).match(
+    /\bsearch your deck(?:\s+for\s+(?:a|an|one)\s+(?:(Action|Hero|Evo|Flip|Character)\s+)?card)?\b/i,
+  );
+  if (!match) return null;
+  return {
+    cardType: match[1] as GameCard["type"] | undefined,
   };
 }
 
@@ -143,6 +157,88 @@ function selectionChoice(window: DeckWindow): ChoiceSpec {
   };
 }
 
+function fullDeckViewChoice(): ChoiceSpec {
+  return {
+    id: "orderedCardIds",
+    timing: "resolve",
+    selector: "deck-card",
+    label: "Search all cards in your deck (top 0 cards)",
+    chooser: "controller",
+    visibility: "private",
+    minimum: 0,
+    maximum: 0,
+  };
+}
+
+function articleFor(cardType: GameCard["type"]) {
+  return /^[AEIOU]/i.test(cardType) ? "an" : "a";
+}
+
+function fullDeckSelectionChoice(search: DeckSearch): ChoiceSpec {
+  const target = search.cardType
+    ? `${articleFor(search.cardType)} ${search.cardType} card`
+    : "a card";
+  return {
+    id: "deckCardId",
+    timing: "resolve",
+    selector: "deck-card",
+    label: `Choose ${target} from your deck`,
+    chooser: "controller",
+    visibility: "private",
+    minimum: 1,
+    maximum: 1,
+    cardType: search.cardType,
+  };
+}
+
+function normalizeSearchAction(action: RuleAction, search: DeckSearch): RuleAction {
+  if (action.kind === "search") {
+    return {
+      ...action,
+      amount: Math.max(1, action.amount),
+      cardType: search.cardType ?? action.cardType,
+    };
+  }
+  if (action.kind === "conditional") {
+    return {
+      ...action,
+      whenTrue: action.whenTrue.map((nested) => normalizeSearchAction(nested, search)),
+      whenFalse: action.whenFalse?.map((nested) => normalizeSearchAction(nested, search)),
+    };
+  }
+  if (action.kind === "replacement") {
+    return {
+      ...action,
+      replaceWith: action.replaceWith.map((nested) => normalizeSearchAction(nested, search)),
+    };
+  }
+  if (action.kind === "sequence") {
+    return {
+      ...action,
+      effects: action.effects.map((nested) => normalizeSearchAction(nested, search)),
+    };
+  }
+  return action;
+}
+
+function enhanceSearchInstruction(instruction: RuleInstruction): RuleInstruction {
+  const search = deckSearchFor(instruction.sourceText);
+  if (!search) return instruction;
+  const effects = instruction.effects.map((action) => normalizeSearchAction(action, search));
+  return {
+    ...instruction,
+    effects,
+    actions: effects,
+    choices: [
+      fullDeckViewChoice(),
+      fullDeckSelectionChoice(search),
+      ...instruction.choices.filter((choice) => (
+        choice.id !== "orderedCardIds" && choice.id !== "deckCardId"
+      )),
+    ],
+  };
+}
+
 function choicesForGroup(
   group: readonly InstructionEntry[],
   window: DeckWindow,
@@ -189,6 +285,10 @@ function mergedInstruction(group: readonly InstructionEntry[], window: DeckWindo
  * Reconnect sentence-split top-deck instructions into one resolving object.
  * This preserves trigger ownership while giving the UI one authoritative card
  * window for private looks, public reveals, selection, and permitted ordering.
+ *
+ * Full-deck searches use the same pending-choice channel, but add a zero-answer
+ * viewer field containing every card currently in the deck plus a separately
+ * validated selection field containing only legal search targets.
  */
 export function enhanceDeckInspectionAbilities(
   card: GameCard,
@@ -226,7 +326,7 @@ export function enhanceDeckInspectionAbilities(
     ...ability,
     instructions: ability.instructions.flatMap((instruction) => {
       if (consumed.has(instruction)) return [];
-      return [replacements.get(instruction) ?? instruction];
+      return [enhanceSearchInstruction(replacements.get(instruction) ?? instruction)];
     }),
   })).filter((ability) => ability.instructions.length > 0);
 }
@@ -236,7 +336,7 @@ export function enhanceDeckInspectionPlayDefinition(
   card: GameCard,
   play: CardPlayDefinition,
 ): CardPlayDefinition {
-  if (!deckWindowFor(card.effect)) return play;
+  if (!deckWindowFor(card.effect) && !deckSearchFor(card.effect)) return play;
   return {
     ...play,
     choices: play.choices.filter((choice) => (
