@@ -24,6 +24,12 @@ function assign(answers: CardChoices, field: ChoiceField, values: string[]) {
   return next;
 }
 
+function isTopDeckField(field: ChoiceField) {
+  return field.kind === "deck-order"
+    && /\btop\s+\d+\s+cards?\b/i.test(field.label)
+    && field.options.some((option) => Boolean(option.card));
+}
+
 async function command(
   action: string,
   payload: Record<string, unknown>,
@@ -53,7 +59,10 @@ export function ChoiceQueueLayer() {
   const match = state.match;
   const playerId = state.playerId ?? match?.players[0]?.id;
   const pending = match?.pendingChoice;
-  const fields = useMemo(() => pending?.schema.fields.filter((field) => field.chooserId === playerId) ?? [], [pending, playerId]);
+  const deckInspectionActive = Boolean(pending?.schema.fields.some(isTopDeckField));
+  const fields = useMemo(() => pending?.schema.fields.filter((field) => (
+    field.chooserId === playerId && !isTopDeckField(field)
+  )) ?? [], [pending, playerId]);
   const triggerOrder = match?.triggerOrders.find((request) => request.controllerId === playerId && !request.orderedIds);
   const [answers, setAnswers] = useState<CardChoices>({});
   const [orderedIds, setOrderedIds] = useState<string[]>([]);
@@ -67,6 +76,7 @@ export function ChoiceQueueLayer() {
   }, [pending?.id, triggerOrder?.id]);
 
   if (state.route !== "match" || !match || !playerId) return null;
+  if (deckInspectionActive && !triggerOrder) return null;
   if (!fields.length && !triggerOrder) return null;
 
   const submitChoices = async () => {
@@ -162,4 +172,3 @@ export function ChoiceQueueLayer() {
     </div>
   );
 }
-
