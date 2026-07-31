@@ -76,10 +76,27 @@ function actionIsTemporaryCombat(action: RuleAction) {
     && action.duration !== "next-card";
 }
 
-function pureTemporaryCombatProgram(card: GameCard) {
+function nestedRuleActions(action: RuleAction): RuleAction[] {
+  if (action.kind === "conditional") {
+    return [...action.whenTrue, ...(action.whenFalse ?? [])];
+  }
+  if (action.kind === "replacement") return action.replaceWith;
+  if (action.kind === "sequence") return action.effects;
+  return [];
+}
+
+function substantiveLeafActions(action: RuleAction): RuleAction[] {
+  if (NON_SUBSTANTIVE_ACTIONS.has(action.kind)) return [];
+  const nested = nestedRuleActions(action);
+  return nested.length ? nested.flatMap(substantiveLeafActions) : [action];
+}
+
+function pureTemporaryCombatProgram(card: GameCard, includeNested = false) {
   const program = compileCardEffect(card);
-  const substantive = program.instructions.flatMap((instruction) => instruction.actions)
-    .filter((action) => !NON_SUBSTANTIVE_ACTIONS.has(action.kind));
+  const actions = program.instructions.flatMap((instruction) => instruction.actions);
+  const substantive = includeNested
+    ? actions.flatMap(substantiveLeafActions)
+    : actions.filter((action) => !NON_SUBSTANTIVE_ACTIONS.has(action.kind));
   return substantive.length > 0
     && substantive.some(actionIsTemporaryCombat)
     && substantive.every(actionIsTemporaryCombat);
@@ -230,13 +247,14 @@ function shouldSuppressTemporaryCombatCard(
   playerId: string,
   card: GameCard,
 ) {
-  if (!pureTemporaryCombatProgram(card)) return false;
+  const includeNested = match.phase === "preRoll";
+  if (!pureTemporaryCombatProgram(card, includeNested)) return false;
   const choices = chooseBaseCardChoices(match, playerId, card);
   const projection = projectedCombatOutcome(match, playerId, card, choices);
 
-  // A closed miss is not part of the Brawl. Pure turn-duration modifiers have
-  // no legal tactical payoff, while rerolls and cards with independent effects
-  // are deliberately left available by pureTemporaryCombatProgram().
+  // Before the first roll, or after a closed miss, there is no Brawl state to
+  // improve. Pure turn-duration modifiers have no tactical payoff, while
+  // rerolls and cards with independent effects remain available.
   if (!projection.playerParticipates) return true;
 
   // When the opponent missed, or the AI is already winning, do not spend more
@@ -423,7 +441,7 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
   const hasPendingDecision = Boolean(input.pendingChoice)
     || input.triggerOrders.some((request) => request.controllerId === playerId && !request.orderedIds);
   if (
-    input.phase === "power"
+    (input.phase === "preRoll" || input.phase === "power")
     && input.priority === playerId
     && !hasPendingDecision
   ) return advanceWithCombatPolicy(input, playerId);
