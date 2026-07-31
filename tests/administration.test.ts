@@ -119,5 +119,11 @@ test("administrators can edit and delete any public deck from its View screen", 
   assert.match(publicApi, /listPublicDecks/);
   assert.match(server, /deletePublicDeck/);
   assert.match(server, /updatePublicDeck/);
+  assert.match(server, /FROM user_data_entities/);
+  assert.match(server, /entity_type = 'deck'/);
+  assert.match(server, /NOT EXISTS \(SELECT 1 FROM user_data_entities/);
+  assert.match(server, /UPDATE user_data_entities SET revision = revision \+ 1/);
+  assert.match(decks, /return \[\.\.\.remote, \.\.\.fallback\]/);
+  assert.match(decks, /\}, \[fallback\]\);/);
   assert.match(builderPage, /decodedId\.startsWith\("admin-"\)/);
 });
