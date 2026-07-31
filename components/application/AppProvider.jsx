@@ -14,8 +14,8 @@ import {
 import { summarizeGuestData } from "../../lib/guest-data";
 
 const STORAGE_EVENT = "bbp-storage-status";
-const AUTO_SYNC_DELAY_MS = 1_000;
-const DURABLE_DIRTY_DELAY_MS = 250;
+const AUTO_SYNC_DELAY_MS = 500;
+const DURABLE_DIRTY_DELAY_MS = 100;
 const defaults = {
   profile: DEFAULT_BRAWLER_PROFILE,
   settings: DEFAULT_APP_SETTINGS,
@@ -56,6 +56,39 @@ function reportStorage(detail) {
     pendingStorageDetail = null;
     storageReportTimer = null;
   }, 250);
+}
+
+const LOCAL_SNAPSHOT_KEYS = {
+  profile: "bbp-profile",
+  decks: "bbp-decks-complete-set-v4",
+  deletedDecks: "bbp-deleted-decks-v1",
+  history: "bbp-history",
+  settings: "bbp-settings",
+  selectedDeckId: "bbp-selected-deck-v1",
+  builderDeck: "bbp-builder-draft-v1",
+  format: "bbp-match-format-v1",
+  matchMode: "bbp-match-mode-v1",
+  match: "bbp-active-match-v1",
+  online: "bbp-active-match-online-v1",
+  playerId: "bbp-player-id",
+  updatedAt: "bbp-local-modified-at-v1",
+};
+
+function readGuestSnapshot(fallback) {
+  try {
+    const stored = {};
+    for (const [field, key] of Object.entries(LOCAL_SNAPSHOT_KEYS)) {
+      const value = localStorage.getItem(key);
+      if (value !== null) stored[field] = JSON.parse(value);
+    }
+    return normalizeSnapshot({
+      ...fallback,
+      ...stored,
+      profile: { ...(stored.profile ?? fallback.profile), signedIn: false },
+    }, fallback);
+  } catch {
+    return fallback;
+  }
 }
 
 function useStoredState(key, initial, options = {}) {
@@ -518,8 +551,7 @@ export function AppProvider({ children }) {
     router.push("/");
   }, [router, setProfile]);
   const signOutAccount = useCallback(async () => {
-    const current = snapshotRef.current;
-    if (cloudLoaded.current && current && current.updatedAt !== lastSynced.current) {
+    if (cloudLoaded.current) {
       const saved = await syncToCloud(true);
       if (!saved) {
         notify("Log out paused because account changes could not be saved.");
@@ -542,14 +574,14 @@ export function AppProvider({ children }) {
     setSyncConflict(null);
     setPersistenceScope("local");
     setAuthUser(null);
-    if (guestSnapshot.current) applySnapshot(guestSnapshot.current, false);
+    if (guestSnapshot.current) applySnapshot(readGuestSnapshot(guestSnapshot.current), false);
     setSyncStatus("local");
     router.push("/");
     return true;
   }, [applySnapshot, notify, router, syncToCloud]);
   const saveAccountProfile = useCallback(async () => { if (!authUser) return notify("Profile changes are saved on this device."); const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "update-profile", displayName: profile.name, faction: profile.faction }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not update account profile."); setAuthUser(result.user); setModifiedAt(Date.now()); }, [authUser, notify, profile.faction, profile.name, setModifiedAt]);
   const changePassword = useCallback(async (currentPassword, newPassword) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "change-password", currentPassword, newPassword }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not change password."); notify("Password changed. Other sessions were signed out."); }, [notify]);
-  const deleteAccount = useCallback(async (confirmation) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not delete account."); cloudLoaded.current = false; setAccountDataReady(false); setPersistenceScope("local"); setAuthUser(null); if (guestSnapshot.current) applySnapshot(guestSnapshot.current, false); setSyncStatus("local"); router.push("/"); }, [applySnapshot, router]);
+  const deleteAccount = useCallback(async (confirmation) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not delete account."); cloudLoaded.current = false; setAccountDataReady(false); setPersistenceScope("local"); setAuthUser(null); if (guestSnapshot.current) applySnapshot(readGuestSnapshot(guestSnapshot.current), false); setSyncStatus("local"); router.push("/"); }, [applySnapshot, router]);
 
   useEffect(() => {
     if (match?.phase !== "result" || !match.winner) return;
