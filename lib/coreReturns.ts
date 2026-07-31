@@ -29,6 +29,8 @@ type CoreReturnResume = {
 export type CoreReturnMatchState = MatchState & {
   pendingCoreReturns?: PendingCoreReturn[];
   coreReturnResume?: CoreReturnResume;
+  drawReadyAt?: number;
+  drawDeadline?: number;
 };
 
 const RETURN_WINDOW_MS = 45_000;
@@ -196,8 +198,7 @@ export function captureCoreReturns(before: MatchState | null, after: MatchState)
 
   for (const placement of before.placements) {
     if (!placement.attachedTo) continue;
-    const afterPlacement = after.placements.find((candidate) => candidate.core.id === placement.core.id)
-      ?? after.placements.find((candidate) => candidate.cell === placement.cell);
+    const afterPlacement = after.placements.find((candidate) => candidate.core.id === placement.core.id);
     if (afterPlacement?.attachedTo) continue;
 
     const holder = playerForBakugan(before, placement.attachedTo);
