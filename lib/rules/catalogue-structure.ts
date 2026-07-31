@@ -12,9 +12,26 @@ const REPLACEMENT_CARD_IDS = new Set([
 ]);
 
 function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
-  const normalized = source.trim();
+  const normalized = source.replace(/\s*\n\s*/g, " ").trim();
   const clauses = normalized
-    ? normalized.split(/(?<=\.)\s+|\n+/).map((clause) => clause.trim()).filter(Boolean)
+    ? normalized.split(/(?<=\.)\s+/).map((clause) => clause.trim()).filter(Boolean)
+      .flatMap((clause) => {
+        // Preserve the Reroll-success condition on every dependent clause.
+        // This must run before the generic "and you may Reroll" splitter so
+        // cards such as Rip Tide do not turn their optional draw unconditional.
+        const rerollConditional = clause.match(/^(If you open on the Reroll,\s*)(.*?)(?:,?\s+and\s+)(you may\s+.*)$/i);
+        if (rerollConditional && rerollConditional[2].trim()) {
+          return [
+            `${rerollConditional[1]}${rerollConditional[2].trim().replace(/[,;:]$/, "")}.`,
+            `${rerollConditional[1]}${rerollConditional[3].trim()}`,
+          ];
+        }
+        const reroll = clause.match(/^(.*?)(?:,?\s+and\s+)(you may Reroll\b.*)$/i);
+        if (reroll && reroll[1].trim()) {
+          return [reroll[1].trim().replace(/[,;:]$/, "") + ".", reroll[2].trim()];
+        }
+        return [clause];
+      })
     : [""];
   const instructions = clauses.map((clause, index) => {
     const condition = conditionFor(clause);
@@ -89,15 +106,36 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   if (/destroy an evo|choose an evo/i.test(text)) result.push(choice("targetEvoId", timing, "evo", "Choose an Evo"));
   if (/destroy (?:an?|two|three) (?:enemy )?energy|choose an energy/i.test(text)) result.push(choice("targetEnergyIds", timing, "energy-card", "Choose Energy"));
   if (/attach a bakucore|remove .*bakucore|choose a bakucore|turn a bakucore/i.test(text)) result.push(choice("coreCell", timing, "bakucore", "Choose a BakuCore"));
-  if (/sacrifice|discard (?:a|an|one|two|three|any|up to)|cards? from your hand/i.test(text)) {
-    result.push(choice("discardCardIds", timing, "hand-card", /sacrifice/i.test(text) ? "Choose cards to sacrifice" : "Choose cards to discard", /up to|any number/i.test(text), /opponent/i.test(text) ? "opponent" : "controller", "private"));
+  if (/sacrifice|discard (?:a|an|one|two|three|any|up to|\d+)|cards? from your hand/i.test(text)
+    && !/choose a player to discard/i.test(text)
+    && !(/if you open on the Reroll/i.test(text) && /\bVictor\s*:/i.test(text))) {
+    const optional = /up to|any number|may discard/i.test(text);
+    const selected = choice(
+      "discardCardIds",
+      timing,
+      "hand-card",
+      /sacrifice/i.test(text) ? "Choose cards to sacrifice" : "Choose cards to discard",
+      optional,
+      /opponent/i.test(text) ? "opponent" : "controller",
+      "private",
+    );
+    const printedAmount = text.match(/discard (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?/i)?.[1];
+    const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+    const amount = printedAmount ? words[printedAmount.toLowerCase()] ?? Number(printedAmount) : 1;
+    selected.minimum = optional ? 0 : amount;
+    selected.maximum = /any number/i.test(text) ? 99 : Math.max(1, amount);
+    result.push(selected);
   }
   if (/search your deck/i.test(text)) result.push(choice("deckCardId", timing, "deck-card", "Choose a card from your deck", false, "controller", "private"));
   if (/top .*cards?.*any order/i.test(text)) result.push(choice("orderedCardIds", timing, "deck-card", "Order the revealed cards", false, "controller", "private"));
-  if (/play (?:an?|the) (?:Action|Hero|Evo|card).*from (?:your )?hand for free/i.test(text)) result.push(choice("handCardIds", timing, "hand-card", "Choose a card to play", false, "controller", "private"));
+  if (/play (?:an?|the) (?:Action|Hero|Evo|card).*from (?:your )?hand for free|play that Bakugan(?:'s|’s) Evo card for free/i.test(text)) {
+    const selected = choice("handCardIds", timing, "hand-card", "Choose a card to play", false, "controller", "private");
+    if (/that Bakugan(?:'s|’s) Evo/i.test(text)) selected.cardType = "Evo";
+    result.push(selected);
+  }
   if (/Battle Mastery:.*Choose one|choose one of the following/i.test(text)) result.push(choice("mode", timing, "mode", "Choose a Battle Mastery mode"));
   if (card.cost === "X" || /choose (?:a value for )?x/i.test(text)) result.push(choice("xValue", "pay", "number", "Choose X"));
-  if (/\bmay\b/i.test(text)) result.push(choice("confirmed", "resolve", "mode", "Use this optional effect?", false));
+  if (/\bmay\b/i.test(text) && !/may discard/i.test(text)) result.push(choice("confirmed", "resolve", "mode", "Use this optional effect?", false));
   return result.filter((item, index, values) => values.findIndex((candidate) => candidate.id === item.id && candidate.timing === item.timing) === index);
 }
 
@@ -195,7 +233,10 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
 
 export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
   const instructions = splitInstructions(card, card.effect);
-  const triggered = instructions.filter((instruction) => instruction.effects.some((effect) => effect.kind === "trigger"));
+  const triggered = instructions.filter((instruction) => (
+    instruction.condition.kind !== "reroll-opened"
+    && instruction.effects.some((effect) => effect.kind === "trigger")
+  ));
   const ordinary = instructions.filter((instruction) => !triggered.includes(instruction));
   const result: AbilityDefinition[] = [];
   if (ordinary.length || !triggered.length) result.push({

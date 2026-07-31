@@ -31,6 +31,7 @@ const CORE_TYPE_BY_SYMBOL: Record<string, CoreType> = {
 };
 
 export function conditionFor(text: string): RuleCondition {
+  if (/if you open on the Reroll/i.test(text)) return { kind: "reroll-opened" };
   const heldCorePrefix = text.match(
     /^\s*(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:/i,
   )?.[1];
@@ -127,9 +128,11 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const draw = text.match(/draw (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?/i);
   if (draw) actions.push({ kind: "draw", amount: numberValue(draw[1]), scale });
   const discard = text.match(/discard (a|an|one|two|three|any|up to|\d+) cards?/i);
-  if (discard) {
+  const delayedVictorDiscard = /if you open on the Reroll/i.test(text) && /\bVictor\s*:/i.test(text);
+  if (discard && !delayedVictorDiscard) {
     const amount = numberValue(discard[1]);
-    actions.push({ kind: "discard", amount, minimum: /any number|up to/i.test(text) ? 0 : amount, maximum: /any number/i.test(text) ? 99 : amount, repeated: /repeat|again|any number/i.test(text) });
+    const optional = /may discard|any number|up to/i.test(text);
+    actions.push({ kind: "discard", amount, minimum: optional ? 0 : amount, maximum: /any number/i.test(text) ? 99 : amount, repeated: /repeat|again|any number/i.test(text) });
   }
   if (/discard (?:their|your) entire hand/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99 });
 
@@ -161,7 +164,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   if (reorder) actions.push({ kind: "reorder-deck", amount: numberValue(reorder[1]) });
   if (/reveal the top card of (?:your|an opponent's|your opponent's) deck/i.test(text)) actions.push({ kind: "reveal", object: "deck-top", amount: 1 });
   if (/play (?:it|this card) for free/i.test(text)) actions.push({ kind: "play", source: /(?:this is discarded|discard this card)/i.test(text) ? "self" : "revealed-deck", free: true });
-  if (/play (?:an?|the) (?:Action|Hero|Evo|card).*from (?:your )?hand for free|play a card from your hand for free/i.test(text)) actions.push({ kind: "play", source: "hand", free: true });
+  if (/play (?:an?|the) (?:Action|Hero|Evo|card).*from (?:your )?hand for free|play a card from your hand for free|play that Bakugan(?:'s|’s) Evo card for free/i.test(text)) actions.push({ kind: "play", source: "hand", free: true });
   const attack = text.match(/makes? an? \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] attack for (\d+) \[Damage Rating\]/i);
   if (attack) actions.push({ kind: "attack", faction: attack[1] as Faction, amount: Number(attack[2]) });
   if (/draw all remaining damage from an attack/i.test(text)) actions.push({ kind: "damage-to-hand" });
@@ -174,9 +177,28 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   if (/copy the next action/i.test(text)) actions.push({ kind: "copy", target: "next-action", independentChoices: true });
   if (/copy the effect of an Action card/i.test(text)) actions.push({ kind: "copy", target: "batch-action", independentChoices: true });
 
+  const nextCardReduction = text.match(/next card you play(?: this turn)? costs? (\d+) \[Energy\] less/i);
+  if (nextCardReduction) actions.push({
+    kind: "cost",
+    amount: Number(nextCardReduction[1]),
+    operation: "reduce",
+    duration: "next-card",
+  });
+
+  const intrinsicReroll = ["Character", "Evo"].includes(card.type)
+    && /(?:once each turn|any time).*miss a Roll|miss a Roll.*(?:once each turn|any time)/i.test(text);
+  const rerollDirective = /\b(?:may|must)\s+Reroll\b|\bto\s+Reroll\b/i.test(text);
+  if (rerollDirective && !intrinsicReroll) actions.push({
+    kind: "reroll",
+    target: /opponent(?:'s)?|opposing Bakugan|their Bakugan/i.test(text) ? "opponent" : "controller",
+    mandatory: /\bmust Reroll\b/i.test(text),
+    requiresDiscard: /discard (?:a|an|one|two|three|\d+) cards? to Reroll/i.test(text),
+  });
+
   const trigger = triggerFor(text);
   if (trigger) actions.push({ kind: "trigger", event: trigger.event, definition: trigger });
-  if (/your Bakugan have|your Bakugan get|opposing Bakugan|while|as long as|maximum of \d+ damage|Treat all BakuCores/i.test(text)) {
+  if (["Hero", "Evo", "Character"].includes(card.type)
+    && /your Bakugan have|your Bakugan get|opposing Bakugan|while|as long as|maximum of \d+ damage|Treat all BakuCores/i.test(text)) {
     const stat = /damage/i.test(text) ? "damage" as const : "power" as const;
     const amount = Number(text.match(/([+-]\d+)/)?.[1] ?? 0);
     actions.push({

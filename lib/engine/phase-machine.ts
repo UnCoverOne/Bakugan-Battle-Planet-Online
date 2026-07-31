@@ -8,8 +8,9 @@ const STRICT_COMMAND_PHASES: Partial<Record<GameCommand["type"], readonly Phase[
   DRAW_TURN_CARD: ["draw"],
   ENERGIZE: ["energize"],
   SELECT_BAKUGAN: ["selection"],
-  SELECT_ROLL_TARGET: ["target"],
-  CONFIRM_ROLL: ["target"],
+  SELECT_ROLL_TARGET: ["target", "reroll"],
+  CONFIRM_ROLL: ["target", "reroll"],
+  ACTIVATE_REROLL: ["power"],
   REVEAL_DAMAGE_FLIP: ["damage"],
   PLAY_DAMAGE_FLIP: ["damage"],
   DISCARD_TO_HAND_LIMIT: ["handLimit"],
@@ -27,12 +28,13 @@ const TRANSITIONS: Record<Phase, readonly Phase[]> = {
   selection: ["selection", "preRoll", "retract", "result"],
   preRoll: ["preRoll", "target", "power", "retract", "result"],
   target: ["target", "power", "retract", "result"],
-  power: ["power", "victor", "damage", "postDamage", "retract", "endPlay", "result"],
+  reroll: ["reroll", "power", "target", "retract", "result"],
+  power: ["power", "reroll", "victor", "damage", "postDamage", "retract", "endPlay", "result"],
   victor: ["victor", "damage", "postDamage", "retract", "endPlay", "result"],
-  damage: ["damage", "postDamage", "retract", "endPlay", "handLimit", "result"],
-  postDamage: ["postDamage", "retract", "endPlay", "handLimit", "draw", "result"],
+  damage: ["damage", "power", "reroll", "postDamage", "retract", "endPlay", "handLimit", "result"],
+  postDamage: ["postDamage", "power", "reroll", "retract", "endPlay", "handLimit", "draw", "result"],
   retract: [
-    "retract", "draw", "energize", "selection", "preRoll", "target", "power", "victor",
+    "retract", "draw", "energize", "selection", "preRoll", "target", "reroll", "power", "victor",
     "damage", "postDamage", "endPlay", "handLimit", "result",
   ],
   endPlay: ["endPlay", "retract", "handLimit", "draw", "result"],
@@ -50,6 +52,7 @@ export function structuredPhaseFor(phase: Phase): StructuredPhase {
     case "selection": return { area: "roll", step: "selection", legacy: phase };
     case "preRoll": return { area: "roll", step: "pre-roll-priority", legacy: phase };
     case "target": return { area: "roll", step: "targeting-and-rolling", legacy: phase };
+    case "reroll": return { area: "roll", step: "reroll", legacy: phase };
     case "power": return { area: "brawl", step: "power", legacy: phase };
     case "victor": return { area: "brawl", step: "victor", legacy: phase };
     case "damage": return { area: "brawl", step: "damage", legacy: phase };

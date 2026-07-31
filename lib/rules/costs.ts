@@ -59,6 +59,8 @@ export function cardCostBreakdown(
     ))
   ));
 
+  reductions += Math.max(0, state.nextCardCostReduction?.[playerId] ?? 0);
+
   for (const modifier of [...selfModifiers, ...controlledModifiers]) {
     if (!modifierActive(state, player, modifier)) continue;
     if (modifier.kind === "cost-reduce") {

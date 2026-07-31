@@ -177,6 +177,14 @@
   min-height: 0;
 }
 
+.actionHud[data-slots="3"] {
+  --hud-width: clamp(16rem, 23vw, 21rem);
+}
+
+.actionGrid[data-slots="3"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .actionSlot {
   position: relative;
   box-sizing: border-box;

@@ -1,5 +1,7 @@
 import {
   cardChoiceSpec,
+  cardRerollTimingLegal,
+  playerCanActivateIntrinsicReroll,
   type CardChoices,
   type GameCard,
   type MatchState,
@@ -15,6 +17,7 @@ import {
 export type HandActionMode = "play" | "energize" | null;
 export type MatchHudActionKey =
   | "draw-card"
+  | "activate-reroll"
   | "play-card"
   | "energize-card"
   | "skip-energize"
@@ -37,10 +40,7 @@ export type HudPlayerPair = {
 };
 
 export type MatchHudActions = Record<MatchHudActionKey, boolean>;
-export type CompactMatchHudSlots = readonly [
-  MatchHudActionKey | null,
-  MatchHudActionKey | null,
-];
+export type CompactMatchHudSlots = readonly (MatchHudActionKey | null)[];
 
 export function resolveHudPlayers(
   match: MatchState | null | undefined,
@@ -87,6 +87,7 @@ export function playableHandCards(
   return player.hand.filter((card) => (
     card.type !== "Flip"
     && card.type !== "Character"
+    && cardRerollTimingLegal(match, player.id, card)
     && (card.type !== "Evo" || legalEvoTargets(match, player.id, card).length > 0)
   ));
 }
@@ -205,6 +206,7 @@ export function visibleMatchHudActions({
   const flipDecision = revealedFlipDecision(match, player?.id);
   return {
     "draw-card": playerCanDrawTurnCard(match, player?.id, now),
+    "activate-reroll": playerCanActivateIntrinsicReroll(match, player?.id),
     "play-card": canPlay,
     "energize-card": canEnergizeCard(match, player?.id),
     "skip-energize": canSkipEnergizing(match, player?.id),
@@ -240,13 +242,18 @@ export function compactMatchHudSlots(actions: MatchHudActions): CompactMatchHudS
         ? "energize-card"
         : actions["play-card"]
           ? "play-card"
-          : null;
-  const secondary: MatchHudActionKey | null = actions["pass-turn"]
+          : actions["activate-reroll"]
+            ? "activate-reroll"
+            : null;
+  const fallback: MatchHudActionKey | null = actions["pass-turn"]
     ? "pass-turn"
     : actions["skip-energize"]
       ? "skip-energize"
       : null;
-  return [primary, secondary];
+  if (actions["activate-reroll"] && primary !== "activate-reroll") {
+    return [primary, "activate-reroll", fallback];
+  }
+  return [primary, fallback];
 }
 
 export function shouldAutomaticallyPass(
@@ -260,7 +267,9 @@ export function shouldAutomaticallyPass(
     selectedCardId: "",
     selectionPending: false,
   });
-  return actions["pass-turn"] && !actions["play-card"];
+  return actions["pass-turn"]
+    && !actions["activate-reroll"]
+    && !actions["play-card"];
 }
 
 function activeBakuganId(match: MatchState, player: PlayerState) {

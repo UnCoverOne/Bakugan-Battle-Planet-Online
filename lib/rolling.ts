@@ -1,5 +1,7 @@
 import {
   cloneMatch,
+  confirmReroll,
+  selectRerollTarget,
   targetCore,
   type MatchState,
   type Placement,
@@ -19,7 +21,11 @@ function targetLockMarker(playerId: string) {
 function rollTargetLockedPlayers(
   match: MatchState | null | undefined,
 ): ReadonlySet<string> {
-  if (!match || match.phase !== "target") return new Set();
+  if (!match || !["target", "reroll"].includes(match.phase)) return new Set();
+  if (match.phase === "reroll") {
+    const playerId = match.pendingReroll?.playerId;
+    return new Set(playerId && match.pendingReroll?.targetCell ? [playerId] : []);
+  }
   return new Set(match.players.flatMap((player) => (
     match.targets[player.id] || match.passes.includes(targetLockMarker(player.id))
       ? [player.id]
@@ -36,8 +42,9 @@ export function availableRollTargets(
 export function allRollTargetsSelected(
   match: MatchState | null | undefined,
 ) {
-  if (!match?.players.length || match.phase !== "target") return false;
+  if (!match?.players.length || !["target", "reroll"].includes(match.phase)) return false;
   const locked = rollTargetLockedPlayers(match);
+  if (match.phase === "reroll") return Boolean(match.pendingReroll?.playerId && locked.has(match.pendingReroll.playerId));
   return match.players.every((player) => locked.has(player.id));
 }
 
@@ -48,8 +55,10 @@ export function playerCanSelectRollTarget(
   return Boolean(
     match
     && playerId
-    && match.phase === "target"
-    && !rollTargetLockedPlayers(match).has(playerId)
+    && (
+      (match.phase === "target" && !rollTargetLockedPlayers(match).has(playerId))
+      || (match.phase === "reroll" && match.pendingReroll?.playerId === playerId && !match.pendingReroll.targetCell)
+    )
     && availableRollTargets(match).length,
   );
 }
@@ -81,9 +90,14 @@ export function playerCanConfirmRoll(
   return Boolean(
     match
     && playerId
-    && match.phase === "target"
-    && allRollTargetsSelected(match)
-    && !rollReadyPlayers(match).includes(playerId),
+    && (
+      (match.phase === "target"
+        && allRollTargetsSelected(match)
+        && !rollReadyPlayers(match).includes(playerId))
+      || (match.phase === "reroll"
+        && match.pendingReroll?.playerId === playerId
+        && Boolean(match.pendingReroll.targetCell))
+    ),
   );
 }
 
@@ -92,6 +106,7 @@ export function selectRollTarget(
   playerId: string,
   cell: string,
 ): MatchState {
+  if (input.phase === "reroll") return selectRerollTarget(input, playerId, cell);
   const state = cloneMatch(input);
   if (!playerCanSelectRollTarget(state, playerId)) {
     throw new Error("BakuCore selection is not legal now.");
@@ -134,6 +149,7 @@ export function confirmRoll(
   input: MatchState,
   playerId: string,
 ): MatchState {
+  if (input.phase === "reroll") return confirmReroll(input, playerId);
   if (!playerCanConfirmRoll(input, playerId)) {
     throw new Error("Roll confirmation is not legal now.");
   }
@@ -175,8 +191,8 @@ export function rollResultSignature(
     .map((player) => match.rolls[player.id])
     .filter((roll): roll is RollOutcome => Boolean(roll));
   if (outcomes.length !== match.players.length) return "";
-  return `${match.gameNumber}:${match.turn}:${outcomes
-    .map((roll) => `${roll.playerId}:${roll.simulationProfileId ?? "legacy"}:${roll.attempt ?? 1}:${roll.result}:${roll.accuracyRoll}:${roll.deviationRoll}:${roll.doubleRoll}:${roll.secondCoreRoll}:${roll.cores.join(",")}`)
+  return `${match.gameNumber}:${match.turn}:reroll-${match.rerollSequence ?? 0}:${outcomes
+    .map((roll) => `${roll.playerId}:${roll.simulationProfileId ?? "legacy"}:${roll.attempt ?? 1}:${roll.rerollSequence ?? 0}:${roll.result}:${roll.accuracyRoll}:${roll.deviationRoll}:${roll.doubleRoll}:${roll.secondCoreRoll}:${roll.cores.join(",")}`)
     .join("|")}`;
 }
 

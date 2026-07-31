@@ -31,10 +31,14 @@ export function RollResultLayer({
   if (!open || !match?.players.length) return null;
   const localPlayer = match.players.find((player) => player.id === playerId)
     ?? match.players[0];
+  const currentRerollPlayers = new Set(match.players
+    .filter((player) => match.rolls[player.id]?.rerollSequence === match.rerollSequence)
+    .map((player) => player.id));
   const orderedPlayers = [
     localPlayer,
     ...match.players.filter((player) => player.id !== localPlayer.id),
-  ];
+  ].filter((player) => !currentRerollPlayers.size || currentRerollPlayers.has(player.id));
+  const reroll = currentRerollPlayers.size > 0;
 
   return (
     <div
@@ -59,8 +63,8 @@ export function RollResultLayer({
           ×
         </button>
         <header className={styles.header}>
-          <span>ROLLING STEP</span>
-          <h2 id="roll-result-title">Roll Results</h2>
+          <span>{reroll ? "REROLL" : "ROLLING STEP"}</span>
+          <h2 id="roll-result-title">{reroll ? "Reroll Result" : "Roll Results"}</h2>
         </header>
         <div className={styles.results}>
           {orderedPlayers.map((player, index) => {
@@ -90,7 +94,7 @@ export function RollResultLayer({
                   ) : null}
                 </div>
                 <div className={styles.resultCopy}>
-                  <small>{local ? "PLAYER" : "OPPONENT"}</small>
+                  <small>{outcome.rerollSource ? `REROLL • ${outcome.rerollSource}` : local ? "PLAYER" : "OPPONENT"}</small>
                   <strong>{player.name}</strong>
                   <h3>{resultLabel(outcome.result)}</h3>
                   <p>{bakugan?.name ?? "Bakugan"}</p>

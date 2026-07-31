@@ -156,6 +156,9 @@ export type RollOutcome = {
   attempt?: number;
   /** Structured contested-pickup decisions retained for replay and diagnostics. */
   collisionDecisions?: PhysicalCollisionDecision[];
+  /** Present when this outcome replaced an earlier roll for the same selected Bakugan. */
+  rerollSequence?: number;
+  rerollSource?: string;
 };
 
 export type CardChoices = {
@@ -174,6 +177,27 @@ export type CardChoices = {
   mode?: string;
   confirmed?: boolean;
   simultaneousAnswers?: Record<string, CardChoices>;
+};
+
+export type PendingReroll = {
+  id: string;
+  playerId: string;
+  bakuganId: string;
+  sourceEffectId?: string;
+  sourceName: string;
+  mandatory: boolean;
+  targetCell?: string;
+  resumePriority: string;
+  resumeDeadline: number;
+  resumeStepLabel: string;
+};
+
+export type PendingEffectDamageResume = {
+  sourceEffectId: string;
+  phase: Phase;
+  priority: string;
+  deadline: number;
+  stepLabel: string;
 };
 
 export type PendingEffect = {
@@ -214,7 +238,7 @@ export type UndoWindow = {
 };
 
 export type Phase =
-  | "lobby" | "startingPlayer" | "placement" | "draw" | "energize" | "selection" | "preRoll" | "target"
+  | "lobby" | "startingPlayer" | "placement" | "draw" | "energize" | "selection" | "preRoll" | "target" | "reroll"
   | "power" | "victor" | "damage" | "postDamage" | "retract" | "endPlay"
   | "handLimit" | "result";
 
@@ -236,6 +260,16 @@ export type MatchState = {
   selected: Record<string, string>;
   targets: Record<string, string>;
   rolls: Record<string, RollOutcome>;
+  pendingReroll?: PendingReroll;
+  pendingEffectDamageResume?: PendingEffectDamageResume;
+  pendingRerollOpenEvent?: { playerId: string; bakuganId: string; sourceEffectId?: string };
+  rerollOpenedByEffect: Record<string, boolean>;
+  rerollTargetByEffect: Record<string, string>;
+  rerollUsage: Record<string, number>;
+  rerollSequence: number;
+  repeatRollAfterReroll: boolean;
+  nextCardCostReduction: Record<string, number>;
+  temporaryVictorDiscards: Record<string, { controllerId: string; sourceName: string; amount: number }>;
   powerBoost: Record<string, number>;
   damageBoost: Record<string, number>;
   frostStrike: Record<string, number>;
@@ -295,7 +329,7 @@ export const uid = () => globalThis.crypto?.randomUUID?.()
   ?? `${Date.now().toString(36)}-${secureRandomInt(0x1_0000_0000).toString(36)}`;
 
 const PHASE_TIMERS: Record<Phase, number> = {
-  lobby: 60, startingPlayer: 8, placement: 45, draw: 35, energize: 35, selection: 35, preRoll: 30, target: 30,
+  lobby: 60, startingPlayer: 8, placement: 45, draw: 35, energize: 35, selection: 35, preRoll: 30, target: 30, reroll: 30,
   power: 40, victor: 30, damage: 35, postDamage: 25, retract: 10, endPlay: 35,
   handLimit: 40, result: 120,
 };
@@ -350,6 +384,15 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
   state.selected = state.selected && typeof state.selected === "object" ? state.selected : {};
   state.targets = state.targets && typeof state.targets === "object" ? state.targets : {};
   state.rolls = state.rolls && typeof state.rolls === "object" ? state.rolls : {};
+  state.rerollOpenedByEffect = state.rerollOpenedByEffect && typeof state.rerollOpenedByEffect === "object" ? state.rerollOpenedByEffect : {};
+  state.rerollTargetByEffect = state.rerollTargetByEffect && typeof state.rerollTargetByEffect === "object" ? state.rerollTargetByEffect : {};
+  state.rerollUsage = state.rerollUsage && typeof state.rerollUsage === "object" ? state.rerollUsage : {};
+  state.rerollSequence = Number.isFinite(state.rerollSequence) ? Number(state.rerollSequence) : 0;
+  state.repeatRollAfterReroll = Boolean(state.repeatRollAfterReroll);
+  if (state.pendingEffectDamageResume && typeof state.pendingEffectDamageResume !== "object") state.pendingEffectDamageResume = undefined;
+  if (state.pendingRerollOpenEvent && typeof state.pendingRerollOpenEvent !== "object") state.pendingRerollOpenEvent = undefined;
+  state.nextCardCostReduction = state.nextCardCostReduction && typeof state.nextCardCostReduction === "object" ? state.nextCardCostReduction : {};
+  state.temporaryVictorDiscards = state.temporaryVictorDiscards && typeof state.temporaryVictorDiscards === "object" ? state.temporaryVictorDiscards : {};
   for (const roll of Object.values(state.rolls)) {
     const legacyResult = roll.result as RollOutcome["result"] | "miss" | "target-core" | "adjacent-core" | "double-core";
     if (legacyResult === "miss") roll.result = "miss-closed";
@@ -422,6 +465,7 @@ export const createMatch = (code: string, format: "bo1" | "bo3", players: Player
     series: Object.fromEntries(players.map((player) => [player.id, 0])), phase: "lobby", stepLabel: "Players ready",
     players, startingPlayer, initialStartingPlayer: startingPlayer, startingPlayerRevealedAt: 0,
     priority: startingPlayer, placementTurn: 0, placements: [], selected: {}, targets: {}, rolls: {},
+    rerollOpenedByEffect: {}, rerollTargetByEffect: {}, rerollUsage: {}, rerollSequence: 0, repeatRollAfterReroll: false, nextCardCostReduction: {}, temporaryVictorDiscards: {},
     powerBoost: {}, damageBoost: {}, frostStrike: {}, doubleStrike: {}, shadowStrike: {}, passes: [], batch: [], victorByDamage: false,
     pendingDamage: 0, pendingLoser: "", damageOrigin: "", teamAttack: false, delayedRetracts: [], copyNextAction: {}, brawlWinner: "", winner: "", resultReason: "",
     triggerOrders: [], collectedEventKeys: [], informationEpoch: 0, priorityEpoch: 0,
@@ -487,7 +531,7 @@ export const placeCore = (input: MatchState, playerId: string, coreId: string, c
 
 const beginTurn = (state: MatchState) => {
   state.turn += 1; state.startingPlayer = state.brawlWinner || state.startingPlayer; state.priority = state.startingPlayer;
-  state.selected = {}; state.targets = {}; state.rolls = {}; state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {};
+  state.selected = {}; state.targets = {}; state.rolls = {}; state.pendingReroll = undefined; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.temporaryVictorDiscards = {}; state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {};
   state.doubleStrike = {}; state.shadowStrike = {}; state.batch = []; state.victorByDamage = false; state.pendingDamage = 0;
   state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.delayedRetracts = []; state.winner = "";
   state.collectedEventKeys = [];
@@ -649,6 +693,232 @@ export const targetCore = (input: MatchState, playerId: string, cell: string) =>
 
 const activeBakugan = (state: MatchState, playerId: string) => playerById(state, playerId).bakugan.find((bakugan) => bakugan.id === state.selected[playerId]);
 const topCard = (bakugan: Bakugan) => bakugan.evoStack.at(-1) ?? bakugan.character;
+
+class RerollResolutionSuspended extends Error {
+  constructor() {
+    super("Reroll resolution suspended for a physical roll.");
+    this.name = "RerollResolutionSuspended";
+  }
+}
+
+class DamageResolutionSuspended extends Error {
+  constructor() {
+    super("Card resolution suspended for a separate attack.");
+    this.name = "DamageResolutionSuspended";
+  }
+}
+
+function rerollTargetPlayerId(state: MatchState, controllerId: string, target: "controller" | "opponent") {
+  return target === "opponent" ? otherPlayer(state, controllerId).id : controllerId;
+}
+
+function canStartReroll(state: MatchState, playerId: string) {
+  const bakugan = activeBakugan(state, playerId);
+  const bothMissed = state.players.every((player) => state.rolls[player.id]?.result === "miss-closed");
+  return Boolean(
+    state.phase === "power"
+    && !bothMissed
+    && !state.pendingReroll
+    && bakugan
+    && state.rolls[playerId]
+    && state.placements.some((placement) => !placement.attachedTo),
+  );
+}
+
+export function cardRerollTimingLegal(state: MatchState, controllerId: string, card: GameCard) {
+  if (!/\bmust Reroll\b/i.test(card.effect)) return true;
+  const target = /opponent(?:'s)?|opposing Bakugan|their Bakugan/i.test(card.effect) ? "opponent" : "controller";
+  return canStartReroll(state, rerollTargetPlayerId(state, controllerId, target));
+}
+
+export function intrinsicRerollAbility(state: MatchState | null | undefined, playerId?: string) {
+  if (!state || !playerId) return null;
+  const bakugan = activeBakugan(state, playerId);
+  const roll = state.rolls[playerId];
+  if (!bakugan || !roll || roll.result !== "miss-closed") return null;
+  const source = topCard(bakugan);
+  const text = source.effect;
+  if (!/you may Reroll .*miss a Roll|miss a Roll .*you may Reroll|you may Reroll this .*miss/i.test(text)) return null;
+  const unlimited = /any time you miss/i.test(text);
+  const used = state.rerollUsage[source.id] ?? 0;
+  if (!unlimited && used >= 1) return null;
+  return { bakugan, source, unlimited, used };
+}
+
+export function playerCanActivateIntrinsicReroll(state: MatchState | null | undefined, playerId?: string) {
+  return Boolean(
+    state
+    && playerId
+    && state.phase === "power"
+    && state.priority === playerId
+    && intrinsicRerollAbility(state, playerId)
+    && canStartReroll(state, playerId),
+  );
+}
+
+function beginRerollMutable(
+  state: MatchState,
+  playerId: string,
+  source: { effectId?: string; name: string; mandatory: boolean },
+) {
+  if (!canStartReroll(state, playerId)) {
+    if (source.mandatory) throw new Error("A mandatory Reroll can resolve only after the first roll and before the Victor Step.");
+    return false;
+  }
+  const bakugan = activeBakugan(state, playerId)!;
+  const player = playerById(state, playerId);
+  const resumePriority = state.startingPlayer;
+  const resumeDeadline = deadlineFor("power");
+  retractBakugan(state, bakugan);
+  delete state.targets[playerId];
+  state.pendingReroll = {
+    id: `reroll:${state.gameNumber}:${state.turn}:${state.rerollSequence + 1}:${uid()}`,
+    playerId,
+    bakuganId: bakugan.id,
+    sourceEffectId: source.effectId,
+    sourceName: source.name,
+    mandatory: source.mandatory,
+    resumePriority,
+    resumeDeadline,
+    resumeStepLabel: "Brawl Phase • Power Step",
+  };
+  setPhase(state, "reroll", `Roll Phase • Reroll • ${player.name} chooses a BakuCore`, playerId);
+  entry(state, "game", `${source.name} requires ${player.name} to reroll ${bakugan.name}.`);
+  state.undoWindow = undefined;
+  return true;
+}
+
+export function activateIntrinsicReroll(input: MatchState, playerId: string) {
+  const state = cloneMatch(input);
+  const ability = intrinsicRerollAbility(state, playerId);
+  if (!playerCanActivateIntrinsicReroll(state, playerId) || !ability) {
+    throw new Error("This Bakugan does not have an unused Reroll ability for its current miss.");
+  }
+  state.rerollUsage[ability.source.id] = (state.rerollUsage[ability.source.id] ?? 0) + 1;
+  beginRerollMutable(state, playerId, { name: ability.source.displayName || ability.source.name, mandatory: true });
+  return withVersion(state);
+}
+
+export function selectRerollTarget(input: MatchState, playerId: string, cell: string) {
+  const state = cloneMatch(input);
+  const pending = state.pendingReroll;
+  if (state.phase !== "reroll" || !pending || pending.playerId !== playerId || state.priority !== playerId) {
+    throw new Error("Reroll target selection is not legal now.");
+  }
+  if (!state.placements.some((placement) => placement.cell === cell && !placement.attachedTo)) {
+    throw new Error("Choose an available BakuCore in the Hide Matrix.");
+  }
+  pending.targetCell = cell;
+  state.targets[playerId] = cell;
+  state.stepLabel = `Roll Phase • Reroll • ${playerById(state, playerId).name} confirms the roll`;
+  state.deadline = Date.now() + PHASE_TIMERS.reroll * 1_000;
+  entry(state, "game", `${playerById(state, playerId).name} locked a BakuCore target for the reroll.`);
+  return withVersion(state);
+}
+
+function rerollSourceIsComplete(state: MatchState, sourceEffectId?: string) {
+  return !sourceEffectId || !state.batch.some((effect) => effect.id === sourceEffectId);
+}
+
+export function finalizeRerollContinuation(state: MatchState, sourceEffectId?: string) {
+  if (!rerollSourceIsComplete(state, sourceEffectId) || hasQueuedEffectDraw(state)) return;
+  const openEvent = state.pendingRerollOpenEvent;
+  if (openEvent && (!openEvent.sourceEffectId || openEvent.sourceEffectId === sourceEffectId)) {
+    emitGameEvent(state, {
+      id: `${state.turn}:reroll-open:${state.rerollSequence}:${openEvent.playerId}`,
+      type: "open",
+      playerId: openEvent.playerId,
+      playerIds: [openEvent.playerId],
+      targetBakuganId: openEvent.bakuganId,
+    });
+    state.pendingRerollOpenEvent = undefined;
+  }
+  if (sourceEffectId) {
+    delete state.rerollOpenedByEffect[sourceEffectId];
+    delete state.rerollTargetByEffect[sourceEffectId];
+  }
+  if (!state.repeatRollAfterReroll) return;
+  state.repeatRollAfterReroll = false;
+  state.targets = {};
+  setPhase(state, "target", "Roll Phase • Rolling Step • Both players reroll after all Bakugan remained closed", state.startingPlayer);
+  entry(state, "game", "The rerolled Bakugan missed while the opposing Bakugan was closed. Both players repeat the Rolling Step.");
+}
+
+export function confirmReroll(
+  input: MatchState,
+  playerId: string,
+  randomRoll: (maximum: number) => number = secureRandomInt,
+) {
+  const state = cloneMatch(input);
+  const pending = state.pendingReroll;
+  if (state.phase !== "reroll" || !pending || pending.playerId !== playerId || state.priority !== playerId || !pending.targetCell) {
+    throw new Error("Reroll confirmation is not legal now.");
+  }
+  const player = playerById(state, playerId);
+  const bakugan = player.bakugan.find((candidate) => candidate.id === pending.bakuganId);
+  if (!bakugan || state.selected[playerId] !== bakugan.id) throw new Error("The selected Bakugan is no longer available to reroll.");
+  state.targets[playerId] = pending.targetCell;
+  const outcome = resolveRollOutcome(state, player, randomRoll);
+  state.rerollSequence += 1;
+  outcome.rerollSequence = state.rerollSequence;
+  outcome.rerollSource = pending.sourceName;
+  state.rolls[playerId] = outcome;
+  const opened = outcome.result !== "miss-closed";
+  bakugan.open = opened;
+  bakugan.heldCoreCells = [];
+  if (opened) {
+    (bakugan as Bakugan & { openedTurn?: number }).openedTurn = state.turn;
+    for (const cell of outcome.cores) {
+      const placement = state.placements.find((candidate) => candidate.cell === cell);
+      if (placement) placement.attachedTo = bakugan.id;
+    }
+    bakugan.heldCoreCells.push(...outcome.cores);
+  }
+  entry(
+    state,
+    "random",
+    `${player.name}: reroll ${state.rerollSequence}, accuracy ${outcome.accuracyRoll}/100, double ${outcome.doubleRoll}/100 → ${outcome.result}. ${outcome.note}`,
+  );
+  state.informationEpoch += 1;
+  state.undoWindow = undefined;
+  if (pending.sourceEffectId) {
+    state.rerollOpenedByEffect[pending.sourceEffectId] = opened;
+    state.rerollTargetByEffect[pending.sourceEffectId] = bakugan.id;
+  }
+  if (opened) state.pendingRerollOpenEvent = {
+    playerId,
+    bakuganId: bakugan.id,
+    sourceEffectId: pending.sourceEffectId,
+  };
+  const opponent = otherPlayer(state, playerId);
+  const opposingBakugan = activeBakugan(state, opponent.id);
+  state.repeatRollAfterReroll = !opened && !opposingBakugan?.open;
+  const sourceEffectId = pending.sourceEffectId;
+  const resumePriority = pending.resumePriority;
+  const resumeDeadline = Math.max(pending.resumeDeadline, Date.now() + PHASE_TIMERS.power * 1_000);
+  state.pendingReroll = undefined;
+  delete state.targets[playerId];
+  state.phase = "power";
+  state.stepLabel = pending.resumeStepLabel;
+  state.priority = resumePriority;
+  state.passes = [];
+  state.deadline = resumeDeadline;
+
+  if (sourceEffectId) {
+    const effect = state.batch.find((candidate) => candidate.id === sourceEffectId);
+    if (effect) {
+      const completed = resolvePendingEffect(state, effect);
+      if (completed) state.batch = state.batch.filter((candidate) => candidate.id !== effect.id);
+      if (!completed || state.pendingChoice || state.pendingReroll) return withVersion(state);
+    }
+  }
+  finalizeRerollContinuation(state, sourceEffectId);
+  if (!state.pendingChoice && !state.pendingReroll && !hasQueuedEffectDraw(state) && state.phase === "power" && !state.triggerOrders.some((request) => !request.orderedIds)) {
+    state.priority = state.startingPlayer;
+    state.deadline = deadlineFor("power");
+  }
+  return withVersion(state);
+}
 const heldCores = (state: MatchState, bakugan: Bakugan) => bakugan.heldCoreCells.map((cell) => state.placements.find((placement) => placement.cell === cell)?.core).filter(Boolean) as Core[];
 const hasCoreType = (state: MatchState, bakugan: Bakugan, type: CoreType) => heldCores(state, bakugan).some((core) => core.type === type);
 const coreCode: Record<string, CoreType> = { MS: "Magic Shield", FF: "Flaming Fist", FT: "Fist", SD: "Shield", HE: "Helix" };
@@ -852,6 +1122,7 @@ export const prepareCardPlay = (input: MatchState, playerId: string, cardId: str
   const card = player.hand.find((candidate) => candidate.id === cardId);
   if (!card) throw new Error("That card is not in your hand.");
   if (card.type === "Flip" || card.type === "Character") throw new Error("That card cannot be played from hand.");
+  if (!cardRerollTimingLegal(state, playerId, card)) throw new Error("This mandatory Reroll card can be played only after the first roll and before the Victor Step.");
   const definition = ruleDefinitionForCard(card);
   const announce = buildChoiceSchemaFromSpecs(state, playerId, card, definition.play.choices, "announce");
   const payment = buildChoiceSchemaFromSpecs(state, playerId, card, definition.play.choices, "pay");
@@ -878,7 +1149,7 @@ export const prepareCardPlay = (input: MatchState, playerId: string, cardId: str
 
 export const cancelCardChoice = (input: MatchState, playerId: string) => {
   const state = cloneMatch(input);
-  if (!state.pendingChoice || state.pendingChoice.kind === "resolution" || state.pendingChoice.controllerId !== playerId || Object.keys(state.pendingChoice.answers).length) {
+  if (!state.pendingChoice || ["resolution", "forced-discard"].includes(state.pendingChoice.kind) || state.pendingChoice.controllerId !== playerId || Object.keys(state.pendingChoice.answers).length) {
     throw new Error("This card choice can no longer be cancelled.");
   }
   const card = playerById(state, playerId).hand.find((candidate) => candidate.id === state.pendingChoice!.cardId);
@@ -911,10 +1182,79 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
     return withVersion(state);
   }
   const merged = mergeChoiceAnswers(pending.schema, pending.answers);
+  if (pending.kind === "forced-discard") {
+    const field = pending.schema.fields.find((candidate) => candidate.id === "discardCardIds" && candidate.chooserId === playerId);
+    const amount = field?.maximum ?? 0;
+    state.pendingChoice = undefined;
+    if (amount > 0) discardFromHand(state, playerById(state, playerId), amount, merged.discardCardIds ?? []);
+    state.priority = pending.resumePriority ?? state.startingPlayer;
+    state.deadline = pending.resumeDeadline ?? deadlineFor(state.phase);
+    state.stepLabel = pending.resumeStepLabel ?? state.stepLabel;
+    return withVersion(state);
+  }
+  if (pending.kind === "resolution" && pending.instructionIndex != null) {
+    const effect = state.batch.find((candidate) => candidate.id === pending.pendingEffectId);
+    const instruction = effect
+      ? compileCardEffect(effect.card, effect.effect ?? effect.card.effect).instructions[pending.instructionIndex]
+      : undefined;
+    const targetPlayerId = merged.targetPlayerId;
+    if (effect && instruction && targetPlayerId && /choose a player to discard a card/i.test(instruction.sourceText)
+      && !merged.discardCardIds?.length) {
+      const targetPlayer = playerById(state, targetPlayerId);
+      effect.resolvedChoices = {
+        ...(effect.resolvedChoices ?? {}),
+        [String(pending.instructionIndex)]: {
+          ...(effect.resolvedChoices?.[String(pending.instructionIndex)] ?? {}),
+          targetPlayerId,
+        },
+      };
+      if (targetPlayer.hand.length) {
+        state.pendingChoice = {
+          ...pending,
+          id: uid(),
+          schema: {
+            id: `${state.id}:${state.version}:${effect.card.id}:chosen-player-discard`,
+            sourceId: effect.card.id,
+            sourceName: effect.card.displayName || effect.card.name,
+            controllerId: effect.controllerId,
+            timing: "resolve",
+            simultaneous: false,
+            fields: [{
+              id: "discardCardIds",
+              kind: "hand-cards",
+              label: "Choose a card to discard",
+              chooserId: targetPlayerId,
+              visibility: "private",
+              timing: "resolve",
+              minimum: 1,
+              maximum: 1,
+              required: true,
+              options: targetPlayer.hand.map((card) => ({
+                id: card.id,
+                label: card.displayName || card.name,
+                ownerId: targetPlayerId,
+              })),
+            }],
+          },
+          answers: {},
+        };
+        state.priority = targetPlayerId;
+        state.stepLabel = `${effect.card.displayName || effect.card.name} • Choose a discard`;
+        state.deadline = Date.now() + 35_000;
+        return withVersion(state);
+      }
+    }
+  }
   if (pending.kind === "resolution") {
     const effect = state.batch.find((candidate) => candidate.id === pending.pendingEffectId);
     if (!effect || pending.instructionIndex == null) throw new Error("The resolving batch object is no longer available.");
-    effect.resolvedChoices = { ...(effect.resolvedChoices ?? {}), [String(pending.instructionIndex)]: merged };
+    effect.resolvedChoices = {
+      ...(effect.resolvedChoices ?? {}),
+      [String(pending.instructionIndex)]: {
+        ...(effect.resolvedChoices?.[String(pending.instructionIndex)] ?? {}),
+        ...merged,
+      },
+    };
     state.pendingChoice = undefined;
     state.priority = pending.resumePriority ?? state.startingPlayer;
     state.deadline = pending.resumeDeadline ?? deadlineFor(state.phase);
@@ -927,6 +1267,7 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
         state.deadline = deadlineFor(state.phase);
       }
       if (state.phase === "damage" && state.pendingDamage <= 0 && !state.revealedFlip) finishDamage(state);
+      finalizeRerollContinuation(state, effect.id);
     }
     return withVersion(state);
   }
@@ -953,10 +1294,12 @@ export const playCard = (input: MatchState, playerId: string, cardId: string, ch
   if (!["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase) || state.priority !== playerId) throw new Error("You do not have priority in a card-play window.");
   const index = player.hand.findIndex((card) => card.id === cardId); if (index < 0) throw new Error("That card is not in your hand.");
   const card = player.hand[index]; if (card.type === "Flip" || card.type === "Character") throw new Error("Flip cards are played only when revealed by damage; Characters begin outside the deck.");
+  if (!cardRerollTimingLegal(state, playerId, card)) throw new Error("This mandatory Reroll card can be played only after the first roll and before the Victor Step.");
   if (card.cost === "X" && !Number.isFinite(choices.xValue)) throw new Error("Choose X before paying for this card.");
   state.pendingChoice = undefined;
   card.playedTurn = state.turn;
   const cost = effectiveCost(state, player, card, choices); payEnergy(state, player, cost); player.hand.splice(index, 1); player.cardsPlayedThisTurn += 1;
+  state.nextCardCostReduction[playerId] = 0;
   const definition = ruleDefinitionForCard(card);
   const ability = definition.abilities.find((candidate) => candidate.kind !== "triggered") ?? definition.abilities[0];
   const batchObject = createRuleObject({ controllerId: playerId, card, ability, choices, kind: "card" });
@@ -1038,13 +1381,13 @@ const instructionChoices = (pending: PendingEffect, instructionIndex: number) =>
   .reduce<CardChoices>((merged, [, answers]) => ({ ...merged, ...answers }), { ...pending.choices });
 
 type EffectDrawState = MatchState & {
-  pendingDrawQueue?: Array<{ id: string; playerId: string; remaining: number; total: number; sourceName: string }>;
+  pendingDrawQueue?: Array<{ id: string; playerId: string; remaining: number; total: number; sourceName: string; sourceEffectId?: string }>;
   pendingDrawResumePriority?: string;
   pendingDrawResumeDeadline?: number;
   pendingDrawResumeStepLabel?: string;
 };
 
-const enqueueEffectDraw = (state: MatchState, player: PlayerState, amount: number, sourceName: string) => {
+const enqueueEffectDraw = (state: MatchState, player: PlayerState, amount: number, sourceName: string, sourceEffectId?: string) => {
   if (amount <= 0) return;
   const queued = state as EffectDrawState;
   if (!queued.pendingDrawQueue?.length) {
@@ -1058,6 +1401,7 @@ const enqueueEffectDraw = (state: MatchState, player: PlayerState, amount: numbe
     remaining: amount,
     total: amount,
     sourceName,
+    sourceEffectId,
   }];
   const active = queued.pendingDrawQueue[0];
   state.priority = active.playerId;
@@ -1075,6 +1419,7 @@ const ruleConditionIsActive = (
   const player = playerById(state, pending.controllerId);
   const choices = instructionChoices(pending, pending.instructionIndex ?? 0);
   if (instruction.condition.kind === "selection-made") return Boolean(choices[instruction.condition.choiceId]);
+  if (instruction.condition.kind === "reroll-opened") return Boolean(state.rerollOpenedByEffect[pending.id]);
   if (instruction.condition.kind === "printed") return conditionActive(state, player, instruction.condition.text, choices);
   if (instruction.condition.kind === "faction") {
     return chooseBakugan(state, pending.controllerId, choices)?.faction === instruction.condition.faction;
@@ -1096,13 +1441,50 @@ const executeRuleAction = (
   const text = instruction.sourceText;
   const lower = text.toLowerCase();
   const preferEnemy = /^-|enemy|opposing|non-\[/.test(lower) && !/one of your/.test(lower);
-  const target = chooseBakugan(state, controllerId, choices, preferEnemy);
+  const rerollTargetId = state.rerollTargetByEffect[pending.id];
+  const target = state.players
+    .flatMap((candidate) => candidate.bakugan)
+    .find((bakugan) => bakugan.id === rerollTargetId)
+    ?? chooseBakugan(state, controllerId, choices, preferEnemy);
 
   switch (action.kind) {
     case "choice":
-    case "trigger":
-    case "cost":
       return;
+    case "trigger": {
+      if (action.event === "VICTOR_DECLARED" && target) {
+        const amount = Number(text.match(/opponent.*discard\s+(\d+)\s+cards?/i)?.[1] ?? 0);
+        if (amount > 0) {
+          const existing = state.temporaryVictorDiscards[target.id];
+          state.temporaryVictorDiscards[target.id] = {
+            controllerId,
+            sourceName: existing
+              ? `${existing.sourceName} + ${card.displayName || card.name}`
+              : card.displayName || card.name,
+            amount: (existing?.amount ?? 0) + amount,
+          };
+        }
+      }
+      return;
+    }
+    case "cost":
+      if (action.duration === "next-card") {
+        if (action.operation === "reduce") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) + action.amount;
+        else if (action.operation === "increase") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) - action.amount;
+      }
+      return;
+    case "reroll": {
+      if (!action.mandatory && choices.confirmed === false) return;
+      if (action.requiresDiscard && !choices.discardCardIds?.length) return;
+      const rollerId = rerollTargetPlayerId(state, controllerId, action.target);
+      pending.instructionIndex = instructionIndex + 1;
+      if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex + 1;
+      if (!beginRerollMutable(state, rollerId, {
+        effectId: pending.id,
+        name: card.displayName || card.name,
+        mandatory: action.mandatory,
+      })) return;
+      throw new RerollResolutionSuspended();
+    }
     case "continuous": {
       const rules = ensureRulesState(state);
       const modifier = {
@@ -1159,15 +1541,17 @@ const executeRuleAction = (
       return;
     case "draw": {
       const amount = action.scale ? Math.max(0, scaleStat(state, player, text, action.amount, "draw")) : action.amount;
-      enqueueEffectDraw(state, player, amount, card.displayName || card.name);
+      enqueueEffectDraw(state, player, amount, card.displayName || card.name, pending.id);
       return;
     }
     case "discard": {
+      if (/\bVictor\s*:/i.test(text)) return;
       const affected = choices.targetPlayerId
         ? playerById(state, choices.targetPlayerId)
         : /your opponent|opponent discards/i.test(text) ? opponent : player;
       const selected = choices.discardCardIds ?? choices.handCardIds ?? [];
-      discardFromHand(state, affected, Math.min(action.maximum, selected.length || action.amount), selected);
+      const amount = action.minimum === 0 ? selected.length : selected.length || action.amount;
+      if (amount > 0) discardFromHand(state, affected, Math.min(action.maximum, amount), selected);
       return;
     }
     case "energize":
@@ -1318,7 +1702,11 @@ const executeRuleAction = (
         const [selected] = player.hand.splice(index, 1);
         selected.playedTurn = state.turn;
         player.cardsPlayedThisTurn += 1;
-        state.batch.push({ id: uid(), controllerId, card: selected, choices: {}, kind: "card" });
+        state.nextCardCostReduction[controllerId] = 0;
+        const freeChoices = selected.type === "Evo"
+          ? { targetBakuganId: choices.targetBakuganId ?? activeBakugan(state, controllerId)?.id }
+          : {};
+        state.batch.push({ id: uid(), controllerId, card: selected, choices: freeChoices, kind: "card" });
         emitGameEvent(state, { id: `${state.turn}:card-play:${selected.id}`, type: "card-play", playerId: controllerId, cardType: selected.type });
         entry(state, "game", `${player.name} played ${selected.name} from hand for free.`);
         return;
@@ -1327,6 +1715,7 @@ const executeRuleAction = (
         for (const owner of state.players) owner.discard = owner.discard.filter((candidate) => candidate.id !== card.id);
         card.playedTurn = state.turn;
         player.cardsPlayedThisTurn += 1;
+        state.nextCardCostReduction[controllerId] = 0;
         state.batch.push({ id: uid(), controllerId, card, choices, kind: "card" });
         emitGameEvent(state, { id: `${state.turn}:card-play:${card.id}`, type: "card-play", playerId: controllerId, cardType: card.type });
         entry(state, "game", `${player.name} played discarded ${card.name} for free.`);
@@ -1342,6 +1731,7 @@ const executeRuleAction = (
       syncDeck(player);
       revealed.playedTurn = state.turn;
       player.cardsPlayedThisTurn += 1;
+      state.nextCardCostReduction[controllerId] = 0;
       state.batch.push({ id: uid(), controllerId, card: revealed, choices: {}, kind: "card" });
       delete tracked.revealedDeckCardId;
       emitGameEvent(state, { id: `${state.turn}:card-play:${revealed.id}`, type: "card-play", playerId: controllerId, cardType: revealed.type });
@@ -1349,13 +1739,22 @@ const executeRuleAction = (
       return;
     }
     case "attack": {
+      state.pendingEffectDamageResume = {
+        sourceEffectId: pending.id,
+        phase: state.phase,
+        priority: state.startingPlayer,
+        deadline: deadlineFor(state.phase),
+        stepLabel: state.stepLabel,
+      };
       state.pendingLoser = opponent.id;
       state.pendingDamage = action.amount;
       state.damageOrigin = pending.sourceId ?? pending.card.id;
       state.damageFaction = action.faction as Faction;
-      setPhase(state, "damage", `Damage Step • ${action.amount} incoming`, opponent.id);
+      pending.instructionIndex = instructionIndex + 1;
+      if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex + 1;
+      setPhase(state, "damage", `Damage Step • ${action.amount} incoming from ${pending.card.displayName || pending.card.name}`, opponent.id);
       entry(state, "game", `${pending.card.name} made a ${action.faction ?? "separate"} attack for ${action.amount}.`);
-      return;
+      throw new DamageResolutionSuspended();
     }
     case "negate": {
       const selectedId = typeof choices.mode === "string" ? choices.mode : undefined;
@@ -1425,9 +1824,16 @@ function ruleActionIsExecutable(action: RuleAction): boolean {
 function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
   if (isRuleObject(pending)) beginRuleObjectResolution(pending);
   const program = compileCardEffect(pending.card, pending.effect ?? pending.card.effect);
-  const result = executeRuleProgram(program, {
-    conditionIsActive: (instruction) => ruleConditionIsActive(state, pending, instruction),
-    beforeInstruction: (instruction, instructionIndex) => {
+  let result: ReturnType<typeof executeRuleProgram>;
+  try {
+    result = executeRuleProgram(program, {
+      conditionIsActive: (instruction) => ruleConditionIsActive(state, pending, instruction),
+      beforeInstruction: (instruction, instructionIndex) => {
+      if (hasQueuedEffectDraw(state)) {
+        pending.instructionIndex = instructionIndex;
+        if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex;
+        return "suspend";
+      }
       const existing = pending.resolvedChoices?.[String(instructionIndex)];
       if (existing) return existing.confirmed === false ? "skip" : "continue";
       if (!instruction.effects.some(ruleActionIsExecutable)) return "continue";
@@ -1465,11 +1871,15 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
       pending.instructionIndex = instructionIndex;
       return "suspend";
     },
-    execute: (action, instruction, cursor) => {
-      executeRuleAction(state, pending, instruction, action, cursor.instructionIndex);
-      pending.instructionIndex = cursor.instructionIndex;
-    },
-  }, pending.instructionIndex ?? 0);
+      execute: (action, instruction, cursor) => {
+        executeRuleAction(state, pending, instruction, action, cursor.instructionIndex);
+        pending.instructionIndex = cursor.instructionIndex;
+      },
+    }, pending.instructionIndex ?? 0);
+  } catch (error) {
+    if (error instanceof RerollResolutionSuspended || error instanceof DamageResolutionSuspended) return false;
+    throw error;
+  }
 
   if (!result.completed) return false;
   pending.instructionIndex = result.instructionIndex;
@@ -1504,6 +1914,55 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
   if (isRuleObject(pending)) completeRuleObject(pending);
   entry(state, "game", `${pending.card.name} finished resolving its typed rule program.`);
   return true;
+}
+
+export function resumePendingEffectAfterDamage(state: MatchState) {
+  const resume = state.pendingEffectDamageResume;
+  if (!resume) return false;
+  delete state.pendingEffectDamageResume;
+  state.pendingDamage = 0;
+  state.pendingLoser = "";
+  state.damageOrigin = "";
+  state.damageFaction = undefined;
+  state.revealedFlip = undefined;
+  state.phase = resume.phase;
+  state.priority = resume.priority;
+  state.deadline = Math.max(resume.deadline, deadlineFor(resume.phase));
+  state.stepLabel = resume.stepLabel;
+  state.passes = [];
+
+  const effect = state.batch.find((candidate) => candidate.id === resume.sourceEffectId);
+  if (effect) {
+    const completed = resolvePendingEffect(state, effect);
+    if (completed) state.batch = state.batch.filter((candidate) => candidate.id !== effect.id);
+    if (!completed || state.pendingChoice || state.pendingReroll || hasQueuedEffectDraw(state)) return true;
+  }
+  finalizeRerollContinuation(state, resume.sourceEffectId);
+  if (!state.pendingChoice && !state.pendingReroll && !hasQueuedEffectDraw(state)
+    && ["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase)) {
+    state.priority = state.startingPlayer;
+    state.deadline = deadlineFor(state.phase);
+  }
+  return true;
+}
+
+export function resumePendingEffectAfterDraw(state: MatchState, sourceEffectId?: string) {
+  if (!sourceEffectId) {
+    finalizeRerollContinuation(state, state.pendingRerollOpenEvent?.sourceEffectId);
+    return;
+  }
+  const effect = state.batch.find((candidate) => candidate.id === sourceEffectId);
+  if (effect) {
+    const completed = resolvePendingEffect(state, effect);
+    if (completed) state.batch = state.batch.filter((candidate) => candidate.id !== effect.id);
+    if (!completed || state.pendingChoice || state.pendingReroll || hasQueuedEffectDraw(state)) return;
+  }
+  finalizeRerollContinuation(state, sourceEffectId);
+  if (!state.pendingChoice && !state.pendingReroll && !hasQueuedEffectDraw(state)
+    && ["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase)) {
+    state.priority = state.startingPlayer;
+    state.deadline = deadlineFor(state.phase);
+  }
 }
 
 const applyEffect = (state: MatchState, pending: PendingEffect) => resolvePendingEffect(state, pending);
@@ -1547,6 +2006,58 @@ const tieBreak = (state: MatchState) => {
   }
 };
 
+function stageTemporaryVictorDiscard(state: MatchState, winnerId: string, bakugan?: Bakugan) {
+  if (!bakugan) return;
+  const effect = state.temporaryVictorDiscards[bakugan.id];
+  if (!effect) return;
+  delete state.temporaryVictorDiscards[bakugan.id];
+  const opponent = otherPlayer(state, winnerId);
+  const amount = Math.min(effect.amount, opponent.hand.length);
+  if (amount <= 0) return;
+  const resumePriority = state.priority;
+  const resumeDeadline = state.deadline;
+  const resumeStepLabel = state.stepLabel;
+  state.pendingChoice = {
+    id: uid(),
+    kind: "forced-discard",
+    controllerId: effect.controllerId,
+    cardId: `temporary-victor:${bakugan.id}`,
+    schema: {
+      id: `${state.id}:${state.version}:temporary-victor:${bakugan.id}`,
+      sourceId: bakugan.id,
+      sourceName: effect.sourceName,
+      controllerId: effect.controllerId,
+      timing: "resolve",
+      simultaneous: false,
+      fields: [{
+        id: "discardCardIds",
+        kind: "hand-cards",
+        label: `Choose ${amount} card${amount === 1 ? "" : "s"} to discard`,
+        chooserId: opponent.id,
+        visibility: "private",
+        timing: "resolve",
+        minimum: amount,
+        maximum: amount,
+        required: true,
+        options: opponent.hand.map((candidate) => ({
+          id: candidate.id,
+          label: candidate.displayName || candidate.name,
+          ownerId: opponent.id,
+        })),
+      }],
+    },
+    answers: {},
+    createdVersion: state.version,
+    resumePriority,
+    resumeDeadline,
+    resumeStepLabel,
+    irreversibleInformation: true,
+  };
+  state.priority = opponent.id;
+  state.stepLabel = `${effect.sourceName} • Victor discard`;
+  state.deadline = Date.now() + 35_000;
+}
+
 const declareVictor = (state: MatchState) => {
   const participants = state.players.filter((player) => activeBakugan(state, player.id)?.open);
   if (!participants.length) throw new Error("The Rolling Step must produce an open Bakugan.");
@@ -1560,6 +2071,7 @@ const declareVictor = (state: MatchState) => {
   entry(state, "game", `${playerById(state, winnerId).name} was declared Victor by ${state.victorByDamage ? "Damage Rating" : "B-Power"}.`);
   const bakugan = activeBakugan(state, winnerId);
   emitGameEvent(state, { id: `${state.turn}:victor:${winnerId}`, type: "victor", playerId: winnerId, targetBakuganId: bakugan?.id });
+  stageTemporaryVictorDiscard(state, winnerId, bakugan);
 };
 
 const beginDamage = (state: MatchState) => {
@@ -1581,7 +2093,9 @@ const flipStopsDamage = (state: MatchState, card: GameCard) => {
 };
 
 const finishDamage = (state: MatchState) => {
-  state.revealedFlip = undefined; setPhase(state, "postDamage", "Damage Step • Post-damage priority", state.startingPlayer);
+  state.revealedFlip = undefined;
+  if (resumePendingEffectAfterDamage(state)) return;
+  setPhase(state, "postDamage", "Damage Step • Post-damage priority", state.startingPlayer);
 };
 
 const advanceEmptyBatch = (state: MatchState) => {
@@ -1661,6 +2175,7 @@ export const startNextSeriesGame = (input: MatchState) => {
   const state = cloneMatch(input); const needed = state.format === "bo3" ? 2 : 1;
   if (state.phase !== "result" || Math.max(...Object.values(state.series)) >= needed) throw new Error("The match is complete.");
   state.gameNumber += 1; state.turn = 0; state.placements = []; state.placementTurn = 0; state.selected = {}; state.targets = {}; state.rolls = {}; state.batch = [];
+  state.pendingReroll = undefined; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.temporaryVictorDiscards = {};
   const selected = state.players[secureRandomInt(state.players.length)];
   state.startingPlayer = selected.id; state.initialStartingPlayer = selected.id; state.priority = selected.id;
   state.startingPlayerRevealedAt = Date.now() + 2_500; state.brawlWinner = ""; state.winner = ""; state.resultReason = "";
@@ -1690,7 +2205,8 @@ export const redactForPlayer = (input: MatchState, playerId: string) => {
         : field
     ));
   }
-  if (state.phase === "target") for (const id of Object.keys(state.targets)) if (id !== playerId) delete state.targets[id];
+  if (state.phase === "target" || state.phase === "reroll") for (const id of Object.keys(state.targets)) if (id !== playerId) delete state.targets[id];
+  if (state.phase === "reroll" && state.pendingReroll?.playerId !== playerId && state.pendingReroll) delete state.pendingReroll.targetCell;
   const hiddenCard = (id: string): GameCard => ({
     id, catalogId: "hidden", number: 0, name: "Hidden card", displayName: "Hidden card",
     faction: "Aquos", factions: [], type: "Action", cost: 0, rarity: "",

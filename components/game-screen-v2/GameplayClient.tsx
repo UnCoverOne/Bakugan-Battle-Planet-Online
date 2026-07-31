@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  activateIntrinsicReroll,
   beginCorePlacement,
   concedeMatch,
   energizeCard,
@@ -18,6 +19,7 @@ import { tapEnergyCard } from "../../lib/energy";
 import {
   flipDamageCard,
   resolveManualDamage,
+  resumeDamageAfterFlipWindow,
 } from "../../lib/manualDamage";
 import {
   drawStepIsPending,
@@ -197,10 +199,16 @@ export function GameplayClient() {
     (match, actorId) => energizeCard(match, actorId),
   );
 
+  const activateReroll = () => submitMatchAction(
+    "reroll",
+    {},
+    (match, actorId) => activateIntrinsicReroll(match, actorId),
+  );
+
   const passTurn = () => submitMatchAction(
     "pass",
     {},
-    (match, actorId) => passPriority(match, actorId),
+    (match, actorId) => resumeDamageAfterFlipWindow(passPriority(match, actorId)),
   );
 
   const flipDamage = () => submitMatchAction(
@@ -472,6 +480,7 @@ export function GameplayClient() {
           onSelectedHandCardChange={setSelectedHandCardId}
           onSelectedCharacterChange={setSelectedCharacterId}
           onDrawCard={drawCard}
+          onActivateReroll={activateReroll}
           onPlayCard={playHandCard}
           onEnergizeCard={energizeHandCard}
           onSkipEnergize={skipEnergizing}

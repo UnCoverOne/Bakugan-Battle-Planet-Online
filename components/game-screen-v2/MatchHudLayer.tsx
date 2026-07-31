@@ -109,6 +109,7 @@ export function MatchHudLayer({
   onSelectedHandCardChange,
   onSelectedCharacterChange,
   onDrawCard,
+  onActivateReroll,
   onPlayCard,
   onEnergizeCard,
   onSkipEnergize,
@@ -126,6 +127,7 @@ export function MatchHudLayer({
   onSelectedHandCardChange: (cardId: string) => void;
   onSelectedCharacterChange: (bakuganId: string) => void;
   onDrawCard: MatchActionHandler;
+  onActivateReroll: MatchActionHandler;
   onPlayCard: PlayCardHandler;
   onEnergizeCard: EnergizeCardHandler;
   onSkipEnergize: MatchActionHandler;
@@ -279,6 +281,11 @@ export function MatchHudLayer({
       active: false,
       onClick: () => void run(onDrawCard),
     },
+    "activate-reroll": {
+      label: "Reroll",
+      active: true,
+      onClick: () => void run(onActivateReroll),
+    },
     "play-card": {
       label: "Play Card",
       active: effectiveHandMode === "play" && !selectionPending,
@@ -321,16 +328,16 @@ export function MatchHudLayer({
       <PlayerStatusHud match={match} player={opponent} position="opponent" />
       <PlayerStatusHud match={match} player={player} position="player" />
 
-      <section className={styles.actionHud} aria-label="Available player actions">
+      <section className={styles.actionHud} data-slots={actionSlots.length} aria-label="Available player actions">
         <header>
           <span>ACTIONS</span>
         </header>
-        <div className={styles.actionGrid}>
+        <div className={styles.actionGrid} data-slots={actionSlots.length}>
           {actionSlots.map((action, slotIndex) => (
             <div
               className={styles.actionSlot}
               data-filled={action ? "true" : "false"}
-              data-slot={slotIndex === 0 ? "primary" : "pass"}
+              data-slot={slotIndex === 0 ? "primary" : slotIndex === 1 ? "secondary" : "pass"}
               key={slotIndex}
             >
               {action ? (

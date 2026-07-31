@@ -35,6 +35,7 @@ export type RuleCondition =
   | { kind: "held-core-type"; coreTypes: CoreType[] }
   | { kind: "open-bakugan-count"; comparison: "exactly" | "at-least" | "at-most" | "more-than" | "fewer-than"; amount: number }
   | { kind: "selection-made"; choiceId: keyof CardChoices }
+  | { kind: "reroll-opened" }
   | { kind: "printed"; text: string };
 
 export type ChoiceSpec = {
@@ -101,6 +102,7 @@ export type RuleAction =
   | { kind: "search"; cardType?: string; amount: number }
   | { kind: "copy"; target: "next-action" | "batch-action"; independentChoices: true }
   | { kind: "cost"; amount: number; operation: "reduce" | "increase" | "free"; duration: RulesDuration }
+  | { kind: "reroll"; target: "controller" | "opponent"; mandatory: boolean; requiresDiscard: boolean }
   | { kind: "trigger"; event: TriggerEventName; definition: TriggerDefinition }
   | { kind: "continuous"; modifier: ContinuousModifier }
   | { kind: "conditional"; condition: RuleCondition; whenTrue: RuleAction[]; whenFalse?: RuleAction[]; replacement?: boolean }

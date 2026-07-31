@@ -93,6 +93,7 @@ test("turn progress follows live engine phases and step labels", () => {
     ["energize", "Turn 1 • Energize Step", "start", "energize"],
     ["selection", "Roll Phase • Selection Step", "roll", "selection"],
     ["target", "Roll Phase • Secret target selection", "roll", "rolling"],
+    ["reroll", "Roll Phase • Reroll", "roll", "rolling"],
     ["power", "Brawl Phase • Power Step", "brawl", "power"],
     ["victor", "Brawl Phase • Victor Step", "brawl", "victor"],
     ["damage", "Damage Step • 5 incoming", "brawl", "damage"],
