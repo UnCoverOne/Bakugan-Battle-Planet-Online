@@ -451,6 +451,7 @@ export function AppProvider({ children }) {
   const authenticate = useCallback(async (action, payload) => {
     setAuthBusy(true);
     setAuthError("");
+    let sessionEstablished = false;
     try {
       const identity = {
         displayName: payload.displayName?.trim().replace(/\s+/g, " ") || defaults.profile.name,
@@ -472,6 +473,7 @@ export function AppProvider({ children }) {
       });
       const result = await response.json();
       if (!response.ok || !result.user) throw new Error(result.error ?? "Account request failed.");
+      sessionEstablished = true;
       guestSnapshot.current = snapshotRef.current
         ? { ...snapshotRef.current, profile: { ...snapshotRef.current.profile, signedIn: false } }
         : null;
@@ -504,12 +506,12 @@ export function AppProvider({ children }) {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Account request failed.";
       setAuthError(message);
-      setSyncStatus(authUser ? (navigator.onLine ? "error" : "offline") : "local");
+      setSyncStatus(sessionEstablished ? (navigator.onLine ? "error" : "offline") : "local");
       return { ok: false, error: message };
     } finally {
       setAuthBusy(false);
     }
-  }, [applySnapshot, authUser, loadCloud, pathname, router]);
+  }, [applySnapshot, loadCloud, pathname, router]);
   const continueAsGuest = useCallback(() => {
     setProfile((current) => ({ ...current, signedIn: false }));
     setSyncStatus("local");
