@@ -6,7 +6,7 @@ import { useApp } from "./AppProvider";
 import styles from "./AccountAccessModal.module.css";
 
 export type AccountAccessMode = "login" | "signup";
-type SyncStrategy = "merge" | "local" | "cloud";
+type RegistrationChoice = "merge" | "fresh";
 
 export function AccountAccessModal({
   mode,
@@ -31,7 +31,7 @@ export function AccountAccessModal({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  const [strategy, setStrategy] = useState<SyncStrategy>("merge");
+  const [strategy, setStrategy] = useState<RegistrationChoice>("merge");
   const [formError, setFormError] = useState("");
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -59,13 +59,13 @@ export function AccountAccessModal({
     return "";
   };
 
-  const finish = async (syncStrategy: SyncStrategy) => {
+  const finish = async (registrationChoice: RegistrationChoice = "fresh") => {
     const result = await authenticate(mode, {
       email,
       password,
       displayName: displayName.trim().replace(/\s+/g, " "),
       faction,
-      syncStrategy,
+      importLocalData: mode === "signup" && registrationChoice === "merge",
       returnTo: pathname,
     });
     if (result?.ok) onClose();
@@ -76,16 +76,16 @@ export function AccountAccessModal({
     setFormError("");
     const error = validateDetails();
     if (error) return setFormError(error);
-    if (guestData.hasMeaningfulData) {
+    if (mode === "signup" && guestData.hasMeaningfulData) {
       setStep("transfer");
       return;
     }
-    await finish(mode === "login" ? "cloud" : "local");
+    await finish("fresh");
   };
 
   const submitTransfer = async (event: FormEvent) => {
     event.preventDefault();
-    await finish(mode === "signup" ? "local" : strategy);
+    await finish(strategy);
   };
 
   return (
@@ -210,41 +210,37 @@ export function AccountAccessModal({
         ) : (
           <form className={styles.form} onSubmit={submitTransfer}>
             <p className={styles.transferIntro}>
-              This device has guest progress. Choose how it should join the account before cloud sync begins.
+              This is the only time local guest data can be added to the new account. Future logins always use account data only.
             </p>
             <ul className={styles.summary} aria-label="Guest data found">
               {guestData.labels.map((label: string) => <li key={label}>{label}</li>)}
             </ul>
-            {mode === "login" ? (
-              <fieldset className={styles.choices}>
-                <legend>After login, use which data?</legend>
-                {([
-                  ["merge", "Merge safely", "Combine device and cloud decks, keep the newest edit for each deck, and preserve deletions."],
-                  ["local", "Use this device", "Upload this device’s durable progress to the account."],
-                  ["cloud", "Use cloud copy", "Keep the account copy while leaving device-only session state intact."],
-                ] as const).map(([value, title, copy]) => (
-                  <label className={styles.choice} key={value}>
-                    <input
-                      type="radio"
-                      name="sync-strategy"
-                      value={value}
-                      checked={strategy === value}
-                      onChange={() => setStrategy(value)}
-                    />
-                    <span><strong>{title}</strong><span>{copy}</span></span>
-                  </label>
-                ))}
-              </fieldset>
-            ) : (
-              <p className={styles.notice}>
-                Your guest decks, settings, draft, and eligible match records will be brought into the new account. A recoverable device copy remains available during transfer.
-              </p>
-            )}
+            <fieldset className={styles.choices}>
+              <legend>Create the account with which data?</legend>
+              {([
+                ["merge", "Bring local data", "Import this guest profile’s decks, settings, draft, and eligible match records into the account."],
+                ["fresh", "Start with an empty account", "Keep guest data only in this browser and create a separate account with default data."],
+              ] as const).map(([value, title, copy]) => (
+                <label className={styles.choice} key={value}>
+                  <input
+                    type="radio"
+                    name="registration-data"
+                    value={value}
+                    checked={strategy === value}
+                    onChange={() => setStrategy(value)}
+                  />
+                  <span><strong>{title}</strong><span>{copy}</span></span>
+                </label>
+              ))}
+            </fieldset>
+            <p className={styles.notice}>
+              Your local guest data remains unchanged whichever option you choose.
+            </p>
             {authError && <p className={styles.error} role="alert">{authError}</p>}
             <div className={styles.actions}>
               <button className={styles.quiet} type="button" disabled={authBusy} onClick={() => setStep("details")}>Back</button>
               <button className={styles.primary} type="submit" disabled={authBusy}>
-                {authBusy ? "Protecting progress…" : mode === "login" ? "Log in & continue" : "Create account & bring data"}
+                {authBusy ? "Protecting progress…" : "Create account"}
               </button>
             </div>
           </form>
