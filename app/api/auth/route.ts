@@ -102,8 +102,6 @@ export async function POST(request: Request) {
     if (action === "delete-account") {
       if (String(body.confirmation ?? "").trim().toUpperCase() !== "DELETE") return json({ error: "Type DELETE to confirm account removal." }, 400);
       await db.batch([
-        db.prepare("DELETE FROM user_match_history WHERE user_id = ?").bind(user.id),
-        db.prepare("DELETE FROM user_data_entities WHERE user_id = ?").bind(user.id),
         db.prepare("DELETE FROM user_data WHERE user_id = ?").bind(user.id),
         db.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id),
         db.prepare("DELETE FROM users WHERE id = ?").bind(user.id),

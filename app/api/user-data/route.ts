@@ -60,6 +60,34 @@ async function readBoundedText(request: Request, maximumBytes: number) {
 const textBytes = (value: string | null | undefined) =>
   value ? new TextEncoder().encode(value).byteLength : 0;
 
+async function ensureEntitySchema(db: Database) {
+  try {
+    await db.prepare("SELECT 1 FROM user_data_entities LIMIT 1").first();
+    return;
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !/no such table:\s*user_data_entities/i.test(error.message)
+    ) {
+      throw error;
+    }
+  }
+  await db.batch([
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS user_data_entities (user_id TEXT NOT NULL, entity_type TEXT NOT NULL CHECK (entity_type IN ('profile', 'settings', 'preferences', 'deck', 'draft')), entity_id TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 0, data_json TEXT, deleted_at TEXT, updated_at INTEGER NOT NULL, PRIMARY KEY (user_id, entity_type, entity_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    ),
+    db.prepare(
+      "CREATE INDEX IF NOT EXISTS user_data_entities_user_updated_idx ON user_data_entities(user_id, updated_at)",
+    ),
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS user_match_history (user_id TEXT NOT NULL, event_id TEXT NOT NULL, data_json TEXT NOT NULL, occurred_at TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, event_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    ),
+    db.prepare(
+      "CREATE INDEX IF NOT EXISTS user_match_history_user_occurred_idx ON user_match_history(user_id, occurred_at DESC)",
+    ),
+  ]);
+}
+
 async function readAccountRows(db: Database, userId: string) {
   const [entities, history] = await db.batch([
     db
@@ -145,6 +173,7 @@ export async function GET(request: Request) {
     const user = await getSessionUser(request);
     if (!user) return json({ error: "Sign in is required." }, 401);
     const db = await getDatabase();
+    await ensureEntitySchema(db);
     await migrateLegacySnapshot(db, user.id);
     return json(await accountPayload(db, user.id));
   } catch (error) {
@@ -164,6 +193,7 @@ export async function PUT(request: Request) {
     const user = await getSessionUser(request);
     if (!user) return json({ error: "Sign in is required." }, 401);
     const db = await getDatabase();
+    await ensureEntitySchema(db);
     await enforceD1RateLimit(
       db,
       `sync:${user.id}:${requestClientKey(request)}`,

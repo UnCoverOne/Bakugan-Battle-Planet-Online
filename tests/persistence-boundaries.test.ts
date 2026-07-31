@@ -247,6 +247,8 @@ test("registration creates its initial account snapshot atomically", () => {
   assert.match(userDataRoute, /validateEntityUpdate\(candidate\)/);
   assert.match(userDataRoute, /user_data_entities/);
   assert.match(userDataRoute, /user_match_history/);
+  assert.match(userDataRoute, /ensureEntitySchema\(db\)/);
+  assert.match(userDataRoute, /CREATE TABLE IF NOT EXISTS user_data_entities/);
   assert.match(userDataRoute, /const json = .*Response\.json/);
 });
 
