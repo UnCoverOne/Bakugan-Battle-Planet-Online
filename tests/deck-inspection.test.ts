@@ -8,11 +8,12 @@ import {
   resolveStructuredEffect,
   submitCardChoice,
   type GameCard,
-  type MatchState,
   type PendingEffect,
 } from "../lib/game";
 import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
+import { enhanceDeckInspectionAbilities } from "../lib/rules/deck-inspection";
 import { compileCardEffect } from "../lib/rules/effects";
+import type { AbilityDefinition } from "../lib/rules/model";
 
 function catalogueCard(catalogId: string, instance = `test-${catalogId}`) {
   const source = CARDS.find((card) => card.catalogId === catalogId);
@@ -96,6 +97,40 @@ test("submitting the dragged order changes only the inspected top cards", () => 
   assert.equal(state.pendingChoice, undefined);
 });
 
+test("top-deck selection creates a bounded choice and an executable selected-card path", () => {
+  const card = {
+    ...catalogueCard("bb-78", "synthetic-top-selection"),
+    effect: "Look at the top three cards of your deck. Put one of them into your hand.",
+  };
+  const empty = [{ kind: "sequence" as const, effects: [] }];
+  const abilities: AbilityDefinition[] = [{
+    id: "synthetic:spell",
+    kind: "spell",
+    instructions: [
+      {
+        id: "synthetic:look",
+        condition: { kind: "always" },
+        effects: empty,
+        actions: empty,
+        choices: [],
+        sourceText: "Look at the top three cards of your deck.",
+      },
+      {
+        id: "synthetic:select",
+        condition: { kind: "always" },
+        effects: empty,
+        actions: empty,
+        choices: [],
+        sourceText: "Put one of them into your hand.",
+      },
+    ],
+  }];
+  const instruction = enhanceDeckInspectionAbilities(card, abilities)[0].instructions[0];
+  assert.ok(instruction.choices.some((choice) => choice.id === "deckCardId" && choice.maximum === 1));
+  assert.ok(instruction.effects.some((effect) => effect.kind === "reorder-deck" && effect.amount === 3));
+  assert.ok(instruction.effects.some((effect) => effect.kind === "draw" && effect.amount === 1));
+});
+
 test("Dan Kouzo reveals the top card publicly while retaining the optional play choice", () => {
   const state = matchWithKnownDeck();
   const dan = catalogueCard("bb-207", "dan-kouzo-instance");
@@ -135,18 +170,21 @@ test("Dan Kouzo reveals the top card publicly while retaining the optional play 
 });
 
 test("the gameplay shell mounts distinct draggable look and reveal presentations", async () => {
-  const [layer, styles, layout] = await Promise.all([
+  const [layer, styles, layout, genericChoices] = await Promise.all([
     readFile(new URL("../components/game-screen-v2/DeckInspectionLayer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../components/game-screen-v2/DeckInspectionLayer.module.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/game-screen-v2/ChoiceQueueLayer.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(layer, /data-deck-inspection-mode/);
   assert.match(layer, /draggable=\{allowReorder/);
   assert.match(layer, /onDrop=\{\(event\) => dropCard/);
   assert.match(layer, /deckCardId: selectedId/);
+  assert.match(layer, /resolvedOrder/);
   assert.match(layer, /PUBLIC DECK REVEAL/);
   assert.match(layer, /PRIVATE DECK VIEW/);
   assert.match(styles, /\.revealPanel/);
   assert.match(styles, /\.moveControls/);
   assert.match(layout, /<DeckInspectionLayer \/>/);
+  assert.match(genericChoices, /deckInspectionActive/);
 });
