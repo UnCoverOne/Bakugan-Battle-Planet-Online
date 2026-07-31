@@ -4,8 +4,10 @@ import {
   publicUser, revokeSession, validateAccountInput, verifyPassword,
 } from "../../../lib/account-server";
 import { assertSameOrigin, enforceD1RateLimit, RateLimitError, requestClientKey } from "../../../lib/request-security";
+import { encodedJsonBytes, MAX_SYNC_BYTES, validateUserSnapshot } from "../../../lib/user-data-server";
 
 export const dynamic = "force-dynamic";
+const MAX_AUTH_BYTES = 16_384;
 
 const json = (value: unknown, status = 200, cookie?: string) => Response.json(value, {
   status,
@@ -21,9 +23,11 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > 16_384) return json({ error: "Account request is too large." }, 413);
+    const rawBytes = new TextEncoder().encode(raw).byteLength;
+    if (rawBytes > MAX_SYNC_BYTES + MAX_AUTH_BYTES) return json({ error: "Account request is too large." }, 413);
     const body = JSON.parse(raw) as Record<string, unknown>;
     const action = String(body.action ?? "");
+    if (action !== "signup" && rawBytes > MAX_AUTH_BYTES) return json({ error: "Account request is too large." }, 413);
     const db = await getDatabase();
     const sensitive = ["signup", "login", "change-password", "delete-account"].includes(action);
     await enforceD1RateLimit(db, `auth:${requestClientKey(request)}:${action}`, sensitive ? 12 : 60, 60_000);
@@ -34,13 +38,24 @@ export async function POST(request: Request) {
       const factions = ["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"];
       const faction = factions.includes(String(body.faction)) ? String(body.faction) : "Pyrus";
       if (await getUserByEmail(email)) return json({ error: "An account already exists for that email address." }, 409);
+      if (!body.initialData || typeof body.initialData !== "object" || Array.isArray(body.initialData)) {
+        return json({ error: "Choose the account data to create during registration." }, 400);
+      }
+      if (encodedJsonBytes(body.initialData) > MAX_SYNC_BYTES) {
+        return json({ error: "Account data is too large. Remove old replays or unused decks and try again." }, 413);
+      }
+      validateUserSnapshot(body.initialData);
       const password = await createPasswordRecord(String(body.password));
       const id = crypto.randomUUID();
       const now = Date.now();
-      await db.prepare("INSERT INTO users (id, email, password_hash, password_salt, password_iterations, display_name, faction, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(id, email, password.hash, password.salt, password.iterations, displayName, faction, now, now).run();
+      await db.batch([
+        db.prepare("INSERT INTO users (id, email, password_hash, password_salt, password_iterations, display_name, faction, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+          .bind(id, email, password.hash, password.salt, password.iterations, displayName, faction, now, now),
+        db.prepare("INSERT INTO user_data (user_id, revision, data_json, updated_at) VALUES (?, 1, ?, ?)")
+          .bind(id, JSON.stringify(body.initialData), now),
+      ]);
       const user = { id, email, displayName, faction, createdAt: now };
-      return json({ user: { ...user, roles: await getAccountRoles(db, user) } }, 201, await createSession(request, id));
+      return json({ user: { ...user, roles: await getAccountRoles(db, user) }, revision: 1 }, 201, await createSession(request, id));
     }
 
     if (action === "login") {
