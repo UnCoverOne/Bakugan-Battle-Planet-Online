@@ -372,7 +372,7 @@ export function AppProvider({ children }) {
     return { snapshot: data, conflict: false, pending: false };
   }, []);
 
-  const loadCloud = useCallback(async (strategy = "cloud", user = authUser) => {
+  const loadCloud = useCallback(async (strategy = "cloud", user) => {
     if (!user) throw new Error("Sign in is required.");
     cloudLoaded.current = false;
     setAccountDataReady(false);
@@ -404,7 +404,7 @@ export function AppProvider({ children }) {
     setAuthError("");
     setSyncStatus("synced");
     return syncedCopy;
-  }, [applySnapshot, authUser, putCloud]);
+  }, [applySnapshot, putCloud]);
 
   const syncToCloud = useCallback(async (force = false) => {
     if (!authUser || !accountDataReady || !ready || applying.current || !cloudLoaded.current || syncing.current || syncConflict) return false;
