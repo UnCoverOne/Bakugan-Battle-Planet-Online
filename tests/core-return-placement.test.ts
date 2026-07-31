@@ -157,8 +157,44 @@ test("moving an attached Core directly to another Bakugan is not treated as a re
   assert.equal(unchanged.placements[0].attachedTo, second.id);
 });
 
-test("an empty field still accepts the first returned Core in the centre", () => {
+test("held Cores neither occupy nor anchor the BakuCore field", () => {
+  const before = buildPlacedMatch();
+  const heldPlacement = before.placements.find((placement) => placement.cell === CENTER_CELL)!;
+  const returningPlacement = before.placements.find((placement) => placement.cell !== CENTER_CELL)!;
+  before.placements = [heldPlacement, returningPlacement];
+
+  const heldBakugan = before.players[1].bakugan[0];
+  const returningBakugan = before.players[0].bakugan[0];
+  heldBakugan.open = true;
+  returningBakugan.open = true;
+  heldBakugan.heldCoreCells = [heldPlacement.cell];
+  returningBakugan.heldCoreCells = [returningPlacement.cell];
+  heldPlacement.attachedTo = heldBakugan.id;
+  returningPlacement.attachedTo = returningBakugan.id;
+
+  const after = cloneMatch(before);
+  after.phase = "endPlay";
+  after.version += 1;
+  detachForLegacyRetraction(after, before.players[0].id, returningPlacement.cell);
+
+  const pending = captureCoreReturns(before, after);
+  assert.deepEqual(legalCoreReturnCells(pending), [CENTER_CELL]);
+  const returned = placeCoreOrReturnCore(
+    pending,
+    before.players[0].id,
+    returningPlacement.core.id,
+    CENTER_CELL,
+  );
+  const heldAfter = returned.placements.find((placement) => placement.core.id === heldPlacement.core.id)!;
+  const heldBakuganAfter = returned.players[1].bakugan.find((bakugan) => bakugan.id === heldBakugan.id)!;
+  assert.equal(heldAfter.cell, `held:${heldPlacement.core.id}`);
+  assert.deepEqual(heldBakuganAfter.heldCoreCells, [`held:${heldPlacement.core.id}`]);
+  assert.equal(returned.placements.find((placement) => placement.core.id === returningPlacement.core.id)?.cell, CENTER_CELL);
+});
+
+test("an empty field accepts the first returned Core in the centre", () => {
   const state = buildPlacedMatch();
+  state.phase = "retract";
   state.placements = [];
-  assert.deepEqual(legalPlacementCells(state), [CENTER_CELL]);
+  assert.deepEqual(legalCoreReturnCells(state), [CENTER_CELL]);
 });
