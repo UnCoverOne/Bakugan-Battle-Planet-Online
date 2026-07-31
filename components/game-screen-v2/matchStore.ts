@@ -187,7 +187,8 @@ export function primeMatchStore(next: MatchStoreBootstrap) {
     writeStorage(sessionStorage, CAPABILITY_KEY, primed.capability);
     try { localStorage.removeItem(CAPABILITY_KEY); } catch {}
   }
-  if (next.settings !== undefined) writeStorage(localStorage, SETTINGS_KEY, primed.settings);
+  // Settings can be account-scoped, so bootstrap them in memory without
+  // copying signed-in account preferences into guest localStorage.
   if (next.match !== undefined && acceptedMatch) writeStorage(localStorage, MATCH_KEY, primed.match);
 
   if (!snapshotsMatch(snapshot, primed)) {
