@@ -12,11 +12,11 @@ import { advanceOpponentAi } from "../lib/opponentAi";
 
 let serial = 0;
 
-function printedCard(number: number, instanceId?: string): GameCard {
-  const source = CARDS.find((candidate) => candidate.number === number);
-  assert.ok(source, `Missing catalogue card ${number}`);
+function namedCard(displayName: string, instanceId?: string): GameCard {
+  const source = CARDS.find((candidate) => candidate.displayName === displayName);
+  assert.ok(source, `Missing catalogue card ${displayName}`);
   serial += 1;
-  return { ...source, id: instanceId ?? `printed-card-${number}-${serial}` };
+  return { ...source, id: instanceId ?? `printed-card-${source.catalogId}-${serial}` };
 }
 
 function bakugan(id: string, faction: Faction, bPower: number, damage: number): Bakugan {
@@ -69,16 +69,17 @@ function player(id: string, team: Bakugan[], hand: GameCard[] = []): PlayerState
 }
 
 function addEnergy(owner: PlayerState, amount: number) {
+  const source = CARDS.find((candidate) => candidate.type !== "Character");
+  assert.ok(source, "Missing non-Character card for energy-zone fixture");
   owner.energyZone = Array.from(
     { length: amount },
-    (_, index) => printedCard(10, `${owner.id}-energy-${index}`),
+    (_, index) => ({ ...source, id: `${owner.id}-energy-${index}` }),
   );
   owner.maxEnergy = amount;
 }
 
 test("AI holds Wave Slash until it has Brawl information", () => {
-  const waveSlash = printedCard(27, "wave-slash");
-  assert.equal(waveSlash.displayName, "Wave Slash");
+  const waveSlash = namedCard("Wave Slash", "wave-slash");
 
   const ai = player(
     "ai",
