@@ -6,7 +6,10 @@ import type { ChoiceField, ChoiceOption } from "../../lib/rules/choices";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore, useMatchSelector } from "./matchStore";
 import { ResponsiveCardImage } from "./ResponsiveCardImage";
-import styles from "./DeckInspectionLayer.module.css";
+import deckStyles from "./DeckInspectionLayer.module.css";
+import searchStyles from "./DeckSearchLayer.module.css";
+
+const styles = { ...deckStyles, ...searchStyles };
 
 async function submitChoiceCommand(answers: CardChoices) {
   const current = readMatchStore();
@@ -41,8 +44,24 @@ function isTopDeckField(field: ChoiceField) {
   return field.kind === "deck-order" && /\btop\s+\d+\s+cards?\b/i.test(field.label);
 }
 
+function isFullDeckSearchField(field: ChoiceField) {
+  return field.kind === "deck-order"
+    && field.id === "orderedCardIds"
+    && field.minimum === 0
+    && field.maximum === 0
+    && /\bsearch all cards in your deck\b/i.test(field.label);
+}
+
+function isDeckInspectionField(field: ChoiceField) {
+  return isTopDeckField(field) || isFullDeckSearchField(field);
+}
+
 function cardOptionById(options: readonly ChoiceOption[], id: string) {
   return options.find((option) => option.id === id);
+}
+
+function cardName(option: ChoiceOption) {
+  return option.card?.displayName || option.card?.name || option.label;
 }
 
 function moveValue(values: readonly string[], sourceId: string, targetId: string) {
@@ -69,15 +88,20 @@ export function DeckInspectionLayer() {
   const playerId = snapshot.playerId ?? match?.players[0]?.id;
   const pending = match?.pendingChoice;
   const deckField = useMemo(() => pending?.schema.fields.find((field) => (
-    isTopDeckField(field)
+    isDeckInspectionField(field)
     && field.options.some((option) => Boolean(option.card))
     && (field.visibility === "public" || field.chooserId === playerId)
   )), [pending, playerId]);
+  const searchMode = Boolean(deckField && isFullDeckSearchField(deckField));
   const selectionField = useMemo(() => pending?.schema.fields.find((field) => (
     field.id === "deckCardId"
     && field.chooserId === deckField?.chooserId
-    && /\btop\s+\d+\s+cards?\b/i.test(field.label)
-  )), [deckField, pending]);
+    && (
+      searchMode
+        ? /\bfrom your deck\b/i.test(field.label)
+        : /\btop\s+\d+\s+cards?\b/i.test(field.label)
+    )
+  )), [deckField, pending, searchMode]);
   const confirmationField = useMemo(() => pending?.schema.fields.find((field) => (
     field.id === "confirmed" && field.chooserId === deckField?.chooserId
   )), [deckField, pending]);
@@ -97,29 +121,40 @@ export function DeckInspectionLayer() {
 
   if (snapshot.route !== "match" || !match || !playerId || !pending || !deckField) return null;
 
-  const mode = deckField.visibility === "public" ? "reveal" : "look";
-  const allowReorder = /^Order\b/i.test(deckField.label);
+  const mode = searchMode ? "search" : deckField.visibility === "public" ? "reveal" : "look";
+  const allowReorder = !searchMode && /^Order\b/i.test(deckField.label);
   const isChooser = deckField.chooserId === playerId;
   const chooser = match.players.find((player) => player.id === deckField.chooserId);
   const orderedOptions = orderedIds
     .map((id) => cardOptionById(deckField.options, id))
     .filter((option): option is ChoiceOption => Boolean(option?.card));
+  const displayedOptions = searchMode
+    ? [...orderedOptions].sort((left, right) => (
+      cardName(left).localeCompare(cardName(right))
+      || String(left.card?.type).localeCompare(String(right.card?.type))
+      || left.id.localeCompare(right.id)
+    ))
+    : orderedOptions;
+  const eligibleIds = new Set(selectionField?.options.map((option) => option.id) ?? []);
   const selectionRequired = Boolean(selectionField && selectionField.minimum > 0);
-  const orderComplete = orderedIds.length >= deckField.minimum
-    && orderedIds.length <= deckField.maximum;
+  const orderComplete = searchMode || (
+    orderedIds.length >= deckField.minimum
+    && orderedIds.length <= deckField.maximum
+  );
   const canConfirm = orderComplete && (!selectionRequired || Boolean(selectedId));
+  const eligibleCount = eligibleIds.size;
 
   const submit = async (confirmed: boolean) => {
     if (!isChooser || busy || (confirmed && !canConfirm)) return;
-    // Selection-based effects consume the selected card first while preserving
-    // the visible relative order of every remaining inspected card.
+    // Selection-based top-deck effects consume the selected card first while
+    // preserving the visible relative order of every remaining inspected card.
     const resolvedOrder = selectionField && selectedId
       ? [selectedId, ...orderedIds.filter((id) => id !== selectedId)]
       : orderedIds;
     const answers: CardChoices = confirmationField && !confirmed
       ? { confirmed: false }
       : {
-        orderedCardIds: resolvedOrder,
+        ...(searchMode ? {} : { orderedCardIds: resolvedOrder }),
         ...(selectionField && selectedId ? { deckCardId: selectedId } : {}),
         ...(confirmationField ? { confirmed: true } : {}),
       };
@@ -141,12 +176,24 @@ export function DeckInspectionLayer() {
     setDraggingId("");
   };
 
+  const status = !isChooser
+    ? `Waiting for ${chooser?.name ?? "the chooser"} to resolve this effect`
+    : searchMode
+      ? !eligibleCount
+        ? "No legal search targets remain. Finish the search to shuffle the deck."
+        : selectedId
+          ? "The selected card will be revealed and moved to your hand, then the deck will be shuffled."
+          : "Select one highlighted legal card from the cards currently remaining in your deck."
+      : selectionField
+        ? selectionRequired ? "Select a card before confirming" : "Card selection is optional"
+        : allowReorder ? "Leftmost card will be on top" : "Confirm to continue resolving";
+
   return (
     <div className={`${styles.backdrop} ${mode === "reveal" ? styles.revealBackdrop : ""}`}>
       <section
-        className={`${styles.panel} ${mode === "reveal" ? styles.revealPanel : ""}`}
+        className={`${styles.panel} ${mode === "reveal" ? styles.revealPanel : ""} ${searchMode ? styles.searchPanel : ""}`}
         role="dialog"
-        aria-modal={mode === "look" ? "true" : undefined}
+        aria-modal={mode === "reveal" ? undefined : "true"}
         aria-labelledby="deck-inspection-title"
         data-deck-inspection-mode={mode}
         data-deck-reorder={allowReorder ? "true" : "false"}
@@ -154,27 +201,42 @@ export function DeckInspectionLayer() {
       >
         <header className={styles.header}>
           <div>
-            <small>{mode === "reveal" ? "PUBLIC DECK REVEAL" : "PRIVATE DECK VIEW"}</small>
-            <h2 id="deck-inspection-title">{deckField.label}</h2>
+            <small>{mode === "reveal"
+              ? "PUBLIC DECK REVEAL"
+              : searchMode
+                ? "PRIVATE DECK SEARCH"
+                : "PRIVATE DECK VIEW"}</small>
+            <h2 id="deck-inspection-title">{searchMode
+              ? selectionField?.label ?? deckField.label
+              : deckField.label}</h2>
             <p>{mode === "reveal"
               ? `${chooser?.name ?? "A player"} revealed these cards to both players.`
-              : allowReorder
-                ? "Drag the cards, or use the arrow controls, to set the new top-to-bottom order."
-                : "Only you can see these cards. Their order cannot be changed by this effect."}</p>
+              : searchMode
+                ? `${displayedOptions.length} card${displayedOptions.length === 1 ? "" : "s"} currently remain in the deck. All are visible here; ${eligibleCount} ${eligibleCount === 1 ? "is" : "are"} a legal target for this effect.`
+                : allowReorder
+                  ? "Drag the cards, or use the arrow controls, to set the new top-to-bottom order."
+                  : "Only you can see these cards. Their order cannot be changed by this effect."}</p>
           </div>
           <strong className={styles.source}>{pending.schema.sourceName}</strong>
         </header>
 
-        <ol className={styles.cards} aria-label="Top cards of the deck, first card is on top">
-          {orderedOptions.map((option, index) => {
+        <ol
+          className={`${styles.cards} ${searchMode ? styles.searchCards : ""}`}
+          aria-label={searchMode
+            ? "All cards currently remaining in the deck"
+            : "Top cards of the deck, first card is on top"}
+        >
+          {displayedOptions.map((option, index) => {
             const card = option.card!;
             const selected = selectedId === option.id;
-            const selectable = Boolean(selectionField && isChooser && !busy);
+            const eligible = !selectionField || eligibleIds.has(option.id);
+            const selectable = Boolean(selectionField && eligible && isChooser && !busy);
             return (
               <li
                 className={styles.card}
                 data-card-id={option.id}
                 data-selected={selected ? "true" : "false"}
+                data-eligible={eligible ? "true" : "false"}
                 data-draggable={allowReorder && isChooser && !busy ? "true" : "false"}
                 data-dragging={draggingId === option.id ? "true" : "false"}
                 draggable={allowReorder && isChooser && !busy}
@@ -191,14 +253,16 @@ export function DeckInspectionLayer() {
                 onDrop={(event) => dropCard(event, option.id)}
                 key={option.id}
               >
-                <span className={styles.position} aria-label={`Deck position ${index + 1}`}>{index + 1}</span>
+                {!searchMode ? (
+                  <span className={styles.position} aria-label={`Deck position ${index + 1}`}>{index + 1}</span>
+                ) : null}
                 <button
                   type="button"
                   className={styles.cardButton}
                   data-selectable={selectable ? "true" : "false"}
                   aria-disabled={selectable ? undefined : "true"}
                   aria-pressed={selectionField ? selected : undefined}
-                  aria-label={`${card.displayName || card.name}, deck position ${index + 1}${selectable ? ", select this card" : ""}`}
+                  aria-label={`${card.displayName || card.name}${searchMode ? "" : `, deck position ${index + 1}`}${selectable ? ", select this card" : searchMode && selectionField ? ", not a legal target" : ""}`}
                   tabIndex={selectable ? 0 : -1}
                   onClick={() => {
                     if (selectable) setSelectedId((current) => current === option.id && !selectionRequired ? "" : option.id);
@@ -212,6 +276,11 @@ export function DeckInspectionLayer() {
                   <span className={styles.cardCaption}>
                     <strong>{card.displayName || card.name}</strong>
                     <span>{card.faction} • {card.type} • {card.cost === "X" ? "X" : card.cost} Energy</span>
+                    {searchMode && selectionField ? (
+                      <em className={eligible ? styles.eligible : styles.ineligible}>
+                        {eligible ? "Legal search target" : "Not eligible"}
+                      </em>
+                    ) : null}
                   </span>
                 </button>
                 {allowReorder && isChooser ? (
@@ -226,17 +295,17 @@ export function DeckInspectionLayer() {
         </ol>
 
         <footer className={styles.footer}>
-          <span className={styles.status}>{isChooser
-            ? selectionField
-              ? selectionRequired ? "Select a card before confirming" : "Card selection is optional"
-              : allowReorder ? "Leftmost card will be on top" : "Confirm to continue resolving"
-            : `Waiting for ${chooser?.name ?? "the chooser"} to resolve this effect`}</span>
+          <span className={styles.status}>{status}</span>
           {isChooser && confirmationField ? (
             <button type="button" className={styles.secondary} disabled={busy} onClick={() => void submit(false)}>Do not use</button>
           ) : null}
           {isChooser ? (
             <button type="button" disabled={busy || !canConfirm} onClick={() => void submit(true)}>
-              {busy ? "Resolving…" : allowReorder ? "Confirm order" : selectionField ? "Confirm selection" : "Continue"}
+              {busy
+                ? "Resolving…"
+                : searchMode
+                  ? selectedId ? "Take selected card" : "Finish search"
+                  : allowReorder ? "Confirm order" : selectionField ? "Confirm selection" : "Continue"}
             </button>
           ) : null}
         </footer>
