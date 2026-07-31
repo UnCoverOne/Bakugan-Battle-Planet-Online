@@ -38,19 +38,22 @@ function remainingDraws(
   return drawIds(state).includes(playerId) ? 0 : turnDrawCount(state);
 }
 
-function isStrata(card: GameCard) {
-  return card.name === "Strata"
+function grantsAdditionalTurnDraw(card: GameCard) {
+  // Strata has separate printings with separate rules text. The global Draw
+  // Step modifier belongs only to Battle Brawlers 192, never to BR 80 merely
+  // because both cards share the display name "Strata".
+  return card.catalogId === "bb-192"
     || /all players draw an additional card each turn/i.test(card.effect);
 }
 
 /**
- * Strata is a global ongoing Hero effect. Every copy in play adds one card to
- * every player's normal Draw Step. Each individual card still requires its own
- * Draw confirmation in the Action HUD.
+ * Battle Brawlers Strata is a global ongoing Hero effect. Every copy in play
+ * adds one card to every player's normal Draw Step. Each individual card still
+ * requires its own Draw confirmation in the Action HUD.
  */
 export function additionalTurnDrawCount(match: MatchState | null | undefined) {
   return match?.players.reduce((total, player) => (
-    total + player.heroes.filter(isStrata).length
+    total + player.heroes.filter(grantsAdditionalTurnDraw).length
   ), 0) ?? 0;
 }
 
@@ -183,4 +186,3 @@ export function drawTurnCard(
   state.version += 1;
   return state;
 }
-
