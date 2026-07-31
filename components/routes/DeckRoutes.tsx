@@ -156,8 +156,12 @@ function usePublicDeckCatalogue(decks: DeckRecord[], playerName: string) {
       })
       .catch(() => undefined);
     return () => { active = false; };
-  }, [fallback.length]);
-  return remote ?? fallback;
+  }, [fallback]);
+  if (!remote) return fallback;
+  return [...remote, ...fallback].filter(
+    (deck, index, all) =>
+      all.findIndex((candidate) => candidate.id === deck.id) === index,
+  );
 }
 
 function useOnlineStatus() {
