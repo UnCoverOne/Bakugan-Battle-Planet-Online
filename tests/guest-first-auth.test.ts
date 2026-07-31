@@ -75,14 +75,30 @@ test("guest-data detection ignores a fresh profile and identifies meaningful pro
   assert.match(customizedIdentity.labels.join(" · "), /custom Brawler profile/);
 });
 
-test("data-choice step appears only when meaningful guest data exists", () => {
+test("registration is the only guest-data import opportunity", () => {
   const modal = source("components/application/AccountAccessModal.tsx");
-  assert.match(modal, /if \(guestData\.hasMeaningfulData\)/);
+  assert.match(modal, /mode === "signup" && guestData\.hasMeaningfulData/);
   assert.match(modal, /setStep\("transfer"\)/);
-  assert.match(modal, /Merge safely/);
-  assert.match(modal, /Use this device/);
-  assert.match(modal, /Use cloud copy/);
+  assert.match(modal, /only opportunity to import/);
+  assert.match(modal, /await finish\(mode === "login" \? "cloud" : "local"\)/);
+  assert.match(modal, /await finish\("local"\)/);
+  assert.doesNotMatch(modal, /Merge safely/);
+  assert.doesNotMatch(modal, /Use this device/);
+  assert.match(modal, /Logging in loads account data only/);
   assert.match(modal, /returnTo: pathname/);
+});
+
+test("authenticated state never persists into guest local storage and sign-out flushes first", () => {
+  const provider = source("components/application/AppProvider.jsx");
+  assert.match(provider, /const \[dataScope, setDataScope\] = useState\("checking"\)/);
+  assert.match(provider, /const persistLocal = dataScope === "local"/);
+  assert.match(provider, /blocked\.current \|\| !persist/);
+  assert.match(provider, /persist: persistLocal/);
+  assert.match(provider, /writeGuestSnapshot\(snapshotRef\.current\)/);
+  assert.match(provider, /await loadCloud\(action === "signup" \? "local" : "cloud", result\.user\)/);
+  assert.doesNotMatch(provider, /payload\.syncStrategy \?\? "merge"/);
+  assert.match(provider, /const saved = await syncToCloud\(true\)[\s\S]*action: "logout"/);
+  assert.match(provider, /readGuestSnapshot\(fallback\)[\s\S]*applySnapshot\(guest, false\)[\s\S]*setDataScope\("local"\)/);
 });
 
 test("deck saves and completed matches trigger dismissible, non-blocking account prompts", () => {
