@@ -7,7 +7,17 @@ export type ChoiceKind =
   | "confirm" | "bakugan" | "player" | "hero" | "evo" | "energy" | "core"
   | "hand-cards" | "deck-card" | "deck-order" | "number" | "mode" | "batch-object";
 export type ChoiceVisibility = "public" | "private" | "secret-until-reveal";
-export type ChoiceOption = { id: string; label: string; description?: string; ownerId?: string };
+export type ChoiceCardPreview = Pick<
+  GameCard,
+  "id" | "catalogId" | "name" | "displayName" | "art" | "type" | "faction" | "cost"
+>;
+export type ChoiceOption = {
+  id: string;
+  label: string;
+  description?: string;
+  ownerId?: string;
+  card?: ChoiceCardPreview;
+};
 export type ChoiceField = {
   id: keyof CardChoices;
   kind: ChoiceKind;
@@ -56,8 +66,26 @@ function opponentOf(match: MatchState, playerId: string) {
   if (!opponent) throw new Error("An opponent is required for this choice.");
   return opponent;
 }
-function option(id: string, label: string, ownerId?: string, description?: string): ChoiceOption {
-  return { id, label, ownerId, description };
+function cardPreview(card: GameCard): ChoiceCardPreview {
+  return {
+    id: card.id,
+    catalogId: card.catalogId,
+    name: card.name,
+    displayName: card.displayName,
+    art: card.art,
+    type: card.type,
+    faction: card.faction,
+    cost: card.cost,
+  };
+}
+function option(
+  id: string,
+  label: string,
+  ownerId?: string,
+  description?: string,
+  card?: ChoiceCardPreview,
+): ChoiceOption {
+  return { id, label, ownerId, description, card };
 }
 function chooserFor(match: MatchState, controllerId: string, spec: ChoiceSpec) {
   if (spec.chooser === "opponent") return opponentOf(match, controllerId).id;
@@ -67,6 +95,11 @@ function rangeFor(spec: ChoiceSpec, available: number) {
   const minimum = Math.max(0, Math.min(available, spec.minimum ?? (spec.optional ? 0 : 1)));
   const maximum = Math.max(minimum, Math.min(available, spec.maximum ?? 1));
   return { minimum, maximum };
+}
+function topDeckCount(spec: ChoiceSpec) {
+  if (spec.id === "orderedCardIds" && spec.maximum != null) return Math.max(0, spec.maximum);
+  const numeric = spec.label.match(/\btop\s+(\d+)\s+cards?\b/i)?.[1];
+  return numeric ? Math.max(0, Number(numeric)) : 0;
 }
 
 function optionsFor(match: MatchState, controllerId: string, card: GameCard, spec: ChoiceSpec): ChoiceOption[] {
@@ -111,10 +144,18 @@ function optionsFor(match: MatchState, controllerId: string, card: GameCard, spe
         .filter((candidate) => candidate.type !== "Evo" || !spec.cardType || Boolean(active && canonicalEvoTargetAllowed(ruleDefinitionForCard(candidate), active)))
         .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, owner.id));
     }
-    case "deck-card":
-      return controller.deckCards
-        .filter((candidate) => !spec.cardType || candidate.type === spec.cardType)
-        .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, controller.id));
+    case "deck-card": {
+      const count = topDeckCount(spec);
+      const candidates = (count ? controller.deckCards.slice(0, count) : controller.deckCards)
+        .filter((candidate) => !spec.cardType || candidate.type === spec.cardType);
+      return candidates.map((candidate, index) => option(
+        candidate.id,
+        candidate.displayName || candidate.name,
+        controller.id,
+        count ? `Top card ${index + 1} of ${candidates.length}` : undefined,
+        cardPreview(candidate),
+      ));
+    }
     case "number": {
       const maximum = Math.max(0, controller.energyZone.length + controller.energy);
       return Array.from({ length: maximum + 1 }, (_, value) => option(String(value), String(value), controller.id));
