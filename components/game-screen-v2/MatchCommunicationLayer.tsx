@@ -6,7 +6,11 @@ import { cardArtSource } from "../../lib/content/card-art";
 import type { MatchState } from "../../lib/game";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore, useMatchSelector } from "./matchStore";
+import batchStyles from "./BrawlExperienceLayer.module.css";
 import styles from "./MatchCommunicationLayer.module.css";
+
+const EVENT_FILTERS = ["cards", "all", "game", "random", "system", "connection"] as const;
+type EventFilter = typeof EVENT_FILTERS[number];
 
 type CommunicationState = {
   active: boolean;
@@ -39,8 +43,7 @@ export function MatchCommunicationLayer() {
   }));
   const [eventLogOpen, setEventLogOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const [eventView, setEventView] = useState<"cards" | "events">("cards");
-  const [eventFilter, setEventFilter] = useState("all");
+  const [eventFilter, setEventFilter] = useState<EventFilter>("cards");
   const [chatFocused, setChatFocused] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -55,7 +58,12 @@ export function MatchCommunicationLayer() {
     () => eventLogEntries(communication.match),
     [communication.match],
   );
-  const filteredEvents = useMemo(() => eventFilter === "all" ? events : events.filter((entry) => entry.kind === eventFilter), [events, eventFilter]);
+  const filteredEvents = useMemo(
+    () => eventFilter === "all" || eventFilter === "cards"
+      ? events
+      : events.filter((entry) => entry.kind === eventFilter),
+    [events, eventFilter],
+  );
   const cardEvents = useMemo(
     () => cardEventLogEntries(communication.match),
     [communication.match],
@@ -70,7 +78,7 @@ export function MatchCommunicationLayer() {
     if (!eventLogOpen) return;
     const element = eventScroll.current;
     if (element) element.scrollTop = element.scrollHeight;
-  }, [eventLogOpen, eventView, filteredEvents.length, cardEvents.length]);
+  }, [eventLogOpen, eventFilter, filteredEvents.length, cardEvents.length]);
 
   useEffect(() => {
     const element = chatScroll.current;
@@ -209,22 +217,14 @@ export function MatchCommunicationLayer() {
               <span>MATCH RECORD</span>
               <h2>EVENT LOG</h2>
             </div>
-            <strong>{eventView === "cards" ? cardEvents.length : filteredEvents.length}</strong>
+            <strong>{eventFilter === "cards" ? cardEvents.length : filteredEvents.length}</strong>
           </header>
-          <div className={styles.eventNavigation}>
-            <nav className={styles.eventTabs} aria-label="Event Log views">
-              <button type="button" aria-pressed={eventView === "cards"} onClick={() => setEventView("cards")}>CARDS</button>
-              <button type="button" aria-pressed={eventView === "events"} onClick={() => setEventView("events")}>ALL EVENTS</button>
-            </nav>
-            {eventView === "events" ? (
-              <nav className={styles.eventFilters} aria-label="Event filters">
-                {["all", "game", "random", "system", "connection"].map((kind) => (
-                  <button type="button" key={kind} aria-pressed={eventFilter === kind} onClick={() => setEventFilter(kind)}>{kind}</button>
-                ))}
-              </nav>
-            ) : null}
-          </div>
-          {eventView === "cards" ? (
+          <nav className={styles.eventFilters} aria-label="Event filters">
+            {EVENT_FILTERS.map((kind) => (
+              <button type="button" key={kind} aria-pressed={eventFilter === kind} onClick={() => setEventFilter(kind)}>{kind}</button>
+            ))}
+          </nav>
+          {eventFilter === "cards" ? (
             <div className={styles.cardEntries} ref={eventScroll} aria-live="polite">
               {cardEvents.length ? cardEvents.map((entry) => (
                 <figure
@@ -234,8 +234,19 @@ export function MatchCommunicationLayer() {
                   key={entry.id}
                   title={`${entry.card.displayName || entry.card.name} • ${entry.cardEvent === "played" ? "Played" : "Effect resolved"} • ${timeLabel(entry.at)}`}
                 >
-                  <img src={cardArtSource(entry.card, "thumbnail")} alt={entry.card.displayName || entry.card.name} />
-                  <figcaption>{entry.cardEvent === "played" ? "PLAYED" : "EFFECT"}</figcaption>
+                  <div className={`${batchStyles.batchHex} ${styles.cardPreview}`}>
+                    <span aria-hidden="true">{(entry.card.displayName || entry.card.name).slice(0, 1)}</span>
+                    <img
+                      src={cardArtSource(entry.card, "thumbnail")}
+                      alt={entry.card.displayName || entry.card.name}
+                      draggable={false}
+                    />
+                  </div>
+                  <figcaption>
+                    <small>{entry.cardEvent === "played" ? "PLAYED" : "EFFECT"}</small>
+                    <strong>{entry.card.displayName || entry.card.name}</strong>
+                    <time dateTime={new Date(entry.at).toISOString()}>{timeLabel(entry.at)}</time>
+                  </figcaption>
                 </figure>
               )) : <p className={styles.emptyState}>No cards or card effects have been played.</p>}
             </div>
