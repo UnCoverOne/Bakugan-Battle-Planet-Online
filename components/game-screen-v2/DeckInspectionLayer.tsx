@@ -5,7 +5,7 @@ import { submitCardChoice, type CardChoices, type MatchState } from "../../lib/g
 import type { ChoiceField, ChoiceOption } from "../../lib/rules/choices";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore, useMatchSelector } from "./matchStore";
-import { ResponsiveCardImage } from "./ResponsiveCardImage";
+import { fingerprintedAsset } from "../../lib/assets";
 import deckStyles from "./DeckInspectionLayer.module.css";
 import searchStyles from "./DeckSearchLayer.module.css";
 
@@ -137,11 +137,12 @@ export function DeckInspectionLayer() {
     : orderedOptions;
   const resolvingEffect = match.batch.find((effect) => effect.id === pending.pendingEffectId);
   const resolvingText = resolvingEffect?.effect ?? resolvingEffect?.card.effect ?? "";
-  const revealedDeckPlay = mode === "reveal"
-    && Boolean(confirmationField)
-    && /may play it for free/i.test(resolvingText);
-  const revealedCard = displayedOptions[0]?.card;
-  const revealedCardPlayable = !revealedDeckPlay || revealedCard?.type !== "Flip";
+  const inspectedDeckPlay = Boolean(confirmationField)
+    && /may play (?:it|one of (?:them|those cards)) for free/i.test(resolvingText);
+  const inspectedCard = selectionField
+    ? cardOptionById(displayedOptions, selectedId)?.card
+    : displayedOptions[0]?.card;
+  const inspectedCardPlayable = !inspectedDeckPlay || !inspectedCard || inspectedCard.type !== "Flip";
   const eligibleIds = new Set(selectionField?.options.map((option) => option.id) ?? []);
   const selectionRequired = Boolean(selectionField && selectionField.minimum > 0);
   const orderComplete = searchMode || (
@@ -149,7 +150,7 @@ export function DeckInspectionLayer() {
     && orderedIds.length <= deckField.maximum
   );
   const canConfirm = orderComplete
-    && revealedCardPlayable
+    && inspectedCardPlayable
     && (!selectionRequired || Boolean(selectedId));
   const eligibleCount = eligibleIds.size;
 
@@ -193,9 +194,11 @@ export function DeckInspectionLayer() {
         : selectedId
           ? "The selected card will be revealed and moved to your hand, then the deck will be shuffled."
           : "Select one highlighted legal card from the cards currently remaining in your deck."
-      : revealedDeckPlay
-        ? revealedCardPlayable
-          ? "Choose whether to play the revealed card for free or skip it."
+      : inspectedDeckPlay
+        ? inspectedCardPlayable
+          ? selectionField && !selectedId
+            ? "Select an eligible card to play, or skip this effect."
+            : "Choose whether to play the inspected card for free or skip it."
           : "A Flip card cannot be played by this effect. Skip it to continue."
       : selectionField
         ? selectionRequired ? "Select a card before confirming" : "Card selection is optional"
@@ -281,9 +284,13 @@ export function DeckInspectionLayer() {
                     if (selectable) setSelectedId((current) => current === option.id && !selectionRequired ? "" : option.id);
                   }}
                 >
-                  <ResponsiveCardImage
-                    src={card.art}
+                  <img
+                    src={fingerprintedAsset(card.art)}
                     alt={card.displayName || card.name}
+                    width="744"
+                    height="1039"
+                    loading="eager"
+                    decoding="async"
                     draggable={false}
                   />
                   <span className={styles.cardCaption}>
@@ -311,16 +318,16 @@ export function DeckInspectionLayer() {
           <span className={styles.status}>{status}</span>
           {isChooser && confirmationField ? (
             <button type="button" className={styles.secondary} disabled={busy} onClick={() => void submit(false)}>
-              {revealedDeckPlay ? "Skip" : "Do not use"}
+              {inspectedDeckPlay ? "Skip" : "Do not use"}
             </button>
           ) : null}
-          {isChooser && revealedCardPlayable ? (
+          {isChooser && inspectedCardPlayable ? (
             <button type="button" disabled={busy || !canConfirm} onClick={() => void submit(true)}>
               {busy
                 ? "Resolving…"
                 : searchMode
                   ? selectedId ? "Take selected card" : "Finish search"
-                  : revealedDeckPlay ? "Play card" : allowReorder ? "Confirm order" : selectionField ? "Confirm selection" : "Continue"}
+                  : inspectedDeckPlay ? "Play card" : allowReorder ? "Confirm order" : selectionField ? "Confirm selection" : "Continue"}
             </button>
           ) : null}
         </footer>

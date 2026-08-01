@@ -443,8 +443,10 @@ test("the gameplay runtime mounts distinct draggable, reveal, and full-deck sear
   assert.match(layer, /deckCardId: selectedId/);
   assert.match(layer, /resolvedOrder/);
   assert.match(layer, /PUBLIC DECK REVEAL/);
-  assert.match(layer, /revealedDeckPlay/);
-  assert.match(layer, /revealedDeckPlay \? "Skip"/);
+  assert.match(layer, /inspectedDeckPlay/);
+  assert.match(layer, /inspectedDeckPlay \? "Skip"/);
+  assert.match(layer, /fingerprintedAsset\(card\.art\)/);
+  assert.doesNotMatch(layer, /<ResponsiveCardImage/);
   assert.match(layer, /"Play card"/);
   assert.match(layer, /PRIVATE DECK VIEW/);
   assert.match(layer, /PRIVATE DECK SEARCH/);
@@ -459,4 +461,48 @@ test("the gameplay runtime mounts distinct draggable, reveal, and full-deck sear
   assert.ok(runtime.indexOf("<DeckInspectionLayer />") < runtime.indexOf("<ChoiceQueueLayer />"));
   assert.match(genericChoices, /deckInspectionActive/);
   assert.match(engine, /case "search": \{[\s\S]*shuffle\(player\.deckCards\)/);
+});
+
+
+test("Age of Aurelus Lia keeps its top-three Hero selection in one optional play window", () => {
+  const initial = matchWithMixedDeck();
+  const lia = catalogueCard("aa-71", "age-of-aurelus-lia-resolution");
+  const action = catalogueCard("bb-10", "lia-top-action");
+  const hero = catalogueCard("br-80", "lia-top-hero");
+  const flip = catalogueCard("bb-4", "lia-top-flip");
+  initial.players[0].deckCards = [action, hero, flip];
+  initial.players[0].deck = 3;
+  const effect = pendingEffect(lia);
+  effect.kind = "trigger";
+  effect.effect = lia.effect;
+
+  let state = resolveStructuredEffect(initial, effect);
+  const viewer = state.pendingChoice?.schema.fields.find((field) => field.id === "orderedCardIds");
+  const selection = state.pendingChoice?.schema.fields.find((field) => field.id === "deckCardId");
+  const confirmation = state.pendingChoice?.schema.fields.find((field) => field.id === "confirmed");
+  assert.ok(viewer && selection && confirmation);
+  assert.deepEqual(selection.options.map((option) => option.id), [hero.id]);
+  assert.deepEqual(confirmation.options.map((option) => option.id), ["yes", "no"]);
+  assert.equal(state.batch.some((object) => object.card.id === hero.id), false);
+
+  state = submitCardChoice(state, "a", {
+    orderedCardIds: viewer.options.map((option) => option.id),
+    deckCardId: hero.id,
+    confirmed: true,
+  });
+  assert.equal(state.players[0].deckCards.some((candidate) => candidate.id === hero.id), false);
+  assert.ok(state.batch.some((object) => object.card.id === hero.id && object.kind === "card"));
+});
+
+test("skipping Age of Aurelus Lia leaves every inspected card on the deck", () => {
+  const initial = matchWithMixedDeck();
+  const lia = catalogueCard("aa-71", "age-of-aurelus-lia-skip");
+  const before = initial.players[0].deckCards.slice(0, 3).map((card) => card.id);
+  const effect = pendingEffect(lia);
+  effect.kind = "trigger";
+  effect.effect = lia.effect;
+  let state = resolveStructuredEffect(initial, effect);
+  state = submitCardChoice(state, "a", { confirmed: false });
+  assert.deepEqual(state.players[0].deckCards.slice(0, 3).map((card) => card.id), before);
+  assert.equal(state.pendingChoice, undefined);
 });

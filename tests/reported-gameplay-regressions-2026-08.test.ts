@@ -4,6 +4,7 @@ import { BAKUGAN, CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   CENTER_CELL,
   createMatch,
+  emitGameEvent,
   passPriority,
   type Core,
   type GameCard,
@@ -260,4 +261,54 @@ test("Dragonoid Maximus wins when its controller has Dan, Wynton, and Lia", () =
   assert.equal(state.winner, player.id);
   assert.equal(state.series[player.id], 1);
   assert.equal(state.resultReason, "Dragonoid Maximus's alternate win condition");
+});
+
+
+test("normal simultaneous opens trigger Lia and Shargo for both players on every occurrence", () => {
+  const alpha = makePlayer("a", "Alpha", STARTER_DECKS[0]);
+  const beta = makePlayer("b", "Beta", STARTER_DECKS[1]);
+  const shargo = card("br-79", "shargo-open-source");
+  const lia = card("aa-71", "lia-open-source");
+  alpha.heroes = [shargo];
+  beta.heroes = [lia];
+
+  const state = createMatch("OPENEVERY", "bo1", [alpha, beta]);
+  state.turn = 2;
+  state.phase = "power";
+  state.startingPlayer = alpha.id;
+  state.priority = alpha.id;
+  state.selected[alpha.id] = alpha.bakugan[0].id;
+  state.selected[beta.id] = beta.bakugan[0].id;
+  alpha.bakugan[0].open = true;
+  beta.bakugan[0].open = true;
+
+  emitGameEvent(state, {
+    id: "turn-2-open-occurrence-1",
+    type: "open",
+    playerId: "*",
+    playerIds: [alpha.id, beta.id],
+  });
+  assert.deepEqual(
+    state.batch.map((effect) => effect.card.id).sort(),
+    [lia.id, shargo.id].sort(),
+  );
+  assert.equal(state.batch.find((effect) => effect.card.id === shargo.id)?.choices.targetBakuganId, alpha.bakugan[0].id);
+  assert.equal(state.batch.find((effect) => effect.card.id === lia.id)?.choices.targetBakuganId, beta.bakugan[0].id);
+
+  emitGameEvent(state, {
+    id: "turn-2-open-occurrence-2",
+    type: "open",
+    playerId: "*",
+    playerIds: [alpha.id, beta.id],
+  });
+  assert.equal(state.batch.filter((effect) => effect.card.id === shargo.id).length, 2);
+  assert.equal(state.batch.filter((effect) => effect.card.id === lia.id).length, 2);
+
+  emitGameEvent(state, {
+    id: "turn-2-open-occurrence-2",
+    type: "open",
+    playerId: "*",
+    playerIds: [alpha.id, beta.id],
+  });
+  assert.equal(state.batch.length, 4);
 });

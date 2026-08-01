@@ -728,7 +728,7 @@ const performRolls = (state: MatchState) => {
   }
   setPhase(state, "power", "Brawl Phase • Power Step", state.startingPlayer);
   emitGameEvent(state, {
-    id: `${state.turn}:open:${openedPlayerIds.sort().join("+")}`,
+    id: `${state.turn}:open:${state.informationEpoch}:${openedPlayerIds.sort().join("+")}`,
     type: "open",
     playerId: "*",
     playerIds: openedPlayerIds,
@@ -995,6 +995,11 @@ const conditionActive = (state: MatchState, player: PlayerState, text: string, c
   }
   const controlledHero = text.match(/if you control ([^,.]+)/i)?.[1]?.trim().toLowerCase();
   if (controlledHero) return player.heroes.some((hero) => hero.name.toLowerCase() === controlledHero);
+  const inspectedType = text.match(/if (?:one|any) of (?:them|those cards) (?:is|are) (?:a|an) (Action|Flip|Hero|Evo|Character) card/i)?.[1] as CardType | undefined;
+  if (inspectedType) {
+    const inspectedId = choices.deckCardId ?? player.revealedDeckCardId;
+    return player.deckCards.some((candidate) => candidate.id === inspectedId && candidate.type === inspectedType);
+  }
   if (/(?:not|isn['’]t) a Flip card/i.test(text)) {
     const revealedId = (player as PlayerState & { revealedDeckCardId?: string }).revealedDeckCardId;
     const revealed = player.deckCards.find((card) => card.id === revealedId);
@@ -1119,17 +1124,20 @@ export const collectTriggersForEvent = (state: MatchState, event: GameEvent) => 
     "card-play": "CARD_PLAYED", victor: "VICTOR_DECLARED", attack: "ATTACK_CREATED",
     "damage-taken": "DAMAGE_TAKEN", "hand-empty": "HAND_EMPTIED", "end-turn": "TURN_ENDED",
   } as const;
-  return collectRuleTriggers(state, {
-    id: event.id,
+  const actorIds = event.type === "open" && event.playerIds
+    ? [...new Set(event.playerIds)]
+    : [event.playerId === "*" ? state.startingPlayer : event.playerId];
+  return actorIds.flatMap((actorId) => collectRuleTriggers(state, {
+    id: actorIds.length > 1 ? `${event.id}:${actorId}` : event.id,
     name: names[event.type],
-    actorId: event.playerId === "*" ? state.startingPlayer : event.playerId,
-    controllerId: event.playerId === "*" ? undefined : event.playerId,
+    actorId,
+    controllerId: event.playerId === "*" ? actorId : event.playerId,
     card: event.sourceCards?.[0],
     cardType: event.cardType,
-    targetBakuganId: event.targetBakuganId,
+    targetBakuganId: event.targetBakuganId ?? (event.type === "open" ? state.selected[actorId] : undefined),
     amount: event.type === "attack" ? state.pendingDamage : undefined,
     createdAt: Date.now(),
-  }) as PendingEffect[];
+  })) as PendingEffect[];
 };
 
 export const emitGameEvent = (state: MatchState, event: GameEvent) => {
@@ -1777,7 +1785,8 @@ const executeRuleAction = (
         return;
       }
       const tracked = player as PlayerState & { revealedDeckCardId?: string };
-      const index = player.deckCards.findIndex((candidate) => candidate.id === tracked.revealedDeckCardId);
+      const inspectedId = tracked.revealedDeckCardId ?? choices.deckCardId;
+      const index = player.deckCards.findIndex((candidate) => candidate.id === inspectedId);
       if (choices.confirmed === false || index < 0 || player.deckCards[index].type === "Flip") {
         delete tracked.revealedDeckCardId;
         return;
