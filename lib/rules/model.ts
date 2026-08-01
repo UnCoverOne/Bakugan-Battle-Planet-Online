@@ -1,6 +1,6 @@
 import type { CardChoices, CardType, CoreType, Faction, GameCard } from "../game";
 
-export type RulesCardId = `bb-${number}`;
+export type RulesCardId = `${"bb" | "br" | "aa" | "ex"}-${number}${string}`;
 export type RulesObjectStatus = "pending" | "resolving" | "resolved" | "negated";
 export type ChoiceTiming = "announce" | "pay" | "resolve";
 export type ChoiceVisibility = "public" | "private" | "secret-until-reveal";
@@ -33,6 +33,7 @@ export type RuleCondition =
   | { kind: "cards-played"; comparison: "at-least" | "more-than"; amount: number }
   | { kind: "factions-played"; comparison: "at-least"; amount: number }
   | { kind: "hero-count"; comparison: "at-least"; amount: number }
+  | { kind: "controls-named-cards"; names: string[] }
   | { kind: "energy-count"; comparison: "at-least"; amount: number }
   | { kind: "card-count"; catalogId: RulesCardId; comparison: "at-least"; amount: number }
   | { kind: "core-count"; relationship: "more-than-opponent" | "at-least"; amount?: number }
@@ -94,6 +95,7 @@ export type RuleAction =
   | { kind: "generate-energy"; amount: number; scale?: string }
   | { kind: "set-stat"; stat: "power" | "damage"; value: number }
   | { kind: "set-rule"; rule: "victor-stat"; value: "power" | "damage"; duration: RulesDuration }
+  | { kind: "win-game"; reason: string }
   | { kind: "damage-to-hand" }
   | { kind: "end-turn"; recharge: boolean }
   | { kind: "shuffle-deck" }

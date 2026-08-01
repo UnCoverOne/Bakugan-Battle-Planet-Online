@@ -1650,6 +1650,9 @@ const executeRuleAction = (
     case "set-rule":
       if (action.rule === "victor-stat") state.victorByDamage = action.value === "damage";
       return;
+    case "win-game":
+      winGame(state, controllerId, action.reason);
+      return;
     case "damage-to-hand": {
       const amount = state.pendingDamage;
       for (let index = 0; index < amount; index += 1) {
@@ -2262,10 +2265,10 @@ export const discardToHandLimit = (input: MatchState, playerId: string, cardIds:
   return withVersion(state);
 };
 
-const winGame = (state: MatchState, winnerId: string, reason: string) => {
+function winGame(state: MatchState, winnerId: string, reason: string) {
   state.series[winnerId] = (state.series[winnerId] ?? 0) + 1; state.phase = "result"; state.stepLabel = "Game complete";
   state.winner = winnerId; state.resultReason = reason; state.deadline = deadlineFor("result"); entry(state, "system", `${playerById(state, winnerId).name} wins game ${state.gameNumber}: ${reason}.`);
-};
+}
 
 export const concedeMatch = (input: MatchState, playerId: string) => {
   const state = cloneMatch(input); if (state.phase === "result" || !state.players.some((player) => player.id === playerId)) throw new Error("Concede is not legal now.");

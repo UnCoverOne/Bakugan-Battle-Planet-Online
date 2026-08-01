@@ -25,7 +25,7 @@ import { canonicalEvoTargetAllowed } from "../lib/rules/identity";
 import { createRuleObject } from "../lib/rules/objects";
 import { emitRuleEvent } from "../lib/rules/triggers";
 import { executeRuleProgram } from "../lib/rules/executor";
-import { conditionFor } from "../lib/rules/catalogue-primitives";
+import { conditionFor, parseAtomicEffects } from "../lib/rules/catalogue-primitives";
 
 function match() {
   const first = makePlayer("first", "First", STARTER_DECKS[0]);
@@ -43,9 +43,9 @@ function match() {
 
 test("the reviewed typed catalogue covers every Battle Planet card exactly", () => {
   const definitions = allRuleDefinitions();
-  assert.equal(definitions.length, 843);
-  assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 843);
-  assert.equal(CARDS.length, 843);
+  assert.equal(definitions.length, 845);
+  assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 845);
+  assert.equal(CARDS.length, 845);
   for (const card of CARDS) assert.equal(validateCardAgainstRules(card), true);
   assert.ok(definitions.every((definition) => definition.implementationStatus === "complete"));
   assert.ok(definitions.every((definition) => definition.abilities.every((ability) => ability.instructions.length > 0)));
@@ -611,5 +611,18 @@ test("Character and Evo held-Core bonuses are active only for their printed Core
   assert.deepEqual(
     (({ power, damage }) => ({ power, damage }))(evaluateBakuganCharacteristics(state, bakugan, player)),
     { power: 500, damage: 2 },
+  );
+});
+
+test("EX Dragonoid Maximus compiles a named-control alternate win condition", () => {
+  const maximus = CARDS.find((card) => card.catalogId === "ex-2");
+  assert.ok(maximus);
+  assert.deepEqual(
+    conditionFor(maximus.effect),
+    { kind: "controls-named-cards", names: ["Dan", "Wynton", "Lia"] },
+  );
+  assert.deepEqual(
+    parseAtomicEffects(maximus, maximus.effect),
+    [{ kind: "win-game", reason: "Dragonoid Maximus's alternate win condition" }],
   );
 });

@@ -75,6 +75,27 @@ test("card filtering and sorting use every URL-driven facet", () => {
   );
 });
 
+
+test("EX participates in set filtering and collector release order", () => {
+  const cards = [
+    card({ catalogId: "ex-2", displayName: "EX Two", number: 2 }),
+    card({ catalogId: "aa-1", displayName: "AA One", number: 1 }),
+    card({ catalogId: "bb-1", displayName: "BB One", number: 1 }),
+    card({ catalogId: "br-1", displayName: "BR One", number: 1 }),
+    card({ catalogId: "ex-1", displayName: "EX One", number: 1 }),
+  ];
+  assert.deepEqual(
+    filterAndSortCompendiumCards(cards, { ...DEFAULT_COMPENDIUM_STATE, set: "EX" })
+      .map((candidate) => candidate.catalogId),
+    ["ex-1", "ex-2"],
+  );
+  assert.deepEqual(
+    filterAndSortCompendiumCards(cards, DEFAULT_COMPENDIUM_STATE)
+      .map((candidate) => candidate.catalogId),
+    ["bb-1", "br-1", "aa-1", "ex-1", "ex-2"],
+  );
+});
+
 test("related cards connect evolutions and alternate identities", () => {
   const base = card({ catalogId: "bb-1", displayName: "Dragonoid", name: "Dragonoid", type: "Character" });
   const evo = card({ catalogId: "bb-2", displayName: "Hyper Dragonoid", name: "Hyper Dragonoid", type: "Evo", evolvesFrom: "Dragonoid" });

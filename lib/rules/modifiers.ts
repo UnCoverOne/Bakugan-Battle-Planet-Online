@@ -54,6 +54,21 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
       : player.cardsPlayedThisTurn > condition.amount;
     case "factions-played": return new Set(player.factionsPlayedThisTurn ?? []).size >= condition.amount;
     case "hero-count": return player.heroes.length >= condition.amount;
+    case "controls-named-cards": {
+      const normalize = (value: string) => value
+        .normalize("NFKD")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+      const controlled = [
+        ...player.heroes,
+        ...player.bakugan.flatMap((candidate) => [candidate.character, ...candidate.evoStack]),
+      ].map((card) => normalize(card.displayName || card.name));
+      return condition.names.every((requiredName) => {
+        const required = normalize(requiredName);
+        return controlled.some((name) => name === required || name.startsWith(`${required} `));
+      });
+    }
     case "energy-count": return player.maxEnergy >= condition.amount;
     case "card-count": return player.heroes.filter((hero) => hero.catalogId === condition.catalogId).length >= condition.amount;
     case "core-count": {

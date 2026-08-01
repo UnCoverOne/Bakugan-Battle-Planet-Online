@@ -1,13 +1,14 @@
 import battleBrawlersJson from "../catalog.generated.json";
 import type { GameCard } from "../game";
 import { recordsFromRows } from "./card-set-extensions";
-import { AA_CARD_ROWS, BR_CARD_ROWS } from "./card-set-rows";
+import { AA_CARD_ROWS, BR_CARD_ROWS, EX_CARD_ROWS } from "./card-set-rows";
 import {
   CARD_CATALOGUE_VERSION,
   CONTENT_SCHEMA_VERSION,
 } from "./versions";
 
-export type CardSetCode = "BB" | "BR" | "AA";
+export const CARD_SET_CODES = Object.freeze(["BB", "BR", "AA", "EX"] as const);
+export type CardSetCode = (typeof CARD_SET_CODES)[number];
 
 export type ControlledCardRecord = Omit<GameCard, "id" | "catalogId"> & {
   id: string;
@@ -20,12 +21,14 @@ export const CARD_SET_INFO = Object.freeze({
   BB: Object.freeze({ code: "BB" as const, name: "Battle Brawlers", collectorTotal: 374 }),
   BR: Object.freeze({ code: "BR" as const, name: "Bakugan Resurgence", collectorTotal: 248 }),
   AA: Object.freeze({ code: "AA" as const, name: "Age of Aurelus", collectorTotal: 220 }),
+  EX: Object.freeze({ code: "EX" as const, name: "EX", collectorTotal: 2 }),
 });
 
 export function cardSetCode(card: Pick<GameCard, "catalogId"> | Pick<ControlledCardRecord, "id">): CardSetCode {
   const id = "catalogId" in card ? card.catalogId : card.id;
   if (id.startsWith("br-")) return "BR";
   if (id.startsWith("aa-")) return "AA";
+  if (id.startsWith("ex-")) return "EX";
   return "BB";
 }
 
@@ -44,6 +47,7 @@ export const CONTROLLED_CATALOGUE = Object.freeze(
     ...battleBrawlers,
     ...recordsFromRows("BR", BR_CARD_ROWS),
     ...recordsFromRows("AA", AA_CARD_ROWS),
+    ...recordsFromRows("EX", EX_CARD_ROWS),
   ].map((record) => Object.freeze({ ...record })),
 );
 
@@ -64,6 +68,7 @@ export const CONTENT_MANIFEST = Object.freeze({
     BB: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "BB").length,
     BR: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "BR").length,
     AA: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "AA").length,
+    EX: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "EX").length,
   }),
   textFingerprint: textFingerprint(
     CONTROLLED_CATALOGUE.map((card) => `${card.id}\u001f${card.effect}`).join("\u001e"),
@@ -72,19 +77,19 @@ export const CONTENT_MANIFEST = Object.freeze({
 
 const EXPECTED_TYPE_COUNTS = Object.freeze({
   Action: 246,
-  Character: 236,
-  Evo: 232,
+  Character: 237,
+  Evo: 233,
   Flip: 82,
   Hero: 47,
 });
 
-const EXPECTED_SET_COUNTS = Object.freeze({ BB: 374, BR: 249, AA: 220 });
+const EXPECTED_SET_COUNTS = Object.freeze({ BB: 374, BR: 249, AA: 220, EX: 2 });
 
 export function validateControlledCatalogue(
   records: readonly ControlledCardRecord[] = CONTROLLED_CATALOGUE,
 ) {
   const errors: string[] = [];
-  if (records.length !== 843) errors.push(`Expected 843 cards, found ${records.length}.`);
+  if (records.length !== 845) errors.push(`Expected 845 cards, found ${records.length}.`);
   const ids = new Set<string>();
   const slugs = new Set<string>();
   const typeCounts = new Map<string, number>();
@@ -92,7 +97,7 @@ export function validateControlledCatalogue(
   const setNumbers = new Map<CardSetCode, Map<number, number>>();
   for (const card of records) {
     const set = cardSetCode(card);
-    if (!/^(?:bb|br|aa)-\d+(?:-[a-z0-9-]+)?$/.test(card.id)) errors.push(`${card.id || "<missing>"}: invalid canonical ID.`);
+    if (!/^(?:bb|br|aa|ex)-\d+(?:-[a-z0-9-]+)?$/.test(card.id)) errors.push(`${card.id || "<missing>"}: invalid canonical ID.`);
     if (ids.has(card.id)) errors.push(`${card.id}: duplicate canonical ID.`);
     ids.add(card.id);
     if (!Number.isInteger(card.number) || card.number < 1 || card.number > CARD_SET_INFO[set].collectorTotal) errors.push(`${card.id}: invalid collector number.`);
@@ -121,6 +126,7 @@ export function validateControlledCatalogue(
   for (let number = 1; number <= 374; number += 1) if (!(setNumbers.get("BB")?.has(number))) errors.push(`Missing BB card number ${number}.`);
   for (let number = 1; number <= 248; number += 1) if (!(setNumbers.get("BR")?.has(number))) errors.push(`Missing BR card number ${number}.`);
   for (let number = 1; number <= 220; number += 1) if (!(setNumbers.get("AA")?.has(number))) errors.push(`Missing AA card number ${number}.`);
+  for (let number = 1; number <= 2; number += 1) if (!(setNumbers.get("EX")?.has(number))) errors.push(`Missing EX card number ${number}.`);
   if ((setNumbers.get("BR")?.get(221) ?? 0) !== 2) errors.push("BR collector number 221 must contain both known printings.");
   for (const [type, expected] of Object.entries(EXPECTED_TYPE_COUNTS)) {
     if ((typeCounts.get(type) ?? 0) !== expected) errors.push(`${type}: expected ${expected}, found ${typeCounts.get(type) ?? 0}.`);

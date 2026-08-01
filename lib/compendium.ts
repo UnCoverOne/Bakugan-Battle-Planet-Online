@@ -1,3 +1,4 @@
+import { CARD_SET_CODES, cardSetCode } from "./content/catalogue";
 import type { GameCard } from "./game";
 
 export const COMPENDIUM_PAGE_SIZE = 24;
@@ -51,8 +52,8 @@ const oneOf = <T extends readonly string[]>(value: string | null, values: T, fal
   value && (values as readonly string[]).includes(value) ? value as T[number] : fallback;
 
 const choice = (value: string | null) => value?.trim() || "All";
-const setCodeFor = (card: Pick<GameCard, "catalogId">) =>
-  card.catalogId.startsWith("br-") ? "BR" : card.catalogId.startsWith("aa-") ? "AA" : "BB";
+const setCodeFor = (card: Pick<GameCard, "catalogId">) => cardSetCode(card);
+const SET_ORDER = new Map(CARD_SET_CODES.map((code, index) => [code, index]));
 
 export function parseCompendiumState(input: URLSearchParams | string): CompendiumState {
   const params = typeof input === "string" ? new URLSearchParams(input) : input;
@@ -129,8 +130,8 @@ export function filterAndSortCompendiumCards(
     if (state.sort === "name-desc") return right.displayName.localeCompare(left.displayName);
     if (state.sort === "cost-asc") return costRank(left.cost) - costRank(right.cost) || left.displayName.localeCompare(right.displayName);
     if (state.sort === "cost-desc") return costRank(right.cost) - costRank(left.cost) || left.displayName.localeCompare(right.displayName);
-    const setOrder = { BB: 0, BR: 1, AA: 2 };
-    return setOrder[setCodeFor(left)] - setOrder[setCodeFor(right)]
+    return (SET_ORDER.get(setCodeFor(left)) ?? Number.MAX_SAFE_INTEGER)
+      - (SET_ORDER.get(setCodeFor(right)) ?? Number.MAX_SAFE_INTEGER)
       || left.number - right.number
       || left.catalogId.localeCompare(right.catalogId);
   });

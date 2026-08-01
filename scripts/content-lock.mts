@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { CONTROLLED_CATALOGUE, cardSetCode, validateControlledCatalogue } from "../lib/content/catalogue";
+import { CARD_SET_CODES, CONTROLLED_CATALOGUE, cardSetCode, validateControlledCatalogue } from "../lib/content/catalogue";
 import { allRuleDefinitions, validateCardAgainstRules } from "../lib/rules/catalogue";
 import { validateDefinitionProvenance } from "../lib/rules/provenance";
 
@@ -25,11 +25,11 @@ if (catalogueErrors.length || definitionErrors.length) {
   throw new Error([...catalogueErrors, ...definitionErrors].join("\n"));
 }
 
-const counts = Object.fromEntries(["BB", "BR", "AA"].map((set) => [
+const counts = Object.fromEntries(CARD_SET_CODES.map((set) => [
   set,
   CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === set).length,
 ]));
 console.log(`Validated ${CONTROLLED_CATALOGUE.length} cards (${JSON.stringify(counts)}) and ${allRuleDefinitions().length} typed rule definitions.`);
 if (process.argv.includes("--write")) {
-  console.log("The Battle Brawlers legacy lock is preserved; BR/AA definitions are generated from the checked set-row sources.");
+  console.log("The Battle Brawlers legacy lock is preserved; BR/AA/EX definitions are generated from the checked set-row sources.");
 }

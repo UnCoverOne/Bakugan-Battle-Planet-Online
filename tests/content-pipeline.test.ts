@@ -21,15 +21,38 @@ const newlyProvidedCardArt = [
   "aa-52", "aa-54", "aa-55", "aa-70", "aa-71", "aa-72",
 ] as const;
 
-test("the three-set schema-controlled catalogue is complete and unique", () => {
+test("the four-set schema-controlled catalogue is complete and unique", () => {
   assert.deepEqual(validateControlledCatalogue(), []);
-  assert.equal(CONTROLLED_CATALOGUE.length, 843);
-  assert.equal(new Set(CONTROLLED_CATALOGUE.map((card) => card.id)).size, 843);
-  assert.deepEqual(CONTENT_MANIFEST.sets, { BB: 374, BR: 249, AA: 220 });
+  assert.equal(CONTROLLED_CATALOGUE.length, 845);
+  assert.equal(new Set(CONTROLLED_CATALOGUE.map((card) => card.id)).size, 845);
+  assert.deepEqual(CONTENT_MANIFEST.sets, { BB: 374, BR: 249, AA: 220, EX: 2 });
   assert.deepEqual(
-    Object.fromEntries(["BB", "BR", "AA"].map((set) => [set, CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === set).length])),
+    Object.fromEntries(["BB", "BR", "AA", "EX"].map((set) => [set, CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === set).length])),
     CONTENT_MANIFEST.sets,
   );
+});
+
+
+test("EX cards retain their supplied definitions and dedicated artwork", () => {
+  const titan = CONTROLLED_CATALOGUE.find((card) => card.id === "ex-1");
+  const maximus = CONTROLLED_CATALOGUE.find((card) => card.id === "ex-2");
+  assert.ok(titan && maximus);
+  assert.deepEqual(
+    { type: titan.type, power: titan.bPower, damage: titan.damage, cores: titan.coreTypes },
+    { type: "Character", power: 700, damage: 3, cores: ["Shield", "Fist"] },
+  );
+  assert.deepEqual(
+    { type: maximus.type, cost: maximus.cost, power: maximus.bPower, damage: maximus.damage, evolvesFrom: maximus.evolvesFrom },
+    { type: "Evo", cost: 10, power: 2500, damage: 10, evolvesFrom: "Titan Dragonoid" },
+  );
+  for (const card of [titan, maximus]) {
+    const full = cardArtSource(card);
+    const thumbnail = cardArtSource(card, "thumbnail");
+    assert.match(full, /^\/assets\/cards\/sets\/ex\/full\/ex-[12]\.webp$/);
+    assert.match(thumbnail, /^\/assets\/cards\/sets\/ex\/thumb\/ex-[12]\.webp$/);
+    assert.equal(existsSync(join(process.cwd(), "public", full)), true);
+    assert.equal(existsSync(join(process.cwd(), "public", thumbnail)), true);
+  }
 });
 
 test("newly supplied card scans resolve to full and thumbnail assets", () => {
@@ -48,8 +71,8 @@ test("newly supplied card scans resolve to full and thumbnail assets", () => {
 
 test("every printing has fingerprinted text and an executable typed definition", () => {
   const definitions = allRuleDefinitions();
-  assert.equal(definitions.length, 843);
-  assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 843);
+  assert.equal(definitions.length, 845);
+  assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 845);
   for (const card of CONTROLLED_CATALOGUE) {
     const runtimeCard = { ...card, id: card.id, catalogId: card.id };
     assert.equal(validateCardAgainstRules(runtimeCard), true);

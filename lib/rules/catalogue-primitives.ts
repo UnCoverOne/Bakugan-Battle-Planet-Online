@@ -36,6 +36,18 @@ function coreTypesFor(value: string) {
     .filter((coreType, index, values) => values.indexOf(coreType) === index);
 }
 
+function controlledCardNames(text: string) {
+  const list = text.match(
+    /\bif you control (.+?)(?=,\s*(?:you|this|that|your|the)\b|[.;]|$)/i,
+  )?.[1];
+  if (!list) return [];
+  return list
+    .replace(/\band\b/gi, ",")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
 export function conditionFor(text: string): RuleCondition {
   if (/if you open on the Reroll/i.test(text)) return { kind: "reroll-opened" };
   const heldCorePrefix = text.match(
@@ -61,6 +73,8 @@ export function conditionFor(text: string): RuleCondition {
   if (heroCount) return { kind: "hero-count", comparison: "at-least", amount: numberValue(heroCount[1], 1) };
   const energyCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Energy cards in play/i);
   if (energyCount) return { kind: "energy-count", comparison: "at-least", amount: numberValue(energyCount[1], 1) };
+  const requiredCards = controlledCardNames(text);
+  if (requiredCards.length) return { kind: "controls-named-cards", names: requiredCards };
   const openBakuganCount = text.match(
     /\bif you\s+(only have|have only|have exactly|have at least|have at most|have more than|have fewer than|have)\s+(no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)(\s+or more)?\s+open Bakugan\b/i,
   );
@@ -173,6 +187,10 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const setDamage = text.match(/\[Damage Rating\] becomes (\d+)/i);
   if (setDamage) actions.push({ kind: "set-stat", stat: "damage", value: Number(setDamage[1]) });
   if (/Victor is decided by highest \[Damage Rating\]/i.test(text)) actions.push({ kind: "set-rule", rule: "victor-stat", value: "damage", duration });
+  if (/\byou win the game\b/i.test(text)) actions.push({
+    kind: "win-game",
+    reason: `${card.displayName || card.name}'s alternate win condition`,
+  });
 
   const movement: Array<[RegExp, Extract<RuleAction, { kind: "move" }>["verb"], Extract<RuleAction, { kind: "move" }>["object"]]> = [
     [/destroy .*hero/i, "destroy", "hero"], [/destroy .*evo/i, "destroy", "evo"], [/destroy .*energy/i, "destroy", "energy"],

@@ -18,7 +18,7 @@ export function cardArtSource(
     && card.hasProvidedScan
     && (
       source.startsWith("/assets/cards/full/")
-      || /^\/assets\/cards\/sets\/(?:br|aa)\/full\//.test(source)
+      || /^\/assets\/cards\/sets\/(?:br|aa|ex)\/full\//.test(source)
     )
   ) {
     return source.replace("/full/", "/thumb/");

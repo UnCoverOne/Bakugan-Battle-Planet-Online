@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
+import { BAKUGAN, CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   CENTER_CELL,
   createMatch,
@@ -219,4 +219,45 @@ test("Bakugan Resurgence Shun enters play without drawing and draws only after a
   const afterDraw = state.players.find((candidate) => candidate.id === player.id)!;
   assert.equal(afterDraw.deckCards.length, 0);
   assert.equal(afterDraw.hand.at(-1)?.id, drawCard.id);
+});
+
+test("Dragonoid Maximus wins when its controller has Dan, Wynton, and Lia", () => {
+  const player = makePlayer("a", "Alpha", STARTER_DECKS[0]);
+  const opponent = makePlayer("b", "Beta", STARTER_DECKS[1]);
+  const titanSource = BAKUGAN.find((bakugan) => bakugan.id === "ex-1");
+  assert.ok(titanSource);
+  const titan = {
+    ...titanSource,
+    id: "ex-titan-alpha",
+    character: { ...titanSource.character, id: "ex-titan-character-alpha" },
+    open: true,
+    heldCoreCells: [],
+    evoStack: [],
+  };
+  player.bakugan[0] = titan;
+  player.heroes = [
+    card("bb-207", "dan-for-maximus"),
+    card("bb-215", "wynton-for-maximus"),
+    card("bb-202", "lia-for-maximus"),
+  ];
+  const maximus = card("ex-2", "maximus-alternate-win");
+  player.hand = [maximus];
+  addUntappedEnergy(player, 10);
+
+  let state = createMatch("EXMAXWIN", "bo1", [player, opponent]);
+  state.turn = 2;
+  state.phase = "power";
+  state.stepLabel = "Brawl Phase • Power Step";
+  state.startingPlayer = player.id;
+  state.initialStartingPlayer = player.id;
+  state.priority = player.id;
+  state.selected[player.id] = titan.id;
+
+  state = playCardWithAutoEnergy(state, player.id, maximus.id, { targetBakuganId: titan.id });
+  state = resolveTopBatchObject(state);
+
+  assert.equal(state.phase, "result");
+  assert.equal(state.winner, player.id);
+  assert.equal(state.series[player.id], 1);
+  assert.equal(state.resultReason, "Dragonoid Maximus's alternate win condition");
 });

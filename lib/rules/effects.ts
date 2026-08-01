@@ -43,6 +43,7 @@ function actionValue(action: TypedRuleAction, match: MatchState) {
     case "search": return 3;
     case "copy": return 3.5;
     case "cost": return action.operation === "increase" ? -action.amount : Math.max(1, action.amount);
+    case "win-game": return 1_000;
     case "conditional": return Math.max(
       action.whenTrue.reduce((sum, nested) => sum + actionValue(nested, match), 0),
       (action.whenFalse ?? []).reduce((sum, nested) => sum + actionValue(nested, match), 0),

@@ -1,8 +1,7 @@
-import { CARD_SET_INFO, cardSetCode, type CardSetCode } from "./content/catalogue";
+import { CARD_SET_CODES, CARD_SET_INFO, cardSetCode, type CardSetCode } from "./content/catalogue";
 import type { DeckRecord } from "./data";
 
-const SET_RELEASE_ORDER: readonly CardSetCode[] = ["BB", "BR", "AA"];
-const SET_RELEASE_INDEX = new Map(SET_RELEASE_ORDER.map((code, index) => [code, index]));
+const SET_RELEASE_INDEX = new Map(CARD_SET_CODES.map((code, index) => [code, index]));
 
 export function deckSetCode(deck: Pick<DeckRecord, "bakuganIds" | "cardIds">): CardSetCode {
   let newest: CardSetCode = "BB";

@@ -225,7 +225,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         eyebrow="AUTHORITATIVE REFERENCE"
         title="Compendium"
         description="Browse every supported card, inspect its complete record, and follow connected rules and published rulings."
-        aside={<div className={styles.sourceSummary}><strong>3 sets · {CARDS.length} cards</strong><span>Sources reviewed {REFERENCE_REVIEWED_AT}</span></div>}
+        aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards</strong><span>Sources reviewed {REFERENCE_REVIEWED_AT}</span></div>}
       />
       <section className={`compendium-toolbar ${styles.toolbar}`}>
         <Field className={styles.search} label="Search the archive">

@@ -8,6 +8,7 @@ import { AA_ROWS_2 } from "./generated/aa-2";
 import { AA_ROWS_3 } from "./generated/aa-3";
 import { AA_ROWS_4 } from "./generated/aa-4";
 import { AA_ROWS_5 } from "./generated/aa-5";
+import { EX_ROWS } from "./generated/ex";
 
 export const BR_CARD_ROWS = [
   BR_ROWS_1, BR_ROWS_2, BR_ROWS_3, BR_ROWS_4, BR_ROWS_5,
@@ -16,3 +17,5 @@ export const BR_CARD_ROWS = [
 export const AA_CARD_ROWS = [
   AA_ROWS_1, AA_ROWS_2, AA_ROWS_3, AA_ROWS_4, AA_ROWS_5,
 ].flat();
+
+export const EX_CARD_ROWS = EX_ROWS;

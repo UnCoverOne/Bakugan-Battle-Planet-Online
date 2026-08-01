@@ -26,6 +26,14 @@ const RARITIES: Record<string, string> = {
   BE: "Bakugan Elite",
 };
 
+type ExtensionSetCode = "BR" | "AA" | "EX";
+
+const SET_NAMES: Record<ExtensionSetCode, string> = {
+  BR: "Bakugan Resurgence",
+  AA: "Age of Aurelus",
+  EX: "EX",
+};
+
 const CORES: Record<string, ControlledCardRecord["coreTypes"][number]> = {
   "[FT]": "Fist",
   "[FF]": "Flaming Fist",
@@ -64,6 +72,7 @@ function mechanicsFor(effect: string) {
     [/\bAurelus Power\b/i, "Aurelus Power"],
     [/\bBattle Mastery\b/i, "Battle Mastery"],
     [/\bUnderdog\b/i, "Underdog"],
+    [/\bwin the game\b/i, "Alternate Win"],
     [/\bWhen\b|\bAt the end\b/i, "Triggered"],
     [/\bYour Bakugan\b|\bOpposing Bakugan\b|\bTreat all\b/i, "Static"],
   ];
@@ -71,17 +80,17 @@ function mechanicsFor(effect: string) {
   return [...mechanics];
 }
 
-function scanUrl(setCode: "BR" | "AA", id: string, filename: string) {
+function scanUrl(setCode: ExtensionSetCode, id: string, filename: string) {
   if (!filename) return "/assets/cards/card-missing.svg";
   const extension = filename.startsWith("@svg/") ? "svg" : "webp";
   return `/assets/cards/sets/${setCode.toLowerCase()}/full/${id}.${extension}`;
 }
 
 export function recordsFromRows(
-  setCode: "BR" | "AA",
+  setCode: ExtensionSetCode,
   rows: readonly ExtensionCardRow[],
 ): ControlledCardRecord[] {
-  const setName = setCode === "BR" ? "Bakugan Resurgence" : "Age of Aurelus";
+  const setName = SET_NAMES[setCode];
   return rows.map((row) => {
     const [id, number, rarityCode, displayName, faction, type, cost, effect, bPower, damage, coreOne, coreTwo, evolvesFrom, scanFilename] = row;
     const internalName = type === "Character" || type === "Evo"
