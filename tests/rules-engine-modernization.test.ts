@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, recordCardPlayedForTurn, type Core } from "../lib/game";
+import {
+  createMatch,
+  emitGameEvent,
+  passPriority,
+  recordCardPlayedForTurn,
+  submitCardChoice,
+  type Core,
+} from "../lib/game";
 import {
   allRuleDefinitions,
   cardCostBreakdown,
@@ -13,7 +20,7 @@ import {
   UnsupportedCardTextError,
   validateCardAgainstRules,
 } from "../lib/rules";
-import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
+import { buildChoiceSchema, buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
 import { canonicalEvoTargetAllowed } from "../lib/rules/identity";
 import { createRuleObject } from "../lib/rules/objects";
 import { emitRuleEvent } from "../lib/rules/triggers";
@@ -425,6 +432,70 @@ test("choice timing is explicit for announce, pay, and resolve", () => {
   assert.ok(shadowTrap.play.choices.some((choice) => choice.id === "discardCardIds" && choice.timing === "pay"));
   const schema = buildChoiceSchemaFromSpecs(state, state.players[0].id, absorb, absorbDefinition.play.choices, "announce");
   assert.equal(schema.fields[0]?.id, "mode");
+});
+
+test("trigger resolution never infers announce timing from full printed card text", () => {
+  const state = match();
+  const affected: string[] = [];
+  for (const card of CARDS) {
+    for (const ability of ruleDefinitionForCard(card).abilities.filter((candidate) => candidate.kind === "triggered")) {
+      const sourceText = ability.instructions.map((instruction) => instruction.sourceText).join(" ").trim();
+      const expectedIds = ability.instructions
+        .flatMap((instruction) => instruction.choices)
+        .filter((choice) => choice.timing === "resolve")
+        .map((choice) => choice.id);
+      if (!expectedIds.length || sourceText !== card.effect) continue;
+      affected.push(card.catalogId);
+      const schema = buildChoiceSchema(state, state.players[0].id, card, sourceText, {}, "resolve");
+      assert.deepEqual(
+        schema.fields.map((field) => field.id),
+        expectedIds,
+        `${card.catalogId} ${card.name} must retain every resolution-time field`,
+      );
+    }
+  }
+  assert.ok(affected.includes("bb-207"));
+  assert.ok(affected.length >= 10, "the catalogue must exercise the shared full-text trigger path");
+});
+
+test("Dan Kouzo's real open trigger pauses for the manual reveal before playing the top card", () => {
+  let state = match();
+  const player = state.players[0];
+  const dan = { ...CARDS.find((card) => card.catalogId === "bb-207")!, id: "dan-manual-reveal" };
+  const top = { ...CARDS.find((card) => card.type === "Action")!, id: "dan-revealed-action" };
+  player.heroes = [dan];
+  player.deckCards = [top, ...player.deckCards];
+  player.deck = player.deckCards.length;
+
+  emitGameEvent(state, {
+    id: "dan-manual-reveal-open",
+    type: "open",
+    playerId: player.id,
+    targetBakuganId: player.bakugan[0].id,
+  });
+  state = passPriority(state, state.priority);
+  state = passPriority(state, state.priority);
+
+  assert.equal(state.players[0].revealedDeckCardId, top.id);
+  assert.deepEqual(
+    state.pendingChoice?.schema.fields.map((field) => field.id),
+    ["orderedCardIds", "confirmed"],
+  );
+  assert.ok(state.batch.some((object) => object.card.id === dan.id));
+  assert.equal(state.batch.some((object) => object.card.id === top.id), false);
+
+  const skipped = submitCardChoice(state, player.id, { confirmed: false });
+  assert.equal(skipped.pendingChoice, undefined);
+  assert.equal(skipped.players[0].deckCards[0].id, top.id);
+  assert.equal(skipped.batch.some((object) => object.card.id === top.id), false);
+
+  const played = submitCardChoice(state, player.id, {
+    orderedCardIds: [top.id],
+    confirmed: true,
+  });
+  assert.equal(played.pendingChoice, undefined);
+  assert.equal(played.players[0].deckCards.some((card) => card.id === top.id), false);
+  assert.ok(played.batch.some((object) => object.card.id === top.id));
 });
 
 test("additional costs are separate from spell effects", () => {
