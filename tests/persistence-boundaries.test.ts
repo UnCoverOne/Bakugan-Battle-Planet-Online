@@ -9,6 +9,7 @@ import {
   type UserSnapshot,
 } from "../lib/persistence";
 import { readJsonResponse } from "../lib/json-response";
+import { completedMatchKey, shouldOpenMatchResult } from "../lib/match-result-navigation";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
@@ -72,6 +73,30 @@ test("cloud snapshots contain durable account data but no device session state",
   assert.equal(cloud.replay, null);
   assert.equal(cloud.replayIndex, 0);
   assert.equal(cloud.playerId, "");
+});
+
+test("completed matches open their result once without taking over other routes", () => {
+  const result = { id: "match-1", gameNumber: 1, phase: "result", winner: "player-a" };
+  const resultKey = completedMatchKey(result);
+
+  assert.equal(resultKey, "match-1-1");
+  assert.equal(shouldOpenMatchResult(result, "/play/match"), true);
+  assert.equal(shouldOpenMatchResult(result, "/play/match", resultKey), false);
+  for (const pathname of ["/", "/dashboard", "/decks", "/compendium", "/profile", "/settings"]) {
+    assert.equal(shouldOpenMatchResult(result, pathname), false, pathname);
+  }
+
+  assert.equal(shouldOpenMatchResult({ ...result, phase: "brawl" }, "/play/match"), false);
+  assert.equal(shouldOpenMatchResult({ ...result, winner: "" }, "/play/match"), false);
+  assert.equal(shouldOpenMatchResult({ ...result, gameNumber: 2 }, "/play/match", resultKey), true);
+});
+
+test("the provider consumes a result presentation before routing and never redirects from arbitrary pages", () => {
+  const provider = source("components/application/AppProvider.jsx");
+  assert.match(provider, /shouldOpenMatchResult\(match, pathname, presentedMatchResult\.current\)/);
+  assert.match(provider, /presentedMatchResult\.current = id/);
+  assert.match(provider, /if \(shouldOpenResult\) router\.replace\("\/play\/result"\)/);
+  assert.doesNotMatch(provider, /if \(pathname !== "\/play\/result"\) router\.replace/);
 });
 
 test("cloud restore updates durable data without replacing the current device session", () => {
