@@ -235,10 +235,12 @@ export function buildChoiceSchema(
   card: GameCard,
   sourceText = card.effect,
   priorChoices: CardChoices = {},
+  timingOverride?: ChoiceTiming,
 ): ChoiceSchema {
   const definition = ruleDefinitionForCard(card);
-  const timing: ChoiceTiming = /choose (?:a value for )?x/i.test(sourceText) ? "pay"
-    : sourceText === card.effect ? "announce" : "resolve";
+  const timing: ChoiceTiming = timingOverride
+    ?? (/choose (?:a value for )?x/i.test(sourceText) ? "pay"
+      : sourceText === card.effect ? "announce" : "resolve");
   const instructionSpecs = definition.abilities.flatMap((ability) => ability.instructions)
     .filter((instruction) => instruction.sourceText === sourceText || sourceText.includes(instruction.sourceText))
     .flatMap((instruction) => instruction.choices);
