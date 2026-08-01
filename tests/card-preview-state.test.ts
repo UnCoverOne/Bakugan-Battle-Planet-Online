@@ -10,6 +10,7 @@ import {
   EMPTY_CARD_PREVIEW_OWNERSHIP,
   releaseCardPreviewTarget,
 } from "../components/game-screen-v2/cardPreviewState";
+import { canonicalPreviewPath } from "../components/game-screen-v2/cardPreviewController";
 
 test("card previews accept only explicit card and revealed-Core zones", () => {
   for (const zone of [
@@ -51,6 +52,22 @@ test("Flip previews are horizontal while other cards are vertical", () => {
   assert.equal(cardPreviewOrientation("Flip"), "horizontal");
   assert.equal(cardPreviewOrientation("Action"), "vertical");
   assert.equal(cardPreviewOrientation("Character"), "vertical");
+});
+
+test("framework image proxies preserve the canonical artwork path used by Hero previews", () => {
+  const artwork = "/assets/cards/full/77.webp";
+  const fingerprinted = `${artwork}?v=preview-hash`;
+  const encoded = encodeURIComponent(fingerprinted);
+
+  assert.equal(canonicalPreviewPath(fingerprinted), artwork);
+  assert.equal(
+    canonicalPreviewPath(`/_vinext/image?url=${encoded}&w=128&q=82`),
+    artwork,
+  );
+  assert.equal(
+    canonicalPreviewPath(`https://example.test/_next/image?url=${encoded}&w=384&q=82`),
+    artwork,
+  );
 });
 
 test("stale preview requests cannot replace a newer target", () => {
