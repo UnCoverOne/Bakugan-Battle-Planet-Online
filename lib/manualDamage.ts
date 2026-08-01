@@ -1,5 +1,6 @@
 import {
   cloneMatch,
+  recordCardPlayedForTurn,
   resumePendingEffectAfterDamage,
   type CardLogEvent,
   type CardChoices,
@@ -135,6 +136,7 @@ export function resolveManualDamage(
   state.nextCardCostReduction[playerId] = 0;
   statePlayer.discard = statePlayer.discard.filter((card) => card.id !== stateFlip.id);
   state.revealedFlip = undefined;
+  recordCardPlayedForTurn(statePlayer, stateFlip, state.turn);
 
   const definition = ruleDefinitionForCard(stateFlip);
   const ability = definition.abilities.find((candidate) => candidate.kind === "spell") ?? definition.abilities[0];

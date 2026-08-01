@@ -30,26 +30,37 @@ const CORE_TYPE_BY_SYMBOL: Record<string, CoreType> = {
   HE: "Helix",
 };
 
+function coreTypesFor(value: string) {
+  return [...value.matchAll(/\[(FT|FF|SD|MS|HE)\]/gi)]
+    .map((match) => CORE_TYPE_BY_SYMBOL[match[1].toUpperCase()])
+    .filter((coreType, index, values) => values.indexOf(coreType) === index);
+}
+
 export function conditionFor(text: string): RuleCondition {
   if (/if you open on the Reroll/i.test(text)) return { kind: "reroll-opened" };
   const heldCorePrefix = text.match(
     /^\s*(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:/i,
   )?.[1];
   if (heldCorePrefix) {
-    const coreTypes = [...heldCorePrefix.matchAll(/\[(FT|FF|SD|MS|HE)\]/gi)]
-      .map((match) => CORE_TYPE_BY_SYMBOL[match[1].toUpperCase()])
-      .filter((coreType, index, values) => values.indexOf(coreType) === index);
-    return { kind: "held-core-type", coreTypes };
+    return { kind: "held-core-type", coreTypes: coreTypesFor(heldCorePrefix) };
   }
+  const heldCoreCondition = text.match(
+    /\bif\s+(?:that|your|the)\s+Bakugan\s+(?:is\s+)?holding\s+(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)/i,
+  )?.[1];
+  if (heldCoreCondition) return { kind: "held-core-type", coreTypes: coreTypesFor(heldCoreCondition) };
   if (/\bFury\b/i.test(text)) return { kind: "fury" };
   if (/\bTurbo\b/i.test(text)) return { kind: "turbo" };
   if (/\bDomination\b/i.test(text)) return { kind: "domination" };
   if (/\bFlow\b/i.test(text)) return { kind: "flow" };
   if (/\bVictor\b/i.test(text)) return { kind: "victor" };
+  if (/\bSacrifice\b/i.test(text)) return { kind: "selection-made", choiceId: "discardCardIds" };
   if (/two or more cards this turn/i.test(text)) return { kind: "cards-played", comparison: "at-least", amount: 2 };
-  if (/three or more Hero/i.test(text)) return { kind: "hero-count", comparison: "at-least", amount: 3 };
-  const energyCount = text.match(/if you have (\d+) or more Energy cards in play/i);
-  if (energyCount) return { kind: "energy-count", comparison: "at-least", amount: Number(energyCount[1]) };
+  const playedFactionCount = text.match(/played a card from (no|a|an|one|two|three|four|five|six|\d+) different factions? this turn/i);
+  if (playedFactionCount) return { kind: "factions-played", comparison: "at-least", amount: numberValue(playedFactionCount[1], 1) };
+  const heroCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Hero cards? in play/i);
+  if (heroCount) return { kind: "hero-count", comparison: "at-least", amount: numberValue(heroCount[1], 1) };
+  const energyCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Energy cards in play/i);
+  if (energyCount) return { kind: "energy-count", comparison: "at-least", amount: numberValue(energyCount[1], 1) };
   const openBakuganCount = text.match(
     /\bif you\s+(only have|have only|have exactly|have at least|have at most|have more than|have fewer than|have)\s+(no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)(\s+or more)?\s+open Bakugan\b/i,
   );
@@ -64,8 +75,10 @@ export function conditionFor(text: string): RuleCondition {
     else if (/at least/.test(wording) || openBakuganCount[3]) comparison = "at-least";
     return { kind: "open-bakugan-count", comparison, amount };
   }
-  const faction = text.match(/If (?:you have )?(?:an? )?\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/i)?.[1] as Faction | undefined;
-  if (faction) return { kind: "faction", faction };
+  const targetFaction = text.match(/\bIf\s+\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/i)?.[1] as Faction | undefined;
+  if (targetFaction) return { kind: "faction", faction: targetFaction, subject: "target" };
+  const teamFaction = text.match(/\bIf\s+(?:you have )?(?:an? )?\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\](?:\s+Bakugan)?/i)?.[1] as Faction | undefined;
+  if (teamFaction) return { kind: "faction", faction: teamFaction, subject: "team" };
   return { kind: "always" };
 }
 

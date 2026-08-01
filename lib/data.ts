@@ -214,7 +214,7 @@ export const makePlayer = (id: string, name: string, deck: DeckRecord): PlayerSt
   });
   return {
     id,name,bakugan,cores:deck.coreIds.map((key, index) => coreInstance(CORES.find((core) => core.id === key)!, id, index)),deck:deckCards.length,deckCards,hand,discard:[],energyZone:[],heroes:[],
-    energy:0,maxEnergy:0,ready:false,connected:true,lastSeen:Date.now(),energizedThisTurn:false,cardsPlayedThisTurn:0,
+    energy:0,maxEnergy:0,ready:false,connected:true,lastSeen:Date.now(),energizedThisTurn:false,cardsPlayedThisTurn:0,factionsPlayedThisTurn:[],
   };
 };
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, type Core } from "../lib/game";
+import { createMatch, recordCardPlayedForTurn, type Core } from "../lib/game";
 import {
   allRuleDefinitions,
   cardCostBreakdown,
@@ -51,11 +51,23 @@ test("unknown or modified card text is rejected rather than resolving partially"
 });
 
 test("instead clauses are single typed replacement branches, not additive actions", () => {
-  for (const number of [7, 22, 24, 27, 32, 48, 50, 52, 92, 97, 107, 121, 125, 136]) {
-    const card = CARDS.find((candidate) => candidate.number === number)!;
-    const spell = ruleDefinitionForCard(card).abilities.find((ability) => ability.kind === "spell")!;
-    const replacement = spell.instructions.flatMap((instruction) => instruction.effects).find((effect) => effect.kind === "conditional" && effect.replacement);
-    assert.ok(replacement, `${card.name} must have a typed replacement branch`);
+  const replacementCards = CARDS.filter((card) => /\binstead\s*\.?\s*$/i.test(card.effect));
+  assert.equal(replacementCards.length, 33);
+  for (const card of replacementCards) {
+    const replacements = ruleDefinitionForCard(card).abilities
+      .flatMap((ability) => ability.instructions)
+      .flatMap((instruction) => instruction.effects)
+      .filter((effect) => effect.kind === "conditional" && effect.replacement);
+    assert.equal(replacements.length, 1, `${card.name} must have exactly one typed replacement branch`);
+  }
+
+  for (const catalogId of ["bb-104", "bb-138", "bb-210", "aa-74"]) {
+    const card = CARDS.find((candidate) => candidate.catalogId === catalogId)!;
+    const replacements = ruleDefinitionForCard(card).abilities
+      .flatMap((ability) => ability.instructions)
+      .flatMap((instruction) => instruction.effects)
+      .filter((effect) => effect.kind === "conditional" && effect.replacement);
+    assert.equal(replacements.length, 0, `${card.name} uses ordinary \"instead of\" rules text`);
   }
 });
 
@@ -81,6 +93,113 @@ test("Flow replacement clauses resolve the enhanced effect instead of the base e
 
   assert.deepEqual(resolvedPower(false), [200]);
   assert.deepEqual(resolvedPower(true), [400]);
+});
+
+test("Light's Courage replaces +400 B with +800 B under Domination", () => {
+  const state = match();
+  const player = state.players[0];
+  const opponent = state.players[1];
+  const bakugan = player.bakugan[0];
+  const card = CARDS.find((candidate) => candidate.catalogId === "bb-69")!;
+  const definition = ruleDefinitionForCard(card);
+  const spell = definition.abilities.find((ability) => ability.kind === "spell")!;
+  const program = { cardId: definition.cardId, source: card.effect, instructions: spell.instructions };
+  const resolvedPower = () => {
+    const amounts: number[] = [];
+    executeRuleProgram(program, {
+      conditionIsActive: (instruction) => ruleConditionActive(state, player, instruction.condition, bakugan),
+      beforeInstruction: () => "continue",
+      execute: (action) => {
+        if (action.kind === "modify-stat" && action.stat === "power") amounts.push(action.amount);
+      },
+    });
+    return amounts;
+  };
+
+  player.bakugan.forEach((candidate) => { candidate.heldCoreCells = []; });
+  opponent.bakugan.forEach((candidate) => { candidate.heldCoreCells = []; });
+  assert.deepEqual(resolvedPower(), [400]);
+  bakugan.heldCoreCells = ["domination-core"];
+  assert.deepEqual(resolvedPower(), [800]);
+});
+
+test("replacement conditions cover sacrifice, held Core, faction, and turn-history families", () => {
+  assert.deepEqual(conditionFor("Sacrifice: You may discard a card for +800 [B] instead."), {
+    kind: "selection-made",
+    choiceId: "discardCardIds",
+  });
+  assert.deepEqual(conditionFor("If that Bakugan is holding [FT], +600 [B] instead."), {
+    kind: "held-core-type",
+    coreTypes: ["Fist"],
+  });
+  assert.deepEqual(conditionFor("If [Haos], +600 [B] instead."), {
+    kind: "faction",
+    faction: "Haos",
+    subject: "target",
+  });
+  assert.deepEqual(conditionFor("Aurelus Power: If you have an [Aurelus] Bakugan on your team, +800 [B] instead."), {
+    kind: "faction",
+    faction: "Aurelus",
+    subject: "team",
+  });
+  assert.deepEqual(conditionFor("If you have played a card from three different factions this turn, +800 [B] instead."), {
+    kind: "factions-played",
+    comparison: "at-least",
+    amount: 3,
+  });
+  assert.deepEqual(conditionFor("If you have ten or more Energy cards in play, +15 [Damage Rating] instead."), {
+    kind: "energy-count",
+    comparison: "at-least",
+    amount: 10,
+  });
+});
+
+test("Sacrifice replacements choose exactly one branch", () => {
+  const card = CARDS.find((candidate) => candidate.catalogId === "bb-50")!;
+  const definition = ruleDefinitionForCard(card);
+  const spell = definition.abilities.find((ability) => ability.kind === "spell")!;
+  const program = { cardId: definition.cardId, source: card.effect, instructions: spell.instructions };
+  const resolvedPower = (sacrificed: boolean) => {
+    const amounts: number[] = [];
+    executeRuleProgram(program, {
+      conditionIsActive: (instruction) => instruction.condition.kind === "selection-made" ? sacrificed : true,
+      beforeInstruction: () => "continue",
+      execute: (action) => {
+        if (action.kind === "modify-stat" && action.stat === "power") amounts.push(action.amount);
+      },
+    });
+    return amounts;
+  };
+  assert.deepEqual(resolvedPower(false), [200]);
+  assert.deepEqual(resolvedPower(true), [800]);
+});
+
+test("played-card faction history is distinct, turn-scoped rules state", () => {
+  const state = match();
+  const player = state.players[0];
+  const samples = ["Aquos", "Pyrus", "Darkus"].map((faction, index) => ({
+    ...CARDS.find((card) => card.faction === faction)!,
+    id: `played-faction-${index}`,
+  }));
+  const condition = conditionFor("If you have played a card from three different factions this turn, +800 [B] instead.");
+  recordCardPlayedForTurn(player, samples[0], state.turn);
+  recordCardPlayedForTurn(player, samples[1], state.turn);
+  assert.equal(ruleConditionActive(state, player, condition), false);
+  recordCardPlayedForTurn(player, samples[2], state.turn);
+  assert.equal(ruleConditionActive(state, player, condition), true);
+  assert.deepEqual(new Set(player.factionsPlayedThisTurn ?? []), new Set(["Aquos", "Pyrus", "Darkus"]));
+});
+
+test("triggered replacement bonuses retain their trigger ownership", () => {
+  const card = CARDS.find((candidate) => candidate.catalogId === "aa-138")!;
+  const definition = ruleDefinitionForCard(card);
+  const trigger = definition.abilities.find((ability) => ability.kind === "triggered")!;
+  assert.ok(trigger);
+  assert.ok(trigger.instructions.flatMap((instruction) => instruction.effects)
+    .some((effect) => effect.kind === "conditional" && effect.replacement));
+  const entry = definition.abilities.find((ability) => ability.kind === "spell")!;
+  assert.ok(entry.instructions.flatMap((instruction) => instruction.effects)
+    .every((effect) => effect.kind !== "modify-stat"));
 });
 
 test("open Bakugan count parser preserves exact and threshold comparisons", () => {

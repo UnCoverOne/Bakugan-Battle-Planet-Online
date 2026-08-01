@@ -114,6 +114,8 @@ export type PlayerState = {
   lastSeen: number;
   energizedThisTurn: boolean;
   cardsPlayedThisTurn: number;
+  /** Distinct factions represented by cards this player has played this turn. */
+  factionsPlayedThisTurn?: Faction[];
   /** Publicly revealed top-deck card awaiting a linked free-play decision. */
   revealedDeckCardId?: string;
 };
@@ -408,6 +410,19 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
         usedInstances.add(instance.id);
       }
     }
+    const playedCards = [
+      ...player.deckCards,
+      ...player.hand,
+      ...player.discard,
+      ...player.energyZone,
+      ...player.heroes,
+      ...player.bakugan.flatMap((bakugan) => [bakugan.character, ...bakugan.evoStack]),
+      ...state.batch.filter((object) => object.controllerId === player.id).map((object) => object.card),
+    ].filter((card) => card.playedTurn === state.turn);
+    player.factionsPlayedThisTurn = [...new Set([
+      ...(Array.isArray(player.factionsPlayedThisTurn) ? player.factionsPlayedThisTurn : []),
+      ...playedCards.flatMap((card) => card.factions?.length ? card.factions : [card.faction]),
+    ])];
   }
   state.selected = state.selected && typeof state.selected === "object" ? state.selected : {};
   state.targets = state.targets && typeof state.targets === "object" ? state.targets : {};
@@ -439,6 +454,14 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
 const otherPlayer = (state: MatchState, playerId: string) => state.players.find((player) => player.id !== playerId)!;
 const playerById = (state: MatchState, playerId: string) => state.players.find((player) => player.id === playerId)!;
 const syncDeck = (player: PlayerState) => { player.deck = player.deckCards.length; };
+export const recordCardPlayedForTurn = (player: PlayerState, card: GameCard, turn: number) => {
+  card.playedTurn = turn;
+  player.cardsPlayedThisTurn += 1;
+  player.factionsPlayedThisTurn = [...new Set([
+    ...(player.factionsPlayedThisTurn ?? []),
+    ...(card.factions?.length ? card.factions : [card.faction]),
+  ])];
+};
 const drawCards = (state: MatchState, player: PlayerState, amount: number) => {
   if (amount > 0) {
     state.informationEpoch += 1;
@@ -564,7 +587,7 @@ const beginTurn = (state: MatchState) => {
   state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.delayedRetracts = []; state.winner = "";
   state.collectedEventKeys = [];
   for (const player of state.players) {
-    player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0;
+    player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0; player.factionsPlayedThisTurn = [];
   }
   const now = Date.now();
   const drawCount = 1 + state.players.reduce((total, player) => (
@@ -1325,8 +1348,7 @@ export const playCard = (input: MatchState, playerId: string, cardId: string, ch
   if (!cardRerollTimingLegal(state, playerId, card)) throw new Error("This mandatory Reroll card can be played only after the first roll and before the Victor Step.");
   if (card.cost === "X" && !Number.isFinite(choices.xValue)) throw new Error("Choose X before paying for this card.");
   state.pendingChoice = undefined;
-  card.playedTurn = state.turn;
-  const cost = effectiveCost(state, player, card, choices); payEnergy(state, player, cost); player.hand.splice(index, 1); player.cardsPlayedThisTurn += 1;
+  const cost = effectiveCost(state, player, card, choices); payEnergy(state, player, cost); player.hand.splice(index, 1); recordCardPlayedForTurn(player, card, state.turn);
   state.nextCardCostReduction[playerId] = 0;
   const definition = ruleDefinitionForCard(card);
   const ability = definition.abilities.find((candidate) => candidate.kind !== "triggered");
@@ -1447,13 +1469,18 @@ const ruleConditionIsActive = (
 ) => {
   const player = playerById(state, pending.controllerId);
   const choices = instructionChoices(pending, pending.instructionIndex ?? 0);
-  if (instruction.condition.kind === "selection-made") return Boolean(choices[instruction.condition.choiceId]);
+  if (instruction.condition.kind === "selection-made") {
+    const selected = choices[instruction.condition.choiceId];
+    return Array.isArray(selected) ? selected.length > 0 : Boolean(selected);
+  }
   if (instruction.condition.kind === "reroll-opened") return Boolean(state.rerollOpenedByEffect[pending.id]);
   if (instruction.condition.kind === "printed") return conditionActive(state, player, instruction.condition.text, choices);
-  if (instruction.condition.kind === "faction") {
-    return chooseBakugan(state, pending.controllerId, choices)?.faction === instruction.condition.faction;
-  }
-  return ruleConditionActive(state, player, instruction.condition);
+  return ruleConditionActive(
+    state,
+    player,
+    instruction.condition,
+    chooseBakugan(state, pending.controllerId, choices),
+  );
 };
 
 const executeRuleAction = (
@@ -1727,8 +1754,7 @@ const executeRuleAction = (
         const index = player.hand.findIndex((candidate) => candidate.id === selectedId);
         if (index < 0) return;
         const [selected] = player.hand.splice(index, 1);
-        selected.playedTurn = state.turn;
-        player.cardsPlayedThisTurn += 1;
+        recordCardPlayedForTurn(player, selected, state.turn);
         state.nextCardCostReduction[controllerId] = 0;
         const freeChoices = selected.type === "Evo"
           ? { targetBakuganId: choices.targetBakuganId ?? activeBakugan(state, controllerId)?.id }
@@ -1740,8 +1766,7 @@ const executeRuleAction = (
       }
       if (action.source === "self") {
         for (const owner of state.players) owner.discard = owner.discard.filter((candidate) => candidate.id !== card.id);
-        card.playedTurn = state.turn;
-        player.cardsPlayedThisTurn += 1;
+        recordCardPlayedForTurn(player, card, state.turn);
         state.nextCardCostReduction[controllerId] = 0;
         state.batch.push({ id: uid(), controllerId, card, choices, kind: "card" });
         emitGameEvent(state, { id: `${state.turn}:card-play:${card.id}`, type: "card-play", playerId: controllerId, cardType: card.type });
@@ -1756,8 +1781,7 @@ const executeRuleAction = (
       }
       const [revealed] = player.deckCards.splice(index, 1);
       syncDeck(player);
-      revealed.playedTurn = state.turn;
-      player.cardsPlayedThisTurn += 1;
+      recordCardPlayedForTurn(player, revealed, state.turn);
       state.nextCardCostReduction[controllerId] = 0;
       state.batch.push({ id: uid(), controllerId, card: revealed, choices: {}, kind: "card" });
       delete tracked.revealedDeckCardId;

@@ -157,6 +157,9 @@ test("damage Flips enter the batch, open a response window, and Stop ends damage
   assert.equal(state.phase,"damage"); assert.equal(state.revealedFlip, undefined); state = flipDamageCard(state, loser.id);
   assert.equal(state.revealedFlip?.id,"stop-flip"); const remaining = state.pendingDamage;
   state = resolveManualDamage(state,loser.id,"stop-flip"); assert.equal(state.phase,"postDamage"); assert.equal(state.pendingDamage,remaining); assert.equal(state.batch.some((object) => object.card.id === "stop-flip"), true);
+  const afterFlip = state.players.find((player) => player.id === loser.id)!;
+  assert.equal(afterFlip.cardsPlayedThisTurn, 1);
+  assert.ok(afterFlip.factionsPlayedThisTurn?.includes(stop.faction));
   state = passWindow(state); assert.equal(state.batch.length,0); assert.equal(state.pendingDamage,0);
 });
 

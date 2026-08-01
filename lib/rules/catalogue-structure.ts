@@ -3,14 +3,6 @@ import type { CardChoices, GameCard } from "../game";
 import type { AbilityDefinition, CardPlayDefinition, ChoiceSpec, CostEffect, RuleAction, RuleInstruction, RulesCardId } from "./model";
 import { conditionFor, durationFor, parseAtomicEffects, ruleCardId } from "./catalogue-primitives";
 
-const REPLACEMENT_CARD_IDS = new Set([
-  "bb-7", "bb-22", "bb-24", "bb-27", "bb-32", "bb-48", "bb-50",
-  "bb-52", "bb-92", "bb-97", "bb-107", "bb-121", "bb-125", "bb-136",
-  "br-15", "br-31", "br-43", "br-46", "br-49",
-  "aa-10", "aa-23", "aa-29", "aa-31", "aa-34", "aa-37", "aa-38",
-  "aa-49", "aa-61", "aa-138",
-]);
-
 function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   const normalized = source.replace(/\s*\n\s*/g, " ").trim();
   const clauses = normalized
@@ -38,12 +30,6 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     let effects = parseAtomicEffects(card, clause);
     if (ruleCardId(card) === "bb-152") effects = effects.filter((effect) => effect.kind !== "discard");
     if (!effects.length) effects = [{ kind: "sequence", effects: [] }];
-    if (REPLACEMENT_CARD_IDS.has(ruleCardId(card)) && /instead/i.test(clause)) {
-      const parts = clause.split(/\binstead\b/i);
-      const before = parseAtomicEffects(card, parts[0] ?? "");
-      const after = parseAtomicEffects(card, parts.slice(1).join(" instead "));
-      effects = [{ kind: "conditional", condition, whenTrue: after, whenFalse: before, replacement: true }];
-    }
     return {
       id: `${ruleCardId(card)}:instruction:${index}`,
       condition,
@@ -54,20 +40,21 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     };
   });
 
-  // Printed conditional bonuses such as "+200 [B]. Flow ... +400 [B] instead."
-  // replace the preceding base sentence. Keep the condition on the branch rather
-  // than the whole instruction so the base effect still resolves when it is false.
-  if (!REPLACEMENT_CARD_IDS.has(ruleCardId(card))) return instructions;
+  // A sentence-ending "instead" clause replaces the immediately preceding
+  // effect. Detect that grammar directly so every set receives the same rules
+  // treatment and prose such as "instead of [B]" is left alone.
   for (let index = 1; index < instructions.length; index += 1) {
     const current = instructions[index];
-    if (current.condition.kind === "always" || !/\binstead\b/i.test(current.sourceText)) continue;
+    if (current.condition.kind === "always" || !/\binstead\s*\.?\s*$/i.test(current.sourceText)) continue;
     const previous = instructions[index - 1];
-    const replacementText = current.sourceText.split(/\binstead\b/i)[0] ?? "";
-    const effects: RuleAction[] = [{
+    const replacementText = current.sourceText.replace(/\s*\binstead\s*\.?\s*$/i, "");
+    const triggerEffects = previous.effects.filter((effect) => effect.kind === "trigger");
+    const baseEffects = previous.effects.filter((effect) => effect.kind !== "trigger");
+    const effects: RuleAction[] = [...triggerEffects, {
       kind: "conditional",
       condition: current.condition,
       whenTrue: parseAtomicEffects(card, replacementText),
-      whenFalse: previous.effects,
+      whenFalse: baseEffects,
       replacement: true,
     }];
     const sourceText = `${previous.sourceText} ${current.sourceText}`;

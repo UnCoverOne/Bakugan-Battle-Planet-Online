@@ -29,8 +29,9 @@ export type RuleCondition =
   | { kind: "domination" }
   | { kind: "flow" }
   | { kind: "victor" }
-  | { kind: "faction"; faction: Faction }
+  | { kind: "faction"; faction: Faction; subject: "target" | "team" }
   | { kind: "cards-played"; comparison: "at-least" | "more-than"; amount: number }
+  | { kind: "factions-played"; comparison: "at-least"; amount: number }
   | { kind: "hero-count"; comparison: "at-least"; amount: number }
   | { kind: "energy-count"; comparison: "at-least"; amount: number }
   | { kind: "card-count"; catalogId: RulesCardId; comparison: "at-least"; amount: number }

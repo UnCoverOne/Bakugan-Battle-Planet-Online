@@ -46,10 +46,13 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
     case "domination": return Boolean(opponent && player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0)
       > opponent.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0));
     case "victor": return state.brawlWinner === player.id;
-    case "faction": return player.bakugan.some((bakugan) => bakugan.faction === condition.faction);
+    case "faction": return condition.subject === "target"
+      ? bakugan?.faction === condition.faction
+      : player.bakugan.some((candidate) => candidate.faction === condition.faction);
     case "cards-played": return condition.comparison === "at-least"
       ? player.cardsPlayedThisTurn >= condition.amount
       : player.cardsPlayedThisTurn > condition.amount;
+    case "factions-played": return new Set(player.factionsPlayedThisTurn ?? []).size >= condition.amount;
     case "hero-count": return player.heroes.length >= condition.amount;
     case "energy-count": return player.maxEnergy >= condition.amount;
     case "card-count": return player.heroes.filter((hero) => hero.catalogId === condition.catalogId).length >= condition.amount;
