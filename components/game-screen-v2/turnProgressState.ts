@@ -172,6 +172,13 @@ export function presentedTurnProgress(
   return snapshotFor(live.round, "roll", "rolling");
 }
 
+export function phaseTransitionIsBlocked(
+  rollPresentationPending: boolean,
+  brawlPreviewVisible: boolean,
+) {
+  return rollPresentationPending || brawlPreviewVisible;
+}
+
 export function describeTurnTransition(
   previous: TurnProgressSnapshot | null,
   current: TurnProgressSnapshot | null,

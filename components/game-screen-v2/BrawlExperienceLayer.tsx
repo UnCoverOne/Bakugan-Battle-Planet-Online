@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { MatchState, PendingEffect } from "../../lib/game";
 import {
+  batchHudShouldRender,
   brawlCombatants,
   effectAnimationKind,
   orderedBatchEffects,
@@ -285,6 +286,8 @@ export function BrawlExperienceLayer() {
     ? [resolvingEffect, ...batch]
     : batch;
   const batchKey = combinedBatch.map((effect) => effect.id).join("|");
+  const showBatchHud = combinedBatch.length > 0
+    && batchHudShouldRender(experience.match);
   const hudStyle = hudPosition ? {
     left: brawlDocked ? hudPosition.dockedLeft : hudPosition.left,
     top: hudPosition.top,
@@ -335,7 +338,7 @@ export function BrawlExperienceLayer() {
         </aside>
       ) : null}
 
-      {combinedBatch.length ? (
+      {showBatchHud ? (
         <aside
           className={styles.batchHud}
           aria-label={`${combinedBatch.length} effects in the batch`}

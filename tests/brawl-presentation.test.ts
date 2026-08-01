@@ -19,6 +19,7 @@ import {
   selectRollTarget,
 } from "../lib/rolling";
 import {
+  batchHudShouldRender,
   brawlCombatants,
   brawlIsEngaged,
   brawlRollLabel,
@@ -109,6 +110,27 @@ function enterRollingStep() {
   match = selectBakugan(match, match.players[1].id, match.players[1].bakugan[0].id);
   return passWindow(match);
 }
+
+test("the Batch HUD yields the Hide Matrix while a Reroll target is required", () => {
+  const match = previewMatch("power");
+  const bakugan = match.players[0].bakugan[0];
+  match.phase = "reroll";
+  match.pendingReroll = {
+    id: "reroll-batch-hud",
+    playerId: match.players[0].id,
+    bakuganId: bakugan.id,
+    sourceEffectId: "reroll-effect",
+    sourceName: "Reroll card",
+    mandatory: true,
+    resumePriority: match.players[0].id,
+    resumeDeadline: Date.now() + 30_000,
+    resumeStepLabel: "Brawl Phase • Power Step",
+  };
+
+  assert.equal(batchHudShouldRender(match), false);
+  match.pendingReroll.targetCell = match.placements[0]?.cell ?? "h3-3";
+  assert.equal(batchHudShouldRender(match), true);
+});
 
 test("the Brawl Preview keeps both selected Bakugan visible when one roll misses", () => {
   const match = previewMatch("power", true);

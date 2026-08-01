@@ -208,6 +208,18 @@ export function batchTopEffect(match: MatchState | null | undefined) {
   return match?.batch.at(-1) ?? null;
 }
 
+/**
+ * A resolving Reroll remains in the batch while its controller chooses a new
+ * BakuCore target. Keep that modal HUD out of the way until targeting is done.
+ */
+export function batchHudShouldRender(match: MatchState | null | undefined) {
+  return !Boolean(
+    match?.phase === "reroll"
+    && match.pendingReroll
+    && !match.pendingReroll.targetCell
+  );
+}
+
 export type EffectAnimationKind = "power" | "damage" | "draw" | "energy" | "negate" | "ability";
 
 export function effectAnimationKind(effect: PendingEffect): EffectAnimationKind {

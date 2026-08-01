@@ -10,9 +10,11 @@ import {
 } from "react";
 import type { MatchState } from "../../lib/game";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
+import { brawlIsEngaged } from "./brawlState";
 import { useMatchSelector } from "./matchStore";
 import {
   describeTurnTransition,
+  phaseTransitionIsBlocked,
   presentedTurnProgress,
   turnProgressSnapshot,
   type TurnProgressSnapshot,
@@ -223,10 +225,20 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
     () => transition ? transitionPlan(transition.stepKey, match, localPlayerId) : null,
     [transition, match, localPlayerId],
   );
+  const transitionBlocked = phaseTransitionIsBlocked(
+    rollPresentationPending,
+    brawlIsEngaged(match),
+  );
 
   useEffect(() => {
     if (!progress) {
       previousProgress.current = null;
+      setTransition(null);
+      return;
+    }
+
+    if (transitionBlocked) {
+      previousProgress.current = progress;
       setTransition(null);
       return;
     }
@@ -243,10 +255,10 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
       setTransition((current) => current?.signature === next.signature ? null : current);
     }, duration);
     return () => window.clearTimeout(timeout);
-  }, [progress]);
+  }, [progress, transitionBlocked]);
 
   useEffect(() => {
-    if (!transition) return;
+    if (!transition || transitionBlocked) return;
     const root = document.documentElement;
     root.dataset.turnTransition = transition.scope;
     root.dataset.turnTransitionPhase = transition.phaseKey;
@@ -256,10 +268,10 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
       delete root.dataset.turnTransitionPhase;
       delete root.dataset.turnTransitionStep;
     };
-  }, [transition]);
+  }, [transition, transitionBlocked]);
 
   useLayoutEffect(() => {
-    if (!transition || !plan) {
+    if (transitionBlocked || !transition || !plan) {
       setTargets(EMPTY_TARGETS);
       return;
     }
@@ -310,9 +322,9 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
       clearFocus("primary");
       clearFocus("secondary");
     };
-  }, [transition, plan]);
+  }, [transition, plan, transitionBlocked]);
 
-  if (!transition || !plan) return null;
+  if (transitionBlocked || !transition || !plan) return null;
 
   const viewportWidth = typeof window === "undefined" ? 0 : window.innerWidth;
   const viewportHeight = typeof window === "undefined" ? 0 : window.innerHeight;
