@@ -15,6 +15,7 @@ export type EntitySelector =
   | "chosen-bakugan"
   | "all-friendly"
   | "all-enemy"
+  | "all-bakugan"
   | "controller"
   | "opponent"
   | "batch-object"
@@ -31,6 +32,8 @@ export type RuleCondition =
   | { kind: "faction"; faction: Faction }
   | { kind: "cards-played"; comparison: "at-least" | "more-than"; amount: number }
   | { kind: "hero-count"; comparison: "at-least"; amount: number }
+  | { kind: "energy-count"; comparison: "at-least"; amount: number }
+  | { kind: "card-count"; catalogId: RulesCardId; comparison: "at-least"; amount: number }
   | { kind: "core-count"; relationship: "more-than-opponent" | "at-least"; amount?: number }
   | { kind: "held-core-type"; coreTypes: CoreType[] }
   | { kind: "open-bakugan-count"; comparison: "exactly" | "at-least" | "at-most" | "more-than" | "fewer-than"; amount: number }
@@ -82,7 +85,7 @@ export type CostEffect =
   | { kind: "cost-alternative"; label: string; components: CostEffect[] };
 
 export type RuleAction =
-  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: number; scale?: string; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" }
+  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: number; scale?: string; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan" }
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: number; duration: RulesDuration }
   | { kind: "draw"; amount: number; scale?: string }
   | { kind: "discard"; amount: number; minimum: number; maximum: number; repeated?: boolean }
@@ -192,6 +195,8 @@ export type ContinuousModifier = {
   controllerId: string;
   target: EntitySelector;
   targetBakuganId?: string;
+  targetFaction?: Faction;
+  excludedTargetFaction?: Faction;
   stat?: "power" | "damage";
   keyword?: "DoubleStrike" | "ShadowStrike" | "FrostStrike";
   amount: number;

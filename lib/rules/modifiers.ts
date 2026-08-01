@@ -51,6 +51,8 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
       ? player.cardsPlayedThisTurn >= condition.amount
       : player.cardsPlayedThisTurn > condition.amount;
     case "hero-count": return player.heroes.length >= condition.amount;
+    case "energy-count": return player.maxEnergy >= condition.amount;
+    case "card-count": return player.heroes.filter((hero) => hero.catalogId === condition.catalogId).length >= condition.amount;
     case "core-count": {
       const held = player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
       if (condition.relationship === "at-least") return held >= (condition.amount ?? 0);
@@ -78,8 +80,30 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
 
 function targetMatches(state: MatchState, modifier: ContinuousModifier, bakugan: Bakugan, player: PlayerState) {
   if (modifier.targetBakuganId && modifier.targetBakuganId !== bakugan.id) return false;
+  if (modifier.targetFaction && modifier.targetFaction !== bakugan.faction) return false;
+  if (modifier.excludedTargetFaction && modifier.excludedTargetFaction === bakugan.faction) return false;
+  if (modifier.target === "all-bakugan") return true;
   if (modifier.controllerId === player.id) return ["active-friendly", "chosen-bakugan", "all-friendly", "self"].includes(modifier.target);
   return ["active-enemy", "all-enemy"].includes(modifier.target);
+}
+
+function printedScaleMultiplier(scale: string | undefined, player: PlayerState) {
+  if (!scale) return 1;
+  if (scale === "other-card-played") return Math.max(0, player.cardsPlayedThisTurn - 1);
+  if (/Energy card/i.test(scale)) return player.maxEnergy;
+  if (/Hero card/i.test(scale)) return player.heroes.length;
+  if (/BakuCore/i.test(scale)) return player.bakugan.reduce((sum, candidate) => sum + candidate.heldCoreCells.length, 0);
+  return 1;
+}
+
+function printedTarget(sourceText: string, action: Extract<RuleAction, { kind: "modify-stat" | "grant-keyword" }>) {
+  if (action.kind === "modify-stat" && action.scope) {
+    return action.scope === "target" ? "chosen-bakugan" as const : action.scope;
+  }
+  if (/non-\[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i.test(sourceText)) return "all-bakugan" as const;
+  if (/opposing Bakugan/i.test(sourceText)) return "all-enemy" as const;
+  if (/your (?:\[[^\]]+\]\s+)?Bakugan|to your attacks|your attacks have/i.test(sourceText)) return "all-friendly" as const;
+  return "chosen-bakugan" as const;
 }
 
 function printedActionModifier(
@@ -91,25 +115,38 @@ function printedActionModifier(
   bakugan: Bakugan,
   actionId: string,
   condition: RuleCondition,
+  sourceText: string,
+  intrinsicCharacteristic: boolean,
 ): ContinuousModifier | undefined {
+  if (action.kind !== "modify-stat" && action.kind !== "grant-keyword") return undefined;
+  if (!intrinsicCharacteristic && action.duration !== "while-source-active") return undefined;
+  const target = printedTarget(sourceText, action);
+  const faction = sourceText.match(/your \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1] as Bakugan["faction"] | undefined;
+  const excludedFaction = sourceText.match(/non-\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1] as Bakugan["faction"] | undefined;
+  const copies = sourceText.match(/if you have (\d+) of this in play/i);
+  const activeCondition: RuleCondition = copies
+    ? { kind: "card-count", catalogId, comparison: "at-least", amount: Number(copies[1]) }
+    : condition;
   const base = {
     id: `${sourceId}:printed:${actionId}`,
     source: { kind: "card" as const, instanceId: sourceId, catalogId },
     controllerId: player.id,
-    target: "chosen-bakugan" as const,
-    targetBakuganId: bakugan.id,
-    amount: action.kind === "grant-keyword" ? action.value ?? 1 : action.kind === "modify-stat" ? action.amount : 0,
+    target,
+    targetBakuganId: target === "chosen-bakugan" ? bakugan.id : undefined,
+    targetFaction: faction,
+    excludedTargetFaction: excludedFaction,
+    amount: action.kind === "grant-keyword" ? action.value ?? 1 : action.amount * printedScaleMultiplier(action.scale, player),
     layer: "continuous" as const,
     duration: "while-source-active" as const,
-    condition,
+    condition: activeCondition,
     createdTurn: state.turn,
     sourceCategory: "continuous" as const,
   };
-  if (action.kind === "modify-stat" && !action.scale) {
+  if (action.kind === "modify-stat") {
     if (action.stat === "frost") return { ...base, keyword: "FrostStrike" };
     return { ...base, stat: action.stat };
   }
-  if (action.kind === "grant-keyword" && ["DoubleStrike", "ShadowStrike", "FrostStrike"].includes(action.keyword)) {
+  if (["DoubleStrike", "ShadowStrike", "FrostStrike"].includes(action.keyword)) {
     return { ...base, keyword: action.keyword as "DoubleStrike" | "ShadowStrike" | "FrostStrike" };
   }
   return undefined;
@@ -120,21 +157,9 @@ function activePrintedModifiers(state: MatchState, player: PlayerState, bakugan:
   const sources = [top, ...player.heroes];
   return sources.flatMap((source) => {
     const definition = ruleDefinitionForCard(source);
-    return definition.abilities.flatMap((ability) => ability.instructions.flatMap((instruction) => {
-      const explicit = instruction.effects
-        .filter((effect): effect is Extract<typeof effect, { kind: "continuous" }> => effect.kind === "continuous")
-        .map((effect) => ({
-          ...structuredClone(effect.modifier),
-          id: `${source.id}:${effect.modifier.id}`,
-          source: { kind: "card" as const, instanceId: source.id, catalogId: definition.cardId },
-          controllerId: player.id,
-          createdTurn: state.turn,
-          sourceCategory: "continuous" as const,
-        }));
-      if (source !== top || !["Character", "Evo"].includes(source.type) || ability.kind === "triggered" || explicit.length) {
-        return explicit;
-      }
-      return instruction.effects
+    return definition.abilities.flatMap((ability) => {
+      if (ability.kind === "triggered") return [];
+      return ability.instructions.flatMap((instruction) => instruction.effects
         .map((action, index) => printedActionModifier(
           action,
           source.id,
@@ -144,9 +169,11 @@ function activePrintedModifiers(state: MatchState, player: PlayerState, bakugan:
           bakugan,
           `${instruction.id}:${index}`,
           instruction.condition,
+          instruction.sourceText,
+          source === top && ["Character", "Evo"].includes(source.type),
         ))
-        .filter((modifier): modifier is ContinuousModifier => Boolean(modifier));
-    }));
+        .filter((modifier): modifier is ContinuousModifier => Boolean(modifier)));
+    });
   });
 }
 
@@ -189,7 +216,10 @@ export function evaluateBakuganCharacteristics(
     { id: `${bakugan.id}:legacy-frost`, source: { kind: "system", id: "temporary-frost" }, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, keyword: "FrostStrike", amount: state.frostStrike[bakugan.id] ?? 0, layer: "temporary", duration: "turn", createdTurn: state.turn, sourceCategory: "temporary" },
   ];
 
-  const modifiers = [...coreModifiers, ...activePrintedModifiers(state, owner, bakugan), ...ensureRulesState(state).modifiers, ...temporary]
+  const storedModifiers = ensureRulesState(state).modifiers.filter((modifier) => !(
+    modifier.duration === "while-source-active" && modifier.source.kind === "card"
+  ));
+  const modifiers = [...coreModifiers, ...activePrintedModifiers(state, owner, bakugan), ...storedModifiers, ...temporary]
     .filter((modifier) => targetMatches(state, modifier, bakugan, owner) && ruleConditionActive(state, owner, modifier.condition, bakugan))
     .sort((left, right) => LAYER_ORDER[left.layer] - LAYER_ORDER[right.layer] || left.id.localeCompare(right.id));
 

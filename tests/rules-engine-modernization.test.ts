@@ -192,6 +192,76 @@ test("typed cost reductions scale Everett Ray and active Hero reducers without d
   assert.equal(cardCostBreakdown(state, player.id, hero).reductions, 2);
 });
 
+test("source-bound stat modifiers are parsed per symbol and derived exactly once from active cards", () => {
+  const state = match();
+  const player = state.players[0];
+  const bakugan = player.bakugan[0];
+  const base = { power: bakugan.character.bPower ?? bakugan.bPower, damage: bakugan.character.damage ?? bakugan.damage };
+  const lightning = CARDS.find((card) => card.catalogId === "aa-70")!;
+  const effects = ruleDefinitionForCard(lightning).abilities.flatMap((ability) => ability.instructions).flatMap((instruction) => instruction.effects);
+  assert.deepEqual(effects.filter((effect) => effect.kind === "modify-stat").map((effect) => [effect.stat, effect.amount, effect.duration]), [
+    ["power", 100, "while-source-active"], ["damage", 1, "while-source-active"],
+  ]);
+  assert.equal(effects.some((effect) => effect.kind === "continuous"), false);
+
+  player.heroes = [{ ...lightning, id: "lightning-one" }];
+  let evaluated = evaluateBakuganCharacteristics(state, bakugan, player);
+  assert.deepEqual({ power: evaluated.power, damage: evaluated.damage }, { power: base.power + 100, damage: base.damage + 1 });
+  assert.deepEqual(evaluated.applied.filter((entry) => entry.sourceId === "lightning-one").map((entry) => [entry.stat, entry.amount]), [["power", 100], ["damage", 1]]);
+
+  player.heroes.push({ ...lightning, id: "lightning-two" });
+  evaluated = evaluateBakuganCharacteristics(state, bakugan, player);
+  assert.deepEqual({ power: evaluated.power, damage: evaluated.damage }, { power: base.power + 200, damage: base.damage + 2 });
+
+  ensureRulesState(state).modifiers.push({
+    id: "legacy-lightning-duplicate", source: { kind: "card", instanceId: "lightning-one", catalogId: lightning.catalogId as `bb-${number}` },
+    controllerId: player.id, target: "all-friendly", stat: "damage", amount: 100, layer: "continuous",
+    duration: "while-source-active", createdTurn: state.turn,
+  });
+  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, base.damage + 2);
+  player.heroes = [];
+  evaluated = evaluateBakuganCharacteristics(state, bakugan, player);
+  assert.deepEqual({ power: evaluated.power, damage: evaluated.damage }, base);
+});
+
+test("source-bound parsing keeps unrelated cost scaling off Everett and evaluates real scaling dynamically", () => {
+  const state = match();
+  const player = state.players[0];
+  const bakugan = player.bakugan[0];
+  const basePower = bakugan.character.bPower ?? bakugan.bPower;
+  const baseDamage = bakugan.character.damage ?? bakugan.damage;
+  const everett = CARDS.find((card) => card.catalogId === "bb-188")!;
+  const everettPower = ruleDefinitionForCard(everett).abilities.flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.effects).find((effect) => effect.kind === "modify-stat" && effect.stat === "power");
+  assert.ok(everettPower && !everettPower.scale);
+  player.cardsPlayedThisTurn = 4;
+  player.heroes = [{ ...everett, id: "everett-active" }];
+  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).power, basePower + 200);
+
+  const wynton = CARDS.find((card) => card.catalogId === "aa-75")!;
+  player.heroes = [{ ...wynton, id: "wynton-active" }];
+  player.maxEnergy = 6;
+  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 6);
+  player.maxEnergy = 9;
+  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 9);
+});
+
+test("triggered open bonuses are not treated as continuous active-card modifiers", () => {
+  const state = match();
+  const player = state.players[0];
+  const bakugan = player.bakugan[0];
+  const baseDamage = bakugan.character.damage ?? bakugan.damage;
+  const triggeredLightning = CARDS.find((card) => card.catalogId === "br-78")!;
+  player.heroes = [{ ...triggeredLightning, id: "triggered-lightning-active" }];
+  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage);
+
+  const dan = CARDS.find((card) => card.catalogId === "br-81")!;
+  player.heroes = [{ ...dan, id: "double-strike-dan" }];
+  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).doubleStrike, true);
+  player.heroes = [];
+  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).doubleStrike, false);
+});
+
 test("active FrostStrike from the layered modifier system increases Flip costs", () => {
   const state = match();
   const attacker = state.players[0];

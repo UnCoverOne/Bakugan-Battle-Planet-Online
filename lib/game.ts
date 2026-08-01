@@ -1487,6 +1487,8 @@ const executeRuleAction = (
       throw new RerollResolutionSuspended();
     }
     case "continuous": {
+      if (pending.kind === "card" && ["Hero", "Evo"].includes(card.type)
+        && action.modifier.duration === "while-source-active") return;
       const rules = ensureRulesState(state);
       const modifier = {
         ...structuredClone(action.modifier),
@@ -1513,7 +1515,7 @@ const executeRuleAction = (
       });
       return;
     case "modify-stat": {
-      if (pending.kind === "card" && ["Hero", "Evo"].includes(card.type) && action.duration === "while-source-in-play") return;
+      if (pending.kind === "card" && ["Hero", "Evo"].includes(card.type) && action.duration === "while-source-active") return;
       if (card.name === "Gravity Shift" && (
         (choices.mode === "damage" && action.stat === "power")
         || (choices.mode === "power" && action.stat === "damage")
@@ -1522,7 +1524,8 @@ const executeRuleAction = (
       if (action.scale === "sacrificed-card") amount *= choices.discardCardIds?.length ?? 0;
       const targets = action.scope === "all-enemy" ? opponent.bakugan
         : action.scope === "all-friendly" ? player.bakugan
-          : target ? [target] : [];
+          : action.scope === "all-bakugan" ? state.players.flatMap((candidate) => candidate.bakugan)
+            : target ? [target] : [];
       for (const selected of targets) {
         if (action.stat === "power") state.powerBoost[selected.id] = (state.powerBoost[selected.id] ?? 0) + amount;
         else if (action.stat === "damage") state.damageBoost[selected.id] = (state.damageBoost[selected.id] ?? 0) + amount;
@@ -1531,6 +1534,7 @@ const executeRuleAction = (
       return;
     }
     case "grant-keyword":
+      if (pending.kind === "card" && ["Hero", "Evo"].includes(card.type) && action.duration === "while-source-active") return;
       if (!target) return;
       if (action.keyword === "DoubleStrike") state.doubleStrike[target.id] = true;
       else if (action.keyword === "ShadowStrike") state.shadowStrike[target.id] = true;

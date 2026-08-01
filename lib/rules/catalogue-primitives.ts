@@ -18,7 +18,7 @@ export function ruleCardId(card: GameCard): RulesCardId {
 export function durationFor(text: string): RulesDuration {
   if (/next (?:Action|card|Gear)/i.test(text)) return "next-card";
   if (/this turn|until end of turn|rest of the turn/i.test(text)) return "turn";
-  if (/your Bakugan have|your Bakugan get|opposing Bakugan|while|as long as|Treat all BakuCores/i.test(text)) return "while-source-active";
+  if (/your (?:\[[^\]]+\]\s+)?Bakugan (?:have|get)|opposing Bakugan|to your (?:\[[^\]]+\]\s+)?Bakugan|to your attacks|your attacks have|\bthis (?:has|gets)\b|while|as long as|Treat all BakuCores/i.test(text)) return "while-source-active";
   return "instant";
 }
 
@@ -48,6 +48,8 @@ export function conditionFor(text: string): RuleCondition {
   if (/\bVictor\b/i.test(text)) return { kind: "victor" };
   if (/two or more cards this turn/i.test(text)) return { kind: "cards-played", comparison: "at-least", amount: 2 };
   if (/three or more Hero/i.test(text)) return { kind: "hero-count", comparison: "at-least", amount: 3 };
+  const energyCount = text.match(/if you have (\d+) or more Energy cards in play/i);
+  if (energyCount) return { kind: "energy-count", comparison: "at-least", amount: Number(energyCount[1]) };
   const openBakuganCount = text.match(
     /\bif you\s+(only have|have only|have exactly|have at least|have at most|have more than|have fewer than|have)\s+(no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)(\s+or more)?\s+open Bakugan\b/i,
   );
@@ -100,10 +102,20 @@ function scaleFor(text: string) {
   return text.match(/for each ([^.,]+)/i)?.[1]?.trim();
 }
 
-function scopeFor(text: string): "target" | "all-enemy" | "all-friendly" {
+function scopeFor(text: string): "target" | "all-enemy" | "all-friendly" | "all-bakugan" {
+  if (/non-\[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i.test(text)) return "all-bakugan";
   if (/all enemy Bakugan|(?:enemy|opposing) Bakugan (?:have|get)/i.test(text)) return "all-enemy";
-  if (/all (?:of )?your Bakugan|your Bakugan (?:have|get)/i.test(text)) return "all-friendly";
+  if (/all (?:of )?your Bakugan|your (?:\[[^\]]+\]\s+)?Bakugan (?:have|get)|to your (?:\[[^\]]+\]\s+)?Bakugan|to your attacks|your attacks have/i.test(text)) return "all-friendly";
   return "target";
+}
+
+function scaleForStat(text: string, match: RegExpMatchArray) {
+  const index = match.index ?? 0;
+  const trailingClause = text.slice(index + match[0].length).split(/[.;]/, 1)[0] ?? "";
+  if (/\bfor each\b/i.test(trailingClause)) return scaleFor(trailingClause);
+  const leadingClause = text.slice(0, index).split(/[.;]/).at(-1) ?? "";
+  if (/\bfor each\b[^,]*,\s*$/i.test(leadingClause)) return scaleFor(leadingClause);
+  return undefined;
 }
 
 export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
@@ -113,13 +125,13 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const scope = scopeFor(text);
 
   for (const match of text.matchAll(/([+-]\d+)\s*\[B\]/gi)) {
-    actions.push({ kind: "modify-stat", stat: "power", amount: Number(match[1]), scale, duration, scope });
+    actions.push({ kind: "modify-stat", stat: "power", amount: Number(match[1]), scale: scaleForStat(text, match), duration, scope });
   }
   for (const match of text.matchAll(/([+-]\d+)\s*\[Damage (?:Rating|Power)\]/gi)) {
-    actions.push({ kind: "modify-stat", stat: "damage", amount: Number(match[1]), scale, duration, scope });
+    actions.push({ kind: "modify-stat", stat: "damage", amount: Number(match[1]), scale: scaleForStat(text, match), duration, scope });
   }
   for (const match of text.matchAll(/\+?(\d+)\s*\[FrostStrike\]/gi)) {
-    actions.push({ kind: "modify-stat", stat: "frost", amount: Number(match[1]), scale, duration, scope });
+    actions.push({ kind: "modify-stat", stat: "frost", amount: Number(match[1]), scale: scaleForStat(text, match), duration, scope });
   }
   if (/\+?\[Double\s*Strike\]|\bDouble\s*Strike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "DoubleStrike", duration });
   if (/\+?\[ShadowStrike\]|\bShadowStrike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "ShadowStrike", duration });
@@ -197,28 +209,6 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
 
   const trigger = triggerFor(text);
   if (trigger) actions.push({ kind: "trigger", event: trigger.event, definition: trigger });
-  if (["Hero", "Evo", "Character"].includes(card.type)
-    && /your Bakugan have|your Bakugan get|opposing Bakugan|while|as long as|maximum of \d+ damage|Treat all BakuCores/i.test(text)) {
-    const stat = /damage/i.test(text) ? "damage" as const : "power" as const;
-    const amount = Number(text.match(/([+-]\d+)/)?.[1] ?? 0);
-    actions.push({
-      kind: "continuous",
-      modifier: {
-        id: `${ruleCardId(card)}:continuous:${actions.length}`,
-        source: { kind: "card", instanceId: card.id, catalogId: ruleCardId(card) },
-        controllerId: "",
-        target: /opposing/i.test(text) ? "all-enemy" : "all-friendly",
-        stat,
-        amount,
-        layer: "continuous",
-        duration: "while-source-active",
-        condition: conditionFor(text),
-        createdTurn: 0,
-        sourceCategory: "continuous",
-      },
-    });
-  }
-
   if (!actions.length) actions.push({ kind: "sequence", effects: [] });
   return actions;
 }
