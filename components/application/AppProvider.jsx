@@ -24,6 +24,7 @@ import {
 } from "../../lib/account-sync";
 import { summarizeGuestData } from "../../lib/guest-data";
 import { readJsonResponse } from "../../lib/json-response";
+import { completedMatchKey, shouldOpenMatchResult } from "../../lib/match-result-navigation";
 
 const STORAGE_EVENT = "bbp-storage-status";
 const AUTO_SYNC_DELAY_MS = 500;
@@ -250,6 +251,7 @@ export function AppProvider({ children }) {
   const activeAccountId = useRef("");
   const durableFingerprint = useRef(null);
   const promptedAccountMoments = useRef(new Set());
+  const presentedMatchResult = useRef("");
   const ready = [profileReady, decksReady, deletedDecksReady, historyReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, replayReady, replayIndexReady, playerReady, capabilityReady, modifiedReady].every(Boolean);
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId) ?? decks[0];
   const notify = useCallback((message) => setToast(message), []);
@@ -850,8 +852,13 @@ export function AppProvider({ children }) {
   const deleteAccount = useCallback(async (confirmation) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not delete account."); if (authUser?.id) { try { removeAccountCache(localStorage, authUser.id); } catch {} } activeAccountId.current = ""; cloudLoaded.current = false; setAccountDataReady(false); setPersistenceScope("local"); setAuthUser(null); if (guestSnapshot.current) applySnapshot(readGuestSnapshot(guestSnapshot.current), false); setSyncStatus("local"); router.push("/"); }, [applySnapshot, authUser?.id, router]);
 
   useEffect(() => {
-    if (match?.phase !== "result" || !match.winner) return;
-    const id = `${match.id}-${match.gameNumber}`;
+    const id = completedMatchKey(match);
+    if (!id) {
+      presentedMatchResult.current = "";
+      return;
+    }
+    const shouldOpenResult = shouldOpenMatchResult(match, pathname, presentedMatchResult.current);
+    presentedMatchResult.current = id;
     if (!history.some((item) => item.id === id)) {
       const record = { id, result: match.winner === playerId ? "Victor" : "Defeat", opponent: match.players.find((player) => player.id !== playerId)?.name ?? "Opponent", score: Object.values(match.series).join("–"), reason: match.resultReason, at: new Date().toISOString(), startedAt: new Date(match.log[0]?.at ?? Date.now()).toISOString(), format: match.format, mode: online ? "online" : "training", schemaVersion: 1, log: match.log };
       setHistory((items) => [record, ...items]); setReplay(record); setReplayIndex(Math.max(0, record.log.length - 1));
@@ -861,7 +868,7 @@ export function AppProvider({ children }) {
       promptedAccountMoments.current.add(promptKey);
       setAccountPrompt("match-complete");
     }
-    if (pathname !== "/play/result") router.replace("/play/result");
+    if (shouldOpenResult) router.replace("/play/result");
   }, [authUser, history, match, online, pathname, playerId, router, setHistory, setReplay, setReplayIndex]);
 
   const api = useCallback(async (action, payload, code, selection) => {
