@@ -69,11 +69,15 @@ test("the communication layer provides docked Event Log and responsive chat draw
   assert.match(layer, /className=\{styles\.chatBox\}/);
   assert.match(layer, /aria-label="Chat message"/);
   assert.match(layer, /maxLength=\{240\}/);
-  assert.match(layer, /useState<"cards" \| "events">\("cards"\)/);
-  assert.match(layer, /aria-label="Event Log views"/);
+  assert.match(layer, /useState<EventFilter>\("cards"\)/);
+  assert.match(layer, /EVENT_FILTERS\s*=\s*\["cards",\s*"all",\s*"game",\s*"random",\s*"system",\s*"connection"\]/);
+  assert.match(layer, /className=\{styles\.eventFilters\}\s+aria-label="Event filters"/);
+  assert.doesNotMatch(layer, /aria-label="Event Log views"|styles\.eventTabs/);
   assert.match(layer, /cardEventLogEntries\(communication\.match\)/);
   assert.match(layer, /cardArtSource\(entry\.card, "thumbnail"\)/);
-  assert.match(css, /\.cardEntries[\s\S]*grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(5rem,\s*1fr\)\)/);
+  assert.match(layer, /batchStyles\.batchHex/);
+  assert.match(css, /\.cardEntries[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(css, /\.cardEvent[\s\S]*grid-template-columns:\s*clamp\(3\.25rem,\s*7vw,\s*4rem\)\s+minmax\(0,\s*1fr\)/);
   assert.match(css, /\.eventDock[\s\S]*left:\s*0[\s\S]*translate\(calc\(-100%\s*\+\s*var\(--event-tab-width\)\)/);
   assert.match(css, /\.chatBox[\s\S]*right:\s*calc\(var\(--screen-edge\)\s*\+\s*var\(--player-hud-width\)\s*\+\s*var\(--chat-gap\)\)/);
   assert.match(css, /@media \(max-width:\s*760px\) and \(orientation:\s*portrait\)[\s\S]*\.chatDock[\s\S]*right:\s*0[\s\S]*translate\(calc\(100%\s*-\s*var\(--chat-handle-width\)\),\s*-50%\)/);
