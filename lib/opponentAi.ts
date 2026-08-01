@@ -363,6 +363,15 @@ function shouldSuppressTemporaryCombatCard(
   const choices = chooseBaseCardChoices(match, playerId, card);
   const projection = projectedCombatOutcome(match, playerId, card, choices);
 
+  // Once damage has been dealt, no turn-duration combat modifier can affect the
+  // completed Brawl. During the Victor Step, only damage/strike improvements
+  // controlled by the declared Victor can still improve the pending attack.
+  if (match.phase === "postDamage" || match.phase === "endPlay") return true;
+  if (match.phase === "victor") {
+    if (match.brawlWinner !== playerId) return true;
+    return !projection.usefulPostVictoryEffect;
+  }
+
   // Before the first roll, or after a closed miss, there is no Brawl state to
   // improve. Pure turn-duration modifiers have no tactical payoff, while
   // rerolls and cards with independent effects remain available.
@@ -559,7 +568,7 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
   const hasPendingDecision = Boolean(input.pendingChoice)
     || input.triggerOrders.some((request) => request.controllerId === playerId && !request.orderedIds);
   if (
-    (input.phase === "preRoll" || input.phase === "power")
+    ["preRoll", "power", "victor", "postDamage", "endPlay"].includes(input.phase)
     && input.priority === playerId
     && !hasPendingDecision
   ) return advanceWithCombatPolicy(input, playerId);
