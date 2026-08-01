@@ -73,7 +73,8 @@ function mechanicsFor(effect: string) {
 
 function scanUrl(setCode: "BR" | "AA", id: string, filename: string) {
   if (!filename) return "/assets/cards/card-missing.svg";
-  return `/assets/cards/sets/${setCode.toLowerCase()}/full/${id}.webp`;
+  const extension = filename.startsWith("@svg/") ? "svg" : "webp";
+  return `/assets/cards/sets/${setCode.toLowerCase()}/full/${id}.${extension}`;
 }
 
 export function recordsFromRows(
