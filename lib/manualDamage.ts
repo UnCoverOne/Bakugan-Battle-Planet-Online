@@ -1,6 +1,7 @@
 import {
   cloneMatch,
   resumePendingEffectAfterDamage,
+  type CardLogEvent,
   type CardChoices,
   type GameCard,
   type MatchState,
@@ -25,8 +26,24 @@ function playerById(state: MatchState, playerId: string) {
 function otherPlayer(state: MatchState, playerId: string) {
   return state.players.find((player) => player.id !== playerId);
 }
-function log(state: MatchState, kind: MatchState["log"][number]["kind"], message: string) {
-  state.log.push({ id: `${Date.now()}-manual-damage-${state.log.length}`, at: Date.now(), kind, message });
+function log(
+  state: MatchState,
+  kind: MatchState["log"][number]["kind"],
+  message: string,
+  card?: Pick<GameCard, "catalogId" | "id">,
+  cardEvent?: CardLogEvent,
+) {
+  state.log.push({
+    id: `${Date.now()}-manual-damage-${state.log.length}`,
+    at: Date.now(),
+    kind,
+    message,
+    ...(card && cardEvent ? {
+      cardCatalogId: card.catalogId,
+      cardInstanceId: card.id,
+      cardEvent,
+    } : {}),
+  });
 }
 function enterPostDamage(state: MatchState) {
   if (resumePendingEffectAfterDamage(state)) return;
@@ -142,7 +159,7 @@ export function resolveManualDamage(
     cardType: "Flip",
     createdAt: Date.now(),
   });
-  log(state, "game", `${player.name} added ${stateFlip.name} to the batch for ${payment.calculatedCost} Energy.`);
+  log(state, "game", `${player.name} added ${stateFlip.name} to the batch for ${payment.calculatedCost} Energy.`, stateFlip, "played");
   state.version += 1;
   return state;
 }

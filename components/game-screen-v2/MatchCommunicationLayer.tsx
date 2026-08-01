@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { addChatMessage, chatEntries, eventLogEntries, normalizeChatMessage } from "../../lib/chat";
+import { addChatMessage, cardEventLogEntries, chatEntries, eventLogEntries, normalizeChatMessage } from "../../lib/chat";
+import { cardArtSource } from "../../lib/content/card-art";
 import type { MatchState } from "../../lib/game";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore, useMatchSelector } from "./matchStore";
@@ -38,6 +39,7 @@ export function MatchCommunicationLayer() {
   }));
   const [eventLogOpen, setEventLogOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [eventView, setEventView] = useState<"cards" | "events">("cards");
   const [eventFilter, setEventFilter] = useState("all");
   const [chatFocused, setChatFocused] = useState(false);
   const [draft, setDraft] = useState("");
@@ -54,6 +56,10 @@ export function MatchCommunicationLayer() {
     [communication.match],
   );
   const filteredEvents = useMemo(() => eventFilter === "all" ? events : events.filter((entry) => entry.kind === eventFilter), [events, eventFilter]);
+  const cardEvents = useMemo(
+    () => cardEventLogEntries(communication.match),
+    [communication.match],
+  );
   const messages = useMemo(
     () => chatEntries(communication.match),
     [communication.match],
@@ -64,7 +70,7 @@ export function MatchCommunicationLayer() {
     if (!eventLogOpen) return;
     const element = eventScroll.current;
     if (element) element.scrollTop = element.scrollHeight;
-  }, [eventLogOpen, events.length]);
+  }, [eventLogOpen, eventView, filteredEvents.length, cardEvents.length]);
 
   useEffect(() => {
     const element = chatScroll.current;
@@ -203,24 +209,49 @@ export function MatchCommunicationLayer() {
               <span>MATCH RECORD</span>
               <h2>EVENT LOG</h2>
             </div>
-            <strong>{filteredEvents.length}</strong>
+            <strong>{eventView === "cards" ? cardEvents.length : filteredEvents.length}</strong>
           </header>
-          <nav className={styles.eventFilters} aria-label="Event filters">
-            {["all", "game", "random", "system", "connection"].map((kind) => (
-              <button type="button" key={kind} aria-pressed={eventFilter === kind} onClick={() => setEventFilter(kind)}>{kind}</button>
-            ))}
-          </nav>
-          <div className={styles.eventEntries} ref={eventScroll}>
-            {filteredEvents.length ? filteredEvents.map((entry) => (
-              <article className={styles.eventEntry} data-kind={entry.kind} key={entry.id}>
-                <div>
-                  <span>{eventKindLabel(entry.kind)}</span>
-                  <time dateTime={new Date(entry.at).toISOString()}>{timeLabel(entry.at)}</time>
-                </div>
-                <p>{entry.message}</p>
-              </article>
-            )) : <p className={styles.emptyState}>No match events have been recorded.</p>}
+          <div className={styles.eventNavigation}>
+            <nav className={styles.eventTabs} aria-label="Event Log views">
+              <button type="button" aria-pressed={eventView === "cards"} onClick={() => setEventView("cards")}>CARDS</button>
+              <button type="button" aria-pressed={eventView === "events"} onClick={() => setEventView("events")}>ALL EVENTS</button>
+            </nav>
+            {eventView === "events" ? (
+              <nav className={styles.eventFilters} aria-label="Event filters">
+                {["all", "game", "random", "system", "connection"].map((kind) => (
+                  <button type="button" key={kind} aria-pressed={eventFilter === kind} onClick={() => setEventFilter(kind)}>{kind}</button>
+                ))}
+              </nav>
+            ) : null}
           </div>
+          {eventView === "cards" ? (
+            <div className={styles.cardEntries} ref={eventScroll} aria-live="polite">
+              {cardEvents.length ? cardEvents.map((entry) => (
+                <figure
+                  className={styles.cardEvent}
+                  data-event={entry.cardEvent}
+                  data-card-type={entry.card.type.toLowerCase()}
+                  key={entry.id}
+                  title={`${entry.card.displayName || entry.card.name} • ${entry.cardEvent === "played" ? "Played" : "Effect resolved"} • ${timeLabel(entry.at)}`}
+                >
+                  <img src={cardArtSource(entry.card, "thumbnail")} alt={entry.card.displayName || entry.card.name} />
+                  <figcaption>{entry.cardEvent === "played" ? "PLAYED" : "EFFECT"}</figcaption>
+                </figure>
+              )) : <p className={styles.emptyState}>No cards or card effects have been played.</p>}
+            </div>
+          ) : (
+            <div className={styles.eventEntries} ref={eventScroll}>
+              {filteredEvents.length ? filteredEvents.map((entry) => (
+                <article className={styles.eventEntry} data-kind={entry.kind} key={entry.id}>
+                  <div>
+                    <span>{eventKindLabel(entry.kind)}</span>
+                    <time dateTime={new Date(entry.at).toISOString()}>{timeLabel(entry.at)}</time>
+                  </div>
+                  <p>{entry.message}</p>
+                </article>
+              )) : <p className={styles.emptyState}>No match events have been recorded.</p>}
+            </div>
+          )}
         </aside>
         <button
           type="button"
@@ -328,4 +359,3 @@ export function MatchCommunicationLayer() {
     </>
   );
 }
-

@@ -5,6 +5,7 @@ import { STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   CHAT_MESSAGE_LIMIT,
   addChatMessage,
+  cardEventLogEntries,
   chatEntries,
   eventLogEntries,
   normalizeChatMessage,
@@ -23,6 +24,8 @@ const route = readFileSync(
   new URL("../app/api/game/route.ts", import.meta.url),
   "utf8",
 );
+const game = readFileSync(new URL("../lib/game.ts", import.meta.url), "utf8");
+const manualDamage = readFileSync(new URL("../lib/manualDamage.ts", import.meta.url), "utf8");
 
 test("chat messages are sanitized, attributed, synchronized, and excluded from the Event Log", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
@@ -66,9 +69,55 @@ test("the communication layer provides docked Event Log and responsive chat draw
   assert.match(layer, /className=\{styles\.chatBox\}/);
   assert.match(layer, /aria-label="Chat message"/);
   assert.match(layer, /maxLength=\{240\}/);
+  assert.match(layer, /useState<"cards" \| "events">\("cards"\)/);
+  assert.match(layer, /aria-label="Event Log views"/);
+  assert.match(layer, /cardEventLogEntries\(communication\.match\)/);
+  assert.match(layer, /cardArtSource\(entry\.card, "thumbnail"\)/);
+  assert.match(css, /\.cardEntries[\s\S]*grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(5rem,\s*1fr\)\)/);
   assert.match(css, /\.eventDock[\s\S]*left:\s*0[\s\S]*translate\(calc\(-100%\s*\+\s*var\(--event-tab-width\)\)/);
   assert.match(css, /\.chatBox[\s\S]*right:\s*calc\(var\(--screen-edge\)\s*\+\s*var\(--player-hud-width\)\s*\+\s*var\(--chat-gap\)\)/);
   assert.match(css, /@media \(max-width:\s*760px\) and \(orientation:\s*portrait\)[\s\S]*\.chatDock[\s\S]*right:\s*0[\s\S]*translate\(calc\(100%\s*-\s*var\(--chat-handle-width\)\),\s*-50%\)/);
+});
+
+test("the card timeline keeps structured card plays and effects in chronological log order", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const match = createMatch("CARD01", "bo1", [player, opponent]);
+  const card = player.hand[0];
+  match.log = [
+    { id: "noise", at: 10, kind: "game", message: "Dan passed priority." },
+    { id: "play", at: 20, kind: "game", message: "played", cardCatalogId: card.catalogId, cardInstanceId: card.id, cardEvent: "played" },
+    { id: "effect", at: 30, kind: "game", message: "resolved", cardCatalogId: card.catalogId, cardInstanceId: card.id, cardEvent: "effect" },
+  ];
+
+  const entries = cardEventLogEntries(match);
+  assert.deepEqual(entries.map((entry) => [entry.id, entry.card.id, entry.cardEvent]), [
+    ["play", card.id, "played"],
+    ["effect", card.id, "effect"],
+  ]);
+});
+
+test("saved legacy matches derive card plays and resolutions without showing unrelated events", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const match = createMatch("CARD02", "bo1", [player, opponent]);
+  const card = player.hand[0];
+  match.log = [
+    { id: "play", at: 10, kind: "game", message: `${player.name} added ${card.name} to the batch for 2 Energy.` },
+    { id: "pass", at: 20, kind: "game", message: `${opponent.name} passed priority.` },
+    { id: "effect", at: 30, kind: "game", message: `${card.name} finished resolving its typed rule program.` },
+  ];
+
+  assert.deepEqual(cardEventLogEntries(match).map((entry) => entry.cardEvent), ["played", "effect"]);
+});
+
+test("paid, free, revealed, and Flip plays record structured card identities", () => {
+  assert.match(game, /added \$\{card\.name\} to the batch[\s\S]*card, "played"/);
+  assert.match(game, /played \$\{selected\.name\} from hand for free[\s\S]*selected, "played"/);
+  assert.match(game, /played discarded \$\{card\.name\} for free[\s\S]*card, "played"/);
+  assert.match(game, /played the revealed \$\{revealed\.name\} for free[\s\S]*revealed, "played"/);
+  assert.match(game, /finished resolving its typed rule program[\s\S]*pending\.card, "effect"/);
+  assert.match(manualDamage, /added \$\{stateFlip\.name\} to the batch[\s\S]*stateFlip, "played"/);
 });
 
 test("online chat uses the authoritative match endpoint without replacing gameplay undo history", () => {

@@ -1,4 +1,11 @@
-import { cloneMatch, uid, type MatchState } from "./game";
+import {
+  cloneMatch,
+  uid,
+  type CardLogEvent,
+  type GameCard,
+  type MatchLogEntry,
+  type MatchState,
+} from "./game";
 
 export const CHAT_MESSAGE_LIMIT = 240;
 
@@ -29,6 +36,65 @@ export function eventLogEntries(match: MatchState | null | undefined) {
   return (match?.log ?? []).filter((entry) => String(entry.kind) !== "chat");
 }
 
+export type CardEventLogEntry = MatchLogEntry & {
+  card: GameCard;
+  cardEvent: CardLogEvent;
+};
+
+function cardsInMatch(match: MatchState) {
+  const cards = [
+    ...match.players.flatMap((player) => [
+      ...player.deckCards,
+      ...player.hand,
+      ...player.discard,
+      ...player.energyZone,
+      ...player.heroes,
+      ...player.bakugan.flatMap((bakugan) => [bakugan.character, ...bakugan.evoStack]),
+    ]),
+    ...match.batch.map((effect) => effect.card),
+  ];
+  return [...new Map(cards.map((card) => [card.id, card])).values()];
+}
+
+function legacyCardEvent(message: string, cardName: string): CardLogEvent | undefined {
+  if (message === `${cardName} finished resolving its typed rule program.`) return "effect";
+  if (
+    message.includes(` added ${cardName} to the batch for `)
+    || message.includes(` played ${cardName} from hand for free.`)
+    || message.includes(` played discarded ${cardName} for free.`)
+    || message.includes(` played the revealed ${cardName} for free.`)
+  ) return "played";
+  return undefined;
+}
+
+/**
+ * Returns only card plays and resolving card effects in their authoritative log
+ * order. Structured metadata handles new matches; message matching keeps saved
+ * legacy matches useful without mutating their snapshots.
+ */
+export function cardEventLogEntries(
+  match: MatchState | null | undefined,
+): readonly CardEventLogEntry[] {
+  if (!match) return [];
+  const matchCards = cardsInMatch(match);
+  const byInstance = new Map(matchCards.map((card) => [card.id, card]));
+  const byCatalogue = new Map(matchCards.map((card) => [card.catalogId, card]));
+  const legacyCandidates = [...matchCards].sort((left, right) => right.name.length - left.name.length);
+
+  return eventLogEntries(match).flatMap((entry) => {
+    if ((entry.cardEvent === "played" || entry.cardEvent === "effect") && (entry.cardInstanceId || entry.cardCatalogId)) {
+      const card = (entry.cardInstanceId ? byInstance.get(entry.cardInstanceId) : undefined)
+        ?? (entry.cardCatalogId ? byCatalogue.get(entry.cardCatalogId) : undefined);
+      return card ? [{ ...entry, card, cardEvent: entry.cardEvent }] : [];
+    }
+    for (const card of legacyCandidates) {
+      const cardEvent = legacyCardEvent(entry.message, card.name);
+      if (cardEvent) return [{ ...entry, card, cardEvent }];
+    }
+    return [];
+  });
+}
+
 export function addChatMessage(
   input: MatchState,
   playerId: string,
@@ -53,4 +119,3 @@ export function addChatMessage(
   state.version += 1;
   return state;
 }
-

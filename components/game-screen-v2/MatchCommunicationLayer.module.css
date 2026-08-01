@@ -74,12 +74,50 @@
   pointer-events: auto;
 }
 
+.eventNavigation {
+  display: grid;
+  gap: 0;
+  border-bottom: 1px solid rgba(217, 77, 67, 0.2);
+}
+
+.eventTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.eventTabs button {
+  min-height: 2rem;
+  padding: 0.42rem 0.5rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(233, 239, 243, 0.62);
+  font-family: var(--font-display);
+  font-size: 0.56rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.eventTabs button + button {
+  border-left: 1px solid rgba(217, 77, 67, 0.16);
+}
+
+.eventTabs button[aria-pressed="true"],
+.eventTabs button:hover,
+.eventTabs button:focus-visible {
+  border-bottom-color: #ff6658;
+  background: rgba(145, 34, 35, 0.24);
+  color: #fff;
+  outline: none;
+}
+
 .eventFilters {
   display: flex;
   flex-wrap: wrap;
   gap: 0.28rem;
   padding: 0.42rem 0.55rem;
-  border-bottom: 1px solid rgba(217, 77, 67, 0.2);
+  border-top: 1px solid rgba(217, 77, 67, 0.16);
 }
 
 .eventFilters button {
@@ -154,6 +192,65 @@
   padding: 0.65rem;
   scrollbar-width: thin;
   scrollbar-color: rgba(221, 76, 65, 0.7) rgba(255, 255, 255, 0.06);
+}
+
+.cardEntries {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+  align-content: start;
+  gap: 0.58rem;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.65rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(221, 76, 65, 0.7) rgba(255, 255, 255, 0.06);
+}
+
+.cardEvent {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(211, 222, 229, 0.26);
+  border-radius: 0.32rem;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: 0 0.38rem 0.72rem rgba(0, 0, 0, 0.38);
+}
+
+.cardEvent[data-event="effect"] {
+  border-color: rgba(194, 124, 255, 0.72);
+}
+
+.cardEvent img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.cardEvent[data-card-type="flip"] img {
+  aspect-ratio: 7 / 5;
+}
+
+.cardEvent figcaption {
+  position: absolute;
+  right: 0.25rem;
+  bottom: 0.25rem;
+  padding: 0.18rem 0.28rem;
+  border: 1px solid rgba(255, 128, 111, 0.76);
+  border-radius: 999px;
+  background: rgba(39, 8, 12, 0.92);
+  color: #fff;
+  font-size: 0.42rem;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  line-height: 1;
+}
+
+.cardEvent[data-event="effect"] figcaption {
+  border-color: rgba(194, 124, 255, 0.82);
+  background: rgba(40, 18, 58, 0.94);
 }
 
 .eventEntry {
