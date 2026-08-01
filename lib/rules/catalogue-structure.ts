@@ -231,7 +231,7 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
   };
 }
 
-function heroEntryInstruction(card: GameCard, trigger: RuleInstruction): RuleInstruction {
+function cardEntryInstruction(card: GameCard, trigger: RuleInstruction): RuleInstruction {
   const sourceText = trigger.sourceText.split(/[,;:]/, 1)[0]?.trim() || trigger.sourceText;
   const effects: RuleAction[] = [{ kind: "sequence", effects: [] }];
   return {
@@ -246,26 +246,44 @@ function heroEntryInstruction(card: GameCard, trigger: RuleInstruction): RuleIns
 
 export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
   const instructions = splitInstructions(card, card.effect);
-  const triggered = instructions.filter((instruction) => (
-    instruction.condition.kind !== "reroll-opened"
-    && instruction.effects.some((effect) => effect.kind === "trigger")
-  ));
-  const ordinary = instructions.filter((instruction) => !triggered.includes(instruction));
+  const triggered: RuleInstruction[][] = [];
+  const ordinary: RuleInstruction[] = [];
+  let activeTrigger: RuleInstruction[] | undefined;
+  for (const instruction of instructions) {
+    const startsTrigger = instruction.condition.kind !== "reroll-opened"
+      && instruction.effects.some((effect) => effect.kind === "trigger");
+    if (startsTrigger) {
+      activeTrigger = [instruction];
+      triggered.push(activeTrigger);
+      continue;
+    }
+    // Sentence splitting must not turn a follow-up clause into an enter-play
+    // spell. These phrases refer to information or an action created by the
+    // preceding trigger and therefore share that trigger's event timing.
+    const continuesTrigger = Boolean(activeTrigger) && /^(?:then\b|if\s+(?:it(?:['’]?s|\b)|they\b|you do\b|an?\s+[^,.]+\s+cards?\s+is\s+revealed\s+this\s+way\b|one\s+of\s+(?:them|those\s+cards)\b|the\s+revealed\s+card\b))/i.test(
+      instruction.sourceText.trim(),
+    );
+    if (continuesTrigger) activeTrigger!.push(instruction);
+    else {
+      activeTrigger = undefined;
+      ordinary.push(instruction);
+    }
+  }
   const result: AbilityDefinition[] = [];
-  if (card.type === "Hero" && triggered.length && !ordinary.length) {
+  if (["Hero", "Evo"].includes(card.type) && triggered.length && !ordinary.length) {
     result.push({
       id: `${ruleCardId(card)}:spell`,
       kind: "spell",
-      instructions: [heroEntryInstruction(card, triggered[0])],
+      instructions: [cardEntryInstruction(card, triggered[0][0])],
     });
   } else if (ordinary.length || !triggered.length) result.push({
     id: `${ruleCardId(card)}:${card.type === "Character" ? "character" : "spell"}`,
     kind: card.type === "Character" ? "character" : card.type === "Hero" && ordinary.some((instruction) => instruction.effects.some((effect) => effect.kind === "continuous")) ? "static" : "spell",
     instructions: ordinary.length ? ordinary : instructions,
   });
-  for (const instruction of triggered) {
-    const trigger = instruction.effects.find((effect): effect is Extract<RuleAction, { kind: "trigger" }> => effect.kind === "trigger")!;
-    result.push({ id: `${ruleCardId(card)}:trigger:${result.length}`, kind: "triggered", trigger: trigger.definition, instructions: [instruction] });
+  for (const group of triggered) {
+    const trigger = group[0].effects.find((effect): effect is Extract<RuleAction, { kind: "trigger" }> => effect.kind === "trigger")!;
+    result.push({ id: `${ruleCardId(card)}:trigger:${result.length}`, kind: "triggered", trigger: trigger.definition, instructions: group });
   }
   return result;
 }

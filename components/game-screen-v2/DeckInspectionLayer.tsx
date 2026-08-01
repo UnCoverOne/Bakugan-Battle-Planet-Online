@@ -135,13 +135,22 @@ export function DeckInspectionLayer() {
       || left.id.localeCompare(right.id)
     ))
     : orderedOptions;
+  const resolvingEffect = match.batch.find((effect) => effect.id === pending.pendingEffectId);
+  const resolvingText = resolvingEffect?.effect ?? resolvingEffect?.card.effect ?? "";
+  const revealedDeckPlay = mode === "reveal"
+    && Boolean(confirmationField)
+    && /may play it for free/i.test(resolvingText);
+  const revealedCard = displayedOptions[0]?.card;
+  const revealedCardPlayable = !revealedDeckPlay || revealedCard?.type !== "Flip";
   const eligibleIds = new Set(selectionField?.options.map((option) => option.id) ?? []);
   const selectionRequired = Boolean(selectionField && selectionField.minimum > 0);
   const orderComplete = searchMode || (
     orderedIds.length >= deckField.minimum
     && orderedIds.length <= deckField.maximum
   );
-  const canConfirm = orderComplete && (!selectionRequired || Boolean(selectedId));
+  const canConfirm = orderComplete
+    && revealedCardPlayable
+    && (!selectionRequired || Boolean(selectedId));
   const eligibleCount = eligibleIds.size;
 
   const submit = async (confirmed: boolean) => {
@@ -184,6 +193,10 @@ export function DeckInspectionLayer() {
         : selectedId
           ? "The selected card will be revealed and moved to your hand, then the deck will be shuffled."
           : "Select one highlighted legal card from the cards currently remaining in your deck."
+      : revealedDeckPlay
+        ? revealedCardPlayable
+          ? "Choose whether to play the revealed card for free or skip it."
+          : "A Flip card cannot be played by this effect. Skip it to continue."
       : selectionField
         ? selectionRequired ? "Select a card before confirming" : "Card selection is optional"
         : allowReorder ? "Leftmost card will be on top" : "Confirm to continue resolving";
@@ -297,15 +310,17 @@ export function DeckInspectionLayer() {
         <footer className={styles.footer}>
           <span className={styles.status}>{status}</span>
           {isChooser && confirmationField ? (
-            <button type="button" className={styles.secondary} disabled={busy} onClick={() => void submit(false)}>Do not use</button>
+            <button type="button" className={styles.secondary} disabled={busy} onClick={() => void submit(false)}>
+              {revealedDeckPlay ? "Skip" : "Do not use"}
+            </button>
           ) : null}
-          {isChooser ? (
+          {isChooser && revealedCardPlayable ? (
             <button type="button" disabled={busy || !canConfirm} onClick={() => void submit(true)}>
               {busy
                 ? "Resolving…"
                 : searchMode
                   ? selectedId ? "Take selected card" : "Finish search"
-                  : allowReorder ? "Confirm order" : selectionField ? "Confirm selection" : "Continue"}
+                  : revealedDeckPlay ? "Play card" : allowReorder ? "Confirm order" : selectionField ? "Confirm selection" : "Continue"}
             </button>
           ) : null}
         </footer>

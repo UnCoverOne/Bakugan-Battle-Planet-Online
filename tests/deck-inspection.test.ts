@@ -4,6 +4,9 @@ import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   createMatch,
+  emitGameEvent,
+  passPriority,
+  playCard,
   redactForPlayer,
   resolveStructuredEffect,
   submitCardChoice,
@@ -71,6 +74,12 @@ function pendingEffect(card: GameCard): PendingEffect {
     choices: {},
     kind: "card",
   };
+}
+
+function passWindow(input: ReturnType<typeof matchWithKnownDeck>) {
+  let state = passPriority(input, input.priority);
+  state = passPriority(state, state.priority);
+  return state;
 }
 
 test("The Sky's Hymn opens one private top-three ordering window", () => {
@@ -192,6 +201,140 @@ test("Dan Kouzo reveals the top card publicly while retaining the optional play 
   assert.equal(publicField?.options[0].card?.displayName, state.players[0].deckCards[0].displayName);
 });
 
+test("reveal-and-play effects reveal before the choice and skip without adding the card to the batch", () => {
+  for (const catalogId of ["bb-207", "br-36", "aa-140"]) {
+    const initial = matchWithKnownDeck();
+    const card = catalogueCard(catalogId, `${catalogId}-reveal-skip`);
+    const instruction = compileCardEffect(card).instructions.find((candidate) => (
+      /reveal the top card of your deck/i.test(candidate.sourceText)
+      && /may play it for free/i.test(candidate.sourceText)
+    ));
+    assert.ok(instruction, `${card.name} must retain one reveal/play instruction`);
+    const effect = pendingEffect(card);
+    effect.kind = "trigger";
+    effect.effect = instruction.sourceText;
+    const topId = initial.players[0].deckCards[0].id;
+
+    let state = resolveStructuredEffect(initial, effect);
+    const player = state.players[0];
+    assert.equal(player.revealedDeckCardId, topId, `${card.name} stages the mandatory reveal`);
+    assert.ok(state.pendingChoice?.schema.fields.some((field) => field.id === "confirmed"));
+    assert.equal(state.batch.some((object) => object.card.id === topId), false);
+    assert.ok(state.log.some((entry) => entry.message.includes("revealed") && entry.message.includes(player.deckCards[0].name)));
+
+    state = submitCardChoice(state, "a", { confirmed: false });
+    assert.equal(state.players[0].deckCards[0].id, topId);
+    assert.equal(state.players[0].revealedDeckCardId, undefined);
+    assert.equal(state.batch.some((object) => object.card.id === topId), false);
+  }
+});
+
+test("a revealed non-Flip enters the batch only after Play card is chosen", () => {
+  for (const catalogId of ["bb-207", "br-36", "aa-140"]) {
+    const initial = matchWithKnownDeck();
+    const source = catalogueCard(catalogId, `${catalogId}-play-choice`);
+    const instruction = compileCardEffect(source).instructions.find((candidate) => (
+      /reveal the top card of your deck/i.test(candidate.sourceText)
+    ));
+    assert.ok(instruction);
+    const effect = pendingEffect(source);
+    effect.kind = "trigger";
+    effect.effect = instruction.sourceText;
+    const topId = initial.players[0].deckCards[0].id;
+
+    let state = resolveStructuredEffect(initial, effect);
+    assert.equal(state.batch.some((object) => object.card.id === topId), false);
+    state = submitCardChoice(state, "a", { orderedCardIds: [topId], confirmed: true });
+
+    assert.equal(state.players[0].deckCards.some((card) => card.id === topId), false);
+    assert.equal(state.players[0].revealedDeckCardId, undefined);
+    assert.ok(state.batch.some((object) => object.card.id === topId), `${source.name} plays the revealed card`);
+  }
+});
+
+test("a revealed Flip has Skip as its only legal decision", () => {
+  const initial = matchWithMixedDeck();
+  const flip = initial.players[0].deckCards.find((card) => card.type === "Flip")!;
+  initial.players[0].deckCards = [flip, ...initial.players[0].deckCards.filter((card) => card.id !== flip.id)];
+  const airZero = catalogueCard("br-36", "air-zero-flip-choice");
+  const instruction = compileCardEffect(airZero).instructions.find((candidate) => (
+    /reveal the top card of your deck/i.test(candidate.sourceText)
+  ));
+  assert.ok(instruction);
+  const effect = pendingEffect(airZero);
+  effect.effect = instruction.sourceText;
+
+  let state = resolveStructuredEffect(initial, effect);
+  const confirmation = state.pendingChoice?.schema.fields.find((field) => field.id === "confirmed");
+  assert.deepEqual(confirmation?.options.map((option) => option.id), ["no"]);
+  assert.throws(
+    () => submitCardChoice(state, "a", { orderedCardIds: [flip.id], confirmed: true }),
+    /illegal selection/,
+  );
+  state = submitCardChoice(state, "a", { confirmed: false });
+  assert.equal(state.players[0].deckCards[0].id, flip.id);
+  assert.equal(state.batch.some((object) => object.card.id === flip.id), false);
+});
+
+test("playing Dan after a Bakugan opened installs the Hero without replaying the open trigger", () => {
+  let state = matchWithKnownDeck();
+  const player = state.players[0];
+  const dan = catalogueCard("bb-207", "dan-kouzo-after-open");
+  const energySource = catalogueCard("bb-10", "dan-energy-source");
+  player.hand.push(dan);
+  player.energyZone = Array.from({ length: 4 }, (_, index) => ({ ...energySource, id: `dan-energy-${index}` }));
+  player.maxEnergy = 4;
+  player.energy = 0;
+  state.selected[player.id] = player.bakugan[0].id;
+  player.bakugan[0].open = true;
+  player.bakugan[0].openedTurn = state.turn;
+  const topId = player.deckCards[0].id;
+
+  state = playCard(state, player.id, dan.id);
+  state = passWindow(state);
+  assert.ok(state.players[0].heroes.some((hero) => hero.id === dan.id));
+  assert.equal(state.pendingChoice, undefined);
+  assert.equal(state.players[0].deckCards[0].id, topId);
+  assert.equal(state.players[0].revealedDeckCardId, undefined);
+
+  emitGameEvent(state, {
+    id: "dan-genuine-later-open",
+    type: "open",
+    playerId: player.id,
+    playerIds: [player.id],
+    targetBakuganId: player.bakugan[0].id,
+  });
+  assert.ok(state.batch.some((object) => object.card.id === dan.id && object.kind === "trigger"));
+  state = passWindow(state);
+  assert.ok(state.pendingChoice?.schema.fields.some((field) => field.id === "orderedCardIds"));
+  assert.equal(state.players[0].revealedDeckCardId, topId);
+});
+
+test("playable permanents never use a triggered ability as their card-play program", () => {
+  const triggeredPermanents = CARDS.filter((card) => {
+    if (!['Hero', 'Evo'].includes(card.type)) return false;
+    return ruleDefinitionForCard(card).abilities.some((ability) => ability.kind === "triggered");
+  });
+  assert.ok(triggeredPermanents.length > 0);
+  for (const card of triggeredPermanents) {
+    assert.ok(
+      ruleDefinitionForCard(card).abilities.some((ability) => ability.kind !== "triggered"),
+      `${card.catalogId} ${card.name} must retain a card-play entry ability`,
+    );
+  }
+
+  for (const catalogId of ["bb-207", "aa-67", "aa-71"]) {
+    const card = catalogueCard(catalogId, `${catalogId}-trigger-ownership`);
+    const definition = ruleDefinitionForCard(card);
+    const dependentText = definition.abilities
+      .filter((ability) => ability.kind !== "triggered")
+      .flatMap((ability) => ability.instructions)
+      .map((instruction) => instruction.sourceText)
+      .join(" ");
+    assert.doesNotMatch(dependentText, /revealed this way|one of those cards|play it for free/i);
+  }
+});
+
 test("Toshi opens a private full-deck browser while limiting selection to Action cards", () => {
   const state = matchWithMixedDeck();
   const toshi = catalogueCard("bb-193", "toshi-search-instance");
@@ -300,6 +443,9 @@ test("the gameplay runtime mounts distinct draggable, reveal, and full-deck sear
   assert.match(layer, /deckCardId: selectedId/);
   assert.match(layer, /resolvedOrder/);
   assert.match(layer, /PUBLIC DECK REVEAL/);
+  assert.match(layer, /revealedDeckPlay/);
+  assert.match(layer, /revealedDeckPlay \? "Skip"/);
+  assert.match(layer, /"Play card"/);
   assert.match(layer, /PRIVATE DECK VIEW/);
   assert.match(layer, /PRIVATE DECK SEARCH/);
   assert.match(layer, /isFullDeckSearchField/);

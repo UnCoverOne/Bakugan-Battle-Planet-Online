@@ -944,7 +944,7 @@ const conditionActive = (state: MatchState, player: PlayerState, text: string, c
   }
   const controlledHero = text.match(/if you control ([^,.]+)/i)?.[1]?.trim().toLowerCase();
   if (controlledHero) return player.heroes.some((hero) => hero.name.toLowerCase() === controlledHero);
-  if (/not a Flip card/i.test(text)) {
+  if (/(?:not|isn['’]t) a Flip card/i.test(text)) {
     const revealedId = (player as PlayerState & { revealedDeckCardId?: string }).revealedDeckCardId;
     const revealed = player.deckCards.find((card) => card.id === revealedId);
     return Boolean(revealed && revealed.type !== "Flip");
@@ -1301,7 +1301,8 @@ export const playCard = (input: MatchState, playerId: string, cardId: string, ch
   const cost = effectiveCost(state, player, card, choices); payEnergy(state, player, cost); player.hand.splice(index, 1); player.cardsPlayedThisTurn += 1;
   state.nextCardCostReduction[playerId] = 0;
   const definition = ruleDefinitionForCard(card);
-  const ability = definition.abilities.find((candidate) => candidate.kind !== "triggered") ?? definition.abilities[0];
+  const ability = definition.abilities.find((candidate) => candidate.kind !== "triggered");
+  if (!ability) throw new Error(`${card.name} does not have a legal card-play ability.`);
   const batchObject = createRuleObject({ controllerId: playerId, card, ability, choices, kind: "card" });
   state.batch.push(batchObject); state.passes = [];
   if (card.type === "Action") {
@@ -1672,13 +1673,7 @@ const executeRuleAction = (
           entry(state, "game", `${player.name} turned ${placement.core.name} face up in the Hide Matrix.`);
         }
       } else {
-        const revealed = player.deckCards[0];
-        if (revealed) {
-          (player as PlayerState & { revealedDeckCardId?: string }).revealedDeckCardId = revealed.id;
-          state.informationEpoch += 1;
-          state.undoWindow = undefined;
-          entry(state, "game", `${player.name} revealed ${revealed.name} from the top of their deck.`);
-        }
+        revealTopDeckCard(state, player);
       }
       return;
     }
@@ -1821,6 +1816,59 @@ function ruleActionIsExecutable(action: RuleAction): boolean {
   return true;
 }
 
+function ruleActionMatches(
+  action: RuleAction,
+  predicate: (candidate: RuleAction) => boolean,
+): boolean {
+  if (predicate(action)) return true;
+  if (action.kind === "sequence") return action.effects.some((nested) => ruleActionMatches(nested, predicate));
+  if (action.kind === "conditional") return action.whenTrue.some((nested) => ruleActionMatches(nested, predicate))
+    || Boolean(action.whenFalse?.some((nested) => ruleActionMatches(nested, predicate)));
+  if (action.kind === "replacement") return action.replaceWith.some((nested) => ruleActionMatches(nested, predicate));
+  return false;
+}
+
+function instructionHasAction(
+  instruction: RuleInstruction,
+  predicate: (candidate: RuleAction) => boolean,
+) {
+  return instruction.effects.some((action) => ruleActionMatches(action, predicate));
+}
+
+function instructionOffersRevealedDeckPlay(instruction: RuleInstruction) {
+  return instructionHasAction(instruction, (action) => (
+    action.kind === "play" && action.source === "revealed-deck"
+  ));
+}
+
+function revealTopDeckCard(state: MatchState, player: PlayerState) {
+  const revealed = player.deckCards[0];
+  if (!revealed || player.revealedDeckCardId === revealed.id) return revealed;
+  player.revealedDeckCardId = revealed.id;
+  state.informationEpoch += 1;
+  state.undoWindow = undefined;
+  entry(state, "game", `${player.name} revealed ${revealed.name} from the top of their deck.`);
+  return revealed;
+}
+
+function stageMandatoryDeckReveal(
+  state: MatchState,
+  pending: PendingEffect,
+  instruction: RuleInstruction,
+  schema: ReturnType<typeof buildChoiceSchema>,
+) {
+  const publicReveal = schema.fields.some((field) => (
+    field.kind === "deck-order"
+    && field.visibility === "public"
+    && /^Reveal the top \d+ cards?$/i.test(field.label)
+  ));
+  if (!publicReveal || !/reveal the top card of your deck/i.test(instruction.sourceText)) return;
+  const revealed = revealTopDeckCard(state, playerById(state, pending.controllerId));
+  if (revealed?.type !== "Flip" || !instructionOffersRevealedDeckPlay(instruction)) return;
+  const confirmation = schema.fields.find((field) => field.id === "confirmed");
+  if (confirmation) confirmation.options = confirmation.options.filter((option) => option.id === "no");
+}
+
 function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
   if (isRuleObject(pending)) beginRuleObjectResolution(pending);
   const program = compileCardEffect(pending.card, pending.effect ?? pending.card.effect);
@@ -1846,6 +1894,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
       );
       schema.fields = schema.fields.filter((field) => !(field.id === "xValue" && pending.choices.xValue != null));
       if (!schema.fields.length) return "continue";
+      stageMandatoryDeckReveal(state, pending, instruction, schema);
       if (!schemaHasLegalCompletion(schema)) {
         entry(state, "game", `${pending.card.name}: the clause had no legal choice and did nothing.`);
         return "skip";
@@ -1911,6 +1960,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
     && !player.energyZone.some((card) => card.id === pending.card.id)) {
     player.discard.push(pending.card);
   }
+  delete player.revealedDeckCardId;
   if (isRuleObject(pending)) completeRuleObject(pending);
   entry(state, "game", `${pending.card.name} finished resolving its typed rule program.`);
   return true;
