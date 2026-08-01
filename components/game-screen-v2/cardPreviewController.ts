@@ -40,6 +40,8 @@ type ZoneMetadata = {
 
 const MISSING_ART_PATTERN = /card-missing\.svg(?:$|[?#])/i;
 const FACE_DOWN_CORE_PATTERN = /^Face-down\b/i;
+const PREVIEW_ASSET_BASE = "https://bakugan-preview.invalid";
+const IMAGE_PROXY_PATHS = new Set(["/_vinext/image", "/_next/image"]);
 
 function isPreviewElement(element: Element): element is PreviewElement {
   return element instanceof HTMLElement || element instanceof SVGElement;
@@ -53,9 +55,20 @@ function imageSource(image: HTMLImageElement | null): string {
   return image?.currentSrc || image?.getAttribute("src") || "";
 }
 
-function normalizedPath(source: string) {
+/**
+ * Responsive card images are delivered through the framework image proxy. The
+ * Hero zone has one DOM image per card but no instance ID on that image, so its
+ * fallback resolver must compare the canonical artwork URL hidden in the
+ * proxy's `url` parameter rather than the proxy endpoint itself.
+ */
+export function canonicalPreviewPath(source: string): string {
   try {
-    return new URL(source, "https://bakugan-preview.invalid").pathname;
+    const url = new URL(source, PREVIEW_ASSET_BASE);
+    if (IMAGE_PROXY_PATHS.has(url.pathname)) {
+      const original = url.searchParams.get("url");
+      if (original && original !== source) return canonicalPreviewPath(original);
+    }
+    return url.pathname;
   } catch {
     return source.split(/[?#]/, 1)[0] ?? "";
   }
@@ -189,11 +202,11 @@ function resolveCard(match: MatchState | null, element: PreviewElement, metadata
 
   if (metadata.zoneKind !== "hero" && metadata.zoneKind !== "batch") return null;
   const image = cardImage(element, metadata);
-  const sourcePath = normalizedPath(imageSource(image));
+  const sourcePath = canonicalPreviewPath(imageSource(image));
   const label = image?.alt.trim().toLowerCase() ?? "";
   return cards.find((card) => (
     sourcePath
-    && normalizedPath(card.art) === sourcePath
+    && canonicalPreviewPath(card.art) === sourcePath
     && (!label || card.displayName.toLowerCase() === label || card.name.toLowerCase() === label)
   )) ?? null;
 }
@@ -297,4 +310,3 @@ export function decodePreviewArtwork(source: string): Promise<boolean> {
     if (image.complete) queueMicrotask(() => finish(image.naturalWidth > 0));
   });
 }
-
