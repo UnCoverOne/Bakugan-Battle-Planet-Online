@@ -1947,6 +1947,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
         pending.card,
         instruction.sourceText,
         instructionChoices(pending, instructionIndex),
+        "resolve",
       );
       schema.fields = schema.fields.filter((field) => !(field.id === "xValue" && pending.choices.xValue != null));
       if (!schema.fields.length) return "continue";
