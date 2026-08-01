@@ -231,6 +231,19 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
   };
 }
 
+function heroEntryInstruction(card: GameCard, trigger: RuleInstruction): RuleInstruction {
+  const sourceText = trigger.sourceText.split(/[,;:]/, 1)[0]?.trim() || trigger.sourceText;
+  const effects: RuleAction[] = [{ kind: "sequence", effects: [] }];
+  return {
+    id: `${ruleCardId(card)}:enter-play`,
+    condition: { kind: "always" },
+    effects,
+    actions: effects,
+    choices: [],
+    sourceText,
+  };
+}
+
 export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
   const instructions = splitInstructions(card, card.effect);
   const triggered = instructions.filter((instruction) => (
@@ -239,7 +252,13 @@ export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
   ));
   const ordinary = instructions.filter((instruction) => !triggered.includes(instruction));
   const result: AbilityDefinition[] = [];
-  if (ordinary.length || !triggered.length) result.push({
+  if (card.type === "Hero" && triggered.length && !ordinary.length) {
+    result.push({
+      id: `${ruleCardId(card)}:spell`,
+      kind: "spell",
+      instructions: [heroEntryInstruction(card, triggered[0])],
+    });
+  } else if (ordinary.length || !triggered.length) result.push({
     id: `${ruleCardId(card)}:${card.type === "Character" ? "character" : "spell"}`,
     kind: card.type === "Character" ? "character" : card.type === "Hero" && ordinary.some((instruction) => instruction.effects.some((effect) => effect.kind === "continuous")) ? "static" : "spell",
     instructions: ordinary.length ? ordinary : instructions,
@@ -250,4 +269,3 @@ export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
   }
   return result;
 }
-
