@@ -128,6 +128,28 @@ function nextReturnPlayer(state: CoreReturnMatchState) {
   return pending[0]?.placerId;
 }
 
+/**
+ * Older snapshots could serialize two physical copies of the same BakuCore
+ * printing with the same catalogue ID. A matching ID elsewhere on the field is
+ * therefore not a type limit and must not make a pending physical copy illegal.
+ * Re-key only the returning copy so every placement remains independently
+ * addressable while preserving its catalogue identity and printed type.
+ */
+function uniqueReturningCore(state: CoreReturnMatchState, item: PendingCoreReturn) {
+  if (!state.placements.some((placement) => placement.core.id === item.core.id)) return item.core;
+  const catalogId = item.core.catalogId ?? item.core.id;
+  const base = `${catalogId}-${item.ownerId}-return-${state.gameNumber}-${state.turn}-${item.sequence}`;
+  let id = base;
+  let suffix = 1;
+  const occupiedIds = new Set([
+    ...state.placements.map((placement) => placement.core.id),
+    ...(state.pendingCoreReturns ?? []).filter((candidate) => candidate.id !== item.id).map((candidate) => candidate.core.id),
+  ]);
+  while (occupiedIds.has(id)) id = `${base}-${suffix++}`;
+  item.core = { ...item.core, catalogId, id };
+  return item.core;
+}
+
 function placeReturnedCoreMutable(
   state: CoreReturnMatchState,
   playerId: string,
@@ -143,15 +165,13 @@ function placeReturnedCoreMutable(
   const pending = state.pendingCoreReturns ?? [];
   const item = pending.find((candidate) => candidate.placerId === playerId && candidate.core.id === coreId);
   if (!item) throw new Error("Choose a BakuCore that you must return.");
-  if (state.placements.some((placement) => placement.core.id === item.core.id)) {
-    throw new Error("That BakuCore is already on the field.");
-  }
+  const returningCore = uniqueReturningCore(state, item);
 
   releaseHeldCellReference(state, cell);
   const order = state.placements.reduce((highest, placement) => Math.max(highest, placement.order), 0) + 1;
   state.placements.push({
     playerId: item.ownerId,
-    core: item.core,
+    core: returningCore,
     cell,
     order,
     revealed: false,
