@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { MatchState } from "../../lib/game";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
-import { brawlIsEngaged } from "./brawlState";
+import { batchHudShouldRender, brawlIsEngaged } from "./brawlState";
 import { useMatchSelector } from "./matchStore";
 import {
   describeTurnTransition,
@@ -193,7 +193,7 @@ function connectorStyle(box: TargetBox) {
 }
 
 export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
-  const { rollPresentationPending } = useBakuCorePresentation();
+  const { rollResultOpen, rollPresentationPending } = useBakuCorePresentation();
   const localPlayerId = useMatchSelector((state) => state.playerId);
   const previousProgress = useRef<TurnProgressSnapshot | null>(null);
   const [transition, setTransition] = useState<TurnTransition | null>(null);
@@ -226,8 +226,9 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
     [transition, match, localPlayerId],
   );
   const transitionBlocked = phaseTransitionIsBlocked(
-    rollPresentationPending,
+    rollResultOpen || rollPresentationPending,
     brawlIsEngaged(match),
+    Boolean(match?.batch.length && batchHudShouldRender(match)),
   );
 
   useEffect(() => {
