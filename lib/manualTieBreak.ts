@@ -6,7 +6,6 @@ import {
   totalPower,
   type GameCard,
   type MatchState,
-  type PlayerState,
 } from "./game";
 import { ensureRulesState } from "./rules/state";
 
@@ -81,7 +80,7 @@ export function tieBreakCardCost(card: Pick<GameCard, "cost">) {
 export function manualTieBreakState(
   input: MatchState | null | undefined,
 ): ManualTieBreakState | undefined {
-  if (!input) return undefined;
+  if (!input || input.phase === "result") return undefined;
   const tieBreak = (input as TieBreakMatchState).rules?.tieBreak;
   if (!tieBreak) return undefined;
   return tieBreak.gameNumber === input.gameNumber && tieBreak.turn === input.turn
@@ -227,8 +226,9 @@ function restoreAndDeclareVictor(
   const previousBoost = boosts[winnerBakugan.id] ?? 0;
   boosts[winnerBakugan.id] = previousBoost + 1;
   const resolved = passPriority(state, tieBreak.secondPasserId);
-  if (previousBoost) boosts[winnerBakugan.id] = previousBoost;
-  else delete resolved[state.victorByDamage ? "damageBoost" : "powerBoost"][winnerBakugan.id];
+  const resolvedBoosts = state.victorByDamage ? resolved.damageBoost : resolved.powerBoost;
+  if (previousBoost) resolvedBoosts[winnerBakugan.id] = previousBoost;
+  else delete resolvedBoosts[winnerBakugan.id];
 
   const resolvedTieBreak = rulesFor(resolved).tieBreak;
   if (resolvedTieBreak) {
