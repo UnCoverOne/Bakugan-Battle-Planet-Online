@@ -27,7 +27,7 @@ export function TieBreakLayer({
   match: MatchState | null;
   playerId?: string;
   onFlipTieBreakCard: TieBreakAction;
-  onFinishTieBreak: TieBreakAction;
+  onFinishTieBreak?: TieBreakAction;
 }) {
   const [mounted, setMounted] = useState(false);
   const [deckZone, setDeckZone] = useState<HTMLElement | null>(null);
@@ -38,6 +38,10 @@ export function TieBreakLayer({
   const tieBreak = manualTieBreakState(match);
   const localPlayerId = playerId ?? match?.players[0]?.id;
   const canFlip = playerCanFlipTieBreak(match, localPlayerId);
+  const finishAction = onFinishTieBreak ?? onFlipTieBreakCard;
+  const finisherId = tieBreak?.secondPasserId === "training-bot"
+    ? tieBreak.firstPasserId
+    : tieBreak?.secondPasserId;
 
   useEffect(() => setMounted(true), []);
 
@@ -61,7 +65,7 @@ export function TieBreakLayer({
       tieBreak.resolvedAt + TIE_BREAK_PRESENTATION_MS - Date.now(),
     );
     const hideTimeout = window.setTimeout(() => setClock(Date.now()), remaining + 20);
-    if (localPlayerId !== tieBreak.secondPasserId) {
+    if (localPlayerId !== finisherId) {
       return () => window.clearTimeout(hideTimeout);
     }
 
@@ -69,7 +73,7 @@ export function TieBreakLayer({
     const finishTimeout = window.setTimeout(() => {
       if (finishingKey.current === key) return;
       finishingKey.current = key;
-      void Promise.resolve(onFinishTieBreak()).catch((caught) => {
+      void Promise.resolve(finishAction()).catch((caught) => {
         finishingKey.current = "";
         setError(caught instanceof Error ? caught.message : "The Brawl could not continue.");
       });
@@ -79,12 +83,12 @@ export function TieBreakLayer({
       window.clearTimeout(finishTimeout);
     };
   }, [
+    finishAction,
+    finisherId,
     localPlayerId,
     match?.id,
-    onFinishTieBreak,
     tieBreak?.resolvedAt,
     tieBreak?.round,
-    tieBreak?.secondPasserId,
     tieBreak?.status,
     tieBreak?.turn,
     tieBreak?.winnerId,
