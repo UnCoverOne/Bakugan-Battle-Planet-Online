@@ -7,7 +7,6 @@ import {
   concedeMatch,
   discardToHandLimit,
   energizeCard,
-  passPriority,
   prepareCardPlay,
   selectBakugan,
   submitCardChoice,
@@ -23,6 +22,12 @@ import {
   resolveManualDamage,
   resumeDamageAfterFlipWindow,
 } from "../../lib/manualDamage";
+import {
+  flipTieBreakCard,
+  passPriorityWithTieBreak,
+  playerCanFlipTieBreak,
+  shouldStartManualTieBreak,
+} from "../../lib/manualTieBreak";
 import {
   drawStepIsPending,
   drawTurnCard,
@@ -48,6 +53,7 @@ import {
 } from "./MatchStateCoordinator";
 import { readMatchStore, useMatchSelector } from "./matchStore";
 import { SelectionInteractionLayer } from "./SelectionInteractionLayer";
+import { TieBreakLayer } from "./TieBreakLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
 import {
   cardRequiresSelection,
@@ -227,13 +233,19 @@ export function GameplayClient() {
   const passTurn = () => submitMatchAction(
     "pass",
     {},
-    (match, actorId) => resumeDamageAfterFlipWindow(passPriority(match, actorId)),
+    (match, actorId) => resumeDamageAfterFlipWindow(passPriorityWithTieBreak(match, actorId)),
   );
 
   const flipDamage = () => submitMatchAction(
     "flip-damage",
     {},
     (match, actorId) => flipDamageCard(match, actorId),
+  );
+
+  const flipTieBreak = () => submitMatchAction(
+    "flip-damage",
+    {},
+    (match, actorId) => flipTieBreakCard(match, actorId),
   );
 
   const playFlip = (cardId: string, choices: CardChoices) => submitMatchAction(
@@ -316,7 +328,14 @@ export function GameplayClient() {
 
     const waitingForDrawWindow = match.phase === "draw"
       && (match.drawRemainingByPlayer?.["training-bot"] ?? 0) > 0;
-    if (!waitingForDrawWindow && !opponentAiCanAct(match, "training-bot")) return;
+    const waitingForTieBreak = playerCanFlipTieBreak(match, "training-bot");
+    const startingTieBreak = shouldStartManualTieBreak(match, "training-bot");
+    if (
+      !waitingForDrawWindow
+      && !waitingForTieBreak
+      && !startingTieBreak
+      && !opponentAiCanAct(match, "training-bot")
+    ) return;
 
     const key = `${match.id}:${match.version}:${match.phase}`;
     if (botActionKey.current === key) return;
@@ -328,7 +347,11 @@ export function GameplayClient() {
       const latest = readMatchStore().match;
       if (!latest || latest.id !== match.id || latest.version !== match.version) return;
       try {
-        const next = advanceOpponentAi(latest, "training-bot");
+        const next = playerCanFlipTieBreak(latest, "training-bot")
+          ? flipTieBreakCard(latest, "training-bot")
+          : shouldStartManualTieBreak(latest, "training-bot")
+            ? passPriorityWithTieBreak(latest, "training-bot")
+            : advanceOpponentAi(latest, "training-bot");
         if (next) publishMatch(next);
       } catch {
         // A concurrent player action can close the bot's window before this
@@ -529,6 +552,11 @@ export function GameplayClient() {
           match={storedState.match}
           playerId={storedState.playerId}
           onFlipDamageCard={flipDamage}
+        />
+        <TieBreakLayer
+          match={storedState.match}
+          playerId={storedState.playerId}
+          onFlipTieBreakCard={flipTieBreak}
         />
         <EnergyAffordabilityLayer
           match={storedState.match}
