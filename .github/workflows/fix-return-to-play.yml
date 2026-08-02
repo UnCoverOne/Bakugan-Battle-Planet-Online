@@ -1,0 +1,123 @@
+name: Fix Return to Play
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/fix-return-to-play
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply Return to Play fix
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str):
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise SystemExit(f"Expected patch anchor not found in {path}: {old[:120]!r}")
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "components/game-screen-v2/MatchStateCoordinator.tsx",
+              '''  const completed = returnState.route === "match" && returnState.match?.phase === "result";
+  const [resultReady, setResultReady] = useState(false);
+
+  useEffect(() => {
+''',
+              '''  const completed = returnState.route === "match" && returnState.match?.phase === "result";
+  const [resultReady, setResultReady] = useState(false);
+  const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
+  const resultKey = completed && returnState.match
+    ? `${returnState.match.id}:${returnState.match.gameNumber}:${returnState.match.winner ?? ""}:${returnState.match.resultReason ?? ""}`
+    : null;
+
+  useEffect(() => {
+''',
+          )
+
+          replace_once(
+              "components/game-screen-v2/MatchStateCoordinator.tsx",
+              '''    if (!completed || !match) {
+      setResultReady(false);
+      return;
+    }
+''',
+              '''    if (!completed || !match) {
+      setResultReady(false);
+      setDismissedResultKey(null);
+      return;
+    }
+''',
+          )
+
+          replace_once(
+              "components/game-screen-v2/MatchStateCoordinator.tsx",
+              '''      {completed && resultReady ? (
+''',
+              '''      {completed && resultReady && resultKey !== dismissedResultKey ? (
+''',
+          )
+
+          replace_once(
+              "components/game-screen-v2/MatchStateCoordinator.tsx",
+              '''          onContinue={() => {
+            router.push(matchIsComplete(returnState.match!) ? "/play" : "/play/result");
+          }}
+''',
+              '''          onContinue={() => {
+            const match = returnState.match!;
+            if (matchIsComplete(match)) {
+              if (resultKey) setDismissedResultKey(resultKey);
+              return;
+            }
+            router.push("/play/result");
+          }}
+''',
+          )
+
+          replace_once(
+              "tests/reported-regressions-2026-08-02.test.ts",
+              '''  assert.doesNotMatch(source, /EXIT GAME/);
+  assert.match(css, /clip-path:\\s*polygon/);
+''',
+              '''  assert.doesNotMatch(source, /EXIT GAME/);
+  assert.match(source, /setDismissedResultKey\\(resultKey\\)/);
+  assert.match(source, /resultKey !== dismissedResultKey/);
+  assert.doesNotMatch(source, /router\\.push\\(matchIsComplete\\(returnState\\.match!\\) \\? "\\/play"/);
+  assert.match(css, /clip-path:\\s*polygon/);
+''',
+          )
+          PY
+      - name: Install dependencies
+        run: npm run install:ci
+      - name: Run result-screen regression tests
+        run: node --import tsx --test tests/reported-regressions-2026-08-02.test.ts
+      - name: Build application
+        run: npm run build
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "UnCoverOne"
+          git config user.email "291861529+UnCoverOne@users.noreply.github.com"
+          git rm .github/fix-return-to-play
+          git rm .github/workflows/fix-return-to-play.yml
+          git add components tests
+          git commit -m "Keep completed matches visible after Return to Play"
+          git push origin HEAD:${{ github.head_ref }}
