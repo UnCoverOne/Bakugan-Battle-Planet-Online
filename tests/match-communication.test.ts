@@ -8,6 +8,7 @@ import {
   cardEventLogEntries,
   chatEntries,
   eventLogEntries,
+  matchTimeLabel,
   normalizeChatMessage,
 } from "../lib/chat";
 import { createMatch } from "../lib/game";
@@ -81,13 +82,40 @@ test("the communication layer provides docked Event Log and responsive chat draw
   assert.match(layer, /cardArtSource\(entry\.card, "thumbnail"\)/);
   assert.match(layer, /batchStyles\.batchHex/);
   assert.match(layer, /cardEventActor\(communication\.match, entry\.playerId\)/);
+  assert.match(layer, /data-local=\{entry\.playerId === actorId/);
+  assert.match(layer, /matchTimeLabel\(communication\.match, entry\.at\)/);
+  assert.doesNotMatch(layer, /dateTime=\{new Date\(entry\.at\)/);
   assert.match(css, /\.cardActor\s*\{/);
   assert.match(brawlCss, /\.batchHex img[\s\S]*object-position:\s*center 28%[\s\S]*transform:\s*scale\(1\.34\)/);
   assert.match(css, /\.cardEntries[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(css, /\.cardEvent[\s\S]*grid-template-columns:\s*clamp\(3\.25rem,\s*7vw,\s*4rem\)\s+minmax\(0,\s*1fr\)/);
+  assert.match(css, /\.cardEvent\[data-local="false"\][\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+clamp\(3\.25rem,\s*7vw,\s*4rem\)/);
+  assert.match(css, /\.cardEvent\[data-local="false"\]\s+\.cardPreview[\s\S]*grid-column:\s*2/);
   assert.match(css, /\.eventDock[\s\S]*left:\s*0[\s\S]*translate\(calc\(-100%\s*\+\s*var\(--event-tab-width\)\)/);
   assert.match(css, /\.chatBox[\s\S]*right:\s*calc\(var\(--screen-edge\)\s*\+\s*var\(--player-hud-width\)\s*\+\s*var\(--chat-gap\)\)/);
-  assert.match(css, /@media \(max-width:\s*760px\) and \(orientation:\s*portrait\)[\s\S]*\.chatDock[\s\S]*right:\s*0[\s\S]*translate\(calc\(100%\s*-\s*var\(--chat-handle-width\)\),\s*-50%\)/);
+  assert.match(css, /@media \(max-width:\s*760px\) and \(orientation:\s*portrait\)[\s\S]*\.chatDock[\s\S]*right:\s*0[\s\S]*translate\(100%,\s*-50%\)/);
+});
+
+test("Event Log timestamps use elapsed match time instead of local or server wall time", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const match = createMatch("CLOCK01", "bo1", [player, opponent]);
+  match.log[0].at = 1_000_000;
+  assert.equal(matchTimeLabel(match, 1_000_000), "00:00");
+  assert.equal(matchTimeLabel(match, 1_065_000), "01:05");
+  assert.equal(matchTimeLabel(match, 4_661_000), "1:01:01");
+  assert.equal(matchTimeLabel(match, 500_000), "00:00", "clock-domain skew cannot create negative match time");
+});
+
+test("discard choices stay on the hand and Action HUD instead of the modal queue", () => {
+  const hud = readFileSync(new URL("../components/game-screen-v2/MatchHudLayer.tsx", import.meta.url), "utf8");
+  const hand = readFileSync(new URL("../components/game-screen-v2/CardHandLayer.tsx", import.meta.url), "utf8");
+  const queue = readFileSync(new URL("../components/game-screen-v2/ChoiceQueueLayer.tsx", import.meta.url), "utf8");
+  const runtime = readFileSync(new URL("../components/game-screen-v2/GameplayRuntime.tsx", import.meta.url), "utf8");
+  assert.match(hud, /label:\s*discardRequirement[\s\S]*`Discard \$\{selectedDiscardCardIds\.length\}\/\$\{discardRequirement\.maximum\}`/);
+  assert.match(hand, /actionMode === "discard"[\s\S]*onDiscardCardSelect/);
+  assert.match(queue, /field\.id !== "discardCardIds"/);
+  assert.doesNotMatch(runtime, /MatchDecisionLayer/);
 });
 
 test("the card timeline keeps structured card plays and effects in chronological log order", () => {
@@ -134,7 +162,7 @@ test("paid, free, revealed, and Flip plays record structured card identities", (
 });
 
 test("online chat uses the authoritative match endpoint without replacing gameplay undo history", () => {
-  assert.match(route, /case "chat":\s*state\s*=\s*addChatMessage/);
+  assert.match(route, /command:\s*apiActionToCommand\(body\.action as ApiAction,\s*payload\)/);
   assert.doesNotMatch(route, /preparePendingDraw|reconcile|rewind/i);
-  assert.match(route, /body\.action\s*===\s*"chat"\s*\?\s*record\.previous\s*:\s*before/);
+  assert.match(route, /const previous = body\.action === "chat" \? record\.previous : before/);
 });
