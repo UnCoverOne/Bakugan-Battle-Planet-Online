@@ -31,6 +31,11 @@ jobs:
               line[10:] if line.startswith("          ") else line
               for line in workflow[start:end].splitlines()
           )
+          script = script.replace(
+              'next = submitCardChoice(next, first.id, { confirmed: true });',
+              'next = submitCardChoice(next, first.id, { orderedCardIds: [maximus.id], confirmed: true });',
+              1,
+          )
           exec(compile(script, 'fix-dan-lia-regressions.py', 'exec'))
           PY
       - name: Install dependencies
