@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { MatchState } from "../../lib/game";
 import {
   manualTieBreakState,
   playerCanFlipTieBreak,
+  TIE_BREAK_PRESENTATION_MS,
   type TieBreakReveal,
 } from "../../lib/manualTieBreak";
 import styles from "./TieBreakLayer.module.css";
 
 const CARD_BACK_ART = "/assets/card-back.png";
-const RESOLVED_PRESENTATION_MS = 2_600;
-
 type TieBreakAction = () => void | Promise<void>;
 
 function energyLabel(reveal: TieBreakReveal) {
@@ -23,16 +22,19 @@ export function TieBreakLayer({
   match,
   playerId,
   onFlipTieBreakCard,
+  onFinishTieBreak,
 }: {
   match: MatchState | null;
   playerId?: string;
   onFlipTieBreakCard: TieBreakAction;
+  onFinishTieBreak: TieBreakAction;
 }) {
   const [mounted, setMounted] = useState(false);
   const [deckZone, setDeckZone] = useState<HTMLElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [clock, setClock] = useState(() => Date.now());
+  const finishingKey = useRef("");
   const tieBreak = manualTieBreakState(match);
   const localPlayerId = playerId ?? match?.players[0]?.id;
   const canFlip = playerCanFlipTieBreak(match, localPlayerId);
@@ -53,17 +55,46 @@ export function TieBreakLayer({
   useEffect(() => setError(""), [match?.version]);
 
   useEffect(() => {
-    if (!tieBreak?.resolvedAt) return;
-    const remaining = Math.max(0, tieBreak.resolvedAt + RESOLVED_PRESENTATION_MS - Date.now());
-    const timeout = window.setTimeout(() => setClock(Date.now()), remaining + 20);
-    return () => window.clearTimeout(timeout);
-  }, [tieBreak?.resolvedAt]);
+    if (tieBreak?.status !== "resolved" || !tieBreak.resolvedAt) return;
+    const remaining = Math.max(
+      0,
+      tieBreak.resolvedAt + TIE_BREAK_PRESENTATION_MS - Date.now(),
+    );
+    const hideTimeout = window.setTimeout(() => setClock(Date.now()), remaining + 20);
+    if (localPlayerId !== tieBreak.secondPasserId) {
+      return () => window.clearTimeout(hideTimeout);
+    }
+
+    const key = `${match?.id}:${tieBreak.turn}:${tieBreak.round}:${tieBreak.winnerId ?? ""}`;
+    const finishTimeout = window.setTimeout(() => {
+      if (finishingKey.current === key) return;
+      finishingKey.current = key;
+      void Promise.resolve(onFinishTieBreak()).catch((caught) => {
+        finishingKey.current = "";
+        setError(caught instanceof Error ? caught.message : "The Brawl could not continue.");
+      });
+    }, remaining);
+    return () => {
+      window.clearTimeout(hideTimeout);
+      window.clearTimeout(finishTimeout);
+    };
+  }, [
+    localPlayerId,
+    match?.id,
+    onFinishTieBreak,
+    tieBreak?.resolvedAt,
+    tieBreak?.round,
+    tieBreak?.secondPasserId,
+    tieBreak?.status,
+    tieBreak?.turn,
+    tieBreak?.winnerId,
+  ]);
 
   const visible = Boolean(
     tieBreak
     && (
       tieBreak.status === "waiting"
-      || (tieBreak.resolvedAt ?? 0) + RESOLVED_PRESENTATION_MS > clock
+      || (tieBreak.resolvedAt ?? 0) + TIE_BREAK_PRESENTATION_MS > clock
     ),
   );
   const currentRevealCount = tieBreak ? Object.keys(tieBreak.current).length : 0;
