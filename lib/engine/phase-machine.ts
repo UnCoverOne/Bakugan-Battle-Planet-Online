@@ -11,7 +11,7 @@ const STRICT_COMMAND_PHASES: Partial<Record<GameCommand["type"], readonly Phase[
   SELECT_ROLL_TARGET: ["target", "reroll"],
   CONFIRM_ROLL: ["target", "reroll"],
   ACTIVATE_REROLL: ["power"],
-  REVEAL_DAMAGE_FLIP: ["damage"],
+  REVEAL_DAMAGE_FLIP: ["damage", "power"],
   PLAY_DAMAGE_FLIP: ["damage"],
   DISCARD_TO_HAND_LIMIT: ["handLimit"],
   START_NEXT_SERIES_GAME: ["result"],
