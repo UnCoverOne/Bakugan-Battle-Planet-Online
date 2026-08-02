@@ -10,8 +10,8 @@ import { tapEnergyCard } from "../energy";
 import { flipDamageCard, resolveManualDamage, resumeDamageAfterFlipWindow } from "../manualDamage";
 import {
   flipTieBreakCard,
+  manualTieBreakState,
   passPriorityWithTieBreak,
-  playerCanFlipTieBreak,
 } from "../manualTieBreak";
 import type { GameCommand } from "../engine/types";
 import { normalizeRuleObjects } from "./state";
@@ -65,7 +65,7 @@ export function dispatchRulesCommand(input: MatchState, actorId: string, command
     case "SUBMIT_CARD_CHOICE": next = submitCardChoice(input, actorId, command.choices); break;
     case "CANCEL_CARD_CHOICE": next = cancelCardChoice(input, actorId); break;
     case "ORDER_TRIGGERS": next = orderTriggers(input, actorId, command.requestId, command.orderedIds); break;
-    case "REVEAL_DAMAGE_FLIP": next = playerCanFlipTieBreak(input, actorId)
+    case "REVEAL_DAMAGE_FLIP": next = manualTieBreakState(input)
       ? flipTieBreakCard(input, actorId)
       : flipDamageCard(input, actorId); break;
     case "PLAY_DAMAGE_FLIP": next = resolveManualDamage(input, actorId, command.cardId, command.choices); break;
