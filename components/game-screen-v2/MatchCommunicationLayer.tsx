@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { addChatMessage, cardEventLogEntries, chatEntries, eventLogEntries, normalizeChatMessage } from "../../lib/chat";
+import { addChatMessage, cardEventLogEntries, chatEntries, eventLogEntries, matchTimeLabel, normalizeChatMessage } from "../../lib/chat";
 import { cardArtSource } from "../../lib/content/card-art";
 import type { MatchState } from "../../lib/game";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
@@ -19,7 +19,7 @@ type CommunicationState = {
   playerId?: string;
 };
 
-function timeLabel(at: number) {
+function wallTimeLabel(at: number) {
   return new Date(at).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -235,8 +235,9 @@ export function MatchCommunicationLayer() {
                   className={styles.cardEvent}
                   data-event={entry.cardEvent}
                   data-card-type={entry.card.type.toLowerCase()}
+                  data-local={entry.playerId === actorId ? "true" : "false"}
                   key={entry.id}
-                  title={`${cardEventActor(communication.match, entry.playerId)} • ${entry.card.displayName || entry.card.name} • ${entry.cardEvent === "played" ? "Played" : "Effect resolved"} • ${timeLabel(entry.at)}`}
+                  title={`${cardEventActor(communication.match, entry.playerId)} • ${entry.card.displayName || entry.card.name} • ${entry.cardEvent === "played" ? "Played" : "Effect resolved"} • ${matchTimeLabel(communication.match, entry.at)}`}
                 >
                   <div className={`${batchStyles.batchHex} ${styles.cardPreview}`}>
                     <span aria-hidden="true">{(entry.card.displayName || entry.card.name).slice(0, 1)}</span>
@@ -252,7 +253,7 @@ export function MatchCommunicationLayer() {
                     <span className={styles.cardActor}>
                       {cardEventActor(communication.match, entry.playerId)} {entry.cardEvent === "played" ? "PLAYED THIS CARD" : "USED THIS EFFECT"}
                     </span>
-                    <time dateTime={new Date(entry.at).toISOString()}>{timeLabel(entry.at)}</time>
+                    <time>{matchTimeLabel(communication.match, entry.at)}</time>
                   </figcaption>
                 </figure>
               )) : <p className={styles.emptyState}>No cards or card effects have been played.</p>}
@@ -263,7 +264,7 @@ export function MatchCommunicationLayer() {
                 <article className={styles.eventEntry} data-kind={entry.kind} key={entry.id}>
                   <div>
                     <span>{eventKindLabel(entry.kind)}</span>
-                    <time dateTime={new Date(entry.at).toISOString()}>{timeLabel(entry.at)}</time>
+                    <time>{matchTimeLabel(communication.match, entry.at)}</time>
                   </div>
                   <p>{entry.message}</p>
                 </article>
@@ -350,7 +351,7 @@ export function MatchCommunicationLayer() {
                 <article className={styles.chatMessage} data-local={local ? "true" : "false"} key={message.id}>
                   <div>
                     <strong>{message.author}</strong>
-                    <time dateTime={new Date(message.at).toISOString()}>{timeLabel(message.at)}</time>
+                    <time dateTime={new Date(message.at).toISOString()}>{wallTimeLabel(message.at)}</time>
                   </div>
                   <p>{message.message}</p>
                 </article>
