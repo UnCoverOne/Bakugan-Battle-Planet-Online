@@ -1,7 +1,6 @@
 import {
   cancelCardChoice,
   orderTriggers,
-  passPriority,
   prepareCardPlay,
   submitCardChoice,
   type MatchState,
@@ -9,6 +8,11 @@ import {
 import { playCardWithAutoEnergy } from "../cardPayment";
 import { tapEnergyCard } from "../energy";
 import { flipDamageCard, resolveManualDamage, resumeDamageAfterFlipWindow } from "../manualDamage";
+import {
+  flipTieBreakCard,
+  passPriorityWithTieBreak,
+  playerCanFlipTieBreak,
+} from "../manualTieBreak";
 import type { GameCommand } from "../engine/types";
 import { normalizeRuleObjects } from "./state";
 import { emitRuleEvent } from "./triggers";
@@ -61,10 +65,12 @@ export function dispatchRulesCommand(input: MatchState, actorId: string, command
     case "SUBMIT_CARD_CHOICE": next = submitCardChoice(input, actorId, command.choices); break;
     case "CANCEL_CARD_CHOICE": next = cancelCardChoice(input, actorId); break;
     case "ORDER_TRIGGERS": next = orderTriggers(input, actorId, command.requestId, command.orderedIds); break;
-    case "REVEAL_DAMAGE_FLIP": next = flipDamageCard(input, actorId); break;
+    case "REVEAL_DAMAGE_FLIP": next = playerCanFlipTieBreak(input, actorId)
+      ? flipTieBreakCard(input, actorId)
+      : flipDamageCard(input, actorId); break;
     case "PLAY_DAMAGE_FLIP": next = resolveManualDamage(input, actorId, command.cardId, command.choices); break;
     case "TAP_ENERGY_CARD": next = tapEnergyCard(input, actorId, command.cardId); break;
-    case "PASS_PRIORITY": next = resumeDamageAfterFlipWindow(passPriority(input, actorId)); break;
+    case "PASS_PRIORITY": next = resumeDamageAfterFlipWindow(passPriorityWithTieBreak(input, actorId)); break;
   }
   replaceLegacyTriggeredObjects(input, next, actorId, command);
   return normalizeRuleObjects(next);
