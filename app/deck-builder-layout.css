@@ -1,0 +1,52 @@
+/*
+ * The Edit Deck status rail is fixed so its totals stay visible while building.
+ * Reserve the same space in the document and in the desktop gallery scroller so
+ * the last row of controls and cards can always move completely above the rail.
+ */
+section:has(> footer[class*="builderStatus"]) {
+  --deck-builder-status-height: 3.75rem;
+  --deck-builder-bottom-offset: 0rem;
+  padding-bottom: calc(
+    var(--deck-builder-status-height)
+    + var(--deck-builder-bottom-offset)
+    + var(--space-5)
+  );
+}
+
+section:has(> footer[class*="builderStatus"]) > [class*="builderLayout"] {
+  margin-bottom: 0;
+}
+
+section:has(> footer[class*="builderStatus"]) [class*="builderGallery"] {
+  max-height: calc(
+    100dvh
+    - 76px
+    - 6.5rem
+    - var(--deck-builder-status-height)
+  );
+  scroll-padding-bottom: var(--space-4);
+}
+
+section:has(> footer[class*="builderStatus"]) > footer[class*="builderStatus"] {
+  min-height: var(--deck-builder-status-height);
+  box-sizing: border-box;
+}
+
+@media (max-width: 800px) {
+  section:has(> footer[class*="builderStatus"]) {
+    --deck-builder-bottom-offset: 4.2rem;
+    padding-bottom: calc(
+      var(--deck-builder-status-height)
+      + var(--deck-builder-bottom-offset)
+      + var(--space-5)
+    );
+  }
+
+  section:has(> footer[class*="builderStatus"]) [class*="builderGallery"] {
+    max-height: none;
+  }
+
+  section:has(> footer[class*="builderStatus"]) > footer[class*="builderStatus"] {
+    bottom: var(--deck-builder-bottom-offset);
+  }
+}
