@@ -267,11 +267,16 @@ export function MatchStateCoordinator() {
   const retracting = returnState.route === "match" && returnState.match?.phase === "retract";
   const completed = returnState.route === "match" && returnState.match?.phase === "result";
   const [resultReady, setResultReady] = useState(false);
+  const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
+  const resultKey = completed && returnState.match
+    ? `${returnState.match.id}:${returnState.match.gameNumber}:${returnState.match.winner ?? ""}:${returnState.match.resultReason ?? ""}`
+    : null;
 
   useEffect(() => {
     const match = returnState.match;
     if (!completed || !match) {
       setResultReady(false);
+      setDismissedResultKey(null);
       return;
     }
     if (!isDragonoidMaximusResult(match)) {
@@ -293,7 +298,7 @@ export function MatchStateCoordinator() {
       {retracting ? (
         <CoreReturnPlacementLayer match={returnState.match!} playerId={returnState.playerId} />
       ) : null}
-      {completed && resultReady ? (
+      {completed && resultReady && resultKey !== dismissedResultKey ? (
         <MatchResultDialog
           match={returnState.match!}
           playerId={returnState.playerId}
@@ -302,7 +307,12 @@ export function MatchStateCoordinator() {
             router.push(`/profile/records/${encodeURIComponent(recordId)}`);
           }}
           onContinue={() => {
-            router.push(matchIsComplete(returnState.match!) ? "/play" : "/play/result");
+            const match = returnState.match!;
+            if (matchIsComplete(match)) {
+              if (resultKey) setDismissedResultKey(resultKey);
+              return;
+            }
+            router.push("/play/result");
           }}
         />
       ) : null}
