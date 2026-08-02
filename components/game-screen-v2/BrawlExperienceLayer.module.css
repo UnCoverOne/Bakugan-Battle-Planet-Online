@@ -384,6 +384,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 28%;
+  transform: scale(1.34);
+  transform-origin: center 28%;
 }
 
 .batchEffect figcaption {
