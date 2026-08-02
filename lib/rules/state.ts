@@ -4,8 +4,20 @@ import type { RuleObject, RulesState } from "./model";
 
 export type RulesBackedMatchState = MatchState & { rules?: RulesState };
 
+/** Apply narrow reviewed corrections to resumable snapshots created from stale catalogue data. */
+function migrateVerifiedCardValues(state: MatchState) {
+  for (const player of state.players) {
+    for (const bakugan of player.bakugan) {
+      if (bakugan.character.catalogId !== "bb-330") continue;
+      bakugan.character.damage = 2;
+      bakugan.damage = 2;
+    }
+  }
+}
+
 export function ensureRulesState(input: MatchState): RulesState {
   const state = input as RulesBackedMatchState;
+  migrateVerifiedCardValues(state);
   if (!state.rules || state.rules.version !== 3) {
     state.rules = { version: 3, modifiers: [], replacements: [], triggerUsage: {} };
   }
