@@ -61,7 +61,9 @@ export function ChoiceQueueLayer() {
   const pending = match?.pendingChoice;
   const deckInspectionActive = Boolean(pending?.schema.fields.some(isTopDeckField));
   const fields = useMemo(() => pending?.schema.fields.filter((field) => (
-    field.chooserId === playerId && !isTopDeckField(field)
+    field.chooserId === playerId
+    && field.id !== "discardCardIds"
+    && !isTopDeckField(field)
   )) ?? [], [pending, playerId]);
   const triggerOrder = match?.triggerOrders.find((request) => request.controllerId === playerId && !request.orderedIds);
   const [answers, setAnswers] = useState<CardChoices>({});
