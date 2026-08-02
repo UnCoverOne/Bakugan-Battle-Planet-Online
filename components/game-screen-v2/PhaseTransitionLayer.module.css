@@ -1,7 +1,7 @@
 .layer {
   position: fixed;
   inset: 0;
-  z-index: 10066;
+  z-index: 10040;
   display: grid;
   place-items: center;
   overflow: hidden;
