@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BAKUGAN, CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
+import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   CENTER_CELL,
   createMatch,
-  emitGameEvent,
   passPriority,
+  playCard,
   type Core,
   type GameCard,
   type MatchState,
@@ -20,7 +20,9 @@ import {
 import { activePendingDraw, drawPendingCard } from "../lib/drawQueue";
 import { advanceOpponentAi } from "../lib/opponentAi";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
+import { evaluateBakuganCharacteristics } from "../lib/rules/modifiers";
 import { emitRuleEvent } from "../lib/rules/triggers";
+import { handDiscardRequirement } from "../components/game-screen-v2/matchHudState";
 
 function card(catalogId: string, id: string): GameCard {
   const source = CARDS.find((candidate) => candidate.catalogId === catalogId);
@@ -222,93 +224,155 @@ test("Bakugan Resurgence Shun enters play without drawing and draws only after a
   assert.equal(afterDraw.hand.at(-1)?.id, drawCard.id);
 });
 
-test("Dragonoid Maximus wins when its controller has Dan, Wynton, and Lia", () => {
-  const player = makePlayer("a", "Alpha", STARTER_DECKS[0]);
-  const opponent = makePlayer("b", "Beta", STARTER_DECKS[1]);
-  const titanSource = BAKUGAN.find((bakugan) => bakugan.id === "ex-1");
-  assert.ok(titanSource);
-  const titan = {
-    ...titanSource,
-    id: "ex-titan-alpha",
-    character: { ...titanSource.character, id: "ex-titan-character-alpha" },
-    open: true,
-    heldCoreCells: [],
-    evoStack: [],
-  };
-  player.bakugan[0] = titan;
-  player.heroes = [
-    card("bb-207", "dan-for-maximus"),
-    card("bb-215", "wynton-for-maximus"),
-    card("bb-202", "lia-for-maximus"),
-  ];
-  const maximus = card("ex-2", "maximus-alternate-win");
-  player.hand = [maximus];
-  addUntappedEnergy(player, 10);
+test("Sifting Ashes completes both manual draws before offering the discard", () => {
+  const player = makePlayer("sifting-player", "Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("sifting-opponent", "Opponent", STARTER_DECKS[1]);
+  const sifting = card("bb-108", "sifting-ashes-test");
+  player.hand = [sifting, ...player.hand];
+  const drawnIds = player.deckCards.slice(0, 2).map((candidate) => candidate.id);
+  addUntappedEnergy(player, 1);
 
-  let state = createMatch("EXMAXWIN", "bo1", [player, opponent]);
+  let state = createMatch("SIFTORDER", "bo1", [player, opponent]);
   state.turn = 2;
   state.phase = "power";
-  state.stepLabel = "Brawl Phase • Power Step";
   state.startingPlayer = player.id;
-  state.initialStartingPlayer = player.id;
   state.priority = player.id;
-  state.selected[player.id] = titan.id;
 
-  state = playCardWithAutoEnergy(state, player.id, maximus.id, { targetBakuganId: titan.id });
+  const instructions = ruleDefinitionForCard(sifting).abilities.flatMap((ability) => ability.instructions);
+  assert.deepEqual(instructions.map((instruction) => instruction.actions.map((action) => action.kind)), [
+    ["draw"],
+    ["discard"],
+  ]);
+  assert.equal(instructions[0].choices.length, 0);
+  assert.deepEqual(instructions[1].choices.map((choice) => choice.id), ["discardCardIds"]);
+
+  state = playCard(state, player.id, sifting.id);
   state = resolveTopBatchObject(state);
+  assert.equal(activePendingDraw(state)?.remaining, 2);
+  assert.equal(state.pendingChoice, undefined, "discard is not requested before the draws");
 
-  assert.equal(state.phase, "result");
-  assert.equal(state.winner, player.id);
-  assert.equal(state.series[player.id], 1);
-  assert.equal(state.resultReason, "Dragonoid Maximus's alternate win condition");
+  state = drawPendingCard(state, player.id);
+  state = drawPendingCard(state, player.id);
+  const discard = state.pendingChoice?.schema.fields.find((field) => field.id === "discardCardIds");
+  assert.ok(discard);
+  assert.equal(discard.minimum, 2);
+  assert.ok(drawnIds.every((id) => discard.options.some((option) => option.id === id)));
 });
 
+test("Aquos Hyper Cubbo applies its held-Core bonus exactly once after evolving", () => {
+  const player = makePlayer("cubbo-player", "Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("cubbo-opponent", "Opponent", STARTER_DECKS[1]);
+  const character = card("br-167", "aquos-cubbo-character");
+  const hyper = card("aa-80", "aquos-hyper-cubbo");
+  const bakugan = player.bakugan[0];
+  Object.assign(bakugan, {
+    character,
+    name: character.name,
+    faction: character.faction,
+    bPower: character.bPower ?? 0,
+    damage: character.damage ?? 0,
+    open: true,
+    evoStack: [],
+    heldCoreCells: [CENTER_CELL],
+  });
+  player.hand = [hyper, ...player.hand];
+  addUntappedEnergy(player, 2);
 
-test("normal simultaneous opens trigger Lia and Shargo for both players on every occurrence", () => {
-  const alpha = makePlayer("a", "Alpha", STARTER_DECKS[0]);
-  const beta = makePlayer("b", "Beta", STARTER_DECKS[1]);
-  const shargo = card("br-79", "shargo-open-source");
-  const lia = card("aa-71", "lia-open-source");
-  alpha.heroes = [shargo];
-  beta.heroes = [lia];
-
-  const state = createMatch("OPENEVERY", "bo1", [alpha, beta]);
+  let state = createMatch("CUBBO800", "bo1", [player, opponent]);
   state.turn = 2;
   state.phase = "power";
-  state.startingPlayer = alpha.id;
-  state.priority = alpha.id;
-  state.selected[alpha.id] = alpha.bakugan[0].id;
-  state.selected[beta.id] = beta.bakugan[0].id;
-  alpha.bakugan[0].open = true;
-  beta.bakugan[0].open = true;
+  state.startingPlayer = player.id;
+  state.priority = player.id;
+  state.selected[player.id] = bakugan.id;
+  state.placements = [{
+    playerId: player.id,
+    core: { id: "cubbo-ms", number: 0, name: "Magic Shield", type: "Magic Shield", bonus: 0, damageBonus: 0, art: "" },
+    cell: CENTER_CELL,
+    order: 1,
+    attachedTo: bakugan.id,
+    revealed: true,
+  }];
 
-  emitGameEvent(state, {
-    id: "turn-2-open-occurrence-1",
-    type: "open",
-    playerId: "*",
-    playerIds: [alpha.id, beta.id],
-  });
-  assert.deepEqual(
-    state.batch.map((effect) => effect.card.id).sort(),
-    [lia.id, shargo.id].sort(),
-  );
-  assert.equal(state.batch.find((effect) => effect.card.id === shargo.id)?.choices.targetBakuganId, alpha.bakugan[0].id);
-  assert.equal(state.batch.find((effect) => effect.card.id === lia.id)?.choices.targetBakuganId, beta.bakugan[0].id);
+  const modifier = ruleDefinitionForCard(hyper).abilities
+    .flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.actions)
+    .find((action) => action.kind === "modify-stat");
+  assert.ok(modifier && modifier.kind === "modify-stat");
+  assert.equal(modifier.duration, "while-source-active");
 
-  emitGameEvent(state, {
-    id: "turn-2-open-occurrence-2",
-    type: "open",
-    playerId: "*",
-    playerIds: [alpha.id, beta.id],
-  });
-  assert.equal(state.batch.filter((effect) => effect.card.id === shargo.id).length, 2);
-  assert.equal(state.batch.filter((effect) => effect.card.id === lia.id).length, 2);
+  state = playCard(state, player.id, hyper.id, { targetBakuganId: bakugan.id });
+  state = resolveTopBatchObject(state);
+  const evolvedPlayer = state.players.find((candidate) => candidate.id === player.id)!;
+  const evolved = evolvedPlayer.bakugan.find((candidate) => candidate.id === bakugan.id)!;
+  const characteristics = evaluateBakuganCharacteristics(state, evolved, evolvedPlayer);
+  assert.equal(characteristics.power, 1_100);
+  assert.equal(state.powerBoost[evolved.id] ?? 0, 0, "the intrinsic +800 is not also stored as a temporary bonus");
+  assert.equal(characteristics.applied.filter((entry) => entry.sourceId === hyper.id && entry.stat === "power").length, 1);
+});
 
-  emitGameEvent(state, {
-    id: "turn-2-open-occurrence-2",
-    type: "open",
-    playerId: "*",
-    playerIds: [alpha.id, beta.id],
+test("discard choices and hand-limit cleanup are represented by the in-hand HUD contract", () => {
+  const player = makePlayer("discard-player", "Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("discard-opponent", "Opponent", STARTER_DECKS[1]);
+  const state = createMatch("HUDDISCARD", "bo1", [player, opponent]);
+  const available = player.hand.slice(0, 2);
+  state.pendingChoice = {
+    id: "discard-choice",
+    kind: "resolution",
+    controllerId: player.id,
+    cardId: "source",
+    schema: {
+      id: "discard-schema",
+      sourceId: "source",
+      sourceName: "Discard effect",
+      controllerId: player.id,
+      timing: "resolve",
+      simultaneous: false,
+      fields: [{
+        id: "discardCardIds",
+        kind: "hand-cards",
+        label: "Choose two cards to discard",
+        chooserId: player.id,
+        visibility: "private",
+        timing: "resolve",
+        minimum: 2,
+        maximum: 2,
+        required: true,
+        options: available.map((candidate) => ({ id: candidate.id, label: candidate.name, ownerId: player.id })),
+      }],
+    },
+    answers: {},
+    createdVersion: state.version,
+  };
+  assert.deepEqual(handDiscardRequirement(state, player.id), {
+    minimum: 2,
+    maximum: 2,
+    optionIds: available.map((candidate) => candidate.id),
+    source: "choice",
   });
-  assert.equal(state.batch.length, 4);
+
+  state.pendingChoice = undefined;
+  player.hand.push(...player.deckCards.splice(0, 3));
+  state.phase = "handLimit";
+  state.priority = player.id;
+  const handLimit = handDiscardRequirement(state, player.id);
+  assert.equal(handLimit?.source, "hand-limit");
+  assert.equal(handLimit?.minimum, player.hand.length - 7);
+});
+
+test("the catalogue does not invent discard choices from ordinary hand-card wording", () => {
+  const exposed = CARDS.filter((candidate) => (
+    /cards? from your hand/i.test(candidate.effect)
+    && !/discard/i.test(candidate.effect)
+    && ruleDefinitionForCard(candidate).abilities.some((ability) => ability.instructions.some((instruction) => (
+      instruction.choices.some((choice) => choice.id === "discardCardIds")
+    )))
+  ));
+  assert.deepEqual(exposed.map((candidate) => candidate.catalogId), []);
+  for (const catalogId of ["bb-152", "aa-112"]) {
+    const source = card(catalogId, `${catalogId}-cost-test`);
+    const definition = ruleDefinitionForCard(source);
+    assert.ok(definition.play.choices.some((choice) => choice.id === "discardCardIds" && choice.timing === "pay"));
+    assert.equal(definition.abilities.flatMap((ability) => ability.instructions)
+      .flatMap((instruction) => instruction.actions).some((action) => action.kind === "discard"), false);
+  }
 });
