@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - .github/fix-return-to-play
+  push:
+    branches:
+      - fix/return-to-play-20260803
 
 permissions:
   contents: write
@@ -15,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -120,4 +123,4 @@ jobs:
           git rm .github/workflows/fix-return-to-play.yml
           git add components tests
           git commit -m "Keep completed matches visible after Return to Play"
-          git push origin HEAD:${{ github.head_ref }}
+          git push origin HEAD:${{ github.head_ref || github.ref_name }}
