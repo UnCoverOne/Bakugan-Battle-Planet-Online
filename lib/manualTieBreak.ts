@@ -230,7 +230,8 @@ function holdTieBreakWinner(
 
 export function flipTieBreakCard(input: MatchState, playerId: string) {
   const tieBreak = manualTieBreakState(input);
-  if (!tieBreak || tieBreak.status !== "waiting" || input.phase !== "power") {
+  if (tieBreak?.status === "resolved") return finalizeResolvedTieBreak(input);
+  if (!tieBreak || input.phase !== "power") {
     throw new Error("There is no active tie-break to resolve.");
   }
   if (tieBreak.current[playerId]) throw new Error("You already flipped for this tie-break round.");
