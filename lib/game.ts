@@ -1441,6 +1441,7 @@ export const playCard = (input: MatchState, playerId: string, cardId: string, ch
     type: "card-play",
     playerId,
     cardType: card.type,
+    sourceCards: [card],
     targetBakuganId: activeBakugan(state, playerId)?.id,
   });
   entry(state, "game", `${player.name} added ${card.name} to the batch for ${cost} Energy.`, card, "played", playerId);
@@ -1854,7 +1855,7 @@ return;
           ? { targetBakuganId: choices.targetBakuganId ?? activeBakugan(state, controllerId)?.id }
           : {};
         state.batch.push({ id: uid(), controllerId, card: selected, choices: freeChoices, kind: "card" });
-        emitGameEvent(state, { id: `${state.turn}:card-play:${selected.id}`, type: "card-play", playerId: controllerId, cardType: selected.type });
+        emitGameEvent(state, { id: `${state.turn}:card-play:${selected.id}`, type: "card-play", playerId: controllerId, cardType: selected.type, sourceCards: [selected] });
         entry(state, "game", `${player.name} played ${selected.name} from hand for free.`, selected, "played", controllerId);
         return;
       }
@@ -1863,7 +1864,7 @@ return;
         recordCardPlayedForTurn(player, card, state.turn);
         state.nextCardCostReduction[controllerId] = 0;
         state.batch.push({ id: uid(), controllerId, card, choices, kind: "card" });
-        emitGameEvent(state, { id: `${state.turn}:card-play:${card.id}`, type: "card-play", playerId: controllerId, cardType: card.type });
+        emitGameEvent(state, { id: `${state.turn}:card-play:${card.id}`, type: "card-play", playerId: controllerId, cardType: card.type, sourceCards: [card] });
         entry(state, "game", `${player.name} played discarded ${card.name} for free.`, card, "played", controllerId);
         return;
       }
@@ -1878,9 +1879,18 @@ return;
       syncDeck(player);
       recordCardPlayedForTurn(player, revealed, state.turn);
       state.nextCardCostReduction[controllerId] = 0;
-      state.batch.push({ id: uid(), controllerId, card: revealed, choices: {}, kind: "card" });
+      let freeChoices: CardChoices = {};
+      if (revealed.type === "Evo") {
+        const definition = ruleDefinitionForCard(revealed);
+        const active = activeBakugan(state, controllerId);
+        const evoTarget = active && canonicalEvoTargetAllowed(definition, active)
+? active
+: player.bakugan.find((candidate) => canonicalEvoTargetAllowed(definition, candidate));
+        if (evoTarget) freeChoices = { targetBakuganId: evoTarget.id };
+      }
+      state.batch.push({ id: uid(), controllerId, card: revealed, choices: freeChoices, kind: "card" });
       delete tracked.revealedDeckCardId;
-      emitGameEvent(state, { id: `${state.turn}:card-play:${revealed.id}`, type: "card-play", playerId: controllerId, cardType: revealed.type });
+      emitGameEvent(state, { id: `${state.turn}:card-play:${revealed.id}`, type: "card-play", playerId: controllerId, cardType: revealed.type, sourceCards: [revealed] });
       entry(state, "game", `${player.name} played the revealed ${revealed.name} for free.`, revealed, "played", controllerId);
       return;
     }

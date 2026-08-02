@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { BAKUGAN, CARDS, CARD_BY_ID, STARTER_DECKS, makePlayer } from "../lib/data";
-import { alternateWinEffectPending, createMatch, passPriority, playCard, resolveStructuredEffect } from "../lib/game";
+import { alternateWinEffectPending, createMatch, emitGameEvent, passPriority, playCard, resolveStructuredEffect, submitCardChoice, totalDamage } from "../lib/game";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import type { RuleObject } from "../lib/rules/model";
 import { createRuleObject } from "../lib/rules/objects";
@@ -200,4 +200,117 @@ test("Dragonoid Maximus uses a red ultimate-effect treatment and a five-second r
   assert.match(presentation, /assets\/cards\/sets\/ex\/full\/ex-2\.webp/);
   assert.match(timing, /DRAGONOID_MAXIMUS_ANIMATION_MS = 3_000/);
   assert.match(timing, /DRAGONOID_MAXIMUS_RESULT_DELAY_MS = 5_000/);
+});
+
+
+
+test("Dan Kouzo applies a revealed Dragonoid Maximus Evo to Titan Dragonoid", () => {
+  const first = makePlayer("first", "First", STARTER_DECKS[0]);
+  const second = makePlayer("second", "Second", STARTER_DECKS[1]);
+  const state = createMatch("DANMAX", "bo1", [first, second]);
+  state.turn = 2;
+  state.phase = "power";
+  state.startingPlayer = first.id;
+  state.priority = first.id;
+
+  const titanTemplate = BAKUGAN.find((candidate) => candidate.id === "ex-1");
+  const maximusTemplate = CARD_BY_ID.get("ex-2");
+  const danTemplate = CARD_BY_ID.get("bb-207");
+  assert.ok(titanTemplate && maximusTemplate && danTemplate);
+
+  const titan = structuredClone(titanTemplate);
+  titan.id = "ex-1-dan-target";
+  titan.character = { ...structuredClone(titan.character), id: "ex-1-dan-character" };
+  titan.open = true;
+  state.players[0].bakugan[0] = titan;
+  state.selected[first.id] = titan.id;
+
+  const dan = { ...structuredClone(danTemplate), id: "bb-207-active" };
+  state.players[0].heroes = [dan];
+  const maximus = { ...structuredClone(maximusTemplate), id: "ex-2-revealed-by-dan" };
+  state.players[0].deckCards = [maximus];
+  state.players[0].deck = 1;
+
+  emitGameEvent(state, {
+    id: `${state.turn}:open:${titan.id}`,
+    type: "open",
+    playerId: first.id,
+    targetBakuganId: titan.id,
+  });
+  assert.equal(state.batch.at(-1)?.card.catalogId, "bb-207");
+
+  let next = passPriority(state, state.priority);
+  next = passPriority(next, next.priority);
+  assert.equal(next.pendingChoice?.controllerId, first.id);
+  assert.match(next.pendingChoice?.schema.sourceName ?? "", /Dan Kouzo/i);
+
+  next = submitCardChoice(next, first.id, { orderedCardIds: [maximus.id], confirmed: true });
+  assert.equal(next.batch.at(-1)?.card.catalogId, "ex-2");
+  assert.equal(next.batch.at(-1)?.choices.targetBakuganId, titan.id);
+
+  next = passPriority(next, next.priority);
+  next = passPriority(next, next.priority);
+  const resolvedPlayer = next.players.find((player) => player.id === first.id)!;
+  assert.equal(resolvedPlayer.bakugan[0].evoStack.at(-1)?.catalogId, "ex-2");
+  assert.equal(resolvedPlayer.discard.some((card) => card.id === maximus.id), false);
+});
+
+test("Lia Venegas searches for a Hero when played and grants +10 Damage with five Heroes", () => {
+  const first = makePlayer("first", "First", STARTER_DECKS[0]);
+  const second = makePlayer("second", "Second", STARTER_DECKS[1]);
+  const state = createMatch("LIA202", "bo1", [first, second]);
+  state.turn = 2;
+  state.phase = "preRoll";
+  state.startingPlayer = first.id;
+  state.priority = first.id;
+
+  const liaTemplate = CARD_BY_ID.get("bb-202");
+  const searchedHeroTemplate = CARD_BY_ID.get("bb-208");
+  const energyTemplate = CARD_BY_ID.get("bb-1");
+  assert.ok(liaTemplate && searchedHeroTemplate && energyTemplate);
+  const lia = { ...structuredClone(liaTemplate), id: "bb-202-played" };
+  const searchedHero = { ...structuredClone(searchedHeroTemplate), id: "bb-208-search-target" };
+  const nonHero = { ...structuredClone(energyTemplate), id: "bb-1-nonhero" };
+
+  const passiveHeroIds = ["bb-207", "bb-206", "bb-205", "bb-197"];
+  state.players[0].heroes = passiveHeroIds.map((catalogId, index) => {
+    const hero = CARD_BY_ID.get(catalogId);
+    assert.ok(hero);
+    return { ...structuredClone(hero), id: `${catalogId}-lia-count-${index}` };
+  });
+  state.players[0].hand = [lia];
+  state.players[0].deckCards = [searchedHero, nonHero];
+  state.players[0].deck = 2;
+  state.players[0].energyZone = Array.from({ length: 10 }, (_, index) => ({
+    ...structuredClone(energyTemplate),
+    id: `lia-energy-${index}`,
+  }));
+  state.players[0].energy = 10;
+  state.players[0].maxEnergy = 10;
+
+  const active = state.players[0].bakugan[0];
+  active.open = true;
+  state.selected[first.id] = active.id;
+  const baseDamage = totalDamage(state, first.id);
+
+  let next = playCard(state, first.id, lia.id);
+  const liaTrigger = next.batch.find((effect) => effect.card.id === lia.id && effect.kind === "trigger");
+  assert.ok(liaTrigger, "Lia's when-play trigger should enter the batch");
+
+  next = passPriority(next, next.priority);
+  next = passPriority(next, next.priority);
+  const deckChoice = next.pendingChoice?.schema.fields.find((field) => field.id === "deckCardId");
+  assert.ok(deckChoice);
+  assert.equal(deckChoice.options.some((option) => option.id === searchedHero.id), true);
+  assert.equal(deckChoice.options.some((option) => option.id === nonHero.id), false);
+
+  next = submitCardChoice(next, first.id, { deckCardId: searchedHero.id });
+  assert.equal(next.players[0].hand.some((card) => card.id === searchedHero.id), true);
+  assert.equal(next.players[0].deckCards.some((card) => card.id === searchedHero.id), false);
+
+  next = passPriority(next, next.priority);
+  next = passPriority(next, next.priority);
+  assert.equal(next.players[0].heroes.some((hero) => hero.id === lia.id), true);
+  assert.equal(next.players[0].heroes.length, 5);
+  assert.equal(totalDamage(next, first.id), baseDamage + 10);
 });

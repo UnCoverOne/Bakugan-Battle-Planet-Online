@@ -69,7 +69,7 @@ export function conditionFor(text: string): RuleCondition {
   if (/two or more cards this turn/i.test(text)) return { kind: "cards-played", comparison: "at-least", amount: 2 };
   const playedFactionCount = text.match(/played a card from (no|a|an|one|two|three|four|five|six|\d+) different factions? this turn/i);
   if (playedFactionCount) return { kind: "factions-played", comparison: "at-least", amount: numberValue(playedFactionCount[1], 1) };
-  const heroCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Hero cards? in play/i);
+  const heroCount = text.match(/if you (?:have|control) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Hero cards? in play/i);
   if (heroCount) return { kind: "hero-count", comparison: "at-least", amount: numberValue(heroCount[1], 1) };
   const energyCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Energy cards in play/i);
   if (energyCount) return { kind: "energy-count", comparison: "at-least", amount: numberValue(energyCount[1], 1) };
