@@ -232,6 +232,18 @@
   white-space: nowrap;
 }
 
+.cardActor {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: rgba(255, 184, 168, 0.86);
+  font-size: 0.48rem;
+  font-weight: 900;
+  letter-spacing: 0.045em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .cardEvent figcaption time {
   grid-column: 1 / -1;
   color: rgba(190, 204, 212, 0.55);
