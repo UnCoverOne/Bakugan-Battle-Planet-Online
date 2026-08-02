@@ -16,6 +16,28 @@ test("the result route does not remount the gameplay runtime", () => {
   assert.match(source, /<ResultScreen\s*\/>/);
 });
 
+test("the match result dialog uses the gameplay visual system and explicit match terminology", () => {
+  const source = readFileSync(
+    new URL("../components/game-screen-v2/MatchStateCoordinator.tsx", import.meta.url),
+    "utf8",
+  );
+  const css = readFileSync(
+    new URL("../components/game-screen-v2/MatchResultDialog.module.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /MATCH COMPLETE/);
+  assert.match(source, /VICTORY BY DECK-OUT/);
+  assert.match(source, /VIEW MATCH RECORD/);
+  assert.match(source, /RETURN TO PLAY/);
+  assert.match(source, /CONTINUE SERIES/);
+  assert.doesNotMatch(source, /BRAWL COMPLETE/);
+  assert.doesNotMatch(source, /EXIT GAME/);
+  assert.match(css, /clip-path:\s*polygon/);
+  assert.match(css, /backdrop-filter:[^;]*brightness/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+});
+
 test("Haos Gorthion Ultra has 600 B and 2 base Damage", () => {
   const card = CARD_BY_ID.get("bb-330");
   const bakugan = BAKUGAN.find((candidate) => candidate.id === "bb-330");
