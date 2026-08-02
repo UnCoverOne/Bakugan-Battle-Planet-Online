@@ -60,7 +60,7 @@ export const tieBreakCardCost = (card: Pick<GameCard, "cost">) =>
   card.cost === "X" ? 0 : card.cost;
 
 export function manualTieBreakState(input: MatchState | null | undefined) {
-  if (!input || input.phase === "result") return undefined;
+  if (!input || input.phase !== "power") return undefined;
   const tieBreak = (input as TieBreakMatchState).rules?.tieBreak;
   return tieBreak?.gameNumber === input.gameNumber && tieBreak.turn === input.turn
     ? tieBreak
@@ -75,7 +75,6 @@ export function playerCanFlipTieBreak(
   const player = input && playerId ? playerById(input, playerId) : undefined;
   return Boolean(
     input && playerId && player
-    && input.phase === "power"
     && tieBreak?.status === "waiting"
     && !tieBreak.current[playerId]
     && player.deck > 0,
@@ -142,7 +141,7 @@ function resolveEmptyTieBreakDecks(state: MatchState, tieBreak: ManualTieBreakSt
 function finalizeResolvedTieBreak(input: MatchState) {
   const state = cloneMatch(input);
   const tieBreak = manualTieBreakState(state);
-  if (state.phase !== "power" || !tieBreak?.winnerId || tieBreak.status !== "resolved") {
+  if (!tieBreak?.winnerId || tieBreak.status !== "resolved") {
     throw new Error("The tie-break result is not ready to advance.");
   }
   const winnerBakugan = activeOpenBakugan(state, tieBreak.winnerId);
@@ -176,9 +175,7 @@ function finalizeResolvedTieBreak(input: MatchState) {
 
 export function passPriorityWithTieBreak(input: MatchState, playerId: string) {
   const tieBreak = manualTieBreakState(input);
-  if (input.phase === "power" && tieBreak?.status === "resolved") {
-    return finalizeResolvedTieBreak(input);
-  }
+  if (tieBreak?.status === "resolved") return finalizeResolvedTieBreak(input);
   if (!shouldStartManualTieBreak(input, playerId)) return passPriority(input, playerId);
 
   const state = cloneMatch(input);
@@ -233,10 +230,8 @@ function holdTieBreakWinner(
 
 export function flipTieBreakCard(input: MatchState, playerId: string) {
   const tieBreak = manualTieBreakState(input);
-  if (input.phase === "power" && tieBreak?.status === "resolved") {
-    return finalizeResolvedTieBreak(input);
-  }
-  if (!tieBreak || tieBreak.status !== "waiting" || input.phase !== "power") {
+  if (tieBreak?.status === "resolved") return finalizeResolvedTieBreak(input);
+  if (!tieBreak || tieBreak.status !== "waiting") {
     throw new Error("There is no active tie-break to resolve.");
   }
   if (tieBreak.current[playerId]) throw new Error("You already flipped for this tie-break round.");
