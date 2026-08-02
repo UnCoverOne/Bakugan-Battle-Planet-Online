@@ -5,7 +5,6 @@ import {
   energizeCard,
   legalPlacementCells,
   orderTriggers,
-  passPriority,
   selectBakugan,
   submitCardChoice,
   type MatchState,
@@ -16,6 +15,11 @@ import {
   placeCoreOrReturnCore,
 } from "./coreReturns";
 import { flipDamageCard, resolveManualDamage } from "./manualDamage";
+import {
+  flipTieBreakCard,
+  manualTieBreakState,
+  passPriorityWithTieBreak,
+} from "./manualTieBreak";
 import { confirmRoll, playerCanConfirmRoll, playerCanSelectRollTarget, selectRollTarget } from "./rolling";
 import { drawTurnCard, playerCanDrawTurnCard } from "./turnStart";
 import { applyConnectionGrace, recordDecisionTimeout, timeoutChoicesForFields } from "./engine/timeout-policy";
@@ -25,6 +29,11 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
   if (input.phase === "startingPlayer" && now >= input.startingPlayerRevealedAt) return beginCorePlacement(input, now);
   if (now <= input.deadline || ["lobby", "result"].includes(input.phase)) return input;
   const state = structuredClone(input);
+  const tieBreak = manualTieBreakState(state);
+  if (tieBreak?.status === "waiting") {
+    const nextPlayer = state.players.find((player) => !tieBreak.current[player.id]);
+    return nextPlayer ? flipTieBreakCard(state, nextPlayer.id) : input;
+  }
   const actorId = state.priority;
   const actor = state.players.find((player) => player.id === actorId);
   if (!actor) return input;
@@ -66,7 +75,7 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
     if (state.revealedFlip) return resolveManualDamage(state, actorId);
     if (state.pendingDamage > 0) return flipDamageCard(state, actorId);
   }
-  if (["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase)) return passPriority(state, actorId);
+  if (["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase)) return passPriorityWithTieBreak(state, actorId);
   if (state.phase === "handLimit") {
     const amount = Math.max(0, actor.hand.length - 7);
     return discardToHandLimit(state, actorId, actor.hand.slice(0, amount).map((card) => card.id));
