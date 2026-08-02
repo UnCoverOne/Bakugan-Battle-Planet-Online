@@ -254,6 +254,8 @@ export type MatchLogEntry = {
   cardCatalogId?: string;
   cardInstanceId?: string;
   cardEvent?: CardLogEvent;
+  /** Player who played the card or controlled the resolving effect. */
+  playerId?: string;
 };
 
 export type MatchState = {
@@ -357,6 +359,7 @@ const entry = (
   message: string,
   card?: Pick<GameCard, "catalogId" | "id">,
   cardEvent?: CardLogEvent,
+  playerId?: string,
 ) => {
   state.log.push({
     id: `${Date.now()}-${state.log.length}-${Math.random().toString(36).slice(2, 5)}`,
@@ -368,6 +371,7 @@ const entry = (
       cardInstanceId: card.id,
       cardEvent,
     } : {}),
+    ...(playerId ? { playerId } : {}),
   });
 };
 const withVersion = (state: MatchState) => { state.version += 1; return state; };
@@ -1378,7 +1382,7 @@ export const playCard = (input: MatchState, playerId: string, cardId: string, ch
     cardType: card.type,
     targetBakuganId: activeBakugan(state, playerId)?.id,
   });
-  entry(state, "game", `${player.name} added ${card.name} to the batch for ${cost} Energy.`, card, "played");
+  entry(state, "game", `${player.name} added ${card.name} to the batch for ${cost} Energy.`, card, "played", playerId);
   state.undoWindow = {
     actorId: playerId,
     action: "play-card",
@@ -1772,7 +1776,7 @@ const executeRuleAction = (
           : {};
         state.batch.push({ id: uid(), controllerId, card: selected, choices: freeChoices, kind: "card" });
         emitGameEvent(state, { id: `${state.turn}:card-play:${selected.id}`, type: "card-play", playerId: controllerId, cardType: selected.type });
-        entry(state, "game", `${player.name} played ${selected.name} from hand for free.`, selected, "played");
+        entry(state, "game", `${player.name} played ${selected.name} from hand for free.`, selected, "played", controllerId);
         return;
       }
       if (action.source === "self") {
@@ -1781,7 +1785,7 @@ const executeRuleAction = (
         state.nextCardCostReduction[controllerId] = 0;
         state.batch.push({ id: uid(), controllerId, card, choices, kind: "card" });
         emitGameEvent(state, { id: `${state.turn}:card-play:${card.id}`, type: "card-play", playerId: controllerId, cardType: card.type });
-        entry(state, "game", `${player.name} played discarded ${card.name} for free.`, card, "played");
+        entry(state, "game", `${player.name} played discarded ${card.name} for free.`, card, "played", controllerId);
         return;
       }
       const tracked = player as PlayerState & { revealedDeckCardId?: string };
@@ -1798,7 +1802,7 @@ const executeRuleAction = (
       state.batch.push({ id: uid(), controllerId, card: revealed, choices: {}, kind: "card" });
       delete tracked.revealedDeckCardId;
       emitGameEvent(state, { id: `${state.turn}:card-play:${revealed.id}`, type: "card-play", playerId: controllerId, cardType: revealed.type });
-      entry(state, "game", `${player.name} played the revealed ${revealed.name} for free.`, revealed, "played");
+      entry(state, "game", `${player.name} played the revealed ${revealed.name} for free.`, revealed, "played", controllerId);
       return;
     }
     case "attack": {
@@ -2031,7 +2035,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
   }
   delete player.revealedDeckCardId;
   if (isRuleObject(pending)) completeRuleObject(pending);
-  entry(state, "game", `${pending.card.name} finished resolving its typed rule program.`, pending.card, "effect");
+  entry(state, "game", `${pending.card.name} finished resolving its typed rule program.`, pending.card, "effect", pending.controllerId);
   return true;
 }
 
