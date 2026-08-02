@@ -2,10 +2,10 @@
 .app-shell:not(.immersive-match) .overhaul-topbar{height:76px;grid-template-columns:210px minmax(360px,1fr) auto;padding:0 clamp(1rem,3vw,2.25rem);box-shadow:0 10px 35px rgba(0,0,0,.28)}
 .app-shell:not(.immersive-match) .overhaul-topbar .brand{height:76px;gap:.45rem}
 .app-shell:not(.immersive-match) .overhaul-topbar .brand img{width:70px;height:66px}
-.app-shell:not(.immersive-match) .overhaul-topbar nav{gap:.25rem}
-.app-shell:not(.immersive-match) .overhaul-topbar nav a{display:flex;align-items:center;padding:0 1.15rem;border:0;border-radius:4px;font-style:normal;font-size:.78rem;letter-spacing:.08em}
-.app-shell:not(.immersive-match) .overhaul-topbar nav a.active{background:linear-gradient(180deg,rgba(0,174,234,.08),rgba(0,174,234,.19))}
-.app-shell:not(.immersive-match) .overhaul-topbar nav a.active::after{left:18%;right:18%;height:3px}
+.app-shell:not(.immersive-match) .overhaul-topbar>nav{gap:.25rem}
+.app-shell:not(.immersive-match) .overhaul-topbar>nav a{display:flex;align-items:center;padding:0 1.15rem;border:0;border-radius:4px;font-style:normal;font-size:.78rem;letter-spacing:.08em}
+.app-shell:not(.immersive-match) .overhaul-topbar>nav a.active{background:linear-gradient(180deg,rgba(0,174,234,.08),rgba(0,174,234,.19))}
+.app-shell:not(.immersive-match) .overhaul-topbar>nav a.active::after{left:18%;right:18%;height:3px}
 .app-shell:not(.immersive-match) .top-actions{position:relative}
 .sync-dot{display:grid;place-items:center;width:38px;height:38px;border:1px solid rgba(255,255,255,.15);border-radius:50%;background:#061923;color:#8fb2bf;font-size:.95rem}
 .sync-dot.synced{color:#6be68a;border-color:rgba(107,230,138,.38)}
@@ -31,11 +31,12 @@
 .profile-popover-stat-value svg{width:1.1em;height:1.1em;fill:none;stroke:#80d9f5;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .profile-popover-stats strong{display:block;font-size:1.38rem;line-height:1}
 .profile-popover-stats>div>span{display:block;color:var(--muted);font-size:.95rem;line-height:1.1}
-.profile-popover nav{display:grid;padding:.35rem .45rem}
-.profile-popover-row{min-height:44px;display:grid;grid-template-columns:1.1em minmax(0,1fr) .85em;align-items:center;gap:4%;width:100%;padding:0 5% 0 4%;border:0;border-radius:6px;background:none;color:#dce8ec;text-align:left;font-size:.84rem;font-weight:800;text-decoration:none}
+.profile-popover nav{display:grid;width:100%;padding:.35rem 0}
+.profile-popover-row{box-sizing:border-box;min-height:44px;display:grid;grid-template-columns:1.1em minmax(0,1fr) .85em;align-items:center;justify-self:stretch;gap:4%;width:100%;padding:0 5% 0 4%;border:0;border-radius:0;background:none;color:#dce8ec;text-align:left;font-size:.84rem;font-weight:800;text-decoration:none}
 .profile-popover-row:hover,.profile-popover-row:focus-visible{background:rgba(0,174,234,.12);color:#fff}
 .profile-popover-row-icon,.profile-popover-chevron{display:grid;place-items:center}
 .profile-popover-row-icon svg{width:1.1em;height:1.1em;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.profile-popover-row-label{min-width:0;justify-self:start;text-align:left}
 .profile-popover-chevron{justify-self:end;color:#78929b}
 .profile-popover-chevron svg{width:.85em;height:.85em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .profile-popover-logout{min-height:54px;display:grid;grid-template-columns:1.1em minmax(0,1fr);align-items:center;gap:4%;width:calc(100% - .9rem);margin:0 .45rem;padding:0 4%;border:0;border-top:1px solid rgba(255,255,255,.1);background:none;color:#ff7075;text-align:left;font-size:.84rem;font-weight:800}
@@ -317,7 +318,7 @@
 @media (max-width:1100px){
   .app-shell:not(.immersive-match) .overhaul-topbar{grid-template-columns:150px 1fr auto;padding:0 1rem}
   .app-shell:not(.immersive-match) .overhaul-topbar .brand span{display:none}
-  .app-shell:not(.immersive-match) .overhaul-topbar nav a{padding:0 .75rem}
+  .app-shell:not(.immersive-match) .overhaul-topbar>nav a{padding:0 .75rem}
   .resume-chip{font-size:0;width:42px;padding:0}
   .resume-chip .pulse{margin:0}
   .home-engagement-grid{grid-template-columns:1fr}
