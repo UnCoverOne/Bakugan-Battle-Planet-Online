@@ -33,7 +33,6 @@ function log(
   message: string,
   card?: Pick<GameCard, "catalogId" | "id">,
   cardEvent?: CardLogEvent,
-  playerId?: string,
 ) {
   state.log.push({
     id: `${Date.now()}-manual-damage-${state.log.length}`,
@@ -45,7 +44,6 @@ function log(
       cardInstanceId: card.id,
       cardEvent,
     } : {}),
-    ...(playerId ? { playerId } : {}),
   });
 }
 function enterPostDamage(state: MatchState) {
