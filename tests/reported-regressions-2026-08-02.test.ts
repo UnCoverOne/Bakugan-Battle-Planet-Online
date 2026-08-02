@@ -26,6 +26,23 @@ test("Haos Gorthion Ultra has 600 B and 2 base Damage", () => {
   assert.equal(bakugan?.damage, 2);
 });
 
+test("stale Haos Gorthion Ultra snapshots migrate from 7 to 2 Damage", () => {
+  const first = makePlayer("first", "First", STARTER_DECKS[1]);
+  const second = makePlayer("second", "Second", STARTER_DECKS[0]);
+  const state = createMatch("GOR330", "bo1", [first, second]);
+  const gorthion = state.players[0].bakugan.find((candidate) => (
+    candidate.character.catalogId === "bb-330"
+  ));
+  assert.ok(gorthion);
+
+  gorthion.damage = 7;
+  gorthion.character.damage = 7;
+  normalizeRuleObjects(state);
+
+  assert.equal(gorthion.damage, 2);
+  assert.equal(gorthion.character.damage, 2);
+});
+
 test("Dan Kouzo played by Lia after opening does not trigger retroactively", () => {
   const first = makePlayer("first", "First", STARTER_DECKS[0]);
   const second = makePlayer("second", "Second", STARTER_DECKS[1]);
@@ -58,7 +75,7 @@ test("Dan Kouzo played by Lia after opening does not trigger retroactively", () 
 
   const resolved = resolveStructuredEffect(state, pending);
   const player = resolved.players[0];
-  assert.equal(player.heroes.some((card) => card.id === dan.id), true);
+  assert.equal(player.heroes.some((candidate) => candidate.id === dan.id), true);
   assert.equal(player.revealedDeckCardId, undefined);
   assert.equal(player.deckCards[0]?.id, nextCard.id);
 });
