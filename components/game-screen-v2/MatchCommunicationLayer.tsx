@@ -34,6 +34,10 @@ function eventKindLabel(kind: string) {
   return "GAME";
 }
 
+function cardEventActor(match: MatchState | null, playerId: string | undefined) {
+  return match?.players.find((player) => player.id === playerId)?.name ?? "Unknown player";
+}
+
 export function MatchCommunicationLayer() {
   const communication = useMatchSelector((state): CommunicationState => ({
     active: state.route === "match",
@@ -232,7 +236,7 @@ export function MatchCommunicationLayer() {
                   data-event={entry.cardEvent}
                   data-card-type={entry.card.type.toLowerCase()}
                   key={entry.id}
-                  title={`${entry.card.displayName || entry.card.name} • ${entry.cardEvent === "played" ? "Played" : "Effect resolved"} • ${timeLabel(entry.at)}`}
+                  title={`${cardEventActor(communication.match, entry.playerId)} • ${entry.card.displayName || entry.card.name} • ${entry.cardEvent === "played" ? "Played" : "Effect resolved"} • ${timeLabel(entry.at)}`}
                 >
                   <div className={`${batchStyles.batchHex} ${styles.cardPreview}`}>
                     <span aria-hidden="true">{(entry.card.displayName || entry.card.name).slice(0, 1)}</span>
@@ -245,6 +249,9 @@ export function MatchCommunicationLayer() {
                   <figcaption>
                     <small>{entry.cardEvent === "played" ? "PLAYED" : "EFFECT"}</small>
                     <strong>{entry.card.displayName || entry.card.name}</strong>
+                    <span className={styles.cardActor}>
+                      {cardEventActor(communication.match, entry.playerId)} {entry.cardEvent === "played" ? "PLAYED THIS CARD" : "USED THIS EFFECT"}
+                    </span>
                     <time dateTime={new Date(entry.at).toISOString()}>{timeLabel(entry.at)}</time>
                   </figcaption>
                 </figure>
