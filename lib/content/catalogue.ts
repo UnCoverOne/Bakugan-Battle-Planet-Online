@@ -37,8 +37,15 @@ export function cardCollectorLabel(card: Pick<GameCard, "catalogId" | "number">)
   return `${card.number}/${info.collectorTotal} ${info.code}`;
 }
 
+const VERIFIED_CARD_CORRECTIONS: Partial<Record<string, Partial<ControlledCardRecord>>> = {
+  // The generated source incorrectly transcribed Haos Gorthion Ultra's printed
+  // Damage Rating as 7. Its Character card is 600 B / 2 Damage.
+  "bb-330": { damage: 2 },
+};
+
 const battleBrawlers = (battleBrawlersJson as unknown as ControlledCardRecord[]).map((record) => ({
   ...record,
+  ...VERIFIED_CARD_CORRECTIONS[record.id],
   id: record.id,
 }));
 
@@ -128,6 +135,9 @@ export function validateControlledCatalogue(
   for (let number = 1; number <= 220; number += 1) if (!(setNumbers.get("AA")?.has(number))) errors.push(`Missing AA card number ${number}.`);
   for (let number = 1; number <= 2; number += 1) if (!(setNumbers.get("EX")?.has(number))) errors.push(`Missing EX card number ${number}.`);
   if ((setNumbers.get("BR")?.get(221) ?? 0) !== 2) errors.push("BR collector number 221 must contain both known printings.");
+  if (records.find((card) => card.id === "bb-330")?.damage !== 2) {
+    errors.push("bb-330: Haos Gorthion Ultra must have 2 base Damage.");
+  }
   for (const [type, expected] of Object.entries(EXPECTED_TYPE_COUNTS)) {
     if ((typeCounts.get(type) ?? 0) !== expected) errors.push(`${type}: expected ${expected}, found ${typeCounts.get(type) ?? 0}.`);
   }
