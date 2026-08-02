@@ -17,7 +17,14 @@ section:has(> footer[class*="builderStatus"]) > [class*="builderLayout"] {
   margin-bottom: 0;
 }
 
-section:has(> footer[class*="builderStatus"]) [class*="builderGallery"] {
+/*
+ * Scope the viewport height adjustment to the gallery pane itself. The former
+ * descendant selector also matched builderGalleryGrid, builderGalleryCard, and
+ * other CSS-module class names, constraining the grid and collapsing its rows.
+ */
+section:has(> footer[class*="builderStatus"])
+  > [class*="builderLayout"]
+  > section[class*="builderGallery"] {
   max-height: calc(
     100dvh
     - 76px
@@ -42,7 +49,9 @@ section:has(> footer[class*="builderStatus"]) > footer[class*="builderStatus"] {
     );
   }
 
-  section:has(> footer[class*="builderStatus"]) [class*="builderGallery"] {
+  section:has(> footer[class*="builderStatus"])
+    > [class*="builderLayout"]
+    > section[class*="builderGallery"] {
     max-height: none;
   }
 
