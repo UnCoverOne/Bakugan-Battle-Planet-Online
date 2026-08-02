@@ -5,10 +5,12 @@ import {
   activateIntrinsicReroll,
   beginCorePlacement,
   concedeMatch,
+  discardToHandLimit,
   energizeCard,
   passPriority,
   prepareCardPlay,
   selectBakugan,
+  submitCardChoice,
   type CardChoices,
   type MatchState,
 } from "../../lib/game";
@@ -49,6 +51,7 @@ import { SelectionInteractionLayer } from "./SelectionInteractionLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
 import {
   cardRequiresSelection,
+  handDiscardRequirement,
   shouldAutomaticallyPass,
   type HandActionMode,
 } from "./matchHudState";
@@ -98,6 +101,7 @@ export function GameplayClient() {
   }));
   const [handActionMode, setHandActionMode] = useState<HandActionMode>(null);
   const [selectedHandCardId, setSelectedHandCardId] = useState("");
+  const [selectedDiscardCardIds, setSelectedDiscardCardIds] = useState<string[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const [startupError, setStartupError] = useState("");
   const automaticActionKey = useRef("");
@@ -192,6 +196,21 @@ export function GameplayClient() {
     { cardId },
     (match, actorId) => energizeCard(match, actorId, cardId),
   );
+
+  const discardSelectedCards = (cardIds: string[]) => {
+    const current = readMatchStore();
+    const actorId = current.playerId ?? current.match?.players[0]?.id;
+    const pendingDiscard = current.match?.pendingChoice?.schema.fields.some((field) => (
+      field.id === "discardCardIds" && field.chooserId === actorId
+    ));
+    return submitMatchAction(
+      pendingDiscard ? "choice" : "hand-limit",
+      pendingDiscard ? { choices: { discardCardIds: cardIds } } : { cardIds },
+      (match, localActorId) => pendingDiscard
+        ? submitCardChoice(match, localActorId, { discardCardIds: cardIds })
+        : discardToHandLimit(match, localActorId, cardIds),
+    );
+  };
 
   const skipEnergizing = () => submitMatchAction(
     "energize",
@@ -342,8 +361,9 @@ export function GameplayClient() {
       && !localPlayer!.energizedThisTurn;
     setHandActionMode(energizing ? "energize" : null);
     setSelectedHandCardId("");
+    setSelectedDiscardCardIds([]);
     setSelectedCharacterId("");
-  }, [storedState.match?.phase, localPlayer?.energizedThisTurn]);
+  }, [storedState.match?.phase, storedState.match?.pendingChoice?.id, localPlayer?.energizedThisTurn]);
 
   useEffect(() => {
     const match = storedState.match as TurnStartMatchState | null;
@@ -415,11 +435,26 @@ export function GameplayClient() {
 
   const clearSelections = useCallback(() => {
     setSelectedHandCardId("");
+    setSelectedDiscardCardIds([]);
     setSelectedCharacterId("");
   }, []);
 
   const toggleHandCardSelection = useCallback((cardId: string) => {
     setSelectedHandCardId((current) => current === cardId ? "" : cardId);
+    setSelectedCharacterId("");
+  }, []);
+
+  const toggleDiscardCardSelection = useCallback((cardId: string) => {
+    const current = readMatchStore();
+    const currentMatch = current.match;
+    const actorId = current.playerId ?? currentMatch?.players[0]?.id;
+    const maximum = handDiscardRequirement(currentMatch, actorId)?.maximum ?? 0;
+    setSelectedDiscardCardIds((current) => (
+      current.includes(cardId)
+        ? current.filter((candidate) => candidate !== cardId)
+        : current.length < maximum ? [...current, cardId] : current
+    ));
+    setSelectedHandCardId("");
     setSelectedCharacterId("");
   }, []);
 
@@ -475,14 +510,17 @@ export function GameplayClient() {
           playerId={storedState.playerId}
           handMode={handActionMode}
           selectedHandCardId={selectedHandCardId}
+          selectedDiscardCardIds={selectedDiscardCardIds}
           selectedCharacterId={selectedCharacterId}
           onHandModeChange={setHandActionMode}
           onSelectedHandCardChange={setSelectedHandCardId}
+          onSelectedDiscardCardsChange={setSelectedDiscardCardIds}
           onSelectedCharacterChange={setSelectedCharacterId}
           onDrawCard={drawCard}
           onActivateReroll={activateReroll}
           onPlayCard={playHandCard}
           onEnergizeCard={energizeHandCard}
+          onDiscardCards={discardSelectedCards}
           onSkipEnergize={skipEnergizing}
           onPassTurn={passTurn}
           onPlayFlip={playFlip}
@@ -519,7 +557,9 @@ export function GameplayClient() {
           playerId={storedState.playerId}
           actionMode={handActionMode}
           selectedCardId={selectedHandCardId}
+          selectedDiscardCardIds={selectedDiscardCardIds}
           onCardSelect={toggleHandCardSelection}
+          onDiscardCardSelect={toggleDiscardCardSelection}
         />
         <CardPreviewLayer match={storedState.match} />
       </>
@@ -527,4 +567,3 @@ export function GameplayClient() {
   }
   return null;
 }
-
