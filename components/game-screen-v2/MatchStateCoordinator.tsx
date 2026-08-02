@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
 import { captureCoreReturns } from "../../lib/coreReturns";
 import type { MatchState } from "../../lib/game";
 import { CoreReturnPlacementLayer } from "./CoreReturnPlacementLayer";
+import styles from "./MatchResultDialog.module.css";
 import {
   MATCH_UPDATE_EVENT,
   publishMatch,
@@ -27,212 +29,195 @@ const GAME_ROUTE_PATHS: Record<string, string> = {
   settings: "/settings",
 };
 
-const resultOverlayStyle: CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 12000,
-  display: "grid",
-  placeItems: "center",
-  padding: 20,
-  background: "rgba(4, 8, 18, 0.78)",
-  backdropFilter: "blur(10px)",
-};
-
-const resultPanelStyle: CSSProperties = {
-  position: "relative",
-  width: "min(440px, calc(100vw - 32px))",
-  padding: "32px 28px 28px",
-  overflow: "hidden",
-  border: "1px solid",
-  borderRadius: 20,
-  background: "linear-gradient(145deg, rgba(23, 30, 51, 0.98), rgba(8, 12, 24, 0.98))",
-  color: "#ffffff",
-  textAlign: "center",
-};
-
-const resultCloseStyle: CSSProperties = {
-  position: "absolute",
-  top: 12,
-  right: 12,
-  width: 38,
-  height: 38,
-  border: "1px solid rgba(255, 255, 255, 0.2)",
-  borderRadius: 999,
-  background: "rgba(255, 255, 255, 0.08)",
-  color: "#ffffff",
-  fontSize: 24,
-  lineHeight: 1,
-  cursor: "pointer",
-};
-
-const resultBadgeStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minHeight: 30,
-  marginBottom: 16,
-  padding: "5px 12px",
-  border: "1px solid",
-  borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 800,
-  letterSpacing: "0.14em",
-};
-
-const resultTitleStyle: CSSProperties = {
-  margin: 0,
-  fontSize: "clamp(2.4rem, 11vw, 4.6rem)",
-  lineHeight: 0.95,
-  letterSpacing: "0.04em",
-};
-
-const resultReasonStyle: CSSProperties = {
-  margin: "18px auto 0",
-  maxWidth: 340,
-  color: "rgba(255, 255, 255, 0.72)",
-  fontSize: 15,
-  lineHeight: 1.5,
-};
-
-const resultScoreStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: 10,
-  margin: "24px 0",
-};
-
-const resultScoreItemStyle: CSSProperties = {
-  display: "grid",
-  gap: 6,
-  padding: "12px 10px",
-  border: "1px solid rgba(255, 255, 255, 0.12)",
-  borderRadius: 12,
-  background: "rgba(255, 255, 255, 0.05)",
-};
-
-const resultExitStyle: CSSProperties = {
-  width: "100%",
-  minHeight: 50,
-  border: 0,
-  borderRadius: 12,
-  fontSize: 15,
-  fontWeight: 900,
-  letterSpacing: "0.08em",
-  cursor: "pointer",
-};
-
 type ResultOutcome = "victory" | "loss" | "draw";
 
-const RESULT_COPY: Record<ResultOutcome, {
+type ResultCopy = {
   title: string;
-  eyebrow: string;
   summary: string;
   accent: string;
-  buttonText: string;
-}> = {
+};
+
+const RESULT_COPY: Record<ResultOutcome, ResultCopy> = {
   victory: {
     title: "VICTORY",
-    eyebrow: "BRAWL COMPLETE",
     summary: "You won the game.",
     accent: "#f6c84f",
-    buttonText: "#111827",
   },
   loss: {
-    title: "LOSS",
-    eyebrow: "BRAWL COMPLETE",
+    title: "DEFEAT",
     summary: "Your opponent won the game.",
     accent: "#ff5a66",
-    buttonText: "#ffffff",
   },
   draw: {
     title: "DRAW",
-    eyebrow: "BRAWL COMPLETE",
     summary: "The game ended without a winner.",
     accent: "#80d8ff",
-    buttonText: "#07131c",
   },
 };
+
+function matchTarget(match: MatchState) {
+  return match.format === "bo3" ? 2 : 1;
+}
+
+function matchIsComplete(match: MatchState) {
+  return Math.max(0, ...Object.values(match.series).map(Number)) >= matchTarget(match);
+}
+
+function resultReasonCopy(
+  match: MatchState,
+  outcome: ResultOutcome,
+  localPlayerId: string | undefined,
+  fallback: string,
+) {
+  const reason = match.resultReason?.trim() ?? "";
+  const normalized = reason.toLowerCase();
+  const defeatedPlayer = match.winner
+    ? match.players.find((player) => player.id !== match.winner)
+    : null;
+  const defeatedLocally = defeatedPlayer?.id === localPlayerId;
+  const defeatedName = defeatedPlayer?.name ?? "The defeated player";
+
+  if (normalized.includes("deck-out")) {
+    return {
+      title: outcome === "victory"
+        ? "VICTORY BY DECK-OUT"
+        : outcome === "loss" ? "DEFEAT BY DECK-OUT" : "DECK-OUT DRAW",
+      detail: defeatedLocally
+        ? "You had no cards remaining when damage was dealt."
+        : `${defeatedName} had no cards remaining when damage was dealt.`,
+    };
+  }
+
+  if (normalized.includes("conced")) {
+    return {
+      title: outcome === "victory"
+        ? "VICTORY BY CONCESSION"
+        : outcome === "loss" ? "DEFEAT BY CONCESSION" : "MATCH DRAWN",
+      detail: defeatedLocally ? "You conceded the game." : `${defeatedName} conceded the game.`,
+    };
+  }
+
+  if (normalized.includes("disconnect")) {
+    return {
+      title: outcome === "victory"
+        ? "VICTORY BY DISCONNECT"
+        : outcome === "loss" ? "DEFEAT BY DISCONNECT" : "MATCH DRAWN",
+      detail: defeatedLocally
+        ? "Your connection expired before the match could continue."
+        : `${defeatedName}'s connection expired before the match could continue.`,
+    };
+  }
+
+  return {
+    title: outcome === "victory" ? "MATCH WON" : outcome === "loss" ? "MATCH LOST" : "MATCH DRAWN",
+    detail: reason ? `${fallback} ${reason}` : fallback,
+  };
+}
+
+function playerRole(playerId: string, localPlayerId: string | undefined) {
+  if (playerId === localPlayerId) return "PLAYER";
+  if (playerId === "training-bot") return "TRAINING AI";
+  return "OPPONENT";
+}
 
 function MatchResultDialog({
   match,
   playerId,
-  onExit,
+  onViewRecord,
+  onContinue,
 }: {
   match: MatchState;
   playerId?: string;
-  onExit: () => void;
+  onViewRecord: () => void;
+  onContinue: () => void;
 }) {
-  const [open, setOpen] = useState(true);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const primaryButtonRef = useRef<HTMLButtonElement>(null);
   const localPlayerId = playerId ?? match.players[0]?.id;
   const outcome: ResultOutcome = !match.winner
     ? "draw"
     : match.winner === localPlayerId ? "victory" : "loss";
   const copy = RESULT_COPY[outcome];
+  const complete = matchIsComplete(match);
+  const reason = resultReasonCopy(match, outcome, localPlayerId, copy.summary);
+  const localPlayer = match.players.find((player) => player.id === localPlayerId)
+    ?? match.players[0];
+  const opponent = match.players.find((player) => player.id !== localPlayer?.id)
+    ?? match.players[1];
+  const localScore = localPlayer ? match.series[localPlayer.id] ?? 0 : 0;
+  const opponentScore = opponent ? match.series[opponent.id] ?? 0 : 0;
+  const scoreLabel = match.format === "bo3" ? "SERIES SCORE" : "FINAL SCORE";
+  const eyebrow = complete ? "MATCH COMPLETE" : `GAME ${match.gameNumber} COMPLETE`;
+  const primaryLabel = complete ? "RETURN TO PLAY" : "CONTINUE SERIES";
 
   useEffect(() => {
-    if (!open) return;
-    closeButtonRef.current?.focus();
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+    primaryButtonRef.current?.focus();
+    const continueOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onContinue();
     };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [open]);
-
-  if (!open) return null;
+    window.addEventListener("keydown", continueOnEscape);
+    return () => window.removeEventListener("keydown", continueOnEscape);
+  }, [onContinue]);
 
   return (
-    <div style={resultOverlayStyle} role="presentation">
+    <div
+      className={styles.overlay}
+      role="presentation"
+      style={{ "--result-accent": copy.accent } as CSSProperties}
+    >
       <section
+        className={styles.panel}
+        data-outcome={outcome}
         role="dialog"
         aria-modal="true"
         aria-labelledby="match-result-title"
         aria-describedby="match-result-description"
-        style={{
-          ...resultPanelStyle,
-          borderColor: copy.accent,
-          boxShadow: `0 28px 90px rgba(0, 0, 0, 0.58), 0 0 0 1px ${copy.accent}33`,
-        }}
       >
-        <button
-          ref={closeButtonRef}
-          type="button"
-          aria-label="Close match result"
-          title="Close"
-          style={resultCloseStyle}
-          onClick={() => setOpen(false)}
+        <span className={styles.energyTrace} aria-hidden="true" />
+        <header className={styles.header}>
+          <img className={styles.logo} src="/assets/logo.png" alt="" aria-hidden="true" />
+          <span className={styles.eyebrow}>{eyebrow}</span>
+          <h2 id="match-result-title" className={styles.title}>{copy.title}</h2>
+          <div className={styles.reason}>
+            <strong>{reason.title}</strong>
+            <p id="match-result-description">{reason.detail}</p>
+          </div>
+        </header>
+
+        <div
+          className={styles.score}
+          aria-label={`${scoreLabel}: ${localPlayer?.name ?? "Player"} ${localScore}, ${opponent?.name ?? "Opponent"} ${opponentScore}`}
         >
-          ×
-        </button>
-        <span style={{ ...resultBadgeStyle, color: copy.accent, borderColor: copy.accent }}>
-          {copy.eyebrow}
-        </span>
-        <h2 id="match-result-title" style={{ ...resultTitleStyle, color: copy.accent }}>
-          {copy.title}
-        </h2>
-        <p id="match-result-description" style={resultReasonStyle}>
-          {copy.summary}{match.resultReason ? ` ${match.resultReason}` : ""}
-        </p>
-        <div style={resultScoreStyle} aria-label="Final score">
-          {match.players.map((player) => (
-            <div key={player.id} style={resultScoreItemStyle}>
-              <strong style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis" }}>
-                {player.name}
-              </strong>
-              <span style={{ color: copy.accent, fontSize: 26, fontWeight: 900 }}>
-                {match.series[player.id] ?? 0}
-              </span>
-            </div>
-          ))}
+          <span className={styles.scoreLabel}>{scoreLabel}</span>
+          <div className={styles.scoreSide} data-winner={match.winner === localPlayer?.id ? "true" : "false"}>
+            <strong title={localPlayer?.name}>{localPlayer?.name ?? "Player"}</strong>
+            <small>{localPlayer ? playerRole(localPlayer.id, localPlayerId) : "PLAYER"}</small>
+          </div>
+          <div className={styles.scoreValue} aria-hidden="true">
+            <strong>{localScore}</strong>
+            <i>—</i>
+            <strong>{opponentScore}</strong>
+          </div>
+          <div className={styles.scoreSide} data-align="right" data-winner={match.winner === opponent?.id ? "true" : "false"}>
+            <strong title={opponent?.name}>{opponent?.name ?? "Opponent"}</strong>
+            <small>{opponent ? playerRole(opponent.id, localPlayerId) : "OPPONENT"}</small>
+          </div>
         </div>
-        <button
-          type="button"
-          style={{ ...resultExitStyle, background: copy.accent, color: copy.buttonText }}
-          onClick={onExit}
-        >
-          EXIT GAME
-        </button>
+
+        <div className={styles.actions}>
+          <button type="button" className={styles.secondaryAction} onClick={onViewRecord}>
+            VIEW MATCH RECORD
+          </button>
+          <button
+            ref={primaryButtonRef}
+            type="button"
+            className={styles.primaryAction}
+            onClick={onContinue}
+          >
+            {primaryLabel}
+          </button>
+        </div>
       </section>
     </div>
   );
@@ -259,6 +244,7 @@ export function writeGameSettings(settings: Record<string, unknown>) {
 }
 
 export function MatchStateCoordinator() {
+  const router = useRouter();
   useMatchTransport();
   const returnState = useMatchSelector((state) => ({
     match: state.match,
@@ -277,9 +263,12 @@ export function MatchStateCoordinator() {
         <MatchResultDialog
           match={returnState.match!}
           playerId={returnState.playerId}
-          onExit={() => {
-            writeGameRoute("result");
-            window.location.reload();
+          onViewRecord={() => {
+            const recordId = `${returnState.match!.id}-${returnState.match!.gameNumber}`;
+            router.push(`/profile/records/${encodeURIComponent(recordId)}`);
+          }}
+          onContinue={() => {
+            router.push(matchIsComplete(returnState.match!) ? "/play" : "/play/result");
           }}
         />
       ) : null}
