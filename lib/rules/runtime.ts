@@ -65,9 +65,15 @@ export function dispatchRulesCommand(input: MatchState, actorId: string, command
     case "SUBMIT_CARD_CHOICE": next = submitCardChoice(input, actorId, command.choices); break;
     case "CANCEL_CARD_CHOICE": next = cancelCardChoice(input, actorId); break;
     case "ORDER_TRIGGERS": next = orderTriggers(input, actorId, command.requestId, command.orderedIds); break;
-    case "REVEAL_DAMAGE_FLIP": next = manualTieBreakState(input)
-      ? flipTieBreakCard(input, actorId)
-      : flipDamageCard(input, actorId); break;
+    case "REVEAL_DAMAGE_FLIP": {
+      const tieBreak = manualTieBreakState(input);
+      next = tieBreak?.status === "resolved"
+        ? passPriorityWithTieBreak(input, actorId)
+        : tieBreak
+          ? flipTieBreakCard(input, actorId)
+          : flipDamageCard(input, actorId);
+      break;
+    }
     case "PLAY_DAMAGE_FLIP": next = resolveManualDamage(input, actorId, command.cardId, command.choices); break;
     case "TAP_ENERGY_CARD": next = tapEnergyCard(input, actorId, command.cardId); break;
     case "PASS_PRIORITY": next = resumeDamageAfterFlipWindow(passPriorityWithTieBreak(input, actorId)); break;
