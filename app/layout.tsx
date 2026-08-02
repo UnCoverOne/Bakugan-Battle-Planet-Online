@@ -22,8 +22,9 @@ export const metadata: Metadata = {
   },
   description: "Build a Battle Planet deck, construct the Hide Matrix, and play a rules-guided online Bakugan TCG match.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: { url: "/assets/logo.png", type: "image/png" },
+    shortcut: "/assets/logo.png",
+    apple: { url: "/assets/logo.png", type: "image/png" },
   },
 };
 
