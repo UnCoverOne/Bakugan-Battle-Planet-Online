@@ -142,7 +142,7 @@ function resolveEmptyTieBreakDecks(state: MatchState, tieBreak: ManualTieBreakSt
 function finalizeResolvedTieBreak(input: MatchState) {
   const state = cloneMatch(input);
   const tieBreak = manualTieBreakState(state);
-  if (!tieBreak?.winnerId || tieBreak.status !== "resolved") {
+  if (state.phase !== "power" || !tieBreak?.winnerId || tieBreak.status !== "resolved") {
     throw new Error("The tie-break result is not ready to advance.");
   }
   const winnerBakugan = activeOpenBakugan(state, tieBreak.winnerId);
@@ -175,11 +175,14 @@ function finalizeResolvedTieBreak(input: MatchState) {
 }
 
 export function passPriorityWithTieBreak(input: MatchState, playerId: string) {
-  if (manualTieBreakState(input)?.status === "resolved") return finalizeResolvedTieBreak(input);
+  const tieBreak = manualTieBreakState(input);
+  if (input.phase === "power" && tieBreak?.status === "resolved") {
+    return finalizeResolvedTieBreak(input);
+  }
   if (!shouldStartManualTieBreak(input, playerId)) return passPriority(input, playerId);
 
   const state = cloneMatch(input);
-  const tieBreak: ManualTieBreakState = {
+  const nextTieBreak: ManualTieBreakState = {
     gameNumber: state.gameNumber,
     turn: state.turn,
     round: 1,
@@ -189,14 +192,14 @@ export function passPriorityWithTieBreak(input: MatchState, playerId: string) {
     current: {},
     status: "waiting",
   };
-  rulesFor(state).tieBreak = tieBreak;
+  rulesFor(state).tieBreak = nextTieBreak;
   state.priority = "";
   state.passes = [];
-  state.stepLabel = `Brawl Phase • ${tieBreak.decidingStat} tie-break • Flip top cards`;
+  state.stepLabel = `Brawl Phase • ${nextTieBreak.decidingStat} tie-break • Flip top cards`;
   state.deadline = Date.now() + TIE_BREAK_DECISION_MS;
   state.undoWindow = undefined;
-  appendLog(state, "game", `${tieBreak.decidingStat} is tied. Both players must flip the top card of their deck.`);
-  resolveEmptyTieBreakDecks(state, tieBreak);
+  appendLog(state, "game", `${nextTieBreak.decidingStat} is tied. Both players must flip the top card of their deck.`);
+  resolveEmptyTieBreakDecks(state, nextTieBreak);
   state.version += 1;
   return state;
 }
@@ -230,8 +233,10 @@ function holdTieBreakWinner(
 
 export function flipTieBreakCard(input: MatchState, playerId: string) {
   const tieBreak = manualTieBreakState(input);
-  if (tieBreak?.status === "resolved") return finalizeResolvedTieBreak(input);
-  if (!tieBreak || input.phase !== "power") {
+  if (input.phase === "power" && tieBreak?.status === "resolved") {
+    return finalizeResolvedTieBreak(input);
+  }
+  if (!tieBreak || tieBreak.status !== "waiting" || input.phase !== "power") {
     throw new Error("There is no active tie-break to resolve.");
   }
   if (tieBreak.current[playerId]) throw new Error("You already flipped for this tie-break round.");
