@@ -9,6 +9,7 @@ import {
   type PlayerState,
   type RollOutcome,
 } from "../../lib/game";
+import { evaluateBakuganCharacteristics } from "../../lib/rules/modifiers";
 
 export const BRAWL_PHASES = new Set([
   "power",
@@ -158,11 +159,17 @@ export function brawlCombatantView(
   if (match.shadowStrike[bakugan.id]) modifiers.push("ShadowStrike");
   if (!modifiers.length) modifiers.push("No active modifiers");
 
+  const characteristics = evaluateBakuganCharacteristics(match, bakugan, player);
+  const appliedCardSourceIds = new Set(
+    characteristics.applied.map((modifier) => modifier.sourceId),
+  );
+  const activeHeroEffects = match.players
+    .flatMap((owner) => owner.heroes)
+    .filter((hero) => appliedCardSourceIds.has(hero.id) && hero.effect?.trim())
+    .map((hero) => `${hero.displayName || hero.name}: ${hero.effect.trim()}`);
   const effects = [
     card.effect?.trim() ? `${card.displayName || card.name}: ${card.effect.trim()}` : "",
-    ...player.heroes
-      .filter((hero) => hero.effect?.trim())
-      .map((hero) => `${hero.displayName || hero.name}: ${hero.effect.trim()}`),
+    ...activeHeroEffects,
   ].filter(Boolean);
 
   return {
@@ -214,8 +221,7 @@ export function batchTopEffect(match: MatchState | null | undefined) {
  */
 export function batchHudShouldRender(match: MatchState | null | undefined) {
   return !Boolean(
-    match?.phase === "reroll"
-    && match.pendingReroll
+    match?.pendingReroll
     && !match.pendingReroll.targetCell
   );
 }
