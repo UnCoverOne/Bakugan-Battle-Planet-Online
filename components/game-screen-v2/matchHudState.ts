@@ -16,6 +16,7 @@ import {
 
 export type HandActionMode = "play" | "energize" | "discard" | null;
 export type MatchHudActionKey =
+  | "exit"
   | "draw-card"
   | "activate-reroll"
   | "discard"
@@ -251,18 +252,21 @@ export function visibleMatchHudActions({
   const selectedPlayable = playCards.some((card) => card.id === selectedCardId);
   const flipDecision = revealedFlipDecision(match, player?.id);
   const discard = handDiscardRequirement(match, player?.id);
+  const completed = match?.phase === "result";
   return {
-    "draw-card": playerCanDrawTurnCard(match, player?.id, now),
-    "activate-reroll": playerCanActivateIntrinsicReroll(match, player?.id),
-    discard: Boolean(discard),
-    "play-card": canPlay,
-    "energize-card": canEnergizeCard(match, player?.id),
-    "skip-energize": canSkipEnergizing(match, player?.id),
-    "pass-turn": canPass,
-    "play-flip": flipDecision,
-    "skip-flip": flipDecision,
+    exit: Boolean(completed),
+    "draw-card": !completed && playerCanDrawTurnCard(match, player?.id, now),
+    "activate-reroll": !completed && playerCanActivateIntrinsicReroll(match, player?.id),
+    discard: !completed && Boolean(discard),
+    "play-card": !completed && canPlay,
+    "energize-card": !completed && canEnergizeCard(match, player?.id),
+    "skip-energize": !completed && canSkipEnergizing(match, player?.id),
+    "pass-turn": !completed && canPass,
+    "play-flip": !completed && flipDecision,
+    "skip-flip": !completed && flipDecision,
     select: Boolean(
-      selectionPending
+      !completed
+      && selectionPending
       && mode === "play"
       && selectedPlayable
       && cardRequiresSelection(match, player?.id, selectedCardId),
@@ -276,6 +280,7 @@ export function visibleMatchHudActions({
  * actions until the selected Flip is resolved.
  */
 export function compactMatchHudSlots(actions: MatchHudActions): CompactMatchHudSlots {
+  if (actions.exit) return ["exit"];
   if (actions["play-flip"] || actions["skip-flip"]) {
     return [
       actions["play-flip"] ? "play-flip" : null,

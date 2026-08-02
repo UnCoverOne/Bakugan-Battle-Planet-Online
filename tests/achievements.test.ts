@@ -91,13 +91,14 @@ test("achievement progress uses persisted deck and match evidence", () => {
   assert.equal(achievements.find((item) => item.id === "opponents-five")?.current, 2);
 });
 
-test("legacy match records without opponent or timestamp remain countable", () => {
+test("practice results remain eligible only for practice-specific achievements", () => {
   const achievements = achievementsFor([], [
     { result: "Victor", mode: "training" },
     { result: "Defeat", mode: "online" },
   ]);
 
-  assert.equal(achievements.find((item) => item.id === "first-win")?.unlocked, true);
+  assert.equal(achievements.find((item) => item.id === "first-win")?.unlocked, false);
+  assert.equal(achievements.find((item) => item.id === "training-day")?.unlocked, true);
   assert.equal(achievements.find((item) => item.id === "online")?.unlocked, true);
   assert.equal(achievements.find((item) => item.id === "opponents-five")?.current, 0);
 });

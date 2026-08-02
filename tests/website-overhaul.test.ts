@@ -83,12 +83,13 @@ test("every starter and curated public deck resolves a lead card contained in th
   }
 });
 
-test("achievement totals derive from saved decks and match records", () => {
+test("practice results do not inflate account competition achievements", () => {
   const achievements = achievementsFor(STARTER_DECKS, [
     { result: "Victor", mode: "training" },
     { result: "Defeat", mode: "online" },
   ]);
-  assert.ok(achievements.some((achievement) => achievement.id === "first-win" && achievement.unlocked));
+  assert.ok(achievements.some((achievement) => achievement.id === "first-win" && !achievement.unlocked));
+  assert.ok(achievements.some((achievement) => achievement.id === "training-day" && achievement.unlocked));
   assert.ok(achievements.some((achievement) => achievement.id === "online" && achievement.unlocked));
 });
 

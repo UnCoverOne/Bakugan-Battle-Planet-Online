@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
+import { accountStatMatches } from "../../lib/match-statistics";
 import { deriveSyncIndicator } from "../../lib/client-status";
 import { PROFILE_TITLES } from "../../lib/profile-customization";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
@@ -174,7 +175,9 @@ export function AppShell({ children }) {
   const unlocked = achievements.filter(
     (achievement) => achievement.unlocked,
   ).length;
-  const wins = history.filter((record) => record.result === "Victor").length;
+  const wins = accountStatMatches(history).filter(
+    (record) => record.result === "Victor",
+  ).length;
   const selectedProfileTitle =
     PROFILE_TITLES.find((item) => item.id === profile.titleId) ??
     PROFILE_TITLES[0];

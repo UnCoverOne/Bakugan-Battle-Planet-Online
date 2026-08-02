@@ -264,6 +264,8 @@ test("Dragonoid Maximus wins when its controller has Dan, Wynton, and Lia", () =
   assert.equal(state.winner, player.id);
   assert.equal(state.series[player.id], 1);
   assert.equal(state.resultReason, "Dragonoid Maximus's alternate win condition");
+  assert.equal(state.priority, "");
+  assert.equal(state.batch.length, 0);
 });
 
 test("normal simultaneous opens trigger Lia and Shargo for both players on every occurrence", () => {

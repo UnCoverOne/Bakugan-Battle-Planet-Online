@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { achievementsFor, type Achievement } from "../../lib/achievements";
+import { accountStatMatches } from "../../lib/match-statistics";
 import { BAKUGAN, validateDeck, type DeckRecord } from "../../lib/data";
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
@@ -80,9 +81,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
     () => achievementsFor(decks, history),
     [decks, history],
   );
-  const completedGames = history.filter(
-    (item: any) => !/disconnect|abandon/i.test(`${item.reason ?? ""}`),
-  );
+  const completedGames = accountStatMatches(history);
   const gamesPlayed = completedGames.length;
   const wins = completedGames.filter(
     (item: any) => item.result === "Victor",

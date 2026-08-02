@@ -9,6 +9,7 @@ export function GameMenuHud({
   automaticDraw,
   automaticPass,
   soundEnabled,
+  completed = false,
   undoAvailable,
   onAutomaticDrawChange,
   onAutomaticPassChange,
@@ -20,6 +21,7 @@ export function GameMenuHud({
   automaticDraw: boolean;
   automaticPass: boolean;
   soundEnabled: boolean;
+  completed?: boolean;
   undoAvailable: boolean;
   onAutomaticDrawChange: (enabled: boolean) => void;
   onAutomaticPassChange: (enabled: boolean) => void;
@@ -126,15 +128,19 @@ export function GameMenuHud({
         </div>
 
         <div className={styles.menuActions}>
-          <button type="button" disabled={busy || !undoAvailable} onClick={() => void onUndo()}>
-            Undo Latest Card
-          </button>
+          {!completed ? (
+            <button type="button" disabled={busy || !undoAvailable} onClick={() => void onUndo()}>
+              Undo Latest Card
+            </button>
+          ) : null}
           <button type="button" className={styles.settingsButton} onClick={onOpenSettings}>
             Settings
           </button>
-          <button type="button" className={styles.concedeButton} disabled={busy} onClick={() => void concede()}>
-            {busy ? "Conceding…" : "Concede"}
-          </button>
+          {!completed ? (
+            <button type="button" className={styles.concedeButton} disabled={busy} onClick={() => void concede()}>
+              {busy ? "Conceding…" : "Concede"}
+            </button>
+          ) : null}
         </div>
 
         {error ? <p role="alert">{error}</p> : null}

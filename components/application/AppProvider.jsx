@@ -24,7 +24,7 @@ import {
 } from "../../lib/account-sync";
 import { summarizeGuestData } from "../../lib/guest-data";
 import { readJsonResponse } from "../../lib/json-response";
-import { completedMatchKey, shouldOpenMatchResult } from "../../lib/match-result-navigation";
+import { completedMatchKey } from "../../lib/match-result-navigation";
 
 const STORAGE_EVENT = "bbp-storage-status";
 const AUTO_SYNC_DELAY_MS = 500;
@@ -251,7 +251,6 @@ export function AppProvider({ children }) {
   const activeAccountId = useRef("");
   const durableFingerprint = useRef(null);
   const promptedAccountMoments = useRef(new Set());
-  const presentedMatchResult = useRef("");
   const ready = [profileReady, decksReady, deletedDecksReady, historyReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, replayReady, replayIndexReady, playerReady, capabilityReady, modifiedReady].every(Boolean);
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId) ?? decks[0];
   const notify = useCallback((message) => setToast(message), []);
@@ -853,12 +852,7 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     const id = completedMatchKey(match);
-    if (!id) {
-      presentedMatchResult.current = "";
-      return;
-    }
-    const shouldOpenResult = shouldOpenMatchResult(match, pathname, presentedMatchResult.current);
-    presentedMatchResult.current = id;
+    if (!id) return;
     if (!history.some((item) => item.id === id)) {
       const record = { id, result: match.winner === playerId ? "Victor" : "Defeat", opponent: match.players.find((player) => player.id !== playerId)?.name ?? "Opponent", score: Object.values(match.series).join("–"), reason: match.resultReason, at: new Date().toISOString(), startedAt: new Date(match.log[0]?.at ?? Date.now()).toISOString(), format: match.format, mode: online ? "online" : "training", schemaVersion: 1, log: match.log };
       setHistory((items) => [record, ...items]); setReplay(record); setReplayIndex(Math.max(0, record.log.length - 1));
@@ -868,8 +862,7 @@ export function AppProvider({ children }) {
       promptedAccountMoments.current.add(promptKey);
       setAccountPrompt("match-complete");
     }
-    if (shouldOpenResult) router.replace("/play/result");
-  }, [authUser, history, match, online, pathname, playerId, router, setHistory, setReplay, setReplayIndex]);
+  }, [authUser, history, match, online, playerId, setHistory, setReplay, setReplayIndex]);
 
   const api = useCallback(async (action, payload, code, selection) => {
     setMatchError("");

@@ -260,8 +260,6 @@ export function GameplayClient() {
       {},
       (match, actorId) => concedeMatch(match, actorId),
     );
-    writeGameRoute("result");
-    window.location.reload();
   };
 
   const updatePreference = (key: "automaticDraw" | "automaticPass" | "soundEnabled", enabled: boolean) => {
@@ -426,13 +424,6 @@ export function GameplayClient() {
     selectedCharacterId,
   ]);
 
-  useEffect(() => {
-    if (storedState.online || storedState.match?.phase !== "result" || storedState.route !== "match") return;
-    writeGameRoute("result");
-    const timeout = window.setTimeout(() => window.location.reload(), 250);
-    return () => window.clearTimeout(timeout);
-  }, [storedState.online, storedState.match?.phase, storedState.route]);
-
   const clearSelections = useCallback(() => {
     setSelectedHandCardId("");
     setSelectedDiscardCardIds([]);
@@ -468,7 +459,13 @@ export function GameplayClient() {
     window.location.reload();
   };
 
+  const exitCompletedMatch = () => {
+    writeGameRoute("result");
+    window.location.reload();
+  };
+
   if (storedState.route === "match") {
+    const completed = storedState.match?.phase === "result";
     const placementActive = storedState.match != null
       && (storedState.match.phase === "startingPlayer" || storedState.match.phase === "placement");
 
@@ -493,8 +490,8 @@ export function GameplayClient() {
         <GameScreen
           match={storedState.match}
           playerId={storedState.playerId}
-          onExit={exit}
-          onTapEnergyCard={tapEnergy}
+          onExit={storedState.match?.phase === "result" ? exitCompletedMatch : exit}
+          onTapEnergyCard={completed ? undefined : tapEnergy}
         />
         <SelectionInteractionLayer
           match={storedState.match}
@@ -526,6 +523,7 @@ export function GameplayClient() {
           onPlayFlip={playFlip}
           onSkipFlip={skipFlip}
           onSelectCharacter={selectCharacter}
+          onExit={exitCompletedMatch}
         />
         <DamageStepLayer
           match={storedState.match}
@@ -540,6 +538,7 @@ export function GameplayClient() {
           automaticDraw={storedState.automaticDraw}
           automaticPass={storedState.automaticPass}
           soundEnabled={storedState.soundEnabled}
+          completed={completed}
           onAutomaticDrawChange={(enabled) => updatePreference("automaticDraw", enabled)}
           onAutomaticPassChange={(enabled) => updatePreference("automaticPass", enabled)}
           onSoundEnabledChange={(enabled) => updatePreference("soundEnabled", enabled)}

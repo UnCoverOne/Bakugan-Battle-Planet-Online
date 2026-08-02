@@ -1663,7 +1663,7 @@ const executeRuleAction = (
       if (action.rule === "victor-stat") state.victorByDamage = action.value === "damage";
       return;
     case "win-game":
-      winGame(state, controllerId, action.reason);
+      completeMatch(state, controllerId, action.reason);
       return;
     case "damage-to-hand": {
       const amount = state.pendingDamage;
@@ -2206,6 +2206,7 @@ const beginDamage = (state: MatchState) => {
   setPhase(state, "damage", `Damage Step • ${damage} incoming`, loser.id); entry(state, "game", `${winner.name} attacks for ${damage}${state.teamAttack ? " as a Team Attack" : ""}.`);
   emitGameEvent(state, { id: `${state.turn}:attack:${attacking.id}`, type: "attack", playerId: winner.id, targetBakuganId: attacking.id });
   if (damage > 0) emitGameEvent(state, { id: `${state.turn}:damage-taken:${loser.id}`, type: "damage-taken", playerId: loser.id });
+  else finishDamage(state);
 };
 
 const flipStopsDamage = (state: MatchState, card: GameCard) => {
@@ -2215,11 +2216,11 @@ const flipStopsDamage = (state: MatchState, card: GameCard) => {
   const listed = [...text.matchAll(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/gi)].map((match) => match[1]); return /\[Stop\]/i.test(text) && listed.includes(faction);
 };
 
-const finishDamage = (state: MatchState) => {
+function finishDamage(state: MatchState) {
   state.revealedFlip = undefined;
   if (resumePendingEffectAfterDamage(state)) return;
   setPhase(state, "postDamage", "Damage Step • Post-damage priority", state.startingPlayer);
-};
+}
 
 const advanceEmptyBatch = (state: MatchState) => {
   if (state.phase === "preRoll") setPhase(state, "target", "Roll Phase • Secret target selection", state.startingPlayer);
@@ -2260,6 +2261,7 @@ export const passPriority = (input: MatchState, playerId: string) => {
     const completed = pending.negated || applyEffect(state, pending);
     if (!completed) return withVersion(state);
     state.batch = state.batch.filter((candidate) => candidate.id !== pending.id);
+    if (state.phase === "result") return withVersion(state);
     if (!hasQueuedEffectDraw(state)) {
       state.priority = state.startingPlayer;
       state.deadline = deadlineFor(state.phase);
@@ -2278,14 +2280,19 @@ export const discardToHandLimit = (input: MatchState, playerId: string, cardIds:
   return withVersion(state);
 };
 
-function winGame(state: MatchState, winnerId: string, reason: string) {
+export function completeMatch(state: MatchState, winnerId: string, reason: string) {
+  if (state.phase === "result") return;
   state.series[winnerId] = (state.series[winnerId] ?? 0) + 1; state.phase = "result"; state.stepLabel = "Game complete";
   state.winner = winnerId; state.resultReason = reason; state.deadline = deadlineFor("result"); entry(state, "system", `${playerById(state, winnerId).name} wins game ${state.gameNumber}: ${reason}.`);
+  state.priority = ""; state.passes = []; state.batch = []; state.triggerOrders = [];
+  state.pendingChoice = undefined; state.pendingReroll = undefined; state.revealedFlip = undefined;
+  state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined;
+  state.undoWindow = undefined;
 }
 
 export const concedeMatch = (input: MatchState, playerId: string) => {
   const state = cloneMatch(input); if (state.phase === "result" || !state.players.some((player) => player.id === playerId)) throw new Error("Concede is not legal now.");
-  winGame(state, otherPlayer(state, playerId).id, "Opponent conceded"); return withVersion(state);
+  completeMatch(state, otherPlayer(state, playerId).id, "Opponent conceded"); return withVersion(state);
 };
 
 export const nextTurn = (input: MatchState) => {

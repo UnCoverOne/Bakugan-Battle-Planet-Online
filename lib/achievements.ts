@@ -1,5 +1,6 @@
 import type { DeckRecord } from "./data";
 import type { MatchResultRecord } from "./persistence";
+import { accountStatMatches } from "./match-statistics";
 
 export const ACHIEVEMENT_CATEGORIES = [
   "Getting Started",
@@ -201,7 +202,8 @@ export function achievementsFor(
   const matches = history.filter(
     (record) => !/disconnect|abandon/i.test(record.reason ?? ""),
   );
-  const wins = matches.filter((record) => record.result === "Victor");
+  const competitiveMatches = accountStatMatches(matches);
+  const wins = competitiveMatches.filter((record) => record.result === "Victor");
   const onlineGames = matches.filter((record) => record.mode === "online");
   const metrics: Record<MetricKey, Metric> = {
     decks: countMetric(decks, (deck) => deck.updatedAt),
@@ -212,11 +214,11 @@ export function achievementsFor(
     describedDecks: countMetric(decks.filter((deck) => Boolean(deck.description?.trim())), (deck) => deck.updatedAt),
     singletonDecks: countMetric(decks.filter((deck) => deck.format === "singleton"), (deck) => deck.updatedAt),
     deckFactions: uniqueMetric(decks, (deck) => deck.factions, (deck) => deck.updatedAt),
-    matches: countMetric(matches, (record) => record.at),
+    matches: countMetric(competitiveMatches, (record) => record.at),
     wins: countMetric(wins, (record) => record.at),
     trainingGames: countMetric(matches.filter((record) => record.mode === "training"), (record) => record.at),
-    bo1Games: countMetric(matches.filter((record) => (record.format ?? "bo1") === "bo1"), (record) => record.at),
-    bo3Games: countMetric(matches.filter((record) => record.format === "bo3"), (record) => record.at),
+    bo1Games: countMetric(competitiveMatches.filter((record) => (record.format ?? "bo1") === "bo1"), (record) => record.at),
+    bo3Games: countMetric(competitiveMatches.filter((record) => record.format === "bo3"), (record) => record.at),
     onlineGames: countMetric(onlineGames, (record) => record.at),
     onlineWins: countMetric(onlineGames.filter((record) => record.result === "Victor"), (record) => record.at),
     onlineOpponents: uniqueMetric(

@@ -122,6 +122,7 @@ export function MatchHudLayer({
   onPlayFlip,
   onSkipFlip,
   onSelectCharacter,
+  onExit,
 }: {
   match: MatchState | null;
   playerId?: string;
@@ -143,6 +144,7 @@ export function MatchHudLayer({
   onPlayFlip: PlayCardHandler;
   onSkipFlip: MatchActionHandler;
   onSelectCharacter: SelectCharacterHandler;
+  onExit: MatchActionHandler;
 }) {
   const [selectionPending, setSelectionPending] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -299,6 +301,11 @@ export function MatchHudLayer({
     active: boolean;
     onClick: () => void;
   }> = {
+    exit: {
+      label: "Exit",
+      active: true,
+      onClick: () => void run(onExit),
+    },
     "draw-card": {
       label: "Draw",
       active: false,

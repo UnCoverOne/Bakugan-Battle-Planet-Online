@@ -1,5 +1,6 @@
 import {
   cloneMatch,
+  completeMatch,
   recordCardPlayedForTurn,
   resumePendingEffectAfterDamage,
   type CardLogEvent,
@@ -15,7 +16,6 @@ import { emitRuleEvent } from "./rules/triggers";
 
 const DAMAGE_DECISION_MS = 35_000;
 const POST_DAMAGE_MS = 25_000;
-const RESULT_MS = 120_000;
 
 type DamageResumeRules = ReturnType<typeof ensureRulesState> & {
   damageResume?: { playerId: string; previousPhase: "damage"; revealedFlipId: string };
@@ -72,13 +72,7 @@ export function flipDamageCard(input: MatchState, playerId: string) {
   if (!card) {
     const winner = otherPlayer(state, playerId);
     if (!winner) throw new Error("The opposing player could not be found.");
-    state.series[winner.id] = (state.series[winner.id] ?? 0) + 1;
-    state.phase = "result";
-    state.stepLabel = "Game complete";
-    state.winner = winner.id;
-    state.resultReason = "Deck-out damage";
-    state.deadline = Date.now() + RESULT_MS;
-    log(state, "system", `${winner.name} wins because ${player.name} could not flip another damage card.`);
+    completeMatch(state, winner.id, "Deck-out damage");
     state.version += 1;
     return state;
   }
