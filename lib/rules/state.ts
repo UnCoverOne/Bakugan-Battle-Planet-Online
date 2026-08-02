@@ -1,4 +1,5 @@
 import type { MatchState } from "../game";
+import { ruleDefinitionForCard } from "./catalogue";
 import type { RuleObject, RulesState } from "./model";
 
 export type RulesBackedMatchState = MatchState & { rules?: RulesState };
@@ -33,15 +34,27 @@ export function normalizeRuleObjects(state: MatchState) {
       return pending;
     }
     const definitionId = (pending.card.catalogId || `bb-${pending.card.number}`) as RuleObject["definitionId"];
+    const definition = ruleDefinitionForCard(pending.card);
+    const ability = pending.kind === "trigger"
+      ? definition.abilities.find((candidate) => (
+        candidate.kind === "triggered"
+        && (!pending.effect || candidate.instructions.some((instruction) => pending.effect?.includes(instruction.sourceText)))
+      ))
+      : definition.abilities.find((candidate) => candidate.kind !== "triggered");
+    const scopedEffect = pending.effect ?? ability?.instructions
+      .map((instruction) => instruction.sourceText)
+      .filter(Boolean)
+      .join(" ");
     const sourceId = pending.sourceId ?? pending.card.id;
     const copied = pending.kind === "copy";
     return {
       ...pending,
+      ...(scopedEffect !== undefined ? { effect: scopedEffect } : {}),
       choices: copied ? {} : pending.choices,
       resolvedChoices: copied ? {} : pending.resolvedChoices,
       rulesObjectVersion: 3 as const,
       definitionId,
-      abilityId: `${definitionId}:${pending.kind}`,
+      abilityId: ability?.id ?? `${definitionId}:${pending.kind}`,
       sourceRef: { kind: "card" as const, instanceId: sourceId, catalogId: definitionId },
       status: pending.negated ? "negated" as const : "pending" as const,
       cursor: { instructionIndex: pending.instructionIndex ?? 0, effectIndex: 0 },
