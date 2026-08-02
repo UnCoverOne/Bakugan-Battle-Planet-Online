@@ -84,6 +84,50 @@ test("mobile shell shares the desktop account menu and primary tabs", async ({ p
   await expect(accountMenu.getByRole("button", { name: "Log out" })).toBeVisible();
 });
 
+test("account menu rows keep identical alignment on Home and secondary routes", async ({ page }) => {
+  for (const route of ["/dashboard", "/compendium"]) {
+    await page.goto(route);
+    await waitForWorkspace(page);
+    await page.getByRole("button", { name: "Open profile menu" }).click();
+
+    const accountMenu = page.locator("#profile-menu");
+    await expect(accountMenu.locator(".profile-popover-row-label")).toHaveText([
+      "View Profile",
+      "Achievements",
+      "Settings",
+    ]);
+
+    const geometry = await accountMenu.evaluate((menu) => {
+      const navigation = menu.querySelector("nav")!;
+      const navigationBounds = navigation.getBoundingClientRect();
+      return Array.from(menu.querySelectorAll<HTMLElement>(".profile-popover-row")).map((row) => {
+        const rowBounds = row.getBoundingClientRect();
+        const label = row.querySelector<HTMLElement>(".profile-popover-row-label")!;
+        const chevron = row.querySelector<HTMLElement>(".profile-popover-chevron")!;
+        return {
+          navigationLeft: navigationBounds.left,
+          navigationRight: navigationBounds.right,
+          rowLeft: rowBounds.left,
+          rowRight: rowBounds.right,
+          labelLeft: label.getBoundingClientRect().left,
+          chevronLeft: chevron.getBoundingClientRect().left,
+          chevronRight: chevron.getBoundingClientRect().right,
+          labelAlignment: getComputedStyle(label).textAlign,
+        };
+      });
+    });
+
+    expect(geometry).toHaveLength(3);
+    for (const row of geometry) {
+      expect(Math.abs(row.rowLeft - row.navigationLeft)).toBeLessThanOrEqual(1);
+      expect(Math.abs(row.rowRight - row.navigationRight)).toBeLessThanOrEqual(1);
+      expect(row.labelAlignment).toBe("left");
+      expect(row.labelLeft).toBeLessThan(row.chevronLeft);
+      expect(row.chevronRight).toBeLessThanOrEqual(row.rowRight);
+    }
+  }
+});
+
 async function attachViewport(page: Page, testInfo: TestInfo, routeName: string) {
   await testInfo.attach(`${routeName}-${testInfo.project.name}`, {
     body: await page.screenshot({ animations: "disabled", fullPage: false }),
