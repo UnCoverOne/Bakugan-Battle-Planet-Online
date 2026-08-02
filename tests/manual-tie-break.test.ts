@@ -8,6 +8,7 @@ import {
   manualTieBreakState,
   passPriorityWithTieBreak,
   playerCanFlipTieBreak,
+  tieBreakCardCost,
 } from "../lib/manualTieBreak";
 
 function tiedPowerState() {
@@ -48,7 +49,7 @@ test("a tied Power Step pauses for both players to flip manually", () => {
   assert.equal(playerCanFlipTieBreak(state, state.players[1].id), true);
 });
 
-test("the higher Energy card is discarded and declares the Brawl Victor", () => {
+test("the higher Energy card is shown before the Brawl advances", () => {
   let state = tiedPowerState();
   setTopCosts(state, [2], [5]);
   state = passPriorityWithTieBreak(state, state.players[1].id);
@@ -61,10 +62,15 @@ test("the higher Energy card is discarded and declares the Brawl Victor", () => 
 
   state = flipTieBreakCard(state, state.players[1].id);
   assert.equal(state.players[1].discard.at(-1)?.id, secondCardId);
-  assert.equal(state.phase, "victor");
-  assert.equal(state.brawlWinner, state.players[1].id);
+  assert.equal(state.phase, "power");
+  assert.equal(state.priority, "");
+  assert.equal(manualTieBreakState(state)?.status, "resolved");
   assert.equal(manualTieBreakState(state)?.winnerId, state.players[1].id);
   assert.equal(manualTieBreakState(state)?.lastRound?.reveals[state.players[1].id].cost, 5);
+
+  state = passPriorityWithTieBreak(state, state.players[1].id);
+  assert.equal(state.phase, "victor");
+  assert.equal(state.brawlWinner, state.players[1].id);
 });
 
 test("equal Energy costs retain the comparison and start another manual round", () => {
@@ -81,8 +87,15 @@ test("equal Energy costs retain the comparison and start another manual round", 
 
   state = flipTieBreakCard(state, state.players[0].id);
   state = flipTieBreakCard(state, state.players[1].id);
+  assert.equal(manualTieBreakState(state)?.status, "resolved");
+  state = passPriorityWithTieBreak(state, state.players[1].id);
   assert.equal(state.phase, "victor");
   assert.equal(state.brawlWinner, state.players[1].id);
+});
+
+test("X has zero Energy during a tie-break", () => {
+  assert.equal(tieBreakCardCost({ cost: "X" }), 0);
+  assert.equal(tieBreakCardCost({ cost: 7 }), 7);
 });
 
 test("the gameplay client mounts the two-slot tie popup and reuses the deck flip action", () => {
@@ -95,5 +108,6 @@ test("the gameplay client mounts the two-slot tie popup and reuses the deck flip
   assert.match(layer, /match\.players\.map/);
   assert.match(layer, /HIGHER COST/);
   assert.match(layer, /EQUAL COST/);
-  assert.match(runtime, /playerCanFlipTieBreak[\s\S]*flipTieBreakCard/);
+  assert.match(layer, /finishAction/);
+  assert.match(runtime, /manualTieBreakState[\s\S]*flipTieBreakCard/);
 });
