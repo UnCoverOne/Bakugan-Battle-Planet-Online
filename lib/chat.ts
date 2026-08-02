@@ -56,6 +56,19 @@ function cardsInMatch(match: MatchState) {
   return [...new Map(cards.map((card) => [card.id, card])).values()];
 }
 
+function cardControllerId(match: MatchState, card: GameCard) {
+  const pending = match.batch.find((effect) => effect.card.id === card.id);
+  if (pending) return pending.controllerId;
+  return match.players.find((player) => [
+    ...player.deckCards,
+    ...player.hand,
+    ...player.discard,
+    ...player.energyZone,
+    ...player.heroes,
+    ...player.bakugan.flatMap((bakugan) => [bakugan.character, ...bakugan.evoStack]),
+  ].some((candidate) => candidate.id === card.id))?.id;
+}
+
 function legacyCardEvent(message: string, cardName: string): CardLogEvent | undefined {
   if (message === `${cardName} finished resolving its typed rule program.`) return "effect";
   if (
@@ -85,11 +98,21 @@ export function cardEventLogEntries(
     if ((entry.cardEvent === "played" || entry.cardEvent === "effect") && (entry.cardInstanceId || entry.cardCatalogId)) {
       const card = (entry.cardInstanceId ? byInstance.get(entry.cardInstanceId) : undefined)
         ?? (entry.cardCatalogId ? byCatalogue.get(entry.cardCatalogId) : undefined);
-      return card ? [{ ...entry, card, cardEvent: entry.cardEvent }] : [];
+      return card ? [{
+        ...entry,
+        card,
+        cardEvent: entry.cardEvent,
+        playerId: entry.playerId ?? cardControllerId(match, card),
+      }] : [];
     }
     for (const card of legacyCandidates) {
       const cardEvent = legacyCardEvent(entry.message, card.name);
-      if (cardEvent) return [{ ...entry, card, cardEvent }];
+      if (cardEvent) return [{
+        ...entry,
+        card,
+        cardEvent,
+        playerId: entry.playerId ?? cardControllerId(match, card),
+      }];
     }
     return [];
   });
