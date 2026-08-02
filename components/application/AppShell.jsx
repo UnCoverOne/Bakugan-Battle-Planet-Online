@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
 import { deriveSyncIndicator } from "../../lib/client-status";
+import { PROFILE_TITLES } from "../../lib/profile-customization";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
 import { SystemState, VersionMismatchScreen } from "./SystemState";
 import {
@@ -31,6 +32,29 @@ const TITLES = {
   settings: "Settings",
   admin: "Administrator",
 };
+
+const FACTION_ICONS = {
+  Aquos: "/assets/symbols/factions/aquos.png",
+  Aurelus: "/assets/symbols/factions/aurelus.png",
+  Darkus: "/assets/symbols/factions/darkus.png",
+  Haos: "/assets/symbols/factions/haos.png",
+  Pyrus: "/assets/symbols/factions/pyrus.png",
+  Ventus: "/assets/symbols/factions/ventus.png",
+};
+
+function MenuIcon({ name }) {
+  const paths = {
+    user: <><circle cx="12" cy="8" r="3.25" /><path d="M5.5 20c.55-4.05 2.72-6.08 6.5-6.08S17.95 15.95 18.5 20" /></>,
+    trophy: <><path d="M8 4h8v4.25c0 3-1.5 5.25-4 5.25s-4-2.25-4-5.25V4Z" /><path d="M8 6H4.75v1.25c0 2.3 1.15 3.45 3.45 3.45M16 6h3.25v1.25c0 2.3-1.15 3.45-3.45 3.45M12 13.5V17m-4 3h8m-6-3h4" /></>,
+    sparkle: <><path d="m12 2 1.45 4.05L17.5 7.5l-4.05 1.45L12 13l-1.45-4.05L6.5 7.5l4.05-1.45L12 2Z" /><path d="m18.5 13 .82 2.18L21.5 16l-2.18.82L18.5 19l-.82-2.18L15.5 16l2.18-.82L18.5 13ZM5 13l.65 1.85 1.85.65-1.85.65L5 18l-.65-1.85-1.85-.65 1.85-.65L5 13Z" /></>,
+    settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.55v-.1A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.1 15a1.7 1.7 0 0 0-1.5-1H2.5V10h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.56 4.2l.06.06A1.7 1.7 0 0 0 8.5 4.6a1.7 1.7 0 0 0 1-1.5V3h4v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 18.9 9a1.7 1.7 0 0 0 1.5 1h.1v4h-.1a1.7 1.7 0 0 0-1 .99Z" /></>,
+    shield: <path d="M12 2.75 19 5.5v5.25c0 4.3-2.33 7.8-7 10.5-4.67-2.7-7-6.2-7-10.5V5.5l7-2.75Z" />,
+    logout: <><path d="M10 4H5v16h5M14 8l4 4-4 4m4-4H9" /></>,
+    chevron: <path d="m9 5 7 7-7 7" />,
+  };
+  return <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">{paths[name]}</svg>;
+}
+
 
 function SyncGlyph({ cloud }) {
   return cloud ? (
@@ -151,6 +175,9 @@ export function AppShell({ children }) {
     (achievement) => achievement.unlocked,
   ).length;
   const wins = history.filter((record) => record.result === "Victor").length;
+  const selectedProfileTitle =
+    PROFILE_TITLES.find((item) => item.id === profile.titleId) ??
+    PROFILE_TITLES[0];
   const syncIndicator = deriveSyncIndicator({
     authenticated: Boolean(authUser),
     syncStatus,
@@ -246,71 +273,59 @@ export function AppShell({ children }) {
                       profile={profile}
                       className={`profile-popover-avatar faction-${profile.faction.toLowerCase()}`}
                     />
-                    <div>
+                    <div className="profile-popover-identity">
                       <strong>{profile.name}</strong>
-                      <small>{authUser ? `${profile.faction} Brawler` : "Guest · saved on this device"}</small>
+                      <div className="profile-popover-title">
+                        <img src={FACTION_ICONS[profile.faction]} alt="" />
+                        <span>{selectedProfileTitle.label}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="profile-popover-stats">
                     <div>
-                      <strong>{unlocked}</strong>
+                      <div className="profile-popover-stat-value"><MenuIcon name="trophy" /><strong>{unlocked}</strong></div>
                       <span>Achievements</span>
                     </div>
                     <div>
-                      <strong>{wins}</strong>
+                      <div className="profile-popover-stat-value"><MenuIcon name="sparkle" /><strong>{wins}</strong></div>
                       <span>Games won</span>
                     </div>
                   </div>
                   <nav aria-label="Profile menu">
-                    <Link role="menuitem" href="/profile">
-                      {authUser ? "View Profile" : "View local profile"}
+                    <Link className="profile-popover-row" role="menuitem" href="/profile">
+                      <span className="profile-popover-row-icon"><MenuIcon name="user" /></span>
+                      <span>View Profile</span>
+                      <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
                     </Link>
-                    {authUser && (
-                      <Link role="menuitem" href="/profile/achievements">
-                        Achievements
-                      </Link>
-                    )}
-                    <Link role="menuitem" href="/settings">
-                      Settings
+                    <Link className="profile-popover-row" role="menuitem" href="/profile/achievements">
+                      <span className="profile-popover-row-icon"><MenuIcon name="trophy" /></span>
+                      <span>Achievements</span>
+                      <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
+                    </Link>
+                    <Link className="profile-popover-row" role="menuitem" href="/settings">
+                      <span className="profile-popover-row-icon"><MenuIcon name="settings" /></span>
+                      <span>Settings</span>
+                      <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
                     </Link>
                     {authUser?.roles?.includes("administrator") && (
-                      <Link role="menuitem" href="/admin">
-                        Administrator
+                      <Link className="profile-popover-row" role="menuitem" href="/admin">
+                        <span className="profile-popover-row-icon"><MenuIcon name="shield" /></span>
+                        <span>Administrator</span>
+                        <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
                       </Link>
                     )}
-                    {authUser ? (
-                      <button
-                        role="menuitem"
-                        type="button"
-                        onClick={() => void requestLogout()}
-                      >
-                        Log Out
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          role="menuitem"
-                          type="button"
-                          onClick={() => {
-                            setProfileOpen(false);
-                            requestAccountAccess("login");
-                          }}
-                        >
-                          Log In
-                        </button>
-                        <button
-                          role="menuitem"
-                          type="button"
-                          onClick={() => {
-                            setProfileOpen(false);
-                            requestAccountAccess("signup");
-                          }}
-                        >
-                          Register
-                        </button>
-                      </>
-                    )}
                   </nav>
+                  {authUser ? (
+                    <button className="profile-popover-logout" role="menuitem" type="button" onClick={() => void requestLogout()}>
+                      <span className="profile-popover-row-icon"><MenuIcon name="logout" /></span>
+                      <span>Log out</span>
+                    </button>
+                  ) : (
+                    <div className="profile-popover-auth">
+                      <button role="menuitem" type="button" onClick={() => { setProfileOpen(false); requestAccountAccess("login"); }}>Log in</button>
+                      <button role="menuitem" type="button" onClick={() => { setProfileOpen(false); requestAccountAccess("signup"); }}>Register</button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

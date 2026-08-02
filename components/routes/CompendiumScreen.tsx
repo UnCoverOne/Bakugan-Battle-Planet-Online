@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
@@ -106,6 +106,7 @@ function FilterControls({
   );
 }
 
+
 export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -113,6 +114,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const section = segments[0] === "rules" ? "rules" : segments[0] === "rulings" ? "rulings" : "cards";
   const legacyDetail = section === "cards" && segments[0] === "cards" ? decodeURIComponent(segments[1] ?? "") : "";
   const state = useMemo(() => parseCompendiumState(searchParams.toString()), [searchParams]);
+  const [searchQuery, setSearchQuery] = useState(state.q);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [rulingCardId, setRulingCardId] = useState(section === "rulings" ? searchParams.get("card") ?? "" : "");
   const [question, setQuestion] = useState("");
@@ -122,12 +125,16 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
 
   const rarities = useMemo(() => [...new Set(CARDS.map((card) => card.rarity))].filter(Boolean).toSorted(), []);
   const keywords = useMemo(() => [...new Set(CARDS.flatMap((card) => card.mechanics))].filter(Boolean).toSorted(), []);
-  const cards = useMemo(() => filterAndSortCompendiumCards(CARDS, state), [state]);
+  const searchState = useMemo(
+    () => ({ ...state, q: deferredSearchQuery }),
+    [deferredSearchQuery, state],
+  );
+  const cards = useMemo(() => filterAndSortCompendiumCards(CARDS, searchState), [searchState]);
   const pages = Math.max(1, Math.ceil(cards.length / COMPENDIUM_PAGE_SIZE));
   const page = Math.min(state.page, pages);
   const visible = cards.slice((page - 1) * COMPENDIUM_PAGE_SIZE, page * COMPENDIUM_PAGE_SIZE);
   const selected = selectedCompendiumCard(CARDS, state.card || legacyDetail);
-  const normalized = state.q.toLowerCase();
+  const normalized = deferredSearchQuery.trim().toLowerCase();
   const rules = useMemo(
     () => ruleReferences.filter((entry) => !normalized || `${entry.title} ${entry.body} ${entry.category}`.toLowerCase().includes(normalized)),
     [normalized],
@@ -141,12 +148,13 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const navigate = useCallback((patch: StatePatch, options: { push?: boolean; resetPage?: boolean } = {}) => {
     const next = {
       ...state,
+      q: searchQuery,
       ...patch,
       page: options.resetPage ? 1 : patch.page ?? state.page,
     };
     const method = options.push ? "push" : "replace";
     router[method](urlFor(next));
-  }, [router, state, urlFor]);
+  }, [router, searchQuery, state, urlFor]);
 
   const closeInspector = useCallback(() => {
     const trigger = inspectorTrigger.current;
@@ -155,14 +163,23 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   }, [navigate]);
 
   useEffect(() => { setCompendiumTab(section); }, [section, setCompendiumTab]);
+  useEffect(() => { setSearchQuery(state.q); }, [state.q]);
+  useEffect(() => {
+    if (searchQuery === state.q) return;
+    const timeout = window.setTimeout(() => {
+      router.replace(urlFor({ ...state, q: searchQuery, page: 1 }), { scroll: false });
+    }, 180);
+    return () => window.clearTimeout(timeout);
+  }, [router, searchQuery, state, urlFor]);
   useEffect(() => {
     if (legacyDetail && !state.card) {
       router.replace(urlFor({ ...state, card: legacyDetail, tab: "overview" }));
     }
   }, [legacyDetail, router, state, urlFor]);
   useEffect(() => {
+    if (searchQuery !== state.q) return;
     if (state.page > pages) navigate({ page: pages });
-  }, [navigate, pages, state.page]);
+  }, [navigate, pages, searchQuery, state.page, state.q]);
   useEffect(() => {
     const closeOverlays = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -190,10 +207,10 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     navigate({ card: card.slug ?? card.catalogId, tab: "overview" }, { push: true });
   };
   const copyCurrentLink = async (label: string) => {
-    await copyText(location.href);
+    await copyText(`${location.origin}${urlFor({ ...state, q: searchQuery })}`);
     notify(`${label} link copied.`);
   };
-  const sectionUrl = (path: string) => state.q ? `${path}?q=${encodeURIComponent(state.q)}` : path;
+  const sectionUrl = (path: string) => searchQuery ? `${path}?q=${encodeURIComponent(searchQuery)}` : path;
   const copyLink = async (path: string, label: string) => {
     await copyText(`${location.origin}${path}`);
     notify(`${label} link copied.`);
@@ -230,8 +247,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       <section className={`compendium-toolbar ${styles.toolbar}`}>
         <Field className={styles.search} label="Search the archive">
           <input
-            value={state.q}
-            onChange={(event) => navigate({ q: event.target.value }, { resetPage: true })}
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Cards, effects, IDs, mechanics…"
           />
         </Field>

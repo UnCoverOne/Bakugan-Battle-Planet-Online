@@ -40,6 +40,7 @@ async function waitForWorkspace(page: Page) {
     .toBe(true);
 }
 
+
 test("mobile shell shares the desktop account menu and primary tabs", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "Mobile shell contract");
 
@@ -78,7 +79,9 @@ test("mobile shell shares the desktop account menu and primary tabs", async ({ p
   await expect(accountMenu.getByRole("link", { name: "View Profile" })).toBeVisible();
   await expect(accountMenu.getByRole("link", { name: "Achievements" })).toBeVisible();
   await expect(accountMenu.getByRole("link", { name: "Settings" })).toBeVisible();
-  await expect(accountMenu.getByRole("button", { name: "Log Out" })).toBeVisible();
+  await expect(accountMenu.locator(".profile-popover-title img")).toBeVisible();
+  await expect(accountMenu.locator(".profile-popover-stat-value")).toHaveCount(2);
+  await expect(accountMenu.getByRole("button", { name: "Log out" })).toBeVisible();
 });
 
 async function attachViewport(page: Page, testInfo: TestInfo, routeName: string) {

@@ -12,10 +12,17 @@ test("the primary shell uses the approved four-item top navigation and profile m
   assert.doesNotMatch(shell, /label: "History"/);
   assert.match(shell, /mobile-bottom-nav/);
   assert.match(shell, /profile-popover-stats/);
+  assert.match(shell, /PROFILE_TITLES/);
+  assert.match(shell, /FACTION_ICONS\[profile\.faction\]/);
+  assert.match(shell, /profile-popover-title/);
+  assert.match(shell, /profile-popover-stat-value/);
+  assert.match(shell, /profile-popover-row-icon/);
+  assert.match(shell, /profile-popover-chevron/);
+  assert.match(shell, /profile-popover-logout/);
   assert.match(shell, /View Profile/);
   assert.match(shell, /Achievements/);
   assert.match(shell, /Settings/);
-  assert.match(shell, /Log Out/);
+  assert.match(shell, /Log out/);
   assert.match(shell, /function SyncGlyph/);
   assert.match(shell, /className="sync-icon"/);
   assert.match(shell, /aria-label="Open profile menu"/);
@@ -38,11 +45,18 @@ test("the primary shell uses the approved four-item top navigation and profile m
     shellCss,
     /@media \(max-width:820px\)\{[\s\S]*?\.profile-popover\{position:absolute;left:auto;right:0;top:calc\(100% \+ 8px\);bottom:auto;/,
   );
+  assert.match(shellCss, /\.profile-popover\{[^}]*width:clamp\(320px,24vw,360px\)/);
+  assert.match(shellCss, /\.profile-popover-heading\{[^}]*min-height:88px/);
+  assert.match(shellCss, /\.profile-popover-avatar\{[^}]*flex:0 0 14%/);
+  assert.match(shellCss, /\.profile-popover-stats\{[^}]*grid-template-columns:1fr 1fr/);
+  assert.match(shellCss, /\.profile-popover-row\{[^}]*min-height:44px/);
+  assert.match(shellCss, /\.profile-popover-logout\{[^}]*min-height:54px/);
   assert.doesNotMatch(
     shellCss,
     /@media \(max-width:820px\)\{[\s\S]*?\.profile-popover\{position:fixed;/,
   );
 });
+
 
 test("history is routed through profile and public deck browsing has dedicated routes", () => {
   assert.equal(existsSync("app/(workspace)/profile/[[...segments]]/page.tsx"), true);
@@ -238,4 +252,3 @@ test("deck names, metadata, and visual coverage retain their stabilization contr
   assert.match(visualSuite, /visible route panels must retain the shared chamfer/);
   assert.match(visualSuite, /the focused control must expose a visible indicator/);
 });
-

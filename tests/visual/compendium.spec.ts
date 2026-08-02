@@ -10,6 +10,18 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
 });
 
+
+test("search accepts spaces immediately and debounces its shareable URL", async ({ page }) => {
+  await page.goto("/compendium");
+  await waitForCompendium(page);
+  const search = page.getByLabel("Search the archive");
+  await search.fill("Light's");
+  await search.press("Space");
+  await search.type("Courage");
+  await expect(search).toHaveValue("Light's Courage");
+  await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("Light's Courage");
+});
+
 test("selected cards preserve result state and use the responsive inspector", async ({ page }) => {
   await page.goto("/compendium?faction=Pyrus&sort=name-asc&density=compact&card=bb-1&tab=overview");
   await waitForCompendium(page);

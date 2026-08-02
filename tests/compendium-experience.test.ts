@@ -32,6 +32,7 @@ const card = (overrides: Partial<GameCard> & Pick<GameCard, "catalogId" | "displ
   ...overrides,
 });
 
+
 test("Compendium URL state round-trips filters, density, selection, and inspector tab", () => {
   const state = parseCompendiumState("q=dragonoid&set=BB&type=Character&faction=Pyrus&cost=2&rarity=Rare&keyword=Victor&sort=name-desc&density=compact&page=3&card=bb-1&tab=rulings");
   assert.deepEqual(state, {
@@ -52,6 +53,19 @@ test("Compendium URL state round-trips filters, density, selection, and inspecto
   assert.deepEqual(
     parseCompendiumState("sort=unsupported&density=huge&page=-4&tab=unknown"),
     DEFAULT_COMPENDIUM_STATE,
+  );
+});
+
+test("Compendium query state preserves spaces while filtering ignores edge whitespace", () => {
+  const state = parseCompendiumState("q=Light%27s+Courage+");
+  assert.equal(state.q, "Light's Courage ");
+  assert.equal(compendiumSearchParams(state).get("q"), "Light's Courage ");
+  assert.deepEqual(
+    filterAndSortCompendiumCards([
+      card({ catalogId: "bb-1", displayName: "Light's Courage" }),
+      card({ catalogId: "bb-2", displayName: "Darkus Snare" }),
+    ], state).map((candidate) => candidate.catalogId),
+    ["bb-1"],
   );
 });
 
@@ -120,7 +134,14 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "Gallery",
     "Compact",
     "CardInspector",
+    "useDeferredValue",
+    "setSearchQuery",
+    "window.setTimeout",
+    "scroll: false",
   ]) assert.match(route, new RegExp(contract));
+  assert.match(route, /value=\{searchQuery\}/);
+  assert.match(route, /onChange=\{\(event\) => setSearchQuery\(event\.target\.value\)\}/);
+  assert.doesNotMatch(route, /onChange=\{\(event\) => navigate\(\{ q: event\.target\.value \}/);
   for (const tab of ["Overview", "Rules", "Rulings", "Related"]) assert.match(inspector, new RegExp(tab));
   assert.match(inspector, /data-ui="card-inspector"/);
   assert.match(image, /srcSet=\{srcSet\}/);

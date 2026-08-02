@@ -59,7 +59,7 @@ export function parseCompendiumState(input: URLSearchParams | string): Compendiu
   const params = typeof input === "string" ? new URLSearchParams(input) : input;
   const requestedPage = Number.parseInt(params.get("page") ?? "1", 10);
   return {
-    q: params.get("q")?.trim() ?? "",
+    q: params.get("q") ?? "",
     set: choice(params.get("set")),
     type: choice(params.get("type")),
     faction: choice(params.get("faction")),
@@ -73,6 +73,7 @@ export function parseCompendiumState(input: URLSearchParams | string): Compendiu
     tab: oneOf(params.get("tab"), CARD_INSPECTOR_TABS, DEFAULT_COMPENDIUM_STATE.tab),
   };
 }
+
 
 export function compendiumSearchParams(state: CompendiumState) {
   const params = new URLSearchParams();
@@ -116,7 +117,7 @@ export function filterAndSortCompendiumCards(
   cards: readonly GameCard[],
   state: CompendiumState,
 ) {
-  const query = state.q.toLowerCase();
+  const query = state.q.trim().toLowerCase();
   return cards.filter((card) => (
     (!query || searchableText(card).includes(query))
     && (state.set === "All" || setCodeFor(card) === state.set)
