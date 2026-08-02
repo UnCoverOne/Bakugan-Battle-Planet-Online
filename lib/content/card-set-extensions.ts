@@ -34,6 +34,11 @@ const SET_NAMES: Record<ExtensionSetCode, string> = {
   EX: "EX",
 };
 
+/** Official text corrections applied after the supplied set workbooks were authored. */
+const CARD_TEXT_ERRATA: Readonly<Record<string, string>> = Object.freeze({
+  "aa-69": "When you play this, search your deck for a card. You may put that card into your hand. Then shuffle your deck. If you have three of this in play, your Bakugan get +300 [B] and +3 [Damage Rating].",
+});
+
 const CORES: Record<string, ControlledCardRecord["coreTypes"][number]> = {
   "[FT]": "Fist",
   "[FF]": "Flaming Fist",
@@ -92,7 +97,8 @@ export function recordsFromRows(
 ): ControlledCardRecord[] {
   const setName = SET_NAMES[setCode];
   return rows.map((row) => {
-    const [id, number, rarityCode, displayName, faction, type, cost, effect, bPower, damage, coreOne, coreTwo, evolvesFrom, scanFilename] = row;
+    const [id, number, rarityCode, displayName, faction, type, cost, printedEffect, bPower, damage, coreOne, coreTwo, evolvesFrom, scanFilename] = row;
+    const effect = CARD_TEXT_ERRATA[id] ?? printedEffect;
     const internalName = type === "Character" || type === "Evo"
       ? `${faction} ${displayName}`
       : id === "br-80"

@@ -175,7 +175,7 @@ function articleFor(cardType: GameCard["type"]) {
   return /^[AEIOU]/i.test(cardType) ? "an" : "a";
 }
 
-function fullDeckSelectionChoice(search: DeckSearch): ChoiceSpec {
+function fullDeckSelectionChoice(search: DeckSearch, optional: boolean): ChoiceSpec {
   const target = search.cardType
     ? `${articleFor(search.cardType)} ${search.cardType} card`
     : "a card";
@@ -186,8 +186,9 @@ function fullDeckSelectionChoice(search: DeckSearch): ChoiceSpec {
     label: `Choose ${target} from your deck`,
     chooser: "controller",
     visibility: "private",
-    minimum: 1,
+    minimum: optional ? 0 : 1,
     maximum: 1,
+    optional,
     cardType: search.cardType,
   };
 }
@@ -222,9 +223,12 @@ function normalizeSearchAction(action: RuleAction, search: DeckSearch): RuleActi
   return action;
 }
 
-function enhanceSearchInstruction(instruction: RuleInstruction): RuleInstruction {
+function enhanceSearchInstruction(instruction: RuleInstruction, cardText: string): RuleInstruction {
   const search = deckSearchFor(instruction.sourceText);
   if (!search) return instruction;
+  const optional = /\byou may put (?:it|that card|the (?:chosen|searched(?:-for)?|revealed) card) into your hand\b/i.test(
+    normalizeText(cardText),
+  );
   const effects = instruction.effects.map((action) => normalizeSearchAction(action, search));
   return {
     ...instruction,
@@ -232,7 +236,7 @@ function enhanceSearchInstruction(instruction: RuleInstruction): RuleInstruction
     actions: effects,
     choices: [
       fullDeckViewChoice(),
-      fullDeckSelectionChoice(search),
+      fullDeckSelectionChoice(search, optional),
       ...instruction.choices.filter((choice) => (
         choice.id !== "orderedCardIds" && choice.id !== "deckCardId"
       )),
@@ -332,7 +336,7 @@ export function enhanceDeckInspectionAbilities(
     ...ability,
     instructions: ability.instructions.flatMap((instruction) => {
       if (consumed.has(instruction)) return [];
-      return [enhanceSearchInstruction(replacements.get(instruction) ?? instruction)];
+      return [enhanceSearchInstruction(replacements.get(instruction) ?? instruction, card.effect)];
     }),
   })).filter((ability) => ability.instructions.length > 0);
 }

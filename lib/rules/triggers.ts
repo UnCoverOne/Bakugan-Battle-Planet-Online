@@ -32,9 +32,16 @@ function relationshipMatches(trigger: TriggerDefinition, ownerId: string, event:
   return event.actorId !== ownerId && event.controllerId !== ownerId;
 }
 
-function triggerMatches(trigger: TriggerDefinition, owner: PlayerState, event: RuleEvent, state: MatchState) {
+function triggerMatches(
+  trigger: TriggerDefinition,
+  source: GameCard,
+  owner: PlayerState,
+  event: RuleEvent,
+  state: MatchState,
+) {
   if (trigger.event !== event.name) return false;
   if (!relationshipMatches(trigger, owner.id, event)) return false;
+  if (trigger.source === "self" && source.id !== event.card?.id) return false;
   if (trigger.cardType && trigger.cardType !== event.cardType) return false;
   if (trigger.interveningCondition && !ruleConditionActive(state, owner, trigger.interveningCondition)) return false;
   return true;
@@ -51,7 +58,7 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
     for (const source of activeSources(state, owner, event)) {
       const definition = ruleDefinitionForCard(source);
       for (const ability of definition.abilities) {
-        if (ability.kind !== "triggered" || !ability.trigger || !triggerMatches(ability.trigger, owner, event, state)) continue;
+        if (ability.kind !== "triggered" || !ability.trigger || !triggerMatches(ability.trigger, source, owner, event, state)) continue;
         const key = usageKey({ source, abilityId: ability.id }, owner.id, state.turn);
         if (ability.trigger.limit && rules.triggerUsage[key]) continue;
         if (ability.trigger.limit) rules.triggerUsage[key] = (rules.triggerUsage[key] ?? 0) + 1;

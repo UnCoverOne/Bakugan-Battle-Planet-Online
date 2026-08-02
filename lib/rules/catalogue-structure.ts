@@ -247,7 +247,7 @@ export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
     // Sentence splitting must not turn a follow-up clause into an enter-play
     // spell. These phrases refer to information or an action created by the
     // preceding trigger and therefore share that trigger's event timing.
-    const continuesTrigger = Boolean(activeTrigger) && /^(?:then\b|if\s+(?:it(?:['’]?s|\b)|they\b|you do\b|an?\s+[^,.]+\s+cards?\s+is\s+revealed\s+this\s+way\b|one\s+of\s+(?:them|those\s+cards)\b|the\s+revealed\s+card\b))/i.test(
+    const continuesTrigger = Boolean(activeTrigger) && /^(?:then\b|you\s+may\s+(?:put|play)\s+(?:it|that\s+card|the\s+(?:chosen|revealed)\s+card)\b|if\s+(?:it(?:['’]?s|\b)|they\b|you do\b|an?\s+[^,.]+\s+cards?\s+is\s+revealed\s+this\s+way\b|one\s+of\s+(?:them|those\s+cards)\b|the\s+revealed\s+card\b))/i.test(
       instruction.sourceText.trim(),
     );
     if (continuesTrigger) activeTrigger!.push(instruction);

@@ -71,6 +71,8 @@ export type TriggerEventName =
 export type TriggerDefinition = {
   event: TriggerEventName;
   relationship: "controller" | "opponent" | "any";
+  /** Restrict a trigger such as "When you play this" to its own card-play event. */
+  source?: "self";
   cardType?: CardType;
   optional?: boolean;
   interveningCondition?: RuleCondition;

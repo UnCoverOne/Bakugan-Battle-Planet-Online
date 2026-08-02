@@ -97,9 +97,10 @@ export function conditionFor(text: string): RuleCondition {
 }
 
 function triggerFor(text: string): TriggerDefinition | undefined {
-  const table: Array<[RegExp, TriggerEventName, TriggerDefinition["relationship"]]> = [
+  const table: Array<[RegExp, TriggerEventName, TriggerDefinition["relationship"], TriggerDefinition["source"]?]> = [
     [/when (?:your |an )?opponent plays/i, "CARD_PLAYED", "opponent"],
-    [/when you play|when this is played/i, "CARD_PLAYED", "controller"],
+    [/when you play this(?: card)?|when this is played/i, "CARD_PLAYED", "controller", "self"],
+    [/when you play/i, "CARD_PLAYED", "controller"],
     [/when you select a Bakugan/i, "BAKUGAN_SELECTED", "controller"],
     [/when this opens|when you open a Bakugan/i, "BAKUGAN_OPENED", "controller"],
     [/when you discard|if this is discarded/i, "CARD_DISCARDED", "controller"],
@@ -109,12 +110,13 @@ function triggerFor(text: string): TriggerDefinition | undefined {
     [/when you have no cards in hand|when your hand is empty/i, "HAND_EMPTIED", "controller"],
     [/at (?:the )?end of (?:your |the )?turn/i, "TURN_ENDED", "controller"],
   ];
-  for (const [pattern, event, relationship] of table) {
+  for (const [pattern, event, relationship, source] of table) {
     if (!pattern.test(text)) continue;
     const cardType = text.match(/plays? an? (Action|Hero|Evo|Flip)/i)?.[1] as CardType | undefined;
     return {
       event,
       relationship,
+      source,
       cardType,
       optional: /\bmay\b/i.test(text),
       interveningCondition: /\bif\b/i.test(text) ? conditionFor(text) : undefined,

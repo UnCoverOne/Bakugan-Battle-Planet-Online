@@ -193,7 +193,9 @@ export function DeckInspectionLayer() {
         ? "No legal search targets remain. Finish the search to shuffle the deck."
         : selectedId
           ? "The selected card will be revealed and moved to your hand, then the deck will be shuffled."
-          : "Select one highlighted legal card from the cards currently remaining in your deck."
+          : selectionRequired
+            ? "Select one highlighted legal card from the cards currently remaining in your deck."
+            : "Select a highlighted card to put it into your hand, or finish the search without taking one."
       : inspectedDeckPlay
         ? inspectedCardPlayable
           ? selectionField && !selectedId
