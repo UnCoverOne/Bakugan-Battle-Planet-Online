@@ -128,6 +128,9 @@ test("the Batch HUD yields the Hide Matrix while a Reroll target is required", (
   };
 
   assert.equal(batchHudShouldRender(match), false);
+  match.phase = "power";
+  assert.equal(batchHudShouldRender(match), false, "pending target selection owns the Hide Matrix even before phase synchronization");
+  match.phase = "reroll";
   match.pendingReroll.targetCell = match.placements[0]?.cell ?? "h3-3";
   assert.equal(batchHudShouldRender(match), true);
 });
@@ -159,6 +162,25 @@ test("contested Brawls still expose two active combatants and descriptive roll l
   assert.ok(views.every((view) => view.participating));
   assert.equal(brawlRollLabel("intended-core"), "OPEN • INTENDED CORE");
   assert.equal(brawlRollLabel("path-intercept"), "OPEN • PATH INTERCEPT");
+});
+
+test("the Bakugan Effects Tooltip includes only Hero effects applied to that Bakugan", () => {
+  const match = previewMatch("power", false);
+  const player = match.players[0];
+  const strata = CARDS.find((card) => card.catalogId === "br-80");
+  const lia = CARDS.find((card) => card.catalogId === "aa-71");
+  const dan = CARDS.find((card) => card.catalogId === "br-81");
+  assert.ok(strata && lia && dan);
+  player.heroes = [
+    { ...strata, id: "strata-in-play" },
+    { ...lia, id: "lia-in-play" },
+    { ...dan, id: "dan-in-play" },
+  ];
+
+  const view = brawlCombatants(match, player.id)[0];
+  assert.ok(view.effects.some((effect) => effect.startsWith("Dan Kouzo:")));
+  assert.ok(view.effects.every((effect) => !effect.startsWith("Strata:")));
+  assert.ok(view.effects.every((effect) => !effect.startsWith("Lia:")));
 });
 
 test("the larger Brawl Preview uses a floating hover window for Effects and Modifiers", async () => {
