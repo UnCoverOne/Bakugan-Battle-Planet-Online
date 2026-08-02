@@ -149,7 +149,9 @@ function scaleForStat(text: string, match: RegExpMatchArray) {
 
 export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const actions: RuleAction[] = [];
-  const duration = durationFor(text);
+  const intrinsicCharacteristic = ["Character", "Evo"].includes(card.type)
+    && !/\b(?:when|victor\s*[-:]|at (?:the )?end of|play this)\b/i.test(text);
+  const duration = intrinsicCharacteristic ? "while-source-active" : durationFor(text);
   const scale = scaleFor(text);
   const scope = scopeFor(text);
 
@@ -170,7 +172,8 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   if (draw) actions.push({ kind: "draw", amount: numberValue(draw[1]), scale });
   const discard = text.match(/discard (a|an|one|two|three|any|up to|\d+) cards?/i);
   const delayedVictorDiscard = /if you open on the Reroll/i.test(text) && /\bVictor\s*:/i.test(text);
-  if (discard && !delayedVictorDiscard) {
+  const discardPaysPlayCost = /\bdiscard\s+(?:a|an|one|two|three|\d+)\s+cards?\s+to play this for free\b/i.test(text);
+  if (discard && !delayedVictorDiscard && !discardPaysPlayCost) {
     const amount = numberValue(discard[1]);
     const optional = /may discard|any number|up to/i.test(text);
     actions.push({ kind: "discard", amount, minimum: optional ? 0 : amount, maximum: /any number/i.test(text) ? 99 : amount, repeated: /repeat|again|any number/i.test(text) });

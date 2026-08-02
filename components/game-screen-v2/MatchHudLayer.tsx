@@ -7,6 +7,7 @@ import { legalEvoTargets, selectedEvoTargetId } from "../../lib/evo";
 import { drawStepIsPending } from "../../lib/turnStart";
 import {
   compactMatchHudSlots,
+  handDiscardRequirement,
   handCardIsActionable,
   matchRoundTarget,
   playableHandCards,
@@ -25,6 +26,7 @@ type MatchActionHandler = () => void | Promise<void>;
 type PlayCardHandler = (cardId: string, choices: CardChoices) => void | Promise<void>;
 type EnergizeCardHandler = (cardId: string) => void | Promise<void>;
 type SelectCharacterHandler = (bakuganId: string) => void | Promise<void>;
+type DiscardCardsHandler = (cardIds: string[]) => void | Promise<void>;
 
 function PlayerStatusHud({
   match,
@@ -104,14 +106,17 @@ export function MatchHudLayer({
   playerId,
   handMode,
   selectedHandCardId,
+  selectedDiscardCardIds,
   selectedCharacterId,
   onHandModeChange,
   onSelectedHandCardChange,
+  onSelectedDiscardCardsChange,
   onSelectedCharacterChange,
   onDrawCard,
   onActivateReroll,
   onPlayCard,
   onEnergizeCard,
+  onDiscardCards,
   onSkipEnergize,
   onPassTurn,
   onPlayFlip,
@@ -122,14 +127,17 @@ export function MatchHudLayer({
   playerId?: string;
   handMode: HandActionMode;
   selectedHandCardId: string;
+  selectedDiscardCardIds: string[];
   selectedCharacterId: string;
   onHandModeChange: (mode: HandActionMode) => void;
   onSelectedHandCardChange: (cardId: string) => void;
+  onSelectedDiscardCardsChange: (cardIds: string[]) => void;
   onSelectedCharacterChange: (bakuganId: string) => void;
   onDrawCard: MatchActionHandler;
   onActivateReroll: MatchActionHandler;
   onPlayCard: PlayCardHandler;
   onEnergizeCard: EnergizeCardHandler;
+  onDiscardCards: DiscardCardsHandler;
   onSkipEnergize: MatchActionHandler;
   onPassTurn: MatchActionHandler;
   onPlayFlip: PlayCardHandler;
@@ -162,6 +170,7 @@ export function MatchHudLayer({
   const effectiveHandMode = resolvedHandActionMode(match, player.id, handMode);
   const playable = playableHandCards(match, player.id);
   const selectedCard = player.hand.find((card) => card.id === selectedHandCardId);
+  const discardRequirement = handDiscardRequirement(match, player.id);
   const baseActions = visibleMatchHudActions({
     match,
     playerId: player.id,
@@ -189,6 +198,7 @@ export function MatchHudLayer({
       await handler();
       onHandModeChange(null);
       onSelectedHandCardChange("");
+      onSelectedDiscardCardsChange([]);
       onSelectedCharacterChange("");
       setSelectionPending(false);
     } catch (caught) {
@@ -233,6 +243,19 @@ export function MatchHudLayer({
       return;
     }
     void run(() => onEnergizeCard(selectedCard.id));
+  };
+
+  const discardSelectedCards = () => {
+    if (!discardRequirement) return;
+    const legalIds = selectedDiscardCardIds.filter((id) => discardRequirement.optionIds.includes(id));
+    if (legalIds.length < discardRequirement.minimum || legalIds.length > discardRequirement.maximum) {
+      const expected = discardRequirement.minimum === discardRequirement.maximum
+        ? `exactly ${discardRequirement.minimum}`
+        : `${discardRequirement.minimum}–${discardRequirement.maximum}`;
+      setError(`Select ${expected} card${discardRequirement.maximum === 1 ? "" : "s"} from your hand, then press Discard.`);
+      return;
+    }
+    void run(() => onDiscardCards(legalIds));
   };
 
   const confirmSelection = () => {
@@ -285,6 +308,15 @@ export function MatchHudLayer({
       label: "Reroll",
       active: true,
       onClick: () => void run(onActivateReroll),
+    },
+    discard: {
+      label: discardRequirement
+        ? `Discard ${selectedDiscardCardIds.length}/${discardRequirement.maximum}`
+        : "Discard",
+      active: Boolean(discardRequirement
+        && selectedDiscardCardIds.length >= discardRequirement.minimum
+        && selectedDiscardCardIds.length <= discardRequirement.maximum),
+      onClick: discardSelectedCards,
     },
     "play-card": {
       label: "Play Card",

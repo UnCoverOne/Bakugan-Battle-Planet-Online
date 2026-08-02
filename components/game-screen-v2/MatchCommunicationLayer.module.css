@@ -187,6 +187,26 @@
   border-color: rgba(194, 124, 255, 0.72);
 }
 
+.cardEvent[data-local="false"] {
+  grid-template-columns: minmax(0, 1fr) clamp(3.25rem, 7vw, 4rem);
+}
+
+.cardEvent[data-local="false"] .cardPreview {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.cardEvent[data-local="false"] figcaption {
+  grid-column: 1;
+  grid-row: 1;
+  text-align: right;
+}
+
+.cardEvent[data-local="false"] .cardActor,
+.cardEvent[data-local="false"] figcaption time {
+  justify-self: end;
+}
+
 .cardPreview {
   width: 100%;
 }

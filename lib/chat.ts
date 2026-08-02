@@ -36,6 +36,21 @@ export function eventLogEntries(match: MatchState | null | undefined) {
   return (match?.log ?? []).filter((entry) => String(entry.kind) !== "chat");
 }
 
+/** Display Event Log time on the match's own elapsed clock, never a wall clock. */
+export function matchTimeLabel(
+  match: MatchState | null | undefined,
+  at: number,
+) {
+  const startedAt = match?.log.find((entry) => Number.isFinite(entry.at))?.at ?? at;
+  const elapsedSeconds = Math.max(0, Math.floor((at - startedAt) / 1_000));
+  const hours = Math.floor(elapsedSeconds / 3_600);
+  const minutes = Math.floor((elapsedSeconds % 3_600) / 60);
+  const seconds = elapsedSeconds % 60;
+  return hours > 0
+    ? [hours, minutes, seconds].map((value, index) => index === 0 ? String(value) : String(value).padStart(2, "0")).join(":")
+    : [minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
 export type CardEventLogEntry = MatchLogEntry & {
   card: GameCard;
   cardEvent: CardLogEvent;

@@ -13,7 +13,6 @@ import { DrawAnimationLayer } from "./DrawAnimationLayer";
 import { GameplayCardPresentationLayer } from "./GameplayCardPresentationLayer";
 import { GameplaySoundLayer } from "./GameplaySoundLayer";
 import { MatchCommunicationLayer } from "./MatchCommunicationLayer";
-import { MatchDecisionLayer } from "./MatchDecisionLayer";
 import { MatchStateCoordinator } from "./MatchStateCoordinator";
 import { GameplayClient } from "./GameplayClient";
 import { ViewportStabilityGuard } from "./ViewportStabilityGuard";
@@ -33,7 +32,6 @@ export function GameplayRuntime() {
       <MatchCommunicationLayer />
       <DrawAnimationLayer />
       <BrawlExperienceLayer />
-      <MatchDecisionLayer />
       <DeckInspectionLayer />
       <ChoiceQueueLayer />
       <GameplaySoundLayer />

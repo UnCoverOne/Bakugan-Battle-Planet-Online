@@ -22,6 +22,19 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
         if (reroll && reroll[1].trim()) {
           return [reroll[1].trim().replace(/[,;:]$/, "") + ".", reroll[2].trim()];
         }
+        // A printed "then" is an ordering boundary. Keeping both halves in
+        // one instruction requests all choices before either action runs,
+        // which reverses effects such as "Draw two cards, then discard two
+        // cards." Splitting here lets the resolver finish (and, for manual
+        // draws, suspend for) the first action before it builds the second
+        // action's choice schema.
+        const sequential = clause.match(/^(.*?),\s+then\s+(.+)$/i);
+        if (sequential?.[1].trim() && sequential[2].trim()) {
+          return [
+            `${sequential[1].trim().replace(/[,;:]$/, "")}.`,
+            `Then ${sequential[2].trim()}`,
+          ];
+        }
         return [clause];
       })
     : [""];
@@ -86,6 +99,7 @@ function choice(
 function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec["timing"]): ChoiceSpec[] {
   const result: ChoiceSpec[] = [];
   const timing = /when you play this|\bmay\b|\bSacrifice\b/i.test(text) ? "resolve" : defaultTiming;
+  const discardPaysPlayCost = /\bdiscard\s+(?:a|an|one|two|three|\d+)\s+cards?\s+to play this for free\b/i.test(text);
   if (card.type === "Evo" && defaultTiming === "announce") result.push(choice("targetBakuganId", "announce", "chosen-bakugan", "Choose the matching Character"));
   if (/choose (?:a|an|one).*Bakugan|target .*Bakugan|retract (?:one of )?(?:your )?(?:open )?Bakugan/i.test(text)) result.push(choice("targetBakuganId", timing, "chosen-bakugan", "Choose a Bakugan"));
   if (/choose a player/i.test(text)) result.push(choice("targetPlayerId", timing, "controller", "Choose a player"));
@@ -93,13 +107,14 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   if (/destroy an evo|choose an evo/i.test(text)) result.push(choice("targetEvoId", timing, "evo", "Choose an Evo"));
   if (/destroy (?:an?|two|three) (?:enemy )?energy|choose an energy/i.test(text)) result.push(choice("targetEnergyIds", timing, "energy-card", "Choose Energy"));
   if (/attach a bakucore|remove .*bakucore|choose a bakucore|turn a bakucore/i.test(text)) result.push(choice("coreCell", timing, "bakucore", "Choose a BakuCore"));
-  if (/sacrifice|discard (?:a|an|one|two|three|any|up to|\d+)|cards? from your hand/i.test(text)
+  if (/\bsacrifice\b|\bdiscard\s+(?:a|an|one|two|three|any|up to|\d+)\s+cards?\b|\bdiscard\s+cards?\s+from your hand\b/i.test(text)
+    && !discardPaysPlayCost
     && !/choose a player to discard/i.test(text)
     && !(/if you open on the Reroll/i.test(text) && /\bVictor\s*:/i.test(text))) {
     const optional = /up to|any number|may discard/i.test(text);
     const selected = choice(
       "discardCardIds",
-      timing,
+      "resolve",
       "hand-card",
       /sacrifice/i.test(text) ? "Choose cards to sacrifice" : "Choose cards to discard",
       optional,

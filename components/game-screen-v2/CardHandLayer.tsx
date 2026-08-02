@@ -206,7 +206,9 @@ function PlayerHand({
   playerId,
   actionMode,
   selectedCardId,
+  selectedDiscardCardIds,
   onCardSelect,
+  onDiscardCardSelect,
 }: {
   cards: readonly GameCard[];
   bounds: HandViewportBounds | null;
@@ -214,7 +216,9 @@ function PlayerHand({
   playerId?: string;
   actionMode: HandActionMode;
   selectedCardId: string;
+  selectedDiscardCardIds: readonly string[];
   onCardSelect?: (cardId: string) => void;
+  onDiscardCardSelect?: (cardId: string) => void;
 }) {
   if (!cards.length) return null;
   const layout = handCardLayout(cards.length, bounds?.geometry.spanDegrees);
@@ -224,9 +228,10 @@ function PlayerHand({
     cardId: string,
     actionable: boolean,
   ) => {
-    if (!actionable || !onCardSelect || (event.key !== "Enter" && event.key !== " ")) return;
+    const select = actionMode === "discard" ? onDiscardCardSelect : onCardSelect;
+    if (!actionable || !select || (event.key !== "Enter" && event.key !== " ")) return;
     event.preventDefault();
-    onCardSelect(cardId);
+    select(cardId);
   };
 
   return (
@@ -245,7 +250,9 @@ function PlayerHand({
         {cards.map((card, index) => {
           const position = layout[index];
           const actionable = handCardIsActionable(match, playerId, card, actionMode);
-          const selected = actionable && card.id === selectedCardId;
+          const selected = actionable && (actionMode === "discard"
+            ? selectedDiscardCardIds.includes(card.id)
+            : card.id === selectedCardId);
           return (
             <li
               className={`${styles.handCard} ${actionable ? styles.actionableHandCard : ""} ${selected ? styles.selectedHandCard : ""}`}
@@ -259,9 +266,11 @@ function PlayerHand({
               tabIndex={actionable ? 0 : undefined}
               aria-pressed={actionable ? selected : undefined}
               aria-label={actionable
-                ? `${card.displayName || card.name}, choose for ${actionMode === "energize" ? "Energize" : "Play Card"}`
+                ? `${card.displayName || card.name}, choose for ${actionMode === "discard" ? "Discard" : actionMode === "energize" ? "Energize" : "Play Card"}`
                 : undefined}
-              onClick={() => actionable && onCardSelect?.(card.id)}
+              onClick={() => actionable && (actionMode === "discard"
+                ? onDiscardCardSelect?.(card.id)
+                : onCardSelect?.(card.id))}
               onKeyDown={(event) => selectWithKeyboard(event, card.id, actionable)}
             >
               <div className={styles.handCardSurface}>
@@ -331,13 +340,17 @@ export function CardHandLayer({
   playerId,
   actionMode = null,
   selectedCardId = "",
+  selectedDiscardCardIds = [],
   onCardSelect,
+  onDiscardCardSelect,
 }: {
   match: MatchState | null;
   playerId?: string;
   actionMode?: HandActionMode;
   selectedCardId?: string;
+  selectedDiscardCardIds?: readonly string[];
   onCardSelect?: (cardId: string) => void;
+  onDiscardCardSelect?: (cardId: string) => void;
 }) {
   const cards = playerHandCards(match, playerId);
   const opponentCardCount = opponentHandCardCount(match, playerId);
@@ -357,7 +370,9 @@ export function CardHandLayer({
         playerId={playerId}
         actionMode={effectiveActionMode}
         selectedCardId={selectedCardId}
+        selectedDiscardCardIds={selectedDiscardCardIds}
         onCardSelect={onCardSelect}
+        onDiscardCardSelect={onDiscardCardSelect}
       />
     </>
   );
