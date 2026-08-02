@@ -7,9 +7,10 @@ import {
 } from "../components/game-screen-v2/turnProgressState";
 
 test("Tips stay hidden while Roll Results or the Brawl Preview is visible", () => {
-  assert.equal(phaseTransitionIsBlocked(true, false), true);
-  assert.equal(phaseTransitionIsBlocked(false, true), true);
-  assert.equal(phaseTransitionIsBlocked(false, false), false);
+  assert.equal(phaseTransitionIsBlocked(true, false, false), true);
+  assert.equal(phaseTransitionIsBlocked(false, true, false), true);
+  assert.equal(phaseTransitionIsBlocked(false, false, true), true);
+  assert.equal(phaseTransitionIsBlocked(false, false, false), false);
 });
 
 test("a pending roll presentation cannot fall back to the Selection Step", () => {
