@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { BAKUGAN, CARD_BY_ID, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, resolveStructuredEffect } from "../lib/game";
+import { BAKUGAN, CARDS, CARD_BY_ID, STARTER_DECKS, makePlayer } from "../lib/data";
+import { alternateWinEffectPending, createMatch, passPriority, playCard, resolveStructuredEffect } from "../lib/game";
+import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import type { RuleObject } from "../lib/rules/model";
+import { createRuleObject } from "../lib/rules/objects";
 import { normalizeRuleObjects } from "../lib/rules/state";
 
 test("the result route does not remount the gameplay runtime", () => {
@@ -101,4 +103,101 @@ test("Dan Kouzo played by Lia after opening does not trigger retroactively", () 
   assert.equal(player.heroes.some((candidate) => candidate.id === dan.id), true);
   assert.equal(player.revealedDeckCardId, undefined);
   assert.equal(player.deckCards[0]?.id, nextCard.id);
+});
+
+
+test("Dragonoid Maximus stages an unrespondable alternate-win effect before the game ends", () => {
+  const first = makePlayer("first", "First", STARTER_DECKS[0]);
+  const second = makePlayer("second", "Second", STARTER_DECKS[1]);
+  const state = createMatch("MAXWIN", "bo1", [first, second]);
+  state.turn = 3;
+  state.phase = "power";
+  state.startingPlayer = first.id;
+  state.priority = first.id;
+
+  const titanTemplate = BAKUGAN.find((candidate) => candidate.id === "ex-1");
+  const maximusTemplate = CARD_BY_ID.get("ex-2");
+  assert.ok(titanTemplate && maximusTemplate);
+  const titan = structuredClone(titanTemplate);
+  titan.id = "ex-1-first";
+  titan.character = { ...structuredClone(titan.character), id: "ex-1-first-character" };
+  first.bakugan[0] = titan;
+  state.selected[first.id] = titan.id;
+
+  for (const name of ["Dan", "Wynton", "Lia"]) {
+    const hero = CARDS.find((candidate) => (
+      candidate.type === "Hero" && new RegExp(`^${name}\\b`, "i").test(candidate.displayName)
+    ));
+    assert.ok(hero, `Missing ${name} Hero`);
+    first.heroes.push({ ...structuredClone(hero), id: `${hero.catalogId}-maximus-condition` });
+  }
+
+  const maximus = { ...structuredClone(maximusTemplate), id: "ex-2-first" };
+  const definition = ruleDefinitionForCard(maximus);
+  const ability = definition.abilities.find((candidate) => candidate.kind !== "triggered");
+  assert.ok(ability);
+  const pending = createRuleObject({
+    controllerId: first.id,
+    card: maximus,
+    ability,
+    kind: "card",
+    choices: { targetBakuganId: titan.id },
+  });
+  state.batch = [pending];
+
+  let next = resolveStructuredEffect(state, pending);
+  assert.equal(next.phase, "power");
+  assert.equal(next.winner, "");
+  assert.equal(next.players[0].bakugan[0].evoStack.at(-1)?.catalogId, "ex-2");
+  assert.equal(alternateWinEffectPending(next), true);
+  const winEffect = next.batch.find((effect) => effect.alternateWin);
+  assert.ok(winEffect);
+  assert.equal(winEffect.card.catalogId, "ex-2");
+  assert.equal(winEffect.kind, "trigger");
+
+  const response = { ...structuredClone(CARD_BY_ID.get("bb-1")!), id: "locked-response" };
+  next.players[0].hand.push(response);
+  assert.throws(
+    () => playCard(next, first.id, response.id),
+    /cannot be responded to with cards/i,
+  );
+
+  next = passPriority(next, next.priority);
+  next = passPriority(next, next.priority);
+  assert.equal(next.phase, "result");
+  assert.equal(next.winner, first.id);
+  assert.match(next.resultReason, /Dragonoid Maximus/i);
+});
+
+test("Dragonoid Maximus uses a red ultimate-effect treatment and a five-second result reveal", () => {
+  const runtime = readFileSync(
+    new URL("../components/game-screen-v2/GameplayRuntime.tsx", import.meta.url),
+    "utf8",
+  );
+  const experience = readFileSync(
+    new URL("../components/game-screen-v2/BrawlExperienceLayer.tsx", import.meta.url),
+    "utf8",
+  );
+  const experienceCss = readFileSync(
+    new URL("../components/game-screen-v2/BrawlExperienceLayer.module.css", import.meta.url),
+    "utf8",
+  );
+  const presentation = readFileSync(
+    new URL("../components/game-screen-v2/AlternateWinPresentationLayer.tsx", import.meta.url),
+    "utf8",
+  );
+  const timing = readFileSync(
+    new URL("../components/game-screen-v2/alternateWinPresentation.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(runtime, /<AlternateWinPresentationLayer\s*\/>/);
+  assert.match(experience, /data-alternate-win/);
+  assert.match(experience, /NO CARDS MAY BE PLAYED/);
+  assert.match(experienceCss, /border:\s*2px solid #ff3128/);
+  assert.match(experienceCss, /alternate-win-batch-pulse/);
+  assert.match(presentation, /Dragonoid Maximus/);
+  assert.match(presentation, /assets\/cards\/sets\/ex\/full\/ex-2\.webp/);
+  assert.match(timing, /DRAGONOID_MAXIMUS_ANIMATION_MS = 3_000/);
+  assert.match(timing, /DRAGONOID_MAXIMUS_RESULT_DELAY_MS = 5_000/);
 });

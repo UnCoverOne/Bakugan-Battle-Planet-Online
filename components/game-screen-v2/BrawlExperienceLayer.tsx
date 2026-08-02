@@ -51,6 +51,7 @@ function sameHudPosition(previous: HudPosition | null, next: HudPosition) {
 }
 
 function effectLabel(effect: PendingEffect) {
+  if (effect.alternateWin) return "ULTIMATE WIN";
   if (effect.kind === "trigger") return "TRIGGER";
   if (effect.kind === "copy") return "COPY";
   return effect.card.type.toUpperCase();
@@ -286,6 +287,7 @@ export function BrawlExperienceLayer() {
     ? [resolvingEffect, ...batch]
     : batch;
   const batchKey = combinedBatch.map((effect) => effect.id).join("|");
+  const alternateWinActive = combinedBatch.some((effect) => effect.alternateWin);
   const showBatchHud = combinedBatch.length > 0
     && batchHudShouldRender(experience.match);
   const hudStyle = hudPosition ? {
@@ -344,9 +346,9 @@ export function BrawlExperienceLayer() {
           aria-label={`${combinedBatch.length} effects in the batch`}
           data-zone-kind="batch"
         >
-          <div className={styles.batchTitle}>
-            <strong>BATCH</strong>
-            <span>RESOLVES LEFT TO RIGHT</span>
+          <div className={styles.batchTitle} data-alternate-win={alternateWinActive ? "true" : "false"}>
+            <strong>{alternateWinActive ? "ULTIMATE EFFECT" : "BATCH"}</strong>
+            <span>{alternateWinActive ? "NO CARDS MAY BE PLAYED" : "RESOLVES LEFT TO RIGHT"}</span>
           </div>
           <div className={styles.batchRow} key={batchKey}>
             {combinedBatch.map((effect, index) => {
@@ -359,6 +361,7 @@ export function BrawlExperienceLayer() {
                   data-owner={local ? "player" : "opponent"}
                   data-card-id={effect.card.id}
                   data-resolving={resolving ? "true" : "false"}
+                  data-alternate-win={effect.alternateWin ? "true" : "false"}
                   style={{ "--batch-order": index } as CSSProperties}
                   title={`${effect.card.displayName || effect.card.name}: ${effect.card.effect}`}
                   key={effect.id}

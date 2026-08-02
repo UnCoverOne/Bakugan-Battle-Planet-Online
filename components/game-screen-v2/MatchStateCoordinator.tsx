@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { captureCoreReturns } from "../../lib/coreReturns";
 import type { MatchState } from "../../lib/game";
 import { CoreReturnPlacementLayer } from "./CoreReturnPlacementLayer";
+import {
+  dragonoidMaximusResultRemaining,
+  isDragonoidMaximusResult,
+} from "./alternateWinPresentation";
 import styles from "./MatchResultDialog.module.css";
 import {
   MATCH_UPDATE_EVENT,
@@ -76,6 +80,15 @@ function resultReasonCopy(
     : null;
   const defeatedLocally = defeatedPlayer?.id === localPlayerId;
   const defeatedName = defeatedPlayer?.name ?? "The defeated player";
+
+  if (normalized.includes("dragonoid maximus")) {
+    return {
+      title: outcome === "victory" ? "VICTORY BY MAXIMUS" : "DEFEAT BY MAXIMUS",
+      detail: outcome === "victory"
+        ? "You controlled Dan, Wynton, Lia, and Dragonoid Maximus when its ultimate effect resolved."
+        : `${match.players.find((player) => player.id === match.winner)?.name ?? "Your opponent"} resolved Dragonoid Maximus's ultimate win effect.`,
+    };
+  }
 
   if (normalized.includes("deck-out")) {
     return {
@@ -253,13 +266,34 @@ export function MatchStateCoordinator() {
   }));
   const retracting = returnState.route === "match" && returnState.match?.phase === "retract";
   const completed = returnState.route === "match" && returnState.match?.phase === "result";
+  const [resultReady, setResultReady] = useState(false);
+
+  useEffect(() => {
+    const match = returnState.match;
+    if (!completed || !match) {
+      setResultReady(false);
+      return;
+    }
+    if (!isDragonoidMaximusResult(match)) {
+      setResultReady(true);
+      return;
+    }
+    const remaining = dragonoidMaximusResultRemaining(match);
+    if (remaining <= 0) {
+      setResultReady(true);
+      return;
+    }
+    setResultReady(false);
+    const timeout = window.setTimeout(() => setResultReady(true), remaining);
+    return () => window.clearTimeout(timeout);
+  }, [completed, returnState.match]);
 
   return (
     <>
       {retracting ? (
         <CoreReturnPlacementLayer match={returnState.match!} playerId={returnState.playerId} />
       ) : null}
-      {completed ? (
+      {completed && resultReady ? (
         <MatchResultDialog
           match={returnState.match!}
           playerId={returnState.playerId}

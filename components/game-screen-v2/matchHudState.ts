@@ -1,4 +1,5 @@
 import {
+  alternateWinEffectPending,
   cardChoiceSpec,
   cardRerollTimingLegal,
   playerCanActivateIntrinsicReroll,
@@ -121,6 +122,7 @@ export function playableHandCards(
     !match
     || !player
     || hasPendingDraws(match)
+    || alternateWinEffectPending(match)
     || !isPriorityWindow(match)
     || match.priority !== player.id
   ) return [];
@@ -251,6 +253,7 @@ export function visibleMatchHudActions({
   );
   const selectedPlayable = playCards.some((card) => card.id === selectedCardId);
   const flipDecision = revealedFlipDecision(match, player?.id);
+  const cardPlayLocked = alternateWinEffectPending(match);
   const discard = handDiscardRequirement(match, player?.id);
   const completed = match?.phase === "result";
   return {
@@ -262,7 +265,7 @@ export function visibleMatchHudActions({
     "energize-card": !completed && canEnergizeCard(match, player?.id),
     "skip-energize": !completed && canSkipEnergizing(match, player?.id),
     "pass-turn": !completed && canPass,
-    "play-flip": !completed && flipDecision,
+    "play-flip": !completed && flipDecision && !cardPlayLocked,
     "skip-flip": !completed && flipDecision,
     select: Boolean(
       !completed

@@ -1,6 +1,7 @@
 import {
   HEX_CELLS,
   activateIntrinsicReroll,
+  alternateWinEffectPending,
   beginCorePlacement,
   cancelCardChoice,
   cardRerollTimingLegal,
@@ -841,13 +842,14 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
     return resolveManualDamage(
       input,
       playerId,
-      payment && payment.kind !== "insufficient" && useful
+      !alternateWinEffectPending(input) && payment && payment.kind !== "insufficient" && useful
         ? input.revealedFlip.id
         : undefined,
       choices,
     );
   }
   if (PRIORITY_PHASES.has(input.phase) && input.priority === playerId) {
+    if (alternateWinEffectPending(input)) return passPriority(input, playerId);
     if (playerCanActivateIntrinsicReroll(input, playerId)) {
       return activateIntrinsicReroll(input, playerId);
     }

@@ -215,6 +215,8 @@ export type PendingEffect = {
   instructionIndex?: number;
   /** Clause-scoped answers keyed by compiled instruction index. */
   resolvedChoices?: Record<string, CardChoices>;
+  /** Marks Dragonoid Maximus's unique alternate-win effect on the batch. */
+  alternateWin?: boolean;
 };
 
 export type TriggerOrderRequest = {
@@ -749,6 +751,59 @@ export const targetCore = (input: MatchState, playerId: string, cell: string) =>
 const activeBakugan = (state: MatchState, playerId: string) => playerById(state, playerId).bakugan.find((bakugan) => bakugan.id === state.selected[playerId]);
 const topCard = (bakugan: Bakugan) => bakugan.evoStack.at(-1) ?? bakugan.character;
 
+const DRAGONOID_MAXIMUS_CARD_ID = "ex-2";
+const DRAGONOID_MAXIMUS_REQUIRED_HEROES = ["Dan", "Wynton", "Lia"];
+
+export function alternateWinEffectPending(
+  state: Pick<MatchState, "batch"> | null | undefined,
+) {
+  return Boolean(state?.batch.some((effect) => effect.alternateWin));
+}
+
+function stageDragonoidMaximusWinEffect(state: MatchState) {
+  if (state.phase === "result" || alternateWinEffectPending(state)) return false;
+  for (const owner of state.players) {
+    const sourceBakugan = owner.bakugan.find((bakugan) => (
+      bakugan.evoStack.at(-1)?.catalogId === DRAGONOID_MAXIMUS_CARD_ID
+    ));
+    const source = sourceBakugan?.evoStack.at(-1);
+    if (!source || !sourceBakugan) continue;
+    if (!ruleConditionActive(
+      state,
+      owner,
+      { kind: "controls-named-cards", names: [...DRAGONOID_MAXIMUS_REQUIRED_HEROES] },
+      sourceBakugan,
+    )) continue;
+    const ability = ruleDefinitionForCard(source).abilities.find((candidate) => candidate.kind !== "triggered");
+    if (!ability) continue;
+    const effect = createRuleObject({
+      controllerId: owner.id,
+      card: source,
+      ability,
+      kind: "trigger",
+      sourceId: source.id,
+    });
+    effect.alternateWin = true;
+    effect.effect = source.effect;
+    // The alternate-win effect is placed beneath every object already on the
+    // batch. Existing objects resolve normally, but no new cards may be played.
+    state.batch.unshift(effect);
+    state.passes = [];
+    state.undoWindow = undefined;
+    state.stepLabel = `${source.displayName || source.name} • Alternate win effect`;
+    entry(
+      state,
+      "system",
+      `${source.displayName || source.name}'s alternate win effect entered the batch. No cards may be played until it resolves.`,
+      source,
+      "effect",
+      owner.id,
+    );
+    return true;
+  }
+  return false;
+}
+
 class RerollResolutionSuspended extends Error {
   constructor() {
     super("Reroll resolution suspended for a physical roll.");
@@ -1177,6 +1232,9 @@ const payEnergy = (state: MatchState, player: PlayerState, amount: number) => {
 
 export const prepareCardPlay = (input: MatchState, playerId: string, cardId: string) => {
   const state = cloneMatch(input);
+  if (alternateWinEffectPending(state)) {
+    throw new Error("Dragonoid Maximus's alternate win effect cannot be responded to with cards.");
+  }
   if (state.pendingChoice) throw new Error("Complete the current choice before starting another action.");
   if (!["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase) || state.priority !== playerId) {
     throw new Error("You do not have priority in a card-play window.");
@@ -1351,6 +1409,9 @@ export const splitWhenPlayedEffect = (effect: string) => {
 
 export const playCard = (input: MatchState, playerId: string, cardId: string, choices: CardChoices = {}) => {
   const state = cloneMatch(input); const player = playerById(state, playerId);
+  if (alternateWinEffectPending(state)) {
+    throw new Error("Dragonoid Maximus's alternate win effect cannot be responded to with cards.");
+  }
   const preparationWasIrreversible = Boolean(state.pendingChoice?.irreversibleInformation);
   const undoSnapshot = state.pendingChoice?.beforeState
     ?? JSON.stringify({ ...input, pendingChoice: undefined, undoWindow: undefined });
@@ -1662,9 +1723,23 @@ const executeRuleAction = (
     case "set-rule":
       if (action.rule === "victor-stat") state.victorByDamage = action.value === "damage";
       return;
-    case "win-game":
+    case "win-game": {
+      if (card.catalogId === DRAGONOID_MAXIMUS_CARD_ID) {
+        // The printed condition is state-based. Its ordinary Evo program only
+        // checks whether the unique effect should be staged after the Evo has
+        // entered play; the staged object performs the actual game win.
+        if (!pending.alternateWin) return;
+        const sourceStillActive = playerById(state, controllerId).bakugan.some((bakugan) => (
+bakugan.evoStack.at(-1)?.id === (pending.sourceId ?? card.id)
+        ));
+        if (!sourceStillActive) {
+entry(state, "system", `${card.displayName || card.name}'s alternate win effect resolved without an active source.`);
+return;
+        }
+      }
       completeMatch(state, controllerId, action.reason);
       return;
+    }
     case "damage-to-hand": {
       const amount = state.pendingDamage;
       for (let index = 0; index < amount; index += 1) {
@@ -1764,6 +1839,10 @@ const executeRuleAction = (
       return;
     }
     case "play": {
+      if (alternateWinEffectPending(state)) {
+        entry(state, "game", `${card.name} could not play another card while Dragonoid Maximus's alternate win effect was on the batch.`);
+        return;
+      }
       if (action.source === "hand") {
         const selectedId = choices.handCardIds?.[0];
         const index = player.hand.findIndex((candidate) => candidate.id === selectedId);
@@ -2035,6 +2114,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
   }
   delete player.revealedDeckCardId;
   if (isRuleObject(pending)) completeRuleObject(pending);
+  if (!pending.alternateWin) stageDragonoidMaximusWinEffect(state);
   entry(state, "game", `${pending.card.name} finished resolving its typed rule program.`, pending.card, "effect", pending.controllerId);
   return true;
 }

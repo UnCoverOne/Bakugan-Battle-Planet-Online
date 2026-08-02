@@ -6,6 +6,7 @@ import "../../app/discard-flip-orientation.css";
 import "../../app/card-preview-interactions.css";
 import "../../app/gameplay-card-presentation.css";
 import { BakuCorePresentationProvider } from "./BakuCorePresentation";
+import { AlternateWinPresentationLayer } from "./AlternateWinPresentationLayer";
 import { BrawlExperienceLayer } from "./BrawlExperienceLayer";
 import { ChoiceQueueLayer } from "./ChoiceQueueLayer";
 import { DeckInspectionLayer } from "./DeckInspectionLayer";
@@ -32,6 +33,7 @@ export function GameplayRuntime() {
       <MatchCommunicationLayer />
       <DrawAnimationLayer />
       <BrawlExperienceLayer />
+      <AlternateWinPresentationLayer />
       <DeckInspectionLayer />
       <ChoiceQueueLayer />
       <GameplaySoundLayer />

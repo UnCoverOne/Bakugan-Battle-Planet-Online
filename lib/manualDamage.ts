@@ -1,4 +1,5 @@
 import {
+  alternateWinEffectPending,
   cloneMatch,
   completeMatch,
   recordCardPlayedForTurn,
@@ -103,6 +104,9 @@ export function resolveManualDamage(
   const flip = input.revealedFlip;
   if (input.phase !== "damage" || input.pendingLoser !== playerId || !player || !flip) {
     throw new Error("There is no revealed Flip decision for you.");
+  }
+  if (flipCardId && alternateWinEffectPending(input)) {
+    throw new Error("Dragonoid Maximus's alternate win effect cannot be responded to with cards.");
   }
   if (!flipCardId) {
     const state = cloneMatch(input);

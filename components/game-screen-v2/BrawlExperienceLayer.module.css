@@ -553,3 +553,62 @@
   }
 }
 
+
+
+/* Dragonoid Maximus's alternate-win object is intentionally unlike every
+   ordinary card or trigger on the batch. */
+.batchTitle[data-alternate-win="true"] {
+  border-color: rgba(255, 52, 42, 0.9);
+  background: linear-gradient(90deg, rgba(119, 5, 10, 0.96), rgba(24, 3, 6, 0.94), rgba(119, 5, 10, 0.96));
+  box-shadow: 0 0 1.15rem rgba(255, 29, 25, 0.38);
+}
+
+.batchTitle[data-alternate-win="true"] strong,
+.batchTitle[data-alternate-win="true"] span,
+.batchEffect[data-alternate-win="true"] figcaption small,
+.batchEffect[data-alternate-win="true"] figcaption strong {
+  color: #ff5148;
+  text-shadow: 0 0 0.55rem rgba(255, 28, 24, 0.72);
+}
+
+.batchEffect[data-alternate-win="true"] {
+  transform: scale(1.12);
+  filter: drop-shadow(0 0 0.65rem rgba(255, 18, 18, 0.7));
+}
+
+.batchEffect[data-alternate-win="true"] .batchHex {
+  background: radial-gradient(circle, rgba(130, 8, 13, 0.98), rgba(19, 2, 5, 0.99) 72%);
+  filter:
+    drop-shadow(0 0.35rem 0.42rem rgba(0, 0, 0, 0.72))
+    drop-shadow(0 0 0.28rem #ff241c)
+    drop-shadow(0 0 0.78rem rgba(255, 22, 18, 0.92));
+  animation: alternate-win-batch-pulse 920ms ease-in-out infinite alternate;
+}
+
+.batchEffect[data-alternate-win="true"] .batchHex::before {
+  content: "";
+  position: absolute;
+  inset: 0.08rem;
+  z-index: 4;
+  clip-path: inherit;
+  border: 2px solid #ff3128;
+  box-shadow:
+    inset 0 0 0.6rem rgba(255, 32, 26, 0.86),
+    0 0 0.8rem rgba(255, 20, 18, 0.96);
+  pointer-events: none;
+}
+
+.batchEffect[data-alternate-win="true"] .batchHex::after {
+  border-color: #ff8b7e;
+}
+
+@keyframes alternate-win-batch-pulse {
+  from { transform: scale(1); filter: brightness(1); }
+  to { transform: scale(1.055); filter: brightness(1.28); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .batchEffect[data-alternate-win="true"] .batchHex {
+    animation: none;
+  }
+}

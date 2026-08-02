@@ -191,6 +191,8 @@ export type RuleObject = {
   cursor: { instructionIndex: number; effectIndex: number };
   resolvedChoices?: Record<string, CardChoices>;
   createdByEventId?: string;
+  /** Marks Dragonoid Maximus's unique, unrespondable alternate-win batch object. */
+  alternateWin?: boolean;
   independentChoiceSetId: string;
 };
 
