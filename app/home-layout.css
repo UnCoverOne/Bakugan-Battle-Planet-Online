@@ -35,11 +35,11 @@
   font-size: .8rem;
   letter-spacing: .14em;
 }
-.app-shell:has(.bakugan-home) .overhaul-topbar nav {
+.app-shell:has(.bakugan-home) .overhaul-topbar > nav {
   justify-self: center;
   gap: .1rem;
 }
-.app-shell:has(.bakugan-home) .overhaul-topbar nav a {
+.app-shell:has(.bakugan-home) .overhaul-topbar > nav a {
   position: relative;
   min-width: 116px;
   justify-content: center;
@@ -51,12 +51,12 @@
   font-style: italic;
   letter-spacing: .055em;
 }
-.app-shell:has(.bakugan-home) .overhaul-topbar nav a:hover,
-.app-shell:has(.bakugan-home) .overhaul-topbar nav a.active {
+.app-shell:has(.bakugan-home) .overhaul-topbar > nav a:hover,
+.app-shell:has(.bakugan-home) .overhaul-topbar > nav a.active {
   color: #fff;
   background: linear-gradient(180deg, rgba(0, 174, 234, .03), rgba(0, 174, 234, .2));
 }
-.app-shell:has(.bakugan-home) .overhaul-topbar nav a.active::after {
+.app-shell:has(.bakugan-home) .overhaul-topbar > nav a.active::after {
   left: 17%;
   right: 17%;
   height: 3px;
@@ -604,7 +604,7 @@
 }
 
 @media (max-width: 1050px) {
-  .app-shell:has(.bakugan-home) .overhaul-topbar nav a { min-width: 92px; padding-inline: .85rem; font-size: .86rem; }
+  .app-shell:has(.bakugan-home) .overhaul-topbar > nav a { min-width: 92px; padding-inline: .85rem; font-size: .86rem; }
   .bakugan-home-hero { grid-template-columns: minmax(330px, 480px) minmax(0, 1fr); }
   .bakugan-home-hero-art img { right: -20%; height: 150%; }
   .home-feature-grid { grid-template-columns: 1fr; min-height: 0; }

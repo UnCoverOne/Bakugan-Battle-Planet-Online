@@ -294,23 +294,23 @@ export function AppShell({ children }) {
                   <nav aria-label="Profile menu">
                     <Link className="profile-popover-row" role="menuitem" href="/profile">
                       <span className="profile-popover-row-icon"><MenuIcon name="user" /></span>
-                      <span>View Profile</span>
+                      <span className="profile-popover-row-label">View Profile</span>
                       <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
                     </Link>
                     <Link className="profile-popover-row" role="menuitem" href="/profile/achievements">
                       <span className="profile-popover-row-icon"><MenuIcon name="trophy" /></span>
-                      <span>Achievements</span>
+                      <span className="profile-popover-row-label">Achievements</span>
                       <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
                     </Link>
                     <Link className="profile-popover-row" role="menuitem" href="/settings">
                       <span className="profile-popover-row-icon"><MenuIcon name="settings" /></span>
-                      <span>Settings</span>
+                      <span className="profile-popover-row-label">Settings</span>
                       <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
                     </Link>
                     {authUser?.roles?.includes("administrator") && (
                       <Link className="profile-popover-row" role="menuitem" href="/admin">
                         <span className="profile-popover-row-icon"><MenuIcon name="shield" /></span>
-                        <span>Administrator</span>
+                        <span className="profile-popover-row-label">Administrator</span>
                         <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
                       </Link>
                     )}

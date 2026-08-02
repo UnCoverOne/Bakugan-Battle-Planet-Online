@@ -15,7 +15,7 @@
   font-family: var(--font-body);
 }
 
-.app-shell:has(.bakugan-home) .overhaul-topbar nav a,
+.app-shell:has(.bakugan-home) .overhaul-topbar > nav a,
 .bakugan-home h1,
 .bakugan-home h2,
 .bakugan-home h3,
@@ -25,7 +25,7 @@
   font-family: var(--font-display);
 }
 
-.app-shell:has(.bakugan-home) .overhaul-topbar nav a {
+.app-shell:has(.bakugan-home) .overhaul-topbar > nav a {
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: .055em;

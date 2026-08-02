@@ -17,6 +17,7 @@ test("the primary shell uses the approved four-item top navigation and profile m
   assert.match(shell, /profile-popover-title/);
   assert.match(shell, /profile-popover-stat-value/);
   assert.match(shell, /profile-popover-row-icon/);
+  assert.equal(shell.match(/className="profile-popover-row-label"/g)?.length, 4);
   assert.match(shell, /profile-popover-chevron/);
   assert.match(shell, /profile-popover-logout/);
   assert.match(shell, /View Profile/);
@@ -37,6 +38,8 @@ test("the primary shell uses the approved four-item top navigation and profile m
   assert.doesNotMatch(mobileNavigation, /href="\/profile"/);
   assert.doesNotMatch(mobileNavigation, />Profile<\/span>/);
   const shellCss = source("app/website-overhaul.css");
+  const homeLayoutCss = source("app/home-layout.css");
+  const homeFidelityCss = source("app/home-fidelity.css");
   assert.match(
     shellCss,
     /\.mobile-bottom-nav\{[^}]*grid-template-columns:repeat\(4,1fr\)/,
@@ -50,6 +53,13 @@ test("the primary shell uses the approved four-item top navigation and profile m
   assert.match(shellCss, /\.profile-popover-avatar\{[^}]*flex:0 0 14%/);
   assert.match(shellCss, /\.profile-popover-stats\{[^}]*grid-template-columns:1fr 1fr/);
   assert.match(shellCss, /\.profile-popover-row\{[^}]*min-height:44px/);
+  assert.match(shellCss, /\.profile-popover nav\{[^}]*width:100%;[^}]*padding:\.35rem 0/);
+  assert.match(shellCss, /\.profile-popover-row\{[^}]*justify-self:stretch;[^}]*width:100%/);
+  assert.match(shellCss, /\.profile-popover-row-label\{[^}]*justify-self:start;[^}]*text-align:left/);
+  assert.match(shellCss, /\.profile-popover-chevron\{[^}]*justify-self:end/);
+  for (const css of [shellCss, homeLayoutCss, homeFidelityCss]) {
+    assert.doesNotMatch(css, /\.overhaul-topbar\s+nav(?:\s|\{|a)/);
+  }
   assert.match(shellCss, /\.profile-popover-logout\{[^}]*min-height:54px/);
   assert.doesNotMatch(
     shellCss,
