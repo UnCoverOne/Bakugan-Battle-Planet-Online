@@ -11,18 +11,14 @@ import { ensureRulesState } from "./rules/state";
 
 const TIE_BREAK_DECISION_MS = 120_000;
 const RESULT_MS = 120_000;
+export const TIE_BREAK_PRESENTATION_MS = 2_600;
 
-export type TieBreakReveal = {
-  card: GameCard;
-  cost: number;
-};
-
+export type TieBreakReveal = { card: GameCard; cost: number };
 export type TieBreakRound = {
   round: number;
   reveals: Record<string, TieBreakReveal>;
   tied: boolean;
 };
-
 export type ManualTieBreakState = {
   gameNumber: number;
   turn: number;
@@ -40,50 +36,33 @@ export type ManualTieBreakState = {
 type TieBreakRulesState = ReturnType<typeof ensureRulesState> & {
   tieBreak?: ManualTieBreakState;
 };
+type TieBreakMatchState = MatchState & { rules?: TieBreakRulesState };
 
-type TieBreakMatchState = MatchState & {
-  rules?: TieBreakRulesState;
-};
-
-function rulesFor(state: MatchState) {
-  return ensureRulesState(state) as TieBreakRulesState;
-}
-
-function playerById(state: MatchState, playerId: string) {
-  return state.players.find((player) => player.id === playerId);
-}
-
-function activeOpenBakugan(state: MatchState, playerId: string) {
-  const player = playerById(state, playerId);
-  return player?.bakugan.find((bakugan) => (
+const rulesFor = (state: MatchState) => ensureRulesState(state) as TieBreakRulesState;
+const playerById = (state: MatchState, playerId: string) =>
+  state.players.find((player) => player.id === playerId);
+const activeOpenBakugan = (state: MatchState, playerId: string) =>
+  playerById(state, playerId)?.bakugan.find((bakugan) => (
     bakugan.id === state.selected[playerId] && bakugan.open
   ));
-}
-
-function appendLog(
+const appendLog = (
   state: MatchState,
   kind: MatchState["log"][number]["kind"],
   message: string,
-) {
-  state.log.push({
-    id: `${Date.now()}-tie-break-${state.log.length}`,
-    at: Date.now(),
-    kind,
-    message,
-  });
-}
+) => state.log.push({
+  id: `${Date.now()}-tie-break-${state.log.length}`,
+  at: Date.now(),
+  kind,
+  message,
+});
 
-export function tieBreakCardCost(card: Pick<GameCard, "cost">) {
-  return card.cost === "X" ? 0 : card.cost;
-}
+export const tieBreakCardCost = (card: Pick<GameCard, "cost">) =>
+  card.cost === "X" ? 0 : card.cost;
 
-export function manualTieBreakState(
-  input: MatchState | null | undefined,
-): ManualTieBreakState | undefined {
+export function manualTieBreakState(input: MatchState | null | undefined) {
   if (!input || input.phase === "result") return undefined;
   const tieBreak = (input as TieBreakMatchState).rules?.tieBreak;
-  if (!tieBreak) return undefined;
-  return tieBreak.gameNumber === input.gameNumber && tieBreak.turn === input.turn
+  return tieBreak?.gameNumber === input.gameNumber && tieBreak.turn === input.turn
     ? tieBreak
     : undefined;
 }
@@ -95,12 +74,9 @@ export function playerCanFlipTieBreak(
   const tieBreak = manualTieBreakState(input);
   const player = input && playerId ? playerById(input, playerId) : undefined;
   return Boolean(
-    input
-    && playerId
-    && player
-    && tieBreak?.status === "waiting"
+    input && playerId && player
     && input.phase === "power"
-    && Object.prototype.hasOwnProperty.call(input.series, playerId)
+    && tieBreak?.status === "waiting"
     && !tieBreak.current[playerId]
     && player.deck > 0,
   );
@@ -111,17 +87,16 @@ export function shouldStartManualTieBreak(input: MatchState, playerId: string) {
     input.phase !== "power"
     || input.priority !== playerId
     || input.passes.length !== 1
-    || input.batch.length > 0
+    || input.batch.length
     || input.pendingChoice
     || input.triggerOrders.some((request) => !request.orderedIds)
     || manualTieBreakState(input)?.status === "waiting"
   ) return false;
-
   const participants = input.players.filter((player) => activeOpenBakugan(input, player.id));
   if (participants.length !== 2) return false;
-  const values = participants.map((player) => (
-    input.victorByDamage ? totalDamage(input, player.id) : totalPower(input, player.id)
-  ));
+  const values = participants.map((player) => input.victorByDamage
+    ? totalDamage(input, player.id)
+    : totalPower(input, player.id));
   return values[0] === values[1];
 }
 
@@ -144,20 +119,15 @@ function completeTieBreakDraw(state: MatchState, reason: string) {
   appendLog(state, "system", `Game ${state.gameNumber} ended in a draw: ${reason}.`);
 }
 
-function resolveEmptyTieBreakDecks(
-  state: MatchState,
-  tieBreak: ManualTieBreakState,
-) {
+function resolveEmptyTieBreakDecks(state: MatchState, tieBreak: ManualTieBreakState) {
   const empty = state.players.filter((player) => player.deckCards.length === 0);
-  for (const player of state.players) player.deck = player.deckCards.length;
+  state.players.forEach((player) => { player.deck = player.deckCards.length; });
   if (!empty.length) return false;
-
   delete rulesFor(state).tieBreak;
   if (empty.length === state.players.length) {
     completeTieBreakDraw(state, "Simultaneous empty-deck tie-break");
     return true;
   }
-
   const loser = empty[0];
   const winner = state.players.find((player) => player.id !== loser.id);
   if (!winner) {
@@ -169,17 +139,52 @@ function resolveEmptyTieBreakDecks(
   return true;
 }
 
+function finalizeResolvedTieBreak(input: MatchState) {
+  const state = cloneMatch(input);
+  const tieBreak = manualTieBreakState(state);
+  if (!tieBreak?.winnerId || tieBreak.status !== "resolved") {
+    throw new Error("The tie-break result is not ready to advance.");
+  }
+  const winnerBakugan = activeOpenBakugan(state, tieBreak.winnerId);
+  if (!winnerBakugan) throw new Error("The tie-break Victor has no active open Bakugan.");
+
+  state.priority = tieBreak.secondPasserId;
+  state.passes = [tieBreak.firstPasserId];
+  state.deadline = Date.now() + TIE_BREAK_DECISION_MS;
+  const boosts = state.victorByDamage ? state.damageBoost : state.powerBoost;
+  const previousBoost = boosts[winnerBakugan.id] ?? 0;
+  boosts[winnerBakugan.id] = previousBoost + 1;
+  const resolved = passPriority(state, tieBreak.secondPasserId);
+  const resolvedBoosts = state.victorByDamage ? resolved.damageBoost : resolved.powerBoost;
+  if (previousBoost) resolvedBoosts[winnerBakugan.id] = previousBoost;
+  else delete resolvedBoosts[winnerBakugan.id];
+
+  const persisted = rulesFor(resolved).tieBreak;
+  if (persisted) Object.assign(persisted, {
+    status: "resolved",
+    winnerId: tieBreak.winnerId,
+    resolvedAt: tieBreak.resolvedAt,
+    lastRound: tieBreak.lastRound,
+  });
+  appendLog(
+    resolved,
+    "game",
+    `${playerById(resolved, tieBreak.winnerId)?.name ?? "A player"} won the ${tieBreak.decidingStat} tie-break and was declared Brawl Victor.`,
+  );
+  return resolved;
+}
+
 export function passPriorityWithTieBreak(input: MatchState, playerId: string) {
+  if (manualTieBreakState(input)?.status === "resolved") return finalizeResolvedTieBreak(input);
   if (!shouldStartManualTieBreak(input, playerId)) return passPriority(input, playerId);
 
   const state = cloneMatch(input);
-  const firstPasserId = state.passes[0];
   const tieBreak: ManualTieBreakState = {
     gameNumber: state.gameNumber,
     turn: state.turn,
     round: 1,
     decidingStat: state.victorByDamage ? "Damage Rating" : "B-Power",
-    firstPasserId,
+    firstPasserId: state.passes[0],
     secondPasserId: playerId,
     current: {},
     status: "waiting",
@@ -190,24 +195,17 @@ export function passPriorityWithTieBreak(input: MatchState, playerId: string) {
   state.stepLabel = `Brawl Phase • ${tieBreak.decidingStat} tie-break • Flip top cards`;
   state.deadline = Date.now() + TIE_BREAK_DECISION_MS;
   state.undoWindow = undefined;
-  appendLog(
-    state,
-    "game",
-    `${tieBreak.decidingStat} is tied. Both players must flip the top card of their deck.`,
-  );
+  appendLog(state, "game", `${tieBreak.decidingStat} is tied. Both players must flip the top card of their deck.`);
   resolveEmptyTieBreakDecks(state, tieBreak);
   state.version += 1;
   return state;
 }
 
-function restoreAndDeclareVictor(
+function holdTieBreakWinner(
   state: MatchState,
   tieBreak: ManualTieBreakState,
   winnerId: string,
 ) {
-  const winnerBakugan = activeOpenBakugan(state, winnerId);
-  if (!winnerBakugan) throw new Error("The tie-break Victor has no active open Bakugan.");
-
   tieBreak.status = "resolved";
   tieBreak.winnerId = winnerId;
   tieBreak.resolvedAt = Date.now();
@@ -216,34 +214,18 @@ function restoreAndDeclareVictor(
     reveals: { ...tieBreak.current },
     tied: false,
   };
-
-  state.phase = "power";
-  state.priority = tieBreak.secondPasserId;
-  state.passes = [tieBreak.firstPasserId];
-  state.deadline = Date.now() + TIE_BREAK_DECISION_MS;
-
-  const boosts = state.victorByDamage ? state.damageBoost : state.powerBoost;
-  const previousBoost = boosts[winnerBakugan.id] ?? 0;
-  boosts[winnerBakugan.id] = previousBoost + 1;
-  const resolved = passPriority(state, tieBreak.secondPasserId);
-  const resolvedBoosts = state.victorByDamage ? resolved.damageBoost : resolved.powerBoost;
-  if (previousBoost) resolvedBoosts[winnerBakugan.id] = previousBoost;
-  else delete resolvedBoosts[winnerBakugan.id];
-
-  const resolvedTieBreak = rulesFor(resolved).tieBreak;
-  if (resolvedTieBreak) {
-    resolvedTieBreak.status = "resolved";
-    resolvedTieBreak.winnerId = winnerId;
-    resolvedTieBreak.resolvedAt = tieBreak.resolvedAt;
-    resolvedTieBreak.lastRound = tieBreak.lastRound;
-  }
-  const winner = playerById(resolved, winnerId)!;
+  state.priority = "";
+  state.passes = [];
+  state.stepLabel = `Brawl Phase • ${tieBreak.decidingStat} tie-break • Higher cost revealed`;
+  state.deadline = tieBreak.resolvedAt + TIE_BREAK_PRESENTATION_MS;
+  state.undoWindow = undefined;
   appendLog(
-    resolved,
+    state,
     "game",
-    `${winner.name} won the ${tieBreak.decidingStat} tie-break and was declared Brawl Victor.`,
+    `${playerById(state, winnerId)?.name ?? "A player"} revealed the higher Energy cost in the ${tieBreak.decidingStat} tie-break.`,
   );
-  return resolved;
+  state.version += 1;
+  return state;
 }
 
 export function flipTieBreakCard(input: MatchState, playerId: string) {
@@ -254,60 +236,49 @@ export function flipTieBreakCard(input: MatchState, playerId: string) {
   if (tieBreak.current[playerId]) throw new Error("You already flipped for this tie-break round.");
 
   const state = cloneMatch(input);
-  const stateTieBreak = manualTieBreakState(state)!;
+  const liveTieBreak = manualTieBreakState(state)!;
   const player = playerById(state, playerId);
   if (!player) throw new Error("The tie-break player could not be found.");
   const card = player.deckCards.shift();
   player.deck = player.deckCards.length;
   state.informationEpoch += 1;
   state.undoWindow = undefined;
-
   if (!card) {
-    resolveEmptyTieBreakDecks(state, stateTieBreak);
+    resolveEmptyTieBreakDecks(state, liveTieBreak);
     state.version += 1;
     return state;
   }
 
   player.discard.push(card);
-  const reveal: TieBreakReveal = { card, cost: tieBreakCardCost(card) };
-  stateTieBreak.current[playerId] = reveal;
-  appendLog(
-    state,
-    "random",
-    `${player.name} flipped ${card.displayName || card.name} for the ${stateTieBreak.decidingStat} tie-break (${reveal.cost} Energy).`,
-  );
+  const reveal = { card, cost: tieBreakCardCost(card) };
+  liveTieBreak.current[playerId] = reveal;
+  appendLog(state, "random", `${player.name} flipped ${card.displayName || card.name} for the ${liveTieBreak.decidingStat} tie-break (${reveal.cost} Energy).`);
 
-  const reveals = state.players
-    .map((candidate) => stateTieBreak.current[candidate.id])
-    .filter((candidate): candidate is TieBreakReveal => Boolean(candidate));
-  if (reveals.length < state.players.length) {
-    state.stepLabel = `Brawl Phase • ${stateTieBreak.decidingStat} tie-break • Waiting for opponent`;
+  const reveals = state.players.map((candidate) => liveTieBreak.current[candidate.id]);
+  if (reveals.some((candidate) => !candidate)) {
+    state.stepLabel = `Brawl Phase • ${liveTieBreak.decidingStat} tie-break • Waiting for opponent`;
     state.deadline = Date.now() + TIE_BREAK_DECISION_MS;
     state.version += 1;
     return state;
   }
 
-  const [first, second] = state.players.map((candidate) => stateTieBreak.current[candidate.id]);
+  const [first, second] = reveals as TieBreakReveal[];
   if (first.cost === second.cost) {
-    stateTieBreak.lastRound = {
-      round: stateTieBreak.round,
-      reveals: { ...stateTieBreak.current },
+    liveTieBreak.lastRound = {
+      round: liveTieBreak.round,
+      reveals: { ...liveTieBreak.current },
       tied: true,
     };
-    appendLog(
-      state,
-      "game",
-      `Tie-break round ${stateTieBreak.round} tied at ${first.cost} Energy. Both players flip again.`,
-    );
-    stateTieBreak.round += 1;
-    stateTieBreak.current = {};
-    state.stepLabel = `Brawl Phase • ${stateTieBreak.decidingStat} tie-break • Round ${stateTieBreak.round}`;
+    appendLog(state, "game", `Tie-break round ${liveTieBreak.round} tied at ${first.cost} Energy. Both players flip again.`);
+    liveTieBreak.round += 1;
+    liveTieBreak.current = {};
+    state.stepLabel = `Brawl Phase • ${liveTieBreak.decidingStat} tie-break • Round ${liveTieBreak.round}`;
     state.deadline = Date.now() + TIE_BREAK_DECISION_MS;
-    resolveEmptyTieBreakDecks(state, stateTieBreak);
+    resolveEmptyTieBreakDecks(state, liveTieBreak);
     state.version += 1;
     return state;
   }
 
   const winner = first.cost > second.cost ? state.players[0] : state.players[1];
-  return restoreAndDeclareVictor(state, stateTieBreak, winner.id);
+  return holdTieBreakWinner(state, liveTieBreak, winner.id);
 }
