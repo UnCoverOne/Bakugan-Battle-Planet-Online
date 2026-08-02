@@ -30,17 +30,18 @@ test("stale Haos Gorthion Ultra snapshots migrate from 7 to 2 Damage", () => {
   const first = makePlayer("first", "First", STARTER_DECKS[1]);
   const second = makePlayer("second", "Second", STARTER_DECKS[0]);
   const state = createMatch("GOR330", "bo1", [first, second]);
-  const gorthion = state.players[0].bakugan.find((candidate) => (
-    candidate.character.catalogId === "bb-330"
-  ));
-  assert.ok(gorthion);
+  const canonical = BAKUGAN.find((candidate) => candidate.id === "bb-330")!;
+  const stale = structuredClone(canonical);
+  stale.id = "bb-330-first";
+  stale.character.id = "bb-330-first-character";
+  stale.damage = 7;
+  stale.character.damage = 7;
+  state.players[0].bakugan[0] = stale;
 
-  gorthion.damage = 7;
-  gorthion.character.damage = 7;
   normalizeRuleObjects(state);
 
-  assert.equal(gorthion.damage, 2);
-  assert.equal(gorthion.character.damage, 2);
+  assert.equal(state.players[0].bakugan[0].damage, 2);
+  assert.equal(state.players[0].bakugan[0].character.damage, 2);
 });
 
 test("Dan Kouzo played by Lia after opening does not trigger retroactively", () => {
