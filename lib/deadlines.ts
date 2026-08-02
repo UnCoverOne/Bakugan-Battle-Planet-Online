@@ -30,6 +30,9 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
   if (now <= input.deadline || ["lobby", "result"].includes(input.phase)) return input;
   const state = structuredClone(input);
   const tieBreak = manualTieBreakState(state);
+  if (tieBreak?.status === "resolved") {
+    return passPriorityWithTieBreak(state, tieBreak.secondPasserId);
+  }
   if (tieBreak?.status === "waiting") {
     const nextPlayer = state.players.find((player) => !tieBreak.current[player.id]);
     return nextPlayer ? flipTieBreakCard(state, nextPlayer.id) : input;
