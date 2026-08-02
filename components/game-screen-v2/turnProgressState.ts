@@ -173,10 +173,11 @@ export function presentedTurnProgress(
 }
 
 export function phaseTransitionIsBlocked(
-  rollPresentationPending: boolean,
+  rollResultsVisible: boolean,
   brawlPreviewVisible: boolean,
+  batchHudVisible: boolean,
 ) {
-  return rollPresentationPending || brawlPreviewVisible;
+  return rollResultsVisible || brawlPreviewVisible || batchHudVisible;
 }
 
 export function describeTurnTransition(
