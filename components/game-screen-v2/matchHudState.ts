@@ -14,10 +14,11 @@ import {
   playerCanDrawTurnCard,
 } from "../../lib/turnStart";
 
-export type HandActionMode = "play" | "energize" | null;
+export type HandActionMode = "play" | "energize" | "discard" | null;
 export type MatchHudActionKey =
   | "draw-card"
   | "activate-reroll"
+  | "discard"
   | "play-card"
   | "energize-card"
   | "skip-energize"
@@ -41,6 +42,47 @@ export type HudPlayerPair = {
 
 export type MatchHudActions = Record<MatchHudActionKey, boolean>;
 export type CompactMatchHudSlots = readonly (MatchHudActionKey | null)[];
+
+export type HandDiscardRequirement = {
+  minimum: number;
+  maximum: number;
+  optionIds: readonly string[];
+  source: "choice" | "hand-limit";
+};
+
+/**
+ * Describes every discard that is currently owned by the local player's hand.
+ * Resolution/payment/forced discards share the typed choice schema; the hand
+ * limit is represented explicitly because it predates the generic queue.
+ */
+export function handDiscardRequirement(
+  match: MatchState | null | undefined,
+  playerId?: string,
+): HandDiscardRequirement | null {
+  const { player } = resolveHudPlayers(match, playerId);
+  if (!match || !player) return null;
+  const field = !match.pendingChoice?.answers[player.id]
+    ? match.pendingChoice?.schema.fields.find((candidate) => (
+    candidate.id === "discardCardIds" && candidate.chooserId === player.id
+    ))
+    : undefined;
+  if (field) return {
+    minimum: field.minimum,
+    maximum: field.maximum,
+    optionIds: field.options.map((option) => option.id),
+    source: "choice",
+  };
+  if (match.phase === "handLimit" && match.priority === player.id && player.hand.length > 7) {
+    const amount = player.hand.length - 7;
+    return {
+      minimum: amount,
+      maximum: amount,
+      optionIds: player.hand.map((card) => card.id),
+      source: "hand-limit",
+    };
+  }
+  return null;
+}
 
 export function resolveHudPlayers(
   match: MatchState | null | undefined,
@@ -146,6 +188,7 @@ export function resolvedHandActionMode(
   requestedMode: HandActionMode,
 ): HandActionMode {
   const { player } = resolveHudPlayers(match, playerId);
+  if (handDiscardRequirement(match, playerId)) return "discard";
   if (match?.phase === "energize" && player && !player.energizedThisTurn && !hasPendingDraws(match)) {
     return "energize";
   }
@@ -163,6 +206,9 @@ export function handCardIsActionable(
 ) {
   const { player } = resolveHudPlayers(match, playerId);
   if (!match || !player || !mode) return false;
+  if (mode === "discard") {
+    return handDiscardRequirement(match, player.id)?.optionIds.includes(card.id) ?? false;
+  }
   if (mode === "energize") return canEnergizeCard(match, player.id);
   return playableHandCards(match, player.id).some((candidate) => candidate.id === card.id);
 }
@@ -204,9 +250,11 @@ export function visibleMatchHudActions({
   );
   const selectedPlayable = playCards.some((card) => card.id === selectedCardId);
   const flipDecision = revealedFlipDecision(match, player?.id);
+  const discard = handDiscardRequirement(match, player?.id);
   return {
     "draw-card": playerCanDrawTurnCard(match, player?.id, now),
     "activate-reroll": playerCanActivateIntrinsicReroll(match, player?.id),
+    discard: Boolean(discard),
     "play-card": canPlay,
     "energize-card": canEnergizeCard(match, player?.id),
     "skip-energize": canSkipEnergizing(match, player?.id),
@@ -236,6 +284,8 @@ export function compactMatchHudSlots(actions: MatchHudActions): CompactMatchHudS
   }
   const primary: MatchHudActionKey | null = actions.select
     ? "select"
+    : actions.discard
+      ? "discard"
     : actions["draw-card"]
       ? "draw-card"
       : actions["energize-card"]
@@ -269,6 +319,7 @@ export function shouldAutomaticallyPass(
   });
   return actions["pass-turn"]
     && !actions["activate-reroll"]
+    && !actions.discard
     && !actions["play-card"];
 }
 
@@ -339,4 +390,3 @@ export function defaultCardChoices(
 
   return choices;
 }
-
