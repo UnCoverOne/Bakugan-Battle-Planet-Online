@@ -1,0 +1,231 @@
+name: Fix Dan and Lia card regressions
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/fix-dan-lia-regressions
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply engine fixes and regressions
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str):
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise SystemExit(f"Expected patch anchor not found in {path}: {old[:120]!r}")
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "lib/rules/catalogue-primitives.ts",
+              '  const heroCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+) or more Hero cards? in play/i);',
+              '  const heroCount = text.match(/if you (?:have|control) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+) or more Hero cards? in play/i);',
+          )
+
+          replace_once(
+              "lib/rules/catalogue-structure.ts",
+              '    const continuesTrigger = Boolean(activeTrigger) && /^(?:then\\b|you\\s+may\\s+(?:put|play)',
+              '    const continuesTrigger = Boolean(activeTrigger) && /^(?:then\\b|shuffle\\s+your\\s+deck\\b|you\\s+may\\s+(?:put|play)',
+          )
+
+          replace_once(
+              "lib/game.ts",
+              '''    cardType: card.type,
+    targetBakuganId: activeBakugan(state, playerId)?.id,
+''',
+              '''    cardType: card.type,
+    sourceCards: [card],
+    targetBakuganId: activeBakugan(state, playerId)?.id,
+''',
+          )
+          replace_once(
+              "lib/game.ts",
+              '        emitGameEvent(state, { id: `${state.turn}:card-play:${selected.id}`, type: "card-play", playerId: controllerId, cardType: selected.type });',
+              '        emitGameEvent(state, { id: `${state.turn}:card-play:${selected.id}`, type: "card-play", playerId: controllerId, cardType: selected.type, sourceCards: [selected] });',
+          )
+          replace_once(
+              "lib/game.ts",
+              '        emitGameEvent(state, { id: `${state.turn}:card-play:${card.id}`, type: "card-play", playerId: controllerId, cardType: card.type });',
+              '        emitGameEvent(state, { id: `${state.turn}:card-play:${card.id}`, type: "card-play", playerId: controllerId, cardType: card.type, sourceCards: [card] });',
+          )
+          replace_once(
+              "lib/game.ts",
+              '''      state.batch.push({ id: uid(), controllerId, card: revealed, choices: {}, kind: "card" });
+      delete tracked.revealedDeckCardId;
+      emitGameEvent(state, { id: `${state.turn}:card-play:${revealed.id}`, type: "card-play", playerId: controllerId, cardType: revealed.type });
+''',
+              '''      let freeChoices: CardChoices = {};
+      if (revealed.type === "Evo") {
+        const definition = ruleDefinitionForCard(revealed);
+        const active = activeBakugan(state, controllerId);
+        const evoTarget = active && canonicalEvoTargetAllowed(definition, active)
+          ? active
+          : player.bakugan.find((candidate) => canonicalEvoTargetAllowed(definition, candidate));
+        if (evoTarget) freeChoices = { targetBakuganId: evoTarget.id };
+      }
+      state.batch.push({ id: uid(), controllerId, card: revealed, choices: freeChoices, kind: "card" });
+      delete tracked.revealedDeckCardId;
+      emitGameEvent(state, { id: `${state.turn}:card-play:${revealed.id}`, type: "card-play", playerId: controllerId, cardType: revealed.type, sourceCards: [revealed] });
+''',
+          )
+
+          replace_once(
+              "tests/reported-regressions-2026-08-02.test.ts",
+              'import { alternateWinEffectPending, createMatch, passPriority, playCard, resolveStructuredEffect } from "../lib/game";',
+              'import { alternateWinEffectPending, createMatch, emitGameEvent, passPriority, playCard, resolveStructuredEffect, submitCardChoice, totalDamage } from "../lib/game";',
+          )
+
+          test_file = Path("tests/reported-regressions-2026-08-02.test.ts")
+          text = test_file.read_text()
+          marker = 'test("Dan Kouzo applies a revealed Dragonoid Maximus Evo to Titan Dragonoid"'
+          if marker not in text:
+              text += r'''
+
+
+test("Dan Kouzo applies a revealed Dragonoid Maximus Evo to Titan Dragonoid", () => {
+  const first = makePlayer("first", "First", STARTER_DECKS[0]);
+  const second = makePlayer("second", "Second", STARTER_DECKS[1]);
+  const state = createMatch("DANMAX", "bo1", [first, second]);
+  state.turn = 2;
+  state.phase = "power";
+  state.startingPlayer = first.id;
+  state.priority = first.id;
+
+  const titanTemplate = BAKUGAN.find((candidate) => candidate.id === "ex-1");
+  const maximusTemplate = CARD_BY_ID.get("ex-2");
+  const danTemplate = CARD_BY_ID.get("bb-207");
+  assert.ok(titanTemplate && maximusTemplate && danTemplate);
+
+  const titan = structuredClone(titanTemplate);
+  titan.id = "ex-1-dan-target";
+  titan.character = { ...structuredClone(titan.character), id: "ex-1-dan-character" };
+  titan.open = true;
+  state.players[0].bakugan[0] = titan;
+  state.selected[first.id] = titan.id;
+
+  const dan = { ...structuredClone(danTemplate), id: "bb-207-active" };
+  state.players[0].heroes = [dan];
+  const maximus = { ...structuredClone(maximusTemplate), id: "ex-2-revealed-by-dan" };
+  state.players[0].deckCards = [maximus];
+  state.players[0].deck = 1;
+
+  emitGameEvent(state, {
+    id: `${state.turn}:open:${titan.id}`,
+    type: "open",
+    playerId: first.id,
+    targetBakuganId: titan.id,
+  });
+  assert.equal(state.batch.at(-1)?.card.catalogId, "bb-207");
+
+  let next = passPriority(state, state.priority);
+  next = passPriority(next, next.priority);
+  assert.equal(next.pendingChoice?.controllerId, first.id);
+  assert.match(next.pendingChoice?.schema.sourceName ?? "", /Dan Kouzo/i);
+
+  next = submitCardChoice(next, first.id, { confirmed: true });
+  assert.equal(next.batch.at(-1)?.card.catalogId, "ex-2");
+  assert.equal(next.batch.at(-1)?.choices.targetBakuganId, titan.id);
+
+  next = passPriority(next, next.priority);
+  next = passPriority(next, next.priority);
+  const resolvedPlayer = next.players.find((player) => player.id === first.id)!;
+  assert.equal(resolvedPlayer.bakugan[0].evoStack.at(-1)?.catalogId, "ex-2");
+  assert.equal(resolvedPlayer.discard.some((card) => card.id === maximus.id), false);
+});
+
+test("Lia Venegas searches for a Hero when played and grants +10 Damage with five Heroes", () => {
+  const first = makePlayer("first", "First", STARTER_DECKS[0]);
+  const second = makePlayer("second", "Second", STARTER_DECKS[1]);
+  const state = createMatch("LIA202", "bo1", [first, second]);
+  state.turn = 2;
+  state.phase = "preRoll";
+  state.startingPlayer = first.id;
+  state.priority = first.id;
+
+  const liaTemplate = CARD_BY_ID.get("bb-202");
+  const searchedHeroTemplate = CARD_BY_ID.get("bb-208");
+  const energyTemplate = CARD_BY_ID.get("bb-1");
+  assert.ok(liaTemplate && searchedHeroTemplate && energyTemplate);
+  const lia = { ...structuredClone(liaTemplate), id: "bb-202-played" };
+  const searchedHero = { ...structuredClone(searchedHeroTemplate), id: "bb-208-search-target" };
+  const nonHero = { ...structuredClone(energyTemplate), id: "bb-1-nonhero" };
+
+  const passiveHeroIds = ["bb-207", "bb-206", "bb-205", "bb-197"];
+  state.players[0].heroes = passiveHeroIds.map((catalogId, index) => {
+    const hero = CARD_BY_ID.get(catalogId);
+    assert.ok(hero);
+    return { ...structuredClone(hero), id: `${catalogId}-lia-count-${index}` };
+  });
+  state.players[0].hand = [lia];
+  state.players[0].deckCards = [searchedHero, nonHero];
+  state.players[0].deck = 2;
+  state.players[0].energyZone = Array.from({ length: 10 }, (_, index) => ({
+    ...structuredClone(energyTemplate),
+    id: `lia-energy-${index}`,
+  }));
+  state.players[0].energy = 10;
+  state.players[0].maxEnergy = 10;
+
+  const active = state.players[0].bakugan[0];
+  active.open = true;
+  state.selected[first.id] = active.id;
+  const baseDamage = totalDamage(state, first.id);
+
+  let next = playCard(state, first.id, lia.id);
+  const liaTrigger = next.batch.find((effect) => effect.card.id === lia.id && effect.kind === "trigger");
+  assert.ok(liaTrigger, "Lia's when-play trigger should enter the batch");
+
+  next = passPriority(next, next.priority);
+  next = passPriority(next, next.priority);
+  const deckChoice = next.pendingChoice?.schema.fields.find((field) => field.id === "deckCardId");
+  assert.ok(deckChoice);
+  assert.equal(deckChoice.options.some((option) => option.id === searchedHero.id), true);
+  assert.equal(deckChoice.options.some((option) => option.id === nonHero.id), false);
+
+  next = submitCardChoice(next, first.id, { deckCardId: searchedHero.id });
+  assert.equal(next.players[0].hand.some((card) => card.id === searchedHero.id), true);
+  assert.equal(next.players[0].deckCards.some((card) => card.id === searchedHero.id), false);
+
+  next = passPriority(next, next.priority);
+  next = passPriority(next, next.priority);
+  assert.equal(next.players[0].heroes.some((hero) => hero.id === lia.id), true);
+  assert.equal(next.players[0].heroes.length, 5);
+  assert.equal(totalDamage(next, first.id), baseDamage + 10);
+});
+'''
+              test_file.write_text(text)
+          PY
+      - name: Install dependencies
+        run: npm run install:ci
+      - name: Run focused regression tests
+        run: node --import tsx --test tests/reported-regressions-2026-08-02.test.ts
+      - name: Build application
+        run: npm run build
+      - name: Commit fixes to pull request
+        shell: bash
+        run: |
+          git config user.name "UnCoverOne"
+          git config user.email "291861529+UnCoverOne@users.noreply.github.com"
+          git rm .github/fix-dan-lia-regressions
+          git rm .github/workflows/fix-dan-lia-regressions.yml
+          git add lib tests
+          git commit -m "Fix Dan free Evo targeting and Lia effects"
+          git push origin HEAD:${{ github.head_ref }}
