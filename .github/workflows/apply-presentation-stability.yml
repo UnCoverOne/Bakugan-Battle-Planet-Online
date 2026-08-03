@@ -28,9 +28,9 @@ jobs:
           node --import tsx --test
           tests/presentation-stability.test.ts
           tests/deck-interaction-animation.test.ts
-          tests/game-screen-state.test.ts
           tests/brawl-presentation.test.ts
           tests/roll-phase-presentation.test.ts
+          tests/manual-tie-break.test.ts
           tests/tie-break-hud-victor-highlight.test.ts
           tests/mobile-overlay-layering.test.ts
           tests/card-preview-interactions.test.ts
