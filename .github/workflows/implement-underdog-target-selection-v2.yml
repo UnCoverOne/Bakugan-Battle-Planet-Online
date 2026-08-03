@@ -1,0 +1,60 @@
+name: Implement Underdog and target selection v2
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Assemble and apply implementation
+        shell: bash
+        run: |
+          cat .github/t100-00 .github/t100-01 .github/t100-02 > /tmp/all.b64
+          head -c 500 .github/t100-03 >> /tmp/all.b64
+          cat .github/targeting-chunk-01 >> /tmp/all.b64
+          cat .github/t100-07 .github/t100-08 .github/t100-09 .github/t100-10 .github/t100-11 .github/t100-12 .github/t100-13 >> /tmp/all.b64
+          cat .github/targeting-chunk-04 >> /tmp/all.b64
+          test "$(wc -c < /tmp/all.b64)" = "15744"
+          echo "df21b34d24c95522d3b9ad69099ce9dd62d561e1e471f10b0710e2d734ff7aaf  /tmp/all.b64" | sha256sum -c -
+          base64 -d /tmp/all.b64 | gzip -d > /tmp/implement.py
+          python3 -m py_compile /tmp/implement.py
+          python3 /tmp/implement.py
+      - name: Install dependencies
+        run: npm run install:ci
+      - name: Run focused regressions
+        run: >-
+          node --import tsx --test
+          tests/underdog-target-selection.test.ts
+          tests/pact-cubbo-regressions.test.ts
+          tests/administration.test.ts
+          tests/card-preview-state.test.ts
+          tests/card-preview-interactions.test.ts
+      - name: Build application
+        run: npm run build
+      - name: Commit implementation
+        shell: bash
+        run: |
+          git config user.name "UnCoverOne"
+          git config user.email "291861529+UnCoverOne@users.noreply.github.com"
+          git rm -f .github/implement-underdog-target-selection.b64
+          git rm -f .github/targeting-chunk-* .github/t100-*
+          git rm -f .github/workflows/investigate-target-selection.yml
+          git rm -f .github/workflows/implement-underdog-target-selection.yml
+          git rm -f .github/workflows/implement-underdog-target-selection-v2.yml
+          git rm -f .github/workflows/verify-targeting-staging.yml
+          git add lib components tests
+          git commit -m "Fix Underdog triggers and pre-Batch target selection"
+          git push origin HEAD:fix/underdog-target-selection-20260803
