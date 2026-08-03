@@ -137,6 +137,15 @@
   }
 }
 
+/* Portrait layouts compress the battlefield vertically, so contextual Tips can
+   overlap presentation windows. Keep Tips above the play surface and hand, but
+   below the Brawl Preview (10074) and Roll Result (10220) layers. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .actionTooltip {
+    z-index: 10060;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :global([data-zone-kind="character-card"] img) {
     transition: none;
@@ -146,4 +155,3 @@
     animation: none;
   }
 }
-
