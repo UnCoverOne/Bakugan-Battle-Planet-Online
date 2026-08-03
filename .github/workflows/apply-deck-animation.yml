@@ -1,0 +1,49 @@
+name: Apply deck interaction and discard animation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply implementation
+        shell: bash
+        run: |
+          base64 -d .github/deck-animation.patch.b64 | gzip -d > /tmp/deck-animation.patch
+          git apply --check /tmp/deck-animation.patch
+          git apply /tmp/deck-animation.patch
+      - name: Install dependencies
+        run: npm run install:ci
+      - name: Run focused regressions
+        run: >-
+          node --import tsx --test
+          tests/deck-interaction-animation.test.ts
+          tests/game-screen-state.test.ts
+          tests/manual-damage.test.ts
+          tests/manual-tie-break.test.ts
+          tests/match-hud-state.test.ts
+      - name: Build application
+        run: npm run build
+      - name: Commit implementation
+        shell: bash
+        run: |
+          git config user.name "UnCoverOne"
+          git config user.email "291861529+UnCoverOne@users.noreply.github.com"
+          git rm .github/deck-animation.patch.b64
+          git rm .github/workflows/apply-deck-animation.yml
+          git rm .github/workflows/export-deck-animation-source.yml
+          git add components tests
+          git commit -m "Add deck draw and discard flip animation"
+          git push origin HEAD:${{ github.head_ref }}
