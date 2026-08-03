@@ -53,6 +53,38 @@ async function upsertResource(
   ).bind(resourceType, resourceId, JSON.stringify(data), enabled ? 1 : 0, administratorId, Date.now()).run();
 }
 
+export type AdministratorAiVisibility = { revealAiCards: boolean };
+const ADMINISTRATOR_AI_VISIBILITY_RESOURCE = "administrator-ai-visibility";
+
+export async function getAdministratorAiVisibility(
+  db: Database,
+  administratorId: string,
+): Promise<AdministratorAiVisibility> {
+  const rows = await resourceRows(db, ADMINISTRATOR_AI_VISIBILITY_RESOURCE);
+  const row = rows.find((candidate) => candidate.resource_id === administratorId);
+  const value = row
+    ? parseJson<{ revealAiCards?: boolean }>(row.data_json, {})
+    : {};
+  return { revealAiCards: Boolean(row?.enabled && value.revealAiCards) };
+}
+
+export async function setAdministratorAiVisibility(
+  db: Database,
+  administratorId: string,
+  revealAiCards: boolean,
+): Promise<AdministratorAiVisibility> {
+  const value = { revealAiCards: Boolean(revealAiCards) };
+  await upsertResource(
+    db,
+    ADMINISTRATOR_AI_VISIBILITY_RESOURCE,
+    administratorId,
+    value,
+    value.revealAiCards,
+    administratorId,
+  );
+  return value;
+}
+
 export async function loadCardOverrides(db: Database): Promise<CardOverrideRecord[]> {
   const rows = await resourceRows(db, "card");
   return rows.flatMap((row: { resource_id: string; data_json: string; enabled: number }) => {

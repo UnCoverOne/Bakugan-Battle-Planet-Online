@@ -68,3 +68,10 @@
   .cardList button{grid-template-columns:5.5rem minmax(0,1fr)}
   .userCounts{justify-content:flex-start}.roles,.userStatus{grid-column:1}
 }
+
+.aiVisibilityControl{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;padding:1rem 1.2rem;border-color:rgba(255,78,66,.58);background:linear-gradient(120deg,rgba(89,13,18,.34),rgba(4,25,34,.94) 55%)}
+.aiVisibilityCopy{min-width:0}.aiVisibilityCopy>span{color:#ff7770;font-size:var(--type-meta);font-weight:900;letter-spacing:var(--tracking-label)}
+.aiVisibilityCopy h3{margin:.2rem 0 0;font-size:1.05rem}.aiVisibilityCopy p{max-width:54rem;margin:.35rem 0 0;color:var(--text-secondary);line-height:1.5}
+.featureSwitch{flex:0 0 auto;padding:.65rem .8rem;background:rgba(0,0,0,.28);border:1px solid var(--border-strong)}
+.featureSwitch input{width:2.5rem;height:1.35rem}
+@media(max-width:700px){.aiVisibilityControl{align-items:stretch;flex-direction:column}.featureSwitch{justify-content:space-between}}
