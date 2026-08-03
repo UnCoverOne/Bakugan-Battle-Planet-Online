@@ -77,11 +77,24 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
       const opposing = opponent?.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0) ?? 0;
       return held > opposing;
     }
-    case "held-core-type":
-      return Boolean(bakugan && bakugan.heldCoreCells.some((cell) => {
+    case "held-core-type": {
+      const hasRequiredCore = (candidate?: Bakugan) => Boolean(candidate && candidate.heldCoreCells.some((cell) => {
         const core = state.placements.find((placement) => placement.cell === cell)?.core;
         return Boolean(core && condition.coreTypes.includes(core.type));
       }));
+      if (condition.subject === "controller-team") return player.bakugan.some((candidate) => hasRequiredCore(candidate));
+      if (condition.subject === "opponent-active") {
+        const opposing = opponent?.bakugan.find((candidate) => candidate.id === state.selected[opponent.id])
+?? opponent?.bakugan.find((candidate) => candidate.open);
+        return hasRequiredCore(opposing);
+      }
+      if (condition.subject === "attacker") {
+        const attacker = state.players.flatMap((candidate) => candidate.bakugan)
+.find((candidate) => candidate.id === state.damageOrigin);
+        return hasRequiredCore(attacker);
+      }
+      return hasRequiredCore(bakugan);
+    }
     case "open-bakugan-count": {
       const open = player.bakugan.filter((bakugan) => bakugan.open).length;
       if (condition.comparison === "exactly") return open === condition.amount;

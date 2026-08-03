@@ -15,6 +15,7 @@ import {
   prepareCardPlay,
   passPriority,
   resolveRollOutcome,
+  revealedFlipCanBePlayed,
   rotationPhaseOpenCell,
   selectBakugan,
   submitCardChoice,
@@ -855,7 +856,11 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
     return resolveManualDamage(
       input,
       playerId,
-      !alternateWinEffectPending(input) && payment && payment.kind !== "insufficient" && useful
+      !alternateWinEffectPending(input)
+        && revealedFlipCanBePlayed(input, playerId, input.revealedFlip)
+        && payment
+        && payment.kind !== "insufficient"
+        && useful
         ? input.revealedFlip.id
         : undefined,
       choices,

@@ -2380,12 +2380,39 @@ const beginDamage = (state: MatchState) => {
   else finishDamage(state);
 };
 
-const flipStopsDamage = (state: MatchState, card: GameCard) => {
-  const text = card.effect; const faction = state.damageFaction!;
+export const flipStopsDamage = (state: MatchState, card: GameCard) => {
+  const text = card.effect;
+  const coreTypes = [...text.matchAll(/\[(MS|FF|FT|SD|HE)\]/gi)]
+    .map((match) => coreCode[match[1].toUpperCase()])
+    .filter((type): type is CoreType => Boolean(type));
+  if (/\[Stop\]\s+(?:an?|the)\s+Bakugan\s+(?:is\s+)?holding/i.test(text)) {
+    const attacker = state.players.flatMap((player) => player.bakugan)
+      .find((bakugan) => bakugan.id === state.damageOrigin);
+    return Boolean(attacker && coreTypes.some((type) => hasCoreType(state, attacker, type)));
+  }
   if (/\[Stop\] an attack/i.test(text)) return true;
-  const non = text.match(/\[Stop\] non-\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/i); if (non) return faction !== non[1];
-  const listed = [...text.matchAll(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/gi)].map((match) => match[1]); return /\[Stop\]/i.test(text) && listed.includes(faction);
+  const attackingBakugan = state.players.flatMap((player) => player.bakugan)
+    .find((bakugan) => bakugan.id === state.damageOrigin);
+  const faction = state.damageFaction ?? attackingBakugan?.faction;
+  // Legacy and hand-built snapshots may omit the attack source. Normal games
+  // always carry it; preserve those snapshots rather than rejecting every Flip.
+  if (!faction) return true;
+  const non = text.match(/\[Stop\] non-\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/i);
+  if (non) return faction !== non[1];
+  const listed = [...text.matchAll(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/gi)]
+    .map((match) => match[1]);
+  return /\[Stop\]/i.test(text) && listed.includes(faction);
 };
+
+export function revealedFlipCanBePlayed(
+  state: MatchState | null | undefined,
+  playerId: string | undefined,
+  card: GameCard | undefined = state?.revealedFlip,
+) {
+  if (!state || !playerId || !card) return false;
+  if (state.phase !== "damage" || state.pendingLoser !== playerId || state.revealedFlip?.id !== card.id) return false;
+  return !/\[Stop\]/i.test(card.effect) || flipStopsDamage(state, card);
+}
 
 function finishDamage(state: MatchState) {
   state.revealedFlip = undefined;

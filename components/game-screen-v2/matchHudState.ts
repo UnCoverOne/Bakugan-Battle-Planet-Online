@@ -3,6 +3,7 @@ import {
   cardChoiceSpec,
   cardRerollTimingLegal,
   playerCanActivateIntrinsicReroll,
+  revealedFlipCanBePlayed,
   type CardChoices,
   type GameCard,
   type MatchState,
@@ -265,7 +266,7 @@ export function visibleMatchHudActions({
     "energize-card": !completed && canEnergizeCard(match, player?.id),
     "skip-energize": !completed && canSkipEnergizing(match, player?.id),
     "pass-turn": !completed && canPass,
-    "play-flip": !completed && flipDecision && !cardPlayLocked,
+    "play-flip": !completed && flipDecision && !cardPlayLocked && revealedFlipCanBePlayed(match, player?.id),
     "skip-flip": !completed && flipDecision,
     select: Boolean(
       !completed

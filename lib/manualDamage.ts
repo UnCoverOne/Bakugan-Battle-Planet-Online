@@ -3,6 +3,7 @@ import {
   cloneMatch,
   completeMatch,
   recordCardPlayedForTurn,
+  revealedFlipCanBePlayed,
   resumePendingEffectAfterDamage,
   type CardLogEvent,
   type CardChoices,
@@ -143,6 +144,9 @@ export function resolveManualDamage(
     return state;
   }
   if (flip.id !== flipCardId) throw new Error("Only the currently revealed Flip card may be played.");
+  if (!revealedFlipCanBePlayed(input, playerId, flip)) {
+    throw new Error("This Flip card's Stop condition is not met by the attacking Bakugan.");
+  }
 
   const state = cloneMatch(input);
   const statePlayer = playerById(state, playerId)!;

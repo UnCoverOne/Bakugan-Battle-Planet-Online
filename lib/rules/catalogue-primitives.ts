@@ -54,17 +54,38 @@ export function conditionFor(text: string): RuleCondition {
     /^\s*(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:/i,
   )?.[1];
   if (heldCorePrefix) {
-    return { kind: "held-core-type", coreTypes: coreTypesFor(heldCorePrefix) };
+    return { kind: "held-core-type", coreTypes: coreTypesFor(heldCorePrefix), subject: "target" };
+  }
+  const stopHeldCoreCondition = text.match(
+    /\[Stop\]\s+(?:an?|the)\s+Bakugan\s+(?:is\s+)?holding\s+(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)/i,
+  )?.[1];
+  if (stopHeldCoreCondition) {
+    return { kind: "held-core-type", coreTypes: coreTypesFor(stopHeldCoreCondition), subject: "attacker" };
+  }
+  const teamHeldCoreCondition = text.match(
+    /\bif\s+(?:one|any)\s+of\s+your\s+Bakugan\s+(?:is|are)\s+holding\s+(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)/i,
+  )?.[1];
+  if (teamHeldCoreCondition) {
+    return { kind: "held-core-type", coreTypes: coreTypesFor(teamHeldCoreCondition), subject: "controller-team" };
+  }
+  const selfHeldCoreCondition = text.match(
+    /\bif\s+it\s+is\s+holding\s+(?:an?\s+)?(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)/i,
+  )?.[1];
+  if (selfHeldCoreCondition) {
+    return { kind: "held-core-type", coreTypes: coreTypesFor(selfHeldCoreCondition), subject: "target" };
   }
   const heldCoreCondition = text.match(
-    /\bif\s+(?:that|your|the)\s+Bakugan\s+(?:is\s+)?holding\s+(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)/i,
-  )?.[1];
-  if (heldCoreCondition) return { kind: "held-core-type", coreTypes: coreTypesFor(heldCoreCondition) };
+    /\bif\s+(that|your|the|an?|opposing|enemy)\s+Bakugan\s+(?:is\s+)?holding\s+(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)/i,
+  );
+  if (heldCoreCondition) {
+    const subject = /opposing|enemy/i.test(heldCoreCondition[1]) ? "opponent-active" : "target";
+    return { kind: "held-core-type", coreTypes: coreTypesFor(heldCoreCondition[2]), subject };
+  }
   if (/\bFury\b/i.test(text)) return { kind: "fury" };
   if (/\bTurbo\b/i.test(text)) return { kind: "turbo" };
   if (/\bDomination\b/i.test(text)) return { kind: "domination" };
   if (/\bFlow\b/i.test(text)) return { kind: "flow" };
-  if (/\bVictor\b/i.test(text)) return { kind: "victor" };
+  if (/\bVictor\s*[-:]/i.test(text)) return { kind: "victor" };
   if (/\bSacrifice\b/i.test(text)) return { kind: "selection-made", choiceId: "discardCardIds" };
   if (/two or more cards this turn/i.test(text)) return { kind: "cards-played", comparison: "at-least", amount: 2 };
   const playedFactionCount = text.match(/played a card from (no|a|an|one|two|three|four|five|six|\d+) different factions? this turn/i);

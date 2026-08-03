@@ -37,7 +37,7 @@ export type RuleCondition =
   | { kind: "energy-count"; comparison: "at-least"; amount: number }
   | { kind: "card-count"; catalogId: RulesCardId; comparison: "at-least"; amount: number }
   | { kind: "core-count"; relationship: "more-than-opponent" | "at-least"; amount?: number }
-  | { kind: "held-core-type"; coreTypes: CoreType[] }
+  | { kind: "held-core-type"; coreTypes: CoreType[]; subject?: "target" | "controller-team" | "opponent-active" | "attacker" }
   | { kind: "open-bakugan-count"; comparison: "exactly" | "at-least" | "at-most" | "more-than" | "fewer-than"; amount: number }
   | { kind: "selection-made"; choiceId: keyof CardChoices }
   | { kind: "reroll-opened" }
