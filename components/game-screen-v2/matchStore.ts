@@ -115,7 +115,20 @@ function notify() {
 
 function refresh() {
   if (typeof window === "undefined") return;
-  const next = readPersistedMatchStore();
+  const persisted = readPersistedMatchStore();
+  const inMemoryMatch = snapshot.match;
+  const persistedMatch = persisted.match;
+  const keepNewerInMemoryMatch = Boolean(
+    inMemoryMatch
+    && (
+      !persistedMatch
+      || inMemoryMatch.id !== persistedMatch.id
+      || inMemoryMatch.version > persistedMatch.version
+    )
+  );
+  const next = keepNewerInMemoryMatch
+    ? { ...persisted, match: inMemoryMatch }
+    : persisted;
   if (snapshotsMatch(snapshot, next)) return;
   snapshot = next;
   notify();

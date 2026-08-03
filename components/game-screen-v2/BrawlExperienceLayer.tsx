@@ -257,14 +257,18 @@ export function BrawlExperienceLayer() {
     const [next, ...remaining] = resolutionQueue;
     setResolutionQueue(remaining);
     setResolvingEffect(next);
-    setEffectBurst(next);
+  }, [resolutionQueue, resolvingEffect]);
+
+  useEffect(() => {
+    if (!resolvingEffect) return;
+    setEffectBurst(resolvingEffect);
     resolutionTimer.current = window.setTimeout(() => setResolvingEffect(null), 760);
     burstTimer.current = window.setTimeout(() => setEffectBurst(null), 1050);
     return () => {
       if (resolutionTimer.current != null) window.clearTimeout(resolutionTimer.current);
       if (burstTimer.current != null) window.clearTimeout(burstTimer.current);
     };
-  }, [resolutionQueue, resolvingEffect]);
+  }, [resolvingEffect]);
 
   useEffect(() => {
     const nextStats: Record<string, string> = {};
