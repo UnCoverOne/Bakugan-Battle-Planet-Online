@@ -18,6 +18,7 @@ jobs:
         run: |
           python <<'PY'
           import subprocess
+          from pathlib import Path
 
           historical = subprocess.check_output(
               ["git", "show", "6da30135aa7d3fbfc19f9dcf0457b48de13ac002:.github/workflows/fix-pact-cubbo.yml"],
@@ -66,4 +67,37 @@ jobs:
               1,
           )
           exec(compile(script, "fix-pact-cubbo.py", "exec"))
+
+          ai_file = Path("lib/opponentAi.ts")
+          ai_source = ai_file.read_text()
+          export_anchor = "export function advanceOpponentAi(input: MatchState, playerId: string): MatchState | null {"
+          if export_anchor not in ai_source:
+              raise SystemExit("Could not locate the opponent AI entry point.")
+          ai_source = ai_source.replace(
+              export_anchor,
+              "function advanceOpponentAiStep(input: MatchState, playerId: string): MatchState | null {",
+              1,
+          )
+          ai_source += '''
+
+export function advanceOpponentAi(input: MatchState, playerId: string): MatchState | null {
+  let current = input;
+  let advanced = false;
+  for (let step = 0; step < 4; step += 1) {
+    const next = advanceOpponentAiStep(current, playerId);
+    if (!next) return advanced ? current : null;
+    advanced = true;
+    current = next;
+    const pending = current.pendingChoice;
+    const anotherAiChoice = Boolean(
+      pending
+      && !pending.answers[playerId]
+      && pending.schema.fields.some((field) => field.chooserId === playerId),
+    );
+    if (!anotherAiChoice) return current;
+  }
+  return current;
+}
+'''
+          ai_file.write_text(ai_source)
           PY
