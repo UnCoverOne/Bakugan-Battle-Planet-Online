@@ -113,6 +113,7 @@ export function MatchHudLayer({
   onSelectedDiscardCardsChange,
   onSelectedCharacterChange,
   onDrawCard,
+  onFlipTieBreakCard,
   onActivateReroll,
   onPlayCard,
   onEnergizeCard,
@@ -135,6 +136,7 @@ export function MatchHudLayer({
   onSelectedDiscardCardsChange: (cardIds: string[]) => void;
   onSelectedCharacterChange: (bakuganId: string) => void;
   onDrawCard: MatchActionHandler;
+  onFlipTieBreakCard: MatchActionHandler;
   onActivateReroll: MatchActionHandler;
   onPlayCard: PlayCardHandler;
   onEnergizeCard: EnergizeCardHandler;
@@ -314,6 +316,11 @@ export function MatchHudLayer({
       label: "Draw",
       active: false,
       onClick: () => void run(onDrawCard),
+    },
+    "flip-tie-break": {
+      label: "Flip Top Card",
+      active: true,
+      onClick: () => void run(onFlipTieBreakCard),
     },
     "activate-reroll": {
       label: "Reroll",

@@ -131,7 +131,7 @@ export function TieBreakLayer({
       : currentRevealCount === 1
         ? `${firstCurrentReveal?.card.displayName || firstCurrentReveal?.card.name} was revealed. Waiting for the other player.`
         : canFlip
-          ? "Click your Deck on the playmat to flip its top card."
+          ? "Click your Deck or use Flip Top Card in the Action HUD."
           : `${localPlayer?.name ?? "Your player"} has flipped. Waiting for the other player.`;
 
   const flipNext = async () => {
@@ -206,7 +206,7 @@ export function TieBreakLayer({
                         </div>
                       ) : (
                         <div className={styles.waitingBadge}>
-                          {isLocal && canFlip ? "CLICK YOUR DECK" : "WAITING FOR FLIP"}
+                          {isLocal && canFlip ? "DECK OR ACTION HUD" : "WAITING FOR FLIP"}
                         </div>
                       )}
                       {isWinner ? <div className={styles.higherCost}>HIGHER COST</div> : null}

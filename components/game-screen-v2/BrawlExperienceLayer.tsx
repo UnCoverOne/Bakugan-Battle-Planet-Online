@@ -12,10 +12,12 @@ import type { MatchState, PendingEffect } from "../../lib/game";
 import {
   batchHudShouldRender,
   brawlCombatants,
+  brawlVictorStat,
   effectAnimationKind,
   orderedBatchEffects,
   powerStepStatus,
   type BrawlCombatantView,
+  type BrawlVictorStat,
 } from "./brawlState";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
 import styles from "./BrawlExperienceLayer.module.css";
@@ -67,10 +69,12 @@ function BrawlCombatant({
   view,
   owner,
   pulsing,
+  decidingStat,
 }: {
   view: BrawlCombatantView;
   owner: "player" | "opponent";
   pulsing: boolean;
+  decidingStat: BrawlVictorStat;
 }) {
   const effectivePower = view.participating ? view.power : "—";
   const effectiveDamage = view.participating ? view.damage : "—";
@@ -106,12 +110,20 @@ function BrawlCombatant({
       </div>
 
       <div className={styles.statRow}>
-        <div className={styles.stat} data-stat="power">
+        <div
+          className={styles.stat}
+          data-stat="power"
+          data-deciding={decidingStat === "power" ? "true" : "false"}
+        >
           <span>B-POWER</span>
           <strong>{effectivePower}</strong>
           <small>BASE {view.basePower}{view.participating ? "" : " • CLOSED"}</small>
         </div>
-        <div className={styles.stat} data-stat="damage">
+        <div
+          className={styles.stat}
+          data-stat="damage"
+          data-deciding={decidingStat === "damage" ? "true" : "false"}
+        >
           <span>DAMAGE</span>
           <strong>{effectiveDamage}</strong>
           <small>BASE {view.baseDamage}{view.participating ? "" : " • NOT ATTACKING"}</small>
@@ -168,6 +180,7 @@ export function BrawlExperienceLayer() {
     [experience.match],
   );
   const status = powerStepStatus(experience.match);
+  const decidingStat = brawlVictorStat(experience.match);
 
   useLayoutEffect(() => {
     if (!experience.active || rollPresentationPending || combatants.length !== 2) {
@@ -327,6 +340,7 @@ export function BrawlExperienceLayer() {
               view={combatants[0]}
               owner="player"
               pulsing={pulsingBakugan.has(combatants[0].bakuganId)}
+              decidingStat={decidingStat}
             />
             <span className={`${styles.versus} ${missedCombatant ? previewStyles.resolvedVersus : ""}`} aria-hidden="true">
               {missedCombatant ? "→" : "VS"}
@@ -335,6 +349,7 @@ export function BrawlExperienceLayer() {
               view={combatants[1]}
               owner="opponent"
               pulsing={pulsingBakugan.has(combatants[1].bakuganId)}
+              decidingStat={decidingStat}
             />
           </div>
         </aside>

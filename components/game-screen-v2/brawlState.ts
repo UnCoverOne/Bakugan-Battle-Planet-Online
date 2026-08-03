@@ -29,6 +29,15 @@ export const BRAWL_PREVIEW_PHASES = new Set([
   "victor",
 ]);
 
+export type BrawlVictorStat = "power" | "damage";
+
+/** The stat currently used to determine the Brawl Victor. */
+export function brawlVictorStat(
+  match: Pick<MatchState, "victorByDamage"> | null | undefined,
+): BrawlVictorStat {
+  return match?.victorByDamage ? "damage" : "power";
+}
+
 export type BrawlCombatantView = {
   playerId: string;
   playerName: string;

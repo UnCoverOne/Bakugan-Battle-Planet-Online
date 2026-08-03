@@ -24,8 +24,11 @@ import {
 
 function actionState(overrides: Partial<MatchHudActions> = {}): MatchHudActions {
   return {
+    exit: false,
     "draw-card": false,
+    "flip-tie-break": false,
     "activate-reroll": false,
+    discard: false,
     "play-card": false,
     "energize-card": false,
     "skip-energize": false,
