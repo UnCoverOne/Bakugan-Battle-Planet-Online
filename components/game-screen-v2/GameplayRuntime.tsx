@@ -10,6 +10,7 @@ import { AlternateWinPresentationLayer } from "./AlternateWinPresentationLayer";
 import { BrawlExperienceLayer } from "./BrawlExperienceLayer";
 import { ChoiceQueueLayer } from "./ChoiceQueueLayer";
 import { DeckInspectionLayer } from "./DeckInspectionLayer";
+import { DiscardFlipAnimationLayer } from "./DiscardFlipAnimationLayer";
 import { DrawAnimationLayer } from "./DrawAnimationLayer";
 import { GameplayCardPresentationLayer } from "./GameplayCardPresentationLayer";
 import { GameplaySoundLayer } from "./GameplaySoundLayer";
@@ -32,6 +33,7 @@ export function GameplayRuntime() {
       <GameplayCardPresentationLayer />
       <MatchCommunicationLayer />
       <DrawAnimationLayer />
+      <DiscardFlipAnimationLayer />
       <BrawlExperienceLayer />
       <AlternateWinPresentationLayer />
       <DeckInspectionLayer />

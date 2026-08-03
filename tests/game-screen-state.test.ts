@@ -29,6 +29,7 @@ import {
   cardPreviewZoneAllowed,
 } from "../components/game-screen-v2/cardPreviewState";
 import { drawTransitions } from "../components/game-screen-v2/drawAnimationState";
+import { discardFlipTransitions } from "../components/game-screen-v2/discardFlipAnimationState";
 
 test("deck card backs scale from zero to ten assets", () => {
   assert.equal(deckBackAssetCount(0), 0);
@@ -189,6 +190,58 @@ test("draw transitions require a matching deck loss and hand gain", () => {
   assert.deepEqual(drawTransitions(before, handOnly), []);
 });
 
+test("discard flip transitions require a main-deck loss and a new discard card", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const before = createMatch("DISCARDFX", "bo1", [player, opponent]);
+  const after = structuredClone(before);
+  const flipped = after.players[0].deckCards.shift();
+  assert.ok(flipped);
+  after.players[0].deck = after.players[0].deckCards.length;
+  after.players[0].discard.push(flipped);
+  after.version += 1;
+
+  const transitions = discardFlipTransitions(before, after);
+  assert.equal(transitions.length, 1);
+  assert.equal(transitions[0].playerId, player.id);
+  assert.equal(transitions[0].count, 1);
+  assert.equal(transitions[0].cards[0].id, flipped.id);
+
+  const handDiscardOnly = structuredClone(before);
+  handDiscardOnly.players[0].discard.push(handDiscardOnly.players[0].hand.pop()!);
+  handDiscardOnly.version += 1;
+  assert.deepEqual(discardFlipTransitions(before, handDiscardOnly), []);
+
+  const drawOnly = structuredClone(before);
+  const drawn = drawOnly.players[0].deckCards.shift();
+  assert.ok(drawn);
+  drawOnly.players[0].deck = drawOnly.players[0].deckCards.length;
+  drawOnly.players[0].hand.push(drawn);
+  drawOnly.version += 1;
+  assert.deepEqual(discardFlipTransitions(before, drawOnly), []);
+});
+
+test("discard flip transitions work with redacted deck order", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const before = createMatch("REDACTFLIP", "bo1", [player, opponent]);
+  const after = structuredClone(before);
+  const flipped = after.players[0].deckCards.shift();
+  assert.ok(flipped);
+  after.players[0].deck = after.players[0].deckCards.length;
+  after.players[0].discard.push(flipped);
+  after.version += 1;
+
+  const redactedBefore = structuredClone(before);
+  const redactedAfter = structuredClone(after);
+  redactedBefore.players[0].deckCards = [];
+  redactedAfter.players[0].deckCards = [];
+
+  const transitions = discardFlipTransitions(redactedBefore, redactedAfter);
+  assert.equal(transitions.length, 1);
+  assert.equal(transitions[0].cards[0].id, flipped.id);
+});
+
 test("tapping a face-down Energy card generates exactly one available Energy", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
   const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
@@ -261,6 +314,9 @@ test("live match state populates both players' card zones", () => {
   assert.deepEqual(zones.player.discardCards.map((card) => card.id), [discarded.id]);
   assert.equal(zones.player.discardCount, 1);
   assert.equal(zones.player.deckCount, player.deckCards.length);
+  const redacted = structuredClone(match);
+  redacted.players[0].deckCards = [];
+  assert.equal(buildGameScreenZoneState(redacted, player.id).player.deckCount, player.deck);
   assert.deepEqual(
     zones.opponent.characterCards.map((card) => card.catalogId),
     opponent.bakugan.map((bakugan) => bakugan.character.catalogId),

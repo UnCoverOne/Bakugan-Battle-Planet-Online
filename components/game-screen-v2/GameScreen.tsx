@@ -9,6 +9,10 @@ import {
   energyZoneViews,
   type EnergyZoneView,
 } from "../../lib/energy";
+import {
+  playerCanDrawTurnCard,
+  type TurnStartMatchState,
+} from "../../lib/turnStart";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
 import { useAdministratorAiVisibility } from "../application/useAdministratorAiVisibility";
 import {
@@ -54,6 +58,7 @@ type OwnerZoneCounts = {
   discardPile: number;
 };
 type EnergyTapHandler = (cardId: string) => void | Promise<void>;
+type DrawHandler = () => void | Promise<void>;
 
 export type GameScreenZoneCounts = Record<ZoneOwner, OwnerZoneCounts>;
 
@@ -254,6 +259,9 @@ function CardStackZone({
   count,
   latestDiscard,
   discardOpen,
+  drawAvailable = false,
+  drawPending = false,
+  onDrawDeck,
   onOpenDiscard,
 }: {
   owner: ZoneOwner;
@@ -262,35 +270,54 @@ function CardStackZone({
   count: number;
   latestDiscard: GameCard | null;
   discardOpen: boolean;
+  drawAvailable?: boolean;
+  drawPending?: boolean;
+  onDrawDeck?: () => void;
   onOpenDiscard: (owner: ZoneOwner) => void;
 }) {
   const label = lines.join(" ");
   const cardCount = safeCardCount(count);
   const hasVisual = kind === "deck" ? cardCount > 0 : Boolean(latestDiscard);
   const canOpenDiscard = kind === "discard-pile" && cardCount > 0;
-  const openDiscard = () => {
-    if (canOpenDiscard) onOpenDiscard(owner);
+  const canDrawDeck = kind === "deck" && owner === "player" && drawAvailable && Boolean(onDrawDeck);
+  const interactive = canOpenDiscard || canDrawDeck;
+  const activate = () => {
+    if (canDrawDeck) onDrawDeck?.();
+    else if (canOpenDiscard) onOpenDiscard(owner);
   };
+  const className = [
+    styles.cardStackZone,
+    canOpenDiscard ? styles.cardStackZoneInteractive : "",
+    canDrawDeck ? styles.cardStackZoneDrawReady : "",
+    drawPending && kind === "deck" && owner === "player" ? styles.cardStackZoneDrawPending : "",
+  ].filter(Boolean).join(" ");
+  const interactionLabel = canDrawDeck
+    ? ", click to draw"
+    : canOpenDiscard ? ", open discard pile" : "";
 
   return (
     <li
-      className={`${styles.cardStackZone} ${canOpenDiscard ? styles.cardStackZoneInteractive : ""}`}
+      className={className}
       data-zone-kind={kind}
       data-zone-owner={owner}
       data-zone-id={`${owner}-${kind}`}
       data-card-id={kind === "discard-pile" ? latestDiscard?.id : undefined}
+      data-card-type={kind === "discard-pile" ? latestDiscard?.type : undefined}
       data-card-count={cardCount}
       data-top-card-id={kind === "discard-pile" ? latestDiscard?.id : undefined}
-      role={canOpenDiscard ? "button" : undefined}
-      tabIndex={canOpenDiscard ? 0 : undefined}
+      data-draw-available={canDrawDeck ? "true" : undefined}
+      data-draw-pending={drawPending && kind === "deck" && owner === "player" ? "true" : undefined}
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-busy={drawPending && kind === "deck" && owner === "player" ? true : undefined}
       aria-haspopup={canOpenDiscard ? "dialog" : undefined}
       aria-expanded={canOpenDiscard ? discardOpen : undefined}
-      aria-label={`${ownerLabel(owner)} ${label} zone, ${cardCount} cards${canOpenDiscard ? ", open discard pile" : ""}`}
-      onClick={openDiscard}
+      aria-label={`${ownerLabel(owner)} ${label} zone, ${cardCount} cards${interactionLabel}`}
+      onClick={activate}
       onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
+        if (!interactive || (event.key !== "Enter" && event.key !== " ")) return;
         event.preventDefault();
-        openDiscard();
+        activate();
       }}
     >
       {!hasVisual && <ZoneLabel lines={lines} />}
@@ -463,6 +490,9 @@ function PlayerZoneLayout({
   onTapEnergyCard,
   canTapEnergyCard,
   revealEnergyFaces = false,
+  drawAvailable = false,
+  drawPending = false,
+  onDrawDeck,
   openDiscardOwner,
   onOpenDiscard,
 }: {
@@ -475,6 +505,9 @@ function PlayerZoneLayout({
   onTapEnergyCard?: EnergyTapHandler;
   canTapEnergyCard?: (cardId: string) => boolean;
   revealEnergyFaces?: boolean;
+  drawAvailable?: boolean;
+  drawPending?: boolean;
+  onDrawDeck?: () => void;
   openDiscardOwner: ZoneOwner | null;
   onOpenDiscard: (owner: ZoneOwner) => void;
 }) {
@@ -534,6 +567,9 @@ function PlayerZoneLayout({
                 count={stackCount(counts, zone.kind)}
                 latestDiscard={state.latestDiscard}
                 discardOpen={openDiscardOwner === owner}
+                drawAvailable={zone.kind === "deck" && owner === "player" && drawAvailable}
+                drawPending={zone.kind === "deck" && owner === "player" && drawPending}
+                onDrawDeck={zone.kind === "deck" && owner === "player" ? onDrawDeck : undefined}
                 onOpenDiscard={onOpenDiscard}
               />
             ))}
@@ -604,6 +640,7 @@ function DiscardPileModal({
             <figure
               className={styles.discardModalCard}
               data-card-id={card.id}
+              data-card-type={card.type}
               key={card.id}
             >
               <ResponsiveCardImage
@@ -626,12 +663,14 @@ function DiscardPileModal({
 
 export function GameScreen({
   onExit,
+  onDrawCard,
   onTapEnergyCard,
   match,
   playerId,
   zoneCounts = EMPTY_ZONE_COUNTS,
 }: {
   onExit?: () => void;
+  onDrawCard?: DrawHandler;
   onTapEnergyCard?: EnergyTapHandler;
   match?: MatchState | null;
   playerId?: string;
@@ -639,6 +678,9 @@ export function GameScreen({
 }) {
   const [pendingEnergyCardId, setPendingEnergyCardId] = useState("");
   const [energyError, setEnergyError] = useState("");
+  const [drawPending, setDrawPending] = useState(false);
+  const [drawError, setDrawError] = useState("");
+  const [drawClock, setDrawClock] = useState(() => Date.now());
   const [openDiscardOwner, setOpenDiscardOwner] = useState<ZoneOwner | null>(null);
   const { hiddenCoreCells } = useBakuCorePresentation();
 
@@ -648,6 +690,13 @@ export function GameScreen({
   const heldCoreZones = buildHeldCoreZoneState(match, playerId, hiddenCoreCells);
   const energyState = energyZoneViews(match, playerId);
   const revealOpponentAiCards = useAdministratorAiVisibility(match, playerId);
+  const localPlayerId = playerId ?? match?.players[0]?.id;
+  const turnStartState = match as TurnStartMatchState | null | undefined;
+  const drawAvailable = Boolean(
+    onDrawCard
+    && !drawPending
+    && playerCanDrawTurnCard(match, localPlayerId, drawClock),
+  );
   const resolvedCounts: GameScreenZoneCounts = match
     ? {
       player: {
@@ -662,6 +711,16 @@ export function GameScreen({
       },
     }
     : zoneCounts;
+
+  useEffect(() => {
+    setDrawClock(Date.now());
+    const readyAt = turnStartState?.drawReadyAt;
+    if (!readyAt) return;
+    const delay = readyAt - Date.now();
+    if (delay <= 0) return;
+    const timeout = window.setTimeout(() => setDrawClock(Date.now()), delay + 20);
+    return () => window.clearTimeout(timeout);
+  }, [match?.id, match?.version, turnStartState?.drawReadyAt]);
 
   const closeDiscard = () => setOpenDiscardOwner(null);
   const openDiscard = (owner: ZoneOwner) => {
@@ -687,6 +746,19 @@ export function GameScreen({
       setOpenDiscardOwner(null);
     }
   }, [match?.version, openDiscardOwner, zoneState]);
+
+  const drawFromDeck = async () => {
+    if (!onDrawCard || drawPending || !playerCanDrawTurnCard(match, localPlayerId, Date.now())) return;
+    setDrawPending(true);
+    setDrawError("");
+    try {
+      await onDrawCard();
+    } catch (error) {
+      setDrawError(error instanceof Error ? error.message : "The card could not be drawn.");
+    } finally {
+      setDrawPending(false);
+    }
+  };
 
   const tapEnergy = async (cardId: string) => {
     if (!onTapEnergyCard || pendingEnergyCardId) return;
@@ -750,11 +822,15 @@ export function GameScreen({
             pendingEnergyCardId={pendingEnergyCardId}
             onTapEnergyCard={tapEnergy}
             canTapEnergyCard={(cardId) => energyCardCanTap(match, playerId, cardId)}
+            drawAvailable={drawAvailable}
+            drawPending={drawPending}
+            onDrawDeck={() => void drawFromDeck()}
             openDiscardOwner={openDiscardOwner}
             onOpenDiscard={openDiscard}
           />
         </div>
         {energyError && <div className={styles.energyError} role="alert">{energyError}</div>}
+        {drawError && <div className={styles.energyError} role="alert">{drawError}</div>}
       </div>
       {openDiscardOwner && openDiscardCards.length ? (
         <DiscardPileModal
