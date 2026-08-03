@@ -1,0 +1,49 @@
+name: Finalize presentation stability
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply final corrections
+        run: python3 scripts/finalize-presentation-stability.py
+      - name: Install dependencies
+        run: npm run install:ci
+      - name: Run focused regressions
+        run: >-
+          node --import tsx --test
+          tests/presentation-stability.test.ts
+          tests/deck-interaction-animation.test.ts
+          tests/brawl-presentation.test.ts
+          tests/roll-phase-presentation.test.ts
+          tests/manual-tie-break.test.ts
+          tests/tie-break-hud-victor-highlight.test.ts
+          tests/mobile-overlay-layering.test.ts
+          tests/card-preview-interactions.test.ts
+          tests/persistence-boundaries.test.ts
+      - name: Build application
+        run: npm run build
+      - name: Commit final corrections
+        shell: bash
+        run: |
+          git config user.name "UnCoverOne"
+          git config user.email "291861529+UnCoverOne@users.noreply.github.com"
+          git rm scripts/finalize-presentation-stability.py
+          git rm .github/workflows/finalize-presentation-stability.yml
+          git add components tests
+          git commit -m "Finalize presentation stability sequencing"
+          git push origin HEAD:${{ github.head_ref }}
