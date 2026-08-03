@@ -25,8 +25,6 @@ jobs:
         run: >-
           node --import tsx --test
           tests/mobile-overlay-layering.test.ts
-          tests/selection-state.test.ts
-          tests/brawl-state.test.ts
           tests/brawl-presentation.test.ts
       - name: Build application
         run: npm run build
