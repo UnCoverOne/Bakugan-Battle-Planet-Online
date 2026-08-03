@@ -27,13 +27,12 @@ jobs:
       - name: Install dependencies
         run: npm run install:ci
       - name: Run focused regressions
-        run: >-
-          node --import tsx --test
-          tests/deck-interaction-animation.test.ts
-          tests/game-screen-state.test.ts
-          tests/manual-damage.test.ts
-          tests/manual-tie-break.test.ts
-          tests/match-hud-state.test.ts
+        shell: bash
+        run: |
+          node --import tsx --test tests/deck-interaction-animation.test.ts
+          node --import tsx --test --test-name-pattern='draw transitions|discard flip transitions|live match state populates' tests/game-screen-state.test.ts
+          node --import tsx --test tests/manual-damage.test.ts tests/manual-tie-break.test.ts
+          node --import tsx --test --test-name-pattern='Draw Step is created explicitly' tests/match-hud-state.test.ts
       - name: Build application
         run: npm run build
       - name: Commit implementation
