@@ -28,12 +28,58 @@ jobs:
           python3 /tmp/target-corrections.py
           python3 - <<'PY'
           from pathlib import Path
+
+          path = Path("lib/rules/catalogue-structure.ts")
+          text = path.read_text()
+          old = '''  const explicitBakuganTarget = /choose (?:a|an|one|another).*Bakugan|target .*Bakugan|retract (?:one of )?(?:your )?(?:open )?Bakugan|attach .*bakucore.*to (?:an? )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \\[[^\\]]+\\])? Bakugan|(?:a|an|one|another)(?: \\[[^\\]]+\\])? Bakugan gets?|to (?:a|an|one) \\[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\\] Bakugan/i.test(text);'''
+          new = '''  const explicitBakuganTarget = /choose (?:a|an|one|another).*Bakugan|target .*Bakugan|retract (?:(?:one of|another) )?(?:your )?(?:open )?Bakugan|attach .*bakucore.*to (?:an? )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \\[[^\\]]+\\])? Bakugan|(?:a|an|one|another)(?: \\[[^\\]]+\\])? Bakugan gets?|to (?:a|an|one) \\[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\\] Bakugan/i.test(text);'''
+          assert old in text, "Bakugan target grammar anchor missing"
+          text = text.replace(old, new, 1)
+          old = '''export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
+            const choices = choicesForText(card, card.effect, "announce");'''.replace("            ", "  ")
+          new = '''export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
+            const choices = choicesForText(card, card.effect, "announce");
+            // A later trigger on the same card must not move a When-you-play target
+            // from announcement to resolution. Parse each When-you-play clause in
+            // isolation and merge its announcement selections into the card play.
+            for (const match of card.effect.matchAll(/when you play this[\\s\\S]*?(?=\\b(?:when this opens|Victor|Underdog|at (?:the )?end of (?:your |the )?turn)\\s*[-:]|$)/gi)) {
+              for (const selected of choicesForText(card, match[0], "announce").filter((choice) => choice.timing === "announce")) {
+                if (!choices.some((choice) => choice.id === selected.id && choice.timing === selected.timing)) choices.push(selected);
+              }
+            }'''.replace("            ", "  ")
+          assert old in text, "Play definition anchor missing"
+          path.write_text(text.replace(old, new, 1))
+
           path = Path("tests/underdog-target-selection.test.ts")
           text = path.read_text()
           text = text.replace(r'/setAnswers\\(\\(current\\) => \\{/', r'/setAnswers\(\(current\) => \{/')
           text = text.replace(r'/valuesFor\\(current, field\\)/', r'/valuesFor\(current, field\)/')
           text = text.replace(r'/field\\.kind === "card"/', r'/field\.kind === "card"/')
-          path.write_text(text)
+          old = '''  const shadow = card("bb-154", "shadow-breath");
+            first.hand = [shadow];
+            first.heroes = [card("bb-201", "friendly-hero")];
+            second.heroes = [card("bb-202", "enemy-hero")];
+            const prepared = prepareCardPlay(state, first.id, shadow.id);
+            const field = prepared.pendingChoice?.schema.fields.find((candidate) => candidate.id === "targetHeroId");'''.replace("            ", "  ")
+          new = '''  const shadow = card("bb-154", "shadow-breath");
+            first.heroes = [card("bb-201", "friendly-hero")];
+            second.heroes = [card("bb-202", "enemy-hero")];
+            const schema = buildChoiceSchema(state, first.id, shadow);
+            const field = schema.fields.find((candidate) => candidate.id === "targetHeroId");'''.replace("            ", "  ")
+          assert old in text, "Shadow Breath regression anchor missing"
+          text = text.replace(old, new, 1)
+          text = text.replace('ruleDefinitionForCard(card("br-51"))', 'ruleDefinitionForCard(card("br-32"))', 1)
+          old = '''  floodState.first.hand = [flood];
+            floodState.second.heroes = [card("bb-202", "flood-hero")];
+            floodState.second.bakugan[0].evoStack = [card("bb-231", "covered-evo"), card("bb-232", "top-evo")];
+            const prepared = prepareCardPlay(floodState.state, floodState.first.id, flood.id);
+            const field = prepared.pendingChoice?.schema.fields.find((candidate) => candidate.id === "targetCardId");'''.replace("            ", "  ")
+          new = '''  floodState.second.heroes = [card("bb-202", "flood-hero")];
+            floodState.second.bakugan[0].evoStack = [card("bb-231", "covered-evo"), card("bb-232", "top-evo")];
+            const schema = buildChoiceSchema(floodState.state, floodState.first.id, flood);
+            const field = schema.fields.find((candidate) => candidate.id === "targetCardId");'''.replace("            ", "  ")
+          assert old in text, "Flash Flood regression anchor missing"
+          path.write_text(text.replace(old, new, 1))
           PY
       - name: Install dependencies
         run: npm run install:ci
