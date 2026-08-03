@@ -32,6 +32,40 @@ jobs:
           base64 -d /tmp/all.b64 | gzip -d > /tmp/implement.py
           python3 -m py_compile /tmp/implement.py
           python3 /tmp/implement.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tests/pact-cubbo-regressions.test.ts")
+          text = path.read_text()
+          old = '''  bot.hand = [expendable];
+
+  const definition = ruleDefinitionForCard(hyper);'''
+          new = '''  bot.hand = [expendable];
+  hyper.bPower = 400;
+  const opened = first.bakugan[0];
+  const opposing = bot.bakugan[0];
+  opened.open = true;
+  opened.evoStack = [hyper];
+  opposing.open = true;
+  opposing.bPower = 700;
+  opposing.character = { ...opposing.character, bPower: 700 };
+  state.selected[first.id] = opened.id;
+  state.selected[bot.id] = opposing.id;
+
+  const definition = ruleDefinitionForCard(hyper);'''
+          if old not in text:
+              raise AssertionError("Forced-discard state anchor missing")
+          text = text.replace(old, new, 1)
+          old = '''    kind: "trigger",
+    sourceId: hyper.id,
+  });'''
+          new = '''    kind: "trigger",
+    sourceId: hyper.id,
+    choices: { targetBakuganId: opened.id },
+  });'''
+          if old not in text:
+              raise AssertionError("Forced-discard object anchor missing")
+          path.write_text(text.replace(old, new, 1))
+          PY
       - name: Install dependencies
         run: npm run install:ci
       - name: Run focused regressions
