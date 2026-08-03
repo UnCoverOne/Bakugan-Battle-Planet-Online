@@ -360,6 +360,7 @@ export function BrawlExperienceLayer() {
                   className={styles.batchEffect}
                   data-owner={local ? "player" : "opponent"}
                   data-card-id={effect.card.id}
+                  data-rule-object-id={effect.id}
                   data-resolving={resolving ? "true" : "false"}
                   data-alternate-win={effect.alternateWin ? "true" : "false"}
                   style={{ "--batch-order": index } as CSSProperties}

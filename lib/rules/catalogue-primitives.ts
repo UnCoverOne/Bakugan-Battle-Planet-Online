@@ -81,6 +81,7 @@ export function conditionFor(text: string): RuleCondition {
     const subject = /opposing|enemy/i.test(heldCoreCondition[1]) ? "opponent-active" : "target";
     return { kind: "held-core-type", coreTypes: coreTypesFor(heldCoreCondition[2]), subject };
   }
+  if (/\bUnderdog\b|if it has lower \[B\] than the opposing Bakugan/i.test(text)) return { kind: "underdog" };
   if (/\bFury\b/i.test(text)) return { kind: "fury" };
   if (/\bTurbo\b/i.test(text)) return { kind: "turbo" };
   if (/\bDomination\b/i.test(text)) return { kind: "domination" };
@@ -177,10 +178,26 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const scope = scopeFor(text);
 
   for (const match of text.matchAll(/([+-]\d+)\s*\[B\]/gi)) {
-    actions.push({ kind: "modify-stat", stat: "power", amount: Number(match[1]), scale: scaleForStat(text, match), duration, scope });
+    actions.push({
+      kind: "modify-stat",
+      stat: "power",
+      amount: Number(match[1]),
+      scale: scaleForStat(text, match),
+      duration,
+      scope,
+      targetChoiceId: ruleCardId(card) === "aa-50" ? "targetBakuganId" : undefined,
+    });
   }
   for (const match of text.matchAll(/([+-]\d+)\s*\[Damage (?:Rating|Power)\]/gi)) {
-    actions.push({ kind: "modify-stat", stat: "damage", amount: Number(match[1]), scale: scaleForStat(text, match), duration, scope });
+    actions.push({
+      kind: "modify-stat",
+      stat: "damage",
+      amount: Number(match[1]),
+      scale: scaleForStat(text, match),
+      duration,
+      scope,
+      targetChoiceId: ruleCardId(card) === "aa-50" ? "secondaryTargetBakuganId" : undefined,
+    });
   }
   for (const match of text.matchAll(/\+?(\d+)\s*\[FrostStrike\]/gi)) {
     actions.push({ kind: "modify-stat", stat: "frost", amount: Number(match[1]), scale: scaleForStat(text, match), duration, scope });
@@ -239,9 +256,20 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   if (/draw all remaining damage from an attack/i.test(text)) actions.push({ kind: "damage-to-hand" });
   if (/^end the turn|nothing else can happen this turn/i.test(text)) actions.push({ kind: "end-turn", recharge: false });
   if (/shuffle your deck/i.test(text)) actions.push({ kind: "shuffle-deck" });
-  if (/negate (?:a|an) Hero or Action card/i.test(text)) actions.push({ kind: "negate", cardType: "any", copy: false, targetChoiceId: "mode" });
-  else if (/negate an action/i.test(text)) actions.push({ kind: "negate", cardType: "Action", copy: /copy/i.test(text), targetChoiceId: "mode" });
-  else if (/negate a hero/i.test(text)) actions.push({ kind: "negate", cardType: "Hero", copy: false, targetChoiceId: "mode" });
+  const negateMaximumCost = Number(text.match(/costs? (\d+) \[Energy\] or less/i)?.[1] ?? Number.NaN);
+  const negateLimit = Number.isFinite(negateMaximumCost) ? negateMaximumCost : undefined;
+  if (/negate (?:a|an) Hero or Action card/i.test(text)) actions.push({
+    kind: "negate", cardType: "any", copy: false, targetChoiceId: "targetEffectId",
+    maximumCost: negateLimit, targetKinds: ["card"],
+  });
+  else if (/negate an action/i.test(text)) actions.push({
+    kind: "negate", cardType: "Action", copy: /copy/i.test(text), targetChoiceId: "targetEffectId",
+    maximumCost: negateLimit, targetKinds: ["card"],
+  });
+  else if (/negate a hero/i.test(text)) actions.push({
+    kind: "negate", cardType: "Hero", copy: false, targetChoiceId: "targetEffectId",
+    maximumCost: negateLimit, targetKinds: ["card"],
+  });
   if (/search your deck/i.test(text)) actions.push({ kind: "search", cardType: text.match(/for an? (Action|Hero|Evo|Flip)/i)?.[1], amount: 1 });
   if (/copy the next action/i.test(text)) actions.push({ kind: "copy", target: "next-action", independentChoices: true });
   if (/copy the effect of an Action card/i.test(text)) actions.push({ kind: "copy", target: "batch-action", independentChoices: true });

@@ -28,6 +28,7 @@ export type RuleCondition =
   | { kind: "turbo" }
   | { kind: "domination" }
   | { kind: "flow" }
+  | { kind: "underdog" }
   | { kind: "victor" }
   | { kind: "faction"; faction: Faction; subject: "target" | "team" }
   | { kind: "cards-played"; comparison: "at-least" | "more-than"; amount: number }
@@ -46,7 +47,7 @@ export type RuleCondition =
 export type ChoiceSpec = {
   id: keyof CardChoices;
   timing: ChoiceTiming;
-  selector: EntitySelector | "number" | "mode" | "hand-card" | "deck-card" | "energy-card" | "bakucore" | "hero" | "evo";
+  selector: EntitySelector | "number" | "mode" | "hand-card" | "deck-card" | "energy-card" | "bakucore" | "hero" | "evo" | "card-in-play";
   label: string;
   minimum?: number;
   maximum?: number;
@@ -54,7 +55,18 @@ export type ChoiceSpec = {
   chooser: "controller" | "opponent" | "each-player";
   visibility?: ChoiceVisibility;
   cardType?: CardType;
+  cardTypes?: CardType[];
   factions?: Faction[];
+  targetOwner?: "controller" | "opponent" | "any";
+  maximumCost?: number;
+  minimumCost?: number;
+  objectKinds?: Array<"card" | "trigger" | "copy">;
+  openState?: "open" | "closed";
+  notOpenedThisTurn?: boolean;
+  notPlayedThisTurn?: boolean;
+  attachmentState?: "attached" | "unattached";
+  /** Exclude the Bakugan that created the trigger ("another Bakugan"). */
+  excludeSourceBakugan?: boolean;
 };
 
 export type TriggerEventName =
@@ -89,7 +101,7 @@ export type CostEffect =
   | { kind: "cost-alternative"; label: string; components: CostEffect[] };
 
 export type RuleAction =
-  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: number; scale?: string; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan" }
+  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: number; scale?: string; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices }
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: number; duration: RulesDuration }
   | { kind: "draw"; amount: number; scale?: string }
   | { kind: "discard"; amount: number; minimum: number; maximum: number; repeated?: boolean }
@@ -106,7 +118,7 @@ export type RuleAction =
   | { kind: "reorder-deck"; amount: number }
   | { kind: "play"; source: "revealed-deck" | "hand" | "self"; free: boolean }
   | { kind: "attack"; amount: number; faction?: Faction }
-  | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices }
+  | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: number; targetKinds?: Array<"card" | "trigger" | "copy"> }
   | { kind: "search"; cardType?: string; amount: number }
   | { kind: "copy"; target: "next-action" | "batch-action"; independentChoices: true }
   | { kind: "cost"; amount: number; operation: "reduce" | "increase" | "free"; duration: RulesDuration }

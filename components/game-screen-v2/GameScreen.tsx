@@ -188,6 +188,7 @@ function CharacterCardZone({
         data-slot={slot}
         data-bakugan-id={bakugan?.id}
         data-card-id={card?.id}
+        data-evo-card-id={bakugan?.evoStack.at(-1)?.id}
         data-character-open={bakugan?.open ? "true" : "false"}
         aria-label={label}
       >
@@ -316,6 +317,7 @@ function HeroStack({ cards }: { cards: readonly GameCard[] }) {
             src={card.art}
             alt={card.displayName || card.name}
             draggable={false}
+            dataCardId={card.id}
             style={style}
             key={card.id}
           />

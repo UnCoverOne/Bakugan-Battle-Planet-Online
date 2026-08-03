@@ -42,6 +42,15 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
   switch (condition.kind) {
     case "fury": return player.hand.length === 0;
     case "flow": return player.cardsPlayedThisTurn > 1;
+    case "underdog": {
+      if (!bakugan || !opponent) return false;
+      const opposing = opponent.bakugan.find((candidate) => candidate.id === state.selected[opponent.id])
+        ?? opponent.bakugan.find((candidate) => candidate.open);
+      if (!opposing || !bakugan.open || !opposing.open) return false;
+      const ownPower = evaluateBakuganCharacteristics(state, bakugan, player).power;
+      const opposingPower = evaluateBakuganCharacteristics(state, opposing, opponent).power;
+      return ownPower < opposingPower;
+    }
     case "turbo": return Boolean(opponent && player.maxEnergy > opponent.maxEnergy);
     case "domination": return Boolean(opponent && player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0)
       > opponent.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0));

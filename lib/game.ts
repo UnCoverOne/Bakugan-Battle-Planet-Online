@@ -164,7 +164,12 @@ export type RollOutcome = {
 };
 
 export type CardChoices = {
+  /** Bakugan that created a trigger or receives an Evo; never an effect target. */
+  sourceBakuganId?: string;
   targetBakuganId?: string;
+  secondaryTargetBakuganId?: string;
+  targetEffectId?: string;
+  targetCardId?: string;
   targetPlayerId?: string;
   targetHeroId?: string;
   targetEvoId?: string;
@@ -1094,11 +1099,15 @@ const scaleStat = (state: MatchState, player: PlayerState, text: string, value: 
 export const cardChoiceSpec = (_state: MatchState, _playerId: string, card: GameCard) => {
   const mapping: Partial<Record<keyof CardChoices, string>> = {
     targetBakuganId: "targetBakugan",
+    targetEffectId: "targetEffect",
     targetPlayerId: "targetPlayer",
     targetHeroId: "targetHero",
     targetEvoId: "targetEvo",
     targetEnergyId: "targetEnergy",
     targetEnergyIds: "targetEnergy",
+    sourceBakuganId: "targetBakugan",
+    secondaryTargetBakuganId: "targetBakugan",
+    targetCardId: "targetCard",
     coreCell: "core",
     discardCardIds: "discard",
     handCardIds: "multiHand",
@@ -1172,6 +1181,7 @@ export type GameEvent = {
   cardType?: CardType;
   targetBakuganId?: string;
   sourceCards?: GameCard[];
+  choices?: CardChoices;
 };
 
 /** Collect typed triggered abilities for one authoritative game event. */
@@ -1194,6 +1204,7 @@ export const collectTriggersForEvent = (state: MatchState, event: GameEvent) => 
     card: event.sourceCards?.[0],
     cardType: event.cardType,
     targetBakuganId: event.targetBakuganId ?? (event.type === "open" ? state.selected[actorId] : undefined),
+    choices: event.choices,
     amount: event.type === "attack" ? state.pendingDamage : undefined,
     createdAt: Date.now(),
   })) as PendingEffect[];
@@ -1249,6 +1260,9 @@ export const prepareCardPlay = (input: MatchState, playerId: string, cardId: str
   const payment = buildChoiceSchemaFromSpecs(state, playerId, card, definition.play.choices, "pay");
   const schema = { ...announce, fields: [...announce.fields, ...payment.fields] };
   if (!schema.fields.length) return playCard(state, playerId, cardId, {});
+  if (!schemaHasLegalCompletion(schema)) {
+    throw new Error(`${card.displayName || card.name} has no legal targets or required choices.`);
+  }
   state.pendingChoice = {
     id: uid(),
     kind: "card-play",
@@ -1523,7 +1537,10 @@ export const playCard = (input: MatchState, playerId: string, cardId: string, ch
     playerId,
     cardType: card.type,
     sourceCards: [card],
-    targetBakuganId: activeBakugan(state, playerId)?.id,
+    targetBakuganId: card.type === "Evo"
+      ? (choices.sourceBakuganId ?? choices.targetBakuganId)
+      : activeBakugan(state, playerId)?.id,
+    choices,
   });
   entry(state, "game", `${player.name} added ${card.name} to the batch for ${cost} Energy.`, card, "played", playerId);
   state.undoWindow = {
@@ -1541,9 +1558,11 @@ export const playCard = (input: MatchState, playerId: string, cardId: string, ch
 };
 
 const chooseBakugan = (state: MatchState, controllerId: string, choices: CardChoices, preferEnemy = false) => {
+  const all = state.players.flatMap((player) => player.bakugan);
+  if (choices.targetBakuganId) return all.find((bakugan) => bakugan.id === choices.targetBakuganId);
+  if (!preferEnemy && choices.sourceBakuganId) return all.find((bakugan) => bakugan.id === choices.sourceBakuganId);
   const owner = preferEnemy ? otherPlayer(state, controllerId) : playerById(state, controllerId);
-  return state.players.flatMap((player) => player.bakugan).find((bakugan) => bakugan.id === choices.targetBakuganId)
-    ?? activeBakugan(state, owner.id) ?? owner.bakugan.find((bakugan) => bakugan.open) ?? owner.bakugan[0];
+  return activeBakugan(state, owner.id) ?? owner.bakugan.find((bakugan) => bakugan.open) ?? owner.bakugan[0];
 };
 
 const destroyHero = (state: MatchState, controllerId: string, choices: CardChoices, allEnemy: boolean) => {
@@ -1568,15 +1587,21 @@ const destroyEvo = (state: MatchState, controllerId: string, choices: CardChoice
   }
 };
 
-const destroyEnergy = (state: MatchState, controllerId: string, amount: number, selectedIds: string[]) => {
-  const opponent = otherPlayer(state, controllerId);
+const destroyEnergy = (state: MatchState, amount: number, selectedIds: string[]) => {
   const ids = new Set(selectedIds.slice(0, amount));
-  const selected = opponent.energyZone.filter((card) => ids.has(card.id));
-  if (selected.length !== Math.min(amount, opponent.energyZone.length)) return;
-  opponent.energyZone = opponent.energyZone.filter((card) => !ids.has(card.id));
-  opponent.discard.push(...selected);
-  opponent.maxEnergy = opponent.energyZone.length;
-  opponent.energy = Math.min(opponent.energy, opponent.maxEnergy);
+  const located = state.players.flatMap((owner) => owner.energyZone
+    .filter((card) => ids.has(card.id))
+    .map((card) => ({ owner, card })));
+  if (amount <= 0 || located.length !== amount) return;
+  for (const owner of state.players) {
+    const selected = located.filter((item) => item.owner.id === owner.id).map((item) => item.card);
+    if (!selected.length) continue;
+    const selectedSet = new Set(selected.map((card) => card.id));
+    owner.energyZone = owner.energyZone.filter((card) => !selectedSet.has(card.id));
+    owner.discard.push(...selected);
+    owner.maxEnergy = owner.energyZone.length;
+    owner.energy = Math.min(owner.energy, owner.maxEnergy);
+  }
   state.informationEpoch += 1;
   state.undoWindow = undefined;
 };
@@ -1630,12 +1655,11 @@ const ruleConditionIsActive = (
   }
   if (instruction.condition.kind === "reroll-opened") return Boolean(state.rerollOpenedByEffect[pending.id]);
   if (instruction.condition.kind === "printed") return conditionActive(state, player, instruction.condition.text, choices);
-  return ruleConditionActive(
-    state,
-    player,
-    instruction.condition,
-    chooseBakugan(state, pending.controllerId, choices),
-  );
+  const conditionTarget = pending.kind === "trigger" && choices.sourceBakuganId
+    ? state.players.flatMap((candidate) => candidate.bakugan)
+      .find((bakugan) => bakugan.id === choices.sourceBakuganId)
+    : chooseBakugan(state, pending.controllerId, choices);
+  return ruleConditionActive(state, player, instruction.condition, conditionTarget);
 };
 
 const executeRuleAction = (
@@ -1653,9 +1677,8 @@ const executeRuleAction = (
   const lower = text.toLowerCase();
   const preferEnemy = /^-|enemy|opposing|non-\[/.test(lower) && !/one of your/.test(lower);
   const rerollTargetId = state.rerollTargetByEffect[pending.id];
-  const target = state.players
-    .flatMap((candidate) => candidate.bakugan)
-    .find((bakugan) => bakugan.id === rerollTargetId)
+  const allBakugan = state.players.flatMap((candidate) => candidate.bakugan);
+  const target = allBakugan.find((bakugan) => bakugan.id === rerollTargetId)
     ?? chooseBakugan(state, controllerId, choices, preferEnemy);
 
   switch (action.kind) {
@@ -1732,10 +1755,16 @@ const executeRuleAction = (
       )) return;
       let amount = scaleStat(state, player, text, action.amount, action.stat);
       if (action.scale === "sacrificed-card") amount *= choices.discardCardIds?.length ?? 0;
+      const explicitActionTarget = action.targetChoiceId
+        ? choices[action.targetChoiceId]
+        : undefined;
+      const selectedTarget = typeof explicitActionTarget === "string"
+        ? allBakugan.find((bakugan) => bakugan.id === explicitActionTarget)
+        : target;
       const targets = action.scope === "all-enemy" ? opponent.bakugan
         : action.scope === "all-friendly" ? player.bakugan
-          : action.scope === "all-bakugan" ? state.players.flatMap((candidate) => candidate.bakugan)
-            : target ? [target] : [];
+          : action.scope === "all-bakugan" ? allBakugan
+            : selectedTarget ? [selectedTarget] : [];
       for (const selected of targets) {
         if (action.stat === "power") state.powerBoost[selected.id] = (state.powerBoost[selected.id] ?? 0) + amount;
         else if (action.stat === "damage") state.damageBoost[selected.id] = (state.damageBoost[selected.id] ?? 0) + amount;
@@ -1857,7 +1886,10 @@ return;
       } else if (action.verb === "destroy" && action.object === "hero") destroyHero(state, controllerId, choices, action.amount > 2);
       else if (action.verb === "destroy" && action.object === "evo") destroyEvo(state, controllerId, choices, action.amount > 2);
       else if (action.verb === "destroy" && action.object === "energy") {
-        destroyEnergy(state, controllerId, action.amount, choices.targetEnergyIds ?? []);
+        const amount = card.catalogId === "bb-97"
+          ? choices.targetEnergyIds?.length ?? 0
+          : action.amount;
+        destroyEnergy(state, amount, choices.targetEnergyIds ?? []);
       } else if (action.verb === "control" && action.object === "hero") {
         const index = opponent.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
         if (index >= 0) player.heroes.push(...opponent.heroes.splice(index, 1));
@@ -1885,7 +1917,21 @@ return;
           placement.revealed = false;
         }
       } else if (action.verb === "return" && action.object === "card") {
-        if (!player.hand.some((candidate) => candidate.id === card.id)) player.hand.push(card);
+        if (choices.targetCardId) {
+          for (const owner of state.players) {
+            const heroIndex = owner.heroes.findIndex((candidate) => candidate.id === choices.targetCardId);
+            if (heroIndex >= 0) {
+              owner.hand.push(...owner.heroes.splice(heroIndex, 1));
+              break;
+            }
+            const bakugan = owner.bakugan.find((candidate) => candidate.evoStack.at(-1)?.id === choices.targetCardId);
+            if (bakugan) {
+              const returned = bakugan.evoStack.pop();
+              if (returned) owner.hand.push(returned);
+              break;
+            }
+          }
+        } else if (!player.hand.some((candidate) => candidate.id === card.id)) player.hand.push(card);
       } else if (action.verb === "shuffle" && action.object === "card") {
         const ids = choices.handCardIds ?? choices.discardCardIds ?? [];
         const moved = player.discard.filter((candidate) => ids.includes(candidate.id)).slice(0, action.amount);
@@ -1933,10 +1979,17 @@ return;
         recordCardPlayedForTurn(player, selected, state.turn);
         state.nextCardCostReduction[controllerId] = 0;
         const freeChoices = selected.type === "Evo"
-          ? { targetBakuganId: choices.targetBakuganId ?? activeBakugan(state, controllerId)?.id }
+          ? { sourceBakuganId: choices.sourceBakuganId ?? choices.targetBakuganId ?? activeBakugan(state, controllerId)?.id }
           : {};
         state.batch.push({ id: uid(), controllerId, card: selected, choices: freeChoices, kind: "card" });
-        emitGameEvent(state, { id: `${state.turn}:card-play:${selected.id}`, type: "card-play", playerId: controllerId, cardType: selected.type, sourceCards: [selected] });
+        emitGameEvent(state, {
+          id: `${state.turn}:card-play:${selected.id}`,
+          type: "card-play",
+          playerId: controllerId,
+          cardType: selected.type,
+          sourceCards: [selected],
+          choices: freeChoices,
+        });
         entry(state, "game", `${player.name} played ${selected.name} from hand for free.`, selected, "played", controllerId);
         return;
       }
@@ -1945,7 +1998,14 @@ return;
         recordCardPlayedForTurn(player, card, state.turn);
         state.nextCardCostReduction[controllerId] = 0;
         state.batch.push({ id: uid(), controllerId, card, choices, kind: "card" });
-        emitGameEvent(state, { id: `${state.turn}:card-play:${card.id}`, type: "card-play", playerId: controllerId, cardType: card.type, sourceCards: [card] });
+        emitGameEvent(state, {
+          id: `${state.turn}:card-play:${card.id}`,
+          type: "card-play",
+          playerId: controllerId,
+          cardType: card.type,
+          sourceCards: [card],
+          choices,
+        });
         entry(state, "game", `${player.name} played discarded ${card.name} for free.`, card, "played", controllerId);
         return;
       }
@@ -1967,11 +2027,18 @@ return;
         const evoTarget = active && canonicalEvoTargetAllowed(definition, active)
 ? active
 : player.bakugan.find((candidate) => canonicalEvoTargetAllowed(definition, candidate));
-        if (evoTarget) freeChoices = { targetBakuganId: evoTarget.id };
+        if (evoTarget) freeChoices = { sourceBakuganId: evoTarget.id };
       }
       state.batch.push({ id: uid(), controllerId, card: revealed, choices: freeChoices, kind: "card" });
       delete tracked.revealedDeckCardId;
-      emitGameEvent(state, { id: `${state.turn}:card-play:${revealed.id}`, type: "card-play", playerId: controllerId, cardType: revealed.type, sourceCards: [revealed] });
+      emitGameEvent(state, {
+        id: `${state.turn}:card-play:${revealed.id}`,
+        type: "card-play",
+        playerId: controllerId,
+        cardType: revealed.type,
+        sourceCards: [revealed],
+        choices: freeChoices,
+      });
       entry(state, "game", `${player.name} played the revealed ${revealed.name} for free.`, revealed, "played", controllerId);
       return;
     }
@@ -1994,16 +2061,21 @@ return;
       throw new DamageResolutionSuspended();
     }
     case "negate": {
-      const selectedId = typeof choices.mode === "string" ? choices.mode : undefined;
-      const index = state.batch.findIndex((effect) => (
-        effect.id !== pending.id
-        && (!selectedId || effect.id === selectedId)
-        && (action.cardType === "any" || effect.card.type === action.cardType)
-      ));
+      const selectedId = choices.targetEffectId;
+      if (!selectedId) return;
+      const index = state.batch.findIndex((effect) => {
+        const printedCost = effect.card.cost === "X" ? Number.POSITIVE_INFINITY : effect.card.cost;
+        return effect.id !== pending.id
+          && effect.id === selectedId
+          && !effect.negated
+          && (!action.targetKinds?.length || action.targetKinds.includes(effect.kind))
+          && (action.cardType === "any" || effect.card.type === action.cardType)
+          && (action.maximumCost == null || printedCost <= action.maximumCost);
+      });
       if (index >= 0) {
         const [negated] = state.batch.splice(index, 1);
         if (isRuleObject(negated)) negateRuleObject(negated);
-        if (negated.kind === "card" && ["Action", "Flip"].includes(negated.card.type)) {
+        if (negated.kind === "card" && ["Action", "Flip", "Hero", "Evo"].includes(negated.card.type)) {
           const owner = playerById(state, negated.controllerId);
           if (!owner.discard.some((candidate) => candidate.id === negated.card.id)) owner.discard.push(negated.card);
         }
@@ -2185,7 +2257,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
     && !player.energyZone.some((card) => card.id === pending.card.id)) {
     player.heroes.push(pending.card);
   } else if (pending.kind === "card" && pending.card.type === "Evo") {
-    const target = player.bakugan.find((bakugan) => bakugan.id === choices.targetBakuganId);
+    const target = player.bakugan.find((bakugan) => bakugan.id === (choices.sourceBakuganId ?? choices.targetBakuganId));
     if (target && canonicalEvoTargetAllowed(ruleDefinitionForCard(pending.card), target)) {
       target.evoStack.push(pending.card);
       const wasFaceDown = !target.open && !(target as Bakugan & { characterFaceUp?: boolean }).characterFaceUp;

@@ -11,6 +11,7 @@ export function ResponsiveCardImage({
   draggable = false,
   style,
   ariaHidden,
+  dataCardId,
 }: {
   src: string;
   alt: string;
@@ -19,6 +20,7 @@ export function ResponsiveCardImage({
   draggable?: boolean;
   style?: React.CSSProperties;
   ariaHidden?: boolean;
+  dataCardId?: string;
 }) {
   const vector = src.endsWith(".svg");
   return <img
@@ -30,6 +32,7 @@ export function ResponsiveCardImage({
     height="536"
     alt={alt}
     aria-hidden={ariaHidden}
+    data-card-id={dataCardId}
     loading={eager ? "eager" : "lazy"}
     fetchPriority={eager ? "high" : "auto"}
     decoding="async"
