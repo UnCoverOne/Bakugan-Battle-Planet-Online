@@ -1303,6 +1303,87 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
     return withVersion(state);
   }
   const merged = mergeChoiceAnswers(pending.schema, pending.answers);
+  if (pending.kind === "payment" && state.revealedFlip?.catalogId === "bb-152" && state.revealedFlip.id === pending.cardId) {
+    const rules = ensureRulesState(state) as ReturnType<typeof ensureRulesState> & {
+      pactOfDarknessPayment?: {
+        playerId: string;
+        cardId: string;
+        stage: "decision" | "discard" | "declined" | "paid";
+        discardedCardId?: string;
+      };
+    };
+    const pact = rules.pactOfDarknessPayment;
+    if (!pact || pact.playerId !== pending.controllerId || pact.cardId !== pending.cardId) {
+      throw new Error("Pact of Darkness's Sacrifice payment is no longer available.");
+    }
+    if (pact.stage === "decision") {
+      if (merged.confirmed === false) {
+        pact.stage = "declined";
+        state.pendingChoice = undefined;
+        state.priority = pact.playerId;
+        state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
+        state.deadline = Date.now() + 35_000;
+        entry(state, "game", `${playerById(state, pact.playerId).name} declined Pact of Darkness's Sacrifice cost.`);
+        return withVersion(state);
+      }
+      const payer = playerById(state, pact.playerId);
+      if (!payer.hand.length) {
+        pact.stage = "declined";
+        state.pendingChoice = undefined;
+        state.priority = pact.playerId;
+        state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
+        state.deadline = Date.now() + 35_000;
+        return withVersion(state);
+      }
+      pact.stage = "discard";
+      state.pendingChoice = {
+        ...pending,
+        id: uid(),
+        schema: {
+id: `${state.id}:${state.version}:${pending.cardId}:pact-sacrifice-discard`,
+sourceId: pending.cardId,
+sourceName: pending.schema.sourceName,
+controllerId: pact.playerId,
+timing: "pay",
+simultaneous: false,
+fields: [{
+  id: "discardCardIds",
+  kind: "hand-cards",
+  label: "Choose a card to discard for Sacrifice",
+  chooserId: pact.playerId,
+  visibility: "private",
+  timing: "pay",
+  minimum: 1,
+  maximum: 1,
+  required: true,
+  options: payer.hand.map((card) => ({
+    id: card.id,
+    label: card.displayName || card.name,
+    ownerId: pact.playerId,
+  })),
+}],
+        },
+        answers: {},
+      };
+      state.priority = pact.playerId;
+      state.stepLabel = `${pending.schema.sourceName} • Choose a Sacrifice discard`;
+      state.deadline = Date.now() + 35_000;
+      return withVersion(state);
+    }
+    if (pact.stage === "discard") {
+      const selected = merged.discardCardIds ?? [];
+      if (selected.length !== 1) throw new Error("Choose exactly one card to discard for Sacrifice.");
+      discardFromHand(state, playerById(state, pact.playerId), 1, selected);
+      pact.stage = "paid";
+      pact.discardedCardId = selected[0];
+      state.pendingChoice = undefined;
+      state.priority = pact.playerId;
+      state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
+      state.deadline = Date.now() + 35_000;
+      entry(state, "game", `${playerById(state, pact.playerId).name} paid Pact of Darkness's Sacrifice cost. Its Energy cost is now 0.`);
+      return withVersion(state);
+    }
+  }
   if (pending.kind === "forced-discard") {
     const field = pending.schema.fields.find((candidate) => candidate.id === "discardCardIds" && candidate.chooserId === playerId);
     const amount = field?.maximum ?? 0;

@@ -271,6 +271,10 @@ export function MatchHudLayer({
   const playRevealedFlip = () => {
     const flip = match.revealedFlip;
     if (!flip) return;
+    if (flip.catalogId === "bb-152") {
+      void run(() => onPlayFlip(flip.id, {}));
+      return;
+    }
     if (cardChoiceSpec(match, player.id, flip).length) {
       setFlipChoiceOpen(true);
       return;

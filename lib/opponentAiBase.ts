@@ -206,11 +206,18 @@ function expectedOpenChance(match: MatchState, playerId: string) {
 
 function futureCardValue(match: MatchState, playerId: string, card: GameCard) {
   const printedCost = card.cost === "X" ? 2 : card.cost;
-  let value = estimateProgramValue(compileCardEffect(card), match, playerId) - printedCost * 0.4;
-  if (card.type === "Hero") value += 2.2;
-  if (card.type === "Evo") value += 2.8;
-  if (card.type === "Flip") value += 3.2;
-  return value;
+  try {
+    let value = estimateProgramValue(compileCardEffect(card), match, playerId) - printedCost * 0.4;
+    if (card.type === "Hero") value += 2.2;
+    if (card.type === "Evo") value += 2.8;
+    if (card.type === "Flip") value += 3.2;
+    return value;
+  } catch {
+    // A forced discard must never stall because another card in the AI hand
+    // cannot be valued. Use a stable printed fallback and keep resolving.
+    return printedCost * 0.4
+      + (card.type === "Hero" ? 2.2 : card.type === "Evo" ? 2.8 : card.type === "Flip" ? 3.2 : 0);
+  }
 }
 
 function actionBaseValue(action: RuleAction) {
@@ -795,11 +802,17 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
     const card = source
       ? { ...source.card, effect: source.sourceText }
       : fallbackChoiceCard(pending);
-    return submitCardChoice(
-      input,
-      playerId,
-      chooseChoicesFromSchema(input, pending.controllerId, card, pending.schema, playerId),
-    );
+    let choices: CardChoices;
+    try {
+      choices = chooseChoicesFromSchema(input, pending.controllerId, card, pending.schema, playerId);
+    } catch {
+      choices = {};
+      for (const field of pending.schema.fields.filter((candidate) => candidate.chooserId === playerId)) {
+        const count = Math.max(field.minimum, ["number", "mode", "confirm"].includes(field.kind) ? 1 : 0);
+        setChoice(choices, field, field.options.slice(0, count).map((option) => option.id));
+      }
+    }
+    return submitCardChoice(input, playerId, choices);
   }
   const triggerOrder = input.triggerOrders.find(
     (request) => request.controllerId === playerId && !request.orderedIds,

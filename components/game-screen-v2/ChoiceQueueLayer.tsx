@@ -164,7 +164,7 @@ export function ChoiceQueueLayer() {
         ) : null}
 
         <footer>
-          {pending?.controllerId === playerId && !Object.keys(pending.answers).length ? <button type="button" className={styles.secondary} disabled={busy} onClick={() => void cancel()}>Cancel card</button> : null}
+          {pending?.kind === "card-play" && pending.controllerId === playerId && !Object.keys(pending.answers).length ? <button type="button" className={styles.secondary} disabled={busy} onClick={() => void cancel()}>Cancel card</button> : null}
           <button type="button" disabled={busy || Boolean(fields.some((field) => valuesFor(answers, field).length < field.minimum))} onClick={() => void (triggerOrder ? submitOrder() : submitChoices())}>
             {busy ? "Locking…" : triggerOrder ? "Confirm order" : "Lock choices"}
           </button>

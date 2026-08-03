@@ -186,10 +186,11 @@ function costModifiersFor(card: GameCard): CostEffect[] {
     });
   }
 
-  if (/play this for free|this is free/i.test(text)) result.push({ kind: "cost-free", duration: durationFor(text), condition: conditionFor(text) });
-  if (ruleCardId(card) === "bb-152") {
-    result.push({ kind: "cost-discard", amount: 1, choiceId: "discardCardIds" });
-    result.push({ kind: "cost-alternative", label: "Discard a card instead of paying the printed Energy cost", components: [{ kind: "cost-discard", amount: 1, choiceId: "discardCardIds" }] });
+  // Pact of Darkness resolves its optional Sacrifice payment through the
+  // paused Damage sequence. It must retain its printed cost until that
+  // sequence has actually discarded a card.
+  if (ruleCardId(card) !== "bb-152" && /play this for free|this is free/i.test(text)) {
+    result.push({ kind: "cost-free", duration: durationFor(text), condition: conditionFor(text) });
   }
   if (ruleCardId(card) === "aa-112") {
     result.push({ kind: "cost-alternative", label: "Discard two cards instead of paying the printed Energy cost", components: [{ kind: "cost-discard", amount: 2, choiceId: "discardCardIds" }] });
@@ -219,10 +220,12 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
   if (ruleCardId(card) === "bb-1" && !choices.some((item) => item.selector === "batch-object")) {
     choices.unshift(choice("mode", "announce", "batch-object", "Choose the Action effect to negate"));
   }
+  // Pact of Darkness owns a dedicated two-stage Damage-step payment
+  // prompt, so it must not enter the generic card-choice editor.
   if (ruleCardId(card) === "bb-152") {
-    const existing = choices.find((item) => item.id === "discardCardIds");
-    if (existing) existing.timing = "pay";
-    else choices.push(choice("discardCardIds", "pay", "hand-card", "Choose the additional-cost discard", false, "controller", "private"));
+    for (let index = choices.length - 1; index >= 0; index -= 1) {
+      if (choices[index].id === "discardCardIds") choices.splice(index, 1);
+    }
   }
   if (ruleCardId(card) === "aa-112") choices.push(choice("discardCardIds", "pay", "hand-card", "Choose two cards for the alternative cost", false, "controller", "private"));
   return {

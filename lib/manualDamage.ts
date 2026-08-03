@@ -17,10 +17,29 @@ import { emitRuleEvent } from "./rules/triggers";
 
 const DAMAGE_DECISION_MS = 35_000;
 const POST_DAMAGE_MS = 25_000;
+const PACT_OF_DARKNESS_ID = "bb-152";
+
+type PactOfDarknessPayment = {
+  playerId: string;
+  cardId: string;
+  stage: "decision" | "discard" | "declined" | "paid";
+  discardedCardId?: string;
+};
 
 type DamageResumeRules = ReturnType<typeof ensureRulesState> & {
   damageResume?: { playerId: string; previousPhase: "damage"; revealedFlipId: string };
+  pactOfDarknessPayment?: PactOfDarknessPayment;
 };
+
+function clearPactOfDarknessPayment(state: MatchState, cardId?: string) {
+  const rules = ensureRulesState(state) as DamageResumeRules;
+  if (!cardId || rules.pactOfDarknessPayment?.cardId === cardId) {
+    delete rules.pactOfDarknessPayment;
+  }
+  if (state.pendingChoice?.kind === "payment" && (!cardId || state.pendingChoice.cardId === cardId)) {
+    state.pendingChoice = undefined;
+  }
+}
 
 function playerById(state: MatchState, playerId: string) {
   return state.players.find((player) => player.id === playerId);
@@ -65,6 +84,7 @@ export function playerCanFlipDamage(state: MatchState | null | undefined, player
 export function flipDamageCard(input: MatchState, playerId: string) {
   if (!playerCanFlipDamage(input, playerId)) throw new Error("The next damage card cannot be flipped now.");
   const state = cloneMatch(input);
+  clearPactOfDarknessPayment(state);
   const player = playerById(state, playerId)!;
   const card = player.deckCards.shift();
   player.deck = player.deckCards.length;
@@ -110,6 +130,7 @@ export function resolveManualDamage(
   }
   if (!flipCardId) {
     const state = cloneMatch(input);
+    clearPactOfDarknessPayment(state, flip.id);
     state.revealedFlip = undefined;
     log(state, "game", `${player.name} skipped ${flip.name}.`);
     if (state.pendingDamage <= 0) enterPostDamage(state);
@@ -126,6 +147,67 @@ export function resolveManualDamage(
   const state = cloneMatch(input);
   const statePlayer = playerById(state, playerId)!;
   const stateFlip = state.revealedFlip!;
+  const damageRules = ensureRulesState(state) as DamageResumeRules;
+  if (stateFlip.catalogId === PACT_OF_DARKNESS_ID) {
+    const pact = damageRules.pactOfDarknessPayment;
+    if (!pact || pact.cardId !== stateFlip.id || pact.playerId !== playerId) {
+      if (!statePlayer.hand.length) {
+        damageRules.pactOfDarknessPayment = {
+playerId,
+cardId: stateFlip.id,
+stage: "declined",
+        };
+      } else {
+        damageRules.pactOfDarknessPayment = {
+playerId,
+cardId: stateFlip.id,
+stage: "decision",
+        };
+        state.pendingChoice = {
+id: `${state.id}:${state.version}:${stateFlip.id}:pact-sacrifice-decision`,
+kind: "payment",
+controllerId: playerId,
+cardId: stateFlip.id,
+schema: {
+  id: `${state.id}:${state.version}:${stateFlip.id}:pact-sacrifice-decision-schema`,
+  sourceId: stateFlip.id,
+  sourceName: stateFlip.displayName || stateFlip.name,
+  controllerId: playerId,
+  timing: "pay",
+  simultaneous: false,
+  fields: [{
+    id: "confirmed",
+    kind: "confirm",
+    label: "Pay Sacrifice by discarding a card to play Pact of Darkness for free?",
+    chooserId: playerId,
+    visibility: "public",
+    timing: "pay",
+    minimum: 1,
+    maximum: 1,
+    required: true,
+    options: [
+      { id: "yes", label: "Pay Sacrifice" },
+      { id: "no", label: "Keep the 4 Energy cost" },
+    ],
+  }],
+},
+answers: {},
+createdVersion: state.version,
+resumePriority: playerId,
+resumeDeadline: state.deadline,
+resumeStepLabel: state.stepLabel,
+        };
+        state.priority = playerId;
+        state.stepLabel = `${stateFlip.displayName || stateFlip.name} • Sacrifice decision`;
+        state.deadline = Date.now() + DAMAGE_DECISION_MS;
+        log(state, "game", `${statePlayer.name} is deciding whether to pay Pact of Darkness's Sacrifice cost.`);
+        state.version += 1;
+        return state;
+      }
+    } else if (pact.stage === "decision" || pact.stage === "discard") {
+      throw new Error("Complete or skip Pact of Darkness's Sacrifice decision first.");
+    }
+  }
   const payment = beginCardPayment(state, playerId, stateFlip, choices);
   prepareDeclaredEnergyPayment(state, playerId, payment.calculatedCost);
   commitCardPayment(state, playerId);
@@ -134,6 +216,7 @@ export function resolveManualDamage(
   state.nextCardCostReduction[playerId] = 0;
   statePlayer.discard = statePlayer.discard.filter((card) => card.id !== stateFlip.id);
   state.revealedFlip = undefined;
+  clearPactOfDarknessPayment(state, stateFlip.id);
   recordCardPlayedForTurn(statePlayer, stateFlip, state.turn);
 
   const definition = ruleDefinitionForCard(stateFlip);

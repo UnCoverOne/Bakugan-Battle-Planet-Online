@@ -85,6 +85,22 @@ export function cardCostBreakdown(
   }
 
 
+  const pactPayment = (ensureRulesState(state) as ReturnType<typeof ensureRulesState> & {
+    pactOfDarknessPayment?: {
+      playerId: string;
+      cardId: string;
+      stage: "decision" | "discard" | "declined" | "paid";
+      discardedCardId?: string;
+    };
+  }).pactOfDarknessPayment;
+  if (
+    card.catalogId === "bb-152"
+    && pactPayment?.playerId === playerId
+    && pactPayment.cardId === card.id
+    && pactPayment.stage === "paid"
+    && pactPayment.discardedCardId
+  ) freeBase = true;
+
   const frostStrike = card.type === "Flip" && state.damageOrigin ? activeFrostStrike(state, state.damageOrigin) : 0;
   const base = freeBase ? 0 : printed;
   return {

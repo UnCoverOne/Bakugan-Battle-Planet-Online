@@ -286,7 +286,7 @@ export function compactMatchHudSlots(actions: MatchHudActions): CompactMatchHudS
   if (actions.exit) return ["exit"];
   if (actions["play-flip"] || actions["skip-flip"]) {
     return [
-      actions["play-flip"] ? "play-flip" : null,
+      actions.discard ? "discard" : actions["play-flip"] ? "play-flip" : null,
       actions["skip-flip"] ? "skip-flip" : null,
     ];
   }

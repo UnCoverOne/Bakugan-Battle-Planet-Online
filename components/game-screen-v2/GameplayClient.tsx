@@ -337,7 +337,7 @@ export function GameplayClient() {
       && !opponentAiCanAct(match, "training-bot")
     ) return;
 
-    const key = `${match.id}:${match.version}:${match.phase}`;
+    const key = `${match.id}:${match.version}:${match.phase}:${match.pendingChoice?.id ?? ""}`;
     if (botActionKey.current === key) return;
     botActionKey.current = key;
     const drawDelay = waitingForDrawWindow
@@ -368,6 +368,7 @@ export function GameplayClient() {
     storedState.match?.phase,
     storedState.match?.priority,
     storedState.match?.version,
+    storedState.match?.pendingChoice?.id,
     rollPresentationPending,
     publishMatch,
   ]);

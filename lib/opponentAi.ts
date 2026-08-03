@@ -560,7 +560,7 @@ function diversifyProposedPlacement(
   return placeCore(input, playerId, added.core.id, best.cell);
 }
 
-export function advanceOpponentAi(input: MatchState, playerId: string): MatchState | null {
+function advanceOpponentAiStep(input: MatchState, playerId: string): MatchState | null {
   if (input.phase === "placement" && input.priority === playerId) {
     const proposed = advanceBaseOpponentAi(input, playerId);
     return proposed ? diversifyProposedPlacement(input, playerId, proposed) : null;
@@ -573,4 +573,24 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
     && !hasPendingDecision
   ) return advanceWithCombatPolicy(input, playerId);
   return advanceBaseOpponentAi(input, playerId);
+}
+
+
+export function advanceOpponentAi(input: MatchState, playerId: string): MatchState | null {
+  let current = input;
+  let advanced = false;
+  for (let step = 0; step < 4; step += 1) {
+    const next = advanceOpponentAiStep(current, playerId);
+    if (!next) return advanced ? current : null;
+    advanced = true;
+    current = next;
+    const pending = current.pendingChoice;
+    const anotherAiChoice = Boolean(
+      pending
+      && !pending.answers[playerId]
+      && pending.schema.fields.some((field) => field.chooserId === playerId),
+    );
+    if (!anotherAiChoice) return current;
+  }
+  return current;
 }
