@@ -50,6 +50,25 @@ jobs:
           assert old in text, "Play definition anchor missing"
           path.write_text(text.replace(old, new, 1))
 
+          path = Path("lib/rules/choices.ts")
+          text = path.read_text()
+          old = '''    case "all-enemy": {
+            const owners = spec.selector === "active-enemy" || spec.selector === "all-enemy" ? [opponent]
+              : card.type === "Evo" ? [controller]
+                : targetOwners(match, controllerId, spec);
+            return owners.flatMap((owner) => owner.bakugan
+              .filter((bakugan) => card.type !== "Evo" || canonicalEvoTargetAllowed(ruleDefinitionForCard(card), bakugan))'''.replace("            ", "      ")
+          new = '''    case "all-enemy": {
+            const evoSourceChoice = card.type === "Evo"
+              && (spec.id === "sourceBakuganId" || spec.label === "Choose the matching Character");
+            const owners = spec.selector === "active-enemy" || spec.selector === "all-enemy" ? [opponent]
+              : evoSourceChoice ? [controller]
+                : targetOwners(match, controllerId, spec);
+            return owners.flatMap((owner) => owner.bakugan
+              .filter((bakugan) => !evoSourceChoice || canonicalEvoTargetAllowed(ruleDefinitionForCard(card), bakugan))'''.replace("            ", "      ")
+          assert old in text, "Evo target filtering anchor missing"
+          path.write_text(text.replace(old, new, 1))
+
           path = Path("tests/underdog-target-selection.test.ts")
           text = path.read_text()
           text = text.replace(r'/setAnswers\\(\\(current\\) => \\{/', r'/setAnswers\(\(current\) => \{/')
