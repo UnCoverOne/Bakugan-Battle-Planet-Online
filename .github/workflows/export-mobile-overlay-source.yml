@@ -1,0 +1,23 @@
+name: Export mobile overlay source
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Create source archive
+        run: tar -czf mobile-overlay-source.tar.gz components/game-screen-v2 tests package.json package-lock.json scripts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-overlay-source
+          path: mobile-overlay-source.tar.gz
+          retention-days: 1
