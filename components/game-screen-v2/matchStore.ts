@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { normalizeMatchState, type MatchState } from "../../lib/game";
 
 export const MATCH_KEY = "bbp-active-match-v1";
@@ -75,7 +75,7 @@ export function gameplayRouteForPathname(pathname: string) {
   return null;
 }
 
-export function readMatchStore(): MatchStoreSnapshot {
+function readPersistedMatchStore(): MatchStoreSnapshot {
   if (typeof window === "undefined") return EMPTY;
   const routeFromLocation = gameplayRouteForPathname(window.location.pathname);
   const settings = parse<MatchClientSettings>(readStorage(localStorage, SETTINGS_KEY), {});
@@ -115,18 +115,27 @@ function notify() {
 
 function refresh() {
   if (typeof window === "undefined") return;
-  const next = readMatchStore();
+  const next = readPersistedMatchStore();
   if (snapshotsMatch(snapshot, next)) return;
   snapshot = next;
+  notify();
+}
+
+function receiveMatchUpdate(event: Event) {
+  const detail = (event as CustomEvent<MatchState>).detail;
+  if (!detail) return refresh();
+  const normalized = normalizeMatchState(detail);
+  if (snapshot.match?.id === normalized.id && snapshot.match.version >= normalized.version) return;
+  snapshot = { ...snapshot, match: normalized };
   notify();
 }
 
 function initialize() {
   if (initialized || typeof window === "undefined") return;
   initialized = true;
-  snapshot = readMatchStore();
+  snapshot = readPersistedMatchStore();
   window.addEventListener("storage", refresh);
-  window.addEventListener(MATCH_UPDATE_EVENT, refresh as EventListener);
+  window.addEventListener(MATCH_UPDATE_EVENT, receiveMatchUpdate as EventListener);
 }
 
 function subscribe(listener: () => void) {
@@ -140,9 +149,45 @@ function getSnapshot() {
   return snapshot;
 }
 
-export function useMatchSelector<T>(selector: (state: MatchStoreSnapshot) => T) {
-  const state = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY);
-  return selector(state);
+export function readMatchStore(): MatchStoreSnapshot {
+  return getSnapshot();
+}
+
+function shallowSelectorEqual(left: unknown, right: unknown) {
+  if (Object.is(left, right)) return true;
+  if (!left || !right || typeof left !== "object" || typeof right !== "object") return false;
+  const leftPrototype = Object.getPrototypeOf(left);
+  const rightPrototype = Object.getPrototypeOf(right);
+  const supported = leftPrototype === Object.prototype || leftPrototype === Array.prototype;
+  if (!supported || leftPrototype !== rightPrototype) return false;
+  const leftKeys = Object.keys(left as object);
+  const rightKeys = Object.keys(right as object);
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key) => Object.is(
+      (left as Record<string, unknown>)[key],
+      (right as Record<string, unknown>)[key],
+    ));
+}
+
+export function useMatchSelector<T>(
+  selector: (state: MatchStoreSnapshot) => T,
+  equality: (left: T, right: T) => boolean = shallowSelectorEqual,
+) {
+  const selectorRef = useRef(selector);
+  const equalityRef = useRef(equality);
+  const selectedRef = useRef<{ ready: boolean; value: T }>({ ready: false, value: undefined as T });
+  selectorRef.current = selector;
+  equalityRef.current = equality;
+
+  const selectedSnapshot = useCallback(() => {
+    const next = selectorRef.current(getSnapshot());
+    const previous = selectedRef.current;
+    if (previous.ready && equalityRef.current(previous.value, next)) return previous.value;
+    selectedRef.current = { ready: true, value: next };
+    return next;
+  }, []);
+  const serverSnapshot = useCallback(() => selectorRef.current(EMPTY), []);
+  return useSyncExternalStore(subscribe, selectedSnapshot, serverSnapshot);
 }
 
 /**
@@ -198,13 +243,39 @@ export function primeMatchStore(next: MatchStoreBootstrap) {
   return snapshot;
 }
 
+let persistTimer = 0;
+let pendingPersistedMatch: MatchState | null = null;
+let pendingPreviousMatch: MatchState | null = null;
+let pendingRememberPrevious = false;
+
+function scheduleMatchPersistence(next: MatchState, previous: MatchState | null, rememberPrevious: boolean) {
+  pendingPersistedMatch = next;
+  if (rememberPrevious && previous) {
+    pendingPreviousMatch = previous;
+    pendingRememberPrevious = true;
+  }
+  window.clearTimeout(persistTimer);
+  persistTimer = window.setTimeout(() => {
+    const match = pendingPersistedMatch;
+    const prior = pendingPreviousMatch;
+    const remember = pendingRememberPrevious;
+    pendingPersistedMatch = null;
+    pendingPreviousMatch = null;
+    pendingRememberPrevious = false;
+    if (remember && prior) writeStorage(localStorage, PREVIOUS_MATCH_KEY, prior);
+    if (match) writeStorage(localStorage, MATCH_KEY, match);
+  }, 0);
+}
+
 export function publishMatch(next: MatchState, rememberPrevious = true) {
-  const current = readMatchStore().match;
-  if (current && current.id === next.id && next.version <= current.version) return false;
-  if (rememberPrevious && current) localStorage.setItem(PREVIOUS_MATCH_KEY, JSON.stringify(current));
-  localStorage.setItem(MATCH_KEY, JSON.stringify(next));
-  window.dispatchEvent(new CustomEvent<MatchState>(MATCH_UPDATE_EVENT, { detail: next }));
-  refresh();
+  initialize();
+  const normalized = normalizeMatchState(next);
+  const current = snapshot.match;
+  if (current && current.id === normalized.id && normalized.version <= current.version) return false;
+  snapshot = { ...snapshot, match: normalized };
+  notify();
+  scheduleMatchPersistence(normalized, current, rememberPrevious);
+  window.dispatchEvent(new CustomEvent<MatchState>(MATCH_UPDATE_EVENT, { detail: normalized }));
   return true;
 }
 

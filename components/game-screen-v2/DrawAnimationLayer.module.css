@@ -10,24 +10,33 @@
   overflow: hidden;
   pointer-events: none;
   perspective: 1200px;
+  contain: layout paint style;
 }
 
 .flight {
   position: fixed;
   box-sizing: border-box;
+  opacity: 0;
   transform-origin: top left;
   transform-style: preserve-3d;
   filter:
     drop-shadow(0 0.45rem 0.6rem rgba(0, 0, 0, 0.72))
     drop-shadow(0 0 0.3rem rgba(255, 255, 255, 0.72));
-  animation: draw-card-flight var(--draw-duration) cubic-bezier(0.18, 0.76, 0.2, 1) var(--draw-delay) both;
-  will-change: transform, filter, opacity;
+  will-change: transform, opacity;
 }
 
 .flight[data-owner="opponent"] {
   filter:
     drop-shadow(0 0.45rem 0.6rem rgba(0, 0, 0, 0.72))
     drop-shadow(0 0 0.34rem rgba(255, 75, 61, 0.72));
+}
+
+.flight[data-state="running"] {
+  animation: draw-card-flight var(--draw-duration) cubic-bezier(0.18, 0.76, 0.2, 1) var(--draw-delay) both;
+}
+
+.flight[data-state="settling"] {
+  opacity: 0;
 }
 
 .cardInner {
@@ -37,7 +46,7 @@
   transform-style: preserve-3d;
 }
 
-.flight[data-reveal="true"] .cardInner {
+.flight[data-state="running"][data-reveal="true"] .cardInner {
   animation: reveal-drawn-card var(--draw-duration) ease-in-out var(--draw-delay) both;
 }
 
@@ -58,37 +67,13 @@
   user-select: none;
 }
 
-.cardFace {
-  transform: rotateY(180deg);
-}
+.cardFace { transform: rotateY(180deg); }
 
 @keyframes draw-card-flight {
-  0% {
-    opacity: 0.94;
-    transform: translate3d(0, 0, 0) scale(1) rotateZ(-1deg);
-  }
-  20% {
-    opacity: 1;
-    transform: translate3d(0, -1.35rem, 5rem) scale(1.08) rotateZ(4deg);
-    filter:
-      drop-shadow(0 0.7rem 0.85rem rgba(0, 0, 0, 0.68))
-      drop-shadow(0 0 0.55rem rgba(255, 255, 255, 0.96));
-  }
-  82% {
-    opacity: 1;
-    transform: translate3d(var(--draw-delta-x), calc(var(--draw-delta-y) - 0.35rem), 0)
-      scale(var(--draw-scale-x), var(--draw-scale-y)) rotateZ(-1deg);
-  }
-  94% {
-    opacity: 1;
-    transform: translate3d(var(--draw-delta-x), var(--draw-delta-y), 0)
-      scale(var(--draw-scale-x), var(--draw-scale-y)) rotateZ(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(var(--draw-delta-x), var(--draw-delta-y), 0)
-      scale(var(--draw-scale-x), var(--draw-scale-y)) rotateZ(0);
-  }
+  0% { opacity: 0.94; transform: translate3d(0, 0, 0) scale(1) rotateZ(-1deg); }
+  20% { opacity: 1; transform: translate3d(0, -1.35rem, 5rem) scale(1.08) rotateZ(4deg); }
+  82% { opacity: 1; transform: translate3d(var(--draw-delta-x), calc(var(--draw-delta-y) - 0.35rem), 0) scale(var(--draw-scale-x), var(--draw-scale-y)) rotateZ(-1deg); }
+  100% { opacity: 1; transform: translate3d(var(--draw-delta-x), var(--draw-delta-y), 0) scale(var(--draw-scale-x), var(--draw-scale-y)) rotateZ(0); }
 }
 
 @keyframes reveal-drawn-card {
@@ -96,16 +81,10 @@
   68%, 100% { transform: rotateY(180deg); }
 }
 
-:global(html[data-viewport-changing="true"]) .flight,
-:global(html[data-viewport-changing="true"]) .cardInner {
-  animation-play-state: paused;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .flight,
-  .flight[data-reveal="true"] .cardInner {
+  .flight[data-state="running"],
+  .flight[data-state="running"][data-reveal="true"] .cardInner {
     animation-duration: 1ms;
     animation-delay: 0ms;
   }
 }
-
