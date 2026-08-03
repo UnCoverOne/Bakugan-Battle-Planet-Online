@@ -1,11 +1,7 @@
 name: Fix Pact of Darkness and Hyper Cubbo
 
 on:
-  push:
-    branches:
-      - fix/pact-cubbo-20260803
-    paths:
-      - .github/fix-pact-cubbo
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,589 +12,58 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/pact-cubbo-20260803
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - name: Apply engine fixes
+      - name: Apply repaired implementation patch
         shell: bash
         run: |
           python <<'PY'
-          from pathlib import Path
+          import subprocess
 
-          def replace_once(path: str, old: str, new: str):
-              file = Path(path)
-              text = file.read_text()
-              if old not in text:
-                  raise SystemExit(f"Expected patch anchor not found in {path}: {old[:160]!r}")
-              file.write_text(text.replace(old, new, 1))
-
-          replace_once(
-              "lib/rules/catalogue-structure.ts",
-              '''  if (/play this for free|this is free/i.test(text)) result.push({ kind: "cost-free", duration: durationFor(text), condition: conditionFor(text) });
-  if (ruleCardId(card) === "bb-152") {
-    result.push({ kind: "cost-discard", amount: 1, choiceId: "discardCardIds" });
-    result.push({ kind: "cost-alternative", label: "Discard a card instead of paying the printed Energy cost", components: [{ kind: "cost-discard", amount: 1, choiceId: "discardCardIds" }] });
-  }
-''',
-              '''  // Pact of Darkness resolves its optional Sacrifice payment through the
-  // paused Damage sequence. It must retain its printed cost until that
-  // sequence has actually discarded a card.
-  if (ruleCardId(card) !== "bb-152" && /play this for free|this is free/i.test(text)) {
-    result.push({ kind: "cost-free", duration: durationFor(text), condition: conditionFor(text) });
-  }
-''',
+          historical = subprocess.check_output(
+              ["git", "show", "6da30135aa7d3fbfc19f9dcf0457b48de13ac002:.github/workflows/fix-pact-cubbo.yml"],
+              text=True,
           )
-          replace_once(
-              "lib/rules/catalogue-structure.ts",
-              '''  if (ruleCardId(card) === "bb-152") {
-    const existing = choices.find((item) => item.id === "discardCardIds");
-    if (existing) existing.timing = "pay";
-    else choices.push(choice("discardCardIds", "pay", "hand-card", "Choose the additional-cost discard", false, "controller", "private"));
-  }
-''',
-              '''  // Pact of Darkness owns a dedicated two-stage Damage-step payment
-  // prompt, so it must not enter the generic card-choice editor.
-  if (ruleCardId(card) === "bb-152") {
-    for (let index = choices.length - 1; index >= 0; index -= 1) {
-      if (choices[index].id === "discardCardIds") choices.splice(index, 1);
-    }
-  }
-''',
+          start = historical.index("          python <<'PY'\n") + len("          python <<'PY'\n")
+          end = historical.index("\n          PY\n", start)
+          script = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in historical[start:end].splitlines()
           )
-
-          replace_once(
-              "lib/rules/costs.ts",
-              '''
-
-  const frostStrike = card.type === "Flip" && state.damageOrigin ? activeFrostStrike(state, state.damageOrigin) : 0;
-''',
-              '''
-
-  const pactPayment = (ensureRulesState(state) as ReturnType<typeof ensureRulesState> & {
-    pactOfDarknessPayment?: {
-      playerId: string;
-      cardId: string;
-      stage: "decision" | "discard" | "declined" | "paid";
-      discardedCardId?: string;
-    };
-  }).pactOfDarknessPayment;
-  if (
-    card.catalogId === "bb-152"
-    && pactPayment?.playerId === playerId
-    && pactPayment.cardId === card.id
-    && pactPayment.stage === "paid"
-    && pactPayment.discardedCardId
-  ) freeBase = true;
-
-  const frostStrike = card.type === "Flip" && state.damageOrigin ? activeFrostStrike(state, state.damageOrigin) : 0;
-''',
-          )
-
-          replace_once(
-              "lib/manualDamage.ts",
-              '''const DAMAGE_DECISION_MS = 35_000;
-const POST_DAMAGE_MS = 25_000;
-
-type DamageResumeRules = ReturnType<typeof ensureRulesState> & {
-  damageResume?: { playerId: string; previousPhase: "damage"; revealedFlipId: string };
-};
-''',
-              '''const DAMAGE_DECISION_MS = 35_000;
-const POST_DAMAGE_MS = 25_000;
-const PACT_OF_DARKNESS_ID = "bb-152";
-
-type PactOfDarknessPayment = {
-  playerId: string;
-  cardId: string;
-  stage: "decision" | "discard" | "declined" | "paid";
-  discardedCardId?: string;
-};
-
-type DamageResumeRules = ReturnType<typeof ensureRulesState> & {
-  damageResume?: { playerId: string; previousPhase: "damage"; revealedFlipId: string };
-  pactOfDarknessPayment?: PactOfDarknessPayment;
-};
-
-function clearPactOfDarknessPayment(state: MatchState, cardId?: string) {
-  const rules = ensureRulesState(state) as DamageResumeRules;
-  if (!cardId || rules.pactOfDarknessPayment?.cardId === cardId) {
-    delete rules.pactOfDarknessPayment;
-  }
-  if (state.pendingChoice?.kind === "payment" && (!cardId || state.pendingChoice.cardId === cardId)) {
-    state.pendingChoice = undefined;
-  }
-}
-''',
-          )
-          replace_once(
-              "lib/manualDamage.ts",
-              '''  const state = cloneMatch(input);
-  const player = playerById(state, playerId)!;
-  const card = player.deckCards.shift();
-''',
-              '''  const state = cloneMatch(input);
-  clearPactOfDarknessPayment(state);
-  const player = playerById(state, playerId)!;
-  const card = player.deckCards.shift();
-''',
-          )
-          replace_once(
-              "lib/manualDamage.ts",
-              '''  if (!flipCardId) {
-    const state = cloneMatch(input);
-    state.revealedFlip = undefined;
-''',
-              '''  if (!flipCardId) {
-    const state = cloneMatch(input);
-    clearPactOfDarknessPayment(state, flip.id);
-    state.revealedFlip = undefined;
-''',
-          )
-          replace_once(
-              "lib/manualDamage.ts",
-              '''  const state = cloneMatch(input);
-  const statePlayer = playerById(state, playerId)!;
-  const stateFlip = state.revealedFlip!;
-  const payment = beginCardPayment(state, playerId, stateFlip, choices);
-''',
-              '''  const state = cloneMatch(input);
-  const statePlayer = playerById(state, playerId)!;
-  const stateFlip = state.revealedFlip!;
-  const rules = ensureRulesState(state) as DamageResumeRules;
+          script = script.replace(
+              '''  const rules = ensureRulesState(state) as DamageResumeRules;
   if (stateFlip.catalogId === PACT_OF_DARKNESS_ID) {
-    const pact = rules.pactOfDarknessPayment;
-    if (!pact || pact.cardId !== stateFlip.id || pact.playerId !== playerId) {
-      if (!statePlayer.hand.length) {
-        rules.pactOfDarknessPayment = {
+    const pact = rules.pactOfDarknessPayment;''',
+              '''  const damageRules = ensureRulesState(state) as DamageResumeRules;
+  if (stateFlip.catalogId === PACT_OF_DARKNESS_ID) {
+    const pact = damageRules.pactOfDarknessPayment;''',
+              1,
+          )
+          script = script.replace(
+              '''        rules.pactOfDarknessPayment = {
           playerId,
           cardId: stateFlip.id,
-          stage: "declined",
-        };
-      } else {
-        rules.pactOfDarknessPayment = {
+          stage: "declined",''',
+              '''        damageRules.pactOfDarknessPayment = {
           playerId,
           cardId: stateFlip.id,
-          stage: "decision",
-        };
-        state.pendingChoice = {
-          id: `${state.id}:${state.version}:${stateFlip.id}:pact-sacrifice-decision`,
-          kind: "payment",
-          controllerId: playerId,
+          stage: "declined",''',
+              1,
+          )
+          script = script.replace(
+              '''        rules.pactOfDarknessPayment = {
+          playerId,
           cardId: stateFlip.id,
-          schema: {
-            id: `${state.id}:${state.version}:${stateFlip.id}:pact-sacrifice-decision-schema`,
-            sourceId: stateFlip.id,
-            sourceName: stateFlip.displayName || stateFlip.name,
-            controllerId: playerId,
-            timing: "pay",
-            simultaneous: false,
-            fields: [{
-              id: "confirmed",
-              kind: "confirm",
-              label: "Pay Sacrifice by discarding a card to play Pact of Darkness for free?",
-              chooserId: playerId,
-              visibility: "public",
-              timing: "pay",
-              minimum: 1,
-              maximum: 1,
-              required: true,
-              options: [
-                { id: "yes", label: "Pay Sacrifice" },
-                { id: "no", label: "Keep the 4 Energy cost" },
-              ],
-            }],
-          },
-          answers: {},
-          createdVersion: state.version,
-          resumePriority: playerId,
-          resumeDeadline: state.deadline,
-          resumeStepLabel: state.stepLabel,
-        };
-        state.priority = playerId;
-        state.stepLabel = `${stateFlip.displayName || stateFlip.name} • Sacrifice decision`;
-        state.deadline = Date.now() + DAMAGE_DECISION_MS;
-        log(state, "game", `${statePlayer.name} is deciding whether to pay Pact of Darkness's Sacrifice cost.`);
-        state.version += 1;
-        return state;
-      }
-    } else if (pact.stage === "decision" || pact.stage === "discard") {
-      throw new Error("Complete or skip Pact of Darkness's Sacrifice decision first.");
-    }
-  }
-  const payment = beginCardPayment(state, playerId, stateFlip, choices);
-''',
+          stage: "decision",''',
+              '''        damageRules.pactOfDarknessPayment = {
+          playerId,
+          cardId: stateFlip.id,
+          stage: "decision",''',
+              1,
           )
-          replace_once(
-              "lib/manualDamage.ts",
-              '''  state.revealedFlip = undefined;
-  recordCardPlayedForTurn(statePlayer, stateFlip, state.turn);
-''',
-              '''  state.revealedFlip = undefined;
-  clearPactOfDarknessPayment(state, stateFlip.id);
-  recordCardPlayedForTurn(statePlayer, stateFlip, state.turn);
-''',
+          script = script.replace(
+              'if (pending.kind === "payment" && pending.cardId === "bb-152") {',
+              'if (pending.kind === "payment" && state.revealedFlip?.catalogId === "bb-152" && state.revealedFlip.id === pending.cardId) {',
+              1,
           )
-
-          replace_once(
-              "lib/game.ts",
-              '''  const merged = mergeChoiceAnswers(pending.schema, pending.answers);
-  if (pending.kind === "forced-discard") {
-''',
-              '''  const merged = mergeChoiceAnswers(pending.schema, pending.answers);
-  if (pending.kind === "payment" && pending.cardId === "bb-152") {
-    const rules = ensureRulesState(state) as ReturnType<typeof ensureRulesState> & {
-      pactOfDarknessPayment?: {
-        playerId: string;
-        cardId: string;
-        stage: "decision" | "discard" | "declined" | "paid";
-        discardedCardId?: string;
-      };
-    };
-    const pact = rules.pactOfDarknessPayment;
-    if (!pact || pact.playerId !== pending.controllerId || pact.cardId !== pending.cardId) {
-      throw new Error("Pact of Darkness's Sacrifice payment is no longer available.");
-    }
-    if (pact.stage === "decision") {
-      if (merged.confirmed === false) {
-        pact.stage = "declined";
-        state.pendingChoice = undefined;
-        state.priority = pact.playerId;
-        state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
-        state.deadline = Date.now() + 35_000;
-        entry(state, "game", `${playerById(state, pact.playerId).name} declined Pact of Darkness's Sacrifice cost.`);
-        return withVersion(state);
-      }
-      const payer = playerById(state, pact.playerId);
-      if (!payer.hand.length) {
-        pact.stage = "declined";
-        state.pendingChoice = undefined;
-        state.priority = pact.playerId;
-        state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
-        state.deadline = Date.now() + 35_000;
-        return withVersion(state);
-      }
-      pact.stage = "discard";
-      state.pendingChoice = {
-        ...pending,
-        id: uid(),
-        schema: {
-          id: `${state.id}:${state.version}:${pending.cardId}:pact-sacrifice-discard`,
-          sourceId: pending.cardId,
-          sourceName: pending.schema.sourceName,
-          controllerId: pact.playerId,
-          timing: "pay",
-          simultaneous: false,
-          fields: [{
-            id: "discardCardIds",
-            kind: "hand-cards",
-            label: "Choose a card to discard for Sacrifice",
-            chooserId: pact.playerId,
-            visibility: "private",
-            timing: "pay",
-            minimum: 1,
-            maximum: 1,
-            required: true,
-            options: payer.hand.map((card) => ({
-              id: card.id,
-              label: card.displayName || card.name,
-              ownerId: pact.playerId,
-            })),
-          }],
-        },
-        answers: {},
-      };
-      state.priority = pact.playerId;
-      state.stepLabel = `${pending.schema.sourceName} • Choose a Sacrifice discard`;
-      state.deadline = Date.now() + 35_000;
-      return withVersion(state);
-    }
-    if (pact.stage === "discard") {
-      const selected = merged.discardCardIds ?? [];
-      if (selected.length !== 1) throw new Error("Choose exactly one card to discard for Sacrifice.");
-      discardFromHand(state, playerById(state, pact.playerId), 1, selected);
-      pact.stage = "paid";
-      pact.discardedCardId = selected[0];
-      state.pendingChoice = undefined;
-      state.priority = pact.playerId;
-      state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
-      state.deadline = Date.now() + 35_000;
-      entry(state, "game", `${playerById(state, pact.playerId).name} paid Pact of Darkness's Sacrifice cost. Its Energy cost is now 0.`);
-      return withVersion(state);
-    }
-  }
-  if (pending.kind === "forced-discard") {
-''',
-          )
-
-          replace_once(
-              "components/game-screen-v2/matchHudState.ts",
-              '''  if (actions["play-flip"] || actions["skip-flip"]) {
-    return [
-      actions["play-flip"] ? "play-flip" : null,
-      actions["skip-flip"] ? "skip-flip" : null,
-    ];
-  }
-''',
-              '''  if (actions["play-flip"] || actions["skip-flip"]) {
-    return [
-      actions.discard ? "discard" : actions["play-flip"] ? "play-flip" : null,
-      actions["skip-flip"] ? "skip-flip" : null,
-    ];
-  }
-''',
-          )
-
-          replace_once(
-              "components/game-screen-v2/MatchHudLayer.tsx",
-              '''  const playRevealedFlip = () => {
-    const flip = match.revealedFlip;
-    if (!flip) return;
-    if (cardChoiceSpec(match, player.id, flip).length) {
-''',
-              '''  const playRevealedFlip = () => {
-    const flip = match.revealedFlip;
-    if (!flip) return;
-    if (flip.catalogId === "bb-152") {
-      void run(() => onPlayFlip(flip.id, {}));
-      return;
-    }
-    if (cardChoiceSpec(match, player.id, flip).length) {
-''',
-          )
-
-          replace_once(
-              "components/game-screen-v2/ChoiceQueueLayer.tsx",
-              '''          {pending?.controllerId === playerId && !Object.keys(pending.answers).length ? <button type="button" className={styles.secondary} disabled={busy} onClick={() => void cancel()}>Cancel card</button> : null}
-''',
-              '''          {pending?.kind === "card-play" && pending.controllerId === playerId && !Object.keys(pending.answers).length ? <button type="button" className={styles.secondary} disabled={busy} onClick={() => void cancel()}>Cancel card</button> : null}
-''',
-          )
-
-          replace_once(
-              "components/game-screen-v2/GameplayClient.tsx",
-              '''    const key = `${match.id}:${match.version}:${match.phase}`;
-''',
-              '''    const key = `${match.id}:${match.version}:${match.phase}:${match.pendingChoice?.id ?? ""}`;
-''',
-          )
-          replace_once(
-              "components/game-screen-v2/GameplayClient.tsx",
-              '''    storedState.match?.priority,
-    storedState.match?.version,
-    rollPresentationPending,
-''',
-              '''    storedState.match?.priority,
-    storedState.match?.version,
-    storedState.match?.pendingChoice?.id,
-    rollPresentationPending,
-''',
-          )
-
-          replace_once(
-              "lib/opponentAiBase.ts",
-              '''function futureCardValue(match: MatchState, playerId: string, card: GameCard) {
-  const printedCost = card.cost === "X" ? 2 : card.cost;
-  let value = estimateProgramValue(compileCardEffect(card), match, playerId) - printedCost * 0.4;
-  if (card.type === "Hero") value += 2.2;
-  if (card.type === "Evo") value += 2.8;
-  if (card.type === "Flip") value += 3.2;
-  return value;
-}
-''',
-              '''function futureCardValue(match: MatchState, playerId: string, card: GameCard) {
-  const printedCost = card.cost === "X" ? 2 : card.cost;
-  try {
-    let value = estimateProgramValue(compileCardEffect(card), match, playerId) - printedCost * 0.4;
-    if (card.type === "Hero") value += 2.2;
-    if (card.type === "Evo") value += 2.8;
-    if (card.type === "Flip") value += 3.2;
-    return value;
-  } catch {
-    // A forced discard must never stall because another card in the AI hand
-    // cannot be valued. Use a stable printed fallback and keep resolving.
-    return printedCost * 0.4
-      + (card.type === "Hero" ? 2.2 : card.type === "Evo" ? 2.8 : card.type === "Flip" ? 3.2 : 0);
-  }
-}
-''',
-          )
-          replace_once(
-              "lib/opponentAiBase.ts",
-              '''    return submitCardChoice(
-      input,
-      playerId,
-      chooseChoicesFromSchema(input, pending.controllerId, card, pending.schema, playerId),
-    );
-''',
-              '''    let choices: CardChoices;
-    try {
-      choices = chooseChoicesFromSchema(input, pending.controllerId, card, pending.schema, playerId);
-    } catch {
-      choices = {};
-      for (const field of pending.schema.fields.filter((candidate) => candidate.chooserId === playerId)) {
-        const count = Math.max(field.minimum, ["number", "mode", "confirm"].includes(field.kind) ? 1 : 0);
-        setChoice(choices, field, field.options.slice(0, count).map((option) => option.id));
-      }
-    }
-    return submitCardChoice(input, playerId, choices);
-''',
-          )
-
-          Path("tests/pact-cubbo-regressions.test.ts").write_text(r'''import assert from "node:assert/strict";
-import test from "node:test";
-import { CARD_BY_ID, STARTER_DECKS, makePlayer } from "../lib/data";
-import {
-  createMatch,
-  submitCardChoice,
-} from "../lib/game";
-import { effectiveCardEnergyCost } from "../lib/cardPayment";
-import { resolveManualDamage } from "../lib/manualDamage";
-import { advanceOpponentAi } from "../lib/opponentAi";
-import { ruleDefinitionForCard } from "../lib/rules/catalogue";
-import { buildChoiceSchema } from "../lib/rules/choices";
-import { createRuleObject } from "../lib/rules/objects";
-import {
-  compactMatchHudSlots,
-  visibleMatchHudActions,
-} from "../components/game-screen-v2/matchHudState";
-
-test("Pact of Darkness keeps its printed cost until Sacrifice discards a card", () => {
-  const first = makePlayer("first", "First", STARTER_DECKS[0]);
-  const second = makePlayer("second", "Second", STARTER_DECKS[1]);
-  const state = createMatch("PACT152", "bo1", [first, second]);
-  state.turn = 3;
-  state.phase = "damage";
-  state.pendingLoser = first.id;
-  state.pendingDamage = 2;
-  state.priority = first.id;
-
-  const pactTemplate = CARD_BY_ID.get("bb-152");
-  const discardTemplate = CARD_BY_ID.get("bb-1");
-  assert.ok(pactTemplate && discardTemplate);
-  const pact = { ...structuredClone(pactTemplate), id: "bb-152-revealed" };
-  const sacrificed = { ...structuredClone(discardTemplate), id: "pact-sacrifice-card" };
-  first.hand = [sacrificed];
-  first.discard = [pact];
-  first.energy = 0;
-  first.energyZone = Array.from({ length: 4 }, (_, index) => ({
-    ...structuredClone(discardTemplate),
-    id: `pact-energy-${index}`,
-  }));
-  first.maxEnergy = 4;
-  state.revealedFlip = pact;
-
-  assert.equal(effectiveCardEnergyCost(state, first.id, pact), 4);
-
-  let next = resolveManualDamage(state, first.id, pact.id);
-  assert.equal(next.phase, "damage");
-  assert.equal(next.batch.length, 0);
-  assert.equal(next.pendingChoice?.kind, "payment");
-  assert.equal(next.pendingChoice?.schema.fields[0]?.id, "confirmed");
-
-  next = submitCardChoice(next, first.id, { confirmed: true });
-  assert.equal(next.pendingChoice?.kind, "payment");
-  assert.equal(next.pendingChoice?.schema.fields[0]?.id, "discardCardIds");
-  const actions = visibleMatchHudActions({
-    match: next,
-    playerId: first.id,
-    mode: "discard",
-    selectedCardId: "",
-    selectionPending: false,
-  });
-  assert.deepEqual(compactMatchHudSlots(actions), ["discard", "skip-flip"]);
-
-  next = submitCardChoice(next, first.id, { discardCardIds: [sacrificed.id] });
-  assert.equal(next.pendingChoice, undefined);
-  assert.equal(next.players[0].hand.some((card) => card.id === sacrificed.id), false);
-  assert.equal(next.players[0].discard.some((card) => card.id === sacrificed.id), true);
-  assert.equal(effectiveCardEnergyCost(next, first.id, pact), 0);
-
-  next = resolveManualDamage(next, first.id, pact.id);
-  assert.equal(next.batch.some((effect) => effect.card.id === pact.id), true);
-  assert.equal(next.players[0].energy, 0);
-  assert.equal(next.revealedFlip, undefined);
-});
-
-test("Darkus Hyper Cubbo lets the Training AI complete its forced discard", () => {
-  const first = makePlayer("first", "First", STARTER_DECKS[0]);
-  const bot = makePlayer("training-bot", "Training AI", STARTER_DECKS[1]);
-  const state = createMatch("CUBBO106", "bo1", [first, bot]);
-  state.turn = 4;
-  state.phase = "power";
-  state.priority = bot.id;
-
-  const hyperTemplate = CARD_BY_ID.get("aa-106");
-  const discardTemplate = CARD_BY_ID.get("bb-1");
-  assert.ok(hyperTemplate && discardTemplate);
-  const hyper = { ...structuredClone(hyperTemplate), id: "aa-106-active" };
-  const expendable = {
-    ...structuredClone(discardTemplate),
-    id: "ai-forced-discard",
-    effect: "unreviewed test text",
-  };
-  bot.hand = [expendable];
-
-  const definition = ruleDefinitionForCard(hyper);
-  const ability = definition.abilities.find((candidate) => candidate.kind === "triggered");
-  assert.ok(ability);
-  const effect = createRuleObject({
-    controllerId: first.id,
-    card: hyper,
-    ability,
-    kind: "trigger",
-    sourceId: hyper.id,
-  });
-  state.batch = [effect];
-  const instruction = ability.instructions[0];
-  const schema = buildChoiceSchema(
-    state,
-    first.id,
-    hyper,
-    instruction.sourceText,
-    {},
-    "resolve",
-  );
-  assert.equal(schema.fields[0]?.chooserId, bot.id);
-  assert.equal(schema.fields[0]?.id, "discardCardIds");
-  state.pendingChoice = {
-    id: "hyper-cubbo-ai-discard",
-    kind: "resolution",
-    controllerId: first.id,
-    cardId: hyper.id,
-    schema,
-    answers: {},
-    createdVersion: state.version,
-    pendingEffectId: effect.id,
-    instructionIndex: 0,
-    resumePriority: first.id,
-    resumeStepLabel: state.stepLabel,
-    resumeDeadline: state.deadline,
-  };
-
-  const next = advanceOpponentAi(state, bot.id);
-  assert.ok(next);
-  assert.equal(next.pendingChoice, undefined);
-  assert.equal(next.players[1].hand.some((card) => card.id === expendable.id), false);
-  assert.equal(next.players[1].discard.some((card) => card.id === expendable.id), true);
-});
-''')
+          exec(compile(script, "fix-pact-cubbo.py", "exec"))
           PY
-      - name: Install dependencies
-        run: npm run install:ci
-      - name: Run focused regressions
-        run: node --import tsx --test tests/pact-cubbo-regressions.test.ts tests/reported-regressions-2026-08-02.test.ts
-      - name: Build application
-        run: npm run build
-      - name: Commit fixes
-        shell: bash
-        run: |
-          git config user.name "UnCoverOne"
-          git config user.email "291861529+UnCoverOne@users.noreply.github.com"
-          git rm .github/fix-pact-cubbo
-          git rm .github/workflows/fix-pact-cubbo.yml
-          git add lib components tests
-          git commit -m "Fix Pact sacrifice payment and Hyper Cubbo discard"
-          git push origin HEAD:fix/pact-cubbo-20260803
