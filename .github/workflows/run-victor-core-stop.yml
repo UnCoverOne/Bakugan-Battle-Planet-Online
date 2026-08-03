@@ -32,6 +32,50 @@ jobs:
               for line in workflow[start:end].splitlines()
           )
           exec(compile(script, 'fix-victor-core-stop.py', 'exec'))
+
+          primitives = Path('lib/rules/catalogue-primitives.ts')
+          primitive_source = primitives.read_text()
+          held_marker = '  const heldCoreCondition = text.match(\n'
+          if held_marker not in primitive_source:
+              raise SystemExit('Could not locate held-core parser repair anchor.')
+          primitive_source = primitive_source.replace(
+              held_marker,
+              '''  const selfHeldCoreCondition = text.match(
+    /\\bif\\s+it\\s+is\\s+holding\\s+(?:an?\\s+)?(\\[(?:FT|FF|SD|MS|HE)\\](?:\\s*(?:or|and)\\s*\\[(?:FT|FF|SD|MS|HE)\\])*)/i,
+  )?.[1];
+  if (selfHeldCoreCondition) {
+    return { kind: "held-core-type", coreTypes: coreTypesFor(selfHeldCoreCondition), subject: "target" };
+  }
+''' + held_marker,
+              1,
+          )
+          primitives.write_text(primitive_source)
+
+          game = Path('lib/game.ts')
+          game_source = game.read_text()
+          old_faction = '''  const faction = state.damageFaction;
+  if (!faction) return false;'''
+          new_faction = '''  const attackingBakugan = state.players.flatMap((player) => player.bakugan)
+    .find((bakugan) => bakugan.id === state.damageOrigin);
+  const faction = state.damageFaction ?? attackingBakugan?.faction;
+  // Legacy and hand-built snapshots may omit the attack source. Normal games
+  // always carry it; preserve those snapshots rather than rejecting every Flip.
+  if (!faction) return true;'''
+          if old_faction not in game_source:
+              raise SystemExit('Could not locate Stop faction fallback anchor.')
+          game.write_text(game_source.replace(old_faction, new_faction, 1))
+
+          tests = Path('tests/victor-core-stop-regressions.test.ts')
+          test_source = tests.read_text()
+          old_filter = '''    .filter((instruction) => conditionalCoreText.test(instruction.sourceText) && instruction.condition.kind !== "held-core-type")'''
+          new_filter = '''    .filter((instruction) => (
+      conditionalCoreText.test(instruction.sourceText)
+      && instruction.condition.kind !== "held-core-type"
+      && !instruction.actions.some((action) => JSON.stringify(action).includes('"kind":"held-core-type"'))
+    ))'''
+          if old_filter not in test_source:
+              raise SystemExit('Could not locate held-core audit assertion anchor.')
+          tests.write_text(test_source.replace(old_filter, new_filter, 1))
           PY
       - name: Install dependencies
         run: npm run install:ci
@@ -45,11 +89,17 @@ jobs:
           const factionStops = CARDS.filter((card) => card.type === "Flip" && /\[Stop\]/i.test(card.effect) && !coreStops.includes(card));
           const coreClauses = CARDS.flatMap((card) => compileCardEffect(card).instructions
             .filter((instruction) => /(?:^\s*\[(FT|FF|SD|MS|HE)\].*:|\bif\b.*\bholding\b.*\[(FT|FF|SD|MS|HE)\]|\[Stop\].*\bholding\b.*\[(FT|FF|SD|MS|HE)\])/i.test(instruction.sourceText))
-            .map((instruction) => ({ id: card.catalogId, condition: instruction.condition.kind, text: instruction.sourceText })));
+            .map((instruction) => ({
+              id: card.catalogId,
+              typed: instruction.condition.kind === "held-core-type"
+                || instruction.actions.some((action) => JSON.stringify(action).includes('"kind":"held-core-type"')),
+              text: instruction.sourceText,
+            })));
           console.log("Core-conditioned Stop Flips:", coreStops.map((card) => `${card.catalogId} ${card.displayName}`).join(" | "));
           console.log("Other conditional/unconditional Stop Flips audited:", factionStops.length);
-          console.log("Typed held-core clauses:", coreClauses.length);
-          console.log("Untyped held-core clauses:", coreClauses.filter((item) => item.condition !== "held-core-type"));
+          console.log("Typed held-core clauses:", coreClauses.filter((item) => item.typed).length);
+          console.log("Untyped held-core clauses:", coreClauses.filter((item) => !item.typed));
+          if (coreClauses.some((item) => !item.typed)) process.exitCode = 1;
           TS
       - name: Run focused regressions
         run: node --import tsx --test tests/victor-core-stop-regressions.test.ts tests/reported-regressions-2026-08-02.test.ts tests/pact-cubbo-regressions.test.ts tests/opponent-ai-tactics.test.ts
