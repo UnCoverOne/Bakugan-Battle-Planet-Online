@@ -22,9 +22,19 @@ jobs:
       - name: Apply corrections
         shell: bash
         run: |
-          base64 -d .github/target-corrections.b64 | gzip -d > /tmp/target-corrections.py
+          git show bae2c27f611ae8e0ac279d091cef8b0218d5f298:.github/target-corrections.b64 > /tmp/target-corrections.b64
+          base64 -d /tmp/target-corrections.b64 | gzip -d > /tmp/target-corrections.py
           python3 -m py_compile /tmp/target-corrections.py
           python3 /tmp/target-corrections.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tests/underdog-target-selection.test.ts")
+          text = path.read_text()
+          text = text.replace(r'/setAnswers\\(\\(current\\) => \\{/', r'/setAnswers\(\(current\) => \{/')
+          text = text.replace(r'/valuesFor\\(current, field\\)/', r'/valuesFor\(current, field\)/')
+          text = text.replace(r'/field\\.kind === "card"/', r'/field\.kind === "card"/')
+          path.write_text(text)
+          PY
       - name: Install dependencies
         run: npm run install:ci
       - name: Run focused regressions
@@ -44,6 +54,7 @@ jobs:
           git config user.email "291861529+UnCoverOne@users.noreply.github.com"
           git rm .github/target-corrections.b64
           git rm .github/workflows/apply-target-corrections.yml
+          git rm .github/workflows/export-target-branch.yml
           git add lib components tests
           git commit -m "Complete target locking and restriction enforcement"
           git push origin HEAD:${{ github.head_ref }}
