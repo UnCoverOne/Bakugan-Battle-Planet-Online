@@ -1,11 +1,8 @@
 name: Apply target selection corrections
 
 on:
-  push:
-    branches:
-      - fix/underdog-target-selection-20260803
-    paths:
-      - .github/workflows/apply-target-corrections.yml
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -16,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/underdog-target-selection-20260803
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -50,4 +47,4 @@ jobs:
           git rm .github/workflows/apply-target-corrections.yml
           git add lib components tests
           git commit -m "Complete target locking and restriction enforcement"
-          git push origin HEAD:fix/underdog-target-selection-20260803
+          git push origin HEAD:${{ github.head_ref }}
