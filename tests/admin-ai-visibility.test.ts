@@ -39,9 +39,9 @@ test("the visibility preference is stored and mutated only through the protected
   assert.match(api, /section === "ai-visibility"/);
   assert.match(api, /action === "ai-visibility"/);
   assert.match(api, /getAdministratorAiVisibility\(db, administrator\.id\)/);
-  assert.match(api, /setAdministratorAiVisibility\(db, administrator\.id/);
+  assert.match(api, /setAdministratorAiVisibility\(\s*db,\s*administrator\.id/);
   assert.match(server, /"administrator-ai-visibility"/);
-  assert.match(server, /resourceId: administratorId|administratorId, \{ revealAiCards/);
+  assert.match(server, /ADMINISTRATOR_AI_VISIBILITY_RESOURCE,\s*administratorId,\s*value/);
   assert.match(accounts, /Administrator access is required/);
 });
 
@@ -65,7 +65,7 @@ test("Training AI hand and Energy faces render only through the protected visibi
     read("components/game-screen-v2/GameScreen.tsx"),
   ]);
   assert.match(hand, /useAdministratorAiVisibility\(match, playerId\)/);
-  assert.match(hand, /revealFaces \? card\?\.art : CARD_BACK_ART/);
+  assert.match(hand, /src=\{faceUp \? card!\.art : CARD_BACK_ART\}/);
   assert.match(hand, /data-hidden=\{revealFaces \? "false" : "true"\}/);
   assert.match(screen, /useAdministratorAiVisibility\(match, playerId\)/);
   assert.match(screen, /revealEnergyFaces=\{revealOpponentAiCards\}/);
