@@ -11,6 +11,7 @@ import {
 } from "../../lib/game";
 import { cardEnergyPaymentState } from "../../lib/cardPayment";
 import { hasPendingDraws } from "../../lib/drawQueue";
+import { playerCanFlipTieBreak } from "../../lib/manualTieBreak";
 import { legalEvoTargets } from "../../lib/evo";
 import {
   playerCanDrawTurnCard,
@@ -20,6 +21,7 @@ export type HandActionMode = "play" | "energize" | "discard" | null;
 export type MatchHudActionKey =
   | "exit"
   | "draw-card"
+  | "flip-tie-break"
   | "activate-reroll"
   | "discard"
   | "play-card"
@@ -260,6 +262,7 @@ export function visibleMatchHudActions({
   return {
     exit: Boolean(completed),
     "draw-card": !completed && playerCanDrawTurnCard(match, player?.id, now),
+    "flip-tie-break": !completed && playerCanFlipTieBreak(match, player?.id),
     "activate-reroll": !completed && playerCanActivateIntrinsicReroll(match, player?.id),
     discard: !completed && Boolean(discard),
     "play-card": !completed && canPlay,
@@ -285,6 +288,7 @@ export function visibleMatchHudActions({
  */
 export function compactMatchHudSlots(actions: MatchHudActions): CompactMatchHudSlots {
   if (actions.exit) return ["exit"];
+  if (actions["flip-tie-break"]) return ["flip-tie-break", null];
   if (actions["play-flip"] || actions["skip-flip"]) {
     return [
       actions.discard ? "discard" : actions["play-flip"] ? "play-flip" : null,

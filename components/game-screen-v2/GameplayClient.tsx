@@ -539,6 +539,7 @@ export function GameplayClient() {
           onSelectedDiscardCardsChange={setSelectedDiscardCardIds}
           onSelectedCharacterChange={setSelectedCharacterId}
           onDrawCard={drawCard}
+          onFlipTieBreakCard={flipTieBreak}
           onActivateReroll={activateReroll}
           onPlayCard={playHandCard}
           onEnergizeCard={energizeHandCard}
