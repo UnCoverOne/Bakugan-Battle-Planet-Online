@@ -1,0 +1,107 @@
+name: Apply Pact and Cubbo fixes v3
+
+on:
+  push:
+    branches: [fix/pact-cubbo-v3-20260803]
+    paths:
+      - .github/fix-pact-cubbo-push
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pact-cubbo-v3-20260803
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply, validate and commit fixes
+        shell: bash
+        run: |
+          set +e
+          : > /tmp/pact-cubbo.log
+          python <<'PY' >> /tmp/pact-cubbo.log 2>&1
+          from pathlib import Path
+          workflow = Path('.github/workflows/fix-pact-cubbo.yml').read_text()
+          start = workflow.index("          python <<'PY'\n") + len("          python <<'PY'\n")
+          end = workflow.index("\n          PY\n", start)
+          script = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in workflow[start:end].splitlines()
+          )
+          script = script.replace(
+              '''  const rules = ensureRulesState(state) as DamageResumeRules;
+  if (stateFlip.catalogId === PACT_OF_DARKNESS_ID) {
+    const pact = rules.pactOfDarknessPayment;''',
+              '''  const damageRules = ensureRulesState(state) as DamageResumeRules;
+  if (stateFlip.catalogId === PACT_OF_DARKNESS_ID) {
+    const pact = damageRules.pactOfDarknessPayment;''',
+              1,
+          )
+          script = script.replace(
+              '''        rules.pactOfDarknessPayment = {
+          playerId,
+          cardId: stateFlip.id,
+          stage: "declined",''',
+              '''        damageRules.pactOfDarknessPayment = {
+          playerId,
+          cardId: stateFlip.id,
+          stage: "declined",''',
+              1,
+          )
+          script = script.replace(
+              '''        rules.pactOfDarknessPayment = {
+          playerId,
+          cardId: stateFlip.id,
+          stage: "decision",''',
+              '''        damageRules.pactOfDarknessPayment = {
+          playerId,
+          cardId: stateFlip.id,
+          stage: "decision",''',
+              1,
+          )
+          script = script.replace(
+              'if (pending.kind === "payment" && pending.cardId === "bb-152") {',
+              'if (pending.kind === "payment" && state.revealedFlip?.catalogId === "bb-152" && state.revealedFlip.id === pending.cardId) {',
+              1,
+          )
+          exec(compile(script, 'fix-pact-cubbo.py', 'exec'))
+          PY
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            npm run install:ci >> /tmp/pact-cubbo.log 2>&1
+            status=$?
+          fi
+          if [ "$status" -eq 0 ]; then
+            node --import tsx --test tests/pact-cubbo-regressions.test.ts tests/reported-regressions-2026-08-02.test.ts >> /tmp/pact-cubbo.log 2>&1
+            status=$?
+          fi
+          if [ "$status" -eq 0 ]; then
+            npm run build >> /tmp/pact-cubbo.log 2>&1
+            status=$?
+          fi
+
+          git config user.name "UnCoverOne"
+          git config user.email "291861529+UnCoverOne@users.noreply.github.com"
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/pact-cubbo.log .github/fix-pact-cubbo-failure.log
+            git add .github/fix-pact-cubbo-failure.log
+            git commit -m "Record Pact and Cubbo validation failure"
+            git push origin HEAD:fix/pact-cubbo-v3-20260803
+            exit "$status"
+          fi
+
+          git rm .github/fix-pact-cubbo
+          git rm .github/fix-pact-cubbo-push
+          git rm .github/workflows/fix-pact-cubbo.yml
+          git rm .github/workflows/run-fix-pact-cubbo.yml
+          git rm .github/workflows/pact-cubbo-push-v3.yml
+          git add lib components tests
+          git commit -m "Fix Pact sacrifice payment and Hyper Cubbo discard"
+          git push origin HEAD:fix/pact-cubbo-v3-20260803
