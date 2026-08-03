@@ -19,7 +19,7 @@
   pointer-events: none;
   transition: transform 220ms cubic-bezier(0.2, 0.78, 0.2, 1);
   will-change: transform;
-  animation: brawl-hud-enter 220ms ease-out both;
+  animation: brawl-hud-enter 220ms ease-out;
 }
 
 .brawlHud[data-docked="true"] {

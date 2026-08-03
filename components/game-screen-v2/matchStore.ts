@@ -119,7 +119,10 @@ function refresh() {
   const inMemoryMatch = snapshot.match;
   const persistedMatch = persisted.match;
   const keepNewerInMemoryMatch = Boolean(
-    inMemoryMatch
+    pendingPersistedMatch
+    && inMemoryMatch
+    && pendingPersistedMatch.id === inMemoryMatch.id
+    && pendingPersistedMatch.version === inMemoryMatch.version
     && (
       !persistedMatch
       || inMemoryMatch.id !== persistedMatch.id

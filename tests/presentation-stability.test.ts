@@ -25,6 +25,7 @@ test("viewport stability ignores scroll and match publication is selector-aware 
   assert.match(store, /shallowSelectorEqual/);
   assert.match(store, /scheduleMatchPersistence/);
   assert.match(store, /keepNewerInMemoryMatch/);
+  assert.match(store, /pendingPersistedMatch\.id === inMemoryMatch\.id/);
   assert.match(store, /snapshot = \{ \.\.\.snapshot, match: normalized \};\s*notify\(\);/);
 });
 
@@ -35,7 +36,8 @@ test("presentation systems queue work and avoid document-wide mutation observers
   const cores = read("components/game-screen-v2/BakuCoreLayer.tsx");
   assert.match(phase, /transitionQueue/);
   assert.match(brawl, /resolutionQueue/);
-  assert.match(brawl, /useEffect\(\(\) => \{\s*if \(!resolvingEffect\) return;/);
+  assert.match(brawl, /if \(resolvingEffect \|\| effectBurst \|\| !resolutionQueue\.length\) return/);
+  assert.match(brawl, /if \(!effectBurst\) return;/);
   assert.doesNotMatch(phase, /new MutationObserver/);
   assert.doesNotMatch(cards, /new MutationObserver/);
   assert.doesNotMatch(cores, /new MutationObserver/);

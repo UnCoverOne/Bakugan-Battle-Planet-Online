@@ -253,22 +253,28 @@ export function BrawlExperienceLayer() {
   }, [experience.match?.version, experience.match?.batch]);
 
   useEffect(() => {
-    if (resolvingEffect || !resolutionQueue.length) return;
+    if (resolvingEffect || effectBurst || !resolutionQueue.length) return;
     const [next, ...remaining] = resolutionQueue;
     setResolutionQueue(remaining);
     setResolvingEffect(next);
-  }, [resolutionQueue, resolvingEffect]);
+  }, [resolutionQueue, resolvingEffect, effectBurst]);
 
   useEffect(() => {
     if (!resolvingEffect) return;
     setEffectBurst(resolvingEffect);
     resolutionTimer.current = window.setTimeout(() => setResolvingEffect(null), 760);
-    burstTimer.current = window.setTimeout(() => setEffectBurst(null), 1050);
     return () => {
       if (resolutionTimer.current != null) window.clearTimeout(resolutionTimer.current);
-      if (burstTimer.current != null) window.clearTimeout(burstTimer.current);
     };
   }, [resolvingEffect]);
+
+  useEffect(() => {
+    if (!effectBurst) return;
+    burstTimer.current = window.setTimeout(() => setEffectBurst(null), 1050);
+    return () => {
+      if (burstTimer.current != null) window.clearTimeout(burstTimer.current);
+    };
+  }, [effectBurst]);
 
   useEffect(() => {
     const nextStats: Record<string, string> = {};
