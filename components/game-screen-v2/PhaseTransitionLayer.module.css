@@ -163,10 +163,10 @@
 }
 
 @keyframes transition-callout {
-  0% { opacity: 0; transform: translate(-50%, -50%) scaleX(0.82); filter: blur(2px); }
-  8% { opacity: 1; transform: translate(-50%, -50%) scaleX(1); filter: blur(0); }
-  88% { opacity: 1; transform: translate(-50%, -50%) scaleX(1); filter: blur(0); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scaleX(1.025); filter: blur(0); }
+  0% { opacity: 0; transform: translate(-50%, -50%) scaleX(0.82); }
+  8% { opacity: 1; transform: translate(-50%, -50%) scaleX(1); }
+  88% { opacity: 1; transform: translate(-50%, -50%) scaleX(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scaleX(1.025); }
 }
 
 @keyframes relevant-zone-emphasis {

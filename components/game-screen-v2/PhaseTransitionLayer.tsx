@@ -196,7 +196,8 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
   const { rollResultOpen, rollPresentationPending } = useBakuCorePresentation();
   const localPlayerId = useMatchSelector((state) => state.playerId);
   const previousProgress = useRef<TurnProgressSnapshot | null>(null);
-  const [transition, setTransition] = useState<TurnTransition | null>(null);
+  const [transitionQueue, setTransitionQueue] = useState<TurnTransition[]>([]);
+  const transition = transitionQueue[0] ?? null;
   const [targets, setTargets] = useState<TargetState>(EMPTY_TARGETS);
   const focusedElements = useRef<{ primary: Element | null; secondary: Element | null }>({
     primary: null,
@@ -234,29 +235,29 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
   useEffect(() => {
     if (!progress) {
       previousProgress.current = null;
-      setTransition(null);
+      setTransitionQueue([]);
       return;
     }
-
-    if (transitionBlocked) {
-      previousProgress.current = progress;
-      setTransition(null);
-      return;
-    }
-
     const next = describeTurnTransition(previousProgress.current, progress);
     previousProgress.current = progress;
     if (!next) return;
+    setTransitionQueue((current) => current.some((item) => item.signature === next.signature)
+      ? current
+      : [...current, next].slice(-5));
+  }, [progress]);
 
-    setTransition(next);
+  useEffect(() => {
+    if (!transition || transitionBlocked) return;
     const duration = reducedMotionRequested()
       ? REDUCED_TRANSITION_DURATION_MS
       : PHASE_TRANSITION_DURATION_MS;
     const timeout = window.setTimeout(() => {
-      setTransition((current) => current?.signature === next.signature ? null : current);
+      setTransitionQueue((current) => current[0]?.signature === transition.signature
+        ? current.slice(1)
+        : current.filter((item) => item.signature !== transition.signature));
     }, duration);
     return () => window.clearTimeout(timeout);
-  }, [progress, transitionBlocked]);
+  }, [transition, transitionBlocked]);
 
   useEffect(() => {
     if (!transition || transitionBlocked) return;
@@ -278,6 +279,9 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
     }
 
     let frame = 0;
+    let retryFrame = 0;
+    let attempts = 0;
+    let resizeObserver: ResizeObserver | null = null;
     const clearFocus = (kind: "primary" | "secondary") => {
       const element = focusedElements.current[kind];
       if (element?.getAttribute("data-transition-focus") === kind) {
@@ -295,31 +299,33 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
         const primary = document.querySelector(plan.primarySelector);
-        const secondary = plan.secondarySelector
-          ? document.querySelector(plan.secondarySelector)
-          : null;
+        const secondary = plan.secondarySelector ? document.querySelector(plan.secondarySelector) : null;
         assignFocus("primary", primary);
         assignFocus("secondary", secondary);
-        const next = {
-          primary: targetBox(primary),
-          secondary: targetBox(secondary),
-        };
+        const next = { primary: targetBox(primary), secondary: targetBox(secondary) };
         setTargets((previous) => targetStatesMatch(previous, next) ? previous : next);
+        resizeObserver?.disconnect();
+        if (typeof ResizeObserver !== "undefined") {
+          resizeObserver = new ResizeObserver(measure);
+          if (primary) resizeObserver.observe(primary);
+          if (secondary) resizeObserver.observe(secondary);
+        }
+        if ((!primary || (plan.secondarySelector && !secondary)) && attempts < 8) {
+          attempts += 1;
+          retryFrame = window.requestAnimationFrame(measure);
+        }
       });
     };
 
     measure();
-    const mutationObserver = new MutationObserver(measure);
-    mutationObserver.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("resize", measure);
-    window.visualViewport?.addEventListener("scroll", measure);
     return () => {
       window.cancelAnimationFrame(frame);
-      mutationObserver.disconnect();
+      window.cancelAnimationFrame(retryFrame);
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
-      window.visualViewport?.removeEventListener("scroll", measure);
       clearFocus("primary");
       clearFocus("secondary");
     };

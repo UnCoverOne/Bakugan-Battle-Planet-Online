@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { MatchState, RollOutcome } from "../../lib/game";
 import styles from "./RollResultLayer.module.css";
 
@@ -28,21 +28,36 @@ export function RollResultLayer({
   open: boolean;
   onDismiss: () => void;
 }) {
-  if (!open || !match?.players.length) return null;
-  const localPlayer = match.players.find((player) => player.id === playerId)
-    ?? match.players[0];
-  const currentRerollPlayers = new Set(match.players
-    .filter((player) => match.rolls[player.id]?.rerollSequence === match.rerollSequence)
+  const [displayMatch, setDisplayMatch] = useState<MatchState | null>(open ? match : null);
+  const [presence, setPresence] = useState<"visible" | "exiting">("visible");
+  useEffect(() => {
+    if (open && match) {
+      setDisplayMatch(match);
+      setPresence("visible");
+      return;
+    }
+    if (!displayMatch) return;
+    setPresence("exiting");
+    const timeout = window.setTimeout(() => setDisplayMatch(null), 180);
+    return () => window.clearTimeout(timeout);
+  }, [open, match, displayMatch]);
+  if (!displayMatch?.players.length) return null;
+  const renderedMatch = displayMatch;
+  const localPlayer = renderedMatch.players.find((player) => player.id === playerId)
+    ?? renderedMatch.players[0];
+  const currentRerollPlayers = new Set(renderedMatch.players
+    .filter((player) => renderedMatch.rolls[player.id]?.rerollSequence === renderedMatch.rerollSequence)
     .map((player) => player.id));
   const orderedPlayers = [
     localPlayer,
-    ...match.players.filter((player) => player.id !== localPlayer.id),
+    ...renderedMatch.players.filter((player) => player.id !== localPlayer.id),
   ].filter((player) => !currentRerollPlayers.size || currentRerollPlayers.has(player.id));
   const reroll = currentRerollPlayers.size > 0;
 
   return (
     <div
       className={styles.backdrop}
+      data-state={presence}
       role="presentation"
       onPointerDown={(event) => {
         if (event.currentTarget === event.target) onDismiss();
@@ -68,11 +83,11 @@ export function RollResultLayer({
         </header>
         <div className={styles.results}>
           {orderedPlayers.map((player, index) => {
-            const outcome = match.rolls[player.id];
+            const outcome = renderedMatch.rolls[player.id];
             if (!outcome) return null;
             const bakugan = player.bakugan.find((candidate) => candidate.id === outcome.bakuganId);
             const landed = outcome.cores
-              .map((cell) => match.placements.find((placement) => placement.cell === cell))
+              .map((cell) => renderedMatch.placements.find((placement) => placement.cell === cell))
               .filter(Boolean);
             const local = player.id === localPlayer.id;
             return (

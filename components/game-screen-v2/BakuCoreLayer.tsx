@@ -202,12 +202,14 @@ function CoreTransferSprite({
   playArea,
   cell,
   oppositePerspective,
+  active,
 }: {
   match: MatchState;
   playerId?: string;
   playArea: HTMLElement;
   cell: string;
   oppositePerspective: boolean;
+  active: boolean;
 }) {
   const [geometry, setGeometry] = useState<TransferGeometry | null>(null);
   const placement = match.placements.find((candidate) => candidate.cell === cell);
@@ -221,7 +223,8 @@ function CoreTransferSprite({
 
     let frame = 0;
     let resizeObserver: ResizeObserver | null = null;
-    const mutationObserver = new MutationObserver(() => measure());
+    let attempts = 0;
+    let retryFrame = 0;
 
     const measure = () => {
       window.cancelAnimationFrame(frame);
@@ -231,7 +234,10 @@ function CoreTransferSprite({
           `[data-core-zone-id="${destination.owner}-bakucore-${destination.slot}"]`,
         );
         if (!source || !target || !target.isConnected || !playArea.isConnected) {
-          setGeometry(null);
+          if (attempts < 8) {
+            attempts += 1;
+            retryFrame = window.requestAnimationFrame(measure);
+          }
           return;
         }
 
@@ -269,12 +275,11 @@ function CoreTransferSprite({
     };
 
     measure();
-    mutationObserver.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("resize", measure);
     return () => {
       window.cancelAnimationFrame(frame);
-      mutationObserver.disconnect();
+      window.cancelAnimationFrame(retryFrame);
       resizeObserver?.disconnect();
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
@@ -297,6 +302,7 @@ function CoreTransferSprite({
       aria-hidden="true"
       draggable={false}
       data-core-cell={cell}
+      data-active={active ? "true" : "false"}
       style={style}
     />
   );
@@ -362,15 +368,14 @@ export function BakuCoreLayer({
     };
 
     measure();
-    const observer = new MutationObserver(measure);
-    observer.observe(document.body, { childList: true, subtree: true });
+    const secondFrame = window.requestAnimationFrame(measure);
     window.addEventListener("resize", measure);
     return () => {
       window.cancelAnimationFrame(frame);
-      observer.disconnect();
+      window.cancelAnimationFrame(secondFrame);
       window.removeEventListener("resize", measure);
     };
-  }, [match?.id, playerId]);
+  }, [match?.id, match?.version, playerId]);
 
   useEffect(() => {
     const resolvedActorId = playerId ?? match?.players[0]?.id;
@@ -403,6 +408,8 @@ export function BakuCoreLayer({
   const rollReady = playerCanConfirmRoll(match, actorId);
   const primaryAction = selectReady ? "select" : rollReady ? "roll" : null;
   const deferredSet = new Set(deferredCoreCells);
+  const transferringSet = new Set(transferringCoreCells);
+  const preparedTransferCells = [...new Set([...deferredCoreCells, ...transferringCoreCells])];
   const visiblePlacements = match?.placements.filter((placement) => (
     !placement.attachedTo || deferredSet.has(placement.cell)
   )) ?? [];
@@ -550,15 +557,16 @@ export function BakuCoreLayer({
               oppositePerspective={oppositePerspective}
             />
           ) : null}
-          {match && transferringCoreCells.length ? (
+          {match && preparedTransferCells.length ? (
             <div className={styles.transferLayer} aria-hidden="true">
-              {transferringCoreCells.map((cell) => (
+              {preparedTransferCells.map((cell) => (
                 <CoreTransferSprite
                   match={match}
                   playerId={playerId}
                   playArea={targets.playArea!}
                   cell={cell}
                   oppositePerspective={oppositePerspective}
+                  active={transferringSet.has(cell)}
                   key={`${match.id}:${match.turn}:${cell}`}
                 />
               ))}

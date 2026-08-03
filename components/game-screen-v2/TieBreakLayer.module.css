@@ -10,6 +10,13 @@
   pointer-events: none;
 }
 
+.overlay[data-state="exiting"] {
+  animation: tie-overlay-exit 180ms ease-in both;
+}
+.overlay[data-state="exiting"] .dialog {
+  animation: tie-dialog-exit 180ms ease-in both;
+}
+
 .dialog {
   width: min(58rem, calc(100vw - 2rem));
   max-height: min(92dvh, 52rem);
@@ -380,3 +387,6 @@
     transition: none;
   }
 }
+
+@keyframes tie-overlay-exit { from { opacity: 1; } to { opacity: 0; } }
+@keyframes tie-dialog-exit { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.98); } }

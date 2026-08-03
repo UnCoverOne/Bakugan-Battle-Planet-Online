@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { GameCard, MatchState } from "../../lib/game";
+import { prepareAnimationAssets } from "./animationStability";
 import { drawTransitions } from "./drawAnimationState";
 import styles from "./DrawAnimationLayer.module.css";
 import { useMatchSelector } from "./matchStore";
@@ -17,6 +18,7 @@ const CARD_BACK_ART = "/assets/card-back.png";
 const DRAW_ANIMATION_MS = 760;
 
 type HandOwner = "player" | "opponent";
+type FlightPhase = "prepared" | "running" | "settling";
 
 type StoredDrawState = {
   active: boolean;
@@ -37,6 +39,7 @@ type DrawFlight = {
   scaleX: number;
   scaleY: number;
   delay: number;
+  phase: FlightPhase;
 };
 
 type PendingFlight = {
@@ -67,27 +70,53 @@ export function DrawAnimationLayer() {
   }));
   const [flights, setFlights] = useState<DrawFlight[]>([]);
   const previousMatch = useRef<MatchState | null>(null);
-  const hiddenTargets = useRef(new Map<string, HTMLElement>());
+  const flightTargets = useRef(new Map<string, HTMLElement>());
+  const hiddenTargetCounts = useRef(new Map<HTMLElement, number>());
   const mounted = useRef(false);
 
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
-      for (const target of hiddenTargets.current.values()) {
+      for (const target of hiddenTargetCounts.current.keys()) {
         delete target.dataset.drawAnimationTarget;
       }
-      hiddenTargets.current.clear();
+      hiddenTargetCounts.current.clear();
+      flightTargets.current.clear();
     };
   }, []);
 
-  const finishFlight = (id: string) => {
-    const target = hiddenTargets.current.get(id);
-    if (target) delete target.dataset.drawAnimationTarget;
-    hiddenTargets.current.delete(id);
-    if (mounted.current) {
-      setFlights((current) => current.filter((flight) => flight.id !== id));
+  const hideTarget = (id: string, target: HTMLElement) => {
+    const count = hiddenTargetCounts.current.get(target) ?? 0;
+    hiddenTargetCounts.current.set(target, count + 1);
+    flightTargets.current.set(id, target);
+    target.dataset.drawAnimationTarget = "true";
+  };
+
+  const revealTarget = (id: string) => {
+    const target = flightTargets.current.get(id);
+    if (target) {
+      const count = Math.max(0, (hiddenTargetCounts.current.get(target) ?? 1) - 1);
+      if (count) hiddenTargetCounts.current.set(target, count);
+      else {
+        hiddenTargetCounts.current.delete(target);
+        delete target.dataset.drawAnimationTarget;
+      }
     }
+    flightTargets.current.delete(id);
+  };
+
+  const finishFlight = (id: string) => {
+    revealTarget(id);
+    if (!mounted.current) return;
+    setFlights((current) => current.map((flight) => (
+      flight.id === id ? { ...flight, phase: "settling" } : flight
+    )));
+    window.requestAnimationFrame(() => {
+      if (mounted.current) {
+        setFlights((current) => current.filter((flight) => flight.id !== id));
+      }
+    });
   };
 
   useLayoutEffect(() => {
@@ -122,12 +151,8 @@ export function DrawAnimationLayer() {
           ? handCardById(handZone, card.id)
           : handCards[handCards.length - transition.count + index] ?? handZone;
         if (!target) continue;
-
-        const id = `${match.id}:${match.version}:${transition.playerId}:${index}`;
-        target.dataset.drawAnimationTarget = "true";
-        hiddenTargets.current.set(id, target);
         pending.push({
-          id,
+          id: `${match.id}:${match.version}:${transition.playerId}:${index}`,
           owner,
           card: owner === "player" ? card : null,
           source: deckZone,
@@ -139,46 +164,58 @@ export function DrawAnimationLayer() {
 
     if (!pending.length) return;
     window.dispatchEvent(new Event("bbp-card-preview-clear"));
+    let cancelled = false;
+    let measureFrame = 0;
+    let startFrame = 0;
 
-    let measured = false;
-    const frame = window.requestAnimationFrame(() => {
-      measured = true;
-      if (!mounted.current) return;
-      const nextFlights: DrawFlight[] = [];
-
-      for (const item of pending) {
-        const start = cardRect(item.source);
-        const end = cardRect(item.target);
-        if (!start || !end) {
-          finishFlight(item.id);
-          continue;
+    void prepareAnimationAssets([
+      CARD_BACK_ART,
+      ...pending.map((item) => item.card?.art),
+    ]).then(() => {
+      if (cancelled || !mounted.current) return;
+      measureFrame = window.requestAnimationFrame(() => {
+        if (cancelled || !mounted.current) return;
+        const measured: Array<{ flight: DrawFlight; target: HTMLElement }> = [];
+        for (const item of pending) {
+          const start = cardRect(item.source);
+          const end = cardRect(item.target);
+          if (!start || !end) continue;
+          measured.push({
+            target: item.target,
+            flight: {
+              id: item.id,
+              owner: item.owner,
+              card: item.card,
+              left: start.left,
+              top: start.top,
+              width: start.width,
+              height: start.height,
+              deltaX: end.left - start.left,
+              deltaY: end.top - start.top,
+              scaleX: end.width / start.width,
+              scaleY: end.height / start.height,
+              delay: item.delay,
+              phase: "prepared",
+            },
+          });
         }
-
-        nextFlights.push({
-          id: item.id,
-          owner: item.owner,
-          card: item.card,
-          left: start.left,
-          top: start.top,
-          width: start.width,
-          height: start.height,
-          deltaX: end.left - start.left,
-          deltaY: end.top - start.top,
-          scaleX: end.width / start.width,
-          scaleY: end.height / start.height,
-          delay: item.delay,
+        if (!measured.length) return;
+        setFlights((current) => [...current, ...measured.map((item) => item.flight)]);
+        startFrame = window.requestAnimationFrame(() => {
+          if (cancelled || !mounted.current) return;
+          for (const item of measured) hideTarget(item.flight.id, item.target);
+          const ids = new Set(measured.map((item) => item.flight.id));
+          setFlights((current) => current.map((flight) => (
+            ids.has(flight.id) ? { ...flight, phase: "running" } : flight
+          )));
         });
-      }
-
-      if (nextFlights.length) {
-        setFlights((current) => [...current, ...nextFlights]);
-      }
+      });
     });
 
     return () => {
-      if (measured) return;
-      window.cancelAnimationFrame(frame);
-      for (const item of pending) finishFlight(item.id);
+      cancelled = true;
+      window.cancelAnimationFrame(measureFrame);
+      window.cancelAnimationFrame(startFrame);
     };
   }, [stored.active, stored.match?.id, stored.match?.version, stored.playerId]);
 
@@ -204,26 +241,19 @@ export function DrawAnimationLayer() {
             className={styles.flight}
             data-owner={flight.owner}
             data-reveal={flight.card ? "true" : "false"}
+            data-state={flight.phase}
             style={style}
             onAnimationEnd={(event) => {
-              if (event.target === event.currentTarget) finishFlight(flight.id);
+              if (event.target === event.currentTarget && flight.phase === "running") {
+                finishFlight(flight.id);
+              }
             }}
             key={flight.id}
           >
             <div className={styles.cardInner}>
-              <img
-                className={styles.cardBack}
-                src={CARD_BACK_ART}
-                alt=""
-                draggable={false}
-              />
+              <img className={styles.cardBack} src={CARD_BACK_ART} alt="" draggable={false} />
               {flight.card ? (
-                <img
-                  className={styles.cardFace}
-                  src={flight.card.art}
-                  alt=""
-                  draggable={false}
-                />
+                <img className={styles.cardFace} src={flight.card.art} alt="" draggable={false} />
               ) : null}
             </div>
           </div>
@@ -233,4 +263,3 @@ export function DrawAnimationLayer() {
     document.body,
   );
 }
-

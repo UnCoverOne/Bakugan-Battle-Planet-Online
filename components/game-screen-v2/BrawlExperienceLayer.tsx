@@ -162,6 +162,7 @@ export function BrawlExperienceLayer() {
   }));
   const [hudPosition, setHudPosition] = useState<HudPosition | null>(null);
   const [brawlDocked, setBrawlDocked] = useState(false);
+  const [resolutionQueue, setResolutionQueue] = useState<PendingEffect[]>([]);
   const [resolvingEffect, setResolvingEffect] = useState<PendingEffect | null>(null);
   const [effectBurst, setEffectBurst] = useState<PendingEffect | null>(null);
   const [pulsingBakugan, setPulsingBakugan] = useState<Set<string>>(new Set());
@@ -239,19 +240,41 @@ export function BrawlExperienceLayer() {
   useEffect(() => {
     const current = experience.match?.batch ?? [];
     const previous = previousBatch.current;
-    const removed = [...previous].reverse().find((effect) => (
+    const removed = [...previous].reverse().filter((effect) => (
       !current.some((candidate) => candidate.id === effect.id)
     ));
     previousBatch.current = current;
-    if (!removed) return;
-
-    setResolvingEffect(removed);
-    setEffectBurst(removed);
-    if (resolutionTimer.current != null) window.clearTimeout(resolutionTimer.current);
-    if (burstTimer.current != null) window.clearTimeout(burstTimer.current);
-    resolutionTimer.current = window.setTimeout(() => setResolvingEffect(null), 760);
-    burstTimer.current = window.setTimeout(() => setEffectBurst(null), 1050);
+    if (removed.length) {
+      setResolutionQueue((queue) => [
+        ...queue,
+        ...removed.filter((effect) => !queue.some((queued) => queued.id === effect.id)),
+      ]);
+    }
   }, [experience.match?.version, experience.match?.batch]);
+
+  useEffect(() => {
+    if (resolvingEffect || effectBurst || !resolutionQueue.length) return;
+    const [next, ...remaining] = resolutionQueue;
+    setResolutionQueue(remaining);
+    setResolvingEffect(next);
+  }, [resolutionQueue, resolvingEffect, effectBurst]);
+
+  useEffect(() => {
+    if (!resolvingEffect) return;
+    setEffectBurst(resolvingEffect);
+    resolutionTimer.current = window.setTimeout(() => setResolvingEffect(null), 760);
+    return () => {
+      if (resolutionTimer.current != null) window.clearTimeout(resolutionTimer.current);
+    };
+  }, [resolvingEffect]);
+
+  useEffect(() => {
+    if (!effectBurst) return;
+    burstTimer.current = window.setTimeout(() => setEffectBurst(null), 1050);
+    return () => {
+      if (burstTimer.current != null) window.clearTimeout(burstTimer.current);
+    };
+  }, [effectBurst]);
 
   useEffect(() => {
     const nextStats: Record<string, string> = {};
@@ -299,14 +322,14 @@ export function BrawlExperienceLayer() {
     && !batch.some((effect) => effect.id === resolvingEffect.id)
     ? [resolvingEffect, ...batch]
     : batch;
-  const batchKey = combinedBatch.map((effect) => effect.id).join("|");
   const alternateWinActive = combinedBatch.some((effect) => effect.alternateWin);
   const showBatchHud = combinedBatch.length > 0
     && batchHudShouldRender(experience.match);
   const hudStyle = hudPosition ? {
-    left: brawlDocked ? hudPosition.dockedLeft : hudPosition.left,
+    left: hudPosition.left,
     top: hudPosition.top,
     width: `${hudPosition.maxWidth}px`,
+    "--brawl-dock-offset": `${hudPosition.dockedLeft - hudPosition.left}px`,
   } as CSSProperties : undefined;
 
   return (
@@ -365,7 +388,7 @@ export function BrawlExperienceLayer() {
             <strong>{alternateWinActive ? "ULTIMATE EFFECT" : "BATCH"}</strong>
             <span>{alternateWinActive ? "NO CARDS MAY BE PLAYED" : "RESOLVES LEFT TO RIGHT"}</span>
           </div>
-          <div className={styles.batchRow} key={batchKey}>
+          <div className={styles.batchRow}>
             {combinedBatch.map((effect, index) => {
               const local = effect.controllerId === localPlayer?.id;
               const resolving = effect.id === resolvingEffect?.id

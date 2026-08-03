@@ -275,10 +275,15 @@
   text-align: center;
 }
 
-@keyframes roll-backdrop-enter {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.backdrop[data-state="exiting"] {
+  animation: roll-backdrop-exit 180ms ease-in both;
 }
+.backdrop[data-state="exiting"] .dialog {
+  animation: roll-dialog-exit 180ms ease-in both;
+}
+@keyframes roll-backdrop-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes roll-backdrop-exit { from { opacity: 1; } to { opacity: 0; } }
+@keyframes roll-dialog-exit { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(.5rem) scale(.98); } }
 
 @keyframes roll-dialog-enter {
   from {

@@ -18,16 +18,20 @@ function energyLabel(reveal: TieBreakReveal) {
   return reveal.card.cost === "X" ? "0 (X)" : String(reveal.cost);
 }
 
-export function TieBreakLayer({
+function TieBreakLayerContent({
   match,
   playerId,
   onFlipTieBreakCard,
   onFinishTieBreak,
+  forceVisible = false,
+  presenceState = "visible",
 }: {
   match: MatchState | null;
   playerId?: string;
   onFlipTieBreakCard: TieBreakAction;
   onFinishTieBreak?: TieBreakAction;
+  forceVisible?: boolean;
+  presenceState?: "visible" | "exiting";
 }) {
   const [mounted, setMounted] = useState(false);
   const [deckZone, setDeckZone] = useState<HTMLElement | null>(null);
@@ -94,7 +98,7 @@ export function TieBreakLayer({
     tieBreak?.winnerId,
   ]);
 
-  const visible = Boolean(
+  const visible = forceVisible || Boolean(
     tieBreak
     && (
       tieBreak.status === "waiting"
@@ -164,7 +168,7 @@ export function TieBreakLayer({
       ) : null}
 
       {createPortal(
-        <div className={styles.overlay} role="presentation">
+        <div className={styles.overlay} data-state={presenceState} role="presentation">
           <section
             className={styles.dialog}
             role="dialog"
@@ -241,5 +245,46 @@ export function TieBreakLayer({
         document.body,
       ) : null}
     </>
+  );
+}
+
+
+export function TieBreakLayer(props: {
+  match: MatchState | null;
+  playerId?: string;
+  onFlipTieBreakCard: TieBreakAction;
+  onFinishTieBreak?: TieBreakAction;
+}) {
+  const [presentedMatch, setPresentedMatch] = useState<MatchState | null>(null);
+  const [presenceState, setPresenceState] = useState<"visible" | "exiting">("visible");
+  const liveTieBreak = manualTieBreakState(props.match);
+
+  useEffect(() => {
+    if (!props.match || !liveTieBreak) {
+      if (!presentedMatch) return;
+      setPresenceState("exiting");
+      const timeout = window.setTimeout(() => setPresentedMatch(null), 180);
+      return () => window.clearTimeout(timeout);
+    }
+    setPresentedMatch(props.match);
+    setPresenceState("visible");
+    if (liveTieBreak.status !== "resolved" || !liveTieBreak.resolvedAt) return;
+    const remaining = Math.max(0, liveTieBreak.resolvedAt + TIE_BREAK_PRESENTATION_MS - Date.now());
+    const exitTimer = window.setTimeout(() => setPresenceState("exiting"), remaining);
+    const clearTimer = window.setTimeout(() => setPresentedMatch(null), remaining + 180);
+    return () => {
+      window.clearTimeout(exitTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [props.match, liveTieBreak?.status, liveTieBreak?.resolvedAt]);
+
+  if (!presentedMatch) return null;
+  return (
+    <TieBreakLayerContent
+      {...props}
+      match={presentedMatch}
+      forceVisible
+      presenceState={presenceState}
+    />
   );
 }

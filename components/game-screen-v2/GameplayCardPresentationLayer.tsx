@@ -124,11 +124,14 @@ export function GameplayCardPresentationLayer() {
     };
 
     synchronize();
-    const observer = new MutationObserver(synchronize);
-    observer.observe(document.body, { childList: true, subtree: true });
+    const secondFrame = window.requestAnimationFrame(synchronize);
+    window.addEventListener("resize", synchronize);
+    window.visualViewport?.addEventListener("resize", synchronize);
     return () => {
       window.cancelAnimationFrame(frame);
-      observer.disconnect();
+      window.cancelAnimationFrame(secondFrame);
+      window.removeEventListener("resize", synchronize);
+      window.visualViewport?.removeEventListener("resize", synchronize);
     };
   }, [stored.match?.id, stored.match?.version, stored.playerId]);
 

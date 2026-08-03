@@ -157,11 +157,15 @@
   aspect-ratio: 1;
   object-fit: contain;
   transform-origin: center;
-  animation: core-transfer 920ms cubic-bezier(0.16, 0.84, 0.22, 1) both;
+  opacity: 0;
   filter:
     drop-shadow(0 4px 5px rgba(0, 0, 0, 0.7))
     drop-shadow(0 0 8px rgba(255, 255, 255, 0.92));
-  will-change: transform, filter, opacity;
+  will-change: transform, opacity;
+}
+
+.transferCore[data-active="true"] {
+  animation: core-transfer 920ms cubic-bezier(0.16, 0.84, 0.22, 1) both;
 }
 
 .rollActionButton {
