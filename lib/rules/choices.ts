@@ -4,7 +4,7 @@ import { canonicalEvoTargetAllowed } from "./identity";
 import type { ChoiceSpec, ChoiceTiming } from "./model";
 
 export type ChoiceKind =
-  | "confirm" | "bakugan" | "player" | "hero" | "evo" | "energy" | "core"
+  | "confirm" | "bakugan" | "player" | "hero" | "evo" | "energy" | "core" | "card"
   | "hand-cards" | "deck-card" | "deck-order" | "number" | "mode" | "batch-object";
 export type ChoiceVisibility = "public" | "private" | "secret-until-reveal";
 export type ChoiceCardPreview = Pick<
@@ -92,7 +92,7 @@ function chooserFor(match: MatchState, controllerId: string, spec: ChoiceSpec) {
   return controllerId;
 }
 function rangeFor(spec: ChoiceSpec, available: number) {
-  const minimum = Math.max(0, Math.min(available, spec.minimum ?? (spec.optional ? 0 : 1)));
+  const minimum = Math.max(0, spec.minimum ?? (spec.optional ? 0 : 1));
   const maximum = Math.max(minimum, Math.min(available, spec.maximum ?? 1));
   return { minimum, maximum };
 }
@@ -113,13 +113,20 @@ function targetOwners(match: MatchState, controllerId: string, spec: ChoiceSpec)
 function cardMatchesSpec(candidate: GameCard, spec: ChoiceSpec) {
   const types = spec.cardTypes?.length ? spec.cardTypes : spec.cardType ? [spec.cardType] : [];
   if (types.length && !types.includes(candidate.type)) return false;
+  if (spec.factions?.length && !candidate.factions.some((faction) => spec.factions!.includes(faction))) return false;
   const printedCost = candidate.cost === "X" ? Number.POSITIVE_INFINITY : candidate.cost;
   if (spec.maximumCost != null && printedCost > spec.maximumCost) return false;
   if (spec.minimumCost != null && printedCost < spec.minimumCost) return false;
   return true;
 }
 
-function optionsFor(match: MatchState, controllerId: string, card: GameCard, spec: ChoiceSpec): ChoiceOption[] {
+function optionsFor(
+  match: MatchState,
+  controllerId: string,
+  card: GameCard,
+  spec: ChoiceSpec,
+  priorChoices: CardChoices = {},
+): ChoiceOption[] {
   const controller = playerById(match, controllerId);
   const opponent = opponentOf(match, controllerId);
   switch (spec.selector) {
@@ -146,13 +153,17 @@ function optionsFor(match: MatchState, controllerId: string, card: GameCard, spe
     case "active-enemy":
     case "all-friendly":
     case "all-enemy": {
+      const evoSourceChoice = card.type === "Evo"
+        && (spec.id === "sourceBakuganId" || spec.label === "Choose the matching Character");
       const owners = spec.selector === "active-enemy" || spec.selector === "all-enemy" ? [opponent]
-        : card.type === "Evo" ? [controller]
+        : evoSourceChoice ? [controller]
           : targetOwners(match, controllerId, spec);
       return owners.flatMap((owner) => owner.bakugan
-        .filter((bakugan) => card.type !== "Evo" || canonicalEvoTargetAllowed(ruleDefinitionForCard(card), bakugan))
+        .filter((bakugan) => !evoSourceChoice || canonicalEvoTargetAllowed(ruleDefinitionForCard(card), bakugan))
         .filter((bakugan) => !spec.openState || (spec.openState === "open" ? bakugan.open : !bakugan.open))
         .filter((bakugan) => !spec.notOpenedThisTurn || bakugan.openedTurn !== match.turn)
+        .filter((bakugan) => !spec.excludeSourceBakugan || bakugan.id !== priorChoices.sourceBakuganId)
+        .filter((bakugan) => !spec.factions?.length || spec.factions.includes(bakugan.faction))
         .map((bakugan) => option(bakugan.id, `${bakugan.name} • ${bakugan.open ? "Open" : "Closed"}`, owner.id)));
     }
     case "controller":
@@ -164,10 +175,24 @@ function optionsFor(match: MatchState, controllerId: string, card: GameCard, spe
         .filter((hero) => !spec.notPlayedThisTurn || hero.playedTurn !== match.turn)
         .map((hero) => option(hero.id, hero.displayName || hero.name, owner.id, `${hero.cost === "X" ? "X" : hero.cost} Energy`, cardPreview(hero))));
     case "evo":
-      return targetOwners(match, controllerId, spec).flatMap((owner) => owner.bakugan.flatMap((bakugan) => bakugan.evoStack
-        .filter((evo) => cardMatchesSpec(evo, spec))
-        .filter((evo) => !spec.notPlayedThisTurn || evo.playedTurn !== match.turn)
-        .map((evo) => option(evo.id, evo.displayName || evo.name, owner.id, `${evo.cost === "X" ? "X" : evo.cost} Energy`, cardPreview(evo)))));
+      return targetOwners(match, controllerId, spec).flatMap((owner) => owner.bakugan.flatMap((bakugan) => {
+        const evo = bakugan.evoStack.at(-1);
+        return evo && cardMatchesSpec(evo, spec) && (!spec.notPlayedThisTurn || evo.playedTurn !== match.turn)
+          ? [option(evo.id, evo.displayName || evo.name, owner.id, `${evo.cost === "X" ? "X" : evo.cost} Energy`, cardPreview(evo))]
+          : [];
+      }));
+    case "card-in-play":
+      return targetOwners(match, controllerId, spec).flatMap((owner) => [
+        ...owner.heroes
+          .filter((candidate) => cardMatchesSpec(candidate, spec))
+          .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, owner.id, "Hero in play", cardPreview(candidate))),
+        ...owner.bakugan.flatMap((bakugan) => {
+          const candidate = bakugan.evoStack.at(-1);
+          return candidate && cardMatchesSpec(candidate, spec)
+            ? [option(candidate.id, candidate.displayName || candidate.name, owner.id, "Top Evo in play", cardPreview(candidate))]
+            : [];
+        }),
+      ]);
     case "energy-card":
       return targetOwners(match, controllerId, spec).flatMap((owner) => owner.energyZone
         .filter((energy) => cardMatchesSpec(energy, spec))
@@ -226,6 +251,7 @@ function kindFor(spec: ChoiceSpec): ChoiceKind {
   if (spec.selector === "controller" || spec.selector === "opponent") return "player";
   if (spec.selector === "hero") return "hero";
   if (spec.selector === "evo") return "evo";
+  if (spec.selector === "card-in-play") return "card";
   if (spec.selector === "energy-card") return "energy";
   if (spec.selector === "bakucore") return "core";
   if (spec.selector === "hand-card") return "hand-cards";
@@ -242,10 +268,17 @@ export function buildChoiceSchemaFromSpecs(
   card: GameCard,
   specs: readonly ChoiceSpec[],
   timing: ChoiceTiming,
+  priorChoices: CardChoices = {},
 ): ChoiceSchema {
   const selected = specs.filter((spec) => spec.timing === timing);
-  const fields = selected.map((spec): ChoiceField => {
-    const options = optionsFor(match, controllerId, card, spec);
+  const fields = selected.map((original): ChoiceField => {
+    let spec = original;
+    if (card.catalogId === "bb-97" && spec.id === "targetEnergyIds" && timing === "announce") {
+      const projectedHandSize = playerById(match, controllerId).hand.filter((candidate) => candidate.id !== card.id).length;
+      const amount = projectedHandSize === 0 ? 2 : 1;
+      spec = { ...spec, minimum: amount, maximum: amount };
+    }
+    const options = optionsFor(match, controllerId, card, spec, priorChoices);
     const range = rangeFor(spec, options.length);
     return {
       id: spec.id,
@@ -294,13 +327,18 @@ export function buildChoiceSchema(
   const instructionSpecs = definition.abilities.flatMap((ability) => ability.instructions)
     .filter((instruction) => instruction.sourceText === sourceText || sourceText.includes(instruction.sourceText))
     .flatMap((instruction) => instruction.choices);
-  const specs = timing === "announce" || timing === "pay"
+  let specs = timing === "announce" || timing === "pay"
     ? definition.play.choices
     : instructionSpecs;
   const alreadyChosen = (spec: ChoiceSpec) => {
     const value = priorChoices[spec.id];
     return Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== "";
   };
+  if (timing === "resolve") {
+    specs = specs.map((spec) => spec.timing === "announce" && !alreadyChosen(spec)
+      ? { ...spec, timing: "resolve" as const }
+      : spec);
+  }
   let filtered = specs.filter((spec) => !alreadyChosen(spec));
   if (/\b(?:may|must)\s+Reroll\b|\bto\s+Reroll\b/i.test(sourceText)) {
     const targetId = /opponent(?:'s)?|opposing Bakugan|their Bakugan/i.test(sourceText)
@@ -314,7 +352,7 @@ export function buildChoiceSchema(
       || !match.placements.some((placement) => !placement.attachedTo);
     if (rerollUnavailable) filtered = [];
   }
-  return buildChoiceSchemaFromSpecs(match, controllerId, card, filtered, timing);
+  return buildChoiceSchemaFromSpecs(match, controllerId, card, filtered, timing, priorChoices);
 }
 
 function selectedValues(choices: CardChoices, id: keyof CardChoices): string[] {

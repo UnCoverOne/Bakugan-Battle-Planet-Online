@@ -4,6 +4,8 @@ import test from "node:test";
 import { CARD_BY_ID, STARTER_DECKS, makePlayer } from "../lib/data";
 import { createMatch, prepareCardPlay, submitCardChoice } from "../lib/game";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
+import { buildChoiceSchema, schemaHasLegalCompletion } from "../lib/rules/choices";
+import { parseAtomicEffects } from "../lib/rules/catalogue-primitives";
 import { collectRuleTriggers } from "../lib/rules/triggers";
 import { createRuleObject } from "../lib/rules/objects";
 
@@ -149,9 +151,14 @@ test("printed permanent-card restrictions are enforced before Batch entry", () =
   oldEvo.playedTurn = waneState.state.turn - 1;
   newEvo.playedTurn = waneState.state.turn;
   waneState.second.bakugan[0].evoStack = [oldEvo, newEvo];
+  assert.throws(
+    () => prepareCardPlay(waneState.state, waneState.first.id, wane.id),
+    /no legal targets/i,
+  );
+  newEvo.playedTurn = waneState.state.turn - 1;
   prepared = prepareCardPlay(waneState.state, waneState.first.id, wane.id);
   const evoField = prepared.pendingChoice?.schema.fields.find((candidate) => candidate.id === "targetEvoId");
-  assert.deepEqual(evoField?.options.map((option) => option.id), [oldEvo.id]);
+  assert.deepEqual(evoField?.options.map((option) => option.id), [newEvo.id]);
 });
 
 test("click targeting is wired to Batch, Hero, Evo, Energy, Bakugan, and BakuCore entities", async () => {
@@ -169,4 +176,130 @@ test("click targeting is wired to Batch, Hero, Evo, Energy, Bakugan, and BakuCor
   assert.match(image, /data-card-id=\{dataCardId\}/);
   assert.match(css, /legal-target-pulse/);
   assert.match(css, /pointer-events:none!important/);
+});
+
+
+test("required announcement targets cannot become optional when no legal object exists", () => {
+  const { state, first } = priorityState();
+  const deep = card("bb-6", "deep-no-target");
+  first.hand = [deep];
+  assert.throws(() => prepareCardPlay(state, first.id, deep.id), /no legal targets/i);
+  const schema = buildChoiceSchema(state, first.id, deep);
+  assert.equal(schema.fields.find((field) => field.id === "targetEffectId")?.minimum, 1);
+  assert.equal(schemaHasLegalCompletion(schema), false);
+});
+
+test("mass Core removal stays targetless and Shadow Breath can target only an opposing Hero", () => {
+  const inferno = ruleDefinitionForCard(card("bb-99"));
+  assert.equal(inferno.play.choices.some((candidate) => candidate.id === "coreCell"), false);
+
+  const { state, first, second } = priorityState();
+  const shadow = card("bb-154", "shadow-breath");
+  first.heroes = [card("bb-201", "friendly-hero")];
+  second.heroes = [card("bb-202", "enemy-hero")];
+  const schema = buildChoiceSchema(state, first.id, shadow);
+  const field = schema.fields.find((candidate) => candidate.id === "targetHeroId");
+  assert.deepEqual(field?.options.map((candidate) => candidate.id), ["enemy-hero"]);
+});
+
+test("Implosion locks exactly one normal target or two Fury targets before Batch entry", () => {
+  const normal = priorityState();
+  const implosion = card("bb-97", "implosion-normal");
+  normal.first.hand = [implosion, card("bb-2", "remaining-card")];
+  normal.second.energyZone = [card("bb-3", "energy-a"), card("bb-4", "energy-b")];
+  let prepared = prepareCardPlay(normal.state, normal.first.id, implosion.id);
+  let field = prepared.pendingChoice?.schema.fields.find((candidate) => candidate.id === "targetEnergyIds");
+  assert.equal(field?.minimum, 1);
+  assert.equal(field?.maximum, 1);
+
+  const fury = priorityState();
+  const furyImplosion = card("bb-97", "implosion-fury");
+  fury.first.hand = [furyImplosion];
+  fury.second.energyZone = [card("bb-3", "fury-energy-a"), card("bb-4", "fury-energy-b")];
+  prepared = prepareCardPlay(fury.state, fury.first.id, furyImplosion.id);
+  field = prepared.pendingChoice?.schema.fields.find((candidate) => candidate.id === "targetEnergyIds");
+  assert.equal(field?.minimum, 2);
+  assert.equal(field?.maximum, 2);
+
+  const short = priorityState();
+  const shortImplosion = card("bb-97", "implosion-short");
+  short.first.hand = [shortImplosion];
+  short.second.energyZone = [card("bb-3", "only-energy")];
+  assert.throws(() => prepareCardPlay(short.state, short.first.id, shortImplosion.id), /no legal targets/i);
+});
+
+test("trigger source Bakugan is separate from an actual target and another excludes the source", () => {
+  const { state, first, second } = priorityState();
+  const phaedrus = card("aa-83", "phaedrus-source");
+  first.bakugan[0].open = true;
+  first.bakugan[0].evoStack = [phaedrus];
+  first.bakugan[1].open = true;
+  second.bakugan[0].open = true;
+  state.selected[first.id] = first.bakugan[0].id;
+  state.selected[second.id] = second.bakugan[0].id;
+  state.brawlWinner = first.id;
+  const [trigger] = collectRuleTriggers(state, {
+    id: "victor-phaedrus",
+    name: "VICTOR_DECLARED",
+    actorId: first.id,
+    controllerId: first.id,
+    targetBakuganId: first.bakugan[0].id,
+    createdAt: Date.now(),
+  }).filter((candidate) => candidate.card.id === phaedrus.id);
+  assert.ok(trigger);
+  assert.equal(trigger.choices.sourceBakuganId, first.bakugan[0].id);
+  assert.equal(trigger.choices.targetBakuganId, undefined);
+  const instruction = ruleDefinitionForCard(phaedrus).abilities.find((ability) => ability.kind === "triggered")!.instructions[0];
+  const schema = buildChoiceSchema(state, first.id, phaedrus, instruction.sourceText, trigger.choices, "resolve");
+  const field = schema.fields.find((candidate) => candidate.id === "targetBakuganId");
+  assert.equal(field?.options.some((candidate) => candidate.id === first.bakugan[0].id), false);
+  assert.equal(field?.options.some((candidate) => candidate.id === first.bakugan[1].id), true);
+});
+
+test("When-you-play targets are announced before Batch entry and copied onto the trigger", () => {
+  const { state, first } = priorityState();
+  const magnus = card("bb-199", "magnus-targeted-trigger");
+  first.hand = [magnus];
+  const prepared = prepareCardPlay(state, first.id, magnus.id);
+  assert.equal(prepared.batch.some((candidate) => candidate.card.id === magnus.id), false);
+  const field = prepared.pendingChoice?.schema.fields.find((candidate) => candidate.id === "targetBakuganId");
+  assert.ok(field?.options.length);
+  const targetId = field!.options[0].id;
+  const played = submitCardChoice(prepared, first.id, { targetBakuganId: targetId });
+  const trigger = played.batch.find((candidate) => candidate.kind === "trigger" && candidate.card.id === magnus.id);
+  assert.equal(trigger?.choices.targetBakuganId, targetId);
+});
+
+test("target grammar covers faction Bakugan, Ventus Trap's two targets, and visible cards in play", () => {
+  const karmic = ruleDefinitionForCard(card("br-32"));
+  const karmicTarget = karmic.play.choices.find((candidate) => candidate.id === "targetBakuganId");
+  assert.deepEqual(karmicTarget?.factions, ["Haos"]);
+
+  const trap = card("aa-50");
+  const trapDefinition = ruleDefinitionForCard(trap);
+  assert.deepEqual(
+    trapDefinition.play.choices.filter((candidate) => candidate.timing === "announce").map((candidate) => candidate.id),
+    ["targetBakuganId", "secondaryTargetBakuganId"],
+  );
+  const trapActions = parseAtomicEffects(trap, trap.effect).filter((candidate) => candidate.kind === "modify-stat");
+  assert.deepEqual(trapActions.map((candidate) => candidate.kind === "modify-stat" ? candidate.targetChoiceId : undefined), [
+    "targetBakuganId",
+    "secondaryTargetBakuganId",
+  ]);
+
+  const floodState = priorityState();
+  const flood = card("br-63", "flash-flood");
+  floodState.second.heroes = [card("bb-202", "flood-hero")];
+  floodState.second.bakugan[0].evoStack = [card("bb-231", "covered-evo"), card("bb-232", "top-evo")];
+  const schema = buildChoiceSchema(floodState.state, floodState.first.id, flood);
+  const field = schema.fields.find((candidate) => candidate.id === "targetCardId");
+  assert.deepEqual(field?.options.map((candidate) => candidate.id), ["flood-hero", "top-evo"]);
+});
+
+test("target-click state updates are functional and generic card targets use visible entities", async () => {
+  const choice = await read("components/game-screen-v2/ChoiceQueueLayer.tsx");
+  assert.match(choice, /setAnswers\(\(current\) => \{/);
+  assert.match(choice, /valuesFor\(current, field\)/);
+  assert.match(choice, /field\.kind === "card"/);
+  assert.match(choice, /data-evo-card-id/);
 });

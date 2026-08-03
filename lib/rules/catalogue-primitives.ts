@@ -178,10 +178,26 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const scope = scopeFor(text);
 
   for (const match of text.matchAll(/([+-]\d+)\s*\[B\]/gi)) {
-    actions.push({ kind: "modify-stat", stat: "power", amount: Number(match[1]), scale: scaleForStat(text, match), duration, scope });
+    actions.push({
+      kind: "modify-stat",
+      stat: "power",
+      amount: Number(match[1]),
+      scale: scaleForStat(text, match),
+      duration,
+      scope,
+      targetChoiceId: ruleCardId(card) === "aa-50" ? "targetBakuganId" : undefined,
+    });
   }
   for (const match of text.matchAll(/([+-]\d+)\s*\[Damage (?:Rating|Power)\]/gi)) {
-    actions.push({ kind: "modify-stat", stat: "damage", amount: Number(match[1]), scale: scaleForStat(text, match), duration, scope });
+    actions.push({
+      kind: "modify-stat",
+      stat: "damage",
+      amount: Number(match[1]),
+      scale: scaleForStat(text, match),
+      duration,
+      scope,
+      targetChoiceId: ruleCardId(card) === "aa-50" ? "secondaryTargetBakuganId" : undefined,
+    });
   }
   for (const match of text.matchAll(/\+?(\d+)\s*\[FrostStrike\]/gi)) {
     actions.push({ kind: "modify-stat", stat: "frost", amount: Number(match[1]), scale: scaleForStat(text, match), duration, scope });

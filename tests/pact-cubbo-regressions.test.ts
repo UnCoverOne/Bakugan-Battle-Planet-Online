@@ -109,7 +109,7 @@ test("Darkus Hyper Cubbo lets the Training AI complete its forced discard", () =
     ability,
     kind: "trigger",
     sourceId: hyper.id,
-    choices: { targetBakuganId: opened.id },
+    choices: { sourceBakuganId: opened.id },
   });
   state.batch = [effect];
   const instruction = ability.instructions[0];

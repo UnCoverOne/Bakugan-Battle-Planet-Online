@@ -47,7 +47,7 @@ export type RuleCondition =
 export type ChoiceSpec = {
   id: keyof CardChoices;
   timing: ChoiceTiming;
-  selector: EntitySelector | "number" | "mode" | "hand-card" | "deck-card" | "energy-card" | "bakucore" | "hero" | "evo";
+  selector: EntitySelector | "number" | "mode" | "hand-card" | "deck-card" | "energy-card" | "bakucore" | "hero" | "evo" | "card-in-play";
   label: string;
   minimum?: number;
   maximum?: number;
@@ -65,6 +65,8 @@ export type ChoiceSpec = {
   notOpenedThisTurn?: boolean;
   notPlayedThisTurn?: boolean;
   attachmentState?: "attached" | "unattached";
+  /** Exclude the Bakugan that created the trigger ("another Bakugan"). */
+  excludeSourceBakugan?: boolean;
 };
 
 export type TriggerEventName =
@@ -99,7 +101,7 @@ export type CostEffect =
   | { kind: "cost-alternative"; label: string; components: CostEffect[] };
 
 export type RuleAction =
-  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: number; scale?: string; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan" }
+  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: number; scale?: string; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices }
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: number; duration: RulesDuration }
   | { kind: "draw"; amount: number; scale?: string }
   | { kind: "discard"; amount: number; minimum: number; maximum: number; repeated?: boolean }

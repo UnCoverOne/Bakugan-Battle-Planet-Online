@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { cancelCardChoice, orderTriggers, submitCardChoice, type CardChoices, type MatchState } from "../../lib/game";
 import type { ChoiceField, ChoiceKind } from "../../lib/rules/choices";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore, useMatchSelector } from "./matchStore";
 import styles from "./ChoiceQueueLayer.module.css";
 
-const BOARD_TARGET_KINDS = new Set<ChoiceKind>(["batch-object", "hero", "evo", "energy", "bakugan", "core"]);
+const BOARD_TARGET_KINDS = new Set<ChoiceKind>(["batch-object", "hero", "evo", "energy", "bakugan", "core", "card"]);
 
 function valuesFor(answers: CardChoices, field: ChoiceField) {
   const value = answers[field.id];
@@ -36,6 +36,7 @@ function boardSelector(field: ChoiceField) {
   if (field.kind === "batch-object") return '[data-zone-kind="batch"] [data-rule-object-id]';
   if (field.kind === "hero") return '[data-zone-kind="hero"] [data-card-id]';
   if (field.kind === "evo") return '[data-zone-kind="character-card"][data-evo-card-id]';
+  if (field.kind === "card") return '[data-zone-kind="hero"] [data-card-id], [data-zone-kind="character-card"][data-evo-card-id]';
   if (field.kind === "energy") return '[data-zone-kind="energy"] [data-card-id]';
   if (field.kind === "bakugan") return '[data-zone-kind="character-card"][data-bakugan-id]';
   if (field.kind === "core") return '[data-core-cell]';
@@ -45,6 +46,7 @@ function boardSelector(field: ChoiceField) {
 function boardOptionId(field: ChoiceField, element: HTMLElement) {
   if (field.kind === "batch-object") return element.dataset.ruleObjectId;
   if (field.kind === "evo") return element.dataset.evoCardId;
+  if (field.kind === "card") return element.dataset.evoCardId ?? element.dataset.cardId;
   if (field.kind === "bakugan") return element.dataset.bakuganId;
   if (field.kind === "core") return element.dataset.coreCell;
   return element.dataset.cardId;
@@ -109,16 +111,15 @@ export function ChoiceQueueLayer() {
   const activeBoardField = incompleteBoardField
     ?? (boardFields.length && !modalFields.length ? boardFields.at(-1) : undefined);
 
-  const toggle = (field: ChoiceField, id: string) => {
-    const selected = valuesFor(answers, field);
-    const exists = selected.includes(id);
-    let next: string[];
-    if (exists) next = selected.filter((value) => value !== id);
-    else if (field.maximum === 1) next = [id];
-    else if (selected.length < field.maximum) next = [...selected, id];
-    else next = selected;
-    setAnswers((current) => assign(current, field, next));
-  };
+  const toggle = useCallback((field: ChoiceField, id: string) => {
+    setAnswers((current) => {
+      const selected = valuesFor(current, field);
+      const next = selected.includes(id)
+        ? selected.filter((candidate) => candidate !== id)
+        : field.maximum === 1 ? [id] : [...selected, id].slice(0, field.maximum);
+      return assign(current, field, next);
+    });
+  }, []);
 
   useEffect(() => {
     if (!activeBoardField || busy || state.route !== "match") return;
@@ -169,7 +170,7 @@ export function ChoiceQueueLayer() {
         delete element.dataset.choiceTargetId;
       }
     };
-  }, [activeBoardField, busy, state.route, activeBoardField?.options.map((option) => option.id).join("|")]);
+  }, [activeBoardField, busy, state.route, toggle, activeBoardField?.options.map((option) => option.id).join("|")]);
 
   if (state.route !== "match" || !match || !playerId) return null;
   if (deckInspectionActive && !triggerOrder) return null;

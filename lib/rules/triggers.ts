@@ -1,4 +1,4 @@
-import type { CardType, GameCard, MatchState, PlayerState } from "../game";
+import type { CardChoices, CardType, GameCard, MatchState, PlayerState } from "../game";
 import { consumeTriggerCreation } from "../engine/limits";
 import { ruleDefinitionForCard } from "./catalogue";
 import { ruleConditionActive } from "./modifiers";
@@ -14,6 +14,7 @@ export type RuleEvent = {
   card?: GameCard;
   cardType?: CardType;
   targetBakuganId?: string;
+  choices?: CardChoices;
   amount?: number;
   createdAt: number;
 };
@@ -44,7 +45,7 @@ function triggerMatches(
   if (trigger.source === "self" && source.id !== event.card?.id) return false;
   if (trigger.cardType && trigger.cardType !== event.cardType) return false;
   const target = event.targetBakuganId
-    ? owner.bakugan.find((candidate) => candidate.id === event.targetBakuganId)
+    ? state.players.flatMap((player) => player.bakugan).find((candidate) => candidate.id === event.targetBakuganId)
     : undefined;
   if (trigger.interveningCondition && !ruleConditionActive(state, owner, trigger.interveningCondition, target)) return false;
   return true;
@@ -65,7 +66,15 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
         const key = usageKey({ source, abilityId: ability.id }, owner.id, state.turn);
         if (ability.trigger.limit && rules.triggerUsage[key]) continue;
         if (ability.trigger.limit) rules.triggerUsage[key] = (rules.triggerUsage[key] ?? 0) + 1;
-        const choices = event.targetBakuganId ? { targetBakuganId: event.targetBakuganId } : {};
+        const sourceBakugan = owner.bakugan.find((bakugan) => (
+          bakugan.character.id === source.id || bakugan.evoStack.some((candidate) => candidate.id === source.id)
+        ));
+        const sourceBakuganId = sourceBakugan?.id
+          ?? (ability.trigger.source === "self" && event.card?.type === "Evo" ? event.targetBakuganId : undefined);
+        const choices: CardChoices = {
+          ...(ability.trigger.source === "self" ? event.choices ?? {} : {}),
+          ...(sourceBakuganId ? { sourceBakuganId } : {}),
+        };
         collected.push({
           owner,
           object: createRuleObject({
@@ -106,6 +115,8 @@ export function conditionStillValidAtResolution(state: MatchState, object: RuleO
   const ability = definition.abilities.find((candidate) => candidate.id === object.abilityId);
   if (!ability?.trigger?.interveningCondition) return true;
   const owner = state.players.find((player) => player.id === object.controllerId);
-  const target = owner?.bakugan.find((candidate) => candidate.id === object.choices.targetBakuganId);
+  const target = object.choices.sourceBakuganId
+    ? state.players.flatMap((player) => player.bakugan).find((candidate) => candidate.id === object.choices.sourceBakuganId)
+    : undefined;
   return Boolean(owner && ruleConditionActive(state, owner, ability.trigger.interveningCondition, target));
 }
