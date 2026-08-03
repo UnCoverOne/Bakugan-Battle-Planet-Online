@@ -84,12 +84,21 @@ test("Darkus Hyper Cubbo lets the Training AI complete its forced discard", () =
   const hyperTemplate = CARD_BY_ID.get("aa-106");
   const discardTemplate = CARD_BY_ID.get("bb-1");
   assert.ok(hyperTemplate && discardTemplate);
-  const hyper = { ...structuredClone(hyperTemplate), id: "aa-106-active" };
+  const hyper = { ...structuredClone(hyperTemplate), id: "aa-106-active", bPower: 400 };
   const expendable = {
     ...structuredClone(discardTemplate),
     id: "ai-forced-discard",
   };
   bot.hand = [expendable];
+  const opened = first.bakugan[0];
+  const opposing = bot.bakugan[0];
+  opened.open = true;
+  opened.evoStack = [hyper];
+  opposing.open = true;
+  opposing.bPower = 700;
+  opposing.character = { ...opposing.character, bPower: 700 };
+  state.selected[first.id] = opened.id;
+  state.selected[bot.id] = opposing.id;
 
   const definition = ruleDefinitionForCard(hyper);
   const ability = definition.abilities.find((candidate) => candidate.kind === "triggered");
@@ -100,6 +109,7 @@ test("Darkus Hyper Cubbo lets the Training AI complete its forced discard", () =
     ability,
     kind: "trigger",
     sourceId: hyper.id,
+    choices: { targetBakuganId: opened.id },
   });
   state.batch = [effect];
   const instruction = ability.instructions[0];
