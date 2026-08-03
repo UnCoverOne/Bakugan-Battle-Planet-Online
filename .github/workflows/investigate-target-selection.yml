@@ -1,11 +1,8 @@
 name: Investigate target selection
 
 on:
-  push:
-    branches:
-      - fix/underdog-target-selection-20260803
-    paths:
-      - .github/workflows/investigate-target-selection.yml
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -16,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/underdog-target-selection-20260803
+          ref: ${{ github.head_ref }}
       - name: Locate target and choice UI
         shell: bash
         run: |
@@ -34,10 +31,6 @@ jobs:
           from pathlib import Path
 
           cards = json.loads(Path('lib/catalog.generated.json').read_text())
-          for path in sorted(Path('lib/content/generated').glob('*.ts')):
-              text = path.read_text()
-              for match in re.finditer(r'\[\[|\],\[', text):
-                  pass
           patterns = [
               r'\bNegate\b', r'\bDestroy\b', r'\bchoose\b', r'\btarget\b',
               r'\bRetract\b', r'\breturn\b.*\b(?:Hero|Evo|Bakugan|card)\b',
