@@ -31,6 +31,42 @@ jobs:
               line[10:] if line.startswith("          ") else line
               for line in workflow[start:end].splitlines()
           )
+          script = script.replace(
+          """old_advance = '''  if (input.phase === \"energize\" && !player.energizedThisTurn) {
+            return energizeCard(input, playerId, bestEnergyCard(input, playerId)?.id);
+          }'''""",
+          """old_advance = '''  if (input.phase === \"energize\" && !player.energizedThisTurn) {
+              return energizeCard(input, playerId, bestEnergyCard(input, playerId)?.id);
+            }'''""",
+          )
+          script = script.replace(
+          """new_advance = '''  if (input.phase === \"energize\" && !player.energizedThisTurn) {
+            const plan = planOpponentEnergize(input, playerId);
+            return energizeCard(input, playerId, plan.shouldEnergize ? plan.cardId : undefined);
+          }'''""",
+          """new_advance = '''  if (input.phase === \"energize\" && !player.energizedThisTurn) {
+              const plan = planOpponentEnergize(input, playerId);
+              return energizeCard(input, playerId, plan.shouldEnergize ? plan.cardId : undefined);
+            }'''""",
+          )
+          script = script.replace(
+          """old_limit = '''    const cards = [...player.hand].sort(
+              (a, b) => futureCardValue(input, playerId, a) - futureCardValue(input, playerId, b),
+            ).slice(0, amount);'''""",
+          """old_limit = '''    const cards = [...player.hand].sort(
+                (a, b) => futureCardValue(input, playerId, a) - futureCardValue(input, playerId, b),
+              ).slice(0, amount);'''""",
+          )
+          script = script.replace(
+          """new_limit = '''    const cards = [...player.hand].sort(
+              (a, b) => handCardRetentionValue(input, playerId, a)
+                - handCardRetentionValue(input, playerId, b),
+            ).slice(0, amount);'''""",
+          """new_limit = '''    const cards = [...player.hand].sort(
+                (a, b) => handCardRetentionValue(input, playerId, a)
+                  - handCardRetentionValue(input, playerId, b),
+              ).slice(0, amount);'''""",
+          )
           exec(compile(script, 'implement-ai-energize.py', 'exec'))
           PY
       - name: Install dependencies
