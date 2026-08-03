@@ -100,4 +100,20 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
 }
 '''
           ai_file.write_text(ai_source)
+
+          test_file = Path("tests/pact-cubbo-regressions.test.ts")
+          test_source = test_file.read_text()
+          test_source = test_source.replace(
+              '''  const expendable = {
+    ...structuredClone(discardTemplate),
+    id: "ai-forced-discard",
+    effect: "unreviewed test text",
+  };''',
+              '''  const expendable = {
+    ...structuredClone(discardTemplate),
+    id: "ai-forced-discard",
+  };''',
+              1,
+          )
+          test_file.write_text(test_source)
           PY
