@@ -20,19 +20,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Apply Administrator AI visibility feature
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          workflow = Path('.github/workflows/implement-admin-ai-card-visibility.yml').read_text()
-          start = workflow.index("          python3 - <<'PY'\n") + len("          python3 - <<'PY'\n")
-          end = workflow.index("\n          PY\n", start)
-          script = "\n".join(
-              line[10:] if line.startswith("          ") else line
-              for line in workflow[start:end].splitlines()
-          )
-          exec(compile(script, 'implement-admin-ai-card-visibility.py', 'exec'))
-          PY
+        run: python3 .github/implement-admin-ai-card-visibility.py
       - name: Install dependencies
         run: npm run install:ci
       - name: Run focused regressions
@@ -44,6 +32,7 @@ jobs:
         run: |
           git config user.name "UnCoverOne"
           git config user.email "291861529+UnCoverOne@users.noreply.github.com"
+          git rm .github/implement-admin-ai-card-visibility.py
           git rm .github/workflows/implement-admin-ai-card-visibility.yml
           git rm .github/workflows/run-admin-ai-card-visibility.yml
           git add lib app components tests package.json
