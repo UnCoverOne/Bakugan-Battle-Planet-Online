@@ -40,6 +40,7 @@ import {
 import { drawTurnCard, playerCanDrawTurnCard } from "./turnStart";
 import {
   buildChoiceSchema,
+  schemaHasLegalCompletion,
   type ChoiceField,
   type ChoiceSchema,
   type PendingCardChoice,
@@ -205,20 +206,41 @@ function expectedOpenChance(match: MatchState, playerId: string) {
   return bestForecast(match, playerId, selected)?.openProbability ?? selected.rollAccuracy / 100;
 }
 
-function futureCardValue(match: MatchState, playerId: string, card: GameCard) {
+function evaluatedFutureCardValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  includeDeckFlipValue: boolean,
+) {
   const printedCost = card.cost === "X" ? 2 : card.cost;
   try {
     let value = estimateProgramValue(compileCardEffect(card), match, playerId) - printedCost * 0.4;
     if (card.type === "Hero") value += 2.2;
     if (card.type === "Evo") value += 2.8;
-    if (card.type === "Flip") value += 3.2;
+    if (card.type === "Flip" && includeDeckFlipValue) value += 3.2;
     return value;
   } catch {
-    // A forced discard must never stall because another card in the AI hand
-    // cannot be valued. Use a stable printed fallback and keep resolving.
+    // A forced discard must never stall because another card cannot be
+    // valued. Keep the previous stable fallback for playable cards.
     return printedCost * 0.4
-      + (card.type === "Hero" ? 2.2 : card.type === "Evo" ? 2.8 : card.type === "Flip" ? 3.2 : 0);
+      + (card.type === "Hero" ? 2.2
+        : card.type === "Evo" ? 2.8
+          : card.type === "Flip" && includeDeckFlipValue ? 3.2 : 0);
   }
+}
+
+/**
+ * A Flip only has functional value while it remains in the deck or is
+ * revealed by damage. Once drawn, it cannot be played from hand, so
+ * retaining it has no opportunity value for Energize or discard choices.
+ */
+function handCardRetentionValue(match: MatchState, playerId: string, card: GameCard) {
+  if (card.type === "Flip") return 0;
+  return evaluatedFutureCardValue(match, playerId, card, false);
+}
+
+function deckCardFutureValue(match: MatchState, playerId: string, card: GameCard) {
+  return evaluatedFutureCardValue(match, playerId, card, true);
 }
 
 function actionBaseValue(action: RuleAction) {
@@ -439,7 +461,7 @@ function optionScore(
     ));
     const selected = owner?.hand.find((candidate) => candidate.id === id);
     if (!selected) return -100;
-    const future = futureCardValue(match, owner?.id ?? chooserId, selected);
+    const future = handCardRetentionValue(match, owner?.id ?? chooserId, selected);
     if (/play a card from your hand for free/i.test(card.effect)) {
       return owner?.id === chooserId ? future : -future;
     }
@@ -456,7 +478,7 @@ function optionScore(
   }
   if (field.kind === "deck-card" || field.kind === "deck-order") {
     const selected = controller.deckCards.find((candidate) => candidate.id === id);
-    return selected ? futureCardValue(match, controllerId, selected) : -100;
+    return selected ? deckCardFutureValue(match, controllerId, selected) : -100;
   }
   if (field.kind === "number") {
     const amount = Number(id);
@@ -604,11 +626,281 @@ function fallbackChoiceCard(pending: PendingCardChoice): GameCard {
   };
 }
 
-function bestEnergyCard(match: MatchState, playerId: string) {
+type EnergyGoalSource = "hand-card" | "hand-combo" | "deck";
+type EnergyGoal = {
+  source: EnergyGoalSource;
+  score: number;
+  cardIds: string[];
+  targetCost: number;
+};
+type EnergyCardAnalysis = {
+  card: GameCard;
+  cost: number;
+  value: number;
+  playLikelihood: number;
+  affordableNow: boolean;
+};
+export type OpponentEnergizePlan = {
+  shouldEnergize: boolean;
+  cardId?: string;
+  reason: "reachable-hand-card" | "reachable-hand-combo" | "probable-deck-card"
+    | "no-energy-goal" | "no-expendable-card";
+  goalSource?: EnergyGoalSource;
+  goalCardIds?: string[];
+};
+
+function currentEnergyCapacity(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId)! as typeof match.players[number] & {
+    tappedEnergyIds?: string[];
+    energyTapTurn?: number;
+  };
+  if (player.energyTapTurn !== match.turn) return player.energyZone.length;
+  const tapped = new Set(player.tappedEnergyIds ?? []);
+  const untapped = player.energyZone.filter((card) => !tapped.has(card.id)).length;
+  return Math.max(0, Math.floor(player.energy)) + untapped;
+}
+
+function futurePlayLikelihood(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices,
+  zone: "hand" | "deck",
+) {
+  if (card.type === "Character") return 0;
+  if (card.type === "Flip") return zone === "deck" ? 0.42 : 0;
+  try {
+    if (!schemaHasLegalCompletion(buildChoiceSchema(match, playerId, card))) return 0;
+  } catch {
+    return 0.2;
+  }
+  if (card.type === "Evo" && !choices.targetBakuganId) return 0;
+  if (/\bReroll\b/i.test(card.effect)) {
+    return match.placements.some((placement) => !placement.attachedTo) ? 0.25 : 0;
+  }
+  if (/\b(?:Flow|Fury|Turbo|Domination|Victor)\b|\bif\b/i.test(card.effect)) return 0.65;
+  return 1;
+}
+
+function analyzeEnergyCard(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  capacity: number,
+  zone: "hand" | "deck",
+): EnergyCardAnalysis {
+  let choices: CardChoices = {};
+  try { choices = chooseCardChoices(match, playerId, card); } catch { choices = {}; }
+  let cost = card.cost === "X" ? Math.max(1, capacity) : card.cost;
+  try {
+    cost = cardEnergyPaymentState(match, playerId, card, choices)?.cost ?? cost;
+  } catch {
+    // Keep the printed planning cost when a conditional choice is not
+    // currently constructible. Its reduced likelihood handles uncertainty.
+  }
+  return {
+    card,
+    cost,
+    value: zone === "hand"
+      ? handCardRetentionValue(match, playerId, card)
+      : deckCardFutureValue(match, playerId, card),
+    playLikelihood: futurePlayLikelihood(match, playerId, card, choices, zone),
+    affordableNow: cost <= capacity,
+  };
+}
+
+function comboSynergy(a: GameCard, b: GameCard) {
+  let value = a.faction === b.faction ? 0.25 : 0;
+  const text = `${a.effect} ${b.effect}`;
+  if (/Flow|play .*free|cost .*less|Draw|Energize/i.test(text)) value += 0.5;
+  return value;
+}
+
+function handEnergyGoals(analyses: EnergyCardAnalysis[], capacity: number) {
+  const goals: EnergyGoal[] = [];
+  for (const analysis of analyses) {
+    const shortfall = analysis.cost - capacity;
+    if (
+      analysis.playLikelihood <= 0
+      || shortfall <= 0
+      || shortfall > 2
+      || analysis.value < 0.75
+    ) continue;
+    const reachability = shortfall === 1 ? 1 : 0.62;
+    const score = Math.max(0, analysis.value) * analysis.playLikelihood * reachability;
+    if (score >= 1.1) goals.push({
+      source: "hand-card",
+      score,
+      cardIds: [analysis.card.id],
+      targetCost: analysis.cost,
+    });
+  }
+
+  const comboPieces = analyses.filter((analysis) => (
+    analysis.playLikelihood > 0 && analysis.cost > 0 && analysis.value > 0.35
+  ));
+  for (let left = 0; left < comboPieces.length; left += 1) {
+    for (let right = left + 1; right < comboPieces.length; right += 1) {
+      const a = comboPieces[left];
+      const b = comboPieces[right];
+      const targetCost = a.cost + b.cost;
+      const shortfall = targetCost - capacity;
+      if (shortfall <= 0 || shortfall > 2) continue;
+      const reachability = shortfall === 1 ? 1 : 0.62;
+      const likelihood = Math.min(a.playLikelihood, b.playLikelihood);
+      const score = (
+        Math.max(0, a.value) + Math.max(0, b.value) + comboSynergy(a.card, b.card)
+      ) * likelihood * reachability * 0.5;
+      if (score >= 1.35) goals.push({
+        source: "hand-combo",
+        score,
+        cardIds: [a.card.id, b.card.id],
+        targetCost,
+      });
+    }
+  }
+  return goals;
+}
+
+function drawAtLeastOneProbability(deckSize: number, copies: number, draws: number) {
+  if (deckSize <= 0 || copies <= 0 || draws <= 0) return 0;
+  let miss = 1;
+  const attempts = Math.min(deckSize, draws);
+  for (let index = 0; index < attempts; index += 1) {
+    miss *= Math.max(0, deckSize - copies - index) / Math.max(1, deckSize - index);
+  }
+  return 1 - miss;
+}
+
+function deckEnergyGoals(match: MatchState, playerId: string, capacity: number) {
   const player = playerById(match, playerId)!;
-  return [...player.hand].sort(
-    (a, b) => futureCardValue(match, playerId, a) - futureCardValue(match, playerId, b),
-  )[0];
+  const grouped = new Map<string, GameCard[]>();
+  for (const card of player.deckCards) {
+    const cards = grouped.get(card.catalogId) ?? [];
+    cards.push(card);
+    grouped.set(card.catalogId, cards);
+  }
+  const goals: EnergyGoal[] = [];
+  for (const cards of grouped.values()) {
+    const analysis = analyzeEnergyCard(match, playerId, cards[0], capacity, "deck");
+    const shortfall = analysis.cost - capacity;
+    if (analysis.playLikelihood <= 0 || shortfall <= 0 || shortfall > 3) continue;
+    const drawHorizon = Math.min(3, shortfall + 1);
+    const probability = drawAtLeastOneProbability(
+      player.deckCards.length,
+      cards.length,
+      drawHorizon,
+    );
+    const reachability = shortfall === 1 ? 1 : shortfall === 2 ? 0.62 : 0.28;
+    const score = probability
+      * Math.max(0, analysis.value)
+      * analysis.playLikelihood
+      * reachability
+      * 0.35;
+    if (score >= 0.32) goals.push({
+      source: "deck",
+      score,
+      cardIds: cards.map((card) => card.id),
+      targetCost: analysis.cost,
+    });
+  }
+  return goals;
+}
+
+function energyOpportunityCost(
+  match: MatchState,
+  playerId: string,
+  analysis: EnergyCardAnalysis,
+  capacity: number,
+) {
+  const player = playerById(match, playerId)!;
+  const handCopies = player.hand.filter(
+    (card) => card.catalogId === analysis.card.catalogId,
+  ).length;
+  const deckCopies = player.deckCards.filter(
+    (card) => card.catalogId === analysis.card.catalogId,
+  ).length;
+  const immediateUrgency = analysis.affordableNow && analysis.playLikelihood >= 0.5 ? 3.5 : 0;
+  const nextTurnUrgency = !analysis.affordableNow && analysis.cost <= capacity + 1 ? 1.4 : 0;
+  const lateGameDiscount = Math.max(0, analysis.cost - capacity - 1) * 0.9
+    + analysis.cost * 0.08;
+  const replaceability = Math.max(0, handCopies - 1) * 0.45 + deckCopies * 0.55;
+  return Math.max(0, analysis.value)
+    + immediateUrgency
+    + nextTurnUrgency
+    - lateGameDiscount
+    - replaceability;
+}
+
+/**
+ * Energize is a two-stage decision: first identify reachable Energy
+ * demand, including lower-weight deck composition odds, then sacrifice
+ * the least urgent non-goal card. No exact deck order is consulted.
+ */
+export function planOpponentEnergize(
+  match: MatchState,
+  playerId: string,
+): OpponentEnergizePlan {
+  const player = playerById(match, playerId);
+  if (!player) return { shouldEnergize: false, reason: "no-energy-goal" };
+  const capacity = currentEnergyCapacity(match, playerId);
+  const analyses = player.hand.map((card) => (
+    analyzeEnergyCard(match, playerId, card, capacity, "hand")
+  ));
+  const goals = [
+    ...handEnergyGoals(analyses, capacity),
+    ...deckEnergyGoals(match, playerId, capacity),
+  ].sort((a, b) => (
+    b.score - a.score
+    || ({ "hand-card": 0, "hand-combo": 1, deck: 2 }[a.source]
+      - { "hand-card": 0, "hand-combo": 1, deck: 2 }[b.source])
+  ));
+  const goal = goals[0];
+  if (!goal) return { shouldEnergize: false, reason: "no-energy-goal" };
+
+  const protectedIds = new Set(goal.source === "deck" ? [] : goal.cardIds);
+  const affordable = analyses.filter((analysis) => (
+    analysis.affordableNow && analysis.playLikelihood >= 0.5
+  ));
+  if (affordable.length === 1) protectedIds.add(affordable[0].card.id);
+
+  const candidates = analyses
+    .filter((analysis) => !protectedIds.has(analysis.card.id))
+    .map((analysis) => ({
+      analysis,
+      opportunityCost: energyOpportunityCost(
+        match,
+        playerId,
+        analysis,
+        capacity,
+      ),
+    }))
+    .sort((a, b) => (
+      a.opportunityCost - b.opportunityCost
+      || b.analysis.cost - a.analysis.cost
+      || a.analysis.card.id.localeCompare(b.analysis.card.id)
+    ));
+  const candidate = candidates[0];
+  const maximumOpportunityCost = goal.source === "deck"
+    ? 0.9
+    : Math.max(1.5, goal.score * 0.85);
+  if (!candidate || candidate.opportunityCost > maximumOpportunityCost) {
+    return {
+      shouldEnergize: false,
+      reason: "no-expendable-card",
+      goalSource: goal.source,
+      goalCardIds: goal.cardIds,
+    };
+  }
+  return {
+    shouldEnergize: true,
+    cardId: candidate.analysis.card.id,
+    reason: goal.source === "hand-card" ? "reachable-hand-card"
+      : goal.source === "hand-combo" ? "reachable-hand-combo"
+        : "probable-deck-card",
+    goalSource: goal.source,
+    goalCardIds: goal.cardIds,
+  };
 }
 
 function normalizedName(value: string | null | undefined) {
@@ -834,7 +1126,8 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
   }
   if (playerCanDrawTurnCard(input, playerId)) return drawTurnCard(input, playerId);
   if (input.phase === "energize" && !player.energizedThisTurn) {
-    return energizeCard(input, playerId, bestEnergyCard(input, playerId)?.id);
+    const plan = planOpponentEnergize(input, playerId);
+    return energizeCard(input, playerId, plan.shouldEnergize ? plan.cardId : undefined);
   }
   if (input.phase === "selection" && !input.selected[playerId]) {
     return selectBakugan(input, playerId, bestBakugan(input, playerId).id);
@@ -883,7 +1176,8 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
   if (input.phase === "handLimit" && input.priority === playerId) {
     const amount = Math.max(0, player.hand.length - 7);
     const cards = [...player.hand].sort(
-      (a, b) => futureCardValue(input, playerId, a) - futureCardValue(input, playerId, b),
+      (a, b) => handCardRetentionValue(input, playerId, a)
+        - handCardRetentionValue(input, playerId, b),
     ).slice(0, amount);
     return discardToHandLimit(input, playerId, cards.map((card) => card.id));
   }
