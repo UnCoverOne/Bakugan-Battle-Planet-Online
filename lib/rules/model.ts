@@ -28,6 +28,7 @@ export type RuleCondition =
   | { kind: "turbo" }
   | { kind: "domination" }
   | { kind: "flow" }
+  | { kind: "underdog" }
   | { kind: "victor" }
   | { kind: "faction"; faction: Faction; subject: "target" | "team" }
   | { kind: "cards-played"; comparison: "at-least" | "more-than"; amount: number }
@@ -54,7 +55,16 @@ export type ChoiceSpec = {
   chooser: "controller" | "opponent" | "each-player";
   visibility?: ChoiceVisibility;
   cardType?: CardType;
+  cardTypes?: CardType[];
   factions?: Faction[];
+  targetOwner?: "controller" | "opponent" | "any";
+  maximumCost?: number;
+  minimumCost?: number;
+  objectKinds?: Array<"card" | "trigger" | "copy">;
+  openState?: "open" | "closed";
+  notOpenedThisTurn?: boolean;
+  notPlayedThisTurn?: boolean;
+  attachmentState?: "attached" | "unattached";
 };
 
 export type TriggerEventName =
@@ -106,7 +116,7 @@ export type RuleAction =
   | { kind: "reorder-deck"; amount: number }
   | { kind: "play"; source: "revealed-deck" | "hand" | "self"; free: boolean }
   | { kind: "attack"; amount: number; faction?: Faction }
-  | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices }
+  | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: number; targetKinds?: Array<"card" | "trigger" | "copy"> }
   | { kind: "search"; cardType?: string; amount: number }
   | { kind: "copy"; target: "next-action" | "batch-action"; independentChoices: true }
   | { kind: "cost"; amount: number; operation: "reduce" | "increase" | "free"; duration: RulesDuration }

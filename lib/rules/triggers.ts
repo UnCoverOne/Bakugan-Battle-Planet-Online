@@ -43,7 +43,10 @@ function triggerMatches(
   if (!relationshipMatches(trigger, owner.id, event)) return false;
   if (trigger.source === "self" && source.id !== event.card?.id) return false;
   if (trigger.cardType && trigger.cardType !== event.cardType) return false;
-  if (trigger.interveningCondition && !ruleConditionActive(state, owner, trigger.interveningCondition)) return false;
+  const target = event.targetBakuganId
+    ? owner.bakugan.find((candidate) => candidate.id === event.targetBakuganId)
+    : undefined;
+  if (trigger.interveningCondition && !ruleConditionActive(state, owner, trigger.interveningCondition, target)) return false;
   return true;
 }
 
@@ -103,5 +106,6 @@ export function conditionStillValidAtResolution(state: MatchState, object: RuleO
   const ability = definition.abilities.find((candidate) => candidate.id === object.abilityId);
   if (!ability?.trigger?.interveningCondition) return true;
   const owner = state.players.find((player) => player.id === object.controllerId);
-  return Boolean(owner && ruleConditionActive(state, owner, ability.trigger.interveningCondition));
+  const target = owner?.bakugan.find((candidate) => candidate.id === object.choices.targetBakuganId);
+  return Boolean(owner && ruleConditionActive(state, owner, ability.trigger.interveningCondition, target));
 }

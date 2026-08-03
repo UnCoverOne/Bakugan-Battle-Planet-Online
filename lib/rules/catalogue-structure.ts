@@ -99,14 +99,71 @@ function choice(
 function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec["timing"]): ChoiceSpec[] {
   const result: ChoiceSpec[] = [];
   const timing = /when you play this|\bmay\b|\bSacrifice\b/i.test(text) ? "resolve" : defaultTiming;
+  const targetTiming = /when you play this|when this opens|\bVictor\s*[-:]|\bUnderdog\s*:|at (?:the )?end of (?:your |the )?turn/i.test(text)
+    ? "resolve"
+    : defaultTiming;
   const discardPaysPlayCost = /\bdiscard\s+(?:a|an|one|two|three|\d+)\s+cards?\s+to play this for free\b/i.test(text);
-  if (card.type === "Evo" && defaultTiming === "announce") result.push(choice("targetBakuganId", "announce", "chosen-bakugan", "Choose the matching Character"));
-  if (/choose (?:a|an|one).*Bakugan|target .*Bakugan|retract (?:one of )?(?:your )?(?:open )?Bakugan/i.test(text)) result.push(choice("targetBakuganId", timing, "chosen-bakugan", "Choose a Bakugan"));
+  const targetOwner = /enemy|opposing|opponent(?:'s|’s)/i.test(text)
+    ? "opponent" as const
+    : /(?:one of )?your (?:open )?(?:Bakugan|Hero|Evo|Energy)/i.test(text)
+      ? "controller" as const
+      : "any" as const;
+  const maximumCost = Number(text.match(/costs? (\d+) \[Energy\] or less/i)?.[1] ?? Number.NaN);
+  const printedMaximum = Number.isFinite(maximumCost) ? maximumCost : undefined;
+
+  if (card.type === "Evo" && defaultTiming === "announce") {
+    const selected = choice("targetBakuganId", "announce", "chosen-bakugan", "Choose the matching Character");
+    selected.targetOwner = "controller";
+    result.push(selected);
+  }
+
+  const negateMatch = text.match(/negate (?:a|an) (Hero or Action|Action|Hero) card/i);
+  if (negateMatch) {
+    const selected = choice("targetEffectId", defaultTiming, "batch-object", "Choose the card effect to negate");
+    selected.cardTypes = /Hero or Action/i.test(negateMatch[1])
+      ? ["Hero", "Action"]
+      : [negateMatch[1] as GameCard["type"]];
+    selected.objectKinds = ["card"];
+    selected.targetOwner = "opponent";
+    selected.maximumCost = printedMaximum;
+    result.push(selected);
+  }
+
+  if (/choose (?:a|an|one).*Bakugan|target .*Bakugan|retract (?:one of )?(?:your )?(?:open )?Bakugan|attach .*bakucore.*to (?:an? )?(?:open )?Bakugan/i.test(text)) {
+    const selected = choice("targetBakuganId", targetTiming, "chosen-bakugan", "Choose a Bakugan");
+    selected.targetOwner = targetOwner;
+    if (/open Bakugan/i.test(text)) selected.openState = "open";
+    if (/didn['’]?t open this turn|did not open this turn/i.test(text)) selected.notOpenedThisTurn = true;
+    result.push(selected);
+  }
   if (/choose a player/i.test(text)) result.push(choice("targetPlayerId", timing, "controller", "Choose a player"));
-  if (/destroy a hero|choose a hero|take control of a hero/i.test(text)) result.push(choice("targetHeroId", timing, "hero", "Choose a Hero"));
-  if (/destroy an evo|choose an evo/i.test(text)) result.push(choice("targetEvoId", timing, "evo", "Choose an Evo"));
-  if (/destroy (?:an?|two|three) (?:enemy )?energy|choose an energy/i.test(text)) result.push(choice("targetEnergyIds", timing, "energy-card", "Choose Energy"));
-  if (/attach a bakucore|remove .*bakucore|choose a bakucore|turn a bakucore/i.test(text)) result.push(choice("coreCell", timing, "bakucore", "Choose a BakuCore"));
+  if (!/destroy all/i.test(text) && /destroy a hero|choose a hero|take control of a hero/i.test(text)) {
+    const selected = choice("targetHeroId", targetTiming, "hero", "Choose a Hero");
+    selected.targetOwner = targetOwner;
+    selected.maximumCost = printedMaximum;
+    result.push(selected);
+  }
+  if (!/destroy all/i.test(text) && /destroy an evo|choose an evo/i.test(text)) {
+    const selected = choice("targetEvoId", targetTiming, "evo", "Choose an Evo");
+    selected.targetOwner = targetOwner;
+    selected.notPlayedThisTurn = /not played this turn/i.test(text);
+    result.push(selected);
+  }
+  if (!/destroy all/i.test(text) && /destroy (?:an?|two|three) (?:enemy )?energy|choose an energy/i.test(text)) {
+    const selected = choice("targetEnergyIds", targetTiming, "energy-card", "Choose Energy");
+    selected.targetOwner = targetOwner;
+    const amountText = text.match(/destroy (an?|one|two|three|\d+) (?:enemy )?energy/i)?.[1]?.toLowerCase();
+    const amount = amountText === "two" ? 2 : amountText === "three" ? 3 : Number(amountText) || 1;
+    selected.minimum = amount;
+    selected.maximum = amount;
+    result.push(selected);
+  }
+  if (/attach a bakucore|remove .*bakucore|choose a bakucore|turn a bakucore/i.test(text)) {
+    const selected = choice("coreCell", targetTiming, "bakucore", "Choose a BakuCore");
+    selected.targetOwner = targetOwner;
+    selected.attachmentState = /attach .*from the Field|turn .*face up/i.test(text) ? "unattached" : /remove|return .*field face down/i.test(text) ? "attached" : undefined;
+    result.push(selected);
+  }
   if (/\bsacrifice\b|\bdiscard\s+(?:a|an|one|two|three|any|up to|\d+)\s+cards?\b|\bdiscard\s+cards?\s+from your hand\b/i.test(text)
     && !discardPaysPlayCost
     && !/choose a player to discard/i.test(text)
@@ -217,9 +274,6 @@ function evoIdentities(card: GameCard): RulesCardId[] {
 
 export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
   const choices = choicesForText(card, card.effect, "announce");
-  if (ruleCardId(card) === "bb-1" && !choices.some((item) => item.selector === "batch-object")) {
-    choices.unshift(choice("mode", "announce", "batch-object", "Choose the Action effect to negate"));
-  }
   // Pact of Darkness owns a dedicated two-stage Damage-step payment
   // prompt, so it must not enter the generic card-choice editor.
   if (ruleCardId(card) === "bb-152") {

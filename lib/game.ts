@@ -165,6 +165,7 @@ export type RollOutcome = {
 
 export type CardChoices = {
   targetBakuganId?: string;
+  targetEffectId?: string;
   targetPlayerId?: string;
   targetHeroId?: string;
   targetEvoId?: string;
@@ -1094,6 +1095,7 @@ const scaleStat = (state: MatchState, player: PlayerState, text: string, value: 
 export const cardChoiceSpec = (_state: MatchState, _playerId: string, card: GameCard) => {
   const mapping: Partial<Record<keyof CardChoices, string>> = {
     targetBakuganId: "targetBakugan",
+    targetEffectId: "targetEffect",
     targetPlayerId: "targetPlayer",
     targetHeroId: "targetHero",
     targetEvoId: "targetEvo",
@@ -1249,6 +1251,9 @@ export const prepareCardPlay = (input: MatchState, playerId: string, cardId: str
   const payment = buildChoiceSchemaFromSpecs(state, playerId, card, definition.play.choices, "pay");
   const schema = { ...announce, fields: [...announce.fields, ...payment.fields] };
   if (!schema.fields.length) return playCard(state, playerId, cardId, {});
+  if (!schemaHasLegalCompletion(schema)) {
+    throw new Error(`${card.displayName || card.name} has no legal targets or required choices.`);
+  }
   state.pendingChoice = {
     id: uid(),
     kind: "card-play",
@@ -1994,16 +1999,21 @@ return;
       throw new DamageResolutionSuspended();
     }
     case "negate": {
-      const selectedId = typeof choices.mode === "string" ? choices.mode : undefined;
-      const index = state.batch.findIndex((effect) => (
-        effect.id !== pending.id
-        && (!selectedId || effect.id === selectedId)
-        && (action.cardType === "any" || effect.card.type === action.cardType)
-      ));
+      const selectedId = choices.targetEffectId;
+      if (!selectedId) return;
+      const index = state.batch.findIndex((effect) => {
+        const printedCost = effect.card.cost === "X" ? Number.POSITIVE_INFINITY : effect.card.cost;
+        return effect.id !== pending.id
+          && effect.id === selectedId
+          && !effect.negated
+          && (!action.targetKinds?.length || action.targetKinds.includes(effect.kind))
+          && (action.cardType === "any" || effect.card.type === action.cardType)
+          && (action.maximumCost == null || printedCost <= action.maximumCost);
+      });
       if (index >= 0) {
         const [negated] = state.batch.splice(index, 1);
         if (isRuleObject(negated)) negateRuleObject(negated);
-        if (negated.kind === "card" && ["Action", "Flip"].includes(negated.card.type)) {
+        if (negated.kind === "card" && ["Action", "Flip", "Hero", "Evo"].includes(negated.card.type)) {
           const owner = playerById(state, negated.controllerId);
           if (!owner.discard.some((candidate) => candidate.id === negated.card.id)) owner.discard.push(negated.card);
         }
