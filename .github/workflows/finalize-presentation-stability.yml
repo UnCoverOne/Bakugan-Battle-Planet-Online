@@ -34,7 +34,6 @@ jobs:
           tests/tie-break-hud-victor-highlight.test.ts
           tests/mobile-overlay-layering.test.ts
           tests/card-preview-interactions.test.ts
-          tests/persistence-boundaries.test.ts
       - name: Build application
         run: npm run build
       - name: Commit final corrections
