@@ -16,9 +16,9 @@ jobs:
           ref: ${{ github.head_ref }}
       - name: Create source archive
         run: |
-          tar --exclude=.git --exclude=node_modules -czf target-branch.tar.gz .
+          tar --exclude=.git --exclude=node_modules -czf /tmp/target-branch.tar.gz .
       - uses: actions/upload-artifact@v4
         with:
           name: target-branch-source
-          path: target-branch.tar.gz
+          path: /tmp/target-branch.tar.gz
           retention-days: 1
