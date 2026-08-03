@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+// These contracts protect the cross-layer sequencing that prevents one visual
+// representation from disappearing before its animated replacement is ready.
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("card flights prepare assets and use an overlap handoff instead of blank frames", () => {
