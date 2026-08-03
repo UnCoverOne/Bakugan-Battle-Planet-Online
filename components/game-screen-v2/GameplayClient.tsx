@@ -515,6 +515,7 @@ export function GameplayClient() {
           match={storedState.match}
           playerId={storedState.playerId}
           onExit={storedState.match?.phase === "result" ? exitCompletedMatch : exit}
+          onDrawCard={completed ? undefined : drawCard}
           onTapEnergyCard={completed ? undefined : tapEnergy}
         />
         <SelectionInteractionLayer

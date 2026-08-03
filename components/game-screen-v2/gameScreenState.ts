@@ -132,9 +132,9 @@ export function heldCorePlacements(
 
 function ownerState(player?: PlayerState): GameScreenOwnerState {
   if (!player) return EMPTY_OWNER_STATE;
-  const deckCount = Array.isArray(player.deckCards)
-    ? player.deckCards.length
-    : safeCardCount(player.deck);
+  const deckCount = Number.isFinite(player.deck)
+    ? safeCardCount(player.deck)
+    : Array.isArray(player.deckCards) ? player.deckCards.length : 0;
   const discard = Array.isArray(player.discard) ? player.discard : [];
 
   return {
