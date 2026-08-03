@@ -17,12 +17,13 @@ jobs:
       - name: Locate target and choice UI
         shell: bash
         run: |
+          set +o pipefail
           echo '=== Relevant component files ==='
-          find components app -type f | sort | grep -E '(game|Game|match|Match|choice|Choice|hud|Hud|HUD|batch|Batch|play|Play)' | head -n 300
+          find components app -type f | sort | grep -E '(game|Game|match|Match|choice|Choice|hud|Hud|HUD|batch|Batch|play|Play)' | head -n 300 || true
           echo '=== pending choice references ==='
-          rg -n "pendingChoice|submitCardChoice|prepareCardPlay|cancelCardChoice|batch-object|targetHeroId|targetEvoId|targetBakuganId|targetEnergyIds" components app lib | head -n 1200
+          grep -RInE "pendingChoice|submitCardChoice|prepareCardPlay|cancelCardChoice|batch-object|targetHeroId|targetEvoId|targetBakuganId|targetEnergyIds" components app lib | head -n 1200 || true
           echo '=== batch and zone render references ==='
-          rg -n "data-zone-kind=|data-card-id=|batch|Batch|effect icon|EffectIcon|HeroZone|heroCard" components/game-screen-v2 components/routes components/application | head -n 1200
+          grep -RInE "data-zone-kind=|data-card-id=|batch|Batch|effect icon|EffectIcon|HeroZone|heroCard" components/game-screen-v2 components/routes components/application | head -n 1200 || true
       - name: Audit printed targeting text
         shell: bash
         run: |
