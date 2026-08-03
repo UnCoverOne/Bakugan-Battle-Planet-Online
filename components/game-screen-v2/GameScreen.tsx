@@ -10,6 +10,7 @@ import {
   type EnergyZoneView,
 } from "../../lib/energy";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
+import { useAdministratorAiVisibility } from "../application/useAdministratorAiVisibility";
 import {
   EMPTY_GAME_SCREEN_ZONE_STATE,
   buildGameScreenZoneState,
@@ -348,12 +349,14 @@ function EnergyCardStack({
   pendingCardId,
   onTap,
   canTap,
+  revealFaces = false,
 }: {
   owner: ZoneOwner;
   energy: EnergyZoneView;
   pendingCardId?: string;
   onTap?: EnergyTapHandler;
   canTap?: (cardId: string) => boolean;
+  revealFaces?: boolean;
 }) {
   if (!energy.cards.length) return null;
   const layout = heroCardLayout(energy.cards.length);
@@ -390,9 +393,10 @@ function EnergyCardStack({
             key={card.id}
           >
             <img
-              src={CARD_BACK_ART}
-              alt=""
-              aria-hidden="true"
+              src={revealFaces ? card.art : CARD_BACK_ART}
+              alt={revealFaces ? card.displayName || card.name : ""}
+              aria-hidden={!revealFaces}
+              data-hidden={revealFaces ? "false" : "true"}
               draggable={false}
             />
           </button>
@@ -408,12 +412,14 @@ function EnergyZone({
   pendingCardId,
   onTap,
   canTap,
+  revealFaces = false,
 }: {
   owner: ZoneOwner;
   energy: EnergyZoneView;
   pendingCardId?: string;
   onTap?: EnergyTapHandler;
   canTap?: (cardId: string) => boolean;
+  revealFaces?: boolean;
 }) {
   return (
     <div
@@ -432,6 +438,7 @@ function EnergyZone({
         pendingCardId={pendingCardId}
         onTap={onTap}
         canTap={canTap}
+        revealFaces={revealFaces}
       />
       <strong
         className={styles.energyIndicator}
@@ -453,6 +460,7 @@ function PlayerZoneLayout({
   pendingEnergyCardId,
   onTapEnergyCard,
   canTapEnergyCard,
+  revealEnergyFaces = false,
   openDiscardOwner,
   onOpenDiscard,
 }: {
@@ -464,6 +472,7 @@ function PlayerZoneLayout({
   pendingEnergyCardId?: string;
   onTapEnergyCard?: EnergyTapHandler;
   canTapEnergyCard?: (cardId: string) => boolean;
+  revealEnergyFaces?: boolean;
   openDiscardOwner: ZoneOwner | null;
   onOpenDiscard: (owner: ZoneOwner) => void;
 }) {
@@ -510,6 +519,7 @@ function PlayerZoneLayout({
           pendingCardId={pendingEnergyCardId}
           onTap={onTapEnergyCard}
           canTap={canTapEnergyCard}
+          revealFaces={revealEnergyFaces}
         />
         <div className={styles.cardStackMain}>
           <HeroZone owner={owner} cards={state.heroCards} count={counts.hero} />
@@ -635,6 +645,7 @@ export function GameScreen({
     : EMPTY_GAME_SCREEN_ZONE_STATE;
   const heldCoreZones = buildHeldCoreZoneState(match, playerId, hiddenCoreCells);
   const energyState = energyZoneViews(match, playerId);
+  const revealOpponentAiCards = useAdministratorAiVisibility(match, playerId);
   const resolvedCounts: GameScreenZoneCounts = match
     ? {
       player: {
@@ -724,6 +735,7 @@ export function GameScreen({
             state={zoneState.opponent}
             coreZones={heldCoreZones.opponent}
             energy={energyState.opponent}
+            revealEnergyFaces={revealOpponentAiCards}
             openDiscardOwner={openDiscardOwner}
             onOpenDiscard={openDiscard}
           />

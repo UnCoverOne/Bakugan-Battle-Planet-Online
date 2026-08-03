@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { validateDeck, type DeckRecord } from "../../lib/data";
 import type { GameCard } from "../../lib/game";
 import { useApp } from "../application/AppProvider";
+import { notifyAdministratorAiVisibilityChanged } from "../application/useAdministratorAiVisibility";
 import {
   ActionButton,
   Field,
@@ -117,6 +118,7 @@ function AiManagement() {
   const [refresh, setRefresh] = useState(0);
   const [selection, setSelection] = useState("");
   const state = useAdminData<{ decks: AiDeckItem[] }>("ai-decks", refresh);
+  const visibilityState = useAdminData<{ revealAiCards: boolean }>("ai-visibility", refresh);
   const mutate = useCallback(async (body: Record<string, unknown>, message: string) => {
     try {
       await adminRequest(body);
@@ -126,6 +128,20 @@ function AiManagement() {
       notify(error instanceof Error ? error.message : "AI deck action failed.");
     }
   }, [notify]);
+  const updateAiVisibility = async (enabled: boolean) => {
+    try {
+      const result = await adminRequest({ action: "ai-visibility", enabled }) as {
+        revealAiCards: boolean;
+      };
+      notifyAdministratorAiVisibilityChanged(result.revealAiCards);
+      notify(result.revealAiCards
+        ? "Training AI hand and Energy cards will be shown face up."
+        : "Training AI hidden cards will use their card backs.");
+      setRefresh((value) => value + 1);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "AI visibility could not be updated.");
+    }
+  };
   const add = async () => {
     const deck = localDecks.find((candidate: DeckRecord) => candidate.id === selection);
     if (!deck) return;
@@ -150,6 +166,25 @@ function AiManagement() {
           <ActionButton disabled={!selection} onClick={add}>Add Deck</ActionButton>
         </div>
       </div>
+      <Surface className={styles.aiVisibilityControl}>
+        <div className={styles.aiVisibilityCopy}>
+          <span>ADMINISTRATOR MATCH TOOLS</span>
+          <h3>Reveal Training AI hidden cards</h3>
+          <p>Show the faces of the Training AI opponent’s Hand and Energy cards during local AI matches. Online opponents remain hidden.</p>
+        </div>
+        <label className={`${styles.switch} ${styles.featureSwitch}`}>
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label="Reveal Training AI Hand and Energy cards"
+            checked={Boolean(visibilityState.data?.revealAiCards)}
+            disabled={visibilityState.loading || Boolean(visibilityState.error)}
+            onChange={(event) => void updateAiVisibility(event.target.checked)}
+          />
+          <span>{visibilityState.data?.revealAiCards ? "On" : "Off"}</span>
+        </label>
+      </Surface>
+      <AdminState loading={visibilityState.loading} error={visibilityState.error} label="AI visibility preference" />
       <AdminState loading={state.loading} error={state.error} label="AI decks" />
       <div className={styles.deckRows}>
         {state.data?.decks.map((item) => {

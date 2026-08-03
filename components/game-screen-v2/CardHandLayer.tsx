@@ -18,6 +18,7 @@ import {
 } from "./matchHudState";
 import styles from "./CardHandLayer.module.css";
 import { LikelyCardImagePreloader, ResponsiveCardImage } from "./ResponsiveCardImage";
+import { useAdministratorAiVisibility } from "../application/useAdministratorAiVisibility";
 
 const CARD_BACK_ART = "/assets/card-back.png";
 const MIN_ZONE_GAP = 16;
@@ -291,11 +292,15 @@ function PlayerHand({
 }
 
 function OpponentHand({
+  cards,
   cardCount,
   bounds,
+  revealFaces,
 }: {
+  cards: readonly GameCard[];
   cardCount: number;
   bounds: HandViewportBounds | null;
+  revealFaces: boolean;
 }) {
   if (!cardCount) return null;
   const layout = handCardLayout(cardCount, bounds?.geometry.spanDegrees);
@@ -304,32 +309,40 @@ function OpponentHand({
     <section
       className={`${styles.handLayer} ${styles.opponentHandLayer}`}
       style={handLayerStyle(bounds)}
-      aria-label={`Opponent hand, ${cardCount} hidden card${cardCount === 1 ? "" : "s"}`}
+      aria-label={revealFaces
+        ? `Training AI hand, ${cardCount} revealed card${cardCount === 1 ? "" : "s"}`
+        : `Opponent hand, ${cardCount} hidden card${cardCount === 1 ? "" : "s"}`}
       data-zone-kind="hand"
       data-zone-owner="opponent"
       data-card-count={cardCount}
-      data-hidden="true"
+      data-hidden={revealFaces ? "false" : "true"}
       data-safe-width={bounds ? Math.round(bounds.safeWidth) : undefined}
       data-rendered-width={bounds ? Math.round(bounds.geometry.renderedWidth) : undefined}
     >
       <ol className={styles.handCards}>
-        {layout.map((position, index) => (
-          <li
-            className={styles.handCard}
-            style={cardStyle(position.rotationDegrees, position.zIndex, "opponent")}
-            key={`opponent-hidden-card-${index}`}
-          >
-            <div className={styles.handCardSurface}>
-              <ResponsiveCardImage
-                className={`${styles.handCardImage} ${styles.opponentCardBack}`}
-                src={CARD_BACK_ART}
-                alt=""
-                ariaHidden
-                draggable={false}
-              />
-            </div>
-          </li>
-        ))}
+        {layout.map((position, index) => {
+          const card = cards[index];
+          const faceUp = revealFaces && Boolean(card);
+          return (
+            <li
+              className={styles.handCard}
+              style={cardStyle(position.rotationDegrees, position.zIndex, "opponent")}
+              data-card-id={faceUp ? card?.id : undefined}
+              title={faceUp ? card?.displayName || card?.name : undefined}
+              key={faceUp ? card!.id : `opponent-hidden-card-${index}`}
+            >
+              <div className={styles.handCardSurface}>
+                <ResponsiveCardImage
+                  className={`${styles.handCardImage} ${faceUp ? "" : styles.opponentCardBack}`}
+                  src={faceUp ? card!.art : CARD_BACK_ART}
+                  alt={faceUp ? card!.displayName || card!.name : ""}
+                  ariaHidden={!faceUp}
+                  draggable={false}
+                />
+              </div>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
@@ -354,6 +367,10 @@ export function CardHandLayer({
 }) {
   const cards = playerHandCards(match, playerId);
   const opponentCardCount = opponentHandCardCount(match, playerId);
+  const revealOpponentAiCards = useAdministratorAiVisibility(match, playerId);
+  const opponentCards = revealOpponentAiCards
+    ? match?.players.find((candidate) => candidate.id !== playerId)?.hand ?? []
+    : [];
   const playerBounds = useHandViewportBounds("player", cards.length);
   const opponentBounds = useHandViewportBounds("opponent", opponentCardCount);
   const effectiveActionMode = resolvedHandActionMode(match, playerId, actionMode);
@@ -362,7 +379,12 @@ export function CardHandLayer({
   return (
     <>
       <LikelyCardImagePreloader sources={cards.filter((card) => handCardIsActionable(match, playerId, card, effectiveActionMode)).map((card) => card.art)} />
-      <OpponentHand cardCount={opponentCardCount} bounds={opponentBounds} />
+      <OpponentHand
+        cards={opponentCards}
+        cardCount={opponentCardCount}
+        bounds={opponentBounds}
+        revealFaces={revealOpponentAiCards}
+      />
       <PlayerHand
         cards={cards}
         bounds={playerBounds}

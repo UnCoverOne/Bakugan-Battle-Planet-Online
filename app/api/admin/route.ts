@@ -13,10 +13,12 @@ import {
   applyDatabaseCardOverrides,
   deleteAiDeck,
   deletePublicDeck,
+  getAdministratorAiVisibility,
   listAiDecks,
   listManagedPublicDecks,
   resetCardOverride,
   saveCardOverride,
+  setAdministratorAiVisibility,
   setAiDeckEnabled,
   updateAiDeck,
   updatePublicDeck,
@@ -122,7 +124,7 @@ async function resetUserData(db: AccountDatabase, userId: string, scope: string)
 
 export async function GET(request: Request) {
   try {
-    await requireAdministrator(request);
+    const administrator = await requireAdministrator(request);
     const db = await getDatabase();
     await ensureAdministrationSchema(db);
     const url = new URL(request.url);
@@ -132,6 +134,9 @@ export async function GET(request: Request) {
     if (section === "cards") {
       await applyDatabaseCardOverrides(db);
       return json({ cards: CARDS });
+    }
+    if (section === "ai-visibility") {
+      return json(await getAdministratorAiVisibility(db, administrator.id));
     }
     if (section === "ai-decks") {
       const decks = await listAiDecks(db);
@@ -230,6 +235,13 @@ export async function POST(request: Request) {
     if (action === "card-reset") {
       await resetCardOverride(db, String(body.catalogId ?? ""));
       return json({ ok: true });
+    }
+    if (action === "ai-visibility") {
+      return json(await setAdministratorAiVisibility(
+        db,
+        administrator.id,
+        Boolean(body.enabled),
+      ));
     }
     if (action === "ai-add") return json({ deck: await addAiDeck(db, body.deck, administrator.id) }, 201);
     if (action === "ai-update") return json({ deck: await updateAiDeck(db, String(body.id ?? ""), body.deck, administrator.id) });
