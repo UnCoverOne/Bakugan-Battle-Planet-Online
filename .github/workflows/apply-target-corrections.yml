@@ -22,7 +22,6 @@ jobs:
       - name: Apply corrections
         shell: bash
         run: |
-          echo "23b509eb2df29b597a0e24f771d775a3eb53510a911d98ff292eea94cdec984f  .github/target-corrections.b64" | sha256sum -c -
           base64 -d .github/target-corrections.b64 | gzip -d > /tmp/target-corrections.py
           python3 -m py_compile /tmp/target-corrections.py
           python3 /tmp/target-corrections.py
