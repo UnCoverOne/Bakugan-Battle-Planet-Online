@@ -1,0 +1,433 @@
+name: Implement Administrator AI card visibility
+
+on:
+  push:
+    branches:
+      - feature/admin-ai-card-visibility
+    paths:
+      - .github/workflows/implement-admin-ai-card-visibility.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/admin-ai-card-visibility
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply Administrator AI visibility feature
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str):
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise AssertionError(f"Patch anchor not found in {path}: {old[:120]!r}")
+              file.write_text(text.replace(old, new, 1))
+
+          def insert_before(path: str, anchor: str, addition: str):
+              replace_once(path, anchor, addition + anchor)
+
+          # Server-side preference storage in the existing administrator resource table.
+          insert_before(
+              "lib/administration-server.ts",
+              "export async function loadCardOverrides(db: Database): Promise<CardOverrideRecord[]> {",
+              '''export type AdministratorAiVisibility = { revealAiCards: boolean };
+          const ADMINISTRATOR_AI_VISIBILITY_RESOURCE = "administrator-ai-visibility";
+
+          export async function getAdministratorAiVisibility(
+            db: Database,
+            administratorId: string,
+          ): Promise<AdministratorAiVisibility> {
+            const rows = await resourceRows(db, ADMINISTRATOR_AI_VISIBILITY_RESOURCE);
+            const row = rows.find((candidate) => candidate.resource_id === administratorId);
+            const value = row
+              ? parseJson<{ revealAiCards?: boolean }>(row.data_json, {})
+              : {};
+            return { revealAiCards: Boolean(row?.enabled && value.revealAiCards) };
+          }
+
+          export async function setAdministratorAiVisibility(
+            db: Database,
+            administratorId: string,
+            revealAiCards: boolean,
+          ): Promise<AdministratorAiVisibility> {
+            const value = { revealAiCards: Boolean(revealAiCards) };
+            await upsertResource(
+              db,
+              ADMINISTRATOR_AI_VISIBILITY_RESOURCE,
+              administratorId,
+              value,
+              value.revealAiCards,
+              administratorId,
+            );
+            return value;
+          }
+
+          ''',
+          )
+
+          # Protected Administrator API read/write routes.
+          replace_once(
+              "app/api/admin/route.ts",
+              '''  deleteAiDeck,
+            deletePublicDeck,
+            listAiDecks,''',
+              '''  deleteAiDeck,
+            deletePublicDeck,
+            getAdministratorAiVisibility,
+            listAiDecks,''',
+          )
+          replace_once(
+              "app/api/admin/route.ts",
+              '''  saveCardOverride,
+            setAiDeckEnabled,''',
+              '''  saveCardOverride,
+            setAdministratorAiVisibility,
+            setAiDeckEnabled,''',
+          )
+          replace_once(
+              "app/api/admin/route.ts",
+              '''    await requireAdministrator(request);
+            const db = await getDatabase();''',
+              '''    const administrator = await requireAdministrator(request);
+            const db = await getDatabase();''',
+          )
+          insert_before(
+              "app/api/admin/route.ts",
+              '''    if (section === "ai-decks") {''',
+              '''    if (section === "ai-visibility") {
+              return json(await getAdministratorAiVisibility(db, administrator.id));
+            }
+          ''',
+          )
+          insert_before(
+              "app/api/admin/route.ts",
+              '''    if (action === "ai-add") return json({ deck: await addAiDeck(db, body.deck, administrator.id) }, 201);''',
+              '''    if (action === "ai-visibility") {
+              return json(await setAdministratorAiVisibility(
+                db,
+                administrator.id,
+                Boolean(body.enabled),
+              ));
+            }
+          ''',
+          )
+
+          # Administrator Control Centre switch in AI Management.
+          replace_once(
+              "components/routes/AdminScreen.tsx",
+              '''import { useApp } from "../application/AppProvider";''',
+              '''import { useApp } from "../application/AppProvider";
+          import { notifyAdministratorAiVisibilityChanged } from "../application/useAdministratorAiVisibility";''',
+          )
+          replace_once(
+              "components/routes/AdminScreen.tsx",
+              '''  const state = useAdminData<{ decks: AiDeckItem[] }>("ai-decks", refresh);''',
+              '''  const state = useAdminData<{ decks: AiDeckItem[] }>("ai-decks", refresh);
+            const visibilityState = useAdminData<{ revealAiCards: boolean }>("ai-visibility", refresh);''',
+          )
+          insert_before(
+              "components/routes/AdminScreen.tsx",
+              '''  const add = async () => {''',
+              '''  const updateAiVisibility = async (enabled: boolean) => {
+            try {
+              const result = await adminRequest({ action: "ai-visibility", enabled }) as {
+                revealAiCards: boolean;
+              };
+              notifyAdministratorAiVisibilityChanged(result.revealAiCards);
+              notify(result.revealAiCards
+                ? "Training AI hand and Energy cards will be shown face up."
+                : "Training AI hidden cards will use their card backs.");
+              setRefresh((value) => value + 1);
+            } catch (error) {
+              notify(error instanceof Error ? error.message : "AI visibility could not be updated.");
+            }
+          };
+          ''',
+          )
+          insert_before(
+              "components/routes/AdminScreen.tsx",
+              '''      <AdminState loading={state.loading} error={state.error} label="AI decks" />''',
+              '''      <Surface className={styles.aiVisibilityControl}>
+                <div className={styles.aiVisibilityCopy}>
+                  <span>ADMINISTRATOR MATCH TOOLS</span>
+                  <h3>Reveal Training AI hidden cards</h3>
+                  <p>Show the faces of the Training AI opponent’s Hand and Energy cards during local AI matches. Online opponents remain hidden.</p>
+                </div>
+                <label className={`${styles.switch} ${styles.featureSwitch}`}>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    aria-label="Reveal Training AI Hand and Energy cards"
+                    checked={Boolean(visibilityState.data?.revealAiCards)}
+                    disabled={visibilityState.loading || Boolean(visibilityState.error)}
+                    onChange={(event) => void updateAiVisibility(event.target.checked)}
+                  />
+                  <span>{visibilityState.data?.revealAiCards ? "On" : "Off"}</span>
+                </label>
+              </Surface>
+              <AdminState loading={visibilityState.loading} error={visibilityState.error} label="AI visibility preference" />
+          ''',
+          )
+
+          css = Path("components/routes/AdminScreen.module.css")
+          css.write_text(css.read_text() + '''
+          .aiVisibilityControl{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;padding:1rem 1.2rem;border-color:rgba(255,78,66,.58);background:linear-gradient(120deg,rgba(89,13,18,.34),rgba(4,25,34,.94) 55%)}
+          .aiVisibilityCopy{min-width:0}.aiVisibilityCopy>span{color:#ff7770;font-size:var(--type-meta);font-weight:900;letter-spacing:var(--tracking-label)}
+          .aiVisibilityCopy h3{margin:.2rem 0 0;font-size:1.05rem}.aiVisibilityCopy p{max-width:54rem;margin:.35rem 0 0;color:var(--text-secondary);line-height:1.5}
+          .featureSwitch{flex:0 0 auto;padding:.65rem .8rem;background:rgba(0,0,0,.28);border:1px solid var(--border-strong)}
+          .featureSwitch input{width:2.5rem;height:1.35rem}
+          @media(max-width:700px){.aiVisibilityControl{align-items:stretch;flex-direction:column}.featureSwitch{justify-content:space-between}}
+          ''')
+
+          # Opponent Hand: actual faces only when the protected hook authorizes it.
+          replace_once(
+              "components/game-screen-v2/CardHandLayer.tsx",
+              '''import { LikelyCardImagePreloader, ResponsiveCardImage } from "./ResponsiveCardImage";''',
+              '''import { LikelyCardImagePreloader, ResponsiveCardImage } from "./ResponsiveCardImage";
+          import { useAdministratorAiVisibility } from "../application/useAdministratorAiVisibility";''',
+          )
+          hand_path = Path("components/game-screen-v2/CardHandLayer.tsx")
+          hand = hand_path.read_text()
+          start = hand.index("function OpponentHand({")
+          end = hand.index("export function CardHandLayer", start)
+          opponent_hand = '''function OpponentHand({
+            cards,
+            cardCount,
+            bounds,
+            revealFaces,
+          }: {
+            cards: readonly GameCard[];
+            cardCount: number;
+            bounds: HandViewportBounds | null;
+            revealFaces: boolean;
+          }) {
+            if (!cardCount) return null;
+            const layout = handCardLayout(cardCount, bounds?.geometry.spanDegrees);
+
+            return (
+              <section
+                className={`${styles.handLayer} ${styles.opponentHandLayer}`}
+                style={handLayerStyle(bounds)}
+                aria-label={revealFaces
+                  ? `Training AI hand, ${cardCount} revealed card${cardCount === 1 ? "" : "s"}`
+                  : `Opponent hand, ${cardCount} hidden card${cardCount === 1 ? "" : "s"}`}
+                data-zone-kind="hand"
+                data-zone-owner="opponent"
+                data-card-count={cardCount}
+                data-hidden={revealFaces ? "false" : "true"}
+                data-safe-width={bounds ? Math.round(bounds.safeWidth) : undefined}
+                data-rendered-width={bounds ? Math.round(bounds.geometry.renderedWidth) : undefined}
+              >
+                <ol className={styles.handCards}>
+                  {layout.map((position, index) => {
+                    const card = cards[index];
+                    const faceUp = revealFaces && Boolean(card);
+                    return (
+                      <li
+                        className={styles.handCard}
+                        style={cardStyle(position.rotationDegrees, position.zIndex, "opponent")}
+                        data-card-id={faceUp ? card?.id : undefined}
+                        title={faceUp ? card?.displayName || card?.name : undefined}
+                        key={faceUp ? card!.id : `opponent-hidden-card-${index}`}
+                      >
+                        <div className={styles.handCardSurface}>
+                          <ResponsiveCardImage
+                            className={`${styles.handCardImage} ${faceUp ? "" : styles.opponentCardBack}`}
+                            src={faceUp ? card!.art : CARD_BACK_ART}
+                            alt={faceUp ? card!.displayName || card!.name : ""}
+                            ariaHidden={!faceUp}
+                            draggable={false}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            );
+          }
+
+          '''
+          hand_path.write_text(hand[:start] + opponent_hand + hand[end:])
+          replace_once(
+              "components/game-screen-v2/CardHandLayer.tsx",
+              '''  const opponentCardCount = opponentHandCardCount(match, playerId);
+            const playerBounds = useHandViewportBounds("player", cards.length);''',
+              '''  const opponentCardCount = opponentHandCardCount(match, playerId);
+            const revealOpponentAiCards = useAdministratorAiVisibility(match, playerId);
+            const opponentCards = revealOpponentAiCards
+              ? match?.players.find((candidate) => candidate.id !== playerId)?.hand ?? []
+              : [];
+            const playerBounds = useHandViewportBounds("player", cards.length);''',
+          )
+          replace_once(
+              "components/game-screen-v2/CardHandLayer.tsx",
+              '''      <OpponentHand cardCount={opponentCardCount} bounds={opponentBounds} />''',
+              '''      <OpponentHand
+                cards={opponentCards}
+                cardCount={opponentCardCount}
+                bounds={opponentBounds}
+                revealFaces={revealOpponentAiCards}
+              />''',
+          )
+
+          # Opponent Energy zone follows the same protected authorization decision.
+          replace_once(
+              "components/game-screen-v2/GameScreen.tsx",
+              '''import { useBakuCorePresentation } from "./BakuCorePresentation";''',
+              '''import { useBakuCorePresentation } from "./BakuCorePresentation";
+          import { useAdministratorAiVisibility } from "../application/useAdministratorAiVisibility";''',
+          )
+          replace_once(
+              "components/game-screen-v2/GameScreen.tsx",
+              '''  canTap,
+          }: {
+            owner: ZoneOwner;
+            energy: EnergyZoneView;
+            pendingCardId?: string;
+            onTap?: EnergyTapHandler;
+            canTap?: (cardId: string) => boolean;
+          }) {''',
+              '''  canTap,
+            revealFaces = false,
+          }: {
+            owner: ZoneOwner;
+            energy: EnergyZoneView;
+            pendingCardId?: string;
+            onTap?: EnergyTapHandler;
+            canTap?: (cardId: string) => boolean;
+            revealFaces?: boolean;
+          }) {''',
+          )
+          replace_once(
+              "components/game-screen-v2/GameScreen.tsx",
+              '''            <img
+                        src={CARD_BACK_ART}
+                        alt=""
+                        aria-hidden="true"
+                        draggable={false}
+                      />''',
+              '''            <img
+                        src={revealFaces ? card.art : CARD_BACK_ART}
+                        alt={revealFaces ? card.displayName || card.name : ""}
+                        aria-hidden={!revealFaces}
+                        data-hidden={revealFaces ? "false" : "true"}
+                        draggable={false}
+                      />''',
+          )
+          replace_once(
+              "components/game-screen-v2/GameScreen.tsx",
+              '''  canTap,
+          }: {
+            owner: ZoneOwner;
+            energy: EnergyZoneView;
+            pendingCardId?: string;
+            onTap?: EnergyTapHandler;
+            canTap?: (cardId: string) => boolean;
+          }) {
+            return (
+              <div''',
+              '''  canTap,
+            revealFaces = false,
+          }: {
+            owner: ZoneOwner;
+            energy: EnergyZoneView;
+            pendingCardId?: string;
+            onTap?: EnergyTapHandler;
+            canTap?: (cardId: string) => boolean;
+            revealFaces?: boolean;
+          }) {
+            return (
+              <div''',
+          )
+          replace_once(
+              "components/game-screen-v2/GameScreen.tsx",
+              '''        canTap={canTap}
+              />''',
+              '''        canTap={canTap}
+                revealFaces={revealFaces}
+              />''',
+          )
+          replace_once(
+              "components/game-screen-v2/GameScreen.tsx",
+              '''  canTapEnergyCard,
+            openDiscardOwner,''',
+              '''  canTapEnergyCard,
+            revealEnergyFaces = false,
+            openDiscardOwner,''',
+          )
+          replace_once(
+              "components/game-screen-v2/GameScreen.tsx",
+              '''  canTapEnergyCard?: (cardId: string) => boolean;
+            openDiscardOwner: ZoneOwner | null;''',
+              '''  canTapEnergyCard?: (cardId: string) => boolean;
+            revealEnergyFaces?: boolean;
+            openDiscardOwner: ZoneOwner | null;''',
+          )
+          replace_once(
+              "components/game-screen-v2/GameScreen.tsx",
+              '''          canTap={canTapEnergyCard}
+                />''',
+              '''          canTap={canTapEnergyCard}
+                  revealFaces={revealEnergyFaces}
+                />''',
+          )
+          replace_once(
+              "components/game-screen-v2/GameScreen.tsx",
+              '''  const energyState = energyZoneViews(match, playerId);
+            const resolvedCounts:''',
+              '''  const energyState = energyZoneViews(match, playerId);
+            const revealOpponentAiCards = useAdministratorAiVisibility(match, playerId);
+            const resolvedCounts:''',
+          )
+          replace_once(
+              "components/game-screen-v2/GameScreen.tsx",
+              '''            energy={energyState.opponent}
+                      openDiscardOwner={openDiscardOwner}''',
+              '''            energy={energyState.opponent}
+                      revealEnergyFaces={revealOpponentAiCards}
+                      openDiscardOwner={openDiscardOwner}''',
+          )
+
+          # Align source-contract test with the safe non-null face-up card branch.
+          test_path = Path("tests/admin-ai-visibility.test.ts")
+          test_source = test_path.read_text().replace(
+              r'/revealFaces \? card\?\.art : CARD_BACK_ART/',
+              r'/src=\{faceUp \? card!\.art : CARD_BACK_ART\}/',
+          )
+          test_path.write_text(test_source)
+
+          # Make the new regression part of the normal repository suite.
+          replace_once(
+              "package.json",
+              '''tests/administration.test.ts tests/achievements.test.ts''',
+              '''tests/administration.test.ts tests/admin-ai-visibility.test.ts tests/achievements.test.ts''',
+          )
+          PY
+      - name: Install dependencies
+        run: npm run install:ci
+      - name: Run focused regressions
+        run: node --import tsx --test tests/admin-ai-visibility.test.ts tests/administration.test.ts tests/card-preview-state.test.ts tests/card-preview-interactions.test.ts tests/roll-phase-presentation.test.ts
+      - name: Build application
+        run: npm run build
+      - name: Commit implementation
+        shell: bash
+        run: |
+          git config user.name "UnCoverOne"
+          git config user.email "291861529+UnCoverOne@users.noreply.github.com"
+          git rm .github/workflows/implement-admin-ai-card-visibility.yml
+          git add lib app components tests package.json
+          git commit -m "Add Administrator Training AI card visibility"
+          git push origin HEAD:feature/admin-ai-card-visibility
