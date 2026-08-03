@@ -31,6 +31,42 @@ jobs:
               line[10:] if line.startswith("          ") else line
               for line in workflow[start:end].splitlines()
           )
+          script = script.replace(
+              '''  const rules = ensureRulesState(state) as DamageResumeRules;
+  if (stateFlip.catalogId === PACT_OF_DARKNESS_ID) {
+    const pact = rules.pactOfDarknessPayment;''',
+              '''  const damageRules = ensureRulesState(state) as DamageResumeRules;
+  if (stateFlip.catalogId === PACT_OF_DARKNESS_ID) {
+    const pact = damageRules.pactOfDarknessPayment;''',
+              1,
+          )
+          script = script.replace(
+              '''        rules.pactOfDarknessPayment = {
+          playerId,
+          cardId: stateFlip.id,
+          stage: "declined",''',
+              '''        damageRules.pactOfDarknessPayment = {
+          playerId,
+          cardId: stateFlip.id,
+          stage: "declined",''',
+              1,
+          )
+          script = script.replace(
+              '''        rules.pactOfDarknessPayment = {
+          playerId,
+          cardId: stateFlip.id,
+          stage: "decision",''',
+              '''        damageRules.pactOfDarknessPayment = {
+          playerId,
+          cardId: stateFlip.id,
+          stage: "decision",''',
+              1,
+          )
+          script = script.replace(
+              'if (pending.kind === "payment" && pending.cardId === "bb-152") {',
+              'if (pending.kind === "payment" && state.revealedFlip?.catalogId === "bb-152" && state.revealedFlip.id === pending.cardId) {',
+              1,
+          )
           exec(compile(script, 'fix-pact-cubbo.py', 'exec'))
           PY
       - name: Install dependencies
