@@ -1,0 +1,55 @@
+name: Investigate target selection
+
+on:
+  push:
+    branches:
+      - fix/underdog-target-selection-20260803
+    paths:
+      - .github/workflows/investigate-target-selection.yml
+
+permissions:
+  contents: read
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/underdog-target-selection-20260803
+      - name: Locate target and choice UI
+        shell: bash
+        run: |
+          echo '=== Relevant component files ==='
+          find components app -type f | sort | grep -E '(game|Game|match|Match|choice|Choice|hud|Hud|HUD|batch|Batch|play|Play)' | head -n 300
+          echo '=== pending choice references ==='
+          rg -n "pendingChoice|submitCardChoice|prepareCardPlay|cancelCardChoice|batch-object|targetHeroId|targetEvoId|targetBakuganId|targetEnergyIds" components app lib | head -n 1200
+          echo '=== batch and zone render references ==='
+          rg -n "data-zone-kind=|data-card-id=|batch|Batch|effect icon|EffectIcon|HeroZone|heroCard" components/game-screen-v2 components/routes components/application | head -n 1200
+      - name: Audit printed targeting text
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, re
+          from pathlib import Path
+
+          cards = json.loads(Path('lib/catalog.generated.json').read_text())
+          for path in sorted(Path('lib/content/generated').glob('*.ts')):
+              text = path.read_text()
+              for match in re.finditer(r'\[\[|\],\[', text):
+                  pass
+          patterns = [
+              r'\bNegate\b', r'\bDestroy\b', r'\bchoose\b', r'\btarget\b',
+              r'\bRetract\b', r'\breturn\b.*\b(?:Hero|Evo|Bakugan|card)\b',
+              r'\btake control\b', r'\battach\b', r'\bremove\b', r'\bcopy the effect\b',
+          ]
+          print('Battle Brawlers printed target candidates:')
+          for card in cards:
+              if any(re.search(pattern, card.get('effect',''), re.I) for pattern in patterns):
+                  print(card['id'], card['displayName'], card['type'], card['cost'], '::', card['effect'])
+          print('Generated row source matches:')
+          for path in sorted(Path('lib/content/generated').glob('*.ts')):
+              for line_no, line in enumerate(path.read_text().splitlines(), 1):
+                  if any(re.search(pattern, line, re.I) for pattern in patterns):
+                      print(f'{path}:{line_no}: {line[:1200]}')
+          PY
