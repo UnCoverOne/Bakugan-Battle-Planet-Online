@@ -6,6 +6,7 @@ import {
   phaseTransitionShouldPresent,
   presentedTurnProgress,
   turnProgressSnapshot,
+  turnStepsForPhase,
 } from "../components/game-screen-v2/turnProgressState";
 
 test("Tips stay hidden while Roll Results or the Brawl Preview is visible", () => {
@@ -46,6 +47,14 @@ test("Power is presented normally after the roll animation settles", () => {
   });
 
   assert.equal(presentedTurnProgress(power, null, false)?.stepKey, "power");
+});
+
+test("the End Phase HUD tracks Play, Charge, and Reset as distinct live steps", () => {
+  assert.deepEqual(turnStepsForPhase("end").map((step) => step.key), ["play", "charge", "reset"]);
+  assert.equal(turnProgressSnapshot({ phase: "endPlay", stepLabel: "End Phase • Play Step", turn: 5 })?.stepKey, "play");
+  assert.equal(turnProgressSnapshot({ phase: "charge", stepLabel: "End Phase • Charge Step", turn: 5 })?.stepKey, "charge");
+  assert.equal(turnProgressSnapshot({ phase: "reset", stepLabel: "End Phase • Reset Step", turn: 5 })?.stepKey, "reset");
+  assert.equal(turnProgressSnapshot({ phase: "handLimit", stepLabel: "End of turn • Discard to seven", turn: 5 })?.stepKey, "reset");
 });
 
 test("a blocked live transition is consumed instead of appearing after presentation settles", () => {

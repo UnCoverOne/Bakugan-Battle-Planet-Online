@@ -16,7 +16,7 @@ const STRICT_COMMAND_PHASES: Partial<Record<GameCommand["type"], readonly Phase[
   DISCARD_TO_HAND_LIMIT: ["handLimit"],
   START_NEXT_SERIES_GAME: ["result"],
   JOIN_PLAYER: ["lobby"],
-  NEXT_TURN: ["postDamage", "retract", "endPlay", "handLimit"],
+  NEXT_TURN: ["postDamage", "retract", "endPlay", "charge", "reset", "handLimit"],
 };
 
 const TRANSITIONS: Record<Phase, readonly Phase[]> = {
@@ -37,8 +37,10 @@ const TRANSITIONS: Record<Phase, readonly Phase[]> = {
     "retract", "draw", "energize", "selection", "preRoll", "target", "reroll", "power", "victor",
     "damage", "postDamage", "endPlay", "handLimit", "result",
   ],
-  endPlay: ["endPlay", "retract", "handLimit", "draw", "result"],
-  handLimit: ["handLimit", "retract", "draw", "result"],
+  endPlay: ["endPlay", "retract", "charge", "result"],
+  charge: ["charge", "reset", "result"],
+  reset: ["reset", "handLimit", "draw", "result"],
+  handLimit: ["handLimit", "reset", "retract", "draw", "result"],
   result: ["result", "lobby", "startingPlayer", "placement", "draw"],
 };
 
@@ -58,8 +60,10 @@ export function structuredPhaseFor(phase: Phase): StructuredPhase {
     case "damage": return { area: "brawl", step: "damage", legacy: phase };
     case "postDamage": return { area: "brawl", step: "post-damage", legacy: phase };
     case "retract": return { area: "brawl", step: "retract", legacy: phase };
-    case "endPlay": return { area: "brawl", step: "end-play", legacy: phase };
-    case "handLimit": return { area: "brawl", step: "hand-limit", legacy: phase };
+    case "endPlay": return { area: "end", step: "play", legacy: phase };
+    case "charge": return { area: "end", step: "charge", legacy: phase };
+    case "reset": return { area: "end", step: "reset", legacy: phase };
+    case "handLimit": return { area: "end", step: "hand-limit", legacy: phase };
     case "result": return { area: "result", step: "match-result", legacy: phase };
   }
 }

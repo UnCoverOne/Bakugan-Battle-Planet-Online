@@ -52,7 +52,8 @@ export type StructuredPhase =
   | { area: "lobby"; step: "ready"; legacy: MatchState["phase"] }
   | { area: "setup"; step: "starting-player" | "core-placement" | "draw" | "energize"; legacy: MatchState["phase"] }
   | { area: "roll"; step: "selection" | "pre-roll-priority" | "targeting-and-rolling" | "reroll"; legacy: MatchState["phase"] }
-  | { area: "brawl"; step: "power" | "victor" | "damage" | "post-damage" | "retract" | "end-play" | "hand-limit"; legacy: MatchState["phase"] }
+  | { area: "brawl"; step: "power" | "victor" | "damage" | "post-damage" | "retract"; legacy: MatchState["phase"] }
+  | { area: "end"; step: "play" | "charge" | "reset" | "hand-limit"; legacy: MatchState["phase"] }
   | { area: "result"; step: "match-result"; legacy: MatchState["phase"] };
 export type EventVisibility = "public" | "controller" | "server";
 export type GameEventType =

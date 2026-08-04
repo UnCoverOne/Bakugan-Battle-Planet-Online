@@ -205,8 +205,18 @@ test("legacy phases have a structured modern projection", () => {
     step: "targeting-and-rolling",
     legacy: "target",
   });
+  assert.deepEqual(structuredPhaseFor("charge"), {
+    area: "end",
+    step: "charge",
+    legacy: "charge",
+  });
+  assert.deepEqual(structuredPhaseFor("reset"), {
+    area: "end",
+    step: "reset",
+    legacy: "reset",
+  });
   assert.deepEqual(structuredPhaseFor("handLimit"), {
-    area: "brawl",
+    area: "end",
     step: "hand-limit",
     legacy: "handLimit",
   });

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { BAKUGAN, CARDS, CORES, STARTER_DECKS, deckErrors, makePlayer } from "../lib/data";
 import {
   CENTER_CELL, HEX_CELLS, beginCorePlacement, cardChoiceSpec, createMatch, discardToHandLimit, energizeCard,
-  legalPlacementCells, normalizeMatchState, orderTriggers, passPriority, placeCore, playCard, selectBakugan,
+  legalPlacementCells, nextTurn, normalizeMatchState, orderTriggers, passPriority, placeCore, playCard, selectBakugan,
   setReady, startNextSeriesGame, submitCardChoice, targetCore, totalPower, type MatchState,
 } from "../lib/game";
 import { drawTurnCard } from "../lib/turnStart";
@@ -173,14 +173,30 @@ test("a Team Attack combines open Bakugan, then all attackers retract", () => {
   assert.equal(state.phase,"endPlay"); assert.ok(state.players.find((player)=>player.id===winner.id)!.bakugan.every((bakugan) => !bakugan.open));
 });
 
-test("the End Phase charges Energy, enforces seven cards, resolves discard triggers, and begins the next Start Phase", () => {
+test("the End Phase exposes Play, Charge, and Reset before hand limits and the next Start Phase", () => {
   let state = reachPower(); const winner = state.players[0]; const attacking = winner.bakugan.find((bakugan) => bakugan.id === state.selected[winner.id])!; attacking.open = true; state.rolls[winner.id].result = "open-no-core"; state.powerBoost[attacking.id] = 9999; state = passWindow(state);
   const loser = state.players[1]; loser.deckCards = loser.deckCards.filter((card) => card.type !== "Flip"); loser.deck = loser.deckCards.length; state = settleDamage(passWindow(state));
   if (state.phase === "postDamage") state = passWindow(state); assert.equal(state.phase,"endPlay"); const currentWinner=state.players.find((player)=>player.id===winner.id)!; currentWinner.hand.push(...currentWinner.deckCards.splice(0, Math.max(0, 9-currentWinner.hand.length))); currentWinner.deck=currentWinner.deckCards.length;
-  state = passWindow(state); assert.equal(state.phase,"handLimit"); const actor=state.players.find((player) => player.id===state.priority)!; state=discardToHandLimit(state,actor.id,actor.hand.slice(0,actor.hand.length-7).map((card)=>card.id));
+  for (const player of state.players) {
+    const tracked = player as typeof player & { tappedEnergyIds?: string[]; energyTapTurn?: number };
+    tracked.energyTapTurn = state.turn;
+    tracked.tappedEnergyIds = player.energyZone.map((card) => card.id);
+    player.energy = 0;
+  }
+  state = passWindow(state);
+  assert.equal(state.phase, "charge");
+  assert.equal(state.powerBoost[attacking.id], 9999, "Charge must not perform Reset cleanup.");
+  assert.ok(state.players.every((player) => player.energy === 0));
+  assert.ok(state.players.every((player) => ((player as typeof player & { tappedEnergyIds?: string[] }).tappedEnergyIds ?? []).length === 0));
+  state = nextTurn(state);
+  assert.equal(state.phase, "reset");
+  assert.deepEqual(state.powerBoost, {});
+  assert.deepEqual(state.damageBoost, {});
+  state = nextTurn(state);
+  assert.equal(state.phase,"handLimit"); const actor=state.players.find((player) => player.id===state.priority)!; state=discardToHandLimit(state,actor.id,actor.hand.slice(0,actor.hand.length-7).map((card)=>card.id));
   const nextOver=state.players.find((player)=>state.phase==="handLimit"&&player.id===state.priority); if(nextOver) state=discardToHandLimit(state,nextOver.id,nextOver.hand.slice(0,nextOver.hand.length-7).map((card)=>card.id));
   let triggerWindows = 0;
-  while (state.phase === "endPlay" && triggerWindows < 40) {
+  while (state.phase === "reset" && (state.pendingChoice || state.triggerOrders.length || state.batch.length) && triggerWindows < 40) {
     if (state.pendingChoice) {
       const fields = state.pendingChoice.schema.fields.filter((field) => field.chooserId === state.priority);
       state = submitCardChoice(state, state.priority, timeoutChoicesForFields(state, state.priority, fields));
@@ -193,7 +209,8 @@ test("the End Phase charges Energy, enforces seven cards, resolves discard trigg
     triggerWindows += 1;
   }
   assert.ok(triggerWindows < 40, "Discard-trigger and choice resolution must terminate.");
-  assert.equal(state.phase,"draw"); assert.equal(state.turn,2); assert.ok(state.players.every((player)=>player.energy===player.maxEnergy));
+  if (state.phase === "reset") state = nextTurn(state);
+  assert.equal(state.phase,"draw"); assert.equal(state.turn,2);
 });
 
 test("best-of-three creates a fully reset second game", () => {

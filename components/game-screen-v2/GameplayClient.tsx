@@ -7,6 +7,7 @@ import {
   concedeMatch,
   discardToHandLimit,
   energizeCard,
+  nextTurn,
   prepareCardPlay,
   selectBakugan,
   submitCardChoice,
@@ -236,6 +237,12 @@ export function GameplayClient() {
     (match, actorId) => resumeDamageAfterFlipWindow(passPriorityWithTieBreak(match, actorId)),
   );
 
+  const advanceEndPhase = () => submitMatchAction(
+    "next-turn",
+    {},
+    (match) => nextTurn(match),
+  );
+
   const flipDamage = () => submitMatchAction(
     "flip-damage",
     {},
@@ -316,6 +323,45 @@ export function GameplayClient() {
       if (retryTimer) window.clearTimeout(retryTimer);
     };
   }, [storedState.route, storedState.match?.phase, storedState.match?.startingPlayerRevealedAt]);
+
+  useEffect(() => {
+    const match = storedState.match;
+    const actorId = storedState.playerId ?? match?.players[0]?.id;
+    const triggerOrderPending = match?.triggerOrders.some((request) => !request.orderedIds);
+    const resetResolutionPending = match?.phase === "reset" && Boolean(
+      match.pendingChoice || match.batch.length || triggerOrderPending,
+    );
+    if (
+      storedState.route !== "match"
+      || !match
+      || !actorId
+      || !["charge", "reset"].includes(match.phase)
+      || resetResolutionPending
+      || (storedState.online && actorId !== match.startingPlayer)
+    ) return;
+
+    const key = `end-phase:${match.id}:${match.version}:${match.phase}`;
+    const delay = Math.max(250, match.deadline - Date.now());
+    const timeout = window.setTimeout(() => {
+      if (automaticActionKey.current === key) return;
+      automaticActionKey.current = key;
+      void advanceEndPhase().catch(() => {
+        if (automaticActionKey.current === key) automaticActionKey.current = "";
+      });
+    }, delay);
+    return () => window.clearTimeout(timeout);
+  }, [
+    storedState.route,
+    storedState.online,
+    storedState.match?.id,
+    storedState.match?.phase,
+    storedState.match?.version,
+    storedState.match?.deadline,
+    storedState.match?.batch.length,
+    storedState.match?.pendingChoice?.id,
+    storedState.match?.triggerOrders.length,
+    storedState.playerId,
+  ]);
 
   useEffect(() => {
     const match = storedState.match;

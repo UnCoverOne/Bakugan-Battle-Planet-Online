@@ -1075,6 +1075,7 @@ export function opponentAiCanAct(match: MatchState, playerId: string) {
     && (playerCanSelectRollTarget(match, playerId) || playerCanConfirmRoll(match, playerId))
   ) return true;
   if (match.phase === "damage" && match.pendingLoser === playerId) return true;
+  if (match.phase === "reset" && match.batch.length && match.priority === playerId) return true;
   if (PRIORITY_PHASES.has(match.phase) && match.priority === playerId) return true;
   return match.phase === "handLimit" && match.priority === playerId;
 }
@@ -1158,6 +1159,9 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
         : undefined,
       choices,
     );
+  }
+  if (input.phase === "reset" && input.batch.length && input.priority === playerId) {
+    return passPriority(input, playerId);
   }
   if (PRIORITY_PHASES.has(input.phase) && input.priority === playerId) {
     if (alternateWinEffectPending(input)) return passPriority(input, playerId);

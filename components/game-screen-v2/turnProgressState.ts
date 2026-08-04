@@ -96,6 +96,8 @@ const PROGRESS_BY_ENGINE_PHASE: Record<Phase, Pick<TurnProgressState, "phaseKey"
   postDamage: { phaseKey: "brawl", stepKey: "retracting" },
   retract: { phaseKey: "brawl", stepKey: "retracting" },
   endPlay: { phaseKey: "end", stepKey: "play" },
+  charge: { phaseKey: "end", stepKey: "charge" },
+  reset: { phaseKey: "end", stepKey: "reset" },
   handLimit: { phaseKey: "end", stepKey: "reset" },
   result: { phaseKey: "end", stepKey: "reset" },
 };
