@@ -31,12 +31,14 @@ test("viewport stability ignores scroll and match publication is selector-aware 
   assert.match(store, /snapshot = \{ \.\.\.snapshot, match: normalized \};\s*notify\(\);/);
 });
 
-test("presentation systems queue work and avoid document-wide mutation observers", () => {
+test("presentation systems discard stale phase callouts and avoid document-wide mutation observers", () => {
   const phase = read("components/game-screen-v2/PhaseTransitionLayer.tsx");
   const brawl = read("components/game-screen-v2/BrawlExperienceLayer.tsx");
   const cards = read("components/game-screen-v2/GameplayCardPresentationLayer.tsx");
   const cores = read("components/game-screen-v2/BakuCoreLayer.tsx");
-  assert.match(phase, /transitionQueue/);
+  assert.doesNotMatch(phase, /transitionQueue/);
+  assert.match(phase, /seenTransitionSignatures/);
+  assert.match(phase, /phaseTransitionShouldPresent/);
   assert.match(brawl, /resolutionQueue/);
   assert.match(brawl, /if \(resolvingEffect \|\| effectBurst \|\| !resolutionQueue\.length\) return/);
   assert.match(brawl, /if \(!effectBurst\) return;/);
