@@ -290,6 +290,34 @@
     font-size: clamp(0.68rem, 3vw, 0.92rem);
   }
 
+  .brawlPreview article > div:nth-child(2) > div {
+    align-items: start;
+  }
+
+  .brawlPreview article > div:nth-child(2) > div[data-deciding="true"] {
+    background: rgba(255, 255, 255, 0.045);
+    box-shadow: none;
+  }
+
+  .brawlPreview article > div:nth-child(2) > div[data-deciding="true"]::after {
+    content: none;
+    display: none;
+  }
+
+  .brawlPreview article > div:nth-child(2) > div[data-deciding="true"] > span {
+    color: rgba(215, 224, 229, 0.68);
+    text-shadow: none;
+  }
+
+  .brawlPreview article > div:nth-child(2) > div[data-deciding="true"] > strong {
+    color: #fff;
+    text-shadow: none;
+  }
+
+  .brawlPreview article[data-owner="opponent"] > div:nth-child(2) > div[data-deciding="true"] > strong {
+    color: #ff5a4d;
+  }
+
   .brawlPreview article > div:nth-child(3) {
     grid-template-columns: 1fr;
     width: min(17rem, calc(100vw - 1rem));
