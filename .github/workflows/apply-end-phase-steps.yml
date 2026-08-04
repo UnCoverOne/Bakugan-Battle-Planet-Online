@@ -65,7 +65,7 @@ jobs:
         run: npm run build
       - name: Commit implementation
         run: |
-          git rm scripts/apply-end-phase-steps.mjs .github/workflows/apply-end-phase-steps.yml
+          git rm -f scripts/apply-end-phase-steps.mjs .github/workflows/apply-end-phase-steps.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add lib components tests
