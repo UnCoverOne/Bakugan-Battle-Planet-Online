@@ -1,0 +1,110 @@
+name: Implement AI Energize reroll value
+
+on:
+  push:
+    branches:
+      - agent/fix-ai-energize-reroll-value
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-ai-energize-reroll-value
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm run install:ci
+      - name: Patch AI Energize valuation
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/opponentAiBase.ts')
+          source = path.read_text()
+
+          source = source.replace(
+          '''  type PendingEffect,\n  type Placement,\n} from "./game";''',
+          '''  type PendingEffect,\n  type Placement,\n  type RollOutcome,\n} from "./game";''')
+
+          source = source.replace(
+          '''type RollForecast = {\n  target: Placement;\n  value: number;\n  openProbability: number;\n  coreProbability: number;\n  primaryProbability: Map<string, number>;\n};''',
+          '''type RollForecastSample = {\n  outcome: RollOutcome;\n  value: number;\n};\n\ntype RollForecast = {\n  target: Placement;\n  value: number;\n  openProbability: number;\n  coreProbability: number;\n  primaryProbability: Map<string, number>;\n  samples: RollForecastSample[];\n};''')
+
+          source = source.replace(
+          '''  let totalValue = 0;\n  let opened = 0;\n  let collected = 0;''',
+          '''  let totalValue = 0;\n  let opened = 0;\n  let collected = 0;\n  const samples: RollForecastSample[] = [];''', 1)
+
+          source = source.replace(
+          '''    totalValue += (didOpen ? printedBakuganValue(bakugan) : -1.25) + coreValue;\n    const primary = outcome.cores[0];''',
+          '''    const outcomeValue = (didOpen ? printedBakuganValue(bakugan) : -1.25) + coreValue;\n    totalValue += outcomeValue;\n    samples.push({ outcome, value: outcomeValue });\n    const primary = outcome.cores[0];''', 1)
+
+          source = source.replace(
+          '''    primaryProbability: new Map(\n      [...primaryCounts].map(([cell, count]) => [cell, count / ROLL_FORECAST_SAMPLES]),\n    ),\n  };''',
+          '''    primaryProbability: new Map(\n      [...primaryCounts].map(([cell, count]) => [cell, count / ROLL_FORECAST_SAMPLES]),\n    ),\n    samples,\n  };''', 1)
+
+          old_future = '''function evaluatedFutureCardValue(\n  match: MatchState,\n  playerId: string,\n  card: GameCard,\n  includeDeckFlipValue: boolean,\n) {\n  const printedCost = card.cost === "X" ? 2 : card.cost;\n  try {\n    let value = estimateProgramValue(compileCardEffect(card), match, playerId) - printedCost * 0.4;\n    if (card.type === "Hero") value += 2.2;\n    if (card.type === "Evo") value += 2.8;\n    if (card.type === "Flip" && includeDeckFlipValue) value += 3.2;\n    return value;\n  } catch {\n    // A forced discard must never stall because another card cannot be\n    // valued. Keep the previous stable fallback for playable cards.\n    return printedCost * 0.4\n      + (card.type === "Hero" ? 2.2\n        : card.type === "Evo" ? 2.8\n          : card.type === "Flip" && includeDeckFlipValue ? 3.2 : 0);\n  }\n}\n'''
+
+          new_future = '''const REROLL_MISS_RECOVERY_VALUE = 4.5;\nconst MAX_REROLL_COMPONENT_VALUE = 6;\n\nfunction clamp(value: number, minimum: number, maximum: number) {\n  return Math.max(minimum, Math.min(maximum, value));\n}\n\nfunction withoutRerollSuccessInstructions(program: RuleProgram): RuleProgram {\n  return {\n    ...program,\n    instructions: program.instructions.filter(\n      (instruction) => instruction.condition.kind !== "reroll-opened",\n    ),\n  };\n}\n\nfunction repeatableOnOpenValue(match: MatchState, playerId: string) {\n  const player = playerById(match, playerId);\n  if (!player) return 0;\n  return player.heroes.reduce((sum, hero) => {\n    try {\n      const program = compileCardEffect(hero);\n      const instructions = program.instructions.filter((instruction) => (\n        instruction.actions.some((action) => (\n          action.kind === "trigger" && action.definition.event === "BAKUGAN_OPENED"\n        ))\n      ));\n      if (!instructions.length) return sum;\n      return sum + Math.max(0, estimateProgramValue(\n        { ...program, instructions },\n        match,\n        playerId,\n      ));\n    } catch {\n      return sum;\n    }\n  }, 0);\n}\n\nfunction rerollSuccessValue(match: MatchState, playerId: string, card: GameCard) {\n  try {\n    const program = compileCardEffect(card);\n    const instructions = program.instructions.filter(\n      (instruction) => instruction.condition.kind === "reroll-opened",\n    );\n    if (!instructions.length) return 0;\n    return Math.max(0, estimateProgramValue(\n      { ...program, instructions },\n      match,\n      playerId,\n    ));\n  } catch {\n    return 0;\n  }\n}\n\n/**\n * Expected optionality of a future self-Reroll on the same utility scale as\n * other card effects. Each sampled initial result is compared with the best\n * forecasted Reroll: misses use the established 4.5 recovery anchor, open\n * results use only expected improvement, and repeated on-open/reroll-success\n * effects are weighted by the Reroll's opening probability.\n */\nexport function estimateFutureRerollValue(\n  match: MatchState,\n  playerId: string,\n  card: GameCard,\n) {\n  let program: RuleProgram;\n  try { program = compileCardEffect(card); } catch { return 0; }\n  const rerolls = program.instructions.flatMap((instruction) => instruction.actions)\n    .filter((action): action is Extract<RuleAction, { kind: "reroll" }> => (\n      action.kind === "reroll" && action.target === "controller"\n    ));\n  if (!rerolls.length || !availableRollTargets(match).length) return 0;\n\n  const bakugan = bestBakugan(match, playerId);\n  if (!bakugan) return 0;\n  const selected = bestForecast(match, playerId, bakugan);\n  if (!selected) return 0;\n  const initial = forecastRoll(match, playerId, bakugan, selected.target);\n  const reroll = forecastRoll(match, playerId, bakugan, selected.target);\n  const expectedTriggeredValue = reroll.openProbability * (\n    repeatableOnOpenValue(match, playerId)\n    + rerollSuccessValue(match, playerId, card)\n  );\n  const mandatory = rerolls.some((action) => action.mandatory);\n  const total = initial.samples.reduce((sum, sample) => {\n    const raw = sample.outcome.result === "miss-closed"\n      ? REROLL_MISS_RECOVERY_VALUE * reroll.openProbability + expectedTriggeredValue\n      : reroll.value - sample.value + expectedTriggeredValue;\n    return sum + (mandatory\n      ? clamp(raw, -MAX_REROLL_COMPONENT_VALUE, MAX_REROLL_COMPONENT_VALUE)\n      : clamp(raw, 0, MAX_REROLL_COMPONENT_VALUE));\n  }, 0);\n  return total / Math.max(1, initial.samples.length);\n}\n\nfunction evaluatedFutureCardValue(\n  match: MatchState,\n  playerId: string,\n  card: GameCard,\n  includeDeckFlipValue: boolean,\n) {\n  const printedCost = card.cost === "X" ? 2 : card.cost;\n  try {\n    const program = compileCardEffect(card);\n    const evaluatedProgram = /\\bReroll\\b/i.test(card.effect)\n      ? withoutRerollSuccessInstructions(program)\n      : program;\n    let value = estimateProgramValue(evaluatedProgram, match, playerId) - printedCost * 0.4;\n    if (card.type === "Hero") value += 2.2;\n    if (card.type === "Evo") value += 2.8;\n    if (card.type === "Flip" && includeDeckFlipValue) value += 3.2;\n    return value;\n  } catch {\n    // A forced discard must never stall because another card cannot be\n    // valued. Keep the previous stable fallback for playable cards.\n    return printedCost * 0.4\n      + (card.type === "Hero" ? 2.2\n        : card.type === "Evo" ? 2.8\n          : card.type === "Flip" && includeDeckFlipValue ? 3.2 : 0);\n  }\n}\n'''
+          if old_future not in source:
+              raise SystemExit('evaluatedFutureCardValue block not found')
+          source = source.replace(old_future, new_future)
+
+          source = source.replace(
+          '''  if (/\\bReroll\\b/i.test(card.effect)) {\n    return match.placements.some((placement) => !placement.attachedTo) ? 0.25 : 0;\n  }\n''',
+          '')
+
+          old_value = '''    value: zone === "hand"\n      ? handCardRetentionValue(match, playerId, card)\n      : deckCardFutureValue(match, playerId, card),'''
+          new_value = '''    value: (zone === "hand"\n      ? handCardRetentionValue(match, playerId, card)\n      : deckCardFutureValue(match, playerId, card))\n      + estimateFutureRerollValue(match, playerId, card),'''
+          if old_value not in source:
+              raise SystemExit('energy analysis value block not found')
+          source = source.replace(old_value, new_value)
+
+          old_opportunity = '''  const immediateUrgency = analysis.affordableNow && analysis.playLikelihood >= 0.5 ? 3.5 : 0;\n  const nextTurnUrgency = !analysis.affordableNow && analysis.cost <= capacity + 1 ? 1.4 : 0;\n  const lateGameDiscount = Math.max(0, analysis.cost - capacity - 1) * 0.9\n    + analysis.cost * 0.08;\n  const replaceability = Math.max(0, handCopies - 1) * 0.45 + deckCopies * 0.55;\n  return Math.max(0, analysis.value)\n    + immediateUrgency\n    + nextTurnUrgency\n    - lateGameDiscount\n    - replaceability;'''
+          new_opportunity = '''  const retainedValue = Math.max(0, analysis.value) * analysis.playLikelihood;\n  const immediateUrgency = analysis.affordableNow\n    ? 3.5 * analysis.playLikelihood\n    : 0;\n  const nextTurnUrgency = !analysis.affordableNow && analysis.cost <= capacity + 1\n    ? 1.4 * analysis.playLikelihood\n    : 0;\n  const lateGameDiscount = Math.max(0, analysis.cost - capacity - 1) * 0.9\n    + analysis.cost * 0.08;\n  const replaceability = Math.max(0, handCopies - 1) * 0.45 + deckCopies * 0.55;\n  return retainedValue\n    + immediateUrgency\n    + nextTurnUrgency\n    - lateGameDiscount\n    - replaceability;'''
+          if old_opportunity not in source:
+              raise SystemExit('opportunity cost block not found')
+          source = source.replace(old_opportunity, new_opportunity)
+
+          path.write_text(source)
+
+          test_path = Path('tests/ai-energize-planner.test.ts')
+          tests = test_path.read_text()
+          tests = tests.replace(
+          '''import { CARDS } from "../lib/data";''',
+          '''import { CARDS, CORES } from "../lib/data";''')
+          tests = tests.replace(
+          '''  advanceOpponentAi,\n  planOpponentEnergize,''',
+          '''  advanceOpponentAi,\n  estimateFutureRerollValue,\n  planOpponentEnergize,''')
+
+          helper_anchor = '''function printedCard(number: number, id?: string): GameCard {\n  const source = CARDS.find((card) => card.number === number);\n  assert.ok(source, `Missing printed card ${number}`);\n  serial += 1;\n  return { ...source, id: id ?? `ai-plan-${number}-${serial}` };\n}\n'''
+          helper_add = helper_anchor + '''\nfunction catalogCard(catalogId: string, id?: string): GameCard {\n  const source = CARDS.find((card) => card.catalogId === catalogId);\n  assert.ok(source, `Missing catalogue card ${catalogId}`);\n  serial += 1;\n  return { ...source, id: id ?? `ai-plan-${catalogId}-${serial}` };\n}\n'''
+          if helper_anchor not in tests:
+              raise SystemExit('printedCard helper not found')
+          tests = tests.replace(helper_anchor, helper_add)
+
+          tests += '''\n\ntest("zero-likelihood Flips are energized before Shun Kazami at zero Energy", () => {\n  const rockRiser = catalogCard("br-74", "zero-energy-rock-riser");\n  const confuse = catalogCard("br-67", "zero-energy-confuse");\n  const shun = catalogCard("br-77", "zero-energy-shun");\n  const goal = catalogCard("bb-17", "zero-energy-goal");\n  const ai = player("ai", [rockRiser, confuse, shun, goal]);\n  const plan = planOpponentEnergize(energizeMatch(ai), ai.id);\n  assert.equal(plan.shouldEnergize, true);\n  assert.ok([rockRiser.id, confuse.id].includes(plan.cardId ?? ""));\n  assert.notEqual(plan.cardId, shun.id);\n});\n\ntest("future Reroll value is bounded and increases with repeatable on-open Heroes", () => {\n  const darkWaters = catalogCard("br-5", "reroll-dark-waters");\n  const ai = player("ai", [darkWaters]);\n  const match = energizeMatch(ai);\n  match.placements = [\n    { playerId: ai.id, core: { ...CORES[22], id: "reroll-core-1" }, cell: "h3-3", order: 1 },\n    { playerId: ai.id, core: { ...CORES[37], id: "reroll-core-2" }, cell: "h4-3", order: 2 },\n    { playerId: "human", core: { ...CORES[26], id: "reroll-core-3" }, cell: "h2-3", order: 3 },\n    { playerId: "human", core: { ...CORES[42], id: "reroll-core-4" }, cell: "h3-4", order: 4 },\n  ];\n  const base = estimateFutureRerollValue(match, ai.id, darkWaters);\n  assert.ok(base > 0, `Expected positive future Reroll value, got ${base}`);\n  assert.ok(base <= 6, `Expected bounded future Reroll value, got ${base}`);\n\n  match.players.find((candidate) => candidate.id === ai.id)!.heroes = [\n    catalogCard("br-77", "reroll-shun"),\n  ];\n  const withShun = estimateFutureRerollValue(match, ai.id, darkWaters);\n  assert.ok(withShun > base, `Expected Shun to increase ${base}, got ${withShun}`);\n  assert.ok(withShun <= 6, `Expected bounded Shun Reroll value, got ${withShun}`);\n});\n'''
+          test_path.write_text(tests)
+          PY
+      - name: Run focused AI Energize regressions
+        run: node --import tsx --test tests/ai-energize-planner.test.ts tests/ai-roll-forecast.test.ts tests/reroll-mechanic.test.ts
+      - name: Build production application
+        run: npm run build
+      - name: Validate Sites artifact
+        run: npm run validate:artifact
+      - name: Commit implementation
+        run: |
+          rm .github/workflows/implement-ai-energize-reroll-value.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add lib/opponentAiBase.ts tests/ai-energize-planner.test.ts .github/workflows/implement-ai-energize-reroll-value.yml
+          git commit -m "Fix AI Energize likelihood and Reroll valuation"
+          git push origin HEAD:agent/fix-ai-energize-reroll-value
