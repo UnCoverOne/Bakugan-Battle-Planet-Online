@@ -87,18 +87,20 @@
   clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
   background: linear-gradient(145deg, rgba(255, 96, 78, 0.96), rgba(112, 16, 24, 0.98));
   color: #fff;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: clamp(1rem, 1.9vw, 1.85rem);
-  font-weight: 950;
-  line-height: 1;
-  text-shadow: 0 1px 2px #000;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+.glyphIcon {
+  display: block;
+  width: 72%;
+  height: 72%;
 }
 
 .copy {
   display: grid;
-  gap: 0.08rem;
+  gap: 0.14rem;
   min-width: 0;
+  text-align: left;
   text-transform: uppercase;
 }
 
@@ -114,7 +116,7 @@
   overflow: hidden;
   color: rgba(255, 255, 255, 0.98);
   font-size: clamp(0.92rem, 1.55vw, 1.48rem);
-  font-style: italic;
+  font-style: normal;
   font-weight: 950;
   letter-spacing: 0.055em;
   line-height: 1.05;

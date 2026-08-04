@@ -23,23 +23,6 @@
   z-index: 8;
 }
 
-.hint {
-  display: block;
-  grid-column: 2;
-  max-width: min(31rem, 58vw);
-  margin-top: 0.2rem;
-  overflow: hidden;
-  color: rgba(226, 233, 237, 0.76);
-  font-family: system-ui, sans-serif;
-  font-size: clamp(0.46rem, 0.64vw, 0.66rem);
-  font-style: normal;
-  font-weight: 700;
-  letter-spacing: 0.025em;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  text-transform: none;
-  white-space: nowrap;
-}
 
 .targetBeacon {
   position: fixed;
