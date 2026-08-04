@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CARDS } from "../lib/data";
+import { CARDS, CORES } from "../lib/data";
 import {
   createMatch,
   type Bakugan,
@@ -11,6 +11,7 @@ import {
 } from "../lib/game";
 import {
   advanceOpponentAi,
+  estimateFutureRerollValue,
   planOpponentEnergize,
 } from "../lib/opponentAiBase";
 
@@ -21,6 +22,13 @@ function printedCard(number: number, id?: string): GameCard {
   assert.ok(source, `Missing printed card ${number}`);
   serial += 1;
   return { ...source, id: id ?? `ai-plan-${number}-${serial}` };
+}
+
+function catalogCard(catalogId: string, id?: string): GameCard {
+  const source = CARDS.find((card) => card.catalogId === catalogId);
+  assert.ok(source, `Missing catalogue card ${catalogId}`);
+  serial += 1;
+  return { ...source, id: id ?? `ai-plan-${catalogId}-${serial}` };
 }
 
 function bakugan(id: string, faction: Faction): Bakugan {
@@ -206,4 +214,39 @@ test("hand-limit discard treats a drawn Flip as zero retention value", () => {
   const nextAi = next.players.find((candidate) => candidate.id === ai.id)!;
   assert.ok(nextAi.discard.some((card) => card.id === flip.id));
   assert.equal(nextAi.hand.some((card) => card.id === flip.id), false);
+});
+
+
+test("zero-likelihood Flips are energized before Shun Kazami at zero Energy", () => {
+  const rockRiser = catalogCard("br-74", "zero-energy-rock-riser");
+  const confuse = catalogCard("br-67", "zero-energy-confuse");
+  const shun = catalogCard("br-77", "zero-energy-shun");
+  const goal = catalogCard("bb-17", "zero-energy-goal");
+  const ai = player("ai", [rockRiser, confuse, shun, goal]);
+  const plan = planOpponentEnergize(energizeMatch(ai), ai.id);
+  assert.equal(plan.shouldEnergize, true);
+  assert.ok([rockRiser.id, confuse.id].includes(plan.cardId ?? ""));
+  assert.notEqual(plan.cardId, shun.id);
+});
+
+test("future Reroll value is bounded and increases with repeatable on-open Heroes", () => {
+  const darkWaters = catalogCard("br-5", "reroll-dark-waters");
+  const ai = player("ai", [darkWaters]);
+  const match = energizeMatch(ai);
+  match.placements = [
+    { playerId: ai.id, core: { ...CORES[22], id: "reroll-core-1" }, cell: "h3-3", order: 1 },
+    { playerId: ai.id, core: { ...CORES[37], id: "reroll-core-2" }, cell: "h4-3", order: 2 },
+    { playerId: "human", core: { ...CORES[26], id: "reroll-core-3" }, cell: "h2-3", order: 3 },
+    { playerId: "human", core: { ...CORES[42], id: "reroll-core-4" }, cell: "h3-4", order: 4 },
+  ];
+  const base = estimateFutureRerollValue(match, ai.id, darkWaters);
+  assert.ok(base > 0, `Expected positive future Reroll value, got ${base}`);
+  assert.ok(base <= 6, `Expected bounded future Reroll value, got ${base}`);
+
+  match.players.find((candidate) => candidate.id === ai.id)!.heroes = [
+    catalogCard("br-77", "reroll-shun"),
+  ];
+  const withShun = estimateFutureRerollValue(match, ai.id, darkWaters);
+  assert.ok(withShun > base, `Expected Shun to increase ${base}, got ${withShun}`);
+  assert.ok(withShun <= 6, `Expected bounded Shun Reroll value, got ${withShun}`);
 });
