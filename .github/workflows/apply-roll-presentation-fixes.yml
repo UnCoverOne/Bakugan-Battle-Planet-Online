@@ -1,9 +1,9 @@
 name: Apply Roll Presentation Fixes
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/fix-roll-result-flash-mobile-veil
+      - main
     paths:
       - scripts/apply-roll-presentation-fixes.mjs
       - .github/workflows/apply-roll-presentation-fixes.yml
