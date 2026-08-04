@@ -1,0 +1,51 @@
+name: Apply End Phase Steps
+
+on:
+  push:
+    branches:
+      - agent/end-phase-steps
+    paths:
+      - scripts/apply-end-phase-steps.mjs
+      - .github/workflows/apply-end-phase-steps.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/end-phase-steps
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - name: Repair patcher concatenation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-end-phase-steps.mjs')
+          source = path.read_text()
+          source = source.replace('automaticEndPhaseEffect + lines(', 'automaticEndPhaseEffect + "\\n" + lines(')
+          path.write_text(source)
+          PY
+      - name: Apply implementation
+        run: node scripts/apply-end-phase-steps.mjs
+      - name: Install dependencies
+        run: npm ci
+      - name: Run focused regressions
+        run: node --import tsx --test tests/game-engine.test.ts tests/roll-phase-presentation.test.ts tests/engine-architecture.test.ts
+      - name: Build
+        run: npm run build
+      - name: Commit implementation
+        run: |
+          git rm scripts/apply-end-phase-steps.mjs .github/workflows/apply-end-phase-steps.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib components tests
+          git commit -m "Implement distinct End Phase steps"
+          git push origin HEAD:agent/end-phase-steps
