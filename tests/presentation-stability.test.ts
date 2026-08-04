@@ -47,6 +47,10 @@ test("presentation systems discard stale phase callouts and avoid document-wide 
   assert.doesNotMatch(cores, /new MutationObserver/);
   assert.match(cores, /preparedTransferCells/);
   assert.match(cores, /data-active=\{active/);
+  assert.match(cores, /completedTraceSignature !== resultSignature/);
+  assert.doesNotMatch(cores, /\[tracingSignature,/);
+  assert.match(cores, /y=\{-GRID_HEIGHT \* 2\}/);
+  assert.match(cores, /height=\{GRID_HEIGHT \* 5\}/);
 });
 
 test("batch rows remain mounted, docking is transform-only, and modal exits are explicit", () => {
