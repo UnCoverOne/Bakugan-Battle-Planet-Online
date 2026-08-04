@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  describeTurnTransition,
   phaseTransitionIsBlocked,
+  phaseTransitionShouldPresent,
   presentedTurnProgress,
   turnProgressSnapshot,
 } from "../components/game-screen-v2/turnProgressState";
@@ -44,4 +46,32 @@ test("Power is presented normally after the roll animation settles", () => {
   });
 
   assert.equal(presentedTurnProgress(power, null, false)?.stepKey, "power");
+});
+
+test("Transition callouts reject stale, blocked, and already presented steps", () => {
+  const draw = turnProgressSnapshot({
+    phase: "draw",
+    stepLabel: "Start Phase • Draw Step",
+    turn: 4,
+  });
+  const energize = turnProgressSnapshot({
+    phase: "energize",
+    stepLabel: "Start Phase • Energize Step",
+    turn: 4,
+  });
+  const selection = turnProgressSnapshot({
+    phase: "selection",
+    stepLabel: "Roll Phase • Selection Step",
+    turn: 4,
+  });
+  const transition = describeTurnTransition(draw, energize);
+
+  assert.ok(transition && energize && selection);
+  assert.equal(phaseTransitionShouldPresent(transition, energize, false, new Set()), true);
+  assert.equal(phaseTransitionShouldPresent(transition, energize, true, new Set()), false);
+  assert.equal(phaseTransitionShouldPresent(transition, selection, false, new Set()), false);
+  assert.equal(
+    phaseTransitionShouldPresent(transition, energize, false, new Set([transition.signature])),
+    false,
+  );
 });
