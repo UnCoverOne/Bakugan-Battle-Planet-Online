@@ -2,7 +2,14 @@ import { textFingerprint } from "../content/catalogue";
 import { CARD_CATALOGUE_VERSION, RULES_PROFILE_VERSION } from "../content/versions";
 import { CARDS } from "../data";
 import type { GameCard } from "../game";
-import type { RuleDefinition, RuleProgram } from "./model";
+import type {
+  AbilityDefinition,
+  CardPlayDefinition,
+  ChoiceSpec,
+  RuleAction,
+  RuleDefinition,
+  RuleProgram,
+} from "./model";
 import { provenanceForDefinition, validateDefinitionProvenance } from "./provenance";
 import { ruleCardId } from "./catalogue-primitives";
 import { abilityDefinitionsForCard, playDefinitionForCard } from "./catalogue-structure";
@@ -11,8 +18,122 @@ import {
   enhanceDeckInspectionPlayDefinition,
 } from "./deck-inspection";
 
+const FACTIONS: readonly GameCard["faction"][] = [
+  "Aquos",
+  "Aurelus",
+  "Darkus",
+  "Haos",
+  "Pyrus",
+  "Ventus",
+];
+const SINGULAR_NON_FACTION_BAKUGAN = /\b(?:a|an|one)\s+non-\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan\b/i;
+
+function nonFactionChoiceTiming(text: string): ChoiceSpec["timing"] {
+  return /when you play this|when this opens|\bmay\b|\bSacrifice\b|\bBattle Mastery\b|\bVictor\s*[-:]|\bUnderdog\s*:|at (?:the )?end of (?:your |the )?turn/i.test(text)
+    ? "resolve"
+    : "announce";
+}
+
+function nonFactionTargetChoice(
+  excludedFaction: GameCard["faction"],
+  timing: ChoiceSpec["timing"],
+): ChoiceSpec {
+  return {
+    id: "targetBakuganId",
+    timing,
+    selector: "chosen-bakugan",
+    label: `Choose a non-${excludedFaction} Bakugan`,
+    minimum: 1,
+    maximum: 1,
+    optional: false,
+    chooser: "controller",
+    visibility: "public",
+    factions: FACTIONS.filter((faction) => faction !== excludedFaction),
+    targetOwner: "any",
+  };
+}
+
+function withChoice(choices: readonly ChoiceSpec[], selected: ChoiceSpec) {
+  return choices.some((choice) => choice.id === selected.id && choice.timing === selected.timing)
+    ? [...choices]
+    : [...choices, selected];
+}
+
+function retargetSingularNonFactionActions(actions: readonly RuleAction[]): RuleAction[] {
+  return actions.map((action) => {
+    if (action.kind === "modify-stat" && action.scope === "all-bakugan") {
+      return { ...action, scope: "target" };
+    }
+    if (action.kind === "conditional") {
+      return {
+        ...action,
+        whenTrue: retargetSingularNonFactionActions(action.whenTrue),
+        whenFalse: action.whenFalse
+          ? retargetSingularNonFactionActions(action.whenFalse)
+          : undefined,
+      };
+    }
+    if (action.kind === "replacement") {
+      return {
+        ...action,
+        replaceWith: retargetSingularNonFactionActions(action.replaceWith),
+      };
+    }
+    if (action.kind === "sequence") {
+      return {
+        ...action,
+        effects: retargetSingularNonFactionActions(action.effects),
+      };
+    }
+    return action;
+  });
+}
+
+function normalizeSingularNonFactionTargets(
+  card: GameCard,
+  play: CardPlayDefinition,
+  abilities: AbilityDefinition[],
+) {
+  const cardMatch = card.effect.match(SINGULAR_NON_FACTION_BAKUGAN);
+  let normalizedPlay = play;
+  if (cardMatch) {
+    const excludedFaction = cardMatch[1] as GameCard["faction"];
+    const timing = nonFactionChoiceTiming(card.effect);
+    if (timing === "announce") {
+      normalizedPlay = {
+        ...play,
+        choices: withChoice(play.choices, nonFactionTargetChoice(excludedFaction, timing)),
+      };
+    }
+  }
+
+  const normalizedAbilities = abilities.map((ability) => ({
+    ...ability,
+    instructions: ability.instructions.map((instruction) => {
+      const match = instruction.sourceText.match(SINGULAR_NON_FACTION_BAKUGAN);
+      if (!match) return instruction;
+      const excludedFaction = match[1] as GameCard["faction"];
+      const timing = nonFactionChoiceTiming(instruction.sourceText);
+      const actions = retargetSingularNonFactionActions(instruction.actions);
+      return {
+        ...instruction,
+        effects: actions,
+        actions,
+        choices: withChoice(
+          instruction.choices,
+          nonFactionTargetChoice(excludedFaction, timing),
+        ),
+      };
+    }),
+  }));
+
+  return { play: normalizedPlay, abilities: normalizedAbilities };
+}
+
 function definitionForCard(card: GameCard): RuleDefinition {
-  const abilities = enhanceDeckInspectionAbilities(card, abilityDefinitionsForCard(card));
+  const rawAbilities = enhanceDeckInspectionAbilities(card, abilityDefinitionsForCard(card));
+  const rawPlay = enhanceDeckInspectionPlayDefinition(card, playDefinitionForCard(card));
+  const normalized = normalizeSingularNonFactionTargets(card, rawPlay, rawAbilities);
   return {
     cardId: ruleCardId(card),
     printingId: ruleCardId(card),
@@ -25,9 +146,9 @@ function definitionForCard(card: GameCard): RuleDefinition {
     implementationStatus: "complete",
     rulesVersion: RULES_PROFILE_VERSION,
     contentVersion: CARD_CATALOGUE_VERSION,
-    play: enhanceDeckInspectionPlayDefinition(card, playDefinitionForCard(card)),
-    abilities,
-    provenance: provenanceForDefinition(card, abilities),
+    play: normalized.play,
+    abilities: normalized.abilities,
+    provenance: provenanceForDefinition(card, normalized.abilities),
     goldenTestIds: [`card-golden:${ruleCardId(card)}`],
   };
 }
