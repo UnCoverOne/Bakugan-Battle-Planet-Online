@@ -247,11 +247,12 @@ export function visibleMatchHudActions({
   const { player } = resolveHudPlayers(match, playerId);
   const playCards = playableHandCards(match, player?.id);
   const canPlay = Boolean(playCards.length);
+  const resetResolutionWindow = Boolean(match?.phase === "reset" && match.batch.length);
   const canPass = Boolean(
     match
     && player
     && !hasPendingDraws(match)
-    && isPriorityWindow(match)
+    && (isPriorityWindow(match) || resetResolutionWindow)
     && match.priority === player.id,
   );
   const selectedPlayable = playCards.some((card) => card.id === selectedCardId);

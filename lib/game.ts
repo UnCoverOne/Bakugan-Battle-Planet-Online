@@ -248,7 +248,7 @@ export type UndoWindow = {
 
 export type Phase =
   | "lobby" | "startingPlayer" | "placement" | "draw" | "energize" | "selection" | "preRoll" | "target" | "reroll"
-  | "power" | "victor" | "damage" | "postDamage" | "retract" | "endPlay"
+  | "power" | "victor" | "damage" | "postDamage" | "retract" | "endPlay" | "charge" | "reset"
   | "handLimit" | "result";
 
 export type CardLogEvent = "played" | "effect";
@@ -353,7 +353,7 @@ export const uid = () => globalThis.crypto?.randomUUID?.()
 
 const PHASE_TIMERS: Record<Phase, number> = {
   lobby: 60, startingPlayer: 8, placement: 45, draw: 35, energize: 35, selection: 35, preRoll: 30, target: 30, reroll: 30,
-  power: 40, victor: 30, damage: 35, postDamage: 25, retract: 10, endPlay: 35,
+  power: 40, victor: 30, damage: 35, postDamage: 25, retract: 10, endPlay: 35, charge: 2, reset: 2,
   handLimit: 40, result: 120,
 };
 const deadlineFor = (phase: Phase) => Date.now() + PHASE_TIMERS[phase] * 1000;
@@ -2492,6 +2492,45 @@ function finishDamage(state: MatchState) {
   setPhase(state, "postDamage", "Damage Step • Post-damage priority", state.startingPlayer);
 }
 
+type EndPhaseEnergyPlayer = PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
+
+function beginChargeStep(state: MatchState) {
+  emitGameEvent(state, { id: `${state.turn}:end-turn`, type: "end-turn", playerId: state.startingPlayer });
+  if (state.batch.length || state.triggerOrders.length) return;
+  for (const player of state.players) for (const bakugan of player.bakugan) {
+    if (state.delayedRetracts.includes(bakugan.id)) retractBakugan(state, bakugan);
+  }
+  for (const player of state.players) {
+    const tracked = player as EndPhaseEnergyPlayer;
+    tracked.tappedEnergyIds = [];
+    tracked.energyTapTurn = state.turn;
+    player.energy = 0;
+    player.maxEnergy = player.energyZone.length;
+  }
+  setPhase(state, "charge", "End Phase • Charge Step", state.startingPlayer);
+  entry(state, "game", "Both players charged all Energy cards.");
+}
+
+function beginResetStep(state: MatchState) {
+  state.powerBoost = {};
+  state.damageBoost = {};
+  state.frostStrike = {};
+  state.doubleStrike = {};
+  state.shadowStrike = {};
+  const rules = ensureRulesState(state);
+  rules.modifiers = rules.modifiers.filter((modifier) => modifier.duration !== "turn");
+  rules.replacements = rules.replacements.filter((replacement) => replacement.effect.kind !== "prevention");
+  rules.triggerUsage = {};
+  setPhase(state, "reset", "End Phase • Reset Step", state.startingPlayer);
+  entry(state, "game", "Turn-duration modifications were reset.");
+}
+
+function finishResetStep(state: MatchState) {
+  const over = state.players.find((player) => player.hand.length > 7);
+  if (over) setPhase(state, "handLimit", "End of turn • Discard to seven", over.id);
+  else beginTurn(state);
+}
+
 const advanceEmptyBatch = (state: MatchState) => {
   if (state.phase === "preRoll") setPhase(state, "target", "Roll Phase • Secret target selection", state.startingPlayer);
   else if (state.phase === "power") declareVictor(state);
@@ -2500,19 +2539,8 @@ const advanceEmptyBatch = (state: MatchState) => {
     const loser = playerById(state, state.pendingLoser); const loserBakugan = activeBakugan(state, loser.id); if (loserBakugan) retractBakugan(state, loserBakugan);
     if (state.teamAttack) playerById(state, state.brawlWinner).bakugan.forEach((bakugan) => retractBakugan(state, bakugan));
     setPhase(state, "endPlay", "End Phase • Play Step", state.startingPlayer);
-  } else if (state.phase === "endPlay") {
-    emitGameEvent(state, { id: `${state.turn}:end-turn`, type: "end-turn", playerId: state.startingPlayer });
-    if (state.batch.length || state.triggerOrders.length) return;
-    for (const player of state.players) for (const bakugan of player.bakugan) if (state.delayedRetracts.includes(bakugan.id)) retractBakugan(state,bakugan);
-    for (const player of state.players) { player.energy = player.maxEnergy; }
-    state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {}; state.doubleStrike = {}; state.shadowStrike = {};
-    const rules = ensureRulesState(state);
-    rules.modifiers = rules.modifiers.filter((modifier) => modifier.duration !== "turn");
-    rules.replacements = rules.replacements.filter((replacement) => replacement.effect.kind !== "prevention");
-    rules.triggerUsage = {};
-    const over = state.players.find((player) => player.hand.length > 7);
-    if (over) setPhase(state, "handLimit", "End Phase • Discard to seven", over.id); else beginTurn(state);
-  }
+  } else if (state.phase === "endPlay") beginChargeStep(state);
+  else if (state.phase === "reset") finishResetStep(state);
 };
 
 export const passPriority = (input: MatchState, playerId: string) => {
@@ -2520,7 +2548,7 @@ export const passPriority = (input: MatchState, playerId: string) => {
   if (hasQueuedEffectDraw(state)) throw new Error("Complete every pending Draw action before passing priority.");
   if (state.pendingChoice) throw new Error("Complete the pending player choice before passing priority.");
   if (state.triggerOrders.some((request) => !request.orderedIds)) throw new Error("Order every simultaneous trigger before passing priority.");
-  if (!["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase) || state.priority !== playerId) throw new Error("You do not have priority.");
+  if (!["preRoll", "power", "victor", "postDamage", "endPlay", "reset"].includes(state.phase) || state.priority !== playerId) throw new Error("You do not have priority.");
   state.priorityEpoch += 1;
   state.undoWindow = undefined;
   state.passes.push(playerId); entry(state, "game", `${playerById(state, playerId).name} passed priority.`); const other = otherPlayer(state, playerId);
@@ -2545,7 +2573,7 @@ export const discardToHandLimit = (input: MatchState, playerId: string, cardIds:
   if (state.phase !== "handLimit" || state.priority !== playerId || cardIds.length !== player.hand.length - 7) throw new Error("Select exactly enough cards to keep seven.");
   discardFromHand(state, player, cardIds.length, cardIds); const next = state.players.find((candidate) => candidate.hand.length > 7);
   if (next) state.priority = next.id;
-  else if (state.batch.length || state.triggerOrders.length) setPhase(state, "endPlay", "End Phase • Resolve discard triggers", state.startingPlayer);
+  else if (state.batch.length || state.triggerOrders.length) setPhase(state, "reset", "End Phase • Reset Step • Resolve discard triggers", state.startingPlayer);
   else beginTurn(state);
   return withVersion(state);
 };
@@ -2567,7 +2595,28 @@ export const concedeMatch = (input: MatchState, playerId: string) => {
 
 export const nextTurn = (input: MatchState) => {
   const state = cloneMatch(input);
-  if (state.phase === "retract" || state.phase === "endPlay") { state.batch = []; advanceEmptyBatch(state); return withVersion(state); }
+  if (state.phase === "retract" || state.phase === "endPlay") {
+    state.batch = [];
+    advanceEmptyBatch(state);
+    return withVersion(state);
+  }
+  if (state.phase === "charge") {
+    beginResetStep(state);
+    return withVersion(state);
+  }
+  if (state.phase === "reset") {
+    if (state.pendingChoice || state.batch.length || state.triggerOrders.length) {
+      throw new Error("Resolve every Reset Step trigger before advancing the turn.");
+    }
+    finishResetStep(state);
+    return withVersion(state);
+  }
+  if (state.phase === "handLimit") {
+    if (state.players.some((player) => player.hand.length > 7)) throw new Error("Complete every hand-limit discard before advancing the turn.");
+    if (state.batch.length || state.triggerOrders.length) setPhase(state, "reset", "End Phase • Reset Step • Resolve discard triggers", state.startingPlayer);
+    else beginTurn(state);
+    return withVersion(state);
+  }
   throw new Error("The turn advances through priority and the End Phase.");
 };
 
