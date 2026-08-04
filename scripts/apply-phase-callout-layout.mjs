@@ -53,9 +53,23 @@ replaceOnce(
         </div>`,
 );
 
-replacePattern(
+replaceOnce(
   "components/game-screen-v2/PhaseTransitionLayer.module.css",
-  /\.glyph \{[\s\S]*?\n\}/,
+  `.glyph {
+  display: grid;
+  place-items: center;
+  width: clamp(2.3rem, 4vw, 4rem);
+  aspect-ratio: 1;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  background: linear-gradient(145deg, rgba(255, 96, 78, 0.96), rgba(112, 16, 24, 0.98));
+  color: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(1rem, 1.9vw, 1.85rem);
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 1px 2px #000;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}`,
   `.glyph {
   display: grid;
   place-items: center;
