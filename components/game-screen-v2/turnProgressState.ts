@@ -165,9 +165,11 @@ export function turnProgressSnapshot(
  */
 export function presentedTurnProgress(
   live: TurnProgressSnapshot | null,
-  _previous: TurnProgressSnapshot | null,
-  _rollPresentationPending: boolean,
+  previous: TurnProgressSnapshot | null,
+  rollPresentationPending: boolean,
 ): TurnProgressSnapshot | null {
+  void previous;
+  void rollPresentationPending;
   return live;
 }
 
