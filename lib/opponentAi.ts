@@ -13,10 +13,12 @@ import {
   type GameCard,
   type MatchState,
 } from "./game";
+import { bestAiRollTarget } from "./aiRollForecast";
 import {
   advanceOpponentAi as advanceBaseOpponentAi,
   chooseCardChoices as chooseBaseCardChoices,
 } from "./opponentAiBase";
+import { playerCanSelectRollTarget, selectRollTarget } from "./rolling";
 import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
 import { ruleConditionActive } from "./rules/modifiers";
 
@@ -561,6 +563,13 @@ function diversifyProposedPlacement(
 }
 
 function advanceOpponentAiStep(input: MatchState, playerId: string): MatchState | null {
+  if (
+    (input.phase === "target" || input.phase === "reroll")
+    && playerCanSelectRollTarget(input, playerId)
+  ) {
+    const target = bestAiRollTarget(input, playerId);
+    return target ? selectRollTarget(input, playerId, target.cell) : null;
+  }
   if (input.phase === "placement" && input.priority === playerId) {
     const proposed = advanceBaseOpponentAi(input, playerId);
     return proposed ? diversifyProposedPlacement(input, playerId, proposed) : null;
