@@ -72,13 +72,39 @@ test("Dragonoid Maximus recognizes only the three Battle Brawlers Hero printings
     kind: "controls-named-cards",
     names: ["Dan", "Wynton", "Lia"],
   });
-  assert.equal(ruleConditionActive(exact.state, exact.player, instruction.condition), true);
+  assert.equal(
+    ruleConditionActive(exact.state, exact.state.players[0], instruction.condition),
+    true,
+  );
 
   const otherPrintings = maximusMatch(["br-81", "aa-75", "aa-71"]);
   assert.equal(
-    ruleConditionActive(otherPrintings.state, otherPrintings.player, instruction.condition),
+    ruleConditionActive(
+      otherPrintings.state,
+      otherPrintings.state.players[0],
+      instruction.condition,
+    ),
     false,
   );
+});
+
+test("the three exact Battle Brawlers Heroes activate Dragonoid Maximus", () => {
+  const { state, player, titan, maximus } = maximusMatch(["bb-207", "bb-215", "bb-202"]);
+  let resolved = playCardWithAutoEnergy(
+    state,
+    player.id,
+    maximus.id,
+    { targetBakuganId: titan.id },
+  );
+  resolved = resolveTopBatchObject(resolved);
+  assert.equal(resolved.phase, "power");
+  assert.equal(resolved.batch.some((effect) => effect.alternateWin), true);
+
+  resolved = resolveTopBatchObject(resolved);
+  assert.equal(resolved.phase, "result");
+  assert.equal(resolved.winner, player.id);
+  assert.equal(resolved.series[player.id], 1);
+  assert.equal(resolved.resultReason, "Dragonoid Maximus's alternate win condition");
 });
 
 test("other Dan, Wynton, and Lia Hero cards do not activate Dragonoid Maximus", () => {
