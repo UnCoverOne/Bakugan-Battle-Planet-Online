@@ -291,7 +291,31 @@
   }
 
   .brawlPreview article > div:nth-child(2) > div {
-    align-items: start;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(1.9rem, 1fr) auto;
+    align-items: stretch;
+    min-height: 4.2rem;
+  }
+
+  .brawlPreview article > div:nth-child(2) > div > span {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+    justify-self: start;
+  }
+
+  .brawlPreview article > div:nth-child(2) > div > strong {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center;
+    justify-self: end;
+  }
+
+  .brawlPreview article > div:nth-child(2) > div > small {
+    grid-column: 1;
+    grid-row: 3;
+    align-self: end;
+    justify-self: start;
   }
 
   .brawlPreview article > div:nth-child(2) > div[data-deciding="true"] {
