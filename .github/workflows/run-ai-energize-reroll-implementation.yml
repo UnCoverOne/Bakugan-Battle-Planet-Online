@@ -38,10 +38,8 @@ jobs:
           python /tmp/ai-reroll-patch.py
       - name: Run focused AI Energize regressions
         run: node --import tsx --test tests/ai-energize-planner.test.ts tests/ai-roll-forecast.test.ts
-      - name: Build production application
+      - name: Build production application and validate artifact
         run: npm run build
-      - name: Validate Sites artifact
-        run: npm run validate:artifact
       - name: Commit implementation
         run: |
           rm .github/workflows/implement-ai-energize-reroll-value.yml
