@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { MatchState } from "../../lib/game";
 import { drawStepTimerState } from "../../lib/turnStart";
+import { PhaseTransitionStepIcon } from "./PhaseTransitionStepIcon";
 import {
   TURN_PHASES,
   TURN_STEPS,
@@ -10,21 +11,32 @@ import {
   remainingStepSeconds,
   resolveTurnProgress,
   turnStepsForPhase,
+  type TurnPhaseKey,
   type TurnProgressItem,
+  type TurnStepKey,
 } from "./turnProgressState";
 import styles from "./TurnProgressTracker.module.css";
 import tooltipStyles from "./TurnProgressTooltip.module.css";
+
+export const TURN_PROGRESS_PHASE_ICON_STEP_BY_KEY = {
+  start: "draw",
+  roll: "rolling",
+  brawl: "power",
+  end: "charge",
+} as const satisfies Record<TurnPhaseKey, TurnStepKey>;
 
 function ProgressRow<Key extends string>({
   label,
   items,
   activeKey,
   activeIndex,
+  iconStepForItem,
 }: {
   label: string;
   items: readonly TurnProgressItem<Key>[];
   activeKey: Key;
   activeIndex: number;
+  iconStepForItem: (item: TurnProgressItem<Key>) => TurnStepKey;
 }) {
   return (
     <div className={styles.row}>
@@ -44,7 +56,10 @@ function ProgressRow<Key extends string>({
               tabIndex={0}
               key={item.key}
             >
-              <span className={styles.glyph} aria-hidden="true">{item.glyph}</span>
+              <PhaseTransitionStepIcon
+                step={iconStepForItem(item)}
+                className={styles.glyph}
+              />
               <span className={styles.itemLabel}>{item.label}</span>
             </li>
           );
@@ -112,12 +127,14 @@ export function TurnProgressTracker({ match }: { match: MatchState | null }) {
           items={TURN_PHASES}
           activeKey={progress.phaseKey}
           activeIndex={progress.phaseIndex}
+          iconStepForItem={(item) => TURN_PROGRESS_PHASE_ICON_STEP_BY_KEY[item.key]}
         />
         <ProgressRow
           label="Step"
           items={visibleSteps}
           activeKey={progress.stepKey}
           activeIndex={Math.max(0, visibleStepIndex)}
+          iconStepForItem={(item) => item.key}
         />
       </div>
 
@@ -125,4 +142,3 @@ export function TurnProgressTracker({ match }: { match: MatchState | null }) {
     </aside>
   );
 }
-
