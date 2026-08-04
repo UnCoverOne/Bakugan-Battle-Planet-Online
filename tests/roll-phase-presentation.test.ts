@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { PHASE_TRANSITION_ICON_KEY_BY_STEP } from "../components/game-screen-v2/PhaseTransitionStepIcon";
 import {
   describeTurnTransition,
   phaseTransitionIsBlocked,
@@ -14,6 +15,22 @@ test("Tips stay hidden while Roll Results or the Brawl Preview is visible", () =
   assert.equal(phaseTransitionIsBlocked(false, true, false), true);
   assert.equal(phaseTransitionIsBlocked(false, false, true), true);
   assert.equal(phaseTransitionIsBlocked(false, false, false), false);
+});
+
+test("Phase Transition callouts use official game icons for every step", () => {
+  assert.deepEqual(PHASE_TRANSITION_ICON_KEY_BY_STEP, {
+    draw: "draw",
+    energize: "energy",
+    selection: "scan",
+    rolling: "reroll",
+    power: "power",
+    victor: "victor",
+    damage: "damage",
+    retracting: "remove",
+    play: "draw",
+    charge: "energy",
+    reset: "reroll",
+  });
 });
 
 test("a pending roll presentation does not rewind authoritative Power progress", () => {

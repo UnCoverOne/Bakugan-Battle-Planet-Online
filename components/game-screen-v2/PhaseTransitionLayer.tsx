@@ -12,6 +12,7 @@ import type { MatchState } from "../../lib/game";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
 import { batchHudShouldRender, brawlIsEngaged } from "./brawlState";
 import { useMatchSelector } from "./matchStore";
+import { PhaseTransitionStepIcon } from "./PhaseTransitionStepIcon";
 import {
   describeTurnTransition,
   phaseTransitionIsBlocked,
@@ -423,14 +424,15 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
         <span className={styles.rim} />
         <span className={styles.scan} />
         <div className={`${styles.callout} ${cueStyles.callout}`}>
-          <span className={styles.glyph}>{transition.stepGlyph}</span>
+          <span className={styles.glyph} aria-hidden="true">
+            <PhaseTransitionStepIcon
+              step={transition.stepKey}
+              className={styles.glyphIcon}
+            />
+          </span>
           <span className={styles.copy}>
-            <small>
-              {transition.scope === "round" ? `Round ${transition.round} • ` : ""}
-              {transition.phaseLabel} Phase
-            </small>
+            <small>{transition.phaseLabel} Phase</small>
             <strong>{transition.stepLabel} Step</strong>
-            <em className={cueStyles.hint}>{plan.hint}</em>
           </span>
         </div>
       </div>
