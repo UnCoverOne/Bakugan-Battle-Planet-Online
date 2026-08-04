@@ -1,6 +1,12 @@
 name: Apply End Phase Steps
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/apply-end-phase-steps.mjs
+      - .github/workflows/apply-end-phase-steps.yml
   push:
     branches:
       - agent/end-phase-steps
