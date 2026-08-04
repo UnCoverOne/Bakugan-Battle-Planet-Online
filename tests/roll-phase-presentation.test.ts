@@ -15,7 +15,7 @@ test("Tips stay hidden while Roll Results or the Brawl Preview is visible", () =
   assert.equal(phaseTransitionIsBlocked(false, false, false), false);
 });
 
-test("a pending roll presentation cannot fall back to the Selection Step", () => {
+test("a pending roll presentation does not rewind authoritative Power progress", () => {
   const staleSelection = turnProgressSnapshot({
     phase: "preRoll",
     stepLabel: "Roll Phase • Selection Step • Priority",
@@ -33,9 +33,9 @@ test("a pending roll presentation cannot fall back to the Selection Step", () =>
     true,
   );
 
-  assert.equal(presented?.phaseKey, "roll");
-  assert.equal(presented?.stepKey, "rolling");
-  assert.equal(presented?.signature, "3:roll:rolling");
+  assert.equal(presented?.phaseKey, "brawl");
+  assert.equal(presented?.stepKey, "power");
+  assert.equal(presented?.signature, "3:brawl:power");
 });
 
 test("Power is presented normally after the roll animation settles", () => {
@@ -46,6 +46,26 @@ test("Power is presented normally after the roll animation settles", () => {
   });
 
   assert.equal(presentedTurnProgress(power, null, false)?.stepKey, "power");
+});
+
+test("a blocked live transition is consumed instead of appearing after presentation settles", () => {
+  const rolling = turnProgressSnapshot({
+    phase: "target",
+    stepLabel: "Roll Phase • Rolling Step",
+    turn: 3,
+  });
+  const power = turnProgressSnapshot({
+    phase: "power",
+    stepLabel: "Brawl Phase • Power Step",
+    turn: 3,
+  });
+  const transition = describeTurnTransition(rolling, power);
+  assert.ok(transition && power);
+
+  const seen = new Set<string>();
+  assert.equal(phaseTransitionShouldPresent(transition, power, true, seen), false);
+  seen.add(transition.signature);
+  assert.equal(phaseTransitionShouldPresent(transition, power, false, seen), false);
 });
 
 test("Transition callouts reject stale, blocked, and already presented steps", () => {
