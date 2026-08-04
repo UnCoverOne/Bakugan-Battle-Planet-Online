@@ -15,6 +15,7 @@ import { useMatchSelector } from "./matchStore";
 import {
   describeTurnTransition,
   phaseTransitionIsBlocked,
+  phaseTransitionShouldPresent,
   presentedTurnProgress,
   turnProgressSnapshot,
   type TurnProgressSnapshot,
@@ -196,13 +197,17 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
   const { rollResultOpen, rollPresentationPending } = useBakuCorePresentation();
   const localPlayerId = useMatchSelector((state) => state.playerId);
   const previousProgress = useRef<TurnProgressSnapshot | null>(null);
-  const [transitionQueue, setTransitionQueue] = useState<TurnTransition[]>([]);
-  const transition = transitionQueue[0] ?? null;
+  const initializedProgress = useRef(false);
+  const observedNoProgress = useRef(false);
+  const activeMatchId = useRef<string | null>(null);
+  const seenTransitionSignatures = useRef<Set<string>>(new Set());
+  const [transition, setTransition] = useState<TurnTransition | null>(null);
   const [targets, setTargets] = useState<TargetState>(EMPTY_TARGETS);
   const focusedElements = useRef<{ primary: Element | null; secondary: Element | null }>({
     primary: null,
     secondary: null,
   });
+  const matchId = match?.id ?? null;
   const matchPhase = match?.phase;
   const matchStepLabel = match?.stepLabel;
   const matchTurn = match?.turn;
@@ -233,31 +238,67 @@ export function PhaseTransitionLayer({ match }: { match: MatchState | null }) {
   );
 
   useEffect(() => {
+    if (activeMatchId.current === matchId) return;
+    activeMatchId.current = matchId;
+    previousProgress.current = null;
+    initializedProgress.current = false;
+    observedNoProgress.current = false;
+    seenTransitionSignatures.current.clear();
+    setTransition(null);
+  }, [matchId]);
+
+  useEffect(() => {
     if (!progress) {
       previousProgress.current = null;
-      setTransitionQueue([]);
+      initializedProgress.current = false;
+      observedNoProgress.current = true;
+      seenTransitionSignatures.current.clear();
+      setTransition(null);
       return;
     }
+
+    if (transitionBlocked) setTransition(null);
+
+    if (!initializedProgress.current) {
+      initializedProgress.current = true;
+      previousProgress.current = progress;
+      const initial = describeTurnTransition(null, progress);
+      const shouldPresent = observedNoProgress.current
+        && phaseTransitionShouldPresent(
+          initial,
+          progress,
+          transitionBlocked,
+          seenTransitionSignatures.current,
+        );
+      observedNoProgress.current = false;
+      if (initial) seenTransitionSignatures.current.add(initial.signature);
+      setTransition(shouldPresent ? initial : null);
+      return;
+    }
+
     const next = describeTurnTransition(previousProgress.current, progress);
     previousProgress.current = progress;
     if (!next) return;
-    setTransitionQueue((current) => current.some((item) => item.signature === next.signature)
-      ? current
-      : [...current, next].slice(-5));
-  }, [progress]);
+    const shouldPresent = phaseTransitionShouldPresent(
+      next,
+      progress,
+      transitionBlocked,
+      seenTransitionSignatures.current,
+    );
+    seenTransitionSignatures.current.add(next.signature);
+    setTransition(shouldPresent ? next : null);
+  }, [progress, transitionBlocked]);
 
   useEffect(() => {
-    if (!transition || transitionBlocked) return;
+    if (!transition) return;
     const duration = reducedMotionRequested()
       ? REDUCED_TRANSITION_DURATION_MS
       : PHASE_TRANSITION_DURATION_MS;
     const timeout = window.setTimeout(() => {
-      setTransitionQueue((current) => current[0]?.signature === transition.signature
-        ? current.slice(1)
-        : current.filter((item) => item.signature !== transition.signature));
+      setTransition((current) => current?.signature === transition.signature ? null : current);
     }, duration);
     return () => window.clearTimeout(timeout);
-  }, [transition, transitionBlocked]);
+  }, [transition]);
 
   useEffect(() => {
     if (!transition || transitionBlocked) return;
