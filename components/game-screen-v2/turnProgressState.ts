@@ -157,19 +157,18 @@ export function turnProgressSnapshot(
 }
 
 /**
- * The authoritative state enters Power as soon as rolls resolve, while the
- * client still has the roll trace, result, and Core transfer to present. Always
- * pin that pending presentation to Rolling; carrying an arbitrary previous Roll
- * snapshot could preserve Selection if the target update was batched or skipped.
+ * Transition callouts must follow the authoritative engine phase immediately.
+ * A visual roll presentation may temporarily block a callout from rendering,
+ * but it must never rewind progress to Rolling and release a newer callout only
+ * after the presentation settles. Retain the compatibility parameters because
+ * other presentation callers may still pass them, while always returning live.
  */
 export function presentedTurnProgress(
   live: TurnProgressSnapshot | null,
   _previous: TurnProgressSnapshot | null,
-  rollPresentationPending: boolean,
+  _rollPresentationPending: boolean,
 ): TurnProgressSnapshot | null {
-  if (!live) return null;
-  if (!rollPresentationPending || live.phaseKey !== "brawl") return live;
-  return snapshotFor(live.round, "roll", "rolling");
+  return live;
 }
 
 export function phaseTransitionIsBlocked(
