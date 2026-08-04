@@ -127,7 +127,13 @@ function RollTraceLayer({
       role="img"
       aria-label="Animated Bakugan roll paths"
     >
-      <rect className={styles.rollTraceVeil} width={GRID_WIDTH} height={GRID_HEIGHT} />
+      <rect
+        className={styles.rollTraceVeil}
+        x={-GRID_WIDTH}
+        y={-GRID_HEIGHT * 2}
+        width={GRID_WIDTH * 3}
+        height={GRID_HEIGHT * 5}
+      />
       {ordered.map((player, index) => {
         const roll = match.rolls[player.id];
         if (!roll?.path?.length) return null;
@@ -319,7 +325,7 @@ export function BakuCoreLayer({
   const [selectedCoreCell, setSelectedCoreCell] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [tracingSignature, setTracingSignature] = useState("");
+  const [completedTraceSignature, setCompletedTraceSignature] = useState("");
   const {
     rollResultOpen,
     deferredCoreCells,
@@ -332,23 +338,24 @@ export function BakuCoreLayer({
     && match?.players.some((player) => (match.rolls[player.id]?.path?.length ?? 0) >= 2),
   );
 
-  useLayoutEffect(() => {
-    if (!rollResultOpen || !resultSignature || !hasRollPaths) {
-      setTracingSignature("");
-      return;
-    }
-    setTracingSignature(resultSignature);
+  // Derive the trace synchronously from a new authoritative result signature.
+  // The result dialog therefore never receives an open frame before the trace starts.
+  const tracingRoll = Boolean(
+    rollResultOpen
+    && hasRollPaths
+    && resultSignature
+    && completedTraceSignature !== resultSignature
+  );
+
+  useEffect(() => {
+    if (!tracingRoll || !resultSignature) return;
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const timeout = window.setTimeout(
-      () => setTracingSignature((current) => current === resultSignature ? "" : current),
+      () => setCompletedTraceSignature(resultSignature),
       reducedMotion ? 40 : ROLL_TRACE_DURATION_MS,
     );
     return () => window.clearTimeout(timeout);
-  }, [rollResultOpen, resultSignature, hasRollPaths]);
-
-  const tracingRoll = rollResultOpen
-    && hasRollPaths
-    && tracingSignature === resultSignature;
+  }, [tracingRoll, resultSignature]);
 
   useEffect(() => {
     let frame = 0;
