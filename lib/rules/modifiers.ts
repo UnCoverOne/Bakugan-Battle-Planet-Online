@@ -32,6 +32,12 @@ const LAYER_ORDER: Record<ContinuousModifier["layer"], number> = {
   final: 6,
 };
 
+const DRAGONOID_MAXIMUS_REQUIRED_HEROES = [
+  "bb-207",
+  "bb-215",
+  "bb-202",
+] as const satisfies readonly RulesCardId[];
+
 function opponentOf(state: MatchState, player: PlayerState) {
   return state.players.find((candidate) => candidate.id !== player.id);
 }
@@ -69,14 +75,20 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, " ")
         .trim();
+      const requiredNames = condition.names.map(normalize);
+      const isDragonoidMaximusCondition = requiredNames.length === 3
+        && ["dan", "wynton", "lia"].every((name) => requiredNames.includes(name));
+      if (isDragonoidMaximusCondition) {
+        const controlledHeroIds = new Set(player.heroes.map((hero) => hero.catalogId));
+        return DRAGONOID_MAXIMUS_REQUIRED_HEROES.every((catalogId) => controlledHeroIds.has(catalogId));
+      }
       const controlled = [
         ...player.heroes,
         ...player.bakugan.flatMap((candidate) => [candidate.character, ...candidate.evoStack]),
       ].map((card) => normalize(card.displayName || card.name));
-      return condition.names.every((requiredName) => {
-        const required = normalize(requiredName);
-        return controlled.some((name) => name === required || name.startsWith(`${required} `));
-      });
+      return requiredNames.every((required) => (
+        controlled.some((name) => name === required || name.startsWith(`${required} `))
+      ));
     }
     case "energy-count": return player.maxEnergy >= condition.amount;
     case "card-count": return player.heroes.filter((hero) => hero.catalogId === condition.catalogId).length >= condition.amount;
