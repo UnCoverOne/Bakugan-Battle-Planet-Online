@@ -27,6 +27,7 @@ import {
   type MatchState,
   type PendingEffect,
   type Placement,
+  type RollOutcome,
 } from "./game";
 import { cardEnergyPaymentState, playCardWithAutoEnergy } from "./cardPayment";
 import { flipDamageCard, resolveManualDamage } from "./manualDamage";
@@ -98,12 +99,18 @@ function stableHash(value: string) {
   return hash >>> 0;
 }
 
+type RollForecastSample = {
+  outcome: RollOutcome;
+  value: number;
+};
+
 type RollForecast = {
   target: Placement;
   value: number;
   openProbability: number;
   coreProbability: number;
   primaryProbability: Map<string, number>;
+  samples: RollForecastSample[];
 };
 
 /**
@@ -128,6 +135,7 @@ function forecastRoll(
   let totalValue = 0;
   let opened = 0;
   let collected = 0;
+  const samples: RollForecastSample[] = [];
 
   for (let sample = 0; sample < ROLL_FORECAST_SAMPLES; sample += 1) {
     const values = [
@@ -149,7 +157,9 @@ function forecastRoll(
       const placement = state.placements.find((candidate) => candidate.cell === cell);
       return sum + (placement ? coreValueForBakugan(placement.core, bakugan) : 0);
     }, 0);
-    totalValue += (didOpen ? printedBakuganValue(bakugan) : -1.25) + coreValue;
+    const outcomeValue = (didOpen ? printedBakuganValue(bakugan) : -1.25) + coreValue;
+    totalValue += outcomeValue;
+    samples.push({ outcome, value: outcomeValue });
     const primary = outcome.cores[0];
     if (primary) primaryCounts.set(primary, (primaryCounts.get(primary) ?? 0) + 1);
   }
@@ -162,6 +172,7 @@ function forecastRoll(
     primaryProbability: new Map(
       [...primaryCounts].map(([cell, count]) => [cell, count / ROLL_FORECAST_SAMPLES]),
     ),
+    samples,
   };
 }
 
@@ -206,6 +217,104 @@ function expectedOpenChance(match: MatchState, playerId: string) {
   return bestForecast(match, playerId, selected)?.openProbability ?? selected.rollAccuracy / 100;
 }
 
+const REROLL_MISS_RECOVERY_VALUE = 4.5;
+const MAX_REROLL_COMPONENT_VALUE = 6;
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function withoutRerollSuccessInstructions(program: RuleProgram): RuleProgram {
+  return {
+    ...program,
+    instructions: program.instructions.filter(
+      (instruction) => instruction.condition.kind !== "reroll-opened",
+    ),
+  };
+}
+
+function repeatableOnOpenValue(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId);
+  if (!player) return 0;
+  return player.heroes.reduce((sum, hero) => {
+    try {
+      const program = compileCardEffect(hero);
+      const instructions = program.instructions.filter((instruction) => (
+        instruction.actions.some((action) => (
+          action.kind === "trigger" && action.definition.event === "BAKUGAN_OPENED"
+        ))
+      ));
+      if (!instructions.length) return sum;
+      return sum + Math.max(0, estimateProgramValue(
+        { ...program, instructions },
+        match,
+        playerId,
+      ));
+    } catch {
+      return sum;
+    }
+  }, 0);
+}
+
+function rerollSuccessValue(match: MatchState, playerId: string, card: GameCard) {
+  try {
+    const program = compileCardEffect(card);
+    const instructions = program.instructions.filter(
+      (instruction) => instruction.condition.kind === "reroll-opened",
+    );
+    if (!instructions.length) return 0;
+    return Math.max(0, estimateProgramValue(
+      { ...program, instructions },
+      match,
+      playerId,
+    ));
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Expected optionality of a future self-Reroll on the same utility scale as
+ * other card effects. Each sampled initial result is compared with the best
+ * forecasted Reroll: misses use the established 4.5 recovery anchor, open
+ * results use only expected improvement, and repeated on-open/reroll-success
+ * effects are weighted by the Reroll's opening probability.
+ */
+export function estimateFutureRerollValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  let program: RuleProgram;
+  try { program = compileCardEffect(card); } catch { return 0; }
+  const rerolls = program.instructions.flatMap((instruction) => instruction.actions)
+    .filter((action): action is Extract<RuleAction, { kind: "reroll" }> => (
+      action.kind === "reroll" && action.target === "controller"
+    ));
+  if (!rerolls.length || !availableRollTargets(match).length) return 0;
+
+  const bakugan = bestBakugan(match, playerId);
+  if (!bakugan) return 0;
+  const selected = bestForecast(match, playerId, bakugan);
+  if (!selected) return 0;
+  const initial = forecastRoll(match, playerId, bakugan, selected.target);
+  const reroll = forecastRoll(match, playerId, bakugan, selected.target);
+  const expectedTriggeredValue = reroll.openProbability * (
+    repeatableOnOpenValue(match, playerId)
+    + rerollSuccessValue(match, playerId, card)
+  );
+  const mandatory = rerolls.some((action) => action.mandatory);
+  const total = initial.samples.reduce((sum, sample) => {
+    const raw = sample.outcome.result === "miss-closed"
+      ? REROLL_MISS_RECOVERY_VALUE * reroll.openProbability + expectedTriggeredValue
+      : reroll.value - sample.value + expectedTriggeredValue;
+    return sum + (mandatory
+      ? clamp(raw, -MAX_REROLL_COMPONENT_VALUE, MAX_REROLL_COMPONENT_VALUE)
+      : clamp(raw, 0, MAX_REROLL_COMPONENT_VALUE));
+  }, 0);
+  return total / Math.max(1, initial.samples.length);
+}
+
 function evaluatedFutureCardValue(
   match: MatchState,
   playerId: string,
@@ -214,7 +323,11 @@ function evaluatedFutureCardValue(
 ) {
   const printedCost = card.cost === "X" ? 2 : card.cost;
   try {
-    let value = estimateProgramValue(compileCardEffect(card), match, playerId) - printedCost * 0.4;
+    const program = compileCardEffect(card);
+    const evaluatedProgram = /\bReroll\b/i.test(card.effect)
+      ? withoutRerollSuccessInstructions(program)
+      : program;
+    let value = estimateProgramValue(evaluatedProgram, match, playerId) - printedCost * 0.4;
     if (card.type === "Hero") value += 2.2;
     if (card.type === "Evo") value += 2.8;
     if (card.type === "Flip" && includeDeckFlipValue) value += 3.2;
@@ -675,9 +788,6 @@ function futurePlayLikelihood(
     return 0.2;
   }
   if (card.type === "Evo" && !choices.targetBakuganId) return 0;
-  if (/\bReroll\b/i.test(card.effect)) {
-    return match.placements.some((placement) => !placement.attachedTo) ? 0.25 : 0;
-  }
   if (/\b(?:Flow|Fury|Turbo|Domination|Victor)\b|\bif\b/i.test(card.effect)) return 0.65;
   return 1;
 }
@@ -701,9 +811,10 @@ function analyzeEnergyCard(
   return {
     card,
     cost,
-    value: zone === "hand"
+    value: (zone === "hand"
       ? handCardRetentionValue(match, playerId, card)
-      : deckCardFutureValue(match, playerId, card),
+      : deckCardFutureValue(match, playerId, card))
+      + estimateFutureRerollValue(match, playerId, card),
     playLikelihood: futurePlayLikelihood(match, playerId, card, choices, zone),
     affordableNow: cost <= capacity,
   };
@@ -820,12 +931,17 @@ function energyOpportunityCost(
   const deckCopies = player.deckCards.filter(
     (card) => card.catalogId === analysis.card.catalogId,
   ).length;
-  const immediateUrgency = analysis.affordableNow && analysis.playLikelihood >= 0.5 ? 3.5 : 0;
-  const nextTurnUrgency = !analysis.affordableNow && analysis.cost <= capacity + 1 ? 1.4 : 0;
+  const retainedValue = Math.max(0, analysis.value) * analysis.playLikelihood;
+  const immediateUrgency = analysis.affordableNow
+    ? 3.5 * analysis.playLikelihood
+    : 0;
+  const nextTurnUrgency = !analysis.affordableNow && analysis.cost <= capacity + 1
+    ? 1.4 * analysis.playLikelihood
+    : 0;
   const lateGameDiscount = Math.max(0, analysis.cost - capacity - 1) * 0.9
     + analysis.cost * 0.08;
   const replaceability = Math.max(0, handCopies - 1) * 0.45 + deckCopies * 0.55;
-  return Math.max(0, analysis.value)
+  return retainedValue
     + immediateUrgency
     + nextTurnUrgency
     - lateGameDiscount
