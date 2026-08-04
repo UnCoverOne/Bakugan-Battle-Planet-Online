@@ -180,6 +180,27 @@ export function phaseTransitionIsBlocked(
   return rollResultsVisible || brawlPreviewVisible || batchHudVisible;
 }
 
+/**
+ * Transition callouts are temporal: a stale callout must never wait behind
+ * another presentation and then play against a later turn state. Signatures
+ * already observed in the same round are also ineligible, preventing transient
+ * presentation state from replaying a step that has already been announced.
+ */
+export function phaseTransitionShouldPresent(
+  transition: TurnTransition | null,
+  current: TurnProgressSnapshot | null,
+  blocked: boolean,
+  seenSignatures: ReadonlySet<string>,
+) {
+  return Boolean(
+    transition
+    && current
+    && !blocked
+    && transition.signature === current.signature
+    && !seenSignatures.has(transition.signature)
+  );
+}
+
 export function describeTurnTransition(
   previous: TurnProgressSnapshot | null,
   current: TurnProgressSnapshot | null,
