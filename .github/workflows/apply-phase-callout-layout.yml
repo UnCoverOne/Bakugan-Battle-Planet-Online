@@ -1,6 +1,12 @@
 name: Apply Phase Callout Layout
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/apply-phase-callout-layout.mjs
+      - .github/workflows/apply-phase-callout-layout.yml
   push:
     branches:
       - agent/simplify-phase-callout
