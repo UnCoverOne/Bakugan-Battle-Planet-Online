@@ -2331,6 +2331,10 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
   }
   delete player.revealedDeckCardId;
   if (isRuleObject(pending)) completeRuleObject(pending);
+  // Completion and removal are one transaction. Self-moving effects such as
+  // Turn to Energy must never leave a terminal rule object stranded in the
+  // batch if a caller resumes through a different continuation path.
+  state.batch = state.batch.filter((candidate) => candidate.id !== pending.id);
   if (!pending.alternateWin) stageDragonoidMaximusWinEffect(state);
   entry(state, "game", `${pending.card.name} finished resolving its typed rule program.`, pending.card, "effect", pending.controllerId);
   return true;

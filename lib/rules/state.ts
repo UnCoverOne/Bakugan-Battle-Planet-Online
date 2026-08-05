@@ -72,6 +72,8 @@ export function normalizeRuleObjects(state: MatchState) {
       cursor: { instructionIndex: pending.instructionIndex ?? 0, effectIndex: 0 },
       independentChoiceSetId: copied ? `${pending.id}:choices` : `${pending.id}:choices:${index}`,
     } satisfies RuleObject;
-  });
+  }).filter((pending) => !(
+    isRuleObject(pending) && pending.status === "resolved"
+  ));
   return state;
 }
