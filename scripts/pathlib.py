@@ -36,6 +36,20 @@ class Path:
                     '  let score = baseScore - energyOpportunityCost;\n',
                     1,
                 )
+            if "AI_RESPONSE_PROGRAM" not in data:
+                data = data.replace(
+                    '  try { program = compileCardEffect(card); } catch { return undefined; }\n',
+                    '  try { program = compileCardEffect(card); } catch { return undefined; }\n'
+                    '  console.log("AI_RESPONSE_PROGRAM", card.catalogId, program.instructions.map((instruction) => ({ text: instruction.sourceText, actions: instruction.actions })));\n',
+                    1,
+                )
+            if "AI_RESPONSE_VALUE" not in data:
+                data = data.replace(
+                    '  if (powerSwing <= 0 && secondaryValue <= 0) return undefined;\n',
+                    '  console.log("AI_RESPONSE_VALUE", { card: card.catalogId, cost, powerSwing, secondaryValue, likelihood, choices });\n'
+                    '  if (powerSwing <= 0 && secondaryValue <= 0) return undefined;\n',
+                    1,
+                )
         with builtins.open(self.value, "w", encoding=encoding) as handle:
             return handle.write(data)
 
