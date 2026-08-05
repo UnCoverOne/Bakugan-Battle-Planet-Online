@@ -23,5 +23,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Inspect batch and priority integration
+        run: |
+          echo '--- passPriority callers ---'
+          grep -RIn --exclude-dir=node_modules --exclude='*.map' 'passPriority' app components lib tests | head -200 || true
+          echo '--- batch presentation ---'
+          grep -RIn --exclude-dir=node_modules --exclude='*.map' 'batch' app components | head -240 || true
+          echo '--- Turn to Energy references ---'
+          grep -RIn --exclude-dir=node_modules --exclude='*.map' 'Turn to Energy\|bb-134' . | head -120 || true
       - name: Run Turn to Energy regression
         run: node --import tsx --test tests/turn-to-energy-chain.test.ts
