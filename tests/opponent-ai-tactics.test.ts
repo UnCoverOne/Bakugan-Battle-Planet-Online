@@ -340,3 +340,89 @@ test("AI Evo with optional unimplemented reminder text resolves after both playe
   assert.equal(state.batch.length, 0);
   assert.equal(state.players[0].bakugan[0].evoStack.at(-1)?.id, evo.id);
 });
+
+function catalogueCard(catalogId: string, id: string): GameCard {
+  const source = CARDS.find((candidate) => candidate.catalogId === catalogId);
+  assert.ok(source, `Missing catalogue card ${catalogId}`);
+  return { ...source, id };
+}
+
+function preRollReservationMatch(input: {
+  energy: number;
+  buffInHand?: boolean;
+  existingShuns?: number;
+  deckCards?: GameCard[];
+}) {
+  const shun = catalogueCard("br-77", "reservation-shun");
+  const smokeArmor = catalogueCard("bb-49", "reservation-smoke-armor");
+  const ai = player(
+    "ai",
+    [bakugan("ai-reservation-b", "Aquos", 500, 5)],
+    [],
+    [shun, ...(input.buffInHand === false ? [] : [smokeArmor])],
+  );
+  const human = player(
+    "human",
+    [bakugan("human-reservation-b", "Pyrus", 900, 5)],
+  );
+  addEnergy(ai, input.energy);
+  ai.heroes = Array.from({ length: input.existingShuns ?? 0 }, (_, index) => (
+    catalogueCard("br-77", `existing-shun-${index}`)
+  ));
+  ai.deckCards = input.deckCards ?? [
+    catalogueCard("bb-10", "reservation-deck-filler-1"),
+    catalogueCard("bb-11", "reservation-deck-filler-2"),
+    catalogueCard("bb-12", "reservation-deck-filler-3"),
+  ];
+  ai.deck = ai.deckCards.length;
+  const match = matchWith(ai, human, "preRoll");
+  const secondCell = cell(1, 0);
+  match.placements = [
+    { playerId: ai.id, core: core("reservation-core-a"), cell: CENTER_CELL, order: 1 },
+    { playerId: human.id, core: core("reservation-core-b"), cell: secondCell, order: 2 },
+  ];
+  match.selected[ai.id] = ai.bakugan[0].id;
+  match.selected[human.id] = human.bakugan[0].id;
+  return { match, ai, shun, smokeArmor };
+}
+
+test("AI reserves Energy for an in-hand B-Power response that can swing the forecasted Brawl", () => {
+  const { match, ai, shun, smokeArmor } = preRollReservationMatch({ energy: 3 });
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.ok(next.players[0].hand.some((card) => card.id === shun.id));
+  assert.ok(next.players[0].hand.some((card) => card.id === smokeArmor.id));
+  assert.equal(next.priority, "human");
+});
+
+test("AI plays the draw Hero when enough Energy remains for the same B-Power response", () => {
+  const { match, ai, shun, smokeArmor } = preRollReservationMatch({ energy: 6 });
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, shun.id);
+  assert.ok(next.players[0].hand.some((card) => card.id === smokeArmor.id));
+});
+
+test("AI values a draw Hero when its deck can produce an affordable missing response", () => {
+  const tides = [0, 1, 2].map((index) => catalogueCard("bb-24", `reservation-tides-${index}`));
+  const { match, ai, shun } = preRollReservationMatch({
+    energy: 4,
+    buffInHand: false,
+    deckCards: tides,
+  });
+  ai.cardsPlayedThisTurn = 1;
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, shun.id);
+});
+
+test("AI has no hard ban on a third draw Hero when tactical Energy remains available", () => {
+  const { match, ai, shun } = preRollReservationMatch({
+    energy: 6,
+    existingShuns: 2,
+  });
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, shun.id);
+});
