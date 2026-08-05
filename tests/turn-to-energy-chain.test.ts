@@ -7,6 +7,8 @@ import {
   playCard,
   type MatchState,
 } from "../lib/game";
+import { reduceMatch } from "../lib/engine/reducer";
+import type { CommandEnvelope, GameCommand } from "../lib/engine/types";
 import { advanceOpponentAi, opponentAiCanAct } from "../lib/opponentAi";
 import { activeTappedEnergyIds } from "../lib/rules/costs";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
@@ -68,6 +70,25 @@ function assertResolved(
   );
 }
 
+function reduce(
+  state: MatchState,
+  actorId: string,
+  sequence: number,
+  command: GameCommand,
+) {
+  const envelope: CommandEnvelope = {
+    commandId: `turn-to-energy-command-${sequence}`,
+    gameId: state.id,
+    actorId,
+    expectedVersion: state.version,
+    issuedAt: 1_780_000_000_000 + sequence,
+    randomSeed: `turn-to-energy-seed-${sequence}`,
+    requestHash: `turn-to-energy-hash-${sequence}`,
+    command,
+  };
+  return reduceMatch(state, envelope).state;
+}
+
 test("Turn to Energy resolves from the batch into the Energy Zone uncharged", () => {
   const { state, playerId, opponentId, source, firstEnergy, secondEnergy } = turnToEnergyState();
   const definition = ruleDefinitionForCard(source);
@@ -96,6 +117,18 @@ test("Turn to Energy resolves through the production rules-command path", () => 
   assert.equal(played.batch.length, 1);
   const afterFirstPass = dispatchRulesCommand(played, playerId, { type: "PASS_PRIORITY" });
   const resolved = dispatchRulesCommand(afterFirstPass, opponentId, { type: "PASS_PRIORITY" });
+  assertResolved(resolved, playerId, source.id, [firstEnergy.id, secondEnergy.id]);
+});
+
+test("Turn to Energy resolves through the deterministic server reducer", () => {
+  const { state, playerId, opponentId, source, firstEnergy, secondEnergy } = turnToEnergyState();
+  const played = reduce(state, playerId, 1, {
+    type: "PLAY_CARD",
+    cardId: source.id,
+    choices: {},
+  });
+  const afterFirstPass = reduce(played, playerId, 2, { type: "PASS_PRIORITY" });
+  const resolved = reduce(afterFirstPass, opponentId, 3, { type: "PASS_PRIORITY" });
   assertResolved(resolved, playerId, source.id, [firstEnergy.id, secondEnergy.id]);
 });
 
