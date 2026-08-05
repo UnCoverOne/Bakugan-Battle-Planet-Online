@@ -9,7 +9,7 @@ import {
 import { executeRuleProgram } from "./rules/executor";
 import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
 import { ruleDefinitionForCard } from "./rules/catalogue";
-import { cardCostBreakdown } from "./rules/costs";
+import { activeTappedEnergyIds, cardCostBreakdown } from "./rules/costs";
 import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
@@ -1606,6 +1606,35 @@ const destroyEnergy = (state: MatchState, amount: number, selectedIds: string[])
   state.undoWindow = undefined;
 };
 
+type EffectEnergyPlayer = PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
+
+function applyEnergizedEntryState(
+  state: MatchState,
+  player: PlayerState,
+  cards: readonly GameCard[],
+  enters: "charged" | "uncharged",
+) {
+  if (!cards.length) return;
+  const tracked = player as EffectEnergyPlayer;
+  const newIds = new Set(cards.map((card) => card.id));
+  if (tracked.energyTapTurn !== state.turn) {
+    tracked.energyTapTurn = state.turn;
+    const existing = player.energyZone.filter((card) => !newIds.has(card.id));
+    const legacyGenerated = Math.min(Math.max(0, Math.floor(player.energy)), existing.length);
+    tracked.tappedEnergyIds = existing.slice(0, legacyGenerated).map((card) => card.id);
+    player.energy = legacyGenerated;
+  } else {
+    tracked.tappedEnergyIds = activeTappedEnergyIds(tracked, state.turn);
+  }
+  const uncharged = new Set(tracked.tappedEnergyIds ?? []);
+  for (const card of cards) {
+    if (enters === "uncharged") uncharged.add(card.id);
+    else uncharged.delete(card.id);
+  }
+  tracked.tappedEnergyIds = [...uncharged];
+  player.maxEnergy = player.energyZone.length;
+}
+
 const instructionChoices = (pending: PendingEffect, instructionIndex: number) => Object.entries(pending.resolvedChoices ?? {})
   .filter(([index]) => Number(index) <= instructionIndex)
   .sort(([left], [right]) => Number(left) - Number(right))
@@ -1798,20 +1827,33 @@ const executeRuleAction = (
       if (amount > 0) discardFromHand(state, affected, Math.min(action.maximum, amount), selected);
       return;
     }
-    case "energize":
-      if (action.source === "deck") {
+    case "energize": {
+      if (choices.confirmed === false) return;
+      if (action.source === "hand") {
+        const selectedIds = choices.handCardIds?.slice(0, action.amount) ?? [];
+        if (selectedIds.length !== action.amount || new Set(selectedIds).size !== action.amount) return;
+        const selected = new Set(selectedIds);
+        const energized = player.hand.filter((candidate) => selected.has(candidate.id));
+        if (energized.length !== action.amount) return;
+        player.hand = player.hand.filter((candidate) => !selected.has(candidate.id));
+        player.energyZone.push(...energized);
+        applyEnergizedEntryState(state, player, energized, action.enters);
+      } else if (action.source === "deck") {
+        const energized: GameCard[] = [];
         for (let index = 0; index < action.amount; index += 1) {
           const energyCard = player.deckCards.shift();
-          if (energyCard) player.energyZone.push(energyCard);
+          if (energyCard) energized.push(energyCard);
         }
-        player.maxEnergy = player.energyZone.length;
+        player.energyZone.push(...energized);
+        applyEnergizedEntryState(state, player, energized, action.enters);
         syncDeck(player);
       } else if (action.source === "hero") {
         for (const owner of state.players) {
           const index = owner.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
           if (index >= 0) {
-            owner.energyZone.push(...owner.heroes.splice(index, 1));
-            owner.maxEnergy = owner.energyZone.length;
+            const energized = owner.heroes.splice(index, 1);
+            owner.energyZone.push(...energized);
+            applyEnergizedEntryState(state, owner, energized, action.enters);
             break;
           }
         }
@@ -1819,9 +1861,10 @@ const executeRuleAction = (
         for (const owner of state.players) owner.heroes = owner.heroes.filter((candidate) => candidate.id !== card.id);
         player.discard = player.discard.filter((candidate) => candidate.id !== card.id);
         player.energyZone.push(card);
-        player.maxEnergy = player.energyZone.length;
+        applyEnergizedEntryState(state, player, [card], action.enters);
       }
       return;
+    }
     case "generate-energy":
       player.energy += Math.max(0, scaleStat(state, player, text, action.amount, "draw"));
       return;

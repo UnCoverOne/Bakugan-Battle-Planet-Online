@@ -7,6 +7,8 @@ import {
   emitGameEvent,
   passPriority,
   playCard,
+  resolveStructuredEffect,
+  submitCardChoice,
   type Core,
   type GameCard,
   type MatchState,
@@ -21,7 +23,9 @@ import {
 import { activePendingDraw, drawPendingCard } from "../lib/drawQueue";
 import { advanceOpponentAi } from "../lib/opponentAi";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
+import { activeTappedEnergyIds } from "../lib/rules/costs";
 import { evaluateBakuganCharacteristics } from "../lib/rules/modifiers";
+import { createRuleObject } from "../lib/rules/objects";
 import { emitRuleEvent } from "../lib/rules/triggers";
 import { handDiscardRequirement } from "../components/game-screen-v2/matchHudState";
 
@@ -468,4 +472,131 @@ test("the catalogue does not invent discard choices from ordinary hand-card word
     assert.equal(definition.abilities.flatMap((ability) => ability.instructions)
       .flatMap((instruction) => instruction.actions).some((action) => action.kind === "discard"), false);
   }
+});
+
+
+test("typed Energize actions preserve charged and uncharged entry state", () => {
+  const trox = card("bb-373", "entry-state-trox");
+  const troxAction = ruleDefinitionForCard(trox).abilities
+    .flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.effects)
+    .find((action) => action.kind === "energize");
+  assert.ok(troxAction && troxAction.kind === "energize");
+  assert.equal(troxAction.source, "hand");
+  assert.equal(troxAction.enters, "uncharged");
+
+  const chargedCard = CARDS.find((candidate) => (
+    /energize the top two cards of their deck/i.test(candidate.effect)
+    && !/uncharged/i.test(candidate.effect)
+  ));
+  assert.ok(chargedCard);
+  const chargedAction = ruleDefinitionForCard(chargedCard).abilities
+    .flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.effects)
+    .find((action) => action.kind === "energize");
+  assert.ok(chargedAction && chargedAction.kind === "energize");
+  assert.equal(chargedAction.source, "deck");
+  assert.equal(chargedAction.enters, "charged");
+});
+
+test("Ventus Trox Ultra energizes the selected hand card uncharged", () => {
+  const player = makePlayer("trox-player", "Trox Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("trox-opponent", "Opponent", STARTER_DECKS[1]);
+  const state = createMatch("TROXENERGY", "bo1", [player, opponent]);
+  state.turn = 4;
+  state.phase = "victor";
+  state.stepLabel = "Brawl Phase • Victor Step";
+  state.startingPlayer = player.id;
+  state.priority = player.id;
+  state.brawlWinner = player.id;
+
+  const live = state.players.find((candidate) => candidate.id === player.id)!;
+  const trox = card("bb-373", "runtime-trox");
+  const existing = card("bb-10", "existing-charged-energy");
+  const fodder = card("bb-17", "selected-hand-energy");
+  live.hand = [fodder];
+  live.energyZone = [existing];
+  live.maxEnergy = 1;
+  live.energy = 0;
+  (live as typeof live & { energyTapTurn?: number; tappedEnergyIds?: string[] }).energyTapTurn = state.turn;
+  (live as typeof live & { energyTapTurn?: number; tappedEnergyIds?: string[] }).tappedEnergyIds = [];
+  live.bakugan[0].character = trox;
+  live.bakugan[0].open = true;
+  state.selected[live.id] = live.bakugan[0].id;
+
+  const ability = ruleDefinitionForCard(trox).abilities.find((candidate) => (
+    candidate.trigger?.event === "VICTOR_DECLARED"
+  ));
+  assert.ok(ability);
+  const pending = createRuleObject({
+    controllerId: live.id,
+    card: trox,
+    ability,
+    kind: "trigger",
+    sourceId: trox.id,
+    choices: { sourceBakuganId: live.bakugan[0].id },
+  });
+
+  let resolving = resolveStructuredEffect(state, pending);
+  assert.ok(resolving.pendingChoice);
+  assert.ok(resolving.pendingChoice.schema.fields.some((field) => field.id === "confirmed"));
+  assert.ok(resolving.pendingChoice.schema.fields.some((field) => field.id === "handCardIds"));
+  resolving = submitCardChoice(resolving, live.id, {
+    confirmed: true,
+    handCardIds: [fodder.id],
+  });
+
+  const after = resolving.players.find((candidate) => candidate.id === live.id)!;
+  assert.equal(after.hand.some((candidate) => candidate.id === fodder.id), false);
+  assert.equal(after.energyZone.some((candidate) => candidate.id === fodder.id), true);
+  assert.equal(after.maxEnergy, 2);
+  assert.deepEqual(activeTappedEnergyIds(after, resolving.turn), [fodder.id]);
+  assert.equal(activeTappedEnergyIds(after, resolving.turn).includes(existing.id), false);
+});
+
+test("unqualified Energize effects add Energy cards charged", () => {
+  const player = makePlayer("charged-player", "Charged Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("charged-opponent", "Opponent", STARTER_DECKS[1]);
+  const state = createMatch("CHARGEDENERGY", "bo1", [player, opponent]);
+  state.turn = 3;
+  state.phase = "power";
+  state.stepLabel = "Brawl Phase • Power Step";
+  state.startingPlayer = player.id;
+  state.priority = player.id;
+
+  const live = state.players.find((candidate) => candidate.id === player.id)!;
+  const source = CARDS.find((candidate) => (
+    /energize the top two cards of their deck/i.test(candidate.effect)
+    && !/uncharged/i.test(candidate.effect)
+  ));
+  assert.ok(source);
+  const sourceCard = { ...source, id: "charged-energize-source" };
+  const oldEnergy = card("bb-10", "already-uncharged-energy");
+  const first = card("bb-17", "new-charged-energy-one");
+  const second = card("bb-18", "new-charged-energy-two");
+  live.energyZone = [oldEnergy];
+  live.maxEnergy = 1;
+  live.energy = 0;
+  live.deckCards = [first, second];
+  live.deck = 2;
+  (live as typeof live & { energyTapTurn?: number; tappedEnergyIds?: string[] }).energyTapTurn = state.turn;
+  (live as typeof live & { energyTapTurn?: number; tappedEnergyIds?: string[] }).tappedEnergyIds = [oldEnergy.id];
+
+  const ability = ruleDefinitionForCard(sourceCard).abilities.find((candidate) => candidate.kind !== "triggered");
+  assert.ok(ability);
+  const pending = createRuleObject({
+    controllerId: live.id,
+    card: sourceCard,
+    ability,
+    kind: "card",
+  });
+  let resolving = resolveStructuredEffect(state, pending);
+  assert.ok(resolving.pendingChoice);
+  resolving = submitCardChoice(resolving, live.id, { confirmed: true });
+
+  const after = resolving.players.find((candidate) => candidate.id === live.id)!;
+  assert.deepEqual(after.energyZone.map((candidate) => candidate.id), [oldEnergy.id, first.id, second.id]);
+  assert.deepEqual(activeTappedEnergyIds(after, resolving.turn), [oldEnergy.id]);
+  assert.equal(after.maxEnergy, 3);
+  assert.equal(after.deck, 0);
 });

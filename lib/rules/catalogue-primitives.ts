@@ -218,10 +218,26 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   }
   if (/discard (?:their|your) entire hand/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99 });
 
+  const energizeEntryState = /\buncharged\b/i.test(text) ? "uncharged" as const : "charged" as const;
   const energize = text.match(/energize (?:the top )?(a|an|one|two|three|\d+)?\s*cards?/i);
-  if (energize) actions.push({ kind: "energize", amount: numberValue(energize[1]), source: /top/i.test(energize[0]) ? "deck" : "hand" });
-  if (/Energize (?:it|that Hero)/i.test(text)) actions.push({ kind: "energize", amount: 1, source: "hero" });
-  if (/Energize this(?: uncharged|\b)/i.test(text)) actions.push({ kind: "energize", amount: 1, source: "self" });
+  if (energize) actions.push({
+    kind: "energize",
+    amount: numberValue(energize[1]),
+    source: /top/i.test(energize[0]) ? "deck" : "hand",
+    enters: energizeEntryState,
+  });
+  if (/Energize (?:it|that Hero)/i.test(text)) actions.push({
+    kind: "energize",
+    amount: 1,
+    source: "hero",
+    enters: energizeEntryState,
+  });
+  if (/Energize this(?: uncharged|\b)/i.test(text)) actions.push({
+    kind: "energize",
+    amount: 1,
+    source: "self",
+    enters: energizeEntryState,
+  });
 
   const generatedEnergy = text.match(/\+(\d+) \[Energy\]/i);
   if (generatedEnergy) actions.push({ kind: "generate-energy", amount: Number(generatedEnergy[1]), scale });

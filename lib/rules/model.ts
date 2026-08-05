@@ -105,7 +105,7 @@ export type RuleAction =
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: number; duration: RulesDuration }
   | { kind: "draw"; amount: number; scale?: string }
   | { kind: "discard"; amount: number; minimum: number; maximum: number; repeated?: boolean }
-  | { kind: "energize"; amount: number; source: "hand" | "deck" | "hero" | "self" }
+  | { kind: "energize"; amount: number; source: "hand" | "deck" | "hero" | "self"; enters: "charged" | "uncharged" }
   | { kind: "generate-energy"; amount: number; scale?: string }
   | { kind: "set-stat"; stat: "power" | "damage"; value: number }
   | { kind: "set-rule"; rule: "victor-stat"; value: "power" | "damage"; duration: RulesDuration }
