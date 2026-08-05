@@ -41,6 +41,9 @@ const VERIFIED_CARD_CORRECTIONS: Partial<Record<string, Partial<ControlledCardRe
   // The generated source incorrectly transcribed Haos Gorthion Ultra's printed
   // Damage Rating as 7. Its Character card is 600 B / 2 Damage.
   "bb-330": { damage: 2 },
+  // The generated source incorrectly transcribed Ventus Trox Ultra's second
+  // BakuCore as Fist. Its Character card requires Shield and Helix.
+  "bb-373": { coreTypes: ["Shield", "Helix"] },
 };
 
 const battleBrawlers = (battleBrawlersJson as unknown as ControlledCardRecord[]).map((record) => ({
@@ -137,6 +140,14 @@ export function validateControlledCatalogue(
   if ((setNumbers.get("BR")?.get(221) ?? 0) !== 2) errors.push("BR collector number 221 must contain both known printings.");
   if (records.find((card) => card.id === "bb-330")?.damage !== 2) {
     errors.push("bb-330: Haos Gorthion Ultra must have 2 base Damage.");
+  }
+  const ventusTroxUltra = records.find((card) => card.id === "bb-373");
+  if (
+    ventusTroxUltra?.coreTypes.length !== 2
+    || ventusTroxUltra.coreTypes[0] !== "Shield"
+    || ventusTroxUltra.coreTypes[1] !== "Helix"
+  ) {
+    errors.push("bb-373: Ventus Trox Ultra must require Shield and Helix BakuCores.");
   }
   for (const [type, expected] of Object.entries(EXPECTED_TYPE_COUNTS)) {
     if ((typeCounts.get(type) ?? 0) !== expected) errors.push(`${type}: expected ${expected}, found ${typeCounts.get(type) ?? 0}.`);
