@@ -426,7 +426,8 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
   const suppressed = new Set(
     player.hand
       .filter((card) => (
-        shouldSuppressTemporaryCombatCard(input, playerId, card)
+        (input.phase !== "preRoll"
+          && shouldSuppressTemporaryCombatCard(input, playerId, card))
         || shouldReserveDrawRerollCard(input, card)
       ))
       .map((card) => card.id),
