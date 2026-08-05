@@ -250,3 +250,16 @@ test("future Reroll value is bounded and increases with repeatable on-open Heroe
   assert.ok(withShun > base, `Expected Shun to increase ${base}, got ${withShun}`);
   assert.ok(withShun <= 6, `Expected bounded Shun Reroll value, got ${withShun}`);
 });
+
+
+test("Energize protects a nested Flow combat response when expendable fodder exists", () => {
+  const tides = catalogCard("bb-24", "energize-protected-tides");
+  const flip = printedCard(144, "energize-tides-fodder");
+  const goal = printedCard(35, "energize-tides-goal");
+  const ai = player("ai", [tides, flip, goal]);
+  addEnergy(ai, 2);
+  const plan = planOpponentEnergize(energizeMatch(ai), ai.id);
+  assert.equal(plan.shouldEnergize, true);
+  assert.equal(plan.cardId, flip.id);
+  assert.notEqual(plan.cardId, tides.id);
+});

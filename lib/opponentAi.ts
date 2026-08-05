@@ -19,8 +19,13 @@ import {
   chooseCardChoices as chooseBaseCardChoices,
 } from "./opponentAiBase";
 import { playerCanSelectRollTarget, selectRollTarget } from "./rolling";
-import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
-import { ruleConditionActive } from "./rules/modifiers";
+import {
+  activeCardActionEntries,
+  cardLeafActions,
+  isTemporaryCombatAction,
+  pureTemporaryCombatProgram,
+} from "./aiCardSemantics";
+import type { RuleAction, RuleInstruction } from "./rules/effects";
 
 export { chooseCardChoices, opponentAiCanAct } from "./opponentAiBase";
 
@@ -36,8 +41,6 @@ type CombatProjection = {
   projectedGap: number;
   usefulPostVictoryEffect: boolean;
 };
-
-const NON_SUBSTANTIVE_ACTIONS = new Set<RuleAction["kind"]>(["choice", "trigger"]);
 
 function playerById(match: MatchState, playerId: string) {
   return match.players.find((player) => player.id === playerId);
@@ -72,41 +75,6 @@ function actionTargetsEnemy(
     return Boolean(opponentOf(match, playerId)?.bakugan.some((bakugan) => bakugan.id === targetId));
   }
   return /enemy|opposing|opponent(?:'s)?|non-\[[a-z]+\]/i.test(sourceText);
-}
-
-function actionIsTemporaryCombat(action: RuleAction) {
-  if (action.kind === "set-stat" || action.kind === "set-rule") return true;
-  return (action.kind === "modify-stat" || action.kind === "grant-keyword")
-    && action.duration !== "while-source-in-play"
-    && action.duration !== "next-card";
-}
-
-function nestedRuleActions(action: RuleAction): RuleAction[] {
-  if (action.kind === "conditional") {
-    return [...action.whenTrue, ...(action.whenFalse ?? [])];
-  }
-  if (action.kind === "replacement") return action.replaceWith;
-  if (action.kind === "sequence") return action.effects;
-  return [];
-}
-
-function substantiveLeafActions(action: RuleAction): RuleAction[] {
-  if (NON_SUBSTANTIVE_ACTIONS.has(action.kind)) return [];
-  const nested = nestedRuleActions(action);
-  return nested.length ? nested.flatMap(substantiveLeafActions) : [action];
-}
-
-function cardLeafActions(card: GameCard, source = card.effect) {
-  return compileCardEffect(card, source).instructions
-    .flatMap((instruction) => instruction.actions)
-    .flatMap(substantiveLeafActions);
-}
-
-function pureTemporaryCombatProgram(card: GameCard) {
-  const substantive = cardLeafActions(card);
-  return substantive.length > 0
-    && substantive.some(actionIsTemporaryCombat)
-    && substantive.every(actionIsTemporaryCombat);
 }
 
 function shouldReserveDrawRerollCard(match: MatchState, card: GameCard) {
@@ -241,41 +209,6 @@ function applyProjectedAction(
   }
 }
 
-function projectionConditionActive(
-  match: MatchState,
-  playerId: string,
-  condition: Parameters<typeof ruleConditionActive>[2],
-) {
-  const player = playerById(match, playerId);
-  return Boolean(player && ruleConditionActive(
-    match,
-    player,
-    condition,
-    activeBakugan(match, playerId),
-  ));
-}
-
-function projectedLeafActions(
-  match: MatchState,
-  playerId: string,
-  action: RuleAction,
-): RuleAction[] {
-  if (action.kind === "conditional") {
-    const branch = projectionConditionActive(match, playerId, action.condition)
-      ? action.whenTrue
-      : action.whenFalse ?? [];
-    return branch.flatMap((nested) => projectedLeafActions(match, playerId, nested));
-  }
-  if (action.kind === "replacement") {
-    if (action.condition && !projectionConditionActive(match, playerId, action.condition)) return [];
-    return action.replaceWith.flatMap((nested) => projectedLeafActions(match, playerId, nested));
-  }
-  if (action.kind === "sequence") {
-    return action.effects.flatMap((nested) => projectedLeafActions(match, playerId, nested));
-  }
-  return [action];
-}
-
 function projectedCombatOutcome(
   match: MatchState,
   playerId: string,
@@ -305,13 +238,14 @@ function projectedCombatOutcome(
   const resolvingPlayer = playerById(resolving, playerId);
   if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
 
-  for (const instruction of compileCardEffect(card).instructions) {
-    if (!projectionConditionActive(resolving, playerId, instruction.condition)) continue;
-    const actions = instruction.actions.flatMap((action) => (
-      projectedLeafActions(resolving, playerId, action)
-    ));
-    for (const action of actions) {
-      if (!actionIsTemporaryCombat(action)) continue;
+  for (const { instruction, action } of activeCardActionEntries(
+    resolving,
+    playerId,
+    card,
+    choices,
+    { execution: "play" },
+  )) {
+      if (!isTemporaryCombatAction(action)) continue;
       const targetsEnemy = actionTargetsEnemy(
         match,
         playerId,
@@ -338,7 +272,6 @@ function projectedCombatOutcome(
         damage,
         deciding,
       );
-    }
   }
 
   const projectedGap = deciding.stat === "power"

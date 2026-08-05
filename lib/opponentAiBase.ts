@@ -19,6 +19,7 @@ import {
   rotationPhaseOpenCell,
   selectBakugan,
   submitCardChoice,
+  totalDamage,
   totalPower,
   type Bakugan,
   type CardChoices,
@@ -53,6 +54,15 @@ import {
   type RuleProgram,
 } from "./rules/effects";
 import { evaluateBakuganCharacteristics } from "./rules/modifiers";
+import {
+  activeCardActionEntries,
+  allInstructionLeafActions,
+  cardLeafActions,
+  estimateRuleActionValue,
+  hasNonDeferrablePreRollTiming,
+  isTemporaryCombatAction,
+  temporaryCombatPotential,
+} from "./aiCardSemantics";
 
 const PRIORITY_PHASES = new Set<MatchState["phase"]>([
   "preRoll", "power", "victor", "postDamage", "endPlay",
@@ -329,9 +339,7 @@ export function estimateFutureRerollValue(
   playerId: string,
   card: GameCard,
 ) {
-  let program: RuleProgram;
-  try { program = compileCardEffect(card); } catch { return 0; }
-  const rerolls = program.instructions.flatMap((instruction) => instruction.actions)
+  const rerolls = cardLeafActions(card)
     .filter((action): action is Extract<RuleAction, { kind: "reroll" }> => (
       action.kind === "reroll" && action.target === "controller"
     ));
@@ -479,28 +487,39 @@ function cardValue(
 ) {
   const program = compileCardEffect(card);
   const printedCost = card.cost === "X" ? choices.xValue ?? 0 : card.cost;
-  let value = estimateProgramValue(program, match, playerId, choices) - printedCost * 0.72;
-  for (const instruction of program.instructions) {
-    for (const action of instruction.actions) {
-      const raw = actionBaseValue(action);
-      if (raw) {
-        const targetsEnemy = actionTargetsEnemy(
-          match, playerId, choices, action, instruction.sourceText,
-        );
-        const strategic = raw * (targetsEnemy ? -1 : 1);
-        value += strategic * combatRelevance(match, playerId, action, targetsEnemy) - raw;
-      }
-      if (action.kind === "negate") {
-        value += negateValue(match, playerId, program) - (match.batch.length ? 5 : -3);
-      }
-      if (action.kind === "reroll" && match.phase === "power") {
-        const targetId = action.target === "opponent" ? opponentOf(match, playerId)?.id : playerId;
-        const roll = targetId ? match.rolls[targetId] : undefined;
-        if (roll) {
-          const missedCore = roll.result === "miss-closed";
-          const opponentTarget = action.target === "opponent";
-          value += missedCore === !opponentTarget ? 4.5 : -1.5;
-        }
+  const resolving = cloneMatch(match);
+  const resolvingPlayer = playerById(resolving, playerId);
+  if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
+  const entries = activeCardActionEntries(
+    resolving,
+    playerId,
+    card,
+    choices,
+    { execution: "play" },
+  );
+  let value = entries.reduce(
+    (sum, entry) => sum + estimateRuleActionValue(entry.action, resolving),
+    0,
+  ) - printedCost * 0.72;
+  for (const { instruction, action } of entries) {
+    const raw = actionBaseValue(action);
+    if (raw) {
+      const targetsEnemy = actionTargetsEnemy(
+        match, playerId, choices, action, instruction.sourceText,
+      );
+      const strategic = raw * (targetsEnemy ? -1 : 1);
+      value += strategic * combatRelevance(match, playerId, action, targetsEnemy) - raw;
+    }
+    if (action.kind === "negate") {
+      value += negateValue(match, playerId, program) - (match.batch.length ? 5 : -3);
+    }
+    if (action.kind === "reroll" && match.phase === "power") {
+      const targetId = action.target === "opponent" ? opponentOf(match, playerId)?.id : playerId;
+      const roll = targetId ? match.rolls[targetId] : undefined;
+      if (roll) {
+        const missedCore = roll.result === "miss-closed";
+        const opponentTarget = action.target === "opponent";
+        value += missedCore === !opponentTarget ? 4.5 : -1.5;
       }
     }
   }
@@ -525,9 +544,7 @@ function setChoice(choices: CardChoices, field: ChoiceField, values: string[]) {
 
 function effectPolarity(card: GameCard) {
   let value = 0;
-  for (const action of compileCardEffect(card).instructions.flatMap(
-    (instruction) => instruction.actions,
-  )) {
+  for (const action of cardLeafActions(card)) {
     if (action.kind === "modify-stat") value += action.amount;
     else if (action.kind === "grant-keyword") value += 200;
     else if (action.kind === "move") {
@@ -553,8 +570,7 @@ function objectUtilityForChooser(
 }
 
 function sacrificedCardBenefit(card: GameCard) {
-  return compileCardEffect(card).instructions
-    .flatMap((instruction) => instruction.actions)
+  return cardLeafActions(card)
     .filter((action) => action.kind === "modify-stat" && action.scale === "sacrificed-card")
     .reduce((sum, action) => sum + Math.abs(actionBaseValue(action)), 0);
 }
@@ -796,6 +812,7 @@ type EnergyCardAnalysis = {
   value: number;
   playLikelihood: number;
   affordableNow: boolean;
+  tacticalReserveValue: number;
 };
 export type OpponentEnergizePlan = {
   shouldEnergize: boolean;
@@ -861,6 +878,9 @@ function analyzeEnergyCard(
       + estimateFutureRerollValue(match, playerId, card),
     playLikelihood: futurePlayLikelihood(match, playerId, card, choices, zone),
     affordableNow: cost <= capacity,
+    tacticalReserveValue: zone === "hand"
+      ? temporaryCombatPotential(card) * 0.45
+      : 0,
   };
 }
 
@@ -988,6 +1008,7 @@ function energyOpportunityCost(
   return retainedValue
     + immediateUrgency
     + nextTurnUrgency
+    + analysis.tacticalReserveValue
     - lateGameDiscount
     - replaceability;
 }
@@ -1221,12 +1242,13 @@ function preRollCombatForecast(match: MatchState, playerId: string): PreRollComb
 function repeatableOpenDrawAmount(card: GameCard) {
   try {
     return compileCardEffect(card).instructions.reduce((sum, instruction) => {
-      const opens = instruction.actions.some((action) => (
+      const actions = allInstructionLeafActions(instruction);
+      const opens = actions.some((action) => (
         action.kind === "trigger"
         && action.definition.event === "BAKUGAN_OPENED"
       ));
       if (!opens) return sum;
-      return sum + instruction.actions.reduce((amount, action) => (
+      return sum + actions.reduce((amount, action) => (
         amount + (action.kind === "draw" ? action.amount : 0)
       ), 0);
     }, 0);
@@ -1245,43 +1267,105 @@ function temporaryResponseProfile(
   try { choices = chooseCardChoices(match, playerId, card); } catch { choices = {}; }
   let cost = card.cost === "X" ? Math.max(1, currentEnergyCapacity(match, playerId)) : card.cost;
   try { cost = cardEnergyPaymentState(match, playerId, card, choices)?.cost ?? cost; } catch { /* printed cost */ }
+  const opponent = opponentOf(match, playerId);
+  const power = {
+    own: totalPower(match, playerId),
+    enemy: opponent ? totalPower(match, opponent.id) : 0,
+  };
+  const damage = {
+    own: totalDamage(match, playerId),
+    enemy: opponent ? totalDamage(match, opponent.id) : 0,
+  };
   let powerSwing = 0;
   let secondaryValue = 0;
-  let program: RuleProgram;
-  try { program = compileCardEffect(card); } catch { return undefined; }
-  for (const instruction of program.instructions) {
-    for (const action of instruction.actions) {
-      if (action.kind === "modify-stat") {
-        if (action.duration === "while-source-active" || action.duration === "next-card") continue;
-        const targetsEnemy = actionTargetsEnemy(
-          match,
-          playerId,
-          choices,
-          action,
-          instruction.sourceText,
-        );
-        const direction = targetsEnemy ? -1 : 1;
-        if (action.stat === "power") {
-          powerSwing += Math.max(0, action.amount * direction);
-        } else {
-          secondaryValue += Math.max(0, actionBaseValue(action) * direction) * 0.35;
-        }
-      } else if (action.kind === "grant-keyword") {
-        if (action.duration === "while-source-active" || action.duration === "next-card") continue;
-        secondaryValue += Math.max(0, actionBaseValue(action)) * 0.25;
+  let entries: ReturnType<typeof activeCardActionEntries>;
+  try {
+    const resolving = cloneMatch(match);
+    const resolvingPlayer = playerById(resolving, playerId);
+    if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
+    entries = activeCardActionEntries(
+      resolving,
+      playerId,
+      card,
+      choices,
+      { execution: "play" },
+    );
+  } catch {
+    return undefined;
+  }
+  for (const { action, sourceText } of entries) {
+    if (!isTemporaryCombatAction(action)) continue;
+    const targetsEnemy = actionTargetsEnemy(
+      match,
+      playerId,
+      choices,
+      action,
+      sourceText,
+    );
+    const direction = targetsEnemy ? -1 : 1;
+    if (action.kind === "modify-stat") {
+      if (action.stat === "power") {
+        powerSwing += Math.max(0, action.amount * direction);
+      } else {
+        secondaryValue += Math.max(0, actionBaseValue(action) * direction) * 0.35;
       }
+    } else if (action.kind === "set-stat") {
+      const current = action.stat === "power"
+        ? (targetsEnemy ? power.enemy : power.own)
+        : (targetsEnemy ? damage.enemy : damage.own);
+      const beneficialDelta = (action.value - current) * direction;
+      if (action.stat === "power") powerSwing += Math.max(0, beneficialDelta);
+      else secondaryValue += Math.max(0, beneficialDelta * 0.9) * 0.35;
+    } else if (action.kind === "set-rule") {
+      secondaryValue += action.value === "damage" ? 1.25 : 0.5;
+    } else if (action.kind === "grant-keyword") {
+      secondaryValue += Math.max(0, actionBaseValue(action) * direction) * 0.25;
     }
   }
-  // The choice schema is intentionally not queried against the pre-roll
-  // snapshot: temporary responses often have no legal target until Bakugan
-  // open. Estimate conditional availability for the future Power Step.
-  const likelihood = /(?:Flow|Fury|Turbo|Domination|Victor)|if/i.test(card.effect)
-    ? 0.65
-    : 1;
-  powerSwing *= likelihood;
-  secondaryValue *= likelihood;
   if (powerSwing <= 0 && secondaryValue <= 0) return undefined;
   return { cardId: card.id, cost: Math.max(0, cost), powerSwing, secondaryValue };
+}
+
+function applyProjectedRollSample(
+  projected: MatchState,
+  playerId: string,
+  sample: RollForecastSample,
+) {
+  const player = playerById(projected, playerId);
+  const bakugan = player?.bakugan.find(
+    (candidate) => candidate.id === sample.outcome.bakuganId,
+  );
+  if (!player || !bakugan) return;
+  for (const placement of projected.placements) {
+    if (placement.attachedTo === bakugan.id) delete placement.attachedTo;
+  }
+  const opened = sample.outcome.result !== "miss-closed";
+  bakugan.open = opened;
+  bakugan.heldCoreCells = opened ? [...sample.outcome.cores] : [];
+  if (opened) {
+    for (const cell of sample.outcome.cores) {
+      const placement = projected.placements.find((candidate) => candidate.cell === cell);
+      if (placement) placement.attachedTo = bakugan.id;
+    }
+  }
+  projected.rolls[playerId] = sample.outcome;
+}
+
+function projectedPowerStepState(
+  match: MatchState,
+  playerId: string,
+  own: RollForecastSample,
+  enemy: RollForecastSample,
+) {
+  const projected = cloneMatch(match);
+  const opponent = opponentOf(projected, playerId);
+  applyProjectedRollSample(projected, playerId, own);
+  if (opponent) applyProjectedRollSample(projected, opponent.id, enemy);
+  projected.phase = "power";
+  projected.stepLabel = "Power Step";
+  projected.priority = playerId;
+  projected.passes = [];
+  return projected;
 }
 
 function responseCombinations(options: readonly PreRollResponseOption[], budget: number) {
@@ -1307,52 +1391,49 @@ function expectedPowerResponseContinuation(
   forecast: PreRollCombatForecast,
 ) {
   if (budget <= 0 || !forecast.own || !forecast.opponent) return 0;
-  const options = hand
-    .map((card) => temporaryResponseProfile(match, playerId, card))
-    .filter((option): option is PreRollResponseOption => Boolean(option))
-    .filter((option) => option.cost <= budget)
-    .sort((a, b) => (
-      (b.powerSwing + b.secondaryValue * 100) / Math.max(1, b.cost)
-      - (a.powerSwing + a.secondaryValue * 100) / Math.max(1, a.cost)
-    ));
-  if (!options.length) return 0;
-  const combinations = responseCombinations(options, budget);
-  const sampleCount = Math.min(
-    forecast.own.samples.length,
-    forecast.opponent.samples.length,
-  );
+  const jointCount = forecast.own.samples.length * forecast.opponent.samples.length;
+  if (!jointCount) return 0;
   let total = 0;
-  for (let index = 0; index < sampleCount; index += 1) {
-    const own = forecast.own.samples[index];
-    const opponent = forecast.opponent.samples[index];
-    if (
-      own.outcome.result === "miss-closed"
-      || opponent.outcome.result === "miss-closed"
-    ) continue;
-    const deficit = opponent.power - own.power;
-    let best = 0;
-    for (const combination of combinations) {
-      if (combination.cost <= 0) continue;
-      if (deficit >= 0 && combination.powerSwing > deficit) {
-        const margin = combination.powerSwing - deficit;
-        best = Math.max(
-          best,
-          7.5
-            + Math.min(2.25, margin / 250)
-            + Math.min(1.25, combination.secondaryValue * 0.2),
-        );
-      } else if (deficit >= 0 && combination.powerSwing > 0) {
-        best = Math.max(
-          best,
-          Math.min(0.45, combination.powerSwing / Math.max(400, deficit + 400)),
-        );
-      } else if (deficit < 0 && combination.secondaryValue > 0) {
-        best = Math.max(best, Math.min(0.8, combination.secondaryValue * 0.2));
+  for (const own of forecast.own.samples) {
+    for (const enemy of forecast.opponent.samples) {
+      if (own.outcome.result === "miss-closed") continue;
+      const projected = projectedPowerStepState(match, playerId, own, enemy);
+      const options = hand
+        .map((card) => temporaryResponseProfile(projected, playerId, card))
+        .filter((option): option is PreRollResponseOption => Boolean(option))
+        .filter((option) => option.cost <= budget)
+        .sort((a, b) => (
+          (b.powerSwing + b.secondaryValue * 100) / Math.max(1, b.cost)
+          - (a.powerSwing + a.secondaryValue * 100) / Math.max(1, a.cost)
+        ));
+      if (!options.length) continue;
+      const combinations = responseCombinations(options, budget);
+      const enemyOpened = enemy.outcome.result !== "miss-closed";
+      const deficit = enemyOpened ? enemy.power - own.power : -Math.max(1, own.power);
+      let best = 0;
+      for (const combination of combinations) {
+        if (combination.cost <= 0) continue;
+        if (enemyOpened && deficit >= 0 && combination.powerSwing > deficit) {
+          const margin = combination.powerSwing - deficit;
+          best = Math.max(
+            best,
+            7.5
+              + Math.min(2.25, margin / 250)
+              + Math.min(1.25, combination.secondaryValue * 0.2),
+          );
+        } else if (enemyOpened && deficit >= 0 && combination.powerSwing > 0) {
+          best = Math.max(
+            best,
+            Math.min(0.45, combination.powerSwing / Math.max(400, deficit + 400)),
+          );
+        } else if (deficit < 0 && combination.secondaryValue > 0) {
+          best = Math.max(best, Math.min(0.8, combination.secondaryValue * 0.2));
+        }
       }
+      total += best;
     }
-    total += best;
   }
-  return total / Math.max(1, sampleCount);
+  return total / jointCount;
 }
 
 function averageDeckCardValue(match: MatchState, playerId: string) {
@@ -1435,10 +1516,51 @@ function createPreRollDecisionContext(match: MatchState, playerId: string): PreR
   };
 }
 
+function deferrablePreRollCombatValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices,
+) {
+  let value = 0;
+  const resolving = cloneMatch(match);
+  const resolvingPlayer = playerById(resolving, playerId);
+  if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
+  for (const { action, sourceText } of activeCardActionEntries(
+    resolving,
+    playerId,
+    card,
+    choices,
+    { execution: "play" },
+  )) {
+    if (!isTemporaryCombatAction(action) || hasNonDeferrablePreRollTiming(sourceText)) continue;
+    const raw = actionBaseValue(action);
+    if (raw) {
+      const targetsEnemy = actionTargetsEnemy(
+        match,
+        playerId,
+        choices,
+        action,
+        sourceText,
+      );
+      const strategic = raw * (targetsEnemy ? -1 : 1);
+      value += Math.max(
+        0,
+        strategic * combatRelevance(match, playerId, action, targetsEnemy),
+      );
+    } else {
+      value += Math.max(0, estimateRuleActionValue(action, match))
+        * expectedOpenChance(match, playerId);
+    }
+  }
+  return value;
+}
+
 function preRollCandidateScore(
   match: MatchState,
   playerId: string,
   card: GameCard,
+  choices: CardChoices,
   baseScore: number,
   cost: number,
   context: PreRollDecisionContext,
@@ -1446,15 +1568,30 @@ function preRollCandidateScore(
   const player = playerById(match, playerId)!;
   const remainingCapacity = Math.max(0, context.capacity - cost);
   const remainingHand = player.hand.filter((candidate) => candidate.id !== card.id);
+  const continued = cloneMatch(match);
+  const continuedPlayer = playerById(continued, playerId);
+  if (continuedPlayer) continuedPlayer.cardsPlayedThisTurn += 1;
   const continuationAfter = expectedPowerResponseContinuation(
-    match,
+    continued,
     playerId,
     remainingHand,
     remainingCapacity,
     context.forecast,
   );
-  const energyOpportunityCost = Math.max(0, context.passContinuation - continuationAfter);
-  let score = baseScore - energyOpportunityCost;
+  const continuationDelta = continuationAfter - context.passContinuation;
+  const deferredCombat = deferrablePreRollCombatValue(
+    match,
+    playerId,
+    card,
+    choices,
+  );
+  const commitmentPenalty = deferredCombat > 0
+    ? Math.min(0.25, Math.max(0, handCardRetentionValue(match, playerId, card)) * 0.05)
+    : 0;
+  let score = baseScore
+    - deferredCombat
+    + continuationDelta
+    - commitmentPenalty;
   const drawAmount = repeatableOpenDrawAmount(card);
   if (drawAmount > 0) {
     const saturation = 1 / (1 + context.existingOpenDraws * 0.55);
@@ -1484,7 +1621,6 @@ function preRollCandidateScore(
         - 7,
     );
     score += Math.min(4.5 * drawAmount, currentRound + future)
-      - drawAmount * 2.4
       - handOverflow * 0.45;
   }
   return score;
@@ -1499,38 +1635,20 @@ function bestPlayableCard(match: MatchState, playerId: string) {
     .filter((card) => card.type !== "Flip" && card.type !== "Character")
     .filter((card) => cardRerollTimingLegal(match, playerId, card))
     .map((card) => {
-      const program = compileCardEffect(card);
       const choices = chooseCardChoices(match, playerId, card);
       const payment = cardEnergyPaymentState(match, playerId, card, choices);
-      const temporaryCombat = program.instructions.some((instruction) => instruction.actions.some(
-        (action) => (
-          action.kind === "set-stat"
-          || action.kind === "set-rule"
-          || ((action.kind === "modify-stat" || action.kind === "grant-keyword")
-            && action.duration !== "while-source-in-play"
-            && action.duration !== "next-card")
-        ),
-      ));
-      const uniquePreRollValue = program.instructions.some((instruction) => (
-        /(?:before|when) (?:you )?(?:select|roll)|select a Bakugan to roll|turn a BakuCore .*face up/i.test(instruction.sourceText)
-        && instruction.actions.some((action) => ![
-          "modify-stat", "grant-keyword", "set-stat", "set-rule", "choice", "trigger",
-        ].includes(action.kind))
-      ));
-      const timingLegal = match.phase !== "preRoll" || !temporaryCombat || uniquePreRollValue;
       const baseScore = cardValue(match, playerId, card, choices);
-      const score = !timingLegal
-        ? Number.NEGATIVE_INFINITY
-        : preRollContext && payment
-          ? preRollCandidateScore(
-            match,
-            playerId,
-            card,
-            baseScore,
-            payment.cost,
-            preRollContext,
-          )
-          : baseScore;
+      const score = preRollContext && payment
+        ? preRollCandidateScore(
+          match,
+          playerId,
+          card,
+          choices,
+          baseScore,
+          payment.cost,
+          preRollContext,
+        )
+        : baseScore;
       return { card, choices, payment, score };
     })
     .filter((candidate) => candidate.payment && candidate.payment.kind !== "insufficient")
@@ -1650,7 +1768,8 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
       return activateIntrinsicReroll(input, playerId);
     }
     const best = bestPlayableCard(input, playerId);
-    if (best && best.score > 0.75) {
+    const confidenceMargin = input.phase === "preRoll" ? 0.4 : 0.75;
+    if (best && best.score > confidenceMargin) {
       const schema = buildChoiceSchema(input, playerId, best.card);
       return schema.fields.length
         ? prepareCardPlay(input, playerId, best.card.id)
