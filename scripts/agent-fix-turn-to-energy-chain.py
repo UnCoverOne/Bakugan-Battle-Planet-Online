@@ -1,5 +1,7 @@
 from pathlib import Path
 
+# Applied once by the temporary validation workflow on the feature branch.
+
 
 def replace_once(path: str, old: str, new: str) -> None:
     file = Path(path)
