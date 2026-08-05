@@ -1,9 +1,9 @@
 name: Agent Deck Energy Reveal
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/reveal-deck-energized-card
+      - main
 
 permissions:
   contents: write
