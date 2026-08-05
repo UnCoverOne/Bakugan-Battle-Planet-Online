@@ -1,5 +1,7 @@
 from pathlib import Path
 
+# Applied once by the feature-branch validation workflow.
+
 
 def replace_once(path: str, old: str, new: str) -> None:
     file = Path(path)
@@ -526,7 +528,6 @@ function bestPlayableCard(match: MatchState, playerId: string) {
 
 replace_once("lib/opponentAiBase.ts", old_best, new_best)
 
-# Add focused behavioural coverage without creating card-specific production rules.
 test_file = Path("tests/opponent-ai-tactics.test.ts")
 with test_file.open("a") as file:
     file.write('''
