@@ -30,6 +30,7 @@ import {
 } from "../components/game-screen-v2/cardPreviewState";
 import { drawTransitions } from "../components/game-screen-v2/drawAnimationState";
 import { discardFlipTransitions } from "../components/game-screen-v2/discardFlipAnimationState";
+import { energizeTransitions } from "../components/game-screen-v2/energizeAnimationState";
 
 test("deck card backs scale from zero to ten assets", () => {
   assert.equal(deckBackAssetCount(0), 0);
@@ -355,4 +356,32 @@ test("picked-up BakuCores leave the Hide Matrix and attach to their Bakugan", ()
   assert.deepEqual(hideMatrixPlacements(match).map((placement) => placement.cell), [matrixCell]);
   assert.deepEqual(heldCorePlacements(match, bakuganId).map((placement) => placement.cell), [heldCell]);
   assert.equal(heldCorePlacements(match, player.bakugan[1].id).length, 0);
+});
+
+
+test("Energize transitions report only cards newly added to the Energy Zone", () => {
+  const player = makePlayer("energy-player", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("energy-opponent", "Magnus", STARTER_DECKS[1]);
+  const before = createMatch("ENERGYFX", "bo1", [player, opponent]);
+  const after = structuredClone(before);
+  const energized = after.players[0].hand.shift();
+  assert.ok(energized);
+  after.players[0].energyZone.push(energized);
+  after.players[0].maxEnergy = after.players[0].energyZone.length;
+  after.version += 1;
+
+  const transitions = energizeTransitions(before, after);
+  assert.equal(transitions.length, 1);
+  assert.equal(transitions[0].playerId, player.id);
+  assert.deepEqual(transitions[0].cards.map((card) => card.id), [energized.id]);
+
+  const tappedOnly = structuredClone(after);
+  tappedOnly.players[0].energy = 1;
+  tappedOnly.version += 1;
+  assert.deepEqual(energizeTransitions(after, tappedOnly), []);
+  assert.deepEqual(energizeTransitions(null, after), []);
+
+  const differentMatch = structuredClone(after);
+  differentMatch.id = "DIFFERENT-ENERGY-MATCH";
+  assert.deepEqual(energizeTransitions(before, differentMatch), []);
 });
