@@ -1,5 +1,6 @@
 name: Agent AI Energy Reservation Runner
 
+# Temporary validation runner for PR #156.
 on:
   push:
     branches:
