@@ -166,3 +166,19 @@ test("online chat uses the authoritative match endpoint without replacing gamepl
   assert.doesNotMatch(route, /preparePendingDraw|reconcile|rewind/i);
   assert.match(route, /const previous = body\.action === "chat" \? record\.previous : before/);
 });
+
+
+test("inactive desktop chat is click-through except for its more-visible input", () => {
+  assert.match(
+    css,
+    /\.chatBox\[data-focused="false"\]\s*\{[\s\S]*?pointer-events:\s*none;/,
+  );
+  assert.match(
+    css,
+    /\.chatBox\[data-focused="false"\]\s+\.chatForm input\s*\{[\s\S]*?opacity:\s*\.78;[\s\S]*?pointer-events:\s*auto;/,
+  );
+  assert.match(
+    css,
+    /\.chatBox\[data-focused="false"\]\s+\.chatForm button\s*\{[\s\S]*?pointer-events:\s*none;/,
+  );
+});

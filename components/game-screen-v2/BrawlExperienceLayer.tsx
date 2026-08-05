@@ -22,6 +22,7 @@ import {
 import { useBakuCorePresentation } from "./BakuCorePresentation";
 import styles from "./BrawlExperienceLayer.module.css";
 import previewStyles from "./BrawlPreviewEnhancements.module.css";
+import { calculateBrawlHudPosition, type HudPosition } from "./brawlHudPosition";
 import { useMatchSelector } from "./matchStore";
 
 type ExperienceState = {
@@ -30,17 +31,6 @@ type ExperienceState = {
   match: MatchState | null;
   playerId?: string;
 };
-
-type HudPosition = {
-  left: number;
-  dockedLeft: number;
-  top: number;
-  maxWidth: number;
-};
-
-function clamp(value: number, minimum: number, maximum: number) {
-  return Math.min(maximum, Math.max(minimum, value));
-}
 
 function sameHudPosition(previous: HudPosition | null, next: HudPosition) {
   return Boolean(
@@ -199,25 +189,18 @@ export function BrawlExperienceLayer() {
       frame = window.requestAnimationFrame(() => {
         const rect = heroZone.getBoundingClientRect();
         const viewport = window.visualViewport;
-        const viewportLeft = viewport?.offsetLeft ?? 0;
-        const viewportWidth = viewport?.width ?? window.innerWidth;
-        const edgeGap = 12;
-        const dockHandleWidth = 32;
-        const maxWidth = Math.min(
-          Math.max(1, viewportWidth - edgeGap * 2 - dockHandleWidth),
-          Math.max(430, rect.width * 2.65),
+        const rootFontSize = Number.parseFloat(
+          window.getComputedStyle(document.documentElement).fontSize,
+        ) || 16;
+        const next = calculateBrawlHudPosition(
+          rect,
+          {
+            left: viewport?.offsetLeft ?? 0,
+            top: viewport?.offsetTop ?? 0,
+            width: viewport?.width ?? window.innerWidth,
+          },
+          rootFontSize,
         );
-        const halfWidth = maxWidth / 2;
-        const next = {
-          left: clamp(
-            rect.left + rect.width / 2,
-            viewportLeft + edgeGap + dockHandleWidth + halfWidth,
-            viewportLeft + viewportWidth - edgeGap - halfWidth,
-          ),
-          dockedLeft: viewportLeft + viewportWidth + halfWidth,
-          top: Math.max(10, rect.top - 10),
-          maxWidth,
-        };
         setHudPosition((previous) => sameHudPosition(previous, next) ? previous : next);
       });
     };
@@ -229,11 +212,13 @@ export function BrawlExperienceLayer() {
     }
     window.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
     return () => {
       window.cancelAnimationFrame(frame);
       observer?.disconnect();
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("scroll", measure);
     };
   }, [experience.active, rollPresentationPending, combatants.length]);
 
