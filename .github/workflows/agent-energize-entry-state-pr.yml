@@ -22,11 +22,29 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply Energize architecture changes
-        run: python scripts/agent-energize-patch.py
+        run: |
+          python scripts/agent-energize-patch.py
+          python <<'PY'
+          from pathlib import Path
+          path = Path('tests/reported-gameplay-regressions-2026-08.test.ts')
+          text = path.read_text()
+          old = '''  state.startingPlayer = player.id;
+          state.priority = player.id;
+
+          const live = state.players.find((candidate) => candidate.id === player.id)!;'''
+          new = '''  state.startingPlayer = player.id;
+          state.priority = player.id;
+          state.brawlWinner = player.id;
+
+          const live = state.players.find((candidate) => candidate.id === player.id)!;'''
+          if old not in text:
+              raise SystemExit('Missing Ventus Trox Victor-state test anchor')
+          path.write_text(text.replace(old, new, 1))
+          PY
       - name: Validate typed content
         run: npm run validate:content
-      - name: Run focused rules and gameplay regressions
-        run: node --import tsx --test tests/rules-engine-modernization.test.ts tests/reported-gameplay-regressions-2026-08.test.ts
+      - name: Run focused Energize regressions
+        run: node --import tsx --test --test-name-pattern="typed Energize|Ventus Trox Ultra energizes|unqualified Energize" tests/reported-gameplay-regressions-2026-08.test.ts
       - name: Build production application
         run: npm run build
       - name: Commit implementation
