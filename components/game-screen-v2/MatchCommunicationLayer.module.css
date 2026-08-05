@@ -409,11 +409,30 @@
   border-color: transparent;
   background: linear-gradient(0deg, rgba(2,6,9,.78), rgba(2,6,9,.32) 62%, transparent);
   box-shadow: none;
+  pointer-events: none;
 }
 
-.chatBox[data-focused="false"] > header,
-.chatBox[data-focused="false"] .chatForm {
+.chatBox[data-focused="false"] > header {
   opacity: .12;
+}
+
+.chatBox[data-focused="false"] .chatForm {
+  border-top-color: transparent;
+  background: transparent;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.chatBox[data-focused="false"] .chatForm input {
+  border-color: rgba(188, 200, 208, 0.42);
+  background: rgba(2, 6, 9, 0.92);
+  opacity: .78;
+  pointer-events: auto;
+}
+
+.chatBox[data-focused="false"] .chatForm button {
+  opacity: .12;
+  pointer-events: none;
 }
 
 .chatBox[data-focused="false"] .chatMessages {

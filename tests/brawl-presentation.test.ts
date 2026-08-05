@@ -25,6 +25,7 @@ import {
   brawlRollLabel,
 } from "../components/game-screen-v2/brawlState";
 import { turnProgressSnapshot } from "../components/game-screen-v2/turnProgressState";
+import { calculateBrawlHudPosition } from "../components/game-screen-v2/brawlHudPosition";
 
 function roll(
   playerId: string,
@@ -347,4 +348,47 @@ test("Rolling Step deadlines advance the player who still needs to act", () => {
 
   match = resolveExpiredDeadline(match, Number.POSITIVE_INFINITY);
   assert.equal(match.phase, "power");
+});
+
+
+test("desktop Brawl Preview uses the mobile vertical stat treatment without gold victor decoration", async () => {
+  const css = await readFile(
+    new URL("../components/game-screen-v2/BrawlPreviewEnhancements.module.css", import.meta.url),
+    "utf8",
+  );
+  const desktop = css.split("@media (max-width: 760px)")[0];
+  assert.match(
+    desktop,
+    /article\s*>\s*div:nth-child\(2\)\s*>\s*div\s*\{[\s\S]*?grid-template-rows:\s*auto minmax\(1\.9rem, 1fr\) auto;/,
+  );
+  assert.match(
+    desktop,
+    /div\[data-deciding="true"\]::after\s*\{[\s\S]*?content:\s*none;/,
+  );
+  assert.match(
+    desktop,
+    /div\[data-deciding="true"\]\s*>\s*strong\s*\{[\s\S]*?color:\s*#fff;[\s\S]*?text-shadow:\s*none;/,
+  );
+  assert.match(
+    desktop,
+    /article\[data-owner="opponent"\][\s\S]*?div\[data-deciding="true"\]\s*>\s*strong\s*\{[\s\S]*?color:\s*#ff5a4d;/,
+  );
+});
+
+test("Brawl Preview docking uses one capped width and keeps the handle at the viewport edge", () => {
+  const viewport = { left: 36, top: 20, width: 1440 };
+  const position = calculateBrawlHudPosition(
+    { left: 1120, top: 700, width: 300 },
+    viewport,
+    16,
+  );
+  assert.equal(position.maxWidth, 512, "the 32rem CSS cap is part of the positioning calculation");
+  assert.equal(
+    position.dockedLeft - position.maxWidth / 2,
+    viewport.left + viewport.width,
+    "the rendered preview begins exactly outside the viewport while its left handle remains visible",
+  );
+  assert.ok(position.left - position.maxWidth / 2 >= viewport.left + 12 + 32);
+  assert.ok(position.left + position.maxWidth / 2 <= viewport.left + viewport.width - 12);
+  assert.equal(position.top, 690);
 });

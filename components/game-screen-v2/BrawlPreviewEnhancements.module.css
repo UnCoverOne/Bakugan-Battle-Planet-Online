@@ -110,6 +110,58 @@
   font-size: clamp(1rem, 1.35vw, 1.42rem);
 }
 
+.brawlPreview article > div:nth-child(2) > div {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(1.9rem, 1fr) auto;
+  align-items: stretch;
+  min-height: 4.2rem;
+}
+
+.brawlPreview article > div:nth-child(2) > div > span {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  justify-self: start;
+}
+
+.brawlPreview article > div:nth-child(2) > div > strong {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: center;
+  justify-self: end;
+}
+
+.brawlPreview article > div:nth-child(2) > div > small {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: end;
+  justify-self: start;
+}
+
+.brawlPreview article > div:nth-child(2) > div[data-deciding="true"] {
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: none;
+}
+
+.brawlPreview article > div:nth-child(2) > div[data-deciding="true"]::after {
+  content: none;
+  display: none;
+}
+
+.brawlPreview article > div:nth-child(2) > div[data-deciding="true"] > span {
+  color: rgba(215, 224, 229, 0.68);
+  text-shadow: none;
+}
+
+.brawlPreview article > div:nth-child(2) > div[data-deciding="true"] > strong {
+  color: #fff;
+  text-shadow: none;
+}
+
+.brawlPreview article[data-owner="opponent"] > div:nth-child(2) > div[data-deciding="true"] > strong {
+  color: #ff5a4d;
+}
+
 /* Effects and Modifiers use an out-of-flow window so the Preview never changes shape. */
 .brawlPreview article > div:nth-child(3) {
   position: absolute;
@@ -288,58 +340,6 @@
   .brawlPreview article > div:first-child > div:last-child strong {
     min-height: 2.2em;
     font-size: clamp(0.68rem, 3vw, 0.92rem);
-  }
-
-  .brawlPreview article > div:nth-child(2) > div {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(1.9rem, 1fr) auto;
-    align-items: stretch;
-    min-height: 4.2rem;
-  }
-
-  .brawlPreview article > div:nth-child(2) > div > span {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: start;
-    justify-self: start;
-  }
-
-  .brawlPreview article > div:nth-child(2) > div > strong {
-    grid-column: 1;
-    grid-row: 2;
-    align-self: center;
-    justify-self: end;
-  }
-
-  .brawlPreview article > div:nth-child(2) > div > small {
-    grid-column: 1;
-    grid-row: 3;
-    align-self: end;
-    justify-self: start;
-  }
-
-  .brawlPreview article > div:nth-child(2) > div[data-deciding="true"] {
-    background: rgba(255, 255, 255, 0.045);
-    box-shadow: none;
-  }
-
-  .brawlPreview article > div:nth-child(2) > div[data-deciding="true"]::after {
-    content: none;
-    display: none;
-  }
-
-  .brawlPreview article > div:nth-child(2) > div[data-deciding="true"] > span {
-    color: rgba(215, 224, 229, 0.68);
-    text-shadow: none;
-  }
-
-  .brawlPreview article > div:nth-child(2) > div[data-deciding="true"] > strong {
-    color: #fff;
-    text-shadow: none;
-  }
-
-  .brawlPreview article[data-owner="opponent"] > div:nth-child(2) > div[data-deciding="true"] > strong {
-    color: #ff5a4d;
   }
 
   .brawlPreview article > div:nth-child(3) {
