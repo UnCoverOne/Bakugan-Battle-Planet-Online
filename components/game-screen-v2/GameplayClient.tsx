@@ -43,6 +43,7 @@ import { CardPreviewLayer } from "./CardPreviewLayer";
 import { CorePlacementLayer } from "./CorePlacementLayer";
 import { DamageStepLayer } from "./DamageStepLayer";
 import { EnergyAffordabilityLayer } from "./EnergyAffordabilityLayer";
+import { EnergyArrivalLayer } from "./EnergyArrivalLayer";
 import { GameMenuHud } from "./GameMenuHud";
 import { GameScreen } from "./GameScreen";
 import { MatchHudLayer } from "./MatchHudLayer";
@@ -563,6 +564,10 @@ export function GameplayClient() {
           onExit={storedState.match?.phase === "result" ? exitCompletedMatch : exit}
           onDrawCard={completed ? undefined : drawCard}
           onTapEnergyCard={completed ? undefined : tapEnergy}
+        />
+        <EnergyArrivalLayer
+          match={storedState.match}
+          playerId={storedState.playerId}
         />
         <SelectionInteractionLayer
           match={storedState.match}

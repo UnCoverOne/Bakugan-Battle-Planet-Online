@@ -476,6 +476,9 @@ function EnergyZone({
         <span>{energy.availableEnergy}</span>
         <img src={ENERGY_SYMBOL_ART} alt="Energy" draggable={false} />
       </strong>
+      <strong className={styles.zoneCount} aria-hidden="true">
+        {safeCardCount(energy.cards.length)}
+      </strong>
     </div>
   );
 }

@@ -65,3 +65,20 @@ test("batch rows remain mounted, docking is transform-only, and modal exits are 
   assert.match(tie, /presenceState/);
   assert.match(tie, /forceVisible/);
 });
+
+
+test("Energy zones show total cards and stage a white-light Energize arrival", () => {
+  const screen = read("components/game-screen-v2/GameScreen.tsx");
+  const client = read("components/game-screen-v2/GameplayClient.tsx");
+  const layer = read("components/game-screen-v2/EnergyArrivalLayer.tsx");
+  const css = read("components/game-screen-v2/GameScreen.module.css");
+  assert.match(screen, /\{safeCardCount\(energy\.cards\.length\)\}/);
+  assert.match(client, /<EnergyArrivalLayer/);
+  assert.match(layer, /energizeTransitions/);
+  assert.match(layer, /dataset\.energizing = "true"/);
+  assert.match(css, /@keyframes energy-zone-light-frame/);
+  assert.match(css, /@keyframes energy-card-materialize/);
+  assert.match(css, /@keyframes energy-lightning-flash/);
+  assert.match(css, /@keyframes energy-lightning-bolt/);
+  assert.match(css, /prefers-reduced-motion[\s\S]*energyZone\[data-energizing/);
+});
