@@ -1,0 +1,37 @@
+name: Agent Deck Energy Reveal
+
+on:
+  push:
+    branches:
+      - agent/reveal-deck-energized-card
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/reveal-deck-energized-card
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Apply deck Energy reveal implementation
+        run: python scripts/agent-deck-energy-reveal-patch.py
+      - name: Run focused deck Energy reveal regressions
+        run: node --import tsx --test tests/deck-energy-reveal.test.ts tests/presentation-stability.test.ts
+      - name: Build production application
+        run: npm run build
+      - name: Commit implementation
+        run: |
+          rm scripts/agent-deck-energy-reveal-patch.py .github/workflows/agent-deck-energy-reveal.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Reveal deck-Energized cards to their owner"
+          git push origin HEAD:agent/reveal-deck-energized-card
