@@ -386,6 +386,91 @@ function preRollReservationMatch(input: {
   return { match, ai, shun, smokeArmor };
 }
 
+
+test("AI waits to play Tides before the Roll even when Flow is active", () => {
+  const tides = catalogueCard("bb-24", "pre-roll-flow-tides");
+  const ai = player(
+    "ai",
+    [bakugan("ai-pre-roll-flow", "Aquos", 500, 5)],
+    [],
+    [tides],
+  );
+  const human = player(
+    "human",
+    [bakugan("human-pre-roll-flow", "Pyrus", 800, 5)],
+  );
+  addEnergy(ai, 1);
+  ai.cardsPlayedThisTurn = 1;
+  const match = matchWith(ai, human, "preRoll");
+  match.placements = [
+    { playerId: ai.id, core: core("pre-roll-flow-core-a"), cell: CENTER_CELL, order: 1 },
+    { playerId: human.id, core: core("pre-roll-flow-core-b"), cell: cell(1, 0), order: 2 },
+  ];
+  match.selected[ai.id] = ai.bakugan[0].id;
+  match.selected[human.id] = human.bakugan[0].id;
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.ok(next.players[0].hand.some((card) => card.id === tides.id));
+  assert.equal(next.priority, human.id);
+});
+
+test("AI waits to play Tides before the Roll when its base branch could swing the Brawl", () => {
+  const tides = catalogueCard("bb-24", "pre-roll-base-tides");
+  const ai = player(
+    "ai",
+    [bakugan("ai-pre-roll-base", "Aquos", 500, 5)],
+    [],
+    [tides],
+  );
+  const human = player(
+    "human",
+    [bakugan("human-pre-roll-base", "Pyrus", 600, 5)],
+  );
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human, "preRoll");
+  match.placements = [
+    { playerId: ai.id, core: core("pre-roll-base-core-a"), cell: CENTER_CELL, order: 1 },
+    { playerId: human.id, core: core("pre-roll-base-core-b"), cell: cell(1, 0), order: 2 },
+  ];
+  match.selected[ai.id] = ai.bakugan[0].id;
+  match.selected[human.id] = human.bakugan[0].id;
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.ok(next.players[0].hand.some((card) => card.id === tides.id));
+});
+
+test("AI may still play a hybrid pre-Roll card for independent draw value", () => {
+  const shield = catalogueCard("bb-2", "pre-roll-aquos-shield");
+  const ai = player(
+    "ai",
+    [bakugan("ai-pre-roll-hybrid", "Aquos", 500, 5)],
+    [],
+    [shield],
+  );
+  const human = player(
+    "human",
+    [bakugan("human-pre-roll-hybrid", "Pyrus", 1500, 5)],
+  );
+  addEnergy(ai, 2);
+  ai.deckCards = [catalogueCard("bb-10", "pre-roll-hybrid-draw")];
+  ai.deck = 1;
+  const match = matchWith(ai, human, "preRoll");
+  match.placements = [
+    { playerId: ai.id, core: core("pre-roll-hybrid-core-a"), cell: CENTER_CELL, order: 1 },
+    { playerId: human.id, core: core("pre-roll-hybrid-core-b"), cell: cell(1, 0), order: 2 },
+  ];
+  match.selected[ai.id] = ai.bakugan[0].id;
+  match.selected[human.id] = human.bakugan[0].id;
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, shield.id);
+});
+
 test("AI reserves Energy for an in-hand B-Power response that can swing the forecasted Brawl", () => {
   const { match, ai, shun, smokeArmor } = preRollReservationMatch({ energy: 3 });
   const next = advanceOpponentAi(match, ai.id);
