@@ -7,6 +7,7 @@ import {
   playCard,
   type MatchState,
 } from "../lib/game";
+import { advanceOpponentAi, opponentAiCanAct } from "../lib/opponentAi";
 import { activeTappedEnergyIds } from "../lib/rules/costs";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { dispatchRulesCommand } from "../lib/rules/runtime";
@@ -23,9 +24,9 @@ function instance(catalogId: string, id: string) {
   };
 }
 
-function turnToEnergyState() {
+function turnToEnergyState(opponentId = "turn-energy-opponent") {
   const player = makePlayer("turn-energy-player", "Player", STARTER_DECKS[0]);
-  const opponent = makePlayer("turn-energy-opponent", "Opponent", STARTER_DECKS[1]);
+  const opponent = makePlayer(opponentId, "Opponent", STARTER_DECKS[1]);
   const state = createMatch("TURNTOENERGY", "bo1", [player, opponent]);
   state.turn = 3;
   state.phase = "preRoll";
@@ -95,5 +96,22 @@ test("Turn to Energy resolves through the production rules-command path", () => 
   assert.equal(played.batch.length, 1);
   const afterFirstPass = dispatchRulesCommand(played, playerId, { type: "PASS_PRIORITY" });
   const resolved = dispatchRulesCommand(afterFirstPass, opponentId, { type: "PASS_PRIORITY" });
+  assertResolved(resolved, playerId, source.id, [firstEnergy.id, secondEnergy.id]);
+});
+
+test("the Training AI passes and resolves Turn to Energy after the player passes", () => {
+  const { state, playerId, opponentId, source, firstEnergy, secondEnergy } = turnToEnergyState("training-bot");
+  const bot = state.players.find((candidate) => candidate.id === opponentId)!;
+  bot.hand = [];
+  const played = dispatchRulesCommand(state, playerId, {
+    type: "PLAY_CARD",
+    cardId: source.id,
+    choices: {},
+  });
+  const waitingForBot = dispatchRulesCommand(played, playerId, { type: "PASS_PRIORITY" });
+  assert.equal(waitingForBot.priority, opponentId);
+  assert.equal(opponentAiCanAct(waitingForBot, opponentId), true);
+  const resolved = advanceOpponentAi(waitingForBot, opponentId);
+  assert.ok(resolved);
   assertResolved(resolved, playerId, source.id, [firstEnergy.id, secondEnergy.id]);
 });
