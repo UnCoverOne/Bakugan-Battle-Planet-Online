@@ -1,9 +1,9 @@
 name: Agent Energy Zone Count Animation
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/energy-zone-count-animation
+      - main
 
 permissions:
   contents: write
