@@ -21,6 +21,14 @@ def _prepare_wrapper_and_cleanup():
         handle.write(wrapper.replace(old, new, 1))
     subprocess.run(["git", "add", wrapper_path], check=True)
 
+    # The workflow calibrates the generator before execution. Restore its
+    # checked-in bytes so the subsequent ordinary git rm is not blocked by a
+    # modified working-tree file.
+    subprocess.run(
+        ["git", "restore", "--", "scripts/agent-ai-energy-reservation.py"],
+        check=True,
+    )
+
     removable = [
         "scripts/pathlib.py",
         "scripts/sitecustomize.py",
