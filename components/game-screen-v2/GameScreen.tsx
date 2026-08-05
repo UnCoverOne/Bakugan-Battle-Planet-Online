@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { GameCard, MatchState } from "../../lib/game";
@@ -32,6 +32,7 @@ import gameStyles from "./GameScreen.module.css";
 import discardStyles from "./DiscardPileLayer.module.css";
 import coreStyles from "./HeldBakuCoreZone.module.css";
 import { ResponsiveCardImage } from "./ResponsiveCardImage";
+import { energizeTransitions } from "./energizeAnimationState";
 
 const styles = { ...gameStyles, ...discardStyles, ...coreStyles };
 const GRID_WIDTH = 1800;
@@ -46,6 +47,7 @@ const ROW_RADIUS = Math.ceil(GRID_HEIGHT / (HEX_HEIGHT * 2)) + 3;
 const CARD_BACK_ART = "/assets/card-back.png";
 const ENERGY_SYMBOL_ART = "/assets/symbols/energy.svg";
 const CARD_PREVIEW_CLEAR_EVENT = "bbp-card-preview-clear";
+const DECK_ENERGIZE_REVEAL_MS = 5000;
 
 type CardStackZoneKind = "discard-pile" | "deck";
 type CardStackZoneDefinition = {
@@ -379,6 +381,7 @@ function EnergyCardStack({
   onTap,
   canTap,
   revealFaces = false,
+  revealedCardIds = [],
 }: {
   owner: ZoneOwner;
   energy: EnergyZoneView;
@@ -386,15 +389,18 @@ function EnergyCardStack({
   onTap?: EnergyTapHandler;
   canTap?: (cardId: string) => boolean;
   revealFaces?: boolean;
+  revealedCardIds?: readonly string[];
 }) {
   if (!energy.cards.length) return null;
   const layout = heroCardLayout(energy.cards.length);
   const tappedIds = new Set(energy.tappedEnergyIds);
+  const revealedIds = new Set(revealedCardIds);
 
   return (
     <div className={styles.energyCardStack}>
       {energy.cards.map((card, index) => {
         const tapped = tappedIds.has(card.id);
+        const faceVisible = revealFaces || (owner === "player" && revealedIds.has(card.id));
         const actionable = owner === "player"
           && Boolean(onTap)
           && !tapped
@@ -413,7 +419,7 @@ function EnergyCardStack({
             style={style}
             data-card-id={card.id}
             data-tapped={tapped ? "true" : "false"}
-            data-face-visible={revealFaces ? "true" : "false"}
+            data-face-visible={faceVisible ? "true" : "false"}
             aria-pressed={tapped}
             aria-label={tapped
               ? `${ownerLabel(owner)} Energy card ${index + 1}, tapped`
@@ -422,20 +428,13 @@ function EnergyCardStack({
             onClick={() => onTap?.(card.id)}
             key={card.id}
           >
-            <span className={styles.energyCardVisual} aria-hidden="true">
-              <img
-                className={styles.energyCardBack}
-                src={CARD_BACK_ART}
-                alt=""
-                draggable={false}
-              />
-              <img
-                className={styles.energyCardFace}
-                src={card.art}
-                alt=""
-                draggable={false}
-              />
-            </span>
+            <img
+              src={faceVisible ? card.art : CARD_BACK_ART}
+              alt={faceVisible ? card.displayName || card.name : ""}
+              aria-hidden={!faceVisible}
+              data-hidden={faceVisible ? "false" : "true"}
+              draggable={false}
+            />
           </button>
         );
       })}
@@ -450,6 +449,7 @@ function EnergyZone({
   onTap,
   canTap,
   revealFaces = false,
+  revealedCardIds = [],
 }: {
   owner: ZoneOwner;
   energy: EnergyZoneView;
@@ -457,6 +457,7 @@ function EnergyZone({
   onTap?: EnergyTapHandler;
   canTap?: (cardId: string) => boolean;
   revealFaces?: boolean;
+  revealedCardIds?: readonly string[];
 }) {
   return (
     <div
@@ -476,6 +477,7 @@ function EnergyZone({
         onTap={onTap}
         canTap={canTap}
         revealFaces={revealFaces}
+        revealedCardIds={revealedCardIds}
       />
       <strong
         className={styles.energyIndicator}
@@ -501,6 +503,7 @@ function PlayerZoneLayout({
   onTapEnergyCard,
   canTapEnergyCard,
   revealEnergyFaces = false,
+  revealedEnergyCardIds = [],
   drawAvailable = false,
   drawPending = false,
   onDrawDeck,
@@ -516,6 +519,7 @@ function PlayerZoneLayout({
   onTapEnergyCard?: EnergyTapHandler;
   canTapEnergyCard?: (cardId: string) => boolean;
   revealEnergyFaces?: boolean;
+  revealedEnergyCardIds?: readonly string[];
   drawAvailable?: boolean;
   drawPending?: boolean;
   onDrawDeck?: () => void;
@@ -566,6 +570,7 @@ function PlayerZoneLayout({
           onTap={onTapEnergyCard}
           canTap={canTapEnergyCard}
           revealFaces={revealEnergyFaces}
+          revealedCardIds={revealedEnergyCardIds}
         />
         <div className={styles.cardStackMain}>
           <HeroZone owner={owner} cards={state.heroCards} count={counts.hero} />
@@ -693,6 +698,9 @@ export function GameScreen({
   const [drawError, setDrawError] = useState("");
   const [drawClock, setDrawClock] = useState(() => Date.now());
   const [openDiscardOwner, setOpenDiscardOwner] = useState<ZoneOwner | null>(null);
+  const [revealedDeckEnergyCardIds, setRevealedDeckEnergyCardIds] = useState<string[]>([]);
+  const deckEnergyRevealPreviousMatch = useRef<MatchState | null>(null);
+  const deckEnergyRevealTimers = useRef(new Map<string, number>());
   const { hiddenCoreCells } = useBakuCorePresentation();
 
   const zoneState = match
@@ -708,6 +716,38 @@ export function GameScreen({
     && !drawPending
     && playerCanDrawTurnCard(match, localPlayerId, drawClock),
   );
+  useLayoutEffect(() => {
+    const previous = deckEnergyRevealPreviousMatch.current;
+    deckEnergyRevealPreviousMatch.current = match ?? null;
+    if (!match || !previous || previous.id !== match.id) {
+      for (const timer of deckEnergyRevealTimers.current.values()) window.clearTimeout(timer);
+      deckEnergyRevealTimers.current.clear();
+      setRevealedDeckEnergyCardIds((current) => current.length ? [] : current);
+      return;
+    }
+
+    const revealedIds = energizeTransitions(previous, match)
+      .filter((transition) => transition.playerId === localPlayerId)
+      .flatMap((transition) => transition.deckCards.map((card) => card.id));
+    if (!revealedIds.length) return;
+
+    setRevealedDeckEnergyCardIds((current) => [...new Set([...current, ...revealedIds])]);
+    for (const cardId of revealedIds) {
+      const previousTimer = deckEnergyRevealTimers.current.get(cardId);
+      if (previousTimer) window.clearTimeout(previousTimer);
+      const timer = window.setTimeout(() => {
+        deckEnergyRevealTimers.current.delete(cardId);
+        setRevealedDeckEnergyCardIds((current) => current.filter((id) => id !== cardId));
+      }, DECK_ENERGIZE_REVEAL_MS);
+      deckEnergyRevealTimers.current.set(cardId, timer);
+    }
+  }, [match?.id, match?.version, localPlayerId]);
+
+  useEffect(() => () => {
+    for (const timer of deckEnergyRevealTimers.current.values()) window.clearTimeout(timer);
+    deckEnergyRevealTimers.current.clear();
+  }, []);
+
   const resolvedCounts: GameScreenZoneCounts = match
     ? {
       player: {
@@ -833,6 +873,7 @@ export function GameScreen({
             pendingEnergyCardId={pendingEnergyCardId}
             onTapEnergyCard={tapEnergy}
             canTapEnergyCard={(cardId) => energyCardCanTap(match, playerId, cardId)}
+            revealedEnergyCardIds={revealedDeckEnergyCardIds}
             drawAvailable={drawAvailable}
             drawPending={drawPending}
             onDrawDeck={() => void drawFromDeck()}

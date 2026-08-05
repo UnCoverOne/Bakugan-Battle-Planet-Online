@@ -86,14 +86,10 @@ test("Energy zones show total cards and stage a white-light Energize arrival", (
 
 test("top-deck Energize cards reveal only to their owner for five seconds", () => {
   const screen = read("components/game-screen-v2/GameScreen.tsx");
-  const layer = read("components/game-screen-v2/EnergyArrivalLayer.tsx");
-  const css = read("components/game-screen-v2/GameScreen.module.css");
-  assert.match(screen, /energyCardBack/);
-  assert.match(screen, /energyCardFace/);
-  assert.match(screen, /data-face-visible/);
-  assert.match(layer, /DECK_ENERGIZE_REVEAL_MS = 5000/);
-  assert.match(layer, /transition\.playerId === localPlayerId/);
-  assert.match(layer, /element\.dataset\.deckReveal = "true"/);
-  assert.match(layer, /delete element\.dataset\.deckReveal/);
-  assert.match(css, /data-deck-reveal="true"/);
+  assert.match(screen, /DECK_ENERGIZE_REVEAL_MS = 5000/);
+  assert.match(screen, /transition\.playerId === localPlayerId/);
+  assert.match(screen, /revealedDeckEnergyCardIds/);
+  assert.match(screen, /src=\{faceVisible \? card\.art : CARD_BACK_ART\}/);
+  assert.match(screen, /owner === "player" && revealedIds\.has\(card\.id\)/);
+  assert.doesNotMatch(screen, /energyCardFace/);
 });
