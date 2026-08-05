@@ -5,9 +5,11 @@ import {
   createMatch,
   passPriority,
   playCard,
+  type MatchState,
 } from "../lib/game";
 import { activeTappedEnergyIds } from "../lib/rules/costs";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
+import { dispatchRulesCommand } from "../lib/rules/runtime";
 
 function instance(catalogId: string, id: string) {
   const template = CARDS.find((card) => card.catalogId === catalogId);
@@ -21,7 +23,7 @@ function instance(catalogId: string, id: string) {
   };
 }
 
-test("Turn to Energy resolves from the batch into the Energy Zone uncharged", () => {
+function turnToEnergyState() {
   const player = makePlayer("turn-energy-player", "Player", STARTER_DECKS[0]);
   const opponent = makePlayer("turn-energy-opponent", "Opponent", STARTER_DECKS[1]);
   const state = createMatch("TURNTOENERGY", "bo1", [player, opponent]);
@@ -43,7 +45,30 @@ test("Turn to Energy resolves from the batch into the Energy Zone uncharged", ()
   live.energy = 0;
   (live as typeof live & { energyTapTurn?: number; tappedEnergyIds?: string[] }).energyTapTurn = state.turn;
   (live as typeof live & { energyTapTurn?: number; tappedEnergyIds?: string[] }).tappedEnergyIds = [];
+  return { state, playerId: player.id, opponentId: opponent.id, source, firstEnergy, secondEnergy };
+}
 
+function assertResolved(
+  resolved: MatchState,
+  playerId: string,
+  sourceId: string,
+  paymentIds: readonly string[],
+) {
+  const after = resolved.players.find((candidate) => candidate.id === playerId)!;
+  assert.equal(resolved.pendingChoice, undefined);
+  assert.equal(resolved.batch.length, 0);
+  assert.equal(after.hand.some((card) => card.id === sourceId), false);
+  assert.equal(after.discard.some((card) => card.id === sourceId), false);
+  assert.equal(after.energyZone.some((card) => card.id === sourceId), true);
+  assert.equal(after.maxEnergy, 3);
+  assert.deepEqual(
+    new Set(activeTappedEnergyIds(after, resolved.turn)),
+    new Set([...paymentIds, sourceId]),
+  );
+}
+
+test("Turn to Energy resolves from the batch into the Energy Zone uncharged", () => {
+  const { state, playerId, opponentId, source, firstEnergy, secondEnergy } = turnToEnergyState();
   const definition = ruleDefinitionForCard(source);
   const energize = definition.abilities
     .flatMap((ability) => ability.instructions)
@@ -53,20 +78,22 @@ test("Turn to Energy resolves from the batch into the Energy Zone uncharged", ()
   assert.equal(energize.source, "self");
   assert.equal(energize.enters, "uncharged");
 
-  const played = playCard(state, player.id, source.id);
+  const played = playCard(state, playerId, source.id);
   assert.equal(played.batch.length, 1);
-  const afterFirstPass = passPriority(played, player.id);
-  const resolved = passPriority(afterFirstPass, opponent.id);
+  const afterFirstPass = passPriority(played, playerId);
+  const resolved = passPriority(afterFirstPass, opponentId);
+  assertResolved(resolved, playerId, source.id, [firstEnergy.id, secondEnergy.id]);
+});
 
-  const after = resolved.players.find((candidate) => candidate.id === player.id)!;
-  assert.equal(resolved.pendingChoice, undefined);
-  assert.equal(resolved.batch.length, 0);
-  assert.equal(after.hand.some((card) => card.id === source.id), false);
-  assert.equal(after.discard.some((card) => card.id === source.id), false);
-  assert.equal(after.energyZone.some((card) => card.id === source.id), true);
-  assert.equal(after.maxEnergy, 3);
-  assert.deepEqual(
-    new Set(activeTappedEnergyIds(after, resolved.turn)),
-    new Set([firstEnergy.id, secondEnergy.id, source.id]),
-  );
+test("Turn to Energy resolves through the production rules-command path", () => {
+  const { state, playerId, opponentId, source, firstEnergy, secondEnergy } = turnToEnergyState();
+  const played = dispatchRulesCommand(state, playerId, {
+    type: "PLAY_CARD",
+    cardId: source.id,
+    choices: {},
+  });
+  assert.equal(played.batch.length, 1);
+  const afterFirstPass = dispatchRulesCommand(played, playerId, { type: "PASS_PRIORITY" });
+  const resolved = dispatchRulesCommand(afterFirstPass, opponentId, { type: "PASS_PRIORITY" });
+  assertResolved(resolved, playerId, source.id, [firstEnergy.id, secondEnergy.id]);
 });
