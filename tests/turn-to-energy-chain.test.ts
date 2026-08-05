@@ -13,6 +13,7 @@ import { advanceOpponentAi, opponentAiCanAct } from "../lib/opponentAi";
 import { activeTappedEnergyIds } from "../lib/rules/costs";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { dispatchRulesCommand } from "../lib/rules/runtime";
+import { isRuleObject, normalizeRuleObjects } from "../lib/rules/state";
 
 function instance(catalogId: string, id: string) {
   const template = CARDS.find((card) => card.catalogId === catalogId);
@@ -147,4 +148,27 @@ test("the Training AI passes and resolves Turn to Energy after the player passes
   const resolved = advanceOpponentAi(waitingForBot, opponentId);
   assert.ok(resolved);
   assertResolved(resolved, playerId, source.id, [firstEnergy.id, secondEnergy.id]);
+});
+
+
+test("normalization removes a completed Turn to Energy object stranded in the batch", () => {
+  const { state, playerId, source } = turnToEnergyState();
+  const played = dispatchRulesCommand(state, playerId, {
+    type: "PLAY_CARD",
+    cardId: source.id,
+    choices: {},
+  });
+  const pending = played.batch[0];
+  assert.ok(pending && isRuleObject(pending));
+
+  const player = played.players.find((candidate) => candidate.id === playerId)!;
+  player.energyZone.push(pending.card);
+  player.maxEnergy = player.energyZone.length;
+  pending.status = "resolved";
+  pending.instructionIndex = 1;
+  pending.cursor.instructionIndex = 1;
+
+  normalizeRuleObjects(played);
+  assert.equal(played.batch.length, 0);
+  assert.equal(player.energyZone.some((card) => card.id === source.id), true);
 });
