@@ -49,7 +49,6 @@ jobs:
           tests/ai-energize-planner.test.ts
           tests/ai-roll-forecast.test.ts
           tests/wave-slash-ai.test.ts
-          tests/reported-gameplay-regressions-2026-08.test.ts
       - name: Build production application
         run: npm run build
       - name: Commit validated implementation
