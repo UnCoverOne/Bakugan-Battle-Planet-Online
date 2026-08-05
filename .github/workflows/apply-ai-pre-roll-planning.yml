@@ -4,17 +4,23 @@ on:
   push:
     branches:
       - agent/full-ai-pre-roll-planning
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   implement-and-validate:
+    if: github.head_ref == 'agent/full-ai-pre-roll-planning' || github.ref_name == 'agent/full-ai-pre-roll-planning'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: agent/full-ai-pre-roll-planning
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
