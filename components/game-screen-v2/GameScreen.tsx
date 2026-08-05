@@ -413,6 +413,7 @@ function EnergyCardStack({
             style={style}
             data-card-id={card.id}
             data-tapped={tapped ? "true" : "false"}
+            data-face-visible={revealFaces ? "true" : "false"}
             aria-pressed={tapped}
             aria-label={tapped
               ? `${ownerLabel(owner)} Energy card ${index + 1}, tapped`
@@ -421,13 +422,20 @@ function EnergyCardStack({
             onClick={() => onTap?.(card.id)}
             key={card.id}
           >
-            <img
-              src={revealFaces ? card.art : CARD_BACK_ART}
-              alt={revealFaces ? card.displayName || card.name : ""}
-              aria-hidden={!revealFaces}
-              data-hidden={revealFaces ? "false" : "true"}
-              draggable={false}
-            />
+            <span className={styles.energyCardVisual} aria-hidden="true">
+              <img
+                className={styles.energyCardBack}
+                src={CARD_BACK_ART}
+                alt=""
+                draggable={false}
+              />
+              <img
+                className={styles.energyCardFace}
+                src={card.art}
+                alt=""
+                draggable={false}
+              />
+            </span>
           </button>
         );
       })}

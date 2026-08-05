@@ -367,8 +367,19 @@
   outline-offset: 2px;
 }
 
-.energyCard img {
+.energyCardVisual {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   display: block;
+  pointer-events: none;
+}
+
+.energyCardVisual img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -378,6 +389,25 @@
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.48);
   pointer-events: none;
   user-select: none;
+  transition: opacity 150ms ease;
+}
+
+.energyCardBack {
+  opacity: 1;
+}
+
+.energyCardFace {
+  opacity: 0;
+}
+
+.energyCard[data-face-visible="true"] .energyCardBack,
+.energyCard[data-deck-reveal="true"] .energyCardBack {
+  opacity: 0;
+}
+
+.energyCard[data-face-visible="true"] .energyCardFace,
+.energyCard[data-deck-reveal="true"] .energyCardFace {
+  opacity: 1;
 }
 
 .energyIndicator {
@@ -431,7 +461,7 @@
   z-index: 84;
 }
 
-.energyCard[data-energizing="true"] img {
+.energyCard[data-energizing="true"] .energyCardVisual {
   animation: energy-card-materialize 760ms cubic-bezier(0.16, 0.82, 0.2, 1) 250ms both;
 }
 
@@ -710,7 +740,8 @@
   .heroCardImage,
   .energyCard,
   .energyZone[data-energizing="true"]::after,
-  .energyCard[data-energizing="true"] img,
+  .energyCard[data-energizing="true"] .energyCardVisual,
+  .energyCardVisual img,
   .energyCard[data-energizing="true"]::before,
   .energyCard[data-energizing="true"]::after,
   .deckBackStack,

@@ -82,3 +82,18 @@ test("Energy zones show total cards and stage a white-light Energize arrival", (
   assert.match(css, /@keyframes energy-lightning-bolt/);
   assert.match(css, /prefers-reduced-motion[\s\S]*energyZone\[data-energizing/);
 });
+
+
+test("top-deck Energize cards reveal only to their owner for five seconds", () => {
+  const screen = read("components/game-screen-v2/GameScreen.tsx");
+  const layer = read("components/game-screen-v2/EnergyArrivalLayer.tsx");
+  const css = read("components/game-screen-v2/GameScreen.module.css");
+  assert.match(screen, /energyCardBack/);
+  assert.match(screen, /energyCardFace/);
+  assert.match(screen, /data-face-visible/);
+  assert.match(layer, /DECK_ENERGIZE_REVEAL_MS = 5000/);
+  assert.match(layer, /transition\.playerId === localPlayerId/);
+  assert.match(layer, /element\.dataset\.deckReveal = "true"/);
+  assert.match(layer, /delete element\.dataset\.deckReveal/);
+  assert.match(css, /data-deck-reveal="true"/);
+});

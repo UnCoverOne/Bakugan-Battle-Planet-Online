@@ -385,3 +385,29 @@ test("Energize transitions report only cards newly added to the Energy Zone", ()
   differentMatch.id = "DIFFERENT-ENERGY-MATCH";
   assert.deepEqual(energizeTransitions(before, differentMatch), []);
 });
+
+
+test("deck-to-Energy transitions identify cards eligible for a five-second owner reveal", () => {
+  const player = makePlayer("deck-energy-player", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("deck-energy-opponent", "Magnus", STARTER_DECKS[1]);
+  const before = createMatch("DECKENERGYFX", "bo1", [player, opponent]);
+  const after = structuredClone(before);
+  const energized = after.players[0].deckCards.shift();
+  assert.ok(energized);
+  after.players[0].deck = after.players[0].deckCards.length;
+  after.players[0].energyZone.push(energized);
+  after.players[0].maxEnergy = after.players[0].energyZone.length;
+  after.version += 1;
+
+  const transitions = energizeTransitions(before, after);
+  assert.equal(transitions.length, 1);
+  assert.deepEqual(transitions[0].deckCards.map((card) => card.id), [energized.id]);
+
+  const fromHand = structuredClone(before);
+  const handCard = fromHand.players[0].hand.shift();
+  assert.ok(handCard);
+  fromHand.players[0].energyZone.push(handCard);
+  fromHand.players[0].maxEnergy = fromHand.players[0].energyZone.length;
+  fromHand.version += 1;
+  assert.deepEqual(energizeTransitions(before, fromHand)[0].deckCards, []);
+});
