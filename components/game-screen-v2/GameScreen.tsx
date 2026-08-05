@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { GameCard, MatchState } from "../../lib/game";
@@ -9,6 +9,10 @@ import {
   energyZoneViews,
   type EnergyZoneView,
 } from "../../lib/energy";
+import {
+  deckEnergyFaceVisible,
+  nextDeckEnergyFaceRevealExpiry,
+} from "../../lib/energyVisibility";
 import {
   playerCanDrawTurnCard,
   type TurnStartMatchState,
@@ -379,6 +383,7 @@ function EnergyCardStack({
   onTap,
   canTap,
   revealFaces = false,
+  temporaryRevealCardIds,
 }: {
   owner: ZoneOwner;
   energy: EnergyZoneView;
@@ -386,6 +391,7 @@ function EnergyCardStack({
   onTap?: EnergyTapHandler;
   canTap?: (cardId: string) => boolean;
   revealFaces?: boolean;
+  temporaryRevealCardIds?: ReadonlySet<string>;
 }) {
   if (!energy.cards.length) return null;
   const layout = heroCardLayout(energy.cards.length);
@@ -395,6 +401,7 @@ function EnergyCardStack({
     <div className={styles.energyCardStack}>
       {energy.cards.map((card, index) => {
         const tapped = tappedIds.has(card.id);
+        const faceVisible = revealFaces || temporaryRevealCardIds?.has(card.id) === true;
         const actionable = owner === "player"
           && Boolean(onTap)
           && !tapped
@@ -422,10 +429,10 @@ function EnergyCardStack({
             key={card.id}
           >
             <img
-              src={revealFaces ? card.art : CARD_BACK_ART}
-              alt={revealFaces ? card.displayName || card.name : ""}
-              aria-hidden={!revealFaces}
-              data-hidden={revealFaces ? "false" : "true"}
+              src={faceVisible ? card.art : CARD_BACK_ART}
+              alt={faceVisible ? card.displayName || card.name : ""}
+              aria-hidden={!faceVisible}
+              data-hidden={faceVisible ? "false" : "true"}
               draggable={false}
             />
           </button>
@@ -442,6 +449,7 @@ function EnergyZone({
   onTap,
   canTap,
   revealFaces = false,
+  temporaryRevealCardIds,
 }: {
   owner: ZoneOwner;
   energy: EnergyZoneView;
@@ -449,6 +457,7 @@ function EnergyZone({
   onTap?: EnergyTapHandler;
   canTap?: (cardId: string) => boolean;
   revealFaces?: boolean;
+  temporaryRevealCardIds?: ReadonlySet<string>;
 }) {
   return (
     <div
@@ -468,6 +477,7 @@ function EnergyZone({
         onTap={onTap}
         canTap={canTap}
         revealFaces={revealFaces}
+        temporaryRevealCardIds={temporaryRevealCardIds}
       />
       <strong
         className={styles.energyIndicator}
@@ -493,6 +503,7 @@ function PlayerZoneLayout({
   onTapEnergyCard,
   canTapEnergyCard,
   revealEnergyFaces = false,
+  temporaryEnergyRevealCardIds,
   drawAvailable = false,
   drawPending = false,
   onDrawDeck,
@@ -508,6 +519,7 @@ function PlayerZoneLayout({
   onTapEnergyCard?: EnergyTapHandler;
   canTapEnergyCard?: (cardId: string) => boolean;
   revealEnergyFaces?: boolean;
+  temporaryEnergyRevealCardIds?: ReadonlySet<string>;
   drawAvailable?: boolean;
   drawPending?: boolean;
   onDrawDeck?: () => void;
@@ -558,6 +570,7 @@ function PlayerZoneLayout({
           onTap={onTapEnergyCard}
           canTap={canTapEnergyCard}
           revealFaces={revealEnergyFaces}
+          temporaryRevealCardIds={temporaryEnergyRevealCardIds}
         />
         <div className={styles.cardStackMain}>
           <HeroZone owner={owner} cards={state.heroCards} count={counts.hero} />
@@ -684,6 +697,7 @@ export function GameScreen({
   const [drawPending, setDrawPending] = useState(false);
   const [drawError, setDrawError] = useState("");
   const [drawClock, setDrawClock] = useState(() => Date.now());
+  const [energyRevealClock, setEnergyRevealClock] = useState(() => Date.now());
   const [openDiscardOwner, setOpenDiscardOwner] = useState<ZoneOwner | null>(null);
   const { hiddenCoreCells } = useBakuCorePresentation();
 
@@ -694,6 +708,11 @@ export function GameScreen({
   const energyState = energyZoneViews(match, playerId);
   const revealOpponentAiCards = useAdministratorAiVisibility(match, playerId);
   const localPlayerId = playerId ?? match?.players[0]?.id;
+  const temporaryEnergyFaceCardIds = new Set(
+    energyState.player.cards
+      .filter((card) => deckEnergyFaceVisible(card, energyRevealClock))
+      .map((card) => card.id),
+  );
   const turnStartState = match as TurnStartMatchState | null | undefined;
   const drawAvailable = Boolean(
     onDrawCard
@@ -714,6 +733,18 @@ export function GameScreen({
       },
     }
     : zoneCounts;
+
+  useLayoutEffect(() => {
+    setEnergyRevealClock(Date.now());
+  }, [match?.id, match?.version]);
+
+  useEffect(() => {
+    const expiresAt = nextDeckEnergyFaceRevealExpiry(energyState.player.cards, energyRevealClock);
+    if (expiresAt == null) return;
+    const delay = Math.max(0, expiresAt - Date.now());
+    const timeout = window.setTimeout(() => setEnergyRevealClock(Date.now()), delay + 20);
+    return () => window.clearTimeout(timeout);
+  }, [match?.id, match?.version, energyRevealClock]);
 
   useEffect(() => {
     setDrawClock(Date.now());
@@ -825,6 +856,7 @@ export function GameScreen({
             pendingEnergyCardId={pendingEnergyCardId}
             onTapEnergyCard={tapEnergy}
             canTapEnergyCard={(cardId) => energyCardCanTap(match, playerId, cardId)}
+            temporaryEnergyRevealCardIds={temporaryEnergyFaceCardIds}
             drawAvailable={drawAvailable}
             drawPending={drawPending}
             onDrawDeck={() => void drawFromDeck()}
