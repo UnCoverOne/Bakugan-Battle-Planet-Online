@@ -216,6 +216,24 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     selected.maximum = /any number/i.test(text) ? 99 : Math.max(1, amount);
     result.push(selected);
   }
+  const energizeFromHand = text.match(/\benergize\s+(?:(a|an|one|two|three|\d+)\s+)?cards?\s+(?:in|from)\s+your\s+hand\b/i);
+  if (energizeFromHand) {
+    const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3 };
+    const printed = energizeFromHand[1]?.toLowerCase();
+    const amount = printed ? words[printed] ?? Math.max(1, Number(printed) || 1) : 1;
+    const selected = choice(
+      "handCardIds",
+      "resolve",
+      "hand-card",
+      `Choose ${amount === 1 ? "a card" : `${amount} cards`} to Energize`,
+      false,
+      "controller",
+      "private",
+    );
+    selected.minimum = amount;
+    selected.maximum = amount;
+    result.push(selected);
+  }
   if (/search your deck/i.test(text)) result.push(choice("deckCardId", timing, "deck-card", "Choose a card from your deck", false, "controller", "private"));
   if (/top .*cards?.*any order/i.test(text)) result.push(choice("orderedCardIds", timing, "deck-card", "Order the revealed cards", false, "controller", "private"));
   if (/play (?:an?|the) (?:Action|Hero|Evo|card).*from (?:your )?hand for free|play that Bakugan(?:'s|’s) Evo card for free/i.test(text)) {
