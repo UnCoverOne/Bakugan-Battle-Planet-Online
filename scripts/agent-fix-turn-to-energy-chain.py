@@ -70,8 +70,8 @@ test("normalization removes a completed Turn to Energy object stranded in the ba
 
 package = Path("package.json")
 text = package.read_text()
-needle = "tests/profile-customization.test.ts tests/presentation-stability.test.ts"
-replacement = "tests/profile-customization.test.ts tests/turn-to-energy-chain.test.ts tests/presentation-stability.test.ts"
+needle = "tests/profile-customization.test.ts tests/deck-energy-reveal.test.ts tests/presentation-stability.test.ts"
+replacement = "tests/profile-customization.test.ts tests/deck-energy-reveal.test.ts tests/turn-to-energy-chain.test.ts tests/presentation-stability.test.ts"
 if needle not in text:
     raise SystemExit("Could not locate package test-list insertion point")
 package.write_text(text.replace(needle, replacement, 1))
