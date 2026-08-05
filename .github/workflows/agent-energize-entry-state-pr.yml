@@ -26,20 +26,20 @@ jobs:
           python scripts/agent-energize-patch.py
           python <<'PY'
           from pathlib import Path
-          path = Path('tests/reported-gameplay-regressions-2026-08.test.ts')
+
+          path = Path("tests/reported-gameplay-regressions-2026-08.test.ts")
           text = path.read_text()
-          old = '''  state.startingPlayer = player.id;
-          state.priority = player.id;
-
-          const live = state.players.find((candidate) => candidate.id === player.id)!;'''
-          new = '''  state.startingPlayer = player.id;
-          state.priority = player.id;
-          state.brawlWinner = player.id;
-
-          const live = state.players.find((candidate) => candidate.id === player.id)!;'''
-          if old not in text:
-              raise SystemExit('Missing Ventus Trox Victor-state test anchor')
-          path.write_text(text.replace(old, new, 1))
+          test_marker = 'test("Ventus Trox Ultra energizes the selected hand card uncharged", () => {'
+          next_marker = 'test("unqualified Energize effects add Energy cards charged", () => {'
+          start = text.index(test_marker)
+          end = text.index(next_marker, start)
+          segment = text[start:end]
+          line = "  state.brawlWinner = player.id;"
+          if line not in segment:
+            priority = "  state.priority = player.id;"
+            position = text.index(priority, start, end) + len(priority)
+            text = text[:position] + "\n" + line + text[position:]
+          path.write_text(text)
           PY
       - name: Validate typed content
         run: npm run validate:content
