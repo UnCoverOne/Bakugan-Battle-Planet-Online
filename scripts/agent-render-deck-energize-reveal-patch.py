@@ -83,26 +83,28 @@ export function EnergyArrivalLayer({
 }
 ''')
 
+GAME_SCREEN = "components/game-screen-v2/GameScreen.tsx"
+CSS = "components/game-screen-v2/GameScreen.module.css"
+
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     'import { useEffect, useRef, useState } from "react";',
     'import { useEffect, useLayoutEffect, useRef, useState } from "react";',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     'import { ResponsiveCardImage } from "./ResponsiveCardImage";\n',
     'import { ResponsiveCardImage } from "./ResponsiveCardImage";\nimport { energizeTransitions } from "./energizeAnimationState";\n',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     'const CARD_PREVIEW_CLEAR_EVENT = "bbp-card-preview-clear";\n',
     'const CARD_PREVIEW_CLEAR_EVENT = "bbp-card-preview-clear";\nconst DECK_ENERGIZE_REVEAL_MS = 5000;\n',
 )
 
+# EnergyCardStack accepts the local owner's temporary reveal IDs.
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''  canTap,
   revealFaces = false,
 }: {
@@ -112,7 +114,8 @@ replace_once(
   onTap?: EnergyTapHandler;
   canTap?: (cardId: string) => boolean;
   revealFaces?: boolean;
-}) {''',
+}) {
+  if (!energy.cards.length) return null;''',
     '''  canTap,
   revealFaces = false,
   revealedCardIds = [],
@@ -124,11 +127,11 @@ replace_once(
   canTap?: (cardId: string) => boolean;
   revealFaces?: boolean;
   revealedCardIds?: readonly string[];
-}) {''',
+}) {
+  if (!energy.cards.length) return null;''',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''  const layout = heroCardLayout(energy.cards.length);
   const tappedIds = new Set(energy.tappedEnergyIds);
 ''',
@@ -137,24 +140,21 @@ replace_once(
   const revealedIds = new Set(revealedCardIds);
 ''',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''        const tapped = tappedIds.has(card.id);
         const actionable = owner === "player"''',
     '''        const tapped = tappedIds.has(card.id);
         const faceVisible = revealFaces || (owner === "player" && revealedIds.has(card.id));
         const actionable = owner === "player"''',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '            data-face-visible={revealFaces ? "true" : "false"}',
     '            data-face-visible={faceVisible ? "true" : "false"}',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''            <span className={styles.energyCardVisual} aria-hidden="true">
               <img
                 className={styles.energyCardBack}
@@ -178,9 +178,9 @@ replace_once(
             />''',
 )
 
-# EnergyZone prop threading.
+# EnergyZone threads the reveal IDs into its card stack.
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''  canTap,
   revealFaces = false,
 }: {
@@ -208,9 +208,8 @@ replace_once(
   return (
     <div''',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''        canTap={canTap}
         revealFaces={revealFaces}
       />''',
@@ -220,9 +219,9 @@ replace_once(
       />''',
 )
 
-# PlayerZoneLayout prop threading.
+# PlayerZoneLayout threads the reveal IDs only to the local player's Energy Zone.
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''  canTapEnergyCard,
   revealEnergyFaces = false,
   drawAvailable = false,''',
@@ -231,9 +230,8 @@ replace_once(
   revealedEnergyCardIds = [],
   drawAvailable = false,''',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''  canTapEnergyCard?: (cardId: string) => boolean;
   revealEnergyFaces?: boolean;
   drawAvailable?: boolean;''',
@@ -242,9 +240,8 @@ replace_once(
   revealedEnergyCardIds?: readonly string[];
   drawAvailable?: boolean;''',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''          canTap={canTapEnergyCard}
           revealFaces={revealEnergyFaces}
         />''',
@@ -254,28 +251,9 @@ replace_once(
         />''',
 )
 
-replace,
-  revealedEnergyCardIds = [],
-  drawAvailable = false,''',
-)
-
+# Track each local deck-to-Energy reveal independently for five seconds.
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
-    '''  canTapEnergyCard?: (cardId: string) => boolean;
-  revealEnergyFaces?: boolean { hiddenCoreCells } = useBakuCorePresentation();''',
-    '''  const [drawClock, setDrawClock] = useState(() => Date.now());
-  const [openDiscardOwner, setOpenDiscardOwner] = useState<ZoneOwner | null>(null);
-  const [revealedDeckEnergyCardIds, setRevealedDeckEnergyCardIds] = useState<string[]>([]);
-  const deckEnergyRevealPreviousMatchvealEnergyFaces}
-        />''',
-    '''          canTap={canTapEnergyCard}
-          revealFaces={revealEnergyFaces}
-          revealedCardIds={revealedEnergyCardIds}
-        />''',
-)
-
-replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''  const [drawClock, setDrawClock] = useState(() => Date.now());
   const [openDiscardOwner, setOpenDiscardOwner] = useState<ZoneOwner | null>(null);
   const { hiddenCoreCells } = useBakuCorePresentation();''',
@@ -286,9 +264,8 @@ replace_once(
   const deckEnergyRevealTimers = useRef(new Map<string, number>());
   const { hiddenCoreCells } = useBakuCorePresentation();''',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''  const resolvedCounts: GameScreenZoneCounts = match
     ? {''',
     '''  useLayoutEffect(() => {
@@ -326,9 +303,8 @@ replace_once(
   const resolvedCounts: GameScreenZoneCounts = match
     ? {''',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.tsx",
+    GAME_SCREEN,
     '''            canTapEnergyCard={(cardId) => energyCardCanTap(match, playerId, cardId)}
             drawAvailable={drawAvailable}''',
     '''            canTapEnergyCard={(cardId) => energyCardCanTap(match, playerId, cardId)}
@@ -336,8 +312,9 @@ replace_once(
             drawAvailable={drawAvailable}''',
 )
 
+# Return to a single image so hidden opponent Energy identities never enter the DOM.
 replace_once(
-    "components/game-screen-v2/GameScreen.module.css",
+    CSS,
     '''.energyCardVisual {
   position: absolute;
   inset: 0;
@@ -395,14 +372,13 @@ replace_once(
 }
 ''',
 )
-
 replace_once(
-    "components/game-screen-v2/GameScreen.module.css",
+    CSS,
     '.energyCard[data-energizing="true"] .energyCardVisual {\n',
     '.energyCard[data-energizing="true"] img {\n',
 )
 replace_once(
-    "components/game-screen-v2/GameScreen.module.css",
+    CSS,
     '''  .energyCard[data-energizing="true"] .energyCardVisual,
   .energyCardVisual img,
 ''',
