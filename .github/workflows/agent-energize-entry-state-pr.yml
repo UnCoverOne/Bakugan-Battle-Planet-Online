@@ -22,17 +22,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply Energize architecture changes
-        run: |
-          python <<'PY'
-          from pathlib import Path
-
-          source = Path('.github/workflows/agent-energize-entry-state.yml').read_text()
-          start = "          python <<'PY'\n"
-          end = "\n          PY"
-          body = source.split(start, 1)[1].split(end, 1)[0]
-          script = "\n".join(line[10:] if line.startswith("          ") else line for line in body.splitlines())
-          exec(compile(script, 'agent-energize-patch.py', 'exec'), {'__name__': '__main__'})
-          PY
+        run: python scripts/agent-energize-patch.py
       - name: Validate typed content
         run: npm run validate:content
       - name: Run focused rules and gameplay regressions
@@ -41,9 +31,9 @@ jobs:
         run: npm run build
       - name: Commit implementation
         run: |
-          rm .github/workflows/agent-energize-entry-state.yml .github/workflows/agent-energize-entry-state-pr.yml
+          rm .github/workflows/agent-energize-entry-state.yml .github/workflows/agent-energize-entry-state-pr.yml scripts/agent-energize-patch.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/rules/model.ts lib/rules/catalogue-primitives.ts lib/rules/catalogue-structure.ts lib/game.ts tests/reported-gameplay-regressions-2026-08.test.ts .github/workflows/agent-energize-entry-state.yml .github/workflows/agent-energize-entry-state-pr.yml
+          git add lib/rules/model.ts lib/rules/catalogue-primitives.ts lib/rules/catalogue-structure.ts lib/game.ts tests/reported-gameplay-regressions-2026-08.test.ts .github/workflows/agent-energize-entry-state.yml .github/workflows/agent-energize-entry-state-pr.yml scripts/agent-energize-patch.py
           git commit -m "Distinguish charged and uncharged Energize effects"
           git push origin HEAD:agent/energize-entry-state-and-hand
