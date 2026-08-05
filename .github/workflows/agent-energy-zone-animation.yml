@@ -24,7 +24,7 @@ jobs:
       - name: Apply Energy zone implementation
         run: python scripts/agent-energy-zone-animation-patch.py
       - name: Run focused Energy zone regressions
-        run: node --import tsx --test tests/game-screen-state.test.ts tests/presentation-stability.test.ts
+        run: node --import tsx --test --test-name-pattern="Energize transitions|Energy zones show total cards" tests/game-screen-state.test.ts tests/presentation-stability.test.ts
       - name: Build production application
         run: npm run build
       - name: Commit implementation
