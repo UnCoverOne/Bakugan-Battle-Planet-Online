@@ -29,6 +29,22 @@ jobs:
         run: |
           sed -i 's/^          5\.5$/          7.5/' scripts/agent-ai-energy-reservation.py
           python scripts/agent-ai-energy-reservation.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('lib/opponentAiBase.ts')
+          text = path.read_text()
+          needle = '  let score = baseScore - energyOpportunityCost;'
+          replacement = '''  console.log("AI_PRE_ROLL_SCORE", {
+            card: card.catalogId,
+            baseScore,
+            passContinuation: context.passContinuation,
+            continuationAfter,
+            energyOpportunityCost,
+            remainingCapacity,
+          });
+          let score = baseScore - energyOpportunityCost;'''
+          path.write_text(text.replace(needle, replacement, 1))
+          PY
       - name: Run focused AI tactics and Energize regressions
         run: node --import tsx --test tests/opponent-ai-tactics.test.ts tests/ai-energize-planner.test.ts tests/ai-roll-forecast.test.ts
       - name: Build production application
