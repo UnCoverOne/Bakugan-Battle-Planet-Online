@@ -26,7 +26,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply continuation-value model
-        run: python scripts/agent-ai-energy-reservation.py
+        run: |
+          sed -i 's/^          5\.5$/          7.5/' scripts/agent-ai-energy-reservation.py
+          python scripts/agent-ai-energy-reservation.py
       - name: Run focused AI tactics and Energize regressions
         run: node --import tsx --test tests/opponent-ai-tactics.test.ts tests/ai-energize-planner.test.ts tests/ai-roll-forecast.test.ts
       - name: Build production application
