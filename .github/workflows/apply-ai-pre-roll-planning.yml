@@ -29,9 +29,10 @@ jobs:
       - run: npm ci
       - name: Apply implementation
         run: |
-          base64 --decode scripts/apply-ai-pre-roll-planning.py.gz.b64 | gunzip > /tmp/apply-ai-pre-roll-planning.py
+          cat scripts/ai-planner-part-* | base64 --decode | gunzip > /tmp/apply-ai-pre-roll-planning.py
+          echo "7349fc1ec907be21f3cbfda56f330808a32cc121a78fe4dd00a60f4a286358de  /tmp/apply-ai-pre-roll-planning.py" | sha256sum --check
           python /tmp/apply-ai-pre-roll-planning.py
-          rm -f scripts/apply-ai-pre-roll-planning.py.gz.b64
+          rm -f scripts/ai-planner-part-*
       - name: Validate changed AI files
         run: |
           git diff --check
