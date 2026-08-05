@@ -1,0 +1,65 @@
+name: Run editable Brawler Name implementation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-validate:
+    if: github.head_ref == 'agent/editable-brawler-name'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/editable-brawler-name
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Apply implementation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/apply-editable-brawler-name.yml').read_text().splitlines()
+          start = next(index for index, line in enumerate(source) if "python - <<'PY'" in line) + 1
+          end = next(index for index in range(start, len(source)) if source[index].strip() == 'PY')
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in source[start:end]) + '\n'
+          Path('/tmp/apply-editable-brawler-name.py').write_text(script)
+          PY
+          python /tmp/apply-editable-brawler-name.py
+          rm -f .github/workflows/run-editable-brawler-name.yml
+      - name: Validate implementation
+        run: |
+          git diff --check
+          npx eslint \
+            app/api/auth/route.ts \
+            lib/account-server.ts \
+            components/application/AppProvider.jsx \
+            components/application/AccountAccessModal.tsx \
+            components/routes/SettingsScreen.tsx \
+            tests/brawler-name.test.ts
+      - name: Run account and profile regressions
+        run: >-
+          node --import tsx --test
+          tests/brawler-name.test.ts
+          tests/supporting-pages.test.ts
+          tests/guest-first-auth.test.ts
+          tests/persistence-boundaries.test.ts
+          tests/account-sync.integration.test.ts
+          tests/administration.test.ts
+      - name: Build production application
+        run: npm run build
+      - name: Commit validated implementation
+        run: |
+          git config user.name "OpenAI Agent"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Make Brawler Name editable"
+          git push origin HEAD:agent/editable-brawler-name
