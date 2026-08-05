@@ -16,6 +16,7 @@ import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRu
 import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
 import { collectRuleTriggers } from "./rules/triggers";
+import { applyEnergyEntryVisibility } from "./energyVisibility";
 import {
   BATTLE_PLANET_PHYSICAL_SIMULATION_PROFILE,
   PhysicalSimulationError,
@@ -60,6 +61,8 @@ export type GameCard = {
   slug?: string;
   /** Turn in which this physical card instance entered play. */
   playedTurn?: number;
+  /** Owner-only deadline for a card Energized from the top of the deck. */
+  energyFaceRevealUntil?: number;
 };
 
 export type Bakugan = {
@@ -619,7 +622,11 @@ export const energizeCard = (input: MatchState, playerId: string, cardId?: strin
   if (state.phase !== "energize" || player.energizedThisTurn) throw new Error("Your Energize decision is already complete.");
   if (cardId) {
     const index = player.hand.findIndex((card) => card.id === cardId); if (index < 0) throw new Error("Choose a card in your hand.");
-    const [card] = player.hand.splice(index, 1); player.energyZone.push(card); player.maxEnergy += 1; player.energy += 1;
+    const [card] = player.hand.splice(index, 1);
+    applyEnergyEntryVisibility([card], "hand");
+    player.energyZone.push(card);
+    player.maxEnergy += 1;
+    player.energy += 1;
     entry(state, "game", `${player.name} Energized a card face down.`);
   } else entry(state, "game", `${player.name} declined to Energize.`);
   player.energizedThisTurn = true;
@@ -1836,6 +1843,7 @@ const executeRuleAction = (
         const energized = player.hand.filter((candidate) => selected.has(candidate.id));
         if (energized.length !== action.amount) return;
         player.hand = player.hand.filter((candidate) => !selected.has(candidate.id));
+        applyEnergyEntryVisibility(energized, "hand");
         player.energyZone.push(...energized);
         applyEnergizedEntryState(state, player, energized, action.enters);
       } else if (action.source === "deck") {
@@ -1844,6 +1852,7 @@ const executeRuleAction = (
           const energyCard = player.deckCards.shift();
           if (energyCard) energized.push(energyCard);
         }
+        applyEnergyEntryVisibility(energized, "deck");
         player.energyZone.push(...energized);
         applyEnergizedEntryState(state, player, energized, action.enters);
         syncDeck(player);
@@ -1852,6 +1861,7 @@ const executeRuleAction = (
           const index = owner.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
           if (index >= 0) {
             const energized = owner.heroes.splice(index, 1);
+            applyEnergyEntryVisibility(energized, "hero");
             owner.energyZone.push(...energized);
             applyEnergizedEntryState(state, owner, energized, action.enters);
             break;
@@ -1860,6 +1870,7 @@ const executeRuleAction = (
       } else if (action.source === "self" && !player.energyZone.some((candidate) => candidate.id === card.id)) {
         for (const owner of state.players) owner.heroes = owner.heroes.filter((candidate) => candidate.id !== card.id);
         player.discard = player.discard.filter((candidate) => candidate.id !== card.id);
+        applyEnergyEntryVisibility([card], "self");
         player.energyZone.push(card);
         applyEnergizedEntryState(state, player, [card], action.enters);
       }
