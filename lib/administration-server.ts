@@ -98,7 +98,14 @@ export async function applyDatabaseCardOverrides(db: Database) {
   return applyCardOverrides(await loadCardOverrides(db));
 }
 
-const forbiddenCardKeys = new Set(["__proto__", "prototype", "constructor"]);
+const forbiddenCardKeys = new Set([
+  "__proto__",
+  "prototype",
+  "constructor",
+  "id",
+  "catalogId",
+  "constructionIdentity",
+]);
 
 export function normalizeCardEdit(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Card data must be an object.");
@@ -108,11 +115,16 @@ export function normalizeCardEdit(value: unknown) {
   if (!original) throw new Error("The selected card does not exist.");
   const clean: Record<string, unknown> = {};
   for (const [key, field] of Object.entries(candidate)) {
-    if (forbiddenCardKeys.has(key) || key === "id" || key === "catalogId") continue;
+    if (forbiddenCardKeys.has(key)) continue;
     if (field === undefined || typeof field === "function" || typeof field === "symbol") continue;
     clean[key] = field;
   }
-  const merged = { ...original, ...clean, id: original.id, catalogId: original.catalogId } as GameCard;
+  const merged = {
+    ...original,
+    ...clean,
+    id: original.id,
+    catalogId: original.catalogId,
+  } as GameCard;
   if (!merged.displayName.trim() || !merged.name.trim()) throw new Error("Card names cannot be empty.");
   if (!["Action", "Flip", "Hero", "Evo", "Character"].includes(merged.type)) throw new Error("Card type is invalid.");
   if (!["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"].includes(merged.faction)) throw new Error("Card faction is invalid.");
@@ -152,7 +164,7 @@ export async function listManagedPublicDecks(db: Database): Promise<ManagedDeck[
   } catch (error) {
     if (
       !(error instanceof Error) ||
-      !/no such table:\\s*user_data_entities/i.test(error.message)
+      !/no such table:\s*user_data_entities/i.test(error.message)
     ) {
       throw error;
     }
@@ -223,128 +235,124 @@ async function writeUserDeck(
   } catch (error) {
     if (
       !(error instanceof Error) ||
-      !/no such table:\\s*user_data_entities/i.test(error.message)
+      !/no such table:\s*user_data_entities/i.test(error.message)
     ) {
       throw error;
     }
   }
-
-  if (entity?.data_json && !entity.deleted_at) {
+  if (entity) {
     const now = Date.now();
-    const result = replacement
-      ? await db.prepare(
-        "UPDATE user_data_entities SET revision = revision + 1, data_json = ?, deleted_at = NULL, updated_at = ? WHERE user_id = ? AND entity_type = 'deck' AND entity_id = ? AND revision = ?",
-      ).bind(JSON.stringify(replacement), now, userId, deckId, entity.revision).run()
-      : await db.prepare(
-        "UPDATE user_data_entities SET revision = revision + 1, data_json = NULL, deleted_at = ?, updated_at = ? WHERE user_id = ? AND entity_type = 'deck' AND entity_id = ? AND revision = ?",
-      ).bind(new Date(now).toISOString(), now, userId, deckId, entity.revision).run();
-    if (!result.meta?.changes) throw new Error("The public deck changed. Reload and try again.");
+    await db.prepare(
+      "UPDATE user_data_entities SET revision = revision + 1, data_json = ?, deleted_at = ?, updated_at = ? WHERE user_id = ? AND entity_type = 'deck' AND entity_id = ? AND revision = ?",
+    ).bind(
+      replacement ? JSON.stringify(replacement) : null,
+      replacement ? null : new Date(now).toISOString(),
+      now,
+      userId,
+      deckId,
+      entity.revision,
+    ).run();
     return;
   }
 
   const row = await db.prepare("SELECT revision, data_json FROM user_data WHERE user_id = ?")
     .bind(userId).first() as { revision: number; data_json: string } | null;
-  if (!row) throw new Error("The deck owner's account data no longer exists.");
-  const snapshot = parseJson<Record<string, unknown>>(row.data_json, {});
-  const decks = Array.isArray(snapshot.decks) ? snapshot.decks as DeckRecord[] : [];
-  if (!decks.some((deck) => deck.id === deckId)) throw new Error("The public deck no longer exists.");
-  snapshot.decks = replacement
-    ? [replacement, ...decks.filter((deck) => deck.id !== deckId)]
-    : decks.filter((deck) => deck.id !== deckId);
+  if (!row) throw new Error("The deck owner no longer has synced data.");
+  const snapshot = parseJson<{ decks?: DeckRecord[]; deletedDecks?: Array<{ id: string; deletedAt: string }>; updatedAt?: number }>(row.data_json, {});
+  const decks = snapshot.decks ?? [];
+  const index = decks.findIndex((deck) => deck.id === deckId);
+  if (index < 0) throw new Error("The public deck no longer exists.");
+  if (replacement) decks[index] = replacement;
+  else decks.splice(index, 1);
+  snapshot.decks = decks;
+  snapshot.deletedDecks = replacement
+    ? (snapshot.deletedDecks ?? []).filter((item) => item.id !== deckId)
+    : [...(snapshot.deletedDecks ?? []).filter((item) => item.id !== deckId), { id: deckId, deletedAt: new Date().toISOString() }];
   snapshot.updatedAt = Date.now();
   await db.prepare("UPDATE user_data SET revision = ?, data_json = ?, updated_at = ? WHERE user_id = ?")
     .bind(row.revision + 1, JSON.stringify(snapshot), Date.now(), userId).run();
 }
 
-export async function updatePublicDeck(db: Database, deckId: string, value: unknown, administratorId: string) {
+function normalizeDeck(value: unknown, fallbackId?: string): DeckRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Deck data must be an object.");
-  const current = (await listManagedPublicDecks(db)).find((item) => item.deck.id === deckId);
-  if (!current) throw new Error("The public deck no longer exists.");
-  const deck = { ...cloneDeck(value as DeckRecord), id: deckId, visibility: "Public" as const, updatedAt: new Date().toISOString() };
+  const candidate = value as Partial<DeckRecord>;
+  const id = fallbackId ?? String(candidate.id ?? "");
+  const deck: DeckRecord = {
+    id,
+    name: String(candidate.name ?? "").trim().slice(0, 80),
+    factions: Array.isArray(candidate.factions) ? candidate.factions.map(String) : [],
+    bakuganIds: Array.isArray(candidate.bakuganIds) ? candidate.bakuganIds.map(String) : [],
+    coreIds: Array.isArray(candidate.coreIds) ? candidate.coreIds.map(String) : [],
+    cardIds: Array.isArray(candidate.cardIds) ? candidate.cardIds.map(String) : [],
+    updatedAt: new Date().toISOString(),
+    visibility: candidate.visibility === "Draft" || candidate.visibility === "Private" ? candidate.visibility : "Public",
+    format: candidate.format === "singleton" ? "singleton" : "standard",
+    revision: Number.isFinite(candidate.revision) ? Number(candidate.revision) + 1 : 1,
+    favourite: Boolean(candidate.favourite),
+    tags: Array.isArray(candidate.tags) ? candidate.tags.map(String).slice(0, 20) : [],
+    notes: String(candidate.notes ?? "").slice(0, 2_000),
+    leadCardId: candidate.leadCardId ? String(candidate.leadCardId) : undefined,
+    creator: candidate.creator ? String(candidate.creator).slice(0, 80) : undefined,
+    description: candidate.description ? String(candidate.description).slice(0, 2_000) : undefined,
+    publishedAt: candidate.publishedAt ? String(candidate.publishedAt) : new Date().toISOString(),
+  };
   const validation = validateDeck(deck);
-  if (!validation.isLegal) throw new Error(`Public deck [${validation.issues[0].code}]: ${validation.issues[0].message}`);
-  if (current.source.kind === "user" && current.source.userId) {
-    await writeUserDeck(db, current.source.userId, deckId, deck);
-  } else {
-    await upsertResource(db, "public-deck", deckId, { deck, source: current.source }, true, administratorId);
-  }
+  if (!validation.isLegal) throw new Error(validation.issues.map((issue) => issue.message).join(" "));
   return deck;
 }
 
-export async function deletePublicDeck(db: Database, deckId: string, administratorId: string) {
-  const current = (await listManagedPublicDecks(db)).find((item) => item.deck.id === deckId);
-  if (!current) throw new Error("The public deck no longer exists.");
-  if (current.source.kind === "user" && current.source.userId) {
-    await writeUserDeck(db, current.source.userId, deckId, null);
-  }
-  await upsertResource(db, "public-deck", deckId, { deleted: true, source: current.source }, false, administratorId);
-}
-
-const DEFAULT_AI_RESOURCE = "default-ai-aquos";
-
 export async function listAiDecks(db: Database) {
   const rows = await resourceRows(db, "ai-deck");
-  const decks = rows.flatMap((row) => {
-    const value = parseJson<{ deck?: DeckRecord; deleted?: boolean }>(row.data_json, {});
-    if (value.deleted || !value.deck) return [];
-    return [{ id: row.resource_id, deck: cloneDeck(value.deck), enabled: Boolean(row.enabled), updatedAt: row.updated_at }];
-  });
-  if (!rows.some((row) => row.resource_id === DEFAULT_AI_RESOURCE)) {
-    decks.unshift({ id: DEFAULT_AI_RESOURCE, deck: { ...cloneDeck(STARTER_DECKS[1]), id: DEFAULT_AI_RESOURCE, name: "Mira Nova Training Deck" }, enabled: true, updatedAt: 0 });
+  if (!rows.length) {
+    return STARTER_DECKS.map((deck) => ({ ...cloneDeck(deck), id: `default-ai:${deck.id}`, enabled: true, managed: false }));
   }
-  return decks;
+  return rows.map((row) => ({ ...cloneDeck(parseJson<DeckRecord>(row.data_json, STARTER_DECKS[0])), enabled: Boolean(row.enabled), managed: true }));
 }
 
 export async function addAiDeck(db: Database, value: unknown, administratorId: string) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Deck data must be an object.");
-  const source = cloneDeck(value as DeckRecord);
-  const validation = validateDeck(source);
-  if (!validation.isLegal) throw new Error(`AI decks must be valid: ${validation.issues[0].message}`);
-  const id = `ai-${crypto.randomUUID()}`;
-  const deck = { ...source, id, visibility: "Private" as const, updatedAt: new Date().toISOString() };
-  await upsertResource(db, "ai-deck", id, { deck }, true, administratorId);
-  return { id, deck, enabled: true, updatedAt: Date.now() };
+  const deck = normalizeDeck(value, `admin-ai:${crypto.randomUUID()}`);
+  await upsertResource(db, "ai-deck", deck.id, deck, true, administratorId);
+  return { ...deck, enabled: true, managed: true };
 }
 
-export async function updateAiDeck(db: Database, resourceId: string, value: unknown, administratorId: string) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Deck data must be an object.");
-  const deck = { ...cloneDeck(value as DeckRecord), id: resourceId, visibility: "Private" as const, updatedAt: new Date().toISOString() };
-  const validation = validateDeck(deck);
-  if (!validation.isLegal) throw new Error(`AI decks must be valid: ${validation.issues[0].message}`);
-  const current = (await listAiDecks(db)).find((item) => item.id === resourceId);
-  if (!current) throw new Error("The AI deck no longer exists.");
-  await upsertResource(db, "ai-deck", resourceId, { deck }, current.enabled, administratorId);
-  return { ...current, deck, updatedAt: Date.now() };
+export async function updateAiDeck(db: Database, id: string, value: unknown, administratorId: string) {
+  const existing = (await listAiDecks(db)).find((deck) => deck.id === id);
+  if (!existing) throw new Error("The AI deck no longer exists.");
+  const deck = normalizeDeck({ ...existing, ...(value as object) }, id);
+  await upsertResource(db, "ai-deck", deck.id, deck, existing.enabled !== false, administratorId);
+  return { ...deck, enabled: existing.enabled !== false, managed: true };
 }
 
-export async function setAiDeckEnabled(db: Database, resourceId: string, enabled: boolean, administratorId: string) {
-  const current = (await listAiDecks(db)).find((item) => item.id === resourceId);
-  if (!current) throw new Error("The AI deck no longer exists.");
-  if (!enabled) {
-    const enabledCount = (await listAiDecks(db)).filter((item) => item.enabled).length;
-    if (current.enabled && enabledCount === 1) throw new Error("At least one AI deck must remain enabled.");
-  }
-  await upsertResource(db, "ai-deck", resourceId, { deck: current.deck }, enabled, administratorId);
+export async function setAiDeckEnabled(db: Database, id: string, enabled: boolean, administratorId: string) {
+  const decks = await listAiDecks(db);
+  const target = decks.find((deck) => deck.id === id);
+  if (!target) throw new Error("The AI deck no longer exists.");
+  if (!enabled && decks.filter((deck) => deck.enabled && deck.id !== id).length === 0) throw new Error("At least one AI deck must remain enabled.");
+  await upsertResource(db, "ai-deck", target.id, target, enabled, administratorId);
 }
 
-export async function deleteAiDeck(db: Database, resourceId: string, administratorId: string) {
-  const current = (await listAiDecks(db)).find((item) => item.id === resourceId);
-  if (!current) throw new Error("The AI deck no longer exists.");
-  const enabledCount = (await listAiDecks(db)).filter((item) => item.enabled).length;
-  if (current.enabled && enabledCount === 1) throw new Error("At least one AI deck must remain enabled.");
-  if (resourceId === DEFAULT_AI_RESOURCE) {
-    await upsertResource(db, "ai-deck", resourceId, { deleted: true }, false, administratorId);
-    return;
-  }
+export async function deleteAiDeck(db: Database, id: string, administratorId: string) {
+  const decks = await listAiDecks(db);
+  const target = decks.find((deck) => deck.id === id);
+  if (!target) throw new Error("The AI deck no longer exists.");
+  if (decks.filter((deck) => deck.enabled && deck.id !== id).length === 0) throw new Error("At least one AI deck must remain enabled.");
+  await upsertResource(db, "ai-deck", target.id, target, false, administratorId);
   await db.prepare("DELETE FROM admin_resources WHERE resource_type = 'ai-deck' AND resource_id = ?")
-    .bind(resourceId).run();
+    .bind(id).run();
 }
 
-export async function randomAiDeck(db: Database) {
-  await applyDatabaseCardOverrides(db);
-  const candidates = (await listAiDecks(db)).filter((item) => item.enabled && validateDeck(item.deck).isLegal);
-  if (!candidates.length) return cloneDeck(STARTER_DECKS[1]);
-  const bytes = new Uint32Array(1);
-  crypto.getRandomValues(bytes);
-  return cloneDeck(candidates[bytes[0] % candidates.length].deck);
+export async function updatePublicDeck(db: Database, id: string, value: unknown, administratorId: string) {
+  const managed = (await listManagedPublicDecks(db)).find((item) => item.deck.id === id);
+  if (!managed) throw new Error("The public deck no longer exists.");
+  const deck = normalizeDeck({ ...managed.deck, ...(value as object), visibility: "Public" }, id);
+  if (managed.source.kind === "user" && managed.source.userId) await writeUserDeck(db, managed.source.userId, id, deck);
+  else await upsertResource(db, "public-deck", id, { deck, source: managed.source }, true, administratorId);
+  return deck;
+}
+
+export async function deletePublicDeck(db: Database, id: string, administratorId: string) {
+  const managed = (await listManagedPublicDecks(db)).find((item) => item.deck.id === id);
+  if (!managed) throw new Error("The public deck no longer exists.");
+  if (managed.source.kind === "user" && managed.source.userId) await writeUserDeck(db, managed.source.userId, id, null);
+  else await upsertResource(db, "public-deck", id, { deleted: true, source: managed.source }, false, administratorId);
 }
