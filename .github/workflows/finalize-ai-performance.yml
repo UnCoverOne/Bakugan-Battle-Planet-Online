@@ -1,9 +1,9 @@
 name: Finalize AI performance optimization
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/optimize-ai-forecast-performance
+      - main
 
 permissions:
   contents: write
