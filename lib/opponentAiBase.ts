@@ -457,6 +457,82 @@ function combatRelevance(
   return 0;
 }
 
+
+function projectedControllerRerollValue(
+  match: MatchState,
+  playerId: string,
+  mandatory: boolean,
+) {
+  const player = playerById(match, playerId);
+  const opponent = opponentOf(match, playerId);
+  const roll = match.rolls[playerId];
+  const bakugan = player?.bakugan.find(
+    (candidate) => candidate.id === match.selected[playerId],
+  );
+  if (!player || !opponent || !roll || !bakugan || !availableRollTargets(match).length) {
+    return mandatory ? -1.5 : 0;
+  }
+
+  const opponentRoll = match.rolls[opponent.id];
+  const opponentParticipates = Boolean(
+    opponentRoll && opponentRoll.result !== "miss-closed",
+  );
+  const playerParticipates = roll.result !== "miss-closed";
+  const currentOwn = match.victorByDamage
+    ? totalDamage(match, playerId)
+    : totalPower(match, playerId);
+  const currentEnemy = match.victorByDamage
+    ? totalDamage(match, opponent.id)
+    : totalPower(match, opponent.id);
+  const currentWin = playerParticipates
+    && (!opponentParticipates || currentOwn > currentEnemy);
+  const forecast = bestForecast(match, playerId, bakugan);
+  if (!forecast?.samples.length) return mandatory ? -1.5 : 0;
+
+  let wins = 0;
+  let corePickups = 0;
+  let winningMargin = 0;
+  for (const sample of forecast.samples) {
+    const projected = cloneMatch(match);
+    applyProjectedRollSample(projected, playerId, sample);
+    const projectedOpponent = opponentOf(projected, playerId);
+    const projectedRoll = projected.rolls[playerId];
+    const projectedOpponentRoll = projectedOpponent
+      ? projected.rolls[projectedOpponent.id]
+      : undefined;
+    const participates = projectedRoll?.result !== "miss-closed";
+    const enemyParticipates = Boolean(
+      projectedOpponentRoll && projectedOpponentRoll.result !== "miss-closed",
+    );
+    const own = projected.victorByDamage
+      ? totalDamage(projected, playerId)
+      : totalPower(projected, playerId);
+    const enemy = projectedOpponent
+      ? projected.victorByDamage
+        ? totalDamage(projected, projectedOpponent.id)
+        : totalPower(projected, projectedOpponent.id)
+      : 0;
+    if (sample.outcome.cores.length) corePickups += 1;
+    if (participates && (!enemyParticipates || own > enemy)) {
+      wins += 1;
+      winningMargin += Math.max(0, own - enemy);
+    }
+  }
+
+  const sampleCount = forecast.samples.length;
+  const winProbability = wins / sampleCount;
+  const coreProbability = corePickups / sampleCount;
+  if (currentWin) {
+    if (!mandatory) return 0;
+    return -(1 - winProbability) * 8 + coreProbability * 0.25;
+  }
+  if (winProbability <= 0) return mandatory ? -1.5 : 0;
+  const averageWinningMargin = winningMargin / Math.max(1, wins);
+  return winProbability * 10
+    + coreProbability * 1.25
+    + Math.min(1.5, averageWinningMargin / 400);
+}
+
 function negateTarget(match: MatchState, playerId: string, program: RuleProgram) {
   const negate = program.instructions.flatMap((instruction) => instruction.actions)
     .find((action): action is Extract<RuleAction, { kind: "negate" }> => action.kind === "negate");
@@ -514,12 +590,16 @@ function cardValue(
       value += negateValue(match, playerId, program) - (match.batch.length ? 5 : -3);
     }
     if (action.kind === "reroll" && match.phase === "power") {
-      const targetId = action.target === "opponent" ? opponentOf(match, playerId)?.id : playerId;
-      const roll = targetId ? match.rolls[targetId] : undefined;
-      if (roll) {
-        const missedCore = roll.result === "miss-closed";
-        const opponentTarget = action.target === "opponent";
-        value += missedCore === !opponentTarget ? 4.5 : -1.5;
+      if (action.target === "controller") {
+        value += projectedControllerRerollValue(
+match,
+playerId,
+action.mandatory,
+        );
+      } else {
+        const targetId = opponentOf(match, playerId)?.id;
+        const roll = targetId ? match.rolls[targetId] : undefined;
+        if (roll) value += roll.result === "miss-closed" ? -1.5 : 4.5;
       }
     }
   }
