@@ -37,6 +37,7 @@ export type ValidationCard = {
   name?: string;
   displayName?: string;
   effect?: string;
+  constructionIdentity?: string;
   faction?: string;
   factions?: string[];
 };
@@ -63,11 +64,7 @@ export type DeckValidationResult = {
   isLegal: boolean;
   issues: DeckValidationIssue[];
   bySection: Record<DeckValidationSection, DeckValidationIssue[]>;
-  counts: {
-    cards: number;
-    characters: number;
-    cores: number;
-  };
+  counts: { cards: number; characters: number; cores: number };
   teamFactions: string[];
   requiredCoreTypes: string[];
   selectedCoreTypes: string[];
@@ -112,12 +109,7 @@ export function validateDeckConstruction(
   const coreCopyLimit = format === "singleton" ? 1 : 6;
 
   if (!deck.name?.trim()) {
-    issues.push(issue(
-      "identity.name_required",
-      "identity",
-      "name",
-      "Give this deck a name before saving.",
-    ));
+    issues.push(issue("identity.name_required", "identity", "name", "Give this deck a name before saving."));
   }
 
   const characters = deck.bakuganIds
@@ -125,30 +117,13 @@ export function validateDeckConstruction(
     .filter((value): value is ValidationCharacter => Boolean(value));
   const unknownCharacters = deck.bakuganIds.filter((id) => !catalogue.characters.has(id));
   if (deck.bakuganIds.length !== 3) {
-    issues.push(issue(
-      "team.exactly_three",
-      "team",
-      "bakuganIds",
-      "Bakugan Team must contain exactly three Character cards.",
-      { expected: 3, actual: deck.bakuganIds.length },
-    ));
+    issues.push(issue("team.exactly_three", "team", "bakuganIds", "Bakugan Team must contain exactly three Character cards.", { expected: 3, actual: deck.bakuganIds.length }));
   }
   if (new Set(deck.bakuganIds).size !== deck.bakuganIds.length) {
-    issues.push(issue(
-      "team.distinct",
-      "team",
-      "bakuganIds",
-      "Each Character card in the Bakugan Team must be distinct.",
-    ));
+    issues.push(issue("team.distinct", "team", "bakuganIds", "Each Character card in the Bakugan Team must be distinct."));
   }
   if (unknownCharacters.length) {
-    issues.push(issue(
-      "team.unknown_character",
-      "team",
-      "bakuganIds",
-      "Every Bakugan Team ID must identify a Character card in the catalogue.",
-      { actual: unknownCharacters },
-    ));
+    issues.push(issue("team.unknown_character", "team", "bakuganIds", "Every Bakugan Team ID must identify a Character card in the catalogue.", { actual: unknownCharacters }));
   }
 
   const cores = deck.coreIds
@@ -156,22 +131,10 @@ export function validateDeckConstruction(
     .filter((value): value is ValidationCore => Boolean(value));
   const unknownCores = deck.coreIds.filter((id) => !catalogue.cores.has(id));
   if (deck.coreIds.length !== 6) {
-    issues.push(issue(
-      "cores.exactly_six",
-      "cores",
-      "coreIds",
-      "BakuCore configuration must contain exactly six BakuCores.",
-      { expected: 6, actual: deck.coreIds.length },
-    ));
+    issues.push(issue("cores.exactly_six", "cores", "coreIds", "BakuCore configuration must contain exactly six BakuCores.", { expected: 6, actual: deck.coreIds.length }));
   }
   if (unknownCores.length) {
-    issues.push(issue(
-      "cores.unknown_core",
-      "cores",
-      "coreIds",
-      "Every BakuCore ID must identify a BakuCore in the catalogue.",
-      { actual: unknownCores },
-    ));
+    issues.push(issue("cores.unknown_core", "cores", "coreIds", "Every BakuCore ID must identify a BakuCore in the catalogue.", { actual: unknownCores }));
   }
   const overCoreLimit = [...frequencies(deck.coreIds)].find(([, count]) => count > coreCopyLimit);
   if (overCoreLimit) {
@@ -183,9 +146,7 @@ export function validateDeckConstruction(
       { cardId: overCoreLimit[0], expected: coreCopyLimit, actual: overCoreLimit[1] },
     ));
   }
-  const requiredCoreTypes = characters.flatMap((character) => (
-    character.character?.coreTypes ?? character.coreTypes ?? []
-  ));
+  const requiredCoreTypes = characters.flatMap((character) => character.character?.coreTypes ?? character.coreTypes ?? []);
   const selectedCoreTypes = cores.map((core) => core.type);
   if (
     characters.length === deck.bakuganIds.length
@@ -206,22 +167,10 @@ export function validateDeckConstruction(
     .filter((value): value is ValidationCard => Boolean(value));
   const unknownCards = deck.cardIds.filter((id) => !catalogue.cards.has(id));
   if (deck.cardIds.length !== 40) {
-    issues.push(issue(
-      "main_deck.exactly_forty",
-      "mainDeck",
-      "cardIds",
-      "Main Deck must contain exactly 40 cards.",
-      { expected: 40, actual: deck.cardIds.length },
-    ));
+    issues.push(issue("main_deck.exactly_forty", "mainDeck", "cardIds", "Main Deck must contain exactly 40 cards.", { expected: 40, actual: deck.cardIds.length }));
   }
   if (unknownCards.length) {
-    issues.push(issue(
-      "main_deck.unknown_card",
-      "mainDeck",
-      "cardIds",
-      "Every Main Deck ID must identify a card in the catalogue.",
-      { actual: unknownCards },
-    ));
+    issues.push(issue("main_deck.unknown_card", "mainDeck", "cardIds", "Every Main Deck ID must identify a card in the catalogue.", { actual: unknownCards }));
   }
 
   const teamFactions = [...new Set(characters.map((character) => character.faction))];
@@ -240,7 +189,8 @@ export function validateDeckConstruction(
   }
 
   const constructionKeys = cards.map((card) => (
-    `${card.name ?? card.displayName ?? card.catalogId}|${card.effect ?? ""}`
+    card.constructionIdentity
+    ?? `${card.name ?? card.displayName ?? card.catalogId}|${card.effect ?? ""}`
   ));
   const overCardLimit = [...frequencies(constructionKeys)].find(([, count]) => count > cardCopyLimit);
   if (overCardLimit) {
@@ -263,11 +213,7 @@ export function validateDeckConstruction(
     isLegal: issues.length === 0,
     issues,
     bySection,
-    counts: {
-      cards: deck.cardIds.length,
-      characters: deck.bakuganIds.length,
-      cores: deck.coreIds.length,
-    },
+    counts: { cards: deck.cardIds.length, characters: deck.bakuganIds.length, cores: deck.coreIds.length },
     teamFactions,
     requiredCoreTypes,
     selectedCoreTypes,
