@@ -1,0 +1,101 @@
+.recovery-code-backdrop {
+  position: fixed;
+  z-index: 1500;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 5, 8, .92);
+  backdrop-filter: blur(12px);
+}
+
+.recovery-code-dialog {
+  width: min(100%, 38rem);
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1.3rem, 4vw, 2rem);
+  border: 1px solid rgba(83, 214, 255, .55);
+  background:
+    radial-gradient(circle at 90% 5%, rgba(226, 41, 46, .2), transparent 34%),
+    linear-gradient(150deg, #082633, #020e14 75%);
+  clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .7);
+}
+
+.recovery-code-dialog > span {
+  color: #59d8ff;
+  font-size: .7rem;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.recovery-code-dialog h2 {
+  margin: -.35rem 0 0;
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  text-transform: uppercase;
+}
+
+.recovery-code-dialog p {
+  margin: 0;
+  color: #bfd0d7;
+  line-height: 1.55;
+}
+
+.recovery-code-dialog > code {
+  display: block;
+  overflow-wrap: anywhere;
+  padding: 1rem;
+  border: 1px solid rgba(255, 208, 118, .52);
+  background: rgba(255, 181, 43, .09);
+  color: #ffe2a6;
+  font-size: clamp(1.05rem, 4vw, 1.5rem);
+  font-weight: 850;
+  letter-spacing: .09em;
+  text-align: center;
+}
+
+.recovery-code-warning {
+  padding-left: .8rem;
+  border-left: 3px solid #ef3036;
+  color: #ffd7d8 !important;
+  font-size: .82rem;
+}
+
+.recovery-code-status {
+  color: #73e391 !important;
+  font-weight: 750;
+}
+
+.recovery-code-dialog > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: .65rem;
+  flex-wrap: wrap;
+}
+
+.recovery-code-dialog button {
+  min-height: 2.9rem;
+  padding: .65rem 1rem;
+  border: 1px solid rgba(255, 255, 255, .24);
+  background: rgba(3, 25, 34, .92);
+  color: #bdeeff;
+  font-family: var(--font-display);
+  font-size: .76rem;
+  font-style: italic;
+  font-weight: 850;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.recovery-code-dialog button:last-child {
+  background: linear-gradient(135deg, #bd1218, #ef2e32);
+  color: #fff;
+}
+
+@media (max-width: 520px) {
+  .recovery-code-dialog > div {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

@@ -9,9 +9,14 @@ import "./home-polish.css";
 import "./interface-refinements.css";
 import "./site-consistency.css";
 import "./deck-builder-layout.css";
+import "./guest-experience.css";
+import "./guest-avatar.css";
+import "./guest-overrides.css";
+import "./recovery-code.css";
 import { AppProvider } from "../components/application/AppProvider";
 import { AppShell } from "../components/application/AppShell";
 import { DisplayFontLoader } from "../components/application/DisplayFontLoader";
+import { GuestExperienceController } from "../components/application/GuestExperienceController";
 import { AssetFreshness } from "../components/AssetFreshness";
 import { WebVitalsReporter } from "../components/WebVitalsReporter";
 
@@ -36,6 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <AssetFreshness />
         <WebVitalsReporter />
         <AppProvider>
+          <GuestExperienceController />
           <AppShell>{children}</AppShell>
         </AppProvider>
       </body>

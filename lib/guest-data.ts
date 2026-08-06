@@ -16,7 +16,8 @@ type GuestSnapshot = Pick<
   "profile" | "decks" | "history" | "settings" | "builderDeck" | "match"
 >;
 
-const DEFAULT_PROFILE = { name: "DanBrawler", faction: "Pyrus" };
+const DEFAULT_PROFILE_NAMES = new Set(["Guest Brawler", "DanBrawler"]);
+const DEFAULT_PROFILE_FACTION = "Pyrus";
 const DEFAULT_SETTINGS = {
   reducedMotion: false,
   highContrast: false,
@@ -29,8 +30,8 @@ const DEFAULT_SETTINGS = {
 
 export function summarizeGuestData(snapshot: GuestSnapshot): GuestDataSummary {
   const profileCustomized =
-    snapshot.profile.name.trim() !== DEFAULT_PROFILE.name ||
-    snapshot.profile.faction !== DEFAULT_PROFILE.faction ||
+    !DEFAULT_PROFILE_NAMES.has(snapshot.profile.name.trim()) ||
+    snapshot.profile.faction !== DEFAULT_PROFILE_FACTION ||
     Boolean(snapshot.profile.avatar) ||
     (snapshot.profile.titleId !== undefined &&
       snapshot.profile.titleId !== "battle-planet-brawler") ||

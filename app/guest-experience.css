@@ -1,0 +1,321 @@
+/* Guest/account product boundary. Guests can play, learn, browse and build;
+   permanent identity, achievements and community publishing belong to accounts. */
+html[data-account-scope="guest"] .overhaul-topbar .sync-dot {
+  display: none;
+}
+
+html[data-account-scope="guest"] .profile-popover {
+  display: flex;
+  flex-direction: column;
+}
+
+html[data-account-scope="guest"] .profile-popover-heading {
+  order: 1;
+}
+
+html[data-account-scope="guest"] .profile-popover-stats {
+  display: none;
+}
+
+html[data-account-scope="guest"] .profile-popover nav {
+  order: 3;
+  padding-top: .35rem;
+}
+
+html[data-account-scope="guest"] .profile-popover nav a[href="/profile"],
+html[data-account-scope="guest"] .profile-popover nav a[href="/profile/achievements"],
+html[data-account-scope="guest"] .profile-popover nav a[href="/admin"] {
+  display: none;
+}
+
+html[data-account-scope="guest"] .profile-popover-auth {
+  order: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .55rem;
+  margin: .1rem 0 .3rem;
+  padding: .8rem 0;
+  border-block: 1px solid rgba(255, 255, 255, .1);
+}
+
+html[data-account-scope="guest"] .profile-popover-auth button {
+  min-height: 2.75rem;
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(4, 24, 32, .9);
+  color: #dce8ec;
+  font-weight: 850;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+html[data-account-scope="guest"] .profile-popover-auth button:last-child {
+  border-color: rgba(255, 103, 107, .64);
+  background: linear-gradient(135deg, #b81319, #ed3035);
+  color: #fff;
+}
+
+html[data-account-scope="guest"] .profile-popover-title img {
+  display: none;
+}
+
+html[data-account-scope="guest"] .profile-popover-title span {
+  font-size: 0;
+}
+
+html[data-account-scope="guest"] .profile-popover-title span::after {
+  content: "Saved on this device";
+  color: #9fb5be;
+  font-size: .72rem;
+  font-weight: 650;
+  letter-spacing: .025em;
+}
+
+html[data-account-scope="guest"] label:has(input[value="Public"]) {
+  position: relative;
+  border-color: rgba(255, 190, 73, .5) !important;
+  background: linear-gradient(135deg, rgba(255, 175, 40, .1), rgba(4, 24, 32, .76)) !important;
+}
+
+html[data-account-scope="guest"] label:has(input[value="Public"])::after {
+  content: "Account required to publish";
+  grid-column: 2;
+  width: fit-content;
+  margin-top: .25rem;
+  padding: .2rem .42rem;
+  border: 1px solid rgba(255, 205, 111, .42);
+  color: #ffd47d;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.home-account-gate {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-account-gate-body {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  gap: .9rem;
+  padding: .55rem .35rem .8rem;
+}
+
+.home-account-gate-mark {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(79, 214, 255, .48);
+  background: radial-gradient(circle, rgba(0, 174, 239, .28), rgba(0, 174, 239, .04));
+  clip-path: polygon(25% 4%, 75% 4%, 98% 50%, 75% 96%, 25% 96%, 2% 50%);
+  color: #69dcff;
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.home-account-gate h3 {
+  margin: 0;
+  font-size: clamp(1.55rem, 2vw, 2.1rem);
+  text-transform: uppercase;
+}
+
+.home-account-gate p {
+  max-width: 36rem;
+  margin: 0;
+  color: #bfd0d6;
+  line-height: 1.55;
+}
+
+.home-account-gate-actions,
+.guest-progress-actions,
+.account-gateway-actions {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  flex-wrap: wrap;
+}
+
+.home-account-gate-actions button,
+.guest-progress-actions button,
+.account-gateway-actions button {
+  min-height: 2.85rem;
+  padding: .65rem 1rem;
+  border: 1px solid rgba(255, 255, 255, .24);
+  background: linear-gradient(135deg, #bd1218, #ef2e32);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: .76rem;
+  font-style: italic;
+  font-weight: 850;
+  letter-spacing: .065em;
+  text-transform: uppercase;
+}
+
+.home-account-gate-actions button:last-child,
+.guest-progress-actions button:last-child,
+.account-gateway-actions button:last-child {
+  background: rgba(2, 18, 25, .82);
+  color: #aee8fb;
+}
+
+.home-guest-progress {
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .9rem 1.1rem;
+}
+
+.home-guest-progress-copy {
+  min-width: 0;
+  display: grid;
+  gap: .18rem;
+}
+
+.home-guest-progress-copy strong {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-style: italic;
+  text-transform: uppercase;
+}
+
+.home-guest-progress-copy span {
+  color: #a9bec6;
+  font-size: .76rem;
+}
+
+.account-gateway-route {
+  width: min(1120px, calc(100% - 2rem));
+  min-height: calc(100vh - 76px);
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 5rem) 0;
+  display: grid;
+  align-content: center;
+}
+
+.account-gateway-card {
+  overflow: hidden;
+  border: 1px solid rgba(63, 205, 255, .48);
+  background:
+    radial-gradient(circle at 90% 10%, rgba(224, 37, 42, .23), transparent 35%),
+    linear-gradient(150deg, rgba(8, 36, 48, .99), rgba(2, 11, 16, .995));
+  clip-path: polygon(22px 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%, 0 22px);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, .46);
+}
+
+.account-gateway-hero {
+  padding: clamp(1.6rem, 5vw, 3.5rem);
+  border-bottom: 1px solid rgba(89, 215, 255, .19);
+}
+
+.account-gateway-eyebrow {
+  color: #56d7ff;
+  font-size: .7rem;
+  font-weight: 900;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.account-gateway-hero h1 {
+  max-width: 780px;
+  margin: .45rem 0 .8rem;
+  font-size: clamp(2.6rem, 7vw, 5.7rem);
+  line-height: .9;
+  text-transform: uppercase;
+}
+
+.account-gateway-hero p {
+  max-width: 720px;
+  margin: 0;
+  color: #c3d3d9;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.account-gateway-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: rgba(95, 218, 255, .12);
+}
+
+.account-gateway-benefit {
+  min-height: 165px;
+  padding: 1.2rem;
+  display: grid;
+  align-content: start;
+  gap: .5rem;
+  background: rgba(2, 15, 21, .98);
+}
+
+.account-gateway-benefit span {
+  color: #59d8ff;
+  font-size: 1.35rem;
+}
+
+.account-gateway-benefit strong {
+  font-size: 1rem;
+}
+
+.account-gateway-benefit p {
+  margin: 0;
+  color: #9fb4bc;
+  font-size: .8rem;
+  line-height: 1.5;
+}
+
+.account-gateway-footer {
+  padding: 1.35rem clamp(1.3rem, 5vw, 3.5rem);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.account-gateway-local {
+  display: grid;
+  gap: .2rem;
+}
+
+.account-gateway-local strong {
+  font-size: .9rem;
+}
+
+.account-gateway-local span {
+  color: #9fb4bc;
+  font-size: .75rem;
+}
+
+@media (max-width: 800px) {
+  .account-gateway-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .home-guest-progress {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .account-gateway-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-gateway-benefit {
+    min-height: 0;
+  }
+
+  .home-guest-progress,
+  .account-gateway-footer {
+    display: grid;
+  }
+
+  .home-account-gate-actions,
+  .guest-progress-actions,
+  .account-gateway-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
