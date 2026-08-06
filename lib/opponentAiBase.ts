@@ -126,6 +126,63 @@ type RollForecast = {
   samples: RollForecastSample[];
 };
 
+
+type MatchForecastCache = {
+  rolls: Map<string, RollForecast>;
+  best: Map<string, RollForecast | undefined>;
+};
+
+const forecastCacheByMatch = new WeakMap<MatchState, MatchForecastCache>();
+
+function matchForecastCache(match: MatchState) {
+  let cache = forecastCacheByMatch.get(match);
+  if (!cache) {
+    cache = { rolls: new Map(), best: new Map() };
+    forecastCacheByMatch.set(match, cache);
+  }
+  return cache;
+}
+
+/**
+ * Creates a rules-complete projection while copying only the branches the AI
+ * mutates. All other match data stays available by reference for evaluators.
+ */
+function cloneProjectedMatch(match: MatchState): MatchState {
+  return {
+    ...match,
+    players: match.players.map((player) => ({
+      ...player,
+      bakugan: player.bakugan.map((bakugan) => ({
+        ...bakugan,
+        heldCoreCells: [...bakugan.heldCoreCells],
+        evoStack: [...bakugan.evoStack],
+      })),
+    })),
+    placements: match.placements.map((placement) => ({ ...placement })),
+    selected: { ...match.selected },
+    targets: { ...match.targets },
+    rolls: { ...match.rolls },
+    passes: [...match.passes],
+  };
+}
+
+function rollCharacteristicsKey(outcome: RollOutcome) {
+  return JSON.stringify({
+    playerId: outcome.playerId,
+    bakuganId: outcome.bakuganId,
+    target: outcome.target,
+    resolvedTarget: outcome.resolvedTarget,
+    result: outcome.result,
+    cores: outcome.cores,
+    doubleCore: outcome.doubleCore,
+    simulationProfileId: outcome.simulationProfileId,
+    attempt: outcome.attempt,
+    collisionDecisions: outcome.collisionDecisions,
+    rerollSequence: outcome.rerollSequence,
+    rerollSource: outcome.rerollSource,
+  });
+}
+
 function projectedRollCharacteristics(
   match: MatchState,
   playerId: string,
@@ -135,7 +192,7 @@ function projectedRollCharacteristics(
   if (outcome.result === "miss-closed") {
     return { power: 0, damage: 0, value: -1.25 };
   }
-  const projected = cloneMatch(match);
+  const projected = cloneProjectedMatch(match);
   const player = playerById(projected, playerId);
   const bakugan = player?.bakugan.find((candidate) => candidate.id === bakuganId);
   if (!player || !bakugan) return { power: 0, damage: 0, value: -1.25 };
@@ -172,6 +229,13 @@ function forecastRoll(
   bakugan: Bakugan,
   target: Placement,
 ): RollForecast {
+  const cache = matchForecastCache(match);
+  const cacheKey = `${playerId}:${bakugan.id}:${target.cell}`;
+  const cached = cache.rolls.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const state = {
     ...match,
     selected: { ...match.selected, [playerId]: bakugan.id },
@@ -179,6 +243,7 @@ function forecastRoll(
   };
   const player = playerById(state, playerId)!;
   const primaryCounts = new Map<string, number>();
+  const characteristicCache = new Map<string, { power: number; damage: number; value: number }>();
   const seed = stableHash([playerId, bakugan.id, target.cell].join(":"));
   let totalValue = 0;
   let opened = 0;
@@ -201,12 +266,17 @@ function forecastRoll(
     const didOpen = outcome.result !== "miss-closed";
     if (didOpen) opened += 1;
     if (outcome.cores.length) collected += 1;
-    const characteristics = projectedRollCharacteristics(
-      state,
-      playerId,
-      bakugan.id,
-      outcome,
-    );
+    const characteristicKey = rollCharacteristicsKey(outcome);
+    let characteristics = characteristicCache.get(characteristicKey);
+    if (!characteristics) {
+      characteristics = projectedRollCharacteristics(
+        state,
+        playerId,
+        bakugan.id,
+        outcome,
+      );
+      characteristicCache.set(characteristicKey, characteristics);
+    }
     totalValue += characteristics.value;
     samples.push({
       outcome,
@@ -218,7 +288,7 @@ function forecastRoll(
     if (primary) primaryCounts.set(primary, (primaryCounts.get(primary) ?? 0) + 1);
   }
 
-  return {
+  const forecast: RollForecast = {
     target,
     value: totalValue / ROLL_FORECAST_SAMPLES,
     openProbability: opened / ROLL_FORECAST_SAMPLES,
@@ -228,6 +298,8 @@ function forecastRoll(
     ),
     samples,
   };
+  cache.rolls.set(cacheKey, forecast);
+  return forecast;
 }
 
 function forecastCollision(a: RollForecast, b: RollForecast | undefined) {
@@ -240,6 +312,10 @@ function forecastCollision(a: RollForecast, b: RollForecast | undefined) {
 }
 
 function bestForecast(match: MatchState, playerId: string, bakugan: Bakugan) {
+  const cache = matchForecastCache(match);
+  const cacheKey = `${playerId}:${bakugan.id}`;
+  if (cache.best.has(cacheKey)) return cache.best.get(cacheKey);
+
   const opponent = opponentOf(match, playerId);
   const opponentBakugan = opponent?.bakugan.find(
     (candidate) => candidate.id === match.selected[opponent.id],
@@ -251,17 +327,19 @@ function bestForecast(match: MatchState, playerId: string, bakugan: Bakugan) {
     ? forecastRoll(match, opponent.id, opponentBakugan, opponentTarget)
     : undefined;
 
-  return availableRollTargets(match)
+  const best = availableRollTargets(match)
     .map((target) => {
       const forecast = forecastRoll(match, playerId, bakugan, target);
       return {
         ...forecast,
         value: forecast.value
-          - forecastCollision(forecast, opponentForecast) * 2.5
-          - (target.cell === opponentTarget?.cell ? 0.25 : 0),
+- forecastCollision(forecast, opponentForecast) * 2.5
+- (target.cell === opponentTarget?.cell ? 0.25 : 0),
       };
     })
     .sort((a, b) => b.value - a.value || b.openProbability - a.openProbability)[0];
+  cache.best.set(cacheKey, best);
+  return best;
 }
 
 function expectedOpenChance(match: MatchState, playerId: string) {
@@ -1293,6 +1371,24 @@ type PreRollResponseOption = {
   secondaryValue: number;
 };
 
+type PreRollScenario = {
+  id: string;
+  projected: MatchState;
+  enemyOpened: boolean;
+  deficit: number;
+};
+
+type PreRollScenarioSet = {
+  jointCount: number;
+  scenarios: PreRollScenario[];
+};
+
+type PreRollComputationCache = {
+  scenarioSets: Map<string, PreRollScenarioSet>;
+  responseProfiles: Map<string, PreRollResponseOption | null>;
+  continuations: Map<string, number>;
+};
+
 type PreRollDecisionContext = {
   capacity: number;
   forecast: PreRollCombatForecast;
@@ -1301,6 +1397,7 @@ type PreRollDecisionContext = {
   existingOpenDraws: number;
   averageDeckCardValue: number;
   drawCache: Map<string, number>;
+  computation: PreRollComputationCache;
 };
 
 function selectedRollForecast(match: MatchState, playerId: string) {
@@ -1360,7 +1457,7 @@ function temporaryResponseProfile(
   let secondaryValue = 0;
   let entries: ReturnType<typeof activeCardActionEntries>;
   try {
-    const resolving = cloneMatch(match);
+    const resolving = cloneProjectedMatch(match);
     const resolvingPlayer = playerById(resolving, playerId);
     if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
     entries = activeCardActionEntries(
@@ -1437,7 +1534,7 @@ function projectedPowerStepState(
   own: RollForecastSample,
   enemy: RollForecastSample,
 ) {
-  const projected = cloneMatch(match);
+  const projected = cloneProjectedMatch(match);
   const opponent = opponentOf(projected, playerId);
   applyProjectedRollSample(projected, playerId, own);
   if (opponent) applyProjectedRollSample(projected, opponent.id, enemy);
@@ -1446,6 +1543,60 @@ function projectedPowerStepState(
   projected.priority = playerId;
   projected.passes = [];
   return projected;
+}
+
+function preRollPlanningStateKey(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId);
+  return `${match.id}:${match.version}:${playerId}:${player?.cardsPlayedThisTurn ?? -1}`;
+}
+
+function preRollScenarioSet(
+  match: MatchState,
+  playerId: string,
+  forecast: PreRollCombatForecast,
+  computation: PreRollComputationCache,
+) {
+  const stateKey = preRollPlanningStateKey(match, playerId);
+  const cached = computation.scenarioSets.get(stateKey);
+  if (cached) return cached;
+  if (!forecast.own || !forecast.opponent) {
+    const empty = { jointCount: 0, scenarios: [] };
+    computation.scenarioSets.set(stateKey, empty);
+    return empty;
+  }
+  const jointCount = forecast.own.samples.length * forecast.opponent.samples.length;
+  const scenarios: PreRollScenario[] = [];
+  forecast.own.samples.forEach((own, ownIndex) => {
+    if (own.outcome.result === "miss-closed") return;
+    forecast.opponent!.samples.forEach((enemy, enemyIndex) => {
+      const projected = projectedPowerStepState(match, playerId, own, enemy);
+      const enemyOpened = enemy.outcome.result !== "miss-closed";
+      scenarios.push({
+        id: `${stateKey}:${ownIndex}:${enemyIndex}`,
+        projected,
+        enemyOpened,
+        deficit: enemyOpened ? enemy.power - own.power : -Math.max(1, own.power),
+      });
+    });
+  });
+  const result = { jointCount, scenarios };
+  computation.scenarioSets.set(stateKey, result);
+  return result;
+}
+
+function cachedTemporaryResponseProfile(
+  scenario: PreRollScenario,
+  playerId: string,
+  card: GameCard,
+  computation: PreRollComputationCache,
+) {
+  const key = `${scenario.id}:${card.id}`;
+  if (computation.responseProfiles.has(key)) {
+    return computation.responseProfiles.get(key) ?? undefined;
+  }
+  const profile = temporaryResponseProfile(scenario.projected, playerId, card);
+  computation.responseProfiles.set(key, profile ?? null);
+  return profile;
 }
 
 function responseCombinations(options: readonly PreRollResponseOption[], budget: number) {
@@ -1458,7 +1609,12 @@ function responseCombinations(options: readonly PreRollResponseOption[], budget:
         powerSwing: combination.powerSwing + option.powerSwing,
         secondaryValue: combination.secondaryValue + option.secondaryValue,
       }));
-    combinations = [...combinations, ...added];
+    const unique = new Map<string, typeof combinations[number]>();
+    for (const combination of [...combinations, ...added]) {
+      const key = `${combination.cost}:${combination.powerSwing}:${combination.secondaryValue}`;
+      if (!unique.has(key)) unique.set(key, combination);
+    }
+    combinations = [...unique.values()];
   }
   return combinations;
 }
@@ -1469,51 +1625,62 @@ function expectedPowerResponseContinuation(
   hand: readonly GameCard[],
   budget: number,
   forecast: PreRollCombatForecast,
+  computation: PreRollComputationCache,
 ) {
   if (budget <= 0 || !forecast.own || !forecast.opponent) return 0;
-  const jointCount = forecast.own.samples.length * forecast.opponent.samples.length;
-  if (!jointCount) return 0;
-  let total = 0;
-  for (const own of forecast.own.samples) {
-    for (const enemy of forecast.opponent.samples) {
-      if (own.outcome.result === "miss-closed") continue;
-      const projected = projectedPowerStepState(match, playerId, own, enemy);
-      const options = hand
-        .map((card) => temporaryResponseProfile(projected, playerId, card))
-        .filter((option): option is PreRollResponseOption => Boolean(option))
-        .filter((option) => option.cost <= budget)
-        .sort((a, b) => (
-          (b.powerSwing + b.secondaryValue * 100) / Math.max(1, b.cost)
-          - (a.powerSwing + a.secondaryValue * 100) / Math.max(1, a.cost)
-        ));
-      if (!options.length) continue;
-      const combinations = responseCombinations(options, budget);
-      const enemyOpened = enemy.outcome.result !== "miss-closed";
-      const deficit = enemyOpened ? enemy.power - own.power : -Math.max(1, own.power);
-      let best = 0;
-      for (const combination of combinations) {
-        if (combination.cost <= 0) continue;
-        if (enemyOpened && deficit >= 0 && combination.powerSwing > deficit) {
-          const margin = combination.powerSwing - deficit;
-          best = Math.max(
-            best,
-            7.5
-              + Math.min(2.25, margin / 250)
-              + Math.min(1.25, combination.secondaryValue * 0.2),
-          );
-        } else if (enemyOpened && deficit >= 0 && combination.powerSwing > 0) {
-          best = Math.max(
-            best,
-            Math.min(0.45, combination.powerSwing / Math.max(400, deficit + 400)),
-          );
-        } else if (deficit < 0 && combination.secondaryValue > 0) {
-          best = Math.max(best, Math.min(0.8, combination.secondaryValue * 0.2));
-        }
-      }
-      total += best;
-    }
+  const stateKey = preRollPlanningStateKey(match, playerId);
+  const continuationKey = `${stateKey}:${budget}:${hand.map((card) => card.id).join(",")}`;
+  const cached = computation.continuations.get(continuationKey);
+  if (cached != null) {
+    return cached;
   }
-  return total / jointCount;
+  const scenarioSet = preRollScenarioSet(match, playerId, forecast, computation);
+  if (!scenarioSet.jointCount) return 0;
+  let total = 0;
+  for (const scenario of scenarioSet.scenarios) {
+    const options = hand
+      .map((card) => cachedTemporaryResponseProfile(
+        scenario,
+        playerId,
+        card,
+        computation,
+      ))
+      .filter((option): option is PreRollResponseOption => Boolean(option))
+      .filter((option) => option.cost <= budget)
+      .sort((a, b) => (
+        (b.powerSwing + b.secondaryValue * 100) / Math.max(1, b.cost)
+        - (a.powerSwing + a.secondaryValue * 100) / Math.max(1, a.cost)
+      ));
+    if (!options.length) continue;
+    const combinations = responseCombinations(options, budget);
+    let best = 0;
+    for (const combination of combinations) {
+      if (combination.cost <= 0) continue;
+      if (scenario.enemyOpened && scenario.deficit >= 0 && combination.powerSwing > scenario.deficit) {
+        const margin = combination.powerSwing - scenario.deficit;
+        best = Math.max(
+best,
+7.5
+  + Math.min(2.25, margin / 250)
+  + Math.min(1.25, combination.secondaryValue * 0.2),
+        );
+      } else if (scenario.enemyOpened && scenario.deficit >= 0 && combination.powerSwing > 0) {
+        best = Math.max(
+best,
+Math.min(
+  0.45,
+  combination.powerSwing / Math.max(400, scenario.deficit + 400),
+),
+        );
+      } else if (scenario.deficit < 0 && combination.secondaryValue > 0) {
+        best = Math.max(best, Math.min(0.8, combination.secondaryValue * 0.2));
+      }
+    }
+    total += best;
+  }
+  const result = total / scenarioSet.jointCount;
+  computation.continuations.set(continuationKey, result);
+  return result;
 }
 
 function averageDeckCardValue(match: MatchState, playerId: string) {
@@ -1542,6 +1709,7 @@ function marginalDeckDrawValue(
     hand,
     budget,
     context.forecast,
+    context.computation,
   );
   const grouped = new Map<string, GameCard[]>();
   for (const card of player.deckCards) {
@@ -1558,6 +1726,7 @@ function marginalDeckDrawValue(
       [...hand, card],
       budget,
       context.forecast,
+      context.computation,
     ) - baseline);
     const retained = clamp(
       Math.max(0, handCardRetentionValue(match, playerId, card)) * 0.28,
@@ -1577,23 +1746,32 @@ function createPreRollDecisionContext(match: MatchState, playerId: string): PreR
   const player = playerById(match, playerId)!;
   const forecast = preRollCombatForecast(match, playerId);
   const capacity = currentEnergyCapacity(match, playerId);
-  return {
+  const computation: PreRollComputationCache = {
+    scenarioSets: new Map(),
+    responseProfiles: new Map(),
+    continuations: new Map(),
+  };
+  const context: PreRollDecisionContext = {
     capacity,
     forecast,
-    passContinuation: expectedPowerResponseContinuation(
-      match,
-      playerId,
-      player.hand,
-      capacity,
-      forecast,
-    ),
+    passContinuation: 0,
     openChance: forecast.own?.openProbability ?? expectedOpenChance(match, playerId),
     existingOpenDraws: player.heroes.reduce((sum, hero) => (
       sum + repeatableOpenDrawAmount(hero)
     ), 0),
     averageDeckCardValue: averageDeckCardValue(match, playerId),
     drawCache: new Map(),
+    computation,
   };
+  context.passContinuation = expectedPowerResponseContinuation(
+    match,
+    playerId,
+    player.hand,
+    capacity,
+    forecast,
+    computation,
+  );
+  return context;
 }
 
 function deferrablePreRollCombatValue(
@@ -1603,7 +1781,7 @@ function deferrablePreRollCombatValue(
   choices: CardChoices,
 ) {
   let value = 0;
-  const resolving = cloneMatch(match);
+  const resolving = cloneProjectedMatch(match);
   const resolvingPlayer = playerById(resolving, playerId);
   if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
   for (const { action, sourceText } of activeCardActionEntries(
@@ -1648,7 +1826,7 @@ function preRollCandidateScore(
   const player = playerById(match, playerId)!;
   const remainingCapacity = Math.max(0, context.capacity - cost);
   const remainingHand = player.hand.filter((candidate) => candidate.id !== card.id);
-  const continued = cloneMatch(match);
+  const continued = cloneProjectedMatch(match);
   const continuedPlayer = playerById(continued, playerId);
   if (continuedPlayer) continuedPlayer.cardsPlayedThisTurn += 1;
   const continuationAfter = expectedPowerResponseContinuation(
@@ -1657,6 +1835,7 @@ function preRollCandidateScore(
     remainingHand,
     remainingCapacity,
     context.forecast,
+    context.computation,
   );
   const continuationDelta = continuationAfter - context.passContinuation;
   const deferredCombat = deferrablePreRollCombatValue(

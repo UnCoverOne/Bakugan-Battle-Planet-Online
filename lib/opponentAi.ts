@@ -445,25 +445,38 @@ function jointlyWinningTemporaryPowerCards(
     .slice(0, 12);
   if (candidates.length < 2) return result;
 
-  let best: { ids: string[]; cost: number; swing: number } | undefined;
-  const combinations = 1 << candidates.length;
-  for (let mask = 1; mask < combinations; mask += 1) {
-    const ids: string[] = [];
-    let cost = 0;
-    let swing = 0;
-    for (let index = 0; index < candidates.length; index += 1) {
-      if (!(mask & (1 << index))) continue;
-      ids.push(candidates[index].card.id);
-      cost += candidates[index].cost;
-      swing += candidates[index].swing;
+  type Combination = { ids: string[]; cost: number; swing: number };
+  const combinations: Combination[] = [{ ids: [], cost: 0, swing: 0 }];
+  const seen = new Set(["0:0:0"]);
+  for (const candidate of candidates) {
+    const existing = [...combinations];
+    for (const combination of existing) {
+      const next: Combination = {
+        ids: [...combination.ids, candidate.card.id],
+        cost: combination.cost + candidate.cost,
+        swing: combination.swing + candidate.swing,
+      };
+      if (next.cost > budget) continue;
+      const key = `${next.cost}:${next.swing}:${next.ids.length}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      combinations.push(next);
     }
-    if (ids.length < 2 || cost > budget || swing <= deficit) continue;
+  }
+
+  let best: Combination | undefined;
+  for (const combination of combinations) {
+    if (combination.ids.length < 2 || combination.swing <= deficit) continue;
     if (
       !best
-      || cost < best.cost
-      || (cost === best.cost && ids.length < best.ids.length)
-      || (cost === best.cost && ids.length === best.ids.length && swing < best.swing)
-    ) best = { ids, cost, swing };
+      || combination.cost < best.cost
+      || (combination.cost === best.cost && combination.ids.length < best.ids.length)
+      || (
+        combination.cost === best.cost
+        && combination.ids.length === best.ids.length
+        && combination.swing < best.swing
+      )
+    ) best = combination;
   }
   for (const id of best?.ids ?? []) result.add(id);
   return result;
