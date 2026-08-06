@@ -16,7 +16,7 @@ type GuestSnapshot = Pick<
   "profile" | "decks" | "history" | "settings" | "builderDeck" | "match"
 >;
 
-const DEFAULT_PROFILE = { name: "DanBrawler", faction: "Pyrus" };
+const DEFAULT_PROFILE = { name: "Guest Brawler", faction: "Pyrus" };
 const DEFAULT_SETTINGS = {
   reducedMotion: false,
   highContrast: false,
