@@ -15,6 +15,12 @@ export type PersistedCommand = {
   created_at: number;
 };
 
+export type PersistedSeat = {
+  playerId: string;
+  capabilityHash: string;
+  createdAt: number;
+};
+
 function engineSchemaStatements(database: D1Database) {
   return [
     database.prepare(`CREATE TABLE IF NOT EXISTS match_events (
@@ -75,11 +81,7 @@ export async function ensureEngineEventStore(database: D1Database) {
   await schemaReady;
 }
 
-export async function loadPersistedCommand(
-  database: D1Database,
-  code: string,
-  commandId: string,
-) {
+export async function loadPersistedCommand(database: D1Database, code: string, commandId: string) {
   await ensureEngineEventStore(database);
   return database.prepare(`SELECT command_id, actor_id, expected_version, result_version, request_hash,
     event_sequence_start, event_sequence_end, created_at
@@ -95,12 +97,7 @@ function trimLegacyLog(state: MatchState) {
   state.log = state.log.filter((entry) => retained.has(entry.id));
 }
 
-function eventInsert(
-  database: D1Database,
-  code: string,
-  event: GameEvent,
-  commandId: string,
-) {
+function eventInsert(database: D1Database, code: string, event: GameEvent, commandId: string) {
   return database.prepare(`INSERT OR IGNORE INTO match_events (
     code, sequence, command_id, event_type, actor_id, visibility, visible_to,
     payload_json, engine_version, rules_version, created_at
@@ -125,11 +122,7 @@ function eventInsert(
   );
 }
 
-function receiptInsert(
-  database: D1Database,
-  code: string,
-  receipt: CommandReceipt,
-) {
+function receiptInsert(database: D1Database, code: string, receipt: CommandReceipt) {
   return database.prepare(`INSERT OR IGNORE INTO match_commands (
     code, command_id, actor_id, expected_version, result_version, request_hash,
     event_sequence_start, event_sequence_end, created_at
@@ -152,11 +145,21 @@ function receiptInsert(
   );
 }
 
+function seatInsert(database: D1Database, code: string, commandId: string, seat: PersistedSeat) {
+  return database.prepare(`INSERT INTO match_seats (code, player_id, capability_hash, created_at)
+    SELECT ?, ?, ?, ?
+    WHERE EXISTS (
+      SELECT 1 FROM matches
+      WHERE code = ? AND json_extract(state_json, '$.${ENGINE_METADATA_KEY}.lastCommandId') = ?
+    )`).bind(code, seat.playerId, seat.capabilityHash, seat.createdAt, code, commandId);
+}
+
 export async function persistInitialMatch(
   database: D1Database,
   state: EngineBackedMatchState,
   events: readonly GameEvent[],
   receipt: CommandReceipt,
+  seat?: PersistedSeat,
 ) {
   await ensureEngineEventStore(database);
   trimLegacyLog(state);
@@ -170,14 +173,8 @@ export async function persistInitialMatch(
       WHERE EXISTS (
         SELECT 1 FROM matches
         WHERE code = ? AND json_extract(state_json, '$.${ENGINE_METADATA_KEY}.lastCommandId') = ?
-      )`).bind(
-        state.code,
-        state.version,
-        JSON.stringify(state),
-        receipt.issuedAt,
-        state.code,
-        receipt.commandId,
-      ),
+      )`).bind(state.code, state.version, JSON.stringify(state), receipt.issuedAt, state.code, receipt.commandId),
+    ...(seat ? [seatInsert(database, state.code, receipt.commandId, seat)] : []),
   ];
   const results = await database.batch(statements);
   return Number(results[0]?.meta?.changes ?? 0) > 0;
@@ -190,12 +187,10 @@ export type PersistTransitionOptions = {
   expectedVersion: number;
   events: readonly GameEvent[];
   receipt: CommandReceipt;
+  seat?: PersistedSeat;
 };
 
-export async function persistTransition(
-  database: D1Database,
-  options: PersistTransitionOptions,
-) {
+export async function persistTransition(database: D1Database, options: PersistTransitionOptions) {
   await ensureEngineEventStore(database);
   trimLegacyLog(options.next);
   const statements = [
@@ -211,6 +206,7 @@ export async function persistTransition(
       ),
     ...options.events.map((event) => eventInsert(database, options.code, event, options.receipt.commandId)),
     receiptInsert(database, options.code, options.receipt),
+    ...(options.seat ? [seatInsert(database, options.code, options.receipt.commandId, options.seat)] : []),
   ];
 
   if (options.next.version % 5 === 0 || options.next.phase === "result") {
@@ -219,14 +215,7 @@ export async function persistTransition(
       WHERE EXISTS (
         SELECT 1 FROM matches
         WHERE code = ? AND json_extract(state_json, '$.${ENGINE_METADATA_KEY}.lastCommandId') = ?
-      )`).bind(
-        options.code,
-        options.next.version,
-        JSON.stringify(options.next),
-        options.receipt.issuedAt,
-        options.code,
-        options.receipt.commandId,
-      ));
+      )`).bind(options.code, options.next.version, JSON.stringify(options.next), options.receipt.issuedAt, options.code, options.receipt.commandId));
   }
 
   const results = await database.batch(statements);
