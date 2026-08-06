@@ -69,30 +69,6 @@ const PRIORITY_PHASES = new Set<MatchState["phase"]>([
 ]);
 const ROLL_FORECAST_SAMPLES = 20;
 
-function createPerformanceMetrics() {
-  return {
-    forecastRequests: 0,
-    forecastComputations: 0,
-    forecastCacheHits: 0,
-    projectedRollEvaluations: 0,
-    projectedPowerStates: 0,
-    responseProfileEvaluations: 0,
-    responseProfileCacheHits: 0,
-    continuationCacheHits: 0,
-  };
-}
-
-const opponentAiPerformance = createPerformanceMetrics();
-export type OpponentAiPerformanceMetrics = ReturnType<typeof createPerformanceMetrics>;
-
-export function resetOpponentAiPerformanceMetrics() {
-  Object.assign(opponentAiPerformance, createPerformanceMetrics());
-}
-
-export function opponentAiPerformanceSnapshot(): OpponentAiPerformanceMetrics {
-  return { ...opponentAiPerformance };
-}
-
 function playerById(match: MatchState, playerId: string) {
   return match.players.find((player) => player.id === playerId);
 }
@@ -253,15 +229,12 @@ function forecastRoll(
   bakugan: Bakugan,
   target: Placement,
 ): RollForecast {
-  opponentAiPerformance.forecastRequests += 1;
   const cache = matchForecastCache(match);
   const cacheKey = `${playerId}:${bakugan.id}:${target.cell}`;
   const cached = cache.rolls.get(cacheKey);
   if (cached) {
-    opponentAiPerformance.forecastCacheHits += 1;
     return cached;
   }
-  opponentAiPerformance.forecastComputations += 1;
 
   const state = {
     ...match,
@@ -296,7 +269,6 @@ function forecastRoll(
     const characteristicKey = rollCharacteristicsKey(outcome);
     let characteristics = characteristicCache.get(characteristicKey);
     if (!characteristics) {
-      opponentAiPerformance.projectedRollEvaluations += 1;
       characteristics = projectedRollCharacteristics(
         state,
         playerId,
@@ -1562,7 +1534,6 @@ function projectedPowerStepState(
   own: RollForecastSample,
   enemy: RollForecastSample,
 ) {
-  opponentAiPerformance.projectedPowerStates += 1;
   const projected = cloneProjectedMatch(match);
   const opponent = opponentOf(projected, playerId);
   applyProjectedRollSample(projected, playerId, own);
@@ -1621,10 +1592,8 @@ function cachedTemporaryResponseProfile(
 ) {
   const key = `${scenario.id}:${card.id}`;
   if (computation.responseProfiles.has(key)) {
-    opponentAiPerformance.responseProfileCacheHits += 1;
     return computation.responseProfiles.get(key) ?? undefined;
   }
-  opponentAiPerformance.responseProfileEvaluations += 1;
   const profile = temporaryResponseProfile(scenario.projected, playerId, card);
   computation.responseProfiles.set(key, profile ?? null);
   return profile;
@@ -1663,7 +1632,6 @@ function expectedPowerResponseContinuation(
   const continuationKey = `${stateKey}:${budget}:${hand.map((card) => card.id).join(",")}`;
   const cached = computation.continuations.get(continuationKey);
   if (cached != null) {
-    opponentAiPerformance.continuationCacheHits += 1;
     return cached;
   }
   const scenarioSet = preRollScenarioSet(match, playerId, forecast, computation);

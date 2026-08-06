@@ -14,7 +14,7 @@ import {
   type CardChoices,
   type MatchState,
 } from "../../lib/game";
-import { opponentAiCanAct } from "../../lib/opponentAiBase";
+import { opponentAiCanAct } from "../../lib/opponentAiCanAct";
 import { canUndoLatest, undoLatestAction } from "../../lib/undo";
 import { playCardWithAutoEnergy } from "../../lib/cardPayment";
 import { tapEnergyCard } from "../../lib/energy";
