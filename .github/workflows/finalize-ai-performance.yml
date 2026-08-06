@@ -1,0 +1,147 @@
+name: Finalize AI performance optimization
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  clean-and-validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/optimize-ai-forecast-performance
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Normalize formatting in optimized paths
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected one match in {path}, found {count}")
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "components/game-screen-v2/GameplayClient.tsx",
+              '''        try {
+const latest = readMatchStore().match;
+if (!latest || latest.id !== match.id || latest.version !== match.version) return;
+const next = playerCanFlipTieBreak(latest, "training-bot")
+  ? flipTieBreakCard(latest, "training-bot")
+  : shouldStartManualTieBreak(latest, "training-bot")
+    ? passPriorityWithTieBreak(latest, "training-bot")
+    : await requestOpponentAiDecision(latest, "training-bot");
+const current = readMatchStore().match;
+if (
+  next
+  && current?.id === latest.id
+  && current.version === latest.version
+) publishMatch(next);
+        } catch {
+// A concurrent player action can close the bot's window before the
+// worker responds. The next accepted version schedules a fresh check.
+        } finally {
+if (botActionKey.current === key) botActionKey.current = "";
+        }
+''',
+              '''        try {
+          const latest = readMatchStore().match;
+          if (!latest || latest.id !== match.id || latest.version !== match.version) return;
+          const next = playerCanFlipTieBreak(latest, "training-bot")
+            ? flipTieBreakCard(latest, "training-bot")
+            : shouldStartManualTieBreak(latest, "training-bot")
+              ? passPriorityWithTieBreak(latest, "training-bot")
+              : await requestOpponentAiDecision(latest, "training-bot");
+          const current = readMatchStore().match;
+          if (
+            next
+            && current?.id === latest.id
+            && current.version === latest.version
+          ) publishMatch(next);
+        } catch {
+          // A concurrent player action can close the bot's window before the
+          // worker responds. The next accepted version schedules a fresh check.
+        } finally {
+          if (botActionKey.current === key) botActionKey.current = "";
+        }
+''',
+          )
+
+          replace_once(
+              "lib/opponentAiBase.ts",
+              '''        value: forecast.value
+- forecastCollision(forecast, opponentForecast) * 2.5
+- (target.cell === opponentTarget?.cell ? 0.25 : 0),
+''',
+              '''        value: forecast.value
+          - forecastCollision(forecast, opponentForecast) * 2.5
+          - (target.cell === opponentTarget?.cell ? 0.25 : 0),
+''',
+          )
+
+          replace_once(
+              "lib/opponentAiBase.ts",
+              '''        best = Math.max(
+best,
+7.5
+  + Math.min(2.25, margin / 250)
+  + Math.min(1.25, combination.secondaryValue * 0.2),
+        );
+      } else if (scenario.enemyOpened && scenario.deficit >= 0 && combination.powerSwing > 0) {
+        best = Math.max(
+best,
+Math.min(
+  0.45,
+  combination.powerSwing / Math.max(400, scenario.deficit + 400),
+),
+        );
+''',
+              '''        best = Math.max(
+          best,
+          7.5
+            + Math.min(2.25, margin / 250)
+            + Math.min(1.25, combination.secondaryValue * 0.2),
+        );
+      } else if (scenario.enemyOpened && scenario.deficit >= 0 && combination.powerSwing > 0) {
+        best = Math.max(
+          best,
+          Math.min(
+            0.45,
+            combination.powerSwing / Math.max(400, scenario.deficit + 400),
+          ),
+        );
+''',
+          )
+          PY
+      - name: Validate source
+        run: |
+          git diff --check
+          npx eslint lib/opponentAiBase.ts lib/opponentAi.ts lib/opponentAiCanAct.ts components/game-screen-v2/GameplayClient.tsx components/game-screen-v2/opponentAi.worker.ts
+      - name: Run focused AI regressions
+        run: |
+          node --import tsx --test tests/opponent-ai-tactics.test.ts tests/ai-roll-forecast.test.ts tests/ai-energize-planner.test.ts tests/wave-slash-ai.test.ts
+      - name: Build production bundle
+        run: npm run build
+      - name: Commit cleanup
+        run: |
+          rm -f .github/workflows/finalize-ai-performance.yml
+          rm -f .github/workflows/cleanup-ai-performance-formatting.yml
+          rm -f .github/ai-cleanup-trigger.txt
+          git config user.name "OpenAI Agent"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Clean up optimized AI implementation"
+          git push origin HEAD:agent/optimize-ai-forecast-performance
