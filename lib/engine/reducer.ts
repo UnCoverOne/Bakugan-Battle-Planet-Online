@@ -22,6 +22,11 @@ import { resolveExpiredDeadline } from "../deadlines";
 import { dispatchRulesCommand, isRulesCommand } from "../rules/runtime";
 import { ensureRulesState, normalizeRuleObjects } from "../rules/state";
 import {
+  captureOriginalDeckManifest,
+  ensureOriginalDeckManifests,
+  restoreOriginalDecksForNextGame,
+} from "./deck-manifest";
+import {
   appendCommandReceipt,
   deriveTransitionEvents,
   ensureEngineMetadata,
@@ -58,12 +63,13 @@ function assertEnvelope(state: MatchState, envelope: CommandEnvelope) {
 }
 
 function joinPlayer(input: MatchState, player: PlayerState, issuedAt: number) {
-  const state = cloneMatch(input);
+  const state = cloneMatch(input) as EngineBackedMatchState;
   if (state.phase !== "lobby") throw new EngineCommandError("JOIN_CLOSED", "Players can only join during the lobby.");
   if (state.players.some((candidate) => candidate.id === player.id)) return state;
   if (state.players.length >= 2) throw new EngineCommandError("ROOM_FULL", "The room is full.");
   state.players.push(player);
   state.series[player.id] = 0;
+  captureOriginalDeckManifest(state, player);
   state.version += 1;
   state.log.push({ id: `${issuedAt}-join-${state.version}`, at: issuedAt, kind: "connection", message: `${player.name} joined the room.` });
   return state;
@@ -85,7 +91,7 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
     case "CHAT": return addChatMessage(input, actorId, command.message);
     case "CONCEDE": return concedeMatch(input, actorId);
     case "NEXT_TURN": return nextTurn(input);
-    case "START_NEXT_SERIES_GAME": return startNextSeriesGame(input);
+    case "START_NEXT_SERIES_GAME": return startNextSeriesGame(restoreOriginalDecksForNextGame(input));
     case "UNDO": return undoLatestAction(input, actorId);
     case "JOIN_PLAYER": return joinPlayer(input, command.player, issuedAt);
     case "RESOLVE_DEADLINE": return resolveExpiredDeadline(input, issuedAt);
@@ -178,6 +184,7 @@ export function initializeMatch(
   ensureRulesState(state);
   normalizeRuleObjects(state);
   ensureEngineMetadata(state);
+  ensureOriginalDeckManifests(state);
   const envelope: CommandEnvelope = {
     commandId: options.commandId,
     gameId: state.id,
