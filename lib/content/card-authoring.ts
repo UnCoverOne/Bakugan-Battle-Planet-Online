@@ -11,6 +11,7 @@ import {
   textFingerprint,
   type ControlledCardRecord,
 } from "./catalogue";
+import { constructionIdentityForCard } from "./construction-identity";
 
 export const CARD_EDITOR_VERSION = "card-editor-v1" as const;
 
@@ -75,17 +76,20 @@ export function cardDraftFromCatalogue(card: ControlledCardRecord): CardDraft {
 
 export function emptyCardDraft(number = 1): CardDraft {
   const safeNumber = Number.isInteger(number) && number > 0 ? number : 1;
+  const displayName = "Untitled Card";
+  const effect = "";
   return {
     id: `bb-${safeNumber}`,
     number: safeNumber,
-    name: "Untitled Card",
-    displayName: "Untitled Card",
+    name: displayName,
+    displayName,
+    constructionIdentity: constructionIdentityForCard({ displayName, effect }),
     faction: "Aquos",
     factions: ["Aquos"],
     type: "Action",
     cost: 0,
     rarity: "Common",
-    effect: "",
+    effect,
     mechanics: [],
     bPower: null,
     damage: null,
@@ -105,6 +109,9 @@ export function normalizeCardDraft(value: unknown): CardDraft {
   const displayName = typeof candidate.displayName === "string" && candidate.displayName.trim()
     ? candidate.displayName.trim()
     : name;
+  const effect = typeof candidate.effect === "string"
+    ? candidate.effect.replace(/\r\n/g, "\n")
+    : "";
   const faction = FACTIONS.includes(candidate.faction as typeof FACTIONS[number])
     ? candidate.faction as typeof FACTIONS[number]
     : "Aquos";
@@ -124,12 +131,13 @@ export function normalizeCardDraft(value: unknown): CardDraft {
     number,
     name,
     displayName,
+    constructionIdentity: constructionIdentityForCard({ displayName, effect }),
     faction,
     factions,
     type,
     cost,
     rarity: typeof candidate.rarity === "string" && candidate.rarity.trim() ? candidate.rarity.trim() : "Common",
-    effect: typeof candidate.effect === "string" ? candidate.effect.replace(/\r\n/g, "\n") : "",
+    effect,
     mechanics: Array.isArray(candidate.mechanics)
       ? [...new Set(candidate.mechanics.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean))]
       : [],
@@ -182,6 +190,7 @@ export function validateCardDraft(
   if (draft.id !== `bb-${draft.number}`) issues.push(issue("error", "CARD_ID_NUMBER_MISMATCH", "id", `The ID must be bb-${draft.number}.`));
   if (!draft.name.trim()) issues.push(issue("error", "NAME_REQUIRED", "name", "Internal name is required."));
   if (!draft.displayName.trim()) issues.push(issue("error", "DISPLAY_NAME_REQUIRED", "displayName", "Display name is required."));
+  if (!draft.constructionIdentity.trim()) issues.push(issue("error", "CONSTRUCTION_IDENTITY_REQUIRED", "constructionIdentity", "Construction identity is required."));
   if (!FACTIONS.includes(draft.faction)) issues.push(issue("error", "FACTION_INVALID", "faction", "Choose a supported Battle Planet faction."));
   if (!draft.factions.length || !draft.factions.includes(draft.faction)) issues.push(issue("error", "PRIMARY_FACTION_MISSING", "factions", "The faction list must include the primary faction."));
   if (!CARD_TYPES.includes(draft.type)) issues.push(issue("error", "CARD_TYPE_INVALID", "type", "Choose a supported card type."));
@@ -199,7 +208,7 @@ export function validateCardDraft(
 
   if (["Character", "Evo"].includes(draft.type)) {
     if (!Number.isFinite(draft.bPower) || Number(draft.bPower) < 0) issues.push(issue("error", "BPOWER_REQUIRED", "bPower", `${draft.type} cards require non-negative B-Power.`));
-    if (!Number.isFinite(draft.damage) || Number(draft.damage) < 0) issues.push(issue("error", "DAMAGE_REQUIRED", "damage", `${draft.type} cards require a non-negative Damage Rating.`));
+    if (!Number.isFinite(draft.damage) || Number(draft.damage) < 0) issues.push(issue("error", "DAMAGE_REQUIRED", "damage", `${draft.type} cards require non-negative Damage Rating.`));
   } else if (draft.bPower != null || draft.damage != null) {
     issues.push(issue("warning", "UNUSED_COMBAT_STATS", "bPower", `${draft.type} cards normally leave B-Power and Damage Rating empty.`));
   }
@@ -282,6 +291,10 @@ export function parseCardAuthoringBundle(value: string | unknown) {
   const candidate = parsed as Partial<CardAuthoringBundle> & Partial<CardDraft>;
   const card = "card" in candidate ? candidate.card : candidate;
   const draft = normalizeCardDraft(card);
-  const baseCardId = typeof candidate.baseCardId === "string" ? candidate.baseCardId : CONTROLLED_CATALOGUE.some((item) => item.id === draft.id) ? draft.id : undefined;
+  const baseCardId = typeof candidate.baseCardId === "string"
+    ? candidate.baseCardId
+    : CONTROLLED_CATALOGUE.some((item) => item.id === draft.id)
+      ? draft.id
+      : undefined;
   return createCardAuthoringBundle(draft, baseCardId);
 }
