@@ -1,4 +1,5 @@
 import type { ControlledCardRecord } from "./catalogue";
+import { constructionIdentityForCard } from "./construction-identity";
 
 export type ExtensionCardRow = readonly [
   id: string,
@@ -110,6 +111,7 @@ export function recordsFromRows(
       number,
       name: internalName,
       displayName,
+      constructionIdentity: constructionIdentityForCard({ displayName, effect }),
       faction,
       factions: [faction],
       type,
