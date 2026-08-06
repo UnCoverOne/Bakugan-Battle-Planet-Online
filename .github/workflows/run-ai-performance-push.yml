@@ -37,13 +37,15 @@ jobs:
           end = next(index for index in range(start, len(source)) if source[index].strip() == 'PY')
           script = '\n'.join(line[10:] if line.startswith('          ') else line for line in source[start:end]) + '\n'
           brittle = 'replace_once(gameplay, old_timer, new_timer)'
-          robust = '''text = read(gameplay)
-effect_start = text.find("    const drawDelay = waitingForDrawWindow")
-block_start = text.find("    const timeout = window.setTimeout(() => {", effect_start)
-block_end = text.find("    return () => window.clearTimeout(timeout);", block_start)
-if effect_start < 0 or block_start < 0 or block_end < 0:
-    raise SystemExit("Could not locate the training-bot timer block")
-write(gameplay, text[:block_start] + new_timer + text[block_end:])'''
+          robust = (
+              'text = read(gameplay)\n'
+              'effect_start = text.find("    const drawDelay = waitingForDrawWindow")\n'
+              'block_start = text.find("    const timeout = window.setTimeout(() => {", effect_start)\n'
+              'block_end = text.find("    return () => window.clearTimeout(timeout);", block_start)\n'
+              'if effect_start < 0 or block_start < 0 or block_end < 0:\n'
+              '    raise SystemExit("Could not locate the training-bot timer block")\n'
+              'write(gameplay, text[:block_start] + new_timer + text[block_end:])'
+          )
           if brittle not in script:
               raise SystemExit('Could not locate the timer replacement in the generated script')
           script = script.replace(brittle, robust)
