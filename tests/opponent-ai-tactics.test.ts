@@ -16,6 +16,10 @@ import {
   type RollOutcome,
 } from "../lib/game";
 import { advanceOpponentAi } from "../lib/opponentAi";
+import {
+  opponentAiPerformanceSnapshot,
+  resetOpponentAiPerformanceMetrics,
+} from "../lib/opponentAiBase";
 import { ruleDefinitionForCard } from "../lib/rules";
 
 let serial = 0;
@@ -571,4 +575,23 @@ test("AI starts a jointly winning temporary B-Power sequence when no single card
     next.players[0].hand.filter((card) => [first.id, second.id].includes(card.id)).length,
     1,
   );
+});
+
+
+test("AI reuses exact forecasts and projected Brawl scenarios within one decision", () => {
+  const { match, ai, shun } = preRollReservationMatch({ energy: 6 });
+  resetOpponentAiPerformanceMetrics();
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, shun.id);
+
+  const metrics = opponentAiPerformanceSnapshot();
+  assert.ok(metrics.forecastRequests > 0);
+  assert.ok(metrics.forecastCacheHits > 0);
+  assert.ok(metrics.forecastComputations < metrics.forecastRequests);
+  assert.ok(metrics.projectedRollEvaluations < metrics.forecastComputations * 20);
+  assert.ok(metrics.projectedPowerStates > 0);
+  assert.ok(metrics.projectedPowerStates <= 800);
+  assert.ok(metrics.responseProfileCacheHits > 0);
 });

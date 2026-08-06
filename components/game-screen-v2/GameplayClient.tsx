@@ -14,7 +14,7 @@ import {
   type CardChoices,
   type MatchState,
 } from "../../lib/game";
-import { advanceOpponentAi, opponentAiCanAct } from "../../lib/opponentAi";
+import { opponentAiCanAct } from "../../lib/opponentAiBase";
 import { canUndoLatest, undoLatestAction } from "../../lib/undo";
 import { playCardWithAutoEnergy } from "../../lib/cardPayment";
 import { tapEnergyCard } from "../../lib/energy";
@@ -85,6 +85,12 @@ type GameplaySettings = {
   [key: string]: unknown;
 };
 
+type OpponentAiWorkerResponse = {
+  requestId: number;
+  next?: MatchState | null;
+  error?: string;
+};
+
 function parseStoredValue<T>(raw: string | null, fallback: T): T {
   if (raw == null) return fallback;
   try { return JSON.parse(raw) as T; }
@@ -114,7 +120,53 @@ export function GameplayClient() {
   const [startupError, setStartupError] = useState("");
   const automaticActionKey = useRef("");
   const botActionKey = useRef("");
+  const botWorkerRef = useRef<Worker | null>(null);
+  const botWorkerRequestId = useRef(0);
+  const botWorkerPending = useRef(new Map<number, {
+    resolve: (next: MatchState | null) => void;
+    reject: (cause: Error) => void;
+  }>());
   const { rollPresentationPending } = useBakuCorePresentation();
+
+  const requestOpponentAiDecision = useCallback((match: MatchState, playerId: string) => {
+    if (typeof Worker === "undefined") {
+      return import("../../lib/opponentAi").then(({ advanceOpponentAi }) => (
+        advanceOpponentAi(match, playerId)
+      ));
+    }
+    let worker = botWorkerRef.current;
+    if (!worker) {
+      worker = new Worker(new URL("./opponentAi.worker.ts", import.meta.url), { type: "module" });
+      worker.addEventListener("message", (event: MessageEvent<OpponentAiWorkerResponse>) => {
+        const pending = botWorkerPending.current.get(event.data.requestId);
+        if (!pending) return;
+        botWorkerPending.current.delete(event.data.requestId);
+        if (event.data.error) pending.reject(new Error(event.data.error));
+        else pending.resolve(event.data.next ?? null);
+      });
+      worker.addEventListener("error", (event) => {
+        const cause = new Error(event.message || "The opponent AI worker stopped unexpectedly.");
+        for (const pending of botWorkerPending.current.values()) pending.reject(cause);
+        botWorkerPending.current.clear();
+        worker?.terminate();
+        botWorkerRef.current = null;
+      });
+      botWorkerRef.current = worker;
+    }
+    const requestId = ++botWorkerRequestId.current;
+    return new Promise<MatchState | null>((resolve, reject) => {
+      botWorkerPending.current.set(requestId, { resolve, reject });
+      worker!.postMessage({ requestId, match, playerId });
+    });
+  }, []);
+
+  useEffect(() => () => {
+    botWorkerRef.current?.terminate();
+    botWorkerRef.current = null;
+    const cause = new Error("The gameplay screen closed before the opponent AI finished.");
+    for (const pending of botWorkerPending.current.values()) pending.reject(cause);
+    botWorkerPending.current.clear();
+  }, []);
 
   const publishMatch = useCallback((next: MatchState) => {
     return writeCoordinatedMatch(next);
@@ -391,21 +443,28 @@ export function GameplayClient() {
       ? Math.max(0, (match.drawReadyAt ?? 0) - Date.now())
       : 0;
     const timeout = window.setTimeout(() => {
-      const latest = readMatchStore().match;
-      if (!latest || latest.id !== match.id || latest.version !== match.version) return;
-      try {
-        const next = playerCanFlipTieBreak(latest, "training-bot")
-          ? flipTieBreakCard(latest, "training-bot")
-          : shouldStartManualTieBreak(latest, "training-bot")
-            ? passPriorityWithTieBreak(latest, "training-bot")
-            : advanceOpponentAi(latest, "training-bot");
-        if (next) publishMatch(next);
-      } catch {
-        // A concurrent player action can close the bot's window before this
-        // timer executes. The next accepted version schedules a fresh check.
-      } finally {
-        if (botActionKey.current === key) botActionKey.current = "";
-      }
+      void (async () => {
+        try {
+const latest = readMatchStore().match;
+if (!latest || latest.id !== match.id || latest.version !== match.version) return;
+const next = playerCanFlipTieBreak(latest, "training-bot")
+  ? flipTieBreakCard(latest, "training-bot")
+  : shouldStartManualTieBreak(latest, "training-bot")
+    ? passPriorityWithTieBreak(latest, "training-bot")
+    : await requestOpponentAiDecision(latest, "training-bot");
+const current = readMatchStore().match;
+if (
+  next
+  && current?.id === latest.id
+  && current.version === latest.version
+) publishMatch(next);
+        } catch {
+// A concurrent player action can close the bot's window before the
+// worker responds. The next accepted version schedules a fresh check.
+        } finally {
+if (botActionKey.current === key) botActionKey.current = "";
+        }
+      })();
     }, Math.max(520, drawDelay));
     return () => window.clearTimeout(timeout);
   }, [
@@ -418,6 +477,7 @@ export function GameplayClient() {
     storedState.match?.pendingChoice?.id,
     rollPresentationPending,
     publishMatch,
+    requestOpponentAiDecision,
   ]);
 
   const localPlayer = storedState.match?.players.find((player) => (

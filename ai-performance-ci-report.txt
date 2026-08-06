@@ -1,0 +1,19 @@
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+
+added 519 packages in 15s
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/GameplayClient.tsx
+  378:6  warning  React Hook useEffect has missing dependencies: 'beginPlacement' and 'storedState.match'. Either include them or remove the dependency array   react-hooks/exhaustive-deps
+  406:6  warning  React Hook useEffect has missing dependencies: 'advanceEndPhase' and 'storedState.match'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  470:6  warning  React Hook useEffect has a missing dependency: 'storedState.match'. Either include it or remove the dependency array                          react-hooks/exhaustive-deps
+  495:6  warning  React Hook useEffect has a missing dependency: 'localPlayer'. Either include it or remove the dependency array                                react-hooks/exhaustive-deps
+  518:6  warning  React Hook useEffect has missing dependencies: 'drawCard' and 'storedState.match'. Either include them or remove the dependency array         react-hooks/exhaustive-deps
+  547:6  warning  React Hook useEffect has missing dependencies: 'passTurn' and 'storedState.match'. Either include them or remove the dependency array         react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/opponentAi.ts
+  449:7  error  'combinations' is never reassigned. Use 'const' instead  prefer-const
+
+✖ 7 problems (1 error, 6 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+
