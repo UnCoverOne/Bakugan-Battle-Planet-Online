@@ -79,6 +79,17 @@ export type PublicErrorPayload = {
   retryAfter?: number;
 };
 
+function infrastructureFailure(error: unknown, fallbackPublicMessage: string) {
+  if (!(error instanceof Error)) return null;
+  if (!/(?:D1_ERROR|database (?:is )?(?:unavailable|locked)|DB binding|D1 binding|Durable Object|MATCHES binding|match coordinator|network connection|fetch failed|timed? out)/i.test(error.message)) {
+    return null;
+  }
+  return new ServiceUnavailableError(
+    fallbackPublicMessage,
+    error.message,
+  );
+}
+
 export function serverErrorResponse(
   error: unknown,
   correlationId: string,
@@ -87,10 +98,11 @@ export function serverErrorResponse(
 ) {
   const typed = error instanceof ServerError
     ? error
-    : new UnexpectedServerError(
-      fallbackPublicMessage,
-      error instanceof Error ? error.message : String(error),
-    );
+    : infrastructureFailure(error, fallbackPublicMessage)
+      ?? new UnexpectedServerError(
+        fallbackPublicMessage,
+        error instanceof Error ? error.message : String(error),
+      );
   const detail = error instanceof Error
     ? { name: error.name, message: error.message, stack: error.stack }
     : { value: String(error) };
