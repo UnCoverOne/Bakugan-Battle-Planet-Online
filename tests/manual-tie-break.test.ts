@@ -100,7 +100,7 @@ test("X has zero Energy during a tie-break", () => {
 
 test("the gameplay client mounts the two-slot tie popup and reuses the deck flip action", () => {
   const gameplay = readFileSync(new URL("../components/game-screen-v2/GameplayClient.tsx", import.meta.url), "utf8");
-  const layer = readFileSync(new URL("../components/game-screen-v2/TieBreakLayer.tsx", import.meta.url), "utf8");
+  const layer = readFileSync(new URL("../components/game-screen-v2/TieBreakLayerImpl.tsx", import.meta.url), "utf8");
   const runtime = readFileSync(new URL("../lib/rules/runtime.ts", import.meta.url), "utf8");
 
   assert.match(gameplay, /<TieBreakLayer[\s\S]*onFlipTieBreakCard=\{flipTieBreak\}/);

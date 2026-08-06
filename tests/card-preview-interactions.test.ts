@@ -11,7 +11,7 @@ const brawlCss = readFileSync(
   "utf8",
 );
 const previewLayerSource = readFileSync(
-  new URL("../components/game-screen-v2/CardPreviewLayer.tsx", import.meta.url),
+  new URL("../components/game-screen-v2/CardPreviewLayerImpl.tsx", import.meta.url),
   "utf8",
 );
 
