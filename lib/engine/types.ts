@@ -91,6 +91,13 @@ export type CommandReceipt = {
   eventSequenceEnd: number;
 };
 export type EngineFault = { code: string; message: string; metric?: string; limit?: number; actual?: number; commandId: string; phase: MatchState["phase"]; createdAt: number; suspended: true };
+export type OriginalDeckManifest = {
+  playerId: string;
+  deckName: string;
+  cardCatalogIds: string[];
+  bakuganCatalogIds: string[];
+  coreCatalogIds: string[];
+};
 export type EngineMetadata = {
   schemaVersion: typeof ENGINE_SCHEMA_VERSION;
   applicationVersion: string;
@@ -103,6 +110,7 @@ export type EngineMetadata = {
   lastCommandId?: string;
   phase: StructuredPhase;
   receipts: CommandReceipt[];
+  originalDeckManifests?: Record<string, OriginalDeckManifest>;
   fault?: EngineFault;
   runtimeBudget?: { triggerChainDepth: number; effectSteps: number; replacementIterations: number; pendingChoices: number; physicalRollAttempts: number };
   timeoutStrikes?: Record<string, { decision: number; connectionGrace: number }>;
