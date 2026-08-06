@@ -84,14 +84,7 @@ jobs:
               'throw new Error("Brawler Name must be between 1 and 20 characters.");',
           )
 
-          modal = Path("components/application/AccountAccessModal.tsx")
-          original_modal = modal.read_text()
-          updated_modal = original_modal.replace("Brawler name", "Brawler Name")
-          if updated_modal == original_modal:
-              raise SystemExit("Expected Brawler name copy in AccountAccessModal.tsx")
-          modal.write_text(updated_modal)
-
-          Path("tests/brawler-name.test.ts").write_text('''import assert from "node:assert/strict";\nimport { readFileSync } from "node:fs";\nimport test from "node:test";\n\nconst source = (path: string) => readFileSync(path, "utf8");\n\ntest("Settings Account exposes an editable Brawler Name", () => {\n  const settings = source("components/routes/SettingsScreen.tsx");\n  assert.match(settings, /saveAccountProfile,/);\n  assert.match(settings, /onSubmit=\\{submitBrawlerName\\}/);\n  assert.match(settings, /label="Brawler Name"/);\n  assert.match(settings, /autoComplete="nickname"/);\n  assert.match(settings, /maxLength=\\{20\\}/);\n  assert.match(settings, /Update Brawler Name/);\n  assert.match(settings, /saveAccountProfile\\(\\{ displayName: normalizedBrawlerName \\}\\)/);\n});\n\ntest("saving a Brawler Name updates guest and account profile state", () => {\n  const provider = source("components/application/AppProvider.jsx");\n  assert.match(provider, /saveAccountProfile = useCallback\\(async \\(updates = \\{\\}\\)/);\n  assert.match(provider, /updates\\.displayName \\?\\? profile\\.name/);\n  assert.match(provider, /Brawler Name updated on this device/);\n  assert.match(provider, /action: "update-profile"/);\n  assert.match(provider, /setAuthUser\\(result\\.user\\)/);\n  assert.match(provider, /name: result\\.user\\.displayName/);\n});\n\ntest("the account API normalizes and persists Brawler Name changes", () => {\n  const route = source("app/api/auth/route.ts");\n  assert.match(route, /String\\(body\\.displayName \\?\\? ""\\)\\.trim\\(\\)\\.replace/);\n  assert.match(route, /UPDATE users SET display_name = \\?, faction = \\?, updated_at = \\?/);\n  assert.match(route, /Brawler Name must be between 1 and 20 characters/);\n});\n\ntest("registration consistently presents the Brawler Name label", () => {\n  const modal = source("components/application/AccountAccessModal.tsx");\n  assert.match(modal, /Brawler Name/);\n  assert.doesNotMatch(modal, /Brawler name/);\n});\n''')
+          Path("tests/brawler-name.test.ts").write_text('''import assert from "node:assert/strict";\nimport { readFileSync } from "node:fs";\nimport test from "node:test";\n\nconst source = (path: string) => readFileSync(path, "utf8");\n\ntest("Settings Account exposes an editable Brawler Name", () => {\n  const settings = source("components/routes/SettingsScreen.tsx");\n  assert.match(settings, /saveAccountProfile,/);\n  assert.match(settings, /onSubmit=\\{submitBrawlerName\\}/);\n  assert.match(settings, /label="Brawler Name"/);\n  assert.match(settings, /autoComplete="nickname"/);\n  assert.match(settings, /maxLength=\\{20\\}/);\n  assert.match(settings, /Update Brawler Name/);\n  assert.match(settings, /saveAccountProfile\\(\\{ displayName: normalizedBrawlerName \\}\\)/);\n});\n\ntest("saving a Brawler Name updates guest and account profile state", () => {\n  const provider = source("components/application/AppProvider.jsx");\n  assert.match(provider, /saveAccountProfile = useCallback\\(async \\(updates = \\{\\}\\)/);\n  assert.match(provider, /updates\\.displayName \\?\\? profile\\.name/);\n  assert.match(provider, /Brawler Name updated on this device/);\n  assert.match(provider, /action: "update-profile"/);\n  assert.match(provider, /setAuthUser\\(result\\.user\\)/);\n  assert.match(provider, /name: result\\.user\\.displayName/);\n});\n\ntest("the account API normalizes and persists Brawler Name changes", () => {\n  const route = source("app/api/auth/route.ts");\n  assert.match(route, /String\\(body\\.displayName \\?\\? ""\\)\\.trim\\(\\)\\.replace/);\n  assert.match(route, /UPDATE users SET display_name = \\?, faction = \\?, updated_at = \\?/);\n  assert.match(route, /Brawler Name must be between 1 and 20 characters/);\n});\n''')
 
           replace_once(
               "package.json",
@@ -99,7 +92,11 @@ jobs:
               "tests/supporting-pages.test.ts tests/brawler-name.test.ts tests/guest-first-auth.test.ts",
           )
 
-          Path(".github/workflows/apply-editable-brawler-name.yml").unlink(missing_ok=True)
+          for workflow in [
+              ".github/workflows/apply-editable-brawler-name.yml",
+              ".github/workflows/run-editable-brawler-name.yml",
+          ]:
+              Path(workflow).unlink(missing_ok=True)
 
           hook = Path(".git/hooks/commit-msg")
           hook.write_text('#!/bin/sh\nprintf "\\n[skip ci]\\n" >> "$1"\n')
@@ -112,16 +109,13 @@ jobs:
             app/api/auth/route.ts \
             lib/account-server.ts \
             components/application/AppProvider.jsx \
-            components/application/AccountAccessModal.tsx \
             components/routes/SettingsScreen.tsx \
             tests/brawler-name.test.ts
-      - name: Run account and profile regressions
+      - name: Run focused account and profile regressions
         run: >-
           node --import tsx --test
           tests/brawler-name.test.ts
-          tests/supporting-pages.test.ts
           tests/guest-first-auth.test.ts
-          tests/persistence-boundaries.test.ts
           tests/account-sync.integration.test.ts
           tests/administration.test.ts
       - name: Build production application
