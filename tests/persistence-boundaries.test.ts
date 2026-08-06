@@ -253,18 +253,21 @@ test("signed-in persistence never writes guest browser keys", () => {
   assert.doesNotMatch(provider, /loadCloud\(action === "signup"/);
 });
 
-test("registration creates its initial account snapshot atomically", () => {
+test("registration creates its initial account snapshot atomically and shared sync owns entity storage", () => {
   const authRoute = source("app/api/auth/route.ts");
   const userDataRoute = source("app/api/user-data/route.ts");
+  const accountData = source("lib/account-data-server.ts");
   assert.match(authRoute, /validateUserSnapshot\(body\.initialData\)/);
   assert.match(authRoute, /db\.batch\(\[/);
   assert.match(authRoute, /INSERT INTO user_data/);
   assert.match(authRoute, /revision: 1/);
-  assert.match(userDataRoute, /validateEntityUpdate\(candidate\)/);
-  assert.match(userDataRoute, /user_data_entities/);
-  assert.match(userDataRoute, /user_match_history/);
-  assert.match(userDataRoute, /ensureEntitySchema\(db\)/);
-  assert.match(userDataRoute, /CREATE TABLE IF NOT EXISTS user_data_entities/);
+  assert.match(userDataRoute, /syncAccountData\(db, user\.id, body\)/);
+  assert.match(userDataRoute, /loadAccountDataPayload/);
+  assert.match(accountData, /validateEntityUpdate\(candidate\)/);
+  assert.match(accountData, /user_data_entities/);
+  assert.match(accountData, /user_match_history/);
+  assert.match(accountData, /ensureAccountDataSchema\(db\)/);
+  assert.match(accountData, /CREATE TABLE IF NOT EXISTS user_data_entities/);
   assert.match(userDataRoute, /const json = .*Response\.json/);
 });
 
