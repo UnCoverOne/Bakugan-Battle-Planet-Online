@@ -118,8 +118,8 @@ export async function POST(request: Request) {
     if (action === "signup") {
       const displayName = String(body.displayName ?? "").trim().replace(/\s+/g, " ");
       const email = validateAccountInput(String(body.email ?? ""), String(body.password ?? ""), displayName);
-      const recoveryCode = validateRecoveryCode(body.recoveryCode);
-      const factions = ["Pyrus", "Aquos", "Darkus", "Haos", "Pyrus", "Ventus", "Aurelus"];
+      const recoveryCode = body.recoveryCode ? validateRecoveryCode(body.recoveryCode) : "";
+      const factions = ["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"];
       const faction = factions.includes(String(body.faction)) ? String(body.faction) : "Pyrus";
       if (await getUserByEmail(email)) throw new ConflictError("An account already exists for that email address.");
       if (!body.initialData || typeof body.initialData !== "object" || Array.isArray(body.initialData)) {
@@ -141,12 +141,12 @@ export async function POST(request: Request) {
         );
       }
       const password = await createPasswordRecord(String(body.password));
-      const recovery = await createPasswordRecord(recoveryCode);
+      const recovery = recoveryCode ? await createPasswordRecord(recoveryCode) : null;
       const id = crypto.randomUUID();
       const now = Date.now();
       await db.batch([
         db.prepare("INSERT INTO users (id, email, password_hash, password_salt, password_iterations, recovery_code_hash, recovery_code_salt, recovery_code_iterations, display_name, faction, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-          .bind(id, email, password.hash, password.salt, password.iterations, recovery.hash, recovery.salt, recovery.iterations, displayName, faction, now, now),
+          .bind(id, email, password.hash, password.salt, password.iterations, recovery?.hash ?? null, recovery?.salt ?? null, recovery?.iterations ?? null, displayName, faction, now, now),
         db.prepare("INSERT INTO user_data (user_id, revision, data_json, updated_at) VALUES (?, 1, ?, ?)")
           .bind(id, JSON.stringify(body.initialData), now),
       ]);
