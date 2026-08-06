@@ -1,9 +1,9 @@
 name: Clean up AI performance implementation
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - agent/optimize-ai-forecast-performance
 
 permissions:
   contents: write
