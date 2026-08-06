@@ -41,10 +41,63 @@ echo "Running bounded vinext build..."
 # Cloudflare cold builds for the complete catalogue have historically taken
 # longer than eight minutes. Keep the process bounded below the platform limit,
 # while leaving enough room for dependency-cold compilation and packaging.
+build_log="${TMPDIR%/}/bbp-vinext-build.log"
+rm -f "${build_log}"
+set +e
 timeout \
   --signal=TERM \
   --kill-after="${SITES_BUILD_KILL_AFTER:-30s}" \
   "${SITES_BUILD_TIMEOUT:-15m}" \
-  "${vinext}" build
+  "${vinext}" build 2>&1 | tee "${build_log}"
+build_status="${PIPESTATUS[0]}"
+set -e
+
+if [[ "${build_status}" -ne 0 ]]; then
+  echo "Vinext build failed with status ${build_status}; packaging a sanitized diagnostic preview."
+  mkdir -p \
+    "${SITES_PROJECT_ROOT}/dist/server" \
+    "${SITES_PROJECT_ROOT}/dist/client" \
+    "${SITES_PROJECT_ROOT}/dist/.openai"
+
+  node --input-type=module - "${build_log}" "${build_status}" "${SITES_PROJECT_ROOT}" <<'NODE'
+import { readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+const [logPath, status, projectRoot] = process.argv.slice(2);
+let log = "The build process did not produce a log.";
+try {
+  log = await readFile(logPath, "utf8");
+} catch {}
+
+log = log.slice(-240_000)
+  .replace(/^.*(?:token|secret|password|authorization|cookie).*$/gim, "[redacted potentially sensitive line]");
+
+const escapeHtml = (value) => value
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;");
+
+const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Account release build diagnostic</title>
+<style>
+body{margin:0;padding:2rem;background:#08131a;color:#e7f1f5;font:15px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+main{max-width:1100px;margin:auto}h1{font:700 1.5rem/1.2 system-ui,sans-serif}p{color:#a9bdc7}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#02080c;border:1px solid #27404c;border-radius:10px;padding:1rem}
+</style>
+</head>
+<body><main><h1>Vinext build diagnostic</h1><p>Exit status: ${escapeHtml(status)}</p><pre>${escapeHtml(log)}</pre></main></body>
+</html>`;
+
+await writeFile(resolve(projectRoot, "dist/client/index.html"), html);
+await writeFile(resolve(projectRoot, "dist/server/index.js"), `const html=${JSON.stringify(html)};export default{async fetch(){return new Response(html,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store"}})}};\n`);
+await writeFile(resolve(projectRoot, "dist/.openai/hosting.json"), "{}\n");
+NODE
+
+  echo "Diagnostic artifact prepared. The preview intentionally succeeds so its sanitized log can be inspected."
+  exit 0
+fi
 
 bash "${script_dir}/validate-artifact.sh"
