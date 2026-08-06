@@ -1,7 +1,7 @@
 npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
 npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
 
-added 519 packages in 15s
+added 519 packages in 16s
 
 /home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/GameplayClient.tsx
   378:6  warning  React Hook useEffect has missing dependencies: 'beginPlacement' and 'storedState.match'. Either include them or remove the dependency array   react-hooks/exhaustive-deps
@@ -11,9 +11,273 @@ added 519 packages in 15s
   518:6  warning  React Hook useEffect has missing dependencies: 'drawCard' and 'storedState.match'. Either include them or remove the dependency array         react-hooks/exhaustive-deps
   547:6  warning  React Hook useEffect has missing dependencies: 'passTurn' and 'storedState.match'. Either include them or remove the dependency array         react-hooks/exhaustive-deps
 
-/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/opponentAi.ts
-  449:7  error  'combinations' is never reassigned. Use 'const' instead  prefer-const
+✖ 6 problems (0 errors, 6 warnings)
 
-✖ 7 problems (1 error, 6 warnings)
-  1 error and 0 warnings potentially fixable with the `--fix` option.
-
+TAP version 13
+# Subtest: a stranded Flip has zero hand value but does not force Energize
+ok 1 - a stranded Flip has zero hand value but does not force Energize
+  ---
+  duration_ms: 3.460342
+  ...
+# Subtest: a Flip is naturally the least costly card when a reachable hand goal exists
+ok 2 - a Flip is naturally the least costly card when a reachable hand goal exists
+  ---
+  duration_ms: 1.727712
+  ...
+# Subtest: the AI protects its sole affordable card and skips without expendable fodder
+ok 3 - the AI protects its sole affordable card and skips without expendable fodder
+  ---
+  duration_ms: 0.551835
+  ...
+# Subtest: the AI recognizes a reachable two-card sequence as Energy demand
+ok 4 - the AI recognizes a reachable two-card sequence as Energy demand
+  ---
+  duration_ms: 1.074758
+  ...
+# Subtest: replaceable late-game cards are energized before early playable cards
+ok 5 - replaceable late-game cards are energized before early playable cards
+  ---
+  duration_ms: 1.490592
+  ...
+# Subtest: remaining deck composition creates lower-weight probabilistic Energy demand
+ok 6 - remaining deck composition creates lower-weight probabilistic Energy demand
+  ---
+  duration_ms: 0.492167
+  ...
+# Subtest: a remote low-probability deck card is not enough to justify Energize
+ok 7 - a remote low-probability deck card is not enough to justify Energize
+  ---
+  duration_ms: 0.326051
+  ...
+# Subtest: hand-limit discard treats a drawn Flip as zero retention value
+ok 8 - hand-limit discard treats a drawn Flip as zero retention value
+  ---
+  duration_ms: 1.273622
+  ...
+# Subtest: zero-likelihood Flips are energized before Shun Kazami at zero Energy
+ok 9 - zero-likelihood Flips are energized before Shun Kazami at zero Energy
+  ---
+  duration_ms: 7.760614
+  ...
+# Subtest: future Reroll value is bounded and increases with repeatable on-open Heroes
+ok 10 - future Reroll value is bounded and increases with repeatable on-open Heroes
+  ---
+  duration_ms: 9.842831
+  ...
+# Subtest: Energize protects a nested Flow combat response when expendable fodder exists
+ok 11 - Energize protects a nested Flow combat response when expendable fodder exists
+  ---
+  duration_ms: 0.39249
+  ...
+# Subtest: AI roll forecast includes Character abilities activated by the targeted BakuCore
+ok 12 - AI roll forecast includes Character abilities activated by the targeted BakuCore
+  ---
+  duration_ms: 45.480326
+  ...
+# Subtest: AI target selection uses the ability-aware roll forecast
+ok 13 - AI target selection uses the ability-aware roll forecast
+  ---
+  duration_ms: 15.82672
+  ...
+# Subtest: the complete supplied Battle Planet catalogue is normalized and playable
+not ok 14 - the complete supplied Battle Planet catalogue is normalized and playable
+  ---
+  duration_ms: 5.334516
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/game-engine.test.ts:1:2513'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    845 !== 843
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 843
+  actual: 845
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/game-engine.test.ts:58:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.start (node:internal/test_runner/test:829:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: the Hide Matrix is a radius-three axial hex and placement remains connected
+ok 15 - the Hide Matrix is a radius-three axial hex and placement remains connected
+  ---
+  duration_ms: 15.485831
+  ...
+# Subtest: separate copies of the same BakuCore catalogue entry can both be placed
+ok 16 - separate copies of the same BakuCore catalogue entry can both be placed
+  ---
+  duration_ms: 3.068252
+  ...
+# Subtest: the full turn enters Draw/Energize, Selection, pre-roll priority, target and Power
+ok 17 - the full turn enters Draw/Energize, Selection, pre-roll priority, target and Power
+  ---
+  duration_ms: 15.351658
+  ...
+# Subtest: priority is retained, the batch is LIFO, and an Action resolves only after sequential passes
+ok 18 - priority is retained, the batch is LIFO, and an Action resolves only after sequential passes
+  ---
+  duration_ms: 19.253513
+  ...
+# Subtest: Hero, Evo, Action, Flip and X-cost cards expose typed announcement and payment paths
+ok 19 - Hero, Evo, Action, Flip and X-cost cards expose typed announcement and payment paths
+  ---
+  duration_ms: 11.237992
+  ...
+# Subtest: B-Power ties use Energy-cost flips and the Victor Step precedes sequential damage
+ok 20 - B-Power ties use Energy-cost flips and the Victor Step precedes sequential damage
+  ---
+  duration_ms: 21.110521
+  ...
+# Subtest: damage Flips enter the batch, open a response window, and Stop ends damage only on resolution
+ok 21 - damage Flips enter the batch, open a response window, and Stop ends damage only on resolution
+  ---
+  duration_ms: 17.013994
+  ...
+# Subtest: a Team Attack combines open Bakugan, then all attackers retract
+ok 22 - a Team Attack combines open Bakugan, then all attackers retract
+  ---
+  duration_ms: 19.239747
+  ...
+# Subtest: the End Phase exposes Play, Charge, and Reset before hand limits and the next Start Phase
+ok 23 - the End Phase exposes Play, Charge, and Reset before hand limits and the next Start Phase
+  ---
+  duration_ms: 18.553869
+  ...
+# Subtest: best-of-three creates a fully reset second game
+ok 24 - best-of-three creates a fully reset second game
+  ---
+  duration_ms: 14.480071
+  ...
+# Subtest: AI does not spend a pure temporary combat card after its Bakugan misses
+ok 25 - AI does not spend a pure temporary combat card after its Bakugan misses
+  ---
+  duration_ms: 12.714803
+  ...
+# Subtest: AI keeps a temporary B-Power card that cannot turn a loss into a win
+ok 26 - AI keeps a temporary B-Power card that cannot turn a loss into a win
+  ---
+  duration_ms: 1.436352
+  ...
+# Subtest: AI commits a temporary B-Power card when the complete effect wins the Brawl
+ok 27 - AI commits a temporary B-Power card when the complete effect wins the Brawl
+  ---
+  duration_ms: 3.089524
+  ...
+# Subtest: AI keeps Tides when it already has the higher B-Power
+ok 28 - AI keeps Tides when it already has the higher B-Power
+  ---
+  duration_ms: 0.763177
+  ...
+# Subtest: AI plays Tides when its active Flow branch changes the projected Victor
+ok 29 - AI plays Tides when its active Flow branch changes the projected Victor
+  ---
+  duration_ms: 1.598161
+  ...
+# Subtest: AI keeps Tides when its Flow bonus still cannot win the Brawl
+ok 30 - AI keeps Tides when its Flow bonus still cannot win the Brawl
+  ---
+  duration_ms: 0.638163
+  ...
+# Subtest: independent card value remains playable even when its combat clause is insufficient
+ok 31 - independent card value remains playable even when its combat clause is insufficient
+  ---
+  duration_ms: 0.881242
+  ...
+# Subtest: Core placement branches instead of extending a player-facing straight line
+ok 32 - Core placement branches instead of extending a player-facing straight line
+  ---
+  duration_ms: 6.317974
+  ...
+# Subtest: AI Evo with optional unimplemented reminder text resolves after both players pass
+ok 33 - AI Evo with optional unimplemented reminder text resolves after both players pass
+  ---
+  duration_ms: 4.112736
+  ...
+# Subtest: AI waits to play Tides before the Roll even when Flow is active
+ok 34 - AI waits to play Tides before the Roll even when Flow is active
+  ---
+  duration_ms: 54.463311
+  ...
+# Subtest: AI waits to play Tides before the Roll when its base branch could swing the Brawl
+ok 35 - AI waits to play Tides before the Roll when its base branch could swing the Brawl
+  ---
+  duration_ms: 55.702612
+  ...
+# Subtest: AI may still play a hybrid pre-Roll card for independent draw value
+ok 36 - AI may still play a hybrid pre-Roll card for independent draw value
+  ---
+  duration_ms: 47.546889
+  ...
+# Subtest: AI reserves Energy for an in-hand B-Power response that can swing the forecasted Brawl
+ok 37 - AI reserves Energy for an in-hand B-Power response that can swing the forecasted Brawl
+  ---
+  duration_ms: 105.742439
+  ...
+# Subtest: AI plays the draw Hero when enough Energy remains for the same B-Power response
+ok 38 - AI plays the draw Hero when enough Energy remains for the same B-Power response
+  ---
+  duration_ms: 217.243236
+  ...
+# Subtest: AI values a draw Hero when its deck can produce an affordable missing response
+ok 39 - AI values a draw Hero when its deck can produce an affordable missing response
+  ---
+  duration_ms: 75.340894
+  ...
+# Subtest: AI has no hard ban on a third draw Hero when tactical Energy remains available
+ok 40 - AI has no hard ban on a third draw Hero when tactical Energy remains available
+  ---
+  duration_ms: 164.49772
+  ...
+# Subtest: AI plays a hand Reroll after opening without a Core when a Core pickup can win
+ok 41 - AI plays a hand Reroll after opening without a Core when a Core pickup can win
+  ---
+  duration_ms: 4.250839
+  ...
+# Subtest: AI starts a jointly winning temporary B-Power sequence when no single card is sufficient
+ok 42 - AI starts a jointly winning temporary B-Power sequence when no single card is sufficient
+  ---
+  duration_ms: 1.284547
+  ...
+# Subtest: AI reuses exact forecasts and projected Brawl scenarios within one decision
+not ok 43 - AI reuses exact forecasts and projected Brawl scenarios within one decision
+  ---
+  duration_ms: 441.824593
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/opponent-ai-tactics.test.ts:1:15803'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      next.batch.at(-1)
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/opponent-ai-tactics.test.ts:591:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:629:18)
+    Test.postRun (node:internal/test_runner/test:1042:19)
+    Test.run (node:internal/test_runner/test:970:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
+  ...
+# Subtest: AI holds Wave Slash until the roll provides Brawl information
+ok 44 - AI holds Wave Slash until the roll provides Brawl information
+  ---
+  duration_ms: 5.298807
+  ...
+1..44
+# tests 44
+# suites 0
+# pass 42
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4368.211635

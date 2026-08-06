@@ -446,7 +446,7 @@ function jointlyWinningTemporaryPowerCards(
   if (candidates.length < 2) return result;
 
   type Combination = { ids: string[]; cost: number; swing: number };
-  let combinations: Combination[] = [{ ids: [], cost: 0, swing: 0 }];
+  const combinations: Combination[] = [{ ids: [], cost: 0, swing: 0 }];
   const seen = new Set(["0:0:0"]);
   for (const candidate of candidates) {
     const existing = [...combinations];
