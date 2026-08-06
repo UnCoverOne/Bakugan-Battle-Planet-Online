@@ -11,7 +11,9 @@ test("administrator identity and authorization are server owned", async () => {
     read("app/api/admin/route.ts"),
     read("app/(workspace)/admin/page.tsx"),
   ]);
-  assert.match(accounts, /BOOTSTRAP_ADMIN_EMAIL = "uncover250@gmail\.com"/);
+  assert.match(accounts, /BOOTSTRAP_ADMIN_USER_ID/);
+  assert.doesNotMatch(accounts, /BOOTSTRAP_ADMIN_EMAIL|uncover250@gmail\.com/);
+  assert.match(accounts, /user\.id === bootstrapAdministratorId/);
   assert.match(accounts, /requireAdministrator/);
   assert.match(accounts, /account_roles/);
   assert.match(accounts, /account_bans/);
@@ -83,13 +85,17 @@ test("card edits are persisted as overrides and applied to client and authoritat
   assert.match(server, /normalizeCardEdit/);
   assert.match(server, /upsertResource\(db, "card"/);
   assert.match(data, /applyCardOverrides/);
+  assert.match(data, /constructionIdentity/);
   assert.match(publicApi, /loadCardOverrides/);
   assert.match(provider, /bbp-card-overrides-updated/);
   assert.match(game, /applyDatabaseCardOverrides/);
 });
 
-test("user management supports roles, scoped resets, bans, and deletion", async () => {
-  const api = await read("app/api/admin/route.ts");
+test("user management supports roles, entity-backed scoped resets, bans, and deletion", async () => {
+  const [api, accountData] = await Promise.all([
+    read("app/api/admin/route.ts"),
+    read("lib/account-data-server.ts"),
+  ]);
   for (const action of [
     "set-role",
     "reset-user-data",
@@ -101,7 +107,10 @@ test("user management supports roles, scoped resets, bans, and deletion", async 
     assert.match(api, new RegExp(`"${scope}"`));
   }
   assert.match(api, /bootstrap administrator account is protected/i);
-  assert.match(api, /await assertMutableUser\(db, userId\);\s*await resetUserData/);
+  assert.match(api, /await resetAccountData/);
+  assert.match(api, /await deleteAccountData/);
+  assert.match(accountData, /DELETE FROM user_data_entities/);
+  assert.match(accountData, /DELETE FROM user_match_history/);
   assert.match(api, /DELETE FROM sessions WHERE user_id/);
 });
 
