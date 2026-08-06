@@ -40,6 +40,14 @@ export function projectMatchForPlayer(state: MatchState, playerId: string, now =
   return projected;
 }
 
+function clientEventPayload(event: GameEvent) {
+  if (event.type === "CARD_MOVED" && event.payload.to === "energy") {
+    const { cardName: _cardName, cardType: _cardType, ...safe } = event.payload;
+    return { ...safe, cardName: "Face-down Energy card" };
+  }
+  return event.payload;
+}
+
 function publicShape(event: GameEvent): PublicGameEvent {
   return {
     gameId: event.gameId,
@@ -47,7 +55,7 @@ function publicShape(event: GameEvent): PublicGameEvent {
     sequence: event.sequence,
     type: event.type,
     actorId: event.actorId,
-    payload: event.payload,
+    payload: clientEventPayload(event),
     engineVersion: event.engineVersion,
     rulesVersion: event.rulesVersion,
     cardCatalogueVersion: event.cardCatalogueVersion,
