@@ -21,7 +21,10 @@ export function constructionIdentityForCard(card: {
   displayName?: string;
   effect?: string;
 }) {
-  const name = canonicalConstructionName(card.displayName || card.name || "");
+  // Internal names retain canonical distinctions such as set-qualified or
+  // Hero-ID variants. Printed-name aliases are applied when no richer internal
+  // identity is available.
+  const name = canonicalConstructionName(card.name || card.displayName || "");
   const functionText = normalizeText(card.effect || "");
   return `${name}\u001f${functionText}`;
 }
