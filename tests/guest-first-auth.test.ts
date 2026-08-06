@@ -6,7 +6,7 @@ import type { UserSnapshot } from "../lib/persistence";
 
 const source = (path: string) => readFileSync(path, "utf8");
 const guestSnapshot = (overrides: Partial<UserSnapshot> = {}) => ({
-  profile: { name: "DanBrawler", faction: "Pyrus", signedIn: false },
+  profile: { name: "Guest Brawler", faction: "Pyrus", signedIn: false },
   decks: [],
   history: [],
   settings: {
@@ -34,15 +34,18 @@ test("the root route is guest-first Home with no authentication landing page", (
   assert.match(source("app/(workspace)/dashboard/page.tsx"), /redirect\("\/"\)/);
 });
 
-test("logged-out avatar menu exposes Login then Register and reuses one account modal", () => {
+test("guest identity is generic and the avatar menu exposes only account access and Settings", () => {
+  const controller = source("components/application/GuestExperienceController.tsx");
   const shell = source("components/application/AppShell.jsx");
-  const menu = shell.slice(shell.indexOf('<nav aria-label="Profile menu">'), shell.indexOf("</nav>", shell.indexOf('<nav aria-label="Profile menu">')));
-  assert.match(menu, /authUser \?/);
-  assert.ok(menu.indexOf("Log In") < menu.indexOf("Register"));
-  assert.match(menu, /requestAccountAccess\("login"\)/);
-  assert.match(menu, /requestAccountAccess\("signup"\)/);
-  assert.match(shell, /AccountAccessModal/);
-  assert.match(shell, /GuestAccountPrompt/);
+  const css = source("app/guest-experience.css");
+  assert.match(controller, /GUEST_BRAWLER_NAME = "Guest Brawler"/);
+  assert.match(controller, /setProfile\(\{ \.\.\.profile, name: GUEST_BRAWLER_NAME/);
+  assert.match(shell, /requestAccountAccess\("login"\)/);
+  assert.match(shell, /requestAccountAccess\("signup"\)/);
+  assert.match(css, /profile-popover-stats[\s\S]*display: none/);
+  assert.match(css, /a\[href="\/profile"\]/);
+  assert.match(css, /a\[href="\/profile\/achievements"\]/);
+  assert.match(css, /profile-popover-auth/);
 });
 
 test("guest-data detection ignores a fresh profile and identifies meaningful progress", () => {
@@ -61,44 +64,78 @@ test("guest-data detection ignores a fresh profile and identifies meaningful pro
   assert.match(populated.labels.join(" · "), /saved deck/);
   assert.match(populated.labels.join(" · "), /match record/);
   assert.match(populated.labels.join(" · "), /custom Brawler profile/);
-
-  const customizedIdentity = summarizeGuestData(guestSnapshot({
-    profile: {
-      name: "DanBrawler",
-      faction: "Pyrus",
-      signedIn: false,
-      avatar: "preset:bb-343",
-      showcaseAchievementIds: ["first-win"],
-    },
-  }));
-  assert.equal(customizedIdentity.profileCustomized, true);
-  assert.match(customizedIdentity.labels.join(" · "), /custom Brawler profile/);
 });
 
-test("data import is offered once during registration and never during login", () => {
+test("registration uses one streamlined form with local import selected by default", () => {
   const modal = source("components/application/AccountAccessModal.tsx");
-  assert.match(modal, /mode === "signup" && guestData\.hasMeaningfulData/);
-  assert.match(modal, /setStep\("transfer"\)/);
-  assert.match(modal, /only time local guest data can be added/);
-  assert.match(modal, /Bring local data/);
-  assert.match(modal, /Start with an empty account/);
-  assert.match(modal, /importLocalData: mode === "signup"/);
-  assert.doesNotMatch(modal, /After login, use which data/);
-  assert.doesNotMatch(modal, /Use cloud copy/);
-  assert.match(modal, /returnTo: pathname/);
+  assert.match(modal, /bringLocalData, setBringLocalData\] = useState\(true\)/);
+  assert.match(modal, /Bring my local progress/);
+  assert.match(modal, /importLocalData: view === "signup" && bringLocalData/);
+  assert.doesNotMatch(modal, /setStep\("transfer"\)/);
+  assert.doesNotMatch(modal, /Start with an empty account/);
+  assert.match(modal, /Guest decks and progress remain preserved separately/);
+  assert.match(modal, /intent\?\.returnTo/);
 });
 
-test("deck saves and completed matches trigger dismissible, non-blocking account prompts", () => {
+test("Home previews account-only achievements without blocking guest play", () => {
+  const dashboard = source("components/routes/DashboardScreen.tsx");
+  assert.match(dashboard, /Welcome to Battle Planet/);
+  assert.match(dashboard, /START TRAINING/);
+  assert.match(dashboard, /BUILD A DECK/);
+  assert.match(dashboard, /achievement.*ready to unlock/is);
+  assert.match(dashboard, /Create Account/);
+  assert.match(dashboard, /Playing as Guest Brawler/);
+});
+
+test("guest Profile and Achievements routes redirect to an account benefits page", () => {
+  const controller = source("components/application/GuestExperienceController.tsx");
+  const accountPage = source("app/account/page.tsx");
+  const accountScreen = source("components/routes/GuestAccountScreen.tsx");
+  assert.match(controller, /pathname\.startsWith\("\/profile"\)/);
+  assert.match(controller, /router\.replace\(`\/account\?feature=\$\{reason\}`\)/);
+  assert.match(accountPage, /GuestAccountScreen/);
+  assert.match(accountScreen, /Unlock achievements/);
+  assert.match(accountScreen, /Publish Public decks/);
+  assert.match(accountScreen, /Build your profile/);
+});
+
+test("guest Public deck saves are converted to Private and resumed after registration", () => {
+  const controller = source("components/application/GuestExperienceController.tsx");
+  const css = source("app/guest-experience.css");
+  assert.match(controller, /deck\.visibility === "Public"/);
+  assert.match(controller, /visibility: "Private" as const/);
+  assert.match(controller, /promptAccount\("publish-deck"\)/);
+  assert.match(controller, /intent\.reason !== "publish-deck"/);
+  assert.match(controller, /visibility: "Public" as const/);
+  assert.match(css, /Account required to publish/);
+});
+
+test("deck saves and completed matches trigger contextual dismissible account prompts", () => {
   const decks = source("components/routes/DeckRoutes.tsx");
   const provider = source("components/application/AppProvider.jsx");
   const prompt = source("components/application/AccountAccessModal.tsx");
   assert.match(decks, /promptAccount\("deck-saved"\)/);
   assert.match(provider, /setAccountPrompt\("match-complete"\)/);
+  assert.match(prompt, /publish-deck/);
   assert.match(prompt, /Not now/);
   assert.match(prompt, /Deck saved on this device/);
   assert.match(prompt, /Match complete/);
 });
 
+test("password recovery uses rotating, hashed recovery codes", () => {
+  const modal = source("components/application/AccountAccessModal.tsx");
+  const route = source("app/api/auth/route.ts");
+  const schema = source("db/schema.ts");
+  assert.match(modal, /Forgot password\?/);
+  assert.match(modal, /generateRecoveryCode/);
+  assert.match(modal, /recover-password/);
+  assert.match(route, /recovery_code_hash/);
+  assert.match(route, /createPasswordRecord\(recoveryCode\)/);
+  assert.match(route, /recoveryCodeMatches/);
+  assert.match(route, /DELETE FROM sessions WHERE user_id/);
+  assert.match(schema, /recoveryCodeHash/);
+  assert.equal(existsSync("drizzle/0004_account_recovery.sql"), true);
+});
 
 test("signed-in routes block instead of falling back to guest data", () => {
   const shell = source("components/application/AppShell.jsx");
