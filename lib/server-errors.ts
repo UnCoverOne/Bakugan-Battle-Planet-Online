@@ -90,6 +90,16 @@ function infrastructureFailure(error: unknown, fallbackPublicMessage: string) {
   );
 }
 
+function ordinaryRouteValidationFailure(
+  error: unknown,
+  context: Record<string, unknown>,
+) {
+  if (!(error instanceof Error) || error.name !== "Error") return null;
+  const route = String(context.route ?? "");
+  if (route !== "/api/game" && route !== "/api/admin") return null;
+  return new ValidationError(error.message);
+}
+
 export function serverErrorResponse(
   error: unknown,
   correlationId: string,
@@ -99,6 +109,7 @@ export function serverErrorResponse(
   const typed = error instanceof ServerError
     ? error
     : infrastructureFailure(error, fallbackPublicMessage)
+      ?? ordinaryRouteValidationFailure(error, context)
       ?? new UnexpectedServerError(
         fallbackPublicMessage,
         error instanceof Error ? error.message : String(error),
