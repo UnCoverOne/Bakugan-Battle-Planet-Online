@@ -95,6 +95,7 @@ function ordinaryRouteValidationFailure(
   context: Record<string, unknown>,
 ) {
   if (!(error instanceof Error) || error.name !== "Error") return null;
+  if (String(context.method ?? "") !== "POST") return null;
   const route = String(context.route ?? "");
   if (route !== "/api/game" && route !== "/api/admin") return null;
   return new ValidationError(error.message);
