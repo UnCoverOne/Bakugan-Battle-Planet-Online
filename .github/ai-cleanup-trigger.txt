@@ -1,0 +1,1 @@
+Trigger branch workflow after its push configuration is active.
