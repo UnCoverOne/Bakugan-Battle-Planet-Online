@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { DeckRecord } from "../../lib/data";
 import {
@@ -11,6 +11,7 @@ import {
 import { useApp } from "./AppProvider";
 
 export const GUEST_BRAWLER_NAME = "Guest Brawler";
+const RECOVERY_DISPLAY_KEY = "bbp-pending-recovery-code-display-v1";
 
 export function GuestExperienceController() {
   const pathname = usePathname();
@@ -28,6 +29,8 @@ export function GuestExperienceController() {
     notify,
   } = useApp();
   const publicStateBootstrapped = useRef(false);
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [recoveryNotice, setRecoveryNotice] = useState("");
 
   useEffect(() => {
     document.documentElement.dataset.accountScope = authUser ? "account" : "guest";
@@ -96,6 +99,16 @@ export function GuestExperienceController() {
 
   useEffect(() => {
     if (!authUser || !accountDataReady) return;
+    try {
+      const code = sessionStorage.getItem(RECOVERY_DISPLAY_KEY) ?? "";
+      if (code) setRecoveryCode(code);
+    } catch {
+      // Recovery-code display is best effort when storage is unavailable.
+    }
+  }, [accountDataReady, authUser]);
+
+  useEffect(() => {
+    if (!authUser || !accountDataReady) return;
     const intent = readAccountIntent();
     if (!intent) return;
     if (intent.reason !== "publish-deck" || !intent.deckId) {
@@ -126,5 +139,43 @@ export function GuestExperienceController() {
     clearAccountIntent();
   }, [accountDataReady, authUser, decks, notify, setDecks]);
 
-  return null;
+  const copyRecoveryCode = async () => {
+    try {
+      await navigator.clipboard.writeText(recoveryCode);
+      setRecoveryNotice("Recovery code copied.");
+    } catch {
+      setRecoveryNotice("Copy the code manually before continuing.");
+    }
+  };
+
+  const dismissRecoveryCode = () => {
+    try {
+      sessionStorage.removeItem(RECOVERY_DISPLAY_KEY);
+    } catch {
+      // Nothing else is required.
+    }
+    setRecoveryCode("");
+    setRecoveryNotice("");
+  };
+
+  if (!recoveryCode) return null;
+
+  return (
+    <div className="recovery-code-backdrop" role="presentation">
+      <section className="recovery-code-dialog" role="dialog" aria-modal="true" aria-labelledby="recovery-code-title">
+        <span>Account recovery</span>
+        <h2 id="recovery-code-title">Save your recovery code</h2>
+        <p>
+          This code can reset your password if you lose access. It is stored only as a secure hash and will not be shown again after you continue.
+        </p>
+        <code>{recoveryCode}</code>
+        <p className="recovery-code-warning">Store it in a password manager or another private place. A new login replaces the previous recovery code.</p>
+        {recoveryNotice && <p className="recovery-code-status" role="status">{recoveryNotice}</p>}
+        <div>
+          <button type="button" onClick={() => void copyRecoveryCode()}>Copy Code</button>
+          <button type="button" onClick={dismissRecoveryCode}>I Have Saved It</button>
+        </div>
+      </section>
+    </div>
+  );
 }
