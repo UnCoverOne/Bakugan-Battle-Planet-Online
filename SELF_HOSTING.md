@@ -68,6 +68,22 @@ npx wrangler d1 execute bakugan-battle-planet-online --remote --file=./drizzle/0
 
 The APIs also create the tables defensively on first use, but applying both migrations makes deployment state explicit.
 
+### Configure the bootstrap administrator by immutable user ID
+
+Administrator access is never granted from an email address. First register the intended administrator account, then read its immutable user ID:
+
+```bash
+npx wrangler d1 execute bakugan-battle-planet-online --remote --command="SELECT id, email FROM users ORDER BY created_at ASC;" --config wrangler.jsonc
+```
+
+Store that exact ID as the Worker secret `BOOTSTRAP_ADMIN_USER_ID`:
+
+```bash
+npx wrangler secret put BOOTSTRAP_ADMIN_USER_ID --config wrangler.jsonc
+```
+
+Paste only the immutable `users.id` value when prompted. Redeploy after adding or changing the secret. Existing administrators with an explicit row in `account_roles` continue to work independently of the bootstrap setting.
+
 ## 4. Build and validate
 
 ```bash
@@ -91,7 +107,7 @@ Wrangler builds and deploys the site, then prints a `*.workers.dev` URL. Open it
 3. On browser A, create a room in Online Match.
 4. On browser B, join with the room code.
 5. Ready both players, place the twelve BakuCores, and advance through energize, selection, secret targeting, roll, brawl, damage, end, and result states.
-6. Refresh one browser during the match and confirm it reconnects within 30 seconds.
+6. Refresh one browser during the match and confirm it reconnects within the two-minute grace period.
 7. Create an account, edit a deck or setting, then log in from a second browser profile and confirm that the data appears there.
 8. Sign out and confirm that the browser copy remains available through **Local Profile** mode.
 
@@ -108,7 +124,7 @@ git remote add origin https://github.com/YOUR-USER/YOUR-REPOSITORY.git
 git push -u origin main
 ```
 
-The D1 database ID is an infrastructure identifier, not a password, so it can remain in `wrangler.jsonc`. Never commit Cloudflare API tokens, `.dev.vars`, `.env` files, or account credentials.
+The D1 database ID is an infrastructure identifier, not a password, so it can remain in `wrangler.jsonc`. Never commit Cloudflare API tokens, `.dev.vars`, `.env` files, account credentials, or the bootstrap administrator user ID.
 
 ## 7A. Recommended continuous deployment: Cloudflare Workers Builds
 
@@ -133,7 +149,7 @@ Cloudflare Workers Builds connects directly to GitHub and deploys every push wit
 7. Leave the root directory as `/` unless the repository is a monorepo.
 8. Save and deploy.
 
-Because the D1 binding is declared in `wrangler.jsonc`, future builds use the same database. Check the first build log and then test the deployed room flow with two browsers.
+Because the D1 binding is declared in `wrangler.jsonc`, future builds use the same database. Worker secrets, including `BOOTSTRAP_ADMIN_USER_ID`, remain attached to the Worker. Check the first build log and then test the deployed room flow with two browsers.
 
 ## 7B. Alternative continuous deployment: GitHub Actions
 
@@ -219,6 +235,10 @@ Workers Builds or GitHub Actions will deploy the pushed commit. For a manual dep
 
 The Worker does not have a D1 binding named `DB`. Confirm the `d1_databases` entry in `wrangler.jsonc`, the real database ID, and that the deployment used `--config wrangler.jsonc`.
 
+### Administrator access is missing
+
+Confirm that `BOOTSTRAP_ADMIN_USER_ID` contains the immutable `users.id` value rather than an email address, username, or role name. Re-run the D1 query in section 3, update the Worker secret, and redeploy. An administrator may also assign an explicit `administrator` role through `account_roles`.
+
 ### The page loads but room creation fails
 
 Open browser developer tools, inspect the `/api/game` response, and check Worker logs:
@@ -226,6 +246,8 @@ Open browser developer tools, inspect the `/api/game` response, and check Worker
 ```bash
 npx wrangler tail bakugan-battle-planet-online
 ```
+
+Error responses include a correlation ID. Search Worker logs for that ID to find the detailed server-only exception without exposing database or infrastructure details to the browser.
 
 ### Build scripts fail on Windows
 
@@ -242,11 +264,11 @@ Review Cloudflare's current Workers and D1 usage dashboards. Limits and pricing 
 ## 13. Security and production checklist
 
 - Keep Cloudflare and GitHub accounts protected with MFA.
-- Never commit API tokens, backups, `.env*`, or `.dev.vars`.
+- Never commit API tokens, backups, `.env*`, `.dev.vars`, or bootstrap administrator IDs.
 - Keep the Worker API and the UI on the same origin.
 - Review the commercial-asset permission before making the repository public.
 - Add moderation/privacy terms before collecting public user accounts or chat.
-- Add rate limiting, account authentication, abuse controls, and an administrator workflow before advertising an unrestricted public service.
+- Keep rate limiting, account authentication, abuse controls, and administrator role assignments enabled before advertising an unrestricted public service.
 - Periodically remove abandoned match rows according to a published retention policy.
 - Treat the current local profile UI as client-side identity, not secure authentication.
 
@@ -257,7 +279,7 @@ Review Cloudflare's current Workers and D1 usage dashboards. Limits and pricing 
 - Cloudflare D1 getting started: https://developers.cloudflare.com/d1/get-started/
 - Cloudflare Workers Builds: https://developers.cloudflare.com/workers/ci-cd/builds/
 - Cloudflare GitHub Actions: https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
-- GitHub repository creation: https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository
+- GitHub repository creation: https://docs.github.com/en/repositories/creating-and-managing-files/managing-files/creating-new-files
 
 ### Accounts work locally but not after deployment
 
