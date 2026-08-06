@@ -61,11 +61,6 @@ function writeStorage(storage: Storage, key: string, value: unknown) {
   }
 }
 
-/**
- * Match routes are authoritative while their client bundle is mounted. This
- * prevents a stale, debounced route value in localStorage from making the
- * gameplay tree render nothing after App Router navigation.
- */
 export function gameplayRouteForPathname(pathname: string) {
   const normalized = pathname.replace(/\/+$/, "") || "/";
   if (normalized === "/play/match" || normalized.startsWith("/play/match/")) return "match";
@@ -81,8 +76,7 @@ function readPersistedMatchStore(): MatchStoreSnapshot {
   const settings = parse<MatchClientSettings>(readStorage(localStorage, SETTINGS_KEY), {});
   const storedMatch = parse<MatchState | null>(readStorage(localStorage, MATCH_KEY), null);
   const capability = parse<string | undefined>(
-    readStorage(sessionStorage, CAPABILITY_KEY)
-      ?? readStorage(localStorage, CAPABILITY_KEY),
+    readStorage(sessionStorage, CAPABILITY_KEY) ?? readStorage(localStorage, CAPABILITY_KEY),
     undefined,
   );
   return {
@@ -123,15 +117,9 @@ function refresh() {
     && inMemoryMatch
     && pendingPersistedMatch.id === inMemoryMatch.id
     && pendingPersistedMatch.version === inMemoryMatch.version
-    && (
-      !persistedMatch
-      || inMemoryMatch.id !== persistedMatch.id
-      || inMemoryMatch.version > persistedMatch.version
-    )
+    && (!persistedMatch || inMemoryMatch.id !== persistedMatch.id || inMemoryMatch.version > persistedMatch.version)
   );
-  const next = keepNewerInMemoryMatch
-    ? { ...persisted, match: inMemoryMatch }
-    : persisted;
+  const next = keepNewerInMemoryMatch ? { ...persisted, match: inMemoryMatch } : persisted;
   if (snapshotsMatch(snapshot, next)) return;
   snapshot = next;
   notify();
@@ -206,13 +194,6 @@ export function useMatchSelector<T>(
   return useSyncExternalStore(subscribe, selectedSnapshot, serverSnapshot);
 }
 
-/**
- * Atomically hands the AppProvider's in-memory match state to the route-local
- * gameplay store before GameplayRuntime mounts. The provider intentionally
- * debounces durable browser writes, so relying on localStorage alone creates a
- * race where /play/match sees route="play" and match=null and renders a blank
- * immersive shell.
- */
 export function primeMatchStore(next: MatchStoreBootstrap) {
   if (typeof window === "undefined") return EMPTY;
   initialize();
@@ -229,15 +210,11 @@ export function primeMatchStore(next: MatchStoreBootstrap) {
   }
 
   const primed: MatchStoreSnapshot = {
-    route: next.route
-      ?? gameplayRouteForPathname(window.location.pathname)
-      ?? snapshot.route,
+    route: next.route ?? gameplayRouteForPathname(window.location.pathname) ?? snapshot.route,
     online: next.online ?? snapshot.online,
     playerId: next.playerId ?? snapshot.playerId,
     capability: next.capability ?? snapshot.capability,
-    settings: next.settings
-      ? { ...snapshot.settings, ...next.settings }
-      : snapshot.settings,
+    settings: next.settings ? { ...snapshot.settings, ...next.settings } : snapshot.settings,
     match: primedMatch,
   };
 
@@ -248,8 +225,6 @@ export function primeMatchStore(next: MatchStoreBootstrap) {
     writeStorage(sessionStorage, CAPABILITY_KEY, primed.capability);
     try { localStorage.removeItem(CAPABILITY_KEY); } catch {}
   }
-  // Settings can be account-scoped, so bootstrap them in memory without
-  // copying signed-in account preferences into guest localStorage.
   if (next.match !== undefined && acceptedMatch) writeStorage(localStorage, MATCH_KEY, primed.match);
 
   if (!snapshotsMatch(snapshot, primed)) {
@@ -309,67 +284,198 @@ export function localUndoSnapshot() {
   return parse<MatchState | null>(localStorage.getItem(PREVIOUS_MATCH_KEY), null);
 }
 
+type SocketListeners = {
+  open: EventListener;
+  message: EventListener;
+  close: EventListener;
+  error: EventListener;
+};
+
 let transport: WebSocket | null = null;
-let fallbackTimer = 0;
+let transportListeners: SocketListeners | null = null;
 let transportIdentity = "";
+let transportGeneration = 0;
+let intentionalClose = false;
+let reconnectTimer = 0;
+let pollTimer = 0;
+let pollController: AbortController | null = null;
+let reconnectAttempt = 0;
+let pollFailureCount = 0;
+let lastPollFailureLogAt = 0;
+
+function clearReconnectTimer() {
+  if (reconnectTimer) window.clearTimeout(reconnectTimer);
+  reconnectTimer = 0;
+}
+
+function clearPollTimer() {
+  if (pollTimer) window.clearTimeout(pollTimer);
+  pollTimer = 0;
+}
+
+function abortPoll() {
+  pollController?.abort();
+  pollController = null;
+}
+
+function detachSocketListeners(socket: WebSocket) {
+  if (!transportListeners) return;
+  socket.removeEventListener("open", transportListeners.open);
+  socket.removeEventListener("message", transportListeners.message);
+  socket.removeEventListener("close", transportListeners.close);
+  socket.removeEventListener("error", transportListeners.error);
+  transportListeners = null;
+}
+
+function closeSocketIntentionally() {
+  const socket = transport;
+  transport = null;
+  if (!socket) return;
+  intentionalClose = true;
+  detachSocketListeners(socket);
+  try { socket.close(1000, "Transport replaced"); } catch {}
+  intentionalClose = false;
+}
 
 function stopTransport() {
-  if (fallbackTimer) window.clearInterval(fallbackTimer);
-  fallbackTimer = 0;
-  transport?.close();
-  transport = null;
+  transportGeneration += 1;
+  clearReconnectTimer();
+  clearPollTimer();
+  abortPoll();
+  closeSocketIntentionally();
   transportIdentity = "";
+  reconnectAttempt = 0;
+  pollFailureCount = 0;
 }
 
-async function pollOnce(state: MatchStoreSnapshot) {
-  if (!state.match || !state.playerId) return;
-  const response = await fetch("/api/game", {
-    method: "POST",
-    cache: "no-store",
-    headers: { "content-type": "application/json", ...(state.capability ? { "x-match-capability": state.capability } : {}) },
-    body: JSON.stringify({ action: "get", code: state.match.code, playerId: state.playerId }),
-  });
-  const data = await response.json() as { state?: MatchState };
-  if (data.state) publishMatch(data.state, false);
+function transportEligible(state: MatchStoreSnapshot) {
+  return Boolean(state.online && state.match && state.playerId && ["lobby", "match"].includes(state.route));
 }
 
-function startFallback(state: MatchStoreSnapshot) {
-  if (fallbackTimer) return;
-  void pollOnce(state);
-  fallbackTimer = window.setInterval(() => void pollOnce(readMatchStore()), document.hidden ? 5_000 : 2_500);
+function pollDelay() {
+  const base = document.hidden ? 12_000 : 2_500;
+  return Math.min(30_000, base * Math.max(1, 2 ** Math.min(pollFailureCount, 3)));
 }
 
-function startTransport(state: MatchStoreSnapshot) {
-  if (!state.online || !state.match || !state.playerId || !["lobby", "match"].includes(state.route)) return stopTransport();
-  const identity = `${state.match.code}:${state.playerId}:${state.capability ?? ""}`;
-  if (transportIdentity === identity && (transport || fallbackTimer)) return;
-  stopTransport();
-  transportIdentity = identity;
+function reportPollFailure(error: unknown) {
+  const now = Date.now();
+  if (now - lastPollFailureLogAt < 30_000) return;
+  lastPollFailureLogAt = now;
+  console.warn("Match polling failed; retrying with backoff.", error instanceof Error ? error.message : String(error));
+}
+
+async function pollOnce(state: MatchStoreSnapshot, generation: number) {
+  if (generation !== transportGeneration || !transportEligible(state) || !state.match || !state.playerId) return;
+  abortPoll();
+  const controller = new AbortController();
+  pollController = controller;
+  try {
+    const response = await fetch("/api/game", {
+      method: "POST",
+      cache: "no-store",
+      signal: controller.signal,
+      headers: {
+        "content-type": "application/json",
+        ...(state.capability ? { "x-match-capability": state.capability } : {}),
+      },
+      body: JSON.stringify({ action: "get", code: state.match.code, playerId: state.playerId }),
+    });
+    const data = await response.json().catch(() => ({})) as { state?: MatchState; error?: string };
+    if (!response.ok) throw new Error(data.error || `Match polling returned HTTP ${response.status}.`);
+    if (generation !== transportGeneration) return;
+    if (data.state) publishMatch(data.state, false);
+    pollFailureCount = 0;
+  } catch (error) {
+    if (controller.signal.aborted || generation !== transportGeneration) return;
+    pollFailureCount += 1;
+    reportPollFailure(error);
+  } finally {
+    if (pollController === controller) pollController = null;
+  }
+}
+
+function schedulePoll(generation: number, immediate = false) {
+  if (generation !== transportGeneration || pollTimer) return;
+  pollTimer = window.setTimeout(async () => {
+    pollTimer = 0;
+    await pollOnce(readMatchStore(), generation);
+    if (generation === transportGeneration && !transport && transportEligible(readMatchStore())) {
+      schedulePoll(generation);
+    }
+  }, immediate ? 0 : pollDelay());
+}
+
+function scheduleReconnect(generation: number) {
+  if (generation !== transportGeneration || reconnectTimer || !transportEligible(readMatchStore())) return;
+  const exponential = Math.min(30_000, 1_000 * (2 ** Math.min(reconnectAttempt, 5)));
+  const jitter = Math.floor(Math.random() * Math.max(250, exponential * 0.3));
+  reconnectAttempt += 1;
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = 0;
+    connectTransport(readMatchStore(), generation);
+  }, exponential + jitter);
+}
+
+function connectTransport(state: MatchStoreSnapshot, generation: number) {
+  if (generation !== transportGeneration || !transportEligible(state) || !state.match || !state.playerId) return;
+  closeSocketIntentionally();
   const url = new URL("/api/game/socket", location.href);
   url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
   url.searchParams.set("code", state.match.code);
   url.searchParams.set("playerId", state.playerId);
+
   try {
-    transport = new WebSocket(url, state.capability ? ["bbp-match-v1", `cap.${state.capability}`] : ["bbp-match-v1"]);
-    transport.addEventListener("message", (event) => {
-      try {
-        const message = JSON.parse(String(event.data)) as { type?: string; state?: MatchState };
-        if (message.state) publishMatch(message.state, false);
-      } catch { /* Ignore malformed transport frames. */ }
-    });
-    transport.addEventListener("open", () => {
-      if (fallbackTimer) window.clearInterval(fallbackTimer);
-      fallbackTimer = 0;
-    });
-    transport.addEventListener("close", () => {
-      startFallback(readMatchStore());
-    });
-    transport.addEventListener("error", () => {
-      startFallback(readMatchStore());
-    });
-  } catch {
-    startFallback(state);
+    const socket = new WebSocket(url, state.capability ? ["bbp-match-v1", `cap.${state.capability}`] : ["bbp-match-v1"]);
+    transport = socket;
+    let disconnected = false;
+    const handleDisconnect = () => {
+      if (disconnected || generation !== transportGeneration || intentionalClose) return;
+      disconnected = true;
+      if (transport === socket) transport = null;
+      detachSocketListeners(socket);
+      try { socket.close(); } catch {}
+      schedulePoll(generation, true);
+      scheduleReconnect(generation);
+    };
+    const listenersForSocket: SocketListeners = {
+      open: (() => {
+        if (generation !== transportGeneration) return handleDisconnect();
+        reconnectAttempt = 0;
+        pollFailureCount = 0;
+        clearReconnectTimer();
+        clearPollTimer();
+        abortPoll();
+      }) as EventListener,
+      message: ((event: MessageEvent) => {
+        if (generation !== transportGeneration) return;
+        try {
+          const message = JSON.parse(String(event.data)) as { type?: string; state?: MatchState };
+          if (message.state) publishMatch(message.state, false);
+        } catch { /* Ignore malformed transport frames. */ }
+      }) as EventListener,
+      close: handleDisconnect as EventListener,
+      error: handleDisconnect as EventListener,
+    };
+    transportListeners = listenersForSocket;
+    socket.addEventListener("open", listenersForSocket.open);
+    socket.addEventListener("message", listenersForSocket.message);
+    socket.addEventListener("close", listenersForSocket.close);
+    socket.addEventListener("error", listenersForSocket.error);
+  } catch (error) {
+    reportPollFailure(error);
+    schedulePoll(generation, true);
+    scheduleReconnect(generation);
   }
+}
+
+function startTransport(state: MatchStoreSnapshot) {
+  if (!transportEligible(state) || !state.match || !state.playerId) return stopTransport();
+  const identity = `${state.match.code}:${state.playerId}:${state.capability ?? ""}`;
+  if (transportIdentity === identity && (transport || reconnectTimer || pollTimer)) return;
+  stopTransport();
+  transportIdentity = identity;
+  const generation = transportGeneration;
+  connectTransport(state, generation);
 }
 
 export function useMatchTransport() {
