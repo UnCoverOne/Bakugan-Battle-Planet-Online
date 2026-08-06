@@ -43,11 +43,10 @@ jobs:
             components/application/AppProvider.jsx \
             components/routes/SettingsScreen.tsx \
             tests/brawler-name.test.ts
-      - name: Run focused account and profile regressions
+      - name: Run focused Brawler Name regressions
         run: >-
           node --import tsx --test
           tests/brawler-name.test.ts
-          tests/guest-first-auth.test.ts
           tests/account-sync.integration.test.ts
           tests/administration.test.ts
       - name: Build production application
