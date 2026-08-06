@@ -3,6 +3,8 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 import { concedeMatch, normalizeMatchState, redactForPlayer, type MatchState } from "../lib/game";
 import { nextMatchAlarmAt, resolveExpiredDeadline } from "../lib/deadlines";
+import { markInternalMatchRequest, stripInternalMatchHeaders } from "../lib/internal-request";
+import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
 
 interface Env {
   ASSETS: Fetcher;
@@ -28,6 +30,8 @@ type HibernatingState = {
   };
 };
 
+const FORWARDED_MATCH_URL_HEADER = "x-bbp-forwarded-match-url";
+
 async function sha256(value: string) {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(bytes), (item) => item.toString(16).padStart(2, "0")).join("");
@@ -40,8 +44,19 @@ export class MatchRoom {
     await this.state.storage.put("snapshot", match);
     await this.state.storage.setAlarm(nextMatchAlarmAt(match));
     for (const socket of this.state.getWebSockets()) {
-      const attachment = socket.deserializeAttachment?.() as { playerId?: string } | undefined;
-      if (attachment?.playerId) socket.send(JSON.stringify({ type: "state", state: redactForPlayer(match, attachment.playerId) }));
+      try {
+        const attachment = socket.deserializeAttachment?.() as { playerId?: string } | undefined;
+        if (attachment?.playerId) {
+          socket.send(JSON.stringify({ type: "state", state: redactForPlayer(match, attachment.playerId) }));
+        }
+      } catch (error) {
+        console.error(JSON.stringify({
+          event: "match_socket_publish_failed",
+          code: match.code,
+          message: error instanceof Error ? error.message : String(error),
+        }));
+        try { socket.close(1011, "Transport failure"); } catch {}
+      }
     }
   }
 
@@ -55,11 +70,17 @@ export class MatchRoom {
 
     if (request.method === "POST" && url.pathname === "/action") {
       const code = String(url.searchParams.get("code") ?? "").toUpperCase();
-      const originalUrl = request.headers.get("x-original-url") ?? "https://match.invalid/api/game";
+      const originalUrl = request.headers.get(FORWARDED_MATCH_URL_HEADER) ?? "https://match.invalid/api/game";
       const headers = new Headers(request.headers);
-      headers.set("x-match-coordinator", "durable-object");
-      headers.delete("x-original-url");
-      const internalRequest = new Request(originalUrl, { method: "POST", headers, body: request.body, duplex: "half" } as RequestInit & { duplex: "half" });
+      headers.delete(FORWARDED_MATCH_URL_HEADER);
+      stripInternalMatchHeaders(headers);
+      markInternalMatchRequest(headers, originalUrl);
+      const internalRequest = new Request(originalUrl, {
+        method: "POST",
+        headers,
+        body: request.body,
+        duplex: "half",
+      } as RequestInit & { duplex: "half" });
       const context: ExecutionContext = { waitUntil: () => undefined, passThroughOnException: () => undefined };
       const response = await handler.fetch(internalRequest, this.env, context);
       const row = await this.env.DB.prepare("SELECT state_json FROM matches WHERE code = ?").bind(code).first<{ state_json: string }>();
@@ -108,7 +129,7 @@ export class MatchRoom {
     if (attachment?.playerId && snapshot?.code) {
       await this.env.DB.prepare("UPDATE match_presence SET connected = 0, last_seen = ? WHERE code = ? AND player_id = ?")
         .bind(Date.now(), snapshot.code, attachment.playerId).run();
-      await this.state.storage.setAlarm(Math.min(nextMatchAlarmAt(snapshot), Date.now() + 2 * 60 * 1_000));
+      await this.state.storage.setAlarm(Math.min(nextMatchAlarmAt(snapshot), Date.now() + MATCH_RECONNECT_GRACE_MS));
     }
   }
   async webSocketError(socket: WebSocket) { await this.webSocketClose(socket); }
@@ -129,7 +150,7 @@ export class MatchRoom {
       const presence = await this.env.DB.prepare(
         "SELECT player_id, last_seen FROM match_presence WHERE code = ? AND connected = 0 ORDER BY last_seen ASC LIMIT 1",
       ).bind(snapshot.code).first<{ player_id: string; last_seen: number }>();
-      if (presence && now - Number(presence.last_seen) >= 2 * 60 * 1_000) {
+      if (presence && now - Number(presence.last_seen) >= MATCH_RECONNECT_GRACE_MS) {
         next = concedeMatch(snapshot, presence.player_id);
         next.resultReason = "Opponent abandoned the match";
         next.log.push({
@@ -213,22 +234,24 @@ function isFingerprintedAsset(pathname: string, searchParams?: URLSearchParams) 
     || /^[a-f0-9]{8}$/i.test(searchParams?.get("v") ?? "");
 }
 
-// Image security config. SVG sources with .svg extension auto-skip the
-// optimization endpoint on the client side (served directly, no proxy).
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const url = new URL(request.url);
+    const sanitizedHeaders = new Headers(request.headers);
+    stripInternalMatchHeaders(sanitizedHeaders);
+    sanitizedHeaders.delete(FORWARDED_MATCH_URL_HEADER);
+    const sanitizedRequest = new Request(request, { headers: sanitizedHeaders });
+    const url = new URL(sanitizedRequest.url);
 
-    if (url.pathname === "/api/game" && request.method === "POST" && request.headers.get("x-match-coordinator") !== "durable-object") {
-      const body = await request.clone().json().catch(() => null) as { action?: string; code?: string } | null;
+    if (url.pathname === "/api/game" && sanitizedRequest.method === "POST") {
+      const body = await sanitizedRequest.clone().json().catch(() => null) as { action?: string; code?: string } | null;
       const code = String(body?.code ?? "").toUpperCase();
       if (body?.action !== "create" && /^[A-Z2-9]{6}$/.test(code)) {
-        const headers = new Headers(request.headers);
-        headers.set("x-original-url", request.url);
+        const headers = new Headers(sanitizedRequest.headers);
+        headers.set(FORWARDED_MATCH_URL_HEADER, sanitizedRequest.url);
         return env.MATCHES.getByName(code).fetch(new Request(`https://match.internal/action?code=${code}`, {
           method: "POST",
           headers,
-          body: request.body,
+          body: sanitizedRequest.body,
           duplex: "half",
         } as RequestInit & { duplex: "half" }));
       }
@@ -237,13 +260,13 @@ const worker = {
     if (url.pathname === "/api/game/socket") {
       const code = String(url.searchParams.get("code") ?? "").toUpperCase();
       if (!/^[A-Z2-9]{6}$/.test(code)) return new Response("Invalid room code", { status: 400 });
-      return env.MATCHES.getByName(code).fetch(request);
+      return env.MATCHES.getByName(code).fetch(sanitizedRequest);
     }
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
-      const optimized = await handleImageOptimization(request, {
-        fetchAsset: (path) => env.ASSETS.fetch(new Request(new URL(path, request.url))),
+      const optimized = await handleImageOptimization(sanitizedRequest, {
+        fetchAsset: (path) => env.ASSETS.fetch(new Request(new URL(path, sanitizedRequest.url))),
         transformImage: async (body, { width, format, quality }) => {
           const result = await env.IMAGES.input(body).transform(width > 0 ? { width } : {}).output({ format, quality });
           return result.response();
@@ -253,10 +276,10 @@ const worker = {
     }
 
     if (
-      request.method === "GET"
+      sanitizedRequest.method === "GET"
       && (url.pathname.startsWith("/assets/") || url.pathname === "/favicon.svg" || url.pathname === "/sw.js")
     ) {
-      const asset = await env.ASSETS.fetch(request);
+      const asset = await env.ASSETS.fetch(sanitizedRequest);
       if (asset.status !== 404) {
         const immutable = isFingerprintedAsset(url.pathname, url.searchParams) && url.pathname !== "/sw.js";
         const artwork = /^\/assets\/(?:cards|cores)\//.test(url.pathname);
@@ -273,9 +296,9 @@ const worker = {
       }
     }
 
-    const response = await handler.fetch(request, env, ctx);
+    const response = await handler.fetch(sanitizedRequest, env, ctx);
     const contentType = response.headers.get("content-type") ?? "";
-    if (request.method === "GET" && (contentType.includes("text/html") || contentType.includes("text/x-component"))) {
+    if (sanitizedRequest.method === "GET" && (contentType.includes("text/html") || contentType.includes("text/x-component"))) {
       return withCacheHeaders(response, "no-cache, max-age=0, must-revalidate");
     }
     return withSecurityHeaders(response);
