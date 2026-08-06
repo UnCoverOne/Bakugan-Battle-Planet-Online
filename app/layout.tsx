@@ -10,6 +10,7 @@ import "./interface-refinements.css";
 import "./site-consistency.css";
 import "./deck-builder-layout.css";
 import "./guest-experience.css";
+import "./guest-avatar.css";
 import "./guest-overrides.css";
 import "./recovery-code.css";
 import { AppProvider } from "../components/application/AppProvider";
