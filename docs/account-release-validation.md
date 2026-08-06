@@ -1,3 +1,5 @@
 # Account identity release validation
 
 This temporary branch exists only to run the Cloudflare preview build against the exact merged account-identity release on `main`.
+
+Validation trigger: 2026-08-06.
