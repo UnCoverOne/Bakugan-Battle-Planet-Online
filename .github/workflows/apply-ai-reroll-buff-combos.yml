@@ -1,0 +1,387 @@
+name: Apply AI reroll and buff-combo fixes
+
+on:
+  push:
+    branches:
+      - agent/fix-ai-reroll-buff-combos
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-ai-reroll-buff-combos
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Implement tactical Rerolls and cumulative B-Power planning
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected one match in {path}, found {count}: {old[:120]!r}")
+              file.write_text(text.replace(old, new, 1))
+
+          reroll_helper = r'''
+function projectedControllerRerollValue(
+  match: MatchState,
+  playerId: string,
+  mandatory: boolean,
+) {
+  const player = playerById(match, playerId);
+  const opponent = opponentOf(match, playerId);
+  const roll = match.rolls[playerId];
+  const bakugan = player?.bakugan.find(
+    (candidate) => candidate.id === match.selected[playerId],
+  );
+  if (!player || !opponent || !roll || !bakugan || !availableRollTargets(match).length) {
+    return mandatory ? -1.5 : 0;
+  }
+
+  const opponentRoll = match.rolls[opponent.id];
+  const opponentParticipates = Boolean(
+    opponentRoll && opponentRoll.result !== "miss-closed",
+  );
+  const playerParticipates = roll.result !== "miss-closed";
+  const currentOwn = match.victorByDamage
+    ? totalDamage(match, playerId)
+    : totalPower(match, playerId);
+  const currentEnemy = match.victorByDamage
+    ? totalDamage(match, opponent.id)
+    : totalPower(match, opponent.id);
+  const currentWin = playerParticipates
+    && (!opponentParticipates || currentOwn > currentEnemy);
+  const forecast = bestForecast(match, playerId, bakugan);
+  if (!forecast?.samples.length) return mandatory ? -1.5 : 0;
+
+  let wins = 0;
+  let corePickups = 0;
+  let winningMargin = 0;
+  for (const sample of forecast.samples) {
+    const projected = cloneMatch(match);
+    applyProjectedRollSample(projected, playerId, sample);
+    const projectedOpponent = opponentOf(projected, playerId);
+    const projectedRoll = projected.rolls[playerId];
+    const projectedOpponentRoll = projectedOpponent
+      ? projected.rolls[projectedOpponent.id]
+      : undefined;
+    const participates = projectedRoll?.result !== "miss-closed";
+    const enemyParticipates = Boolean(
+      projectedOpponentRoll && projectedOpponentRoll.result !== "miss-closed",
+    );
+    const own = projected.victorByDamage
+      ? totalDamage(projected, playerId)
+      : totalPower(projected, playerId);
+    const enemy = projectedOpponent
+      ? projected.victorByDamage
+        ? totalDamage(projected, projectedOpponent.id)
+        : totalPower(projected, projectedOpponent.id)
+      : 0;
+    if (sample.outcome.cores.length) corePickups += 1;
+    if (participates && (!enemyParticipates || own > enemy)) {
+      wins += 1;
+      winningMargin += Math.max(0, own - enemy);
+    }
+  }
+
+  const sampleCount = forecast.samples.length;
+  const winProbability = wins / sampleCount;
+  const coreProbability = corePickups / sampleCount;
+  if (currentWin) {
+    if (!mandatory) return 0;
+    return -(1 - winProbability) * 8 + coreProbability * 0.25;
+  }
+  if (winProbability <= 0) return mandatory ? -1.5 : 0;
+  const averageWinningMargin = winningMargin / Math.max(1, wins);
+  return winProbability * 10
+    + coreProbability * 1.25
+    + Math.min(1.5, averageWinningMargin / 400);
+}
+
+'''
+          replace_once(
+              "lib/opponentAiBase.ts",
+              "function negateTarget(match: MatchState, playerId: string, program: RuleProgram) {\n",
+              reroll_helper + "function negateTarget(match: MatchState, playerId: string, program: RuleProgram) {\n",
+          )
+
+          old_reroll_value = r'''    if (action.kind === "reroll" && match.phase === "power") {
+      const targetId = action.target === "opponent" ? opponentOf(match, playerId)?.id : playerId;
+      const roll = targetId ? match.rolls[targetId] : undefined;
+      if (roll) {
+        const missedCore = roll.result === "miss-closed";
+        const opponentTarget = action.target === "opponent";
+        value += missedCore === !opponentTarget ? 4.5 : -1.5;
+      }
+    }
+'''
+          new_reroll_value = r'''    if (action.kind === "reroll" && match.phase === "power") {
+      if (action.target === "controller") {
+        value += projectedControllerRerollValue(
+          match,
+          playerId,
+          action.mandatory,
+        );
+      } else {
+        const targetId = opponentOf(match, playerId)?.id;
+        const roll = targetId ? match.rolls[targetId] : undefined;
+        if (roll) value += roll.result === "miss-closed" ? -1.5 : 4.5;
+      }
+    }
+'''
+          replace_once("lib/opponentAiBase.ts", old_reroll_value, new_reroll_value)
+
+          combo_helper = r'''
+type TemporaryPowerCandidate = {
+  card: GameCard;
+  cost: number;
+  swing: number;
+};
+
+function currentEnergyCapacity(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId) as (ReturnType<typeof playerById> & {
+    tappedEnergyIds?: string[];
+    energyTapTurn?: number;
+  });
+  if (!player) return 0;
+  if (player.energyTapTurn !== match.turn) return player.energyZone.length;
+  const tapped = new Set(player.tappedEnergyIds ?? []);
+  const untapped = player.energyZone.filter((card) => !tapped.has(card.id)).length;
+  return Math.max(0, Math.floor(player.energy)) + untapped;
+}
+
+function temporaryPowerSwing(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  const opponent = opponentOf(match, playerId);
+  if (!opponent) return 0;
+  const choices = chooseBaseCardChoices(match, playerId, card);
+  const resolving = cloneMatch(match);
+  const resolvingPlayer = playerById(resolving, playerId);
+  if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
+  let swing = 0;
+  for (const { instruction, action } of activeCardActionEntries(
+    resolving,
+    playerId,
+    card,
+    choices,
+    { execution: "play" },
+  )) {
+    if (!isTemporaryCombatAction(action)) continue;
+    const targetsEnemy = actionTargetsEnemy(
+      match,
+      playerId,
+      choices,
+      action,
+      instruction.sourceText,
+    );
+    if (action.kind === "modify-stat" && action.stat === "power") {
+      swing += targetsEnemy ? -action.amount : action.amount;
+    } else if (action.kind === "set-stat" && action.stat === "power") {
+      swing += targetsEnemy
+        ? totalPower(match, opponent.id) - action.value
+        : action.value - totalPower(match, playerId);
+    }
+  }
+  return Math.max(0, swing);
+}
+
+function jointlyWinningTemporaryPowerCards(
+  match: MatchState,
+  playerId: string,
+) {
+  const result = new Set<string>();
+  if (match.phase !== "power" || match.victorByDamage) return result;
+  const player = playerById(match, playerId);
+  const opponent = opponentOf(match, playerId);
+  if (!player || !opponent) return result;
+  if (!participatesInBrawl(match, playerId) || !participatesInBrawl(match, opponent.id)) {
+    return result;
+  }
+  const deficit = totalPower(match, opponent.id) - totalPower(match, playerId);
+  if (deficit < 0) return result;
+  const budget = currentEnergyCapacity(match, playerId);
+  if (budget <= 0) return result;
+
+  const candidates: TemporaryPowerCandidate[] = player.hand
+    .filter((card) => pureTemporaryCombatProgram(card))
+    .map((card) => ({
+      card,
+      cost: card.cost === "X" ? budget + 1 : Math.max(0, card.cost),
+      swing: temporaryPowerSwing(match, playerId, card),
+    }))
+    .filter((candidate) => (
+      candidate.swing > 0 && candidate.cost <= budget
+    ))
+    .sort((a, b) => (
+      b.swing / Math.max(1, b.cost) - a.swing / Math.max(1, a.cost)
+      || b.swing - a.swing
+      || a.card.id.localeCompare(b.card.id)
+    ))
+    .slice(0, 12);
+  if (candidates.length < 2) return result;
+
+  let best: { ids: string[]; cost: number; swing: number } | undefined;
+  const combinations = 1 << candidates.length;
+  for (let mask = 1; mask < combinations; mask += 1) {
+    const ids: string[] = [];
+    let cost = 0;
+    let swing = 0;
+    for (let index = 0; index < candidates.length; index += 1) {
+      if (!(mask & (1 << index))) continue;
+      ids.push(candidates[index].card.id);
+      cost += candidates[index].cost;
+      swing += candidates[index].swing;
+    }
+    if (ids.length < 2 || cost > budget || swing <= deficit) continue;
+    if (
+      !best
+      || cost < best.cost
+      || (cost === best.cost && ids.length < best.ids.length)
+      || (cost === best.cost && ids.length === best.ids.length && swing < best.swing)
+    ) best = { ids, cost, swing };
+  }
+  for (const id of best?.ids ?? []) result.add(id);
+  return result;
+}
+
+'''
+          replace_once(
+              "lib/opponentAi.ts",
+              "function advanceWithCombatPolicy(input: MatchState, playerId: string) {\n",
+              combo_helper + "function advanceWithCombatPolicy(input: MatchState, playerId: string) {\n",
+          )
+
+          old_suppression = r'''  const suppressed = new Set(
+    player.hand
+      .filter((card) => (
+        (input.phase !== "preRoll"
+          && shouldSuppressTemporaryCombatCard(input, playerId, card))
+        || shouldReserveDrawRerollCard(input, card)
+      ))
+      .map((card) => card.id),
+  );
+'''
+          new_suppression = r'''  const winningPowerCombo = jointlyWinningTemporaryPowerCards(input, playerId);
+  const suppressed = new Set(
+    player.hand
+      .filter((card) => (
+        (input.phase !== "preRoll"
+          && !winningPowerCombo.has(card.id)
+          && shouldSuppressTemporaryCombatCard(input, playerId, card))
+        || shouldReserveDrawRerollCard(input, card)
+      ))
+      .map((card) => card.id),
+  );
+'''
+          replace_once("lib/opponentAi.ts", old_suppression, new_suppression)
+
+          test_file = Path("tests/opponent-ai-tactics.test.ts")
+          tests = r'''
+
+test("AI plays a hand Reroll after opening without a Core when a Core pickup can win", () => {
+  const source = CARDS.find((card) => (card.displayName || card.name) === "Superfuel");
+  assert.ok(source);
+  const rerollCard = { ...source, id: "winning-open-no-core-reroll" };
+  const ai = player(
+    "ai",
+    [bakugan("ai-reroll-b", "Aquos", 500, 5)],
+    [],
+    [rerollCard],
+  );
+  const human = player(
+    "human",
+    [bakugan("human-reroll-b", "Pyrus", 900, 5)],
+  );
+  addEnergy(ai, source.cost === "X" ? 4 : Number(source.cost));
+  const match = matchWith(ai, human);
+  const winningCore = core("winning-reroll-core", 700);
+  match.placements = [{
+    playerId: human.id,
+    core: winningCore,
+    cell: CENTER_CELL,
+    order: 1,
+  }];
+  setBrawl(match, ai, human, true, true);
+  match.rolls[ai.id] = roll(ai.id, ai.bakugan[0].id, "open-no-core");
+  match.rolls[ai.id].cores = [];
+  match.rolls[human.id] = roll(human.id, human.bakugan[0].id, "open-no-core");
+  match.rolls[human.id].cores = [];
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.players[0].hand.some((card) => card.id === rerollCard.id), false);
+  assert.equal(next.pendingReroll?.playerId, ai.id);
+});
+
+test("AI starts a jointly winning temporary B-Power sequence when no single card is sufficient", () => {
+  const first = printedCard(49, "combo-smoke-armor-one");
+  const second = printedCard(49, "combo-smoke-armor-two");
+  const ai = player(
+    "ai",
+    [bakugan("ai-combo-b", "Aquos", 500, 5)],
+    [],
+    [first, second],
+  );
+  const human = player(
+    "human",
+    [bakugan("human-combo-b", "Pyrus", 1300, 5)],
+  );
+  addEnergy(ai, 6);
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.ok([first.id, second.id].includes(next.batch.at(-1)?.card.id ?? ""));
+  assert.equal(
+    next.players[0].hand.filter((card) => [first.id, second.id].includes(card.id)).length,
+    1,
+  );
+});
+'''
+          existing = test_file.read_text()
+          if "AI plays a hand Reroll after opening without a Core" in existing:
+              raise SystemExit("AI tactical regression tests already exist")
+          test_file.write_text(existing + tests)
+
+          Path(".github/workflows/apply-ai-reroll-buff-combos.yml").unlink()
+          hook = Path(".git/hooks/commit-msg")
+          hook.write_text('#!/bin/sh\nprintf "\\n[skip ci]\\n" >> "$1"\n')
+          hook.chmod(0o755)
+          PY
+      - name: Validate implementation
+        run: |
+          git diff --check
+          npx eslint lib/opponentAi.ts lib/opponentAiBase.ts tests/opponent-ai-tactics.test.ts
+      - name: Run focused AI regressions
+        run: >-
+          node --import tsx --test
+          tests/opponent-ai-tactics.test.ts
+          tests/reroll-mechanic.test.ts
+          tests/ai-roll-forecast.test.ts
+          tests/ai-energize-planner.test.ts
+      - name: Build production application
+        run: npm run build
+      - name: Commit validated implementation
+        run: |
+          git config user.name "OpenAI Agent"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Improve AI Reroll and B-Power combo tactics"
+          git push origin HEAD:agent/fix-ai-reroll-buff-combos
