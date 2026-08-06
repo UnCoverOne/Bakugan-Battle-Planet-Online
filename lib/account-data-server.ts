@@ -54,10 +54,20 @@ type PreparedEntity = {
   deletedAt: string | null;
 };
 
+type LegacyDataRow = {
+  user_id: string;
+  data_json: string;
+  updated_at: number;
+};
+
 const textBytes = (value: string | null | undefined) =>
   value ? new TextEncoder().encode(value).byteLength : 0;
 
-async function runBatches(db: AccountDatabase, statements: D1PreparedStatement[], chunkSize = 50) {
+async function runBatches(
+  db: AccountDatabase,
+  statements: D1PreparedStatement[],
+  chunkSize = 50,
+) {
   for (let index = 0; index < statements.length; index += chunkSize) {
     await db.batch(statements.slice(index, index + chunkSize));
   }
@@ -102,11 +112,13 @@ export async function readAccountDataRows(db: AccountDatabase, userId: string) {
 }
 
 export async function migrateLegacyAccountSnapshot(db: AccountDatabase, userId: string) {
-  const count = await db.prepare("SELECT COUNT(*) AS count FROM user_data_entities WHERE user_id = ?")
-    .bind(userId).first<{ count: number }>();
+  const count = await db.prepare(
+    "SELECT COUNT(*) AS count FROM user_data_entities WHERE user_id = ?",
+  ).bind(userId).first<{ count: number }>();
   if (Number(count?.count) > 0) return;
-  const legacy = await db.prepare("SELECT data_json FROM user_data WHERE user_id = ?")
-    .bind(userId).first<{ data_json: string }>();
+  const legacy = await db.prepare(
+    "SELECT data_json FROM user_data WHERE user_id = ?",
+  ).bind(userId).first<{ data_json: string }>();
   if (!legacy?.data_json) return;
 
   let snapshot: UserSnapshot;
@@ -135,7 +147,10 @@ export async function migrateLegacyAccountSnapshot(db: AccountDatabase, userId: 
   await runBatches(db, statements);
 }
 
-export async function loadAccountDataPayload(db: AccountDatabase, userId: string): Promise<AccountDataPayload> {
+export async function loadAccountDataPayload(
+  db: AccountDatabase,
+  userId: string,
+): Promise<AccountDataPayload> {
   await ensureAccountDataSchema(db);
   await migrateLegacyAccountSnapshot(db, userId);
   const { rows, records } = await readAccountDataRows(db, userId);
@@ -147,13 +162,15 @@ export async function loadAccountDataPayload(db: AccountDatabase, userId: string
   };
 }
 
-function validateSyncRequest(body: Partial<UserDataSyncRequest>): asserts body is UserDataSyncRequest {
+function validateSyncRequest(
+  body: Partial<UserDataSyncRequest>,
+): asserts body is UserDataSyncRequest {
   if (
-    body.schemaVersion !== USER_DATA_SCHEMA_VERSION ||
-    !Array.isArray(body.entities) ||
-    !Array.isArray(body.history) ||
-    body.entities.length > MAX_SYNC_ENTITIES ||
-    body.history.length > MAX_SYNC_HISTORY
+    body.schemaVersion !== USER_DATA_SCHEMA_VERSION
+    || !Array.isArray(body.entities)
+    || !Array.isArray(body.history)
+    || body.entities.length > MAX_SYNC_ENTITIES
+    || body.history.length > MAX_SYNC_HISTORY
   ) {
     throw new ValidationError("Sync batch is invalid.");
   }
@@ -170,11 +187,16 @@ export async function syncAccountData(
 
   const errors: Array<{ key: string; error: string }> = [];
   const preparedEntities: PreparedEntity[] = [];
+  const suppliedKeys = new Set<string>();
   for (const candidate of body.entities) {
     let key = "unknown";
     try {
       validateEntityUpdate(candidate);
       key = entityKey(candidate.type, candidate.id);
+      if (suppliedKeys.has(key)) {
+        throw new Error(`Sync entity ${key} was supplied more than once.`);
+      }
+      suppliedKeys.add(key);
       preparedEntities.push({
         key,
         type: candidate.type,
@@ -184,14 +206,22 @@ export async function syncAccountData(
         deletedAt: candidate.deletedAt ?? null,
       });
     } catch (error) {
-      errors.push({ key, error: error instanceof Error ? error.message : "Entity is invalid." });
+      errors.push({
+        key,
+        error: error instanceof Error ? error.message : "Entity is invalid.",
+      });
     }
   }
 
   const validHistory: MatchResultRecord[] = [];
+  const suppliedHistoryIds = new Set<string>();
   for (const candidate of body.history) {
     try {
       validateHistoryRecord(candidate);
+      if (suppliedHistoryIds.has(candidate.id)) {
+        throw new Error(`History record ${candidate.id} was supplied more than once.`);
+      }
+      suppliedHistoryIds.add(candidate.id);
       validHistory.push(candidate);
     } catch (error) {
       errors.push({
@@ -202,18 +232,26 @@ export async function syncAccountData(
   }
 
   const { rows: currentRows, historyRows } = await readAccountDataRows(db, userId);
-  const currentByKey = new Map(currentRows.map((row) => [entityKey(row.entity_type, row.entity_id), row]));
-  let estimatedBytes = currentRows.reduce((sum, row) => sum + textBytes(row.data_json), 0)
-    + historyRows.reduce((sum, row) => sum + textBytes(row.data_json), 0);
+  const currentByKey = new Map(
+    currentRows.map((row) => [entityKey(row.entity_type, row.entity_id), row]),
+  );
+  let estimatedBytes = currentRows.reduce(
+    (sum, row) => sum + textBytes(row.data_json),
+    0,
+  ) + historyRows.reduce((sum, row) => sum + textBytes(row.data_json), 0);
   let deckRows = currentRows.filter((row) => row.entity_type === "deck").length;
   const conflicts = new Set<string>();
   const mutations: D1PreparedStatement[] = [];
-  const expectedFinal = new Map<string, { dataJson: string | null; deletedAt: string | null }>();
+  const expectedFinal = new Map<
+    string,
+    { dataJson: string | null; deletedAt: string | null }
+  >();
   const now = Date.now();
 
   for (const candidate of preparedEntities) {
     const current = currentByKey.get(candidate.key);
-    const identical = current?.data_json === candidate.dataJson && current?.deleted_at === candidate.deletedAt;
+    const identical = current?.data_json === candidate.dataJson
+      && current?.deleted_at === candidate.deletedAt;
     if (current && current.revision !== candidate.expectedRevision) {
       if (!identical) conflicts.add(candidate.key);
       continue;
@@ -222,14 +260,19 @@ export async function syncAccountData(
       conflicts.add(candidate.key);
       continue;
     }
-    const nextBytes = estimatedBytes - textBytes(current?.data_json) + textBytes(candidate.dataJson);
+    const nextBytes = estimatedBytes
+      - textBytes(current?.data_json)
+      + textBytes(candidate.dataJson);
     if (nextBytes > MAX_ACCOUNT_BYTES) {
       errors.push({ key: candidate.key, error: "Account recovery storage is full." });
       continue;
     }
     if (!current && candidate.type === "deck") {
       if (deckRows >= MAX_ACCOUNT_DECK_ROWS) {
-        errors.push({ key: candidate.key, error: "Account deck and deletion storage is full." });
+        errors.push({
+          key: candidate.key,
+          error: "Account deck and deletion storage is full.",
+        });
         continue;
       }
       deckRows += 1;
@@ -238,12 +281,30 @@ export async function syncAccountData(
       mutations.push(current
         ? db.prepare(
           "UPDATE user_data_entities SET revision = revision + 1, data_json = ?, deleted_at = ?, updated_at = ? WHERE user_id = ? AND entity_type = ? AND entity_id = ? AND revision = ?",
-        ).bind(candidate.dataJson, candidate.deletedAt, now, userId, candidate.type, candidate.id, candidate.expectedRevision)
+        ).bind(
+          candidate.dataJson,
+          candidate.deletedAt,
+          now,
+          userId,
+          candidate.type,
+          candidate.id,
+          candidate.expectedRevision,
+        )
         : db.prepare(
           "INSERT OR IGNORE INTO user_data_entities (user_id, entity_type, entity_id, revision, data_json, deleted_at, updated_at) VALUES (?, ?, ?, 1, ?, ?, ?)",
-        ).bind(userId, candidate.type, candidate.id, candidate.dataJson, candidate.deletedAt, now));
+        ).bind(
+          userId,
+          candidate.type,
+          candidate.id,
+          candidate.dataJson,
+          candidate.deletedAt,
+          now,
+        ));
     }
-    expectedFinal.set(candidate.key, { dataJson: candidate.dataJson, deletedAt: candidate.deletedAt });
+    expectedFinal.set(candidate.key, {
+      dataJson: candidate.dataJson,
+      deletedAt: candidate.deletedAt,
+    });
     estimatedBytes = nextBytes;
   }
 
@@ -252,7 +313,10 @@ export async function syncAccountData(
     if (existingHistory.has(record.id)) continue;
     const recordJson = JSON.stringify(record);
     if (estimatedBytes + textBytes(recordJson) > MAX_ACCOUNT_BYTES) {
-      errors.push({ key: `history:${record.id}`, error: "Account recovery storage is full." });
+      errors.push({
+        key: `history:${record.id}`,
+        error: "Account recovery storage is full.",
+      });
       continue;
     }
     mutations.push(db.prepare(
@@ -269,10 +333,18 @@ export async function syncAccountData(
 
   const payload = await loadAccountDataPayload(db, userId);
   const latestRows = (await readAccountDataRows(db, userId)).rows;
-  const latestByKey = new Map(latestRows.map((row) => [entityKey(row.entity_type, row.entity_id), row]));
+  const latestByKey = new Map(
+    latestRows.map((row) => [entityKey(row.entity_type, row.entity_id), row]),
+  );
   for (const [key, expected] of expectedFinal) {
     const latest = latestByKey.get(key);
-    if (!latest || latest.data_json !== expected.dataJson || latest.deleted_at !== expected.deletedAt) conflicts.add(key);
+    if (
+      !latest
+      || latest.data_json !== expected.dataJson
+      || latest.deleted_at !== expected.deletedAt
+    ) {
+      conflicts.add(key);
+    }
   }
   return { ...payload, conflicts: [...conflicts], errors };
 }
@@ -284,6 +356,7 @@ export async function resetAccountData(
   profile?: { displayName: string; faction: string },
 ) {
   await ensureAccountDataSchema(db);
+  if (scope !== "all") await migrateLegacyAccountSnapshot(db, userId);
   const now = Date.now();
   if (scope === "all") {
     await db.batch([
@@ -294,24 +367,44 @@ export async function resetAccountData(
     return;
   }
   if (scope === "decks") {
+    const preferences = JSON.stringify({
+      selectedDeckId: "",
+      format: "bo1",
+      matchMode: "solo",
+      updatedAt: now,
+    });
     await db.batch([
-      db.prepare("DELETE FROM user_data_entities WHERE user_id = ? AND entity_type IN ('deck', 'draft')").bind(userId),
-      db.prepare("UPDATE user_data_entities SET revision = revision + 1, data_json = ?, deleted_at = NULL, updated_at = ? WHERE user_id = ? AND entity_type = 'preferences' AND entity_id = 'main'")
-        .bind(JSON.stringify({ selectedDeckId: "", format: "bo1", matchMode: "solo", updatedAt: now }), now, userId),
+      db.prepare(
+        "DELETE FROM user_data_entities WHERE user_id = ? AND entity_type IN ('deck', 'draft')",
+      ).bind(userId),
+      db.prepare(
+        "INSERT INTO user_data_entities (user_id, entity_type, entity_id, revision, data_json, deleted_at, updated_at) VALUES (?, 'preferences', 'main', 1, ?, NULL, ?) ON CONFLICT(user_id, entity_type, entity_id) DO UPDATE SET revision = revision + 1, data_json = excluded.data_json, deleted_at = NULL, updated_at = excluded.updated_at",
+      ).bind(userId, preferences, now),
     ]);
     return;
   }
   if (scope === "history") {
-    await db.prepare("DELETE FROM user_match_history WHERE user_id = ?").bind(userId).run();
+    await db.prepare(
+      "DELETE FROM user_match_history WHERE user_id = ?",
+    ).bind(userId).run();
     return;
   }
-  const type = scope === "settings" ? "settings" : "profile";
+  const type: UserDataEntityType = scope === "settings" ? "settings" : "profile";
   const data = scope === "settings"
     ? null
-    : { name: profile?.displayName ?? "Brawler", faction: profile?.faction ?? "Pyrus", signedIn: false };
+    : {
+      name: profile?.displayName ?? "Brawler",
+      faction: profile?.faction ?? "Pyrus",
+      signedIn: false,
+    };
   await db.prepare(
     "INSERT INTO user_data_entities (user_id, entity_type, entity_id, revision, data_json, deleted_at, updated_at) VALUES (?, ?, 'main', 1, ?, NULL, ?) ON CONFLICT(user_id, entity_type, entity_id) DO UPDATE SET revision = revision + 1, data_json = excluded.data_json, deleted_at = NULL, updated_at = excluded.updated_at",
-  ).bind(userId, type, data == null ? null : JSON.stringify(data), now).run();
+  ).bind(
+    userId,
+    type,
+    data == null ? null : JSON.stringify(data),
+    now,
+  ).run();
 }
 
 export async function deleteAccountData(db: AccountDatabase, userId: string) {
@@ -325,23 +418,58 @@ export async function deleteAccountData(db: AccountDatabase, userId: string) {
 
 export async function accountDataStatsByUser(db: AccountDatabase) {
   await ensureAccountDataSchema(db);
-  const [entities, history] = await db.batch([
+  const [entities, history, legacy] = await db.batch([
     db.prepare(
       "SELECT user_id, SUM(CASE WHEN entity_type = 'deck' AND deleted_at IS NULL THEN 1 ELSE 0 END) AS deck_count, MAX(updated_at) AS updated_at FROM user_data_entities GROUP BY user_id",
     ),
     db.prepare(
       "SELECT user_id, COUNT(*) AS match_count, MAX(created_at) AS updated_at FROM user_match_history GROUP BY user_id",
     ),
+    db.prepare(
+      "SELECT user_id, data_json, updated_at FROM user_data WHERE NOT EXISTS (SELECT 1 FROM user_data_entities WHERE user_data_entities.user_id = user_data.user_id)",
+    ),
   ]);
   const stats = new Map<string, AccountDataStats>();
-  for (const row of (entities.results ?? []) as Array<{ user_id: string; deck_count: number; updated_at: number }>) {
-    stats.set(row.user_id, { deckCount: Number(row.deck_count) || 0, matchCount: 0, updatedAt: Number(row.updated_at) || 0 });
+  for (const row of (entities.results ?? []) as Array<{
+    user_id: string;
+    deck_count: number;
+    updated_at: number;
+  }>) {
+    stats.set(row.user_id, {
+      deckCount: Number(row.deck_count) || 0,
+      matchCount: 0,
+      updatedAt: Number(row.updated_at) || 0,
+    });
   }
-  for (const row of (history.results ?? []) as Array<{ user_id: string; match_count: number; updated_at: number }>) {
-    const current = stats.get(row.user_id) ?? { deckCount: 0, matchCount: 0, updatedAt: 0 };
+  for (const row of (history.results ?? []) as Array<{
+    user_id: string;
+    match_count: number;
+    updated_at: number;
+  }>) {
+    const current = stats.get(row.user_id) ?? {
+      deckCount: 0,
+      matchCount: 0,
+      updatedAt: 0,
+    };
     current.matchCount = Number(row.match_count) || 0;
     current.updatedAt = Math.max(current.updatedAt, Number(row.updated_at) || 0);
     stats.set(row.user_id, current);
+  }
+  for (const row of (legacy.results ?? []) as LegacyDataRow[]) {
+    try {
+      const snapshot = JSON.parse(row.data_json) as Partial<UserSnapshot>;
+      stats.set(row.user_id, {
+        deckCount: Array.isArray(snapshot.decks) ? snapshot.decks.length : 0,
+        matchCount: Array.isArray(snapshot.history) ? snapshot.history.length : 0,
+        updatedAt: Number(row.updated_at) || 0,
+      });
+    } catch {
+      stats.set(row.user_id, {
+        deckCount: 0,
+        matchCount: 0,
+        updatedAt: Number(row.updated_at) || 0,
+      });
+    }
   }
   return stats;
 }
