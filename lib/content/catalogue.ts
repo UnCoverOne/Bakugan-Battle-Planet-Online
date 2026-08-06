@@ -2,6 +2,7 @@ import battleBrawlersJson from "../catalog.generated.json";
 import type { GameCard } from "../game";
 import { recordsFromRows } from "./card-set-extensions";
 import { AA_CARD_ROWS, BR_CARD_ROWS, EX_CARD_ROWS } from "./card-set-rows";
+import { constructionIdentityForCard } from "./construction-identity";
 import {
   CARD_CATALOGUE_VERSION,
   CONTENT_SCHEMA_VERSION,
@@ -12,6 +13,7 @@ export type CardSetCode = (typeof CARD_SET_CODES)[number];
 
 export type ControlledCardRecord = Omit<GameCard, "id" | "catalogId"> & {
   id: string;
+  constructionIdentity: string;
   source?: string;
   hasProvidedScan?: boolean;
   slug?: string;
@@ -38,18 +40,17 @@ export function cardCollectorLabel(card: Pick<GameCard, "catalogId" | "number">)
 }
 
 const VERIFIED_CARD_CORRECTIONS: Partial<Record<string, Partial<ControlledCardRecord>>> = {
-  // The generated source incorrectly transcribed Haos Gorthion Ultra's printed
-  // Damage Rating as 7. Its Character card is 600 B / 2 Damage.
   "bb-330": { damage: 2 },
-  // The generated source incorrectly transcribed Ventus Trox Ultra's second
-  // BakuCore as Fist. Its Character card requires Shield and Helix.
   "bb-373": { coreTypes: ["Shield", "Helix"] },
 };
 
-const battleBrawlers = (battleBrawlersJson as unknown as ControlledCardRecord[]).map((record) => ({
+const battleBrawlers = (battleBrawlersJson as unknown as Array<Omit<ControlledCardRecord, "constructionIdentity"> & { constructionIdentity?: string }>).map((record) => ({
   ...record,
   ...VERIFIED_CARD_CORRECTIONS[record.id],
   id: record.id,
+  constructionIdentity: VERIFIED_CARD_CORRECTIONS[record.id]?.constructionIdentity
+    ?? record.constructionIdentity
+    ?? constructionIdentityForCard(record),
 }));
 
 export const CONTROLLED_CATALOGUE = Object.freeze(
@@ -81,7 +82,7 @@ export const CONTENT_MANIFEST = Object.freeze({
     EX: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "EX").length,
   }),
   textFingerprint: textFingerprint(
-    CONTROLLED_CATALOGUE.map((card) => `${card.id}\u001f${card.effect}`).join("\u001e"),
+    CONTROLLED_CATALOGUE.map((card) => `${card.id}\u001f${card.effect}\u001f${card.constructionIdentity}`).join("\u001e"),
   ),
 });
 
@@ -119,6 +120,7 @@ export function validateControlledCatalogue(
       if ((numbers.get(card.number) ?? 0) > 1) errors.push(`${card.id}: duplicate ${set} collector number ${card.number}.`);
     }
     if (!card.name?.trim() || !card.displayName?.trim()) errors.push(`${card.id}: missing display name.`);
+    if (!card.constructionIdentity?.trim()) errors.push(`${card.id}: missing construction identity.`);
     if (!Array.isArray(card.factions) || !card.factions.includes(card.faction)) errors.push(`${card.id}: primary faction is not represented in factions.`);
     if (typeof card.effect !== "string") errors.push(`${card.id}: effect text must be a string.`);
     if (!Array.isArray(card.mechanics)) errors.push(`${card.id}: mechanics must be an array.`);
@@ -138,17 +140,13 @@ export function validateControlledCatalogue(
   for (let number = 1; number <= 220; number += 1) if (!(setNumbers.get("AA")?.has(number))) errors.push(`Missing AA card number ${number}.`);
   for (let number = 1; number <= 2; number += 1) if (!(setNumbers.get("EX")?.has(number))) errors.push(`Missing EX card number ${number}.`);
   if ((setNumbers.get("BR")?.get(221) ?? 0) !== 2) errors.push("BR collector number 221 must contain both known printings.");
-  if (records.find((card) => card.id === "bb-330")?.damage !== 2) {
-    errors.push("bb-330: Haos Gorthion Ultra must have 2 base Damage.");
-  }
+  if (records.find((card) => card.id === "bb-330")?.damage !== 2) errors.push("bb-330: Haos Gorthion Ultra must have 2 base Damage.");
   const ventusTroxUltra = records.find((card) => card.id === "bb-373");
   if (
     ventusTroxUltra?.coreTypes.length !== 2
     || ventusTroxUltra.coreTypes[0] !== "Shield"
     || ventusTroxUltra.coreTypes[1] !== "Helix"
-  ) {
-    errors.push("bb-373: Ventus Trox Ultra must require Shield and Helix BakuCores.");
-  }
+  ) errors.push("bb-373: Ventus Trox Ultra must require Shield and Helix BakuCores.");
   for (const [type, expected] of Object.entries(EXPECTED_TYPE_COUNTS)) {
     if ((typeCounts.get(type) ?? 0) !== expected) errors.push(`${type}: expected ${expected}, found ${typeCounts.get(type) ?? 0}.`);
   }
