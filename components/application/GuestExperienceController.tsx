@@ -26,6 +26,7 @@ export function GuestExperienceController() {
     decks,
     setDecks,
     promptAccount,
+    requestAccountAccess,
     notify,
   } = useApp();
   const publicStateBootstrapped = useRef(false);
@@ -51,6 +52,21 @@ export function GuestExperienceController() {
     rememberAccountIntent(reason, { returnTo: pathname });
     router.replace(`/account?feature=${reason}`);
   }, [authChecking, authUser, pathname, ready, router]);
+
+  useEffect(() => {
+    if (!ready || authChecking || authUser) return;
+    const guardGuestIdentity = (event: Event) => {
+      const form = event.target instanceof HTMLFormElement ? event.target : null;
+      if (!form?.closest(".main-stage")) return;
+      if (!form.querySelector('input[autocomplete="nickname"]')) return;
+      event.preventDefault();
+      rememberAccountIntent("profile", { returnTo: pathname });
+      requestAccountAccess("signup");
+      notify("Create an account to choose a permanent Brawler name.");
+    };
+    document.addEventListener("submit", guardGuestIdentity, true);
+    return () => document.removeEventListener("submit", guardGuestIdentity, true);
+  }, [authChecking, authUser, notify, pathname, ready, requestAccountAccess]);
 
   useEffect(() => {
     if (!ready || authChecking || authUser) return;
