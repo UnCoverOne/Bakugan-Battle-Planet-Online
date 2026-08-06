@@ -1,7 +1,8 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { concedeMatch, normalizeMatchState, redactForPlayer, type MatchState } from "../lib/game";
+import { concedeMatch, normalizeMatchState, type MatchState } from "../lib/game";
+import { projectMatchForPlayer } from "../lib/engine";
 import { nextMatchAlarmAt, resolveExpiredDeadline } from "../lib/deadlines";
 import { markInternalMatchRequest, stripInternalMatchHeaders } from "../lib/internal-request";
 import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
@@ -47,7 +48,10 @@ export class MatchRoom {
       try {
         const attachment = socket.deserializeAttachment?.() as { playerId?: string } | undefined;
         if (attachment?.playerId) {
-          socket.send(JSON.stringify({ type: "state", state: redactForPlayer(match, attachment.playerId) }));
+          socket.send(JSON.stringify({
+            type: "state",
+            state: projectMatchForPlayer(match, attachment.playerId),
+          }));
         }
       } catch (error) {
         console.error(JSON.stringify({
@@ -114,8 +118,20 @@ export class MatchRoom {
         await this.state.storage.put("snapshot", snapshot);
       }
     }
-    if (snapshot) server.send(JSON.stringify({ type: "state", state: redactForPlayer(snapshot, playerId) }));
-    if (snapshot) await this.state.storage.setAlarm(nextMatchAlarmAt(snapshot));
+    if (snapshot) {
+      try {
+        server.send(JSON.stringify({ type: "state", state: projectMatchForPlayer(snapshot, playerId) }));
+      } catch (error) {
+        console.error(JSON.stringify({
+          event: "match_socket_initial_publish_failed",
+          code,
+          playerId,
+          message: error instanceof Error ? error.message : String(error),
+        }));
+        try { server.close(1011, "Transport failure"); } catch {}
+      }
+      await this.state.storage.setAlarm(nextMatchAlarmAt(snapshot));
+    }
     return new Response(null, {
       status: 101,
       webSocket: client,
