@@ -44,7 +44,9 @@ const VERIFIED_CARD_CORRECTIONS: Partial<Record<string, Partial<ControlledCardRe
   "bb-373": { coreTypes: ["Shield", "Helix"] },
 };
 
-const battleBrawlers = (battleBrawlersJson as unknown as Array<Omit<ControlledCardRecord, "constructionIdentity"> & { constructionIdentity?: string }>).map((record) => ({
+const battleBrawlers = (battleBrawlersJson as unknown as Array<
+  Omit<ControlledCardRecord, "constructionIdentity"> & { constructionIdentity?: string }
+>).map((record) => ({
   ...record,
   ...VERIFIED_CARD_CORRECTIONS[record.id],
   id: record.id,
@@ -82,7 +84,7 @@ export const CONTENT_MANIFEST = Object.freeze({
     EX: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "EX").length,
   }),
   textFingerprint: textFingerprint(
-    CONTROLLED_CATALOGUE.map((card) => `${card.id}\u001f${card.effect}\u001f${card.constructionIdentity}`).join("\u001e"),
+    CONTROLLED_CATALOGUE.map((card) => `${card.id}\u001f${card.effect}`).join("\u001e"),
   ),
 });
 
