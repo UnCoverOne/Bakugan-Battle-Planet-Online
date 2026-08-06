@@ -145,7 +145,7 @@ export function DashboardScreen() {
     .sort((left, right) => (right.current / right.target) - (left.current / left.target));
   const closestAchievements = [
     ...incompleteAchievements,
-    ...unlockedAchievements.reverse(),
+    ...achievements.filter((achievement) => achievement.unlocked).reverse(),
   ].slice(0, 3);
   const wins = history.filter((item: { result?: string }) => item.result === "Victor").length;
   const winRate = history.length ? Math.round((wins / history.length) * 100) : 0;
