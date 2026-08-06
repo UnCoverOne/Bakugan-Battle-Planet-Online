@@ -1,13 +1,42 @@
-import { redactForPlayer, type MatchState } from "../game";
+import { redactForPlayer, type GameCard, type MatchState } from "../game";
+import { deckEnergyFaceVisible } from "../energyVisibility";
 import { ENGINE_METADATA_KEY, type EngineBackedMatchState, type GameEvent } from "./types";
 
 export type PublicGameEvent = Pick<GameEvent,
   "gameId" | "commandId" | "sequence" | "type" | "actorId" | "payload" | "engineVersion" | "rulesVersion" | "cardCatalogueVersion" | "digitalAdaptationVersion" | "contentSchemaVersion" | "createdAt"
 >;
 
-export function projectMatchForPlayer(state: MatchState, playerId: string): MatchState {
+function hiddenEnergyCard(id: string): GameCard {
+  return {
+    id,
+    catalogId: "hidden",
+    number: 0,
+    name: "Face-down Energy card",
+    displayName: "Face-down Energy card",
+    faction: "Aquos",
+    factions: [],
+    type: "Action",
+    cost: 0,
+    rarity: "",
+    effect: "",
+    mechanics: [],
+    bPower: null,
+    damage: null,
+    coreTypes: [],
+    evolvesFrom: null,
+    art: "/assets/cards/card-missing.svg",
+  };
+}
+
+export function projectMatchForPlayer(state: MatchState, playerId: string, now = Date.now()): MatchState {
   const projected = redactForPlayer(state, playerId) as EngineBackedMatchState;
   delete projected[ENGINE_METADATA_KEY];
+  const owner = projected.players.find((player) => player.id === playerId);
+  if (owner) {
+    owner.energyZone = owner.energyZone.map((card) => (
+      deckEnergyFaceVisible(card, now) ? card : hiddenEnergyCard(card.id)
+    ));
+  }
   return projected;
 }
 
