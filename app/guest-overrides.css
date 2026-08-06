@@ -1,0 +1,28 @@
+html[data-account-scope="guest"] .main-stage input[autocomplete="nickname"] {
+  pointer-events: none;
+  opacity: .62;
+  cursor: not-allowed;
+}
+
+html[data-account-scope="guest"] .main-stage label:has(input[autocomplete="nickname"])::after {
+  content: "Create an account to choose a permanent Brawler name.";
+  display: block;
+  margin-top: .45rem;
+  color: #ffd47d;
+  font-size: .72rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.boot-screen h1 {
+  font-size: 0;
+}
+
+.boot-screen h1::after {
+  content: "LOADING BATTLE PLANET";
+  font-size: clamp(1.65rem, 5vw, 2.8rem);
+}
+
+.boot-screen p {
+  display: none;
+}
