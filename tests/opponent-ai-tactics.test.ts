@@ -511,3 +511,64 @@ test("AI has no hard ban on a third draw Hero when tactical Energy remains avail
   assert.ok(next);
   assert.equal(next.batch.at(-1)?.card.id, shun.id);
 });
+
+
+test("AI plays a hand Reroll after opening without a Core when a Core pickup can win", () => {
+  const source = CARDS.find((card) => (card.displayName || card.name) === "Superfuel");
+  assert.ok(source);
+  const rerollCard = { ...source, id: "winning-open-no-core-reroll" };
+  const ai = player(
+    "ai",
+    [bakugan("ai-reroll-b", "Aquos", 500, 5)],
+    [],
+    [rerollCard],
+  );
+  const human = player(
+    "human",
+    [bakugan("human-reroll-b", "Pyrus", 900, 5)],
+  );
+  addEnergy(ai, source.cost === "X" ? 4 : Number(source.cost));
+  const match = matchWith(ai, human);
+  const winningCore = core("winning-reroll-core", 700);
+  match.placements = [{
+    playerId: human.id,
+    core: winningCore,
+    cell: CENTER_CELL,
+    order: 1,
+  }];
+  setBrawl(match, ai, human, true, true);
+  match.rolls[ai.id] = roll(ai.id, ai.bakugan[0].id, "open-no-core");
+  match.rolls[ai.id].cores = [];
+  match.rolls[human.id] = roll(human.id, human.bakugan[0].id, "open-no-core");
+  match.rolls[human.id].cores = [];
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.players[0].hand.some((card) => card.id === rerollCard.id), false);
+});
+
+test("AI starts a jointly winning temporary B-Power sequence when no single card is sufficient", () => {
+  const first = printedCard(49, "combo-smoke-armor-one");
+  const second = printedCard(49, "combo-smoke-armor-two");
+  const ai = player(
+    "ai",
+    [bakugan("ai-combo-b", "Aquos", 500, 5)],
+    [],
+    [first, second],
+  );
+  const human = player(
+    "human",
+    [bakugan("human-combo-b", "Pyrus", 1300, 5)],
+  );
+  addEnergy(ai, 6);
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.ok([first.id, second.id].includes(next.batch.at(-1)?.card.id ?? ""));
+  assert.equal(
+    next.players[0].hand.filter((card) => [first.id, second.id].includes(card.id)).length,
+    1,
+  );
+});

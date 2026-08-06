@@ -353,14 +353,132 @@ function restoreSuppressedHandCards(
   return next;
 }
 
+
+type TemporaryPowerCandidate = {
+  card: GameCard;
+  cost: number;
+  swing: number;
+};
+
+function currentEnergyCapacity(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId) as (ReturnType<typeof playerById> & {
+    tappedEnergyIds?: string[];
+    energyTapTurn?: number;
+  });
+  if (!player) return 0;
+  if (player.energyTapTurn !== match.turn) return player.energyZone.length;
+  const tapped = new Set(player.tappedEnergyIds ?? []);
+  const untapped = player.energyZone.filter((card) => !tapped.has(card.id)).length;
+  return Math.max(0, Math.floor(player.energy)) + untapped;
+}
+
+function temporaryPowerSwing(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  const opponent = opponentOf(match, playerId);
+  if (!opponent) return 0;
+  const choices = chooseBaseCardChoices(match, playerId, card);
+  const resolving = cloneMatch(match);
+  const resolvingPlayer = playerById(resolving, playerId);
+  if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
+  let swing = 0;
+  for (const { instruction, action } of activeCardActionEntries(
+    resolving,
+    playerId,
+    card,
+    choices,
+    { execution: "play" },
+  )) {
+    if (!isTemporaryCombatAction(action)) continue;
+    const targetsEnemy = actionTargetsEnemy(
+      match,
+      playerId,
+      choices,
+      action,
+      instruction.sourceText,
+    );
+    if (action.kind === "modify-stat" && action.stat === "power") {
+      swing += targetsEnemy ? -action.amount : action.amount;
+    } else if (action.kind === "set-stat" && action.stat === "power") {
+      swing += targetsEnemy
+        ? totalPower(match, opponent.id) - action.value
+        : action.value - totalPower(match, playerId);
+    }
+  }
+  return Math.max(0, swing);
+}
+
+function jointlyWinningTemporaryPowerCards(
+  match: MatchState,
+  playerId: string,
+) {
+  const result = new Set<string>();
+  if (match.phase !== "power" || match.victorByDamage) return result;
+  const player = playerById(match, playerId);
+  const opponent = opponentOf(match, playerId);
+  if (!player || !opponent) return result;
+  if (!participatesInBrawl(match, playerId) || !participatesInBrawl(match, opponent.id)) {
+    return result;
+  }
+  const deficit = totalPower(match, opponent.id) - totalPower(match, playerId);
+  if (deficit < 0) return result;
+  const budget = currentEnergyCapacity(match, playerId);
+  if (budget <= 0) return result;
+
+  const candidates: TemporaryPowerCandidate[] = player.hand
+    .filter((card) => pureTemporaryCombatProgram(card))
+    .map((card) => ({
+      card,
+      cost: card.cost === "X" ? budget + 1 : Math.max(0, card.cost),
+      swing: temporaryPowerSwing(match, playerId, card),
+    }))
+    .filter((candidate) => (
+      candidate.swing > 0 && candidate.cost <= budget
+    ))
+    .sort((a, b) => (
+      b.swing / Math.max(1, b.cost) - a.swing / Math.max(1, a.cost)
+      || b.swing - a.swing
+      || a.card.id.localeCompare(b.card.id)
+    ))
+    .slice(0, 12);
+  if (candidates.length < 2) return result;
+
+  let best: { ids: string[]; cost: number; swing: number } | undefined;
+  const combinations = 1 << candidates.length;
+  for (let mask = 1; mask < combinations; mask += 1) {
+    const ids: string[] = [];
+    let cost = 0;
+    let swing = 0;
+    for (let index = 0; index < candidates.length; index += 1) {
+      if (!(mask & (1 << index))) continue;
+      ids.push(candidates[index].card.id);
+      cost += candidates[index].cost;
+      swing += candidates[index].swing;
+    }
+    if (ids.length < 2 || cost > budget || swing <= deficit) continue;
+    if (
+      !best
+      || cost < best.cost
+      || (cost === best.cost && ids.length < best.ids.length)
+      || (cost === best.cost && ids.length === best.ids.length && swing < best.swing)
+    ) best = { ids, cost, swing };
+  }
+  for (const id of best?.ids ?? []) result.add(id);
+  return result;
+}
+
 function advanceWithCombatPolicy(input: MatchState, playerId: string) {
   const player = playerById(input, playerId);
   if (!player) return null;
+  const winningPowerCombo = jointlyWinningTemporaryPowerCards(input, playerId);
   const suppressed = new Set(
     player.hand
       .filter((card) => (
         (input.phase !== "preRoll"
-          && shouldSuppressTemporaryCombatCard(input, playerId, card))
+&& !winningPowerCombo.has(card.id)
+&& shouldSuppressTemporaryCombatCard(input, playerId, card))
         || shouldReserveDrawRerollCard(input, card)
       ))
       .map((card) => card.id),
