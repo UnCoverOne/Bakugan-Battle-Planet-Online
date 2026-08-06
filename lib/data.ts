@@ -1,6 +1,7 @@
 import { CONTROLLED_CATALOGUE } from "./content/catalogue";
 import type { Bakugan, Core, CoreType, Faction, GameCard, PlayerState } from "./game";
 import { deckValidationMessages, validateDeckConstruction } from "./deck-validation";
+import { MATCH_RECONNECT_GRACE_SECONDS } from "./match-constants";
 
 const records = CONTROLLED_CATALOGUE;
 export const CARDS: GameCard[] = records.map((record) => ({ ...record, id: record.id, catalogId: record.id }));
@@ -36,13 +37,8 @@ export const BAKUGAN: Bakugan[] = characterCards.map((character) => ({
   faction: character.faction,
   bPower: character.bPower!,
   damage: character.damage!,
-  // The simulator uses the explicitly configured physical-roll profiles.
-  rollAccuracy: /\bUltra\b/i.test(character.displayName)
-    ? 85
-    : 90,
-  doubleCoreChance: /\bUltra\b/i.test(character.displayName)
-    ? 10
-    : 5,
+  rollAccuracy: /\bUltra\b/i.test(character.displayName) ? 85 : 90,
+  doubleCoreChance: /\bUltra\b/i.test(character.displayName) ? 10 : 5,
   art: character.art,
   character,
   open: false,
@@ -71,7 +67,12 @@ export function applyCardOverrides(overrides: CardOverrideRecord[]) {
   for (const override of overrides) {
     const card = CARD_BY_ID.get(override.catalogId);
     if (!card || !override.card || typeof override.card !== "object") continue;
-    const immutable = { id: card.id, catalogId: card.catalogId };
+    const base = BASE_CARD_BY_ID.get(card.catalogId) as (GameCard & { constructionIdentity?: string }) | undefined;
+    const immutable = {
+      id: card.id,
+      catalogId: card.catalogId,
+      ...(base?.constructionIdentity ? { constructionIdentity: base.constructionIdentity } : {}),
+    };
     Object.assign(card, override.card, immutable);
     const bakugan = BAKUGAN.find((candidate) => candidate.id === card.catalogId);
     if (bakugan) {
@@ -125,7 +126,8 @@ const buildDeck = (factions: Faction[]) => {
   const pool = CARDS.filter((card) => card.type !== "Character" && factions.includes(card.faction));
   const result: string[] = [];
   for (let offset = 0; result.length < 40; offset += 1) {
-    const card = pool[offset % pool.length]; if (result.filter((id) => id === card.catalogId).length < 3) result.push(card.catalogId);
+    const card = pool[offset % pool.length];
+    if (result.filter((id) => id === card.catalogId).length < 3) result.push(card.catalogId);
   }
   return result;
 };
@@ -133,7 +135,9 @@ const coreLoadout = (bakuganIds: string[]) => {
   const requirements = bakuganIds.flatMap((id) => BAKUGAN.find((bakugan) => bakugan.id === id)?.character.coreTypes ?? []);
   const used = new Set<string>();
   return requirements.map((type) => {
-    const core = CORES.find((candidate) => candidate.type === type && !used.has(candidate.id))!; used.add(core.id); return core.id;
+    const core = CORES.find((candidate) => candidate.type === type && !used.has(candidate.id))!;
+    used.add(core.id);
+    return core.id;
   });
 };
 
@@ -209,12 +213,29 @@ export const makePlayer = (id: string, name: string, deck: DeckRecord): PlayerSt
   shuffleCanonical(deckCards);
   const hand = deckCards.splice(0, 5);
   const bakugan = deck.bakuganIds.map((key, index) => {
-    const base = BAKUGAN.find((item) => item.id === key)!; const character = instance(base.character, id, 100 + index);
+    const base = BAKUGAN.find((item) => item.id === key)!;
+    const character = instance(base.character, id, 100 + index);
     return { ...base, id: `${base.id}-${id}`, character, open:false, heldCoreCells:[], evoStack:[] };
   });
   return {
-    id,name,bakugan,cores:deck.coreIds.map((key, index) => coreInstance(CORES.find((core) => core.id === key)!, id, index)),deck:deckCards.length,deckCards,hand,discard:[],energyZone:[],heroes:[],
-    energy:0,maxEnergy:0,ready:false,connected:true,lastSeen:Date.now(),energizedThisTurn:false,cardsPlayedThisTurn:0,factionsPlayedThisTurn:[],
+    id,
+    name,
+    bakugan,
+    cores: deck.coreIds.map((key, index) => coreInstance(CORES.find((core) => core.id === key)!, id, index)),
+    deck: deckCards.length,
+    deckCards,
+    hand,
+    discard: [],
+    energyZone: [],
+    heroes: [],
+    energy: 0,
+    maxEnergy: 0,
+    ready: false,
+    connected: true,
+    lastSeen: Date.now(),
+    energizedThisTurn: false,
+    cardsPlayedThisTurn: 0,
+    factionsPlayedThisTurn: [],
   };
 };
 
@@ -233,9 +254,6 @@ export function makeCanonicalPlayer(selection: CanonicalPlayerSelection): Player
     updatedAt: new Date().toISOString(),
     visibility: "Private",
   };
-  // makePlayer resolves every submitted ID against the immutable server
-  // catalogue, performs complete deck validation, creates card instances and
-  // cryptographically shuffles the canonical deck.
   return makePlayer(playerId, name, deck);
 }
 
@@ -251,5 +269,5 @@ export const RULE_ENTRIES = [
   { title:"Double Core Chance",category:"Digital adaptation",body:"The chance a successful open picks up a second Core. Weighting checks behind the first Core, then in front, then either side." },
   { title:"Physical rotation",category:"Digital adaptation",body:"A Bakugan completes a rotation every four Core distances. A Core three spaces ahead replaces the selected Core as the calculated landing point." },
   { title:"Undo",category:"Platform",body:"Undo restores the immediately previous state only before priority passes or new hidden/random information is revealed." },
-  { title:"Disconnect",category:"Platform",body:"A disconnected player has 30 seconds to reconnect before the remaining player wins." },
+  { title:"Disconnect",category:"Platform",body:`A disconnected player has ${MATCH_RECONNECT_GRACE_SECONDS / 60} minutes to reconnect before the remaining player wins.` },
 ];
