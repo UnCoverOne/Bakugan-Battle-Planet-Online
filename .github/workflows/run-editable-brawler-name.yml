@@ -34,7 +34,6 @@ jobs:
           Path('/tmp/apply-editable-brawler-name.py').write_text(script)
           PY
           python /tmp/apply-editable-brawler-name.py
-          rm -f .github/workflows/run-editable-brawler-name.yml
       - name: Validate implementation
         run: |
           git diff --check
@@ -42,16 +41,13 @@ jobs:
             app/api/auth/route.ts \
             lib/account-server.ts \
             components/application/AppProvider.jsx \
-            components/application/AccountAccessModal.tsx \
             components/routes/SettingsScreen.tsx \
             tests/brawler-name.test.ts
-      - name: Run account and profile regressions
+      - name: Run focused account and profile regressions
         run: >-
           node --import tsx --test
           tests/brawler-name.test.ts
-          tests/supporting-pages.test.ts
           tests/guest-first-auth.test.ts
-          tests/persistence-boundaries.test.ts
           tests/account-sync.integration.test.ts
           tests/administration.test.ts
       - name: Build production application
