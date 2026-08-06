@@ -45,12 +45,14 @@ export function SettingsScreen() {
     authError,
     storageHealth,
     signOutAccount,
+    saveAccountProfile,
     requestAccountAccess,
     syncNow,
     changePassword,
     deleteAccount,
   } = useApp();
   const [section, setSection] = useState<Section>("Account");
+  const [brawlerName, setBrawlerName] = useState(profile.name);
   const [savedField, setSavedField] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -67,11 +69,41 @@ export function SettingsScreen() {
     [],
   );
 
+  useEffect(() => {
+    setBrawlerName(profile.name);
+  }, [profile.name]);
+
   const saveSetting = (key: string, value: unknown, label: string) => {
     setSettings({ ...settings, [key]: value });
     setSavedField(`${label} saved`);
     if (savedTimer.current) clearTimeout(savedTimer.current);
     savedTimer.current = setTimeout(() => setSavedField(""), 2200);
+  };
+
+  const submitBrawlerName = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const normalizedBrawlerName = brawlerName.trim().replace(/\s+/g, " ");
+    if (!normalizedBrawlerName || normalizedBrawlerName.length > 20) {
+      setAccountError("Brawler Name must be between 1 and 20 characters.");
+      return;
+    }
+    setAccountBusy(true);
+    setAccountError("");
+    try {
+      await saveAccountProfile({ displayName: normalizedBrawlerName });
+      setBrawlerName(normalizedBrawlerName);
+      setSavedField("Brawler Name updated");
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSavedField(""), 2200);
+    } catch (error) {
+      setAccountError(
+        error instanceof Error
+          ? error.message
+          : "Could not update the Brawler Name.",
+      );
+    } finally {
+      setAccountBusy(false);
+    }
   };
 
   const submitPassword = async (event: React.FormEvent) => {
@@ -178,6 +210,41 @@ export function SettingsScreen() {
               title="Account"
               description="Manage the signed-in account and credentials."
             >
+              <form
+                className={styles.passwordForm}
+                onSubmit={submitBrawlerName}
+              >
+                <h3>Brawler Name</h3>
+                <Field
+                  label="Brawler Name"
+                  hint={
+                    authUser
+                      ? "Shown on your Profile, published identity, and matches. Use 1–20 characters."
+                      : "Shown on this device in your Profile and matches. Use 1–20 characters."
+                  }
+                >
+                  <input
+                    type="text"
+                    autoComplete="nickname"
+                    minLength={1}
+                    maxLength={20}
+                    value={brawlerName}
+                    onChange={(event) => setBrawlerName(event.target.value)}
+                    required
+                  />
+                </Field>
+                <ActionButton
+                  type="submit"
+                  tone="secondary"
+                  disabled={
+                    accountBusy ||
+                    !brawlerName.trim() ||
+                    brawlerName.trim().replace(/\s+/g, " ") === profile.name
+                  }
+                >
+                  Update Brawler Name
+                </ActionButton>
+              </form>
               {authUser ? (
                 <>
                   <Surface className={styles.accountSummary}>

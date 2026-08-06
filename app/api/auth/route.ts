@@ -33,8 +33,12 @@ export async function POST(request: Request) {
     await enforceD1RateLimit(db, `auth:${requestClientKey(request)}:${action}`, sensitive ? 12 : 60, 60_000);
 
     if (action === "signup") {
-      const email = validateAccountInput(String(body.email ?? ""), String(body.password ?? ""), String(body.displayName ?? ""));
-      const displayName = String(body.displayName ?? "").trim();
+      const displayName = String(body.displayName ?? "").trim().replace(/\s+/g, " ");
+      const email = validateAccountInput(
+        String(body.email ?? ""),
+        String(body.password ?? ""),
+        displayName,
+      );
       const factions = ["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"];
       const faction = factions.includes(String(body.faction)) ? String(body.faction) : "Pyrus";
       if (await getUserByEmail(email)) return json({ error: "An account already exists for that email address." }, 409);
@@ -92,8 +96,8 @@ export async function POST(request: Request) {
       return json({ ok: true }, 200, await createSession(request, user.id));
     }
     if (action === "update-profile") {
-      const displayName = String(body.displayName ?? "").trim();
-      if (!displayName || displayName.length > 20) return json({ error: "Brawler name must be between 1 and 20 characters." }, 400);
+      const displayName = String(body.displayName ?? "").trim().replace(/\s+/g, " ");
+      if (!displayName || displayName.length > 20) return json({ error: "Brawler Name must be between 1 and 20 characters." }, 400);
       const factions = ["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"];
       const faction = factions.includes(String(body.faction)) ? String(body.faction) : user.faction;
       await db.prepare("UPDATE users SET display_name = ?, faction = ?, updated_at = ? WHERE id = ?").bind(displayName, faction, Date.now(), user.id).run();
