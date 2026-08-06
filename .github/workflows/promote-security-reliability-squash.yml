@@ -1,0 +1,40 @@
+name: Promote security implementation cleanly
+
+on:
+  push:
+    branches:
+      - implementation/security-reliability-20260806
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promote-security-reliability-clean
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out implementation history
+        uses: actions/checkout@v4
+        with:
+          ref: implementation/security-reliability-20260806
+          fetch-depth: 0
+
+      - name: Create a clean fast-forwardable commit on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main implementation/security-reliability-20260806
+          implementation_ref="origin/implementation/security-reliability-20260806"
+          git merge-base --is-ancestor origin/main "$implementation_ref"
+          git checkout -B promotion origin/main
+          git merge --squash "$implementation_ref"
+          rm -f .github/workflows/promote-security-reliability.yml
+          rm -f .github/workflows/promote-security-reliability-squash.yml
+          git add -A
+          git commit -m "Implement security, persistence, and multiplayer hardening"
+          git push origin promotion:main
