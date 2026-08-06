@@ -38,14 +38,13 @@ if [[ ! -x "${vinext}" ]]; then
 fi
 
 echo "Running bounded vinext build..."
-# The catalogue and gameplay bundles are intentionally substantial. A three-minute
-# ceiling was close enough to the normal cold-build duration that modest product
-# changes could be killed despite making forward progress. Keep the build bounded,
-# but allow a realistic Cloudflare cold-build window.
+# Cloudflare cold builds for the complete catalogue have historically taken
+# longer than eight minutes. Keep the process bounded below the platform limit,
+# while leaving enough room for dependency-cold compilation and packaging.
 timeout \
   --signal=TERM \
-  --kill-after="${SITES_BUILD_KILL_AFTER:-15s}" \
-  "${SITES_BUILD_TIMEOUT:-8m}" \
+  --kill-after="${SITES_BUILD_KILL_AFTER:-30s}" \
+  "${SITES_BUILD_TIMEOUT:-15m}" \
   "${vinext}" build
 
 bash "${script_dir}/validate-artifact.sh"
