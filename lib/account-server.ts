@@ -1,6 +1,12 @@
+import {
+  AuthenticationError,
+  AuthorizationError,
+  ServiceUnavailableError,
+  ValidationError,
+} from "./server-errors";
+
 const SESSION_COOKIE = "bbp_session";
 const SESSION_DAYS = 30;
-export const BOOTSTRAP_ADMIN_EMAIL = "uncover250@gmail.com";
 export const ACCOUNT_ROLES = ["administrator", "moderator"] as const;
 export type AccountRole = typeof ACCOUNT_ROLES[number];
 /** Cloudflare Workers currently rejects PBKDF2 requests above this count. */
@@ -30,8 +36,19 @@ type UserRow = {
 
 export async function getDatabase() {
   const { env } = await import("cloudflare:workers");
-  if (!env.DB) throw new Error("The account database is unavailable.");
+  if (!env.DB) {
+    throw new ServiceUnavailableError(
+      "The account service is temporarily unavailable.",
+      "The DB binding was unavailable while loading account data.",
+    );
+  }
   return env.DB;
+}
+
+export async function getBootstrapAdministratorUserId() {
+  const { env } = await import("cloudflare:workers");
+  const configured = (env as typeof env & { BOOTSTRAP_ADMIN_USER_ID?: string }).BOOTSTRAP_ADMIN_USER_ID;
+  return typeof configured === "string" ? configured.trim() : "";
 }
 
 export type AccountDatabase = D1Database;
@@ -52,7 +69,7 @@ export async function ensureAdministrationSchema(db: AccountDatabase) {
 
 export async function getAccountRoles(
   db: AccountDatabase,
-  user: Pick<AccountUser, "id" | "email">,
+  user: Pick<AccountUser, "id">,
 ): Promise<AccountRole[]> {
   await ensureAdministrationSchema(db);
   const response = await db.prepare("SELECT role FROM account_roles WHERE user_id = ? ORDER BY role")
@@ -60,7 +77,8 @@ export async function getAccountRoles(
   const roles = (response.results ?? [])
     .map((row: { role: string }) => row.role)
     .filter((role: string): role is AccountRole => ACCOUNT_ROLES.includes(role as AccountRole));
-  if (normalizeEmail(user.email) === BOOTSTRAP_ADMIN_EMAIL && !roles.includes("administrator")) {
+  const bootstrapAdministratorId = await getBootstrapAdministratorUserId();
+  if (bootstrapAdministratorId && user.id === bootstrapAdministratorId && !roles.includes("administrator")) {
     roles.unshift("administrator");
   }
   return [...new Set(roles)];
@@ -74,8 +92,8 @@ export async function getAccountBan(db: AccountDatabase, userId: string) {
 
 export async function requireAdministrator(request: Request) {
   const user = await getSessionUser(request);
-  if (!user) throw new Error("Sign in is required.");
-  if (!user.roles.includes("administrator")) throw new Error("Administrator access is required.");
+  if (!user) throw new AuthenticationError();
+  if (!user.roles.includes("administrator")) throw new AuthorizationError("Administrator access is required.");
   return user;
 }
 
@@ -103,7 +121,10 @@ async function sha256(value: string) {
 
 async function derivePassword(password: string, salt: Uint8Array, iterations: number) {
   if (!Number.isSafeInteger(iterations) || iterations < 1 || iterations > MAX_PBKDF2_ITERATIONS) {
-    throw new Error(`The stored password parameters are unsupported (PBKDF2 supports at most ${MAX_PBKDF2_ITERATIONS} iterations).`);
+    throw new ServiceUnavailableError(
+      "The stored password cannot be verified right now.",
+      `Stored PBKDF2 iterations ${iterations} are outside the supported range 1-${MAX_PBKDF2_ITERATIONS}.`,
+    );
   }
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
   const saltBuffer = salt.buffer.slice(salt.byteOffset, salt.byteOffset + salt.byteLength) as ArrayBuffer;
@@ -126,9 +147,15 @@ export function normalizeEmail(value: string) {
 
 export function validateAccountInput(email: string, password: string, displayName?: string) {
   const normalized = normalizeEmail(email);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) || normalized.length > 254) throw new Error("Enter a valid email address.");
-  if (password.length < 10 || password.length > 128) throw new Error("Password must be between 10 and 128 characters.");
-  if (displayName != null && (!displayName.trim() || displayName.trim().length > 20)) throw new Error("Brawler Name must be between 1 and 20 characters.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) || normalized.length > 254) {
+    throw new ValidationError("Enter a valid email address.");
+  }
+  if (password.length < 10 || password.length > 128) {
+    throw new ValidationError("Password must be between 10 and 128 characters.");
+  }
+  if (displayName != null && (!displayName.trim() || displayName.trim().length > 20)) {
+    throw new ValidationError("Brawler Name must be between 1 and 20 characters.");
+  }
   return normalized;
 }
 
