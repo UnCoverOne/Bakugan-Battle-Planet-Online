@@ -1,34 +1,25 @@
 const MATCH_COORDINATOR_HEADER = "x-bbp-internal-match-coordinator";
 const ORIGINAL_URL_HEADER = "x-bbp-original-url";
+const INTERNAL_COORDINATOR_MARKER = "worker-boundary-v1";
 
-const coordinatorToken = (() => {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
-})();
-
-function constantTimeEqual(left: string, right: string) {
-  const maximum = Math.max(left.length, right.length);
-  let mismatch = left.length ^ right.length;
-  for (let index = 0; index < maximum; index += 1) {
-    mismatch |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);
-  }
-  return mismatch === 0;
-}
-
+/**
+ * Public requests pass through worker/index.ts, which removes every internal
+ * header before routing. Only the MatchRoom Durable Object adds this marker
+ * after that boundary, so the application route never treats a client-supplied
+ * header as proof of coordination.
+ */
 export function stripInternalMatchHeaders(headers: Headers) {
   headers.delete(MATCH_COORDINATOR_HEADER);
   headers.delete(ORIGINAL_URL_HEADER);
 }
 
 export function markInternalMatchRequest(headers: Headers, originalUrl: string) {
-  headers.set(MATCH_COORDINATOR_HEADER, coordinatorToken);
+  headers.set(MATCH_COORDINATOR_HEADER, INTERNAL_COORDINATOR_MARKER);
   headers.set(ORIGINAL_URL_HEADER, originalUrl);
 }
 
 export function isInternalMatchRequest(request: Request) {
-  const supplied = request.headers.get(MATCH_COORDINATOR_HEADER) ?? "";
-  return Boolean(supplied) && constantTimeEqual(supplied, coordinatorToken);
+  return request.headers.get(MATCH_COORDINATOR_HEADER) === INTERNAL_COORDINATOR_MARKER;
 }
 
 export function internalOriginalUrl(request: Request) {
