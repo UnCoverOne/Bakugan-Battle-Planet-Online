@@ -1,9 +1,9 @@
 name: Account Identity Release Validation
 
 on:
-  push:
+  pull_request:
     branches:
-      - feature/account-identity-release
+      - main
 
 permissions:
   contents: read
