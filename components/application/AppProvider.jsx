@@ -846,7 +846,51 @@ export function AppProvider({ children }) {
     );
     return true;
   }, [authUser?.id, leaveAccountLocally, notify, persistAccountRecovery, syncToCloud]);
-  const saveAccountProfile = useCallback(async () => { if (!authUser) return notify("Profile changes are saved on this device."); const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "update-profile", displayName: profile.name, faction: profile.faction }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not update account profile."); setAuthUser(result.user); setModifiedAt(Date.now()); }, [authUser, notify, profile.faction, profile.name, setModifiedAt]);
+  const saveAccountProfile = useCallback(async (updates = {}) => {
+    const displayName = String(updates.displayName ?? profile.name)
+      .trim()
+      .replace(/\s+/g, " ");
+    const faction = updates.faction ?? profile.faction;
+    if (!displayName || displayName.length > 20) {
+      throw new Error("Brawler Name must be between 1 and 20 characters.");
+    }
+    if (!authUser) {
+      setProfile((current) => ({
+        ...current,
+        name: displayName,
+        faction,
+        signedIn: false,
+      }));
+      notify("Brawler Name updated on this device.");
+      return { displayName, faction };
+    }
+    const response = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "update-profile",
+        displayName,
+        faction,
+      }),
+    });
+    const result = await readJsonResponse(
+      response,
+      "Account profile returned an invalid response.",
+    );
+    if (!response.ok || !result.user) {
+      throw new Error(result.error ?? "Could not update the Brawler Name.");
+    }
+    setAuthUser(result.user);
+    setProfile((current) => ({
+      ...current,
+      name: result.user.displayName,
+      faction: result.user.faction,
+      signedIn: true,
+    }));
+    setModifiedAt(Date.now());
+    notify("Brawler Name updated.");
+    return result.user;
+  }, [authUser, notify, profile.faction, profile.name, setModifiedAt, setProfile]);
   const changePassword = useCallback(async (currentPassword, newPassword) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "change-password", currentPassword, newPassword }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not change password."); notify("Password changed. Other sessions were signed out."); }, [notify]);
   const deleteAccount = useCallback(async (confirmation) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not delete account."); if (authUser?.id) { try { removeAccountCache(localStorage, authUser.id); } catch {} } activeAccountId.current = ""; cloudLoaded.current = false; setAccountDataReady(false); setPersistenceScope("local"); setAuthUser(null); if (guestSnapshot.current) applySnapshot(readGuestSnapshot(guestSnapshot.current), false); setSyncStatus("local"); router.push("/"); }, [applySnapshot, authUser?.id, router]);
 

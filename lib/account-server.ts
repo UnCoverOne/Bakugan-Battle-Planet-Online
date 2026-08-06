@@ -128,7 +128,7 @@ export function validateAccountInput(email: string, password: string, displayNam
   const normalized = normalizeEmail(email);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) || normalized.length > 254) throw new Error("Enter a valid email address.");
   if (password.length < 10 || password.length > 128) throw new Error("Password must be between 10 and 128 characters.");
-  if (displayName != null && (!displayName.trim() || displayName.trim().length > 20)) throw new Error("Brawler name must be between 1 and 20 characters.");
+  if (displayName != null && (!displayName.trim() || displayName.trim().length > 20)) throw new Error("Brawler Name must be between 1 and 20 characters.");
   return normalized;
 }
 
