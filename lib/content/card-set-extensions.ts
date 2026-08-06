@@ -111,7 +111,11 @@ export function recordsFromRows(
       number,
       name: internalName,
       displayName,
-      constructionIdentity: constructionIdentityForCard({ displayName, effect }),
+      constructionIdentity: constructionIdentityForCard({
+        name: internalName,
+        displayName,
+        effect,
+      }),
       faction,
       factions: [faction],
       type,
