@@ -174,9 +174,24 @@ export const validateDeck = (deck: DeckRecord) => validateDeckConstruction(deck,
 export const deckErrors = (deck: DeckRecord) => deckValidationMessages(validateDeck(deck));
 export const deckIsLegal = (deck: DeckRecord) => validateDeck(deck).isLegal;
 
+const secureIndex = (maximum: number) => {
+  if (maximum <= 1) return 0;
+  const cryptoApi = globalThis.crypto;
+  if (!cryptoApi?.getRandomValues) return Math.floor(Math.random() * maximum);
+  const limit = Math.floor(0x1_0000_0000 / maximum) * maximum;
+  const value = new Uint32Array(1);
+  do cryptoApi.getRandomValues(value); while (value[0] >= limit);
+  return value[0] % maximum;
+};
+
+const opaqueCardInstanceId = (playerId: string, index: number) => (
+  globalThis.crypto?.randomUUID?.()
+  ?? `${Date.now().toString(36)}-${playerId}-${index}-${secureIndex(0x1_0000_0000).toString(36)}`
+);
+
 const instance = (card: GameCard, playerId: string, index: number): GameCard => ({
   ...card,
-  id: `${card.catalogId}-${playerId}-${index}-${globalThis.crypto?.randomUUID?.() ?? secureIndex(0x1_0000_0000).toString(36)}`,
+  id: `card-${opaqueCardInstanceId(playerId, index)}`,
 });
 const coreInstance = (core: Core, playerId: string, index: number): Core => ({
   ...core,
@@ -188,16 +203,6 @@ export type CanonicalPlayerSelection = {
   name: string;
   deck: Pick<DeckRecord, "name" | "bakuganIds" | "coreIds" | "cardIds" | "format">;
   cosmetics?: { avatar?: string; playmat?: string; cardBack?: string };
-};
-
-const secureIndex = (maximum: number) => {
-  if (maximum <= 1) return 0;
-  const cryptoApi = globalThis.crypto;
-  if (!cryptoApi?.getRandomValues) return Math.floor(Math.random() * maximum);
-  const limit = Math.floor(0x1_0000_0000 / maximum) * maximum;
-  const value = new Uint32Array(1);
-  do cryptoApi.getRandomValues(value); while (value[0] >= limit);
-  return value[0] % maximum;
 };
 
 const shuffleCanonical = <T,>(values: T[]) => {
