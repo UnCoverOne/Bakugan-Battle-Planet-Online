@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { DeckRecord } from "../../lib/data";
+import { validateDeck, type DeckRecord } from "../../lib/data";
 import {
   clearAccountIntent,
   readAccountIntent,
@@ -133,6 +133,12 @@ export function GuestExperienceController() {
     }
     const deck = decks.find((item: DeckRecord) => item.id === intent.deckId);
     if (!deck) {
+      clearAccountIntent();
+      return;
+    }
+    const report = validateDeck(deck);
+    if (!report.isLegal) {
+      notify(`This deck could not be published: ${report.issues[0]?.message ?? "the deck is not legal."}`);
       clearAccountIntent();
       return;
     }
