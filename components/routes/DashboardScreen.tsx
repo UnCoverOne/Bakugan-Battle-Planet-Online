@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
+import { rememberAccountIntent } from "../../lib/account-intent";
 import { CARD_BY_ID, PUBLIC_DECKS, deckLeadCard, type DeckRecord } from "../../lib/data";
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
@@ -126,22 +127,33 @@ function HeroSpeedLines() {
 }
 
 export function DashboardScreen() {
-  const { profile, decks, history, match } = useApp();
+  const {
+    profile,
+    decks,
+    history,
+    match,
+    authUser,
+    requestAccountAccess,
+  } = useApp();
   useHomeDisplayFont();
   const heroSource = useHighResolutionHero();
+  const isGuest = !authUser;
   const achievements = achievementsFor(decks, history);
+  const unlockedAchievements = achievements.filter((achievement) => achievement.unlocked);
   const incompleteAchievements = achievements
     .filter((achievement) => !achievement.unlocked)
     .sort((left, right) => (right.current / right.target) - (left.current / left.target));
   const closestAchievements = [
     ...incompleteAchievements,
-    ...achievements.filter((achievement) => achievement.unlocked).reverse(),
+    ...unlockedAchievements.reverse(),
   ].slice(0, 3);
   const wins = history.filter((item: { result?: string }) => item.result === "Victor").length;
   const winRate = history.length ? Math.round((wins / history.length) * 100) : 0;
   const completeDecks = decks.filter(deckLooksComplete);
   const publicDecks = [
-    ...decks.filter((deck: DeckRecord) => deck.visibility === "Public").map((deck: DeckRecord) => ({ ...deck, creator: profile.name, publishedAt: deck.publishedAt ?? deck.updatedAt })),
+    ...(authUser
+      ? decks.filter((deck: DeckRecord) => deck.visibility === "Public").map((deck: DeckRecord) => ({ ...deck, creator: profile.name, publishedAt: deck.publishedAt ?? deck.updatedAt }))
+      : []),
     ...PUBLIC_DECKS,
   ].sort((a, b) => Date.parse(b.publishedAt ?? b.updatedAt) - Date.parse(a.publishedAt ?? a.updatedAt));
   const featured = publicDecks[0];
@@ -156,15 +168,22 @@ export function DashboardScreen() {
     : [];
   const activeMatch = Boolean(match && match.phase !== "result");
 
+  const openAccount = (mode: "login" | "signup", reason: "achievements" | "protect-progress") => {
+    rememberAccountIntent(reason, { returnTo: "/" });
+    requestAccountAccess(mode);
+  };
+
   return <div className={`bakugan-home ${activeMatch ? "has-active-match" : ""}`}>
     <section className="bakugan-home-hero">
       <div className="bakugan-home-hero-copy">
-        <p className="home-kicker">Welcome back, {profile.name}</p>
+        <p className="home-kicker">{isGuest ? "Welcome to Battle Planet" : `Welcome back, ${profile.name}`}</p>
         <h1><span>Battle</span><strong>Planet</strong></h1>
-        <p>Build your arsenal, prepare your Bakugan team, and choose your next Battle Planet Brawl.</p>
+        <p>{isGuest
+          ? "Train with a starter strategy, explore the complete card catalogue, or build your first Battle Planet deck."
+          : "Build your arsenal, prepare your Bakugan team, and choose your next Battle Planet Brawl."}</p>
         <div className="hero-actions">
-          <span className="play-button-glow"><Link className="hex-button red" href="/play"><span>PLAY</span><ChevronArrow/></Link></span>
-          <Link className="hex-button ghost" href="/decks"><span>DECKS</span><ChevronArrow/></Link>
+          <span className="play-button-glow"><Link className="hex-button red" href="/play"><span>{isGuest ? "START TRAINING" : "PLAY"}</span><ChevronArrow/></Link></span>
+          <Link className="hex-button ghost" href="/decks"><span>{isGuest ? "BUILD A DECK" : "DECKS"}</span><ChevronArrow/></Link>
         </div>
       </div>
       <div className="bakugan-home-hero-art">
@@ -180,7 +199,20 @@ export function DashboardScreen() {
     </section>}
 
     <section className="home-feature-grid">
-      <article className="panel home-achievement-summary">
+      {isGuest ? <article className="panel home-account-gate">
+        <div className="panel-heading"><h2>Brawler account</h2><span>OPTIONAL</span></div>
+        <div className="home-account-gate-body">
+          <span className="home-account-gate-mark" aria-hidden="true">★</span>
+          <h3>{unlockedAchievements.length
+            ? `${unlockedAchievements.length} achievement${unlockedAchievements.length === 1 ? "" : "s"} ready to unlock`
+            : "Unlock your Brawler identity"}</h3>
+          <p>Create an account to unlock achievements, publish Public decks, customise your Profile, and protect your local progress across devices.</p>
+          <div className="home-account-gate-actions">
+            <button type="button" onClick={() => openAccount("signup", "achievements")}>Create Account</button>
+            <button type="button" onClick={() => openAccount("login", "protect-progress")}>Log In</button>
+          </div>
+        </div>
+      </article> : <article className="panel home-achievement-summary">
         <div className="panel-heading"><h2>Achievement progress</h2><Link href="/profile/achievements">VIEW ALL →</Link></div>
         <div className="home-achievement-list">
           {closestAchievements.map((achievement) => <div className={`home-achievement-row ${achievement.unlocked ? "complete" : ""}`} key={achievement.id}>
@@ -192,7 +224,7 @@ export function DashboardScreen() {
             </div>
           </div>)}
         </div>
-      </article>
+      </article>}
 
       <article className="panel home-featured-deck">
         <div className="panel-heading"><h2>Featured deck</h2><Link href="/decks/public">BROWSE ALL →</Link></div>
@@ -209,11 +241,20 @@ export function DashboardScreen() {
             <p className="home-featured-deck-description">{featured.description ?? "A public Battle Planet deck ready to explore and copy."}</p>
             <Link className="hex-button ghost" href={`/decks/public/${encodeURIComponent(featured.id)}`}><span>VIEW DECK</span><ChevronArrow/></Link>
           </div>
-        </div> : <div className="empty-state"><strong>NO PUBLIC DECKS YET</strong><p>Publish a deck from My Decks to feature it here.</p></div>}
+        </div> : <div className="empty-state"><strong>NO PUBLIC DECKS YET</strong><p>Registered Brawlers can publish legal decks from My Decks.</p></div>}
       </article>
     </section>
 
-    <section className="panel home-profile-strip">
+    {isGuest ? <section className="panel home-profile-strip home-guest-progress">
+      <div className="home-guest-progress-copy">
+        <strong>Playing as Guest Brawler</strong>
+        <span>{decks.length} deck{decks.length === 1 ? "" : "s"} and {history.length} completed match record{history.length === 1 ? "" : "s"} saved on this device only.</span>
+      </div>
+      <div className="guest-progress-actions">
+        <button type="button" onClick={() => openAccount("signup", "protect-progress")}>Protect My Progress</button>
+        <button type="button" onClick={() => openAccount("login", "protect-progress")}>Log In</button>
+      </div>
+    </section> : <section className="panel home-profile-strip">
       <Link className="home-profile-identity" href="/profile">
         <span className={`home-profile-avatar ${factionClass(profile.faction)}`}>{profile.name.slice(0, 2).toUpperCase()}</span>
         <span><strong>{profile.name}</strong><small>{profile.faction} Brawler</small></span>
@@ -222,6 +263,6 @@ export function DashboardScreen() {
       <div className="home-profile-stat"><strong>{wins}</strong><span>Games won</span></div>
       <div className="home-profile-stat"><strong>{winRate}%</strong><span>Win rate</span></div>
       <div className="home-profile-stat"><strong>{completeDecks.length}</strong><span>Complete decks</span></div>
-    </section>
+    </section>}
   </div>;
 }
