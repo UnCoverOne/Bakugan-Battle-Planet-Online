@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { MatchRuntime } from "../../../../components/routes/MatchRuntime";
-import { LobbyScreen } from "../../../../components/routes/PlayRoutes";
+import { LobbyRoomScreen } from "../../../../components/routes/LobbyRoomScreen";
 
 export const metadata: Metadata = { title: "Match Lobby" };
-export default function LobbyPage() { return <><LobbyScreen /><MatchRuntime /></>; }
+export default function LobbyPage() { return <LobbyRoomScreen />; }

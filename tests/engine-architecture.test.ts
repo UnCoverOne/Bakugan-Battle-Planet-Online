@@ -131,11 +131,27 @@ test("the deterministic reducer produces identical state and events", () => {
     commandId: "ready-player-two",
     actorId: "p2",
     command: { type: "SET_READY" },
-    randomSeed: "starting-player-seed",
+    randomSeed: "ready-two",
     issuedAt: 1_800_000_001_000,
   });
-  const first = reduceMatch(firstAfterOne, readyTwo);
-  const second = reduceMatch(secondAfterOne, readyTwo);
+  const firstBothReady = reduceMatch(firstAfterOne, readyTwo);
+  const secondBothReady = reduceMatch(secondAfterOne, readyTwo);
+
+  assert.deepEqual(firstBothReady.state, secondBothReady.state);
+  assert.deepEqual(firstBothReady.events, secondBothReady.events);
+  assert.equal(firstBothReady.state.phase, "lobby");
+  assert.equal(firstBothReady.state.players.every((candidate) => candidate.ready), true);
+  assert.equal(firstBothReady.state[ENGINE_METADATA_KEY]?.phase.area, "lobby");
+
+  const start = envelope(firstBothReady.state, {
+    commandId: "owner-start-match",
+    actorId: "p1",
+    command: { type: "SET_READY" },
+    randomSeed: "starting-player-seed",
+    issuedAt: 1_800_000_002_000,
+  });
+  const first = reduceMatch(firstBothReady.state, start);
+  const second = reduceMatch(secondBothReady.state, start);
 
   assert.deepEqual(first.state, second.state);
   assert.deepEqual(first.events, second.events);

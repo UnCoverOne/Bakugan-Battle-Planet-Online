@@ -49,7 +49,7 @@ test("invalid decks block forward and URL navigation with the centralized reason
   assert.equal(forward.failure?.kind, "validation");
 });
 
-test("room, connection, and authentication failures all produce explicit Start Match blockers", () => {
+test("room, connection, and authentication failures all produce explicit launch blockers", () => {
   let setup = createPlaySetupState({ step: "ready", mode: "join", selectedDeckId: "legal", joinCode: "BP" });
   let blockers = playSetupStartBlockers(setup, legalEnvironment);
   assert.ok(blockers.some((blocker) => blocker.code === "room.code_required"));
@@ -94,7 +94,7 @@ test("session restoration preserves choices but never restores a stale launch st
   assert.equal(normalizeRoomCode("bpo1-7k3m"), "BP7K3M");
 });
 
-test("the Play route renders the complete loadout, visible blockers, and one definitive Start Match action", async () => {
+test("the Play route distinguishes starting training from creating or joining a room", async () => {
   const [route, css, decks] = await Promise.all([
     readFile(new URL("../components/routes/PlayRoutes.tsx", import.meta.url), "utf8"),
     readFile(new URL("../components/routes/PlayRoutes.module.css", import.meta.url), "utf8"),
@@ -108,13 +108,15 @@ test("the Play route renders the complete loadout, visible blockers, and one def
     "playSetupStartBlockers",
     "LoadoutVisual",
     "Six BakuCores",
-    "Start Match is blocked:",
+    "Create Room",
+    "Join Room",
     "Connection failed",
     "Authentication failed",
     "Creating private room…",
     "Joining room",
   ]) assert.match(route, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.equal((route.match(/START MATCH/g) ?? []).length, 1);
+  assert.match(route, /setup\.mode === "solo" \? "START MATCH" : setup\.mode === "online" \? "CREATE ROOM" : "JOIN ROOM"/);
+  assert.match(route, /setup\.mode === "solo" \? "Start Match" : setup\.mode === "online" \? "Create Room" : "Join Room"/);
   assert.doesNotMatch(route, /deckLeadCard|confirmation-lead/);
   assert.match(route, /cardArtSource\(character\.character,\s*"full"\)/);
   assert.match(route, /returnTo=.*step=loadout/);
