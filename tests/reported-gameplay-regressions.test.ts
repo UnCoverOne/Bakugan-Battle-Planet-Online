@@ -5,6 +5,7 @@ import {
   CENTER_CELL,
   createMatch,
   nextTurn,
+  totalPower,
   type Bakugan,
   type Core,
   type Faction,
@@ -14,6 +15,8 @@ import {
   type RollOutcome,
 } from "../lib/game";
 import { advanceOpponentAi } from "../lib/opponentAi";
+import { advanceOpponentAi as advanceBaseOpponentAi } from "../lib/opponentAiBase";
+import { buildChoiceSchema } from "../lib/rules/choices";
 import { additionalTurnDrawCount, turnDrawCount } from "../lib/turnStart";
 
 let serial = 0;
@@ -156,6 +159,61 @@ function establishSingleMiss(match: MatchState, ai: PlayerState, human: PlayerSt
   match.rolls[human.id] = roll(human.id, human.bakugan[0].id, "open-no-core");
 }
 
+function establishPendingDeepDiveReroll(match: MatchState, ai: PlayerState, deepDive: GameCard) {
+  const sourceText = deepDive.effect.split(/(?<=\.)\s+/)
+    .find((clause) => /may Reroll/i.test(clause));
+  assert.ok(sourceText, "Deep Dive Reroll clause missing");
+  const effectId = `${deepDive.id}-effect`;
+  match.batch = [{
+    id: effectId,
+    controllerId: ai.id,
+    card: deepDive,
+    choices: {},
+    kind: "card",
+    effect: deepDive.effect,
+    instructionIndex: 1,
+  }];
+  match.pendingChoice = {
+    id: `${effectId}-choice`,
+    kind: "resolution",
+    controllerId: ai.id,
+    cardId: deepDive.id,
+    schema: buildChoiceSchema(match, ai.id, deepDive, sourceText, {}, "resolve"),
+    answers: {},
+    createdVersion: match.version,
+    pendingEffectId: effectId,
+    instructionIndex: 1,
+  };
+}
+
+function establishWinningDoubleCore(match: MatchState, ai: PlayerState, human: PlayerState) {
+  ai.bakugan[0].open = true;
+  human.bakugan[0].open = true;
+  match.placements = [];
+  match.rolls[ai.id] = roll(ai.id, ai.bakugan[0].id, "intended-core");
+  match.rolls[human.id] = roll(human.id, human.bakugan[0].id, "intended-core");
+  const baseGap = totalPower(match, ai.id) - totalPower(match, human.id);
+  const aiCoreA = { ...core("ai-double-a"), bonus: 400 };
+  const aiCoreB = { ...core("ai-double-b"), bonus: 400 };
+  const humanCore = { ...core("human-held"), bonus: baseGap + 400 };
+  const fieldA = { ...core("reroll-field-a"), bonus: 0 };
+  const fieldB = { ...core("reroll-field-b"), bonus: 0 };
+  const aiCells = [CENTER_CELL, "h4-3"];
+  ai.bakugan[0].heldCoreCells = [...aiCells];
+  human.bakugan[0].heldCoreCells = ["h2-3"];
+  match.placements = [
+    { playerId: ai.id, core: aiCoreA, cell: aiCells[0], order: 1, attachedTo: ai.bakugan[0].id },
+    { playerId: ai.id, core: aiCoreB, cell: aiCells[1], order: 2, attachedTo: ai.bakugan[0].id },
+    { playerId: human.id, core: humanCore, cell: "h2-3", order: 3, attachedTo: human.bakugan[0].id },
+    { playerId: human.id, core: fieldA, cell: "h3-4", order: 4 },
+    { playerId: human.id, core: fieldB, cell: "h3-2", order: 5 },
+  ];
+  match.rolls[ai.id].cores = [...aiCells];
+  match.rolls[ai.id].doubleCore = true;
+  match.rolls[human.id].cores = ["h2-3"];
+  assert.equal(totalPower(match, ai.id) - totalPower(match, human.id), 400);
+}
+
 test("AI reserves Deep Dive until the Brawl can make its optional Reroll relevant", () => {
   const deepDive = catalogueCard("br-6", "deep-dive-pre-roll");
   const ai = player("ai", [bakugan("ai-b", "Aquos")], [deepDive]);
@@ -254,4 +312,62 @@ test("Bakugan Resurgence Strata does not inherit Battle Brawlers Strata's draw e
   const nextBattleBrawlersTurn = nextTurn(battleBrawlersTurn);
   assert.equal(nextBattleBrawlersTurn.drawRemainingByPlayer?.["battle-brawlers"], 2);
   assert.equal(nextBattleBrawlersTurn.drawRemainingByPlayer?.other, 2);
+});
+
+
+test("AI declines Deep Dive's optional Reroll when a Double Core already wins by 400 B", () => {
+  for (const reverseDeck of [false, true]) {
+    const deepDive = catalogueCard("br-6", `winning-deep-dive-${reverseDeck}`);
+    const standTogether = catalogueCard("bb-165", `stand-together-${reverseDeck}`);
+    const filler = catalogueCard("bb-10", `deck-filler-${reverseDeck}`);
+    const ai = player(`ai-${reverseDeck}`, [bakugan(`ai-b-${reverseDeck}`, "Aquos")]);
+    const human = player(`human-${reverseDeck}`, [bakugan(`human-b-${reverseDeck}`, "Pyrus")]);
+    addEnergy(ai, 4);
+    ai.deckCards = reverseDeck ? [filler, standTogether] : [standTogether, filler];
+    ai.deck = ai.deckCards.length;
+    const match = matchWith(ai, human, "power");
+    establishWinningDoubleCore(match, ai, human);
+    establishPendingDeepDiveReroll(match, ai, deepDive);
+    const next = advanceBaseOpponentAi(match, ai.id);
+    assert.ok(next);
+    assert.equal(next.pendingReroll, undefined);
+    assert.equal(next.rerollSequence, 0);
+    assert.equal(
+      next.players.find((candidate) => candidate.id === ai.id)!.bakugan[0].heldCoreCells.length,
+      2,
+    );
+  }
+});
+
+test("AI accepts Deep Dive's optional Reroll when it missed and the Reroll can recover", () => {
+  const deepDive = catalogueCard("br-6", "losing-deep-dive-choice");
+  const ai = player("choice-ai", [bakugan("choice-ai-b", "Aquos")]);
+  const human = player("choice-human", [bakugan("choice-human-b", "Pyrus")]);
+  const match = matchWith(ai, human, "power");
+  establishSingleMiss(match, ai, human);
+  match.placements.push({
+    playerId: human.id,
+    core: { ...core("choice-recovery-core"), bonus: 800 },
+    cell: "h4-3",
+    order: 2,
+  });
+  establishPendingDeepDiveReroll(match, ai, deepDive);
+  const next = advanceBaseOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.ok(next.pendingReroll || next.phase === "reroll");
+});
+
+test("AI conserves Deep Dive while already winning a Double-Core Brawl", () => {
+  const deepDive = catalogueCard("br-6", "conserve-deep-dive");
+  const ai = player("conserve-ai", [bakugan("conserve-ai-b", "Aquos")], [deepDive]);
+  const human = player("conserve-human", [bakugan("conserve-human-b", "Pyrus")]);
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human, "power");
+  establishWinningDoubleCore(match, ai, human);
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  const nextAi = next.players.find((candidate) => candidate.id === ai.id)!;
+  assert.equal(nextAi.hand.some((card) => card.id === deepDive.id), true);
+  assert.equal(next.batch.some((effect) => effect.card.id === deepDive.id), false);
+  assert.equal(nextAi.bakugan[0].heldCoreCells.length, 2);
 });
