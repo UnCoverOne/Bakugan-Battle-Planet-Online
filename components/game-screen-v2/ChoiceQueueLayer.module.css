@@ -7,3 +7,4 @@
 :global(html[data-choice-targeting="true"] [data-choice-target-valid="true"] *){pointer-events:none!important}
 @keyframes legal-target-pulse{from{filter:drop-shadow(0 0 .18rem #fff) drop-shadow(0 0 .48rem #ff5145)!important}to{filter:drop-shadow(0 0 .34rem #fff) drop-shadow(0 0 1rem #ff5145)!important}}
 @media(max-width:720px){.targetPrompt{bottom:6.2rem;align-items:stretch;flex-direction:column;width:calc(100vw - .8rem);padding:.7rem}.targetActions{justify-content:stretch}.targetActions button{flex:1}}
+@media(max-width:720px) and (orientation:portrait){.targetPrompt{top:calc(50dvh - .5rem);bottom:auto;max-height:calc(50dvh - 1rem);overflow:auto;transform:translate(-50%,-100%)}}
