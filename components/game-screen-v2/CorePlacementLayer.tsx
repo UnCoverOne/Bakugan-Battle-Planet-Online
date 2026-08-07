@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { HEX_CELLS, legalPlacementCells, placeCore, type CoreType, type MatchState } from "../../lib/game";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore } from "./matchStore";
@@ -14,6 +14,12 @@ const CORE_BACK_ART: Record<CoreType, string> = {
   "Magic Shield": "/assets/core-backs/magic-shield.png",
   Helix: "/assets/core-backs/helix.png",
 };
+
+// These dimensions are the unscaled bounds of the radius-four interactive
+// matrix: eight centre-to-centre steps plus one complete outer cell.
+const MATRIX_BASE_WIDTH_REM = 38;
+const MATRIX_BASE_HEIGHT_REM = 42.6;
+const MATRIX_SAFE_INSET_PX = 10;
 
 export function CorePlacementLayer({
   match,
@@ -29,11 +35,47 @@ export function CorePlacementLayer({
   const [selectedCoreId, setSelectedCoreId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [matrixScale, setMatrixScale] = useState(1);
+  const matrixRef = useRef<HTMLDivElement>(null);
   const actorId = playerId ?? match?.players[0]?.id;
   const oppositePerspective = playerUsesOppositeMatrixPerspective(match, actorId);
   const player = match?.players.find((candidate) => candidate.id === actorId);
   const startingPlayer = match?.players.find((candidate) => candidate.id === match.initialStartingPlayer);
   const legal = useMemo(() => match ? legalPlacementCells(match) : [], [match?.version]);
+
+  useLayoutEffect(() => {
+    const matrix = matrixRef.current;
+    if (!matrix || match?.phase !== "placement") return;
+    let frame = 0;
+
+    const measure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const rootFontSize = Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+        const availableWidth = matrix.clientWidth - MATRIX_SAFE_INSET_PX * 2;
+        const availableHeight = matrix.clientHeight - MATRIX_SAFE_INSET_PX * 2;
+        if (availableWidth <= 0 || availableHeight <= 0) return;
+        const next = Math.min(
+          1,
+          availableWidth / (MATRIX_BASE_WIDTH_REM * rootFontSize),
+          availableHeight / (MATRIX_BASE_HEIGHT_REM * rootFontSize),
+        );
+        if (Number.isFinite(next) && next > 0) setMatrixScale(next);
+      });
+    };
+
+    measure();
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    resizeObserver?.observe(matrix);
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+    };
+  }, [match?.phase]);
 
   if (!match || !actorId || !player || !["startingPlayer", "placement"].includes(match.phase)) return null;
 
@@ -79,6 +121,7 @@ export function CorePlacementLayer({
 
   const mine = match.priority === actorId;
   const unused = player.cores.filter((core) => !match.placements.some((placement) => placement.playerId === actorId && placement.core.id === core.id));
+  const matrixStyle = { "--matrix-scale": matrixScale } as CSSProperties;
   return <section className={styles.layer} aria-label="BakuCore placement">
     <header><div><small>CORE PLACEMENT • {match.placements.length}/12</small><h1>{mine ? "PLACE A BAKUCORE" : `${match.players.find((candidate) => candidate.id === match.priority)?.name ?? "Opponent"} IS PLACING`}</h1></div><p>{match.stepLabel}</p></header>
     <div className={styles.layout}>
@@ -89,18 +132,20 @@ export function CorePlacementLayer({
           <span>{core.name}</span>
         </button>)}
       </aside>
-      <div className={styles.matrix} aria-label="Face-down BakuCore matrix" data-perspective={oppositePerspective ? "opposite" : "local"}>
-        {HEX_CELLS.map((cell) => {
-          const placement = match.placements.find((candidate) => candidate.cell === cell.id);
-          const available = mine && Boolean(selectedCoreId) && legal.includes(cell.id);
-          const position = {
-            "--q": oppositePerspective ? -cell.q : cell.q,
-            "--r": oppositePerspective ? -cell.r : cell.r,
-          } as CSSProperties;
-          return <button type="button" key={cell.id} className={styles.cell} style={position} disabled={!available} data-occupied={Boolean(placement)} data-legal={available} onClick={() => void submit(selectedCoreId, cell.id)}>
-            {placement ? <img src={CORE_BACK_ART[placement.core.type]} alt="Face-down BakuCore" width="104" height="90" /> : <span>{available ? "+" : ""}</span>}
-          </button>;
-        })}
+      <div ref={matrixRef} className={styles.matrix} aria-label="Face-down BakuCore matrix" data-perspective={oppositePerspective ? "opposite" : "local"}>
+        <div className={styles.matrixGrid} style={matrixStyle}>
+          {HEX_CELLS.map((cell) => {
+            const placement = match.placements.find((candidate) => candidate.cell === cell.id);
+            const available = mine && Boolean(selectedCoreId) && legal.includes(cell.id);
+            const position = {
+              "--q": oppositePerspective ? -cell.q : cell.q,
+              "--r": oppositePerspective ? -cell.r : cell.r,
+            } as CSSProperties;
+            return <button type="button" key={cell.id} className={styles.cell} style={position} disabled={!available} data-occupied={Boolean(placement)} data-legal={available} onClick={() => void submit(selectedCoreId, cell.id)}>
+              {placement ? <img src={CORE_BACK_ART[placement.core.type]} alt="Face-down BakuCore" width="104" height="90" /> : <span>{available ? "+" : ""}</span>}
+            </button>;
+          })}
+        </div>
       </div>
       <aside className={styles.order}><strong>PLACEMENT ORDER</strong>{match.log.filter((entry) => entry.kind === "game").slice(-8).reverse().map((entry) => <p key={entry.id}>{entry.message}</p>)}</aside>
     </div>

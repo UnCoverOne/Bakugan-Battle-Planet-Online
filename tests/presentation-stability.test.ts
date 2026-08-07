@@ -82,3 +82,23 @@ test("Energy zones show total cards and stage a white-light Energize arrival", (
   assert.match(css, /@keyframes energy-lightning-bolt/);
   assert.match(css, /prefers-reduced-motion[\s\S]*energyZone\[data-energizing/);
 });
+
+test("portrait target prompts clear Character Cards and Core placement scales the full matrix into view", () => {
+  const targetCss = read("components/game-screen-v2/ChoiceQueueLayer.module.css");
+  const placement = read("components/game-screen-v2/CorePlacementLayer.tsx");
+  const placementCss = read("components/game-screen-v2/CorePlacementLayer.module.css");
+
+  assert.match(targetCss, /@media\(max-width:720px\) and \(orientation:portrait\)/);
+  assert.match(targetCss, /top:calc\(50dvh - \.5rem\)/);
+  assert.match(targetCss, /transform:translate\(-50%,-100%\)/);
+  assert.match(targetCss, /max-height:calc\(50dvh - 1rem\)/);
+
+  assert.match(placement, /MATRIX_BASE_WIDTH_REM = 38/);
+  assert.match(placement, /MATRIX_BASE_HEIGHT_REM = 42\.6/);
+  assert.match(placement, /new ResizeObserver\(measure\)/);
+  assert.match(placement, /availableWidth \/ \(MATRIX_BASE_WIDTH_REM \* rootFontSize\)/);
+  assert.match(placement, /availableHeight \/ \(MATRIX_BASE_HEIGHT_REM \* rootFontSize\)/);
+  assert.match(placementCss, /\.matrixGrid \{[^}]*scale\(var\(--matrix-scale, 1\)\)/);
+  assert.match(placementCss, /grid-template-rows: 7\.2rem minmax\(0, 1fr\)/);
+  assert.doesNotMatch(placementCss, /\.matrix \{[^}]*min-height:\s*28rem/);
+});
