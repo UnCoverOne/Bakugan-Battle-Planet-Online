@@ -1,0 +1,473 @@
+from pathlib import Path
+import re
+
+
+def replace_between(text: str, start_marker: str, end_marker: str, replacement: str) -> str:
+    start = text.index(start_marker)
+    end = text.index(end_marker, start)
+    return text[:start] + replacement + text[end:]
+
+
+path = Path("lib/opponentAiBase.ts")
+source = path.read_text()
+
+reroll_block = r'''function heldCoreCount(match: MatchState, playerId: string) {
+  return playerById(match, playerId)?.bakugan.reduce(
+    (sum, bakugan) => sum + bakugan.heldCoreCells.length,
+    0,
+  ) ?? 0;
+}
+
+function heldCoreStrategicValue(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId);
+  if (!player) return 0;
+  return player.bakugan.reduce((sum, bakugan) => (
+    sum + bakugan.heldCoreCells.reduce((coreSum, cell) => {
+      const placement = match.placements.find((candidate) => candidate.cell === cell);
+      return coreSum + (placement
+        ? Math.max(0, coreValueForBakugan(placement.core, bakugan))
+        : 0);
+    }, 0)
+  ), 0);
+}
+
+/**
+ * Preserve the expected defensive value of Domination using only remaining
+ * deck composition. Hidden deck order is never inspected.
+ */
+function dominationFlipReserveValue(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId);
+  const opponent = opponentOf(match, playerId);
+  if (!player || !opponent || !player.deckCards.length) return 0;
+  if (heldCoreCount(match, playerId) <= heldCoreCount(match, opponent.id)) return 0;
+  const capacity = currentEnergyCapacity(match, playerId);
+  const candidates = player.deckCards.filter((card) => (
+    card.type === "Flip"
+    && /\bDomination\b/i.test(card.effect)
+    && card.cost !== "X"
+    && card.cost <= capacity
+  ));
+  if (!candidates.length) return 0;
+  const density = candidates.length / player.deckCards.length;
+  return Math.min(2.5, 0.5 + density * 5 + Math.min(1, candidates.length * 0.25));
+}
+
+function rerollBrawlStateUtility(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId);
+  const opponent = opponentOf(match, playerId);
+  const roll = match.rolls[playerId];
+  if (!player || !opponent || !roll) return -9;
+  const opponentRoll = match.rolls[opponent.id];
+  const participates = roll.result !== "miss-closed";
+  const opponentParticipates = Boolean(
+    opponentRoll && opponentRoll.result !== "miss-closed",
+  );
+  const own = match.victorByDamage
+    ? totalDamage(match, playerId)
+    : totalPower(match, playerId);
+  const enemy = match.victorByDamage
+    ? totalDamage(match, opponent.id)
+    : totalPower(match, opponent.id);
+  const gap = own - enemy;
+  let value = !participates ? -9
+    : !opponentParticipates ? 8
+      : gap > 0 ? 8
+        : gap === 0 ? -1
+          : -8;
+  value += clamp(gap / 400, -2.5, 2.5);
+  value += heldCoreStrategicValue(match, playerId) * 0.25;
+  value += heldCoreCount(match, playerId) * 0.35;
+  value += dominationFlipReserveValue(match, playerId);
+  return value;
+}
+
+function projectedControllerRerollValue(
+  match: MatchState,
+  playerId: string,
+  mandatory: boolean,
+  sourceCard?: GameCard,
+) {
+  const player = playerById(match, playerId);
+  const opponent = opponentOf(match, playerId);
+  const roll = match.rolls[playerId];
+  const bakugan = player?.bakugan.find(
+    (candidate) => candidate.id === match.selected[playerId],
+  );
+  if (!player || !opponent || !roll || !bakugan || !availableRollTargets(match).length) {
+    return mandatory ? -1.5 : 0;
+  }
+  const forecast = bestForecast(match, playerId, bakugan);
+  if (!forecast?.samples.length) return mandatory ? -1.5 : 0;
+
+  const currentUtility = rerollBrawlStateUtility(match, playerId);
+  const repeatedOpenValue = Math.max(0, repeatableOnOpenValue(match, playerId));
+  const sourceRerollSuccessValue = sourceCard
+    ? Math.max(0, rerollSuccessValue(match, playerId, sourceCard))
+    : 0;
+  let totalDelta = 0;
+  for (const sample of forecast.samples) {
+    const projected = cloneMatch(match);
+    applyProjectedRollSample(projected, playerId, sample);
+    let projectedUtility = rerollBrawlStateUtility(projected, playerId);
+    if (sample.outcome.result !== "miss-closed") {
+      projectedUtility += repeatedOpenValue + sourceRerollSuccessValue;
+    }
+    totalDelta += projectedUtility - currentUtility;
+  }
+  return clamp(totalDelta / forecast.samples.length, -12, 12);
+}
+
+'''
+source = replace_between(
+    source,
+    "function projectedControllerRerollValue(",
+    "function negateTarget(",
+    reroll_block + "function negateTarget(",
+)
+
+card_start = source.index("function cardValue(")
+card_end = source.index("function setChoice(", card_start)
+card_block = source[card_start:card_end]
+card_block, count = re.subn(
+    r'''if \(action\.target === "controller"\) \{\s*value \+= projectedControllerRerollValue\(\s*match,\s*playerId,\s*action\.mandatory,\s*\);\s*\} else \{''',
+    '''if (action.target === "controller") {
+        const rerollValue = projectedControllerRerollValue(
+          match,
+          playerId,
+          action.mandatory,
+          card,
+        );
+        value += action.mandatory ? rerollValue : Math.max(0, rerollValue);
+      } else {''',
+    card_block,
+    count=1,
+    flags=re.S,
+)
+if count != 1:
+    raise SystemExit(f"Expected one cardValue reroll block, got {count}")
+insert_at = card_block.index('  if (card.type === "Hero")')
+card_block = card_block[:insert_at] + r'''  const immediateDrawAmount = entries.reduce((sum, entry) => (
+    sum + (entry.action.kind === "draw" ? entry.action.amount : 0)
+  ), 0);
+  // Playing an Action already spends one card. Treat its first draw as
+  // replacement/card selection instead of full card advantage.
+  if (card.type === "Action" && immediateDrawAmount > 0) {
+    value -= Math.min(1, immediateDrawAmount) * 1.8;
+  }
+  value -= winningBrawlResourceConservationPenalty(
+    match,
+    playerId,
+    card,
+    entries,
+    printedCost,
+  );
+''' + card_block[insert_at:]
+
+conservation_helper = r'''function brawlCurrentlyWon(match: MatchState, playerId: string) {
+  const opponent = opponentOf(match, playerId);
+  const roll = match.rolls[playerId];
+  const opponentRoll = opponent ? match.rolls[opponent.id] : undefined;
+  if (!opponent || !roll || roll.result === "miss-closed") return false;
+  if (!opponentRoll || opponentRoll.result === "miss-closed") return true;
+  const own = match.victorByDamage
+    ? totalDamage(match, playerId)
+    : totalPower(match, playerId);
+  const enemy = match.victorByDamage
+    ? totalDamage(match, opponent.id)
+    : totalPower(match, opponent.id);
+  return own > enemy;
+}
+
+function winningBrawlResourceConservationPenalty(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  entries: ReturnType<typeof activeCardActionEntries>,
+  printedCost: number,
+) {
+  if (match.phase !== "power" || card.type !== "Action" || !brawlCurrentlyWon(match, playerId)) {
+    return 0;
+  }
+  const hasDurableOrAttackPayoff = entries.some(({ action, sourceText }) => {
+    if (["move", "search", "play", "energize", "generate-energy", "copy", "negate", "prevention"].includes(action.kind)) {
+      return true;
+    }
+    if (action.kind === "modify-stat" && action.stat === "damage") {
+      return !actionTargetsEnemy(match, playerId, {}, action, sourceText)
+        && action.amount > 0;
+    }
+    if (action.kind === "grant-keyword") {
+      return !actionTargetsEnemy(match, playerId, {}, action, sourceText)
+        && (action.keyword === "DoubleStrike" || action.keyword === "FrostStrike");
+    }
+    if (action.kind === "attack") return action.amount > 0;
+    return action.kind === "continuous";
+  });
+  if (hasDurableOrAttackPayoff) return 0;
+  return 0.45 + Math.min(1.2, Math.max(0, printedCost) * 0.25);
+}
+
+'''
+source = source[:card_start] + conservation_helper + card_block + source[card_end:]
+
+option_start = source.index("function optionScore(")
+choose_start = source.index("function chooseChoicesFromSchema(", option_start)
+option_block = source[option_start:choose_start]
+option_block = option_block.replace(
+    "  field: ChoiceField,\n  id: string,\n) {",
+    "  field: ChoiceField,\n  id: string,\n  sourceText = card.effect,\n) {",
+    1,
+)
+option_block, count = re.subn(
+    r'''  if \(field\.kind === "confirm"\) \{\s*const controllerScore = cardValue\(match, controllerId, card\);\s*return chooserId === controllerId \? controllerScore : -controllerScore;\s*\}''',
+    '''  if (field.kind === "confirm") {
+    const marginal = optionalEffectValue(match, controllerId, card, sourceText);
+    const controllerScore = id === "yes"
+      ? marginal - 0.15
+      : id === "no" ? 0 : -1;
+    return chooserId === controllerId ? controllerScore : -controllerScore;
+  }''',
+    option_block,
+    count=1,
+    flags=re.S,
+)
+if count != 1:
+    raise SystemExit(f"Expected one confirm scoring block, got {count}")
+
+optional_helper = r'''function optionalEffectValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  sourceText: string,
+) {
+  let entries: ReturnType<typeof activeCardActionEntries>;
+  try {
+    const normalized = sourceText.trim().toLowerCase();
+    entries = activeCardActionEntries(
+      match,
+      playerId,
+      card,
+      {},
+      { execution: "all" },
+    ).filter((entry) => {
+      const candidate = entry.sourceText.trim().toLowerCase();
+      return candidate === normalized || normalized.includes(candidate);
+    });
+  } catch {
+    return -0.25;
+  }
+  if (!entries.length) return -0.25;
+  let value = 0;
+  for (const { action, sourceText: actionText } of entries) {
+    if (action.kind === "reroll" && match.phase === "power") {
+      if (action.target === "controller") {
+        value += projectedControllerRerollValue(
+          match,
+          playerId,
+          action.mandatory,
+          card,
+        );
+      } else {
+        const targetId = opponentOf(match, playerId)?.id;
+        const targetRoll = targetId ? match.rolls[targetId] : undefined;
+        if (targetRoll) value += targetRoll.result === "miss-closed" ? -1.5 : 4.5;
+      }
+      continue;
+    }
+    if (action.kind === "negate") {
+      value += negateValue(match, playerId, compileCardEffect(card));
+      continue;
+    }
+    const raw = actionBaseValue(action);
+    if (raw) {
+      const targetsEnemy = actionTargetsEnemy(
+        match,
+        playerId,
+        {},
+        action,
+        actionText,
+      );
+      value += raw * (targetsEnemy ? -1 : 1)
+        * combatRelevance(match, playerId, action, targetsEnemy);
+      continue;
+    }
+    value += estimateRuleActionValue(action, match);
+  }
+  return value;
+}
+
+'''
+source = source[:option_start] + optional_helper + option_block + source[choose_start:]
+source = source.replace(
+    "  schema: ChoiceSchema,\n  chooserId: string,\n): CardChoices {",
+    "  schema: ChoiceSchema,\n  chooserId: string,\n  sourceText = card.effect,\n): CardChoices {",
+    1,
+)
+source = source.replace(
+    "optionScore(match, controllerId, chooserId, card, field, option.id)",
+    "optionScore(match, controllerId, chooserId, card, field, option.id, sourceText)",
+    1,
+)
+source, count = re.subn(
+    r'''const card = source\s*\? \{ \.\.\.source\.card, effect: source\.sourceText \}\s*: fallbackChoiceCard\(pending\);\s*let choices: CardChoices;\s*try \{\s*choices = chooseChoicesFromSchema\(input, pending\.controllerId, card, pending\.schema, playerId\);''',
+    '''const card = source?.card ?? fallbackChoiceCard(pending);
+    const choiceSourceText = source?.sourceText ?? card.effect;
+    let choices: CardChoices;
+    try {
+      choices = chooseChoicesFromSchema(
+        input,
+        pending.controllerId,
+        card,
+        pending.schema,
+        playerId,
+        choiceSourceText,
+      );''',
+    source,
+    count=1,
+    flags=re.S,
+)
+if count != 1:
+    raise SystemExit(f"Expected one pending choice source block, got {count}")
+path.write_text(source)
+
+
+test_path = Path("tests/reported-gameplay-regressions.test.ts")
+tests = test_path.read_text()
+tests = tests.replace(
+    "  nextTurn,\n  type Bakugan,",
+    "  nextTurn,\n  totalPower,\n  type Bakugan,",
+    1,
+)
+tests = tests.replace(
+    'import { advanceOpponentAi } from "../lib/opponentAi";\n',
+    'import { advanceOpponentAi } from "../lib/opponentAi";\n'
+    'import { advanceOpponentAi as advanceBaseOpponentAi } from "../lib/opponentAiBase";\n'
+    'import { buildChoiceSchema } from "../lib/rules/choices";\n',
+    1,
+)
+anchor = '''function establishSingleMiss(match: MatchState, ai: PlayerState, human: PlayerState) {
+  ai.bakugan[0].open = false;
+  human.bakugan[0].open = true;
+  match.rolls[ai.id] = roll(ai.id, ai.bakugan[0].id, "miss-closed");
+  match.rolls[human.id] = roll(human.id, human.bakugan[0].id, "open-no-core");
+}
+'''
+if anchor not in tests:
+    raise SystemExit("Reported regression helper anchor not found")
+helpers = anchor + r'''
+function establishPendingDeepDiveReroll(match: MatchState, ai: PlayerState, deepDive: GameCard) {
+  const sourceText = deepDive.effect.split(/(?<=\.)\s+/)
+    .find((clause) => /may Reroll/i.test(clause));
+  assert.ok(sourceText, "Deep Dive Reroll clause missing");
+  const effectId = `${deepDive.id}-effect`;
+  match.batch = [{
+    id: effectId,
+    controllerId: ai.id,
+    card: deepDive,
+    choices: {},
+    kind: "card",
+    effect: deepDive.effect,
+    instructionIndex: 1,
+  }];
+  match.pendingChoice = {
+    id: `${effectId}-choice`,
+    kind: "resolution",
+    controllerId: ai.id,
+    cardId: deepDive.id,
+    schema: buildChoiceSchema(match, ai.id, deepDive, sourceText, {}, "resolve"),
+    answers: {},
+    createdVersion: match.version,
+    pendingEffectId: effectId,
+    instructionIndex: 1,
+  };
+}
+
+function establishWinningDoubleCore(match: MatchState, ai: PlayerState, human: PlayerState) {
+  ai.bakugan[0].open = true;
+  human.bakugan[0].open = true;
+  match.placements = [];
+  match.rolls[ai.id] = roll(ai.id, ai.bakugan[0].id, "intended-core");
+  match.rolls[human.id] = roll(human.id, human.bakugan[0].id, "intended-core");
+  const baseGap = totalPower(match, ai.id) - totalPower(match, human.id);
+  const aiCoreA = { ...core("ai-double-a"), bonus: 400 };
+  const aiCoreB = { ...core("ai-double-b"), bonus: 400 };
+  const humanCore = { ...core("human-held"), bonus: baseGap + 400 };
+  const fieldA = { ...core("reroll-field-a"), bonus: 0 };
+  const fieldB = { ...core("reroll-field-b"), bonus: 0 };
+  const aiCells = [CENTER_CELL, "h4-3"];
+  ai.bakugan[0].heldCoreCells = [...aiCells];
+  human.bakugan[0].heldCoreCells = ["h2-3"];
+  match.placements = [
+    { playerId: ai.id, core: aiCoreA, cell: aiCells[0], order: 1, attachedTo: ai.bakugan[0].id },
+    { playerId: ai.id, core: aiCoreB, cell: aiCells[1], order: 2, attachedTo: ai.bakugan[0].id },
+    { playerId: human.id, core: humanCore, cell: "h2-3", order: 3, attachedTo: human.bakugan[0].id },
+    { playerId: human.id, core: fieldA, cell: "h3-4", order: 4 },
+    { playerId: human.id, core: fieldB, cell: "h3-2", order: 5 },
+  ];
+  match.rolls[ai.id].cores = [...aiCells];
+  match.rolls[ai.id].doubleCore = true;
+  match.rolls[human.id].cores = ["h2-3"];
+  assert.equal(totalPower(match, ai.id) - totalPower(match, human.id), 400);
+}
+'''
+tests = tests.replace(anchor, helpers, 1)
+tests += r'''
+
+test("AI declines Deep Dive's optional Reroll when a Double Core already wins by 400 B", () => {
+  for (const reverseDeck of [false, true]) {
+    const deepDive = catalogueCard("br-6", `winning-deep-dive-${reverseDeck}`);
+    const standTogether = catalogueCard("bb-165", `stand-together-${reverseDeck}`);
+    const filler = catalogueCard("bb-10", `deck-filler-${reverseDeck}`);
+    const ai = player(`ai-${reverseDeck}`, [bakugan(`ai-b-${reverseDeck}`, "Aquos")]);
+    const human = player(`human-${reverseDeck}`, [bakugan(`human-b-${reverseDeck}`, "Pyrus")]);
+    addEnergy(ai, 4);
+    ai.deckCards = reverseDeck ? [filler, standTogether] : [standTogether, filler];
+    ai.deck = ai.deckCards.length;
+    const match = matchWith(ai, human, "power");
+    establishWinningDoubleCore(match, ai, human);
+    establishPendingDeepDiveReroll(match, ai, deepDive);
+    const next = advanceBaseOpponentAi(match, ai.id);
+    assert.ok(next);
+    assert.equal(next.pendingReroll, undefined);
+    assert.equal(next.rerollSequence, 0);
+    assert.equal(
+      next.players.find((candidate) => candidate.id === ai.id)!.bakugan[0].heldCoreCells.length,
+      2,
+    );
+  }
+});
+
+test("AI accepts Deep Dive's optional Reroll when it missed and the Reroll can recover", () => {
+  const deepDive = catalogueCard("br-6", "losing-deep-dive-choice");
+  const ai = player("choice-ai", [bakugan("choice-ai-b", "Aquos")]);
+  const human = player("choice-human", [bakugan("choice-human-b", "Pyrus")]);
+  const match = matchWith(ai, human, "power");
+  establishSingleMiss(match, ai, human);
+  match.placements.push({
+    playerId: human.id,
+    core: { ...core("choice-recovery-core"), bonus: 800 },
+    cell: "h4-3",
+    order: 2,
+  });
+  establishPendingDeepDiveReroll(match, ai, deepDive);
+  const next = advanceBaseOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.ok(next.pendingReroll || next.phase === "reroll");
+});
+
+test("AI conserves Deep Dive while already winning a Double-Core Brawl", () => {
+  const deepDive = catalogueCard("br-6", "conserve-deep-dive");
+  const ai = player("conserve-ai", [bakugan("conserve-ai-b", "Aquos")], [deepDive]);
+  const human = player("conserve-human", [bakugan("conserve-human-b", "Pyrus")]);
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human, "power");
+  establishWinningDoubleCore(match, ai, human);
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  const nextAi = next.players.find((candidate) => candidate.id === ai.id)!;
+  assert.equal(nextAi.hand.some((card) => card.id === deepDive.id), true);
+  assert.equal(next.batch.some((effect) => effect.card.id === deepDive.id), false);
+  assert.equal(nextAi.bakugan[0].heldCoreCells.length, 2);
+});
+'''
+test_path.write_text(tests)
