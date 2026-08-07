@@ -25,6 +25,7 @@ jobs:
         run: |
           python scripts/patch-shadowstrike-clone-shun-ai.py
           python scripts/patch-shadowstrike-clone-shun-ai-v2.py
+          python scripts/patch-shadowstrike-clone-shun-ai-v3.py
       - name: Install dependencies
         run: npm run install:ci
       - name: Run rules regressions
