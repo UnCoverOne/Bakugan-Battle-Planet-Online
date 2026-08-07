@@ -27,7 +27,7 @@ const GameplayRuntime = dynamic(
  * heavyweight runtime so navigation cannot race localStorage persistence.
  */
 export function MatchRuntime() {
-  const { ready, match, online, playerId, settings } = useApp();
+  const { ready, match, online, playerId, matchCapability, settings } = useApp();
   const [bootstrappedMatchId, setBootstrappedMatchId] = useState("");
   const [missingMatch, setMissingMatch] = useState(false);
 
@@ -38,13 +38,14 @@ export function MatchRuntime() {
       match,
       online,
       playerId,
+      capability: matchCapability,
       settings,
     });
     if (primed.match?.id === match.id) {
       setBootstrappedMatchId(match.id);
       setMissingMatch(false);
     }
-  }, [match, online, playerId, ready, settings]);
+  }, [match, matchCapability, online, playerId, ready, settings]);
 
   useEffect(() => {
     if (!ready || match) {

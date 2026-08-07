@@ -40,9 +40,11 @@ test("the owner cannot start before the second ready player exists", () => {
 });
 
 test("the lobby route has live room transport, chat, ready state, and owner-only start UI", async () => {
-  const [room, page] = await Promise.all([
+  const [room, page, provider, runtime] = await Promise.all([
     readFile(new URL("../components/routes/LobbyRoomScreen.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/(workspace)/play/lobby/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/application/AppProvider.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/routes/MatchRuntime.tsx", import.meta.url), "utf8"),
   ]);
   for (const contract of [
     "useMatchTransport",
@@ -58,4 +60,14 @@ test("the lobby route has live room transport, chat, ready state, and owner-only
   assert.match(room, /match\.phase === "lobby"/);
   assert.match(page, /LobbyRoomScreen/);
   assert.doesNotMatch(page, /MatchRuntime|LobbyScreen/);
+
+  // Match capability lives in React state before the debounced sessionStorage write.
+  // Route-local stores must be primed from that live value or room commands can send
+  // the previous room's capability and fail authorization.
+  assert.match(provider, /playerId, matchCapability, matchError/);
+  assert.match(provider, /playerId, matchCapability, requestAccountAccess/);
+  assert.match(room, /matchCapability: appMatchCapability/);
+  assert.match(room, /capability: appMatchCapability/);
+  assert.match(runtime, /playerId, matchCapability, settings/);
+  assert.match(runtime, /capability: matchCapability/);
 });

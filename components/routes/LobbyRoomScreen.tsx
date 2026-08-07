@@ -30,6 +30,7 @@ export function LobbyRoomScreen() {
     match: appMatch,
     online: appOnline,
     playerId: appPlayerId,
+    matchCapability: appMatchCapability,
     settings,
     leaveMatch,
   } = useApp();
@@ -46,9 +47,10 @@ export function LobbyRoomScreen() {
       match: appMatch,
       online: appOnline,
       playerId: appPlayerId,
+      capability: appMatchCapability,
       settings,
     });
-  }, [appMatch, appOnline, appPlayerId, appReady, settings]);
+  }, [appMatch, appMatchCapability, appOnline, appPlayerId, appReady, settings]);
 
   useMatchTransport();
   const room = useMatchSelector((state) => ({
