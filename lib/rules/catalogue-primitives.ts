@@ -149,7 +149,7 @@ function triggerFor(text: string): TriggerDefinition | undefined {
 
 function scaleFor(text: string) {
   if (/sacrifice/i.test(text)) return "sacrificed-card";
-  if (/for each other card .*played this turn/i.test(text)) return "other-card-played";
+  if (/for (?:each|every) other card\b.*\bplayed this turn/i.test(text)) return "other-card-played";
   return text.match(/for each ([^.,]+)/i)?.[1]?.trim();
 }
 
@@ -163,9 +163,9 @@ function scopeFor(text: string): "target" | "all-enemy" | "all-friendly" | "all-
 function scaleForStat(text: string, match: RegExpMatchArray) {
   const index = match.index ?? 0;
   const trailingClause = text.slice(index + match[0].length).split(/[.;]/, 1)[0] ?? "";
-  if (/\bfor each\b/i.test(trailingClause)) return scaleFor(trailingClause);
+  if (/\bfor (?:each|every)\b/i.test(trailingClause)) return scaleFor(trailingClause);
   const leadingClause = text.slice(0, index).split(/[.;]/).at(-1) ?? "";
-  if (/\bfor each\b[^,]*,\s*$/i.test(leadingClause)) return scaleFor(leadingClause);
+  if (/\bfor (?:each|every)\b[^,]*,\s*$/i.test(leadingClause)) return scaleFor(leadingClause);
   return undefined;
 }
 

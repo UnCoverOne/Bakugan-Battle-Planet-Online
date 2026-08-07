@@ -14,6 +14,8 @@ import {
   type MatchState,
 } from "./game";
 import { bestAiRollTarget } from "./aiRollForecast";
+import { cardEnergyPaymentState } from "./cardPayment";
+import { evaluateBakuganCharacteristics } from "./rules/modifiers";
 import {
   advanceOpponentAi as advanceBaseOpponentAi,
   chooseCardChoices as chooseBaseCardChoices,
@@ -142,24 +144,39 @@ function validateAiTransition(
   return rerollTransitionAuthorized(input, passed, playerId) ? passed : null;
 }
 
-function restoreShadowStrikePenalty(
+function bakuganHasShadowStrike(match: MatchState, bakuganId: string) {
+  const owner = match.players.find((player) => player.bakugan.some((candidate) => candidate.id === bakuganId));
+  const bakugan = owner?.bakugan.find((candidate) => candidate.id === bakuganId);
+  return Boolean(owner && bakugan
+    && evaluateBakuganCharacteristics(match, bakugan, owner).shadowStrike);
+}
+
+function activeTargetBakugan(match: MatchState, playerId: string, targetsEnemy: boolean) {
+  const targetPlayer = targetsEnemy ? opponentOf(match, playerId) : playerById(match, playerId);
+  if (!targetPlayer) return undefined;
+  return targetPlayer.bakugan.find((bakugan) => bakugan.id === match.selected[targetPlayer.id])
+    ?? targetPlayer.bakugan.find((bakugan) => bakugan.open)
+    ?? targetPlayer.bakugan[0];
+}
+
+function projectShadowStrikeGain(
   match: MatchState,
   playerId: string,
   targetsEnemy: boolean,
   power: { own: number; enemy: number },
   damage: { own: number; enemy: number },
 ) {
-  const targetId = targetsEnemy ? opponentOf(match, playerId)?.id : playerId;
-  const target = targetId ? activeBakugan(match, targetId) : undefined;
-  if (!target) return;
-  const powerPenalty = Math.min(0, match.powerBoost[target.id] ?? 0);
-  const damagePenalty = Math.min(0, match.damageBoost[target.id] ?? 0);
+  const targetPlayer = targetsEnemy ? opponentOf(match, playerId) : playerById(match, playerId);
+  const target = activeTargetBakugan(match, playerId, targetsEnemy);
+  if (!targetPlayer || !target) return;
+  const projected = cloneMatch(match);
+  projected.shadowStrike[target.id] = true;
   if (targetsEnemy) {
-    power.enemy -= powerPenalty;
-    damage.enemy -= damagePenalty;
+    power.enemy = totalPower(projected, targetPlayer.id);
+    damage.enemy = totalDamage(projected, targetPlayer.id);
   } else {
-    power.own -= powerPenalty;
-    damage.own -= damagePenalty;
+    power.own = totalPower(projected, targetPlayer.id);
+    damage.own = totalDamage(projected, targetPlayer.id);
   }
 }
 
@@ -181,6 +198,11 @@ function applyProjectedAction(
     instruction.sourceText,
   );
   if (action.kind === "modify-stat") {
+    const target = activeTargetBakugan(match, playerId, targetsEnemy);
+    const prevented = action.amount < 0
+      && (action.stat === "power" || action.stat === "damage")
+      && Boolean(target && bakuganHasShadowStrike(match, target.id));
+    if (prevented) return;
     if (action.stat === "power") {
       if (targetsEnemy) power.enemy += action.amount;
       else power.own += action.amount;
@@ -191,6 +213,11 @@ function applyProjectedAction(
     return;
   }
   if (action.kind === "set-stat") {
+    const target = activeTargetBakugan(match, playerId, targetsEnemy);
+    const current = action.stat === "power"
+      ? (targetsEnemy ? power.enemy : power.own)
+      : (targetsEnemy ? damage.enemy : damage.own);
+    if (action.value < current && target && bakuganHasShadowStrike(match, target.id)) return;
     if (action.stat === "power") {
       if (targetsEnemy) power.enemy = action.value;
       else power.own = action.value;
@@ -205,7 +232,7 @@ function applyProjectedAction(
     return;
   }
   if (action.kind === "grant-keyword" && action.keyword === "ShadowStrike") {
-    restoreShadowStrikePenalty(match, playerId, targetsEnemy, power, damage);
+    projectShadowStrikeGain(match, playerId, targetsEnemy, power, damage);
   }
 }
 
@@ -354,6 +381,17 @@ function restoreSuppressedHandCards(
 }
 
 
+function pureTemporaryPowerProgram(card: GameCard) {
+  const actions = cardLeafActions(card);
+  return actions.length > 0 && actions.every((action) => (
+    isTemporaryCombatAction(action)
+    && (
+      (action.kind === "modify-stat" && action.stat === "power")
+      || (action.kind === "set-stat" && action.stat === "power")
+    )
+  ));
+}
+
 type TemporaryPowerCandidate = {
   card: GameCard;
   cost: number;
@@ -400,6 +438,8 @@ function temporaryPowerSwing(
       instruction.sourceText,
     );
     if (action.kind === "modify-stat" && action.stat === "power") {
+      const target = activeTargetBakugan(match, playerId, targetsEnemy);
+      if (action.amount < 0 && target && bakuganHasShadowStrike(match, target.id)) continue;
       swing += targetsEnemy ? -action.amount : action.amount;
     } else if (action.kind === "set-stat" && action.stat === "power") {
       swing += targetsEnemy
@@ -410,7 +450,7 @@ function temporaryPowerSwing(
   return Math.max(0, swing);
 }
 
-function jointlyWinningTemporaryPowerCards(
+function minimumWinningTemporaryPowerCards(
   match: MatchState,
   playerId: string,
 ) {
@@ -428,54 +468,49 @@ function jointlyWinningTemporaryPowerCards(
   if (budget <= 0) return result;
 
   const candidates: TemporaryPowerCandidate[] = player.hand
-    .filter((card) => pureTemporaryCombatProgram(card))
-    .map((card) => ({
-      card,
-      cost: card.cost === "X" ? budget + 1 : Math.max(0, card.cost),
-      swing: temporaryPowerSwing(match, playerId, card),
-    }))
-    .filter((candidate) => (
-      candidate.swing > 0 && candidate.cost <= budget
-    ))
+    .filter((card) => pureTemporaryPowerProgram(card))
+    .map((card) => {
+      const choices = chooseBaseCardChoices(match, playerId, card);
+      const payment = cardEnergyPaymentState(match, playerId, card, choices);
+      return {
+        card,
+        cost: payment?.kind === "insufficient" ? budget + 1 : payment?.cost ?? budget + 1,
+        swing: temporaryPowerSwing(match, playerId, card),
+      };
+    })
+    .filter((candidate) => candidate.swing > 0 && candidate.cost <= budget)
     .sort((a, b) => (
-      b.swing / Math.max(1, b.cost) - a.swing / Math.max(1, a.cost)
-      || b.swing - a.swing
+      a.cost - b.cost
+      || a.swing - b.swing
       || a.card.id.localeCompare(b.card.id)
     ))
     .slice(0, 12);
-  if (candidates.length < 2) return result;
+  if (!candidates.length) return result;
 
   type Combination = { ids: string[]; cost: number; swing: number };
   const combinations: Combination[] = [{ ids: [], cost: 0, swing: 0 }];
-  const seen = new Set(["0:0:0"]);
   for (const candidate of candidates) {
     const existing = [...combinations];
     for (const combination of existing) {
-      const next: Combination = {
+      const next = {
         ids: [...combination.ids, candidate.card.id],
         cost: combination.cost + candidate.cost,
         swing: combination.swing + candidate.swing,
       };
-      if (next.cost > budget) continue;
-      const key = `${next.cost}:${next.swing}:${next.ids.length}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      combinations.push(next);
+      if (next.cost <= budget) combinations.push(next);
     }
   }
 
   let best: Combination | undefined;
   for (const combination of combinations) {
-    if (combination.ids.length < 2 || combination.swing <= deficit) continue;
+    if (!combination.ids.length || combination.swing <= deficit) continue;
+    const overshoot = combination.swing - deficit;
+    const bestOvershoot = best ? best.swing - deficit : Number.POSITIVE_INFINITY;
     if (
       !best
       || combination.cost < best.cost
       || (combination.cost === best.cost && combination.ids.length < best.ids.length)
-      || (
-        combination.cost === best.cost
-        && combination.ids.length === best.ids.length
-        && combination.swing < best.swing
-      )
+      || (combination.cost === best.cost && combination.ids.length === best.ids.length && overshoot < bestOvershoot)
     ) best = combination;
   }
   for (const id of best?.ids ?? []) result.add(id);
@@ -485,15 +520,19 @@ function jointlyWinningTemporaryPowerCards(
 function advanceWithCombatPolicy(input: MatchState, playerId: string) {
   const player = playerById(input, playerId);
   if (!player) return null;
-  const winningPowerCombo = jointlyWinningTemporaryPowerCards(input, playerId);
+  const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);
   const suppressed = new Set(
     player.hand
-      .filter((card) => (
-        (input.phase !== "preRoll"
-&& !winningPowerCombo.has(card.id)
-&& shouldSuppressTemporaryCombatCard(input, playerId, card))
-        || shouldReserveDrawRerollCard(input, card)
-      ))
+      .filter((card) => {
+        const unneededPowerAlternative = input.phase === "power"
+          && winningPowerPlan.size > 0
+          && pureTemporaryPowerProgram(card)
+          && !winningPowerPlan.has(card.id);
+        const tacticallySuppressed = input.phase !== "preRoll"
+          && !winningPowerPlan.has(card.id)
+          && shouldSuppressTemporaryCombatCard(input, playerId, card);
+        return unneededPowerAlternative || tacticallySuppressed || shouldReserveDrawRerollCard(input, card);
+      })
       .map((card) => card.id),
   );
   const working = suppressed.size ? cloneMatch(input) : input;
