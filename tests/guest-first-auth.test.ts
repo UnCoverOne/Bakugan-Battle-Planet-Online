@@ -77,14 +77,20 @@ test("registration uses one streamlined form with local import selected by defau
   assert.match(modal, /intent\?\.returnTo/);
 });
 
-test("Home previews account-only achievements without blocking guest play", () => {
+test("Home keeps guest navigation consistent and avoids duplicate account actions", () => {
   const dashboard = source("components/routes/DashboardScreen.tsx");
+  const css = source("app/guest-experience.css");
   assert.match(dashboard, /Welcome to Battle Planet/);
-  assert.match(dashboard, /START TRAINING/);
-  assert.match(dashboard, /BUILD A DECK/);
+  assert.match(dashboard, /<span>PLAY<\/span>/);
+  assert.match(dashboard, /<span>DECKS<\/span>/);
+  assert.doesNotMatch(dashboard, /START TRAINING/);
+  assert.doesNotMatch(dashboard, /BUILD A DECK/);
   assert.match(dashboard, /achievement.*ready to unlock/is);
-  assert.match(dashboard, /Create Account/);
   assert.match(dashboard, /Playing as Guest Brawler/);
+  assert.match(dashboard, /Protect My Progress/);
+  assert.match(css, /\.home-account-gate \.home-account-gate-actions\s*\{\s*display: none;/);
+  assert.match(css, /\.home-guest-progress\s*\{[\s\S]*display: flex;[\s\S]*align-items: center;/);
+  assert.match(css, /\.home-guest-progress \.guest-progress-actions\s*\{[\s\S]*flex-wrap: nowrap;/);
 });
 
 test("guest Profile and Achievements routes redirect to an account benefits page", () => {
