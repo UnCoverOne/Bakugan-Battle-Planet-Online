@@ -22,7 +22,9 @@ jobs:
           node-version: 22
           cache: npm
       - name: Apply implementation patch
-        run: python scripts/patch-match-room-lobby-20260808.py
+        run: |
+          python scripts/patch-match-room-lobby-20260808.py
+          python scripts/patch-match-room-lobby-followup-20260808.py
       - name: Install dependencies
         run: npm run install:ci
       - name: Run room and setup regressions
