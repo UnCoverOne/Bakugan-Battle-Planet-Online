@@ -58,9 +58,10 @@ for rule in [
     '.sync-dot.working{color:#8fb2bf;border-color:rgba(143,178,191,.3)}\n',
     '.sync-dot.warning{color:#f1c75b;border-color:rgba(241,199,91,.45)}\n',
     '.sync-dot.error{color:#ff6468;border-color:rgba(255,100,104,.48)}\n',
+    '  .app-shell:not(.immersive-match) .sync-dot{display:none}\n',
 ]:
     if rule not in source:
-        raise SystemExit(f"Missing patch anchor: {rule[:30]}")
+        raise SystemExit(f"Missing patch anchor: {rule[:38]}")
     source = source.replace(rule, "", 1)
 path.write_text(source)
 
