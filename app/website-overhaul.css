@@ -26,8 +26,8 @@
 .profile-popover-stat-value svg{width:1.1em;height:1.1em;fill:none;stroke:#80d9f5;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .profile-popover-stats strong{display:block;font-size:1.38rem;line-height:1}
 .profile-popover-stats>div>span{display:block;color:var(--muted);font-size:.95rem;line-height:1.1}
-.profile-popover nav{display:grid;width:100%;padding:.35rem 0}
-.profile-popover-row{box-sizing:border-box;min-height:44px;display:grid;grid-template-columns:1.1em minmax(0,1fr) .85em;align-items:center;justify-self:stretch;gap:4%;width:100%;padding:0 5% 0 4%;border:0;border-radius:0;background:none;color:#dce8ec;text-align:left;font-size:.84rem;font-weight:800;text-decoration:none}
+.profile-popover>nav{display:grid;grid-template-columns:minmax(0,1fr);width:100%;padding:.35rem 0}
+.profile-popover>nav>.profile-popover-row{box-sizing:border-box;min-height:44px;display:grid;grid-template-columns:1.1em minmax(0,1fr) .85em;align-items:center;align-self:stretch;justify-self:stretch;gap:4%;width:100%;min-width:100%;max-width:none;margin:0;padding:0 5% 0 4%;border:0;border-radius:0;background:none;color:#dce8ec;text-align:left;font-size:.84rem;font-weight:800;text-decoration:none}
 .profile-popover-row:hover,.profile-popover-row:focus-visible{background:rgba(0,174,234,.12);color:#fff}
 .profile-popover-row-icon,.profile-popover-chevron{display:grid;place-items:center}
 .profile-popover-row-icon svg{width:1.1em;height:1.1em;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
