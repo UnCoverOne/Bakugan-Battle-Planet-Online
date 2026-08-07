@@ -66,21 +66,6 @@
 .app-shell:has(.bakugan-home) .overhaul-topbar .top-actions {
   justify-self: end;
 }
-.app-shell:has(.bakugan-home) .sync-dot {
-  width: 40px;
-  height: 40px;
-  color: #fff;
-  background: rgba(4, 17, 24, .9);
-}
-.sync-icon {
-  width: 20px;
-  height: 20px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
 .app-shell:has(.bakugan-home) .profile-avatar-button {
   width: 48px;
   height: 48px;

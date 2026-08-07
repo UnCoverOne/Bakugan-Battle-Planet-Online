@@ -125,6 +125,18 @@ test("account menu rows keep identical alignment on Home and secondary routes", 
       expect(row.labelLeft).toBeLessThan(row.chevronLeft);
       expect(row.chevronRight).toBeLessThanOrEqual(row.rowRight);
     }
+
+    if (route === "/compendium") {
+      const layers = await page.evaluate(() => {
+        const topbar = document.querySelector<HTMLElement>(".overhaul-topbar");
+        const toolbar = document.querySelector<HTMLElement>("main [class*='toolbar']");
+        return {
+          topbar: Number(getComputedStyle(topbar!).zIndex),
+          toolbar: Number(getComputedStyle(toolbar!).zIndex),
+        };
+      });
+      expect(layers.topbar).toBeGreaterThan(layers.toolbar);
+    }
   }
 });
 

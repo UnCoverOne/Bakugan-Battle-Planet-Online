@@ -1,5 +1,5 @@
 /* Website overhaul: route chrome and non-match product surfaces. The immersive Match screen is intentionally untouched. */
-.app-shell:not(.immersive-match) .overhaul-topbar{height:76px;grid-template-columns:210px minmax(360px,1fr) auto;padding:0 clamp(1rem,3vw,2.25rem);box-shadow:0 10px 35px rgba(0,0,0,.28)}
+.app-shell:not(.immersive-match) .overhaul-topbar{height:76px;z-index:200;grid-template-columns:210px minmax(360px,1fr) auto;padding:0 clamp(1rem,3vw,2.25rem);box-shadow:0 10px 35px rgba(0,0,0,.28)}
 .app-shell:not(.immersive-match) .overhaul-topbar .brand{height:76px;gap:.45rem}
 .app-shell:not(.immersive-match) .overhaul-topbar .brand img{width:70px;height:66px}
 .app-shell:not(.immersive-match) .overhaul-topbar>nav{gap:.25rem}
@@ -7,11 +7,6 @@
 .app-shell:not(.immersive-match) .overhaul-topbar>nav a.active{background:linear-gradient(180deg,rgba(0,174,234,.08),rgba(0,174,234,.19))}
 .app-shell:not(.immersive-match) .overhaul-topbar>nav a.active::after{left:18%;right:18%;height:3px}
 .app-shell:not(.immersive-match) .top-actions{position:relative}
-.sync-dot{display:grid;place-items:center;width:38px;height:38px;border:1px solid rgba(255,255,255,.15);border-radius:50%;background:#061923;color:#8fb2bf;font-size:.95rem}
-.sync-dot.synced{color:#6be68a;border-color:rgba(107,230,138,.38)}
-.sync-dot.working{color:#8fb2bf;border-color:rgba(143,178,191,.3)}
-.sync-dot.warning{color:#f1c75b;border-color:rgba(241,199,91,.45)}
-.sync-dot.error{color:#ff6468;border-color:rgba(255,100,104,.48)}
 .profile-menu-wrap{position:relative}
 .profile-avatar-button{display:grid;place-items:center;width:46px;height:46px;padding:0;border:1px solid rgba(255,255,255,.26);border-radius:50%;background:#071c26;color:#fff}
 .profile-avatar-control{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#e72a31,#8d1117);font-weight:900;object-fit:cover}
@@ -336,7 +331,6 @@
   .app-shell:not(.immersive-match) .overhaul-topbar .brand{height:64px}
   .app-shell:not(.immersive-match) .overhaul-topbar .brand img{width:58px;height:56px}
   .app-shell:not(.immersive-match) .overhaul-topbar>nav{display:none}
-  .app-shell:not(.immersive-match) .sync-dot{display:none}
   .app-shell:not(.immersive-match) .main-stage{min-height:calc(100vh - 64px);padding-bottom:78px}
   .mobile-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:80;height:68px;display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom);border-top:1px solid rgba(255,255,255,.16);background:rgba(2,13,18,.97);backdrop-filter:blur(14px)}
   .mobile-bottom-nav a{position:relative;display:grid;place-content:center;gap:.18rem;color:#91aeb8;text-align:center;text-decoration:none;font-size:var(--type-meta);font-weight:800}
