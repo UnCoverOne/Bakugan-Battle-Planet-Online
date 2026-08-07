@@ -8,13 +8,13 @@ import {
   energizeCard,
   nextTurn,
   selectBakugan,
-  setReady,
   startNextSeriesGame,
   type MatchState,
   type PlayerState,
 } from "../game";
 import { captureCoreReturns, placeCoreOrReturnCore } from "../coreReturns";
 import { addChatMessage } from "../chat";
+import { setLobbyReadyOrStart } from "../lobby";
 import { confirmRoll, selectRollTarget } from "../rolling";
 import { drawTurnCard } from "../turnStart";
 import { undoLatestAction } from "../undo";
@@ -78,7 +78,7 @@ function joinPlayer(input: MatchState, player: PlayerState, issuedAt: number) {
 function dispatchCommand(input: MatchState, actorId: string, command: GameCommand, issuedAt: number): MatchState {
   if (isRulesCommand(command)) return dispatchRulesCommand(input, actorId, command);
   switch (command.type) {
-    case "SET_READY": return setReady(input, actorId);
+    case "SET_READY": return setLobbyReadyOrStart(input, actorId);
     case "BEGIN_CORE_PLACEMENT": return beginCorePlacement(input, issuedAt);
     case "PLACE_CORE": return placeCoreOrReturnCore(input, actorId, command.coreId, command.cell);
     case "DRAW_TURN_CARD": return drawTurnCard(input, actorId);

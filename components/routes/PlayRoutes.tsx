@@ -166,7 +166,7 @@ export function PlayScreen() {
       <RouteHero
         eyebrow="MATCH SETUP"
         title="Prepare to brawl"
-        description="Choose the battle, lock a complete legal loadout, then pass one final preflight."
+        description="Choose the battle, lock a complete legal loadout, then either start training or enter a private room."
         aside={<StepRail current={setup.step} onNavigate={(step) => navigate({ type: "NAVIGATE", step })} />}
       />
       <main className={styles.setup}>
@@ -224,7 +224,7 @@ export function PlayScreen() {
 function stepDescription(step: PlaySetupStep) {
   if (step === "mode") return "Set the opponent path and series length.";
   if (step === "loadout") return "Choose one deck and inspect every Character card and BakuCore.";
-  return "Resolve every preflight item before starting the match.";
+  return "Resolve every preflight item before starting training or entering the room.";
 }
 
 function failureTitle(kind: string) {
@@ -430,7 +430,7 @@ function ReadyStep({
           <PreflightItem label="Account" value={environment.authentication === "authenticated" ? "Verified account" : environment.authentication === "guest" ? "Guest session" : environment.authentication === "checking" ? "Checking" : "Session failed"} ready={environment.authentication === "authenticated" || environment.authentication === "guest" || setup.mode === "solo"} />
           <PreflightItem label="Deck legality" value={report?.isLegal ? "Legal" : `${report?.issues.length ?? 1} blocking issues`} ready={Boolean(report?.isLegal)} />
         </ul>
-        {blockers.length > 0 && <div className={styles.blockerList} role="alert"><strong>Start Match is blocked:</strong><ul>{blockers.map((blocker) => <li key={blocker.code}>{blocker.message}</li>)}</ul></div>}
+        {blockers.length > 0 && <div className={styles.blockerList} role="alert"><strong>{setup.mode === "solo" ? "Start Match" : setup.mode === "online" ? "Create Room" : "Join Room"} is blocked:</strong><ul>{blockers.map((blocker) => <li key={blocker.code}>{blocker.message}</li>)}</ul></div>}
       </Surface>
     </div>
   );
@@ -496,10 +496,12 @@ function SetupLaunchBar({
       <button className={styles.previous} disabled={setup.step === "mode" || setup.status === "launching"} onClick={onBack}>← Previous</button>
       <div className={blocked ? styles.launchBlocked : styles.launchReady} aria-live="polite" aria-atomic="true">
         <strong>{blocked ? `${blockers.length} blocking ${blockers.length === 1 ? "reason" : "reasons"}` : setup.status === "launching" ? launchingLabel(setup) : "Current step complete"}</strong>
-        <span>{blocked ? blockers[0].message : setup.step === "ready" ? "Ready to start the match." : `Continue to ${setup.step === "mode" ? "Loadout" : "Ready"}.`}</span>
+        <span>{blocked ? blockers[0].message : setup.step === "ready" ? setup.mode === "solo" ? "Ready to start the training match." : setup.mode === "online" ? "Ready to create the room." : "Ready to join the room." : `Continue to ${setup.step === "mode" ? "Loadout" : "Ready"}.`}</span>
       </div>
       {setup.step === "ready"
-        ? <ActionButton disabled={blocked || setup.status === "launching"} onClick={onLaunch}>{setup.status === "launching" ? "STARTING…" : "START MATCH"}</ActionButton>
+        ? <ActionButton disabled={blocked || setup.status === "launching"} onClick={onLaunch}>{setup.status === "launching"
+          ? setup.mode === "solo" ? "STARTING…" : setup.mode === "online" ? "CREATING…" : "JOINING…"
+          : setup.mode === "solo" ? "START MATCH" : setup.mode === "online" ? "CREATE ROOM" : "JOIN ROOM"}</ActionButton>
         : <ActionButton tone="secondary" disabled={blocked} onClick={onNext}>Continue →</ActionButton>}
     </div>
   );
