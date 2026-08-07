@@ -38,10 +38,12 @@ if [[ ! -x "${vinext}" ]]; then
 fi
 
 echo "Running bounded vinext build..."
+# Keep cold Cloudflare builds bounded below the platform limit while allowing
+# enough time for dependency-cold compilation and packaging.
 timeout \
   --signal=TERM \
-  --kill-after="${SITES_BUILD_KILL_AFTER:-10s}" \
-  "${SITES_BUILD_TIMEOUT:-3m}" \
+  --kill-after="${SITES_BUILD_KILL_AFTER:-30s}" \
+  "${SITES_BUILD_TIMEOUT:-15m}" \
   "${vinext}" build
 
 bash "${script_dir}/validate-artifact.sh"
