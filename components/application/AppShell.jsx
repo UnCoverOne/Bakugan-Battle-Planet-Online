@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
 import { accountStatMatches } from "../../lib/match-statistics";
-import { deriveSyncIndicator } from "../../lib/client-status";
 import { PROFILE_TITLES } from "../../lib/profile-customization";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
 import { SystemState, VersionMismatchScreen } from "./SystemState";
@@ -57,18 +56,6 @@ function MenuIcon({ name }) {
 }
 
 
-function SyncGlyph({ cloud }) {
-  return cloud ? (
-    <svg className="sync-icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7.3 18.25h9.05a4.15 4.15 0 0 0 .55-8.26A5.6 5.6 0 0 0 6.24 8.7a4.78 4.78 0 0 0 1.06 9.55Z" />
-    </svg>
-  ) : (
-    <svg className="sync-icon" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="5" y="4" width="14" height="16" rx="2" />
-      <path d="M8 7h8M8 10h8M9 17h6" />
-    </svg>
-  );
-}
 
 export function AppShell({ children }) {
   const pathname = usePathname();
@@ -83,8 +70,6 @@ export function AppShell({ children }) {
     accountDataReady,
     authError,
     retryCloudLoad,
-    syncStatus,
-    storageHealth,
     match,
     toast,
     accountPrompt,
@@ -181,12 +166,6 @@ export function AppShell({ children }) {
   const selectedProfileTitle =
     PROFILE_TITLES.find((item) => item.id === profile.titleId) ??
     PROFILE_TITLES[0];
-  const syncIndicator = deriveSyncIndicator({
-    authenticated: Boolean(authUser),
-    syncStatus,
-    storageStatus: storageHealth.status,
-    storageMessage: storageHealth.message,
-  });
   const title =
     TITLES[pathname.split("/").filter(Boolean)[0] ?? "dashboard"] ??
     TITLES[route] ??
@@ -241,14 +220,6 @@ export function AppShell({ children }) {
                 <span className="pulse" /> Resume match
               </Link>
             )}
-            <Link
-              href="/profile"
-              className={`sync-dot ${syncIndicator.tone}`}
-              title={syncIndicator.title}
-              aria-label={syncIndicator.title}
-            >
-              <SyncGlyph cloud={Boolean(authUser)} />
-            </Link>
             <div className="profile-menu-wrap" ref={menuRef}>
               <button
                 className={`profile-avatar-button ${profileActive ? "active" : ""}`}

@@ -24,8 +24,8 @@ test("the primary shell uses the approved four-item top navigation and profile m
   assert.match(shell, /Achievements/);
   assert.match(shell, /Settings/);
   assert.match(shell, /Log out/);
-  assert.match(shell, /function SyncGlyph/);
-  assert.match(shell, /className="sync-icon"/);
+  assert.doesNotMatch(shell, /function SyncGlyph/);
+  assert.doesNotMatch(shell, /sync-dot|sync-icon|syncIndicator|deriveSyncIndicator/);
   assert.match(shell, /aria-label="Open profile menu"/);
   assert.match(shell, /aria-controls="profile-menu"/);
   assert.match(shell, /id="profile-menu"/);
@@ -57,6 +57,9 @@ test("the primary shell uses the approved four-item top navigation and profile m
   assert.match(shellCss, /\.profile-popover-row\{[^}]*justify-self:stretch;[^}]*width:100%/);
   assert.match(shellCss, /\.profile-popover-row-label\{[^}]*justify-self:start;[^}]*text-align:left/);
   assert.match(shellCss, /\.profile-popover-chevron\{[^}]*justify-self:end/);
+  assert.match(shellCss, /\.app-shell:not\(\.immersive-match\) \.overhaul-topbar\{[^}]*z-index:200/);
+  assert.doesNotMatch(shellCss, /\.sync-dot/);
+  assert.doesNotMatch(homeLayoutCss, /\.sync-dot|\.sync-icon/);
   for (const css of [shellCss, homeLayoutCss, homeFidelityCss]) {
     assert.doesNotMatch(css, /\.overhaul-topbar\s+nav(?:\s|\{|a)/);
   }
