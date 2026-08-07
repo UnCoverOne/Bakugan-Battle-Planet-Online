@@ -536,10 +536,81 @@ function combatRelevance(
 }
 
 
+function heldCoreCount(match: MatchState, playerId: string) {
+  return playerById(match, playerId)?.bakugan.reduce(
+    (sum, bakugan) => sum + bakugan.heldCoreCells.length,
+    0,
+  ) ?? 0;
+}
+
+function heldCoreStrategicValue(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId);
+  if (!player) return 0;
+  return player.bakugan.reduce((sum, bakugan) => (
+    sum + bakugan.heldCoreCells.reduce((coreSum, cell) => {
+      const placement = match.placements.find((candidate) => candidate.cell === cell);
+      return coreSum + (placement
+        ? Math.max(0, coreValueForBakugan(placement.core, bakugan))
+        : 0);
+    }, 0)
+  ), 0);
+}
+
+/**
+ * Preserve the expected defensive value of Domination using only remaining
+ * deck composition. Hidden deck order is never inspected.
+ */
+function dominationFlipReserveValue(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId);
+  const opponent = opponentOf(match, playerId);
+  if (!player || !opponent || !player.deckCards.length) return 0;
+  if (heldCoreCount(match, playerId) <= heldCoreCount(match, opponent.id)) return 0;
+  const capacity = currentEnergyCapacity(match, playerId);
+  const candidates = player.deckCards.filter((card) => (
+    card.type === "Flip"
+    && /\bDomination\b/i.test(card.effect)
+    && card.cost !== "X"
+    && card.cost <= capacity
+  ));
+  if (!candidates.length) return 0;
+  const density = candidates.length / player.deckCards.length;
+  return Math.min(2.5, 0.5 + density * 5 + Math.min(1, candidates.length * 0.25));
+}
+
+function rerollBrawlStateUtility(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId);
+  const opponent = opponentOf(match, playerId);
+  const roll = match.rolls[playerId];
+  if (!player || !opponent || !roll) return -9;
+  const opponentRoll = match.rolls[opponent.id];
+  const participates = roll.result !== "miss-closed";
+  const opponentParticipates = Boolean(
+    opponentRoll && opponentRoll.result !== "miss-closed",
+  );
+  const own = match.victorByDamage
+    ? totalDamage(match, playerId)
+    : totalPower(match, playerId);
+  const enemy = match.victorByDamage
+    ? totalDamage(match, opponent.id)
+    : totalPower(match, opponent.id);
+  const gap = own - enemy;
+  let value = !participates ? -9
+    : !opponentParticipates ? 8
+      : gap > 0 ? 8
+        : gap === 0 ? -1
+          : -8;
+  value += clamp(gap / 400, -2.5, 2.5);
+  value += heldCoreStrategicValue(match, playerId) * 0.25;
+  value += heldCoreCount(match, playerId) * 0.35;
+  value += dominationFlipReserveValue(match, playerId);
+  return value;
+}
+
 function projectedControllerRerollValue(
   match: MatchState,
   playerId: string,
   mandatory: boolean,
+  sourceCard?: GameCard,
 ) {
   const player = playerById(match, playerId);
   const opponent = opponentOf(match, playerId);
@@ -550,65 +621,25 @@ function projectedControllerRerollValue(
   if (!player || !opponent || !roll || !bakugan || !availableRollTargets(match).length) {
     return mandatory ? -1.5 : 0;
   }
-
-  const opponentRoll = match.rolls[opponent.id];
-  const opponentParticipates = Boolean(
-    opponentRoll && opponentRoll.result !== "miss-closed",
-  );
-  const playerParticipates = roll.result !== "miss-closed";
-  const currentOwn = match.victorByDamage
-    ? totalDamage(match, playerId)
-    : totalPower(match, playerId);
-  const currentEnemy = match.victorByDamage
-    ? totalDamage(match, opponent.id)
-    : totalPower(match, opponent.id);
-  const currentWin = playerParticipates
-    && (!opponentParticipates || currentOwn > currentEnemy);
   const forecast = bestForecast(match, playerId, bakugan);
   if (!forecast?.samples.length) return mandatory ? -1.5 : 0;
 
-  let wins = 0;
-  let corePickups = 0;
-  let winningMargin = 0;
+  const currentUtility = rerollBrawlStateUtility(match, playerId);
+  const repeatedOpenValue = Math.max(0, repeatableOnOpenValue(match, playerId));
+  const sourceRerollSuccessValue = sourceCard
+    ? Math.max(0, rerollSuccessValue(match, playerId, sourceCard))
+    : 0;
+  let totalDelta = 0;
   for (const sample of forecast.samples) {
     const projected = cloneMatch(match);
     applyProjectedRollSample(projected, playerId, sample);
-    const projectedOpponent = opponentOf(projected, playerId);
-    const projectedRoll = projected.rolls[playerId];
-    const projectedOpponentRoll = projectedOpponent
-      ? projected.rolls[projectedOpponent.id]
-      : undefined;
-    const participates = projectedRoll?.result !== "miss-closed";
-    const enemyParticipates = Boolean(
-      projectedOpponentRoll && projectedOpponentRoll.result !== "miss-closed",
-    );
-    const own = projected.victorByDamage
-      ? totalDamage(projected, playerId)
-      : totalPower(projected, playerId);
-    const enemy = projectedOpponent
-      ? projected.victorByDamage
-        ? totalDamage(projected, projectedOpponent.id)
-        : totalPower(projected, projectedOpponent.id)
-      : 0;
-    if (sample.outcome.cores.length) corePickups += 1;
-    if (participates && (!enemyParticipates || own > enemy)) {
-      wins += 1;
-      winningMargin += Math.max(0, own - enemy);
+    let projectedUtility = rerollBrawlStateUtility(projected, playerId);
+    if (sample.outcome.result !== "miss-closed") {
+      projectedUtility += repeatedOpenValue + sourceRerollSuccessValue;
     }
+    totalDelta += projectedUtility - currentUtility;
   }
-
-  const sampleCount = forecast.samples.length;
-  const winProbability = wins / sampleCount;
-  const coreProbability = corePickups / sampleCount;
-  if (currentWin) {
-    if (!mandatory) return 0;
-    return -(1 - winProbability) * 8 + coreProbability * 0.25;
-  }
-  if (winProbability <= 0) return mandatory ? -1.5 : 0;
-  const averageWinningMargin = winningMargin / Math.max(1, wins);
-  return winProbability * 10
-    + coreProbability * 1.25
-    + Math.min(1.5, averageWinningMargin / 400);
+  return clamp(totalDelta / forecast.samples.length, -12, 12);
 }
 
 function negateTarget(match: MatchState, playerId: string, program: RuleProgram) {
@@ -631,6 +662,50 @@ function negateValue(match: MatchState, playerId: string, program: RuleProgram) 
   );
   const cost = target.card.cost === "X" ? target.choices.xValue ?? 0 : target.card.cost;
   return 4.5 + Math.max(0, targetValue) * 0.55 + cost * 0.35;
+}
+
+function brawlCurrentlyWon(match: MatchState, playerId: string) {
+  const opponent = opponentOf(match, playerId);
+  const roll = match.rolls[playerId];
+  const opponentRoll = opponent ? match.rolls[opponent.id] : undefined;
+  if (!opponent || !roll || roll.result === "miss-closed") return false;
+  if (!opponentRoll || opponentRoll.result === "miss-closed") return true;
+  const own = match.victorByDamage
+    ? totalDamage(match, playerId)
+    : totalPower(match, playerId);
+  const enemy = match.victorByDamage
+    ? totalDamage(match, opponent.id)
+    : totalPower(match, opponent.id);
+  return own > enemy;
+}
+
+function winningBrawlResourceConservationPenalty(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  entries: ReturnType<typeof activeCardActionEntries>,
+  printedCost: number,
+) {
+  if (match.phase !== "power" || card.type !== "Action" || !brawlCurrentlyWon(match, playerId)) {
+    return 0;
+  }
+  const hasDurableOrAttackPayoff = entries.some(({ action, sourceText }) => {
+    if (["move", "search", "play", "energize", "generate-energy", "copy", "negate", "prevention"].includes(action.kind)) {
+      return true;
+    }
+    if (action.kind === "modify-stat" && action.stat === "damage") {
+      return !actionTargetsEnemy(match, playerId, {}, action, sourceText)
+        && action.amount > 0;
+    }
+    if (action.kind === "grant-keyword") {
+      return !actionTargetsEnemy(match, playerId, {}, action, sourceText)
+        && (action.keyword === "DoubleStrike" || action.keyword === "FrostStrike");
+    }
+    if (action.kind === "attack") return action.amount > 0;
+    return action.kind === "continuous";
+  });
+  if (hasDurableOrAttackPayoff) return 0;
+  return 0.45 + Math.min(1.2, Math.max(0, printedCost) * 0.25);
 }
 
 function cardValue(
@@ -669,11 +744,13 @@ function cardValue(
     }
     if (action.kind === "reroll" && match.phase === "power") {
       if (action.target === "controller") {
-        value += projectedControllerRerollValue(
-match,
-playerId,
-action.mandatory,
+        const rerollValue = projectedControllerRerollValue(
+          match,
+          playerId,
+          action.mandatory,
+          card,
         );
+        value += action.mandatory ? rerollValue : Math.max(0, rerollValue);
       } else {
         const targetId = opponentOf(match, playerId)?.id;
         const roll = targetId ? match.rolls[targetId] : undefined;
@@ -681,6 +758,21 @@ action.mandatory,
       }
     }
   }
+  const immediateDrawAmount = entries.reduce((sum, entry) => (
+    sum + (entry.action.kind === "draw" ? entry.action.amount : 0)
+  ), 0);
+  // Playing an Action already spends one card. Treat its first draw as
+  // replacement/card selection instead of full card advantage.
+  if (match.phase === "power" && card.type === "Action" && immediateDrawAmount > 0) {
+    value -= Math.min(1, immediateDrawAmount) * 1.8;
+  }
+  value -= winningBrawlResourceConservationPenalty(
+    match,
+    playerId,
+    card,
+    entries,
+    printedCost,
+  );
   if (card.type === "Hero") value += 2.4 + Math.max(0, 4 - match.turn) * 0.35;
   if (card.type === "Evo") value += 3.2;
   if (card.type === "Flip") value += match.pendingDamage > 0 ? 5 : -10;
@@ -733,6 +825,68 @@ function sacrificedCardBenefit(card: GameCard) {
     .reduce((sum, action) => sum + Math.abs(actionBaseValue(action)), 0);
 }
 
+function optionalEffectValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  sourceText: string,
+) {
+  let entries: ReturnType<typeof activeCardActionEntries>;
+  try {
+    const normalized = sourceText.trim().toLowerCase();
+    entries = activeCardActionEntries(
+      match,
+      playerId,
+      card,
+      {},
+      { execution: "all" },
+    ).filter((entry) => {
+      const candidate = entry.sourceText.trim().toLowerCase();
+      return candidate === normalized || normalized.includes(candidate);
+    });
+  } catch {
+    return -0.25;
+  }
+  if (!entries.length) return -0.25;
+  let value = 0;
+  for (const { action, sourceText: actionText } of entries) {
+    if (action.kind === "reroll" && match.phase === "power") {
+      if (action.target === "controller") {
+        value += projectedControllerRerollValue(
+          match,
+          playerId,
+          action.mandatory,
+          card,
+        );
+      } else {
+        const targetId = opponentOf(match, playerId)?.id;
+        const targetRoll = targetId ? match.rolls[targetId] : undefined;
+        if (targetRoll) value += targetRoll.result === "miss-closed" ? -1.5 : 4.5;
+      }
+      continue;
+    }
+    if (action.kind === "negate") {
+      value += negateValue(match, playerId, compileCardEffect(card));
+      continue;
+    }
+    const raw = actionBaseValue(action);
+    if (raw) {
+      const targetsEnemy = actionTargetsEnemy(
+        match,
+        playerId,
+        {},
+        action,
+        actionText,
+      );
+      value += raw * (targetsEnemy ? -1 : 1)
+        * combatRelevance(match, playerId, action, targetsEnemy);
+      continue;
+    }
+    value += estimateRuleActionValue(action, match);
+  }
+  return value;
+}
+
 function optionScore(
   match: MatchState,
   controllerId: string,
@@ -740,6 +894,7 @@ function optionScore(
   card: GameCard,
   field: ChoiceField,
   id: string,
+  sourceText = card.effect,
 ) {
   const controller = playerById(match, controllerId)!;
   const chooser = playerById(match, chooserId)!;
@@ -843,7 +998,10 @@ function optionScore(
     return id === opponent.id ? 1 : 0;
   }
   if (field.kind === "confirm") {
-    const controllerScore = cardValue(match, controllerId, card);
+    const marginal = optionalEffectValue(match, controllerId, card, sourceText);
+    const controllerScore = id === "yes"
+      ? marginal - 0.15
+      : id === "no" ? 0 : -1;
     return chooserId === controllerId ? controllerScore : -controllerScore;
   }
   return 0;
@@ -855,12 +1013,13 @@ function chooseChoicesFromSchema(
   card: GameCard,
   schema: ChoiceSchema,
   chooserId: string,
+  sourceText = card.effect,
 ): CardChoices {
   const choices: CardChoices = {};
   for (const field of schema.fields.filter((candidate) => candidate.chooserId === chooserId)) {
     const scores = new Map(field.options.map((option) => [
       option.id,
-      optionScore(match, controllerId, chooserId, card, field, option.id),
+      optionScore(match, controllerId, chooserId, card, field, option.id, sourceText),
     ]));
     const ranked = [...field.options].sort(
       (a, b) => (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0),
@@ -1951,12 +2110,18 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
     if (!source && !["resolution", "forced-discard"].includes(pending.kind)) {
       return cancelCardChoice(input, pending.controllerId);
     }
-    const card = source
-      ? { ...source.card, effect: source.sourceText }
-      : fallbackChoiceCard(pending);
+    const card = source?.card ?? fallbackChoiceCard(pending);
+    const choiceSourceText = source?.sourceText ?? card.effect;
     let choices: CardChoices;
     try {
-      choices = chooseChoicesFromSchema(input, pending.controllerId, card, pending.schema, playerId);
+      choices = chooseChoicesFromSchema(
+        input,
+        pending.controllerId,
+        card,
+        pending.schema,
+        playerId,
+        choiceSourceText,
+      );
     } catch {
       choices = {};
       for (const field of pending.schema.fields.filter((candidate) => candidate.chooserId === playerId)) {
