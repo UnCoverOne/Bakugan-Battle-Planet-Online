@@ -35,8 +35,8 @@ function sourceBakuganFor(owner: PlayerState, source: GameCard) {
 
 function relationshipMatches(trigger: TriggerDefinition, ownerId: string, event: RuleEvent) {
   if (trigger.relationship === "any") return true;
-  if (trigger.relationship === "controller") return event.actorId === ownerId || event.controllerId === ownerId;
-  return event.actorId !== ownerId && event.controllerId !== ownerId;
+  if (trigger.relationship === "controller") return event.actorId === ownerId;
+  return event.actorId !== ownerId;
 }
 
 function actionUsesImplicitControllerBakugan(action: RuleAction): boolean {

@@ -511,6 +511,58 @@ function actionTargetsEnemy(
   return /enemy|opposing|opponent(?:'s)?|non-\[[a-z]+\]/i.test(text);
 }
 
+function bakuganOwner(match: MatchState, bakuganId: string) {
+  return match.players.find((player) => player.bakugan.some((candidate) => candidate.id === bakuganId));
+}
+
+function bakuganHasShadowStrike(match: MatchState, bakuganId: string) {
+  const owner = bakuganOwner(match, bakuganId);
+  const bakugan = owner?.bakugan.find((candidate) => candidate.id === bakuganId);
+  return Boolean(owner && bakugan
+    && evaluateBakuganCharacteristics(match, bakugan, owner).shadowStrike);
+}
+
+function implicitActionTargetId(
+  match: MatchState,
+  playerId: string,
+  choices: CardChoices,
+  action: RuleAction,
+  sourceText: string,
+) {
+  if (action.kind === "modify-stat" && action.targetChoiceId) {
+    const selected = choices[action.targetChoiceId];
+    if (typeof selected === "string") return selected;
+  }
+  if (choices.targetBakuganId) return choices.targetBakuganId;
+  const targetPlayer = actionTargetsEnemy(match, playerId, choices, action, sourceText)
+    ? opponentOf(match, playerId)
+    : playerById(match, playerId);
+  return targetPlayer?.bakugan.find((bakugan) => bakugan.id === match.selected[targetPlayer.id])?.id
+    ?? targetPlayer?.bakugan.find((bakugan) => bakugan.open)?.id
+    ?? targetPlayer?.bakugan[0]?.id;
+}
+
+function shadowStrikeBlocksReduction(
+  match: MatchState,
+  playerId: string,
+  choices: CardChoices,
+  action: RuleAction,
+  sourceText: string,
+) {
+  if (action.kind !== "modify-stat" || action.amount >= 0
+    || (action.stat !== "power" && action.stat !== "damage")) return false;
+  const targetId = implicitActionTargetId(match, playerId, choices, action, sourceText);
+  return Boolean(targetId && bakuganHasShadowStrike(match, targetId));
+}
+
+function cardHasReduciveStatEffect(card: GameCard) {
+  return cardLeafActions(card).some((action) => (
+    action.kind === "modify-stat"
+    && action.amount < 0
+    && (action.stat === "power" || action.stat === "damage")
+  ));
+}
+
 function combatRelevance(
   match: MatchState,
   playerId: string,
@@ -736,7 +788,14 @@ function cardValue(
       const targetsEnemy = actionTargetsEnemy(
         match, playerId, choices, action, instruction.sourceText,
       );
-      const strategic = raw * (targetsEnemy ? -1 : 1);
+      const blocked = shadowStrikeBlocksReduction(
+        match,
+        playerId,
+        choices,
+        action,
+        instruction.sourceText,
+      );
+      const strategic = blocked ? 0 : raw * (targetsEnemy ? -1 : 1);
       value += strategic * combatRelevance(match, playerId, action, targetsEnemy) - raw;
     }
     if (action.kind === "negate") {
@@ -878,7 +937,14 @@ function optionalEffectValue(
         action,
         actionText,
       );
-      value += raw * (targetsEnemy ? -1 : 1)
+      const blocked = shadowStrikeBlocksReduction(
+        match,
+        playerId,
+        {},
+        action,
+        actionText,
+      );
+      value += (blocked ? 0 : raw * (targetsEnemy ? -1 : 1))
         * combatRelevance(match, playerId, action, targetsEnemy);
       continue;
     }
@@ -908,6 +974,9 @@ function optionScore(
     ));
     const bakugan = owner?.bakugan.find((candidate) => candidate.id === id);
     if (!bakugan) return -100;
+    if (owner?.id !== controllerId
+      && cardHasReduciveStatEffect(card)
+      && bakuganHasShadowStrike(match, bakugan.id)) return -100;
     const strength = printedBakuganValue(bakugan) + bakugan.heldCoreCells.length * 1.2;
     return objectUtilityForChooser(owner?.id, chooserId, polarity, strength);
   }

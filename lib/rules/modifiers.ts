@@ -131,7 +131,7 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
 }
 
 function targetMatches(state: MatchState, modifier: ContinuousModifier, bakugan: Bakugan, player: PlayerState) {
-  if (modifier.targetBakuganId && modifier.targetBakuganId !== bakugan.id) return false;
+  if (modifier.targetBakuganId) return modifier.targetBakuganId === bakugan.id;
   if (modifier.targetFaction && modifier.targetFaction !== bakugan.faction) return false;
   if (modifier.excludedTargetFaction && modifier.excludedTargetFaction === bakugan.faction) return false;
   if (modifier.target === "all-bakugan") return true;
@@ -262,15 +262,26 @@ export function evaluateBakuganCharacteristics(
     return result;
   });
 
-  const temporary: ContinuousModifier[] = [
-    { id: `${bakugan.id}:legacy-power`, source: { kind: "system", id: "temporary-power" }, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, stat: "power", amount: state.powerBoost[bakugan.id] ?? 0, layer: "temporary", duration: "turn", createdTurn: state.turn, sourceCategory: "temporary" },
-    { id: `${bakugan.id}:legacy-damage`, source: { kind: "system", id: "temporary-damage" }, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, stat: "damage", amount: state.damageBoost[bakugan.id] ?? 0, layer: "temporary", duration: "turn", createdTurn: state.turn, sourceCategory: "temporary" },
-    { id: `${bakugan.id}:legacy-frost`, source: { kind: "system", id: "temporary-frost" }, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, keyword: "FrostStrike", amount: state.frostStrike[bakugan.id] ?? 0, layer: "temporary", duration: "turn", createdTurn: state.turn, sourceCategory: "temporary" },
-  ];
-
   const storedModifiers = ensureRulesState(state).modifiers.filter((modifier) => !(
     modifier.duration === "while-source-active" && modifier.source.kind === "card"
   ));
+  const mirrored = storedModifiers.filter((modifier) => (
+    modifier.id.includes(":legacy-mirror:") && modifier.targetBakuganId === bakugan.id
+  ));
+  const mirroredPower = mirrored.reduce((sum, modifier) => (
+    sum + (modifier.stat === "power" ? modifier.amount : 0)
+  ), 0);
+  const mirroredDamage = mirrored.reduce((sum, modifier) => (
+    sum + (modifier.stat === "damage" ? modifier.amount : 0)
+  ), 0);
+  const mirroredFrost = mirrored.reduce((sum, modifier) => (
+    sum + (modifier.keyword === "FrostStrike" ? modifier.amount : 0)
+  ), 0);
+  const temporary: ContinuousModifier[] = [
+    { id: `${bakugan.id}:legacy-power`, source: { kind: "system", id: "temporary-power" }, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, stat: "power", amount: (state.powerBoost[bakugan.id] ?? 0) - mirroredPower, layer: "temporary", duration: "turn", createdTurn: state.turn, sourceCategory: "temporary" },
+    { id: `${bakugan.id}:legacy-damage`, source: { kind: "system", id: "temporary-damage" }, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, stat: "damage", amount: (state.damageBoost[bakugan.id] ?? 0) - mirroredDamage, layer: "temporary", duration: "turn", createdTurn: state.turn, sourceCategory: "temporary" },
+    { id: `${bakugan.id}:legacy-frost`, source: { kind: "system", id: "temporary-frost" }, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, keyword: "FrostStrike", amount: (state.frostStrike[bakugan.id] ?? 0) - mirroredFrost, layer: "temporary", duration: "turn", createdTurn: state.turn, sourceCategory: "temporary" },
+  ];
   const modifiers = [...coreModifiers, ...activePrintedModifiers(state, owner, bakugan), ...storedModifiers, ...temporary]
     .filter((modifier) => targetMatches(state, modifier, bakugan, owner) && ruleConditionActive(state, owner, modifier.condition, bakugan))
     .sort((left, right) => LAYER_ORDER[left.layer] - LAYER_ORDER[right.layer] || left.id.localeCompare(right.id));

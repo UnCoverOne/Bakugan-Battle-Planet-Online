@@ -572,3 +572,34 @@ test("AI starts a jointly winning temporary B-Power sequence when no single card
     1,
   );
 });
+
+
+test("AI chooses the minimum-resource sufficient B-Power card", () => {
+  const efficient = catalogueCard("bb-43", "efficient-prismatic-shield"); // +200 B, 1 Energy.
+  const overkill = catalogueCard("bb-49", "overkill-smoke-armor"); // +500 B, 3 Energy.
+  const ai = player("efficient-ai", [bakugan("efficient-ai-b", "Aquos", 500, 5)], [], [efficient, overkill]);
+  const human = player("efficient-human", [bakugan("efficient-human-b", "Pyrus", 650, 5)]);
+  addEnergy(ai, 3);
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, efficient.id);
+  assert.equal(next.players[0].hand.some((candidate) => candidate.id === overkill.id), true);
+});
+
+test("AI does not spend a debuff whose B-Power reduction is blocked by ShadowStrike", () => {
+  const debuff = catalogueCard("aa-45", "shadowstrike-wild-roar"); // -300 B.
+  const ai = player("shadow-ai", [bakugan("shadow-ai-b", "Ventus", 500, 5)], [], [debuff]);
+  const human = player("shadow-human", [bakugan("shadow-human-b", "Darkus", 700, 5)]);
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+  match.shadowStrike[human.bakugan[0].id] = true;
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.equal(next.players[0].hand.some((candidate) => candidate.id === debuff.id), true);
+});

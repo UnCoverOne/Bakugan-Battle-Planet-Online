@@ -15,6 +15,7 @@ import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/mod
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
 import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
+import type { ContinuousModifier, RulesCardId } from "./rules/model";
 import { collectRuleTriggers } from "./rules/triggers";
 import { applyEnergyEntryVisibility } from "./energyVisibility";
 import {
@@ -1085,7 +1086,8 @@ const statValues = (text: string, pattern: RegExp, condition: boolean) => {
   return values.reduce((sum, value) => sum + value, 0);
 };
 
-const scaleStat = (state: MatchState, player: PlayerState, text: string, value: number, stat: "power" | "damage" | "frost" | "draw") => {
+const scaleStat = (state: MatchState, player: PlayerState, text: string, value: number, stat: "power" | "damage" | "frost" | "draw", scale?: string) => {
+  if (scale === "other-card-played") return value * Math.max(0, player.cardsPlayedThisTurn - 1);
   const faction = text.match(/for each \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan on your team/i)?.[1] as Faction | undefined;
   if (faction) return value * player.bakugan.filter((bakugan) => bakugan.faction === faction).length;
   if (/for each Flip card in your discard pile/i.test(text)) return value * player.discard.filter((card) => card.type === "Flip").length;
@@ -1093,7 +1095,7 @@ const scaleStat = (state: MatchState, player: PlayerState, text: string, value: 
   if (/for each Energy card you have/i.test(text)) return value * player.maxEnergy;
   if (/for each BakuCore that your Bakugan hold/i.test(text)) return value * player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
   if (/sacrificed-card/i.test(text) || /sacrifice/i.test(text)) return value;
-  if (/for every other card you played this turn/i.test(text)) return value * Math.max(1, player.cardsPlayedThisTurn - 1);
+  if (/for (?:each|every) other card (?:you have )?played this turn/i.test(text)) return value * Math.max(0, player.cardsPlayedThisTurn - 1);
   if (stat === "power" && /for each 1 \[Damage Rating\] your Bakugan has/i.test(text)) {
     const bakugan = activeBakugan(state, player.id); return value * (bakugan ? staticModifier(state, bakugan, player).damage : 0);
   }
@@ -1698,12 +1700,47 @@ const ruleConditionIsActive = (
   return ruleConditionActive(state, player, instruction.condition, conditionTarget);
 };
 
+function recordTemporaryCardStatModifier(
+  state: MatchState,
+  pending: PendingEffect,
+  action: Extract<RuleAction, { kind: "modify-stat" }>,
+  targetBakuganId: string,
+  amount: number,
+  instructionIndex: number,
+  actionIndex: number,
+) {
+  const rules = ensureRulesState(state);
+  const id = `${pending.id}:legacy-mirror:${instructionIndex}:${actionIndex}:${targetBakuganId}:${action.stat}`;
+  const base = {
+    id,
+    source: {
+      kind: "card" as const,
+      instanceId: pending.sourceId ?? pending.card.id,
+      catalogId: pending.card.catalogId as RulesCardId,
+    },
+    controllerId: pending.controllerId,
+    target: "chosen-bakugan" as const,
+    targetBakuganId,
+    amount,
+    layer: "temporary" as const,
+    duration: "turn" as const,
+    createdTurn: state.turn,
+    sourceCategory: "card" as const,
+  };
+  const modifier: ContinuousModifier = action.stat === "frost"
+    ? { ...base, keyword: "FrostStrike" }
+    : { ...base, stat: action.stat };
+  rules.modifiers = rules.modifiers.filter((candidate) => candidate.id !== id);
+  rules.modifiers.push(modifier);
+}
+
 const executeRuleAction = (
   state: MatchState,
   pending: PendingEffect,
   instruction: RuleInstruction,
   action: RuleAction,
   instructionIndex: number,
+  actionIndex: number,
 ) => {
   const { card, controllerId } = pending;
   const choices = instructionChoices(pending, instructionIndex);
@@ -1789,7 +1826,7 @@ const executeRuleAction = (
         (choices.mode === "damage" && action.stat === "power")
         || (choices.mode === "power" && action.stat === "damage")
       )) return;
-      let amount = scaleStat(state, player, text, action.amount, action.stat);
+      let amount = scaleStat(state, player, text, action.amount, action.stat, action.scale);
       if (action.scale === "sacrificed-card") amount *= choices.discardCardIds?.length ?? 0;
       const explicitActionTarget = action.targetChoiceId
         ? choices[action.targetChoiceId]
@@ -1802,9 +1839,23 @@ const executeRuleAction = (
           : action.scope === "all-bakugan" ? allBakugan
             : selectedTarget ? [selectedTarget] : [];
       for (const selected of targets) {
+        // Keep the legacy aggregate maps for snapshot/UI compatibility, but
+        // also retain each card modifier as an independently filterable rules
+        // object. The modifier evaluator subtracts these mirrored entries from
+        // the aggregate before applying them, so positive and negative effects
+        // never collapse into a single number for ShadowStrike.
         if (action.stat === "power") state.powerBoost[selected.id] = (state.powerBoost[selected.id] ?? 0) + amount;
         else if (action.stat === "damage") state.damageBoost[selected.id] = (state.damageBoost[selected.id] ?? 0) + amount;
         else state.frostStrike[selected.id] = (state.frostStrike[selected.id] ?? 0) + amount;
+        recordTemporaryCardStatModifier(
+          state,
+          pending,
+          action,
+          selected.id,
+          amount,
+          instructionIndex,
+          actionIndex,
+        );
       }
       return;
     }
@@ -1820,7 +1871,7 @@ const executeRuleAction = (
       }
       return;
     case "draw": {
-      const amount = action.scale ? Math.max(0, scaleStat(state, player, text, action.amount, "draw")) : action.amount;
+      const amount = action.scale ? Math.max(0, scaleStat(state, player, text, action.amount, "draw", action.scale)) : action.amount;
       enqueueEffectDraw(state, player, amount, card.displayName || card.name, pending.id);
       return;
     }
@@ -2290,7 +2341,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
       return "suspend";
     },
       execute: (action, instruction, cursor) => {
-        executeRuleAction(state, pending, instruction, action, cursor.instructionIndex);
+        executeRuleAction(state, pending, instruction, action, cursor.instructionIndex, cursor.effectIndex);
         pending.instructionIndex = cursor.instructionIndex;
       },
     }, pending.instructionIndex ?? 0);
