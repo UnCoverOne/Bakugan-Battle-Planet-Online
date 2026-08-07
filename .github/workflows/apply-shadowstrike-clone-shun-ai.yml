@@ -1,7 +1,7 @@
 name: Apply ShadowStrike Clone Shun AI fixes
 
 on:
-  push:
+  pull_request:
     branches:
       - main
 
@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: fix/shadowstrike-clone-shun-ai-20260807
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -42,4 +42,4 @@ jobs:
           git add lib/game.ts lib/rules/modifiers.ts lib/rules/catalogue-primitives.ts lib/rules/triggers.ts lib/opponentAi.ts lib/opponentAiBase.ts tests/rules-shadowstrike-clone-shun.test.ts tests/opponent-ai-tactics.test.ts
           git diff --cached --check
           git commit -m "Fix ShadowStrike scaling triggers and AI combat spending"
-          git push origin HEAD:main
+          git push origin HEAD:fix/shadowstrike-clone-shun-ai-20260807
