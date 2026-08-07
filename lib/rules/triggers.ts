@@ -2,7 +2,7 @@ import type { CardChoices, CardType, GameCard, MatchState, PlayerState } from ".
 import { consumeTriggerCreation } from "../engine/limits";
 import { ruleDefinitionForCard } from "./catalogue";
 import { ruleConditionActive } from "./modifiers";
-import type { RuleObject, TriggerDefinition, TriggerEventName } from "./model";
+import type { RuleAction, RuleObject, TriggerDefinition, TriggerEventName } from "./model";
 import { createRuleObject } from "./objects";
 import { ensureRulesState } from "./state";
 
@@ -39,12 +39,51 @@ function relationshipMatches(trigger: TriggerDefinition, ownerId: string, event:
   return event.actorId !== ownerId && event.controllerId !== ownerId;
 }
 
+function actionUsesImplicitControllerBakugan(action: RuleAction): boolean {
+  switch (action.kind) {
+    case "modify-stat":
+      return (action.scope ?? "target") === "target" && !action.targetChoiceId;
+    case "grant-keyword":
+    case "set-stat":
+      return true;
+    case "reroll":
+      return action.target === "controller";
+    case "conditional":
+      return action.whenTrue.some(actionUsesImplicitControllerBakugan)
+        || Boolean(action.whenFalse?.some(actionUsesImplicitControllerBakugan));
+    case "sequence":
+      return action.effects.some(actionUsesImplicitControllerBakugan);
+    case "replacement":
+      return action.replaceWith.some(actionUsesImplicitControllerBakugan);
+    default:
+      return false;
+  }
+}
+
+function actionIsPlayedOnActiveBakugan(card: GameCard | undefined) {
+  if (!card || card.type !== "Action") return false;
+  const definition = ruleDefinitionForCard(card);
+  const hasExplicitBakuganSelection = definition.play.choices.some((choice) => (
+    ["targetBakuganId", "secondaryTargetBakuganId"].includes(String(choice.id))
+    && choice.timing === "announce"
+  ));
+  if (hasExplicitBakuganSelection) return false;
+  return definition.abilities
+    .filter((ability) => ability.kind === "spell")
+    .flatMap((ability) => ability.instructions)
+    .some((instruction) => instruction.actions.some(actionUsesImplicitControllerBakugan));
+}
+
 function sourceTargetMatches(source: GameCard, owner: PlayerState, event: RuleEvent) {
   if (!/\bwhen you play an Action(?: card)? on this\b/i.test(source.effect)) return true;
   const sourceBakugan = sourceBakuganFor(owner, source);
   if (!sourceBakugan) return false;
-  return event.choices?.targetBakuganId === sourceBakugan.id
-    || event.choices?.secondaryTargetBakuganId === sourceBakugan.id;
+  const explicitTargets = [
+    event.choices?.targetBakuganId,
+    event.choices?.secondaryTargetBakuganId,
+  ].filter((target): target is string => Boolean(target));
+  if (explicitTargets.length) return explicitTargets.includes(sourceBakugan.id);
+  return actionIsPlayedOnActiveBakugan(event.card) && event.targetBakuganId === sourceBakugan.id;
 }
 
 function triggerMatches(
