@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { MatchState } from "../../lib/game";
 import { useMatchSelector } from "./matchStore";
 import {
@@ -36,20 +36,21 @@ export function AlternateWinPresentationLayer() {
   }));
   const match = presentation.match;
   const active = presentation.active && isDragonoidMaximusResult(match);
-  const resolvedAt = useMemo(
-    () => dragonoidMaximusResolvedAt(match) || Date.now(),
-    [match?.id, match?.gameNumber, match?.phase, match?.resultReason],
-  );
+  const resultKey = `${match?.id ?? ""}:${match?.gameNumber ?? 0}:${match?.phase ?? ""}:${match?.resultReason ?? ""}`;
+  const [fallbackResolvedAt, setFallbackResolvedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
+  const resolvedAt = dragonoidMaximusResolvedAt(match) || fallbackResolvedAt;
   const root = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!active) return;
     const update = () => setNow(Date.now());
-    update();
+    const startedAt = Date.now();
+    if (!dragonoidMaximusResolvedAt(match)) setFallbackResolvedAt(startedAt);
+    setNow(startedAt);
     const interval = window.setInterval(update, 50);
     return () => window.clearInterval(interval);
-  }, [active, resolvedAt]);
+  }, [active, match, resultKey]);
 
   useEffect(() => {
     if (active) root.current?.focus();
@@ -79,26 +80,26 @@ export function AlternateWinPresentationLayer() {
       <div className={styles.burst} aria-hidden="true" />
       <div className={styles.particles} aria-hidden="true">
         {Array.from({ length: 18 }, (_, index) => (
-<i
-  key={index}
-  style={{ "--particle-index": index } as CSSProperties}
-/>
+          <i
+            key={index}
+            style={{ "--particle-index": index } as CSSProperties}
+          />
         ))}
       </div>
       <section className={styles.stage}>
         <span className={styles.kicker}>ULTIMATE WIN EFFECT RESOLVED</span>
         <div className={styles.cardFrame}>
-<span className={styles.cardGlow} aria-hidden="true" />
-<img
-  src={card?.art ?? "/assets/cards/sets/ex/full/ex-2.webp"}
-  alt="Dragonoid Maximus"
-  draggable={false}
-/>
+          <span className={styles.cardGlow} aria-hidden="true" />
+          <img
+            src={card?.art ?? "/assets/cards/sets/ex/full/ex-2.webp"}
+            alt="Dragonoid Maximus"
+            draggable={false}
+          />
         </div>
         <div className={styles.copy}>
-<h2>DRAGONOID MAXIMUS</h2>
-<strong>THE ULTIMATE BRAWLER ASCENDS</strong>
-<p>{winner?.name ?? "The controlling Brawler"} fulfilled the alternate win condition.</p>
+          <h2>DRAGONOID MAXIMUS</h2>
+          <strong>THE ULTIMATE BRAWLER ASCENDS</strong>
+          <p>{winner?.name ?? "The controlling Brawler"} fulfilled the alternate win condition.</p>
         </div>
       </section>
       <p className={styles.accessibleStatus} aria-live="assertive">
