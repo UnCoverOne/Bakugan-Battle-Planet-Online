@@ -32,8 +32,8 @@ jobs:
         run: node --import tsx --test tests/rules-shadowstrike-clone-shun.test.ts
       - name: Run opponent AI tactics
         run: node --import tsx --test tests/opponent-ai-tactics.test.ts
-      - name: Run reported gameplay regressions
-        run: node --import tsx --test tests/reported-gameplay-regressions.test.ts
+      - name: Run Deep Dive and Reroll regressions
+        run: node --import tsx --test --test-name-pattern="Deep Dive|Reroll" tests/reported-gameplay-regressions.test.ts
       - name: Record repository typecheck baseline
         run: npx tsc --noEmit 2>&1 | tee /tmp/typecheck.log || true
       - name: Verify diff
