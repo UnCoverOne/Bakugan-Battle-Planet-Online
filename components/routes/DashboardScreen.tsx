@@ -182,8 +182,8 @@ export function DashboardScreen() {
           ? "Train with a starter strategy, explore the complete card catalogue, or build your first Battle Planet deck."
           : "Build your arsenal, prepare your Bakugan team, and choose your next Battle Planet Brawl."}</p>
         <div className="hero-actions">
-          <span className="play-button-glow"><Link className="hex-button red" href="/play"><span>{isGuest ? "START TRAINING" : "PLAY"}</span><ChevronArrow/></Link></span>
-          <Link className="hex-button ghost" href="/decks"><span>{isGuest ? "BUILD A DECK" : "DECKS"}</span><ChevronArrow/></Link>
+          <span className="play-button-glow"><Link className="hex-button red" href="/play"><span>PLAY</span><ChevronArrow/></Link></span>
+          <Link className="hex-button ghost" href="/decks"><span>DECKS</span><ChevronArrow/></Link>
         </div>
       </div>
       <div className="bakugan-home-hero-art">
