@@ -27,10 +27,24 @@ function activeSources(state: MatchState, owner: PlayerState, event: RuleEvent) 
   return sources.filter((source, index) => sources.findIndex((candidate) => candidate.id === source.id) === index);
 }
 
+function sourceBakuganFor(owner: PlayerState, source: GameCard) {
+  return owner.bakugan.find((bakugan) => (
+    bakugan.character.id === source.id || bakugan.evoStack.some((candidate) => candidate.id === source.id)
+  ));
+}
+
 function relationshipMatches(trigger: TriggerDefinition, ownerId: string, event: RuleEvent) {
   if (trigger.relationship === "any") return true;
   if (trigger.relationship === "controller") return event.actorId === ownerId || event.controllerId === ownerId;
   return event.actorId !== ownerId && event.controllerId !== ownerId;
+}
+
+function sourceTargetMatches(source: GameCard, owner: PlayerState, event: RuleEvent) {
+  if (!/\bwhen you play an Action(?: card)? on this\b/i.test(source.effect)) return true;
+  const sourceBakugan = sourceBakuganFor(owner, source);
+  if (!sourceBakugan) return false;
+  return event.choices?.targetBakuganId === sourceBakugan.id
+    || event.choices?.secondaryTargetBakuganId === sourceBakugan.id;
 }
 
 function triggerMatches(
@@ -44,6 +58,7 @@ function triggerMatches(
   if (!relationshipMatches(trigger, owner.id, event)) return false;
   if (trigger.source === "self" && source.id !== event.card?.id) return false;
   if (trigger.cardType && trigger.cardType !== event.cardType) return false;
+  if (!sourceTargetMatches(source, owner, event)) return false;
   const target = event.targetBakuganId
     ? state.players.flatMap((player) => player.bakugan).find((candidate) => candidate.id === event.targetBakuganId)
     : undefined;
@@ -66,9 +81,7 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
         const key = usageKey({ source, abilityId: ability.id }, owner.id, state.turn);
         if (ability.trigger.limit && rules.triggerUsage[key]) continue;
         if (ability.trigger.limit) rules.triggerUsage[key] = (rules.triggerUsage[key] ?? 0) + 1;
-        const sourceBakugan = owner.bakugan.find((bakugan) => (
-          bakugan.character.id === source.id || bakugan.evoStack.some((candidate) => candidate.id === source.id)
-        ));
+        const sourceBakugan = sourceBakuganFor(owner, source);
         const sourceBakuganId = sourceBakugan?.id
           ?? (ability.trigger.source === "self" && event.card?.type === "Evo" ? event.targetBakuganId : undefined);
         const choices: CardChoices = {
