@@ -48,6 +48,24 @@ test("guest identity is generic and the avatar menu exposes only account access 
   assert.match(css, /profile-popover-auth/);
 });
 
+test("guest boot normalizes legacy local shell data before rendering", () => {
+  const provider = source("components/application/AppProvider.jsx");
+  assert.match(provider, /normalizeStoredProfile/);
+  assert.match(provider, /normalizeStoredArray/);
+  assert.match(provider, /normalizeStoredSettings/);
+  assert.match(provider, /const normalized = normalize\(JSON\.parse\(saved\)\)/);
+  assert.match(provider, /bbp-profile[\s\S]*normalize: normalizeStoredProfile/);
+  assert.match(provider, /bbp-decks-complete-set-v4[\s\S]*normalize: normalizeStoredArray/);
+  assert.match(provider, /bbp-history[\s\S]*normalize: normalizeStoredArray/);
+  assert.match(provider, /bbp-settings[\s\S]*normalize: normalizeStoredSettings/);
+});
+
+test("profile popover navigation rows span the full menu width", () => {
+  const css = source("app/website-overhaul.css");
+  assert.match(css, /\.profile-popover>nav\{[^}]*grid-template-columns:minmax\(0,1fr\);[^}]*width:100%/);
+  assert.match(css, /\.profile-popover>nav>\.profile-popover-row\{[^}]*width:100%;[^}]*min-width:100%;[^}]*max-width:none;[^}]*margin:0/);
+});
+
 test("guest-data detection ignores a fresh profile and identifies meaningful progress", () => {
   const empty = summarizeGuestData(guestSnapshot());
   assert.equal(empty.hasMeaningfulData, false);

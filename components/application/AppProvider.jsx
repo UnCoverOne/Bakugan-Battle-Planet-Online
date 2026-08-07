@@ -33,6 +33,45 @@ const defaults = {
   profile: DEFAULT_BRAWLER_PROFILE,
   settings: DEFAULT_APP_SETTINGS,
 };
+const PROFILE_FACTIONS = new Set(["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"]);
+const identityStoredValue = (value) => value;
+
+function normalizeStoredProfile(value) {
+  const candidate = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const name = typeof candidate.name === "string" && candidate.name.trim()
+    ? candidate.name.trim().slice(0, 20)
+    : defaults.profile.name;
+  const faction = PROFILE_FACTIONS.has(candidate.faction)
+    ? candidate.faction
+    : defaults.profile.faction;
+  return {
+    ...defaults.profile,
+    ...candidate,
+    name,
+    faction,
+    signedIn: Boolean(candidate.signedIn),
+    avatar: typeof candidate.avatar === "string" ? candidate.avatar : defaults.profile.avatar,
+    titleId: typeof candidate.titleId === "string" ? candidate.titleId : defaults.profile.titleId,
+    coverId: typeof candidate.coverId === "string" ? candidate.coverId : defaults.profile.coverId,
+    showcaseAchievementIds: Array.isArray(candidate.showcaseAchievementIds)
+      ? candidate.showcaseAchievementIds.filter((item) => typeof item === "string").slice(0, 3)
+      : [],
+    showcaseDeckIds: Array.isArray(candidate.showcaseDeckIds)
+      ? candidate.showcaseDeckIds.filter((item) => typeof item === "string").slice(0, 3)
+      : [],
+  };
+}
+
+function normalizeStoredArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeStoredSettings(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? { ...defaults.settings, ...value }
+    : { ...defaults.settings };
+}
+
 const paths = { entry: "/", dashboard: "/", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/profile/records", profile: "/profile", settings: "/settings", admin: "/admin" };
 
 let storageReportTimer = null;
@@ -105,7 +144,7 @@ function readGuestSnapshot(fallback) {
 }
 
 function useStoredState(key, initial, options = {}) {
-  const { storage = "local", debounceMs = 500, report = true, migrateFromLocal = false, writeEnabled = true } = options;
+  const { storage = "local", debounceMs = 500, report = true, migrateFromLocal = false, writeEnabled = true, normalize = identityStoredValue } = options;
   const initialRef = useRef(initial);
   const [value, setValue] = useState(initial);
   const [ready, setReady] = useState(false);
@@ -125,8 +164,9 @@ function useStoredState(key, initial, options = {}) {
           }
         }
         if (saved !== null) {
-          lastSerialized.current = saved;
-          setValue(JSON.parse(saved));
+          const normalized = normalize(JSON.parse(saved));
+          lastSerialized.current = JSON.stringify(normalized);
+          setValue(normalized);
         } else {
           lastSerialized.current = JSON.stringify(initialRef.current);
         }
@@ -137,7 +177,7 @@ function useStoredState(key, initial, options = {}) {
       setReady(true);
     }, 0);
     return () => clearTimeout(id);
-  }, [key, migrateFromLocal, storage]);
+  }, [key, migrateFromLocal, normalize, storage]);
 
   useEffect(() => {
     if (!ready || blocked.current || !writeEnabled) return;
@@ -181,11 +221,11 @@ export function AppProvider({ children }) {
   const [persistenceScope, setPersistenceScope] = useState("checking");
   const [accountDataReady, setAccountDataReady] = useState(false);
   const writeLocal = persistenceScope === "local";
-  const [profile, setProfile, profileReady] = useStoredState("bbp-profile", defaults.profile, { writeEnabled: writeLocal });
-  const [decks, setStoredDecks, decksReady] = useStoredState("bbp-decks-complete-set-v4", [], { debounceMs: 750, writeEnabled: writeLocal });
-  const [deletedDecks, setDeletedDecks, deletedDecksReady] = useStoredState("bbp-deleted-decks-v1", [], { debounceMs: 750, report: false, writeEnabled: writeLocal });
-  const [history, setHistory, historyReady] = useStoredState("bbp-history", [], { debounceMs: 750, writeEnabled: writeLocal });
-  const [settings, setSettings, settingsReady] = useStoredState("bbp-settings", defaults.settings, { writeEnabled: writeLocal });
+  const [profile, setProfile, profileReady] = useStoredState("bbp-profile", defaults.profile, { normalize: normalizeStoredProfile, writeEnabled: writeLocal });
+  const [decks, setStoredDecks, decksReady] = useStoredState("bbp-decks-complete-set-v4", [], { debounceMs: 750, normalize: normalizeStoredArray, writeEnabled: writeLocal });
+  const [deletedDecks, setDeletedDecks, deletedDecksReady] = useStoredState("bbp-deleted-decks-v1", [], { debounceMs: 750, normalize: normalizeStoredArray, report: false, writeEnabled: writeLocal });
+  const [history, setHistory, historyReady] = useStoredState("bbp-history", [], { debounceMs: 750, normalize: normalizeStoredArray, writeEnabled: writeLocal });
+  const [settings, setSettings, settingsReady] = useStoredState("bbp-settings", defaults.settings, { normalize: normalizeStoredSettings, writeEnabled: writeLocal });
   const [selectedDeckId, setSelectedDeckId, selectedDeckReady] = useStoredState("bbp-selected-deck-v1", "", { debounceMs: 300, writeEnabled: writeLocal });
   const [builderDeck, setBuilderDeck, builderReady] = useStoredState("bbp-builder-draft-v1", null, { debounceMs: 750, writeEnabled: writeLocal });
   const [deckQuery, setDeckQuery, deckQueryReady] = useStoredState("bbp-deck-query-v1", "", { storage: "session", debounceMs: 500, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
