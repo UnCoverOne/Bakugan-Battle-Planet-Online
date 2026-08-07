@@ -1,0 +1,41 @@
+name: Apply multiplayer room lobby UX
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: improve/match-room-lobby-20260808
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply implementation patch
+        run: python scripts/patch-match-room-lobby-20260808.py
+      - name: Install dependencies
+        run: npm run install:ci
+      - name: Run room and setup regressions
+        run: node --import tsx --test tests/play-setup.test.ts tests/engine-architecture.test.ts tests/lobby-flow.test.ts
+      - name: Build production app
+        run: npm run build
+      - name: Verify diff
+        run: git diff --check
+      - name: Commit implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Improve multiplayer room setup and lobby flow"
+          git push origin HEAD:improve/match-room-lobby-20260808
