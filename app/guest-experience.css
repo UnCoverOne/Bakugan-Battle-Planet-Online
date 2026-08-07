@@ -138,6 +138,10 @@ html[data-account-scope="guest"] label:has(input[value="Public"])::after {
   flex-wrap: wrap;
 }
 
+.home-account-gate .home-account-gate-actions {
+  display: none;
+}
+
 .home-account-gate-actions button,
 .guest-progress-actions button,
 .account-gateway-actions button {
@@ -162,6 +166,8 @@ html[data-account-scope="guest"] label:has(input[value="Public"])::after {
 }
 
 .home-guest-progress {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: .9rem 1.1rem;
@@ -169,6 +175,7 @@ html[data-account-scope="guest"] label:has(input[value="Public"])::after {
 
 .home-guest-progress-copy {
   min-width: 0;
+  flex: 1 1 auto;
   display: grid;
   gap: .18rem;
 }
@@ -183,6 +190,14 @@ html[data-account-scope="guest"] label:has(input[value="Public"])::after {
 .home-guest-progress-copy span {
   color: #a9bec6;
   font-size: .76rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.home-guest-progress .guest-progress-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
 }
 
 .account-gateway-route {
@@ -295,6 +310,12 @@ html[data-account-scope="guest"] label:has(input[value="Public"])::after {
 
   .home-guest-progress {
     align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .home-guest-progress .guest-progress-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 
@@ -317,5 +338,13 @@ html[data-account-scope="guest"] label:has(input[value="Public"])::after {
   .account-gateway-actions {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .home-account-gate .home-account-gate-actions {
+    display: none;
+  }
+
+  .home-guest-progress .guest-progress-actions {
+    width: 100%;
   }
 }
