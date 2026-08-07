@@ -1,7 +1,7 @@
 name: Apply navigation and account overlay fixes
 
 on:
-  pull_request:
+  push:
     branches:
       - main
 
@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/nav-account-overlay-20260808
+          ref: main
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -33,11 +33,12 @@ jobs:
         run: npm run build
       - name: Verify diff
         run: git diff --check
-      - name: Commit implementation
+      - name: Commit implementation and clean staging files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add components/application/AppShell.jsx app/website-overhaul.css app/home-layout.css tests/website-overhaul.test.ts tests/visual/foundation.spec.ts
+          rm -f .github/workflows/apply-nav-account-overlay-20260808.yml scripts/patch-nav-account-overlay-20260808.py TEMP_BRANCH_MARKER_DO_NOT_MERGE
+          git add -A
           git diff --cached --check
           git commit -m "Remove sync nav control and fix account menu layering"
-          git push origin HEAD:fix/nav-account-overlay-20260808
+          git push origin HEAD:main
