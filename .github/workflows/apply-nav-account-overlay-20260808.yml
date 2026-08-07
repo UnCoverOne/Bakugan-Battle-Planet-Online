@@ -1,7 +1,7 @@
 name: Apply navigation and account overlay fixes
 
 on:
-  push:
+  pull_request:
     branches:
       - main
 
@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: fix/nav-account-overlay-20260808
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -41,4 +41,4 @@ jobs:
           git add -A
           git diff --cached --check
           git commit -m "Remove sync nav control and fix account menu layering"
-          git push origin HEAD:main
+          git push origin HEAD:fix/nav-account-overlay-20260808
