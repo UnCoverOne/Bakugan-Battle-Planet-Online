@@ -30,24 +30,27 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Apply profile artwork implementation
-        run: python .github/scripts/apply-profile-original-artwork.py
-      - name: Verify implementation
+      - name: Capture verification diagnostics
         shell: bash
         run: |
-          set -euo pipefail
-          git diff --check
-          npm ci --ignore-scripts
-          node --import tsx --test tests/profile-customization.test.ts
-          npm run lint
-      - name: Commit implementation
-        shell: bash
-        run: |
-          set -euo pipefail
+          set +e
+          python .github/scripts/apply-profile-original-artwork.py > .profile-verify.log 2>&1
+          echo "PATCH_EXIT=$?" >> .profile-verify.log
+          git diff --check >> .profile-verify.log 2>&1
+          echo "DIFF_EXIT=$?" >> .profile-verify.log
+          npm ci --ignore-scripts >> .profile-verify.log 2>&1
+          echo "NPM_CI_EXIT=$?" >> .profile-verify.log
+          node --import tsx --test tests/profile-customization.test.ts >> .profile-verify.log 2>&1
+          echo "PROFILE_TEST_EXIT=$?" >> .profile-verify.log
+          npm run lint >> .profile-verify.log 2>&1
+          echo "LINT_EXIT=$?" >> .profile-verify.log
+          git reset --hard HEAD
+          git clean -fd
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Complete original profile artwork implementation"
+          printf '%s\n' "$(cat .profile-verify.log 2>/dev/null)" > .profile-verify.log
+          git add .profile-verify.log
+          git commit -m "Capture profile artwork verification diagnostics"
           git push origin HEAD:fix/profile-original-artwork-v2
 
   validate:
