@@ -1,11 +1,5 @@
 export const PROFILE_SHOWCASE_LIMIT = 3;
 
-export const PROFILE_AVATAR_SPRITE =
-  "/assets/profile/brawler-profile-icons.avif";
-
-export const PROFILE_COVER_SPRITE =
-  "/assets/profile/brawler-profile-covers.avif";
-
 export type ProfileReward = {
   id: string;
   label: string;
@@ -15,42 +9,38 @@ export type ProfileReward = {
 export type ProfileAvatarPreset = {
   id: string;
   label: string;
-  position: string;
+  src: string;
 };
 
 export type ProfileCoverReward = ProfileReward & {
   faction: string | null;
-  position: string;
+  src: string;
 };
 
 export const PROFILE_AVATARS: readonly ProfileAvatarPreset[] = [
-  { id: "veronica-venegas", label: "Veronica Venegas", position: "0% 0%" },
-  { id: "strata", label: "Strata", position: "25% 0%" },
-  { id: "shun-kazami", label: "Shun Kazami", position: "50% 0%" },
-  { id: "philomena-dusk", label: "Philomena Dusk", position: "75% 0%" },
-  { id: "olivia-styles", label: "Olivia Styles", position: "100% 0%" },
-  { id: "max", label: "Max", position: "0% 25%" },
-  { id: "masato-kazami", label: "Masato Kazami", position: "25% 25%" },
-  { id: "marco", label: "Marco", position: "50% 25%" },
-  { id: "maggie", label: "Maggie", position: "75% 25%" },
-  { id: "mac", label: "Mac", position: "100% 25%" },
-  { id: "lightning", label: "Lightning", position: "0% 50%" },
-  { id: "kurin", label: "Kurin", position: "25% 50%" },
-  { id: "everett-ray", label: "Everett Ray", position: "50% 50%" },
-  { id: "e", label: "E", position: "75% 50%" },
-  { id: "duran-dane", label: "Duran Dane", position: "100% 50%" },
-  { id: "dee", label: "DEE", position: "0% 75%" },
-  {
-    id: "col-armstrong-tripp",
-    label: "Col. Armstrong Tripp",
-    position: "25% 75%",
-  },
-  { id: "china-riot", label: "China Riot", position: "50% 75%" },
-  { id: "cee", label: "CEE", position: "75% 75%" },
-  { id: "bill-kouzo", label: "Bill Kouzo", position: "100% 75%" },
-  { id: "benton-dusk", label: "Benton Dusk", position: "0% 100%" },
-  { id: "bee", label: "BEE", position: "25% 100%" },
-  { id: "aay", label: "AAY", position: "50% 100%" },
+  { id: "veronica-venegas", label: "Veronica Venegas", src: "/assets/profile/icons/veronica-venegas.png" },
+  { id: "strata", label: "Strata", src: "/assets/profile/icons/strata.png" },
+  { id: "shun-kazami", label: "Shun Kazami", src: "/assets/profile/icons/shun-kazami.png" },
+  { id: "philomena-dusk", label: "Philomena Dusk", src: "/assets/profile/icons/philomena-dusk.png" },
+  { id: "olivia-styles", label: "Olivia Styles", src: "/assets/profile/icons/olivia-styles.png" },
+  { id: "max", label: "Max", src: "/assets/profile/icons/max.png" },
+  { id: "masato-kazami", label: "Masato Kazami", src: "/assets/profile/icons/masato-kazami.png" },
+  { id: "marco", label: "Marco", src: "/assets/profile/icons/marco.png" },
+  { id: "maggie", label: "Maggie", src: "/assets/profile/icons/maggie.png" },
+  { id: "mac", label: "Mac", src: "/assets/profile/icons/mac.png" },
+  { id: "lightning", label: "Lightning", src: "/assets/profile/icons/lightning.png" },
+  { id: "kurin", label: "Kurin", src: "/assets/profile/icons/kurin.png" },
+  { id: "everett-ray", label: "Everett Ray", src: "/assets/profile/icons/everett-ray.png" },
+  { id: "e", label: "E", src: "/assets/profile/icons/e.png" },
+  { id: "duran-dane", label: "Duran Dane", src: "/assets/profile/icons/duran-dane.png" },
+  { id: "dee", label: "DEE", src: "/assets/profile/icons/dee.png" },
+  { id: "col-armstrong-tripp", label: "Col. Armstrong Tripp", src: "/assets/profile/icons/col-armstrong-tripp.png" },
+  { id: "china-riot", label: "China Riot", src: "/assets/profile/icons/china-riot.png" },
+  { id: "cee", label: "CEE", src: "/assets/profile/icons/cee.png" },
+  { id: "bill-kouzo", label: "Bill Kouzo", src: "/assets/profile/icons/bill-kouzo.png" },
+  { id: "benton-dusk", label: "Benton Dusk", src: "/assets/profile/icons/benton-dusk.png" },
+  { id: "bee", label: "BEE", src: "/assets/profile/icons/bee.png" },
+  { id: "aay", label: "AAY", src: "/assets/profile/icons/aay.png" },
 ];
 
 export const PROFILE_TITLES: readonly ProfileReward[] = [
@@ -90,70 +80,70 @@ export const PROFILE_COVERS: readonly ProfileCoverReward[] = [
     label: "Ventus Hyper Turtonium Ultra",
     achievementId: null,
     faction: "Ventus",
-    position: "50% 0%",
+    src: "/assets/profile/covers/battle-planet.png",
   },
   {
     id: "ventus-maximus-gorthion-ultra",
     label: "Ventus Maximus Gorthion Ultra",
     achievementId: null,
     faction: "Ventus",
-    position: "50% 11.1111%",
+    src: "/assets/profile/covers/ventus-maximus-gorthion-ultra.png",
   },
   {
     id: "aquos-hyper-trox-ultra",
     label: "Aquos Hyper Trox Ultra",
     achievementId: null,
     faction: "Aquos",
-    position: "50% 22.2222%",
+    src: "/assets/profile/covers/aquos-hyper-trox-ultra.png",
   },
   {
     id: "darkus-hyper-serpenteze-ultra",
     label: "Darkus Hyper Serpenteze Ultra",
     achievementId: null,
     faction: "Darkus",
-    position: "50% 33.3333%",
+    src: "/assets/profile/covers/darkus-hyper-serpenteze-ultra.png",
   },
   {
     id: "darkus-turtonium",
     label: "Darkus Turtonium",
     achievementId: null,
     faction: "Darkus",
-    position: "50% 44.4444%",
+    src: "/assets/profile/covers/darkus-turtonium.png",
   },
   {
     id: "haos-hyper-turtonium-ultra",
     label: "Haos Hyper Turtonium Ultra",
     achievementId: null,
     faction: "Haos",
-    position: "50% 55.5556%",
+    src: "/assets/profile/covers/haos-hyper-turtonium-ultra.png",
   },
   {
     id: "haos-hyper-turtonium",
     label: "Haos Hyper Turtonium",
     achievementId: null,
     faction: "Haos",
-    position: "50% 66.6667%",
+    src: "/assets/profile/covers/haos-hyper-turtonium.png",
   },
   {
     id: "haos-turtonium-ultra",
     label: "Haos Turtonium Ultra",
     achievementId: null,
     faction: "Haos",
-    position: "50% 77.7778%",
+    src: "/assets/profile/covers/haos-turtonium-ultra.png",
   },
   {
     id: "pyrus-hyper-trox-ultra",
     label: "Pyrus Hyper Trox Ultra",
     achievementId: null,
     faction: "Pyrus",
-    position: "50% 88.8889%",
+    src: "/assets/profile/covers/pyrus-hyper-trox-ultra.png",
   },
   {
     id: "pyrus-webam-ultra",
     label: "Pyrus Webam Ultra",
     achievementId: null,
     faction: "Pyrus",
-    position: "50% 100%",
+    src: "/assets/profile/covers/pyrus-webam-ultra.png",
   },
 ];
 
