@@ -69,6 +69,7 @@ export function AppShell({ children }) {
     authChecking,
     accountDataReady,
     authError,
+    storageHealth,
     retryCloudLoad,
     match,
     toast,
