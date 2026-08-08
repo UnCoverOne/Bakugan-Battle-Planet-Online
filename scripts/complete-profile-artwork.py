@@ -1,0 +1,283 @@
+from pathlib import Path
+import base64
+import re
+import shutil
+
+root = Path('.')
+assets = root / 'public/assets/profile'
+assets.mkdir(parents=True, exist_ok=True)
+
+# Convert the supplied icon sprite from its SVG data wrapper to a direct browser asset.
+icon_svg = assets / 'brawler-profile-icons.svg'
+icon_text = icon_svg.read_text(encoding='utf-8')
+icon_match = re.search(r'data:image/avif;base64,([^\"]+)', icon_text)
+if not icon_match:
+    raise SystemExit('Could not extract Brawler Profile Icons artwork.')
+(assets / 'brawler-profile-icons.avif').write_bytes(base64.b64decode(icon_match.group(1)))
+icon_svg.unlink()
+
+# Convert the supplied cover sprite fragments to one direct browser asset.
+parts_dir = root / 'lib/generated/profile-cover-sprite'
+parts = []
+for path in sorted(parts_dir.glob('part-*.ts')):
+    match = re.search(r'const part = "([^"]+)";', path.read_text(encoding='utf-8'))
+    if not match:
+        raise SystemExit(f'Could not parse {path}.')
+    parts.append(match.group(1))
+if len(parts) != 8:
+    raise SystemExit(f'Expected 8 cover sprite parts, found {len(parts)}.')
+(assets / 'brawler-profile-covers.avif').write_bytes(base64.b64decode(''.join(parts)))
+shutil.rmtree(parts_dir)
+
+# Use static assets instead of generated/runtime image payloads.
+customization_path = root / 'lib/profile-customization.ts'
+customization = customization_path.read_text(encoding='utf-8')
+old_asset_declaration = '''export const PROFILE_AVATAR_SPRITE =
+  "/assets/profile/brawler-profile-icons.svg";
+'''
+new_asset_declaration = '''export const PROFILE_AVATAR_SPRITE =
+  "/assets/profile/brawler-profile-icons.avif";
+
+export const PROFILE_COVER_SPRITE =
+  "/assets/profile/brawler-profile-covers.avif";
+'''
+if old_asset_declaration not in customization:
+    raise SystemExit('Could not locate profile artwork asset declaration.')
+customization = customization.replace(old_asset_declaration, new_asset_declaration, 1)
+customization_path.write_text(customization, encoding='utf-8')
+
+profile_path = root / 'components/routes/ProfileScreen.tsx'
+profile = profile_path.read_text(encoding='utf-8')
+profile = profile.replace(
+    'import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";',
+    'import { useEffect, useMemo, useState, type ReactNode } from "react";',
+    1,
+)
+profile = profile.replace(
+    'import {\n  PROFILE_COVERS,',
+    'import {\n  PROFILE_COVER_SPRITE,\n  PROFILE_COVERS,',
+    1,
+)
+profile = profile.replace(
+    'import {\n  PROFILE_AVATAR_PRESETS,\n  ProfileAvatar,\n} from "../profile/ProfileAvatar";',
+    'import {\n  PROFILE_AVATAR_PRESETS,\n  ProfileAvatar,\n  profileAvatarStyle,\n} from "../profile/ProfileAvatar";',
+    1,
+)
+profile = profile.replace(
+    'type ProfileDialog = "avatar" | "crop" | "title" | "cover";',
+    'type ProfileDialog = "avatar" | "title" | "cover";',
+    1,
+)
+
+state_start = profile.index('  const [cropSource')
+state_end = profile.index('  const achievements = useMemo', state_start)
+profile = profile[:state_start] + '  const [recordFilter, setRecordFilter] = useState("all");\n' + profile[state_end:]
+
+cover_source_start = profile.index('  const coverCharacter =')
+cover_source_end = profile.index('\n\n  useEffect(', cover_source_start)
+profile = profile[:cover_source_start] + profile[cover_source_end + 2:]
+
+upload_start = profile.index('  const receiveUpload = (file?: File) => {')
+render_start = profile.index('\n  return (\n', upload_start)
+profile = profile[:upload_start] + profile[render_start + 1:]
+
+old_identity = '''          <section
+            className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]}`}
+            style={
+              coverSource
+                ? {
+                    backgroundImage: `linear-gradient(90deg, rgba(0, 8, 13, .94) 0%, rgba(0, 8, 13, .7) 54%, rgba(0, 8, 13, .22) 100%), url("${coverSource}")`,
+                  }
+                : undefined
+            }
+          >'''
+new_identity = '''          <section
+            className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]}`}
+            style={{
+              backgroundImage: `linear-gradient(90deg, rgba(0, 8, 13, .94) 0%, rgba(0, 8, 13, .7) 54%, rgba(0, 8, 13, .22) 100%), url("${PROFILE_COVER_SPRITE}")`,
+              backgroundSize: "100% 100%, 100% 1000%",
+              backgroundPosition: `0 0, ${selectedCover.position}`,
+              backgroundRepeat: "no-repeat",
+            }}
+          >'''
+if old_identity not in profile:
+    raise SystemExit('Could not locate legacy profile cover rendering.')
+profile = profile.replace(old_identity, new_identity, 1)
+
+avatar_start = profile.index('      {dialog === "avatar" && (')
+title_start = profile.index('      {dialog === "title" && (', avatar_start)
+avatar_block = '''      {dialog === "avatar" && (
+        <ProfileModal
+          title="Choose a profile picture"
+          description="Choose one of the Brawler Profile Icons."
+          onClose={() => setDialog(null)}
+        >
+          <div className={styles.avatarPresetGrid}>
+            {PROFILE_AVATAR_PRESETS.map((item) => (
+              <button
+                type="button"
+                key={item.id}
+                aria-label={`Use ${item.name} profile icon`}
+                aria-pressed={profile.avatar === `preset:${item.id}`}
+                onClick={() => {
+                  updateCustomization(
+                    { avatar: `preset:${item.id}` },
+                    "Profile picture updated",
+                  );
+                  setDialog(null);
+                }}
+              >
+                <span
+                  className={styles.avatarPresetIcon}
+                  style={profileAvatarStyle(`preset:${item.id}`)}
+                  aria-hidden="true"
+                />
+                <span>{item.name}</span>
+              </button>
+            ))}
+          </div>
+        </ProfileModal>
+      )}
+
+'''
+profile = profile[:avatar_start] + avatar_block + profile[title_start:]
+
+cover_start = profile.index('      {dialog === "cover" && (')
+component_close = profile.index('\n    </div>\n  );', cover_start)
+cover_block = '''      {dialog === "cover" && (
+        <ProfileModal
+          title="Choose a Cover"
+          description="Choose one of the Brawler Profile Covers."
+          onClose={() => setDialog(null)}
+        >
+          <div className={styles.coverGrid}>
+            {PROFILE_COVERS.map((cover) => {
+              const unlocked = profileRewardUnlocked(
+                cover,
+                completedAchievementIds,
+              );
+              const requirement = cover.achievementId
+                ? achievements.find(
+                    (achievement) => achievement.id === cover.achievementId,
+                  )?.name
+                : "Available by default";
+              return (
+                <button
+                  type="button"
+                  key={cover.id}
+                  disabled={!unlocked}
+                  aria-pressed={selectedCover.id === cover.id}
+                  onClick={() => {
+                    updateCustomization(
+                      { coverId: cover.id },
+                      "Profile Cover updated",
+                    );
+                    setDialog(null);
+                  }}
+                >
+                  <span
+                    className={styles.coverArt}
+                    style={{
+                      backgroundImage: `url("${PROFILE_COVER_SPRITE}")`,
+                      backgroundSize: "100% 1000%",
+                      backgroundPosition: cover.position,
+                      backgroundRepeat: "no-repeat",
+                    }}
+                    aria-hidden="true"
+                  />
+                  <span className={styles.coverCopy}>
+                    <strong>{cover.label}</strong>
+                    <small>{unlocked ? requirement : `Locked · ${requirement}`}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </ProfileModal>
+      )}'''
+profile = profile[:cover_start] + cover_block + profile[component_close:]
+profile_path.write_text(profile, encoding='utf-8')
+
+css_path = root / 'components/routes/ProfileScreen.module.css'
+css = css_path.read_text(encoding='utf-8')
+css = css.replace('aspect-ratio: 16 / 9;', 'aspect-ratio: 4 / 1;')
+css = css.replace('padding: clamp(1.4rem, 4vw, 3.5rem);', 'padding: clamp(.85rem, 2vw, 1.6rem);', 1)
+css = css.replace('width: clamp(7rem, 14vw, 11rem);', 'width: clamp(4.5rem, 9vw, 7.5rem);', 1)
+css = css.replace('font-size: clamp(2.2rem, 6vw, 5.2rem);', 'font-size: clamp(1.6rem, 4vw, 3.4rem);', 1)
+old_avatar_css = '''.avatarPresetGrid img {
+  width: 100%;
+  height: 8.5rem;
+  object-fit: cover;
+  object-position: 50% 24%;
+}'''
+new_avatar_css = '''.avatarPresetIcon {
+  width: 100%;
+  height: 8.5rem;
+  display: block;
+  background-color: #01080c;
+}'''
+if old_avatar_css not in css:
+    raise SystemExit('Could not locate legacy avatar selector CSS.')
+css = css.replace(old_avatar_css, new_avatar_css, 1)
+css = css.replace('  min-height: 10rem;\n  display: flex;', '  min-height: 0;\n  aspect-ratio: 4 / 1;\n  display: flex;', 1)
+old_cover_css = '''.coverGrid img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 24%;
+  opacity: .58;
+}'''
+new_cover_css = '''.coverArt {
+  position: absolute;
+  inset: 0;
+  display: block;
+  opacity: .72;
+}'''
+if old_cover_css not in css:
+    raise SystemExit('Could not locate legacy cover selector CSS.')
+css = css.replace(old_cover_css, new_cover_css, 1)
+css = css.replace('.coverGrid span {\n  position: relative;', '.coverCopy {\n  position: relative;', 1)
+css = css.replace('padding: clamp(.7rem, 3.2vw, 1.2rem);', 'padding: clamp(.4rem, 1.8vw, .75rem);', 1)
+css = css.replace('font-size: clamp(1.35rem, 7.5vw, 2.6rem);', 'font-size: clamp(1.05rem, 5vw, 1.9rem);', 1)
+css_path.write_text(css, encoding='utf-8')
+
+# Update focused source-contract coverage to verify the real implementation.
+test_path = root / 'tests/profile-customization.test.ts'
+tests = test_path.read_text(encoding='utf-8')
+tests = tests.replace(
+    '  PROFILE_AVATAR_SPRITE,\n  PROFILE_COVERS,',
+    '  PROFILE_AVATAR_SPRITE,\n  PROFILE_COVER_SPRITE,\n  PROFILE_COVERS,',
+    1,
+)
+tests = tests.replace(
+    '  assert.equal(PROFILE_AVATAR_SPRITE, "/assets/profile/brawler-profile-icons.svg");\n  assert.equal(existsSync(`public${PROFILE_AVATAR_SPRITE}`), true);\n  assert.equal(existsSync("lib/generated/profile-cover-sprite/index.ts"), true);',
+    '  assert.equal(PROFILE_AVATAR_SPRITE, "/assets/profile/brawler-profile-icons.avif");\n  assert.equal(PROFILE_COVER_SPRITE, "/assets/profile/brawler-profile-covers.avif");\n  assert.equal(existsSync(`public${PROFILE_AVATAR_SPRITE}`), true);\n  assert.equal(existsSync(`public${PROFILE_COVER_SPRITE}`), true);',
+    1,
+)
+test_start = tests.index('test("profile customization updates locally without any custom image upload path", () => {')
+shared_start = tests.index('test("shared shell and secondary profile routes consume the same avatar component", () => {', test_start)
+replacement = '''test("profile artwork selector uses the supplied static icons and covers", () => {
+  const implementation = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
+  const styles = readFileSync("components/routes/ProfileScreen.module.css", "utf8");
+  assert.match(implementation, /PROFILE_AVATAR_PRESETS\\.map/);
+  assert.match(implementation, /profileAvatarStyle/);
+  assert.match(implementation, /avatarPresetIcon/);
+  assert.match(implementation, /PROFILE_COVER_SPRITE/);
+  assert.match(implementation, /selectedCover\\.position/);
+  assert.match(implementation, /cover\\.position/);
+  assert.doesNotMatch(implementation, /FileReader/);
+  assert.doesNotMatch(implementation, /type="file"/);
+  assert.doesNotMatch(implementation, /Upload your own/);
+  assert.doesNotMatch(implementation, /Crop profile picture/);
+  assert.doesNotMatch(implementation, /Reset to initials/);
+  assert.doesNotMatch(implementation, /item\\.character/);
+  assert.doesNotMatch(styles, /aspect-ratio:\\s*16\\s*\\/\\s*9/);
+  assert.match(styles, /\\.identityCard\\s*\\{[\\s\\S]*?aspect-ratio:\\s*4\\s*\\/\\s*1/);
+  assert.match(styles, /\\.coverGrid button\\s*\\{[\\s\\S]*?aspect-ratio:\\s*4\\s*\\/\\s*1/);
+});
+
+'''
+tests = tests[:test_start] + replacement + tests[shared_start:]
+test_path.write_text(tests, encoding='utf-8')
