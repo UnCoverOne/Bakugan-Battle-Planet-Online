@@ -53,7 +53,7 @@ test("the primary shell uses the approved four-item top navigation and profile m
   assert.match(shellCss, /\.profile-popover-avatar\{[^}]*flex:0 0 14%/);
   assert.match(shellCss, /\.profile-popover-stats\{[^}]*grid-template-columns:1fr 1fr/);
   assert.match(shellCss, /\.profile-popover-row\{[^}]*min-height:44px/);
-  assert.match(shellCss, /\.profile-popover nav\{[^}]*width:100%;[^}]*padding:\.35rem 0/);
+  assert.match(shellCss, /\.profile-popover>nav\{[^}]*width:100%;[^}]*padding:\.35rem 0/);
   assert.match(shellCss, /\.profile-popover-row\{[^}]*justify-self:stretch;[^}]*width:100%/);
   assert.match(shellCss, /\.profile-popover-row-label\{[^}]*justify-self:start;[^}]*text-align:left/);
   assert.match(shellCss, /\.profile-popover-chevron\{[^}]*justify-self:end/);
