@@ -71,6 +71,10 @@ test("profile rewards honor achievement-based unlocks", () => {
 test("profile artwork selector uses the supplied static icons and covers", () => {
   const implementation = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
   const styles = readFileSync("components/routes/ProfileScreen.module.css", "utf8");
+  const corrections = readFileSync(
+    "components/profile/ProfileArtworkCorrections.module.css",
+    "utf8",
+  );
   assert.match(implementation, /PROFILE_AVATAR_PRESETS\.map/);
   assert.match(implementation, /profileAvatarStyle/);
   assert.match(implementation, /avatarPresetIcon/);
@@ -81,11 +85,22 @@ test("profile artwork selector uses the supplied static icons and covers", () =>
   assert.doesNotMatch(implementation, /type="file"/);
   assert.doesNotMatch(implementation, /Upload your own/);
   assert.doesNotMatch(implementation, /Crop profile picture/);
-  assert.doesNotMatch(implementation, /Reset to initials/);
   assert.doesNotMatch(implementation, /item\.character/);
   assert.doesNotMatch(styles, /aspect-ratio:\s*16\s*\/\s*9/);
   assert.match(styles, /\.identityCard\s*\{[\s\S]*?aspect-ratio:\s*4\s*\/\s*1/);
   assert.match(styles, /\.coverGrid button\s*\{[\s\S]*?aspect-ratio:\s*4\s*\/\s*1/);
+  assert.match(corrections, /aspect-ratio:\s*1/);
+  assert.match(corrections, /background-size:\s*0 0,\s*100% 1000%/);
+  assert.match(corrections, /opacity:\s*1/);
+  assert.match(corrections, /content:\s*none/);
+});
+
+test("profile avatar preserves the account-initials default", () => {
+  const avatar = readFileSync("components/profile/ProfileAvatar.tsx", "utf8");
+  assert.match(avatar, /if \(!profileAvatarSource\(profile\.avatar\)\)/);
+  assert.match(avatar, /profile\.name\.slice\(0, 2\)\.toUpperCase\(\)/);
+  assert.match(avatar, /if \(!avatar\?\.startsWith\("preset:"\)\) return null/);
+  assert.match(avatar, /artworkStyles\.artworkScope/);
 });
 
 test("shared shell and secondary profile routes consume the same avatar component", () => {
