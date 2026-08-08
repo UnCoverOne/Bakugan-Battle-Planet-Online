@@ -4,6 +4,7 @@ import {
   PROFILE_AVATARS,
   PROFILE_AVATAR_SPRITE,
 } from "../../lib/profile-customization";
+import "./ProfileArtworkCorrections.module.css";
 
 export const PROFILE_AVATAR_PRESETS = PROFILE_AVATARS.map((item) => ({
   id: item.id,
