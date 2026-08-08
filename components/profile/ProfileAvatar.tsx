@@ -12,22 +12,20 @@ export const PROFILE_AVATAR_PRESETS = PROFILE_AVATARS.map((item) => ({
 }));
 
 function profileAvatarPreset(avatar?: string) {
-  const id = avatar?.startsWith("preset:")
-    ? avatar.slice("preset:".length)
-    : "";
-  return PROFILE_AVATARS.find((item) => item.id === id) ?? PROFILE_AVATARS[0];
+  if (!avatar?.startsWith("preset:")) return null;
+  const id = avatar.slice("preset:".length);
+  return PROFILE_AVATARS.find((item) => item.id === id) ?? null;
 }
 
 export function profileAvatarSource(avatar?: string) {
-  const preset = profileAvatarPreset(avatar);
-  return preset ? PROFILE_AVATAR_SPRITE : null;
+  return profileAvatarPreset(avatar) ? PROFILE_AVATAR_SPRITE : null;
 }
 
 export function profileAvatarStyle(avatar?: string): CSSProperties {
   const preset = profileAvatarPreset(avatar);
-  const source = profileAvatarSource(avatar);
+  if (!preset) return {};
   return {
-    backgroundImage: source ? `url("${source}")` : undefined,
+    backgroundImage: `url("${PROFILE_AVATAR_SPRITE}")`,
     backgroundSize: "500% 500%",
     backgroundPosition: preset.position,
     backgroundRepeat: "no-repeat",
@@ -42,6 +40,14 @@ export function ProfileAvatar({
   profile: Pick<BrawlerProfile, "name" | "avatar">;
   className?: string;
 }) {
+  if (!profileAvatarSource(profile.avatar)) {
+    return (
+      <span className={className}>
+        {profile.name.slice(0, 2).toUpperCase()}
+      </span>
+    );
+  }
+
   return (
     <span
       className={className}
