@@ -1,0 +1,388 @@
+from pathlib import Path
+import re
+
+
+def replace_once(text: str, old: str, new: str, label: str) -> str:
+    if old not in text:
+        raise SystemExit(f"Missing expected {label}")
+    return text.replace(old, new, 1)
+
+
+profile_path = Path("components/routes/ProfileScreen.tsx")
+profile = profile_path.read_text(encoding="utf-8")
+profile = profile.replace("  PROFILE_COVER_SPRITE,\n", "")
+profile = profile.replace("  profileAvatarStyle,\n", "")
+
+profile = replace_once(
+    profile,
+    '''          <section
+            className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]}`}
+            style={{
+              backgroundImage: `linear-gradient(90deg, rgba(0, 8, 13, .94) 0%, rgba(0, 8, 13, .7) 54%, rgba(0, 8, 13, .22) 100%), url("${PROFILE_COVER_SPRITE}")`,
+              backgroundSize: "100% 100%, 100% 1000%",
+              backgroundPosition: `0 0, ${selectedCover.position}`,
+              backgroundRepeat: "no-repeat",
+            }}
+          >''',
+    '''          <section
+            className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]}`}
+          >
+            <img
+              className={styles.identityCoverArt}
+              src={selectedCover.src}
+              alt=""
+              width="1920"
+              height="480"
+              decoding="async"
+              fetchPriority="high"
+            />''',
+    "profile cover sprite",
+)
+
+profile = replace_once(
+    profile,
+    '''        <ProfileModal
+          title="Choose a profile picture"
+          description="Choose one of the Brawler Profile Icons."
+          onClose={() => setDialog(null)}
+        >
+          <div className={styles.avatarPresetGrid}>
+            {PROFILE_AVATAR_PRESETS.map((item) => (''',
+    '''        <ProfileModal
+          title="Choose a profile picture"
+          description="Use the default account initials or choose one of the Brawler Profile Icons."
+          onClose={() => setDialog(null)}
+        >
+          <div className={styles.avatarPresetGrid}>
+            <button
+              type="button"
+              aria-label="Reset profile picture to default account initials"
+              aria-pressed={!profile.avatar}
+              onClick={() => {
+                updateCustomization(
+                  { avatar: "" },
+                  "Profile picture reset to default",
+                );
+                setDialog(null);
+              }}
+            >
+              <span
+                className={`${styles.avatarPresetIcon} ${styles.avatarInitialsPreview}`}
+                aria-hidden="true"
+              >
+                {profile.name.slice(0, 2).toUpperCase()}
+              </span>
+              <span>Default profile picture</span>
+            </button>
+            {PROFILE_AVATAR_PRESETS.map((item) => (''',
+    "default profile picture option",
+)
+
+profile = replace_once(
+    profile,
+    '''                <span
+                  className={styles.avatarPresetIcon}
+                  style={profileAvatarStyle(`preset:${item.id}`)}
+                  aria-hidden="true"
+                />''',
+    '''                <img
+                  className={styles.avatarPresetIcon}
+                  src={item.src}
+                  alt=""
+                  width="380"
+                  height="380"
+                  loading="lazy"
+                  decoding="async"
+                />''',
+    "avatar sprite preview",
+)
+
+profile = replace_once(
+    profile,
+    '''                  <span
+                    className={styles.coverArt}
+                    style={{
+                      backgroundImage: `url("${PROFILE_COVER_SPRITE}")`,
+                      backgroundSize: "100% 1000%",
+                      backgroundPosition: cover.position,
+                      backgroundRepeat: "no-repeat",
+                    }}
+                    aria-hidden="true"
+                  />''',
+    '''                  <img
+                    className={styles.coverArt}
+                    src={cover.src}
+                    alt=""
+                    width="1920"
+                    height="480"
+                    loading="lazy"
+                    decoding="async"
+                  />''',
+    "cover sprite preview",
+)
+profile_path.write_text(profile, encoding="utf-8")
+
+css_path = Path("components/routes/ProfileScreen.module.css")
+css = css_path.read_text(encoding="utf-8")
+css = replace_once(
+    css,
+    '''  background-color: #031018;
+  background-position: 74% 28%;
+  background-size: cover;
+  box-shadow:
+    inset 0 -8rem 12rem rgba(0, 7, 11, .56),
+    0 1.5rem 4rem rgba(0, 0, 0, .28);''',
+    '''  background-color: #031018;
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, .28);''',
+    "identity cover sprite sizing and dimming",
+)
+css, count = re.subn(r'\n\.identityCard::after \{.*?\n\}\n', '\n', css, count=1, flags=re.S)
+if count != 1:
+    raise SystemExit("Missing desktop identity-card overlay")
+css = replace_once(
+    css,
+    '''.identityContent {
+''',
+    '''.identityCoverArt {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+}
+
+.identityContent {
+  position: relative;
+  z-index: 1;
+''',
+    "identity cover image style",
+)
+css = replace_once(
+    css,
+    "  grid-template-rows: 8.5rem auto;",
+    "  grid-template-rows: auto auto;",
+    "avatar selector row sizing",
+)
+css = replace_once(
+    css,
+    '''.avatarPresetIcon {
+  width: 100%;
+  height: 8.5rem;
+  display: block;
+  background-color: #01080c;
+}
+''',
+    '''.avatarPresetIcon {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  display: block;
+  object-fit: contain;
+  background-color: #01080c;
+}
+
+.avatarInitialsPreview {
+  display: grid;
+  place-items: center;
+  color: white;
+  font-size: clamp(1.65rem, 4vw, 2.8rem);
+  font-weight: 900;
+  letter-spacing: .04em;
+  background: radial-gradient(circle, rgba(69, 198, 224, .28), #020b10 72%);
+}
+''',
+    "avatar preview style",
+)
+css = replace_once(
+    css,
+    '''.coverGrid button {
+  position: relative;
+  min-height: 0;
+  aspect-ratio: 4 / 1;
+  display: flex;
+  align-items: end;
+  overflow: hidden;
+  padding: 1rem;''',
+    '''.coverGrid button {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: .6rem;
+  align-items: stretch;
+  overflow: hidden;
+  padding: .5rem;''',
+    "cover selector layout",
+)
+css = replace_once(
+    css,
+    '''.coverArt {
+  position: absolute;
+  inset: 0;
+  display: block;
+  opacity: .72;
+}
+
+.coverGrid button::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(0deg, rgba(0, 8, 12, .94), transparent 78%);
+}
+''',
+    '''.coverArt {
+  position: static;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 1;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  opacity: 1;
+}
+''',
+    "cover artwork style",
+)
+css = re.sub(
+    r'\n  \.identityCard::after \{\n    background:.*?\n  \}\n',
+    '\n',
+    css,
+    count=1,
+    flags=re.S,
+)
+css_path.write_text(css, encoding="utf-8")
+
+manifest = Path(".profile-assets/original-profile-assets.tsv")
+checksum_lines = []
+for line in manifest.read_text(encoding="utf-8").splitlines():
+    if not line.strip():
+        continue
+    path, sha256, _url = line.split("\t", 2)
+    checksum_lines.append(f"{sha256}  {path}")
+Path("tests/profile-artwork-sha256.txt").write_text(
+    "\n".join(checksum_lines) + "\n",
+    encoding="utf-8",
+)
+
+tests = '''import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import test from "node:test";
+import {
+  PROFILE_AVATARS,
+  PROFILE_COVERS,
+  PROFILE_SHOWCASE_LIMIT,
+  normalizeProfileAvatar,
+  normalizeProfileCover,
+  normalizeProfileTitle,
+  normalizeShowcaseIds,
+  profileRewardUnlocked,
+  toggleShowcaseId,
+} from "../lib/profile-customization";
+
+function pngDimensions(path: string) {
+  const bytes = readFileSync(path);
+  assert.equal(bytes.subarray(1, 4).toString("ascii"), "PNG");
+  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
+function expectedHashes() {
+  return new Map(
+    readFileSync("tests/profile-artwork-sha256.txt", "utf8")
+      .trim()
+      .split("\\n")
+      .map((line) => {
+        const [hash, path] = line.split(/\\s{2,}/);
+        return [path, hash] as const;
+      }),
+  );
+}
+
+test("profile catalogs expose exact original PNG artwork", () => {
+  const hashes = expectedHashes();
+  assert.equal(PROFILE_AVATARS.length, 23);
+  assert.equal(PROFILE_COVERS.length, 10);
+  for (const avatar of PROFILE_AVATARS) {
+    const path = `public${avatar.src}`;
+    assert.equal(existsSync(path), true, path);
+    assert.deepEqual(pngDimensions(path), { width: 380, height: 380 });
+    assert.equal(createHash("sha256").update(readFileSync(path)).digest("hex"), hashes.get(path), path);
+  }
+  for (const cover of PROFILE_COVERS) {
+    const path = `public${cover.src}`;
+    assert.equal(existsSync(path), true, path);
+    assert.deepEqual(pngDimensions(path), { width: 1920, height: 480 });
+    assert.equal(createHash("sha256").update(readFileSync(path)).digest("hex"), hashes.get(path), path);
+  }
+});
+
+test("showcase ids are unique and capped at three", () => {
+  assert.deepEqual(normalizeShowcaseIds(["first-win", "first-win", "collector", "veteran", "online"]), ["first-win", "collector", "veteran"]);
+  assert.equal(PROFILE_SHOWCASE_LIMIT, 3);
+});
+
+test("showcase toggling enforces the maximum and supports removing items", () => {
+  assert.deepEqual(toggleShowcaseId(["a", "b"], "c"), { ids: ["a", "b", "c"], reachedLimit: false });
+  assert.deepEqual(toggleShowcaseId(["a", "b", "c"], "d"), { ids: ["a", "b", "c"], reachedLimit: true });
+  assert.deepEqual(toggleShowcaseId(["a", "b", "c"], "b"), { ids: ["a", "c"], reachedLimit: false });
+});
+
+test("profile normalization rejects removed image sources", () => {
+  assert.equal(normalizeProfileAvatar("preset:shun-kazami"), "preset:shun-kazami");
+  assert.equal(normalizeProfileAvatar("preset:pyrus"), "");
+  assert.equal(normalizeProfileAvatar("data:image/png;base64,abc"), "");
+  assert.equal(normalizeProfileAvatar("https://example.com/avatar.png"), "");
+  assert.equal(normalizeProfileTitle("missing"), "battle-planet-brawler");
+  assert.equal(normalizeProfileCover("missing"), "battle-planet");
+});
+
+test("profile rewards honor achievement-based unlocks", () => {
+  const reward = { id: "win", label: "First Victor", achievementId: "first-win" };
+  assert.equal(profileRewardUnlocked(reward, new Set()), false);
+  assert.equal(profileRewardUnlocked(reward, new Set(["first-win"])), true);
+  assert.equal(profileRewardUnlocked({ ...reward, achievementId: null }, new Set()), true);
+});
+
+test("profile UI uses direct originals, default reset, and undistorted covers", () => {
+  const implementation = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
+  const avatar = readFileSync("components/profile/ProfileAvatar.tsx", "utf8");
+  const styles = readFileSync("components/routes/ProfileScreen.module.css", "utf8");
+  assert.match(implementation, /Reset profile picture to default account initials/);
+  assert.match(implementation, /\\{ avatar: "" \\}/);
+  assert.match(implementation, /src=\\{item\\.src\\}/);
+  assert.match(implementation, /src=\\{selectedCover\\.src\\}/);
+  assert.match(implementation, /src=\\{cover\\.src\\}/);
+  assert.doesNotMatch(implementation, /PROFILE_COVER_SPRITE/);
+  assert.doesNotMatch(implementation, /profileAvatarStyle/);
+  assert.match(avatar, /<img/);
+  assert.match(avatar, /profile\\.name\\.slice\\(0, 2\\)\\.toUpperCase\\(\\)/);
+  assert.match(styles, /\\.identityCard\\s*\\{[\\s\\S]*?aspect-ratio:\\s*4\\s*\\/\\s*1/);
+  assert.match(styles, /\\.identityCoverArt\\s*\\{[\\s\\S]*?object-fit:\\s*contain/);
+  assert.match(styles, /\\.coverArt\\s*\\{[\\s\\S]*?aspect-ratio:\\s*4\\s*\\/\\s*1[\\s\\S]*?object-fit:\\s*contain[\\s\\S]*?opacity:\\s*1/);
+  assert.doesNotMatch(styles, /\\.coverGrid button::after/);
+  assert.doesNotMatch(styles, /inset 0 -8rem 12rem/);
+});
+
+test("shared shell and secondary profile routes consume the same avatar component", () => {
+  const shell = readFileSync("components/application/AppShell.jsx", "utf8");
+  const decks = readFileSync("components/routes/DeckRoutes.tsx", "utf8");
+  const play = readFileSync("components/routes/PlayRoutes.tsx", "utf8");
+  const profile = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
+  for (const source of [shell, decks, play, profile]) assert.match(source, /ProfileAvatar/);
+});
+'''
+Path("tests/profile-customization.test.ts").write_text(tests, encoding="utf-8")
+
+for cleanup in [
+    "components/profile/ProfileArtworkCorrections.module.css",
+    "public/assets/profile/brawler-profile-icons.avif",
+    "public/assets/profile/brawler-profile-covers.avif",
+    ".profile-assets/original-profile-assets.tsv",
+    ".github/workflows/apply-profile-original-artwork-ui.yml",
+    ".profile-artwork-apply-trigger",
+    ".github/scripts/apply-profile-original-artwork.py",
+]:
+    Path(cleanup).unlink(missing_ok=True)
