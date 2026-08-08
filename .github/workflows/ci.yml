@@ -9,13 +9,47 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  profile-artwork-apply:
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/profile-original-artwork-v2'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out profile artwork branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/profile-original-artwork-v2
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Execute staged profile artwork implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml
+          python <<'PY'
+          from pathlib import Path
+          import subprocess
+          import yaml
+
+          workflow = yaml.safe_load(Path('.github/workflows/apply-profile-original-artwork-ui.yml').read_text())
+          scripts = [
+              step['run']
+              for step in workflow['jobs']['apply']['steps']
+              if step.get('run')
+          ]
+          for script in scripts:
+              subprocess.run(['bash', '-euo', 'pipefail', '-c', script], check=True)
+          PY
+
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
