@@ -1,22 +1,38 @@
-import { BAKUGAN } from "../../lib/data";
+import type { CSSProperties } from "react";
 import type { BrawlerProfile } from "../../lib/persistence";
-import { cardArtSource } from "../../lib/content/card-art";
+import {
+  PROFILE_AVATARS,
+  PROFILE_AVATAR_SPRITE,
+} from "../../lib/profile-customization";
 
-const PRESET_FACTIONS = ["Pyrus", "Aquos", "Darkus", "Haos", "Ventus"];
+export const PROFILE_AVATAR_PRESETS = PROFILE_AVATARS.map((item) => ({
+  id: item.id,
+  name: item.label,
+  position: item.position,
+}));
 
-export const PROFILE_AVATAR_PRESETS = PRESET_FACTIONS.map((faction) =>
-  BAKUGAN.find((item) => item.faction === faction),
-).filter(
-  (item): item is NonNullable<(typeof BAKUGAN)[number]> => Boolean(item),
-);
+function profileAvatarPreset(avatar?: string) {
+  const id = avatar?.startsWith("preset:")
+    ? avatar.slice("preset:".length)
+    : "";
+  return PROFILE_AVATARS.find((item) => item.id === id) ?? PROFILE_AVATARS[0];
+}
 
 export function profileAvatarSource(avatar?: string) {
-  if (!avatar) return null;
-  if (avatar.startsWith("data:image/")) return avatar;
-  if (!avatar.startsWith("preset:")) return null;
-  const id = avatar.slice("preset:".length);
-  const character = BAKUGAN.find((item) => item.id === id)?.character;
-  return character ? cardArtSource(character, "full") : null;
+  const preset = profileAvatarPreset(avatar);
+  return preset ? PROFILE_AVATAR_SPRITE : null;
+}
+
+export function profileAvatarStyle(avatar?: string): CSSProperties {
+  const preset = profileAvatarPreset(avatar);
+  const source = profileAvatarSource(avatar);
+  return {
+    backgroundImage: source ? `url("${source}")` : undefined,
+    backgroundSize: "500% 500%",
+    backgroundPosition: preset.position,
+    backgroundRepeat: "no-repeat",
+    backgroundColor: "transparent",
+  };
 }
 
 export function ProfileAvatar({
@@ -26,20 +42,11 @@ export function ProfileAvatar({
   profile: Pick<BrawlerProfile, "name" | "avatar">;
   className?: string;
 }) {
-  const source = profileAvatarSource(profile.avatar);
-  if (source) {
-    return (
-      <img
-        className={className}
-        src={source}
-        alt=""
-        decoding="async"
-      />
-    );
-  }
   return (
-    <span className={className}>
-      {profile.name.slice(0, 2).toUpperCase()}
-    </span>
+    <span
+      className={className}
+      style={profileAvatarStyle(profile.avatar)}
+      aria-hidden="true"
+    />
   );
 }
