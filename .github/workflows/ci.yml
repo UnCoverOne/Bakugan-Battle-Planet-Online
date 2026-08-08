@@ -6,6 +6,7 @@ on:
       - main
     types:
       - opened
+      - reopened
 
 permissions:
   contents: write
@@ -31,6 +32,16 @@ jobs:
         run: |
           git fetch origin trigger/profile-artwork-completion:refs/remotes/origin/trigger/profile-artwork-completion
           git show origin/trigger/profile-artwork-completion:scripts/complete-profile-artwork.py > /tmp/complete-profile-artwork.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/complete-profile-artwork.py')
+          source = path.read_text()
+          source = source.replace(
+              "base64.b64decode(''.join(parts))",
+              "b''.join(base64.b64decode(part) for part in parts)",
+          )
+          path.write_text(source)
+          PY
           python /tmp/complete-profile-artwork.py
       - name: Validate focused profile behavior
         shell: bash
@@ -41,7 +52,7 @@ jobs:
       - name: Commit complete implementation
         shell: bash
         run: |
-          git show origin/main^:.github/workflows/ci.yml > .github/workflows/ci.yml
+          git show 63ec7716f93626e2d08617ab166fbbd53d06db23:.github/workflows/ci.yml > .github/workflows/ci.yml
           rm -f .github/workflows/complete-profile-artwork.yml .github/profile-artwork-final-trigger
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
