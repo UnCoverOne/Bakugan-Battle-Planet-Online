@@ -4,7 +4,7 @@ import {
   PROFILE_AVATARS,
   PROFILE_AVATAR_SPRITE,
 } from "../../lib/profile-customization";
-import "./ProfileArtworkCorrections.module.css";
+import artworkStyles from "./ProfileArtworkCorrections.module.css";
 
 export const PROFILE_AVATAR_PRESETS = PROFILE_AVATARS.map((item) => ({
   id: item.id,
@@ -41,9 +41,13 @@ export function ProfileAvatar({
   profile: Pick<BrawlerProfile, "name" | "avatar">;
   className?: string;
 }) {
+  const resolvedClassName = [className, artworkStyles.artworkScope]
+    .filter(Boolean)
+    .join(" ");
+
   if (!profileAvatarSource(profile.avatar)) {
     return (
-      <span className={className}>
+      <span className={resolvedClassName}>
         {profile.name.slice(0, 2).toUpperCase()}
       </span>
     );
@@ -51,7 +55,7 @@ export function ProfileAvatar({
 
   return (
     <span
-      className={className}
+      className={resolvedClassName}
       style={profileAvatarStyle(profile.avatar)}
       aria-hidden="true"
     />
