@@ -1,0 +1,544 @@
+name: Import original profile artwork
+
+on:
+  push:
+    branches:
+      - fix/profile-original-artwork-v2
+    paths:
+      - .github/workflows/import-original-profile-artwork.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/profile-original-artwork-v2
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Download exact original PNG files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/assets/profile/icons public/assets/profile/covers
+          while IFS=$'\t' read -r path hash url; do
+            [ -z "$path" ] && continue
+            echo "Importing $path"
+            curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$path"
+            echo "$hash  $path" | sha256sum -c -
+          done <<'ASSETS'
+          public/assets/profile/icons/veronica-venegas.png	40b769ca60a28c472e3c97eb098ab4a09b383354e54cc739f651fe21f0305aa6	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-6a50-81f4-b2a9-ece23380ce63/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T07%3A17%3A53Z&ske=2026-08-09T07%3A17%3A53Z&sks=b&skv=2026-02-06&sig=T/Vl/e/K3X66GbkrSAfsGaev9pH%2BOMRxd1Rz6pbTKLg%3D
+          public/assets/profile/icons/strata.png	14a42e3b1284e6503d59eaf6b8c294aa6acbe0ecc0ecf7c917f68737a253b174	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-d538-81f4-baca-0e0f444baf15/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T03%3A52%3A39Z&ske=2026-08-09T03%3A52%3A39Z&sks=b&skv=2026-02-06&sig=jkIMU%2BDXIegZ2apELxFExvfQwG5XUEQ2IbQqG/Qi%2B3s%3D
+          public/assets/profile/icons/shun-kazami.png	2b217b62bffbe5dabe7f8ee20f152ea96fa3513cce0e6c078b2a201fa6e5dd11	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-e574-81f4-a69e-d17b0969d808/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T10%3A39%3A12Z&ske=2026-08-09T10%3A39%3A12Z&sks=b&skv=2026-02-06&sig=OfOuL4br/NI4VMwF8R4WQG9vCA3CfbVhtCWwSBvmvX4%3D
+          public/assets/profile/icons/philomena-dusk.png	ebbc1567292cc74ca7037431fa98100a103fae4028d6235f3e869cbcf142bedb	https://oaisdmntprukwest.blob.core.windows.net/files/00000000-d9a0-8243-a882-82b815515b2e/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T09%3A59%3A27Z&ske=2026-08-09T09%3A59%3A27Z&sks=b&skv=2026-02-06&sig=0kPbKTaOKHEZ0aX3qcRhV6%2B8g%2BDfwt1YiGZ7wuljJ5Y%3D
+          public/assets/profile/icons/olivia-styles.png	c62e77ea041adaad130cfc4fdc142a1a3154ab57bd34db5f8b0a6c8f48ae5d88	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-0624-81f4-9e73-549b537b1455/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T07%3A15%3A33Z&ske=2026-08-09T07%3A15%3A33Z&sks=b&skv=2026-02-06&sig=pP7tr0IoSMKuOd0V//M%2B3scNx%2B58blQ91W%2BCY9UYOUU%3D
+          public/assets/profile/icons/max.png	a5ba16398d1c28617b395d57b422a40546fb5254919b865a10220de40810dccc	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-3514-81f4-99f6-dfd64e78f597/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T08%3A50%3A06Z&ske=2026-08-09T08%3A50%3A06Z&sks=b&skv=2026-02-06&sig=OgBgjKFd9D4nbGagOLtNB58RAitwqqswp5aR2Pcc8kI%3D
+          public/assets/profile/icons/masato-kazami.png	41616833dc0b5935dbd2398a3315d563e641e017d66b670c142d0b2d5c09317f	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-0b2c-81f4-93b6-0cc050e60b72/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T08%3A50%3A07Z&ske=2026-08-09T08%3A50%3A07Z&sks=b&skv=2026-02-06&sig=B8qSmH484gtUuYD3RXUlB3QCkLAQbFpBY/VA2zIHqeM%3D
+          public/assets/profile/icons/marco.png	c26daf95015aab61d4112bfbb8fd6032a13958e73ec6d1fe25cdca5107ebe2a3	https://oaisdmntpritalynorth.blob.core.windows.net/files/00000000-bb80-8246-b7a0-d3819eec8476/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T10%3A39%3A07Z&ske=2026-08-09T10%3A39%3A07Z&sks=b&skv=2026-02-06&sig=5LEEZmSvo2yrFAznIJgI3VCZpPH2%2BKlvSkDF3R0uJmY%3D
+          public/assets/profile/icons/maggie.png	05181a759faa7f2ff5bca9bfc7ec68c42269a959ff52a2f51407c2832da25796	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-bea8-81f4-a418-ae5bdbdc0a77/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T03%3A47%3A04Z&ske=2026-08-09T03%3A47%3A04Z&sks=b&skv=2026-02-06&sig=OxURVhJIDs1D4dgfqnUR56SLIBn3Fi411fqhqACpKog%3D
+          public/assets/profile/icons/mac.png	cb9a9ba5dcb0549e72ea88522d543cf8ce084069bd9d84c421b2e7fe5e40d4ea	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-e1f8-81f4-bdeb-e0d0a6676a80/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T07%3A43%3A36Z&ske=2026-08-09T07%3A43%3A36Z&sks=b&skv=2026-02-06&sig=s1T8zIgDcdEjdRUTAuW7POXFz3UDz3eYw2zNuwEA/EU%3D
+          public/assets/profile/icons/lightning.png	daf30ac934bde73db79e9b4eea07c3de5657ceef76345adc883a243f77746c64	https://oaisdmntprpolandcentral.blob.core.windows.net/files/00000000-b2b0-820a-8849-15240aab8050/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T06%3A32%3A41Z&ske=2026-08-09T06%3A32%3A41Z&sks=b&skv=2026-02-06&sig=b1AKdBfPI9BzZCE/NmIwxTddUyRpuWus6Zwy%2Bslpy5c%3D
+          public/assets/profile/icons/kurin.png	423b3a181a094ee5e23347351ffbee134dac4e28ceba61da988e86cf4e62c596	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-1640-81f4-a3f8-8c31068a170a/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T07%3A17%3A53Z&ske=2026-08-09T07%3A17%3A53Z&sks=b&skv=2026-02-06&sig=IEsIyH0Ltc7jThVt3QGCJYt/8V8WMMZRcsiQAeV/YRA%3D
+          public/assets/profile/icons/everett-ray.png	4d21007d5595cc2fd502dd4ceef9057e2e37d12274e945cfe5873d57a49a266c	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-0ed8-81f4-b246-bd6b12d98fc6/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T07%3A44%3A01Z&ske=2026-08-09T07%3A44%3A01Z&sks=b&skv=2026-02-06&sig=Ko8s1epjjEOpttZpdKs0SnWeldQj/HtSIBoYr8zPtvI%3D
+          public/assets/profile/icons/e.png	fb31ad051ba57362e710f1af16920276c933e6e5ea0d17c4430df490a38662ad	https://oaisdmntpritalynorth.blob.core.windows.net/files/00000000-58a8-8246-95b8-3367b3d12a48/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T03%3A25%3A19Z&ske=2026-08-09T03%3A25%3A19Z&sks=b&skv=2026-02-06&sig=nCcuGtIn1QHlabQQd7swots3TIbgXk5Xa1b5RMwK8RI%3D
+          public/assets/profile/icons/duran-dane.png	d03be28ee48f5756e3673f58e4f2ac871c56ff1fd97a31ea3101ec98d8cdfc79	https://oaisdmntpritalynorth.blob.core.windows.net/files/00000000-f420-8246-a558-663517e69d2c/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T09%3A59%3A24Z&ske=2026-08-09T09%3A59%3A24Z&sks=b&skv=2026-02-06&sig=%2BvKmUho8kNcAJBeE2eHDpwacirNOLKwH6zzDGqOUbxE%3D
+          public/assets/profile/icons/dee.png	29b28af23634cf8a197c51cfdc63da8b3e420a3ee26d4110446c2f9c663816d3	https://oaisdmntpritalynorth.blob.core.windows.net/files/00000000-3de4-8246-8bce-ab4265c57e41/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T03%3A47%3A04Z&ske=2026-08-09T03%3A47%3A04Z&sks=b&skv=2026-02-06&sig=f8ttDNg9jy6Dhc5avWyyHEsw8T5GomeYTFV/nDHuDFI%3D
+          public/assets/profile/icons/col-armstrong-tripp.png	27122426633d8568a2aec6aea616a668d31b5f6f1043114427af59ef2a87e586	https://oaisdmntpritalynorth.blob.core.windows.net/files/00000000-6898-8246-8fa6-fffa3e429a17/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T08%3A50%3A07Z&ske=2026-08-09T08%3A50%3A07Z&sks=b&skv=2026-02-06&sig=/HZfFRAL3wEUxDUDgPHF98qKV7PKiDF4QU219AKvMOA%3D
+          public/assets/profile/icons/china-riot.png	f07bf02a64a7ba982031c777ba4cc77e75ca714f6d2758f559ac274a2459c683	https://oaisdmntprukwest.blob.core.windows.net/files/00000000-7034-8243-8f5d-bc19760fcafb/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T03%3A39%3A49Z&ske=2026-08-09T03%3A39%3A49Z&sks=b&skv=2026-02-06&sig=jBm0YbyrYC2r9V0W%2BY6VmfEIgdMwlwbskHz2%2B3dCHh4%3D
+          public/assets/profile/icons/cee.png	43c2e5a867eef3def3cf3c2c4f918c930b6fd8cf35044db6fd9caf80a78ca10d	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-8150-81f4-9dca-aba74a94d53e/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T07%3A17%3A50Z&ske=2026-08-09T07%3A17%3A50Z&sks=b&skv=2026-02-06&sig=5nuQnjNXCoZ1%2ByeYDAU/zixiM3A1mC8qrud3%2Bea1bhE%3D
+          public/assets/profile/icons/bill-kouzo.png	c0e7ef5c0ffaafcdf40bb086a4e731ff64a322246337c1c8a86fc2bc5b7dae5d	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-4710-81f4-9def-cd8b2298ac8b/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T07%3A15%3A30Z&ske=2026-08-09T07%3A15%3A30Z&sks=b&skv=2026-02-06&sig=GrVTH8WX17Jnck3B0s0d8B/ie6qJKbNlk/4sjwLOs7M%3D
+          public/assets/profile/icons/benton-dusk.png	56a81ff210f395bb08af572f01c87bfef2935c53153fd70464a38f2ff6b0e453	https://oaisdmntpritalynorth.blob.core.windows.net/files/00000000-7c7c-8246-90b4-cdad8508f6bc/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T03%3A52%3A36Z&ske=2026-08-09T03%3A52%3A36Z&sks=b&skv=2026-02-06&sig=vv%2BjGdaopXqvGmKG7Qjzno9xSOA69D%2B%2BvBqid3Wvsoo%3D
+          public/assets/profile/icons/bee.png	2f4d791c270107f231a4c78c305238bdaccd450963a05f5247ab2571b22d8957	https://oaisdmntpritalynorth.blob.core.windows.net/files/00000000-a2ec-8246-93af-8a4e4f0b4056/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T10%3A38%3A51Z&ske=2026-08-09T10%3A38%3A51Z&sks=b&skv=2026-02-06&sig=3aZesimwKQHWQqxPgKTY0jPZyB1qMzyaTtwfWK1Ai/I%3D
+          public/assets/profile/icons/aay.png	7bdb053f80f1c722b90ed700026c5a11fc86655312bddb80c2bfb9f272173b46	https://oaisdmntpritalynorth.blob.core.windows.net/files/00000000-fab8-8246-996f-d9dd784704a3/raw?se=2026-08-08T23%3A31%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T10%3A08%3A25Z&ske=2026-08-09T10%3A08%3A25Z&sks=b&skv=2026-02-06&sig=aPF9GnFOaJwKgsB5XmsMFAzIYzIKyZWFEOsLLgmEO3s%3D
+          public/assets/profile/covers/battle-planet.png	f5173ac91c5ffce8a9ab880137a04e34a62384500324f2105c97d06199d80df6	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-ba04-81f4-8303-b28c5ef8b1bd/raw?se=2026-08-08T23%3A32%3A10Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T07%3A17%3A50Z&ske=2026-08-09T07%3A17%3A50Z&sks=b&skv=2026-02-06&sig=MiGD9dIqYuz39ZPZNXcA0gaR0GjKAouoWn9t5p17d6E%3D
+          public/assets/profile/covers/ventus-maximus-gorthion-ultra.png	44189bc31eb3ebe1d9d695dac7005f7235ccb1024a35afc236d273dd9cfccd65	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-5fdc-81f4-84bf-881639da21e1/raw?se=2026-08-08T23%3A32%3A10Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T08%3A50%3A06Z&ske=2026-08-09T08%3A50%3A06Z&sks=b&skv=2026-02-06&sig=PMJPK2yHvLxHRRYjN19fSHdOS6Z%2BT%2B9eG9NndjzU1Ak%3D
+          public/assets/profile/covers/aquos-hyper-trox-ultra.png	29d4f4b9e4e2f2b20a8da3098175a90411566c8753cb60d7a6fa8d0a7c72448a	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-7214-81f4-ae74-60cf355a6657/raw?se=2026-08-08T23%3A32%3A10Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T08%3A50%3A03Z&ske=2026-08-09T08%3A50%3A03Z&sks=b&skv=2026-02-06&sig=yFvh9GRJHNazalJhVjhN6IkqfnrzSb1fJQKrgzzbvYA%3D
+          public/assets/profile/covers/darkus-hyper-serpenteze-ultra.png	8371ef083c949d83fec34684cbde2ff5a625dfa7111cb7bc41e50f08ae3e5777	https://oaisdmntpritalynorth.blob.core.windows.net/files/00000000-d1f0-8246-81d8-3717f7e98538/raw?se=2026-08-08T23%3A32%3A10Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T09%3A59%3A24Z&ske=2026-08-09T09%3A59%3A24Z&sks=b&skv=2026-02-06&sig=NqR8EM9n2NZDLvMU3BvDhrDjsKH3ZqxH0umQ%2BUUFfE8%3D
+          public/assets/profile/covers/darkus-turtonium.png	fad8af1d4a9f08dded39f91913081519b25e017fa50abee7839cb385eb3bf436	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-b9b0-81f4-a32f-df6b4debd5ea/raw?se=2026-08-08T23%3A32%3A10Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T05%3A50%3A11Z&ske=2026-08-09T05%3A50%3A11Z&sks=b&skv=2026-02-06&sig=O%2BR6vdN70t86iiYz8RvK6frGKE4wUh2woCdbDFbrK/s%3D
+          public/assets/profile/covers/haos-hyper-turtonium-ultra.png	10841979b5beb900186a6b427d6d669fccc1bc3181a33883d6d653541bbb3e4e	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-3658-81f4-83d3-83ec7496bd1a/raw?se=2026-08-08T23%3A32%3A11Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T07%3A44%3A01Z&ske=2026-08-09T07%3A44%3A01Z&sks=b&skv=2026-02-06&sig=UIGu6%2BuCkGH%2BPtA2ZDeCMY8oGAv5YPTSeQhuvIpl7X4%3D
+          public/assets/profile/covers/haos-hyper-turtonium.png	179b4ed5d1f44e8215ac34a158d456158202d4bb0198afd00b43c5a03bd223dc	https://oaisdmntprukwest.blob.core.windows.net/files/00000000-d05c-8243-a2d8-baae802fda9d/raw?se=2026-08-08T23%3A32%3A10Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T08%3A50%3A06Z&ske=2026-08-09T08%3A50%3A06Z&sks=b&skv=2026-02-06&sig=QaMQoI1Wu2%2BimZegMNc9/qxXLtx3ktDFOn2Rv/lpzLM%3D
+          public/assets/profile/covers/haos-turtonium-ultra.png	35d55dcd19f9f8ef4a73e28ed85f1650211b93999f3f5889428f2a005f26370f	https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-eb5c-81f4-b8c1-8bd3ab482d9b/raw?se=2026-08-08T23%3A32%3A10Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T04%3A29%3A05Z&ske=2026-08-09T04%3A29%3A05Z&sks=b&skv=2026-02-06&sig=eEQWX0kSuOmBIOnJkr94doXJ4twfn4w2f%2BJY0Z8xnuQ%3D
+          public/assets/profile/covers/pyrus-hyper-trox-ultra.png	c6453b484d2f9d54193dff2a5d8dd804b16a90e57152844deb30d373c0568629	https://oaisdmntprpolandcentral.blob.core.windows.net/files/00000000-ff44-820a-9561-9e949a85f3f1/raw?se=2026-08-08T23%3A32%3A10Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T07%3A44%3A03Z&ske=2026-08-09T07%3A44%3A03Z&sks=b&skv=2026-02-06&sig=zWVq1K4xOQsdONL%2Bg7Hth9Q7dtv%2BnXvDxoDPx6IHRhY%3D
+          public/assets/profile/covers/pyrus-webam-ultra.png	f6039fdc73353b63d46c4e576c6f0946023771125ef77704350e7f4ffbeb2e64	https://oaisdmntpritalynorth.blob.core.windows.net/files/00000000-3fdc-8246-b752-5a564df4195c/raw?se=2026-08-08T23%3A32%3A10Z&sp=r&sv=2026-02-06&sr=b&scid=019fe380-2a4d-773b-ba2f-5cb11c395b89&skoid=e32cbaad-a1eb-4299-9f16-1b364ab43781&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-08T05%3A50%3A40Z&ske=2026-08-09T05%3A50%3A40Z&sks=b&skv=2026-02-06&sig=gAYlf%2B7uMiU5e%2BJIBcBAcKfMee0f5IIYaVnJxhOS8NM%3D
+          ASSETS
+
+      - name: Replace sprite code with direct original images
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > lib/profile-customization.ts <<'EOF'
+          export const PROFILE_SHOWCASE_LIMIT = 3;
+
+          export type ProfileReward = {
+            id: string;
+            label: string;
+            achievementId: string | null;
+          };
+
+          export type ProfileAvatarPreset = {
+            id: string;
+            label: string;
+            src: string;
+          };
+
+          export type ProfileCoverReward = ProfileReward & {
+            faction: string | null;
+            src: string;
+          };
+
+          export const PROFILE_AVATARS: readonly ProfileAvatarPreset[] = [
+            { id: "veronica-venegas", label: "Veronica Venegas", src: "/assets/profile/icons/veronica-venegas.png" },
+            { id: "strata", label: "Strata", src: "/assets/profile/icons/strata.png" },
+            { id: "shun-kazami", label: "Shun Kazami", src: "/assets/profile/icons/shun-kazami.png" },
+            { id: "philomena-dusk", label: "Philomena Dusk", src: "/assets/profile/icons/philomena-dusk.png" },
+            { id: "olivia-styles", label: "Olivia Styles", src: "/assets/profile/icons/olivia-styles.png" },
+            { id: "max", label: "Max", src: "/assets/profile/icons/max.png" },
+            { id: "masato-kazami", label: "Masato Kazami", src: "/assets/profile/icons/masato-kazami.png" },
+            { id: "marco", label: "Marco", src: "/assets/profile/icons/marco.png" },
+            { id: "maggie", label: "Maggie", src: "/assets/profile/icons/maggie.png" },
+            { id: "mac", label: "Mac", src: "/assets/profile/icons/mac.png" },
+            { id: "lightning", label: "Lightning", src: "/assets/profile/icons/lightning.png" },
+            { id: "kurin", label: "Kurin", src: "/assets/profile/icons/kurin.png" },
+            { id: "everett-ray", label: "Everett Ray", src: "/assets/profile/icons/everett-ray.png" },
+            { id: "e", label: "E", src: "/assets/profile/icons/e.png" },
+            { id: "duran-dane", label: "Duran Dane", src: "/assets/profile/icons/duran-dane.png" },
+            { id: "dee", label: "DEE", src: "/assets/profile/icons/dee.png" },
+            { id: "col-armstrong-tripp", label: "Col. Armstrong Tripp", src: "/assets/profile/icons/col-armstrong-tripp.png" },
+            { id: "china-riot", label: "China Riot", src: "/assets/profile/icons/china-riot.png" },
+            { id: "cee", label: "CEE", src: "/assets/profile/icons/cee.png" },
+            { id: "bill-kouzo", label: "Bill Kouzo", src: "/assets/profile/icons/bill-kouzo.png" },
+            { id: "benton-dusk", label: "Benton Dusk", src: "/assets/profile/icons/benton-dusk.png" },
+            { id: "bee", label: "BEE", src: "/assets/profile/icons/bee.png" },
+            { id: "aay", label: "AAY", src: "/assets/profile/icons/aay.png" },
+          ];
+
+          export const PROFILE_TITLES: readonly ProfileReward[] = [
+            { id: "battle-planet-brawler", label: "Battle Planet Brawler", achievementId: null },
+            { id: "battle-ready", label: "Battle Ready", achievementId: "first-deck" },
+            { id: "arsenal-architect", label: "Arsenal Architect", achievementId: "deck-builder" },
+            { id: "first-victor", label: "First Victor", achievementId: "first-win" },
+            { id: "seasoned-brawler", label: "Seasoned Brawler", achievementId: "veteran" },
+            { id: "strategy-publisher", label: "Strategy Publisher", achievementId: "publisher" },
+            { id: "connected-brawler", label: "Connected Brawler", achievementId: "online" },
+          ];
+
+          export const PROFILE_COVERS: readonly ProfileCoverReward[] = [
+            { id: "battle-planet", label: "Ventus Hyper Turtonium Ultra", achievementId: null, faction: "Ventus", src: "/assets/profile/covers/battle-planet.png" },
+            { id: "ventus-maximus-gorthion-ultra", label: "Ventus Maximus Gorthion Ultra", achievementId: null, faction: "Ventus", src: "/assets/profile/covers/ventus-maximus-gorthion-ultra.png" },
+            { id: "aquos-hyper-trox-ultra", label: "Aquos Hyper Trox Ultra", achievementId: null, faction: "Aquos", src: "/assets/profile/covers/aquos-hyper-trox-ultra.png" },
+            { id: "darkus-hyper-serpenteze-ultra", label: "Darkus Hyper Serpenteze Ultra", achievementId: null, faction: "Darkus", src: "/assets/profile/covers/darkus-hyper-serpenteze-ultra.png" },
+            { id: "darkus-turtonium", label: "Darkus Turtonium", achievementId: null, faction: "Darkus", src: "/assets/profile/covers/darkus-turtonium.png" },
+            { id: "haos-hyper-turtonium-ultra", label: "Haos Hyper Turtonium Ultra", achievementId: null, faction: "Haos", src: "/assets/profile/covers/haos-hyper-turtonium-ultra.png" },
+            { id: "haos-hyper-turtonium", label: "Haos Hyper Turtonium", achievementId: null, faction: "Haos", src: "/assets/profile/covers/haos-hyper-turtonium.png" },
+            { id: "haos-turtonium-ultra", label: "Haos Turtonium Ultra", achievementId: null, faction: "Haos", src: "/assets/profile/covers/haos-turtonium-ultra.png" },
+            { id: "pyrus-hyper-trox-ultra", label: "Pyrus Hyper Trox Ultra", achievementId: null, faction: "Pyrus", src: "/assets/profile/covers/pyrus-hyper-trox-ultra.png" },
+            { id: "pyrus-webam-ultra", label: "Pyrus Webam Ultra", achievementId: null, faction: "Pyrus", src: "/assets/profile/covers/pyrus-webam-ultra.png" },
+          ];
+
+          const uniqueIds = (value: unknown) =>
+            Array.isArray(value)
+              ? [...new Set(value.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, 120)).filter(Boolean))].slice(0, PROFILE_SHOWCASE_LIMIT)
+              : [];
+
+          export function normalizeShowcaseIds(value: unknown) {
+            return uniqueIds(value);
+          }
+
+          export function normalizeProfileAvatar(value: unknown) {
+            if (typeof value !== "string" || !value) return "";
+            const match = /^preset:([a-z0-9-]{1,120})$/i.exec(value);
+            if (!match) return "";
+            return PROFILE_AVATARS.some((item) => item.id === match[1]) ? value : "";
+          }
+
+          export function normalizeProfileTitle(value: unknown) {
+            return PROFILE_TITLES.find((item) => item.id === value)?.id ?? PROFILE_TITLES[0].id;
+          }
+
+          export function normalizeProfileCover(value: unknown) {
+            return PROFILE_COVERS.find((item) => item.id === value)?.id ?? PROFILE_COVERS[0].id;
+          }
+
+          export function profileRewardUnlocked(reward: ProfileReward, completedAchievementIds: ReadonlySet<string>) {
+            return reward.achievementId === null || completedAchievementIds.has(reward.achievementId);
+          }
+
+          export function toggleShowcaseId(current: readonly string[] | undefined, id: string) {
+            const normalized = normalizeShowcaseIds(current);
+            if (normalized.includes(id)) return { ids: normalized.filter((item) => item !== id), reachedLimit: false };
+            if (normalized.length >= PROFILE_SHOWCASE_LIMIT) return { ids: normalized, reachedLimit: true };
+            return { ids: [...normalized, id], reachedLimit: false };
+          }
+          EOF
+
+          cat > components/profile/ProfileAvatar.tsx <<'EOF'
+          import type { BrawlerProfile } from "../../lib/persistence";
+          import { PROFILE_AVATARS } from "../../lib/profile-customization";
+
+          export const PROFILE_AVATAR_PRESETS = PROFILE_AVATARS.map((item) => ({
+            id: item.id,
+            name: item.label,
+            src: item.src,
+          }));
+
+          function profileAvatarPreset(avatar?: string) {
+            if (!avatar?.startsWith("preset:")) return null;
+            const id = avatar.slice("preset:".length);
+            return PROFILE_AVATARS.find((item) => item.id === id) ?? null;
+          }
+
+          export function profileAvatarSource(avatar?: string) {
+            return profileAvatarPreset(avatar)?.src ?? null;
+          }
+
+          export function ProfileAvatar({ profile, className }: {
+            profile: Pick<BrawlerProfile, "name" | "avatar">;
+            className?: string;
+          }) {
+            const source = profileAvatarSource(profile.avatar);
+            if (source) {
+              return <img className={className} src={source} alt="" decoding="async" />;
+            }
+            return <span className={className}>{profile.name.slice(0, 2).toUpperCase()}</span>;
+          }
+          EOF
+
+          python <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f"Missing expected {label}")
+              return text.replace(old, new, 1)
+
+          path = Path("components/routes/ProfileScreen.tsx")
+          source = path.read_text()
+          source = source.replace("  PROFILE_COVER_SPRITE,\n", "")
+          source = source.replace("  profileAvatarStyle,\n", "")
+
+          source = replace_once(source, '''          <section
+            className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]}`}
+            style={{
+              backgroundImage: `linear-gradient(90deg, rgba(0, 8, 13, .94) 0%, rgba(0, 8, 13, .7) 54%, rgba(0, 8, 13, .22) 100%), url("${PROFILE_COVER_SPRITE}")`,
+              backgroundSize: "100% 100%, 100% 1000%",
+              backgroundPosition: `0 0, ${selectedCover.position}`,
+              backgroundRepeat: "no-repeat",
+            }}
+          >''', '''          <section
+            className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]}`}
+          >
+            <img
+              className={styles.identityCoverArt}
+              src={selectedCover.src}
+              alt=""
+              width="1920"
+              height="480"
+              decoding="async"
+              fetchPriority="high"
+            />''', "profile cover sprite")
+
+          source = replace_once(source, '''        <ProfileModal
+          title="Choose a profile picture"
+          description="Choose one of the Brawler Profile Icons."
+          onClose={() => setDialog(null)}
+        >
+          <div className={styles.avatarPresetGrid}>
+            {PROFILE_AVATAR_PRESETS.map((item) => (''', '''        <ProfileModal
+          title="Choose a profile picture"
+          description="Use the default account initials or choose one of the Brawler Profile Icons."
+          onClose={() => setDialog(null)}
+        >
+          <div className={styles.avatarPresetGrid}>
+            <button
+              type="button"
+              aria-label="Reset profile picture to default account initials"
+              aria-pressed={!profile.avatar}
+              onClick={() => {
+                updateCustomization(
+                  { avatar: "" },
+                  "Profile picture reset to default",
+                );
+                setDialog(null);
+              }}
+            >
+              <span
+                className={`${styles.avatarPresetIcon} ${styles.avatarInitialsPreview}`}
+                aria-hidden="true"
+              >
+                {profile.name.slice(0, 2).toUpperCase()}
+              </span>
+              <span>Default profile picture</span>
+            </button>
+            {PROFILE_AVATAR_PRESETS.map((item) => (''', "default avatar option")
+
+          source = replace_once(source, '''                <span
+                  className={styles.avatarPresetIcon}
+                  style={profileAvatarStyle(`preset:${item.id}`)}
+                  aria-hidden="true"
+                />''', '''                <img
+                  className={styles.avatarPresetIcon}
+                  src={item.src}
+                  alt=""
+                  width="380"
+                  height="380"
+                  loading="lazy"
+                  decoding="async"
+                />''', "avatar sprite preview")
+
+          source = replace_once(source, '''                  <span
+                    className={styles.coverArt}
+                    style={{
+                      backgroundImage: `url("${PROFILE_COVER_SPRITE}")`,
+                      backgroundSize: "100% 1000%",
+                      backgroundPosition: cover.position,
+                      backgroundRepeat: "no-repeat",
+                    }}
+                    aria-hidden="true"
+                  />''', '''                  <img
+                    className={styles.coverArt}
+                    src={cover.src}
+                    alt=""
+                    width="1920"
+                    height="480"
+                    loading="lazy"
+                    decoding="async"
+                  />''', "cover sprite preview")
+          path.write_text(source)
+
+          path = Path("components/routes/ProfileScreen.module.css")
+          css = path.read_text()
+          css = replace_once(css, '''  background-color: #031018;
+  background-position: 74% 28%;
+  background-size: cover;
+  box-shadow:
+    inset 0 -8rem 12rem rgba(0, 7, 11, .56),
+    0 1.5rem 4rem rgba(0, 0, 0, .28);''', '''  background-color: #031018;
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, .28);''', "identity cover sizing and dimming")
+          css, count = re.subn(r'\n\.identityCard::after \{.*?\n\}\n', '\n', css, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit("Missing desktop identity overlay")
+          css = replace_once(css, '''.identityContent {
+''', '''.identityCoverArt {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+}
+
+.identityContent {
+''', "identity cover image style")
+          css = replace_once(css, "  grid-template-rows: 8.5rem auto;", "  grid-template-rows: auto auto;", "avatar rows")
+          css = replace_once(css, '''.avatarPresetIcon {
+  width: 100%;
+  height: 8.5rem;
+  display: block;
+  background-color: #01080c;
+}
+''', '''.avatarPresetIcon {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  display: block;
+  object-fit: contain;
+  background-color: #01080c;
+}
+
+.avatarInitialsPreview {
+  display: grid;
+  place-items: center;
+  color: white;
+  font-size: clamp(1.65rem, 4vw, 2.8rem);
+  font-weight: 900;
+  letter-spacing: .04em;
+  background: radial-gradient(circle, rgba(69, 198, 224, .28), #020b10 72%);
+}
+''', "avatar preview style")
+          css = replace_once(css, '''.coverGrid button {
+  position: relative;
+  min-height: 0;
+  aspect-ratio: 4 / 1;
+  display: flex;
+  align-items: end;
+  overflow: hidden;
+  padding: 1rem;''', '''.coverGrid button {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: .6rem;
+  align-items: stretch;
+  overflow: hidden;
+  padding: .5rem;''', "cover choice layout")
+          css = replace_once(css, '''.coverArt {
+  position: absolute;
+  inset: 0;
+  display: block;
+  opacity: .72;
+}
+
+.coverGrid button::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(0deg, rgba(0, 8, 12, .94), transparent 78%);
+}
+''', '''.coverArt {
+  position: static;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 1;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  opacity: 1;
+}
+''', "cover image style")
+          css = css.replace("  .identityCard::after {\n    background:\n      linear-gradient(0deg, rgba(0, 7, 11, .86), rgba(0, 7, 11, .08) 82%),\n      linear-gradient(90deg, rgba(0, 7, 11, .62), transparent 76%);\n  }\n\n", "")
+          path.write_text(css)
+
+          Path("components/profile/ProfileArtworkCorrections.module.css").unlink(missing_ok=True)
+          Path("public/assets/profile/brawler-profile-icons.avif").unlink(missing_ok=True)
+          Path("public/assets/profile/brawler-profile-covers.avif").unlink(missing_ok=True)
+          PY
+
+      - name: Add exact-byte and UI regression coverage
+        shell: bash
+        run: |
+          cat > tests/profile-customization.test.ts <<'EOF'
+          import assert from "node:assert/strict";
+          import { createHash } from "node:crypto";
+          import { existsSync, readFileSync } from "node:fs";
+          import test from "node:test";
+          import {
+            PROFILE_AVATARS,
+            PROFILE_COVERS,
+            PROFILE_SHOWCASE_LIMIT,
+            normalizeProfileAvatar,
+            normalizeProfileCover,
+            normalizeProfileTitle,
+            normalizeShowcaseIds,
+            profileRewardUnlocked,
+            toggleShowcaseId,
+          } from "../lib/profile-customization";
+
+          const EXPECTED_HASHES: Record<string, string> = {
+            "/assets/profile/icons/veronica-venegas.png": "40b769ca60a28c472e3c97eb098ab4a09b383354e54cc739f651fe21f0305aa6",
+            "/assets/profile/icons/strata.png": "14a42e3b1284e6503d59eaf6b8c294aa6acbe0ecc0ecf7c917f68737a253b174",
+            "/assets/profile/icons/shun-kazami.png": "2b217b62bffbe5dabe7f8ee20f152ea96fa3513cce0e6c078b2a201fa6e5dd11",
+            "/assets/profile/icons/philomena-dusk.png": "ebbc1567292cc74ca7037431fa98100a103fae4028d6235f3e869cbcf142bedb",
+            "/assets/profile/icons/olivia-styles.png": "c62e77ea041adaad130cfc4fdc142a1a3154ab57bd34db5f8b0a6c8f48ae5d88",
+            "/assets/profile/icons/max.png": "a5ba16398d1c28617b395d57b422a40546fb5254919b865a10220de40810dccc",
+            "/assets/profile/icons/masato-kazami.png": "41616833dc0b5935dbd2398a3315d563e641e017d66b670c142d0b2d5c09317f",
+            "/assets/profile/icons/marco.png": "c26daf95015aab61d4112bfbb8fd6032a13958e73ec6d1fe25cdca5107ebe2a3",
+            "/assets/profile/icons/maggie.png": "05181a759faa7f2ff5bca9bfc7ec68c42269a959ff52a2f51407c2832da25796",
+            "/assets/profile/icons/mac.png": "cb9a9ba5dcb0549e72ea88522d543cf8ce084069bd9d84c421b2e7fe5e40d4ea",
+            "/assets/profile/icons/lightning.png": "daf30ac934bde73db79e9b4eea07c3de5657ceef76345adc883a243f77746c64",
+            "/assets/profile/icons/kurin.png": "423b3a181a094ee5e23347351ffbee134dac4e28ceba61da988e86cf4e62c596",
+            "/assets/profile/icons/everett-ray.png": "4d21007d5595cc2fd502dd4ceef9057e2e37d12274e945cfe5873d57a49a266c",
+            "/assets/profile/icons/e.png": "fb31ad051ba57362e710f1af16920276c933e6e5ea0d17c4430df490a38662ad",
+            "/assets/profile/icons/duran-dane.png": "d03be28ee48f5756e3673f58e4f2ac871c56ff1fd97a31ea3101ec98d8cdfc79",
+            "/assets/profile/icons/dee.png": "29b28af23634cf8a197c51cfdc63da8b3e420a3ee26d4110446c2f9c663816d3",
+            "/assets/profile/icons/col-armstrong-tripp.png": "27122426633d8568a2aec6aea616a668d31b5f6f1043114427af59ef2a87e586",
+            "/assets/profile/icons/china-riot.png": "f07bf02a64a7ba982031c777ba4cc77e75ca714f6d2758f559ac274a2459c683",
+            "/assets/profile/icons/cee.png": "43c2e5a867eef3def3cf3c2c4f918c930b6fd8cf35044db6fd9caf80a78ca10d",
+            "/assets/profile/icons/bill-kouzo.png": "c0e7ef5c0ffaafcdf40bb086a4e731ff64a322246337c1c8a86fc2bc5b7dae5d",
+            "/assets/profile/icons/benton-dusk.png": "56a81ff210f395bb08af572f01c87bfef2935c53153fd70464a38f2ff6b0e453",
+            "/assets/profile/icons/bee.png": "2f4d791c270107f231a4c78c305238bdaccd450963a05f5247ab2571b22d8957",
+            "/assets/profile/icons/aay.png": "7bdb053f80f1c722b90ed700026c5a11fc86655312bddb80c2bfb9f272173b46",
+            "/assets/profile/covers/battle-planet.png": "f5173ac91c5ffce8a9ab880137a04e34a62384500324f2105c97d06199d80df6",
+            "/assets/profile/covers/ventus-maximus-gorthion-ultra.png": "44189bc31eb3ebe1d9d695dac7005f7235ccb1024a35afc236d273dd9cfccd65",
+            "/assets/profile/covers/aquos-hyper-trox-ultra.png": "29d4f4b9e4e2f2b20a8da3098175a90411566c8753cb60d7a6fa8d0a7c72448a",
+            "/assets/profile/covers/darkus-hyper-serpenteze-ultra.png": "8371ef083c949d83fec34684cbde2ff5a625dfa7111cb7bc41e50f08ae3e5777",
+            "/assets/profile/covers/darkus-turtonium.png": "fad8af1d4a9f08dded39f91913081519b25e017fa50abee7839cb385eb3bf436",
+            "/assets/profile/covers/haos-hyper-turtonium-ultra.png": "10841979b5beb900186a6b427d6d669fccc1bc3181a33883d6d653541bbb3e4e",
+            "/assets/profile/covers/haos-hyper-turtonium.png": "179b4ed5d1f44e8215ac34a158d456158202d4bb0198afd00b43c5a03bd223dc",
+            "/assets/profile/covers/haos-turtonium-ultra.png": "35d55dcd19f9f8ef4a73e28ed85f1650211b93999f3f5889428f2a005f26370f",
+            "/assets/profile/covers/pyrus-hyper-trox-ultra.png": "c6453b484d2f9d54193dff2a5d8dd804b16a90e57152844deb30d373c0568629",
+            "/assets/profile/covers/pyrus-webam-ultra.png": "f6039fdc73353b63d46c4e576c6f0946023771125ef77704350e7f4ffbeb2e64",
+          };
+
+          function pngDimensions(path: string) {
+            const bytes = readFileSync(path);
+            assert.equal(bytes.subarray(1, 4).toString("ascii"), "PNG");
+            return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+          }
+
+          test("profile catalogs expose exact original PNG artwork", () => {
+            assert.equal(PROFILE_AVATARS.length, 23);
+            assert.equal(PROFILE_COVERS.length, 10);
+            for (const avatar of PROFILE_AVATARS) {
+              const path = `public${avatar.src}`;
+              assert.equal(existsSync(path), true, path);
+              assert.deepEqual(pngDimensions(path), { width: 380, height: 380 });
+              assert.equal(createHash("sha256").update(readFileSync(path)).digest("hex"), EXPECTED_HASHES[avatar.src]);
+            }
+            for (const cover of PROFILE_COVERS) {
+              const path = `public${cover.src}`;
+              assert.equal(existsSync(path), true, path);
+              assert.deepEqual(pngDimensions(path), { width: 1920, height: 480 });
+              assert.equal(createHash("sha256").update(readFileSync(path)).digest("hex"), EXPECTED_HASHES[cover.src]);
+            }
+          });
+
+          test("showcase ids and profile normalization remain stable", () => {
+            assert.deepEqual(normalizeShowcaseIds(["first-win", "first-win", "collector", "veteran", "online"]), ["first-win", "collector", "veteran"]);
+            assert.equal(PROFILE_SHOWCASE_LIMIT, 3);
+            assert.equal(normalizeProfileAvatar("preset:shun-kazami"), "preset:shun-kazami");
+            assert.equal(normalizeProfileAvatar("data:image/png;base64,abc"), "");
+            assert.equal(normalizeProfileTitle("missing"), "battle-planet-brawler");
+            assert.equal(normalizeProfileCover("missing"), "battle-planet");
+            assert.deepEqual(toggleShowcaseId(["a", "b"], "c"), { ids: ["a", "b", "c"], reachedLimit: false });
+            const reward = { id: "win", label: "First Victor", achievementId: "first-win" };
+            assert.equal(profileRewardUnlocked(reward, new Set(["first-win"])), true);
+          });
+
+          test("profile UI uses direct originals, default reset, and undistorted covers", () => {
+            const implementation = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
+            const avatar = readFileSync("components/profile/ProfileAvatar.tsx", "utf8");
+            const styles = readFileSync("components/routes/ProfileScreen.module.css", "utf8");
+            assert.match(implementation, /Reset profile picture to default account initials/);
+            assert.match(implementation, /src=\{item\.src\}/);
+            assert.match(implementation, /src=\{selectedCover\.src\}/);
+            assert.match(implementation, /src=\{cover\.src\}/);
+            assert.doesNotMatch(implementation, /PROFILE_COVER_SPRITE/);
+            assert.doesNotMatch(implementation, /profileAvatarStyle/);
+            assert.match(avatar, /<img/);
+            assert.match(avatar, /profile\.name\.slice\(0, 2\)\.toUpperCase\(\)/);
+            assert.match(styles, /\.identityCard\s*\{[\s\S]*?aspect-ratio:\s*4\s*\/\s*1/);
+            assert.match(styles, /\.identityCoverArt\s*\{[\s\S]*?object-fit:\s*contain/);
+            assert.match(styles, /\.coverArt\s*\{[\s\S]*?aspect-ratio:\s*4\s*\/\s*1[\s\S]*?object-fit:\s*contain[\s\S]*?opacity:\s*1/);
+            assert.doesNotMatch(styles, /\.coverGrid button::after/);
+          });
+          EOF
+
+      - name: Verify implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          npm ci --ignore-scripts
+          node --import tsx --test tests/profile-customization.test.ts
+          npm run lint
+
+      - name: Commit imported originals
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/import-original-profile-artwork.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Use original profile artwork files"
+          git push origin HEAD:fix/profile-original-artwork-v2
