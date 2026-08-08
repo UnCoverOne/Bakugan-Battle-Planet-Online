@@ -50,6 +50,20 @@ test("guest identity is generic and the avatar menu exposes only account access 
   assert.match(css, /profile-popover-auth/);
 });
 
+test("guest shell consumes storage health from the application context", () => {
+  const shell = source("components/application/AppShell.jsx");
+  const appContext = shell.match(/const \{([\s\S]*?)\} = useApp\(\);/);
+  assert.ok(appContext);
+  assert.match(appContext[1], /\bstorageHealth\b/);
+  assert.match(shell, /!authUser && storageHealth\.status === "error"/);
+});
+
+test("production CSP permits the configured Google font stylesheet and font hosts", () => {
+  const worker = source("worker/index.ts");
+  assert.match(worker, /font-src 'self' data: https:\/\/fonts\.gstatic\.com/);
+  assert.match(worker, /style-src 'self' 'unsafe-inline' https:\/\/fonts\.googleapis\.com/);
+});
+
 test("guest storage sanitizes malformed legacy records before application code sees them", () => {
   const profile = normalizeStoredProfile({ name: null, faction: "Unknown", signedIn: "yes" });
   const decks = normalizeStoredDecks([null, "old-deck", { id: "broken", name: "Broken", bakuganIds: null, coreIds: [], cardIds: [] }]);
