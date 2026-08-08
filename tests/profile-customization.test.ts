@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   PROFILE_AVATARS,
   PROFILE_AVATAR_SPRITE,
+  PROFILE_COVER_SPRITE,
   PROFILE_COVERS,
   PROFILE_SHOWCASE_LIMIT,
   normalizeProfileAvatar,
@@ -17,9 +18,10 @@ import {
 test("profile customization catalogs expose the shipped Brawler profile artwork", () => {
   assert.equal(PROFILE_COVERS.length, 10);
   assert.equal(PROFILE_AVATARS.length, 23);
-  assert.equal(PROFILE_AVATAR_SPRITE, "/assets/profile/brawler-profile-icons.svg");
+  assert.equal(PROFILE_AVATAR_SPRITE, "/assets/profile/brawler-profile-icons.avif");
+  assert.equal(PROFILE_COVER_SPRITE, "/assets/profile/brawler-profile-covers.avif");
   assert.equal(existsSync(`public${PROFILE_AVATAR_SPRITE}`), true);
-  assert.equal(existsSync("lib/generated/profile-cover-sprite/index.ts"), true);
+  assert.equal(existsSync(`public${PROFILE_COVER_SPRITE}`), true);
   assert.equal(new Set(PROFILE_COVERS.map((item) => item.position)).size, 10);
 });
 
@@ -66,30 +68,24 @@ test("profile rewards honor achievement-based unlocks", () => {
   );
 });
 
-test("profile customization updates locally without any custom image upload path", () => {
+test("profile artwork selector uses the supplied static icons and covers", () => {
   const implementation = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
-  for (const token of [
-    "updateProfile({ avatar:",
-    "updateProfile({ titleId:",
-    "updateProfile({ coverId:",
-    "showcaseAchievementIds",
-    "toggleShowcaseId",
-    "PROFILE_AVATARS",
-    "BRAWLER_PROFILE_COVER_SPRITE",
-  ]) {
-    assert.match(implementation, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  }
+  const styles = readFileSync("components/routes/ProfileScreen.module.css", "utf8");
+  assert.match(implementation, /PROFILE_AVATAR_PRESETS\.map/);
+  assert.match(implementation, /profileAvatarStyle/);
+  assert.match(implementation, /avatarPresetIcon/);
+  assert.match(implementation, /PROFILE_COVER_SPRITE/);
+  assert.match(implementation, /selectedCover\.position/);
+  assert.match(implementation, /cover\.position/);
   assert.doesNotMatch(implementation, /FileReader/);
   assert.doesNotMatch(implementation, /type="file"/);
   assert.doesNotMatch(implementation, /Upload your own/);
   assert.doesNotMatch(implementation, /Crop profile picture/);
   assert.doesNotMatch(implementation, /Reset to initials/);
-  assert.match(implementation, /Custom image uploads are disabled/);
-  assert.ok((implementation.match(/aspectRatio: "4 \/ 1"/g) ?? []).length >= 2);
-  assert.match(implementation, /selectedCover\.position/);
-  assert.match(implementation, /cover\.position/);
-  assert.match(implementation, /profileAvatarStyle/);
-  assert.match(implementation, /sharedProfileAvatar/);
+  assert.doesNotMatch(implementation, /item\.character/);
+  assert.doesNotMatch(styles, /aspect-ratio:\s*16\s*\/\s*9/);
+  assert.match(styles, /\.identityCard\s*\{[\s\S]*?aspect-ratio:\s*4\s*\/\s*1/);
+  assert.match(styles, /\.coverGrid button\s*\{[\s\S]*?aspect-ratio:\s*4\s*\/\s*1/);
 });
 
 test("shared shell and secondary profile routes consume the same avatar component", () => {

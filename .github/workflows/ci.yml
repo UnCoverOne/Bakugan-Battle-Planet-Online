@@ -4,47 +4,34 @@ on:
   pull_request:
     branches:
       - main
-    types:
-      - opened
+  push:
+    branches:
+      - main
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
-    if: github.head_ref == 'trigger/profile-artwork-final'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Check out implementation branch
+      - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.13.0
           cache: npm
-      - name: Apply profile artwork implementation
-        shell: bash
-        run: |
-          git fetch origin trigger/profile-artwork-completion:refs/remotes/origin/trigger/profile-artwork-completion
-          git show origin/trigger/profile-artwork-completion:scripts/complete-profile-artwork.py > /tmp/complete-profile-artwork.py
-          python /tmp/complete-profile-artwork.py
-      - name: Validate focused profile behavior
-        shell: bash
-        run: |
-          git diff --check
-          npm ci --ignore-scripts
-          node --import tsx --test tests/profile-customization.test.ts
-      - name: Commit complete implementation
-        shell: bash
-        run: |
-          git show origin/main^:.github/workflows/ci.yml > .github/workflows/ci.yml
-          rm -f .github/workflows/complete-profile-artwork.yml .github/profile-artwork-final-trigger
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Complete Brawler profile artwork implementation"
-          git push origin HEAD:${{ github.head_ref }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
