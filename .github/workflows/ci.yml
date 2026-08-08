@@ -30,25 +30,25 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Execute staged profile artwork implementation
+      - name: Apply profile artwork implementation
+        run: python .github/scripts/apply-profile-original-artwork.py
+      - name: Verify implementation
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --quiet pyyaml
-          python <<'PY'
-          from pathlib import Path
-          import subprocess
-          import yaml
-
-          workflow = yaml.safe_load(Path('.github/workflows/apply-profile-original-artwork-ui.yml').read_text())
-          scripts = [
-              step['run']
-              for step in workflow['jobs']['apply']['steps']
-              if step.get('run')
-          ]
-          for script in scripts:
-              subprocess.run(['bash', '-euo', 'pipefail', '-c', script], check=True)
-          PY
+          git diff --check
+          npm ci --ignore-scripts
+          node --import tsx --test tests/profile-customization.test.ts
+          npm run lint
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Complete original profile artwork implementation"
+          git push origin HEAD:fix/profile-original-artwork-v2
 
   validate:
     runs-on: ubuntu-latest
