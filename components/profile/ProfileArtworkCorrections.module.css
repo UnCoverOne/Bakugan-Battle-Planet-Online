@@ -1,26 +1,30 @@
-:global(section:has(> button[aria-label="Edit cover"])) {
+.artworkScope {
+  /* Marker class used to scope the profile artwork corrections below. */
+}
+
+:global(section):has(.artworkScope):has(> :global(button[aria-label="Edit cover"])) {
   background-size: 0 0, 100% 1000% !important;
   box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, .28) !important;
 }
 
-:global(section:has(> button[aria-label="Edit cover"]))::after {
+:global(section):has(.artworkScope):has(> :global(button[aria-label="Edit cover"]))::after {
   display: none !important;
   content: none !important;
   background: none !important;
 }
 
-:global(button[aria-label^="Use "][aria-label$=" profile icon"] > span:first-child) {
+:global(body):has(.artworkScope) :global(button[aria-label^="Use "][aria-label$=" profile icon"] > span:first-child) {
   width: 100% !important;
   height: auto !important;
   aspect-ratio: 1;
   background-size: 500% 500% !important;
 }
 
-:global(section[role="dialog"]:has(button > span[style*="background-image"]) button > span[style*="background-image"]) {
+:global(body):has(.artworkScope) :global(section[role="dialog"]:has(button > span[style*="background-image"]) button > span[style*="background-image"]) {
   opacity: 1 !important;
 }
 
-:global(section[role="dialog"]:has(button > span[style*="background-image"]) button)::after {
+:global(body):has(.artworkScope) :global(section[role="dialog"]:has(button > span[style*="background-image"]) button)::after {
   content: none !important;
   background: none !important;
 }
