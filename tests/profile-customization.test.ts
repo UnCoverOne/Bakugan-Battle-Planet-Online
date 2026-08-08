@@ -1,105 +1,107 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  PROFILE_AVATARS,
+  PROFILE_AVATAR_SPRITE,
   PROFILE_COVERS,
   PROFILE_SHOWCASE_LIMIT,
-  PROFILE_TITLES,
   normalizeProfileAvatar,
+  normalizeProfileCover,
+  normalizeProfileTitle,
   normalizeShowcaseIds,
+  profileRewardUnlocked,
   toggleShowcaseId,
 } from "../lib/profile-customization";
 
-const source = (path: string) => readFileSync(path, "utf8");
-
-test("profile rewards are preset, achievement-gated customizations", () => {
-  assert.equal(PROFILE_TITLES[0].achievementId, null);
-  assert.equal(PROFILE_COVERS[0].achievementId, null);
-  assert.ok(PROFILE_TITLES.slice(1).every((item) => item.achievementId));
-  assert.ok(PROFILE_COVERS.slice(1).every((item) => item.achievementId));
-  assert.equal(new Set(PROFILE_TITLES.map((item) => item.id)).size, PROFILE_TITLES.length);
-  assert.equal(new Set(PROFILE_COVERS.map((item) => item.id)).size, PROFILE_COVERS.length);
+test("profile customization catalogs expose the shipped Brawler profile artwork", () => {
+  assert.equal(PROFILE_COVERS.length, 10);
+  assert.equal(PROFILE_AVATARS.length, 23);
+  assert.equal(PROFILE_AVATAR_SPRITE, "/assets/profile/brawler-profile-icons.svg");
+  assert.equal(existsSync(`public${PROFILE_AVATAR_SPRITE}`), true);
+  assert.equal(existsSync("lib/generated/profile-cover-sprite/index.ts"), true);
+  assert.equal(new Set(PROFILE_COVERS.map((item) => item.position)).size, 10);
 });
 
-test("showcase selections are unique and capped at three", () => {
+test("showcase ids are unique and capped at three", () => {
+  assert.deepEqual(
+    normalizeShowcaseIds(["first-win", "first-win", "collector", "veteran", "online"]),
+    ["first-win", "collector", "veteran"],
+  );
   assert.equal(PROFILE_SHOWCASE_LIMIT, 3);
-  assert.deepEqual(normalizeShowcaseIds(["a", "a", "b", "c", "d"]), [
-    "a",
-    "b",
-    "c",
-  ]);
+});
+
+test("showcase toggling enforces the maximum and supports removing items", () => {
   assert.deepEqual(toggleShowcaseId(["a", "b"], "c"), {
     ids: ["a", "b", "c"],
     reachedLimit: false,
   });
-  assert.equal(toggleShowcaseId(["a", "b", "c"], "d").reachedLimit, true);
-  assert.deepEqual(toggleShowcaseId(["a", "b", "c"], "b").ids, ["a", "c"]);
+  assert.deepEqual(toggleShowcaseId(["a", "b", "c"], "d"), {
+    ids: ["a", "b", "c"],
+    reachedLimit: true,
+  });
+  assert.deepEqual(toggleShowcaseId(["a", "b", "c"], "b"), {
+    ids: ["a", "c"],
+    reachedLimit: false,
+  });
 });
 
-test("avatar persistence accepts presets and bounded cropped images only", () => {
-  assert.equal(normalizeProfileAvatar("preset:bb-343"), "preset:bb-343");
+test("profile customization normalization rejects removed image sources", () => {
+  assert.equal(normalizeProfileAvatar("preset:shun-kazami"), "preset:shun-kazami");
+  assert.equal(normalizeProfileAvatar("preset:pyrus"), "");
+  assert.equal(normalizeProfileAvatar("data:image/png;base64,abc"), "");
+  assert.equal(normalizeProfileAvatar("https://example.com/avatar.png"), "");
+  assert.equal(normalizeProfileAvatar("not-an-image"), "");
+  assert.equal(normalizeProfileTitle("missing"), "battle-planet-brawler");
+  assert.equal(normalizeProfileCover("missing"), "battle-planet");
+});
+
+test("profile rewards honor achievement-based unlocks", () => {
+  const reward = { id: "win", label: "First Victor", achievementId: "first-win" };
+  assert.equal(profileRewardUnlocked(reward, new Set()), false);
+  assert.equal(profileRewardUnlocked(reward, new Set(["first-win"])), true);
   assert.equal(
-    normalizeProfileAvatar("data:image/jpeg;base64,YWJj"),
-    "data:image/jpeg;base64,YWJj",
+    profileRewardUnlocked({ ...reward, achievementId: null }, new Set()),
+    true,
   );
-  assert.equal(normalizeProfileAvatar("https://untrusted.example/avatar.jpg"), "");
-  assert.equal(normalizeProfileAvatar("data:image/svg+xml;base64,YWJj"), "");
 });
 
-test("profile route implements four-section customization and cropping", () => {
-  const implementation = source("components/routes/ProfileScreen.tsx");
-  const styles = source("components/routes/ProfileScreen.module.css");
-  for (const contract of [
-    "Edit picture",
-    "Upload your own",
-    "Reset to initials",
-    "Crop profile picture",
-    "Edit title",
-    "Edit cover",
-    "Win Rate",
-    "Games Won",
-    "Games Played",
-    "Showcased Achievements",
-    "Public Decks",
-    "canvas.toDataURL",
+test("profile customization updates locally without any custom image upload path", () => {
+  const implementation = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
+  for (const token of [
+    "updateProfile({ avatar:",
+    "updateProfile({ titleId:",
+    "updateProfile({ coverId:",
+    "showcaseAchievementIds",
+    "toggleShowcaseId",
+    "PROFILE_AVATARS",
+    "BRAWLER_PROFILE_COVER_SPRITE",
   ]) {
-    assert.match(implementation, new RegExp(contract));
+    assert.match(implementation, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
-  assert.doesNotMatch(implementation, />Edit identity</);
-  assert.doesNotMatch(implementation, />\s*Achievements\s*<\/Link>/);
-  assert.equal((implementation.match(/<PencilIcon \/>/g) ?? []).length, 3);
-  assert.match(styles, /aspect-ratio:\s*16\s*\/\s*9/);
-  assert.doesNotMatch(styles, /aspect-ratio:\s*auto/);
-  assert.match(
-    styles,
-    /\.profilePortrait\s*\{[\s\S]*?border-radius:\s*50%[\s\S]*?clip-path:\s*circle/,
-  );
-  assert.match(
-    styles,
-    /\.editButton\s*\{[\s\S]*?border-radius:\s*50%/,
-  );
-  assert.match(styles, /\.achievementShowcaseGrid/);
-  assert.match(styles, /\.deckShowcaseGrid/);
+  assert.doesNotMatch(implementation, /FileReader/);
+  assert.doesNotMatch(implementation, /type="file"/);
+  assert.doesNotMatch(implementation, /Upload your own/);
+  assert.doesNotMatch(implementation, /Crop profile picture/);
+  assert.doesNotMatch(implementation, /Reset to initials/);
+  assert.match(implementation, /Custom image uploads are disabled/);
+  assert.ok((implementation.match(/aspectRatio: "4 \/ 1"/g) ?? []).length >= 2);
+  assert.match(implementation, /selectedCover\.position/);
+  assert.match(implementation, /cover\.position/);
+  assert.match(implementation, /profileAvatarStyle/);
+  assert.match(implementation, /sharedProfileAvatar/);
 });
 
-test("achievement and deck screens expose eligible three-item showcase toggles", () => {
-  const achievements = source("components/routes/AchievementsScreen.tsx");
-  const decks = source("components/routes/DeckRoutes.tsx");
-  const provider = source("components/application/AppProvider.jsx");
-  assert.match(achievements, /className=\{styles\.showcaseToggle\}/);
-  assert.match(achievements, /disabled=\{!achievement\.unlocked\}/);
-  assert.match(achievements, /aria-pressed=\{showcased\}/);
-  assert.match(decks, /className=\{styles\.showcaseDeckToggle\}/);
-  assert.match(decks, /deck\.visibility !== "Public"/);
-  assert.match(decks, /toggleShowcaseId\(profile\.showcaseDeckIds/);
-  assert.match(provider, /showcaseDeckIds/);
-  assert.match(provider, /deck\.visibility === "Public"/);
-});
-
-test("profile picture is shared by the page and account menu", () => {
-  const shell = source("components/application/AppShell.jsx");
-  const avatar = source("components/profile/ProfileAvatar.tsx");
-  assert.match(shell, /<ProfileAvatar/);
-  assert.match(avatar, /PROFILE_AVATAR_PRESETS/);
-  assert.match(avatar, /profileAvatarSource/);
+test("shared shell and secondary profile routes consume the same avatar component", () => {
+  const shell = readFileSync("components/application/AppShell.jsx", "utf8");
+  const decks = readFileSync("components/routes/DeckRoutes.tsx", "utf8");
+  const play = readFileSync("components/routes/PlayRoutes.tsx", "utf8");
+  const profile = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
+  const consistency = readFileSync("app/site-consistency.css", "utf8");
+  const overhaul = readFileSync("app/website-overhaul.css", "utf8");
+  for (const source of [shell, decks, play, profile]) {
+    assert.match(source, /ProfileAvatar/);
+  }
+  assert.doesNotMatch(overhaul, /\.profile-avatar::after/);
+  assert.doesNotMatch(consistency, /\.play-user-avatar::after/);
 });
