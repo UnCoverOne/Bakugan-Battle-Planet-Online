@@ -1,20 +1,21 @@
 name: Complete profile artwork implementation
 
 on:
-  push:
+  pull_request:
     branches: [main]
-    paths:
-      - .github/workflows/complete-profile-artwork.yml
+    types: [opened]
 
 permissions:
   contents: write
 
 jobs:
   complete-profile-artwork:
+    if: github.head_ref == 'trigger/profile-artwork-completion'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -33,7 +34,6 @@ jobs:
           assets = root / 'public/assets/profile'
           assets.mkdir(parents=True, exist_ok=True)
 
-          # Materialize the supplied Brawler Profile Icons as a normal static AVIF asset.
           icon_svg = assets / 'brawler-profile-icons.svg'
           icon_text = icon_svg.read_text(encoding='utf-8')
           icon_match = re.search(r'data:image/avif;base64,([^\"]+)', icon_text)
@@ -42,7 +42,6 @@ jobs:
           (assets / 'brawler-profile-icons.avif').write_bytes(base64.b64decode(icon_match.group(1)))
           icon_svg.unlink()
 
-          # Materialize the supplied Brawler Profile Covers as a normal static AVIF asset.
           cover_parts_dir = root / 'lib/generated/profile-cover-sprite'
           cover_parts = []
           for path in sorted(cover_parts_dir.glob('part-*.ts')):
@@ -55,7 +54,6 @@ jobs:
           (assets / 'brawler-profile-covers.avif').write_bytes(base64.b64decode(''.join(cover_parts)))
           shutil.rmtree(cover_parts_dir)
 
-          # Point the profile catalogue at browser-loadable static artwork.
           customization_path = root / 'lib/profile-customization.ts'
           customization = customization_path.read_text(encoding='utf-8')
           customization = customization.replace(
