@@ -27,6 +27,10 @@ jobs:
         with:
           node-version: 22.13.0
           cache: npm
+      - name: Install AVIF probe
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
       - name: Apply profile artwork implementation
         shell: bash
         run: |
@@ -36,7 +40,7 @@ jobs:
           from pathlib import Path
           path = Path('/tmp/complete-profile-artwork.py')
           source = path.read_text()
-          helper = '''\n\ndef recover_cover_sprite(parts):\n    import subprocess\n    import tempfile\n\n    joined = "".join(parts)\n    clean = joined.rstrip("=")\n    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"\n    boundaries = []\n    offset = 0\n    for part in parts[:-1]:\n        offset += len(part)\n        boundaries.extend(range(max(0, offset - 3), min(len(clean), offset + 4)))\n    boundaries.extend([0, len(clean)])\n\n    for position in dict.fromkeys(boundaries):\n        for character in alphabet:\n            encoded = clean[:position] + character + clean[position:]\n            encoded += "=" * ((-len(encoded)) % 4)\n            try:\n                data = base64.b64decode(encoded, validate=True)\n            except Exception:\n                continue\n            if len(data) < 32 or data[4:8] != b"ftyp" or b"avif" not in data[:32]:\n                continue\n            with tempfile.NamedTemporaryFile(suffix=".avif") as candidate:\n                candidate.write(data)\n                candidate.flush()\n                result = subprocess.run(\n                    ["ffmpeg", "-v", "error", "-i", candidate.name, "-frames:v", "1", "-f", "null", "-"],\n                    stdout=subprocess.DEVNULL,\n                    stderr=subprocess.DEVNULL,\n                    check=False,\n                )\n            if result.returncode == 0:\n                print(f"Recovered Brawler cover sprite at base64 offset {position}.")\n                return data\n    raise SystemExit("Could not recover the Brawler Profile Covers sprite from its staged fragments.")\n'''
+          helper = '''\n\ndef recover_cover_sprite(parts):\n    import subprocess\n    import tempfile\n\n    joined = "".join(parts)\n    clean = joined.rstrip("=")\n    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"\n    boundaries = []\n    offset = 0\n    for part in parts[:-1]:\n        offset += len(part)\n        boundaries.extend(range(max(0, offset - 3), min(len(clean), offset + 4)))\n    boundaries.extend([0, len(clean)])\n\n    for position in dict.fromkeys(boundaries):\n        for character in alphabet:\n            encoded = clean[:position] + character + clean[position:]\n            encoded += "=" * ((-len(encoded)) % 4)\n            try:\n                data = base64.b64decode(encoded, validate=True)\n            except Exception:\n                continue\n            if len(data) < 32 or data[4:8] != b"ftyp" or b"avif" not in data[:32]:\n                continue\n            with tempfile.NamedTemporaryFile(suffix=".avif") as candidate:\n                candidate.write(data)\n                candidate.flush()\n                result = subprocess.run(\n                    ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", candidate.name],\n                    capture_output=True,\n                    text=True,\n                    check=False,\n                )\n            if result.returncode == 0 and result.stdout.strip() == "960x2400":\n                print(f"Recovered Brawler cover sprite at base64 offset {position}.")\n                return data\n    raise SystemExit("Could not recover the Brawler Profile Covers sprite from its staged fragments.")\n'''
           source = source.replace("import shutil\n", "import shutil\n" + helper, 1)
           source = source.replace(
               "base64.b64decode(''.join(parts))",
