@@ -1,0 +1,291 @@
+name: Fix guest legacy storage 20260808
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+
+      - name: Add defensive local storage normalization
+        run: |
+          cat > lib/local-storage-normalization.ts <<'EOF'
+          import type { MatchState, Phase } from "./game";
+          import {
+            DEFAULT_APP_SETTINGS,
+            DEFAULT_BRAWLER_PROFILE,
+            normalizeSnapshot,
+            type AppSettings,
+            type BrawlerProfile,
+            type DeletedDeckRecord,
+            type MatchResultRecord,
+            type UserSnapshot,
+          } from "./persistence";
+          import type { DeckRecord } from "./data";
+
+          const FALLBACK: UserSnapshot = {
+            schemaVersion: 1,
+            updatedAt: 0,
+            profile: DEFAULT_BRAWLER_PROFILE,
+            decks: [],
+            deletedDecks: [],
+            history: [],
+            settings: DEFAULT_APP_SETTINGS,
+            route: "dashboard",
+            selectedDeckId: "",
+            builderDeck: null,
+            deckQuery: "",
+            compendiumQuery: "",
+            compendiumTab: "cards",
+            format: "bo1",
+            matchMode: "solo",
+            joinCode: "",
+            match: null,
+            online: false,
+            selectedCore: "",
+            logFilter: "all",
+            replay: null,
+            replayIndex: 0,
+            playerId: "player",
+          };
+
+          const isRecord = (value: unknown): value is Record<string, unknown> =>
+            Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+          const validDate = (value: unknown) =>
+            typeof value === "string" && Number.isFinite(Date.parse(value))
+              ? new Date(value).toISOString()
+              : null;
+
+          export const identityStoredValue = <T>(value: T) => value;
+
+          export function normalizeStoredProfile(value: unknown): BrawlerProfile {
+            return normalizeSnapshot(
+              { ...FALLBACK, profile: isRecord(value) ? value as BrawlerProfile : FALLBACK.profile },
+              FALLBACK,
+            ).profile;
+          }
+
+          export function normalizeStoredDecks(value: unknown): DeckRecord[] {
+            return normalizeSnapshot({ ...FALLBACK, decks: value }, FALLBACK).decks;
+          }
+
+          export function normalizeStoredDeletedDecks(value: unknown): DeletedDeckRecord[] {
+            return normalizeSnapshot({ ...FALLBACK, deletedDecks: value }, FALLBACK).deletedDecks ?? [];
+          }
+
+          export function normalizeStoredBuilderDeck(value: unknown): DeckRecord | null {
+            return normalizeSnapshot({ ...FALLBACK, builderDeck: value }, FALLBACK).builderDeck;
+          }
+
+          export function normalizeStoredHistory(value: unknown): MatchResultRecord[] {
+            if (!Array.isArray(value)) return [];
+            return value.flatMap((item) => {
+              if (!isRecord(item)) return [];
+              const id = typeof item.id === "string" ? item.id.trim().slice(0, 160) : "";
+              if (!id) return [];
+              const at = validDate(item.at) ?? new Date(0).toISOString();
+              const startedAt = validDate(item.startedAt) ?? undefined;
+              const log = Array.isArray(item.log)
+                ? item.log.flatMap((entry, index) => {
+                    if (!isRecord(entry)) return [];
+                    return [{
+                      ...entry,
+                      id: typeof entry.id === "string" && entry.id ? entry.id : `${id}-log-${index}`,
+                      at: Number.isFinite(Number(entry.at)) ? Number(entry.at) : 0,
+                      kind: ["game", "random", "system", "connection"].includes(String(entry.kind))
+                        ? entry.kind
+                        : "system",
+                      message: typeof entry.message === "string" ? entry.message : "",
+                    }];
+                  })
+                : [];
+              return [{
+                id,
+                result: typeof item.result === "string" ? item.result.slice(0, 40) : "",
+                opponent: typeof item.opponent === "string" ? item.opponent.slice(0, 80) : "Opponent",
+                score: typeof item.score === "string" ? item.score.slice(0, 40) : "",
+                reason: typeof item.reason === "string" ? item.reason.slice(0, 240) : "",
+                at,
+                startedAt,
+                format: item.format === "bo3" ? "bo3" : item.format === "bo1" ? "bo1" : undefined,
+                mode: item.mode === "online" ? "online" : item.mode === "training" ? "training" : undefined,
+                schemaVersion: 1,
+                log,
+              } as MatchResultRecord];
+            }).slice(0, 200);
+          }
+
+          const PHASES = new Set<Phase>([
+            "lobby", "startingPlayer", "placement", "draw", "energize", "selection", "preRoll", "target", "reroll",
+            "power", "victor", "damage", "postDamage", "retract", "endPlay", "charge", "reset", "handLimit", "result",
+          ]);
+
+          export function normalizeStoredMatch(value: unknown): MatchState | null {
+            if (!isRecord(value)) return null;
+            if (typeof value.id !== "string" || !value.id) return null;
+            if (typeof value.code !== "string") return null;
+            if (value.format !== "bo1" && value.format !== "bo3") return null;
+            if (typeof value.phase !== "string" || !PHASES.has(value.phase as Phase)) return null;
+            if (!Array.isArray(value.players) || !value.players.length) return null;
+            if (!value.players.every((player) => {
+              if (!isRecord(player) || typeof player.id !== "string" || typeof player.name !== "string") return false;
+              return ["bakugan", "cores", "deckCards", "hand", "discard", "energyZone", "heroes"].every(
+                (field) => Array.isArray(player[field]),
+              );
+            })) return null;
+            if (!Array.isArray(value.log)) return null;
+            if (!isRecord(value.series) || !isRecord(value.selected) || !isRecord(value.targets) || !isRecord(value.rolls)) return null;
+            if (typeof value.stepLabel !== "string") return null;
+            return value as unknown as MatchState;
+          }
+
+          export function normalizeStoredReplay(value: unknown): MatchResultRecord | null {
+            return normalizeStoredHistory(value == null ? [] : [value])[0] ?? null;
+          }
+
+          export function normalizeStoredSettings(value: unknown): AppSettings {
+            const candidate = isRecord(value) ? value : {};
+            const boolean = (key: keyof AppSettings, fallback: boolean) =>
+              typeof candidate[key] === "boolean" ? candidate[key] as boolean : fallback;
+            const text = (key: keyof AppSettings, fallback: string) =>
+              typeof candidate[key] === "string" ? candidate[key] as string : fallback;
+            const number = (key: keyof AppSettings, fallback: number) =>
+              Number.isFinite(candidate[key]) ? Number(candidate[key]) : fallback;
+            return {
+              ...DEFAULT_APP_SETTINGS,
+              reducedMotion: boolean("reducedMotion", DEFAULT_APP_SETTINGS.reducedMotion),
+              highContrast: boolean("highContrast", DEFAULT_APP_SETTINGS.highContrast),
+              sound: boolean("sound", DEFAULT_APP_SETTINGS.sound),
+              cardScale: number("cardScale", DEFAULT_APP_SETTINGS.cardScale),
+              logDetail: text("logDetail", DEFAULT_APP_SETTINGS.logDetail),
+              challenges: text("challenges", DEFAULT_APP_SETTINGS.challenges),
+              replayLinks: boolean("replayLinks", DEFAULT_APP_SETTINGS.replayLinks ?? true),
+              ...(typeof candidate.automaticDraw === "boolean" ? { automaticDraw: candidate.automaticDraw } : {}),
+              ...(typeof candidate.automaticPass === "boolean" ? { automaticPass: candidate.automaticPass } : {}),
+              ...(typeof candidate.soundEnabled === "boolean" ? { soundEnabled: candidate.soundEnabled } : {}),
+              ...(Number.isFinite(candidate.soundVolume) ? { soundVolume: Number(candidate.soundVolume) } : {}),
+            };
+          }
+
+          export const normalizeStoredText = (value: unknown) => typeof value === "string" ? value : "";
+          export const normalizeStoredBoolean = (value: unknown) => value === true;
+          export const normalizeStoredNumber = (value: unknown) => Number.isFinite(value) ? Math.max(0, Number(value)) : 0;
+          export const normalizeStoredFormat = (value: unknown) => value === "bo3" ? "bo3" : "bo1";
+          export const normalizeStoredMatchMode = (value: unknown) => ["solo", "online", "join"].includes(String(value)) ? value as "solo" | "online" | "join" : "solo";
+          export const normalizeStoredCompendiumTab = (value: unknown) => ["cards", "rules", "rulings"].includes(String(value)) ? value as "cards" | "rules" | "rulings" : "cards";
+          export const normalizeStoredJoinCode = (value: unknown) => typeof value === "string" ? value.slice(0, 6) : "";
+          export const normalizeStoredPlayerId = (value: unknown) => typeof value === "string" && value ? value : "player";
+          EOF
+
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected one match in {path}; found {count}: {old[:120]!r}")
+              file.write_text(text.replace(old, new, 1))
+
+          provider = "components/application/AppProvider.jsx"
+          replace_once(
+              provider,
+              'import { completedMatchKey } from "../../lib/match-result-navigation";\n',
+              'import { completedMatchKey } from "../../lib/match-result-navigation";\nimport {\n  identityStoredValue,\n  normalizeStoredBoolean,\n  normalizeStoredBuilderDeck,\n  normalizeStoredCompendiumTab,\n  normalizeStoredDecks,\n  normalizeStoredDeletedDecks,\n  normalizeStoredFormat,\n  normalizeStoredHistory,\n  normalizeStoredJoinCode,\n  normalizeStoredMatch,\n  normalizeStoredMatchMode,\n  normalizeStoredNumber,\n  normalizeStoredPlayerId,\n  normalizeStoredProfile,\n  normalizeStoredReplay,\n  normalizeStoredSettings,\n  normalizeStoredText,\n} from "../../lib/local-storage-normalization";\n',
+          )
+
+          old_helpers = '''const PROFILE_FACTIONS = new Set(["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"]);\nconst identityStoredValue = (value) => value;\n\nfunction normalizeStoredProfile(value) {\n  const candidate = value && typeof value === "object" && !Array.isArray(value) ? value : {};\n  const name = typeof candidate.name === "string" && candidate.name.trim()\n    ? candidate.name.trim().slice(0, 20)\n    : defaults.profile.name;\n  const faction = PROFILE_FACTIONS.has(candidate.faction)\n    ? candidate.faction\n    : defaults.profile.faction;\n  return {\n    ...defaults.profile,\n    ...candidate,\n    name,\n    faction,\n    signedIn: Boolean(candidate.signedIn),\n    avatar: typeof candidate.avatar === "string" ? candidate.avatar : defaults.profile.avatar,\n    titleId: typeof candidate.titleId === "string" ? candidate.titleId : defaults.profile.titleId,\n    coverId: typeof candidate.coverId === "string" ? candidate.coverId : defaults.profile.coverId,\n    showcaseAchievementIds: Array.isArray(candidate.showcaseAchievementIds)\n      ? candidate.showcaseAchievementIds.filter((item) => typeof item === "string").slice(0, 3)\n      : [],\n    showcaseDeckIds: Array.isArray(candidate.showcaseDeckIds)\n      ? candidate.showcaseDeckIds.filter((item) => typeof item === "string").slice(0, 3)\n      : [],\n  };\n}\n\nfunction normalizeStoredArray(value) {\n  return Array.isArray(value) ? value : [];\n}\n\nfunction normalizeStoredSettings(value) {\n  return value && typeof value === "object" && !Array.isArray(value)\n    ? { ...defaults.settings, ...value }\n    : { ...defaults.settings };\n}\n\n'''
+          replace_once(provider, old_helpers, "")
+
+          old_guest = '''function readGuestSnapshot(fallback) {\n  try {\n    const stored = {};\n    for (const [field, key] of Object.entries(LOCAL_SNAPSHOT_KEYS)) {\n      const value = localStorage.getItem(key);\n      if (value !== null) stored[field] = JSON.parse(value);\n    }\n    return normalizeSnapshot({\n      ...fallback,\n      ...stored,\n      profile: { ...(stored.profile ?? fallback.profile), signedIn: false },\n    }, fallback);\n  } catch {\n    return fallback;\n  }\n}\n'''
+          new_guest = '''function readGuestSnapshot(fallback) {\n  try {\n    const stored = {};\n    for (const [field, key] of Object.entries(LOCAL_SNAPSHOT_KEYS)) {\n      const value = localStorage.getItem(key);\n      if (value !== null) stored[field] = JSON.parse(value);\n    }\n    return normalizeSnapshot({\n      ...fallback,\n      ...stored,\n      profile: { ...normalizeStoredProfile(stored.profile ?? fallback.profile), signedIn: false },\n      decks: normalizeStoredDecks(stored.decks ?? fallback.decks),\n      deletedDecks: normalizeStoredDeletedDecks(stored.deletedDecks ?? fallback.deletedDecks),\n      history: normalizeStoredHistory(stored.history ?? fallback.history),\n      settings: normalizeStoredSettings(stored.settings ?? fallback.settings),\n      selectedDeckId: normalizeStoredText(stored.selectedDeckId ?? fallback.selectedDeckId),\n      builderDeck: normalizeStoredBuilderDeck(stored.builderDeck ?? fallback.builderDeck),\n      format: normalizeStoredFormat(stored.format ?? fallback.format),\n      matchMode: normalizeStoredMatchMode(stored.matchMode ?? fallback.matchMode),\n      match: normalizeStoredMatch(stored.match ?? fallback.match),\n      online: normalizeStoredBoolean(stored.online ?? fallback.online),\n      playerId: normalizeStoredPlayerId(stored.playerId ?? fallback.playerId),\n      updatedAt: normalizeStoredNumber(stored.updatedAt ?? fallback.updatedAt),\n    }, fallback);\n  } catch {\n    return fallback;\n  }\n}\n'''
+          replace_once(provider, old_guest, new_guest)
+
+          replacements = {
+            'useStoredState("bbp-decks-complete-set-v4", [], { debounceMs: 750, normalize: normalizeStoredArray, writeEnabled: writeLocal })': 'useStoredState("bbp-decks-complete-set-v4", [], { debounceMs: 750, normalize: normalizeStoredDecks, writeEnabled: writeLocal })',
+            'useStoredState("bbp-deleted-decks-v1", [], { debounceMs: 750, normalize: normalizeStoredArray, report: false, writeEnabled: writeLocal })': 'useStoredState("bbp-deleted-decks-v1", [], { debounceMs: 750, normalize: normalizeStoredDeletedDecks, report: false, writeEnabled: writeLocal })',
+            'useStoredState("bbp-history", [], { debounceMs: 750, normalize: normalizeStoredArray, writeEnabled: writeLocal })': 'useStoredState("bbp-history", [], { debounceMs: 750, normalize: normalizeStoredHistory, writeEnabled: writeLocal })',
+            'useStoredState("bbp-selected-deck-v1", "", { debounceMs: 300, writeEnabled: writeLocal })': 'useStoredState("bbp-selected-deck-v1", "", { debounceMs: 300, normalize: normalizeStoredText, writeEnabled: writeLocal })',
+            'useStoredState("bbp-builder-draft-v1", null, { debounceMs: 750, writeEnabled: writeLocal })': 'useStoredState("bbp-builder-draft-v1", null, { debounceMs: 750, normalize: normalizeStoredBuilderDeck, writeEnabled: writeLocal })',
+            'useStoredState("bbp-deck-query-v1", "", { storage: "session", debounceMs: 500, report: false, migrateFromLocal: true, writeEnabled: writeLocal })': 'useStoredState("bbp-deck-query-v1", "", { storage: "session", debounceMs: 500, normalize: normalizeStoredText, report: false, migrateFromLocal: true, writeEnabled: writeLocal })',
+            'useStoredState("bbp-compendium-query-v1", "", { storage: "session", debounceMs: 500, report: false, migrateFromLocal: true, writeEnabled: writeLocal })': 'useStoredState("bbp-compendium-query-v1", "", { storage: "session", debounceMs: 500, normalize: normalizeStoredText, report: false, migrateFromLocal: true, writeEnabled: writeLocal })',
+            'useStoredState("bbp-compendium-tab-v1", "cards", { storage: "session", debounceMs: 300, report: false, migrateFromLocal: true, writeEnabled: writeLocal })': 'useStoredState("bbp-compendium-tab-v1", "cards", { storage: "session", debounceMs: 300, normalize: normalizeStoredCompendiumTab, report: false, migrateFromLocal: true, writeEnabled: writeLocal })',
+            'useStoredState("bbp-match-format-v1", "bo1", { debounceMs: 300, writeEnabled: writeLocal })': 'useStoredState("bbp-match-format-v1", "bo1", { debounceMs: 300, normalize: normalizeStoredFormat, writeEnabled: writeLocal })',
+            'useStoredState("bbp-match-mode-v1", "solo", { debounceMs: 300, writeEnabled: writeLocal })': 'useStoredState("bbp-match-mode-v1", "solo", { debounceMs: 300, normalize: normalizeStoredMatchMode, writeEnabled: writeLocal })',
+            'useStoredState("bbp-join-code-v1", "", { storage: "session", debounceMs: 300, report: false, migrateFromLocal: true, writeEnabled: writeLocal })': 'useStoredState("bbp-join-code-v1", "", { storage: "session", debounceMs: 300, normalize: normalizeStoredJoinCode, report: false, migrateFromLocal: true, writeEnabled: writeLocal })',
+            'useStoredState("bbp-active-match-v1", null, { debounceMs: 300, report: false, writeEnabled: writeLocal })': 'useStoredState("bbp-active-match-v1", null, { debounceMs: 300, normalize: normalizeStoredMatch, report: false, writeEnabled: writeLocal })',
+            'useStoredState("bbp-active-match-online-v1", false, { debounceMs: 300, report: false, writeEnabled: writeLocal })': 'useStoredState("bbp-active-match-online-v1", false, { debounceMs: 300, normalize: normalizeStoredBoolean, report: false, writeEnabled: writeLocal })',
+            'useStoredState("bbp-open-replay-v1", null, { storage: "session", debounceMs: 300, report: false, migrateFromLocal: true, writeEnabled: writeLocal })': 'useStoredState("bbp-open-replay-v1", null, { storage: "session", debounceMs: 300, normalize: normalizeStoredReplay, report: false, migrateFromLocal: true, writeEnabled: writeLocal })',
+            'useStoredState("bbp-replay-index-v1", 0, { storage: "session", debounceMs: 250, report: false, migrateFromLocal: true, writeEnabled: writeLocal })': 'useStoredState("bbp-replay-index-v1", 0, { storage: "session", debounceMs: 250, normalize: normalizeStoredNumber, report: false, migrateFromLocal: true, writeEnabled: writeLocal })',
+            'useStoredState("bbp-player-id", "player", { debounceMs: 300, report: false, writeEnabled: writeLocal })': 'useStoredState("bbp-player-id", "player", { debounceMs: 300, normalize: normalizeStoredPlayerId, report: false, writeEnabled: writeLocal })',
+            'useStoredState("bbp-match-capability-v2", "", { storage: "session", debounceMs: 100, report: false, migrateFromLocal: true, writeEnabled: writeLocal })': 'useStoredState("bbp-match-capability-v2", "", { storage: "session", debounceMs: 100, normalize: normalizeStoredText, report: false, migrateFromLocal: true, writeEnabled: writeLocal })',
+            'useStoredState("bbp-local-modified-at-v1", 0, { debounceMs: 500, report: false, writeEnabled: writeLocal })': 'useStoredState("bbp-local-modified-at-v1", 0, { debounceMs: 500, normalize: normalizeStoredNumber, report: false, writeEnabled: writeLocal })',
+          }
+          for old, new in replacements.items():
+              replace_once(provider, old, new)
+
+          test_file = Path("tests/guest-first-auth.test.ts")
+          text = test_file.read_text()
+          text = text.replace(
+              'import { summarizeGuestData } from "../lib/guest-data";\n',
+              'import { summarizeGuestData } from "../lib/guest-data";\nimport { achievementsFor } from "../lib/achievements";\nimport { normalizeStoredDecks, normalizeStoredHistory, normalizeStoredMatch, normalizeStoredProfile } from "../lib/local-storage-normalization";\n',
+              1,
+          )
+          marker = '''test("guest boot normalizes legacy local shell data before rendering", () => {\n'''
+          regression = '''test("guest storage sanitizes malformed legacy records before application code sees them", () => {\n  const profile = normalizeStoredProfile({ name: null, faction: "Unknown", signedIn: "yes" });\n  const decks = normalizeStoredDecks([null, "old-deck", { id: "broken", name: "Broken", bakuganIds: null, coreIds: [], cardIds: [] }]);\n  const history = normalizeStoredHistory([\n    null,\n    "old-match",\n    { id: "match-1", result: "Victor", opponent: "Rival", score: "1-0", reason: null, at: "invalid-date", log: [null, { message: 42 }] },\n  ]);\n\n  assert.equal(profile.name, "DanBrawler");\n  assert.equal(profile.faction, "Pyrus");\n  assert.deepEqual(decks, []);\n  assert.equal(history.length, 1);\n  assert.equal(history[0].at, "1970-01-01T00:00:00.000Z");\n  assert.equal(history[0].log.length, 1);\n  assert.equal(history[0].log[0].message, "");\n  assert.equal(normalizeStoredMatch({ phase: "lobby", players: [] }), null);\n  assert.doesNotThrow(() => achievementsFor(decks, history));\n});\n\n'''
+          if marker not in text:
+              raise SystemExit("guest regression insertion marker missing")
+          text = text.replace(marker, regression + marker, 1)
+          text = text.replace(
+              '  assert.match(provider, /normalizeStoredArray/);\n',
+              '  assert.match(provider, /normalizeStoredDecks/);\n  assert.match(provider, /normalizeStoredHistory/);\n  assert.match(provider, /normalizeStoredMatch/);\n',
+              1,
+          )
+          text = text.replace(
+              '  assert.match(provider, /bbp-decks-complete-set-v4[\\s\\S]*normalize: normalizeStoredArray/);\n  assert.match(provider, /bbp-history[\\s\\S]*normalize: normalizeStoredArray/);\n',
+              '  assert.match(provider, /bbp-decks-complete-set-v4[\\s\\S]*normalize: normalizeStoredDecks/);\n  assert.match(provider, /bbp-history[\\s\\S]*normalize: normalizeStoredHistory/);\n  assert.match(provider, /bbp-active-match-v1[\\s\\S]*normalize: normalizeStoredMatch/);\n',
+              1,
+          )
+          test_file.write_text(text)
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test guest storage regressions
+        run: node --import tsx --test tests/guest-first-auth.test.ts tests/lobby-flow.test.ts
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate diff
+        run: git diff --check
+
+      - name: Commit validated fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-guest-legacy-storage-20260808.yml
+          git add lib/local-storage-normalization.ts components/application/AppProvider.jsx tests/guest-first-auth.test.ts
+          git commit -m "Recover guest shell from legacy browser data"
+          git push origin HEAD:main
