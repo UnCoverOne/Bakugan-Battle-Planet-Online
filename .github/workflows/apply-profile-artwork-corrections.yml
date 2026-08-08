@@ -1,0 +1,288 @@
+name: Apply profile artwork corrections
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-profile-artwork-corrections.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply requested profile corrections
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise SystemExit(f"Could not find {label}")
+              return text.replace(old, new, 1)
+
+          avatar_path = Path("components/profile/ProfileAvatar.tsx")
+          avatar_path.write_text('''import type { CSSProperties } from "react";
+          import type { BrawlerProfile } from "../../lib/persistence";
+          import {
+            PROFILE_AVATARS,
+            PROFILE_AVATAR_SPRITE,
+          } from "../../lib/profile-customization";
+
+          export const PROFILE_AVATAR_PRESETS = PROFILE_AVATARS.map((item) => ({
+            id: item.id,
+            name: item.label,
+            position: item.position,
+          }));
+
+          function profileAvatarPreset(avatar?: string) {
+            if (!avatar?.startsWith("preset:")) return null;
+            const id = avatar.slice("preset:".length);
+            return PROFILE_AVATARS.find((item) => item.id === id) ?? null;
+          }
+
+          export function profileAvatarSource(avatar?: string) {
+            return profileAvatarPreset(avatar) ? PROFILE_AVATAR_SPRITE : null;
+          }
+
+          export function profileAvatarStyle(avatar?: string): CSSProperties {
+            const preset = profileAvatarPreset(avatar);
+            if (!preset) return {};
+            return {
+              backgroundImage: `url("${PROFILE_AVATAR_SPRITE}")`,
+              backgroundSize: "500% 500%",
+              backgroundPosition: preset.position,
+              backgroundRepeat: "no-repeat",
+              backgroundColor: "transparent",
+            };
+          }
+
+          export function ProfileAvatar({
+            profile,
+            className,
+          }: {
+            profile: Pick<BrawlerProfile, "name" | "avatar">;
+            className?: string;
+          }) {
+            if (!profileAvatarSource(profile.avatar)) {
+              return (
+                <span className={className}>
+                  {profile.name.slice(0, 2).toUpperCase()}
+                </span>
+              );
+            }
+
+            return (
+              <span
+                className={className}
+                style={profileAvatarStyle(profile.avatar)}
+                aria-hidden="true"
+              />
+            );
+          }
+          '''.replace("          ", ""), encoding="utf-8")
+
+          profile_path = Path("components/routes/ProfileScreen.tsx")
+          profile = profile_path.read_text(encoding="utf-8")
+          profile = replace_once(
+              profile,
+              '''            style={{
+                backgroundImage: `linear-gradient(90deg, rgba(0, 8, 13, .94) 0%, rgba(0, 8, 13, .7) 54%, rgba(0, 8, 13, .22) 100%), url("${PROFILE_COVER_SPRITE}")`,
+                backgroundSize: "100% 100%, 100% 1000%",
+                backgroundPosition: `0 0, ${selectedCover.position}`,
+                backgroundRepeat: "no-repeat",
+              }}''',
+              '''            style={{
+                backgroundImage: `url("${PROFILE_COVER_SPRITE}")`,
+                backgroundSize: "100% 1000%",
+                backgroundPosition: selectedCover.position,
+                backgroundRepeat: "no-repeat",
+              }}''',
+              "profile cover overlay",
+          )
+          profile = replace_once(
+              profile,
+              '''          description="Choose one of the Brawler Profile Icons."
+          onClose={() => setDialog(null)}
+        >
+          <div className={styles.avatarPresetGrid}>
+            {PROFILE_AVATAR_PRESETS.map((item) => (''',
+              '''          description="Choose your account initials or one of the Brawler Profile Icons."
+          onClose={() => setDialog(null)}
+        >
+          <div className={styles.avatarPresetGrid}>
+            <button
+              type="button"
+              aria-label="Use account initials profile picture"
+              aria-pressed={!profile.avatar}
+              onClick={() => {
+                updateCustomization(
+                  { avatar: "" },
+                  "Profile picture reset to account initials",
+                );
+                setDialog(null);
+              }}
+            >
+              <span
+                className={`${styles.avatarPresetIcon} ${styles.avatarInitialsPreview}`}
+                aria-hidden="true"
+              >
+                {profile.name.slice(0, 2).toUpperCase()}
+              </span>
+              <span>Account initials</span>
+            </button>
+            {PROFILE_AVATAR_PRESETS.map((item) => (''',
+              "account initials selector option",
+          )
+          profile_path.write_text(profile, encoding="utf-8")
+
+          css_path = Path("components/routes/ProfileScreen.module.css")
+          css = css_path.read_text(encoding="utf-8")
+          css = replace_once(
+              css,
+              '''  box-shadow:
+    inset 0 -8rem 12rem rgba(0, 7, 11, .56),
+    0 1.5rem 4rem rgba(0, 0, 0, .28);''',
+              '''  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, .28);''',
+              "identity inset dimming shadow",
+          )
+          css = replace_once(
+              css,
+              '''.identityCard::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(0deg, rgba(0, 7, 11, .74), transparent 48%),
+    radial-gradient(circle at 24% 70%, color-mix(in srgb, var(--profile-faction) 26%, transparent), transparent 45%);
+  pointer-events: none;
+}''',
+              '''.identityCard::after {
+  display: none;
+}''',
+              "identity cover pseudo overlay",
+          )
+          css = replace_once(
+              css,
+              '''  grid-template-rows: 8.5rem auto;''',
+              '''  grid-template-rows: auto auto;''',
+              "avatar selector row sizing",
+          )
+          css = replace_once(
+              css,
+              '''.avatarPresetIcon {
+  width: 100%;
+  height: 8.5rem;
+  display: block;
+  background-color: #01080c;
+}''',
+              '''.avatarPresetIcon {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background-color: #01080c;
+}
+
+.avatarInitialsPreview {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle, rgba(69, 198, 224, .28), #020b10 72%);
+  color: white;
+  font-size: clamp(1.65rem, 4vw, 2.8rem);
+  font-weight: 900;
+  letter-spacing: .04em;
+}''',
+              "avatar selector aspect ratio",
+          )
+          css = replace_once(
+              css,
+              '''.coverArt {
+  position: absolute;
+  inset: 0;
+  display: block;
+  opacity: .72;
+}''',
+              '''.coverArt {
+  position: absolute;
+  inset: 0;
+  display: block;
+  opacity: 1;
+}''',
+              "cover selector opacity",
+          )
+          css = replace_once(
+              css,
+              '''.coverGrid button::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(0deg, rgba(0, 8, 12, .94), transparent 78%);
+}
+
+''',
+              "",
+              "cover selector dark overlay",
+          )
+          css = replace_once(
+              css,
+              '''  .identityCard::after {
+    background:
+      linear-gradient(0deg, rgba(0, 7, 11, .86), rgba(0, 7, 11, .08) 82%),
+      linear-gradient(90deg, rgba(0, 7, 11, .62), transparent 76%);
+  }
+
+''',
+              "",
+              "mobile cover dark overlay",
+          )
+          css_path.write_text(css, encoding="utf-8")
+
+          test_path = Path("tests/profile-customization.test.ts")
+          tests = test_path.read_text(encoding="utf-8")
+          tests = replace_once(
+              tests,
+              '''  assert.doesNotMatch(implementation, /Reset to initials/);
+  assert.doesNotMatch(implementation, /item\\.character/);
+  assert.doesNotMatch(styles, /aspect-ratio:\\s*16\\s*\\/\\s*9/);
+  assert.match(styles, /\\.identityCard\\s*\\{[\\s\\S]*?aspect-ratio:\\s*4\\s*\\/\\s*1/);
+  assert.match(styles, /\\.coverGrid button\\s*\\{[\\s\\S]*?aspect-ratio:\\s*4\\s*\\/\\s*1/);''',
+              '''  assert.match(implementation, /Account initials/);
+  assert.match(implementation, /\\{ avatar: "" \\}/);
+  assert.doesNotMatch(implementation, /item\\.character/);
+  assert.doesNotMatch(implementation, /backgroundImage: `linear-gradient/);
+  assert.doesNotMatch(styles, /aspect-ratio:\\s*16\\s*\\/\\s*9/);
+  assert.match(styles, /\\.identityCard\\s*\\{[\\s\\S]*?aspect-ratio:\\s*4\\s*\\/\\s*1/);
+  assert.match(styles, /\\.avatarPresetIcon\\s*\\{[\\s\\S]*?aspect-ratio:\\s*1/);
+  assert.match(styles, /\\.coverGrid button\\s*\\{[\\s\\S]*?aspect-ratio:\\s*4\\s*\\/\\s*1/);
+  assert.match(styles, /\\.coverArt\\s*\\{[\\s\\S]*?opacity:\\s*1/);
+  assert.match(styles, /\\.identityCard::after\\s*\\{[\\s\\S]*?display:\\s*none/);
+  assert.doesNotMatch(styles, /\\.coverGrid button::after/);''',
+              "profile artwork regression assertions",
+          )
+          tests += '''\n\ntest("profile avatar preserves the account-initials default", () => {\n  const avatar = readFileSync("components/profile/ProfileAvatar.tsx", "utf8");\n  assert.match(avatar, /if \\(!profileAvatarSource\\(profile\\.avatar\\)\\)/);\n  assert.match(avatar, /profile\\.name\\.slice\\(0, 2\\)\\.toUpperCase\\(\\)/);\n  assert.match(avatar, /if \\(!avatar\\?\\.startsWith\\("preset:"\\)\\) return null/);\n});\n'''
+          test_path.write_text(tests, encoding="utf-8")
+          PY
+
+          git diff --check
+          npm ci --ignore-scripts
+          node --import tsx --test tests/profile-customization.test.ts
+
+          rm .github/workflows/apply-profile-artwork-corrections.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Restore profile initials and undim artwork"
+          git push origin HEAD:main
