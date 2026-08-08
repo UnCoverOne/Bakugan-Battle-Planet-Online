@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { achievementsFor, type Achievement } from "../../lib/achievements";
 import { accountStatMatches } from "../../lib/match-statistics";
 import { BAKUGAN, validateDeck, type DeckRecord } from "../../lib/data";
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
 import {
+  PROFILE_COVER_SPRITE,
   PROFILE_COVERS,
   PROFILE_SHOWCASE_LIMIT,
   PROFILE_TITLES,
@@ -21,6 +22,7 @@ import { copyText, formatTimestamp } from "../application/ui";
 import {
   PROFILE_AVATAR_PRESETS,
   ProfileAvatar,
+  profileAvatarStyle,
 } from "../profile/ProfileAvatar";
 import {
   ActionButton,
@@ -33,7 +35,7 @@ import { AchievementsScreen } from "./AchievementsScreen";
 import styles from "./ProfileScreen.module.css";
 
 type ProfileSection = "overview" | "achievements" | "records";
-type ProfileDialog = "avatar" | "crop" | "title" | "cover";
+type ProfileDialog = "avatar" | "title" | "cover";
 
 const FACTION_SYMBOLS: Record<string, string> = {
   Aquos: "/assets/symbols/factions/aquos.png",
@@ -70,13 +72,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
     section === "records" ? decodeURIComponent(segments[1] ?? "") : "";
   const [saved, setSaved] = useState("");
   const [dialog, setDialog] = useState<ProfileDialog | null>(null);
-  const [cropSource, setCropSource] = useState("");
-  const [cropX, setCropX] = useState(50);
-  const [cropY, setCropY] = useState(50);
-  const [cropZoom, setCropZoom] = useState(1);
-  const [uploadError, setUploadError] = useState("");
   const [recordFilter, setRecordFilter] = useState("all");
-  const uploadRef = useRef<HTMLInputElement>(null);
   const achievements = useMemo(
     () => achievementsFor(decks, history),
     [decks, history],
@@ -116,13 +112,6 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
   const selectedCover =
     PROFILE_COVERS.find((item) => item.id === profile.coverId) ??
     PROFILE_COVERS[0];
-  const coverCharacter = BAKUGAN.find(
-    (item) => item.faction === (selectedCover.faction ?? profile.faction),
-  );
-  const coverSource = coverCharacter
-    ? cardArtSource(coverCharacter.character, "full")
-    : "";
-
   useEffect(() => {
     if (!recordId) return;
     const record = history.find((item: any) => item.id === recordId);
@@ -204,79 +193,6 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
     window.setTimeout(() => setSaved(""), 2400);
   };
 
-  const receiveUpload = (file?: File) => {
-    setUploadError("");
-    if (!file) return;
-    if (!/^image\/(?:png|jpe?g|webp)$/i.test(file.type)) {
-      setUploadError("Choose a PNG, JPEG, or WebP image.");
-      return;
-    }
-    if (file.size > 8 * 1024 * 1024) {
-      setUploadError("Choose an image smaller than 8 MB.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        setUploadError("The image could not be read.");
-        return;
-      }
-      setCropSource(reader.result);
-      setCropX(50);
-      setCropY(50);
-      setCropZoom(1);
-      setDialog("crop");
-    };
-    reader.onerror = () => setUploadError("The image could not be read.");
-    reader.readAsDataURL(file);
-  };
-
-  const applyCrop = async () => {
-    try {
-      const image = new Image();
-      image.src = cropSource;
-      await image.decode();
-      const size = 512;
-      const scale =
-        Math.max(size / image.naturalWidth, size / image.naturalHeight) *
-        cropZoom;
-      const sourceWidth = size / scale;
-      const sourceHeight = size / scale;
-      const sourceX =
-        Math.max(0, image.naturalWidth - sourceWidth) * (cropX / 100);
-      const sourceY =
-        Math.max(0, image.naturalHeight - sourceHeight) * (cropY / 100);
-      const canvas = document.createElement("canvas");
-      canvas.width = size;
-      canvas.height = size;
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("Image cropping is unavailable.");
-      context.drawImage(
-        image,
-        sourceX,
-        sourceY,
-        sourceWidth,
-        sourceHeight,
-        0,
-        0,
-        size,
-        size,
-      );
-      updateCustomization(
-        { avatar: canvas.toDataURL("image/jpeg", 0.86) },
-        "Profile picture updated",
-      );
-      setCropSource("");
-      setDialog(null);
-    } catch (error) {
-      setUploadError(
-        error instanceof Error
-          ? error.message
-          : "The image could not be cropped.",
-      );
-    }
-  };
-
   return (
     <div className={styles.route}>
       <Tabs label="Profile sections" className={styles.tabs}>
@@ -303,13 +219,12 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
         <main className={styles.profileOverview}>
           <section
             className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]}`}
-            style={
-              coverSource
-                ? {
-                    backgroundImage: `linear-gradient(90deg, rgba(0, 8, 13, .94) 0%, rgba(0, 8, 13, .7) 54%, rgba(0, 8, 13, .22) 100%), url("${coverSource}")`,
-                  }
-                : undefined
-            }
+            style={{
+              backgroundImage: `linear-gradient(90deg, rgba(0, 8, 13, .94) 0%, rgba(0, 8, 13, .7) 54%, rgba(0, 8, 13, .22) 100%), url("${PROFILE_COVER_SPRITE}")`,
+              backgroundSize: "100% 100%, 100% 1000%",
+              backgroundPosition: `0 0, ${selectedCover.position}`,
+              backgroundRepeat: "no-repeat",
+            }}
           >
             <button
               className={`${styles.editButton} ${styles.coverEdit}`}
@@ -457,8 +372,8 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
 
       {dialog === "avatar" && (
         <ProfileModal
-          title="Edit profile picture"
-          description="Choose a Bakugan preset, upload and crop your own image, or restore the automated initials."
+          title="Choose a profile picture"
+          description="Choose one of the Brawler Profile Icons."
           onClose={() => setDialog(null)}
         >
           <div className={styles.avatarPresetGrid}>
@@ -466,6 +381,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
               <button
                 type="button"
                 key={item.id}
+                aria-label={`Use ${item.name} profile icon`}
                 aria-pressed={profile.avatar === `preset:${item.id}`}
                 onClick={() => {
                   updateCustomization(
@@ -475,104 +391,14 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                   setDialog(null);
                 }}
               >
-                <img src={cardArtSource(item.character, "full")} alt="" />
+                <span
+                  className={styles.avatarPresetIcon}
+                  style={profileAvatarStyle(`preset:${item.id}`)}
+                  aria-hidden="true"
+                />
                 <span>{item.name}</span>
               </button>
             ))}
-          </div>
-          <input
-            ref={uploadRef}
-            className={styles.hiddenUpload}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(event) => receiveUpload(event.target.files?.[0])}
-          />
-          {uploadError && (
-            <p className={styles.dialogError} role="alert">
-              {uploadError}
-            </p>
-          )}
-          <div className={styles.dialogActions}>
-            <ActionButton
-              tone="secondary"
-              onClick={() => uploadRef.current?.click()}
-            >
-              Upload your own
-            </ActionButton>
-            <ActionButton
-              tone="quiet"
-              onClick={() => {
-                updateCustomization(
-                  { avatar: "" },
-                  "Profile picture reset to initials",
-                );
-                setDialog(null);
-              }}
-            >
-              Reset to initials
-            </ActionButton>
-          </div>
-        </ProfileModal>
-      )}
-
-      {dialog === "crop" && (
-        <ProfileModal
-          title="Crop profile picture"
-          description="Move the crop focus and zoom until the square preview is ready."
-          onClose={() => setDialog(null)}
-        >
-          <div className={styles.cropPreview}>
-            <img
-              src={cropSource}
-              alt="Profile picture crop preview"
-              style={{
-                objectPosition: `${cropX}% ${cropY}%`,
-                transform: `scale(${cropZoom})`,
-              }}
-            />
-          </div>
-          <div className={styles.cropControls}>
-            <Field label="Horizontal focus">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={cropX}
-                onChange={(event) => setCropX(Number(event.target.value))}
-              />
-            </Field>
-            <Field label="Vertical focus">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={cropY}
-                onChange={(event) => setCropY(Number(event.target.value))}
-              />
-            </Field>
-            <Field label="Zoom">
-              <input
-                type="range"
-                min="1"
-                max="3"
-                step=".05"
-                value={cropZoom}
-                onChange={(event) => setCropZoom(Number(event.target.value))}
-              />
-            </Field>
-          </div>
-          {uploadError && (
-            <p className={styles.dialogError} role="alert">
-              {uploadError}
-            </p>
-          )}
-          <div className={styles.dialogActions}>
-            <ActionButton tone="secondary" onClick={() => setDialog("avatar")}>
-              Back
-            </ActionButton>
-            <ActionButton onClick={() => void applyCrop()}>
-              Use cropped picture
-            </ActionButton>
           </div>
         </ProfileModal>
       )}
@@ -625,7 +451,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
       {dialog === "cover" && (
         <ProfileModal
           title="Choose a Cover"
-          description="Cover images are earned through achievements and use artwork already available in the game."
+          description="Choose one of the Brawler Profile Covers."
           onClose={() => setDialog(null)}
         >
           <div className={styles.coverGrid}>
@@ -633,9 +459,6 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
               const unlocked = profileRewardUnlocked(
                 cover,
                 completedAchievementIds,
-              );
-              const character = BAKUGAN.find(
-                (item) => item.faction === (cover.faction ?? profile.faction),
               );
               const requirement = cover.achievementId
                 ? achievements.find(
@@ -656,13 +479,17 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                     setDialog(null);
                   }}
                 >
-                  {character && (
-                    <img
-                      src={cardArtSource(character.character, "full")}
-                      alt=""
-                    />
-                  )}
-                  <span>
+                  <span
+                    className={styles.coverArt}
+                    style={{
+                      backgroundImage: `url("${PROFILE_COVER_SPRITE}")`,
+                      backgroundSize: "100% 1000%",
+                      backgroundPosition: cover.position,
+                      backgroundRepeat: "no-repeat",
+                    }}
+                    aria-hidden="true"
+                  />
+                  <span className={styles.coverCopy}>
                     <strong>{cover.label}</strong>
                     <small>{unlocked ? requirement : `Locked · ${requirement}`}</small>
                   </span>

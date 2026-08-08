@@ -1,7 +1,10 @@
 export const PROFILE_SHOWCASE_LIMIT = 3;
 
 export const PROFILE_AVATAR_SPRITE =
-  "/assets/profile/brawler-profile-icons.svg";
+  "/assets/profile/brawler-profile-icons.avif";
+
+export const PROFILE_COVER_SPRITE =
+  "/assets/profile/brawler-profile-covers.avif";
 
 export type ProfileReward = {
   id: string;
