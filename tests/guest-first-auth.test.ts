@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { summarizeGuestData } from "../lib/guest-data";
+import { achievementsFor } from "../lib/achievements";
+import { normalizeStoredDecks, normalizeStoredHistory, normalizeStoredMatch, normalizeStoredProfile } from "../lib/local-storage-normalization";
 import type { UserSnapshot } from "../lib/persistence";
 
 const source = (path: string) => readFileSync(path, "utf8");
@@ -48,15 +50,38 @@ test("guest identity is generic and the avatar menu exposes only account access 
   assert.match(css, /profile-popover-auth/);
 });
 
+test("guest storage sanitizes malformed legacy records before application code sees them", () => {
+  const profile = normalizeStoredProfile({ name: null, faction: "Unknown", signedIn: "yes" });
+  const decks = normalizeStoredDecks([null, "old-deck", { id: "broken", name: "Broken", bakuganIds: null, coreIds: [], cardIds: [] }]);
+  const history = normalizeStoredHistory([
+    null,
+    "old-match",
+    { id: "match-1", result: "Victor", opponent: "Rival", score: "1-0", reason: null, at: "invalid-date", log: [null, { message: 42 }] },
+  ]);
+
+  assert.equal(profile.name, "DanBrawler");
+  assert.equal(profile.faction, "Pyrus");
+  assert.deepEqual(decks, []);
+  assert.equal(history.length, 1);
+  assert.equal(history[0].at, "1970-01-01T00:00:00.000Z");
+  assert.equal(history[0].log.length, 1);
+  assert.equal(history[0].log[0].message, "");
+  assert.equal(normalizeStoredMatch({ phase: "lobby", players: [] }), null);
+  assert.doesNotThrow(() => achievementsFor(decks, history));
+});
+
 test("guest boot normalizes legacy local shell data before rendering", () => {
   const provider = source("components/application/AppProvider.jsx");
   assert.match(provider, /normalizeStoredProfile/);
-  assert.match(provider, /normalizeStoredArray/);
+  assert.match(provider, /normalizeStoredDecks/);
+  assert.match(provider, /normalizeStoredHistory/);
+  assert.match(provider, /normalizeStoredMatch/);
   assert.match(provider, /normalizeStoredSettings/);
   assert.match(provider, /const normalized = normalize\(JSON\.parse\(saved\)\)/);
   assert.match(provider, /bbp-profile[\s\S]*normalize: normalizeStoredProfile/);
-  assert.match(provider, /bbp-decks-complete-set-v4[\s\S]*normalize: normalizeStoredArray/);
-  assert.match(provider, /bbp-history[\s\S]*normalize: normalizeStoredArray/);
+  assert.match(provider, /bbp-decks-complete-set-v4[\s\S]*normalize: normalizeStoredDecks/);
+  assert.match(provider, /bbp-history[\s\S]*normalize: normalizeStoredHistory/);
+  assert.match(provider, /bbp-active-match-v1[\s\S]*normalize: normalizeStoredMatch/);
   assert.match(provider, /bbp-settings[\s\S]*normalize: normalizeStoredSettings/);
 });
 
