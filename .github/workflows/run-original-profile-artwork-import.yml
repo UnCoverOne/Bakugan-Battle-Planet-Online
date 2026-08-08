@@ -1,0 +1,45 @@
+name: Run original profile artwork import
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/run-original-profile-artwork-import.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/profile-original-artwork-v2
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Execute the staged import workflow scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml
+          python <<'PY'
+          from pathlib import Path
+          import subprocess
+          import yaml
+
+          workflow = yaml.safe_load(Path('.github/workflows/import-original-profile-artwork.yml').read_text())
+          steps = workflow['jobs']['import']['steps']
+          for step in steps:
+              script = step.get('run')
+              if not script:
+                  continue
+              name = step.get('name', 'unnamed step')
+              print(f'::group::{name}')
+              subprocess.run(['bash', '-euo', 'pipefail', '-c', script], check=True)
+              print('::endgroup::')
+          PY
