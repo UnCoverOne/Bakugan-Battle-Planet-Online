@@ -4,8 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { addChatMessage, chatEntries, normalizeChatMessage } from "../../lib/chat";
-import { makeCanonicalPlayer, validateDeck, type CanonicalPlayerSelection, type DeckRecord } from "../../lib/data";
-import type { MatchState, PlayerState } from "../../lib/game";
+import {
+  CARD_BY_ID,
+  deckLeadCard,
+  makeCanonicalPlayer,
+  validateDeck,
+  type CanonicalPlayerSelection,
+  type DeckRecord,
+} from "../../lib/data";
+import { deckSetName } from "../../lib/deck-set";
+import { cardArtSource } from "../../lib/content/card-art";
+import type { GameCard, MatchState, PlayerState } from "../../lib/game";
 import {
   lobbyConfig,
   playerLobbyDeckFormat,
@@ -23,7 +32,7 @@ import {
 } from "../../lib/lobby";
 import { syncTrainingBotForLobby } from "../../lib/training-lobby";
 import { useApp } from "../application/AppProvider";
-import { Badge, PageHeader } from "../application/ui";
+import { Badge, factionClass } from "../application/ui";
 import {
   primeMatchStore,
   publishMatch,
@@ -76,6 +85,23 @@ function canonicalSelection(playerId: string, playerName: string, deck: DeckReco
   };
 }
 
+function deckPreviewCards(deck: DeckRecord) {
+  const seen = new Set<string>();
+  return [...deck.bakuganIds.map((id) => CARD_BY_ID.get(id)), deckLeadCard(deck)].filter((card): card is GameCard => {
+    if (!card || seen.has(card.catalogId)) return false;
+    seen.add(card.catalogId);
+    return true;
+  });
+}
+
+function deckTags(deck: DeckRecord) {
+  return (deck.tags ?? []).filter(Boolean).slice(0, 4);
+}
+
+function ChevronArrow() {
+  return <svg className={styles.buttonArrow} viewBox="0 0 24 24" aria-hidden="true"><path d="m8 4 8 8-8 8" /></svg>;
+}
+
 export function LobbyRoomScreen() {
   const router = useRouter();
   const {
@@ -93,6 +119,7 @@ export function LobbyRoomScreen() {
   const [busy, setBusy] = useState<BusyAction>("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [deckPickerOpen, setDeckPickerOpen] = useState(false);
   const chatScroll = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -122,11 +149,15 @@ export function LobbyRoomScreen() {
   const isOwner = Boolean(ownerId && ownerId === room.playerId);
   const bothReady = Boolean(match && match.players.length === 2 && match.players.every((player) => player.ready));
   const requiredFormat = config ? requiredDeckFormat(config.rulesFormat) : "standard";
-  const compatibleDecks = (decks as DeckRecord[]).filter((deck) => {
+  const playerDecks = decks as DeckRecord[];
+  const compatibleDecks = playerDecks.filter((deck) => {
     const deckFormat = deck.format === "singleton" ? "singleton" : "standard";
     return deckFormat === requiredFormat && validateDeck(deck).isLegal;
   });
-  const currentDeck = compatibleDecks.find((deck) => deckMatchesPlayer(deck, me)) ?? null;
+  const compatibleDeckIds = new Set(compatibleDecks.map((deck) => deck.id));
+  const currentDeck = playerDecks.find((deck) => deckMatchesPlayer(deck, me)) ?? null;
+  const currentDeckCards = currentDeck ? deckPreviewCards(currentDeck) : [];
+  const currentDeckTags = currentDeck ? deckTags(currentDeck) : [];
   const myDeckFormatMatches = Boolean(me && playerLobbyDeckFormat(me) === requiredFormat);
 
   useEffect(() => {
@@ -138,6 +169,20 @@ export function LobbyRoomScreen() {
     const element = chatScroll.current;
     if (element) element.scrollTop = element.scrollHeight;
   }, [messages.length]);
+
+  useEffect(() => {
+    if (!deckPickerOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDeckPickerOpen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [deckPickerOpen]);
 
   const publishLocal = (next: MatchState) => {
     setMatch(next);
@@ -220,11 +265,12 @@ export function LobbyRoomScreen() {
 
   const selectDeck = async (deckId: string) => {
     if (!match || !me) return;
-    const deck = compatibleDecks.find((candidate) => candidate.id === deckId);
-    if (!deck) return;
+    const deck = playerDecks.find((candidate) => candidate.id === deckId);
+    if (!deck || !compatibleDeckIds.has(deck.id)) return;
     const selection = canonicalSelection(room.playerId, me.name, deck);
     if (room.online) {
-      await sendRoomCommand("lobby-deck", undefined, "deck", selection);
+      const result = await sendRoomCommand("lobby-deck", undefined, "deck", selection);
+      if (result) setDeckPickerOpen(false);
       return;
     }
     setBusy("deck");
@@ -232,6 +278,7 @@ export function LobbyRoomScreen() {
     try {
       const replacement = tagLobbyPlayerDeck(makeCanonicalPlayer(selection), selection.deck);
       publishLocal(replaceLobbyDeck(match, room.playerId, replacement));
+      setDeckPickerOpen(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The deck could not be selected.");
     } finally {
@@ -322,13 +369,22 @@ export function LobbyRoomScreen() {
 
   return (
     <div className={styles.route}>
-      <PageHeader
-        eyebrow={`${config.mode.toUpperCase()} LOBBY`}
-        title={`ROOM ${match.code}`}
-        copy={`${match.format === "bo3" ? "Best of Three" : "Best of One"} • ${formatLabel(config.rulesFormat)} • Battle Brawlers`}
-        art="/assets/brawlers-group.png"
-        actions={<button className={styles.copyButton} type="button" onClick={() => void copyRoomCode()}>{copied ? "COPIED" : "COPY ROOM CODE"}</button>}
-      />
+      <header className={styles.hero}>
+        <div className={styles.heroCopy}>
+          <p>{config.mode.toUpperCase()} LOBBY</p>
+          <h1>ROOM <strong>{match.code}</strong></h1>
+          <div className={styles.heroMeta}>
+            <span>{match.format === "bo3" ? "Best of Three" : "Best of One"}</span>
+            <span>{formatLabel(config.rulesFormat)}</span>
+            <span>Battle Brawlers</span>
+          </div>
+          <button className={styles.copyButton} type="button" onClick={() => void copyRoomCode()}>{copied ? "COPIED" : "COPY ROOM CODE"}</button>
+        </div>
+        <div className={styles.heroArt} aria-hidden="true">
+          <div className={styles.heroGrid} />
+          <img src="/assets/brawlers-group.png" alt="" />
+        </div>
+      </header>
 
       <main className={styles.layout}>
         <section className={styles.mainColumn}>
@@ -405,23 +461,41 @@ export function LobbyRoomScreen() {
             </div>
 
             <section className={styles.loadoutPanel}>
-              <div>
-                <span>YOUR DECK</span>
-                <h2>Select your deck</h2>
-                <p>{formatLabel(config.rulesFormat)} requires a {requiredFormat === "singleton" ? "Singleton" : "Standard"} deck. Changing deck makes you unready.</p>
+              <div className={styles.loadoutHeading}>
+                <div><span>YOUR DECK</span><h2>Battle loadout</h2></div>
+                <button type="button" onClick={() => setDeckPickerOpen(true)} disabled={busy === "deck" || !me}>
+                  <span>SELECT YOUR DECK</span><ChevronArrow />
+                </button>
               </div>
-              {compatibleDecks.length ? (
-                <select
-                  value={currentDeck?.id ?? ""}
-                  disabled={busy === "deck" || me?.ready}
-                  onChange={(event) => void selectDeck(event.target.value)}
-                  aria-label="Select lobby deck"
-                >
-                  <option value="" disabled>{currentDeck ? currentDeck.name : "Choose a deck"}</option>
-                  {compatibleDecks.map((deck) => <option value={deck.id} key={deck.id}>{deck.name}</option>)}
-                </select>
-              ) : <Link href="/decks">CREATE A COMPATIBLE DECK</Link>}
+
+              {currentDeck ? (
+                <div className={styles.featuredDeckLayout}>
+                  <div className={`${styles.featuredDeckStack} ${factionClass(currentDeck.factions[0] ?? "Pyrus")}`} aria-label={`Cards from ${currentDeck.name}`}>
+                    {currentDeckCards.length ? currentDeckCards.map((card) => (
+                      <div className={styles.featuredDeckCard} key={card.catalogId}>
+                        <img src={cardArtSource(card, "full")} alt={card.displayName} />
+                      </div>
+                    )) : <img className={styles.featuredDeckPlaceholder} src="/assets/cards/card-missing.svg" alt="Deck artwork unavailable" />}
+                  </div>
+                  <div className={styles.featuredDeckCopy}>
+                    <div className={styles.featuredDeckBadges}>
+                      <Badge tone="gold">{deckSetName(currentDeck).toUpperCase()}</Badge>
+                      <Badge>{currentDeck.factions.join(" • ")}</Badge>
+                    </div>
+                    <h3>{currentDeck.name}</h3>
+                    {currentDeckTags.length ? <div className={styles.deckTags}>{currentDeckTags.map((tag) => <span key={tag}>{tag}</span>)}</div> : null}
+                    <p>{formatLabel(config.rulesFormat)} requires a {requiredFormat === "singleton" ? "Singleton" : "Standard"} deck. Changing deck makes you unready.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.noDeckPreview}>
+                  <strong>SELECT A DECK</strong>
+                  <p>Choose one of your decks for this lobby.</p>
+                </div>
+              )}
+
               {!myDeckFormatMatches ? <p className={styles.deckWarning}>Your current seat deck does not match this lobby format. Select a compatible deck before readying.</p> : null}
+              {!compatibleDecks.length ? <Link className={styles.createDeckLink} href="/decks">CREATE A COMPATIBLE DECK</Link> : null}
             </section>
 
             <section className={styles.startPanel} aria-live="polite">
@@ -483,6 +557,43 @@ export function LobbyRoomScreen() {
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
         </aside>
       </main>
+
+      {deckPickerOpen ? (
+        <div className={styles.deckPickerBackdrop} onMouseDown={() => setDeckPickerOpen(false)}>
+          <section className={styles.deckPicker} role="dialog" aria-modal="true" aria-labelledby="deck-picker-heading" onMouseDown={(event) => event.stopPropagation()}>
+            <header>
+              <div><span>YOUR DECKS</span><h2 id="deck-picker-heading">Select your deck</h2></div>
+              <button type="button" aria-label="Close deck selection" onClick={() => setDeckPickerOpen(false)}>×</button>
+            </header>
+            <div className={styles.deckPickerGrid}>
+              {playerDecks.map((deck) => {
+                const lead = deckLeadCard(deck);
+                const tags = deckTags(deck);
+                const selectable = compatibleDeckIds.has(deck.id);
+                const selectedDeck = currentDeck?.id === deck.id;
+                return (
+                  <button
+                    type="button"
+                    className={`${styles.deckChoice} ${selectedDeck ? styles.deckChoiceSelected : ""}`}
+                    key={deck.id}
+                    disabled={!selectable || busy === "deck"}
+                    onClick={() => void selectDeck(deck.id)}
+                    aria-label={`${selectable ? "Select" : "Unavailable"} ${deck.name}`}
+                    title={selectable ? deck.name : `Requires a legal ${requiredFormat === "singleton" ? "Singleton" : "Standard"} deck`}
+                  >
+                    <span className={styles.deckChoiceArt}>
+                      <img src={lead ? cardArtSource(lead, "full") : "/assets/cards/card-missing.svg"} alt={lead?.displayName ?? "Deck featured card unavailable"} />
+                    </span>
+                    <strong>{deck.name}</strong>
+                    {tags.length ? <span className={styles.deckChoiceTags}>{tags.map((tag) => <span key={tag}>{tag}</span>)}</span> : null}
+                  </button>
+                );
+              })}
+            </div>
+            {!playerDecks.length ? <div className={styles.deckPickerEmpty}><strong>NO DECKS YET</strong><Link href="/decks">CREATE A DECK</Link></div> : null}
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

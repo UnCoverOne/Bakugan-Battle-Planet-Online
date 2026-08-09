@@ -104,8 +104,10 @@ test("the streamlined Play route is a one-screen creation flow and the lobby exp
     "Best of Three",
     "Create Lobby",
     "Join Lobby",
-    "DECK SELECTION MOVED TO LOBBY",
+    "BRAWL",
+    "SETUP",
   ]) assert.match(creation, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.doesNotMatch(creation, /DECK SELECTION MOVED TO LOBBY/);
   assert.match(creation, /disabled aria-disabled="true"/);
   assert.match(playPage, /MatchCreationScreen/);
   assert.doesNotMatch(playPage, /PlayScreen/);
@@ -118,6 +120,12 @@ test("the streamlined Play route is a one-screen creation flow and the lobby exp
     "Competitive",
     "Battle Brawlers",
     "Select your deck",
+    "SELECT YOUR DECK",
+    "deckLeadCard",
+    "cardArtSource",
+    "featuredDeckStack",
+    "deckPickerGrid",
+    "deck.tags",
     "UNREADY",
     "READY",
     "START GAME",
