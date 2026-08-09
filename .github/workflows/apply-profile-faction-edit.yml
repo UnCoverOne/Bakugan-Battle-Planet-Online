@@ -1,0 +1,170 @@
+name: Apply profile faction editing
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-profile-faction-edit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Add faction editor and enlarge profile popover avatar
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise SystemExit(f"Missing expected {label}")
+              return text.replace(old, new, 1)
+
+          path = Path("components/routes/ProfileScreen.tsx")
+          text = path.read_text(encoding="utf-8")
+
+          text = replace_once(
+              text,
+              'type ProfileDialog = "avatar" | "title" | "cover";',
+              'type ProfileDialog = "avatar" | "title" | "faction" | "cover";',
+              "profile dialog union",
+          )
+
+          text = replace_once(
+              text,
+              '''const FACTION_SYMBOLS: Record<string, string> = {
+            Aquos: "/assets/symbols/factions/aquos.png",
+            Aurelus: "/assets/symbols/factions/aurelus.png",
+            Darkus: "/assets/symbols/factions/darkus.png",
+            Haos: "/assets/symbols/factions/haos.png",
+            Pyrus: "/assets/symbols/factions/pyrus.png",
+            Ventus: "/assets/symbols/factions/ventus.png",
+          };'''.replace("          ", ""),
+              '''const FACTION_SYMBOLS: Record<string, string> = {
+            Aquos: "/assets/symbols/factions/aquos.png",
+            Aurelus: "/assets/symbols/factions/aurelus.png",
+            Darkus: "/assets/symbols/factions/darkus.png",
+            Haos: "/assets/symbols/factions/haos.png",
+            Pyrus: "/assets/symbols/factions/pyrus.png",
+            Ventus: "/assets/symbols/factions/ventus.png",
+          };
+
+          const PROFILE_FACTIONS = [
+            "Pyrus",
+            "Aquos",
+            "Darkus",
+            "Haos",
+            "Ventus",
+            "Aurelus",
+          ] as const;'''.replace("          ", ""),
+              "faction constants",
+          )
+
+          text = replace_once(
+              text,
+              '''                <div className={styles.factionIdentity}>
+                  <img
+                    src={FACTION_SYMBOLS[profile.faction]}
+                    alt=""
+                    width="32"
+                    height="32"
+                  />
+                  <span>{profile.faction} Brawler</span>
+                </div>''',
+              '''                <div className={styles.factionIdentity}>
+                  <img
+                    src={FACTION_SYMBOLS[profile.faction]}
+                    alt=""
+                    width="32"
+                    height="32"
+                  />
+                  <span>{profile.faction} Brawler</span>
+                  <button
+                    className={`${styles.editButton} ${styles.titleEdit}`}
+                    type="button"
+                    aria-label="Edit Brawler faction"
+                    title="Edit Brawler faction"
+                    onClick={() => setDialog("faction")}
+                  >
+                    <PencilIcon />
+                  </button>
+                </div>''',
+              "faction identity",
+          )
+
+          faction_modal = '''
+
+      {dialog === "faction" && (
+        <ProfileModal
+          title="Choose a Brawler Faction"
+          description="Choose the faction shown as your Brawler identity."
+          onClose={() => setDialog(null)}
+        >
+          <div className={styles.rewardList}>
+            {PROFILE_FACTIONS.map((faction) => (
+              <button
+                type="button"
+                key={faction}
+                aria-pressed={profile.faction === faction}
+                onClick={() => {
+                  updateCustomization(
+                    { faction },
+                    "Brawler faction updated",
+                  );
+                  setDialog(null);
+                }}
+              >
+                <span>
+                  <strong>{faction}</strong>
+                  <small>{faction} Brawler</small>
+                </span>
+                <img
+                  src={FACTION_SYMBOLS[faction]}
+                  alt=""
+                  width="36"
+                  height="36"
+                />
+              </button>
+            ))}
+          </div>
+        </ProfileModal>
+      )}
+'''
+          marker = '''
+
+      {dialog === "cover" && ('''
+          if marker not in text:
+              raise SystemExit("Missing cover modal marker")
+          text = text.replace(marker, faction_modal + marker, 1)
+          path.write_text(text, encoding="utf-8")
+
+          css_path = Path("app/website-overhaul.css")
+          css = css_path.read_text(encoding="utf-8")
+          css = replace_once(
+              css,
+              '.profile-popover-avatar{display:grid;place-items:center;flex:0 0 14%;width:14%;aspect-ratio:1;border:1px solid rgba(255,255,255,.22);border-radius:50%;background:var(--faction);font-weight:900;color:#fff;object-fit:cover}',
+              '.profile-popover-avatar{display:grid;place-items:center;flex:0 0 16.8%;width:16.8%;aspect-ratio:1;border:1px solid rgba(255,255,255,.22);border-radius:50%;background:var(--faction);font-weight:900;color:#fff;object-fit:cover}',
+              "profile popover avatar sizing",
+          )
+          css_path.write_text(css, encoding="utf-8")
+          PY
+
+          git diff --check
+          grep -F 'setDialog("faction")' components/routes/ProfileScreen.tsx
+          grep -F '16.8%' app/website-overhaul.css
+
+          rm .github/workflows/apply-profile-faction-edit.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add profile faction editor"
+          git push origin HEAD:main
