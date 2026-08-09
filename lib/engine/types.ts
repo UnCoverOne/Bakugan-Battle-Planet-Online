@@ -12,6 +12,10 @@ export const MAX_EMBEDDED_COMMAND_RECEIPTS = 128;
 export type CommandActorId = string | "system";
 export type GameCommand =
   | { type: "SET_READY" }
+  | { type: "SET_LOBBY_READY"; ready: boolean }
+  | { type: "START_MATCH" }
+  | { type: "UPDATE_LOBBY_SETTINGS"; rulesFormat: "standard" | "singleton" | "competitive"; meta: "battle-brawlers" }
+  | { type: "UPDATE_LOBBY_DECK"; player: PlayerState }
   | { type: "BEGIN_CORE_PLACEMENT" }
   | { type: "PLACE_CORE"; coreId: string; cell: string }
   | { type: "DRAW_TURN_CARD" }

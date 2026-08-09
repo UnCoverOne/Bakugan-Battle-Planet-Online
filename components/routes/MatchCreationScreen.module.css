@@ -1,0 +1,217 @@
+.route {
+  min-height: 100%;
+  padding-bottom: 4rem;
+}
+
+.shell {
+  width: min(1180px, calc(100% - 2rem));
+  margin: -1.75rem auto 0;
+  position: relative;
+  z-index: 2;
+}
+
+.panel {
+  overflow: hidden;
+}
+
+.section {
+  padding: 1.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #6f7b91) 35%, transparent);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.heading > span {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-weight: 900;
+  opacity: .8;
+}
+
+.heading p,
+.preflight span,
+.codeField > span {
+  margin: 0;
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .15em;
+  opacity: .7;
+}
+
+.heading h2 {
+  margin: .15rem 0 0;
+  font-size: clamp(1.1rem, 2vw, 1.55rem);
+}
+
+.modeGrid,
+.actionGrid,
+.segmented {
+  display: grid;
+  gap: .75rem;
+}
+
+.modeGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.actionGrid,
+.segmented {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modeGrid button,
+.actionGrid button,
+.segmented button {
+  min-height: 7.25rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--border, #6f7b91) 55%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface, #111827) 92%, transparent);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.modeGrid button:hover:not(:disabled),
+.actionGrid button:hover:not(:disabled),
+.segmented button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.modeGrid strong,
+.actionGrid strong,
+.segmented b {
+  display: block;
+  font-size: 1.02rem;
+  margin-bottom: .45rem;
+}
+
+.modeGrid span,
+.actionGrid span,
+.segmented span,
+.modeGrid small {
+  display: block;
+  line-height: 1.45;
+  opacity: .72;
+}
+
+.selected {
+  border-color: color-mix(in srgb, var(--accent, #f2b632) 85%, white) !important;
+  background: color-mix(in srgb, var(--accent, #f2b632) 12%, var(--surface, #111827)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #f2b632) 35%, transparent);
+}
+
+.disabled {
+  cursor: not-allowed !important;
+  opacity: .48;
+}
+
+.segmented button {
+  min-height: 5.5rem;
+  text-align: center;
+}
+
+.segmented b {
+  font-size: 1.3rem;
+}
+
+.codeField {
+  display: grid;
+  gap: .45rem;
+  max-width: 24rem;
+  margin-top: 1rem;
+}
+
+.codeField input {
+  width: 100%;
+  padding: .9rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--border, #6f7b91) 65%, transparent);
+  border-radius: .75rem;
+  background: color-mix(in srgb, var(--surface, #111827) 88%, black);
+  color: inherit;
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.launchArea {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.5rem;
+}
+
+.preflight {
+  max-width: 44rem;
+}
+
+.preflight p {
+  margin: .35rem 0 0;
+  line-height: 1.5;
+  opacity: .78;
+}
+
+.preflight a {
+  display: inline-block;
+  margin-top: .6rem;
+  font-weight: 900;
+}
+
+.launchButton {
+  min-width: 13rem;
+  padding: 1rem 1.4rem;
+  border: 0;
+  border-radius: .8rem;
+  background: var(--accent, #f2b632);
+  color: #111;
+  font-weight: 950;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.launchButton:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.error {
+  margin: 0 1.5rem 1.5rem;
+  padding: .9rem 1rem;
+  border: 1px solid color-mix(in srgb, #ef4444 60%, transparent);
+  border-radius: .75rem;
+  background: color-mix(in srgb, #ef4444 10%, transparent);
+}
+
+@media (max-width: 800px) {
+  .shell {
+    width: min(100% - 1rem, 1180px);
+  }
+
+  .modeGrid,
+  .actionGrid,
+  .segmented {
+    grid-template-columns: 1fr;
+  }
+
+  .launchArea {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .launchButton {
+    width: 100%;
+  }
+}

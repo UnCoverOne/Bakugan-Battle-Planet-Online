@@ -14,7 +14,13 @@ import {
 } from "../game";
 import { captureCoreReturns, placeCoreOrReturnCore } from "../coreReturns";
 import { addChatMessage } from "../chat";
-import { setLobbyReadyOrStart } from "../lobby";
+import {
+  replaceLobbyDeck,
+  setLobbyReady,
+  setLobbyReadyOrStart,
+  startLobbyMatch,
+  updateLobbySettings,
+} from "../lobby";
 import { confirmRoll, selectRollTarget } from "../rolling";
 import { drawTurnCard } from "../turnStart";
 import { undoLatestAction } from "../undo";
@@ -79,6 +85,15 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
   if (isRulesCommand(command)) return dispatchRulesCommand(input, actorId, command);
   switch (command.type) {
     case "SET_READY": return setLobbyReadyOrStart(input, actorId);
+    case "SET_LOBBY_READY": return setLobbyReady(input, actorId, command.ready);
+    case "START_MATCH": return startLobbyMatch(input, actorId);
+    case "UPDATE_LOBBY_SETTINGS": return updateLobbySettings(input, actorId, command.rulesFormat, command.meta);
+    case "UPDATE_LOBBY_DECK": {
+      const state = replaceLobbyDeck(input, actorId, command.player) as EngineBackedMatchState;
+      const player = state.players.find((candidate) => candidate.id === actorId);
+      if (player) captureOriginalDeckManifest(state, player);
+      return state;
+    }
     case "BEGIN_CORE_PLACEMENT": return beginCorePlacement(input, issuedAt);
     case "PLACE_CORE": return placeCoreOrReturnCore(input, actorId, command.coreId, command.cell);
     case "DRAW_TURN_CARD": return drawTurnCard(input, actorId);
