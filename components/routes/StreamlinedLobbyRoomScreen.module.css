@@ -1,0 +1,460 @@
+.route {
+  min-height: 100%;
+  padding-bottom: 3rem;
+}
+
+.layout {
+  width: min(1400px, calc(100% - 2rem));
+  margin: -1.6rem auto 0;
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: 1rem;
+  align-items: start;
+}
+
+.mainColumn {
+  display: grid;
+  gap: 1rem;
+}
+
+.configPanel,
+.roomPanel,
+.chatPanel {
+  border: 1px solid color-mix(in srgb, var(--border, #6f7b91) 45%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface, #111827) 96%, black);
+  box-shadow: 0 18px 50px rgb(0 0 0 / .16);
+  overflow: hidden;
+}
+
+.configPanel > header,
+.roomStatus,
+.chatPanel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.2rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #6f7b91) 35%, transparent);
+}
+
+.configPanel header span,
+.roomStatus span,
+.chatPanel header span,
+.loadoutPanel span,
+.startPanel span,
+.roomFooter span,
+.configGrid > div > span,
+.metaField > span {
+  display: block;
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .14em;
+  opacity: .68;
+}
+
+.configPanel h2,
+.roomStatus h2,
+.chatPanel h2,
+.loadoutPanel h2,
+.startPanel h2 {
+  margin: .2rem 0 0;
+  font-size: 1.15rem;
+}
+
+.configGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+  gap: 1rem;
+  padding: 1.2rem;
+}
+
+.formatButtons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .6rem;
+  margin-top: .55rem;
+}
+
+.formatButtons button {
+  min-height: 5rem;
+  padding: .75rem;
+  border: 1px solid color-mix(in srgb, var(--border, #6f7b91) 55%, transparent);
+  border-radius: .75rem;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.formatButtons button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.formatButtons strong,
+.formatButtons small {
+  display: block;
+}
+
+.formatButtons small {
+  margin-top: .3rem;
+  line-height: 1.35;
+  opacity: .65;
+}
+
+.selected {
+  border-color: var(--accent, #f2b632) !important;
+  background: color-mix(in srgb, var(--accent, #f2b632) 12%, transparent) !important;
+}
+
+.metaField {
+  display: grid;
+  align-content: start;
+  gap: .55rem;
+}
+
+.metaField select,
+.loadoutPanel select {
+  width: 100%;
+  padding: .8rem .9rem;
+  border: 1px solid color-mix(in srgb, var(--border, #6f7b91) 55%, transparent);
+  border-radius: .7rem;
+  background: color-mix(in srgb, var(--surface, #111827) 88%, black);
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+}
+
+.metaField small {
+  opacity: .62;
+}
+
+.seats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .8rem;
+  padding: 1.2rem;
+}
+
+.seat {
+  min-height: 13rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--border, #6f7b91) 45%, transparent);
+  border-radius: .9rem;
+  text-align: center;
+}
+
+.seatReady {
+  border-color: color-mix(in srgb, #22c55e 70%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #22c55e 22%, transparent);
+}
+
+.seatBadges {
+  display: flex;
+  justify-content: center;
+  gap: .4rem;
+  min-height: 1.5rem;
+}
+
+.avatar {
+  width: 4.2rem;
+  height: 4.2rem;
+  margin: .8rem auto .55rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #f2b632) 20%, transparent);
+  font-size: 1.35rem;
+  font-weight: 950;
+}
+
+.waitingAvatar {
+  opacity: .4;
+}
+
+.seat h3 {
+  margin: 0;
+}
+
+.seat p {
+  margin: .4rem auto;
+  max-width: 30rem;
+  min-height: 2.6rem;
+  font-size: .86rem;
+  line-height: 1.4;
+  opacity: .7;
+}
+
+.readyState {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  margin-top: .4rem;
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.readyState span {
+  width: .55rem;
+  height: .55rem;
+  border-radius: 999px;
+  background: #ef4444;
+}
+
+.readyState[data-ready="true"] span {
+  background: #22c55e;
+}
+
+.loadoutPanel,
+.startPanel {
+  margin: 0 1.2rem 1.2rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--border, #6f7b91) 35%, transparent);
+  border-radius: .85rem;
+}
+
+.loadoutPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 1rem;
+  align-items: center;
+}
+
+.loadoutPanel p,
+.startPanel p {
+  margin: .35rem 0 0;
+  line-height: 1.45;
+  opacity: .72;
+}
+
+.loadoutPanel a {
+  justify-self: end;
+  font-weight: 900;
+}
+
+.deckWarning {
+  grid-column: 1 / -1;
+  color: #f59e0b;
+  font-size: .85rem;
+}
+
+.startPanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.startActions {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.readyButton,
+.startButton,
+.copyButton,
+.chatForm button,
+.roomFooter button {
+  border: 0;
+  border-radius: .65rem;
+  padding: .8rem 1rem;
+  font-weight: 950;
+  letter-spacing: .06em;
+  cursor: pointer;
+}
+
+.readyButton {
+  background: color-mix(in srgb, var(--accent, #f2b632) 18%, transparent);
+  color: inherit;
+  border: 1px solid color-mix(in srgb, var(--accent, #f2b632) 55%, transparent);
+}
+
+.startButton,
+.copyButton,
+.chatForm button {
+  background: var(--accent, #f2b632);
+  color: #111;
+}
+
+.readyButton:disabled,
+.startButton:disabled,
+.chatForm button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.roomFooter {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  border-top: 1px solid color-mix(in srgb, var(--border, #6f7b91) 35%, transparent);
+}
+
+.roomFooter > div {
+  flex: 1 1 9rem;
+  padding: .85rem 1rem;
+  border-right: 1px solid color-mix(in srgb, var(--border, #6f7b91) 25%, transparent);
+}
+
+.roomFooter strong {
+  display: block;
+  margin-top: .25rem;
+  font-size: .78rem;
+}
+
+.roomFooter button {
+  margin: .7rem;
+  background: transparent;
+  color: inherit;
+  border: 1px solid color-mix(in srgb, var(--border, #6f7b91) 45%, transparent);
+}
+
+.chatPanel {
+  position: sticky;
+  top: 1rem;
+}
+
+.chatPanel > header small {
+  font-size: .7rem;
+  opacity: .6;
+}
+
+.messages {
+  min-height: 22rem;
+  max-height: 32rem;
+  overflow: auto;
+  padding: 1rem;
+  display: grid;
+  align-content: start;
+  gap: .7rem;
+}
+
+.message {
+  max-width: 88%;
+  padding: .7rem .8rem;
+  border-radius: .75rem;
+  background: color-mix(in srgb, var(--border, #6f7b91) 12%, transparent);
+}
+
+.message[data-local="true"] {
+  justify-self: end;
+  background: color-mix(in srgb, var(--accent, #f2b632) 13%, transparent);
+}
+
+.message > div {
+  display: flex;
+  justify-content: space-between;
+  gap: .8rem;
+  font-size: .72rem;
+}
+
+.message time {
+  opacity: .55;
+}
+
+.message p {
+  margin: .35rem 0 0;
+  line-height: 1.4;
+}
+
+.noMessages,
+.trainingNote {
+  opacity: .62;
+}
+
+.chatForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .55rem;
+  padding: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--border, #6f7b91) 35%, transparent);
+}
+
+.chatForm input {
+  min-width: 0;
+  padding: .8rem .85rem;
+  border: 1px solid color-mix(in srgb, var(--border, #6f7b91) 45%, transparent);
+  border-radius: .65rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.trainingNote,
+.error {
+  margin: 0 1rem 1rem;
+  font-size: .82rem;
+}
+
+.error {
+  padding: .75rem;
+  border: 1px solid color-mix(in srgb, #ef4444 55%, transparent);
+  border-radius: .65rem;
+  background: color-mix(in srgb, #ef4444 10%, transparent);
+  opacity: 1;
+}
+
+.empty {
+  width: min(720px, calc(100% - 2rem));
+  margin: 5rem auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.empty strong,
+.empty p,
+.empty a {
+  display: block;
+  margin: .6rem 0;
+}
+
+@media (max-width: 1050px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .chatPanel {
+    position: static;
+  }
+
+  .messages {
+    min-height: 14rem;
+    max-height: 22rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .layout {
+    width: min(100% - 1rem, 1400px);
+  }
+
+  .configGrid,
+  .seats,
+  .loadoutPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .formatButtons {
+    grid-template-columns: 1fr;
+  }
+
+  .startPanel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .startActions {
+    justify-content: stretch;
+  }
+
+  .readyButton,
+  .startButton {
+    flex: 1;
+  }
+}
