@@ -25,12 +25,24 @@ export function ProfileAvatar({
   className?: string;
 }) {
   const source = profileAvatarSource(profile.avatar);
+  const popoverStyle = className?.split(/\s+/).includes("profile-popover-avatar")
+    ? { flexBasis: "16.8%", width: "16.8%" }
+    : undefined;
+
   if (source) {
-    return <img className={className} src={source} alt="" decoding="async" />;
+    return (
+      <img
+        className={className}
+        style={popoverStyle}
+        src={source}
+        alt=""
+        decoding="async"
+      />
+    );
   }
 
   return (
-    <span className={className}>
+    <span className={className} style={popoverStyle}>
       {profile.name.slice(0, 2).toUpperCase()}
     </span>
   );
