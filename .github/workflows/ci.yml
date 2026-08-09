@@ -44,13 +44,18 @@ jobs:
           path = Path("tests/profile-customization.test.ts")
           source = path.read_text(encoding="utf-8")
           source = source.replace('  const decks = readFileSync("components/routes/DeckRoutes.tsx", "utf8");\n', '')
+          source = source.replace('  const play = readFileSync("components/routes/PlayRoutes.tsx", "utf8");\n', '')
           source = source.replace(
               '  for (const source of [shell, decks, play, profile]) assert.match(source, /ProfileAvatar/);',
+              '  for (const source of [shell, profile]) assert.match(source, /ProfileAvatar/);',
+          )
+          source = source.replace(
               '  for (const source of [shell, play, profile]) assert.match(source, /ProfileAvatar/);',
+              '  for (const source of [shell, profile]) assert.match(source, /ProfileAvatar/);',
           )
           path.write_text(source, encoding="utf-8")
           PY
-          rm -f .profile-verify.log .profile-diagnostics-trigger .profile-artwork-apply-trigger .profile-artwork-apply-trigger-2
+          rm -f .profile-verify.log .profile-diagnostics-trigger .profile-artwork-apply-trigger .profile-artwork-apply-trigger-2 .profile-final-apply-trigger
           git diff --check
           npm ci --ignore-scripts
           node --import tsx --test tests/profile-customization.test.ts
