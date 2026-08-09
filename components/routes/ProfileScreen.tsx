@@ -9,7 +9,6 @@ import { BAKUGAN, validateDeck, type DeckRecord } from "../../lib/data";
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
 import {
-  PROFILE_COVER_SPRITE,
   PROFILE_COVERS,
   PROFILE_SHOWCASE_LIMIT,
   PROFILE_TITLES,
@@ -22,7 +21,6 @@ import { copyText, formatTimestamp } from "../application/ui";
 import {
   PROFILE_AVATAR_PRESETS,
   ProfileAvatar,
-  profileAvatarStyle,
 } from "../profile/ProfileAvatar";
 import {
   ActionButton,
@@ -219,13 +217,16 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
         <main className={styles.profileOverview}>
           <section
             className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]}`}
-            style={{
-              backgroundImage: `linear-gradient(90deg, rgba(0, 8, 13, .94) 0%, rgba(0, 8, 13, .7) 54%, rgba(0, 8, 13, .22) 100%), url("${PROFILE_COVER_SPRITE}")`,
-              backgroundSize: "100% 100%, 100% 1000%",
-              backgroundPosition: `0 0, ${selectedCover.position}`,
-              backgroundRepeat: "no-repeat",
-            }}
           >
+            <img
+              className={styles.identityCoverArt}
+              src={selectedCover.src}
+              alt=""
+              width="1920"
+              height="480"
+              decoding="async"
+              fetchPriority="high"
+            />
             <button
               className={`${styles.editButton} ${styles.coverEdit}`}
               type="button"
@@ -373,10 +374,30 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
       {dialog === "avatar" && (
         <ProfileModal
           title="Choose a profile picture"
-          description="Choose one of the Brawler Profile Icons."
+          description="Use the default account initials or choose one of the Brawler Profile Icons."
           onClose={() => setDialog(null)}
         >
           <div className={styles.avatarPresetGrid}>
+            <button
+              type="button"
+              aria-label="Reset profile picture to default account initials"
+              aria-pressed={!profile.avatar}
+              onClick={() => {
+                updateCustomization(
+                  { avatar: "" },
+                  "Profile picture reset to default",
+                );
+                setDialog(null);
+              }}
+            >
+              <span
+                className={`${styles.avatarPresetIcon} ${styles.avatarInitialsPreview}`}
+                aria-hidden="true"
+              >
+                {profile.name.slice(0, 2).toUpperCase()}
+              </span>
+              <span>Default profile picture</span>
+            </button>
             {PROFILE_AVATAR_PRESETS.map((item) => (
               <button
                 type="button"
@@ -391,10 +412,14 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                   setDialog(null);
                 }}
               >
-                <span
+                <img
                   className={styles.avatarPresetIcon}
-                  style={profileAvatarStyle(`preset:${item.id}`)}
-                  aria-hidden="true"
+                  src={item.src}
+                  alt=""
+                  width="380"
+                  height="380"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <span>{item.name}</span>
               </button>
@@ -479,15 +504,14 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                     setDialog(null);
                   }}
                 >
-                  <span
+                  <img
                     className={styles.coverArt}
-                    style={{
-                      backgroundImage: `url("${PROFILE_COVER_SPRITE}")`,
-                      backgroundSize: "100% 1000%",
-                      backgroundPosition: cover.position,
-                      backgroundRepeat: "no-repeat",
-                    }}
-                    aria-hidden="true"
+                    src={cover.src}
+                    alt=""
+                    width="1920"
+                    height="480"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <span className={styles.coverCopy}>
                     <strong>{cover.label}</strong>
