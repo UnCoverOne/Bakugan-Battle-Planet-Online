@@ -1,8 +1,12 @@
-import type { CardChoices } from "../game";
+import type { CardChoices, PlayerState } from "../game";
 import type { GameCommand } from "./types";
 
 export type ApiAction =
   | "ready"
+  | "lobby-ready"
+  | "start-match"
+  | "lobby-settings"
+  | "lobby-deck"
   | "begin-placement"
   | "place"
   | "draw"
@@ -42,6 +46,14 @@ export function apiActionToCommand(
   const choices = (payload.choices ?? {}) as CardChoices;
   switch (action) {
     case "ready": return { type: "SET_READY" };
+    case "lobby-ready": return { type: "SET_LOBBY_READY", ready: payload.ready === true };
+    case "start-match": return { type: "START_MATCH" };
+    case "lobby-settings": return {
+      type: "UPDATE_LOBBY_SETTINGS",
+      rulesFormat: stringValue(payload.rulesFormat) as "standard" | "singleton" | "competitive",
+      meta: stringValue(payload.meta) as "battle-brawlers",
+    };
+    case "lobby-deck": return { type: "UPDATE_LOBBY_DECK", player: payload.player as PlayerState };
     case "begin-placement": return { type: "BEGIN_CORE_PLACEMENT" };
     case "place": return { type: "PLACE_CORE", coreId: stringValue(payload.coreId), cell: stringValue(payload.cell) };
     case "draw": return { type: "DRAW_TURN_CARD" };
