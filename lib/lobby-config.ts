@@ -3,7 +3,7 @@ import type { MatchState, PlayerState } from "./game";
 export type LobbyMode = "training" | "casual" | "ranked";
 export type LobbyRulesFormat = "standard" | "singleton" | "competitive";
 export type LobbyMeta = "battle-brawlers";
-export type LobbyDeckFormat = "standard" | "singleton";
+export type LobbyDeckFormat = "standard" | "singleton" | "competitive";
 
 export type LobbyConfig = {
   mode: LobbyMode;
@@ -46,7 +46,7 @@ export function applyLobbyConfig(state: MatchState, config: LobbyConfig) {
 }
 
 export function requiredDeckFormat(rulesFormat: LobbyRulesFormat): LobbyDeckFormat {
-  return rulesFormat === "singleton" ? "singleton" : "standard";
+  return rulesFormat === "singleton" ? "singleton" : rulesFormat === "competitive" ? "competitive" : "standard";
 }
 
 export function tagLobbyPlayerDeck<T extends PlayerState>(
@@ -54,13 +54,14 @@ export function tagLobbyPlayerDeck<T extends PlayerState>(
   deck: { format?: LobbyDeckFormat; name?: string },
 ): T {
   const configured = player as T & ConfiguredPlayer;
-  configured.lobbyDeckFormat = deck.format === "singleton" ? "singleton" : "standard";
+  configured.lobbyDeckFormat = deck.format === "singleton" || deck.format === "competitive" ? deck.format : "standard";
   configured.lobbyDeckName = typeof deck.name === "string" ? deck.name : "";
   return player;
 }
 
 export function playerLobbyDeckFormat(player: PlayerState): LobbyDeckFormat {
-  return (player as ConfiguredPlayer).lobbyDeckFormat === "singleton" ? "singleton" : "standard";
+  const format = (player as ConfiguredPlayer).lobbyDeckFormat;
+  return format === "singleton" || format === "competitive" ? format : "standard";
 }
 
 export function playerLobbyDeckName(player: PlayerState) {

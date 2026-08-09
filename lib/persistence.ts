@@ -118,7 +118,7 @@ function normalizeDeck(value: unknown): DeckRecord | null {
     cardIds: deck.cardIds.filter((id): id is string => typeof id === "string").slice(0, 40),
     updatedAt,
     visibility: deck.visibility === "Public" ? "Public" : deck.visibility === "Draft" ? "Draft" : "Private",
-    format: deck.format === "singleton" ? "singleton" : "standard",
+    format: deck.format === "singleton" || deck.format === "competitive" ? deck.format : "standard",
     revision: Number.isSafeInteger(deck.revision) ? Math.max(1, Number(deck.revision)) : 1,
     favourite: Boolean(deck.favourite),
     tags: Array.isArray(deck.tags) ? deck.tags.filter((tag): tag is string => typeof tag === "string").map((tag) => tag.trim().slice(0, 24)).filter(Boolean).slice(0, 12) : [],

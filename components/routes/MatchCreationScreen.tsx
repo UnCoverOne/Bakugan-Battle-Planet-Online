@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { validateDeck, type DeckRecord } from "../../lib/data";
+import type { DeckRestriction } from "../../lib/deck-validation";
 import { normalizeRoomCode } from "../../lib/play-setup-machine";
 import { createTrainingLobbyState } from "../../lib/training-lobby";
 import { useApp } from "../application/AppProvider";
@@ -16,6 +17,8 @@ type PendingLaunch = {
   deckId: string;
   structure: "bo1" | "bo3";
   roomCode: string;
+  mode: MatchModeChoice;
+  rankedDeckIds: string[];
 } | null;
 
 function modeFromProvider(mode: string): MatchModeChoice {
@@ -46,6 +49,7 @@ export function MatchCreationScreen() {
     profile,
     playerId,
     matchError,
+    authUser,
   } = useApp();
   const [mode, setMode] = useState<MatchModeChoice>(() => modeFromProvider(matchMode));
   const [structure, setStructure] = useState<"bo1" | "bo3">(format === "bo3" ? "bo3" : "bo1");
@@ -53,6 +57,8 @@ export function MatchCreationScreen() {
   const [roomCode, setRoomCode] = useState(() => normalizeRoomCode(storedJoinCode));
   const [pending, setPending] = useState<PendingLaunch>(null);
   const [error, setError] = useState("");
+  const [rankedDeckIds, setRankedDeckIds] = useState<string[]>([]);
+  const [rankedRestrictions, setRankedRestrictions] = useState<DeckRestriction[]>([]);
 
   const legalDecks = useMemo(
     () => (decks as DeckRecord[]).filter((deck) => validateDeck(deck).isLegal),
@@ -63,10 +69,24 @@ export function MatchCreationScreen() {
     if (current && validateDeck(current).isLegal) return current;
     return legalDecks.find((deck) => deck.id === selectedDeckId) ?? legalDecks[0] ?? null;
   }, [legalDecks, selectedDeck, selectedDeckId]);
+  const competitiveDecks = useMemo(
+    () => (decks as DeckRecord[]).filter((deck) => deck.format === "competitive" && validateDeck(deck, rankedRestrictions).isLegal),
+    [decks, rankedRestrictions],
+  );
+  const rankedDecks = competitiveDecks.filter((deck) => rankedDeckIds.includes(deck.id));
 
   useEffect(() => {
     if (mode === "training" && action !== "create") setAction("create");
   }, [action, mode]);
+
+  useEffect(() => {
+    if (mode !== "ranked") return;
+    let active = true;
+    fetch("/api/ranked?action=rules", { cache: "no-store" })
+      .then(async (response) => { const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Ranked rules are unavailable."); if (active) setRankedRestrictions(result.ruleset?.restrictions ?? []); })
+      .catch((cause) => active && setError(cause instanceof Error ? cause.message : "Ranked rules are unavailable."));
+    return () => { active = false; };
+  }, [mode]);
 
   useEffect(() => {
     if (!pending || !preferredDeck) return;
@@ -79,32 +99,44 @@ export function MatchCreationScreen() {
     let cancelled = false;
     const run = async () => {
       const launch = pending.action === "join" ? joinOnline : createOnline;
-      const result = await launch();
+      const options = pending.mode === "ranked" ? { mode: "ranked", decks: (decks as DeckRecord[]).filter((deck) => pending.rankedDeckIds.includes(deck.id)) } : undefined;
+      const result = await launch(options);
       if (cancelled) return;
       setPending(null);
       if (result?.ok === false) setError(result.error ?? "The lobby could not be opened.");
     };
     void run();
     return () => { cancelled = true; };
-  }, [createOnline, format, joinOnline, matchMode, pending, preferredDeck, selectedDeckId, storedJoinCode]);
+  }, [createOnline, decks, format, joinOnline, matchMode, pending, preferredDeck, selectedDeckId, storedJoinCode]);
 
   useEffect(() => {
     if (matchError) setError(matchError);
   }, [matchError]);
 
   const chooseMode = (next: MatchModeChoice) => {
-    if (next === "ranked") return;
     setMode(next);
     if (next === "training") setAction("create");
+    if (next === "ranked") {
+      setStructure("bo3");
+      setRankedDeckIds((current) => current.length ? current : competitiveDecks.slice(0, 3).map((deck) => deck.id));
+    }
     setError("");
   };
 
   const launch = () => {
-    if (!preferredDeck) {
+    if (mode === "ranked" && !authUser) {
+      setError("Sign in before creating or joining a Ranked lobby.");
+      return;
+    }
+    if (mode === "ranked" && rankedDecks.length !== 3) {
+      setError("Select exactly three legal Competitive decks.");
+      return;
+    }
+    const launchDeck = mode === "ranked" ? rankedDecks[0] : preferredDeck;
+    if (!launchDeck) {
       setError("Create a legal deck before entering a lobby.");
       return;
     }
-    if (mode === "ranked") return;
     const normalizedCode = normalizeRoomCode(roomCode);
     if (action === "join" && normalizedCode.length !== 6) {
       setError("Enter the complete six-character lobby code.");
@@ -112,13 +144,13 @@ export function MatchCreationScreen() {
     }
     setError("");
     setFormat(structure);
-    setSelectedDeckId(preferredDeck.id);
+    setSelectedDeckId(launchDeck.id);
 
     if (mode === "training") {
       setMatchMode("solo");
       setJoinCode("");
       const code = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase();
-      const state = createTrainingLobbyState(code, structure, playerId, profile.name, preferredDeck);
+      const state = createTrainingLobbyState(code, structure, playerId, profile.name, launchDeck);
       setOnline(false);
       setMatch(state);
       router.push("/play/lobby");
@@ -128,7 +160,7 @@ export function MatchCreationScreen() {
     const providerMode = action === "join" ? "join" : "online";
     setMatchMode(providerMode);
     setJoinCode(action === "join" ? normalizedCode : "");
-    setPending({ action, deckId: preferredDeck.id, structure, roomCode: normalizedCode });
+    setPending({ action, deckId: launchDeck.id, structure: mode === "ranked" ? "bo3" : structure, roomCode: normalizedCode, mode, rankedDeckIds });
   };
 
   const busy = Boolean(pending);
@@ -166,11 +198,11 @@ export function MatchCreationScreen() {
                 <strong>Casual</strong>
                 <span>Create or join a private online lobby.</span>
               </button>
-              <button className={styles.disabled} disabled aria-disabled="true">
+              <button className={mode === "ranked" ? styles.selected : ""} aria-pressed={mode === "ranked"} onClick={() => chooseMode("ranked")}>
                 <span className={styles.optionIndex}>RANKED</span>
                 <strong>Ranked</strong>
-                <span>Under development</span>
-                <small>Competitive format will be locked here when Ranked launches.</small>
+                <span>Competitive hosted lobbies with Brawler Points.</span>
+                <small>Best of Three · three decks · ban one · Conquest wins.</small>
               </button>
             </div>
           </section>
@@ -181,7 +213,7 @@ export function MatchCreationScreen() {
               <div><p>STRUCTURE</p><h2 id="structure-heading">Set the series length</h2></div>
             </div>
             <div className={styles.segmented}>
-              <button className={structure === "bo1" ? styles.selected : ""} aria-pressed={structure === "bo1"} onClick={() => setStructure("bo1")}>
+              <button disabled={mode === "ranked"} className={structure === "bo1" ? styles.selected : ""} aria-pressed={structure === "bo1"} onClick={() => setStructure("bo1")}>
                 <b>BO1</b><span>Best of One</span>
               </button>
               <button className={structure === "bo3" ? styles.selected : ""} aria-pressed={structure === "bo3"} onClick={() => setStructure("bo3")}>
@@ -190,9 +222,23 @@ export function MatchCreationScreen() {
             </div>
           </section>
 
+          {mode === "ranked" ? <section className={styles.section} aria-labelledby="ranked-decks-heading">
+            <div className={styles.heading}><span className={styles.step}>03</span><div><p>RANKED DECKS</p><h2 id="ranked-decks-heading">Lock three Competitive decks</h2></div></div>
+            <div className={styles.rankedDeckGrid}>
+              {competitiveDecks.map((deck) => {
+                const checked = rankedDeckIds.includes(deck.id);
+                return <label className={checked ? styles.selected : ""} key={deck.id}>
+                  <input type="checkbox" checked={checked} disabled={!checked && rankedDeckIds.length >= 3} onChange={() => setRankedDeckIds((current) => checked ? current.filter((id) => id !== deck.id) : [...current, deck.id])} />
+                  <strong>{deck.name}</strong><span>{deck.cardIds.length} cards · {deck.factions.join(" • ")}</span>
+                </label>;
+              })}
+              {!competitiveDecks.length ? <p>No legal Competitive decks yet. Create three 50-card Competitive decks in Deck Builder.</p> : null}
+            </div>
+          </section> : null}
+
           <section className={styles.section} aria-labelledby="lobby-action-heading">
             <div className={styles.heading}>
-              <span className={styles.step}>03</span>
+              <span className={styles.step}>{mode === "ranked" ? "04" : "03"}</span>
               <div><p>LOBBY</p><h2 id="lobby-action-heading">Create or join</h2></div>
             </div>
             <div className={styles.actionGrid}>
@@ -233,7 +279,7 @@ export function MatchCreationScreen() {
               <div><span>STRUCTURE</span><strong>{structure === "bo3" ? "BEST OF THREE" : "BEST OF ONE"}</strong></div>
               <div><span>ACTION</span><strong>{mode === "training" || action === "create" ? "CREATE" : "JOIN"}</strong></div>
             </div>
-            <button className={styles.launchButton} disabled={busy || !preferredDeck || mode === "ranked"} onClick={launch}>
+            <button className={styles.launchButton} disabled={busy || (mode === "ranked" ? rankedDecks.length !== 3 || !authUser : !preferredDeck)} onClick={launch}>
               <span>{busy ? "OPENING LOBBY…" : actionLabel}</span><ChevronArrow />
             </button>
           </footer>

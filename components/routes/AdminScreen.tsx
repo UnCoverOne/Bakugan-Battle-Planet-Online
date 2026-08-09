@@ -17,7 +17,7 @@ import {
 } from "../design-system/primitives";
 import styles from "./AdminScreen.module.css";
 
-type AdminTab = "ai" | "cards" | "users";
+type AdminTab = "ai" | "cards" | "ranked" | "users";
 type AiDeckItem = { id: string; deck: DeckRecord; enabled: boolean; updatedAt: number };
 type AdminUser = {
   id: string;
@@ -73,7 +73,7 @@ export function AdminScreen() {
   const searchParams = useSearchParams();
   const { authUser } = useApp();
   const requested = searchParams.get("tab");
-  const tab: AdminTab = requested === "cards" || requested === "users" ? requested : "ai";
+  const tab: AdminTab = requested === "cards" || requested === "ranked" || requested === "users" ? requested : "ai";
   if (!authUser?.roles?.includes("administrator")) {
     return (
       <div className={styles.route}>
@@ -97,12 +97,102 @@ export function AdminScreen() {
       <Tabs className={styles.tabs} label="Administrator sections">
         <Link className={tab === "ai" ? "active" : ""} aria-current={tab === "ai" ? "page" : undefined} href="/admin?tab=ai">AI Management</Link>
         <Link className={tab === "cards" ? "active" : ""} aria-current={tab === "cards" ? "page" : undefined} href="/admin?tab=cards">Card Management</Link>
+        <Link className={tab === "ranked" ? "active" : ""} aria-current={tab === "ranked" ? "page" : undefined} href="/admin?tab=ranked">Ranked Play</Link>
         <Link className={tab === "users" ? "active" : ""} aria-current={tab === "users" ? "page" : undefined} href="/admin?tab=users">User Management</Link>
       </Tabs>
       {tab === "ai" && <AiManagement />}
       {tab === "cards" && <CardManagement />}
+      {tab === "ranked" && <RankedManagement />}
       {tab === "users" && <UserManagement />}
     </div>
+  );
+}
+
+type RankedRestriction = { catalogId?: string; constructionIdentity: string; limit: 0 | 1 | 2; reason?: string };
+type RankedRulesetAdmin = { version: number; restrictions: RankedRestriction[]; publishedAt: number };
+type RankedAdminData = {
+  active: RankedRulesetAdmin;
+  draft: RankedRulesetAdmin;
+  history: RankedRulesetAdmin[];
+  indicators: Array<{ firstName: string; secondName: string; seriesCount: number; lastSeen: number; reason: string }>;
+  cards: Array<{ catalogId: string; name: string; constructionIdentity: string }>;
+};
+
+function RankedManagement() {
+  const { notify } = useApp();
+  const [refresh, setRefresh] = useState(0);
+  const [query, setQuery] = useState("");
+  const [restrictions, setRestrictions] = useState<RankedRestriction[]>([]);
+  const state = useAdminData<RankedAdminData>("ranked", refresh);
+  useEffect(() => {
+    if (state.data) setRestrictions(state.data.draft.restrictions.map((item) => ({ ...item })));
+  }, [state.data]);
+  const restrictionByIdentity = useMemo(() => new Map(restrictions.map((item) => [item.constructionIdentity, item])), [restrictions]);
+  const cards = useMemo(() => (state.data?.cards ?? []).filter((card) => `${card.catalogId} ${card.name}`.toLowerCase().includes(query.toLowerCase())).slice(0, 120), [query, state.data?.cards]);
+  const update = (card: RankedAdminData["cards"][number], value: string) => {
+    const limit = value === "none" ? null : Number(value) as 0 | 1 | 2;
+    setRestrictions((current) => {
+      const rest = current.filter((item) => item.constructionIdentity !== card.constructionIdentity);
+      return limit == null ? rest : [...rest, { catalogId: card.catalogId, constructionIdentity: card.constructionIdentity, limit, reason: "" }];
+    });
+  };
+  const setReason = (identity: string, reason: string) => setRestrictions((current) => current.map((item) => item.constructionIdentity === identity ? { ...item, reason } : item));
+  const mutate = async (body: Record<string, unknown>, message: string) => {
+    try {
+      await adminRequest(body);
+      notify(message);
+      setRefresh((value) => value + 1);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Ranked rules could not be updated.");
+    }
+  };
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionHeading}>
+        <div><span>RANKED PLAY</span><h2>Competitive restrictions</h2><p>Competitive decks contain exactly 50 cards. Publish bans and one- or two-copy limits as an immutable version used by every Ranked series.</p></div>
+        <StatusChip tone="info">ACTIVE VERSION {state.data?.active.version ?? "…"}</StatusChip>
+      </div>
+      <AdminState loading={state.loading} error={state.error} label="Ranked rules" />
+      <Surface className={styles.rankedToolbar}>
+        <Field label="Search cards"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Card name or catalogue ID…" /></Field>
+        <div className={styles.rowActions}>
+          <button onClick={() => void mutate({ action: "ranked-save-draft", restrictions }, "Ranked restrictions saved as a draft.")}>Save Draft</button>
+          <ActionButton onClick={() => {
+            if (confirm(`Publish ${restrictions.length} Ranked restriction${restrictions.length === 1 ? "" : "s"} as a new ruleset version?`)) void mutate({ action: "ranked-publish", restrictions }, "A new Ranked ruleset version was published.");
+          }}>Publish</ActionButton>
+        </div>
+      </Surface>
+      <Surface className={styles.rankedRules}>
+        {cards.map((card) => {
+          const restriction = restrictionByIdentity.get(card.constructionIdentity);
+          return <div className={styles.rankedRuleRow} key={card.catalogId}>
+            <div><strong>{card.name}</strong><small>{card.catalogId}</small></div>
+            <select aria-label={`Restriction for ${card.name}`} value={restriction?.limit ?? "none"} onChange={(event) => update(card, event.target.value)}>
+              <option value="none">Normal · 3 copies</option><option value="2">Restricted · 2 copies</option><option value="1">Restricted · 1 copy</option><option value="0">Banned</option>
+            </select>
+            <input aria-label={`Reason for ${card.name}`} disabled={!restriction} value={restriction?.reason ?? ""} onChange={(event) => setReason(card.constructionIdentity, event.target.value)} placeholder="Public reason (optional)" />
+          </div>;
+        })}
+      </Surface>
+      <Surface className={styles.rankedHistory}>
+        <h3>Suspicious activity indicators</h3>
+        <p>Informational only. Ranked play is never blocked or rating-limited automatically.</p>
+        {state.data?.indicators.length ? state.data.indicators.map((indicator) => <div key={`${indicator.firstName}:${indicator.secondName}`}>
+          <span>{indicator.firstName} ↔ {indicator.secondName}</span>
+          <small>{indicator.seriesCount} series · {indicator.reason} · {new Date(indicator.lastSeen).toLocaleString()}</small>
+          <StatusChip tone="warning">REVIEW</StatusChip>
+        </div>) : <p>No repeated-opponent indicators in the last 24 hours.</p>}
+      </Surface>
+      {state.data?.history.length ? <Surface className={styles.rankedHistory}>
+        <h3>Version history</h3>
+        {state.data.history.map((version) => <div key={version.version}>
+          <span>Version {version.version}</span><small>{version.restrictions.length} restrictions · {new Date(version.publishedAt).toLocaleString()}</small>
+          <button onClick={() => {
+            if (confirm(`Republish version ${version.version} as a new active version?`)) void mutate({ action: "ranked-rollback", version: version.version }, `Version ${version.version} was restored as a new Ranked ruleset.`);
+          }}>Restore</button>
+        </div>)}
+      </Surface> : null}
+    </section>
   );
 }
 

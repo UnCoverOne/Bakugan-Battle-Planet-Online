@@ -28,6 +28,12 @@ import {
   updatePublicDeck,
 } from "../../../lib/administration-server";
 import { CARDS } from "../../../lib/data";
+import {
+  getRankedRulesAdministration,
+  publishRankedRules,
+  rollbackRankedRules,
+  saveRankedRulesDraft,
+} from "../../../lib/ranked-server";
 import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../../lib/request-security";
 import {
   AuthorizationError,
@@ -122,6 +128,7 @@ export async function GET(request: Request) {
       const decks = await listManagedPublicDecks(db);
       return json({ decks: id ? decks.filter((item) => item.deck.id === id) : decks, correlationId });
     }
+    if (section === "ranked") return json({ ...(await getRankedRulesAdministration(db)), correlationId });
     const [users, aiDecks, publicDecks] = await Promise.all([
       listUsers(db),
       listAiDecks(db),
@@ -249,6 +256,17 @@ export async function POST(request: Request) {
     if (action === "public-delete") {
       await deletePublicDeck(db, String(body.id ?? ""), administrator.id);
       return json({ ok: true, correlationId });
+    }
+    if (action === "ranked-save-draft") {
+      return json({ draft: await saveRankedRulesDraft(db, body.restrictions, administrator.id), correlationId });
+    }
+    if (action === "ranked-publish") {
+      return json({ ruleset: await publishRankedRules(db, body.restrictions, administrator.id), correlationId });
+    }
+    if (action === "ranked-rollback") {
+      const version = Number(body.version);
+      if (!Number.isInteger(version) || version < 1) throw new ValidationError("Choose a valid Ranked ruleset version.");
+      return json({ ruleset: await rollbackRankedRules(db, version, administrator.id), correlationId });
     }
     throw new ValidationError("Unknown administrator action.");
   } catch (error) {

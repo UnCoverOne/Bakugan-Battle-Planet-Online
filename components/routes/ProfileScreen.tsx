@@ -22,6 +22,7 @@ import {
   PROFILE_AVATAR_PRESETS,
   ProfileAvatar,
 } from "../profile/ProfileAvatar";
+import { PlayerPreview } from "../profile/PlayerPreview";
 import {
   ActionButton,
   Field,
@@ -217,6 +218,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
         >
           Match records
         </Link>
+        <Link href="/leaderboard">Leaderboard</Link>
       </Tabs>
       <div className={styles.saveAnnouncement} role="status" aria-live="polite">
         {saved}
@@ -700,6 +702,7 @@ function RecordsPanel({
 }: any) {
   if (activeRecord) {
     const event = activeRecord.log[replayIndex];
+    const gameResults = activeRecord.log.filter((item: any) => / wins game \d+:/i.test(String(item.message ?? "")));
     return (
       <section className={styles.recordDetail}>
         <header>
@@ -712,7 +715,7 @@ function RecordsPanel({
           <div>
             <span>Record {activeRecord.id}</span>
             <h2>
-              {activeRecord.result} vs {activeRecord.opponent}
+              {activeRecord.result} vs {activeRecord.opponentUserId ? <PlayerPreview userId={activeRecord.opponentUserId} displayName={activeRecord.opponent} /> : activeRecord.opponent}
             </h2>
             <p>
               {formatTimestamp(activeRecord.at)} ·{" "}
@@ -792,7 +795,17 @@ function RecordsPanel({
                 <dt>Events</dt>
                 <dd>{activeRecord.log.length}</dd>
               </div>
+              {activeRecord.mode === "ranked" ? <>
+                <div><dt>BP</dt><dd>{activeRecord.bpBefore} {activeRecord.bpChange >= 0 ? "+" : ""}{activeRecord.bpChange} → {activeRecord.bpAfter}</dd></div>
+                <div><dt>Ruleset</dt><dd>Competitive v{activeRecord.rankedRulesetVersion}</dd></div>
+              </> : null}
             </dl>
+            {gameResults.length ? <div>
+              <h3>Individual games</h3>
+              {gameResults.map((game: any, index: number) => <details key={game.id ?? index}>
+                <summary>Game {index + 1}</summary><p>{game.message}</p>
+              </details>)}
+            </div> : null}
           </Surface>
         </div>
       </section>
@@ -821,7 +834,8 @@ function RecordsPanel({
             <option value="victor">Victories</option>
             <option value="defeat">Defeats</option>
             <option value="training">Training</option>
-            <option value="online">Online</option>
+            <option value="casual">Casual</option>
+            <option value="ranked">Ranked</option>
             <option value="bo1">Best of one</option>
             <option value="bo3">Best of three</option>
           </select>

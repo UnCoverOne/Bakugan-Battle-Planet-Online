@@ -75,3 +75,6 @@
 .featureSwitch{flex:0 0 auto;padding:.65rem .8rem;background:rgba(0,0,0,.28);border:1px solid var(--border-strong)}
 .featureSwitch input{width:2.5rem;height:1.35rem}
 @media(max-width:700px){.aiVisibilityControl{align-items:stretch;flex-direction:column}.featureSwitch{justify-content:space-between}}
+
+.rankedToolbar{display:flex;gap:1rem;align-items:end;justify-content:space-between;padding:1rem}.rankedToolbar>label{flex:1}.rankedRules{display:grid;max-height:680px;overflow:auto}.rankedRuleRow{display:grid;grid-template-columns:minmax(220px,1fr) 220px minmax(220px,1fr);gap:.8rem;align-items:center;padding:.75rem;border-bottom:1px solid rgba(255,255,255,.1)}.rankedRuleRow>div{display:grid}.rankedRuleRow small{opacity:.65}.rankedRuleRow select,.rankedRuleRow input{min-height:42px}.rankedHistory{display:grid;gap:.5rem;padding:1rem}.rankedHistory>div{display:grid;grid-template-columns:140px 1fr auto;gap:1rem;align-items:center;padding:.65rem;border-top:1px solid rgba(255,255,255,.1)}
+@media(max-width:760px){.rankedToolbar{align-items:stretch;flex-direction:column}.rankedRuleRow{grid-template-columns:1fr}.rankedHistory>div{grid-template-columns:1fr}}

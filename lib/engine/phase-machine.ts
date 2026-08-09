@@ -7,6 +7,8 @@ const STRICT_COMMAND_PHASES: Partial<Record<GameCommand["type"], readonly Phase[
   START_MATCH: ["lobby"],
   UPDATE_LOBBY_SETTINGS: ["lobby"],
   UPDATE_LOBBY_DECK: ["lobby"],
+  RANKED_BAN_DECK: ["lobby"],
+  RANKED_SELECT_DECK: ["lobby", "result"],
   BEGIN_CORE_PLACEMENT: ["startingPlayer"],
   PLACE_CORE: ["placement", "retract"],
   DRAW_TURN_CARD: ["draw"],

@@ -96,6 +96,46 @@ export const userMatchHistory = sqliteTable("user_match_history", {
   index("user_match_history_user_occurred_idx").on(table.userId, table.occurredAt),
 ]);
 
+export const rankedRatings = sqliteTable("ranked_ratings", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  bp: integer("bp").notNull().default(1000),
+  wins: integer("wins").notNull().default(0),
+  losses: integer("losses").notNull().default(0),
+  lastAchievedAt: integer("last_achieved_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+}, (table) => [
+  index("ranked_ratings_leaderboard_idx").on(table.bp, table.wins, table.lastAchievedAt),
+]);
+
+export const rankedSeries = sqliteTable("ranked_series", {
+  seriesId: text("series_id").primaryKey(),
+  rulesetVersion: integer("ruleset_version").notNull(),
+  playerOneUserId: text("player_one_user_id").notNull(),
+  playerTwoUserId: text("player_two_user_id").notNull(),
+  winnerUserId: text("winner_user_id"),
+  loserUserId: text("loser_user_id"),
+  score: text("score").notNull().default(""),
+  transfer: integer("transfer"),
+  settlementToken: text("settlement_token"),
+  settledAt: integer("settled_at"),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const rankedRatingEvents = sqliteTable("ranked_rating_events", {
+  seriesId: text("series_id").primaryKey(),
+  winnerUserId: text("winner_user_id").notNull(),
+  loserUserId: text("loser_user_id").notNull(),
+  winnerBefore: integer("winner_before").notNull(),
+  loserBefore: integer("loser_before").notNull(),
+  transfer: integer("transfer").notNull(),
+  winnerAfter: integer("winner_after").notNull(),
+  loserAfter: integer("loser_after").notNull(),
+  settledAt: integer("settled_at").notNull(),
+}, (table) => [
+  index("ranked_rating_events_winner_idx").on(table.winnerUserId, table.settledAt),
+  index("ranked_rating_events_loser_idx").on(table.loserUserId, table.settledAt),
+]);
+
 export const accountRoles = sqliteTable("account_roles", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   role: text("role").notNull(),

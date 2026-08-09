@@ -99,7 +99,7 @@ test("the streamlined Play route is a one-screen creation flow and the lobby exp
     "Training",
     "Casual",
     "Ranked",
-    "Under development",
+    "Brawler Points",
     "Best of One",
     "Best of Three",
     "Create Lobby",
@@ -108,7 +108,7 @@ test("the streamlined Play route is a one-screen creation flow and the lobby exp
     "SETUP",
   ]) assert.match(creation, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.doesNotMatch(creation, /DECK SELECTION MOVED TO LOBBY/);
-  assert.match(creation, /disabled aria-disabled="true"/);
+  assert.match(creation, /chooseMode\("ranked"\)/);
   assert.match(playPage, /MatchCreationScreen/);
   assert.doesNotMatch(playPage, /PlayScreen/);
 

@@ -482,7 +482,7 @@ export function DeckLibraryScreen() {
       {decks.length === 0 ? (
         <DeckState
           title="Build your first battle deck"
-          copy="Choose three Character cards, their six BakuCores, and a legal 40-card Main Deck."
+          copy="Choose three Character cards, their six BakuCores, and a legal 40-card Standard or 50-card Competitive Main Deck."
           action={<ActionButton onClick={create}>Create Deck</ActionButton>}
         />
       ) : visible.length === 0 ? (
@@ -609,7 +609,7 @@ function DeckTile({
               {report.isLegal ? "Legal" : `${report.issues.length} issues`}
             </StatusChip>
           </div>
-          <small>{deck.cardIds.length}/40 cards · {deck.bakuganIds.length}/3 Character · {deck.coreIds.length}/6 BakuCores</small>
+          <small>{deck.cardIds.length}/{deck.format === "competitive" ? 50 : 40} cards · {deck.bakuganIds.length}/3 Character · {deck.coreIds.length}/6 BakuCores</small>
           <small>Updated {formatTimestamp(deck.updatedAt)}</small>
         </div>
       </button>
@@ -916,7 +916,7 @@ function DeckDetailPresentation({
             </div>
           </Surface>
           <Surface className={styles.detailPanel}>
-            <div className={styles.panelHeading}><div><span>Construction</span><h2>Main Deck</h2></div><StatusChip>{deck.cardIds.length}/40</StatusChip></div>
+            <div className={styles.panelHeading}><div><span>Construction</span><h2>Main Deck</h2></div><StatusChip>{deck.cardIds.length}/{deck.format === "competitive" ? 50 : 40}</StatusChip></div>
             <div className={styles.detailCardList}>
               {cards.map(({ card, count }) => (
                 <article key={card!.catalogId}>
@@ -1067,6 +1067,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     });
   };
   const report = useMemo(() => validateDeck(deck), [deck]);
+  const mainDeckMaximum = deck.format === "competitive" ? 50 : 40;
   const grouped = useMemo(() => [...new Set(deck.cardIds)].map((key) => ({
     card: CARD_BY_ID.get(key),
     count: deck.cardIds.filter((candidate) => candidate === key).length,
@@ -1167,7 +1168,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   const adjustCard = (key: string, amount: number) => {
     const next = [...deck.cardIds];
     const limit = deck.format === "singleton" ? 1 : 3;
-    if (amount > 0 && next.length < 40 && next.filter((candidate) => candidate === key).length < limit) next.push(key);
+    if (amount > 0 && next.length < mainDeckMaximum && next.filter((candidate) => candidate === key).length < limit) next.push(key);
     if (amount < 0) {
       const index = next.lastIndexOf(key);
       if (index >= 0) next.splice(index, 1);
@@ -1211,7 +1212,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       return deck.coreIds.length < 6 && item.count < limit;
     }
     const limit = deck.format === "singleton" ? 1 : 3;
-    return deck.cardIds.length < 40 && item.count < limit;
+    return deck.cardIds.length < mainDeckMaximum && item.count < limit;
   };
   const toggleFilterValue = (current: string[], setCurrent: (values: string[]) => void, value: string) => {
     setCurrent(current.includes(value) ? current.filter((candidate) => candidate !== value) : [...current, value]);
@@ -1296,7 +1297,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       <header className={styles.builderHeader}>
         <Link href={returnTo ?? "/decks"}>{administratorEdit ? "← Administrator" : returnTo ? "← Match setup" : "← My Decks"}</Link>
         <div className={styles.builderDeckIdentity}><span>{administratorEdit ? "Administrator Edit" : "Edit Deck"}</span><strong>{deck.name}</strong></div>
-        <label>Format<select value={deck.format ?? "standard"} onChange={(event) => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}><option value="standard">Standard</option><option value="singleton">Singleton</option></select></label>
+        <label>Format<select value={deck.format ?? "standard"} onChange={(event) => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}><option value="standard">Standard</option><option value="singleton">Singleton</option><option value="competitive">Competitive</option></select></label>
         <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
         <StatusChip tone={report.isLegal ? "success" : "danger"}>{report.isLegal ? "Legal" : `${report.issues.length} issues`}</StatusChip>
         <span className={`${styles.saveState} ${styles[`saveState_${saveState}`]}`}>
@@ -1307,7 +1308,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       <Tabs className={styles.builderMobileTabs} label="Deck Builder sections">
         {(["gallery", "deck"] as BuilderView[]).map((value) => (
           <button key={value} className={builderView === value ? "active" : ""} onClick={() => setBuilderView(value)}>
-            {value === "gallery" ? "Card Gallery" : `Current Deck ${deck.cardIds.length}/40`}
+            {value === "gallery" ? "Card Gallery" : `Current Deck ${deck.cardIds.length}/${mainDeckMaximum}`}
           </button>
         ))}
       </Tabs>
@@ -1448,7 +1449,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
             <BuilderRequirementHeader
               title="Main Deck"
               count={deck.cardIds.length}
-              maximum={40}
+              maximum={mainDeckMaximum}
               issues={report.bySection.mainDeck}
               factions={report.teamFactions}
               onInfo={() => setActiveMenu({ surface: "mainDeck", panel: "issues" })}
@@ -1473,7 +1474,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
                   <BuilderGalleryCard
                     key={card.catalogId}
                     item={{ kind: "card", id: card.catalogId, name: card.displayName, card, count }}
-                    canAdd={count < (deck.format === "singleton" ? 1 : 3) && deck.cardIds.length < 40}
+                    canAdd={count < (deck.format === "singleton" ? 1 : 3) && deck.cardIds.length < mainDeckMaximum}
                     onInspect={() => inspectCard(card)}
                     onAdjust={(amount) => adjustCard(card.catalogId, amount)}
                   />
@@ -1482,7 +1483,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
             ) : (
               <DeckState
                 title={deck.cardIds.length ? "No deck cards match" : "Main Deck is empty"}
-                copy={deck.cardIds.length ? "Clear the Main Deck filters to see every included card." : "Add 40 faction-compatible cards from the Card Gallery."}
+                copy={deck.cardIds.length ? "Clear the Main Deck filters to see every included card." : `Add ${mainDeckMaximum} faction-compatible cards from the Card Gallery.`}
               />
             )}
           </section>
@@ -1491,7 +1492,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       <footer className={styles.builderStatus}>
         <div><span>Characters</span><strong>{deck.bakuganIds.length}/3</strong></div>
         <div><span>BakuCores</span><strong>{deck.coreIds.length}/6</strong></div>
-        <div><span>Main Deck</span><strong>{deck.cardIds.length}/40</strong></div>
+        <div><span>Main Deck</span><strong>{deck.cardIds.length}/{mainDeckMaximum}</strong></div>
         <div><span>Legality</span><strong>{report.isLegal ? "Legal" : `${report.issues.length} issues`}</strong></div>
         <span>{saveState === "error" ? storageHealth.message : "Draft persists on this device while you build."}</span>
       </footer>

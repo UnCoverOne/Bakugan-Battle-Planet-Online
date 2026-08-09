@@ -20,6 +20,7 @@ const NAV = [
   { href: "/play", label: "Play", icon: "▶" },
   { href: "/decks", label: "Decks", icon: "▤" },
   { href: "/compendium", label: "Compendium", icon: "◇" },
+  { href: "/leaderboard", label: "Leaderboard", icon: "◆" },
 ];
 const TITLES = {
   dashboard: "Home",
@@ -28,6 +29,8 @@ const TITLES = {
   builder: "Deck Builder",
   compendium: "Compendium",
   history: "Match Records",
+  leaderboard: "Ranked Leaderboard",
+  brawlers: "Brawler Profile",
   profile: "Profile",
   settings: "Settings",
   admin: "Administrator",

@@ -7,6 +7,7 @@ import {
   type LobbyMeta,
   type LobbyRulesFormat,
 } from "./lobby-config";
+import { rankedSeries } from "./ranked-lobby";
 
 /** The player who created the room always occupies the first seat. */
 export function roomOwnerId(state: MatchState) {
@@ -23,6 +24,7 @@ export function roomOwnerId(state: MatchState) {
  */
 export function setLobbyReadyOrStart(input: MatchState, playerId: string) {
   if (input.phase !== "lobby") throw new Error("Ready is not legal now.");
+  if (rankedSeries(input) && rankedSeries(input)?.stage !== "ready") throw new Error("Complete Ranked deck bans and round selection before readying.");
   const player = input.players.find((candidate) => candidate.id === playerId);
   if (!player) throw new Error("Unknown player.");
 
@@ -101,7 +103,7 @@ export function replaceLobbyDeck(input: MatchState, playerId: string, replacemen
   const config = lobbyConfig(input);
   const required = requiredDeckFormat(config.rulesFormat);
   if (playerLobbyDeckFormat(replacement) !== required) {
-    throw new Error(`${config.rulesFormat === "singleton" ? "Singleton" : config.rulesFormat === "competitive" ? "Competitive" : "Standard"} requires a ${required} deck.`);
+    throw new Error(`${config.rulesFormat === "singleton" ? "Singleton" : config.rulesFormat === "competitive" ? "Competitive" : "Standard"} requires a ${required === "singleton" ? "Singleton" : required === "competitive" ? "Competitive" : "Standard"} deck.`);
   }
 
   const state = cloneMatch(input);
@@ -121,6 +123,7 @@ export function replaceLobbyDeck(input: MatchState, playerId: string, replacemen
 
 export function setLobbyReady(input: MatchState, playerId: string, ready: boolean) {
   if (input.phase !== "lobby") throw new Error("Ready is not legal now.");
+  if (rankedSeries(input) && rankedSeries(input)?.stage !== "ready") throw new Error("Complete Ranked deck bans and round selection before readying.");
   const player = input.players.find((candidate) => candidate.id === playerId);
   if (!player) throw new Error("Unknown player.");
   if (player.ready === ready) throw new Error(ready ? "You are already ready." : "You are already not ready.");
@@ -129,7 +132,7 @@ export function setLobbyReady(input: MatchState, playerId: string, ready: boolea
     const config = lobbyConfig(input);
     const required = requiredDeckFormat(config.rulesFormat);
     if (playerLobbyDeckFormat(player) !== required) {
-      throw new Error(`Select a ${required === "singleton" ? "Singleton" : "Standard"} deck before readying.`);
+      throw new Error(`Select a ${required === "singleton" ? "Singleton" : required === "competitive" ? "Competitive" : "Standard"} deck before readying.`);
     }
     const otherReady = input.players.find((candidate) => candidate.id !== playerId && candidate.ready);
     if (input.players.length === 2 && otherReady) {
@@ -160,6 +163,7 @@ export function setLobbyReady(input: MatchState, playerId: string, ready: boolea
 
 export function startLobbyMatch(input: MatchState, playerId: string) {
   if (input.phase !== "lobby") throw new Error("The match has already started.");
+  if (rankedSeries(input) && rankedSeries(input)?.stage !== "ready") throw new Error("Complete Ranked deck bans and round selection before starting.");
   if (roomOwnerId(input) !== playerId) throw new Error("Only the room owner can start the match.");
   if (input.players.length !== 2) throw new Error("Wait for another Brawler to join before starting the match.");
   if (!input.players.every((candidate) => candidate.ready)) throw new Error("Both players must be ready before the match can start.");
@@ -170,5 +174,7 @@ export function startLobbyMatch(input: MatchState, playerId: string) {
   if (next.log[duplicateReadyLogIndex]?.message === `${owner.name} locked a legal deck.`) {
     next.log.splice(duplicateReadyLogIndex, 1);
   }
+  const ranked = rankedSeries(next);
+  if (ranked) ranked.stage = "playing";
   return next;
 }

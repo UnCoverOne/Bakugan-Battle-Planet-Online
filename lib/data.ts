@@ -1,6 +1,6 @@
 import { CONTROLLED_CATALOGUE } from "./content/catalogue";
 import type { Bakugan, Core, CoreType, Faction, GameCard, PlayerState } from "./game";
-import { deckValidationMessages, validateDeckConstruction } from "./deck-validation";
+import { deckValidationMessages, validateDeckConstruction, type DeckRestriction } from "./deck-validation";
 import { MATCH_RECONNECT_GRACE_SECONDS } from "./match-constants";
 
 const records = CONTROLLED_CATALOGUE;
@@ -97,7 +97,7 @@ export function applyCardOverrides(overrides: CardOverrideRecord[]) {
   return CARDS;
 }
 
-export type DeckFormat = "standard" | "singleton";
+export type DeckFormat = "standard" | "singleton" | "competitive";
 
 export type DeckRecord = {
   id: string;
@@ -170,7 +170,8 @@ const deckValidationCatalogue = {
   cores: new Map(CORES.map((core) => [core.id, core])),
 };
 
-export const validateDeck = (deck: DeckRecord) => validateDeckConstruction(deck, deckValidationCatalogue);
+export const validateDeck = (deck: DeckRecord, restrictions: readonly DeckRestriction[] = []) =>
+  validateDeckConstruction(deck, deckValidationCatalogue, { restrictions });
 export const deckErrors = (deck: DeckRecord) => deckValidationMessages(validateDeck(deck));
 export const deckIsLegal = (deck: DeckRecord) => validateDeck(deck).isLegal;
 
@@ -201,9 +202,39 @@ const coreInstance = (core: Core, playerId: string, index: number): Core => ({
 export type CanonicalPlayerSelection = {
   playerId: string;
   name: string;
-  deck: Pick<DeckRecord, "name" | "bakuganIds" | "coreIds" | "cardIds" | "format">;
+  deck: Pick<DeckRecord, "name" | "bakuganIds" | "coreIds" | "cardIds" | "format"> &
+    Partial<Pick<DeckRecord, "id" | "factions" | "leadCardId">>;
   cosmetics?: { avatar?: string; playmat?: string; cardBack?: string };
 };
+
+export function canonicalDeckRecord(selection: CanonicalPlayerSelection): DeckRecord {
+  const playerId = String(selection.playerId ?? "").trim().slice(0, 80);
+  return {
+    id: String(selection.deck?.id ?? `server-${playerId}`).trim().slice(0, 100),
+    name: String(selection.deck?.name ?? "Online Deck").trim().slice(0, 60),
+    bakuganIds: Array.isArray(selection.deck?.bakuganIds) ? selection.deck.bakuganIds.map(String) : [],
+    coreIds: Array.isArray(selection.deck?.coreIds) ? selection.deck.coreIds.map(String) : [],
+    cardIds: Array.isArray(selection.deck?.cardIds) ? selection.deck.cardIds.map(String) : [],
+    format: selection.deck?.format === "singleton" || selection.deck?.format === "competitive" ? selection.deck.format : "standard",
+    factions: Array.isArray(selection.deck?.factions) ? selection.deck.factions.map(String).slice(0, 6) : [],
+    leadCardId: selection.deck?.leadCardId ? String(selection.deck.leadCardId) : undefined,
+    updatedAt: new Date().toISOString(),
+    visibility: "Private",
+  };
+}
+
+export function makeCanonicalPlayerWithRestrictions(
+  selection: CanonicalPlayerSelection,
+  restrictions: readonly DeckRestriction[],
+): PlayerState {
+  const playerId = String(selection.playerId ?? "").trim().slice(0, 80);
+  const name = String(selection.name ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 40);
+  if (!playerId || !name) throw new Error("A valid player ID and display name are required.");
+  const deck = canonicalDeckRecord(selection);
+  const validation = validateDeck(deck, restrictions);
+  if (!validation.isLegal) throw new Error(deckValidationMessages(validation).join(" "));
+  return makePlayerUnchecked(playerId, name, deck);
+}
 
 const shuffleCanonical = <T,>(values: T[]) => {
   for (let index = values.length - 1; index > 0; index -= 1) {
@@ -212,8 +243,7 @@ const shuffleCanonical = <T,>(values: T[]) => {
   }
 };
 
-export const makePlayer = (id: string, name: string, deck: DeckRecord): PlayerState => {
-  if (!deckIsLegal(deck)) throw new Error(deckErrors(deck).join(" "));
+function makePlayerUnchecked(id: string, name: string, deck: DeckRecord): PlayerState {
   const deckCards = deck.cardIds.map((key, index) => instance(CARD_BY_ID.get(key)!, id, index));
   shuffleCanonical(deckCards);
   const hand = deckCards.splice(0, 5);
@@ -242,23 +272,18 @@ export const makePlayer = (id: string, name: string, deck: DeckRecord): PlayerSt
     cardsPlayedThisTurn: 0,
     factionsPlayedThisTurn: [],
   };
+}
+
+export const makePlayer = (id: string, name: string, deck: DeckRecord): PlayerState => {
+  if (!deckIsLegal(deck)) throw new Error(deckErrors(deck).join(" "));
+  return makePlayerUnchecked(id, name, deck);
 };
 
 export function makeCanonicalPlayer(selection: CanonicalPlayerSelection): PlayerState {
   const playerId = String(selection.playerId ?? "").trim().slice(0, 80);
   const name = String(selection.name ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 40);
   if (!playerId || !name) throw new Error("A valid player ID and display name are required.");
-  const deck: DeckRecord = {
-    id: `server-${playerId}`,
-    name: String(selection.deck?.name ?? "Online Deck").trim().slice(0, 60),
-    bakuganIds: Array.isArray(selection.deck?.bakuganIds) ? selection.deck.bakuganIds.map(String) : [],
-    coreIds: Array.isArray(selection.deck?.coreIds) ? selection.deck.coreIds.map(String) : [],
-    cardIds: Array.isArray(selection.deck?.cardIds) ? selection.deck.cardIds.map(String) : [],
-    format: selection.deck?.format === "singleton" ? "singleton" : "standard",
-    factions: [],
-    updatedAt: new Date().toISOString(),
-    visibility: "Private",
-  };
+  const deck = canonicalDeckRecord(selection);
   return makePlayer(playerId, name, deck);
 }
 

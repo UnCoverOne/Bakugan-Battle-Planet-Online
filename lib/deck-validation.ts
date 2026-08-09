@@ -10,9 +10,11 @@ export type DeckValidationIssueCode =
   | "cores.indicators_mismatch"
   | "cores.copy_limit"
   | "main_deck.exactly_forty"
+  | "main_deck.exactly_fifty"
   | "main_deck.unknown_card"
   | "main_deck.faction_mismatch"
-  | "main_deck.copy_limit";
+  | "main_deck.copy_limit"
+  | "main_deck.ranked_restriction";
 
 export type DeckValidationIssue = {
   code: DeckValidationIssueCode;
@@ -26,7 +28,7 @@ export type DeckValidationIssue = {
 
 export type ValidatableDeck = {
   name?: string;
-  format?: "standard" | "singleton";
+  format?: "standard" | "singleton" | "competitive";
   bakuganIds: string[];
   coreIds: string[];
   cardIds: string[];
@@ -70,6 +72,16 @@ export type DeckValidationResult = {
   selectedCoreTypes: string[];
 };
 
+export type DeckRestriction = {
+  constructionIdentity: string;
+  limit: 0 | 1 | 2;
+  reason?: string;
+};
+
+export type DeckValidationOptions = {
+  restrictions?: readonly DeckRestriction[];
+};
+
 const sectionOrder: DeckValidationSection[] = ["identity", "team", "cores", "mainDeck"];
 
 function issue(
@@ -102,9 +114,10 @@ function sameMultiset(left: string[], right: string[]) {
 export function validateDeckConstruction(
   deck: ValidatableDeck,
   catalogue: DeckValidationCatalogue,
+  options: DeckValidationOptions = {},
 ): DeckValidationResult {
   const issues: DeckValidationIssue[] = [];
-  const format = deck.format === "singleton" ? "singleton" : "standard";
+  const format = deck.format === "singleton" || deck.format === "competitive" ? deck.format : "standard";
   const cardCopyLimit = format === "singleton" ? 1 : 3;
   const coreCopyLimit = format === "singleton" ? 1 : 6;
 
@@ -166,8 +179,15 @@ export function validateDeckConstruction(
     .map((id) => catalogue.cards.get(id))
     .filter((value): value is ValidationCard => Boolean(value));
   const unknownCards = deck.cardIds.filter((id) => !catalogue.cards.has(id));
-  if (deck.cardIds.length !== 40) {
-    issues.push(issue("main_deck.exactly_forty", "mainDeck", "cardIds", "Main Deck must contain exactly 40 cards.", { expected: 40, actual: deck.cardIds.length }));
+  const requiredCardCount = format === "competitive" ? 50 : 40;
+  if (deck.cardIds.length !== requiredCardCount) {
+    issues.push(issue(
+      format === "competitive" ? "main_deck.exactly_fifty" : "main_deck.exactly_forty",
+      "mainDeck",
+      "cardIds",
+      `Main Deck must contain exactly ${requiredCardCount} cards.`,
+      { expected: requiredCardCount, actual: deck.cardIds.length },
+    ));
   }
   if (unknownCards.length) {
     issues.push(issue("main_deck.unknown_card", "mainDeck", "cardIds", "Every Main Deck ID must identify a card in the catalogue.", { actual: unknownCards }));
@@ -199,9 +219,29 @@ export function validateDeckConstruction(
       "main_deck.copy_limit",
       "mainDeck",
       "cardIds",
-      `${format === "singleton" ? "Singleton" : "Standard"} allows no more than ${cardCopyLimit} ${cardCopyLimit === 1 ? "copy" : "copies"} of a Main Deck card.`,
+      `${format === "singleton" ? "Singleton" : format === "competitive" ? "Competitive" : "Standard"} allows no more than ${cardCopyLimit} ${cardCopyLimit === 1 ? "copy" : "copies"} of a Main Deck card.`,
       { cardId: cards[offendingIndex]?.catalogId, expected: cardCopyLimit, actual: overCardLimit[1] },
     ));
+  }
+
+  if (format === "competitive") {
+    const restrictions = new Map(options.restrictions?.map((restriction) => [restriction.constructionIdentity, restriction]) ?? []);
+    for (const [constructionIdentity, count] of frequencies(constructionKeys)) {
+      const restriction = restrictions.get(constructionIdentity);
+      if (!restriction || count <= restriction.limit) continue;
+      const offendingIndex = constructionKeys.indexOf(constructionIdentity);
+      const card = cards[offendingIndex];
+      const label = card?.displayName ?? card?.name ?? card?.catalogId ?? "This card";
+      issues.push(issue(
+        "main_deck.ranked_restriction",
+        "mainDeck",
+        "cardIds",
+        restriction.limit === 0
+          ? `${label} is banned in Competitive.`
+          : `${label} is restricted to ${restriction.limit} ${restriction.limit === 1 ? "copy" : "copies"} in Competitive.`,
+        { cardId: card?.catalogId, expected: restriction.limit, actual: count },
+      ));
+    }
   }
 
   const bySection = Object.fromEntries(sectionOrder.map((section) => [

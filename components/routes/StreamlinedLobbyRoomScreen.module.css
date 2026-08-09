@@ -9,6 +9,9 @@
     url('/assets/burst.jpg') center/cover fixed;
 }
 
+.rankedPanel{display:grid;gap:1rem;padding:1.1rem;background:linear-gradient(135deg,rgba(90,55,0,.28),rgba(2,25,35,.95));border:1px solid rgba(255,212,92,.5)}.rankedPanel>header{display:flex;justify-content:space-between;gap:1rem;align-items:start}.rankedPanel h2,.rankedPanel p{margin:.2rem 0}.rankedPanel>header span{color:#ffd45c;font-size:.72rem;font-weight:900;letter-spacing:.12em}.rankedDecks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.rankedDecks>button{display:grid;gap:.45rem;min-height:180px;padding:.75rem;background:rgba(0,0,0,.28);border:1px solid rgba(104,194,222,.3);color:inherit;text-align:left}.rankedDecks>button:not(:disabled):hover{border-color:#ffd45c;transform:translateY(-2px)}.rankedDecks small{color:var(--text-secondary)}.rankedCharacters{display:flex;height:112px;justify-content:center}.rankedCharacters img{width:72px;height:104px;object-fit:contain;margin-left:-16px;filter:drop-shadow(0 5px 5px #000)}.rankedCharacters img:first-child{margin-left:0}.rankedLocked{padding:.65rem;text-align:center;color:#ffd45c;background:rgba(255,212,92,.08);font-weight:900;letter-spacing:.08em}
+@media(max-width:760px){.rankedDecks{grid-template-columns:1fr}.rankedDecks>button{min-height:150px}}
+
 .hero {
   position: relative;
   min-height: 250px;

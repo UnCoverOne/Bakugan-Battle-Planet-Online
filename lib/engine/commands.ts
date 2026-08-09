@@ -7,6 +7,8 @@ export type ApiAction =
   | "start-match"
   | "lobby-settings"
   | "lobby-deck"
+  | "ranked-ban"
+  | "ranked-select"
   | "begin-placement"
   | "place"
   | "draw"
@@ -54,6 +56,12 @@ export function apiActionToCommand(
       meta: stringValue(payload.meta) as "battle-brawlers",
     };
     case "lobby-deck": return { type: "UPDATE_LOBBY_DECK", player: payload.player as PlayerState };
+    case "ranked-ban": return { type: "RANKED_BAN_DECK", deckId: stringValue(payload.deckId) };
+    case "ranked-select": return {
+      type: "RANKED_SELECT_DECK",
+      deckId: stringValue(payload.deckId),
+      restrictions: Array.isArray(payload.restrictions) ? payload.restrictions as never : [],
+    };
     case "begin-placement": return { type: "BEGIN_CORE_PLACEMENT" };
     case "place": return { type: "PLACE_CORE", coreId: stringValue(payload.coreId), cell: stringValue(payload.cell) };
     case "draw": return { type: "DRAW_TURN_CARD" };

@@ -1,5 +1,6 @@
 import { redactForPlayer, type GameCard, type MatchState } from "../game";
 import { deckEnergyFaceVisible } from "../energyVisibility";
+import { hideRankedDeckLists } from "../ranked-lobby";
 import { ENGINE_METADATA_KEY, type EngineBackedMatchState, type GameEvent } from "./types";
 
 export type PublicGameEvent = Pick<GameEvent,
@@ -29,7 +30,7 @@ function hiddenEnergyCard(id: string): GameCard {
 }
 
 export function projectMatchForPlayer(state: MatchState, playerId: string, now = Date.now()): MatchState {
-  const projected = redactForPlayer(state, playerId) as EngineBackedMatchState;
+  const projected = hideRankedDeckLists(redactForPlayer(state, playerId), playerId) as EngineBackedMatchState;
   delete projected[ENGINE_METADATA_KEY];
   const owner = projected.players.find((player) => player.id === playerId);
   if (owner) {

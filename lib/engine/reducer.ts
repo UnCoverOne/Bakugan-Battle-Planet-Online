@@ -21,6 +21,7 @@ import {
   startLobbyMatch,
   updateLobbySettings,
 } from "../lobby";
+import { beginRankedIntermission, rankedSeries, selectRankedDeck, submitRankedBan } from "../ranked-lobby";
 import { confirmRoll, selectRollTarget } from "../rolling";
 import { drawTurnCard } from "../turnStart";
 import { undoLatestAction } from "../undo";
@@ -94,6 +95,8 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
       if (player) captureOriginalDeckManifest(state, player);
       return state;
     }
+    case "RANKED_BAN_DECK": return submitRankedBan(input, actorId, command.deckId);
+    case "RANKED_SELECT_DECK": return selectRankedDeck(input, actorId, command.deckId, command.restrictions);
     case "BEGIN_CORE_PLACEMENT": return beginCorePlacement(input, issuedAt);
     case "PLACE_CORE": return placeCoreOrReturnCore(input, actorId, command.coreId, command.cell);
     case "DRAW_TURN_CARD": return drawTurnCard(input, actorId);
@@ -106,7 +109,9 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
     case "CHAT": return addChatMessage(input, actorId, command.message);
     case "CONCEDE": return concedeMatch(input, actorId);
     case "NEXT_TURN": return nextTurn(input);
-    case "START_NEXT_SERIES_GAME": return startNextSeriesGame(restoreOriginalDecksForNextGame(input));
+    case "START_NEXT_SERIES_GAME": return rankedSeries(input)
+      ? beginRankedIntermission(input)
+      : startNextSeriesGame(restoreOriginalDecksForNextGame(input));
     case "UNDO": return undoLatestAction(input, actorId);
     case "JOIN_PLAYER": return joinPlayer(input, command.player, issuedAt);
     case "RESOLVE_DEADLINE": return resolveExpiredDeadline(input, issuedAt);
