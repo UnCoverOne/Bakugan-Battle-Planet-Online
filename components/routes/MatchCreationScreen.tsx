@@ -1,13 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { validateDeck, type DeckRecord } from "../../lib/data";
 import { normalizeRoomCode } from "../../lib/play-setup-machine";
 import { createTrainingLobbyState } from "../../lib/training-lobby";
 import { useApp } from "../application/AppProvider";
-import { RouteHero, Surface } from "../design-system/primitives";
 import styles from "./MatchCreationScreen.module.css";
 
 type MatchModeChoice = "training" | "casual" | "ranked";
@@ -22,6 +20,10 @@ type PendingLaunch = {
 
 function modeFromProvider(mode: string): MatchModeChoice {
   return mode === "solo" ? "training" : "casual";
+}
+
+function ChevronArrow() {
+  return <svg className={styles.buttonArrow} viewBox="0 0 24 24" aria-hidden="true"><path d="m8 4 8 8-8 8" /></svg>;
 }
 
 export function MatchCreationScreen() {
@@ -134,29 +136,38 @@ export function MatchCreationScreen() {
 
   return (
     <div className={styles.route}>
-      <RouteHero
-        eyebrow="MATCH CREATION"
-        title="Enter the arena"
-        description="Choose the mode, match structure, and lobby action on one screen. Decks, format, meta, ready state, and chat are handled inside the lobby."
-      />
+      <header className={styles.hero}>
+        <div className={styles.heroCopy}>
+          <p className={styles.kicker}>MATCH CREATION</p>
+          <h1><span>BRAWL</span><strong>SETUP</strong></h1>
+          <p>Choose your battle mode, match structure, and lobby action. Final deck selection and ready checks happen inside the lobby.</p>
+        </div>
+        <div className={styles.heroArt} aria-hidden="true">
+          <div className={styles.heroGrid} />
+          <img src="/assets/brawlers-group.png" alt="" />
+        </div>
+      </header>
 
       <main className={styles.shell}>
-        <Surface className={styles.panel} elevation="raised">
+        <section className={styles.panel}>
           <section className={styles.section} aria-labelledby="match-mode-heading">
             <div className={styles.heading}>
-              <span>01</span>
+              <span className={styles.step}>01</span>
               <div><p>MODE</p><h2 id="match-mode-heading">Choose how you want to play</h2></div>
             </div>
             <div className={styles.modeGrid}>
               <button className={mode === "training" ? styles.selected : ""} aria-pressed={mode === "training"} onClick={() => chooseMode("training")}>
+                <span className={styles.optionIndex}>TRAINING</span>
                 <strong>Training</strong>
                 <span>Practice against Mira Nova in a private local lobby.</span>
               </button>
               <button className={mode === "casual" ? styles.selected : ""} aria-pressed={mode === "casual"} onClick={() => chooseMode("casual")}>
+                <span className={styles.optionIndex}>CASUAL</span>
                 <strong>Casual</strong>
                 <span>Create or join a private online lobby.</span>
               </button>
               <button className={styles.disabled} disabled aria-disabled="true">
+                <span className={styles.optionIndex}>RANKED</span>
                 <strong>Ranked</strong>
                 <span>Under development</span>
                 <small>Competitive format will be locked here when Ranked launches.</small>
@@ -166,7 +177,7 @@ export function MatchCreationScreen() {
 
           <section className={styles.section} aria-labelledby="structure-heading">
             <div className={styles.heading}>
-              <span>02</span>
+              <span className={styles.step}>02</span>
               <div><p>STRUCTURE</p><h2 id="structure-heading">Set the series length</h2></div>
             </div>
             <div className={styles.segmented}>
@@ -181,11 +192,12 @@ export function MatchCreationScreen() {
 
           <section className={styles.section} aria-labelledby="lobby-action-heading">
             <div className={styles.heading}>
-              <span>03</span>
+              <span className={styles.step}>03</span>
               <div><p>LOBBY</p><h2 id="lobby-action-heading">Create or join</h2></div>
             </div>
             <div className={styles.actionGrid}>
               <button className={action === "create" ? styles.selected : ""} aria-pressed={action === "create"} onClick={() => setAction("create")}>
+                <span className={styles.optionIndex}>HOST</span>
                 <strong>Create Lobby</strong>
                 <span>{mode === "training" ? "Training always creates a new lobby." : "Become the lobby owner and configure the match."}</span>
               </button>
@@ -195,6 +207,7 @@ export function MatchCreationScreen() {
                 disabled={mode === "training"}
                 onClick={() => setAction("join")}
               >
+                <span className={styles.optionIndex}>CONNECT</span>
                 <strong>Join Lobby</strong>
                 <span>{mode === "training" ? "Unavailable in Training." : "Enter an existing lobby code."}</span>
               </button>
@@ -215,20 +228,18 @@ export function MatchCreationScreen() {
           </section>
 
           <footer className={styles.launchArea}>
-            <div className={styles.preflight}>
-              <span>DECK SELECTION MOVED TO LOBBY</span>
-              <p>{preferredDeck
-                ? `Your current legal deck (${preferredDeck.name}) will provision the seat; you can change it before readying.`
-                : "You need at least one legal deck to provision a lobby seat."}</p>
-              {!preferredDeck ? <Link href="/decks">OPEN MY DECKS</Link> : null}
+            <div className={styles.selectionSummary} aria-label="Selected match settings">
+              <div><span>MODE</span><strong>{mode.toUpperCase()}</strong></div>
+              <div><span>STRUCTURE</span><strong>{structure === "bo3" ? "BEST OF THREE" : "BEST OF ONE"}</strong></div>
+              <div><span>ACTION</span><strong>{mode === "training" || action === "create" ? "CREATE" : "JOIN"}</strong></div>
             </div>
             <button className={styles.launchButton} disabled={busy || !preferredDeck || mode === "ranked"} onClick={launch}>
-              {busy ? "OPENING LOBBY…" : actionLabel}
+              <span>{busy ? "OPENING LOBBY…" : actionLabel}</span><ChevronArrow />
             </button>
           </footer>
 
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
-        </Surface>
+        </section>
       </main>
     </div>
   );
