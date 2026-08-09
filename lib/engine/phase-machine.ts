@@ -3,6 +3,10 @@ import { EngineCommandError, EngineInvariantError, type GameCommand, type Struct
 
 const STRICT_COMMAND_PHASES: Partial<Record<GameCommand["type"], readonly Phase[]>> = {
   SET_READY: ["lobby"],
+  SET_LOBBY_READY: ["lobby"],
+  START_MATCH: ["lobby"],
+  UPDATE_LOBBY_SETTINGS: ["lobby"],
+  UPDATE_LOBBY_DECK: ["lobby"],
   BEGIN_CORE_PLACEMENT: ["startingPlayer"],
   PLACE_CORE: ["placement", "retract"],
   DRAW_TURN_CARD: ["draw"],
