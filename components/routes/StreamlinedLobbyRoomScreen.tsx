@@ -119,21 +119,14 @@ export function LobbyRoomScreen() {
   const messages = useMemo(() => chatEntries(match), [match]);
   const me = match?.players.find((player) => player.id === room.playerId);
   const ownerId = match ? roomOwnerId(match) : "";
-  const owner = match?.players.find((player) => player.id === ownerId);
   const isOwner = Boolean(ownerId && ownerId === room.playerId);
   const bothReady = Boolean(match && match.players.length === 2 && match.players.every((player) => player.ready));
   const requiredFormat = config ? requiredDeckFormat(config.rulesFormat) : "standard";
-  const compatibleDecks = useMemo(
-    () => (decks as DeckRecord[]).filter((deck) => {
-      const deckFormat = deck.format === "singleton" ? "singleton" : "standard";
-      return deckFormat === requiredFormat && validateDeck(deck).isLegal;
-    }),
-    [decks, requiredFormat],
-  );
-  const currentDeck = useMemo(
-    () => compatibleDecks.find((deck) => deckMatchesPlayer(deck, me)) ?? null,
-    [compatibleDecks, me],
-  );
+  const compatibleDecks = (decks as DeckRecord[]).filter((deck) => {
+    const deckFormat = deck.format === "singleton" ? "singleton" : "standard";
+    return deckFormat === requiredFormat && validateDeck(deck).isLegal;
+  });
+  const currentDeck = compatibleDecks.find((deck) => deckMatchesPlayer(deck, me)) ?? null;
   const myDeckFormatMatches = Boolean(me && playerLobbyDeckFormat(me) === requiredFormat);
 
   useEffect(() => {
@@ -441,7 +434,7 @@ export function LobbyRoomScreen() {
                 <button
                   className={styles.readyButton}
                   type="button"
-                  disabled={!me || busy === "ready" || !myDeckFormatMatches || (room.online && !room.online)}
+                  disabled={!me || busy === "ready" || !myDeckFormatMatches}
                   onClick={() => void toggleReady()}
                 >
                   {busy === "ready" ? "UPDATING…" : me?.ready ? "UNREADY" : "READY"}
