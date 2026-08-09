@@ -1,5 +1,6 @@
 import { normalizeMatchState, type MatchState } from "../../../lib/game";
 import { makeCanonicalPlayer, type CanonicalPlayerSelection } from "../../../lib/data";
+import { tagLobbyPlayerDeck } from "../../../lib/lobby-config";
 import { applyDatabaseCardOverrides } from "../../../lib/administration-server";
 import {
   apiActionToCommand,
@@ -144,9 +145,10 @@ const encoder = new TextEncoder();
 const CAPABILITY_HEADER = "x-match-capability";
 const COMMAND_ID_HEADER = "x-command-id";
 const ACTIONS = new Set([
-  "create", "join", "get", "ready", "begin-placement", "place", "draw", "energize", "tap-energy",
-  "select", "target", "roll", "reroll", "prepare-play", "play", "choice", "cancel-choice", "order-triggers",
-  "pass", "flip-damage", "damage", "hand-limit", "chat", "concede", "next-turn", "next-game", "undo",
+  "create", "join", "get", "ready", "lobby-ready", "start-match", "lobby-settings", "lobby-deck",
+  "begin-placement", "place", "draw", "energize", "tap-energy", "select", "target", "roll", "reroll",
+  "prepare-play", "play", "choice", "cancel-choice", "order-triggers", "pass", "flip-damage", "damage",
+  "hand-limit", "chat", "concede", "next-turn", "next-game", "undo",
 ]);
 
 function parseBody(value: unknown): Body {
@@ -356,11 +358,11 @@ export async function POST(request: Request) {
     action = body.action;
     const clientKey = requestClientKey(request);
     await enforceD1RateLimit(await getDatabase(), `${clientKey}:${body.action === "chat" ? "chat" : "game"}`, body.action === "chat" ? 30 : 180, 60_000);
-    if (body.action === "create" || body.action === "join") await applyDatabaseCardOverrides(await getDatabase());
+    if (body.action === "create" || body.action === "join" || body.action === "lobby-deck") await applyDatabaseCardOverrides(await getDatabase());
 
     if (body.action === "create") {
       if (!body.selection || !body.format) throw new ValidationError("Missing canonical match setup.");
-      const player = makeCanonicalPlayer(body.selection);
+      const player = tagLobbyPlayerDeck(makeCanonicalPlayer(body.selection), body.selection.deck);
       const database = await getDatabase();
       const issuedAt = Date.now();
       const identity = await commandIdentity(request, body, "NEW", player.id, 0);
@@ -446,7 +448,10 @@ export async function POST(request: Request) {
 
     if (body.action === "join") {
       if (!body.selection) throw new ValidationError("Canonical player selection required.");
-      const player = makeCanonicalPlayer(body.selection);
+      if (body.format && body.format !== state.format) {
+        throw new ValidationError(`This lobby uses ${state.format === "bo3" ? "Best of Three" : "Best of One"}. Select the matching structure before joining.`);
+      }
+      const player = tagLobbyPlayerDeck(makeCanonicalPlayer(body.selection), body.selection.deck);
       if (state.players.some((candidate) => candidate.id === player.id)) {
         if (!await authenticateSeat(request, code, player.id)) {
           throw new AuthorizationError("A valid seat capability is required to reconnect.");
@@ -518,7 +523,13 @@ export async function POST(request: Request) {
     if (duplicate) return duplicate;
     if (expectedVersion !== state.version) return latestConflict(code, body.playerId, correlationId);
 
-    const payload = body.payload ?? {};
+    let payload = body.payload ?? {};
+    if (body.action === "lobby-deck") {
+      if (!body.selection) throw new ValidationError("Canonical player selection required.");
+      const replacement = tagLobbyPlayerDeck(makeCanonicalPlayer(body.selection), body.selection.deck);
+      if (replacement.id !== body.playerId) throw new AuthorizationError("A player can only change their own lobby deck.");
+      payload = { ...payload, player: replacement };
+    }
     const envelope: CommandEnvelope = {
       commandId: identity.commandId,
       gameId: state.id,
