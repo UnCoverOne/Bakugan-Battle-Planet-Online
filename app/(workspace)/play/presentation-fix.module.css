@@ -1,0 +1,151 @@
+.creationScope,
+.lobbyScope {
+  min-height: 100%;
+}
+
+/* Keep the Match Creation kicker and the two-line BRAWL / SETUP display type
+   inside a generous line box. Impact's italic overhang was being clipped by
+   the deliberately tight hero typography and overflow treatment. */
+.creationScope :global(header > div:first-child > p:first-child) {
+  display: inline-block;
+  padding: .12em .32em .16em .06em;
+  line-height: 1.45;
+  overflow: visible;
+}
+
+.creationScope :global(header h1) {
+  box-sizing: border-box;
+  padding: .08em .18em .14em .04em;
+  line-height: 1;
+  overflow: visible;
+}
+
+.creationScope :global(header h1 > span),
+.creationScope :global(header h1 > strong) {
+  box-sizing: border-box;
+  padding: .02em .12em .08em .02em;
+  line-height: 1;
+  overflow: visible;
+}
+
+/* The deck picker uses compact horizontal deck tiles: the featured card gets
+   a dedicated portrait column, while the deck name and player-authored tags
+   stay together in a readable information column. */
+.lobbyScope :global([role="dialog"] > header + div) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .85rem;
+  padding: 1rem;
+}
+
+.lobbyScope :global([role="dialog"] > header + div > button) {
+  min-height: 224px;
+  padding: .8rem .9rem;
+  display: grid;
+  grid-template-columns: 138px minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  column-gap: 1rem;
+  row-gap: .55rem;
+  align-items: start;
+  align-content: stretch;
+}
+
+.lobbyScope :global([role="dialog"] > header + div > button > span:first-child) {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  width: 138px;
+  height: 204px;
+  min-width: 0;
+  min-height: 0;
+  align-self: center;
+  overflow: visible;
+}
+
+.lobbyScope :global([role="dialog"] > header + div > button > span:first-child img) {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 12px 14px rgba(0, 0, 0, .72));
+}
+
+.lobbyScope :global([role="dialog"] > header + div > button > strong) {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  margin: .18rem 0 0;
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 1.25rem;
+  line-height: 1.08;
+  text-overflow: clip;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.lobbyScope :global([role="dialog"] > header + div > button > span:last-child:not(:first-child)) {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  margin-top: .35rem;
+  align-self: start;
+  align-content: flex-start;
+  gap: .4rem;
+}
+
+.lobbyScope :global([role="dialog"] > header + div > button > span:last-child:not(:first-child) > span) {
+  max-width: 100%;
+  padding: .32rem .5rem;
+  overflow: hidden;
+  font-size: .6rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobbyScope :global([role="dialog"] > header + div > button:disabled) {
+  opacity: .62;
+  filter: grayscale(.22);
+}
+
+.lobbyScope :global([role="dialog"] > header + div > button:disabled > span:first-child img) {
+  opacity: .82;
+}
+
+.lobbyScope :global([role="dialog"] > header + div > button:not(:disabled):focus-visible) {
+  outline: 2px solid #55dcff;
+  outline-offset: 2px;
+}
+
+@media (max-width: 1080px) {
+  .lobbyScope :global([role="dialog"] > header + div) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .lobbyScope :global([role="dialog"] > header + div) {
+    grid-template-columns: 1fr;
+    gap: .65rem;
+    padding: .7rem;
+  }
+
+  .lobbyScope :global([role="dialog"] > header + div > button) {
+    min-height: 198px;
+    grid-template-columns: 122px minmax(0, 1fr);
+    padding: .7rem;
+    column-gap: .8rem;
+  }
+
+  .lobbyScope :global([role="dialog"] > header + div > button > span:first-child) {
+    width: 122px;
+    height: 178px;
+  }
+
+  .lobbyScope :global([role="dialog"] > header + div > button > strong) {
+    font-size: 1.12rem;
+  }
+}
