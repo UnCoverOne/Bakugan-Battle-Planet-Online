@@ -33,7 +33,7 @@ import { AchievementsScreen } from "./AchievementsScreen";
 import styles from "./ProfileScreen.module.css";
 
 type ProfileSection = "overview" | "achievements" | "records";
-type ProfileDialog = "avatar" | "title" | "cover";
+type ProfileDialog = "avatar" | "title" | "faction" | "cover";
 
 const FACTION_SYMBOLS: Record<string, string> = {
   Aquos: "/assets/symbols/factions/aquos.png",
@@ -43,6 +43,15 @@ const FACTION_SYMBOLS: Record<string, string> = {
   Pyrus: "/assets/symbols/factions/pyrus.png",
   Ventus: "/assets/symbols/factions/ventus.png",
 };
+
+const PROFILE_FACTIONS = [
+  "Pyrus",
+  "Aquos",
+  "Darkus",
+  "Haos",
+  "Ventus",
+  "Aurelus",
+] as const;
 
 const resultTone = (result: string) =>
   result === "Victor" ? "success" : result === "Defeat" ? "danger" : "neutral";
@@ -275,6 +284,15 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                     height="32"
                   />
                   <span>{profile.faction} Brawler</span>
+                  <button
+                    className={`${styles.editButton} ${styles.titleEdit}`}
+                    type="button"
+                    aria-label="Edit Brawler faction"
+                    title="Edit Brawler faction"
+                    onClick={() => setDialog("faction")}
+                  >
+                    <PencilIcon />
+                  </button>
                 </div>
               </div>
             </div>
@@ -469,6 +487,42 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                 </button>
               );
             })}
+          </div>
+        </ProfileModal>
+      )}
+
+      {dialog === "faction" && (
+        <ProfileModal
+          title="Choose a Brawler Faction"
+          description="Choose the faction shown as your Brawler identity."
+          onClose={() => setDialog(null)}
+        >
+          <div className={styles.rewardList}>
+            {PROFILE_FACTIONS.map((faction) => (
+              <button
+                type="button"
+                key={faction}
+                aria-pressed={profile.faction === faction}
+                onClick={() => {
+                  updateCustomization(
+                    { faction },
+                    "Brawler faction updated",
+                  );
+                  setDialog(null);
+                }}
+              >
+                <span>
+                  <strong>{faction}</strong>
+                  <small>{faction} Brawler</small>
+                </span>
+                <img
+                  src={FACTION_SYMBOLS[faction]}
+                  alt=""
+                  width="36"
+                  height="36"
+                />
+              </button>
+            ))}
           </div>
         </ProfileModal>
       )}
