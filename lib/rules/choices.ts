@@ -29,6 +29,8 @@ export type ChoiceField = {
   maximum: number;
   required: boolean;
   options: ChoiceOption[];
+  /** Printed size of a top-deck inspection window before deck scarcity is applied. */
+  requestedWindowSize?: number;
 };
 export type ChoiceSchema = {
   id: string;
@@ -92,8 +94,14 @@ function chooserFor(match: MatchState, controllerId: string, spec: ChoiceSpec) {
   return controllerId;
 }
 function rangeFor(spec: ChoiceSpec, available: number) {
-  const minimum = Math.max(0, spec.minimum ?? (spec.optional ? 0 : 1));
-  const maximum = Math.max(minimum, Math.min(available, spec.maximum ?? 1));
+  const printedMinimum = Math.max(0, spec.minimum ?? (spec.optional ? 0 : 1));
+  const printedMaximum = Math.max(printedMinimum, spec.maximum ?? 1);
+  const scarcityBounded = spec.selector === "deck-card" && topDeckCount(spec) > 0;
+  const availableMaximum = Math.min(available, printedMaximum);
+  const maximum = scarcityBounded
+    ? availableMaximum
+    : Math.max(printedMinimum, availableMaximum);
+  const minimum = scarcityBounded ? Math.min(printedMinimum, maximum) : printedMinimum;
   return { minimum, maximum };
 }
 function topDeckCount(spec: ChoiceSpec) {
@@ -291,6 +299,9 @@ export function buildChoiceSchemaFromSpecs(
       maximum: range.maximum,
       required: range.minimum > 0,
       options,
+      ...(kindFor(spec) === "deck-order" && topDeckCount(spec) > 0
+        ? { requestedWindowSize: topDeckCount(spec) }
+        : {}),
     };
   });
   const simultaneous = selected.some((spec) => spec.chooser === "each-player");

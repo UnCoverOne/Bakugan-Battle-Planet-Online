@@ -8,6 +8,10 @@ import { readMatchStore, useMatchSelector } from "./matchStore";
 import { fingerprintedAsset } from "../../lib/assets";
 import deckStyles from "./DeckInspectionLayer.module.css";
 import searchStyles from "./DeckSearchLayer.module.css";
+import {
+  isFullDeckSearchField,
+  renderableDeckInspectionField,
+} from "./deckInspectionPresentation";
 
 const styles = { ...deckStyles, ...searchStyles };
 
@@ -38,22 +42,6 @@ async function submitChoiceCommand(answers: CardChoices) {
   const data = await response.json() as { state?: MatchState; error?: string };
   if (data.state) writeCoordinatedMatch(data.state);
   if (!response.ok) throw new Error(data.error ?? "The deck choice could not be recorded.");
-}
-
-function isTopDeckField(field: ChoiceField) {
-  return field.kind === "deck-order" && /\btop\s+\d+\s+cards?\b/i.test(field.label);
-}
-
-function isFullDeckSearchField(field: ChoiceField) {
-  return field.kind === "deck-order"
-    && field.id === "orderedCardIds"
-    && field.minimum === 0
-    && field.maximum === 0
-    && /\bsearch all cards in your deck\b/i.test(field.label);
-}
-
-function isDeckInspectionField(field: ChoiceField) {
-  return isTopDeckField(field) || isFullDeckSearchField(field);
 }
 
 function cardOptionById(options: readonly ChoiceOption[], id: string) {
@@ -87,11 +75,9 @@ export function DeckInspectionLayer() {
   const match = snapshot.match;
   const playerId = snapshot.playerId ?? match?.players[0]?.id;
   const pending = match?.pendingChoice;
-  const deckField = useMemo(() => pending?.schema.fields.find((field) => (
-    isDeckInspectionField(field)
-    && field.options.some((option) => Boolean(option.card))
-    && (field.visibility === "public" || field.chooserId === playerId)
-  )), [pending, playerId]);
+  const deckField = useMemo(() => (
+    renderableDeckInspectionField(pending?.schema.fields, playerId)
+  ), [pending, playerId]);
   const searchMode = Boolean(deckField && isFullDeckSearchField(deckField));
   const selectionField = useMemo(() => pending?.schema.fields.find((field) => (
     field.id === "deckCardId"
@@ -135,6 +121,10 @@ export function DeckInspectionLayer() {
       || left.id.localeCompare(right.id)
     ))
     : orderedOptions;
+  const requestedWindowSize = searchMode
+    ? displayedOptions.length
+    : Math.max(displayedOptions.length, deckField.requestedWindowSize ?? displayedOptions.length);
+  const emptyWindowSlots = Math.max(0, requestedWindowSize - displayedOptions.length);
   const resolvingEffect = match.batch.find((effect) => effect.id === pending.pendingEffectId);
   const resolvingText = resolvingEffect?.effect ?? resolvingEffect?.card.effect ?? "";
   const inspectedDeckPlay = Boolean(confirmationField)
@@ -142,7 +132,8 @@ export function DeckInspectionLayer() {
   const inspectedCard = selectionField
     ? cardOptionById(displayedOptions, selectedId)?.card
     : displayedOptions[0]?.card;
-  const inspectedCardPlayable = !inspectedDeckPlay || !inspectedCard || inspectedCard.type !== "Flip";
+  const inspectedCardPlayable = !inspectedDeckPlay
+    || Boolean(inspectedCard && inspectedCard.type !== "Flip");
   const eligibleIds = new Set(selectionField?.options.map((option) => option.id) ?? []);
   const selectionRequired = Boolean(selectionField && selectionField.minimum > 0);
   const orderComplete = searchMode || (
@@ -314,6 +305,16 @@ export function DeckInspectionLayer() {
               </li>
             );
           })}
+          {!searchMode ? Array.from({ length: emptyWindowSlots }, (_, index) => (
+            <li
+              className={`${styles.card} ${styles.emptySlot}`}
+              aria-hidden="true"
+              data-empty-slot="true"
+              key={`empty-deck-window-${index}`}
+            >
+              <span>Empty</span>
+            </li>
+          )) : null}
         </ol>
 
         <footer className={styles.footer}>

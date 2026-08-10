@@ -113,7 +113,8 @@
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(clamp(8rem, 13vw, 10.5rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(clamp(8rem, 13vw, 10.5rem), 10.5rem));
+  justify-content: center;
   align-items: start;
   gap: clamp(.7rem, 1.3vw, 1.05rem);
   min-height: 0;
@@ -121,6 +122,25 @@
   padding: .2rem .1rem .45rem;
   overflow: auto;
   list-style: none;
+}
+
+.emptySlot {
+  min-height: clamp(13rem, 24vw, 18rem);
+  place-items: center;
+  border-style: dashed;
+  background: rgba(255,255,255,.018);
+  box-shadow: none;
+  color: rgba(194, 224, 242, .35);
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.emptySlot:hover {
+  transform: none;
+  border-color: rgba(255,255,255,.15);
+  box-shadow: none;
 }
 
 .revealPanel .cards {
@@ -308,7 +328,7 @@
   .panel { width: 100%; max-height: 89dvh; padding: .75rem; }
   .header { display: grid; }
   .source { max-width: none; text-align: left; }
-  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cards { grid-template-columns: repeat(2, minmax(0, 10.5rem)); }
   .footer { flex-wrap: wrap; }
   .footer .status { width: 100%; }
 }

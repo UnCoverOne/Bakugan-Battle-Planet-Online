@@ -115,6 +115,29 @@ test("The Sky's Hymn opens one private top-three ordering window", () => {
   assert.equal(opponentView.pendingChoice?.schema.fields.find((candidate) => candidate.id === "orderedCardIds")?.options.length, 0);
 });
 
+test("top-three ordering effects preserve scarcity while retaining reorder permission", () => {
+  const sky = catalogueCard("bb-78", "sky-hymn-scarcity");
+  for (const available of [2, 1]) {
+    const initial = matchWithKnownDeck();
+    initial.players[0].deckCards = initial.players[0].deckCards.slice(0, available);
+    initial.players[0].deck = available;
+    const state = resolveStructuredEffect(initial, pendingEffect(sky));
+    const field = state.pendingChoice?.schema.fields.find((candidate) => candidate.id === "orderedCardIds");
+    assert.ok(field);
+    assert.equal(field.minimum, available);
+    assert.equal(field.maximum, available);
+    assert.equal(field.requestedWindowSize, 3);
+    assert.equal(field.options.length, available);
+    assert.match(field.label, /^Order/);
+  }
+
+  const empty = matchWithKnownDeck();
+  empty.players[0].deckCards = [];
+  empty.players[0].deck = 0;
+  const resolved = resolveStructuredEffect(empty, pendingEffect(sky));
+  assert.equal(resolved.pendingChoice, undefined);
+});
+
 test("submitting the dragged order changes only the inspected top cards", () => {
   const initial = matchWithKnownDeck();
   const before = initial.players[0].deckCards.map((card) => card.id);
@@ -451,15 +474,20 @@ test("the gameplay runtime mounts distinct draggable, reveal, and full-deck sear
   assert.match(layer, /PRIVATE DECK VIEW/);
   assert.match(layer, /PRIVATE DECK SEARCH/);
   assert.match(layer, /isFullDeckSearchField/);
+  assert.match(layer, /emptyWindowSlots/);
+  assert.match(layer, /data-empty-slot/);
   assert.match(layer, /eligibleIds/);
   assert.match(styles, /\.revealPanel/);
   assert.match(styles, /\.moveControls/);
+  assert.match(styles, /\.emptySlot/);
+  assert.doesNotMatch(styles, /minmax\(clamp\(8rem, 13vw, 10\.5rem\), 1fr\)/);
   assert.match(searchStyles, /\.searchPanel/);
   assert.match(searchStyles, /\.searchCards/);
   assert.match(searchStyles, /\[data-eligible="false"\]/);
   assert.match(runtime, /<DeckInspectionLayer \/>/);
   assert.ok(runtime.indexOf("<DeckInspectionLayer />") < runtime.indexOf("<ChoiceQueueLayer />"));
   assert.match(genericChoices, /deckInspectionActive/);
+  assert.match(genericChoices, /renderableDeckInspectionField/);
   assert.match(engine, /case "search": \{[\s\S]*shuffle\(player\.deckCards\)/);
 });
 
@@ -481,6 +509,7 @@ test("Age of Aurelus Lia keeps its top-three Hero selection in one optional play
   const selection = state.pendingChoice?.schema.fields.find((field) => field.id === "deckCardId");
   const confirmation = state.pendingChoice?.schema.fields.find((field) => field.id === "confirmed");
   assert.ok(viewer && selection && confirmation);
+  assert.equal(viewer.requestedWindowSize, 3);
   assert.deepEqual(selection.options.map((option) => option.id), [hero.id]);
   assert.deepEqual(confirmation.options.map((option) => option.id), ["yes", "no"]);
   assert.equal(state.batch.some((object) => object.card.id === hero.id), false);
@@ -492,6 +521,66 @@ test("Age of Aurelus Lia keeps its top-three Hero selection in one optional play
   });
   assert.equal(state.players[0].deckCards.some((candidate) => candidate.id === hero.id), false);
   assert.ok(state.batch.some((object) => object.card.id === hero.id && object.kind === "card"));
+});
+
+test("Age of Aurelus Lia shrinks its inspection to the cards actually remaining", () => {
+  for (const available of [2, 1]) {
+    const initial = matchWithMixedDeck();
+    const lia = catalogueCard("aa-71", `lia-scarcity-${available}`);
+    const hero = catalogueCard("br-80", `lia-scarcity-hero-${available}`);
+    const action = catalogueCard("bb-10", `lia-scarcity-action-${available}`);
+    initial.players[0].deckCards = [hero, action].slice(0, available);
+    initial.players[0].deck = available;
+    const effect = pendingEffect(lia);
+    effect.kind = "trigger";
+    effect.effect = lia.effect;
+
+    let state = resolveStructuredEffect(initial, effect);
+    const viewer = state.pendingChoice?.schema.fields.find((field) => field.id === "orderedCardIds");
+    const selection = state.pendingChoice?.schema.fields.find((field) => field.id === "deckCardId");
+    assert.ok(viewer && selection);
+    assert.equal(viewer.minimum, available);
+    assert.equal(viewer.maximum, available);
+    assert.equal(viewer.requestedWindowSize, 3);
+    assert.equal(viewer.options.length, available);
+    assert.deepEqual(selection.options.map((option) => option.id), [hero.id]);
+
+    state = submitCardChoice(state, "a", {
+      orderedCardIds: viewer.options.map((option) => option.id),
+      deckCardId: hero.id,
+      confirmed: true,
+    });
+    assert.ok(state.batch.some((object) => object.card.id === hero.id && object.kind === "card"));
+  }
+});
+
+test("Age of Aurelus Lia is an automatic no-op with an empty deck", () => {
+  const initial = matchWithMixedDeck();
+  const lia = catalogueCard("aa-71", "lia-empty-deck");
+  initial.players[0].deckCards = [];
+  initial.players[0].deck = 0;
+  const effect = pendingEffect(lia);
+  effect.kind = "trigger";
+  effect.effect = lia.effect;
+
+  const state = resolveStructuredEffect(initial, effect);
+  assert.equal(state.pendingChoice, undefined);
+  assert.equal(state.batch.some((object) => object.id === effect.id), false);
+  assert.ok(state.log.some((entry) => /no cards to inspect/i.test(entry.message)));
+});
+
+test("Age of Aurelus Lia only offers Skip when the short window has no Hero", () => {
+  const initial = matchWithKnownDeck();
+  initial.players[0].deckCards = initial.players[0].deckCards.slice(0, 2);
+  initial.players[0].deck = 2;
+  const lia = catalogueCard("aa-71", "lia-short-window-no-hero");
+  const effect = pendingEffect(lia);
+  effect.kind = "trigger";
+  effect.effect = lia.effect;
+
+  const state = resolveStructuredEffect(initial, effect);
+  const confirmation = state.pendingChoice?.schema.fields.find((field) => field.id === "confirmed");
+  assert.deepEqual(confirmation?.options.map((option) => option.id), ["no"]);
 });
 
 test("skipping Age of Aurelus Lia leaves every inspected card on the deck", () => {

@@ -6,6 +6,7 @@ import type { ChoiceField, ChoiceKind } from "../../lib/rules/choices";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore, useMatchSelector } from "./matchStore";
 import styles from "./ChoiceQueueLayer.module.css";
+import { isTopDeckField, renderableDeckInspectionField } from "./deckInspectionPresentation";
 
 const BOARD_TARGET_KINDS = new Set<ChoiceKind>(["batch-object", "hero", "evo", "energy", "bakugan", "core", "card"]);
 
@@ -24,12 +25,6 @@ function assign(answers: CardChoices, field: ChoiceField, values: string[]) {
   else if (field.id === "confirmed") next.confirmed = values[0] === "yes";
   else Object.assign(next, { [field.id]: values[0] });
   return next;
-}
-
-function isTopDeckField(field: ChoiceField) {
-  return field.kind === "deck-order"
-    && /\btop\s+\d+\s+cards?\b/i.test(field.label)
-    && field.options.some((option) => Boolean(option.card));
 }
 
 function boardSelector(field: ChoiceField) {
@@ -86,7 +81,9 @@ export function ChoiceQueueLayer() {
   const match = state.match;
   const playerId = state.playerId ?? match?.players[0]?.id;
   const pending = match?.pendingChoice;
-  const deckInspectionActive = Boolean(pending?.schema.fields.some(isTopDeckField));
+  const deckInspectionActive = Boolean(
+    renderableDeckInspectionField(pending?.schema.fields, playerId),
+  );
   const fields = useMemo(() => pending?.schema.fields.filter((field) => (
     field.chooserId === playerId
     && field.id !== "discardCardIds"

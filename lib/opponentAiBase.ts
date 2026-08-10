@@ -1237,11 +1237,16 @@ export type OpponentEnergizePlan = {
   goalSource?: EnergyGoalSource;
   goalCardIds?: string[];
   goalScore?: number;
+  currentCapacity?: number;
+  targetCapacity?: number;
+  developmentBenefit?: number;
+  skipValue?: number;
   protectedCardIds?: string[];
   candidates?: Array<{
     cardId: string;
     tier: number;
     opportunityCost: number;
+    counterfactualValue?: number;
     protected: boolean;
   }>;
 };
@@ -1426,40 +1431,66 @@ function deckEnergyGoals(match: MatchState, playerId: string, capacity: number) 
   return goals;
 }
 
-function earlyDevelopmentGoal(
+function developmentDemandScore(analysis: EnergyCardAnalysis, capacity: number) {
+  if (
+    analysis.card.type === "Flip"
+    || analysis.card.type === "Character"
+    || analysis.cost <= capacity
+    || analysis.cost > 3
+  ) return 0;
+  // A context-dependent Action still creates capacity demand even when the
+  // representative Power window cannot currently construct its targets.
+  const prospectiveLikelihood = Math.max(0.45, analysis.playLikelihood);
+  const proximity = analysis.cost === capacity + 1 ? 1 : 0.62;
+  return (0.9 + Math.max(0, analysis.value) * 0.22) * prospectiveLikelihood * proximity;
+}
+
+function developmentGoal(
   analyses: EnergyCardAnalysis[],
   capacity: number,
 ): EnergyGoal | undefined {
-  if (capacity > 1) return;
-  const usefulLowCost = analyses
-    .filter((analysis) => (
-      analysis.card.type !== "Flip"
-      && analysis.card.type !== "Character"
-      && analysis.cost >= 1
-      && analysis.cost <= 2
-      && analysis.playLikelihood >= 0.5
-      && analysis.value > 0.35
-    ))
+  if (capacity >= 3 || analyses.length < 2) return;
+  const demand = analyses
+    .map((analysis) => ({ analysis, score: developmentDemandScore(analysis, capacity) }))
+    .filter((candidate) => candidate.score > 0)
     .sort((a, b) => (
-      b.value * b.playLikelihood - a.value * a.playLikelihood
-      || a.cost - b.cost
-      || a.card.id.localeCompare(b.card.id)
+      b.score - a.score
+      || a.analysis.cost - b.analysis.cost
+      || a.analysis.card.id.localeCompare(b.analysis.card.id)
     ));
   const hasStrandedFodder = analyses.some((analysis) => (
     analysis.card.type === "Flip"
     || analysis.card.type === "Character"
     || analysis.playLikelihood <= 0
   ));
-  if (capacity === 0 && usefulLowCost.length < 2 && !hasStrandedFodder) return;
-  if (capacity === 1 && !usefulLowCost.some((analysis) => analysis.cost === 2)) return;
-  const protectedCard = usefulLowCost[0];
-  if (!protectedCard) return;
+  const hasDuplicate = analyses.some((analysis, index) => (
+    analyses.findIndex((candidate) => candidate.card.catalogId === analysis.card.catalogId) !== index
+  ));
+  if (!demand.length) return;
+  if (capacity === 0 && demand.length < 2 && !hasStrandedFodder) return;
+  if (capacity === 2 && analyses.length < 3 && !hasStrandedFodder && !hasDuplicate) return;
+  const protectedCard = demand[0].analysis;
   return {
     source: "development",
-    score: 2.4 + usefulLowCost.length * 0.35,
+    score: 2.8 + demand.reduce((sum, candidate) => sum + candidate.score, 0),
     cardIds: [protectedCard.card.id],
-    targetCost: Math.max(capacity + 1, protectedCard.cost),
+    targetCost: Math.min(3, Math.max(capacity + 1, ...demand.map((candidate) => candidate.analysis.cost))),
   };
+}
+
+function energyDevelopmentBenefit(analyses: EnergyCardAnalysis[], capacity: number) {
+  const nextCapacity = capacity + 1;
+  const newlyAffordable = analyses.filter((analysis) => (
+    analysis.cost > capacity && analysis.cost <= nextCapacity
+  )).reduce((sum, analysis) => (
+    sum + 1.35 + Math.max(0, analysis.value) * Math.max(0.45, analysis.playLikelihood) * 0.28
+  ), 0);
+  const followingTurnDemand = analyses.filter((analysis) => (
+    analysis.cost > nextCapacity && analysis.cost <= Math.min(3, nextCapacity + 1)
+  )).reduce((sum, analysis) => (
+    sum + 0.65 + Math.max(0, analysis.value) * 0.12
+  ), 0);
+  return 2.4 + newlyAffordable + followingTurnDemand;
 }
 
 function energyCandidateTier(
@@ -1543,17 +1574,24 @@ export function planOpponentEnergize(
   const analyses = player.hand.map((card) => (
     analyzeEnergyCard(match, playerId, card, capacity, "hand")
   ));
-  const development = earlyDevelopmentGoal(analyses, capacity);
+  const development = developmentGoal(analyses, capacity);
   const goals = [
     ...handEnergyGoals(analyses, capacity),
     ...deckEnergyGoals(match, playerId, capacity),
     ...(development ? [development] : []),
   ].sort((a, b) => (
-    b.score - a.score
+    (development && a.source === "development" && b.source !== "development" ? -1
+      : development && b.source === "development" && a.source !== "development" ? 1
+        : 0)
+    || b.score - a.score
     || ({ "hand-card": 0, "hand-combo": 1, development: 2, deck: 3 }[a.source]
       - { "hand-card": 0, "hand-combo": 1, development: 2, deck: 3 }[b.source])
   ));
   const goal = goals[0];
+  const developmentBenefit = goal?.source === "development"
+    ? energyDevelopmentBenefit(analyses, capacity)
+    : 0;
+  const targetCapacity = goal?.targetCost;
   const baseCandidates = analyses.map((analysis) => ({
     analysis,
     tier: energyCandidateTier(match, playerId, analysis, capacity),
@@ -1563,16 +1601,23 @@ export function planOpponentEnergize(
       analysis,
       capacity,
     ),
+    counterfactualValue: 0,
   }));
+  for (const candidate of baseCandidates) {
+    candidate.counterfactualValue = developmentBenefit - candidate.opportunityCost;
+  }
   if (!goal) {
     return {
       shouldEnergize: false,
       reason: "no-energy-goal",
+      currentCapacity: capacity,
+      skipValue: 0,
       protectedCardIds: [],
       candidates: baseCandidates.map((candidate) => ({
         cardId: candidate.analysis.card.id,
         tier: candidate.tier,
         opportunityCost: candidate.opportunityCost,
+        counterfactualValue: candidate.counterfactualValue,
         protected: false,
       })),
     };
@@ -1582,27 +1627,32 @@ export function planOpponentEnergize(
   const affordable = analyses.filter((analysis) => (
     analysis.affordableNow && analysis.playLikelihood >= 0.5
   ));
-  if (affordable.length === 1) protectedIds.add(affordable[0].card.id);
+  if (goal.source !== "development" && affordable.length === 1) {
+    protectedIds.add(affordable[0].card.id);
+  }
 
   const diagnostics = baseCandidates.map((candidate) => ({
     cardId: candidate.analysis.card.id,
     tier: candidate.tier,
     opportunityCost: candidate.opportunityCost,
+    counterfactualValue: candidate.counterfactualValue,
     protected: protectedIds.has(candidate.analysis.card.id),
   }));
   const candidates = baseCandidates
     .filter((candidate) => !protectedIds.has(candidate.analysis.card.id))
     .sort((a, b) => (
       a.tier - b.tier
-      || a.opportunityCost - b.opportunityCost
+      || (goal.source === "development"
+        ? b.counterfactualValue - a.counterfactualValue
+        : a.opportunityCost - b.opportunityCost)
       || b.analysis.cost - a.analysis.cost
       || a.analysis.card.id.localeCompare(b.analysis.card.id)
     ));
   const candidate = candidates[0];
   const maximumOpportunityCost = goal.source === "deck"
-    ? 0.9
+      ? 0.9
     : goal.source === "development"
-      ? (capacity === 0 ? 6 : 4)
+      ? developmentBenefit + 1
       : Math.max(1.5, goal.score * 0.85);
   if (!candidate || candidate.opportunityCost > maximumOpportunityCost) {
     return {
@@ -1611,6 +1661,10 @@ export function planOpponentEnergize(
       goalSource: goal.source,
       goalCardIds: goal.cardIds,
       goalScore: goal.score,
+      currentCapacity: capacity,
+      targetCapacity,
+      developmentBenefit,
+      skipValue: 0,
       protectedCardIds: [...protectedIds],
       candidates: diagnostics,
     };
@@ -1625,6 +1679,10 @@ export function planOpponentEnergize(
     goalSource: goal.source,
     goalCardIds: goal.cardIds,
     goalScore: goal.score,
+    currentCapacity: capacity,
+    targetCapacity,
+    developmentBenefit,
+    skipValue: 0,
     protectedCardIds: [...protectedIds],
     candidates: diagnostics,
   };

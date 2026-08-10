@@ -302,3 +302,67 @@ test("zero-Energy first-round planning develops toward multiple low-cost Actions
   assert.ok((plan.goalScore ?? 0) > 0);
   assert.ok((plan.protectedCardIds?.length ?? 0) > 0);
 });
+
+test("one Energy with several two- and three-cost Actions develops instead of plateauing", () => {
+  const actions = CARDS
+    .filter((card) => card.type === "Action" && (card.cost === 2 || card.cost === 3))
+    .slice(0, 4)
+    .map((card, index) => ({ ...card, id: `one-energy-action-${index}` }));
+  assert.equal(actions.length, 4);
+  const ai = player("ai", actions);
+  addEnergy(ai, 1);
+  const plan = planOpponentEnergize(energizeMatch(ai), ai.id);
+
+  assert.equal(plan.shouldEnergize, true);
+  assert.equal(plan.goalSource, "development");
+  assert.equal(plan.currentCapacity, 1);
+  assert.ok((plan.targetCapacity ?? 0) >= 2);
+  assert.ok((plan.developmentBenefit ?? 0) > (plan.skipValue ?? 0));
+  assert.ok(plan.cardId && actions.some((card) => card.id === plan.cardId));
+});
+
+test("low-Energy development continues across rounds toward the hand cost curve", () => {
+  const actions = CARDS
+    .filter((card) => card.type === "Action" && (card.cost === 2 || card.cost === 3))
+    .slice(4, 8)
+    .map((card, index) => ({ ...card, id: `progression-action-${index}` }));
+  assert.equal(actions.length, 4);
+  const ai = player("ai", actions);
+  addEnergy(ai, 1);
+  let match = energizeMatch(ai);
+  const first = advanceOpponentAi(match, ai.id);
+  assert.ok(first);
+  const developed = first.players.find((candidate) => candidate.id === ai.id)!;
+  assert.equal(developed.energyZone.length, 2);
+
+  developed.energizedThisTurn = false;
+  developed.energy = 0;
+  match = { ...first, turn: first.turn + 1, phase: "energize", priority: ai.id };
+  const second = planOpponentEnergize(match, ai.id);
+  const hasThreeCostDemand = developed.hand.some((card) => card.cost === 3);
+  if (hasThreeCostDemand && developed.hand.length >= 3) {
+    assert.equal(second.shouldEnergize, true);
+    assert.equal(second.goalSource, "development");
+  }
+});
+
+test("context-dependent two- or three-cost Actions still create Energy demand", () => {
+  const contextual = CARDS.find((card) => (
+    card.type === "Action"
+    && (card.cost === 2 || card.cost === 3)
+    && /\b(?:Victor|Domination|Fury|Turbo|Flow|if)\b/i.test(card.effect)
+  ));
+  const ordinary = CARDS.filter((card) => (
+    card.type === "Action" && (card.cost === 2 || card.cost === 3)
+  )).slice(8, 11);
+  assert.ok(contextual);
+  assert.equal(ordinary.length, 3);
+  const ai = player("ai", [
+    { ...contextual, id: "contextual-development" },
+    ...ordinary.map((card, index) => ({ ...card, id: `contextual-filler-${index}` })),
+  ]);
+  addEnergy(ai, 1);
+  const plan = planOpponentEnergize(energizeMatch(ai), ai.id);
+  assert.equal(plan.shouldEnergize, true);
+  assert.equal(plan.goalSource, "development");
+});

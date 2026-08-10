@@ -2320,6 +2320,24 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
       schema.fields = schema.fields.filter((field) => !(field.id === "xValue" && pending.choices.xValue != null));
       if (!schema.fields.length) return "continue";
       stageMandatoryDeckReveal(state, pending, instruction, schema);
+      const topDeckSelection = schema.fields.find((field) => field.id === "deckCardId");
+      if (
+        schema.fields.some((field) => field.kind === "deck-order" && field.requestedWindowSize)
+        && topDeckSelection
+        && topDeckSelection.options.length === 0
+      ) {
+        const confirmation = schema.fields.find((field) => field.id === "confirmed");
+        if (confirmation) confirmation.options = confirmation.options.filter((option) => option.id === "no");
+      }
+      const emptyTopDeckWindow = schema.fields.some((field) => (
+        field.kind === "deck-order"
+        && field.requestedWindowSize
+        && field.options.length === 0
+      ));
+      if (emptyTopDeckWindow) {
+        entry(state, "game", `${pending.card.name}: there were no cards to inspect, so the clause did nothing.`);
+        return "skip";
+      }
       if (!schemaHasLegalCompletion(schema)) {
         entry(state, "game", `${pending.card.name}: the clause had no legal choice and did nothing.`);
         return "skip";
