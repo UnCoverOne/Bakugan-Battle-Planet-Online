@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
 import { rememberAccountIntent } from "../../lib/account-intent";
+import { activeSessionPresentation } from "../../lib/active-session";
 import { CARD_BY_ID, PUBLIC_DECKS, deckLeadCard, type DeckRecord } from "../../lib/data";
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
@@ -137,6 +138,7 @@ export function DashboardScreen() {
   } = useApp();
   useHomeDisplayFont();
   const heroSource = useHighResolutionHero();
+  const [remotePublicDecks, setRemotePublicDecks] = useState<DeckRecord[]>([]);
   const isGuest = !authUser;
   const achievements = achievementsFor(decks, history);
   const unlockedAchievements = achievements.filter((achievement) => achievement.unlocked);
@@ -150,12 +152,24 @@ export function DashboardScreen() {
   const wins = history.filter((item: { result?: string }) => item.result === "Victor").length;
   const winRate = history.length ? Math.round((wins / history.length) * 100) : 0;
   const completeDecks = decks.filter(deckLooksComplete);
-  const publicDecks = [
-    ...(authUser
-      ? decks.filter((deck: DeckRecord) => deck.visibility === "Public").map((deck: DeckRecord) => ({ ...deck, creator: profile.name, publishedAt: deck.publishedAt ?? deck.updatedAt }))
-      : []),
-    ...PUBLIC_DECKS,
-  ].sort((a, b) => Date.parse(b.publishedAt ?? b.updatedAt) - Date.parse(a.publishedAt ?? a.updatedAt));
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/public-decks", { cache: "no-store" })
+      .then(async (response) => {
+        const result = await response.json() as { decks?: DeckRecord[]; error?: string };
+        if (!response.ok || !Array.isArray(result.decks)) throw new Error(result.error ?? "Public decks are unavailable.");
+        if (active) setRemotePublicDecks(result.decks);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const publicDecks = [...remotePublicDecks, ...PUBLIC_DECKS]
+    .filter((deck, index, all) => all.findIndex((candidate) => candidate.id === deck.id) === index)
+    .sort((a, b) => Date.parse(b.publishedAt ?? b.updatedAt) - Date.parse(a.publishedAt ?? a.updatedAt));
   const featured = publicDecks[0];
   const featuredLead = featured ? deckLeadCard(featured) : undefined;
   const previewSeen = new Set<string>();
@@ -166,14 +180,23 @@ export function DashboardScreen() {
       return true;
     })
     : [];
-  const activeMatch = Boolean(match && match.phase !== "result");
+  const activeSession = activeSessionPresentation(match);
 
   const openAccount = (mode: "login" | "signup", reason: "achievements" | "protect-progress") => {
     rememberAccountIntent(reason, { returnTo: "/" });
     requestAccountAccess(mode);
   };
 
-  return <div className={`bakugan-home ${activeMatch ? "has-active-match" : ""}`}>
+  return <div
+    className={`bakugan-home ${activeSession ? "has-active-match" : ""}`}
+    style={activeSession ? {
+      height: "auto",
+      minHeight: "calc(100dvh - 76px)",
+      gridTemplateRows: "auto auto auto auto",
+      alignContent: "start",
+      overflow: "visible",
+    } : undefined}
+  >
     <section className="bakugan-home-hero">
       <div className="bakugan-home-hero-copy">
         <p className="home-kicker">{isGuest ? "Welcome to Battle Planet" : `Welcome back, ${profile.name}`}</p>
@@ -193,9 +216,9 @@ export function DashboardScreen() {
       </div>
     </section>
 
-    {activeMatch && match && <section className="active-match-card">
-      <div><span className="pulse"/><span className="eyebrow">ACTIVE MATCH</span><h2>{match.code ? `Room ${match.code}` : "Battle in progress"}</h2><p>{match.stepLabel ?? "Return to your current Brawl."}</p></div>
-      <Link className="hex-button blue" href={match.phase === "lobby" ? "/play/lobby" : "/play/match"}><span>RESUME MATCH</span><ChevronArrow/></Link>
+    {activeSession && <section className="active-match-card">
+      <div><span className="pulse"/><span className="eyebrow">{activeSession.eyebrow}</span><h2>{activeSession.title}</h2><p>{activeSession.detail}</p></div>
+      <Link className="hex-button blue" href={activeSession.href}><span>{activeSession.actionLabel}</span><ChevronArrow/></Link>
     </section>}
 
     <section className="home-feature-grid">
