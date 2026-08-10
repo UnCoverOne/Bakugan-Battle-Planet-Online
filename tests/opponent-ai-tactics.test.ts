@@ -16,6 +16,7 @@ import {
   type RollOutcome,
 } from "../lib/game";
 import { advanceOpponentAi } from "../lib/opponentAi";
+import { recoverOpponentAiPreRollFailure } from "../lib/opponentAiCanAct";
 import { ruleDefinitionForCard } from "../lib/rules";
 
 let serial = 0;
@@ -175,6 +176,26 @@ function cell(q: number, r: number) {
   assert.ok(found);
   return found.id;
 }
+
+test("a failed AI decision cannot strand pre-roll priority after the player passes", () => {
+  const ai = player("training-bot", [bakugan("pre-roll-ai", "Aquos", 500, 5)]);
+  const human = player("human", [bakugan("pre-roll-human", "Pyrus", 500, 5)]);
+  let match = matchWith(ai, human, "preRoll");
+  match.startingPlayer = human.id;
+  match.priority = human.id;
+  match.selected[ai.id] = ai.bakugan[0].id;
+  match.selected[human.id] = human.bakugan[0].id;
+
+  match = passPriority(match, human.id);
+  assert.equal(match.priority, ai.id);
+  assert.deepEqual(match.passes, [human.id]);
+
+  const recovered = recoverOpponentAiPreRollFailure(match, ai.id);
+  assert.ok(recovered);
+  assert.equal(recovered.phase, "target");
+  assert.equal(recovered.priority, human.id);
+  assert.deepEqual(recovered.passes, []);
+});
 
 test("AI does not spend a pure temporary combat card after its Bakugan misses", () => {
   const boost = printedCard(16, "missed-boost"); // Ice Wall: +900 B for 4 Energy.
