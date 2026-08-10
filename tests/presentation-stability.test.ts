@@ -82,6 +82,20 @@ test("completed match dialog separates board inspection from exiting the match",
   assert.match(css, /\.actions\[data-single="true"\]/);
 });
 
+test("Training AI worker failures are bounded and recover across match steps", () => {
+  const client = read("components/game-screen-v2/GameplayClient.tsx");
+  const readiness = read("lib/opponentAiCanAct.ts");
+
+  assert.match(client, /OPPONENT_AI_DECISION_TIMEOUT_MS = 8_000/);
+  assert.match(client, /pending\.reject\(new Error\("The opponent AI decision timed out\."\)\)/);
+  assert.match(client, /window\.clearTimeout\(pending\.timeoutId\)/);
+  assert.match(client, /if \(!requestStarted && botActionKey\.current === key\)/);
+  assert.match(client, /recoverOpponentAiFailure/);
+  assert.match(readiness, /PRIORITY_PHASES\.has\(match\.phase\)[\s\S]*passPriority\(match, playerId\)/);
+  assert.match(readiness, /match\.phase === "handLimit"[\s\S]*discardToHandLimit/);
+  assert.match(readiness, /match\.phase === "damage"[\s\S]*resolveManualDamage/);
+});
+
 test("Energy zones show total cards and stage a white-light Energize arrival", () => {
   const screen = read("components/game-screen-v2/GameScreen.tsx");
   const client = read("components/game-screen-v2/GameplayClient.tsx");
