@@ -31,6 +31,7 @@ import {
   type RollOutcome,
 } from "./game";
 import { cardEnergyPaymentState, playCardWithAutoEnergy } from "./cardPayment";
+import { activeTappedEnergyIds } from "./rules/costs";
 import { flipDamageCard, resolveManualDamage } from "./manualDamage";
 import {
   availableRollTargets,
@@ -757,7 +758,7 @@ function winningBrawlResourceConservationPenalty(
     return 0;
   }
   const hasDurableOrAttackPayoff = entries.some(({ action, sourceText }) => {
-    if (["move", "search", "play", "energize", "generate-energy", "copy", "negate", "prevention"].includes(action.kind)) {
+    if (["move", "search", "play", "energize", "generate-energy", "recharge-energy", "copy", "negate", "prevention"].includes(action.kind)) {
       return true;
     }
     if (action.kind === "modify-stat" && action.stat === "damage") {
@@ -786,6 +787,39 @@ function hasEligibleAttacker(
   )));
 }
 
+function rechargeEnergyValue(
+  match: MatchState,
+  playerId: string,
+  action: Extract<RuleAction, { kind: "recharge-energy" }>,
+) {
+  const player = playerById(match, playerId);
+  if (!player) return 0;
+  const uncharged = activeTappedEnergyIds(player, match.turn).length;
+  const amount = action.amount === "all" ? uncharged : Math.min(uncharged, action.amount);
+  return amount * 1.6;
+}
+
+function temporaryPowerChangesVictor(
+  match: MatchState,
+  playerId: string,
+  _choices: CardChoices,
+  _entries: ReturnType<typeof activeCardActionEntries>,
+) {
+  if (match.phase !== "power" || match.victorByDamage) return true;
+  const opponent = opponentOf(match, playerId);
+  const playerRoll = match.rolls[playerId];
+  const opponentRoll = opponent ? match.rolls[opponent.id] : undefined;
+  if (!opponent || !playerRoll || playerRoll.result === "miss-closed") return true;
+  if (!opponentRoll || opponentRoll.result === "miss-closed") return false;
+  return totalPower(match, playerId) <= totalPower(match, opponent.id);
+}
+
+function isTemporaryPowerAction(action: RuleAction) {
+  return isTemporaryCombatAction(action)
+    && (action.kind === "modify-stat" || action.kind === "set-stat")
+    && action.stat === "power";
+}
+
 function cardValue(
   match: MatchState,
   playerId: string,
@@ -804,14 +838,20 @@ function cardValue(
     choices,
     { execution: "play" },
   );
+  const powerChangesVictor = temporaryPowerChangesVictor(match, playerId, choices, entries);
   let value = entries.reduce((sum, entry) => {
     if (
       entry.action.kind === "attack"
       && !hasEligibleAttacker(resolving, playerId, entry.action)
     ) return sum;
+    if (isTemporaryPowerAction(entry.action) && !powerChangesVictor) return sum;
+    if (entry.action.kind === "recharge-energy") {
+      return sum + rechargeEnergyValue(resolving, playerId, entry.action);
+    }
     return sum + estimateRuleActionValue(entry.action, resolving);
   }, 0) - printedCost * 0.72;
   for (const { instruction, action } of entries) {
+    if (isTemporaryPowerAction(action) && !powerChangesVictor) continue;
     const raw = actionBaseValue(action);
     if (raw) {
       const targetsEnemy = actionTargetsEnemy(
@@ -957,6 +997,10 @@ function optionalEffectValue(
       value += negateValue(match, playerId, compileCardEffect(card));
       continue;
     }
+    if (action.kind === "recharge-energy") {
+      value += rechargeEnergyValue(match, playerId, action);
+      continue;
+    }
     const raw = actionBaseValue(action);
     if (raw) {
       const targetsEnemy = actionTargetsEnemy(
@@ -1028,7 +1072,10 @@ function optionScore(
     const strength = (evo?.bPower ?? 0) * 0.01 + (evo?.damage ?? 0) * 0.9;
     return objectUtilityForChooser(owner?.id ?? option?.ownerId, chooserId, polarity, strength);
   }
-  if (field.kind === "energy") return option?.ownerId === chooserId ? -1 : 1;
+  if (field.kind === "energy") {
+    if (/\brecharge\b/i.test(card.effect)) return option?.ownerId === chooserId ? 1.5 : -1.5;
+    return option?.ownerId === chooserId ? -1 : 1;
+  }
   if (field.kind === "core") {
     const placement = match.placements.find((candidate) => candidate.cell === id);
     const target = chooser.bakugan.find(

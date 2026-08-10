@@ -125,6 +125,23 @@ export function availableEnergy(player: EnergyTrackedPlayer, turn: number) {
   return player.energyTapTurn === turn ? Math.max(0, Math.floor(player.energy)) : 0;
 }
 
+/** Charge selected uncharged Energy cards, or every uncharged Energy card when no selection is supplied. */
+export function rechargeEnergyCards(
+  state: MatchState,
+  playerId: string,
+  selectedIds?: readonly string[],
+) {
+  const player = playerById(state, playerId) as EnergyTrackedPlayer;
+  const tapped = activeTappedEnergyIds(player, state.turn);
+  const requested = selectedIds ? new Set(selectedIds) : undefined;
+  const recharged = tapped.filter((id) => !requested || requested.has(id));
+  if (!recharged.length) return 0;
+  const rechargedSet = new Set(recharged);
+  player.energyTapTurn = state.turn;
+  player.tappedEnergyIds = tapped.filter((id) => !rechargedSet.has(id));
+  return recharged.length;
+}
+
 export function beginCardPayment(
   state: MatchState,
   playerId: string,

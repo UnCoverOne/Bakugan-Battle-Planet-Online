@@ -181,6 +181,17 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     selected.maximum = cardId === "bb-97" ? 2 : amount;
     result.push(selected);
   }
+  const rechargeChoice = text.match(/\brecharge\s+up to\s+(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+Energy cards?\b/i);
+  if (rechargeChoice) {
+    const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+    const amount = words[rechargeChoice[1].toLowerCase()] ?? Math.max(1, Number(rechargeChoice[1]) || 1);
+    const selected = choice("targetEnergyIds", "resolve", "energy-card", `Choose up to ${amount} uncharged Energy cards`, true);
+    selected.targetOwner = "controller";
+    selected.energyState = "uncharged";
+    selected.minimum = 0;
+    selected.maximum = amount;
+    result.push(selected);
+  }
   if (!/\ball BakuCores?\b|remove all BakuCores?/i.test(text)
     && /attach a bakucore|remove .*bakucore|choose a bakucore|turn a bakucore/i.test(text)) {
     const selected = choice("coreCell", targetTiming, "bakucore", "Choose a BakuCore");
@@ -243,7 +254,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   }
   if (/Battle Mastery:.*Choose one|choose one of the following/i.test(text)) result.push(choice("mode", timing, "mode", "Choose a Battle Mastery mode"));
   if (card.cost === "X" || /choose (?:a value for )?x/i.test(text)) result.push(choice("xValue", "pay", "number", "Choose X"));
-  if (/\bmay\b/i.test(text) && !/may discard/i.test(text)) result.push(choice("confirmed", "resolve", "mode", "Use this optional effect?", false));
+  if (/\bmay\b/i.test(text) && !/may discard|may recharge up to/i.test(text)) result.push(choice("confirmed", "resolve", "mode", "Use this optional effect?", false));
   return result.filter((item, index, values) => values.findIndex((candidate) => candidate.id === item.id && candidate.timing === item.timing) === index);
 }
 
