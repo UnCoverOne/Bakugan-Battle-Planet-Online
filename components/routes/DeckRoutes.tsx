@@ -1003,6 +1003,9 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   const [saveName, setSaveName] = useState(deck.name);
   const [saveDescription, setSaveDescription] = useState(deck.description ?? "");
   const [saveVisibility, setSaveVisibility] = useState<DeckRecord["visibility"]>(deck.visibility);
+  const [saveLeadCardId, setSaveLeadCardId] = useState(
+    deck.leadCardId && deck.cardIds.includes(deck.leadCardId) ? deck.leadCardId : deck.cardIds[0] ?? "",
+  );
 
   useEffect(() => {
     if (!administratorEdit || source || !adminResourceId) {
@@ -1023,6 +1026,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
           setSaveName(next.name);
           setSaveDescription(next.description ?? "");
           setSaveVisibility(adminPublicId ? "Public" : "Private");
+          setSaveLeadCardId(next.leadCardId && next.cardIds.includes(next.leadCardId) ? next.leadCardId : next.cardIds[0] ?? "");
           setBuilderDeck(next);
           setRemoteLoading(false);
         }
@@ -1226,6 +1230,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     setSaveName(deck.name);
     setSaveDescription(deck.description ?? "");
     setSaveVisibility(adminPublicId ? "Public" : adminAiId ? "Private" : report.isLegal ? deck.visibility : deck.visibility === "Public" ? "Draft" : deck.visibility);
+    setSaveLeadCardId(deck.leadCardId && deck.cardIds.includes(deck.leadCardId) ? deck.leadCardId : deck.cardIds[0] ?? "");
     setActiveMenu({ surface: "deck", panel: "save" });
   };
 
@@ -1250,7 +1255,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       name,
       description: saveDescription.trim() || undefined,
       visibility: adminPublicId ? "Public" as const : adminAiId ? "Private" as const : saveVisibility,
-      leadCardId: deck.leadCardId ?? deck.cardIds[0],
+      leadCardId: saveLeadCardId && deck.cardIds.includes(saveLeadCardId) ? saveLeadCardId : deck.cardIds[0],
       updatedAt: new Date().toISOString(),
       revision: (deck.revision ?? 0) + 1,
     };
@@ -1651,6 +1656,34 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
               </p>
             )}
           </div>
+          <fieldset className={styles.builderFeaturedCardPicker}>
+            <legend>Featured Card</legend>
+            <p>Choose the Main Deck card used as this deck’s featured artwork.</p>
+            {grouped.length ? (
+              <div>
+                {grouped.map(({ card }) => {
+                  const selected = saveLeadCardId === card.catalogId;
+                  return (
+                    <button
+                      type="button"
+                      className={selected ? styles.builderFeaturedCardSelected : ""}
+                      aria-pressed={selected}
+                      onClick={() => setSaveLeadCardId(card.catalogId)}
+                      key={card.catalogId}
+                    >
+                      <img src={cardArtSource(card, "thumbnail")} alt="" />
+                      <span>
+                        <strong>{card.displayName}</strong>
+                        <small>{card.faction} · {card.type}</small>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <span className={styles.builderFeaturedCardEmpty}>Add a Main Deck card before choosing featured artwork.</span>
+            )}
+          </fieldset>
           <fieldset className={styles.builderVisibilityOptions}>
             <legend>Visibility</legend>
             {administratorEdit ? (
