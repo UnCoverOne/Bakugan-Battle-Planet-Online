@@ -67,6 +67,21 @@ test("batch rows remain mounted, docking is transform-only, and modal exits are 
 });
 
 
+test("completed match dialog separates board inspection from exiting the match", () => {
+  const coordinator = read("components/game-screen-v2/MatchStateCoordinator.tsx");
+  const css = read("components/game-screen-v2/MatchResultDialog.module.css");
+
+  assert.match(coordinator, /complete \? "EXIT MATCH" : "CONTINUE SERIES"/);
+  assert.doesNotMatch(coordinator, /RETURN TO PLAY/);
+  assert.match(coordinator, /aria-label="Close match complete window"/);
+  assert.match(coordinator, /if \(complete\) \{\s*onDismiss\(\);/);
+  assert.match(coordinator, /\{!complete \? \([\s\S]*VIEW MATCH RECORD/);
+  assert.match(coordinator, /onDismiss=\{\(\) => \{\s*if \(resultKey\) setDismissedResultKey\(resultKey\);/);
+  assert.match(coordinator, /onContinue=\{\(\) => \{\s*router\.push\("\/play\/result"\);/);
+  assert.match(css, /\.closeAction \{[\s\S]*position: absolute;[\s\S]*right:/);
+  assert.match(css, /\.actions\[data-single="true"\]/);
+});
+
 test("Energy zones show total cards and stage a white-light Energize arrival", () => {
   const screen = read("components/game-screen-v2/GameScreen.tsx");
   const client = read("components/game-screen-v2/GameplayClient.tsx");

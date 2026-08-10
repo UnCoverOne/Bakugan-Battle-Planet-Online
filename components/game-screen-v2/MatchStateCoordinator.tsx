@@ -138,11 +138,13 @@ function MatchResultDialog({
   playerId,
   onViewRecord,
   onContinue,
+  onDismiss,
 }: {
   match: MatchState;
   playerId?: string;
   onViewRecord: () => void;
   onContinue: () => void;
+  onDismiss: () => void;
 }) {
   const primaryButtonRef = useRef<HTMLButtonElement>(null);
   const localPlayerId = playerId ?? match.players[0]?.id;
@@ -160,18 +162,22 @@ function MatchResultDialog({
   const opponentScore = opponent ? match.series[opponent.id] ?? 0 : 0;
   const scoreLabel = match.format === "bo3" ? "SERIES SCORE" : "FINAL SCORE";
   const eyebrow = complete ? "MATCH COMPLETE" : `GAME ${match.gameNumber} COMPLETE`;
-  const primaryLabel = complete ? "RETURN TO PLAY" : "CONTINUE SERIES";
+  const primaryLabel = complete ? "EXIT MATCH" : "CONTINUE SERIES";
 
   useEffect(() => {
     primaryButtonRef.current?.focus();
     const continueOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
+      if (complete) {
+        onDismiss();
+        return;
+      }
       onContinue();
     };
     window.addEventListener("keydown", continueOnEscape);
     return () => window.removeEventListener("keydown", continueOnEscape);
-  }, [onContinue]);
+  }, [complete, onContinue, onDismiss]);
 
   return (
     <div
@@ -188,6 +194,16 @@ function MatchResultDialog({
         aria-describedby="match-result-description"
       >
         <span className={styles.energyTrace} aria-hidden="true" />
+        {complete ? (
+          <button
+            type="button"
+            className={styles.closeAction}
+            aria-label="Close match complete window"
+            onClick={onDismiss}
+          >
+            ×
+          </button>
+        ) : null}
         <header className={styles.header}>
           <img className={styles.logo} src="/assets/logo.png" alt="" aria-hidden="true" />
           <span className={styles.eyebrow}>{eyebrow}</span>
@@ -218,10 +234,12 @@ function MatchResultDialog({
           </div>
         </div>
 
-        <div className={styles.actions}>
-          <button type="button" className={styles.secondaryAction} onClick={onViewRecord}>
-            VIEW MATCH RECORD
-          </button>
+        <div className={styles.actions} data-single={complete ? "true" : "false"}>
+          {!complete ? (
+            <button type="button" className={styles.secondaryAction} onClick={onViewRecord}>
+              VIEW MATCH RECORD
+            </button>
+          ) : null}
           <button
             ref={primaryButtonRef}
             type="button"
@@ -306,12 +324,10 @@ export function MatchStateCoordinator() {
             const recordId = `${returnState.match!.id}-${returnState.match!.gameNumber}`;
             router.push(`/profile/records/${encodeURIComponent(recordId)}`);
           }}
+          onDismiss={() => {
+            if (resultKey) setDismissedResultKey(resultKey);
+          }}
           onContinue={() => {
-            const match = returnState.match!;
-            if (matchIsComplete(match)) {
-              if (resultKey) setDismissedResultKey(resultKey);
-              return;
-            }
             router.push("/play/result");
           }}
         />
