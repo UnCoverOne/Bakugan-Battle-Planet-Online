@@ -3,6 +3,31 @@
   min-height: 100%;
 }
 
+/* Match Creation no longer reserves a second hero column for artwork. The
+   header is intentionally unboxed so the copy can use the full route width. */
+.creationScope :global(header) {
+  min-height: 0;
+  grid-template-columns: 1fr;
+  overflow: visible;
+  border-block: 0;
+  background: transparent;
+}
+
+.creationScope :global(header)::before,
+.creationScope :global(header)::after {
+  display: none;
+}
+
+.creationScope :global(header > div:nth-child(2)) {
+  display: none;
+}
+
+.creationScope :global(header > div:first-child) {
+  width: min(1180px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2.4rem 0 3rem;
+}
+
 /* Keep the Match Creation kicker and the two-line BRAWL / SETUP display type
    inside a generous line box. Impact's italic overhang was being clipped by
    the deliberately tight hero typography and overflow treatment. */
@@ -15,6 +40,7 @@
 
 .creationScope :global(header h1) {
   box-sizing: border-box;
+  max-width: 100%;
   padding: .08em .18em .14em .04em;
   line-height: 1;
   overflow: visible;
@@ -127,6 +153,11 @@
 }
 
 @media (max-width: 680px) {
+  .creationScope :global(header > div:first-child) {
+    width: min(100% - 1rem, 1180px);
+    padding: 1.6rem 0 2.2rem;
+  }
+
   .lobbyScope :global([role="dialog"] > header + div) {
     grid-template-columns: 1fr;
     gap: .65rem;

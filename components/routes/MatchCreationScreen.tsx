@@ -174,10 +174,6 @@ export function MatchCreationScreen() {
           <h1><span>BRAWL</span><strong>SETUP</strong></h1>
           <p>Choose your battle mode, match structure, and lobby action. Final deck selection and ready checks happen inside the lobby.</p>
         </div>
-        <div className={styles.heroArt} aria-hidden="true">
-          <div className={styles.heroGrid} />
-          <img src="/assets/brawlers-group.png" alt="" />
-        </div>
       </header>
 
       <main className={styles.shell}>
