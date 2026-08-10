@@ -22,6 +22,19 @@ jobs:
           node-version: 22.13.0
           cache: npm
       - run: npm ci
+      - name: Remove embedded test fixture from patch script
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+          const path = 'scripts/apply-serpenteze-dark-waters-fix.mjs';
+          let source = await readFile(path, 'utf8');
+          const start = source.indexOf('const testSource = `');
+          const endMarker = 'await writeFile("tests/recharge-and-dark-waters.test.ts", testSource);\n\n';
+          const end = source.indexOf(endMarker, start);
+          if (start < 0 || end < 0) throw new Error('Could not isolate embedded test fixture');
+          source = source.slice(0, start) + source.slice(end + endMarker.length);
+          await writeFile(path, source);
+          NODE
       - name: Apply source fix
         run: node scripts/apply-serpenteze-dark-waters-fix.mjs
       - name: Targeted regressions
