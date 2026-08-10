@@ -14,7 +14,10 @@ import {
   type CardChoices,
   type MatchState,
 } from "../../lib/game";
-import { opponentAiCanAct } from "../../lib/opponentAiCanAct";
+import {
+  opponentAiCanAct,
+  recoverOpponentAiPreRollFailure,
+} from "../../lib/opponentAiCanAct";
 import { canUndoLatest, undoLatestAction } from "../../lib/undo";
 import { playCardWithAutoEnergy } from "../../lib/cardPayment";
 import { tapEnergyCard } from "../../lib/energy";
@@ -445,24 +448,25 @@ export function GameplayClient() {
     const timeout = window.setTimeout(() => {
       void (async () => {
         try {
-const latest = readMatchStore().match;
-if (!latest || latest.id !== match.id || latest.version !== match.version) return;
-const next = playerCanFlipTieBreak(latest, "training-bot")
-  ? flipTieBreakCard(latest, "training-bot")
-  : shouldStartManualTieBreak(latest, "training-bot")
-    ? passPriorityWithTieBreak(latest, "training-bot")
-    : await requestOpponentAiDecision(latest, "training-bot");
-const current = readMatchStore().match;
-if (
-  next
-  && current?.id === latest.id
-  && current.version === latest.version
-) publishMatch(next);
+          const latest = readMatchStore().match;
+          if (!latest || latest.id !== match.id || latest.version !== match.version) return;
+          const decision = playerCanFlipTieBreak(latest, "training-bot")
+            ? flipTieBreakCard(latest, "training-bot")
+            : shouldStartManualTieBreak(latest, "training-bot")
+              ? passPriorityWithTieBreak(latest, "training-bot")
+              : await requestOpponentAiDecision(latest, "training-bot");
+          const current = readMatchStore().match;
+          if (current?.id !== latest.id || current.version !== latest.version) return;
+          const next = decision ?? recoverOpponentAiPreRollFailure(latest, "training-bot");
+          if (next) publishMatch(next);
         } catch {
-// A concurrent player action can close the bot's window before the
-// worker responds. The next accepted version schedules a fresh check.
+          const latest = readMatchStore().match;
+          if (latest?.id === match.id && latest.version === match.version) {
+            const recovered = recoverOpponentAiPreRollFailure(latest, "training-bot");
+            if (recovered) publishMatch(recovered);
+          }
         } finally {
-if (botActionKey.current === key) botActionKey.current = "";
+          if (botActionKey.current === key) botActionKey.current = "";
         }
       })();
     }, Math.max(520, drawDelay));
