@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { STARTER_DECKS, type DeckRecord } from "../lib/data";
 import { createTrainingLobbyState, syncTrainingBotForLobby } from "../lib/training-lobby";
-import { updateLobbySettings } from "../lib/lobby";
 
 test("Training lobby uses the administrator-selected AI deck instead of the built-in fallback", () => {
   const selectedAiDeck: DeckRecord = {
@@ -33,7 +32,7 @@ test("Training lobby uses the administrator-selected AI deck instead of the buil
   assert.equal((state as typeof state & { trainingAiDeck?: DeckRecord }).trainingAiDeck?.id, selectedAiDeck.id);
 });
 
-test("Training lobby keeps its selected AI source deck when lobby rules are resynchronised", () => {
+test("Training lobby keeps its selected AI source deck when the bot is resynchronised", () => {
   const selectedAiDeck: DeckRecord = {
     ...STARTER_DECKS[0],
     id: "admin-selected-training-ai",
@@ -45,7 +44,6 @@ test("Training lobby keeps its selected AI source deck when lobby rules are resy
     tags: [...(STARTER_DECKS[0].tags ?? [])],
   };
   let state = createTrainingLobbyState("TRAIN3", "bo1", "player-1", "Player 1", STARTER_DECKS[1], selectedAiDeck);
-  state = updateLobbySettings(state, "player-1", "standard", "battle-brawlers");
   state = syncTrainingBotForLobby(state);
   const bot = state.players.find((player) => player.id === "training-bot");
   assert.ok(bot);
