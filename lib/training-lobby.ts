@@ -16,8 +16,22 @@ import {
 } from "./lobby-config";
 import { replaceLobbyDeck, setLobbyReady } from "./lobby";
 
-function singletonTrainingDeck(): DeckRecord {
-  const base = STARTER_DECKS[1];
+type TrainingMatchState = MatchState & {
+  trainingAiDeck?: DeckRecord;
+};
+
+function cloneDeck(deck: DeckRecord): DeckRecord {
+  return {
+    ...deck,
+    factions: [...deck.factions],
+    bakuganIds: [...deck.bakuganIds],
+    coreIds: [...deck.coreIds],
+    cardIds: [...deck.cardIds],
+    tags: [...(deck.tags ?? [])],
+  };
+}
+
+function singletonTrainingDeck(base: DeckRecord): DeckRecord {
   const teamFactions = new Set(
     base.bakuganIds
       .map((id) => BAKUGAN.find((bakugan) => bakugan.id === id)?.faction)
@@ -37,9 +51,9 @@ function singletonTrainingDeck(): DeckRecord {
     if (cardIds.length === 40) break;
   }
   const deck: DeckRecord = {
-    ...base,
-    id: "training-ai-singleton",
-    name: "Mira Nova • Singleton Training",
+    ...cloneDeck(base),
+    id: `${base.id}-singleton-training`,
+    name: `${base.name} • Singleton Training`,
     cardIds,
     format: "singleton",
     visibility: "Private",
@@ -50,8 +64,12 @@ function singletonTrainingDeck(): DeckRecord {
   return deck;
 }
 
-export function trainingOpponentDeck(format: LobbyDeckFormat) {
-  return format === "singleton" ? singletonTrainingDeck() : STARTER_DECKS[1];
+export function trainingOpponentDeck(format: LobbyDeckFormat, selectedDeck: DeckRecord = STARTER_DECKS[1]) {
+  if (format === "singleton") {
+    if (selectedDeck.format === "singleton" && validateDeck(selectedDeck).isLegal) return cloneDeck(selectedDeck);
+    return singletonTrainingDeck(selectedDeck);
+  }
+  return cloneDeck(selectedDeck);
 }
 
 export function createTrainingLobbyState(
@@ -60,13 +78,16 @@ export function createTrainingLobbyState(
   playerId: string,
   playerName: string,
   playerDeck: DeckRecord,
+  selectedAiDeck: DeckRecord = STARTER_DECKS[1],
 ): MatchState {
   const initialRulesFormat = playerDeck.format === "singleton" ? "singleton" : "standard";
   const human = tagLobbyPlayerDeck(makePlayer(playerId, playerName, playerDeck), playerDeck);
-  const aiDeck = trainingOpponentDeck(initialRulesFormat);
+  const trainingAiDeck = cloneDeck(selectedAiDeck);
+  const aiDeck = trainingOpponentDeck(initialRulesFormat, trainingAiDeck);
   const bot = tagLobbyPlayerDeck(makePlayer("training-bot", "Mira Nova • Training AI", aiDeck), aiDeck);
   bot.ready = true;
   const state = createMatch(code, structure, [human, bot]);
+  (state as TrainingMatchState).trainingAiDeck = trainingAiDeck;
   applyLobbyConfig(state, {
     mode: "training",
     rulesFormat: initialRulesFormat,
@@ -81,7 +102,8 @@ export function syncTrainingBotForLobby(input: MatchState) {
   const bot = input.players.find((player) => player.id === "training-bot");
   if (!bot) return input;
   const deckFormat = requiredDeckFormat(config.rulesFormat);
-  const deck = trainingOpponentDeck(deckFormat);
+  const selectedAiDeck = (input as TrainingMatchState).trainingAiDeck ?? STARTER_DECKS[1];
+  const deck = trainingOpponentDeck(deckFormat, selectedAiDeck);
   const replacement = tagLobbyPlayerDeck(makePlayer(bot.id, bot.name, deck), deck);
   let state = replaceLobbyDeck(input, bot.id, replacement);
   state = setLobbyReady(state, bot.id, true);

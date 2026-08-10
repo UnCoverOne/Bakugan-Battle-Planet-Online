@@ -6,6 +6,7 @@ import { validateDeck, type DeckRecord } from "../../lib/data";
 import type { DeckRestriction } from "../../lib/deck-validation";
 import { normalizeRoomCode } from "../../lib/play-setup-machine";
 import { createTrainingLobbyState } from "../../lib/training-lobby";
+import { primeMatchStore } from "../game-screen-v2/matchStore";
 import { useApp } from "../application/AppProvider";
 import styles from "./MatchCreationScreen.module.css";
 
@@ -48,7 +49,6 @@ export function MatchCreationScreen() {
     setOnline,
     profile,
     playerId,
-    matchError,
     authUser,
   } = useApp();
   const [mode, setMode] = useState<MatchModeChoice>(() => modeFromProvider(matchMode));
@@ -56,6 +56,7 @@ export function MatchCreationScreen() {
   const [action, setAction] = useState<LobbyAction>(matchMode === "join" ? "join" : "create");
   const [roomCode, setRoomCode] = useState(() => normalizeRoomCode(storedJoinCode));
   const [pending, setPending] = useState<PendingLaunch>(null);
+  const [trainingPending, setTrainingPending] = useState(false);
   const [error, setError] = useState("");
   const [rankedDeckIds, setRankedDeckIds] = useState<string[]>([]);
   const [rankedRestrictions, setRankedRestrictions] = useState<DeckRestriction[]>([]);
@@ -98,9 +99,9 @@ export function MatchCreationScreen() {
 
     let cancelled = false;
     const run = async () => {
-      const launch = pending.action === "join" ? joinOnline : createOnline;
+      const openLobby = pending.action === "join" ? joinOnline : createOnline;
       const options = pending.mode === "ranked" ? { mode: "ranked", decks: (decks as DeckRecord[]).filter((deck) => pending.rankedDeckIds.includes(deck.id)) } : undefined;
-      const result = await launch(options);
+      const result = await openLobby(options);
       if (cancelled) return;
       setPending(null);
       if (result?.ok === false) setError(result.error ?? "The lobby could not be opened.");
@@ -108,10 +109,6 @@ export function MatchCreationScreen() {
     void run();
     return () => { cancelled = true; };
   }, [createOnline, decks, format, joinOnline, matchMode, pending, preferredDeck, selectedDeckId, storedJoinCode]);
-
-  useEffect(() => {
-    if (matchError) setError(matchError);
-  }, [matchError]);
 
   const chooseMode = (next: MatchModeChoice) => {
     setMode(next);
@@ -123,7 +120,13 @@ export function MatchCreationScreen() {
     setError("");
   };
 
-  const launch = () => {
+  const resetPreviousSession = () => {
+    setMatch(null);
+    setOnline(false);
+    primeMatchStore({ route: "play", match: null, online: false, playerId, capability: "" });
+  };
+
+  const launch = async () => {
     if (mode === "ranked" && !authUser) {
       setError("Sign in before creating or joining a Ranked lobby.");
       return;
@@ -145,15 +148,28 @@ export function MatchCreationScreen() {
     setError("");
     setFormat(structure);
     setSelectedDeckId(launchDeck.id);
+    resetPreviousSession();
 
     if (mode === "training") {
+      setTrainingPending(true);
       setMatchMode("solo");
       setJoinCode("");
-      const code = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase();
-      const state = createTrainingLobbyState(code, structure, playerId, profile.name, launchDeck);
-      setOnline(false);
-      setMatch(state);
-      router.push("/play/lobby");
+      try {
+        const response = await fetch("/api/ai-decks", { cache: "no-store" });
+        const result = await response.json().catch(() => ({})) as { deck?: DeckRecord; error?: string };
+        if (!response.ok || !result.deck) throw new Error(result.error ?? "No Training AI deck is available.");
+        if (!validateDeck(result.deck).isLegal) throw new Error("The selected Training AI deck is no longer legal.");
+        const code = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase();
+        const state = createTrainingLobbyState(code, structure, playerId, profile.name, launchDeck, result.deck);
+        setOnline(false);
+        setMatch(state);
+        primeMatchStore({ route: "lobby", match: state, online: false, playerId, capability: "" });
+        router.push("/play/lobby");
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Training lobby could not be opened.");
+      } finally {
+        setTrainingPending(false);
+      }
       return;
     }
 
@@ -163,7 +179,7 @@ export function MatchCreationScreen() {
     setPending({ action, deckId: launchDeck.id, structure: mode === "ranked" ? "bo3" : structure, roomCode: normalizedCode, mode, rankedDeckIds });
   };
 
-  const busy = Boolean(pending);
+  const busy = Boolean(pending) || trainingPending;
   const actionLabel = mode === "training" || action === "create" ? "CREATE LOBBY" : "JOIN LOBBY";
 
   return (
@@ -275,7 +291,7 @@ export function MatchCreationScreen() {
               <div><span>STRUCTURE</span><strong>{structure === "bo3" ? "BEST OF THREE" : "BEST OF ONE"}</strong></div>
               <div><span>ACTION</span><strong>{mode === "training" || action === "create" ? "CREATE" : "JOIN"}</strong></div>
             </div>
-            <button className={styles.launchButton} disabled={busy || (mode === "ranked" ? rankedDecks.length !== 3 || !authUser : !preferredDeck)} onClick={launch}>
+            <button className={styles.launchButton} disabled={busy || (mode === "ranked" ? rankedDecks.length !== 3 || !authUser : !preferredDeck)} onClick={() => void launch()}>
               <span>{busy ? "OPENING LOBBY…" : actionLabel}</span><ChevronArrow />
             </button>
           </footer>
