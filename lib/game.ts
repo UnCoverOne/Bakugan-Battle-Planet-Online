@@ -9,7 +9,7 @@ import {
 import { executeRuleProgram } from "./rules/executor";
 import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
 import { ruleDefinitionForCard } from "./rules/catalogue";
-import { activeTappedEnergyIds, cardCostBreakdown } from "./rules/costs";
+import { activeTappedEnergyIds, cardCostBreakdown, rechargeEnergyCards } from "./rules/costs";
 import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
@@ -1935,6 +1935,12 @@ const executeRuleAction = (
     case "generate-energy":
       player.energy += Math.max(0, scaleStat(state, player, text, action.amount, "draw"));
       return;
+    case "recharge-energy": {
+      if (choices.confirmed === false) return;
+      const selected = action.amount === "all" ? undefined : (choices.targetEnergyIds ?? []).slice(0, action.amount);
+      rechargeEnergyCards(state, controllerId, selected);
+      return;
+    }
     case "set-stat":
       if (target) {
         if (action.stat === "power") state.powerBoost[target.id] = action.value - (topCard(target).bPower ?? target.bPower);

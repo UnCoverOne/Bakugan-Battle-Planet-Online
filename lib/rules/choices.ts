@@ -1,6 +1,7 @@
 import type { CardChoices, GameCard, MatchState } from "../game";
 import { ruleDefinitionForCard } from "./catalogue";
 import { canonicalEvoTargetAllowed } from "./identity";
+import { activeTappedEnergyIds } from "./costs";
 import type { ChoiceSpec, ChoiceTiming } from "./model";
 
 export type ChoiceKind =
@@ -202,9 +203,14 @@ function optionsFor(
         }),
       ]);
     case "energy-card":
-      return targetOwners(match, controllerId, spec).flatMap((owner) => owner.energyZone
-        .filter((energy) => cardMatchesSpec(energy, spec))
-        .map((energy) => option(energy.id, "Face-down Energy", owner.id)));
+      return targetOwners(match, controllerId, spec).flatMap((owner) => {
+        const uncharged = new Set(activeTappedEnergyIds(owner, match.turn));
+        return owner.energyZone
+          .filter((energy) => cardMatchesSpec(energy, spec))
+          .filter((energy) => !spec.energyState
+            || (spec.energyState === "uncharged" ? uncharged.has(energy.id) : !uncharged.has(energy.id)))
+          .map((energy) => option(energy.id, spec.energyState === "uncharged" ? "Uncharged Energy" : "Face-down Energy", owner.id));
+      });
     case "bakucore": {
       const ownerIds = new Set(targetOwners(match, controllerId, spec).map((owner) => owner.id));
       return match.placements

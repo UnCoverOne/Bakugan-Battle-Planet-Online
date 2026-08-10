@@ -239,6 +239,12 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     enters: energizeEntryState,
   });
 
+  const recharge = text.match(/\brecharge\s+(?:(?:all\s+of\s+)?your\s+)?(?:(up to)\s+)?(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)?\s*Energy cards?\b/i);
+  if (recharge) actions.push({
+    kind: "recharge-energy",
+    amount: recharge[2] ? numberValue(recharge[2]) : "all",
+  });
+
   const generatedEnergy = text.match(/\+(\d+) \[Energy\]/i);
   if (generatedEnergy) actions.push({ kind: "generate-energy", amount: Number(generatedEnergy[1]), scale });
   const setPower = text.match(/\[B\] becomes (\d+)/i);

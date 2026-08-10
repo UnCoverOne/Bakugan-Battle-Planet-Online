@@ -65,6 +65,8 @@ export type ChoiceSpec = {
   notOpenedThisTurn?: boolean;
   notPlayedThisTurn?: boolean;
   attachmentState?: "attached" | "unattached";
+  /** Restrict Energy-card choices by their charged state for Recharge effects. */
+  energyState?: "charged" | "uncharged";
   /** Exclude the Bakugan that created the trigger ("another Bakugan"). */
   excludeSourceBakugan?: boolean;
 };
@@ -107,6 +109,7 @@ export type RuleAction =
   | { kind: "discard"; amount: number; minimum: number; maximum: number; repeated?: boolean }
   | { kind: "energize"; amount: number; source: "hand" | "deck" | "hero" | "self"; enters: "charged" | "uncharged" }
   | { kind: "generate-energy"; amount: number; scale?: string }
+  | { kind: "recharge-energy"; amount: number | "all" }
   | { kind: "set-stat"; stat: "power" | "damage"; value: number }
   | { kind: "set-rule"; rule: "victor-stat"; value: "power" | "damage"; duration: RulesDuration }
   | { kind: "win-game"; reason: string }

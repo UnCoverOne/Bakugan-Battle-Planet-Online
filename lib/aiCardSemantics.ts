@@ -151,6 +151,7 @@ export function estimateRuleActionValue(action: RuleAction, match: MatchState) {
     case "discard": return -action.amount * 1.4;
     case "energize": return action.amount * 2;
     case "generate-energy": return action.amount * 1.6;
+    case "recharge-energy": return action.amount === "all" ? 4 : action.amount * 1.6;
     case "grant-keyword": return action.keyword === "DoubleStrike" ? 4 : 2.5;
     case "move": return ["destroy", "control", "remove"].includes(action.verb)
       ? action.amount * 3

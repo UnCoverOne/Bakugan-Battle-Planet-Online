@@ -239,7 +239,7 @@ test("a failed AI decision advances Power after the player has already passed", 
 test("failed AI decisions also recover mandatory energize and hand-limit windows", () => {
   const ai = player("training-bot", [bakugan("mandatory-ai", "Aquos", 500, 5)]);
   const human = player("human", [bakugan("mandatory-human", "Pyrus", 500, 5)]);
-  let energize = matchWith(ai, human, "energize");
+  const energize = matchWith(ai, human, "energize");
 
   const skipped = recoverOpponentAiFailure(energize, ai.id);
   assert.ok(skipped);
