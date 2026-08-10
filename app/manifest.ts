@@ -11,10 +11,22 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#020b11",
     icons: [
       {
-        src: "/assets/logo.png",
-        sizes: "134x118",
+        src: "/assets/app-icons/bakugan-battle-planet-192.png",
+        sizes: "192x192",
         type: "image/png",
         purpose: "any",
+      },
+      {
+        src: "/assets/app-icons/bakugan-battle-planet-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/assets/app-icons/bakugan-battle-planet-maskable-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
       },
     ],
   };
