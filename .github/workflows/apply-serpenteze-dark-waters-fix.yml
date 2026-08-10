@@ -1,0 +1,40 @@
+name: Apply Serpenteze and Dark Waters fix
+
+on:
+  push:
+    branches:
+      - fix/serpenteze-dark-waters
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/serpenteze-dark-waters
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Apply source fix
+        run: node scripts/apply-serpenteze-dark-waters-fix.mjs
+      - name: Targeted regressions
+        run: node --import tsx --test tests/recharge-and-dark-waters.test.ts tests/opponent-ai-tactics.test.ts
+      - name: Rules regressions
+        run: npm run test:rules
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Commit verified implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix Recharge effects and Dark Waters AI tactics"
+          git push origin HEAD:fix/serpenteze-dark-waters
