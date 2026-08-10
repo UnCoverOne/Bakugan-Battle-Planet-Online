@@ -5,6 +5,7 @@ import "../../app/energy-payment.css";
 import "../../app/discard-flip-orientation.css";
 import "../../app/card-preview-interactions.css";
 import "../../app/gameplay-card-presentation.css";
+import { useCallback, useState } from "react";
 import { BakuCorePresentationProvider } from "./BakuCorePresentation";
 import { AlternateWinPresentationLayer } from "./AlternateWinPresentationLayer";
 import { BrawlExperienceLayer } from "./BrawlExperienceLayer";
@@ -17,6 +18,7 @@ import { GameplaySoundLayer } from "./GameplaySoundLayer";
 import { MatchCommunicationLayer } from "./MatchCommunicationLayer";
 import { MatchStateCoordinator } from "./MatchStateCoordinator";
 import { GameplayClient } from "./GameplayClient";
+import { OpponentAiProgressWatchdog } from "./OpponentAiProgressWatchdog";
 import { ViewportStabilityGuard } from "./ViewportStabilityGuard";
 
 /**
@@ -25,11 +27,17 @@ import { ViewportStabilityGuard } from "./ViewportStabilityGuard";
  * initialize the complete gameplay layer.
  */
 export function GameplayRuntime() {
+  const [gameplayClientGeneration, setGameplayClientGeneration] = useState(0);
+  const recoverGameplayClient = useCallback(() => {
+    setGameplayClientGeneration((current) => current + 1);
+  }, []);
+
   return (
     <BakuCorePresentationProvider>
       <MatchStateCoordinator />
       <ViewportStabilityGuard />
-      <GameplayClient />
+      <OpponentAiProgressWatchdog onRecover={recoverGameplayClient} />
+      <GameplayClient key={gameplayClientGeneration} />
       <GameplayCardPresentationLayer />
       <MatchCommunicationLayer />
       <DrawAnimationLayer />
