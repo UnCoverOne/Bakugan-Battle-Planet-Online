@@ -102,7 +102,16 @@ function deckPreviewCards(deck: DeckRecord) {
 }
 
 function deckTags(deck: DeckRecord) {
-  return (deck.tags ?? []).filter(Boolean).slice(0, 4);
+  const tags = [
+    deckSetName(deck).toUpperCase(),
+    deck.factions.join(" • "),
+    ...(deck.tags ?? []),
+  ]
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  return tags
+    .filter((tag, index) => tags.findIndex((candidate) => candidate.toLowerCase() === tag.toLowerCase()) === index)
+    .slice(0, 4);
 }
 
 function ChevronArrow() {
