@@ -24,6 +24,7 @@ import { playerCanSelectRollTarget, selectRollTarget } from "./rolling";
 import {
   activeCardActionEntries,
   cardLeafActions,
+  hasNonDeferrablePreRollTiming,
   isTemporaryCombatAction,
   pureTemporaryCombatProgram,
 } from "./aiCardSemantics";
@@ -79,20 +80,17 @@ function actionTargetsEnemy(
   return /enemy|opposing|opponent(?:'s)?|non-\[[a-z]+\]/i.test(sourceText);
 }
 
-function shouldReserveDrawRerollCard(match: MatchState, card: GameCard) {
+function shouldReserveOptionalRerollCard(match: MatchState, card: GameCard) {
   if (match.phase !== "preRoll") return false;
-  const actions = cardLeafActions(card);
-  const optionalControllerReroll = actions.some((action) => (
+  if (hasNonDeferrablePreRollTiming(card.effect)) return false;
+  // An optional self-Reroll has no value until the first roll has resolved.
+  // Hold the complete card so mixed programs (for example, attack + Reroll)
+  // cannot spend their immediate clause while throwing away the later option.
+  return cardLeafActions(card).some((action) => (
     action.kind === "reroll"
     && action.target === "controller"
     && !action.mandatory
   ));
-  if (!optionalControllerReroll) return false;
-  const independent = actions.filter((action) => action.kind !== "reroll");
-  // A phase-insensitive draw remains available during the Power Step, where the
-  // AI can also decide whether the Reroll is actually useful. Spending the card
-  // before either roll gives away that option for no additional benefit.
-  return independent.length > 0 && independent.every((action) => action.kind === "draw");
 }
 
 function sourceHasPrintedIntrinsicReroll(match: MatchState, playerId: string) {
@@ -531,7 +529,7 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
         const tacticallySuppressed = input.phase !== "preRoll"
           && !winningPowerPlan.has(card.id)
           && shouldSuppressTemporaryCombatCard(input, playerId, card);
-        return unneededPowerAlternative || tacticallySuppressed || shouldReserveDrawRerollCard(input, card);
+        return unneededPowerAlternative || tacticallySuppressed || shouldReserveOptionalRerollCard(input, card);
       })
       .map((card) => card.id),
   );

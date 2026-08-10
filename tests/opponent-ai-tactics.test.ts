@@ -685,3 +685,27 @@ test("AI does not spend a debuff whose B-Power reduction is blocked by ShadowStr
   assert.equal(next.batch.length, 0);
   assert.equal(next.players[0].hand.some((candidate) => candidate.id === debuff.id), true);
 });
+
+test("AI preserves Quickfire until its optional Reroll can be used", () => {
+  const quickfire = catalogueCard("br-44", "pre-roll-quickfire");
+  assert.equal(quickfire.displayName || quickfire.name, "Quickfire");
+  const ai = player(
+    "ai",
+    [bakugan("quickfire-ai", "Pyrus", 500, 5)],
+    [],
+    [quickfire],
+  );
+  const human = player(
+    "human",
+    [bakugan("quickfire-human", "Aquos", 500, 5)],
+  );
+  const match = matchWith(ai, human, "preRoll");
+  match.selected[ai.id] = ai.bakugan[0].id;
+  match.selected[human.id] = human.bakugan[0].id;
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.ok(next.players[0].hand.some((card) => card.id === quickfire.id));
+  assert.equal(next.priority, human.id);
+});

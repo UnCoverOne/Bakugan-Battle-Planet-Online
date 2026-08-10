@@ -263,3 +263,42 @@ test("Energize protects a nested Flow combat response when expendable fodder exi
   assert.equal(plan.cardId, flip.id);
   assert.notEqual(plan.cardId, tides.id);
 });
+
+test("Fierce Charge is energized before the reactive Action Blinding Ink", () => {
+  const fierceCharge = catalogCard("aa-54", "stranded-fierce-charge");
+  const blindingInk = catalogCard("br-3", "retained-blinding-ink");
+  assert.equal(fierceCharge.displayName || fierceCharge.name, "Fierce Charge");
+  assert.equal(blindingInk.displayName || blindingInk.name, "Blinding Ink");
+  const ai = player("ai", [blindingInk, fierceCharge]);
+  const plan = planOpponentEnergize(energizeMatch(ai), ai.id);
+
+  assert.equal(plan.shouldEnergize, true);
+  assert.equal(plan.cardId, fierceCharge.id);
+  const flipDiagnostic = plan.candidates?.find((candidate) => (
+    candidate.cardId === fierceCharge.id
+  ));
+  const negateDiagnostic = plan.candidates?.find((candidate) => (
+    candidate.cardId === blindingInk.id
+  ));
+  assert.equal(flipDiagnostic?.tier, 0);
+  assert.equal(negateDiagnostic?.tier, 3);
+  assert.ok(
+    (negateDiagnostic?.opportunityCost ?? 0) > (flipDiagnostic?.opportunityCost ?? 0),
+  );
+});
+
+test("zero-Energy first-round planning develops toward multiple low-cost Actions", () => {
+  const blindingInk = catalogCard("br-3", "development-blinding-ink");
+  const lowCostOne = catalogCard("bb-17", "development-action-one");
+  const lowCostTwo = catalogCard("bb-26", "development-action-two");
+  const ai = player("ai", [blindingInk, lowCostOne, lowCostTwo]);
+  const plan = planOpponentEnergize(energizeMatch(ai), ai.id);
+
+  assert.equal(plan.shouldEnergize, true);
+  assert.equal(plan.goalSource, "development");
+  assert.equal(plan.reason, "early-energy-development");
+  assert.ok(plan.cardId);
+  assert.ok(ai.hand.some((card) => card.id === plan.cardId));
+  assert.ok((plan.goalScore ?? 0) > 0);
+  assert.ok((plan.protectedCardIds?.length ?? 0) > 0);
+});

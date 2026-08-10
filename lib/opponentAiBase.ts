@@ -445,6 +445,20 @@ export function estimateFutureRerollValue(
   return total / Math.max(1, initial.samples.length);
 }
 
+function prospectiveNegateValue(program: RuleProgram, match: MatchState) {
+  return program.instructions
+    .flatMap(allInstructionLeafActions)
+    .filter((action): action is Extract<RuleAction, { kind: "negate" }> => (
+      action.kind === "negate"
+    ))
+    .reduce((sum, action) => {
+      const futureTargetValue = action.cardType === "any" ? 3.2 : 2.6;
+      // Replace today's empty-batch penalty with the value of preserving a
+      // response for a plausible future priority window.
+      return sum + futureTargetValue - estimateRuleActionValue(action, match);
+    }, 0);
+}
+
 function evaluatedFutureCardValue(
   match: MatchState,
   playerId: string,
@@ -458,6 +472,7 @@ function evaluatedFutureCardValue(
       ? withoutRerollSuccessInstructions(program)
       : program;
     let value = estimateProgramValue(evaluatedProgram, match, playerId) - printedCost * 0.4;
+    value += prospectiveNegateValue(evaluatedProgram, match);
     if (card.type === "Hero") value += 2.2;
     if (card.type === "Evo") value += 2.8;
     if (card.type === "Flip" && includeDeckFlipValue) value += 3.2;
@@ -760,6 +775,17 @@ function winningBrawlResourceConservationPenalty(
   return 0.45 + Math.min(1.2, Math.max(0, printedCost) * 0.25);
 }
 
+function hasEligibleAttacker(
+  match: MatchState,
+  playerId: string,
+  action: Extract<RuleAction, { kind: "attack" }>,
+) {
+  const player = playerById(match, playerId);
+  return Boolean(player?.bakugan.some((bakugan) => (
+    bakugan.open && (!action.faction || bakugan.faction === action.faction)
+  )));
+}
+
 function cardValue(
   match: MatchState,
   playerId: string,
@@ -778,10 +804,13 @@ function cardValue(
     choices,
     { execution: "play" },
   );
-  let value = entries.reduce(
-    (sum, entry) => sum + estimateRuleActionValue(entry.action, resolving),
-    0,
-  ) - printedCost * 0.72;
+  let value = entries.reduce((sum, entry) => {
+    if (
+      entry.action.kind === "attack"
+      && !hasEligibleAttacker(resolving, playerId, entry.action)
+    ) return sum;
+    return sum + estimateRuleActionValue(entry.action, resolving);
+  }, 0) - printedCost * 0.72;
   for (const { instruction, action } of entries) {
     const raw = actionBaseValue(action);
     if (raw) {
@@ -1185,7 +1214,7 @@ function fallbackChoiceCard(pending: PendingCardChoice): GameCard {
   };
 }
 
-type EnergyGoalSource = "hand-card" | "hand-combo" | "deck";
+type EnergyGoalSource = "hand-card" | "hand-combo" | "deck" | "development";
 type EnergyGoal = {
   source: EnergyGoalSource;
   score: number;
@@ -1204,9 +1233,17 @@ export type OpponentEnergizePlan = {
   shouldEnergize: boolean;
   cardId?: string;
   reason: "reachable-hand-card" | "reachable-hand-combo" | "probable-deck-card"
-    | "no-energy-goal" | "no-expendable-card";
+    | "early-energy-development" | "no-energy-goal" | "no-expendable-card";
   goalSource?: EnergyGoalSource;
   goalCardIds?: string[];
+  goalScore?: number;
+  protectedCardIds?: string[];
+  candidates?: Array<{
+    cardId: string;
+    tier: number;
+    opportunityCost: number;
+    protected: boolean;
+  }>;
 };
 
 function currentEnergyCapacity(match: MatchState, playerId: string) {
@@ -1220,6 +1257,23 @@ function currentEnergyCapacity(match: MatchState, playerId: string) {
   return Math.max(0, Math.floor(player.energy)) + untapped;
 }
 
+function futurePriorityProjection(match: MatchState, playerId: string) {
+  const projected = cloneProjectedMatch(match);
+  projected.phase = "power";
+  projected.stepLabel = "Brawl Phase • Power Step";
+  projected.priority = playerId;
+  projected.passes = [];
+  for (const player of projected.players) {
+    const selected = player.bakugan.find((bakugan) => (
+      bakugan.id === projected.selected[player.id]
+    )) ?? player.bakugan[0];
+    if (!selected) continue;
+    projected.selected[player.id] = selected.id;
+    selected.open = true;
+  }
+  return projected;
+}
+
 function futurePlayLikelihood(
   match: MatchState,
   playerId: string,
@@ -1230,6 +1284,9 @@ function futurePlayLikelihood(
   if (card.type === "Character") return 0;
   if (card.type === "Flip") return zone === "deck" ? 0.42 : 0;
   try {
+    if (cardLeafActions(card).some((action) => (
+      action.kind === "negate" || action.kind === "prevention"
+    ))) return 0.75;
     if (!schemaHasLegalCompletion(buildChoiceSchema(match, playerId, card))) return 0;
   } catch {
     return 0.2;
@@ -1246,23 +1303,24 @@ function analyzeEnergyCard(
   capacity: number,
   zone: "hand" | "deck",
 ): EnergyCardAnalysis {
+  const planningMatch = futurePriorityProjection(match, playerId);
   let choices: CardChoices = {};
-  try { choices = chooseCardChoices(match, playerId, card); } catch { choices = {}; }
+  try { choices = chooseCardChoices(planningMatch, playerId, card); } catch { choices = {}; }
   let cost = card.cost === "X" ? Math.max(1, capacity) : card.cost;
   try {
-    cost = cardEnergyPaymentState(match, playerId, card, choices)?.cost ?? cost;
+    cost = cardEnergyPaymentState(planningMatch, playerId, card, choices)?.cost ?? cost;
   } catch {
-    // Keep the printed planning cost when a conditional choice is not
-    // currently constructible. Its reduced likelihood handles uncertainty.
+    // Keep the printed planning cost when a future conditional choice is not
+    // constructible. Its reduced likelihood handles uncertainty.
   }
   return {
     card,
     cost,
     value: (zone === "hand"
-      ? handCardRetentionValue(match, playerId, card)
-      : deckCardFutureValue(match, playerId, card))
+      ? handCardRetentionValue(planningMatch, playerId, card)
+      : deckCardFutureValue(planningMatch, playerId, card))
       + estimateFutureRerollValue(match, playerId, card),
-    playLikelihood: futurePlayLikelihood(match, playerId, card, choices, zone),
+    playLikelihood: futurePlayLikelihood(planningMatch, playerId, card, choices, zone),
     affordableNow: cost <= capacity,
     tacticalReserveValue: zone === "hand"
       ? temporaryCombatPotential(card) * 0.45
@@ -1368,6 +1426,72 @@ function deckEnergyGoals(match: MatchState, playerId: string, capacity: number) 
   return goals;
 }
 
+function earlyDevelopmentGoal(
+  analyses: EnergyCardAnalysis[],
+  capacity: number,
+): EnergyGoal | undefined {
+  if (capacity > 1) return;
+  const usefulLowCost = analyses
+    .filter((analysis) => (
+      analysis.card.type !== "Flip"
+      && analysis.card.type !== "Character"
+      && analysis.cost >= 1
+      && analysis.cost <= 2
+      && analysis.playLikelihood >= 0.5
+      && analysis.value > 0.35
+    ))
+    .sort((a, b) => (
+      b.value * b.playLikelihood - a.value * a.playLikelihood
+      || a.cost - b.cost
+      || a.card.id.localeCompare(b.card.id)
+    ));
+  const hasStrandedFodder = analyses.some((analysis) => (
+    analysis.card.type === "Flip"
+    || analysis.card.type === "Character"
+    || analysis.playLikelihood <= 0
+  ));
+  if (capacity === 0 && usefulLowCost.length < 2 && !hasStrandedFodder) return;
+  if (capacity === 1 && !usefulLowCost.some((analysis) => analysis.cost === 2)) return;
+  const protectedCard = usefulLowCost[0];
+  if (!protectedCard) return;
+  return {
+    source: "development",
+    score: 2.4 + usefulLowCost.length * 0.35,
+    cardIds: [protectedCard.card.id],
+    targetCost: Math.max(capacity + 1, protectedCard.cost),
+  };
+}
+
+function energyCandidateTier(
+  match: MatchState,
+  playerId: string,
+  analysis: EnergyCardAnalysis,
+  capacity: number,
+) {
+  if (
+    analysis.card.type === "Flip"
+    || analysis.card.type === "Character"
+    || analysis.playLikelihood <= 0
+  ) return 0;
+  const player = playerById(match, playerId)!;
+  const copies = player.hand.filter((card) => (
+    card.catalogId === analysis.card.catalogId
+  )).length + player.deckCards.filter((card) => (
+    card.catalogId === analysis.card.catalogId
+  )).length;
+  if (copies > 1 || analysis.cost > capacity + 2) return 1;
+  let reactive = false;
+  try {
+    reactive = cardLeafActions(analysis.card).some((action) => (
+      action.kind === "negate" || action.kind === "prevention"
+    ));
+  } catch {
+    // Unknown card programs remain replaceable, but never break Energize.
+  }
+  if (analysis.affordableNow || reactive || analysis.tacticalReserveValue > 0) return 3;
+  return 2;
+}
+
 function energyOpportunityCost(
   match: MatchState,
   playerId: string,
@@ -1391,18 +1515,23 @@ function energyOpportunityCost(
   const lateGameDiscount = Math.max(0, analysis.cost - capacity - 1) * 0.9
     + analysis.cost * 0.08;
   const replaceability = Math.max(0, handCopies - 1) * 0.45 + deckCopies * 0.55;
-  return retainedValue
-    + immediateUrgency
-    + nextTurnUrgency
-    + analysis.tacticalReserveValue
-    - lateGameDiscount
-    - replaceability;
+  return Math.max(
+    0,
+    retainedValue
+      + immediateUrgency
+      + nextTurnUrgency
+      + analysis.tacticalReserveValue
+      - lateGameDiscount
+      - replaceability,
+  );
 }
 
 /**
- * Energize is a two-stage decision: first identify reachable Energy
- * demand, including lower-weight deck composition odds, then sacrifice
- * the least urgent non-goal card. No exact deck order is consulted.
+ * Energize first identifies reachable demand, including intrinsic early
+ * development and lower-weight deck composition odds. It then ranks every
+ * non-protected card by strategic class before comparing numerical opportunity
+ * cost, so a stranded Flip cannot be retained over a useful response card.
+ * No exact deck order is consulted.
  */
 export function planOpponentEnergize(
   match: MatchState,
@@ -1414,16 +1543,40 @@ export function planOpponentEnergize(
   const analyses = player.hand.map((card) => (
     analyzeEnergyCard(match, playerId, card, capacity, "hand")
   ));
+  const development = earlyDevelopmentGoal(analyses, capacity);
   const goals = [
     ...handEnergyGoals(analyses, capacity),
     ...deckEnergyGoals(match, playerId, capacity),
+    ...(development ? [development] : []),
   ].sort((a, b) => (
     b.score - a.score
-    || ({ "hand-card": 0, "hand-combo": 1, deck: 2 }[a.source]
-      - { "hand-card": 0, "hand-combo": 1, deck: 2 }[b.source])
+    || ({ "hand-card": 0, "hand-combo": 1, development: 2, deck: 3 }[a.source]
+      - { "hand-card": 0, "hand-combo": 1, development: 2, deck: 3 }[b.source])
   ));
   const goal = goals[0];
-  if (!goal) return { shouldEnergize: false, reason: "no-energy-goal" };
+  const baseCandidates = analyses.map((analysis) => ({
+    analysis,
+    tier: energyCandidateTier(match, playerId, analysis, capacity),
+    opportunityCost: energyOpportunityCost(
+      match,
+      playerId,
+      analysis,
+      capacity,
+    ),
+  }));
+  if (!goal) {
+    return {
+      shouldEnergize: false,
+      reason: "no-energy-goal",
+      protectedCardIds: [],
+      candidates: baseCandidates.map((candidate) => ({
+        cardId: candidate.analysis.card.id,
+        tier: candidate.tier,
+        opportunityCost: candidate.opportunityCost,
+        protected: false,
+      })),
+    };
+  }
 
   const protectedIds = new Set(goal.source === "deck" ? [] : goal.cardIds);
   const affordable = analyses.filter((analysis) => (
@@ -1431,32 +1584,35 @@ export function planOpponentEnergize(
   ));
   if (affordable.length === 1) protectedIds.add(affordable[0].card.id);
 
-  const candidates = analyses
-    .filter((analysis) => !protectedIds.has(analysis.card.id))
-    .map((analysis) => ({
-      analysis,
-      opportunityCost: energyOpportunityCost(
-        match,
-        playerId,
-        analysis,
-        capacity,
-      ),
-    }))
+  const diagnostics = baseCandidates.map((candidate) => ({
+    cardId: candidate.analysis.card.id,
+    tier: candidate.tier,
+    opportunityCost: candidate.opportunityCost,
+    protected: protectedIds.has(candidate.analysis.card.id),
+  }));
+  const candidates = baseCandidates
+    .filter((candidate) => !protectedIds.has(candidate.analysis.card.id))
     .sort((a, b) => (
-      a.opportunityCost - b.opportunityCost
+      a.tier - b.tier
+      || a.opportunityCost - b.opportunityCost
       || b.analysis.cost - a.analysis.cost
       || a.analysis.card.id.localeCompare(b.analysis.card.id)
     ));
   const candidate = candidates[0];
   const maximumOpportunityCost = goal.source === "deck"
     ? 0.9
-    : Math.max(1.5, goal.score * 0.85);
+    : goal.source === "development"
+      ? (capacity === 0 ? 6 : 4)
+      : Math.max(1.5, goal.score * 0.85);
   if (!candidate || candidate.opportunityCost > maximumOpportunityCost) {
     return {
       shouldEnergize: false,
       reason: "no-expendable-card",
       goalSource: goal.source,
       goalCardIds: goal.cardIds,
+      goalScore: goal.score,
+      protectedCardIds: [...protectedIds],
+      candidates: diagnostics,
     };
   }
   return {
@@ -1464,9 +1620,13 @@ export function planOpponentEnergize(
     cardId: candidate.analysis.card.id,
     reason: goal.source === "hand-card" ? "reachable-hand-card"
       : goal.source === "hand-combo" ? "reachable-hand-combo"
-        : "probable-deck-card",
+        : goal.source === "development" ? "early-energy-development"
+          : "probable-deck-card",
     goalSource: goal.source,
     goalCardIds: goal.cardIds,
+    goalScore: goal.score,
+    protectedCardIds: [...protectedIds],
+    candidates: diagnostics,
   };
 }
 
