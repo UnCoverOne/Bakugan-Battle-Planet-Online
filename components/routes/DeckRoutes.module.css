@@ -648,8 +648,10 @@
 }
 
 .builder {
-  min-height: calc(100vh - 76px);
-  padding-bottom: 5.25rem;
+  height: calc(100dvh - 76px);
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0;
   background:
     radial-gradient(circle at 16% 12%, rgba(0, 174, 239, .08), transparent 30rem),
     radial-gradient(circle at 86% 18%, rgba(222, 28, 36, .06), transparent 26rem);
@@ -739,26 +741,31 @@
 
 .builderLayout {
   width: min(calc(100% - (2 * var(--space-4))), 112rem);
+  height: calc(100dvh - 76px - 5rem - 3.6rem - (2 * var(--space-4)));
+  min-height: 0;
   margin: var(--space-4) auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: start;
+  align-items: stretch;
   gap: var(--space-5);
 }
 
 .builderGallery,
 .builderCurrentDeck {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   display: grid;
   align-content: start;
   gap: var(--space-3);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .builderGallery {
-  max-height: calc(100dvh - 76px - 6.5rem);
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  max-height: none;
 }
 
 .builderCurrentDeck {
@@ -1426,6 +1433,88 @@
   line-height: 1.45;
 }
 
+.builderFeaturedCardPicker {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.builderFeaturedCardPicker > legend {
+  margin-bottom: var(--space-2);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--type-label);
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.builderFeaturedCardPicker > p {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  color: var(--text-muted);
+  font-size: var(--type-meta);
+  line-height: 1.45;
+}
+
+.builderFeaturedCardPicker > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.builderFeaturedCardPicker button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  padding: .55rem;
+  border: 1px solid var(--border-subtle);
+  background: rgba(4, 24, 32, .76);
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.builderFeaturedCardPicker img {
+  width: 3.25rem;
+  aspect-ratio: 359 / 500;
+  object-fit: contain;
+  filter: drop-shadow(0 .25rem .35rem rgba(0, 0, 0, .5));
+}
+
+.builderFeaturedCardPicker button > span {
+  min-width: 0;
+  display: grid;
+  gap: .18rem;
+}
+
+.builderFeaturedCardPicker strong,
+.builderFeaturedCardPicker small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.builderFeaturedCardPicker small {
+  color: var(--text-muted);
+}
+
+.builderFeaturedCardSelected {
+  border-color: var(--brand-blue-bright) !important;
+  background: rgba(0, 174, 239, .14) !important;
+  box-shadow: inset 0 0 0 1px rgba(53, 201, 255, .12);
+}
+
+.builderFeaturedCardEmpty {
+  padding: var(--space-3);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--type-meta);
+}
+
 .builderVisibilityOptions {
   min-width: 0;
   display: grid;
@@ -1783,6 +1872,9 @@
   }
 
   .builder {
+    height: auto;
+    min-height: calc(100vh - 76px);
+    overflow: visible;
     padding-bottom: 7.5rem;
   }
 
@@ -1809,12 +1901,20 @@
 
   .builderLayout {
     width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
+    height: auto;
+    min-height: 0;
     grid-template-columns: 1fr;
+  }
+
+  .builderGallery,
+  .builderCurrentDeck {
+    height: auto;
+    overflow: visible;
+    scrollbar-gutter: auto;
   }
 
   .builderGallery {
     max-height: none;
-    overflow: visible;
   }
 
   .mobileHidden {
@@ -1942,6 +2042,10 @@
   }
 
   .builderFilterSelects {
+    grid-template-columns: 1fr;
+  }
+
+  .builderFeaturedCardPicker > div {
     grid-template-columns: 1fr;
   }
 
