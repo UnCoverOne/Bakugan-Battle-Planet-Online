@@ -2,6 +2,7 @@ import { CONTROLLED_CATALOGUE } from "./content/catalogue";
 import type { Bakugan, Core, CoreType, Faction, GameCard, PlayerState } from "./game";
 import { deckValidationMessages, validateDeckConstruction, type DeckRestriction } from "./deck-validation";
 import { MATCH_RECONNECT_GRACE_SECONDS } from "./match-constants";
+import { normalizeProfileAvatar } from "./profile-customization";
 
 const records = CONTROLLED_CATALOGUE;
 export const CARDS: GameCard[] = records.map((record) => ({ ...record, id: record.id, catalogId: record.id }));
@@ -223,6 +224,12 @@ export function canonicalDeckRecord(selection: CanonicalPlayerSelection): DeckRe
   };
 }
 
+function applyCanonicalCosmetics(player: PlayerState, selection: CanonicalPlayerSelection): PlayerState {
+  const avatar = normalizeProfileAvatar(selection.cosmetics?.avatar);
+  if (avatar) (player as PlayerState & { avatar?: string }).avatar = avatar;
+  return player;
+}
+
 export function makeCanonicalPlayerWithRestrictions(
   selection: CanonicalPlayerSelection,
   restrictions: readonly DeckRestriction[],
@@ -233,7 +240,7 @@ export function makeCanonicalPlayerWithRestrictions(
   const deck = canonicalDeckRecord(selection);
   const validation = validateDeck(deck, restrictions);
   if (!validation.isLegal) throw new Error(deckValidationMessages(validation).join(" "));
-  return makePlayerUnchecked(playerId, name, deck);
+  return applyCanonicalCosmetics(makePlayerUnchecked(playerId, name, deck), selection);
 }
 
 const shuffleCanonical = <T,>(values: T[]) => {
@@ -284,7 +291,7 @@ export function makeCanonicalPlayer(selection: CanonicalPlayerSelection): Player
   const name = String(selection.name ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 40);
   if (!playerId || !name) throw new Error("A valid player ID and display name are required.");
   const deck = canonicalDeckRecord(selection);
-  return makePlayer(playerId, name, deck);
+  return applyCanonicalCosmetics(makePlayer(playerId, name, deck), selection);
 }
 
 export const RULE_ENTRIES = [

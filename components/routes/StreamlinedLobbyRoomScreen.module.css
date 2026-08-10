@@ -359,13 +359,16 @@
   margin: .75rem auto .5rem;
   display: grid;
   place-items: center;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .24);
   border-radius: 50%;
   background: linear-gradient(145deg, #e63237, #8f0d13);
   box-shadow: 0 0 20px rgba(230, 50, 55, .18);
+  color: #fff;
   font-family: Impact, "Arial Narrow", Arial, sans-serif;
   font-size: 1.25rem;
   font-style: italic;
+  object-fit: cover;
 }
 
 .waitingAvatar {
@@ -862,7 +865,7 @@
   min-width: 0;
   padding: .75rem;
   display: grid;
-  grid-template-rows: 190px auto auto;
+  grid-template-rows: 190px auto auto minmax(2.7rem, auto);
   gap: .55rem;
   align-content: start;
   border: 1px solid rgba(74, 184, 219, .28);
@@ -922,6 +925,17 @@
 
 .deckChoiceTags {
   min-height: 1.45rem;
+  align-content: start;
+}
+
+.deckChoiceDescription {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #9fb4bc;
+  font-size: .72rem;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .deckPickerEmpty {
@@ -1064,7 +1078,7 @@
   }
 
   .deckChoice {
-    grid-template-rows: 145px auto auto;
+    grid-template-rows: 145px auto auto minmax(3.4rem, auto);
     padding: .55rem;
   }
 }

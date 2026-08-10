@@ -34,6 +34,7 @@ import { syncTrainingBotForLobby } from "../../lib/training-lobby";
 import { eligibleRankedDecks, rankedSeries } from "../../lib/ranked-lobby";
 import { useApp } from "../application/AppProvider";
 import { Badge, factionClass } from "../application/ui";
+import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { PlayerPreview } from "../profile/PlayerPreview";
 import {
   primeMatchStore,
@@ -73,10 +74,11 @@ function deckMatchesPlayer(deck: DeckRecord, player: PlayerState | undefined) {
     && sameSet(deck.cardIds, cardIds);
 }
 
-function canonicalSelection(playerId: string, playerName: string, deck: DeckRecord): CanonicalPlayerSelection {
+function canonicalSelection(playerId: string, playerName: string, deck: DeckRecord, avatar = ""): CanonicalPlayerSelection {
   return {
     playerId,
     name: playerName,
+    ...(avatar ? { cosmetics: { avatar } } : {}),
     deck: {
       id: deck.id,
       name: deck.name,
@@ -115,6 +117,7 @@ export function LobbyRoomScreen() {
     online: appOnline,
     playerId: appPlayerId,
     matchCapability: appMatchCapability,
+    profile,
     settings,
     decks,
     setMatch,
@@ -276,7 +279,8 @@ export function LobbyRoomScreen() {
     if (!match || !me) return;
     const deck = playerDecks.find((candidate) => candidate.id === deckId);
     if (!deck || !compatibleDeckIds.has(deck.id)) return;
-    const selection = canonicalSelection(room.playerId, me.name, deck);
+    const playerAvatar = (me as PlayerState & { avatar?: string }).avatar ?? profile.avatar ?? "";
+    const selection = canonicalSelection(room.playerId, me.name, deck, playerAvatar);
     if (room.online) {
       const result = await sendRoomCommand("lobby-deck", undefined, "deck", selection);
       if (result) setDeckPickerOpen(false);
@@ -455,6 +459,7 @@ export function LobbyRoomScreen() {
                 const local = player?.id === room.playerId;
                 const playerIsOwner = index === 0;
                 const deckName = player ? playerLobbyDeckName(player) : "";
+                const storedAvatar = player ? (player as PlayerState & { avatar?: string }).avatar : "";
                 return (
                   <article className={`${styles.seat} ${player?.ready ? styles.seatReady : ""}`} key={index}>
                     {player ? <>
@@ -462,7 +467,7 @@ export function LobbyRoomScreen() {
                         <Badge tone={local ? "gold" : "blue"}>{local ? "YOU" : player.id === "training-bot" ? "TRAINING AI" : "OPPONENT"}</Badge>
                         {playerIsOwner ? <Badge>LOBBY OWNER</Badge> : null}
                       </div>
-                      <div className={styles.avatar}>{player.name.slice(0, 2).toUpperCase()}</div>
+                      <ProfileAvatar className={styles.avatar} profile={{ name: player.name, avatar: local ? profile.avatar : storedAvatar }} />
                       <h3>{ranked?.players[player.id]?.userId ? <PlayerPreview userId={ranked.players[player.id].userId} displayName={player.name} /> : player.name}</h3>
                       <p>{deckName || player.bakugan.map((bakugan) => bakugan.name).join(" • ")}</p>
                       <div className={styles.readyState} data-ready={player.ready ? "true" : "false"}>
@@ -618,13 +623,16 @@ export function LobbyRoomScreen() {
                     disabled={!selectable || busy === "deck"}
                     onClick={() => void selectDeck(deck.id)}
                     aria-label={`${selectable ? "Select" : "Unavailable"} ${deck.name}`}
-                    title={selectable ? deck.name : `Requires a legal ${requiredFormat === "singleton" ? "Singleton" : "Standard"} deck`}
+                    title={selectable ? deck.name : `Requires a legal ${requiredFormat === "singleton" ? "Singleton" : requiredFormat === "competitive" ? "Competitive" : "Standard"} deck`}
                   >
                     <span className={styles.deckChoiceArt}>
                       <img src={lead ? cardArtSource(lead, "full") : "/assets/cards/card-missing.svg"} alt={lead?.displayName ?? "Deck featured card unavailable"} />
                     </span>
+                    <span className={styles.deckChoiceTags} aria-label={tags.length ? `Tags: ${tags.join(", ")}` : "No deck tags"}>
+                      {tags.map((tag) => <span key={tag}>{tag}</span>)}
+                    </span>
                     <strong>{deck.name}</strong>
-                    {tags.length ? <span className={styles.deckChoiceTags}>{tags.map((tag) => <span key={tag}>{tag}</span>)}</span> : null}
+                    <span className={styles.deckChoiceDescription}>{deck.description?.trim() || "No description added."}</span>
                   </button>
                 );
               })}

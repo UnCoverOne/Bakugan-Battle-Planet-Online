@@ -27,7 +27,7 @@ test("Deck Library includes the complete responsive library composition", async 
   assert.match(css, /\.deckCardSelected/);
 });
 
-test("Deck Builder uses a two-sided desktop workbench and two mobile tabs", async () => {
+test("Deck Builder uses independently scrolling desktop columns and two mobile tabs", async () => {
   const [route, css] = await Promise.all([
     read("components/routes/DeckRoutes.tsx"),
     read("components/routes/DeckRoutes.module.css"),
@@ -42,8 +42,11 @@ test("Deck Builder uses a two-sided desktop workbench and two mobile tabs", asyn
     "Draft saved locally",
     "Save Deck",
   ]) assert.match(route, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(css, /\.builder\s*\{[^}]*height:\s*calc\(100dvh - 76px\)[^}]*overflow:\s*hidden/s);
   assert.match(css, /\.builderLayout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.builderGallery,\s*\.builderCurrentDeck\s*\{[^}]*overflow-y:\s*auto/s);
   assert.match(css, /\.builderMobileTabs\s*\{[^}]*display:\s*none/s);
+  assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builder\s*\{[^}]*height:\s*auto[^}]*overflow:\s*visible/s);
   assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builderMobileTabs\s*\{[^}]*display:\s*grid/s);
 });
 
@@ -114,12 +117,13 @@ test("Card Gallery tabs and both card collections provide search, Card ID sortin
   assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builderMenuDialog\s*\{[^}]*width:\s*100vw[^}]*height:\s*100dvh/s);
 });
 
-test("Save Deck dialog owns metadata and permits invalid non-public decks", async () => {
-  const [route, data, persistence, server] = await Promise.all([
+test("Save Deck dialog owns metadata, featured card choice, and permits invalid non-public decks", async () => {
+  const [route, data, persistence, server, css] = await Promise.all([
     read("components/routes/DeckRoutes.tsx"),
     read("lib/data.ts"),
     read("lib/persistence.ts"),
     read("app/api/user-data/route.ts"),
+    read("components/routes/DeckRoutes.module.css"),
   ]);
   assert.doesNotMatch(route, /<input aria-label="Deck name"/);
   assert.doesNotMatch(route, /<label>Visibility<select/);
@@ -127,6 +131,10 @@ test("Save Deck dialog owns metadata and permits invalid non-public decks", asyn
     'panel: "save"',
     "Deck name",
     "Deck description",
+    "Featured Card",
+    "Choose the Main Deck card used as this deck’s featured artwork.",
+    "saveLeadCardId",
+    "builderFeaturedCardPicker",
     "Draft",
     "Only visible to you.",
     "Only visible through its link.",
@@ -134,6 +142,9 @@ test("Save Deck dialog owns metadata and permits invalid non-public decks", asyn
     "eligible for featuring on the Home Page",
     "Draft and Private decks can be saved with issues.",
   ]) assert.match(route, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(route, /leadCardId:\s*saveLeadCardId\s*&&\s*deck\.cardIds\.includes\(saveLeadCardId\)/);
+  assert.match(route, /grouped\.map\(\(\{ card \}\)/);
+  assert.match(css, /\.builderFeaturedCardPicker\s*>\s*div\s*\{[^}]*grid-template-columns:\s*repeat\(2/s);
   assert.match(route, /\(saveVisibility === "Public" \|\| adminAiId\) && !latest\.isLegal/);
   assert.match(data, /visibility:\s*"Draft" \| "Private" \| "Public"/);
   assert.match(persistence, /deck\.visibility === "Draft" \? "Draft"/);
