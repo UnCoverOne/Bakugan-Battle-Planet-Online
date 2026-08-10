@@ -16,7 +16,7 @@ import {
   type RollOutcome,
 } from "../lib/game";
 import { advanceOpponentAi } from "../lib/opponentAi";
-import { recoverOpponentAiPreRollFailure } from "../lib/opponentAiCanAct";
+import { recoverOpponentAiFailure } from "../lib/opponentAiCanAct";
 import { ruleDefinitionForCard } from "../lib/rules";
 
 let serial = 0;
@@ -190,11 +190,72 @@ test("a failed AI decision cannot strand pre-roll priority after the player pass
   assert.equal(match.priority, ai.id);
   assert.deepEqual(match.passes, [human.id]);
 
-  const recovered = recoverOpponentAiPreRollFailure(match, ai.id);
+  const recovered = recoverOpponentAiFailure(match, ai.id);
   assert.ok(recovered);
   assert.equal(recovered.phase, "target");
   assert.equal(recovered.priority, human.id);
   assert.deepEqual(recovered.passes, []);
+});
+
+test("a failed AI decision passes safely in every normal priority step", () => {
+  for (const phase of ["preRoll", "power", "victor", "postDamage", "endPlay"] as const) {
+    const ai = player(
+      "training-bot",
+      [bakugan(`priority-${phase}-ai`, "Aquos", 700, 5)],
+    );
+    const human = player(
+      "human",
+      [bakugan(`priority-${phase}-human`, "Pyrus", 500, 5)],
+    );
+    const match = matchWith(ai, human, phase);
+
+    const recovered = recoverOpponentAiFailure(match, ai.id);
+    assert.ok(recovered, `Expected recovery during ${phase}`);
+    assert.equal(recovered.phase, phase);
+    assert.equal(recovered.priority, human.id);
+    assert.deepEqual(recovered.passes, [ai.id]);
+  }
+});
+
+test("a failed AI decision advances Power after the player has already passed", () => {
+  const ai = player("training-bot", [bakugan("power-ai", "Aquos", 700, 5)]);
+  const human = player("human", [bakugan("power-human", "Pyrus", 500, 5)]);
+  let match = matchWith(ai, human, "power");
+  match.startingPlayer = human.id;
+  match.priority = human.id;
+  setBrawl(match, ai, human, true, true);
+
+  match = passPriority(match, human.id);
+  assert.equal(match.priority, ai.id);
+  assert.deepEqual(match.passes, [human.id]);
+
+  const recovered = recoverOpponentAiFailure(match, ai.id);
+  assert.ok(recovered);
+  assert.equal(recovered.phase, "victor");
+  assert.equal(recovered.brawlWinner, ai.id);
+  assert.deepEqual(recovered.passes, []);
+});
+
+test("failed AI decisions also recover mandatory energize and hand-limit windows", () => {
+  const ai = player("training-bot", [bakugan("mandatory-ai", "Aquos", 500, 5)]);
+  const human = player("human", [bakugan("mandatory-human", "Pyrus", 500, 5)]);
+  let energize = matchWith(ai, human, "energize");
+
+  const skipped = recoverOpponentAiFailure(energize, ai.id);
+  assert.ok(skipped);
+  assert.equal(skipped.players[0].energizedThisTurn, true);
+
+  const overLimit = player(
+    "training-bot",
+    [bakugan("hand-limit-ai", "Aquos", 500, 5)],
+    [],
+    Array.from({ length: 9 }, (_, index) => printedCard(10, `hand-limit-${index}`)),
+  );
+  const handLimit = matchWith(overLimit, human, "handLimit");
+  const discarded = recoverOpponentAiFailure(handLimit, overLimit.id);
+  assert.ok(discarded);
+  assert.equal(discarded.players[0].hand.length, 7);
+  assert.equal(discarded.players[0].discard.length, 2);
 });
 
 test("AI does not spend a pure temporary combat card after its Bakugan misses", () => {
