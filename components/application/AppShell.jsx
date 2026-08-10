@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
+import { activeSessionPresentation } from "../../lib/active-session";
 import { accountStatMatches } from "../../lib/match-statistics";
 import { PROFILE_TITLES } from "../../lib/profile-customization";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
@@ -179,6 +180,7 @@ export function AppShell({ children }) {
     pathname.startsWith("/settings") ||
     pathname.startsWith("/history") ||
     pathname.startsWith("/admin");
+  const activeSession = activeSessionPresentation(match);
 
   return (
     <div
@@ -216,12 +218,12 @@ export function AppShell({ children }) {
             })}
           </nav>
           <div className="top-actions">
-            {match && match.phase !== "result" && (
+            {activeSession && (
               <Link
                 className="resume-chip"
-                href={match.phase === "lobby" ? "/play/lobby" : "/play/match"}
+                href={activeSession.href}
               >
-                <span className="pulse" /> Resume match
+                <span className="pulse" /> {activeSession.navLabel}
               </Link>
             )}
             <div className="profile-menu-wrap" ref={menuRef}>
