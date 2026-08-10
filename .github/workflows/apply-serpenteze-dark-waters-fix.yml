@@ -1,15 +1,16 @@
 name: Apply Serpenteze and Dark Waters fix
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/serpenteze-dark-waters
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply-and-verify:
+    if: github.head_ref == 'fix/serpenteze-dark-waters'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
