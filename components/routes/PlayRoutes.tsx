@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useReducer } from "react";
 import { useApp } from "../application/AppProvider";
+import { completedMatchKey, isCompletedSeriesResult } from "../../lib/match-result-navigation";
+import { useMatchSelector } from "../game-screen-v2/matchStore";
 import { BAKUGAN, CORES, validateDeck, type DeckRecord } from "../../lib/data";
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
@@ -523,19 +525,25 @@ export function MatchHostScreen() {
 
 export function ResultScreen() {
   const router = useRouter();
-  const { match, playerId, history, nextSeriesGame, leaveMatch, replay, setReplay, setReplayIndex } = useApp();
-  if (!match) return <Empty title="NO RESULT" />;
+  const { history, nextSeriesGame, leaveMatch, setReplay, setReplayIndex } = useApp();
+  const { match, playerId } = useMatchSelector((state) => ({
+    match: state.match,
+    playerId: state.playerId,
+  }));
+  if (!match || match.phase !== "result" || !match.winner || !match.players.some((player: any) => player.id === match.winner)) {
+    return <Empty title="RESULT UNAVAILABLE" />;
+  }
   const won = match.winner === playerId;
-  const needed = match.format === "bo3" ? 2 : 1;
-  const complete = Math.max(...Object.values(match.series).map(Number)) >= needed;
+  const complete = isCompletedSeriesResult(match);
+  const recordId = completedMatchKey(match);
+  const exactRecord = history.find((record: any) => record.id === recordId);
   const openReplay = () => {
-    const item = replay ?? history.find((record: any) => record.id === `${match.id}-${match.gameNumber}`) ?? history[0];
-    if (!item) return;
-    setReplay(item);
-    setReplayIndex(Math.max(0, item.log.length - 1));
-    router.push(`/profile/records/${encodeURIComponent(item.id)}`);
+    if (!exactRecord) return;
+    setReplay(exactRecord);
+    setReplayIndex(Math.max(0, exactRecord.log.length - 1));
+    router.push(`/profile/records/${encodeURIComponent(exactRecord.id)}`);
   };
-  return <section className={`result-page ${won ? "victory" : "defeat"}`}><img className="result-art" src="/assets/winner.png" alt="" /><div className="result-content"><Badge tone={won ? "gold" : "red"}>{complete ? "MATCH COMPLETE" : "SERIES INTERMISSION"}</Badge><h1>{won ? "VICTOR" : "DEFEAT"}</h1><p>{match.resultReason}</p><div className="series-score">{match.players.map((player: any) => <div key={player.id}><strong>{player.name}</strong><span>{match.series[player.id] ?? 0}</span></div>)}</div><div className="result-stats"><Metric label="Game" value={`${match.gameNumber}`} /><Metric label="Format" value={match.format.toUpperCase()} /><Metric label="Events" value={match.log.length} /><Metric label="Random results" value={match.log.filter((event: any) => event.kind === "random").length} /></div><div className="result-actions">{!complete && <AppButton tone="red" onClick={() => void nextSeriesGame()}>NEXT GAME • NEW MATRIX</AppButton>}<AppButton tone="gold" onClick={openReplay}>VIEW MATCH RECORD</AppButton><AppButton tone="ghost" onClick={leaveMatch}>DASHBOARD</AppButton></div><small>Result stored in Match Records • {history[0]?.at}</small></div></section>;
+  return <section className={`result-page ${won ? "victory" : "defeat"}`}><img className="result-art" src="/assets/winner.png" alt="" /><div className="result-content"><Badge tone={won ? "gold" : "red"}>{complete ? "MATCH COMPLETE" : "SERIES INTERMISSION"}</Badge><h1>{won ? "VICTOR" : "DEFEAT"}</h1><p>{match.resultReason}</p><div className="series-score">{match.players.map((player: any) => <div key={player.id}><strong>{player.name}</strong><span>{match.series[player.id] ?? 0}</span></div>)}</div><div className="result-stats"><Metric label="Game" value={`${match.gameNumber}`} /><Metric label="Format" value={match.format.toUpperCase()} /><Metric label="Events" value={match.log.length} /><Metric label="Random results" value={match.log.filter((event: any) => event.kind === "random").length} /></div><div className="result-actions">{!complete && <AppButton tone="red" onClick={() => void nextSeriesGame()}>NEXT GAME • NEW MATRIX</AppButton>}<AppButton tone="gold" disabled={!exactRecord} onClick={openReplay}>VIEW MATCH RECORD</AppButton><AppButton tone="ghost" onClick={leaveMatch}>DASHBOARD</AppButton></div><small>{exactRecord ? `Result stored in Match Records • ${exactRecord.at}` : "Saving result to Match Records…"}</small></div></section>;
 }
 
 function Empty({ title }: { title: string }) {

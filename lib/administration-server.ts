@@ -308,6 +308,28 @@ export async function listAiDecks(db: Database) {
   return decks;
 }
 
+export type SelectedAiDeck = {
+  resourceId: string;
+  configurationRevision: number;
+  deck: DeckRecord;
+};
+
+export async function selectEnabledLegalAiDeck(db: Database): Promise<SelectedAiDeck | null> {
+  await applyDatabaseCardOverrides(db);
+  const candidates = (await listAiDecks(db)).filter((item) => (
+    item.enabled && validateDeck(item.deck).isLegal
+  ));
+  if (!candidates.length) return null;
+  const bytes = new Uint32Array(1);
+  crypto.getRandomValues(bytes);
+  const selected = candidates[bytes[0] % candidates.length];
+  return {
+    resourceId: selected.id,
+    configurationRevision: selected.updatedAt,
+    deck: cloneDeck(selected.deck),
+  };
+}
+
 export async function addAiDeck(db: Database, value: unknown, administratorId: string) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Deck data must be an object.");
   const source = cloneDeck(value as DeckRecord);
@@ -331,20 +353,33 @@ export async function updateAiDeck(db: Database, resourceId: string, value: unkn
 }
 
 export async function setAiDeckEnabled(db: Database, resourceId: string, enabled: boolean, administratorId: string) {
+  await applyDatabaseCardOverrides(db);
   const current = (await listAiDecks(db)).find((item) => item.id === resourceId);
   if (!current) throw new Error("The AI deck no longer exists.");
+  if (enabled && !validateDeck(current.deck).isLegal) {
+    throw new Error("The AI deck is no longer legal under the current card catalogue.");
+  }
   if (!enabled) {
-    const enabledCount = (await listAiDecks(db)).filter((item) => item.enabled).length;
-    if (current.enabled && enabledCount === 1) throw new Error("At least one AI deck must remain enabled.");
+    const remaining = (await listAiDecks(db)).filter((item) => (
+      item.id !== resourceId && item.enabled && validateDeck(item.deck).isLegal
+    ));
+    if (current.enabled && validateDeck(current.deck).isLegal && !remaining.length) {
+      throw new Error("At least one enabled legal AI deck must remain available.");
+    }
   }
   await upsertResource(db, "ai-deck", resourceId, { deck: current.deck }, enabled, administratorId);
 }
 
 export async function deleteAiDeck(db: Database, resourceId: string, administratorId: string) {
+  await applyDatabaseCardOverrides(db);
   const current = (await listAiDecks(db)).find((item) => item.id === resourceId);
   if (!current) throw new Error("The AI deck no longer exists.");
-  const enabledCount = (await listAiDecks(db)).filter((item) => item.enabled).length;
-  if (current.enabled && enabledCount === 1) throw new Error("At least one AI deck must remain enabled.");
+  const remaining = (await listAiDecks(db)).filter((item) => (
+    item.id !== resourceId && item.enabled && validateDeck(item.deck).isLegal
+  ));
+  if (current.enabled && validateDeck(current.deck).isLegal && !remaining.length) {
+    throw new Error("At least one enabled legal AI deck must remain available.");
+  }
   if (resourceId === DEFAULT_AI_RESOURCE) {
     await upsertResource(db, "ai-deck", resourceId, { deleted: true }, false, administratorId);
     return;
@@ -354,10 +389,5 @@ export async function deleteAiDeck(db: Database, resourceId: string, administrat
 }
 
 export async function randomAiDeck(db: Database) {
-  await applyDatabaseCardOverrides(db);
-  const candidates = (await listAiDecks(db)).filter((item) => item.enabled && validateDeck(item.deck).isLegal);
-  if (!candidates.length) return cloneDeck(STARTER_DECKS[1]);
-  const bytes = new Uint32Array(1);
-  crypto.getRandomValues(bytes);
-  return cloneDeck(candidates[bytes[0] % candidates.length].deck);
+  return (await selectEnabledLegalAiDeck(db))?.deck ?? null;
 }

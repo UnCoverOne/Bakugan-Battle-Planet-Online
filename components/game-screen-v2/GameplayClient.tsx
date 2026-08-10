@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   activateIntrinsicReroll,
   beginCorePlacement,
@@ -19,6 +20,7 @@ import {
   recoverOpponentAiFailure,
 } from "../../lib/opponentAiCanAct";
 import { canUndoLatest, undoLatestAction } from "../../lib/undo";
+import { isCompletedSeriesResult } from "../../lib/match-result-navigation";
 import { playCardWithAutoEnergy } from "../../lib/cardPayment";
 import { tapEnergyCard } from "../../lib/energy";
 import {
@@ -56,7 +58,7 @@ import {
   writeGameRoute,
   writeGameSettings,
 } from "./MatchStateCoordinator";
-import { readMatchStore, useMatchSelector } from "./matchStore";
+import { finalizeCompletedMatchExit, readMatchStore, useMatchSelector } from "./matchStore";
 import { SelectionInteractionLayer } from "./SelectionInteractionLayer";
 import { TieBreakLayer } from "./TieBreakLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
@@ -106,6 +108,7 @@ function readSettings(): GameplaySettings {
 }
 
 export function GameplayClient() {
+  const router = useRouter();
   const storedState = useMatchSelector((state): StoredGameScreenState => ({
     route: state.route,
     automaticDraw: Boolean(state.settings.automaticDraw),
@@ -622,8 +625,14 @@ export function GameplayClient() {
   };
 
   const exitCompletedMatch = () => {
-    writeGameRoute("result");
-    window.location.reload();
+    const match = readMatchStore().match;
+    if (!match || match.phase !== "result" || !match.winner) return;
+    if (isCompletedSeriesResult(match)) {
+      if (!finalizeCompletedMatchExit()) return;
+    } else {
+      writeGameRoute("result");
+    }
+    router.replace("/play/result");
   };
 
   if (storedState.route === "match") {

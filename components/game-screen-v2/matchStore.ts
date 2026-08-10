@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { normalizeMatchState, type MatchState } from "../../lib/game";
+import { isCompletedSeriesResult } from "../../lib/match-result-navigation";
+import { MATCH_UPDATE_EVENT } from "../../lib/match-state-events";
+
+export { MATCH_UPDATE_EVENT };
 
 export const MATCH_KEY = "bbp-active-match-v1";
 export const PREVIOUS_MATCH_KEY = "bbp-previous-match-v2";
@@ -10,7 +14,6 @@ export const SETTINGS_KEY = "bbp-settings";
 export const ONLINE_KEY = "bbp-active-match-online-v1";
 export const PLAYER_KEY = "bbp-player-id";
 export const CAPABILITY_KEY = "bbp-match-capability-v2";
-export const MATCH_UPDATE_EVENT = "bbp-match-state-updated";
 
 export type MatchClientSettings = Record<string, unknown> & {
   automaticDraw?: boolean;
@@ -256,6 +259,32 @@ function scheduleMatchPersistence(next: MatchState, previous: MatchState | null,
     if (remember && prior) writeStorage(localStorage, PREVIOUS_MATCH_KEY, prior);
     if (match) writeStorage(localStorage, MATCH_KEY, match);
   }, 0);
+}
+
+export function persistCurrentMatch() {
+  initialize();
+  const match = snapshot.match;
+  if (!match) return false;
+  const prior = pendingPreviousMatch;
+  const remember = pendingRememberPrevious;
+  window.clearTimeout(persistTimer);
+  persistTimer = 0;
+  pendingPersistedMatch = null;
+  pendingPreviousMatch = null;
+  pendingRememberPrevious = false;
+  if (remember && prior) writeStorage(localStorage, PREVIOUS_MATCH_KEY, prior);
+  return writeStorage(localStorage, MATCH_KEY, match);
+}
+
+/** Persist the exact completed snapshot and publish the result route atomically. */
+export function finalizeCompletedMatchExit() {
+  initialize();
+  if (!isCompletedSeriesResult(snapshot.match)) return false;
+  if (!persistCurrentMatch()) return false;
+  if (!writeStorage(localStorage, ROUTE_KEY, "result")) return false;
+  snapshot = { ...snapshot, route: "result" };
+  notify();
+  return true;
 }
 
 export function publishMatch(next: MatchState, rememberPrevious = true) {

@@ -25,6 +25,8 @@ import {
 import { summarizeGuestData } from "../../lib/guest-data";
 import { readJsonResponse } from "../../lib/json-response";
 import { completedMatchKey } from "../../lib/match-result-navigation";
+import { MATCH_UPDATE_EVENT } from "../../lib/match-state-events";
+import { requireTrainingAiDeckSelection } from "../../lib/training-ai-deck-selection";
 import {
   identityStoredValue,
   normalizeStoredBoolean,
@@ -365,6 +367,17 @@ export function AppProvider({ children }) {
     addEventListener("storage", listener);
     return () => removeEventListener("storage", listener);
   }, [setMatch, setOnline, writeLocal]);
+  useEffect(() => {
+    const listener = (event) => {
+      const next = event.detail;
+      if (!next) return;
+      setMatch((current) => (
+        current?.id === next.id && current?.version === next.version ? current : next
+      ));
+    };
+    addEventListener(MATCH_UPDATE_EVENT, listener);
+    return () => removeEventListener(MATCH_UPDATE_EVENT, listener);
+  }, [setMatch]);
   useEffect(() => {
     document.documentElement.dataset.contrast = settings.highContrast ? "high" : "normal";
     document.documentElement.dataset.motion = settings.reducedMotion ? "reduced" : "full";
@@ -955,7 +968,7 @@ export function AppProvider({ children }) {
     return result.state;
   }, [format, match, matchCapability, playerId, setMatch, setMatchCapability]);
   const selection = useCallback((deck) => ({ playerId, name: profile.name, cosmetics: { avatar: profile.avatar }, deck: { id: deck.id, name: deck.name, bakuganIds: [...deck.bakuganIds], coreIds: [...deck.coreIds], cardIds: [...deck.cardIds], format: deck.format, factions: [...(deck.factions ?? [])], leadCardId: deck.leadCardId } }), [playerId, profile.avatar, profile.name]);
-  const startSolo = useCallback(async () => { if (!selectedDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before starting a match." }; } setMatchError(""); try { const [{ createMatch, setReady }, data] = await Promise.all([import("../../lib/game"), import("../../lib/data")]); if (!data.deckIsLegal(selectedDeck)) throw new Error("Select a legal deck first."); let aiDeck = data.STARTER_DECKS[1]; try { const response = await fetch("/api/ai-decks", { cache: "no-store" }); const result = await response.json(); if (response.ok && result.deck && data.deckIsLegal(result.deck)) aiDeck = result.deck; } catch {} const code = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase(); const state = createMatch(code, format, [data.makePlayer(playerId, profile.name, selectedDeck), data.makePlayer("training-bot", "Mira Nova • Training AI", aiDeck)]); setOnline(false); setMatch(setReady(setReady(state, playerId), "training-bot")); router.push("/play/match"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "Training match could not be started."; setMatchError(message); return { ok: false, error: message }; } }, [format, playerId, profile.name, router, selectedDeck, setMatch, setOnline]);
+  const startSolo = useCallback(async () => { if (!selectedDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before starting a match." }; } setMatchError(""); try { const [{ createMatch, setReady }, data] = await Promise.all([import("../../lib/game"), import("../../lib/data")]); if (!data.deckIsLegal(selectedDeck)) throw new Error("Select a legal deck first."); const response = await fetch("/api/ai-decks", { cache: "no-store" }); const result = await readJsonResponse(response, "Training AI deck selection returned an invalid response."); if (!response.ok) throw new Error(result.error ?? "No enabled legal Training AI deck is available."); const aiSelection = requireTrainingAiDeckSelection(result, data.deckIsLegal); const code = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase(); const state = createMatch(code, format, [data.makePlayer(playerId, profile.name, selectedDeck), data.makePlayer("training-bot", "Mira Nova • Training AI", aiSelection.deck)]); state.trainingAiDeck = { resourceId: aiSelection.resourceId, configurationRevision: aiSelection.configurationRevision }; setOnline(false); setMatch(setReady(setReady(state, playerId), "training-bot")); router.push("/play/match"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "Training match could not be started."; setMatchError(message); return { ok: false, error: message }; } }, [format, playerId, profile.name, router, selectedDeck, setMatch, setOnline]);
   const createOnline = useCallback(async (options = {}) => { const activeDeck = options.decks?.[0] ?? selectedDeck; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before creating a room." }; } try { setMatchCapability(""); const rankedSelections = options.mode === "ranked" ? options.decks.map(selection) : undefined; const state = await api("create", options.mode === "ranked" ? { lobbyMode: "ranked" } : undefined, undefined, selection(activeDeck), rankedSelections); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be created."; setMatchError(message); return { ok: false, error: message }; } }, [api, router, selectedDeck, selection, setMatch, setMatchCapability, setOnline]);
   const joinOnline = useCallback(async (options = {}) => { const activeDeck = options.decks?.[0] ?? selectedDeck; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before joining a room." }; } try { const rankedSelections = options.mode === "ranked" ? options.decks.map(selection) : undefined; const state = await api("join", undefined, joinCode.toUpperCase(), selection(activeDeck), rankedSelections); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be joined."; setMatchError(message); return { ok: false, error: message }; } }, [api, joinCode, router, selectedDeck, selection, setMatch, setOnline]);
   const readyMatch = useCallback(async () => { if (!match) return; try { if (online) await api("ready"); else { const { setReady } = await import("../../lib/game"); setMatch(setReady(match, playerId)); } } catch (error) { setMatchError(error.message); } }, [api, match, online, playerId, setMatch]);

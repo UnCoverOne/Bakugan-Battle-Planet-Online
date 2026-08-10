@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { requireTrainingAiDeckSelection } from "../lib/training-ai-deck-selection";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -66,12 +67,39 @@ test("AI deck registry controls Training AI selection", async () => {
   assert.match(server, /listAiDecks/);
   assert.match(server, /setAiDeckEnabled/);
   assert.match(server, /randomAiDeck/);
-  assert.match(endpoint, /randomAiDeck/);
+  assert.match(endpoint, /selectEnabledLegalAiDeck/);
   assert.match(provider, /fetch\("\/api\/ai-decks"/);
+  assert.match(provider, /requireTrainingAiDeckSelection/);
+  assert.doesNotMatch(provider, /let aiDeck = data\.STARTER_DECKS/);
   assert.match(screen, /action: "ai-toggle"/);
   assert.match(screen, /action: "ai-delete"/);
   assert.match(screen, /admin-ai:/);
-  assert.match(server, /At least one AI deck must remain enabled/);
+  assert.match(server, /At least one enabled legal AI deck must remain available/);
+  assert.match(server, /return \(await selectEnabledLegalAiDeck\(db\)\)\?\.deck \?\? null/);
+  assert.doesNotMatch(server, /if \(!candidates\.length\) return cloneDeck\(STARTER_DECKS\[1\]\)/);
+  assert.match(endpoint, /resourceId/);
+  assert.match(endpoint, /configurationRevision/);
+});
+
+test("Training AI selection rejects empty, malformed, and illegal responses", () => {
+  const legal = { id: "legal" };
+  const isLegal = (deck: { id: string }) => deck.id === legal.id;
+  assert.throws(() => requireTrainingAiDeckSelection(null, isLegal), /invalid response/i);
+  assert.throws(() => requireTrainingAiDeckSelection({ deck: legal }, isLegal), /invalid deck/i);
+  assert.throws(() => requireTrainingAiDeckSelection({
+    deck: { id: "illegal" },
+    resourceId: "disabled-resource",
+    configurationRevision: 1,
+  }, isLegal), /invalid deck/i);
+  assert.deepEqual(requireTrainingAiDeckSelection({
+    deck: legal,
+    resourceId: "enabled-resource",
+    configurationRevision: 42,
+  }, isLegal), {
+    deck: legal,
+    resourceId: "enabled-resource",
+    configurationRevision: 42,
+  });
 });
 
 test("card edits are persisted as overrides and applied to client and authoritative matches", async () => {

@@ -329,6 +329,11 @@ export type MatchState = {
   brawlWinner: string;
   winner: string;
   resultReason: string;
+  /** Administrator-selected Training AI resource used when this match began. */
+  trainingAiDeck?: {
+    resourceId: string;
+    configurationRevision: number;
+  };
   deadline: number;
   log: MatchLogEntry[];
 };

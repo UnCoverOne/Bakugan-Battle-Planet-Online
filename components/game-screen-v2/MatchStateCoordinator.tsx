@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { captureCoreReturns } from "../../lib/coreReturns";
 import type { MatchState } from "../../lib/game";
+import { completedMatchKey, isCompletedSeriesResult } from "../../lib/match-result-navigation";
 import { CoreReturnPlacementLayer } from "./CoreReturnPlacementLayer";
 import {
   dragonoidMaximusResultRemaining,
@@ -12,6 +13,7 @@ import {
 import styles from "./MatchResultDialog.module.css";
 import {
   MATCH_UPDATE_EVENT,
+  finalizeCompletedMatchExit,
   publishMatch,
   publishRoute,
   publishSettings,
@@ -59,12 +61,8 @@ const RESULT_COPY: Record<ResultOutcome, ResultCopy> = {
   },
 };
 
-function matchTarget(match: MatchState) {
-  return match.format === "bo3" ? 2 : 1;
-}
-
 function matchIsComplete(match: MatchState) {
-  return Math.max(0, ...Object.values(match.series).map(Number)) >= matchTarget(match);
+  return isCompletedSeriesResult(match);
 }
 
 function resultReasonCopy(
@@ -321,13 +319,18 @@ export function MatchStateCoordinator() {
           match={returnState.match!}
           playerId={returnState.playerId}
           onViewRecord={() => {
-            const recordId = `${returnState.match!.id}-${returnState.match!.gameNumber}`;
-            router.push(`/profile/records/${encodeURIComponent(recordId)}`);
+            const recordId = completedMatchKey(returnState.match!);
+            if (recordId) router.push(`/profile/records/${encodeURIComponent(recordId)}`);
           }}
           onDismiss={() => {
             if (resultKey) setDismissedResultKey(resultKey);
           }}
           onContinue={() => {
+            if (isCompletedSeriesResult(returnState.match)) {
+              if (finalizeCompletedMatchExit()) router.replace("/play/result");
+              return;
+            }
+            writeGameRoute("result");
             router.push("/play/result");
           }}
         />
