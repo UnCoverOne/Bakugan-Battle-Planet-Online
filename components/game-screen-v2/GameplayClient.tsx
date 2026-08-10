@@ -16,7 +16,7 @@ import {
 } from "../../lib/game";
 import {
   opponentAiCanAct,
-  recoverOpponentAiPreRollFailure,
+  recoverOpponentAiFailure,
 } from "../../lib/opponentAiCanAct";
 import { canUndoLatest, undoLatestAction } from "../../lib/undo";
 import { playCardWithAutoEnergy } from "../../lib/cardPayment";
@@ -68,6 +68,7 @@ import {
 } from "./matchHudState";
 
 const SETTINGS_KEY = "bbp-settings";
+const OPPONENT_AI_DECISION_TIMEOUT_MS = 8_000;
 
 type StoredGameScreenState = {
   route: string;
@@ -128,6 +129,7 @@ export function GameplayClient() {
   const botWorkerPending = useRef(new Map<number, {
     resolve: (next: MatchState | null) => void;
     reject: (cause: Error) => void;
+    timeoutId: number;
   }>());
   const { rollPresentationPending } = useBakuCorePresentation();
 
@@ -144,12 +146,16 @@ export function GameplayClient() {
         const pending = botWorkerPending.current.get(event.data.requestId);
         if (!pending) return;
         botWorkerPending.current.delete(event.data.requestId);
+        window.clearTimeout(pending.timeoutId);
         if (event.data.error) pending.reject(new Error(event.data.error));
         else pending.resolve(event.data.next ?? null);
       });
       worker.addEventListener("error", (event) => {
         const cause = new Error(event.message || "The opponent AI worker stopped unexpectedly.");
-        for (const pending of botWorkerPending.current.values()) pending.reject(cause);
+        for (const pending of botWorkerPending.current.values()) {
+          window.clearTimeout(pending.timeoutId);
+          pending.reject(cause);
+        }
         botWorkerPending.current.clear();
         worker?.terminate();
         botWorkerRef.current = null;
@@ -158,8 +164,19 @@ export function GameplayClient() {
     }
     const requestId = ++botWorkerRequestId.current;
     return new Promise<MatchState | null>((resolve, reject) => {
-      botWorkerPending.current.set(requestId, { resolve, reject });
-      worker!.postMessage({ requestId, match, playerId });
+      const activeWorker = worker!;
+      const timeoutId = window.setTimeout(() => {
+        const pending = botWorkerPending.current.get(requestId);
+        if (!pending) return;
+        botWorkerPending.current.delete(requestId);
+        pending.reject(new Error("The opponent AI decision timed out."));
+        if (botWorkerRef.current === activeWorker) {
+          activeWorker.terminate();
+          botWorkerRef.current = null;
+        }
+      }, OPPONENT_AI_DECISION_TIMEOUT_MS);
+      botWorkerPending.current.set(requestId, { resolve, reject, timeoutId });
+      activeWorker.postMessage({ requestId, match, playerId });
     });
   }, []);
 
@@ -167,7 +184,10 @@ export function GameplayClient() {
     botWorkerRef.current?.terminate();
     botWorkerRef.current = null;
     const cause = new Error("The gameplay screen closed before the opponent AI finished.");
-    for (const pending of botWorkerPending.current.values()) pending.reject(cause);
+    for (const pending of botWorkerPending.current.values()) {
+      window.clearTimeout(pending.timeoutId);
+      pending.reject(cause);
+    }
     botWorkerPending.current.clear();
   }, []);
 
@@ -445,7 +465,9 @@ export function GameplayClient() {
     const drawDelay = waitingForDrawWindow
       ? Math.max(0, (match.drawReadyAt ?? 0) - Date.now())
       : 0;
+    let requestStarted = false;
     const timeout = window.setTimeout(() => {
+      requestStarted = true;
       void (async () => {
         try {
           const latest = readMatchStore().match;
@@ -457,12 +479,12 @@ export function GameplayClient() {
               : await requestOpponentAiDecision(latest, "training-bot");
           const current = readMatchStore().match;
           if (current?.id !== latest.id || current.version !== latest.version) return;
-          const next = decision ?? recoverOpponentAiPreRollFailure(latest, "training-bot");
+          const next = decision ?? recoverOpponentAiFailure(latest, "training-bot");
           if (next) publishMatch(next);
         } catch {
           const latest = readMatchStore().match;
           if (latest?.id === match.id && latest.version === match.version) {
-            const recovered = recoverOpponentAiPreRollFailure(latest, "training-bot");
+            const recovered = recoverOpponentAiFailure(latest, "training-bot");
             if (recovered) publishMatch(recovered);
           }
         } finally {
@@ -470,7 +492,12 @@ export function GameplayClient() {
         }
       })();
     }, Math.max(520, drawDelay));
-    return () => window.clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(timeout);
+      if (!requestStarted && botActionKey.current === key) {
+        botActionKey.current = "";
+      }
+    };
   }, [
     storedState.route,
     storedState.online,
