@@ -37,6 +37,33 @@ jobs:
           NODE
       - name: Apply source fix
         run: node scripts/apply-serpenteze-dark-waters-fix.mjs
+      - name: Preserve compound combat planning while removing zero-marginal B-Power
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+          const path = 'lib/opponentAiBase.ts';
+          let source = await readFile(path, 'utf8');
+          const start = source.indexOf('function temporaryPowerChangesVictor(');
+          const end = source.indexOf('\nfunction isTemporaryPowerAction', start);
+          if (start < 0 || end < 0) throw new Error('Temporary-power helper was not generated');
+          const replacement = `function temporaryPowerChangesVictor(
+            match: MatchState,
+            playerId: string,
+            _choices: CardChoices,
+            _entries: ReturnType<typeof activeCardActionEntries>,
+          ) {
+            if (match.phase !== "power" || match.victorByDamage) return true;
+            const opponent = opponentOf(match, playerId);
+            const playerRoll = match.rolls[playerId];
+            const opponentRoll = opponent ? match.rolls[opponent.id] : undefined;
+            if (!opponent || !playerRoll || playerRoll.result === "miss-closed") return true;
+            if (!opponentRoll || opponentRoll.result === "miss-closed") return false;
+            return totalPower(match, playerId) <= totalPower(match, opponent.id);
+          }
+          `;
+          source = source.slice(0, start) + replacement + source.slice(end);
+          await writeFile(path, source);
+          NODE
       - name: Targeted regressions
         run: node --import tsx --test tests/recharge-and-dark-waters.test.ts tests/opponent-ai-tactics.test.ts
       - name: Rules regressions
