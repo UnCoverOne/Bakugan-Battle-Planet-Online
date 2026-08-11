@@ -7,6 +7,7 @@ import {
   createMatch,
   passPriority,
   prepareCardPlay,
+  totalPower,
   type Bakugan,
   type Core,
   type Faction,
@@ -498,6 +499,7 @@ test("AI waits to play Tides before the Roll even when Flow is active", () => {
   assert.equal(next.priority, human.id);
 });
 
+
 test("AI waits to play Tides before the Roll when its base branch could swing the Brawl", () => {
   const tides = catalogueCard("bb-24", "pre-roll-base-tides");
   const ai = player(
@@ -671,6 +673,92 @@ test("AI chooses the minimum-resource sufficient B-Power card", () => {
   assert.equal(next.players[0].hand.some((candidate) => candidate.id === overkill.id), true);
 });
 
+test("AI projects its unresolved boost and passes instead of stacking overkill", () => {
+  const efficient = catalogueCard("bb-43", "batch-efficient-prismatic-shield");
+  const overkill = catalogueCard("bb-49", "batch-overkill-smoke-armor");
+  const ai = player("batch-ai", [bakugan("batch-ai-b", "Aquos", 500, 5)], [], [efficient, overkill]);
+  const human = player("batch-human", [bakugan("batch-human-b", "Pyrus", 650, 5)]);
+  addEnergy(ai, 3);
+  let match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+
+  match = advanceOpponentAi(match, ai.id)!;
+  assert.equal(match.batch.at(-1)?.card.id, efficient.id);
+  assert.ok(match.players[0].hand.some((candidate) => candidate.id === overkill.id));
+
+  match = advanceOpponentAi(match, ai.id)!;
+  assert.equal(match.priority, human.id);
+  assert.equal(match.batch.length, 1);
+  assert.ok(match.players[0].hand.some((candidate) => candidate.id === overkill.id));
+
+  match = passPriority(match, human.id);
+  assert.equal(totalPower(match, ai.id), 700);
+  assert.equal(match.batch.length, 0);
+});
+
+test("AI commits every required boost but does not add a third card", () => {
+  const first = catalogueCard("bb-49", "batch-required-smoke-armor-one");
+  const second = catalogueCard("bb-49", "batch-required-smoke-armor-two");
+  const spare = catalogueCard("bb-43", "batch-spare-prismatic-shield");
+  const ai = player(
+    "batch-combo-ai",
+    [bakugan("batch-combo-ai-b", "Aquos", 500, 5)],
+    [],
+    [first, second, spare],
+  );
+  const human = player("batch-combo-human", [bakugan("batch-combo-human-b", "Pyrus", 1300, 5)]);
+  addEnergy(ai, 7);
+  let match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+
+  match = advanceOpponentAi(match, ai.id)!;
+  match = advanceOpponentAi(match, ai.id)!;
+  assert.equal(match.batch.length, 2);
+  assert.equal(match.players[0].hand.some((candidate) => candidate.id === spare.id), true);
+
+  match = advanceOpponentAi(match, ai.id)!;
+  assert.equal(match.priority, human.id);
+  assert.equal(match.batch.length, 2);
+  assert.equal(match.players[0].hand.some((candidate) => candidate.id === spare.id), true);
+});
+
+test("AI accounts for an opponent boost already waiting on the batch", () => {
+  const response = catalogueCard("bb-16", "batch-aware-ice-wall");
+  const enemyBoost = catalogueCard("bb-49", "pending-enemy-smoke-armor");
+  const ai = player("response-ai", [bakugan("response-ai-b", "Aquos", 500, 5)], [], [response]);
+  const human = player("response-human", [bakugan("response-human-b", "Pyrus", 650, 5)]);
+  addEnergy(ai, 4);
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+  match.batch = [{
+    id: "pending-enemy-boost",
+    controllerId: human.id,
+    card: enemyBoost,
+    choices: {},
+    kind: "card",
+  }];
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, response.id);
+});
+
+test("inactive mixed-card utility does not excuse redundant B-Power", () => {
+  const shield = catalogueCard("bb-2", "empty-deck-aquos-shield");
+  const ai = player("mixed-ai", [bakugan("mixed-ai-b", "Aquos", 900, 5)], [], [shield]);
+  const human = player("mixed-human", [bakugan("mixed-human-b", "Pyrus", 700, 5)]);
+  addEnergy(ai, 2);
+  ai.deckCards = [];
+  ai.deck = 0;
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.ok(next.players[0].hand.some((candidate) => candidate.id === shield.id));
+});
+
 test("AI does not spend a debuff whose B-Power reduction is blocked by ShadowStrike", () => {
   const debuff = catalogueCard("aa-45", "shadowstrike-wild-roar"); // -300 B.
   const ai = player("shadow-ai", [bakugan("shadow-ai-b", "Ventus", 500, 5)], [], [debuff]);
@@ -708,4 +796,26 @@ test("AI preserves Quickfire until its optional Reroll can be used", () => {
   assert.equal(next.batch.length, 0);
   assert.ok(next.players[0].hand.some((card) => card.id === quickfire.id));
   assert.equal(next.priority, human.id);
+});
+
+test("batch-aware conservation still plays Dark Waters to recover a missed Roll", () => {
+  const darkWaters = catalogueCard("br-5", "missed-roll-dark-waters");
+  const ai = player(
+    "dark-waters-miss-ai",
+    [bakugan("dark-waters-miss-ai-b", "Aquos", 500, 5)],
+    [],
+    [darkWaters],
+  );
+  const human = player(
+    "dark-waters-miss-human",
+    [bakugan("dark-waters-miss-human-b", "Pyrus", 700, 5)],
+  );
+  addEnergy(ai, Number(darkWaters.cost));
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, false, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.players[0].hand.some((card) => card.id === darkWaters.id), false);
+  assert.equal(next.batch.at(-1)?.card.id, darkWaters.id);
 });

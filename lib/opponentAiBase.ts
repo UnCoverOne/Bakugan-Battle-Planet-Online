@@ -493,7 +493,7 @@ function evaluatedFutureCardValue(
  * revealed by damage. Once drawn, it cannot be played from hand, so
  * retaining it has no opportunity value for Energize or discard choices.
  */
-function handCardRetentionValue(match: MatchState, playerId: string, card: GameCard) {
+export function handCardRetentionValue(match: MatchState, playerId: string, card: GameCard) {
   if (card.type === "Flip") return 0;
   return evaluatedFutureCardValue(match, playerId, card, false);
 }

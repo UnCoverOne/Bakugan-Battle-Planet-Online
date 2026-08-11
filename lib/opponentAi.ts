@@ -16,17 +16,19 @@ import {
 import { bestAiRollTarget } from "./aiRollForecast";
 import { cardEnergyPaymentState } from "./cardPayment";
 import { evaluateBakuganCharacteristics } from "./rules/modifiers";
+import { activeTappedEnergyIds } from "./rules/costs";
 import {
   advanceOpponentAi as advanceBaseOpponentAi,
   chooseCardChoices as chooseBaseCardChoices,
+  handCardRetentionValue,
 } from "./opponentAiBase";
 import { playerCanSelectRollTarget, selectRollTarget } from "./rolling";
 import {
   activeCardActionEntries,
   cardLeafActions,
+  estimateRuleActionValue,
   hasNonDeferrablePreRollTiming,
   isTemporaryCombatAction,
-  pureTemporaryCombatProgram,
 } from "./aiCardSemantics";
 import type { RuleAction, RuleInstruction } from "./rules/effects";
 
@@ -159,28 +161,32 @@ function activeTargetBakugan(match: MatchState, playerId: string, targetsEnemy: 
 
 function projectShadowStrikeGain(
   match: MatchState,
-  playerId: string,
+  controllerId: string,
+  perspectiveId: string,
   targetsEnemy: boolean,
   power: { own: number; enemy: number },
   damage: { own: number; enemy: number },
 ) {
-  const targetPlayer = targetsEnemy ? opponentOf(match, playerId) : playerById(match, playerId);
-  const target = activeTargetBakugan(match, playerId, targetsEnemy);
+  const targetPlayer = targetsEnemy
+    ? opponentOf(match, controllerId)
+    : playerById(match, controllerId);
+  const target = activeTargetBakugan(match, controllerId, targetsEnemy);
   if (!targetPlayer || !target) return;
   const projected = cloneMatch(match);
   projected.shadowStrike[target.id] = true;
-  if (targetsEnemy) {
-    power.enemy = totalPower(projected, targetPlayer.id);
-    damage.enemy = totalDamage(projected, targetPlayer.id);
-  } else {
+  if (targetPlayer.id === perspectiveId) {
     power.own = totalPower(projected, targetPlayer.id);
     damage.own = totalDamage(projected, targetPlayer.id);
+  } else {
+    power.enemy = totalPower(projected, targetPlayer.id);
+    damage.enemy = totalDamage(projected, targetPlayer.id);
   }
 }
 
 function applyProjectedAction(
   match: MatchState,
-  playerId: string,
+  controllerId: string,
+  perspectiveId: string,
   choices: CardChoices,
   instruction: RuleInstruction,
   action: RuleAction,
@@ -190,38 +196,42 @@ function applyProjectedAction(
 ) {
   const targetsEnemy = actionTargetsEnemy(
     match,
-    playerId,
+    controllerId,
     choices,
     action,
     instruction.sourceText,
   );
+  const targetPlayer = targetsEnemy
+    ? opponentOf(match, controllerId)
+    : playerById(match, controllerId);
+  const targetsPerspective = targetPlayer?.id === perspectiveId;
   if (action.kind === "modify-stat") {
-    const target = activeTargetBakugan(match, playerId, targetsEnemy);
+    const target = activeTargetBakugan(match, controllerId, targetsEnemy);
     const prevented = action.amount < 0
       && (action.stat === "power" || action.stat === "damage")
       && Boolean(target && bakuganHasShadowStrike(match, target.id));
     if (prevented) return;
     if (action.stat === "power") {
-      if (targetsEnemy) power.enemy += action.amount;
-      else power.own += action.amount;
+      if (targetsPerspective) power.own += action.amount;
+      else power.enemy += action.amount;
     } else if (action.stat === "damage") {
-      if (targetsEnemy) damage.enemy += action.amount;
-      else damage.own += action.amount;
+      if (targetsPerspective) damage.own += action.amount;
+      else damage.enemy += action.amount;
     }
     return;
   }
   if (action.kind === "set-stat") {
-    const target = activeTargetBakugan(match, playerId, targetsEnemy);
+    const target = activeTargetBakugan(match, controllerId, targetsEnemy);
     const current = action.stat === "power"
-      ? (targetsEnemy ? power.enemy : power.own)
-      : (targetsEnemy ? damage.enemy : damage.own);
+      ? (targetsPerspective ? power.own : power.enemy)
+      : (targetsPerspective ? damage.own : damage.enemy);
     if (action.value < current && target && bakuganHasShadowStrike(match, target.id)) return;
     if (action.stat === "power") {
-      if (targetsEnemy) power.enemy = action.value;
-      else power.own = action.value;
+      if (targetsPerspective) power.own = action.value;
+      else power.enemy = action.value;
     } else {
-      if (targetsEnemy) damage.enemy = action.value;
-      else damage.own = action.value;
+      if (targetsPerspective) damage.own = action.value;
+      else damage.enemy = action.value;
     }
     return;
   }
@@ -230,8 +240,147 @@ function applyProjectedAction(
     return;
   }
   if (action.kind === "grant-keyword" && action.keyword === "ShadowStrike") {
-    projectShadowStrikeGain(match, playerId, targetsEnemy, power, damage);
+    projectShadowStrikeGain(
+      match,
+      controllerId,
+      perspectiveId,
+      targetsEnemy,
+      power,
+      damage,
+    );
   }
+}
+
+type ProjectedCombatState = {
+  power: { own: number; enemy: number };
+  damage: { own: number; enemy: number };
+  deciding: { stat: CombatStat };
+};
+
+function pendingEffectChoices(
+  effect: MatchState["batch"][number],
+) {
+  const through = effect.instructionIndex ?? 0;
+  const resolved = Object.entries(effect.resolvedChoices ?? {})
+    .filter(([index]) => Number(index) <= through)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([, choices]) => choices);
+  return Object.assign({}, effect.choices, ...resolved) as CardChoices;
+}
+
+function applyProjectedCard(
+  match: MatchState,
+  perspectiveId: string,
+  controllerId: string,
+  card: GameCard,
+  choices: CardChoices,
+  combat: ProjectedCombatState,
+  options: {
+    execution: "play" | "all";
+    source?: string;
+    startInstructionIndex?: number;
+    candidate?: boolean;
+  },
+) {
+  const resolving = cloneMatch(match);
+  if (options.candidate) {
+    const controller = playerById(resolving, controllerId);
+    if (controller) controller.cardsPlayedThisTurn += 1;
+  }
+  let usefulPostVictoryEffect = false;
+  for (const { instruction, action } of activeCardActionEntries(
+    resolving,
+    controllerId,
+    card,
+    choices,
+    options,
+  )) {
+    if (!isTemporaryCombatAction(action)) continue;
+    const targetsEnemy = actionTargetsEnemy(
+      match,
+      controllerId,
+      choices,
+      action,
+      instruction.sourceText,
+    );
+    if (
+      options.candidate
+      && controllerId === perspectiveId
+      && !targetsEnemy
+      && (
+        (action.kind === "modify-stat" && action.stat === "damage" && action.amount > 0)
+        || (action.kind === "set-stat" && action.stat === "damage" && action.value > combat.damage.own)
+        || (action.kind === "grant-keyword"
+          && (action.keyword === "DoubleStrike" || action.keyword === "FrostStrike"))
+      )
+    ) usefulPostVictoryEffect = true;
+    applyProjectedAction(
+      match,
+      controllerId,
+      perspectiveId,
+      choices,
+      instruction,
+      action,
+      combat.power,
+      combat.damage,
+      combat.deciding,
+    );
+  }
+  return usefulPostVictoryEffect;
+}
+
+function projectCombatAfterBatch(
+  match: MatchState,
+  playerId: string,
+  candidate?: { card: GameCard; choices: CardChoices },
+) {
+  const opponent = opponentOf(match, playerId);
+  const combat: ProjectedCombatState = {
+    power: {
+      own: totalPower(match, playerId),
+      enemy: opponent ? totalPower(match, opponent.id) : 0,
+    },
+    damage: {
+      own: totalDamage(match, playerId),
+      enemy: opponent ? totalDamage(match, opponent.id) : 0,
+    },
+    deciding: { stat: match.victorByDamage ? "damage" : "power" },
+  };
+  let usefulPostVictoryEffect = false;
+
+  // A newly played card becomes the top batch object, so it resolves before
+  // every object that was already staged. Existing objects resolve newest-first.
+  if (candidate) {
+    usefulPostVictoryEffect = applyProjectedCard(
+      match,
+      playerId,
+      playerId,
+      candidate.card,
+      candidate.choices,
+      combat,
+      { execution: "play", candidate: true },
+    );
+  }
+  for (const effect of [...match.batch].reverse()) {
+    if (effect.negated) continue;
+    applyProjectedCard(
+      match,
+      playerId,
+      effect.controllerId,
+      effect.card,
+      pendingEffectChoices(effect),
+      combat,
+      {
+        execution: effect.kind === "trigger" ? "all" : "play",
+        source: effect.effect ?? effect.card.effect,
+        startInstructionIndex: effect.instructionIndex ?? 0,
+      },
+    );
+  }
+  const gap = combat.deciding.stat === "power"
+    ? combat.power.own - combat.power.enemy
+    : combat.damage.own - combat.damage.enemy;
+  return { combat, gap, usefulPostVictoryEffect };
 }
 
 function projectedCombatOutcome(
@@ -243,75 +392,97 @@ function projectedCombatOutcome(
   const opponent = opponentOf(match, playerId);
   const playerParticipates = participatesInBrawl(match, playerId);
   const opponentParticipates = Boolean(opponent && participatesInBrawl(match, opponent.id));
-  const power = {
-    own: totalPower(match, playerId),
-    enemy: opponent ? totalPower(match, opponent.id) : 0,
-  };
-  const damage = {
-    own: totalDamage(match, playerId),
-    enemy: opponent ? totalDamage(match, opponent.id) : 0,
-  };
-  const deciding: { stat: CombatStat } = {
-    stat: match.victorByDamage ? "damage" : "power",
-  };
-  const currentGap = deciding.stat === "power"
-    ? power.own - power.enemy
-    : damage.own - damage.enemy;
-  const currentWin = playerParticipates && (!opponentParticipates || currentGap > 0);
-  let usefulPostVictoryEffect = false;
-  const resolving = cloneMatch(match);
-  const resolvingPlayer = playerById(resolving, playerId);
-  if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
-
-  for (const { instruction, action } of activeCardActionEntries(
-    resolving,
-    playerId,
-    card,
-    choices,
-    { execution: "play" },
-  )) {
-      if (!isTemporaryCombatAction(action)) continue;
-      const targetsEnemy = actionTargetsEnemy(
-        match,
-        playerId,
-        choices,
-        action,
-        instruction.sourceText,
-      );
-      if (
-        !targetsEnemy
-        && (
-          (action.kind === "modify-stat" && action.stat === "damage" && action.amount > 0)
-          || (action.kind === "set-stat" && action.stat === "damage" && action.value > damage.own)
-          || (action.kind === "grant-keyword"
-            && (action.keyword === "DoubleStrike" || action.keyword === "FrostStrike"))
-        )
-      ) usefulPostVictoryEffect = true;
-      applyProjectedAction(
-        match,
-        playerId,
-        choices,
-        instruction,
-        action,
-        power,
-        damage,
-        deciding,
-      );
-  }
-
-  const projectedGap = deciding.stat === "power"
-    ? power.own - power.enemy
-    : damage.own - damage.enemy;
-  const projectedWin = playerParticipates && (!opponentParticipates || projectedGap > 0);
+  const current = projectCombatAfterBatch(match, playerId);
+  const projected = projectCombatAfterBatch(match, playerId, { card, choices });
+  const currentWin = playerParticipates
+    && (!opponentParticipates || current.gap > 0);
+  const projectedWin = playerParticipates
+    && (!opponentParticipates || projected.gap > 0);
   return {
     playerParticipates,
     opponentParticipates,
     currentWin,
     projectedWin,
-    decidingStat: deciding.stat,
-    projectedGap,
-    usefulPostVictoryEffect,
+    decidingStat: projected.combat.deciding.stat,
+    projectedGap: projected.gap,
+    usefulPostVictoryEffect: projected.usefulPostVictoryEffect,
   };
+}
+
+function activeCandidateEntries(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices,
+) {
+  const resolving = cloneMatch(match);
+  const controller = playerById(resolving, playerId);
+  if (controller) controller.cardsPlayedThisTurn += 1;
+  return activeCardActionEntries(
+    resolving,
+    playerId,
+    card,
+    choices,
+    { execution: "play" },
+  );
+}
+
+function independentActionValue(
+  match: MatchState,
+  playerId: string,
+  action: RuleAction,
+) {
+  const player = playerById(match, playerId);
+  if (!player) return 0;
+  if (action.kind === "draw") {
+    return Math.min(action.amount, player.deckCards.length) * 2.4;
+  }
+  if (action.kind === "search") return player.deckCards.length ? 3 : 0;
+  if (action.kind === "reveal") return player.deckCards.length ? 0.8 : 0;
+  if (action.kind === "recharge-energy") {
+    const uncharged = activeTappedEnergyIds(player, match.turn).length;
+    const amount = action.amount === "all" ? uncharged : Math.min(uncharged, action.amount);
+    return amount * 1.6;
+  }
+  if (action.kind === "reroll") {
+    const targetId = action.target === "opponent" ? opponentOf(match, playerId)?.id : playerId;
+    const roll = targetId ? match.rolls[targetId] : undefined;
+    if (!roll) return 0;
+    if (action.target === "controller") {
+      return roll.result === "miss-closed" ? 6 : roll.result === "open-no-core" ? 2.5 : 0;
+    }
+    return roll.result === "miss-closed" ? 0 : 2.5;
+  }
+  if (action.kind === "play") {
+    if (action.source === "hand") return player.hand.length ? 3 : 0;
+    if (action.source === "revealed-deck") return player.revealedDeckCardId ? 3 : 0;
+    return 3;
+  }
+  return Math.max(0, estimateRuleActionValue(action, match));
+}
+
+function candidateIndependentValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices = chooseBaseCardChoices(match, playerId, card),
+) {
+  return activeCandidateEntries(match, playerId, card, choices)
+    .filter(({ action }) => !isTemporaryCombatAction(action))
+    .reduce((sum, { action }) => sum + independentActionValue(match, playerId, action), 0);
+}
+
+function candidateHasTemporaryPower(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices = chooseBaseCardChoices(match, playerId, card),
+) {
+  return activeCandidateEntries(match, playerId, card, choices).some(({ action }) => (
+    isTemporaryCombatAction(action)
+    && (action.kind === "modify-stat" || action.kind === "set-stat")
+    && action.stat === "power"
+  ));
 }
 
 function shouldSuppressTemporaryCombatCard(
@@ -319,34 +490,41 @@ function shouldSuppressTemporaryCombatCard(
   playerId: string,
   card: GameCard,
 ) {
-  if (!pureTemporaryCombatProgram(card)) return false;
   const choices = chooseBaseCardChoices(match, playerId, card);
+  const entries = activeCandidateEntries(match, playerId, card, choices);
+  if (!entries.some(({ action }) => isTemporaryCombatAction(action))) return false;
   const projection = projectedCombatOutcome(match, playerId, card, choices);
+  const independentValue = candidateIndependentValue(match, playerId, card, choices);
+  const hasIndependentBenefit = independentValue >= 0.75;
 
   // Once damage has been dealt, no turn-duration combat modifier can affect the
   // completed Brawl. During the Victor Step, only damage/strike improvements
   // controlled by the declared Victor can still improve the pending attack.
-  if (match.phase === "postDamage" || match.phase === "endPlay") return true;
+  if (match.phase === "postDamage" || match.phase === "endPlay") {
+    return !hasIndependentBenefit;
+  }
   if (match.phase === "victor") {
-    if (match.brawlWinner !== playerId) return true;
-    return !projection.usefulPostVictoryEffect;
+    if (match.brawlWinner !== playerId) return !hasIndependentBenefit;
+    return !projection.usefulPostVictoryEffect && !hasIndependentBenefit;
   }
 
   // Before the first roll, or after a closed miss, there is no Brawl state to
   // improve. Pure turn-duration modifiers have no tactical payoff, while
   // rerolls and cards with independent effects remain available.
-  if (!projection.playerParticipates) return true;
+  if (!projection.playerParticipates) return !hasIndependentBenefit;
 
   // When the opponent missed, or the AI is already winning, do not spend more
   // B-Power merely to increase a margin. Damage/FrostStrike/DoubleStrike may
   // still be useful because they improve the attack that follows.
-  if (projection.currentWin) return !projection.usefulPostVictoryEffect;
+  if (projection.currentWin) {
+    return !projection.usefulPostVictoryEffect && !hasIndependentBenefit;
+  }
 
-  // From a losing or tied position, only commit a pure combat card when the
-  // complete card program changes the projected Victor. This evaluates all
-  // clauses together, so multi-clause cards are not rejected one clause at a
-  // time and ties are not mistaken for guaranteed wins.
-  return !projection.projectedWin;
+  // From a losing or tied position, commit a combat card only when its active
+  // program changes the projected Victor or an independent clause has real
+  // value. This keeps mixed cards available without treating an inactive side
+  // clause as permission to waste B-Power.
+  return !projection.projectedWin && !hasIndependentBenefit;
 }
 
 function restoreSuppressedHandCards(
@@ -379,21 +557,11 @@ function restoreSuppressedHandCards(
 }
 
 
-function pureTemporaryPowerProgram(card: GameCard) {
-  const actions = cardLeafActions(card);
-  return actions.length > 0 && actions.every((action) => (
-    isTemporaryCombatAction(action)
-    && (
-      (action.kind === "modify-stat" && action.stat === "power")
-      || (action.kind === "set-stat" && action.stat === "power")
-    )
-  ));
-}
-
 type TemporaryPowerCandidate = {
   card: GameCard;
   cost: number;
   swing: number;
+  strategicCost: number;
 };
 
 function currentEnergyCapacity(match: MatchState, playerId: string) {
@@ -413,39 +581,13 @@ function temporaryPowerSwing(
   playerId: string,
   card: GameCard,
 ) {
-  const opponent = opponentOf(match, playerId);
-  if (!opponent) return 0;
   const choices = chooseBaseCardChoices(match, playerId, card);
-  const resolving = cloneMatch(match);
-  const resolvingPlayer = playerById(resolving, playerId);
-  if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
-  let swing = 0;
-  for (const { instruction, action } of activeCardActionEntries(
-    resolving,
-    playerId,
-    card,
-    choices,
-    { execution: "play" },
-  )) {
-    if (!isTemporaryCombatAction(action)) continue;
-    const targetsEnemy = actionTargetsEnemy(
-      match,
-      playerId,
-      choices,
-      action,
-      instruction.sourceText,
-    );
-    if (action.kind === "modify-stat" && action.stat === "power") {
-      const target = activeTargetBakugan(match, playerId, targetsEnemy);
-      if (action.amount < 0 && target && bakuganHasShadowStrike(match, target.id)) continue;
-      swing += targetsEnemy ? -action.amount : action.amount;
-    } else if (action.kind === "set-stat" && action.stat === "power") {
-      swing += targetsEnemy
-        ? totalPower(match, opponent.id) - action.value
-        : action.value - totalPower(match, playerId);
-    }
+  const current = projectCombatAfterBatch(match, playerId);
+  const projected = projectCombatAfterBatch(match, playerId, { card, choices });
+  if (current.combat.deciding.stat !== "power" || projected.combat.deciding.stat !== "power") {
+    return 0;
   }
-  return Math.max(0, swing);
+  return Math.max(0, projected.gap - current.gap);
 }
 
 function minimumWinningTemporaryPowerCards(
@@ -460,20 +602,29 @@ function minimumWinningTemporaryPowerCards(
   if (!participatesInBrawl(match, playerId) || !participatesInBrawl(match, opponent.id)) {
     return result;
   }
-  const deficit = totalPower(match, opponent.id) - totalPower(match, playerId);
+  const projectedBatch = projectCombatAfterBatch(match, playerId);
+  if (projectedBatch.combat.deciding.stat !== "power") return result;
+  const deficit = -projectedBatch.gap;
   if (deficit < 0) return result;
   const budget = currentEnergyCapacity(match, playerId);
   if (budget <= 0) return result;
 
   const candidates: TemporaryPowerCandidate[] = player.hand
-    .filter((card) => pureTemporaryPowerProgram(card))
+    .filter((card) => candidateHasTemporaryPower(match, playerId, card))
     .map((card) => {
       const choices = chooseBaseCardChoices(match, playerId, card);
       const payment = cardEnergyPaymentState(match, playerId, card, choices);
+      const cost = payment?.kind === "insufficient" ? budget + 1 : payment?.cost ?? budget + 1;
+      const retention = Math.max(0, handCardRetentionValue(match, playerId, card));
+      const independentValue = candidateIndependentValue(match, playerId, card, choices);
       return {
         card,
-        cost: payment?.kind === "insufficient" ? budget + 1 : payment?.cost ?? budget + 1,
+        cost,
         swing: temporaryPowerSwing(match, playerId, card),
+        strategicCost: cost * 3
+          + 1.25
+          + retention * 0.3
+          - Math.min(1.5, independentValue * 0.25),
       };
     })
     .filter((candidate) => candidate.swing > 0 && candidate.cost <= budget)
@@ -485,15 +636,22 @@ function minimumWinningTemporaryPowerCards(
     .slice(0, 12);
   if (!candidates.length) return result;
 
-  type Combination = { ids: string[]; cost: number; swing: number };
-  const combinations: Combination[] = [{ ids: [], cost: 0, swing: 0 }];
+  type Combination = {
+    ids: string[];
+    cost: number;
+    swing: number;
+    strategicCost: number;
+  };
+  const combinations: Combination[] = [{ ids: [], cost: 0, swing: 0, strategicCost: 0 }];
   for (const candidate of candidates) {
     const existing = [...combinations];
     for (const combination of existing) {
+      if (combination.ids.length >= 3) continue;
       const next = {
         ids: [...combination.ids, candidate.card.id],
         cost: combination.cost + candidate.cost,
         swing: combination.swing + candidate.swing,
+        strategicCost: combination.strategicCost + candidate.strategicCost,
       };
       if (next.cost <= budget) combinations.push(next);
     }
@@ -506,9 +664,15 @@ function minimumWinningTemporaryPowerCards(
     const bestOvershoot = best ? best.swing - deficit : Number.POSITIVE_INFINITY;
     if (
       !best
-      || combination.cost < best.cost
-      || (combination.cost === best.cost && combination.ids.length < best.ids.length)
-      || (combination.cost === best.cost && combination.ids.length === best.ids.length && overshoot < bestOvershoot)
+      || combination.strategicCost < best.strategicCost
+      || (combination.strategicCost === best.strategicCost && combination.cost < best.cost)
+      || (combination.strategicCost === best.strategicCost
+        && combination.cost === best.cost
+        && combination.ids.length < best.ids.length)
+      || (combination.strategicCost === best.strategicCost
+        && combination.cost === best.cost
+        && combination.ids.length === best.ids.length
+        && overshoot < bestOvershoot)
     ) best = combination;
   }
   for (const id of best?.ids ?? []) result.add(id);
@@ -524,8 +688,9 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
       .filter((card) => {
         const unneededPowerAlternative = input.phase === "power"
           && winningPowerPlan.size > 0
-          && pureTemporaryPowerProgram(card)
-          && !winningPowerPlan.has(card.id);
+          && candidateHasTemporaryPower(input, playerId, card)
+          && !winningPowerPlan.has(card.id)
+          && candidateIndependentValue(input, playerId, card) < 0.75;
         const tacticallySuppressed = input.phase !== "preRoll"
           && !winningPowerPlan.has(card.id)
           && shouldSuppressTemporaryCombatCard(input, playerId, card);

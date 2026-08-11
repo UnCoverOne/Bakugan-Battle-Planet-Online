@@ -106,6 +106,10 @@ type ActiveCardActionOptions = {
    * long-horizon retention analysis.
    */
   execution?: "play" | "all";
+  /** Compile a staged rule object's exact source text instead of the full card. */
+  source?: string;
+  /** Skip clauses that have already resolved on a suspended batch object. */
+  startInstructionIndex?: number;
 };
 
 export function activeCardActionEntries(
@@ -118,7 +122,8 @@ export function activeCardActionEntries(
   const execution = options.execution ?? "play";
   void _choices;
   const entries: AiCardActionEntry[] = [];
-  for (const instruction of compileCardEffect(card).instructions) {
+  const instructions = compileCardEffect(card, options.source ?? card.effect).instructions;
+  for (const instruction of instructions.slice(options.startInstructionIndex ?? 0)) {
     if (!aiConditionActive(match, playerId, instruction.condition)) continue;
     const leaves = instruction.actions.flatMap((action) => (
       activeLeafActions(match, playerId, action)
