@@ -49,12 +49,13 @@ test("mobile shell shares the desktop account menu and primary tabs", async ({ p
 
   const bottomNavigation = page.locator(".mobile-bottom-nav");
   await expect(bottomNavigation).toBeVisible();
-  await expect(bottomNavigation.locator("a")).toHaveCount(4);
+  await expect(bottomNavigation.locator("a")).toHaveCount(5);
   await expect(bottomNavigation.locator("a span")).toHaveText([
     "Home",
     "Play",
     "Decks",
     "Compendium",
+    "Leaderboard",
   ]);
   await expect(bottomNavigation.getByText("Profile", { exact: true })).toHaveCount(0);
 

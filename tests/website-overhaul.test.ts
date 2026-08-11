@@ -6,9 +6,9 @@ import { achievementsFor } from "../lib/achievements";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
-test("the primary shell uses the approved four-item top navigation and profile menu", () => {
+test("the primary shell uses the approved five-item top navigation and profile menu", () => {
   const shell = source("components/application/AppShell.jsx");
-  for (const label of ["Home", "Play", "Decks", "Compendium"]) assert.match(shell, new RegExp(`label: "${label}"`));
+  for (const label of ["Home", "Play", "Decks", "Compendium", "Leaderboard"]) assert.match(shell, new RegExp(`label: "${label}"`));
   assert.doesNotMatch(shell, /label: "History"/);
   assert.match(shell, /mobile-bottom-nav/);
   assert.match(shell, /profile-popover-stats/);
@@ -42,7 +42,7 @@ test("the primary shell uses the approved four-item top navigation and profile m
   const homeFidelityCss = source("app/home-fidelity.css");
   assert.match(
     shellCss,
-    /\.mobile-bottom-nav\{[^}]*grid-template-columns:repeat\(4,1fr\)/,
+    /\.mobile-bottom-nav\{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/,
   );
   assert.match(
     shellCss,
