@@ -154,11 +154,17 @@ export const STARTER_DECKS: DeckRecord[] = [
   { id:"deck-darkus",name:"Darkus Strike",factions:["Darkus","Ventus","Haos"],bakuganIds:darkusTeam,coreIds:coreLoadout(darkusTeam),cardIds:darkusCards,leadCardId:darkusCards[0],updatedAt:"2026-07-24T00:00:00.000Z",visibility:"Private",format:"standard",revision:1 },
 ];
 
-export const PUBLIC_DECKS: DeckRecord[] = [
-  { ...STARTER_DECKS[1], id: "public-aquos-control", name: "Aurelus Tide Control", visibility: "Public", creator: "Mira Nova", description: "A patient Aquos control list that converts efficient Heroes and late-game Aurelus threats into a decisive Brawl.", publishedAt: "2026-07-25T18:00:00.000Z", updatedAt: "2026-07-25T18:00:00.000Z" },
-  { ...STARTER_DECKS[0], id: "public-pyrus-fury", name: "Pyrus Fury", visibility: "Public", creator: "DanBrawler", description: "Fast pressure, flexible combat tricks, and a Pyrus-led plan built to finish Brawls before the opponent stabilizes.", publishedAt: "2026-07-23T15:30:00.000Z", updatedAt: "2026-07-23T15:30:00.000Z" },
-  { ...STARTER_DECKS[2], id: "public-darkus-strike", name: "Darkus Strike", visibility: "Public", creator: "Magnus", description: "Darkus disruption backed by Ventus tempo and Haos protection for a resilient midrange strategy.", publishedAt: "2026-07-21T20:00:00.000Z", updatedAt: "2026-07-21T20:00:00.000Z" },
+export const OFFLINE_PUBLIC_DECK_SLOT_IDS = ["slot-1", "slot-2", "slot-3"] as const;
+export type OfflinePublicDeckSlotId = typeof OFFLINE_PUBLIC_DECK_SLOT_IDS[number];
+
+export const BUNDLED_OFFLINE_PUBLIC_DECKS: DeckRecord[] = [
+  { ...STARTER_DECKS[1], id: "offline-slot-1", name: "Aurelus Tide Control", visibility: "Public", creator: "Mira Nova", description: "A patient Aquos control list that converts efficient Heroes and late-game Aurelus threats into a decisive Brawl.", publishedAt: "2026-07-25T18:00:00.000Z", updatedAt: "2026-07-25T18:00:00.000Z" },
+  { ...STARTER_DECKS[0], id: "offline-slot-2", name: "Pyrus Fury", visibility: "Public", creator: "DanBrawler", description: "Fast pressure, flexible combat tricks, and a Pyrus-led plan built to finish Brawls before the opponent stabilizes.", publishedAt: "2026-07-23T15:30:00.000Z", updatedAt: "2026-07-23T15:30:00.000Z" },
+  { ...STARTER_DECKS[2], id: "offline-slot-3", name: "Darkus Strike", visibility: "Public", creator: "Magnus", description: "Darkus disruption backed by Ventus tempo and Haos protection for a resilient midrange strategy.", publishedAt: "2026-07-21T20:00:00.000Z", updatedAt: "2026-07-21T20:00:00.000Z" },
 ];
+
+/** @deprecated Bundled offline bootstrap data only. Do not merge this into the online public catalogue. */
+export const PUBLIC_DECKS = BUNDLED_OFFLINE_PUBLIC_DECKS;
 
 export const deckLeadCard = (deck: Pick<DeckRecord, "leadCardId" | "cardIds">) => {
   const selected = deck.leadCardId && deck.cardIds.includes(deck.leadCardId) ? deck.leadCardId : deck.cardIds[0];
