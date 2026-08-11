@@ -6,7 +6,7 @@ marker = "# 9) Regression coverage locks the separation and cache semantics in p
 if marker not in text:
     raise SystemExit("migration regression marker not found")
 head = text.split(marker, 1)[0]
-tail = r'''# 9) Regression coverage locks the separation and cache semantics in place.
+tail = r"""# 9) Regression coverage locks the separation and cache semantics in place.
 replace_exact(
     'tests/administration.test.ts',
     '''import { requireTrainingAiDeckSelection } from "../lib/training-ai-deck-selection";''',
@@ -91,6 +91,6 @@ for path, needle in [
     ensure_absent(path, needle)
 
 print('Offline public deck architecture patch applied successfully.')
-'''
+"""
 path.write_text(head + tail, encoding="utf-8")
 print("Migration regression patching fixed.")
