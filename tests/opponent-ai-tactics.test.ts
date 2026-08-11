@@ -16,7 +16,12 @@ import {
   type PlayerState,
   type RollOutcome,
 } from "../lib/game";
-import { advanceOpponentAi } from "../lib/opponentAi";
+import { advanceOpponentAi, chooseCardChoices } from "../lib/opponentAi";
+import {
+  evoMarginalValue,
+  handCardRetentionValue,
+  planOpponentEnergize,
+} from "../lib/opponentAiBase";
 import { recoverOpponentAiFailure } from "../lib/opponentAiCanAct";
 import { ruleDefinitionForCard } from "../lib/rules";
 
@@ -422,6 +427,170 @@ test("AI Evo with optional unimplemented reminder text resolves after both playe
   assert.equal(state.pendingChoice, undefined);
   assert.equal(state.batch.length, 0);
   assert.equal(state.players[0].bakugan[0].evoStack.at(-1)?.id, evo.id);
+});
+
+function evoTarget(card: GameCard, id: string, extra: Partial<Bakugan> = {}) {
+  const definition = ruleDefinitionForCard(card);
+  const characterSource = CARDS.find((candidate) => (
+    candidate.type === "Character"
+    && definition.play.evolvesFrom.includes(candidate.catalogId as `bb-${number}`)
+  ));
+  assert.ok(characterSource, `Missing matching Character for ${card.catalogId}`);
+  return bakugan(
+    id,
+    characterSource.faction,
+    characterSource.bPower ?? 0,
+    characterSource.damage ?? 0,
+    {
+      character: { ...characterSource, id: `${id}-character` },
+      name: characterSource.displayName || characterSource.name,
+      ...extra,
+    },
+  );
+}
+
+test("AI does not play an exact duplicate of the current top Evo", () => {
+  // This Evo has a valuable future "play an Action on this" trigger. Replaying
+  // the same top Evo still adds neither a second active copy nor a play trigger.
+  const current = printedCard(221, "current-aquos-hyper-hydorous");
+  const duplicate = printedCard(221, "duplicate-aquos-hyper-hydorous");
+  const target = evoTarget(current, "duplicate-evo-target", { evoStack: [current] });
+  const ai = player("duplicate-evo-ai", [target], [], [duplicate]);
+  const human = player("duplicate-evo-human", [bakugan("duplicate-evo-human-b", "Pyrus", 500, 5)]);
+  addEnergy(ai, Number(duplicate.cost));
+  const match = matchWith(ai, human, "preRoll");
+
+  assert.equal(evoMarginalValue(match, ai.id, duplicate, target.id), 0);
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.equal(next.pendingChoice, undefined);
+  assert.equal(next.players[0].hand.some((card) => card.id === duplicate.id), true);
+  assert.equal(next.priority, human.id);
+});
+
+test("AI chooses the matching Bakugan that receives the greatest Evo improvement", () => {
+  const current = printedCard(229, "target-ranking-current-evo");
+  const candidate = printedCard(229, "target-ranking-candidate-evo");
+  const alreadyEvolved = evoTarget(current, "already-evolved-target", { evoStack: [current] });
+  const unevolved = evoTarget(candidate, "unevolved-target");
+  const ai = player("target-ranking-ai", [alreadyEvolved, unevolved], [], [candidate]);
+  const human = player("target-ranking-human", [bakugan("target-ranking-human-b", "Pyrus", 500, 5)]);
+  const match = matchWith(ai, human, "preRoll");
+
+  const choices = chooseCardChoices(match, ai.id, candidate);
+  assert.equal(choices.sourceBakuganId ?? choices.targetBakuganId, unevolved.id);
+  assert.equal(evoMarginalValue(match, ai.id, candidate, alreadyEvolved.id), 0);
+  assert.ok(evoMarginalValue(match, ai.id, candidate, unevolved.id) > 0);
+});
+
+test("AI still plays a meaningfully stronger Evo over a weaker top Evo", () => {
+  const weaker = printedCard(221, "weaker-hydorous-evo");
+  const stronger = printedCard(216, "stronger-hydorous-evo");
+  const target = evoTarget(stronger, "stronger-evo-target", { evoStack: [weaker] });
+  const ai = player("stronger-evo-ai", [target], [], [stronger]);
+  const human = player("stronger-evo-human", [bakugan("stronger-evo-human-b", "Pyrus", 500, 5)]);
+  addEnergy(ai, Number(stronger.cost));
+  const match = matchWith(ai, human, "preRoll");
+
+  assert.ok(evoMarginalValue(match, ai.id, stronger, target.id) > 0);
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.pendingChoice?.cardId ?? next.batch.at(-1)?.card.id, stronger.id);
+});
+
+test("a duplicate Evo remains playable when its immediate play trigger has value", () => {
+  const current = printedCard(220, "current-drawing-fangzor-evo");
+  const duplicate = printedCard(220, "duplicate-drawing-fangzor-evo");
+  const target = evoTarget(current, "drawing-evo-target", { evoStack: [current] });
+  const ai = player("drawing-evo-ai", [target], [], [duplicate]);
+  const human = player("drawing-evo-human", [bakugan("drawing-evo-human-b", "Pyrus", 500, 5)]);
+  addEnergy(ai, Number(duplicate.cost));
+  ai.deckCards = [
+    printedCard(10, "drawing-evo-deck-1"),
+    printedCard(11, "drawing-evo-deck-2"),
+    printedCard(12, "drawing-evo-deck-3"),
+  ];
+  ai.deck = ai.deckCards.length;
+  const match = matchWith(ai, human, "preRoll");
+
+  assert.equal(evoMarginalValue(match, ai.id, duplicate, target.id), 0);
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.pendingChoice?.cardId ?? next.batch.at(-1)?.card.id, duplicate.id);
+});
+
+test("an empty deck does not make a duplicate draw Evo worth replaying", () => {
+  const current = printedCard(220, "empty-deck-current-fangzor-evo");
+  const duplicate = printedCard(220, "empty-deck-duplicate-fangzor-evo");
+  const target = evoTarget(current, "empty-deck-evo-target", { evoStack: [current] });
+  const ai = player("empty-deck-evo-ai", [target], [], [duplicate]);
+  const human = player("empty-deck-evo-human", [bakugan("empty-deck-evo-human-b", "Pyrus", 500, 5)]);
+  addEnergy(ai, Number(duplicate.cost));
+  const match = matchWith(ai, human, "preRoll");
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.pendingChoice, undefined);
+  assert.equal(next.batch.length, 0);
+  assert.equal(next.players[0].hand.some((card) => card.id === duplicate.id), true);
+  assert.equal(next.priority, human.id);
+});
+
+test("an unresolved Evo suppresses another redundant copy", () => {
+  const pending = printedCard(229, "pending-aurelus-hyper-dragonoid");
+  const duplicate = printedCard(229, "pending-duplicate-aurelus-hyper-dragonoid");
+  const target = evoTarget(pending, "pending-evo-target");
+  const ai = player("pending-evo-ai", [target], [], [pending, duplicate]);
+  const human = player("pending-evo-human", [bakugan("pending-evo-human-b", "Pyrus", 500, 5)]);
+  addEnergy(ai, 2);
+  let state = prepareCardPlay(matchWith(ai, human, "preRoll"), ai.id, pending.id);
+  state = advanceOpponentAi(state, ai.id)!;
+  assert.equal(state.batch.at(-1)?.card.id, pending.id);
+  assert.equal(state.priority, ai.id);
+
+  assert.equal(evoMarginalValue(state, ai.id, duplicate, target.id), 0);
+  state = advanceOpponentAi(state, ai.id)!;
+  assert.equal(state.batch.length, 1);
+  assert.equal(state.players[0].hand.some((card) => card.id === duplicate.id), true);
+  assert.equal(state.priority, human.id);
+});
+
+test("redundant Evos become preferred Energize and cost material", () => {
+  const current = printedCard(229, "resource-current-evo");
+  const duplicate = printedCard(229, "resource-duplicate-evo");
+  const useful = printedCard(49, "resource-useful-action");
+  const target = evoTarget(current, "resource-evo-target", { evoStack: [current] });
+  const ai = player("resource-evo-ai", [target], [], [duplicate, useful]);
+  const human = player("resource-evo-human", [bakugan("resource-evo-human-b", "Pyrus", 500, 5)]);
+  const match = matchWith(ai, human, "energize");
+
+  assert.ok(
+    handCardRetentionValue(match, ai.id, duplicate)
+      < handCardRetentionValue(match, ai.id, useful),
+  );
+  const plan = planOpponentEnergize(match, ai.id);
+  assert.equal(plan.shouldEnergize, true);
+  assert.equal(plan.cardId, duplicate.id);
+  assert.equal(plan.candidates?.find((candidate) => candidate.cardId === duplicate.id)?.tier, 0);
+});
+
+test("hand-limit cleanup discards a redundant Evo before useful unique cards", () => {
+  const current = printedCard(229, "discard-current-evo");
+  const duplicate = printedCard(229, "discard-duplicate-evo");
+  const target = evoTarget(current, "discard-evo-target", { evoStack: [current] });
+  const useful = Array.from({ length: 7 }, (_, index) => (
+    printedCard(49, `discard-useful-${index}`)
+  ));
+  const ai = player("discard-evo-ai", [target], [], [duplicate, ...useful]);
+  const human = player("discard-evo-human", [bakugan("discard-evo-human-b", "Pyrus", 500, 5)]);
+  const match = matchWith(ai, human, "handLimit");
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.players[0].hand.length, 7);
+  assert.equal(next.players[0].discard.at(-1)?.id, duplicate.id);
+  assert.equal(next.players[0].hand.every((card) => card.catalogId === useful[0].catalogId), true);
 });
 
 function catalogueCard(catalogId: string, id: string): GameCard {

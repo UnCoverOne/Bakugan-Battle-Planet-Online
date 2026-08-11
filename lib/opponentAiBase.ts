@@ -54,6 +54,8 @@ import {
   type RuleAction,
   type RuleProgram,
 } from "./rules/effects";
+import { ruleDefinitionForCard } from "./rules/catalogue";
+import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics } from "./rules/modifiers";
 import {
   activeCardActionEntries,
@@ -80,6 +82,236 @@ function opponentOf(match: MatchState, playerId: string) {
 
 function topBakuganCard(bakugan: Bakugan) {
   return bakugan.evoStack.at(-1) ?? bakugan.character;
+}
+
+function pendingEffectChoices(effect: PendingEffect) {
+  const through = effect.instructionIndex ?? 0;
+  const resolved = Object.entries(effect.resolvedChoices ?? {})
+    .filter(([index]) => Number(index) <= through)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([, choices]) => choices);
+  return Object.assign({}, effect.choices, ...resolved) as CardChoices;
+}
+
+function evoTargetId(choices: CardChoices) {
+  return choices.sourceBakuganId ?? choices.targetBakuganId;
+}
+
+function projectedEvoTop(
+  match: MatchState,
+  playerId: string,
+  bakugan: Bakugan,
+  candidate?: GameCard,
+) {
+  let top = candidate ?? topBakuganCard(bakugan);
+  // A candidate added now resolves before every object already in the Batch.
+  // Existing Evo objects then resolve newest-first, so the oldest unresolved
+  // Evo for this Bakugan is the final top card and supersedes the candidate.
+  for (const effect of [...match.batch].reverse()) {
+    const status = (effect as PendingEffect & { status?: string }).status;
+    if (
+      effect.controllerId !== playerId
+      || effect.card.type !== "Evo"
+      || effect.negated
+      || status === "negated"
+      || status === "resolved"
+      || evoTargetId(pendingEffectChoices(effect)) !== bakugan.id
+    ) continue;
+    top = effect.card;
+  }
+  return top;
+}
+
+function characteristicsWithProjectedTop(
+  match: MatchState,
+  playerId: string,
+  bakuganId: string,
+  top: GameCard,
+) {
+  const projected = cloneProjectedMatch(match);
+  const owner = playerById(projected, playerId);
+  const target = owner?.bakugan.find((bakugan) => bakugan.id === bakuganId);
+  if (!owner || !target) return undefined;
+  if (top.type === "Character") target.evoStack = [];
+  else if (target.evoStack.at(-1)?.id !== top.id) target.evoStack.push(top);
+  return evaluateBakuganCharacteristics(projected, target, owner);
+}
+
+function isPersistentEvoAction(action: RuleAction) {
+  if (action.kind === "continuous") return true;
+  if (action.kind === "modify-stat" || action.kind === "grant-keyword") {
+    return action.duration === "while-source-active";
+  }
+  return action.kind === "cost" && action.duration === "while-source-active";
+}
+
+function evoInstructionOccursOnPlay(instruction: Parameters<typeof allInstructionLeafActions>[0]) {
+  const triggers = allInstructionLeafActions(instruction).filter(
+    (action): action is Extract<RuleAction, { kind: "trigger" }> => action.kind === "trigger",
+  );
+  return !triggers.length || triggers.some((trigger) => (
+    trigger.definition.event === "CARD_PLAYED"
+    && trigger.definition.relationship === "controller"
+    && trigger.definition.source === "self"
+  ));
+}
+
+function ongoingCardAbilityValue(match: MatchState, card: GameCard) {
+  let definition;
+  try {
+    definition = ruleDefinitionForCard(card);
+  } catch {
+    return 0;
+  }
+  const eventWeight: Partial<Record<NonNullable<typeof definition.abilities[number]["trigger"]>["event"], number>> = {
+    CARD_PLAYED: 0.65,
+    BAKUGAN_SELECTED: 0.4,
+    BAKUGAN_OPENED: 0.8,
+    CARD_DISCARDED: 0.45,
+    VICTOR_DECLARED: 0.6,
+    ATTACK_CREATED: 0.7,
+    DAMAGE_TAKEN: 0.45,
+    HAND_EMPTIED: 0.35,
+    TURN_ENDED: 0.45,
+  };
+  return definition.abilities.reduce((total, ability) => {
+    if (ability.kind === "triggered") {
+      if (!ability.trigger || (
+        ability.trigger.event === "CARD_PLAYED"
+        && ability.trigger.source === "self"
+      )) return total;
+      const payload = ability.instructions.reduce((sum, instruction) => (
+        sum + allInstructionLeafActions(instruction)
+          .filter((action) => action.kind !== "trigger")
+          .reduce((instructionSum, action) => (
+            instructionSum + estimateRuleActionValue(action, match)
+          ), 0)
+      ), 0);
+      const conditionalWeight = ability.instructions.some(
+        (instruction) => instruction.condition.kind !== "always",
+      ) ? 0.7 : 1;
+      const optionalWeight = ability.trigger.optional ? 0.85 : 1;
+      return total + clamp(payload, -8, 12)
+        * (eventWeight[ability.trigger.event] ?? 0.5)
+        * conditionalWeight
+        * optionalWeight;
+    }
+    const ongoing = ability.instructions.reduce((sum, instruction) => (
+      sum + allInstructionLeafActions(instruction)
+        .filter((action) => (
+          isPersistentEvoAction(action)
+          && action.kind !== "modify-stat"
+          && action.kind !== "grant-keyword"
+          && action.kind !== "continuous"
+        ))
+        .reduce((instructionSum, action) => (
+          instructionSum + estimateRuleActionValue(action, match)
+        ), 0)
+    ), 0);
+    return total + clamp(ongoing, -8, 12);
+  }, 0);
+}
+
+/**
+ * Durable utility contributed by an Evo becoming the final top card. This is
+ * deliberately marginal: replaying the exact top Evo contributes no
+ * persistent value, and an older unresolved Evo for the same target can make
+ * a newly announced Evo transient and therefore equally valueless.
+ */
+export function evoMarginalValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  targetBakuganId?: string,
+) {
+  if (card.type !== "Evo") return 0;
+  const player = playerById(match, playerId);
+  const target = player?.bakugan.find((bakugan) => bakugan.id === targetBakuganId);
+  if (!player || !target) return 0;
+  let legal = false;
+  try {
+    legal = canonicalEvoTargetAllowed(ruleDefinitionForCard(card), target);
+  } catch {
+    return 0;
+  }
+  if (!legal) return 0;
+
+  const beforeTop = projectedEvoTop(match, playerId, target);
+  const afterTop = projectedEvoTop(match, playerId, target, card);
+  if (afterTop.catalogId === beforeTop.catalogId) return 0;
+  const before = characteristicsWithProjectedTop(
+    match,
+    playerId,
+    target.id,
+    beforeTop,
+  );
+  const after = characteristicsWithProjectedTop(
+    match,
+    playerId,
+    target.id,
+    afterTop,
+  );
+  if (!before || !after) return 0;
+  const raw = (after.power - before.power) * 0.012
+    + (after.damage - before.damage) * 0.9
+    + (after.frostStrike - before.frostStrike) * 0.55
+    + (Number(after.shadowStrike) - Number(before.shadowStrike)) * 1.2
+    + (Number(after.doubleStrike) - Number(before.doubleStrike)) * 4
+    + ongoingCardAbilityValue(match, afterTop)
+    - ongoingCardAbilityValue(match, beforeTop);
+  // A real upgrade remains relevant in future Brawls, not only this priority
+  // window. The modest upgrade bonus keeps a useful low-stat evolution from
+  // being rejected solely because its printed Energy cost is paid up front.
+  return raw > 0 ? raw * 1.15 + 0.9 : raw * 1.1;
+}
+
+function legalEvoTargets(match: MatchState, playerId: string, card: GameCard) {
+  const player = playerById(match, playerId);
+  if (!player || card.type !== "Evo") return [];
+  try {
+    const definition = ruleDefinitionForCard(card);
+    return player.bakugan.filter((bakugan) => canonicalEvoTargetAllowed(definition, bakugan));
+  } catch {
+    return [];
+  }
+}
+
+function evoImmediatePlayValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices,
+) {
+  if (card.type !== "Evo") return 0;
+  const player = playerById(match, playerId);
+  if (!player) return 0;
+  try {
+    return activeCardActionEntries(match, playerId, card, choices, { execution: "play" })
+      .filter(({ instruction }) => evoInstructionOccursOnPlay(instruction))
+      .filter(({ action }) => !isPersistentEvoAction(action))
+      .reduce((sum, { action }) => {
+        if (action.kind === "draw") {
+          return sum + Math.min(action.amount, player.deckCards.length) * 2.4;
+        }
+        if ((action.kind === "search" || action.kind === "reveal") && !player.deckCards.length) {
+          return sum;
+        }
+        return sum + estimateRuleActionValue(action, match);
+      }, 0);
+  } catch {
+    return 0;
+  }
+}
+
+function bestEvoPlayBenefit(match: MatchState, playerId: string, card: GameCard) {
+  return Math.max(
+    0,
+    ...legalEvoTargets(match, playerId, card).map((bakugan) => {
+      const choices = { sourceBakuganId: bakugan.id } satisfies CardChoices;
+      return evoMarginalValue(match, playerId, card, bakugan.id)
+        + evoImmediatePlayValue(match, playerId, card, choices);
+    }),
+  );
 }
 
 function printedBakuganValue(bakugan: Bakugan) {
@@ -467,6 +699,9 @@ function evaluatedFutureCardValue(
   includeDeckFlipValue: boolean,
 ) {
   const printedCost = card.cost === "X" ? 2 : card.cost;
+  if (card.type === "Evo") {
+    return bestEvoPlayBenefit(match, playerId, card) - printedCost * 0.4;
+  }
   try {
     const program = compileCardEffect(card);
     const evaluatedProgram = /\bReroll\b/i.test(card.effect)
@@ -475,7 +710,6 @@ function evaluatedFutureCardValue(
     let value = estimateProgramValue(evaluatedProgram, match, playerId) - printedCost * 0.4;
     value += prospectiveNegateValue(evaluatedProgram, match);
     if (card.type === "Hero") value += 2.2;
-    if (card.type === "Evo") value += 2.8;
     if (card.type === "Flip" && includeDeckFlipValue) value += 3.2;
     return value;
   } catch {
@@ -483,8 +717,7 @@ function evaluatedFutureCardValue(
     // valued. Keep the previous stable fallback for playable cards.
     return printedCost * 0.4
       + (card.type === "Hero" ? 2.2
-        : card.type === "Evo" ? 2.8
-          : card.type === "Flip" && includeDeckFlipValue ? 3.2 : 0);
+        : card.type === "Flip" && includeDeckFlipValue ? 3.2 : 0);
   }
 }
 
@@ -837,9 +1070,18 @@ function cardValue(
     card,
     choices,
     { execution: "play" },
-  );
+  ).filter(({ instruction }) => card.type !== "Evo" || evoInstructionOccursOnPlay(instruction));
   const powerChangesVictor = temporaryPowerChangesVictor(match, playerId, choices, entries);
   let value = entries.reduce((sum, entry) => {
+    if (card.type === "Evo" && isPersistentEvoAction(entry.action)) return sum;
+    if (card.type === "Evo" && entry.action.kind === "draw") {
+      return sum + Math.min(entry.action.amount, resolvingPlayer?.deckCards.length ?? 0) * 2.4;
+    }
+    if (
+      card.type === "Evo"
+      && (entry.action.kind === "search" || entry.action.kind === "reveal")
+      && !resolvingPlayer?.deckCards.length
+    ) return sum;
     if (
       entry.action.kind === "attack"
       && !hasEligibleAttacker(resolving, playerId, entry.action)
@@ -851,6 +1093,7 @@ function cardValue(
     return sum + estimateRuleActionValue(entry.action, resolving);
   }, 0) - printedCost * 0.72;
   for (const { instruction, action } of entries) {
+    if (card.type === "Evo" && isPersistentEvoAction(action)) continue;
     if (isTemporaryPowerAction(action) && !powerChangesVictor) continue;
     const raw = actionBaseValue(action);
     if (raw) {
@@ -902,7 +1145,9 @@ function cardValue(
     printedCost,
   );
   if (card.type === "Hero") value += 2.4 + Math.max(0, 4 - match.turn) * 0.35;
-  if (card.type === "Evo") value += 3.2;
+  if (card.type === "Evo") {
+    value += evoMarginalValue(match, playerId, card, evoTargetId(choices));
+  }
   if (card.type === "Flip") value += match.pendingDamage > 0 ? 5 : -10;
   return value;
 }
@@ -1047,6 +1292,12 @@ function optionScore(
     ));
     const bakugan = owner?.bakugan.find((candidate) => candidate.id === id);
     if (!bakugan) return -100;
+    if (
+      card.type === "Evo"
+      && (field.id === "sourceBakuganId" || field.label === "Choose the matching Character")
+    ) {
+      return evoMarginalValue(match, controllerId, card, bakugan.id);
+    }
     if (owner?.id !== controllerId
       && cardHasReduciveStatEffect(card)
       && bakuganHasShadowStrike(match, bakugan.id)) return -100;
@@ -1343,7 +1594,13 @@ function futurePlayLikelihood(
   } catch {
     return 0.2;
   }
-  if (card.type === "Evo" && !choices.targetBakuganId) return 0;
+  if (card.type === "Evo") {
+    const targetId = evoTargetId(choices);
+    if (!targetId) return 0;
+    const durable = evoMarginalValue(match, playerId, card, targetId);
+    const immediate = evoImmediatePlayValue(match, playerId, card, choices);
+    if (durable + immediate < 0.5) return 0;
+  }
   if (/\b(?:Flow|Fury|Turbo|Domination|Victor)\b|\bif\b/i.test(card.effect)) return 0.65;
   return 1;
 }
@@ -1556,6 +1813,13 @@ function energyCandidateTier(
     card.catalogId === analysis.card.catalogId
   )).length + player.deckCards.filter((card) => (
     card.catalogId === analysis.card.catalogId
+  )).length + player.bakugan.flatMap((bakugan) => bakugan.evoStack).filter((card) => (
+    card.catalogId === analysis.card.catalogId
+  )).length + match.batch.filter((effect) => (
+    effect.controllerId === playerId
+    && effect.card.type === "Evo"
+    && !effect.negated
+    && effect.card.catalogId === analysis.card.catalogId
   )).length;
   if (copies > 1 || analysis.cost > capacity + 2) return 1;
   let reactive = false;
@@ -1583,6 +1847,14 @@ function energyOpportunityCost(
   const deckCopies = player.deckCards.filter(
     (card) => card.catalogId === analysis.card.catalogId,
   ).length;
+  const committedCopies = player.bakugan.flatMap((bakugan) => bakugan.evoStack).filter(
+    (card) => card.catalogId === analysis.card.catalogId,
+  ).length + match.batch.filter((effect) => (
+    effect.controllerId === playerId
+    && effect.card.type === "Evo"
+    && !effect.negated
+    && effect.card.catalogId === analysis.card.catalogId
+  )).length;
   const retainedValue = Math.max(0, analysis.value) * analysis.playLikelihood;
   const immediateUrgency = analysis.affordableNow
     ? 3.5 * analysis.playLikelihood
@@ -1592,7 +1864,9 @@ function energyOpportunityCost(
     : 0;
   const lateGameDiscount = Math.max(0, analysis.cost - capacity - 1) * 0.9
     + analysis.cost * 0.08;
-  const replaceability = Math.max(0, handCopies - 1) * 0.45 + deckCopies * 0.55;
+  const replaceability = Math.max(0, handCopies - 1) * 0.45
+    + deckCopies * 0.55
+    + committedCopies * 0.75;
   return Math.max(
     0,
     retainedValue
