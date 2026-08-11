@@ -23,6 +23,8 @@ jobs:
           node-version: 22.13.0
           cache: npm
       - run: npm ci
+      - name: Prepare Favorite migration
+        run: python scripts/fix-public-deck-favorites-migration.py
       - name: Apply Favorite feature
         run: python scripts/apply-public-deck-favorites.py
       - name: Build
@@ -34,6 +36,7 @@ jobs:
       - name: Commit implementation
         run: |
           rm scripts/apply-public-deck-favorites.py
+          rm scripts/fix-public-deck-favorites-migration.py
           rm .github/workflows/one-shot-public-deck-favorites.yml
           git config user.name "UnCoverOne"
           git config user.email "uncover250@gmail.com"
