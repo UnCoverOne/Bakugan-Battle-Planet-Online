@@ -15,16 +15,18 @@ type StoredPresentationState = {
   playerId?: string;
 };
 
-type EvoPortalTarget = {
+type CharacterPortalTarget = {
   key: string;
   element: HTMLElement;
   bakugan: Bakugan;
+  open: boolean;
 };
 
-function sameTargets(previous: readonly EvoPortalTarget[], next: readonly EvoPortalTarget[]) {
+function sameTargets(previous: readonly CharacterPortalTarget[], next: readonly CharacterPortalTarget[]) {
   return previous.length === next.length && previous.every((target, index) => (
     target.key === next[index]?.key
     && target.element === next[index]?.element
+    && target.open === next[index]?.open
     && target.bakugan.evoStack.map((card) => card.id).join("|")
       === next[index]?.bakugan.evoStack.map((card) => card.id).join("|")
   ));
@@ -63,7 +65,7 @@ function setCharacterSlotMetadata(
 
 export function GameplayCardPresentationLayer() {
   const stored = useMatchSelector((state): StoredPresentationState => ({ match: state.match, playerId: state.playerId }));
-  const [targets, setTargets] = useState<readonly EvoPortalTarget[]>([]);
+  const [targets, setTargets] = useState<readonly CharacterPortalTarget[]>([]);
   const storedRef = useRef(stored);
   storedRef.current = stored;
 
@@ -80,7 +82,7 @@ export function GameplayCardPresentationLayer() {
           return;
         }
         const { player, opponent } = playerPair(match, playerId);
-        const nextTargets: EvoPortalTarget[] = [];
+        const nextTargets: CharacterPortalTarget[] = [];
         for (const zone of zones) {
           const owner = zone.dataset.zoneOwner;
           const slotIndex = Math.max(0, Number(zone.dataset.slot ?? 1) - 1);
@@ -101,11 +103,12 @@ export function GameplayCardPresentationLayer() {
           zone.dataset.evoCount = String(bakugan.evoStack.length);
           zone.dataset.evoTopId = bakugan.evoStack.at(-1)?.id ?? "";
           setCharacterSlotMetadata(zone, bakugan, active);
-          if (bakugan.evoStack.length) {
+          if (bakugan.evoStack.length || bakugan.open) {
             nextTargets.push({
               key: `${owner}-${slotIndex + 1}-${bakugan.id}`,
               element: zone,
               bakugan,
+              open: bakugan.open,
             });
           }
         }
@@ -137,38 +140,50 @@ export function GameplayCardPresentationLayer() {
 
   return (
     <>
-      {targets.map(({ key, element, bakugan }) => createPortal(
-        <div
-          className={styles.evoStack}
-          data-evo-stack="true"
-          data-evo-count={bakugan.evoStack.length}
-          aria-label={`${bakugan.name} Evo stack, ${bakugan.evoStack.length} card${bakugan.evoStack.length === 1 ? "" : "s"}`}
-        >
-          {bakugan.evoStack.map((card, index) => {
-            const depth = bakugan.evoStack.length - index - 1;
-            const style = {
-              "--evo-order": index,
-              "--evo-offset-x": `${Math.min(4, depth) * -1.2}%`,
-              "--evo-offset-y": `${Math.min(4, depth) * -0.8}%`,
-            } as CSSProperties;
-            return (
-              <img
-                className={styles.evoCard}
-                src={card.art}
-                alt={card.displayName || card.name}
-                draggable={false}
-                data-card-id={card.id}
-                style={style}
-                key={card.id}
-              />
-            );
-          })}
-          <span className={styles.evoBadge} aria-hidden="true">EVO {bakugan.evoStack.length}</span>
-        </div>,
+      {targets.map(({ key, element, bakugan, open }) => createPortal(
+        <>
+          {bakugan.evoStack.length ? (
+            <div
+              className={styles.evoStack}
+              data-evo-stack="true"
+              data-evo-count={bakugan.evoStack.length}
+              aria-label={`${bakugan.name} Evo stack, ${bakugan.evoStack.length} card${bakugan.evoStack.length === 1 ? "" : "s"}`}
+            >
+              {bakugan.evoStack.map((card, index) => {
+                const depth = bakugan.evoStack.length - index - 1;
+                const style = {
+                  "--evo-order": index,
+                  "--evo-offset-x": `${Math.min(4, depth) * -1.2}%`,
+                  "--evo-offset-y": `${Math.min(4, depth) * -0.8}%`,
+                } as CSSProperties;
+                return (
+                  <img
+                    className={styles.evoCard}
+                    src={card.art}
+                    alt={card.displayName || card.name}
+                    draggable={false}
+                    data-card-id={card.id}
+                    style={style}
+                    key={card.id}
+                  />
+                );
+              })}
+              <span className={styles.evoBadge} aria-hidden="true">EVO {bakugan.evoStack.length}</span>
+            </div>
+          ) : null}
+          {open ? (
+            <span
+              className={styles.openIndicator}
+              data-character-open-indicator="true"
+              aria-hidden="true"
+            >
+              OPEN
+            </span>
+          ) : null}
+        </>,
         element,
         key,
       ))}
     </>
   );
 }
-

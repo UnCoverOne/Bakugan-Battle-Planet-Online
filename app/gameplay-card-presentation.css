@@ -27,13 +27,16 @@
   object-position: center !important;
 }
 
-/* The Character zone itself clips its card artwork, and its ::after pseudo-element
-   is also shared by hover and OPEN-state presentation. An outer box-shadow on that
-   clipped element therefore cannot produce a reliable halo. Draw the active halo
-   on the unclipped Character slot instead, sized only to the card row. */
+/* The Character zone clips its card artwork, so an outer box-shadow on that
+   clipped element cannot produce a reliable halo. Draw the active halo on the
+   unclipped Character slot instead, sized only to the card row. Character-card
+   presentation layers are local to this isolated slot: Evo artwork sits below
+   persistent status UI such as the OPEN indicator. */
 [data-character-slot] {
   --active-character-edge: rgba(255, 255, 255, 0.8);
   --active-character-glow: rgba(255, 255, 255, 0.34);
+  --character-evo-layer: 120;
+  --character-status-layer: 130;
   isolation: isolate;
 }
 
@@ -106,8 +109,12 @@
   opacity: 0 !important;
 }
 
-[data-zone-kind="character-card"] > [data-evo-stack="true"] {
-  z-index: 120 !important;
+/* OPEN is now a real React-rendered status element. This later-loaded rule retires
+   the legacy pseudo-element override while the older compatibility stylesheet is
+   still present, preventing duplicate OPEN labels during the migration. */
+[data-zone-kind="character-card"][data-character-open="true"]::after {
+  content: none !important;
+  display: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

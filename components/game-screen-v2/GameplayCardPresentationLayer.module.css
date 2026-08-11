@@ -1,7 +1,7 @@
 .evoStack {
   position: absolute;
   inset: 0;
-  z-index: 8;
+  z-index: var(--character-evo-layer, 120);
   overflow: hidden;
   border-radius: inherit;
   pointer-events: none;
@@ -51,6 +51,35 @@
   font-weight: 950;
   line-height: 1;
   text-shadow: 0 1px 2px #000;
+}
+
+.openIndicator {
+  position: absolute;
+  top: clamp(0.2rem, 0.42vw, 0.42rem);
+  right: clamp(0.2rem, 0.42vw, 0.42rem);
+  z-index: var(--character-status-layer, 130);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: auto;
+  height: auto;
+  min-width: clamp(2.2rem, 3.4vw, 3.6rem);
+  min-height: clamp(1rem, 1.55vw, 1.55rem);
+  padding: clamp(0.1rem, 0.18vw, 0.18rem) clamp(0.25rem, 0.45vw, 0.48rem);
+  border: 1.5px solid rgba(255, 115, 91, 0.96);
+  border-radius: 999px;
+  background: rgba(7, 10, 14, 0.94);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.72);
+  color: #ff7b68;
+  font-family: var(--font-display);
+  font-size: clamp(0.48rem, 0.72vw, 0.72rem);
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

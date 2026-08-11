@@ -49,31 +49,6 @@
     drop-shadow(0 0 0.76rem rgba(255, 63, 47, 0.68));
 }
 
-:global([data-zone-kind="character-card"][data-character-open="true"]::after) {
-  content: "OPEN";
-  position: absolute;
-  left: 50%;
-  bottom: clamp(0.16rem, 0.35vw, 0.34rem);
-  z-index: 12;
-  box-sizing: border-box;
-  min-width: 56%;
-  padding: clamp(0.12rem, 0.22vw, 0.2rem) clamp(0.24rem, 0.42vw, 0.4rem);
-  transform: translateX(-50%);
-  border: 1px solid rgba(255, 115, 91, 0.62);
-  clip-path: polygon(0.28rem 0, 100% 0, calc(100% - 0.28rem) 100%, 0 100%);
-  background: rgba(14, 8, 11, 0.88);
-  color: #ff7b68;
-  box-shadow: 0 0.18rem 0.34rem rgba(0, 0, 0, 0.56);
-  font-family: var(--font-display);
-  font-size: clamp(0.36rem, 0.52vw, 0.5rem);
-  font-weight: 950;
-  line-height: 1;
-  letter-spacing: 0.12em;
-  text-align: center;
-  text-shadow: 0 1px 2px #000;
-  pointer-events: none;
-}
-
 .actionTooltip {
   --action-tooltip-max-width: 28rem;
   position: fixed;
@@ -129,11 +104,6 @@
     max-width: min(var(--action-tooltip-max-width), calc(100vw - 0.5rem));
     padding: 0.38rem 0.56rem;
     font-size: 0.5rem;
-  }
-
-  :global([data-zone-kind="character-card"][data-character-open="true"]::after) {
-    min-width: 62%;
-    font-size: 0.32rem;
   }
 }
 
