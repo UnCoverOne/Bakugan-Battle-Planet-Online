@@ -9,6 +9,7 @@ test("OPEN is a real Character status overlay above single and stacked Evos", ()
   const presentationCss = read("components/game-screen-v2/GameplayCardPresentationLayer.module.css");
   const selectionCss = read("components/game-screen-v2/SelectionInteractionLayer.module.css");
   const globalPresentationCss = read("app/gameplay-card-presentation.css");
+  const gameplayUiCss = read("app/gameplay-ui-fixes.css");
 
   assert.match(presentation, /if \(bakugan\.evoStack\.length \|\| bakugan\.open\)/);
   assert.match(presentation, /bakugan\.evoStack\.map\(/);
@@ -29,6 +30,7 @@ test("OPEN is a real Character status overlay above single and stacked Evos", ()
 
   assert.doesNotMatch(selectionCss, /content:\s*"OPEN"/);
   assert.doesNotMatch(globalPresentationCss, /\[data-character-open(?:=|\])/);
+  assert.doesNotMatch(gameplayUiCss, /\[data-zone-kind="character-card"\]\[data-character-open="true"\]::after/);
   assert.doesNotMatch(
     globalPresentationCss,
     /\[data-zone-kind="character-card"\]\s*>\s*\[data-evo-stack="true"\]\s*\{[\s\S]*z-index:\s*120/,

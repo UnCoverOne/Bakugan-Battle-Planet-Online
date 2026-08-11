@@ -14,43 +14,6 @@ body > div:has(#roll-result-title) {
   z-index: var(--bbp-roll-result-layer) !important;
 }
 
-/* OPEN belongs to the Character Card zone rather than the artwork. Match the
-   Energy indicator's top-right pill treatment and keep it independent from all
-   card hover, selected, and active transforms. */
-[data-zone-kind="character-card"][data-character-open="true"]::after {
-  left: auto !important;
-  right: clamp(0.2rem, 0.42vw, 0.42rem) !important;
-  top: clamp(0.2rem, 0.42vw, 0.42rem) !important;
-  bottom: auto !important;
-  z-index: 90 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-sizing: border-box !important;
-  width: auto !important;
-  height: auto !important;
-  min-width: clamp(2.2rem, 3.4vw, 3.6rem) !important;
-  min-height: clamp(1rem, 1.55vw, 1.55rem) !important;
-  padding: clamp(0.1rem, 0.18vw, 0.18rem) clamp(0.25rem, 0.45vw, 0.48rem) !important;
-  transform: none !important;
-  transform-origin: center !important;
-  border: 1.5px solid rgba(255, 115, 91, 0.96) !important;
-  border-radius: 999px !important;
-  clip-path: none !important;
-  background: rgba(7, 10, 14, 0.94) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.72) !important;
-  color: #ff7b68 !important;
-  font-size: clamp(0.48rem, 0.72vw, 0.72rem) !important;
-  font-weight: 950 !important;
-  line-height: 1 !important;
-  letter-spacing: 0.1em !important;
-  white-space: nowrap !important;
-  pointer-events: none !important;
-  transition: none !important;
-  animation: none !important;
-  will-change: auto !important;
-}
-
 /* Keep the Brawl panel inside the viewport while reserving its permanent view
    for identity and combat stats. Effects and modifiers become a readable hover
    panel inside each combatant card. */
@@ -360,4 +323,3 @@ html[data-viewport-changing="true"] body > div:has(#roll-result-title) * {
     animation: none !important;
   }
 }
-
