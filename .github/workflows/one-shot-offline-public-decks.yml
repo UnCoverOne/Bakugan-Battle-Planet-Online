@@ -30,8 +30,8 @@ jobs:
         run: python scripts/apply-offline-public-deck-architecture.py
       - name: Build
         run: npm run build
-      - name: Targeted regression tests
-        run: node --import tsx --test tests/administration.test.ts tests/deck-experience.test.ts tests/non-game-workflows.test.ts tests/route-architecture.test.ts
+      - name: Architecture regression tests
+        run: node --import tsx --test tests/administration.test.ts tests/non-game-workflows.test.ts tests/route-architecture.test.ts
       - name: Lint
         run: npm run lint
       - name: Commit migrated implementation
