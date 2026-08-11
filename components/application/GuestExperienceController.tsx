@@ -127,6 +127,24 @@ export function GuestExperienceController() {
     if (!authUser || !accountDataReady) return;
     const intent = readAccountIntent();
     if (!intent) return;
+    if (intent.reason === "favorite-deck" && intent.deckId) {
+      let active = true;
+      void fetch("/api/public-decks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "favorite", deckId: intent.deckId }),
+      }).then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Public deck could not be favorited.");
+        if (active) {
+          notify("Public deck added to My Favorites.");
+          window.dispatchEvent(new Event("bbp-public-deck-favorites-updated"));
+        }
+      }).catch((error) => {
+        if (active) notify(error instanceof Error ? error.message : "Public deck could not be favorited.");
+      }).finally(() => clearAccountIntent());
+      return () => { active = false; };
+    }
     if (intent.reason !== "publish-deck" || !intent.deckId) {
       clearAccountIntent();
       return;

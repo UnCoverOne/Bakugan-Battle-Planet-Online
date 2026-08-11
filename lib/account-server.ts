@@ -63,6 +63,8 @@ export async function ensureAdministrationSchema(db: AccountDatabase) {
     db.prepare("CREATE TABLE IF NOT EXISTS account_bans (user_id TEXT PRIMARY KEY NOT NULL, reason TEXT NOT NULL DEFAULT '', banned_by TEXT, banned_at INTEGER NOT NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)"),
     db.prepare("CREATE TABLE IF NOT EXISTS admin_resources (resource_type TEXT NOT NULL, resource_id TEXT NOT NULL, data_json TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, updated_by TEXT, updated_at INTEGER NOT NULL, PRIMARY KEY (resource_type, resource_id))"),
     db.prepare("CREATE INDEX IF NOT EXISTS admin_resources_type_enabled_idx ON admin_resources(resource_type, enabled)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS public_deck_favorites (user_id TEXT NOT NULL, deck_id TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, deck_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS public_deck_favorites_deck_idx ON public_deck_favorites(deck_id)"),
   ]);
   administrationSchemaReady = true;
 }

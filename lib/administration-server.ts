@@ -381,6 +381,8 @@ export async function deletePublicDeck(db: Database, deckId: string, administrat
     await writeUserDeck(db, current.source.userId, deckId, null);
   }
   await upsertResource(db, "public-deck", deckId, { deleted: true, source: current.source }, false, administratorId);
+  await ensureAdministrationSchema(db);
+  await db.prepare("DELETE FROM public_deck_favorites WHERE deck_id = ?").bind(deckId).run();
 }
 
 const DEFAULT_AI_RESOURCE = "default-ai-aquos";

@@ -11,7 +11,7 @@ import {
   type UserDataSyncRequest,
 } from "./user-data-entities";
 import type { MatchResultRecord, UserSnapshot } from "./persistence";
-import type { AccountDatabase } from "./account-server";
+import { ensureAdministrationSchema, type AccountDatabase } from "./account-server";
 import { ValidationError } from "./server-errors";
 
 export const MAX_SYNC_BYTES = 4_000_000;
@@ -242,6 +242,7 @@ export async function syncAccountData(
   let deckRows = currentRows.filter((row) => row.entity_type === "deck").length;
   const conflicts = new Set<string>();
   const mutations: D1PreparedStatement[] = [];
+  const deletedDeckIds = new Set<string>();
   const expectedFinal = new Map<
     string,
     { dataJson: string | null; deletedAt: string | null }
@@ -301,6 +302,7 @@ export async function syncAccountData(
           now,
         ));
     }
+    if (candidate.type === "deck" && candidate.deletedAt) deletedDeckIds.add(candidate.id);
     expectedFinal.set(candidate.key, {
       dataJson: candidate.dataJson,
       deletedAt: candidate.deletedAt,
@@ -327,6 +329,12 @@ export async function syncAccountData(
   }
 
   await runBatches(db, mutations);
+  if (deletedDeckIds.size) {
+    await ensureAdministrationSchema(db);
+    await runBatches(db, [...deletedDeckIds].map((deckId) => db.prepare(
+      "DELETE FROM public_deck_favorites WHERE deck_id = ?",
+    ).bind(deckId)));
+  }
   await db.prepare(
     "DELETE FROM user_match_history WHERE user_id = ? AND event_id NOT IN (SELECT event_id FROM user_match_history WHERE user_id = ? ORDER BY occurred_at DESC LIMIT 200)",
   ).bind(userId, userId).run();

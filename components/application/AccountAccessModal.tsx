@@ -321,7 +321,7 @@ export function GuestAccountPrompt({
   onRegister,
   onDismiss,
 }: {
-  reason: "deck-saved" | "match-complete" | "publish-deck";
+  reason: "deck-saved" | "match-complete" | "publish-deck" | "favorite-deck";
   onLogin: () => void;
   onRegister: () => void;
   onDismiss: () => void;
@@ -332,7 +332,13 @@ export function GuestAccountPrompt({
         copy: "The deck is saved privately on this device. Create an account to publish it under your Brawler name.",
         intent: "publish-deck" as const,
       }
-    : reason === "deck-saved"
+    : reason === "favorite-deck"
+      ? {
+          title: "Account required to favorite",
+          copy: "Create an account or log in to save this Public deck to My Favorites and add one community Favorite.",
+          intent: "favorite-deck" as const,
+        }
+      : reason === "deck-saved"
       ? {
           title: "Deck saved on this device",
           copy: "Create an account to back up this deck and use it on other devices.",
