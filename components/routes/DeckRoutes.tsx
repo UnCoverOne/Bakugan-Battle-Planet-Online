@@ -9,8 +9,8 @@ import {
   BAKUGAN,
   CARD_BY_ID,
   CARDS,
+  BUNDLED_OFFLINE_PUBLIC_DECKS,
   CORES,
-  PUBLIC_DECKS,
   RULE_ENTRIES,
   STARTER_DECKS,
   validateDeck,
@@ -26,6 +26,11 @@ import {
 } from "../../lib/reference";
 import { DECK_LIMIT, decodeDeckCode, deckTextList, encodeDeckCode, uniqueDeckName } from "../../lib/deck-transfer";
 import { deckSetName } from "../../lib/deck-set";
+import {
+  notifyOfflinePublicDecksUpdated,
+  readOfflinePublicDeckCache,
+  writeOfflinePublicDeckCache,
+} from "../../lib/public-deck-cache";
 import {
   PROFILE_SHOWCASE_LIMIT,
   toggleShowcaseId,
@@ -132,36 +137,46 @@ const blankDraft = (decks: DeckRecord[]): DeckRecord => ({
   revision: 1,
 });
 
-const publicDecksFor = (decks: DeckRecord[], playerName = "You") => [
-  ...decks
-    .filter((deck) => deck.visibility === "Public" && validateDeck(deck).isLegal)
-    .map((deck) => ({
-      ...deck,
-      creator: deck.creator ?? playerName,
-      publishedAt: deck.publishedAt ?? deck.updatedAt,
-    })),
-  ...PUBLIC_DECKS,
-].filter((deck, index, all) => all.findIndex((candidate) => candidate.id === deck.id) === index);
+type PublicDeckCatalogueState = {
+  status: "loading" | "online" | "offline" | "error";
+  decks: DeckRecord[];
+  error?: string;
+};
 
-function usePublicDeckCatalogue(decks: DeckRecord[], playerName: string) {
-  const fallback = useMemo(() => publicDecksFor(decks, playerName), [decks, playerName]);
-  const [remote, setRemote] = useState<DeckRecord[] | null>(null);
+function usePublicDeckCatalogue(online: boolean): PublicDeckCatalogueState {
+  const [state, setState] = useState<PublicDeckCatalogueState>({ status: "loading", decks: [] });
   useEffect(() => {
     let active = true;
+    if (!online) {
+      const cached = readOfflinePublicDeckCache(localStorage);
+      const decks = (cached ?? BUNDLED_OFFLINE_PUBLIC_DECKS).map(clone);
+      setState({ status: "offline", decks });
+      return () => { active = false; };
+    }
+    setState({ status: "loading", decks: [] });
     fetch("/api/public-decks", { cache: "no-store" })
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok || !Array.isArray(result.decks)) throw new Error(result.error ?? "Public decks are unavailable.");
-        if (active) setRemote(result.decks);
+        if (Array.isArray(result.offlineFallbackDecks)) {
+          writeOfflinePublicDeckCache(
+            localStorage,
+            result.offlineFallbackDecks,
+            Number(result.offlineFallbackRevision ?? Date.now()),
+          );
+        }
+        if (active) setState({ status: "online", decks: result.decks });
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        if (active) setState({
+          status: "error",
+          decks: [],
+          error: error instanceof Error ? error.message : "Public decks are unavailable.",
+        });
+      });
     return () => { active = false; };
-  }, [fallback]);
-  if (!remote) return fallback;
-  return [...remote, ...fallback].filter(
-    (deck, index, all) =>
-      all.findIndex((candidate) => candidate.id === deck.id) === index,
-  );
+  }, [online]);
+  return state;
 }
 
 function useOnlineStatus() {
@@ -633,7 +648,7 @@ function DeckTile({
 }
 
 export function PublicDeckLibraryScreen() {
-  const { ready, decks, profile, setDecks, notify } = useApp();
+  const { ready, decks, setDecks, notify } = useApp();
   const router = useRouter();
   const online = useOnlineStatus();
   const [query, setQuery] = useState("");
@@ -641,8 +656,17 @@ export function PublicDeckLibraryScreen() {
   const [legality, setLegality] = useState("All");
   const [sort, setSort] = useState("Updated");
   const [view, setView] = useState<LibraryView>("grid");
-  const allPublic = usePublicDeckCatalogue(decks, profile.name);
-  if (!ready) return <DeckLibrarySkeleton />;
+  const catalogue = usePublicDeckCatalogue(online);
+  const allPublic = catalogue.decks;
+  if (!ready || catalogue.status === "loading") return <DeckLibrarySkeleton />;
+  if (catalogue.status === "error") {
+    return (
+      <div className={styles.route}>
+        <DeckAreaHeader section="public" count={0} legalCount={0} />
+        <DeckState tone="error" role="alert" title="Public decks are unavailable" copy={catalogue.error ?? "Reconnect and try again."} />
+      </div>
+    );
+  }
 
   const reports = new Map<string, DeckValidationResult>(
     allPublic.map((deck): [string, DeckValidationResult] => [deck.id, validateDeck(deck)]),
@@ -685,12 +709,12 @@ export function PublicDeckLibraryScreen() {
         count={allPublic.length}
         legalCount={[...reports.values()].filter((report) => report.isLegal).length}
       />
-      {!online && (
+      {catalogue.status === "offline" && (
         <DeckState
           tone="offline"
           role="status"
-          title="Showing cached public decks"
-          copy="Copying and newly published decks may be unavailable until the connection returns."
+          title="Showing offline fallback decks"
+          copy="These are the latest administrator-managed fallback decks cached on this device. They are not part of the online Public Deck library."
         />
       )}
       <DeckToolbar
@@ -764,9 +788,16 @@ function PublicDeckTile({
 
 export function PublicDeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
-  const { decks, profile, setDecks, setBuilderDeck, notify, authUser } = useApp();
-  const publicDecks = usePublicDeckCatalogue(decks, profile.name);
-  const deck = publicDecks.find((item) => item.id === id);
+  const online = useOnlineStatus();
+  const { decks, setDecks, setBuilderDeck, notify, authUser } = useApp();
+  const catalogue = usePublicDeckCatalogue(online);
+  if (catalogue.status === "loading") {
+    return <div className={styles.route}><DeckState tone="loading" role="status" title="Loading public deck" copy="Retrieving the current public catalogue…" /></div>;
+  }
+  if (catalogue.status === "error") {
+    return <div className={styles.route}><DeckState tone="error" role="alert" title="Public deck unavailable" copy={catalogue.error ?? "Reconnect and try again."} /></div>;
+  }
+  const deck = catalogue.decks.find((item) => item.id === id);
   if (!deck) return <MissingDeck id={id} publicDeck />;
   const copy = () => {
     if (decks.length >= DECK_LIMIT) return notify(`Deck limit reached (${DECK_LIMIT}).`);
@@ -816,7 +847,7 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
       actions={(
         <>
           <ActionButton onClick={copy} disabled={!validateDeck(deck).isLegal}>Copy to My Decks</ActionButton>
-          {authUser?.roles?.includes("administrator") && (
+          {catalogue.status === "online" && authUser?.roles?.includes("administrator") && (
             <>
               <ActionButton tone="secondary" onClick={editAsAdministrator}>Edit as Administrator</ActionButton>
               <ActionButton tone="quiet" onClick={() => void deleteAsAdministrator()}>Delete Deck</ActionButton>
@@ -976,7 +1007,8 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   } = useApp();
   const adminPublicId = id.startsWith("admin-public:") ? id.slice("admin-public:".length) : null;
   const adminAiId = id.startsWith("admin-ai:") ? id.slice("admin-ai:".length) : null;
-  const adminResourceId = adminPublicId ?? adminAiId;
+  const adminOfflineId = id.startsWith("admin-offline:") ? id.slice("admin-offline:".length) : null;
+  const adminResourceId = adminPublicId ?? adminAiId ?? adminOfflineId;
   const administratorEdit = Boolean(adminResourceId);
   const source = administratorEdit ? builderDeck : id === "new" ? builderDeck : decks.find((item: DeckRecord) => item.id === id);
   const [deck, setDeck] = useState<DeckRecord>(() => clone(source ?? blankDraft(decks)));
@@ -1013,19 +1045,19 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       return;
     }
     let active = true;
-    const section = adminPublicId ? "public-decks" : "ai-decks";
+    const section = adminPublicId ? "public-decks" : adminOfflineId ? "offline-decks" : "ai-decks";
     fetch(`/api/admin?section=${section}&id=${encodeURIComponent(adminResourceId)}`, { cache: "no-store" })
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error ?? "Administrator deck could not be loaded.");
-        const loaded = result.decks?.[0]?.deck;
+        const loaded = adminOfflineId ? result.slots?.[0]?.deck : result.decks?.[0]?.deck;
         if (!loaded) throw new Error("Administrator deck not found.");
         if (active) {
           const next = clone(loaded);
           setDeck(next);
           setSaveName(next.name);
           setSaveDescription(next.description ?? "");
-          setSaveVisibility(adminPublicId ? "Public" : "Private");
+          setSaveVisibility(adminPublicId || adminOfflineId ? "Public" : "Private");
           setSaveLeadCardId(next.leadCardId && next.cardIds.includes(next.leadCardId) ? next.leadCardId : next.cardIds[0] ?? "");
           setBuilderDeck(next);
           setRemoteLoading(false);
@@ -1038,7 +1070,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
         }
       });
     return () => { active = false; };
-  }, [adminPublicId, adminResourceId, administratorEdit, notify, setBuilderDeck, source]);
+  }, [adminOfflineId, adminPublicId, adminResourceId, administratorEdit, notify, setBuilderDeck, source]);
 
   useEffect(() => {
     setBuilderDeck(deck);
@@ -1229,7 +1261,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   const openSaveDialog = () => {
     setSaveName(deck.name);
     setSaveDescription(deck.description ?? "");
-    setSaveVisibility(adminPublicId ? "Public" : adminAiId ? "Private" : report.isLegal ? deck.visibility : deck.visibility === "Public" ? "Draft" : deck.visibility);
+    setSaveVisibility(adminPublicId || adminOfflineId ? "Public" : adminAiId ? "Private" : report.isLegal ? deck.visibility : deck.visibility === "Public" ? "Draft" : deck.visibility);
     setSaveLeadCardId(deck.leadCardId && deck.cardIds.includes(deck.leadCardId) ? deck.leadCardId : deck.cardIds[0] ?? "");
     setActiveMenu({ surface: "deck", panel: "save" });
   };
@@ -1241,8 +1273,8 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       notify("Enter a deck name before saving.");
       return;
     }
-    if ((saveVisibility === "Public" || adminAiId) && !latest.isLegal) {
-      notify(`${adminAiId ? "AI" : "Public"} decks must be valid: ${latest.issues[0].message}`);
+    if ((saveVisibility === "Public" || adminAiId || adminOfflineId) && !latest.isLegal) {
+      notify(`${adminAiId ? "AI" : adminOfflineId ? "Offline fallback" : "Public"} decks must be valid: ${latest.issues[0].message}`);
       return;
     }
     if (decks.length >= DECK_LIMIT && id === "new" && !administratorEdit) {
@@ -1251,10 +1283,10 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     }
     const next = {
       ...deck,
-      id: administratorEdit ? adminResourceId! : id === "new" ? deck.id : id,
+      id: adminOfflineId ? `offline-${adminOfflineId}` : administratorEdit ? adminResourceId! : id === "new" ? deck.id : id,
       name,
       description: saveDescription.trim() || undefined,
-      visibility: adminPublicId ? "Public" as const : adminAiId ? "Private" as const : saveVisibility,
+      visibility: adminPublicId || adminOfflineId ? "Public" as const : adminAiId ? "Private" as const : saveVisibility,
       leadCardId: saveLeadCardId && deck.cardIds.includes(saveLeadCardId) ? saveLeadCardId : deck.cardIds[0],
       updatedAt: new Date().toISOString(),
       revision: (deck.revision ?? 0) + 1,
@@ -1265,7 +1297,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            action: adminPublicId ? "public-update" : "ai-update",
+            action: adminPublicId ? "public-update" : adminOfflineId ? "offline-update" : "ai-update",
             id: adminResourceId,
             deck: next,
           }),
@@ -1275,8 +1307,9 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
         setBuilderDeck(null);
         setSaveState("saved");
         setActiveMenu(null);
-        notify(`${adminPublicId ? "Public" : "AI"} deck updated.`);
-        router.push(returnTo ?? "/admin?tab=ai");
+        if (adminOfflineId) notifyOfflinePublicDecksUpdated();
+        notify(`${adminPublicId ? "Public" : adminOfflineId ? "Offline fallback" : "AI"} deck updated.`);
+        router.push(returnTo ?? (adminOfflineId ? "/admin?tab=offline" : "/admin?tab=ai"));
       } catch (error) {
         setSaveState("error");
         notify(error instanceof Error ? error.message : "Administrator deck could not be saved.");

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { validateDeck, type DeckRecord } from "../../lib/data";
 import type { GameCard } from "../../lib/game";
+import { notifyOfflinePublicDecksUpdated } from "../../lib/public-deck-cache";
 import { useApp } from "../application/AppProvider";
 import { notifyAdministratorAiVisibilityChanged } from "../application/useAdministratorAiVisibility";
 import {
@@ -17,8 +18,9 @@ import {
 } from "../design-system/primitives";
 import styles from "./AdminScreen.module.css";
 
-type AdminTab = "ai" | "cards" | "ranked" | "users";
+type AdminTab = "ai" | "offline" | "cards" | "ranked" | "users";
 type AiDeckItem = { id: string; deck: DeckRecord; enabled: boolean; updatedAt: number };
+type OfflineDeckSlot = { id: string; deck: DeckRecord | null; source: "bundled" | "managed"; updatedAt: number };
 type AdminUser = {
   id: string;
   email: string;
@@ -73,7 +75,7 @@ export function AdminScreen() {
   const searchParams = useSearchParams();
   const { authUser } = useApp();
   const requested = searchParams.get("tab");
-  const tab: AdminTab = requested === "cards" || requested === "ranked" || requested === "users" ? requested : "ai";
+  const tab: AdminTab = requested === "offline" || requested === "cards" || requested === "ranked" || requested === "users" ? requested : "ai";
   if (!authUser?.roles?.includes("administrator")) {
     return (
       <div className={styles.route}>
@@ -96,11 +98,13 @@ export function AdminScreen() {
       />
       <Tabs className={styles.tabs} label="Administrator sections">
         <Link className={tab === "ai" ? "active" : ""} aria-current={tab === "ai" ? "page" : undefined} href="/admin?tab=ai">AI Management</Link>
+        <Link className={tab === "offline" ? "active" : ""} aria-current={tab === "offline" ? "page" : undefined} href="/admin?tab=offline">Offline Decks</Link>
         <Link className={tab === "cards" ? "active" : ""} aria-current={tab === "cards" ? "page" : undefined} href="/admin?tab=cards">Card Management</Link>
         <Link className={tab === "ranked" ? "active" : ""} aria-current={tab === "ranked" ? "page" : undefined} href="/admin?tab=ranked">Ranked Play</Link>
         <Link className={tab === "users" ? "active" : ""} aria-current={tab === "users" ? "page" : undefined} href="/admin?tab=users">User Management</Link>
       </Tabs>
       {tab === "ai" && <AiManagement />}
+      {tab === "offline" && <OfflineDeckManagement />}
       {tab === "cards" && <CardManagement />}
       {tab === "ranked" && <RankedManagement />}
       {tab === "users" && <UserManagement />}
@@ -298,6 +302,102 @@ function AiManagement() {
                     void mutate({ action: "ai-delete", id: item.id }, `${item.deck.name} removed from the AI deck pool.`);
                   }
                 }}>Delete</button>
+              </div>
+            </Surface>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function OfflineDeckManagement() {
+  const router = useRouter();
+  const { decks: localDecks, setBuilderDeck, notify } = useApp();
+  const [refresh, setRefresh] = useState(0);
+  const [selection, setSelection] = useState<Record<string, string>>({});
+  const state = useAdminData<{ slots: OfflineDeckSlot[] }>("offline-decks", refresh);
+
+  const mutate = async (body: Record<string, unknown>, message: string) => {
+    try {
+      await adminRequest(body);
+      notify(message);
+      notifyOfflinePublicDecksUpdated();
+      setRefresh((value) => value + 1);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Offline fallback deck action failed.");
+    }
+  };
+
+  const replaceSlot = (slot: OfflineDeckSlot) => {
+    const deckId = selection[slot.id] ?? "";
+    const deck = localDecks.find((candidate: DeckRecord) => candidate.id === deckId);
+    if (!deck) return;
+    void mutate({ action: "offline-update", id: slot.id, deck }, `${deck.name} assigned to ${slot.id}.`);
+  };
+
+  const editSlot = (slot: OfflineDeckSlot) => {
+    if (!slot.deck) return;
+    setBuilderDeck({
+      ...slot.deck,
+      cardIds: [...slot.deck.cardIds],
+      coreIds: [...slot.deck.coreIds],
+      bakuganIds: [...slot.deck.bakuganIds],
+      factions: [...slot.deck.factions],
+      tags: [...(slot.deck.tags ?? [])],
+    });
+    router.push(`/builder/${encodeURIComponent(`admin-offline:${slot.id}`)}?returnTo=${encodeURIComponent("/admin?tab=offline")}`);
+  };
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionHeading}>
+        <div>
+          <span>OFFLINE PUBLIC DECKS</span>
+          <h2>Fallback Deck Slots</h2>
+          <p>These three decks are cached by online clients for offline use only. They never appear in the normal online Public Deck library.</p>
+        </div>
+        <StatusChip tone="info">3 SLOTS</StatusChip>
+      </div>
+      <AdminState loading={state.loading} error={state.error} label="offline fallback decks" />
+      <div className={styles.deckRows}>
+        {state.data?.slots.map((slot, index) => {
+          const report = slot.deck ? validateDeck(slot.deck) : null;
+          const selectedDeck = localDecks.find((deck: DeckRecord) => deck.id === (selection[slot.id] ?? ""));
+          return (
+            <Surface as="article" className={styles.deckRow} key={slot.id}>
+              <StatusChip tone={slot.deck ? "success" : "warning"}>SLOT {index + 1}</StatusChip>
+              <div>
+                <h3>{slot.deck?.name ?? "Empty slot"}</h3>
+                <p>{slot.source === "bundled" ? "Bundled first-run default" : slot.deck ? "Administrator-managed fallback" : "Administrator-cleared slot"}</p>
+              </div>
+              <StatusChip tone={report?.isLegal ? "success" : slot.deck ? "danger" : "neutral"}>
+                {report ? (report.isLegal ? "Legal" : `${report.issues.length} issues`) : "Empty"}
+              </StatusChip>
+              <div className={styles.addDeck}>
+                <Field label="Replace from My Decks">
+                  <select value={selection[slot.id] ?? ""} onChange={(event) => setSelection((current) => ({ ...current, [slot.id]: event.target.value }))}>
+                    <option value="">Choose a saved deck…</option>
+                    {localDecks.map((deck: DeckRecord) => {
+                      const legal = validateDeck(deck).isLegal;
+                      return <option disabled={!legal} value={deck.id} key={deck.id}>{deck.name}{legal ? "" : " (invalid)"}</option>;
+                    })}
+                  </select>
+                </Field>
+                <button disabled={!selectedDeck || !validateDeck(selectedDeck).isLegal} onClick={() => replaceSlot(slot)}>Replace</button>
+              </div>
+              <div className={styles.rowActions}>
+                <button disabled={!slot.deck} onClick={() => editSlot(slot)}>Open in Deck Editor</button>
+                <button className={styles.danger} disabled={!slot.deck} onClick={() => {
+                  if (confirm(`Clear offline fallback slot ${index + 1}?`)) {
+                    void mutate({ action: "offline-clear", id: slot.id }, `Offline fallback slot ${index + 1} cleared.`);
+                  }
+                }}>Clear Slot</button>
+                <button disabled={slot.source === "bundled"} onClick={() => {
+                  if (confirm(`Restore bundled default for offline fallback slot ${index + 1}?`)) {
+                    void mutate({ action: "offline-reset", id: slot.id }, `Offline fallback slot ${index + 1} restored to its bundled default.`);
+                  }
+                }}>Restore Default</button>
               </div>
             </Surface>
           );

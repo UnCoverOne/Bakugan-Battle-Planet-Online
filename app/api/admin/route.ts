@@ -15,16 +15,20 @@ import {
 import {
   addAiDeck,
   applyDatabaseCardOverrides,
+  clearOfflinePublicDeckSlot,
   deleteAiDeck,
   deletePublicDeck,
   getAdministratorAiVisibility,
   listAiDecks,
   listManagedPublicDecks,
+  listOfflinePublicDeckSlots,
   resetCardOverride,
+  resetOfflinePublicDeckSlot,
   saveCardOverride,
   setAdministratorAiVisibility,
   setAiDeckEnabled,
   updateAiDeck,
+  updateOfflinePublicDeckSlot,
   updatePublicDeck,
 } from "../../../lib/administration-server";
 import { CARDS } from "../../../lib/data";
@@ -127,6 +131,10 @@ export async function GET(request: Request) {
     if (section === "public-decks") {
       const decks = await listManagedPublicDecks(db);
       return json({ decks: id ? decks.filter((item) => item.deck.id === id) : decks, correlationId });
+    }
+    if (section === "offline-decks") {
+      const slots = await listOfflinePublicDeckSlots(db);
+      return json({ slots: id ? slots.filter((slot) => slot.id === id) : slots, correlationId });
     }
     if (section === "ranked") return json({ ...(await getRankedRulesAdministration(db)), correlationId });
     const [users, aiDecks, publicDecks] = await Promise.all([
@@ -256,6 +264,15 @@ export async function POST(request: Request) {
     if (action === "public-delete") {
       await deletePublicDeck(db, String(body.id ?? ""), administrator.id);
       return json({ ok: true, correlationId });
+    }
+    if (action === "offline-update") {
+      return json({ slot: await updateOfflinePublicDeckSlot(db, String(body.id ?? ""), body.deck, administrator.id), correlationId });
+    }
+    if (action === "offline-clear") {
+      return json({ slot: await clearOfflinePublicDeckSlot(db, String(body.id ?? ""), administrator.id), correlationId });
+    }
+    if (action === "offline-reset") {
+      return json({ slot: await resetOfflinePublicDeckSlot(db, String(body.id ?? "")), correlationId });
     }
     if (action === "ranked-save-draft") {
       return json({ draft: await saveRankedRulesDraft(db, body.restrictions, administrator.id), correlationId });

@@ -145,7 +145,7 @@ test("Save Deck dialog owns metadata, featured card choice, and permits invalid 
   assert.match(route, /leadCardId:\s*saveLeadCardId\s*&&\s*deck\.cardIds\.includes\(saveLeadCardId\)/);
   assert.match(route, /grouped\.map\(\(\{ card \}\)/);
   assert.match(css, /\.builderFeaturedCardPicker\s*>\s*div\s*\{[^}]*grid-template-columns:\s*repeat\(2/s);
-  assert.match(route, /\(saveVisibility === "Public" \|\| adminAiId\) && !latest\.isLegal/);
+  assert.match(route, /\(saveVisibility === "Public" \|\| adminAiId \|\| adminOfflineId\) && !latest\.isLegal/);
   assert.match(data, /visibility:\s*"Draft" \| "Private" \| "Public"/);
   assert.match(persistence, /deck\.visibility === "Draft" \? "Draft"/);
   assert.match(server, /deck\.visibility === "Public" && !validation\.isLegal/);

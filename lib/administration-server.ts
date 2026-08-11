@@ -1,11 +1,13 @@
 import {
+  BUNDLED_OFFLINE_PUBLIC_DECKS,
   CARDS,
-  PUBLIC_DECKS,
+  OFFLINE_PUBLIC_DECK_SLOT_IDS,
   STARTER_DECKS,
   applyCardOverrides,
   validateDeck,
   type CardOverrideRecord,
   type DeckRecord,
+  type OfflinePublicDeckSlotId,
 } from "./data";
 import { ensureAdministrationSchema, type AccountDatabase } from "./account-server";
 import type { GameCard } from "./game";
@@ -15,6 +17,13 @@ type ManagedDeck = {
   deck: DeckRecord;
   source: { kind: "builtin" | "user" | "resource"; userId?: string };
 };
+
+const LEGACY_BUILTIN_PUBLIC_DECK_IDS = new Set([
+  "public-aquos-control",
+  "public-pyrus-fury",
+  "public-darkus-strike",
+]);
+const OFFLINE_PUBLIC_DECK_RESOURCE_TYPE = "offline-public-deck";
 
 const cloneDeck = (deck: DeckRecord): DeckRecord => ({
   ...deck,
@@ -147,6 +156,88 @@ export async function resetCardOverride(db: Database, catalogId: string) {
     .bind(catalogId).run();
 }
 
+export type OfflinePublicDeckSlot = {
+  id: OfflinePublicDeckSlotId;
+  deck: DeckRecord | null;
+  source: "bundled" | "managed";
+  updatedAt: number;
+};
+
+const isOfflinePublicDeckSlotId = (value: string): value is OfflinePublicDeckSlotId => (
+  OFFLINE_PUBLIC_DECK_SLOT_IDS.includes(value as OfflinePublicDeckSlotId)
+);
+
+const normalizeOfflinePublicDeck = (slotId: OfflinePublicDeckSlotId, source: DeckRecord): DeckRecord => ({
+  ...cloneDeck(source),
+  id: `offline-${slotId}`,
+  visibility: "Public",
+  creator: source.creator ?? "Offline Fallback",
+  publishedAt: source.publishedAt ?? source.updatedAt,
+});
+
+export async function listOfflinePublicDeckSlots(db: Database): Promise<OfflinePublicDeckSlot[]> {
+  const rows = await resourceRows(db, OFFLINE_PUBLIC_DECK_RESOURCE_TYPE);
+  const rowsById = new Map(rows.map((row) => [row.resource_id, row]));
+  return OFFLINE_PUBLIC_DECK_SLOT_IDS.map((id, index) => {
+    const row = rowsById.get(id);
+    if (!row) {
+      return {
+        id,
+        deck: normalizeOfflinePublicDeck(id, BUNDLED_OFFLINE_PUBLIC_DECKS[index]),
+        source: "bundled" as const,
+        updatedAt: 0,
+      };
+    }
+    const value = parseJson<{ deck?: DeckRecord; cleared?: boolean }>(row.data_json, {});
+    if (!row.enabled || value.cleared || !value.deck) {
+      return { id, deck: null, source: "managed" as const, updatedAt: row.updated_at };
+    }
+    return {
+      id,
+      deck: normalizeOfflinePublicDeck(id, value.deck),
+      source: "managed" as const,
+      updatedAt: row.updated_at,
+    };
+  });
+}
+
+export async function updateOfflinePublicDeckSlot(
+  db: Database,
+  slotId: string,
+  value: unknown,
+  administratorId: string,
+) {
+  if (!isOfflinePublicDeckSlotId(slotId)) throw new Error("Offline public deck slot is invalid.");
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Deck data must be an object.");
+  const now = new Date().toISOString();
+  const source = cloneDeck(value as DeckRecord);
+  const deck = normalizeOfflinePublicDeck(slotId, {
+    ...source,
+    updatedAt: now,
+    publishedAt: source.publishedAt ?? now,
+  });
+  const validation = validateDeck(deck);
+  if (!validation.isLegal) throw new Error(`Offline fallback deck [${validation.issues[0].code}]: ${validation.issues[0].message}`);
+  const updatedAt = Date.now();
+  await upsertResource(db, OFFLINE_PUBLIC_DECK_RESOURCE_TYPE, slotId, { deck }, true, administratorId);
+  return { id: slotId, deck, source: "managed" as const, updatedAt };
+}
+
+export async function clearOfflinePublicDeckSlot(db: Database, slotId: string, administratorId: string) {
+  if (!isOfflinePublicDeckSlotId(slotId)) throw new Error("Offline public deck slot is invalid.");
+  const updatedAt = Date.now();
+  await upsertResource(db, OFFLINE_PUBLIC_DECK_RESOURCE_TYPE, slotId, { cleared: true }, false, administratorId);
+  return { id: slotId, deck: null, source: "managed" as const, updatedAt };
+}
+
+export async function resetOfflinePublicDeckSlot(db: Database, slotId: string) {
+  if (!isOfflinePublicDeckSlotId(slotId)) throw new Error("Offline public deck slot is invalid.");
+  await ensureAdministrationSchema(db);
+  await db.prepare("DELETE FROM admin_resources WHERE resource_type = ? AND resource_id = ?")
+    .bind(OFFLINE_PUBLIC_DECK_RESOURCE_TYPE, slotId).run();
+  return (await listOfflinePublicDeckSlots(db)).find((slot) => slot.id === slotId)!;
+}
+
 export async function listManagedPublicDecks(db: Database): Promise<ManagedDeck[]> {
   await ensureAdministrationSchema(db);
   type UserDeckRow = {
@@ -176,10 +267,7 @@ export async function listManagedPublicDecks(db: Database): Promise<ManagedDeck[
     `SELECT users.id, users.display_name, user_data.data_json FROM user_data JOIN users ON users.id = user_data.user_id LEFT JOIN account_bans ON account_bans.user_id = users.id WHERE account_bans.user_id IS NULL${entitySchemaAvailable ? " AND NOT EXISTS (SELECT 1 FROM user_data_entities WHERE user_data_entities.user_id = users.id)" : ""}`,
   ).all() as { results?: UserDeckRow[] };
 
-  const managed: ManagedDeck[] = PUBLIC_DECKS.map((deck) => ({
-    deck: cloneDeck(deck),
-    source: { kind: "builtin" as const },
-  }));
+  const managed: ManagedDeck[] = [];
   const addUserDeck = (row: UserDeckRow, deck: DeckRecord) => {
     if (deck.visibility !== "Public") return;
     managed.push({
@@ -201,6 +289,8 @@ export async function listManagedPublicDecks(db: Database): Promise<ManagedDeck[
   }
   const overrides = await resourceRows(db, "public-deck");
   for (const row of overrides) {
+    // These IDs belonged to repository-seeded showcase decks. They are now offline-only slots.
+    if (LEGACY_BUILTIN_PUBLIC_DECK_IDS.has(row.resource_id)) continue;
     const value = parseJson<{ deck?: DeckRecord; deleted?: boolean; source?: ManagedDeck["source"] }>(row.data_json, {});
     const index = managed.findIndex((item) => item.deck.id === row.resource_id);
     if (value.deleted) {

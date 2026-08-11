@@ -17,6 +17,7 @@ import { AppProvider } from "../components/application/AppProvider";
 import { AppShell } from "../components/application/AppShell";
 import { DisplayFontLoader } from "../components/application/DisplayFontLoader";
 import { GuestExperienceController } from "../components/application/GuestExperienceController";
+import { PublicDeckFallbackSync } from "../components/application/PublicDeckFallbackSync";
 import { AssetFreshness } from "../components/AssetFreshness";
 import { WebVitalsReporter } from "../components/WebVitalsReporter";
 
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <DisplayFontLoader />
         <AssetFreshness />
         <WebVitalsReporter />
+        <PublicDeckFallbackSync />
         <AppProvider>
           <GuestExperienceController />
           <AppShell>{children}</AppShell>
