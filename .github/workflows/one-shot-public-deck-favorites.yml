@@ -27,6 +27,8 @@ jobs:
         run: python scripts/fix-public-deck-favorites-migration.py
       - name: Apply Favorite feature
         run: python scripts/apply-public-deck-favorites.py
+      - name: Repair enriched-catalogue tests
+        run: python scripts/fix-public-deck-favorites-tests.py
       - name: Build
         run: npm run build
       - name: Favorite regression tests
@@ -37,6 +39,7 @@ jobs:
         run: |
           rm scripts/apply-public-deck-favorites.py
           rm scripts/fix-public-deck-favorites-migration.py
+          rm scripts/fix-public-deck-favorites-tests.py
           rm .github/workflows/one-shot-public-deck-favorites.yml
           git config user.name "UnCoverOne"
           git config user.email "uncover250@gmail.com"
