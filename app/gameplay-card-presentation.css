@@ -47,7 +47,6 @@
   bottom: 0;
   left: 0;
   z-index: 0;
-  box-sizing: border-box;
   width: 100%;
   aspect-ratio: 5 / 7;
   border: 1px solid transparent;
@@ -107,14 +106,6 @@
 [data-zone-kind="character-card"][data-evo-count]:not([data-evo-count="0"]) > img {
   visibility: hidden !important;
   opacity: 0 !important;
-}
-
-/* OPEN is now a real React-rendered status element. This later-loaded rule retires
-   the legacy pseudo-element override while the older compatibility stylesheet is
-   still present, preventing duplicate OPEN labels during the migration. */
-[data-zone-kind="character-card"][data-character-open="true"]::after {
-  content: none !important;
-  display: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

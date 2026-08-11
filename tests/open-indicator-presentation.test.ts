@@ -28,12 +28,9 @@ test("OPEN is a real Character status overlay above single and stacked Evos", ()
   );
 
   assert.doesNotMatch(selectionCss, /content:\s*"OPEN"/);
+  assert.doesNotMatch(globalPresentationCss, /\[data-character-open(?:=|\])/);
   assert.doesNotMatch(
     globalPresentationCss,
     /\[data-zone-kind="character-card"\]\s*>\s*\[data-evo-stack="true"\]\s*\{[\s\S]*z-index:\s*120/,
-  );
-  assert.match(
-    globalPresentationCss,
-    /\[data-zone-kind="character-card"\]\[data-character-open="true"\]::after\s*\{[\s\S]*content:\s*none\s*!important;/,
   );
 });
