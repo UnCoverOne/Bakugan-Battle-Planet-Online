@@ -1,5 +1,6 @@
 name: One-shot Offline Public Deck Architecture
 
+# Temporary migration workflow; removed automatically after a successful validated run.
 on:
   push:
     branches:
