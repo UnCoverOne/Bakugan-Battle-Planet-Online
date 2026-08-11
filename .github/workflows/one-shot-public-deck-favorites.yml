@@ -1,0 +1,42 @@
+name: One-shot Public Deck Favorites
+
+on:
+  push:
+    branches:
+      - implement/public-deck-favorites
+    paths:
+      - ".github/workflows/one-shot-public-deck-favorites.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: implement/public-deck-favorites
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Apply Favorite feature
+        run: python scripts/apply-public-deck-favorites.py
+      - name: Build
+        run: npm run build
+      - name: Favorite regression tests
+        run: node --import tsx --test tests/public-deck-favorites.test.ts tests/administration.test.ts tests/guest-first-auth.test.ts
+      - name: Lint
+        run: npm run lint
+      - name: Commit implementation
+        run: |
+          rm scripts/apply-public-deck-favorites.py
+          rm .github/workflows/one-shot-public-deck-favorites.yml
+          git config user.name "UnCoverOne"
+          git config user.email "uncover250@gmail.com"
+          git add -A
+          git commit -m "Add Public Deck favorites" -m "Add account-backed Favorite relationships and counts, optimistic favorite controls on Public Deck cards and details, My Favorites filtering, Most Favorited sorting, sign-in intent resumption, and deletion cleanup while keeping offline fallback decks outside the social catalogue."
+          git push origin HEAD:implement/public-deck-favorites
