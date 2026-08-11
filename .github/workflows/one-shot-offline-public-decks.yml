@@ -23,6 +23,8 @@ jobs:
           node-version: 22.13.0
           cache: npm
       - run: npm ci
+      - name: Prepare architecture migration
+        run: python scripts/fix-offline-public-deck-migration.py
       - name: Apply architecture migration
         run: python scripts/apply-offline-public-deck-architecture.py
       - name: Build
@@ -34,6 +36,7 @@ jobs:
       - name: Commit migrated implementation
         run: |
           rm scripts/apply-offline-public-deck-architecture.py
+          rm scripts/fix-offline-public-deck-migration.py
           rm .github/workflows/one-shot-offline-public-decks.yml
           git config user.name "UnCoverOne"
           git config user.email "uncover250@gmail.com"
