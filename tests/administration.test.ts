@@ -162,7 +162,8 @@ test("administrators can edit and delete any public deck from its View screen", 
   assert.match(server, /NOT EXISTS \(SELECT 1 FROM user_data_entities/);
   assert.match(server, /UPDATE user_data_entities SET revision = revision \+ 1/);
   assert.doesNotMatch(decks, /return \[\.\.\.remote, \.\.\.fallback\]/);
-  assert.match(decks, /status: "online", decks: result\.decks/);
+  assert.match(decks, /status: "online"/);
+  assert.match(decks, /decks: result\.decks/);
   assert.match(decks, /status: "offline"/);
   assert.match(decks, /BUNDLED_OFFLINE_PUBLIC_DECKS/);
   assert.doesNotMatch(decks, /\}, \[fallback\]\);/);

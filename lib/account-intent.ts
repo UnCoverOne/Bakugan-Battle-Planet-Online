@@ -3,6 +3,7 @@ export type AccountIntentReason =
   | "achievements"
   | "profile"
   | "publish-deck"
+  | "favorite-deck"
   | "protect-progress"
   | "deck-saved"
   | "match-complete";
@@ -83,6 +84,12 @@ export function accountIntentCopy(reason: AccountIntentReason | undefined) {
         eyebrow: "Publish your strategy",
         title: "Create an account to publish",
         copy: "Your deck is safe on this device. Create an account and it will be published under your Brawler name.",
+      };
+    case "favorite-deck":
+      return {
+        eyebrow: "Save a public strategy",
+        title: "Create an account to favorite decks",
+        copy: "Favorites follow your Brawler account across devices and contribute once to each deck's community total.",
       };
     case "match-complete":
       return {

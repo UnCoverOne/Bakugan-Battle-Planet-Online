@@ -24,6 +24,7 @@ import {
   PUBLISHED_RULINGS,
   REFERENCE_REVIEWED_AT,
 } from "../../lib/reference";
+import { rememberAccountIntent } from "../../lib/account-intent";
 import { DECK_LIMIT, decodeDeckCode, deckTextList, encodeDeckCode, uniqueDeckName } from "../../lib/deck-transfer";
 import { deckSetName } from "../../lib/deck-set";
 import {
@@ -137,23 +138,51 @@ const blankDraft = (decks: DeckRecord[]): DeckRecord => ({
   revision: 1,
 });
 
+type PublicDeckFavoriteMetadata = {
+  favoriteCount: number;
+  viewerHasFavorited: boolean;
+};
+
 type PublicDeckCatalogueState = {
   status: "loading" | "online" | "offline" | "error";
   decks: DeckRecord[];
+  favorites: Record<string, PublicDeckFavoriteMetadata>;
   error?: string;
 };
 
-function usePublicDeckCatalogue(online: boolean): PublicDeckCatalogueState {
-  const [state, setState] = useState<PublicDeckCatalogueState>({ status: "loading", decks: [] });
+const publicFavoriteMetadata = (
+  decks: DeckRecord[],
+  value: unknown,
+): Record<string, PublicDeckFavoriteMetadata> => {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, { favoriteCount?: unknown; viewerHasFavorited?: unknown }>
+    : {};
+  return Object.fromEntries(decks.map((deck) => {
+    const metadata = source[deck.id];
+    return [deck.id, {
+      favoriteCount: Math.max(0, Number(metadata?.favoriteCount) || 0),
+      viewerHasFavorited: Boolean(metadata?.viewerHasFavorited),
+    }];
+  }));
+};
+
+function usePublicDeckCatalogue(online: boolean, viewerUserId?: string) {
+  const [state, setState] = useState<PublicDeckCatalogueState>({ status: "loading", decks: [], favorites: {} });
+  const [refreshRevision, setRefreshRevision] = useState(0);
+  useEffect(() => {
+    const refresh = () => setRefreshRevision((value) => value + 1);
+    addEventListener("bbp-public-deck-favorites-updated", refresh);
+    return () => removeEventListener("bbp-public-deck-favorites-updated", refresh);
+  }, []);
   useEffect(() => {
     let active = true;
     if (!online) {
       const cached = readOfflinePublicDeckCache(localStorage);
       const decks = (cached ?? BUNDLED_OFFLINE_PUBLIC_DECKS).map(clone);
-      setState({ status: "offline", decks });
+      setState({ status: "offline", decks, favorites: {} });
       return () => { active = false; };
     }
-    setState({ status: "loading", decks: [] });
+    setState({ status: "loading", decks: [], favorites: {} });
     fetch("/api/public-decks", { cache: "no-store" })
       .then(async (response) => {
         const result = await response.json();
@@ -165,18 +194,29 @@ function usePublicDeckCatalogue(online: boolean): PublicDeckCatalogueState {
             Number(result.offlineFallbackRevision ?? Date.now()),
           );
         }
-        if (active) setState({ status: "online", decks: result.decks });
+        if (active) setState({
+          status: "online",
+          decks: result.decks,
+          favorites: publicFavoriteMetadata(result.decks, result.favorites),
+        });
       })
       .catch((error) => {
         if (active) setState({
           status: "error",
           decks: [],
+          favorites: {},
           error: error instanceof Error ? error.message : "Public decks are unavailable.",
         });
       });
     return () => { active = false; };
-  }, [online]);
-  return state;
+  }, [online, refreshRevision, viewerUserId]);
+  const updateFavorite = (deckId: string, metadata: PublicDeckFavoriteMetadata) => {
+    setState((current) => ({
+      ...current,
+      favorites: { ...current.favorites, [deckId]: metadata },
+    }));
+  };
+  return { ...state, updateFavorite };
 }
 
 function useOnlineStatus() {
@@ -280,6 +320,10 @@ function DeckToolbar({
   view,
   setView,
   count,
+  sortOptions = ["Updated", "Name", "Set"],
+  favoritesOnly,
+  setFavoritesOnly,
+  favoritesEnabled = true,
 }: {
   query: string;
   setQuery: (value: string) => void;
@@ -292,6 +336,10 @@ function DeckToolbar({
   view: LibraryView;
   setView: (value: LibraryView) => void;
   count: number;
+  sortOptions?: string[];
+  favoritesOnly?: boolean;
+  setFavoritesOnly?: (value: boolean) => void;
+  favoritesEnabled?: boolean;
 }) {
   return (
     <Surface className={styles.toolbar} elevation="overlay">
@@ -315,9 +363,21 @@ function DeckToolbar({
       </Field>
       <Field label="Sort">
         <select value={sort} onChange={(event) => setSort(event.target.value)}>
-          <option>Updated</option><option>Name</option><option>Set</option>
+          {sortOptions.map((option) => <option key={option}>{option}</option>)}
         </select>
       </Field>
+      {setFavoritesOnly && (
+        <Field label="Favorites">
+          <select
+            value={favoritesOnly ? "Mine" : "All"}
+            disabled={!favoritesEnabled}
+            onChange={(event) => setFavoritesOnly(event.target.value === "Mine")}
+          >
+            <option value="All">All decks</option>
+            <option value="Mine">My Favorites</option>
+          </select>
+        </Field>
+      )}
       <div className={styles.viewControls}>
         <span>{count} shown</span>
         <Tabs label="Deck layout">
@@ -648,7 +708,7 @@ function DeckTile({
 }
 
 export function PublicDeckLibraryScreen() {
-  const { ready, decks, setDecks, notify } = useApp();
+  const { ready, decks, setDecks, notify, authUser, promptAccount } = useApp();
   const router = useRouter();
   const online = useOnlineStatus();
   const [query, setQuery] = useState("");
@@ -656,8 +716,13 @@ export function PublicDeckLibraryScreen() {
   const [legality, setLegality] = useState("All");
   const [sort, setSort] = useState("Updated");
   const [view, setView] = useState<LibraryView>("grid");
-  const catalogue = usePublicDeckCatalogue(online);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [pendingFavoriteIds, setPendingFavoriteIds] = useState<Set<string>>(() => new Set());
+  const catalogue = usePublicDeckCatalogue(online, authUser?.id);
   const allPublic = catalogue.decks;
+  useEffect(() => {
+    if (!authUser || catalogue.status !== "online") setFavoritesOnly(false);
+  }, [authUser, catalogue.status]);
   if (!ready || catalogue.status === "loading") return <DeckLibrarySkeleton />;
   if (catalogue.status === "error") {
     return (
@@ -675,12 +740,61 @@ export function PublicDeckLibraryScreen() {
     const report = reports.get(deck.id)!;
     const matchesQuery = !query || `${deck.name} ${deck.creator} ${deck.description} ${deck.factions.join(" ")} ${deckSetName(deck)}`.toLowerCase().includes(query.toLowerCase());
     const matchesFaction = faction === "All" || deck.factions.includes(faction);
-    return matchesQuery && matchesFaction && (legality === "All" || (legality === "Legal" ? report.isLegal : !report.isLegal));
+    const matchesFavorite = !favoritesOnly || Boolean(catalogue.favorites[deck.id]?.viewerHasFavorited);
+    return matchesQuery && matchesFaction && matchesFavorite && (legality === "All" || (legality === "Legal" ? report.isLegal : !report.isLegal));
   }).sort((a, b) => {
     if (sort === "Name") return a.name.localeCompare(b.name);
     if (sort === "Set") return deckSetName(a).localeCompare(deckSetName(b));
+    if (sort === "Most Favorited") {
+      const favoriteDifference = (catalogue.favorites[b.id]?.favoriteCount ?? 0) - (catalogue.favorites[a.id]?.favoriteCount ?? 0);
+      if (favoriteDifference) return favoriteDifference;
+      const publishedDifference = Date.parse(b.publishedAt ?? b.updatedAt) - Date.parse(a.publishedAt ?? a.updatedAt);
+      return publishedDifference || a.name.localeCompare(b.name);
+    }
     return Date.parse(b.publishedAt ?? b.updatedAt) - Date.parse(a.publishedAt ?? a.updatedAt);
   });
+  const toggleFavorite = async (deck: DeckRecord) => {
+    if (catalogue.status !== "online") {
+      notify("Community Favorites are available while online.");
+      return;
+    }
+    if (!authUser) {
+      rememberAccountIntent("favorite-deck", { deckId: deck.id, returnTo: window.location.pathname });
+      promptAccount("favorite-deck");
+      return;
+    }
+    if (pendingFavoriteIds.has(deck.id)) return;
+    const current = catalogue.favorites[deck.id] ?? { favoriteCount: 0, viewerHasFavorited: false };
+    const nextFavorited = !current.viewerHasFavorited;
+    const optimistic = {
+      favoriteCount: Math.max(0, current.favoriteCount + (nextFavorited ? 1 : -1)),
+      viewerHasFavorited: nextFavorited,
+    };
+    catalogue.updateFavorite(deck.id, optimistic);
+    setPendingFavoriteIds((ids) => new Set(ids).add(deck.id));
+    try {
+      const response = await fetch("/api/public-decks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: nextFavorited ? "favorite" : "unfavorite", deckId: deck.id }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.favorite) throw new Error(result.error ?? "Favorite could not be changed.");
+      catalogue.updateFavorite(deck.id, {
+        favoriteCount: Number(result.favorite.favoriteCount) || 0,
+        viewerHasFavorited: Boolean(result.favorite.viewerHasFavorited),
+      });
+    } catch (error) {
+      catalogue.updateFavorite(deck.id, current);
+      notify(error instanceof Error ? error.message : "Favorite could not be changed.");
+    } finally {
+      setPendingFavoriteIds((ids) => {
+        const next = new Set(ids);
+        next.delete(deck.id);
+        return next;
+      });
+    }
+  };
   const copyDeck = (deck: DeckRecord) => {
     if (decks.length >= DECK_LIMIT) return notify(`Deck limit reached (${DECK_LIMIT}).`);
     const validation = validateDeck(deck);
@@ -729,6 +843,10 @@ export function PublicDeckLibraryScreen() {
         view={view}
         setView={setView}
         count={visible.length}
+        sortOptions={["Updated", "Name", "Set", "Most Favorited"]}
+        favoritesOnly={favoritesOnly}
+        setFavoritesOnly={setFavoritesOnly}
+        favoritesEnabled={catalogue.status === "online" && Boolean(authUser)}
       />
       {visible.length ? (
         <CardGrid className={`${styles.deckGrid} ${styles[`deckGrid_${view}`]}`} minCardWidth="20rem">
@@ -738,6 +856,10 @@ export function PublicDeckLibraryScreen() {
               deck={deck}
               report={reports.get(deck.id)!}
               view={view}
+              favorite={catalogue.favorites[deck.id] ?? { favoriteCount: 0, viewerHasFavorited: false }}
+              favoriteAvailable={catalogue.status === "online"}
+              favoritePending={pendingFavoriteIds.has(deck.id)}
+              onFavorite={() => void toggleFavorite(deck)}
               onOpen={() => router.push(`/decks/public/${encodeURIComponent(deck.id)}`)}
               onCopy={() => copyDeck(deck)}
             />
@@ -754,12 +876,20 @@ function PublicDeckTile({
   deck,
   report,
   view,
+  favorite,
+  favoriteAvailable,
+  favoritePending,
+  onFavorite,
   onOpen,
   onCopy,
 }: {
   deck: DeckRecord;
   report: DeckValidationResult;
   view: LibraryView;
+  favorite: PublicDeckFavoriteMetadata;
+  favoriteAvailable: boolean;
+  favoritePending: boolean;
+  onFavorite: () => void;
   onOpen: () => void;
   onCopy: () => void;
 }) {
@@ -781,6 +911,15 @@ function PublicDeckTile({
       <div className={styles.deckCardActions}>
         <button onClick={onOpen}>View Deck</button>
         <button onClick={onCopy} disabled={!report.isLegal}>Copy to My Decks</button>
+        {favoriteAvailable && (
+          <button
+            aria-pressed={favorite.viewerHasFavorited}
+            disabled={favoritePending}
+            onClick={onFavorite}
+          >
+            {favorite.viewerHasFavorited ? "★ Favorited" : "☆ Favorite"} · {favorite.favoriteCount} {favorite.favoriteCount === 1 ? "Favorite" : "Favorites"}
+          </button>
+        )}
       </div>
     </Surface>
   );
@@ -789,8 +928,9 @@ function PublicDeckTile({
 export function PublicDeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
   const online = useOnlineStatus();
-  const { decks, setDecks, setBuilderDeck, notify, authUser } = useApp();
-  const catalogue = usePublicDeckCatalogue(online);
+  const { decks, setDecks, setBuilderDeck, notify, authUser, promptAccount } = useApp();
+  const [favoritePending, setFavoritePending] = useState(false);
+  const catalogue = usePublicDeckCatalogue(online, authUser?.id);
   if (catalogue.status === "loading") {
     return <div className={styles.route}><DeckState tone="loading" role="status" title="Loading public deck" copy="Retrieving the current public catalogue…" /></div>;
   }
@@ -799,6 +939,41 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
   }
   const deck = catalogue.decks.find((item) => item.id === id);
   if (!deck) return <MissingDeck id={id} publicDeck />;
+  const favorite = catalogue.favorites[deck.id] ?? { favoriteCount: 0, viewerHasFavorited: false };
+  const toggleFavorite = async () => {
+    if (catalogue.status !== "online") return notify("Community Favorites are available while online.");
+    if (!authUser) {
+      rememberAccountIntent("favorite-deck", { deckId: deck.id, returnTo: window.location.pathname });
+      promptAccount("favorite-deck");
+      return;
+    }
+    if (favoritePending) return;
+    const nextFavorited = !favorite.viewerHasFavorited;
+    const optimistic = {
+      favoriteCount: Math.max(0, favorite.favoriteCount + (nextFavorited ? 1 : -1)),
+      viewerHasFavorited: nextFavorited,
+    };
+    catalogue.updateFavorite(deck.id, optimistic);
+    setFavoritePending(true);
+    try {
+      const response = await fetch("/api/public-decks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: nextFavorited ? "favorite" : "unfavorite", deckId: deck.id }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.favorite) throw new Error(result.error ?? "Favorite could not be changed.");
+      catalogue.updateFavorite(deck.id, {
+        favoriteCount: Number(result.favorite.favoriteCount) || 0,
+        viewerHasFavorited: Boolean(result.favorite.viewerHasFavorited),
+      });
+    } catch (error) {
+      catalogue.updateFavorite(deck.id, favorite);
+      notify(error instanceof Error ? error.message : "Favorite could not be changed.");
+    } finally {
+      setFavoritePending(false);
+    }
+  };
   const copy = () => {
     if (decks.length >= DECK_LIMIT) return notify(`Deck limit reached (${DECK_LIMIT}).`);
     const report = validateDeck(deck);
@@ -846,6 +1021,15 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
       publicView
       actions={(
         <>
+          {catalogue.status === "online" && (
+            <ActionButton
+              aria-pressed={favorite.viewerHasFavorited}
+              disabled={favoritePending}
+              onClick={() => void toggleFavorite()}
+            >
+              {favorite.viewerHasFavorited ? "★ Favorited" : "☆ Favorite"} · {favorite.favoriteCount} {favorite.favoriteCount === 1 ? "Favorite" : "Favorites"}
+            </ActionButton>
+          )}
           <ActionButton onClick={copy} disabled={!validateDeck(deck).isLegal}>Copy to My Decks</ActionButton>
           {catalogue.status === "online" && authUser?.roles?.includes("administrator") && (
             <>
