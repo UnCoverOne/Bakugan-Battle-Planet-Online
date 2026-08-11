@@ -112,15 +112,26 @@ test("Energy zones show total cards and stage a white-light Energize arrival", (
   assert.match(css, /prefers-reduced-motion[\s\S]*energyZone\[data-energizing/);
 });
 
-test("portrait target prompts clear Character Cards and Core placement scales the full matrix into view", () => {
+test("board target choices use the existing Tips and Action HUDs with accessible Character Cards", () => {
+  const choices = read("components/game-screen-v2/ChoiceQueueLayer.tsx");
   const targetCss = read("components/game-screen-v2/ChoiceQueueLayer.module.css");
+  const bridge = read("components/game-screen-v2/boardChoiceHud.ts");
+  const tips = read("components/game-screen-v2/SelectionInteractionLayer.tsx");
+  const actions = read("components/game-screen-v2/MatchHudLayer.tsx");
   const placement = read("components/game-screen-v2/CorePlacementLayer.tsx");
   const placementCss = read("components/game-screen-v2/CorePlacementLayer.module.css");
 
-  assert.match(targetCss, /@media\(max-width:720px\) and \(orientation:portrait\)/);
-  assert.match(targetCss, /top:calc\(50dvh - \.5rem\)/);
-  assert.match(targetCss, /transform:translate\(-50%,-100%\)/);
-  assert.match(targetCss, /max-height:calc\(50dvh - 1rem\)/);
+  assert.match(choices, /publishBoardChoiceHud/);
+  assert.match(choices, /return \(\) => clearBoardChoiceHud\(boardHudId\)/);
+  assert.match(choices, /element\.tabIndex = 0/);
+  assert.match(choices, /element\.setAttribute\("aria-pressed"/);
+  assert.doesNotMatch(choices, /styles\.targetPrompt/);
+  assert.doesNotMatch(targetCss, /\.targetPrompt/);
+  assert.match(bridge, /Confirm the target or cancel the card/);
+  assert.match(tips, /activeBoardChoice\?\.prompt[\s\S]*playerActionTooltip/);
+  assert.match(actions, /label="Cancel Card"/);
+  assert.match(actions, /label=\{activeBoardChoice\?\.busy \? "Locking…" : "Confirm Target"\}/);
+  assert.match(actions, /disabled=\{!activeBoardChoice\?\.canConfirm\}/);
 
   assert.match(placement, /MATRIX_BASE_WIDTH_REM = 38/);
   assert.match(placement, /MATRIX_BASE_HEIGHT_REM = 42\.6/);

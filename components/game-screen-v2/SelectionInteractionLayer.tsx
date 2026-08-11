@@ -10,6 +10,7 @@ import {
   selectableCharacterBakugan,
   selectionPlayer,
 } from "./selectionState";
+import { useBoardChoiceHud } from "./boardChoiceHud";
 import styles from "./SelectionInteractionLayer.module.css";
 
 const CHARACTER_ZONE_SELECTOR = '[data-zone-kind="character-card"]';
@@ -81,6 +82,7 @@ export function SelectionInteractionLayer({
   const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
   const [domSelectedHandCardId, setDomSelectedHandCardId] = useState("");
   const [selectedEvoTargetId, setSelectedEvoTargetId] = useState("");
+  const boardChoice = useBoardChoiceHud();
   const effectiveSelectedHandCardId = selectedHandCardId || domSelectedHandCardId;
   const localPlayer = selectionPlayer(match, playerId);
   const selectedHandCard = localPlayer?.hand.find((card) => card.id === effectiveSelectedHandCardId);
@@ -94,14 +96,20 @@ export function SelectionInteractionLayer({
       : [],
   );
   const evoSelectionActive = evoTargetIds.size > 0;
-  const prompt = playerActionTooltip({
-    match,
-    playerId,
-    selectedCharacterId,
-    selectedHandCardId: effectiveSelectedHandCardId,
-    selectedEvoTargetId,
-    now,
-  });
+  const activeBoardChoice = boardChoice
+    && boardChoice.matchId === match?.id
+    && boardChoice.playerId === localPlayer?.id
+    ? boardChoice
+    : null;
+  const prompt = activeBoardChoice?.prompt
+    ?? playerActionTooltip({
+      match,
+      playerId,
+      selectedCharacterId,
+      selectedHandCardId: effectiveSelectedHandCardId,
+      selectedEvoTargetId,
+      now,
+    });
 
   useEffect(() => {
     const update = () => setDomSelectedHandCardId(selectedHandCardFromDocument());
@@ -320,4 +328,3 @@ export function SelectionInteractionLayer({
     </>
   );
 }
-

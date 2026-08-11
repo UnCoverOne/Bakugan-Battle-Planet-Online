@@ -7,6 +7,7 @@ import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore, useMatchSelector } from "./matchStore";
 import styles from "./ChoiceQueueLayer.module.css";
 import { isTopDeckField, renderableDeckInspectionField } from "./deckInspectionPresentation";
+import { boardChoicePrompt, clearBoardChoiceHud, publishBoardChoiceHud } from "./boardChoiceHud";
 
 const BOARD_TARGET_KINDS = new Set<ChoiceKind>(["batch-object", "hero", "evo", "energy", "bakugan", "core", "card"]);
 
@@ -118,6 +119,89 @@ export function ChoiceQueueLayer() {
     });
   }, []);
 
+  const submitChoices = useCallback(async () => {
+    if (!pending || busy) return;
+    setBusy(true); setError("");
+    try {
+      await command("choice", { choices: answers }, (current, actorId) => submitCardChoice(current, actorId, answers));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "The choice could not be completed."); }
+    finally { setBusy(false); }
+  }, [answers, busy, pending]);
+
+  const cancel = useCallback(async () => {
+    if (!pending || busy) return;
+    setBusy(true); setError("");
+    try { await command("cancel-choice", {}, (current, actorId) => cancelCardChoice(current, actorId)); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "The choice could not be cancelled."); }
+    finally { setBusy(false); }
+  }, [busy, pending]);
+
+  const clearError = useCallback(() => setError(""), []);
+  const selectedBoardIds = activeBoardField ? valuesFor(answers, activeBoardField) : [];
+  const selectedBoardSignature = selectedBoardIds.join("|");
+  const selectedBoardNames = activeBoardField?.options
+    .filter((option) => selectedBoardIds.includes(option.id))
+    .map((option) => option.label) ?? [];
+  const allFieldsComplete = fields.every((field) => fieldComplete(answers, field));
+  const canCancelBoardChoice = Boolean(
+    pending?.kind === "card-play"
+    && pending.controllerId === playerId
+    && !Object.keys(pending.answers).length,
+  );
+  const boardHudActive = Boolean(
+    state.route === "match"
+    && match
+    && playerId
+    && activeBoardField
+    && (!boardFieldsComplete || !modalFields.length),
+  );
+  const boardHudId = boardHudActive
+    ? `${match?.id}:${pending?.id}:${activeBoardField?.id}`
+    : "";
+  const boardHudPrompt = activeBoardField && pending
+    ? boardChoicePrompt({
+      sourceName: pending.schema.sourceName,
+      fieldLabel: activeBoardField.label,
+      targetKind: activeBoardField.kind,
+      selectedNames: selectedBoardNames,
+      minimum: activeBoardField.minimum,
+      maximum: activeBoardField.maximum,
+      complete: allFieldsComplete,
+      canCancel: canCancelBoardChoice,
+    })
+    : "";
+
+  useEffect(() => {
+    if (!boardHudActive || !match || !playerId || !boardHudId) return;
+    publishBoardChoiceHud({
+      id: boardHudId,
+      matchId: match.id,
+      playerId,
+      prompt: boardHudPrompt,
+      canCancel: canCancelBoardChoice,
+      canConfirm: allFieldsComplete,
+      busy,
+      error,
+      confirm: () => void submitChoices(),
+      cancel: () => void cancel(),
+      clearError,
+    });
+    return () => clearBoardChoiceHud(boardHudId);
+  }, [
+    allFieldsComplete,
+    boardHudActive,
+    boardHudId,
+    boardHudPrompt,
+    busy,
+    canCancelBoardChoice,
+    cancel,
+    clearError,
+    error,
+    match,
+    playerId,
+    submitChoices,
+  ]);
+
   useEffect(() => {
     if (!activeBoardField || busy || state.route !== "match") return;
     const selector = boardSelector(activeBoardField);
@@ -128,11 +212,24 @@ export function ChoiceQueueLayer() {
     root.dataset.choiceTargeting = "true";
     root.dataset.choiceTargetKind = activeBoardField.kind;
 
+    const priorAttributes = new Map<HTMLElement, Record<string, string | null>>();
     for (const element of elements) {
+      priorAttributes.set(element, Object.fromEntries(
+        ["role", "tabindex", "aria-pressed", "aria-label"].map((name) => [name, element.getAttribute(name)]),
+      ));
       const id = boardOptionId(activeBoardField, element);
+      const legal = Boolean(id && legalIds.has(id));
       element.dataset.choiceTargetCandidate = "true";
-      element.dataset.choiceTargetValid = id && legalIds.has(id) ? "true" : "false";
-      if (id && legalIds.has(id)) element.dataset.choiceTargetId = id;
+      element.dataset.choiceTargetValid = legal ? "true" : "false";
+      if (id && legal) {
+        const option = activeBoardField.options.find((candidate) => candidate.id === id);
+        const selected = selectedBoardIds.includes(id);
+        element.dataset.choiceTargetId = id;
+        element.tabIndex = 0;
+        element.setAttribute("role", "button");
+        element.setAttribute("aria-pressed", selected ? "true" : "false");
+        element.setAttribute("aria-label", `${option?.label ?? "Legal target"}${selected ? ", selected" : ""}`);
+      }
     }
 
     const activate = (target: EventTarget | null) => {
@@ -165,30 +262,19 @@ export function ChoiceQueueLayer() {
         delete element.dataset.choiceTargetCandidate;
         delete element.dataset.choiceTargetValid;
         delete element.dataset.choiceTargetId;
+        const previous = priorAttributes.get(element);
+        for (const name of ["role", "tabindex", "aria-pressed", "aria-label"]) {
+          const value = previous?.[name];
+          if (value == null) element.removeAttribute(name);
+          else element.setAttribute(name, value);
+        }
       }
     };
-  }, [activeBoardField, busy, state.route, toggle, activeBoardField?.options.map((option) => option.id).join("|")]);
+  }, [activeBoardField, busy, selectedBoardSignature, state.route, toggle, activeBoardField?.options.map((option) => option.id).join("|")]);
 
   if (state.route !== "match" || !match || !playerId) return null;
   if (deckInspectionActive && !triggerOrder) return null;
   if (!fields.length && !triggerOrder) return null;
-
-  const submitChoices = async () => {
-    if (!pending || busy) return;
-    setBusy(true); setError("");
-    try {
-      await command("choice", { choices: answers }, (current, actorId) => submitCardChoice(current, actorId, answers));
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "The choice could not be completed."); }
-    finally { setBusy(false); }
-  };
-
-  const cancel = async () => {
-    if (!pending || busy) return;
-    setBusy(true); setError("");
-    try { await command("cancel-choice", {}, (current, actorId) => cancelCardChoice(current, actorId)); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "The choice could not be cancelled."); }
-    finally { setBusy(false); }
-  };
 
   const submitOrder = async () => {
     if (!triggerOrder || busy) return;
@@ -210,26 +296,7 @@ export function ChoiceQueueLayer() {
   };
 
   if (activeBoardField && (!boardFieldsComplete || !modalFields.length)) {
-    const selected = valuesFor(answers, activeBoardField);
-    const selectedNames = activeBoardField.options
-      .filter((option) => selected.includes(option.id))
-      .map((option) => option.label);
-    const complete = fields.every((field) => fieldComplete(answers, field));
-    return (
-      <section className={styles.targetPrompt} role="dialog" aria-label={`${pending?.schema.sourceName} target selection`}>
-        <div>
-          <small>SELECT TARGET BEFORE BATCH ENTRY</small>
-          <strong>{pending?.schema.sourceName}</strong>
-          <p>{activeBoardField.label}. Only highlighted legal targets can be selected.</p>
-          <span>{selectedNames.length ? `Selected: ${selectedNames.join(", ")}` : `${activeBoardField.minimum === activeBoardField.maximum ? activeBoardField.minimum : `${activeBoardField.minimum}–${activeBoardField.maximum}`} required`}</span>
-        </div>
-        <div className={styles.targetActions}>
-          {pending?.kind === "card-play" && pending.controllerId === playerId && !Object.keys(pending.answers).length ? <button type="button" className={styles.secondary} disabled={busy} onClick={() => void cancel()}>Cancel card</button> : null}
-          <button type="button" disabled={busy || !complete} onClick={() => void submitChoices()}>{busy ? "Locking…" : "Confirm target"}</button>
-        </div>
-        {error ? <p className={styles.error} role="alert">{error}</p> : null}
-      </section>
-    );
+    return null;
   }
 
   return (

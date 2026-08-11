@@ -18,6 +18,7 @@ import {
   type MatchHudActionKey,
 } from "./matchHudState";
 import { characterSelectionCanConfirm } from "./selectionState";
+import { useBoardChoiceHud } from "./boardChoiceHud";
 import { CardChoiceEditor } from "./CardChoiceEditor";
 import styles from "./MatchHudLayer.module.css";
 import shapeStyles from "./PlayerHudShape.module.css";
@@ -79,12 +80,14 @@ function ActionButton({
   label,
   active = false,
   busy,
+  disabled = false,
   onClick,
 }: {
-  action: MatchHudActionKey;
+  action: string;
   label: string;
   active?: boolean;
   busy: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -93,7 +96,7 @@ function ActionButton({
       className={styles.actionButton}
       data-action={action}
       data-active={active ? "true" : "false"}
-      disabled={busy}
+      disabled={busy || disabled}
       onClick={onClick}
     >
       {label}
@@ -153,6 +156,7 @@ export function MatchHudLayer({
   const [flipChoiceOpen, setFlipChoiceOpen] = useState(false);
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  const boardChoice = useBoardChoiceHud();
   const { player, opponent } = resolveHudPlayers(match, playerId);
 
   useEffect(() => {
@@ -192,7 +196,15 @@ export function MatchHudLayer({
     ...baseActions,
     select: baseActions.select || characterSelectionReady,
   };
-  const actionSlots = compactMatchHudSlots(actions);
+  const activeBoardChoice = boardChoice
+    && boardChoice.matchId === match.id
+    && boardChoice.playerId === player.id
+    ? boardChoice
+    : null;
+  const actionSlots = activeBoardChoice
+    ? [activeBoardChoice.canCancel ? "cancel-choice" as const : null, "confirm-choice" as const]
+    : compactMatchHudSlots(actions);
+  const displayedError = activeBoardChoice?.error || error;
 
   const run = async (handler: MatchActionHandler) => {
     if (busy) return;
@@ -390,7 +402,24 @@ export function MatchHudLayer({
               data-slot={slotIndex === 0 ? "primary" : slotIndex === 1 ? "secondary" : "pass"}
               key={slotIndex}
             >
-              {action ? (
+              {action === "cancel-choice" ? (
+                <ActionButton
+                  action={action}
+                  label="Cancel Card"
+                  active={false}
+                  busy={activeBoardChoice?.busy ?? false}
+                  onClick={() => activeBoardChoice?.cancel()}
+                />
+              ) : action === "confirm-choice" ? (
+                <ActionButton
+                  action={action}
+                  label={activeBoardChoice?.busy ? "Locking…" : "Confirm Target"}
+                  active={Boolean(activeBoardChoice?.canConfirm)}
+                  busy={activeBoardChoice?.busy ?? false}
+                  disabled={!activeBoardChoice?.canConfirm}
+                  onClick={() => activeBoardChoice?.confirm()}
+                />
+              ) : action ? (
                 <ActionButton
                   action={action}
                   label={actionConfig[action].label}
@@ -404,13 +433,17 @@ export function MatchHudLayer({
         </div>
       </section>
 
-      {error ? (
+      {displayedError ? (
         <div className={styles.errorPopup} role="alertdialog" aria-modal="true" aria-label="Action unavailable">
           <div>
             <strong>Action unavailable</strong>
-            <p>{error}</p>
+            <p>{displayedError}</p>
           </div>
-          <button type="button" onClick={() => setError("")} aria-label="Close message">×</button>
+          <button
+            type="button"
+            onClick={() => activeBoardChoice?.error ? activeBoardChoice.clearError() : setError("")}
+            aria-label="Close message"
+          >×</button>
         </div>
       ) : null}
       {flipChoiceOpen && match.revealedFlip ? (
@@ -426,4 +459,3 @@ export function MatchHudLayer({
     </>
   );
 }
-
