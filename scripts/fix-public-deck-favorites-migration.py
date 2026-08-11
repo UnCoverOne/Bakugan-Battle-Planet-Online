@@ -1,24 +1,19 @@
 from pathlib import Path
 
 path = Path("scripts/apply-public-deck-favorites.py")
-text = path.read_text(encoding="utf-8")n
-bad = '''replace_once(
-    "components/routes/DeckRoutes.tsx",
-    '''        view={view}\\n        setView={setView}\\n        count={visible.length}\\n      />''',
-    '''        view={view}
-        setView={setView}
-        count={visible.length}
-        sortOptions={["Updated", "Name", "Set", "Most Favorited"]}
-        favoritesOnly={favoritesOnly}
-        setFavoritesOnly={setFavoritesOnly}
-        favoritesEnabled={catalogue.status === "online" && Boolean(authUser)}
-      />''',
-)
-# The preceding replacement must target the Public toolbar, not My Decks. If the first match was My Decks, repair by requiring Public-specific nearby state.
-# Validate later by checking the Public section contains Most Favorited and My Favorites.
-'''
-if bad not in text:
-    raise SystemExit("ambiguous toolbar patch block not found")
-text = text.replace(bad, "", 1)
+text = path.read_text(encoding="utf-8")
+comment = "# The preceding replacement must target the Public toolbar, not My Decks."
+comment_index = text.find(comment)
+if comment_index < 0:
+    raise SystemExit("ambiguous toolbar patch comment not found")
+start = text.rfind("replace_once(\n", 0, comment_index)
+if start < 0:
+    raise SystemExit("ambiguous toolbar patch start not found")
+end_marker = "# Validate later by checking the Public section contains Most Favorited and My Favorites.\n"
+end = text.find(end_marker, comment_index)
+if end < 0:
+    raise SystemExit("ambiguous toolbar patch end not found")
+end += len(end_marker)
+text = text[:start] + text[end:]
 path.write_text(text, encoding="utf-8")
 print("Favorite migration toolbar patch repaired.")
