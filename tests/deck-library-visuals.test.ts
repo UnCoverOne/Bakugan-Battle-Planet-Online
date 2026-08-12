@@ -41,20 +41,21 @@ test("Deck Library CSS keeps cards compact and places the Featured card fourth i
   assert.doesNotMatch(css, /\.characterFanFeatured > \.featuredPreviewCard\s*\{[^}]*left:\s*49%/s);
   assert.match(css, /\.factionSymbols img/);
   assert.match(css, /\.favoriteButton\[aria-pressed="true"\]/);
-  assert.match(css, /grid-template-rows: 11\.25rem auto/);
+  assert.match(css, /grid-template-rows: 10\.75rem auto/);
   assert.doesNotMatch(css, /min-height: 2\.2em/);
 });
 
-
-test("Deck Library four-card fan keeps a continuous left-to-right stacking curve", async () => {
+test("Deck Library four-card fan owns its transforms without three-card cascade collisions", async () => {
   const css = await read("components/routes/DeckRoutes.module.css");
-  assert.match(css, /padding: \.55rem \.75rem \.35rem/);
-  assert.match(css, /\.characterFanFeatured > :nth-child\(1\) \{[\s\S]*?z-index: 1/);
-  assert.match(css, /\.characterFanFeatured > :nth-child\(2\) \{[\s\S]*?z-index: 2/);
-  assert.match(css, /\.characterFanFeatured > :nth-child\(3\) \{[\s\S]*?z-index: 3/);
-  assert.match(css, /\.characterFanFeatured > \.featuredPreviewCard \{[\s\S]*?z-index: 4/);
-  assert.match(css, /rotate\(-9deg\)/);
-  assert.match(css, /rotate\(-3deg\)/);
-  assert.match(css, /rotate\(3deg\)/);
-  assert.match(css, /rotate\(9deg\)/);
+  assert.match(css, /padding: \.3rem \.75rem \.25rem/);
+  assert.match(css, /min-height: 10\.75rem/);
+  assert.match(css, /\.characterFan:not\(\.characterFanFeatured\) img:nth-child\(1\)/);
+  assert.match(css, /\.characterFan:not\(\.characterFanFeatured\) img:nth-child\(2\)/);
+  assert.match(css, /\.characterFan:not\(\.characterFanFeatured\) img:nth-child\(3\)/);
+  assert.doesNotMatch(css, /\.characterFan img:nth-child\([123]\)/);
+  assert.match(css, /\.characterFanFeatured > :nth-child\(1\) \{[\s\S]*?z-index: 1[\s\S]*?rotate\(-9deg\)/);
+  assert.match(css, /\.characterFanFeatured > :nth-child\(2\) \{[\s\S]*?z-index: 2[\s\S]*?rotate\(-3deg\)/);
+  assert.match(css, /\.characterFanFeatured > :nth-child\(3\) \{[\s\S]*?z-index: 3[\s\S]*?rotate\(3deg\)/);
+  assert.match(css, /\.characterFanFeatured > \.featuredPreviewCard \{[\s\S]*?z-index: 4[\s\S]*?rotate\(9deg\)/);
+  assert.match(css, /width: min\(31%, 7\.6rem\)/);
 });
