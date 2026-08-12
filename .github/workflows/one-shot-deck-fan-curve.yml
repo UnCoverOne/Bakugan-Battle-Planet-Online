@@ -27,142 +27,21 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
           css_path = Path('components/routes/DeckRoutes.module.css')
           css = css_path.read_text()
-          old = '''.characterFan {
-  position: relative;
-  min-height: 11.25rem;
-  display: flex;
-  align-items: end;
-  justify-content: center;
-  overflow: hidden;
-  padding: 1.25rem .75rem .45rem;
-  background:
-    radial-gradient(circle at 50% 105%, rgba(34, 176, 229, .25), transparent 55%),
-    linear-gradient(180deg, rgba(8, 35, 46, .55), rgba(1, 10, 15, .96));
-}
-'''
-          new = '''.characterFan {
-  position: relative;
-  min-height: 11.25rem;
-  display: flex;
-  align-items: end;
-  justify-content: center;
-  overflow: hidden;
-  padding: .55rem .75rem .35rem;
-  background:
-    radial-gradient(circle at 50% 105%, rgba(34, 176, 229, .25), transparent 55%),
-    linear-gradient(180deg, rgba(8, 35, 46, .55), rgba(1, 10, 15, .96));
-}
-'''
-          if old not in css:
-              raise SystemExit('characterFan block changed unexpectedly')
-          css = css.replace(old, new, 1)
-
-          old = '''.characterFanFeatured > img,
-.characterFanFeatured > .characterPlaceholder {
-  position: absolute;
-  bottom: .45rem;
-  width: min(27%, 6.9rem);
-}
-
-.characterFanFeatured > :nth-child(1) {
-  left: 7%;
-  transform: translateY(7%) rotate(-10deg);
-}
-
-.characterFanFeatured > :nth-child(2) {
-  z-index: 2;
-  left: 29%;
-  transform: translateY(2%) rotate(-4deg);
-}
-
-.characterFanFeatured > :nth-child(3) {
-  z-index: 1;
-  left: 49%;
-  transform: translateY(7%) rotate(3deg);
-}
-
-.characterFanFeatured > .featuredPreviewCard {
-  z-index: 4;
-  right: 7%;
-  bottom: .7rem;
-  width: min(28%, 7.2rem);
-  transform: rotate(10deg);
-  filter: drop-shadow(0 .75rem .85rem rgba(0, 0, 0, .72));
-}
-'''
-          new = '''.characterFanFeatured > img,
-.characterFanFeatured > .characterPlaceholder {
-  position: absolute;
-  bottom: .15rem;
-  width: min(30%, 7.35rem);
-}
-
-.characterFanFeatured > :nth-child(1) {
-  z-index: 1;
-  left: 3%;
-  transform: translateY(7%) rotate(-9deg);
-}
-
-.characterFanFeatured > :nth-child(2) {
-  z-index: 2;
-  left: 25%;
-  transform: translateY(1%) rotate(-3deg);
-}
-
-.characterFanFeatured > :nth-child(3) {
-  z-index: 3;
-  left: 47%;
-  transform: translateY(2%) rotate(3deg);
-}
-
-.characterFanFeatured > .featuredPreviewCard {
-  z-index: 4;
-  right: 3%;
-  bottom: .15rem;
-  width: min(30%, 7.35rem);
-  transform: translateY(7%) rotate(9deg);
-  filter: drop-shadow(0 .75rem .85rem rgba(0, 0, 0, .72));
-}
-'''
-          if old not in css:
-              raise SystemExit('featured fan block changed unexpectedly')
-          css = css.replace(old, new, 1)
+          css = css.replace('padding: 1.25rem .75rem .45rem;', 'padding: .55rem .75rem .35rem;', 1)
+          css = css.replace('bottom: .45rem;\n  width: min(27%, 6.9rem);', 'bottom: .15rem;\n  width: min(30%, 7.35rem);', 1)
+          css = css.replace('left: 7%;\n  transform: translateY(7%) rotate(-10deg);', 'z-index: 1;\n  left: 3%;\n  transform: translateY(7%) rotate(-9deg);', 1)
+          css = css.replace('z-index: 2;\n  left: 29%;\n  transform: translateY(2%) rotate(-4deg);', 'z-index: 2;\n  left: 25%;\n  transform: translateY(1%) rotate(-3deg);', 1)
+          css = css.replace('z-index: 1;\n  left: 49%;\n  transform: translateY(7%) rotate(3deg);', 'z-index: 3;\n  left: 47%;\n  transform: translateY(2%) rotate(3deg);', 1)
+          css = css.replace('right: 7%;\n  bottom: .7rem;\n  width: min(28%, 7.2rem);\n  transform: rotate(10deg);', 'right: 3%;\n  bottom: .15rem;\n  width: min(30%, 7.35rem);\n  transform: translateY(7%) rotate(9deg);', 1)
           css_path.write_text(css)
-
           test_path = Path('tests/deck-library-visuals.test.ts')
           test = test_path.read_text()
-          old = '''test("Deck Library CSS keeps cards compact and gives the Featured card a front fan position", async () => {
-  const css = await read("components/routes/DeckRoutes.module.css");
-  assert.match(css, /\\.characterFanFeatured > \\.featuredPreviewCard/);
-  assert.match(css, /\\.factionSymbols img/);
-  assert.match(css, /\\.favoriteButton\\[aria-pressed="true"\\]/);
-  assert.match(css, /grid-template-rows: 11\\.25rem auto/);
-  assert.doesNotMatch(css, /min-height: 2\\.2em/);
-});
-'''
-          new = '''test("Deck Library CSS keeps cards compact and gives the four-card fan a continuous curve and stack", async () => {
-  const css = await read("components/routes/DeckRoutes.module.css");
-  assert.match(css, /padding: \\.55rem \\.75rem \\.35rem/);
-  assert.match(css, /\\.characterFanFeatured > :nth-child\\(1\\) \\{[\\s\\S]*?z-index: 1/);
-  assert.match(css, /\\.characterFanFeatured > :nth-child\\(2\\) \\{[\\s\\S]*?z-index: 2/);
-  assert.match(css, /\\.characterFanFeatured > :nth-child\\(3\\) \\{[\\s\\S]*?z-index: 3/);
-  assert.match(css, /\\.characterFanFeatured > \\.featuredPreviewCard \\{[\\s\\S]*?z-index: 4/);
-  assert.match(css, /rotate\\(-9deg\\)/);
-  assert.match(css, /rotate\\(-3deg\\)/);
-  assert.match(css, /rotate\\(3deg\\)/);
-  assert.match(css, /rotate\\(9deg\\)/);
-  assert.match(css, /\\.factionSymbols img/);
-  assert.match(css, /\\.favoriteButton\\[aria-pressed="true"\\]/);
-  assert.match(css, /grid-template-rows: 11\\.25rem auto/);
-  assert.doesNotMatch(css, /min-height: 2\\.2em/);
-});
-'''
-          if old not in test:
-              raise SystemExit('visual regression test changed unexpectedly')
-          test_path.write_text(test.replace(old, new, 1))
+          marker = 'test("Deck Library four-card fan keeps a continuous left-to-right stacking curve"'
+          if marker not in test:
+              test += '\n\ntest("Deck Library four-card fan keeps a continuous left-to-right stacking curve", async () => {\n  const css = await read("components/routes/DeckRoutes.module.css");\n  assert.match(css, /padding: \\.55rem \\.75rem \\.35rem/);\n  assert.match(css, /\\.characterFanFeatured > :nth-child\\(1\\) \\{[\\s\\S]*?z-index: 1/);\n  assert.match(css, /\\.characterFanFeatured > :nth-child\\(2\\) \\{[\\s\\S]*?z-index: 2/);\n  assert.match(css, /\\.characterFanFeatured > :nth-child\\(3\\) \\{[\\s\\S]*?z-index: 3/);\n  assert.match(css, /\\.characterFanFeatured > \\.featuredPreviewCard \\{[\\s\\S]*?z-index: 4/);\n  assert.match(css, /rotate\\(-9deg\\)/);\n  assert.match(css, /rotate\\(-3deg\\)/);\n  assert.match(css, /rotate\\(3deg\\)/);\n  assert.match(css, /rotate\\(9deg\\)/);\n});\n'
+          test_path.write_text(test)
           PY
       - name: Focused regression test
         run: node --import tsx --test tests/deck-library-visuals.test.ts
