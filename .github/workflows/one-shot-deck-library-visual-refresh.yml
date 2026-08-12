@@ -28,7 +28,7 @@ jobs:
       - name: Build
         run: npm run build
       - name: Deck Library regression tests
-        run: node --import tsx --test tests/deck-library-visuals.test.ts tests/public-deck-favorites.test.ts tests/deck-experience.test.ts tests/administration.test.ts
+        run: node --import tsx --test tests/deck-library-visuals.test.ts tests/public-deck-favorites.test.ts tests/administration.test.ts tests/route-architecture.test.ts tests/website-overhaul.test.ts
       - name: Lint
         run: npm run lint
       - name: Bundle budget diagnostic
