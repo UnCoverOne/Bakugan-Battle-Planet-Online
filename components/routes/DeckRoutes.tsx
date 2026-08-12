@@ -13,6 +13,7 @@ import {
   CORES,
   RULE_ENTRIES,
   STARTER_DECKS,
+  deckLeadCard,
   validateDeck,
   type DeckRecord,
 } from "../../lib/data";
@@ -596,12 +597,27 @@ export function DeckLibraryScreen() {
   );
 }
 
-function CharacterFan({ deck, compact = false }: { deck: DeckRecord; compact?: boolean }) {
+function CharacterFan({
+  deck,
+  compact = false,
+  featured = false,
+}: {
+  deck: DeckRecord;
+  compact?: boolean;
+  featured?: boolean;
+}) {
   const characters = deck.bakuganIds
     .map((id) => BAKUGAN.find((candidate) => candidate.id === id))
     .filter(Boolean);
+  const featuredCard = featured ? deckLeadCard(deck) : undefined;
+  const featuredPreviewCard = featuredCard && !characters.some(
+    (character) => character?.character.catalogId === featuredCard.catalogId,
+  ) ? featuredCard : undefined;
   return (
-    <div className={`${styles.characterFan} ${compact ? styles.characterFanCompact : ""}`}>
+    <div
+      className={`${styles.characterFan} ${featuredPreviewCard ? styles.characterFanFeatured : ""} ${compact ? styles.characterFanCompact : ""}`}
+      data-featured-preview={featuredPreviewCard ? "true" : undefined}
+    >
       {Array.from({ length: 3 }, (_, index) => {
         const character = characters[index];
         return character ? (
@@ -616,7 +632,34 @@ function CharacterFan({ deck, compact = false }: { deck: DeckRecord; compact?: b
           <div className={styles.characterPlaceholder} key={`empty-${index}`} aria-label="Empty Character slot">?</div>
         );
       })}
+      {featuredPreviewCard && (
+        <img
+          className={styles.featuredPreviewCard}
+          src={cardArtSource(featuredPreviewCard, "full")}
+          loading="lazy"
+          decoding="async"
+          alt={`Featured card: ${featuredPreviewCard.displayName}`}
+        />
+      )}
     </div>
+  );
+}
+
+function DeckFactionSymbols({ factions }: { factions: string[] }) {
+  const visibleFactions = factions.filter((faction) => Boolean(FACTION_SYMBOLS[faction]));
+  if (!visibleFactions.length) return <span className={styles.factionSymbols}>No factions selected</span>;
+  return (
+    <span className={styles.factionSymbols} aria-label={`Factions: ${visibleFactions.join(", ")}`}>
+      {visibleFactions.map((faction) => (
+        <img
+          key={faction}
+          src={FACTION_SYMBOLS[faction]}
+          alt=""
+          aria-hidden="true"
+          title={faction}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -671,19 +714,19 @@ function DeckTile({
       </button>
       {selected && <div className={styles.selectedBanner}><span /> Selected for Play</div>}
       <button className={styles.deckCardMain} onClick={onOpen} aria-label={`View ${deck.name}`}>
-        <CharacterFan deck={deck} compact={view === "list"} />
+        <CharacterFan deck={deck} compact={view === "list"} featured />
         <div className={styles.deckCardCopy}>
           <div className={styles.deckTitleRow}>
             <h2 data-deck-name>{deck.name}</h2>
             <StatusChip>{deck.visibility}</StatusChip>
           </div>
-          <p>{deck.factions.length ? deck.factions.join(" • ") : "No team factions selected"}</p>
           <div className={styles.chipRow}>
             <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
             <StatusChip tone={report.isLegal ? "success" : "danger"}>
               {report.isLegal ? "Legal" : `${report.issues.length} issues`}
             </StatusChip>
           </div>
+          <DeckFactionSymbols factions={deck.factions} />
           <small>{deck.cardIds.length}/{deck.format === "competitive" ? 50 : 40} cards · {deck.bakuganIds.length}/3 Character · {deck.coreIds.length}/6 BakuCores</small>
           <small>Updated {formatTimestamp(deck.updatedAt)}</small>
         </div>
@@ -894,9 +937,9 @@ function PublicDeckTile({
   onCopy: () => void;
 }) {
   return (
-    <Surface as="article" className={`${styles.deckCard} ${styles[`deckCard_${view}`]}`}>
+    <Surface as="article" className={`${styles.deckCard} ${styles.publicDeckCard} ${styles[`deckCard_${view}`]}`}>
       <button className={styles.deckCardMain} onClick={onOpen} aria-label={`View ${deck.name}`}>
-        <CharacterFan deck={deck} compact={view === "list"} />
+        <CharacterFan deck={deck} compact={view === "list"} featured />
         <div className={styles.deckCardCopy}>
           <div className={styles.deckTitleRow}><h2 data-deck-name>{deck.name}</h2></div>
           <p>by {deck.creator ?? "Community Brawler"}</p>
@@ -904,20 +947,24 @@ function PublicDeckTile({
             <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
             <StatusChip tone={report.isLegal ? "success" : "danger"}>{report.isLegal ? "Legal" : "Invalid"}</StatusChip>
           </div>
-          <small>{deck.factions.join(" • ")}</small>
+          <DeckFactionSymbols factions={deck.factions} />
           <small>Published {formatTimestamp(deck.publishedAt ?? deck.updatedAt)}</small>
         </div>
       </button>
-      <div className={styles.deckCardActions}>
+      <div className={`${styles.deckCardActions} ${styles.publicDeckActions}`}>
         <button onClick={onOpen}>View Deck</button>
-        <button onClick={onCopy} disabled={!report.isLegal}>Copy to My Decks</button>
+        <button onClick={onCopy} disabled={!report.isLegal} title="Copy to My Decks">Copy</button>
         {favoriteAvailable && (
           <button
+            className={styles.favoriteButton}
+            aria-label={`${favorite.viewerHasFavorited ? "Remove" : "Add"} ${deck.name} ${favorite.viewerHasFavorited ? "from" : "to"} Favorites. ${favorite.favoriteCount} ${favorite.favoriteCount === 1 ? "favorite" : "favorites"}.`}
             aria-pressed={favorite.viewerHasFavorited}
             disabled={favoritePending}
+            title={`${favorite.viewerHasFavorited ? "Favorited" : "Favorite"} · ${favorite.favoriteCount}`}
             onClick={onFavorite}
           >
-            {favorite.viewerHasFavorited ? "★ Favorited" : "☆ Favorite"} · {favorite.favoriteCount} {favorite.favoriteCount === 1 ? "Favorite" : "Favorites"}
+            <span aria-hidden="true">{favorite.viewerHasFavorited ? "★" : "☆"}</span>
+            <span>{favorite.favoriteCount}</span>
           </button>
         )}
       </div>
