@@ -1,0 +1,63 @@
+name: One-shot Featured Card Fan Order Fix
+
+on:
+  push:
+    branches:
+      - fix/featured-card-fourth-in-fan
+    paths:
+      - ".github/workflows/one-shot-featured-card-fourth.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/featured-card-fourth-in-fan
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Move Featured card to fourth fan slot
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          css_path = Path('components/routes/DeckRoutes.module.css')
+          css = css_path.read_text()
+          old_third = '''.characterFanFeatured > :nth-child(3) {\n  z-index: 1;\n  right: 7%;\n  transform: translateY(7%) rotate(10deg);\n}\n'''
+          new_third = '''.characterFanFeatured > :nth-child(3) {\n  z-index: 1;\n  left: 49%;\n  transform: translateY(7%) rotate(3deg);\n}\n'''
+          old_featured = '''.characterFanFeatured > .featuredPreviewCard {\n  z-index: 4;\n  left: 49%;\n  bottom: .7rem;\n  width: min(28%, 7.2rem);\n  transform: rotate(3deg);\n  filter: drop-shadow(0 .75rem .85rem rgba(0, 0, 0, .72));\n}\n'''
+          new_featured = '''.characterFanFeatured > .featuredPreviewCard {\n  z-index: 4;\n  right: 7%;\n  bottom: .7rem;\n  width: min(28%, 7.2rem);\n  transform: rotate(10deg);\n  filter: drop-shadow(0 .75rem .85rem rgba(0, 0, 0, .72));\n}\n'''
+          if old_third not in css or old_featured not in css:
+              raise SystemExit('Expected Deck Library fan rules were not found.')
+          css = css.replace(old_third, new_third, 1).replace(old_featured, new_featured, 1)
+          css_path.write_text(css)
+
+          test_path = Path('tests/deck-library-visuals.test.ts')
+          tests = test_path.read_text()
+          old_test = '''test("Deck Library CSS keeps cards compact and gives the Featured card a front fan position", async () => {\n  const css = await read("components/routes/DeckRoutes.module.css");\n  assert.match(css, /\\.characterFanFeatured > \\.featuredPreviewCard/);\n  assert.match(css, /\\.factionSymbols img/);\n  assert.match(css, /\\.favoriteButton\\[aria-pressed="true"\\]/);\n  assert.match(css, /grid-template-rows: 11\\.25rem auto/);\n  assert.doesNotMatch(css, /min-height: 2\\.2em/);\n});\n'''
+          new_test = '''test("Deck Library CSS keeps cards compact and places the Featured card fourth in the fan", async () => {\n  const css = await read("components/routes/DeckRoutes.module.css");\n  assert.match(css, /\\.characterFanFeatured > :nth-child\\(3\\)\\s*\\{[^}]*left:\\s*49%/s);\n  assert.match(css, /\\.characterFanFeatured > \\.featuredPreviewCard\\s*\\{[^}]*right:\\s*7%/s);\n  assert.doesNotMatch(css, /\\.characterFanFeatured > \\.featuredPreviewCard\\s*\\{[^}]*left:\\s*49%/s);\n  assert.match(css, /\\.factionSymbols img/);\n  assert.match(css, /\\.favoriteButton\\[aria-pressed="true"\\]/);\n  assert.match(css, /grid-template-rows: 11\\.25rem auto/);\n  assert.doesNotMatch(css, /min-height: 2\\.2em/);\n});\n'''
+          if old_test not in tests:
+              raise SystemExit('Expected Deck Library visual regression test was not found.')
+          test_path.write_text(tests.replace(old_test, new_test, 1))
+          PY
+      - name: Focused regression test
+        run: node --import tsx --test tests/deck-library-visuals.test.ts
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Commit fix
+        run: |
+          rm .github/workflows/one-shot-featured-card-fourth.yml
+          git config user.name "UnCoverOne"
+          git config user.email "uncover250@gmail.com"
+          git add -A
+          git commit -m "Place Featured card fourth in deck fan"
+          git push origin HEAD:fix/featured-card-fourth-in-fan
