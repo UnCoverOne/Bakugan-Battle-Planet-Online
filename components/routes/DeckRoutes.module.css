@@ -254,7 +254,7 @@
   align-items: end;
   justify-content: center;
   overflow: hidden;
-  padding: 1.25rem .75rem .45rem;
+  padding: .55rem .75rem .35rem;
   background:
     radial-gradient(circle at 50% 105%, rgba(34, 176, 229, .25), transparent 55%),
     linear-gradient(180deg, rgba(8, 35, 46, .55), rgba(1, 10, 15, .96));
@@ -284,33 +284,34 @@
 .characterFanFeatured > img,
 .characterFanFeatured > .characterPlaceholder {
   position: absolute;
-  bottom: .45rem;
-  width: min(27%, 6.9rem);
+  bottom: .15rem;
+  width: min(30%, 7.35rem);
 }
 
 .characterFanFeatured > :nth-child(1) {
-  left: 7%;
-  transform: translateY(7%) rotate(-10deg);
+  z-index: 1;
+  left: 3%;
+  transform: translateY(7%) rotate(-9deg);
 }
 
 .characterFanFeatured > :nth-child(2) {
   z-index: 2;
-  left: 29%;
-  transform: translateY(2%) rotate(-4deg);
+  left: 25%;
+  transform: translateY(1%) rotate(-3deg);
 }
 
 .characterFanFeatured > :nth-child(3) {
-  z-index: 1;
-  left: 49%;
-  transform: translateY(7%) rotate(3deg);
+  z-index: 3;
+  left: 47%;
+  transform: translateY(2%) rotate(3deg);
 }
 
 .characterFanFeatured > .featuredPreviewCard {
   z-index: 4;
-  right: 7%;
-  bottom: .7rem;
-  width: min(28%, 7.2rem);
-  transform: rotate(10deg);
+  right: 3%;
+  bottom: .15rem;
+  width: min(30%, 7.35rem);
+  transform: translateY(7%) rotate(9deg);
   filter: drop-shadow(0 .75rem .85rem rgba(0, 0, 0, .72));
 }
 
