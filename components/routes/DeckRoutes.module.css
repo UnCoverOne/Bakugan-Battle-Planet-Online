@@ -301,16 +301,16 @@
 
 .characterFanFeatured > :nth-child(3) {
   z-index: 1;
-  right: 7%;
-  transform: translateY(7%) rotate(10deg);
+  left: 49%;
+  transform: translateY(7%) rotate(3deg);
 }
 
 .characterFanFeatured > .featuredPreviewCard {
   z-index: 4;
-  left: 49%;
+  right: 7%;
   bottom: .7rem;
   width: min(28%, 7.2rem);
-  transform: rotate(3deg);
+  transform: rotate(10deg);
   filter: drop-shadow(0 .75rem .85rem rgba(0, 0, 0, .72));
 }
 
