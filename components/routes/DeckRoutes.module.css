@@ -151,7 +151,7 @@
 }
 
 .deckCard {
-  min-height: 23rem;
+  min-height: 20.5rem;
   overflow: visible;
   border-color: rgba(94, 178, 211, .24);
 }
@@ -187,7 +187,11 @@
 }
 
 .deckCard_list {
-  min-height: 12rem;
+  min-height: 11rem;
+}
+
+.publicDeckCard .deckCardCopy > p {
+  margin-top: -.1rem;
 }
 
 .deckCardSelected {
@@ -230,9 +234,9 @@
 
 .deckCardMain {
   width: 100%;
-  min-height: 19rem;
+  min-height: 16.75rem;
   display: grid;
-  grid-template-rows: minmax(12rem, 1fr) auto;
+  grid-template-rows: 11.25rem auto;
   padding: 0;
   border: 0;
   background: transparent;
@@ -247,12 +251,13 @@
 }
 
 .characterFan {
-  min-height: 13rem;
+  position: relative;
+  min-height: 11.25rem;
   display: flex;
   align-items: end;
   justify-content: center;
   overflow: hidden;
-  padding: 2.1rem 1rem .75rem;
+  padding: 1.25rem .75rem .45rem;
   background:
     radial-gradient(circle at 50% 105%, rgba(34, 176, 229, .25), transparent 55%),
     linear-gradient(180deg, rgba(8, 35, 46, .55), rgba(1, 10, 15, .96));
@@ -279,6 +284,39 @@
   transform: translate(-15%, 8%) rotate(7deg);
 }
 
+.characterFanFeatured > img,
+.characterFanFeatured > .characterPlaceholder {
+  position: absolute;
+  bottom: .45rem;
+  width: min(27%, 6.9rem);
+}
+
+.characterFanFeatured > :nth-child(1) {
+  left: 7%;
+  transform: translateY(7%) rotate(-10deg);
+}
+
+.characterFanFeatured > :nth-child(2) {
+  z-index: 2;
+  left: 29%;
+  transform: translateY(2%) rotate(-4deg);
+}
+
+.characterFanFeatured > :nth-child(3) {
+  z-index: 1;
+  right: 7%;
+  transform: translateY(7%) rotate(10deg);
+}
+
+.characterFanFeatured > .featuredPreviewCard {
+  z-index: 4;
+  left: 49%;
+  bottom: .7rem;
+  width: min(28%, 7.2rem);
+  transform: rotate(3deg);
+  filter: drop-shadow(0 .75rem .85rem rgba(0, 0, 0, .72));
+}
+
 .characterPlaceholder {
   display: grid;
   place-items: center;
@@ -290,20 +328,20 @@
 }
 
 .characterFanCompact {
-  min-height: 9rem;
-  padding-top: 1.25rem;
+  min-height: 8.5rem;
+  padding-top: 1rem;
 }
 
 .characterFanCompact img {
-  max-height: 8.5rem;
+  max-height: 8rem;
 }
 
 .deckCardCopy {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4) var(--space-5);
+  gap: .4rem;
+  padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
 .deckTitleRow {
@@ -314,15 +352,14 @@
 }
 
 .deckTitleRow h2 {
-  min-height: 2.2em;
   margin: 0;
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow-wrap: anywhere;
-  font-size: clamp(1.2rem, 2vw, 1.6rem);
-  line-height: 1.1;
+  font-size: clamp(1.08rem, 1.7vw, 1.4rem);
+  line-height: 1.08;
 }
 
 .deckCardCopy p,
@@ -344,20 +381,37 @@
   gap: var(--space-2);
 }
 
-.deckCardActions {
-  position: relative;
-  min-height: 3.25rem;
+.factionSymbols {
+  min-height: 1.5rem;
   display: flex;
   align-items: center;
-  gap: 1px;
-  padding: 0 var(--space-3) var(--space-3);
+  gap: .4rem;
+  color: var(--text-secondary);
+  font-size: var(--type-meta);
+}
+
+.factionSymbols img {
+  width: 1.45rem;
+  height: 1.45rem;
+  object-fit: contain;
+  filter: drop-shadow(0 .15rem .22rem rgba(0, 0, 0, .65));
+}
+
+.deckCardActions {
+  position: relative;
+  min-height: 3.15rem;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .7rem var(--space-4) var(--space-4);
+  border-top: 1px solid rgba(137, 203, 226, .12);
 }
 
 .deckCardActions > button,
 .deckCardActions summary,
 .deckCardActions details div button {
-  min-height: 2.6rem;
-  padding: .55rem .8rem;
+  min-height: 2.75rem;
+  padding: .5rem .72rem;
   border: 1px solid var(--border-subtle);
   background: rgba(5, 36, 47, .92);
   color: var(--text-primary);
@@ -367,11 +421,36 @@
   font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .deckCardActions > button:first-child {
   flex: 1;
   background: #07536c;
+}
+
+.publicDeckActions > button:nth-child(2) {
+  flex: 1;
+}
+
+.favoriteButton {
+  flex: 0 0 auto !important;
+  min-width: 4.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+}
+
+.favoriteButton > span:first-child {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.favoriteButton[aria-pressed="true"] {
+  border-color: rgba(255, 211, 86, .68);
+  background: rgba(94, 65, 7, .72);
+  color: #ffe17d;
 }
 
 .deckCardActions button:disabled {
