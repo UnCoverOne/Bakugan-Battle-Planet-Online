@@ -1,0 +1,54 @@
+name: One-shot Deck Library Budget Trim
+
+on:
+  push:
+    branches:
+      - implement/deck-library-visual-refresh
+    paths:
+      - ".github/workflows/one-shot-deck-library-budget-trim.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  trim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: implement/deck-library-visual-refresh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Remove redundant Deck Library declarations
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('components/routes/DeckRoutes.module.css')
+          text = path.read_text()
+          text = text.replace('''\n.publicDeckCard .deckCardCopy > p {\n  margin-top: -.1rem;\n}\n''', '\n')
+          text = text.replace('''  min-height: 1.5rem;\n''', '', 1)
+          text = text.replace('''  color: var(--text-secondary);\n  font-size: var(--type-meta);\n}\n\n.factionSymbols img {''', '''  color: var(--text-secondary);\n}\n\n.factionSymbols img {''', 1)
+          text = text.replace('''  object-fit: contain;\n''', '', 1)
+          text = text.replace('''  line-height: 1;\n}\n\n.favoriteButton[aria-pressed="true"] {''', '''}\n\n.favoriteButton[aria-pressed="true"] {''', 1)
+          path.write_text(text)
+          PY
+      - name: Build
+        run: npm run build
+      - name: Bundle budget
+        run: npm run bundle:budget
+      - name: Deck Library regression tests
+        run: node --import tsx --test tests/deck-library-visuals.test.ts tests/public-deck-favorites.test.ts tests/administration.test.ts tests/route-architecture.test.ts tests/website-overhaul.test.ts
+      - name: Lint
+        run: npm run lint
+      - name: Commit trim
+        run: |
+          rm .github/workflows/one-shot-deck-library-budget-trim.yml
+          git config user.name "UnCoverOne"
+          git config user.email "uncover250@gmail.com"
+          git add -A
+          git commit -m "Keep Deck Library refresh within CSS budget"
+          git push origin HEAD:implement/deck-library-visual-refresh
