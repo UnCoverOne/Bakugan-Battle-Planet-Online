@@ -190,9 +190,6 @@
   min-height: 11rem;
 }
 
-.publicDeckCard .deckCardCopy > p {
-  margin-top: -.1rem;
-}
 
 .deckCardSelected {
   border-color: var(--brand-blue-bright);
