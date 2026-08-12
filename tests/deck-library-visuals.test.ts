@@ -34,9 +34,11 @@ test("Public Deck actions keep Favorite compact while preserving count and acces
   assert.doesNotMatch(tile, /Copy to My Decks<\/button>/);
 });
 
-test("Deck Library CSS keeps cards compact and gives the Featured card a front fan position", async () => {
+test("Deck Library CSS keeps cards compact and places the Featured card fourth in the fan", async () => {
   const css = await read("components/routes/DeckRoutes.module.css");
-  assert.match(css, /\.characterFanFeatured > \.featuredPreviewCard/);
+  assert.match(css, /\.characterFanFeatured > :nth-child\(3\)\s*\{[^}]*left:\s*49%/s);
+  assert.match(css, /\.characterFanFeatured > \.featuredPreviewCard\s*\{[^}]*right:\s*7%/s);
+  assert.doesNotMatch(css, /\.characterFanFeatured > \.featuredPreviewCard\s*\{[^}]*left:\s*49%/s);
   assert.match(css, /\.factionSymbols img/);
   assert.match(css, /\.favoriteButton\[aria-pressed="true"\]/);
   assert.match(css, /grid-template-rows: 11\.25rem auto/);
