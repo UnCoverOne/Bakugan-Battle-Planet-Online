@@ -30,10 +30,7 @@ jobs:
           path = Path('components/routes/DeckRoutes.module.css')
           text = path.read_text()
           text = text.replace('''\n.publicDeckCard .deckCardCopy > p {\n  margin-top: -.1rem;\n}\n''', '\n')
-          text = text.replace('''  min-height: 1.5rem;\n''', '', 1)
-          text = text.replace('''  color: var(--text-secondary);\n  font-size: var(--type-meta);\n}\n\n.factionSymbols img {''', '''  color: var(--text-secondary);\n}\n\n.factionSymbols img {''', 1)
-          text = text.replace('''  object-fit: contain;\n''', '', 1)
-          text = text.replace('''  line-height: 1;\n}\n\n.favoriteButton[aria-pressed="true"] {''', '''}\n\n.favoriteButton[aria-pressed="true"] {''', 1)
+          text = text.replace('''\n.favoriteButton > span:first-child {\n  font-size: 1.15rem;\n  line-height: 1;\n}\n''', '\n')
           path.write_text(text)
           PY
       - name: Build
