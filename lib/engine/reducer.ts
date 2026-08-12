@@ -45,6 +45,7 @@ import { assertCommandAllowedInPhase, assertValidPhaseTransition, structuredPhas
 import { withDeterministicRuntime } from "./runtime";
 import { assertStateWithinRuntimeLimits, consumePendingChoice, engineFaultFromLimit, EngineRuntimeLimitError, withEngineRuntimeBudget } from "./limits";
 import { clearDecisionTimeouts } from "./timeout-policy";
+import { appendReplayCommand, createReplayRecording } from "./replay-codec";
 import {
   ENGINE_VERSION,
   RULES_VERSION,
@@ -170,6 +171,7 @@ export function reduceMatch(input: MatchState, envelope: CommandEnvelope): Reduc
     const events = sequenceEvents(faulted, envelope, faultEvents);
     const receipt = buildReceipt(envelope, faulted.version, events);
     appendCommandReceipt(faulted, receipt);
+    appendReplayCommand(faulted, envelope);
     return { state: faulted, events, receipt, duplicate: false, changed: true, faulted: true };
   }
   normalizeRuleObjects(next);
@@ -180,8 +182,11 @@ export function reduceMatch(input: MatchState, envelope: CommandEnvelope): Reduc
   const changed = next.version !== before.version || JSON.stringify(next) !== JSON.stringify(before);
   if (!changed) {
     if (envelope.command.type === "RESOLVE_DEADLINE") return { state: before, events: [], duplicate: false, changed: false };
-    if (envelope.command.type === "JOIN_PLAYER" && before.players.some((player) => player.id === envelope.command.player.id)) {
-      return { state: before, events: [], duplicate: false, changed: false };
+    if (envelope.command.type === "JOIN_PLAYER") {
+      const joiningPlayerId = envelope.command.player.id;
+      if (before.players.some((player) => player.id === joiningPlayerId)) {
+        return { state: before, events: [], duplicate: false, changed: false };
+      }
     }
     throw new EngineInvariantError("COMMAND_DID_NOT_ADVANCE_STATE", `${envelope.command.type} completed without changing the match.`);
   }
@@ -190,6 +195,7 @@ export function reduceMatch(input: MatchState, envelope: CommandEnvelope): Reduc
   const events = sequenceEvents(next, envelope, deriveTransitionEvents(before, next, envelope));
   const receipt = buildReceipt(envelope, next.version, events);
   appendCommandReceipt(next, receipt);
+  appendReplayCommand(next, envelope);
   ensureEngineMetadata(next).phase = structuredPhaseFor(next.phase);
   return { state: next, events, receipt, duplicate: false, changed: true };
 }
@@ -225,5 +231,6 @@ export function initializeMatch(
   const metadata = ensureEngineMetadata(state);
   metadata.engineVersion = ENGINE_VERSION;
   metadata.rulesVersion = RULES_VERSION;
+  metadata.replay = createReplayRecording(state);
   return { state, events, receipt, duplicate: false, changed: true };
 }

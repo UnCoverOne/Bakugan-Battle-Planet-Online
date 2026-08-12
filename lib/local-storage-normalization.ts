@@ -2,6 +2,8 @@ import type { MatchState, Phase } from "./game";
 import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_BRAWLER_PROFILE,
+  EMPTY_LIFETIME_MATCH_STATS,
+  MAX_MATCH_RECORDS,
   normalizeSnapshot,
   type AppSettings,
   type BrawlerProfile,
@@ -18,6 +20,7 @@ const FALLBACK: UserSnapshot = {
   decks: [],
   deletedDecks: [],
   history: [],
+  lifetimeStats: EMPTY_LIFETIME_MATCH_STATS,
   settings: DEFAULT_APP_SETTINGS,
   route: "dashboard",
   selectedDeckId: "",
@@ -97,11 +100,18 @@ export function normalizeStoredHistory(value: unknown): MatchResultRecord[] {
       at,
       startedAt,
       format: item.format === "bo3" ? "bo3" : item.format === "bo1" ? "bo1" : undefined,
-      mode: item.mode === "online" ? "online" : item.mode === "training" ? "training" : undefined,
-      schemaVersion: 1,
-      log,
+      mode: ["online", "training", "casual", "ranked"].includes(String(item.mode))
+        ? item.mode as MatchResultRecord["mode"]
+        : undefined,
+      schemaVersion: item.schemaVersion === 3 ? 3 : item.schemaVersion === 2 ? 2 : 1,
+      replayId: typeof item.replayId === "string" ? item.replayId.slice(0, 160) : undefined,
+      replayStorage: ["local", "server", "legacy"].includes(String(item.replayStorage))
+        ? item.replayStorage as MatchResultRecord["replayStorage"]
+        : log.length ? "legacy" : undefined,
+      replayAvailable: item.replayAvailable === true || log.length > 0,
+      ...(log.length ? { log } : {}),
     } as MatchResultRecord];
-  }).slice(0, 200);
+  }).slice(0, MAX_MATCH_RECORDS);
 }
 
 const PHASES = new Set<Phase>([

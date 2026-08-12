@@ -1,11 +1,12 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { concedeMatch, normalizeMatchState, type MatchState } from "../lib/game";
-import { projectMatchForPlayer } from "../lib/engine";
-import { nextMatchAlarmAt, resolveExpiredDeadline } from "../lib/deadlines";
+import { normalizeMatchState, type MatchState } from "../lib/game";
+import { appendLocalReplayTransition, normalizeEngineState, persistTransition, projectMatchForPlayer, reduceMatch, type CommandEnvelope, type EngineBackedMatchState, type GameCommand } from "../lib/engine";
+import { nextMatchAlarmAt } from "../lib/deadlines";
 import { markInternalMatchRequest, stripInternalMatchHeaders } from "../lib/internal-request";
 import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
+import { archiveCompletedMatch } from "../lib/replay-archive-server";
 
 interface Env {
   ASSETS: Fetcher;
@@ -36,6 +37,12 @@ const FORWARDED_MATCH_URL_HEADER = "x-bbp-forwarded-match-url";
 async function sha256(value: string) {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(bytes), (item) => item.toString(16).padStart(2, "0")).join("");
+}
+
+function alarmSeed() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
 }
 
 export class MatchRoom {
@@ -154,37 +161,57 @@ export class MatchRoom {
     const stored = await this.state.storage.get<MatchState>("snapshot");
     if (!stored) return;
     const now = Date.now();
-    const snapshot = normalizeMatchState(stored);
+    const snapshot = normalizeEngineState(normalizeMatchState(stored));
     if (["lobby", "result"].includes(snapshot.phase)) {
       if (!this.state.getWebSockets().length) await this.state.storage.deleteAll();
       else await this.state.storage.setAlarm(nextMatchAlarmAt(snapshot, now));
       return;
     }
 
-    let next = resolveExpiredDeadline(snapshot, now);
-    if (next.version === snapshot.version) {
+    const runCommand = async (state: EngineBackedMatchState, actorId: string | "system", command: GameCommand, suffix: string) => {
+      const commandId = `alarm:${state.id}:${state.version}:${suffix}`;
+      const envelope: CommandEnvelope = {
+        commandId,
+        gameId: state.id,
+        actorId,
+        expectedVersion: state.version,
+        issuedAt: now,
+        randomSeed: alarmSeed(),
+        requestHash: await sha256(`${commandId}:${JSON.stringify(command)}`),
+        command,
+      };
+      return reduceMatch(state, envelope);
+    };
+
+    let transition = await runCommand(snapshot, "system", { type: "RESOLVE_DEADLINE" }, "deadline");
+    if (!transition.changed) {
       const presence = await this.env.DB.prepare(
         "SELECT player_id, last_seen FROM match_presence WHERE code = ? AND connected = 0 ORDER BY last_seen ASC LIMIT 1",
       ).bind(snapshot.code).first<{ player_id: string; last_seen: number }>();
       if (presence && now - Number(presence.last_seen) >= MATCH_RECONNECT_GRACE_MS) {
-        next = concedeMatch(snapshot, presence.player_id);
-        next.resultReason = "Opponent abandoned the match";
-        next.log.push({
+        transition = await runCommand(snapshot, presence.player_id, { type: "CONCEDE" }, `disconnect:${presence.player_id}`);
+        const labelled = structuredClone(transition.state);
+        labelled.resultReason = "Opponent abandoned the match";
+        labelled.log.push({
           id: `${now}-abandonment`, at: now, kind: "system",
           message: `${snapshot.players.find((player) => player.id === presence.player_id)?.name ?? "A player"} abandoned the match after two minutes disconnected.`,
         });
+        transition.state = appendLocalReplayTransition(transition.state, labelled, "Disconnect forfeit", now);
       }
     }
 
-    if (next.version !== snapshot.version) {
-      const saved = await this.env.DB.prepare(
-        "UPDATE matches SET state_json = ?, previous_state_json = ?, updated_at = ? WHERE code = ? AND CAST(json_extract(state_json, '$.version') AS INTEGER) = ?",
-      ).bind(JSON.stringify(next), JSON.stringify(snapshot), now, snapshot.code, snapshot.version).run();
-      if (Number(saved.meta?.changes ?? 0) > 0) {
-        if (next.version % 5 === 0 || next.phase === "result") await this.env.DB.prepare(
-          "INSERT OR REPLACE INTO match_snapshots (code, version, state_json, created_at) VALUES (?, ?, ?, ?)",
-        ).bind(snapshot.code, next.version, JSON.stringify(next), now).run();
-        await this.publish(next);
+    if (transition.changed && transition.receipt) {
+      const saved = await persistTransition(this.env.DB, {
+        code: snapshot.code,
+        next: transition.state,
+        previous: snapshot,
+        expectedVersion: snapshot.version,
+        events: transition.events,
+        receipt: transition.receipt,
+      });
+      if (saved) {
+        await archiveCompletedMatch(this.env.DB, transition.state);
+        await this.publish(transition.state);
         return;
       }
       const row = await this.env.DB.prepare("SELECT state_json FROM matches WHERE code = ?")
@@ -334,6 +361,7 @@ async function runScheduled(_controller: ScheduledController, env: Env) {
     env.DB.prepare("DELETE FROM match_snapshots WHERE created_at < ?").bind(cutoff - 2_592_000_000),
     env.DB.prepare("DELETE FROM match_presence WHERE code IN (SELECT code FROM matches WHERE updated_at < ?)").bind(cutoff - 2_592_000_000),
     env.DB.prepare("DELETE FROM matches WHERE updated_at < ?").bind(cutoff - 2_592_000_000),
+    env.DB.prepare("DELETE FROM match_replays WHERE NOT EXISTS (SELECT 1 FROM match_replay_participants WHERE match_replay_participants.replay_id = match_replays.replay_id)"),
   ]);
 }
 

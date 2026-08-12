@@ -1,5 +1,5 @@
 import type { DeckRecord } from "./data";
-import type { MatchResultRecord } from "./persistence";
+import type { LifetimeMatchStats, MatchResultRecord } from "./persistence";
 import { accountStatMatches } from "./match-statistics";
 
 export const ACHIEVEMENT_CATEGORIES = [
@@ -198,6 +198,7 @@ export function achievementStatus(current: number, target: number): AchievementS
 export function achievementsFor(
   decks: DeckRecord[],
   history: Array<Partial<MatchResultRecord>>,
+  lifetimeStats?: LifetimeMatchStats,
 ): Achievement[] {
   const matches = history.filter(
     (record) => !/disconnect|abandon/i.test(record.reason ?? ""),
@@ -205,6 +206,14 @@ export function achievementsFor(
   const competitiveMatches = accountStatMatches(matches);
   const wins = competitiveMatches.filter((record) => record.result === "Victor");
   const onlineGames = matches.filter((record) => record.mode === "online");
+  const lifetimeMetric = (value: number, fallback: Metric): Metric => ({
+    value: Math.max(value, fallback.value),
+    completedAt: fallback.completedAt,
+  });
+  const recentMatches = countMetric(competitiveMatches, (record) => record.at);
+  const recentWins = countMetric(wins, (record) => record.at);
+  const recentTraining = countMetric(matches.filter((record) => record.mode === "training"), (record) => record.at);
+  const recentOnline = countMetric(onlineGames, (record) => record.at);
   const metrics: Record<MetricKey, Metric> = {
     decks: countMetric(decks, (deck) => deck.updatedAt),
     completeDecks: countMetric(decks.filter(legalSized), (deck) => deck.updatedAt),
@@ -214,12 +223,12 @@ export function achievementsFor(
     describedDecks: countMetric(decks.filter((deck) => Boolean(deck.description?.trim())), (deck) => deck.updatedAt),
     singletonDecks: countMetric(decks.filter((deck) => deck.format === "singleton"), (deck) => deck.updatedAt),
     deckFactions: uniqueMetric(decks, (deck) => deck.factions, (deck) => deck.updatedAt),
-    matches: countMetric(competitiveMatches, (record) => record.at),
-    wins: countMetric(wins, (record) => record.at),
-    trainingGames: countMetric(matches.filter((record) => record.mode === "training"), (record) => record.at),
+    matches: lifetimeStats ? lifetimeMetric(lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches, recentMatches) : recentMatches,
+    wins: lifetimeStats ? lifetimeMetric(lifetimeStats.wins, recentWins) : recentWins,
+    trainingGames: lifetimeStats ? lifetimeMetric(lifetimeStats.trainingMatches, recentTraining) : recentTraining,
     bo1Games: countMetric(competitiveMatches.filter((record) => (record.format ?? "bo1") === "bo1"), (record) => record.at),
     bo3Games: countMetric(competitiveMatches.filter((record) => record.format === "bo3"), (record) => record.at),
-    onlineGames: countMetric(onlineGames, (record) => record.at),
+    onlineGames: lifetimeStats ? lifetimeMetric(lifetimeStats.casualMatches + lifetimeStats.rankedMatches, recentOnline) : recentOnline,
     onlineWins: countMetric(onlineGames.filter((record) => record.result === "Victor"), (record) => record.at),
     onlineOpponents: uniqueMetric(
       onlineGames,

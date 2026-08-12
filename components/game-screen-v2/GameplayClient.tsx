@@ -21,6 +21,7 @@ import {
 } from "../../lib/opponentAiCanAct";
 import { canUndoLatest, undoLatestAction } from "../../lib/undo";
 import { isCompletedSeriesResult } from "../../lib/match-result-navigation";
+import { appendLocalReplayTransition } from "../../lib/engine/replay-codec";
 import { playCardWithAutoEnergy } from "../../lib/cardPayment";
 import { tapEnergyCard } from "../../lib/energy";
 import {
@@ -209,7 +210,8 @@ export function GameplayClient() {
     if (!match || !actorId) throw new Error("No active match is available.");
 
     if (!current.online) {
-      publishMatch(localAction(match, actorId));
+      const next = localAction(match, actorId);
+      publishMatch(appendLocalReplayTransition(match, next, action));
       return;
     }
 
@@ -483,12 +485,12 @@ export function GameplayClient() {
           const current = readMatchStore().match;
           if (current?.id !== latest.id || current.version !== latest.version) return;
           const next = decision ?? recoverOpponentAiFailure(latest, "training-bot");
-          if (next) publishMatch(next);
+          if (next) publishMatch(appendLocalReplayTransition(latest, next, "training-ai"));
         } catch {
           const latest = readMatchStore().match;
           if (latest?.id === match.id && latest.version === match.version) {
             const recovered = recoverOpponentAiFailure(latest, "training-bot");
-            if (recovered) publishMatch(recovered);
+            if (recovered) publishMatch(appendLocalReplayTransition(latest, recovered, "training-ai-recovery"));
           }
         } finally {
           if (botActionKey.current === key) botActionKey.current = "";

@@ -132,6 +132,7 @@ export function DashboardScreen() {
     profile,
     decks,
     history,
+    lifetimeStats,
     match,
     authUser,
     requestAccountAccess,
@@ -140,7 +141,7 @@ export function DashboardScreen() {
   const heroSource = useHighResolutionHero();
   const [remotePublicDecks, setRemotePublicDecks] = useState<DeckRecord[]>([]);
   const isGuest = !authUser;
-  const achievements = achievementsFor(decks, history);
+  const achievements = achievementsFor(decks, history, lifetimeStats);
   const unlockedAchievements = achievements.filter((achievement) => achievement.unlocked);
   const incompleteAchievements = achievements
     .filter((achievement) => !achievement.unlocked)
@@ -149,8 +150,9 @@ export function DashboardScreen() {
     ...incompleteAchievements,
     ...achievements.filter((achievement) => achievement.unlocked).reverse(),
   ].slice(0, 3);
-  const wins = history.filter((item: { result?: string }) => item.result === "Victor").length;
-  const winRate = history.length ? Math.round((wins / history.length) * 100) : 0;
+  const wins = Math.max(lifetimeStats.wins, history.filter((item: { result?: string }) => item.result === "Victor").length);
+  const gamesPlayed = Math.max(lifetimeStats.matchesPlayed, history.length);
+  const winRate = gamesPlayed ? Math.round((wins / gamesPlayed) * 100) : 0;
   const completeDecks = decks.filter(deckLooksComplete);
 
   useEffect(() => {

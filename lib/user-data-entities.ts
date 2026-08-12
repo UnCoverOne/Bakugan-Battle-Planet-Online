@@ -1,6 +1,8 @@
 import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_BRAWLER_PROFILE,
+  EMPTY_LIFETIME_MATCH_STATS,
+  MAX_MATCH_RECORDS,
   toCloudSnapshot,
   type MatchResultRecord,
   type UserSnapshot,
@@ -74,6 +76,7 @@ export function snapshotToSyncRequest(
         selectedDeckId: snapshot.selectedDeckId,
         format: snapshot.format,
         matchMode: snapshot.matchMode,
+        lifetimeStats: snapshot.lifetimeStats ?? EMPTY_LIFETIME_MATCH_STATS,
         updatedAt: snapshot.updatedAt,
       },
       revisions,
@@ -146,8 +149,7 @@ export function validateHistoryRecord(value: unknown): asserts value is MatchRes
     !record.id ||
     typeof record.at !== "string" ||
     !Number.isFinite(Date.parse(record.at)) ||
-    !Array.isArray(record.log) ||
-    record.log.length > 10_000
+    (record.log != null && (!Array.isArray(record.log) || record.log.length > 10_000))
   ) {
     throw new Error(`History record ${String(record.id ?? "")} is invalid.`);
   }
@@ -176,6 +178,7 @@ export function assembleEntitySnapshot(
     selectedDeckId: "",
     format: "bo1",
     matchMode: "solo",
+    lifetimeStats: EMPTY_LIFETIME_MATCH_STATS,
     updatedAt: 0,
   });
   const decks = rows
@@ -197,7 +200,8 @@ export function assembleEntitySnapshot(
     deletedDecks,
     history: [...history]
       .sort((left, right) => Date.parse(right.at) - Date.parse(left.at))
-      .slice(0, 200),
+      .slice(0, MAX_MATCH_RECORDS),
+    lifetimeStats: preferences.lifetimeStats ?? EMPTY_LIFETIME_MATCH_STATS,
     settings: { ...DEFAULT_APP_SETTINGS, ...settings },
     route: "dashboard",
     selectedDeckId:
