@@ -23,90 +23,28 @@ jobs:
           node-version: 22.13.0
           cache: npm
       - run: npm ci
-      - name: Isolate three-card transforms and tighten four-card preview
+      - name: Apply Deck fan cascade fix
         run: |
           python - <<'PY'
           from pathlib import Path
-
-          css_path = Path('components/routes/DeckRoutes.module.css')
-          css = css_path.read_text()
-
+          path = Path('components/routes/DeckRoutes.module.css')
+          css = path.read_text()
           replacements = [
               ('grid-template-rows: 11.25rem auto;', 'grid-template-rows: 10.75rem auto;'),
-              ('min-height: 11.25rem;\n  display: flex;\n  align-items: end;\n  justify-content: center;\n  overflow: hidden;\n  padding: .55rem .75rem .35rem;',
-               'min-height: 10.75rem;\n  display: flex;\n  align-items: end;\n  justify-content: center;\n  overflow: hidden;\n  padding: .3rem .75rem .25rem;'),
+              ('min-height: 11.25rem;\n  display: flex;\n  align-items: end;\n  justify-content: center;\n  overflow: hidden;\n  padding: .55rem .75rem .35rem;', 'min-height: 10.75rem;\n  display: flex;\n  align-items: end;\n  justify-content: center;\n  overflow: hidden;\n  padding: .3rem .75rem .25rem;'),
               ('.characterFan img:nth-child(1)', '.characterFan:not(.characterFanFeatured) img:nth-child(1)'),
               ('.characterFan img:nth-child(2)', '.characterFan:not(.characterFanFeatured) img:nth-child(2)'),
               ('.characterFan img:nth-child(3)', '.characterFan:not(.characterFanFeatured) img:nth-child(3)'),
               ('bottom: .15rem;\n  width: min(30%, 7.35rem);', 'bottom: .25rem;\n  width: min(31%, 7.6rem);'),
               ('transform: translateY(7%) rotate(-9deg);', 'transform: translateY(6%) rotate(-9deg);'),
               ('transform: translateY(2%) rotate(3deg);', 'transform: translateY(1%) rotate(3deg);'),
-              ('right: 3%;\n  bottom: .15rem;\n  width: min(30%, 7.35rem);\n  transform: translateY(7%) rotate(9deg);',
-               'right: 3%;\n  bottom: .25rem;\n  width: min(31%, 7.6rem);\n  transform: translateY(6%) rotate(9deg);'),
+              ('right: 3%;\n  bottom: .15rem;\n  width: min(30%, 7.35rem);\n  transform: translateY(7%) rotate(9deg);', 'right: 3%;\n  bottom: .25rem;\n  width: min(31%, 7.6rem);\n  transform: translateY(6%) rotate(9deg);'),
           ]
           for old, new in replacements:
               if old not in css:
                   raise SystemExit(f'Expected CSS fragment not found: {old!r}')
               css = css.replace(old, new, 1)
-          css_path.write_text(css)
-
-          test_path = Path('tests/deck-library-visuals.test.ts')
-          test = test_path.read_text()
-          old = '''test("Deck Library CSS keeps cards compact and places the Featured card fourth in the fan", async () => {
-  const css = await read("components/routes/DeckRoutes.module.css");
-  assert.match(css, /\\.characterFanFeatured > :nth-child\\(3\\)\\s*\\{[^}]*left:\\s*47%/s);
-  assert.match(css, /\\.characterFanFeatured > \\.featuredPreviewCard\\s*\\{[^}]*right:\\s*3%/s);
-  assert.doesNotMatch(css, /\\.characterFanFeatured > \\.featuredPreviewCard\\s*\\{[^}]*left:\\s*49%/s);
-  assert.match(css, /\\.factionSymbols img/);
-  assert.match(css, /\\.favoriteButton\\[aria-pressed="true"\\]/);
-  assert.match(css, /grid-template-rows: 11\\.25rem auto/);
-  assert.doesNotMatch(css, /min-height: 2\\.2em/);
-});
-
-
-test("Deck Library four-card fan keeps a continuous left-to-right stacking curve", async () => {
-  const css = await read("components/routes/DeckRoutes.module.css");
-  assert.match(css, /padding: \\.55rem \\.75rem \\.35rem/);
-  assert.match(css, /\\.characterFanFeatured > :nth-child\\(1\\) \\{[\\s\\S]*?z-index: 1/);
-  assert.match(css, /\\.characterFanFeatured > :nth-child\\(2\\) \\{[\\s\\S]*?z-index: 2/);
-  assert.match(css, /\\.characterFanFeatured > :nth-child\\(3\\) \\{[\\s\\S]*?z-index: 3/);
-  assert.match(css, /\\.characterFanFeatured > \\.featuredPreviewCard \\{[\\s\\S]*?z-index: 4/);
-  assert.match(css, /rotate\\(-9deg\\)/);
-  assert.match(css, /rotate\\(-3deg\\)/);
-  assert.match(css, /rotate\\(3deg\\)/);
-  assert.match(css, /rotate\\(9deg\\)/);
-});
-'''
-          new = '''test("Deck Library CSS keeps cards compact and places the Featured card fourth in the fan", async () => {
-  const css = await read("components/routes/DeckRoutes.module.css");
-  assert.match(css, /\\.characterFanFeatured > :nth-child\\(3\\)\\s*\\{[^}]*left:\\s*47%/s);
-  assert.match(css, /\\.characterFanFeatured > \\.featuredPreviewCard\\s*\\{[^}]*right:\\s*3%/s);
-  assert.doesNotMatch(css, /\\.characterFanFeatured > \\.featuredPreviewCard\\s*\\{[^}]*left:\\s*49%/s);
-  assert.match(css, /\\.factionSymbols img/);
-  assert.match(css, /\\.favoriteButton\\[aria-pressed="true"\\]/);
-  assert.match(css, /grid-template-rows: 10\\.75rem auto/);
-  assert.doesNotMatch(css, /min-height: 2\\.2em/);
-});
-
-
-test("Deck Library four-card fan owns its transforms without three-card cascade collisions", async () => {
-  const css = await read("components/routes/DeckRoutes.module.css");
-  assert.match(css, /padding: \\.3rem \\.75rem \\.25rem/);
-  assert.match(css, /min-height: 10\\.75rem/);
-  assert.match(css, /\\.characterFan:not\\(\\.characterFanFeatured\\) img:nth-child\\(1\\)/);
-  assert.match(css, /\\.characterFan:not\\(\\.characterFanFeatured\\) img:nth-child\\(2\\)/);
-  assert.match(css, /\\.characterFan:not\\(\\.characterFanFeatured\\) img:nth-child\\(3\\)/);
-  assert.doesNotMatch(css, /\\.characterFan img:nth-child\\([123]\\)/);
-  assert.match(css, /\\.characterFanFeatured > :nth-child\\(1\\) \\{[\\s\\S]*?z-index: 1[\\s\\S]*?rotate\\(-9deg\\)/);
-  assert.match(css, /\\.characterFanFeatured > :nth-child\\(2\\) \\{[\\s\\S]*?z-index: 2[\\s\\S]*?rotate\\(-3deg\\)/);
-  assert.match(css, /\\.characterFanFeatured > :nth-child\\(3\\) \\{[\\s\\S]*?z-index: 3[\\s\\S]*?rotate\\(3deg\\)/);
-  assert.match(css, /\\.characterFanFeatured > \\.featuredPreviewCard \\{[\\s\\S]*?z-index: 4[\\s\\S]*?rotate\\(9deg\\)/);
-  assert.match(css, /width: min\\(31%, 7\\.6rem\\)/);
-});
-'''
-          if old not in test:
-              raise SystemExit('Expected visual regression block not found')
-          test_path.write_text(test.replace(old, new, 1))
+          path.write_text(css)
           PY
       - name: Focused regression test
         run: node --import tsx --test tests/deck-library-visuals.test.ts
