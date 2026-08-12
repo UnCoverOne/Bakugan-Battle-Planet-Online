@@ -38,6 +38,8 @@ jobs:
           css_path.write_text(css)
           test_path = Path('tests/deck-library-visuals.test.ts')
           test = test_path.read_text()
+          test = test.replace(r'left:\s*49%/s);', r'left:\s*47%/s);', 1)
+          test = test.replace(r'right:\s*7%/s);', r'right:\s*3%/s);', 1)
           marker = 'test("Deck Library four-card fan keeps a continuous left-to-right stacking curve"'
           if marker not in test:
               test += '\n\ntest("Deck Library four-card fan keeps a continuous left-to-right stacking curve", async () => {\n  const css = await read("components/routes/DeckRoutes.module.css");\n  assert.match(css, /padding: \\.55rem \\.75rem \\.35rem/);\n  assert.match(css, /\\.characterFanFeatured > :nth-child\\(1\\) \\{[\\s\\S]*?z-index: 1/);\n  assert.match(css, /\\.characterFanFeatured > :nth-child\\(2\\) \\{[\\s\\S]*?z-index: 2/);\n  assert.match(css, /\\.characterFanFeatured > :nth-child\\(3\\) \\{[\\s\\S]*?z-index: 3/);\n  assert.match(css, /\\.characterFanFeatured > \\.featuredPreviewCard \\{[\\s\\S]*?z-index: 4/);\n  assert.match(css, /rotate\\(-9deg\\)/);\n  assert.match(css, /rotate\\(-3deg\\)/);\n  assert.match(css, /rotate\\(3deg\\)/);\n  assert.match(css, /rotate\\(9deg\\)/);\n});\n'
