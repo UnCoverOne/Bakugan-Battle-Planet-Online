@@ -5,8 +5,8 @@ import { HEX_CELLS, type CoreType, type MatchState } from "../../lib/game";
 import {
   legalCoreReturnCells,
   pendingCoreReturnsForPlayer,
-  placeCoreOrReturnCore,
 } from "../../lib/coreReturns";
+import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import {
   publishMatch,
   readMatchStore,
@@ -48,7 +48,7 @@ export function CoreReturnPlacementLayer({
     try {
       const stored = readMatchStore();
       if (!stored.online) {
-        publishMatch(placeCoreOrReturnCore(match, actorId, coreId, cell));
+        publishMatch(dispatchLocalGameAction(match, actorId, "place", { coreId, cell }));
       } else {
         const response = await fetch("/api/game", {
           method: "POST",

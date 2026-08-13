@@ -85,13 +85,19 @@ test("online replay finalization reuses accepted command events after the gamepl
   const archive = buildReplayArchiveFromRows(genesis, genesis.version, rows, state, 1_900_000_010_000);
   assert.equal(archive.recording.commands.length, 2);
   assert.equal(buildReplayFrames(archive).frames.at(-1)?.state.version, state.version);
+
+  const damagedRows = rows.map((row, index) => index === 0 ? { ...row, payload_json: "{}" } : row);
+  const recovered = buildReplayArchiveFromRows(genesis, genesis.version, damagedRows, state, 1_900_000_010_000);
+  assert.equal(recovered.recording.commands.length, 0);
+  assert.equal(buildReplayFrames(recovered).frames[0].state.version, state.version);
 });
 
 test("recording work stays in workers and online finalization stays outside response latency", async () => {
-  const [dispatcher, journal, journalWorker, route, entry, eventStore, theatre, playbackClient] = await Promise.all([
+  const [dispatcher, journal, journalWorker, finalization, route, entry, eventStore, theatre, playbackClient] = await Promise.all([
     source("lib/engine/local-command-dispatcher.ts"),
     source("lib/replay-journal.ts"),
     source("lib/replay-journal.worker.ts"),
+    source("lib/replay-finalization.ts"),
     source("app/api/game/route.ts"),
     source("worker/index.ts"),
     source("lib/engine/event-store.ts"),
@@ -104,7 +110,11 @@ test("recording work stays in workers and online finalization stays outside resp
   assert.match(journal, /new Worker\(new URL\("\.\/replay-journal\.worker\.ts"/);
   assert.match(journalWorker, /REPLAY_JOURNAL_STORE/);
   assert.match(journalWorker, /scheduleFlush\(\)/);
-  assert.match(journalWorker, /archiveReplayRecording/);
+  assert.match(journalWorker, /buildDisplayableReplayArchive/);
+  assert.match(journal, /saveCompletedStateFallback/);
+  assert.match(journal, /REPLAY_FINALIZATION_TIMEOUT_MS/);
+  assert.match(finalization, /buildReplayFrames\(candidate\)/);
+  assert.match(finalization, /createReplayRecording\(state\)/);
   assert.match(route, /getRequestExecutionContext\(\)/);
   assert.match(route, /context\.waitUntil\(task\)/);
   assert.match(entry, /runWithExecutionContext/);
@@ -120,6 +130,7 @@ test("all player-visible local mutation layers route through the command dispatc
     "components/game-screen-v2/BakuCoreLayer.tsx",
     "components/game-screen-v2/ChoiceQueueLayer.tsx",
     "components/game-screen-v2/CorePlacementLayer.tsx",
+    "components/game-screen-v2/CoreReturnPlacementLayer.tsx",
     "components/game-screen-v2/DeckInspectionLayer.tsx",
     "components/game-screen-v2/MatchCommunicationLayer.tsx",
     "components/game-screen-v2/MatchDecisionLayer.tsx",

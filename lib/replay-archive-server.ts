@@ -1,6 +1,5 @@
 import type { MatchState } from "./game";
 import {
-  archiveReplayRecording,
   compactReplayCommand,
   createReplayRecording,
 } from "./engine/replay-codec";
@@ -8,6 +7,7 @@ import type { ReplayArchive } from "./engine/replay-types";
 import type { CommandEnvelope, EngineBackedMatchState, GameCommand } from "./engine/types";
 import { isCompletedSeriesResult } from "./match-result-navigation";
 import type { MatchResultRecord } from "./persistence";
+import { buildDisplayableReplayArchive } from "./replay-finalization";
 
 export const MATCH_RECORD_RETENTION = 10;
 
@@ -191,14 +191,18 @@ export function buildReplayArchiveFromRows(
   completedAt = Date.now(),
 ) {
   const recording = createReplayRecording(genesis);
-  recording.commands = rows
-    .filter((row) => row.result_version > snapshotVersion)
-    .map((row) => {
-      const envelope = parseAcceptedCommand(row, state.id);
-      if (!envelope) throw new Error(`Accepted command ${row.command_id} cannot be reconstructed.`);
-      return compactReplayCommand(envelope);
-    });
-  return archiveReplayRecording(recording, state, completedAt);
+  try {
+    recording.commands = rows
+      .filter((row) => row.result_version > snapshotVersion)
+      .map((row) => {
+        const envelope = parseAcceptedCommand(row, state.id);
+        if (!envelope) throw new Error(`Accepted command ${row.command_id} cannot be reconstructed.`);
+        return compactReplayCommand(envelope);
+      });
+  } catch {
+    return buildDisplayableReplayArchive(null, state, completedAt);
+  }
+  return buildDisplayableReplayArchive(recording, state, completedAt);
 }
 
 /**
@@ -215,8 +219,13 @@ export async function buildReplayArchiveFromEventStore(
     WHERE code = ? AND json_extract(state_json, '$.phase') <> 'lobby'
     ORDER BY version ASC LIMIT 1`)
     .bind(state.code).first<ReplaySnapshotRow>();
-  if (!snapshot) return null;
-  const genesis = JSON.parse(snapshot.state_json) as MatchState;
+  if (!snapshot) return buildDisplayableReplayArchive(null, state, completedAt);
+  let genesis: MatchState;
+  try {
+    genesis = JSON.parse(snapshot.state_json) as MatchState;
+  } catch {
+    return buildDisplayableReplayArchive(null, state, completedAt);
+  }
   const response = await database.prepare(`SELECT
       match_events.command_id,
       match_events.actor_id,

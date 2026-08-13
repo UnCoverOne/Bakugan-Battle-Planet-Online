@@ -15,11 +15,40 @@ type JournalWorkerRequest =
 
 type JournalWorkerResponse = { requestId: number; replayId: string; ok: boolean; error?: string };
 
+type PendingFinalization = {
+  resolve: () => void;
+  reject: (error: Error) => void;
+  state: MatchState;
+  ownerId: string;
+  timeoutId: ReturnType<typeof setTimeout>;
+};
+
+const REPLAY_FINALIZATION_TIMEOUT_MS = 12_000;
+
 let worker: Worker | null = null;
 let requestSequence = 0;
 const initialized = new Set<string>();
-const pending = new Map<number, { resolve: () => void; reject: (error: Error) => void }>();
+const pending = new Map<number, PendingFinalization>();
 let lifecycleListenersInstalled = false;
+
+async function saveCompletedStateFallback(state: MatchState, ownerId: string) {
+  const [{ buildDisplayableReplayArchive }, { saveLocalReplay }] = await Promise.all([
+    import("./replay-finalization"),
+    import("./replay-local-store"),
+  ]);
+  await saveLocalReplay(buildDisplayableReplayArchive(null, state), ownerId);
+}
+
+function recoverPendingFinalization(requestId: number, cause: Error) {
+  const waiter = pending.get(requestId);
+  if (!waiter) return;
+  pending.delete(requestId);
+  clearTimeout(waiter.timeoutId);
+  void saveCompletedStateFallback(waiter.state, waiter.ownerId).then(waiter.resolve).catch((fallbackCause) => {
+    const detail = fallbackCause instanceof Error ? fallbackCause.message : String(fallbackCause);
+    waiter.reject(new Error(`${cause.message} Completed-state recovery also failed: ${detail}`));
+  });
+}
 
 function installLifecycleListeners() {
   if (lifecycleListenersInstalled || typeof window === "undefined") return;
@@ -31,23 +60,35 @@ function installLifecycleListeners() {
   });
 }
 
-function journalWorker() {
+function journalWorker(): Worker | null {
   if (worker) return worker;
-  worker = new Worker(new URL("./replay-journal.worker.ts", import.meta.url), { type: "module" });
+  try {
+    worker = new Worker(new URL("./replay-journal.worker.ts", import.meta.url), { type: "module" });
+  } catch {
+    worker = null;
+    return null;
+  }
   worker.addEventListener("message", (event: MessageEvent<JournalWorkerResponse>) => {
     const waiter = pending.get(event.data.requestId);
     if (!waiter) return;
+    if (!event.data.ok) {
+      recoverPendingFinalization(
+        event.data.requestId,
+        new Error(event.data.error ?? "Replay finalization failed."),
+      );
+      return;
+    }
     pending.delete(event.data.requestId);
-    if (event.data.ok) waiter.resolve();
-    else waiter.reject(new Error(event.data.error ?? "Replay finalization failed."));
+    clearTimeout(waiter.timeoutId);
+    waiter.resolve();
   });
   worker.addEventListener("error", (event) => {
     const cause = new Error(event.message || "Replay journal worker stopped unexpectedly.");
-    for (const waiter of pending.values()) waiter.reject(cause);
-    pending.clear();
+    const requestIds = [...pending.keys()];
     initialized.clear();
     worker?.terminate();
     worker = null;
+    for (const requestId of requestIds) recoverPendingFinalization(requestId, cause);
   });
   return worker;
 }
@@ -55,9 +96,11 @@ function journalWorker() {
 export function initializeLocalReplayJournal(state: MatchState, ownerId: string) {
   if (typeof Worker === "undefined" || initialized.has(state.id)) return;
   installLifecycleListeners();
+  const activeWorker = journalWorker();
+  if (!activeWorker) return;
   initialized.add(state.id);
   const startedAt = state.log.find((entry) => Number.isFinite(entry.at))?.at ?? Date.now();
-  journalWorker().postMessage({
+  activeWorker.postMessage({
     type: "start",
     replayId: state.id,
     ownerId,
@@ -69,7 +112,7 @@ export function initializeLocalReplayJournal(state: MatchState, ownerId: string)
 export function journalLocalReplayCommand(before: MatchState, envelope: CommandEnvelope, ownerId: string) {
   if (typeof Worker === "undefined") return;
   initializeLocalReplayJournal(before, ownerId);
-  journalWorker().postMessage({
+  journalWorker()?.postMessage({
     type: "append",
     replayId: before.id,
     envelope,
@@ -77,12 +120,17 @@ export function journalLocalReplayCommand(before: MatchState, envelope: CommandE
 }
 
 export function finalizeLocalReplayJournal(state: MatchState, ownerId: string) {
-  if (typeof Worker === "undefined") return Promise.reject(new Error("Replay workers are unavailable."));
+  if (typeof Worker === "undefined") return saveCompletedStateFallback(state, ownerId);
   initializeLocalReplayJournal(state, ownerId);
+  const activeWorker = journalWorker();
+  if (!activeWorker) return saveCompletedStateFallback(state, ownerId);
   const requestId = ++requestSequence;
   return new Promise<void>((resolve, reject) => {
-    pending.set(requestId, { resolve, reject });
-    journalWorker().postMessage({
+    const timeoutId = setTimeout(() => {
+      recoverPendingFinalization(requestId, new Error("Replay journal finalization timed out."));
+    }, REPLAY_FINALIZATION_TIMEOUT_MS);
+    pending.set(requestId, { resolve, reject, state, ownerId, timeoutId });
+    activeWorker.postMessage({
       type: "complete",
       requestId,
       replayId: state.id,

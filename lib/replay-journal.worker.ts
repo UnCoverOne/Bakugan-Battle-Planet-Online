@@ -3,7 +3,8 @@
 import type { MatchState } from "./game";
 import type { ReplayJournalDraft } from "./engine/replay-types";
 import type { CommandEnvelope } from "./engine/types";
-import { archiveReplayRecording, compactReplayCommand, createReplayRecording } from "./engine/replay-codec";
+import { compactReplayCommand, createReplayRecording } from "./engine/replay-codec";
+import { buildDisplayableReplayArchive } from "./replay-finalization";
 import { saveLocalReplay } from "./replay-local-store";
 import {
   REPLAY_JOURNAL_STORE,
@@ -91,7 +92,14 @@ function scheduleFlush() {
 
 async function handleMessage(message: WorkerRequest) {
   if (message.type === "start") {
-    const existing = await draftFor(message.replayId);
+    let existing: ReplayJournalDraft | null = null;
+    try {
+      existing = await draftFor(message.replayId);
+    } catch {
+      // IndexedDB can transiently reject a read during an upgrade or page
+      // lifecycle transition. The supplied state is a safe new genesis.
+      loading.delete(message.replayId);
+    }
     if (!existing) {
       drafts.set(message.replayId, {
         replayId: message.replayId,
@@ -119,12 +127,18 @@ async function handleMessage(message: WorkerRequest) {
     return;
   }
 
-  const draft = await draftFor(message.replayId);
-  if (!draft) throw new Error("Replay journal was not initialized.");
-  await flush();
-  const archive = archiveReplayRecording(draft.recording, message.state, message.completedAt);
+  let draft: ReplayJournalDraft | null = null;
+  try {
+    draft = await draftFor(message.replayId);
+  } catch {
+    loading.delete(message.replayId);
+  }
+  // A failed draft flush must not prevent the already completed match from
+  // receiving a reconstructable archive. Archive persistence is the priority.
+  await flush().catch(() => undefined);
+  const archive = buildDisplayableReplayArchive(draft?.recording, message.state, message.completedAt);
   await saveLocalReplay(archive, message.ownerId);
-  await deleteDraft(message.replayId);
+  await deleteDraft(message.replayId).catch(() => undefined);
   drafts.delete(message.replayId);
   self.postMessage({ requestId: message.requestId, replayId: message.replayId, ok: true });
 }
