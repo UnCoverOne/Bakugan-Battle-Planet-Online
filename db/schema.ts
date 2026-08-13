@@ -96,6 +96,63 @@ export const userMatchHistory = sqliteTable("user_match_history", {
   index("user_match_history_user_occurred_idx").on(table.userId, table.occurredAt),
 ]);
 
+export const matchSeatAccounts = sqliteTable("match_seat_accounts", {
+  code: text("code").notNull(),
+  playerId: text("player_id").notNull(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.code, table.playerId] }),
+  index("match_seat_accounts_user_idx").on(table.userId, table.createdAt),
+]);
+
+export const matchReplays = sqliteTable("match_replays", {
+  replayId: text("replay_id").primaryKey(),
+  matchCode: text("match_code").notNull(),
+  archiveJson: text("archive_json").notNull(),
+  finalStateHash: text("final_state_hash").notNull(),
+  engineVersion: text("engine_version").notNull(),
+  rulesVersion: text("rules_version").notNull(),
+  catalogueVersion: text("catalogue_version").notNull(),
+  completedAt: integer("completed_at").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [index("match_replays_completed_idx").on(table.completedAt)]);
+
+export const matchReplayParticipants = sqliteTable("match_replay_participants", {
+  replayId: text("replay_id").notNull().references(() => matchReplays.replayId, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  playerId: text("player_id").notNull(),
+  summaryJson: text("summary_json").notNull(),
+  occurredAt: text("occurred_at").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.replayId, table.userId] }),
+  index("match_replay_participant_recent_idx").on(table.userId, table.occurredAt),
+]);
+
+export const matchStatEvents = sqliteTable("match_stat_events", {
+  replayId: text("replay_id").notNull(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  result: text("result").notNull(),
+  mode: text("mode").notNull(),
+  occurredAt: text("occurred_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.replayId, table.userId] }),
+  index("match_stat_events_user_idx").on(table.userId, table.occurredAt),
+]);
+
+export const accountMatchStats = sqliteTable("account_match_stats", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  matchesPlayed: integer("matches_played").notNull().default(0),
+  wins: integer("wins").notNull().default(0),
+  losses: integer("losses").notNull().default(0),
+  draws: integer("draws").notNull().default(0),
+  trainingMatches: integer("training_matches").notNull().default(0),
+  casualMatches: integer("casual_matches").notNull().default(0),
+  rankedMatches: integer("ranked_matches").notNull().default(0),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export const rankedRatings = sqliteTable("ranked_ratings", {
   userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   bp: integer("bp").notNull().default(1000),

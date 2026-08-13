@@ -10,14 +10,14 @@ import {
   type UserDataEntityType,
   type UserDataSyncRequest,
 } from "./user-data-entities";
-import type { MatchResultRecord, UserSnapshot } from "./persistence";
+import { MAX_MATCH_RECORDS, type MatchResultRecord, type UserSnapshot } from "./persistence";
 import { ensureAdministrationSchema, type AccountDatabase } from "./account-server";
 import { ValidationError } from "./server-errors";
 
 export const MAX_SYNC_BYTES = 4_000_000;
 export const MAX_ACCOUNT_BYTES = 8_000_000;
 export const MAX_SYNC_ENTITIES = 300;
-export const MAX_SYNC_HISTORY = 200;
+export const MAX_SYNC_HISTORY = MAX_MATCH_RECORDS;
 export const MAX_ACCOUNT_DECK_ROWS = 250;
 
 export type AccountDataPayload = {
@@ -96,7 +96,7 @@ export async function readAccountDataRows(db: AccountDatabase, userId: string) {
       "SELECT entity_type, entity_id, revision, data_json, deleted_at, updated_at FROM user_data_entities WHERE user_id = ? ORDER BY entity_type, entity_id",
     ).bind(userId),
     db.prepare(
-      "SELECT event_id, data_json, occurred_at, created_at FROM user_match_history WHERE user_id = ? ORDER BY occurred_at DESC LIMIT 200",
+      `SELECT event_id, data_json, occurred_at, created_at FROM user_match_history WHERE user_id = ? ORDER BY occurred_at DESC LIMIT ${MAX_MATCH_RECORDS}`,
     ).bind(userId),
   ]);
   const rows = (entities.results ?? []) as UserDataEntityRow[];
@@ -336,7 +336,7 @@ export async function syncAccountData(
     ).bind(deckId)));
   }
   await db.prepare(
-    "DELETE FROM user_match_history WHERE user_id = ? AND event_id NOT IN (SELECT event_id FROM user_match_history WHERE user_id = ? ORDER BY occurred_at DESC LIMIT 200)",
+    `DELETE FROM user_match_history WHERE user_id = ? AND event_id NOT IN (SELECT event_id FROM user_match_history WHERE user_id = ? ORDER BY occurred_at DESC LIMIT ${MAX_MATCH_RECORDS})`,
   ).bind(userId, userId).run();
 
   const payload = await loadAccountDataPayload(db, userId);

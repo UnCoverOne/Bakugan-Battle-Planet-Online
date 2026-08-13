@@ -121,6 +121,8 @@ export type EngineMetadata = {
   fault?: EngineFault;
   runtimeBudget?: { triggerChainDepth: number; effectSteps: number; replacementIterations: number; pendingChoices: number; physicalRollAttempts: number };
   timeoutStrikes?: Record<string, { decision: number; connectionGrace: number }>;
+  /** Compact deterministic source used to build a verified replay archive. */
+  replay?: import("./replay-types").ReplayRecording;
 };
 export type EngineBackedMatchState = MatchState & { [ENGINE_METADATA_KEY]?: EngineMetadata };
 export type ReduceResult = {

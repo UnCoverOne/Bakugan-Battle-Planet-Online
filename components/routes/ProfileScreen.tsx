@@ -17,14 +17,13 @@ import {
 } from "../../lib/profile-customization";
 import { useApp } from "../application/AppProvider";
 import { SystemState } from "../application/SystemState";
-import { copyText, formatTimestamp } from "../application/ui";
+import { formatTimestamp } from "../application/ui";
 import {
   PROFILE_AVATAR_PRESETS,
   ProfileAvatar,
 } from "../profile/ProfileAvatar";
-import { PlayerPreview } from "../profile/PlayerPreview";
+import { ReplayTheatre } from "../replay/ReplayTheatre";
 import {
-  ActionButton,
   Field,
   StatusChip,
   Surface,
@@ -63,12 +62,11 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
     profile,
     setProfile,
     history,
+    lifetimeStats,
     decks,
     notify,
     replay,
     setReplay,
-    replayIndex,
-    setReplayIndex,
   } = useApp();
   const section: ProfileSection =
     segments[0] === "achievements"
@@ -82,14 +80,14 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
   const [dialog, setDialog] = useState<ProfileDialog | null>(null);
   const [recordFilter, setRecordFilter] = useState("all");
   const achievements = useMemo(
-    () => achievementsFor(decks, history),
-    [decks, history],
+    () => achievementsFor(decks, history, lifetimeStats),
+    [decks, history, lifetimeStats],
   );
   const completedGames = accountStatMatches(history);
-  const gamesPlayed = completedGames.length;
-  const wins = completedGames.filter(
+  const gamesPlayed = Math.max(completedGames.length, lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches);
+  const wins = Math.max(completedGames.filter(
     (item: any) => item.result === "Victor",
-  ).length;
+  ).length, lifetimeStats.wins);
   const winRate = gamesPlayed ? Math.round((wins / gamesPlayed) * 100) : 0;
   const publicDecks = decks.filter(
     (deck: DeckRecord) => deck.visibility === "Public",
@@ -125,8 +123,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
     const record = history.find((item: any) => item.id === recordId);
     if (!record) return;
     setReplay(record);
-    setReplayIndex(Math.max(0, record.log.length - 1));
-  }, [history, recordId, setReplay, setReplayIndex]);
+  }, [history, recordId, setReplay]);
 
   useEffect(() => {
     if (!dialog) return;
@@ -157,7 +154,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
   }, [completedAchievementIds, profile, setProfile]);
 
   const activeRecord = recordId
-    ? (history.find((item: any) => item.id === recordId) ?? replay)
+    ? (history.find((item: any) => item.id === recordId) ?? (replay?.id === recordId ? replay : null))
     : null;
 
   if (section === "achievements") {
@@ -383,8 +380,6 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
         <RecordsPanel
           history={history}
           activeRecord={activeRecord}
-          replayIndex={replayIndex}
-          setReplayIndex={setReplayIndex}
           filter={recordFilter}
           setFilter={setRecordFilter}
           router={router}
@@ -694,122 +689,12 @@ function Metric({ label, value }: { label: string; value: string | number }) {
 function RecordsPanel({
   history,
   activeRecord,
-  replayIndex,
-  setReplayIndex,
   filter,
   setFilter,
   router,
 }: any) {
   if (activeRecord) {
-    const event = activeRecord.log[replayIndex];
-    const gameResults = activeRecord.log.filter((item: any) => / wins game \d+:/i.test(String(item.message ?? "")));
-    return (
-      <section className={styles.recordDetail}>
-        <header>
-          <ActionButton
-            tone="quiet"
-            onClick={() => router.push("/profile/records")}
-          >
-            ← Match records
-          </ActionButton>
-          <div>
-            <span>Record {activeRecord.id}</span>
-            <h2>
-              {activeRecord.result} vs {activeRecord.opponentUserId ? <PlayerPreview userId={activeRecord.opponentUserId} displayName={activeRecord.opponent} /> : activeRecord.opponent}
-            </h2>
-            <p>
-              {formatTimestamp(activeRecord.at)} ·{" "}
-              {(activeRecord.format ?? "unknown").toUpperCase()} ·{" "}
-              {activeRecord.mode ?? "legacy"}
-            </p>
-          </div>
-          <ActionButton
-            tone="secondary"
-            onClick={() => void copyText(window.location.href)}
-          >
-            Copy link
-          </ActionButton>
-        </header>
-        <div className={styles.recordLayout}>
-          <Surface
-            as="aside"
-            className={styles.eventList}
-            aria-label="Match events"
-          >
-            {activeRecord.log.map((item: any, index: number) => (
-              <button
-                className={index === replayIndex ? styles.active : ""}
-                key={item.id}
-                onClick={() => setReplayIndex(index)}
-              >
-                <span>{index + 1}</span>
-                <div>
-                  <strong>{item.kind}</strong>
-                  <p>{item.message}</p>
-                </div>
-              </button>
-            ))}
-          </Surface>
-          <Surface className={styles.eventFocus}>
-            <StatusChip tone={event?.kind === "random" ? "warning" : "info"}>
-              {event?.kind?.toUpperCase() ?? "EVENT"}
-            </StatusChip>
-            <h2>{event?.message ?? "No event selected"}</h2>
-            <p>{event ? new Date(event.at ?? 0).toLocaleTimeString() : ""}</p>
-            <div>
-              <button
-                onClick={() => setReplayIndex(Math.max(0, replayIndex - 1))}
-              >
-                ← Previous
-              </button>
-              <span>
-                {replayIndex + 1} / {activeRecord.log.length}
-              </span>
-              <button
-                onClick={() =>
-                  setReplayIndex(
-                    Math.min(activeRecord.log.length - 1, replayIndex + 1),
-                  )
-                }
-              >
-                Next →
-              </button>
-            </div>
-          </Surface>
-          <Surface as="aside" className={styles.recordMetadata}>
-            <h2>Match details</h2>
-            <dl>
-              <div>
-                <dt>Result</dt>
-                <dd>{activeRecord.result}</dd>
-              </div>
-              <div>
-                <dt>Score</dt>
-                <dd>{activeRecord.score}</dd>
-              </div>
-              <div>
-                <dt>Reason</dt>
-                <dd>{activeRecord.reason}</dd>
-              </div>
-              <div>
-                <dt>Events</dt>
-                <dd>{activeRecord.log.length}</dd>
-              </div>
-              {activeRecord.mode === "ranked" ? <>
-                <div><dt>BP</dt><dd>{activeRecord.bpBefore} {activeRecord.bpChange >= 0 ? "+" : ""}{activeRecord.bpChange} → {activeRecord.bpAfter}</dd></div>
-                <div><dt>Ruleset</dt><dd>Competitive v{activeRecord.rankedRulesetVersion}</dd></div>
-              </> : null}
-            </dl>
-            {gameResults.length ? <div>
-              <h3>Individual games</h3>
-              {gameResults.map((game: any, index: number) => <details key={game.id ?? index}>
-                <summary>Game {index + 1}</summary><p>{game.message}</p>
-              </details>)}
-            </div> : null}
-          </Surface>
-        </div>
-      </section>
-    );
+    return <ReplayTheatre record={activeRecord} onBack={() => router.push("/profile/records")} />;
   }
   const visible = history.filter(
     (item: any) =>

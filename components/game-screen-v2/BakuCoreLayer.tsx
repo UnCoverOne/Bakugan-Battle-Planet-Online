@@ -317,9 +317,11 @@ function CoreTransferSprite({
 export function BakuCoreLayer({
   match,
   playerId,
+  readOnly = false,
 }: {
   match: MatchState | null;
   playerId?: string;
+  readOnly?: boolean;
 }) {
   const [targets, setTargets] = useState<PortalTargets>(EMPTY_TARGETS);
   const [selectedCoreCell, setSelectedCoreCell] = useState("");
@@ -406,14 +408,14 @@ export function BakuCoreLayer({
     ?? match?.players[0];
   const actorId = playerId ?? localPlayer?.id;
   const oppositePerspective = playerUsesOppositeMatrixPerspective(match, actorId);
-  const selectable = playerCanSelectRollTarget(match, actorId);
+  const selectable = !readOnly && playerCanSelectRollTarget(match, actorId);
   const availableCells = useMemo(
     () => new Set(availableRollTargets(match).map((placement) => placement.cell)),
     [match],
   );
   const selectReady = rollTargetCanConfirm(match, actorId, selectedCoreCell);
   const rollReady = playerCanConfirmRoll(match, actorId);
-  const primaryAction = selectReady ? "select" : rollReady ? "roll" : null;
+  const primaryAction = readOnly ? null : selectReady ? "select" : rollReady ? "roll" : null;
   const deferredSet = new Set(deferredCoreCells);
   const transferringSet = new Set(transferringCoreCells);
   const preparedTransferCells = [...new Set([...deferredCoreCells, ...transferringCoreCells])];
@@ -600,7 +602,7 @@ export function BakuCoreLayer({
       <RollResultLayer
         match={match}
         playerId={playerId}
-        open={rollResultOpen && !tracingRoll}
+        open={!readOnly && rollResultOpen && !tracingRoll}
         onDismiss={dismissRollResult}
       />
       {error ? <p className={styles.visuallyHidden} role="alert">{error}</p> : null}
@@ -610,5 +612,4 @@ export function BakuCoreLayer({
     </>
   );
 }
-
 

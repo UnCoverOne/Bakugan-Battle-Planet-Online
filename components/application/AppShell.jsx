@@ -69,6 +69,7 @@ export function AppShell({ children }) {
     profile,
     decks,
     history,
+    lifetimeStats,
     authUser,
     authChecking,
     accountDataReady,
@@ -161,13 +162,13 @@ export function AppShell({ children }) {
       />
     );
   }
-  const achievements = achievementsFor(decks, history);
+  const achievements = achievementsFor(decks, history, lifetimeStats);
   const unlocked = achievements.filter(
     (achievement) => achievement.unlocked,
   ).length;
-  const wins = accountStatMatches(history).filter(
+  const wins = Math.max(lifetimeStats.wins, accountStatMatches(history).filter(
     (record) => record.result === "Victor",
-  ).length;
+  ).length);
   const selectedProfileTitle =
     PROFILE_TITLES.find((item) => item.id === profile.titleId) ??
     PROFILE_TITLES[0];

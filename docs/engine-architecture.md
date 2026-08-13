@@ -75,6 +75,24 @@ Playing a revealed Flip creates a normal batch object and opens a priority windo
 
 Every accepted transition produces a monotonically sequenced event stream. Events are persisted in `match_events`; snapshots remain in `matches` and `match_snapshots` for fast loading. Events carry `public`, `controller`, or `server` visibility.
 
+## Replay archive
+
+Completed matches are archived as deterministic inputs rather than videos or repeated snapshots. The replay recording contains:
+
+- one compact genesis state whose card, Bakugan, and BakuCore instances reference immutable catalogue IDs;
+- accepted command envelopes with actor, expected version, fixed timestamp, request hash, and random seed;
+- top-level state deltas only for the offline Training AI path that still crosses legacy synchronous gameplay helpers;
+- the exact engine, rules, catalogue, digital-adaptation, and content-schema profile;
+- the final authoritative version and a canonical state digest.
+
+Playback reconstructs each state with the normal reducer and rejects the archive if its final version or digest differs. Server playback then projects every frame to the requesting participant before encoding an initial state plus top-level deltas. Opponent hand, deck, and face-down Energy identities never enter the response.
+
+`match_replays` stores one shared payload per match. `match_replay_participants` links that payload to each signed-in seat and stores the perspective-specific summary. Each player retains only the latest ten participant records; orphaned shared payloads are deleted. `match_stat_events` and `account_match_stats` are intentionally separate, so rolling retention never reduces lifetime totals.
+
+Training replays use the same archive format and are stored in IndexedDB on the device. Older records without deterministic data remain readable through the event-log fallback.
+
+Replay archives are deliberately fail-closed across incompatible version profiles. Supporting an older profile requires retaining its decoder and catalogue rather than silently applying current rules.
+
 ## Idempotent commands
 
 Every mutating request receives a command ID. The command receipt is stored in the match snapshot and durably in `match_commands`. A retry with the same command ID and request hash is acknowledged without applying the transition again. Reusing an ID for a different request is rejected.

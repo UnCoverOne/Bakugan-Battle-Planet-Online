@@ -31,6 +31,25 @@ export type AppSettings = {
   soundVolume?: number;
   replayLinks?: boolean;
 };
+export const MAX_MATCH_RECORDS = 10;
+export type LifetimeMatchStats = {
+  matchesPlayed: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  trainingMatches: number;
+  casualMatches: number;
+  rankedMatches: number;
+};
+export const EMPTY_LIFETIME_MATCH_STATS: LifetimeMatchStats = {
+  matchesPlayed: 0,
+  wins: 0,
+  losses: 0,
+  draws: 0,
+  trainingMatches: 0,
+  casualMatches: 0,
+  rankedMatches: 0,
+};
 export type MatchResultRecord = {
   id: string;
   result: string;
@@ -40,9 +59,12 @@ export type MatchResultRecord = {
   at: string;
   startedAt?: string;
   format?: "bo1" | "bo3";
-  mode?: "training" | "online";
-  schemaVersion?: 1;
-  log: MatchState["log"];
+  mode?: "training" | "online" | "casual" | "ranked";
+  schemaVersion?: 1 | 2 | 3;
+  replayId?: string;
+  replayStorage?: "local" | "server" | "legacy";
+  replayAvailable?: boolean;
+  log?: MatchState["log"];
 };
 
 export type DeletedDeckRecord = {
@@ -57,6 +79,7 @@ export type UserSnapshot = {
   decks: DeckRecord[];
   deletedDecks?: DeletedDeckRecord[];
   history: MatchResultRecord[];
+  lifetimeStats?: LifetimeMatchStats;
   settings: AppSettings;
   route: AppRoute;
   selectedDeckId: string;
@@ -99,6 +122,22 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   challenges: "Everyone",
   replayLinks: true,
 };
+
+export function normalizeLifetimeMatchStats(value: unknown): LifetimeMatchStats {
+  const candidate = value && typeof value === "object" ? value as Partial<LifetimeMatchStats> : {};
+  const count = (key: keyof LifetimeMatchStats) => Number.isSafeInteger(candidate[key])
+    ? Math.max(0, Number(candidate[key]))
+    : 0;
+  return {
+    matchesPlayed: count("matchesPlayed"),
+    wins: count("wins"),
+    losses: count("losses"),
+    draws: count("draws"),
+    trainingMatches: count("trainingMatches"),
+    casualMatches: count("casualMatches"),
+    rankedMatches: count("rankedMatches"),
+  };
+}
 
 const validRoutes = new Set<AppRoute>(["entry", "dashboard", "decks", "deck-detail", "builder", "compendium", "play", "lobby", "placement", "match", "result", "history", "profile", "settings"]);
 const validFactions = new Set(["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"]);
@@ -206,7 +245,8 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
     },
     decks: deckState.decks,
     deletedDecks: deckState.deletedDecks,
-    history: Array.isArray(candidate.history) ? candidate.history.slice(0, 200) : fallback.history,
+    history: Array.isArray(candidate.history) ? candidate.history.slice(0, MAX_MATCH_RECORDS) : fallback.history,
+    lifetimeStats: normalizeLifetimeMatchStats(candidate.lifetimeStats ?? fallback.lifetimeStats),
     settings: { ...fallback.settings, ...(candidate.settings ?? {}) },
     route: validRoutes.has(candidate.route as AppRoute) ? candidate.route as AppRoute : fallback.route,
     selectedDeckId: typeof candidate.selectedDeckId === "string" ? candidate.selectedDeckId : fallback.selectedDeckId,
@@ -331,8 +371,8 @@ export function mergeSnapshots(local: UserSnapshot, cloud: UserSnapshot): UserSn
     updatedAt: Math.max(local.updatedAt, cloud.updatedAt),
     decks: deckState.decks,
     deletedDecks: deckState.deletedDecks,
-    history: [...history.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 200),
+    history: [...history.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, MAX_MATCH_RECORDS),
+    lifetimeStats: normalizeLifetimeMatchStats(primary.lifetimeStats),
   };
   return retainDeviceState(merged, local);
 }
-

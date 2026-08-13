@@ -5,6 +5,7 @@ import {
   type UserDataSyncRequest,
 } from "./user-data-entities";
 import {
+  MAX_MATCH_RECORDS,
   normalizeSnapshot,
   selectSnapshot,
   type UserSnapshot,
@@ -257,7 +258,7 @@ export function resolveEntityConflicts(
   for (const record of local.history) history.set(record.id, record);
   resolved.history = [...history.values()]
     .sort((left, right) => Date.parse(right.at) - Date.parse(left.at))
-    .slice(0, 200);
+    .slice(0, MAX_MATCH_RECORDS);
   for (const key of conflicts) {
     if (key === "profile:main") resolved.profile = local.profile;
     if (key === "settings:main") resolved.settings = local.settings;
