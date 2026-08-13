@@ -143,13 +143,13 @@ Cloudflare Workers Builds connects directly to GitHub and deploys every push wit
 6. Set the deploy command to:
 
    ```bash
-   npx wrangler deploy --config wrangler.jsonc
+   npm run cf:publish
    ```
 
 7. Leave the root directory as `/` unless the repository is a monorepo.
 8. Save and deploy.
 
-Because the D1 binding is declared in `wrangler.jsonc`, future builds use the same database. Worker secrets, including `BOOTSTRAP_ADMIN_USER_ID`, remain attached to the Worker. Check the first build log and then test the deployed room flow with two browsers.
+`cf:publish` verifies and installs the production match-session schema before promoting the Worker, then deploys through the D1 binding declared in `wrangler.jsonc`. This prevents application code from being released ahead of its required database columns. Worker secrets, including `BOOTSTRAP_ADMIN_USER_ID`, remain attached to the Worker. Check the first build log and then test the deployed room flow with two browsers.
 
 ## 7B. Alternative continuous deployment: GitHub Actions
 
@@ -227,7 +227,7 @@ git commit -m "Describe the update"
 git push
 ```
 
-Workers Builds or GitHub Actions will deploy the pushed commit. For a manual deployment, run `npm run cf:deploy` after testing.
+Workers Builds or GitHub Actions will deploy the pushed commit. Keep the Workers Builds deploy command set to `npm run cf:publish`; it applies required production schema changes before Worker promotion. For a manual deployment, run `npm run cf:deploy` after testing.
 
 ## 12. Troubleshooting
 

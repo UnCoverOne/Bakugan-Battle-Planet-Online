@@ -23,6 +23,7 @@ import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
 import { archiveCompletedMatch } from "../lib/replay-archive-server";
 import { getSessionUserFromDatabase } from "../lib/account-server";
 import { ensureSocialSchema, loadSocialAccount } from "../lib/social-server";
+import { ensureMatchSessionSchema } from "../lib/match-session-schema";
 import { socialPresenceShard, type SocialAccountSummary } from "../lib/social";
 
 interface Env {
@@ -218,6 +219,7 @@ export class MatchRoom {
   }
 
   async fetch(request: Request) {
+    await ensureMatchSessionSchema(this.env.DB);
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/publish") {
       const match = await request.json() as MatchState;

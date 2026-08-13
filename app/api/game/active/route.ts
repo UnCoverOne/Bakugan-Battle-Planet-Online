@@ -2,6 +2,7 @@ import { getDatabase, getSessionUser } from "../../../../lib/account-server";
 import type { AccountMatchSessionSummary } from "../../../../lib/account-match-session";
 import { normalizeMatchState, type MatchState } from "../../../../lib/game";
 import { isCompletedSeriesResult } from "../../../../lib/match-result-navigation";
+import { ensureMatchSessionSchema } from "../../../../lib/match-session-schema";
 import { enforceD1RateLimit, requestClientKey } from "../../../../lib/request-security";
 import { AuthenticationError, serverErrorResponse } from "../../../../lib/server-errors";
 
@@ -22,6 +23,7 @@ export async function GET(request: Request) {
     const user = await getSessionUser(request);
     if (!user) throw new AuthenticationError();
     const database = await getDatabase();
+    await ensureMatchSessionSchema(database);
     await enforceD1RateLimit(database, `match-active:${user.id}:${requestClientKey(request)}`, 120, 60_000);
     const response = await database.prepare(`SELECT
         match_seat_accounts.code,

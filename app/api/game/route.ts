@@ -30,6 +30,7 @@ import {
   type EngineBackedMatchState,
 } from "../../../lib/engine";
 import { isInternalMatchRequest } from "../../../lib/internal-request";
+import { ensureMatchSessionSchema } from "../../../lib/match-session-schema";
 import {
   authenticateMatchSeat,
   digestMatchCapability,
@@ -85,6 +86,7 @@ async function getDatabase() {
       "The DB binding was unavailable while processing a match command.",
     );
   }
+  await ensureMatchSessionSchema(env.DB);
   await ensureEngineEventStore(env.DB);
   return env.DB;
 }

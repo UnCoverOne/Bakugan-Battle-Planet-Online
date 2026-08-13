@@ -1,4 +1,5 @@
 import { getDatabase, getSessionUser } from "../../../../lib/account-server";
+import { ensureMatchSessionSchema } from "../../../../lib/match-session-schema";
 import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../../../lib/request-security";
 import { AuthenticationError, ServiceUnavailableError, ValidationError, serverErrorResponse } from "../../../../lib/server-errors";
 
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
     const user = await getSessionUser(request);
     if (!user) throw new AuthenticationError();
     const database = await getDatabase();
+    await ensureMatchSessionSchema(database);
     await enforceD1RateLimit(database, `match-resume:${user.id}:${requestClientKey(request)}`, 20, 60_000);
     const declaredLength = Number(request.headers.get("content-length") || 0);
     if (declaredLength > MAX_RESUME_BODY_BYTES) throw new ValidationError("Resume request is too large.");

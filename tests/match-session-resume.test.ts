@@ -7,6 +7,7 @@ import {
   type AccountMatchSessionSummary,
 } from "../lib/account-match-session";
 import { capabilityHashesMatch, digestMatchCapability } from "../lib/match-seat-auth";
+import { ensureMatchSessionSchema } from "../lib/match-session-schema";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
@@ -52,11 +53,46 @@ test("the D1 migration adds a versioned, single-controller seat lease", () => {
   assert.match(schema, /controllerId: text\("controller_id"\)/);
 });
 
+test("the runtime schema guard self-heals a missed production migration and tolerates an isolate race", async () => {
+  const columns = new Set(["code", "player_id", "capability_hash", "created_at"]);
+  const statements: string[] = [];
+  let simulatedRace = false;
+  const database = {
+    prepare(sql: string) {
+      statements.push(sql);
+      return {
+        async all() {
+          return { results: [...columns].map((name) => ({ name })) };
+        },
+        async run() {
+          const added = /ADD COLUMN\s+(\w+)/i.exec(sql)?.[1];
+          if (added === "controller_id" && !simulatedRace) {
+            simulatedRace = true;
+            columns.add(added);
+            throw new Error("duplicate column name: controller_id");
+          }
+          if (added) columns.add(added);
+          return { success: true };
+        },
+      };
+    },
+  } as unknown as D1Database;
+
+  await ensureMatchSessionSchema(database);
+
+  assert.equal(simulatedRace, true);
+  assert.equal(columns.has("capability_version"), true);
+  assert.equal(columns.has("controller_id"), true);
+  assert.equal(columns.has("claimed_at"), true);
+  assert.equal(statements.some((sql) => /CREATE INDEX IF NOT EXISTS match_seats_controller_idx/i.test(sql)), true);
+});
+
 test("active-match discovery is authenticated and returns metadata without controller secrets", () => {
   const active = source("app/api/game/active/route.ts");
   assert.match(active, /getSessionUser\(request\)/);
   assert.match(active, /if \(!user\) throw new AuthenticationError/);
   assert.match(active, /match_seat_accounts\.user_id = \?/);
+  assert.match(active, /ensureMatchSessionSchema\(database\)/);
   assert.match(active, /isCompletedSeriesResult\(state\)/);
   assert.doesNotMatch(active, /capability_hash/);
   assert.doesNotMatch(active, /controller_id/);
@@ -70,6 +106,7 @@ test("resume claims are account-bound, origin-checked, and delegated to the room
   assert.match(route, /userId: user\.id/);
   assert.match(route, /expectedCapabilityVersion/);
   assert.match(route, /MAX_RESUME_BODY_BYTES/);
+  assert.match(route, /ensureMatchSessionSchema\(database\)/);
   assert.match(route, /getByName\(code\)\.fetch/);
   assert.doesNotMatch(route, /capability_hash/);
 });
@@ -87,6 +124,7 @@ test("the room coordinator serializes claims with actions and fences concurrent 
   assert.match(worker, /SESSION_REPLACED_CLOSE_CODE/);
   assert.match(worker, /seat\.capability_version !== attachment\.capabilityVersion/);
   assert.match(worker, /seat\.controller_id !== attachment\.controllerId/);
+  assert.match(worker, /ensureMatchSessionSchema\(this\.env\.DB\)/);
 });
 
 test("all seat commands require both the capability and current controller ID", () => {
@@ -120,4 +158,17 @@ test("the browser keeps controller credentials session-scoped and stops a displa
   assert.match(provider, /sessionStorage\.removeItem\(MATCH_CONTROLLER_STORAGE_KEY\)/);
   assert.match(shell, /canControlLocalMatch/);
   assert.match(dashboard, /canControlLocalMatch/);
+});
+
+test("Cloudflare release paths install the match-session schema before Worker promotion", () => {
+  const packageJson = JSON.parse(source("package.json")) as { scripts: Record<string, string> };
+  const deploymentMigration = source("scripts/ensure-production-match-session-schema.mjs");
+  const workersBuildGuide = source("SELF_HOSTING.md");
+  const actionsTemplate = source("deploy/github-actions-cloudflare.yml");
+  assert.match(packageJson.scripts["cf:publish"], /^npm run cf:migrate && .*wrangler deploy/);
+  assert.match(deploymentMigration, /PRAGMA table_info\('match_seats'\)/);
+  assert.match(deploymentMigration, /ALTER TABLE match_seats ADD COLUMN capability_version/);
+  assert.match(deploymentMigration, /CREATE INDEX IF NOT EXISTS match_seats_controller_idx/);
+  assert.match(workersBuildGuide, /deploy command[\s\S]*npm run cf:publish/);
+  assert.match(actionsTemplate, /npm run cf:publish/);
 });
