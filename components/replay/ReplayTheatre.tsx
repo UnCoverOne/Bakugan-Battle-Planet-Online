@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MatchResultRecord } from "../../lib/persistence";
 import type { ReplayBundle, ReplayTransportBundle } from "../../lib/engine/replay-types";
-import { loadLocalReplay } from "../../lib/replay-local-store";
+import { firstGameplayReplayFrameIndex } from "../../lib/replay-view";
+import { loadLocalReplayWhenReady } from "../../lib/replay-local-store";
 import { reconstructLocalReplay, reconstructServerReplay } from "../../lib/replay-playback-client";
 import { BakuCoreLayer } from "../game-screen-v2/BakuCoreLayer";
 import { CardHandLayer } from "../game-screen-v2/CardHandLayer";
@@ -23,6 +24,7 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
   const [status, setStatus] = useState<"loading" | "ready" | "legacy" | "error">("loading");
   const [error, setError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,7 +35,7 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
     setStatus("loading");
     const load = async () => {
       if (record.replayStorage === "local") {
-        const archive = await loadLocalReplay(record.replayId ?? record.id);
+        const archive = await loadLocalReplayWhenReady(record.replayId ?? record.id);
         if (!archive) throw new Error("This local replay is no longer available on this device.");
         const playerId = archive.recording.genesis.players[0]?.id;
         if (!playerId) throw new Error("This replay has no player perspective.");
@@ -50,7 +52,9 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
     void load().then((next) => {
       if (cancelled) return;
       if (next) {
+        if (!next.frames.length) throw new Error("This replay contains no displayable match states.");
         setBundle(next);
+        setIndex(firstGameplayReplayFrameIndex(next.frames));
         setStatus("ready");
       } else if (record.log?.length) {
         setIndex(record.log.length - 1);
@@ -64,7 +68,7 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
       setStatus(record.log?.length ? "legacy" : "error");
     });
     return () => { cancelled = true; };
-  }, [record]);
+  }, [loadAttempt, record]);
 
   const frameCount = bundle?.frames.length ?? record.log?.length ?? 0;
   const frame = bundle?.frames[Math.min(index, Math.max(0, frameCount - 1))];
@@ -105,13 +109,27 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
 
   return (
     <section className={styles.theatre} aria-label={`Replay of ${record.result} against ${record.opponent}`}>
-      {frame ? (
-        <div className={styles.board} aria-hidden={status !== "ready"}>
-          <GameScreen match={frame.state} playerId={bundle?.perspectivePlayerId} />
+      <div className={styles.board} aria-busy={status === "loading"} aria-live="polite">
+        {frame ? (<>
+          <GameScreen match={frame.state} playerId={bundle?.perspectivePlayerId} presentationMode="replay" />
           <BakuCoreLayer match={frame.state} playerId={bundle?.perspectivePlayerId} readOnly />
           <CardHandLayer match={frame.state} playerId={bundle?.perspectivePlayerId} />
-        </div>
-      ) : <div className={styles.backdrop} />}
+        </>) : (
+          <div className={styles.stageStatus} data-status={status} role={status === "error" ? "alert" : "status"}>
+            <span aria-hidden="true">{status === "loading" ? "◌" : status === "legacy" ? "≡" : "!"}</span>
+            <strong>{status === "loading"
+              ? "Reconstructing battlefield"
+              : status === "legacy"
+                ? "Event log replay"
+                : "Replay could not be displayed"}</strong>
+            {status === "loading"
+              ? <p>Preparing the saved match states…</p>
+              : status === "legacy"
+                ? <p>This record contains its verified event log, but no reconstructable board states.</p>
+                : <><p>{error || "No displayable replay data is available."}</p><button type="button" onClick={() => setLoadAttempt((value) => value + 1)}>Retry replay</button></>}
+          </div>
+        )}
+      </div>
 
       <header className={styles.header}>
         <button type="button" onClick={onBack}>← Records</button>

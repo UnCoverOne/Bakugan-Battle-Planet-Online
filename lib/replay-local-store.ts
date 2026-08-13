@@ -9,6 +9,9 @@ import {
 
 type StoredReplay = ReplayArchive & { ownerId: string; savedAt: number };
 
+const LOCAL_REPLAY_READY_TIMEOUT_MS = 4_000;
+const LOCAL_REPLAY_READY_POLL_MS = 80;
+
 export async function saveLocalReplay(
   archive: ReplayArchive,
   ownerId = archive.recording.genesis.players[0]?.id ?? "guest",
@@ -37,6 +40,24 @@ export async function loadLocalReplay(replayId: string): Promise<ReplayArchive |
   } finally {
     database.close();
   }
+}
+
+/**
+ * A completed-match record is published to the UI before the replay worker's
+ * final IndexedDB transaction finishes. Give that transaction a short grace
+ * period so opening a brand-new record cannot race the archive write.
+ */
+export async function loadLocalReplayWhenReady(
+  replayId: string,
+  timeoutMs = LOCAL_REPLAY_READY_TIMEOUT_MS,
+): Promise<ReplayArchive | null> {
+  const deadline = Date.now() + Math.max(0, timeoutMs);
+  let archive = await loadLocalReplay(replayId);
+  while (!archive && Date.now() < deadline) {
+    await new Promise((resolve) => window.setTimeout(resolve, LOCAL_REPLAY_READY_POLL_MS));
+    archive = await loadLocalReplay(replayId);
+  }
+  return archive;
 }
 
 export async function listLocalReplayMetadata(ownerId?: string) {

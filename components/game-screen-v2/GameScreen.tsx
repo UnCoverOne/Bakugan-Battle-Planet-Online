@@ -683,6 +683,7 @@ export function GameScreen({
   onTapEnergyCard,
   match,
   playerId,
+  presentationMode = "live",
   zoneCounts = EMPTY_ZONE_COUNTS,
 }: {
   onExit?: () => void;
@@ -690,6 +691,7 @@ export function GameScreen({
   onTapEnergyCard?: EnergyTapHandler;
   match?: MatchState | null;
   playerId?: string;
+  presentationMode?: "live" | "replay";
   zoneCounts?: GameScreenZoneCounts;
 }) {
   const [pendingEnergyCardId, setPendingEnergyCardId] = useState("");
@@ -813,7 +815,10 @@ export function GameScreen({
 
   return (
     <>
-      <div className={styles.screen}>
+      <div
+        className={`${styles.screen} ${presentationMode === "replay" ? styles.replayScreen : ""}`}
+        data-presentation-mode={presentationMode}
+      >
         <div className={styles.playArea} data-gameplay-surface="true" aria-label="Game play area">
           <svg
             className={styles.hexGrid}
@@ -877,4 +882,3 @@ export function GameScreen({
     </>
   );
 }
-

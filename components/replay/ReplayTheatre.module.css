@@ -10,13 +10,41 @@
 .board {
   position: absolute;
   inset: 0;
-}
-
-.backdrop {
-  position: absolute;
-  inset: 0;
+  z-index: 1;
+  isolation: isolate;
+  overflow: hidden;
   background: radial-gradient(circle at 50% 45%, #163e4d, #01080d 62%);
 }
+
+.stageStatus {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: .65rem;
+  padding: 7rem 1.5rem;
+  text-align: center;
+}
+
+.stageStatus > span {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border: 1px solid rgba(121, 224, 246, .5);
+  border-radius: 50%;
+  color: #80e5f8;
+  font-size: 1.8rem;
+}
+
+.stageStatus[data-status="loading"] > span { animation: replay-loading 900ms linear infinite; }
+.stageStatus strong { font-family: var(--font-display); font-size: 1.15rem; text-transform: uppercase; }
+.stageStatus p { max-width: 34rem; margin: 0; color: #a9bec6; line-height: 1.5; }
+.stageStatus button { min-height: 2.6rem; padding: 0 1rem; border: 1px solid #72d9ed; background: #082834; color: inherit; font-weight: 900; cursor: pointer; }
+
+@keyframes replay-loading { to { transform: rotate(360deg); } }
 
 .header,
 .controls,

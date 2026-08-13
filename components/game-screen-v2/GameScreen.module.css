@@ -11,6 +11,13 @@
   background: #000;
 }
 
+/* ReplayTheatre owns the viewport and its overlay stack. Mount the battlefield
+   inside that stack instead of creating a second live-game fixed layer. */
+.replayScreen {
+  position: absolute;
+  z-index: 1;
+}
+
 .playArea {
   position: relative;
   isolation: isolate;
