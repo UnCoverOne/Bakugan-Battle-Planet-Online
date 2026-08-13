@@ -24,6 +24,7 @@ import {
 import { beginRankedIntermission, rankedSeries, selectRankedDeck, submitRankedBan } from "../ranked-lobby";
 import { confirmRoll, selectRollTarget } from "../rolling";
 import { drawTurnCard } from "../turnStart";
+import { drawPendingCard } from "../drawQueue";
 import { undoLatestAction } from "../undo";
 import { resolveExpiredDeadline } from "../deadlines";
 import { dispatchRulesCommand, isRulesCommand } from "../rules/runtime";
@@ -100,6 +101,7 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
     case "BEGIN_CORE_PLACEMENT": return beginCorePlacement(input, issuedAt);
     case "PLACE_CORE": return placeCoreOrReturnCore(input, actorId, command.coreId, command.cell);
     case "DRAW_TURN_CARD": return drawTurnCard(input, actorId);
+    case "DRAW_PENDING_CARD": return drawPendingCard(input, actorId);
     case "ENERGIZE": return energizeCard(input, actorId, command.cardId);
     case "SELECT_BAKUGAN": return selectBakugan(input, actorId, command.bakuganId);
     case "SELECT_ROLL_TARGET": return selectRollTarget(input, actorId, command.cell);

@@ -15,6 +15,7 @@ import {
 } from "./game";
 import { bestAiRollTarget } from "./aiRollForecast";
 import { cardEnergyPaymentState } from "./cardPayment";
+import { drawPendingCard, playerCanResolvePendingDraw } from "./drawQueue";
 import { evaluateBakuganCharacteristics } from "./rules/modifiers";
 import { activeTappedEnergyIds } from "./rules/costs";
 import {
@@ -34,7 +35,8 @@ import {
 import type { RuleAction, RuleInstruction } from "./rules/effects";
 import type { GameCommand } from "./engine/types";
 
-export { chooseCardChoices, opponentAiCanAct } from "./opponentAiBase";
+export { chooseCardChoices } from "./opponentAiBase";
+export { opponentAiCanAct } from "./opponentAiCanAct";
 
 type HexCell = (typeof HEX_CELLS)[number];
 type CombatStat = "power" | "damage";
@@ -84,17 +86,25 @@ function actionTargetsEnemy(
   return /enemy|opposing|opponent(?:'s)?|non-\[[a-z]+\]/i.test(sourceText);
 }
 
+function cardHasOptionalSelfReroll(card: GameCard) {
+  try {
+    return cardLeafActions(card).some((action) => (
+      action.kind === "reroll"
+      && action.target === "controller"
+      && !action.mandatory
+    ));
+  } catch {
+    return false;
+  }
+}
+
 function shouldReserveOptionalRerollCard(match: MatchState, card: GameCard) {
   if (match.phase !== "preRoll") return false;
   if (hasNonDeferrablePreRollTiming(card.effect)) return false;
   // An optional self-Reroll has no value until the first roll has resolved.
   // Hold the complete card so mixed programs (for example, attack + Reroll)
   // cannot spend their immediate clause while throwing away the later option.
-  return cardLeafActions(card).some((action) => (
-    action.kind === "reroll"
-    && action.target === "controller"
-    && !action.mandatory
-  ));
+  return cardHasOptionalSelfReroll(card);
 }
 
 function sourceHasPrintedIntrinsicReroll(match: MatchState, playerId: string) {
@@ -114,6 +124,28 @@ function effectContainsReroll(match: MatchState, effectId: string) {
   try {
     return cardLeafActions(effect.card, effect.effect ?? effect.card.effect)
       .some((action) => action.kind === "reroll");
+  } catch {
+    return false;
+  }
+}
+
+function playerHasRerollInFlight(match: MatchState, playerId: string) {
+  if (match.pendingReroll?.playerId === playerId) return true;
+  return match.batch.some((effect) => (
+    effect.controllerId === playerId
+    && !effect.negated
+    && effectContainsReroll(match, effect.id)
+  ));
+}
+
+function shouldWaitForRerollOutcome(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  if (!playerHasRerollInFlight(match, playerId)) return false;
+  try {
+    return cardLeafActions(card).some((action) => action.kind === "reroll");
   } catch {
     return false;
   }
@@ -447,6 +479,7 @@ function independentActionValue(
     return amount * 1.6;
   }
   if (action.kind === "reroll") {
+    if (match.phase !== "power") return 0;
     const targetId = action.target === "opponent" ? opponentOf(match, playerId)?.id : playerId;
     const roll = targetId ? match.rolls[targetId] : undefined;
     if (!roll) return 0;
@@ -472,6 +505,24 @@ function candidateIndependentValue(
   return activeCandidateEntries(match, playerId, card, choices)
     .filter(({ action }) => !isTemporaryCombatAction(action))
     .reduce((sum, { action }) => sum + independentActionValue(match, playerId, action), 0);
+}
+
+function shouldReservePostBrawlOptionalRerollCard(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  if (!["victor", "postDamage", "endPlay"].includes(match.phase)) return false;
+  if (!cardHasOptionalSelfReroll(card) || hasNonDeferrablePreRollTiming(card.effect)) return false;
+  const player = playerById(match, playerId);
+  if (!player || !player.bakugan.some((bakugan) => !bakugan.open)) return false;
+  const choices = chooseBaseCardChoices(match, playerId, card);
+  const immediate = candidateIndependentValue(match, playerId, card, choices);
+  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  const cost = payment?.kind === "insufficient" ? 0 : payment?.cost ?? 0;
+  const retained = Math.max(0, handCardRetentionValue(match, playerId, card));
+  const futureRerollReserve = Math.max(3.2, retained * 0.55 + 1.25);
+  return immediate - cost * 0.5 < futureRerollReserve;
 }
 
 function candidateHasTemporaryPower(
@@ -696,7 +747,11 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
         const tacticallySuppressed = input.phase !== "preRoll"
           && !winningPowerPlan.has(card.id)
           && shouldSuppressTemporaryCombatCard(input, playerId, card);
-        return unneededPowerAlternative || tacticallySuppressed || shouldReserveOptionalRerollCard(input, card);
+        return unneededPowerAlternative
+          || tacticallySuppressed
+          || shouldReserveOptionalRerollCard(input, card)
+          || shouldWaitForRerollOutcome(input, playerId, card)
+          || shouldReservePostBrawlOptionalRerollCard(input, playerId, card);
       })
       .map((card) => card.id),
   );
@@ -727,7 +782,11 @@ function chooseWithCombatPolicy(input: MatchState, playerId: string): GameComman
         const tacticallySuppressed = input.phase !== "preRoll"
           && !winningPowerPlan.has(card.id)
           && shouldSuppressTemporaryCombatCard(input, playerId, card);
-        return unneededPowerAlternative || tacticallySuppressed || shouldReserveOptionalRerollCard(input, card);
+        return unneededPowerAlternative
+          || tacticallySuppressed
+          || shouldReserveOptionalRerollCard(input, card)
+          || shouldWaitForRerollOutcome(input, playerId, card)
+          || shouldReservePostBrawlOptionalRerollCard(input, playerId, card);
       })
       .map((card) => card.id),
   );
@@ -859,6 +918,9 @@ function diversifyProposedPlacement(
 }
 
 function advanceOpponentAiStep(input: MatchState, playerId: string): MatchState | null {
+  if (playerCanResolvePendingDraw(input, playerId)) {
+    return drawPendingCard(input, playerId);
+  }
   if (
     (input.phase === "target" || input.phase === "reroll")
     && playerCanSelectRollTarget(input, playerId)
@@ -882,6 +944,9 @@ function advanceOpponentAiStep(input: MatchState, playerId: string): MatchState 
 
 /** Pure one-step decision for the Training worker; the main reducer applies it. */
 export function chooseOpponentAiCommand(input: MatchState, playerId: string): GameCommand | null {
+  if (playerCanResolvePendingDraw(input, playerId)) {
+    return { type: "DRAW_PENDING_CARD" };
+  }
   if (
     (input.phase === "target" || input.phase === "reroll")
     && playerCanSelectRollTarget(input, playerId)

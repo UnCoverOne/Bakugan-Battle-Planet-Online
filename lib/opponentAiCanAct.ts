@@ -11,6 +11,7 @@ import {
   type CardChoices,
   type MatchState,
 } from "./game";
+import { drawPendingCard, playerCanResolvePendingDraw } from "./drawQueue";
 import { flipDamageCard, resolveManualDamage } from "./manualDamage";
 import {
   availableRollTargets,
@@ -37,6 +38,7 @@ const PRIORITY_PHASES = new Set<MatchState["phase"]>([
 export function opponentAiCanAct(match: MatchState, playerId: string) {
   const player = match.players.find((candidate) => candidate.id === playerId);
   if (!player) return false;
+  if (playerCanResolvePendingDraw(match, playerId)) return true;
   if (match.pendingChoice?.schema.fields.some(
     (field) => field.chooserId === playerId && !match.pendingChoice?.answers[playerId],
   )) return true;
@@ -100,6 +102,7 @@ function conservativeChoiceAnswers(match: MatchState, playerId: string) {
 export function recoverOpponentAiCommand(match: MatchState, playerId: string): GameCommand | null {
   const player = match.players.find((candidate) => candidate.id === playerId);
   if (!player || !opponentAiCanAct(match, playerId)) return null;
+  if (playerCanResolvePendingDraw(match, playerId)) return { type: "DRAW_PENDING_CARD" };
   const pending = match.pendingChoice;
   if (pending?.schema.fields.some((field) => field.chooserId === playerId && !pending.answers[playerId])) {
     return { type: "SUBMIT_CARD_CHOICE", choices: conservativeChoiceAnswers(match, playerId) };
@@ -156,6 +159,9 @@ export function recoverOpponentAiFailure(
   if (!player || !opponentAiCanAct(match, playerId)) return null;
 
   try {
+    if (playerCanResolvePendingDraw(match, playerId)) {
+      return drawPendingCard(match, playerId);
+    }
     const pending = match.pendingChoice;
     if (
       pending

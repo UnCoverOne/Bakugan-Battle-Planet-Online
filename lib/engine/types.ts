@@ -22,6 +22,7 @@ export type GameCommand =
   | { type: "BEGIN_CORE_PLACEMENT" }
   | { type: "PLACE_CORE"; coreId: string; cell: string }
   | { type: "DRAW_TURN_CARD" }
+  | { type: "DRAW_PENDING_CARD" }
   | { type: "ENERGIZE"; cardId?: string }
   | { type: "TAP_ENERGY_CARD"; cardId: string }
   | { type: "SELECT_BAKUGAN"; bakuganId: string }
