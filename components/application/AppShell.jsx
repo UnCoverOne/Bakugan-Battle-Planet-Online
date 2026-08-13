@@ -15,6 +15,7 @@ import {
 } from "./AccountAccessModal";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { useApp } from "./AppProvider";
+import { SocialDrawer, SocialMenuButton, SocialProvider } from "../social/SocialProvider";
 
 const NAV = [
   { href: "/", label: "Home", icon: "⌂" },
@@ -184,9 +185,10 @@ export function AppShell({ children }) {
   const activeSession = activeSessionPresentation(match);
 
   return (
-    <div
-      className={`app-shell ${immersiveMatch ? "immersive-match" : ""} ${secondaryRoute ? "secondary-route" : ""}`}
-    >
+    <SocialProvider>
+      <div
+        className={`app-shell ${immersiveMatch ? "immersive-match" : ""} ${secondaryRoute ? "secondary-route" : ""}`}
+      >
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
@@ -227,6 +229,7 @@ export function AppShell({ children }) {
                 <span className="pulse" /> {activeSession.navLabel}
               </Link>
             )}
+            <SocialMenuButton />
             <div className="profile-menu-wrap" ref={menuRef}>
               <button
                 className={`profile-avatar-button ${profileActive ? "active" : ""}`}
@@ -382,7 +385,9 @@ export function AppShell({ children }) {
       {versionMismatch && (
         <VersionMismatchScreen onRefresh={() => window.location.reload()} />
       )}
-    </div>
+      <SocialDrawer />
+      </div>
+    </SocialProvider>
   );
 }
 

@@ -27,6 +27,7 @@ import {
   type PlaySetupStep,
 } from "../../lib/play-setup-machine";
 import styles from "./PlayRoutes.module.css";
+import { MatchResultSocial } from "../social/MatchResultSocial";
 
 const SETUP_STORAGE_KEY = "bbp-play-setup-machine-v1";
 const STEP_LABELS: Record<PlaySetupStep, string> = {
@@ -543,7 +544,7 @@ export function ResultScreen() {
     setReplayIndex(Math.max(0, exactRecord.log.length - 1));
     router.push(`/profile/records/${encodeURIComponent(exactRecord.id)}`);
   };
-  return <section className={`result-page ${won ? "victory" : "defeat"}`}><img className="result-art" src="/assets/winner.png" alt="" /><div className="result-content"><Badge tone={won ? "gold" : "red"}>{complete ? "MATCH COMPLETE" : "SERIES INTERMISSION"}</Badge><h1>{won ? "VICTOR" : "DEFEAT"}</h1><p>{match.resultReason}</p><div className="series-score">{match.players.map((player: any) => <div key={player.id}><strong>{player.name}</strong><span>{match.series[player.id] ?? 0}</span></div>)}</div><div className="result-stats"><Metric label="Game" value={`${match.gameNumber}`} /><Metric label="Format" value={match.format.toUpperCase()} /><Metric label="Events" value={match.log.length} /><Metric label="Random results" value={match.log.filter((event: any) => event.kind === "random").length} /></div><div className="result-actions">{!complete && <AppButton tone="red" onClick={() => void nextSeriesGame()}>NEXT GAME • NEW MATRIX</AppButton>}<AppButton tone="gold" disabled={!exactRecord} onClick={openReplay}>VIEW MATCH RECORD</AppButton><AppButton tone="ghost" onClick={leaveMatch}>DASHBOARD</AppButton></div><small>{exactRecord ? `Result stored in Match Records • ${exactRecord.at}` : "Saving result to Match Records…"}</small></div></section>;
+  return <section className={`result-page ${won ? "victory" : "defeat"}`}><img className="result-art" src="/assets/winner.png" alt="" /><div className="result-content"><Badge tone={won ? "gold" : "red"}>{complete ? "MATCH COMPLETE" : "SERIES INTERMISSION"}</Badge><h1>{won ? "VICTOR" : "DEFEAT"}</h1><p>{match.resultReason}</p><div className="series-score">{match.players.map((player: any) => <div key={player.id}>{player.id === playerId ? <strong>{player.name}</strong> : <MatchResultSocial matchCode={match.code} opponentUserId={exactRecord?.opponentUserId} opponentName={player.name} />}<span>{match.series[player.id] ?? 0}</span></div>)}</div><div className="result-stats"><Metric label="Game" value={`${match.gameNumber}`} /><Metric label="Format" value={match.format.toUpperCase()} /><Metric label="Events" value={match.log.length} /><Metric label="Random results" value={match.log.filter((event: any) => event.kind === "random").length} /></div><div className="result-actions">{!complete && <AppButton tone="red" onClick={() => void nextSeriesGame()}>NEXT GAME • NEW MATRIX</AppButton>}<AppButton tone="gold" disabled={!exactRecord} onClick={openReplay}>VIEW MATCH RECORD</AppButton><AppButton tone="ghost" onClick={leaveMatch}>DASHBOARD</AppButton></div><small>{exactRecord ? `Result stored in Match Records • ${exactRecord.at}` : "Saving result to Match Records…"}</small></div></section>;
 }
 
 function Empty({ title }: { title: string }) {

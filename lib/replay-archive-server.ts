@@ -104,6 +104,7 @@ function participantSummary(
   state: MatchState,
   playerId: string,
   archive: ReplayArchive,
+  opponentUserId?: string,
 ): MatchResultRecord {
   const opponent = state.players.find((candidate) => candidate.id !== playerId);
   const localScore = Number(state.series[playerId] ?? 0);
@@ -113,6 +114,7 @@ function participantSummary(
     replayId: archive.replayId,
     result: !state.winner ? "Draw" : state.winner === playerId ? "Victor" : "Defeat",
     opponent: opponent?.name ?? "Opponent",
+    opponentUserId,
     score: `${localScore}–${opponentScore}`,
     reason: state.resultReason,
     at: new Date(archive.completedAt).toISOString(),
@@ -270,7 +272,8 @@ export async function archiveCompletedMatch(database: D1Database, state: EngineB
   }
   const participants = state.players.flatMap((player) => {
     const userId = byPlayer.get(player.id);
-    return userId ? [{ playerId: player.id, userId, summary: participantSummary(state, player.id, archive) }] : [];
+    const opponent = state.players.find((candidate) => candidate.id !== player.id);
+    return userId ? [{ playerId: player.id, userId, summary: participantSummary(state, player.id, archive, opponent ? byPlayer.get(opponent.id) : undefined) }] : [];
   });
   const statements: D1PreparedStatement[] = [
     database.prepare(`INSERT OR IGNORE INTO match_replays (

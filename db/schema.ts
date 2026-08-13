@@ -210,6 +210,40 @@ export const accountBans = sqliteTable("account_bans", {
   bannedAt: integer("banned_at").notNull(),
 });
 
+export const socialRelationships = sqliteTable("social_relationships", {
+  userLow: text("user_low").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userHigh: text("user_high").notNull().references(() => users.id, { onDelete: "cascade" }),
+  requestedBy: text("requested_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: text("status").notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.userLow, table.userHigh] }),
+  index("social_relationships_low_status_idx").on(table.userLow, table.status, table.updatedAt),
+  index("social_relationships_high_status_idx").on(table.userHigh, table.status, table.updatedAt),
+]);
+
+export const lobbyInvitations = sqliteTable("lobby_invitations", {
+  id: text("id").primaryKey(),
+  lobbyCode: text("lobby_code").notNull(),
+  inviterUserId: text("inviter_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  recipientUserId: text("recipient_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: text("status").notNull(),
+  createdAt: integer("created_at").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  respondedAt: integer("responded_at"),
+}, (table) => [
+  index("lobby_invitations_recipient_idx").on(table.recipientUserId, table.status, table.expiresAt),
+  index("lobby_invitations_expiry_idx").on(table.status, table.expiresAt),
+]);
+
+export const socialPreferences = sqliteTable("social_preferences", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  presenceVisibility: text("presence_visibility").notNull().default("online"),
+  allowLobbyInvites: integer("allow_lobby_invites").notNull().default(1),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export const adminResources = sqliteTable("admin_resources", {
   resourceType: text("resource_type").notNull(),
   resourceId: text("resource_id").notNull(),

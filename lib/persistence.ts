@@ -54,6 +54,7 @@ export type MatchResultRecord = {
   id: string;
   result: string;
   opponent: string;
+  opponentUserId?: string;
   score: string;
   reason: string;
   at: string;

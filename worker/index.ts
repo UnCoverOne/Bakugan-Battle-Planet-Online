@@ -8,11 +8,15 @@ import { nextMatchAlarmAt } from "../lib/deadlines";
 import { markInternalMatchRequest, stripInternalMatchHeaders } from "../lib/internal-request";
 import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
 import { archiveCompletedMatch } from "../lib/replay-archive-server";
+import { getSessionUserFromDatabase } from "../lib/account-server";
+import { ensureSocialSchema, loadSocialAccount } from "../lib/social-server";
+import { socialPresenceShard, type SocialAccountSummary } from "../lib/social";
 
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
   MATCHES: DurableObjectNamespace;
+  SOCIAL_PRESENCE: DurableObjectNamespace;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -33,6 +37,99 @@ type HibernatingState = {
     setAlarm(timestamp: number): Promise<void>;
   };
 };
+
+type SocialSocketAttachment = {
+  userId: string;
+  account: SocialAccountSummary;
+};
+
+function socialSocketSend(socket: WebSocket, payload: unknown) {
+  try {
+    socket.send(JSON.stringify(payload));
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: "social_socket_send_failed",
+      message: error instanceof Error ? error.message : String(error),
+    }));
+    try { socket.close(1011, "Transport failure"); } catch {}
+  }
+}
+
+/** Hibernating, sharded online-presence coordinator. Durable relationships remain in D1. */
+export class SocialPresence {
+  constructor(private state: HibernatingState, private env: Env) {}
+
+  private accounts() {
+    const accounts = new Map<string, SocialAccountSummary>();
+    for (const socket of this.state.getWebSockets()) {
+      const attachment = socket.deserializeAttachment?.() as SocialSocketAttachment | undefined;
+      if (attachment?.userId && attachment.account) {
+        accounts.set(attachment.userId, { ...attachment.account, online: true, relationship: "none" });
+      }
+    }
+    return [...accounts.values()];
+  }
+
+  private broadcast(payload: unknown, except?: WebSocket) {
+    for (const socket of this.state.getWebSockets()) {
+      if (socket !== except) socialSocketSend(socket, payload);
+    }
+  }
+
+  async fetch(request: Request) {
+    const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/snapshot") {
+      return Response.json({ accounts: this.accounts() }, { headers: { "cache-control": "no-store" } });
+    }
+    if (request.method === "POST" && url.pathname === "/notify") {
+      const userId = String(url.searchParams.get("userId") ?? "");
+      const event = await request.json().catch(() => null);
+      for (const socket of this.state.getWebSockets(userId)) socialSocketSend(socket, event);
+      return new Response(null, { status: 204 });
+    }
+    if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+      return new Response("WebSocket required", { status: 426 });
+    }
+    const userId = String(url.searchParams.get("userId") ?? "");
+    const encodedAccount = request.headers.get("x-bbp-social-account") ?? "";
+    let account: SocialAccountSummary | null = null;
+    try {
+      account = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(encodedAccount), (character) => character.charCodeAt(0)))) as SocialAccountSummary;
+    } catch {}
+    if (!userId || account?.userId !== userId) return new Response("Forbidden", { status: 403 });
+    const protocols = (request.headers.get("sec-websocket-protocol") ?? "").split(",").map((value) => value.trim());
+    if (!protocols.includes("bbp-social-v1")) return new Response("Social protocol required", { status: 400 });
+    const wasOnline = this.state.getWebSockets(userId).length > 0;
+    const pair = new WebSocketPair();
+    const client = pair[0];
+    const server = pair[1];
+    server.serializeAttachment?.({ userId, account } satisfies SocialSocketAttachment);
+    this.state.acceptWebSocket(server, [userId]);
+    socialSocketSend(server, { type: "presence.snapshot", accounts: this.accounts() });
+    if (!wasOnline) this.broadcast({ type: "presence.changed", account: { ...account, online: true, relationship: "none" } }, server);
+    return new Response(null, {
+      status: 101,
+      webSocket: client,
+      headers: { "sec-websocket-protocol": "bbp-social-v1" },
+    } as ResponseInit & { webSocket: WebSocket });
+  }
+
+  webSocketMessage(socket: WebSocket, message: string | ArrayBuffer) {
+    if (typeof message === "string" && message === "ping") socialSocketSend(socket, { type: "pong" });
+  }
+
+  webSocketClose(socket: WebSocket) {
+    const attachment = socket.deserializeAttachment?.() as SocialSocketAttachment | undefined;
+    if (!attachment?.userId) return;
+    const stillOnline = this.state.getWebSockets(attachment.userId).some((candidate) => candidate !== socket);
+    if (!stillOnline) this.broadcast({
+      type: "presence.changed",
+      account: { ...attachment.account, online: false, relationship: "none" },
+    }, socket);
+  }
+
+  webSocketError(socket: WebSocket) { this.webSocketClose(socket); }
+}
 
 const FORWARDED_MATCH_URL_HEADER = "x-bbp-forwarded-match-url";
 
@@ -315,6 +412,25 @@ const worker = {
       return env.MATCHES.getByName(code).fetch(sanitizedRequest);
     }
 
+    if (url.pathname === "/api/social/socket") {
+      if (sanitizedRequest.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+        return new Response("WebSocket required", { status: 426 });
+      }
+      const user = await getSessionUserFromDatabase(sanitizedRequest, env.DB);
+      if (!user) return new Response("Sign in required", { status: 401 });
+      const account = await loadSocialAccount(env.DB, user.id);
+      if (!account) return new Response("Account unavailable", { status: 404 });
+      const shard = socialPresenceShard(user.id);
+      const headers = new Headers(sanitizedRequest.headers);
+      const encoded = btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(account))));
+      headers.set("x-bbp-social-account", encoded);
+      const internalRequest = new Request(`https://social.internal/socket?userId=${encodeURIComponent(user.id)}`, {
+        method: sanitizedRequest.method,
+        headers,
+      });
+      return env.SOCIAL_PRESENCE.getByName(shard).fetch(internalRequest);
+    }
+
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
       const optimized = await handleImageOptimization(sanitizedRequest, {
@@ -365,6 +481,7 @@ const worker = {
 
 async function runScheduled(_controller: ScheduledController, env: Env) {
   const cutoff = Date.now();
+  await ensureSocialSchema(env.DB);
   await env.DB.batch([
     env.DB.prepare("CREATE TABLE IF NOT EXISTS rum_events (id TEXT PRIMARY KEY, route TEXT NOT NULL, metric TEXT NOT NULL, value REAL NOT NULL, device TEXT NOT NULL, created_at INTEGER NOT NULL)"),
     env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(cutoff),
@@ -374,6 +491,8 @@ async function runScheduled(_controller: ScheduledController, env: Env) {
     env.DB.prepare("DELETE FROM match_presence WHERE code IN (SELECT code FROM matches WHERE updated_at < ?)").bind(cutoff - 2_592_000_000),
     env.DB.prepare("DELETE FROM matches WHERE updated_at < ?").bind(cutoff - 2_592_000_000),
     env.DB.prepare("DELETE FROM match_replays WHERE NOT EXISTS (SELECT 1 FROM match_replay_participants WHERE match_replay_participants.replay_id = match_replays.replay_id)"),
+    env.DB.prepare("UPDATE lobby_invitations SET status = 'expired', responded_at = ? WHERE status = 'pending' AND expires_at <= ?").bind(cutoff, cutoff),
+    env.DB.prepare("DELETE FROM lobby_invitations WHERE status <> 'pending' AND COALESCE(responded_at, expires_at) < ?").bind(cutoff - 2_592_000_000),
   ]);
 }
 

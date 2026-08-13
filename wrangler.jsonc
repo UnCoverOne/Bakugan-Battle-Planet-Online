@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "bakugan-battle-planet-online",
   "main": "./dist/server/index.js",
-  "compatibility_date": "2026-05-22",
+  "compatibility_date": "2026-08-13",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./dist/client",
@@ -24,11 +24,13 @@
   ],
   "durable_objects": {
     "bindings": [
-      { "name": "MATCHES", "class_name": "MatchRoom" }
+      { "name": "MATCHES", "class_name": "MatchRoom" },
+      { "name": "SOCIAL_PRESENCE", "class_name": "SocialPresence" }
     ]
   },
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["MatchRoom"] }
+    { "tag": "v1", "new_sqlite_classes": ["MatchRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["SocialPresence"] }
   ],
   "triggers": {
     "crons": ["17 */6 * * *"]

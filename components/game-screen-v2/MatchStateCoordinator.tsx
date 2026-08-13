@@ -11,6 +11,7 @@ import {
   isDragonoidMaximusResult,
 } from "./alternateWinPresentation";
 import styles from "./MatchResultDialog.module.css";
+import { MatchResultSocial } from "../social/MatchResultSocial";
 import {
   MATCH_UPDATE_EVENT,
   finalizeCompletedMatchExit,
@@ -227,7 +228,7 @@ function MatchResultDialog({
             <strong>{opponentScore}</strong>
           </div>
           <div className={styles.scoreSide} data-align="right" data-winner={match.winner === opponent?.id ? "true" : "false"}>
-            <strong title={opponent?.name}>{opponent?.name ?? "Opponent"}</strong>
+            <MatchResultSocial matchCode={match.code} opponentName={opponent?.name ?? "Opponent"} compact />
             <small>{opponent ? playerRole(opponent.id, localPlayerId) : "OPPONENT"}</small>
           </div>
         </div>

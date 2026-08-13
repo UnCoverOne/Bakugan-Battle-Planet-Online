@@ -209,9 +209,13 @@ export async function revokeSession(request: Request) {
 }
 
 export async function getSessionUser(request: Request): Promise<AccountUser | null> {
+  return getSessionUserFromDatabase(request, await getDatabase());
+}
+
+/** Authenticates a request against an explicit binding (used by the Worker entry point before app routing). */
+export async function getSessionUserFromDatabase(request: Request, db: AccountDatabase): Promise<AccountUser | null> {
   const token = parseCookie(request.headers.get("cookie"), SESSION_COOKIE);
   if (!token) return null;
-  const db = await getDatabase();
   await ensureAdministrationSchema(db);
   const now = Date.now();
   const row = await db.prepare("SELECT users.id, users.email, users.display_name, users.faction, users.created_at FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token_hash = ? AND sessions.expires_at > ?")
