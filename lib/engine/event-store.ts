@@ -209,7 +209,8 @@ export async function persistTransition(database: D1Database, options: PersistTr
     ...(options.seat ? [seatInsert(database, options.code, options.receipt.commandId, options.seat)] : []),
   ];
 
-  if (options.next.version % 5 === 0 || options.next.phase === "result") {
+  const enteredGameplay = options.previous?.phase === "lobby" && options.next.phase !== "lobby";
+  if (enteredGameplay || options.next.version % 5 === 0 || options.next.phase === "result") {
     statements.push(database.prepare(`INSERT OR REPLACE INTO match_snapshots (code, version, state_json, created_at)
       SELECT ?, ?, ?, ?
       WHERE EXISTS (

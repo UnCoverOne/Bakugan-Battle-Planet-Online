@@ -17,7 +17,7 @@ export { isPlayPipelineCommand, playContextFor, type PlayContext } from "./play-
 export { projectEventStreamsForPlayer, projectEventsForPlayer, projectMatchForPlayer, type ProjectedEventStreams, type PublicGameEvent } from "./projection";
 export { applyStatePatch, createSeatStatePatch, type StatePatchOperation } from "./state-patch";
 export { replayCommands, replayForPlayer, type ReplayResult } from "./replay";
-export { appendLocalReplayTransition, archiveReplay, replayStateHash } from "./replay-codec";
+export { archiveReplay, archiveReplayRecording, captureReplayGenesis, compactReplayCommand, createReplayRecording, replayStateHash } from "./replay-codec";
 export { buildReplayFrames, buildProjectedReplayBundle, decodeReplayTransport, encodeReplayTransport } from "./replay-playback";
 export type { ReplayArchive, ReplayBundle, ReplayFrame, ReplayMarker, ReplayTransportBundle } from "./replay-types";
 export { engineDiagnosticContext, transitionObservation, type EngineDiagnosticContext, type EngineObservation, type EngineObservationKind } from "./observability";

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { addChatMessage, cardEventLogEntries, chatEntries, eventLogEntries, matchTimeLabel, normalizeChatMessage } from "../../lib/chat";
+import { cardEventLogEntries, chatEntries, eventLogEntries, matchTimeLabel, normalizeChatMessage } from "../../lib/chat";
+import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import { cardArtSource } from "../../lib/content/card-art";
 import type { MatchState } from "../../lib/game";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
@@ -134,7 +135,7 @@ export function MatchCommunicationLayer() {
     setError("");
     try {
       if (!current.online) {
-        writeCoordinatedMatch(addChatMessage(currentMatch, currentActorId, message));
+        writeCoordinatedMatch(dispatchLocalGameAction(currentMatch, currentActorId, "chat", { message }));
       } else {
         let expectedState = currentMatch;
         let delivered = false;

@@ -1,10 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { makePlayer, STARTER_DECKS } from "../lib/data";
-import { appendLocalReplayTransition, archiveReplay, expandReplayGenesis, replayStateHash } from "../lib/engine/replay-codec";
+import {
+  archiveReplayRecording,
+  captureReplayGenesis,
+  compactReplayCommand,
+  createReplayRecording,
+  expandReplayGenesis,
+  legacyReplayStateHash,
+  replayStateHash,
+} from "../lib/engine/replay-codec";
 import { buildProjectedReplayBundle, buildReplayFrames, decodeReplayTransport, encodeReplayTransport } from "../lib/engine/replay-playback";
 import { initializeMatch, reduceMatch } from "../lib/engine/reducer";
-import { ENGINE_METADATA_KEY, type CommandEnvelope } from "../lib/engine/types";
+import { createStatePatch } from "../lib/engine/state-patch";
+import type { CommandEnvelope } from "../lib/engine/types";
 
 function envelope(state: ReturnType<typeof initializeMatch>["state"], actorId: string, type: "SET_LOBBY_READY", index: number): CommandEnvelope {
   return {
@@ -29,11 +38,15 @@ test("compact replay archive reconstructs and verifies every deterministic comma
     randomSeed: "replay-create-seed",
     requestHash: "replay-create-request",
   }).state;
-  state = reduceMatch(state, envelope(state, first.id, "SET_LOBBY_READY", 1)).state;
-  state = reduceMatch(state, envelope(state, second.id, "SET_LOBBY_READY", 2)).state;
+  const recording = createReplayRecording(state);
+  const firstReady = envelope(state, first.id, "SET_LOBBY_READY", 1);
+  recording.commands.push(compactReplayCommand(firstReady));
+  state = reduceMatch(state, firstReady).state;
+  const secondReady = envelope(state, second.id, "SET_LOBBY_READY", 2);
+  recording.commands.push(compactReplayCommand(secondReady));
+  state = reduceMatch(state, secondReady).state;
 
-  const archive = archiveReplay(state, 1_900_000_010_000);
-  assert.ok(archive);
+  const archive = archiveReplayRecording(recording, state, 1_900_000_010_000);
   assert.equal(archive.recording.commands.length, 2);
   assert.deepEqual(Object.keys(archive.recording.commands[0]).sort(), ["a", "c", "s", "t"]);
   assert.equal(archive.finalStateHash, replayStateHash(state));
@@ -53,10 +66,10 @@ test("replay genesis stores catalogue references instead of duplicate card defin
     randomSeed: "compact-seed",
     requestHash: "compact-request",
   }).state;
-  const genesis = state[ENGINE_METADATA_KEY]!.replay!.genesis;
+  const genesis = captureReplayGenesis(state);
   const encoded = JSON.stringify(genesis);
   assert.ok(!encoded.includes(player.deckCards[0].effect));
-  assert.ok(encoded.length < JSON.stringify({ ...state, [ENGINE_METADATA_KEY]: undefined }).length / 3);
+  assert.ok(encoded.length < JSON.stringify({ ...state, __engine: undefined }).length / 3);
   const restored = expandReplayGenesis(genesis);
   assert.deepEqual(restored.players[0].deckCards, player.deckCards);
   assert.deepEqual(restored.players[0].hand, player.hand);
@@ -72,7 +85,7 @@ test("server replay projection never exposes an opponent hand or deck identity",
     randomSeed: "private-seed",
     requestHash: "private-request",
   }).state;
-  const archive = archiveReplay(state, 1_900_000_001_000)!;
+  const archive = archiveReplayRecording(createReplayRecording(state), state, 1_900_000_001_000);
   const bundle = buildProjectedReplayBundle(archive, first.id);
   const opponent = bundle.frames[0].state.players.find((candidate) => candidate.id === second.id)!;
   assert.equal(opponent.hand.length, second.hand.length);
@@ -94,8 +107,14 @@ test("offline transition deltas and projected transport reconstruct without repe
   changed.version += 1;
   changed.turn = 2;
   changed.stepLabel = "Offline transition";
-  const recorded = appendLocalReplayTransition(initialized, changed, "Training AI advanced", 1_900_000_001_000);
-  const archive = archiveReplay(recorded, 1_900_000_002_000)!;
+  const recording = createReplayRecording(initialized);
+  recording.localTransitions = [{
+    q: 0,
+    t: 1_900_000_001_000,
+    l: "Training AI advanced",
+    p: createStatePatch(initialized, changed),
+  }];
+  const archive = archiveReplayRecording(recording, changed, 1_900_000_002_000);
   const playback = buildReplayFrames(archive);
   assert.equal(playback.frames.at(-1)?.state.stepLabel, "Offline transition");
   assert.equal(replayStateHash(playback.frames.at(-1)!.state), archive.finalStateHash);
@@ -117,10 +136,17 @@ test("legacy deltas retain their exact position between reducer commands", () =>
     randomSeed: "mixed-seed",
     requestHash: "mixed-request",
   }).state;
+  const recording = createReplayRecording(state);
   const configured = structuredClone(state);
   configured.trainingAiDeck = { resourceId: "mixed-config", configurationRevision: 1 };
-  state = appendLocalReplayTransition(state, configured, "Configuration", 1_900_000_000_100);
-  state = reduceMatch(state, {
+  recording.localTransitions = [{
+    q: 0,
+    t: 1_900_000_000_100,
+    l: "Configuration",
+    p: createStatePatch(state, configured),
+  }];
+  state = configured;
+  const join: CommandEnvelope = {
     commandId: "mixed-join",
     gameId: state.id,
     actorId: second.id,
@@ -129,13 +155,39 @@ test("legacy deltas retain their exact position between reducer commands", () =>
     randomSeed: "mixed-join-seed",
     requestHash: "mixed-join-request",
     command: { type: "JOIN_PLAYER", player: second },
-  }).state;
+  };
+  recording.commands.push(compactReplayCommand(join));
+  state = reduceMatch(state, join).state;
   const labelled = structuredClone(state);
   labelled.stepLabel = "Joined and configured";
-  state = appendLocalReplayTransition(state, labelled, "Post-join configuration", 1_900_000_000_300);
-  const archive = archiveReplay(state, 1_900_000_000_400)!;
+  recording.localTransitions.push({
+    q: 1,
+    t: 1_900_000_000_300,
+    l: "Post-join configuration",
+    p: createStatePatch(state, labelled),
+  });
+  state = labelled;
+  const archive = archiveReplayRecording(recording, state, 1_900_000_000_400);
   const playback = buildReplayFrames(archive);
   assert.equal(playback.frames[1].state.trainingAiDeck?.resourceId, "mixed-config");
   assert.equal(playback.frames[2].commandType, "JOIN_PLAYER");
   assert.equal(playback.frames.at(-1)?.state.stepLabel, "Joined and configured");
+});
+
+test("archives created with the pre-settlement hash remain playable", () => {
+  const first = makePlayer("legacy-hash-a", "Alpha", STARTER_DECKS[0]);
+  const second = makePlayer("legacy-hash-b", "Beta", STARTER_DECKS[1]);
+  const state = initializeMatch("HASH01", "bo3", [first, second], {
+    commandId: "legacy-hash-create",
+    actorId: first.id,
+    issuedAt: 1_900_000_000_000,
+    randomSeed: "legacy-hash-seed",
+    requestHash: "legacy-hash-request",
+  }).state as ReturnType<typeof initializeMatch>["state"] & {
+    ranked?: { stage: string; settlement?: { transfer: number } };
+  };
+  state.ranked = { stage: "complete", settlement: { transfer: 12 } };
+  const archive = archiveReplayRecording(createReplayRecording(state), state, 1_900_000_001_000);
+  archive.finalStateHash = legacyReplayStateHash(state);
+  assert.equal(buildReplayFrames(archive).frames.length, 1);
 });

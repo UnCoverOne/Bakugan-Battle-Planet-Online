@@ -19,6 +19,7 @@ import { evaluateBakuganCharacteristics } from "./rules/modifiers";
 import { activeTappedEnergyIds } from "./rules/costs";
 import {
   advanceOpponentAi as advanceBaseOpponentAi,
+  chooseOpponentAiCommand as chooseBaseOpponentAiCommand,
   chooseCardChoices as chooseBaseCardChoices,
   handCardRetentionValue,
 } from "./opponentAiBase";
@@ -31,6 +32,7 @@ import {
   isTemporaryCombatAction,
 } from "./aiCardSemantics";
 import type { RuleAction, RuleInstruction } from "./rules/effects";
+import type { GameCommand } from "./engine/types";
 
 export { chooseCardChoices, opponentAiCanAct } from "./opponentAiBase";
 
@@ -710,6 +712,33 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
   return validateAiTransition(input, restored, playerId);
 }
 
+function chooseWithCombatPolicy(input: MatchState, playerId: string): GameCommand | null {
+  const player = playerById(input, playerId);
+  if (!player) return null;
+  const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);
+  const suppressed = new Set(
+    player.hand
+      .filter((card) => {
+        const unneededPowerAlternative = input.phase === "power"
+          && winningPowerPlan.size > 0
+          && candidateHasTemporaryPower(input, playerId, card)
+          && !winningPowerPlan.has(card.id)
+          && candidateIndependentValue(input, playerId, card) < 0.75;
+        const tacticallySuppressed = input.phase !== "preRoll"
+          && !winningPowerPlan.has(card.id)
+          && shouldSuppressTemporaryCombatCard(input, playerId, card);
+        return unneededPowerAlternative || tacticallySuppressed || shouldReserveOptionalRerollCard(input, card);
+      })
+      .map((card) => card.id),
+  );
+  const working = suppressed.size ? cloneMatch(input) : input;
+  if (suppressed.size) {
+    const filteredPlayer = playerById(working, playerId)!;
+    filteredPlayer.hand = filteredPlayer.hand.filter((card) => !suppressed.has(card.id));
+  }
+  return chooseBaseOpponentAiCommand(working, playerId);
+}
+
 function cellById(cellId: string) {
   return HEX_CELLS.find((cell) => cell.id === cellId);
 }
@@ -849,6 +878,33 @@ function advanceOpponentAiStep(input: MatchState, playerId: string): MatchState 
     && !hasPendingDecision
   ) return advanceWithCombatPolicy(input, playerId);
   return advanceBaseOpponentAi(input, playerId);
+}
+
+/** Pure one-step decision for the Training worker; the main reducer applies it. */
+export function chooseOpponentAiCommand(input: MatchState, playerId: string): GameCommand | null {
+  if (
+    (input.phase === "target" || input.phase === "reroll")
+    && playerCanSelectRollTarget(input, playerId)
+  ) {
+    const target = bestAiRollTarget(input, playerId);
+    return target ? { type: "SELECT_ROLL_TARGET", cell: target.cell } : null;
+  }
+  if (input.phase === "placement" && input.priority === playerId) {
+    const proposed = advanceBaseOpponentAi(input, playerId);
+    const diversified = proposed ? diversifyProposedPlacement(input, playerId, proposed) : null;
+    const placement = diversified?.placements.at(-1);
+    return placement && diversified!.placements.length === input.placements.length + 1
+      ? { type: "PLACE_CORE", coreId: placement.core.id, cell: placement.cell }
+      : null;
+  }
+  const hasPendingDecision = Boolean(input.pendingChoice)
+    || input.triggerOrders.some((request) => request.controllerId === playerId && !request.orderedIds);
+  if (
+    ["preRoll", "power", "victor", "postDamage", "endPlay"].includes(input.phase)
+    && input.priority === playerId
+    && !hasPendingDecision
+  ) return chooseWithCombatPolicy(input, playerId);
+  return chooseBaseOpponentAiCommand(input, playerId);
 }
 
 

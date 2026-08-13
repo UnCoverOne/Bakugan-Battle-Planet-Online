@@ -20,6 +20,7 @@ import {
   selectRollTarget,
 } from "./rolling";
 import { drawTurnCard, playerCanDrawTurnCard } from "./turnStart";
+import type { GameCommand } from "./engine/types";
 
 const PRIORITY_PHASES = new Set<MatchState["phase"]>([
   "preRoll",
@@ -93,6 +94,53 @@ function conservativeChoiceAnswers(match: MatchState, playerId: string) {
     }
   }
   return choices;
+}
+
+/** Command-only fallback used by Training so recovery is journalled like every other action. */
+export function recoverOpponentAiCommand(match: MatchState, playerId: string): GameCommand | null {
+  const player = match.players.find((candidate) => candidate.id === playerId);
+  if (!player || !opponentAiCanAct(match, playerId)) return null;
+  const pending = match.pendingChoice;
+  if (pending?.schema.fields.some((field) => field.chooserId === playerId && !pending.answers[playerId])) {
+    return { type: "SUBMIT_CARD_CHOICE", choices: conservativeChoiceAnswers(match, playerId) };
+  }
+  const triggerOrder = match.triggerOrders.find((request) => request.controllerId === playerId && !request.orderedIds);
+  if (triggerOrder) {
+    return { type: "ORDER_TRIGGERS", requestId: triggerOrder.id, orderedIds: triggerOrder.triggers.map((trigger) => trigger.id) };
+  }
+  if (match.phase === "startingPlayer" && Date.now() >= match.startingPlayerRevealedAt) return { type: "BEGIN_CORE_PLACEMENT" };
+  if (match.phase === "placement" && match.priority === playerId) {
+    const used = new Set(match.placements.filter((placement) => placement.playerId === playerId).map((placement) => placement.core.id));
+    const core = player.cores.find((candidate) => !used.has(candidate.id));
+    const cell = legalPlacementCells(match)[0];
+    return core && cell ? { type: "PLACE_CORE", coreId: core.id, cell } : null;
+  }
+  if (playerCanDrawTurnCard(match, playerId)) return { type: "DRAW_TURN_CARD" };
+  if (match.phase === "energize" && !player.energizedThisTurn) return { type: "ENERGIZE" };
+  if (match.phase === "selection" && !match.selected[playerId]) {
+    const bakugan = player.bakugan.find((candidate) => !candidate.open) ?? player.bakugan[0];
+    return bakugan ? { type: "SELECT_BAKUGAN", bakuganId: bakugan.id } : null;
+  }
+  if (match.phase === "target" || match.phase === "reroll") {
+    if (playerCanSelectRollTarget(match, playerId)) {
+      const target = availableRollTargets(match)[0];
+      return target ? { type: "SELECT_ROLL_TARGET", cell: target.cell } : null;
+    }
+    if (playerCanConfirmRoll(match, playerId)) return { type: "CONFIRM_ROLL" };
+  }
+  if (match.phase === "damage" && match.pendingLoser === playerId) {
+    if (match.revealedFlip) return { type: "PLAY_DAMAGE_FLIP", choices: {} };
+    if (match.pendingDamage > 0) return { type: "REVEAL_DAMAGE_FLIP" };
+  }
+  if ((match.phase === "reset" && match.batch.length > 0 && match.priority === playerId)
+    || (PRIORITY_PHASES.has(match.phase) && match.priority === playerId)) {
+    return { type: "PASS_PRIORITY" };
+  }
+  if (match.phase === "handLimit" && match.priority === playerId) {
+    const amount = Math.max(0, player.hand.length - 7);
+    return { type: "DISCARD_TO_HAND_LIMIT", cardIds: player.hand.slice(0, amount).map((card) => card.id) };
+  }
+  return null;
 }
 
 /**

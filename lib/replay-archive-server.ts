@@ -1,7 +1,11 @@
 import type { MatchState } from "./game";
-import { archiveReplay } from "./engine/replay-codec";
+import {
+  archiveReplayRecording,
+  compactReplayCommand,
+  createReplayRecording,
+} from "./engine/replay-codec";
 import type { ReplayArchive } from "./engine/replay-types";
-import type { EngineBackedMatchState } from "./engine/types";
+import type { CommandEnvelope, EngineBackedMatchState, GameCommand } from "./engine/types";
 import { isCompletedSeriesResult } from "./match-result-navigation";
 import type { MatchResultRecord } from "./persistence";
 
@@ -146,11 +150,103 @@ function recomputeStats(database: D1Database, userId: string, now: number) {
     .bind(userId, now, userId);
 }
 
+type ReplaySnapshotRow = { version: number; state_json: string };
+type ReplayCommandRow = {
+  command_id: string;
+  actor_id: string;
+  expected_version: number;
+  result_version: number;
+  payload_json: string;
+  created_at: number;
+};
+
+function parseAcceptedCommand(row: ReplayCommandRow, gameId: string): CommandEnvelope | null {
+  try {
+    const payload = JSON.parse(row.payload_json) as {
+      command?: GameCommand;
+      randomSeed?: string;
+      requestHash?: string;
+    };
+    if (!payload.command || typeof payload.command.type !== "string" || !payload.randomSeed) return null;
+    return {
+      commandId: row.command_id,
+      gameId,
+      actorId: row.actor_id,
+      expectedVersion: row.expected_version,
+      issuedAt: row.created_at,
+      randomSeed: payload.randomSeed,
+      requestHash: payload.requestHash ?? `archive:${row.command_id}`,
+      command: payload.command,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function buildReplayArchiveFromRows(
+  genesis: MatchState,
+  snapshotVersion: number,
+  rows: readonly ReplayCommandRow[],
+  state: EngineBackedMatchState,
+  completedAt = Date.now(),
+) {
+  const recording = createReplayRecording(genesis);
+  recording.commands = rows
+    .filter((row) => row.result_version > snapshotVersion)
+    .map((row) => {
+      const envelope = parseAcceptedCommand(row, state.id);
+      if (!envelope) throw new Error(`Accepted command ${row.command_id} cannot be reconstructed.`);
+      return compactReplayCommand(envelope);
+    });
+  return archiveReplayRecording(recording, state, completedAt);
+}
+
+/**
+ * Builds a replay from the event store after the request path is complete.
+ * The first gameplay snapshot is the sole genesis; accepted commands after it
+ * are already present in D1 and are compacted only once during finalization.
+ */
+export async function buildReplayArchiveFromEventStore(
+  database: D1Database,
+  state: EngineBackedMatchState,
+  completedAt = Date.now(),
+) {
+  const snapshot = await database.prepare(`SELECT version, state_json FROM match_snapshots
+    WHERE code = ? AND json_extract(state_json, '$.phase') <> 'lobby'
+    ORDER BY version ASC LIMIT 1`)
+    .bind(state.code).first<ReplaySnapshotRow>();
+  if (!snapshot) return null;
+  const genesis = JSON.parse(snapshot.state_json) as MatchState;
+  const response = await database.prepare(`SELECT
+      match_events.command_id,
+      match_events.actor_id,
+      match_commands.expected_version,
+      match_commands.result_version,
+      match_events.payload_json,
+      match_events.created_at
+    FROM match_events
+    JOIN match_commands
+      ON match_commands.code = match_events.code
+      AND match_commands.command_id = match_events.command_id
+    WHERE match_events.code = ?
+      AND match_events.event_type = 'COMMAND_ACCEPTED'
+      AND match_commands.result_version > ?
+    ORDER BY match_events.sequence ASC`)
+    .bind(state.code, snapshot.version).all<ReplayCommandRow>();
+  return buildReplayArchiveFromRows(
+    genesis,
+    snapshot.version,
+    response.results ?? [],
+    state,
+    completedAt,
+  );
+}
+
 /** Archives a completed series once, links each signed-in participant, and prunes visible records to ten. */
 export async function archiveCompletedMatch(database: D1Database, state: EngineBackedMatchState) {
   if (!isCompletedSeriesResult(state)) return false;
   const completedAt = Date.now();
-  const archive = archiveReplay(state, completedAt);
+  const archive = await buildReplayArchiveFromEventStore(database, state, completedAt);
   if (!archive) return false;
   await ensureReplayArchiveSchema(database);
   const seats = await database.prepare(

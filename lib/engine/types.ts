@@ -38,7 +38,7 @@ export type GameCommand =
   | { type: "PLAY_DAMAGE_FLIP"; cardId?: string; choices: CardChoices }
   | { type: "DISCARD_TO_HAND_LIMIT"; cardIds: string[] }
   | { type: "CHAT"; message: string }
-  | { type: "CONCEDE" }
+  | { type: "CONCEDE"; reason?: "disconnect" }
   | { type: "NEXT_TURN" }
   | { type: "START_NEXT_SERIES_GAME" }
   | { type: "UNDO" }
@@ -121,8 +121,6 @@ export type EngineMetadata = {
   fault?: EngineFault;
   runtimeBudget?: { triggerChainDepth: number; effectSteps: number; replacementIterations: number; pendingChoices: number; physicalRollAttempts: number };
   timeoutStrikes?: Record<string, { decision: number; connectionGrace: number }>;
-  /** Compact deterministic source used to build a verified replay archive. */
-  replay?: import("./replay-types").ReplayRecording;
 };
 export type EngineBackedMatchState = MatchState & { [ENGINE_METADATA_KEY]?: EngineMetadata };
 export type ReduceResult = {

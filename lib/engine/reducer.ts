@@ -45,7 +45,6 @@ import { assertCommandAllowedInPhase, assertValidPhaseTransition, structuredPhas
 import { withDeterministicRuntime } from "./runtime";
 import { assertStateWithinRuntimeLimits, consumePendingChoice, engineFaultFromLimit, EngineRuntimeLimitError, withEngineRuntimeBudget } from "./limits";
 import { clearDecisionTimeouts } from "./timeout-policy";
-import { appendReplayCommand, createReplayRecording } from "./replay-codec";
 import {
   ENGINE_VERSION,
   RULES_VERSION,
@@ -108,7 +107,19 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
     case "ACTIVATE_REROLL": return activateIntrinsicReroll(input, actorId);
     case "DISCARD_TO_HAND_LIMIT": return discardToHandLimit(input, actorId, command.cardIds);
     case "CHAT": return addChatMessage(input, actorId, command.message);
-    case "CONCEDE": return concedeMatch(input, actorId);
+    case "CONCEDE": {
+      const state = concedeMatch(input, actorId);
+      if (command.reason === "disconnect") {
+        state.resultReason = "Opponent disconnected";
+        state.log.push({
+          id: `${issuedAt}-disconnect-${state.version}`,
+          at: issuedAt,
+          kind: "system",
+          message: `${input.players.find((player) => player.id === actorId)?.name ?? "A player"} forfeited after the reconnect window expired.`,
+        });
+      }
+      return state;
+    }
     case "NEXT_TURN": return nextTurn(input);
     case "START_NEXT_SERIES_GAME": return rankedSeries(input)
       ? beginRankedIntermission(input)
@@ -164,14 +175,18 @@ export function reduceMatch(input: MatchState, envelope: CommandEnvelope): Reduc
     const metadata = ensureEngineMetadata(faulted);
     metadata.fault = engineFaultFromLimit(error, faulted, envelope.commandId, envelope.issuedAt);
     const faultEvents: UnsequencedGameEvent[] = [
-      { type: "COMMAND_ACCEPTED", actorId: envelope.actorId, visibility: "server", payload: { commandType: envelope.command.type, expectedVersion: envelope.expectedVersion } },
+      { type: "COMMAND_ACCEPTED", actorId: envelope.actorId, visibility: "server", payload: {
+        command: envelope.command,
+        expectedVersion: envelope.expectedVersion,
+        randomSeed: envelope.randomSeed,
+        requestHash: envelope.requestHash,
+      } },
       { type: "ENGINE_FAULT", actorId: "system", visibility: "public", payload: { code: metadata.fault.code, metric: metadata.fault.metric, limit: metadata.fault.limit, actual: metadata.fault.actual, suspended: true } },
       { type: "COMMAND_COMPLETED", actorId: envelope.actorId, visibility: "public", payload: { commandType: envelope.command.type, previousVersion: before.version, newVersion: faulted.version, faulted: true } },
     ];
     const events = sequenceEvents(faulted, envelope, faultEvents);
     const receipt = buildReceipt(envelope, faulted.version, events);
     appendCommandReceipt(faulted, receipt);
-    appendReplayCommand(faulted, envelope);
     return { state: faulted, events, receipt, duplicate: false, changed: true, faulted: true };
   }
   normalizeRuleObjects(next);
@@ -195,7 +210,6 @@ export function reduceMatch(input: MatchState, envelope: CommandEnvelope): Reduc
   const events = sequenceEvents(next, envelope, deriveTransitionEvents(before, next, envelope));
   const receipt = buildReceipt(envelope, next.version, events);
   appendCommandReceipt(next, receipt);
-  appendReplayCommand(next, envelope);
   ensureEngineMetadata(next).phase = structuredPhaseFor(next.phase);
   return { state: next, events, receipt, duplicate: false, changed: true };
 }
@@ -231,6 +245,5 @@ export function initializeMatch(
   const metadata = ensureEngineMetadata(state);
   metadata.engineVersion = ENGINE_VERSION;
   metadata.rulesVersion = RULES_VERSION;
-  metadata.replay = createReplayRecording(state);
   return { state, events, receipt, duplicate: false, changed: true };
 }

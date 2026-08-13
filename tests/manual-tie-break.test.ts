@@ -104,7 +104,8 @@ test("the gameplay client mounts the two-slot tie popup and reuses the deck flip
   const runtime = readFileSync(new URL("../lib/rules/runtime.ts", import.meta.url), "utf8");
 
   assert.match(gameplay, /<TieBreakLayer[\s\S]*onFlipTieBreakCard=\{flipTieBreak\}/);
-  assert.match(gameplay, /"flip-damage"[\s\S]*flipTieBreakCard/);
+  assert.match(gameplay, /const flipTieBreak = \(\) => submitMatchAction\(\s*"flip-damage"/);
+  assert.match(gameplay, /dispatchLocalGameAction\(match, actorId, action, payload\)/);
   assert.match(layer, /match\.players\.map/);
   assert.match(layer, /HIGHER COST/);
   assert.match(layer, /EQUAL COST/);

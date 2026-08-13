@@ -24,8 +24,6 @@ import {
   type ReplayArchive,
   type ReplayRecording,
 } from "./replay-types";
-import { ensureEngineMetadata } from "./events";
-import { createStatePatch } from "./state-patch";
 
 const CORE_BY_ID = new Map(CORES.map((core) => [core.catalogId ?? core.id, core]));
 const BAKUGAN_BY_ID = new Map(BAKUGAN.map((bakugan) => [bakugan.id, bakugan]));
@@ -203,48 +201,28 @@ export function createReplayRecording(state: MatchState): ReplayRecording {
   return { schemaVersion: REPLAY_SCHEMA_VERSION, genesis: captureReplayGenesis(state), commands: [] };
 }
 
-/**
- * Start recording an already-created match without discarding an existing
- * server-side command recording. Training lobbies are assembled locally by
- * the lobby workflow, so their deterministic replay begins at the exact
- * post-lobby state where gameplay starts.
- */
-export function ensureReplayRecording(state: MatchState): EngineBackedMatchState {
-  const next = cloneMatch(state) as EngineBackedMatchState;
-  const metadata = ensureEngineMetadata(next);
-  metadata.replay ??= createReplayRecording(next);
-  return next;
-}
-
-export function appendReplayCommand(state: EngineBackedMatchState, envelope: CommandEnvelope) {
-  const recording = state[ENGINE_METADATA_KEY]?.replay;
-  if (!recording) return;
-  recording.commands.push(compactReplayCommand(envelope));
-}
-
-export function appendLocalReplayTransition(
-  before: MatchState,
-  after: MatchState,
-  label: string,
-  at = Date.now(),
-): EngineBackedMatchState {
-  const source = before as EngineBackedMatchState;
-  const next = after as EngineBackedMatchState;
-  const recording = source[ENGINE_METADATA_KEY]?.replay;
-  if (!recording) return next;
-  const previousState = cloneMatch(before) as EngineBackedMatchState;
-  const nextState = cloneMatch(after) as EngineBackedMatchState;
-  delete previousState[ENGINE_METADATA_KEY];
-  delete nextState[ENGINE_METADATA_KEY];
-  const transitions = [...(recording.localTransitions ?? [])];
-  transitions.push({ q: recording.commands.length, t: at, l: label.slice(0, 120), p: createStatePatch(previousState, nextState) });
-  const metadata = clone(source[ENGINE_METADATA_KEY]!);
-  metadata.replay = { ...clone(recording), localTransitions: transitions };
-  next[ENGINE_METADATA_KEY] = metadata;
-  return next;
-}
-
 function canonicalStateForHash(state: MatchState) {
+  const copy = cloneMatch(state) as EngineBackedMatchState;
+  delete copy[ENGINE_METADATA_KEY];
+  const ranked = (copy as MatchState & {
+    ranked?: { stage?: string; settlement?: unknown };
+  }).ranked;
+  if (ranked) {
+    // Rating settlement is account metadata written after the final gameplay
+    // command. It is intentionally not part of deterministic match playback.
+    delete ranked.settlement;
+    if (copy.phase === "result" && Math.max(...Object.values(copy.series)) >= 2) {
+      ranked.stage = "complete";
+    }
+  }
+  for (const player of copy.players) {
+    player.connected = true;
+    player.lastSeen = 0;
+  }
+  return copy;
+}
+
+function legacyCanonicalStateForHash(state: MatchState) {
   const copy = cloneMatch(state) as EngineBackedMatchState;
   delete copy[ENGINE_METADATA_KEY];
   for (const player of copy.players) {
@@ -274,9 +252,24 @@ export function replayStateHash(state: MatchState): string {
   return `${left.toString(16).padStart(8, "0")}${right.toString(16).padStart(8, "0")}`;
 }
 
-export function archiveReplay(state: EngineBackedMatchState, completedAt = Date.now()): ReplayArchive | null {
-  const recording = state[ENGINE_METADATA_KEY]?.replay;
-  if (!recording) return null;
+/** Hash compatibility for archives produced before account settlement left gameplay playback. */
+export function legacyReplayStateHash(state: MatchState): string {
+  const input = stableJson(legacyCanonicalStateForHash(state));
+  let left = 0x811c9dc5;
+  let right = 0x9e3779b9;
+  for (let index = 0; index < input.length; index += 1) {
+    const code = input.charCodeAt(index);
+    left = Math.imul(left ^ code, 0x01000193) >>> 0;
+    right = Math.imul(right ^ code, 0x85ebca6b) >>> 0;
+  }
+  return `${left.toString(16).padStart(8, "0")}${right.toString(16).padStart(8, "0")}`;
+}
+
+export function archiveReplayRecording(
+  recording: ReplayRecording,
+  state: MatchState,
+  completedAt = Date.now(),
+): ReplayArchive {
   return {
     schemaVersion: REPLAY_SCHEMA_VERSION,
     replayId: state.id,
@@ -295,4 +288,10 @@ export function archiveReplay(state: EngineBackedMatchState, completedAt = Date.
     },
     recording: clone(recording),
   };
+}
+
+/** Read-only bridge for active snapshots created by the previous recorder. */
+export function archiveReplay(state: EngineBackedMatchState, completedAt = Date.now()): ReplayArchive | null {
+  const recording = (state[ENGINE_METADATA_KEY] as { replay?: ReplayRecording } | undefined)?.replay;
+  return recording ? archiveReplayRecording(recording, state, completedAt) : null;
 }

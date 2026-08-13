@@ -66,6 +66,7 @@ import {
   isTemporaryCombatAction,
   temporaryCombatPotential,
 } from "./aiCardSemantics";
+import type { GameCommand } from "./engine/types";
 
 const PRIORITY_PHASES = new Set<MatchState["phase"]>([
   "preRoll", "power", "victor", "postDamage", "endPlay",
@@ -2705,7 +2706,8 @@ export function opponentAiCanAct(match: MatchState, playerId: string) {
   return match.phase === "handLimit" && match.priority === playerId;
 }
 
-export function advanceOpponentAi(input: MatchState, playerId: string): MatchState | null {
+/** Pure tactical decision used by the Training worker. State mutation stays in the engine reducer. */
+export function chooseOpponentAiCommand(input: MatchState, playerId: string): GameCommand | null {
   const player = playerById(input, playerId);
   if (!player) return null;
   const pending = input.pendingChoice;
@@ -2716,7 +2718,7 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
   ) {
     const source = pendingSource(input, pending);
     if (!source && !["resolution", "forced-discard"].includes(pending.kind)) {
-      return cancelCardChoice(input, pending.controllerId);
+      return { type: "CANCEL_CARD_CHOICE" };
     }
     const card = source?.card ?? fallbackChoiceCard(pending);
     const choiceSourceText = source?.sourceText ?? card.effect;
@@ -2737,7 +2739,7 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
         setChoice(choices, field, field.options.slice(0, count).map((option) => option.id));
       }
     }
-    return submitCardChoice(input, playerId, choices);
+    return { type: "SUBMIT_CARD_CHOICE", choices };
   }
   const triggerOrder = input.triggerOrders.find(
     (request) => request.controllerId === playerId && !request.orderedIds,
@@ -2747,41 +2749,40 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
       estimateProgramValue(compileCardEffect(a.card, a.effect), input, playerId, a.choices)
       - estimateProgramValue(compileCardEffect(b.card, b.effect), input, playerId, b.choices)
     )).map((trigger) => trigger.id);
-    return orderTriggers(input, playerId, triggerOrder.id, ids);
+    return { type: "ORDER_TRIGGERS", requestId: triggerOrder.id, orderedIds: ids };
   }
   if (input.phase === "startingPlayer" && Date.now() >= input.startingPlayerRevealedAt) {
-    return beginCorePlacement(input);
+    return { type: "BEGIN_CORE_PLACEMENT" };
   }
   if (input.phase === "placement" && input.priority === playerId) {
     const placement = bestCorePlacement(input, playerId);
-    return placement ? placeCore(input, playerId, placement.core.id, placement.cell) : null;
+    return placement ? { type: "PLACE_CORE", coreId: placement.core.id, cell: placement.cell } : null;
   }
-  if (playerCanDrawTurnCard(input, playerId)) return drawTurnCard(input, playerId);
+  if (playerCanDrawTurnCard(input, playerId)) return { type: "DRAW_TURN_CARD" };
   if (input.phase === "energize" && !player.energizedThisTurn) {
     const plan = planOpponentEnergize(input, playerId);
-    return energizeCard(input, playerId, plan.shouldEnergize ? plan.cardId : undefined);
+    return { type: "ENERGIZE", cardId: plan.shouldEnergize ? plan.cardId : undefined };
   }
   if (input.phase === "selection" && !input.selected[playerId]) {
-    return selectBakugan(input, playerId, bestBakugan(input, playerId).id);
+    return { type: "SELECT_BAKUGAN", bakuganId: bestBakugan(input, playerId).id };
   }
   if (input.phase === "target" || input.phase === "reroll") {
     if (playerCanSelectRollTarget(input, playerId)) {
       const target = bestRollTarget(input, playerId);
-      return target ? selectRollTarget(input, playerId, target.cell) : null;
+      return target ? { type: "SELECT_ROLL_TARGET", cell: target.cell } : null;
     }
-    if (playerCanConfirmRoll(input, playerId)) return confirmRoll(input, playerId);
+    if (playerCanConfirmRoll(input, playerId)) return { type: "CONFIRM_ROLL" };
   }
   if (input.phase === "damage" && input.pendingLoser === playerId) {
     if (!input.revealedFlip) {
-      return input.pendingDamage > 0 ? flipDamageCard(input, playerId) : null;
+      return input.pendingDamage > 0 ? { type: "REVEAL_DAMAGE_FLIP" } : null;
     }
     const choices = chooseCardChoices(input, playerId, input.revealedFlip);
     const payment = cardEnergyPaymentState(input, playerId, input.revealedFlip, choices);
     const useful = cardValue(input, playerId, input.revealedFlip, choices) > 0;
-    return resolveManualDamage(
-      input,
-      playerId,
-      !alternateWinEffectPending(input)
+    return {
+      type: "PLAY_DAMAGE_FLIP",
+      cardId: !alternateWinEffectPending(input)
         && revealedFlipCanBePlayed(input, playerId, input.revealedFlip)
         && payment
         && payment.kind !== "insufficient"
@@ -2789,25 +2790,25 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
         ? input.revealedFlip.id
         : undefined,
       choices,
-    );
+    };
   }
   if (input.phase === "reset" && input.batch.length && input.priority === playerId) {
-    return passPriority(input, playerId);
+    return { type: "PASS_PRIORITY" };
   }
   if (PRIORITY_PHASES.has(input.phase) && input.priority === playerId) {
-    if (alternateWinEffectPending(input)) return passPriority(input, playerId);
+    if (alternateWinEffectPending(input)) return { type: "PASS_PRIORITY" };
     if (playerCanActivateIntrinsicReroll(input, playerId)) {
-      return activateIntrinsicReroll(input, playerId);
+      return { type: "ACTIVATE_REROLL" };
     }
     const best = bestPlayableCard(input, playerId);
     const confidenceMargin = input.phase === "preRoll" ? 0.4 : 0.75;
     if (best && best.score > confidenceMargin) {
       const schema = buildChoiceSchema(input, playerId, best.card);
       return schema.fields.length
-        ? prepareCardPlay(input, playerId, best.card.id)
-        : playCardWithAutoEnergy(input, playerId, best.card.id, best.choices);
+        ? { type: "PREPARE_CARD_PLAY", cardId: best.card.id }
+        : { type: "PLAY_CARD", cardId: best.card.id, choices: best.choices };
     }
-    return passPriority(input, playerId);
+    return { type: "PASS_PRIORITY" };
   }
   if (input.phase === "handLimit" && input.priority === playerId) {
     const amount = Math.max(0, player.hand.length - 7);
@@ -2815,7 +2816,32 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
       (a, b) => handCardRetentionValue(input, playerId, a)
         - handCardRetentionValue(input, playerId, b),
     ).slice(0, amount);
-    return discardToHandLimit(input, playerId, cards.map((card) => card.id));
+    return { type: "DISCARD_TO_HAND_LIMIT", cardIds: cards.map((card) => card.id) };
   }
   return null;
+}
+
+export function advanceOpponentAi(input: MatchState, playerId: string): MatchState | null {
+  const command = chooseOpponentAiCommand(input, playerId);
+  if (!command) return null;
+  switch (command.type) {
+    case "CANCEL_CARD_CHOICE": return cancelCardChoice(input, playerId);
+    case "SUBMIT_CARD_CHOICE": return submitCardChoice(input, playerId, command.choices);
+    case "ORDER_TRIGGERS": return orderTriggers(input, playerId, command.requestId, command.orderedIds);
+    case "BEGIN_CORE_PLACEMENT": return beginCorePlacement(input);
+    case "PLACE_CORE": return placeCore(input, playerId, command.coreId, command.cell);
+    case "DRAW_TURN_CARD": return drawTurnCard(input, playerId);
+    case "ENERGIZE": return energizeCard(input, playerId, command.cardId);
+    case "SELECT_BAKUGAN": return selectBakugan(input, playerId, command.bakuganId);
+    case "SELECT_ROLL_TARGET": return selectRollTarget(input, playerId, command.cell);
+    case "CONFIRM_ROLL": return confirmRoll(input, playerId);
+    case "REVEAL_DAMAGE_FLIP": return flipDamageCard(input, playerId);
+    case "PLAY_DAMAGE_FLIP": return resolveManualDamage(input, playerId, command.cardId, command.choices);
+    case "ACTIVATE_REROLL": return activateIntrinsicReroll(input, playerId);
+    case "PREPARE_CARD_PLAY": return prepareCardPlay(input, playerId, command.cardId);
+    case "PLAY_CARD": return playCardWithAutoEnergy(input, playerId, command.cardId, command.choices);
+    case "PASS_PRIORITY": return passPriority(input, playerId);
+    case "DISCARD_TO_HAND_LIMIT": return discardToHandLimit(input, playerId, command.cardIds);
+    default: return null;
+  }
 }

@@ -15,6 +15,7 @@ import {
   type LobbyDeckFormat,
 } from "./lobby-config";
 import { replaceLobbyDeck, setLobbyReady } from "./lobby";
+import type { GameCommand } from "./engine/types";
 
 type TrainingMatchState = MatchState & {
   trainingAiDeck?: DeckRecord;
@@ -108,4 +109,19 @@ export function syncTrainingBotForLobby(input: MatchState) {
   let state = replaceLobbyDeck(input, bot.id, replacement);
   state = setLobbyReady(state, bot.id, true);
   return state;
+}
+
+/** Commands used by the interactive Training lobby to keep replay deterministic. */
+export function trainingBotLobbyCommands(input: MatchState): GameCommand[] {
+  const config = lobbyConfig(input);
+  if (config.mode !== "training" || input.phase !== "lobby") return [];
+  const bot = input.players.find((player) => player.id === "training-bot");
+  if (!bot) return [];
+  const selectedAiDeck = (input as TrainingMatchState).trainingAiDeck ?? STARTER_DECKS[1];
+  const deck = trainingOpponentDeck(requiredDeckFormat(config.rulesFormat), selectedAiDeck);
+  const replacement = tagLobbyPlayerDeck(makePlayer(bot.id, bot.name, deck), deck);
+  return [
+    { type: "UPDATE_LOBBY_DECK", player: replacement },
+    { type: "SET_LOBBY_READY", ready: true },
+  ];
 }

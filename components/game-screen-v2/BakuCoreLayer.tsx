@@ -13,13 +13,12 @@ import { HEX_CELLS, type CoreType, type MatchState } from "../../lib/game";
 import {
   allRollTargetsSelected,
   availableRollTargets,
-  confirmRoll,
   playerCanConfirmRoll,
   playerCanSelectRollTarget,
   rollTargetCanConfirm,
   rollResultSignature,
-  selectRollTarget,
 } from "../../lib/rolling";
+import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
 import { coreTransferDestination } from "./bakuCorePresentationState";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
@@ -56,8 +55,6 @@ type PortalTargets = {
   playArea: HTMLElement | null;
   actionSlot: HTMLElement | null;
 };
-
-type LocalMatchAction = (match: MatchState, actorId: string) => MatchState;
 
 type TransferGeometry = {
   sourceX: number;
@@ -388,10 +385,10 @@ export function BakuCoreLayer({
 
   useEffect(() => {
     const resolvedActorId = playerId ?? match?.players[0]?.id;
-    if (!["target", "reroll"].includes(match?.phase ?? "") || (resolvedActorId && match.targets[resolvedActorId])) {
+    if (!["target", "reroll"].includes(match?.phase ?? "") || (resolvedActorId && match?.targets[resolvedActorId])) {
       setSelectedCoreCell("");
     }
-  }, [match?.phase, match?.version, match?.targets, playerId]);
+  }, [match?.phase, match?.players, match?.version, match?.targets, playerId]);
 
   useEffect(() => {
     const onBlankPlaymat = (event: PointerEvent) => {
@@ -444,7 +441,6 @@ export function BakuCoreLayer({
   const submit = async (
     action: "target" | "roll",
     payload: Record<string, unknown>,
-    localAction: LocalMatchAction,
   ) => {
     if (!match || !actorId || busy) return;
     setBusy(true);
@@ -452,7 +448,19 @@ export function BakuCoreLayer({
     try {
       const stored = readMatchStore();
       if (!stored.online) {
-        writeCoordinatedMatch(localAction(match, actorId));
+        let next = dispatchLocalGameAction(match, actorId, action, payload);
+        const bot = next.players.find((player) => player.id === "training-bot");
+        if (action === "target" && bot && playerCanSelectRollTarget(next, bot.id)) {
+          const selectedCell = String(payload.cell ?? "");
+          const choices = availableRollTargets(next);
+          const botCell = choices.find((placement) => placement.cell !== selectedCell)?.cell
+            ?? choices[0]?.cell;
+          if (botCell) next = dispatchLocalGameAction(next, bot.id, "target", { cell: botCell });
+        }
+        if (action === "roll" && bot && playerCanConfirmRoll(next, bot.id)) {
+          next = dispatchLocalGameAction(next, bot.id, "roll");
+        }
+        writeCoordinatedMatch(next);
       } else {
         const response = await fetch("/api/game", {
           method: "POST",
@@ -480,26 +488,11 @@ export function BakuCoreLayer({
 
   const confirmCoreSelection = () => {
     if (!selectedCoreCell) return;
-    void submit("target", { cell: selectedCoreCell }, (state, localActorId) => {
-      let next = selectRollTarget(state, localActorId, selectedCoreCell);
-      const bot = next.players.find((player) => player.id === "training-bot");
-      if (bot && playerCanSelectRollTarget(next, bot.id)) {
-        const choices = availableRollTargets(next);
-        const botCell = choices.find((placement) => placement.cell !== selectedCoreCell)?.cell
-          ?? choices[0]?.cell;
-        if (botCell) next = selectRollTarget(next, bot.id, botCell);
-      }
-      return next;
-    });
+    void submit("target", { cell: selectedCoreCell });
   };
 
   const confirmPlayerRoll = () => {
-    void submit("roll", {}, (state, localActorId) => {
-      let next = confirmRoll(state, localActorId);
-      const bot = next.players.find((player) => player.id === "training-bot");
-      if (bot && playerCanConfirmRoll(next, bot.id)) next = confirmRoll(next, bot.id);
-      return next;
-    });
+    void submit("roll", {});
   };
 
   const toggleCore = (cell: string) => {
@@ -612,4 +605,3 @@ export function BakuCoreLayer({
     </>
   );
 }
-

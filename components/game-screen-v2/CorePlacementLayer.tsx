@@ -1,7 +1,8 @@
 "use client";
 
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { HEX_CELLS, legalPlacementCells, placeCore, type CoreType, type MatchState } from "../../lib/game";
+import { HEX_CELLS, legalPlacementCells, type CoreType, type MatchState } from "../../lib/game";
+import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore } from "./matchStore";
 import { playerUsesOppositeMatrixPerspective } from "./matrixPerspectiveState";
@@ -86,7 +87,7 @@ export function CorePlacementLayer({
     try {
       const stored = readMatchStore();
       if (!stored.online) {
-        writeCoordinatedMatch(placeCore(match, actorId, coreId, cell));
+        writeCoordinatedMatch(dispatchLocalGameAction(match, actorId, "place", { coreId, cell }));
       } else {
         const response = await fetch("/api/game", {
           method: "POST",
@@ -152,4 +153,3 @@ export function CorePlacementLayer({
     {error && <p className={styles.error} role="alert">{error}</p>}
   </section>;
 }
-

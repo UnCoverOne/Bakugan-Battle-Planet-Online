@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { cancelCardChoice, orderTriggers, submitCardChoice, type CardChoices, type MatchState } from "../../lib/game";
+import { type CardChoices, type MatchState } from "../../lib/game";
+import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import type { ChoiceField, ChoiceKind } from "../../lib/rules/choices";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore, useMatchSelector } from "./matchStore";
@@ -54,16 +55,15 @@ function fieldComplete(answers: CardChoices, field: ChoiceField) {
 }
 
 async function command(
-  action: string,
+  action: "choice" | "cancel-choice" | "order-triggers",
   payload: Record<string, unknown>,
-  local: (match: MatchState, playerId: string) => MatchState,
 ) {
   const current = readMatchStore();
   const match = current.match;
   const playerId = current.playerId ?? match?.players[0]?.id;
   if (!match || !playerId) throw new Error("No active match is available.");
   if (!current.online) {
-    writeCoordinatedMatch(local(match, playerId));
+    writeCoordinatedMatch(dispatchLocalGameAction(match, playerId, action, payload));
     return;
   }
   const response = await fetch("/api/game", {
@@ -123,7 +123,7 @@ export function ChoiceQueueLayer() {
     if (!pending || busy) return;
     setBusy(true); setError("");
     try {
-      await command("choice", { choices: answers }, (current, actorId) => submitCardChoice(current, actorId, answers));
+      await command("choice", { choices: answers });
     } catch (cause) { setError(cause instanceof Error ? cause.message : "The choice could not be completed."); }
     finally { setBusy(false); }
   }, [answers, busy, pending]);
@@ -131,7 +131,7 @@ export function ChoiceQueueLayer() {
   const cancel = useCallback(async () => {
     if (!pending || busy) return;
     setBusy(true); setError("");
-    try { await command("cancel-choice", {}, (current, actorId) => cancelCardChoice(current, actorId)); }
+    try { await command("cancel-choice", {}); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "The choice could not be cancelled."); }
     finally { setBusy(false); }
   }, [busy, pending]);
@@ -280,7 +280,7 @@ export function ChoiceQueueLayer() {
     if (!triggerOrder || busy) return;
     setBusy(true); setError("");
     try {
-      await command("order-triggers", { requestId: triggerOrder.id, orderedIds }, (current, actorId) => orderTriggers(current, actorId, triggerOrder.id, orderedIds));
+      await command("order-triggers", { requestId: triggerOrder.id, orderedIds });
     } catch (cause) { setError(cause instanceof Error ? cause.message : "The trigger order could not be completed."); }
     finally { setBusy(false); }
   };

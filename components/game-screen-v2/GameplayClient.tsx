@@ -2,42 +2,22 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  activateIntrinsicReroll,
-  beginCorePlacement,
-  concedeMatch,
-  discardToHandLimit,
-  energizeCard,
-  nextTurn,
-  prepareCardPlay,
-  selectBakugan,
-  submitCardChoice,
-  type CardChoices,
-  type MatchState,
-} from "../../lib/game";
+import { type CardChoices, type MatchState } from "../../lib/game";
+import { dispatchLocalGameAction, dispatchLocalGameCommand } from "../../lib/engine/local-command-dispatcher";
+import type { ApiAction } from "../../lib/engine/commands";
+import type { GameCommand } from "../../lib/engine/types";
 import {
   opponentAiCanAct,
-  recoverOpponentAiFailure,
+  recoverOpponentAiCommand,
 } from "../../lib/opponentAiCanAct";
-import { canUndoLatest, undoLatestAction } from "../../lib/undo";
+import { canUndoLatest } from "../../lib/undo";
 import { isCompletedSeriesResult } from "../../lib/match-result-navigation";
-import { appendLocalReplayTransition } from "../../lib/engine/replay-codec";
-import { playCardWithAutoEnergy } from "../../lib/cardPayment";
-import { tapEnergyCard } from "../../lib/energy";
 import {
-  flipDamageCard,
-  resolveManualDamage,
-  resumeDamageAfterFlipWindow,
-} from "../../lib/manualDamage";
-import {
-  flipTieBreakCard,
-  passPriorityWithTieBreak,
   playerCanFlipTieBreak,
   shouldStartManualTieBreak,
 } from "../../lib/manualTieBreak";
 import {
   drawStepIsPending,
-  drawTurnCard,
   playerCanDrawTurnCard,
   playerHasDrawnTurnCard,
   type TurnStartMatchState,
@@ -83,8 +63,6 @@ type StoredGameScreenState = {
   playerId?: string;
 };
 
-type LocalMatchAction = (match: MatchState, actorId: string) => MatchState;
-
 type GameplaySettings = {
   automaticDraw?: boolean;
   automaticPass?: boolean;
@@ -94,7 +72,7 @@ type GameplaySettings = {
 
 type OpponentAiWorkerResponse = {
   requestId: number;
-  next?: MatchState | null;
+  command?: GameCommand | null;
   error?: string;
 };
 
@@ -131,7 +109,7 @@ export function GameplayClient() {
   const botWorkerRef = useRef<Worker | null>(null);
   const botWorkerRequestId = useRef(0);
   const botWorkerPending = useRef(new Map<number, {
-    resolve: (next: MatchState | null) => void;
+    resolve: (command: GameCommand | null) => void;
     reject: (cause: Error) => void;
     timeoutId: number;
   }>());
@@ -139,8 +117,8 @@ export function GameplayClient() {
 
   const requestOpponentAiDecision = useCallback((match: MatchState, playerId: string) => {
     if (typeof Worker === "undefined") {
-      return import("../../lib/opponentAi").then(({ advanceOpponentAi }) => (
-        advanceOpponentAi(match, playerId)
+      return import("../../lib/opponentAi").then(({ chooseOpponentAiCommand }) => (
+        chooseOpponentAiCommand(match, playerId)
       ));
     }
     let worker = botWorkerRef.current;
@@ -152,7 +130,7 @@ export function GameplayClient() {
         botWorkerPending.current.delete(event.data.requestId);
         window.clearTimeout(pending.timeoutId);
         if (event.data.error) pending.reject(new Error(event.data.error));
-        else pending.resolve(event.data.next ?? null);
+        else pending.resolve(event.data.command ?? null);
       });
       worker.addEventListener("error", (event) => {
         const cause = new Error(event.message || "The opponent AI worker stopped unexpectedly.");
@@ -167,7 +145,7 @@ export function GameplayClient() {
       botWorkerRef.current = worker;
     }
     const requestId = ++botWorkerRequestId.current;
-    return new Promise<MatchState | null>((resolve, reject) => {
+    return new Promise<GameCommand | null>((resolve, reject) => {
       const activeWorker = worker!;
       const timeoutId = window.setTimeout(() => {
         const pending = botWorkerPending.current.get(requestId);
@@ -200,9 +178,8 @@ export function GameplayClient() {
   }, []);
 
   const submitMatchAction = async (
-    action: string,
+    action: ApiAction,
     payload: Record<string, unknown>,
-    localAction: LocalMatchAction,
   ) => {
     const current = readMatchStore();
     const match = current.match;
@@ -210,8 +187,14 @@ export function GameplayClient() {
     if (!match || !actorId) throw new Error("No active match is available.");
 
     if (!current.online) {
-      const next = localAction(match, actorId);
-      publishMatch(appendLocalReplayTransition(match, next, action));
+      let next = dispatchLocalGameAction(match, actorId, action, payload);
+      if (action === "draw") {
+        const trainingBot = next.players.find((player) => player.id === "training-bot");
+        if (trainingBot && playerCanDrawTurnCard(next, trainingBot.id)) {
+          next = dispatchLocalGameAction(next, trainingBot.id, "draw");
+        }
+      }
+      publishMatch(next);
       return;
     }
 
@@ -238,32 +221,21 @@ export function GameplayClient() {
   const tapEnergy = (cardId: string) => submitMatchAction(
     "tap-energy",
     { cardId },
-    (match, actorId) => tapEnergyCard(match, actorId, cardId),
   );
 
   const beginPlacement = () => submitMatchAction(
     "begin-placement",
     {},
-    (match) => beginCorePlacement(match),
   );
 
   const undo = () => submitMatchAction(
     "undo",
     {},
-    (match, actorId) => undoLatestAction(match, actorId),
   );
 
   const drawCard = () => submitMatchAction(
     "draw",
     {},
-    (match, actorId) => {
-      let next = drawTurnCard(match, actorId);
-      const trainingBot = next.players.find((player) => player.id === "training-bot");
-      if (trainingBot && playerCanDrawTurnCard(next, trainingBot.id)) {
-        next = drawTurnCard(next, trainingBot.id);
-      }
-      return next;
-    },
   );
 
   const playHandCard = (cardId: string, choices: CardChoices) => {
@@ -273,16 +245,12 @@ export function GameplayClient() {
     return submitMatchAction(
       requiresChoice && !Object.keys(choices).length ? "prepare-play" : "play",
       { cardId, choices },
-      (match, localActorId) => requiresChoice && !Object.keys(choices).length
-        ? prepareCardPlay(match, localActorId, cardId)
-        : playCardWithAutoEnergy(match, localActorId, cardId, choices),
     );
   };
 
   const energizeHandCard = (cardId: string) => submitMatchAction(
     "energize",
     { cardId },
-    (match, actorId) => energizeCard(match, actorId, cardId),
   );
 
   const discardSelectedCards = (cardIds: string[]) => {
@@ -294,71 +262,58 @@ export function GameplayClient() {
     return submitMatchAction(
       pendingDiscard ? "choice" : "hand-limit",
       pendingDiscard ? { choices: { discardCardIds: cardIds } } : { cardIds },
-      (match, localActorId) => pendingDiscard
-        ? submitCardChoice(match, localActorId, { discardCardIds: cardIds })
-        : discardToHandLimit(match, localActorId, cardIds),
     );
   };
 
   const skipEnergizing = () => submitMatchAction(
     "energize",
     {},
-    (match, actorId) => energizeCard(match, actorId),
   );
 
   const activateReroll = () => submitMatchAction(
     "reroll",
     {},
-    (match, actorId) => activateIntrinsicReroll(match, actorId),
   );
 
   const passTurn = () => submitMatchAction(
     "pass",
     {},
-    (match, actorId) => resumeDamageAfterFlipWindow(passPriorityWithTieBreak(match, actorId)),
   );
 
   const advanceEndPhase = () => submitMatchAction(
     "next-turn",
     {},
-    (match) => nextTurn(match),
   );
 
   const flipDamage = () => submitMatchAction(
     "flip-damage",
     {},
-    (match, actorId) => flipDamageCard(match, actorId),
   );
 
   const flipTieBreak = () => submitMatchAction(
     "flip-damage",
     {},
-    (match, actorId) => flipTieBreakCard(match, actorId),
   );
 
   const playFlip = (cardId: string, choices: CardChoices) => submitMatchAction(
     "damage",
     { cardId, choices },
-    (match, actorId) => resolveManualDamage(match, actorId, cardId, choices),
   );
 
   const skipFlip = () => submitMatchAction(
     "damage",
     {},
-    (match, actorId) => resolveManualDamage(match, actorId),
   );
 
   const selectCharacter = (bakuganId: string) => submitMatchAction(
     "select",
     { bakuganId },
-    (match, actorId) => selectBakugan(match, actorId, bakuganId),
   );
 
   const concede = async () => {
     await submitMatchAction(
       "concede",
       {},
-      (match, actorId) => concedeMatch(match, actorId),
     );
   };
 
@@ -477,20 +432,34 @@ export function GameplayClient() {
         try {
           const latest = readMatchStore().match;
           if (!latest || latest.id !== match.id || latest.version !== match.version) return;
-          const decision = playerCanFlipTieBreak(latest, "training-bot")
-            ? flipTieBreakCard(latest, "training-bot")
+          const decision: GameCommand | null = playerCanFlipTieBreak(latest, "training-bot")
+            ? { type: "REVEAL_DAMAGE_FLIP" }
             : shouldStartManualTieBreak(latest, "training-bot")
-              ? passPriorityWithTieBreak(latest, "training-bot")
+              ? { type: "PASS_PRIORITY" }
               : await requestOpponentAiDecision(latest, "training-bot");
           const current = readMatchStore().match;
           if (current?.id !== latest.id || current.version !== latest.version) return;
-          const next = decision ?? recoverOpponentAiFailure(latest, "training-bot");
-          if (next) publishMatch(appendLocalReplayTransition(latest, next, "training-ai"));
+          const command = decision ?? recoverOpponentAiCommand(latest, "training-bot");
+          if (command) {
+            publishMatch(dispatchLocalGameCommand(
+              latest,
+              "training-bot",
+              command,
+              storedState.playerId ?? latest.players[0]?.id,
+            ));
+          }
         } catch {
           const latest = readMatchStore().match;
           if (latest?.id === match.id && latest.version === match.version) {
-            const recovered = recoverOpponentAiFailure(latest, "training-bot");
-            if (recovered) publishMatch(appendLocalReplayTransition(latest, recovered, "training-ai-recovery"));
+            const recovered = recoverOpponentAiCommand(latest, "training-bot");
+            if (recovered) {
+              publishMatch(dispatchLocalGameCommand(
+                latest,
+                "training-bot",
+                recovered,
+                storedState.playerId ?? latest.players[0]?.id,
+              ));
+            }
           }
         } finally {
           if (botActionKey.current === key) botActionKey.current = "";
@@ -514,6 +483,7 @@ export function GameplayClient() {
     rollPresentationPending,
     publishMatch,
     requestOpponentAiDecision,
+    storedState.playerId,
   ]);
 
   const localPlayer = storedState.match?.players.find((player) => (

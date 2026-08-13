@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MatchResultRecord } from "../../lib/persistence";
-import { buildProjectedReplayBundle, decodeReplayTransport } from "../../lib/engine/replay-playback";
 import type { ReplayBundle, ReplayTransportBundle } from "../../lib/engine/replay-types";
 import { loadLocalReplay } from "../../lib/replay-local-store";
+import { reconstructLocalReplay, reconstructServerReplay } from "../../lib/replay-playback-client";
 import { BakuCoreLayer } from "../game-screen-v2/BakuCoreLayer";
 import { CardHandLayer } from "../game-screen-v2/CardHandLayer";
 import { GameScreen } from "../game-screen-v2/GameScreen";
@@ -37,13 +37,13 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
         if (!archive) throw new Error("This local replay is no longer available on this device.");
         const playerId = archive.recording.genesis.players[0]?.id;
         if (!playerId) throw new Error("This replay has no player perspective.");
-        return buildProjectedReplayBundle(archive, playerId);
+        return reconstructLocalReplay(archive, playerId);
       }
       if (record.replayStorage === "server") {
         const response = await fetch(`/api/replays?id=${encodeURIComponent(record.replayId ?? record.id)}`, { cache: "no-store" });
         const data = await response.json() as { bundle?: ReplayTransportBundle; error?: string };
         if (!response.ok || !data.bundle) throw new Error(data.error ?? "Replay could not be loaded.");
-        return decodeReplayTransport(data.bundle);
+        return reconstructServerReplay(data.bundle);
       }
       return null;
     };

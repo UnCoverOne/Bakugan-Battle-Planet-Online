@@ -1,8 +1,9 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { runWithExecutionContext } from "vinext/shims/request-context";
 import { normalizeMatchState, type MatchState } from "../lib/game";
-import { appendLocalReplayTransition, normalizeEngineState, persistTransition, projectMatchForPlayer, reduceMatch, type CommandEnvelope, type EngineBackedMatchState, type GameCommand } from "../lib/engine";
+import { normalizeEngineState, persistTransition, projectMatchForPlayer, reduceMatch, type CommandEnvelope, type EngineBackedMatchState, type GameCommand } from "../lib/engine";
 import { nextMatchAlarmAt } from "../lib/deadlines";
 import { markInternalMatchRequest, stripInternalMatchHeaders } from "../lib/internal-request";
 import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
@@ -24,6 +25,7 @@ interface Env {
 type HibernatingState = {
   acceptWebSocket(socket: WebSocket, tags?: string[]): void;
   getWebSockets(tag?: string): WebSocket[];
+  waitUntil(promise: Promise<unknown>): void;
   storage: {
     get<T>(key: string): Promise<T | undefined>;
     put<T>(key: string, value: T): Promise<void>;
@@ -92,8 +94,14 @@ export class MatchRoom {
         body: request.body,
         duplex: "half",
       } as RequestInit & { duplex: "half" });
-      const context: ExecutionContext = { waitUntil: () => undefined, passThroughOnException: () => undefined };
-      const response = await handler.fetch(internalRequest, this.env, context);
+      const context: ExecutionContext = {
+        waitUntil: (promise) => this.state.waitUntil(promise),
+        passThroughOnException: () => undefined,
+      };
+      const response = await runWithExecutionContext(
+        context,
+        () => handler.fetch(internalRequest, this.env, context),
+      );
       const row = await this.env.DB.prepare("SELECT state_json FROM matches WHERE code = ?").bind(code).first<{ state_json: string }>();
       if (row?.state_json) await this.publish(JSON.parse(row.state_json) as MatchState);
       return response;
@@ -189,14 +197,7 @@ export class MatchRoom {
         "SELECT player_id, last_seen FROM match_presence WHERE code = ? AND connected = 0 ORDER BY last_seen ASC LIMIT 1",
       ).bind(snapshot.code).first<{ player_id: string; last_seen: number }>();
       if (presence && now - Number(presence.last_seen) >= MATCH_RECONNECT_GRACE_MS) {
-        transition = await runCommand(snapshot, presence.player_id, { type: "CONCEDE" }, `disconnect:${presence.player_id}`);
-        const labelled = structuredClone(transition.state);
-        labelled.resultReason = "Opponent abandoned the match";
-        labelled.log.push({
-          id: `${now}-abandonment`, at: now, kind: "system",
-          message: `${snapshot.players.find((player) => player.id === presence.player_id)?.name ?? "A player"} abandoned the match after two minutes disconnected.`,
-        });
-        transition.state = appendLocalReplayTransition(transition.state, labelled, "Disconnect forfeit", now);
+        transition = await runCommand(snapshot, presence.player_id, { type: "CONCEDE", reason: "disconnect" }, `disconnect:${presence.player_id}`);
       }
     }
 
@@ -210,7 +211,15 @@ export class MatchRoom {
         receipt: transition.receipt,
       });
       if (saved) {
-        await archiveCompletedMatch(this.env.DB, transition.state);
+        this.state.waitUntil(archiveCompletedMatch(this.env.DB, transition.state).catch((error) => {
+          console.error(JSON.stringify({
+            event: "match_replay_archive_failed",
+            code: transition.state.code,
+            replayId: transition.state.id,
+            message: error instanceof Error ? error.message : String(error),
+          }));
+          return false;
+        }));
         await this.publish(transition.state);
         return;
       }
@@ -339,7 +348,10 @@ const worker = {
       }
     }
 
-    const response = await handler.fetch(sanitizedRequest, env, ctx);
+    const response = await runWithExecutionContext(
+      ctx,
+      () => handler.fetch(sanitizedRequest, env, ctx),
+    );
     const contentType = response.headers.get("content-type") ?? "";
     if (sanitizedRequest.method === "GET" && (contentType.includes("text/html") || contentType.includes("text/x-component"))) {
       return withCacheHeaders(response, "no-cache, max-age=0, must-revalidate");

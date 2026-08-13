@@ -3,10 +3,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { STARTER_DECKS, type DeckRecord } from "../lib/data";
 import { createTrainingLobbyState, syncTrainingBotForLobby } from "../lib/training-lobby";
-import { setLobbyReady, startLobbyMatch } from "../lib/lobby";
-import { archiveReplay, replayStateHash } from "../lib/engine/replay-codec";
+import { archiveReplayRecording, compactReplayCommand, createReplayRecording, replayStateHash } from "../lib/engine/replay-codec";
 import { buildReplayFrames } from "../lib/engine/replay-playback";
-import { ENGINE_METADATA_KEY } from "../lib/engine/types";
+import { reduceMatch } from "../lib/engine/reducer";
+import type { CommandEnvelope, GameCommand } from "../lib/engine/types";
 
 test("Training lobby uses the administrator-selected AI deck instead of the built-in fallback", () => {
   const selectedAiDeck: DeckRecord = {
@@ -66,17 +66,30 @@ test("the current Training lobby path starts a reconstructable replay when gamep
     STARTER_DECKS[0],
     STARTER_DECKS[1],
   );
-  assert.equal(state[ENGINE_METADATA_KEY]?.replay, undefined);
+  const recording = createReplayRecording(state);
+  const apply = (actorId: string, command: GameCommand, index: number) => {
+    const envelope: CommandEnvelope = {
+      commandId: `training-replay-${index}`,
+      gameId: state.id,
+      actorId,
+      expectedVersion: state.version,
+      issuedAt: 1_900_000_000_000 + index,
+      randomSeed: `training-seed-${index}`,
+      requestHash: `training-request-${index}`,
+      command,
+    };
+    recording.commands.push(compactReplayCommand(envelope));
+    state = reduceMatch(state, envelope).state;
+  };
+  apply("player-1", { type: "SET_LOBBY_READY", ready: true }, 1);
+  apply("player-1", { type: "START_MATCH" }, 2);
 
-  state = setLobbyReady(state, "player-1", true);
-  state = startLobbyMatch(state, "player-1");
-
-  assert.ok(state[ENGINE_METADATA_KEY]?.replay);
-  const archive = archiveReplay(state, 1_900_000_000_000);
-  assert.ok(archive);
+  const metadata = (state as typeof state & { __engine?: Record<string, unknown> }).__engine;
+  assert.equal("replay" in (metadata ?? {}), false);
+  const archive = archiveReplayRecording(recording, state, 1_900_000_010_000);
   const playback = buildReplayFrames(archive);
-  assert.equal(playback.frames.length, 1);
-  assert.equal(replayStateHash(playback.frames[0].state), archive.finalStateHash);
+  assert.equal(playback.frames.length, 3);
+  assert.equal(replayStateHash(playback.frames.at(-1)!.state), archive.finalStateHash);
 });
 
 test("Match Creation clears completed-session state before opening another lobby and loads AI selection from the server", async () => {
@@ -91,7 +104,9 @@ test("Match Creation clears completed-session state before opening another lobby
 
 test("AI deck endpoint only chooses enabled legal administrator resources", async () => {
   const route = await readFile(new URL("../app/api/ai-decks/route.ts", import.meta.url), "utf8");
-  assert.match(route, /item\.enabled && validateDeck\(item\.deck\)\.isLegal/);
+  const administration = await readFile(new URL("../lib/administration-server.ts", import.meta.url), "utf8");
+  assert.match(route, /selectEnabledLegalAiDeck\(database\)/);
+  assert.match(administration, /item\.enabled && validateDeck\(item\.deck\)\.isLegal/);
   assert.doesNotMatch(route, /randomAiDeck/);
   assert.doesNotMatch(route, /STARTER_DECKS/);
 });

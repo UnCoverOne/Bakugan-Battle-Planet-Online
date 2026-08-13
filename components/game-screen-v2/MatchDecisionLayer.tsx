@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  discardToHandLimit,
-  type MatchState,
-} from "../../lib/game";
+import { type MatchState } from "../../lib/game";
+import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore, useMatchSelector } from "./matchStore";
 import styles from "./MatchDecisionLayer.module.css";
@@ -15,8 +13,6 @@ type DecisionState = {
   online: boolean;
   playerId?: string;
 };
-
-type LocalDecision = (match: MatchState, playerId: string) => MatchState;
 
 /**
  * Flip decisions are now presented by the permanent Action HUD. This layer is
@@ -57,7 +53,6 @@ export function MatchDecisionLayer() {
 
   const submit = async (
     payload: Record<string, unknown>,
-    localDecision: LocalDecision,
   ) => {
     const current = readMatchStore();
     const currentMatch = current.match;
@@ -65,7 +60,7 @@ export function MatchDecisionLayer() {
     if (!currentMatch || !actorId) throw new Error("No active match is available.");
 
     if (!current.online) {
-      if (!writeCoordinatedMatch(localDecision(currentMatch, actorId))) {
+      if (!writeCoordinatedMatch(dispatchLocalGameAction(currentMatch, actorId, "hand-limit", payload))) {
         throw new Error("The match changed before the decision was applied.");
       }
       return;
@@ -93,10 +88,7 @@ export function MatchDecisionLayer() {
     setBusy(true);
     setError("");
     try {
-      await submit(
-        { cardIds: selectedCardIds },
-        (state, actorId) => discardToHandLimit(state, actorId, selectedCardIds),
-      );
+      await submit({ cardIds: selectedCardIds });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The decision could not be completed.");
     } finally {
@@ -162,4 +154,3 @@ export function MatchDecisionLayer() {
     </div>
   );
 }
-

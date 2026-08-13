@@ -1,4 +1,5 @@
 import { normalizeMatchState, type MatchState } from "../../../lib/game";
+import { getRequestExecutionContext } from "vinext/shims/request-context";
 import { makeCanonicalPlayer, makeCanonicalPlayerWithRestrictions, type CanonicalPlayerSelection } from "../../../lib/data";
 import { tagLobbyPlayerDeck } from "../../../lib/lobby-config";
 import { getSessionUser } from "../../../lib/account-server";
@@ -7,7 +8,6 @@ import { getActiveRankedRuleset, settleRankedSeries } from "../../../lib/ranked-
 import { applyDatabaseCardOverrides } from "../../../lib/administration-server";
 import {
   apiActionToCommand,
-  appendLocalReplayTransition,
   canonicalJson,
   createSeatStatePatch,
   engineDiagnosticContext,
@@ -125,6 +125,21 @@ async function recordObservationSafely(observation: Parameters<typeof recordEngi
   }
 }
 
+function scheduleCompletedMatchArchive(database: D1Database, state: EngineBackedMatchState) {
+  const task = archiveCompletedMatch(database, state).catch((error) => {
+    console.error(JSON.stringify({
+      event: "match_replay_archive_failed",
+      code: state.code,
+      replayId: state.id,
+      message: error instanceof Error ? error.message : String(error),
+    }));
+    return false;
+  });
+  const context = getRequestExecutionContext();
+  if (context) context.waitUntil(task);
+  else void task;
+}
+
 async function publishMatchState(state: MatchState) {
   const { env } = await import("cloudflare:workers");
   if (!env.MATCHES) {
@@ -188,7 +203,6 @@ async function settleCompletedRankedState(database: D1Database, state: EngineBac
   const winner = winnerId ? ranked.players[winnerId] : undefined;
   const loserEntry = Object.entries(ranked.players).find(([playerId]) => playerId !== winnerId);
   if (!winner || !loserEntry) throw new ServiceUnavailableError("Ranked BP could not be settled.");
-  const beforeSettlement = structuredClone(state);
   ranked.stage = "complete";
   ranked.settlement = await settleRankedSeries(database, {
     seriesId: state.id,
@@ -199,7 +213,6 @@ async function settleCompletedRankedState(database: D1Database, state: EngineBac
     loserUserId: loserEntry[1].userId,
     score: rankedSeriesScore(state),
   });
-  appendLocalReplayTransition(beforeSettlement, state, "Ranked rating settlement");
   return true;
 }
 
@@ -363,7 +376,7 @@ async function applyExpiredDeadline(state: EngineBackedMatchState, previous: Mat
     receipt: result.receipt,
   });
   if (!saved) return null;
-  await archiveCompletedMatch(database, result.state);
+  scheduleCompletedMatchArchive(database, result.state);
   if (!coordinated) await publishMatchState(result.state);
   return { state: result.state, previous: state };
 }
@@ -435,7 +448,6 @@ export async function POST(request: Request) {
           requestHash: identity.requestHash,
         });
         if (requestedRanked) {
-          const beforeRankedLobby = result.state;
           const rankedLobby = initializeRankedLobby(
             result.state,
             player.id,
@@ -445,7 +457,7 @@ export async function POST(request: Request) {
             ruleset!.version,
             ruleset!.restrictions,
           ) as EngineBackedMatchState;
-          result.state = appendLocalReplayTransition(beforeRankedLobby, rankedLobby, "Ranked lobby initialized", issuedAt);
+          result.state = rankedLobby;
         }
         if (!result.receipt) throw new ServiceUnavailableError("The match could not be created.", "Match initialization did not produce a command receipt.");
         if (await persistInitialMatch(database, result.state, result.events, result.receipt, {
@@ -574,7 +586,6 @@ export async function POST(request: Request) {
       const result = reduceMatch(state, envelope);
       if (!result.receipt) throw new ServiceUnavailableError("The player could not join the room.", "Join did not produce a command receipt.");
       if (ranked) {
-        const beforeRankedJoin = result.state;
         const rankedLobby = joinRankedLobby(
           result.state,
           player.id,
@@ -583,7 +594,7 @@ export async function POST(request: Request) {
           body.rankedDecks ?? [],
           ranked.restrictions,
         ) as EngineBackedMatchState;
-        result.state = appendLocalReplayTransition(beforeRankedJoin, rankedLobby, "Ranked player joined", envelope.issuedAt);
+        result.state = rankedLobby;
       }
       const capability = secureToken();
       const saved = await persistTransition(database, {
@@ -662,7 +673,7 @@ export async function POST(request: Request) {
     if (await settleCompletedRankedState(database, result.state)) {
       await persistRankedSettlementSnapshot(database, result.state);
     }
-    await archiveCompletedMatch(database, result.state);
+    scheduleCompletedMatchArchive(database, result.state);
     if (!coordinated) await publishMatchState(result.state);
     await recordObservationSafely(transitionObservation(before, result.state, envelope, result.events, durationMs, correlationId));
     console.info(JSON.stringify({

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, type DragEvent } from "react";
-import { submitCardChoice, type CardChoices, type MatchState } from "../../lib/game";
-import type { ChoiceField, ChoiceOption } from "../../lib/rules/choices";
+import { type CardChoices, type MatchState } from "../../lib/game";
+import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
+import type { ChoiceOption } from "../../lib/rules/choices";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { readMatchStore, useMatchSelector } from "./matchStore";
 import { fingerprintedAsset } from "../../lib/assets";
@@ -21,7 +22,7 @@ async function submitChoiceCommand(answers: CardChoices) {
   const playerId = current.playerId ?? match?.players[0]?.id;
   if (!match || !playerId) throw new Error("No active match is available.");
   if (!current.online) {
-    writeCoordinatedMatch(submitCardChoice(match, playerId, answers));
+    writeCoordinatedMatch(dispatchLocalGameAction(match, playerId, "choice", { choices: answers }));
     return;
   }
   const response = await fetch("/api/game", {

@@ -57,7 +57,7 @@ test("batch rows remain mounted, docking is transform-only, and modal exits are 
   const brawl = read("components/game-screen-v2/BrawlExperienceLayer.tsx");
   const brawlCss = read("components/game-screen-v2/BrawlExperienceLayer.module.css");
   const roll = read("components/game-screen-v2/RollResultLayer.tsx");
-  const tie = read("components/game-screen-v2/TieBreakLayer.tsx");
+  const tie = read("components/game-screen-v2/TieBreakLayerImpl.tsx");
   assert.doesNotMatch(brawl, /key=\{batchKey\}/);
   assert.match(brawlCss, /--brawl-dock-offset/);
   assert.doesNotMatch(brawlCss, /transition:\s*left/);
@@ -77,7 +77,7 @@ test("completed match dialog separates board inspection from exiting the match",
   assert.match(coordinator, /if \(complete\) \{\s*onDismiss\(\);/);
   assert.match(coordinator, /\{!complete \? \([\s\S]*VIEW MATCH RECORD/);
   assert.match(coordinator, /onDismiss=\{\(\) => \{\s*if \(resultKey\) setDismissedResultKey\(resultKey\);/);
-  assert.match(coordinator, /onContinue=\{\(\) => \{\s*router\.push\("\/play\/result"\);/);
+  assert.match(coordinator, /onContinue=\{\(\) => \{[\s\S]*finalizeCompletedMatchExit\(\)[\s\S]*router\.replace\("\/play\/result"\);/);
   assert.match(css, /\.closeAction \{[\s\S]*position: absolute;[\s\S]*right:/);
   assert.match(css, /\.actions\[data-single="true"\]/);
 });
@@ -90,10 +90,10 @@ test("Training AI worker failures are bounded and recover across match steps", (
   assert.match(client, /pending\.reject\(new Error\("The opponent AI decision timed out\."\)\)/);
   assert.match(client, /window\.clearTimeout\(pending\.timeoutId\)/);
   assert.match(client, /if \(!requestStarted && botActionKey\.current === key\)/);
-  assert.match(client, /recoverOpponentAiFailure/);
-  assert.match(readiness, /PRIORITY_PHASES\.has\(match\.phase\)[\s\S]*passPriority\(match, playerId\)/);
-  assert.match(readiness, /match\.phase === "handLimit"[\s\S]*discardToHandLimit/);
-  assert.match(readiness, /match\.phase === "damage"[\s\S]*resolveManualDamage/);
+  assert.match(client, /recoverOpponentAiCommand/);
+  assert.match(readiness, /PRIORITY_PHASES\.has\(match\.phase\)[\s\S]*type: "PASS_PRIORITY"/);
+  assert.match(readiness, /match\.phase === "handLimit"[\s\S]*type: "DISCARD_TO_HAND_LIMIT"/);
+  assert.match(readiness, /match\.phase === "damage"[\s\S]*type: "PLAY_DAMAGE_FLIP"/);
 });
 
 test("Energy zones show total cards and stage a white-light Energize arrival", () => {

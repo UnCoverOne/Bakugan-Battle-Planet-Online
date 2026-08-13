@@ -2,7 +2,7 @@ import type { MatchState } from "../game";
 import { projectMatchForPlayer } from "./projection";
 import { applyStatePatch, createStatePatch } from "./state-patch";
 import { reduceMatch } from "./reducer";
-import { expandReplayCommand, expandReplayGenesis, replayStateHash } from "./replay-codec";
+import { expandReplayCommand, expandReplayGenesis, legacyReplayStateHash, replayStateHash } from "./replay-codec";
 import type { ReplayArchive, ReplayBundle, ReplayFrame, ReplayMarker, ReplayTransportBundle } from "./replay-types";
 import type { EngineBackedMatchState, GameCommand } from "./types";
 
@@ -34,8 +34,9 @@ function markerType(command: GameCommand, before: MatchState, after: MatchState)
 export function buildReplayFrames(archive: ReplayArchive): { frames: ReplayFrame[]; markers: ReplayMarker[] } {
   let state = expandReplayGenesis(archive.recording.genesis) as EngineBackedMatchState;
   const initialAt = archive.startedAt;
-  const frames: ReplayFrame[] = [{ index: 0, at: initialAt, commandType: "CREATE_MATCH", label: "Match created", state }];
-  const markers: ReplayMarker[] = [{ index: 0, at: initialAt, type: "start", label: "Match created" }];
+  const initialLabel = state.phase === "lobby" ? "Match created" : "Gameplay begins";
+  const frames: ReplayFrame[] = [{ index: 0, at: initialAt, commandType: "CREATE_MATCH", label: initialLabel, state }];
+  const markers: ReplayMarker[] = [{ index: 0, at: initialAt, type: "start", label: initialLabel }];
   const localTransitions = archive.recording.localTransitions ?? [];
   const applyLocalTransitions = (commandCount: number) => {
     for (const transition of localTransitions.filter((candidate) => (candidate.q ?? archive.recording.commands.length) === commandCount)) {
@@ -73,7 +74,8 @@ export function buildReplayFrames(archive: ReplayArchive): { frames: ReplayFrame
     applyLocalTransitions(commandIndex + 1);
   }
   const hash = replayStateHash(state);
-  if (hash !== archive.finalStateHash || state.version !== archive.finalVersion) {
+  const legacyHash = legacyReplayStateHash(state);
+  if ((hash !== archive.finalStateHash && legacyHash !== archive.finalStateHash) || state.version !== archive.finalVersion) {
     throw new Error(`Replay integrity check failed (expected v${archive.finalVersion}/${archive.finalStateHash}, received v${state.version}/${hash}).`);
   }
   return { frames, markers };
@@ -110,11 +112,12 @@ export function encodeReplayTransport(bundle: ReplayBundle): ReplayTransportBund
 }
 
 export function decodeReplayTransport(bundle: ReplayTransportBundle): ReplayBundle {
+  const initialLabel = bundle.initialState.phase === "lobby" ? "Match created" : "Gameplay begins";
   const frames: ReplayFrame[] = [{
     index: 0,
     at: bundle.archive.startedAt,
     commandType: "CREATE_MATCH",
-    label: "Match created",
+    label: initialLabel,
     state: structuredClone(bundle.initialState),
   }];
   for (const step of bundle.steps) {

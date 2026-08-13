@@ -104,6 +104,10 @@ function summarizeCommand(envelope: CommandEnvelope) {
 export function ensureEngineMetadata(state: EngineBackedMatchState): EngineMetadata {
   const current = state[ENGINE_METADATA_KEY];
   if (current) {
+    // Replay journals used to be embedded in MatchState. Strip legacy payloads
+    // as soon as an active snapshot is normalized so every later state clone,
+    // projection, persistence write, and WebSocket message stays constant-size.
+    delete (current as EngineMetadata & { replay?: unknown }).replay;
     current.schemaVersion = ENGINE_SCHEMA_VERSION;
     current.applicationVersion = current.applicationVersion || APPLICATION_VERSION;
     current.engineVersion = current.engineVersion || ENGINE_VERSION;

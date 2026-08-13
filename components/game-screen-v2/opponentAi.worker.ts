@@ -1,5 +1,6 @@
 import type { MatchState } from "../../lib/game";
-import { advanceOpponentAi } from "../../lib/opponentAi";
+import { chooseOpponentAiCommand } from "../../lib/opponentAi";
+import type { GameCommand } from "../../lib/engine/types";
 
 type OpponentAiWorkerRequest = {
   requestId: number;
@@ -9,7 +10,7 @@ type OpponentAiWorkerRequest = {
 
 type OpponentAiWorkerResponse = {
   requestId: number;
-  next?: MatchState | null;
+  command?: GameCommand | null;
   error?: string;
 };
 
@@ -25,7 +26,7 @@ workerScope.onmessage = (event) => {
   try {
     workerScope.postMessage({
       requestId,
-      next: advanceOpponentAi(match, playerId),
+      command: chooseOpponentAiCommand(match, playerId),
     });
   } catch (cause) {
     workerScope.postMessage({

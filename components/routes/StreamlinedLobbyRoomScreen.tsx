@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { addChatMessage, chatEntries, normalizeChatMessage } from "../../lib/chat";
+import { chatEntries, normalizeChatMessage } from "../../lib/chat";
 import {
   CARD_BY_ID,
   deckLeadCard,
@@ -23,14 +23,9 @@ import {
   tagLobbyPlayerDeck,
   type LobbyRulesFormat,
 } from "../../lib/lobby-config";
-import {
-  replaceLobbyDeck,
-  roomOwnerId,
-  setLobbyReady,
-  startLobbyMatch,
-  updateLobbySettings,
-} from "../../lib/lobby";
-import { syncTrainingBotForLobby } from "../../lib/training-lobby";
+import { roomOwnerId } from "../../lib/lobby";
+import { trainingBotLobbyCommands } from "../../lib/training-lobby";
+import { dispatchLocalGameAction, dispatchLocalGameCommand } from "../../lib/engine/local-command-dispatcher";
 import { eligibleRankedDecks, rankedSeries } from "../../lib/ranked-lobby";
 import { useApp } from "../application/AppProvider";
 import { Badge, factionClass } from "../application/ui";
@@ -159,14 +154,15 @@ export function LobbyRoomScreen() {
     capability: state.capability,
   }));
   const match = room.match;
+  const localPlayerId = room.playerId ?? "";
   const config = match ? lobbyConfig(match) : null;
   const ranked = match ? rankedSeries(match) : undefined;
-  const myRanked = ranked?.players[room.playerId];
-  const opponentRanked = ranked ? Object.entries(ranked.players).find(([id]) => id !== room.playerId)?.[1] : undefined;
+  const myRanked = ranked?.players[localPlayerId];
+  const opponentRanked = ranked ? Object.entries(ranked.players).find(([id]) => id !== localPlayerId)?.[1] : undefined;
   const messages = useMemo(() => chatEntries(match), [match]);
-  const me = match?.players.find((player) => player.id === room.playerId);
+  const me = match?.players.find((player) => player.id === localPlayerId);
   const ownerId = match ? roomOwnerId(match) : "";
-  const isOwner = Boolean(ownerId && ownerId === room.playerId);
+  const isOwner = Boolean(ownerId && ownerId === localPlayerId);
   const bothReady = Boolean(match && match.players.length === 2 && match.players.every((player) => player.ready));
   const requiredFormat = config ? requiredDeckFormat(config.rulesFormat) : "standard";
   const playerDecks = decks as DeckRecord[];
@@ -274,8 +270,10 @@ export function LobbyRoomScreen() {
     setBusy("settings");
     setError("");
     try {
-      let next = updateLobbySettings(match, room.playerId, rulesFormat, "battle-brawlers");
-      next = syncTrainingBotForLobby(next);
+      let next = dispatchLocalGameAction(match, localPlayerId, "lobby-settings", { rulesFormat, meta: "battle-brawlers" });
+      for (const command of trainingBotLobbyCommands(next)) {
+        next = dispatchLocalGameCommand(next, "training-bot", command, localPlayerId);
+      }
       publishLocal(next);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Lobby settings could not be changed.");
@@ -289,7 +287,7 @@ export function LobbyRoomScreen() {
     const deck = playerDecks.find((candidate) => candidate.id === deckId);
     if (!deck || !compatibleDeckIds.has(deck.id)) return;
     const playerAvatar = (me as PlayerState & { avatar?: string }).avatar ?? profile.avatar ?? "";
-    const selection = canonicalSelection(room.playerId, me.name, deck, playerAvatar);
+    const selection = canonicalSelection(localPlayerId, me.name, deck, playerAvatar);
     if (room.online) {
       const result = await sendRoomCommand("lobby-deck", undefined, "deck", selection);
       if (result) setDeckPickerOpen(false);
@@ -299,7 +297,7 @@ export function LobbyRoomScreen() {
     setError("");
     try {
       const replacement = tagLobbyPlayerDeck(makeCanonicalPlayer(selection), selection.deck);
-      publishLocal(replaceLobbyDeck(match, room.playerId, replacement));
+      publishLocal(dispatchLocalGameAction(match, localPlayerId, "lobby-deck", { player: replacement }));
       setDeckPickerOpen(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The deck could not be selected.");
@@ -327,7 +325,7 @@ export function LobbyRoomScreen() {
     setBusy("ready");
     setError("");
     try {
-      publishLocal(setLobbyReady(match, room.playerId, ready));
+      publishLocal(dispatchLocalGameAction(match, localPlayerId, "lobby-ready", { ready }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Ready state could not be changed.");
     } finally {
@@ -344,7 +342,7 @@ export function LobbyRoomScreen() {
     setBusy("start");
     setError("");
     try {
-      publishLocal(startLobbyMatch(match, room.playerId));
+      publishLocal(dispatchLocalGameAction(match, localPlayerId, "start-match"));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The match could not be started.");
     } finally {
@@ -365,7 +363,7 @@ export function LobbyRoomScreen() {
     setBusy("chat");
     setError("");
     try {
-      publishLocal(addChatMessage(match, room.playerId, message));
+      publishLocal(dispatchLocalGameAction(match, localPlayerId, "chat", { message }));
       setDraft("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The message could not be sent.");
@@ -465,7 +463,7 @@ export function LobbyRoomScreen() {
             <div className={styles.seats}>
               {[0, 1].map((index) => {
                 const player = match.players[index];
-                const local = player?.id === room.playerId;
+                const local = player?.id === localPlayerId;
                 const playerIsOwner = index === 0;
                 const deckName = player ? playerLobbyDeckName(player) : "";
                 const storedAvatar = player ? (player as PlayerState & { avatar?: string }).avatar : "";
@@ -504,7 +502,7 @@ export function LobbyRoomScreen() {
               </> : null}
               {ranked.stage === "select" ? <>
                 <p>Choose simultaneously. A deck that has already won for you is no longer eligible; a losing deck may be selected again.</p>
-                <div className={styles.rankedDecks}>{eligibleRankedDecks(match, room.playerId).map((deck) => <button type="button" key={deck.id} disabled={Boolean(myRanked?.selectedDeckId) || busy === "select"} onClick={() => void selectRankedRoundDeck(deck.id)}>
+                <div className={styles.rankedDecks}>{eligibleRankedDecks(match, localPlayerId).map((deck) => <button type="button" key={deck.id} disabled={Boolean(myRanked?.selectedDeckId) || busy === "select"} onClick={() => void selectRankedRoundDeck(deck.id)}>
                   <span className={styles.rankedCharacters}>{deckPreviewCards(deck).slice(0, 3).map((card) => <img key={card.catalogId} src={cardArtSource(card, "thumbnail")} alt="" />)}</span>
                   <strong>{deck.name}</strong><small>{deck.factions.join(" • ")}</small>
                 </button>)}</div>
@@ -588,7 +586,7 @@ export function LobbyRoomScreen() {
           <header><div><span>PLAYER COMMS</span><h2>LOBBY CHAT</h2></div><small>{messages.length} MESSAGE{messages.length === 1 ? "" : "S"}</small></header>
           <div className={styles.messages} ref={chatScroll} aria-live="polite">
             {messages.length ? messages.map((message) => (
-              <article className={styles.message} data-local={message.playerId === room.playerId ? "true" : "false"} key={message.id}>
+              <article className={styles.message} data-local={message.playerId === localPlayerId ? "true" : "false"} key={message.id}>
                 <div><strong>{message.author}</strong><time dateTime={new Date(message.at).toISOString()}>{roomTime(message.at)}</time></div>
                 <p>{message.message}</p>
               </article>

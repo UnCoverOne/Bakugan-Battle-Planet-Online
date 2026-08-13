@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { validateDeck, type DeckRecord } from "../../lib/data";
 import type { DeckRestriction } from "../../lib/deck-validation";
 import { normalizeRoomCode } from "../../lib/play-setup-machine";
+import { initializeLocalReplayJournal } from "../../lib/replay-journal";
 import { createTrainingLobbyState } from "../../lib/training-lobby";
 import { primeMatchStore } from "../game-screen-v2/matchStore";
 import { useApp } from "../application/AppProvider";
@@ -161,6 +162,7 @@ export function MatchCreationScreen() {
         if (!validateDeck(result.deck).isLegal) throw new Error("The selected Training AI deck is no longer legal.");
         const code = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase();
         const state = createTrainingLobbyState(code, structure, playerId, profile.name, launchDeck, result.deck);
+        initializeLocalReplayJournal(state, authUser?.id ?? playerId);
         setOnline(false);
         setMatch(state);
         primeMatchStore({ route: "lobby", match: state, online: false, playerId, capability: "" });

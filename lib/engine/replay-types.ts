@@ -74,7 +74,7 @@ export type ReplayRecording = {
   schemaVersion: typeof REPLAY_SCHEMA_VERSION;
   genesis: CompactReplayGenesis;
   commands: CompactReplayCommand[];
-  /** Deterministic top-level deltas for offline subsystems that predate command routing. */
+  /** @deprecated Read-only compatibility for v1 archives created before command routing. */
   localTransitions?: Array<{
     /** Number of reducer commands recorded before this delta. */
     q: number;
@@ -93,6 +93,15 @@ export type ReplayArchive = {
   finalVersion: number;
   finalStateHash: string;
   versions: GameVersionProfile;
+  recording: ReplayRecording;
+};
+
+/** Device-local draft kept outside MatchState while a Training match is live. */
+export type ReplayJournalDraft = {
+  replayId: string;
+  ownerId: string;
+  startedAt: number;
+  updatedAt: number;
   recording: ReplayRecording;
 };
 
