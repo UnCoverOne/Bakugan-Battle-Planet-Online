@@ -12,6 +12,7 @@ import {
   mergeSnapshots,
   normalizeLifetimeMatchStats,
   normalizeSnapshot,
+  recoverableTrainingMatch,
   selectSnapshot,
   toCloudSnapshot,
 } from "../../lib/persistence";
@@ -54,6 +55,7 @@ import {
 const STORAGE_EVENT = "bbp-storage-status";
 const AUTO_SYNC_DELAY_MS = 500;
 const DURABLE_DIRTY_DELAY_MS = 100;
+const ACCOUNT_MATCH_REFRESH_INTERVAL_MS = 15_000;
 const MATCH_CAPABILITY_STORAGE_KEY = "bbp-match-capability-v2";
 const MATCH_CONTROLLER_STORAGE_KEY = "bbp-match-controller-v1";
 const defaults = {
@@ -341,6 +343,7 @@ export function AppProvider({ children }) {
         : undefined;
       const response = await fetch("/api/game/active", {
         cache: "no-store",
+        credentials: "same-origin",
         headers: presentedSeatHeaders,
         signal: AbortSignal.timeout(12_000),
       });
@@ -369,7 +372,20 @@ export function AppProvider({ children }) {
     [builderDeck, decks, history, match, profile, settings],
   );
 
-  const durableStateFingerprint = useMemo(() => JSON.stringify({ profile, decks, deletedDecks, history, settings, selectedDeckId, builderDeck, format, matchMode }), [builderDeck, decks, deletedDecks, format, history, matchMode, profile, selectedDeckId, settings]);
+  const activeTrainingMatch = recoverableTrainingMatch(match, online);
+  const durableStateFingerprint = useMemo(() => JSON.stringify({
+    profile,
+    decks,
+    deletedDecks,
+    history,
+    settings,
+    selectedDeckId,
+    builderDeck,
+    format,
+    matchMode,
+    activeTrainingMatch,
+    activeTrainingPlayerId: activeTrainingMatch ? playerId : "",
+  }), [activeTrainingMatch, builderDeck, decks, deletedDecks, format, history, matchMode, playerId, profile, selectedDeckId, settings]);
 
   useEffect(() => {
     mounted.current = true;
@@ -461,10 +477,12 @@ export function AppProvider({ children }) {
       }
     };
     refresh();
+    const interval = window.setInterval(refresh, ACCOUNT_MATCH_REFRESH_INTERVAL_MS);
     addEventListener("focus", refresh);
     addEventListener("online", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
+      window.clearInterval(interval);
       removeEventListener("focus", refresh);
       removeEventListener("online", refresh);
       document.removeEventListener("visibilitychange", refresh);

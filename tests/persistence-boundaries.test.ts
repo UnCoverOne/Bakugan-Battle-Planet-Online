@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   createRegistrationSnapshot,
   mergeSnapshots,
+  recoverableTrainingMatch,
   selectSnapshot,
   toCloudSnapshot,
   type UserSnapshot,
@@ -73,6 +74,54 @@ test("cloud snapshots contain durable account data but no device session state",
   assert.equal(cloud.replay, null);
   assert.equal(cloud.replayIndex, 0);
   assert.equal(cloud.playerId, "");
+});
+
+test("incomplete Training matches are durable account state and recover on a fresh device", () => {
+  const trainingMatch = {
+    id: "training-match",
+    version: 7,
+    phase: "draw",
+    players: [{ id: "device-player" }, { id: "training-bot" }],
+    trainingAiDeck: { resourceId: "training-default", configurationRevision: 3 },
+  } as UserSnapshot["match"];
+  const origin = snapshot({
+    updatedAt: 200,
+    match: trainingMatch,
+    online: false,
+    playerId: "device-player",
+  });
+  const cloud = toCloudSnapshot(origin);
+  const freshDevice = snapshot({
+    updatedAt: 100,
+    route: "dashboard",
+    match: null,
+    online: false,
+    playerId: "fresh-device-player",
+  });
+
+  assert.equal(recoverableTrainingMatch(trainingMatch, false), trainingMatch);
+  assert.equal(cloud.match, trainingMatch);
+  assert.equal(cloud.playerId, "device-player");
+
+  const restored = selectSnapshot(freshDevice, cloud, "cloud");
+  assert.equal(restored.match?.id, "training-match");
+  assert.equal(restored.online, false);
+  assert.equal(restored.playerId, "device-player");
+  assert.equal(restored.route, "dashboard");
+});
+
+test("online sessions never enter account cloud state", () => {
+  const trainingMatch = {
+    id: "training-match",
+    version: 8,
+    phase: "draw",
+    players: [{ id: "device-player" }, { id: "training-bot" }],
+    trainingAiDeck: { resourceId: "training-default", configurationRevision: 3 },
+  } as UserSnapshot["match"];
+  const online = toCloudSnapshot(snapshot({ match: trainingMatch, online: true }));
+
+  assert.equal(online.match, null);
+  assert.equal(online.playerId, "");
 });
 
 test("completed matches retain a stable history identity without forcing navigation", () => {

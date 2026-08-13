@@ -3,6 +3,7 @@ import {
   DEFAULT_BRAWLER_PROFILE,
   EMPTY_LIFETIME_MATCH_STATS,
   MAX_MATCH_RECORDS,
+  recoverableTrainingMatch,
   toCloudSnapshot,
   type MatchResultRecord,
   type UserSnapshot,
@@ -77,6 +78,8 @@ export function snapshotToSyncRequest(
         format: snapshot.format,
         matchMode: snapshot.matchMode,
         lifetimeStats: snapshot.lifetimeStats ?? EMPTY_LIFETIME_MATCH_STATS,
+        activeTrainingMatch: snapshot.match,
+        activeTrainingPlayerId: snapshot.playerId,
         updatedAt: snapshot.updatedAt,
       },
       revisions,
@@ -179,8 +182,26 @@ export function assembleEntitySnapshot(
     format: "bo1",
     matchMode: "solo",
     lifetimeStats: EMPTY_LIFETIME_MATCH_STATS,
+    activeTrainingMatch: null,
+    activeTrainingPlayerId: "",
     updatedAt: 0,
   });
+  const activeTrainingMatch = recoverableTrainingMatch(
+    preferences.activeTrainingMatch
+    && typeof preferences.activeTrainingMatch === "object"
+      ? preferences.activeTrainingMatch as UserSnapshot["match"]
+      : null,
+    false,
+  );
+  const activeTrainingPlayerId =
+    activeTrainingMatch
+    && typeof preferences.activeTrainingPlayerId === "string"
+    && preferences.activeTrainingPlayerId !== "training-bot"
+    && activeTrainingMatch.players.some(
+      (player) => player.id === preferences.activeTrainingPlayerId,
+    )
+      ? preferences.activeTrainingPlayerId
+      : "";
   const decks = rows
     .filter((row) => row.entity_type === "deck" && !row.deleted_at && row.data_json)
     .map((row) => parse(row, null))
@@ -218,13 +239,13 @@ export function assembleEntitySnapshot(
           ? "join"
           : "solo",
     joinCode: "",
-    match: null,
+    match: activeTrainingPlayerId ? activeTrainingMatch : null,
     online: false,
     selectedCore: "",
     logFilter: "all",
     replay: null,
     replayIndex: 0,
-    playerId: "",
+    playerId: activeTrainingPlayerId,
   };
 }
 

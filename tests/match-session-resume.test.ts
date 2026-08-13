@@ -208,6 +208,10 @@ test("the browser keeps controller credentials session-scoped and stops a displa
   assert.match(provider, /sessionStorage\.removeItem\(MATCH_CONTROLLER_STORAGE_KEY\)/);
   assert.match(provider, /MATCH_CAPABILITY_STORAGE_KEY[^\n]*writeEnabled: true/);
   assert.match(provider, /MATCH_CONTROLLER_STORAGE_KEY[^\n]*writeEnabled: true/);
+  assert.match(provider, /credentials: "same-origin"/);
+  assert.match(provider, /ACCOUNT_MATCH_REFRESH_INTERVAL_MS = 15_000/);
+  assert.match(provider, /window\.setInterval\(refresh, ACCOUNT_MATCH_REFRESH_INTERVAL_MS\)/);
+  assert.match(provider, /recoverableTrainingMatch\(match, online\)/);
   assert.match(shell, /canControlLocalMatch/);
   assert.match(dashboard, /canControlLocalMatch/);
 });

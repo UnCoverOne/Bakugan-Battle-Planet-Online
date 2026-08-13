@@ -239,6 +239,28 @@ test("deck tombstones remain independent from settings and prevent restoration",
   assert.deepEqual(payload?.deletedDecks, local.deletedDecks);
 });
 
+test("an incomplete Training match round-trips through the account preferences entity", async () => {
+  const server = new EntityServer();
+  const local = snapshot();
+  local.updatedAt = 2;
+  local.playerId = "training-player";
+  local.match = {
+    id: "training-series",
+    version: 11,
+    phase: "draw",
+    players: [{ id: "training-player" }, { id: "training-bot" }],
+    trainingAiDeck: { resourceId: "training-default", configurationRevision: 4 },
+  } as UserSnapshot["match"];
+
+  await drainLatest(server, () => local, () => 1, {});
+
+  const recovered = server.payload().data;
+  assert.equal(recovered?.match?.id, "training-series");
+  assert.equal(recovered?.match?.version, 11);
+  assert.equal(recovered?.online, false);
+  assert.equal(recovered?.playerId, "training-player");
+});
+
 test("rate-limit retry uses bounded backoff", () => {
   assert.equal(retryDelayMs(0), 1_000);
   assert.equal(retryDelayMs(10), 60_000);

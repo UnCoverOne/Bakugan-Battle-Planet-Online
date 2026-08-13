@@ -1,5 +1,6 @@
 import type { DeckRecord } from "./data";
 import type { MatchState } from "./game";
+import { isCompletedSeriesResult } from "./match-result-navigation";
 import {
   normalizeProfileAvatar,
   normalizeProfileCover,
@@ -269,6 +270,22 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
 }
 
 function retainDeviceState(snapshot: UserSnapshot, device: UserSnapshot): UserSnapshot {
+  const cloudTrainingMatch = recoverableTrainingMatch(snapshot.match, snapshot.online);
+  const deviceTrainingMatch = recoverableTrainingMatch(device.match, device.online);
+  const cloudTrainingIsNewer = Boolean(
+    cloudTrainingMatch
+    && deviceTrainingMatch
+    && (
+      cloudTrainingMatch.id === deviceTrainingMatch.id
+        ? cloudTrainingMatch.version > deviceTrainingMatch.version
+        : snapshot.updatedAt > device.updatedAt
+    )
+  );
+  const useCloudTrainingSession = Boolean(
+    cloudTrainingMatch
+    && (!device.match || cloudTrainingIsNewer)
+  );
+  const session = useCloudTrainingSession ? snapshot : device;
   return {
     ...snapshot,
     profile: { ...snapshot.profile, signedIn: device.profile.signedIn },
@@ -277,17 +294,34 @@ function retainDeviceState(snapshot: UserSnapshot, device: UserSnapshot): UserSn
     compendiumQuery: device.compendiumQuery,
     compendiumTab: device.compendiumTab,
     joinCode: device.joinCode,
-    match: device.match,
-    online: device.online,
+    match: session.match,
+    online: session.online,
     selectedCore: device.selectedCore,
     logFilter: device.logFilter,
     replay: device.replay,
     replayIndex: device.replayIndex,
-    playerId: device.playerId,
+    playerId: session.playerId,
   };
 }
 
+export function recoverableTrainingMatch(
+  match: MatchState | null,
+  online: boolean,
+): MatchState | null {
+  if (
+    !match
+    || online
+    || isCompletedSeriesResult(match)
+    || (
+      !match.trainingAiDeck
+      && !match.players?.some((player) => player.id === "training-bot")
+    )
+  ) return null;
+  return match;
+}
+
 export function toCloudSnapshot(snapshot: UserSnapshot): UserSnapshot {
+  const trainingMatch = recoverableTrainingMatch(snapshot.match, snapshot.online);
   return {
     ...snapshot,
     profile: { ...snapshot.profile, signedIn: false },
@@ -296,13 +330,13 @@ export function toCloudSnapshot(snapshot: UserSnapshot): UserSnapshot {
     compendiumQuery: "",
     compendiumTab: "cards",
     joinCode: "",
-    match: null,
+    match: trainingMatch,
     online: false,
     selectedCore: "",
     logFilter: "all",
     replay: null,
     replayIndex: 0,
-    playerId: "",
+    playerId: trainingMatch ? snapshot.playerId : "",
   };
 }
 
@@ -313,6 +347,9 @@ export function createEmptyAccountSnapshot(
 ): UserSnapshot {
   return {
     ...toCloudSnapshot(device),
+    match: null,
+    online: false,
+    playerId: "",
     updatedAt,
     profile: {
       ...DEFAULT_BRAWLER_PROFILE,
