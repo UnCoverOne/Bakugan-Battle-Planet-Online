@@ -2,7 +2,13 @@ import { getDatabase, getSessionUser } from "../../../../lib/account-server";
 import type { AccountMatchSessionSummary } from "../../../../lib/account-match-session";
 import { normalizeMatchState, type MatchState } from "../../../../lib/game";
 import { isCompletedSeriesResult } from "../../../../lib/match-result-navigation";
+import {
+  MATCH_CAPABILITY_HEADER,
+  MATCH_CONTROLLER_HEADER,
+  authenticateMatchSeat,
+} from "../../../../lib/match-seat-auth";
 import { ensureMatchSessionSchema } from "../../../../lib/match-session-schema";
+import { associateMatchSeatAccount, ensureReplayArchiveSchema } from "../../../../lib/replay-archive-server";
 import { enforceD1RateLimit, requestClientKey } from "../../../../lib/request-security";
 import { AuthenticationError, serverErrorResponse } from "../../../../lib/server-errors";
 
@@ -17,6 +23,18 @@ type ActiveSeatRow = {
   updated_at: number;
 };
 
+const MATCH_CODE_HEADER = "x-match-code";
+const MATCH_PLAYER_HEADER = "x-match-player";
+
+async function associatePresentedMatchSeat(database: D1Database, request: Request, userId: string) {
+  const code = String(request.headers.get(MATCH_CODE_HEADER) ?? "").toUpperCase();
+  const playerId = String(request.headers.get(MATCH_PLAYER_HEADER) ?? "");
+  if (!/^[A-Z2-9]{6}$/.test(code) || !playerId) return false;
+  if (!request.headers.get(MATCH_CAPABILITY_HEADER) || !request.headers.get(MATCH_CONTROLLER_HEADER)) return false;
+  if (!await authenticateMatchSeat(database, request, code, playerId)) return false;
+  return associateMatchSeatAccount(database, code, playerId, userId, Date.now());
+}
+
 export async function GET(request: Request) {
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   try {
@@ -24,7 +42,9 @@ export async function GET(request: Request) {
     if (!user) throw new AuthenticationError();
     const database = await getDatabase();
     await ensureMatchSessionSchema(database);
+    await ensureReplayArchiveSchema(database);
     await enforceD1RateLimit(database, `match-active:${user.id}:${requestClientKey(request)}`, 120, 60_000);
+    await associatePresentedMatchSeat(database, request, user.id);
     const response = await database.prepare(`SELECT
         match_seat_accounts.code,
         match_seat_accounts.player_id,

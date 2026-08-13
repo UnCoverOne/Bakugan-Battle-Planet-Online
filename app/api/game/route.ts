@@ -509,6 +509,8 @@ export async function POST(request: Request) {
         throw new AuthorizationError("Unknown player.");
       }
       if (!await authenticateSeat(request, code, body.playerId)) throw new AuthorizationError("Invalid match seat capability.");
+      const account = await getSessionUser(request);
+      await associateMatchSeatAccount(await getDatabase(), code, body.playerId, account?.id, Date.now());
       await touchPresence(code, body.playerId);
     }
     await hydratePresence(record.state);
@@ -565,6 +567,7 @@ export async function POST(request: Request) {
         if (!await authenticateSeat(request, code, player.id)) {
           throw new AuthorizationError("A valid seat capability is required to reconnect.");
         }
+        await associateMatchSeatAccount(await getDatabase(), code, player.id, account?.id, Date.now());
         return json({
           accepted: true,
           snapshot: true,

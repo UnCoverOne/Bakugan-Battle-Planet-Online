@@ -86,12 +86,14 @@ export async function associateMatchSeatAccount(
   userId: string | undefined,
   createdAt: number,
 ) {
-  if (!userId) return;
+  if (!userId) return true;
   await ensureReplayArchiveSchema(database);
-  await database.prepare(`INSERT INTO match_seat_accounts (code, player_id, user_id, created_at)
+  const result = await database.prepare(`INSERT INTO match_seat_accounts (code, player_id, user_id, created_at)
     VALUES (?, ?, ?, ?)
-    ON CONFLICT(code, player_id) DO UPDATE SET user_id = excluded.user_id, created_at = excluded.created_at`)
+    ON CONFLICT(code, player_id) DO UPDATE SET created_at = excluded.created_at
+    WHERE match_seat_accounts.user_id = excluded.user_id`)
     .bind(code, playerId, userId, createdAt).run();
+  return Number(result.meta?.changes ?? 0) === 1;
 }
 
 type SeatAccountRow = { player_id: string; user_id: string };

@@ -248,8 +248,8 @@ export function AppProvider({ children }) {
   const [replay, setReplay, replayReady] = useStoredState("bbp-open-replay-v1", null, { storage: "session", debounceMs: 300, normalize: normalizeStoredReplay, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
   const [replayIndex, setReplayIndex, replayIndexReady] = useStoredState("bbp-replay-index-v1", 0, { storage: "session", debounceMs: 250, normalize: normalizeStoredNumber, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
   const [playerId, setPlayerId, playerReady] = useStoredState("bbp-player-id", "player", { debounceMs: 300, normalize: normalizeStoredPlayerId, report: false, writeEnabled: writeLocal });
-  const [matchCapability, setMatchCapability, capabilityReady] = useStoredState(MATCH_CAPABILITY_STORAGE_KEY, "", { storage: "session", debounceMs: 100, normalize: normalizeStoredText, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
-  const [matchControllerId, setMatchControllerId, controllerReady] = useStoredState(MATCH_CONTROLLER_STORAGE_KEY, "", { storage: "session", debounceMs: 100, normalize: normalizeStoredText, report: false, writeEnabled: writeLocal });
+  const [matchCapability, setMatchCapability, capabilityReady] = useStoredState(MATCH_CAPABILITY_STORAGE_KEY, "", { storage: "session", debounceMs: 100, normalize: normalizeStoredText, report: false, migrateFromLocal: true, writeEnabled: true });
+  const [matchControllerId, setMatchControllerId, controllerReady] = useStoredState(MATCH_CONTROLLER_STORAGE_KEY, "", { storage: "session", debounceMs: 100, normalize: normalizeStoredText, report: false, writeEnabled: true });
   const [modifiedAt, setModifiedAt, modifiedReady] = useStoredState("bbp-local-modified-at-v1", 0, { debounceMs: 500, normalize: normalizeStoredNumber, report: false, writeEnabled: writeLocal });
   const decksRef = useRef(decks);
   useEffect(() => { decksRef.current = decks; }, [decks]);
@@ -331,8 +331,17 @@ export function AppProvider({ children }) {
     const requestId = ++accountMatchRefreshRequest.current;
     setAccountMatchSessionsLoading(true);
     try {
+      const presentedSeatHeaders = online && match?.code && playerId && matchCapability && matchControllerId
+        ? {
+            "x-match-code": match.code,
+            "x-match-player": playerId,
+            "x-match-capability": matchCapability,
+            "x-match-controller": matchControllerId,
+          }
+        : undefined;
       const response = await fetch("/api/game/active", {
         cache: "no-store",
+        headers: presentedSeatHeaders,
         signal: AbortSignal.timeout(12_000),
       });
       const result = await readJsonResponse(response, "Active matches returned an invalid response.");
@@ -351,7 +360,7 @@ export function AppProvider({ children }) {
     } finally {
       if (requestId === accountMatchRefreshRequest.current) setAccountMatchSessionsLoading(false);
     }
-  }, [authUser]);
+  }, [authUser, match?.code, matchCapability, matchControllerId, online, playerId]);
 
   const snapshot = useMemo(() => ({ schemaVersion: 1, updatedAt: modifiedAt, profile, decks, deletedDecks, history: history.slice(0, MAX_MATCH_RECORDS), lifetimeStats, settings, route, selectedDeckId, builderDeck, deckQuery, compendiumQuery, compendiumTab, format, matchMode, joinCode, match, online, selectedCore: "", logFilter: "all", replay, replayIndex, playerId }), [builderDeck, compendiumQuery, compendiumTab, deckQuery, decks, deletedDecks, format, history, joinCode, lifetimeStats, match, matchMode, modifiedAt, online, playerId, profile, replay, replayIndex, route, selectedDeckId, settings]);
   useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);

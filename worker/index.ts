@@ -20,7 +20,7 @@ import {
   validMatchControllerId,
 } from "../lib/match-seat-auth";
 import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
-import { archiveCompletedMatch } from "../lib/replay-archive-server";
+import { archiveCompletedMatch, associateMatchSeatAccount } from "../lib/replay-archive-server";
 import { getSessionUserFromDatabase } from "../lib/account-server";
 import { ensureSocialSchema, loadSocialAccount } from "../lib/social-server";
 import { ensureMatchSessionSchema } from "../lib/match-session-schema";
@@ -400,6 +400,8 @@ export class MatchRoom {
       playerId,
     );
     if (!seat) return new Response("Forbidden", { status: 403 });
+    const account = await getSessionUserFromDatabase(request, this.env.DB);
+    await associateMatchSeatAccount(this.env.DB, code, playerId, account?.id, Date.now());
 
     for (const existing of this.state.getWebSockets(playerId)) {
       const attachment = existing.deserializeAttachment?.() as MatchSocketAttachment | undefined;

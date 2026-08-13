@@ -8,6 +8,7 @@ import {
 } from "../lib/account-match-session";
 import { capabilityHashesMatch, digestMatchCapability } from "../lib/match-seat-auth";
 import { ensureMatchSessionSchema } from "../lib/match-session-schema";
+import { associateMatchSeatAccount } from "../lib/replay-archive-server";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
@@ -87,16 +88,65 @@ test("the runtime schema guard self-heals a missed production migration and tole
   assert.equal(statements.some((sql) => /CREATE INDEX IF NOT EXISTS match_seats_controller_idx/i.test(sql)), true);
 });
 
+test("seat account backfill is idempotent and cannot transfer a seat to another account", async () => {
+  let association: { code: string; playerId: string; userId: string; createdAt: number } | null = null;
+  const database = {
+    prepare(sql: string) {
+      let values: unknown[] = [];
+      return {
+        bind(...next: unknown[]) {
+          values = next;
+          return this;
+        },
+        async run() {
+          if (!/INSERT INTO match_seat_accounts/i.test(sql)) return { meta: { changes: 0 } };
+          const [code, playerId, userId, createdAt] = values as [string, string, string, number];
+          if (association && association.userId !== userId) return { meta: { changes: 0 } };
+          association = { code, playerId, userId, createdAt };
+          return { meta: { changes: 1 } };
+        },
+      };
+    },
+    async batch() {
+      return [];
+    },
+  } as unknown as D1Database;
+
+  assert.equal(await associateMatchSeatAccount(database, "ABC234", "player-one", "account-one", 1), true);
+  assert.equal(await associateMatchSeatAccount(database, "ABC234", "player-one", "account-one", 2), true);
+  assert.equal(await associateMatchSeatAccount(database, "ABC234", "player-one", "account-two", 3), false);
+  assert.deepEqual(association, { code: "ABC234", playerId: "player-one", userId: "account-one", createdAt: 2 });
+});
+
 test("active-match discovery is authenticated and returns metadata without controller secrets", () => {
   const active = source("app/api/game/active/route.ts");
   assert.match(active, /getSessionUser\(request\)/);
   assert.match(active, /if \(!user\) throw new AuthenticationError/);
   assert.match(active, /match_seat_accounts\.user_id = \?/);
   assert.match(active, /ensureMatchSessionSchema\(database\)/);
+  assert.match(active, /ensureReplayArchiveSchema\(database\)/);
+  assert.match(active, /authenticateMatchSeat\(database, request, code, playerId\)/);
+  assert.match(active, /associateMatchSeatAccount\(database, code, playerId, userId/);
   assert.match(active, /isCompletedSeriesResult\(state\)/);
   assert.doesNotMatch(active, /capability_hash/);
   assert.doesNotMatch(active, /controller_id/);
   assert.match(active, /cache-control.*no-store/);
+});
+
+test("authenticated legacy seats are associated from every controlling transport", () => {
+  const archive = source("lib/replay-archive-server.ts");
+  const game = source("app/api/game/route.ts");
+  const worker = source("worker/index.ts");
+  const provider = source("components/application/AppProvider.jsx");
+  assert.match(archive, /ON CONFLICT\(code, player_id\) DO UPDATE SET created_at = excluded\.created_at/);
+  assert.match(archive, /WHERE match_seat_accounts\.user_id = excluded\.user_id/);
+  assert.match(game, /authenticateSeat\(request, code, body\.playerId\)[\s\S]*associateMatchSeatAccount/);
+  assert.match(game, /valid seat capability is required to reconnect[\s\S]*associateMatchSeatAccount/);
+  assert.match(worker, /authenticateMatchSeat\([\s\S]*getSessionUserFromDatabase\(request, this\.env\.DB\)[\s\S]*associateMatchSeatAccount/);
+  assert.match(provider, /"x-match-code": match\.code/);
+  assert.match(provider, /"x-match-player": playerId/);
+  assert.match(provider, /"x-match-capability": matchCapability/);
+  assert.match(provider, /"x-match-controller": matchControllerId/);
 });
 
 test("resume claims are account-bound, origin-checked, and delegated to the room coordinator", () => {
@@ -156,6 +206,8 @@ test("the browser keeps controller credentials session-scoped and stops a displa
   assert.match(provider, /primeMatchStore\(\{ route, online: true/);
   assert.match(provider, /if \(!authUser\)/);
   assert.match(provider, /sessionStorage\.removeItem\(MATCH_CONTROLLER_STORAGE_KEY\)/);
+  assert.match(provider, /MATCH_CAPABILITY_STORAGE_KEY[^\n]*writeEnabled: true/);
+  assert.match(provider, /MATCH_CONTROLLER_STORAGE_KEY[^\n]*writeEnabled: true/);
   assert.match(shell, /canControlLocalMatch/);
   assert.match(dashboard, /canControlLocalMatch/);
 });
