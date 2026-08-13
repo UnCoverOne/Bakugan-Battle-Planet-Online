@@ -39,7 +39,7 @@ import {
   writeGameRoute,
   writeGameSettings,
 } from "./MatchStateCoordinator";
-import { finalizeCompletedMatchExit, readMatchStore, useMatchSelector } from "./matchStore";
+import { finalizeCompletedMatchExit, matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchStore";
 import { SelectionInteractionLayer } from "./SelectionInteractionLayer";
 import { TieBreakLayer } from "./TieBreakLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
@@ -201,10 +201,7 @@ export function GameplayClient() {
     const response = await fetch("/api/game", {
       method: "POST",
       cache: "no-store",
-      headers: {
-        "content-type": "application/json",
-        ...(current.capability ? { "x-match-capability": current.capability } : {}),
-      },
+      headers: matchCommandHeaders(current),
       body: JSON.stringify({
         action,
         code: match.code,

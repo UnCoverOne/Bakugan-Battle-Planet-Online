@@ -18,6 +18,7 @@ export type PersistedCommand = {
 export type PersistedSeat = {
   playerId: string;
   capabilityHash: string;
+  controllerId: string;
   createdAt: number;
 };
 
@@ -146,12 +147,23 @@ function receiptInsert(database: D1Database, code: string, receipt: CommandRecei
 }
 
 function seatInsert(database: D1Database, code: string, commandId: string, seat: PersistedSeat) {
-  return database.prepare(`INSERT INTO match_seats (code, player_id, capability_hash, created_at)
-    SELECT ?, ?, ?, ?
+  return database.prepare(`INSERT INTO match_seats (
+      code, player_id, capability_hash, capability_version, controller_id, claimed_at, created_at
+    )
+    SELECT ?, ?, ?, 1, ?, ?, ?
     WHERE EXISTS (
       SELECT 1 FROM matches
       WHERE code = ? AND json_extract(state_json, '$.${ENGINE_METADATA_KEY}.lastCommandId') = ?
-    )`).bind(code, seat.playerId, seat.capabilityHash, seat.createdAt, code, commandId);
+    )`).bind(
+      code,
+      seat.playerId,
+      seat.capabilityHash,
+      seat.controllerId,
+      seat.createdAt,
+      seat.createdAt,
+      code,
+      commandId,
+    );
 }
 
 export async function persistInitialMatch(

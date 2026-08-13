@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
 import { activeSessionPresentation } from "../../lib/active-session";
+import { accountMatchSessionPresentation } from "../../lib/account-match-session";
 import { accountStatMatches } from "../../lib/match-statistics";
 import { PROFILE_TITLES } from "../../lib/profile-customization";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
@@ -78,6 +79,12 @@ export function AppShell({ children }) {
     storageHealth,
     retryCloudLoad,
     match,
+    online,
+    matchCapability,
+    matchControllerId,
+    accountMatchSessions,
+    resumeAccountMatch,
+    resumingMatchCode,
     toast,
     accountPrompt,
     dismissAccountPrompt,
@@ -182,7 +189,12 @@ export function AppShell({ children }) {
     pathname.startsWith("/settings") ||
     pathname.startsWith("/history") ||
     pathname.startsWith("/admin");
-  const activeSession = activeSessionPresentation(match);
+  const canControlLocalMatch = !online || Boolean(matchCapability && matchControllerId);
+  const activeSession = activeSessionPresentation(canControlLocalMatch ? match : null);
+  const remoteSession = !activeSession ? accountMatchSessions?.[0] : null;
+  const remoteSessionPresentation = remoteSession
+    ? accountMatchSessionPresentation(remoteSession)
+    : null;
 
   return (
     <SocialProvider>
@@ -228,6 +240,17 @@ export function AppShell({ children }) {
               >
                 <span className="pulse" /> {activeSession.navLabel}
               </Link>
+            )}
+            {remoteSession && remoteSessionPresentation && (
+              <button
+                className="resume-chip"
+                type="button"
+                disabled={resumingMatchCode === remoteSession.code}
+                onClick={() => void resumeAccountMatch(remoteSession)}
+              >
+                <span className="pulse" />
+                {resumingMatchCode === remoteSession.code ? "Resuming…" : remoteSessionPresentation.navLabel}
+              </button>
             )}
             <SocialMenuButton />
             <div className="profile-menu-wrap" ref={menuRef}>

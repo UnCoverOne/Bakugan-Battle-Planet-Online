@@ -5,7 +5,7 @@ import { type CardChoices, type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import type { ChoiceOption } from "../../lib/rules/choices";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
-import { readMatchStore, useMatchSelector } from "./matchStore";
+import { matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchStore";
 import { fingerprintedAsset } from "../../lib/assets";
 import deckStyles from "./DeckInspectionLayer.module.css";
 import searchStyles from "./DeckSearchLayer.module.css";
@@ -28,10 +28,7 @@ async function submitChoiceCommand(answers: CardChoices) {
   const response = await fetch("/api/game", {
     method: "POST",
     cache: "no-store",
-    headers: {
-      "content-type": "application/json",
-      ...(current.capability ? { "x-match-capability": current.capability } : {}),
-    },
+    headers: matchCommandHeaders(current),
     body: JSON.stringify({
       action: "choice",
       code: match.code,

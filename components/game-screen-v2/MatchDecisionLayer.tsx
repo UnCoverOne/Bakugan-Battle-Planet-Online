@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
-import { readMatchStore, useMatchSelector } from "./matchStore";
+import { matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchStore";
 import styles from "./MatchDecisionLayer.module.css";
 
 type DecisionState = {
@@ -69,7 +69,7 @@ export function MatchDecisionLayer() {
     const response = await fetch("/api/game", {
       method: "POST",
       cache: "no-store",
-      headers: { "content-type": "application/json", ...(current.capability ? { "x-match-capability": current.capability } : {}) },
+      headers: matchCommandHeaders(current),
       body: JSON.stringify({
         action: "hand-limit",
         code: currentMatch.code,

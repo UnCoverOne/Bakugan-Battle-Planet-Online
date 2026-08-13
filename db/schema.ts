@@ -7,6 +7,19 @@ export const matches = sqliteTable("matches", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+export const matchSeats = sqliteTable("match_seats", {
+  code: text("code").notNull().references(() => matches.code, { onDelete: "cascade" }),
+  playerId: text("player_id").notNull(),
+  capabilityHash: text("capability_hash").notNull(),
+  capabilityVersion: integer("capability_version").notNull().default(1),
+  controllerId: text("controller_id"),
+  claimedAt: integer("claimed_at"),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.code, table.playerId] }),
+  index("match_seats_controller_idx").on(table.code, table.playerId, table.capabilityVersion, table.controllerId),
+]);
+
 export const matchEvents = sqliteTable("match_events", {
   code: text("code").notNull(),
   sequence: integer("sequence").notNull(),

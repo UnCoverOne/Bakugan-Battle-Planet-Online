@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { normalizeMatchState, type MatchState } from "../../lib/game";
 import { isCompletedSeriesResult } from "../../lib/match-result-navigation";
-import { MATCH_UPDATE_EVENT } from "../../lib/match-state-events";
+import { MATCH_SESSION_REPLACED_EVENT, MATCH_UPDATE_EVENT } from "../../lib/match-state-events";
 
 export { MATCH_UPDATE_EVENT };
 
@@ -14,6 +14,7 @@ export const SETTINGS_KEY = "bbp-settings";
 export const ONLINE_KEY = "bbp-active-match-online-v1";
 export const PLAYER_KEY = "bbp-player-id";
 export const CAPABILITY_KEY = "bbp-match-capability-v2";
+export const CONTROLLER_KEY = "bbp-match-controller-v1";
 
 export type MatchClientSettings = Record<string, unknown> & {
   automaticDraw?: boolean;
@@ -28,6 +29,7 @@ export type MatchStoreSnapshot = {
   online: boolean;
   playerId?: string;
   capability?: string;
+  controllerId?: string;
   settings: MatchClientSettings;
   match: MatchState | null;
 };
@@ -82,11 +84,13 @@ function readPersistedMatchStore(): MatchStoreSnapshot {
     readStorage(sessionStorage, CAPABILITY_KEY) ?? readStorage(localStorage, CAPABILITY_KEY),
     undefined,
   );
+  const controllerId = parse<string | undefined>(readStorage(sessionStorage, CONTROLLER_KEY), undefined);
   return {
     route: routeFromLocation ?? parse(readStorage(localStorage, ROUTE_KEY), "entry"),
     online: parse(readStorage(localStorage, ONLINE_KEY), false),
     playerId: parse<string | undefined>(readStorage(localStorage, PLAYER_KEY), undefined),
     capability,
+    controllerId,
     settings,
     match: storedMatch ? normalizeMatchState(storedMatch) : null,
   };
@@ -101,6 +105,7 @@ function snapshotsMatch(left: MatchStoreSnapshot, right: MatchStoreSnapshot) {
     && left.online === right.online
     && left.playerId === right.playerId
     && left.capability === right.capability
+    && left.controllerId === right.controllerId
     && left.match?.id === right.match?.id
     && left.match?.version === right.match?.version
     && JSON.stringify(left.settings) === JSON.stringify(right.settings);
@@ -217,6 +222,7 @@ export function primeMatchStore(next: MatchStoreBootstrap) {
     online: next.online ?? snapshot.online,
     playerId: next.playerId ?? snapshot.playerId,
     capability: next.capability ?? snapshot.capability,
+    controllerId: next.controllerId ?? snapshot.controllerId,
     settings: next.settings ? { ...snapshot.settings, ...next.settings } : snapshot.settings,
     match: primedMatch,
   };
@@ -228,6 +234,7 @@ export function primeMatchStore(next: MatchStoreBootstrap) {
     writeStorage(sessionStorage, CAPABILITY_KEY, primed.capability);
     try { localStorage.removeItem(CAPABILITY_KEY); } catch {}
   }
+  if (next.controllerId !== undefined) writeStorage(sessionStorage, CONTROLLER_KEY, primed.controllerId);
   if (next.match !== undefined && acceptedMatch) writeStorage(localStorage, MATCH_KEY, primed.match);
 
   if (!snapshotsMatch(snapshot, primed)) {
@@ -377,8 +384,40 @@ function stopTransport() {
   pollFailureCount = 0;
 }
 
+function markSessionReplaced(reason = "Session replaced") {
+  stopTransport();
+  writeStorage(sessionStorage, CAPABILITY_KEY, undefined);
+  writeStorage(sessionStorage, CONTROLLER_KEY, undefined);
+  snapshot = {
+    ...snapshot,
+    online: false,
+    capability: undefined,
+    controllerId: undefined,
+    match: null,
+  };
+  notify();
+  window.dispatchEvent(new CustomEvent(MATCH_SESSION_REPLACED_EVENT, {
+    detail: { code: 4001, reason },
+  }));
+}
+
 function transportEligible(state: MatchStoreSnapshot) {
-  return Boolean(state.online && state.match && state.playerId && ["lobby", "match"].includes(state.route));
+  return Boolean(
+    state.online
+    && state.match
+    && state.playerId
+    && state.capability
+    && state.controllerId
+    && ["lobby", "match"].includes(state.route),
+  );
+}
+
+export function matchCommandHeaders(state: MatchStoreSnapshot = readMatchStore()) {
+  return {
+    "content-type": "application/json",
+    ...(state.capability ? { "x-match-capability": state.capability } : {}),
+    ...(state.controllerId ? { "x-match-controller": state.controllerId } : {}),
+  };
 }
 
 function pollDelay() {
@@ -403,13 +442,14 @@ async function pollOnce(state: MatchStoreSnapshot, generation: number) {
       method: "POST",
       cache: "no-store",
       signal: controller.signal,
-      headers: {
-        "content-type": "application/json",
-        ...(state.capability ? { "x-match-capability": state.capability } : {}),
-      },
+      headers: matchCommandHeaders(state),
       body: JSON.stringify({ action: "get", code: state.match.code, playerId: state.playerId }),
     });
     const data = await response.json().catch(() => ({})) as { state?: MatchState; error?: string };
+    if (response.status === 401 || response.status === 403) {
+      markSessionReplaced(data.error || "This match controller is no longer active.");
+      return;
+    }
     if (!response.ok) throw new Error(data.error || `Match polling returned HTTP ${response.status}.`);
     if (generation !== transportGeneration) return;
     if (data.state) publishMatch(data.state, false);
@@ -452,17 +492,22 @@ function connectTransport(state: MatchStoreSnapshot, generation: number) {
   url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
   url.searchParams.set("code", state.match.code);
   url.searchParams.set("playerId", state.playerId);
+  url.searchParams.set("controllerId", state.controllerId ?? "");
 
   try {
     const socket = new WebSocket(url, state.capability ? ["bbp-match-v1", `cap.${state.capability}`] : ["bbp-match-v1"]);
     transport = socket;
     let disconnected = false;
-    const handleDisconnect = () => {
+    const handleDisconnect = (event?: Event) => {
       if (disconnected || generation !== transportGeneration || intentionalClose) return;
       disconnected = true;
       if (transport === socket) transport = null;
       detachSocketListeners(socket);
       try { socket.close(); } catch {}
+      if (event instanceof CloseEvent && event.code === 4001) {
+        markSessionReplaced(event.reason || "Session replaced");
+        return;
+      }
       schedulePoll(generation, true);
       scheduleReconnect(generation);
     };
@@ -499,7 +544,7 @@ function connectTransport(state: MatchStoreSnapshot, generation: number) {
 
 function startTransport(state: MatchStoreSnapshot) {
   if (!transportEligible(state) || !state.match || !state.playerId) return stopTransport();
-  const identity = `${state.match.code}:${state.playerId}:${state.capability ?? ""}`;
+  const identity = `${state.match.code}:${state.playerId}:${state.capability ?? ""}:${state.controllerId ?? ""}`;
   if (transportIdentity === identity && (transport || reconnectTimer || pollTimer)) return;
   stopTransport();
   transportIdentity = identity;
@@ -508,7 +553,7 @@ function startTransport(state: MatchStoreSnapshot) {
 }
 
 export function useMatchTransport() {
-  const identity = useMatchSelector((state) => `${state.online}:${state.route}:${state.match?.code ?? ""}:${state.playerId ?? ""}:${state.capability ?? ""}`);
+  const identity = useMatchSelector((state) => `${state.online}:${state.route}:${state.match?.code ?? ""}:${state.playerId ?? ""}:${state.capability ?? ""}:${state.controllerId ?? ""}`);
   useEffect(() => {
     startTransport(readMatchStore());
     return () => stopTransport();

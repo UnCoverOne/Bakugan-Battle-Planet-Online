@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
 import { rememberAccountIntent } from "../../lib/account-intent";
 import { activeSessionPresentation } from "../../lib/active-session";
+import { accountMatchSessionPresentation, type AccountMatchSessionSummary } from "../../lib/account-match-session";
 import { CARD_BY_ID, PUBLIC_DECKS, deckLeadCard, type DeckRecord } from "../../lib/data";
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
@@ -134,7 +135,14 @@ export function DashboardScreen() {
     history,
     lifetimeStats,
     match,
+    online,
+    matchCapability,
+    matchControllerId,
     authUser,
+    accountMatchSessions,
+    accountMatchSessionsError,
+    resumeAccountMatch,
+    resumingMatchCode,
     requestAccountAccess,
   } = useApp();
   useHomeDisplayFont();
@@ -182,7 +190,15 @@ export function DashboardScreen() {
       return true;
     })
     : [];
-  const activeSession = activeSessionPresentation(match);
+  const canControlLocalMatch = !online || Boolean(matchCapability && matchControllerId);
+  const activeSession = activeSessionPresentation(canControlLocalMatch ? match : null);
+  const recoverableSessions = (accountMatchSessions as AccountMatchSessionSummary[])
+    .filter((session) => !activeSession || session.code !== match?.code);
+  const hasActiveMatches = Boolean(
+    activeSession
+    || recoverableSessions.length
+    || accountMatchSessionsError,
+  );
 
   const openAccount = (mode: "login" | "signup", reason: "achievements" | "protect-progress") => {
     rememberAccountIntent(reason, { returnTo: "/" });
@@ -190,8 +206,8 @@ export function DashboardScreen() {
   };
 
   return <div
-    className={`bakugan-home ${activeSession ? "has-active-match" : ""}`}
-    style={activeSession ? {
+    className={`bakugan-home ${hasActiveMatches ? "has-active-match" : ""}`}
+    style={hasActiveMatches ? {
       height: "auto",
       minHeight: "calc(100dvh - 76px)",
       gridTemplateRows: "auto auto auto auto",
@@ -221,6 +237,32 @@ export function DashboardScreen() {
     {activeSession && <section className="active-match-card">
       <div><span className="pulse"/><span className="eyebrow">{activeSession.eyebrow}</span><h2>{activeSession.title}</h2><p>{activeSession.detail}</p></div>
       <Link className="hex-button blue" href={activeSession.href}><span>{activeSession.actionLabel}</span><ChevronArrow/></Link>
+    </section>}
+
+    {recoverableSessions.map((session) => {
+      const presentation = accountMatchSessionPresentation(session);
+      const resuming = resumingMatchCode === session.code;
+      return <section className="active-match-card" key={`${session.code}:${session.playerId}`}>
+        <div>
+          <span className="pulse"/>
+          <span className="eyebrow">{presentation.eyebrow} · ACCOUNT RECOVERY</span>
+          <h2>{presentation.title}</h2>
+          <p>{presentation.detail}</p>
+        </div>
+        <button
+          className="hex-button blue"
+          type="button"
+          disabled={Boolean(resumingMatchCode)}
+          onClick={() => void resumeAccountMatch(session)}
+        >
+          <span>{resuming ? "RESUMING…" : presentation.actionLabel}</span>
+          <ChevronArrow/>
+        </button>
+      </section>;
+    })}
+
+    {!activeSession && !recoverableSessions.length && accountMatchSessionsError && <section className="active-match-card" role="status">
+      <div><span className="eyebrow">ACCOUNT MATCHES</span><h2>Match recovery is temporarily unavailable</h2><p>{accountMatchSessionsError}</p></div>
     </section>}
 
     <section className="home-feature-grid">

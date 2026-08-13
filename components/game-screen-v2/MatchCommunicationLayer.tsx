@@ -6,7 +6,7 @@ import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatch
 import { cardArtSource } from "../../lib/content/card-art";
 import type { MatchState } from "../../lib/game";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
-import { readMatchStore, useMatchSelector } from "./matchStore";
+import { matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchStore";
 import batchStyles from "./BrawlExperienceLayer.module.css";
 import styles from "./MatchCommunicationLayer.module.css";
 
@@ -143,7 +143,7 @@ export function MatchCommunicationLayer() {
           const response = await fetch("/api/game", {
             method: "POST",
             cache: "no-store",
-            headers: { "content-type": "application/json", ...(stored.capability ? { "x-match-capability": stored.capability } : {}) },
+            headers: matchCommandHeaders(stored),
             body: JSON.stringify({
               action: "chat",
               code: expectedState.code,

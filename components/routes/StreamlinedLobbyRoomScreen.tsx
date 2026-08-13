@@ -32,6 +32,7 @@ import { Badge, factionClass } from "../application/ui";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { PlayerPreview } from "../profile/PlayerPreview";
 import {
+  matchCommandHeaders,
   primeMatchStore,
   publishMatch,
   readMatchStore,
@@ -121,6 +122,7 @@ export function LobbyRoomScreen() {
     online: appOnline,
     playerId: appPlayerId,
     matchCapability: appMatchCapability,
+    matchControllerId: appMatchControllerId,
     profile,
     settings,
     decks,
@@ -142,9 +144,10 @@ export function LobbyRoomScreen() {
       online: appOnline,
       playerId: appPlayerId,
       capability: appMatchCapability,
+      controllerId: appMatchControllerId,
       settings,
     });
-  }, [appMatch, appMatchCapability, appOnline, appPlayerId, appReady, settings]);
+  }, [appMatch, appMatchCapability, appMatchControllerId, appOnline, appPlayerId, appReady, settings]);
 
   useMatchTransport();
   const room = useMatchSelector((state) => ({
@@ -227,10 +230,7 @@ export function LobbyRoomScreen() {
         const response = await fetch("/api/game", {
           method: "POST",
           cache: "no-store",
-          headers: {
-            "content-type": "application/json",
-            ...(current.capability ? { "x-match-capability": current.capability } : {}),
-          },
+          headers: matchCommandHeaders(current),
           body: JSON.stringify({
             action,
             code: expectedState.code,

@@ -6,6 +6,19 @@ import { normalizeMatchState, type MatchState } from "../lib/game";
 import { normalizeEngineState, persistTransition, projectMatchForPlayer, reduceMatch, type CommandEnvelope, type EngineBackedMatchState, type GameCommand } from "../lib/engine";
 import { nextMatchAlarmAt } from "../lib/deadlines";
 import { markInternalMatchRequest, stripInternalMatchHeaders } from "../lib/internal-request";
+import { isCompletedSeriesResult } from "../lib/match-result-navigation";
+import {
+  MATCH_CAPABILITY_HEADER,
+  MATCH_CONTROLLER_HEADER,
+  SESSION_REPLACED_CLOSE_CODE,
+  SESSION_REPLACED_REASON,
+  authenticateMatchSeat,
+  digestMatchCapability,
+  loadMatchSeatCredential,
+  newMatchControllerId,
+  secureMatchCapability,
+  validMatchControllerId,
+} from "../lib/match-seat-auth";
 import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
 import { archiveCompletedMatch } from "../lib/replay-archive-server";
 import { getSessionUserFromDatabase } from "../lib/account-server";
@@ -144,8 +157,42 @@ function alarmSeed() {
   return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
 }
 
+type MatchSocketAttachment = {
+  playerId: string;
+  capabilityVersion: number;
+  controllerId: string;
+  connectionId: string;
+};
+
+type ResumeSeatRequest = {
+  userId?: unknown;
+  expectedCapabilityVersion?: unknown;
+  takeover?: unknown;
+};
+
+function matchRoomJson(payload: unknown, status = 200) {
+  return Response.json(payload, {
+    status,
+    headers: { "cache-control": "no-store, max-age=0" },
+  });
+}
+
 export class MatchRoom {
+  private sessionMutation: Promise<void> = Promise.resolve();
+
   constructor(private state: HibernatingState, private env: Env) {}
+
+  private async withSessionMutation<T>(operation: () => Promise<T>) {
+    const previous = this.sessionMutation;
+    let release: () => void = () => undefined;
+    this.sessionMutation = new Promise<void>((resolve) => { release = resolve; });
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  }
 
   private async publish(match: MatchState) {
     await this.state.storage.put("snapshot", match);
@@ -179,6 +226,7 @@ export class MatchRoom {
     }
 
     if (request.method === "POST" && url.pathname === "/action") {
+      return this.withSessionMutation(async () => {
       const code = String(url.searchParams.get("code") ?? "").toUpperCase();
       const originalUrl = request.headers.get(FORWARDED_MATCH_URL_HEADER) ?? "https://match.invalid/api/game";
       const headers = new Headers(request.headers);
@@ -202,22 +250,170 @@ export class MatchRoom {
       const row = await this.env.DB.prepare("SELECT state_json FROM matches WHERE code = ?").bind(code).first<{ state_json: string }>();
       if (row?.state_json) await this.publish(JSON.parse(row.state_json) as MatchState);
       return response;
+      });
+    }
+
+    if (request.method === "POST" && url.pathname === "/resume") {
+      return this.withSessionMutation(async () => {
+      const code = String(url.searchParams.get("code") ?? "").toUpperCase();
+      if (!/^[A-Z2-9]{6}$/.test(code)) return matchRoomJson({ error: "Room code is invalid.", code: "VALIDATION_ERROR" }, 400);
+      const body = await request.json().catch(() => null) as ResumeSeatRequest | null;
+      const userId = typeof body?.userId === "string" ? body.userId : "";
+      const expectedCapabilityVersion = Number(body?.expectedCapabilityVersion);
+      const takeover = body?.takeover === true;
+      if (!userId || !Number.isSafeInteger(expectedCapabilityVersion) || expectedCapabilityVersion < 1) {
+        return matchRoomJson({ error: "Resume request is invalid.", code: "VALIDATION_ERROR" }, 400);
+      }
+
+      const seats = await this.env.DB.prepare(`SELECT
+          match_seat_accounts.player_id,
+          match_seats.capability_version,
+          matches.state_json
+        FROM match_seat_accounts
+        JOIN match_seats
+          ON match_seats.code = match_seat_accounts.code
+          AND match_seats.player_id = match_seat_accounts.player_id
+        JOIN matches ON matches.code = match_seat_accounts.code
+        WHERE match_seat_accounts.code = ? AND match_seat_accounts.user_id = ?
+        LIMIT 2`)
+        .bind(code, userId)
+        .all<{ player_id: string; capability_version: number; state_json: string }>();
+      const rows = seats.results ?? [];
+      if (!rows.length) return matchRoomJson({ error: "That match seat is not associated with your account.", code: "AUTHORIZATION_ERROR" }, 403);
+      if (rows.length !== 1) return matchRoomJson({ error: "Your account has an ambiguous seat assignment in this room.", code: "CONFLICT_ERROR" }, 409);
+
+      const row = rows[0];
+      let snapshot: MatchState;
+      try {
+        snapshot = normalizeMatchState(JSON.parse(row.state_json) as MatchState);
+      } catch {
+        return matchRoomJson({ error: "The saved match could not be restored.", code: "SERVICE_UNAVAILABLE" }, 503);
+      }
+      if (!snapshot.players.some((player) => player.id === row.player_id)) {
+        return matchRoomJson({ error: "That account seat no longer exists in the match.", code: "AUTHORIZATION_ERROR" }, 403);
+      }
+      if (isCompletedSeriesResult(snapshot)) {
+        return matchRoomJson({ error: "This match series is already complete.", code: "CONFLICT_ERROR" }, 409);
+      }
+      if (Number(row.capability_version) !== expectedCapabilityVersion) {
+        return matchRoomJson({
+          error: "The match controller changed. Refresh the active-match list and try again.",
+          code: "LEASE_CONFLICT",
+          capabilityVersion: Number(row.capability_version),
+        }, 409);
+      }
+
+      const activeSockets = this.state.getWebSockets(row.player_id).filter((socket) => {
+        const attachment = socket.deserializeAttachment?.() as MatchSocketAttachment | undefined;
+        return !attachment || attachment.capabilityVersion == null
+          || attachment.capabilityVersion === Number(row.capability_version);
+      });
+      if (activeSockets.length && !takeover) {
+        return matchRoomJson({
+          error: "This match seat is active in another session.",
+          code: "SESSION_ACTIVE",
+          capabilityVersion: Number(row.capability_version),
+        }, 409);
+      }
+
+      const capability = secureMatchCapability();
+      const controllerId = newMatchControllerId();
+      const claimedAt = Date.now();
+      const nextCapabilityVersion = expectedCapabilityVersion + 1;
+      const updated = await this.env.DB.prepare(`UPDATE match_seats
+        SET capability_hash = ?, capability_version = ?, controller_id = ?, claimed_at = ?
+        WHERE code = ? AND player_id = ? AND capability_version = ?`)
+        .bind(
+          await digestMatchCapability(capability),
+          nextCapabilityVersion,
+          controllerId,
+          claimedAt,
+          code,
+          row.player_id,
+          expectedCapabilityVersion,
+        ).run();
+      if (Number(updated.meta?.changes ?? 0) !== 1) {
+        const latest = await loadMatchSeatCredential(this.env.DB, code, row.player_id);
+        return matchRoomJson({
+          error: "Another session claimed this match first. Refresh and try again.",
+          code: "LEASE_CONFLICT",
+          capabilityVersion: Number(latest?.capability_version ?? expectedCapabilityVersion),
+        }, 409);
+      }
+
+      const latest = await loadMatchSeatCredential(this.env.DB, code, row.player_id);
+      if (!latest || latest.capability_version !== nextCapabilityVersion || latest.controller_id !== controllerId) {
+        return matchRoomJson({
+          error: "Another session claimed this match first. Refresh and try again.",
+          code: "LEASE_CONFLICT",
+          capabilityVersion: Number(latest?.capability_version ?? nextCapabilityVersion),
+        }, 409);
+      }
+
+      await this.env.DB.prepare(`INSERT INTO match_presence (code, player_id, last_seen, connected)
+        VALUES (?, ?, ?, 0)
+        ON CONFLICT(code, player_id) DO UPDATE SET last_seen = excluded.last_seen, connected = 0`)
+        .bind(code, row.player_id, claimedAt).run();
+      for (const socket of this.state.getWebSockets(row.player_id)) {
+        const attachment = socket.deserializeAttachment?.() as MatchSocketAttachment | undefined;
+        if (attachment && attachment.capabilityVersion >= nextCapabilityVersion) continue;
+        try { socket.close(SESSION_REPLACED_CLOSE_CODE, SESSION_REPLACED_REASON); } catch {}
+      }
+      await this.state.storage.put("snapshot", snapshot);
+      await this.state.storage.setAlarm(Math.min(nextMatchAlarmAt(snapshot), claimedAt + MATCH_RECONNECT_GRACE_MS));
+      console.info(JSON.stringify({
+        event: "match_session_claimed",
+        code,
+        playerId: row.player_id,
+        capabilityVersion: nextCapabilityVersion,
+        takeover: activeSockets.length > 0,
+      }));
+      return matchRoomJson({
+        accepted: true,
+        code,
+        playerId: row.player_id,
+        capability,
+        capabilityVersion: nextCapabilityVersion,
+        controllerId,
+        state: projectMatchForPlayer(snapshot, row.player_id),
+      });
+      });
     }
 
     if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket required", { status: 426 });
+    return this.withSessionMutation(async () => {
     const code = String(url.searchParams.get("code") ?? "").toUpperCase();
     const playerId = String(url.searchParams.get("playerId") ?? "");
+    const controllerId = String(url.searchParams.get("controllerId") ?? "");
     const protocols = (request.headers.get("sec-websocket-protocol") ?? "").split(",").map((value) => value.trim());
-    const capability = protocols.find((value) => value.startsWith("cap."))?.slice(4)
-      ?? String(url.searchParams.get("capability") ?? "");
-    const seat = await this.env.DB.prepare("SELECT capability_hash FROM match_seats WHERE code = ? AND player_id = ?")
-      .bind(code, playerId).first<{ capability_hash: string }>();
-    if (!seat || !capability || seat.capability_hash !== await sha256(capability)) return new Response("Forbidden", { status: 403 });
+    const capability = protocols.find((value) => value.startsWith("cap."))?.slice(4) ?? "";
+    if (!validMatchControllerId(controllerId)) return new Response("Forbidden", { status: 403 });
+    const authenticationHeaders = new Headers(request.headers);
+    authenticationHeaders.set(MATCH_CAPABILITY_HEADER, capability);
+    authenticationHeaders.set(MATCH_CONTROLLER_HEADER, controllerId);
+    const seat = await authenticateMatchSeat(
+      this.env.DB,
+      new Request(request.url, { headers: authenticationHeaders }),
+      code,
+      playerId,
+    );
+    if (!seat) return new Response("Forbidden", { status: 403 });
+
+    for (const existing of this.state.getWebSockets(playerId)) {
+      const attachment = existing.deserializeAttachment?.() as MatchSocketAttachment | undefined;
+      if (attachment && attachment.capabilityVersion > seat.capability_version) continue;
+      try { existing.close(SESSION_REPLACED_CLOSE_CODE, SESSION_REPLACED_REASON); } catch {}
+    }
 
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
-    server.serializeAttachment?.({ playerId });
+    server.serializeAttachment?.({
+      playerId,
+      capabilityVersion: seat.capability_version,
+      controllerId,
+      connectionId: crypto.randomUUID(),
+    } satisfies MatchSocketAttachment);
     this.state.acceptWebSocket(server, [playerId]);
     await this.env.DB.prepare(
       "INSERT INTO match_presence (code, player_id, last_seen, connected) VALUES (?, ?, ?, 1) ON CONFLICT(code, player_id) DO UPDATE SET last_seen = excluded.last_seen, connected = 1",
@@ -249,16 +445,30 @@ export class MatchRoom {
       webSocket: client,
       headers: { "sec-websocket-protocol": "bbp-match-v1" },
     } as ResponseInit & { webSocket: WebSocket });
+    });
   }
 
   async webSocketClose(socket: WebSocket) {
-    const attachment = socket.deserializeAttachment?.() as { playerId?: string } | undefined;
+    await this.withSessionMutation(async () => {
+    const attachment = socket.deserializeAttachment?.() as MatchSocketAttachment | undefined;
     const snapshot = await this.state.storage.get<MatchState>("snapshot");
     if (attachment?.playerId && snapshot?.code) {
+      const replacement = this.state.getWebSockets(attachment.playerId).some((candidate) => {
+        if (candidate === socket) return false;
+        const candidateAttachment = candidate.deserializeAttachment?.() as MatchSocketAttachment | undefined;
+        return candidateAttachment?.capabilityVersion === attachment.capabilityVersion
+          && candidateAttachment.controllerId === attachment.controllerId;
+      });
+      if (replacement) return;
+      const seat = await loadMatchSeatCredential(this.env.DB, snapshot.code, attachment.playerId);
+      if (!seat
+        || seat.capability_version !== attachment.capabilityVersion
+        || seat.controller_id !== attachment.controllerId) return;
       await this.env.DB.prepare("UPDATE match_presence SET connected = 0, last_seen = ? WHERE code = ? AND player_id = ?")
         .bind(Date.now(), snapshot.code, attachment.playerId).run();
       await this.state.storage.setAlarm(Math.min(nextMatchAlarmAt(snapshot), Date.now() + MATCH_RECONNECT_GRACE_MS));
     }
+    });
   }
   async webSocketError(socket: WebSocket) { await this.webSocketClose(socket); }
 

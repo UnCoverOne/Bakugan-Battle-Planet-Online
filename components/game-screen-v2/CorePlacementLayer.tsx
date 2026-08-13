@@ -4,7 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "
 import { HEX_CELLS, legalPlacementCells, type CoreType, type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
-import { readMatchStore } from "./matchStore";
+import { matchCommandHeaders, readMatchStore } from "./matchStore";
 import { playerUsesOppositeMatrixPerspective } from "./matrixPerspectiveState";
 import styles from "./CorePlacementLayer.module.css";
 
@@ -92,7 +92,7 @@ export function CorePlacementLayer({
         const response = await fetch("/api/game", {
           method: "POST",
           cache: "no-store",
-          headers: { "content-type": "application/json", ...(stored.capability ? { "x-match-capability": stored.capability } : {}) },
+          headers: matchCommandHeaders(stored),
           body: JSON.stringify({ action: "place", code: match.code, playerId: actorId, expectedVersion: match.version, payload: { coreId, cell } }),
         });
         const data = await response.json() as { state?: MatchState; error?: string };

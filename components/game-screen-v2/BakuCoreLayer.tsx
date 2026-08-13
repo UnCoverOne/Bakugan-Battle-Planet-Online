@@ -24,7 +24,7 @@ import { coreTransferDestination } from "./bakuCorePresentationState";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { RollResultLayer } from "./RollResultLayer";
 import styles from "./BakuCoreLayer.module.css";
-import { readMatchStore } from "./matchStore";
+import { matchCommandHeaders, readMatchStore } from "./matchStore";
 import {
   orientMatrixPath,
   orientMatrixPoint,
@@ -465,7 +465,7 @@ export function BakuCoreLayer({
         const response = await fetch("/api/game", {
           method: "POST",
           cache: "no-store",
-          headers: { "content-type": "application/json", ...(stored.capability ? { "x-match-capability": stored.capability } : {}) },
+          headers: matchCommandHeaders(stored),
           body: JSON.stringify({
             action,
             code: match.code,

@@ -43,6 +43,13 @@
       "when": 1786352400000,
       "tag": "0005_ranked_play",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1786651221602,
+      "tag": "0006_match_session_resume",
+      "breakpoints": true
     }
   ]
 }

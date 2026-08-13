@@ -30,6 +30,12 @@ import {
   type EngineBackedMatchState,
 } from "../../../lib/engine";
 import { isInternalMatchRequest } from "../../../lib/internal-request";
+import {
+  authenticateMatchSeat,
+  digestMatchCapability,
+  newMatchControllerId,
+  secureMatchCapability,
+} from "../../../lib/match-seat-auth";
 import { archiveCompletedMatch, associateMatchSeatAccount } from "../../../lib/replay-archive-server";
 import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../../lib/request-security";
 import {
@@ -163,7 +169,6 @@ async function publishMatchState(state: MatchState) {
 }
 
 const encoder = new TextEncoder();
-const CAPABILITY_HEADER = "x-match-capability";
 const COMMAND_ID_HEADER = "x-command-id";
 const ACTIONS = new Set([
   "create", "join", "get", "ready", "lobby-ready", "start-match", "lobby-settings", "lobby-deck",
@@ -260,12 +265,8 @@ async function commandIdentity(request: Request, body: Body, code: string, playe
 }
 
 async function authenticateSeat(request: Request, code: string, playerId: string) {
-  const capability = request.headers.get(CAPABILITY_HEADER) ?? "";
-  if (!capability) return false;
   const database = await getDatabase();
-  const row = await database.prepare("SELECT capability_hash FROM match_seats WHERE code = ? AND player_id = ?")
-    .bind(code, playerId).first<{ capability_hash: string }>();
-  return Boolean(row?.capability_hash && row.capability_hash === await digest(capability));
+  return Boolean(await authenticateMatchSeat(database, request, code, playerId));
 }
 
 async function load(code: string): Promise<MatchRecord | null> {
@@ -434,8 +435,9 @@ export async function POST(request: Request) {
       const issuedAt = Date.now();
       const identity = await commandIdentity(request, body, "NEW", player.id, 0);
       const baseSeed = secureToken(32);
-      const capability = secureToken();
-      const capabilityHash = await digest(capability);
+      const capability = secureMatchCapability();
+      const capabilityHash = await digestMatchCapability(capability);
+      const controllerId = newMatchControllerId();
       let code = "";
       let result: ReturnType<typeof initializeMatch> | null = null;
       for (let attempt = 0; attempt < 12; attempt += 1) {
@@ -463,6 +465,7 @@ export async function POST(request: Request) {
         if (await persistInitialMatch(database, result.state, result.events, result.receipt, {
           playerId: player.id,
           capabilityHash,
+          controllerId,
           createdAt: issuedAt,
         })) break;
         result = null;
@@ -488,6 +491,8 @@ export async function POST(request: Request) {
         duplicate: false,
         previousVersion: 0,
         capability,
+        capabilityVersion: 1,
+        controllerId,
         correlationId,
       });
     }
@@ -546,6 +551,14 @@ export async function POST(request: Request) {
         ranked ? makeCanonicalPlayerWithRestrictions(effectiveSelection, ranked.restrictions) : makeCanonicalPlayer(effectiveSelection),
         effectiveSelection.deck,
       );
+      if (account) {
+        const occupied = await (await getDatabase()).prepare(
+          "SELECT player_id FROM match_seat_accounts WHERE code = ? AND user_id = ? LIMIT 1",
+        ).bind(code, account.id).first<{ player_id: string }>();
+        if (occupied && occupied.player_id !== player.id) {
+          throw new ConflictError("Your account already occupies a seat in this room. Resume that seat instead.");
+        }
+      }
       if (state.players.some((candidate) => candidate.id === player.id)) {
         if (!await authenticateSeat(request, code, player.id)) {
           throw new AuthorizationError("A valid seat capability is required to reconnect.");
@@ -596,7 +609,8 @@ export async function POST(request: Request) {
         ) as EngineBackedMatchState;
         result.state = rankedLobby;
       }
-      const capability = secureToken();
+      const capability = secureMatchCapability();
+      const controllerId = newMatchControllerId();
       const saved = await persistTransition(database, {
         code,
         next: result.state,
@@ -604,7 +618,7 @@ export async function POST(request: Request) {
         expectedVersion,
         events: result.events,
         receipt: result.receipt,
-        seat: { playerId: player.id, capabilityHash: await digest(capability), createdAt: envelope.issuedAt },
+        seat: { playerId: player.id, capabilityHash: await digestMatchCapability(capability), controllerId, createdAt: envelope.issuedAt },
       });
       if (!saved) return latestConflict(code, player.id, correlationId);
       await associateMatchSeatAccount(database, code, player.id, account?.id, envelope.issuedAt);
@@ -617,6 +631,8 @@ export async function POST(request: Request) {
         duplicate: false,
         previousVersion: expectedVersion,
         capability,
+        capabilityVersion: 1,
+        controllerId,
         correlationId,
       });
     }

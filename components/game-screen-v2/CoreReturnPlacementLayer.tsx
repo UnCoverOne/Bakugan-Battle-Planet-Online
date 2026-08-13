@@ -8,6 +8,7 @@ import {
 } from "../../lib/coreReturns";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import {
+  matchCommandHeaders,
   publishMatch,
   readMatchStore,
 } from "./matchStore";
@@ -53,10 +54,7 @@ export function CoreReturnPlacementLayer({
         const response = await fetch("/api/game", {
           method: "POST",
           cache: "no-store",
-          headers: {
-            "content-type": "application/json",
-            ...(stored.capability ? { "x-match-capability": stored.capability } : {}),
-          },
+          headers: matchCommandHeaders(stored),
           body: JSON.stringify({
             action: "place",
             code: match.code,

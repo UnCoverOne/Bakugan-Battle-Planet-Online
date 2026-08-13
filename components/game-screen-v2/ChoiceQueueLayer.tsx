@@ -5,7 +5,7 @@ import { type CardChoices, type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import type { ChoiceField, ChoiceKind } from "../../lib/rules/choices";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
-import { readMatchStore, useMatchSelector } from "./matchStore";
+import { matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchStore";
 import styles from "./ChoiceQueueLayer.module.css";
 import { isTopDeckField, renderableDeckInspectionField } from "./deckInspectionPresentation";
 import { boardChoicePrompt, clearBoardChoiceHud, publishBoardChoiceHud } from "./boardChoiceHud";
@@ -69,7 +69,7 @@ async function command(
   const response = await fetch("/api/game", {
     method: "POST",
     cache: "no-store",
-    headers: { "content-type": "application/json", ...(current.capability ? { "x-match-capability": current.capability } : {}) },
+    headers: matchCommandHeaders(current),
     body: JSON.stringify({ action, code: match.code, playerId, expectedVersion: match.version, payload }),
   });
   const data = await response.json() as { state?: MatchState; error?: string };

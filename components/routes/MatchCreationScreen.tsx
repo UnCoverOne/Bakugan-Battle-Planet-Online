@@ -124,7 +124,7 @@ export function MatchCreationScreen() {
   const resetPreviousSession = () => {
     setMatch(null);
     setOnline(false);
-    primeMatchStore({ route: "play", match: null, online: false, playerId, capability: "" });
+    primeMatchStore({ route: "play", match: null, online: false, playerId, capability: "", controllerId: "" });
   };
 
   const launch = async () => {
@@ -165,7 +165,7 @@ export function MatchCreationScreen() {
         initializeLocalReplayJournal(state, authUser?.id ?? playerId);
         setOnline(false);
         setMatch(state);
-        primeMatchStore({ route: "lobby", match: state, online: false, playerId, capability: "" });
+        primeMatchStore({ route: "lobby", match: state, online: false, playerId, capability: "", controllerId: "" });
         router.push("/play/lobby");
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Training lobby could not be opened.");

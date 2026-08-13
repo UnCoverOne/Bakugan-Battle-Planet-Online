@@ -8,6 +8,7 @@ import type { MatchState } from "../../lib/game";
 import { useApp } from "../application/AppProvider";
 import { Badge, PageHeader } from "../application/ui";
 import {
+  matchCommandHeaders,
   primeMatchStore,
   publishMatch,
   readMatchStore,
@@ -31,6 +32,7 @@ export function LobbyRoomScreen() {
     online: appOnline,
     playerId: appPlayerId,
     matchCapability: appMatchCapability,
+    matchControllerId: appMatchControllerId,
     settings,
     leaveMatch,
   } = useApp();
@@ -48,9 +50,10 @@ export function LobbyRoomScreen() {
       online: appOnline,
       playerId: appPlayerId,
       capability: appMatchCapability,
+      controllerId: appMatchControllerId,
       settings,
     });
-  }, [appMatch, appMatchCapability, appOnline, appPlayerId, appReady, settings]);
+  }, [appMatch, appMatchCapability, appMatchControllerId, appOnline, appPlayerId, appReady, settings]);
 
   useMatchTransport();
   const room = useMatchSelector((state) => ({
@@ -91,10 +94,7 @@ export function LobbyRoomScreen() {
         const response = await fetch("/api/game", {
           method: "POST",
           cache: "no-store",
-          headers: {
-            "content-type": "application/json",
-            ...(current.capability ? { "x-match-capability": current.capability } : {}),
-          },
+          headers: matchCommandHeaders(current),
           body: JSON.stringify({
             action,
             code: expectedState.code,
