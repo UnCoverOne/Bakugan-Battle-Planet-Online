@@ -24,6 +24,7 @@ import {
   type ReplayArchive,
   type ReplayRecording,
 } from "./replay-types";
+import { ensureEngineMetadata } from "./events";
 import { createStatePatch } from "./state-patch";
 
 const CORE_BY_ID = new Map(CORES.map((core) => [core.catalogId ?? core.id, core]));
@@ -91,11 +92,18 @@ function expandBakugan(bakugan: CompactBakuganInstance): Bakugan {
 }
 
 export function compactReplayPlayer(player: PlayerState): CompactPlayerState {
-  const avatar = (player as PlayerState & { avatar?: string }).avatar;
+  const configured = player as PlayerState & {
+    avatar?: string;
+    lobbyDeckFormat?: "standard" | "singleton" | "competitive";
+    lobbyDeckName?: string;
+  };
+  const avatar = configured.avatar;
   return {
     id: player.id,
     n: player.name,
     ...(avatar ? { a: avatar } : {}),
+    ...(configured.lobbyDeckFormat ? { lf: configured.lobbyDeckFormat } : {}),
+    ...(configured.lobbyDeckName ? { ln: configured.lobbyDeckName } : {}),
     b: player.bakugan.map(compactBakugan),
     c: player.cores.map(compactCore),
     d: player.deckCards.map(compactCard),
@@ -116,7 +124,11 @@ export function compactReplayPlayer(player: PlayerState): CompactPlayerState {
 }
 
 export function expandReplayPlayer(player: CompactPlayerState): PlayerState {
-  const expanded: PlayerState & { avatar?: string } = {
+  const expanded: PlayerState & {
+    avatar?: string;
+    lobbyDeckFormat?: "standard" | "singleton" | "competitive";
+    lobbyDeckName?: string;
+  } = {
     id: player.id,
     name: player.n,
     bakugan: player.b.map(expandBakugan),
@@ -138,6 +150,8 @@ export function expandReplayPlayer(player: CompactPlayerState): PlayerState {
     ...(player.rv ? { revealedDeckCardId: player.rv } : {}),
   };
   if (player.a) expanded.avatar = player.a;
+  if (player.lf) expanded.lobbyDeckFormat = player.lf;
+  if (player.ln) expanded.lobbyDeckName = player.ln;
   return expanded;
 }
 
@@ -187,6 +201,19 @@ export function expandReplayCommand(
 
 export function createReplayRecording(state: MatchState): ReplayRecording {
   return { schemaVersion: REPLAY_SCHEMA_VERSION, genesis: captureReplayGenesis(state), commands: [] };
+}
+
+/**
+ * Start recording an already-created match without discarding an existing
+ * server-side command recording. Training lobbies are assembled locally by
+ * the lobby workflow, so their deterministic replay begins at the exact
+ * post-lobby state where gameplay starts.
+ */
+export function ensureReplayRecording(state: MatchState): EngineBackedMatchState {
+  const next = cloneMatch(state) as EngineBackedMatchState;
+  const metadata = ensureEngineMetadata(next);
+  metadata.replay ??= createReplayRecording(next);
+  return next;
 }
 
 export function appendReplayCommand(state: EngineBackedMatchState, envelope: CommandEnvelope) {

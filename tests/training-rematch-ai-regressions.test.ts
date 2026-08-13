@@ -3,6 +3,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { STARTER_DECKS, type DeckRecord } from "../lib/data";
 import { createTrainingLobbyState, syncTrainingBotForLobby } from "../lib/training-lobby";
+import { setLobbyReady, startLobbyMatch } from "../lib/lobby";
+import { archiveReplay, replayStateHash } from "../lib/engine/replay-codec";
+import { buildReplayFrames } from "../lib/engine/replay-playback";
+import { ENGINE_METADATA_KEY } from "../lib/engine/types";
 
 test("Training lobby uses the administrator-selected AI deck instead of the built-in fallback", () => {
   const selectedAiDeck: DeckRecord = {
@@ -51,6 +55,28 @@ test("Training lobby keeps its selected AI source deck when the bot is resynchro
     bot.bakugan.map((bakugan) => bakugan.character.catalogId),
     selectedAiDeck.bakuganIds,
   );
+});
+
+test("the current Training lobby path starts a reconstructable replay when gameplay begins", () => {
+  let state = createTrainingLobbyState(
+    "REPLAY",
+    "bo1",
+    "player-1",
+    "Player 1",
+    STARTER_DECKS[0],
+    STARTER_DECKS[1],
+  );
+  assert.equal(state[ENGINE_METADATA_KEY]?.replay, undefined);
+
+  state = setLobbyReady(state, "player-1", true);
+  state = startLobbyMatch(state, "player-1");
+
+  assert.ok(state[ENGINE_METADATA_KEY]?.replay);
+  const archive = archiveReplay(state, 1_900_000_000_000);
+  assert.ok(archive);
+  const playback = buildReplayFrames(archive);
+  assert.equal(playback.frames.length, 1);
+  assert.equal(replayStateHash(playback.frames[0].state), archive.finalStateHash);
 });
 
 test("Match Creation clears completed-session state before opening another lobby and loads AI selection from the server", async () => {

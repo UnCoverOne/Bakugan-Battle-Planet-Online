@@ -8,6 +8,7 @@ import {
   type LobbyRulesFormat,
 } from "./lobby-config";
 import { rankedSeries } from "./ranked-lobby";
+import { ensureReplayRecording } from "./engine/replay-codec";
 
 /** The player who created the room always occupies the first seat. */
 export function roomOwnerId(state: MatchState) {
@@ -176,5 +177,5 @@ export function startLobbyMatch(input: MatchState, playerId: string) {
   }
   const ranked = rankedSeries(next);
   if (ranked) ranked.stage = "playing";
-  return next;
+  return ensureReplayRecording(next);
 }

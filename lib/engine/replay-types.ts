@@ -31,6 +31,9 @@ export type CompactPlayerState = {
   id: string;
   n: string;
   a?: string;
+  /** Lobby deck format/name are mutable player state, not catalogue data. */
+  lf?: "standard" | "singleton" | "competitive";
+  ln?: string;
   b: CompactBakuganInstance[];
   c: CompactCoreInstance[];
   d: CompactCardInstance[];
