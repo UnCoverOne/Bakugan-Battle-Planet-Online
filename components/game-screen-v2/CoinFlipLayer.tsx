@@ -12,6 +12,8 @@ type CoinFlipLayerProps = {
   onCompleteCoinFlip: CoinFlipAction;
 };
 
+const COIN_FLIP_COMPLETION_RETRY_MS = 900;
+
 export function CoinFlipLayer({ match, playerId, onCompleteCoinFlip }: CoinFlipLayerProps) {
   const pending = match?.pendingCoinFlip;
   const localPlayerId = playerId ?? match?.players[0]?.id;
@@ -29,26 +31,46 @@ export function CoinFlipLayer({ match, playerId, onCompleteCoinFlip }: CoinFlipL
       completingId.current = "";
       return;
     }
+
+    let cancelled = false;
+    let completeTimer: number | undefined;
     setRevealedId("");
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     const revealTimer = window.setTimeout(
       () => setRevealedId(pending.id),
       reducedMotion ? 160 : 1_450,
     );
-    const completeTimer = pending.controllerId === localPlayerId
-      ? window.setTimeout(() => {
-        if (completingId.current === pending.id) return;
-        completingId.current = pending.id;
-        void Promise.resolve(completeRef.current()).catch(() => {
-          if (completingId.current === pending.id) completingId.current = "";
-        });
-      }, reducedMotion ? 650 : 2_200)
-      : undefined;
+
+    const scheduleCompletion = (delay: number) => {
+      completeTimer = window.setTimeout(() => void attemptCompletion(), delay);
+    };
+    const attemptCompletion = async () => {
+      if (cancelled || completingId.current === pending.id) return;
+      completingId.current = pending.id;
+      try {
+        await completeRef.current();
+      } catch {
+        if (cancelled) return;
+        if (completingId.current === pending.id) completingId.current = "";
+        // Completion is a rules liveness acknowledgement, not an optional UI
+        // request. A transient HTTP/network failure must not strand the batch.
+        scheduleCompletion(COIN_FLIP_COMPLETION_RETRY_MS);
+      }
+    };
+
+    if (pending.controllerId === localPlayerId) {
+      const animationDelay = reducedMotion
+        ? 650
+        : Math.max(0, pending.resolveAt - Date.now());
+      scheduleCompletion(animationDelay);
+    }
+
     return () => {
+      cancelled = true;
       window.clearTimeout(revealTimer);
       if (completeTimer != null) window.clearTimeout(completeTimer);
     };
-  }, [pending?.id, pending?.controllerId, localPlayerId]);
+  }, [pending?.id, pending?.controllerId, pending?.resolveAt, localPlayerId]);
 
   if (!pending) return null;
   const revealed = revealedId === pending.id;
