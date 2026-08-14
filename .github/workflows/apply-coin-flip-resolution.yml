@@ -30,7 +30,20 @@ jobs:
         run: npm ci
 
       - name: Run gameplay and rules regressions
-        run: npx tsx --test tests/reported-gameplay-regressions-2026-08.test.ts tests/rules-engine-modernization.test.ts
+        run: |
+          set +e
+          npx tsx --test tests/reported-gameplay-regressions-2026-08.test.ts tests/rules-engine-modernization.test.ts > /tmp/coin-flip-tests.log 2>&1
+          code=$?
+          cat /tmp/coin-flip-tests.log
+          if [ "$code" -ne 0 ]; then
+            cp /tmp/coin-flip-tests.log .github/coin-flip-test-failure.log
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .github/coin-flip-test-failure.log
+            git commit -m "chore: capture coin flip test failure"
+            git push origin HEAD:fix/coin-flip-resolution-2026-08-15
+            exit "$code"
+          fi
 
       - name: Lint
         run: npm run lint
@@ -38,6 +51,7 @@ jobs:
       - name: Commit implementation
         run: |
           rm .github/coin_flip_apply.py .github/workflows/apply-coin-flip-resolution.yml
+          rm -f .github/coin-flip-test-failure.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
