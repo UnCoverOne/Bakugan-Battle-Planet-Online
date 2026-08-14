@@ -1,5 +1,6 @@
 import { getDatabase, getSessionUser } from "../../../lib/account-server";
-import { getActiveRankedRuleset, rankedLeaderboard, rankedProfile } from "../../../lib/ranked-server";
+import { publicBrawlerProfile } from "../../../lib/public-profile-server";
+import { getActiveRankedRuleset, rankedLeaderboard } from "../../../lib/ranked-server";
 import { enforceD1RateLimit, requestClientKey } from "../../../lib/request-security";
 import { serverErrorResponse } from "../../../lib/server-errors";
 
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
       return json({ ruleset: await getActiveRankedRuleset(db), correlationId });
     }
     if (url.searchParams.get("action") === "profile") {
-      const profile = await rankedProfile(db, String(url.searchParams.get("userId") ?? "").slice(0, 100));
+      const profile = await publicBrawlerProfile(db, String(url.searchParams.get("userId") ?? "").slice(0, 100));
       return profile ? json({ profile, correlationId }) : json({ error: "Brawler profile not found.", correlationId }, 404);
     }
     const viewer = await getSessionUser(request);

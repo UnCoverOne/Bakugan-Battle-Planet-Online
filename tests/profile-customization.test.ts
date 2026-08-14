@@ -13,6 +13,7 @@ import {
   profileRewardUnlocked,
   toggleShowcaseId,
 } from "../lib/profile-customization";
+import { normalizePublicBrawlerProfile } from "../lib/public-profile";
 
 function pngDimensions(path: string) {
   const bytes = readFileSync(path);
@@ -77,17 +78,45 @@ test("profile rewards honor achievement-based unlocks", () => {
   assert.equal(profileRewardUnlocked({ ...reward, achievementId: null }, new Set()), true);
 });
 
+test("public profile contract normalizes canonical customization and ranked data", () => {
+  const profile = normalizePublicBrawlerProfile({
+    userId: "brawler-1",
+    displayName: "Shun",
+    faction: "Aquos",
+    joinedAt: 123456,
+    avatar: "preset:shun-kazami",
+    titleId: "battle-ready",
+    coverId: "aquos-hyper-trox-ultra",
+    stats: { gamesPlayed: 12, gamesWon: 7, winRate: 58 },
+    ranked: { rank: "Gold", bp: 1280, wins: 4, losses: 2, winRate: 67 },
+    showcaseAchievements: [
+      { id: "first-win", name: "First Victory", description: "Win your first game.", category: "Battle" },
+    ],
+    showcaseDecks: [
+      { id: "deck-1", name: "Aquos Control", factions: ["Aquos"], bakuganIds: ["a", "b", "c"], setName: "Battle Brawlers", isLegal: true },
+    ],
+  });
+  assert.ok(profile);
+  assert.equal(profile.avatar, "preset:shun-kazami");
+  assert.equal(profile.titleId, "battle-ready");
+  assert.equal(profile.coverId, "aquos-hyper-trox-ultra");
+  assert.deepEqual(profile.stats, { gamesPlayed: 12, gamesWon: 7, winRate: 58 });
+  assert.equal(profile.ranked?.bp, 1280);
+});
+
 test("profile UI uses direct originals, default reset, and undistorted covers", () => {
-  const implementation = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
+  const owner = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
+  const shared = readFileSync("components/profile/BrawlerProfileView.tsx", "utf8");
   const avatar = readFileSync("components/profile/ProfileAvatar.tsx", "utf8");
   const styles = readFileSync("components/routes/ProfileScreen.module.css", "utf8");
-  assert.match(implementation, /Reset profile picture to default account initials/);
-  assert.match(implementation, /\{ avatar: "" \}/);
-  assert.match(implementation, /src=\{item\.src\}/);
-  assert.match(implementation, /src=\{selectedCover\.src\}/);
-  assert.match(implementation, /src=\{cover\.src\}/);
-  assert.doesNotMatch(implementation, /PROFILE_COVER_SPRITE/);
-  assert.doesNotMatch(implementation, /profileAvatarStyle/);
+  assert.match(owner, /Reset profile picture to default account initials/);
+  assert.match(owner, /\{ avatar: "" \}/);
+  assert.match(owner, /src=\{item\.src\}/);
+  assert.match(owner, /src=\{cover\.src\}/);
+  assert.match(shared, /src=\{selectedCover\.src\}/);
+  assert.doesNotMatch(owner, /PROFILE_COVER_SPRITE/);
+  assert.doesNotMatch(shared, /PROFILE_COVER_SPRITE/);
+  assert.doesNotMatch(owner, /profileAvatarStyle/);
   assert.match(avatar, /<img/);
   assert.match(avatar, /profile\.name\.slice\(0, 2\)\.toUpperCase\(\)/);
   assert.match(styles, /\.identityCard\s*\{[\s\S]*?aspect-ratio:\s*4\s*\/\s*1/);
@@ -97,8 +126,34 @@ test("profile UI uses direct originals, default reset, and undistorted covers", 
   assert.doesNotMatch(styles, /inset 0 -8rem 12rem/);
 });
 
-test("shared shell and secondary profile routes consume the same avatar component", () => {
+test("owner and public routes render one shared Brawler Profile presentation", () => {
+  const owner = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
+  const publicProfile = readFileSync("components/routes/PublicProfileScreen.tsx", "utf8");
+  const shared = readFileSync("components/profile/BrawlerProfileView.tsx", "utf8");
+  assert.match(owner, /<BrawlerProfileView/);
+  assert.match(publicProfile, /<BrawlerProfileView/);
+  assert.match(publicProfile, /\/api\/profile\?userId=/);
+  assert.match(publicProfile, /router\.replace\("\/profile"\)/);
+  assert.match(shared, /Showcased Achievements/);
+  assert.match(shared, /Public Decks/);
+  assert.match(shared, /Ranked Profile/);
+  assert.match(shared, /ProfileAvatar/);
+});
+
+test("public profile server uses canonical profile fields and exposes only selected Public decks", () => {
+  const server = readFileSync("lib/public-profile-server.ts", "utf8");
+  const contract = readFileSync("lib/public-profile.ts", "utf8");
+  const rankedRoute = readFileSync("app/api/ranked/route.ts", "utf8");
+  assert.match(server, /profile\.avatar/);
+  assert.doesNotMatch(server, /profile\.avatarId/);
+  assert.match(contract, /deck\.visibility === "Public"/);
+  assert.match(contract, /normalizeShowcaseIds\(input\.profile\.showcaseDeckIds\)/);
+  assert.match(rankedRoute, /publicBrawlerProfile/);
+});
+
+test("shared shell and all profile surfaces consume the same avatar component", () => {
   const shell = readFileSync("components/application/AppShell.jsx", "utf8");
-  const profile = readFileSync("components/routes/ProfileScreen.tsx", "utf8");
-  for (const source of [shell, profile]) assert.match(source, /ProfileAvatar/);
+  const shared = readFileSync("components/profile/BrawlerProfileView.tsx", "utf8");
+  const preview = readFileSync("components/profile/PlayerPreview.tsx", "utf8");
+  for (const source of [shell, shared, preview]) assert.match(source, /ProfileAvatar/);
 });

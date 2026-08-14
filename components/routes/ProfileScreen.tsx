@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { achievementsFor, type Achievement } from "../../lib/achievements";
+import { achievementsFor } from "../../lib/achievements";
 import { accountStatMatches } from "../../lib/match-statistics";
-import { BAKUGAN, validateDeck, type DeckRecord } from "../../lib/data";
-import { deckSetName } from "../../lib/deck-set";
-import { cardArtSource } from "../../lib/content/card-art";
+import {
+  buildPublicBrawlerProfile,
+  normalizePublicBrawlerProfile,
+  type PublicRankedProfile,
+} from "../../lib/public-profile";
 import {
   PROFILE_COVERS,
   PROFILE_SHOWCASE_LIMIT,
@@ -18,10 +20,8 @@ import {
 import { useApp } from "../application/AppProvider";
 import { SystemState } from "../application/SystemState";
 import { formatTimestamp } from "../application/ui";
-import {
-  PROFILE_AVATAR_PRESETS,
-  ProfileAvatar,
-} from "../profile/ProfileAvatar";
+import { PROFILE_AVATAR_PRESETS } from "../profile/ProfileAvatar";
+import { BrawlerProfileView } from "../profile/BrawlerProfileView";
 import { ReplayTheatre } from "../replay/ReplayTheatre";
 import {
   Field,
@@ -67,6 +67,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
     notify,
     replay,
     setReplay,
+    authUser,
   } = useApp();
   const section: ProfileSection =
     segments[0] === "achievements"
@@ -79,19 +80,22 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
   const [saved, setSaved] = useState("");
   const [dialog, setDialog] = useState<ProfileDialog | null>(null);
   const [recordFilter, setRecordFilter] = useState("all");
+  const [rankedProfile, setRankedProfile] =
+    useState<PublicRankedProfile | null>(null);
   const achievements = useMemo(
     () => achievementsFor(decks, history, lifetimeStats),
     [decks, history, lifetimeStats],
   );
   const completedGames = accountStatMatches(history);
-  const gamesPlayed = Math.max(completedGames.length, lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches);
-  const wins = Math.max(completedGames.filter(
-    (item: any) => item.result === "Victor",
-  ).length, lifetimeStats.wins);
-  const winRate = gamesPlayed ? Math.round((wins / gamesPlayed) * 100) : 0;
-  const publicDecks = decks.filter(
-    (deck: DeckRecord) => deck.visibility === "Public",
+  const gamesPlayed = Math.max(
+    completedGames.length,
+    lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches,
   );
+  const wins = Math.max(
+    completedGames.filter((item: any) => item.result === "Victor").length,
+    lifetimeStats.wins,
+  );
+  const winRate = gamesPlayed ? Math.round((wins / gamesPlayed) * 100) : 0;
   const completedAchievementIds = useMemo(
     () =>
       new Set(
@@ -101,29 +105,65 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
       ),
     [achievements],
   );
-  const showcasedAchievements = (profile.showcaseAchievementIds ?? [])
-    .map((id) => achievements.find((achievement) => achievement.id === id))
-    .filter(
-      (achievement): achievement is Achievement =>
-        Boolean(achievement?.unlocked),
-    )
-    .slice(0, PROFILE_SHOWCASE_LIMIT);
-  const showcasedDecks = (profile.showcaseDeckIds ?? [])
-    .map((id) => publicDecks.find((deck) => deck.id === id))
-    .filter((deck): deck is DeckRecord => Boolean(deck))
-    .slice(0, PROFILE_SHOWCASE_LIMIT);
   const selectedTitle =
     PROFILE_TITLES.find((item) => item.id === profile.titleId) ??
     PROFILE_TITLES[0];
   const selectedCover =
     PROFILE_COVERS.find((item) => item.id === profile.coverId) ??
     PROFILE_COVERS[0];
+  const unifiedProfile = useMemo(
+    () =>
+      buildPublicBrawlerProfile({
+        userId: authUser?.id ?? "local-profile",
+        joinedAt: authUser?.createdAt ?? null,
+        profile,
+        decks,
+        achievements,
+        stats: { gamesPlayed, gamesWon: wins, winRate },
+        ranked: rankedProfile,
+      }),
+    [
+      achievements,
+      authUser?.createdAt,
+      authUser?.id,
+      decks,
+      gamesPlayed,
+      profile,
+      rankedProfile,
+      winRate,
+      wins,
+    ],
+  );
+
   useEffect(() => {
     if (!recordId) return;
     const record = history.find((item: any) => item.id === recordId);
     if (!record) return;
     setReplay(record);
   }, [history, recordId, setReplay]);
+
+  useEffect(() => {
+    if (!authUser?.id) {
+      setRankedProfile(null);
+      return;
+    }
+    const controller = new AbortController();
+    fetch(`/api/profile?userId=${encodeURIComponent(authUser.id)}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Profile unavailable.");
+        return normalizePublicBrawlerProfile(result.profile);
+      })
+      .then((publicProfile) => setRankedProfile(publicProfile?.ranked ?? null))
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setRankedProfile(null);
+      });
+    return () => controller.abort();
+  }, [authUser?.id]);
 
   useEffect(() => {
     if (!dialog) return;
@@ -154,7 +194,8 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
   }, [completedAchievementIds, profile, setProfile]);
 
   const activeRecord = recordId
-    ? (history.find((item: any) => item.id === recordId) ?? (replay?.id === recordId ? replay : null))
+    ? (history.find((item: any) => item.id === recordId) ??
+      (replay?.id === recordId ? replay : null))
     : null;
 
   if (section === "achievements") {
@@ -221,161 +262,19 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
         {saved}
       </div>
 
-      {section === "overview" && (
-        <main className={styles.profileOverview}>
-          <section
-            className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]}`}
-          >
-            <img
-              className={styles.identityCoverArt}
-              src={selectedCover.src}
-              alt=""
-              width="1920"
-              height="480"
-              decoding="async"
-              fetchPriority="high"
-            />
-            <button
-              className={`${styles.editButton} ${styles.coverEdit}`}
-              type="button"
-              aria-label="Edit cover"
-              title="Edit cover"
-              onClick={() => setDialog("cover")}
-            >
-              <PencilIcon />
-            </button>
-            <div className={styles.identityContent}>
-              <div className={styles.portraitWrap}>
-                <ProfileAvatar
-                  profile={profile}
-                  className={styles.profilePortrait}
-                />
-                <button
-                  type="button"
-                  className={`${styles.editButton} ${styles.portraitEdit}`}
-                  aria-label="Edit picture"
-                  title="Edit picture"
-                  onClick={() => setDialog("avatar")}
-                >
-                  <PencilIcon />
-                </button>
-              </div>
-              <div className={styles.identityCopy}>
-                <span className={styles.eyebrow}>Brawler profile</span>
-                <h1>{profile.name}</h1>
-                <div className={styles.titleLine}>
-                  <strong>{selectedTitle.label}</strong>
-                  <button
-                    className={`${styles.editButton} ${styles.titleEdit}`}
-                    type="button"
-                    aria-label="Edit title"
-                    title="Edit title"
-                    onClick={() => setDialog("title")}
-                  >
-                    <PencilIcon />
-                  </button>
-                </div>
-                <div className={styles.factionIdentity}>
-                  <img
-                    src={FACTION_SYMBOLS[profile.faction]}
-                    alt=""
-                    width="32"
-                    height="32"
-                  />
-                  <span>{profile.faction} Brawler</span>
-                  <button
-                    className={`${styles.editButton} ${styles.titleEdit}`}
-                    type="button"
-                    aria-label="Edit Brawler faction"
-                    title="Edit Brawler faction"
-                    onClick={() => setDialog("faction")}
-                  >
-                    <PencilIcon />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className={styles.stats} aria-label="Match statistics">
-            <Metric label="Win Rate" value={`${winRate}%`} />
-            <Metric label="Games Won" value={wins} />
-            <Metric label="Games Played" value={gamesPlayed} />
-          </section>
-
-          <ShowcaseSection
-            eyebrow={`${showcasedAchievements.length}/${PROFILE_SHOWCASE_LIMIT} selected`}
-            title="Showcased Achievements"
-            action={<Link href="/profile/achievements">Choose achievements</Link>}
-          >
-            {showcasedAchievements.length ? (
-              <div className={styles.achievementShowcaseGrid}>
-                {showcasedAchievements.map((achievement) => (
-                  <article
-                    className={styles.showcaseAchievement}
-                    key={achievement.id}
-                  >
-                    <span aria-hidden="true">★</span>
-                    <div>
-                      <strong>{achievement.name}</strong>
-                      <small>{achievement.category}</small>
-                      <p>{achievement.description}</p>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <SystemState
-                compact
-                tone="empty"
-                title="No achievements showcased"
-                message="Choose up to three completed achievements from the Achievements screen."
-                actions={<Link href="/profile/achievements">Choose achievements</Link>}
-              />
-            )}
-          </ShowcaseSection>
-
-          <ShowcaseSection
-            eyebrow={`${showcasedDecks.length}/${PROFILE_SHOWCASE_LIMIT} selected`}
-            title="Public Decks"
-            action={<Link href="/decks">Choose decks</Link>}
-          >
-            {showcasedDecks.length ? (
-              <div className={styles.deckShowcaseGrid}>
-                {showcasedDecks.map((deck) => (
-                  <Link
-                    className={styles.showcaseDeck}
-                    href={`/decks/public/${encodeURIComponent(deck.id)}`}
-                    key={deck.id}
-                  >
-                    <CharacterStack deck={deck} />
-                    <div>
-                      <strong>{deck.name}</strong>
-                      <span>
-                        {deck.factions.join(" • ") || "Team incomplete"}
-                      </span>
-                      <small>{deckSetName(deck)}</small>
-                    </div>
-                    <StatusChip
-                      tone={validateDeck(deck).isLegal ? "success" : "danger"}
-                    >
-                      {validateDeck(deck).isLegal ? "Legal" : "Invalid"}
-                    </StatusChip>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <SystemState
-                compact
-                tone="empty"
-                title="No Public decks showcased"
-                message="Publish a deck, then choose it from My Decks. Draft and Private decks are not eligible."
-                actions={<Link href="/decks">Open My Decks</Link>}
-              />
-            )}
-          </ShowcaseSection>
-        </main>
-      )}
+      {section === "overview" ? (
+        <BrawlerProfileView
+          profile={unifiedProfile}
+          ownerActions={{
+            onEditAvatar: () => setDialog("avatar"),
+            onEditTitle: () => setDialog("title"),
+            onEditFaction: () => setDialog("faction"),
+            onEditCover: () => setDialog("cover"),
+            achievementsHref: "/profile/achievements",
+            decksHref: "/decks",
+          }}
+        />
+      ) : null}
       {section === "records" && (
         <RecordsPanel
           history={history}
@@ -476,10 +375,16 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                 >
                   <span>
                     <strong>{title.label}</strong>
-                    <small>{unlocked ? requirement : `Locked · ${requirement}`}</small>
+                    <small>{
+                      unlocked ? requirement : `Locked · ${requirement}`
+                    }</small>
                   </span>
                   <i aria-hidden="true">
-                    {selectedTitle.id === title.id ? "✓" : unlocked ? "○" : "🔒"}
+                    {selectedTitle.id === title.id
+                      ? "✓"
+                      : unlocked
+                        ? "○"
+                        : "🔒"}
                   </i>
                 </button>
               );
@@ -566,7 +471,9 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                   />
                   <span className={styles.coverCopy}>
                     <strong>{cover.label}</strong>
-                    <small>{unlocked ? requirement : `Locked · ${requirement}`}</small>
+                    <small>{
+                      unlocked ? requirement : `Locked · ${requirement}`
+                    }</small>
                   </span>
                 </button>
               );
@@ -575,31 +482,6 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
         </ProfileModal>
       )}
     </div>
-  );
-}
-
-function ShowcaseSection({
-  eyebrow,
-  title,
-  action,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  action: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <Surface as="section" className={styles.showcaseSection}>
-      <header className={styles.panelHeading}>
-        <div>
-          <span>{eyebrow}</span>
-          <h2>{title}</h2>
-        </div>
-        {action}
-      </header>
-      {children}
-    </Surface>
   );
 }
 
@@ -645,47 +527,6 @@ function ProfileModal({
   );
 }
 
-function PencilIcon() {
-  return (
-    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
-      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Z" />
-      <path d="m14.06 4.19 2.37-2.37a1 1 0 0 1 1.42 0l4.33 4.33a1 1 0 0 1 0 1.42l-2.37 2.37-5.75-5.75Z" />
-    </svg>
-  );
-}
-
-function CharacterStack({ deck }: { deck: DeckRecord }) {
-  const characters = deck.bakuganIds
-    .map((id) => BAKUGAN.find((item) => item.id === id))
-    .filter(Boolean);
-  return (
-    <div
-      className={styles.characterStack}
-      aria-label={`${characters.length} Character Cards`}
-    >
-      {characters.map((character) => (
-        <img
-          key={character!.id}
-          src={cardArtSource(character!.character, "thumbnail")}
-          alt=""
-          width="48"
-          height="67"
-          loading="lazy"
-        />
-      ))}
-    </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
 function RecordsPanel({
   history,
   activeRecord,
@@ -694,7 +535,12 @@ function RecordsPanel({
   router,
 }: any) {
   if (activeRecord) {
-    return <ReplayTheatre record={activeRecord} onBack={() => router.push("/profile/records")} />;
+    return (
+      <ReplayTheatre
+        record={activeRecord}
+        onBack={() => router.push("/profile/records")}
+      />
+    );
   }
   const visible = history.filter(
     (item: any) =>
