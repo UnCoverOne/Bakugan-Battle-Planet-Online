@@ -11,7 +11,6 @@ const STRICT_COMMAND_PHASES: Partial<Record<GameCommand["type"], readonly Phase[
   RANKED_SELECT_DECK: ["lobby", "result"],
   BEGIN_CORE_PLACEMENT: ["startingPlayer"],
   PLACE_CORE: ["placement", "retract"],
-  DRAW_TURN_CARD: ["draw"],
   ENERGIZE: ["energize"],
   SELECT_BAKUGAN: ["selection"],
   SELECT_ROLL_TARGET: ["target", "reroll"],
