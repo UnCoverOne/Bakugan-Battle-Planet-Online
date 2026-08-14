@@ -49,6 +49,8 @@ function controlledCardNames(text: string) {
 }
 
 export function conditionFor(text: string): RuleCondition {
+  if (/\bif heads\b/i.test(text)) return { kind: "coin-result", result: "heads" };
+  if (/\bif tails\b/i.test(text)) return { kind: "coin-result", result: "tails" };
   if (/if you open on the Reroll/i.test(text)) return { kind: "reroll-opened" };
   const heldCorePrefix = text.match(
     /^\s*(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:/i,
@@ -213,7 +215,8 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   }
   if (/\+?\[Double\s*Strike\]|\bDouble\s*Strike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "DoubleStrike", duration });
   if (/\+?\[ShadowStrike\]|\bShadowStrike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "ShadowStrike", duration });
-  if (/\[Stop\]/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "Stop", duration });
+  if (/\bflip a coin\b/i.test(text)) actions.push({ kind: "coin-flip" });
+  if (/\[Stop\]|\bstop the attack\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "Stop", duration });
 
   const draw = text.match(/draw (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?/i);
   if (draw) actions.push({ kind: "draw", amount: numberValue(draw[1]), scale });

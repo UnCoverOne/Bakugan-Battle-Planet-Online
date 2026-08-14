@@ -3,6 +3,7 @@ import test from "node:test";
 import { BAKUGAN, CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   CENTER_CELL,
+  completeCoinFlip,
   createMatch,
   emitGameEvent,
   passPriority,
@@ -24,8 +25,11 @@ import { activePendingDraw, drawPendingCard } from "../lib/drawQueue";
 import { advanceOpponentAi } from "../lib/opponentAi";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { activeTappedEnergyIds } from "../lib/rules/costs";
+import { conditionFor } from "../lib/rules/catalogue-primitives";
+import { compileCardEffect } from "../lib/rules/effects";
 import { evaluateBakuganCharacteristics } from "../lib/rules/modifiers";
 import { createRuleObject } from "../lib/rules/objects";
+import { dispatchRulesCommand } from "../lib/rules/runtime";
 import { emitRuleEvent } from "../lib/rules/triggers";
 import { handDiscardRequirement } from "../components/game-screen-v2/matchHudState";
 
@@ -599,4 +603,108 @@ test("unqualified Energize effects add Energy cards charged", () => {
   assert.deepEqual(activeTappedEnergyIds(after, resolving.turn), [oldEnergy.id]);
   assert.equal(after.maxEnergy, 3);
   assert.equal(after.deck, 0);
+});
+
+
+// Coin flip resolution regressions (2026-08-15)
+function lostAtSeaDamageState() {
+  const defender = makePlayer("coin-defender", "Defender", STARTER_DECKS[0]);
+  const attacker = makePlayer("coin-attacker", "Attacker", STARTER_DECKS[1]);
+  const lostAtSea = card("br-62", "lost-at-sea-coin-test");
+  defender.discard = [lostAtSea];
+  addUntappedEnergy(defender, 2);
+  const state = createMatch("COINFLIP", "bo1", [defender, attacker]);
+  state.turn = 2;
+  state.phase = "damage";
+  state.stepLabel = "Damage Step • Flip decision • 3 remaining";
+  state.startingPlayer = attacker.id;
+  state.initialStartingPlayer = defender.id;
+  state.priority = defender.id;
+  state.pendingLoser = defender.id;
+  state.pendingDamage = 3;
+  state.damageOrigin = attacker.bakugan[0].id;
+  state.damageFaction = attacker.bakugan[0].faction;
+  state.revealedFlip = lostAtSea;
+  state.selected[defender.id] = defender.bakugan[0].id;
+  state.selected[attacker.id] = attacker.bakugan[0].id;
+  defender.bakugan[0].open = true;
+  attacker.bakugan[0].open = true;
+  return { state, defender, attacker, lostAtSea };
+}
+
+test("Lost at Sea compiles a coin flip followed by a heads-gated Stop", () => {
+  const lostAtSea = card("br-62", "lost-at-sea-compiler-test");
+  const program = compileCardEffect(lostAtSea);
+  assert.equal(program.instructions.length, 2);
+  assert.equal(program.instructions[0].effects[0]?.kind, "coin-flip");
+  assert.deepEqual(program.instructions[1].condition, { kind: "coin-result", result: "heads" });
+  assert.ok(program.instructions[1].effects.some((effect) => (
+    effect.kind === "grant-keyword" && effect.keyword === "Stop"
+  )));
+
+  assert.deepEqual(
+    conditionFor("If tails, draw a card."),
+    { kind: "coin-result", result: "tails" },
+  );
+});
+
+test("Lost at Sea heads lands through the coin animation gate and stops the attack", () => {
+  const { state: initial, defender, attacker, lostAtSea } = lostAtSeaDamageState();
+  let state = dispatchRulesCommand(initial, defender.id, {
+    type: "PLAY_DAMAGE_FLIP",
+    cardId: lostAtSea.id,
+    choices: {},
+  });
+  state = dispatchRulesCommand(state, defender.id, { type: "PASS_PRIORITY" });
+  state = dispatchRulesCommand(state, attacker.id, { type: "PASS_PRIORITY" });
+
+  assert.equal(state.pendingCoinFlip?.sourceName, "Lost at Sea");
+  assert.ok(["heads", "tails"].includes(state.pendingCoinFlip?.result ?? ""));
+  assert.ok(state.batch.some((effect) => effect.card.id === lostAtSea.id));
+
+  const effectId = state.pendingCoinFlip!.sourceEffectId;
+  state.pendingCoinFlip!.result = "heads";
+  state.coinFlipResults[effectId] = "heads";
+  state = dispatchRulesCommand(state, defender.id, { type: "COMPLETE_COIN_FLIP" });
+
+  assert.equal(state.pendingCoinFlip, undefined);
+  assert.equal(state.coinFlipResults[effectId], undefined);
+  assert.equal(state.pendingDamage, 0);
+  assert.equal(state.phase, "postDamage");
+  assert.equal(state.batch.some((effect) => effect.card.id === lostAtSea.id), false);
+});
+
+test("Lost at Sea tails finalizes cleanly and damage continues", () => {
+  const { state: initial, defender, attacker, lostAtSea } = lostAtSeaDamageState();
+  let state = dispatchRulesCommand(initial, defender.id, {
+    type: "PLAY_DAMAGE_FLIP",
+    cardId: lostAtSea.id,
+    choices: {},
+  });
+  state = dispatchRulesCommand(state, defender.id, { type: "PASS_PRIORITY" });
+  state = dispatchRulesCommand(state, attacker.id, { type: "PASS_PRIORITY" });
+
+  const effectId = state.pendingCoinFlip!.sourceEffectId;
+  state.pendingCoinFlip!.result = "tails";
+  state.coinFlipResults[effectId] = "tails";
+  state = dispatchRulesCommand(state, defender.id, { type: "COMPLETE_COIN_FLIP" });
+
+  assert.equal(state.pendingCoinFlip, undefined);
+  assert.equal(state.coinFlipResults[effectId], undefined);
+  assert.equal(state.pendingDamage, 3);
+  assert.equal(state.phase, "damage");
+  assert.equal(state.priority, defender.id);
+  assert.equal(state.batch.some((effect) => effect.card.id === lostAtSea.id), false);
+});
+
+test("coin flip completion remains controller-authoritative", () => {
+  const { state: initial, defender, attacker, lostAtSea } = lostAtSeaDamageState();
+  let state = dispatchRulesCommand(initial, defender.id, {
+    type: "PLAY_DAMAGE_FLIP",
+    cardId: lostAtSea.id,
+    choices: {},
+  });
+  state = dispatchRulesCommand(state, defender.id, { type: "PASS_PRIORITY" });
+  state = dispatchRulesCommand(state, attacker.id, { type: "PASS_PRIORITY" });
+  assert.throws(() => completeCoinFlip(state, attacker.id), /controller can finish/i);
 });

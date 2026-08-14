@@ -26,6 +26,7 @@ import { BakuCoreLayer } from "./BakuCoreLayer";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
 import { CardHandLayer } from "./CardHandLayer";
 import { CardPreviewLayer } from "./CardPreviewLayer";
+import { CoinFlipLayer } from "./CoinFlipLayer";
 import { CorePlacementLayer } from "./CorePlacementLayer";
 import { DamageStepLayer } from "./DamageStepLayer";
 import { EnergyAffordabilityLayer } from "./EnergyAffordabilityLayer";
@@ -277,6 +278,11 @@ export function GameplayClient() {
     {},
   );
 
+  const completeCoinFlip = () => submitMatchAction(
+    "complete-coin-flip",
+    {},
+  );
+
   const advanceEndPhase = () => submitMatchAction(
     "next-turn",
     {},
@@ -416,11 +422,14 @@ export function GameplayClient() {
       && !opponentAiCanAct(match, "training-bot")
     ) return;
 
-    const key = `${match.id}:${match.version}:${match.phase}:${match.pendingChoice?.id ?? ""}`;
+    const key = `${match.id}:${match.version}:${match.phase}:${match.pendingChoice?.id ?? ""}:${match.pendingCoinFlip?.id ?? ""}`;
     if (botActionKey.current === key) return;
     botActionKey.current = key;
     const drawDelay = waitingForDrawWindow
       ? Math.max(0, (match.drawReadyAt ?? 0) - Date.now())
+      : 0;
+    const coinFlipDelay = match.pendingCoinFlip?.controllerId === "training-bot"
+      ? Math.max(0, match.pendingCoinFlip.resolveAt - Date.now())
       : 0;
     let requestStarted = false;
     const timeout = window.setTimeout(() => {
@@ -462,7 +471,7 @@ export function GameplayClient() {
           if (botActionKey.current === key) botActionKey.current = "";
         }
       })();
-    }, Math.max(520, drawDelay));
+    }, Math.max(520, drawDelay, coinFlipDelay));
     return () => {
       window.clearTimeout(timeout);
       if (!requestStarted && botActionKey.current === key) {
@@ -477,6 +486,8 @@ export function GameplayClient() {
     storedState.match?.priority,
     storedState.match?.version,
     storedState.match?.pendingChoice?.id,
+    storedState.match?.pendingCoinFlip?.id,
+    storedState.match?.pendingCoinFlip?.resolveAt,
     rollPresentationPending,
     publishMatch,
     requestOpponentAiDecision,
@@ -647,6 +658,11 @@ export function GameplayClient() {
         />
         <TurnProgressTracker match={storedState.match} />
         <PhaseTransitionLayer match={storedState.match} />
+        <CoinFlipLayer
+          match={storedState.match}
+          playerId={storedState.playerId}
+          onCompleteCoinFlip={completeCoinFlip}
+        />
         <MatchHudLayer
           match={storedState.match}
           playerId={storedState.playerId}

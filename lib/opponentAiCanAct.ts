@@ -1,5 +1,6 @@
 import {
   beginCorePlacement,
+  completeCoinFlip,
   discardToHandLimit,
   energizeCard,
   legalPlacementCells,
@@ -38,6 +39,7 @@ const PRIORITY_PHASES = new Set<MatchState["phase"]>([
 export function opponentAiCanAct(match: MatchState, playerId: string) {
   const player = match.players.find((candidate) => candidate.id === playerId);
   if (!player) return false;
+  if (match.pendingCoinFlip?.controllerId === playerId) return true;
   if (playerCanResolvePendingDraw(match, playerId)) return true;
   if (match.pendingChoice?.schema.fields.some(
     (field) => field.chooserId === playerId && !match.pendingChoice?.answers[playerId],
@@ -102,6 +104,7 @@ function conservativeChoiceAnswers(match: MatchState, playerId: string) {
 export function recoverOpponentAiCommand(match: MatchState, playerId: string): GameCommand | null {
   const player = match.players.find((candidate) => candidate.id === playerId);
   if (!player || !opponentAiCanAct(match, playerId)) return null;
+  if (match.pendingCoinFlip?.controllerId === playerId) return { type: "COMPLETE_COIN_FLIP" };
   if (playerCanResolvePendingDraw(match, playerId)) return { type: "DRAW_PENDING_CARD" };
   const pending = match.pendingChoice;
   if (pending?.schema.fields.some((field) => field.chooserId === playerId && !pending.answers[playerId])) {
@@ -159,6 +162,9 @@ export function recoverOpponentAiFailure(
   if (!player || !opponentAiCanAct(match, playerId)) return null;
 
   try {
+    if (match.pendingCoinFlip?.controllerId === playerId) {
+      return completeCoinFlip(match, playerId);
+    }
     if (playerCanResolvePendingDraw(match, playerId)) {
       return drawPendingCard(match, playerId);
     }

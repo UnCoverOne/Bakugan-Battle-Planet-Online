@@ -24,6 +24,7 @@ export type ApiAction =
   | "cancel-choice"
   | "order-triggers"
   | "pass"
+  | "complete-coin-flip"
   | "flip-damage"
   | "damage"
   | "hand-limit"
@@ -81,6 +82,7 @@ export function apiActionToCommand(
       orderedIds: stringArray(payload.orderedIds),
     };
     case "pass": return { type: "PASS_PRIORITY" };
+    case "complete-coin-flip": return { type: "COMPLETE_COIN_FLIP" };
     case "flip-damage": return { type: "REVEAL_DAMAGE_FLIP" };
     case "damage": return {
       type: "PLAY_DAMAGE_FLIP",

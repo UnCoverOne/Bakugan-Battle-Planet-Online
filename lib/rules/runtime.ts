@@ -1,5 +1,6 @@
 import {
   cancelCardChoice,
+  completeCoinFlip,
   orderTriggers,
   prepareCardPlay,
   submitCardChoice,
@@ -27,13 +28,14 @@ export type RulesCommand = Extract<GameCommand,
   | { type: "PLAY_DAMAGE_FLIP" }
   | { type: "TAP_ENERGY_CARD" }
   | { type: "PASS_PRIORITY" }
+  | { type: "COMPLETE_COIN_FLIP" }
 >;
 
 export function isRulesCommand(command: GameCommand): command is RulesCommand {
   return [
     "PREPARE_CARD_PLAY", "PLAY_CARD", "SUBMIT_CARD_CHOICE", "CANCEL_CARD_CHOICE",
     "ORDER_TRIGGERS", "REVEAL_DAMAGE_FLIP", "PLAY_DAMAGE_FLIP", "TAP_ENERGY_CARD",
-    "PASS_PRIORITY",
+    "PASS_PRIORITY", "COMPLETE_COIN_FLIP",
   ].includes(command.type);
 }
 
@@ -58,6 +60,9 @@ function replaceLegacyTriggeredObjects(before: MatchState, next: MatchState, act
 
 export function dispatchRulesCommand(input: MatchState, actorId: string, command: RulesCommand): MatchState {
   normalizeRuleObjects(input);
+  if (input.pendingCoinFlip && command.type !== "COMPLETE_COIN_FLIP") {
+    throw new Error("The coin flip animation must finish before another rules action can resolve.");
+  }
   let next: MatchState;
   switch (command.type) {
     case "PREPARE_CARD_PLAY": next = prepareCardPlay(input, actorId, command.cardId); break;
@@ -77,6 +82,7 @@ export function dispatchRulesCommand(input: MatchState, actorId: string, command
     case "PLAY_DAMAGE_FLIP": next = resolveManualDamage(input, actorId, command.cardId, command.choices); break;
     case "TAP_ENERGY_CARD": next = tapEnergyCard(input, actorId, command.cardId); break;
     case "PASS_PRIORITY": next = resumeDamageAfterFlipWindow(passPriorityWithTieBreak(input, actorId)); break;
+    case "COMPLETE_COIN_FLIP": next = resumeDamageAfterFlipWindow(completeCoinFlip(input, actorId)); break;
   }
   replaceLegacyTriggeredObjects(input, next, actorId, command);
   return normalizeRuleObjects(next);
