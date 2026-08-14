@@ -35,6 +35,7 @@ export type GameCommand =
   | { type: "CANCEL_CARD_CHOICE" }
   | { type: "ORDER_TRIGGERS"; requestId: string; orderedIds: string[] }
   | { type: "PASS_PRIORITY" }
+  | { type: "COMPLETE_COIN_FLIP" }
   | { type: "REVEAL_DAMAGE_FLIP" }
   | { type: "PLAY_DAMAGE_FLIP"; cardId?: string; choices: CardChoices }
   | { type: "DISCARD_TO_HAND_LIMIT"; cardIds: string[] }

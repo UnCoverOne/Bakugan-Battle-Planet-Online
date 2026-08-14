@@ -43,6 +43,7 @@ export type RuleCondition =
   | { kind: "selection-made"; choiceId: keyof CardChoices }
   | { kind: "mode-selected"; mode: string }
   | { kind: "reroll-opened" }
+  | { kind: "coin-result"; result: "heads" | "tails" }
   | { kind: "printed"; text: string };
 
 export type ChoiceSpec = {
@@ -134,6 +135,7 @@ export type RuleAction =
   | { kind: "copy"; target: "next-action" | "batch-action"; independentChoices: true }
   | { kind: "cost"; amount: number; operation: "reduce" | "increase" | "free"; duration: RulesDuration }
   | { kind: "reroll"; target: "controller" | "opponent"; mandatory: boolean; requiresDiscard: boolean }
+  | { kind: "coin-flip" }
   | { kind: "trigger"; event: TriggerEventName; definition: TriggerDefinition }
   | { kind: "continuous"; modifier: ContinuousModifier }
   | { kind: "conditional"; condition: RuleCondition; whenTrue: RuleAction[]; whenFalse?: RuleAction[]; replacement?: boolean }

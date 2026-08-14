@@ -2,6 +2,7 @@ import {
   CENTER_CELL,
   HEX_CELLS,
   cloneMatch,
+  completeCoinFlip,
   legalPlacementCells,
   passPriority,
   placeCore,
@@ -918,6 +919,7 @@ function diversifyProposedPlacement(
 }
 
 function advanceOpponentAiStep(input: MatchState, playerId: string): MatchState | null {
+  if (input.pendingCoinFlip?.controllerId === playerId) return completeCoinFlip(input, playerId);
   if (playerCanResolvePendingDraw(input, playerId)) {
     return drawPendingCard(input, playerId);
   }
@@ -944,6 +946,7 @@ function advanceOpponentAiStep(input: MatchState, playerId: string): MatchState 
 
 /** Pure one-step decision for the Training worker; the main reducer applies it. */
 export function chooseOpponentAiCommand(input: MatchState, playerId: string): GameCommand | null {
+  if (input.pendingCoinFlip?.controllerId === playerId) return { type: "COMPLETE_COIN_FLIP" };
   if (playerCanResolvePendingDraw(input, playerId)) {
     return { type: "DRAW_PENDING_CARD" };
   }

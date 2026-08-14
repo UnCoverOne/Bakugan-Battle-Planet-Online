@@ -1,5 +1,6 @@
 import {
   beginCorePlacement,
+  completeCoinFlip,
   concedeMatch,
   discardToHandLimit,
   energizeCard,
@@ -30,6 +31,7 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
   if (input.phase === "startingPlayer" && now >= input.startingPlayerRevealedAt) return beginCorePlacement(input, now);
   if (now <= input.deadline || ["lobby", "result"].includes(input.phase)) return input;
   const state = structuredClone(input);
+  if (state.pendingCoinFlip) return completeCoinFlip(state, state.pendingCoinFlip.controllerId);
   const tieBreak = manualTieBreakState(state);
   if (tieBreak?.status === "resolved") {
     return passPriorityWithTieBreak(state, tieBreak.secondPasserId);

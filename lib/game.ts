@@ -203,6 +203,21 @@ export type PendingReroll = {
   resumeStepLabel: string;
 };
 
+export type CoinFlipResult = "heads" | "tails";
+
+export type PendingCoinFlip = {
+  id: string;
+  controllerId: string;
+  sourceEffectId: string;
+  sourceName: string;
+  result: CoinFlipResult;
+  createdAt: number;
+  resolveAt: number;
+  resumePriority: string;
+  resumeDeadline: number;
+  resumeStepLabel: string;
+};
+
 export type PendingEffectDamageResume = {
   sourceEffectId: string;
   phase: Phase;
@@ -288,6 +303,8 @@ export type MatchState = {
   targets: Record<string, string>;
   rolls: Record<string, RollOutcome>;
   pendingReroll?: PendingReroll;
+  pendingCoinFlip?: PendingCoinFlip;
+  coinFlipResults: Record<string, CoinFlipResult>;
   pendingEffectDamageResume?: PendingEffectDamageResume;
   pendingRerollOpenEvent?: { playerId: string; bakuganId: string; sourceEffectId?: string };
   rerollOpenedByEffect: Record<string, boolean>;
@@ -447,6 +464,8 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
   state.selected = state.selected && typeof state.selected === "object" ? state.selected : {};
   state.targets = state.targets && typeof state.targets === "object" ? state.targets : {};
   state.rolls = state.rolls && typeof state.rolls === "object" ? state.rolls : {};
+  state.coinFlipResults = state.coinFlipResults && typeof state.coinFlipResults === "object" ? state.coinFlipResults : {};
+  if (state.pendingCoinFlip && typeof state.pendingCoinFlip !== "object") state.pendingCoinFlip = undefined;
   state.rerollOpenedByEffect = state.rerollOpenedByEffect && typeof state.rerollOpenedByEffect === "object" ? state.rerollOpenedByEffect : {};
   state.rerollTargetByEffect = state.rerollTargetByEffect && typeof state.rerollTargetByEffect === "object" ? state.rerollTargetByEffect : {};
   state.rerollUsage = state.rerollUsage && typeof state.rerollUsage === "object" ? state.rerollUsage : {};
@@ -536,7 +555,7 @@ export const createMatch = (code: string, format: "bo1" | "bo3", players: Player
     series: Object.fromEntries(players.map((player) => [player.id, 0])), phase: "lobby", stepLabel: "Players ready",
     players, startingPlayer, initialStartingPlayer: startingPlayer, startingPlayerRevealedAt: 0,
     priority: startingPlayer, placementTurn: 0, placements: [], selected: {}, targets: {}, rolls: {},
-    rerollOpenedByEffect: {}, rerollTargetByEffect: {}, rerollUsage: {}, rerollSequence: 0, repeatRollAfterReroll: false, nextCardCostReduction: {}, temporaryVictorDiscards: {},
+    coinFlipResults: {}, rerollOpenedByEffect: {}, rerollTargetByEffect: {}, rerollUsage: {}, rerollSequence: 0, repeatRollAfterReroll: false, nextCardCostReduction: {}, temporaryVictorDiscards: {},
     powerBoost: {}, damageBoost: {}, frostStrike: {}, doubleStrike: {}, shadowStrike: {}, passes: [], batch: [], victorByDamage: false,
     pendingDamage: 0, pendingLoser: "", damageOrigin: "", teamAttack: false, delayedRetracts: [], copyNextAction: {}, brawlWinner: "", winner: "", resultReason: "",
     triggerOrders: [], collectedEventKeys: [], informationEpoch: 0, priorityEpoch: 0,
@@ -602,7 +621,7 @@ export const placeCore = (input: MatchState, playerId: string, coreId: string, c
 
 const beginTurn = (state: MatchState) => {
   state.turn += 1; state.startingPlayer = state.brawlWinner || state.startingPlayer; state.priority = state.startingPlayer;
-  state.selected = {}; state.targets = {}; state.rolls = {}; state.pendingReroll = undefined; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.temporaryVictorDiscards = {}; state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {};
+  state.selected = {}; state.targets = {}; state.rolls = {}; state.pendingReroll = undefined; state.pendingCoinFlip = undefined; state.coinFlipResults = {}; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.temporaryVictorDiscards = {}; state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {};
   state.doubleStrike = {}; state.shadowStrike = {}; state.batch = []; state.victorByDamage = false; state.pendingDamage = 0;
   state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.delayedRetracts = []; state.winner = "";
   state.collectedEventKeys = [];
@@ -833,6 +852,13 @@ class DamageResolutionSuspended extends Error {
   constructor() {
     super("Card resolution suspended for a separate attack.");
     this.name = "DamageResolutionSuspended";
+  }
+}
+
+class CoinFlipResolutionSuspended extends Error {
+  constructor() {
+    super("Card resolution suspended for a coin flip presentation.");
+    this.name = "CoinFlipResolutionSuspended";
   }
 }
 
@@ -1738,6 +1764,7 @@ const ruleConditionIsActive = (
     return choices.mode === instruction.condition.mode || choices.mode === "both";
   }
   if (instruction.condition.kind === "reroll-opened") return Boolean(state.rerollOpenedByEffect[pending.id]);
+  if (instruction.condition.kind === "coin-result") return state.coinFlipResults[pending.id] === instruction.condition.result;
   if (instruction.condition.kind === "printed") return conditionActive(state, player, instruction.condition.text, choices);
   const conditionTarget = pending.kind === "trigger" && choices.sourceBakuganId
     ? state.players.flatMap((candidate) => candidate.bakugan)
@@ -1825,6 +1852,32 @@ const executeRuleAction = (
         else if (action.operation === "increase") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) - action.amount;
       }
       return;
+    case "coin-flip": {
+      const now = Date.now();
+      const result: CoinFlipResult = secureRandomInt(2) === 0 ? "heads" : "tails";
+      state.coinFlipResults[pending.id] = result;
+      pending.instructionIndex = instructionIndex + 1;
+      if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex + 1;
+      state.pendingCoinFlip = {
+        id: uid(),
+        controllerId,
+        sourceEffectId: pending.id,
+        sourceName: card.displayName || card.name,
+        result,
+        createdAt: now,
+        resolveAt: now + 2_200,
+        resumePriority: state.priority,
+        resumeDeadline: state.deadline,
+        resumeStepLabel: state.stepLabel,
+      };
+      state.priority = controllerId;
+      state.stepLabel = `${card.displayName || card.name} • Coin flip`;
+      state.deadline = now + 35_000;
+      state.informationEpoch += 1;
+      state.undoWindow = undefined;
+      entry(state, "random", `${player.name}: ${card.displayName || card.name} coin flip → ${result}.`, card, "effect", controllerId);
+      throw new CoinFlipResolutionSuspended();
+    }
     case "reroll": {
       if (!action.mandatory && choices.confirmed === false) return;
       if (action.requiresDiscard && !choices.discardCardIds?.length) return;
@@ -2416,7 +2469,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
       },
     }, pending.instructionIndex ?? 0);
   } catch (error) {
-    if (error instanceof RerollResolutionSuspended || error instanceof DamageResolutionSuspended) return false;
+    if (error instanceof RerollResolutionSuspended || error instanceof DamageResolutionSuspended || error instanceof CoinFlipResolutionSuspended) return false;
     throw error;
   }
 
@@ -2456,9 +2509,33 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
   // Turn to Energy must never leave a terminal rule object stranded in the
   // batch if a caller resumes through a different continuation path.
   state.batch = state.batch.filter((candidate) => candidate.id !== pending.id);
+  delete state.coinFlipResults[pending.id];
   if (!pending.alternateWin) stageDragonoidMaximusWinEffect(state);
   entry(state, "game", `${pending.card.name} finished resolving its typed rule program.`, pending.card, "effect", pending.controllerId);
   return true;
+}
+
+export function completeCoinFlip(input: MatchState, playerId: string) {
+  const state = cloneMatch(input);
+  const pending = state.pendingCoinFlip;
+  if (!pending) throw new Error("There is no coin flip waiting to finish.");
+  if (pending.controllerId !== playerId) throw new Error("Only the resolving card's controller can finish this coin flip.");
+  const effect = state.batch.find((candidate) => candidate.id === pending.sourceEffectId);
+  state.pendingCoinFlip = undefined;
+  state.priority = pending.resumePriority;
+  state.deadline = Math.max(pending.resumeDeadline, deadlineFor(state.phase));
+  state.stepLabel = pending.resumeStepLabel;
+  state.passes = [];
+  if (!effect) {
+    delete state.coinFlipResults[pending.sourceEffectId];
+    return withVersion(state);
+  }
+  const completed = resolvePendingEffect(state, effect);
+  if (completed && !hasQueuedEffectDraw(state)) {
+    state.priority = state.startingPlayer;
+    state.deadline = deadlineFor(state.phase);
+  }
+  return withVersion(state);
 }
 
 export function resumePendingEffectAfterDamage(state: MatchState) {
@@ -2641,6 +2718,7 @@ export const flipStopsDamage = (state: MatchState, card: GameCard) => {
       .find((bakugan) => bakugan.id === state.damageOrigin);
     return Boolean(attacker && coreTypes.some((type) => hasCoreType(state, attacker, type)));
   }
+  if (/\bstop the attack\b/i.test(text)) return true;
   if (/\[Stop\] an attack/i.test(text)) return true;
   const attackingBakugan = state.players.flatMap((player) => player.bakugan)
     .find((bakugan) => bakugan.id === state.damageOrigin);
@@ -2725,6 +2803,7 @@ const advanceEmptyBatch = (state: MatchState) => {
 export const passPriority = (input: MatchState, playerId: string) => {
   const state = cloneMatch(input);
   if (hasQueuedEffectDraw(state)) throw new Error("Complete every pending Draw action before passing priority.");
+  if (state.pendingCoinFlip) throw new Error("Wait for the pending coin flip to finish before passing priority.");
   if (state.pendingChoice) throw new Error("Complete the pending player choice before passing priority.");
   if (state.triggerOrders.some((request) => !request.orderedIds)) throw new Error("Order every simultaneous trigger before passing priority.");
   if (!["preRoll", "power", "victor", "postDamage", "endPlay", "reset"].includes(state.phase) || state.priority !== playerId) throw new Error("You do not have priority.");

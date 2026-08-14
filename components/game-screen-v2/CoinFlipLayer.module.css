@@ -1,0 +1,180 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(1 6 18 / 72%);
+  backdrop-filter: blur(7px);
+  pointer-events: all;
+}
+
+.panel {
+  width: min(430px, 100%);
+  padding: 28px 28px 24px;
+  border: 1px solid rgb(119 183 255 / 42%);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 15%, rgb(37 99 235 / 18%), transparent 44%),
+    rgb(7 18 38 / 96%);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 55%);
+  color: #f8fbff;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: #93c5fd;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.3rem, 4vw, 1.75rem);
+  font-weight: 800;
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 220px;
+  margin: 12px 0 2px;
+  perspective: 900px;
+}
+
+.coin {
+  position: relative;
+  z-index: 2;
+  width: 142px;
+  height: 142px;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  border: 8px double rgb(224 242 254 / 70%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 26%, rgb(255 255 255 / 52%), transparent 18%),
+    radial-gradient(circle at 50% 55%, #38bdf8 0%, #1d4ed8 62%, #10275d 100%);
+  box-shadow:
+    inset 0 0 0 4px rgb(3 19 48 / 38%),
+    inset 0 0 26px rgb(0 0 0 / 28%),
+    0 0 22px rgb(56 189 248 / 22%);
+  backface-visibility: hidden;
+}
+
+.face strong {
+  font-size: 0.88rem;
+  letter-spacing: 0.1em;
+}
+
+.rim {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border: 2px solid rgb(255 255 255 / 70%);
+  border-radius: 50%;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.back {
+  transform: rotateY(180deg);
+}
+
+.landHeads {
+  animation: flipHeads 1.75s cubic-bezier(0.2, 0.75, 0.2, 1) forwards;
+}
+
+.landTails {
+  animation: flipTails 1.75s cubic-bezier(0.2, 0.75, 0.2, 1) forwards;
+}
+
+.shadow {
+  position: absolute;
+  bottom: 29px;
+  width: 118px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 45%);
+  filter: blur(7px);
+  animation: coinShadow 1.75s ease-in-out forwards;
+}
+
+.result {
+  display: grid;
+  min-height: 58px;
+  place-items: center;
+  gap: 3px;
+}
+
+.result > span {
+  color: #93c5fd;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+}
+
+.result > strong {
+  font-size: 1.55rem;
+  letter-spacing: 0.12em;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.resultHidden {
+  opacity: 0;
+  transform: translateY(5px);
+}
+
+.resultVisible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes flipHeads {
+  0% { transform: translateY(18px) rotateY(0deg) rotateZ(-3deg); }
+  42% { transform: translateY(-66px) rotateY(900deg) rotateZ(5deg); }
+  76% { transform: translateY(-14px) rotateY(1530deg) rotateZ(-2deg); }
+  100% { transform: translateY(0) rotateY(1800deg) rotateZ(0deg); }
+}
+
+@keyframes flipTails {
+  0% { transform: translateY(18px) rotateY(0deg) rotateZ(3deg); }
+  42% { transform: translateY(-66px) rotateY(900deg) rotateZ(-5deg); }
+  76% { transform: translateY(-14px) rotateY(1530deg) rotateZ(2deg); }
+  100% { transform: translateY(0) rotateY(1980deg) rotateZ(0deg); }
+}
+
+@keyframes coinShadow {
+  0%, 100% { opacity: 0.52; transform: scaleX(1); }
+  42% { opacity: 0.2; transform: scaleX(0.56); }
+  76% { opacity: 0.36; transform: scaleX(0.78); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landHeads { animation: settleHeads 280ms ease-out forwards; }
+  .landTails { animation: settleTails 280ms ease-out forwards; }
+  .shadow { animation: none; }
+}
+
+@keyframes settleHeads {
+  from { transform: scale(0.9) rotateY(180deg); opacity: 0.4; }
+  to { transform: scale(1) rotateY(0deg); opacity: 1; }
+}
+
+@keyframes settleTails {
+  from { transform: scale(0.9) rotateY(0deg); opacity: 0.4; }
+  to { transform: scale(1) rotateY(180deg); opacity: 1; }
+}
