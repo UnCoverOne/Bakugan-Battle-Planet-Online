@@ -65,6 +65,8 @@ export type ChoiceSpec = {
   notOpenedThisTurn?: boolean;
   notPlayedThisTurn?: boolean;
   attachmentState?: "attached" | "unattached";
+  /** Restrict BakuCore choices by their printed core type. */
+  coreTypes?: CoreType[];
   /** Restrict Energy-card choices by their charged state for Recharge effects. */
   energyState?: "charged" | "uncharged";
   /** Exclude the Bakugan that created the trigger ("another Bakugan"). */
@@ -257,4 +259,3 @@ export type RulesState = {
   triggerUsage: Record<string, number>;
   pendingPayment?: RulesPayment;
 };
-

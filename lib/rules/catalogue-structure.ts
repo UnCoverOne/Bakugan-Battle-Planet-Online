@@ -1,13 +1,54 @@
 import { CARDS } from "../data";
-import type { CardChoices, GameCard } from "../game";
+import type { CardChoices, CoreType, GameCard } from "../game";
 import type { AbilityDefinition, CardPlayDefinition, ChoiceSpec, CostEffect, RuleAction, RuleInstruction, RulesCardId } from "./model";
 import { conditionFor, durationFor, parseAtomicEffects, ruleCardId } from "./catalogue-primitives";
+
+const CORE_TYPE_BY_SYMBOL: Record<string, CoreType> = {
+  FT: "Fist",
+  FF: "Flaming Fist",
+  SD: "Shield",
+  MS: "Magic Shield",
+  HE: "Helix",
+};
+
+function singleAttachedCoreTypes(text: string): CoreType[] {
+  const symbols = text.match(
+    /\battach\s+(?:an?\s+)?(?:additional\s+|another\s+)?(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)/i,
+  )?.[1];
+  if (!symbols) return [];
+  return [...symbols.matchAll(/\[(FT|FF|SD|MS|HE)\]/gi)]
+    .map((match) => CORE_TYPE_BY_SYMBOL[match[1].toUpperCase()])
+    .filter((coreType, index, values) => values.indexOf(coreType) === index);
+}
+
+function expandMultiCoreAttachment(clause: string) {
+  const match = clause.match(
+    /^(.*?)\bAttach\s+up to\s+(two|three|\d+)\s+(\[(?:FT|FF|SD|MS|HE)\])\s+from the Field to (.+?)\.?$/i,
+  );
+  if (!match) return null;
+  const amount = match[2].toLowerCase() === "two" ? 2 : match[2].toLowerCase() === "three" ? 3 : Number(match[2]);
+  if (!Number.isFinite(amount) || amount < 1 || amount > 10) return null;
+  const prefix = match[1].trim();
+  const symbol = match[3];
+  const target = match[4].trim().replace(/\.$/, "");
+  return Array.from({ length: amount }, (_, index) => (
+    index === 0
+      ? `${prefix}${prefix ? " " : ""}You may attach a ${symbol} from the Field to ${target}.`
+      : `Then you may attach a ${symbol} from the Field to ${target}.`
+  ));
+}
 
 function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   const normalized = source.replace(/\s*\n\s*/g, " ").trim();
   const clauses = normalized
     ? normalized.split(/(?<=\.)\s+/).map((clause) => clause.trim()).filter(Boolean)
       .flatMap((clause) => {
+        // "Attach up to N" is modelled as N optional sequential selections.
+        // This preserves the printed 0..N choice without requiring one giant
+        // multi-select answer and lets each chosen core leave the Field before
+        // the next legal-choice set is calculated.
+        const multiCoreAttachment = expandMultiCoreAttachment(clause);
+        if (multiCoreAttachment) return multiCoreAttachment;
         // Preserve the Reroll-success condition on every dependent clause.
         // This must run before the generic "and you may Reroll" splitter so
         // cards such as Rip Tide do not turn their optional draw unconditional.
@@ -41,6 +82,10 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   const instructions = clauses.map((clause, index) => {
     const condition = conditionFor(clause);
     let effects = parseAtomicEffects(card, clause);
+    const attachedCoreTypes = singleAttachedCoreTypes(clause);
+    if (attachedCoreTypes.length && !effects.some((effect) => effect.kind === "move" && effect.verb === "attach" && effect.object === "bakucore")) {
+      effects = [...effects.filter((effect) => effect.kind !== "sequence"), { kind: "move", verb: "attach", object: "bakucore", amount: 1 }];
+    }
     if (ruleCardId(card) === "bb-152") effects = effects.filter((effect) => effect.kind !== "discard");
     if (!effects.length) effects = [{ kind: "sequence", effects: [] }];
     return {
@@ -112,7 +157,12 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
       : "any" as const;
   const maximumCost = Number(text.match(/costs? (\d+) \[Energy\] or less/i)?.[1] ?? Number.NaN);
   const printedMaximum = Number.isFinite(maximumCost) ? maximumCost : undefined;
-  const explicitBakuganTarget = /choose (?:a|an|one|another).*Bakugan|target .*Bakugan|retract (?:(?:one of|another) )?(?:your )?(?:open )?Bakugan|attach .*bakucore.*to (?:an? )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \[[^\]]+\])? Bakugan|(?:a|an|one|another)(?: \[[^\]]+\])? Bakugan gets?|to (?:a|an|one) \[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan/i.test(text);
+  const attachedCoreTypes = singleAttachedCoreTypes(text);
+  const attachesCore = /\battach\s+(?:an?\s+)?(?:additional\s+|another\s+)?bakucore/i.test(text) || attachedCoreTypes.length > 0;
+  const coreAttachmentTarget = attachesCore
+    && /\bto\s+(?:one of\s+)?(?:your\s+)?(?:an?\s+)?(?:open\s+)?Bakugan\b/i.test(text);
+  const explicitBakuganTarget = /choose (?:a|an|one|another).*Bakugan|target .*Bakugan|retract (?:(?:one of|another) )?(?:your )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \[[^\]]+\])? Bakugan|(?:a|an|one|another)(?: \[[^\]]+\])? Bakugan gets?|to (?:a|an|one) \[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan/i.test(text)
+    || coreAttachmentTarget;
   const separateEvoEffectTarget = card.type === "Evo"
     && defaultTiming === "announce"
     && /when you play this/i.test(text)
@@ -151,7 +201,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   } else if (explicitBakuganTarget && cardId !== "aa-99") {
     const selected = choice("targetBakuganId", targetTiming, "chosen-bakugan", "Choose a Bakugan");
     selected.targetOwner = targetOwner;
-    if (/open Bakugan/i.test(text)) selected.openState = "open";
+    if (/open Bakugan/i.test(text) || attachesCore) selected.openState = "open";
     if (/didn['’]?t open this turn|did not open this turn/i.test(text)) selected.notOpenedThisTurn = true;
     if (/another open Bakugan/i.test(text)) selected.excludeSourceBakugan = true;
     const faction = text.match(/(?:choose|give|to|target)\s+(?:a|an|one|another)?\s*\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1]
@@ -193,12 +243,15 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     result.push(selected);
   }
   if (!/\ball BakuCores?\b|remove all BakuCores?/i.test(text)
-    && /attach a bakucore|remove .*bakucore|choose a bakucore|turn a bakucore/i.test(text)) {
+    && (attachesCore || /remove .*bakucore|choose a bakucore|turn a bakucore/i.test(text))) {
     const selected = choice("coreCell", targetTiming, "bakucore", "Choose a BakuCore");
-    selected.targetOwner = targetOwner;
-    selected.attachmentState = /attach .*from the Field|turn .*face up/i.test(text)
+    // Cores on the Field are shared game objects; words such as "your" in an
+    // attachment effect qualify the Bakugan target, not ownership of the Core.
+    selected.targetOwner = attachesCore ? "any" : targetOwner;
+    selected.attachmentState = attachesCore || /turn .*face up/i.test(text)
       ? "unattached"
       : /remove|return .*field face down/i.test(text) ? "attached" : undefined;
+    if (attachedCoreTypes.length) selected.coreTypes = attachedCoreTypes;
     result.push(selected);
   }
   if (/choose a non-energy card in play/i.test(text)) {
@@ -387,7 +440,7 @@ export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
     // Sentence splitting must not turn a follow-up clause into an enter-play
     // spell. These phrases refer to information or an action created by the
     // preceding trigger and therefore share that trigger's event timing.
-    const continuesTrigger = Boolean(activeTrigger) && /^(?:then\b|shuffle\s+your\s+deck\b|you\s+may\s+(?:put|play)\s+(?:it|that\s+card|the\s+(?:chosen|revealed)\s+card)\b|if\s+(?:it(?:['’]?s|\b)|they\b|you do\b|an?\s+[^,.]+\s+cards?\s+is\s+revealed\s+this\s+way\b|one\s+of\s+(?:them|those\s+cards)\b|the\s+revealed\s+card\b))/i.test(
+    const continuesTrigger = Boolean(activeTrigger) && /^(?:then\b|shuffle\s+your\s+deck\b|you\s+may\s+(?:put|play|attach)\s+(?:it|that\s+card|the\s+(?:chosen|revealed)\s+card|an?\s+\[(?:FT|FF|SD|MS|HE)\])\b|if\s+(?:it(?:['’]?s|\b)|they\b|you do\b|an?\s+[^,.]+\s+cards?\s+is\s+revealed\s+this\s+way\b|one\s+of\s+(?:them|those\s+cards)\b|the\s+revealed\s+card\b))/i.test(
       instruction.sourceText.trim(),
     );
     if (continuesTrigger) activeTrigger!.push(instruction);

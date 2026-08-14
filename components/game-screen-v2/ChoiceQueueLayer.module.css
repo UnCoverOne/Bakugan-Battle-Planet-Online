@@ -2,4 +2,8 @@
 :global(html[data-choice-targeting="true"] [data-choice-target-candidate="true"]){opacity:.32!important;filter:saturate(.35) brightness(.65)!important;pointer-events:none!important;transition:opacity 140ms ease,filter 140ms ease,outline 140ms ease}
 :global(html[data-choice-targeting="true"] [data-choice-target-valid="true"]){opacity:1!important;filter:drop-shadow(0 0 .28rem #fff) drop-shadow(0 0 .8rem #ff5145)!important;outline:2px solid rgba(255,94,75,.98);outline-offset:3px;cursor:crosshair!important;pointer-events:auto!important;animation:legal-target-pulse 760ms ease-in-out infinite alternate}
 :global(html[data-choice-targeting="true"] [data-choice-target-valid="true"] *){pointer-events:none!important}
+/* SVG BakuCore targets are <g> elements with no painted hit area. Keep the
+   child image interactive so the capture-phase choice handler can resolve the
+   click back to its highlighted [data-core-cell] parent. */
+:global(html[data-choice-targeting="true"] [data-choice-target-valid="true"][data-core-cell] > image){pointer-events:all!important}
 @keyframes legal-target-pulse{from{filter:drop-shadow(0 0 .18rem #fff) drop-shadow(0 0 .48rem #ff5145)!important}to{filter:drop-shadow(0 0 .34rem #fff) drop-shadow(0 0 1rem #ff5145)!important}}

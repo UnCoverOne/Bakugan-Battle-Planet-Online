@@ -216,6 +216,7 @@ function optionsFor(
       return match.placements
         .filter((placement) => spec.attachmentState !== "attached" || Boolean(placement.attachedTo))
         .filter((placement) => spec.attachmentState !== "unattached" || !placement.attachedTo)
+        .filter((placement) => !spec.coreTypes?.length || spec.coreTypes.includes(placement.core.type))
         .filter((placement) => {
           if (spec.targetOwner === "any" || !spec.targetOwner) return true;
           const attachedOwner = placement.attachedTo
