@@ -988,3 +988,77 @@ test("batch-aware conservation still plays Dark Waters to recover a missed Roll"
   assert.equal(next.players[0].hand.some((card) => card.id === darkWaters.id), false);
   assert.equal(next.batch.at(-1)?.card.id, darkWaters.id);
 });
+
+
+// AI brawl outcome regressions (2026-08-14)
+test("AI forces reduced-cost Liqui Darts when it turns a B-Power tie into a lead", () => {
+  const liquiDarts = catalogueCard("aa-6", "winning-liqui-darts");
+  const ai = player(
+    "liqui-ai",
+    [
+      bakugan("liqui-active", "Aquos", 800, 5),
+      bakugan("liqui-aurelus", "Aurelus", 100, 1),
+    ],
+    [],
+    [liquiDarts],
+  );
+  const human = player("liqui-human", [bakugan("liqui-human-b", "Pyrus", 800, 5)]);
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human, "power");
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, liquiDarts.id);
+  assert.equal(next.players[0].hand.some((card) => card.id === liquiDarts.id), false);
+});
+
+test("AI keeps Might of Cyndeus when it already has a safe B-Power lead", () => {
+  const might = catalogueCard("bb-104", "redundant-might-of-cyndeus");
+  const ai = player("might-lead-ai", [bakugan("might-lead-ai-b", "Pyrus", 900, 5)], [], [might]);
+  const human = player("might-lead-human", [bakugan("might-lead-human-b", "Aquos", 800, 4)]);
+  addEnergy(ai, 2);
+  const match = matchWith(ai, human, "power");
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.ok(next.players[0].hand.some((card) => card.id === might.id));
+});
+
+test("AI does not play Might of Cyndeus into a pending opponent Damage buff that would make it lose", () => {
+  const might = catalogueCard("bb-104", "losing-might-of-cyndeus");
+  const enemyDamage = catalogueCard("bb-93", "pending-human-fireball");
+  const ai = player("might-batch-ai", [bakugan("might-batch-ai-b", "Pyrus", 900, 5)], [], [might]);
+  const human = player("might-batch-human", [bakugan("might-batch-human-b", "Aquos", 800, 4)]);
+  addEnergy(ai, 2);
+  const match = matchWith(ai, human, "power");
+  setBrawl(match, ai, human, true, true);
+  match.batch = [{
+    id: "pending-human-damage",
+    controllerId: human.id,
+    card: enemyDamage,
+    choices: {},
+    kind: "card",
+  }];
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 1);
+  assert.equal(next.batch[0].card.id, enemyDamage.id);
+  assert.ok(next.players[0].hand.some((card) => card.id === might.id));
+});
+
+test("AI still plays Might of Cyndeus when switching to Damage changes a loss into a win", () => {
+  const might = catalogueCard("bb-104", "winning-might-of-cyndeus");
+  const ai = player("might-win-ai", [bakugan("might-win-ai-b", "Pyrus", 500, 6)], [], [might]);
+  const human = player("might-win-human", [bakugan("might-win-human-b", "Aquos", 800, 5)]);
+  addEnergy(ai, 2);
+  const match = matchWith(ai, human, "power");
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, might.id);
+});

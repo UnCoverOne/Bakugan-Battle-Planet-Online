@@ -1062,6 +1062,10 @@ function cardValue(
 ) {
   const program = compileCardEffect(card);
   const printedCost = card.cost === "X" ? choices.xValue ?? 0 : card.cost;
+  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  const evaluatedCost = payment?.kind === "insufficient"
+    ? printedCost
+    : payment?.cost ?? printedCost;
   const resolving = cloneMatch(match);
   const resolvingPlayer = playerById(resolving, playerId);
   if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
@@ -1092,7 +1096,7 @@ function cardValue(
       return sum + rechargeEnergyValue(resolving, playerId, entry.action);
     }
     return sum + estimateRuleActionValue(entry.action, resolving);
-  }, 0) - printedCost * 0.72;
+  }, 0) - evaluatedCost * 0.72;
   for (const { instruction, action } of entries) {
     if (card.type === "Evo" && isPersistentEvoAction(action)) continue;
     if (isTemporaryPowerAction(action) && !powerChangesVictor) continue;
@@ -1143,7 +1147,7 @@ function cardValue(
     playerId,
     card,
     entries,
-    printedCost,
+    evaluatedCost,
   );
   if (card.type === "Hero") value += 2.4 + Math.max(0, 4 - match.turn) * 0.35;
   if (card.type === "Evo") {
