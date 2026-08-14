@@ -176,7 +176,7 @@ const ACTIONS = new Set([
   "create", "join", "get", "ready", "lobby-ready", "start-match", "lobby-settings", "lobby-deck",
   "ranked-ban", "ranked-select",
   "begin-placement", "place", "draw", "energize", "tap-energy", "select", "target", "roll", "reroll",
-  "prepare-play", "play", "choice", "cancel-choice", "order-triggers", "pass", "flip-damage", "damage",
+  "prepare-play", "play", "choice", "cancel-choice", "order-triggers", "pass", "complete-coin-flip", "flip-damage", "damage",
   "hand-limit", "chat", "concede", "next-turn", "next-game", "undo",
 ]);
 
