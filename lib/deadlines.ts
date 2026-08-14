@@ -26,11 +26,36 @@ import { confirmRoll, playerCanConfirmRoll, playerCanSelectRollTarget, selectRol
 import { drawTurnCard, playerCanDrawTurnCard } from "./turnStart";
 import { applyConnectionGrace, recordDecisionTimeout, timeoutChoicesForFields } from "./engine/timeout-policy";
 
+/**
+ * The presentation client normally acknowledges a coin flip as soon as its
+ * animation lands. Keep a short server-side grace period so a throttled tab,
+ * dropped request, or disconnected controller cannot strand rules resolution.
+ */
+export const COIN_FLIP_RECOVERY_GRACE_MS = 3_000;
+
+export function coinFlipRecoveryAt(match: MatchState) {
+  const resolveAt = match.pendingCoinFlip?.resolveAt;
+  return Number.isFinite(resolveAt) ? Number(resolveAt) + COIN_FLIP_RECOVERY_GRACE_MS : null;
+}
+
 /** Deterministic timeout policy shared by HTTP recovery and Durable Object alarms. */
 export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
   if (input.phase === "startingPlayer" && now >= input.startingPlayerRevealedAt) return beginCorePlacement(input, now);
+
+  // A coin flip is a suspended rules effect rather than a player decision. It
+  // must have its own liveness deadline; otherwise the generic action deadline
+  // can leave the batch locked for tens of seconds when the UI acknowledgement
+  // is lost. The normal client handshake gets the full grace window first.
+  const coinRecoveryAt = coinFlipRecoveryAt(input);
+  if (input.pendingCoinFlip && coinRecoveryAt != null && now >= coinRecoveryAt) {
+    const state = structuredClone(input);
+    return completeCoinFlip(state, state.pendingCoinFlip!.controllerId);
+  }
+
   if (now <= input.deadline || ["lobby", "result"].includes(input.phase)) return input;
   const state = structuredClone(input);
+  // Compatibility fallback for any persisted legacy coin flip that has no
+  // usable resolveAt timestamp.
   if (state.pendingCoinFlip) return completeCoinFlip(state, state.pendingCoinFlip.controllerId);
   const tieBreak = manualTieBreakState(state);
   if (tieBreak?.status === "resolved") {
@@ -99,8 +124,10 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
 export function nextMatchAlarmAt(match: MatchState, now = Date.now()) {
   const twoHours = now + 2 * 60 * 60 * 1_000;
   if (match.phase === "lobby" || match.phase === "result") return twoHours;
-  const deadline = match.phase === "startingPlayer"
+  let deadline = match.phase === "startingPlayer"
     ? Math.min(match.deadline, match.startingPlayerRevealedAt)
     : match.deadline;
+  const coinRecoveryAt = coinFlipRecoveryAt(match);
+  if (coinRecoveryAt != null) deadline = Math.min(deadline, coinRecoveryAt);
   return Math.max(now + 1_000, Number.isFinite(deadline) ? deadline : now + 30_000);
 }
