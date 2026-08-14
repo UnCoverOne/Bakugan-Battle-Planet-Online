@@ -146,6 +146,10 @@ test("public profile server uses canonical profile fields and exposes only selec
   const rankedRoute = readFileSync("app/api/ranked/route.ts", "utf8");
   assert.match(server, /profile\.avatar/);
   assert.doesNotMatch(server, /profile\.avatarId/);
+  assert.match(server, /loadAccountDataPayload/);
+  assert.match(server, /const snapshot = \(await loadAccountDataPayload\(db, userId\)\)\.data/);
+  assert.doesNotMatch(server, /user_data\.data_json/);
+  assert.doesNotMatch(server, /LEFT JOIN user_data/);
   assert.match(contract, /deck\.visibility === "Public"/);
   assert.match(contract, /normalizeShowcaseIds\(input\.profile\.showcaseDeckIds\)/);
   assert.match(rankedRoute, /publicBrawlerProfile/);

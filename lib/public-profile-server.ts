@@ -1,11 +1,10 @@
 import { achievementsFor } from "./achievements";
+import { loadAccountDataPayload } from "./account-data-server";
 import type { AccountDatabase } from "./account-server";
 import { accountStatMatches } from "./match-statistics";
-import type { DeckRecord } from "./data";
 import {
   normalizeLifetimeMatchStats,
   type BrawlerProfile,
-  type MatchResultRecord,
 } from "./persistence";
 import {
   normalizeProfileAvatar,
@@ -28,39 +27,6 @@ const VALID_FACTIONS = new Set([
   "Ventus",
   "Aurelus",
 ]);
-
-function readSnapshot(value: unknown) {
-  try {
-    return JSON.parse(String(value ?? "{}")) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-}
-
-function storedDecks(value: unknown): DeckRecord[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((candidate): candidate is DeckRecord => {
-    if (!candidate || typeof candidate !== "object") return false;
-    const deck = candidate as Partial<DeckRecord>;
-    return Boolean(
-      typeof deck.id === "string" &&
-        typeof deck.name === "string" &&
-        Array.isArray(deck.factions) &&
-        Array.isArray(deck.bakuganIds) &&
-        Array.isArray(deck.coreIds) &&
-        Array.isArray(deck.cardIds),
-    );
-  });
-}
-
-function storedHistory(value: unknown): Array<Partial<MatchResultRecord>> {
-  return Array.isArray(value)
-    ? value.filter(
-        (candidate): candidate is Partial<MatchResultRecord> =>
-          Boolean(candidate && typeof candidate === "object"),
-      )
-    : [];
-}
 
 function snapshotProfile(
   value: unknown,
@@ -102,11 +68,9 @@ export async function publicBrawlerProfile(
       `SELECT users.id, users.display_name, users.faction, users.created_at,
         ranked_ratings.user_id AS ranked_user_id,
         ranked_ratings.bp, ranked_ratings.wins AS ranked_wins,
-        ranked_ratings.losses AS ranked_losses,
-        user_data.data_json
+        ranked_ratings.losses AS ranked_losses
       FROM users
       LEFT JOIN ranked_ratings ON ranked_ratings.user_id = users.id
-      LEFT JOIN user_data ON user_data.user_id = users.id
       LEFT JOIN account_bans ON account_bans.user_id = users.id
       WHERE users.id = ? AND account_bans.user_id IS NULL`,
     )
@@ -114,11 +78,11 @@ export async function publicBrawlerProfile(
     .first<Record<string, unknown>>();
   if (!row) return null;
 
-  const snapshot = readSnapshot(row.data_json);
-  const decks = storedDecks(snapshot.decks);
-  const history = storedHistory(snapshot.history);
-  const lifetimeStats = normalizeLifetimeMatchStats(snapshot.lifetimeStats);
-  const profile = snapshotProfile(snapshot.profile, {
+  const snapshot = (await loadAccountDataPayload(db, userId)).data;
+  const decks = snapshot?.decks ?? [];
+  const history = snapshot?.history ?? [];
+  const lifetimeStats = normalizeLifetimeMatchStats(snapshot?.lifetimeStats);
+  const profile = snapshotProfile(snapshot?.profile, {
     displayName: String(row.display_name),
     faction: String(row.faction),
   });
