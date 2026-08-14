@@ -1,0 +1,58 @@
+name: Apply gameplay mechanics repair v2
+
+on:
+  push:
+    branches:
+      - fix/gameplay-mechanics-2026-08-14
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/gameplay-mechanics-2026-08-14
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - name: Apply corrected repair script
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('.github/workflows/apply-gameplay-mechanics-fix.yml').read_text()
+          start_marker = "          python <<'PY'\n"
+          end_marker = "\n          PY\n"
+          start = source.index(start_marker) + len(start_marker)
+          end = source.index(end_marker, start)
+          script = textwrap.dedent(source[start:end])
+          old = 'const noOp: RuleAction = { kind: "sequence", effects: [] };'
+          new = 'const noOp: RuleAction = { kind: "cost", amount: 0, operation: "reduce", duration: "instant" };'
+          if script.count(old) != 1:
+              raise SystemExit(f'Expected one Battle Mastery choice-carrier no-op, found {script.count(old)}')
+          script = script.replace(old, new, 1)
+          exec(compile(script, '<gameplay-repair>', 'exec'))
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Run targeted regression file
+        run: npx tsx --test tests/gameplay-mechanics-2026-08-14.test.ts
+      - name: Run lint
+        run: npm run lint
+      - name: Commit repaired implementation
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-gameplay-mechanics-fix.yml .github/workflows/apply-gameplay-mechanics-fix-v2.yml
+          git add lib components tests
+          git commit -m "fix: repair Battle Mastery damage and sacrifice mechanics"
+          git push origin HEAD:fix/gameplay-mechanics-2026-08-14
