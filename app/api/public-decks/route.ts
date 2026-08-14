@@ -1,5 +1,5 @@
 import { getDatabase, getSessionUser } from "../../../lib/account-server";
-import { listOfflinePublicDeckSlots, listPublicDecks } from "../../../lib/administration-server";
+import { listManagedPublicDecks, listOfflinePublicDeckSlots } from "../../../lib/administration-server";
 import {
   listPublicDeckFavoriteMetadata,
   setPublicDeckFavorite,
@@ -17,11 +17,15 @@ export async function GET(request: Request) {
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   try {
     const db = await getDatabase();
-    const [decks, offlineSlots, viewer] = await Promise.all([
-      listPublicDecks(db),
+    const [managedDecks, offlineSlots, viewer] = await Promise.all([
+      listManagedPublicDecks(db),
       listOfflinePublicDeckSlots(db),
       getSessionUser(request),
     ]);
+    const decks = managedDecks.map((item) => ({
+      ...item.deck,
+      creatorUserId: item.source.kind === "user" ? item.source.userId : undefined,
+    }));
     const [favorites] = await Promise.all([
       listPublicDeckFavoriteMetadata(db, decks.map((deck) => deck.id), viewer?.id),
     ]);

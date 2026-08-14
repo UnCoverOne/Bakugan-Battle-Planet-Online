@@ -165,6 +165,24 @@ test("public copying and read-only details reuse validation and preserve attribu
   assert.match(persistence, /sourceCreator:/);
 });
 
+test("public deck details expose creator identity through the established Brawler preview", async () => {
+  const [route, publicDeckApi, identity, preview] = await Promise.all([
+    read("components/routes/DeckRoutes.tsx"),
+    read("app/api/public-decks/route.ts"),
+    read("components/profile/DeckCreatorIdentity.tsx"),
+    read("components/profile/PlayerPreview.tsx"),
+  ]);
+  assert.match(publicDeckApi, /listManagedPublicDecks/);
+  assert.match(publicDeckApi, /creatorUserId:\s*item\.source\.kind === "user" \? item\.source\.userId : undefined/);
+  assert.match(route, /DeckCreatorIdentity/);
+  assert.match(route, /creatorUserId\?: string/);
+  assert.match(identity, /ProfileAvatar/);
+  assert.match(identity, /PlayerPreview/);
+  assert.match(identity, /\/api\/profile\?userId=/);
+  assert.match(preview, />VIEW PROFILE</);
+  assert.match(preview, /\/brawlers\/\$\{encodeURIComponent\(summary\.userId\)\}/);
+});
+
 test("all legality boundaries delegate to the centralized engine", async () => {
   const [data, play, server, decks] = await Promise.all([
     read("lib/data.ts"),

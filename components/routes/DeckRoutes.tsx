@@ -50,6 +50,7 @@ import {
   Surface,
   Tabs,
 } from "../design-system/primitives";
+import { DeckCreatorIdentity } from "../profile/DeckCreatorIdentity";
 import styles from "./DeckRoutes.module.css";
 
 const FACTIONS = ["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"];
@@ -1155,7 +1156,15 @@ function DeckDetailPresentation({
         <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
         <StatusChip tone={report.isLegal ? "success" : "danger"}>{report.isLegal ? "Legal" : `${report.issues.length} issues`}</StatusChip>
         <StatusChip>{deck.factions.join(" • ") || "No factions"}</StatusChip>
-        {publicView && <span>Created by {deck.creator ?? "Community Brawler"}</span>}
+        {publicView && (
+          <span>
+            Created by{" "}
+            <DeckCreatorIdentity
+              userId={(deck as DeckRecord & { creatorUserId?: string }).creatorUserId}
+              displayName={deck.creator ?? "Community Brawler"}
+            />
+          </span>
+        )}
         {!publicView && deck.sourceDeckId && <span>Copied from {deck.sourceCreator ?? "a public deck"}</span>}
       </div>
       <section className={styles.detailLayout}>
