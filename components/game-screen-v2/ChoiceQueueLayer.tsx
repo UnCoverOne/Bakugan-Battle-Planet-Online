@@ -87,7 +87,10 @@ export function ChoiceQueueLayer() {
   );
   const fields = useMemo(() => pending?.schema.fields.filter((field) => (
     field.chooserId === playerId
-    && field.id !== "discardCardIds"
+    // Controller-owned discards retain the in-hand interaction. A discard
+    // delegated to the other player needs a modal fallback on that player's
+    // client; otherwise the private chooser transition can be visually silent.
+    && (field.id !== "discardCardIds" || pending?.controllerId !== playerId)
     && !isTopDeckField(field)
   )) ?? [], [pending, playerId]);
   const boardFields = useMemo(() => fields.filter((field) => BOARD_TARGET_KINDS.has(field.kind)), [fields]);

@@ -119,6 +119,15 @@ export function conditionFor(text: string): RuleCondition {
 }
 
 function triggerFor(text: string): TriggerDefinition | undefined {
+  const damageThreshold = text.match(/if you deal (\d+) or more damage in an attack/i);
+  if (damageThreshold) {
+    return {
+      event: "ATTACK_DAMAGE_DEALT",
+      relationship: "controller",
+      optional: /\bmay\b/i.test(text),
+      minimumEventAmount: Number(damageThreshold[1]),
+    };
+  }
   const table: Array<[RegExp, TriggerEventName, TriggerDefinition["relationship"], TriggerDefinition["source"]?]> = [
     [/when (?:your |an )?opponent plays/i, "CARD_PLAYED", "opponent"],
     [/when you play this(?: card)?|when this is played/i, "CARD_PLAYED", "controller", "self"],
@@ -127,7 +136,7 @@ function triggerFor(text: string): TriggerDefinition | undefined {
     [/when this opens|when you open a Bakugan/i, "BAKUGAN_OPENED", "controller"],
     [/when you discard|if this is discarded/i, "CARD_DISCARDED", "controller"],
     [/\bVictor\s*[-:]/i, "VICTOR_DECLARED", "controller"],
-    [/when one of your Bakugan attacks|if you deal \d+ or more damage/i, "ATTACK_CREATED", "controller"],
+    [/when one of your Bakugan attacks/i, "ATTACK_CREATED", "controller"],
     [/if you take damage/i, "DAMAGE_TAKEN", "controller"],
     [/when you have no cards in hand|when your hand is empty/i, "HAND_EMPTIED", "controller"],
     [/at (?:the )?end of (?:your |the )?turn/i, "TURN_ENDED", "controller"],

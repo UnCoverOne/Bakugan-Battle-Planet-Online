@@ -41,6 +41,7 @@ export type RuleCondition =
   | { kind: "held-core-type"; coreTypes: CoreType[]; subject?: "target" | "controller-team" | "opponent-active" | "attacker" }
   | { kind: "open-bakugan-count"; comparison: "exactly" | "at-least" | "at-most" | "more-than" | "fewer-than"; amount: number }
   | { kind: "selection-made"; choiceId: keyof CardChoices }
+  | { kind: "mode-selected"; mode: string }
   | { kind: "reroll-opened" }
   | { kind: "printed"; text: string };
 
@@ -49,6 +50,8 @@ export type ChoiceSpec = {
   timing: ChoiceTiming;
   selector: EntitySelector | "number" | "mode" | "hand-card" | "deck-card" | "energy-card" | "bakucore" | "hero" | "evo" | "card-in-play";
   label: string;
+  /** Explicit printed options for semantic mode choices such as Battle Mastery. */
+  options?: Array<{ id: string; label: string; description?: string }>;
   minimum?: number;
   maximum?: number;
   optional?: boolean;
@@ -80,6 +83,7 @@ export type TriggerEventName =
   | "CARD_DISCARDED"
   | "VICTOR_DECLARED"
   | "ATTACK_CREATED"
+  | "ATTACK_DAMAGE_DEALT"
   | "DAMAGE_TAKEN"
   | "HAND_EMPTIED"
   | "TURN_ENDED";
@@ -91,6 +95,8 @@ export type TriggerDefinition = {
   source?: "self";
   cardType?: CardType;
   optional?: boolean;
+  /** Minimum amount carried by the triggering event. */
+  minimumEventAmount?: number;
   interveningCondition?: RuleCondition;
   limit?: { kind: "once-per-turn" | "first-each-turn"; key: string };
 };

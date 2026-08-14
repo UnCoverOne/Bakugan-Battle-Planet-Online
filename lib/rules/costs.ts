@@ -125,6 +125,29 @@ export function availableEnergy(player: EnergyTrackedPlayer, turn: number) {
   return player.energyTapTurn === turn ? Math.max(0, Math.floor(player.energy)) : 0;
 }
 
+/** Maximum Energy that can be paid now, including currently untapped Energy cards. */
+export function maximumPayableEnergy(state: MatchState, playerId: string) {
+  const player = playerById(state, playerId) as EnergyTrackedPlayer;
+  const tapped = new Set(activeTappedEnergyIds(player, state.turn));
+  const untapped = player.energyZone.filter((card) => !tapped.has(card.id)).length;
+  return availableEnergy(player, state.turn) + untapped;
+}
+
+/**
+ * Recalculate the payable Energy after an effect sets a card's Energy cost to
+ * free. Rule 1.15.2 starts free at 0, then normal reductions/increases (including
+ * FrostStrike for a Flip) still apply.
+ */
+export function cardCostAfterFreeBase(
+  state: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices = {},
+) {
+  const breakdown = cardCostBreakdown(state, playerId, card, choices);
+  return Math.max(0, 0 - breakdown.reductions + breakdown.increases + breakdown.frostStrike);
+}
+
 /** Charge selected uncharged Energy cards, or every uncharged Energy card when no selection is supplied. */
 export function rechargeEnergyCards(
   state: MatchState,

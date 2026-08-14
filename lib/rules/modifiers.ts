@@ -125,6 +125,7 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
       return open < condition.amount;
     }
     case "selection-made": return true;
+    case "mode-selected": return false;
     case "reroll-opened": return false;
     case "printed": return false;
   }

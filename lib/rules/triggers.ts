@@ -94,6 +94,7 @@ function triggerMatches(
   state: MatchState,
 ) {
   if (trigger.event !== event.name) return false;
+  if (trigger.minimumEventAmount != null && (event.amount ?? 0) < trigger.minimumEventAmount) return false;
   if (!relationshipMatches(trigger, owner.id, event)) return false;
   if (trigger.source === "self" && source.id !== event.card?.id) return false;
   if (trigger.cardType && trigger.cardType !== event.cardType) return false;

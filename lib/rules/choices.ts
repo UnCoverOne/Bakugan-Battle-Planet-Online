@@ -250,10 +250,17 @@ function optionsFor(
       const maximum = Math.max(0, controller.energyZone.length + controller.energy);
       return Array.from({ length: maximum + 1 }, (_, value) => option(String(value), String(value), controller.id));
     }
-    case "mode":
-      return spec.id === "confirmed"
-        ? [option("yes", "Yes"), option("no", "No")]
-        : [option("power", "B-Power"), option("damage", "Damage")];
+    case "mode": {
+      if (spec.id === "confirmed") return [option("yes", "Yes"), option("no", "No")];
+      const printed = spec.options?.map((candidate) => option(candidate.id, candidate.label, controller.id, candidate.description))
+        ?? [option("power", "B-Power"), option("damage", "Damage")];
+      const magnusAllowsBoth = /\bBattle Mastery\b/i.test(card.effect)
+        && controller.heroes.some((hero) => hero.catalogId === "aa-68");
+      if (magnusAllowsBoth && !printed.some((candidate) => candidate.id === "both")) {
+        printed.push(option("both", "Both effects", controller.id, "Magnus, Living Arm of Tiko"));
+      }
+      return printed;
+    }
     case "chosen-card":
     case "self":
       return [option(card.id, card.displayName || card.name, controller.id)];

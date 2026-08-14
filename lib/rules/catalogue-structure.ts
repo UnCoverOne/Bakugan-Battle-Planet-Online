@@ -38,6 +38,25 @@ function expandMultiCoreAttachment(clause: string) {
   ));
 }
 
+type BattleMasteryBranch = { id: string; label: string; text: string };
+
+function battleMasteryBranches(text: string): BattleMasteryBranch[] | null {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const match = normalized.match(
+    /\bBattle Mastery:\s*(?:When you play this,\s*)?Choose one(?: of the following)?\s*[:,]?\s*(.+?)\s+or\s+(.+?)\.?$/i,
+  );
+  if (!match) return null;
+  const clean = (value: string) => {
+    const trimmed = value.trim().replace(/\.$/, "");
+    return /^[a-z]/.test(trimmed) ? trimmed[0].toUpperCase() + trimmed.slice(1) : trimmed;
+  };
+  return [match[1], match[2]].map((value, index) => ({
+    id: `battle-mastery-${index + 1}`,
+    label: clean(value),
+    text: clean(value),
+  }));
+}
+
 function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   const normalized = source.replace(/\s*\n\s*/g, " ").trim();
   const clauses = normalized
@@ -97,6 +116,44 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
       sourceText: clause,
     };
   });
+
+  // Battle Mastery presents one printed choice before either branch resolves.
+  // Compile the choice as an always-on no-op instruction, then gate each
+  // branch on the selected mode. Earlier instruction choices are deliberately
+  // merged forward by the resolver, so Magnus can make both branch conditions true.
+  for (let index = 0; index < instructions.length; index += 1) {
+    const current = instructions[index];
+    const branches = battleMasteryBranches(current.sourceText);
+    if (!branches) continue;
+    const modeChoice = current.choices.find((candidate) => candidate.id === "mode");
+    if (!modeChoice) continue;
+    const noOp: RuleAction = { kind: "cost", amount: 0, operation: "reduce", duration: "instant" };
+    const chooser: RuleInstruction = {
+      ...current,
+      id: `${ruleCardId(card)}:battle-mastery-choice`,
+      condition: { kind: "always" },
+      effects: [noOp],
+      actions: [noOp],
+      choices: [{
+        ...modeChoice,
+        options: branches.map((branch) => ({ id: branch.id, label: branch.label })),
+      }],
+    };
+    const branchInstructions: RuleInstruction[] = branches.map((branch) => {
+      const effects = parseAtomicEffects(card, branch.text);
+      const actions: RuleAction[] = effects.length ? effects : [{ kind: "sequence", effects: [] }];
+      return {
+        id: `${ruleCardId(card)}:${branch.id}`,
+        condition: { kind: "mode-selected", mode: branch.id },
+        effects: actions,
+        actions,
+        choices: choicesForText(card, branch.text, "resolve").filter((candidate) => candidate.id !== "mode"),
+        sourceText: branch.text,
+      };
+    });
+    instructions.splice(index, 1, chooser, ...branchInstructions);
+    index += branchInstructions.length;
+  }
 
   // A sentence-ending "instead" clause replaces the immediately preceding
   // effect. Detect that grammar directly so every set receives the same rules
@@ -198,7 +255,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     const friendly = choice("secondaryTargetBakuganId", "announce", "chosen-bakugan", "Choose one of your Bakugan");
     friendly.targetOwner = "controller";
     result.push(enemy, friendly);
-  } else if (explicitBakuganTarget && cardId !== "aa-99") {
+  } else if (explicitBakuganTarget && (cardId !== "aa-99" || defaultTiming === "resolve")) {
     const selected = choice("targetBakuganId", targetTiming, "chosen-bakugan", "Choose a Bakugan");
     selected.targetOwner = targetOwner;
     if (/open Bakugan/i.test(text) || attachesCore) selected.openState = "open";
