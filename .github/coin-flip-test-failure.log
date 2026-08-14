@@ -1,0 +1,410 @@
+TAP version 13
+# Subtest: AI does not play Tides after the Victor has already been declared
+ok 1 - AI does not play Tides after the Victor has already been declared
+  ---
+  duration_ms: 18.072015
+  ...
+# Subtest: two legacy duplicate Magic Shield copies can both be returned while another is on the field
+ok 2 - two legacy duplicate Magic Shield copies can both be returned while another is on the field
+  ---
+  duration_ms: 3.363722
+  ...
+# Subtest: Bakugan Resurgence Shun enters play without drawing and draws only after a successful open
+ok 3 - Bakugan Resurgence Shun enters play without drawing and draws only after a successful open
+  ---
+  duration_ms: 8.296603
+  ...
+# Subtest: Dragonoid Maximus wins when its controller has Dan, Wynton, and Lia
+not ok 4 - Dragonoid Maximus wins when its controller has Dan, Wynton, and Lia
+  ---
+  duration_ms: 15.835897
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reported-gameplay-regressions-2026-08.test.ts:1:7098'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'power'
+    - 'result'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'result'
+  actual: 'power'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reported-gameplay-regressions-2026-08.test.ts:270:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: normal simultaneous opens trigger Lia and Shargo for both players on every occurrence
+not ok 5 - normal simultaneous opens trigger Lia and Shargo for both players on every occurrence
+  ---
+  duration_ms: 3.096702
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reported-gameplay-regressions-2026-08.test.ts:1:8417'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'bb-343-a'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'bb-343-a'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reported-gameplay-regressions-2026-08.test.ts:306:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: Sifting Ashes completes both manual draws before offering the discard
+ok 6 - Sifting Ashes completes both manual draws before offering the discard
+  ---
+  duration_ms: 10.819549
+  ...
+# Subtest: Aquos Hyper Cubbo applies its held-Core bonus exactly once after evolving
+ok 7 - Aquos Hyper Cubbo applies its held-Core bonus exactly once after evolving
+  ---
+  duration_ms: 4.255222
+  ...
+# Subtest: discard choices and hand-limit cleanup are represented by the in-hand HUD contract
+ok 8 - discard choices and hand-limit cleanup are represented by the in-hand HUD contract
+  ---
+  duration_ms: 1.616417
+  ...
+# Subtest: the catalogue does not invent discard choices from ordinary hand-card wording
+not ok 9 - the catalogue does not invent discard choices from ordinary hand-card wording
+  ---
+  duration_ms: 283.737783
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reported-gameplay-regressions-2026-08.test.ts:1:14457'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      assert.equal(characteristics.power, 1_100)
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reported-gameplay-regressions-2026-08.test.ts:474:12)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: typed Energize actions preserve charged and uncharged entry state
+ok 10 - typed Energize actions preserve charged and uncharged entry state
+  ---
+  duration_ms: 0.518982
+  ...
+# Subtest: Ventus Trox Ultra energizes the selected hand card uncharged
+ok 11 - Ventus Trox Ultra energizes the selected hand card uncharged
+  ---
+  duration_ms: 4.050278
+  ...
+# Subtest: unqualified Energize effects add Energy cards charged
+ok 12 - unqualified Energize effects add Energy cards charged
+  ---
+  duration_ms: 2.258722
+  ...
+# Subtest: Lost at Sea compiles a coin flip followed by a heads-gated Stop
+not ok 13 - Lost at Sea compiles a coin flip followed by a heads-gated Stop
+  ---
+  duration_ms: 0.268844
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reported-gameplay-regressions-2026-08.test.ts:1:20852'
+  failureType: 'testCodeFailure'
+  error: 'Lost at Sea does not match the reviewed rules text for br-62.'
+  code: 'CARD_TEXT_MISMATCH'
+  name: 'UnsupportedCardTextError'
+  stack: |-
+    ruleDefinitionForCard (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/catalogue.ts:189:52)
+    programForCard (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/catalogue.ts:207:22)
+    compileCardEffect (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/effects.ts:24:10)
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reported-gameplay-regressions-2026-08.test.ts:645:24)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: Lost at Sea heads lands through the coin animation gate and stops the attack
+ok 14 - Lost at Sea heads lands through the coin animation gate and stops the attack
+  ---
+  duration_ms: 5.511395
+  ...
+# Subtest: Lost at Sea tails finalizes cleanly and damage continues
+ok 15 - Lost at Sea tails finalizes cleanly and damage continues
+  ---
+  duration_ms: 3.296175
+  ...
+# Subtest: coin flip completion remains controller-authoritative
+ok 16 - coin flip completion remains controller-authoritative
+  ---
+  duration_ms: 4.477038
+  ...
+# Subtest: the reviewed typed catalogue covers every Battle Planet card exactly
+ok 17 - the reviewed typed catalogue covers every Battle Planet card exactly
+  ---
+  duration_ms: 6.094397
+  ...
+# Subtest: unknown or modified card text is rejected rather than resolving partially
+ok 18 - unknown or modified card text is rejected rather than resolving partially
+  ---
+  duration_ms: 0.493164
+  ...
+# Subtest: instead clauses are single typed replacement branches, not additive actions
+ok 19 - instead clauses are single typed replacement branches, not additive actions
+  ---
+  duration_ms: 0.572833
+  ...
+# Subtest: Flow replacement clauses resolve the enhanced effect instead of the base effect
+ok 20 - Flow replacement clauses resolve the enhanced effect instead of the base effect
+  ---
+  duration_ms: 0.98208
+  ...
+# Subtest: Light's Courage replaces +400 B with +800 B under Domination
+ok 21 - Light's Courage replaces +400 B with +800 B under Domination
+  ---
+  duration_ms: 3.575949
+  ...
+# Subtest: replacement conditions cover sacrifice, held Core, faction, and turn-history families
+not ok 22 - replacement conditions cover sacrifice, held Core, faction, and turn-history families
+  ---
+  duration_ms: 6.711653
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/rules-engine-modernization.test.ts:1:5424'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        coreTypes: [
+          'Fist'
+        ],
+        kind: 'held-core-type',
+    +   subject: 'target'
+      }
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    kind: 'held-core-type'
+    coreTypes:
+      0: 'Fist'
+  actual:
+    kind: 'held-core-type'
+    coreTypes:
+      0: 'Fist'
+    subject: 'target'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/rules-engine-modernization.test.ts:138:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: Sacrifice replacements choose exactly one branch
+ok 23 - Sacrifice replacements choose exactly one branch
+  ---
+  duration_ms: 0.446557
+  ...
+# Subtest: played-card faction history is distinct, turn-scoped rules state
+ok 24 - played-card faction history is distinct, turn-scoped rules state
+  ---
+  duration_ms: 1.695486
+  ...
+# Subtest: triggered replacement bonuses retain their trigger ownership
+ok 25 - triggered replacement bonuses retain their trigger ownership
+  ---
+  duration_ms: 0.335148
+  ...
+# Subtest: open Bakugan count parser preserves exact and threshold comparisons
+ok 26 - open Bakugan count parser preserves exact and threshold comparisons
+  ---
+  duration_ms: 0.416591
+  ...
+# Subtest: Ice Elation and Solitude resolve only with exactly one open Bakugan
+ok 27 - Ice Elation and Solitude resolve only with exactly one open Bakugan
+  ---
+  duration_ms: 1.887475
+  ...
+# Subtest: rule objects are serializable resumable objects with stable definition identity
+ok 28 - rule objects are serializable resumable objects with stable definition identity
+  ---
+  duration_ms: 1.562377
+  ...
+# Subtest: continuous layers apply ShadowStrike as negative-modifier filtering
+ok 29 - continuous layers apply ShadowStrike as negative-modifier filtering
+  ---
+  duration_ms: 11.797855
+  ...
+# Subtest: typed cost reductions scale Everett Ray and active Hero reducers without discounting themselves
+ok 30 - typed cost reductions scale Everett Ray and active Hero reducers without discounting themselves
+  ---
+  duration_ms: 2.57817
+  ...
+# Subtest: source-bound stat modifiers are parsed per symbol and derived exactly once from active cards
+ok 31 - source-bound stat modifiers are parsed per symbol and derived exactly once from active cards
+  ---
+  duration_ms: 2.963171
+  ...
+# Subtest: source-bound parsing keeps unrelated cost scaling off Everett and evaluates real scaling dynamically
+ok 32 - source-bound parsing keeps unrelated cost scaling off Everett and evaluates real scaling dynamically
+  ---
+  duration_ms: 2.218807
+  ...
+# Subtest: triggered open bonuses are not treated as continuous active-card modifiers
+ok 33 - triggered open bonuses are not treated as continuous active-card modifiers
+  ---
+  duration_ms: 1.669468
+  ...
+# Subtest: active FrostStrike from the layered modifier system increases Flip costs
+ok 34 - active FrostStrike from the layered modifier system increases Flip costs
+  ---
+  duration_ms: 1.695075
+  ...
+# Subtest: opponent-caused declarative triggers create typed rule objects
+ok 35 - opponent-caused declarative triggers create typed rule objects
+  ---
+  duration_ms: 3.106089
+  ...
+# Subtest: choice timing is explicit for announce, pay, and resolve
+not ok 36 - choice timing is explicit for announce, pay, and resolve
+  ---
+  duration_ms: 328.137189
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/rules-engine-modernization.test.ts:1:18777'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage)
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/rules-engine-modernization.test.ts:432:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: trigger resolution never infers announce timing from full printed card text
+ok 37 - trigger resolution never infers announce timing from full printed card text
+  ---
+  duration_ms: 4.846138
+  ...
+# Subtest: Dan Kouzo's real open trigger pauses for the manual reveal before playing the top card
+ok 38 - Dan Kouzo's real open trigger pauses for the manual reveal before playing the top card
+  ---
+  duration_ms: 10.967426
+  ...
+# Subtest: additional costs are separate from spell effects
+not ok 39 - additional costs are separate from spell effects
+  ---
+  duration_ms: 267.308467
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/rules-engine-modernization.test.ts:1:22034'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      buildChoiceSchemaFromSpecs(state, state.players[0].id, absorb, absorbDefinition.play.choices, "announce")
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/rules-engine-modernization.test.ts:503:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: Evo targeting uses canonical Character identity rather than display names
+ok 40 - Evo targeting uses canonical Character identity rather than display names
+  ---
+  duration_ms: 1.007617
+  ...
+# Subtest: the game reducer has no card-resolution compatibility adapter
+ok 41 - the game reducer has no card-resolution compatibility adapter
+  ---
+  duration_ms: 20.513289
+  ...
+# Subtest: Character and Evo held-Core bonuses are active only for their printed Core types
+not ok 42 - Character and Evo held-Core bonuses are active only for their printed Core types
+  ---
+  duration_ms: 2.007331
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/rules-engine-modernization.test.ts:1:23890'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected ... Lines skipped
+    
+      {
+        coreTypes: [
+    ...
+        ],
+        kind: 'held-core-type',
+    +   subject: 'target'
+      }
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    kind: 'held-core-type'
+    coreTypes:
+      0: 'Magic Shield'
+      1: 'Flaming Fist'
+  actual:
+    kind: 'held-core-type'
+    coreTypes:
+      0: 'Magic Shield'
+      1: 'Flaming Fist'
+    subject: 'target'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/rules-engine-modernization.test.ts:541:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: EX Dragonoid Maximus compiles a named-control alternate win condition
+ok 43 - EX Dragonoid Maximus compiles a named-control alternate win condition
+  ---
+  duration_ms: 0.594494
+  ...
+1..43
+# tests 43
+# suites 0
+# pass 35
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1651.188521
