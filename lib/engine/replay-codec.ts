@@ -204,6 +204,11 @@ export function createReplayRecording(state: MatchState): ReplayRecording {
 function canonicalStateForHash(state: MatchState) {
   const copy = cloneMatch(state) as EngineBackedMatchState;
   delete copy[ENGINE_METADATA_KEY];
+  // Online persistence deliberately prunes the legacy text log while replay
+  // reconstruction replays the complete command journal. The log is an audit
+  // surface, not battlefield state, so retention must not invalidate an
+  // otherwise deterministic replay.
+  copy.log = [];
   const ranked = (copy as MatchState & {
     ranked?: { stage?: string; settlement?: unknown };
   }).ranked;

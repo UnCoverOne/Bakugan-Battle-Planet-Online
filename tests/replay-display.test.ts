@@ -99,6 +99,53 @@ test("a newly completed match produces displayable board replay frames", () => {
   assert.equal("playback" in bundle.archive, false);
 });
 
+test("legacy log retention cannot collapse a valid replay to the recovered final battlefield", () => {
+  const first = makePlayer("log-retention-a", "Alpha", STARTER_DECKS[0]);
+  const second = makePlayer("log-retention-b", "Beta", STARTER_DECKS[1]);
+  let state = initializeMatch("LOG001", "bo1", [first, second], {
+    commandId: "log-retention-create",
+    actorId: first.id,
+    issuedAt: 1_900_000_000_000,
+    randomSeed: "log-retention-create-seed",
+    requestHash: "log-retention-create-request",
+  }).state;
+  const recording = createReplayRecording(state);
+  let sequence = 0;
+  const apply = (actorId: string, command: GameCommand) => {
+    sequence += 1;
+    const envelope: CommandEnvelope = {
+      commandId: `log-retention-${sequence}`,
+      gameId: state.id,
+      actorId,
+      expectedVersion: state.version,
+      issuedAt: 1_900_000_000_000 + sequence,
+      randomSeed: `log-retention-seed-${sequence}`,
+      requestHash: `log-retention-request-${sequence}`,
+      command,
+    };
+    recording.commands.push(compactReplayCommand(envelope));
+    state = reduceMatch(state, envelope).state;
+  };
+
+  apply(first.id, { type: "SET_LOBBY_READY", ready: true });
+  apply(second.id, { type: "SET_LOBBY_READY", ready: true });
+  apply(first.id, { type: "START_MATCH" });
+  apply(second.id, { type: "CONCEDE" });
+
+  // Online persistence deliberately trims MatchState.log independently of the
+  // accepted command journal. Simulate that retention boundary here.
+  const persisted = structuredClone(state);
+  persisted.log = [];
+  const archive = buildDisplayableReplayArchive(recording, persisted, 1_900_000_001_000);
+  const bundle = buildProjectedReplayBundle(archive, first.id);
+
+  assert.equal(archive.recording.commands.length, 4);
+  assert.ok((archive.playback?.steps.length ?? 0) > 0);
+  assert.ok(bundle.frames.length > 1);
+  assert.notEqual(archive.playback?.initialFrame.label, "Recovered final battlefield");
+  assert.equal(bundle.frames.at(-1)?.state.phase, "result");
+});
+
 test("an interrupted command journal recovers to a displayable final-board replay", () => {
   const { state } = replayFixture();
   const completed = structuredClone(state);
@@ -177,5 +224,7 @@ test("the replay surface has an embedded board layer, readiness grace, and visib
   assert.match(client, /resolveWithFallback/);
   assert.match(client, /Replay reconstruction worker timed out/);
   assert.match(replayRoute, /archive\.playback\?\.schemaVersion === 1/);
-  assert.match(replayRoute, /repairReplayFromFinalState/);
+  assert.match(replayRoute, /repairReplayFromEventStore/);
+  assert.match(replayRoute, /buildReplayArchiveFromEventStore/);
+  assert.match(replayRoute, /Recovered final battlefield/);
 });
