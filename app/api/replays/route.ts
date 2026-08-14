@@ -7,6 +7,7 @@ import {
   ENGINE_VERSION,
   RULES_VERSION,
   normalizeEngineState,
+  type EngineBackedMatchState,
 } from "../../../lib/engine";
 import { buildProjectedReplayBundle, encodeReplayTransport } from "../../../lib/engine/replay-playback";
 import type { ReplayArchive } from "../../../lib/engine/replay-types";
@@ -67,7 +68,7 @@ async function repairReplayFromEventStore(
     .first<{ state_json: string }>();
   if (!row?.state_json) return null;
 
-  let state: MatchState;
+  let state: EngineBackedMatchState;
   try {
     state = normalizeEngineState(normalizeMatchState(JSON.parse(row.state_json) as MatchState));
   } catch {
