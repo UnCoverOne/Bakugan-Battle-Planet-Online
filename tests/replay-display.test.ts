@@ -91,10 +91,12 @@ test("a newly completed match produces displayable board replay frames", () => {
   const bundle = buildProjectedReplayBundle(archive, first.id);
   const gameplayIndex = firstGameplayReplayFrameIndex(bundle.frames);
   assert.equal(archive.recording.commands.length, 4);
+  assert.equal(archive.playback?.schemaVersion, 1);
   assert.ok(bundle.frames.length > 1);
   assert.notEqual(bundle.frames[gameplayIndex].state.phase, "lobby");
   assert.equal(bundle.frames.at(-1)?.state.phase, "result");
   assert.equal(bundle.frames.at(-1)?.state.winner, first.id);
+  assert.equal("playback" in bundle.archive, false);
 });
 
 test("an interrupted command journal recovers to a displayable final-board replay", () => {
@@ -109,9 +111,37 @@ test("an interrupted command journal recovers to a displayable final-board repla
   const archive = buildDisplayableReplayArchive(stale, completed, 1_900_000_001_000);
   const bundle = buildProjectedReplayBundle(archive, completed.players[0].id);
   assert.equal(archive.recording.commands.length, 0);
+  assert.equal(archive.playback?.schemaVersion, 1);
   assert.equal(bundle.frames.length, 1);
   assert.equal(bundle.frames[0].state.phase, "result");
   assert.equal(bundle.frames[0].state.winner, completed.players[0].id);
+});
+
+test("completed-state recovery preserves runtime card definitions without catalogue reconstruction", () => {
+  const { state } = replayFixture();
+  const completed = structuredClone(state);
+  completed.phase = "result";
+  completed.winner = completed.players[0].id;
+  completed.resultReason = "Runtime override recovery";
+  completed.version += 1;
+  const overridden = completed.players[0].hand[0];
+  assert.ok(overridden);
+  overridden.displayName = "Runtime Override Card";
+  overridden.effect = "Runtime-authored rules text that is not present in the bundled catalogue.";
+
+  const archive = buildDisplayableReplayArchive(null, completed, 1_900_000_001_000);
+  assert.equal(archive.playback?.schemaVersion, 1);
+
+  // Poison the compact recipe after freezing. Playback must still succeed,
+  // proving that the archived board no longer depends on current catalogue data.
+  const compact = archive.recording.genesis.players[0].h[0];
+  assert.ok(compact);
+  compact.c = "missing-runtime-card";
+
+  const bundle = buildProjectedReplayBundle(archive, completed.players[0].id);
+  const visible = bundle.frames[0].state.players[0].hand[0];
+  assert.equal(visible.displayName, "Runtime Override Card");
+  assert.equal(visible.effect, overridden.effect);
 });
 
 test("the theatre opens on gameplay instead of an empty lobby frame", () => {
@@ -127,13 +157,14 @@ test("the theatre opens on gameplay instead of an empty lobby frame", () => {
 });
 
 test("the replay surface has an embedded board layer, readiness grace, and visible recovery UI", async () => {
-  const [theatre, theatreCss, gameScreen, gameScreenCss, localStore, client] = await Promise.all([
+  const [theatre, theatreCss, gameScreen, gameScreenCss, localStore, client, replayRoute] = await Promise.all([
     source("components/replay/ReplayTheatre.tsx"),
     source("components/replay/ReplayTheatre.module.css"),
     source("components/game-screen-v2/GameScreen.tsx"),
     source("components/game-screen-v2/GameScreen.module.css"),
     source("lib/replay-local-store.ts"),
     source("lib/replay-playback-client.ts"),
+    source("app/api/replays/route.ts"),
   ]);
 
   assert.match(theatre, /presentationMode="replay"/);
@@ -145,4 +176,6 @@ test("the replay surface has an embedded board layer, readiness grace, and visib
   assert.match(localStore, /loadLocalReplayWhenReady/);
   assert.match(client, /resolveWithFallback/);
   assert.match(client, /Replay reconstruction worker timed out/);
+  assert.match(replayRoute, /archive\.playback\?\.schemaVersion === 1/);
+  assert.match(replayRoute, /repairReplayFromFinalState/);
 });

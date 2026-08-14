@@ -94,6 +94,11 @@ export type ReplayArchive = {
   finalStateHash: string;
   versions: GameVersionProfile;
   recording: ReplayRecording;
+  /**
+   * Self-contained playback captured while the recording's engine/catalogue
+   * were authoritative. New archives prefer this over re-running old commands.
+   */
+  playback?: FrozenReplayPlayback;
 };
 
 /** Device-local draft kept outside MatchState while a Training match is live. */
@@ -120,13 +125,6 @@ export type ReplayFrame = {
   state: MatchState;
 };
 
-export type ReplayBundle = {
-  archive: Omit<ReplayArchive, "recording">;
-  perspectivePlayerId: string;
-  frames: ReplayFrame[];
-  markers: ReplayMarker[];
-};
-
 export type ReplayTransportStep = {
   index: number;
   at: number;
@@ -135,8 +133,25 @@ export type ReplayTransportStep = {
   patch: StatePatchOperation[];
 };
 
+export type FrozenReplayPlayback = {
+  schemaVersion: 1;
+  initialFrame: ReplayFrame;
+  steps: ReplayTransportStep[];
+  markers: ReplayMarker[];
+  /** Integrity hash of the final self-contained presentation state. */
+  finalStateHash: string;
+};
+
+export type ReplayBundle = {
+  /** Public archive metadata only; the unprojected recording/playback stay private. */
+  archive: Omit<ReplayArchive, "recording" | "playback">;
+  perspectivePlayerId: string;
+  frames: ReplayFrame[];
+  markers: ReplayMarker[];
+};
+
 export type ReplayTransportBundle = {
-  archive: Omit<ReplayArchive, "recording">;
+  archive: Omit<ReplayArchive, "recording" | "playback">;
   perspectivePlayerId: string;
   initialState: MatchState;
   steps: ReplayTransportStep[];

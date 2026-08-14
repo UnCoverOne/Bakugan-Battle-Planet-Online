@@ -3,8 +3,15 @@ import { projectMatchForPlayer } from "./projection";
 import { applyStatePatch, createStatePatch } from "./state-patch";
 import { reduceMatch } from "./reducer";
 import { expandReplayCommand, expandReplayGenesis, legacyReplayStateHash, replayStateHash } from "./replay-codec";
-import type { ReplayArchive, ReplayBundle, ReplayFrame, ReplayMarker, ReplayTransportBundle } from "./replay-types";
-import type { EngineBackedMatchState, GameCommand } from "./types";
+import type {
+  FrozenReplayPlayback,
+  ReplayArchive,
+  ReplayBundle,
+  ReplayFrame,
+  ReplayMarker,
+  ReplayTransportBundle,
+} from "./replay-types";
+import { ENGINE_METADATA_KEY, type EngineBackedMatchState, type GameCommand } from "./types";
 
 function commandLabel(command: GameCommand, state: MatchState) {
   const actor = state.players.find((player) => player.id === state.priority)?.name;
@@ -31,7 +38,84 @@ function markerType(command: GameCommand, before: MatchState, after: MatchState)
   return "command";
 }
 
+/**
+ * Strip data that is irrelevant to board playback before freezing frames.
+ * In particular, the growing engine receipt list and legacy text log would
+ * otherwise be copied into every replay delta and make archives grow
+ * quadratically with match length.
+ */
+function presentationState(input: MatchState): MatchState {
+  const state = structuredClone(input) as EngineBackedMatchState;
+  delete state[ENGINE_METADATA_KEY];
+  state.log = [];
+  return state;
+}
+
+/**
+ * Freeze already-reconstructed frames into self-contained state deltas.
+ * These deltas require neither the historical card catalogue nor the reducer
+ * that originally produced the match, so a later deployment cannot invalidate
+ * the board replay.
+ */
+export function buildFrozenReplayPlayback(
+  frames: readonly ReplayFrame[],
+  markers: readonly ReplayMarker[],
+): FrozenReplayPlayback {
+  if (!frames.length) throw new Error("Replay contains no frame to freeze.");
+  const frozenFrames = frames.map((frame) => ({
+    ...frame,
+    state: presentationState(frame.state),
+  }));
+  const initialFrame = structuredClone(frozenFrames[0]);
+  const steps = frozenFrames.slice(1).map((frame, offset) => ({
+    index: frame.index,
+    at: frame.at,
+    commandType: frame.commandType,
+    label: frame.label,
+    patch: createStatePatch(frozenFrames[offset].state, frame.state),
+  }));
+  return {
+    schemaVersion: 1,
+    initialFrame,
+    steps,
+    markers: structuredClone(markers),
+    finalStateHash: replayStateHash(frozenFrames.at(-1)!.state),
+  };
+}
+
+function buildFrozenReplayFrames(archive: ReplayArchive) {
+  const playback = archive.playback;
+  if (!playback || playback.schemaVersion !== 1) throw new Error("Replay frozen playback is unavailable.");
+  const first = structuredClone(playback.initialFrame);
+  let state = first.state;
+  const frames: ReplayFrame[] = [{ ...first, state }];
+  for (const step of playback.steps) {
+    state = applyStatePatch(
+      state as MatchState & Record<string, unknown>,
+      step.patch,
+    ) as MatchState;
+    frames.push({
+      index: step.index,
+      at: step.at,
+      commandType: step.commandType,
+      label: step.label,
+      state,
+    });
+  }
+  const finalState = frames.at(-1)?.state;
+  if (!finalState) throw new Error("Replay frozen playback contains no final state.");
+  const hash = replayStateHash(finalState);
+  if (hash !== playback.finalStateHash || finalState.version !== archive.finalVersion) {
+    throw new Error(
+      `Frozen replay integrity check failed (expected v${archive.finalVersion}/${playback.finalStateHash}, received v${finalState.version}/${hash}).`,
+    );
+  }
+  return { frames, markers: structuredClone(playback.markers) };
+}
+
 export function buildReplayFrames(archive: ReplayArchive): { frames: ReplayFrame[]; markers: ReplayMarker[] } {
+  if (archive.playback?.schemaVersion === 1) return buildFrozenReplayFrames(archive);
+
   let state = expandReplayGenesis(archive.recording.genesis) as EngineBackedMatchState;
   const initialAt = archive.startedAt;
   const initialLabel = state.phase === "lobby" ? "Match created" : "Gameplay begins";
@@ -85,8 +169,9 @@ export function buildProjectedReplayBundle(archive: ReplayArchive, playerId: str
   const playback = buildReplayFrames(archive);
   const archiveSummary = structuredClone(archive) as Partial<ReplayArchive>;
   delete archiveSummary.recording;
+  delete archiveSummary.playback;
   return {
-    archive: archiveSummary as Omit<ReplayArchive, "recording">,
+    archive: archiveSummary as Omit<ReplayArchive, "recording" | "playback">,
     perspectivePlayerId: playerId,
     frames: playback.frames.map((frame) => ({ ...frame, state: projectMatchForPlayer(frame.state, playerId) })),
     markers: playback.markers,
