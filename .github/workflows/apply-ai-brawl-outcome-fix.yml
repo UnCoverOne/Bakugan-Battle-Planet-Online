@@ -36,8 +36,6 @@ jobs:
                   raise SystemExit(f"{path}: expected one replacement target, found {count}: {old[:120]!r}")
               file.write_text(text.replace(old, new, 1))
 
-          # The combat-policy layer must be able to force a proven winning play
-          # instead of merely leaving that card available to the generic scorer.
           replace_once(
               "lib/opponentAi.ts",
               '  passPriority,\n',
@@ -54,35 +52,139 @@ jobs:
               'import { activeTappedEnergyIds } from "./rules/costs";\nimport { buildChoiceSchema } from "./rules/choices";\n',
           )
 
-          old_current_win = '''  // When the opponent missed, or the AI is already winning, do not spend more\n  // B-Power merely to increase a margin. Damage/FrostStrike/DoubleStrike may\n  // still be useful because they improve the attack that follows.\n  if (projection.currentWin) {\n    return !projection.usefulPostVictoryEffect && !hasIndependentBenefit;\n  }\n'''
-          new_current_win = '''  // When the opponent missed, or the AI is already winning, never trade the\n  // projected Brawl win for a tie/loss. A card that changes the Victor stat is\n  // also suppressed from a winning position unless it has a real non-combat\n  // payoff: incidental Damage is not enough reason to abandon a safe B-Power win.\n  if (projection.currentWin) {\n    if (!projection.projectedWin) return true;\n    const changesVictorStat = entries.some(({ action }) => (\n      action.kind === "set-rule" && action.rule === "victor-stat"\n    ));\n    if (changesVictorStat && !hasIndependentBenefit) return true;\n    return !projection.usefulPostVictoryEffect && !hasIndependentBenefit;\n  }\n'''
-          replace_once("lib/opponentAi.ts", old_current_win, new_current_win)
-
-          insertion_anchor = '''function advanceWithCombatPolicy(input: MatchState, playerId: string) {\n'''
-          helpers = '''function nextWinningPowerPlanCard(\n  match: MatchState,\n  playerId: string,\n  winningPowerPlan: ReadonlySet<string>,\n) {\n  const player = playerById(match, playerId);\n  if (!player || !winningPowerPlan.size) return undefined;\n  return player.hand\n    .filter((card) => winningPowerPlan.has(card.id))\n    .map((card) => {\n      const choices = chooseBaseCardChoices(match, playerId, card);\n      const payment = cardEnergyPaymentState(match, playerId, card, choices);\n      return {\n        card,\n        choices,\n        cost: payment?.kind === "insufficient"\n          ? Number.POSITIVE_INFINITY\n          : payment?.cost ?? Number.POSITIVE_INFINITY,\n        swing: temporaryPowerSwing(match, playerId, card),\n      };\n    })\n    .filter((candidate) => Number.isFinite(candidate.cost) && candidate.swing > 0)\n    .sort((a, b) => (\n      a.cost - b.cost\n      || b.swing - a.swing\n      || a.card.id.localeCompare(b.card.id)\n    ))[0];\n}\n\nfunction winningPowerPlanCommand(\n  match: MatchState,\n  playerId: string,\n  winningPowerPlan: ReadonlySet<string>,\n): GameCommand | null {\n  const candidate = nextWinningPowerPlanCard(match, playerId, winningPowerPlan);\n  if (!candidate) return null;\n  const schema = buildChoiceSchema(match, playerId, candidate.card);\n  return schema.fields.length\n    ? { type: "PREPARE_CARD_PLAY", cardId: candidate.card.id }\n    : { type: "PLAY_CARD", cardId: candidate.card.id, choices: candidate.choices };\n}\n\nfunction advanceWinningPowerPlan(\n  match: MatchState,\n  playerId: string,\n  winningPowerPlan: ReadonlySet<string>,\n) {\n  const candidate = nextWinningPowerPlanCard(match, playerId, winningPowerPlan);\n  if (!candidate) return null;\n  const schema = buildChoiceSchema(match, playerId, candidate.card);\n  const next = schema.fields.length\n    ? prepareCardPlay(match, playerId, candidate.card.id)\n    : playCardWithAutoEnergy(match, playerId, candidate.card.id, candidate.choices);\n  return validateAiTransition(match, next, playerId);\n}\n\n'''
-          replace_once("lib/opponentAi.ts", insertion_anchor, helpers + insertion_anchor)
+          replace_once(
+              "lib/opponentAi.ts",
+              '''  // When the opponent missed, or the AI is already winning, do not spend more
+  // B-Power merely to increase a margin. Damage/FrostStrike/DoubleStrike may
+  // still be useful because they improve the attack that follows.
+  if (projection.currentWin) {
+    return !projection.usefulPostVictoryEffect && !hasIndependentBenefit;
+  }
+''',
+              '''  // When the opponent missed, or the AI is already winning, never trade the
+  // projected Brawl win for a tie/loss. A card that changes the Victor stat is
+  // also suppressed from a winning position unless it has a real non-combat
+  // payoff: incidental Damage is not enough reason to abandon a safe B-Power win.
+  if (projection.currentWin) {
+    if (!projection.projectedWin) return true;
+    const changesVictorStat = entries.some(({ action }) => (
+      action.kind === "set-rule" && action.rule === "victor-stat"
+    ));
+    if (changesVictorStat && !hasIndependentBenefit) return true;
+    return !projection.usefulPostVictoryEffect && !hasIndependentBenefit;
+  }
+''',
+          )
 
           replace_once(
               "lib/opponentAi.ts",
-              '  const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);\n  const suppressed = new Set(\n',
-              '  const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);\n  const forcedWinningPlay = advanceWinningPowerPlan(input, playerId, winningPowerPlan);\n  if (forcedWinningPlay) return forcedWinningPlay;\n  const suppressed = new Set(\n',
+              'function advanceWithCombatPolicy(input: MatchState, playerId: string) {\n',
+              '''function nextWinningPowerPlanCard(
+  match: MatchState,
+  playerId: string,
+  winningPowerPlan: ReadonlySet<string>,
+) {
+  const player = playerById(match, playerId);
+  if (!player || !winningPowerPlan.size) return undefined;
+  return player.hand
+    .filter((card) => winningPowerPlan.has(card.id))
+    .map((card) => {
+      const choices = chooseBaseCardChoices(match, playerId, card);
+      const payment = cardEnergyPaymentState(match, playerId, card, choices);
+      return {
+        card,
+        choices,
+        cost: payment?.kind === "insufficient"
+          ? Number.POSITIVE_INFINITY
+          : payment?.cost ?? Number.POSITIVE_INFINITY,
+        swing: temporaryPowerSwing(match, playerId, card),
+      };
+    })
+    .filter((candidate) => Number.isFinite(candidate.cost) && candidate.swing > 0)
+    .sort((a, b) => (
+      a.cost - b.cost
+      || b.swing - a.swing
+      || a.card.id.localeCompare(b.card.id)
+    ))[0];
+}
+
+function winningPowerPlanCommand(
+  match: MatchState,
+  playerId: string,
+  winningPowerPlan: ReadonlySet<string>,
+): GameCommand | null {
+  const candidate = nextWinningPowerPlanCard(match, playerId, winningPowerPlan);
+  if (!candidate) return null;
+  const schema = buildChoiceSchema(match, playerId, candidate.card);
+  return schema.fields.length
+    ? { type: "PREPARE_CARD_PLAY", cardId: candidate.card.id }
+    : { type: "PLAY_CARD", cardId: candidate.card.id, choices: candidate.choices };
+}
+
+function advanceWinningPowerPlan(
+  match: MatchState,
+  playerId: string,
+  winningPowerPlan: ReadonlySet<string>,
+) {
+  const candidate = nextWinningPowerPlanCard(match, playerId, winningPowerPlan);
+  if (!candidate) return null;
+  const schema = buildChoiceSchema(match, playerId, candidate.card);
+  const next = schema.fields.length
+    ? prepareCardPlay(match, playerId, candidate.card.id)
+    : playCardWithAutoEnergy(match, playerId, candidate.card.id, candidate.choices);
+  return validateAiTransition(match, next, playerId);
+}
+
+function advanceWithCombatPolicy(input: MatchState, playerId: string) {
+''',
           )
 
-          # There are two identical winningPowerPlan declarations; after the first
-          # replacement above only the command-policy version remains unchanged.
           replace_once(
               "lib/opponentAi.ts",
-              '  const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);\n  const suppressed = new Set(\n',
-              '  const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);\n  const forcedWinningCommand = winningPowerPlanCommand(input, playerId, winningPowerPlan);\n  if (forcedWinningCommand) return forcedWinningCommand;\n  const suppressed = new Set(\n',
+              '''function advanceWithCombatPolicy(input: MatchState, playerId: string) {
+  const player = playerById(input, playerId);
+  if (!player) return null;
+  const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);
+  const suppressed = new Set(
+''',
+              '''function advanceWithCombatPolicy(input: MatchState, playerId: string) {
+  const player = playerById(input, playerId);
+  if (!player) return null;
+  const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);
+  const forcedWinningPlay = advanceWinningPowerPlan(input, playerId, winningPowerPlan);
+  if (forcedWinningPlay) return forcedWinningPlay;
+  const suppressed = new Set(
+''',
           )
 
-          # Generic card utility must use the actual payable Energy cost so cost
-          # reductions (for example Aurelus Power on Liqui Darts) are not scored
-          # as though the printed cost were still being paid.
+          replace_once(
+              "lib/opponentAi.ts",
+              '''function chooseWithCombatPolicy(input: MatchState, playerId: string): GameCommand | null {
+  const player = playerById(input, playerId);
+  if (!player) return null;
+  const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);
+  const suppressed = new Set(
+''',
+              '''function chooseWithCombatPolicy(input: MatchState, playerId: string): GameCommand | null {
+  const player = playerById(input, playerId);
+  if (!player) return null;
+  const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);
+  const forcedWinningCommand = winningPowerPlanCommand(input, playerId, winningPowerPlan);
+  if (forcedWinningCommand) return forcedWinningCommand;
+  const suppressed = new Set(
+''',
+          )
+
           replace_once(
               "lib/opponentAiBase.ts",
               '  const printedCost = card.cost === "X" ? choices.xValue ?? 0 : card.cost;\n  const resolving = cloneMatch(match);\n',
-              '  const printedCost = card.cost === "X" ? choices.xValue ?? 0 : card.cost;\n  const payment = cardEnergyPaymentState(match, playerId, card, choices);\n  const evaluatedCost = payment?.kind === "insufficient"\n    ? printedCost\n    : payment?.cost ?? printedCost;\n  const resolving = cloneMatch(match);\n',
+              '''  const printedCost = card.cost === "X" ? choices.xValue ?? 0 : card.cost;
+  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  const evaluatedCost = payment?.kind === "insufficient"
+    ? printedCost
+    : payment?.cost ?? printedCost;
+  const resolving = cloneMatch(match);
+''',
           )
           replace_once(
               "lib/opponentAiBase.ts",
@@ -100,7 +202,81 @@ jobs:
           marker = '// AI brawl outcome regressions (2026-08-14)'
           if marker in text:
               raise SystemExit("Regression tests already present")
-          text += r'''\n\n// AI brawl outcome regressions (2026-08-14)\ntest("AI forces reduced-cost Liqui Darts when it turns a B-Power tie into a lead", () => {\n  const liquiDarts = catalogueCard("aa-6", "winning-liqui-darts");\n  const ai = player(\n    "liqui-ai",\n    [\n      bakugan("liqui-active", "Aquos", 800, 5),\n      bakugan("liqui-aurelus", "Aurelus", 100, 1),\n    ],\n    [],\n    [liquiDarts],\n  );\n  const human = player("liqui-human", [bakugan("liqui-human-b", "Pyrus", 800, 5)]);\n  addEnergy(ai, 1);\n  const match = matchWith(ai, human, "power");\n  setBrawl(match, ai, human, true, true);\n\n  const next = advanceOpponentAi(match, ai.id);\n  assert.ok(next);\n  assert.equal(next.batch.at(-1)?.card.id, liquiDarts.id);\n  assert.equal(next.players[0].hand.some((card) => card.id === liquiDarts.id), false);\n});\n\ntest("AI keeps Might of Cyndeus when it already has a safe B-Power lead", () => {\n  const might = catalogueCard("bb-104", "redundant-might-of-cyndeus");\n  const ai = player("might-lead-ai", [bakugan("might-lead-ai-b", "Pyrus", 900, 5)], [], [might]);\n  const human = player("might-lead-human", [bakugan("might-lead-human-b", "Aquos", 800, 4)]);\n  addEnergy(ai, 2);\n  const match = matchWith(ai, human, "power");\n  setBrawl(match, ai, human, true, true);\n\n  const next = advanceOpponentAi(match, ai.id);\n  assert.ok(next);\n  assert.equal(next.batch.length, 0);\n  assert.ok(next.players[0].hand.some((card) => card.id === might.id));\n});\n\ntest("AI does not play Might of Cyndeus into a pending opponent Damage buff that would make it lose", () => {\n  const might = catalogueCard("bb-104", "losing-might-of-cyndeus");\n  const enemyDamage = catalogueCard("bb-93", "pending-human-fireball");\n  const ai = player("might-batch-ai", [bakugan("might-batch-ai-b", "Pyrus", 900, 5)], [], [might]);\n  const human = player("might-batch-human", [bakugan("might-batch-human-b", "Aquos", 800, 4)]);\n  addEnergy(ai, 2);\n  const match = matchWith(ai, human, "power");\n  setBrawl(match, ai, human, true, true);\n  match.batch = [{\n    id: "pending-human-damage",\n    controllerId: human.id,\n    card: enemyDamage,\n    choices: {},\n    kind: "card",\n  }];\n\n  const next = advanceOpponentAi(match, ai.id);\n  assert.ok(next);\n  assert.equal(next.batch.length, 1);\n  assert.equal(next.batch[0].card.id, enemyDamage.id);\n  assert.ok(next.players[0].hand.some((card) => card.id === might.id));\n});\n\ntest("AI still plays Might of Cyndeus when switching to Damage changes a loss into a win", () => {\n  const might = catalogueCard("bb-104", "winning-might-of-cyndeus");\n  const ai = player("might-win-ai", [bakugan("might-win-ai-b", "Pyrus", 500, 6)], [], [might]);\n  const human = player("might-win-human", [bakugan("might-win-human-b", "Aquos", 800, 5)]);\n  addEnergy(ai, 2);\n  const match = matchWith(ai, human, "power");\n  setBrawl(match, ai, human, true, true);\n\n  const next = advanceOpponentAi(match, ai.id);\n  assert.ok(next);\n  assert.equal(next.batch.at(-1)?.card.id, might.id);\n});\n'''
+          text += '''
+
+// AI brawl outcome regressions (2026-08-14)
+test("AI forces reduced-cost Liqui Darts when it turns a B-Power tie into a lead", () => {
+  const liquiDarts = catalogueCard("aa-6", "winning-liqui-darts");
+  const ai = player(
+    "liqui-ai",
+    [
+      bakugan("liqui-active", "Aquos", 800, 5),
+      bakugan("liqui-aurelus", "Aurelus", 100, 1),
+    ],
+    [],
+    [liquiDarts],
+  );
+  const human = player("liqui-human", [bakugan("liqui-human-b", "Pyrus", 800, 5)]);
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human, "power");
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, liquiDarts.id);
+  assert.equal(next.players[0].hand.some((card) => card.id === liquiDarts.id), false);
+});
+
+test("AI keeps Might of Cyndeus when it already has a safe B-Power lead", () => {
+  const might = catalogueCard("bb-104", "redundant-might-of-cyndeus");
+  const ai = player("might-lead-ai", [bakugan("might-lead-ai-b", "Pyrus", 900, 5)], [], [might]);
+  const human = player("might-lead-human", [bakugan("might-lead-human-b", "Aquos", 800, 4)]);
+  addEnergy(ai, 2);
+  const match = matchWith(ai, human, "power");
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.ok(next.players[0].hand.some((card) => card.id === might.id));
+});
+
+test("AI does not play Might of Cyndeus into a pending opponent Damage buff that would make it lose", () => {
+  const might = catalogueCard("bb-104", "losing-might-of-cyndeus");
+  const enemyDamage = catalogueCard("bb-93", "pending-human-fireball");
+  const ai = player("might-batch-ai", [bakugan("might-batch-ai-b", "Pyrus", 900, 5)], [], [might]);
+  const human = player("might-batch-human", [bakugan("might-batch-human-b", "Aquos", 800, 4)]);
+  addEnergy(ai, 2);
+  const match = matchWith(ai, human, "power");
+  setBrawl(match, ai, human, true, true);
+  match.batch = [{
+    id: "pending-human-damage",
+    controllerId: human.id,
+    card: enemyDamage,
+    choices: {},
+    kind: "card",
+  }];
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 1);
+  assert.equal(next.batch[0].card.id, enemyDamage.id);
+  assert.ok(next.players[0].hand.some((card) => card.id === might.id));
+});
+
+test("AI still plays Might of Cyndeus when switching to Damage changes a loss into a win", () => {
+  const might = catalogueCard("bb-104", "winning-might-of-cyndeus");
+  const ai = player("might-win-ai", [bakugan("might-win-ai-b", "Pyrus", 500, 6)], [], [might]);
+  const human = player("might-win-human", [bakugan("might-win-human-b", "Aquos", 800, 5)]);
+  addEnergy(ai, 2);
+  const match = matchWith(ai, human, "power");
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, might.id);
+});
+'''
           tests.write_text(text)
 
       - name: Install dependencies
