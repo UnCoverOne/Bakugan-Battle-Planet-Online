@@ -10,7 +10,7 @@ import {
   type GameCard,
   type MatchState,
 } from "./game";
-import { beginCardPayment, commitCardPayment, prepareDeclaredEnergyPayment } from "./rules/costs";
+import { beginCardPayment, cardCostAfterFreeBase, commitCardPayment, maximumPayableEnergy, prepareDeclaredEnergyPayment } from "./rules/costs";
 import { ruleDefinitionForCard } from "./rules/catalogue";
 import { createRuleObject } from "./rules/objects";
 import { ensureRulesState } from "./rules/state";
@@ -30,6 +30,8 @@ type PactOfDarknessPayment = {
 type DamageResumeRules = ReturnType<typeof ensureRulesState> & {
   damageResume?: { playerId: string; previousPhase: "damage"; revealedFlipId: string };
   pactOfDarknessPayment?: PactOfDarknessPayment;
+  attackDamageSequence?: number;
+  attackDamageTracker?: { sequence: number; actorId: string; originId: string; count: number };
 };
 
 function clearPactOfDarknessPayment(state: MatchState, cardId?: string) {
@@ -67,7 +69,45 @@ function log(
     } : {}),
   });
 }
+function damageDealerId(state: MatchState) {
+  const suspended = state.pendingEffectDamageResume?.sourceEffectId;
+  const sourceObject = suspended ? state.batch.find((object) => object.id === suspended) : undefined;
+  if (sourceObject) return sourceObject.controllerId;
+  return state.players.find((player) => player.bakugan.some((bakugan) => bakugan.id === state.damageOrigin))?.id;
+}
+
+function recordDamageCardTaken(state: MatchState) {
+  const rules = ensureRulesState(state) as DamageResumeRules;
+  if (!rules.attackDamageTracker) {
+    const actorId = damageDealerId(state);
+    if (!actorId) return;
+    const sequence = (rules.attackDamageSequence ?? 0) + 1;
+    rules.attackDamageSequence = sequence;
+    rules.attackDamageTracker = { sequence, actorId, originId: state.damageOrigin, count: 0 };
+  }
+  rules.attackDamageTracker.count += 1;
+}
+
+function emitCompletedAttackDamage(state: MatchState) {
+  const rules = ensureRulesState(state) as DamageResumeRules;
+  const tracker = rules.attackDamageTracker;
+  if (!tracker) return;
+  delete rules.attackDamageTracker;
+  emitRuleEvent(state, {
+    id: `${state.turn}:attack-damage:${tracker.sequence}:${tracker.actorId}`,
+    name: "ATTACK_DAMAGE_DEALT",
+    actorId: tracker.actorId,
+    controllerId: tracker.actorId,
+    targetBakuganId: state.players.flatMap((player) => player.bakugan).some((bakugan) => bakugan.id === tracker.originId)
+      ? tracker.originId
+      : undefined,
+    amount: tracker.count,
+    createdAt: Date.now(),
+  });
+}
+
 function enterPostDamage(state: MatchState) {
+  emitCompletedAttackDamage(state);
   if (resumePendingEffectAfterDamage(state)) return;
   state.phase = "postDamage";
   state.stepLabel = "Damage Step • Post-damage priority";
@@ -99,6 +139,7 @@ export function flipDamageCard(input: MatchState, playerId: string) {
     return state;
   }
   state.pendingDamage = Math.max(0, state.pendingDamage - 1);
+  recordDamageCardTaken(state);
   player.discard.push(card);
   log(state, "game", `${player.name} flipped ${card.name} as damage (${state.pendingDamage} remaining).`);
   if (card.type === "Flip") {
@@ -130,6 +171,12 @@ export function resolveManualDamage(
     throw new Error("Dragonoid Maximus's alternate win effect cannot be responded to with cards.");
   }
   if (!flipCardId) {
+    const existingRules = ensureRulesState(input) as DamageResumeRules;
+    if (flip.catalogId === PACT_OF_DARKNESS_ID
+      && existingRules.pactOfDarknessPayment?.cardId === flip.id
+      && existingRules.pactOfDarknessPayment.stage === "paid") {
+      throw new Error("Pact of Darkness must be played after its Sacrifice cost is paid.");
+    }
     const state = cloneMatch(input);
     clearPactOfDarknessPayment(state, flip.id);
     state.revealedFlip = undefined;
@@ -155,12 +202,16 @@ export function resolveManualDamage(
   if (stateFlip.catalogId === PACT_OF_DARKNESS_ID) {
     const pact = damageRules.pactOfDarknessPayment;
     if (!pact || pact.cardId !== stateFlip.id || pact.playerId !== playerId) {
+      const sacrificeEnergyCost = cardCostAfterFreeBase(state, playerId, stateFlip, choices);
+      const payableEnergy = maximumPayableEnergy(state, playerId);
       if (!statePlayer.hand.length) {
         damageRules.pactOfDarknessPayment = {
 playerId,
 cardId: stateFlip.id,
 stage: "declined",
         };
+      } else if (payableEnergy < sacrificeEnergyCost) {
+        throw new Error(`Pact of Darkness cannot be played by Sacrifice: its free base still costs ${sacrificeEnergyCost} Energy after cost increases, but only ${payableEnergy} is available.`);
       } else {
         damageRules.pactOfDarknessPayment = {
 playerId,
@@ -190,7 +241,13 @@ schema: {
     maximum: 1,
     required: true,
     options: [
-      { id: "yes", label: "Pay Sacrifice" },
+      {
+        id: "yes",
+        label: "Pay Sacrifice",
+        description: sacrificeEnergyCost > 0
+          ? `${sacrificeEnergyCost} Energy is still required after cost increases.`
+          : "The Energy cost is 0 after modifiers.",
+      },
       { id: "no", label: "Keep the 4 Energy cost" },
     ],
   }],

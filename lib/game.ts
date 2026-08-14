@@ -1255,6 +1255,46 @@ const payEnergy = (state: MatchState, player: PlayerState, amount: number) => {
   if (generated.length) entry(state, "game", `${player.name} tapped ${generated.length} Energy card${generated.length === 1 ? "" : "s"} to complete payment.`);
 };
 
+const playPaidPactOfDarkness = (state: MatchState, playerId: string) => {
+  const flip = state.revealedFlip;
+  if (!flip || flip.catalogId !== "bb-152") throw new Error("Pact of Darkness is no longer the revealed Flip.");
+  const player = playerById(state, playerId);
+  const choices: CardChoices = {};
+  const cost = effectiveCost(state, player, flip, choices);
+  payEnergy(state, player, cost);
+  state.nextCardCostReduction[playerId] = 0;
+  player.discard = player.discard.filter((card) => card.id !== flip.id);
+  state.revealedFlip = undefined;
+  recordCardPlayedForTurn(player, flip, state.turn);
+
+  const definition = ruleDefinitionForCard(flip);
+  const ability = definition.abilities.find((candidate) => candidate.kind === "spell") ?? definition.abilities[0];
+  const object = createRuleObject({ controllerId: playerId, card: flip, ability, choices, kind: "card" });
+  state.batch.push(object);
+  const rules = ensureRulesState(state) as ReturnType<typeof ensureRulesState> & {
+    pactOfDarknessPayment?: unknown;
+    damageResume?: { playerId: string; previousPhase: "damage"; revealedFlipId: string };
+  };
+  delete rules.pactOfDarknessPayment;
+  rules.damageResume = { playerId, previousPhase: "damage", revealedFlipId: flip.id };
+
+  state.phase = "postDamage";
+  state.stepLabel = `Damage Step • Respond to ${flip.displayName || flip.name}`;
+  state.priority = playerId;
+  state.passes = [];
+  state.deadline = Date.now() + 25_000;
+  emitGameEvent(state, {
+    id: `${state.turn}:card-play:${flip.id}`,
+    type: "card-play",
+    playerId,
+    cardType: "Flip",
+    sourceCards: [flip],
+    choices,
+  });
+  entry(state, "game", `${player.name} paid Pact of Darkness's Sacrifice cost and added it to the batch for ${cost} Energy.`);
+};
+
+
 export const prepareCardPlay = (input: MatchState, playerId: string, cardId: string) => {
   const state = cloneMatch(input);
   if (alternateWinEffectPending(state)) {
@@ -1405,10 +1445,8 @@ fields: [{
       pact.stage = "paid";
       pact.discardedCardId = selected[0];
       state.pendingChoice = undefined;
-      state.priority = pact.playerId;
-      state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
-      state.deadline = Date.now() + 35_000;
-      entry(state, "game", `${playerById(state, pact.playerId).name} paid Pact of Darkness's Sacrifice cost. Its Energy cost is now 0.`);
+      entry(state, "game", `${playerById(state, pact.playerId).name} paid Pact of Darkness's Sacrifice cost. Its base Energy cost is now 0 before cost increases.`);
+      playPaidPactOfDarkness(state, pact.playerId);
       return withVersion(state);
     }
   }
@@ -1695,6 +1733,9 @@ const ruleConditionIsActive = (
   if (instruction.condition.kind === "selection-made") {
     const selected = choices[instruction.condition.choiceId];
     return Array.isArray(selected) ? selected.length > 0 : Boolean(selected);
+  }
+  if (instruction.condition.kind === "mode-selected") {
+    return choices.mode === instruction.condition.mode || choices.mode === "both";
   }
   if (instruction.condition.kind === "reroll-opened") return Boolean(state.rerollOpenedByEffect[pending.id]);
   if (instruction.condition.kind === "printed") return conditionActive(state, player, instruction.condition.text, choices);
