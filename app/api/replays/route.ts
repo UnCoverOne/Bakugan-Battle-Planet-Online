@@ -16,6 +16,7 @@ import {
   loadRecentReplaySummaries,
   loadReplayForUser,
 } from "../../../lib/replay-archive-server";
+import { buildReplayArchiveFromSnapshotHistory } from "../../../lib/replay-snapshot-recovery";
 import { AuthenticationError, ConflictError, ValidationError, serverErrorResponse } from "../../../lib/server-errors";
 
 export const dynamic = "force-dynamic";
@@ -76,7 +77,14 @@ async function repairReplayFromEventStore(
   }
   if (state.id !== replayId || state.phase !== "result") return null;
 
-  const repaired = await buildReplayArchiveFromEventStore(database, state, archive.completedAt);
+  let repaired = await buildReplayArchiveFromEventStore(database, state, archive.completedAt);
+  if ((repaired.playback?.steps.length ?? 0) === 0) {
+    // Older journals can be incomplete or impossible to re-run after rules and
+    // catalogue changes. The match store still retains periodic authoritative
+    // full-state checkpoints, so use them rather than freezing only frame 1/1.
+    const snapshotRecovered = await buildReplayArchiveFromSnapshotHistory(database, state, archive.completedAt);
+    if (snapshotRecovered) repaired = snapshotRecovered;
+  }
   if (requireHistory && (repaired.playback?.steps.length ?? 0) === 0) return null;
   await database.prepare(`UPDATE match_replays
     SET archive_json = ?, final_state_hash = ?, engine_version = ?, rules_version = ?, catalogue_version = ?
@@ -130,8 +138,8 @@ export async function GET(request: Request) {
     } catch (playbackError) {
       // Old command-only archives can become unreplayable after an engine,
       // catalogue, or runtime card-override change. Rebuild from the retained
-      // authoritative event store; if history itself cannot reconstruct, the
-      // final-state fallback still leaves the replay displayable.
+      // authoritative event store; if the command journal itself cannot be
+      // reconstructed, periodic snapshots provide a coarse historical replay.
       const repaired = await repairReplayFromEventStore(database, replayId, archive);
       if (!repaired) throw playbackError;
       const bundle = encodeReplayTransport(buildProjectedReplayBundle(repaired, row.player_id));

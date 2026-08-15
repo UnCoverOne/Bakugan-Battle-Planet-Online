@@ -7,6 +7,7 @@ import { buildReplayFrames } from "../lib/engine/replay-playback";
 import { initializeMatch, reduceMatch } from "../lib/engine/reducer";
 import type { CommandEnvelope } from "../lib/engine/types";
 import { buildReplayArchiveFromRows } from "../lib/replay-archive-server";
+import { buildReplayArchiveFromSnapshotRows } from "../lib/replay-snapshot-recovery";
 
 const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -90,6 +91,46 @@ test("online replay finalization reuses accepted command events after the gamepl
   const recovered = buildReplayArchiveFromRows(genesis, genesis.version, damagedRows, state, 1_900_000_010_000);
   assert.equal(recovered.recording.commands.length, 0);
   assert.equal(buildReplayFrames(recovered).frames[0].state.version, state.version);
+});
+
+test("periodic snapshots recover retained replay history when a legacy command journal is unusable", () => {
+  const first = makePlayer("snapshot-a", "Alpha", STARTER_DECKS[0]);
+  const second = makePlayer("snapshot-b", "Beta", STARTER_DECKS[1]);
+  const initialized = initializeMatch("SNAP01", "bo1", [first, second], {
+    commandId: "snapshot-create",
+    actorId: first.id,
+    issuedAt: 1_900_000_000_000,
+    randomSeed: "snapshot-create-seed",
+    requestHash: "snapshot-create-request",
+  }).state;
+  const gameplay = structuredClone(initialized);
+  gameplay.phase = "placement";
+  gameplay.stepLabel = "BakuCore placement 1 / 12";
+  gameplay.version = 10;
+  const checkpoint = structuredClone(gameplay);
+  checkpoint.version = 15;
+  checkpoint.placementTurn = 5;
+  checkpoint.stepLabel = "BakuCore placement 6 / 12";
+  const completed = structuredClone(checkpoint);
+  completed.version = 20;
+  completed.phase = "result";
+  completed.stepLabel = "Match complete";
+  completed.winner = first.id;
+  completed.resultReason = "Concession";
+
+  const archive = buildReplayArchiveFromSnapshotRows([
+    { version: gameplay.version, state_json: JSON.stringify(gameplay), created_at: 1_900_000_001_000 },
+    { version: checkpoint.version, state_json: JSON.stringify(checkpoint), created_at: 1_900_000_002_000 },
+    { version: completed.version, state_json: JSON.stringify(completed), created_at: 1_900_000_003_000 },
+  ], completed, 1_900_000_004_000);
+  assert.ok(archive);
+  const playback = buildReplayFrames(archive);
+  assert.equal(playback.frames.length, 3);
+  assert.equal(playback.frames[0].label, "Gameplay begins");
+  assert.equal(playback.frames[1].state.placementTurn, 5);
+  assert.equal(playback.frames.at(-1)?.state.winner, first.id);
+  assert.equal(playback.markers.at(-1)?.type, "result");
+  assert.notEqual(playback.frames[0].label, "Recovered final battlefield");
 });
 
 test("recording work stays in workers and online finalization stays outside response latency", async () => {
