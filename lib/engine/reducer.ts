@@ -42,6 +42,7 @@ import {
   normalizeEngineState,
   sequenceEvents,
 } from "./events";
+import { logEntryAddedEvent, projectMatchLog } from "./log-projection";
 import { assertCommandAllowedInPhase, assertValidPhaseTransition, structuredPhaseFor } from "./phase-machine";
 import { withDeterministicRuntime } from "./runtime";
 import { assertStateWithinRuntimeLimits, consumePendingChoice, engineFaultFromLimit, EngineRuntimeLimitError, withEngineRuntimeBudget } from "./limits";
@@ -210,6 +211,7 @@ export function reduceMatch(input: MatchState, envelope: CommandEnvelope): Reduc
   if (next.version <= before.version) next.version = before.version + 1;
   assertValidPhaseTransition(before, next, envelope.command);
   const events = sequenceEvents(next, envelope, deriveTransitionEvents(before, next, envelope));
+  next.log = projectMatchLog(before.log, events);
   const receipt = buildReceipt(envelope, next.version, events);
   appendCommandReceipt(next, receipt);
   ensureEngineMetadata(next).phase = structuredPhaseFor(next.phase);
@@ -240,8 +242,10 @@ export function initializeMatch(
   const events = sequenceEvents(state, envelope, [
     { type: "COMMAND_ACCEPTED", actorId: options.actorId, visibility: "server", payload: { command: { type: "CREATE_MATCH", code, format, players }, randomSeed: options.randomSeed, requestHash: options.requestHash } },
     { type: "MATCH_CREATED", actorId: options.actorId, visibility: "public", payload: { code, format, playerIds: players.map((player) => player.id) } },
+    ...state.log.map((entry) => logEntryAddedEvent(entry, options.actorId)),
     { type: "COMMAND_COMPLETED", actorId: options.actorId, visibility: "public", payload: { commandType: "CREATE_MATCH", previousVersion: 0, newVersion: state.version } },
   ]);
+  state.log = projectMatchLog([], events);
   const receipt = buildReceipt(envelope, state.version, events);
   appendCommandReceipt(state, receipt);
   const metadata = ensureEngineMetadata(state);

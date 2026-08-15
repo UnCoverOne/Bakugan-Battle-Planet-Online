@@ -1,8 +1,15 @@
 import type { MatchState } from "./game";
 import {
+  archiveReplayRecording,
   compactReplayCommand,
   createReplayRecording,
 } from "./engine/replay-codec";
+import { buildFrozenReplayPlayback, buildReplayFrames } from "./engine/replay-playback";
+import {
+  buildAuthoritativeReplayTimeline,
+  ReplayReconstructionError,
+  type AuthoritativeReplayStep,
+} from "./engine/replay-reconstruction";
 import type { ReplayArchive } from "./engine/replay-types";
 import type { CommandEnvelope, EngineBackedMatchState, GameCommand } from "./engine/types";
 import { isCompletedSeriesResult } from "./match-result-navigation";
@@ -154,8 +161,8 @@ function recomputeStats(database: D1Database, userId: string, now: number) {
     .bind(userId, now, userId);
 }
 
-type ReplaySnapshotRow = { version: number; state_json: string };
-type ReplayCommandRow = {
+type ReplaySnapshotRow = { version: number; state_json: string; created_at: number };
+export type ReplayCommandRow = {
   command_id: string;
   actor_id: string;
   expected_version: number;
@@ -187,47 +194,98 @@ function parseAcceptedCommand(row: ReplayCommandRow, gameId: string): CommandEnv
   }
 }
 
+function reportReplayReconstructionFailure(
+  state: EngineBackedMatchState,
+  snapshotVersion: number | undefined,
+  commandCount: number,
+  error: unknown,
+) {
+  const reconstruction = error instanceof ReplayReconstructionError ? error.context : undefined;
+  console.error("Replay reconstruction failed; preserving the final battlefield fallback.", {
+    replayId: state.id,
+    matchCode: state.code,
+    snapshotVersion,
+    finalVersion: state.version,
+    commandCount,
+    commandIndex: reconstruction?.commandIndex,
+    commandId: reconstruction?.commandId,
+    commandType: reconstruction?.commandType,
+    expectedVersion: reconstruction?.expectedVersion,
+    actualVersion: reconstruction?.actualVersion,
+    recordedResultVersion: reconstruction?.resultVersion,
+    errorName: error instanceof Error ? error.name : "UnknownError",
+    errorMessage: error instanceof Error ? error.message : String(error),
+  });
+}
+
+/**
+ * Build the permanent replay from an exact persisted gameplay snapshot and the
+ * authoritative command journal. The compact recording remains as schema/audit
+ * metadata only; frozen playback is created from the full snapshot directly.
+ */
 export function buildReplayArchiveFromRows(
   genesis: MatchState,
   snapshotVersion: number,
   rows: readonly ReplayCommandRow[],
   state: EngineBackedMatchState,
   completedAt = Date.now(),
+  snapshotCreatedAt = genesis.log.find((entry) => Number.isFinite(entry.at))?.at ?? completedAt,
 ) {
-  const recording = createReplayRecording(genesis);
+  const relevantRows = rows.filter((row) => row.result_version > snapshotVersion);
   try {
-    recording.commands = rows
-      .filter((row) => row.result_version > snapshotVersion)
-      .map((row) => {
-        const envelope = parseAcceptedCommand(row, state.id);
-        if (!envelope) throw new Error(`Accepted command ${row.command_id} cannot be reconstructed.`);
-        return compactReplayCommand(envelope);
-      });
-  } catch {
+    const steps: AuthoritativeReplayStep[] = relevantRows.map((row) => {
+      const envelope = parseAcceptedCommand(row, state.id);
+      if (!envelope) {
+        throw new ReplayReconstructionError(
+          `Accepted command ${row.command_id} cannot be reconstructed from its persisted payload.`,
+          {
+            commandId: row.command_id,
+            expectedVersion: row.expected_version,
+            resultVersion: row.result_version,
+          },
+        );
+      }
+      return { envelope, resultVersion: row.result_version };
+    });
+
+    const timeline = buildAuthoritativeReplayTimeline(genesis, steps, state, snapshotCreatedAt);
+    const recording = createReplayRecording(genesis);
+    recording.commands = steps.map((step) => compactReplayCommand(step.envelope));
+    const archive = archiveReplayRecording(recording, state, completedAt);
+    archive.startedAt = snapshotCreatedAt;
+    archive.playback = buildFrozenReplayPlayback(timeline.frames, timeline.markers);
+    // Exercise the same self-contained playback path used by Replay Theatre.
+    buildReplayFrames(archive);
+    return archive;
+  } catch (error) {
+    reportReplayReconstructionFailure(state, snapshotVersion, relevantRows.length, error);
     return buildDisplayableReplayArchive(null, state, completedAt);
   }
-  return buildDisplayableReplayArchive(recording, state, completedAt);
 }
 
 /**
- * Builds a replay from the event store after the request path is complete.
- * The first gameplay snapshot is the sole genesis; accepted commands after it
- * are already present in D1 and are compacted only once during finalization.
+ * Builds a replay from the engine event store after the gameplay request path
+ * is complete. The exact first gameplay snapshot is the genesis; subsequent
+ * accepted commands are replayed against it without catalogue re-expansion.
  */
 export async function buildReplayArchiveFromEventStore(
   database: D1Database,
   state: EngineBackedMatchState,
   completedAt = Date.now(),
 ) {
-  const snapshot = await database.prepare(`SELECT version, state_json FROM match_snapshots
+  const snapshot = await database.prepare(`SELECT version, state_json, created_at FROM match_snapshots
     WHERE code = ? AND json_extract(state_json, '$.phase') <> 'lobby'
     ORDER BY version ASC LIMIT 1`)
     .bind(state.code).first<ReplaySnapshotRow>();
-  if (!snapshot) return buildDisplayableReplayArchive(null, state, completedAt);
+  if (!snapshot) {
+    reportReplayReconstructionFailure(state, undefined, 0, new Error("No gameplay snapshot is available."));
+    return buildDisplayableReplayArchive(null, state, completedAt);
+  }
   let genesis: MatchState;
   try {
     genesis = JSON.parse(snapshot.state_json) as MatchState;
-  } catch {
+  } catch (error) {
+    reportReplayReconstructionFailure(state, snapshot.version, 0, error);
     return buildDisplayableReplayArchive(null, state, completedAt);
   }
   const response = await database.prepare(`SELECT
@@ -252,6 +310,7 @@ export async function buildReplayArchiveFromEventStore(
     response.results ?? [],
     state,
     completedAt,
+    snapshot.created_at,
   );
 }
 

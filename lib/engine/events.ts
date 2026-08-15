@@ -1,4 +1,5 @@
 import { cloneMatch, type GameCard, type MatchState } from "../game";
+import { logEntryAddedEvent } from "./log-projection";
 import { structuredPhaseFor } from "./phase-machine";
 import {
   APPLICATION_VERSION,
@@ -360,19 +361,7 @@ export function deriveTransitionEvents(
 
   const previousLogIds = new Set(before.log.map((entry) => entry.id));
   for (const entry of after.log) {
-    if (!previousLogIds.has(entry.id)) {
-      events.push({
-        type: "LOG_ENTRY_ADDED",
-        actorId: envelope.actorId,
-        visibility: "public",
-        payload: {
-          logId: entry.id,
-          kind: entry.kind,
-          message: entry.message,
-          at: entry.at,
-        },
-      });
-    }
+    if (!previousLogIds.has(entry.id)) events.push(logEntryAddedEvent(entry, envelope.actorId));
   }
 
   if (!before.winner && after.winner) {
