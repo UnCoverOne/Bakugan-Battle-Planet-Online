@@ -7,6 +7,7 @@ import {
   pendingCoreReturnsForPlayer,
 } from "../../lib/coreReturns";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
+import { CorePlacementMatrix } from "./CorePlacementMatrix";
 import {
   matchCommandHeaders,
   publishMatch,
@@ -102,11 +103,7 @@ export function CoreReturnPlacementLayer({
           ))}
           {!returns.length ? <p>Waiting for {placingName} to finish returning BakuCores.</p> : null}
         </aside>
-        <div
-          className={styles.matrix}
-          aria-label="BakuCore field"
-          data-perspective={oppositePerspective ? "opposite" : "local"}
-        >
+        <CorePlacementMatrix label="BakuCore field" oppositePerspective={oppositePerspective}>
           {HEX_CELLS.map((cell) => {
             const placement = match.placements.find((candidate) => (
               candidate.cell === cell.id && !candidate.attachedTo
@@ -133,7 +130,7 @@ export function CoreReturnPlacementLayer({
               </button>
             );
           })}
-        </div>
+        </CorePlacementMatrix>
         <aside className={styles.order}>
           <strong>RETURN ORDER</strong>
           <p>The player retracting a Bakugan chooses where each attached BakuCore returns.</p>

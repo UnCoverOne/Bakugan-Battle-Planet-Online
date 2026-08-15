@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   CENTER_CELL,
@@ -17,6 +18,7 @@ import {
   pendingCoreReturnsForPlayer,
   placeCoreOrReturnCore,
 } from "../lib/coreReturns";
+import { corePlacementMatrixScale } from "../components/game-screen-v2/corePlacementLayout";
 
 function buildPlacedMatch() {
   const a = makePlayer("a", "Alpha", STARTER_DECKS[0]);
@@ -197,4 +199,40 @@ test("an empty field accepts the first returned Core in the centre", () => {
   state.phase = "retract";
   state.placements = [];
   assert.deepEqual(legalCoreReturnCells(state), [CENTER_CELL]);
+});
+
+test("BakuCore placement scaling fits both the available width and height", () => {
+  assert.equal(corePlacementMatrixScale({ containerWidthPx: 1200, containerHeightPx: 900, rootFontSizePx: 16 }), 1);
+
+  const widthLimited = corePlacementMatrixScale({
+    containerWidthPx: 324,
+    containerHeightPx: 900,
+    rootFontSizePx: 16,
+  });
+  assert.ok(widthLimited !== null);
+  assert.ok(Math.abs(widthLimited - 0.5) < 0.000001);
+
+  const heightLimited = corePlacementMatrixScale({
+    containerWidthPx: 1200,
+    containerHeightPx: 360.8,
+    rootFontSizePx: 16,
+  });
+  assert.ok(heightLimited !== null);
+  assert.ok(Math.abs(heightLimited - 0.5) < 0.000001);
+});
+
+test("initial and returned BakuCore placement use the same responsive matrix surface", () => {
+  const initialSource = readFileSync(
+    new URL("../components/game-screen-v2/CorePlacementLayer.tsx", import.meta.url),
+    "utf8",
+  );
+  const returnSource = readFileSync(
+    new URL("../components/game-screen-v2/CoreReturnPlacementLayer.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.ok(initialSource.includes("<CorePlacementMatrix"));
+  assert.ok(returnSource.includes("<CorePlacementMatrix"));
+  assert.equal(returnSource.includes("className={styles.matrix}"), false);
+  assert.equal(returnSource.includes("className={styles.matrixGrid}"), false);
 });
