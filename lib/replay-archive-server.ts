@@ -7,10 +7,13 @@ import {
 import { buildFrozenReplayPlayback, buildReplayFrames } from "./engine/replay-playback";
 import {
   buildAuthoritativeReplayTimeline,
+  buildRecordedReplayTimeline,
   ReplayReconstructionError,
   type AuthoritativeReplayStep,
+  type RecordedReplayStep,
 } from "./engine/replay-reconstruction";
 import type { ReplayArchive } from "./engine/replay-types";
+import { isReplayStatePatch, type ReplayStatePatchOperation } from "./engine/replay-transition";
 import type { CommandEnvelope, EngineBackedMatchState, GameCommand } from "./engine/types";
 import { isCompletedSeriesResult } from "./match-result-navigation";
 import type { MatchResultRecord } from "./persistence";
@@ -171,15 +174,20 @@ export type ReplayCommandRow = {
   created_at: number;
 };
 
-function parseAcceptedCommand(row: ReplayCommandRow, gameId: string): CommandEnvelope | null {
+type ParsedReplayStep = AuthoritativeReplayStep & {
+  statePatch?: readonly ReplayStatePatchOperation[];
+};
+
+function parseAcceptedCommand(row: ReplayCommandRow, gameId: string): ParsedReplayStep | null {
   try {
     const payload = JSON.parse(row.payload_json) as {
       command?: GameCommand;
       randomSeed?: string;
       requestHash?: string;
+      replayStatePatch?: unknown;
     };
     if (!payload.command || typeof payload.command.type !== "string" || !payload.randomSeed) return null;
-    return {
+    const envelope: CommandEnvelope = {
       commandId: row.command_id,
       gameId,
       actorId: row.actor_id,
@@ -188,6 +196,11 @@ function parseAcceptedCommand(row: ReplayCommandRow, gameId: string): CommandEnv
       randomSeed: payload.randomSeed,
       requestHash: payload.requestHash ?? `archive:${row.command_id}`,
       command: payload.command,
+    };
+    return {
+      envelope,
+      resultVersion: row.result_version,
+      ...(isReplayStatePatch(payload.replayStatePatch) ? { statePatch: payload.replayStatePatch } : {}),
     };
   } catch {
     return null;
@@ -218,10 +231,17 @@ function reportReplayReconstructionFailure(
   });
 }
 
+function allStepsHaveRecordedState(
+  steps: readonly ParsedReplayStep[],
+): steps is readonly RecordedReplayStep[] {
+  return steps.every((step) => Array.isArray(step.statePatch));
+}
+
 /**
  * Build the permanent replay from an exact persisted gameplay snapshot and the
- * authoritative command journal. The compact recording remains as schema/audit
- * metadata only; frozen playback is created from the full snapshot directly.
+ * authoritative engine journal. New journals carry the exact replay-relevant
+ * state delta produced by every accepted command, so archival does not execute
+ * game rules a second time. The reducer path remains only for older journals.
  */
 export function buildReplayArchiveFromRows(
   genesis: MatchState,
@@ -233,9 +253,9 @@ export function buildReplayArchiveFromRows(
 ) {
   const relevantRows = rows.filter((row) => row.result_version > snapshotVersion);
   try {
-    const steps: AuthoritativeReplayStep[] = relevantRows.map((row) => {
-      const envelope = parseAcceptedCommand(row, state.id);
-      if (!envelope) {
+    const steps: ParsedReplayStep[] = relevantRows.map((row) => {
+      const step = parseAcceptedCommand(row, state.id);
+      if (!step) {
         throw new ReplayReconstructionError(
           `Accepted command ${row.command_id} cannot be reconstructed from its persisted payload.`,
           {
@@ -245,10 +265,12 @@ export function buildReplayArchiveFromRows(
           },
         );
       }
-      return { envelope, resultVersion: row.result_version };
+      return step;
     });
 
-    const timeline = buildAuthoritativeReplayTimeline(genesis, steps, state, snapshotCreatedAt);
+    const timeline = allStepsHaveRecordedState(steps)
+      ? buildRecordedReplayTimeline(genesis, steps, state, snapshotCreatedAt)
+      : buildAuthoritativeReplayTimeline(genesis, steps, state, snapshotCreatedAt);
     const recording = createReplayRecording(genesis);
     recording.commands = steps.map((step) => compactReplayCommand(step.envelope));
     const archive = archiveReplayRecording(recording, state, completedAt);
@@ -265,8 +287,9 @@ export function buildReplayArchiveFromRows(
 
 /**
  * Builds a replay from the engine event store after the gameplay request path
- * is complete. The exact first gameplay snapshot is the genesis; subsequent
- * accepted commands are replayed against it without catalogue re-expansion.
+ * is complete. The first gameplay snapshot is the genesis; subsequent accepted
+ * command records provide both audit metadata and the authoritative state delta
+ * that the live reducer produced.
  */
 export async function buildReplayArchiveFromEventStore(
   database: D1Database,

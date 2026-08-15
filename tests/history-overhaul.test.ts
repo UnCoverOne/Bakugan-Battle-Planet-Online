@@ -4,6 +4,12 @@ import { makePlayer, STARTER_DECKS } from "../lib/data";
 import { projectMatchLog } from "../lib/engine/log-projection";
 import { buildReplayFrames } from "../lib/engine/replay-playback";
 import { initializeMatch, reduceMatch } from "../lib/engine/reducer";
+import {
+  applyReplayStatePatch,
+  createReplayStatePatch,
+  isReplayStatePatch,
+  replayPresentationState,
+} from "../lib/engine/replay-transition";
 import type { CommandEnvelope, EngineBackedMatchState, GameCommand } from "../lib/engine/types";
 import { buildReplayArchiveFromRows, type ReplayCommandRow } from "../lib/replay-archive-server";
 
@@ -23,6 +29,28 @@ function commandEnvelope(
     requestHash: `history-overhaul-request-${index}`,
     command,
   };
+}
+
+function gameplaySnapshot(code: string) {
+  const first = makePlayer(`${code}-a`, "Alpha", STARTER_DECKS[0]);
+  const second = makePlayer(`${code}-b`, "Beta", STARTER_DECKS[1]);
+  let state = initializeMatch(code, "bo1", [first, second], {
+    commandId: `${code}-create`,
+    actorId: first.id,
+    issuedAt: 1_910_000_000_000,
+    randomSeed: `${code}-create-seed`,
+    requestHash: `${code}-create-request`,
+  }).state;
+  let index = 0;
+  const apply = (actorId: string, command: GameCommand) => {
+    index += 1;
+    const envelope = commandEnvelope(state, actorId, command, index);
+    state = reduceMatch(state, envelope).state;
+  };
+  apply(first.id, { type: "SET_LOBBY_READY", ready: true });
+  apply(second.id, { type: "SET_LOBBY_READY", ready: true });
+  apply(first.id, { type: "START_MATCH" });
+  return { state, first, second, nextIndex: index + 1 };
 }
 
 test("MatchState.log is projected from authoritative LOG_ENTRY_ADDED engine events", () => {
@@ -48,48 +76,53 @@ test("MatchState.log is projected from authoritative LOG_ENTRY_ADDED engine even
   assert.equal(joined.state.log.at(-1)?.message, "Beta joined the room.");
 });
 
-test("server replay finalization reconstructs from the exact gameplay snapshot before compacting", () => {
-  const first = makePlayer("replay-history-a", "Alpha", STARTER_DECKS[0]);
-  const second = makePlayer("replay-history-b", "Beta", STARTER_DECKS[1]);
-  let state = initializeMatch("HIST02", "bo1", [first, second], {
-    commandId: "replay-history-create",
-    actorId: first.id,
-    issuedAt: 1_910_000_000_000,
-    randomSeed: "replay-history-create-seed",
-    requestHash: "replay-history-create-request",
-  }).state;
-  let index = 0;
-  const apply = (actorId: string, command: GameCommand) => {
-    index += 1;
-    const envelope = commandEnvelope(state, actorId, command, index);
-    state = reduceMatch(state, envelope).state;
-    return envelope;
-  };
+test("authoritative replay patches round-trip nested card-zone transitions", () => {
+  const { state: snapshot } = gameplaySnapshot("HISTP1");
+  const next = structuredClone(snapshot);
+  const player = next.players[0];
+  const moved = player.deckCards.shift();
+  assert.ok(moved);
+  player.hand.push(moved);
+  player.deck = player.deckCards.length;
+  next.version += 1;
 
-  apply(first.id, { type: "SET_LOBBY_READY", ready: true });
-  apply(second.id, { type: "SET_LOBBY_READY", ready: true });
-  apply(first.id, { type: "START_MATCH" });
+  const patch = createReplayStatePatch(snapshot, next);
+  assert.ok(patch.some((operation) => operation.op === "splice" && operation.path.includes("/deckCards")));
+  assert.ok(patch.some((operation) => operation.op === "splice" && operation.path.includes("/hand")));
+  const reconstructed = applyReplayStatePatch(replayPresentationState(snapshot), patch);
+  assert.deepEqual(reconstructed, replayPresentationState(next));
+});
 
-  const snapshot = structuredClone(state);
+test("server replay finalization uses recorded authoritative transitions instead of re-running rules", () => {
+  const { state: gameplay, first, second, nextIndex } = gameplaySnapshot("HIST02");
+  const snapshot = structuredClone(gameplay);
   const overridden = snapshot.players[0].deckCards[0];
   assert.ok(overridden);
   overridden.displayName = "Runtime Snapshot Definition";
   overridden.effect = "This runtime-authored definition intentionally differs from the bundled catalogue.";
-  state = snapshot;
 
-  index += 1;
-  const concede = commandEnvelope(state, second.id, { type: "CONCEDE" }, index);
-  const completed = reduceMatch(state, concede).state;
+  const concede = commandEnvelope(snapshot, second.id, { type: "CONCEDE" }, nextIndex);
+  const conceded = reduceMatch(snapshot, concede);
+  const completed = conceded.state;
+  const accepted = conceded.events.find((event) => event.type === "COMMAND_ACCEPTED");
+  assert.ok(accepted);
+  assert.ok(isReplayStatePatch(accepted.payload.replayStatePatch));
+  assert.deepEqual(
+    applyReplayStatePatch(replayPresentationState(snapshot), accepted.payload.replayStatePatch),
+    replayPresentationState(completed),
+  );
+
+  // Simulate command semantics becoming incompatible after the match. A replay
+  // built from the recorded transition remains correct because it never reduces
+  // this command again; the compact command is audit/label metadata only.
+  const persistedPayload = structuredClone(accepted.payload);
+  persistedPayload.command = { type: "PASS_PRIORITY" };
   const row: ReplayCommandRow = {
     command_id: concede.commandId,
     actor_id: String(concede.actorId),
     expected_version: concede.expectedVersion,
     result_version: completed.version,
-    payload_json: JSON.stringify({
-      command: concede.command,
-      randomSeed: concede.randomSeed,
-      requestHash: concede.requestHash,
-    }),
+    payload_json: JSON.stringify(persistedPayload),
     created_at: concede.issuedAt,
   };
   const snapshotAt = concede.issuedAt - 500;
@@ -111,6 +144,7 @@ test("server replay finalization reconstructs from the exact gameplay snapshot b
     "Runtime Snapshot Definition",
   );
   assert.equal(buildReplayFrames(archive).frames.at(-1)?.winner, first.id);
+  assert.notEqual(buildReplayFrames(archive).frames[0]?.label, "Recovered final battlefield");
 
   // Frozen playback, not the compact catalogue recipe, is the permanent viewer source.
   archive.recording.genesis.players[0].d[0].c = "catalogue-entry-that-does-not-exist";

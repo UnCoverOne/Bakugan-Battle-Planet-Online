@@ -1,6 +1,7 @@
 import { cloneMatch, type GameCard, type MatchState } from "../game";
 import { logEntryAddedEvent } from "./log-projection";
 import { structuredPhaseFor } from "./phase-machine";
+import { createReplayStatePatch } from "./replay-transition";
 import {
   APPLICATION_VERSION,
   CARD_CATALOGUE_VERSION,
@@ -201,6 +202,9 @@ export function deriveTransitionEvents(
       expectedVersion: envelope.expectedVersion,
       randomSeed: envelope.randomSeed,
       requestHash: envelope.requestHash,
+      // Persist the transition the live reducer actually produced. Replay
+      // archival can now visualize engine history without re-executing rules.
+      replayStatePatch: createReplayStatePatch(before, after),
     },
   }];
 

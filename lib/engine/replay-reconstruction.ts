@@ -2,11 +2,20 @@ import type { MatchState } from "../game";
 import { reduceMatch } from "./reducer";
 import { replayStateHash } from "./replay-codec";
 import type { ReplayFrame, ReplayMarker } from "./replay-types";
+import {
+  applyReplayStatePatch,
+  replayPresentationState,
+  type ReplayStatePatchOperation,
+} from "./replay-transition";
 import type { CommandEnvelope, EngineBackedMatchState, GameCommand } from "./types";
 
 export type AuthoritativeReplayStep = {
   envelope: CommandEnvelope;
   resultVersion: number;
+};
+
+export type RecordedReplayStep = AuthoritativeReplayStep & {
+  statePatch: readonly ReplayStatePatchOperation[];
 };
 
 export type ReplayReconstructionContext = {
@@ -53,82 +62,70 @@ function markerType(command: GameCommand, before: MatchState, after: MatchState)
   return "command";
 }
 
-/**
- * Rebuild a completed timeline from the exact authoritative gameplay snapshot
- * and the persisted command journal. Unlike the compact archive codec, this
- * path never expands the genesis through the currently loaded catalogue.
- */
-export function buildAuthoritativeReplayTimeline(
-  genesis: MatchState,
-  steps: readonly AuthoritativeReplayStep[],
-  finalState: MatchState,
-  startedAt: number,
-): { frames: ReplayFrame[]; markers: ReplayMarker[] } {
-  let state = structuredClone(genesis) as EngineBackedMatchState;
+function initialTimeline(state: MatchState, startedAt: number) {
   const initialLabel = state.phase === "lobby" ? "Match created" : "Gameplay begins";
-  const frames: ReplayFrame[] = [{
-    index: 0,
-    at: startedAt,
-    commandType: "CREATE_MATCH",
-    label: initialLabel,
-    state,
-  }];
-  const markers: ReplayMarker[] = [{ index: 0, at: startedAt, type: "start", label: initialLabel }];
-
-  for (const [commandIndex, step] of steps.entries()) {
-    const { envelope, resultVersion } = step;
-    const context: ReplayReconstructionContext = {
-      commandIndex,
-      commandId: envelope.commandId,
-      commandType: envelope.command.type,
-      expectedVersion: envelope.expectedVersion,
-      actualVersion: state.version,
-      resultVersion,
-    };
-    if (envelope.expectedVersion !== state.version) {
-      throw new ReplayReconstructionError(
-        `Replay command journal has a version gap before ${envelope.commandId}.`,
-        context,
-      );
-    }
-
-    const before = state;
-    let result: ReturnType<typeof reduceMatch>;
-    try {
-      result = reduceMatch(state, envelope);
-    } catch (cause) {
-      throw new ReplayReconstructionError(
-        `Replay command ${envelope.commandId} (${envelope.command.type}) could not be reduced.`,
-        context,
-        cause,
-      );
-    }
-    state = result.state;
-    if (!result.changed) {
-      throw new ReplayReconstructionError(
-        `Persisted replay command ${envelope.commandId} did not advance the reconstructed match.`,
-        { ...context, actualVersion: state.version },
-      );
-    }
-    if (state.version !== resultVersion) {
-      throw new ReplayReconstructionError(
-        `Replay command ${envelope.commandId} produced version ${state.version}; the journal records ${resultVersion}.`,
-        { ...context, actualVersion: state.version },
-      );
-    }
-
-    const frame = {
-      index: frames.length,
-      at: envelope.issuedAt,
-      commandType: envelope.command.type,
-      label: commandLabel(envelope.command, state),
+  return {
+    frames: [{
+      index: 0,
+      at: startedAt,
+      commandType: "CREATE_MATCH",
+      label: initialLabel,
       state,
-    } satisfies ReplayFrame;
-    frames.push(frame);
-    const type = markerType(envelope.command, before, state);
-    if (type !== "command") markers.push({ index: frame.index, at: frame.at, type, label: frame.label });
-  }
+    } satisfies ReplayFrame],
+    markers: [{ index: 0, at: startedAt, type: "start", label: initialLabel } satisfies ReplayMarker],
+  };
+}
 
+function stepContext(
+  state: MatchState,
+  commandIndex: number,
+  step: AuthoritativeReplayStep,
+): ReplayReconstructionContext {
+  return {
+    commandIndex,
+    commandId: step.envelope.commandId,
+    commandType: step.envelope.command.type,
+    expectedVersion: step.envelope.expectedVersion,
+    actualVersion: state.version,
+    resultVersion: step.resultVersion,
+  };
+}
+
+function assertStepVersion(
+  state: MatchState,
+  commandIndex: number,
+  step: AuthoritativeReplayStep,
+) {
+  const context = stepContext(state, commandIndex, step);
+  if (step.envelope.expectedVersion !== state.version) {
+    throw new ReplayReconstructionError(
+      `Replay command journal has a version gap before ${step.envelope.commandId}.`,
+      context,
+    );
+  }
+  return context;
+}
+
+function appendFrame(
+  frames: ReplayFrame[],
+  markers: ReplayMarker[],
+  before: MatchState,
+  state: MatchState,
+  step: AuthoritativeReplayStep,
+) {
+  const frame = {
+    index: frames.length,
+    at: step.envelope.issuedAt,
+    commandType: step.envelope.command.type,
+    label: commandLabel(step.envelope.command, state),
+    state,
+  } satisfies ReplayFrame;
+  frames.push(frame);
+  const type = markerType(step.envelope.command, before, state);
+  if (type !== "command") markers.push({ index: frame.index, at: frame.at, type, label: frame.label });
+}
+
+function assertFinalState(state: MatchState, finalState: MatchState) {
   const reconstructedHash = replayStateHash(state);
   const authoritativeHash = replayStateHash(finalState);
   if (state.version !== finalState.version || reconstructedHash !== authoritativeHash) {
@@ -137,5 +134,91 @@ export function buildAuthoritativeReplayTimeline(
       { actualVersion: state.version, resultVersion: finalState.version },
     );
   }
+}
+
+/**
+ * Rebuild a completed timeline from the exact authoritative gameplay snapshot
+ * and the persisted command journal. This is retained as a compatibility path
+ * for command journals created before authoritative transition patches existed.
+ */
+export function buildAuthoritativeReplayTimeline(
+  genesis: MatchState,
+  steps: readonly AuthoritativeReplayStep[],
+  finalState: MatchState,
+  startedAt: number,
+): { frames: ReplayFrame[]; markers: ReplayMarker[] } {
+  let state = structuredClone(genesis) as EngineBackedMatchState;
+  const { frames, markers } = initialTimeline(state, startedAt);
+
+  for (const [commandIndex, step] of steps.entries()) {
+    const context = assertStepVersion(state, commandIndex, step);
+    const before = state;
+    let result: ReturnType<typeof reduceMatch>;
+    try {
+      result = reduceMatch(state, step.envelope);
+    } catch (cause) {
+      throw new ReplayReconstructionError(
+        `Replay command ${step.envelope.commandId} (${step.envelope.command.type}) could not be reduced.`,
+        context,
+        cause,
+      );
+    }
+    state = result.state;
+    if (!result.changed) {
+      throw new ReplayReconstructionError(
+        `Persisted replay command ${step.envelope.commandId} did not advance the reconstructed match.`,
+        { ...context, actualVersion: state.version },
+      );
+    }
+    if (state.version !== step.resultVersion) {
+      throw new ReplayReconstructionError(
+        `Replay command ${step.envelope.commandId} produced version ${state.version}; the journal records ${step.resultVersion}.`,
+        { ...context, actualVersion: state.version },
+      );
+    }
+    appendFrame(frames, markers, before, state, step);
+  }
+
+  assertFinalState(state, finalState);
+  return { frames, markers };
+}
+
+/**
+ * Rebuild a completed timeline from transition patches captured by the live
+ * authoritative reducer. No game rule, catalogue lookup, RNG call, or deadline
+ * logic is executed here; replay archival visualizes the history that actually
+ * happened instead of attempting to simulate it again.
+ */
+export function buildRecordedReplayTimeline(
+  genesis: MatchState,
+  steps: readonly RecordedReplayStep[],
+  finalState: MatchState,
+  startedAt: number,
+): { frames: ReplayFrame[]; markers: ReplayMarker[] } {
+  let state = replayPresentationState(genesis);
+  const { frames, markers } = initialTimeline(state, startedAt);
+
+  for (const [commandIndex, step] of steps.entries()) {
+    const context = assertStepVersion(state, commandIndex, step);
+    const before = state;
+    try {
+      state = applyReplayStatePatch(state, step.statePatch);
+    } catch (cause) {
+      throw new ReplayReconstructionError(
+        `Recorded state transition for ${step.envelope.commandId} (${step.envelope.command.type}) could not be applied.`,
+        context,
+        cause,
+      );
+    }
+    if (state.version !== step.resultVersion) {
+      throw new ReplayReconstructionError(
+        `Recorded state transition ${step.envelope.commandId} produced version ${state.version}; the journal records ${step.resultVersion}.`,
+        { ...context, actualVersion: state.version },
+      );
+    }
+    appendFrame(frames, markers, before, state, step);
+  }
+
+  assertFinalState(state, finalState);
   return { frames, markers };
 }
