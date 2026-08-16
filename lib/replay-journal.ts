@@ -1,5 +1,5 @@
 import type { MatchState } from "./game";
-import type { CommandEnvelope, GameEvent } from "./engine/types";
+import type { LocalEngineHistoryTransition } from "./local-replay-history";
 
 type JournalWorkerRequest =
   | {
@@ -12,14 +12,14 @@ type JournalWorkerRequest =
   | {
     type: "append";
     replayId: string;
-    envelope: CommandEnvelope;
-    resultVersion: number;
-    events: GameEvent[];
+    transition: LocalEngineHistoryTransition;
   }
   | { type: "complete"; requestId: number; replayId: string; ownerId: string; state: MatchState; completedAt: number }
   | { type: "flush" };
 
-type JournalWorkerResponse = { requestId: number; replayId: string; ok: boolean; error?: string };
+type JournalWorkerResponse =
+  | { type: "complete"; requestId: number; replayId: string; ok: boolean; error?: string }
+  | { type: "append-error"; replayId: string; commandId: string; error: string };
 
 type PendingFinalization = {
   resolve: () => void;
@@ -72,6 +72,12 @@ function journalWorker(): Worker | null {
     return null;
   }
   worker.addEventListener("message", (event: MessageEvent<JournalWorkerResponse>) => {
+    if (event.data.type === "append-error") {
+      // Recording must never stall live Training gameplay, but a broken hash
+      // chain is surfaced immediately rather than remaining latent until watch.
+      console.error(`[local-replay] ${event.data.error}`);
+      return;
+    }
     const waiter = pending.get(event.data.requestId);
     if (!waiter) return;
     if (!event.data.ok) {
@@ -114,9 +120,7 @@ export function initializeLocalReplayJournal(state: MatchState, ownerId: string)
 
 export function journalLocalEngineTransition(
   before: MatchState,
-  envelope: CommandEnvelope,
-  resultVersion: number,
-  events: GameEvent[],
+  transition: LocalEngineHistoryTransition,
   ownerId: string,
 ) {
   if (typeof Worker === "undefined") return;
@@ -124,9 +128,7 @@ export function journalLocalEngineTransition(
   journalWorker()?.postMessage({
     type: "append",
     replayId: before.id,
-    envelope,
-    resultVersion,
-    events,
+    transition,
   } satisfies JournalWorkerRequest);
 }
 

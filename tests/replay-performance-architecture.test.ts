@@ -6,7 +6,13 @@ import { compactReplayCommand, createReplayRecording } from "../lib/engine/repla
 import { buildReplayFrames } from "../lib/engine/replay-playback";
 import { initializeMatch, reduceMatch } from "../lib/engine/reducer";
 import type { CommandEnvelope } from "../lib/engine/types";
-import { compileLocalReplayHistory, createLocalEngineHistoryDraft } from "../lib/local-replay-history";
+import {
+  appendLocalEngineHistoryTransition,
+  compileLocalReplayHistory,
+  createLocalEngineHistoryDraft,
+  createLocalEngineHistoryTransition,
+  localReplayStateHash,
+} from "../lib/local-replay-history";
 import { buildReplayArchiveFromRows } from "../lib/replay-archive-server";
 import { buildReplayArchiveFromSnapshotRows } from "../lib/replay-snapshot-recovery";
 
@@ -154,7 +160,11 @@ test("completed local engine history compiles exact replay patches only when req
     const envelope = readyEnvelope(state, actorId, index + 1);
     const result = reduceMatch(state, envelope);
     assert.equal(result.changed, true);
-    draft.transitions.push({ envelope, resultVersion: result.state.version, events: result.events });
+    appendLocalEngineHistoryTransition(
+      draft,
+      createLocalEngineHistoryTransition(state, result.state, envelope, result.events),
+      envelope.issuedAt,
+    );
     state = result.state;
   }
   draft.finalState = state;
@@ -167,8 +177,49 @@ test("completed local engine history compiles exact replay patches only when req
   assert.equal(playback.frames.at(-1)?.state.version, state.version);
 });
 
+test("local engine history normalizes genesis and detects a broken hash chain while recording", () => {
+  const first = makePlayer("hash-local-a", "Alpha", STARTER_DECKS[0]);
+  const second = makePlayer("hash-local-b", "Training AI", STARTER_DECKS[1]);
+  const initialized = initializeMatch("HASH01", "bo1", [first, second], {
+    commandId: "hash-create",
+    actorId: first.id,
+    issuedAt: 1_900_000_000_000,
+    randomSeed: "hash-create-seed",
+    requestHash: "hash-create-request",
+  }).state;
+  const raw = structuredClone(initialized) as typeof initialized & { rules?: { version?: number } };
+  delete raw.rules;
+
+  const draft = createLocalEngineHistoryDraft(raw, first.id, 1_900_000_000_000);
+  assert.equal((draft.genesis as typeof raw).rules?.version, 3);
+  assert.equal(draft.headStateHash, localReplayStateHash(raw));
+
+  const firstEnvelope = readyEnvelope(raw, first.id, 1);
+  const firstResult = reduceMatch(raw, firstEnvelope);
+  const firstTransition = createLocalEngineHistoryTransition(raw, firstResult.state, firstEnvelope, firstResult.events);
+  assert.equal(firstTransition.beforeStateHash, draft.headStateHash);
+  appendLocalEngineHistoryTransition(draft, firstTransition, firstEnvelope.issuedAt);
+  assert.equal(draft.headStateHash, firstTransition.resultStateHash);
+
+  const secondEnvelope = readyEnvelope(firstResult.state, second.id, 2);
+  const secondResult = reduceMatch(firstResult.state, secondEnvelope);
+  const secondTransition = createLocalEngineHistoryTransition(
+    firstResult.state,
+    secondResult.state,
+    secondEnvelope,
+    secondResult.events,
+  );
+  const forgedTransition = { ...secondTransition, beforeStateHash: "0000000000000000" };
+  assert.throws(
+    () => appendLocalEngineHistoryTransition(draft, forgedTransition, secondEnvelope.issuedAt),
+    /integrity mismatch before performance-ready-2/,
+  );
+  assert.equal(draft.transitions.length, 1);
+  assert.equal(draft.integrityFault?.commandId, secondEnvelope.commandId);
+});
+
 test("engine history is the only live replay source and replay archives compile on demand", async () => {
-  const [dispatcher, journal, journalWorker, serverStore, route, eventStore, theatre, localStore] = await Promise.all([
+  const [dispatcher, journal, journalWorker, serverStore, route, eventStore, theatre, localStore, localHistory] = await Promise.all([
     source("lib/engine/local-command-dispatcher.ts"),
     source("lib/replay-journal.ts"),
     source("lib/replay-journal.worker.ts"),
@@ -177,16 +228,21 @@ test("engine history is the only live replay source and replay archives compile 
     source("lib/engine/event-store.ts"),
     source("components/replay/ReplayTheatre.tsx"),
     source("lib/replay-local-store.ts"),
+    source("lib/local-replay-history.ts"),
   ]);
 
   assert.match(dispatcher, /journalLocalEngineTransition/);
-  assert.match(dispatcher, /createReplayStatePatch\(input, result\.state\)/);
+  assert.match(dispatcher, /createLocalEngineHistoryTransition/);
   assert.doesNotMatch(dispatcher, /journalLocalReplayCommand/);
   assert.match(journal, /new Worker\(new URL\("\.\/replay-journal\.worker\.ts"/);
   assert.match(journal, /sealCompletedStateFallback/);
   assert.match(journalWorker, /isLocalEngineHistoryDraft/);
+  assert.match(journalWorker, /appendLocalEngineHistoryTransition/);
   assert.match(journalWorker, /await persistDraft\(draft\)/);
   assert.doesNotMatch(journalWorker, /buildDisplayableReplayArchive|saveLocalReplay/);
+  assert.match(localHistory, /normalizeRuleObjects\(normalized\)/);
+  assert.match(localHistory, /beforeStateHash/);
+  assert.match(localHistory, /headStateHash/);
   assert.match(serverStore, /PENDING_REPLAY_ARCHIVE_KIND = "pending-engine-history"/);
   assert.match(serverStore, /visual replay archive is compiled lazily/);
   assert.match(route, /materializeReplayArchive\(database, row\)/);

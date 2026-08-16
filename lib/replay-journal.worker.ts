@@ -1,11 +1,13 @@
 /// <reference lib="webworker" />
 
 import type { MatchState } from "./game";
-import type { CommandEnvelope, GameEvent } from "./engine/types";
+import type { CommandEnvelope } from "./engine/types";
 import { compactReplayCommand } from "./engine/replay-codec";
 import {
+  appendLocalEngineHistoryTransition,
   createLocalEngineHistoryDraft,
   isLocalEngineHistoryDraft,
+  type LocalEngineHistoryTransition,
   type StoredLocalReplayJournal,
 } from "./local-replay-history";
 import {
@@ -20,9 +22,7 @@ type WorkerRequest =
   | {
     type: "append";
     replayId: string;
-    envelope: CommandEnvelope;
-    resultVersion: number;
-    events: GameEvent[];
+    transition: LocalEngineHistoryTransition;
   }
   | { type: "complete"; requestId: number; replayId: string; ownerId: string; state: MatchState; completedAt: number }
   | { type: "flush" };
@@ -113,17 +113,21 @@ async function handleMessage(message: WorkerRequest) {
     const draft = await draftFor(message.replayId);
     if (!draft) throw new Error("Local engine history was not initialized.");
     if (isLocalEngineHistoryDraft(draft)) {
-      draft.transitions.push({
-        envelope: message.envelope,
-        resultVersion: message.resultVersion,
-        events: message.events,
-      });
+      try {
+        appendLocalEngineHistoryTransition(draft, message.transition);
+      } catch (cause) {
+        // The helper records the integrity fault on the draft before throwing.
+        // Persist that diagnostic before surfacing the append error to the page.
+        await persistDraft(draft).catch(() => undefined);
+        throw cause;
+      }
     } else {
       // Compatibility for a Training match that was already in progress when
       // the engine-history recorder replaced the old command-only journal.
-      draft.recording.commands.push(compactReplayCommand(message.envelope));
+      const envelope: CommandEnvelope = message.transition.envelope;
+      draft.recording.commands.push(compactReplayCommand(envelope));
+      draft.updatedAt = Date.now();
     }
-    draft.updatedAt = Date.now();
     await persistDraft(draft);
     return;
   }
@@ -149,18 +153,27 @@ async function handleMessage(message: WorkerRequest) {
   draft.completedAt = message.completedAt;
   await persistDraft(draft);
   await pruneCompletedHistories(message.ownerId).catch(() => undefined);
-  self.postMessage({ requestId: message.requestId, replayId: message.replayId, ok: true });
+  self.postMessage({ type: "complete", requestId: message.requestId, replayId: message.replayId, ok: true });
 }
 
 self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
   const message = event.data;
   workQueue = workQueue.then(() => handleMessage(message)).catch((cause) => {
+    const error = cause instanceof Error ? cause.message : "Local engine-history operation failed.";
     if (message.type === "complete") {
       self.postMessage({
+        type: "complete",
         requestId: message.requestId,
         replayId: message.replayId,
         ok: false,
-        error: cause instanceof Error ? cause.message : "Local engine-history sealing failed.",
+        error,
+      });
+    } else if (message.type === "append") {
+      self.postMessage({
+        type: "append-error",
+        replayId: message.replayId,
+        commandId: message.transition.envelope.commandId,
+        error,
       });
     }
     return undefined;

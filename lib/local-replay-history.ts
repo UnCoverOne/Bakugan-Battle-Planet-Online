@@ -6,29 +6,50 @@ import {
   replayStateHash,
 } from "./engine/replay-codec";
 import { buildBestEffortReplayTimeline } from "./engine/replay-best-effort";
+import { normalizeEngineState } from "./engine/events";
 import { buildFrozenReplayPlayback, buildReplayFrames } from "./engine/replay-playback";
 import type { RecordedReplayStep } from "./engine/replay-reconstruction";
 import type { ReplayArchive, ReplayFrame, ReplayJournalDraft } from "./engine/replay-types";
-import { isReplayStatePatch, replayPresentationState } from "./engine/replay-transition";
+import {
+  createReplayStatePatch,
+  isReplayStatePatch,
+  replayPresentationState,
+} from "./engine/replay-transition";
 import type { CommandEnvelope, GameEvent } from "./engine/types";
+import { normalizeRuleObjects } from "./rules/state";
 import { buildDisplayableReplayArchive } from "./replay-finalization";
 
-export const LOCAL_ENGINE_HISTORY_SCHEMA_VERSION = 2 as const;
+export const LOCAL_ENGINE_HISTORY_SCHEMA_VERSION = 3 as const;
+const LEGACY_LOCAL_ENGINE_HISTORY_SCHEMA_VERSION = 2 as const;
 
 export type LocalEngineHistoryTransition = {
   envelope: CommandEnvelope;
   resultVersion: number;
   events: GameEvent[];
+  /** Hash of the normalized replay presentation immediately before this command. */
+  beforeStateHash?: string;
+  /** Hash of the normalized replay presentation immediately after this command. */
+  resultStateHash?: string;
+};
+
+export type LocalEngineHistoryIntegrityFault = {
+  commandId: string;
+  expectedBeforeStateHash: string;
+  recordedBeforeStateHash: string;
+  detectedAt: number;
 };
 
 export type LocalEngineHistoryDraft = {
-  schemaVersion: typeof LOCAL_ENGINE_HISTORY_SCHEMA_VERSION;
+  schemaVersion: typeof LEGACY_LOCAL_ENGINE_HISTORY_SCHEMA_VERSION | typeof LOCAL_ENGINE_HISTORY_SCHEMA_VERSION;
   replayId: string;
   ownerId: string;
   startedAt: number;
   updatedAt: number;
   genesis: MatchState;
   transitions: LocalEngineHistoryTransition[];
+  /** Persisted chain head lets a restarted worker validate the next append without replaying history. */
+  headStateHash?: string;
+  integrityFault?: LocalEngineHistoryIntegrityFault;
   finalState?: MatchState;
   completedAt?: number;
 };
@@ -44,11 +65,27 @@ export type StoredLocalReplayJournal = LocalEngineHistoryDraft | LegacyLocalRepl
 export function isLocalEngineHistoryDraft(value: unknown): value is LocalEngineHistoryDraft {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const draft = value as Partial<LocalEngineHistoryDraft>;
-  return draft.schemaVersion === LOCAL_ENGINE_HISTORY_SCHEMA_VERSION
+  return (draft.schemaVersion === LEGACY_LOCAL_ENGINE_HISTORY_SCHEMA_VERSION
+      || draft.schemaVersion === LOCAL_ENGINE_HISTORY_SCHEMA_VERSION)
     && typeof draft.replayId === "string"
     && typeof draft.ownerId === "string"
     && Boolean(draft.genesis)
     && Array.isArray(draft.transitions);
+}
+
+/**
+ * Mirror reduceMatch's pre-command normalization before any local replay state
+ * is hashed or patched. Engine metadata is normalized first, rules objects are
+ * normalized second, and replayPresentationState then removes non-playback data.
+ */
+export function normalizeLocalReplayState(state: MatchState): MatchState {
+  const normalized = normalizeEngineState(state);
+  normalizeRuleObjects(normalized);
+  return replayPresentationState(normalized);
+}
+
+export function localReplayStateHash(state: MatchState) {
+  return replayStateHash(normalizeLocalReplayState(state));
 }
 
 export function createLocalEngineHistoryDraft(
@@ -56,15 +93,88 @@ export function createLocalEngineHistoryDraft(
   ownerId: string,
   startedAt = state.log.find((entry) => Number.isFinite(entry.at))?.at ?? Date.now(),
 ): LocalEngineHistoryDraft {
+  const genesis = normalizeLocalReplayState(state);
   return {
     schemaVersion: LOCAL_ENGINE_HISTORY_SCHEMA_VERSION,
     replayId: state.id,
     ownerId,
     startedAt,
     updatedAt: Date.now(),
-    genesis: structuredClone(state),
+    genesis,
     transitions: [],
+    headStateHash: replayStateHash(genesis),
   };
+}
+
+/**
+ * Capture one accepted local transition from the same normalized presentation
+ * states used by the persisted genesis. The reducer event is rewritten with
+ * this patch so local replay history never mixes raw and normalized state shapes.
+ */
+export function createLocalEngineHistoryTransition(
+  before: MatchState,
+  after: MatchState,
+  envelope: CommandEnvelope,
+  events: readonly GameEvent[],
+): LocalEngineHistoryTransition {
+  const normalizedBefore = normalizeLocalReplayState(before);
+  const normalizedAfter = normalizeLocalReplayState(after);
+  const replayStatePatch = createReplayStatePatch(normalizedBefore, normalizedAfter);
+  return {
+    envelope,
+    resultVersion: after.version,
+    beforeStateHash: replayStateHash(normalizedBefore),
+    resultStateHash: replayStateHash(normalizedAfter),
+    events: events.map((event) => event.type === "COMMAND_ACCEPTED"
+      ? { ...event, payload: { ...event.payload, replayStatePatch } }
+      : event),
+  };
+}
+
+function expectedDraftHeadHash(draft: LocalEngineHistoryDraft) {
+  if (draft.headStateHash) return draft.headStateHash;
+  const previousResultHash = draft.transitions.at(-1)?.resultStateHash;
+  if (previousResultHash) return previousResultHash;
+  if (!draft.transitions.length) return replayStateHash(normalizeLocalReplayState(draft.genesis));
+  // Schema-v2 drafts may contain transitions written before chain hashes were
+  // introduced. Keep those histories readable rather than inventing a hash.
+  return undefined;
+}
+
+/**
+ * Append one transition while the game is still running. A mismatch means the
+ * recorder is about to chain a patch onto a different state shape, so reject it
+ * immediately and persist diagnostic details instead of discovering it later in
+ * Replay Theatre.
+ */
+export function appendLocalEngineHistoryTransition(
+  draft: LocalEngineHistoryDraft,
+  transition: LocalEngineHistoryTransition,
+  detectedAt = Date.now(),
+) {
+  const expectedBeforeStateHash = expectedDraftHeadHash(draft);
+  if (
+    expectedBeforeStateHash
+    && transition.beforeStateHash
+    && transition.beforeStateHash !== expectedBeforeStateHash
+  ) {
+    draft.integrityFault = {
+      commandId: transition.envelope.commandId,
+      expectedBeforeStateHash,
+      recordedBeforeStateHash: transition.beforeStateHash,
+      detectedAt,
+    };
+    draft.updatedAt = detectedAt;
+    throw new Error(
+      `Local replay history integrity mismatch before ${transition.envelope.commandId}: `
+      + `expected ${expectedBeforeStateHash}, received ${transition.beforeStateHash}.`,
+    );
+  }
+
+  draft.transitions.push(transition);
+  draft.headStateHash = transition.resultStateHash ?? draft.headStateHash;
+  draft.updatedAt = detectedAt;
+  delete draft.integrityFault;
 }
 
 function recordedStep(transition: LocalEngineHistoryTransition): RecordedReplayStep {
