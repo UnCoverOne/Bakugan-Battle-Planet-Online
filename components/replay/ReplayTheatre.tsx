@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MatchResultRecord } from "../../lib/persistence";
 import type { ReplayBundle, ReplayTransportBundle } from "../../lib/engine/replay-types";
+import { accountIsAdministrator } from "../../lib/admin-ai-visibility";
 import { firstGameplayReplayFrameIndex } from "../../lib/replay-view";
 import { loadLocalReplayWhenReady } from "../../lib/replay-local-store";
 import { reconstructLocalReplay, reconstructServerReplay } from "../../lib/replay-playback-client";
+import { useApp } from "../application/AppProvider";
 import { BakuCoreLayer } from "../game-screen-v2/BakuCoreLayer";
 import { CardHandLayer } from "../game-screen-v2/CardHandLayer";
 import { GameScreen } from "../game-screen-v2/GameScreen";
@@ -17,7 +19,22 @@ function legacyLabel(record: MatchResultRecord, index: number) {
   return record.log?.[index]?.message ?? "Legacy match event";
 }
 
+function downloadDebugText(text: string, replayId: string) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `replay-debug-${replayId.replace(/[^A-Za-z0-9._-]/g, "_")}.txt`;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; onBack: () => void }) {
+  const { authUser } = useApp();
+  const administrator = accountIsAdministrator(authUser);
   const [bundle, setBundle] = useState<ReplayBundle | null>(null);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -25,6 +42,8 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
   const [status, setStatus] = useState<"loading" | "ready" | "legacy" | "error">("loading");
   const [error, setError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [debugDownloading, setDebugDownloading] = useState(false);
+  const [debugDownloadError, setDebugDownloadError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -33,6 +52,8 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
     setPlaying(false);
     setError("");
     setStatus("loading");
+    setDebugDownloading(false);
+    setDebugDownloadError("");
     const load = async () => {
       if (record.replayStorage === "local") {
         const archive = await loadLocalReplayWhenReady(record.replayId ?? record.id);
@@ -77,6 +98,47 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
     setIndex(Math.max(0, Math.min(Math.max(0, frameCount - 1), next)));
   }, [frameCount]);
 
+  const downloadReplayDebugData = useCallback(async () => {
+    if (!administrator || debugDownloading) return;
+    const replayId = record.replayId ?? record.id;
+    setDebugDownloading(true);
+    setDebugDownloadError("");
+    try {
+      if (record.replayStorage === "local") {
+        const archive = await loadLocalReplayWhenReady(replayId);
+        if (!archive) throw new Error("This local replay is no longer available on this device.");
+        downloadDebugText(`${JSON.stringify({
+          schemaVersion: 1,
+          generatedAt: new Date().toISOString(),
+          source: "local",
+          notice: "Administrator replay diagnostic generated from this device's local replay archive.",
+          record,
+          archive,
+        }, null, 2)}\n`, replayId);
+        return;
+      }
+      if (record.replayStorage !== "server") {
+        throw new Error("No replay archive is available for this record.");
+      }
+      const response = await fetch(`/api/replays/debug?id=${encodeURIComponent(replayId)}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        let message = "Replay debug data could not be downloaded.";
+        try {
+          const result = await response.json() as { error?: string };
+          if (result.error) message = result.error;
+        } catch {}
+        throw new Error(message);
+      }
+      downloadDebugText(await response.text(), replayId);
+    } catch (cause) {
+      setDebugDownloadError(cause instanceof Error ? cause.message : "Replay debug data could not be downloaded.");
+    } finally {
+      setDebugDownloading(false);
+    }
+  }, [administrator, debugDownloading, record]);
+
   useEffect(() => {
     if (!playing || frameCount < 2) return;
     const timer = window.setInterval(() => {
@@ -106,6 +168,8 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
   }, [frameCount, index, onBack, seek]);
 
   const nearbyFrames = useMemo(() => bundle?.frames.slice(Math.max(0, index - 4), index + 5) ?? [], [bundle, index]);
+  const debugDownloadAvailable = administrator
+    && (record.replayStorage === "server" || record.replayStorage === "local");
 
   return (
     <section className={styles.theatre} aria-label={`Replay of ${record.result} against ${record.opponent}`}>
@@ -146,6 +210,17 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
         {frame ? <p>Game {frame.state.gameNumber} · Turn {frame.state.turn} · {frame.state.stepLabel}</p> : null}
         {error ? <p className={styles.error}>{error}</p> : null}
         {status === "legacy" ? <p>This older record predates state reconstruction. Its verified event log remains available.</p> : null}
+        {debugDownloadAvailable ? (
+          <button
+            className={styles.debugDownload}
+            type="button"
+            onClick={() => void downloadReplayDebugData()}
+            disabled={debugDownloading}
+          >
+            {debugDownloading ? "Preparing Replay Debug Data…" : "Download Replay Debug Data"}
+          </button>
+        ) : null}
+        {debugDownloadError ? <p className={styles.error}>{debugDownloadError}</p> : null}
         {nearbyFrames.length ? <ol>
           {nearbyFrames.map((item) => <li key={item.index} data-active={item.index === index}>
             <button type="button" onClick={() => seek(item.index)}><span>{item.index + 1}</span>{item.label}</button>

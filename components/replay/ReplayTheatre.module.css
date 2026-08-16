@@ -99,6 +99,8 @@
 .inspector li[data-active="true"] button { border-color: #f5cb4d; background: #47380a; }
 .inspector li span { color: #79dff2; }
 .error { color: #ff8d93 !important; }
+.debugDownload { width: 100%; min-height: 2.7rem; margin-top: .8rem; padding: .55rem .7rem; font-size: .72rem; font-weight: 900; letter-spacing: .03em; }
+.debugDownload:disabled { cursor: wait; opacity: .55; }
 
 .controls {
   left: 1rem;
