@@ -18,6 +18,7 @@ import type { CommandEnvelope, EngineBackedMatchState, GameCommand } from "./eng
 import { isCompletedSeriesResult } from "./match-result-navigation";
 import type { MatchResultRecord } from "./persistence";
 import { buildDisplayableReplayArchive } from "./replay-finalization";
+import { buildReplayArchiveFromSnapshotHistory } from "./replay-snapshot-recovery";
 
 export const MATCH_RECORD_RETENTION = 10;
 
@@ -237,6 +238,54 @@ function allStepsHaveRecordedState(
   return steps.every((step) => Array.isArray(step.statePatch));
 }
 
+function isFinalBattlefieldFallbackReplay(archive: ReplayArchive) {
+  const frames = archive.playback?.frames ?? [];
+  const steps = archive.playback?.steps ?? [];
+  return frames.length === 1
+    && steps.length === 0
+    && frames[0]?.commandType === "CREATE_MATCH"
+    && frames[0]?.label === "Recovered final battlefield";
+}
+
+async function recoverReplayFromSnapshotsOrFinalState(
+  database: D1Database,
+  state: EngineBackedMatchState,
+  completedAt: number,
+  reason: string,
+) {
+  try {
+    const recovered = await buildReplayArchiveFromSnapshotHistory(database, state, completedAt);
+    if (recovered) {
+      console.info("Replay reconstruction recovered from authoritative snapshot history.", {
+        replayId: state.id,
+        matchCode: state.code,
+        finalVersion: state.version,
+        frameCount: recovered.playback.frames.length,
+        stepCount: recovered.playback.steps.length,
+        reason,
+      });
+      return recovered;
+    }
+  } catch (error) {
+    console.error("Replay snapshot recovery failed; preserving the final battlefield fallback.", {
+      replayId: state.id,
+      matchCode: state.code,
+      finalVersion: state.version,
+      reason,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  console.warn("Replay snapshot recovery had insufficient history; preserving the final battlefield fallback.", {
+    replayId: state.id,
+    matchCode: state.code,
+    finalVersion: state.version,
+    reason,
+  });
+  return buildDisplayableReplayArchive(null, state, completedAt);
+}
+
 /**
  * Build the permanent replay from an exact persisted gameplay snapshot and the
  * authoritative engine journal. New journals carry the exact replay-relevant
@@ -289,7 +338,8 @@ export function buildReplayArchiveFromRows(
  * Builds a replay from the engine event store after the gameplay request path
  * is complete. The first gameplay snapshot is the genesis; subsequent accepted
  * command records provide both audit metadata and the authoritative state delta
- * that the live reducer produced.
+ * that the live reducer produced. If exact journal reconstruction is unavailable,
+ * retained authoritative snapshots are used before the final-only emergency view.
  */
 export async function buildReplayArchiveFromEventStore(
   database: D1Database,
@@ -301,15 +351,21 @@ export async function buildReplayArchiveFromEventStore(
     ORDER BY version ASC LIMIT 1`)
     .bind(state.code).first<ReplaySnapshotRow>();
   if (!snapshot) {
-    reportReplayReconstructionFailure(state, undefined, 0, new Error("No gameplay snapshot is available."));
-    return buildDisplayableReplayArchive(null, state, completedAt);
+    const error = new Error("No gameplay snapshot is available.");
+    reportReplayReconstructionFailure(state, undefined, 0, error);
+    return recoverReplayFromSnapshotsOrFinalState(database, state, completedAt, error.message);
   }
   let genesis: MatchState;
   try {
     genesis = JSON.parse(snapshot.state_json) as MatchState;
   } catch (error) {
     reportReplayReconstructionFailure(state, snapshot.version, 0, error);
-    return buildDisplayableReplayArchive(null, state, completedAt);
+    return recoverReplayFromSnapshotsOrFinalState(
+      database,
+      state,
+      completedAt,
+      "The earliest gameplay snapshot could not be parsed.",
+    );
   }
   const response = await database.prepare(`SELECT
       match_events.command_id,
@@ -327,13 +383,20 @@ export async function buildReplayArchiveFromEventStore(
       AND match_commands.result_version > ?
     ORDER BY match_events.sequence ASC`)
     .bind(state.code, snapshot.version).all<ReplayCommandRow>();
-  return buildReplayArchiveFromRows(
+  const archive = buildReplayArchiveFromRows(
     genesis,
     snapshot.version,
     response.results ?? [],
     state,
     completedAt,
     snapshot.created_at,
+  );
+  if (!isFinalBattlefieldFallbackReplay(archive)) return archive;
+  return recoverReplayFromSnapshotsOrFinalState(
+    database,
+    state,
+    completedAt,
+    "Exact event-journal reconstruction produced only the final battlefield fallback.",
   );
 }
 
