@@ -28,6 +28,19 @@ const FACTIONS: readonly GameCard["faction"][] = [
 ];
 const SINGULAR_NON_FACTION_BAKUGAN = /\b(?:a|an|one)\s+non-\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan\b/i;
 
+const RULES_TEXT_NORMALIZATIONS: Partial<Record<string, string>> = {
+  // The Battle Brawlers source row flattened Titan Nillious's visually
+  // separated Core-condition and open-trigger lines into one sentence. Keep
+  // the locked catalogue text intact, but compile the reviewed timing and
+  // condition boundaries that are printed on the card.
+  "bb-257": "[MS]: +200 [B]. When this opens, you may attach an additional BakuCore from the Field to Haos Titan Nillious. [FF]: +4 [Damage Rating].",
+};
+
+function cardForRules(card: GameCard): GameCard {
+  const effect = RULES_TEXT_NORMALIZATIONS[ruleCardId(card)];
+  return effect ? { ...card, effect } : card;
+}
+
 function nonFactionChoiceTiming(text: string): ChoiceSpec["timing"] {
   return /when you play this|when this opens|\bmay\b|\bSacrifice\b|\bBattle Mastery\b|\bVictor\s*[-:]|\bUnderdog\s*:|at (?:the )?end of (?:your |the )?turn/i.test(text)
     ? "resolve"
@@ -131,9 +144,10 @@ function normalizeSingularNonFactionTargets(
 }
 
 function definitionForCard(card: GameCard): RuleDefinition {
-  const rawAbilities = enhanceDeckInspectionAbilities(card, abilityDefinitionsForCard(card));
-  const rawPlay = enhanceDeckInspectionPlayDefinition(card, playDefinitionForCard(card));
-  const normalized = normalizeSingularNonFactionTargets(card, rawPlay, rawAbilities);
+  const rulesCard = cardForRules(card);
+  const rawAbilities = enhanceDeckInspectionAbilities(rulesCard, abilityDefinitionsForCard(rulesCard));
+  const rawPlay = enhanceDeckInspectionPlayDefinition(rulesCard, playDefinitionForCard(rulesCard));
+  const normalized = normalizeSingularNonFactionTargets(rulesCard, rawPlay, rawAbilities);
   return {
     cardId: ruleCardId(card),
     printingId: ruleCardId(card),

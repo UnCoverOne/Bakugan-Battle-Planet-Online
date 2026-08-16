@@ -3,7 +3,11 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import { createMatch } from "../lib/game";
-import { ruleDefinitionForCard } from "../lib/rules";
+import {
+  emitRuleEvent,
+  evaluateBakuganCharacteristics,
+  ruleDefinitionForCard,
+} from "../lib/rules";
 import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
 import type { ChoiceSpec } from "../lib/rules/model";
 
@@ -96,6 +100,151 @@ test("other singular Field-core attachment effects share the repaired parser", (
   assert.ok(nobilious.abilities.flatMap((ability) => ability.instructions).some((instruction) => instruction.effects.some((effect) => (
     effect.kind === "move" && effect.verb === "attach" && effect.object === "bakucore"
   ))));
+});
+
+test("Haos Titan Nillious separates its static Core bonuses from its on-open attachment", () => {
+  const definition = ruleDefinitionForCard(card("bb-257"));
+  const triggered = definition.abilities.find((ability) => (
+    ability.kind === "triggered" && ability.trigger?.event === "BAKUGAN_OPENED"
+  ));
+  assert.ok(triggered, "Haos Titan Nillious must expose a BAKUGAN_OPENED trigger.");
+  assert.ok(triggered.instructions.some((instruction) => instruction.effects.some((effect) => (
+    effect.kind === "move" && effect.verb === "attach" && effect.object === "bakucore"
+  ))));
+  const triggerCore = triggered.instructions.flatMap((instruction) => instruction.choices)
+    .find((candidate) => candidate.id === "coreCell");
+  assert.equal(triggerCore?.timing, "resolve");
+  assert.equal(triggerCore?.attachmentState, "unattached");
+  assert.ok(triggered.instructions.flatMap((instruction) => instruction.choices)
+    .some((candidate) => candidate.id === "confirmed"));
+  assert.equal(
+    definition.play.choices.some((candidate) => candidate.id === "coreCell" && candidate.timing !== "resolve"),
+    false,
+    "The additional Core must not be selected while the Evo is being played.",
+  );
+
+  const staticInstructions = definition.abilities
+    .filter((ability) => ability.kind !== "triggered")
+    .flatMap((ability) => ability.instructions);
+  const powerInstruction = staticInstructions.find((instruction) => instruction.effects.some((effect) => (
+    effect.kind === "modify-stat" && effect.stat === "power" && effect.amount === 200
+  )));
+  const damageInstruction = staticInstructions.find((instruction) => instruction.effects.some((effect) => (
+    effect.kind === "modify-stat" && effect.stat === "damage" && effect.amount === 4
+  )));
+  assert.deepEqual(powerInstruction?.condition, {
+    kind: "held-core-type",
+    coreTypes: ["Magic Shield"],
+    subject: "target",
+  });
+  assert.deepEqual(damageInstruction?.condition, {
+    kind: "held-core-type",
+    coreTypes: ["Flaming Fist"],
+    subject: "target",
+  });
+  assert.equal(staticInstructions.some((instruction) => instruction.effects.some((effect) => (
+    effect.kind === "move" && effect.verb === "attach" && effect.object === "bakucore"
+  ))), false);
+});
+
+test("Haos Titan Nillious Core bonuses stay active exactly while the matching Core is held", () => {
+  const state = match();
+  const first = state.players[0];
+  const bakugan = first.bakugan[0];
+  const titan = { ...card("bb-257"), id: "test-haos-titan-nillious-static" };
+  bakugan.evoStack = [titan];
+  const basePower = titan.bPower ?? bakugan.bPower;
+  const baseDamage = titan.damage ?? bakugan.damage;
+  const placement = state.placements[0];
+  assert.ok(placement);
+  Object.assign(placement.core, {
+    type: "Magic Shield",
+    bonus: 0,
+    damageBonus: 0,
+    frostStrike: undefined,
+    shadowStrike: false,
+    conditionalFactions: undefined,
+    conditionalBonus: undefined,
+    conditionalDamage: undefined,
+  });
+  placement.attachedTo = bakugan.id;
+  bakugan.heldCoreCells = [placement.cell];
+
+  let evaluated = evaluateBakuganCharacteristics(state, bakugan, first);
+  assert.equal(evaluated.power, basePower + 200);
+  assert.equal(evaluated.damage, baseDamage);
+
+  placement.core.type = "Flaming Fist";
+  evaluated = evaluateBakuganCharacteristics(state, bakugan, first);
+  assert.equal(evaluated.power, basePower);
+  assert.equal(evaluated.damage, baseDamage + 4);
+
+  delete placement.attachedTo;
+  bakugan.heldCoreCells = [];
+  evaluated = evaluateBakuganCharacteristics(state, bakugan, first);
+  assert.equal(evaluated.power, basePower);
+  assert.equal(evaluated.damage, baseDamage);
+});
+
+test("Haos Titan Nillious attaches only when its own Bakugan opens with the Evo already in play", () => {
+  const state = match();
+  const first = state.players[0];
+  const sourceBakugan = first.bakugan[0];
+  const otherBakugan = first.bakugan[1];
+  const titan = { ...card("bb-257"), id: "test-haos-titan-nillious-open" };
+  const shun = { ...card("br-77"), id: "test-shun-open" };
+  sourceBakugan.evoStack = [titan];
+  sourceBakugan.open = true;
+  otherBakugan.open = true;
+  first.heroes = [shun];
+  state.selected[first.id] = otherBakugan.id;
+
+  emitRuleEvent(state, {
+    id: "nillious-other-bakugan-opened",
+    name: "BAKUGAN_OPENED",
+    actorId: first.id,
+    controllerId: first.id,
+    targetBakuganId: otherBakugan.id,
+    createdAt: Date.now(),
+  });
+  assert.equal(state.batch.filter((object) => object.card.id === titan.id).length, 0);
+  assert.equal(
+    state.batch.filter((object) => object.card.id === shun.id).length,
+    1,
+    "Shun Kazami remains a controller-wide 'When you open a Bakugan' trigger.",
+  );
+
+  emitRuleEvent(state, {
+    id: "nillious-source-bakugan-opened",
+    name: "BAKUGAN_OPENED",
+    actorId: first.id,
+    controllerId: first.id,
+    targetBakuganId: sourceBakugan.id,
+    createdAt: Date.now(),
+  });
+  const titanTriggers = state.batch.filter((object) => object.card.id === titan.id);
+  assert.equal(titanTriggers.length, 1);
+  assert.equal(titanTriggers[0].choices.sourceBakuganId, sourceBakugan.id);
+  assert.equal(state.batch.filter((object) => object.card.id === shun.id).length, 2);
+
+  const lateState = match();
+  const latePlayer = lateState.players[0];
+  const lateBakugan = latePlayer.bakugan[0];
+  const lateTitan = { ...card("bb-257"), id: "test-haos-titan-nillious-late" };
+  emitRuleEvent(lateState, {
+    id: "nillious-open-before-evo",
+    name: "BAKUGAN_OPENED",
+    actorId: latePlayer.id,
+    controllerId: latePlayer.id,
+    targetBakuganId: lateBakugan.id,
+    createdAt: Date.now(),
+  });
+  lateBakugan.evoStack = [lateTitan];
+  assert.equal(
+    lateState.batch.filter((object) => object.card.id === lateTitan.id).length,
+    0,
+    "Playing the Evo after the Bakugan has opened must not retroactively create the open trigger.",
+  );
 });
 
 test("up-to-three Field-core effects resolve as three sequential optional legal selections", () => {

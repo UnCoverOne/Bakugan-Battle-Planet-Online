@@ -80,9 +80,20 @@ function actionIsPlayedOnActiveBakugan(card: GameCard | undefined) {
     .some((instruction) => instruction.actions.some(actionUsesImplicitControllerBakugan));
 }
 
-function sourceTargetMatches(source: GameCard, owner: PlayerState, event: RuleEvent) {
-  if (!/\bwhen you play an Action(?: card)? on this\b/i.test(source.effect)) return true;
+function sourceTargetMatches(
+  source: GameCard,
+  owner: PlayerState,
+  event: RuleEvent,
+  triggerText: string,
+) {
   const sourceBakugan = sourceBakuganFor(owner, source);
+  // "When this opens" belongs to the Bakugan carrying the Character/Evo
+  // source. It is not the same controller-wide event as "When you open a
+  // Bakugan" on Heroes such as Shun Kazami.
+  if (event.name === "BAKUGAN_OPENED" && /\bwhen this opens\b/i.test(triggerText)) {
+    return Boolean(sourceBakugan && sourceBakugan.id === event.targetBakuganId);
+  }
+  if (!/\bwhen you play an Action(?: card)? on this\b/i.test(source.effect)) return true;
   if (!sourceBakugan) return false;
   const explicitTargets = [
     event.choices?.targetBakuganId,
@@ -98,13 +109,14 @@ function triggerMatches(
   owner: PlayerState,
   event: RuleEvent,
   state: MatchState,
+  triggerText: string,
 ) {
   if (trigger.event !== event.name) return false;
   if (trigger.minimumEventAmount != null && (event.amount ?? 0) < trigger.minimumEventAmount) return false;
   if (!relationshipMatches(trigger, owner.id, event)) return false;
   if (trigger.source === "self" && source.id !== event.card?.id) return false;
   if (trigger.cardType && trigger.cardType !== event.cardType) return false;
-  if (!sourceTargetMatches(source, owner, event)) return false;
+  if (!sourceTargetMatches(source, owner, event, triggerText)) return false;
   const target = event.targetBakuganId
     ? state.players.flatMap((player) => player.bakugan).find((candidate) => candidate.id === event.targetBakuganId)
     : undefined;
@@ -123,7 +135,8 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
     for (const source of activeSources(state, owner, event)) {
       const definition = ruleDefinitionForCard(source);
       for (const ability of definition.abilities) {
-        if (ability.kind !== "triggered" || !ability.trigger || !triggerMatches(ability.trigger, source, owner, event, state)) continue;
+        const triggerText = ability.instructions[0]?.sourceText ?? source.effect;
+        if (ability.kind !== "triggered" || !ability.trigger || !triggerMatches(ability.trigger, source, owner, event, state, triggerText)) continue;
         const key = usageKey({ source, abilityId: ability.id }, owner.id, state.turn);
         if (ability.trigger.limit && rules.triggerUsage[key]) continue;
         if (ability.trigger.limit) rules.triggerUsage[key] = (rules.triggerUsage[key] ?? 0) + 1;
