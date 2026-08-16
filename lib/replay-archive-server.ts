@@ -1,115 +1,97 @@
-import type { MatchState } from "./game";
+import { normalizeMatchState, type MatchState } from "./game";
 import {
-  archiveReplayRecording,
-  compactReplayCommand,
-  createReplayRecording,
-  replayStateHash,
-} from "./engine/replay-codec";
-import { buildBestEffortReplayTimeline } from "./engine/replay-best-effort";
-import { buildFrozenReplayPlayback, buildReplayFrames } from "./engine/replay-playback";
-import {
-  buildAuthoritativeReplayTimeline,
-  buildRecordedReplayTimeline,
-  ReplayReconstructionError,
-  type AuthoritativeReplayStep,
-  type RecordedReplayStep,
-} from "./engine/replay-reconstruction";
-import type { ReplayArchive, ReplayFrame } from "./engine/replay-types";
-import { isReplayStatePatch, type ReplayStatePatchOperation } from "./engine/replay-transition";
-import type { CommandEnvelope, EngineBackedMatchState, GameCommand } from "./engine/types";
+  APPLICATION_VERSION,
+  CARD_CATALOGUE_VERSION,
+  CONTENT_SCHEMA_VERSION,
+  DIGITAL_ADAPTATION_VERSION,
+  ENGINE_VERSION,
+  RULES_VERSION,
+  normalizeEngineState,
+  type EngineBackedMatchState,
+  type GameVersionProfile,
+} from "./engine";
+import { replayStateHash } from "./engine/replay-codec";
+import type { ReplayArchive } from "./engine/replay-types";
 import { isCompletedSeriesResult } from "./match-result-navigation";
 import type { MatchResultRecord } from "./persistence";
-import { buildDisplayableReplayArchive } from "./replay-finalization";
-import { buildReplayArchiveFromSnapshotHistory } from "./replay-snapshot-recovery";
+import {
+  associateMatchSeatAccount,
+  buildReplayArchiveFromEventStore,
+  ensureReplayArchiveSchema,
+  loadRecentReplaySummaries,
+} from "./replay-archive-server-legacy";
+
+export * from "./replay-archive-server-legacy";
+export { associateMatchSeatAccount, buildReplayArchiveFromEventStore, ensureReplayArchiveSchema, loadRecentReplaySummaries };
 
 export const MATCH_RECORD_RETENTION = 10;
-
-let replaySchemaReady: Promise<void> | undefined;
-
-export async function ensureReplayArchiveSchema(database: D1Database) {
-  if (!replaySchemaReady) {
-    replaySchemaReady = database.batch([
-      database.prepare(`CREATE TABLE IF NOT EXISTS match_seat_accounts (
-        code TEXT NOT NULL,
-        player_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        PRIMARY KEY (code, player_id),
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )`),
-      database.prepare("CREATE INDEX IF NOT EXISTS match_seat_accounts_user_idx ON match_seat_accounts(user_id, created_at DESC)"),
-      database.prepare(`CREATE TABLE IF NOT EXISTS match_replays (
-        replay_id TEXT PRIMARY KEY NOT NULL,
-        match_code TEXT NOT NULL,
-        archive_json TEXT NOT NULL,
-        final_state_hash TEXT NOT NULL,
-        engine_version TEXT NOT NULL,
-        rules_version TEXT NOT NULL,
-        catalogue_version TEXT NOT NULL,
-        completed_at INTEGER NOT NULL,
-        created_at INTEGER NOT NULL
-      )`),
-      database.prepare("CREATE INDEX IF NOT EXISTS match_replays_completed_idx ON match_replays(completed_at DESC)"),
-      database.prepare(`CREATE TABLE IF NOT EXISTS match_replay_participants (
-        replay_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        player_id TEXT NOT NULL,
-        summary_json TEXT NOT NULL,
-        occurred_at TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        PRIMARY KEY (replay_id, user_id),
-        FOREIGN KEY (replay_id) REFERENCES match_replays(replay_id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )`),
-      database.prepare("CREATE INDEX IF NOT EXISTS match_replay_participant_recent_idx ON match_replay_participants(user_id, occurred_at DESC)"),
-      database.prepare(`CREATE TABLE IF NOT EXISTS match_stat_events (
-        replay_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        result TEXT NOT NULL,
-        mode TEXT NOT NULL,
-        occurred_at TEXT NOT NULL,
-        PRIMARY KEY (replay_id, user_id),
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )`),
-      database.prepare("CREATE INDEX IF NOT EXISTS match_stat_events_user_idx ON match_stat_events(user_id, occurred_at DESC)"),
-      database.prepare(`CREATE TABLE IF NOT EXISTS account_match_stats (
-        user_id TEXT PRIMARY KEY NOT NULL,
-        matches_played INTEGER NOT NULL DEFAULT 0,
-        wins INTEGER NOT NULL DEFAULT 0,
-        losses INTEGER NOT NULL DEFAULT 0,
-        draws INTEGER NOT NULL DEFAULT 0,
-        training_matches INTEGER NOT NULL DEFAULT 0,
-        casual_matches INTEGER NOT NULL DEFAULT 0,
-        ranked_matches INTEGER NOT NULL DEFAULT 0,
-        updated_at INTEGER NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )`),
-    ]).then(() => undefined).catch((error) => {
-      replaySchemaReady = undefined;
-      throw error;
-    });
-  }
-  await replaySchemaReady;
-}
-
-export async function associateMatchSeatAccount(
-  database: D1Database,
-  code: string,
-  playerId: string,
-  userId: string | undefined,
-  createdAt: number,
-) {
-  if (!userId) return true;
-  await ensureReplayArchiveSchema(database);
-  const result = await database.prepare(`INSERT INTO match_seat_accounts (code, player_id, user_id, created_at)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(code, player_id) DO UPDATE SET created_at = excluded.created_at
-    WHERE match_seat_accounts.user_id = excluded.user_id`)
-    .bind(code, playerId, userId, createdAt).run();
-  return Number(result.meta?.changes ?? 0) === 1;
-}
+export const PENDING_REPLAY_ARCHIVE_KIND = "pending-engine-history" as const;
 
 type SeatAccountRow = { player_id: string; user_id: string };
+
+export type PendingReplayArchive = {
+  schemaVersion: 1;
+  kind: typeof PENDING_REPLAY_ARCHIVE_KIND;
+  replayId: string;
+  capturedAt: number;
+  startedAt: number;
+  completedAt: number;
+  finalVersion: number;
+  finalStateHash: string;
+  versions: GameVersionProfile;
+};
+
+export type StoredReplayForUser = {
+  archive_json: string;
+  player_id: string;
+  summary_json: string;
+  match_code: string;
+  completed_at: number;
+};
+
+function replayVersions(state: EngineBackedMatchState): GameVersionProfile {
+  const metadata = state.__engine;
+  return metadata ? {
+    applicationVersion: metadata.applicationVersion,
+    engineVersion: metadata.engineVersion,
+    rulesVersion: metadata.rulesVersion,
+    cardCatalogueVersion: metadata.cardCatalogueVersion,
+    digitalAdaptationVersion: metadata.digitalAdaptationVersion,
+    contentSchemaVersion: metadata.contentSchemaVersion,
+  } : {
+    applicationVersion: APPLICATION_VERSION,
+    engineVersion: ENGINE_VERSION,
+    rulesVersion: RULES_VERSION,
+    cardCatalogueVersion: CARD_CATALOGUE_VERSION,
+    digitalAdaptationVersion: DIGITAL_ADAPTATION_VERSION,
+    contentSchemaVersion: CONTENT_SCHEMA_VERSION,
+  };
+}
+
+function pendingReplayArchive(state: EngineBackedMatchState, completedAt: number): PendingReplayArchive {
+  return {
+    schemaVersion: 1,
+    kind: PENDING_REPLAY_ARCHIVE_KIND,
+    replayId: state.id,
+    capturedAt: completedAt,
+    startedAt: state.log.find((entry) => Number.isFinite(entry.at))?.at ?? completedAt,
+    completedAt,
+    finalVersion: state.version,
+    finalStateHash: replayStateHash(state),
+    versions: replayVersions(state),
+  };
+}
+
+export function isPendingReplayArchive(value: unknown): value is PendingReplayArchive {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Partial<PendingReplayArchive>;
+  return candidate.schemaVersion === 1
+    && candidate.kind === PENDING_REPLAY_ARCHIVE_KIND
+    && typeof candidate.replayId === "string"
+    && Number.isInteger(candidate.finalVersion)
+    && typeof candidate.finalStateHash === "string"
+    && typeof candidate.completedAt === "number";
+}
 
 function matchMode(state: MatchState): NonNullable<MatchResultRecord["mode"]> {
   return (state as MatchState & { ranked?: unknown }).ranked ? "ranked" : "casual";
@@ -118,22 +100,22 @@ function matchMode(state: MatchState): NonNullable<MatchResultRecord["mode"]> {
 function participantSummary(
   state: MatchState,
   playerId: string,
-  archive: ReplayArchive,
+  replay: Pick<PendingReplayArchive, "replayId" | "completedAt" | "startedAt">,
   opponentUserId?: string,
 ): MatchResultRecord {
   const opponent = state.players.find((candidate) => candidate.id !== playerId);
   const localScore = Number(state.series[playerId] ?? 0);
   const opponentScore = Number(opponent ? state.series[opponent.id] ?? 0 : 0);
   return {
-    id: archive.replayId,
-    replayId: archive.replayId,
+    id: replay.replayId,
+    replayId: replay.replayId,
     result: !state.winner ? "Draw" : state.winner === playerId ? "Victor" : "Defeat",
     opponent: opponent?.name ?? "Opponent",
     opponentUserId,
     score: `${localScore}–${opponentScore}`,
     reason: state.resultReason,
-    at: new Date(archive.completedAt).toISOString(),
-    startedAt: new Date(archive.startedAt).toISOString(),
+    at: new Date(replay.completedAt).toISOString(),
+    startedAt: new Date(replay.startedAt).toISOString(),
     format: state.format,
     mode: matchMode(state),
     schemaVersion: 3,
@@ -167,355 +149,17 @@ function recomputeStats(database: D1Database, userId: string, now: number) {
     .bind(userId, now, userId);
 }
 
-type ReplaySnapshotRow = { version: number; state_json: string; created_at: number };
-export type ReplayCommandRow = {
-  command_id: string;
-  actor_id: string;
-  expected_version: number;
-  result_version: number;
-  payload_json: string;
-  created_at: number;
-};
-
-type ParsedReplayStep = AuthoritativeReplayStep & {
-  statePatch?: readonly ReplayStatePatchOperation[];
-};
-
-function parseAcceptedCommand(row: ReplayCommandRow, gameId: string): ParsedReplayStep | null {
-  try {
-    const payload = JSON.parse(row.payload_json) as {
-      command?: GameCommand;
-      randomSeed?: string;
-      requestHash?: string;
-      replayStatePatch?: unknown;
-    };
-    if (!payload.command || typeof payload.command.type !== "string" || !payload.randomSeed) return null;
-    const envelope: CommandEnvelope = {
-      commandId: row.command_id,
-      gameId,
-      actorId: row.actor_id,
-      expectedVersion: row.expected_version,
-      issuedAt: row.created_at,
-      randomSeed: payload.randomSeed,
-      requestHash: payload.requestHash ?? `archive:${row.command_id}`,
-      command: payload.command,
-    };
-    return {
-      envelope,
-      resultVersion: row.result_version,
-      ...(isReplayStatePatch(payload.replayStatePatch) ? { statePatch: payload.replayStatePatch } : {}),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function reportReplayReconstructionFailure(
-  state: EngineBackedMatchState,
-  snapshotVersion: number | undefined,
-  commandCount: number,
-  error: unknown,
-) {
-  const reconstruction = error instanceof ReplayReconstructionError ? error.context : undefined;
-  console.error("Replay reconstruction failed; preserving the best recoverable timeline.", {
-    replayId: state.id,
-    matchCode: state.code,
-    snapshotVersion,
-    finalVersion: state.version,
-    commandCount,
-    commandIndex: reconstruction?.commandIndex,
-    commandId: reconstruction?.commandId,
-    commandType: reconstruction?.commandType,
-    expectedVersion: reconstruction?.expectedVersion,
-    actualVersion: reconstruction?.actualVersion,
-    recordedResultVersion: reconstruction?.resultVersion,
-    errorName: error instanceof Error ? error.name : "UnknownError",
-    errorMessage: error instanceof Error ? error.message : String(error),
-  });
-}
-
-function allStepsHaveRecordedState(
-  steps: readonly ParsedReplayStep[],
-): steps is readonly RecordedReplayStep[] {
-  return steps.every((step) => Array.isArray(step.statePatch));
-}
-
-function replayFrameCount(archive: ReplayArchive) {
-  if (!archive.playback) return 0;
-  return 1 + archive.playback.steps.length;
-}
-
-function isFinalBattlefieldFallbackReplay(archive: ReplayArchive) {
-  const playback = archive.playback;
-  if (!playback) return false;
-  const finalOnly = playback.steps.length === 0
-    && playback.initialFrame.commandType === "CREATE_MATCH"
-    && playback.initialFrame.label === "Recovered final battlefield";
-  const recoveredGap = playback.steps.some((step) => step.label === "Replay gap — recovered final battlefield");
-  return finalOnly || recoveredGap;
-}
-
-async function recoverReplayFromSnapshotsOrFinalState(
-  database: D1Database,
-  state: EngineBackedMatchState,
-  completedAt: number,
-  reason: string,
-  fallback?: ReplayArchive,
-) {
-  try {
-    const recovered = await buildReplayArchiveFromSnapshotHistory(database, state, completedAt);
-    if (recovered) {
-      if (fallback && replayFrameCount(fallback) > replayFrameCount(recovered)) {
-        console.info("Replay snapshot history was coarser than the best-effort journal recovery; preserving the richer timeline.", {
-          replayId: state.id,
-          matchCode: state.code,
-          finalVersion: state.version,
-          fallbackFrameCount: replayFrameCount(fallback),
-          snapshotFrameCount: replayFrameCount(recovered),
-          reason,
-        });
-        return fallback;
-      }
-      console.info("Replay reconstruction recovered from authoritative snapshot history.", {
-        replayId: state.id,
-        matchCode: state.code,
-        finalVersion: state.version,
-        frameCount: replayFrameCount(recovered),
-        stepCount: recovered.playback?.steps.length ?? 0,
-        reason,
-      });
-      return recovered;
-    }
-  } catch (error) {
-    console.error("Replay snapshot recovery failed; preserving the best available replay fallback.", {
-      replayId: state.id,
-      matchCode: state.code,
-      finalVersion: state.version,
-      reason,
-      errorName: error instanceof Error ? error.name : "UnknownError",
-      errorMessage: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  console.warn("Replay snapshot recovery had insufficient history; preserving the best available replay fallback.", {
-    replayId: state.id,
-    matchCode: state.code,
-    finalVersion: state.version,
-    reason,
-  });
-  return fallback ?? buildDisplayableReplayArchive(null, state, completedAt);
-}
-
-function replayFailureIndex(rows: readonly ReplayCommandRow[], error: unknown) {
-  const reconstruction = error instanceof ReplayReconstructionError ? error.context : undefined;
-  if (reconstruction?.commandId) {
-    const byId = rows.findIndex((row) => row.command_id === reconstruction.commandId);
-    if (byId >= 0) return byId;
-  }
-  if (Number.isInteger(reconstruction?.commandIndex)) return Number(reconstruction?.commandIndex);
-  return rows.length;
-}
-
-function buildBestEffortRecoveryArchive(
-  genesis: MatchState,
-  rows: readonly ReplayCommandRow[],
-  state: EngineBackedMatchState,
-  completedAt: number,
-  snapshotCreatedAt: number,
-  error: unknown,
-): ReplayArchive | null {
-  const prefixRows = rows.slice(0, replayFailureIndex(rows, error));
-  const steps: ParsedReplayStep[] = [];
-  for (const row of prefixRows) {
-    const step = parseAcceptedCommand(row, state.id);
-    if (!step) break;
-    steps.push(step);
-  }
-
-  const timeline = buildBestEffortReplayTimeline(genesis, steps, snapshotCreatedAt);
-  const lastFrame = timeline.frames.at(-1);
-  if (!lastFrame) return null;
-
-  const finalHash = replayStateHash(state);
-  const needsFinalRecovery = lastFrame.state.version !== state.version
-    || replayStateHash(lastFrame.state) !== finalHash;
-  if (needsFinalRecovery) {
-    const label = "Replay gap — recovered final battlefield";
-    const frame: ReplayFrame = {
-      index: timeline.frames.length,
-      at: completedAt,
-      commandType: "NEXT_TURN",
-      label,
-      state: structuredClone(state),
-    };
-    timeline.frames.push(frame);
-    timeline.markers.push({
-      index: frame.index,
-      at: frame.at,
-      type: state.phase === "result" ? "result" : "command",
-      label,
-    });
-  }
-
-  if (timeline.frames.length <= 1) return null;
-  const recording = createReplayRecording(genesis);
-  recording.commands = timeline.appliedSteps.map((step) => compactReplayCommand(step.envelope));
-  const archive = archiveReplayRecording(recording, state, completedAt);
-  archive.startedAt = snapshotCreatedAt;
-  archive.playback = buildFrozenReplayPlayback(timeline.frames, timeline.markers);
-  buildReplayFrames(archive);
-  return archive;
-}
-
 /**
- * Build the permanent replay from an exact persisted gameplay snapshot and the
- * authoritative engine journal. New journals carry the exact replay-relevant
- * state delta produced by every accepted command, so archival does not execute
- * game rules a second time. The reducer path remains only for older journals.
+ * Records only replay identity, participant summaries, and statistics when a
+ * match completes. The canonical engine event store remains the history; the
+ * visual replay archive is compiled lazily when a participant first watches it.
  */
-export function buildReplayArchiveFromRows(
-  genesis: MatchState,
-  snapshotVersion: number,
-  rows: readonly ReplayCommandRow[],
-  state: EngineBackedMatchState,
-  completedAt = Date.now(),
-  snapshotCreatedAt = genesis.log.find((entry) => Number.isFinite(entry.at))?.at ?? completedAt,
-) {
-  const relevantRows = rows.filter((row) => row.result_version > snapshotVersion);
-  try {
-    const steps: ParsedReplayStep[] = relevantRows.map((row) => {
-      const step = parseAcceptedCommand(row, state.id);
-      if (!step) {
-        throw new ReplayReconstructionError(
-          `Accepted command ${row.command_id} cannot be reconstructed from its persisted payload.`,
-          {
-            commandId: row.command_id,
-            expectedVersion: row.expected_version,
-            resultVersion: row.result_version,
-          },
-        );
-      }
-      return step;
-    });
-
-    const timeline = allStepsHaveRecordedState(steps)
-      ? buildRecordedReplayTimeline(genesis, steps, state, snapshotCreatedAt)
-      : buildAuthoritativeReplayTimeline(genesis, steps, state, snapshotCreatedAt);
-    const recording = createReplayRecording(genesis);
-    recording.commands = steps.map((step) => compactReplayCommand(step.envelope));
-    const archive = archiveReplayRecording(recording, state, completedAt);
-    archive.startedAt = snapshotCreatedAt;
-    archive.playback = buildFrozenReplayPlayback(timeline.frames, timeline.markers);
-    // Exercise the same self-contained playback path used by Replay Theatre.
-    buildReplayFrames(archive);
-    return archive;
-  } catch (error) {
-    reportReplayReconstructionFailure(state, snapshotVersion, relevantRows.length, error);
-    try {
-      const recovered = buildBestEffortRecoveryArchive(
-        genesis,
-        relevantRows,
-        state,
-        completedAt,
-        snapshotCreatedAt,
-        error,
-      );
-      if (recovered) {
-        console.warn("Replay reconstruction preserved the valid prefix and appended the authoritative final battlefield.", {
-          replayId: state.id,
-          matchCode: state.code,
-          finalVersion: state.version,
-          frameCount: replayFrameCount(recovered),
-        });
-        return recovered;
-      }
-    } catch (recoveryError) {
-      console.error("Best-effort replay recovery failed; using the final battlefield emergency fallback.", {
-        replayId: state.id,
-        matchCode: state.code,
-        finalVersion: state.version,
-        errorName: recoveryError instanceof Error ? recoveryError.name : "UnknownError",
-        errorMessage: recoveryError instanceof Error ? recoveryError.message : String(recoveryError),
-      });
-    }
-    return buildDisplayableReplayArchive(null, state, completedAt);
-  }
-}
-
-/**
- * Builds a replay from the engine event store after the gameplay request path
- * is complete. The first gameplay snapshot is the genesis; subsequent accepted
- * command records provide both audit metadata and the authoritative state delta
- * that the live reducer produced. If exact journal reconstruction is unavailable,
- * retained authoritative snapshots are used before the final-only emergency view.
- */
-export async function buildReplayArchiveFromEventStore(
-  database: D1Database,
-  state: EngineBackedMatchState,
-  completedAt = Date.now(),
-) {
-  const snapshot = await database.prepare(`SELECT version, state_json, created_at FROM match_snapshots
-    WHERE code = ? AND json_extract(state_json, '$.phase') <> 'lobby'
-    ORDER BY version ASC LIMIT 1`)
-    .bind(state.code).first<ReplaySnapshotRow>();
-  if (!snapshot) {
-    const error = new Error("No gameplay snapshot is available.");
-    reportReplayReconstructionFailure(state, undefined, 0, error);
-    return recoverReplayFromSnapshotsOrFinalState(database, state, completedAt, error.message);
-  }
-  let genesis: MatchState;
-  try {
-    genesis = JSON.parse(snapshot.state_json) as MatchState;
-  } catch (error) {
-    reportReplayReconstructionFailure(state, snapshot.version, 0, error);
-    return recoverReplayFromSnapshotsOrFinalState(
-      database,
-      state,
-      completedAt,
-      "The earliest gameplay snapshot could not be parsed.",
-    );
-  }
-  const response = await database.prepare(`SELECT
-      match_events.command_id,
-      match_events.actor_id,
-      match_commands.expected_version,
-      match_commands.result_version,
-      match_events.payload_json,
-      match_events.created_at
-    FROM match_events
-    JOIN match_commands
-      ON match_commands.code = match_events.code
-      AND match_commands.command_id = match_events.command_id
-    WHERE match_events.code = ?
-      AND match_events.event_type = 'COMMAND_ACCEPTED'
-      AND match_commands.result_version > ?
-    ORDER BY match_events.sequence ASC`)
-    .bind(state.code, snapshot.version).all<ReplayCommandRow>();
-  const archive = buildReplayArchiveFromRows(
-    genesis,
-    snapshot.version,
-    response.results ?? [],
-    state,
-    completedAt,
-    snapshot.created_at,
-  );
-  if (!isFinalBattlefieldFallbackReplay(archive)) return archive;
-  return recoverReplayFromSnapshotsOrFinalState(
-    database,
-    state,
-    completedAt,
-    "Exact event-journal reconstruction required best-effort recovery.",
-    archive,
-  );
-}
-
-/** Archives a completed series once, links each signed-in participant, and prunes visible records to ten. */
 export async function archiveCompletedMatch(database: D1Database, state: EngineBackedMatchState) {
   if (!isCompletedSeriesResult(state)) return false;
   const completedAt = Date.now();
-  const archive = await buildReplayArchiveFromEventStore(database, state, completedAt);
-  if (!archive) return false;
+  const pending = pendingReplayArchive(state, completedAt);
   await ensureReplayArchiveSchema(database);
+
   const seats = await database.prepare(
     "SELECT player_id, user_id FROM match_seat_accounts WHERE code = ?",
   ).bind(state.code).all<SeatAccountRow>();
@@ -526,39 +170,58 @@ export async function archiveCompletedMatch(database: D1Database, state: EngineB
   for (const [playerId, rankedPlayer] of Object.entries(rankedPlayers)) {
     if (rankedPlayer.userId) byPlayer.set(playerId, rankedPlayer.userId);
   }
+
   const participants = state.players.flatMap((player) => {
     const userId = byPlayer.get(player.id);
     const opponent = state.players.find((candidate) => candidate.id !== player.id);
-    return userId ? [{ playerId: player.id, userId, summary: participantSummary(state, player.id, archive, opponent ? byPlayer.get(opponent.id) : undefined) }] : [];
+    return userId ? [{
+      playerId: player.id,
+      userId,
+      summary: participantSummary(state, player.id, pending, opponent ? byPlayer.get(opponent.id) : undefined),
+    }] : [];
   });
+
   const statements: D1PreparedStatement[] = [
     database.prepare(`INSERT OR IGNORE INTO match_replays (
       replay_id, match_code, archive_json, final_state_hash, engine_version,
       rules_version, catalogue_version, completed_at, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(
-        archive.replayId,
+        pending.replayId,
         state.code,
-        JSON.stringify(archive),
-        archive.finalStateHash,
-        archive.versions.engineVersion,
-        archive.versions.rulesVersion,
-        archive.versions.cardCatalogueVersion,
-        archive.completedAt,
+        JSON.stringify(pending),
+        pending.finalStateHash,
+        pending.versions.engineVersion,
+        pending.versions.rulesVersion,
+        pending.versions.cardCatalogueVersion,
+        pending.completedAt,
         completedAt,
       ),
   ];
+
   for (const participant of participants) {
-    const result = participant.summary.result;
     statements.push(
       database.prepare(`INSERT OR IGNORE INTO match_replay_participants (
         replay_id, user_id, player_id, summary_json, occurred_at, created_at
       ) VALUES (?, ?, ?, ?, ?, ?)`)
-        .bind(archive.replayId, participant.userId, participant.playerId, JSON.stringify(participant.summary), participant.summary.at, completedAt),
+        .bind(
+          pending.replayId,
+          participant.userId,
+          participant.playerId,
+          JSON.stringify(participant.summary),
+          participant.summary.at,
+          completedAt,
+        ),
       database.prepare(`INSERT OR IGNORE INTO match_stat_events (
         replay_id, user_id, result, mode, occurred_at
       ) VALUES (?, ?, ?, ?, ?)`)
-        .bind(archive.replayId, participant.userId, result, participant.summary.mode, participant.summary.at),
+        .bind(
+          pending.replayId,
+          participant.userId,
+          participant.summary.result,
+          participant.summary.mode,
+          participant.summary.at,
+        ),
       recomputeStats(database, participant.userId, completedAt),
       database.prepare(`DELETE FROM match_replay_participants
         WHERE user_id = ? AND replay_id NOT IN (
@@ -567,6 +230,7 @@ export async function archiveCompletedMatch(database: D1Database, state: EngineB
         )`).bind(participant.userId, participant.userId, MATCH_RECORD_RETENTION),
     );
   }
+
   statements.push(database.prepare(`DELETE FROM match_replays
     WHERE NOT EXISTS (
       SELECT 1 FROM match_replay_participants
@@ -578,21 +242,54 @@ export async function archiveCompletedMatch(database: D1Database, state: EngineB
 
 export async function loadReplayForUser(database: D1Database, replayId: string, userId: string) {
   await ensureReplayArchiveSchema(database);
-  return database.prepare(`SELECT match_replays.archive_json, match_replay_participants.player_id,
+  return database.prepare(`SELECT match_replays.archive_json, match_replays.match_code,
+      match_replays.completed_at, match_replay_participants.player_id,
       match_replay_participants.summary_json
     FROM match_replays
     JOIN match_replay_participants ON match_replay_participants.replay_id = match_replays.replay_id
     WHERE match_replays.replay_id = ? AND match_replay_participants.user_id = ?`)
     .bind(replayId, userId)
-    .first<{ archive_json: string; player_id: string; summary_json: string }>();
+    .first<StoredReplayForUser>();
 }
 
-export async function loadRecentReplaySummaries(database: D1Database, userId: string) {
-  await ensureReplayArchiveSchema(database);
-  const response = await database.prepare(`SELECT summary_json FROM match_replay_participants
-    WHERE user_id = ? ORDER BY occurred_at DESC, replay_id DESC LIMIT ?`)
-    .bind(userId, MATCH_RECORD_RETENTION).all<{ summary_json: string }>();
-  return (response.results ?? []).flatMap((row) => {
-    try { return [JSON.parse(row.summary_json) as MatchResultRecord]; } catch { return []; }
-  });
+/** Compile and cache a pending server replay from the canonical engine history. */
+export async function materializeReplayArchive(
+  database: D1Database,
+  row: Pick<StoredReplayForUser, "archive_json" | "match_code" | "completed_at">,
+): Promise<ReplayArchive> {
+  let stored: unknown;
+  try {
+    stored = JSON.parse(row.archive_json) as unknown;
+  } catch {
+    throw new Error("Replay archive metadata is damaged.");
+  }
+  if (!isPendingReplayArchive(stored)) return stored as ReplayArchive;
+
+  const match = await database.prepare("SELECT state_json FROM matches WHERE code = ?")
+    .bind(row.match_code)
+    .first<{ state_json: string }>();
+  if (!match?.state_json) {
+    throw new Error("Replay engine history is no longer available for this match.");
+  }
+
+  const state = normalizeEngineState(normalizeMatchState(JSON.parse(match.state_json) as MatchState));
+  if (state.id !== stored.replayId || state.phase !== "result") {
+    throw new Error("Replay engine history does not match the completed replay record.");
+  }
+
+  const archive = await buildReplayArchiveFromEventStore(database, state, stored.completedAt || row.completed_at);
+  await database.prepare(`UPDATE match_replays
+    SET archive_json = ?, final_state_hash = ?, engine_version = ?, rules_version = ?, catalogue_version = ?
+    WHERE replay_id = ? AND archive_json = ?`)
+    .bind(
+      JSON.stringify(archive),
+      archive.finalStateHash,
+      archive.versions.engineVersion,
+      archive.versions.rulesVersion,
+      archive.versions.cardCatalogueVersion,
+      archive.replayId,
+      row.archive_json,
+    )
+    .run();
+  return archive;
 }

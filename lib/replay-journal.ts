@@ -1,5 +1,5 @@
 import type { MatchState } from "./game";
-import type { CommandEnvelope } from "./engine/types";
+import type { CommandEnvelope, GameEvent } from "./engine/types";
 
 type JournalWorkerRequest =
   | {
@@ -9,7 +9,13 @@ type JournalWorkerRequest =
     startedAt: number;
     state: MatchState;
   }
-  | { type: "append"; replayId: string; envelope: CommandEnvelope }
+  | {
+    type: "append";
+    replayId: string;
+    envelope: CommandEnvelope;
+    resultVersion: number;
+    events: GameEvent[];
+  }
   | { type: "complete"; requestId: number; replayId: string; ownerId: string; state: MatchState; completedAt: number }
   | { type: "flush" };
 
@@ -31,12 +37,9 @@ const initialized = new Set<string>();
 const pending = new Map<number, PendingFinalization>();
 let lifecycleListenersInstalled = false;
 
-async function saveCompletedStateFallback(state: MatchState, ownerId: string) {
-  const [{ buildDisplayableReplayArchive }, { saveLocalReplay }] = await Promise.all([
-    import("./replay-finalization"),
-    import("./replay-local-store"),
-  ]);
-  await saveLocalReplay(buildDisplayableReplayArchive(null, state), ownerId);
+async function sealCompletedStateFallback(state: MatchState, ownerId: string) {
+  const { sealLocalReplayHistory } = await import("./replay-local-store");
+  await sealLocalReplayHistory(state.id, state, ownerId, Date.now());
 }
 
 function recoverPendingFinalization(requestId: number, cause: Error) {
@@ -44,9 +47,9 @@ function recoverPendingFinalization(requestId: number, cause: Error) {
   if (!waiter) return;
   pending.delete(requestId);
   clearTimeout(waiter.timeoutId);
-  void saveCompletedStateFallback(waiter.state, waiter.ownerId).then(waiter.resolve).catch((fallbackCause) => {
+  void sealCompletedStateFallback(waiter.state, waiter.ownerId).then(waiter.resolve).catch((fallbackCause) => {
     const detail = fallbackCause instanceof Error ? fallbackCause.message : String(fallbackCause);
-    waiter.reject(new Error(`${cause.message} Completed-state recovery also failed: ${detail}`));
+    waiter.reject(new Error(`${cause.message} Local engine-history sealing also failed: ${detail}`));
   });
 }
 
@@ -74,7 +77,7 @@ function journalWorker(): Worker | null {
     if (!event.data.ok) {
       recoverPendingFinalization(
         event.data.requestId,
-        new Error(event.data.error ?? "Replay finalization failed."),
+        new Error(event.data.error ?? "Local engine-history sealing failed."),
       );
       return;
     }
@@ -83,7 +86,7 @@ function journalWorker(): Worker | null {
     waiter.resolve();
   });
   worker.addEventListener("error", (event) => {
-    const cause = new Error(event.message || "Replay journal worker stopped unexpectedly.");
+    const cause = new Error(event.message || "Local engine-history worker stopped unexpectedly.");
     const requestIds = [...pending.keys()];
     initialized.clear();
     worker?.terminate();
@@ -109,25 +112,33 @@ export function initializeLocalReplayJournal(state: MatchState, ownerId: string)
   } satisfies JournalWorkerRequest);
 }
 
-export function journalLocalReplayCommand(before: MatchState, envelope: CommandEnvelope, ownerId: string) {
+export function journalLocalEngineTransition(
+  before: MatchState,
+  envelope: CommandEnvelope,
+  resultVersion: number,
+  events: GameEvent[],
+  ownerId: string,
+) {
   if (typeof Worker === "undefined") return;
   initializeLocalReplayJournal(before, ownerId);
   journalWorker()?.postMessage({
     type: "append",
     replayId: before.id,
     envelope,
+    resultVersion,
+    events,
   } satisfies JournalWorkerRequest);
 }
 
 export function finalizeLocalReplayJournal(state: MatchState, ownerId: string) {
-  if (typeof Worker === "undefined") return saveCompletedStateFallback(state, ownerId);
+  if (typeof Worker === "undefined") return sealCompletedStateFallback(state, ownerId);
   initializeLocalReplayJournal(state, ownerId);
   const activeWorker = journalWorker();
-  if (!activeWorker) return saveCompletedStateFallback(state, ownerId);
+  if (!activeWorker) return sealCompletedStateFallback(state, ownerId);
   const requestId = ++requestSequence;
   return new Promise<void>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
-      recoverPendingFinalization(requestId, new Error("Replay journal finalization timed out."));
+      recoverPendingFinalization(requestId, new Error("Local engine-history sealing timed out."));
     }, REPLAY_FINALIZATION_TIMEOUT_MS);
     pending.set(requestId, { resolve, reject, state, ownerId, timeoutId });
     activeWorker.postMessage({

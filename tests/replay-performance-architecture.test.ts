@@ -6,6 +6,7 @@ import { compactReplayCommand, createReplayRecording } from "../lib/engine/repla
 import { buildReplayFrames } from "../lib/engine/replay-playback";
 import { initializeMatch, reduceMatch } from "../lib/engine/reducer";
 import type { CommandEnvelope } from "../lib/engine/types";
+import { compileLocalReplayHistory, createLocalEngineHistoryDraft } from "../lib/local-replay-history";
 import { buildReplayArchiveFromRows } from "../lib/replay-archive-server";
 import { buildReplayArchiveFromSnapshotRows } from "../lib/replay-snapshot-recovery";
 
@@ -138,35 +139,61 @@ test("periodic snapshots recover retained replay history when a legacy command j
   assert.notEqual(playback.frames[0].label, "Recovered final battlefield");
 });
 
-test("recording work stays in workers and online finalization stays outside response latency", async () => {
-  const [dispatcher, journal, journalWorker, finalization, route, entry, eventStore, theatre, playbackClient] = await Promise.all([
+test("completed local engine history compiles exact replay patches only when requested", () => {
+  const first = makePlayer("lazy-local-a", "Alpha", STARTER_DECKS[0]);
+  const second = makePlayer("lazy-local-b", "Training AI", STARTER_DECKS[1]);
+  let state = initializeMatch("LAZY01", "bo1", [first, second], {
+    commandId: "lazy-create",
+    actorId: first.id,
+    issuedAt: 1_900_000_000_000,
+    randomSeed: "lazy-create-seed",
+    requestHash: "lazy-create-request",
+  }).state;
+  const draft = createLocalEngineHistoryDraft(state, first.id, 1_900_000_000_000);
+  for (const [index, actorId] of [first.id, second.id].entries()) {
+    const envelope = readyEnvelope(state, actorId, index + 1);
+    const result = reduceMatch(state, envelope);
+    assert.equal(result.changed, true);
+    draft.transitions.push({ envelope, resultVersion: result.state.version, events: result.events });
+    state = result.state;
+  }
+  draft.finalState = state;
+  draft.completedAt = 1_900_000_010_000;
+
+  const archive = compileLocalReplayHistory(draft);
+  const playback = buildReplayFrames(archive);
+  assert.equal(archive.playback?.steps.length, 2);
+  assert.equal(playback.frames.length, 3);
+  assert.equal(playback.frames.at(-1)?.state.version, state.version);
+});
+
+test("engine history is the only live replay source and replay archives compile on demand", async () => {
+  const [dispatcher, journal, journalWorker, serverStore, route, eventStore, theatre, localStore] = await Promise.all([
     source("lib/engine/local-command-dispatcher.ts"),
     source("lib/replay-journal.ts"),
     source("lib/replay-journal.worker.ts"),
-    source("lib/replay-finalization.ts"),
-    source("app/api/game/route.ts"),
-    source("worker/index.ts"),
+    source("lib/replay-archive-server.ts"),
+    source("app/api/replays/route.ts"),
     source("lib/engine/event-store.ts"),
     source("components/replay/ReplayTheatre.tsx"),
-    source("lib/replay-playback-client.ts"),
+    source("lib/replay-local-store.ts"),
   ]);
 
-  assert.match(dispatcher, /journalLocalReplayCommand\(input, envelope, ownerId\)/);
-  assert.doesNotMatch(dispatcher, /structuredClone|JSON\.stringify/);
+  assert.match(dispatcher, /journalLocalEngineTransition/);
+  assert.match(dispatcher, /createReplayStatePatch\(input, result\.state\)/);
+  assert.doesNotMatch(dispatcher, /journalLocalReplayCommand/);
   assert.match(journal, /new Worker\(new URL\("\.\/replay-journal\.worker\.ts"/);
-  assert.match(journalWorker, /REPLAY_JOURNAL_STORE/);
-  assert.match(journalWorker, /scheduleFlush\(\)/);
-  assert.match(journalWorker, /buildDisplayableReplayArchive/);
-  assert.match(journal, /saveCompletedStateFallback/);
-  assert.match(journal, /REPLAY_FINALIZATION_TIMEOUT_MS/);
-  assert.match(finalization, /buildReplayFrames\(candidate\)/);
-  assert.match(finalization, /createReplayRecording\(state\)/);
-  assert.match(route, /getRequestExecutionContext\(\)/);
-  assert.match(route, /context\.waitUntil\(task\)/);
-  assert.match(entry, /runWithExecutionContext/);
+  assert.match(journal, /sealCompletedStateFallback/);
+  assert.match(journalWorker, /isLocalEngineHistoryDraft/);
+  assert.match(journalWorker, /await persistDraft\(draft\)/);
+  assert.doesNotMatch(journalWorker, /buildDisplayableReplayArchive|saveLocalReplay/);
+  assert.match(serverStore, /PENDING_REPLAY_ARCHIVE_KIND = "pending-engine-history"/);
+  assert.match(serverStore, /visual replay archive is compiled lazily/);
+  assert.match(route, /materializeReplayArchive\(database, row\)/);
+  assert.match(localStore, /loadOrCompileLocalReplay/);
+  assert.match(localStore, /compileLocalReplayHistory\(history\)/);
   assert.match(eventStore, /enteredGameplay/);
   assert.match(theatre, /reconstructLocalReplay/);
-  assert.match(playbackClient, /replay-playback\.worker\.ts/);
 });
 
 test("all player-visible local mutation layers route through the command dispatcher", async () => {

@@ -15,6 +15,7 @@ import {
   buildReplayArchiveFromEventStore,
   loadRecentReplaySummaries,
   loadReplayForUser,
+  materializeReplayArchive,
 } from "../../../lib/replay-archive-server";
 import { buildReplayArchiveFromSnapshotHistory } from "../../../lib/replay-snapshot-recovery";
 import { AuthenticationError, ConflictError, ValidationError, serverErrorResponse } from "../../../lib/server-errors";
@@ -112,8 +113,19 @@ export async function GET(request: Request) {
     if (!/^[A-Za-z0-9._:-]{1,160}$/.test(replayId)) throw new ValidationError("Replay ID is invalid.");
     const row = await loadReplayForUser(database, replayId, user.id);
     if (!row) return json({ error: "Replay not found.", code: "NOT_FOUND", correlationId }, 404);
+
     let archive: ReplayArchive;
-    try { archive = JSON.parse(row.archive_json) as ReplayArchive; } catch { throw new ConflictError("This replay archive is damaged."); }
+    try {
+      // New matches persist only a lightweight pending marker at completion.
+      // The first participant who opens Replay Theatre compiles the frozen
+      // archive from canonical engine history and atomically caches it here.
+      archive = await materializeReplayArchive(database, row);
+    } catch (error) {
+      throw new ConflictError(
+        "This replay could not be prepared from the retained match history.",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
 
     // The previous recovery path permanently froze a valid-but-historyless
     // final battlefield. When the event store is still retained, make one
