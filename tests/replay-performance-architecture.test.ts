@@ -53,7 +53,7 @@ test("active MatchState contains no replay recording or accumulated transition h
   assert.deepEqual(Object.keys(recording.commands[0]).sort(), ["a", "c", "s", "t"]);
 });
 
-test("online replay finalization reuses accepted command events after the gameplay snapshot", () => {
+test("online replay finalization preserves valid frames when a later command is damaged", () => {
   const first = makePlayer("online-a", "Alpha", STARTER_DECKS[0]);
   const second = makePlayer("online-b", "Beta", STARTER_DECKS[1]);
   let state = initializeMatch("EVENT1", "bo1", [first, second], {
@@ -87,10 +87,15 @@ test("online replay finalization reuses accepted command events after the gamepl
   assert.equal(archive.recording.commands.length, 2);
   assert.equal(buildReplayFrames(archive).frames.at(-1)?.state.version, state.version);
 
-  const damagedRows = rows.map((row, index) => index === 0 ? { ...row, payload_json: "{}" } : row);
+  const damagedRows = rows.map((row, index) => index === 1 ? { ...row, payload_json: "{}" } : row);
   const recovered = buildReplayArchiveFromRows(genesis, genesis.version, damagedRows, state, 1_900_000_010_000);
-  assert.equal(recovered.recording.commands.length, 0);
-  assert.equal(buildReplayFrames(recovered).frames[0].state.version, state.version);
+  const recoveredPlayback = buildReplayFrames(recovered);
+  assert.equal(recovered.recording.commands.length, 1);
+  assert.equal(recoveredPlayback.frames.length, 3);
+  assert.equal(recoveredPlayback.frames[0].state.version, genesis.version);
+  assert.equal(recoveredPlayback.frames[1].state.version, rows[0].result_version);
+  assert.equal(recoveredPlayback.frames.at(-1)?.state.version, state.version);
+  assert.equal(recoveredPlayback.frames.at(-1)?.label, "Replay gap — recovered final battlefield");
 });
 
 test("periodic snapshots recover retained replay history when a legacy command journal is unusable", () => {
