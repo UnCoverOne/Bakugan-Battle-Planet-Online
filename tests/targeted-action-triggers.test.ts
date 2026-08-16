@@ -129,6 +129,37 @@ test("Action-on-this triggers require an Action that is actually played on the s
   }
 });
 
+test("non-selected open Action-on-this sources still trigger when an Action targets them", () => {
+  for (const catalogId of ACTION_ON_THIS_SOURCES) {
+    const { state, player, source, sourceBakugan } = triggerState(catalogId, `open-${catalogId}`);
+    const selectedBakugan = player.bakugan[1];
+    selectedBakugan.open = true;
+    state.selected[player.id] = selectedBakugan.id;
+
+    const targetedAction = card("aa-50", `open-targeted-action-${catalogId}`);
+    emitRuleEvent(state, {
+      id: `${catalogId}:open-non-selected-target`,
+      name: "CARD_PLAYED",
+      actorId: player.id,
+      controllerId: player.id,
+      card: targetedAction,
+      cardType: "Action",
+      targetBakuganId: selectedBakugan.id,
+      choices: {
+        targetBakuganId: state.players[1].bakugan[0].id,
+        secondaryTargetBakuganId: sourceBakugan.id,
+      },
+      createdAt: Date.now(),
+    });
+
+    assert.equal(
+      state.batch.filter((object) => object.card.id === source.id).length,
+      1,
+      `${catalogId} must remain an active trigger source while its Bakugan is open`,
+    );
+  }
+});
+
 test("Deep Dive and Quickfire implicitly select the active Bakugan for every Action-on-this source", () => {
   for (const sourceCatalogId of ACTION_ON_THIS_SOURCES) {
     for (const actionCatalogId of ["br-6", "br-44"] as const) {

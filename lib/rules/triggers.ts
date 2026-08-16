@@ -20,10 +20,16 @@ export type RuleEvent = {
 };
 
 function activeSources(state: MatchState, owner: PlayerState, event: RuleEvent) {
-  const selected = owner.bakugan.find((bakugan) => bakugan.id === state.selected[owner.id]);
-  const top = selected ? selected.evoStack.at(-1) ?? selected.character : undefined;
+  const selectedId = state.selected[owner.id];
+  // Triggered abilities belong to the top card of every Bakugan that is
+  // currently participating in play, not only the Bakugan selected this turn.
+  // Keep the selected Bakugan active even while closed so existing pre-open and
+  // reroll semantics remain intact, and also include every other open Bakugan.
+  const bakuganSources = owner.bakugan
+    .filter((bakugan) => bakugan.open || bakugan.id === selectedId)
+    .map((bakugan) => bakugan.evoStack.at(-1) ?? bakugan.character);
   const playedSource = event.card && (event.controllerId ?? event.actorId) === owner.id ? event.card : undefined;
-  const sources = [...(top ? [top] : []), ...owner.heroes, ...(playedSource ? [playedSource] : [])];
+  const sources = [...bakuganSources, ...owner.heroes, ...(playedSource ? [playedSource] : [])];
   return sources.filter((source, index) => sources.findIndex((candidate) => candidate.id === source.id) === index);
 }
 
