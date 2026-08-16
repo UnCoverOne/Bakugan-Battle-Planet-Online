@@ -6,6 +6,7 @@ import {
   replayStateHash,
 } from "./engine/replay-codec";
 import { buildBestEffortReplayTimeline } from "./engine/replay-best-effort";
+import { normalizeEngineState } from "./engine/events";
 import { buildFrozenReplayPlayback, buildReplayFrames } from "./engine/replay-playback";
 import type { RecordedReplayStep } from "./engine/replay-reconstruction";
 import type { ReplayArchive, ReplayFrame, ReplayJournalDraft } from "./engine/replay-types";
@@ -73,12 +74,12 @@ export function isLocalEngineHistoryDraft(value: unknown): value is LocalEngineH
 }
 
 /**
- * Mirror the reducer's pre-command rules normalization before any local replay
- * state is hashed or patched. This keeps genesis and every transition on the
- * same state shape even when the caller's live MatchState predates rules v3.
+ * Mirror reduceMatch's pre-command normalization before any local replay state
+ * is hashed or patched. Engine metadata is normalized first, rules objects are
+ * normalized second, and replayPresentationState then removes non-playback data.
  */
 export function normalizeLocalReplayState(state: MatchState): MatchState {
-  const normalized = structuredClone(state);
+  const normalized = normalizeEngineState(state);
   normalizeRuleObjects(normalized);
   return replayPresentationState(normalized);
 }
