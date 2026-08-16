@@ -39,7 +39,6 @@ type ZoneMetadata = {
 };
 
 const MISSING_ART_PATTERN = /card-missing\.svg(?:$|[?#])/i;
-const FACE_DOWN_CORE_PATTERN = /^Face-down\b/i;
 const PREVIEW_ASSET_BASE = "https://bakugan-preview.invalid";
 const IMAGE_PROXY_PATHS = new Set(["/_vinext/image", "/_next/image"]);
 
@@ -72,6 +71,26 @@ export function canonicalPreviewPath(source: string): string {
   } catch {
     return source.split(/[?#]/, 1)[0] ?? "";
   }
+}
+
+/**
+ * A BakuCore is previewable only when the playmat is actually rendering its
+ * front artwork. Accessibility labels are mutable while a rules choice is
+ * active and must never be treated as hidden-information state.
+ */
+export function corePreviewSourceIsRevealed(
+  renderedSource: string,
+  coreArt: string,
+  attached = false,
+) {
+  if (attached) return true;
+  const renderedPath = canonicalPreviewPath(renderedSource);
+  return Boolean(renderedPath && renderedPath === canonicalPreviewPath(coreArt));
+}
+
+function coreImageSource(element: PreviewElement): string {
+  const image = element.querySelector("image");
+  return image?.getAttribute("href") ?? image?.getAttribute("xlink:href") ?? "";
 }
 
 function cardsInMatch(match: MatchState | null): GameCard[] {
@@ -219,8 +238,11 @@ function describeCorePreview(
   const cell = elementData(element, "coreCell");
   const placement = match?.placements.find((candidate) => candidate.cell === cell);
   if (!placement) return null;
-  const ariaLabel = element.getAttribute("aria-label") ?? "";
-  const revealed = Boolean(placement.attachedTo) || Boolean(ariaLabel && !FACE_DOWN_CORE_PATTERN.test(ariaLabel));
+  const revealed = corePreviewSourceIsRevealed(
+    coreImageSource(element),
+    placement.core.art,
+    Boolean(placement.attachedTo),
+  );
   if (!revealed) return null;
   const core = placement.core;
   const identity = [cell, core.id, core.art, core.name, "left", "core"].join("\u0000");

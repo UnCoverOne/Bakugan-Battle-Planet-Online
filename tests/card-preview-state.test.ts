@@ -10,7 +10,10 @@ import {
   EMPTY_CARD_PREVIEW_OWNERSHIP,
   releaseCardPreviewTarget,
 } from "../components/game-screen-v2/cardPreviewState";
-import { canonicalPreviewPath } from "../components/game-screen-v2/cardPreviewController";
+import {
+  canonicalPreviewPath,
+  corePreviewSourceIsRevealed,
+} from "../components/game-screen-v2/cardPreviewController";
 
 test("card previews accept only explicit card and revealed-Core zones", () => {
   for (const zone of [
@@ -67,6 +70,23 @@ test("framework image proxies preserve the canonical artwork path used by Hero p
   assert.equal(
     canonicalPreviewPath(`https://example.test/_next/image?url=${encoded}&w=384&q=82`),
     artwork,
+  );
+});
+
+test("BakuCore previews follow rendered front artwork rather than mutable choice labels", () => {
+  const artwork = "/assets/cores/full/4.webp";
+
+  assert.equal(
+    corePreviewSourceIsRevealed("/assets/core-backs/fist.png", artwork),
+    false,
+    "A face-down Field Core must remain hidden while it is a legal choice target",
+  );
+  assert.equal(corePreviewSourceIsRevealed(artwork, artwork), true);
+  assert.equal(corePreviewSourceIsRevealed(`${artwork}?v=preview`, artwork), true);
+  assert.equal(
+    corePreviewSourceIsRevealed("", artwork, true),
+    true,
+    "An attached Core remains public even when its matrix image has already left the field",
   );
 });
 
