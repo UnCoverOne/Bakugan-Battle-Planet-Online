@@ -39,6 +39,8 @@ export type PendingReplayArchive = {
   finalVersion: number;
   finalStateHash: string;
   versions: GameVersionProfile;
+  /** Compatibility shape for administrator diagnostics before first watch. */
+  recording: { commands: [] };
 };
 
 export type StoredReplayForUser = {
@@ -79,6 +81,7 @@ function pendingReplayArchive(state: EngineBackedMatchState, completedAt: number
     finalVersion: state.version,
     finalStateHash: replayStateHash(state),
     versions: replayVersions(state),
+    recording: { commands: [] },
   };
 }
 

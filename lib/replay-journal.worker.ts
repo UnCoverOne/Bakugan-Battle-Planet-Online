@@ -72,14 +72,18 @@ async function persistDraft(draft: StoredLocalReplayJournal) {
 async function pruneCompletedHistories(ownerId: string) {
   const database = await openReplayDatabase();
   try {
-    const store = database.transaction(REPLAY_JOURNAL_STORE, "readwrite").objectStore(REPLAY_JOURNAL_STORE);
-    const values = await indexedDbRequest(store.getAll()) as StoredLocalReplayJournal[];
+    const values = await indexedDbRequest(
+      database.transaction(REPLAY_JOURNAL_STORE).objectStore(REPLAY_JOURNAL_STORE).getAll(),
+    ) as StoredLocalReplayJournal[];
     const excess = values
       .filter((draft) => draft.ownerId === ownerId && Boolean(draft.completedAt))
       .sort((left, right) => right.updatedAt - left.updatedAt)
       .slice(LOCAL_HISTORY_RETENTION);
+    if (!excess.length) return;
+    const transaction = database.transaction(REPLAY_JOURNAL_STORE, "readwrite");
+    const store = transaction.objectStore(REPLAY_JOURNAL_STORE);
     for (const draft of excess) store.delete(draft.replayId);
-    if (excess.length) await indexedDbTransaction(store.transaction);
+    await indexedDbTransaction(transaction);
   } finally {
     database.close();
   }
