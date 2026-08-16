@@ -3,7 +3,9 @@ import {
   archiveReplayRecording,
   compactReplayCommand,
   createReplayRecording,
+  replayStateHash,
 } from "./engine/replay-codec";
+import { buildBestEffortReplayTimeline } from "./engine/replay-best-effort";
 import { buildFrozenReplayPlayback, buildReplayFrames } from "./engine/replay-playback";
 import {
   buildAuthoritativeReplayTimeline,
@@ -12,7 +14,7 @@ import {
   type AuthoritativeReplayStep,
   type RecordedReplayStep,
 } from "./engine/replay-reconstruction";
-import type { ReplayArchive } from "./engine/replay-types";
+import type { ReplayArchive, ReplayFrame } from "./engine/replay-types";
 import { isReplayStatePatch, type ReplayStatePatchOperation } from "./engine/replay-transition";
 import type { CommandEnvelope, EngineBackedMatchState, GameCommand } from "./engine/types";
 import { isCompletedSeriesResult } from "./match-result-navigation";
@@ -215,7 +217,7 @@ function reportReplayReconstructionFailure(
   error: unknown,
 ) {
   const reconstruction = error instanceof ReplayReconstructionError ? error.context : undefined;
-  console.error("Replay reconstruction failed; preserving the final battlefield fallback.", {
+  console.error("Replay reconstruction failed; preserving the best recoverable timeline.", {
     replayId: state.id,
     matchCode: state.code,
     snapshotVersion,
@@ -238,13 +240,19 @@ function allStepsHaveRecordedState(
   return steps.every((step) => Array.isArray(step.statePatch));
 }
 
+function replayFrameCount(archive: ReplayArchive) {
+  if (!archive.playback) return 0;
+  return 1 + archive.playback.steps.length;
+}
+
 function isFinalBattlefieldFallbackReplay(archive: ReplayArchive) {
-  const frames = archive.playback?.frames ?? [];
-  const steps = archive.playback?.steps ?? [];
-  return frames.length === 1
-    && steps.length === 0
-    && frames[0]?.commandType === "CREATE_MATCH"
-    && frames[0]?.label === "Recovered final battlefield";
+  const playback = archive.playback;
+  if (!playback) return false;
+  const finalOnly = playback.steps.length === 0
+    && playback.initialFrame.commandType === "CREATE_MATCH"
+    && playback.initialFrame.label === "Recovered final battlefield";
+  const recoveredGap = playback.steps.some((step) => step.label === "Replay gap — recovered final battlefield");
+  return finalOnly || recoveredGap;
 }
 
 async function recoverReplayFromSnapshotsOrFinalState(
@@ -252,22 +260,34 @@ async function recoverReplayFromSnapshotsOrFinalState(
   state: EngineBackedMatchState,
   completedAt: number,
   reason: string,
+  fallback?: ReplayArchive,
 ) {
   try {
     const recovered = await buildReplayArchiveFromSnapshotHistory(database, state, completedAt);
     if (recovered) {
+      if (fallback && replayFrameCount(fallback) > replayFrameCount(recovered)) {
+        console.info("Replay snapshot history was coarser than the best-effort journal recovery; preserving the richer timeline.", {
+          replayId: state.id,
+          matchCode: state.code,
+          finalVersion: state.version,
+          fallbackFrameCount: replayFrameCount(fallback),
+          snapshotFrameCount: replayFrameCount(recovered),
+          reason,
+        });
+        return fallback;
+      }
       console.info("Replay reconstruction recovered from authoritative snapshot history.", {
         replayId: state.id,
         matchCode: state.code,
         finalVersion: state.version,
-        frameCount: recovered.playback.frames.length,
-        stepCount: recovered.playback.steps.length,
+        frameCount: replayFrameCount(recovered),
+        stepCount: recovered.playback?.steps.length ?? 0,
         reason,
       });
       return recovered;
     }
   } catch (error) {
-    console.error("Replay snapshot recovery failed; preserving the final battlefield fallback.", {
+    console.error("Replay snapshot recovery failed; preserving the best available replay fallback.", {
       replayId: state.id,
       matchCode: state.code,
       finalVersion: state.version,
@@ -277,13 +297,74 @@ async function recoverReplayFromSnapshotsOrFinalState(
     });
   }
 
-  console.warn("Replay snapshot recovery had insufficient history; preserving the final battlefield fallback.", {
+  console.warn("Replay snapshot recovery had insufficient history; preserving the best available replay fallback.", {
     replayId: state.id,
     matchCode: state.code,
     finalVersion: state.version,
     reason,
   });
-  return buildDisplayableReplayArchive(null, state, completedAt);
+  return fallback ?? buildDisplayableReplayArchive(null, state, completedAt);
+}
+
+function replayFailureIndex(rows: readonly ReplayCommandRow[], error: unknown) {
+  const reconstruction = error instanceof ReplayReconstructionError ? error.context : undefined;
+  if (reconstruction?.commandId) {
+    const byId = rows.findIndex((row) => row.command_id === reconstruction.commandId);
+    if (byId >= 0) return byId;
+  }
+  if (Number.isInteger(reconstruction?.commandIndex)) return Number(reconstruction?.commandIndex);
+  return rows.length;
+}
+
+function buildBestEffortRecoveryArchive(
+  genesis: MatchState,
+  rows: readonly ReplayCommandRow[],
+  state: EngineBackedMatchState,
+  completedAt: number,
+  snapshotCreatedAt: number,
+  error: unknown,
+): ReplayArchive | null {
+  const prefixRows = rows.slice(0, replayFailureIndex(rows, error));
+  const steps: ParsedReplayStep[] = [];
+  for (const row of prefixRows) {
+    const step = parseAcceptedCommand(row, state.id);
+    if (!step) break;
+    steps.push(step);
+  }
+
+  const timeline = buildBestEffortReplayTimeline(genesis, steps, snapshotCreatedAt);
+  const lastFrame = timeline.frames.at(-1);
+  if (!lastFrame) return null;
+
+  const finalHash = replayStateHash(state);
+  const needsFinalRecovery = lastFrame.state.version !== state.version
+    || replayStateHash(lastFrame.state) !== finalHash;
+  if (needsFinalRecovery) {
+    const label = "Replay gap — recovered final battlefield";
+    const frame: ReplayFrame = {
+      index: timeline.frames.length,
+      at: completedAt,
+      commandType: "NEXT_TURN",
+      label,
+      state: structuredClone(state),
+    };
+    timeline.frames.push(frame);
+    timeline.markers.push({
+      index: frame.index,
+      at: frame.at,
+      type: state.phase === "result" ? "result" : "command",
+      label,
+    });
+  }
+
+  if (timeline.frames.length <= 1) return null;
+  const recording = createReplayRecording(genesis);
+  recording.commands = timeline.appliedSteps.map((step) => compactReplayCommand(step.envelope));
+  const archive = archiveReplayRecording(recording, state, completedAt);
+  archive.startedAt = snapshotCreatedAt;
+  archive.playback = buildFrozenReplayPlayback(timeline.frames, timeline.markers);
+  buildReplayFrames(archive);
+  return archive;
 }
 
 /**
@@ -330,6 +411,33 @@ export function buildReplayArchiveFromRows(
     return archive;
   } catch (error) {
     reportReplayReconstructionFailure(state, snapshotVersion, relevantRows.length, error);
+    try {
+      const recovered = buildBestEffortRecoveryArchive(
+        genesis,
+        relevantRows,
+        state,
+        completedAt,
+        snapshotCreatedAt,
+        error,
+      );
+      if (recovered) {
+        console.warn("Replay reconstruction preserved the valid prefix and appended the authoritative final battlefield.", {
+          replayId: state.id,
+          matchCode: state.code,
+          finalVersion: state.version,
+          frameCount: replayFrameCount(recovered),
+        });
+        return recovered;
+      }
+    } catch (recoveryError) {
+      console.error("Best-effort replay recovery failed; using the final battlefield emergency fallback.", {
+        replayId: state.id,
+        matchCode: state.code,
+        finalVersion: state.version,
+        errorName: recoveryError instanceof Error ? recoveryError.name : "UnknownError",
+        errorMessage: recoveryError instanceof Error ? recoveryError.message : String(recoveryError),
+      });
+    }
     return buildDisplayableReplayArchive(null, state, completedAt);
   }
 }
@@ -396,7 +504,8 @@ export async function buildReplayArchiveFromEventStore(
     database,
     state,
     completedAt,
-    "Exact event-journal reconstruction produced only the final battlefield fallback.",
+    "Exact event-journal reconstruction required best-effort recovery.",
+    archive,
   );
 }
 
