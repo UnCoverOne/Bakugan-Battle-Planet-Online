@@ -23,17 +23,30 @@ test("completed-match replay construction falls back to retained snapshots befor
     archiveServer,
     /return recoverReplayFromSnapshotsOrFinalState\(database, state, completedAt, error\.message\);/,
   );
+  assert.match(
+    archiveServer,
+    /playback\.initialFrame\.label === "Recovered final battlefield"/,
+  );
 });
 
-test("snapshot recovery failure remains non-fatal and preserves an emergency final battlefield", async () => {
+test("replay reconstruction preserves a best-effort prefix before using the emergency final battlefield", async () => {
   const archiveServer = await source("lib/replay-archive-server.ts");
+  const bestEffort = await source("lib/engine/replay-best-effort.ts");
 
   assert.match(
     archiveServer,
-    /catch \(error\) \{[\s\S]*?Replay snapshot recovery failed; preserving the final battlefield fallback\./,
+    /buildBestEffortRecoveryArchive\(/,
   );
   assert.match(
     archiveServer,
-    /return buildDisplayableReplayArchive\(null, state, completedAt\);/,
+    /"Replay gap — recovered final battlefield"/,
+  );
+  assert.match(
+    archiveServer,
+    /return fallback \?\? buildDisplayableReplayArchive\(null, state, completedAt\);/,
+  );
+  assert.match(
+    bestEffort,
+    /single damaged command to discard earlier valid frames/,
   );
 });
