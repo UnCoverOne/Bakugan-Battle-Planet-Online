@@ -3,11 +3,13 @@ import {
   archiveReplayRecording,
   compactReplayCommand,
   createReplayRecording,
+  replayStateHash,
 } from "./engine/replay-codec";
+import { buildBestEffortReplayTimeline } from "./engine/replay-best-effort";
 import { buildFrozenReplayPlayback, buildReplayFrames } from "./engine/replay-playback";
-import { buildRecordedReplayTimeline, type RecordedReplayStep } from "./engine/replay-reconstruction";
-import type { ReplayArchive, ReplayJournalDraft } from "./engine/replay-types";
-import { isReplayStatePatch } from "./engine/replay-transition";
+import type { RecordedReplayStep } from "./engine/replay-reconstruction";
+import type { ReplayArchive, ReplayFrame, ReplayJournalDraft } from "./engine/replay-types";
+import { isReplayStatePatch, replayPresentationState } from "./engine/replay-transition";
 import type { CommandEnvelope, GameEvent } from "./engine/types";
 import { buildDisplayableReplayArchive } from "./replay-finalization";
 
@@ -80,11 +82,58 @@ function recordedStep(transition: LocalEngineHistoryTransition): RecordedReplayS
   };
 }
 
+function recoverableRecordedSteps(transitions: readonly LocalEngineHistoryTransition[]) {
+  const steps: RecordedReplayStep[] = [];
+  for (const transition of transitions) {
+    try {
+      steps.push(recordedStep(transition));
+    } catch {
+      break;
+    }
+  }
+  return steps;
+}
+
+function appendRecoveredFinalFrame(
+  timeline: ReturnType<typeof buildBestEffortReplayTimeline>,
+  finalState: MatchState,
+  completedAt: number,
+) {
+  const lastFrame = timeline.frames.at(-1);
+  const finalPresentation = replayPresentationState(finalState);
+  const finalHash = replayStateHash(finalPresentation);
+  const needsRecovery = !lastFrame
+    || lastFrame.state.version !== finalPresentation.version
+    || replayStateHash(lastFrame.state) !== finalHash;
+  if (!needsRecovery) return;
+
+  const label = "Replay gap — recovered final battlefield";
+  const frame: ReplayFrame = {
+    index: timeline.frames.length,
+    at: completedAt,
+    commandType: "NEXT_TURN",
+    label,
+    state: finalPresentation,
+  };
+  timeline.frames.push(frame);
+  timeline.markers.push({
+    index: frame.index,
+    at: frame.at,
+    type: finalPresentation.phase === "result" ? "result" : "command",
+    label,
+  });
+}
+
 /**
  * Compile a frozen replay only when the player asks to watch it. New local
  * histories use the exact state patches already carried by COMMAND_ACCEPTED
  * engine events; legacy command journals remain readable as a compatibility
  * path for matches that were already in progress during the migration.
+ *
+ * Local histories deliberately use best-effort reconstruction. A damaged or
+ * inapplicable transition must never make every earlier valid frame disappear:
+ * playback stops at the first untrustworthy transition and appends the sealed
+ * authoritative final battlefield instead.
  */
 export function compileLocalReplayHistory(draft: StoredLocalReplayJournal): ReplayArchive {
   if (!draft.finalState || !draft.completedAt) {
@@ -95,12 +144,14 @@ export function compileLocalReplayHistory(draft: StoredLocalReplayJournal): Repl
     return buildDisplayableReplayArchive(draft.recording, draft.finalState, draft.completedAt);
   }
 
-  const steps = draft.transitions.map(recordedStep);
+  const steps = recoverableRecordedSteps(draft.transitions);
+  const timeline = buildBestEffortReplayTimeline(draft.genesis, steps, draft.startedAt);
+  appendRecoveredFinalFrame(timeline, draft.finalState, draft.completedAt);
+
   const recording = createReplayRecording(draft.genesis);
-  recording.commands = draft.transitions.map((transition) => compactReplayCommand(transition.envelope));
+  recording.commands = timeline.appliedSteps.map((step) => compactReplayCommand(step.envelope));
   const archive = archiveReplayRecording(recording, draft.finalState, draft.completedAt);
   archive.startedAt = draft.startedAt;
-  const timeline = buildRecordedReplayTimeline(draft.genesis, steps, draft.finalState, draft.startedAt);
   archive.playback = buildFrozenReplayPlayback(timeline.frames, timeline.markers);
   buildReplayFrames(archive);
   return archive;
