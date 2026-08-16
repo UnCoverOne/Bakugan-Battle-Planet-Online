@@ -143,8 +143,8 @@ function normalizeSingularNonFactionTargets(
   return { play: normalizedPlay, abilities: normalizedAbilities };
 }
 
-function definitionForCard(card: GameCard): RuleDefinition {
-  const rulesCard = cardForRules(card);
+function definitionForCard(card: GameCard, useReviewedNormalizations = true): RuleDefinition {
+  const rulesCard = useReviewedNormalizations ? cardForRules(card) : card;
   const rawAbilities = enhanceDeckInspectionAbilities(rulesCard, abilityDefinitionsForCard(rulesCard));
   const rawPlay = enhanceDeckInspectionPlayDefinition(rulesCard, playDefinitionForCard(rulesCard));
   const normalized = normalizeSingularNonFactionTargets(rulesCard, rawPlay, rawAbilities);
@@ -170,7 +170,9 @@ function definitionForCard(card: GameCard): RuleDefinition {
 export function authorRuleDefinitionForCard(
   card: GameCard,
 ): RuleDefinition & { implementationStatus: "draft" } {
-  const definition = definitionForCard(card);
+  // The editor must compile exactly the draft text being authored. Reviewed
+  // production normalizations apply only to the locked runtime catalogue.
+  const definition = definitionForCard(card, false);
   return {
     ...definition,
     implementationStatus: "draft",
