@@ -441,7 +441,12 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
     const usedInstances = new Set<string>();
     for (const placement of state.placements.filter((item) => item.playerId === player.id)) {
       const catalogId = placement.core.catalogId ?? placement.core.id;
-      const instance = (legacyIds.get(catalogId) ?? []).find((core) => !usedInstances.has(core.id));
+      const copies = legacyIds.get(catalogId) ?? [];
+      // Current snapshots already name the physical copy that was actually placed.
+      // Only fall back to another copy of the same catalogue entry for legacy states.
+      const instance = copies.find((core) => (
+        core.id === placement.core.id && !usedInstances.has(core.id)
+      )) ?? copies.find((core) => !usedInstances.has(core.id));
       if (instance) {
         placement.core = instance;
         usedInstances.add(instance.id);
