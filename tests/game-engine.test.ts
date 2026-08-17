@@ -107,6 +107,13 @@ test("separate copies of the same BakuCore catalogue entry can both be placed", 
     [coreIds[matchingIndex], coreIds[matchingIndex]],
   );
 
+  let modern = createMatch("COPYID", "bo1", [player, opponent]);
+  modern.phase = "placement";
+  modern.priority = player.id;
+  modern = placeCore(modern, player.id, copies[1].id, CENTER_CELL);
+  const normalizedModern = normalizeMatchState(modern);
+  assert.equal(normalizedModern.placements[0].core.id, copies[1].id);
+
   const legacy = createMatch("LEGACY", "bo1", [player, opponent]);
   legacy.players[0].cores = copies.map((core) => ({ ...core, id: core.catalogId!, catalogId: undefined }));
   const upgraded = normalizeMatchState(legacy);
