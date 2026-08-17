@@ -17,6 +17,7 @@ import { SystemState } from "../application/SystemState";
 import { StatusChip, Surface } from "../design-system/primitives";
 import { ProfileAvatar } from "./ProfileAvatar";
 import styles from "../routes/ProfileScreen.module.css";
+import mobileStyles from "./BrawlerProfileMobile.module.css";
 
 const FACTION_SYMBOLS: Record<string, string> = {
   Aquos: "/assets/symbols/factions/aquos.png",
@@ -53,10 +54,10 @@ export function BrawlerProfileView({
   return (
     <main className={styles.profileOverview}>
       <section
-        className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]}`}
+        className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]} ${mobileStyles.card}`}
       >
         <img
-          className={styles.identityCoverArt}
+          className={`${styles.identityCoverArt} ${mobileStyles.coverArt}`}
           src={selectedCover.src}
           alt=""
           width="1920"
@@ -75,8 +76,8 @@ export function BrawlerProfileView({
             <PencilIcon />
           </button>
         ) : null}
-        <div className={styles.identityContent}>
-          <div className={styles.portraitWrap}>
+        <div className={`${styles.identityContent} ${mobileStyles.content}`}>
+          <div className={`${styles.portraitWrap} ${mobileStyles.portrait}`}>
             <ProfileAvatar
               profile={{ name: profile.displayName, avatar: profile.avatar }}
               className={styles.profilePortrait}
@@ -93,7 +94,7 @@ export function BrawlerProfileView({
               </button>
             ) : null}
           </div>
-          <div className={styles.identityCopy}>
+          <div className={`${styles.identityCopy} ${mobileStyles.copy}`}>
             <span className={styles.eyebrow}>Brawler profile</span>
             <h1>{profile.displayName}</h1>
             <div className={styles.titleLine}>
