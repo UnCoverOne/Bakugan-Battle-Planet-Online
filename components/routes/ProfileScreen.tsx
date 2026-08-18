@@ -256,7 +256,6 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
         >
           Match records
         </Link>
-        <Link href="/leaderboard">Leaderboard</Link>
       </Tabs>
       <div className={styles.saveAnnouncement} role="status" aria-live="polite">
         {saved}
