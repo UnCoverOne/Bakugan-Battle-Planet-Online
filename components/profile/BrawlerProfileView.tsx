@@ -147,7 +147,6 @@ export function BrawlerProfileView({
             <span>Ranked Conquest</span>
             <h2>Ranked Profile</h2>
           </div>
-          <Link href="/leaderboard">Leaderboard</Link>
         </header>
         {profile.ranked ? (
           <div className={styles.metrics} aria-label="Ranked statistics">
