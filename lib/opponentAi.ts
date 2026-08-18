@@ -14,8 +14,8 @@ import {
   type GameCard,
   type MatchState,
 } from "./game";
-import { bestAiRollTarget } from "./aiRollForecast";
-import { cardEnergyPaymentState } from "./cardPayment";
+import { bestAiRerollOpportunity, bestAiRollTarget } from "./aiRollForecast";
+import { cardEnergyPaymentState, playCardWithAutoEnergy } from "./cardPayment";
 import { drawPendingCard, playerCanResolvePendingDraw } from "./drawQueue";
 import { evaluateBakuganCharacteristics } from "./rules/modifiers";
 import { activeTappedEnergyIds } from "./rules/costs";
@@ -50,6 +50,18 @@ type CombatProjection = {
   decidingStat: CombatStat;
   projectedGap: number;
   usefulPostVictoryEffect: boolean;
+};
+
+type NextCardCostModifier = {
+  reduction: number;
+  free: boolean;
+};
+
+type TacticalRerollCard = {
+  card: GameCard;
+  choices: CardChoices;
+  cost: number;
+  netValue: number;
 };
 
 function playerById(match: MatchState, playerId: string) {
@@ -508,6 +520,222 @@ function candidateIndependentValue(
     .reduce((sum, { action }) => sum + independentActionValue(match, playerId, action), 0);
 }
 
+function nextCardCostModifier(card: GameCard): NextCardCostModifier | undefined {
+  try {
+    let reduction = 0;
+    let free = false;
+    for (const action of cardLeafActions(card)) {
+      if (action.kind !== "cost" || action.duration !== "next-card") continue;
+      if (action.operation === "free") free = true;
+      else if (action.operation === "reduce") reduction += Math.max(0, action.amount);
+    }
+    return free || reduction > 0 ? { reduction, free } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function candidateNonSetupIndependentValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices,
+) {
+  return activeCandidateEntries(match, playerId, card, choices)
+    .filter(({ action }) => !isTemporaryCombatAction(action))
+    .filter(({ action }) => action.kind !== "reroll")
+    .filter(({ action }) => !(
+      action.kind === "cost" && action.duration === "next-card"
+    ))
+    .reduce((sum, { action }) => sum + independentActionValue(match, playerId, action), 0);
+}
+
+function bestNextCardFollowUpValue(
+  match: MatchState,
+  playerId: string,
+  sourceCard: GameCard,
+  modifier: NextCardCostModifier,
+) {
+  const player = playerById(match, playerId);
+  if (!player) return 0;
+  let sourceChoices: CardChoices;
+  try {
+    sourceChoices = chooseBaseCardChoices(match, playerId, sourceCard);
+  } catch {
+    return 0;
+  }
+  const sourcePayment = cardEnergyPaymentState(match, playerId, sourceCard, sourceChoices);
+  if (!sourcePayment || sourcePayment.kind === "insufficient") return 0;
+  const remainingCapacity = Math.max(
+    0,
+    currentEnergyCapacity(match, playerId) - sourcePayment.cost,
+  );
+
+  let best = 0;
+  for (const followUp of player.hand) {
+    if (followUp.id === sourceCard.id || followUp.type === "Character" || followUp.type === "Flip") {
+      continue;
+    }
+    let choices: CardChoices;
+    try {
+      choices = chooseBaseCardChoices(match, playerId, followUp);
+    } catch {
+      continue;
+    }
+    const payment = cardEnergyPaymentState(match, playerId, followUp, choices);
+    if (!payment) continue;
+    const normalCost = payment.cost;
+    const discountedCost = modifier.free
+      ? 0
+      : Math.max(0, normalCost - modifier.reduction);
+    if (discountedCost > remainingCapacity) continue;
+    if (shouldSuppressTemporaryCombatCard(match, playerId, followUp)) continue;
+    if (shouldSuppressUnnecessaryVictorStatSwitch(match, playerId, followUp)) continue;
+
+    const retainedValue = Math.max(0, handCardRetentionValue(match, playerId, followUp));
+    if (retainedValue < 0.75) continue;
+    const unlocked = normalCost > remainingCapacity;
+    const savedEnergy = Math.max(0, normalCost - discountedCost);
+    const followUpValue = (unlocked ? 2.25 : 0)
+      + savedEnergy * 0.55
+      + Math.min(3, retainedValue * 0.45);
+    best = Math.max(best, followUpValue);
+  }
+  return best;
+}
+
+function shouldReserveNextCardSetupCard(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  if (match.phase !== "power") return false;
+  const modifier = nextCardCostModifier(card);
+  if (!modifier) return false;
+
+  let choices: CardChoices;
+  try {
+    choices = chooseBaseCardChoices(match, playerId, card);
+  } catch {
+    return false;
+  }
+  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  if (!payment || payment.kind === "insufficient") return false;
+  const entries = activeCandidateEntries(match, playerId, card, choices);
+  const hasSelfReroll = entries.some(({ action }) => (
+    action.kind === "reroll" && action.target === "controller"
+  ));
+  const opponent = opponentOf(match, playerId);
+  const opponentParticipates = Boolean(opponent && participatesInBrawl(match, opponent.id));
+  const current = projectCombatAfterBatch(match, playerId);
+  const rerollHasImmediateCombatPurpose = hasSelfReroll && (
+    !participatesInBrawl(match, playerId)
+    || (opponentParticipates && current.gap <= 0)
+  );
+  if (rerollHasImmediateCombatPurpose) return false;
+
+  // Do not hide a setup card whose non-setup text is already worth the card.
+  // The next-card discount is only required to justify the play when it is the
+  // main source of value.
+  if (candidateNonSetupIndependentValue(match, playerId, card, choices) >= 1.5) {
+    return false;
+  }
+  return bestNextCardFollowUpValue(match, playerId, card, modifier) < 1.4;
+}
+
+function candidateNonSwitchIndependentValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices,
+) {
+  return activeCandidateEntries(match, playerId, card, choices)
+    .filter(({ action }) => !isTemporaryCombatAction(action))
+    .filter(({ action }) => !(
+      action.kind === "set-rule" && action.rule === "victor-stat"
+    ))
+    .reduce((sum, { action }) => sum + independentActionValue(match, playerId, action), 0);
+}
+
+function candidateAttackPayoffValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices,
+) {
+  const beforeDamage = projectCombatAfterBatch(match, playerId).combat.damage.own;
+  let value = 0;
+  for (const { instruction, action } of activeCandidateEntries(match, playerId, card, choices)) {
+    const targetsEnemy = actionTargetsEnemy(
+      match,
+      playerId,
+      choices,
+      action,
+      instruction.sourceText,
+    );
+    if (targetsEnemy) continue;
+    if (action.kind === "modify-stat" && action.stat === "damage" && action.amount > 0) {
+      value += action.amount * 0.9;
+    } else if (action.kind === "set-stat" && action.stat === "damage" && action.value > beforeDamage) {
+      value += (action.value - beforeDamage) * 0.9;
+    } else if (action.kind === "grant-keyword" && action.keyword === "DoubleStrike") {
+      value += 4;
+    } else if (action.kind === "grant-keyword" && action.keyword === "FrostStrike") {
+      value += 2.5;
+    }
+  }
+  return value;
+}
+
+function shouldSuppressUnnecessaryVictorStatSwitch(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  if (match.phase !== "power") return false;
+  let choices: CardChoices;
+  try {
+    choices = chooseBaseCardChoices(match, playerId, card);
+  } catch {
+    return false;
+  }
+  const entries = activeCandidateEntries(match, playerId, card, choices);
+  if (!entries.some(({ action }) => (
+    action.kind === "set-rule" && action.rule === "victor-stat"
+  ))) return false;
+
+  const current = projectCombatAfterBatch(match, playerId);
+  const projected = projectCombatAfterBatch(match, playerId, { card, choices });
+  if (current.combat.deciding.stat === projected.combat.deciding.stat) return false;
+  const opponent = opponentOf(match, playerId);
+  const playerParticipates = participatesInBrawl(match, playerId);
+  const opponentParticipates = Boolean(opponent && participatesInBrawl(match, opponent.id));
+  if (!playerParticipates) return false;
+  const currentWin = !opponentParticipates || current.gap > 0;
+  const projectedWin = !opponentParticipates || projected.gap > 0;
+
+  // Never trade away a secured Victor merely because the replacement stat and
+  // a small attached buff have generic positive card value.
+  if (currentWin && !projectedWin) return true;
+  // A switch that actually converts a loss/tie into a win is exactly when the
+  // rule-changing text should receive strategic priority.
+  if (!currentWin && projectedWin) return false;
+  if (!projectedWin) {
+    return candidateNonSwitchIndependentValue(match, playerId, card, choices) < 1.5;
+  }
+
+  const independentValue = candidateNonSwitchIndependentValue(match, playerId, card, choices);
+  if (independentValue >= 1.5) return false;
+  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  const cost = payment?.kind === "insufficient"
+    ? Number.POSITIVE_INFINITY
+    : payment?.cost ?? (card.cost === "X" ? 0 : card.cost);
+  const retention = Math.max(0, handCardRetentionValue(match, playerId, card));
+  const attackPayoff = candidateAttackPayoffValue(match, playerId, card, choices);
+  const requiredPayoff = cost * 0.9 + Math.min(1.25, retention * 0.2) + 0.4;
+  return attackPayoff < requiredPayoff;
+}
+
 function shouldReservePostBrawlOptionalRerollCard(
   match: MatchState,
   playerId: string,
@@ -733,9 +961,99 @@ function minimumWinningTemporaryPowerCards(
   return result;
 }
 
+function hasAffordableDirectWinningAlternative(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId);
+  if (!player) return false;
+  return player.hand.some((card) => {
+    if (card.type === "Character" || card.type === "Flip") return false;
+    let choices: CardChoices;
+    try {
+      choices = chooseBaseCardChoices(match, playerId, card);
+    } catch {
+      return false;
+    }
+    const entries = activeCandidateEntries(match, playerId, card, choices);
+    if (entries.some(({ action }) => (
+      action.kind === "reroll" && action.target === "controller"
+    ))) return false;
+    const payment = cardEnergyPaymentState(match, playerId, card, choices);
+    if (!payment || payment.kind === "insufficient") return false;
+    const projection = projectedCombatOutcome(match, playerId, card, choices);
+    return !projection.currentWin && projection.projectedWin;
+  });
+}
+
+function bestTacticalRerollCard(
+  match: MatchState,
+  playerId: string,
+): TacticalRerollCard | undefined {
+  // Keep this override tightly scoped to the reported blind spot. Normal
+  // B-Power reroll decisions retain the established scorer, while Damage-Victor
+  // rounds may explicitly choose a reroll when it is the only credible route to
+  // winning the current Brawl.
+  if (match.phase !== "power" || !match.victorByDamage) return undefined;
+  const player = playerById(match, playerId);
+  const opponent = opponentOf(match, playerId);
+  if (!player || !opponent || !participatesInBrawl(match, opponent.id)) return undefined;
+  const current = projectCombatAfterBatch(match, playerId);
+  if (participatesInBrawl(match, playerId) && current.gap > 0) return undefined;
+  if (hasAffordableDirectWinningAlternative(match, playerId)) return undefined;
+
+  const opportunity = bestAiRerollOpportunity(match, playerId);
+  if (!opportunity || opportunity.winProbability < 0.45 || opportunity.utilityGain < 3.5) {
+    return undefined;
+  }
+
+  const candidates: TacticalRerollCard[] = [];
+  for (const card of player.hand) {
+    if (card.type !== "Action" || hasNonDeferrablePreRollTiming(card.effect)) continue;
+    let choices: CardChoices;
+    try {
+      choices = chooseBaseCardChoices(match, playerId, card);
+    } catch {
+      continue;
+    }
+    const entries = activeCandidateEntries(match, playerId, card, choices);
+    if (!entries.some(({ action }) => (
+      action.kind === "reroll" && action.target === "controller"
+    ))) continue;
+    const payment = cardEnergyPaymentState(match, playerId, card, choices);
+    if (!payment || payment.kind === "insufficient") continue;
+    const retention = Math.max(0, handCardRetentionValue(match, playerId, card));
+    const netValue = opportunity.utilityGain
+      - payment.cost * 0.9
+      - Math.min(1.5, retention * 0.15);
+    if (netValue < 2.5) continue;
+    candidates.push({ card, choices, cost: payment.cost, netValue });
+  }
+  return candidates.sort((a, b) => (
+    b.netValue - a.netValue
+    || a.cost - b.cost
+    || a.card.id.localeCompare(b.card.id)
+  ))[0];
+}
+
 function advanceWithCombatPolicy(input: MatchState, playerId: string) {
   const player = playerById(input, playerId);
   if (!player) return null;
+  const tacticalReroll = bestTacticalRerollCard(input, playerId);
+  if (tacticalReroll) {
+    try {
+      return validateAiTransition(
+        input,
+        playCardWithAutoEnergy(
+          input,
+          playerId,
+          tacticalReroll.card.id,
+          tacticalReroll.choices,
+        ),
+        playerId,
+      );
+    } catch {
+      // Fall through to the normal policy if an authoritative legality check
+      // rejects the projected reroll play.
+    }
+  }
   const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);
   const suppressed = new Set(
     player.hand
@@ -750,6 +1068,8 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
           && shouldSuppressTemporaryCombatCard(input, playerId, card);
         return unneededPowerAlternative
           || tacticallySuppressed
+          || shouldReserveNextCardSetupCard(input, playerId, card)
+          || shouldSuppressUnnecessaryVictorStatSwitch(input, playerId, card)
           || shouldReserveOptionalRerollCard(input, card)
           || shouldWaitForRerollOutcome(input, playerId, card)
           || shouldReservePostBrawlOptionalRerollCard(input, playerId, card);
@@ -771,6 +1091,14 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
 function chooseWithCombatPolicy(input: MatchState, playerId: string): GameCommand | null {
   const player = playerById(input, playerId);
   if (!player) return null;
+  const tacticalReroll = bestTacticalRerollCard(input, playerId);
+  if (tacticalReroll) {
+    return {
+      type: "PLAY_CARD",
+      cardId: tacticalReroll.card.id,
+      choices: tacticalReroll.choices,
+    };
+  }
   const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);
   const suppressed = new Set(
     player.hand
@@ -785,6 +1113,8 @@ function chooseWithCombatPolicy(input: MatchState, playerId: string): GameComman
           && shouldSuppressTemporaryCombatCard(input, playerId, card);
         return unneededPowerAlternative
           || tacticallySuppressed
+          || shouldReserveNextCardSetupCard(input, playerId, card)
+          || shouldSuppressUnnecessaryVictorStatSwitch(input, playerId, card)
           || shouldReserveOptionalRerollCard(input, card)
           || shouldWaitForRerollOutcome(input, playerId, card)
           || shouldReservePostBrawlOptionalRerollCard(input, playerId, card);
