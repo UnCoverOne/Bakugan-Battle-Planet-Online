@@ -5,6 +5,7 @@ import {
   completeCoinFlip,
   legalPlacementCells,
   passPriority,
+  prepareCardPlay,
   placeCore,
   playerCanActivateIntrinsicReroll,
   rotationPhaseOpenCell,
@@ -15,10 +16,11 @@ import {
   type MatchState,
 } from "./game";
 import { bestAiRollTarget } from "./aiRollForecast";
-import { cardEnergyPaymentState } from "./cardPayment";
+import { cardEnergyPaymentState, playCardWithAutoEnergy } from "./cardPayment";
 import { drawPendingCard, playerCanResolvePendingDraw } from "./drawQueue";
 import { evaluateBakuganCharacteristics } from "./rules/modifiers";
 import { activeTappedEnergyIds } from "./rules/costs";
+import { buildChoiceSchema } from "./rules/choices";
 import {
   advanceOpponentAi as advanceBaseOpponentAi,
   chooseOpponentAiCommand as chooseBaseOpponentAiCommand,
@@ -567,10 +569,16 @@ function shouldSuppressTemporaryCombatCard(
   // rerolls and cards with independent effects remain available.
   if (!projection.playerParticipates) return !hasIndependentBenefit;
 
-  // When the opponent missed, or the AI is already winning, do not spend more
-  // B-Power merely to increase a margin. Damage/FrostStrike/DoubleStrike may
-  // still be useful because they improve the attack that follows.
+  // When the opponent missed, or the AI is already winning, never trade the
+  // projected Brawl win for a tie/loss. A card that changes the Victor stat is
+  // also suppressed from a winning position unless it has a real non-combat
+  // payoff: incidental Damage is not enough reason to abandon a safe B-Power win.
   if (projection.currentWin) {
+    if (!projection.projectedWin) return true;
+    const changesVictorStat = entries.some(({ action }) => (
+      action.kind === "set-rule" && action.rule === "victor-stat"
+    ));
+    if (changesVictorStat && !hasIndependentBenefit) return true;
     return !projection.usefulPostVictoryEffect && !hasIndependentBenefit;
   }
 
@@ -733,10 +741,68 @@ function minimumWinningTemporaryPowerCards(
   return result;
 }
 
+function nextWinningPowerPlanCard(
+  match: MatchState,
+  playerId: string,
+  winningPowerPlan: ReadonlySet<string>,
+) {
+  const player = playerById(match, playerId);
+  if (!player || !winningPowerPlan.size) return undefined;
+  return player.hand
+    .filter((card) => winningPowerPlan.has(card.id))
+    .map((card) => {
+      const choices = chooseBaseCardChoices(match, playerId, card);
+      const payment = cardEnergyPaymentState(match, playerId, card, choices);
+      return {
+        card,
+        choices,
+        cost: payment?.kind === "insufficient"
+          ? Number.POSITIVE_INFINITY
+          : payment?.cost ?? Number.POSITIVE_INFINITY,
+        swing: temporaryPowerSwing(match, playerId, card),
+      };
+    })
+    .filter((candidate) => Number.isFinite(candidate.cost) && candidate.swing > 0)
+    .sort((a, b) => (
+      a.cost - b.cost
+      || b.swing - a.swing
+      || a.card.id.localeCompare(b.card.id)
+    ))[0];
+}
+
+function winningPowerPlanCommand(
+  match: MatchState,
+  playerId: string,
+  winningPowerPlan: ReadonlySet<string>,
+): GameCommand | null {
+  const candidate = nextWinningPowerPlanCard(match, playerId, winningPowerPlan);
+  if (!candidate) return null;
+  const schema = buildChoiceSchema(match, playerId, candidate.card);
+  return schema.fields.length
+    ? { type: "PREPARE_CARD_PLAY", cardId: candidate.card.id }
+    : { type: "PLAY_CARD", cardId: candidate.card.id, choices: candidate.choices };
+}
+
+function advanceWinningPowerPlan(
+  match: MatchState,
+  playerId: string,
+  winningPowerPlan: ReadonlySet<string>,
+) {
+  const candidate = nextWinningPowerPlanCard(match, playerId, winningPowerPlan);
+  if (!candidate) return null;
+  const schema = buildChoiceSchema(match, playerId, candidate.card);
+  const next = schema.fields.length
+    ? prepareCardPlay(match, playerId, candidate.card.id)
+    : playCardWithAutoEnergy(match, playerId, candidate.card.id, candidate.choices);
+  return validateAiTransition(match, next, playerId);
+}
+
 function advanceWithCombatPolicy(input: MatchState, playerId: string) {
   const player = playerById(input, playerId);
   if (!player) return null;
   const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);
+  const forcedWinningPlay = advanceWinningPowerPlan(input, playerId, winningPowerPlan);
+  if (forcedWinningPlay) return forcedWinningPlay;
   const suppressed = new Set(
     player.hand
       .filter((card) => {
@@ -772,6 +838,8 @@ function chooseWithCombatPolicy(input: MatchState, playerId: string): GameComman
   const player = playerById(input, playerId);
   if (!player) return null;
   const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);
+  const forcedWinningCommand = winningPowerPlanCommand(input, playerId, winningPowerPlan);
+  if (forcedWinningCommand) return forcedWinningCommand;
   const suppressed = new Set(
     player.hand
       .filter((card) => {
