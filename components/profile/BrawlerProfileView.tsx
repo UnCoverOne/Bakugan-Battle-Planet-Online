@@ -86,6 +86,7 @@ export function BrawlerProfileView({
               <button
                 type="button"
                 className={`${styles.editButton} ${styles.portraitEdit}`}
+                style={{ right: "-0.2rem", bottom: "-0.2rem" }}
                 aria-label="Edit picture"
                 title="Edit picture"
                 onClick={ownerActions.onEditAvatar}
@@ -95,7 +96,6 @@ export function BrawlerProfileView({
             ) : null}
           </div>
           <div className={`${styles.identityCopy} ${mobileStyles.copy}`}>
-            <span className={styles.eyebrow}>Brawler profile</span>
             <h1>{profile.displayName}</h1>
             <div className={styles.titleLine}>
               <strong>{selectedTitle.label}</strong>
