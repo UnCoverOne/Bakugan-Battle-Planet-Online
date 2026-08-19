@@ -3,47 +3,47 @@ TAP version 13
 # Subtest: a card uses already generated Energy without tapping extra cards
 ok 1 - a card uses already generated Energy without tapping extra cards
   ---
-  duration_ms: 5.229329
+  duration_ms: 9.099176
   ...
 # Subtest: a card automatically taps only the Energy cards needed for its shortfall
 ok 2 - a card automatically taps only the Energy cards needed for its shortfall
   ---
-  duration_ms: 2.223926
+  duration_ms: 3.787415
   ...
 # Subtest: a card cannot be played when generated and untapped Energy are insufficient
 ok 3 - a card cannot be played when generated and untapped Energy are insufficient
   ---
-  duration_ms: 1.12364
+  duration_ms: 2.509764
   ...
 # Subtest: The Sky's Hymn opens one private top-three ordering window
 ok 4 - The Sky's Hymn opens one private top-three ordering window
   ---
-  duration_ms: 4.227512
+  duration_ms: 10.298651
   ...
 # Subtest: top-three ordering effects preserve scarcity while retaining reorder permission
 ok 5 - top-three ordering effects preserve scarcity while retaining reorder permission
   ---
-  duration_ms: 3.867443
+  duration_ms: 7.977766
   ...
 # Subtest: submitting the dragged order changes only the inspected top cards
 ok 6 - submitting the dragged order changes only the inspected top cards
   ---
-  duration_ms: 2.532437
+  duration_ms: 5.890107
   ...
 # Subtest: top-deck selection creates a bounded choice and an executable selected-card path
 ok 7 - top-deck selection creates a bounded choice and an executable selected-card path
   ---
-  duration_ms: 0.169153
+  duration_ms: 0.396456
   ...
 # Subtest: Dan Kouzo reveals the top card publicly while retaining the optional play choice
 ok 8 - Dan Kouzo reveals the top card publicly while retaining the optional play choice
   ---
-  duration_ms: 0.884533
+  duration_ms: 2.445059
   ...
 # Subtest: reveal-and-play effects reveal before the choice and skip without adding the card to the batch
 not ok 9 - reveal-and-play effects reveal before the choice and skip without adding the card to the batch
   ---
-  duration_ms: 5.714154
+  duration_ms: 14.934462
   location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/deck-inspection.test.ts:1:7926'
   failureType: 'testCodeFailure'
   error: |-
@@ -69,7 +69,7 @@ not ok 9 - reveal-and-play effects reveal before the choice and skip without add
 # Subtest: a revealed non-Flip enters the batch only after Play card is chosen
 not ok 10 - a revealed non-Flip enters the batch only after Play card is chosen
   ---
-  duration_ms: 3.727203
+  duration_ms: 17.485427
   location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/deck-inspection.test.ts:1:9259'
   failureType: 'testCodeFailure'
   error: 'There is no pending card choice.'
@@ -87,77 +87,77 @@ not ok 10 - a revealed non-Flip enters the batch only after Play card is chosen
 # Subtest: a revealed Flip has Skip as its only legal decision
 ok 11 - a revealed Flip has Skip as its only legal decision
   ---
-  duration_ms: 2.589007
+  duration_ms: 10.192664
   ...
 # Subtest: playing Dan after a Bakugan opened installs the Hero without replaying the open trigger
 ok 12 - playing Dan after a Bakugan opened installs the Hero without replaying the open trigger
   ---
-  duration_ms: 2.748831
+  duration_ms: 7.683912
   ...
 # Subtest: playable permanents never use a triggered ability as their card-play program
 ok 13 - playable permanents never use a triggered ability as their card-play program
   ---
-  duration_ms: 0.577964
+  duration_ms: 1.445199
   ...
 # Subtest: Toshi opens a private full-deck browser while limiting selection to Action cards
 ok 14 - Toshi opens a private full-deck browser while limiting selection to Action cards
   ---
-  duration_ms: 1.121707
+  duration_ms: 2.758613
   ...
 # Subtest: Lia search moves the selected Hero to hand and leaves every other card in the shuffled deck
 ok 15 - Lia search moves the selected Hero to hand and leaves every other card in the shuffled deck
   ---
-  duration_ms: 1.314976
+  duration_ms: 2.517917
   ...
 # Subtest: the gameplay runtime mounts distinct draggable, reveal, and full-deck search presentations
 ok 16 - the gameplay runtime mounts distinct draggable, reveal, and full-deck search presentations
   ---
-  duration_ms: 23.2996
+  duration_ms: 51.015728
   ...
 # Subtest: Age of Aurelus Lia keeps its top-three Hero selection in one optional play window
 ok 17 - Age of Aurelus Lia keeps its top-three Hero selection in one optional play window
   ---
-  duration_ms: 2.991203
+  duration_ms: 6.714266
   ...
 # Subtest: Age of Aurelus Lia shrinks its inspection to the cards actually remaining
 ok 18 - Age of Aurelus Lia shrinks its inspection to the cards actually remaining
   ---
-  duration_ms: 2.861039
+  duration_ms: 13.846181
   ...
 # Subtest: Age of Aurelus Lia is an automatic no-op with an empty deck
 ok 19 - Age of Aurelus Lia is an automatic no-op with an empty deck
   ---
-  duration_ms: 0.932394
+  duration_ms: 1.871249
   ...
 # Subtest: Age of Aurelus Lia only offers Skip when the short window has no Hero
 ok 20 - Age of Aurelus Lia only offers Skip when the short window has no Hero
   ---
-  duration_ms: 0.572416
+  duration_ms: 1.543474
   ...
 # Subtest: skipping Age of Aurelus Lia leaves every inspected card on the deck
 ok 21 - skipping Age of Aurelus Lia leaves every inspected card on the deck
   ---
-  duration_ms: 0.86912
+  duration_ms: 2.663722
   ...
 # Subtest: damage cards move from the deck to discard one click at a time
 ok 22 - damage cards move from the deck to discard one click at a time
   ---
-  duration_ms: 3.549117
+  duration_ms: 8.737271
   ...
 # Subtest: playing a revealed Flip automatically taps its Energy shortfall
 ok 23 - playing a revealed Flip automatically taps its Energy shortfall
   ---
-  duration_ms: 1.817338
+  duration_ms: 4.272983
   ...
 # Subtest: the Victor window enters manual damage without consuming the loser deck
 ok 24 - the Victor window enters manual damage without consuming the loser deck
   ---
-  duration_ms: 9.464662
+  duration_ms: 15.15644
   ...
 # Subtest: Pact of Darkness keeps its printed cost until Sacrifice discards a card
 not ok 25 - Pact of Darkness keeps its printed cost until Sacrifice discards a card
   ---
-  duration_ms: 6.692407
+  duration_ms: 11.93939
   location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:1:602'
   failureType: 'testCodeFailure'
   error: |-
@@ -180,7 +180,7 @@ not ok 25 - Pact of Darkness keeps its printed cost until Sacrifice discards a c
 # Subtest: Darkus Hyper Cubbo lets the Training AI complete its forced discard
 not ok 26 - Darkus Hyper Cubbo lets the Training AI complete its forced discard
   ---
-  duration_ms: 1.422777
+  duration_ms: 3.386612
   location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:1:2656'
   failureType: 'testCodeFailure'
   error: |-
@@ -207,62 +207,62 @@ not ok 26 - Darkus Hyper Cubbo lets the Training AI complete its forced discard
 # Subtest: the typed catalogue separates independent effects, Rerolls, and open-on-Reroll clauses
 ok 27 - the typed catalogue separates independent effects, Rerolls, and open-on-Reroll clauses
   ---
-  duration_ms: 1.111462
+  duration_ms: 1.903667
   ...
 # Subtest: every printed Reroll card maps to exactly one appropriate authoritative ability
 ok 28 - every printed Reroll card maps to exactly one appropriate authoritative ability
   ---
-  duration_ms: 0.828249
+  duration_ms: 1.808877
   ...
 # Subtest: all-closed first rolls reject mandatory Rerolls and silently skip optional Reroll clauses
 ok 29 - all-closed first rolls reject mandatory Rerolls and silently skip optional Reroll clauses
   ---
-  duration_ms: 11.482931
+  duration_ms: 20.329386
   ...
 # Subtest: effect draws finish before a later optional Reroll clause is offered
 ok 30 - effect draws finish before a later optional Reroll clause is offered
   ---
-  duration_ms: 6.311017
+  duration_ms: 11.813814
   ...
 # Subtest: mandatory Reroll cards are playable only after the first roll and before Victor
 ok 31 - mandatory Reroll cards are playable only after the first roll and before Victor
   ---
-  duration_ms: 3.772251
+  duration_ms: 9.074109
   ...
 # Subtest: an open Bakugan returns held Cores before its Reroll and can land on a new Core
 ok 32 - an open Bakugan returns held Cores before its Reroll and can land on a new Core
   ---
-  duration_ms: 6.903533
+  duration_ms: 13.642409
   ...
 # Subtest: forced opponent Rerolls preserve the controller target for conditional follow-up effects
 ok 33 - forced opponent Rerolls preserve the controller target for conditional follow-up effects
   ---
-  duration_ms: 5.297312
+  duration_ms: 10.474611
   ...
 # Subtest: Mind Slip makes the chosen player discard before its optional Reroll decision
 ok 34 - Mind Slip makes the chosen player discard before its optional Reroll decision
   ---
-  duration_ms: 4.991734
+  duration_ms: 10.112466
   ...
 # Subtest: Reroll-open clauses do nothing when the Reroll misses
 ok 35 - Reroll-open clauses do nothing when the Reroll misses
   ---
-  duration_ms: 4.506609
+  duration_ms: 10.586277
   ...
 # Subtest: Reroll-open draws complete before the deferred open event is emitted
 ok 36 - Reroll-open draws complete before the deferred open event is emitted
   ---
-  duration_ms: 7.725121
+  duration_ms: 14.849465
   ...
 # Subtest: Quickfire finishes its separate attack before offering its optional Reroll
 ok 37 - Quickfire finishes its separate attack before offering its optional Reroll
   ---
-  duration_ms: 8.859388
+  duration_ms: 11.264681
   ...
 # Subtest: Quickfire resumes its Reroll clause after a played Flip finishes resolving
 not ok 38 - Quickfire resumes its Reroll clause after a played Flip finishes resolving
   ---
-  duration_ms: 4.862762
+  duration_ms: 8.963535
   location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reroll-mechanic.test.ts:1:14322'
   failureType: 'testCodeFailure'
   error: "This Flip card's Stop condition is not met by the attacking Bakugan."
@@ -280,12 +280,12 @@ not ok 38 - Quickfire resumes its Reroll clause after a played Flip finishes res
 # Subtest: Divine Intervention offers only a matching Evo and plays it for free after a successful Reroll
 ok 39 - Divine Intervention offers only a matching Evo and plays it for free after a successful Reroll
   ---
-  duration_ms: 5.731871
+  duration_ms: 12.244049
   ...
 # Subtest: Thunder Storm sacrifices exactly the chosen card before beginning its optional Reroll
 not ok 40 - Thunder Storm sacrifices exactly the chosen card before beginning its optional Reroll
   ---
-  duration_ms: 6.170407
+  duration_ms: 11.374683
   location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reroll-mechanic.test.ts:1:16547'
   failureType: 'testCodeFailure'
   error: |-
@@ -309,27 +309,27 @@ not ok 40 - Thunder Storm sacrifices exactly the chosen card before beginning it
 # Subtest: successful Superfuel copies stack and the complete reduction is consumed by the next card
 ok 41 - successful Superfuel copies stack and the complete reduction is consumed by the next card
   ---
-  duration_ms: 6.361082
+  duration_ms: 12.900452
   ...
 # Subtest: a stacked Superfuel reduction is consumed by a played Flip card
 ok 42 - a stacked Superfuel reduction is consumed by a played Flip card
   ---
-  duration_ms: 3.83858
+  duration_ms: 8.67596
   ...
 # Subtest: a failed Reroll against a closed Bakugan repeats the normal Rolling Step after showing the result
 ok 43 - a failed Reroll against a closed Bakugan repeats the normal Rolling Step after showing the result
   ---
-  duration_ms: 4.83486
+  duration_ms: 8.795857
   ...
 # Subtest: intrinsic once-per-turn and any-time miss abilities expose an authoritative Reroll action
 ok 44 - intrinsic once-per-turn and any-time miss abilities expose an authoritative Reroll action
   ---
-  duration_ms: 9.027469
+  duration_ms: 18.509112
   ...
 # Subtest: Shadow Dogs grants the rerolled Bakugan a Victor discard choice
 ok 45 - Shadow Dogs grants the rerolled Bakugan a Victor discard choice
   ---
-  duration_ms: 14.961442
+  duration_ms: 18.723599
   ...
 1..45
 # tests 45
@@ -339,7 +339,7 @@ ok 45 - Shadow Dogs grants the rerolled Bakugan a Victor discard choice
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1241.596331
+# duration_ms 2056.486647
 targeted_status=1
 === build ===
 
@@ -350,32 +350,32 @@ Running bounded vinext build...
 
   vinext build  (Vite 8.0.13)
 
-(node:2210) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(node:2632) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 [34m[1/5] analyze client references...[39m
-[2Ktransforming...(node:2210) ExperimentalWarning: glob is an experimental feature and might change at any time
+[2Ktransforming...(node:2632) ExperimentalWarning: glob is an experimental feature and might change at any time
 ✓ 336 modules transformed.
 rendering chunks...
-[32m✓ built in 746ms[39m
+[32m✓ built in 1.30s[39m
 [34m[2/5] analyze server references...[39m
 [2Ktransforming...✓ 342 modules transformed.
 rendering chunks...
-[32m✓ built in 694ms[39m
+[32m✓ built in 1.40s[39m
 [34m[3/5] build rsc environment...[39m
 [2Ktransforming...✓ 342 modules transformed.
 rendering chunks...
 computing gzip size...
-[32m✓ built in 652ms[39m
+[32m✓ built in 1.11s[39m
 [34m[4/5] build client environment...[39m
 [2Ktransforming...✓ 349 modules transformed.
 rendering chunks...
 computing gzip size...
-[32m✓ built in 1.56s[39m
+[32m✓ built in 1.67s[39m
 [34m[5/5] build ssr environment...[39m
 [2Ktransforming...✓ 348 modules transformed.
 rendering chunks...
 computing gzip size...
-[32m✓ built in 784ms[39m
+[32m✓ built in 1.41s[39m
 [0m
   Route (app)
   ┌ ? /                     
