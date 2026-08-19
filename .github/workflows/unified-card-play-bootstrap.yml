@@ -1,4 +1,4 @@
-name: Unified Card Play Runtime Diagnostics
+name: Unified Card Play Coverage Validation
 
 on:
   push:
@@ -8,8 +8,8 @@ permissions:
   contents: write
 
 jobs:
-  diagnose:
-    if: ${{ !contains(github.event.head_commit.message, '[runtime-diagnostic]') }}
+  validate:
+    if: ${{ !contains(github.event.head_commit.message, '[coverage-fixed]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,33 +20,38 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Capture runtime diagnostics
+      - name: Apply coverage fixes
+        run: python scripts/fix-unified-card-play-coverage.py
+      - name: Validate implementation
         run: |
-          node --import tsx <<'NODE' > scripts/unified-card-play-runtime.txt 2>&1
-          import { CARD_BY_ID, CARDS, STARTER_DECKS, makePlayer } from './lib/data.ts';
-          import { createMatch, passPriority } from './lib/game.ts';
-          import { createRuleObject } from './lib/rules/objects.ts';
-          import { ruleDefinitionForCard } from './lib/rules/catalogue.ts';
-          import { compileCardEffect } from './lib/rules/effects.ts';
-          import { cardCostBreakdown } from './lib/rules/costs.ts';
-          function card(id, instance) { const c=CARD_BY_ID.get(id); if(!c) throw new Error(id); return {...structuredClone(c),id:instance}; }
-          const first=makePlayer('first','First',STARTER_DECKS[0]);
-          const second=makePlayer('second','Second',STARTER_DECKS[1]);
-          let state=createMatch('SNEAKDBG','bo1',[first,second]); state.turn=3; state.phase='power'; state.priority='first'; state.startingPlayer='first';
-          const sneak=card('br-10','sneak-debug'); const def=ruleDefinitionForCard(sneak); const ability=def.abilities.find(a=>a.kind!=='triggered');
-          console.log('SNEAK EFFECT', sneak.effect); console.dir(compileCardEffect(sneak),{depth:12}); console.dir(def,{depth:8});
-          state.batch=[createRuleObject({controllerId:'first',card:sneak,ability,kind:'card'})];
-          state=passPriority(state,'first'); state=passPriority(state,'second');
-          console.log('SNEAK RULES AFTER RESOLVE'); console.dir(state.rules,{depth:12});
-          const evo=card('br-102','evo-debug'); console.log('FIRST EVO COST',cardCostBreakdown(state,'first',evo)); console.log('SECOND EVO COST',cardCostBreakdown(state,'second',evo));
-          console.log('\nFREE COVERAGE');
-          function has(actions){return actions.some(a=>a.kind==='play'&&a.free||a.kind==='cost'&&a.operation==='free'||a.kind==='sequence'&&has(a.effects)||a.kind==='conditional'&&(has(a.whenTrue)||has(a.whenFalse??[]))||a.kind==='replacement'&&has(a.replaceWith));}
-          for(const c of CARDS.filter(c=>/for free|this is free/i.test(c.effect))){ const d=ruleDefinitionForCard(c); const p=compileCardEffect(c); const ok=d.play.costModifiers.some(m=>m.kind==='cost-free'||m.kind==='cost-alternative')||p.instructions.some(i=>has(i.effects)); if(!ok) console.log('MISSING',c.catalogId,c.name,'::',c.effect); }
-          NODE
-      - name: Commit diagnostics
+          set +e
+          : > scripts/unified-card-play-validation-3.txt
+          echo '=== implementation tests ===' >> scripts/unified-card-play-validation-3.txt
+          node --import tsx --test tests/card-payment.test.ts tests/card-play-pipeline.test.ts >> scripts/unified-card-play-validation-3.txt 2>&1
+          CORE_STATUS=$?
+          echo "core_status=$CORE_STATUS" >> scripts/unified-card-play-validation-3.txt
+          echo '=== focused existing regressions ===' >> scripts/unified-card-play-validation-3.txt
+          node --import tsx --test --test-name-pattern='Pact of Darkness|Divine Intervention|successful Superfuel copies|stacked Superfuel reduction' tests/pact-cubbo-regressions.test.ts tests/reroll-mechanic.test.ts >> scripts/unified-card-play-validation-3.txt 2>&1
+          FOCUSED_STATUS=$?
+          echo "focused_status=$FOCUSED_STATUS" >> scripts/unified-card-play-validation-3.txt
+          echo '=== old baseline comparison group ===' >> scripts/unified-card-play-validation-3.txt
+          node --import tsx --test tests/pact-cubbo-regressions.test.ts tests/deck-inspection.test.ts tests/reroll-mechanic.test.ts >> scripts/unified-card-play-validation-3.txt 2>&1
+          BASELINE_STATUS=$?
+          echo "baseline_group_status=$BASELINE_STATUS" >> scripts/unified-card-play-validation-3.txt
+          echo '=== build ===' >> scripts/unified-card-play-validation-3.txt
+          npm run build >> scripts/unified-card-play-validation-3.txt 2>&1
+          BUILD_STATUS=$?
+          echo "build_status=$BUILD_STATUS" >> scripts/unified-card-play-validation-3.txt
+          echo '=== lint ===' >> scripts/unified-card-play-validation-3.txt
+          npm run lint >> scripts/unified-card-play-validation-3.txt 2>&1
+          LINT_STATUS=$?
+          echo "lint_status=$LINT_STATUS" >> scripts/unified-card-play-validation-3.txt
+          echo "implementation_overall=$(( CORE_STATUS || FOCUSED_STATUS || BUILD_STATUS || LINT_STATUS ))" >> scripts/unified-card-play-validation-3.txt
+          exit 0
+      - name: Commit coverage fixes and validation
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add scripts/unified-card-play-runtime.txt
-          git commit -m 'Record unified play runtime diagnostics [runtime-diagnostic]' || true
+          git add lib components tests scripts/unified-card-play-validation-3.txt
+          git commit -m 'Complete free-play pipeline coverage [coverage-fixed]' || true
           git push
