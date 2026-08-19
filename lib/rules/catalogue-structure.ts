@@ -108,7 +108,8 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     if (attachedCoreTypes.length && !effects.some((effect) => effect.kind === "move" && effect.verb === "attach" && effect.object === "bakucore")) {
       effects = [...effects.filter((effect) => effect.kind !== "sequence"), { kind: "move", verb: "attach", object: "bakucore", amount: 1 }];
     }
-    if (ruleCardId(card) === "bb-152") effects = effects.filter((effect) => effect.kind !== "discard");
+    // Alternative play costs are represented in CardPlayDefinition rather than
+    // erased or recognized by a printing-specific exception here.
     if (!effects.length) effects = [{ kind: "sequence", effects: [] }];
     return {
       id: `${ruleCardId(card)}:instruction:${index}`,
@@ -385,8 +386,9 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   }
   if (/search your deck/i.test(text)) result.push(choice("deckCardId", timing, "deck-card", "Choose a card from your deck", false, "controller", "private"));
   if (/top .*cards?.*any order/i.test(text)) result.push(choice("orderedCardIds", timing, "deck-card", "Order the revealed cards", false, "controller", "private"));
+  const persistentFreePermission = /for the rest of the turn,\s*both players may play Evo cards from their hand for free/i.test(text);
   const freeHandPlay = text.match(/play\s+(?:an?|the)?\s*(Action|Hero|Evo|card)(?:\s+card)?(?:\s+that costs?\s+(\d+)\s+\[Energy\]\s+or less)?(?:\s+from\s+(?:your\s+)?hand|\s+from\s+it)?\s+for free|play that Bakugan(?:'s|’s) Evo card for free/i);
-  if (freeHandPlay) {
+  if (freeHandPlay && !persistentFreePermission) {
     const selected = choice("handCardIds", timing, "hand-card", "Choose a card to play", false, "controller", "private");
     if (/that Bakugan(?:'s|’s) Evo/i.test(text)) selected.cardType = "Evo";
     else if (freeHandPlay[1] && freeHandPlay[1].toLowerCase() !== "card") selected.cardType = freeHandPlay[1] as GameCard["type"];
@@ -459,7 +461,17 @@ function costModifiersFor(card: GameCard): CostEffect[] {
     });
   }
 
-  if (!discardForFree && /play this for free|this is free/i.test(text)) {
+  const optionalSelfFree = !discardForFree && /you may play this(?: card)? for free/i.test(text);
+  if (optionalSelfFree) {
+    result.push({
+      kind: "cost-alternative",
+      id: `${ruleCardId(card)}:self-free`,
+      label: "Play for free",
+      setsBaseFree: true,
+      components: [],
+      condition: conditionFor(text),
+    });
+  } else if (!discardForFree && /play this for free|this is free/i.test(text)) {
     result.push({ kind: "cost-free", duration: durationFor(text), condition: conditionFor(text) });
   }
   if (ruleCardId(card) === "aa-112") {

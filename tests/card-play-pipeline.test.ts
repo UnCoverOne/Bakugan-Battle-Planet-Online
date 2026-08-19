@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CARD_BY_ID, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, passPriority, submitCardChoice } from "../lib/game";
+import { CARD_BY_ID, CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
+import { createMatch, passPriority, resolveStructuredEffect, submitCardChoice } from "../lib/game";
 import { resolveManualDamage } from "../lib/manualDamage";
-import { cardCostBreakdown } from "../lib/rules/costs";
+import { cardCostBreakdown, cardPaymentModes } from "../lib/rules/costs";
 import { createRuleObject } from "../lib/rules/objects";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
+import { compileCardEffect } from "../lib/rules/effects";
+import type { RuleAction } from "../lib/rules/model";
 
 function card(id: string, instance: string) {
   const template = CARD_BY_ID.get(id);
@@ -87,14 +89,21 @@ test("Pact of Darkness Sacrifice is a generic atomic alternative cost and free b
   assert.equal(next.revealedFlip, undefined);
 });
 
-test("conditional self-free Evos use the normal cost calculation", () => {
+test("conditional self-free cards expose normal and free payment routes", () => {
   const { state, first } = baseMatch("SELF_FREE");
   const fangzor = card("br-102", "fangzor-free");
   first.hand = [fangzor];
   first.discard = Array.from({ length: 20 }, (_, index) => card("bb-1", `discard-${index}`));
-  const breakdown = cardCostBreakdown(state, first.id, fangzor);
-  assert.equal(breakdown.freeBase, true);
-  assert.equal(breakdown.total, 0);
+  const modes = cardPaymentModes(state, first.id, fangzor);
+  const normal = modes.find((mode) => mode.id === "normal");
+  const free = modes.find((mode) => mode.id === "br-102:self-free");
+  assert.ok(normal && free);
+  assert.equal(normal.freeBase, false);
+  assert.equal(free.freeBase, true);
+  assert.equal(free.energyCost, 0);
+  const selected = cardCostBreakdown(state, first.id, fangzor, { paymentMode: free.id }, { selectedAlternativeId: free.id });
+  assert.equal(selected.freeBase, true);
+  assert.equal(selected.total, 0);
 });
 
 test("Sneak Attack stores a turn-scoped free Evo permission for both players", () => {
@@ -116,4 +125,82 @@ test("Sneak Attack stores a turn-scoped free Evo permission for both players", (
   liveSecond.hand = [secondEvo];
   assert.equal(cardCostBreakdown(next, first.id, firstEvo).freeBase, true);
   assert.equal(cardCostBreakdown(next, second.id, secondEvo).freeBase, true);
+});
+
+
+function containsFreePlayPrimitive(actions: RuleAction[]): boolean {
+  return actions.some((action) => {
+    if (action.kind === "play") return action.free;
+    if (action.kind === "cost") return action.operation === "free";
+    if (action.kind === "sequence") return containsFreePlayPrimitive(action.effects);
+    if (action.kind === "conditional") return containsFreePlayPrimitive(action.whenTrue) || containsFreePlayPrimitive(action.whenFalse ?? []);
+    if (action.kind === "replacement") return containsFreePlayPrimitive(action.replaceWith);
+    return false;
+  });
+}
+
+test("every printed free-play card maps to the shared play or payment primitives", () => {
+  const printed = CARDS.filter((candidate) => /for free|this is free/i.test(candidate.effect));
+  assert.ok(printed.length > 0);
+  for (const candidate of printed) {
+    const definition = ruleDefinitionForCard(candidate);
+    const paymentPrimitive = definition.play.costModifiers.some((modifier) => (
+      modifier.kind === "cost-free" || modifier.kind === "cost-alternative"
+    ));
+    const programPrimitive = compileCardEffect(candidate).instructions.some((instruction) => containsFreePlayPrimitive(instruction.effects));
+    assert.ok(paymentPrimitive || programPrimitive, `${candidate.catalogId} ${candidate.name} is missing a generalized free-play primitive`);
+  }
+});
+
+test("Luck Aura's free play becomes a normal typed card play without paying the printed base cost", () => {
+  const { state, first } = baseMatch("LUCK_AURA");
+  const luck = card("bb-163", "luck-aura-effect");
+  const playableTemplate = CARDS.find((candidate) => (
+    candidate.type === "Action"
+    && candidate.cost !== "X"
+    && candidate.cost > 0
+    && ruleDefinitionForCard(candidate).play.choices.every((choice) => !["announce", "pay"].includes(choice.timing))
+    && !/must Reroll/i.test(candidate.effect)
+  ));
+  assert.ok(playableTemplate);
+  const played = { ...structuredClone(playableTemplate), id: "luck-aura-free-card" };
+  first.hand = [played];
+  first.energy = 0;
+  first.energyZone = [];
+  first.maxEnergy = 0;
+  const definition = ruleDefinitionForCard(luck);
+  const ability = definition.abilities.find((candidate) => candidate.kind !== "triggered");
+  assert.ok(ability);
+
+  let next = resolveStructuredEffect(state, createRuleObject({ controllerId: first.id, card: luck, ability, kind: "card" }));
+  const hand = next.pendingChoice?.schema.fields.find((field) => field.id === "handCardIds");
+  assert.ok(hand?.options.some((option) => option.id === played.id));
+  next = submitCardChoice(next, first.id, { handCardIds: [played.id], confirmed: true });
+  assert.equal(next.players[0].hand.some((candidate) => candidate.id === played.id), false);
+  const object = next.batch.find((candidate) => candidate.card.id === played.id);
+  assert.ok(object);
+  assert.equal(object.rulesObjectVersion, 3);
+  assert.equal(object.controllerId, first.id);
+  assert.equal(next.players[0].cardsPlayedThisTurn, 1);
+  assert.ok(next.log.some((entry) => entry.cardInstanceId === played.id && entry.cardEvent === "played"));
+});
+
+test("free-play compiler preserves Mind Control source and physical destination ownership", () => {
+  const mind = card("br-19", "mind-control-model");
+  const actions = compileCardEffect(mind).instructions.flatMap((instruction) => instruction.effects);
+  const play = actions.find((action): action is Extract<RuleAction, { kind: "play" }> => action.kind === "play");
+  assert.ok(play);
+  assert.equal(play.free, true);
+  assert.equal(play.source, "hand");
+  assert.equal(play.sourceOwner, "opponent");
+  assert.equal(play.destinationOwner, "opponent");
+});
+
+test("Trick Trap's shared free-play selector retains Hero type and printed-cost ceiling", () => {
+  const trick = card("br-70", "trick-trap-model");
+  const actions = compileCardEffect(trick).instructions.flatMap((instruction) => instruction.effects);
+  const play = actions.find((action): action is Extract<RuleAction, { kind: "play" }> => action.kind === "play");
+  assert.ok(play);
+  assert.equal(play.cardType, "Hero");
+  assert.equal(play.maximumCost, 3);
 });

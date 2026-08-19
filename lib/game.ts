@@ -2484,7 +2484,14 @@ return;
               ? active
               : player.bakugan.find((bakugan) => canonicalEvoTargetAllowed(definition, bakugan));
           })();
-        if (candidate) childChoices.sourceBakuganId = candidate.id;
+        if (candidate) {
+          // The generic Evo declaration uses targetBakuganId while some
+          // effect-originated plays historically carried sourceBakuganId.
+          // Populate both aliases so the nested play does not reopen a target
+          // choice that the parent effect has already determined.
+          childChoices.sourceBakuganId = candidate.id;
+          childChoices.targetBakuganId = candidate.id;
+        }
       }
       const destinationOwnerId = zoneOwnerIdsFor(state, action.destinationOwner ?? action.sourceOwner ?? "controller", { controllerId, choices })[0]
         ?? sourceOwnerId;

@@ -162,7 +162,7 @@ function paymentLegality(
   }
   const payable = maximumPayableEnergy(state, playerId);
   if (payable < breakdown.total) {
-    reasons.push(`${breakdown.total} Energy is still required after modifiers, but only ${payable} is available.`);
+    reasons.push(`Not enough Energy: ${breakdown.total} required after modifiers, ${payable} available.`);
   }
   return { legal: reasons.length === 0, reason: reasons.join(" ") || undefined };
 }

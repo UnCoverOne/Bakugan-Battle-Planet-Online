@@ -307,8 +307,9 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     source: /(?:this is discarded|discard this card)/i.test(text) ? "self" : "revealed-deck",
     free: true,
   });
+  const persistentFreePermission = /for the rest of the turn,\s*both players may play Evo cards from their hand for free/i.test(text);
   const freeHandPlay = text.match(/play\s+(?:an?|the)?\s*(Action|Hero|Evo|card)(?:\s+card)?(?:\s+that costs?\s+(\d+)\s+\[Energy\]\s+or less)?(?:\s+from\s+(?:your\s+)?hand|\s+from\s+it)?\s+for free|play that Bakugan(?:'s|’s) Evo card for free/i);
-  if (freeHandPlay) actions.push({
+  if (freeHandPlay && !persistentFreePermission) actions.push({
     kind: "play",
     source: "hand",
     free: true,
@@ -317,7 +318,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     sourceOwner: /from it|opponent(?:'s|’s) hand/i.test(text) ? "opponent" : "controller",
     destinationOwner: /opponent(?:'s|’s) discard pile/i.test(text) ? "opponent" : undefined,
   });
-  if (/for the rest of the turn,\s*both players may play Evo cards from their hand for free/i.test(text)) actions.push({
+  if (persistentFreePermission) actions.push({
     kind: "cost", amount: 0, operation: "free", duration: "turn", cardType: "Evo", playerScope: "all-players",
   });
   const attack = text.match(/makes? an? \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] attack for (\d+) \[Damage Rating\]/i);
