@@ -2,8 +2,7 @@ name: Unified Card Play Bootstrap
 
 on:
   push:
-    branches:
-      - feature/unified-card-play-pipeline
+    branches: [feature/unified-card-play-pipeline]
 
 permissions:
   contents: write
@@ -22,26 +21,13 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply implementation
-        run: |
-          if [ -f scripts/apply-unified-card-play-pipeline.py ]; then
-            python scripts/apply-unified-card-play-pipeline.py
-          else
-            echo 'Patch script not present yet.'
-            exit 0
-          fi
+        run: python scripts/apply-unified-card-play-pipeline.py
       - name: Validate implementation
-        if: ${{ hashFiles('scripts/apply-unified-card-play-pipeline.py') != '' }}
         run: |
           set +e
           : > scripts/unified-card-play-validation.txt
           echo '=== targeted tests ===' >> scripts/unified-card-play-validation.txt
-          node --import tsx --test \
-            tests/card-payment.test.ts \
-            tests/pact-cubbo-regressions.test.ts \
-            tests/manual-damage.test.ts \
-            tests/deck-inspection.test.ts \
-            tests/reroll-mechanic.test.ts \
-            tests/card-play-pipeline.test.ts >> scripts/unified-card-play-validation.txt 2>&1
+          node --import tsx --test tests/card-payment.test.ts tests/pact-cubbo-regressions.test.ts tests/manual-damage.test.ts tests/deck-inspection.test.ts tests/reroll-mechanic.test.ts tests/card-play-pipeline.test.ts >> scripts/unified-card-play-validation.txt 2>&1
           TEST_STATUS=$?
           echo "targeted_status=$TEST_STATUS" >> scripts/unified-card-play-validation.txt
           echo '=== build ===' >> scripts/unified-card-play-validation.txt
@@ -55,7 +41,6 @@ jobs:
           echo "overall=$(( TEST_STATUS || BUILD_STATUS || LINT_STATUS ))" >> scripts/unified-card-play-validation.txt
           exit 0
       - name: Commit implementation and diagnostics
-        if: ${{ hashFiles('scripts/apply-unified-card-play-pipeline.py') != '' }}
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
