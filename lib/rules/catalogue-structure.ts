@@ -385,9 +385,15 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   }
   if (/search your deck/i.test(text)) result.push(choice("deckCardId", timing, "deck-card", "Choose a card from your deck", false, "controller", "private"));
   if (/top .*cards?.*any order/i.test(text)) result.push(choice("orderedCardIds", timing, "deck-card", "Order the revealed cards", false, "controller", "private"));
-  if (/play (?:an?|the) (?:Action|Hero|Evo|card).*from (?:your )?hand for free|play that Bakugan(?:'s|’s) Evo card for free/i.test(text)) {
+  const freeHandPlay = text.match(/play\s+(?:an?|the)?\s*(Action|Hero|Evo|card)(?:\s+card)?(?:\s+that costs?\s+(\d+)\s+\[Energy\]\s+or less)?(?:\s+from\s+(?:your\s+)?hand|\s+from\s+it)?\s+for free|play that Bakugan(?:'s|’s) Evo card for free/i);
+  if (freeHandPlay) {
     const selected = choice("handCardIds", timing, "hand-card", "Choose a card to play", false, "controller", "private");
     if (/that Bakugan(?:'s|’s) Evo/i.test(text)) selected.cardType = "Evo";
+    else if (freeHandPlay[1] && freeHandPlay[1].toLowerCase() !== "card") selected.cardType = freeHandPlay[1] as GameCard["type"];
+    if (freeHandPlay[2]) selected.maximumCost = Number(freeHandPlay[2]);
+    selected.owner = /from it|opponent(?:'s|’s) hand|opponent(?:'s|’s) discard pile/i.test(text) ? "opponent" : "controller";
+    selected.targetOwner = selected.owner;
+    selected.playForFree = true;
     result.push(selected);
   }
   if (/Battle Mastery:.*Choose one|choose one of the following/i.test(text)) result.push(choice("mode", timing, "mode", "Choose a Battle Mastery mode"));
@@ -405,6 +411,18 @@ function reductionScaleFor(text: string): Extract<CostEffect, { kind: "cost-redu
 function costModifiersFor(card: GameCard): CostEffect[] {
   const result: CostEffect[] = [];
   const text = card.effect;
+  const discardForFree = text.match(/(?:Sacrifice\s*[-:]\s*)?You may discard (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards? to play this for free/i);
+  if (discardForFree) {
+    const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+    const amount = words[discardForFree[1].toLowerCase()] ?? Math.max(1, Number(discardForFree[1]) || 1);
+    result.push({
+      kind: "cost-alternative",
+      id: `${ruleCardId(card)}:discard-for-free`,
+      label: `Sacrifice — discard ${amount} card${amount === 1 ? "" : "s"}`,
+      setsBaseFree: true,
+      components: [{ kind: "cost-discard", amount, choiceId: "discardCardIds" }],
+    });
+  }
 
   // A card's own play-cost adjustment must explicitly name "this". Static
   // reducers such as Shun, Lightning, and Strata target cards played later and
@@ -441,14 +459,11 @@ function costModifiersFor(card: GameCard): CostEffect[] {
     });
   }
 
-  // Pact of Darkness resolves its optional Sacrifice payment through the
-  // paused Damage sequence. It must retain its printed cost until that
-  // sequence has actually discarded a card.
-  if (ruleCardId(card) !== "bb-152" && /play this for free|this is free/i.test(text)) {
+  if (!discardForFree && /play this for free|this is free/i.test(text)) {
     result.push({ kind: "cost-free", duration: durationFor(text), condition: conditionFor(text) });
   }
   if (ruleCardId(card) === "aa-112") {
-    result.push({ kind: "cost-alternative", label: "Discard two cards instead of paying the printed Energy cost", components: [{ kind: "cost-discard", amount: 2, choiceId: "discardCardIds" }] });
+    result.push({ kind: "cost-alternative", id: "aa-112:discard-two", label: "Discard two cards instead of paying the printed Energy cost", setsBaseFree: true, components: [{ kind: "cost-discard", amount: 2, choiceId: "discardCardIds" }] });
   }
   return result;
 }
@@ -480,19 +495,16 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
       if (!choices.some((choice) => choice.id === selected.id && choice.timing === selected.timing)) choices.push(selected);
     }
   }
-  // Pact of Darkness owns a dedicated two-stage Damage-step payment
-  // prompt, so it must not enter the generic card-choice editor.
-  if (ruleCardId(card) === "bb-152") {
-    for (let index = choices.length - 1; index >= 0; index -= 1) {
-      if (choices[index].id === "discardCardIds") choices.splice(index, 1);
-    }
-  }
   if (ruleCardId(card) === "aa-112") choices.push(choice("discardCardIds", "pay", "hand-card", "Choose two cards for the alternative cost", false, "controller", "private"));
   return {
     choices,
     costModifiers: costModifiersFor(card),
     evolvesFrom: evoIdentities(card),
-    sourceZones: card.type === "Flip" ? ["damage-reveal"] : ["hand"],
+    sourceZones: card.type === "Flip"
+      ? ["damage-reveal"]
+      : /play this from your discard pile as though it were in your hand/i.test(card.effect)
+        ? ["hand", "discard"]
+        : ["hand"],
   };
 }
 

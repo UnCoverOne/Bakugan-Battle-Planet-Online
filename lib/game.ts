@@ -9,15 +9,15 @@ import {
 import { executeRuleProgram } from "./rules/executor";
 import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
 import { ruleDefinitionForCard } from "./rules/catalogue";
-import { activeTappedEnergyIds, cardCostBreakdown, rechargeEnergyCards } from "./rules/costs";
+import { activeTappedEnergyIds, beginCardPayment, cardPaymentModes, commitCardPayment, prepareDeclaredEnergyPayment, rechargeEnergyCards } from "./rules/costs";
 import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
 import { turnDrawCounts } from "./rules/turn-draw";
-import { evaluateAmountExpression, playerIdsForScope } from "./rules/primitives";
+import { evaluateAmountExpression, playerIdsForScope, zoneOwnerIdsFor } from "./rules/primitives";
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
 import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
-import type { ContinuousModifier, RulesCardId } from "./rules/model";
+import type { ContinuousModifier, PendingCardPlay, RulesCardId } from "./rules/model";
 import { collectRuleTriggers } from "./rules/triggers";
 import { applyEnergyEntryVisibility } from "./energyVisibility";
 import {
@@ -120,6 +120,8 @@ export type PlayerState = {
   lastSeen: number;
   energizedThisTurn: boolean;
   cardsPlayedThisTurn: number;
+  /** Printed Energy costs of cards this player has played during the current turn. */
+  playedCardCostsThisTurn?: number[];
   /** Distinct factions represented by cards this player has played this turn. */
   factionsPlayedThisTurn?: Faction[];
   /** Publicly revealed top-deck card awaiting a linked free-play decision. */
@@ -188,6 +190,8 @@ export type CardChoices = {
   deckCardId?: string;
   xValue?: number;
   mode?: string;
+  /** Selected normal/alternative payment route for the current card play. */
+  paymentMode?: string;
   confirmed?: boolean;
   simultaneousAnswers?: Record<string, CardChoices>;
 };
@@ -231,6 +235,8 @@ export type PendingEffectDamageResume = {
 export type PendingEffect = {
   id: string;
   controllerId: string;
+  /** Physical owner of this card, which can differ from its resolving controller. */
+  cardOwnerId?: string;
   card: GameCard;
   choices: CardChoices;
   kind: "card" | "trigger" | "copy";
@@ -467,6 +473,7 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
       ...(Array.isArray(player.factionsPlayedThisTurn) ? player.factionsPlayedThisTurn : []),
       ...playedCards.flatMap((card) => card.factions?.length ? card.factions : [card.faction]),
     ])];
+    player.playedCardCostsThisTurn = playedCards.map((card) => card.cost === "X" ? 0 : card.cost);
   }
   state.selected = state.selected && typeof state.selected === "object" ? state.selected : {};
   state.targets = state.targets && typeof state.targets === "object" ? state.targets : {};
@@ -503,6 +510,7 @@ const syncDeck = (player: PlayerState) => { player.deck = player.deckCards.lengt
 export const recordCardPlayedForTurn = (player: PlayerState, card: GameCard, turn: number) => {
   card.playedTurn = turn;
   player.cardsPlayedThisTurn += 1;
+  player.playedCardCostsThisTurn = [...(player.playedCardCostsThisTurn ?? []), card.cost === "X" ? 0 : card.cost];
   player.factionsPlayedThisTurn = [...new Set([
     ...(player.factionsPlayedThisTurn ?? []),
     ...(card.factions?.length ? card.factions : [card.faction]),
@@ -633,7 +641,8 @@ const beginTurn = (state: MatchState) => {
   state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.delayedRetracts = []; state.winner = "";
   state.collectedEventKeys = [];
   for (const player of state.players) {
-    player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0; player.factionsPlayedThisTurn = [];
+    player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0;
+    player.playedCardCostsThisTurn = []; player.factionsPlayedThisTurn = [];
   }
   const now = Date.now();
   const drawCounts = turnDrawCounts(state);
@@ -868,6 +877,13 @@ class CoinFlipResolutionSuspended extends Error {
   constructor() {
     super("Card resolution suspended for a coin flip presentation.");
     this.name = "CoinFlipResolutionSuspended";
+  }
+}
+
+class CardPlayResolutionSuspended extends Error {
+  constructor() {
+    super("Card resolution suspended while a nested card play is declared and paid.");
+    this.name = "CardPlayResolutionSuspended";
   }
 }
 
@@ -1164,6 +1180,7 @@ export const cardChoiceSpec = (_state: MatchState, _playerId: string, card: Game
     deckCardId: "deckCard",
     xValue: "xValue",
     mode: "mode",
+    paymentMode: "mode",
     confirmed: "mode",
   };
   const definition = ruleDefinitionForCard(card);
@@ -1265,121 +1282,436 @@ export const emitGameEvent = (state: MatchState, event: GameEvent) => {
   return triggers;
 };
 
-const effectiveCost = (state: MatchState, player: PlayerState, card: GameCard, choices: CardChoices) => (
-  cardCostBreakdown(state, player.id, card, choices).total
-);
+type MutableCardPlayResult = "staged" | "committed";
 
-const payEnergy = (state: MatchState, player: PlayerState, amount: number) => {
-  const tracked = player as PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
-  if (tracked.energyTapTurn !== state.turn) {
-    tracked.energyTapTurn = state.turn;
-    // Migrate resumable pre-manual-tapping snapshots without discarding their
-    // already-generated pool. New states always carry energyTapTurn.
-    const legacyGenerated = Math.min(Math.max(0, player.energy), player.energyZone.length);
-    tracked.tappedEnergyIds = player.energyZone.slice(0, legacyGenerated).map((card) => card.id);
-    player.energy = legacyGenerated;
+function choiceValuePresent(choices: CardChoices, id: keyof CardChoices) {
+  const value = choices[id];
+  return Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== "";
+}
+
+function playSourceCard(state: MatchState, request: PendingCardPlay) {
+  const owner = playerById(state, request.sourceOwnerId);
+  if (!owner) throw new Error("The card's source-zone owner is no longer in the match.");
+  if (request.sourceZone === "hand") {
+    const card = owner.hand.find((candidate) => candidate.id === request.cardId);
+    if (!card) throw new Error("The card is no longer in the requested hand.");
+    return { owner, card };
   }
-  const tapped = new Set(tracked.tappedEnergyIds ?? []);
-  const shortfall = Math.max(0, amount - player.energy);
-  const untapped = player.energyZone.filter((card) => !tapped.has(card.id));
-  if (untapped.length < shortfall) throw new Error(`Not enough Energy (need ${amount}, ${player.energy + untapped.length} available).`);
-  const generated = untapped.slice(0, shortfall);
-  tracked.tappedEnergyIds = [...tapped, ...generated.map((card) => card.id)];
-  player.energy += generated.length;
-  player.energy -= amount;
-  if (generated.length) entry(state, "game", `${player.name} tapped ${generated.length} Energy card${generated.length === 1 ? "" : "s"} to complete payment.`);
-};
+  if (request.sourceZone === "deck") {
+    const card = owner.deckCards.find((candidate) => candidate.id === request.cardId);
+    if (!card) throw new Error("The card is no longer in the requested deck position.");
+    return { owner, card };
+  }
+  if (request.sourceZone === "damage-reveal") {
+    const card = owner.discard.find((candidate) => candidate.id === request.cardId);
+    if (!card || state.revealedFlip?.id !== card.id) throw new Error("The revealed Flip is no longer available to play.");
+    return { owner, card };
+  }
+  const card = owner.discard.find((candidate) => candidate.id === request.cardId);
+  if (!card) throw new Error("The card is no longer in the requested discard pile.");
+  return { owner, card };
+}
 
-const playPaidPactOfDarkness = (state: MatchState, playerId: string) => {
-  const flip = state.revealedFlip;
-  if (!flip || flip.catalogId !== "bb-152") throw new Error("Pact of Darkness is no longer the revealed Flip.");
-  const player = playerById(state, playerId);
-  const choices: CardChoices = {};
-  const cost = effectiveCost(state, player, flip, choices);
-  payEnergy(state, player, cost);
-  state.nextCardCostReduction[playerId] = 0;
-  player.discard = player.discard.filter((card) => card.id !== flip.id);
-  state.revealedFlip = undefined;
-  recordCardPlayedForTurn(player, flip, state.turn);
+function removePlaySourceCard(state: MatchState, request: PendingCardPlay) {
+  const { owner, card } = playSourceCard(state, request);
+  if (request.sourceZone === "hand") owner.hand = owner.hand.filter((candidate) => candidate.id !== card.id);
+  else if (request.sourceZone === "deck") {
+    owner.deckCards = owner.deckCards.filter((candidate) => candidate.id !== card.id);
+    syncDeck(owner);
+    delete owner.revealedDeckCardId;
+  } else {
+    owner.discard = owner.discard.filter((candidate) => candidate.id !== card.id);
+    if (request.sourceZone === "damage-reveal") state.revealedFlip = undefined;
+  }
+  return card;
+}
 
-  const definition = ruleDefinitionForCard(flip);
-  const ability = definition.abilities.find((candidate) => candidate.kind === "spell") ?? definition.abilities[0];
-  const object = createRuleObject({ controllerId: playerId, card: flip, ability, choices, kind: "card" });
-  state.batch.push(object);
-  const rules = ensureRulesState(state) as ReturnType<typeof ensureRulesState> & {
-    pactOfDarknessPayment?: unknown;
-    damageResume?: { playerId: string; previousPhase: "damage"; revealedFlipId: string };
+function validateCardPlayRequest(state: MatchState, request: PendingCardPlay, choices: CardChoices) {
+  if (alternateWinEffectPending(state)) throw new Error("Dragonoid Maximus's alternate win effect cannot be responded to with cards.");
+  const { card } = playSourceCard(state, request);
+  if (card.type === "Character") throw new Error("Character cards cannot be played from a card zone.");
+  if (!cardRerollTimingLegal(state, request.controllerId, card)) {
+    throw new Error("This mandatory Reroll card can be played only after the first roll and before the Victor Step.");
+  }
+  if (request.origin === "priority") {
+    if (!["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase) || state.priority !== request.controllerId) {
+      throw new Error("You do not have priority in a card-play window.");
+    }
+    if (request.sourceZone !== "hand" || request.sourceOwnerId !== request.controllerId) {
+      throw new Error("An ordinary priority play must begin in your hand.");
+    }
+    if (card.type === "Flip") throw new Error("Flip cards are played only when revealed by damage.");
+  }
+  if (request.origin === "damage") {
+    if (state.phase !== "damage" || state.pendingLoser !== request.controllerId || request.sourceZone !== "damage-reveal") {
+      throw new Error("A damage-revealed Flip can only be played during its Damage Step decision.");
+    }
+    if (card.type !== "Flip" || !revealedFlipCanBePlayed(state, request.controllerId, card)) {
+      throw new Error("This revealed Flip cannot legally be played against the current attack.");
+    }
+  }
+  if (card.cost === "X" && !request.forcedFreeBase && !Number.isFinite(choices.xValue)) {
+    const definition = ruleDefinitionForCard(card);
+    if (!definition.play.choices.some((choice) => choice.id === "xValue" && choice.timing === "pay")) {
+      throw new Error("Choose X before paying for this card.");
+    }
+  }
+}
+
+function selectedPaymentMode(state: MatchState, request: PendingCardPlay, card: GameCard, choices: CardChoices) {
+  const modes = cardPaymentModes(state, request.controllerId, card, choices, { forcedFreeBase: request.forcedFreeBase });
+  const inferredAlternative = modes.find((mode) => mode.id !== "normal" && mode.id !== "forced-free"
+    && mode.additionalCosts.some((cost) => choiceValuePresent(choices, cost.choiceId)));
+  const id = request.forcedFreeBase ? "forced-free" : choices.paymentMode ?? inferredAlternative?.id ?? "normal";
+  return { modes, mode: modes.find((candidate) => candidate.id === id) };
+}
+
+function paymentModeField(state: MatchState, request: PendingCardPlay, card: GameCard, choices: CardChoices) {
+  if (request.forcedFreeBase) return undefined;
+  const { modes } = selectedPaymentMode(state, request, card, choices);
+  if (modes.length <= 1) return undefined;
+  return {
+    id: "paymentMode" as const,
+    kind: "mode" as const,
+    label: "Choose how to pay for this card",
+    chooserId: request.controllerId,
+    visibility: "public" as const,
+    timing: "pay" as const,
+    minimum: 1,
+    maximum: 1,
+    required: true,
+    options: modes.map((mode) => ({
+      id: mode.id,
+      label: mode.label,
+      description: mode.legal
+        ? `${mode.energyCost} Energy${mode.additionalCosts.length ? " plus the listed additional cost" : ""}.`
+        : mode.reason ?? "This payment method is unavailable.",
+      disabled: !mode.legal,
+    })),
   };
-  delete rules.pactOfDarknessPayment;
-  rules.damageResume = { playerId, previousPhase: "damage", revealedFlipId: flip.id };
+}
 
-  state.phase = "postDamage";
-  state.stepLabel = `Damage Step • Respond to ${flip.displayName || flip.name}`;
-  state.priority = playerId;
-  state.passes = [];
-  state.deadline = Date.now() + 25_000;
+function alternativeCostChoiceIds(card: GameCard) {
+  return new Set(ruleDefinitionForCard(card).play.costModifiers.flatMap((modifier) => (
+    modifier.kind === "cost-alternative"
+      ? modifier.components.filter((component): component is Extract<typeof component, { kind: "cost-discard" }> => component.kind === "cost-discard").map((component) => component.choiceId)
+      : []
+  )));
+}
+
+function stageAdditionalCardPlayCosts(state: MatchState, request: PendingCardPlay): MutableCardPlayResult {
+  const { card } = playSourceCard(state, request);
+  const choices = request.choices;
+  const { mode } = selectedPaymentMode(state, request, card, choices);
+  if (!mode) throw new Error("The selected card payment method is no longer available.");
+  if (!mode.legal) throw new Error(mode.reason ?? "The selected card payment method is unavailable.");
+  const missing = mode.additionalCosts.find((cost) => {
+    const value = choices[cost.choiceId];
+    return !Array.isArray(value) || value.length !== cost.amount;
+  });
+  if (missing?.kind === "discard") {
+    const payer = playerById(state, request.controllerId);
+    const options = payer.hand
+      .filter((candidate) => candidate.id !== card.id)
+      .map((candidate) => ({ id: candidate.id, label: candidate.displayName || candidate.name, ownerId: payer.id }));
+    if (options.length < missing.amount) throw new Error(`This payment requires ${missing.amount} discardable card${missing.amount === 1 ? "" : "s"}.`);
+    state.pendingChoice = {
+      id: uid(),
+      kind: "card-play",
+      controllerId: request.controllerId,
+      cardId: request.cardId,
+      schema: {
+        id: `${state.id}:${state.version}:${request.cardId}:additional-cost`,
+        sourceId: request.cardId,
+        sourceName: card.displayName || card.name,
+        controllerId: request.controllerId,
+        timing: "pay",
+        simultaneous: false,
+        fields: [{
+          id: missing.choiceId,
+          kind: "hand-cards",
+          label: `Choose ${missing.amount} card${missing.amount === 1 ? "" : "s"} to discard as an additional cost`,
+          chooserId: request.controllerId,
+          visibility: "private",
+          timing: "pay",
+          minimum: missing.amount,
+          maximum: missing.amount,
+          required: true,
+          options,
+        }],
+      },
+      answers: {},
+      createdVersion: state.version,
+      beforeState: request.beforeState,
+      playRequest: request,
+      playStage: "additional-cost",
+      cancellable: request.origin !== "effect" || Boolean(request.optional),
+      irreversibleInformation: request.irreversibleInformation,
+    };
+    state.priority = request.controllerId;
+    state.stepLabel = `${card.displayName || card.name} • Additional cost`;
+    state.deadline = Date.now() + 35_000;
+    return "staged";
+  }
+  commitCardPlayMutable(state, request);
+  return "committed";
+}
+
+function emitPaymentDiscardEvents(state: MatchState, controllerId: string, cards: GameCard[]) {
+  if (!cards.length) return;
+  const player = playerById(state, controllerId);
   emitGameEvent(state, {
-    id: `${state.turn}:card-play:${flip.id}`,
+    id: `${state.turn}:discard:${cards.map((card) => card.id).join(",")}:${state.version}:payment`,
+    type: "discard",
+    playerId: controllerId,
+    targetBakuganId: activeBakugan(state, controllerId)?.id,
+    sourceCards: cards,
+  });
+  if (player.hand.length === 0) emitGameEvent(state, {
+    id: `${state.turn}:hand-empty:${controllerId}:${state.version}:payment`,
+    type: "hand-empty",
+    playerId: controllerId,
+  });
+}
+
+function commitCardPlayMutable(state: MatchState, request: PendingCardPlay) {
+  const located = playSourceCard(state, request);
+  const card = located.card;
+  const choices = request.choices;
+  validateCardPlayRequest(state, request, choices);
+  const { mode } = selectedPaymentMode(state, request, card, choices);
+  if (!mode || !mode.legal) throw new Error(mode?.reason ?? "This card has no legal payment method.");
+
+  const discardedBeforePayment = mode.additionalCosts.flatMap((cost) => {
+    const value = choices[cost.choiceId];
+    const ids = new Set(Array.isArray(value) ? value.map(String) : []);
+    return playerById(state, request.controllerId).hand.filter((candidate) => ids.has(candidate.id));
+  });
+  const context = {
+    forcedFreeBase: request.forcedFreeBase,
+    selectedAlternativeId: mode.id === "normal" || mode.id === "forced-free" ? undefined : mode.id,
+  };
+  const payment = beginCardPayment(state, request.controllerId, card, choices, context);
+  prepareDeclaredEnergyPayment(state, request.controllerId, payment.calculatedCost);
+  commitCardPayment(state, request.controllerId);
+  emitPaymentDiscardEvents(state, request.controllerId, discardedBeforePayment);
+
+  const played = removePlaySourceCard(state, request);
+  const controller = playerById(state, request.controllerId);
+  recordCardPlayedForTurn(controller, played, state.turn);
+  state.nextCardCostReduction[request.controllerId] = 0;
+  ensureRulesState(state).costModifiers = ensureRulesState(state).costModifiers.filter((modifier) => !(
+    modifier.duration === "next-card"
+    && playerIdsForScope(state, modifier.playerScope, { controllerId: modifier.controllerId }).includes(request.controllerId)
+  ));
+
+  const definition = ruleDefinitionForCard(played);
+  const ability = definition.abilities.find((candidate) => candidate.kind !== "triggered") ?? definition.abilities[0];
+  if (!ability) throw new Error(`${played.name} does not have a legal card-play ability.`);
+  const batchObject = createRuleObject({
+    controllerId: request.controllerId,
+    cardOwnerId: request.cardOwnerId,
+    card: played,
+    ability,
+    choices,
+    kind: "card",
+  });
+  state.batch.push(batchObject);
+  state.passes = [];
+  if (played.type === "Action") {
+    const toshi = controller.heroes.find((hero) => hero.name === "Toshi");
+    if (toshi && controller.cardsPlayedThisTurn === 1) state.batch.push(copyRuleObject(batchObject, request.controllerId));
+    if ((state.copyNextAction[request.controllerId] ?? 0) > 0) {
+      state.copyNextAction[request.controllerId] -= 1;
+      state.batch.push(copyRuleObject(batchObject, request.controllerId));
+    }
+  }
+
+  emitGameEvent(state, {
+    id: `${state.turn}:card-play:${played.id}`,
     type: "card-play",
-    playerId,
-    cardType: "Flip",
-    sourceCards: [flip],
+    playerId: request.controllerId,
+    cardType: played.type,
+    sourceCards: [played],
+    targetBakuganId: played.type === "Evo"
+      ? (choices.sourceBakuganId ?? choices.targetBakuganId)
+      : activeBakugan(state, request.controllerId)?.id,
     choices,
   });
-  entry(state, "game", `${player.name} paid Pact of Darkness's Sacrifice cost and added it to the batch for ${cost} Energy.`);
-};
 
+  if (request.origin === "damage") {
+    const rules = ensureRulesState(state) as ReturnType<typeof ensureRulesState> & {
+      damageResume?: { playerId: string; previousPhase: "damage"; revealedFlipId: string };
+    };
+    rules.damageResume = { playerId: request.controllerId, previousPhase: "damage", revealedFlipId: played.id };
+    state.phase = "postDamage";
+    state.stepLabel = `Damage Step • Respond to ${played.displayName || played.name}`;
+    state.priority = request.controllerId;
+    state.deadline = Date.now() + 25_000;
+  }
+
+  const freeWording = mode.freeBase ? " after its base Energy cost became free" : "";
+  entry(state, "game", `${controller.name} added ${played.name} to the batch for ${payment.calculatedCost} Energy${freeWording}.`, played, "played", request.controllerId);
+
+  if (request.origin === "priority") {
+    state.undoWindow = {
+      actorId: request.controllerId,
+      action: "play-card",
+      beforeVersion: state.version,
+      afterVersion: state.version + 1,
+      batchObjectId: batchObject.id,
+      informationEpoch: state.informationEpoch,
+      priorityEpoch: state.priorityEpoch,
+      irreversibleInformation: Boolean(request.irreversibleInformation),
+      snapshot: request.beforeState,
+    };
+  } else state.undoWindow = undefined;
+  return batchObject;
+}
+
+function stageCardPlayMutable(state: MatchState, request: PendingCardPlay): MutableCardPlayResult {
+  const { card } = playSourceCard(state, request);
+  validateCardPlayRequest(state, request, request.choices);
+  const definition = ruleDefinitionForCard(card);
+  const alternativeIds = alternativeCostChoiceIds(card);
+  const alreadyChosen = (id: keyof CardChoices) => choiceValuePresent(request.choices, id);
+  const announce = buildChoiceSchemaFromSpecs(
+    state,
+    request.controllerId,
+    card,
+    definition.play.choices.filter((choice) => !alreadyChosen(choice.id)),
+    "announce",
+    request.choices,
+  );
+  const pay = buildChoiceSchemaFromSpecs(
+    state,
+    request.controllerId,
+    card,
+    definition.play.choices.filter((choice) => !alternativeIds.has(choice.id) && !alreadyChosen(choice.id)),
+    "pay",
+    request.choices,
+  );
+  const mode = paymentModeField(state, request, card, request.choices);
+  const fields = [...announce.fields, ...pay.fields, ...(mode && !alreadyChosen("paymentMode") ? [mode] : [])];
+  if (fields.length) {
+    const schema = { ...announce, timing: "announce" as const, fields, simultaneous: announce.simultaneous || pay.simultaneous };
+    const enabledCompletion = schemaHasLegalCompletion(schema);
+    // A damage-revealed Flip may expose unavailable payment methods so the
+    // player can see why it cannot be paid and choose Skip instead.
+    if (!enabledCompletion && request.origin !== "damage") {
+      throw new Error(`${card.displayName || card.name} has no legal targets, choices, or payment method.`);
+    }
+    state.pendingChoice = {
+      id: uid(),
+      kind: "card-play",
+      controllerId: request.controllerId,
+      cardId: request.cardId,
+      schema,
+      answers: {},
+      createdVersion: state.version,
+      beforeState: request.beforeState,
+      playRequest: request,
+      playStage: "declare",
+      cancellable: request.origin !== "effect" || Boolean(request.optional),
+      irreversibleInformation: request.irreversibleInformation,
+    };
+    state.priority = fields.find((field) => field.options.some((option) => !option.disabled))?.chooserId
+      ?? fields[0]?.chooserId
+      ?? request.controllerId;
+    state.stepLabel = `${card.displayName || card.name} • Declare card play`;
+    state.deadline = Date.now() + 35_000;
+    return "staged";
+  }
+  return stageAdditionalCardPlayCosts(state, request);
+}
+
+function finishNestedCardPlayContinuation(state: MatchState, request: PendingCardPlay) {
+  if (request.origin !== "effect" || !request.parentEffectId) return;
+  const parent = state.batch.find((candidate) => candidate.id === request.parentEffectId);
+  if (!parent) return;
+  parent.instructionIndex = request.parentNextInstructionIndex ?? parent.instructionIndex ?? 0;
+  if (isRuleObject(parent)) parent.cursor.instructionIndex = parent.instructionIndex;
+  state.priority = request.resumePriority ?? state.startingPlayer;
+  state.deadline = request.resumeDeadline ?? deadlineFor(state.phase);
+  state.stepLabel = request.resumeStepLabel ?? state.stepLabel;
+  const completed = resolvePendingEffect(state, parent);
+  if (completed) {
+    state.batch = state.batch.filter((candidate) => candidate.id !== parent.id);
+    finalizeRerollContinuation(state, parent.id);
+    if (!state.pendingChoice && !state.pendingReroll && !hasQueuedEffectDraw(state)) {
+      state.priority = state.startingPlayer;
+      state.deadline = deadlineFor(state.phase);
+    }
+  }
+}
+
+function cancelNestedCardPlayContinuation(state: MatchState, request: PendingCardPlay) {
+  if (request.origin === "effect") {
+    finishNestedCardPlayContinuation(state, request);
+    return;
+  }
+  if (request.origin === "damage") {
+    state.phase = "damage";
+    state.priority = request.controllerId;
+    state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
+    state.deadline = Date.now() + 35_000;
+  }
+}
+
+export const prepareRevealedFlipPlay = (input: MatchState, playerId: string, cardId: string, choices: CardChoices = {}) => {
+  const state = cloneMatch(input);
+  if (state.pendingChoice) throw new Error("Complete the current choice before playing the revealed Flip.");
+  const flip = state.revealedFlip;
+  if (!flip || flip.id !== cardId) throw new Error("Only the currently revealed Flip card may be played.");
+  const request: PendingCardPlay = {
+    controllerId: playerId,
+    cardId,
+    sourceZone: "damage-reveal",
+    sourceOwnerId: playerId,
+    cardOwnerId: playerId,
+    origin: "damage",
+    choices: { ...choices },
+    beforeState: undefined,
+  };
+  stageCardPlayMutable(state, request);
+  return withVersion(state);
+};
 
 export const prepareCardPlay = (input: MatchState, playerId: string, cardId: string) => {
   const state = cloneMatch(input);
-  if (alternateWinEffectPending(state)) {
-    throw new Error("Dragonoid Maximus's alternate win effect cannot be responded to with cards.");
-  }
   if (state.pendingChoice) throw new Error("Complete the current choice before starting another action.");
-  if (!["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase) || state.priority !== playerId) {
-    throw new Error("You do not have priority in a card-play window.");
-  }
   const player = playerById(state, playerId);
   const card = player.hand.find((candidate) => candidate.id === cardId);
   if (!card) throw new Error("That card is not in your hand.");
-  if (card.type === "Flip" || card.type === "Character") throw new Error("That card cannot be played from hand.");
-  if (!cardRerollTimingLegal(state, playerId, card)) throw new Error("This mandatory Reroll card can be played only after the first roll and before the Victor Step.");
-  const definition = ruleDefinitionForCard(card);
-  const announce = buildChoiceSchemaFromSpecs(state, playerId, card, definition.play.choices, "announce");
-  const payment = buildChoiceSchemaFromSpecs(state, playerId, card, definition.play.choices, "pay");
-  const schema = { ...announce, fields: [...announce.fields, ...payment.fields] };
-  if (!schema.fields.length) return playCard(state, playerId, cardId, {});
-  if (!schemaHasLegalCompletion(schema)) {
-    throw new Error(`${card.displayName || card.name} has no legal targets or required choices.`);
-  }
-  state.pendingChoice = {
-    id: uid(),
-    kind: "card-play",
+  const request: PendingCardPlay = {
     controllerId: playerId,
     cardId,
-    schema,
-    answers: {},
-    createdVersion: state.version,
+    sourceZone: "hand",
+    sourceOwnerId: playerId,
+    cardOwnerId: playerId,
+    origin: "priority",
+    choices: {},
     beforeState: JSON.stringify({ ...input, pendingChoice: undefined, undoWindow: undefined }),
-    irreversibleInformation: false,
   };
-  const firstChooser = schema.fields[0]?.chooserId ?? playerId;
-  state.priority = firstChooser;
-  state.stepLabel = `${card.displayName || card.name} • Player choice`;
-  state.deadline = Date.now() + 35_000;
-  entry(state, "game", `${player.name} began choosing for ${card.name}.`);
+  stageCardPlayMutable(state, request);
   return withVersion(state);
 };
 
 export const cancelCardChoice = (input: MatchState, playerId: string) => {
   const state = cloneMatch(input);
-  if (!state.pendingChoice || ["resolution", "forced-discard"].includes(state.pendingChoice.kind) || state.pendingChoice.controllerId !== playerId || Object.keys(state.pendingChoice.answers).length) {
+  const pending = state.pendingChoice;
+  if (!pending || ["resolution", "forced-discard"].includes(pending.kind) || pending.controllerId !== playerId || Object.keys(pending.answers).length) {
     throw new Error("This card choice can no longer be cancelled.");
   }
-  const card = playerById(state, playerId).hand.find((candidate) => candidate.id === state.pendingChoice!.cardId);
+  if (pending.cancellable === false) throw new Error("This card play is mandatory and cannot be cancelled.");
+  const request = pending.playRequest;
+  const card = request ? playSourceCard(state, request).card : playerById(state, playerId).hand.find((candidate) => candidate.id === pending.cardId);
   state.pendingChoice = undefined;
-  state.priority = playerId;
-  state.stepLabel = `${state.phase} • Priority`;
+  if (request) cancelNestedCardPlayContinuation(state, request);
+  if (!request || request.origin === "priority") {
+    state.priority = playerId;
+    state.stepLabel = `${state.phase} • Priority`;
+  }
   entry(state, "game", `${playerById(state, playerId).name} cancelled ${card?.name ?? "the pending card"} before playing it.`);
   return withVersion(state);
 };
@@ -1406,84 +1738,14 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
     return withVersion(state);
   }
   const merged = mergeChoiceAnswers(pending.schema, pending.answers);
-  if (pending.kind === "payment" && state.revealedFlip?.catalogId === "bb-152" && state.revealedFlip.id === pending.cardId) {
-    const rules = ensureRulesState(state) as ReturnType<typeof ensureRulesState> & {
-      pactOfDarknessPayment?: {
-        playerId: string;
-        cardId: string;
-        stage: "decision" | "discard" | "declined" | "paid";
-        discardedCardId?: string;
-      };
-    };
-    const pact = rules.pactOfDarknessPayment;
-    if (!pact || pact.playerId !== pending.controllerId || pact.cardId !== pending.cardId) {
-      throw new Error("Pact of Darkness's Sacrifice payment is no longer available.");
-    }
-    if (pact.stage === "decision") {
-      if (merged.confirmed === false) {
-        pact.stage = "declined";
-        state.pendingChoice = undefined;
-        state.priority = pact.playerId;
-        state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
-        state.deadline = Date.now() + 35_000;
-        entry(state, "game", `${playerById(state, pact.playerId).name} declined Pact of Darkness's Sacrifice cost.`);
-        return withVersion(state);
-      }
-      const payer = playerById(state, pact.playerId);
-      if (!payer.hand.length) {
-        pact.stage = "declined";
-        state.pendingChoice = undefined;
-        state.priority = pact.playerId;
-        state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
-        state.deadline = Date.now() + 35_000;
-        return withVersion(state);
-      }
-      pact.stage = "discard";
-      state.pendingChoice = {
-        ...pending,
-        id: uid(),
-        schema: {
-id: `${state.id}:${state.version}:${pending.cardId}:pact-sacrifice-discard`,
-sourceId: pending.cardId,
-sourceName: pending.schema.sourceName,
-controllerId: pact.playerId,
-timing: "pay",
-simultaneous: false,
-fields: [{
-  id: "discardCardIds",
-  kind: "hand-cards",
-  label: "Choose a card to discard for Sacrifice",
-  chooserId: pact.playerId,
-  visibility: "private",
-  timing: "pay",
-  minimum: 1,
-  maximum: 1,
-  required: true,
-  options: payer.hand.map((card) => ({
-    id: card.id,
-    label: card.displayName || card.name,
-    ownerId: pact.playerId,
-  })),
-}],
-        },
-        answers: {},
-      };
-      state.priority = pact.playerId;
-      state.stepLabel = `${pending.schema.sourceName} • Choose a Sacrifice discard`;
-      state.deadline = Date.now() + 35_000;
-      return withVersion(state);
-    }
-    if (pact.stage === "discard") {
-      const selected = merged.discardCardIds ?? [];
-      if (selected.length !== 1) throw new Error("Choose exactly one card to discard for Sacrifice.");
-      discardFromHand(state, playerById(state, pact.playerId), 1, selected);
-      pact.stage = "paid";
-      pact.discardedCardId = selected[0];
-      state.pendingChoice = undefined;
-      entry(state, "game", `${playerById(state, pact.playerId).name} paid Pact of Darkness's Sacrifice cost. Its base Energy cost is now 0 before cost increases.`);
-      playPaidPactOfDarkness(state, pact.playerId);
-      return withVersion(state);
-    }
+  if (pending.kind === "card-play" && pending.playRequest) {
+    const request: PendingCardPlay = structuredClone(pending.playRequest);
+    request.choices = { ...request.choices, ...merged };
+    request.irreversibleInformation = Boolean(request.irreversibleInformation || pending.irreversibleInformation);
+    state.pendingChoice = undefined;
+    const result = stageAdditionalCardPlayCosts(state, request);
+    if (result === "committed") finishNestedCardPlayContinuation(state, request);
+    return withVersion(state);
   }
   if (pending.kind === "forced-discard") {
     const field = pending.schema.fields.find((candidate) => candidate.id === "discardCardIds" && candidate.chooserId === playerId);
@@ -1590,57 +1852,18 @@ export const splitWhenPlayedEffect = (effect: string) => {
 };
 
 export const playCard = (input: MatchState, playerId: string, cardId: string, choices: CardChoices = {}) => {
-  const state = cloneMatch(input); const player = playerById(state, playerId);
-  if (alternateWinEffectPending(state)) {
-    throw new Error("Dragonoid Maximus's alternate win effect cannot be responded to with cards.");
-  }
-  const preparationWasIrreversible = Boolean(state.pendingChoice?.irreversibleInformation);
-  const undoSnapshot = state.pendingChoice?.beforeState
-    ?? JSON.stringify({ ...input, pendingChoice: undefined, undoWindow: undefined });
-  if (!["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase) || state.priority !== playerId) throw new Error("You do not have priority in a card-play window.");
-  const index = player.hand.findIndex((card) => card.id === cardId); if (index < 0) throw new Error("That card is not in your hand.");
-  const card = player.hand[index]; if (card.type === "Flip" || card.type === "Character") throw new Error("Flip cards are played only when revealed by damage; Characters begin outside the deck.");
-  if (!cardRerollTimingLegal(state, playerId, card)) throw new Error("This mandatory Reroll card can be played only after the first roll and before the Victor Step.");
-  if (card.cost === "X" && !Number.isFinite(choices.xValue)) throw new Error("Choose X before paying for this card.");
-  state.pendingChoice = undefined;
-  const cost = effectiveCost(state, player, card, choices); payEnergy(state, player, cost); player.hand.splice(index, 1); recordCardPlayedForTurn(player, card, state.turn);
-  state.nextCardCostReduction[playerId] = 0;
-  const definition = ruleDefinitionForCard(card);
-  const ability = definition.abilities.find((candidate) => candidate.kind !== "triggered");
-  if (!ability) throw new Error(`${card.name} does not have a legal card-play ability.`);
-  const batchObject = createRuleObject({ controllerId: playerId, card, ability, choices, kind: "card" });
-  state.batch.push(batchObject); state.passes = [];
-  if (card.type === "Action") {
-    const toshi = player.heroes.find((hero) => hero.name === "Toshi");
-    if (toshi && player.cardsPlayedThisTurn === 1) state.batch.push(copyRuleObject(batchObject, playerId));
-    if ((state.copyNextAction[playerId] ?? 0) > 0) {
-      state.copyNextAction[playerId] -= 1;
-      state.batch.push(copyRuleObject(batchObject, playerId));
-    }
-  }
-  emitGameEvent(state, {
-    id: `${state.turn}:card-play:${card.id}`,
-    type: "card-play",
-    playerId,
-    cardType: card.type,
-    sourceCards: [card],
-    targetBakuganId: card.type === "Evo"
-      ? (choices.sourceBakuganId ?? choices.targetBakuganId)
-      : activeBakugan(state, playerId)?.id,
-    choices,
-  });
-  entry(state, "game", `${player.name} added ${card.name} to the batch for ${cost} Energy.`, card, "played", playerId);
-  state.undoWindow = {
-    actorId: playerId,
-    action: "play-card",
-    beforeVersion: input.version,
-    afterVersion: input.version + 1,
-    batchObjectId: batchObject.id,
-    informationEpoch: state.informationEpoch,
-    priorityEpoch: state.priorityEpoch,
-    irreversibleInformation: preparationWasIrreversible,
-    snapshot: undoSnapshot,
+  const state = cloneMatch(input);
+  const request: PendingCardPlay = {
+    controllerId: playerId,
+    cardId,
+    sourceZone: "hand",
+    sourceOwnerId: playerId,
+    cardOwnerId: playerId,
+    origin: "priority",
+    choices: { ...choices },
+    beforeState: JSON.stringify({ ...input, pendingChoice: undefined, undoWindow: undefined }),
   };
+  commitCardPlayMutable(state, request);
   return withVersion(state);
 };
 
@@ -1859,6 +2082,19 @@ const executeRuleAction = (
       if (action.duration === "next-card") {
         if (action.operation === "reduce") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) + action.amount;
         else if (action.operation === "increase") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) - action.amount;
+      } else if (action.operation === "free" && action.duration === "turn") {
+        const rules = ensureRulesState(state);
+        rules.costModifiers.push({
+          id: `${pending.id}:${instructionIndex}:${actionIndex}:cost-free`,
+          sourceId: pending.sourceId ?? pending.card.id,
+          controllerId,
+          kind: "free",
+          amount: 0,
+          duration: "turn",
+          cardType: action.cardType,
+          playerScope: action.playerScope ?? "controller",
+          createdTurn: state.turn,
+        });
       }
       return;
     case "coin-flip": {
@@ -2210,75 +2446,80 @@ return;
         entry(state, "game", `${card.name} could not play another card while Dragonoid Maximus's alternate win effect was on the batch.`);
         return;
       }
+      if (choices.confirmed === false) return;
+      let sourceZone: PendingCardPlay["sourceZone"];
+      let sourceOwnerId = controllerId;
+      let selected: GameCard | undefined;
       if (action.source === "hand") {
+        const ownerId = zoneOwnerIdsFor(state, action.sourceOwner ?? "controller", { controllerId, choices })[0] ?? controllerId;
+        const owner = playerById(state, ownerId);
         const selectedId = choices.handCardIds?.[0];
-        const index = player.hand.findIndex((candidate) => candidate.id === selectedId);
-        if (index < 0) return;
-        const [selected] = player.hand.splice(index, 1);
-        recordCardPlayedForTurn(player, selected, state.turn);
-        state.nextCardCostReduction[controllerId] = 0;
-        const freeChoices = selected.type === "Evo"
-          ? { sourceBakuganId: choices.sourceBakuganId ?? choices.targetBakuganId ?? activeBakugan(state, controllerId)?.id }
-          : {};
-        state.batch.push({ id: uid(), controllerId, card: selected, choices: freeChoices, kind: "card" });
-        emitGameEvent(state, {
-          id: `${state.turn}:card-play:${selected.id}`,
-          type: "card-play",
-          playerId: controllerId,
-          cardType: selected.type,
-          sourceCards: [selected],
-          choices: freeChoices,
-        });
-        entry(state, "game", `${player.name} played ${selected.name} from hand for free.`, selected, "played", controllerId);
+        selected = owner.hand.find((candidate) => candidate.id === selectedId);
+        sourceZone = "hand";
+        sourceOwnerId = ownerId;
+      } else if (action.source === "self") {
+        sourceZone = "discard";
+        sourceOwnerId = pending.cardOwnerId ?? controllerId;
+        selected = playerById(state, sourceOwnerId).discard.find((candidate) => candidate.id === card.id);
+      } else {
+        sourceZone = "deck";
+        const revealedId = player.revealedDeckCardId ?? choices.deckCardId;
+        selected = player.deckCards.find((candidate) => candidate.id === revealedId);
+      }
+      if (!selected || (action.cardType && selected.type !== action.cardType)) return;
+      const printedCost = selected.cost === "X" ? Number.POSITIVE_INFINITY : selected.cost;
+      if (action.maximumCost != null && printedCost > action.maximumCost) return;
+      if (action.source === "revealed-deck" && selected.type === "Flip") {
+        delete player.revealedDeckCardId;
         return;
       }
-      if (action.source === "self") {
-        for (const owner of state.players) owner.discard = owner.discard.filter((candidate) => candidate.id !== card.id);
-        recordCardPlayedForTurn(player, card, state.turn);
-        state.nextCardCostReduction[controllerId] = 0;
-        state.batch.push({ id: uid(), controllerId, card, choices, kind: "card" });
-        emitGameEvent(state, {
-          id: `${state.turn}:card-play:${card.id}`,
-          type: "card-play",
-          playerId: controllerId,
-          cardType: card.type,
-          sourceCards: [card],
-          choices,
-        });
-        entry(state, "game", `${player.name} played discarded ${card.name} for free.`, card, "played", controllerId);
-        return;
+      const childChoices: CardChoices = {};
+      if (selected.type === "Evo") {
+        const definition = ruleDefinitionForCard(selected);
+        const printedTarget = choices.sourceBakuganId ?? choices.targetBakuganId;
+        const candidate = player.bakugan.find((bakugan) => bakugan.id === printedTarget && canonicalEvoTargetAllowed(definition, bakugan))
+          ?? (() => {
+            const active = activeBakugan(state, controllerId);
+            return active && canonicalEvoTargetAllowed(definition, active)
+              ? active
+              : player.bakugan.find((bakugan) => canonicalEvoTargetAllowed(definition, bakugan));
+          })();
+        if (candidate) childChoices.sourceBakuganId = candidate.id;
       }
-      const tracked = player as PlayerState & { revealedDeckCardId?: string };
-      const inspectedId = tracked.revealedDeckCardId ?? choices.deckCardId;
-      const index = player.deckCards.findIndex((candidate) => candidate.id === inspectedId);
-      if (choices.confirmed === false || index < 0 || player.deckCards[index].type === "Flip") {
-        delete tracked.revealedDeckCardId;
-        return;
+      const destinationOwnerId = zoneOwnerIdsFor(state, action.destinationOwner ?? action.sourceOwner ?? "controller", { controllerId, choices })[0]
+        ?? sourceOwnerId;
+      const request: PendingCardPlay = {
+        controllerId,
+        cardId: selected.id,
+        sourceZone,
+        sourceOwnerId,
+        cardOwnerId: action.destinationOwner ? destinationOwnerId : sourceOwnerId,
+        forcedFreeBase: action.free,
+        origin: "effect",
+        parentEffectId: pending.id,
+        parentNextInstructionIndex: instructionIndex + 1,
+        resumePriority: state.priority,
+        resumeDeadline: state.deadline,
+        resumeStepLabel: state.stepLabel,
+        resumePhase: state.phase,
+        optional: /may/i.test(text),
+        choices: childChoices,
+      };
+      try {
+        const staged = stageCardPlayMutable(state, request);
+        if (staged === "staged") {
+          pending.instructionIndex = instructionIndex + 1;
+          if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex + 1;
+          throw new CardPlayResolutionSuspended();
+        }
+      } catch (error) {
+        if (error instanceof CardPlayResolutionSuspended) throw error;
+        if (request.optional) {
+          entry(state, "game", `${card.name}: the optional free card play was unavailable and did nothing.`);
+          return;
+        }
+        throw error;
       }
-      const [revealed] = player.deckCards.splice(index, 1);
-      syncDeck(player);
-      recordCardPlayedForTurn(player, revealed, state.turn);
-      state.nextCardCostReduction[controllerId] = 0;
-      let freeChoices: CardChoices = {};
-      if (revealed.type === "Evo") {
-        const definition = ruleDefinitionForCard(revealed);
-        const active = activeBakugan(state, controllerId);
-        const evoTarget = active && canonicalEvoTargetAllowed(definition, active)
-? active
-: player.bakugan.find((candidate) => canonicalEvoTargetAllowed(definition, candidate));
-        if (evoTarget) freeChoices = { sourceBakuganId: evoTarget.id };
-      }
-      state.batch.push({ id: uid(), controllerId, card: revealed, choices: freeChoices, kind: "card" });
-      delete tracked.revealedDeckCardId;
-      emitGameEvent(state, {
-        id: `${state.turn}:card-play:${revealed.id}`,
-        type: "card-play",
-        playerId: controllerId,
-        cardType: revealed.type,
-        sourceCards: [revealed],
-        choices: freeChoices,
-      });
-      entry(state, "game", `${player.name} played the revealed ${revealed.name} for free.`, revealed, "played", controllerId);
       return;
     }
     case "attack": {
@@ -2315,7 +2556,7 @@ return;
         const [negated] = state.batch.splice(index, 1);
         if (isRuleObject(negated)) negateRuleObject(negated);
         if (negated.kind === "card" && ["Action", "Flip", "Hero", "Evo"].includes(negated.card.type)) {
-          const owner = playerById(state, negated.controllerId);
+          const owner = playerById(state, negated.cardOwnerId ?? negated.controllerId);
           if (!owner.discard.some((candidate) => candidate.id === negated.card.id)) owner.discard.push(negated.card);
         }
         if (action.copy && choices.confirmed !== false) {
@@ -2521,13 +2762,14 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
       },
     }, pending.instructionIndex ?? 0);
   } catch (error) {
-    if (error instanceof RerollResolutionSuspended || error instanceof DamageResolutionSuspended || error instanceof CoinFlipResolutionSuspended) return false;
+    if (error instanceof RerollResolutionSuspended || error instanceof DamageResolutionSuspended || error instanceof CoinFlipResolutionSuspended || error instanceof CardPlayResolutionSuspended) return false;
     throw error;
   }
 
   if (!result.completed) return false;
   pending.instructionIndex = result.instructionIndex;
   const player = playerById(state, pending.controllerId);
+  const cardOwner = playerById(state, pending.cardOwnerId ?? pending.controllerId);
   const choices = {
     ...pending.choices,
     ...Object.values(pending.resolvedChoices ?? {}).reduce<CardChoices>((merged, answer) => ({ ...merged, ...answer }), {}),
@@ -2548,12 +2790,12 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
     && !player.hand.some((card) => card.id === pending.card.id)
     && !player.discard.some((card) => card.id === pending.card.id)
     && !player.energyZone.some((card) => card.id === pending.card.id)) {
-    player.discard.push(pending.card);
+    cardOwner.discard.push(pending.card);
   } else if (pending.kind === "card" && pending.card.type === "Flip"
     && !player.hand.some((card) => card.id === pending.card.id)
     && !player.discard.some((card) => card.id === pending.card.id)
     && !player.energyZone.some((card) => card.id === pending.card.id)) {
-    player.discard.push(pending.card);
+    cardOwner.discard.push(pending.card);
   }
   delete player.revealedDeckCardId;
   if (isRuleObject(pending)) completeRuleObject(pending);
@@ -2829,6 +3071,7 @@ function beginResetStep(state: MatchState) {
   const rules = ensureRulesState(state);
   rules.modifiers = rules.modifiers.filter((modifier) => modifier.duration !== "turn");
   rules.replacements = rules.replacements.filter((replacement) => replacement.effect.kind !== "prevention");
+  rules.costModifiers = rules.costModifiers.filter((modifier) => modifier.duration !== "turn");
   rules.triggerUsage = {};
   setPhase(state, "reset", "End Phase • Reset Step", state.startingPlayer);
   entry(state, "game", "Turn-duration modifications were reset.");

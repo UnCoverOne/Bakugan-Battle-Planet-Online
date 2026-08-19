@@ -1,7 +1,7 @@
 import type { CardChoices, GameCard, MatchState } from "../game";
 import { ruleDefinitionForCard } from "./catalogue";
 import { canonicalEvoTargetAllowed } from "./identity";
-import { activeTappedEnergyIds } from "./costs";
+import { activeTappedEnergyIds, cardPaymentModes } from "./costs";
 import type { ChoiceSpec, ChoiceTiming } from "./model";
 import { chooserIdsFor, zoneOwnerIdsFor } from "./primitives";
 
@@ -19,6 +19,8 @@ export type ChoiceOption = {
   description?: string;
   ownerId?: string;
   card?: ChoiceCardPreview;
+  /** Visible but not selectable; description explains why it is unavailable. */
+  disabled?: boolean;
 };
 export type ChoiceField = {
   id: keyof CardChoices;
@@ -58,6 +60,9 @@ export type PendingCardChoice = {
   resumeDeadline?: number;
   resumeStepLabel?: string;
   irreversibleInformation?: boolean;
+  playRequest?: import("./model").PendingCardPlay;
+  playStage?: "declare" | "additional-cost";
+  cancellable?: boolean;
 };
 
 function playerById(match: MatchState, playerId: string) {
@@ -242,6 +247,7 @@ function optionsFor(
         return owner.hand
           .filter((candidate) => candidate.id !== card.id && cardMatchesSpec(candidate, spec))
           .filter((candidate) => candidate.type !== "Evo" || !spec.cardType || Boolean(active && canonicalEvoTargetAllowed(ruleDefinitionForCard(candidate), active)))
+          .filter((candidate) => !spec.playForFree || cardPaymentModes(match, controllerId, candidate, {}, { forcedFreeBase: true }).some((mode) => mode.legal))
           .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, owner.id));
       });
     }
@@ -407,7 +413,7 @@ export function validateChoices(schema: ChoiceSchema, chooserId: string, choices
     if (declined && item.id !== "confirmed") continue;
     const values = selectedValues(choices, item.id);
     if (values.length < item.minimum || values.length > item.maximum) throw new Error(`${item.label} requires ${item.minimum === item.maximum ? item.minimum : `${item.minimum}–${item.maximum}`} selection${item.maximum === 1 ? "" : "s"}.`);
-    const legal = new Set(item.options.map((candidate) => candidate.id));
+    const legal = new Set(item.options.filter((candidate) => !candidate.disabled).map((candidate) => candidate.id));
     if (values.some((value) => !legal.has(value))) throw new Error(`${item.label} contains an illegal selection.`);
     if (new Set(values).size !== values.length) throw new Error(`${item.label} cannot contain duplicate selections.`);
   }
@@ -415,7 +421,7 @@ export function validateChoices(schema: ChoiceSchema, chooserId: string, choices
 }
 export function schemaHasLegalCompletion(schema: ChoiceSchema) {
   if (schema.fields.some((item) => item.id === "confirmed" && item.options.some((candidate) => candidate.id === "no"))) return true;
-  return schema.fields.every((item) => item.options.length >= item.minimum);
+  return schema.fields.every((item) => item.options.filter((candidate) => !candidate.disabled).length >= item.minimum);
 }
 export function schemaIsComplete(schema: ChoiceSchema, answers: Record<string, CardChoices>) {
   return [...new Set(schema.fields.map((item) => item.chooserId))].every((chooserId) => {

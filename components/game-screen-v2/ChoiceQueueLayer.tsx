@@ -113,6 +113,7 @@ export function ChoiceQueueLayer() {
     ?? (boardFields.length && !modalFields.length ? boardFields.at(-1) : undefined);
 
   const toggle = useCallback((field: ChoiceField, id: string) => {
+    if (field.options.find((option) => option.id === id)?.disabled) return;
     setAnswers((current) => {
       const selected = valuesFor(current, field);
       const next = selected.includes(id)
@@ -148,6 +149,7 @@ export function ChoiceQueueLayer() {
   const allFieldsComplete = fields.every((field) => fieldComplete(answers, field));
   const canCancelBoardChoice = Boolean(
     pending?.kind === "card-play"
+    && pending.cancellable !== false
     && pending.controllerId === playerId
     && !Object.keys(pending.answers).length,
   );
@@ -318,7 +320,7 @@ export function ChoiceQueueLayer() {
               <legend>{field.label} <span>{field.minimum === field.maximum ? `Select ${field.minimum}` : `Select ${field.minimum}–${field.maximum}`}</span></legend>
               <div className={styles.options}>
                 {field.options.map((item) => (
-                  <button key={item.id} type="button" aria-pressed={selected.has(item.id)} data-selected={selected.has(item.id)} disabled={busy} onClick={() => toggle(field, item.id)}>
+                  <button key={item.id} type="button" aria-pressed={selected.has(item.id)} data-selected={selected.has(item.id)} disabled={busy || item.disabled} onClick={() => toggle(field, item.id)}>
                     <strong>{item.label}</strong>{item.description ? <small>{item.description}</small> : null}
                   </button>
                 ))}

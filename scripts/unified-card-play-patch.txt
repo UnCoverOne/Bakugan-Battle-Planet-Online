@@ -1,5 +1,8 @@
-  File "/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/scripts/apply-unified-card-play-pipeline.py", line 614
-    "  const energyCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+) or more Energy cards in play/i);\n'
-    ^
-SyntaxError: unterminated string literal (detected at line 614)
-patch_status=1
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/scripts/apply-unified-card-play-pipeline.py:624: SyntaxWarning: invalid escape sequence '\s'
+  new_play_parse = '''  if (/play (?:it|this card) for free/i.test(text)) actions.push({
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/scripts/apply-unified-card-play-pipeline.py:651: SyntaxWarning: invalid escape sequence '\s'
+  new_free_choice = '''  const freeHandPlay = text.match(/play\s+(?:an?|the)?\s*(Action|Hero|Evo|card)(?:\s+card)?(?:\s+that costs?\s+(\d+)\s+\[Energy\]\s+or less)?(?:\s+from\s+(?:your\s+)?hand|\s+from\s+it)?\s+for free|play that Bakugan(?:'s|’s) Evo card for free/i);
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/scripts/apply-unified-card-play-pipeline.py:665: SyntaxWarning: invalid escape sequence '\s'
+  replacement = '''function costModifiersFor(card: GameCard): CostEffect[] {
+Unified card-play pipeline patch applied.
+patch_status=0

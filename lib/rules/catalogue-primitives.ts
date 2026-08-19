@@ -98,6 +98,10 @@ export function conditionFor(text: string): RuleCondition {
   if (heroCount) return { kind: "hero-count", comparison: "at-least", amount: numberValue(heroCount[1], 1) };
   const energyCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Energy cards in play/i);
   if (energyCount) return { kind: "energy-count", comparison: "at-least", amount: numberValue(energyCount[1], 1) };
+  const discardCount = text.match(/if (?:there are|you have) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more cards? in your discard pile/i);
+  if (discardCount) return { kind: "discard-count", comparison: "at-least", amount: numberValue(discardCount[1], 1) };
+  const playedCost = text.match(/if you(?: have|\'ve)? played a card that costs? (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) \[Energy\] or more this turn/i);
+  if (playedCost) return { kind: "played-card-cost", comparison: "at-least", amount: numberValue(playedCost[1], 1) };
   const requiredCards = controlledCardNames(text);
   if (requiredCards.length) return { kind: "controls-named-cards", names: requiredCards };
   const openBakuganCount = text.match(
@@ -298,8 +302,24 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const reorder = text.match(/(?:look at|reveal) the top (a|an|one|two|three|four|five|\d+) cards?.*put them on top.*any order/i);
   if (reorder) actions.push({ kind: "reorder-deck", amount: numberValue(reorder[1]) });
   if (/reveal the top card of (?:your|an opponent's|your opponent's) deck/i.test(text)) actions.push({ kind: "reveal", object: "deck-top", amount: 1 });
-  if (/play (?:it|this card) for free/i.test(text)) actions.push({ kind: "play", source: /(?:this is discarded|discard this card)/i.test(text) ? "self" : "revealed-deck", free: true });
-  if (/play (?:an?|the) (?:Action|Hero|Evo|card).*from (?:your )?hand for free|play a card from your hand for free|play that Bakugan(?:'s|’s) Evo card for free/i.test(text)) actions.push({ kind: "play", source: "hand", free: true });
+  if (/play (?:it|this card) for free/i.test(text)) actions.push({
+    kind: "play",
+    source: /(?:this is discarded|discard this card)/i.test(text) ? "self" : "revealed-deck",
+    free: true,
+  });
+  const freeHandPlay = text.match(/play\s+(?:an?|the)?\s*(Action|Hero|Evo|card)(?:\s+card)?(?:\s+that costs?\s+(\d+)\s+\[Energy\]\s+or less)?(?:\s+from\s+(?:your\s+)?hand|\s+from\s+it)?\s+for free|play that Bakugan(?:'s|’s) Evo card for free/i);
+  if (freeHandPlay) actions.push({
+    kind: "play",
+    source: "hand",
+    free: true,
+    cardType: /that Bakugan(?:'s|’s) Evo/i.test(text) ? "Evo" : (freeHandPlay[1] && freeHandPlay[1].toLowerCase() !== "card" ? freeHandPlay[1] as CardType : undefined),
+    maximumCost: freeHandPlay[2] ? Number(freeHandPlay[2]) : undefined,
+    sourceOwner: /from it|opponent(?:'s|’s) hand/i.test(text) ? "opponent" : "controller",
+    destinationOwner: /opponent(?:'s|’s) discard pile/i.test(text) ? "opponent" : undefined,
+  });
+  if (/for the rest of the turn,\s*both players may play Evo cards from their hand for free/i.test(text)) actions.push({
+    kind: "cost", amount: 0, operation: "free", duration: "turn", cardType: "Evo", playerScope: "all-players",
+  });
   const attack = text.match(/makes? an? \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] attack for (\d+) \[Damage Rating\]/i);
   if (attack) actions.push({ kind: "attack", faction: attack[1] as Faction, amount: Number(attack[2]) });
   if (/draw all remaining damage from an attack/i.test(text)) actions.push({ kind: "damage-to-hand" });

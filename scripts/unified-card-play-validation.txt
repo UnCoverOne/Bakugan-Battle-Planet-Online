@@ -3,47 +3,119 @@ TAP version 13
 # Subtest: a card uses already generated Energy without tapping extra cards
 ok 1 - a card uses already generated Energy without tapping extra cards
   ---
-  duration_ms: 9.099176
+  duration_ms: 7.022444
   ...
 # Subtest: a card automatically taps only the Energy cards needed for its shortfall
 ok 2 - a card automatically taps only the Energy cards needed for its shortfall
   ---
-  duration_ms: 3.787415
+  duration_ms: 2.531412
   ...
 # Subtest: a card cannot be played when generated and untapped Energy are insufficient
-ok 3 - a card cannot be played when generated and untapped Energy are insufficient
+not ok 3 - a card cannot be played when generated and untapped Energy are insufficient
   ---
-  duration_ms: 2.509764
+  duration_ms: 3.439822
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/card-payment.test.ts:1:2327'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /Not enough Energy.*5 required.*3 available/i. Input:
+    
+    'Error: 5 Energy is still required after modifiers, but only 3 is available.'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: '5 Energy is still required after modifiers, but only 3 is available.'
+  stack: |-
+    commitCardPlayMutable (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts:1483:35)
+    playCard (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts:1866:3)
+    playCardWithAutoEnergy (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/cardPayment.ts:86:10)
+    <anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/card-payment.test.ts:77:11)
+    getActual (node:assert:805:5)
+    Function.throws (node:assert:951:24)
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/card-payment.test.ts:76:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:629:18)
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/card-payment.test.ts:76:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:629:18)
+    Test.postRun (node:internal/test_runner/test:1042:19)
+    Test.run (node:internal/test_runner/test:970:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
+  ...
+# Subtest: Pact of Darkness exposes an unaffordable Sacrifice route instead of allowing a late failed discard
+ok 4 - Pact of Darkness exposes an unaffordable Sacrifice route instead of allowing a late failed discard
+  ---
+  duration_ms: 19.204739
+  ...
+# Subtest: Pact of Darkness Sacrifice is a generic atomic alternative cost and free base still pays FrostStrike
+ok 5 - Pact of Darkness Sacrifice is a generic atomic alternative cost and free base still pays FrostStrike
+  ---
+  duration_ms: 5.523201
+  ...
+# Subtest: conditional self-free Evos use the normal cost calculation
+ok 6 - conditional self-free Evos use the normal cost calculation
+  ---
+  duration_ms: 0.877278
+  ...
+# Subtest: Sneak Attack stores a turn-scoped free Evo permission for both players
+not ok 7 - Sneak Attack stores a turn-scoped free Evo permission for both players
+  ---
+  duration_ms: 8.947385
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/card-play-pipeline.test.ts:1:4057'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/card-play-pipeline.test.ts:117:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:629:18)
+    Test.postRun (node:internal/test_runner/test:1042:19)
+    Test.run (node:internal/test_runner/test:970:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
   ...
 # Subtest: The Sky's Hymn opens one private top-three ordering window
-ok 4 - The Sky's Hymn opens one private top-three ordering window
+ok 8 - The Sky's Hymn opens one private top-three ordering window
   ---
-  duration_ms: 10.298651
+  duration_ms: 4.037766
   ...
 # Subtest: top-three ordering effects preserve scarcity while retaining reorder permission
-ok 5 - top-three ordering effects preserve scarcity while retaining reorder permission
+ok 9 - top-three ordering effects preserve scarcity while retaining reorder permission
   ---
-  duration_ms: 7.977766
+  duration_ms: 3.155987
   ...
 # Subtest: submitting the dragged order changes only the inspected top cards
-ok 6 - submitting the dragged order changes only the inspected top cards
+ok 10 - submitting the dragged order changes only the inspected top cards
   ---
-  duration_ms: 5.890107
+  duration_ms: 2.63053
   ...
 # Subtest: top-deck selection creates a bounded choice and an executable selected-card path
-ok 7 - top-deck selection creates a bounded choice and an executable selected-card path
+ok 11 - top-deck selection creates a bounded choice and an executable selected-card path
   ---
-  duration_ms: 0.396456
+  duration_ms: 0.174091
   ...
 # Subtest: Dan Kouzo reveals the top card publicly while retaining the optional play choice
-ok 8 - Dan Kouzo reveals the top card publicly while retaining the optional play choice
+ok 12 - Dan Kouzo reveals the top card publicly while retaining the optional play choice
   ---
-  duration_ms: 2.445059
+  duration_ms: 1.029101
   ...
 # Subtest: reveal-and-play effects reveal before the choice and skip without adding the card to the batch
-not ok 9 - reveal-and-play effects reveal before the choice and skip without adding the card to the batch
+not ok 13 - reveal-and-play effects reveal before the choice and skip without adding the card to the batch
   ---
-  duration_ms: 14.934462
+  duration_ms: 5.978634
   location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/deck-inspection.test.ts:1:7926'
   failureType: 'testCodeFailure'
   error: |-
@@ -67,121 +139,105 @@ not ok 9 - reveal-and-play effects reveal before the choice and skip without add
     async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
   ...
 # Subtest: a revealed non-Flip enters the batch only after Play card is chosen
-not ok 10 - a revealed non-Flip enters the batch only after Play card is chosen
+not ok 14 - a revealed non-Flip enters the batch only after Play card is chosen
   ---
-  duration_ms: 17.485427
+  duration_ms: 2.109612
   location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/deck-inspection.test.ts:1:9259'
   failureType: 'testCodeFailure'
-  error: 'There is no pending card choice.'
+  error: 'Absorb has no legal targets, choices, or payment method.'
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    submitCardChoice (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts:1390:23)
+    stageCardPlayMutable (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts:1602:13)
+    executeRuleAction (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts:2509:24)
+    Object.execute (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts:2760:9)
+    executeAction (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/executor.ts:59:11)
+    executeAction (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/executor.ts:38:7)
+    executeRuleProgram (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/executor.ts:78:7)
+    resolvePendingEffect (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts:2694:14)
+    submitCardChoice (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts:1827:23)
     TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/deck-inspection.test.ts:270:13)
     Test.runInAsyncScope (node:async_hooks:211:14)
-    Test.run (node:internal/test_runner/test:931:25)
-    Test.processPendingSubtests (node:internal/test_runner/test:629:18)
-    Test.postRun (node:internal/test_runner/test:1042:19)
-    Test.run (node:internal/test_runner/test:970:12)
-    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
   ...
 # Subtest: a revealed Flip has Skip as its only legal decision
-ok 11 - a revealed Flip has Skip as its only legal decision
+ok 15 - a revealed Flip has Skip as its only legal decision
   ---
-  duration_ms: 10.192664
+  duration_ms: 1.77828
   ...
 # Subtest: playing Dan after a Bakugan opened installs the Hero without replaying the open trigger
-ok 12 - playing Dan after a Bakugan opened installs the Hero without replaying the open trigger
+ok 16 - playing Dan after a Bakugan opened installs the Hero without replaying the open trigger
   ---
-  duration_ms: 7.683912
+  duration_ms: 5.044799
   ...
 # Subtest: playable permanents never use a triggered ability as their card-play program
-ok 13 - playable permanents never use a triggered ability as their card-play program
+ok 17 - playable permanents never use a triggered ability as their card-play program
   ---
-  duration_ms: 1.445199
+  duration_ms: 0.746134
   ...
 # Subtest: Toshi opens a private full-deck browser while limiting selection to Action cards
-ok 14 - Toshi opens a private full-deck browser while limiting selection to Action cards
+ok 18 - Toshi opens a private full-deck browser while limiting selection to Action cards
   ---
-  duration_ms: 2.758613
+  duration_ms: 2.944945
   ...
 # Subtest: Lia search moves the selected Hero to hand and leaves every other card in the shuffled deck
-ok 15 - Lia search moves the selected Hero to hand and leaves every other card in the shuffled deck
+ok 19 - Lia search moves the selected Hero to hand and leaves every other card in the shuffled deck
   ---
-  duration_ms: 2.517917
+  duration_ms: 1.609529
   ...
 # Subtest: the gameplay runtime mounts distinct draggable, reveal, and full-deck search presentations
-ok 16 - the gameplay runtime mounts distinct draggable, reveal, and full-deck search presentations
+ok 20 - the gameplay runtime mounts distinct draggable, reveal, and full-deck search presentations
   ---
-  duration_ms: 51.015728
+  duration_ms: 32.754113
   ...
 # Subtest: Age of Aurelus Lia keeps its top-three Hero selection in one optional play window
-ok 17 - Age of Aurelus Lia keeps its top-three Hero selection in one optional play window
+ok 21 - Age of Aurelus Lia keeps its top-three Hero selection in one optional play window
   ---
-  duration_ms: 6.714266
+  duration_ms: 3.796421
   ...
 # Subtest: Age of Aurelus Lia shrinks its inspection to the cards actually remaining
-ok 18 - Age of Aurelus Lia shrinks its inspection to the cards actually remaining
+ok 22 - Age of Aurelus Lia shrinks its inspection to the cards actually remaining
   ---
-  duration_ms: 13.846181
+  duration_ms: 4.92899
   ...
 # Subtest: Age of Aurelus Lia is an automatic no-op with an empty deck
-ok 19 - Age of Aurelus Lia is an automatic no-op with an empty deck
+ok 23 - Age of Aurelus Lia is an automatic no-op with an empty deck
   ---
-  duration_ms: 1.871249
+  duration_ms: 6.368913
   ...
 # Subtest: Age of Aurelus Lia only offers Skip when the short window has no Hero
-ok 20 - Age of Aurelus Lia only offers Skip when the short window has no Hero
+ok 24 - Age of Aurelus Lia only offers Skip when the short window has no Hero
   ---
-  duration_ms: 1.543474
+  duration_ms: 1.688771
   ...
 # Subtest: skipping Age of Aurelus Lia leaves every inspected card on the deck
-ok 21 - skipping Age of Aurelus Lia leaves every inspected card on the deck
+ok 25 - skipping Age of Aurelus Lia leaves every inspected card on the deck
   ---
-  duration_ms: 2.663722
+  duration_ms: 2.164719
   ...
 # Subtest: damage cards move from the deck to discard one click at a time
-ok 22 - damage cards move from the deck to discard one click at a time
+ok 26 - damage cards move from the deck to discard one click at a time
   ---
-  duration_ms: 8.737271
+  duration_ms: 4.600996
   ...
 # Subtest: playing a revealed Flip automatically taps its Energy shortfall
-ok 23 - playing a revealed Flip automatically taps its Energy shortfall
+ok 27 - playing a revealed Flip automatically taps its Energy shortfall
   ---
-  duration_ms: 4.272983
+  duration_ms: 5.137265
   ...
 # Subtest: the Victor window enters manual damage without consuming the loser deck
-ok 24 - the Victor window enters manual damage without consuming the loser deck
+ok 28 - the Victor window enters manual damage without consuming the loser deck
   ---
-  duration_ms: 15.15644
+  duration_ms: 13.174898
   ...
-# Subtest: Pact of Darkness keeps its printed cost until Sacrifice discards a card
-not ok 25 - Pact of Darkness keeps its printed cost until Sacrifice discards a card
+# Subtest: Pact of Darkness uses the generic Sacrifice payment route
+ok 29 - Pact of Darkness uses the generic Sacrifice payment route
   ---
-  duration_ms: 11.93939
-  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:1:602'
-  failureType: 'testCodeFailure'
-  error: |-
-    Expected values to be strictly equal:
-    
-    4 !== 0
-    
-  code: 'ERR_ASSERTION'
-  name: 'AssertionError'
-  expected: 0
-  actual: 4
-  operator: 'strictEqual'
-  stack: |-
-    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:68:10)
-    Test.runInAsyncScope (node:async_hooks:211:14)
-    Test.run (node:internal/test_runner/test:931:25)
-    Test.start (node:internal/test_runner/test:829:17)
-    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  duration_ms: 7.510608
   ...
 # Subtest: Darkus Hyper Cubbo lets the Training AI complete its forced discard
-not ok 26 - Darkus Hyper Cubbo lets the Training AI complete its forced discard
+not ok 30 - Darkus Hyper Cubbo lets the Training AI complete its forced discard
   ---
-  duration_ms: 3.386612
-  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:1:2656'
+  duration_ms: 2.705119
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:1:2551'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
@@ -196,7 +252,7 @@ not ok 26 - Darkus Hyper Cubbo lets the Training AI complete its forced discard
   actual: 'first'
   operator: 'strictEqual'
   stack: |-
-    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:124:10)
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:119:10)
     Test.runInAsyncScope (node:async_hooks:211:14)
     Test.run (node:internal/test_runner/test:931:25)
     Test.processPendingSubtests (node:internal/test_runner/test:629:18)
@@ -205,70 +261,70 @@ not ok 26 - Darkus Hyper Cubbo lets the Training AI complete its forced discard
     async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
   ...
 # Subtest: the typed catalogue separates independent effects, Rerolls, and open-on-Reroll clauses
-ok 27 - the typed catalogue separates independent effects, Rerolls, and open-on-Reroll clauses
+ok 31 - the typed catalogue separates independent effects, Rerolls, and open-on-Reroll clauses
   ---
-  duration_ms: 1.903667
+  duration_ms: 0.907682
   ...
 # Subtest: every printed Reroll card maps to exactly one appropriate authoritative ability
-ok 28 - every printed Reroll card maps to exactly one appropriate authoritative ability
+ok 32 - every printed Reroll card maps to exactly one appropriate authoritative ability
   ---
-  duration_ms: 1.808877
+  duration_ms: 0.861998
   ...
 # Subtest: all-closed first rolls reject mandatory Rerolls and silently skip optional Reroll clauses
-ok 29 - all-closed first rolls reject mandatory Rerolls and silently skip optional Reroll clauses
+ok 33 - all-closed first rolls reject mandatory Rerolls and silently skip optional Reroll clauses
   ---
-  duration_ms: 20.329386
+  duration_ms: 13.417581
   ...
 # Subtest: effect draws finish before a later optional Reroll clause is offered
-ok 30 - effect draws finish before a later optional Reroll clause is offered
+ok 34 - effect draws finish before a later optional Reroll clause is offered
   ---
-  duration_ms: 11.813814
+  duration_ms: 9.202459
   ...
 # Subtest: mandatory Reroll cards are playable only after the first roll and before Victor
-ok 31 - mandatory Reroll cards are playable only after the first roll and before Victor
+ok 35 - mandatory Reroll cards are playable only after the first roll and before Victor
   ---
-  duration_ms: 9.074109
+  duration_ms: 4.634757
   ...
 # Subtest: an open Bakugan returns held Cores before its Reroll and can land on a new Core
-ok 32 - an open Bakugan returns held Cores before its Reroll and can land on a new Core
+ok 36 - an open Bakugan returns held Cores before its Reroll and can land on a new Core
   ---
-  duration_ms: 13.642409
+  duration_ms: 8.359036
   ...
 # Subtest: forced opponent Rerolls preserve the controller target for conditional follow-up effects
-ok 33 - forced opponent Rerolls preserve the controller target for conditional follow-up effects
+ok 37 - forced opponent Rerolls preserve the controller target for conditional follow-up effects
   ---
-  duration_ms: 10.474611
+  duration_ms: 7.401559
   ...
 # Subtest: Mind Slip makes the chosen player discard before its optional Reroll decision
-ok 34 - Mind Slip makes the chosen player discard before its optional Reroll decision
+ok 38 - Mind Slip makes the chosen player discard before its optional Reroll decision
   ---
-  duration_ms: 10.112466
+  duration_ms: 10.382887
   ...
 # Subtest: Reroll-open clauses do nothing when the Reroll misses
-ok 35 - Reroll-open clauses do nothing when the Reroll misses
+ok 39 - Reroll-open clauses do nothing when the Reroll misses
   ---
-  duration_ms: 10.586277
+  duration_ms: 5.576714
   ...
 # Subtest: Reroll-open draws complete before the deferred open event is emitted
-ok 36 - Reroll-open draws complete before the deferred open event is emitted
+ok 40 - Reroll-open draws complete before the deferred open event is emitted
   ---
-  duration_ms: 14.849465
+  duration_ms: 6.944112
   ...
 # Subtest: Quickfire finishes its separate attack before offering its optional Reroll
-ok 37 - Quickfire finishes its separate attack before offering its optional Reroll
+ok 41 - Quickfire finishes its separate attack before offering its optional Reroll
   ---
-  duration_ms: 11.264681
+  duration_ms: 7.109957
   ...
 # Subtest: Quickfire resumes its Reroll clause after a played Flip finishes resolving
-not ok 38 - Quickfire resumes its Reroll clause after a played Flip finishes resolving
+not ok 42 - Quickfire resumes its Reroll clause after a played Flip finishes resolving
   ---
-  duration_ms: 8.963535
+  duration_ms: 5.264833
   location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reroll-mechanic.test.ts:1:14322'
   failureType: 'testCodeFailure'
   error: "This Flip card's Stop condition is not met by the attacking Bakugan."
   code: 'ERR_TEST_FAILURE'
   stack: |-
-    resolveManualDamage (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/manualDamage.ts:195:11)
+    resolveManualDamage (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/manualDamage.ts:165:11)
     TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reroll-mechanic.test.ts:394:11)
     Test.runInAsyncScope (node:async_hooks:211:14)
     Test.run (node:internal/test_runner/test:931:25)
@@ -278,14 +334,34 @@ not ok 38 - Quickfire resumes its Reroll clause after a played Flip finishes res
     async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
   ...
 # Subtest: Divine Intervention offers only a matching Evo and plays it for free after a successful Reroll
-ok 39 - Divine Intervention offers only a matching Evo and plays it for free after a successful Reroll
+not ok 43 - Divine Intervention offers only a matching Evo and plays it for free after a successful Reroll
   ---
-  duration_ms: 12.244049
+  duration_ms: 9.499661
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reroll-mechanic.test.ts:1:15304'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reroll-mechanic.test.ts:421:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:629:18)
+    Test.postRun (node:internal/test_runner/test:1042:19)
+    Test.run (node:internal/test_runner/test:970:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
   ...
 # Subtest: Thunder Storm sacrifices exactly the chosen card before beginning its optional Reroll
-not ok 40 - Thunder Storm sacrifices exactly the chosen card before beginning its optional Reroll
+not ok 44 - Thunder Storm sacrifices exactly the chosen card before beginning its optional Reroll
   ---
-  duration_ms: 11.374683
+  duration_ms: 5.630831
   location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reroll-mechanic.test.ts:1:16547'
   failureType: 'testCodeFailure'
   error: |-
@@ -307,39 +383,39 @@ not ok 40 - Thunder Storm sacrifices exactly the chosen card before beginning it
     async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
   ...
 # Subtest: successful Superfuel copies stack and the complete reduction is consumed by the next card
-ok 41 - successful Superfuel copies stack and the complete reduction is consumed by the next card
+ok 45 - successful Superfuel copies stack and the complete reduction is consumed by the next card
   ---
-  duration_ms: 12.900452
+  duration_ms: 7.429234
   ...
 # Subtest: a stacked Superfuel reduction is consumed by a played Flip card
-ok 42 - a stacked Superfuel reduction is consumed by a played Flip card
+ok 46 - a stacked Superfuel reduction is consumed by a played Flip card
   ---
-  duration_ms: 8.67596
+  duration_ms: 5.196701
   ...
 # Subtest: a failed Reroll against a closed Bakugan repeats the normal Rolling Step after showing the result
-ok 43 - a failed Reroll against a closed Bakugan repeats the normal Rolling Step after showing the result
+ok 47 - a failed Reroll against a closed Bakugan repeats the normal Rolling Step after showing the result
   ---
-  duration_ms: 8.795857
+  duration_ms: 5.550104
   ...
 # Subtest: intrinsic once-per-turn and any-time miss abilities expose an authoritative Reroll action
-ok 44 - intrinsic once-per-turn and any-time miss abilities expose an authoritative Reroll action
+ok 48 - intrinsic once-per-turn and any-time miss abilities expose an authoritative Reroll action
   ---
-  duration_ms: 18.509112
+  duration_ms: 10.894426
   ...
 # Subtest: Shadow Dogs grants the rerolled Bakugan a Victor discard choice
-ok 45 - Shadow Dogs grants the rerolled Bakugan a Victor discard choice
+ok 49 - Shadow Dogs grants the rerolled Bakugan a Victor discard choice
   ---
-  duration_ms: 18.723599
+  duration_ms: 12.467985
   ...
-1..45
-# tests 45
+1..49
+# tests 49
 # suites 0
-# pass 39
-# fail 6
+# pass 41
+# fail 8
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 2056.486647
+# duration_ms 1681.768253
 targeted_status=1
 === build ===
 
@@ -350,32 +426,40 @@ Running bounded vinext build...
 
   vinext build  (Vite 8.0.13)
 
-(node:2632) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(node:2369) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 [34m[1/5] analyze client references...[39m
-[2Ktransforming...(node:2632) ExperimentalWarning: glob is an experimental feature and might change at any time
+[2Ktransforming...(node:2369) ExperimentalWarning: glob is an experimental feature and might change at any time
 ✓ 336 modules transformed.
 rendering chunks...
-[32m✓ built in 1.30s[39m
+[32m✓ built in 904ms[39m
 [34m[2/5] analyze server references...[39m
 [2Ktransforming...✓ 342 modules transformed.
 rendering chunks...
-[32m✓ built in 1.40s[39m
+[32m✓ built in 929ms[39m
 [34m[3/5] build rsc environment...[39m
 [2Ktransforming...✓ 342 modules transformed.
 rendering chunks...
 computing gzip size...
-[32m✓ built in 1.11s[39m
+[32m✓ built in 870ms[39m
 [34m[4/5] build client environment...[39m
 [2Ktransforming...✓ 349 modules transformed.
 rendering chunks...
 computing gzip size...
-[32m✓ built in 1.67s[39m
+[33m[33m[PLUGIN_TIMINGS] [0mYour build spent significant time in plugins. Here is a breakdown:
+  - rsc:virtual-client-package (37%)
+  - vite-plugin-commonjs (20%)
+  - vinext:react-canary (6%)
+  - vite:css (5%)
+  - vite:prepare-out-dir (4%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+[39m
+[32m✓ built in 3.95s[39m
 [34m[5/5] build ssr environment...[39m
 [2Ktransforming...✓ 348 modules transformed.
 rendering chunks...
 computing gzip size...
-[32m✓ built in 1.41s[39m
+[32m✓ built in 1.01s[39m
 [0m
   Route (app)
   ┌ ? /                     
@@ -492,8 +576,8 @@ build_status=0
 
 /home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/ChoiceQueueLayer.tsx
   108:6   warning  React Hook useEffect has a missing dependency: 'triggerOrder?.triggerIds'. Either include it or remove the dependency array               react-hooks/exhaustive-deps
-  276:6   warning  React Hook useEffect has a missing dependency: 'selectedBoardIds'. Either include it or remove the dependency array                       react-hooks/exhaustive-deps
-  276:76  warning  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked  react-hooks/exhaustive-deps
+  278:6   warning  React Hook useEffect has a missing dependency: 'selectedBoardIds'. Either include it or remove the dependency array                       react-hooks/exhaustive-deps
+  278:76  warning  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked  react-hooks/exhaustive-deps
 
 /home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/CoinFlipLayer.tsx
   73:6  warning  React Hook useEffect has a missing dependency: 'pending'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
@@ -643,7 +727,7 @@ build_status=0
   46:44  warning  '_cardType' is assigned a value but never used  @typescript-eslint/no-unused-vars
 
 /home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts
-  1123:7  warning  'statValues' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  1139:7  warning  'statValues' is assigned a value but never used  @typescript-eslint/no-unused-vars
 
 /home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/opponentAiBase.ts
   1039:3  warning  '_choices' is defined but never used  @typescript-eslint/no-unused-vars
@@ -653,7 +737,7 @@ build_status=0
   8:65  warning  'PlayerState' is defined but never used  @typescript-eslint/no-unused-vars
 
 /home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/choices.ts
-  142:9  warning  'opponent' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  147:9  warning  'opponent' is assigned a value but never used  @typescript-eslint/no-unused-vars
 
 /home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/ai-energize-planner.test.ts
   9:8  warning  'MatchState' is defined but never used  @typescript-eslint/no-unused-vars

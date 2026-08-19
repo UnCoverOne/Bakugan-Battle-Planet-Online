@@ -1,4 +1,4 @@
-import type { CardChoices, CardType, CoreType, Faction, GameCard } from "../game";
+import type { CardChoices, CardType, CoreType, Faction, GameCard, Phase } from "../game";
 import type { AmountExpression, ChooserOwner, PlayerScope, ZoneOwner } from "./primitives";
 
 export type RulesCardId = `${"bb" | "br" | "aa" | "ex"}-${number}${string}`;
@@ -38,6 +38,8 @@ export type RuleCondition =
   | { kind: "hero-count"; comparison: "at-least"; amount: number }
   | { kind: "controls-named-cards"; names: string[] }
   | { kind: "energy-count"; comparison: "at-least"; amount: number }
+  | { kind: "discard-count"; comparison: "at-least"; amount: number }
+  | { kind: "played-card-cost"; comparison: "at-least"; amount: number }
   | { kind: "card-count"; catalogId: RulesCardId; comparison: "at-least"; amount: number }
   | { kind: "core-count"; relationship: "more-than-opponent" | "at-least"; amount?: number }
   | { kind: "held-core-type"; coreTypes: CoreType[]; subject?: "target" | "controller-team" | "opponent-active" | "attacker" }
@@ -80,6 +82,8 @@ export type ChoiceSpec = {
   energyState?: "charged" | "uncharged";
   /** Exclude the Bakugan that created the trigger ("another Bakugan"). */
   excludeSourceBakugan?: boolean;
+  /** This selector is choosing a card that an effect will play with base Energy cost 0. */
+  playForFree?: boolean;
 };
 
 export type TriggerEventName =
@@ -112,9 +116,9 @@ export type CostScale = "cards-played-this-turn" | "held-bakucore";
 export type CostEffect =
   | { kind: "cost-reduce"; amount: number; duration: RulesDuration; cardType?: CardType; condition?: RuleCondition; appliesTo?: "self" | "controller"; scale?: CostScale }
   | { kind: "cost-increase"; amount: number; duration: RulesDuration; cardType?: CardType; condition?: RuleCondition }
-  | { kind: "cost-free"; duration: RulesDuration; condition?: RuleCondition }
+  | { kind: "cost-free"; duration: RulesDuration; condition?: RuleCondition; cardType?: CardType; appliesTo?: "self" | "controller" }
   | { kind: "cost-discard"; amount: number; choiceId: keyof CardChoices }
-  | { kind: "cost-alternative"; label: string; components: CostEffect[] };
+  | { kind: "cost-alternative"; id: string; label: string; setsBaseFree: boolean; components: CostEffect[]; condition?: RuleCondition };
 
 export type RuleAction =
   | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: number; amountExpression?: AmountExpression; scale?: string; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices }
@@ -133,12 +137,12 @@ export type RuleAction =
   | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: number }
   | { kind: "reveal"; object: "bakucore" | "deck-top"; amount: number }
   | { kind: "reorder-deck"; amount: number }
-  | { kind: "play"; source: "revealed-deck" | "hand" | "self"; free: boolean }
+  | { kind: "play"; source: "revealed-deck" | "hand" | "self"; free: boolean; cardType?: CardType; maximumCost?: number; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "attack"; amount: number; faction?: Faction }
   | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: number; targetKinds?: Array<"card" | "trigger" | "copy"> }
   | { kind: "search"; cardType?: string; amount: number }
   | { kind: "copy"; target: "next-action" | "batch-action" | "chosen-batch-object"; independentChoices: boolean; targetChoiceId?: keyof CardChoices; count?: AmountExpression; controller?: PlayerScope }
-  | { kind: "cost"; amount: number; operation: "reduce" | "increase" | "free"; duration: RulesDuration }
+  | { kind: "cost"; amount: number; operation: "reduce" | "increase" | "free"; duration: RulesDuration; cardType?: CardType; playerScope?: PlayerScope }
   | { kind: "reroll"; target: "controller" | "opponent"; mandatory: boolean; requiresDiscard: boolean }
   | { kind: "coin-flip" }
   | { kind: "trigger"; event: TriggerEventName; definition: TriggerDefinition }
@@ -208,6 +212,8 @@ export type RuleObject = {
   rulesObjectVersion: 3;
   id: string;
   controllerId: string;
+  /** Physical owner of the card. This can differ from controller for effects such as Mind Control. */
+  cardOwnerId?: string;
   card: GameCard;
   choices: CardChoices;
   kind: "card" | "trigger" | "copy";
@@ -256,13 +262,49 @@ export type ProposedEvent = {
   metadata?: Record<string, unknown>;
 };
 
+export type CardPlaySourceZone = "hand" | "damage-reveal" | "deck" | "discard";
+
+export type PendingCardPlay = {
+  controllerId: string;
+  cardId: string;
+  sourceZone: CardPlaySourceZone;
+  sourceOwnerId: string;
+  /** Physical owner/destination owner after an Action or Flip resolves. */
+  cardOwnerId: string;
+  /** External effects that say “play ... for free” set only the base Energy cost to 0. */
+  forcedFreeBase?: boolean;
+  origin: "priority" | "effect" | "damage";
+  parentEffectId?: string;
+  parentNextInstructionIndex?: number;
+  resumePriority?: string;
+  resumeDeadline?: number;
+  resumeStepLabel?: string;
+  resumePhase?: Phase;
+  optional?: boolean;
+  choices: CardChoices;
+  beforeState?: string;
+  irreversibleInformation?: boolean;
+};
+
+export type StoredCostModifier = {
+  id: string;
+  sourceId: string;
+  controllerId: string;
+  kind: "free" | "reduce" | "increase";
+  amount: number;
+  duration: "turn" | "next-card";
+  cardType?: CardType;
+  playerScope: PlayerScope;
+  createdTurn: number;
+};
+
 export type RulesPayment = {
   id: string;
   playerId: string;
   cardId: string;
   calculatedCost: number;
   selectedEnergyIds: string[];
-  additionalCosts: Array<{ kind: "discard"; cardIds: string[] }>;
+  additionalCosts: Array<{ kind: "discard"; amount: number; cardIds: string[] }>;
   status: "declared" | "paid" | "cancelled";
 };
 
@@ -271,5 +313,6 @@ export type RulesState = {
   modifiers: ContinuousModifier[];
   replacements: Array<{ id: string; source: RuleSourceReference; controllerId: string; effect: Extract<RuleAction, { kind: "replacement" | "prevention" }> }>;
   triggerUsage: Record<string, number>;
+  costModifiers: StoredCostModifier[];
   pendingPayment?: RulesPayment;
 };

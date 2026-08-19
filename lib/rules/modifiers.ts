@@ -91,6 +91,8 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
       ));
     }
     case "energy-count": return player.maxEnergy >= condition.amount;
+    case "discard-count": return player.discard.length >= condition.amount;
+    case "played-card-cost": return Math.max(0, ...(player.playedCardCostsThisTurn ?? [])) >= condition.amount;
     case "card-count": return player.heroes.filter((hero) => hero.catalogId === condition.catalogId).length >= condition.amount;
     case "core-count": {
       const held = player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
