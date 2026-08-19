@@ -12,6 +12,7 @@ import { ruleDefinitionForCard } from "./rules/catalogue";
 import { activeTappedEnergyIds, cardCostBreakdown, rechargeEnergyCards } from "./rules/costs";
 import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
+import { turnDrawCounts } from "./rules/turn-draw";
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
 import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
@@ -634,17 +635,19 @@ const beginTurn = (state: MatchState) => {
     player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0; player.factionsPlayedThisTurn = [];
   }
   const now = Date.now();
-  const drawCount = 1 + state.players.reduce((total, player) => (
-    total + player.heroes.filter((hero) => hero.name === "Strata" || /all players draw an additional card each turn/i.test(hero.effect)).length
-  ), 0);
+  const drawCounts = turnDrawCounts(state);
   state.drawPreparedTurn = state.turn;
   state.drawReadyAt = now + (state.turn === 1 ? 3_000 : 0);
   state.drawDeadline = state.drawReadyAt + PHASE_TIMERS.draw * 1_000;
   state.drawnPlayerIds = [];
-  state.drawRemainingByPlayer = Object.fromEntries(state.players.map((player) => [player.id, drawCount]));
+  state.drawRemainingByPlayer = drawCounts;
   setPhase(state, "draw", state.turn === 1 ? `Turn ${state.turn} • Draw Step begins in 3 seconds` : `Turn ${state.turn} • Draw Step`, state.startingPlayer);
   state.deadline = state.drawDeadline;
-  entry(state, "game", `Turn ${state.turn} began. Both players have ${drawCount} explicit Draw action${drawCount === 1 ? "" : "s"}.`);
+  const drawSummary = state.players.map((player) => {
+    const count = drawCounts[player.id] ?? 1;
+    return `${player.name} has ${count} explicit Draw action${count === 1 ? "" : "s"}`;
+  }).join("; ");
+  entry(state, "game", `Turn ${state.turn} began. ${drawSummary}.`);
 };
 
 export const energizeCard = (input: MatchState, playerId: string, cardId?: string) => {
