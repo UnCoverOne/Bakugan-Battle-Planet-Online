@@ -1,0 +1,666 @@
+=== targeted tests ===
+TAP version 13
+# Subtest: a card uses already generated Energy without tapping extra cards
+ok 1 - a card uses already generated Energy without tapping extra cards
+  ---
+  duration_ms: 5.229329
+  ...
+# Subtest: a card automatically taps only the Energy cards needed for its shortfall
+ok 2 - a card automatically taps only the Energy cards needed for its shortfall
+  ---
+  duration_ms: 2.223926
+  ...
+# Subtest: a card cannot be played when generated and untapped Energy are insufficient
+ok 3 - a card cannot be played when generated and untapped Energy are insufficient
+  ---
+  duration_ms: 1.12364
+  ...
+# Subtest: The Sky's Hymn opens one private top-three ordering window
+ok 4 - The Sky's Hymn opens one private top-three ordering window
+  ---
+  duration_ms: 4.227512
+  ...
+# Subtest: top-three ordering effects preserve scarcity while retaining reorder permission
+ok 5 - top-three ordering effects preserve scarcity while retaining reorder permission
+  ---
+  duration_ms: 3.867443
+  ...
+# Subtest: submitting the dragged order changes only the inspected top cards
+ok 6 - submitting the dragged order changes only the inspected top cards
+  ---
+  duration_ms: 2.532437
+  ...
+# Subtest: top-deck selection creates a bounded choice and an executable selected-card path
+ok 7 - top-deck selection creates a bounded choice and an executable selected-card path
+  ---
+  duration_ms: 0.169153
+  ...
+# Subtest: Dan Kouzo reveals the top card publicly while retaining the optional play choice
+ok 8 - Dan Kouzo reveals the top card publicly while retaining the optional play choice
+  ---
+  duration_ms: 0.884533
+  ...
+# Subtest: reveal-and-play effects reveal before the choice and skip without adding the card to the batch
+not ok 9 - reveal-and-play effects reveal before the choice and skip without adding the card to the batch
+  ---
+  duration_ms: 5.714154
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/deck-inspection.test.ts:1:7926'
+  failureType: 'testCodeFailure'
+  error: |-
+    Pyrus Hyper Trhyno stages the mandatory reveal
+    + actual - expected
+    
+    + undefined
+    - 'deck-window-0'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'deck-window-0'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/deck-inspection.test.ts:243:12)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:629:18)
+    Test.postRun (node:internal/test_runner/test:1042:19)
+    Test.run (node:internal/test_runner/test:970:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
+  ...
+# Subtest: a revealed non-Flip enters the batch only after Play card is chosen
+not ok 10 - a revealed non-Flip enters the batch only after Play card is chosen
+  ---
+  duration_ms: 3.727203
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/deck-inspection.test.ts:1:9259'
+  failureType: 'testCodeFailure'
+  error: 'There is no pending card choice.'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    submitCardChoice (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts:1390:23)
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/deck-inspection.test.ts:270:13)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:629:18)
+    Test.postRun (node:internal/test_runner/test:1042:19)
+    Test.run (node:internal/test_runner/test:970:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
+  ...
+# Subtest: a revealed Flip has Skip as its only legal decision
+ok 11 - a revealed Flip has Skip as its only legal decision
+  ---
+  duration_ms: 2.589007
+  ...
+# Subtest: playing Dan after a Bakugan opened installs the Hero without replaying the open trigger
+ok 12 - playing Dan after a Bakugan opened installs the Hero without replaying the open trigger
+  ---
+  duration_ms: 2.748831
+  ...
+# Subtest: playable permanents never use a triggered ability as their card-play program
+ok 13 - playable permanents never use a triggered ability as their card-play program
+  ---
+  duration_ms: 0.577964
+  ...
+# Subtest: Toshi opens a private full-deck browser while limiting selection to Action cards
+ok 14 - Toshi opens a private full-deck browser while limiting selection to Action cards
+  ---
+  duration_ms: 1.121707
+  ...
+# Subtest: Lia search moves the selected Hero to hand and leaves every other card in the shuffled deck
+ok 15 - Lia search moves the selected Hero to hand and leaves every other card in the shuffled deck
+  ---
+  duration_ms: 1.314976
+  ...
+# Subtest: the gameplay runtime mounts distinct draggable, reveal, and full-deck search presentations
+ok 16 - the gameplay runtime mounts distinct draggable, reveal, and full-deck search presentations
+  ---
+  duration_ms: 23.2996
+  ...
+# Subtest: Age of Aurelus Lia keeps its top-three Hero selection in one optional play window
+ok 17 - Age of Aurelus Lia keeps its top-three Hero selection in one optional play window
+  ---
+  duration_ms: 2.991203
+  ...
+# Subtest: Age of Aurelus Lia shrinks its inspection to the cards actually remaining
+ok 18 - Age of Aurelus Lia shrinks its inspection to the cards actually remaining
+  ---
+  duration_ms: 2.861039
+  ...
+# Subtest: Age of Aurelus Lia is an automatic no-op with an empty deck
+ok 19 - Age of Aurelus Lia is an automatic no-op with an empty deck
+  ---
+  duration_ms: 0.932394
+  ...
+# Subtest: Age of Aurelus Lia only offers Skip when the short window has no Hero
+ok 20 - Age of Aurelus Lia only offers Skip when the short window has no Hero
+  ---
+  duration_ms: 0.572416
+  ...
+# Subtest: skipping Age of Aurelus Lia leaves every inspected card on the deck
+ok 21 - skipping Age of Aurelus Lia leaves every inspected card on the deck
+  ---
+  duration_ms: 0.86912
+  ...
+# Subtest: damage cards move from the deck to discard one click at a time
+ok 22 - damage cards move from the deck to discard one click at a time
+  ---
+  duration_ms: 3.549117
+  ...
+# Subtest: playing a revealed Flip automatically taps its Energy shortfall
+ok 23 - playing a revealed Flip automatically taps its Energy shortfall
+  ---
+  duration_ms: 1.817338
+  ...
+# Subtest: the Victor window enters manual damage without consuming the loser deck
+ok 24 - the Victor window enters manual damage without consuming the loser deck
+  ---
+  duration_ms: 9.464662
+  ...
+# Subtest: Pact of Darkness keeps its printed cost until Sacrifice discards a card
+not ok 25 - Pact of Darkness keeps its printed cost until Sacrifice discards a card
+  ---
+  duration_ms: 6.692407
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:1:602'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    4 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 4
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:68:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.start (node:internal/test_runner/test:829:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: Darkus Hyper Cubbo lets the Training AI complete its forced discard
+not ok 26 - Darkus Hyper Cubbo lets the Training AI complete its forced discard
+  ---
+  duration_ms: 1.422777
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:1:2656'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'first'
+    - 'training-bot'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'training-bot'
+  actual: 'first'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/pact-cubbo-regressions.test.ts:124:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:629:18)
+    Test.postRun (node:internal/test_runner/test:1042:19)
+    Test.run (node:internal/test_runner/test:970:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: the typed catalogue separates independent effects, Rerolls, and open-on-Reroll clauses
+ok 27 - the typed catalogue separates independent effects, Rerolls, and open-on-Reroll clauses
+  ---
+  duration_ms: 1.111462
+  ...
+# Subtest: every printed Reroll card maps to exactly one appropriate authoritative ability
+ok 28 - every printed Reroll card maps to exactly one appropriate authoritative ability
+  ---
+  duration_ms: 0.828249
+  ...
+# Subtest: all-closed first rolls reject mandatory Rerolls and silently skip optional Reroll clauses
+ok 29 - all-closed first rolls reject mandatory Rerolls and silently skip optional Reroll clauses
+  ---
+  duration_ms: 11.482931
+  ...
+# Subtest: effect draws finish before a later optional Reroll clause is offered
+ok 30 - effect draws finish before a later optional Reroll clause is offered
+  ---
+  duration_ms: 6.311017
+  ...
+# Subtest: mandatory Reroll cards are playable only after the first roll and before Victor
+ok 31 - mandatory Reroll cards are playable only after the first roll and before Victor
+  ---
+  duration_ms: 3.772251
+  ...
+# Subtest: an open Bakugan returns held Cores before its Reroll and can land on a new Core
+ok 32 - an open Bakugan returns held Cores before its Reroll and can land on a new Core
+  ---
+  duration_ms: 6.903533
+  ...
+# Subtest: forced opponent Rerolls preserve the controller target for conditional follow-up effects
+ok 33 - forced opponent Rerolls preserve the controller target for conditional follow-up effects
+  ---
+  duration_ms: 5.297312
+  ...
+# Subtest: Mind Slip makes the chosen player discard before its optional Reroll decision
+ok 34 - Mind Slip makes the chosen player discard before its optional Reroll decision
+  ---
+  duration_ms: 4.991734
+  ...
+# Subtest: Reroll-open clauses do nothing when the Reroll misses
+ok 35 - Reroll-open clauses do nothing when the Reroll misses
+  ---
+  duration_ms: 4.506609
+  ...
+# Subtest: Reroll-open draws complete before the deferred open event is emitted
+ok 36 - Reroll-open draws complete before the deferred open event is emitted
+  ---
+  duration_ms: 7.725121
+  ...
+# Subtest: Quickfire finishes its separate attack before offering its optional Reroll
+ok 37 - Quickfire finishes its separate attack before offering its optional Reroll
+  ---
+  duration_ms: 8.859388
+  ...
+# Subtest: Quickfire resumes its Reroll clause after a played Flip finishes resolving
+not ok 38 - Quickfire resumes its Reroll clause after a played Flip finishes resolving
+  ---
+  duration_ms: 4.862762
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reroll-mechanic.test.ts:1:14322'
+  failureType: 'testCodeFailure'
+  error: "This Flip card's Stop condition is not met by the attacking Bakugan."
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    resolveManualDamage (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/manualDamage.ts:195:11)
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reroll-mechanic.test.ts:394:11)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:629:18)
+    Test.postRun (node:internal/test_runner/test:1042:19)
+    Test.run (node:internal/test_runner/test:970:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
+  ...
+# Subtest: Divine Intervention offers only a matching Evo and plays it for free after a successful Reroll
+ok 39 - Divine Intervention offers only a matching Evo and plays it for free after a successful Reroll
+  ---
+  duration_ms: 5.731871
+  ...
+# Subtest: Thunder Storm sacrifices exactly the chosen card before beginning its optional Reroll
+not ok 40 - Thunder Storm sacrifices exactly the chosen card before beginning its optional Reroll
+  ---
+  duration_ms: 6.170407
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reroll-mechanic.test.ts:1:16547'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    undefined !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/reroll-mechanic.test.ts:440:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:931:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:629:18)
+    Test.postRun (node:internal/test_runner/test:1042:19)
+    Test.run (node:internal/test_runner/test:970:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:629:7)
+  ...
+# Subtest: successful Superfuel copies stack and the complete reduction is consumed by the next card
+ok 41 - successful Superfuel copies stack and the complete reduction is consumed by the next card
+  ---
+  duration_ms: 6.361082
+  ...
+# Subtest: a stacked Superfuel reduction is consumed by a played Flip card
+ok 42 - a stacked Superfuel reduction is consumed by a played Flip card
+  ---
+  duration_ms: 3.83858
+  ...
+# Subtest: a failed Reroll against a closed Bakugan repeats the normal Rolling Step after showing the result
+ok 43 - a failed Reroll against a closed Bakugan repeats the normal Rolling Step after showing the result
+  ---
+  duration_ms: 4.83486
+  ...
+# Subtest: intrinsic once-per-turn and any-time miss abilities expose an authoritative Reroll action
+ok 44 - intrinsic once-per-turn and any-time miss abilities expose an authoritative Reroll action
+  ---
+  duration_ms: 9.027469
+  ...
+# Subtest: Shadow Dogs grants the rerolled Bakugan a Victor discard choice
+ok 45 - Shadow Dogs grants the rerolled Bakugan a Victor discard choice
+  ---
+  duration_ms: 14.961442
+  ...
+1..45
+# tests 45
+# suites 0
+# pass 39
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1241.596331
+targeted_status=1
+=== build ===
+
+> bakugan-battle-planet-online@0.3.0 build
+> bash scripts/build-verified.sh
+
+Running bounded vinext build...
+
+  vinext build  (Vite 8.0.13)
+
+(node:2210) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[34m[1/5] analyze client references...[39m
+[2Ktransforming...(node:2210) ExperimentalWarning: glob is an experimental feature and might change at any time
+✓ 336 modules transformed.
+rendering chunks...
+[32m✓ built in 746ms[39m
+[34m[2/5] analyze server references...[39m
+[2Ktransforming...✓ 342 modules transformed.
+rendering chunks...
+[32m✓ built in 694ms[39m
+[34m[3/5] build rsc environment...[39m
+[2Ktransforming...✓ 342 modules transformed.
+rendering chunks...
+computing gzip size...
+[32m✓ built in 652ms[39m
+[34m[4/5] build client environment...[39m
+[2Ktransforming...✓ 349 modules transformed.
+rendering chunks...
+computing gzip size...
+[32m✓ built in 1.56s[39m
+[34m[5/5] build ssr environment...[39m
+[2Ktransforming...✓ 348 modules transformed.
+rendering chunks...
+computing gzip size...
+[32m✓ built in 784ms[39m
+[0m
+  Route (app)
+  ┌ ? /                     
+  ├ ƒ /:screen+             
+  ├ ? /account              
+  ├ ƒ /admin                
+  ├ λ /api/admin            
+  ├ λ /api/ai-decks         
+  ├ λ /api/auth             
+  ├ λ /api/card-overrides   
+  ├ λ /api/game             
+  ├ λ /api/game/active      
+  ├ λ /api/game/resume      
+  ├ λ /api/profile          
+  ├ λ /api/public-decks     
+  ├ λ /api/ranked           
+  ├ λ /api/replays          
+  ├ λ /api/replays/debug    
+  ├ λ /api/rulings          
+  ├ λ /api/rum              
+  ├ λ /api/social           
+  ├ λ /api/user-data        
+  ├ λ /api/version          
+  ├ ƒ /brawlers/:userId     
+  ├ ƒ /builder/:id          
+  ├ ƒ /compendium/:segments*
+  ├ ? /dashboard            
+  ├ ? /decks                
+  ├ ƒ /decks/:id            
+  ├ ? /decks/public         
+  ├ ƒ /decks/public/:id     
+  ├ ? /game-screen-lab      
+  ├ ƒ /history/:segments*   
+  ├ ? /leaderboard          
+  ├ ? /offline              
+  ├ ? /play                 
+  ├ ? /play/lobby           
+  ├ ? /play/match           
+  ├ ? /play/result          
+  ├ ƒ /profile/:segments*   
+  ├ ? /settings             
+  └ ? /tools/card-editor    
+
+  λ API  ƒ Dynamic  ? Unknown
+
+  ? Some routes could not be classified. vinext currently uses static analysis
+    and cannot detect dynamic API usage (headers(), cookies(), etc.) at build time.
+    Automatic classification will be improved in a future release.
+
+  Build complete. Run `vinext start` to start the production server.
+
+Validated Sites artifact: ESM Worker default.fetch and hosting manifest are present.
+build_status=0
+=== lint ===
+
+> bakugan-battle-planet-online@0.3.0 lint
+> bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next
+
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/app/api/replays/debug/route.ts
+  453:50  warning  '_patch' is defined but never used        @typescript-eslint/no-unused-vars
+  467:58  warning  '_parsedState' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/app/error.tsx
+  32:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  57:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/app/loading.tsx
+  4:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/app/not-found.tsx
+  6:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/app/offline/page.tsx
+  11:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/app/tools/card-editor/page.tsx
+  16:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/application/AppProvider.jsx
+  1209:1144  warning  React Hook useMemo has missing dependencies: 'setBuilderDeck', 'setCompendiumQuery', 'setCompendiumTab', 'setDeckQuery', 'setDecks', 'setFormat', 'setHistory', 'setJoinCode', 'setMatch', 'setMatchMode', 'setOnline', 'setProfile', 'setReplay', 'setReplayIndex', 'setSelectedDeckId', and 'setSettings'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/application/AppShell.jsx
+  214:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  286:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  444:7   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/application/ui.jsx
+   9:45   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  12:215  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/cards/CardInspector.tsx
+  44:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/cards/ResponsiveCardImage.tsx
+  32:5  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/AlternateWinPresentationLayer.tsx
+  93:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/BakuCoreLayer.tsx
+  290:6  warning  React Hook useLayoutEffect has a missing dependency: 'destination'. Either include it or remove the dependency array                                                                                                                                                                     react-hooks/exhaustive-deps
+  301:5  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/BakuCorePresentation.tsx
+  117:6  warning  React Hook useEffect has a missing dependency: 'cells'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/BrawlExperienceLayer.tsx
+   85:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  395:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/CardPreviewLayerImpl.tsx
+  221:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/ChoiceQueueLayer.tsx
+  108:6   warning  React Hook useEffect has a missing dependency: 'triggerOrder?.triggerIds'. Either include it or remove the dependency array               react-hooks/exhaustive-deps
+  276:6   warning  React Hook useEffect has a missing dependency: 'selectedBoardIds'. Either include it or remove the dependency array                       react-hooks/exhaustive-deps
+  276:76  warning  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/CoinFlipLayer.tsx
+  73:6  warning  React Hook useEffect has a missing dependency: 'pending'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/CorePlacementLayer.tsx
+   38:72  warning  React Hook useMemo has a missing dependency: 'match'. Either include it or remove the dependency array                                                                                                                                                                                   react-hooks/exhaustive-deps
+   90:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  103:26  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/CoreReturnPlacementLayer.tsx
+   41:60  warning  React Hook useMemo has a missing dependency: 'match'. Either include it or remove the dependency array                                                                                                                                                                                   react-hooks/exhaustive-deps
+  100:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  128:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/DeckInspectionLayer.tsx
+  104:6   warning  React Hook useEffect has a missing dependency: 'deckField?.options'. Either include it or remove the dependency array                                                                                                                                                                    react-hooks/exhaustive-deps
+  278:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/DiscardFlipAnimationLayer.tsx
+   55:47  warning  The ref value 'hiddenTargetCounts.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'hiddenTargetCounts.current' to a variable inside the effect, and use that variable in the cleanup function      react-hooks/exhaustive-deps
+   57:21  warning  The ref value 'flightTargets.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'flightTargets.current' to a variable inside the effect, and use that variable in the cleanup function                react-hooks/exhaustive-deps
+  150:6   warning  React Hook useLayoutEffect has a missing dependency: 'stored.match'. Either include it or remove the dependency array                                                                                                                                                                    react-hooks/exhaustive-deps
+  169:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  170:48  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/DrawAnimationLayer.tsx
+   81:47  warning  The ref value 'hiddenTargetCounts.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'hiddenTargetCounts.current' to a variable inside the effect, and use that variable in the cleanup function      react-hooks/exhaustive-deps
+   85:21  warning  The ref value 'flightTargets.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'flightTargets.current' to a variable inside the effect, and use that variable in the cleanup function                react-hooks/exhaustive-deps
+  220:6   warning  React Hook useLayoutEffect has a missing dependency: 'stored.match'. Either include it or remove the dependency array                                                                                                                                                                    react-hooks/exhaustive-deps
+  254:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  256:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/EnergyArrivalLayer.tsx
+  68:6  warning  React Hook useLayoutEffect has a missing dependency: 'match'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/GameScreen.tsx
+  161:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  232:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  431:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  487:9   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  749:6   warning  React Hook useEffect has a missing dependency: 'energyState.player.cards'. Either include it or remove the dependency array                                                                                                                                                              react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/GameplayCardPresentationLayer.tsx
+  160:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/GameplayClient.tsx
+  364:6  warning  React Hook useEffect has missing dependencies: 'beginPlacement' and 'storedState.match'. Either include them or remove the dependency array   react-hooks/exhaustive-deps
+  392:6  warning  React Hook useEffect has missing dependencies: 'advanceEndPhase' and 'storedState.match'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  481:6  warning  React Hook useEffect has a missing dependency: 'storedState.match'. Either include it or remove the dependency array                          react-hooks/exhaustive-deps
+  509:6  warning  React Hook useEffect has a missing dependency: 'localPlayer'. Either include it or remove the dependency array                                react-hooks/exhaustive-deps
+  532:6  warning  React Hook useEffect has missing dependencies: 'drawCard' and 'storedState.match'. Either include them or remove the dependency array         react-hooks/exhaustive-deps
+  561:6  warning  React Hook useEffect has missing dependencies: 'passTurn' and 'storedState.match'. Either include them or remove the dependency array         react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/GameplaySoundLayer.tsx
+  71:6  warning  React Hook useEffect has a missing dependency: 'match'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/MatchCommunicationLayer.tsx
+  245:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/MatchDecisionLayer.tsx
+  134:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/MatchHudLayer.tsx
+  174:6  warning  React Hook useEffect has a missing dependency: 'match'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/MatchStateCoordinator.tsx
+  207:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/ResponsiveCardImage.tsx
+  26:10  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  53:6   warning  React Hook useEffect has a missing dependency: 'sources'. Either include it or remove the dependency array                                                                                                                                                                               react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/RollResultLayer.tsx
+  102:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  127:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/SelectionInteractionLayer.tsx
+  137:6  warning  React Hook useEffect has a missing dependency: 'match'. Either include it or remove the dependency array         react-hooks/exhaustive-deps
+  245:6  warning  React Hook useEffect has a missing dependency: 'evoTargetIds'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/game-screen-v2/TieBreakLayerImpl.tsx
+  201:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  278:6   warning  React Hook useEffect has missing dependencies: 'liveTieBreak' and 'presentedMatch'. Either include them or remove the dependency array                                                                                                                                                   react-hooks/exhaustive-deps
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/profile/BrawlerProfileView.tsx
+   59:9   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  115:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  319:9   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/profile/ProfileAvatar.tsx
+  34:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/routes/CompendiumScreen.tsx
+  351:219  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/routes/DashboardScreen.tsx
+  233:9   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  301:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  302:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/routes/DeckBuilderPresentationBridge.tsx
+  190:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/routes/DeckRoutes.tsx
+   627:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   639:9   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   657:9   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   676:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1203:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1206:27  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1216:51  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1233:27  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1836:66  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  2072:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  2180:7   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  2210:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  2249:40  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  2366:14  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/routes/LobbyRoomScreen.tsx
+  67:9  warning  'me' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/routes/PlayRoutes.tsx
+  391:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  399:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  547:75  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  551:42  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/routes/ProfileScreen.tsx
+  328:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  419:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  462:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/routes/SettingsScreen.tsx
+  33:9  warning  'router' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/components/routes/StreamlinedLobbyRoomScreen.tsx
+  414:11   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  498:111  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  506:111  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  527:25   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  529:26   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  636:23   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/engine/projection.ts
+  46:23  warning  '_cardName' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  46:44  warning  '_cardType' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/game.ts
+  1123:7  warning  'statValues' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/opponentAiBase.ts
+  1039:3  warning  '_choices' is defined but never used  @typescript-eslint/no-unused-vars
+  1040:3  warning  '_entries' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/ranked-lobby.ts
+  8:65  warning  'PlayerState' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/choices.ts
+  142:9  warning  'opponent' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/ai-energize-planner.test.ts
+  9:8  warning  'MatchState' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/opponent-ai-sequencing.test.ts
+  12:8  warning  'MatchState' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 118 problems (0 errors, 118 warnings)
+
+lint_status=0

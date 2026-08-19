@@ -1,0 +1,5 @@
+  File "/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/scripts/apply-unified-card-play-pipeline.py", line 614
+    '  const energyCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+) or more Energy cards in play/i);\n'
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+SyntaxError: invalid syntax. Perhaps you forgot a comma?
+patch_status=1
