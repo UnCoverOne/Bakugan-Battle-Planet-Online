@@ -129,6 +129,16 @@ function cardMatchesSpec(candidate: GameCard, spec: ChoiceSpec) {
   const types = spec.cardTypes?.length ? spec.cardTypes : spec.cardType ? [spec.cardType] : [];
   if (types.length && !types.includes(candidate.type)) return false;
   if (spec.factions?.length && !candidate.factions.some((faction) => spec.factions!.includes(faction))) return false;
+  if (spec.cardName) {
+    const normalize = (value: string) => value
+      .replace(/[\[\]]/g, "")
+      .replace(/^(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\s+/i, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+    const wanted = normalize(spec.cardName);
+    if (![candidate.displayName, candidate.name].some((value) => normalize(value) === wanted)) return false;
+  }
   const printedCost = candidate.cost === "X" ? Number.POSITIVE_INFINITY : candidate.cost;
   if (spec.maximumCost != null && printedCost > spec.maximumCost) return false;
   if (spec.minimumCost != null && printedCost < spec.minimumCost) return false;

@@ -308,8 +308,29 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     free: true,
   });
   const persistentFreePermission = /for the rest of the turn,\s*both players may play Evo cards from their hand for free/i.test(text);
+  const freeFactionPlay = text.match(/play\s+an?\s+\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+card(?:\s+(?:with cost|that costs?)\s+(\d+)\s+\[Energy\]\s+or less)?\s+for free/i);
+  if (freeFactionPlay) actions.push({
+    kind: "play",
+    source: "hand",
+    free: true,
+    factions: [freeFactionPlay[1] as Faction],
+    maximumCost: freeFactionPlay[2] ? Number(freeFactionPlay[2]) : undefined,
+    sourceOwner: "controller",
+  });
+  const namedFreePlay = !freeFactionPlay
+    ? text.match(/play\s+\[([A-Za-z]+)\]\s+([A-Za-z][A-Za-z0-9'’ -]*?)\s+for free/i)
+    : null;
+  if (namedFreePlay) actions.push({
+    kind: "play",
+    source: "hand",
+    free: true,
+    cardName: `${namedFreePlay[1]} ${namedFreePlay[2].trim()}`,
+    sourceOwner: "controller",
+  });
+  const chosenCardFreePlay = /play that card for free/i.test(text);
+  if (chosenCardFreePlay) actions.push({ kind: "play", source: "hand", free: true, sourceOwner: "controller" });
   const freeHandPlay = text.match(/play\s+(?:an?|the)?\s*(Action|Hero|Evo|card)(?:\s+card)?(?:\s+that costs?\s+(\d+)\s+\[Energy\]\s+or less)?(?:\s+from\s+(?:your\s+)?hand|\s+from\s+it)?\s+for free|play that Bakugan(?:'s|’s) Evo card for free/i);
-  if (freeHandPlay && !persistentFreePermission) actions.push({
+  if (freeHandPlay && !persistentFreePermission && !freeFactionPlay && !namedFreePlay && !chosenCardFreePlay) actions.push({
     kind: "play",
     source: "hand",
     free: true,

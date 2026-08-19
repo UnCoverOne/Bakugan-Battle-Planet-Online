@@ -65,6 +65,8 @@ export type ChoiceSpec = {
   cardType?: CardType;
   cardTypes?: CardType[];
   factions?: Faction[];
+  /** Exact printed card identity requested by an effect-originated play. */
+  cardName?: string;
   /** Preferred ownership primitive for the zone/object pool being selected. */
   owner?: ZoneOwner;
   /** @deprecated Compatibility alias. New definitions should use owner. */
@@ -137,7 +139,7 @@ export type RuleAction =
   | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: number }
   | { kind: "reveal"; object: "bakucore" | "deck-top"; amount: number }
   | { kind: "reorder-deck"; amount: number }
-  | { kind: "play"; source: "revealed-deck" | "hand" | "self"; free: boolean; cardType?: CardType; maximumCost?: number; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
+  | { kind: "play"; source: "revealed-deck" | "hand" | "self"; free: boolean; cardType?: CardType; factions?: Faction[]; cardName?: string; maximumCost?: number; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "attack"; amount: number; faction?: Faction }
   | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: number; targetKinds?: Array<"card" | "trigger" | "copy"> }
   | { kind: "search"; cardType?: string; amount: number }

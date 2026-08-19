@@ -50,7 +50,7 @@ test("Pact of Darkness exposes an unaffordable Sacrifice route instead of allowi
   assert.ok(payment);
   const sacrifice = payment.options.find((option) => option.id.endsWith(":discard-for-free"));
   assert.equal(sacrifice?.disabled, true);
-  assert.match(sacrifice?.description ?? "", /3 Energy.*only 2/i);
+  assert.match(sacrifice?.description ?? "", /Not enough Energy.*3 required.*2 available/i);
   assert.throws(() => submitCardChoice(next, first.id, { paymentMode: sacrifice!.id }), /illegal selection/i);
   assert.equal(next.players[0].hand.some((candidate) => candidate.id === fodder.id), true);
 });
@@ -203,4 +203,54 @@ test("Trick Trap's shared free-play selector retains Hero type and printed-cost 
   assert.ok(play);
   assert.equal(play.cardType, "Hero");
   assert.equal(play.maximumCost, 3);
+});
+
+
+test("faction-qualified free plays retain faction and cost restrictions", () => {
+  for (const [id, expectedMaximum] of [["bb-222", 4], ["bb-226", undefined]] as const) {
+    const source = card(id, `${id}-free-model`);
+    const play = compileCardEffect(source).instructions
+      .flatMap((instruction) => instruction.effects)
+      .find((action): action is Extract<RuleAction, { kind: "play" }> => action.kind === "play");
+    assert.ok(play, `${id} should compile a free play`);
+    assert.deepEqual(play.factions, ["Aquos"]);
+    assert.equal(play.maximumCost, expectedMaximum);
+    const choice = ruleDefinitionForCard(source).abilities
+      .flatMap((ability) => ability.instructions)
+      .flatMap((instruction) => instruction.choices)
+      .find((candidate) => candidate.id === "handCardIds");
+    assert.deepEqual(choice?.factions, ["Aquos"]);
+    assert.equal(choice?.maximumCost, expectedMaximum);
+    assert.equal(choice?.playForFree, true);
+  }
+});
+
+test("named Underdog free plays compile to an exact-card shared play request", () => {
+  for (const id of ["aa-91", "aa-167", "aa-171", "aa-178", "aa-197", "aa-201"] as const) {
+    const source = card(id, `${id}-named-free`);
+    const play = compileCardEffect(source).instructions
+      .flatMap((instruction) => instruction.effects)
+      .find((action): action is Extract<RuleAction, { kind: "play" }> => action.kind === "play");
+    assert.ok(play?.cardName, `${id} should retain the named card identity`);
+    const choice = ruleDefinitionForCard(source).abilities
+      .flatMap((ability) => ability.instructions)
+      .flatMap((instruction) => instruction.choices)
+      .find((candidate) => candidate.id === "handCardIds");
+    assert.equal(choice?.cardName, play.cardName);
+    assert.equal(choice?.playForFree, true);
+  }
+});
+
+test("Darkus Titan Hydranoid carries the opponent-owned chosen Action into the shared play request", () => {
+  const source = card("aa-118", "hydranoid-chosen-card");
+  const definition = ruleDefinitionForCard(source);
+  const instructions = definition.abilities.flatMap((ability) => ability.instructions);
+  const selection = instructions.flatMap((instruction) => instruction.choices).find((choice) => choice.id === "handCardIds");
+  assert.equal(selection?.owner, "opponent");
+  assert.equal(selection?.cardType, "Action");
+  const play = instructions.flatMap((instruction) => instruction.effects)
+    .find((action): action is Extract<RuleAction, { kind: "play" }> => action.kind === "play");
+  assert.ok(play);
+  assert.equal(play.sourceOwner, "opponent");
+  assert.equal(play.free, true);
 });

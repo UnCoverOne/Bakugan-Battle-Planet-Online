@@ -159,6 +159,20 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     index += branchInstructions.length;
   }
 
+  // A later “play that card” clause reuses a selection made in the previous
+  // sentence. Carry the selected hidden-zone owner forward without encoding a
+  // printing ID in the executor.
+  for (let index = 1; index < instructions.length; index += 1) {
+    const current = instructions[index];
+    if (!/play that card for free/i.test(current.sourceText)) continue;
+    const selected = instructions[index - 1].choices.find((candidate) => candidate.id === "handCardIds");
+    if (!selected) continue;
+    current.effects = current.effects.map((effect) => (
+      effect.kind === "play" ? { ...effect, sourceOwner: selected.owner ?? selected.targetOwner ?? "controller" } : effect
+    ));
+    current.actions = current.effects;
+  }
+
   // A sentence-ending "instead" clause replaces the immediately preceding
   // effect. Detect that grammar directly so every set receives the same rules
   // treatment and prose such as "instead of [B]" is left alone.
@@ -387,9 +401,38 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   if (/search your deck/i.test(text)) result.push(choice("deckCardId", timing, "deck-card", "Choose a card from your deck", false, "controller", "private"));
   if (/top .*cards?.*any order/i.test(text)) result.push(choice("orderedCardIds", timing, "deck-card", "Order the revealed cards", false, "controller", "private"));
   const persistentFreePermission = /for the rest of the turn,\s*both players may play Evo cards from their hand for free/i.test(text);
+  const freeFactionPlay = text.match(/play\s+an?\s+\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+card(?:\s+(?:with cost|that costs?)\s+(\d+)\s+\[Energy\]\s+or less)?\s+for free/i);
+  if (freeFactionPlay) {
+    const selected = choice("handCardIds", "resolve", "hand-card", "Choose a card to play", false, "controller", "private");
+    selected.factions = [freeFactionPlay[1] as GameCard["faction"]];
+    if (freeFactionPlay[2]) selected.maximumCost = Number(freeFactionPlay[2]);
+    selected.owner = "controller";
+    selected.targetOwner = selected.owner;
+    selected.playForFree = true;
+    result.push(selected);
+  }
+  const namedFreePlay = !freeFactionPlay
+    ? text.match(/play\s+\[([A-Za-z]+)\]\s+([A-Za-z][A-Za-z0-9'’ -]*?)\s+for free/i)
+    : null;
+  if (namedFreePlay) {
+    const selected = choice("handCardIds", "resolve", "hand-card", "Choose the named card to play", false, "controller", "private");
+    selected.cardName = `${namedFreePlay[1]} ${namedFreePlay[2].trim()}`;
+    selected.owner = "controller";
+    selected.targetOwner = selected.owner;
+    selected.playForFree = true;
+    result.push(selected);
+  }
+  const chosenOpponentAction = /look at your opponent(?:'s|’s) hand and choose an Action card/i.test(text);
+  if (chosenOpponentAction) {
+    const selected = choice("handCardIds", "resolve", "hand-card", "Choose an Action card from your opponent's hand", false, "controller", "private");
+    selected.cardType = "Action";
+    selected.owner = "opponent";
+    selected.targetOwner = selected.owner;
+    result.push(selected);
+  }
   const freeHandPlay = text.match(/play\s+(?:an?|the)?\s*(Action|Hero|Evo|card)(?:\s+card)?(?:\s+that costs?\s+(\d+)\s+\[Energy\]\s+or less)?(?:\s+from\s+(?:your\s+)?hand|\s+from\s+it)?\s+for free|play that Bakugan(?:'s|’s) Evo card for free/i);
-  if (freeHandPlay && !persistentFreePermission) {
-    const selected = choice("handCardIds", timing, "hand-card", "Choose a card to play", false, "controller", "private");
+  if (freeHandPlay && !persistentFreePermission && !freeFactionPlay && !namedFreePlay) {
+    const selected = choice("handCardIds", "resolve", "hand-card", "Choose a card to play", false, "controller", "private");
     if (/that Bakugan(?:'s|’s) Evo/i.test(text)) selected.cardType = "Evo";
     else if (freeHandPlay[1] && freeHandPlay[1].toLowerCase() !== "card") selected.cardType = freeHandPlay[1] as GameCard["type"];
     if (freeHandPlay[2]) selected.maximumCost = Number(freeHandPlay[2]);
@@ -400,7 +443,11 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   }
   if (/Battle Mastery:.*Choose one|choose one of the following/i.test(text)) result.push(choice("mode", timing, "mode", "Choose a Battle Mastery mode"));
   if (card.cost === "X" || /choose (?:a value for )?x/i.test(text)) result.push(choice("xValue", "pay", "number", "Choose X"));
-  if (/\bmay\b/i.test(text) && !/may discard|may recharge up to/i.test(text)) result.push(choice("confirmed", "resolve", "mode", "Use this optional effect?", false));
+  if ((/\bmay\b/i.test(text) || /\byou can play\b/i.test(text))
+    && !persistentFreePermission
+    && !/may discard|may recharge up to/i.test(text)) {
+    result.push(choice("confirmed", "resolve", "mode", "Use this optional effect?", false));
+  }
   return result.filter((item, index, values) => values.findIndex((candidate) => candidate.id === item.id && candidate.timing === item.timing) === index);
 }
 

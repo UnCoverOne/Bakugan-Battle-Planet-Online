@@ -2467,6 +2467,17 @@ return;
         selected = player.deckCards.find((candidate) => candidate.id === revealedId);
       }
       if (!selected || (action.cardType && selected.type !== action.cardType)) return;
+      if (action.factions?.length && !selected.factions.some((faction) => action.factions!.includes(faction))) return;
+      if (action.cardName) {
+        const normalize = (value: string) => value
+          .replace(/[\[\]]/g, "")
+          .replace(/^(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\s+/i, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase();
+        const wanted = normalize(action.cardName);
+        if (![selected.displayName, selected.name].some((value) => normalize(value) === wanted)) return;
+      }
       const printedCost = selected.cost === "X" ? Number.POSITIVE_INFINITY : selected.cost;
       if (action.maximumCost != null && printedCost > action.maximumCost) return;
       if (action.source === "revealed-deck" && selected.type === "Flip") {
