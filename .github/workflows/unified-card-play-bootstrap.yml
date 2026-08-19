@@ -1,0 +1,27 @@
+name: Unified Card Play Bootstrap
+
+on:
+  push:
+    branches:
+      - feature/unified-card-play-pipeline
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    if: ${{ !contains(github.event.head_commit.message, '[pipeline-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Inspect free-play coverage
+        run: |
+          echo '=== source matches ==='
+          grep -RniE 'for free|play (an?|the|a )?.*from|kind: "play"|source: "revealed-deck"' lib tests | head -n 400 || true
+          echo '=== catalogue cards containing free ==='
+          node --import tsx -e 'import { CARDS } from "./lib/data.ts"; for (const c of CARDS.filter(c => /for free|this is free/i.test(c.effect))) console.log(c.catalogId, c.name, "::", c.effect)'
