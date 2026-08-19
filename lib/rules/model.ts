@@ -1,4 +1,5 @@
 import type { CardChoices, CardType, CoreType, Faction, GameCard } from "../game";
+import type { AmountExpression, ChooserOwner, PlayerScope, ZoneOwner } from "./primitives";
 
 export type RulesCardId = `${"bb" | "br" | "aa" | "ex"}-${number}${string}`;
 export type RulesObjectStatus = "pending" | "resolving" | "resolved" | "negated";
@@ -19,6 +20,7 @@ export type EntitySelector =
   | "controller"
   | "opponent"
   | "batch-object"
+  | "player"
   | "chosen-card"
   | "self";
 
@@ -56,12 +58,15 @@ export type ChoiceSpec = {
   minimum?: number;
   maximum?: number;
   optional?: boolean;
-  chooser: "controller" | "opponent" | "each-player";
+  chooser: ChooserOwner;
   visibility?: ChoiceVisibility;
   cardType?: CardType;
   cardTypes?: CardType[];
   factions?: Faction[];
-  targetOwner?: "controller" | "opponent" | "any";
+  /** Preferred ownership primitive for the zone/object pool being selected. */
+  owner?: ZoneOwner;
+  /** @deprecated Compatibility alias. New definitions should use owner. */
+  targetOwner?: ZoneOwner;
   maximumCost?: number;
   minimumCost?: number;
   objectKinds?: Array<"card" | "trigger" | "copy">;
@@ -112,12 +117,12 @@ export type CostEffect =
   | { kind: "cost-alternative"; label: string; components: CostEffect[] };
 
 export type RuleAction =
-  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: number; scale?: string; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices }
+  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: number; amountExpression?: AmountExpression; scale?: string; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices }
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: number; duration: RulesDuration }
-  | { kind: "draw"; amount: number; scale?: string }
-  | { kind: "discard"; amount: number; minimum: number; maximum: number; repeated?: boolean }
+  | { kind: "draw"; amount: number; amountExpression?: AmountExpression; scale?: string; playerScope?: PlayerScope }
+  | { kind: "discard"; amount: number; amountExpression?: AmountExpression; minimum: number; maximum: number; repeated?: boolean; playerScope?: PlayerScope }
   | { kind: "energize"; amount: number; source: "hand" | "deck" | "hero" | "self"; enters: "charged" | "uncharged" }
-  | { kind: "generate-energy"; amount: number; scale?: string }
+  | { kind: "generate-energy"; amount: number; amountExpression?: AmountExpression; scale?: string; playerScope?: PlayerScope }
   | { kind: "recharge-energy"; amount: number | "all" }
   | { kind: "set-stat"; stat: "power" | "damage"; value: number }
   | { kind: "set-rule"; rule: "victor-stat"; value: "power" | "damage"; duration: RulesDuration }
@@ -132,7 +137,7 @@ export type RuleAction =
   | { kind: "attack"; amount: number; faction?: Faction }
   | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: number; targetKinds?: Array<"card" | "trigger" | "copy"> }
   | { kind: "search"; cardType?: string; amount: number }
-  | { kind: "copy"; target: "next-action" | "batch-action"; independentChoices: true }
+  | { kind: "copy"; target: "next-action" | "batch-action" | "chosen-batch-object"; independentChoices: boolean; targetChoiceId?: keyof CardChoices; count?: AmountExpression; controller?: PlayerScope }
   | { kind: "cost"; amount: number; operation: "reduce" | "increase" | "free"; duration: RulesDuration }
   | { kind: "reroll"; target: "controller" | "opponent"; mandatory: boolean; requiresDiscard: boolean }
   | { kind: "coin-flip" }
@@ -219,6 +224,7 @@ export type RuleObject = {
   /** Marks Dragonoid Maximus's unique, unrespondable alternate-win batch object. */
   alternateWin?: boolean;
   independentChoiceSetId: string;
+  copiedFromObjectId?: string;
 };
 
 export type ContinuousModifier = {

@@ -58,7 +58,10 @@ function battleMasteryBranches(text: string): BattleMasteryBranch[] | null {
 }
 
 function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
-  const normalized = source.replace(/\s*\n\s*/g, " ").trim();
+  const normalized = source.replace(/\s*\n\s*/g, " ").trim().replace(
+    /(\bNegate an Action card\.)\s+(You may copy its effect(?: and make your own selections for it)?\.)/gi,
+    "$1 $2",
+  );
   const clauses = normalized
     ? normalized.split(/(?<=\.)\s+/).map((clause) => clause.trim()).filter(Boolean)
       .flatMap((clause) => {
@@ -233,7 +236,8 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
       "chosen-bakugan",
       "Choose the matching Character",
     );
-    selected.targetOwner = "controller";
+    selected.owner = "controller";
+    selected.targetOwner = selected.owner;
     result.push(selected);
   }
 
@@ -244,20 +248,33 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
       ? ["Hero", "Action"]
       : [negateMatch[1] as GameCard["type"]];
     selected.objectKinds = ["card"];
-    selected.targetOwner = "opponent";
+    selected.owner = "opponent";
+    selected.targetOwner = selected.owner;
     selected.maximumCost = printedMaximum;
+    result.push(selected);
+  }
+
+  if (!negateMatch && /copy (?:the effect of )?an? Action card|copy an? Action card(?:'s|’s) effect/i.test(text)) {
+    const selected = choice("targetEffectId", targetTiming, "batch-object", "Choose an Action effect to copy");
+    selected.cardTypes = ["Action"];
+    selected.objectKinds = ["card", "copy"];
+    selected.owner = "any";
+    selected.targetOwner = selected.owner;
     result.push(selected);
   }
 
   if (cardId === "aa-50") {
     const enemy = choice("targetBakuganId", "announce", "chosen-bakugan", "Choose the enemy Bakugan");
-    enemy.targetOwner = "opponent";
+    enemy.owner = "opponent";
+    enemy.targetOwner = enemy.owner;
     const friendly = choice("secondaryTargetBakuganId", "announce", "chosen-bakugan", "Choose one of your Bakugan");
-    friendly.targetOwner = "controller";
+    friendly.owner = "controller";
+    friendly.targetOwner = friendly.owner;
     result.push(enemy, friendly);
   } else if (explicitBakuganTarget && (cardId !== "aa-99" || defaultTiming === "resolve")) {
     const selected = choice("targetBakuganId", targetTiming, "chosen-bakugan", "Choose a Bakugan");
-    selected.targetOwner = targetOwner;
+    selected.owner = targetOwner;
+    selected.targetOwner = selected.owner;
     if (/open Bakugan/i.test(text) || attachesCore) selected.openState = "open";
     if (/didn['’]?t open this turn|did not open this turn/i.test(text)) selected.notOpenedThisTurn = true;
     if (/another open Bakugan/i.test(text)) selected.excludeSourceBakugan = true;
@@ -266,22 +283,25 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     if (faction) selected.factions = [faction as GameCard["faction"]];
     result.push(selected);
   }
-  if (/choose a player/i.test(text)) result.push(choice("targetPlayerId", timing, "controller", "Choose a player"));
+  if (/choose a player/i.test(text)) result.push(choice("targetPlayerId", timing, "player", "Choose a player"));
   if (!/destroy all/i.test(text) && /destroy a hero|choose a hero|take control of a hero/i.test(text)) {
     const selected = choice("targetHeroId", targetTiming, "hero", "Choose a Hero");
-    selected.targetOwner = takeControlHero ? "opponent" : targetOwner;
+    selected.owner = takeControlHero ? "opponent" : targetOwner;
+    selected.targetOwner = selected.owner;
     selected.maximumCost = printedMaximum;
     result.push(selected);
   }
   if (!/destroy all/i.test(text) && /destroy an evo|choose an evo/i.test(text)) {
     const selected = choice("targetEvoId", targetTiming, "evo", "Choose an Evo");
-    selected.targetOwner = targetOwner;
+    selected.owner = targetOwner;
+    selected.targetOwner = selected.owner;
     selected.notPlayedThisTurn = /not played this turn/i.test(text);
     result.push(selected);
   }
   if (!/destroy all/i.test(text) && /destroy (?:an?|two|three) (?:enemy )?energy|choose an energy/i.test(text)) {
     const selected = choice("targetEnergyIds", targetTiming, "energy-card", "Choose Energy");
-    selected.targetOwner = targetOwner;
+    selected.owner = targetOwner;
+    selected.targetOwner = selected.owner;
     const amountText = text.match(/destroy (an?|one|two|three|\d+) (?:enemy )?energy/i)?.[1]?.toLowerCase();
     const amount = amountText === "two" ? 2 : amountText === "three" ? 3 : Number(amountText) || 1;
     selected.minimum = cardId === "bb-97" ? 1 : amount;
@@ -293,7 +313,8 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
     const amount = words[rechargeChoice[1].toLowerCase()] ?? Math.max(1, Number(rechargeChoice[1]) || 1);
     const selected = choice("targetEnergyIds", "resolve", "energy-card", `Choose up to ${amount} uncharged Energy cards`, true);
-    selected.targetOwner = "controller";
+    selected.owner = "controller";
+    selected.targetOwner = selected.owner;
     selected.energyState = "uncharged";
     selected.minimum = 0;
     selected.maximum = amount;
@@ -304,7 +325,8 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     const selected = choice("coreCell", targetTiming, "bakucore", "Choose a BakuCore");
     // Cores on the Field are shared game objects; words such as "your" in an
     // attachment effect qualify the Bakugan target, not ownership of the Core.
-    selected.targetOwner = attachesCore ? "any" : targetOwner;
+    selected.owner = attachesCore ? "any" : targetOwner;
+    selected.targetOwner = selected.owner;
     selected.attachmentState = attachesCore || /turn .*face up/i.test(text)
       ? "unattached"
       : /remove|return .*field face down/i.test(text) ? "attached" : undefined;
@@ -313,7 +335,8 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   }
   if (/choose a non-energy card in play/i.test(text)) {
     const selected = choice("targetCardId", targetTiming, "card-in-play", "Choose a non-Energy card in play");
-    selected.targetOwner = targetOwner;
+    selected.owner = targetOwner;
+    selected.targetOwner = selected.owner;
     result.push(selected);
   }
   if (/\bsacrifice\b|\bdiscard\s+(?:a|an|one|two|three|any|up to|\d+)\s+cards?\b|\bdiscard\s+cards?\s+from your hand\b/i.test(text)
@@ -321,15 +344,20 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     && !/choose a player to discard/i.test(text)
     && !(/if you open on the Reroll/i.test(text) && /\bVictor\s*:/i.test(text))) {
     const optional = /up to|any number|may discard/i.test(text);
+    const eachPlayerChooses = /\beach player\b|\ball players\b|\bboth players\b/i.test(text);
+    const opponentOwnsZone = /opponent(?:'s|’s)\s+hand|opponent\s+(?:may\s+)?discards?/i.test(text);
+    const opponentChooses = /(?:your\s+)?opponent\s+(?:may\s+)?discards?/i.test(text);
     const selected = choice(
       "discardCardIds",
       "resolve",
       "hand-card",
       /sacrifice/i.test(text) ? "Choose cards to sacrifice" : "Choose cards to discard",
       optional,
-      /opponent/i.test(text) ? "opponent" : "controller",
+      eachPlayerChooses ? "each-player" : opponentChooses ? "opponent" : "controller",
       "private",
     );
+    selected.owner = eachPlayerChooses ? "chooser" : opponentOwnsZone ? "opponent" : "controller";
+    selected.targetOwner = selected.owner;
     const printedAmount = text.match(/discard (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?/i)?.[1];
     const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
     const amount = printedAmount ? words[printedAmount.toLowerCase()] ?? Number(printedAmount) : 1;
@@ -506,6 +534,33 @@ export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
       ordinary.push(instruction);
     }
   }
+  for (let index = 0; index < ordinary.length - 1; index += 1) {
+    const current = ordinary[index];
+    const followUp = ordinary[index + 1];
+    const negateIndex = current.effects.findIndex((effect) => effect.kind === "negate");
+    if (negateIndex < 0 || !/\bmay copy (?:its|that card(?:'s|’s)) effect\b/i.test(followUp.sourceText)) continue;
+    const negate = current.effects[negateIndex];
+    if (negate.kind !== "negate") continue;
+    const copiedNegate: RuleAction = { ...negate, copy: true };
+    current.effects = current.effects.map((effect, effectIndex) => effectIndex === negateIndex ? copiedNegate : effect);
+    current.actions = current.effects;
+    if (!current.choices.some((choice) => choice.id === "confirmed")) {
+      current.choices.push({
+        id: "confirmed",
+        timing: "resolve",
+        selector: "mode",
+        label: "Copy the negated effect?",
+        minimum: 1,
+        maximum: 1,
+        optional: false,
+        chooser: "controller",
+        visibility: "public",
+      });
+    }
+    current.sourceText = `${current.sourceText} ${followUp.sourceText}`.trim();
+    ordinary.splice(index + 1, 1);
+  }
+
   const result: AbilityDefinition[] = [];
   if (["Hero", "Evo"].includes(card.type) && triggered.length && !ordinary.length) {
     result.push({

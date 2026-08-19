@@ -3,6 +3,7 @@ import { ruleDefinitionForCard } from "./catalogue";
 import { canonicalEvoTargetAllowed } from "./identity";
 import { activeTappedEnergyIds } from "./costs";
 import type { ChoiceSpec, ChoiceTiming } from "./model";
+import { chooserIdsFor, zoneOwnerIdsFor } from "./primitives";
 
 export type ChoiceKind =
   | "confirm" | "bakugan" | "player" | "hero" | "evo" | "energy" | "core" | "card"
@@ -90,10 +91,6 @@ function option(
 ): ChoiceOption {
   return { id, label, ownerId, description, card };
 }
-function chooserFor(match: MatchState, controllerId: string, spec: ChoiceSpec) {
-  if (spec.chooser === "opponent") return opponentOf(match, controllerId).id;
-  return controllerId;
-}
 function rangeFor(spec: ChoiceSpec, available: number) {
   const printedMinimum = Math.max(0, spec.minimum ?? (spec.optional ? 0 : 1));
   const printedMaximum = Math.max(printedMinimum, spec.maximum ?? 1);
@@ -111,12 +108,16 @@ function topDeckCount(spec: ChoiceSpec) {
   return numeric ? Math.max(0, Number(numeric)) : 0;
 }
 
-function targetOwners(match: MatchState, controllerId: string, spec: ChoiceSpec) {
-  const controller = playerById(match, controllerId);
-  const opponent = opponentOf(match, controllerId);
-  if (spec.targetOwner === "controller") return [controller];
-  if (spec.targetOwner === "opponent") return [opponent];
-  return match.players;
+function targetOwners(
+  match: MatchState,
+  controllerId: string,
+  spec: ChoiceSpec,
+  chooserId = controllerId,
+  priorChoices: CardChoices = {},
+) {
+  const owner = spec.owner ?? spec.targetOwner ?? "any";
+  const ownerIds = new Set(zoneOwnerIdsFor(match, owner, { controllerId, chooserId, choices: priorChoices }));
+  return match.players.filter((player) => ownerIds.has(player.id));
 }
 
 function cardMatchesSpec(candidate: GameCard, spec: ChoiceSpec) {
@@ -135,6 +136,7 @@ function optionsFor(
   card: GameCard,
   spec: ChoiceSpec,
   priorChoices: CardChoices = {},
+  chooserId = controllerId,
 ): ChoiceOption[] {
   const controller = playerById(match, controllerId);
   const opponent = opponentOf(match, controllerId);
@@ -142,8 +144,8 @@ function optionsFor(
     case "batch-object": {
       const owners = new Set(targetOwners(match, controllerId, {
         ...spec,
-        targetOwner: spec.targetOwner ?? "opponent",
-      }).map((owner) => owner.id));
+        owner: spec.owner ?? spec.targetOwner ?? "opponent",
+      }, chooserId, priorChoices).map((owner) => owner.id));
       return match.batch
         .filter((object) => owners.has(object.controllerId))
         .filter((object) => !object.negated && object.status !== "negated" && object.status !== "resolved")
@@ -164,9 +166,11 @@ function optionsFor(
     case "all-enemy": {
       const evoSourceChoice = card.type === "Evo"
         && (spec.id === "sourceBakuganId" || spec.label === "Choose the matching Character");
-      const owners = spec.selector === "active-enemy" || spec.selector === "all-enemy" ? [opponent]
-        : evoSourceChoice ? [controller]
-          : targetOwners(match, controllerId, spec);
+      const owners = spec.selector === "active-enemy" || spec.selector === "all-enemy"
+        ? match.players.filter((owner) => owner.id !== controllerId)
+        : spec.selector === "active-friendly" || spec.selector === "all-friendly" || evoSourceChoice
+          ? [controller]
+          : targetOwners(match, controllerId, spec, chooserId, priorChoices);
       return owners.flatMap((owner) => owner.bakugan
         .filter((bakugan) => !evoSourceChoice || canonicalEvoTargetAllowed(ruleDefinitionForCard(card), bakugan))
         .filter((bakugan) => !spec.openState || (spec.openState === "open" ? bakugan.open : !bakugan.open))
@@ -175,23 +179,27 @@ function optionsFor(
         .filter((bakugan) => !spec.factions?.length || spec.factions.includes(bakugan.faction))
         .map((bakugan) => option(bakugan.id, `${bakugan.name} • ${bakugan.open ? "Open" : "Closed"}`, owner.id)));
     }
+    case "player":
+      return match.players.map((candidate) => option(candidate.id, candidate.name, candidate.id));
     case "controller":
+      return [option(controller.id, controller.name, controller.id)];
     case "opponent":
-      return match.players.map((player) => option(player.id, player.name, player.id));
+      return match.players.filter((candidate) => candidate.id !== controllerId)
+        .map((candidate) => option(candidate.id, candidate.name, candidate.id));
     case "hero":
-      return targetOwners(match, controllerId, spec).flatMap((owner) => owner.heroes
+      return targetOwners(match, controllerId, spec, chooserId, priorChoices).flatMap((owner) => owner.heroes
         .filter((hero) => cardMatchesSpec(hero, spec))
         .filter((hero) => !spec.notPlayedThisTurn || hero.playedTurn !== match.turn)
         .map((hero) => option(hero.id, hero.displayName || hero.name, owner.id, `${hero.cost === "X" ? "X" : hero.cost} Energy`, cardPreview(hero))));
     case "evo":
-      return targetOwners(match, controllerId, spec).flatMap((owner) => owner.bakugan.flatMap((bakugan) => {
+      return targetOwners(match, controllerId, spec, chooserId, priorChoices).flatMap((owner) => owner.bakugan.flatMap((bakugan) => {
         const evo = bakugan.evoStack.at(-1);
         return evo && cardMatchesSpec(evo, spec) && (!spec.notPlayedThisTurn || evo.playedTurn !== match.turn)
           ? [option(evo.id, evo.displayName || evo.name, owner.id, `${evo.cost === "X" ? "X" : evo.cost} Energy`, cardPreview(evo))]
           : [];
       }));
     case "card-in-play":
-      return targetOwners(match, controllerId, spec).flatMap((owner) => [
+      return targetOwners(match, controllerId, spec, chooserId, priorChoices).flatMap((owner) => [
         ...owner.heroes
           .filter((candidate) => cardMatchesSpec(candidate, spec))
           .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, owner.id, "Hero in play", cardPreview(candidate))),
@@ -203,7 +211,7 @@ function optionsFor(
         }),
       ]);
     case "energy-card":
-      return targetOwners(match, controllerId, spec).flatMap((owner) => {
+      return targetOwners(match, controllerId, spec, chooserId, priorChoices).flatMap((owner) => {
         const uncharged = new Set(activeTappedEnergyIds(owner, match.turn));
         return owner.energyZone
           .filter((energy) => cardMatchesSpec(energy, spec))
@@ -212,13 +220,14 @@ function optionsFor(
           .map((energy) => option(energy.id, spec.energyState === "uncharged" ? "Uncharged Energy" : "Face-down Energy", owner.id));
       });
     case "bakucore": {
-      const ownerIds = new Set(targetOwners(match, controllerId, spec).map((owner) => owner.id));
+      const ownerIds = new Set(targetOwners(match, controllerId, spec, chooserId, priorChoices).map((owner) => owner.id));
       return match.placements
         .filter((placement) => spec.attachmentState !== "attached" || Boolean(placement.attachedTo))
         .filter((placement) => spec.attachmentState !== "unattached" || !placement.attachedTo)
         .filter((placement) => !spec.coreTypes?.length || spec.coreTypes.includes(placement.core.type))
         .filter((placement) => {
-          if (spec.targetOwner === "any" || !spec.targetOwner) return true;
+          const requestedOwner = spec.owner ?? spec.targetOwner;
+          if (requestedOwner === "any" || !requestedOwner) return true;
           const attachedOwner = placement.attachedTo
             ? match.players.find((owner) => owner.bakugan.some((bakugan) => bakugan.id === placement.attachedTo))?.id
             : placement.playerId;
@@ -227,28 +236,34 @@ function optionsFor(
         .map((placement) => option(placement.cell, placement.attachedTo ? `Attached ${placement.core.type} Core` : `${placement.core.type} Core`, placement.playerId));
     }
     case "hand-card": {
-      const owner = spec.chooser === "opponent" ? opponent : controller;
-      const active = owner.bakugan.find((bakugan) => bakugan.id === match.selected[owner.id]);
-      return owner.hand
-        .filter((candidate) => candidate.id !== card.id && (!spec.cardType || candidate.type === spec.cardType))
-        .filter((candidate) => candidate.type !== "Evo" || !spec.cardType || Boolean(active && canonicalEvoTargetAllowed(ruleDefinitionForCard(candidate), active)))
-        .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, owner.id));
+      const ownerSpec: ChoiceSpec = { ...spec, owner: spec.owner ?? spec.targetOwner ?? "controller" };
+      return targetOwners(match, controllerId, ownerSpec, chooserId, priorChoices).flatMap((owner) => {
+        const active = owner.bakugan.find((bakugan) => bakugan.id === match.selected[owner.id]);
+        return owner.hand
+          .filter((candidate) => candidate.id !== card.id && cardMatchesSpec(candidate, spec))
+          .filter((candidate) => candidate.type !== "Evo" || !spec.cardType || Boolean(active && canonicalEvoTargetAllowed(ruleDefinitionForCard(candidate), active)))
+          .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, owner.id));
+      });
     }
     case "deck-card": {
       const count = topDeckCount(spec);
-      const candidates = (count ? controller.deckCards.slice(0, count) : controller.deckCards)
-        .filter((candidate) => !spec.cardType || candidate.type === spec.cardType);
-      return candidates.map((candidate, index) => option(
-        candidate.id,
-        candidate.displayName || candidate.name,
-        controller.id,
-        count ? `Top card ${index + 1} of ${candidates.length}` : undefined,
-        cardPreview(candidate),
-      ));
+      const ownerSpec: ChoiceSpec = { ...spec, owner: spec.owner ?? spec.targetOwner ?? "controller" };
+      return targetOwners(match, controllerId, ownerSpec, chooserId, priorChoices).flatMap((owner) => {
+        const candidates = (count ? owner.deckCards.slice(0, count) : owner.deckCards)
+          .filter((candidate) => cardMatchesSpec(candidate, spec));
+        return candidates.map((candidate, index) => option(
+          candidate.id,
+          candidate.displayName || candidate.name,
+          owner.id,
+          count ? `Top card ${index + 1} of ${candidates.length}` : undefined,
+          cardPreview(candidate),
+        ));
+      });
     }
     case "number": {
-      const maximum = Math.max(0, controller.energyZone.length + controller.energy);
-      return Array.from({ length: maximum + 1 }, (_, value) => option(String(value), String(value), controller.id));
+      const chooser = playerById(match, chooserId);
+      const maximum = Math.max(0, chooser.energyZone.length + chooser.energy);
+      return Array.from({ length: maximum + 1 }, (_, value) => option(String(value), String(value), chooser.id));
     }
     case "mode": {
       if (spec.id === "confirmed") return [option("yes", "Yes"), option("no", "No")];
@@ -270,7 +285,7 @@ function optionsFor(
 function kindFor(spec: ChoiceSpec): ChoiceKind {
   if (spec.selector === "batch-object") return "batch-object";
   if (["chosen-bakugan", "active-friendly", "active-enemy", "all-friendly", "all-enemy"].includes(spec.selector)) return "bakugan";
-  if (spec.selector === "controller" || spec.selector === "opponent") return "player";
+  if (spec.selector === "player" || spec.selector === "controller" || spec.selector === "opponent") return "player";
   if (spec.selector === "hero") return "hero";
   if (spec.selector === "evo") return "evo";
   if (spec.selector === "card-in-play") return "card";
@@ -293,39 +308,35 @@ export function buildChoiceSchemaFromSpecs(
   priorChoices: CardChoices = {},
 ): ChoiceSchema {
   const selected = specs.filter((spec) => spec.timing === timing);
-  const fields = selected.map((original): ChoiceField => {
+  const simultaneous = selected.some((spec) => spec.chooser === "each-player");
+  const fields = selected.flatMap((original): ChoiceField[] => {
     let spec = original;
     if (card.catalogId === "bb-97" && spec.id === "targetEnergyIds" && timing === "announce") {
       const projectedHandSize = playerById(match, controllerId).hand.filter((candidate) => candidate.id !== card.id).length;
       const amount = projectedHandSize === 0 ? 2 : 1;
       spec = { ...spec, minimum: amount, maximum: amount };
     }
-    const options = optionsFor(match, controllerId, card, spec, priorChoices);
-    const range = rangeFor(spec, options.length);
-    return {
-      id: spec.id,
-      kind: kindFor(spec),
-      label: spec.label,
-      chooserId: chooserFor(match, controllerId, spec),
-      visibility: spec.visibility ?? "public",
-      timing,
-      minimum: range.minimum,
-      maximum: range.maximum,
-      required: range.minimum > 0,
-      options,
-      ...(kindFor(spec) === "deck-order" && topDeckCount(spec) > 0
-        ? { requestedWindowSize: topDeckCount(spec) }
-        : {}),
-    };
+    const chooserIds = chooserIdsFor(match, spec.chooser, { controllerId, choices: priorChoices });
+    return chooserIds.map((chooserId) => {
+      const options = optionsFor(match, controllerId, card, spec, priorChoices, chooserId);
+      const range = rangeFor(spec, options.length);
+      return {
+        id: spec.id,
+        kind: kindFor(spec),
+        label: spec.label,
+        chooserId,
+        visibility: spec.chooser === "each-player" ? "secret-until-reveal" : spec.visibility ?? "public",
+        timing,
+        minimum: range.minimum,
+        maximum: range.maximum,
+        required: range.minimum > 0,
+        options,
+        ...(kindFor(spec) === "deck-order" && topDeckCount(spec) > 0
+          ? { requestedWindowSize: topDeckCount(spec) }
+          : {}),
+      };
+    });
   });
-  const simultaneous = selected.some((spec) => spec.chooser === "each-player");
-  if (simultaneous) {
-    const templates = [...fields];
-    fields.length = 0;
-    for (const player of match.players) {
-      for (const template of templates) fields.push({ ...template, chooserId: player.id, visibility: "secret-until-reveal" });
-    }
-  }
   return {
     id: `${match.id}:${match.version}:${card.id}:${timing}:choices`,
     sourceId: card.id,

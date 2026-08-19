@@ -13,6 +13,7 @@ import { activeTappedEnergyIds, cardCostBreakdown, rechargeEnergyCards } from ".
 import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
 import { turnDrawCounts } from "./rules/turn-draw";
+import { evaluateAmountExpression, playerIdsForScope } from "./rules/primitives";
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
 import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
@@ -1933,8 +1934,10 @@ const executeRuleAction = (
         (choices.mode === "damage" && action.stat === "power")
         || (choices.mode === "power" && action.stat === "damage")
       )) return;
-      let amount = scaleStat(state, player, text, action.amount, action.stat, action.scale);
-      if (action.scale === "sacrificed-card") amount *= choices.discardCardIds?.length ?? 0;
+      let amount = action.amountExpression
+        ? evaluateAmountExpression(state, action.amountExpression, { controllerId, choices, chosenPlayerId: choices.targetPlayerId })
+        : scaleStat(state, player, text, action.amount, action.stat, action.scale);
+      if (!action.amountExpression && action.scale === "sacrificed-card") amount *= choices.discardCardIds?.length ?? 0;
       const explicitActionTarget = action.targetChoiceId
         ? choices[action.targetChoiceId]
         : undefined;
@@ -1978,18 +1981,28 @@ const executeRuleAction = (
       }
       return;
     case "draw": {
-      const amount = action.scale ? Math.max(0, scaleStat(state, player, text, action.amount, "draw", action.scale)) : action.amount;
-      enqueueEffectDraw(state, player, amount, card.displayName || card.name, pending.id);
+      const amount = Math.max(0, Math.floor(action.amountExpression
+        ? evaluateAmountExpression(state, action.amountExpression, { controllerId, choices, chosenPlayerId: choices.targetPlayerId })
+        : action.scale ? scaleStat(state, player, text, action.amount, "draw", action.scale) : action.amount));
+      const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
+      for (const recipientId of recipientIds) enqueueEffectDraw(state, playerById(state, recipientId), amount, card.displayName || card.name, pending.id);
       return;
     }
     case "discard": {
       if (/\bVictor\s*:/i.test(text)) return;
-      const affected = choices.targetPlayerId
-        ? playerById(state, choices.targetPlayerId)
-        : /your opponent|opponent discards/i.test(text) ? opponent : player;
-      const selected = choices.discardCardIds ?? choices.handCardIds ?? [];
-      const amount = action.minimum === 0 ? selected.length : selected.length || action.amount;
-      if (amount > 0) discardFromHand(state, affected, Math.min(action.maximum, amount), selected);
+      const affectedIds = choices.targetPlayerId
+        ? [choices.targetPlayerId]
+        : playerIdsForScope(state, action.playerScope ?? (/your opponent|opponent discards/i.test(text) ? "opponent" : "controller"), { controllerId, choices });
+      for (const affectedId of affectedIds) {
+        const affected = playerById(state, affectedId);
+        const scopedChoices = choices.simultaneousAnswers?.[affectedId] ?? choices;
+        const selected = scopedChoices.discardCardIds ?? scopedChoices.handCardIds ?? [];
+        const expressionAmount = action.amountExpression
+          ? Math.max(0, Math.floor(evaluateAmountExpression(state, action.amountExpression, { controllerId, chooserId: affectedId, chosenPlayerId: affectedId, choices: scopedChoices })))
+          : action.amount;
+        const amount = action.minimum === 0 ? selected.length : selected.length || expressionAmount;
+        if (amount > 0) discardFromHand(state, affected, Math.min(action.maximum, amount), selected);
+      }
       return;
     }
     case "energize": {
@@ -2034,9 +2047,17 @@ const executeRuleAction = (
       }
       return;
     }
-    case "generate-energy":
-      player.energy += Math.max(0, scaleStat(state, player, text, action.amount, "draw"));
+    case "generate-energy": {
+      const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
+      for (const recipientId of recipientIds) {
+        const recipient = playerById(state, recipientId);
+        const amount = action.amountExpression
+          ? evaluateAmountExpression(state, action.amountExpression, { controllerId, chooserId: recipientId, chosenPlayerId: recipientId, choices })
+          : scaleStat(state, player, text, action.amount, "draw", action.scale);
+        recipient.energy += Math.max(0, amount);
+      }
       return;
+    }
     case "recharge-energy": {
       if (choices.confirmed === false) return;
       const selected = action.amount === "all" ? undefined : (choices.targetEnergyIds ?? []).slice(0, action.amount);
@@ -2297,9 +2318,9 @@ return;
           const owner = playerById(state, negated.controllerId);
           if (!owner.discard.some((candidate) => candidate.id === negated.card.id)) owner.discard.push(negated.card);
         }
-        if (action.copy) {
+        if (action.copy && choices.confirmed !== false) {
           const typed = isRuleObject(negated) ? negated : normalizeRuleObjects({ ...state, batch: [negated] }).batch[0];
-          if (isRuleObject(typed)) state.batch.push(copyRuleObject(typed, controllerId));
+          if (isRuleObject(typed)) state.batch.push(copyRuleObject(typed, controllerId, { independentChoices: true }));
         }
       }
       return;
@@ -2320,9 +2341,32 @@ return;
       }
       return;
     }
-    case "copy":
-      if (action.target === "next-action") state.copyNextAction[controllerId] = (state.copyNextAction[controllerId] ?? 0) + 1;
+    case "copy": {
+      if (choices.confirmed === false) return;
+      const count = Math.max(0, Math.floor(action.count
+        ? evaluateAmountExpression(state, action.count, { controllerId, choices, chosenPlayerId: choices.targetPlayerId })
+        : 1));
+      const copyControllers = playerIdsForScope(state, action.controller ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
+      if (action.target === "next-action") {
+        for (const copyControllerId of copyControllers) {
+          state.copyNextAction[copyControllerId] = (state.copyNextAction[copyControllerId] ?? 0) + count;
+        }
+        return;
+      }
+      const targetChoiceId = action.targetChoiceId ?? "targetEffectId";
+      const selectedId = choices[targetChoiceId];
+      if (typeof selectedId !== "string") return;
+      const selected = state.batch.find((effect) => effect.id === selectedId && effect.id !== pending.id && !effect.negated);
+      if (!selected) return;
+      const normalized = isRuleObject(selected) ? selected : normalizeRuleObjects({ ...state, batch: [selected] }).batch[0];
+      if (!isRuleObject(normalized)) return;
+      for (const copyControllerId of copyControllers) {
+        for (let copyIndex = 0; copyIndex < count; copyIndex += 1) {
+          state.batch.push(copyRuleObject(normalized, copyControllerId, { independentChoices: action.independentChoices }));
+        }
+      }
       return;
+    }
     case "rules-text": {
       const setPower = text.match(/\[B\] becomes (\d+)/i);
       if (target && setPower) state.powerBoost[target.id] = Number(setPower[1]) - (topCard(target).bPower ?? target.bPower);

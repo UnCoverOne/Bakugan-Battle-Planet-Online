@@ -1,5 +1,6 @@
 import type { CardType, CoreType, Faction, GameCard } from "../game";
 import type { RuleAction, RuleCondition, RulesCardId, RulesDuration, TriggerDefinition, TriggerEventName } from "./model";
+import { amountExpressionForScale, playerScopeForText } from "./primitives";
 
 const NUMBER_WORDS: Record<string, number> = {
   no: 0, a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5,
@@ -194,6 +195,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       stat: "power",
       amount: Number(match[1]),
       scale: scaleForStat(text, match),
+      amountExpression: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)),
       duration,
       scope,
       targetChoiceId: ruleCardId(card) === "aa-50" ? "targetBakuganId" : undefined,
@@ -205,30 +207,43 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       stat: "damage",
       amount: Number(match[1]),
       scale: scaleForStat(text, match),
+      amountExpression: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)),
       duration,
       scope,
       targetChoiceId: ruleCardId(card) === "aa-50" ? "secondaryTargetBakuganId" : undefined,
     });
   }
   for (const match of text.matchAll(/\+?(\d+)\s*\[FrostStrike\]/gi)) {
-    actions.push({ kind: "modify-stat", stat: "frost", amount: Number(match[1]), scale: scaleForStat(text, match), duration, scope });
+    const frostScale = scaleForStat(text, match);
+    actions.push({ kind: "modify-stat", stat: "frost", amount: Number(match[1]), scale: frostScale, amountExpression: amountExpressionForScale(text, Number(match[1]), frostScale), duration, scope });
   }
   if (/\+?\[Double\s*Strike\]|\bDouble\s*Strike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "DoubleStrike", duration });
   if (/\+?\[ShadowStrike\]|\bShadowStrike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "ShadowStrike", duration });
   if (/\bflip a coin\b/i.test(text)) actions.push({ kind: "coin-flip" });
   if (/\[Stop\]|\bstop the attack\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "Stop", duration });
 
-  const draw = text.match(/draw (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?/i);
-  if (draw) actions.push({ kind: "draw", amount: numberValue(draw[1]), scale });
+  const draw = text.match(/draws? (a|an|one|two|three|four|five|six|seven|eight|nine|ten|x|\d+) cards?/i);
+  if (draw) {
+    const fixedAmount = /^x$/i.test(draw[1]) ? 0 : numberValue(draw[1]);
+    actions.push({
+      kind: "draw",
+      amount: fixedAmount,
+      scale,
+      amountExpression: /^x$/i.test(draw[1])
+        ? { kind: "choice-value", choiceId: "xValue" }
+        : amountExpressionForScale(text, fixedAmount, scale),
+      playerScope: playerScopeForText(text),
+    });
+  }
   const discard = text.match(/discard (a|an|one|two|three|any|up to|\d+) cards?/i);
   const delayedVictorDiscard = /if you open on the Reroll/i.test(text) && /\bVictor\s*:/i.test(text);
   const discardPaysPlayCost = /\bdiscard\s+(?:a|an|one|two|three|\d+)\s+cards?\s+to play this for free\b/i.test(text);
   if (discard && !delayedVictorDiscard && !discardPaysPlayCost) {
     const amount = numberValue(discard[1]);
     const optional = /may discard|any number|up to/i.test(text);
-    actions.push({ kind: "discard", amount, minimum: optional ? 0 : amount, maximum: /any number/i.test(text) ? 99 : amount, repeated: /repeat|again|any number/i.test(text) });
+    actions.push({ kind: "discard", amount, minimum: optional ? 0 : amount, maximum: /any number/i.test(text) ? 99 : amount, repeated: /repeat|again|any number/i.test(text), playerScope: playerScopeForText(text) });
   }
-  if (/discard (?:their|your) entire hand/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99 });
+  if (/discard (?:their|your) entire hand/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99, playerScope: playerScopeForText(text) });
 
   const energizeEntryState = /\buncharged\b/i.test(text) ? "uncharged" as const : "charged" as const;
   const energize = text.match(/energize (?:the top )?(a|an|one|two|three|\d+)?\s*cards?/i);
@@ -258,7 +273,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   });
 
   const generatedEnergy = text.match(/\+(\d+) \[Energy\]/i);
-  if (generatedEnergy) actions.push({ kind: "generate-energy", amount: Number(generatedEnergy[1]), scale });
+  if (generatedEnergy) actions.push({ kind: "generate-energy", amount: Number(generatedEnergy[1]), scale, amountExpression: amountExpressionForScale(text, Number(generatedEnergy[1]), scale), playerScope: playerScopeForText(text) });
   const setPower = text.match(/\[B\] becomes (\d+)/i);
   if (setPower) actions.push({ kind: "set-stat", stat: "power", value: Number(setPower[1]) });
   const setDamage = text.match(/\[Damage Rating\] becomes (\d+)/i);
@@ -305,8 +320,8 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     maximumCost: negateLimit, targetKinds: ["card"],
   });
   if (/search your deck/i.test(text)) actions.push({ kind: "search", cardType: text.match(/for an? (Action|Hero|Evo|Flip)/i)?.[1], amount: 1 });
-  if (/copy the next action/i.test(text)) actions.push({ kind: "copy", target: "next-action", independentChoices: true });
-  if (/copy the effect of an Action card/i.test(text)) actions.push({ kind: "copy", target: "batch-action", independentChoices: true });
+  if (/copy the next action/i.test(text)) actions.push({ kind: "copy", target: "next-action", independentChoices: true, count: { kind: "constant", value: 1 }, controller: "controller" });
+  if (/copy the effect of an Action card|copy an? Action card(?:'s|’s) effect/i.test(text)) actions.push({ kind: "copy", target: "batch-action", independentChoices: true, targetChoiceId: "targetEffectId", count: { kind: "constant", value: 1 }, controller: "controller" });
 
   const nextCardReduction = text.match(/next card you play(?: this turn)? costs? (\d+) \[Energy\] less/i);
   if (nextCardReduction) actions.push({
