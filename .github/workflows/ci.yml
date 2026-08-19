@@ -7,48 +7,13 @@ on:
   push:
     branches:
       - main
-      - feature/generalized-rules-primitives
-
-permissions:
-  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  bootstrap-generalized-rules:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/feature/generalized-rules-primitives') || github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          ref: feature/generalized-rules-primitives
-          fetch-depth: 0
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.13.0
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Apply implementation if needed
-        run: |
-          if [ ! -f lib/rules/primitives.ts ]; then
-            python3 scripts/apply-generalized-rules-primitives.py
-            python3 scripts/fix-generalized-rules-primitives.py
-          fi
-      - name: Targeted rules tests
-        run: node --import tsx --test tests/rules-primitives.test.ts tests/turn-draw-mechanic.test.ts
-      - name: Build
-        run: npm run build
-      - name: Lint
-        run: npm run lint
-
   validate:
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
