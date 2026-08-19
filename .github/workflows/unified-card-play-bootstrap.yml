@@ -1,19 +1,21 @@
 name: Unified Card Play Bootstrap
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
-    types: [opened, synchronize, reopened]
+      - feature/unified-card-play-pipeline
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   inspect:
+    if: ${{ !contains(github.event.head_commit.message, '[bootstrap-result]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: feature/unified-card-play-pipeline
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -21,7 +23,17 @@ jobs:
       - run: npm ci
       - name: Inspect free-play coverage
         run: |
-          echo '=== source matches ==='
-          grep -RniE 'for free|play (an?|the|a )?.*from|kind: "play"|source: "revealed-deck"' lib tests | head -n 400 || true
-          echo '=== catalogue cards containing free ==='
-          node --import tsx -e 'import { CARDS } from "./lib/data.ts"; for (const c of CARDS.filter(c => /for free|this is free/i.test(c.effect))) console.log(c.catalogId, c.name, "::", c.effect)'
+          mkdir -p scripts
+          {
+            echo '=== source matches ==='
+            grep -RniE 'for free|play (an?|the|a )?.*from|kind: "play"|source: "revealed-deck"' lib tests | head -n 500 || true
+            echo '=== catalogue cards containing free ==='
+            node --import tsx -e 'import { CARDS } from "./lib/data.ts"; for (const c of CARDS.filter(c => /for free|this is free/i.test(c.effect))) console.log(c.catalogId, c.name, "::", c.effect)'
+          } > scripts/free-play-diagnostic.txt
+      - name: Commit diagnostics
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/free-play-diagnostic.txt
+          git commit -m 'Record free-play diagnostics [bootstrap-result]'
+          git push
