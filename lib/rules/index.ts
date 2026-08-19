@@ -10,6 +10,7 @@ export { cardCostBreakdown, beginCardPayment, commitCardPayment, prepareDeclared
 export { canonicalEvoTargetAllowed, cardDefinitionId, cardPrintingId, characterIdentity } from "./identity";
 export { evaluateBakuganCharacteristics, activeFrostStrike, ruleConditionActive } from "./modifiers";
 export { activeExtraTurnDrawModifiers, extraTurnDrawModifiersForCard, extraTurnDrawsForPlayer, turnDrawCountForPlayer, turnDrawCounts } from "./turn-draw";
+export * from "./primitives";
 export { createRuleObject, copyRuleObject, negateRuleObject } from "./objects";
 export { applyReplacements, registerReplacement, removeReplacement } from "./replacements";
 export { ensureRulesState, normalizeRuleObjects } from "./state";

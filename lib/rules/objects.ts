@@ -54,8 +54,13 @@ export function negateRuleObject(object: RuleObject) {
   return object;
 }
 
-export function copyRuleObject(source: RuleObject, controllerId: string): RuleObject {
+export function copyRuleObject(
+  source: RuleObject,
+  controllerId: string,
+  options: { independentChoices?: boolean } = {},
+): RuleObject {
   const id = objectId(`${source.definitionId}-copy`);
+  const independentChoices = options.independentChoices ?? true;
   return {
     ...structuredClone(source),
     id,
@@ -64,8 +69,18 @@ export function copyRuleObject(source: RuleObject, controllerId: string): RuleOb
     status: "pending",
     negated: false,
     cursor: { instructionIndex: 0, effectIndex: 0 },
-    resolvedChoices: {},
-    choices: {},
+    resolvedChoices: independentChoices ? {} : structuredClone(source.resolvedChoices ?? {}),
+    choices: independentChoices ? {} : structuredClone(source.choices),
     independentChoiceSetId: `${id}:choices`,
+    copiedFromObjectId: source.id,
   };
+}
+
+export function copyRuleObjects(
+  source: RuleObject,
+  controllerId: string,
+  count: number,
+  options: { independentChoices?: boolean } = {},
+): RuleObject[] {
+  return Array.from({ length: Math.max(0, Math.floor(count)) }, () => copyRuleObject(source, controllerId, options));
 }
