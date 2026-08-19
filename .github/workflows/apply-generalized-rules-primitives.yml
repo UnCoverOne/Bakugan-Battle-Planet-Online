@@ -43,3 +43,4 @@ jobs:
           git add lib/rules/primitives.ts lib/rules/model.ts lib/rules/objects.ts lib/rules/choices.ts lib/rules/catalogue-structure.ts lib/rules/catalogue-primitives.ts lib/rules/index.ts lib/game.ts tests/rules-primitives.test.ts package.json
           git commit -m "Implement generalized rules primitives"
           git push origin HEAD:feature/generalized-rules-primitives
+# retrigger after workflow exists on branch
