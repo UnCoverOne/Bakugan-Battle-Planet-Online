@@ -35,7 +35,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Apply implementation
-        run: python3 scripts/apply-generalized-rules-primitives.py
+        run: |
+          python3 scripts/apply-generalized-rules-primitives.py
+          python3 scripts/fix-generalized-rules-primitives.py
       - name: Targeted rules tests
         run: node --import tsx --test tests/rules-primitives.test.ts tests/turn-draw-mechanic.test.ts tests/bakucore-choice-regressions.test.ts
       - name: Build
