@@ -23,7 +23,13 @@ jobs:
       - name: Apply implementation
         run: |
           set +e
-          sed -i '614s/^    '\''/    "/;614s/'\'',$/",/' scripts/apply-unified-card-play-pipeline.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply-unified-card-play-pipeline.py')
+          s = p.read_text()
+          s = s.replace(r"\\'ve", r"\\\'ve")
+          p.write_text(s)
+          PY
           python scripts/apply-unified-card-play-pipeline.py > scripts/unified-card-play-patch.txt 2>&1
           echo "patch_status=$?" >> scripts/unified-card-play-patch.txt
           exit 0
