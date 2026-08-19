@@ -13,40 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  bootstrap-extra-turn-draw:
-    if: github.event_name == 'pull_request' && github.head_ref == 'feature/extra-turn-draw-mechanic' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: write
-    steps:
-      - name: Check out feature branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.13.0
-          cache: npm
-      - name: Apply implementation
-        run: python scripts/apply-extra-turn-draw.py
-      - name: Install dependencies
-        run: npm ci
-      - name: Run targeted regression tests
-        run: node --import tsx --test tests/turn-draw-mechanic.test.ts
-      - name: Commit implementation
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/game.ts lib/rules/turn-draw.ts lib/rules/index.ts tests/turn-draw-mechanic.test.ts package.json
-          git commit -m "Implement extra turn draw mechanic"
-          git push origin HEAD:${{ github.head_ref }}
-
   validate:
-    needs: bootstrap-extra-turn-draw
-    if: always() && (needs.bootstrap-extra-turn-draw.result == 'success' || needs.bootstrap-extra-turn-draw.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
