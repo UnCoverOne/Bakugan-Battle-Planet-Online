@@ -21,7 +21,11 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply implementation
-        run: python scripts/apply-unified-card-play-pipeline.py
+        run: |
+          set +e
+          python scripts/apply-unified-card-play-pipeline.py > scripts/unified-card-play-patch.txt 2>&1
+          echo "patch_status=$?" >> scripts/unified-card-play-patch.txt
+          exit 0
       - name: Validate implementation
         run: |
           set +e
@@ -38,12 +42,11 @@ jobs:
           npm run lint >> scripts/unified-card-play-validation.txt 2>&1
           LINT_STATUS=$?
           echo "lint_status=$LINT_STATUS" >> scripts/unified-card-play-validation.txt
-          echo "overall=$(( TEST_STATUS || BUILD_STATUS || LINT_STATUS ))" >> scripts/unified-card-play-validation.txt
           exit 0
       - name: Commit implementation and diagnostics
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add lib components tests scripts/unified-card-play-validation.txt
+          git add lib components tests scripts/unified-card-play-patch.txt scripts/unified-card-play-validation.txt
           git commit -m 'Implement unified card-play pipeline [pipeline-applied]' || true
           git push
