@@ -1,4 +1,4 @@
-name: Unified Card Play Bootstrap
+name: Unified Card Play Diagnostics
 
 on:
   push:
@@ -8,52 +8,57 @@ permissions:
   contents: write
 
 jobs:
-  apply:
-    if: ${{ !contains(github.event.head_commit.message, '[pipeline-applied]') }}
+  diagnose:
+    if: ${{ !contains(github.event.head_commit.message, '[pipeline-diagnostic]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: feature/unified-card-play-pipeline
+          path: feature
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: baseline
       - uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - name: Apply implementation
+          node-version-file: feature/.nvmrc
+      - name: Install feature dependencies
+        working-directory: feature
+        run: npm ci
+      - name: Install baseline dependencies
+        working-directory: baseline
+        run: npm ci
+      - name: Run branch diagnostics
+        working-directory: feature
         run: |
           set +e
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('scripts/apply-unified-card-play-pipeline.py')
-          s = p.read_text()
-          s = s.replace(r"\\'ve", r"\\\'ve")
-          p.write_text(s)
-          PY
-          python scripts/apply-unified-card-play-pipeline.py > scripts/unified-card-play-patch.txt 2>&1
-          echo "patch_status=$?" >> scripts/unified-card-play-patch.txt
-          exit 0
-      - name: Validate implementation
+          : > scripts/unified-card-play-baseline.txt
+          echo '=== FEATURE FAILING GROUPS ===' >> scripts/unified-card-play-baseline.txt
+          node --import tsx --test tests/pact-cubbo-regressions.test.ts tests/deck-inspection.test.ts tests/reroll-mechanic.test.ts >> scripts/unified-card-play-baseline.txt 2>&1
+          echo "feature_status=$?" >> scripts/unified-card-play-baseline.txt
+          echo '=== COMPILED PROGRAMS ===' >> scripts/unified-card-play-baseline.txt
+          node --import tsx <<'NODE' >> scripts/unified-card-play-baseline.txt 2>&1
+          import { CARDS } from './lib/data.ts';
+          import { compileCardEffect } from './lib/rules/effects.ts';
+          for (const name of ['Sneak Attack','Pyrus Hyper Trhyno','Air Zero','Divine Intervention','Thunder Storm']) {
+            const card = CARDS.find((candidate) => (candidate.displayName || candidate.name) === name || candidate.name === name);
+            console.log('\n###', name, card?.catalogId, card?.effect);
+            if (card) console.dir(compileCardEffect(card), { depth: 12 });
+          }
+          NODE
+      - name: Run main baseline
+        working-directory: baseline
         run: |
           set +e
-          : > scripts/unified-card-play-validation.txt
-          echo '=== targeted tests ===' >> scripts/unified-card-play-validation.txt
-          node --import tsx --test tests/card-payment.test.ts tests/pact-cubbo-regressions.test.ts tests/manual-damage.test.ts tests/deck-inspection.test.ts tests/reroll-mechanic.test.ts tests/card-play-pipeline.test.ts >> scripts/unified-card-play-validation.txt 2>&1
-          TEST_STATUS=$?
-          echo "targeted_status=$TEST_STATUS" >> scripts/unified-card-play-validation.txt
-          echo '=== build ===' >> scripts/unified-card-play-validation.txt
-          npm run build >> scripts/unified-card-play-validation.txt 2>&1
-          BUILD_STATUS=$?
-          echo "build_status=$BUILD_STATUS" >> scripts/unified-card-play-validation.txt
-          echo '=== lint ===' >> scripts/unified-card-play-validation.txt
-          npm run lint >> scripts/unified-card-play-validation.txt 2>&1
-          LINT_STATUS=$?
-          echo "lint_status=$LINT_STATUS" >> scripts/unified-card-play-validation.txt
-          exit 0
-      - name: Commit implementation and diagnostics
+          echo '=== MAIN BASELINE FAILING GROUPS ===' >> ../feature/scripts/unified-card-play-baseline.txt
+          node --import tsx --test tests/pact-cubbo-regressions.test.ts tests/deck-inspection.test.ts tests/reroll-mechanic.test.ts >> ../feature/scripts/unified-card-play-baseline.txt 2>&1
+          echo "baseline_status=$?" >> ../feature/scripts/unified-card-play-baseline.txt
+      - name: Commit diagnostics
+        working-directory: feature
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add lib components tests scripts/unified-card-play-patch.txt scripts/unified-card-play-validation.txt
-          git commit -m 'Implement unified card-play pipeline [pipeline-applied]' || true
+          git add scripts/unified-card-play-baseline.txt
+          git commit -m 'Record unified pipeline baseline diagnostics [pipeline-diagnostic]' || true
           git push
