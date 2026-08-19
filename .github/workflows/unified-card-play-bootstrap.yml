@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  inspect:
-    if: ${{ !contains(github.event.head_commit.message, '[bootstrap-result]') }}
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[pipeline-applied]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,19 +21,44 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Inspect free-play coverage
+      - name: Apply implementation
         run: |
-          mkdir -p scripts
-          {
-            echo '=== source matches ==='
-            grep -RniE 'for free|play (an?|the|a )?.*from|kind: "play"|source: "revealed-deck"' lib tests | head -n 500 || true
-            echo '=== catalogue cards containing free ==='
-            node --import tsx -e 'import { CARDS } from "./lib/data.ts"; for (const c of CARDS.filter(c => /for free|this is free/i.test(c.effect))) console.log(c.catalogId, c.name, "::", c.effect)'
-          } > scripts/free-play-diagnostic.txt
-      - name: Commit diagnostics
+          if [ -f scripts/apply-unified-card-play-pipeline.py ]; then
+            python scripts/apply-unified-card-play-pipeline.py
+          else
+            echo 'Patch script not present yet.'
+            exit 0
+          fi
+      - name: Validate implementation
+        if: ${{ hashFiles('scripts/apply-unified-card-play-pipeline.py') != '' }}
+        run: |
+          set +e
+          : > scripts/unified-card-play-validation.txt
+          echo '=== targeted tests ===' >> scripts/unified-card-play-validation.txt
+          node --import tsx --test \
+            tests/card-payment.test.ts \
+            tests/pact-cubbo-regressions.test.ts \
+            tests/manual-damage.test.ts \
+            tests/deck-inspection.test.ts \
+            tests/reroll-mechanic.test.ts \
+            tests/card-play-pipeline.test.ts >> scripts/unified-card-play-validation.txt 2>&1
+          TEST_STATUS=$?
+          echo "targeted_status=$TEST_STATUS" >> scripts/unified-card-play-validation.txt
+          echo '=== build ===' >> scripts/unified-card-play-validation.txt
+          npm run build >> scripts/unified-card-play-validation.txt 2>&1
+          BUILD_STATUS=$?
+          echo "build_status=$BUILD_STATUS" >> scripts/unified-card-play-validation.txt
+          echo '=== lint ===' >> scripts/unified-card-play-validation.txt
+          npm run lint >> scripts/unified-card-play-validation.txt 2>&1
+          LINT_STATUS=$?
+          echo "lint_status=$LINT_STATUS" >> scripts/unified-card-play-validation.txt
+          echo "overall=$(( TEST_STATUS || BUILD_STATUS || LINT_STATUS ))" >> scripts/unified-card-play-validation.txt
+          exit 0
+      - name: Commit implementation and diagnostics
+        if: ${{ hashFiles('scripts/apply-unified-card-play-pipeline.py') != '' }}
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add scripts/free-play-diagnostic.txt
-          git commit -m 'Record free-play diagnostics [bootstrap-result]'
+          git add lib components tests scripts/unified-card-play-validation.txt
+          git commit -m 'Implement unified card-play pipeline [pipeline-applied]' || true
           git push
