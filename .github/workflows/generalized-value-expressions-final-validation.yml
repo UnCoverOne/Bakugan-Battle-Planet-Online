@@ -1,0 +1,33 @@
+name: Generalized Value Expressions Final Validation
+
+on:
+  push:
+    branches: [feature/generalized-value-expressions]
+  pull_request:
+    branches: [feature/unified-card-play-pipeline]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/generalized-value-expressions
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Focused values/card-play
+        run: npx tsx --test tests/value-expressions.test.ts tests/rules-primitives.test.ts tests/card-payment.test.ts tests/card-play-pipeline.test.ts
+      - name: Rules suite
+        run: npm run test:rules
+      - name: Gameplay suite
+        run: npm run test:gameplay
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
