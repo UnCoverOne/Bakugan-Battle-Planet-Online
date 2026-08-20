@@ -3,24 +3,31 @@ name: Generalized Value Expressions Bootstrap
 on:
   push:
     branches: [feature/generalized-value-expressions]
+  pull_request:
+    branches: [feature/unified-card-play-pipeline]
 
 permissions:
   contents: write
 
 jobs:
   implement:
-    if: github.event.head_commit.message != 'Implement generalized value expressions'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: feature/generalized-value-expressions
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - name: Apply staged value-expression migration
-        run: python3 scripts/apply-generalized-value-expressions.py
+        run: |
+          if [ "$(git log -1 --pretty=%s)" = "Implement generalized value expressions" ]; then
+            echo "Generated implementation is already present."
+          else
+            python3 scripts/apply-generalized-value-expressions.py
+          fi
       - name: Install dependencies
         run: npm ci
       - name: Run focused value and rules tests
@@ -30,6 +37,7 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Commit implementation
+        if: github.event_name == 'pull_request' || github.event.head_commit.message != 'Implement generalized value expressions'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
