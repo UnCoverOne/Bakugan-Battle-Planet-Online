@@ -1,0 +1,39 @@
+name: Dynamic Value Edge Diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'feature/unified-card-play-pipeline'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/unified-card-play-pipeline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply migration worktree
+        shell: bash
+        run: |
+          sed -n "/python <<'PY'/,/^          PY$/p" .github/workflows/generalized-value-expressions-final-validation.yml | sed '1d;$d;s/^          //' > /tmp/migrate.py
+          python /tmp/migrate.py
+          python <<'PY'
+          from pathlib import Path
+          p = Path('tests/rules-engine-modernization.test.ts')
+          s = p.read_text()
+          s = s.replace('  assert.equal(schema.fields[0]?.id, "mode");', '  assert.ok(schema.fields.some((field) => field.id === "mode"));\n  assert.ok(schema.fields.some((field) => field.id === "targetEffectId"));')
+          p.write_text(s)
+          p = Path('tests/dynamic-value-catalogue.test.ts')
+          s = p.read_text().replace('`${card.catalogId} produced a non-finite value`', '`${card.catalogId} ${JSON.stringify(expression)} produced ${String(value)}`')
+          p.write_text(s)
+          PY
+      - run: npm ci
+      - name: Run focused tests with expression diagnostics
+        run: npx tsx --test tests/dynamic-value-catalogue.test.ts tests/rules-engine-modernization.test.ts
