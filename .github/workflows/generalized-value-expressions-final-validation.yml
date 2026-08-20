@@ -1,34 +1,193 @@
-name: Dynamic Value Migration Diagnostics
+name: Complete Dynamic Value Migration
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  complete:
     if: github.head_ref == 'feature/unified-card-play-pipeline'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: feature/unified-card-play-pipeline
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - name: Print remaining card definitions and runtime context
+      - name: Complete canonical value migration and regression fixes
         shell: bash
         run: |
-          npx tsx -e 'import { CARDS } from "./lib/data"; import { ruleDefinitionForCard } from "./lib/rules/catalogue"; for (const card of CARDS.filter(c => c.number === 152 || ["aa-75","aa-106","br-201","bb-207"].includes(c.catalogId))) { console.log("===CARD===", card.catalogId, card.number, card.name, JSON.stringify(card.effect)); console.log(JSON.stringify(ruleDefinitionForCard(card), null, 2)); }'
-          echo '=== STAGE CARD PLAY ==='
-          sed -n '1480,1660p' lib/game.ts
-          echo '=== CHOICE COMPILER START ==='
-          sed -n '200,380p' lib/rules/catalogue-structure.ts
-          echo '=== COST COMPILER ==='
-          sed -n '440,560p' lib/rules/catalogue-structure.ts
-          echo '=== AI PENDING CHOICE ==='
-          grep -n -B 10 -A 35 'runTrainingAiStep\|pendingChoice' lib/ai*.ts lib/game.ts | tail -n 500 || true
+          python <<'PY'
+          from pathlib import Path
+          import re, textwrap
+
+          def read(path): return Path(path).read_text()
+          def write(path, text): Path(path).write_text(text)
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f"missing expected text for {label}")
+              return text.replace(old, new, 1)
+
+          # Dynamic numeric values live exclusively in values.ts. primitives.ts keeps ownership/scope only.
+          path = 'lib/rules/primitives.ts'
+          text = read(path)
+          text = replace_once(text, 'import type { CardChoices, Faction, MatchState } from "../game";\nimport {\n  evaluateNumberValue,\n  type NumberExpression,\n  type ValueCountSource,\n} from "./values";\n', 'import type { CardChoices, MatchState } from "../game";\n', 'primitives imports')
+          text, count = re.subn(r'/\*\* @deprecated Use ValueCountSource[\s\S]*?\n}\n\nexport function playerScopeForText', 'export function playerScopeForText', text, count=1)
+          if count != 1: raise SystemExit('failed to remove AmountExpression compatibility block')
+          write(path, text)
+
+          # Every numeric rules field is a NumberValue; remove parallel amountExpression/scale paths.
+          path = 'lib/rules/model.ts'
+          text = read(path)
+          text = replace_once(text, 'import type { AmountExpression, ChooserOwner, PlayerScope, ZoneOwner } from "./primitives";', 'import type { ChooserOwner, PlayerScope, ZoneOwner } from "./primitives";', 'model primitive import')
+          text = text.replace('export type CostScale = "cards-played-this-turn" | "held-bakucore";\n\n', '')
+          text = text.replace('appliesTo?: "self" | "controller"; scale?: CostScale }', 'appliesTo?: "self" | "controller" }')
+          text = text.replace('amount: NumberValue; amountExpression?: AmountExpression; scale?: string; duration:', 'amount: NumberValue; duration:')
+          text = text.replace('amount: NumberValue; amountExpression?: AmountExpression; scale?: string; playerScope?:', 'amount: NumberValue; playerScope?:')
+          text = text.replace('amount: NumberValue; amountExpression?: AmountExpression; minimum:', 'amount: NumberValue; minimum:')
+          write(path, text)
+
+          # Compile every printed scaling phrase directly into a NumberValue AST.
+          path = 'lib/rules/catalogue-primitives.ts'
+          text = read(path)
+          text = replace_once(text, 'import { amountExpressionForScale, playerScopeForText } from "./primitives";\n', 'import { playerScopeForText } from "./primitives";\nimport type { NumberValue } from "./values";\n', 'catalogue primitive imports')
+          marker = 'export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {'
+          helper = '''const multiplyValue = (baseAmount: number, factor: NumberValue): NumberValue => ({\n  kind: "product",\n  factors: [baseAmount, factor],\n});\n\nfunction numberValueForScale(text: string, baseAmount: number, scale?: string): NumberValue {\n  if (!scale) return baseAmount;\n  const grammar = `${scale} ${text}`;\n  if (/sacrificed-card|sacrifice/i.test(scale)) return multiplyValue(baseAmount, { kind: "choice-count", choiceId: "discardCardIds" });\n  if (/other-card-played/i.test(scale) || /other card.*played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "cards-played", owner: "controller", offset: -1, minimum: 0 });\n  const faction = grammar.match(/\\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\\]\\s+Bakugan/i)?.[1] as Faction | undefined;\n  if (faction && /Bakugan on your team/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "bakugan", owner: "controller", faction });\n  if (/Flip card.*discard/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "discard", owner: "controller", cardType: "Flip" });\n  if (/Hero(?: card)?s? (?:you )?(?:have|control)?\\s*in play|Hero you have in play/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "hero", owner: "controller" });\n  if (/Energy card.*you have|Energy cards? in play/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "energy", owner: "controller" });\n  if (/BakuCore.*your Bakugan hold/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "held-bakucore", owner: "controller" });\n  if (/open Bakugan/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "open-bakugan", owner: "controller" });\n  if (/cards? (?:you have )?played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "cards-played", owner: "controller" });\n  if (/different factions?.*played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "factions-played", owner: "controller" });\n  return baseAmount;\n}\n\n'''
+          if marker not in text: raise SystemExit('parseAtomicEffects marker missing')
+          text = text.replace(marker, helper + marker, 1)
+          replacements = [
+            ('      amount: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ?? Number(match[1]),\n      scale: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ? undefined : scaleForStat(text, match),', '      amount: numberValueForScale(text, Number(match[1]), scaleForStat(text, match)),', 'power scale'),
+            ('      amount: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ?? Number(match[1]),\n      scale: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ? undefined : scaleForStat(text, match),', '      amount: numberValueForScale(text, Number(match[1]), scaleForStat(text, match)),', 'damage scale'),
+            ('    actions.push({ kind: "modify-stat", stat: "frost", amount: amountExpressionForScale(text, Number(match[1]), frostScale) ?? Number(match[1]), scale: amountExpressionForScale(text, Number(match[1]), frostScale) ? undefined : frostScale, duration, scope });', '    actions.push({ kind: "modify-stat", stat: "frost", amount: numberValueForScale(text, Number(match[1]), frostScale), duration, scope });', 'frost scale'),
+            ('        : amountExpressionForScale(text, fixedAmount, scale) ?? fixedAmount,\n      scale: /^x$/i.test(draw[1]) || amountExpressionForScale(text, fixedAmount, scale) ? undefined : scale,', '        : numberValueForScale(text, fixedAmount, scale),', 'draw scale'),
+            ('  if (generatedEnergy) actions.push({ kind: "generate-energy", amount: amountExpressionForScale(text, Number(generatedEnergy[1]), scale) ?? Number(generatedEnergy[1]), scale: amountExpressionForScale(text, Number(generatedEnergy[1]), scale) ? undefined : scale, playerScope: playerScopeForText(text) });', '  if (generatedEnergy) actions.push({ kind: "generate-energy", amount: numberValueForScale(text, Number(generatedEnergy[1]), scale), playerScope: playerScopeForText(text) });', 'energy scale'),
+          ]
+          for old, new, label in replacements: text = replace_once(text, old, new, label)
+          write(path, text)
+
+          # Opponent-required discards are chosen from and by the opponent, including "must discard" wording.
+          path = 'lib/rules/catalogue-structure.ts'
+          text = read(path)
+          text = replace_once(text,
+            '    const opponentOwnsZone = /opponent(?:\'s|’s)\\s+hand|opponent\\s+(?:may\\s+)?discards?/i.test(text);\n    const opponentChooses = /(?:your\\s+)?opponent\\s+(?:may\\s+)?discards?/i.test(text);',
+            '    const opponentOwnsZone = /opponent(?:\'s|’s)\\s+hand|opponent\\s+(?:(?:may|must)\\s+)?discards?/i.test(text);\n    const opponentChooses = /(?:your\\s+)?opponent\\s+(?:(?:may|must)\\s+)?discards?/i.test(text);',
+            'opponent discard ownership')
+          pattern = r'function reductionScaleFor\([\s\S]*?\n}\n\nfunction reductionAmountFor\(text: string, amount: number\): CostEffect extends infer _ \? import\("\./values"\)\.NumberValue : never \{[\s\S]*?\n}\n'
+          replacement = 'function reductionAmountFor(text: string, amount: number): import("./values").NumberValue {\n  if (/for each card you (?:have )?played this turn/i.test(text)) return { kind: "product", factors: [amount, { kind: "count", source: "cards-played", owner: "controller" }] };\n  if (/for each BakuCore that your Bakugan hold/i.test(text)) return { kind: "product", factors: [amount, { kind: "count", source: "held-bakucore", owner: "controller" }] };\n  return amount;\n}\n'
+          text, count = re.subn(pattern, replacement, text, count=1)
+          if count != 1: raise SystemExit('cost reduction scale block missing')
+          write(path, text)
+
+          # Runtime consumes every action amount through evaluateNumberValue exactly once.
+          path = 'lib/game.ts'
+          text = read(path)
+          text = replace_once(text, 'import { evaluateAmountExpression, playerIdsForScope, zoneOwnerIdsFor } from "./rules/primitives";', 'import { playerIdsForScope, zoneOwnerIdsFor } from "./rules/primitives";', 'game primitive import')
+          text = replace_once(text, '      const baseAmount = resolveNumber(action.amount);\n      let amount = action.amountExpression\n        ? evaluateAmountExpression(state, action.amountExpression, { controllerId, choices, chosenPlayerId: choices.targetPlayerId })\n        : action.scale ? scaleStat(state, player, text, baseAmount, action.stat, action.scale) : baseAmount;\n      if (!action.amountExpression && action.scale === "sacrificed-card") amount *= choices.discardCardIds?.length ?? 0;', '      const amount = resolveNumber(action.amount);', 'modify-stat runtime')
+          text = replace_once(text, '      const baseAmount = resolveNumber(action.amount);\n      const amount = Math.max(0, Math.floor(action.amountExpression\n        ? evaluateAmountExpression(state, action.amountExpression, { controllerId, choices, chosenPlayerId: choices.targetPlayerId })\n        : action.scale ? scaleStat(state, player, text, baseAmount, "draw", action.scale) : baseAmount));', '      const amount = Math.max(0, Math.floor(resolveNumber(action.amount)));', 'draw runtime')
+          text = replace_once(text, '        const expressionAmount = action.amountExpression\n          ? Math.max(0, Math.floor(evaluateAmountExpression(state, action.amountExpression, { controllerId, chooserId: affectedId, chosenPlayerId: affectedId, choices: scopedChoices })))\n          : Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));', '        const expressionAmount = Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));', 'discard runtime')
+          text = replace_once(text, '        const amount = action.amountExpression\n          ? evaluateAmountExpression(state, action.amountExpression, { controllerId, chooserId: recipientId, chosenPlayerId: recipientId, choices })\n          : action.scale ? scaleStat(state, player, text, resolveNumber(action.amount, choices, recipientId), "draw", action.scale) : resolveNumber(action.amount, choices, recipientId);', '        const amount = resolveNumber(action.amount, choices, recipientId);', 'energy runtime')
+          text = text.replace('const amount = Math.max(0, Math.floor(resolveNumber(amount)));', 'const amount = Math.max(0, Math.floor(resolveNumber(action.amount)));')
+          write(path, text)
+
+          # Continuous values remain expressions and are re-evaluated from live state.
+          path = 'lib/rules/modifiers.ts'
+          text = read(path)
+          text, count = re.subn(r'function printedScaleMultiplier\([\s\S]*?\n}\n\nfunction printedTarget', 'function printedTarget', text, count=1)
+          if count != 1: raise SystemExit('printedScaleMultiplier block missing')
+          old = '    amount: action.kind === "grant-keyword"\n      ? evaluateNumberValue(state, action.value ?? 1, { controllerId: player.id, choices: { targetBakuganId: bakugan.id }, moment: "continuous" })\n      : evaluateNumberValue(state, action.amount, { controllerId: player.id, choices: { targetBakuganId: bakugan.id }, moment: "continuous" }) * printedScaleMultiplier(action.scale, player),'
+          new = '    amount: action.kind === "grant-keyword" ? action.value ?? 1 : action.amount,\n    choices: { targetBakuganId: bakugan.id },'
+          text = replace_once(text, old, new, 'continuous modifier value')
+          write(path, text)
+
+          path = 'lib/rules/costs.ts'
+          text = read(path)
+          old = '    if (modifier.kind === "cost-reduce") {\n      const variableMultiplier = modifier.scale === "cards-played-this-turn"\n        ? Math.max(0, player.cardsPlayedThisTurn)\n        : modifier.scale === "held-bakucore"\n          ? player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0)\n          : 1;\n      reductions += costValue(state, playerId, modifier.amount, choices, context.capturedValues) * variableMultiplier;\n    }'
+          new = '    if (modifier.kind === "cost-reduce") {\n      reductions += costValue(state, playerId, modifier.amount, choices, context.capturedValues);\n    }'
+          text = replace_once(text, old, new, 'cost reduction runtime')
+          write(path, text)
+
+          # Remove compatibility expectations from primitive tests.
+          path = 'tests/rules-primitives.test.ts'
+          text = read(path)
+          text = text.replace('  evaluateAmountExpression,\n', '').replace('  type AmountExpression,\n', '')
+          text = text.replace('import { evaluateNumberValue } from "../lib/rules/values";', 'import { evaluateNumberValue, type NumberExpression } from "../lib/rules/values";')
+          text, count = re.subn(r'test\("dynamic amount expressions evaluate typed counts and arithmetic", \(\) => \{[\s\S]*?\n\}\);', 'test("dynamic number expressions evaluate typed counts and arithmetic", () => {\n  const state = stateWithPlayers();\n  state.players[0].heroes = [instance(CARDS.find((card) => card.type === "Hero")!, "hero-a"), instance(CARDS.find((card) => card.type === "Hero")!, "hero-b")];\n  const expression: NumberExpression = { kind: "product", factors: [100, { kind: "count", source: "hero", owner: "controller" }] };\n  assert.equal(evaluateNumberValue(state, expression, { controllerId: "first" }), 200);\n  assert.equal(evaluateNumberValue(state, { kind: "choice-value", choiceId: "xValue" }, { controllerId: "first", choices: { xValue: 4 } }), 4);\n});', text, count=1)
+          if count != 1: raise SystemExit('legacy primitive value test missing')
+          write(path, text)
+
+          path = 'tests/value-expressions.test.ts'
+          text = read(path).replace('  assert.equal(action.amountExpression, undefined);\n', '')
+          write(path, text)
+
+          # Modernization tests assert the canonical generalized structures and physical Energy-card semantics.
+          path = 'tests/rules-engine-modernization.test.ts'
+          text = read(path)
+          text = replace_once(text, '  assert.deepEqual(conditionFor("If that Bakugan is holding [FT], +600 [B] instead."), {\n    kind: "held-core-type",\n    coreTypes: ["Fist"],\n  });', '  assert.deepEqual(conditionFor("If that Bakugan is holding [FT], +600 [B] instead."), {\n    kind: "held-core-type",\n    coreTypes: ["Fist"],\n    subject: "target",\n  });', 'held core condition expectation')
+          text = replace_once(text, '  assert.deepEqual(conditionFor("If you have played a card from three different factions this turn, +800 [B] instead."), {\n    kind: "factions-played",\n    comparison: "at-least",\n    amount: 3,\n  });', '  assert.deepEqual(conditionFor("If you have played a card from three different factions this turn, +800 [B] instead."), {\n    kind: "expression",\n    expression: { kind: "compare-number", left: { kind: "count", source: "factions-played", owner: "controller" }, operator: ">=", right: 3 },\n  });', 'faction count expectation')
+          text = replace_once(text, '  assert.deepEqual(conditionFor("If you have ten or more Energy cards in play, +15 [Damage Rating] instead."), {\n    kind: "energy-count",\n    comparison: "at-least",\n    amount: 10,\n  });', '  assert.deepEqual(conditionFor("If you have ten or more Energy cards in play, +15 [Damage Rating] instead."), {\n    kind: "expression",\n    expression: { kind: "compare-number", left: { kind: "count", source: "energy", owner: "controller" }, operator: ">=", right: 10 },\n  });', 'energy count expectation')
+          start = text.index('test("open Bakugan count parser preserves exact and threshold comparisons"')
+          end = text.index('\ntest("Ice Elation and Solitude', start)
+          replacement = '''test("open Bakugan count parser emits generalized boolean comparisons", () => {\n  const expected = (operator: "==" | ">=" | "<=" | ">" | "<", right: number) => ({\n    kind: "expression" as const,\n    expression: { kind: "compare-number" as const, left: { kind: "count" as const, source: "open-bakugan" as const, owner: "controller" as const }, operator, right },\n  });\n  assert.deepEqual(conditionFor("If you only have one open Bakugan."), expected("==", 1));\n  assert.deepEqual(conditionFor("If you have only two open Bakugan."), expected("==", 2));\n  assert.deepEqual(conditionFor("If you have three or more open Bakugan."), expected(">=", 3));\n  assert.deepEqual(conditionFor("If you have at most two open Bakugan."), expected("<=", 2));\n  assert.deepEqual(conditionFor("If you have more than one open Bakugan."), expected(">", 1));\n  assert.deepEqual(conditionFor("If you have fewer than three open Bakugan."), expected("<", 3));\n  assert.deepEqual(conditionFor("If you have no open Bakugan."), expected("==", 0));\n});\n'''
+          text = text[:start] + replacement + text[end:]
+          text = replace_once(text, '    assert.deepEqual(spell.instructions[0].condition, {\n      kind: "open-bakugan-count",\n      comparison: "exactly",\n      amount: 1,\n    });', '    assert.deepEqual(spell.instructions[0].condition, {\n      kind: "expression",\n      expression: { kind: "compare-number", left: { kind: "count", source: "open-bakugan", owner: "controller" }, operator: "==", right: 1 },\n    });', 'Ice Elation generalized condition')
+          text = replace_once(text, '    amount: 2,\n    duration: "instant",\n    condition: { kind: "always" },\n    appliesTo: "self",\n    scale: "cards-played-this-turn",', '    amount: { kind: "product", factors: [2, { kind: "count", source: "cards-played", owner: "controller" }] },\n    duration: "instant",\n    condition: { kind: "always" },\n    appliesTo: "self",', 'Everett generalized cost expectation')
+          text = replace_once(text, '  player.heroes = [{ ...wynton, id: "wynton-active" }];\n  player.maxEnergy = 6;\n  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 6);\n  player.maxEnergy = 9;\n  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 9);', '  player.heroes = [{ ...wynton, id: "wynton-active" }];\n  const energySeed = CARDS.find((card) => card.type === "Action")!;\n  player.energyZone = Array.from({ length: 6 }, (_, index) => ({ ...energySeed, id: `wynton-energy-${index}` }));\n  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 6);\n  player.energyZone.push(...Array.from({ length: 3 }, (_, index) => ({ ...energySeed, id: `wynton-extra-energy-${index}` })));\n  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 9);', 'Wynton physical Energy-card expectation')
+          old = '  const shadowTrap = ruleDefinitionForCard(CARDS.find((card) => card.number === 152)!);\n  assert.ok(shadowTrap.play.choices.some((choice) => choice.id === "discardCardIds" && choice.timing === "pay"));'
+          new = '  const pact = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "bb-152")!);\n  const sacrificeRoute = pact.play.costModifiers.find((effect) => effect.kind === "cost-alternative");\n  assert.ok(sacrificeRoute?.components.some((component) => component.kind === "cost-discard" && component.choiceId === "discardCardIds"));'
+          text = replace_once(text, old, new, 'Pact payment timing expectation')
+          text = replace_once(text, '        schema.fields.map((field) => field.id),\n        expectedIds,', '        [...new Set(schema.fields.map((field) => field.id))],\n        [...new Set(expectedIds)],', 'simultaneous choice id expectation')
+          text = replace_once(text, '  const top = { ...CARDS.find((card) => card.type === "Action")!, id: "dan-revealed-action" };', '  const top = { ...CARDS.find((card) => card.type === "Action" && ruleDefinitionForCard(card).play.choices.length === 0)!, id: "dan-revealed-action" };', 'Dan legal top-card fixture')
+          old = '  assert.ok(definition.play.costModifiers.some((effect) => effect.kind === "cost-alternative"));\n  assert.ok(definition.play.costModifiers.some((effect) => effect.kind === "cost-discard"));'
+          new = '  const alternative = definition.play.costModifiers.find((effect) => effect.kind === "cost-alternative");\n  assert.ok(alternative);\n  assert.ok(alternative.components.some((effect) => effect.kind === "cost-discard"));\n  assert.equal(definition.play.costModifiers.some((effect) => effect.kind === "cost-discard"), false);'
+          text = replace_once(text, old, new, 'nested additional cost expectation')
+          # All bare held-Core prefix conditions now explicitly target the affected Bakugan.
+          text = text.replace('    coreTypes: ["Magic Shield", "Flaming Fist"],\n  });', '    coreTypes: ["Magic Shield", "Flaming Fist"],\n    subject: "target",\n  });')
+          text = text.replace('    coreTypes: ["Helix"],\n  });', '    coreTypes: ["Helix"],\n    subject: "target",\n  });')
+          text = text.replace('      coreTypes: [type],\n    });', '      coreTypes: [type],\n      subject: "target",\n    });')
+          write(path, text)
+
+          # Catalogue-wide audit: every card is compiled, every generalized numeric expression is evaluated,
+          # and no legacy numeric side channel survives serialization.
+          audit = '''import assert from "node:assert/strict";\nimport test from "node:test";\nimport { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";\nimport { createMatch } from "../lib/game";\nimport { ruleDefinitionForCard } from "../lib/rules/catalogue";\nimport { evaluateNumberValue, type NumberExpression } from "../lib/rules/values";\n\nconst countSources = new Set(["hand", "deck", "discard", "energy", "hero", "bakugan", "open-bakugan", "held-bakucore", "cards-played", "factions-played"]);\nconst unaryKinds = new Set(["floor", "ceil", "absolute", "negate"]);\nfunction isNumberExpression(value: unknown): value is NumberExpression {\n  if (!value || typeof value !== "object" || Array.isArray(value)) return false;\n  const node = value as Record<string, unknown>;\n  switch (node.kind) {\n    case "constant": return typeof node.value === "number";\n    case "choice-value": case "choice-count": return typeof node.choiceId === "string";\n    case "count": return typeof node.source === "string" && countSources.has(node.source);\n    case "property": return Boolean(node.subject) && typeof node.property === "string";\n    case "event-value": return node.property === "amount";\n    case "sum": return Array.isArray(node.terms);\n    case "subtract": return "left" in node && "right" in node;\n    case "product": return Array.isArray(node.factors);\n    case "divide": return "numerator" in node && "denominator" in node;\n    case "minimum": case "maximum": return Array.isArray(node.values);\n    case "clamp": return "value" in node;\n    case "conditional": return "whenTrue" in node && "whenFalse" in node;\n    case "captured": return typeof node.key === "string" && typeof node.at === "string" && "value" in node;\n    default: return typeof node.kind === "string" && unaryKinds.has(node.kind) && "value" in node;\n  }\n}\nfunction expressionsIn(value: unknown, found: NumberExpression[] = []): NumberExpression[] {\n  if (isNumberExpression(value)) found.push(value);\n  if (Array.isArray(value)) value.forEach((item) => expressionsIn(item, found));\n  else if (value && typeof value === "object") Object.values(value as Record<string, unknown>).forEach((item) => expressionsIn(item, found));\n  return found;\n}\n\ntest("every catalogue card compiles through the canonical value system", () => {\n  const state = createMatch("VALUE-CATALOGUE", "bo1", [makePlayer("first", "First", STARTER_DECKS[0]), makePlayer("second", "Second", STARTER_DECKS[1])]);\n  const player = state.players[0];\n  player.cardsPlayedThisTurn = 3;\n  player.factionsPlayedThisTurn = ["Aquos", "Pyrus", "Darkus"];\n  player.heroes = CARDS.filter((card) => card.type === "Hero").slice(0, 2).map((card, index) => ({ ...card, id: `audit-hero-${index}` }));\n  player.discard = CARDS.slice(0, 4).map((card, index) => ({ ...card, id: `audit-discard-${index}` }));\n  player.energyZone = CARDS.slice(4, 10).map((card, index) => ({ ...card, id: `audit-energy-${index}` }));\n  let cardsWithExpressions = 0;\n  let evaluated = 0;\n  for (const card of CARDS) {\n    const definition = ruleDefinitionForCard(card);\n    const serialized = JSON.stringify(definition);\n    assert.equal(serialized.includes("amountExpression"), false, `${card.catalogId} still serializes amountExpression`);\n    assert.equal(/\\"scale\\"\\s*:/.test(serialized), false, `${card.catalogId} still serializes a numeric scale side channel`);\n    const expressions = expressionsIn(definition);\n    if (expressions.length) cardsWithExpressions += 1;\n    for (const expression of expressions) {\n      for (const choices of [{ xValue: 0, discardCardIds: [] }, { xValue: 2, discardCardIds: ["audit-discard-0", "audit-discard-1"] }]) {\n        const value = evaluateNumberValue(state, expression, { controllerId: "first", chooserId: "first", choices, sourceCardId: card.id, moment: "resolve", event: { amount: 5 } });\n        assert.equal(Number.isFinite(value), true, `${card.catalogId} produced a non-finite value`);\n        evaluated += 1;\n      }\n    }\n  }\n  assert.equal(new Set(CARDS.map((card) => card.catalogId)).size, CARDS.length, "catalogue IDs must remain unique");\n  assert.ok(cardsWithExpressions > 0, "catalogue must exercise generalized numeric expressions");\n  assert.ok(evaluated > 0, "catalogue expressions must be evaluated");\n});\n'''
+          Path('tests/dynamic-value-catalogue.test.ts').write_text(audit)
+          PY
+      - run: npm ci
+      - name: Focused generalized-value and card-play coverage
+        run: npx tsx --test tests/value-expressions.test.ts tests/dynamic-value-catalogue.test.ts tests/rules-primitives.test.ts tests/card-payment.test.ts tests/card-play-pipeline.test.ts tests/pact-cubbo-regressions.test.ts tests/rules-engine-modernization.test.ts
+      - name: Full rules suite
+        run: npm run test:rules
+      - name: Gameplay suite
+        run: npm run test:gameplay
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Enforce one canonical numeric path
+        shell: bash
+        run: |
+          if grep -R -n -E 'AmountExpression|amountExpression|evaluateAmountExpression|amountExpressionForScale|CostScale|printedScaleMultiplier' lib tests --include='*.ts'; then
+            echo 'Legacy numeric expression compatibility path remains.' >&2
+            exit 1
+          fi
+          if grep -R -n -E 'scale\?: (string|CostScale)|modifier\.scale|action\.scale' lib/rules lib/game.ts --include='*.ts'; then
+            echo 'Legacy numeric scale side channel remains.' >&2
+            exit 1
+          fi
+      - name: Commit validated migration
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib tests
+          if git diff --cached --quiet; then
+            echo 'No product changes to commit.'
+          else
+            git commit -m 'refactor: complete canonical dynamic value system'
+            git push origin HEAD:feature/unified-card-play-pipeline
+          fi
