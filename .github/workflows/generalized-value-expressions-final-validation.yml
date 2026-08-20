@@ -3,6 +3,8 @@ name: Dynamic Value Migration Audit
 on:
   push:
     branches: [feature/unified-card-play-pipeline]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
