@@ -33,63 +33,53 @@ jobs:
                   raise SystemExit(f"missing expected text for {label}")
               return text.replace(old, new, 1)
 
-          # Finalize modernization assertions used by the migration worktree.
           p = Path('tests/rules-engine-modernization.test.ts')
-          s = p.read_text()
-          s = s.replace('  assert.equal(schema.fields[0]?.id, "mode");', '  assert.equal(schema.fields[0]?.id, "targetEffectId");')
+          s = p.read_text().replace('  assert.equal(schema.fields[0]?.id, "mode");', '  assert.equal(schema.fields[0]?.id, "targetEffectId");')
           p.write_text(s)
 
-          # Do not mistake RuleAction conditional branches for NumberExpression conditional nodes.
           p = Path('tests/dynamic-value-catalogue.test.ts')
           s = p.read_text()
           s = s.replace('case "conditional": return "whenTrue" in node && "whenFalse" in node;', 'case "conditional": return !Array.isArray(node.whenTrue) && !Array.isArray(node.whenFalse) && "whenTrue" in node && "whenFalse" in node;')
           s = s.replace('`${card.catalogId} produced a non-finite value`', '`${card.catalogId} ${JSON.stringify(expression)} produced ${String(value)}`')
           p.write_text(s)
 
-          # Battle Mastery entry abilities must retain their self-play trigger while branch instructions
-          # remain inside that trigger group. Also stop a "Choose a player ... Reroll your Bakugan"
-          # sentence from being misread as an explicit Bakugan selection.
           p = Path('lib/rules/catalogue-structure.ts')
           s = p.read_text()
-          s = replace_once(
-              s,
+          s = replace_once(s,
               '  const explicitBakuganTarget = /choose (?:a|an|one|another).*Bakugan|target .*Bakugan|retract (?:(?:one of|another) )?(?:your )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \\[[^\\]]+\\])? Bakugan|(?:a|an|one|another)(?: \\[[^\\]]+\\])? Bakugan gets?|to (?:a|an|one) \\[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\\] Bakugan/i.test(text)\n    || coreAttachmentTarget;',
               '  const explicitBakuganTarget = /choose (?:a|an|one|another)(?:(?!\\bplayer\\b)[^.;])*?Bakugan|target .*Bakugan|retract (?:(?:one of|another) )?(?:your )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \\[[^\\]]+\\])? Bakugan|(?:a|an|one|another)(?: \\[[^\\]]+\\])? Bakugan gets?|to (?:a|an|one) \\[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\\] Bakugan/i.test(text)\n    || coreAttachmentTarget;',
-              'explicit Bakugan target grammar',
-          )
-          s = replace_once(
-              s,
+              'explicit Bakugan target grammar')
+          s = replace_once(s,
               '    const noOp: RuleAction = { kind: "cost", amount: 0, operation: "reduce", duration: "instant" };\n    const chooser: RuleInstruction = {\n      ...current,\n      id: `${ruleCardId(card)}:battle-mastery-choice`,\n      condition: { kind: "always" },\n      effects: [noOp],\n      actions: [noOp],',
               '    const noOp: RuleAction = { kind: "cost", amount: 0, operation: "reduce", duration: "instant" };\n    const triggerEffects = current.effects.filter((effect) => effect.kind === "trigger");\n    const chooserEffects: RuleAction[] = triggerEffects.length ? [...triggerEffects, noOp] : [noOp];\n    const chooser: RuleInstruction = {\n      ...current,\n      id: `${ruleCardId(card)}:battle-mastery-choice`,\n      condition: { kind: "always" },\n      effects: chooserEffects,\n      actions: chooserEffects,',
-              'Battle Mastery trigger preservation',
-          )
+              'Battle Mastery trigger preservation')
           old = '''    const continuesTrigger = Boolean(activeTrigger) && /^(?:then\\b|shuffle\\s+your\\s+deck\\b|you\\s+may\\s+(?:put|play|attach)\\s+(?:it|that\\s+card|the\\s+(?:chosen|revealed)\\s+card|an?\\s+\\[(?:FT|FF|SD|MS|HE)\\])\\b|if\\s+(?:it(?:['’]?s|\\b)|they\\b|you do\\b|an?\\s+[^,.]+\\s+cards?\\s+is\\s+revealed\\s+this\\s+way\\b|one\\s+of\\s+(?:them|those\\s+cards)\\b|the\\s+revealed\\s+card\\b))/i.test(\n      instruction.sourceText.trim(),\n    );'''
           new = '''    const continuesTrigger = Boolean(activeTrigger) && (\n      instruction.condition.kind === "mode-selected"\n      || /^(?:then\\b|shuffle\\s+your\\s+deck\\b|you\\s+may\\s+(?:put|play|attach)\\s+(?:it|that\\s+card|the\\s+(?:chosen|revealed)\\s+card|an?\\s+\\[(?:FT|FF|SD|MS|HE)\\])\\b|if\\s+(?:it(?:['’]?s|\\b)|they\\b|you do\\b|an?\\s+[^,.]+\\s+cards?\\s+is\\s+revealed\\s+this\\s+way\\b|one\\s+of\\s+(?:them|those\\s+cards)\\b|the\\s+revealed\\s+card\\b))/i.test(\n        instruction.sourceText.trim(),\n      )\n    );'''
           s = replace_once(s, old, new, 'Battle Mastery trigger grouping')
           p.write_text(s)
 
-          # createMatch intentionally starts before BakuCore placement. Tests that exercise Field-core
-          # selection directly must construct the small Field fixture they depend on.
           p = Path('tests/bakucore-choice-regressions.test.ts')
           s = p.read_text()
-          s = replace_once(
-              s,
+          s = replace_once(s,
               '  state.selected = { [first.id]: first.bakugan[0].id, [second.id]: second.bakugan[0].id };\n  first.bakugan[0].open = true;',
               '  state.selected = { [first.id]: first.bakugan[0].id, [second.id]: second.bakugan[0].id };\n  state.placements = [\n    { playerId: first.id, core: first.cores[0], cell: "test-core-first", order: 1 },\n    { playerId: second.id, core: second.cores[0], cell: "test-core-second", order: 2 },\n  ];\n  first.bakugan[0].open = true;',
-              'BakuCore test Field fixture',
-          )
+              'BakuCore test Field fixture')
           p.write_text(s)
 
-          # Generic reveal-and-play tests should use a card that can actually be staged without an
-          # announcement target; Absorb is deliberately illegal without a batch target.
           p = Path('tests/deck-inspection.test.ts')
           s = p.read_text()
-          s = replace_once(
-              s,
+          s = replace_once(s,
               '  const cards = CARDS.filter((card) => card.type === "Action").slice(0, 5).map(deckCard);',
               '  const cards = CARDS.filter((card) => card.type === "Action" && ruleDefinitionForCard(card).play.choices.filter((choice) => choice.timing === "announce").length === 0).slice(0, 5).map(deckCard);',
-              'legal reveal/play deck fixture',
-          )
+              'legal reveal/play deck fixture')
+          s = replace_once(s,
+              '    const initial = matchWithKnownDeck();\n    const card = catalogueCard(catalogId, `${catalogId}-reveal-skip`);',
+              '    const initial = matchWithKnownDeck();\n    if (catalogId === "aa-140") initial.brawlWinner = "a";\n    const card = catalogueCard(catalogId, `${catalogId}-reveal-skip`);',
+              'Victor reveal skip fixture')
+          s = replace_once(s,
+              '    const initial = matchWithKnownDeck();\n    const source = catalogueCard(catalogId, `${catalogId}-play-choice`);',
+              '    const initial = matchWithKnownDeck();\n    if (catalogId === "aa-140") initial.brawlWinner = "a";\n    const source = catalogueCard(catalogId, `${catalogId}-play-choice`);',
+              'Victor reveal play fixture')
           p.write_text(s)
           PY
       - run: npm ci
