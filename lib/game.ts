@@ -14,6 +14,7 @@ import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
 import { turnDrawCounts } from "./rules/turn-draw";
 import { evaluateAmountExpression, playerIdsForScope, zoneOwnerIdsFor } from "./rules/primitives";
+import { evaluateNumberValue, type NumberValue } from "./rules/values";
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
 import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
@@ -2002,7 +2003,7 @@ const ruleConditionIsActive = (
     ? state.players.flatMap((candidate) => candidate.bakugan)
       .find((bakugan) => bakugan.id === choices.sourceBakuganId)
     : chooseBakugan(state, pending.controllerId, choices);
-  return ruleConditionActive(state, player, instruction.condition, conditionTarget);
+  return ruleConditionActive(state, player, instruction.condition, conditionTarget, choices);
 };
 
 function recordTemporaryCardStatModifier(
@@ -2058,6 +2059,16 @@ const executeRuleAction = (
   const allBakugan = state.players.flatMap((candidate) => candidate.bakugan);
   const target = allBakugan.find((bakugan) => bakugan.id === rerollTargetId)
     ?? chooseBakugan(state, controllerId, choices, preferEnemy);
+  const resolveNumber = (value: NumberValue, scopedChoices: CardChoices = choices, chooserId?: string) => evaluateNumberValue(state, value, {
+    controllerId,
+    chooserId,
+    chosenPlayerId: scopedChoices.targetPlayerId,
+    choices: scopedChoices,
+    sourceBakuganId: scopedChoices.sourceBakuganId,
+    sourceCardId: pending.sourceId ?? pending.card.id,
+    moment: "resolve",
+    capturedValues: isRuleObject(pending) ? pending.valueSnapshots : undefined,
+  });
 
   switch (action.kind) {
     case "choice":
@@ -2080,8 +2091,8 @@ const executeRuleAction = (
     }
     case "cost":
       if (action.duration === "next-card") {
-        if (action.operation === "reduce") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) + action.amount;
-        else if (action.operation === "increase") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) - action.amount;
+        if (action.operation === "reduce") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) + resolveNumber(action.amount);
+        else if (action.operation === "increase") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) - resolveNumber(action.amount);
       } else if (action.operation === "free" && action.duration === "turn") {
         const rules = ensureRulesState(state);
         rules.costModifiers.push({
@@ -2170,9 +2181,10 @@ const executeRuleAction = (
         (choices.mode === "damage" && action.stat === "power")
         || (choices.mode === "power" && action.stat === "damage")
       )) return;
+      const baseAmount = resolveNumber(action.amount);
       let amount = action.amountExpression
         ? evaluateAmountExpression(state, action.amountExpression, { controllerId, choices, chosenPlayerId: choices.targetPlayerId })
-        : scaleStat(state, player, text, action.amount, action.stat, action.scale);
+        : action.scale ? scaleStat(state, player, text, baseAmount, action.stat, action.scale) : baseAmount;
       if (!action.amountExpression && action.scale === "sacrificed-card") amount *= choices.discardCardIds?.length ?? 0;
       const explicitActionTarget = action.targetChoiceId
         ? choices[action.targetChoiceId]
@@ -2210,16 +2222,17 @@ const executeRuleAction = (
       if (!target) return;
       if (action.keyword === "DoubleStrike") state.doubleStrike[target.id] = true;
       else if (action.keyword === "ShadowStrike") state.shadowStrike[target.id] = true;
-      else if (action.keyword === "FrostStrike") state.frostStrike[target.id] = (state.frostStrike[target.id] ?? 0) + (action.value ?? 1);
+      else if (action.keyword === "FrostStrike") state.frostStrike[target.id] = (state.frostStrike[target.id] ?? 0) + resolveNumber(action.value ?? 1);
       else if (action.keyword === "Stop" && flipStopsDamage(state, card)) {
         state.pendingDamage = 0;
         state.revealedFlip = undefined;
       }
       return;
     case "draw": {
+      const baseAmount = resolveNumber(action.amount);
       const amount = Math.max(0, Math.floor(action.amountExpression
         ? evaluateAmountExpression(state, action.amountExpression, { controllerId, choices, chosenPlayerId: choices.targetPlayerId })
-        : action.scale ? scaleStat(state, player, text, action.amount, "draw", action.scale) : action.amount));
+        : action.scale ? scaleStat(state, player, text, baseAmount, "draw", action.scale) : baseAmount));
       const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
       for (const recipientId of recipientIds) enqueueEffectDraw(state, playerById(state, recipientId), amount, card.displayName || card.name, pending.id);
       return;
@@ -2235,27 +2248,30 @@ const executeRuleAction = (
         const selected = scopedChoices.discardCardIds ?? scopedChoices.handCardIds ?? [];
         const expressionAmount = action.amountExpression
           ? Math.max(0, Math.floor(evaluateAmountExpression(state, action.amountExpression, { controllerId, chooserId: affectedId, chosenPlayerId: affectedId, choices: scopedChoices })))
-          : action.amount;
-        const amount = action.minimum === 0 ? selected.length : selected.length || expressionAmount;
-        if (amount > 0) discardFromHand(state, affected, Math.min(action.maximum, amount), selected);
+          : Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));
+        const minimum = Math.max(0, Math.floor(resolveNumber(action.minimum, scopedChoices, affectedId)));
+        const maximum = Math.max(minimum, Math.floor(resolveNumber(action.maximum, scopedChoices, affectedId)));
+        const amount = minimum === 0 ? selected.length : selected.length || expressionAmount;
+        if (amount > 0) discardFromHand(state, affected, Math.min(maximum, amount), selected);
       }
       return;
     }
     case "energize": {
       if (choices.confirmed === false) return;
+      const amount = Math.max(0, Math.floor(resolveNumber(amount)));
       if (action.source === "hand") {
-        const selectedIds = choices.handCardIds?.slice(0, action.amount) ?? [];
-        if (selectedIds.length !== action.amount || new Set(selectedIds).size !== action.amount) return;
+        const selectedIds = choices.handCardIds?.slice(0, amount) ?? [];
+        if (selectedIds.length !== amount || new Set(selectedIds).size !== amount) return;
         const selected = new Set(selectedIds);
         const energized = player.hand.filter((candidate) => selected.has(candidate.id));
-        if (energized.length !== action.amount) return;
+        if (energized.length !== amount) return;
         player.hand = player.hand.filter((candidate) => !selected.has(candidate.id));
         applyEnergyEntryVisibility(energized, "hand");
         player.energyZone.push(...energized);
         applyEnergizedEntryState(state, player, energized, action.enters);
       } else if (action.source === "deck") {
         const energized: GameCard[] = [];
-        for (let index = 0; index < action.amount; index += 1) {
+        for (let index = 0; index < amount; index += 1) {
           const energyCard = player.deckCards.shift();
           if (energyCard) energized.push(energyCard);
         }
@@ -2289,21 +2305,22 @@ const executeRuleAction = (
         const recipient = playerById(state, recipientId);
         const amount = action.amountExpression
           ? evaluateAmountExpression(state, action.amountExpression, { controllerId, chooserId: recipientId, chosenPlayerId: recipientId, choices })
-          : scaleStat(state, player, text, action.amount, "draw", action.scale);
+          : action.scale ? scaleStat(state, player, text, resolveNumber(action.amount, choices, recipientId), "draw", action.scale) : resolveNumber(action.amount, choices, recipientId);
         recipient.energy += Math.max(0, amount);
       }
       return;
     }
     case "recharge-energy": {
       if (choices.confirmed === false) return;
-      const selected = action.amount === "all" ? undefined : (choices.targetEnergyIds ?? []).slice(0, action.amount);
+      const selected = action.amount === "all" ? undefined : (choices.targetEnergyIds ?? []).slice(0, Math.max(0, Math.floor(resolveNumber(action.amount))));
       rechargeEnergyCards(state, controllerId, selected);
       return;
     }
     case "set-stat":
       if (target) {
-        if (action.stat === "power") state.powerBoost[target.id] = action.value - (topCard(target).bPower ?? target.bPower);
-        else state.damageBoost[target.id] = action.value - (topCard(target).damage ?? target.damage);
+        const value = resolveNumber(action.value);
+        if (action.stat === "power") state.powerBoost[target.id] = value - (topCard(target).bPower ?? target.bPower);
+        else state.damageBoost[target.id] = value - (topCard(target).damage ?? target.damage);
       }
       return;
     case "set-rule":
@@ -2352,18 +2369,19 @@ return;
       syncDeck(player);
       return;
     case "move": {
+      const actionAmount = Math.max(0, Math.floor(resolveNumber(action.amount)));
       if (action.verb === "destroy" && action.object === "hero" && /destroy this/i.test(text)) {
         for (const owner of state.players) {
           const destroyed = owner.heroes.filter((hero) => hero.id === pending.sourceId || hero.id === card.id);
           owner.heroes = owner.heroes.filter((hero) => !destroyed.some((candidate) => candidate.id === hero.id));
           owner.discard.push(...destroyed);
         }
-      } else if (action.verb === "destroy" && action.object === "hero") destroyHero(state, controllerId, choices, action.amount > 2);
-      else if (action.verb === "destroy" && action.object === "evo") destroyEvo(state, controllerId, choices, action.amount > 2);
+      } else if (action.verb === "destroy" && action.object === "hero") destroyHero(state, controllerId, choices, actionAmount > 2);
+      else if (action.verb === "destroy" && action.object === "evo") destroyEvo(state, controllerId, choices, actionAmount > 2);
       else if (action.verb === "destroy" && action.object === "energy") {
         const amount = card.catalogId === "bb-97"
           ? choices.targetEnergyIds?.length ?? 0
-          : action.amount;
+          : actionAmount;
         destroyEnergy(state, amount, choices.targetEnergyIds ?? []);
       } else if (action.verb === "control" && action.object === "hero") {
         const index = opponent.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
@@ -2376,9 +2394,9 @@ return;
           target.heldCoreCells.push(placement.cell);
         }
       } else if (action.verb === "remove" && action.object === "bakucore") {
-        const owners = action.amount > 2 ? [opponent] : state.players;
+        const owners = actionAmount > 2 ? [opponent] : state.players;
         for (const owner of owners) for (const bakugan of owner.bakugan) {
-          const cells = action.amount > 2 ? [...bakugan.heldCoreCells] : bakugan.heldCoreCells.filter((cell) => cell === choices.coreCell);
+          const cells = actionAmount > 2 ? [...bakugan.heldCoreCells] : bakugan.heldCoreCells.filter((cell) => cell === choices.coreCell);
           for (const cell of cells) {
             const placement = state.placements.find((candidate) => candidate.cell === cell);
             if (placement) delete placement.attachedTo;
@@ -2409,7 +2427,7 @@ return;
         } else if (!player.hand.some((candidate) => candidate.id === card.id)) player.hand.push(card);
       } else if (action.verb === "shuffle" && action.object === "card") {
         const ids = choices.handCardIds ?? choices.discardCardIds ?? [];
-        const moved = player.discard.filter((candidate) => ids.includes(candidate.id)).slice(0, action.amount);
+        const moved = player.discard.filter((candidate) => ids.includes(candidate.id)).slice(0, actionAmount);
         player.discard = player.discard.filter((candidate) => !moved.some((card) => card.id === candidate.id));
         player.deckCards.push(...moved);
         shuffle(player.deckCards);
@@ -2418,6 +2436,7 @@ return;
       return;
     }
     case "reveal": {
+      const revealAmount = Math.max(0, Math.floor(resolveNumber(action.amount)));
       if (action.object === "bakucore") {
         const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell && !candidate.attachedTo);
         if (placement) {
@@ -2431,7 +2450,7 @@ return;
     }
     case "reorder-deck": {
       const ids = choices.orderedCardIds ?? [];
-      const top = player.deckCards.slice(0, action.amount);
+      const top = player.deckCards.slice(0, Math.max(0, Math.floor(resolveNumber(action.amount))));
       if (ids.length !== top.length || new Set(ids).size !== ids.length || ids.some((id) => !top.some((card) => card.id === id))) return;
       const byId = new Map(top.map((candidate) => [candidate.id, candidate]));
       player.deckCards.splice(0, top.length, ...ids.map((id) => byId.get(id)!));
@@ -2479,7 +2498,7 @@ return;
         if (![selected.displayName, selected.name].some((value) => normalize(value) === wanted)) return;
       }
       const printedCost = selected.cost === "X" ? Number.POSITIVE_INFINITY : selected.cost;
-      if (action.maximumCost != null && printedCost > action.maximumCost) return;
+      if (action.maximumCost != null && printedCost > resolveNumber(action.maximumCost)) return;
       if (action.source === "revealed-deck" && selected.type === "Flip") {
         delete player.revealedDeckCardId;
         return;
@@ -2541,6 +2560,7 @@ return;
       return;
     }
     case "attack": {
+      const attackAmount = Math.max(0, Math.floor(resolveNumber(action.amount)));
       state.pendingEffectDamageResume = {
         sourceEffectId: pending.id,
         phase: state.phase,
@@ -2549,13 +2569,13 @@ return;
         stepLabel: state.stepLabel,
       };
       state.pendingLoser = opponent.id;
-      state.pendingDamage = action.amount;
+      state.pendingDamage = attackAmount;
       state.damageOrigin = pending.sourceId ?? pending.card.id;
       state.damageFaction = action.faction as Faction;
       pending.instructionIndex = instructionIndex + 1;
       if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex + 1;
-      setPhase(state, "damage", `Damage Step • ${action.amount} incoming from ${pending.card.displayName || pending.card.name}`, opponent.id);
-      entry(state, "game", `${pending.card.name} made a ${action.faction ?? "separate"} attack for ${action.amount}.`);
+      setPhase(state, "damage", `Damage Step • ${attackAmount} incoming from ${pending.card.displayName || pending.card.name}`, opponent.id);
+      entry(state, "game", `${pending.card.name} made a ${action.faction ?? "separate"} attack for ${attackAmount}.`);
       throw new DamageResolutionSuspended();
     }
     case "negate": {
@@ -2568,7 +2588,7 @@ return;
           && !effect.negated
           && (!action.targetKinds?.length || action.targetKinds.includes(effect.kind))
           && (action.cardType === "any" || effect.card.type === action.cardType)
-          && (action.maximumCost == null || printedCost <= action.maximumCost);
+          && (action.maximumCost == null || printedCost <= resolveNumber(action.maximumCost));
       });
       if (index >= 0) {
         const [negated] = state.batch.splice(index, 1);
@@ -2602,9 +2622,7 @@ return;
     }
     case "copy": {
       if (choices.confirmed === false) return;
-      const count = Math.max(0, Math.floor(action.count
-        ? evaluateAmountExpression(state, action.count, { controllerId, choices, chosenPlayerId: choices.targetPlayerId })
-        : 1));
+      const count = Math.max(0, Math.floor(action.count == null ? 1 : resolveNumber(action.count)));
       const copyControllers = playerIdsForScope(state, action.controller ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
       if (action.target === "next-action") {
         for (const copyControllerId of copyControllers) {

@@ -4,6 +4,7 @@ import { activeFrostStrike, ruleConditionActive } from "./modifiers";
 import type { CostEffect, RulesPayment } from "./model";
 import { playerIdsForScope } from "./primitives";
 import { ensureRulesState } from "./state";
+import { evaluateNumberValue, type NumberValue } from "./values";
 
 export type CardCostBreakdown = {
   printed: number;
@@ -49,6 +50,16 @@ function choiceHasValue(choices: CardChoices, id: keyof CardChoices) {
   return Array.isArray(selected) ? selected.length > 0 : selected !== undefined && selected !== false && selected !== "";
 }
 
+function costValue(state: MatchState, playerId: string, value: NumberValue, choices: CardChoices = {}, capturedValues?: Record<string, number>) {
+  return evaluateNumberValue(state, value, {
+    controllerId: playerId,
+    chosenPlayerId: choices.targetPlayerId,
+    choices,
+    moment: "pay",
+    capturedValues,
+  });
+}
+
 export function cardCostBreakdown(
   state: MatchState,
   playerId: string,
@@ -87,12 +98,12 @@ export function cardCostBreakdown(
         : modifier.scale === "held-bakucore"
           ? player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0)
           : 1;
-      reductions += modifier.amount * variableMultiplier;
-    } else if (modifier.kind === "cost-increase") increases += modifier.amount;
+      reductions += costValue(state, playerId, modifier.amount, choices) * variableMultiplier;
+    } else if (modifier.kind === "cost-increase") increases += costValue(state, playerId, modifier.amount, choices);
     else if (modifier.kind === "cost-free") {
       if (!modifier.cardType || modifier.cardType === card.type) freeBase = true;
     } else if (modifier.kind === "cost-discard") {
-      additionalCosts.push({ kind: "discard", amount: modifier.amount, choiceId: modifier.choiceId });
+      additionalCosts.push({ kind: "discard", amount: Math.max(0, Math.floor(costValue(state, playerId, modifier.amount, choices))), choiceId: modifier.choiceId });
     } else if (modifier.kind === "cost-alternative") {
       const legacySelected = modifier.components.some((component) => (
         component.kind === "cost-discard" && choiceHasValue(choices, component.choiceId)
@@ -103,7 +114,7 @@ export function cardCostBreakdown(
       if (!selected) continue;
       if (modifier.setsBaseFree) freeBase = true;
       for (const component of modifier.components) if (component.kind === "cost-discard") {
-        additionalCosts.push({ kind: "discard", amount: component.amount, choiceId: component.choiceId });
+        additionalCosts.push({ kind: "discard", amount: Math.max(0, Math.floor(costValue(state, playerId, component.amount, choices))), choiceId: component.choiceId });
       }
     }
   }
@@ -115,8 +126,8 @@ export function cardCostBreakdown(
     const recipients = playerIdsForScope(state, modifier.playerScope, { controllerId: modifier.controllerId });
     if (!recipients.includes(playerId)) continue;
     if (modifier.kind === "free") freeBase = true;
-    else if (modifier.kind === "reduce") reductions += modifier.amount;
-    else increases += modifier.amount;
+    else if (modifier.kind === "reduce") reductions += costValue(state, playerId, modifier.amount, modifier.choices ?? choices, modifier.valueSnapshots);
+    else increases += costValue(state, playerId, modifier.amount, modifier.choices ?? choices, modifier.valueSnapshots);
   }
 
   const frostStrike = card.type === "Flip" && state.damageOrigin ? activeFrostStrike(state, state.damageOrigin) : 0;

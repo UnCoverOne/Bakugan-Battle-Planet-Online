@@ -457,6 +457,13 @@ function reductionScaleFor(text: string): Extract<CostEffect, { kind: "cost-redu
   return undefined;
 }
 
+function reductionAmountFor(text: string, amount: number): CostEffect extends infer _ ? import("./values").NumberValue : never {
+  const scale = reductionScaleFor(text);
+  if (scale === "cards-played-this-turn") return { kind: "product", factors: [amount, { kind: "count", source: "cards-played", owner: "controller" }] };
+  if (scale === "held-bakucore") return { kind: "product", factors: [amount, { kind: "count", source: "held-bakucore", owner: "controller" }] };
+  return amount;
+}
+
 function costModifiersFor(card: GameCard): CostEffect[] {
   const result: CostEffect[] = [];
   const text = card.effect;
@@ -479,11 +486,10 @@ function costModifiersFor(card: GameCard): CostEffect[] {
   for (const match of text.matchAll(/\bthis\s+costs?\s+(\d+)\s+\[Energy\]\s+less(?:\s+to\s+(?:play|use))?(?:\s+for\s+each\s+[^.]+)?/gi)) {
     result.push({
       kind: "cost-reduce",
-      amount: Number(match[1]),
+      amount: reductionAmountFor(match[0], Number(match[1])),
       duration: "instant",
       condition: conditionFor(text),
       appliesTo: "self",
-      scale: reductionScaleFor(match[0]),
     });
   }
 

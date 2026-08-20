@@ -5,6 +5,7 @@ import { ruleConditionActive } from "./modifiers";
 import type { RuleAction, RuleObject, TriggerDefinition, TriggerEventName } from "./model";
 import { createRuleObject } from "./objects";
 import { ensureRulesState } from "./state";
+import { evaluateNumberValue } from "./values";
 
 export type RuleEvent = {
   id: string;
@@ -112,7 +113,14 @@ function triggerMatches(
   triggerText: string,
 ) {
   if (trigger.event !== event.name) return false;
-  if (trigger.minimumEventAmount != null && (event.amount ?? 0) < trigger.minimumEventAmount) return false;
+  if (trigger.minimumEventAmount != null && (event.amount ?? 0) < evaluateNumberValue(state, trigger.minimumEventAmount, {
+    controllerId: owner.id,
+    choices: event.choices,
+    sourceCardId: source.id,
+    sourceBakuganId: sourceBakuganFor(owner, source)?.id,
+    event: { amount: event.amount, playerId: event.actorId, sourceId: event.card?.id, targetId: event.targetBakuganId },
+    moment: "event",
+  })) return false;
   if (!relationshipMatches(trigger, owner.id, event)) return false;
   if (trigger.source === "self" && source.id !== event.card?.id) return false;
   if (trigger.cardType && trigger.cardType !== event.cardType) return false;
@@ -120,7 +128,7 @@ function triggerMatches(
   const target = event.targetBakuganId
     ? state.players.flatMap((player) => player.bakugan).find((candidate) => candidate.id === event.targetBakuganId)
     : undefined;
-  if (trigger.interveningCondition && !ruleConditionActive(state, owner, trigger.interveningCondition, target)) return false;
+  if (trigger.interveningCondition && !ruleConditionActive(state, owner, trigger.interveningCondition, target, event.choices ?? {})) return false;
   return true;
 }
 
@@ -190,5 +198,5 @@ export function conditionStillValidAtResolution(state: MatchState, object: RuleO
   const target = object.choices.sourceBakuganId
     ? state.players.flatMap((player) => player.bakugan).find((candidate) => candidate.id === object.choices.sourceBakuganId)
     : undefined;
-  return Boolean(owner && ruleConditionActive(state, owner, ability.trigger.interveningCondition, target));
+  return Boolean(owner && ruleConditionActive(state, owner, ability.trigger.interveningCondition, target, object.choices));
 }

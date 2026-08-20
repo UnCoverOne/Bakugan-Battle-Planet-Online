@@ -11,6 +11,7 @@ export { canonicalEvoTargetAllowed, cardDefinitionId, cardPrintingId, characterI
 export { evaluateBakuganCharacteristics, activeFrostStrike, ruleConditionActive } from "./modifiers";
 export { activeExtraTurnDrawModifiers, extraTurnDrawModifiersForCard, extraTurnDrawsForPlayer, turnDrawCountForPlayer, turnDrawCounts } from "./turn-draw";
 export * from "./primitives";
+export * from "./values";
 export { createRuleObject, copyRuleObject, negateRuleObject } from "./objects";
 export { applyReplacements, registerReplacement, removeReplacement } from "./replacements";
 export { ensureRulesState, normalizeRuleObjects } from "./state";

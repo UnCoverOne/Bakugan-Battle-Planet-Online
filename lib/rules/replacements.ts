@@ -3,6 +3,7 @@ import { consumeReplacementIteration, EngineRuntimeLimitError, MAX_REPLACEMENT_I
 import { ruleConditionActive } from "./modifiers";
 import type { ProposedEvent, RuleAction, RuleSourceReference } from "./model";
 import { ensureRulesState } from "./state";
+import { evaluateNumberValue } from "./values";
 
 export type ReplacementApplication = {
   event: ProposedEvent | null;
@@ -16,14 +17,21 @@ function controllerFor(state: MatchState, controllerId: string) {
   return controller;
 }
 
-function eventFromActions(event: ProposedEvent, actions: RuleAction[]) {
+function eventFromActions(state: MatchState, controllerId: string, event: ProposedEvent, actions: RuleAction[]) {
   let next = structuredClone(event);
   for (const action of actions) {
     if (action.kind === "move" && action.verb === "return") next.destination = action.object === "card" ? "owner-hand" : next.destination;
     else if (action.kind === "damage-to-hand" && next.kind === "DAMAGE") next.metadata = { ...(next.metadata ?? {}), damageDestination: "hand" };
-    else if (action.kind === "prevention" && action.event === next.kind) next.amount = Math.max(0, (next.amount ?? 0) - (action.amount ?? next.amount ?? 0));
-    else if (action.kind === "replacement" && action.event === next.kind) next = eventFromActions(next, action.replaceWith);
-    else if (action.kind === "sequence") next = eventFromActions(next, action.effects);
+    else if (action.kind === "prevention" && action.event === next.kind) {
+      const amount = action.amount == null ? next.amount ?? 0 : evaluateNumberValue(state, action.amount, {
+        controllerId,
+        event: { amount: next.amount, playerId: next.actorId, sourceId: next.sourceId, targetId: next.targetId },
+        moment: "event",
+      });
+      next.amount = Math.max(0, (next.amount ?? 0) - amount);
+    }
+    else if (action.kind === "replacement" && action.event === next.kind) next = eventFromActions(state, controllerId, next, action.replaceWith);
+    else if (action.kind === "sequence") next = eventFromActions(state, controllerId, next, action.effects);
   }
   return next;
 }
@@ -74,12 +82,18 @@ export function applyReplacements(state: MatchState, proposed: ProposedEvent): R
     if (!selected) break;
     appliedIds.push(selected.id);
     if (selected.effect.kind === "prevention") {
-      const amount = selected.effect.amount ?? event.amount ?? 0;
+      const amount = selected.effect.amount == null
+        ? event.amount ?? 0
+        : evaluateNumberValue(state, selected.effect.amount, {
+          controllerId: selected.controllerId,
+          event: { amount: event.amount, playerId: event.actorId, sourceId: event.sourceId, targetId: event.targetId },
+          moment: "event",
+        });
       preventedAmount += Math.min(event.amount ?? amount, amount);
       if (event.amount == null || amount >= event.amount) event = null;
       else event.amount -= amount;
     } else {
-      event = eventFromActions(event, selected.effect.replaceWith);
+      event = eventFromActions(state, selected.controllerId, event, selected.effect.replaceWith);
     }
   }
 

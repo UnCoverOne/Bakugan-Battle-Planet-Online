@@ -91,17 +91,17 @@ export function conditionFor(text: string): RuleCondition {
   if (/\bFlow\b/i.test(text)) return { kind: "flow" };
   if (/\bVictor\s*[-:]/i.test(text)) return { kind: "victor" };
   if (/\bSacrifice\b/i.test(text)) return { kind: "selection-made", choiceId: "discardCardIds" };
-  if (/two or more cards this turn/i.test(text)) return { kind: "cards-played", comparison: "at-least", amount: 2 };
+  if (/two or more cards this turn/i.test(text)) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "cards-played", owner: "controller" }, operator: ">=", right: 2 } };
   const playedFactionCount = text.match(/played a card from (no|a|an|one|two|three|four|five|six|\d+) different factions? this turn/i);
-  if (playedFactionCount) return { kind: "factions-played", comparison: "at-least", amount: numberValue(playedFactionCount[1], 1) };
+  if (playedFactionCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "factions-played", owner: "controller" }, operator: ">=", right: numberValue(playedFactionCount[1], 1) } };
   const heroCount = text.match(/if you (?:have|control) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Hero cards? in play/i);
-  if (heroCount) return { kind: "hero-count", comparison: "at-least", amount: numberValue(heroCount[1], 1) };
+  if (heroCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "hero", owner: "controller" }, operator: ">=", right: numberValue(heroCount[1], 1) } };
   const energyCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Energy cards in play/i);
-  if (energyCount) return { kind: "energy-count", comparison: "at-least", amount: numberValue(energyCount[1], 1) };
+  if (energyCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "energy", owner: "controller" }, operator: ">=", right: numberValue(energyCount[1], 1) } };
   const discardCount = text.match(/if (?:there are|you have) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more cards? in your discard pile/i);
-  if (discardCount) return { kind: "discard-count", comparison: "at-least", amount: numberValue(discardCount[1], 1) };
+  if (discardCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "discard", owner: "controller" }, operator: ">=", right: numberValue(discardCount[1], 1) } };
   const playedCost = text.match(/if you(?: have|\'ve)? played a card that costs? (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) \[Energy\] or more this turn/i);
-  if (playedCost) return { kind: "played-card-cost", comparison: "at-least", amount: numberValue(playedCost[1], 1) };
+  if (playedCost) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "property", subject: { kind: "player", owner: "controller" }, property: "maximum-played-card-cost" }, operator: ">=", right: numberValue(playedCost[1], 1) } };
   const requiredCards = controlledCardNames(text);
   if (requiredCards.length) return { kind: "controls-named-cards", names: requiredCards };
   const openBakuganCount = text.match(
@@ -116,7 +116,17 @@ export function conditionFor(text: string): RuleCondition {
     else if (/more than/.test(wording)) comparison = "more-than";
     else if (/fewer than/.test(wording)) comparison = "fewer-than";
     else if (/at least/.test(wording) || openBakuganCount[3]) comparison = "at-least";
-    return { kind: "open-bakugan-count", comparison, amount };
+    const operator = comparison === "exactly" ? "=="
+      : comparison === "at-least" ? ">="
+        : comparison === "at-most" ? "<="
+          : comparison === "more-than" ? ">"
+            : "<";
+    return { kind: "expression", expression: {
+      kind: "compare-number",
+      left: { kind: "count", source: "open-bakugan", owner: "controller" },
+      operator,
+      right: amount,
+    } };
   }
   const targetFaction = text.match(/\bIf\s+\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/i)?.[1] as Faction | undefined;
   if (targetFaction) return { kind: "faction", faction: targetFaction, subject: "target" };
@@ -197,9 +207,8 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     actions.push({
       kind: "modify-stat",
       stat: "power",
-      amount: Number(match[1]),
-      scale: scaleForStat(text, match),
-      amountExpression: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)),
+      amount: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ?? Number(match[1]),
+      scale: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ? undefined : scaleForStat(text, match),
       duration,
       scope,
       targetChoiceId: ruleCardId(card) === "aa-50" ? "targetBakuganId" : undefined,
@@ -209,9 +218,8 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     actions.push({
       kind: "modify-stat",
       stat: "damage",
-      amount: Number(match[1]),
-      scale: scaleForStat(text, match),
-      amountExpression: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)),
+      amount: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ?? Number(match[1]),
+      scale: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ? undefined : scaleForStat(text, match),
       duration,
       scope,
       targetChoiceId: ruleCardId(card) === "aa-50" ? "secondaryTargetBakuganId" : undefined,
@@ -219,7 +227,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   }
   for (const match of text.matchAll(/\+?(\d+)\s*\[FrostStrike\]/gi)) {
     const frostScale = scaleForStat(text, match);
-    actions.push({ kind: "modify-stat", stat: "frost", amount: Number(match[1]), scale: frostScale, amountExpression: amountExpressionForScale(text, Number(match[1]), frostScale), duration, scope });
+    actions.push({ kind: "modify-stat", stat: "frost", amount: amountExpressionForScale(text, Number(match[1]), frostScale) ?? Number(match[1]), scale: amountExpressionForScale(text, Number(match[1]), frostScale) ? undefined : frostScale, duration, scope });
   }
   if (/\+?\[Double\s*Strike\]|\bDouble\s*Strike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "DoubleStrike", duration });
   if (/\+?\[ShadowStrike\]|\bShadowStrike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "ShadowStrike", duration });
@@ -231,11 +239,10 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     const fixedAmount = /^x$/i.test(draw[1]) ? 0 : numberValue(draw[1]);
     actions.push({
       kind: "draw",
-      amount: fixedAmount,
-      scale,
-      amountExpression: /^x$/i.test(draw[1])
+      amount: /^x$/i.test(draw[1])
         ? { kind: "choice-value", choiceId: "xValue" }
-        : amountExpressionForScale(text, fixedAmount, scale),
+        : amountExpressionForScale(text, fixedAmount, scale) ?? fixedAmount,
+      scale: /^x$/i.test(draw[1]) || amountExpressionForScale(text, fixedAmount, scale) ? undefined : scale,
       playerScope: playerScopeForText(text),
     });
   }
@@ -277,7 +284,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   });
 
   const generatedEnergy = text.match(/\+(\d+) \[Energy\]/i);
-  if (generatedEnergy) actions.push({ kind: "generate-energy", amount: Number(generatedEnergy[1]), scale, amountExpression: amountExpressionForScale(text, Number(generatedEnergy[1]), scale), playerScope: playerScopeForText(text) });
+  if (generatedEnergy) actions.push({ kind: "generate-energy", amount: amountExpressionForScale(text, Number(generatedEnergy[1]), scale) ?? Number(generatedEnergy[1]), scale: amountExpressionForScale(text, Number(generatedEnergy[1]), scale) ? undefined : scale, playerScope: playerScopeForText(text) });
   const setPower = text.match(/\[B\] becomes (\d+)/i);
   if (setPower) actions.push({ kind: "set-stat", stat: "power", value: Number(setPower[1]) });
   const setDamage = text.match(/\[Damage Rating\] becomes (\d+)/i);

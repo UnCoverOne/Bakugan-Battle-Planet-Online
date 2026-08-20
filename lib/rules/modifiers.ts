@@ -2,6 +2,8 @@ import type { Bakugan, MatchState, PlayerState } from "../game";
 import { ruleDefinitionForCard } from "./catalogue";
 import type { ContinuousModifier, RuleAction, RuleCondition, RulesCardId } from "./model";
 import { ensureRulesState } from "./state";
+import { evaluateBooleanValue, evaluateNumberValue } from "./values";
+import type { CardChoices } from "../game";
 
 export type AppliedModifier = {
   id: string;
@@ -42,9 +44,23 @@ function opponentOf(state: MatchState, player: PlayerState) {
   return state.players.find((candidate) => candidate.id !== player.id);
 }
 
-export function ruleConditionActive(state: MatchState, player: PlayerState, condition: RuleCondition | undefined, bakugan?: Bakugan) {
+export function ruleConditionActive(
+  state: MatchState,
+  player: PlayerState,
+  condition: RuleCondition | undefined,
+  bakugan?: Bakugan,
+  choices: CardChoices = {},
+) {
   if (!condition || condition.kind === "always") return true;
   const opponent = opponentOf(state, player);
+  const conditionValue = (value: import("./values").NumberValue) => evaluateNumberValue(state, value, {
+    controllerId: player.id,
+    chosenPlayerId: choices.targetPlayerId,
+    choices,
+    sourceBakuganId: choices.sourceBakuganId ?? bakugan?.id,
+    moment: "resolve",
+    characteristics: (candidate, owner) => evaluateBakuganCharacteristics(state, candidate, owner),
+  });
   switch (condition.kind) {
     case "fury": return player.hand.length === 0;
     case "flow": return player.cardsPlayedThisTurn > 1;
@@ -65,10 +81,10 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
       ? bakugan?.faction === condition.faction
       : player.bakugan.some((candidate) => candidate.faction === condition.faction);
     case "cards-played": return condition.comparison === "at-least"
-      ? player.cardsPlayedThisTurn >= condition.amount
-      : player.cardsPlayedThisTurn > condition.amount;
-    case "factions-played": return new Set(player.factionsPlayedThisTurn ?? []).size >= condition.amount;
-    case "hero-count": return player.heroes.length >= condition.amount;
+      ? player.cardsPlayedThisTurn >= conditionValue(condition.amount)
+      : player.cardsPlayedThisTurn > conditionValue(condition.amount);
+    case "factions-played": return new Set(player.factionsPlayedThisTurn ?? []).size >= conditionValue(condition.amount);
+    case "hero-count": return player.heroes.length >= conditionValue(condition.amount);
     case "controls-named-cards": {
       const normalize = (value: string) => value
         .normalize("NFKD")
@@ -90,13 +106,13 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
         controlled.some((name) => name === required || name.startsWith(`${required} `))
       ));
     }
-    case "energy-count": return player.maxEnergy >= condition.amount;
-    case "discard-count": return player.discard.length >= condition.amount;
-    case "played-card-cost": return Math.max(0, ...(player.playedCardCostsThisTurn ?? [])) >= condition.amount;
-    case "card-count": return player.heroes.filter((hero) => hero.catalogId === condition.catalogId).length >= condition.amount;
+    case "energy-count": return player.maxEnergy >= conditionValue(condition.amount);
+    case "discard-count": return player.discard.length >= conditionValue(condition.amount);
+    case "played-card-cost": return Math.max(0, ...(player.playedCardCostsThisTurn ?? [])) >= conditionValue(condition.amount);
+    case "card-count": return player.heroes.filter((hero) => hero.catalogId === condition.catalogId).length >= conditionValue(condition.amount);
     case "core-count": {
       const held = player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
-      if (condition.relationship === "at-least") return held >= (condition.amount ?? 0);
+      if (condition.relationship === "at-least") return held >= conditionValue(condition.amount ?? 0);
       const opposing = opponent?.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0) ?? 0;
       return held > opposing;
     }
@@ -120,17 +136,25 @@ export function ruleConditionActive(state: MatchState, player: PlayerState, cond
     }
     case "open-bakugan-count": {
       const open = player.bakugan.filter((bakugan) => bakugan.open).length;
-      if (condition.comparison === "exactly") return open === condition.amount;
-      if (condition.comparison === "at-least") return open >= condition.amount;
-      if (condition.comparison === "at-most") return open <= condition.amount;
-      if (condition.comparison === "more-than") return open > condition.amount;
-      return open < condition.amount;
+      if (condition.comparison === "exactly") return open === conditionValue(condition.amount);
+      if (condition.comparison === "at-least") return open >= conditionValue(condition.amount);
+      if (condition.comparison === "at-most") return open <= conditionValue(condition.amount);
+      if (condition.comparison === "more-than") return open > conditionValue(condition.amount);
+      return open < conditionValue(condition.amount);
     }
     case "selection-made": return true;
     case "mode-selected": return false;
     case "reroll-opened": return false;
     // Coin results are resolution-local and are evaluated by the game kernel.
     case "coin-result": return false;
+    case "expression": return evaluateBooleanValue(state, condition.expression, {
+      controllerId: player.id,
+      chosenPlayerId: choices.targetPlayerId,
+      choices,
+      sourceBakuganId: choices.sourceBakuganId ?? bakugan?.id,
+      moment: "resolve",
+      characteristics: (candidate, owner) => evaluateBakuganCharacteristics(state, candidate, owner),
+    });
     case "printed": return false;
   }
 }
@@ -192,7 +216,9 @@ function printedActionModifier(
     targetBakuganId: target === "chosen-bakugan" ? bakugan.id : undefined,
     targetFaction: faction,
     excludedTargetFaction: excludedFaction,
-    amount: action.kind === "grant-keyword" ? action.value ?? 1 : action.amount * printedScaleMultiplier(action.scale, player),
+    amount: action.kind === "grant-keyword"
+      ? evaluateNumberValue(state, action.value ?? 1, { controllerId: player.id, choices: { targetBakuganId: bakugan.id }, moment: "continuous" })
+      : evaluateNumberValue(state, action.amount, { controllerId: player.id, choices: { targetBakuganId: bakugan.id }, moment: "continuous" }) * printedScaleMultiplier(action.scale, player),
     layer: "continuous" as const,
     duration: "while-source-active" as const,
     condition: activeCondition,
@@ -273,14 +299,22 @@ export function evaluateBakuganCharacteristics(
   const mirrored = storedModifiers.filter((modifier) => (
     modifier.id.includes(":legacy-mirror:") && modifier.targetBakuganId === bakugan.id
   ));
+  const liveModifierAmount = (modifier: ContinuousModifier) => evaluateNumberValue(state, modifier.amount, {
+    controllerId: modifier.controllerId,
+    chosenPlayerId: owner.id,
+    choices: { targetBakuganId: bakugan.id },
+    sourceBakuganId: modifier.source.kind === "bakugan" ? modifier.source.id : undefined,
+    sourceCardId: "instanceId" in modifier.source ? modifier.source.instanceId : undefined,
+    moment: "continuous",
+  });
   const mirroredPower = mirrored.reduce((sum, modifier) => (
-    sum + (modifier.stat === "power" ? modifier.amount : 0)
+    sum + (modifier.stat === "power" ? liveModifierAmount(modifier) : 0)
   ), 0);
   const mirroredDamage = mirrored.reduce((sum, modifier) => (
-    sum + (modifier.stat === "damage" ? modifier.amount : 0)
+    sum + (modifier.stat === "damage" ? liveModifierAmount(modifier) : 0)
   ), 0);
   const mirroredFrost = mirrored.reduce((sum, modifier) => (
-    sum + (modifier.keyword === "FrostStrike" ? modifier.amount : 0)
+    sum + (modifier.keyword === "FrostStrike" ? liveModifierAmount(modifier) : 0)
   ), 0);
   const temporary: ContinuousModifier[] = [
     { id: `${bakugan.id}:legacy-power`, source: { kind: "system", id: "temporary-power" }, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, stat: "power", amount: (state.powerBoost[bakugan.id] ?? 0) - mirroredPower, layer: "temporary", duration: "turn", createdTurn: state.turn, sourceCategory: "temporary" },
@@ -289,6 +323,7 @@ export function evaluateBakuganCharacteristics(
   ];
   const modifiers = [...coreModifiers, ...activePrintedModifiers(state, owner, bakugan), ...storedModifiers, ...temporary]
     .filter((modifier) => targetMatches(state, modifier, bakugan, owner) && ruleConditionActive(state, owner, modifier.condition, bakugan))
+    .map((modifier) => ({ ...modifier, amount: liveModifierAmount(modifier) }))
     .sort((left, right) => LAYER_ORDER[left.layer] - LAYER_ORDER[right.layer] || left.id.localeCompare(right.id));
 
   // Protection is established before reductions are applied, even when the
