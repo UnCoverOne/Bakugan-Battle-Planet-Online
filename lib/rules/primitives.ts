@@ -1,4 +1,9 @@
-import type { CardChoices, CardType, Faction, MatchState } from "../game";
+import type { CardChoices, Faction, MatchState } from "../game";
+import {
+  evaluateNumberValue,
+  type NumberExpression,
+  type ValueCountSource,
+} from "./values";
 
 /** Players affected by an effect, independent of who makes any choices for it. */
 export type PlayerScope =
@@ -77,98 +82,28 @@ export function zoneOwnerIdsFor(
   return playerIdsForScope(match, owner, context);
 }
 
-export type AmountCountSource =
-  | "hand"
-  | "deck"
-  | "discard"
-  | "energy"
-  | "hero"
-  | "bakugan"
-  | "open-bakugan"
-  | "held-bakucore"
-  | "cards-played"
-  | "factions-played";
-
-export type AmountExpression =
-  | { kind: "constant"; value: number }
-  | { kind: "choice-value"; choiceId: keyof CardChoices; fallback?: number }
-  | { kind: "choice-count"; choiceId: keyof CardChoices }
-  | {
-      kind: "count";
-      source: AmountCountSource;
-      owner?: ZoneOwner;
-      cardType?: CardType;
-      faction?: Faction;
-      offset?: number;
-      minimum?: number;
-    }
-  | { kind: "sum"; terms: AmountExpression[] }
-  | { kind: "product"; factors: AmountExpression[] }
-  | { kind: "minimum"; values: AmountExpression[] }
-  | { kind: "maximum"; values: AmountExpression[] };
-
+/** @deprecated Use ValueCountSource. Retained for serialized/card-authoring compatibility. */
+export type AmountCountSource = ValueCountSource;
+/** @deprecated Use NumberExpression. All amount expressions now use the same AST/evaluator. */
+export type AmountExpression = NumberExpression;
 export type AmountEvaluationContext = OwnershipContext;
 
-function countForPlayer(
-  match: MatchState,
-  playerId: string,
-  expression: Extract<AmountExpression, { kind: "count" }>,
-) {
-  const player = match.players.find((candidate) => candidate.id === playerId);
-  if (!player) return 0;
-  const cardMatches = (card: { type: CardType; factions: Faction[] }) => (
-    (!expression.cardType || card.type === expression.cardType)
-    && (!expression.faction || card.factions.includes(expression.faction))
-  );
-  switch (expression.source) {
-    case "hand": return player.hand.filter(cardMatches).length;
-    case "deck": return player.deckCards.filter(cardMatches).length;
-    case "discard": return player.discard.filter(cardMatches).length;
-    case "energy": return player.energyZone.filter(cardMatches).length;
-    case "hero": return player.heroes.filter(cardMatches).length;
-    case "bakugan": return player.bakugan.filter((bakugan) => !expression.faction || bakugan.faction === expression.faction).length;
-    case "open-bakugan": return player.bakugan.filter((bakugan) => bakugan.open && (!expression.faction || bakugan.faction === expression.faction)).length;
-    case "held-bakucore": return player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
-    case "cards-played": return player.cardsPlayedThisTurn;
-    case "factions-played": return player.factionsPlayedThisTurn?.length ?? 0;
-  }
-}
-
+/**
+ * Compatibility entry point for older callers. AmountExpression is now an alias
+ * of NumberExpression, so this delegates to the one generalized evaluator.
+ */
 export function evaluateAmountExpression(
   match: MatchState,
   expression: AmountExpression,
   context: AmountEvaluationContext,
 ): number {
-  let value = 0;
-  switch (expression.kind) {
-    case "constant": value = expression.value; break;
-    case "choice-value": {
-      const selected = context.choices?.[expression.choiceId];
-      value = typeof selected === "number"
-        ? selected
-        : typeof selected === "string" && Number.isFinite(Number(selected))
-          ? Number(selected)
-          : expression.fallback ?? 0;
-      break;
-    }
-    case "choice-count": {
-      const selected = context.choices?.[expression.choiceId];
-      value = Array.isArray(selected) ? selected.length : selected == null || selected === false ? 0 : 1;
-      break;
-    }
-    case "count": {
-      const ownerIds = zoneOwnerIdsFor(match, expression.owner ?? "controller", context);
-      value = ownerIds.reduce((sum, playerId) => sum + countForPlayer(match, playerId, expression), 0);
-      value += expression.offset ?? 0;
-      value = Math.max(expression.minimum ?? 0, value);
-      break;
-    }
-    case "sum": value = expression.terms.reduce((sum, term) => sum + evaluateAmountExpression(match, term, context), 0); break;
-    case "product": value = expression.factors.reduce((product, factor) => product * evaluateAmountExpression(match, factor, context), 1); break;
-    case "minimum": value = expression.values.length ? Math.min(...expression.values.map((item) => evaluateAmountExpression(match, item, context))) : 0; break;
-    case "maximum": value = expression.values.length ? Math.max(...expression.values.map((item) => evaluateAmountExpression(match, item, context))) : 0; break;
-  }
-  return Number.isFinite(value) ? value : 0;
+  return evaluateNumberValue(match, expression, {
+    controllerId: context.controllerId,
+    chooserId: context.chooserId,
+    chosenPlayerId: context.chosenPlayerId,
+    choices: context.choices,
+    moment: "resolve",
+  });
 }
 
 const multiply = (value: number, expression: AmountExpression): AmountExpression => ({
@@ -176,7 +111,7 @@ const multiply = (value: number, expression: AmountExpression): AmountExpression
   factors: [{ kind: "constant", value }, expression],
 });
 
-/** Convert the catalogue's common "for each" grammar into a serializable amount AST. */
+/** Convert the catalogue's common "for each" grammar into a serializable NumberExpression AST. */
 export function amountExpressionForScale(
   text: string,
   baseAmount: number,

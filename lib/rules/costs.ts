@@ -4,6 +4,7 @@ import { activeFrostStrike, ruleConditionActive } from "./modifiers";
 import type { CostEffect, RulesPayment } from "./model";
 import { playerIdsForScope } from "./primitives";
 import { ensureRulesState } from "./state";
+import { evaluateNumberValue, type NumberValue } from "./values";
 
 export type CardCostBreakdown = {
   printed: number;
@@ -20,6 +21,8 @@ export type CardCostContext = {
   /** External “play ... for free” effects set the base to zero before all modifiers. */
   forcedFreeBase?: boolean;
   selectedAlternativeId?: string;
+  /** Captured announce/pay values from the shared card-play transaction. */
+  capturedValues?: Record<string, number>;
 };
 
 export type CardPaymentMode = {
@@ -40,13 +43,23 @@ function playerById(state: MatchState, playerId: string) {
   return player;
 }
 
-function modifierActive(state: MatchState, player: PlayerState, modifier: CostEffect) {
-  return !("condition" in modifier) || ruleConditionActive(state, player, modifier.condition);
+function modifierActive(state: MatchState, player: PlayerState, modifier: CostEffect, choices: CardChoices = {}) {
+  return !("condition" in modifier) || ruleConditionActive(state, player, modifier.condition, undefined, choices);
 }
 
 function choiceHasValue(choices: CardChoices, id: keyof CardChoices) {
   const selected = choices[id];
   return Array.isArray(selected) ? selected.length > 0 : selected !== undefined && selected !== false && selected !== "";
+}
+
+function costValue(state: MatchState, playerId: string, value: NumberValue, choices: CardChoices = {}, capturedValues?: Record<string, number>) {
+  return evaluateNumberValue(state, value, {
+    controllerId: playerId,
+    chosenPlayerId: choices.targetPlayerId,
+    choices,
+    moment: "pay",
+    capturedValues,
+  });
 }
 
 export function cardCostBreakdown(
@@ -80,19 +93,19 @@ export function cardCostBreakdown(
   reductions += Math.max(0, state.nextCardCostReduction?.[playerId] ?? 0);
 
   for (const modifier of [...selfModifiers, ...controlledModifiers]) {
-    if (!modifierActive(state, player, modifier)) continue;
+    if (!modifierActive(state, player, modifier, choices)) continue;
     if (modifier.kind === "cost-reduce") {
       const variableMultiplier = modifier.scale === "cards-played-this-turn"
         ? Math.max(0, player.cardsPlayedThisTurn)
         : modifier.scale === "held-bakucore"
           ? player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0)
           : 1;
-      reductions += modifier.amount * variableMultiplier;
-    } else if (modifier.kind === "cost-increase") increases += modifier.amount;
+      reductions += costValue(state, playerId, modifier.amount, choices, context.capturedValues) * variableMultiplier;
+    } else if (modifier.kind === "cost-increase") increases += costValue(state, playerId, modifier.amount, choices, context.capturedValues);
     else if (modifier.kind === "cost-free") {
       if (!modifier.cardType || modifier.cardType === card.type) freeBase = true;
     } else if (modifier.kind === "cost-discard") {
-      additionalCosts.push({ kind: "discard", amount: modifier.amount, choiceId: modifier.choiceId });
+      additionalCosts.push({ kind: "discard", amount: Math.max(0, Math.floor(costValue(state, playerId, modifier.amount, choices, context.capturedValues))), choiceId: modifier.choiceId });
     } else if (modifier.kind === "cost-alternative") {
       const legacySelected = modifier.components.some((component) => (
         component.kind === "cost-discard" && choiceHasValue(choices, component.choiceId)
@@ -103,7 +116,7 @@ export function cardCostBreakdown(
       if (!selected) continue;
       if (modifier.setsBaseFree) freeBase = true;
       for (const component of modifier.components) if (component.kind === "cost-discard") {
-        additionalCosts.push({ kind: "discard", amount: component.amount, choiceId: component.choiceId });
+        additionalCosts.push({ kind: "discard", amount: Math.max(0, Math.floor(costValue(state, playerId, component.amount, choices, context.capturedValues))), choiceId: component.choiceId });
       }
     }
   }
@@ -115,8 +128,8 @@ export function cardCostBreakdown(
     const recipients = playerIdsForScope(state, modifier.playerScope, { controllerId: modifier.controllerId });
     if (!recipients.includes(playerId)) continue;
     if (modifier.kind === "free") freeBase = true;
-    else if (modifier.kind === "reduce") reductions += modifier.amount;
-    else increases += modifier.amount;
+    else if (modifier.kind === "reduce") reductions += costValue(state, playerId, modifier.amount, modifier.choices ?? choices, modifier.valueSnapshots);
+    else increases += costValue(state, playerId, modifier.amount, modifier.choices ?? choices, modifier.valueSnapshots);
   }
 
   const frostStrike = card.type === "Flip" && state.damageOrigin ? activeFrostStrike(state, state.damageOrigin) : 0;
@@ -172,12 +185,12 @@ export function cardPaymentModes(
   playerId: string,
   card: GameCard,
   choices: CardChoices = {},
-  context: Pick<CardCostContext, "forcedFreeBase"> = {},
+  context: Pick<CardCostContext, "forcedFreeBase" | "capturedValues"> = {},
 ): CardPaymentMode[] {
   const player = playerById(state, playerId);
   const definition = ruleDefinitionForCard(card);
   if (context.forcedFreeBase) {
-    const breakdown = cardCostBreakdown(state, playerId, card, choices, { forcedFreeBase: true });
+    const breakdown = cardCostBreakdown(state, playerId, card, choices, { forcedFreeBase: true, capturedValues: context.capturedValues });
     const legality = paymentLegality(state, playerId, card, choices, breakdown);
     return [{
       id: "forced-free",
@@ -190,7 +203,7 @@ export function cardPaymentModes(
   }
 
   const modes: CardPaymentMode[] = [];
-  const normal = cardCostBreakdown(state, playerId, card, { ...choices, paymentMode: "normal" });
+  const normal = cardCostBreakdown(state, playerId, card, { ...choices, paymentMode: "normal" }, { capturedValues: context.capturedValues });
   modes.push({
     id: "normal",
     label: "Pay normal Energy cost",
@@ -201,10 +214,10 @@ export function cardPaymentModes(
   });
 
   for (const alternative of definition.play.costModifiers.filter((modifier): modifier is Extract<CostEffect, { kind: "cost-alternative" }> => (
-    modifier.kind === "cost-alternative" && modifierActive(state, player, modifier)
+    modifier.kind === "cost-alternative" && modifierActive(state, player, modifier, choices)
   ))) {
     const alternativeChoices = { ...choices, paymentMode: alternative.id };
-    const breakdown = cardCostBreakdown(state, playerId, card, alternativeChoices, { selectedAlternativeId: alternative.id });
+    const breakdown = cardCostBreakdown(state, playerId, card, alternativeChoices, { selectedAlternativeId: alternative.id, capturedValues: context.capturedValues });
     const legality = paymentLegality(state, playerId, card, choices, breakdown);
     modes.push({
       id: alternative.id,

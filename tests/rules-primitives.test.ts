@@ -13,6 +13,7 @@ import {
   type AmountExpression,
 } from "../lib/rules/primitives";
 import type { ChoiceSpec } from "../lib/rules/model";
+import { evaluateNumberValue } from "../lib/rules/values";
 
 function stateWithPlayers(count = 2): MatchState {
   const players = [
@@ -114,10 +115,10 @@ test("catalogue primitives compile player scope, copy and typed dynamic amounts"
 
   const scaleCard = { ...base, effect: "+100 [B] for each Hero you have in play." };
   const stat = parseAtomicEffects(scaleCard, scaleCard.effect).find((action) => action.kind === "modify-stat");
-  assert.ok(stat && stat.kind === "modify-stat" && stat.amountExpression);
+  assert.ok(stat && stat.kind === "modify-stat");
   const state = stateWithPlayers();
   state.players[0].heroes = [instance(CARDS.find((card) => card.type === "Hero")!, "hero-scale")];
-  assert.equal(evaluateAmountExpression(state, stat.amountExpression, { controllerId: "first" }), 100);
+  assert.equal(evaluateNumberValue(state, stat.amount, { controllerId: "first" }), 100);
 
   const copyCard = { ...base, effect: "Copy the effect of an Action card." };
   const copy = parseAtomicEffects(copyCard, copyCard.effect).find((action) => action.kind === "copy");

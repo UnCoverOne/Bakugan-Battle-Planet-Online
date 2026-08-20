@@ -4,6 +4,7 @@ import { canonicalEvoTargetAllowed } from "./identity";
 import { activeTappedEnergyIds, cardPaymentModes } from "./costs";
 import type { ChoiceSpec, ChoiceTiming } from "./model";
 import { chooserIdsFor, zoneOwnerIdsFor } from "./primitives";
+import { evaluateNumberValue, type NumberValue } from "./values";
 
 export type ChoiceKind =
   | "confirm" | "bakugan" | "player" | "hero" | "evo" | "energy" | "core" | "card"
@@ -96,10 +97,34 @@ function option(
 ): ChoiceOption {
   return { id, label, ownerId, description, card };
 }
-function rangeFor(spec: ChoiceSpec, available: number) {
-  const printedMinimum = Math.max(0, spec.minimum ?? (spec.optional ? 0 : 1));
-  const printedMaximum = Math.max(printedMinimum, spec.maximum ?? 1);
-  const scarcityBounded = spec.selector === "deck-card" && topDeckCount(spec) > 0;
+function choiceNumber(
+  match: MatchState,
+  controllerId: string,
+  value: NumberValue | undefined,
+  priorChoices: CardChoices,
+  chooserId = controllerId,
+  fallback = 0,
+) {
+  if (value == null) return fallback;
+  return evaluateNumberValue(match, value, {
+    controllerId,
+    chooserId,
+    chosenPlayerId: priorChoices.targetPlayerId,
+    choices: priorChoices,
+    moment: "announce",
+  });
+}
+function rangeFor(
+  match: MatchState,
+  controllerId: string,
+  spec: ChoiceSpec,
+  available: number,
+  priorChoices: CardChoices,
+  chooserId: string,
+) {
+  const printedMinimum = Math.max(0, Math.floor(choiceNumber(match, controllerId, spec.minimum, priorChoices, chooserId, spec.optional ? 0 : 1)));
+  const printedMaximum = Math.max(printedMinimum, Math.floor(choiceNumber(match, controllerId, spec.maximum, priorChoices, chooserId, 1)));
+  const scarcityBounded = spec.selector === "deck-card" && topDeckCount(match, controllerId, spec, priorChoices, chooserId) > 0;
   const availableMaximum = Math.min(available, printedMaximum);
   const maximum = scarcityBounded
     ? availableMaximum
@@ -107,8 +132,16 @@ function rangeFor(spec: ChoiceSpec, available: number) {
   const minimum = scarcityBounded ? Math.min(printedMinimum, maximum) : printedMinimum;
   return { minimum, maximum };
 }
-function topDeckCount(spec: ChoiceSpec) {
-  if (spec.id === "orderedCardIds" && spec.maximum != null) return Math.max(0, spec.maximum);
+function topDeckCount(
+  match: MatchState,
+  controllerId: string,
+  spec: ChoiceSpec,
+  priorChoices: CardChoices,
+  chooserId = controllerId,
+) {
+  if (spec.id === "orderedCardIds" && spec.maximum != null) {
+    return Math.max(0, Math.floor(choiceNumber(match, controllerId, spec.maximum, priorChoices, chooserId)));
+  }
   const numeric = spec.label.match(/\btop\s+(\d+)\s+cards?\b/i)?.[1];
   return numeric ? Math.max(0, Number(numeric)) : 0;
 }
@@ -125,7 +158,14 @@ function targetOwners(
   return match.players.filter((player) => ownerIds.has(player.id));
 }
 
-function cardMatchesSpec(candidate: GameCard, spec: ChoiceSpec) {
+function cardMatchesSpecValue(
+  match: MatchState,
+  controllerId: string,
+  candidate: GameCard,
+  spec: ChoiceSpec,
+  priorChoices: CardChoices,
+  chooserId: string,
+) {
   const types = spec.cardTypes?.length ? spec.cardTypes : spec.cardType ? [spec.cardType] : [];
   if (types.length && !types.includes(candidate.type)) return false;
   if (spec.factions?.length && !candidate.factions.some((faction) => spec.factions!.includes(faction))) return false;
@@ -140,8 +180,10 @@ function cardMatchesSpec(candidate: GameCard, spec: ChoiceSpec) {
     if (![candidate.displayName, candidate.name].some((value) => normalize(value) === wanted)) return false;
   }
   const printedCost = candidate.cost === "X" ? Number.POSITIVE_INFINITY : candidate.cost;
-  if (spec.maximumCost != null && printedCost > spec.maximumCost) return false;
-  if (spec.minimumCost != null && printedCost < spec.minimumCost) return false;
+  const maximumCost = spec.maximumCost == null ? undefined : choiceNumber(match, controllerId, spec.maximumCost, priorChoices, chooserId);
+  const minimumCost = spec.minimumCost == null ? undefined : choiceNumber(match, controllerId, spec.minimumCost, priorChoices, chooserId);
+  if (maximumCost != null && printedCost > maximumCost) return false;
+  if (minimumCost != null && printedCost < minimumCost) return false;
   return true;
 }
 
@@ -155,6 +197,9 @@ function optionsFor(
 ): ChoiceOption[] {
   const controller = playerById(match, controllerId);
   const opponent = opponentOf(match, controllerId);
+  const cardMatchesSpec = (candidate: GameCard, candidateSpec: ChoiceSpec = spec) => cardMatchesSpecValue(
+    match, controllerId, candidate, candidateSpec, priorChoices, chooserId,
+  );
   switch (spec.selector) {
     case "batch-object": {
       const owners = new Set(targetOwners(match, controllerId, {
@@ -262,7 +307,7 @@ function optionsFor(
       });
     }
     case "deck-card": {
-      const count = topDeckCount(spec);
+      const count = topDeckCount(match, controllerId, spec, priorChoices, chooserId);
       const ownerSpec: ChoiceSpec = { ...spec, owner: spec.owner ?? spec.targetOwner ?? "controller" };
       return targetOwners(match, controllerId, ownerSpec, chooserId, priorChoices).flatMap((owner) => {
         const candidates = (count ? owner.deckCards.slice(0, count) : owner.deckCards)
@@ -335,7 +380,7 @@ export function buildChoiceSchemaFromSpecs(
     const chooserIds = chooserIdsFor(match, spec.chooser, { controllerId, choices: priorChoices });
     return chooserIds.map((chooserId) => {
       const options = optionsFor(match, controllerId, card, spec, priorChoices, chooserId);
-      const range = rangeFor(spec, options.length);
+      const range = rangeFor(match, controllerId, spec, options.length, priorChoices, chooserId);
       return {
         id: spec.id,
         kind: kindFor(spec),
@@ -347,8 +392,8 @@ export function buildChoiceSchemaFromSpecs(
         maximum: range.maximum,
         required: range.minimum > 0,
         options,
-        ...(kindFor(spec) === "deck-order" && topDeckCount(spec) > 0
-          ? { requestedWindowSize: topDeckCount(spec) }
+        ...(kindFor(spec) === "deck-order" && topDeckCount(match, controllerId, spec, priorChoices, chooserId) > 0
+          ? { requestedWindowSize: topDeckCount(match, controllerId, spec, priorChoices, chooserId) }
           : {}),
       };
     });
