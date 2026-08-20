@@ -1,9 +1,4 @@
-import type { CardChoices, Faction, MatchState } from "../game";
-import {
-  evaluateNumberValue,
-  type NumberExpression,
-  type ValueCountSource,
-} from "./values";
+import type { CardChoices, MatchState } from "../game";
 
 /** Players affected by an effect, independent of who makes any choices for it. */
 export type PlayerScope =
@@ -80,77 +75,6 @@ export function zoneOwnerIdsFor(
       : knownPlayerIds(match);
   }
   return playerIdsForScope(match, owner, context);
-}
-
-/** @deprecated Use ValueCountSource. Retained for serialized/card-authoring compatibility. */
-export type AmountCountSource = ValueCountSource;
-/** @deprecated Use NumberExpression. All amount expressions now use the same AST/evaluator. */
-export type AmountExpression = NumberExpression;
-export type AmountEvaluationContext = OwnershipContext;
-
-/**
- * Compatibility entry point for older callers. AmountExpression is now an alias
- * of NumberExpression, so this delegates to the one generalized evaluator.
- */
-export function evaluateAmountExpression(
-  match: MatchState,
-  expression: AmountExpression,
-  context: AmountEvaluationContext,
-): number {
-  return evaluateNumberValue(match, expression, {
-    controllerId: context.controllerId,
-    chooserId: context.chooserId,
-    chosenPlayerId: context.chosenPlayerId,
-    choices: context.choices,
-    moment: "resolve",
-  });
-}
-
-const multiply = (value: number, expression: AmountExpression): AmountExpression => ({
-  kind: "product",
-  factors: [{ kind: "constant", value }, expression],
-});
-
-/** Convert the catalogue's common "for each" grammar into a serializable NumberExpression AST. */
-export function amountExpressionForScale(
-  text: string,
-  baseAmount: number,
-  scale?: string,
-): AmountExpression | undefined {
-  if (!scale) return undefined;
-  const grammar = `${scale} ${text}`;
-  if (/sacrificed-card|sacrifice/i.test(scale)) {
-    return multiply(baseAmount, { kind: "choice-count", choiceId: "discardCardIds" });
-  }
-  if (/other-card-played/i.test(scale) || /other card.*played this turn/i.test(grammar)) {
-    return multiply(baseAmount, { kind: "count", source: "cards-played", owner: "controller", offset: -1, minimum: 0 });
-  }
-  const faction = grammar.match(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1] as Faction | undefined;
-  if (faction && /Bakugan on your team/i.test(grammar)) {
-    return multiply(baseAmount, { kind: "count", source: "bakugan", owner: "controller", faction });
-  }
-  if (/Flip card.*discard/i.test(grammar)) {
-    return multiply(baseAmount, { kind: "count", source: "discard", owner: "controller", cardType: "Flip" });
-  }
-  if (/Hero(?: card)?s? (?:you )?(?:have|control)?\s*in play|Hero you have in play/i.test(grammar)) {
-    return multiply(baseAmount, { kind: "count", source: "hero", owner: "controller" });
-  }
-  if (/Energy card.*you have|Energy cards? in play/i.test(grammar)) {
-    return multiply(baseAmount, { kind: "count", source: "energy", owner: "controller" });
-  }
-  if (/BakuCore.*your Bakugan hold/i.test(grammar)) {
-    return multiply(baseAmount, { kind: "count", source: "held-bakucore", owner: "controller" });
-  }
-  if (/open Bakugan/i.test(grammar)) {
-    return multiply(baseAmount, { kind: "count", source: "open-bakugan", owner: "controller" });
-  }
-  if (/cards? (?:you have )?played this turn/i.test(grammar)) {
-    return multiply(baseAmount, { kind: "count", source: "cards-played", owner: "controller" });
-  }
-  if (/different factions?.*played this turn/i.test(grammar)) {
-    return multiply(baseAmount, { kind: "count", source: "factions-played", owner: "controller" });
-  }
-  return undefined;
 }
 
 export function playerScopeForText(text: string): PlayerScope {

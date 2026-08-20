@@ -1,6 +1,7 @@
 import type { CardType, CoreType, Faction, GameCard } from "../game";
 import type { RuleAction, RuleCondition, RulesCardId, RulesDuration, TriggerDefinition, TriggerEventName } from "./model";
-import { amountExpressionForScale, playerScopeForText } from "./primitives";
+import { playerScopeForText } from "./primitives";
+import type { NumberValue } from "./values";
 
 const NUMBER_WORDS: Record<string, number> = {
   no: 0, a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5,
@@ -97,7 +98,7 @@ export function conditionFor(text: string): RuleCondition {
   const heroCount = text.match(/if you (?:have|control) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Hero cards? in play/i);
   if (heroCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "hero", owner: "controller" }, operator: ">=", right: numberValue(heroCount[1], 1) } };
   const energyCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Energy cards in play/i);
-  if (energyCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "energy", owner: "controller" }, operator: ">=", right: numberValue(energyCount[1], 1) } };
+  if (energyCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "property", subject: { kind: "player", owner: "controller" }, property: "max-energy" }, operator: ">=", right: numberValue(energyCount[1], 1) } };
   const discardCount = text.match(/if (?:there are|you have) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more cards? in your discard pile/i);
   if (discardCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "discard", owner: "controller" }, operator: ">=", right: numberValue(discardCount[1], 1) } };
   const playedCost = text.match(/if you(?: have|\'ve)? played a card that costs? (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) \[Energy\] or more this turn/i);
@@ -173,7 +174,7 @@ function triggerFor(text: string): TriggerDefinition | undefined {
   return undefined;
 }
 
-function scaleFor(text: string) {
+function dynamicSourceFor(text: string) {
   if (/sacrifice/i.test(text)) return "sacrificed-card";
   if (/for (?:each|every) other card\b.*\bplayed this turn/i.test(text)) return "other-card-played";
   return text.match(/for each ([^.,]+)/i)?.[1]?.trim();
@@ -186,13 +187,35 @@ function scopeFor(text: string): "target" | "all-enemy" | "all-friendly" | "all-
   return "target";
 }
 
-function scaleForStat(text: string, match: RegExpMatchArray) {
+function dynamicSourceForStat(text: string, match: RegExpMatchArray) {
   const index = match.index ?? 0;
   const trailingClause = text.slice(index + match[0].length).split(/[.;]/, 1)[0] ?? "";
-  if (/\bfor (?:each|every)\b/i.test(trailingClause)) return scaleFor(trailingClause);
+  if (/\bfor (?:each|every)\b/i.test(trailingClause)) return dynamicSourceFor(trailingClause);
   const leadingClause = text.slice(0, index).split(/[.;]/).at(-1) ?? "";
-  if (/\bfor (?:each|every)\b[^,]*,\s*$/i.test(leadingClause)) return scaleFor(leadingClause);
+  if (/\bfor (?:each|every)\b[^,]*,\s*$/i.test(leadingClause)) return dynamicSourceFor(leadingClause);
   return undefined;
+}
+
+const multiplyValue = (baseAmount: number, factor: NumberValue): NumberValue => ({
+  kind: "product",
+  factors: [baseAmount, factor],
+});
+
+function numberValueForDynamicAmount(text: string, baseAmount: number, dynamicSource?: string): NumberValue {
+  if (!dynamicSource) return baseAmount;
+  const grammar = `${dynamicSource} ${text}`;
+  if (/sacrificed-card|sacrifice/i.test(dynamicSource)) return multiplyValue(baseAmount, { kind: "choice-count", choiceId: "discardCardIds" });
+  if (/other-card-played/i.test(dynamicSource) || /other card.*played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "cards-played", owner: "controller", offset: -1, minimum: 0 });
+  const faction = grammar.match(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1] as Faction | undefined;
+  if (faction && /Bakugan on your team/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "bakugan", owner: "controller", faction });
+  if (/Flip card.*discard/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "discard", owner: "controller", cardType: "Flip" });
+  if (/Hero(?: card)?s? (?:you )?(?:have|control)?\s*in play|Hero you have in play/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "hero", owner: "controller" });
+  if (/Energy card.*you have|Energy cards? in play/i.test(grammar)) return multiplyValue(baseAmount, { kind: "property", subject: { kind: "player", owner: "controller" }, property: "max-energy" });
+  if (/BakuCore.*your Bakugan hold/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "held-bakucore", owner: "controller" });
+  if (/open Bakugan/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "open-bakugan", owner: "controller" });
+  if (/cards? (?:you have )?played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "cards-played", owner: "controller" });
+  if (/different factions?.*played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "factions-played", owner: "controller" });
+  return baseAmount;
 }
 
 export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
@@ -200,15 +223,14 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const intrinsicCharacteristic = ["Character", "Evo"].includes(card.type)
     && !/\b(?:when|victor\s*[-:]|at (?:the )?end of|play this)\b/i.test(text);
   const duration = intrinsicCharacteristic ? "while-source-active" : durationFor(text);
-  const scale = scaleFor(text);
+  const scale = dynamicSourceFor(text);
   const scope = scopeFor(text);
 
   for (const match of text.matchAll(/([+-]\d+)\s*\[B\]/gi)) {
     actions.push({
       kind: "modify-stat",
       stat: "power",
-      amount: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ?? Number(match[1]),
-      scale: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ? undefined : scaleForStat(text, match),
+      amount: numberValueForDynamicAmount(text, Number(match[1]), dynamicSourceForStat(text, match)),
       duration,
       scope,
       targetChoiceId: ruleCardId(card) === "aa-50" ? "targetBakuganId" : undefined,
@@ -218,16 +240,15 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     actions.push({
       kind: "modify-stat",
       stat: "damage",
-      amount: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ?? Number(match[1]),
-      scale: amountExpressionForScale(text, Number(match[1]), scaleForStat(text, match)) ? undefined : scaleForStat(text, match),
+      amount: numberValueForDynamicAmount(text, Number(match[1]), dynamicSourceForStat(text, match)),
       duration,
       scope,
       targetChoiceId: ruleCardId(card) === "aa-50" ? "secondaryTargetBakuganId" : undefined,
     });
   }
   for (const match of text.matchAll(/\+?(\d+)\s*\[FrostStrike\]/gi)) {
-    const frostScale = scaleForStat(text, match);
-    actions.push({ kind: "modify-stat", stat: "frost", amount: amountExpressionForScale(text, Number(match[1]), frostScale) ?? Number(match[1]), scale: amountExpressionForScale(text, Number(match[1]), frostScale) ? undefined : frostScale, duration, scope });
+    const frostScale = dynamicSourceForStat(text, match);
+    actions.push({ kind: "modify-stat", stat: "frost", amount: numberValueForDynamicAmount(text, Number(match[1]), frostScale), duration, scope });
   }
   if (/\+?\[Double\s*Strike\]|\bDouble\s*Strike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "DoubleStrike", duration });
   if (/\+?\[ShadowStrike\]|\bShadowStrike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "ShadowStrike", duration });
@@ -241,8 +262,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       kind: "draw",
       amount: /^x$/i.test(draw[1])
         ? { kind: "choice-value", choiceId: "xValue" }
-        : amountExpressionForScale(text, fixedAmount, scale) ?? fixedAmount,
-      scale: /^x$/i.test(draw[1]) || amountExpressionForScale(text, fixedAmount, scale) ? undefined : scale,
+        : numberValueForDynamicAmount(text, fixedAmount, scale),
       playerScope: playerScopeForText(text),
     });
   }
@@ -284,7 +304,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   });
 
   const generatedEnergy = text.match(/\+(\d+) \[Energy\]/i);
-  if (generatedEnergy) actions.push({ kind: "generate-energy", amount: amountExpressionForScale(text, Number(generatedEnergy[1]), scale) ?? Number(generatedEnergy[1]), scale: amountExpressionForScale(text, Number(generatedEnergy[1]), scale) ? undefined : scale, playerScope: playerScopeForText(text) });
+  if (generatedEnergy) actions.push({ kind: "generate-energy", amount: numberValueForDynamicAmount(text, Number(generatedEnergy[1]), scale), playerScope: playerScopeForText(text) });
   const setPower = text.match(/\[B\] becomes (\d+)/i);
   if (setPower) actions.push({ kind: "set-stat", stat: "power", value: Number(setPower[1]) });
   const setDamage = text.match(/\[Damage Rating\] becomes (\d+)/i);

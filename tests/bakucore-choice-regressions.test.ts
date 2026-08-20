@@ -35,6 +35,10 @@ function match() {
   state.startingPlayer = first.id;
   state.priority = first.id;
   state.selected = { [first.id]: first.bakugan[0].id, [second.id]: second.bakugan[0].id };
+  state.placements = [
+    { playerId: first.id, core: first.cores[0], cell: "test-core-first", order: 1 },
+    { playerId: second.id, core: second.cores[0], cell: "test-core-second", order: 2 },
+  ];
   first.bakugan[0].open = true;
   second.bakugan[0].open = true;
   return state;

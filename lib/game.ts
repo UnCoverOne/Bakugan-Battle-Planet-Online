@@ -13,7 +13,7 @@ import { activeTappedEnergyIds, beginCardPayment, cardPaymentModes, commitCardPa
 import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
 import { turnDrawCounts } from "./rules/turn-draw";
-import { evaluateAmountExpression, playerIdsForScope, zoneOwnerIdsFor } from "./rules/primitives";
+import { playerIdsForScope, zoneOwnerIdsFor } from "./rules/primitives";
 import { evaluateNumberValue, type EvaluationMoment, type NumberValue } from "./rules/values";
 import { captureCardPlayValues, captureInstructionValues, captureRuleConditionValues } from "./rules/value-capture";
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
@@ -351,6 +351,7 @@ export type MatchState = {
   damageFaction?: Faction;
   revealedFlip?: GameCard;
   teamAttack: boolean;
+  pendingBrawlRetracts: string[];
   delayedRetracts: string[];
   copyNextAction: Record<string, number>;
   brawlWinner: string;
@@ -436,6 +437,7 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
   state.batch = Array.isArray(state.batch) ? state.batch : [];
   state.passes = Array.isArray(state.passes) ? state.passes : [];
   state.placements = Array.isArray(state.placements) ? state.placements : [];
+  state.pendingBrawlRetracts = Array.isArray(state.pendingBrawlRetracts) ? state.pendingBrawlRetracts : [];
   for (const player of state.players) {
     const legacyIds = new Map<string, Core[]>();
     player.cores = player.cores.map((core, index) => {
@@ -574,7 +576,7 @@ export const createMatch = (code: string, format: "bo1" | "bo3", players: Player
     priority: startingPlayer, placementTurn: 0, placements: [], selected: {}, targets: {}, rolls: {},
     coinFlipResults: {}, rerollOpenedByEffect: {}, rerollTargetByEffect: {}, rerollUsage: {}, rerollSequence: 0, repeatRollAfterReroll: false, nextCardCostReduction: {}, temporaryVictorDiscards: {},
     powerBoost: {}, damageBoost: {}, frostStrike: {}, doubleStrike: {}, shadowStrike: {}, passes: [], batch: [], victorByDamage: false,
-    pendingDamage: 0, pendingLoser: "", damageOrigin: "", teamAttack: false, delayedRetracts: [], copyNextAction: {}, brawlWinner: "", winner: "", resultReason: "",
+    pendingDamage: 0, pendingLoser: "", damageOrigin: "", teamAttack: false, pendingBrawlRetracts: [], delayedRetracts: [], copyNextAction: {}, brawlWinner: "", winner: "", resultReason: "",
     triggerOrders: [], collectedEventKeys: [], informationEpoch: 0, priorityEpoch: 0,
     deadline: deadlineFor("lobby"),
     log: [{ id: "start", at: Date.now(), kind: "system", message: `Match ${code} created • ${format.toUpperCase()} • complete Battle Planet rules` }],
@@ -640,7 +642,7 @@ const beginTurn = (state: MatchState) => {
   state.turn += 1; state.startingPlayer = state.brawlWinner || state.startingPlayer; state.priority = state.startingPlayer;
   state.selected = {}; state.targets = {}; state.rolls = {}; state.pendingReroll = undefined; state.pendingCoinFlip = undefined; state.coinFlipResults = {}; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.temporaryVictorDiscards = {}; state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {};
   state.doubleStrike = {}; state.shadowStrike = {}; state.batch = []; state.victorByDamage = false; state.pendingDamage = 0;
-  state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.delayedRetracts = []; state.winner = "";
+  state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.pendingBrawlRetracts = []; state.delayedRetracts = []; state.winner = "";
   state.collectedEventKeys = [];
   for (const player of state.players) {
     player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0;
@@ -1138,30 +1140,6 @@ const conditionActive = (state: MatchState, player: PlayerState, text: string, c
   return false;
 };
 
-const statValues = (text: string, pattern: RegExp, condition: boolean) => {
-  const values = [...text.matchAll(pattern)].map((match) => Number(match[1]));
-  if (!values.length) return 0; if (/instead/i.test(text) && values.length > 1) return condition ? values.at(-1)! : values[0];
-  return values.reduce((sum, value) => sum + value, 0);
-};
-
-const scaleStat = (state: MatchState, player: PlayerState, text: string, value: number, stat: "power" | "damage" | "frost" | "draw", scale?: string) => {
-  if (scale === "other-card-played") return value * Math.max(0, player.cardsPlayedThisTurn - 1);
-  const faction = text.match(/for each \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan on your team/i)?.[1] as Faction | undefined;
-  if (faction) return value * player.bakugan.filter((bakugan) => bakugan.faction === faction).length;
-  if (/for each Flip card in your discard pile/i.test(text)) return value * player.discard.filter((card) => card.type === "Flip").length;
-  if (/for each Hero you have in play/i.test(text)) return value * player.heroes.length;
-  if (/for each Energy card you have/i.test(text)) return value * player.maxEnergy;
-  if (/for each BakuCore that your Bakugan hold/i.test(text)) return value * player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
-  if (/sacrificed-card/i.test(text) || /sacrifice/i.test(text)) return value;
-  if (/for (?:each|every) other card (?:you have )?played this turn/i.test(text)) return value * Math.max(0, player.cardsPlayedThisTurn - 1);
-  if (stat === "power" && /for each 1 \[Damage Rating\] your Bakugan has/i.test(text)) {
-    const bakugan = activeBakugan(state, player.id); return value * (bakugan ? staticModifier(state, bakugan, player).damage : 0);
-  }
-  if (stat === "damage" && /for each point of \[FrostStrike\]/i.test(text)) {
-    const bakugan = activeBakugan(state, player.id); return value * (bakugan ? staticModifier(state, bakugan, player).frost : 0);
-  }
-  return value;
-};
 
 export const cardChoiceSpec = (_state: MatchState, _playerId: string, card: GameCard) => {
   const mapping: Partial<Record<keyof CardChoices, string>> = {
@@ -2157,6 +2135,9 @@ const executeRuleAction = (
     case "reroll": {
       if (!action.mandatory && choices.confirmed === false) return;
       if (action.requiresDiscard && !choices.discardCardIds?.length) return;
+      if (action.requiresDiscard && choices.discardCardIds!.some((id) => player.hand.some((candidate) => candidate.id === id))) {
+        throw new Error("The selected Sacrifice must be discarded before the Reroll begins.");
+      }
       const rollerId = rerollTargetPlayerId(state, controllerId, action.target);
       pending.instructionIndex = instructionIndex + 1;
       if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex + 1;
@@ -2203,11 +2184,7 @@ const executeRuleAction = (
         (choices.mode === "damage" && action.stat === "power")
         || (choices.mode === "power" && action.stat === "damage")
       )) return;
-      const baseAmount = resolveNumber(action.amount);
-      let amount = action.amountExpression
-        ? evaluateAmountExpression(state, action.amountExpression, { controllerId, choices, chosenPlayerId: choices.targetPlayerId })
-        : action.scale ? scaleStat(state, player, text, baseAmount, action.stat, action.scale) : baseAmount;
-      if (!action.amountExpression && action.scale === "sacrificed-card") amount *= choices.discardCardIds?.length ?? 0;
+      const amount = resolveNumber(action.amount);
       const explicitActionTarget = action.targetChoiceId
         ? choices[action.targetChoiceId]
         : undefined;
@@ -2251,10 +2228,7 @@ const executeRuleAction = (
       }
       return;
     case "draw": {
-      const baseAmount = resolveNumber(action.amount);
-      const amount = Math.max(0, Math.floor(action.amountExpression
-        ? evaluateAmountExpression(state, action.amountExpression, { controllerId, choices, chosenPlayerId: choices.targetPlayerId })
-        : action.scale ? scaleStat(state, player, text, baseAmount, "draw", action.scale) : baseAmount));
+      const amount = Math.max(0, Math.floor(resolveNumber(action.amount)));
       const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
       for (const recipientId of recipientIds) enqueueEffectDraw(state, playerById(state, recipientId), amount, card.displayName || card.name, pending.id);
       return;
@@ -2268,9 +2242,7 @@ const executeRuleAction = (
         const affected = playerById(state, affectedId);
         const scopedChoices = choices.simultaneousAnswers?.[affectedId] ?? choices;
         const selected = scopedChoices.discardCardIds ?? scopedChoices.handCardIds ?? [];
-        const expressionAmount = action.amountExpression
-          ? Math.max(0, Math.floor(evaluateAmountExpression(state, action.amountExpression, { controllerId, chooserId: affectedId, chosenPlayerId: affectedId, choices: scopedChoices })))
-          : Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));
+        const expressionAmount = Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));
         const minimum = Math.max(0, Math.floor(resolveNumber(action.minimum, scopedChoices, affectedId)));
         const maximum = Math.max(minimum, Math.floor(resolveNumber(action.maximum, scopedChoices, affectedId)));
         const amount = minimum === 0 ? selected.length : selected.length || expressionAmount;
@@ -2280,7 +2252,7 @@ const executeRuleAction = (
     }
     case "energize": {
       if (choices.confirmed === false) return;
-      const amount = Math.max(0, Math.floor(resolveNumber(amount)));
+      const amount = Math.max(0, Math.floor(resolveNumber(action.amount)));
       if (action.source === "hand") {
         const selectedIds = choices.handCardIds?.slice(0, amount) ?? [];
         if (selectedIds.length !== amount || new Set(selectedIds).size !== amount) return;
@@ -2325,9 +2297,7 @@ const executeRuleAction = (
       const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
       for (const recipientId of recipientIds) {
         const recipient = playerById(state, recipientId);
-        const amount = action.amountExpression
-          ? evaluateAmountExpression(state, action.amountExpression, { controllerId, chooserId: recipientId, chosenPlayerId: recipientId, choices })
-          : action.scale ? scaleStat(state, player, text, resolveNumber(action.amount, choices, recipientId), "draw", action.scale) : resolveNumber(action.amount, choices, recipientId);
+        const amount = resolveNumber(action.amount, choices, recipientId);
         recipient.energy += Math.max(0, amount);
       }
       return;
@@ -3082,6 +3052,11 @@ const declareVictor = (state: MatchState) => {
 const beginDamage = (state: MatchState) => {
   const winner = playerById(state, state.brawlWinner); const loser = otherPlayer(state, winner.id); const attacking = activeBakugan(state, winner.id)!;
   const openTeam = winner.bakugan.filter((bakugan) => bakugan.open); state.teamAttack = openTeam.length === 3;
+  const loserBakugan = activeBakugan(state, loser.id);
+  state.pendingBrawlRetracts = [...new Set([
+    ...(loserBakugan ? [loserBakugan.id] : []),
+    ...(state.teamAttack ? openTeam.map((bakugan) => bakugan.id) : []),
+  ])];
   const stats = staticModifier(state, attacking, winner); let damage = state.teamAttack ? openTeam.reduce((sum, bakugan) => sum + staticModifier(state, bakugan, winner).damage, 0) : stats.damage;
   if (stats.double) damage *= 2;
   state.pendingLoser = loser.id; state.pendingDamage = Math.max(0, damage); state.damageOrigin = attacking.id; state.damageFaction = attacking.faction;
@@ -3172,13 +3147,24 @@ function finishResetStep(state: MatchState) {
   else beginTurn(state);
 }
 
+function completeBrawlRetractions(state: MatchState) {
+  const pending = [...new Set(state.pendingBrawlRetracts ?? [])];
+  state.pendingBrawlRetracts = [];
+  if (!pending.length) return;
+  const ids = new Set(pending);
+  for (const player of state.players) {
+    for (const bakugan of player.bakugan) {
+      if (ids.has(bakugan.id)) retractBakugan(state, bakugan);
+    }
+  }
+}
+
 const advanceEmptyBatch = (state: MatchState) => {
   if (state.phase === "preRoll") setPhase(state, "target", "Roll Phase • Secret target selection", state.startingPlayer);
   else if (state.phase === "power") declareVictor(state);
   else if (state.phase === "victor") beginDamage(state);
   else if (state.phase === "postDamage") {
-    const loser = playerById(state, state.pendingLoser); const loserBakugan = activeBakugan(state, loser.id); if (loserBakugan) retractBakugan(state, loserBakugan);
-    if (state.teamAttack) playerById(state, state.brawlWinner).bakugan.forEach((bakugan) => retractBakugan(state, bakugan));
+    completeBrawlRetractions(state);
     setPhase(state, "endPlay", "End Phase • Play Step", state.startingPlayer);
   } else if (state.phase === "endPlay") beginChargeStep(state);
   else if (state.phase === "reset") finishResetStep(state);

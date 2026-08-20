@@ -168,15 +168,6 @@ function targetMatches(state: MatchState, modifier: ContinuousModifier, bakugan:
   return ["active-enemy", "all-enemy"].includes(modifier.target);
 }
 
-function printedScaleMultiplier(scale: string | undefined, player: PlayerState) {
-  if (!scale) return 1;
-  if (scale === "other-card-played") return Math.max(0, player.cardsPlayedThisTurn - 1);
-  if (/Energy card/i.test(scale)) return player.maxEnergy;
-  if (/Hero card/i.test(scale)) return player.heroes.length;
-  if (/BakuCore/i.test(scale)) return player.bakugan.reduce((sum, candidate) => sum + candidate.heldCoreCells.length, 0);
-  return 1;
-}
-
 function printedTarget(sourceText: string, action: Extract<RuleAction, { kind: "modify-stat" | "grant-keyword" }>) {
   if (action.kind === "modify-stat" && action.scope) {
     return action.scope === "target" ? "chosen-bakugan" as const : action.scope;
@@ -216,9 +207,8 @@ function printedActionModifier(
     targetBakuganId: target === "chosen-bakugan" ? bakugan.id : undefined,
     targetFaction: faction,
     excludedTargetFaction: excludedFaction,
-    amount: action.kind === "grant-keyword"
-      ? evaluateNumberValue(state, action.value ?? 1, { controllerId: player.id, choices: { targetBakuganId: bakugan.id }, moment: "continuous" })
-      : evaluateNumberValue(state, action.amount, { controllerId: player.id, choices: { targetBakuganId: bakugan.id }, moment: "continuous" }) * printedScaleMultiplier(action.scale, player),
+    amount: action.kind === "grant-keyword" ? action.value ?? 1 : action.amount,
+    choices: { targetBakuganId: bakugan.id },
     layer: "continuous" as const,
     duration: "while-source-active" as const,
     condition: activeCondition,

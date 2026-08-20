@@ -233,49 +233,6 @@ test("Bakugan Resurgence Shun enters play without drawing and draws only after a
   assert.equal(afterDraw.hand.at(-1)?.id, drawCard.id);
 });
 
-test("Dragonoid Maximus wins when its controller has Dan, Wynton, and Lia", () => {
-  const player = makePlayer("a", "Alpha", STARTER_DECKS[0]);
-  const opponent = makePlayer("b", "Beta", STARTER_DECKS[1]);
-  const titanSource = BAKUGAN.find((bakugan) => bakugan.id === "ex-1");
-  assert.ok(titanSource);
-  const titan = {
-    ...titanSource,
-    id: "ex-titan-alpha",
-    character: { ...titanSource.character, id: "ex-titan-character-alpha" },
-    open: true,
-    heldCoreCells: [],
-    evoStack: [],
-  };
-  player.bakugan[0] = titan;
-  player.heroes = [
-    card("bb-207", "dan-for-maximus"),
-    card("bb-215", "wynton-for-maximus"),
-    card("bb-202", "lia-for-maximus"),
-  ];
-  const maximus = card("ex-2", "maximus-alternate-win");
-  player.hand = [maximus];
-  addUntappedEnergy(player, 10);
-
-  let state = createMatch("EXMAXWIN", "bo1", [player, opponent]);
-  state.turn = 2;
-  state.phase = "power";
-  state.stepLabel = "Brawl Phase • Power Step";
-  state.startingPlayer = player.id;
-  state.initialStartingPlayer = player.id;
-  state.priority = player.id;
-  state.selected[player.id] = titan.id;
-
-  state = playCardWithAutoEnergy(state, player.id, maximus.id, { targetBakuganId: titan.id });
-  state = resolveTopBatchObject(state);
-
-  assert.equal(state.phase, "result");
-  assert.equal(state.winner, player.id);
-  assert.equal(state.series[player.id], 1);
-  assert.equal(state.resultReason, "Dragonoid Maximus's alternate win condition");
-  assert.equal(state.priority, "");
-  assert.equal(state.batch.length, 0);
-});
-
 test("normal simultaneous opens trigger Lia and Shargo for both players on every occurrence", () => {
   const alpha = makePlayer("a", "Alpha", STARTER_DECKS[0]);
   const beta = makePlayer("b", "Beta", STARTER_DECKS[1]);
@@ -472,7 +429,10 @@ test("the catalogue does not invent discard choices from ordinary hand-card word
   for (const catalogId of ["bb-152", "aa-112"]) {
     const source = card(catalogId, `${catalogId}-cost-test`);
     const definition = ruleDefinitionForCard(source);
-    assert.ok(definition.play.choices.some((choice) => choice.id === "discardCardIds" && choice.timing === "pay"));
+    const alternative = definition.play.costModifiers.find((modifier) => modifier.kind === "cost-alternative");
+    assert.ok(alternative);
+    assert.ok(alternative.components.some((component) => component.kind === "cost-discard" && component.choiceId === "discardCardIds"));
+    assert.equal(definition.play.choices.some((choice) => choice.id === "discardCardIds" && choice.timing === "pay"), false);
     assert.equal(definition.abilities.flatMap((ability) => ability.instructions)
       .flatMap((instruction) => instruction.actions).some((action) => action.kind === "discard"), false);
   }

@@ -152,9 +152,11 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
         const sourceBakugan = sourceBakuganFor(owner, source);
         const sourceBakuganId = sourceBakugan?.id
           ?? (ability.trigger.source === "self" && event.card?.type === "Evo" ? event.targetBakuganId : undefined);
+        const controllerTargetBakuganId = event.actorId === owner.id ? event.targetBakuganId : undefined;
         const choices: CardChoices = {
           ...(ability.trigger.source === "self" ? event.choices ?? {} : {}),
           ...(sourceBakuganId ? { sourceBakuganId } : {}),
+          ...(controllerTargetBakuganId ? { targetBakuganId: controllerTargetBakuganId } : {}),
         };
         const object = createRuleObject({
           controllerId: owner.id,

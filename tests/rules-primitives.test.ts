@@ -7,13 +7,11 @@ import { parseAtomicEffects } from "../lib/rules/catalogue-primitives";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { copyRuleObject, createRuleObject } from "../lib/rules/objects";
 import {
-  evaluateAmountExpression,
   playerIdsForScope,
   zoneOwnerIdsFor,
-  type AmountExpression,
 } from "../lib/rules/primitives";
 import type { ChoiceSpec } from "../lib/rules/model";
-import { evaluateNumberValue } from "../lib/rules/values";
+import { evaluateNumberValue, type NumberExpression } from "../lib/rules/values";
 
 function stateWithPlayers(count = 2): MatchState {
   const players = [
@@ -45,18 +43,12 @@ test("zone ownership can follow the chooser or a separately chosen player", () =
   assert.deepEqual(zoneOwnerIdsFor(state, "opponent", { controllerId: "first" }), ["second", "third"]);
 });
 
-test("dynamic amount expressions evaluate typed counts and arithmetic", () => {
+test("dynamic number expressions evaluate typed counts and arithmetic", () => {
   const state = stateWithPlayers();
   state.players[0].heroes = [instance(CARDS.find((card) => card.type === "Hero")!, "hero-a"), instance(CARDS.find((card) => card.type === "Hero")!, "hero-b")];
-  const expression: AmountExpression = {
-    kind: "product",
-    factors: [
-      { kind: "constant", value: 100 },
-      { kind: "count", source: "hero", owner: "controller" },
-    ],
-  };
-  assert.equal(evaluateAmountExpression(state, expression, { controllerId: "first" }), 200);
-  assert.equal(evaluateAmountExpression(state, { kind: "choice-value", choiceId: "xValue" }, { controllerId: "first", choices: { xValue: 4 } }), 4);
+  const expression: NumberExpression = { kind: "product", factors: [100, { kind: "count", source: "hero", owner: "controller" }] };
+  assert.equal(evaluateNumberValue(state, expression, { controllerId: "first" }), 200);
+  assert.equal(evaluateNumberValue(state, { kind: "choice-value", choiceId: "xValue" }, { controllerId: "first", choices: { xValue: 4 } }), 4);
 });
 
 test("chooser ownership and hidden-zone ownership are independent", () => {

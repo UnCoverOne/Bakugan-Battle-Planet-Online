@@ -1,5 +1,5 @@
 import type { CardChoices, CardType, CoreType, Faction, GameCard, Phase } from "../game";
-import type { AmountExpression, ChooserOwner, PlayerScope, ZoneOwner } from "./primitives";
+import type { ChooserOwner, PlayerScope, ZoneOwner } from "./primitives";
 import type { BooleanExpression, NumberValue } from "./values";
 
 export type RulesCardId = `${"bb" | "br" | "aa" | "ex"}-${number}${string}`;
@@ -115,22 +115,20 @@ export type TriggerDefinition = {
   limit?: { kind: "once-per-turn" | "first-each-turn"; key: string };
 };
 
-export type CostScale = "cards-played-this-turn" | "held-bakucore";
-
 export type CostEffect =
-  | { kind: "cost-reduce"; amount: NumberValue; duration: RulesDuration; cardType?: CardType; condition?: RuleCondition; appliesTo?: "self" | "controller"; scale?: CostScale }
+  | { kind: "cost-reduce"; amount: NumberValue; duration: RulesDuration; cardType?: CardType; condition?: RuleCondition; appliesTo?: "self" | "controller" }
   | { kind: "cost-increase"; amount: NumberValue; duration: RulesDuration; cardType?: CardType; condition?: RuleCondition }
   | { kind: "cost-free"; duration: RulesDuration; condition?: RuleCondition; cardType?: CardType; appliesTo?: "self" | "controller" }
   | { kind: "cost-discard"; amount: NumberValue; choiceId: keyof CardChoices }
   | { kind: "cost-alternative"; id: string; label: string; setsBaseFree: boolean; components: CostEffect[]; condition?: RuleCondition };
 
 export type RuleAction =
-  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: NumberValue; amountExpression?: AmountExpression; scale?: string; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices }
+  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: NumberValue; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices }
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: NumberValue; duration: RulesDuration }
-  | { kind: "draw"; amount: NumberValue; amountExpression?: AmountExpression; scale?: string; playerScope?: PlayerScope }
-  | { kind: "discard"; amount: NumberValue; amountExpression?: AmountExpression; minimum: NumberValue; maximum: NumberValue; repeated?: boolean; playerScope?: PlayerScope }
+  | { kind: "draw"; amount: NumberValue; playerScope?: PlayerScope }
+  | { kind: "discard"; amount: NumberValue; minimum: NumberValue; maximum: NumberValue; repeated?: boolean; playerScope?: PlayerScope }
   | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "hero" | "self"; enters: "charged" | "uncharged" }
-  | { kind: "generate-energy"; amount: NumberValue; amountExpression?: AmountExpression; scale?: string; playerScope?: PlayerScope }
+  | { kind: "generate-energy"; amount: NumberValue; playerScope?: PlayerScope }
   | { kind: "recharge-energy"; amount: NumberValue | "all" }
   | { kind: "set-stat"; stat: "power" | "damage"; value: NumberValue }
   | { kind: "set-rule"; rule: "victor-stat"; value: "power" | "damage"; duration: RulesDuration }

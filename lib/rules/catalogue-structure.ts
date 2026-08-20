@@ -121,6 +121,19 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     };
   });
 
+  for (const instruction of instructions) {
+    if (!/\bSacrifice\b[\s\S]*\bmay discard\b[\s\S]*\bto Reroll\b/i.test(instruction.sourceText)) continue;
+    instruction.condition = { kind: "always" };
+    let sacrifice = instruction.choices.find((candidate) => candidate.id === "discardCardIds");
+    if (!sacrifice) {
+      sacrifice = choice("discardCardIds", "resolve", "hand-card", "Choose cards to sacrifice", true, "controller", "private");
+      sacrifice.owner = "controller";
+      instruction.choices.push(sacrifice);
+    }
+    sacrifice.minimum = 0;
+    sacrifice.maximum = 1;
+  }
+
   // Battle Mastery presents one printed choice before either branch resolves.
   // Compile the choice as an always-on no-op instruction, then gate each
   // branch on the selected mode. Earlier instruction choices are deliberately
@@ -132,12 +145,14 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     const modeChoice = current.choices.find((candidate) => candidate.id === "mode");
     if (!modeChoice) continue;
     const noOp: RuleAction = { kind: "cost", amount: 0, operation: "reduce", duration: "instant" };
+    const triggerEffects = current.effects.filter((effect) => effect.kind === "trigger");
+    const chooserEffects: RuleAction[] = triggerEffects.length ? [...triggerEffects, noOp] : [noOp];
     const chooser: RuleInstruction = {
       ...current,
       id: `${ruleCardId(card)}:battle-mastery-choice`,
       condition: { kind: "always" },
-      effects: [noOp],
-      actions: [noOp],
+      effects: chooserEffects,
+      actions: chooserEffects,
       choices: [{
         ...modeChoice,
         options: branches.map((branch) => ({ id: branch.id, label: branch.label })),
@@ -236,7 +251,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   const attachesCore = /\battach\s+(?:an?\s+)?(?:additional\s+|another\s+)?bakucore/i.test(text) || attachedCoreTypes.length > 0;
   const coreAttachmentTarget = attachesCore
     && /\bto\s+(?:one of\s+)?(?:your\s+)?(?:an?\s+)?(?:open\s+)?Bakugan\b/i.test(text);
-  const explicitBakuganTarget = /choose (?:a|an|one|another).*Bakugan|target .*Bakugan|retract (?:(?:one of|another) )?(?:your )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \[[^\]]+\])? Bakugan|(?:a|an|one|another)(?: \[[^\]]+\])? Bakugan gets?|to (?:a|an|one) \[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan/i.test(text)
+  const explicitBakuganTarget = /choose (?:a|an|one|another)(?:(?!\bplayer\b)[^.;])*?Bakugan|target .*Bakugan|retract (?:(?:one of|another) )?(?:your )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \[[^\]]+\])? Bakugan|(?:a|an|one|another)(?: \[[^\]]+\])? Bakugan gets?|to (?:a|an|one) \[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan/i.test(text)
     || coreAttachmentTarget;
   const separateEvoEffectTarget = card.type === "Evo"
     && defaultTiming === "announce"
@@ -360,8 +375,8 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     && !(/if you open on the Reroll/i.test(text) && /\bVictor\s*:/i.test(text))) {
     const optional = /up to|any number|may discard/i.test(text);
     const eachPlayerChooses = /\beach player\b|\ball players\b|\bboth players\b/i.test(text);
-    const opponentOwnsZone = /opponent(?:'s|’s)\s+hand|opponent\s+(?:may\s+)?discards?/i.test(text);
-    const opponentChooses = /(?:your\s+)?opponent\s+(?:may\s+)?discards?/i.test(text);
+    const opponentOwnsZone = /opponent(?:'s|’s)\s+hand|opponent\s+(?:(?:may|must)\s+)?discards?/i.test(text);
+    const opponentChooses = /(?:your\s+)?opponent\s+(?:(?:may|must)\s+)?discards?/i.test(text);
     const selected = choice(
       "discardCardIds",
       "resolve",
@@ -451,16 +466,9 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   return result.filter((item, index, values) => values.findIndex((candidate) => candidate.id === item.id && candidate.timing === item.timing) === index);
 }
 
-function reductionScaleFor(text: string): Extract<CostEffect, { kind: "cost-reduce" }>["scale"] {
-  if (/for each card you (?:have )?played this turn/i.test(text)) return "cards-played-this-turn";
-  if (/for each BakuCore that your Bakugan hold/i.test(text)) return "held-bakucore";
-  return undefined;
-}
-
-function reductionAmountFor(text: string, amount: number): CostEffect extends infer _ ? import("./values").NumberValue : never {
-  const scale = reductionScaleFor(text);
-  if (scale === "cards-played-this-turn") return { kind: "product", factors: [amount, { kind: "count", source: "cards-played", owner: "controller" }] };
-  if (scale === "held-bakucore") return { kind: "product", factors: [amount, { kind: "count", source: "held-bakucore", owner: "controller" }] };
+function reductionAmountFor(text: string, amount: number): import("./values").NumberValue {
+  if (/for each card you (?:have )?played this turn/i.test(text)) return { kind: "product", factors: [amount, { kind: "count", source: "cards-played", owner: "controller" }] };
+  if (/for each BakuCore that your Bakugan hold/i.test(text)) return { kind: "product", factors: [amount, { kind: "count", source: "held-bakucore", owner: "controller" }] };
   return amount;
 }
 
@@ -560,7 +568,6 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
       if (!choices.some((choice) => choice.id === selected.id && choice.timing === selected.timing)) choices.push(selected);
     }
   }
-  if (ruleCardId(card) === "aa-112") choices.push(choice("discardCardIds", "pay", "hand-card", "Choose two cards for the alternative cost", false, "controller", "private"));
   return {
     choices,
     costModifiers: costModifiersFor(card),
@@ -602,8 +609,11 @@ export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
     // Sentence splitting must not turn a follow-up clause into an enter-play
     // spell. These phrases refer to information or an action created by the
     // preceding trigger and therefore share that trigger's event timing.
-    const continuesTrigger = Boolean(activeTrigger) && /^(?:then\b|shuffle\s+your\s+deck\b|you\s+may\s+(?:put|play|attach)\s+(?:it|that\s+card|the\s+(?:chosen|revealed)\s+card|an?\s+\[(?:FT|FF|SD|MS|HE)\])\b|if\s+(?:it(?:['’]?s|\b)|they\b|you do\b|an?\s+[^,.]+\s+cards?\s+is\s+revealed\s+this\s+way\b|one\s+of\s+(?:them|those\s+cards)\b|the\s+revealed\s+card\b))/i.test(
-      instruction.sourceText.trim(),
+    const continuesTrigger = Boolean(activeTrigger) && (
+      instruction.condition.kind === "mode-selected"
+      || /^(?:then\b|shuffle\s+your\s+deck\b|you\s+may\s+(?:put|play|attach)\s+(?:it|that\s+card|the\s+(?:chosen|revealed)\s+card|an?\s+\[(?:FT|FF|SD|MS|HE)\])\b|if\s+(?:it(?:['’]?s|\b)|they\b|you do\b|an?\s+[^,.]+\s+cards?\s+is\s+revealed\s+this\s+way\b|one\s+of\s+(?:them|those\s+cards)\b|the\s+revealed\s+card\b))/i.test(
+        instruction.sourceText.trim(),
+      )
     );
     if (continuesTrigger) activeTrigger!.push(instruction);
     else {

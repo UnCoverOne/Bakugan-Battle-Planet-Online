@@ -95,12 +95,7 @@ export function cardCostBreakdown(
   for (const modifier of [...selfModifiers, ...controlledModifiers]) {
     if (!modifierActive(state, player, modifier, choices)) continue;
     if (modifier.kind === "cost-reduce") {
-      const variableMultiplier = modifier.scale === "cards-played-this-turn"
-        ? Math.max(0, player.cardsPlayedThisTurn)
-        : modifier.scale === "held-bakucore"
-          ? player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0)
-          : 1;
-      reductions += costValue(state, playerId, modifier.amount, choices, context.capturedValues) * variableMultiplier;
+      reductions += costValue(state, playerId, modifier.amount, choices, context.capturedValues);
     } else if (modifier.kind === "cost-increase") increases += costValue(state, playerId, modifier.amount, choices, context.capturedValues);
     else if (modifier.kind === "cost-free") {
       if (!modifier.cardType || modifier.cardType === card.type) freeBase = true;

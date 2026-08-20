@@ -117,7 +117,6 @@ test("catalogue compiler emits dynamic values in ordinary numeric action slots",
   const action = parseAtomicEffects(card, card.effect).find((candidate) => candidate.kind === "modify-stat");
   assert.ok(action && action.kind === "modify-stat");
   assert.equal(typeof action.amount, "object");
-  assert.equal(action.amountExpression, undefined);
 
   const state = stateWithPlayers();
   const hero = CARDS.find((candidate) => candidate.type === "Hero")!;

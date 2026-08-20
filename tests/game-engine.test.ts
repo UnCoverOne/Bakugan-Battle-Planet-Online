@@ -1,14 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { BAKUGAN, CARDS, CORES, STARTER_DECKS, deckErrors, makePlayer } from "../lib/data";
+import { CONTENT_MANIFEST } from "../lib/content/catalogue";
 import {
-  CENTER_CELL, HEX_CELLS, beginCorePlacement, cardChoiceSpec, createMatch, discardToHandLimit, energizeCard,
+  CENTER_CELL, HEX_CELLS, beginCorePlacement, cardChoiceSpec, createMatch, discardToHandLimit, energizeCard, flipStopsDamage,
   legalPlacementCells, nextTurn, normalizeMatchState, orderTriggers, passPriority, placeCore, playCard, selectBakugan,
   setReady, startNextSeriesGame, submitCardChoice, targetCore, totalPower, type MatchState,
 } from "../lib/game";
 import { drawTurnCard } from "../lib/turnStart";
 import { flipDamageCard, resolveManualDamage } from "../lib/manualDamage";
 import { timeoutChoicesForFields } from "../lib/engine/timeout-policy";
+import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 
 const passWindow = (state: MatchState) => {
   state = passPriority(state, state.priority); return passPriority(state, state.priority);
@@ -55,8 +57,12 @@ const reachPower = () => {
 };
 
 test("the complete supplied Battle Planet catalogue is normalized and playable", () => {
-  assert.equal(CARDS.length, 843); assert.equal(BAKUGAN.length, 236); assert.equal(CORES.length, 52);
-  assert.deepEqual(Object.fromEntries(["Action","Flip","Hero","Evo","Character"].map((type) => [type, CARDS.filter((card) => card.type === type).length])), { Action:246, Flip:82, Hero:47, Evo:232, Character:236 });
+  assert.equal(CARDS.length, CONTENT_MANIFEST.cardCount);
+  assert.equal(BAKUGAN.length, CARDS.filter((card) => card.type === "Character").length);
+  assert.equal(CORES.length, 52);
+  const typeCounts = Object.fromEntries(["Action", "Flip", "Hero", "Evo", "Character"].map((type) => [type, CARDS.filter((card) => card.type === type).length]));
+  assert.equal(Object.values(typeCounts).reduce((sum, count) => sum + count, 0), CONTENT_MANIFEST.cardCount);
+  assert.equal(new Set(CARDS.map((card) => card.catalogId)).size, CONTENT_MANIFEST.cardCount);
   assert.ok(CARDS.every((card) => card.effect != null && card.mechanics && card.art));
   assert.ok(CARDS.filter((card) => ["Character","Evo"].includes(card.type)).every((card) => card.bPower != null && card.damage != null));
   assert.ok(STARTER_DECKS.every((deck) => deckErrors(deck).length === 0));
@@ -172,12 +178,65 @@ test("damage Flips enter the batch, open a response window, and Stop ends damage
 
 test("a Team Attack combines open Bakugan, then all attackers retract", () => {
   let state = reachPower(); const winner = state.players[0]; winner.bakugan.forEach((bakugan) => { bakugan.open = true; }); const attacking = winner.bakugan.find((bakugan) => bakugan.id === state.selected[winner.id])!; state.rolls[winner.id].result = "open-no-core"; state.powerBoost[attacking.id] = 9999;
-  state = passWindow(state); const loser = state.players[1]; loser.deckCards = [CARDS.find((card) => card.type !== "Flip")!, ...loser.deckCards]; loser.deck = loser.deckCards.length; state = passWindow(state); assert.equal(state.teamAttack,true);
-  while (state.phase === "damage") {
-    state = state.revealedFlip ? resolveManualDamage(state, loser.id) : flipDamageCard(state, loser.id);
+  state = passWindow(state);
+  const loserId = state.players[1].id;
+  const loserBeforeDamage = state.players.find((player) => player.id === loserId)!;
+  loserBeforeDamage.deckCards = [CARDS.find((card) => card.type !== "Flip")!, ...loserBeforeDamage.deckCards];
+  loserBeforeDamage.deck = loserBeforeDamage.deckCards.length;
+  for (let guard = 0; state.phase === "victor" && guard < 10; guard += 1) {
+    assert.equal(state.pendingChoice, undefined, "Team Attack fixture reached an unexpected Victor choice");
+    state = passWindow(state);
   }
-  if (state.phase === "postDamage") state = passWindow(state);
-  assert.equal(state.phase,"endPlay"); assert.ok(state.players.find((player)=>player.id===winner.id)!.bakugan.every((bakugan) => !bakugan.open));
+  assert.equal(state.phase, "damage");
+  assert.equal(state.teamAttack, true);
+  while (state.phase === "damage") {
+    state = state.revealedFlip ? resolveManualDamage(state, loserId) : flipDamageCard(state, loserId);
+  }
+  for (let guard = 0; state.phase === "postDamage" && guard < 10; guard += 1) {
+    assert.equal(state.pendingChoice, undefined, "Team Attack fixture reached an unexpected post-damage choice");
+    state = passWindow(state);
+  }
+  assert.equal(state.phase,"endPlay");
+  assert.ok(state.players.find((player)=>player.id===winner.id)!.bakugan.every((bakugan) => !bakugan.open));
+  assert.deepEqual(state.pendingBrawlRetracts, []);
+});
+
+test("a Team Attack consumes its retraction list once after a played Flip", () => {
+  let state = reachPower();
+  const winnerId = state.players[0].id;
+  const winner = state.players.find((player) => player.id === winnerId)!;
+  winner.bakugan.forEach((bakugan) => { bakugan.open = true; });
+  const attacking = winner.bakugan.find((bakugan) => bakugan.id === state.selected[winnerId])!;
+  state.rolls[winnerId].result = "open-no-core";
+  state.powerBoost[attacking.id] = 9999;
+  state = passWindow(state);
+  const loserId = state.players.find((player) => player.id !== winnerId)!.id;
+  for (let guard = 0; state.phase === "victor" && guard < 10; guard += 1) {
+    assert.equal(state.pendingChoice, undefined);
+    state = passWindow(state);
+  }
+  assert.equal(state.phase, "damage");
+  assert.equal(state.teamAttack, true);
+  const printing = CARDS.find((card) => card.type === "Flip"
+    && card.cost === 0
+    && flipStopsDamage(state, card)
+    && ruleDefinitionForCard(card).abilities.every((ability) => ability.instructions.every((instruction) => instruction.choices.length === 0)));
+  assert.ok(printing, "the catalogue must contain a legal zero-cost Stop Flip for the Team Attack");
+  const flip = { ...printing, id: "team-attack-stop-flip" };
+  const loser = state.players.find((player) => player.id === loserId)!;
+  loser.deckCards = [flip, ...loser.deckCards];
+  loser.deck = loser.deckCards.length;
+  state = flipDamageCard(state, loserId);
+  assert.equal(state.revealedFlip?.id, flip.id);
+  state = resolveManualDamage(state, loserId, flip.id, {});
+  assert.equal(state.phase, "postDamage");
+  for (let guard = 0; state.phase === "postDamage" && guard < 10; guard += 1) {
+    assert.equal(state.pendingChoice, undefined);
+    state = passWindow(state);
+  }
+  assert.equal(state.phase, "endPlay");
+  assert.ok(state.players.find((player) => player.id === winnerId)!.bakugan.every((bakugan) => !bakugan.open));
+  assert.deepEqual(state.pendingBrawlRetracts, []);
 });
 
 test("the End Phase exposes Play, Charge, and Reset before hand limits and the next Start Phase", () => {
