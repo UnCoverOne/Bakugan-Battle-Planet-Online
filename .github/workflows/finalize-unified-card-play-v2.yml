@@ -1,0 +1,95 @@
+name: Finalize Unified Card Play V2
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize-v2:
+    if: github.head_ref == 'feature/unified-card-play-pipeline'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/unified-card-play-pipeline
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply complete migration and Team Attack integration fixes
+        shell: bash
+        run: |
+          sed -n "/python <<'PY'/,/^          PY$/p" .github/workflows/generalized-value-expressions-final-validation.yml | sed '1d;$d;s/^          //' > /tmp/migrate.py
+          python /tmp/migrate.py
+          sed -n "/^          python <<'PY'$/,/^          PY$/p" .github/workflows/gve-debug.yml | sed '1d;$d;s/^          //' > /tmp/regressions.py
+          python /tmp/regressions.py
+          sed -n "/^          python <<'PY'$/,/^          PY$/p" .github/workflows/finalize-unified-card-play.yml | sed '1d;$d;s/^          //' > /tmp/finalize.py
+          python /tmp/finalize.py
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f"missing expected text for {label}")
+              return text.replace(old, new, 1)
+
+          p = Path('tests/game-engine.test.ts')
+          s = p.read_text()
+          old = '''  state = passWindow(state); const loser = state.players[1]; loser.deckCards = [CARDS.find((card) => card.type !== "Flip")!, ...loser.deckCards]; loser.deck = loser.deckCards.length; state = passWindow(state); assert.equal(state.teamAttack,true);\n  while (state.phase === "damage") {\n    state = state.revealedFlip ? resolveManualDamage(state, loser.id) : flipDamageCard(state, loser.id);\n  }\n  if (state.phase === "postDamage") state = passWindow(state);\n  assert.equal(state.phase,"endPlay"); assert.ok(state.players.find((player)=>player.id===winner.id)!.bakugan.every((bakugan) => !bakugan.open));'''
+          new = '''  state = passWindow(state);\n  const loserId = state.players[1].id;\n  const loserBeforeDamage = state.players.find((player) => player.id === loserId)!;\n  loserBeforeDamage.deckCards = [CARDS.find((card) => card.type !== "Flip")!, ...loserBeforeDamage.deckCards];\n  loserBeforeDamage.deck = loserBeforeDamage.deckCards.length;\n  for (let guard = 0; state.phase === "victor" && guard < 10; guard += 1) {\n    assert.equal(state.pendingChoice, undefined, "Team Attack fixture reached an unexpected Victor choice");\n    state = passWindow(state);\n  }\n  assert.equal(state.phase, "damage");\n  assert.equal(state.teamAttack, true);\n  while (state.phase === "damage") {\n    state = state.revealedFlip ? resolveManualDamage(state, loserId) : flipDamageCard(state, loserId);\n  }\n  for (let guard = 0; state.phase === "postDamage" && guard < 10; guard += 1) {\n    assert.equal(state.pendingChoice, undefined, "Team Attack fixture reached an unexpected post-damage choice");\n    state = passWindow(state);\n  }\n  assert.equal(state.phase,"endPlay");\n  assert.ok(state.players.find((player)=>player.id===winner.id)!.bakugan.every((bakugan) => !bakugan.open));\n  assert.deepEqual(state.pendingBrawlRetracts, []);'''
+          s = replace_once(s, old, new, 'Team Attack normal completion test')
+
+          # Explicitly cover the same one-shot retraction list when damage goes through a played Flip.
+          s = s.replace('  CENTER_CELL, HEX_CELLS, beginCorePlacement, cardChoiceSpec, createMatch, discardToHandLimit, energizeCard,\n',
+                        '  CENTER_CELL, HEX_CELLS, beginCorePlacement, cardChoiceSpec, createMatch, discardToHandLimit, energizeCard, flipStopsDamage,\n')
+          if 'import { ruleDefinitionForCard } from "../lib/rules/catalogue";' not in s:
+              s = s.replace('import { timeoutChoicesForFields } from "../lib/engine/timeout-policy";\n',
+                            'import { timeoutChoicesForFields } from "../lib/engine/timeout-policy";\nimport { ruleDefinitionForCard } from "../lib/rules/catalogue";\n')
+          anchor = '''test("the End Phase exposes Play, Charge, and Reset before hand limits and the next Start Phase", () => {'''
+          added = '''test("a Team Attack consumes its retraction list once after a played Flip", () => {\n  let state = reachPower();\n  const winnerId = state.players[0].id;\n  const winner = state.players.find((player) => player.id === winnerId)!;\n  winner.bakugan.forEach((bakugan) => { bakugan.open = true; });\n  const attacking = winner.bakugan.find((bakugan) => bakugan.id === state.selected[winnerId])!;\n  state.rolls[winnerId].result = "open-no-core";\n  state.powerBoost[attacking.id] = 9999;\n  state = passWindow(state);\n  const loserId = state.players.find((player) => player.id !== winnerId)!.id;\n  for (let guard = 0; state.phase === "victor" && guard < 10; guard += 1) {\n    assert.equal(state.pendingChoice, undefined);\n    state = passWindow(state);\n  }\n  assert.equal(state.phase, "damage");\n  assert.equal(state.teamAttack, true);\n  const printing = CARDS.find((card) => card.type === "Flip"\n    && card.cost === 0\n    && flipStopsDamage(state, card)\n    && ruleDefinitionForCard(card).abilities.every((ability) => ability.instructions.every((instruction) => instruction.choices.length === 0)));\n  assert.ok(printing, "the catalogue must contain a legal zero-cost Stop Flip for the Team Attack");\n  const flip = { ...printing, id: "team-attack-stop-flip" };\n  const loser = state.players.find((player) => player.id === loserId)!;\n  loser.deckCards = [flip, ...loser.deckCards];\n  loser.deck = loser.deckCards.length;\n  state = flipDamageCard(state, loserId);\n  assert.equal(state.revealedFlip?.id, flip.id);\n  state = resolveManualDamage(state, loserId, flip.id, {});\n  assert.equal(state.phase, "postDamage");\n  for (let guard = 0; state.phase === "postDamage" && guard < 10; guard += 1) {\n    assert.equal(state.pendingChoice, undefined);\n    state = passWindow(state);\n  }\n  assert.equal(state.phase, "endPlay");\n  assert.ok(state.players.find((player) => player.id === winnerId)!.bakugan.every((bakugan) => !bakugan.open));\n  assert.deepEqual(state.pendingBrawlRetracts, []);\n});\n\n'''
+          if anchor not in s:
+              raise SystemExit('End Phase test anchor missing')
+          s = s.replace(anchor, added + anchor, 1)
+          p.write_text(s)
+          PY
+      - run: npm ci
+      - name: Focused unified pipeline and canonical values
+        run: npx tsx --test tests/value-expressions.test.ts tests/dynamic-value-catalogue.test.ts tests/rules-architecture-cleanup.test.ts tests/rules-primitives.test.ts tests/card-payment.test.ts tests/card-play-pipeline.test.ts tests/pact-cubbo-regressions.test.ts tests/rules-engine-modernization.test.ts tests/reroll-mechanic.test.ts tests/game-engine.test.ts
+      - name: Full rules suite
+        run: npm run test:rules
+      - name: Full gameplay suite
+        run: npm run test:gameplay
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Enforce one canonical numeric implementation
+        shell: bash
+        run: |
+          if grep -R -n -E 'AmountExpression|AmountCountSource|AmountEvaluationContext|amountExpression|evaluateAmountExpression|amountExpressionForScale|CostScale|printedScaleMultiplier|scaleStat|statValues' lib --include='*.ts'; then
+            echo 'Legacy numeric compatibility implementation remains.' >&2
+            exit 1
+          fi
+          if grep -R -n -E 'scale\?: (string|CostScale)|modifier\.scale|action\.scale' lib/rules lib/game.ts --include='*.ts'; then
+            echo 'Legacy numeric scale side channel remains.' >&2
+            exit 1
+          fi
+      - name: Commit validated implementation and remove temporary workflows
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/rules-engine.yml
+          git rm -f .github/workflows/generalized-value-expressions-final-validation.yml \
+            .github/workflows/gve-debug.yml \
+            .github/workflows/canonical-rules-cleanup.yml \
+            .github/workflows/finalize-unified-card-play.yml \
+            .github/workflows/finalize-unified-card-play-v2.yml
+          git add lib tests package.json .github/workflows/rules-engine.yml
+          git commit -m 'refactor: finish unified card play and canonical values'
+          git push origin HEAD:feature/unified-card-play-pipeline
