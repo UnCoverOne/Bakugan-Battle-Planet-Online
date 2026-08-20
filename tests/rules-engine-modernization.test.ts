@@ -138,6 +138,7 @@ test("replacement conditions cover sacrifice, held Core, faction, and turn-histo
   assert.deepEqual(conditionFor("If that Bakugan is holding [FT], +600 [B] instead."), {
     kind: "held-core-type",
     coreTypes: ["Fist"],
+    subject: "target",
   });
   assert.deepEqual(conditionFor("If [Haos], +600 [B] instead."), {
     kind: "faction",
@@ -150,14 +151,12 @@ test("replacement conditions cover sacrifice, held Core, faction, and turn-histo
     subject: "team",
   });
   assert.deepEqual(conditionFor("If you have played a card from three different factions this turn, +800 [B] instead."), {
-    kind: "factions-played",
-    comparison: "at-least",
-    amount: 3,
+    kind: "expression",
+    expression: { kind: "compare-number", left: { kind: "count", source: "factions-played", owner: "controller" }, operator: ">=", right: 3 },
   });
   assert.deepEqual(conditionFor("If you have ten or more Energy cards in play, +15 [Damage Rating] instead."), {
-    kind: "energy-count",
-    comparison: "at-least",
-    amount: 10,
+    kind: "expression",
+    expression: { kind: "compare-number", left: { kind: "property", subject: { kind: "player", owner: "controller" }, property: "max-energy" }, operator: ">=", right: 10 },
   });
 });
 
@@ -209,14 +208,18 @@ test("triggered replacement bonuses retain their trigger ownership", () => {
     .every((effect) => effect.kind !== "modify-stat"));
 });
 
-test("open Bakugan count parser preserves exact and threshold comparisons", () => {
-  assert.deepEqual(conditionFor("If you only have one open Bakugan."), { kind: "open-bakugan-count", comparison: "exactly", amount: 1 });
-  assert.deepEqual(conditionFor("If you have only two open Bakugan."), { kind: "open-bakugan-count", comparison: "exactly", amount: 2 });
-  assert.deepEqual(conditionFor("If you have three or more open Bakugan."), { kind: "open-bakugan-count", comparison: "at-least", amount: 3 });
-  assert.deepEqual(conditionFor("If you have at most two open Bakugan."), { kind: "open-bakugan-count", comparison: "at-most", amount: 2 });
-  assert.deepEqual(conditionFor("If you have more than one open Bakugan."), { kind: "open-bakugan-count", comparison: "more-than", amount: 1 });
-  assert.deepEqual(conditionFor("If you have fewer than three open Bakugan."), { kind: "open-bakugan-count", comparison: "fewer-than", amount: 3 });
-  assert.deepEqual(conditionFor("If you have no open Bakugan."), { kind: "open-bakugan-count", comparison: "exactly", amount: 0 });
+test("open Bakugan count parser emits generalized boolean comparisons", () => {
+  const expected = (operator: "==" | ">=" | "<=" | ">" | "<", right: number) => ({
+    kind: "expression" as const,
+    expression: { kind: "compare-number" as const, left: { kind: "count" as const, source: "open-bakugan" as const, owner: "controller" as const }, operator, right },
+  });
+  assert.deepEqual(conditionFor("If you only have one open Bakugan."), expected("==", 1));
+  assert.deepEqual(conditionFor("If you have only two open Bakugan."), expected("==", 2));
+  assert.deepEqual(conditionFor("If you have three or more open Bakugan."), expected(">=", 3));
+  assert.deepEqual(conditionFor("If you have at most two open Bakugan."), expected("<=", 2));
+  assert.deepEqual(conditionFor("If you have more than one open Bakugan."), expected(">", 1));
+  assert.deepEqual(conditionFor("If you have fewer than three open Bakugan."), expected("<", 3));
+  assert.deepEqual(conditionFor("If you have no open Bakugan."), expected("==", 0));
 });
 
 test("Ice Elation and Solitude resolve only with exactly one open Bakugan", () => {
@@ -233,9 +236,8 @@ test("Ice Elation and Solitude resolve only with exactly one open Bakugan", () =
     const spell = definition.abilities.find((ability) => ability.kind === "spell")!;
     const program = { cardId: definition.cardId, source: card.effect, instructions: spell.instructions };
     assert.deepEqual(spell.instructions[0].condition, {
-      kind: "open-bakugan-count",
-      comparison: "exactly",
-      amount: 1,
+      kind: "expression",
+      expression: { kind: "compare-number", left: { kind: "count", source: "open-bakugan", owner: "controller" }, operator: "==", right: 1 },
     });
 
     for (const openCount of [0, 1, 2, 3]) {
@@ -290,11 +292,10 @@ test("typed cost reductions scale Everett Ray and active Hero reducers without d
   const everettReduction = ruleDefinitionForCard(everett).play.costModifiers.find((modifier) => modifier.kind === "cost-reduce");
   assert.deepEqual(everettReduction, {
     kind: "cost-reduce",
-    amount: 2,
+    amount: { kind: "product", factors: [2, { kind: "count", source: "cards-played", owner: "controller" }] },
     duration: "instant",
     condition: { kind: "always" },
     appliesTo: "self",
-    scale: "cards-played-this-turn",
   });
 
   for (const [cardsPlayed, expected] of [[0, 6], [1, 4], [2, 2], [3, 0]] as const) {
@@ -428,10 +429,11 @@ test("choice timing is explicit for announce, pay, and resolve", () => {
   assert.ok(absorbDefinition.play.choices.some((choice) => choice.timing === "announce" && choice.selector === "batch-object"));
   const sacrifice = ruleDefinitionForCard(CARDS.find((card) => card.number === 32)!);
   assert.ok(sacrifice.abilities.flatMap((ability) => ability.instructions).flatMap((instruction) => instruction.choices).some((choice) => choice.id === "discardCardIds" && choice.timing === "resolve"));
-  const shadowTrap = ruleDefinitionForCard(CARDS.find((card) => card.number === 152)!);
-  assert.ok(shadowTrap.play.choices.some((choice) => choice.id === "discardCardIds" && choice.timing === "pay"));
+  const pact = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "bb-152")!);
+  const sacrificeRoute = pact.play.costModifiers.find((effect) => effect.kind === "cost-alternative");
+  assert.ok(sacrificeRoute?.components.some((component) => component.kind === "cost-discard" && component.choiceId === "discardCardIds"));
   const schema = buildChoiceSchemaFromSpecs(state, state.players[0].id, absorb, absorbDefinition.play.choices, "announce");
-  assert.equal(schema.fields[0]?.id, "mode");
+  assert.equal(schema.fields[0]?.id, "targetEffectId");
 });
 
 test("trigger resolution never infers announce timing from full printed card text", () => {
@@ -448,8 +450,8 @@ test("trigger resolution never infers announce timing from full printed card tex
       affected.push(card.catalogId);
       const schema = buildChoiceSchema(state, state.players[0].id, card, sourceText, {}, "resolve");
       assert.deepEqual(
-        schema.fields.map((field) => field.id),
-        expectedIds,
+        [...new Set(schema.fields.map((field) => field.id))],
+        [...new Set(expectedIds)],
         `${card.catalogId} ${card.name} must retain every resolution-time field`,
       );
     }
@@ -462,7 +464,7 @@ test("Dan Kouzo's real open trigger pauses for the manual reveal before playing 
   let state = match();
   const player = state.players[0];
   const dan = { ...CARDS.find((card) => card.catalogId === "bb-207")!, id: "dan-manual-reveal" };
-  const top = { ...CARDS.find((card) => card.type === "Action")!, id: "dan-revealed-action" };
+  const top = { ...CARDS.find((card) => card.type === "Action" && ruleDefinitionForCard(card).play.choices.length === 0)!, id: "dan-revealed-action" };
   player.heroes = [dan];
   player.deckCards = [top, ...player.deckCards];
   player.deck = player.deckCards.length;
@@ -500,8 +502,10 @@ test("Dan Kouzo's real open trigger pauses for the manual reveal before playing 
 
 test("additional costs are separate from spell effects", () => {
   const definition = ruleDefinitionForCard(CARDS.find((card) => card.number === 152)!);
-  assert.ok(definition.play.costModifiers.some((effect) => effect.kind === "cost-alternative"));
-  assert.ok(definition.play.costModifiers.some((effect) => effect.kind === "cost-discard"));
+  const alternative = definition.play.costModifiers.find((effect) => effect.kind === "cost-alternative");
+  assert.ok(alternative);
+  assert.ok(alternative.components.some((effect) => effect.kind === "cost-discard"));
+  assert.equal(definition.play.costModifiers.some((effect) => effect.kind === "cost-discard"), false);
   assert.ok(definition.abilities.flatMap((ability) => ability.instructions).flatMap((instruction) => instruction.effects).every((effect) => effect.kind !== "discard"));
 });
 
@@ -541,10 +545,12 @@ test("Character and Evo held-Core bonuses are active only for their printed Core
   assert.deepEqual(conditionFor("[MS] or [FF]: +600 [B]."), {
     kind: "held-core-type",
     coreTypes: ["Magic Shield", "Flaming Fist"],
+    subject: "target",
   });
   assert.deepEqual(conditionFor("[HE]: +100 [B] and +3 [Damage Rating]."), {
     kind: "held-core-type",
     coreTypes: ["Helix"],
+    subject: "target",
   });
   for (const [symbol, type] of [
     ["FT", "Fist"],
@@ -556,6 +562,7 @@ test("Character and Evo held-Core bonuses are active only for their printed Core
     assert.deepEqual(conditionFor(`[${symbol}]: +100 [B].`), {
       kind: "held-core-type",
       coreTypes: [type],
+      subject: "target",
     });
   }
 

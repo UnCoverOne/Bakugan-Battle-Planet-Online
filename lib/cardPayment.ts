@@ -8,14 +8,7 @@ import {
 } from "./game";
 import { hasPendingDraws } from "./drawQueue";
 import { legalEvoTargets } from "./evo";
-import {
-  activeTappedEnergyIds,
-  availableEnergy,
-  beginCardPayment,
-  cardCostBreakdown,
-  prepareDeclaredEnergyPayment,
-} from "./rules/costs";
-import { ensureRulesState } from "./rules/state";
+import { activeTappedEnergyIds, availableEnergy, cardCostBreakdown, prepareDeclaredEnergyPayment } from "./rules/costs";
 
 type EnergyTrackedPlayer = PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
 export type CardEnergyPaymentKind = "ready" | "auto-tap" | "insufficient";
@@ -75,20 +68,6 @@ export function prepareEnergyPayment(input: MatchState, playerId: string, amount
   return prepareDeclaredEnergyPayment(state, playerId, amount);
 }
 
-function payAdditionalCosts(state: MatchState, playerId: string) {
-  const rules = ensureRulesState(state);
-  const payment = rules.pendingPayment;
-  if (!payment || payment.playerId !== playerId) return;
-  const player = playerById(state, playerId);
-  if (!player) throw new Error("Unknown player.");
-  for (const additional of payment.additionalCosts) {
-    const ids = new Set(additional.cardIds);
-    const cards = player.hand.filter((card) => ids.has(card.id));
-    if (cards.length !== ids.size) throw new Error("An additional-cost card is no longer in hand.");
-    player.hand = player.hand.filter((card) => !ids.has(card.id));
-    player.discard.push(...cards);
-  }
-}
 
 export function playCardWithAutoEnergy(
   input: MatchState,
@@ -97,22 +76,12 @@ export function playCardWithAutoEnergy(
   choices: CardChoices = {},
 ) {
   if (hasPendingDraws(input)) throw new Error("Complete every pending Draw action before playing another card.");
-  const state = cloneMatch(input);
-  const player = playerById(state, playerId);
+  const player = playerById(input, playerId);
   const card = player?.hand.find((candidate) => candidate.id === cardId);
-  if (!player || !card) return playCard(state, playerId, cardId, choices);
-  if (card.type === "Evo") {
-    const target = legalEvoTargets(state, playerId, card).find((candidate) => candidate.id === choices.targetBakuganId);
+  if (card?.type === "Evo") {
+    const target = legalEvoTargets(input, playerId, card).find((candidate) => candidate.id === choices.targetBakuganId);
     if (!target) throw new Error("Select the Character identity listed by this Evo card.");
     choices = { ...choices, targetBakuganId: target.id };
   }
-
-  const payment = beginCardPayment(state, playerId, card, choices);
-  prepareDeclaredEnergyPayment(state, playerId, payment.calculatedCost);
-  payAdditionalCosts(state, playerId);
-  // The card transition owns the authoritative Energy spend and match-version
-  // increment. The declaration is removed only after all additional costs have
-  // been paid, preventing unrelated manual Energy taps.
-  ensureRulesState(state).pendingPayment = undefined;
-  return playCard(state, playerId, cardId, choices);
+  return playCard(input, playerId, cardId, choices);
 }

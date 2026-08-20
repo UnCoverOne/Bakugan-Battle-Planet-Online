@@ -40,7 +40,7 @@ function matchWithKnownDeck() {
   const alpha = makePlayer("a", "Alpha", STARTER_DECKS[0]);
   const beta = makePlayer("b", "Beta", STARTER_DECKS[1]);
   const state = createMatch("TOPDEK", "bo1", [alpha, beta]);
-  const cards = CARDS.filter((card) => card.type === "Action").slice(0, 5).map(deckCard);
+  const cards = CARDS.filter((card) => card.type === "Action" && ruleDefinitionForCard(card).play.choices.filter((choice) => choice.timing === "announce").length === 0).slice(0, 5).map(deckCard);
   state.players[0].deckCards = cards;
   state.players[0].deck = cards.length;
   state.phase = "power";
@@ -227,6 +227,7 @@ test("Dan Kouzo reveals the top card publicly while retaining the optional play 
 test("reveal-and-play effects reveal before the choice and skip without adding the card to the batch", () => {
   for (const catalogId of ["bb-207", "br-36", "aa-140"]) {
     const initial = matchWithKnownDeck();
+    if (catalogId === "aa-140") initial.brawlWinner = "a";
     const card = catalogueCard(catalogId, `${catalogId}-reveal-skip`);
     const instruction = compileCardEffect(card).instructions.find((candidate) => (
       /reveal the top card of your deck/i.test(candidate.sourceText)
@@ -255,6 +256,7 @@ test("reveal-and-play effects reveal before the choice and skip without adding t
 test("a revealed non-Flip enters the batch only after Play card is chosen", () => {
   for (const catalogId of ["bb-207", "br-36", "aa-140"]) {
     const initial = matchWithKnownDeck();
+    if (catalogId === "aa-140") initial.brawlWinner = "a";
     const source = catalogueCard(catalogId, `${catalogId}-play-choice`);
     const instruction = compileCardEffect(source).instructions.find((candidate) => (
       /reveal the top card of your deck/i.test(candidate.sourceText)

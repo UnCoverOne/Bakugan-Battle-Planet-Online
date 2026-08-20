@@ -8,6 +8,7 @@ function objectId(prefix: string) {
 
 export function createRuleObject(input: {
   controllerId: string;
+  cardOwnerId?: string;
   card: GameCard;
   ability: AbilityDefinition;
   kind?: RuleObject["kind"];
@@ -22,6 +23,7 @@ export function createRuleObject(input: {
     rulesObjectVersion: 3,
     id,
     controllerId: input.controllerId,
+    cardOwnerId: input.cardOwnerId ?? input.controllerId,
     card: input.card,
     choices: structuredClone(input.choices ?? {}),
     kind: input.kind ?? (input.ability.kind === "triggered" ? "trigger" : "card"),

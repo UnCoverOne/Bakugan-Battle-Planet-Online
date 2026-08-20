@@ -8,6 +8,7 @@ import {
   cardRerollTimingLegal,
   confirmReroll,
   createMatch,
+  flipStopsDamage,
   legalPlacementCells,
   passPriority,
   placeCore,
@@ -33,6 +34,7 @@ import { drawPendingCard } from "../lib/drawQueue";
 import { flipDamageCard, resolveManualDamage, resumeDamageAfterFlipWindow } from "../lib/manualDamage";
 import { apiActionToCommand } from "../lib/engine/commands";
 import { compileCardEffect } from "../lib/rules/effects";
+import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { cardCostBreakdown } from "../lib/rules/costs";
 
 function catalogueCard(name: string, instance = name.toLowerCase().replace(/\W+/g, "-")) {
@@ -380,15 +382,19 @@ test("Quickfire finishes its separate attack before offering its optional Reroll
 test("Quickfire resumes its Reroll clause after a played Flip finishes resolving", () => {
   let state = buildPlacedMatch();
   establishRolls(state, "miss-closed", "open-no-core");
-  const printing = CARDS.find((card) => card.type === "Flip" && card.cost === 0);
-  assert.ok(printing);
-  const flip = { ...printing, id: "quickfire-response-flip" };
-  state.players[1].deckCards = [flip, ...state.players[1].deckCards];
-  state.players[1].deck = state.players[1].deckCards.length;
   state = resolveStructuredEffect(
     state,
     effect(catalogueCard("Quickfire"), "a", "quickfire-flip-effect"),
   );
+  assert.equal(state.phase, "damage");
+  const printing = CARDS.find((card) => card.type === "Flip"
+    && card.cost === 0
+    && flipStopsDamage(state, card)
+    && ruleDefinitionForCard(card).abilities.every((ability) => ability.instructions.every((instruction) => instruction.choices.length === 0)));
+  assert.ok(printing, "the catalogue must contain a legal zero-cost Flip for Quickfire's Pyrus attack");
+  const flip = { ...printing, id: "quickfire-response-flip" };
+  state.players[1].deckCards = [flip, ...state.players[1].deckCards];
+  state.players[1].deck = state.players[1].deckCards.length;
   state = flipDamageCard(state, "b");
   assert.equal(state.revealedFlip?.id, flip.id);
   state = resolveManualDamage(state, "b", flip.id, {});

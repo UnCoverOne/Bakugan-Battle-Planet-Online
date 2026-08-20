@@ -16,7 +16,7 @@ import {
   visibleMatchHudActions,
 } from "../components/game-screen-v2/matchHudState";
 
-test("Pact of Darkness keeps its printed cost until Sacrifice discards a card", () => {
+test("Pact of Darkness uses the generic Sacrifice payment route", () => {
   const first = makePlayer("first", "First", STARTER_DECKS[0]);
   const second = makePlayer("second", "Second", STARTER_DECKS[1]);
   const state = createMatch("PACT152", "bo1", [first, second]);
@@ -42,15 +42,13 @@ test("Pact of Darkness keeps its printed cost until Sacrifice discards a card", 
   state.revealedFlip = pact;
 
   assert.equal(effectiveCardEnergyCost(state, first.id, pact), 4);
-
   let next = resolveManualDamage(state, first.id, pact.id);
-  assert.equal(next.phase, "damage");
-  assert.equal(next.batch.length, 0);
-  assert.equal(next.pendingChoice?.kind, "payment");
-  assert.equal(next.pendingChoice?.schema.fields[0]?.id, "confirmed");
+  const mode = next.pendingChoice?.schema.fields.find((field) => field.id === "paymentMode");
+  assert.ok(mode);
+  const sacrificeMode = mode.options.find((option) => option.id.endsWith(":discard-for-free"));
+  assert.ok(sacrificeMode && !sacrificeMode.disabled);
 
-  next = submitCardChoice(next, first.id, { confirmed: true });
-  assert.equal(next.pendingChoice?.kind, "payment");
+  next = submitCardChoice(next, first.id, { paymentMode: sacrificeMode.id });
   assert.equal(next.pendingChoice?.schema.fields[0]?.id, "discardCardIds");
   const actions = visibleMatchHudActions({
     match: next,
@@ -65,9 +63,6 @@ test("Pact of Darkness keeps its printed cost until Sacrifice discards a card", 
   assert.equal(next.pendingChoice, undefined);
   assert.equal(next.players[0].hand.some((card) => card.id === sacrificed.id), false);
   assert.equal(next.players[0].discard.some((card) => card.id === sacrificed.id), true);
-  assert.equal(effectiveCardEnergyCost(next, first.id, pact), 0);
-
-  next = resolveManualDamage(next, first.id, pact.id);
   assert.equal(next.batch.some((effect) => effect.card.id === pact.id), true);
   assert.equal(next.players[0].energy, 0);
   assert.equal(next.revealedFlip, undefined);
