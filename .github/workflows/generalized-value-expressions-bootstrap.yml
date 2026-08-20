@@ -26,6 +26,16 @@ jobs:
           if [ "$(git log -1 --pretty=%s)" = "Implement generalized value expressions" ]; then
             echo "Generated implementation is already present."
           else
+            python3 - <<'PY'
+          from pathlib import Path
+          path = Path("scripts/apply-generalized-value-expressions.py")
+          text = path.read_text()
+          old = """def regex_once(text: str, pattern: str, replacement, label: str, flags: int = 0) -> str:\n    result, count = re.subn(pattern, replacement, text, count=1, flags=flags)\n    if count != 1:\n        raise RuntimeError(f\"{label}: expected one regex match, found {count}\")\n    return result\n"""
+          new = """def regex_once(text: str, pattern: str, replacement, label: str, flags: int = 0) -> str:\n    repl = replacement if callable(replacement) else (lambda _match: replacement)\n    result, count = re.subn(pattern, repl, text, count=1, flags=flags)\n    if count != 1:\n        raise RuntimeError(f\"{label}: expected one regex match, found {count}\")\n    return result\n"""
+          if old not in text:
+              raise SystemExit("regex_once helper was not found")
+          path.write_text(text.replace(old, new, 1))
+          PY
             python3 scripts/apply-generalized-value-expressions.py
           fi
       - name: Install dependencies
