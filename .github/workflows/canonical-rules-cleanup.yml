@@ -1,0 +1,61 @@
+name: Canonical Rules Cleanup
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.head_ref == 'feature/unified-card-play-pipeline'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/unified-card-play-pipeline
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply canonical cleanup
+        shell: bash
+        run: |
+          sed -n "/python <<'PY'/,/^          PY$/p" .github/workflows/generalized-value-expressions-final-validation.yml | sed '1d;$d;s/^          //' > /tmp/migrate.py
+          python /tmp/migrate.py
+          sed -n "/^          python <<'PY'$/,/^          PY$/p" .github/workflows/gve-debug.yml | sed '1d;$d;s/^          //' > /tmp/fixes.py
+          python /tmp/fixes.py
+      - run: npm ci
+      - name: Focused canonical value coverage
+        run: npx tsx --test tests/value-expressions.test.ts tests/dynamic-value-catalogue.test.ts tests/rules-primitives.test.ts tests/card-payment.test.ts tests/card-play-pipeline.test.ts tests/pact-cubbo-regressions.test.ts tests/rules-engine-modernization.test.ts
+      - name: Full rules suite
+        run: npm run test:rules
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Enforce one canonical numeric implementation
+        shell: bash
+        run: |
+          if grep -R -n -E 'AmountExpression|amountExpression|evaluateAmountExpression|amountExpressionForScale|CostScale|printedScaleMultiplier' lib tests --include='*.ts'; then
+            echo 'Legacy numeric expression implementation remains.' >&2
+            exit 1
+          fi
+          if grep -R -n -E 'scale\?: (string|CostScale)|modifier\.scale|action\.scale' lib/rules lib/game.ts --include='*.ts'; then
+            echo 'Legacy numeric scale side channel remains.' >&2
+            exit 1
+          fi
+      - name: Commit validated cleanup
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib tests
+          if git diff --cached --quiet; then
+            echo 'No cleanup changes to commit.'
+          else
+            git commit -m 'refactor: remove legacy rules compatibility paths'
+            git push origin HEAD:feature/unified-card-play-pipeline
+          fi
