@@ -21,43 +21,22 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Apply staged value-expression migration
+      - name: Apply remaining value-expression stages
         run: |
-          if [ "$(git log -1 --pretty=%s)" = "Implement generalized value expressions" ]; then
-            echo "Generated implementation is already present."
-          else
+          if ! grep -q 'NumberValue' lib/rules/model.ts; then
             python3 - <<'PY'
           from pathlib import Path
           path = Path("scripts/apply-generalized-value-expressions.py")
           text = path.read_text()
           old = """def regex_once(text: str, pattern: str, replacement, label: str, flags: int = 0) -> str:\n    result, count = re.subn(pattern, replacement, text, count=1, flags=flags)\n    if count != 1:\n        raise RuntimeError(f\"{label}: expected one regex match, found {count}\")\n    return result\n"""
           new = """def regex_once(text: str, pattern: str, replacement, label: str, flags: int = 0) -> str:\n    repl = replacement if callable(replacement) else (lambda _match: replacement)\n    result, count = re.subn(pattern, repl, text, count=1, flags=flags)\n    if count != 1:\n        raise RuntimeError(f\"{label}: expected one regex match, found {count}\")\n    return result\n"""
-          if old not in text:
-              raise SystemExit("regex_once helper was not found")
-          path.write_text(text.replace(old, new, 1))
+          if old in text:
+              path.write_text(text.replace(old, new, 1))
           PY
             python3 scripts/apply-generalized-value-expressions.py
-            python3 - <<'PY'
-          from pathlib import Path
-          path = Path("tests/rules-primitives.test.ts")
-          text = path.read_text()
-          text = text.replace(
-              'import type { ChoiceSpec } from "../lib/rules/model";\n',
-              'import type { ChoiceSpec } from "../lib/rules/model";\nimport { evaluateNumberValue } from "../lib/rules/values";\n',
-              1,
-          )
-          text = text.replace(
-              '  assert.ok(stat && stat.kind === "modify-stat" && stat.amountExpression);\n',
-              '  assert.ok(stat && stat.kind === "modify-stat");\n',
-              1,
-          )
-          text = text.replace(
-              '  assert.equal(evaluateAmountExpression(state, stat.amountExpression, { controllerId: "first" }), 100);\n',
-              '  assert.equal(evaluateNumberValue(state, stat.amount, { controllerId: "first" }), 100);\n',
-              1,
-          )
-          path.write_text(text)
-          PY
+          fi
+          if ! grep -q 'captureCardPlayMoment' lib/game.ts; then
+            python3 scripts/apply-value-expression-capture.py
           fi
       - name: Install dependencies
         run: npm ci
@@ -68,14 +47,13 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Commit implementation
-        if: github.event_name == 'pull_request' || github.event.head_commit.message != 'Implement generalized value expressions'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add lib tests
           if git diff --cached --quiet; then
-            echo "No generated implementation changes to commit."
+            echo "No implementation changes to commit."
             exit 0
           fi
-          git commit -m "Implement generalized value expressions"
+          git commit -m "Integrate value-expression timing snapshots"
           git push origin HEAD:feature/generalized-value-expressions
