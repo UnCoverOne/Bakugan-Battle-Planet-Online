@@ -1,8 +1,6 @@
 name: Dynamic Value Migration Audit
 
 on:
-  push:
-    branches: [feature/unified-card-play-pipeline]
   pull_request:
     branches: [main]
 
@@ -14,13 +12,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Legacy dynamic-value references
+      - name: Migration source context
         shell: bash
         run: |
-          echo '=== LEGACY REFERENCES ==='
-          git grep -n -E 'AmountExpression|amountExpression|amountExpressionForScale|evaluateAmountExpression' -- lib tests || true
-          echo '=== SCALE REFERENCES ==='
-          git grep -n -E '\bscale\b' -- lib/rules tests | head -300 || true
-          echo '=== NUMBER VALUE REFERENCES ==='
-          git grep -n -E 'NumberValue|evaluateNumberValue' -- lib/rules tests | head -500 || true
-          echo '=== END AUDIT ==='
+          for spec in \
+            'lib/rules/primitives.ts:80:180' \
+            'lib/game.ts:2180:2350' \
+            'lib/rules/catalogue-primitives.ts:1:320' \
+            'lib/rules/modifiers.ts:150:240' \
+            'lib/rules/costs.ts:75:120' \
+            'lib/rules/catalogue-structure.ts:440:480' \
+            'tests/rules-primitives.test.ts:1:140' \
+            'tests/value-expressions.test.ts:1:180'; do
+            file=${spec%%:*}; rest=${spec#*:}; start=${rest%%:*}; end=${rest##*:}
+            echo "=== $file $start-$end ==="
+            sed -n "${start},${end}p" "$file"
+          done
