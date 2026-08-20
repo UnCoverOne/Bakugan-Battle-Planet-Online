@@ -302,10 +302,11 @@ export function evaluateBakuganCharacteristics(
   const liveModifierAmount = (modifier: ContinuousModifier) => evaluateNumberValue(state, modifier.amount, {
     controllerId: modifier.controllerId,
     chosenPlayerId: owner.id,
-    choices: { targetBakuganId: bakugan.id },
-    sourceBakuganId: modifier.source.kind === "bakugan" ? modifier.source.id : undefined,
+    choices: { ...(modifier.choices ?? {}), targetBakuganId: bakugan.id },
+    sourceBakuganId: modifier.source.kind === "bakugan" ? modifier.source.id : modifier.choices?.sourceBakuganId,
     sourceCardId: "instanceId" in modifier.source ? modifier.source.instanceId : undefined,
     moment: "continuous",
+    capturedValues: modifier.valueSnapshots,
   });
   const mirroredPower = mirrored.reduce((sum, modifier) => (
     sum + (modifier.stat === "power" ? liveModifierAmount(modifier) : 0)

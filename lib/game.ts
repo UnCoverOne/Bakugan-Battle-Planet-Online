@@ -14,7 +14,8 @@ import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
 import { turnDrawCounts } from "./rules/turn-draw";
 import { evaluateAmountExpression, playerIdsForScope, zoneOwnerIdsFor } from "./rules/primitives";
-import { evaluateNumberValue, type NumberValue } from "./rules/values";
+import { evaluateNumberValue, type EvaluationMoment, type NumberValue } from "./rules/values";
+import { captureCardPlayValues, captureInstructionValues, captureRuleConditionValues } from "./rules/value-capture";
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
 import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
@@ -1290,6 +1291,18 @@ function choiceValuePresent(choices: CardChoices, id: keyof CardChoices) {
   return Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== "";
 }
 
+function captureCardPlayMoment(state: MatchState, request: PendingCardPlay, moment: EvaluationMoment) {
+  const { card } = playSourceCard(state, request);
+  const definition = ruleDefinitionForCard(card);
+  request.valueSnapshots = captureCardPlayValues(state, definition.play, moment, {
+    controllerId: request.controllerId,
+    chosenPlayerId: request.choices.targetPlayerId,
+    choices: request.choices,
+    sourceCardId: card.id,
+  }, request.valueSnapshots ?? {});
+  return request.valueSnapshots;
+}
+
 function playSourceCard(state: MatchState, request: PendingCardPlay) {
   const owner = playerById(state, request.sourceOwnerId);
   if (!owner) throw new Error("The card's source-zone owner is no longer in the match.");
@@ -1360,7 +1373,7 @@ function validateCardPlayRequest(state: MatchState, request: PendingCardPlay, ch
 }
 
 function selectedPaymentMode(state: MatchState, request: PendingCardPlay, card: GameCard, choices: CardChoices) {
-  const modes = cardPaymentModes(state, request.controllerId, card, choices, { forcedFreeBase: request.forcedFreeBase });
+  const modes = cardPaymentModes(state, request.controllerId, card, choices, { forcedFreeBase: request.forcedFreeBase, capturedValues: request.valueSnapshots });
   const inferredAlternative = modes.find((mode) => mode.id !== "normal" && mode.id !== "forced-free"
     && mode.additionalCosts.some((cost) => choiceValuePresent(choices, cost.choiceId)));
   const id = request.forcedFreeBase ? "forced-free" : choices.paymentMode ?? inferredAlternative?.id ?? "normal";
@@ -1454,6 +1467,7 @@ function stageAdditionalCardPlayCosts(state: MatchState, request: PendingCardPla
     state.deadline = Date.now() + 35_000;
     return "staged";
   }
+  captureCardPlayMoment(state, request, "pay");
   commitCardPlayMutable(state, request);
   return "committed";
 }
@@ -1491,6 +1505,7 @@ function commitCardPlayMutable(state: MatchState, request: PendingCardPlay) {
   const context = {
     forcedFreeBase: request.forcedFreeBase,
     selectedAlternativeId: mode.id === "normal" || mode.id === "forced-free" ? undefined : mode.id,
+    capturedValues: request.valueSnapshots,
   };
   const payment = beginCardPayment(state, request.controllerId, card, choices, context);
   prepareDeclaredEnergyPayment(state, request.controllerId, payment.calculatedCost);
@@ -1517,6 +1532,7 @@ function commitCardPlayMutable(state: MatchState, request: PendingCardPlay) {
     choices,
     kind: "card",
   });
+  batchObject.valueSnapshots = structuredClone(request.valueSnapshots ?? {});
   state.batch.push(batchObject);
   state.passes = [];
   if (played.type === "Action") {
@@ -1623,6 +1639,7 @@ function stageCardPlayMutable(state: MatchState, request: PendingCardPlay): Muta
     state.deadline = Date.now() + 35_000;
     return "staged";
   }
+  captureCardPlayMoment(state, request, "announce");
   return stageAdditionalCardPlayCosts(state, request);
 }
 
@@ -1744,6 +1761,7 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
     request.choices = { ...request.choices, ...merged };
     request.irreversibleInformation = Boolean(request.irreversibleInformation || pending.irreversibleInformation);
     state.pendingChoice = undefined;
+    if (pending.playStage === "declare") captureCardPlayMoment(state, request, "announce");
     const result = stageAdditionalCardPlayCosts(state, request);
     if (result === "committed") finishNestedCardPlayContinuation(state, request);
     return withVersion(state);
@@ -2104,6 +2122,8 @@ const executeRuleAction = (
           duration: "turn",
           cardType: action.cardType,
           playerScope: action.playerScope ?? "controller",
+          choices: structuredClone(choices),
+          valueSnapshots: isRuleObject(pending) ? structuredClone(pending.valueSnapshots ?? {}) : undefined,
           createdTurn: state.turn,
         });
       }
@@ -2159,6 +2179,8 @@ const executeRuleAction = (
           ? { kind: "card" as const, instanceId: pending.sourceId, catalogId: pending.card.catalogId as `bb-${number}` }
           : action.modifier.source,
         createdTurn: state.turn,
+        choices: structuredClone(choices),
+        valueSnapshots: isRuleObject(pending) ? structuredClone(pending.valueSnapshots ?? {}) : undefined,
       };
       rules.modifiers = rules.modifiers.filter((candidate) => candidate.id !== modifier.id);
       rules.modifiers.push(modifier);
@@ -2728,16 +2750,44 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
   let result: ReturnType<typeof executeRuleProgram>;
   try {
     result = executeRuleProgram(program, {
-      conditionIsActive: (instruction) => ruleConditionIsActive(state, pending, instruction),
+      conditionIsActive: (instruction) => {
+        if (isRuleObject(pending)) {
+          pending.valueSnapshots = captureRuleConditionValues(state, instruction.condition, "resolve", {
+            controllerId: pending.controllerId,
+            chosenPlayerId: pending.choices.targetPlayerId,
+            choices: pending.choices,
+            sourceCardId: pending.sourceId ?? pending.card.id,
+            sourceBakuganId: pending.choices.sourceBakuganId,
+          }, pending.valueSnapshots ?? {});
+        }
+        return ruleConditionIsActive(state, pending, instruction);
+      },
       beforeInstruction: (instruction, instructionIndex) => {
       if (hasQueuedEffectDraw(state)) {
         pending.instructionIndex = instructionIndex;
         if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex;
         return "suspend";
       }
+      const captureResolvedInstruction = () => {
+        if (!isRuleObject(pending)) return;
+        const scopedChoices = instructionChoices(pending, instructionIndex);
+        pending.valueSnapshots = captureInstructionValues(state, instruction, "resolve", {
+          controllerId: pending.controllerId,
+          chosenPlayerId: scopedChoices.targetPlayerId,
+          choices: scopedChoices,
+          sourceCardId: pending.sourceId ?? pending.card.id,
+          sourceBakuganId: scopedChoices.sourceBakuganId,
+        }, pending.valueSnapshots ?? {});
+      };
       const existing = pending.resolvedChoices?.[String(instructionIndex)];
-      if (existing) return existing.confirmed === false ? "skip" : "continue";
-      if (!instruction.effects.some(ruleActionIsExecutable)) return "continue";
+      if (existing) {
+        captureResolvedInstruction();
+        return existing.confirmed === false ? "skip" : "continue";
+      }
+      if (!instruction.effects.some(ruleActionIsExecutable)) {
+        captureResolvedInstruction();
+        return "continue";
+      }
       const schema = buildChoiceSchema(
         state,
         pending.controllerId,
@@ -2747,7 +2797,10 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
         "resolve",
       );
       schema.fields = schema.fields.filter((field) => !(field.id === "xValue" && pending.choices.xValue != null));
-      if (!schema.fields.length) return "continue";
+      if (!schema.fields.length) {
+        captureResolvedInstruction();
+        return "continue";
+      }
       stageMandatoryDeckReveal(state, pending, instruction, schema);
       const topDeckSelection = schema.fields.find((field) => field.id === "deckCardId");
       if (

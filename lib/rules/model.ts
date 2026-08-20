@@ -255,6 +255,8 @@ export type ContinuousModifier = {
   condition?: RuleCondition;
   createdTurn: number;
   sourceCategory?: "card" | "bakucore" | "temporary" | "continuous" | "base-rule";
+  choices?: CardChoices;
+  valueSnapshots?: Record<string, number>;
 };
 
 export type ProposedEvent = {

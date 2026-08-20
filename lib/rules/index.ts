@@ -12,6 +12,7 @@ export { evaluateBakuganCharacteristics, activeFrostStrike, ruleConditionActive 
 export { activeExtraTurnDrawModifiers, extraTurnDrawModifiersForCard, extraTurnDrawsForPlayer, turnDrawCountForPlayer, turnDrawCounts } from "./turn-draw";
 export * from "./primitives";
 export * from "./values";
+export * from "./value-capture";
 export { createRuleObject, copyRuleObject, negateRuleObject } from "./objects";
 export { applyReplacements, registerReplacement, removeReplacement } from "./replacements";
 export { ensureRulesState, normalizeRuleObjects } from "./state";

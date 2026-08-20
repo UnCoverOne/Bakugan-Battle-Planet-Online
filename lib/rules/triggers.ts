@@ -6,6 +6,7 @@ import type { RuleAction, RuleObject, TriggerDefinition, TriggerEventName } from
 import { createRuleObject } from "./objects";
 import { ensureRulesState } from "./state";
 import { evaluateNumberValue } from "./values";
+import { captureInstructionValues } from "./value-capture";
 
 export type RuleEvent = {
   id: string;
@@ -155,18 +156,31 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
           ...(ability.trigger.source === "self" ? event.choices ?? {} : {}),
           ...(sourceBakuganId ? { sourceBakuganId } : {}),
         };
-        collected.push({
-          owner,
-          object: createRuleObject({
-            controllerId: owner.id,
-            card: source,
-            ability,
-            kind: "trigger",
-            choices,
-            sourceId: source.id,
-            createdByEventId: event.id,
-          }),
+        const object = createRuleObject({
+          controllerId: owner.id,
+          card: source,
+          ability,
+          kind: "trigger",
+          choices,
+          sourceId: source.id,
+          createdByEventId: event.id,
         });
+        object.valueSnapshots = ability.instructions.reduce<Record<string, number>>((snapshots, instruction) => (
+          captureInstructionValues(state, instruction, "event", {
+            controllerId: owner.id,
+            chosenPlayerId: choices.targetPlayerId,
+            choices,
+            sourceCardId: source.id,
+            sourceBakuganId,
+            event: {
+              amount: event.amount,
+              playerId: event.actorId,
+              sourceId: event.card?.id,
+              targetId: event.targetBakuganId,
+            },
+          }, snapshots)
+        ), object.valueSnapshots ?? {});
+        collected.push({ owner, object });
       }
     }
   }
