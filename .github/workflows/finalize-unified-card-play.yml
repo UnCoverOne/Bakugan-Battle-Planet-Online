@@ -1,0 +1,242 @@
+name: Finalize Unified Card Play
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.head_ref == 'feature/unified-card-play-pipeline'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/unified-card-play-pipeline
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply canonical migration and gameplay fixes
+        shell: bash
+        run: |
+          sed -n "/python <<'PY'/,/^          PY$/p" .github/workflows/generalized-value-expressions-final-validation.yml | sed '1d;$d;s/^          //' > /tmp/migrate.py
+          python /tmp/migrate.py
+          sed -n "/^          python <<'PY'$/,/^          PY$/p" .github/workflows/gve-debug.yml | sed '1d;$d;s/^          //' > /tmp/regressions.py
+          python /tmp/regressions.py
+          python <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path): return Path(path).read_text()
+          def write(path, text): Path(path).write_text(text)
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f"missing expected text for {label}")
+              return text.replace(old, new, 1)
+
+          # Preserve the legacy printed meaning of "Energy cards in play": total Energy capacity,
+          # not merely the current physical energyZone array in potentially resumable snapshots.
+          p = Path('lib/rules/catalogue-primitives.ts')
+          s = p.read_text()
+          s = s.replace('numberValueForScale', 'numberValueForDynamicAmount')
+          s = s.replace('scaleForStat', 'dynamicSourceForStat').replace('scaleFor', 'dynamicSourceFor')
+          marker = 'function numberValueForDynamicAmount('
+          start = s.find(marker)
+          if start < 0:
+              raise SystemExit('dynamic amount helper missing')
+          end = s.find('\n}\n\n', start)
+          if end < 0:
+              raise SystemExit('dynamic amount helper terminator missing')
+          block = s[start:end + 3]
+          block = re.sub(r'\bscale\b', 'dynamicSource', block)
+          block = block.replace(
+              '{ kind: "count", source: "energy", owner: "controller" }',
+              '{ kind: "property", subject: { kind: "player", owner: "controller" }, property: "max-energy" }',
+          )
+          s = s[:start] + block + s[end + 3:]
+          s = replace_once(
+              s,
+              'if (energyCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "energy", owner: "controller" }, operator: ">=", right: numberValue(energyCount[1], 1) } };',
+              'if (energyCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "property", subject: { kind: "player", owner: "controller" }, property: "max-energy" }, operator: ">=", right: numberValue(energyCount[1], 1) } };',
+              'Energy count condition semantics',
+          )
+          p.write_text(s)
+
+          # Remove the dead pre-NumberValue runtime parser/multiplier completely.
+          p = Path('lib/game.ts')
+          s = p.read_text()
+          s, count = re.subn(
+              r'\nconst statValues = \(text: string, pattern: RegExp, condition: boolean\) => \{[\s\S]*?\n\};\n\nconst scaleStat = \(state: MatchState, player: PlayerState, text: string, value: number, stat: "power" \| "damage" \| "frost" \| "draw", scale\?: string\) => \{[\s\S]*?\n\};\n',
+              '\n',
+              s,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit('obsolete scaleStat/statValues runtime helpers missing')
+
+          # Track the exact Brawl Bakugan that must retract. The list is consumed once
+          # after post-damage priority, so normal damage and played-Flip continuations converge.
+          s = replace_once(s,
+              '  teamAttack: boolean;\n  delayedRetracts: string[];',
+              '  teamAttack: boolean;\n  pendingBrawlRetracts: string[];\n  delayedRetracts: string[];',
+              'MatchState pending Brawl retracts')
+          s = replace_once(s,
+              '  state.placements = Array.isArray(state.placements) ? state.placements : [];',
+              '  state.placements = Array.isArray(state.placements) ? state.placements : [];\n  state.pendingBrawlRetracts = Array.isArray(state.pendingBrawlRetracts) ? state.pendingBrawlRetracts : [];',
+              'normalize pending Brawl retracts')
+          s = replace_once(s,
+              '    pendingDamage: 0, pendingLoser: "", damageOrigin: "", teamAttack: false, delayedRetracts: [], copyNextAction: {}, brawlWinner: "", winner: "", resultReason: "",',
+              '    pendingDamage: 0, pendingLoser: "", damageOrigin: "", teamAttack: false, pendingBrawlRetracts: [], delayedRetracts: [], copyNextAction: {}, brawlWinner: "", winner: "", resultReason: "",',
+              'createMatch pending Brawl retracts')
+          s = replace_once(s,
+              '  state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.delayedRetracts = []; state.winner = "";',
+              '  state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.pendingBrawlRetracts = []; state.delayedRetracts = []; state.winner = "";',
+              'beginTurn pending Brawl retract reset')
+          s = replace_once(s,
+              '  const openTeam = winner.bakugan.filter((bakugan) => bakugan.open); state.teamAttack = openTeam.length === 3;\n  const stats = staticModifier(state, attacking, winner);',
+              '  const openTeam = winner.bakugan.filter((bakugan) => bakugan.open); state.teamAttack = openTeam.length === 3;\n  const loserBakugan = activeBakugan(state, loser.id);\n  state.pendingBrawlRetracts = [...new Set([\n    ...(loserBakugan ? [loserBakugan.id] : []),\n    ...(state.teamAttack ? openTeam.map((bakugan) => bakugan.id) : []),\n  ])];\n  const stats = staticModifier(state, attacking, winner);',
+              'beginDamage exact Brawl retracts')
+          anchor = 'const advanceEmptyBatch = (state: MatchState) => {'
+          helper = '''function completeBrawlRetractions(state: MatchState) {\n  const pending = [...new Set(state.pendingBrawlRetracts ?? [])];\n  state.pendingBrawlRetracts = [];\n  if (!pending.length) return;\n  const ids = new Set(pending);\n  for (const player of state.players) {\n    for (const bakugan of player.bakugan) {\n      if (ids.has(bakugan.id)) retractBakugan(state, bakugan);\n    }\n  }\n}\n\n'''
+          if anchor not in s:
+              raise SystemExit('advanceEmptyBatch anchor missing')
+          s = s.replace(anchor, helper + anchor, 1)
+          s = replace_once(s,
+              '  else if (state.phase === "postDamage") {\n    const loser = playerById(state, state.pendingLoser); const loserBakugan = activeBakugan(state, loser.id); if (loserBakugan) retractBakugan(state, loserBakugan);\n    if (state.teamAttack) playerById(state, state.brawlWinner).bakugan.forEach((bakugan) => retractBakugan(state, bakugan));\n    setPhase(state, "endPlay", "End Phase • Play Step", state.startingPlayer);\n  }',
+              '  else if (state.phase === "postDamage") {\n    completeBrawlRetractions(state);\n    setPhase(state, "endPlay", "End Phase • Play Step", state.startingPlayer);\n  }',
+              'single Brawl retract completion path')
+
+          # A reroll that explicitly requires a Sacrifice cannot suspend until the selected
+          # physical card has already left the controller's hand.
+          s = replace_once(s,
+              '      if (action.requiresDiscard && !choices.discardCardIds?.length) return;\n      const rollerId = rerollTargetPlayerId(state, controllerId, action.target);',
+              '      if (action.requiresDiscard && !choices.discardCardIds?.length) return;\n      if (action.requiresDiscard && choices.discardCardIds!.some((id) => player.hand.some((candidate) => candidate.id === id))) {\n        throw new Error("The selected Sacrifice must be discarded before the Reroll begins.");\n      }\n      const rollerId = rerollTargetPlayerId(state, controllerId, action.target);',
+              'Sacrifice before Reroll invariant')
+          p.write_text(s)
+
+          # Wildcard simultaneous-open events are split per actor. Give each controller's
+          # trigger the Bakugan that actually opened for that controller.
+          p = Path('lib/rules/triggers.ts')
+          s = p.read_text()
+          s = replace_once(s,
+              '        const choices: CardChoices = {\n          ...(ability.trigger.source === "self" ? event.choices ?? {} : {}),\n          ...(sourceBakuganId ? { sourceBakuganId } : {}),\n        };',
+              '        const controllerTargetBakuganId = event.actorId === owner.id ? event.targetBakuganId : undefined;\n        const choices: CardChoices = {\n          ...(ability.trigger.source === "self" ? event.choices ?? {} : {}),\n          ...(sourceBakuganId ? { sourceBakuganId } : {}),\n          ...(controllerTargetBakuganId ? { targetBakuganId: controllerTargetBakuganId } : {}),\n        };',
+              'controller-specific wildcard open target')
+          p.write_text(s)
+
+          # Thunder Storm's "Sacrifice: You may discard a card to Reroll" must expose the
+          # optional discard before its selection-made condition can otherwise skip the clause.
+          p = Path('lib/rules/catalogue-structure.ts')
+          s = p.read_text()
+          marker = '  // Battle Mastery presents one printed choice before either branch resolves.'
+          thunder = '''  for (const instruction of instructions) {\n    if (!/\\bSacrifice\\b[\\s\\S]*\\bmay discard\\b[\\s\\S]*\\bto Reroll\\b/i.test(instruction.sourceText)) continue;\n    instruction.condition = { kind: "always" };\n    let sacrifice = instruction.choices.find((candidate) => candidate.id === "discardCardIds");\n    if (!sacrifice) {\n      sacrifice = choice("discardCardIds", "resolve", "hand-card", "Choose cards to sacrifice", true, "controller", "private");\n      sacrifice.owner = "controller";\n      instruction.choices.push(sacrifice);\n    }\n    sacrifice.minimum = 0;\n    sacrifice.maximum = 1;\n  }\n\n'''
+          if marker not in s:
+              raise SystemExit('Battle Mastery marker missing for Sacrifice-Reroll compiler')
+          s = s.replace(marker, thunder + marker, 1)
+          s = s.replace('  if (ruleCardId(card) === "aa-112") choices.push(choice("discardCardIds", "pay", "hand-card", "Choose two cards for the alternative cost", false, "controller", "private"));\n', '')
+          p.write_text(s)
+
+          # Catalogue test follows the authoritative manifest instead of freezing a stale size.
+          p = Path('tests/game-engine.test.ts')
+          s = p.read_text()
+          s = s.replace('import { BAKUGAN, CARDS, CORES, STARTER_DECKS, deckErrors, makePlayer } from "../lib/data";\n', 'import { BAKUGAN, CARDS, CORES, STARTER_DECKS, deckErrors, makePlayer } from "../lib/data";\nimport { CONTENT_MANIFEST } from "../lib/content/catalogue";\n')
+          s = replace_once(s,
+              '  assert.equal(CARDS.length, 843); assert.equal(BAKUGAN.length, 236); assert.equal(CORES.length, 52);\n  assert.deepEqual(Object.fromEntries(["Action","Flip","Hero","Evo","Character"].map((type) => [type, CARDS.filter((card) => card.type === type).length])), { Action:246, Flip:82, Hero:47, Evo:232, Character:236 });',
+              '  assert.equal(CARDS.length, CONTENT_MANIFEST.cardCount);\n  assert.equal(BAKUGAN.length, CARDS.filter((card) => card.type === "Character").length);\n  assert.equal(CORES.length, 52);\n  const typeCounts = Object.fromEntries(["Action", "Flip", "Hero", "Evo", "Character"].map((type) => [type, CARDS.filter((card) => card.type === type).length]));\n  assert.equal(Object.values(typeCounts).reduce((sum, count) => sum + count, 0), CONTENT_MANIFEST.cardCount);\n  assert.equal(new Set(CARDS.map((card) => card.catalogId)).size, CONTENT_MANIFEST.cardCount);',
+              'dynamic catalogue count test')
+          p.write_text(s)
+
+          # Remove superseded Maximus immediate-result regression; the staged alternate-win test remains.
+          p = Path('tests/reported-gameplay-regressions-2026-08.test.ts')
+          s = p.read_text()
+          start = s.find('test("Dragonoid Maximus wins when its controller has Dan, Wynton, and Lia"')
+          end = s.find('\ntest("normal simultaneous opens trigger Lia and Shargo for both players on every occurrence"', start)
+          if start < 0 or end < 0:
+              raise SystemExit('old Maximus regression block missing')
+          s = s[:start] + s[end + 1:]
+          old = '''  for (const catalogId of ["bb-152", "aa-112"]) {\n    const source = card(catalogId, `${catalogId}-cost-test`);\n    const definition = ruleDefinitionForCard(source);\n    assert.ok(definition.play.choices.some((choice) => choice.id === "discardCardIds" && choice.timing === "pay"));\n    assert.equal(definition.abilities.flatMap((ability) => ability.instructions)\n      .flatMap((instruction) => instruction.actions).some((action) => action.kind === "discard"), false);\n  }'''
+          new = '''  for (const catalogId of ["bb-152", "aa-112"]) {\n    const source = card(catalogId, `${catalogId}-cost-test`);\n    const definition = ruleDefinitionForCard(source);\n    const alternative = definition.play.costModifiers.find((modifier) => modifier.kind === "cost-alternative");\n    assert.ok(alternative);\n    assert.ok(alternative.components.some((component) => component.kind === "cost-discard" && component.choiceId === "discardCardIds"));\n    assert.equal(definition.play.choices.some((choice) => choice.id === "discardCardIds" && choice.timing === "pay"), false);\n    assert.equal(definition.abilities.flatMap((ability) => ability.instructions)\n      .flatMap((instruction) => instruction.actions).some((action) => action.kind === "discard"), false);\n  }'''
+          s = replace_once(s, old, new, 'typed alternative payment regression')
+          p.write_text(s)
+
+          # Remove obsolete RETURN TO PLAY presentation assertion test wholesale.
+          p = Path('tests/reported-regressions-2026-08-02.test.ts')
+          s = p.read_text()
+          start = s.find('test("the match result dialog uses the gameplay visual system and explicit match terminology"')
+          end = s.find('\ntest("Haos Gorthion Ultra has 600 B and 2 base Damage"', start)
+          if start < 0 or end < 0:
+              raise SystemExit('old RETURN TO PLAY test block missing')
+          s = s[:start] + s[end + 1:]
+          p.write_text(s)
+
+          # Quickfire uses a genuinely legal zero-cost Flip for the current attack.
+          p = Path('tests/reroll-mechanic.test.ts')
+          s = p.read_text()
+          s = s.replace('  createMatch,\n', '  createMatch,\n  flipStopsDamage,\n')
+          s = s.replace('import { compileCardEffect } from "../lib/rules/effects";\n', 'import { compileCardEffect } from "../lib/rules/effects";\nimport { ruleDefinitionForCard } from "../lib/rules/catalogue";\n')
+          old = '''  const printing = CARDS.find((card) => card.type === "Flip" && card.cost === 0);\n  assert.ok(printing);\n  const flip = { ...printing, id: "quickfire-response-flip" };\n  state.players[1].deckCards = [flip, ...state.players[1].deckCards];\n  state.players[1].deck = state.players[1].deckCards.length;\n  state = resolveStructuredEffect(\n    state,\n    effect(catalogueCard("Quickfire"), "a", "quickfire-flip-effect"),\n  );\n  state = flipDamageCard(state, "b");'''
+          new = '''  state = resolveStructuredEffect(\n    state,\n    effect(catalogueCard("Quickfire"), "a", "quickfire-flip-effect"),\n  );\n  assert.equal(state.phase, "damage");\n  const printing = CARDS.find((card) => card.type === "Flip"\n    && card.cost === 0\n    && flipStopsDamage(state, card)\n    && ruleDefinitionForCard(card).abilities.every((ability) => ability.instructions.every((instruction) => instruction.choices.length === 0)));\n  assert.ok(printing, "the catalogue must contain a legal zero-cost Flip for Quickfire's Pyrus attack");\n  const flip = { ...printing, id: "quickfire-response-flip" };\n  state.players[1].deckCards = [flip, ...state.players[1].deckCards];\n  state.players[1].deck = state.players[1].deckCards.length;\n  state = flipDamageCard(state, "b");'''
+          s = replace_once(s, old, new, 'Quickfire legal Flip fixture')
+          p.write_text(s)
+
+          # Keep Wynton/Energy regression assertions on the authoritative maxEnergy semantics.
+          p = Path('tests/rules-engine-modernization.test.ts')
+          s = p.read_text()
+          old = '''  player.heroes = [{ ...wynton, id: "wynton-active" }];\n  const energySeed = CARDS.find((card) => card.type === "Action")!;\n  player.energyZone = Array.from({ length: 6 }, (_, index) => ({ ...energySeed, id: `wynton-energy-${index}` }));\n  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 6);\n  player.energyZone.push(...Array.from({ length: 3 }, (_, index) => ({ ...energySeed, id: `wynton-extra-energy-${index}` })));\n  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 9);'''
+          new = '''  player.heroes = [{ ...wynton, id: "wynton-active" }];\n  player.maxEnergy = 6;\n  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 6);\n  player.maxEnergy = 9;\n  assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 9);'''
+          s = replace_once(s, old, new, 'Wynton maxEnergy regression')
+          s = s.replace(
+              'left: { kind: "count", source: "energy", owner: "controller" }, operator: ">=", right: 10',
+              'left: { kind: "property", subject: { kind: "player", owner: "controller" }, property: "max-energy" }, operator: ">=", right: 10',
+          )
+          p.write_text(s)
+
+          # Permanent architectural regression: there is one numeric representation/evaluator.
+          Path('tests/rules-architecture-cleanup.test.ts').write_text('''import assert from "node:assert/strict";\nimport { readFileSync } from "node:fs";\nimport test from "node:test";\n\nconst productionRulesSources = [\n  "../lib/game.ts",\n  "../lib/rules/model.ts",\n  "../lib/rules/primitives.ts",\n  "../lib/rules/catalogue-primitives.ts",\n  "../lib/rules/catalogue-structure.ts",\n  "../lib/rules/costs.ts",\n  "../lib/rules/modifiers.ts",\n].map((path) => readFileSync(new URL(path, import.meta.url), "utf8")).join("\\n");\n\ntest("the rules engine has one canonical dynamic-value representation", () => {\n  assert.doesNotMatch(productionRulesSources, /\\b(?:AmountExpression|AmountCountSource|AmountEvaluationContext|evaluateAmountExpression|amountExpressionForScale|CostScale|printedScaleMultiplier|scaleStat|statValues)\\b/);\n  assert.doesNotMatch(productionRulesSources, /\\b(?:action|modifier)\\.scale\\b|\\bscale\\?:\\s*(?:string|CostScale)/);\n});\n''')
+
+          p = Path('package.json')
+          s = p.read_text()
+          old = 'tests/magnus-ultimate-rival.test.ts\",\n    \"test:gameplay\"'
+          new = 'tests/magnus-ultimate-rival.test.ts tests/value-expressions.test.ts tests/dynamic-value-catalogue.test.ts tests/rules-architecture-cleanup.test.ts\",\n    \"test:gameplay\"'
+          if old not in s:
+              raise SystemExit('test:rules script tail missing')
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - run: npm ci
+      - name: Focused unified pipeline and canonical values
+        run: npx tsx --test tests/value-expressions.test.ts tests/dynamic-value-catalogue.test.ts tests/rules-architecture-cleanup.test.ts tests/rules-primitives.test.ts tests/card-payment.test.ts tests/card-play-pipeline.test.ts tests/pact-cubbo-regressions.test.ts tests/rules-engine-modernization.test.ts tests/reroll-mechanic.test.ts
+      - name: Full rules suite
+        run: npm run test:rules
+      - name: Full gameplay suite
+        run: npm run test:gameplay
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Enforce one canonical numeric implementation
+        shell: bash
+        run: |
+          if grep -R -n -E 'AmountExpression|AmountCountSource|AmountEvaluationContext|amountExpression|evaluateAmountExpression|amountExpressionForScale|CostScale|printedScaleMultiplier|scaleStat|statValues' lib --include='*.ts'; then
+            echo 'Legacy numeric compatibility implementation remains.' >&2
+            exit 1
+          fi
+          if grep -R -n -E 'scale\?: (string|CostScale)|modifier\.scale|action\.scale' lib/rules lib/game.ts --include='*.ts'; then
+            echo 'Legacy numeric scale side channel remains.' >&2
+            exit 1
+          fi
+      - name: Commit validated implementation
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib tests package.json
+          if git diff --cached --quiet; then
+            echo 'No product changes to commit.'
+          else
+            git commit -m 'refactor: finish unified card play and canonical values'
+            git push origin HEAD:feature/unified-card-play-pipeline
+          fi
