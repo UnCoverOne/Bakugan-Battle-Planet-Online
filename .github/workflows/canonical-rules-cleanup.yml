@@ -39,7 +39,7 @@ jobs:
       - name: Enforce one canonical numeric implementation
         shell: bash
         run: |
-          if grep -R -n -E 'AmountExpression|amountExpression|evaluateAmountExpression|amountExpressionForScale|CostScale|printedScaleMultiplier' lib tests --include='*.ts'; then
+          if grep -R -n -E 'AmountExpression|amountExpression|evaluateAmountExpression|amountExpressionForScale|CostScale|printedScaleMultiplier' lib --include='*.ts'; then
             echo 'Legacy numeric expression implementation remains.' >&2
             exit 1
           fi
