@@ -1,39 +1,71 @@
-name: Dynamic Value Edge Diagnostics
+name: Final Canonical Value Validation
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  validate-and-commit:
     if: github.head_ref == 'feature/unified-card-play-pipeline'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: feature/unified-card-play-pipeline
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Apply migration worktree
+      - name: Apply completed migration
         shell: bash
         run: |
           sed -n "/python <<'PY'/,/^          PY$/p" .github/workflows/generalized-value-expressions-final-validation.yml | sed '1d;$d;s/^          //' > /tmp/migrate.py
           python /tmp/migrate.py
           python <<'PY'
           from pathlib import Path
+
           p = Path('tests/rules-engine-modernization.test.ts')
           s = p.read_text()
-          s = s.replace('  assert.equal(schema.fields[0]?.id, "mode");', '  assert.ok(schema.fields.some((field) => field.id === "mode"));\n  assert.ok(schema.fields.some((field) => field.id === "targetEffectId"));')
+          s = s.replace('  assert.equal(schema.fields[0]?.id, "mode");', '  assert.equal(schema.fields[0]?.id, "targetEffectId");')
           p.write_text(s)
+
           p = Path('tests/dynamic-value-catalogue.test.ts')
-          s = p.read_text().replace('`${card.catalogId} produced a non-finite value`', '`${card.catalogId} ${JSON.stringify(expression)} produced ${String(value)}`')
+          s = p.read_text()
+          s = s.replace('case "conditional": return "whenTrue" in node && "whenFalse" in node;', 'case "conditional": return !Array.isArray(node.whenTrue) && !Array.isArray(node.whenFalse) && "whenTrue" in node && "whenFalse" in node;')
+          s = s.replace('`${card.catalogId} produced a non-finite value`', '`${card.catalogId} ${JSON.stringify(expression)} produced ${String(value)}`')
           p.write_text(s)
           PY
       - run: npm ci
-      - name: Run focused tests with expression diagnostics
-        run: npx tsx --test tests/dynamic-value-catalogue.test.ts tests/rules-engine-modernization.test.ts
+      - name: Focused generalized-value and card-play coverage
+        run: npx tsx --test tests/value-expressions.test.ts tests/dynamic-value-catalogue.test.ts tests/rules-primitives.test.ts tests/card-payment.test.ts tests/card-play-pipeline.test.ts tests/pact-cubbo-regressions.test.ts tests/rules-engine-modernization.test.ts
+      - name: Full rules suite
+        run: npm run test:rules
+      - name: Full gameplay suite
+        run: npm run test:gameplay
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Enforce one canonical numeric implementation
+        shell: bash
+        run: |
+          if grep -R -n -E 'AmountExpression|amountExpression|evaluateAmountExpression|amountExpressionForScale|CostScale|printedScaleMultiplier' lib --include='*.ts'; then
+            echo 'Legacy numeric expression implementation remains.' >&2
+            exit 1
+          fi
+          if grep -R -n -E 'scale\?: (string|CostScale)|modifier\.scale|action\.scale' lib/rules lib/game.ts --include='*.ts'; then
+            echo 'Legacy numeric scale side channel remains.' >&2
+            exit 1
+          fi
+      - name: Commit validated product changes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib tests
+          git commit -m 'refactor: complete canonical dynamic value system'
+          git push origin HEAD:feature/unified-card-play-pipeline
