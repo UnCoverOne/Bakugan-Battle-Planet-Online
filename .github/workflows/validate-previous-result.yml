@@ -1,0 +1,63 @@
+name: Validate previous-result implementation
+
+on:
+  push:
+    branches:
+      - chatgpt-previous-result-quantities
+    paths:
+      - .github/workflows/validate-previous-result.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reset to current main
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+      - name: Install dependencies
+        run: npm ci
+      - name: Targeted tests
+        shell: bash
+        run: |
+          set -o pipefail
+          node --import tsx --test tests/previous-result-quantities.test.ts tests/dynamic-value-catalogue.test.ts tests/content-pipeline.test.ts tests/rules-engine-modernization.test.ts 2>&1 | tee /tmp/targeted.log
+      - name: Rules suite
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:rules 2>&1 | tee /tmp/rules.log
+      - name: Production build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/build.log
+      - name: Mark validation success
+        if: success()
+        shell: bash
+        run: |
+          git config user.name "ChatGPT"
+          git config user.email "chatgpt@users.noreply.github.com"
+          printf '%s\n' "$(git rev-parse HEAD)" > previous-result-validation.txt
+          git checkout -B chatgpt-previous-result-validated
+          git add previous-result-validation.txt
+          git commit -m "Record previous-result validation"
+          git push --force origin chatgpt-previous-result-validated
+      - name: Capture validation failure
+        if: failure()
+        shell: bash
+        run: |
+          cat /tmp/targeted.log /tmp/rules.log /tmp/build.log 2>/dev/null > previous-result-validation.log || true
+          git config user.name "ChatGPT"
+          git config user.email "chatgpt@users.noreply.github.com"
+          git checkout -B chatgpt-previous-result-validation-failure
+          git add -A
+          git commit -m "Capture previous-result validation failure" || true
+          git push --force origin chatgpt-previous-result-validation-failure
