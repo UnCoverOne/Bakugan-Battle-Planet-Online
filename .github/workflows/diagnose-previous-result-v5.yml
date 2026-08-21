@@ -1,0 +1,87 @@
+name: Previous-result implementation diagnostics v5
+
+on:
+  push:
+    branches:
+      - chatgpt-previous-result-quantities
+    paths:
+      - .github/workflows/diagnose-previous-result-v5.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract implementation script and reset to main
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/one-shot-previous-result.yml').read_text()
+          marker = "          python <<'PY'\n"
+          body = text.split(marker, 1)[1].split('\n          PY', 1)[0]
+          lines = [line[10:] if line.startswith('          ') else line for line in body.splitlines()]
+          fixed = []
+          for line in lines:
+              if "'''.replace(/^" in line:
+                  line = line.split("'''.replace(/^", 1)[0] + "''')"
+              if 'updated, count = re.subn(pattern, replacement, text, count=1, flags=re.S)' in line:
+                  line = line.replace(
+                      'updated, count = re.subn(pattern, replacement, text, count=1, flags=re.S)',
+                      'updated, count = re.subn(pattern, lambda _match: replacement, text, count=1, flags=re.S)',
+                  )
+              fixed.append(line)
+          Path('/tmp/apply-previous-result.py').write_text('\n'.join(fixed) + '\n')
+          PY
+          git fetch origin main
+          git reset --hard origin/main
+          echo "BASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Apply implementation
+        run: python /tmp/apply-previous-result.py 2>&1 | tee /tmp/patch.log
+
+      - name: Install dependencies
+        run: npm ci 2>&1 | tee /tmp/install.log
+
+      - name: Run targeted rules tests
+        run: node --import tsx --test tests/previous-result-quantities.test.ts tests/dynamic-value-catalogue.test.ts tests/content-pipeline.test.ts tests/rules-engine-modernization.test.ts 2>&1 | tee /tmp/targeted.log
+
+      - name: Run rules regression suite
+        run: npm run test:rules 2>&1 | tee /tmp/rules.log
+
+      - name: Build production bundle
+        run: npm run build 2>&1 | tee /tmp/build.log
+
+      - name: Commit directly to main
+        shell: bash
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$BASE_SHA" ]; then
+            echo "main moved while testing; refusing to overwrite concurrent work."
+            exit 1
+          fi
+          git config user.name "ChatGPT"
+          git config user.email "chatgpt@users.noreply.github.com"
+          git add lib/rules/values.ts lib/rules/model.ts lib/rules/objects.ts lib/rules/state.ts lib/rules/catalogue-primitives.ts lib/rules/catalogue-structure.ts lib/game.ts package.json tests/previous-result-quantities.test.ts
+          git commit -m "Add previous-result quantities"
+          git push origin HEAD:main
+
+      - name: Capture failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          cat /tmp/patch.log /tmp/install.log /tmp/targeted.log /tmp/rules.log /tmp/build.log 2>/dev/null > previous-result-run.log || true
+          git config user.name "ChatGPT"
+          git config user.email "chatgpt@users.noreply.github.com"
+          git checkout -B chatgpt-previous-result-debug
+          git add -A
+          git commit -m "Capture previous-result failure diagnostics" || true
+          git push --force origin chatgpt-previous-result-debug
