@@ -23,7 +23,6 @@ function card(catalogId: string, id: string): GameCard {
 function addUntappedEnergy(player: ReturnType<typeof makePlayer>, amount: number) {
   player.energyZone = Array.from({ length: amount }, (_, index) => card("bb-10", `${player.id}-energy-${index}`));
   player.energy = 0;
-  player.maxEnergy = amount;
 }
 
 function effectState(catalogId: string, withMagnus = false) {

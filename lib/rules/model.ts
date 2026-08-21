@@ -38,7 +38,6 @@ export type RuleCondition =
   | { kind: "factions-played"; comparison: "at-least"; amount: NumberValue }
   | { kind: "hero-count"; comparison: "at-least"; amount: NumberValue }
   | { kind: "controls-named-cards"; names: string[] }
-  | { kind: "energy-count"; comparison: "at-least"; amount: NumberValue }
   | { kind: "discard-count"; comparison: "at-least"; amount: NumberValue }
   | { kind: "played-card-cost"; comparison: "at-least"; amount: NumberValue }
   | { kind: "card-count"; catalogId: RulesCardId; comparison: "at-least"; amount: NumberValue }

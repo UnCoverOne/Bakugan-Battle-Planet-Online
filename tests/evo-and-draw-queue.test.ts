@@ -34,7 +34,6 @@ function compatibleEvo(player: ReturnType<typeof makePlayer>) {
 
 function giveEnergy(player: ReturnType<typeof makePlayer>, amount = 20) {
   player.energyZone = player.deckCards.splice(0, amount);
-  player.maxEnergy = player.energyZone.length;
   player.energy = 0;
 }
 

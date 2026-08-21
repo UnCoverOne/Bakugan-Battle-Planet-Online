@@ -74,7 +74,6 @@ function player(id: string): PlayerState {
     energyZone: [],
     heroes: [],
     energy: 0,
-    maxEnergy: 0,
     ready: false,
     connected: true,
     lastSeen: 0,

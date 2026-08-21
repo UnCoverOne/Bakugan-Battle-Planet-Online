@@ -271,9 +271,7 @@ test("forced opponent Rerolls preserve the controller target for conditional fol
   const state = buildPlacedMatch();
   establishRolls(state, "intended-core", "open-no-core", [state.placements[0].cell], []);
   state.players[0].energyZone = state.players[0].hand.slice(0, 2);
-  state.players[0].maxEnergy = state.players[0].energyZone.length;
   state.players[1].energyZone = [];
-  state.players[1].maxEnergy = 0;
   const opponentBakugan = state.players[1].bakugan[0];
   const opticBeam = catalogueCard("Optic Beam");
   let next = resolveStructuredEffect(state, effect(opticBeam, "a", "optic-effect"));

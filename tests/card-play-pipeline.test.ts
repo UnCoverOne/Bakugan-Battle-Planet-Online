@@ -38,7 +38,6 @@ test("Pact of Darkness exposes an unaffordable Sacrifice route instead of allowi
   first.discard = [pact];
   first.energy = 0;
   first.energyZone = [card("bb-1", "energy-a"), card("bb-1", "energy-b")];
-  first.maxEnergy = 2;
   const attacker = second.bakugan[0];
   attacker.open = true;
   state.damageOrigin = attacker.id;
@@ -67,7 +66,6 @@ test("Pact of Darkness Sacrifice is a generic atomic alternative cost and free b
   first.discard = [pact];
   first.energy = 0;
   first.energyZone = [card("bb-1", "pe-a"), card("bb-1", "pe-b"), card("bb-1", "pe-c")];
-  first.maxEnergy = 3;
   const attacker = second.bakugan[0];
   attacker.open = true;
   state.damageOrigin = attacker.id;
@@ -167,7 +165,6 @@ test("Luck Aura's free play becomes a normal typed card play without paying the 
   first.hand = [played];
   first.energy = 0;
   first.energyZone = [];
-  first.maxEnergy = 0;
   const definition = ruleDefinitionForCard(luck);
   const ability = definition.abilities.find((candidate) => candidate.kind !== "triggered");
   assert.ok(ability);

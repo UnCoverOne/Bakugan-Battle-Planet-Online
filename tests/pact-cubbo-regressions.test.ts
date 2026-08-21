@@ -38,7 +38,6 @@ test("Pact of Darkness uses the generic Sacrifice payment route", () => {
     ...structuredClone(discardTemplate),
     id: `pact-energy-${index}`,
   }));
-  first.maxEnergy = 4;
   state.revealedFlip = pact;
 
   assert.equal(effectiveCardEnergyCost(state, first.id, pact), 4);

@@ -1,3 +1,4 @@
+import { setPhysicalEnergy } from "./helpers/energy";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -282,7 +283,7 @@ test("the Roll Phase advances from Selection priority to Rolling without bouncin
   const paymentEnergy = match.players[0].deckCards.shift()!;
   match.players[0].hand.push(priorityCard);
   match.players[0].energyZone.push(paymentEnergy);
-  match.players[0].maxEnergy = 1;
+  setPhysicalEnergy(match.players[0], 1);
   match.players[0].energy = 1;
   match = playCard(match, player.id, priorityCard.id);
   assert.equal(match.phase, "preRoll");

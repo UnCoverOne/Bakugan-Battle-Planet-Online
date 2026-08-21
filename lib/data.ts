@@ -277,7 +277,6 @@ function makePlayerUnchecked(id: string, name: string, deck: DeckRecord): Player
     energyZone: [],
     heroes: [],
     energy: 0,
-    maxEnergy: 0,
     ready: false,
     connected: true,
     lastSeen: Date.now(),

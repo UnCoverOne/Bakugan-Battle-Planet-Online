@@ -264,7 +264,6 @@ test("Lia Venegas searches for a Hero when played and grants +10 Damage with fiv
     id: `lia-energy-${index}`,
   }));
   state.players[0].energy = 10;
-  state.players[0].maxEnergy = 10;
 
   const active = state.players[0].bakugan[0];
   active.open = true;

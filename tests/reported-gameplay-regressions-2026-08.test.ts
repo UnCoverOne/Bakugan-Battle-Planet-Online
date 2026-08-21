@@ -65,7 +65,6 @@ function addUntappedEnergy(player: ReturnType<typeof makePlayer>, amount: number
     card("bb-10", `${player.id}-energy-${index}`)
   ));
   player.energy = 0;
-  player.maxEnergy = amount;
 }
 
 function resolveTopBatchObject(state: MatchState) {
@@ -480,7 +479,6 @@ test("Ventus Trox Ultra energizes the selected hand card uncharged", () => {
   const fodder = card("bb-17", "selected-hand-energy");
   live.hand = [fodder];
   live.energyZone = [existing];
-  live.maxEnergy = 1;
   live.energy = 0;
   (live as typeof live & { energyTapTurn?: number; tappedEnergyIds?: string[] }).energyTapTurn = state.turn;
   (live as typeof live & { energyTapTurn?: number; tappedEnergyIds?: string[] }).tappedEnergyIds = [];
@@ -513,7 +511,7 @@ test("Ventus Trox Ultra energizes the selected hand card uncharged", () => {
   const after = resolving.players.find((candidate) => candidate.id === live.id)!;
   assert.equal(after.hand.some((candidate) => candidate.id === fodder.id), false);
   assert.equal(after.energyZone.some((candidate) => candidate.id === fodder.id), true);
-  assert.equal(after.maxEnergy, 2);
+  assert.equal(after.energyZone.length, 2);
   assert.deepEqual(activeTappedEnergyIds(after, resolving.turn), [fodder.id]);
   assert.equal(activeTappedEnergyIds(after, resolving.turn).includes(existing.id), false);
 });
@@ -539,7 +537,6 @@ test("unqualified Energize effects add Energy cards charged", () => {
   const first = card("bb-17", "new-charged-energy-one");
   const second = card("bb-18", "new-charged-energy-two");
   live.energyZone = [oldEnergy];
-  live.maxEnergy = 1;
   live.energy = 0;
   live.deckCards = [first, second];
   live.deck = 2;
@@ -561,7 +558,7 @@ test("unqualified Energize effects add Energy cards charged", () => {
   const after = resolving.players.find((candidate) => candidate.id === live.id)!;
   assert.deepEqual(after.energyZone.map((candidate) => candidate.id), [oldEnergy.id, first.id, second.id]);
   assert.deepEqual(activeTappedEnergyIds(after, resolving.turn), [oldEnergy.id]);
-  assert.equal(after.maxEnergy, 3);
+  assert.equal(after.energyZone.length, 3);
   assert.equal(after.deck, 0);
 });
 

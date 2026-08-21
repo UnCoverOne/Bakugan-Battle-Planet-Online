@@ -85,7 +85,6 @@ function priorityState() {
   state.phase = "power";
   state.priority = first.id;
   first.energyZone = Array.from({ length: 10 }, (_, index) => card("bb-2", `first-energy-${index}`));
-  first.maxEnergy = first.energyZone.length;
   return { state, first, second };
 }
 

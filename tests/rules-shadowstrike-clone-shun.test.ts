@@ -60,7 +60,6 @@ function player(id: string, active: Bakugan, hand: GameCard[] = []): PlayerState
     energyZone: [],
     heroes: [],
     energy: 0,
-    maxEnergy: 0,
     ready: true,
     connected: true,
     lastSeen: Date.now(),
@@ -71,7 +70,6 @@ function player(id: string, active: Bakugan, hand: GameCard[] = []): PlayerState
 
 function addEnergy(owner: PlayerState, amount: number) {
   owner.energyZone = Array.from({ length: amount }, (_, index) => card("bb-10", `${owner.id}-energy-${index}`));
-  owner.maxEnergy = amount;
 }
 
 function roll(playerId: string, bakuganId: string): RollOutcome {
