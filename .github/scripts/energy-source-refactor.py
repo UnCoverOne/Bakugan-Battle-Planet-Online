@@ -196,7 +196,7 @@ for path in Path("tests").glob("*.test.ts"):
         text = 'import { setPhysicalEnergy } from "./helpers/energy";\n' + text
     path.write_text(text)
 
-energy_test = '''import assert from "node:assert/strict";
+energy_test = r'''import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -291,8 +291,8 @@ test("runtime views and replay encoding derive Energy-card count from the zone",
 test("production source contains no cached Energy-count compatibility path", () => {
   const libRoot = fileURLToPath(new URL("../lib", import.meta.url));
   const source = allTypeScriptSources(libRoot).join("\n");
-  assert.doesNotMatch(source, /\\bmaxEnergy\\b|["']max-energy["']|["']energy-zone-size["']/);
-  assert.doesNotMatch(source, /kind:\\s*["']energy-count["']/);
+  assert.doesNotMatch(source, /\bmaxEnergy\b|["']max-energy["']|["']energy-zone-size["']/);
+  assert.doesNotMatch(source, /kind:\s*["']energy-count["']/);
 });
 '''
 Path("tests/energy-count-source.test.ts").write_text(energy_test)
