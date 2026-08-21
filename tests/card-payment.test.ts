@@ -23,7 +23,6 @@ function paymentMatch(cost: number, energyCards: number, generated: number) {
     ...template,
     id: `energy-card-${index}`,
   }));
-  player.maxEnergy = energyCards;
   player.energy = generated;
   player.energyTapTurn = 1;
   player.tappedEnergyIds = player.energyZone.slice(0, generated).map((energyCard) => energyCard.id);

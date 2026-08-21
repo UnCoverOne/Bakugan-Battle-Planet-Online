@@ -308,7 +308,6 @@ test("playing Dan after a Bakugan opened installs the Hero without replaying the
   const energySource = catalogueCard("bb-10", "dan-energy-source");
   player.hand.push(dan);
   player.energyZone = Array.from({ length: 4 }, (_, index) => ({ ...energySource, id: `dan-energy-${index}` }));
-  player.maxEnergy = 4;
   player.energy = 0;
   state.selected[player.id] = player.bakugan[0].id;
   player.bakugan[0].open = true;

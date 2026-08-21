@@ -265,7 +265,7 @@ export function deriveTransitionEvents(
   for (const player of after.players) {
     const previous = before.players.find((candidate) => candidate.id === player.id);
     if (!previous) continue;
-    if (previous.energy !== player.energy || previous.maxEnergy !== player.maxEnergy) {
+    if (previous.energy !== player.energy || previous.energyZone.length !== player.energyZone.length) {
       events.push({
         type: "ENERGY_CHANGED",
         actorId: envelope.actorId,
@@ -274,8 +274,8 @@ export function deriveTransitionEvents(
           playerId: player.id,
           energyBefore: previous.energy,
           energyAfter: player.energy,
-          maxEnergyBefore: previous.maxEnergy,
-          maxEnergyAfter: player.maxEnergy,
+          energyCardCountBefore: previous.energyZone.length,
+          energyCardCountAfter: player.energyZone.length,
         },
       });
     }

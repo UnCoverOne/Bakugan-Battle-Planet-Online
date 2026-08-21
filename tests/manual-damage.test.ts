@@ -69,7 +69,6 @@ test("playing a revealed Flip automatically taps its Energy shortfall", () => {
     { ...ordinary, id: "damage-energy-1" },
     { ...ordinary, id: "damage-energy-2" },
   ];
-  loser.maxEnergy = 2;
   loser.energy = 0;
   loser.energyTapTurn = 1;
   loser.tappedEnergyIds = [];

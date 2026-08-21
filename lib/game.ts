@@ -116,7 +116,6 @@ export type PlayerState = {
   energyZone: GameCard[];
   heroes: GameCard[];
   energy: number;
-  maxEnergy: number;
   ready: boolean;
   connected: boolean;
   lastSeen: number;
@@ -672,7 +671,6 @@ export const energizeCard = (input: MatchState, playerId: string, cardId?: strin
     const [card] = player.hand.splice(index, 1);
     applyEnergyEntryVisibility([card], "hand");
     player.energyZone.push(card);
-    player.maxEnergy += 1;
     player.energy += 1;
     entry(state, "game", `${player.name} Energized a card face down.`);
   } else entry(state, "game", `${player.name} declined to Energize.`);
@@ -1110,7 +1108,7 @@ const conditionActive = (state: MatchState, player: PlayerState, text: string, c
   const lower = text.toLowerCase(); const opponent = otherPlayer(state, player.id);
   if (lower.includes("flow")) return player.cardsPlayedThisTurn > 1;
   if (lower.includes("fury")) return player.hand.length === 0;
-  if (lower.includes("turbo")) return player.maxEnergy > opponent.maxEnergy;
+  if (lower.includes("turbo")) return player.energyZone.length > opponent.energyZone.length;
   if (lower.includes("domination")) return player.bakugan.reduce((sum, b) => sum + b.heldCoreCells.length, 0) > opponent.bakugan.reduce((sum, b) => sum + b.heldCoreCells.length, 0);
   if (lower.includes("sacrifice")) return Boolean(choices.discardCardIds?.length);
   if (lower.includes("only have one open bakugan")) return player.bakugan.filter((bakugan) => bakugan.open).length === 1;
@@ -1906,8 +1904,6 @@ const destroyEnergy = (state: MatchState, amount: number, selectedIds: string[])
     const selectedSet = new Set(selected.map((card) => card.id));
     owner.energyZone = owner.energyZone.filter((card) => !selectedSet.has(card.id));
     owner.discard.push(...selected);
-    owner.maxEnergy = owner.energyZone.length;
-    owner.energy = Math.min(owner.energy, owner.maxEnergy);
   }
   state.informationEpoch += 1;
   state.undoWindow = undefined;
@@ -1939,7 +1935,6 @@ function applyEnergizedEntryState(
     else uncharged.delete(card.id);
   }
   tracked.tappedEnergyIds = [...uncharged];
-  player.maxEnergy = player.energyZone.length;
 }
 
 const instructionChoices = (pending: PendingEffect, instructionIndex: number) => Object.entries(pending.resolvedChoices ?? {})
@@ -3120,8 +3115,7 @@ function beginChargeStep(state: MatchState) {
     tracked.tappedEnergyIds = [];
     tracked.energyTapTurn = state.turn;
     player.energy = 0;
-    player.maxEnergy = player.energyZone.length;
-  }
+    }
   setPhase(state, "charge", "End Phase • Charge Step", state.startingPlayer);
   entry(state, "game", "Both players charged all Energy cards.");
 }
@@ -3259,7 +3253,7 @@ export const startNextSeriesGame = (input: MatchState) => {
   for (const player of state.players) {
     const all = [...player.deckCards, ...player.hand, ...player.discard, ...player.energyZone, ...player.heroes];
     player.deckCards = all.filter((card) => card.type !== "Character"); shuffle(player.deckCards); player.hand = []; player.discard = []; player.energyZone = []; player.heroes = [];
-    player.energy = 0; player.maxEnergy = 0; player.ready = true; player.bakugan.forEach((bakugan) => { bakugan.open = false; bakugan.heldCoreCells = []; bakugan.evoStack = []; });
+    player.energy = 0; player.ready = true; player.bakugan.forEach((bakugan) => { bakugan.open = false; bakugan.heldCoreCells = []; bakugan.evoStack = []; });
     drawCards(state, player, 5);
   }
   setPhase(state, "startingPlayer", `Game ${state.gameNumber} • Selecting the first BakuCore player`, selected.id);

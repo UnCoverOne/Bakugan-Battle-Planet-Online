@@ -130,7 +130,7 @@ test("the full turn enters Draw/Energize, Selection, pre-roll priority, target a
   let state = buildPlacedMatch(); assert.equal(state.players[0].hand.length, 5); assert.equal(state.phase, "draw");
   state = completeTurnDraws(state); assert.equal(state.players[0].hand.length, 6); assert.equal(state.phase, "energize");
   state = energizeCard(state, "a", state.players[0].hand[0].id); state = energizeCard(state, "b"); assert.equal(state.phase, "selection");
-  assert.equal(state.players[0].maxEnergy, 1); assert.equal(state.players[1].maxEnergy, 0);
+  assert.equal(state.players[0].energyZone.length, 1); assert.equal(state.players[1].energyZone.length, 0);
   state = selectBakugan(state, "a", state.players[0].bakugan[0].id); state = selectBakugan(state, "b", state.players[1].bakugan[0].id); assert.equal(state.phase, "preRoll");
   state = passWindow(state); assert.equal(state.phase, "target"); state = targetCore(state, "a", state.placements[0].cell); assert.equal(Object.keys(state.rolls).length, 0);
   state = targetCore(state, "b", state.placements[0].cell); assert.equal(state.phase, "power"); assert.equal(Object.keys(state.rolls).length, 2); assert.ok(state.log.some((entry) => entry.kind === "random"));

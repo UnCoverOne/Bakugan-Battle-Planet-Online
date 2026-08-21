@@ -22,7 +22,6 @@ function addUntappedEnergy(player: ReturnType<typeof makePlayer>, amount: number
     card("bb-10", `${player.id}-maximus-energy-${index}`)
   ));
   player.energy = 0;
-  player.maxEnergy = amount;
 }
 
 function resolveTopBatchObject(state: MatchState) {

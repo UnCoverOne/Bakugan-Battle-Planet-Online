@@ -7,10 +7,9 @@ export type EnergyZoneView = {
   cards: readonly GameCard[];
   tappedEnergyIds: readonly string[];
   availableEnergy: number;
-  maxEnergy: number;
 };
 export type EnergyZoneViews = { player: EnergyZoneView; opponent: EnergyZoneView };
-const EMPTY_ENERGY_ZONE_VIEW: EnergyZoneView = { cards: [], tappedEnergyIds: [], availableEnergy: 0, maxEnergy: 0 };
+const EMPTY_ENERGY_ZONE_VIEW: EnergyZoneView = { cards: [], tappedEnergyIds: [], availableEnergy: 0 };
 
 export function energyZoneView(player: PlayerState | null | undefined, turn: number): EnergyZoneView {
   if (!player) return EMPTY_ENERGY_ZONE_VIEW;
@@ -19,7 +18,6 @@ export function energyZoneView(player: PlayerState | null | undefined, turn: num
     cards: player.energyZone,
     tappedEnergyIds: activeTappedEnergyIds(tracked, turn),
     availableEnergy: availableEnergy(tracked, turn),
-    maxEnergy: player.energyZone.length,
   };
 }
 
@@ -67,7 +65,6 @@ export function tapEnergyCard(input: MatchState, playerId: string, cardId: strin
   player.tappedEnergyIds.push(cardId);
   payment.selectedEnergyIds.push(cardId);
   player.energy += 1;
-  player.maxEnergy = player.energyZone.length;
   state.version += 1;
   state.log.push({
     id: `${Date.now()}-energy-${state.log.length}`,

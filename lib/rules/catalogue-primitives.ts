@@ -98,7 +98,7 @@ export function conditionFor(text: string): RuleCondition {
   const heroCount = text.match(/if you (?:have|control) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Hero cards? in play/i);
   if (heroCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "hero", owner: "controller" }, operator: ">=", right: numberValue(heroCount[1], 1) } };
   const energyCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Energy cards in play/i);
-  if (energyCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "property", subject: { kind: "player", owner: "controller" }, property: "max-energy" }, operator: ">=", right: numberValue(energyCount[1], 1) } };
+  if (energyCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "energy", owner: "controller" }, operator: ">=", right: numberValue(energyCount[1], 1) } };
   const discardCount = text.match(/if (?:there are|you have) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more cards? in your discard pile/i);
   if (discardCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "discard", owner: "controller" }, operator: ">=", right: numberValue(discardCount[1], 1) } };
   const playedCost = text.match(/if you(?: have|\'ve)? played a card that costs? (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) \[Energy\] or more this turn/i);
@@ -210,7 +210,7 @@ function numberValueForDynamicAmount(text: string, baseAmount: number, dynamicSo
   if (faction && /Bakugan on your team/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "bakugan", owner: "controller", faction });
   if (/Flip card.*discard/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "discard", owner: "controller", cardType: "Flip" });
   if (/Hero(?: card)?s? (?:you )?(?:have|control)?\s*in play|Hero you have in play/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "hero", owner: "controller" });
-  if (/Energy card.*you have|Energy cards? in play/i.test(grammar)) return multiplyValue(baseAmount, { kind: "property", subject: { kind: "player", owner: "controller" }, property: "max-energy" });
+  if (/Energy card.*you have|Energy cards? in play/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "energy", owner: "controller" });
   if (/BakuCore.*your Bakugan hold/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "held-bakucore", owner: "controller" });
   if (/open Bakugan/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "open-bakugan", owner: "controller" });
   if (/cards? (?:you have )?played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "cards-played", owner: "controller" });

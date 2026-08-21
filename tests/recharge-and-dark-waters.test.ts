@@ -62,7 +62,6 @@ function player(id: string, active: Bakugan, hand: GameCard[] = []): PlayerState
     energyZone: [],
     heroes: [],
     energy: 0,
-    maxEnergy: 0,
     ready: true,
     connected: true,
     lastSeen: Date.now(),
@@ -111,7 +110,6 @@ function setEnergy(owner: PlayerState, amount: number, tapped: number, turn: num
     ...card("br-53"),
     id: `${owner.id}-energy-${index}`,
   }));
-  owner.maxEnergy = amount;
   Object.assign(owner, {
     energyTapTurn: turn,
     tappedEnergyIds: owner.energyZone.slice(0, tapped).map((energy) => energy.id),

@@ -1,3 +1,4 @@
+import { setPhysicalEnergy } from "./helpers/energy";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
@@ -249,7 +250,7 @@ test("tapping a face-down Energy card generates exactly one available Energy", (
   const energyCard = player.hand.shift();
   assert.ok(energyCard);
   player.energyZone.push(energyCard);
-  player.maxEnergy = 1;
+  setPhysicalEnergy(player, 1);
   player.energy = 1;
 
   const match = createMatch("ENERGY", "bo1", [player, opponent]);
@@ -367,7 +368,6 @@ test("Energize transitions report only cards newly added to the Energy Zone", ()
   const energized = after.players[0].hand.shift();
   assert.ok(energized);
   after.players[0].energyZone.push(energized);
-  after.players[0].maxEnergy = after.players[0].energyZone.length;
   after.version += 1;
 
   const transitions = energizeTransitions(before, after);

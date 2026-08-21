@@ -109,7 +109,6 @@ function rebuildPlayerZones(
   player.energyZone = [];
   player.heroes = [];
   player.energy = 0;
-  player.maxEnergy = 0;
   for (const bakugan of player.bakugan) bakugan.evoStack = [];
 }
 

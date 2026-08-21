@@ -98,7 +98,6 @@ function player(
     energyZone: [],
     heroes: [],
     energy: 0,
-    maxEnergy: 0,
     ready: true,
     connected: true,
     lastSeen: Date.now(),
@@ -127,7 +126,6 @@ function addEnergy(owner: PlayerState, amount: number) {
     { length: amount },
     (_, index) => printedCard(10, `${owner.id}-energy-${index}`),
   );
-  owner.maxEnergy = amount;
 }
 
 function roll(

@@ -67,7 +67,6 @@ export function captureRuleConditionValues(
     case "cards-played":
     case "factions-played":
     case "hero-count":
-    case "energy-count":
     case "discard-count":
     case "played-card-cost":
     case "card-count":

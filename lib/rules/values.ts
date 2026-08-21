@@ -30,7 +30,6 @@ export type PlayerNumericProperty =
   | "hand-size"
   | "deck-size"
   | "discard-size"
-  | "energy-zone-size"
   | "hero-count"
   | "bakugan-count"
   | "open-bakugan-count"
@@ -38,7 +37,6 @@ export type PlayerNumericProperty =
   | "cards-played"
   | "factions-played"
   | "energy"
-  | "max-energy"
   | "payable-energy"
   | "maximum-played-card-cost";
 
@@ -237,7 +235,6 @@ function playerProperty(player: PlayerState, property: PlayerNumericProperty) {
     case "hand-size": return player.hand.length;
     case "deck-size": return player.deckCards.length;
     case "discard-size": return player.discard.length;
-    case "energy-zone-size": return player.energyZone.length;
     case "hero-count": return player.heroes.length;
     case "bakugan-count": return player.bakugan.length;
     case "open-bakugan-count": return player.bakugan.filter((bakugan) => bakugan.open).length;
@@ -245,7 +242,6 @@ function playerProperty(player: PlayerState, property: PlayerNumericProperty) {
     case "cards-played": return player.cardsPlayedThisTurn;
     case "factions-played": return new Set(player.factionsPlayedThisTurn ?? []).size;
     case "energy": return player.energy;
-    case "max-energy": return player.maxEnergy;
     case "payable-energy": return player.energyZone.length + Math.max(0, player.energy);
     case "maximum-played-card-cost": return Math.max(0, ...(player.playedCardCostsThisTurn ?? []));
   }

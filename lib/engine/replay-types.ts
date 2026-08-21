@@ -42,7 +42,6 @@ export type CompactPlayerState = {
   e?: CompactCardInstance[];
   r?: CompactCardInstance[];
   en?: number;
-  me?: number;
   rd?: 1;
   cn?: 0;
   ls?: number;

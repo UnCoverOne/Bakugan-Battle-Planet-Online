@@ -45,7 +45,6 @@ function turnToEnergyState(opponentId = "turn-energy-opponent") {
   const secondEnergy = instance("bb-2", "turn-to-energy-payment-two");
   live.hand = [source];
   live.energyZone = [firstEnergy, secondEnergy];
-  live.maxEnergy = 2;
   live.energy = 0;
   (live as typeof live & { energyTapTurn?: number; tappedEnergyIds?: string[] }).energyTapTurn = state.turn;
   (live as typeof live & { energyTapTurn?: number; tappedEnergyIds?: string[] }).tappedEnergyIds = [];
@@ -64,7 +63,7 @@ function assertResolved(
   assert.equal(after.hand.some((card) => card.id === sourceId), false);
   assert.equal(after.discard.some((card) => card.id === sourceId), false);
   assert.equal(after.energyZone.some((card) => card.id === sourceId), true);
-  assert.equal(after.maxEnergy, 3);
+  assert.equal(after.energyZone.length, 3);
   assert.deepEqual(
     new Set(activeTappedEnergyIds(after, resolved.turn)),
     new Set([...paymentIds, sourceId]),
@@ -163,7 +162,6 @@ test("normalization removes a completed Turn to Energy object stranded in the ba
 
   const player = played.players.find((candidate) => candidate.id === playerId)!;
   player.energyZone.push(pending.card);
-  player.maxEnergy = player.energyZone.length;
   pending.status = "resolved";
   pending.instructionIndex = 1;
   pending.cursor.instructionIndex = 1;

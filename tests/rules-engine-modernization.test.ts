@@ -1,3 +1,4 @@
+import { setPhysicalEnergy } from "./helpers/energy";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -156,7 +157,7 @@ test("replacement conditions cover sacrifice, held Core, faction, and turn-histo
   });
   assert.deepEqual(conditionFor("If you have ten or more Energy cards in play, +15 [Damage Rating] instead."), {
     kind: "expression",
-    expression: { kind: "compare-number", left: { kind: "property", subject: { kind: "player", owner: "controller" }, property: "max-energy" }, operator: ">=", right: 10 },
+    expression: { kind: "compare-number", left: { kind: "count", source: "energy", owner: "controller" }, operator: ">=", right: 10 },
   });
 });
 
@@ -367,9 +368,9 @@ test("source-bound parsing keeps unrelated cost scaling off Everett and evaluate
 
   const wynton = CARDS.find((card) => card.catalogId === "aa-75")!;
   player.heroes = [{ ...wynton, id: "wynton-active" }];
-  player.maxEnergy = 6;
+  setPhysicalEnergy(player, 6);
   assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 6);
-  player.maxEnergy = 9;
+  setPhysicalEnergy(player, 9);
   assert.equal(evaluateBakuganCharacteristics(state, bakugan, player).damage, baseDamage + 9);
 });
 

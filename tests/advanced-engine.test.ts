@@ -76,7 +76,6 @@ function undoMatch() {
   const card = CARDS.find((candidate) => candidate.type === "Action" && candidate.cost !== "X" && candidate.cost <= 3 && !/may|choose|sacrifice|discard|\bX\b/i.test(candidate.effect))!;
   player.hand = [{ ...card, id: "undo-card" }];
   player.energyZone = Array.from({ length: 3 }, (_, index) => ({ ...card, id: `undo-energy-${index}` }));
-  player.maxEnergy = 3;
   player.energy = 3;
   player.energyTapTurn = 1;
   player.tappedEnergyIds = player.energyZone.map((energy) => energy.id);

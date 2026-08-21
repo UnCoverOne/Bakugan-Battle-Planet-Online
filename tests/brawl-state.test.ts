@@ -89,7 +89,6 @@ test("a played Power Step card enters the batch and transfers priority", () => {
   assert.ok(card);
   player.hand = [{ ...card, id: "power-action" }];
   player.energyZone = Array.from({ length: 3 }, (_, index) => ({ ...card, id: `power-energy-${index}` }));
-  player.maxEnergy = 3;
   player.energy = 3;
   Object.assign(player, { energyTapTurn: 1, tappedEnergyIds: player.energyZone.map((energy) => energy.id) });
 

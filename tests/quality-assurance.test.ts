@@ -30,7 +30,7 @@ function card(id: string, type: GameCard["type"] = "Action"): GameCard {
 function player(id: string): PlayerState {
   const bakugan: Bakugan[] = Array.from({ length: 3 }, (_, index) => ({ id: `${id}-b-${index}`, name: `${id} Bakugan ${index}`, faction: "Aquos", bPower: 500, damage: 5, rollAccuracy: 90, doubleCoreChance: 5, art: "", character: card(`${id}-character-${index}`, "Character"), open: false, heldCoreCells: [], evoStack: [] }));
   const cores: Core[] = Array.from({ length: 6 }, (_, index) => ({ id: `${id}-core-${index}`, catalogId: `core-${index}`, number: index, name: `Core ${index}`, type: "Fist", bonus: 100, damageBonus: 0, art: "" }));
-  return { id, name: id.toUpperCase(), bakugan, cores, deck: 35, deckCards: Array.from({ length: 35 }, (_, index) => card(`${id}-deck-${index}`)), hand: Array.from({ length: 5 }, (_, index) => card(`${id}-hand-${index}`)), discard: [], energyZone: [], heroes: [], energy: 0, maxEnergy: 0, ready: false, connected: true, lastSeen: 0, energizedThisTurn: false, cardsPlayedThisTurn: 0 };
+  return { id, name: id.toUpperCase(), bakugan, cores, deck: 35, deckCards: Array.from({ length: 35 }, (_, index) => card(`${id}-deck-${index}`)), hand: Array.from({ length: 5 }, (_, index) => card(`${id}-hand-${index}`)), discard: [], energyZone: [], heroes: [], energy: 0, ready: false, connected: true, lastSeen: 0, energizedThisTurn: false, cardsPlayedThisTurn: 0 };
 }
 function initial() {
   return initializeMatch("GOLDEN", "bo1", [player("p1"), player("p2")], { commandId: "golden-create", actorId: "p1", issuedAt: 1_800_000_000_000, randomSeed: "golden-seed", requestHash: "golden-request" }).state;

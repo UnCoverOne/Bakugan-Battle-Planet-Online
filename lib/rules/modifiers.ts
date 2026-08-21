@@ -73,7 +73,7 @@ export function ruleConditionActive(
       const opposingPower = evaluateBakuganCharacteristics(state, opposing, opponent).power;
       return ownPower < opposingPower;
     }
-    case "turbo": return Boolean(opponent && player.maxEnergy > opponent.maxEnergy);
+    case "turbo": return Boolean(opponent && player.energyZone.length > opponent.energyZone.length);
     case "domination": return Boolean(opponent && player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0)
       > opponent.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0));
     case "victor": return state.brawlWinner === player.id;
@@ -106,7 +106,6 @@ export function ruleConditionActive(
         controlled.some((name) => name === required || name.startsWith(`${required} `))
       ));
     }
-    case "energy-count": return player.maxEnergy >= conditionValue(condition.amount);
     case "discard-count": return player.discard.length >= conditionValue(condition.amount);
     case "played-card-cost": return Math.max(0, ...(player.playedCardCostsThisTurn ?? [])) >= conditionValue(condition.amount);
     case "card-count": return player.heroes.filter((hero) => hero.catalogId === condition.catalogId).length >= conditionValue(condition.amount);

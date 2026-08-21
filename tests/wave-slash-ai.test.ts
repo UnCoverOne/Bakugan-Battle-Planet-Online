@@ -48,7 +48,6 @@ function player(id: string, active: Bakugan, hand: GameCard[] = []): PlayerState
     energyZone: [],
     heroes: [],
     energy: 0,
-    maxEnergy: 0,
     ready: true,
     connected: true,
     lastSeen: Date.now(),
@@ -69,7 +68,6 @@ test("AI holds Wave Slash until the roll provides Brawl information", () => {
     { length: 3 },
     (_, index) => printedCard("bb-10", `ai-energy-${index}`),
   );
-  ai.maxEnergy = ai.energyZone.length;
 
   const match = createMatch("WAVESLASH", "bo1", [ai, human]);
   match.turn = 2;
