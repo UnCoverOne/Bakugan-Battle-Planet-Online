@@ -7,6 +7,7 @@ export type RulesObjectStatus = "pending" | "resolving" | "resolved" | "negated"
 export type ChoiceTiming = "announce" | "pay" | "resolve";
 export type ChoiceVisibility = "public" | "private" | "secret-until-reveal";
 export type RulesDuration = "instant" | "turn" | "while-source-active" | "next-card" | "permanent";
+export type BakucoreHolder = "controller-active" | "source-bakugan" | "opponent-active";
 export type RuleCitation = { sourceId: string; locator: string; note?: string };
 export type RuleProvenance = { authorityOrder: string[]; citations: RuleCitation[]; reviewed: boolean };
 export type ModifierLayer = "base" | "set" | "core" | "continuous" | "temporary" | "protection" | "final";
@@ -79,6 +80,8 @@ export type ChoiceSpec = {
   notOpenedThisTurn?: boolean;
   notPlayedThisTurn?: boolean;
   attachmentState?: "attached" | "unattached";
+  /** Restrict an attached BakuCore choice to a particular participating Bakugan. */
+  attachedToBakugan?: BakucoreHolder;
   /** Restrict BakuCore choices by their printed core type. */
   coreTypes?: CoreType[];
   /** Restrict Energy-card choices by their charged state for Recharge effects. */
@@ -121,6 +124,14 @@ export type CostEffect =
   | { kind: "cost-discard"; amount: NumberValue; choiceId: keyof CardChoices }
   | { kind: "cost-alternative"; id: string; label: string; setsBaseFree: boolean; components: CostEffect[]; condition?: RuleCondition };
 
+export type SwapBakucoreEffect = {
+  kind: "swap-bakucore";
+  leftHolder: BakucoreHolder;
+  rightHolder: BakucoreHolder;
+  leftCoreChoiceId: keyof CardChoices;
+  rightCoreChoiceId: keyof CardChoices;
+};
+
 export type RuleAction =
   | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: NumberValue; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices }
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: NumberValue; duration: RulesDuration }
@@ -129,6 +140,7 @@ export type RuleAction =
   | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "hero" | "self"; enters: "charged" | "uncharged" }
   | { kind: "generate-energy"; amount: NumberValue; playerScope?: PlayerScope }
   | { kind: "recharge-energy"; amount: NumberValue | "all" }
+  | SwapBakucoreEffect
   | { kind: "set-stat"; stat: "power" | "damage"; value: NumberValue }
   | { kind: "set-rule"; rule: "victor-stat"; value: "power" | "damage"; duration: RulesDuration }
   | { kind: "win-game"; reason: string }

@@ -315,7 +315,16 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     reason: `${card.displayName || card.name}'s alternate win condition`,
   });
 
-  const movement: Array<[RegExp, Extract<RuleAction, { kind: "move" }>["verb"], Extract<RuleAction, { kind: "move" }>["object"]]> = [
+      const swapsBakucore = /\bswap\b[^.]*BakuCores?/i.test(text) && /opposing Bakugan/i.test(text);
+      if (swapsBakucore) actions.push({
+        kind: "swap-bakucore",
+        leftHolder: /this Bakugan(?:['’]s)?/i.test(text) ? "source-bakugan" : "controller-active",
+        rightHolder: "opponent-active",
+        leftCoreChoiceId: "coreCell",
+        rightCoreChoiceId: "secondaryCoreCell",
+      });
+
+      const movement: Array<[RegExp, Extract<RuleAction, { kind: "move" }>["verb"], Extract<RuleAction, { kind: "move" }>["object"]]> = [
     [/destroy .*hero/i, "destroy", "hero"], [/destroy .*evo/i, "destroy", "evo"], [/destroy .*energy/i, "destroy", "energy"],
     [/return .*hand/i, "return", "card"], [/retract .*bakugan/i, "retract", "bakugan"], [/attach .*bakucore/i, "attach", "bakucore"],
     [/remove .*bakucore/i, "remove", "bakucore"], [/return .*bakucore.*field face down/i, "return", "bakucore"],

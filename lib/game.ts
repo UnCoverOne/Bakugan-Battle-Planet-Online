@@ -185,6 +185,7 @@ export type CardChoices = {
   targetEnergyId?: string;
   targetEnergyIds?: string[];
   coreCell?: string;
+  secondaryCoreCell?: string;
   discardCardIds?: string[];
   handCardIds?: string[];
   orderedCardIds?: string[];
@@ -1152,6 +1153,7 @@ export const cardChoiceSpec = (_state: MatchState, _playerId: string, card: Game
     secondaryTargetBakuganId: "targetBakugan",
     targetCardId: "targetCard",
     coreCell: "core",
+    secondaryCoreCell: "core",
     discardCardIds: "discard",
     handCardIds: "multiHand",
     orderedCardIds: "deckOrder",
@@ -2355,8 +2357,40 @@ return;
       shuffle(player.deckCards);
       syncDeck(player);
       return;
-    case "move": {
-      const actionAmount = Math.max(0, Math.floor(resolveNumber(action.amount)));
+case "swap-bakucore": {
+  if (choices.confirmed === false) return;
+  const holderBakugan = (holder: typeof action.leftHolder) => {
+    if (holder === "source-bakugan") return allBakugan.find((candidate) => candidate.id === choices.sourceBakuganId);
+    if (holder === "opponent-active") return activeBakugan(state, opponent.id);
+    return activeBakugan(state, controllerId);
+  };
+  const leftBakugan = holderBakugan(action.leftHolder);
+  const rightBakugan = holderBakugan(action.rightHolder);
+  const leftCell = choices[action.leftCoreChoiceId];
+  const rightCell = choices[action.rightCoreChoiceId];
+  if (!leftBakugan || !rightBakugan || leftBakugan.id === rightBakugan.id
+    || typeof leftCell !== "string" || typeof rightCell !== "string" || leftCell === rightCell) return;
+  const leftPlacement = state.placements.find((placement) => placement.cell === leftCell);
+  const rightPlacement = state.placements.find((placement) => placement.cell === rightCell);
+  if (!leftPlacement || !rightPlacement
+    || leftPlacement.attachedTo !== leftBakugan.id || rightPlacement.attachedTo !== rightBakugan.id
+    || !leftBakugan.heldCoreCells.includes(leftCell) || !rightBakugan.heldCoreCells.includes(rightCell)) return;
+  leftPlacement.attachedTo = rightBakugan.id;
+  rightPlacement.attachedTo = leftBakugan.id;
+  leftBakugan.heldCoreCells = leftBakugan.heldCoreCells.map((cell) => cell === leftCell ? rightCell : cell);
+  rightBakugan.heldCoreCells = rightBakugan.heldCoreCells.map((cell) => cell === rightCell ? leftCell : cell);
+  entry(
+    state,
+    "game",
+    `${card.displayName || card.name} swapped ${leftPlacement.core.name} and ${rightPlacement.core.name}.`,
+    card,
+    "effect",
+    controllerId,
+  );
+  return;
+}
+case "move": {
+  const actionAmount = Math.max(0, Math.floor(resolveNumber(action.amount)));
       if (action.verb === "destroy" && action.object === "hero" && /destroy this/i.test(text)) {
         for (const owner of state.players) {
           const destroyed = owner.heroes.filter((hero) => hero.id === pending.sourceId || hero.id === card.id);

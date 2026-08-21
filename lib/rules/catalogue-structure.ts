@@ -350,6 +350,21 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     selected.maximum = amount;
     result.push(selected);
   }
+
+const swapsBakucore = /\bswap\b[^.]*BakuCores?/i.test(text) && /opposing Bakugan/i.test(text);
+if (swapsBakucore) {
+  const left = choice("coreCell", timing, "bakucore", "Choose a BakuCore to swap");
+  left.owner = "controller";
+  left.targetOwner = left.owner;
+  left.attachmentState = "attached";
+  left.attachedToBakugan = /this Bakugan(?:['’]s)?/i.test(text) ? "source-bakugan" : "controller-active";
+  const right = choice("secondaryCoreCell", timing, "bakucore", "Choose the opposing BakuCore to swap");
+  right.owner = "opponent";
+  right.targetOwner = right.owner;
+  right.attachmentState = "attached";
+  right.attachedToBakugan = "opponent-active";
+  result.push(left, right);
+}
   if (!/\ball BakuCores?\b|remove all BakuCores?/i.test(text)
     && (attachesCore || /remove .*bakucore|choose a bakucore|turn a bakucore/i.test(text))) {
     const selected = choice("coreCell", targetTiming, "bakucore", "Choose a BakuCore");

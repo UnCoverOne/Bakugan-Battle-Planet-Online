@@ -281,7 +281,15 @@ function optionsFor(
       });
     case "bakucore": {
       const ownerIds = new Set(targetOwners(match, controllerId, spec, chooserId, priorChoices).map((owner) => owner.id));
+      const attachedBakuganId = spec.attachedToBakugan === "controller-active"
+        ? match.selected[controllerId]
+        : spec.attachedToBakugan === "source-bakugan"
+          ? priorChoices.sourceBakuganId
+          : spec.attachedToBakugan === "opponent-active"
+            ? match.selected[opponent.id]
+            : undefined;
       return match.placements
+        .filter((placement) => !spec.attachedToBakugan || placement.attachedTo === attachedBakuganId)
         .filter((placement) => spec.attachmentState !== "attached" || Boolean(placement.attachedTo))
         .filter((placement) => spec.attachmentState !== "unattached" || !placement.attachedTo)
         .filter((placement) => !spec.coreTypes?.length || spec.coreTypes.includes(placement.core.type))
