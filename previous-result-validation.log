@@ -1,0 +1,293 @@
+TAP version 13
+# Subtest: the four-set schema-controlled catalogue is complete and unique
+ok 1 - the four-set schema-controlled catalogue is complete and unique
+  ---
+  duration_ms: 6.667331
+  type: 'test'
+  ...
+# Subtest: EX cards retain their supplied definitions and dedicated artwork
+ok 2 - EX cards retain their supplied definitions and dedicated artwork
+  ---
+  duration_ms: 0.696167
+  type: 'test'
+  ...
+# Subtest: newly supplied card scans resolve to full and thumbnail assets
+ok 3 - newly supplied card scans resolve to full and thumbnail assets
+  ---
+  duration_ms: 2.792169
+  type: 'test'
+  ...
+# Subtest: every printing has fingerprinted text and an executable typed definition
+ok 4 - every printing has fingerprinted text and an executable typed definition
+  ---
+  duration_ms: 7.809052
+  type: 'test'
+  ...
+# Subtest: non-obvious rules implementations have machine-readable provenance
+ok 5 - non-obvious rules implementations have machine-readable provenance
+  ---
+  duration_ms: 4.88788
+  type: 'test'
+  ...
+# Subtest: every catalogue card compiles through the canonical value system
+ok 6 - every catalogue card compiles through the canonical value system
+  ---
+  duration_ms: 26.929653
+  type: 'test'
+  ...
+# Subtest: previous-result grammar compiles for that-many and this-way printings
+ok 7 - previous-result grammar compiles for that-many and this-way printings
+  ---
+  duration_ms: 1.854102
+  type: 'test'
+  ...
+# Subtest: Inferno Cannon draws each player exactly the number that player actually discarded
+not ok 8 - Inferno Cannon draws each player exactly the number that player actually discarded
+  ---
+  duration_ms: 11.066334
+  type: 'test'
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/previous-result-quantities.test.ts:1:2635'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    2 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/previous-result-quantities.test.ts:82:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: Touch of Darkness counts all Heroes actually destroyed this way
+not ok 9 - Touch of Darkness counts all Heroes actually destroyed this way
+  ---
+  duration_ms: 2.470179
+  type: 'test'
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/previous-result-quantities.test.ts:1:3431'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'first'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'first'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/previous-result-quantities.test.ts:109:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Cyndeus Stand uses the actual number of hand cards shuffled
+not ok 10 - Cyndeus Stand uses the actual number of hand cards shuffled
+  ---
+  duration_ms: 2.322229
+  type: 'test'
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/previous-result-quantities.test.ts:1:4249'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0 !== 2
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 2
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/previous-result-quantities.test.ts:133:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: the reviewed typed catalogue covers every Battle Planet card exactly
+ok 11 - the reviewed typed catalogue covers every Battle Planet card exactly
+  ---
+  duration_ms: 6.481866
+  type: 'test'
+  ...
+# Subtest: unknown or modified card text is rejected rather than resolving partially
+ok 12 - unknown or modified card text is rejected rather than resolving partially
+  ---
+  duration_ms: 0.362689
+  type: 'test'
+  ...
+# Subtest: instead clauses are single typed replacement branches, not additive actions
+ok 13 - instead clauses are single typed replacement branches, not additive actions
+  ---
+  duration_ms: 0.405849
+  type: 'test'
+  ...
+# Subtest: Flow replacement clauses resolve the enhanced effect instead of the base effect
+ok 14 - Flow replacement clauses resolve the enhanced effect instead of the base effect
+  ---
+  duration_ms: 0.704424
+  type: 'test'
+  ...
+# Subtest: Light's Courage replaces +400 B with +800 B under Domination
+ok 15 - Light's Courage replaces +400 B with +800 B under Domination
+  ---
+  duration_ms: 2.664487
+  type: 'test'
+  ...
+# Subtest: replacement conditions cover sacrifice, held Core, faction, and turn-history families
+ok 16 - replacement conditions cover sacrifice, held Core, faction, and turn-history families
+  ---
+  duration_ms: 0.316273
+  type: 'test'
+  ...
+# Subtest: Sacrifice replacements choose exactly one branch
+ok 17 - Sacrifice replacements choose exactly one branch
+  ---
+  duration_ms: 0.27731
+  type: 'test'
+  ...
+# Subtest: played-card faction history is distinct, turn-scoped rules state
+ok 18 - played-card faction history is distinct, turn-scoped rules state
+  ---
+  duration_ms: 1.089639
+  type: 'test'
+  ...
+# Subtest: triggered replacement bonuses retain their trigger ownership
+ok 19 - triggered replacement bonuses retain their trigger ownership
+  ---
+  duration_ms: 0.309843
+  type: 'test'
+  ...
+# Subtest: open Bakugan count parser emits generalized boolean comparisons
+ok 20 - open Bakugan count parser emits generalized boolean comparisons
+  ---
+  duration_ms: 0.463142
+  type: 'test'
+  ...
+# Subtest: Ice Elation and Solitude resolve only with exactly one open Bakugan
+ok 21 - Ice Elation and Solitude resolve only with exactly one open Bakugan
+  ---
+  duration_ms: 0.916398
+  type: 'test'
+  ...
+# Subtest: rule objects are serializable resumable objects with stable definition identity
+ok 22 - rule objects are serializable resumable objects with stable definition identity
+  ---
+  duration_ms: 0.725047
+  type: 'test'
+  ...
+# Subtest: continuous layers apply ShadowStrike as negative-modifier filtering
+ok 23 - continuous layers apply ShadowStrike as negative-modifier filtering
+  ---
+  duration_ms: 6.856966
+  type: 'test'
+  ...
+# Subtest: typed cost reductions scale Everett Ray and active Hero reducers without discounting themselves
+ok 24 - typed cost reductions scale Everett Ray and active Hero reducers without discounting themselves
+  ---
+  duration_ms: 1.309286
+  type: 'test'
+  ...
+# Subtest: source-bound stat modifiers are parsed per symbol and derived exactly once from active cards
+ok 25 - source-bound stat modifiers are parsed per symbol and derived exactly once from active cards
+  ---
+  duration_ms: 1.486674
+  type: 'test'
+  ...
+# Subtest: source-bound parsing keeps unrelated cost scaling off Everett and evaluates real scaling dynamically
+ok 26 - source-bound parsing keeps unrelated cost scaling off Everett and evaluates real scaling dynamically
+  ---
+  duration_ms: 0.815394
+  type: 'test'
+  ...
+# Subtest: triggered open bonuses are not treated as continuous active-card modifiers
+ok 27 - triggered open bonuses are not treated as continuous active-card modifiers
+  ---
+  duration_ms: 0.779466
+  type: 'test'
+  ...
+# Subtest: active FrostStrike from the layered modifier system increases Flip costs
+ok 28 - active FrostStrike from the layered modifier system increases Flip costs
+  ---
+  duration_ms: 0.679954
+  type: 'test'
+  ...
+# Subtest: opponent-caused declarative triggers create typed rule objects
+ok 29 - opponent-caused declarative triggers create typed rule objects
+  ---
+  duration_ms: 1.350984
+  type: 'test'
+  ...
+# Subtest: choice timing is explicit for announce, pay, and resolve
+ok 30 - choice timing is explicit for announce, pay, and resolve
+  ---
+  duration_ms: 1.235817
+  type: 'test'
+  ...
+# Subtest: trigger resolution never infers announce timing from full printed card text
+ok 31 - trigger resolution never infers announce timing from full printed card text
+  ---
+  duration_ms: 2.745268
+  type: 'test'
+  ...
+# Subtest: Dan Kouzo's real open trigger pauses for the manual reveal before playing the top card
+ok 32 - Dan Kouzo's real open trigger pauses for the manual reveal before playing the top card
+  ---
+  duration_ms: 7.362456
+  type: 'test'
+  ...
+# Subtest: additional costs are separate from spell effects
+ok 33 - additional costs are separate from spell effects
+  ---
+  duration_ms: 0.124943
+  type: 'test'
+  ...
+# Subtest: Evo targeting uses canonical Character identity rather than display names
+ok 34 - Evo targeting uses canonical Character identity rather than display names
+  ---
+  duration_ms: 0.718758
+  type: 'test'
+  ...
+# Subtest: the game reducer has no card-resolution compatibility adapter
+ok 35 - the game reducer has no card-resolution compatibility adapter
+  ---
+  duration_ms: 19.315328
+  type: 'test'
+  ...
+# Subtest: Character and Evo held-Core bonuses are active only for their printed Core types
+ok 36 - Character and Evo held-Core bonuses are active only for their printed Core types
+  ---
+  duration_ms: 1.237229
+  type: 'test'
+  ...
+# Subtest: EX Dragonoid Maximus compiles a named-control alternate win condition
+ok 37 - EX Dragonoid Maximus compiles a named-control alternate win condition
+  ---
+  duration_ms: 0.232267
+  type: 'test'
+  ...
+1..37
+# tests 37
+# suites 0
+# pass 34
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1130.646255
