@@ -1,0 +1,950 @@
+Expected one match in package.json, found 3: 'tests/rules-engine-modernization.test.ts tests/turn-draw-mechanic.test.ts'
+
+added 510 packages in 20s
+TAP version 13
+# Subtest: the four-set schema-controlled catalogue is complete and unique
+ok 1 - the four-set schema-controlled catalogue is complete and unique
+  ---
+  duration_ms: 3.557515
+  type: 'test'
+  ...
+# Subtest: EX cards retain their supplied definitions and dedicated artwork
+ok 2 - EX cards retain their supplied definitions and dedicated artwork
+  ---
+  duration_ms: 0.712977
+  type: 'test'
+  ...
+# Subtest: newly supplied card scans resolve to full and thumbnail assets
+ok 3 - newly supplied card scans resolve to full and thumbnail assets
+  ---
+  duration_ms: 2.062716
+  type: 'test'
+  ...
+# Subtest: every printing has fingerprinted text and an executable typed definition
+ok 4 - every printing has fingerprinted text and an executable typed definition
+  ---
+  duration_ms: 6.422811
+  type: 'test'
+  ...
+# Subtest: non-obvious rules implementations have machine-readable provenance
+ok 5 - non-obvious rules implementations have machine-readable provenance
+  ---
+  duration_ms: 3.473879
+  type: 'test'
+  ...
+# Subtest: every catalogue card compiles through the canonical value system
+ok 6 - every catalogue card compiles through the canonical value system
+  ---
+  duration_ms: 34.304794
+  type: 'test'
+  ...
+# Subtest: the reviewed typed catalogue covers every Battle Planet card exactly
+ok 7 - the reviewed typed catalogue covers every Battle Planet card exactly
+  ---
+  duration_ms: 5.262603
+  type: 'test'
+  ...
+# Subtest: unknown or modified card text is rejected rather than resolving partially
+ok 8 - unknown or modified card text is rejected rather than resolving partially
+  ---
+  duration_ms: 0.410651
+  type: 'test'
+  ...
+# Subtest: instead clauses are single typed replacement branches, not additive actions
+ok 9 - instead clauses are single typed replacement branches, not additive actions
+  ---
+  duration_ms: 0.525926
+  type: 'test'
+  ...
+# Subtest: Flow replacement clauses resolve the enhanced effect instead of the base effect
+ok 10 - Flow replacement clauses resolve the enhanced effect instead of the base effect
+  ---
+  duration_ms: 1.280697
+  type: 'test'
+  ...
+# Subtest: Light's Courage replaces +400 B with +800 B under Domination
+ok 11 - Light's Courage replaces +400 B with +800 B under Domination
+  ---
+  duration_ms: 3.026163
+  type: 'test'
+  ...
+# Subtest: replacement conditions cover sacrifice, held Core, faction, and turn-history families
+ok 12 - replacement conditions cover sacrifice, held Core, faction, and turn-history families
+  ---
+  duration_ms: 0.293489
+  type: 'test'
+  ...
+# Subtest: Sacrifice replacements choose exactly one branch
+ok 13 - Sacrifice replacements choose exactly one branch
+  ---
+  duration_ms: 0.24599
+  type: 'test'
+  ...
+# Subtest: played-card faction history is distinct, turn-scoped rules state
+ok 14 - played-card faction history is distinct, turn-scoped rules state
+  ---
+  duration_ms: 1.472394
+  type: 'test'
+  ...
+# Subtest: triggered replacement bonuses retain their trigger ownership
+ok 15 - triggered replacement bonuses retain their trigger ownership
+  ---
+  duration_ms: 0.566854
+  type: 'test'
+  ...
+# Subtest: open Bakugan count parser emits generalized boolean comparisons
+ok 16 - open Bakugan count parser emits generalized boolean comparisons
+  ---
+  duration_ms: 0.68288
+  type: 'test'
+  ...
+# Subtest: Ice Elation and Solitude resolve only with exactly one open Bakugan
+ok 17 - Ice Elation and Solitude resolve only with exactly one open Bakugan
+  ---
+  duration_ms: 1.363383
+  type: 'test'
+  ...
+# Subtest: rule objects are serializable resumable objects with stable definition identity
+ok 18 - rule objects are serializable resumable objects with stable definition identity
+  ---
+  duration_ms: 1.248343
+  type: 'test'
+  ...
+# Subtest: continuous layers apply ShadowStrike as negative-modifier filtering
+ok 19 - continuous layers apply ShadowStrike as negative-modifier filtering
+  ---
+  duration_ms: 7.416648
+  type: 'test'
+  ...
+# Subtest: typed cost reductions scale Everett Ray and active Hero reducers without discounting themselves
+ok 20 - typed cost reductions scale Everett Ray and active Hero reducers without discounting themselves
+  ---
+  duration_ms: 1.768236
+  type: 'test'
+  ...
+# Subtest: source-bound stat modifiers are parsed per symbol and derived exactly once from active cards
+ok 21 - source-bound stat modifiers are parsed per symbol and derived exactly once from active cards
+  ---
+  duration_ms: 2.031699
+  type: 'test'
+  ...
+# Subtest: source-bound parsing keeps unrelated cost scaling off Everett and evaluates real scaling dynamically
+ok 22 - source-bound parsing keeps unrelated cost scaling off Everett and evaluates real scaling dynamically
+  ---
+  duration_ms: 0.90439
+  type: 'test'
+  ...
+# Subtest: triggered open bonuses are not treated as continuous active-card modifiers
+ok 23 - triggered open bonuses are not treated as continuous active-card modifiers
+  ---
+  duration_ms: 1.079936
+  type: 'test'
+  ...
+# Subtest: active FrostStrike from the layered modifier system increases Flip costs
+ok 24 - active FrostStrike from the layered modifier system increases Flip costs
+  ---
+  duration_ms: 0.971883
+  type: 'test'
+  ...
+# Subtest: opponent-caused declarative triggers create typed rule objects
+ok 25 - opponent-caused declarative triggers create typed rule objects
+  ---
+  duration_ms: 1.770775
+  type: 'test'
+  ...
+# Subtest: choice timing is explicit for announce, pay, and resolve
+ok 26 - choice timing is explicit for announce, pay, and resolve
+  ---
+  duration_ms: 1.757157
+  type: 'test'
+  ...
+# Subtest: trigger resolution never infers announce timing from full printed card text
+ok 27 - trigger resolution never infers announce timing from full printed card text
+  ---
+  duration_ms: 3.232394
+  type: 'test'
+  ...
+# Subtest: Dan Kouzo's real open trigger pauses for the manual reveal before playing the top card
+ok 28 - Dan Kouzo's real open trigger pauses for the manual reveal before playing the top card
+  ---
+  duration_ms: 8.725093
+  type: 'test'
+  ...
+# Subtest: additional costs are separate from spell effects
+ok 29 - additional costs are separate from spell effects
+  ---
+  duration_ms: 0.109173
+  type: 'test'
+  ...
+# Subtest: Evo targeting uses canonical Character identity rather than display names
+ok 30 - Evo targeting uses canonical Character identity rather than display names
+  ---
+  duration_ms: 0.695826
+  type: 'test'
+  ...
+# Subtest: the game reducer has no card-resolution compatibility adapter
+ok 31 - the game reducer has no card-resolution compatibility adapter
+  ---
+  duration_ms: 58.176772
+  type: 'test'
+  ...
+# Subtest: Character and Evo held-Core bonuses are active only for their printed Core types
+ok 32 - Character and Evo held-Core bonuses are active only for their printed Core types
+  ---
+  duration_ms: 1.297556
+  type: 'test'
+  ...
+# Subtest: EX Dragonoid Maximus compiles a named-control alternate win condition
+ok 33 - EX Dragonoid Maximus compiles a named-control alternate win condition
+  ---
+  duration_ms: 0.428725
+  type: 'test'
+  ...
+1..33
+# tests 33
+# suites 0
+# pass 33
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 855.153041
+
+> bakugan-battle-planet-online@0.3.0 test:rules
+> node --import tsx --test tests/bakucore-choice-regressions.test.ts tests/recharge-and-dark-waters.test.ts tests/rules-engine-modernization.test.ts tests/turn-draw-mechanic.test.ts tests/rules-primitives.test.ts tests/targeted-action-triggers.test.ts tests/dragonoid-maximus-printings.test.ts tests/deck-inspection.test.ts tests/magnus-ultimate-rival.test.ts tests/value-expressions.test.ts tests/dynamic-value-catalogue.test.ts tests/rules-architecture-cleanup.test.ts tests/energy-count-source.test.ts
+
+TAP version 13
+# Subtest: Consort creates legal Field-core and open-Bakugan selections
+ok 1 - Consort creates legal Field-core and open-Bakugan selections
+  ---
+  duration_ms: 0.998048
+  type: 'test'
+  ...
+# Subtest: Mega Punch compiles its printed Fist attachment into a complete choice sequence
+ok 2 - Mega Punch compiles its printed Fist attachment into a complete choice sequence
+  ---
+  duration_ms: 0.783721
+  type: 'test'
+  ...
+# Subtest: typed BakuCore choices expose only matching Field cores from either player's setup
+ok 3 - typed BakuCore choices expose only matching Field cores from either player's setup
+  ---
+  duration_ms: 11.928504
+  type: 'test'
+  ...
+# Subtest: other singular Field-core attachment effects share the repaired parser
+ok 4 - other singular Field-core attachment effects share the repaired parser
+  ---
+  duration_ms: 0.360665
+  type: 'test'
+  ...
+# Subtest: Haos Titan Nillious separates its static Core bonuses from its on-open attachment
+ok 5 - Haos Titan Nillious separates its static Core bonuses from its on-open attachment
+  ---
+  duration_ms: 0.412617
+  type: 'test'
+  ...
+# Subtest: Haos Titan Nillious Core bonuses stay active exactly while the matching Core is held
+ok 6 - Haos Titan Nillious Core bonuses stay active exactly while the matching Core is held
+  ---
+  duration_ms: 12.045855
+  type: 'test'
+  ...
+# Subtest: Haos Titan Nillious attaches only when its own Bakugan opens with the Evo already in play
+ok 7 - Haos Titan Nillious attaches only when its own Bakugan opens with the Evo already in play
+  ---
+  duration_ms: 2.975055
+  type: 'test'
+  ...
+# Subtest: up-to-three Field-core effects resolve as three sequential optional legal selections
+ok 8 - up-to-three Field-core effects resolve as three sequential optional legal selections
+  ---
+  duration_ms: 0.22564
+  type: 'test'
+  ...
+# Subtest: highlighted SVG BakuCores retain a painted pointer hit target
+ok 9 - highlighted SVG BakuCores retain a painted pointer hit target
+  ---
+  duration_ms: 13.782462
+  type: 'test'
+  ...
+# Subtest: The Sky's Hymn opens one private top-three ordering window
+ok 10 - The Sky's Hymn opens one private top-three ordering window
+  ---
+  duration_ms: 14.354772
+  type: 'test'
+  ...
+# Subtest: top-three ordering effects preserve scarcity while retaining reorder permission
+ok 11 - top-three ordering effects preserve scarcity while retaining reorder permission
+  ---
+  duration_ms: 4.822925
+  type: 'test'
+  ...
+# Subtest: submitting the dragged order changes only the inspected top cards
+ok 12 - submitting the dragged order changes only the inspected top cards
+  ---
+  duration_ms: 4.657342
+  type: 'test'
+  ...
+# Subtest: top-deck selection creates a bounded choice and an executable selected-card path
+ok 13 - top-deck selection creates a bounded choice and an executable selected-card path
+  ---
+  duration_ms: 0.273103
+  type: 'test'
+  ...
+# Subtest: Dan Kouzo reveals the top card publicly while retaining the optional play choice
+ok 14 - Dan Kouzo reveals the top card publicly while retaining the optional play choice
+  ---
+  duration_ms: 1.688367
+  type: 'test'
+  ...
+# Subtest: reveal-and-play effects reveal before the choice and skip without adding the card to the batch
+ok 15 - reveal-and-play effects reveal before the choice and skip without adding the card to the batch
+  ---
+  duration_ms: 5.536095
+  type: 'test'
+  ...
+# Subtest: a revealed non-Flip enters the batch only after Play card is chosen
+ok 16 - a revealed non-Flip enters the batch only after Play card is chosen
+  ---
+  duration_ms: 11.365392
+  type: 'test'
+  ...
+# Subtest: a revealed Flip has Skip as its only legal decision
+ok 17 - a revealed Flip has Skip as its only legal decision
+  ---
+  duration_ms: 6.661151
+  type: 'test'
+  ...
+# Subtest: playing Dan after a Bakugan opened installs the Hero without replaying the open trigger
+ok 18 - playing Dan after a Bakugan opened installs the Hero without replaying the open trigger
+  ---
+  duration_ms: 5.989156
+  type: 'test'
+  ...
+# Subtest: playable permanents never use a triggered ability as their card-play program
+ok 19 - playable permanents never use a triggered ability as their card-play program
+  ---
+  duration_ms: 0.996428
+  type: 'test'
+  ...
+# Subtest: Toshi opens a private full-deck browser while limiting selection to Action cards
+ok 20 - Toshi opens a private full-deck browser while limiting selection to Action cards
+  ---
+  duration_ms: 2.170783
+  type: 'test'
+  ...
+# Subtest: Lia search moves the selected Hero to hand and leaves every other card in the shuffled deck
+ok 21 - Lia search moves the selected Hero to hand and leaves every other card in the shuffled deck
+  ---
+  duration_ms: 2.457976
+  type: 'test'
+  ...
+# Subtest: the gameplay runtime mounts distinct draggable, reveal, and full-deck search presentations
+ok 22 - the gameplay runtime mounts distinct draggable, reveal, and full-deck search presentations
+  ---
+  duration_ms: 20.705202
+  type: 'test'
+  ...
+# Subtest: Age of Aurelus Lia keeps its top-three Hero selection in one optional play window
+ok 23 - Age of Aurelus Lia keeps its top-three Hero selection in one optional play window
+  ---
+  duration_ms: 2.508007
+  type: 'test'
+  ...
+# Subtest: Age of Aurelus Lia shrinks its inspection to the cards actually remaining
+ok 24 - Age of Aurelus Lia shrinks its inspection to the cards actually remaining
+  ---
+  duration_ms: 5.713356
+  type: 'test'
+  ...
+# Subtest: Age of Aurelus Lia is an automatic no-op with an empty deck
+ok 25 - Age of Aurelus Lia is an automatic no-op with an empty deck
+  ---
+  duration_ms: 1.330773
+  type: 'test'
+  ...
+# Subtest: Age of Aurelus Lia only offers Skip when the short window has no Hero
+ok 26 - Age of Aurelus Lia only offers Skip when the short window has no Hero
+  ---
+  duration_ms: 1.109544
+  type: 'test'
+  ...
+# Subtest: skipping Age of Aurelus Lia leaves every inspected card on the deck
+ok 27 - skipping Age of Aurelus Lia leaves every inspected card on the deck
+  ---
+  duration_ms: 4.663389
+  type: 'test'
+  ...
+# Subtest: Dragonoid Maximus recognizes only the three Battle Brawlers Hero printings
+ok 28 - Dragonoid Maximus recognizes only the three Battle Brawlers Hero printings
+  ---
+  duration_ms: 25.261851
+  type: 'test'
+  ...
+# Subtest: the three exact Battle Brawlers Heroes activate Dragonoid Maximus
+ok 29 - the three exact Battle Brawlers Heroes activate Dragonoid Maximus
+  ---
+  duration_ms: 15.481732
+  type: 'test'
+  ...
+# Subtest: other Dan, Wynton, and Lia Hero cards do not activate Dragonoid Maximus
+ok 30 - other Dan, Wynton, and Lia Hero cards do not activate Dragonoid Maximus
+  ---
+  duration_ms: 3.413926
+  type: 'test'
+  ...
+# Subtest: every catalogue card compiles through the canonical value system
+ok 31 - every catalogue card compiles through the canonical value system
+  ---
+  duration_ms: 28.576058
+  type: 'test'
+  ...
+# Subtest: physical Energy cards are the only Energy-card count source
+ok 32 - physical Energy cards are the only Energy-card count source
+  ---
+  duration_ms: 4.984338
+  type: 'test'
+  ...
+# Subtest: printed Energy-card thresholds compile to the canonical count expression
+ok 33 - printed Energy-card thresholds compile to the canonical count expression
+  ---
+  duration_ms: 0.501555
+  type: 'test'
+  ...
+# Subtest: Wynton scales from physical Energy cards and ignores generated Energy
+ok 34 - Wynton scales from physical Energy cards and ignores generated Energy
+  ---
+  duration_ms: 9.086599
+  type: 'test'
+  ...
+# Subtest: runtime views and replay encoding derive Energy-card count from the zone
+ok 35 - runtime views and replay encoding derive Energy-card count from the zone
+  ---
+  duration_ms: 1.456973
+  type: 'test'
+  ...
+# Subtest: production source contains no cached Energy-count compatibility path
+ok 36 - production source contains no cached Energy-count compatibility path
+  ---
+  duration_ms: 11.560238
+  type: 'test'
+  ...
+# Subtest: Magnus Ultimate Rival uses the errata text and an optional full-deck selection
+ok 37 - Magnus Ultimate Rival uses the errata text and an optional full-deck selection
+  ---
+  duration_ms: 1.24416
+  type: 'test'
+  ...
+# Subtest: a self-play trigger fires for Magnus itself but not for later cards
+ok 38 - a self-play trigger fires for Magnus itself but not for later cards
+  ---
+  duration_ms: 3.855062
+  type: 'test'
+  ...
+# Subtest: generic card-play triggers remain active after self-play triggers are scoped
+ok 39 - generic card-play triggers remain active after self-play triggers are scoped
+  ---
+  duration_ms: 8.952428
+  type: 'test'
+  ...
+# Subtest: every catalogue self-entry trigger is source-scoped without narrowing generic play triggers
+ok 40 - every catalogue self-entry trigger is source-scoped without narrowing generic play triggers
+  ---
+  duration_ms: 0.711973
+  type: 'test'
+  ...
+# Subtest: Magnus can finish the search without taking a card and still resolves the shuffle
+ok 41 - Magnus can finish the search without taking a card and still resolves the shuffle
+  ---
+  duration_ms: 10.066704
+  type: 'test'
+  ...
+# Subtest: the full-deck search UI explains the optional no-card path
+ok 42 - the full-deck search UI explains the optional no-card path
+  ---
+  duration_ms: 10.64839
+  type: 'test'
+  ...
+# Subtest: Recharge text compiles for Serpenteze and generic Recharge cards
+ok 43 - Recharge text compiles for Serpenteze and generic Recharge cards
+  ---
+  duration_ms: 1.068071
+  type: 'test'
+  ...
+# Subtest: up-to Recharge choices expose only the controller's uncharged Energy
+ok 44 - up-to Recharge choices expose only the controller's uncharged Energy
+  ---
+  duration_ms: 2.964329
+  type: 'test'
+  ...
+# Subtest: Recharge charges Energy without creating spendable Energy pool
+ok 45 - Recharge charges Energy without creating spendable Energy pool
+  ---
+  duration_ms: 0.467162
+  type: 'test'
+  ...
+# Subtest: Titan Serpenteze Ultra open trigger resolves Recharge all through the engine
+ok 46 - Titan Serpenteze Ultra open trigger resolves Recharge all through the engine
+  ---
+  duration_ms: 5.921937
+  type: 'test'
+  ...
+# Subtest: AI keeps Dark Waters when +200 B is redundant
+ok 47 - AI keeps Dark Waters when +200 B is redundant
+  ---
+  duration_ms: 13.696882
+  type: 'test'
+  ...
+# Subtest: AI still uses Dark Waters when +200 B changes the Brawl result
+ok 48 - AI still uses Dark Waters when +200 B changes the Brawl result
+  ---
+  duration_ms: 4.191881
+  type: 'test'
+  ...
+# Subtest: the rules engine has one canonical dynamic-value representation
+ok 49 - the rules engine has one canonical dynamic-value representation
+  ---
+  duration_ms: 2.38488
+  type: 'test'
+  ...
+# Subtest: the reviewed typed catalogue covers every Battle Planet card exactly
+ok 50 - the reviewed typed catalogue covers every Battle Planet card exactly
+  ---
+  duration_ms: 6.97937
+  type: 'test'
+  ...
+# Subtest: unknown or modified card text is rejected rather than resolving partially
+ok 51 - unknown or modified card text is rejected rather than resolving partially
+  ---
+  duration_ms: 0.614943
+  type: 'test'
+  ...
+# Subtest: instead clauses are single typed replacement branches, not additive actions
+ok 52 - instead clauses are single typed replacement branches, not additive actions
+  ---
+  duration_ms: 0.560256
+  type: 'test'
+  ...
+# Subtest: Flow replacement clauses resolve the enhanced effect instead of the base effect
+ok 53 - Flow replacement clauses resolve the enhanced effect instead of the base effect
+  ---
+  duration_ms: 1.071814
+  type: 'test'
+  ...
+# Subtest: Light's Courage replaces +400 B with +800 B under Domination
+ok 54 - Light's Courage replaces +400 B with +800 B under Domination
+  ---
+  duration_ms: 3.853513
+  type: 'test'
+  ...
+# Subtest: replacement conditions cover sacrifice, held Core, faction, and turn-history families
+ok 55 - replacement conditions cover sacrifice, held Core, faction, and turn-history families
+  ---
+  duration_ms: 3.519127
+  type: 'test'
+  ...
+# Subtest: Sacrifice replacements choose exactly one branch
+ok 56 - Sacrifice replacements choose exactly one branch
+  ---
+  duration_ms: 0.367172
+  type: 'test'
+  ...
+# Subtest: played-card faction history is distinct, turn-scoped rules state
+ok 57 - played-card faction history is distinct, turn-scoped rules state
+  ---
+  duration_ms: 7.100332
+  type: 'test'
+  ...
+# Subtest: triggered replacement bonuses retain their trigger ownership
+ok 58 - triggered replacement bonuses retain their trigger ownership
+  ---
+  duration_ms: 0.49521
+  type: 'test'
+  ...
+# Subtest: open Bakugan count parser emits generalized boolean comparisons
+ok 59 - open Bakugan count parser emits generalized boolean comparisons
+  ---
+  duration_ms: 0.817361
+  type: 'test'
+  ...
+# Subtest: Ice Elation and Solitude resolve only with exactly one open Bakugan
+ok 60 - Ice Elation and Solitude resolve only with exactly one open Bakugan
+  ---
+  duration_ms: 7.010919
+  type: 'test'
+  ...
+# Subtest: rule objects are serializable resumable objects with stable definition identity
+ok 61 - rule objects are serializable resumable objects with stable definition identity
+  ---
+  duration_ms: 1.062073
+  type: 'test'
+  ...
+# Subtest: continuous layers apply ShadowStrike as negative-modifier filtering
+ok 62 - continuous layers apply ShadowStrike as negative-modifier filtering
+  ---
+  duration_ms: 9.443037
+  type: 'test'
+  ...
+# Subtest: typed cost reductions scale Everett Ray and active Hero reducers without discounting themselves
+ok 63 - typed cost reductions scale Everett Ray and active Hero reducers without discounting themselves
+  ---
+  duration_ms: 2.375578
+  type: 'test'
+  ...
+# Subtest: source-bound stat modifiers are parsed per symbol and derived exactly once from active cards
+ok 64 - source-bound stat modifiers are parsed per symbol and derived exactly once from active cards
+  ---
+  duration_ms: 2.484465
+  type: 'test'
+  ...
+# Subtest: source-bound parsing keeps unrelated cost scaling off Everett and evaluates real scaling dynamically
+ok 65 - source-bound parsing keeps unrelated cost scaling off Everett and evaluates real scaling dynamically
+  ---
+  duration_ms: 1.68358
+  type: 'test'
+  ...
+# Subtest: triggered open bonuses are not treated as continuous active-card modifiers
+ok 66 - triggered open bonuses are not treated as continuous active-card modifiers
+  ---
+  duration_ms: 1.316728
+  type: 'test'
+  ...
+# Subtest: active FrostStrike from the layered modifier system increases Flip costs
+ok 67 - active FrostStrike from the layered modifier system increases Flip costs
+  ---
+  duration_ms: 1.07353
+  type: 'test'
+  ...
+# Subtest: opponent-caused declarative triggers create typed rule objects
+ok 68 - opponent-caused declarative triggers create typed rule objects
+  ---
+  duration_ms: 1.961198
+  type: 'test'
+  ...
+# Subtest: choice timing is explicit for announce, pay, and resolve
+ok 69 - choice timing is explicit for announce, pay, and resolve
+  ---
+  duration_ms: 1.596188
+  type: 'test'
+  ...
+# Subtest: trigger resolution never infers announce timing from full printed card text
+ok 70 - trigger resolution never infers announce timing from full printed card text
+  ---
+  duration_ms: 6.214646
+  type: 'test'
+  ...
+# Subtest: Dan Kouzo's real open trigger pauses for the manual reveal before playing the top card
+ok 71 - Dan Kouzo's real open trigger pauses for the manual reveal before playing the top card
+  ---
+  duration_ms: 11.467178
+  type: 'test'
+  ...
+# Subtest: additional costs are separate from spell effects
+ok 72 - additional costs are separate from spell effects
+  ---
+  duration_ms: 0.218328
+  type: 'test'
+  ...
+# Subtest: Evo targeting uses canonical Character identity rather than display names
+ok 73 - Evo targeting uses canonical Character identity rather than display names
+  ---
+  duration_ms: 0.98335
+  type: 'test'
+  ...
+# Subtest: the game reducer has no card-resolution compatibility adapter
+ok 74 - the game reducer has no card-resolution compatibility adapter
+  ---
+  duration_ms: 26.517064
+  type: 'test'
+  ...
+# Subtest: Character and Evo held-Core bonuses are active only for their printed Core types
+ok 75 - Character and Evo held-Core bonuses are active only for their printed Core types
+  ---
+  duration_ms: 1.785082
+  type: 'test'
+  ...
+# Subtest: EX Dragonoid Maximus compiles a named-control alternate win condition
+ok 76 - EX Dragonoid Maximus compiles a named-control alternate win condition
+  ---
+  duration_ms: 0.372326
+  type: 'test'
+  ...
+# Subtest: player scope is independent of two-player opponent assumptions
+ok 77 - player scope is independent of two-player opponent assumptions
+  ---
+  duration_ms: 16.021278
+  type: 'test'
+  ...
+# Subtest: zone ownership can follow the chooser or a separately chosen player
+ok 78 - zone ownership can follow the chooser or a separately chosen player
+  ---
+  duration_ms: 1.346476
+  type: 'test'
+  ...
+# Subtest: dynamic number expressions evaluate typed counts and arithmetic
+ok 79 - dynamic number expressions evaluate typed counts and arithmetic
+  ---
+  duration_ms: 3.852095
+  type: 'test'
+  ...
+# Subtest: chooser ownership and hidden-zone ownership are independent
+ok 80 - chooser ownership and hidden-zone ownership are independent
+  ---
+  duration_ms: 2.293681
+  type: 'test'
+  ...
+# Subtest: each-player choices build a distinct legal option pool from each chooser's own zone
+ok 81 - each-player choices build a distinct legal option pool from each chooser's own zone
+  ---
+  duration_ms: 1.263088
+  type: 'test'
+  ...
+# Subtest: catalogue primitives compile player scope, copy and typed dynamic amounts
+ok 82 - catalogue primitives compile player scope, copy and typed dynamic amounts
+  ---
+  duration_ms: 1.43274
+  type: 'test'
+  ...
+# Subtest: copy objects keep source identity while supporting independent or inherited selections
+ok 83 - copy objects keep source identity while supporting independent or inherited selections
+  ---
+  duration_ms: 3.276555
+  type: 'test'
+  ...
+# Subtest: Absorb compiles its optional negate-and-copy sentence as one generalized operation
+ok 84 - Absorb compiles its optional negate-and-copy sentence as one generalized operation
+  ---
+  duration_ms: 0.23286
+  type: 'test'
+  ...
+# Subtest: the controlled catalogue has four Action-on-this trigger sources
+ok 85 - the controlled catalogue has four Action-on-this trigger sources
+  ---
+  duration_ms: 1.838542
+  type: 'test'
+  ...
+# Subtest: Action-on-this triggers require an Action that is actually played on the source Bakugan
+ok 86 - Action-on-this triggers require an Action that is actually played on the source Bakugan
+  ---
+  duration_ms: 11.6123
+  type: 'test'
+  ...
+# Subtest: non-selected open Action-on-this sources still trigger when an Action targets them
+ok 87 - non-selected open Action-on-this sources still trigger when an Action targets them
+  ---
+  duration_ms: 14.83869
+  type: 'test'
+  ...
+# Subtest: Deep Dive and Quickfire implicitly select the active Bakugan for every Action-on-this source
+ok 88 - Deep Dive and Quickfire implicitly select the active Bakugan for every Action-on-this source
+  ---
+  duration_ms: 7.361178
+  type: 'test'
+  ...
+# Subtest: all controller-reroll Actions use the same implicit active-Bakugan targeting path
+ok 89 - all controller-reroll Actions use the same implicit active-Bakugan targeting path
+  ---
+  duration_ms: 10.796956
+  type: 'test'
+  ...
+# Subtest: ordinary stat Actions without a printed choice also count as played on the active Bakugan
+ok 90 - ordinary stat Actions without a printed choice also count as played on the active Bakugan
+  ---
+  duration_ms: 1.677188
+  type: 'test'
+  ...
+# Subtest: Action-on-this triggers also recognize a secondary Bakugan target
+ok 91 - Action-on-this triggers also recognize a secondary Bakugan target
+  ---
+  duration_ms: 2.064984
+  type: 'test'
+  ...
+# Subtest: extra-turn draw is a generic rules-text mechanic, not a Strata name check
+ok 92 - extra-turn draw is a generic rules-text mechanic, not a Strata name check
+  ---
+  duration_ms: 2.150735
+  type: 'test'
+  ...
+# Subtest: Battle Brawlers Strata adds one draw to every player while in play
+ok 93 - Battle Brawlers Strata adds one draw to every player while in play
+  ---
+  duration_ms: 4.610226
+  type: 'test'
+  ...
+# Subtest: multiple Battle Brawlers Strata copies stack independently
+ok 94 - multiple Battle Brawlers Strata copies stack independently
+  ---
+  duration_ms: 0.748087
+  type: 'test'
+  ...
+# Subtest: Battle Brawlers Strata copies controlled by different players also stack
+ok 95 - Battle Brawlers Strata copies controlled by different players also stack
+  ---
+  duration_ms: 0.60497
+  type: 'test'
+  ...
+# Subtest: Bakugan Resurgence Strata does not activate extra-turn draw
+ok 96 - Bakugan Resurgence Strata does not activate extra-turn draw
+  ---
+  duration_ms: 1.021606
+  type: 'test'
+  ...
+# Subtest: single-player extra-turn draw targets remain asymmetric
+ok 97 - single-player extra-turn draw targets remain asymmetric
+  ---
+  duration_ms: 0.809152
+  type: 'test'
+  ...
+# Subtest: number expressions compose arithmetic, counts, choice values and clamps
+ok 98 - number expressions compose arithmetic, counts, choice values and clamps
+  ---
+  duration_ms: 4.341825
+  type: 'test'
+  ...
+# Subtest: entity properties and boolean comparisons can compare two live players
+ok 99 - entity properties and boolean comparisons can compare two live players
+  ---
+  duration_ms: 1.173828
+  type: 'test'
+  ...
+# Subtest: generic expression conditions run through ruleConditionActive
+ok 100 - generic expression conditions run through ruleConditionActive
+  ---
+  duration_ms: 3.253975
+  type: 'test'
+  ...
+# Subtest: choice minimum and maximum values are evaluated from the current game state
+ok 101 - choice minimum and maximum values are evaluated from the current game state
+  ---
+  duration_ms: 1.303803
+  type: 'test'
+  ...
+# Subtest: captured expressions freeze at their requested timing boundary
+ok 102 - captured expressions freeze at their requested timing boundary
+  ---
+  duration_ms: 0.805389
+  type: 'test'
+  ...
+# Subtest: catalogue compiler emits dynamic values in ordinary numeric action slots
+ok 103 - catalogue compiler emits dynamic values in ordinary numeric action slots
+  ---
+  duration_ms: 0.640668
+  type: 'test'
+  ...
+# Subtest: catalogue count conditions compile to generic boolean expressions
+ok 104 - catalogue count conditions compile to generic boolean expressions
+  ---
+  duration_ms: 0.566884
+  type: 'test'
+  ...
+# Subtest: card-play capture traverses dynamic cost and choice values at announce and pay boundaries
+ok 105 - card-play capture traverses dynamic cost and choice values at announce and pay boundaries
+  ---
+  duration_ms: 0.71364
+  type: 'test'
+  ...
+# Subtest: instruction capture waits for its declared timing and traverses boolean comparisons
+ok 106 - instruction capture waits for its declared timing and traverses boolean comparisons
+  ---
+  duration_ms: 0.705139
+  type: 'test'
+  ...
+# Subtest: card cost evaluation honors a captured payment value instead of recomputing it
+ok 107 - card cost evaluation honors a captured payment value instead of recomputing it
+  ---
+  duration_ms: 1.055512
+  type: 'test'
+  ...
+1..107
+# tests 107
+# suites 0
+# pass 107
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2032.937148
+
+> bakugan-battle-planet-online@0.3.0 build
+> bash scripts/build-verified.sh
+
+Running bounded vinext build...
+
+  vinext build  (Vite 8.0.13)
+
+[34m[1/5] analyze client references...[39m
+[2Ktransforming...✓ 338 modules transformed.
+rendering chunks...
+[32m✓ built in 916ms[39m
+[34m[2/5] analyze server references...[39m
+[2Ktransforming...✓ 344 modules transformed.
+rendering chunks...
+[32m✓ built in 855ms[39m
+[34m[3/5] build rsc environment...[39m
+[2Ktransforming...✓ 344 modules transformed.
+rendering chunks...
+computing gzip size...
+[32m✓ built in 927ms[39m
+[34m[4/5] build client environment...[39m
+[2Ktransforming...✓ 351 modules transformed.
+rendering chunks...
+computing gzip size...
+[32m✓ built in 2.18s[39m
+[34m[5/5] build ssr environment...[39m
+[2Ktransforming...✓ 350 modules transformed.
+rendering chunks...
+computing gzip size...
+[32m✓ built in 946ms[39m
+[0m
+  Route (app)
+  ┌ ? /                     
+  ├ ƒ /:screen+             
+  ├ ? /account              
+  ├ ƒ /admin                
+  ├ λ /api/admin            
+  ├ λ /api/ai-decks         
+  ├ λ /api/auth             
+  ├ λ /api/card-overrides   
+  ├ λ /api/game             
+  ├ λ /api/game/active      
+  ├ λ /api/game/resume      
+  ├ λ /api/profile          
+  ├ λ /api/public-decks     
+  ├ λ /api/ranked           
+  ├ λ /api/replays          
+  ├ λ /api/replays/debug    
+  ├ λ /api/rulings          
+  ├ λ /api/rum              
+  ├ λ /api/social           
+  ├ λ /api/user-data        
+  ├ λ /api/version          
+  ├ ƒ /brawlers/:userId     
+  ├ ƒ /builder/:id          
+  ├ ƒ /compendium/:segments*
+  ├ ? /dashboard            
+  ├ ? /decks                
+  ├ ƒ /decks/:id            
+  ├ ? /decks/public         
+  ├ ƒ /decks/public/:id     
+  ├ ? /game-screen-lab      
+  ├ ƒ /history/:segments*   
+  ├ ? /leaderboard          
+  ├ ? /offline              
+  ├ ? /play                 
+  ├ ? /play/lobby           
+  ├ ? /play/match           
+  ├ ? /play/result          
+  ├ ƒ /profile/:segments*   
+  ├ ? /settings             
+  └ ? /tools/card-editor    
+
+  λ API  ƒ Dynamic  ? Unknown
+
+  ? Some routes could not be classified. vinext currently uses static analysis
+    and cannot detect dynamic API usage (headers(), cookies(), etc.) at build time.
+    Automatic classification will be improved in a future release.
+
+  Build complete. Run `vinext start` to start the production server.
+
+Validated Sites artifact: ESM Worker default.fetch and hosting manifest are present.

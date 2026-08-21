@@ -93,9 +93,14 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
         // action's choice schema.
         const sequential = clause.match(/^(.*?),\s+then\s+(.+)$/i);
         if (sequential?.[1].trim() && sequential[2].trim()) {
+          const first = sequential[1].trim().replace(/[,;:]$/, "");
+          const second = sequential[2].trim();
+          const inheritsAllPlayers = /^all players\b/i.test(first)
+            && /\bthat many\b/i.test(second)
+            && !/\b(?:all|both|each) players\b/i.test(second);
           return [
-            `${sequential[1].trim().replace(/[,;:]$/, "")}.`,
-            `Then ${sequential[2].trim()}`,
+            `${first}.`,
+            `Then ${inheritsAllPlayers ? "all players " : ""}${second}`,
           ];
         }
         return [clause];
@@ -382,6 +387,14 @@ if (swapsBakucore) {
     const selected = choice("targetCardId", targetTiming, "card-in-play", "Choose a non-Energy card in play");
     selected.owner = targetOwner;
     selected.targetOwner = selected.owner;
+    result.push(selected);
+  }
+  if (/shuffle any number of cards from your hand into your deck/i.test(text)) {
+    const selected = choice("handCardIds", "resolve", "hand-card", "Choose cards to shuffle into your deck", true, "controller", "private");
+    selected.owner = "controller";
+    selected.targetOwner = selected.owner;
+    selected.minimum = 0;
+    selected.maximum = 99;
     result.push(selected);
   }
   if (/\bsacrifice\b|\bdiscard\s+(?:a|an|one|two|three|any|up to|\d+)\s+cards?\b|\bdiscard\s+cards?\s+from your hand\b/i.test(text)

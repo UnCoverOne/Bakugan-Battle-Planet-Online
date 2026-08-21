@@ -34,6 +34,7 @@ export function createRuleObject(input: {
     sourceRef: { kind: "card", instanceId: sourceId, catalogId: definitionId },
     status: "pending",
     cursor: { instructionIndex: 0, effectIndex: 0 },
+    actionResults: {},
     createdByEventId: input.createdByEventId,
     independentChoiceSetId: `${id}:choices`,
   };
@@ -71,6 +72,7 @@ export function copyRuleObject(
     status: "pending",
     negated: false,
     cursor: { instructionIndex: 0, effectIndex: 0 },
+    actionResults: {},
     resolvedChoices: independentChoices ? {} : structuredClone(source.resolvedChoices ?? {}),
     choices: independentChoices ? {} : structuredClone(source.choices),
     independentChoiceSetId: `${id}:choices`,

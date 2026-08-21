@@ -19,7 +19,7 @@ import { captureCardPlayValues, captureInstructionValues, captureRuleConditionVa
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
 import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
-import type { ContinuousModifier, PendingCardPlay, RulesCardId } from "./rules/model";
+import type { ContinuousModifier, PendingCardPlay, RuleActionResult, RulesCardId } from "./rules/model";
 import { collectRuleTriggers } from "./rules/triggers";
 import { applyEnergyEntryVisibility } from "./energyVisibility";
 import {
@@ -1944,6 +1944,32 @@ const instructionChoices = (pending: PendingEffect, instructionIndex: number) =>
   .sort(([left], [right]) => Number(left) - Number(right))
   .reduce<CardChoices>((merged, [, answers]) => ({ ...merged, ...answers }), { ...pending.choices });
 
+const actionResultKey = (instructionIndex: number, actionIndex: number) => `${instructionIndex}:${actionIndex}`;
+
+function previousActionResult(pending: PendingEffect, instructionIndex: number, actionIndex: number) {
+  if (!isRuleObject(pending)) return undefined;
+  return Object.entries(pending.actionResults ?? {})
+    .map(([key, result]) => {
+      const [priorInstruction, priorAction] = key.split(":").map(Number);
+      return { priorInstruction, priorAction, result };
+    })
+    .filter(({ priorInstruction, priorAction }) => Number.isFinite(priorInstruction) && Number.isFinite(priorAction)
+      && (priorInstruction < instructionIndex || (priorInstruction === instructionIndex && priorAction < actionIndex)))
+    .sort((left, right) => left.priorInstruction - right.priorInstruction || left.priorAction - right.priorAction)
+    .at(-1)?.result;
+}
+
+function storeActionResult(pending: PendingEffect, instructionIndex: number, actionIndex: number, result: RuleActionResult) {
+  if (!isRuleObject(pending)) return;
+  pending.actionResults = pending.actionResults ?? {};
+  pending.actionResults[actionResultKey(instructionIndex, actionIndex)] = {
+    amount: Math.max(0, Math.floor(result.amount)),
+    ...(result.amountByPlayer ? {
+      amountByPlayer: Object.fromEntries(Object.entries(result.amountByPlayer).map(([id, amount]) => [id, Math.max(0, Math.floor(amount))])),
+    } : {}),
+  };
+}
+
 type EffectDrawState = MatchState & {
   pendingDrawQueue?: Array<{ id: string; playerId: string; remaining: number; total: number; sourceName: string; sourceEffectId?: string }>;
   pendingDrawResumePriority?: string;
@@ -2061,7 +2087,9 @@ const executeRuleAction = (
     sourceCardId: pending.sourceId ?? pending.card.id,
     moment: "resolve",
     capturedValues: isRuleObject(pending) ? pending.valueSnapshots : undefined,
+    previousResult: previousActionResult(pending, instructionIndex, actionIndex),
   });
+  const recordResult = (result: RuleActionResult) => storeActionResult(pending, instructionIndex, actionIndex, result);
 
   switch (action.kind) {
     case "choice":
@@ -2225,9 +2253,12 @@ const executeRuleAction = (
       }
       return;
     case "draw": {
-      const amount = Math.max(0, Math.floor(resolveNumber(action.amount)));
+      if (/\bmay draw/i.test(text) && choices.confirmed === false) return;
       const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
-      for (const recipientId of recipientIds) enqueueEffectDraw(state, playerById(state, recipientId), amount, card.displayName || card.name, pending.id);
+      for (const recipientId of recipientIds) {
+        const amount = Math.max(0, Math.floor(resolveNumber(action.amount, choices, recipientId)));
+        enqueueEffectDraw(state, playerById(state, recipientId), amount, card.displayName || card.name, pending.id);
+      }
       return;
     }
     case "discard": {
@@ -2235,8 +2266,10 @@ const executeRuleAction = (
       const affectedIds = choices.targetPlayerId
         ? [choices.targetPlayerId]
         : playerIdsForScope(state, action.playerScope ?? (/your opponent|opponent discards/i.test(text) ? "opponent" : "controller"), { controllerId, choices });
+      const amountByPlayer: Record<string, number> = {};
       for (const affectedId of affectedIds) {
         const affected = playerById(state, affectedId);
+        const before = affected.hand.length;
         const scopedChoices = choices.simultaneousAnswers?.[affectedId] ?? choices;
         const selected = scopedChoices.discardCardIds ?? scopedChoices.handCardIds ?? [];
         const expressionAmount = Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));
@@ -2244,7 +2277,12 @@ const executeRuleAction = (
         const maximum = Math.max(minimum, Math.floor(resolveNumber(action.maximum, scopedChoices, affectedId)));
         const amount = minimum === 0 ? selected.length : selected.length || expressionAmount;
         if (amount > 0) discardFromHand(state, affected, Math.min(maximum, amount), selected);
+        amountByPlayer[affectedId] = Math.max(0, before - affected.hand.length);
       }
+      recordResult({
+        amount: Object.values(amountByPlayer).reduce((sum, amount) => sum + amount, 0),
+        amountByPlayer,
+      });
       return;
     }
     case "energize": {
@@ -2389,16 +2427,35 @@ case "swap-bakucore": {
   );
   return;
 }
-case "move": {
-  const actionAmount = Math.max(0, Math.floor(resolveNumber(action.amount)));
+    case "move": {
+      const actionAmount = Math.max(0, Math.floor(resolveNumber(action.amount)));
+      const destroyCount = (owner: PlayerState) => action.object === "hero"
+        ? owner.heroes.length
+        : action.object === "evo"
+          ? owner.bakugan.reduce((sum, bakugan) => sum + bakugan.evoStack.length, 0)
+          : action.object === "energy"
+            ? owner.energyZone.length
+            : 0;
+      const tracksDestroyedObjects = action.verb === "destroy" && ["hero", "evo", "energy"].includes(action.object);
+      const beforeByPlayer = tracksDestroyedObjects
+        ? Object.fromEntries(state.players.map((owner) => [owner.id, destroyCount(owner)]))
+        : undefined;
+
       if (action.verb === "destroy" && action.object === "hero" && /destroy this/i.test(text)) {
         for (const owner of state.players) {
           const destroyed = owner.heroes.filter((hero) => hero.id === pending.sourceId || hero.id === card.id);
           owner.heroes = owner.heroes.filter((hero) => !destroyed.some((candidate) => candidate.id === hero.id));
           owner.discard.push(...destroyed);
         }
-      } else if (action.verb === "destroy" && action.object === "hero") destroyHero(state, controllerId, choices, actionAmount > 2);
-      else if (action.verb === "destroy" && action.object === "evo") destroyEvo(state, controllerId, choices, actionAmount > 2);
+      } else if (action.verb === "destroy" && action.object === "hero") {
+        if (action.playerScope === "all-players") {
+          for (const owner of state.players) {
+            const destroyed = [...owner.heroes];
+            owner.heroes = [];
+            owner.discard.push(...destroyed);
+          }
+        } else destroyHero(state, controllerId, choices, actionAmount > 2);
+      } else if (action.verb === "destroy" && action.object === "evo") destroyEvo(state, controllerId, choices, actionAmount > 2);
       else if (action.verb === "destroy" && action.object === "energy") {
         const amount = card.catalogId === "bb-97"
           ? choices.targetEnergyIds?.length ?? 0
@@ -2448,11 +2505,28 @@ case "move": {
         } else if (!player.hand.some((candidate) => candidate.id === card.id)) player.hand.push(card);
       } else if (action.verb === "shuffle" && action.object === "card") {
         const ids = choices.handCardIds ?? choices.discardCardIds ?? [];
-        const moved = player.discard.filter((candidate) => ids.includes(candidate.id)).slice(0, actionAmount);
-        player.discard = player.discard.filter((candidate) => !moved.some((card) => card.id === candidate.id));
+        const fromHand = /from your hand into your deck/i.test(text);
+        const source = fromHand ? player.hand : player.discard;
+        const moved = source.filter((candidate) => ids.includes(candidate.id)).slice(0, actionAmount);
+        const movedIds = new Set(moved.map((candidate) => candidate.id));
+        if (fromHand) player.hand = player.hand.filter((candidate) => !movedIds.has(candidate.id));
+        else player.discard = player.discard.filter((candidate) => !movedIds.has(candidate.id));
         player.deckCards.push(...moved);
         shuffle(player.deckCards);
         syncDeck(player);
+        recordResult({ amount: moved.length, amountByPlayer: { [player.id]: moved.length } });
+        return;
+      }
+
+      if (beforeByPlayer) {
+        const amountByPlayer = Object.fromEntries(state.players.map((owner) => [
+          owner.id,
+          Math.max(0, (beforeByPlayer[owner.id] ?? 0) - destroyCount(owner)),
+        ]));
+        recordResult({
+          amount: Object.values(amountByPlayer).reduce((sum, amount) => sum + amount, 0),
+          amountByPlayer,
+        });
       }
       return;
     }

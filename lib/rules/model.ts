@@ -147,7 +147,7 @@ export type RuleAction =
   | { kind: "damage-to-hand" }
   | { kind: "end-turn"; recharge: boolean }
   | { kind: "shuffle-deck" }
-  | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue }
+  | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope }
   | { kind: "reveal"; object: "bakucore" | "deck-top"; amount: NumberValue }
   | { kind: "reorder-deck"; amount: NumberValue }
   | { kind: "play"; source: "revealed-deck" | "hand" | "self"; free: boolean; cardType?: CardType; factions?: Faction[]; cardName?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
@@ -221,6 +221,12 @@ export type RuleSourceReference =
   | { kind: "bakucore"; id: string; coreType: CoreType }
   | { kind: "system"; id: string };
 
+export type RuleActionResult = {
+  amount: number;
+  /** Per-player counts support text such as “all players ... then draw that many.” */
+  amountByPlayer?: Record<string, number>;
+};
+
 export type RuleObject = {
   rulesObjectVersion: 3;
   id: string;
@@ -246,6 +252,8 @@ export type RuleObject = {
   copiedFromObjectId?: string;
   /** Values captured at announce/pay/resolve boundaries for deterministic evaluation. */
   valueSnapshots?: Record<string, number>;
+  /** Actual successful quantities produced by earlier actions in this resolution. */
+  actionResults?: Record<string, RuleActionResult>;
 };
 
 export type ContinuousModifier = {
