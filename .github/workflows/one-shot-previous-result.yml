@@ -1,0 +1,441 @@
+name: One-shot previous-result quantity implementation
+
+on:
+  push:
+    branches:
+      - chatgpt-previous-result-quantities
+    paths:
+      - .github/workflows/one-shot-previous-result.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reset worktree to current main
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+          echo "BASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Apply previous-result implementation
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path: str, old: str, new: str):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected one match in {path}, found {count}: {old[:140]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          def replace_regex(path: str, pattern: str, replacement: str):
+              p = Path(path)
+              text = p.read_text()
+              updated, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f"Expected one regex match in {path}, found {count}: {pattern[:140]!r}")
+              p.write_text(updated)
+
+          # Dynamic numeric values can now reference the latest earlier result-bearing action.
+          replace_once(
+              "lib/rules/values.ts",
+              '  | { kind: "event-value"; property: "amount"; fallback?: number }\n',
+              '  | { kind: "event-value"; property: "amount"; fallback?: number }\n'
+              '  | { kind: "previous-result"; property: "amount"; scope?: "total" | "chooser" }\n',
+          )
+          replace_once(
+              "lib/rules/values.ts",
+              '  event?: EventValueContext;\n  capturedValues?: Record<string, number>;\n',
+              '  event?: EventValueContext;\n'
+              '  /** Most recent earlier result-bearing action in the same resolving rules object. */\n'
+              '  previousResult?: { amount: number; amountByPlayer?: Record<string, number> };\n'
+              '  capturedValues?: Record<string, number>;\n',
+          )
+          replace_once(
+              "lib/rules/values.ts",
+              '    case "event-value": return finite(context.event?.[value.property] ?? value.fallback ?? 0);\n',
+              '    case "event-value": return finite(context.event?.[value.property] ?? value.fallback ?? 0);\n'
+              '    case "previous-result": {\n'
+              '      if (value.scope === "chooser" && context.chooserId) {\n'
+              '        return finite(context.previousResult?.amountByPlayer?.[context.chooserId] ?? 0);\n'
+              '      }\n'
+              '      return finite(context.previousResult?.amount ?? 0);\n'
+              '    }\n',
+          )
+
+          # Persist only numeric outcome metadata: no hidden card identities are retained.
+          replace_once(
+              "lib/rules/model.ts",
+              'export type RuleObject = {\n',
+              'export type RuleActionResult = {\n'
+              '  amount: number;\n'
+              '  /** Per-player counts support text such as “all players ... then draw that many.” */\n'
+              '  amountByPlayer?: Record<string, number>;\n'
+              '};\n\n'
+              'export type RuleObject = {\n',
+          )
+          replace_once(
+              "lib/rules/model.ts",
+              '  | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue }\n',
+              '  | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope }\n',
+          )
+          replace_once(
+              "lib/rules/model.ts",
+              '  /** Values captured at announce/pay/resolve boundaries for deterministic evaluation. */\n  valueSnapshots?: Record<string, number>;\n',
+              '  /** Values captured at announce/pay/resolve boundaries for deterministic evaluation. */\n'
+              '  valueSnapshots?: Record<string, number>;\n'
+              '  /** Actual successful quantities produced by earlier actions in this resolution. */\n'
+              '  actionResults?: Record<string, RuleActionResult>;\n',
+          )
+
+          replace_once(
+              "lib/rules/objects.ts",
+              '    cursor: { instructionIndex: 0, effectIndex: 0 },\n    createdByEventId: input.createdByEventId,\n',
+              '    cursor: { instructionIndex: 0, effectIndex: 0 },\n'
+              '    actionResults: {},\n'
+              '    createdByEventId: input.createdByEventId,\n',
+          )
+          replace_once(
+              "lib/rules/objects.ts",
+              '    cursor: { instructionIndex: 0, effectIndex: 0 },\n    resolvedChoices: independentChoices ? {} : structuredClone(source.resolvedChoices ?? {}),\n',
+              '    cursor: { instructionIndex: 0, effectIndex: 0 },\n'
+              '    actionResults: {},\n'
+              '    resolvedChoices: independentChoices ? {} : structuredClone(source.resolvedChoices ?? {}),\n',
+          )
+
+          replace_once(
+              "lib/rules/state.ts",
+              '    if (isRuleObject(pending)) {\n      if (pending.kind === "copy" && pending.independentChoiceSetId.endsWith(":legacy")) {\n',
+              '    if (isRuleObject(pending)) {\n'
+              '      pending.actionResults = pending.actionResults ?? {};\n'
+              '      if (pending.kind === "copy" && pending.independentChoiceSetId.endsWith(":legacy")) {\n',
+          )
+          replace_once(
+              "lib/rules/state.ts",
+              '      cursor: { instructionIndex: pending.instructionIndex ?? 0, effectIndex: 0 },\n      independentChoiceSetId: copied ? `${pending.id}:choices` : `${pending.id}:choices:${index}`,\n',
+              '      cursor: { instructionIndex: pending.instructionIndex ?? 0, effectIndex: 0 },\n'
+              '      actionResults: {},\n'
+              '      independentChoiceSetId: copied ? `${pending.id}:choices` : `${pending.id}:choices:${index}`,\n',
+          )
+
+          # Compile result-anaphora and the printed Cyndeus Stand shuffle into typed primitives.
+          replace_once(
+              "lib/rules/catalogue-primitives.ts",
+              '  if (/sacrificed-card|sacrifice/i.test(dynamicSource)) return multiplyValue(baseAmount, { kind: "choice-count", choiceId: "discardCardIds" });\n',
+              '  if (/sacrificed-card|sacrifice/i.test(dynamicSource)) return multiplyValue(baseAmount, { kind: "choice-count", choiceId: "discardCardIds" });\n'
+              '  if (/\\b(?:destroyed|discarded|shuffled)(?: this way)?\\b/i.test(dynamicSource)) {\n'
+              '    return multiplyValue(baseAmount, { kind: "previous-result", property: "amount", scope: "total" });\n'
+              '  }\n',
+          )
+          replace_regex(
+              "lib/rules/catalogue-primitives.ts",
+              r'  const draw = text\.match\(/draws\? \(a\|an\|one\|two\|three\|four\|five\|six\|seven\|eight\|nine\|ten\|x\|\\d\+\) cards\?/i\);\n  if \(draw\) \{.*?\n  \}\n  const discard =',
+              '''  const drawScope = playerScopeForText(text);\n  const drawThatMany = /\\bdraws?\\s+that many(?:\\s+cards?)?\\b/i.test(text);\n  const draw = text.match(/draws? (a|an|one|two|three|four|five|six|seven|eight|nine|ten|x|\\d+) cards?/i);\n  if (drawThatMany) {\n    actions.push({\n      kind: "draw",\n      amount: {\n        kind: "previous-result",\n        property: "amount",\n        scope: drawScope === "all-players" || drawScope === "each-player" ? "chooser" : "total",\n      },\n      playerScope: drawScope,\n    });\n  } else if (draw) {\n    const fixedAmount = /^x$/i.test(draw[1]) ? 0 : numberValue(draw[1]);\n    actions.push({\n      kind: "draw",\n      amount: /^x$/i.test(draw[1])\n        ? { kind: "choice-value", choiceId: "xValue" }\n        : numberValueForDynamicAmount(text, fixedAmount, scale),\n      playerScope: drawScope,\n    });\n  }\n  const discard =''',
+          )
+          replace_once(
+              "lib/rules/catalogue-primitives.ts",
+              '    [/remove .*bakucore/i, "remove", "bakucore"], [/return .*bakucore.*field face down/i, "return", "bakucore"],\n    [/shuffle .*discard/i, "shuffle", "card"], [/take control .*hero/i, "control", "hero"], [/put this into .*hand/i, "return", "card"],\n',
+              '    [/remove .*bakucore/i, "remove", "bakucore"], [/return .*bakucore.*field face down/i, "return", "bakucore"],\n'
+              '    [/shuffle .*?(?:discard|from your hand into your deck)/i, "shuffle", "card"], [/take control .*hero/i, "control", "hero"], [/put this into .*hand/i, "return", "card"],\n',
+          )
+          replace_once(
+              "lib/rules/catalogue-primitives.ts",
+              '  for (const [pattern, verb, object] of movement) {\n    if (pattern.test(text)) actions.push({ kind: "move", verb, object, amount: /three|two|all/i.test(text) ? (/three/i.test(text) ? 3 : /two/i.test(text) ? 2 : 99) : 1 });\n  }\n',
+              '  for (const [pattern, verb, object] of movement) {\n'
+              '    if (!pattern.test(text)) continue;\n'
+              '    const amount: NumberValue = /any number/i.test(text)\n'
+              '      ? { kind: "choice-count", choiceId: /from your hand/i.test(text) ? "handCardIds" : "discardCardIds" }\n'
+              '      : /three|two|all/i.test(text) ? (/three/i.test(text) ? 3 : /two/i.test(text) ? 2 : 99) : 1;\n'
+              '    const playerScope = verb === "destroy" && object === "hero" && /destroy all Hero cards? in play/i.test(text)\n'
+              '      ? "all-players" as const\n'
+              '      : undefined;\n'
+              '    actions.push({ kind: "move", verb, object, amount, ...(playerScope ? { playerScope } : {}) });\n'
+              '  }\n',
+          )
+
+          # Preserve the actor across a comma+then split when “that many” refers to each player's own result.
+          replace_once(
+              "lib/rules/catalogue-structure.ts",
+              '        if (sequential?.[1].trim() && sequential[2].trim()) {\n          return [\n            `${sequential[1].trim().replace(/[,;:]$/, "")}.`,\n            `Then ${sequential[2].trim()}`,\n          ];\n        }\n',
+              '        if (sequential?.[1].trim() && sequential[2].trim()) {\n'
+              '          const first = sequential[1].trim().replace(/[,;:]$/, "");\n'
+              '          const second = sequential[2].trim();\n'
+              '          const inheritsAllPlayers = /^all players\\b/i.test(first)\n'
+              '            && /\\bthat many\\b/i.test(second)\n'
+              '            && !/\\b(?:all|both|each) players\\b/i.test(second);\n'
+              '          return [\n'
+              '            `${first}.`,\n'
+              '            `Then ${inheritsAllPlayers ? "all players " : ""}${second}`,\n'
+              '          ];\n'
+              '        }\n',
+          )
+          replace_once(
+              "lib/rules/catalogue-structure.ts",
+              '  if (/choose a non-energy card in play/i.test(text)) {\n    const selected = choice("targetCardId", targetTiming, "card-in-play", "Choose a non-Energy card in play");\n    selected.owner = targetOwner;\n    selected.targetOwner = selected.owner;\n    result.push(selected);\n  }\n  if (/\\bsacrifice\\b|',
+              '  if (/choose a non-energy card in play/i.test(text)) {\n'
+              '    const selected = choice("targetCardId", targetTiming, "card-in-play", "Choose a non-Energy card in play");\n'
+              '    selected.owner = targetOwner;\n'
+              '    selected.targetOwner = selected.owner;\n'
+              '    result.push(selected);\n'
+              '  }\n'
+              '  if (/shuffle any number of cards from your hand into your deck/i.test(text)) {\n'
+              '    const selected = choice("handCardIds", "resolve", "hand-card", "Choose cards to shuffle into your deck", true, "controller", "private");\n'
+              '    selected.owner = "controller";\n'
+              '    selected.targetOwner = selected.owner;\n'
+              '    selected.minimum = 0;\n'
+              '    selected.maximum = 99;\n'
+              '    result.push(selected);\n'
+              '  }\n'
+              '  if (/\\bsacrifice\\b|',
+          )
+
+          # Runtime: feed the most recent prior result into dynamic evaluation and record actual successful changes.
+          replace_once(
+              "lib/game.ts",
+              'import type { ContinuousModifier, PendingCardPlay, RulesCardId } from "./rules/model";\n',
+              'import type { ContinuousModifier, PendingCardPlay, RuleActionResult, RulesCardId } from "./rules/model";\n',
+          )
+          replace_once(
+              "lib/game.ts",
+              'const instructionChoices = (pending: PendingEffect, instructionIndex: number) => Object.entries(pending.resolvedChoices ?? {})\n  .filter(([index]) => Number(index) <= instructionIndex)\n  .sort(([left], [right]) => Number(left) - Number(right))\n  .reduce<CardChoices>((merged, [, answers]) => ({ ...merged, ...answers }), { ...pending.choices });\n\ntype EffectDrawState = MatchState & {\n',
+              'const instructionChoices = (pending: PendingEffect, instructionIndex: number) => Object.entries(pending.resolvedChoices ?? {})\n'
+              '  .filter(([index]) => Number(index) <= instructionIndex)\n'
+              '  .sort(([left], [right]) => Number(left) - Number(right))\n'
+              '  .reduce<CardChoices>((merged, [, answers]) => ({ ...merged, ...answers }), { ...pending.choices });\n\n'
+              'const actionResultKey = (instructionIndex: number, actionIndex: number) => `${instructionIndex}:${actionIndex}`;\n\n'
+              'function previousActionResult(pending: PendingEffect, instructionIndex: number, actionIndex: number) {\n'
+              '  if (!isRuleObject(pending)) return undefined;\n'
+              '  return Object.entries(pending.actionResults ?? {})\n'
+              '    .map(([key, result]) => {\n'
+              '      const [priorInstruction, priorAction] = key.split(":").map(Number);\n'
+              '      return { priorInstruction, priorAction, result };\n'
+              '    })\n'
+              '    .filter(({ priorInstruction, priorAction }) => Number.isFinite(priorInstruction) && Number.isFinite(priorAction)\n'
+              '      && (priorInstruction < instructionIndex || (priorInstruction === instructionIndex && priorAction < actionIndex)))\n'
+              '    .sort((left, right) => left.priorInstruction - right.priorInstruction || left.priorAction - right.priorAction)\n'
+              '    .at(-1)?.result;\n'
+              '}\n\n'
+              'function storeActionResult(pending: PendingEffect, instructionIndex: number, actionIndex: number, result: RuleActionResult) {\n'
+              '  if (!isRuleObject(pending)) return;\n'
+              '  pending.actionResults = pending.actionResults ?? {};\n'
+              '  pending.actionResults[actionResultKey(instructionIndex, actionIndex)] = {\n'
+              '    amount: Math.max(0, Math.floor(result.amount)),\n'
+              '    ...(result.amountByPlayer ? {\n'
+              '      amountByPlayer: Object.fromEntries(Object.entries(result.amountByPlayer).map(([id, amount]) => [id, Math.max(0, Math.floor(amount))])),\n'
+              '    } : {}),\n'
+              '  };\n'
+              '}\n\n'
+              'type EffectDrawState = MatchState & {\n',
+          )
+          replace_once(
+              "lib/game.ts",
+              '    capturedValues: isRuleObject(pending) ? pending.valueSnapshots : undefined,\n  });\n\n  switch (action.kind) {\n',
+              '    capturedValues: isRuleObject(pending) ? pending.valueSnapshots : undefined,\n'
+              '    previousResult: previousActionResult(pending, instructionIndex, actionIndex),\n'
+              '  });\n'
+              '  const recordResult = (result: RuleActionResult) => storeActionResult(pending, instructionIndex, actionIndex, result);\n\n'
+              '  switch (action.kind) {\n',
+          )
+          replace_regex(
+              "lib/game.ts",
+              r'    case "draw": \{\n.*?\n    \}\n    case "discard": \{',
+              '''    case "draw": {\n      if (/\\bmay draw/i.test(text) && choices.confirmed === false) return;\n      const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });\n      for (const recipientId of recipientIds) {\n        const amount = Math.max(0, Math.floor(resolveNumber(action.amount, choices, recipientId)));\n        enqueueEffectDraw(state, playerById(state, recipientId), amount, card.displayName || card.name, pending.id);\n      }\n      return;\n    }\n    case "discard": {''',
+          )
+          replace_regex(
+              "lib/game.ts",
+              r'    case "discard": \{\n.*?\n    \}\n    case "energize": \{',
+              '''    case "discard": {\n      if (/\\bVictor\\s*:/i.test(text)) return;\n      const affectedIds = choices.targetPlayerId\n        ? [choices.targetPlayerId]\n        : playerIdsForScope(state, action.playerScope ?? (/your opponent|opponent discards/i.test(text) ? "opponent" : "controller"), { controllerId, choices });\n      const amountByPlayer: Record<string, number> = {};\n      for (const affectedId of affectedIds) {\n        const affected = playerById(state, affectedId);\n        const before = affected.hand.length;\n        const scopedChoices = choices.simultaneousAnswers?.[affectedId] ?? choices;\n        const selected = scopedChoices.discardCardIds ?? scopedChoices.handCardIds ?? [];\n        const expressionAmount = Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));\n        const minimum = Math.max(0, Math.floor(resolveNumber(action.minimum, scopedChoices, affectedId)));\n        const maximum = Math.max(minimum, Math.floor(resolveNumber(action.maximum, scopedChoices, affectedId)));\n        const amount = minimum === 0 ? selected.length : selected.length || expressionAmount;\n        if (amount > 0) discardFromHand(state, affected, Math.min(maximum, amount), selected);\n        amountByPlayer[affectedId] = Math.max(0, before - affected.hand.length);\n      }\n      recordResult({\n        amount: Object.values(amountByPlayer).reduce((sum, amount) => sum + amount, 0),\n        amountByPlayer,\n      });\n      return;\n    }\n    case "energize": {''',
+          )
+          replace_regex(
+              "lib/game.ts",
+              r'\ncase "move": \{\n.*?\n    \}\n    case "reveal": \{',
+              '''\n    case "move": {\n      const actionAmount = Math.max(0, Math.floor(resolveNumber(action.amount)));\n      const destroyCount = (owner: PlayerState) => action.object === "hero"\n        ? owner.heroes.length\n        : action.object === "evo"\n          ? owner.bakugan.reduce((sum, bakugan) => sum + bakugan.evoStack.length, 0)\n          : action.object === "energy"\n            ? owner.energyZone.length\n            : 0;\n      const tracksDestroyedObjects = action.verb === "destroy" && ["hero", "evo", "energy"].includes(action.object);\n      const beforeByPlayer = tracksDestroyedObjects\n        ? Object.fromEntries(state.players.map((owner) => [owner.id, destroyCount(owner)]))\n        : undefined;\n\n      if (action.verb === "destroy" && action.object === "hero" && /destroy this/i.test(text)) {\n        for (const owner of state.players) {\n          const destroyed = owner.heroes.filter((hero) => hero.id === pending.sourceId || hero.id === card.id);\n          owner.heroes = owner.heroes.filter((hero) => !destroyed.some((candidate) => candidate.id === hero.id));\n          owner.discard.push(...destroyed);\n        }\n      } else if (action.verb === "destroy" && action.object === "hero") {\n        if (action.playerScope === "all-players") {\n          for (const owner of state.players) {\n            const destroyed = [...owner.heroes];\n            owner.heroes = [];\n            owner.discard.push(...destroyed);\n          }\n        } else destroyHero(state, controllerId, choices, actionAmount > 2);\n      } else if (action.verb === "destroy" && action.object === "evo") destroyEvo(state, controllerId, choices, actionAmount > 2);\n      else if (action.verb === "destroy" && action.object === "energy") {\n        const amount = card.catalogId === "bb-97"\n          ? choices.targetEnergyIds?.length ?? 0\n          : actionAmount;\n        destroyEnergy(state, amount, choices.targetEnergyIds ?? []);\n      } else if (action.verb === "control" && action.object === "hero") {\n        const index = opponent.heroes.findIndex((hero) => hero.id === choices.targetHeroId);\n        if (index >= 0) player.heroes.push(...opponent.heroes.splice(index, 1));\n      } else if (action.verb === "retract" && action.object === "bakugan" && target) retractBakugan(state, target);\n      else if (action.verb === "attach" && action.object === "bakucore" && target) {\n        const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell && !candidate.attachedTo);\n        if (placement) {\n          placement.attachedTo = target.id;\n          target.heldCoreCells.push(placement.cell);\n        }\n      } else if (action.verb === "remove" && action.object === "bakucore") {\n        const owners = actionAmount > 2 ? [opponent] : state.players;\n        for (const owner of owners) for (const bakugan of owner.bakugan) {\n          const cells = actionAmount > 2 ? [...bakugan.heldCoreCells] : bakugan.heldCoreCells.filter((cell) => cell === choices.coreCell);\n          for (const cell of cells) {\n            const placement = state.placements.find((candidate) => candidate.cell === cell);\n            if (placement) delete placement.attachedTo;\n          }\n          bakugan.heldCoreCells = bakugan.heldCoreCells.filter((cell) => !cells.includes(cell));\n        }\n      } else if (action.verb === "return" && action.object === "bakucore") {\n        const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell);\n        if (placement) {\n          delete placement.attachedTo;\n          placement.revealed = false;\n        }\n      } else if (action.verb === "return" && action.object === "card") {\n        if (choices.targetCardId) {\n          for (const owner of state.players) {\n            const heroIndex = owner.heroes.findIndex((candidate) => candidate.id === choices.targetCardId);\n            if (heroIndex >= 0) {\n              owner.hand.push(...owner.heroes.splice(heroIndex, 1));\n              break;\n            }\n            const bakugan = owner.bakugan.find((candidate) => candidate.evoStack.at(-1)?.id === choices.targetCardId);\n            if (bakugan) {\n              const returned = bakugan.evoStack.pop();\n              if (returned) owner.hand.push(returned);\n              break;\n            }\n          }\n        } else if (!player.hand.some((candidate) => candidate.id === card.id)) player.hand.push(card);\n      } else if (action.verb === "shuffle" && action.object === "card") {\n        const ids = choices.handCardIds ?? choices.discardCardIds ?? [];\n        const fromHand = /from your hand into your deck/i.test(text);\n        const source = fromHand ? player.hand : player.discard;\n        const moved = source.filter((candidate) => ids.includes(candidate.id)).slice(0, actionAmount);\n        const movedIds = new Set(moved.map((candidate) => candidate.id));\n        if (fromHand) player.hand = player.hand.filter((candidate) => !movedIds.has(candidate.id));\n        else player.discard = player.discard.filter((candidate) => !movedIds.has(candidate.id));\n        player.deckCards.push(...moved);\n        shuffle(player.deckCards);\n        syncDeck(player);\n        recordResult({ amount: moved.length, amountByPlayer: { [player.id]: moved.length } });\n        return;\n      }\n\n      if (beforeByPlayer) {\n        const amountByPlayer = Object.fromEntries(state.players.map((owner) => [\n          owner.id,\n          Math.max(0, (beforeByPlayer[owner.id] ?? 0) - destroyCount(owner)),\n        ]));\n        recordResult({\n          amount: Object.values(amountByPlayer).reduce((sum, amount) => sum + amount, 0),\n          amountByPlayer,\n        });\n      }\n      return;\n    }\n    case "reveal": {''',
+          )
+
+          # New semantic regression coverage is part of the normal test command.
+          replace_once(
+              "package.json",
+              'tests/rules-engine-modernization.test.ts tests/turn-draw-mechanic.test.ts',
+              'tests/rules-engine-modernization.test.ts tests/previous-result-quantities.test.ts tests/turn-draw-mechanic.test.ts',
+          )
+          replace_once(
+              "package.json",
+              'tests/magnus-ultimate-rival.test.ts tests/value-expressions.test.ts tests/dynamic-value-catalogue.test.ts tests/rules-architecture-cleanup.test.ts',
+              'tests/magnus-ultimate-rival.test.ts tests/value-expressions.test.ts tests/dynamic-value-catalogue.test.ts tests/previous-result-quantities.test.ts tests/rules-architecture-cleanup.test.ts',
+          )
+
+          Path("tests/previous-result-quantities.test.ts").write_text(r'''import assert from "node:assert/strict";
+          import test from "node:test";
+          import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
+          import { createMatch, resolveStructuredEffect } from "../lib/game";
+          import { ruleDefinitionForCard } from "../lib/rules/catalogue";
+
+          function card(catalogId: string) {
+            const value = CARDS.find((candidate) => candidate.catalogId === catalogId);
+            assert.ok(value, `Missing ${catalogId} from catalogue fixtures.`);
+            return value;
+          }
+
+          function instance(catalogId: string, id: string) {
+            return { ...card(catalogId), id };
+          }
+
+          function match() {
+            const first = makePlayer("first", "First", STARTER_DECKS[0]);
+            const second = makePlayer("second", "Second", STARTER_DECKS[1]);
+            const state = createMatch("PREVIOUS-RESULT", "bo1", [first, second]);
+            state.turn = 1;
+            state.phase = "power";
+            state.startingPlayer = first.id;
+            state.priority = first.id;
+            state.selected = { [first.id]: first.bakugan[0].id, [second.id]: second.bakugan[0].id };
+            first.bakugan[0].open = true;
+            second.bakugan[0].open = true;
+            return state;
+          }
+
+          function queuedDraws(state: ReturnType<typeof createMatch>) {
+            return (state as typeof state & {
+              pendingDrawQueue?: Array<{ playerId: string; total: number }>;
+            }).pendingDrawQueue ?? [];
+          }
+
+          test("previous-result grammar compiles for that-many and this-way printings", () => {
+            const inferno = ruleDefinitionForCard(card("aa-33"));
+            const infernoInstruction = inferno.abilities.flatMap((ability) => ability.instructions)
+              .find((instruction) => /that many/i.test(instruction.sourceText));
+            const infernoDraw = infernoInstruction?.effects.find((effect) => effect.kind === "draw");
+            assert.ok(infernoDraw && infernoDraw.kind === "draw");
+            assert.deepEqual(infernoDraw.amount, { kind: "previous-result", property: "amount", scope: "chooser" });
+            assert.equal(infernoDraw.playerScope, "all-players");
+
+            const touch = ruleDefinitionForCard(card("aa-58"));
+            const touchDraw = touch.abilities.flatMap((ability) => ability.instructions)
+              .flatMap((instruction) => instruction.effects)
+              .find((effect) => effect.kind === "draw" && /previous-result/.test(JSON.stringify(effect)));
+            assert.ok(touchDraw && touchDraw.kind === "draw");
+            assert.deepEqual(touchDraw.amount, {
+              kind: "product",
+              factors: [1, { kind: "previous-result", property: "amount", scope: "total" }],
+            });
+
+            const cyndeus = ruleDefinitionForCard(card("bb-86"));
+            const cyndeusDamage = cyndeus.abilities.flatMap((ability) => ability.instructions)
+              .flatMap((instruction) => instruction.effects)
+              .find((effect) => effect.kind === "modify-stat" && effect.stat === "damage" && /previous-result/.test(JSON.stringify(effect.amount)));
+            assert.ok(cyndeusDamage && cyndeusDamage.kind === "modify-stat");
+            assert.deepEqual(cyndeusDamage.amount, {
+              kind: "product",
+              factors: [1, { kind: "previous-result", property: "amount", scope: "total" }],
+            });
+          });
+
+          test("Inferno Cannon draws each player exactly the number that player actually discarded", () => {
+            const state = match();
+            const first = state.players[0];
+            const second = state.players[1];
+            first.hand = [instance("bb-1", "first-a"), instance("bb-2", "first-b")];
+            second.hand = [instance("bb-3", "second-a"), instance("bb-4", "second-b"), instance("bb-5", "second-c")];
+            const inferno = { ...card("aa-33"), id: "inferno-cannon-instance" };
+            const resolved = resolveStructuredEffect(state, {
+              id: "inferno-cannon-effect",
+              controllerId: first.id,
+              cardOwnerId: first.id,
+              card: inferno,
+              choices: {},
+              kind: "card",
+            });
+            assert.equal(resolved.players[0].hand.length, 0);
+            assert.equal(resolved.players[1].hand.length, 0);
+            assert.deepEqual(queuedDraws(resolved).map(({ playerId, total }) => ({ playerId, total })), [
+              { playerId: first.id, total: 2 },
+              { playerId: second.id, total: 3 },
+            ]);
+          });
+
+          test("Touch of Darkness counts all Heroes actually destroyed this way", () => {
+            const state = match();
+            const first = state.players[0];
+            const second = state.players[1];
+            const heroes = CARDS.filter((candidate) => candidate.type === "Hero").slice(0, 3);
+            assert.equal(heroes.length, 3);
+            first.heroes = [{ ...heroes[0], id: "hero-one" }];
+            second.heroes = [{ ...heroes[1], id: "hero-two" }, { ...heroes[2], id: "hero-three" }];
+            const touch = { ...card("aa-58"), id: "touch-of-darkness-instance" };
+            const resolved = resolveStructuredEffect(state, {
+              id: "touch-of-darkness-effect",
+              controllerId: first.id,
+              cardOwnerId: first.id,
+              card: touch,
+              choices: { confirmed: true },
+              kind: "card",
+            });
+            assert.equal(resolved.players[0].heroes.length, 0);
+            assert.equal(resolved.players[1].heroes.length, 0);
+            assert.equal(queuedDraws(resolved)[0]?.playerId, first.id);
+            assert.equal(queuedDraws(resolved)[0]?.total, 3);
+          });
+
+          test("Cyndeus Stand uses the actual number of hand cards shuffled", () => {
+            const state = match();
+            const first = state.players[0];
+            first.hand = [instance("bb-1", "shuffle-a"), instance("bb-2", "shuffle-b"), instance("bb-3", "keep-c")];
+            const active = first.bakugan[0];
+            const cyndeus = { ...card("bb-86"), id: "cyndeus-stand-instance" };
+            const resolved = resolveStructuredEffect(state, {
+              id: "cyndeus-stand-effect",
+              controllerId: first.id,
+              cardOwnerId: first.id,
+              card: cyndeus,
+              choices: {
+                handCardIds: ["shuffle-a", "shuffle-b"],
+                targetBakuganId: active.id,
+              },
+              kind: "card",
+            });
+            assert.deepEqual(resolved.players[0].hand.map((candidate) => candidate.id), ["keep-c"]);
+            assert.ok(resolved.players[0].deckCards.some((candidate) => candidate.id === "shuffle-a"));
+            assert.ok(resolved.players[0].deckCards.some((candidate) => candidate.id === "shuffle-b"));
+            assert.equal(resolved.damageBoost[active.id], 2);
+          });
+          '''.replace(/^          /gm, ""))
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run targeted rules tests
+        run: node --import tsx --test tests/previous-result-quantities.test.ts tests/dynamic-value-catalogue.test.ts tests/content-pipeline.test.ts tests/rules-engine-modernization.test.ts
+
+      - name: Run rules regression suite
+        run: npm run test:rules
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Commit directly to main
+        shell: bash
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$BASE_SHA" ]; then
+            echo "main moved while the implementation was testing; refusing to overwrite concurrent work."
+            exit 1
+          fi
+          git config user.name "ChatGPT"
+          git config user.email "chatgpt@users.noreply.github.com"
+          git add lib/rules/values.ts lib/rules/model.ts lib/rules/objects.ts lib/rules/state.ts lib/rules/catalogue-primitives.ts lib/rules/catalogue-structure.ts lib/game.ts package.json tests/previous-result-quantities.test.ts
+          git commit -m "Add previous-result quantities"
+          git push origin HEAD:main
