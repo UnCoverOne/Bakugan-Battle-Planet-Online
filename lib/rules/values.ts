@@ -73,6 +73,7 @@ export type NumberExpression =
     }
   | { kind: "property"; subject: EntityExpression; property: NumericProperty }
   | { kind: "event-value"; property: "amount"; fallback?: number }
+  | { kind: "previous-result"; property: "amount"; scope?: "total" | "chooser" }
   | { kind: "sum"; terms: NumberValue[] }
   | { kind: "subtract"; left: NumberValue; right: NumberValue }
   | { kind: "product"; factors: NumberValue[] }
@@ -127,6 +128,8 @@ export type ValueEvaluationContext = {
   sourceCardId?: string;
   moment?: EvaluationMoment;
   event?: EventValueContext;
+  /** Most recent earlier result-bearing action in the same resolving rules object. */
+  previousResult?: { amount: number; amountByPlayer?: Record<string, number> };
   capturedValues?: Record<string, number>;
   /** Optional final-characteristic resolver supplied by the modifier engine. */
   characteristics?: (bakugan: Bakugan, owner: PlayerState) => { power: number; damage: number };
@@ -296,6 +299,12 @@ export function evaluateNumberValue(state: MatchState, value: NumberValue, conte
     }
     case "property": return finite(evaluateProperty(state, value, context));
     case "event-value": return finite(context.event?.[value.property] ?? value.fallback ?? 0);
+    case "previous-result": {
+      if (value.scope === "chooser" && context.chooserId) {
+        return finite(context.previousResult?.amountByPlayer?.[context.chooserId] ?? 0);
+      }
+      return finite(context.previousResult?.amount ?? 0);
+    }
     case "sum": return finite(value.terms.reduce((sum, term) => sum + evaluateNumberValue(state, term, context), 0));
     case "subtract": return finite(evaluateNumberValue(state, value.left, context) - evaluateNumberValue(state, value.right, context));
     case "product": return finite(value.factors.reduce((product, factor) => product * evaluateNumberValue(state, factor, context), 1));

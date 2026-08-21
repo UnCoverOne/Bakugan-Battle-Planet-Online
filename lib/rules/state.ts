@@ -39,6 +39,7 @@ export function normalizeRuleObjects(state: MatchState) {
   ensureRulesState(state);
   state.batch = state.batch.map((pending, index) => {
     if (isRuleObject(pending)) {
+      pending.actionResults = pending.actionResults ?? {};
       if (pending.kind === "copy" && pending.independentChoiceSetId.endsWith(":legacy")) {
         pending.choices = {};
         pending.resolvedChoices = {};
@@ -71,6 +72,7 @@ export function normalizeRuleObjects(state: MatchState) {
       sourceRef: { kind: "card" as const, instanceId: sourceId, catalogId: definitionId },
       status: pending.negated ? "negated" as const : "pending" as const,
       cursor: { instructionIndex: pending.instructionIndex ?? 0, effectIndex: 0 },
+      actionResults: {},
       independentChoiceSetId: copied ? `${pending.id}:choices` : `${pending.id}:choices:${index}`,
     } satisfies RuleObject;
   }).filter((pending) => !(

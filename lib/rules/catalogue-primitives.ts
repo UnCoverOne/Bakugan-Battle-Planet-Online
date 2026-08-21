@@ -205,6 +205,9 @@ function numberValueForDynamicAmount(text: string, baseAmount: number, dynamicSo
   if (!dynamicSource) return baseAmount;
   const grammar = `${dynamicSource} ${text}`;
   if (/sacrificed-card|sacrifice/i.test(dynamicSource)) return multiplyValue(baseAmount, { kind: "choice-count", choiceId: "discardCardIds" });
+  if (/\b(?:destroyed|discarded|shuffled)(?: this way)?\b/i.test(dynamicSource)) {
+    return multiplyValue(baseAmount, { kind: "previous-result", property: "amount", scope: "total" });
+  }
   if (/other-card-played/i.test(dynamicSource) || /other card.*played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "cards-played", owner: "controller", offset: -1, minimum: 0 });
   const faction = grammar.match(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1] as Faction | undefined;
   if (faction && /Bakugan on your team/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "bakugan", owner: "controller", faction });
@@ -255,15 +258,27 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   if (/\bflip a coin\b/i.test(text)) actions.push({ kind: "coin-flip" });
   if (/\[Stop\]|\bstop the attack\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "Stop", duration });
 
+  const drawScope = playerScopeForText(text);
+  const drawThatMany = /\bdraws?\s+that many(?:\s+cards?)?\b/i.test(text);
   const draw = text.match(/draws? (a|an|one|two|three|four|five|six|seven|eight|nine|ten|x|\d+) cards?/i);
-  if (draw) {
+  if (drawThatMany) {
+    actions.push({
+      kind: "draw",
+      amount: {
+        kind: "previous-result",
+        property: "amount",
+        scope: drawScope === "all-players" || drawScope === "each-player" ? "chooser" : "total",
+      },
+      playerScope: drawScope,
+    });
+  } else if (draw) {
     const fixedAmount = /^x$/i.test(draw[1]) ? 0 : numberValue(draw[1]);
     actions.push({
       kind: "draw",
       amount: /^x$/i.test(draw[1])
         ? { kind: "choice-value", choiceId: "xValue" }
         : numberValueForDynamicAmount(text, fixedAmount, scale),
-      playerScope: playerScopeForText(text),
+      playerScope: drawScope,
     });
   }
   const discard = text.match(/discard (a|an|one|two|three|any|up to|\d+) cards?/i);
@@ -328,10 +343,17 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     [/destroy .*hero/i, "destroy", "hero"], [/destroy .*evo/i, "destroy", "evo"], [/destroy .*energy/i, "destroy", "energy"],
     [/return .*hand/i, "return", "card"], [/retract .*bakugan/i, "retract", "bakugan"], [/attach .*bakucore/i, "attach", "bakucore"],
     [/remove .*bakucore/i, "remove", "bakucore"], [/return .*bakucore.*field face down/i, "return", "bakucore"],
-    [/shuffle .*discard/i, "shuffle", "card"], [/take control .*hero/i, "control", "hero"], [/put this into .*hand/i, "return", "card"],
+    [/shuffle .*?(?:discard|from your hand into your deck)/i, "shuffle", "card"], [/take control .*hero/i, "control", "hero"], [/put this into .*hand/i, "return", "card"],
   ];
   for (const [pattern, verb, object] of movement) {
-    if (pattern.test(text)) actions.push({ kind: "move", verb, object, amount: /three|two|all/i.test(text) ? (/three/i.test(text) ? 3 : /two/i.test(text) ? 2 : 99) : 1 });
+    if (!pattern.test(text)) continue;
+    const amount: NumberValue = /any number/i.test(text)
+      ? { kind: "choice-count", choiceId: /from your hand/i.test(text) ? "handCardIds" : "discardCardIds" }
+      : /three|two|all/i.test(text) ? (/three/i.test(text) ? 3 : /two/i.test(text) ? 2 : 99) : 1;
+    const playerScope = verb === "destroy" && object === "hero" && /destroy all Hero cards? in play/i.test(text)
+      ? "all-players" as const
+      : undefined;
+    actions.push({ kind: "move", verb, object, amount, ...(playerScope ? { playerScope } : {}) });
   }
   if (/destroy this/i.test(text)) actions.push({ kind: "move", verb: "destroy", object: "hero", amount: 1 });
   if (/turn a BakuCore .*face up/i.test(text)) actions.push({ kind: "reveal", object: "bakucore", amount: 1 });
