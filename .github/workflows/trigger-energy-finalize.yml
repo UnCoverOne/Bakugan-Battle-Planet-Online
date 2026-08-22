@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   finalize:
-    if: github.event.issue.title == 'chatgpt-energy-production-20260822-1350'
+    if: github.event.issue.title == 'chatgpt-energy-production-20260822-1351'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -35,6 +35,20 @@ jobs:
           script = "\n".join(
               line[10:] if line.startswith("          ") else line
               for line in match.group(1).splitlines()
+          )
+          script = script.replace(
+              'updated, count = re.subn(pattern, replacement, text, count=1, flags=flags)',
+              'updated, count = re.subn(pattern, replacement if callable(replacement) else lambda _m: replacement, text, count=1, flags=flags)',
+          )
+          script = script.replace(
+              'text, count = pattern.subn(replacement, text, count=1)',
+              'text, count = pattern.subn(lambda _m: replacement, text, count=1)',
+          ).replace(
+              'text, count = recharge_pattern.subn(recharge_replacement, text, count=1)',
+              'text, count = recharge_pattern.subn(lambda _m: recharge_replacement, text, count=1)',
+          ).replace(
+              'text, count = payment_pattern.subn(payment_replacement, text, count=1)',
+              'text, count = payment_pattern.subn(lambda _m: payment_replacement, text, count=1)',
           )
           exec(compile(script, 'energy-production-patch.py', 'exec'), {})
           PY
