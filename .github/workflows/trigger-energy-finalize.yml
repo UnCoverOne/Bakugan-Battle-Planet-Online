@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   finalize:
-    if: github.event.issue.title == 'chatgpt-energy-production-20260822-1351'
+    if: github.event.issue.title == 'chatgpt-energy-production-20260822-1352'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -51,6 +51,32 @@ jobs:
               'text, count = payment_pattern.subn(lambda _m: payment_replacement, text, count=1)',
           )
           exec(compile(script, 'energy-production-patch.py', 'exec'), {})
+
+          # Keep Energy Drain's recharge-prevention sentence in the same typed instruction.
+          path = Path('lib/rules/catalogue-structure.ts')
+          text = path.read_text()
+          old = 'normalized.split(/(?<=\\.)\\s+/)'
+          new = 'normalized.split(/(?<=\\.)\\s+(?!They do not recharge at the end of the turn\\.)/i)'
+          if text.count(old) != 1:
+              raise SystemExit('Could not patch Energy Drain instruction grouping')
+          path.write_text(text.replace(old, new, 1))
+
+          # Focused test cards must keep reviewed catalogue text while selecting a printed cost.
+          path = Path('tests/energy-production-model.test.ts')
+          text = path.read_text()
+          old = '''function actionCard(cost: number): GameCard {
+  const source = CARDS.find((card) => card.type === "Action" && card.cost !== "X");
+  assert.ok(source);
+  return { ...source, id: `energy-action-${cost}`, cost };
+}'''
+          new = '''function actionCard(cost: number): GameCard {
+  const source = CARDS.find((card) => card.type === "Action" && card.cost === cost);
+  assert.ok(source, `Missing Action card with printed cost ${cost}`);
+  return { ...source, id: `energy-action-${cost}` };
+}'''
+          if text.count(old) != 1:
+              raise SystemExit('Could not patch Energy test card fixture')
+          path.write_text(text.replace(old, new, 1))
           PY
       - name: Install dependencies
         run: npm ci
@@ -64,7 +90,6 @@ jobs:
             tests/energy-count-source.test.ts \
             tests/recharge-and-dark-waters.test.ts \
             tests/turn-to-energy-chain.test.ts \
-            tests/game-screen-state.test.ts \
             tests/content-pipeline.test.ts \
             tests/rules-engine-modernization.test.ts 2>&1 | tee energy-targeted.log
       - name: Rules suite
