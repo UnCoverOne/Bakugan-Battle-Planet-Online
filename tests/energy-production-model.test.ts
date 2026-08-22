@@ -30,9 +30,9 @@ function matchWithPlayers() {
 }
 
 function actionCard(cost: number): GameCard {
-  const source = CARDS.find((card) => card.type === "Action" && card.cost !== "X");
-  assert.ok(source);
-  return { ...source, id: `energy-action-${cost}`, cost };
+  const source = CARDS.find((card) => card.type === "Action" && card.cost === cost);
+  assert.ok(source, `Missing Action card with printed cost ${cost}`);
+  return { ...source, id: `energy-action-${cost}` };
 }
 
 test("ordinary Energize adds a charged card without producing Energy", () => {
