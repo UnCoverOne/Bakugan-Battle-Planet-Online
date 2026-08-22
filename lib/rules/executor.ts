@@ -4,8 +4,9 @@ import type { RuleAction, RuleInstruction, RuleProgram } from "./effects";
 
 export type RuleExecutionCursor = {
   instructionIndex: number;
+  /** Structural action position used by the typed executor. */
   actionIndex: number;
-  /** Legacy game-kernel alias for actionIndex. Keep both values identical. */
+  /** Monotonic leaf-effect position used by the game kernel and result binding. */
   effectIndex: number;
 };
 
@@ -27,8 +28,7 @@ function nestedInstruction(parent: RuleInstruction, condition: RuleInstruction["
 }
 
 function nestedCursor(cursor: RuleExecutionCursor, index: number): RuleExecutionCursor {
-  const actionIndex = cursor.actionIndex * 100 + index;
-  return { ...cursor, actionIndex, effectIndex: actionIndex };
+  return { ...cursor, actionIndex: cursor.actionIndex * 100 + index };
 }
 
 function executeAction(
@@ -36,34 +36,35 @@ function executeAction(
   instruction: RuleInstruction,
   cursor: RuleExecutionCursor,
   context: RuleExecutionContext,
+  nextEffectIndex: () => number,
 ) {
   consumeEffectStep();
   if (action.kind === "conditional") {
     const branchInstruction = nestedInstruction(instruction, action.condition, action.whenTrue);
     const selected = context.conditionIsActive(branchInstruction) ? action.whenTrue : (action.whenFalse ?? []);
     for (let index = 0; index < selected.length; index += 1) {
-      executeAction(selected[index], instruction, nestedCursor(cursor, index), context);
+      executeAction(selected[index], instruction, nestedCursor(cursor, index), context, nextEffectIndex);
     }
     return;
   }
   if (action.kind === "replacement") {
     if (!action.condition || context.conditionIsActive(nestedInstruction(instruction, action.condition, action.replaceWith))) {
       for (let index = 0; index < action.replaceWith.length; index += 1) {
-        executeAction(action.replaceWith[index], instruction, nestedCursor(cursor, index), context);
+        executeAction(action.replaceWith[index], instruction, nestedCursor(cursor, index), context, nextEffectIndex);
       }
     }
     return;
   }
   if (action.kind === "sequence") {
     for (let index = 0; index < action.effects.length; index += 1) {
-      executeAction(action.effects[index], instruction, nestedCursor(cursor, index), context);
+      executeAction(action.effects[index], instruction, nestedCursor(cursor, index), context, nextEffectIndex);
     }
     return;
   }
   if (action.kind === "unsupported") {
     throw new UnsupportedCardTextError("UNSUPPORTED_RULE_NODE", `${action.code}: ${action.text}`);
   }
-  context.execute(action, instruction, cursor);
+  context.execute(action, instruction, { ...cursor, effectIndex: nextEffectIndex() });
 }
 
 /**
@@ -81,8 +82,16 @@ export function executeRuleProgram(
     const readiness = context.beforeInstruction(instruction, instructionIndex);
     if (readiness === "suspend") return { completed: false, instructionIndex };
     if (readiness === "skip") continue;
+    let effectIndex = 0;
+    const nextEffectIndex = () => effectIndex++;
     for (let actionIndex = 0; actionIndex < instruction.actions.length; actionIndex += 1) {
-      executeAction(instruction.actions[actionIndex], instruction, { instructionIndex, actionIndex, effectIndex: actionIndex }, context);
+      executeAction(
+        instruction.actions[actionIndex],
+        instruction,
+        { instructionIndex, actionIndex, effectIndex: -1 },
+        context,
+        nextEffectIndex,
+      );
     }
   }
   return { completed: true, instructionIndex: program.instructions.length };
