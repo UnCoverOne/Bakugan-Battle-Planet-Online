@@ -1,6 +1,8 @@
 name: Finalize Energy model PR
 
 on:
+  push:
+    branches: [chatgpt-energy-final]
   pull_request:
     branches: [main]
 
@@ -9,13 +11,13 @@ permissions:
 
 jobs:
   finalize-energy:
-    if: github.head_ref == 'chatgpt-energy-final'
+    if: github.ref == 'refs/heads/chatgpt-energy-final' || github.head_ref == 'chatgpt-energy-final'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -142,4 +144,4 @@ jobs:
           git config user.email "chatgpt@users.noreply.github.com"
           git add -A
           git commit -m "Finalize Energy uncharge and production model"
-          git push origin HEAD:${{ github.head_ref }}
+          git push origin HEAD:${{ github.head_ref || github.ref_name }}
