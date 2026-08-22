@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   finalize:
-    if: github.event.issue.title == 'chatgpt-energy-production-20260822-1349'
+    if: github.event.issue.title == 'chatgpt-energy-production-20260822-1350'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -24,14 +24,18 @@ jobs:
       - name: Apply Energy model
         shell: bash
         run: |
-          python <<'PY'
+          set -o pipefail
+          python <<'PY' 2>&1 | tee energy-apply.log
           from pathlib import Path
-          import re, textwrap
+          import re
           workflow = Path('.github/workflows/finalize-energy-production.yml').read_text()
           match = re.search(r"          python <<'PY'\n(.*?)\n          PY\n", workflow, re.S)
           if not match:
               raise SystemExit('Could not extract Energy patch script')
-          script = textwrap.dedent(match.group(1))
+          script = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in match.group(1).splitlines()
+          )
           exec(compile(script, 'energy-production-patch.py', 'exec'), {})
           PY
       - name: Install dependencies
