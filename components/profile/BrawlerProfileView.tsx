@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BAKUGAN } from "../../lib/data";
@@ -56,7 +58,7 @@ export function BrawlerProfileView({
       <section
         className={`${styles.identityCard} ${styles[`faction_${profile.faction.toLowerCase()}`]} ${mobileStyles.card}`}
       >
-        <img
+        <OriginalImage
           className={`${styles.identityCoverArt} ${mobileStyles.coverArt}`}
           src={selectedCover.src}
           alt=""
@@ -112,7 +114,7 @@ export function BrawlerProfileView({
               ) : null}
             </div>
             <div className={styles.factionIdentity}>
-              <img
+              <OriginalImage
                 src={FACTION_SYMBOLS[profile.faction]}
                 alt=""
                 width="32"
@@ -316,7 +318,7 @@ function CharacterStack({ deck }: { deck: PublicProfileDeck }) {
       aria-label={`${characters.length} Character Cards`}
     >
       {characters.map((character) => (
-        <img
+        <OriginalImage
           key={character!.id}
           src={cardArtSource(character!.character, "thumbnail")}
           alt=""

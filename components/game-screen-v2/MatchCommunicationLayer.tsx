@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { cardEventLogEntries, chatEntries, eventLogEntries, matchTimeLabel, normalizeChatMessage } from "../../lib/chat";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
@@ -242,7 +244,7 @@ export function MatchCommunicationLayer() {
                 >
                   <div className={`${batchStyles.batchHex} ${styles.cardPreview}`}>
                     <span aria-hidden="true">{(entry.card.displayName || entry.card.name).slice(0, 1)}</span>
-                    <img
+                    <OriginalImage
                       src={cardArtSource(entry.card, "thumbnail")}
                       alt={entry.card.displayName || entry.card.name}
                       draggable={false}

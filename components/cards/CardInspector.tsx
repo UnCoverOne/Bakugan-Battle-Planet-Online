@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useMemo } from "react";
 import { cardCollectorLabel, cardSetCode, CARD_SET_INFO } from "../../lib/content/catalogue";
 import {
@@ -41,7 +43,7 @@ function EffectText({ text }: { text: string }) {
       {text.split(pattern).map((part, index) => {
         const symbol = SYMBOL_ENTRIES.find((item) => item.token === part);
         return symbol
-          ? <img className={styles.inlineSymbol} src={symbol.asset} alt={symbol.name} width="18" height="18" key={`${part}-${index}`} />
+          ? <OriginalImage className={styles.inlineSymbol} src={symbol.asset} alt={symbol.name} width="18" height="18" key={`${part}-${index}`} />
           : <span key={`${part}-${index}`}>{part}</span>;
       })}
     </>

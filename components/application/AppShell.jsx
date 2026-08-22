@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -211,7 +213,7 @@ export function AppShell({ children }) {
             href="/"
             aria-label="Bakugan Battle Planet Online home"
           >
-            <img src="/assets/logo.png" alt="Bakugan Battle Planet" />
+            <OriginalImage src="/assets/logo.png" alt="Bakugan Battle Planet" />
             <span>TCG ONLINE</span>
           </Link>
           <nav aria-label="Primary navigation">
@@ -283,7 +285,7 @@ export function AppShell({ children }) {
                     <div className="profile-popover-identity">
                       <strong>{profile.name}</strong>
                       <div className="profile-popover-title">
-                        <img src={FACTION_ICONS[profile.faction]} alt="" />
+                        <OriginalImage src={FACTION_ICONS[profile.faction]} alt="" />
                         <span>{selectedProfileTitle.label}</span>
                       </div>
                     </div>
@@ -441,7 +443,7 @@ function AccountDataScreen({ error, onRetry, onLogout }) {
 function BootScreen() {
   return (
     <main className="boot-screen">
-      <img src="/assets/logo.png" alt="Bakugan Battle Planet" />
+      <OriginalImage src="/assets/logo.png" alt="Bakugan Battle Planet" />
       <span className="pulse" />
       <h1>LOADING BRAWLER DATA</h1>
       <p>Checking the session before selecting local or account storage…</p>

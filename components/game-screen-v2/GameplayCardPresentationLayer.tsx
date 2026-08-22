@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { Bakugan, MatchState } from "../../lib/game";
@@ -157,7 +159,7 @@ export function GameplayCardPresentationLayer() {
                   "--evo-offset-y": `${Math.min(4, depth) * -0.8}%`,
                 } as CSSProperties;
                 return (
-                  <img
+                  <OriginalImage
                     className={styles.evoCard}
                     src={card.art}
                     alt={card.displayName || card.name}

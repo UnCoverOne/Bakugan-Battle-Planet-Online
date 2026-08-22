@@ -117,7 +117,7 @@ test("profile UI uses direct originals, default reset, and undistorted covers", 
   assert.doesNotMatch(owner, /PROFILE_COVER_SPRITE/);
   assert.doesNotMatch(shared, /PROFILE_COVER_SPRITE/);
   assert.doesNotMatch(owner, /profileAvatarStyle/);
-  assert.match(avatar, /<img/);
+  assert.match(avatar, /<OriginalImage/);
   assert.match(avatar, /profile\.name\.slice\(0, 2\)\.toUpperCase\(\)/);
   assert.match(styles, /\.identityCard\s*\{[\s\S]*?aspect-ratio:\s*4\s*\/\s*1/);
   assert.match(styles, /\.identityCoverArt\s*\{[\s\S]*?object-fit:\s*contain/);

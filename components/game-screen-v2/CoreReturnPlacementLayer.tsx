@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useMemo, useState, type CSSProperties } from "react";
 import { HEX_CELLS, type CoreType, type MatchState } from "../../lib/game";
 import {
@@ -97,7 +99,7 @@ export function CoreReturnPlacementLayer({
               data-selected={selectedCoreId === item.core.id}
               onClick={() => setSelectedCoreId(item.core.id)}
             >
-              <img src={item.core.art} alt={item.core.name} width="150" height="130" loading="eager" />
+              <OriginalImage src={item.core.art} alt={item.core.name} width="150" height="130" loading="eager" />
               <span>{item.core.name}</span>
             </button>
           ))}
@@ -125,7 +127,7 @@ export function CoreReturnPlacementLayer({
                 onClick={() => void submit(selectedCoreId, cell.id)}
               >
                 {placement
-                  ? <img src={CORE_BACK_ART[placement.core.type]} alt="Face-down BakuCore" width="104" height="90" />
+                  ? <OriginalImage src={CORE_BACK_ART[placement.core.type]} alt="Face-down BakuCore" width="104" height="90" />
                   : <span>{available ? "+" : ""}</span>}
               </button>
             );

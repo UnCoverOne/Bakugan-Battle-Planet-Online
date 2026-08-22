@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useMemo, useState, type CSSProperties } from "react";
 import { HEX_CELLS, legalPlacementCells, type CoreType, type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
@@ -87,7 +89,7 @@ export function CorePlacementLayer({
       <aside className={styles.tray} aria-label="Your unused BakuCores">
         <strong>YOUR UNUSED CORES</strong>
         {unused.map((core) => <button type="button" key={core.id} disabled={!mine || busy} data-selected={selectedCoreId === core.id} onClick={() => setSelectedCoreId(core.id)}>
-          <img src={core.art} alt={core.name} width="150" height="130" loading="eager" />
+          <OriginalImage src={core.art} alt={core.name} width="150" height="130" loading="eager" />
           <span>{core.name}</span>
         </button>)}
       </aside>
@@ -100,7 +102,7 @@ export function CorePlacementLayer({
             "--r": oppositePerspective ? -cell.r : cell.r,
           } as CSSProperties;
           return <button type="button" key={cell.id} className={styles.cell} style={position} disabled={!available} data-occupied={Boolean(placement)} data-legal={available} onClick={() => void submit(selectedCoreId, cell.id)}>
-            {placement ? <img src={CORE_BACK_ART[placement.core.type]} alt="Face-down BakuCore" width="104" height="90" /> : <span>{available ? "+" : ""}</span>}
+            {placement ? <OriginalImage src={CORE_BACK_ART[placement.core.type]} alt="Face-down BakuCore" width="104" height="90" /> : <span>{available ? "+" : ""}</span>}
           </button>;
         })}
       </CorePlacementMatrix>

@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CardInspector } from "../cards/CardInspector";
@@ -348,7 +350,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         <section className="rules-reader-layout">
           <aside className="panel rules-contents"><h2>Contents</h2>{[...new Set(rules.map((rule) => rule.category))].map((category) => <a key={category} href={`#category-${slug(category)}`}>{category}</a>)}</aside>
           <main>
-            <section className="symbol-reference panel"><div className="panel-heading"><h2>Printed icons</h2><Badge>{SYMBOL_ENTRIES.length}</Badge></div><div>{SYMBOL_ENTRIES.map((symbol) => <article key={symbol.token}><img src={symbol.asset} alt="" /><strong>{symbol.name}</strong><code>{symbol.token}</code><p>{symbol.description}</p></article>)}</div></section>
+            <section className="symbol-reference panel"><div className="panel-heading"><h2>Printed icons</h2><Badge>{SYMBOL_ENTRIES.length}</Badge></div><div>{SYMBOL_ENTRIES.map((symbol) => <article key={symbol.token}><OriginalImage src={symbol.asset} alt="" /><strong>{symbol.name}</strong><code>{symbol.token}</code><p>{symbol.description}</p></article>)}</div></section>
             {[...new Set(rules.map((rule) => rule.category))].map((category) => <section className="rule-category" id={`category-${slug(category)}`} key={category}><h2>{category}</h2>{rules.filter((rule) => rule.category === category).map((rule) => <article className="panel rule-article" id={`rule-${rule.slug}`} key={`${rule.source}-${rule.slug}`}><h3>{rule.title}</h3><p>{rule.body}</p><footer><small>{rule.source} · {rule.sourceSection} · Reviewed {rule.reviewedAt}</small><button onClick={() => void copyLink(`/compendium/rules/${rule.slug}`, rule.title)}>COPY LINK</button></footer></article>)}</section>)}
           </main>
         </section>

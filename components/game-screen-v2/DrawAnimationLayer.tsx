@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import {
   useEffect,
   useLayoutEffect,
@@ -251,9 +253,9 @@ export function DrawAnimationLayer() {
             key={flight.id}
           >
             <div className={styles.cardInner}>
-              <img className={styles.cardBack} src={CARD_BACK_ART} alt="" draggable={false} />
+              <OriginalImage className={styles.cardBack} src={CARD_BACK_ART} alt="" draggable={false} />
               {flight.card ? (
-                <img className={styles.cardFace} src={flight.card.art} alt="" draggable={false} />
+                <OriginalImage className={styles.cardFace} src={flight.card.art} alt="" draggable={false} />
               ) : null}
             </div>
           </div>

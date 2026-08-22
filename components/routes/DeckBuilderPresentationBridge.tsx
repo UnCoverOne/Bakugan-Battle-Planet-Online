@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import styles from "./DeckBuilderPresentationBridge.module.css";
@@ -187,7 +189,7 @@ export function DeckBuilderPresentationBridge() {
               }}
               key={option.key}
             >
-              <img src={option.image} alt="" />
+              <OriginalImage src={option.image} alt="" />
               <span><strong>{option.name}</strong><small>{option.meta}</small></span>
               <i aria-hidden="true">{option.selected ? "✓" : ""}</i>
             </button>

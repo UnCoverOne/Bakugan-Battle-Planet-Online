@@ -144,8 +144,9 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   assert.doesNotMatch(route, /onChange=\{\(event\) => navigate\(\{ q: event\.target\.value \}/);
   for (const tab of ["Overview", "Rules", "Rulings", "Related"]) assert.match(inspector, new RegExp(tab));
   assert.match(inspector, /data-ui="card-inspector"/);
-  assert.match(image, /srcSet=\{srcSet\}/);
-  assert.match(image, /cardArtSource\(card, "thumbnail"\)/);
+  assert.match(image, /<OriginalImage/);
+  assert.doesNotMatch(image, /srcSet=\{/);
+  assert.doesNotMatch(image, /cardArtSource\(card, "thumbnail"\)/);
   assert.match(image, /cardArtSource\(card, "full"\)/);
   assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s);
   assert.match(css, /\.filterRail\s*\{[^}]*position:\s*sticky/s);

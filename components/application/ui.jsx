@@ -1,4 +1,6 @@
 "use client";
+
+import { OriginalImage } from "@/components/media/OriginalImage";
 export function AppButton({ children, onClick = undefined, tone = "blue", disabled = false, type = "button", title = undefined }) {
     return <button className={`hex-button ${tone}`} onClick={onClick} disabled={disabled} type={type} title={title}>{children}</button>;
 }
@@ -6,10 +8,10 @@ export function Badge({ children, tone = "blue" }) {
     return <span className={`badge ${tone}`}>{children}</span>;
 }
 export function Metric({ icon = undefined, label, value }) {
-    return <div className="metric">{icon && <img src={icon} alt=""/>}<div><span>{label}</span><strong>{value}</strong></div></div>;
+    return <div className="metric">{icon && <OriginalImage src={icon} alt=""/>}<div><span>{label}</span><strong>{value}</strong></div></div>;
 }
 export function PageHeader({ eyebrow, title, copy, art, actions }) {
-    return <section className="page-hero"><div className="page-hero-copy"><span className="eyebrow">{eyebrow}</span><h1>{title}</h1>{copy && <p>{copy}</p>}<div className="hero-actions">{actions}</div></div>{art && <img className="page-hero-art" src={art} alt=""/>}</section>;
+    return <section className="page-hero"><div className="page-hero-copy"><span className="eyebrow">{eyebrow}</span><h1>{title}</h1>{copy && <p>{copy}</p>}<div className="hero-actions">{actions}</div></div>{art && <OriginalImage className="page-hero-art" src={art} alt=""/>}</section>;
 }
 export function Toggle({ label, copy, checked, onChange }) {
     return <label className="toggle-row"><div><strong>{label}</strong><small>{copy}</small></div><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)}/><span /></label>;

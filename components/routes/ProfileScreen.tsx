@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -325,7 +327,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                   setDialog(null);
                 }}
               >
-                <img
+                <OriginalImage
                   className={styles.avatarPresetIcon}
                   src={item.src}
                   alt=""
@@ -416,7 +418,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                   <strong>{faction}</strong>
                   <small>{faction} Brawler</small>
                 </span>
-                <img
+                <OriginalImage
                   src={FACTION_SYMBOLS[faction]}
                   alt=""
                   width="36"
@@ -459,7 +461,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                     setDialog(null);
                   }}
                 >
-                  <img
+                  <OriginalImage
                     className={styles.coverArt}
                     src={cover.src}
                     alt=""

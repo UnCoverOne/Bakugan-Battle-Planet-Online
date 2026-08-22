@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import type { ImgHTMLAttributes } from "react";
 import { CARD_ART_PLACEHOLDER, cardArtSource } from "../../lib/content/card-art";
 import type { GameCard } from "../../lib/game";
@@ -26,14 +28,11 @@ export function ResponsiveCardImage({
   ...props
 }: ResponsiveCardImageProps) {
   const full = cardArtSource(card, "full");
-  const thumbnail = cardArtSource(card, "thumbnail");
-  const srcSet = thumbnail !== full ? `${thumbnail} 160w, ${full} 360w` : undefined;
   return (
-    <img
+    <OriginalImage
       {...props}
       className={[styles.image, styles[presentation], className].filter(Boolean).join(" ")}
       src={full}
-      srcSet={srcSet}
       sizes={presentationSizes[presentation]}
       alt={alt ?? card.displayName}
       width={360}
@@ -41,7 +40,6 @@ export function ResponsiveCardImage({
       loading={loading ?? (presentation === "inspector" ? "eager" : "lazy")}
       decoding="async"
       onError={(event) => {
-        event.currentTarget.srcset = "";
         if (!event.currentTarget.src.endsWith(CARD_ART_PLACEHOLDER)) {
           event.currentTarget.src = CARD_ART_PLACEHOLDER;
         }

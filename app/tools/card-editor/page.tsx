@@ -1,3 +1,4 @@
+import { OriginalImage } from "@/components/media/OriginalImage";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CardEditor } from "../../../components/card-editor/CardEditor";
@@ -13,7 +14,7 @@ export default function CardEditorPage() {
     <main className={styles.page}>
       <header className={styles.header}>
         <Link className={styles.brand} href="/">
-          <img src="/assets/logo.png" alt="Bakugan Battle Planet" />
+          <OriginalImage src="/assets/logo.png" alt="Bakugan Battle Planet" />
           <span>DEVELOPER TOOLS</span>
         </Link>
         <nav aria-label="Card editor navigation">

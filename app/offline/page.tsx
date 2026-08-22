@@ -1,3 +1,4 @@
+import { OriginalImage } from "@/components/media/OriginalImage";
 import Link from "next/link";
 
 export const metadata = {
@@ -8,7 +9,7 @@ export const metadata = {
 export default function OfflinePage() {
   return (
     <main className="empty-page">
-      <img src="/assets/logo.png" alt="" width="150" height="130" />
+      <OriginalImage src="/assets/logo.png" alt="" width="150" height="130" />
       <h1>YOU ARE OFFLINE</h1>
       <p>Saved decks and drafts remain available when this browser permits device storage. Account sync and ruling submissions will resume after reconnecting.</p>
       <div className="hero-actions">

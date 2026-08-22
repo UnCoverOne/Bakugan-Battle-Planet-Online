@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useEffect, useMemo, useState, type DragEvent } from "react";
 import { type CardChoices, type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
@@ -275,7 +277,7 @@ export function DeckInspectionLayer() {
                     if (selectable) setSelectedId((current) => current === option.id && !selectionRequired ? "" : option.id);
                   }}
                 >
-                  <img
+                  <OriginalImage
                     src={fingerprintedAsset(card.art)}
                     alt={card.displayName || card.name}
                     width="744"

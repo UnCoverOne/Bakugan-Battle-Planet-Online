@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { MatchState } from "../../lib/game";
@@ -198,7 +200,7 @@ function TieBreakLayerContent({
                       <span>{isLocal ? "YOU" : "OPPONENT"}</span>
                     </div>
                     <div className={styles.cardFrame}>
-                      <img
+                      <OriginalImage
                         src={reveal?.card.art ?? CARD_BACK_ART}
                         alt={reveal ? reveal.card.displayName || reveal.card.name : "Face-down top card"}
                         draggable={false}

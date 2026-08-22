@@ -1,3 +1,4 @@
+import { OriginalImage } from "@/components/media/OriginalImage";
 import type { BrawlerProfile } from "../../lib/persistence";
 import { PROFILE_AVATARS } from "../../lib/profile-customization";
 
@@ -31,7 +32,7 @@ export function ProfileAvatar({
 
   if (source) {
     return (
-      <img
+      <OriginalImage
         className={className}
         style={popoverStyle}
         src={source}

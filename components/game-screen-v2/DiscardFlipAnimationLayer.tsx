@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import {
   useEffect,
   useLayoutEffect,
@@ -166,8 +168,8 @@ export function DiscardFlipAnimationLayer() {
               if (event.target === event.currentTarget && flight.phase === "running") finishFlight(flight.id);
             }} key={flight.id}>
             <div className={styles.cardInner}>
-              <img className={styles.cardBack} src={CARD_BACK_ART} alt="" draggable={false} />
-              <div className={styles.cardFace}><img src={flight.card.art} alt="" draggable={false} /></div>
+              <OriginalImage className={styles.cardBack} src={CARD_BACK_ART} alt="" draggable={false} />
+              <div className={styles.cardFace}><OriginalImage src={flight.card.art} alt="" draggable={false} /></div>
             </div>
           </div>
         );

@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { MatchState } from "../../lib/game";
 import { useMatchSelector } from "./matchStore";
@@ -90,7 +92,7 @@ export function AlternateWinPresentationLayer() {
         <span className={styles.kicker}>ULTIMATE WIN EFFECT RESOLVED</span>
         <div className={styles.cardFrame}>
           <span className={styles.cardGlow} aria-hidden="true" />
-          <img
+          <OriginalImage
             src={card?.art ?? "/assets/cards/sets/ex/full/ex-2.webp"}
             alt="Dragonoid Maximus"
             draggable={false}

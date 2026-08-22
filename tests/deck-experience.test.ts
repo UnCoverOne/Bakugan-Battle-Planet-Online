@@ -87,7 +87,7 @@ test("team selection drives a removable faction filter and ordered BakuCore prev
   assert.match(route, /BakuCoreBack/);
   assert.match(route, /BakuCore reverse/);
   assert.match(route, /CORE_BACK_IMAGES/);
-  assert.match(route, /<img\s+[\s\S]*?src=\{CORE_BACK_IMAGES\[type\]/);
+  assert.match(route, /<OriginalImage\s+[\s\S]*?src=\{CORE_BACK_IMAGES\[type\]/);
   assert.match(css, /\.bakuCoreBack\s*\{[^}]*opacity:\s*\.24/s);
   assert.match(css, /\.bakuCoreBack\s*>\s*img\s*\{[^}]*object-fit:\s*contain/s);
   for (const slug of ["fist", "flaming-fist", "shield", "magic-shield", "helix"]) {

@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import {
   useEffect,
   useLayoutEffect,
@@ -82,7 +84,7 @@ function BrawlCombatant({
       <div className={styles.combatantHeading}>
         <div className={styles.combatantArtFrame}>
           <span aria-hidden="true">{view.bakuganName.slice(0, 1)}</span>
-          <img src={view.art} alt="" aria-hidden="true" draggable={false} />
+          <OriginalImage src={view.art} alt="" aria-hidden="true" draggable={false} />
           {!view.participating ? <i className={previewStyles.missMark} aria-hidden="true">×</i> : null}
         </div>
         <div className={styles.combatantName}>
@@ -392,7 +394,7 @@ export function BrawlExperienceLayer() {
                 >
                   <div className={styles.batchHex}>
                     <span aria-hidden="true">{(effect.card.displayName || effect.card.name).slice(0, 1)}</span>
-                    <img src={effect.card.art} alt={effect.card.displayName || effect.card.name} draggable={false} />
+                    <OriginalImage src={effect.card.art} alt={effect.card.displayName || effect.card.name} draggable={false} />
                   </div>
                   <figcaption>
                     <small>{effectLabel(effect)}</small>

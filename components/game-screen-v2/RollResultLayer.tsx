@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useEffect, useState, type CSSProperties } from "react";
 import type { MatchState, RollOutcome } from "../../lib/game";
 import styles from "./RollResultLayer.module.css";
@@ -99,7 +101,7 @@ export function RollResultLayer({
               >
                 <div className={styles.bakuganArtWrap}>
                   {bakugan ? (
-                    <img
+                    <OriginalImage
                       className={styles.bakuganArt}
                       src={bakugan.character.art || bakugan.art}
                       alt=""
@@ -124,7 +126,7 @@ export function RollResultLayer({
                   <div className={styles.landedCores} data-empty={landed.length ? "false" : "true"}>
                     {landed.length ? landed.map((placement) => placement ? (
                       <figure key={placement.cell}>
-                        <img src={placement.core.art} alt="" aria-hidden="true" draggable={false} />
+                        <OriginalImage src={placement.core.art} alt="" aria-hidden="true" draggable={false} />
                         <figcaption>{placement.core.name}</figcaption>
                       </figure>
                     ) : null) : <span>No BakuCore collected</span>}

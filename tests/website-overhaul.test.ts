@@ -167,17 +167,23 @@ test("secondary routes use shared primitives and route-owned CSS Modules", () =>
   assert.match(source("app/globals.css"), /--chamfer-panel:/);
 });
 
-test("large secondary-route card scans use full assets", () => {
+test("large secondary-route card scans use lossless full assets", () => {
   const play = source("components/routes/PlayRoutes.tsx");
   const compendium = source("components/routes/CompendiumScreen.tsx");
   const responsiveCardImage = source("components/cards/ResponsiveCardImage.tsx");
+  const gameplayCardImage = source("components/game-screen-v2/ResponsiveCardImage.tsx");
+  const originalImage = source("components/media/OriginalImage.tsx");
   const decks = source("components/routes/DeckRoutes.tsx");
   assert.doesNotMatch(play, /cardArtSource\([^)]*,\s*"thumbnail"\)/);
   assert.match(compendium, /ResponsiveCardImage/);
   assert.match(responsiveCardImage, /const full = cardArtSource\(card,\s*"full"\)/);
-  assert.match(responsiveCardImage, /const thumbnail = cardArtSource\(card,\s*"thumbnail"\)/);
-  assert.match(responsiveCardImage, /\$\{thumbnail\} 160w, \$\{full\} 360w/);
-  assert.match(responsiveCardImage, /srcSet=\{srcSet\}/);
+  assert.match(responsiveCardImage, /<OriginalImage/);
+  assert.doesNotMatch(responsiveCardImage, /cardArtSource\(card,\s*"thumbnail"\)/);
+  assert.doesNotMatch(responsiveCardImage, /srcSet=\{/);
+  assert.match(gameplayCardImage, /src=\{fingerprintedAsset\(src\)\}/);
+  assert.doesNotMatch(gameplayCardImage, /optimizedCardSource|responsiveCardSourceSet/);
+  assert.match(originalImage, /<Image[\s\S]*unoptimized/);
+  assert.match(originalImage, /lossless fallback/);
   assert.match(decks, /function CharacterFan[\s\S]*cardArtSource\(character\.character,\s*"full"\)/);
   assert.match(decks, /detailTeam[\s\S]*cardArtSource\(item!\.character,\s*"full"\)/);
 });

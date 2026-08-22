@@ -1,7 +1,9 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useEffect } from "react";
-import { fingerprintedAsset, optimizedCardSource, responsiveCardSourceSet } from "../../lib/assets";
+import { fingerprintedAsset } from "../../lib/assets";
 
 export function ResponsiveCardImage({
   src,
@@ -22,11 +24,9 @@ export function ResponsiveCardImage({
   ariaHidden?: boolean;
   dataCardId?: string;
 }) {
-  const vector = src.endsWith(".svg");
-  return <img
+  return <OriginalImage
     className={className}
-    src={vector ? fingerprintedAsset(src) : optimizedCardSource(src)}
-    srcSet={responsiveCardSourceSet(src)}
+    src={fingerprintedAsset(src)}
     sizes="(max-width: 700px) 80px, (max-width: 1100px) 128px, 192px"
     width="384"
     height="536"
@@ -46,11 +46,8 @@ export function LikelyCardImagePreloader({ sources }: { sources: readonly string
   useEffect(() => {
     for (const source of sources.slice(0, 2)) {
       const image = new Image();
-      image.src = optimizedCardSource(source, 128);
-      image.srcset = responsiveCardSourceSet(source) ?? "";
-      image.sizes = "128px";
+      image.src = fingerprintedAsset(source);
     }
   }, [signature]);
   return null;
 }
-

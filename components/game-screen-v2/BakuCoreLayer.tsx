@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import {
   useEffect,
   useLayoutEffect,
@@ -298,7 +300,7 @@ function CoreTransferSprite({
   } as CSSProperties;
 
   return (
-    <img
+    <OriginalImage
       className={styles.transferCore}
       src={placement.core.art}
       alt=""

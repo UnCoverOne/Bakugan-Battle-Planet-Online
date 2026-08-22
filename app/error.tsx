@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useEffect } from "react";
 import Link from "next/link";
 
@@ -29,7 +31,7 @@ export default function ErrorScreen({
   if (staleAsset) {
     return (
       <main className="empty-page" role="alert">
-        <img src="/assets/logo.png" alt="" width="150" height="130" />
+        <OriginalImage src="/assets/logo.png" alt="" width="150" height="130" />
         <h1>UPDATE REQUIRED</h1>
         <p>
           This tab is using route files from an older deployment. Refresh once to
@@ -54,7 +56,7 @@ export default function ErrorScreen({
 
   return (
     <main className="empty-page" role="alert">
-      <img src="/assets/logo.png" alt="" width="150" height="130" />
+      <OriginalImage src="/assets/logo.png" alt="" width="150" height="130" />
       <h1>THIS SCREEN COULD NOT LOAD</h1>
       <p>
         Your saved browser data has not been cleared. Retry the screen or return

@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
@@ -158,7 +160,7 @@ function HeldCoreZone({
           "--held-core-order": index,
         } as CSSProperties;
         return (
-          <img
+          <OriginalImage
             className={styles.heldCore}
             src={placement.core.art}
             alt={placement.core.name}
@@ -229,7 +231,7 @@ function DeckStack({ count, owner }: { count: number; owner: ZoneOwner }) {
           "--deck-order": index,
         } as CSSProperties;
         return (
-          <img
+          <OriginalImage
             className={styles.deckBackCard}
             src={CARD_BACK_ART}
             alt=""
@@ -428,7 +430,7 @@ function EnergyCardStack({
             onClick={() => onTap?.(card.id)}
             key={card.id}
           >
-            <img
+            <OriginalImage
               src={faceVisible ? card.art : CARD_BACK_ART}
               alt={faceVisible ? card.displayName || card.name : ""}
               aria-hidden={!faceVisible}
@@ -485,7 +487,7 @@ function EnergyZone({
         aria-label={`${energy.availableEnergy} available Energy`}
       >
         <span>{energy.availableEnergy}</span>
-        <img src={ENERGY_SYMBOL_ART} alt="Energy" draggable={false} />
+        <OriginalImage src={ENERGY_SYMBOL_ART} alt="Energy" draggable={false} />
       </strong>
       <strong className={styles.zoneCount} aria-hidden="true">
         {safeCardCount(energy.chargedEnergyCount)}/{safeCardCount(energy.cards.length)}

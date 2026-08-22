@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -624,7 +626,7 @@ function CharacterFan({
       {Array.from({ length: 3 }, (_, index) => {
         const character = characters[index];
         return character ? (
-          <img
+          <OriginalImage
             key={character.id}
             src={cardArtSource(character.character, "full")}
             loading="lazy"
@@ -636,7 +638,7 @@ function CharacterFan({
         );
       })}
       {featuredPreviewCard && (
-        <img
+        <OriginalImage
           className={styles.featuredPreviewCard}
           src={cardArtSource(featuredPreviewCard, "full")}
           loading="lazy"
@@ -654,7 +656,7 @@ function DeckFactionSymbols({ factions }: { factions: string[] }) {
   return (
     <span className={styles.factionSymbols} aria-label={`Factions: ${visibleFactions.join(", ")}`}>
       {visibleFactions.map((faction) => (
-        <img
+        <OriginalImage
           key={faction}
           src={FACTION_SYMBOLS[faction]}
           alt=""
@@ -673,7 +675,7 @@ function DeckFactionTags({ factions }: { factions: string[] }) {
     <div className={styles.factionTags} aria-label={`Factions: ${visibleFactions.join(", ")}`}>
       {visibleFactions.map((faction) => (
         <span className={styles.factionTag} key={faction}>
-          <img src={FACTION_SYMBOLS[faction]} alt="" aria-hidden="true" />
+          <OriginalImage src={FACTION_SYMBOLS[faction]} alt="" aria-hidden="true" />
           {faction}
         </span>
       ))}
@@ -1200,10 +1202,10 @@ function DeckDetailPresentation({
             <div className={styles.detailTeam}>
               {bakugan.map((item) => (
                 <article key={item!.id}>
-                  <img src={cardArtSource(item!.character, "full")} alt={item!.name} />
+                  <OriginalImage src={cardArtSource(item!.character, "full")} alt={item!.name} />
                   <strong>{item!.name}</strong>
                   <span className={styles.characterStats}>
-                    <span><img src={FACTION_SYMBOLS[item!.faction]} alt="" aria-hidden="true" />{item!.faction}</span>
+                    <span><OriginalImage src={FACTION_SYMBOLS[item!.faction]} alt="" aria-hidden="true" />{item!.faction}</span>
                     <span>{item!.bPower}B</span>
                     <span>{item!.damage}D</span>
                   </span>
@@ -1213,7 +1215,7 @@ function DeckDetailPresentation({
             <div className={styles.subsectionHeading}><span>BakuCore lineup</span><strong>{cores.length}/6</strong></div>
             <div className={styles.coreStrip}>
               {cores.map((core, index) => (
-                <div key={`${core!.id}-${index}`}><img src={core!.art} alt={core!.name} /><strong>{core!.type}</strong><span>{core!.name}</span></div>
+                <div key={`${core!.id}-${index}`}><OriginalImage src={core!.art} alt={core!.name} /><strong>{core!.type}</strong><span>{core!.name}</span></div>
               ))}
             </div>
           </Surface>
@@ -1230,7 +1232,7 @@ function DeckDetailPresentation({
                     {section.cards.map(({ card, count }) => (
                       <article key={card.catalogId}>
                         <div className={styles.detailCardArt}>
-                          <img src={cardArtSource(card, "thumbnail")} alt={card.displayName} />
+                          <OriginalImage src={cardArtSource(card, "thumbnail")} alt={card.displayName} />
                           <span className={styles.copyCount} aria-label={`${count} copies`}>×{count}</span>
                         </div>
                         <strong>{card.displayName}</strong>
@@ -1833,7 +1835,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
                 const core = selectedId ? CORES.find((candidate) => candidate.id === selectedId) : null;
                 return core ? (
                   <article className={styles.builderCoreSlot} key={`${core.id}-${index}`}>
-                    <button onClick={() => inspectCore(core.id)}><img src={core.art} alt={core.name} /></button>
+                    <button onClick={() => inspectCore(core.id)}><OriginalImage src={core.art} alt={core.name} /></button>
                     <span>{core.type}</span>
                     <button aria-label={`Remove ${core.name}`} onClick={() => adjustCore(core.id, -1)}>−</button>
                   </article>
@@ -2069,7 +2071,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
                       onClick={() => setSaveLeadCardId(card.catalogId)}
                       key={card.catalogId}
                     >
-                      <img src={cardArtSource(card, "thumbnail")} alt="" />
+                      <OriginalImage src={cardArtSource(card, "thumbnail")} alt="" />
                       <span>
                         <strong>{card.displayName}</strong>
                         <small>{card.faction} · {card.type}</small>
@@ -2177,7 +2179,7 @@ function BuilderToolbar({
 function BakuCoreBack({ type }: { type: string }) {
   return (
     <div className={styles.bakuCoreBack}>
-      <img
+      <OriginalImage
         src={CORE_BACK_IMAGES[type] ?? CORE_BACK_IMAGES.Shield}
         alt={`${type} BakuCore reverse`}
         decoding="async"
@@ -2207,7 +2209,7 @@ function BuilderGalleryCard({
     <article className={`${styles.builderGalleryCard} ${item.kind === "core" ? styles.builderGalleryCore : ""}`}>
       <button className={styles.builderCardArtButton} type="button" onClick={onInspect} aria-label={`Inspect ${item.name}`}>
         {item.kind === "core"
-          ? <img src={core?.art} alt={item.name} />
+          ? <OriginalImage src={core?.art} alt={item.name} />
           : <ResponsiveCardImage card={item.card} presentation="tile" />}
       </button>
       <div className={styles.builderGalleryIdentity}>
@@ -2246,7 +2248,7 @@ function BuilderRequirementHeader({
         <strong>{count}/{maximum}</strong>
         {factions.length > 0 && (
           <span className={styles.builderFactionSymbols} aria-label={`Allowed factions: ${factions.join(", ")}`}>
-            {factions.map((faction) => <img src={FACTION_SYMBOLS[faction]} alt={faction} title={faction} key={faction} />)}
+            {factions.map((faction) => <OriginalImage src={FACTION_SYMBOLS[faction]} alt={faction} title={faction} key={faction} />)}
           </span>
         )}
       </div>
@@ -2363,7 +2365,7 @@ function BuilderCoreInspector({ coreId, onClose }: { coreId: string; onClose: ()
     <div className={styles.builderInspectorOverlay}>
       <section className={styles.builderCoreInspector} role="dialog" aria-modal="true" aria-label={`${core.name} BakuCore`}>
         <header><span>BakuCore</span><h2>{core.name}</h2><button type="button" onClick={onClose}>Close</button></header>
-        <div><img src={core.art} alt={core.name} /><dl><div><dt>Type</dt><dd>{core.type}</dd></div><div><dt>B-Power</dt><dd>{core.bonus > 0 ? "+" : ""}{core.bonus}</dd></div><div><dt>Damage</dt><dd>{core.damageBonus > 0 ? "+" : ""}{core.damageBonus}</dd></div></dl><p>BakuCore types must match the six indicators printed across the three selected Character cards.</p></div>
+        <div><OriginalImage src={core.art} alt={core.name} /><dl><div><dt>Type</dt><dd>{core.type}</dd></div><div><dt>B-Power</dt><dd>{core.bonus > 0 ? "+" : ""}{core.bonus}</dd></div><div><dt>Damage</dt><dd>{core.damageBonus > 0 ? "+" : ""}{core.damageBonus}</dd></div></dl><p>BakuCore types must match the six indicators printed across the three selected Character cards.</p></div>
       </section>
     </div>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useReducer } from "react";
@@ -388,7 +390,7 @@ function LoadoutVisual({ deck }: { deck: DeckRecord }) {
         {Array.from({ length: 3 }, (_, index) => {
           const character = characters[index];
           return character
-            ? <img key={character.id} src={cardArtSource(character.character, "full")} loading="lazy" decoding="async" alt={character.name} />
+            ? <OriginalImage key={character.id} src={cardArtSource(character.character, "full")} loading="lazy" decoding="async" alt={character.name} />
             : <span key={index} aria-label="Empty Character slot">?</span>;
         })}
       </div>
@@ -396,7 +398,7 @@ function LoadoutVisual({ deck }: { deck: DeckRecord }) {
         {Array.from({ length: 6 }, (_, index) => {
           const core = cores[index];
           return core
-            ? <span key={`${core.id}-${index}`}><img src={core.art} loading="lazy" alt="" /><small>{core.type}</small></span>
+            ? <span key={`${core.id}-${index}`}><OriginalImage src={core.art} loading="lazy" alt="" /><small>{core.type}</small></span>
             : <span className={styles.emptyCore} key={index}>?</span>;
         })}
       </div>
@@ -544,9 +546,9 @@ export function ResultScreen() {
     setReplayIndex(Math.max(0, exactRecord.log.length - 1));
     router.push(`/profile/records/${encodeURIComponent(exactRecord.id)}`);
   };
-  return <section className={`result-page ${won ? "victory" : "defeat"}`}><img className="result-art" src="/assets/winner.png" alt="" /><div className="result-content"><Badge tone={won ? "gold" : "red"}>{complete ? "MATCH COMPLETE" : "SERIES INTERMISSION"}</Badge><h1>{won ? "VICTOR" : "DEFEAT"}</h1><p>{match.resultReason}</p><div className="series-score">{match.players.map((player: any) => <div key={player.id}>{player.id === playerId ? <strong>{player.name}</strong> : <MatchResultSocial matchCode={match.code} opponentUserId={exactRecord?.opponentUserId} opponentName={player.name} />}<span>{match.series[player.id] ?? 0}</span></div>)}</div><div className="result-stats"><Metric label="Game" value={`${match.gameNumber}`} /><Metric label="Format" value={match.format.toUpperCase()} /><Metric label="Events" value={match.log.length} /><Metric label="Random results" value={match.log.filter((event: any) => event.kind === "random").length} /></div><div className="result-actions">{!complete && <AppButton tone="red" onClick={() => void nextSeriesGame()}>NEXT GAME • NEW MATRIX</AppButton>}<AppButton tone="gold" disabled={!exactRecord} onClick={openReplay}>VIEW MATCH RECORD</AppButton><AppButton tone="ghost" onClick={leaveMatch}>DASHBOARD</AppButton></div><small>{exactRecord ? `Result stored in Match Records • ${exactRecord.at}` : "Saving result to Match Records…"}</small></div></section>;
+  return <section className={`result-page ${won ? "victory" : "defeat"}`}><OriginalImage className="result-art" src="/assets/winner.png" alt="" /><div className="result-content"><Badge tone={won ? "gold" : "red"}>{complete ? "MATCH COMPLETE" : "SERIES INTERMISSION"}</Badge><h1>{won ? "VICTOR" : "DEFEAT"}</h1><p>{match.resultReason}</p><div className="series-score">{match.players.map((player: any) => <div key={player.id}>{player.id === playerId ? <strong>{player.name}</strong> : <MatchResultSocial matchCode={match.code} opponentUserId={exactRecord?.opponentUserId} opponentName={player.name} />}<span>{match.series[player.id] ?? 0}</span></div>)}</div><div className="result-stats"><Metric label="Game" value={`${match.gameNumber}`} /><Metric label="Format" value={match.format.toUpperCase()} /><Metric label="Events" value={match.log.length} /><Metric label="Random results" value={match.log.filter((event: any) => event.kind === "random").length} /></div><div className="result-actions">{!complete && <AppButton tone="red" onClick={() => void nextSeriesGame()}>NEXT GAME • NEW MATRIX</AppButton>}<AppButton tone="gold" disabled={!exactRecord} onClick={openReplay}>VIEW MATCH RECORD</AppButton><AppButton tone="ghost" onClick={leaveMatch}>DASHBOARD</AppButton></div><small>{exactRecord ? `Result stored in Match Records • ${exactRecord.at}` : "Saving result to Match Records…"}</small></div></section>;
 }
 
 function Empty({ title }: { title: string }) {
-  return <section className="empty-page"><img src="/assets/logo.png" alt="" /><h1>{title}</h1><p>Return to the dashboard and start a new match.</p><Link className="hex-button ghost" href="/dashboard">DASHBOARD</Link></section>;
+  return <section className="empty-page"><OriginalImage src="/assets/logo.png" alt="" /><h1>{title}</h1><p>Return to the dashboard and start a new match.</p><Link className="hex-button ghost" href="/dashboard">DASHBOARD</Link></section>;
 }

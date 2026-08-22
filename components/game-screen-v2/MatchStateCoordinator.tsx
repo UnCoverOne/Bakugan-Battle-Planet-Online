@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { captureCoreReturns } from "../../lib/coreReturns";
@@ -204,7 +206,7 @@ function MatchResultDialog({
           </button>
         ) : null}
         <header className={styles.header}>
-          <img className={styles.logo} src="/assets/logo.png" alt="" aria-hidden="true" />
+          <OriginalImage className={styles.logo} src="/assets/logo.png" alt="" aria-hidden="true" />
           <span className={styles.eyebrow}>{eyebrow}</span>
           <h2 id="match-result-title" className={styles.title}>{copy.title}</h2>
           <div className={styles.reason}>

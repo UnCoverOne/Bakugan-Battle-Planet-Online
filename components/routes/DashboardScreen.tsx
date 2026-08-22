@@ -1,5 +1,7 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
@@ -230,7 +232,7 @@ export function DashboardScreen() {
       <div className="bakugan-home-hero-art">
         <HeroSpeedLines/>
         <div className="bakugan-home-energy" aria-hidden="true"/>
-        <img src={heroSource} width="960" height="920" decoding="async" alt="Pyrus Bakugan charging into battle"/>
+        <OriginalImage src={heroSource} width="960" height="920" decoding="async" alt="Pyrus Bakugan charging into battle"/>
       </div>
     </section>
 
@@ -298,8 +300,8 @@ export function DashboardScreen() {
         {featured ? <div className="home-featured-deck-layout">
           <div className={`home-featured-deck-stack ${factionClass(featured.factions[0] ?? "Pyrus")}`} aria-label={`Featured cards from ${featured.name}`}>
             {featuredPreviewCards.length ? featuredPreviewCards.map((card) => <div className="home-featured-deck-card" key={card.catalogId}>
-              <img src={cardArtSource(card, "full")} alt={card.displayName}/>
-            </div>) : <img className="home-featured-deck-placeholder" src="/assets/cards/card-missing.svg" alt="Featured deck artwork unavailable"/>}
+              <OriginalImage src={cardArtSource(card, "full")} alt={card.displayName}/>
+            </div>) : <OriginalImage className="home-featured-deck-placeholder" src="/assets/cards/card-missing.svg" alt="Featured deck artwork unavailable"/>}
           </div>
           <div className="home-featured-deck-copy">
             <div className="home-featured-deck-badges"><Badge tone="gold">{deckSetName(featured).toUpperCase()}</Badge><Badge>{featured.factions.join(" • ")}</Badge></div>
