@@ -1,0 +1,161 @@
+name: Previous-result finalizer v2
+
+on:
+  push:
+    branches:
+      - chatgpt-prev-result-finalize2
+    paths:
+      - .github/prev-result-trigger
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reset to current main
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+          echo "BASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Apply final runtime fixes
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected one match in {path}, got {count}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'lib/rules/model.ts',
+              '  /** Actual successful quantities produced by earlier actions in this resolution. */\n  actionResults?: Record<string, RuleActionResult>;\n',
+              '  /** Actual successful quantities produced by earlier actions in this resolution. */\n'
+              '  actionResults?: Record<string, RuleActionResult>;\n'
+              '  /** Latest successful result-bearing action; used by result-anaphora such as “that many”. */\n'
+              '  latestActionResult?: RuleActionResult;\n',
+          )
+
+          replace_once(
+              'lib/rules/objects.ts',
+              '    actionResults: {},\n    resolvedChoices: independentChoices ? {} : structuredClone(source.resolvedChoices ?? {}),\n',
+              '    actionResults: {},\n'
+              '    latestActionResult: undefined,\n'
+              '    resolvedChoices: independentChoices ? {} : structuredClone(source.resolvedChoices ?? {}),\n',
+          )
+
+          replace_once(
+              'lib/game.ts',
+              '''function previousActionResult(pending: PendingEffect, instructionIndex: number, actionIndex: number) {
+  if (!isRuleObject(pending)) return undefined;
+  return Object.entries(pending.actionResults ?? {})
+    .map(([key, result]) => {
+      const [priorInstruction, priorAction] = key.split(":").map(Number);
+      return { priorInstruction, priorAction, result };
+    })
+    .filter(({ priorInstruction, priorAction }) => Number.isFinite(priorInstruction) && Number.isFinite(priorAction)
+      && (priorInstruction < instructionIndex || (priorInstruction === instructionIndex && priorAction < actionIndex)))
+    .sort((left, right) => left.priorInstruction - right.priorInstruction || left.priorAction - right.priorAction)
+    .at(-1)?.result;
+}
+''',
+              '''function previousActionResult(pending: PendingEffect, _instructionIndex: number, _actionIndex: number) {
+  return isRuleObject(pending) ? pending.latestActionResult : undefined;
+}
+''',
+          )
+
+          replace_once(
+              'lib/game.ts',
+              '''  pending.actionResults[actionResultKey(instructionIndex, actionIndex)] = {
+    amount: Math.max(0, Math.floor(result.amount)),
+    ...(result.amountByPlayer ? {
+      amountByPlayer: Object.fromEntries(Object.entries(result.amountByPlayer).map(([id, amount]) => [id, Math.max(0, Math.floor(amount))])),
+    } : {}),
+  };
+''',
+              '''  const normalized: RuleActionResult = {
+    amount: Math.max(0, Math.floor(result.amount)),
+    ...(result.amountByPlayer ? {
+      amountByPlayer: Object.fromEntries(Object.entries(result.amountByPlayer).map(([id, amount]) => [id, Math.max(0, Math.floor(amount))])),
+    } : {}),
+  };
+  pending.actionResults[actionResultKey(instructionIndex, actionIndex)] = normalized;
+  pending.latestActionResult = normalized;
+''',
+          )
+
+          replace_once(
+              'lib/game.ts',
+              '''        const amount = minimum === 0 ? selected.length : selected.length || expressionAmount;
+        if (amount > 0) discardFromHand(state, affected, Math.min(maximum, amount), selected);
+''',
+              '''        const entireHand = /discard (?:their|your) entire hand/i.test(text);
+        const amount = entireHand
+          ? before
+          : minimum === 0 ? selected.length : selected.length || expressionAmount;
+        if (amount > 0) discardFromHand(state, affected, Math.min(maximum, amount), entireHand ? [] : selected);
+''',
+          )
+
+          replace_once(
+              'lib/game.ts',
+              '        executeRuleAction(state, pending, instruction, action, cursor.instructionIndex, cursor.effectIndex);\n',
+              '        executeRuleAction(state, pending, instruction, action, cursor.instructionIndex, cursor.actionIndex);\n',
+          )
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Targeted previous-result tests
+        run: node --import tsx --test tests/previous-result-quantities.test.ts tests/dynamic-value-catalogue.test.ts tests/content-pipeline.test.ts tests/rules-engine-modernization.test.ts
+
+      - name: Rules suite
+        run: npm run test:rules
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+
+      - name: Commit validated fixes to main
+        shell: bash
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$BASE_SHA" ]; then
+            echo "main moved during validation; refusing to overwrite concurrent work."
+            exit 1
+          fi
+          git config user.name "ChatGPT"
+          git config user.email "chatgpt@users.noreply.github.com"
+          rm -f .github/workflows/finalize-previous-result.yml
+          git add -A lib/rules/model.ts lib/rules/objects.ts lib/game.ts .github/workflows/finalize-previous-result.yml
+          git commit -m "Fix previous-result resolution semantics"
+          git push origin HEAD:main
+
+      - name: Capture failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          git diff > previous-result-finalize2.diff || true
+          git status --short > previous-result-finalize2-status.txt || true
+          git config user.name "ChatGPT"
+          git config user.email "chatgpt@users.noreply.github.com"
+          git checkout -B chatgpt-previous-result-finalize2-failure
+          git add -A
+          git commit -m "Capture previous-result finalizer v2 failure" || true
+          git push --force origin chatgpt-previous-result-finalize2-failure
