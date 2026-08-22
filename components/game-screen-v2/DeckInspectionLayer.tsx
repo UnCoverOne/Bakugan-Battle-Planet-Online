@@ -2,7 +2,7 @@
 
 import { OriginalImage } from "@/components/media/OriginalImage";
 
-import { useEffect, useMemo, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { type CardChoices, type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import type { ChoiceOption } from "../../lib/rules/choices";
@@ -15,6 +15,7 @@ import {
   isFullDeckSearchField,
   renderableDeckInspectionField,
 } from "./deckInspectionPresentation";
+import { reconcileOrderedIds, retainLegalSelection } from "./choiceSelectionContinuity";
 
 const styles = { ...deckStyles, ...searchStyles };
 
@@ -96,14 +97,28 @@ export function DeckInspectionLayer() {
   const [draggingId, setDraggingId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const choiceIdentity = `${pending?.id ?? ""}:${deckField?.id ?? ""}`;
+  const previousChoiceIdentity = useRef("");
+  const deckOptionIds = useMemo(
+    () => deckField?.options.map((option) => option.id) ?? [],
+    [deckField?.options],
+  );
+  const selectionOptionIds = useMemo(
+    () => selectionField?.options.filter((option) => !option.disabled).map((option) => option.id) ?? [],
+    [selectionField?.options],
+  );
 
   useEffect(() => {
-    setOrderedIds(deckField?.options.map((option) => option.id) ?? []);
-    setSelectedId("");
+    const isNewChoice = previousChoiceIdentity.current !== choiceIdentity;
+    previousChoiceIdentity.current = choiceIdentity;
+    setOrderedIds((current) => isNewChoice ? [...deckOptionIds] : reconcileOrderedIds(current, deckOptionIds));
+    setSelectedId((current) => isNewChoice ? "" : retainLegalSelection(current, selectionOptionIds));
     setDraggingId("");
-    setBusy(false);
-    setError("");
-  }, [pending?.id, deckField?.id]);
+    if (isNewChoice) {
+      setBusy(false);
+      setError("");
+    }
+  }, [choiceIdentity, deckOptionIds, selectionOptionIds]);
 
   if (snapshot.route !== "match" || !match || !playerId || !pending || !deckField) return null;
 

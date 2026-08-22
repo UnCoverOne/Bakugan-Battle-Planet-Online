@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type { MatchState, PlayerState } from "../../lib/game";
 import { legalEvoTargets } from "../../lib/evo";
@@ -86,16 +86,20 @@ export function SelectionInteractionLayer({
   const effectiveSelectedHandCardId = selectedHandCardId || domSelectedHandCardId;
   const localPlayer = selectionPlayer(match, playerId);
   const selectedHandCard = localPlayer?.hand.find((card) => card.id === effectiveSelectedHandCardId);
-  const evoTargetIds = new Set(
-    selectedHandCard?.type === "Evo"
-      && match
-      && localPlayer
-      && PRIORITY_PHASES.has(match.phase)
-      && match.priority === localPlayer.id
-      ? legalEvoTargets(match, localPlayer.id, selectedHandCard).map((bakugan) => bakugan.id)
-      : [],
+  const evoTargetIds = useMemo(
+    () => new Set(
+      selectedHandCard?.type === "Evo"
+        && match
+        && localPlayer
+        && PRIORITY_PHASES.has(match.phase)
+        && match.priority === localPlayer.id
+        ? legalEvoTargets(match, localPlayer.id, selectedHandCard).map((bakugan) => bakugan.id)
+        : [],
+    ),
+    [localPlayer, match, selectedHandCard],
   );
   const evoSelectionActive = evoTargetIds.size > 0;
+  const drawPending = drawStepIsPending(match);
   const activeBoardChoice = boardChoice
     && boardChoice.matchId === match?.id
     && boardChoice.playerId === localPlayer?.id
@@ -129,12 +133,12 @@ export function SelectionInteractionLayer({
   }, [effectiveSelectedHandCardId, match?.phase, match?.priority]);
 
   useEffect(() => {
-    if (!drawStepIsPending(match)) return;
+    if (!drawPending) return;
     const update = () => setNow(Date.now());
     update();
     const interval = window.setInterval(update, 250);
     return () => window.clearInterval(interval);
-  }, [match?.phase, match?.version]);
+  }, [drawPending]);
 
   useEffect(() => {
     const player = selectionPlayer(match, playerId);
@@ -248,6 +252,7 @@ export function SelectionInteractionLayer({
     selectedCharacterId,
     selectedEvoTargetId,
     effectiveSelectedHandCardId,
+    evoTargetIds,
     evoSelectionActive,
     onCharacterSelectionChange,
     onClearSelections,

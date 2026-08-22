@@ -2,7 +2,7 @@
 
 import { OriginalImage } from "@/components/media/OriginalImage";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { HEX_CELLS, legalPlacementCells, type CoreType, type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
@@ -37,7 +37,7 @@ export function CorePlacementLayer({
   const oppositePerspective = playerUsesOppositeMatrixPerspective(match, actorId);
   const player = match?.players.find((candidate) => candidate.id === actorId);
   const startingPlayer = match?.players.find((candidate) => candidate.id === match.initialStartingPlayer);
-  const legal = useMemo(() => match ? legalPlacementCells(match) : [], [match?.version]);
+  const legal = match ? legalPlacementCells(match) : [];
 
   if (!match || !actorId || !player || !["startingPlayer", "placement"].includes(match.phase)) return null;
 

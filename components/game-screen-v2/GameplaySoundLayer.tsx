@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { useMatchSelector } from "./matchStore";
+import { isLiveMatchTransition } from "./presentationContinuity";
+import type { MatchState } from "../../lib/game";
 
 type SoundName = "draw" | "card" | "core" | "roll" | "damage" | "priority" | "victory" | "chat";
 
@@ -54,21 +56,17 @@ export function GameplaySoundLayer() {
     ? state.settings.sound !== false
     : state.settings.soundEnabled !== false);
   const volume = useMatchSelector((state) => Number(state.settings.soundVolume ?? .55));
-  const previous = useRef<{ matchId?: string; count: number }>({ count: 0 });
+  const previous = useRef<{ match: MatchState | null; count: number }>({ match: null, count: 0 });
   useEffect(() => {
     if (!match) return;
-    if (previous.current.matchId !== match.id) {
-      previous.current = { matchId: match.id, count: match.log.length };
-      return;
-    }
+    const prior = previous.current;
     const additions = match.log.slice(previous.current.count);
-    previous.current.count = match.log.length;
-    if (!enabled || document.visibilityState !== "visible") return;
+    previous.current = { match, count: match.log.length };
+    if (!enabled || !isLiveMatchTransition(prior.match, match, document.visibilityState)) return;
     additions.slice(-3).forEach((entry, index) => {
       const name = String(entry.kind) === "chat" ? "chat" : classify(entry.message);
       if (name) window.setTimeout(() => play(name, Math.max(0, Math.min(1, volume))), index * 70);
     });
-  }, [match?.id, match?.version, enabled, volume]);
+  }, [enabled, match, volume]);
   return null;
 }
-

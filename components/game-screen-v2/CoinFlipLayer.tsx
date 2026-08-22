@@ -16,6 +16,9 @@ const COIN_FLIP_COMPLETION_RETRY_MS = 900;
 
 export function CoinFlipLayer({ match, playerId, onCompleteCoinFlip }: CoinFlipLayerProps) {
   const pending = match?.pendingCoinFlip;
+  const pendingId = pending?.id;
+  const pendingControllerId = pending?.controllerId;
+  const pendingResolveAt = pending?.resolveAt;
   const localPlayerId = playerId ?? match?.players[0]?.id;
   const [revealedId, setRevealedId] = useState("");
   const completingId = useRef("");
@@ -26,7 +29,7 @@ export function CoinFlipLayer({ match, playerId, onCompleteCoinFlip }: CoinFlipL
   }, [onCompleteCoinFlip]);
 
   useEffect(() => {
-    if (!pending) {
+    if (!pendingId || !pendingControllerId || pendingResolveAt == null) {
       setRevealedId("");
       completingId.current = "";
       return;
@@ -37,7 +40,7 @@ export function CoinFlipLayer({ match, playerId, onCompleteCoinFlip }: CoinFlipL
     setRevealedId("");
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     const revealTimer = window.setTimeout(
-      () => setRevealedId(pending.id),
+      () => setRevealedId(pendingId),
       reducedMotion ? 160 : 1_450,
     );
 
@@ -45,23 +48,23 @@ export function CoinFlipLayer({ match, playerId, onCompleteCoinFlip }: CoinFlipL
       completeTimer = window.setTimeout(() => void attemptCompletion(), delay);
     };
     const attemptCompletion = async () => {
-      if (cancelled || completingId.current === pending.id) return;
-      completingId.current = pending.id;
+      if (cancelled || completingId.current === pendingId) return;
+      completingId.current = pendingId;
       try {
         await completeRef.current();
       } catch {
         if (cancelled) return;
-        if (completingId.current === pending.id) completingId.current = "";
+        if (completingId.current === pendingId) completingId.current = "";
         // Completion is a rules liveness acknowledgement, not an optional UI
         // request. A transient HTTP/network failure must not strand the batch.
         scheduleCompletion(COIN_FLIP_COMPLETION_RETRY_MS);
       }
     };
 
-    if (pending.controllerId === localPlayerId) {
+    if (pendingControllerId === localPlayerId) {
       const animationDelay = reducedMotion
         ? 650
-        : Math.max(0, pending.resolveAt - Date.now());
+        : Math.max(0, pendingResolveAt - Date.now());
       scheduleCompletion(animationDelay);
     }
 
@@ -70,7 +73,7 @@ export function CoinFlipLayer({ match, playerId, onCompleteCoinFlip }: CoinFlipL
       window.clearTimeout(revealTimer);
       if (completeTimer != null) window.clearTimeout(completeTimer);
     };
-  }, [pending?.id, pending?.controllerId, pending?.resolveAt, localPlayerId]);
+  }, [localPlayerId, pendingControllerId, pendingId, pendingResolveAt]);
 
   if (!pending) return null;
   const revealed = revealedId === pending.id;

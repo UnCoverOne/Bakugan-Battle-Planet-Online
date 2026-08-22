@@ -158,6 +158,7 @@ export function MatchHudLayer({
   const [now, setNow] = useState(() => Date.now());
   const boardChoice = useBoardChoiceHud();
   const { player, opponent } = resolveHudPlayers(match, playerId);
+  const drawPending = drawStepIsPending(match);
 
   useEffect(() => {
     setSelectionPending(false);
@@ -166,12 +167,12 @@ export function MatchHudLayer({
   }, [match?.phase, match?.version, selectedHandCardId]);
 
   useEffect(() => {
-    if (!drawStepIsPending(match)) return;
+    if (!drawPending) return;
     const update = () => setNow(Date.now());
     update();
     const interval = window.setInterval(update, 250);
     return () => window.clearInterval(interval);
-  }, [match?.phase, match?.version]);
+  }, [drawPending]);
 
   if (!match || !player || !opponent) return null;
 

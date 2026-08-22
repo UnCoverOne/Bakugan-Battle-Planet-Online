@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type CardChoices, type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import type { ChoiceField, ChoiceKind } from "../../lib/rules/choices";
@@ -9,6 +9,7 @@ import { matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchSt
 import styles from "./ChoiceQueueLayer.module.css";
 import { isTopDeckField, renderableDeckInspectionField } from "./deckInspectionPresentation";
 import { boardChoicePrompt, clearBoardChoiceHud, publishBoardChoiceHud } from "./boardChoiceHud";
+import { reconcileChoiceAnswers, reconcileOrderedIds } from "./choiceSelectionContinuity";
 
 const BOARD_TARGET_KINDS = new Set<ChoiceKind>(["batch-object", "hero", "evo", "energy", "bakugan", "core", "card"]);
 
@@ -100,12 +101,25 @@ export function ChoiceQueueLayer() {
   const [orderedIds, setOrderedIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const pendingChoiceId = pending?.id ?? "";
+  const triggerOrderId = triggerOrder?.id ?? "";
+  const previousPendingChoiceId = useRef("");
+  const previousTriggerOrderId = useRef("");
 
   useEffect(() => {
-    setAnswers({});
-    setOrderedIds(triggerOrder?.triggerIds ?? []);
-    setError("");
-  }, [pending?.id, triggerOrder?.id]);
+    const isNewChoice = previousPendingChoiceId.current !== pendingChoiceId;
+    previousPendingChoiceId.current = pendingChoiceId;
+    setAnswers((current) => isNewChoice ? {} : reconcileChoiceAnswers(current, fields));
+    if (isNewChoice) setError("");
+  }, [fields, pendingChoiceId]);
+
+  useEffect(() => {
+    const isNewOrder = previousTriggerOrderId.current !== triggerOrderId;
+    previousTriggerOrderId.current = triggerOrderId;
+    const legalIds = triggerOrder?.triggerIds ?? [];
+    setOrderedIds((current) => isNewOrder ? [...legalIds] : reconcileOrderedIds(current, legalIds));
+    if (isNewOrder) setError("");
+  }, [triggerOrder, triggerOrderId]);
 
   const incompleteBoardField = boardFields.find((field) => !fieldComplete(answers, field));
   const boardFieldsComplete = boardFields.every((field) => fieldComplete(answers, field));
@@ -141,8 +155,12 @@ export function ChoiceQueueLayer() {
   }, [busy, pending]);
 
   const clearError = useCallback(() => setError(""), []);
-  const selectedBoardIds = activeBoardField ? valuesFor(answers, activeBoardField) : [];
+  const selectedBoardIds = useMemo(
+    () => activeBoardField ? valuesFor(answers, activeBoardField) : [],
+    [activeBoardField, answers],
+  );
   const selectedBoardSignature = selectedBoardIds.join("|");
+  const activeBoardOptionSignature = activeBoardField?.options.map((option) => option.id).join("|") ?? "";
   const selectedBoardNames = activeBoardField?.options
     .filter((option) => selectedBoardIds.includes(option.id))
     .map((option) => option.label) ?? [];
@@ -275,7 +293,7 @@ export function ChoiceQueueLayer() {
         }
       }
     };
-  }, [activeBoardField, busy, selectedBoardSignature, state.route, toggle, activeBoardField?.options.map((option) => option.id).join("|")]);
+  }, [activeBoardField, activeBoardOptionSignature, busy, selectedBoardIds, selectedBoardSignature, state.route, toggle]);
 
   if (state.route !== "match" || !match || !playerId) return null;
   if (deckInspectionActive && !triggerOrder) return null;

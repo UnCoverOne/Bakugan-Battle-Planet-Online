@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { MatchState } from "../../lib/game";
 import { energizeTransitions } from "./energizeAnimationState";
+import { isLiveMatchTransition } from "./presentationContinuity";
 
 const ENERGIZE_ANIMATION_MS = 1120;
 type ZoneOwner = "player" | "opponent";
@@ -35,7 +36,7 @@ export function EnergyArrivalLayer({
   useLayoutEffect(() => {
     const previous = previousMatch.current;
     previousMatch.current = match;
-    if (!match || !previous || previous.id !== match.id) {
+    if (!isLiveMatchTransition(previous, match, document.visibilityState)) {
       clearPresentation();
       return;
     }
@@ -65,7 +66,7 @@ export function EnergyArrivalLayer({
     window.dispatchEvent(new Event("bbp-card-preview-clear"));
     activeElements.current = activated;
     clearTimer.current = window.setTimeout(clearPresentation, ENERGIZE_ANIMATION_MS);
-  }, [match?.id, match?.version, playerId]);
+  }, [match, playerId]);
 
   return null;
 }

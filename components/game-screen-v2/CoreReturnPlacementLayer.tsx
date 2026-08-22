@@ -2,7 +2,7 @@
 
 import { OriginalImage } from "@/components/media/OriginalImage";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { HEX_CELLS, type CoreType, type MatchState } from "../../lib/game";
 import {
   legalCoreReturnCells,
@@ -40,7 +40,7 @@ export function CoreReturnPlacementLayer({
   const oppositePerspective = playerUsesOppositeMatrixPerspective(match, actorId);
   const mine = Boolean(actorId && match.priority === actorId);
   const returns = pendingCoreReturnsForPlayer(match, actorId);
-  const legal = useMemo(() => legalCoreReturnCells(match), [match.version]);
+  const legal = legalCoreReturnCells(match);
   const totalRemaining = (match as MatchState & { pendingCoreReturns?: unknown[] }).pendingCoreReturns?.length ?? 0;
 
   if (match.phase !== "retract" || !actorId) return null;

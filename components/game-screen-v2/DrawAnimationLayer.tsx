@@ -15,6 +15,7 @@ import { prepareAnimationAssets } from "./animationStability";
 import { drawTransitions } from "./drawAnimationState";
 import styles from "./DrawAnimationLayer.module.css";
 import { useMatchSelector } from "./matchStore";
+import { isLiveMatchTransition } from "./presentationContinuity";
 
 const CARD_BACK_ART = "/assets/card-back.png";
 const DRAW_ANIMATION_MS = 760;
@@ -77,14 +78,16 @@ export function DrawAnimationLayer() {
   const mounted = useRef(false);
 
   useEffect(() => {
+    const hiddenTargets = hiddenTargetCounts.current;
+    const targets = flightTargets.current;
     mounted.current = true;
     return () => {
       mounted.current = false;
-      for (const target of hiddenTargetCounts.current.keys()) {
+      for (const target of hiddenTargets.keys()) {
         delete target.dataset.drawAnimationTarget;
       }
-      hiddenTargetCounts.current.clear();
-      flightTargets.current.clear();
+      hiddenTargets.clear();
+      targets.clear();
     };
   }, []);
 
@@ -130,7 +133,7 @@ export function DrawAnimationLayer() {
 
     const previous = previousMatch.current;
     previousMatch.current = match;
-    if (!previous || !match || previous.id !== match.id) return;
+    if (!isLiveMatchTransition(previous, match, document.visibilityState)) return;
 
     const transitions = drawTransitions(previous, match);
     if (!transitions.length) return;
@@ -219,7 +222,7 @@ export function DrawAnimationLayer() {
       window.cancelAnimationFrame(measureFrame);
       window.cancelAnimationFrame(startFrame);
     };
-  }, [stored.active, stored.match?.id, stored.match?.version, stored.playerId]);
+  }, [stored.active, stored.match, stored.playerId]);
 
   if (!stored.active || !flights.length || typeof document === "undefined") return null;
 

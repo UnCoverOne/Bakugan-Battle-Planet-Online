@@ -277,7 +277,7 @@ export function TieBreakLayer(props: {
       window.clearTimeout(exitTimer);
       window.clearTimeout(clearTimer);
     };
-  }, [props.match, liveTieBreak?.status, liveTieBreak?.resolvedAt]);
+  }, [liveTieBreak, presentedMatch, props.match]);
 
   if (!presentedMatch) return null;
   return (

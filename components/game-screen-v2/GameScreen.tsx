@@ -743,13 +743,16 @@ export function GameScreen({
     setEnergyRevealClock(Date.now());
   }, [match?.id, match?.version]);
 
+  const nextEnergyRevealExpiry = nextDeckEnergyFaceRevealExpiry(
+    energyState.player.cards,
+    energyRevealClock,
+  );
   useEffect(() => {
-    const expiresAt = nextDeckEnergyFaceRevealExpiry(energyState.player.cards, energyRevealClock);
-    if (expiresAt == null) return;
-    const delay = Math.max(0, expiresAt - Date.now());
+    if (nextEnergyRevealExpiry == null) return;
+    const delay = Math.max(0, nextEnergyRevealExpiry - Date.now());
     const timeout = window.setTimeout(() => setEnergyRevealClock(Date.now()), delay + 20);
     return () => window.clearTimeout(timeout);
-  }, [match?.id, match?.version, energyRevealClock]);
+  }, [nextEnergyRevealExpiry]);
 
   useEffect(() => {
     setDrawClock(Date.now());

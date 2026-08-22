@@ -42,12 +42,13 @@ export function ResponsiveCardImage({
 }
 
 export function LikelyCardImagePreloader({ sources }: { sources: readonly string[] }) {
-  const signature = sources.slice(0, 2).join("|");
+  const firstSource = sources[0] ?? "";
+  const secondSource = sources[1] ?? "";
   useEffect(() => {
-    for (const source of sources.slice(0, 2)) {
+    for (const source of [firstSource, secondSource].filter(Boolean)) {
       const image = new Image();
       image.src = fingerprintedAsset(source);
     }
-  }, [signature]);
+  }, [firstSource, secondSource]);
   return null;
 }

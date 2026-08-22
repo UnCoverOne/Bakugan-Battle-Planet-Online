@@ -67,8 +67,7 @@ export function BakuCorePresentationProvider({ children }: { children: ReactNode
   const [transferringCoreCells, setTransferringCoreCells] = useState<readonly string[]>([]);
 
   const signature = rollResultSignature(stored.match);
-  const cells = useMemo(() => rollResultCells(stored.match), [stored.match]);
-  const cellsKey = cells.join("|");
+  const cellsKey = rollResultCells(stored.match).join("|");
   const storageKey = stored.match?.id
     ? rollPresentationStorageKey(stored.match.id, stored.playerId)
     : "";
@@ -97,6 +96,7 @@ export function BakuCorePresentationProvider({ children }: { children: ReactNode
       if (disposed) return;
       window.clearTimeout(delayTimer);
       window.clearTimeout(endTimer);
+      const cells = cellsKey ? cellsKey.split("|") : [];
       const stage = rollPresentationStage(signature, cells, record, Date.now());
       setRollResultOpen(stage.open);
       setDeferredCoreCells(stage.deferredCoreCells);
@@ -165,4 +165,3 @@ export function BakuCorePresentationProvider({ children }: { children: ReactNode
 export function useBakuCorePresentation() {
   return useContext(BakuCorePresentationContext);
 }
-

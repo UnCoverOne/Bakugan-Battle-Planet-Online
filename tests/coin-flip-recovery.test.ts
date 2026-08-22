@@ -78,7 +78,7 @@ test("online transport exposes the same coin-flip completion command as the game
   // failure must be retried while the same pending flip is still visible.
   assert.match(coinLayer, /COIN_FLIP_COMPLETION_RETRY_MS/);
   assert.match(coinLayer, /catch[\s\S]*scheduleCompletion\(COIN_FLIP_COMPLETION_RETRY_MS\)/);
-  assert.match(coinLayer, /pending\.resolveAt - Date\.now\(\)/);
+  assert.match(coinLayer, /pendingResolveAt - Date\.now\(\)/);
 });
 
 test("coin flip recovery gets its own alarm before the generic action deadline", () => {

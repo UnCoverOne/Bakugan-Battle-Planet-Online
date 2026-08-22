@@ -14,6 +14,7 @@ import type { GameCard, MatchState } from "../../lib/game";
 import { prepareAnimationAssets } from "./animationStability";
 import { discardFlipTransitions } from "./discardFlipAnimationState";
 import { useMatchSelector } from "./matchStore";
+import { isLiveMatchTransition } from "./presentationContinuity";
 import styles from "./DiscardFlipAnimationLayer.module.css";
 
 const CARD_BACK_ART = "/assets/card-back.png";
@@ -51,12 +52,14 @@ export function DiscardFlipAnimationLayer() {
   const mounted = useRef(false);
 
   useEffect(() => {
+    const hiddenTargets = hiddenTargetCounts.current;
+    const targets = flightTargets.current;
     mounted.current = true;
     return () => {
       mounted.current = false;
-      for (const target of hiddenTargetCounts.current.keys()) delete target.dataset.discardAnimationTarget;
-      hiddenTargetCounts.current.clear();
-      flightTargets.current.clear();
+      for (const target of hiddenTargets.keys()) delete target.dataset.discardAnimationTarget;
+      hiddenTargets.clear();
+      targets.clear();
     };
   }, []);
 
@@ -91,7 +94,7 @@ export function DiscardFlipAnimationLayer() {
     if (!stored.active) { previousMatch.current = null; return; }
     const previous = previousMatch.current;
     previousMatch.current = match;
-    if (!previous || !match || previous.id !== match.id) return;
+    if (!isLiveMatchTransition(previous, match, document.visibilityState)) return;
     const transitions = discardFlipTransitions(previous, match);
     if (!transitions.length) return;
 
@@ -149,7 +152,7 @@ export function DiscardFlipAnimationLayer() {
       window.cancelAnimationFrame(measureFrame);
       window.cancelAnimationFrame(startFrame);
     };
-  }, [stored.active, stored.match?.id, stored.match?.version, stored.playerId]);
+  }, [stored.active, stored.match, stored.playerId]);
 
   if (!stored.active || !flights.length || typeof document === "undefined") return null;
   return createPortal(

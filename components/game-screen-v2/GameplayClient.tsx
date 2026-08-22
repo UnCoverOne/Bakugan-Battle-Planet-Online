@@ -105,7 +105,9 @@ export function GameplayClient() {
   const [selectedDiscardCardIds, setSelectedDiscardCardIds] = useState<string[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const [startupError, setStartupError] = useState("");
+  const [resumeEpoch, setResumeEpoch] = useState(0);
   const automaticActionKey = useRef("");
+  const automaticPassSchedule = useRef<{ key: string; dueAt: number } | null>(null);
   const botActionKey = useRef("");
   const botWorkerRef = useRef<Worker | null>(null);
   const botWorkerRequestId = useRef(0);
@@ -174,11 +176,27 @@ export function GameplayClient() {
     botWorkerPending.current.clear();
   }, []);
 
+  useEffect(() => {
+    const resume = () => {
+      automaticActionKey.current = "";
+      setResumeEpoch(Date.now());
+    };
+    const resumeVisibleTab = () => {
+      if (document.visibilityState === "visible") resume();
+    };
+    window.addEventListener("online", resume);
+    document.addEventListener("visibilitychange", resumeVisibleTab);
+    return () => {
+      window.removeEventListener("online", resume);
+      document.removeEventListener("visibilitychange", resumeVisibleTab);
+    };
+  }, []);
+
   const publishMatch = useCallback((next: MatchState) => {
     return writeCoordinatedMatch(next);
   }, []);
 
-  const submitMatchAction = async (
+  const submitMatchAction = useCallback(async (
     action: ApiAction,
     payload: Record<string, unknown>,
   ) => {
@@ -214,27 +232,27 @@ export function GameplayClient() {
     const data = await response.json() as { state?: MatchState; error?: string };
     if (data.state) publishMatch(data.state);
     if (!response.ok) throw new Error(data.error ?? "The match action could not be completed.");
-  };
+  }, [publishMatch]);
 
   const tapEnergy = (cardId: string) => submitMatchAction(
     "tap-energy",
     { cardId },
   );
 
-  const beginPlacement = () => submitMatchAction(
+  const beginPlacement = useCallback(() => submitMatchAction(
     "begin-placement",
     {},
-  );
+  ), [submitMatchAction]);
 
   const undo = () => submitMatchAction(
     "undo",
     {},
   );
 
-  const drawCard = () => submitMatchAction(
+  const drawCard = useCallback(() => submitMatchAction(
     "draw",
     {},
-  );
+  ), [submitMatchAction]);
 
   const playHandCard = (cardId: string, choices: CardChoices) => {
     const current = readMatchStore();
@@ -273,20 +291,20 @@ export function GameplayClient() {
     {},
   );
 
-  const passTurn = () => submitMatchAction(
+  const passTurn = useCallback(() => submitMatchAction(
     "pass",
     {},
-  );
+  ), [submitMatchAction]);
 
   const completeCoinFlip = () => submitMatchAction(
     "complete-coin-flip",
     {},
   );
 
-  const advanceEndPhase = () => submitMatchAction(
+  const advanceEndPhase = useCallback(() => submitMatchAction(
     "next-turn",
     {},
-  );
+  ), [submitMatchAction]);
 
   const flipDamage = () => submitMatchAction(
     "flip-damage",
@@ -361,7 +379,7 @@ export function GameplayClient() {
       window.clearTimeout(timeout);
       if (retryTimer) window.clearTimeout(retryTimer);
     };
-  }, [storedState.route, storedState.match?.phase, storedState.match?.startingPlayerRevealedAt]);
+  }, [beginPlacement, resumeEpoch, storedState.match, storedState.route]);
 
   useEffect(() => {
     const match = storedState.match;
@@ -380,7 +398,7 @@ export function GameplayClient() {
     ) return;
 
     const key = `end-phase:${match.id}:${match.version}:${match.phase}`;
-    const delay = Math.max(250, match.deadline - Date.now());
+    const delay = Math.max(0, match.deadline - Date.now());
     const timeout = window.setTimeout(() => {
       if (automaticActionKey.current === key) return;
       automaticActionKey.current = key;
@@ -400,6 +418,9 @@ export function GameplayClient() {
     storedState.match?.pendingChoice?.id,
     storedState.match?.triggerOrders.length,
     storedState.playerId,
+    storedState.match,
+    advanceEndPhase,
+    resumeEpoch,
   ]);
 
   useEffect(() => {
@@ -492,21 +513,22 @@ export function GameplayClient() {
     publishMatch,
     requestOpponentAiDecision,
     storedState.playerId,
+    storedState.match,
   ]);
 
   const localPlayer = storedState.match?.players.find((player) => (
     player.id === (storedState.playerId ?? storedState.match?.players[0]?.id)
   ));
 
+  const localPlayerEnergizedThisTurn = localPlayer?.energizedThisTurn;
   useEffect(() => {
     const energizing = storedState.match?.phase === "energize"
-      && Boolean(localPlayer)
-      && !localPlayer!.energizedThisTurn;
+      && localPlayerEnergizedThisTurn === false;
     setHandActionMode(energizing ? "energize" : null);
     setSelectedHandCardId("");
     setSelectedDiscardCardIds([]);
     setSelectedCharacterId("");
-  }, [storedState.match?.phase, storedState.match?.pendingChoice?.id, localPlayer?.energizedThisTurn]);
+  }, [storedState.match?.phase, storedState.match?.pendingChoice?.id, localPlayerEnergizedThisTurn]);
 
   useEffect(() => {
     const match = storedState.match as TurnStartMatchState | null;
@@ -534,29 +556,40 @@ export function GameplayClient() {
     storedState.match?.phase,
     storedState.match?.version,
     storedState.playerId,
+    storedState.match,
+    drawCard,
+    resumeEpoch,
   ]);
 
   useEffect(() => {
     const match = storedState.match;
     const actorId = storedState.playerId ?? match?.players[0]?.id;
-    if (
-      !storedState.automaticPass
-      || !match
-      || !actorId
-      || handActionMode
-      || selectedHandCardId
-      || selectedCharacterId
-      || !shouldAutomaticallyPass(match, actorId)
-    ) return;
+    const eligible = (
+      storedState.automaticPass
+      && Boolean(match)
+      && Boolean(actorId)
+      && !handActionMode
+      && !selectedHandCardId
+      && !selectedCharacterId
+      && shouldAutomaticallyPass(match, actorId)
+    );
+    if (!eligible || !match || !actorId) {
+      automaticPassSchedule.current = null;
+      return;
+    }
 
     const key = `pass:${match.version}:${actorId}`;
-    if (automaticActionKey.current === key) return;
-    automaticActionKey.current = key;
+    if (automaticPassSchedule.current?.key !== key) {
+      automaticPassSchedule.current = { key, dueAt: Date.now() + 180 };
+    }
+    const delay = Math.max(0, automaticPassSchedule.current.dueAt - Date.now());
     const timeout = window.setTimeout(() => {
+      if (automaticActionKey.current === key) return;
+      automaticActionKey.current = key;
       void passTurn().catch(() => {
         if (automaticActionKey.current === key) automaticActionKey.current = "";
       });
-    }, 180);
+    }, delay);
     return () => window.clearTimeout(timeout);
   }, [
     storedState.automaticPass,
@@ -567,6 +600,9 @@ export function GameplayClient() {
     handActionMode,
     selectedHandCardId,
     selectedCharacterId,
+    storedState.match,
+    passTurn,
+    resumeEpoch,
   ]);
 
   const clearSelections = useCallback(() => {

@@ -219,9 +219,11 @@ function CoreTransferSprite({
   const [geometry, setGeometry] = useState<TransferGeometry | null>(null);
   const placement = match.placements.find((candidate) => candidate.cell === cell);
   const destination = coreTransferDestination(match, playerId, cell);
+  const destinationOwner = destination?.owner;
+  const destinationSlot = destination?.slot;
 
   useLayoutEffect(() => {
-    if (!placement || !destination) {
+    if (!placement || !destinationOwner || destinationSlot == null) {
       setGeometry(null);
       return;
     }
@@ -236,7 +238,7 @@ function CoreTransferSprite({
       frame = window.requestAnimationFrame(() => {
         const source = cellPosition(cell, oppositePerspective);
         const target = document.querySelector<HTMLElement>(
-          `[data-core-zone-id="${destination.owner}-bakucore-${destination.slot}"]`,
+          `[data-core-zone-id="${destinationOwner}-bakucore-${destinationSlot}"]`,
         );
         if (!source || !target || !target.isConnected || !playArea.isConnected) {
           if (attempts < 8) {
@@ -289,7 +291,7 @@ function CoreTransferSprite({
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
     };
-  }, [cell, destination?.owner, destination?.slot, oppositePerspective, placement, playArea]);
+  }, [cell, destinationOwner, destinationSlot, oppositePerspective, placement, playArea]);
 
   if (!placement || !geometry) return null;
   const style = {
