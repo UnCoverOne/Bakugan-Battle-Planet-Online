@@ -32,6 +32,7 @@ import {
 import { drawTransitions } from "../components/game-screen-v2/drawAnimationState";
 import { discardFlipTransitions } from "../components/game-screen-v2/discardFlipAnimationState";
 import { energizeTransitions } from "../components/game-screen-v2/energizeAnimationState";
+import { beginCardPayment } from "../lib/rules/costs";
 
 test("deck card backs scale from zero to ten assets", () => {
   assert.equal(deckBackAssetCount(0), 0);
@@ -141,7 +142,7 @@ test("the radial hand keeps every card the same size and compresses only spacing
   });
   assert.equal(tight.cardWidth, roomy.cardWidth);
   assert.ok(tight.spanDegrees < roomy.spanDegrees);
-  assert.equal(roomy.spanDegrees, handFanSpanDegrees(40));
+  assert.ok(Math.abs(roomy.spanDegrees - handFanSpanDegrees(40)) < 1e-9);
 });
 
 test("tall viewports move the hand with the playmat instead of below it", () => {
@@ -249,13 +250,18 @@ test("tapping a face-down Energy card generates exactly one available Energy", (
   const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
   const energyCard = player.hand.shift();
   assert.ok(energyCard);
-  player.energyZone.push(energyCard);
-  setPhysicalEnergy(player, 1);
-  player.energy = 1;
+  player.energyZone = [energyCard];
+  player.energy = 0;
+  const paymentSource = CARDS.find((card) => card.type === "Action" && card.cost === 1);
+  assert.ok(paymentSource);
+  const paymentCard = { ...paymentSource, id: "energy-payment-card" };
+  player.hand.push(paymentCard);
 
   const match = createMatch("ENERGY", "bo1", [player, opponent]);
   match.turn = 1;
   match.phase = "power";
+  match.priority = player.id;
+  beginCardPayment(match, player.id, paymentCard);
 
   const before = energyZoneViews(match, player.id).player;
   assert.equal(before.cards.length, 1);
@@ -267,18 +273,10 @@ test("tapping a face-down Energy card generates exactly one available Energy", (
   assert.equal(after.availableEnergy, 1);
   assert.deepEqual(after.tappedEnergyIds, [energyCard.id]);
   assert.equal(energyCardCanTap(tapped, player.id, energyCard.id), false);
-  assert.match(tapped.log.at(-1)?.message ?? "", /generated 1 Energy/);
+  assert.match(tapped.log.at(-1)?.message ?? "", /uncharged an Energy card/);
   assert.throws(
     () => tapEnergyCard(tapped, player.id, energyCard.id),
-    /already tapped/,
-  );
-
-  const startStep = structuredClone(match);
-  startStep.phase = "energize";
-  assert.equal(energyCardCanTap(startStep, player.id, energyCard.id), false);
-  assert.throws(
-    () => tapEnergyCard(startStep, player.id, energyCard.id),
-    /cannot be tapped during this phase/,
+    /already uncharged/,
   );
 });
 

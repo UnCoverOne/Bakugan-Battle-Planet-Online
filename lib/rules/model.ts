@@ -139,6 +139,7 @@ export type RuleAction =
   | { kind: "discard"; amount: NumberValue; minimum: NumberValue; maximum: NumberValue; repeated?: boolean; playerScope?: PlayerScope }
   | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "hero" | "self"; enters: "charged" | "uncharged" }
   | { kind: "generate-energy"; amount: NumberValue; playerScope?: PlayerScope }
+  | { kind: "uncharge-energy"; amount: NumberValue | "all"; playerScope?: PlayerScope; producesEnergy: boolean; preventChargeStepRecharge?: boolean }
   | { kind: "recharge-energy"; amount: NumberValue | "all" }
   | SwapBakucoreEffect
   | { kind: "set-stat"; stat: "power" | "damage"; value: NumberValue }
