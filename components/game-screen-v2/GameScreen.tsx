@@ -395,7 +395,7 @@ function EnergyCardStack({
 }) {
   if (!energy.cards.length) return null;
   const layout = heroCardLayout(energy.cards.length);
-  const tappedIds = new Set(energy.tappedEnergyIds);
+  const tappedIds = new Set(energy.unchargedEnergyIds);
 
   return (
     <div className={styles.energyCardStack}>
@@ -466,8 +466,9 @@ function EnergyZone({
       data-zone-owner={owner}
       data-zone-id={`${owner}-energy`}
       data-card-count={energy.cards.length}
+      data-charged-card-count={energy.chargedEnergyCount}
       data-available-energy={energy.availableEnergy}
-      aria-label={`${ownerLabel(owner)} Energy Card zone, ${energy.availableEnergy} available Energy from ${energy.cards.length} cards`}
+      aria-label={`${ownerLabel(owner)} Energy Card zone, ${energy.chargedEnergyCount} charged of ${energy.cards.length} cards, ${energy.availableEnergy} produced Energy available`}
     >
       {!energy.cards.length && <ZoneLabel lines={["Energy", "Card Zone"]} />}
       <EnergyCardStack
@@ -487,7 +488,7 @@ function EnergyZone({
         <img src={ENERGY_SYMBOL_ART} alt="Energy" draggable={false} />
       </strong>
       <strong className={styles.zoneCount} aria-hidden="true">
-        {safeCardCount(energy.cards.length)}
+        {safeCardCount(energy.chargedEnergyCount)}/{safeCardCount(energy.cards.length)}
       </strong>
     </div>
   );

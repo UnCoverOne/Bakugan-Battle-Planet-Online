@@ -9,7 +9,7 @@ import {
 import { executeRuleProgram } from "./rules/executor";
 import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
 import { ruleDefinitionForCard } from "./rules/catalogue";
-import { activeTappedEnergyIds, beginCardPayment, cardPaymentModes, commitCardPayment, prepareDeclaredEnergyPayment, rechargeEnergyCards } from "./rules/costs";
+import { activeUnchargedEnergyIds, beginCardPayment, cardPaymentModes, commitCardPayment, normalizeEnergyCardState, prepareDeclaredEnergyPayment, rechargeEnergyCards, setEnergyCardChargeState, unchargeEnergyCards } from "./rules/costs";
 import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
 import { turnDrawCounts } from "./rules/turn-draw";
@@ -115,7 +115,15 @@ export type PlayerState = {
   discard: GameCard[];
   energyZone: GameCard[];
   heroes: GameCard[];
+  /** Produced but unspent Energy; shown by the Energy indicator. */
   energy: number;
+  /** Energy cards currently horizontal / uncharged. */
+  unchargedEnergyIds?: string[];
+  /** Automatic Charge Step recharge prevention keyed by card id and turn. */
+  energyRechargeLocks?: Record<string, number>;
+  /** @deprecated Legacy orientation aliases retained for snapshot compatibility. */
+  tappedEnergyIds?: string[];
+  energyTapTurn?: number;
   ready: boolean;
   connected: boolean;
   lastSeen: number;
@@ -439,6 +447,7 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
   state.placements = Array.isArray(state.placements) ? state.placements : [];
   state.pendingBrawlRetracts = Array.isArray(state.pendingBrawlRetracts) ? state.pendingBrawlRetracts : [];
   for (const player of state.players) {
+    normalizeEnergyCardState(player, state.turn);
     const legacyIds = new Map<string, Core[]>();
     player.cores = player.cores.map((core, index) => {
       const catalogId = core.catalogId ?? core.id;
@@ -645,6 +654,8 @@ const beginTurn = (state: MatchState) => {
   state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.pendingBrawlRetracts = []; state.delayedRetracts = []; state.winner = "";
   state.collectedEventKeys = [];
   for (const player of state.players) {
+    player.energy = 0;
+    normalizeEnergyCardState(player, state.turn);
     player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0;
     player.playedCardCostsThisTurn = []; player.factionsPlayedThisTurn = [];
   }
@@ -672,7 +683,7 @@ export const energizeCard = (input: MatchState, playerId: string, cardId?: strin
     const [card] = player.hand.splice(index, 1);
     applyEnergyEntryVisibility([card], "hand");
     player.energyZone.push(card);
-    player.energy += 1;
+    setEnergyCardChargeState(state, player.id, [card.id], "charged");
     entry(state, "game", `${player.name} Energized a card face down.`);
   } else entry(state, "game", `${player.name} declined to Energize.`);
   player.energizedThisTurn = true;
@@ -1906,12 +1917,11 @@ const destroyEnergy = (state: MatchState, amount: number, selectedIds: string[])
     const selectedSet = new Set(selected.map((card) => card.id));
     owner.energyZone = owner.energyZone.filter((card) => !selectedSet.has(card.id));
     owner.discard.push(...selected);
+    normalizeEnergyCardState(owner, state.turn);
   }
   state.informationEpoch += 1;
   state.undoWindow = undefined;
 };
-
-type EffectEnergyPlayer = PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
 
 function applyEnergizedEntryState(
   state: MatchState,
@@ -1920,23 +1930,7 @@ function applyEnergizedEntryState(
   enters: "charged" | "uncharged",
 ) {
   if (!cards.length) return;
-  const tracked = player as EffectEnergyPlayer;
-  const newIds = new Set(cards.map((card) => card.id));
-  if (tracked.energyTapTurn !== state.turn) {
-    tracked.energyTapTurn = state.turn;
-    const existing = player.energyZone.filter((card) => !newIds.has(card.id));
-    const legacyGenerated = Math.min(Math.max(0, Math.floor(player.energy)), existing.length);
-    tracked.tappedEnergyIds = existing.slice(0, legacyGenerated).map((card) => card.id);
-    player.energy = legacyGenerated;
-  } else {
-    tracked.tappedEnergyIds = activeTappedEnergyIds(tracked, state.turn);
-  }
-  const uncharged = new Set(tracked.tappedEnergyIds ?? []);
-  for (const card of cards) {
-    if (enters === "uncharged") uncharged.add(card.id);
-    else uncharged.delete(card.id);
-  }
-  tracked.tappedEnergyIds = [...uncharged];
+  setEnergyCardChargeState(state, player.id, cards.map((card) => card.id), enters);
 }
 
 const instructionChoices = (pending: PendingEffect, instructionIndex: number) => Object.entries(pending.resolvedChoices ?? {})
@@ -2337,6 +2331,26 @@ const executeRuleAction = (
       }
       return;
     }
+    case "uncharge-energy": {
+      const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
+      for (const recipientId of recipientIds) {
+        const recipient = playerById(state, recipientId);
+        const uncharged = new Set(activeUnchargedEnergyIds(recipient, state.turn));
+        const charged = recipient.energyZone.filter((energyCard) => !uncharged.has(energyCard.id));
+        const amount = action.amount === "all"
+? charged.length
+: Math.max(0, Math.floor(resolveNumber(action.amount, choices, recipientId)));
+        const requested = (choices.targetEnergyIds ?? []).filter((id) => charged.some((energyCard) => energyCard.id === id));
+        const selected = requested.length
+? requested.slice(0, amount)
+: charged.slice(0, amount).map((energyCard) => energyCard.id);
+        unchargeEnergyCards(state, recipientId, selected, {
+producesEnergy: action.producesEnergy,
+preventChargeStepRecharge: action.preventChargeStepRecharge,
+        });
+      }
+      return;
+    }
     case "recharge-energy": {
       if (choices.confirmed === false) return;
       const selected = action.amount === "all" ? undefined : (choices.targetEnergyIds ?? []).slice(0, Math.max(0, Math.floor(resolveNumber(action.amount))));
@@ -2388,6 +2402,10 @@ return;
       state.pendingDamage = 0;
       state.revealedFlip = undefined;
       state.batch = [];
+      for (const owner of state.players) {
+        if (action.recharge) rechargeEnergyCards(state, owner.id, undefined, { respectChargeStepLocks: true });
+        owner.energy = 0;
+      }
       beginTurn(state);
       entry(state, "game", `${card.name} ended the turn${action.recharge ? "" : " without recharging Energy"}.`);
       return;
@@ -3210,8 +3228,6 @@ function finishDamage(state: MatchState) {
   setPhase(state, "postDamage", "Damage Step • Post-damage priority", state.startingPlayer);
 }
 
-type EndPhaseEnergyPlayer = PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
-
 function beginChargeStep(state: MatchState) {
   emitGameEvent(state, { id: `${state.turn}:end-turn`, type: "end-turn", playerId: state.startingPlayer });
   if (state.batch.length || state.triggerOrders.length) return;
@@ -3219,11 +3235,9 @@ function beginChargeStep(state: MatchState) {
     if (state.delayedRetracts.includes(bakugan.id)) retractBakugan(state, bakugan);
   }
   for (const player of state.players) {
-    const tracked = player as EndPhaseEnergyPlayer;
-    tracked.tappedEnergyIds = [];
-    tracked.energyTapTurn = state.turn;
+    rechargeEnergyCards(state, player.id, undefined, { respectChargeStepLocks: true });
     player.energy = 0;
-    }
+  }
   setPhase(state, "charge", "End Phase • Charge Step", state.startingPlayer);
   entry(state, "game", "Both players charged all Energy cards.");
 }
@@ -3361,7 +3375,7 @@ export const startNextSeriesGame = (input: MatchState) => {
   for (const player of state.players) {
     const all = [...player.deckCards, ...player.hand, ...player.discard, ...player.energyZone, ...player.heroes];
     player.deckCards = all.filter((card) => card.type !== "Character"); shuffle(player.deckCards); player.hand = []; player.discard = []; player.energyZone = []; player.heroes = [];
-    player.energy = 0; player.ready = true; player.bakugan.forEach((bakugan) => { bakugan.open = false; bakugan.heldCoreCells = []; bakugan.evoStack = []; });
+    player.energy = 0; player.unchargedEnergyIds = []; player.energyRechargeLocks = {}; player.tappedEnergyIds = []; player.energyTapTurn = state.turn; player.ready = true; player.bakugan.forEach((bakugan) => { bakugan.open = false; bakugan.heldCoreCells = []; bakugan.evoStack = []; });
     drawCards(state, player, 5);
   }
   setPhase(state, "startingPlayer", `Game ${state.gameNumber} • Selecting the first BakuCore player`, selected.id);
