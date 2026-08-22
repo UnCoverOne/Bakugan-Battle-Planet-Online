@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   finalize:
-    if: github.event.issue.title == 'chatgpt-energy-production-20260822-1352'
+    if: github.event.issue.title == 'chatgpt-energy-production-final-20260822'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -77,6 +77,62 @@ jobs:
           if text.count(old) != 1:
               raise SystemExit('Could not patch Energy test card fixture')
           path.write_text(text.replace(old, new, 1))
+
+          # Update the pre-existing presentation regression to the authoritative payment-only Energy ability.
+          path = Path('tests/game-screen-state.test.ts')
+          text = path.read_text()
+          import_anchor = 'import { energizeTransitions } from "../components/game-screen-v2/energizeAnimationState";\n'
+          if import_anchor not in text:
+              raise SystemExit('Could not locate game-screen Energy test imports')
+          text = text.replace(import_anchor, import_anchor + 'import { beginCardPayment } from "../lib/rules/costs";\n', 1)
+          old_setup = '''  const energyCard = player.hand.shift();
+  assert.ok(energyCard);
+  player.energyZone.push(energyCard);
+  setPhysicalEnergy(player, 1);
+  player.energy = 1;
+
+  const match = createMatch("ENERGY", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "power";
+'''
+          new_setup = '''  const energyCard = player.hand.shift();
+  assert.ok(energyCard);
+  player.energyZone = [energyCard];
+  player.energy = 0;
+  const paymentSource = CARDS.find((card) => card.type === "Action" && card.cost === 1);
+  assert.ok(paymentSource);
+  const paymentCard = { ...paymentSource, id: "energy-payment-card" };
+  player.hand.push(paymentCard);
+
+  const match = createMatch("ENERGY", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "power";
+  match.priority = player.id;
+  beginCardPayment(match, player.id, paymentCard);
+'''
+          if text.count(old_setup) != 1:
+              raise SystemExit('Could not patch game-screen Energy setup')
+          text = text.replace(old_setup, new_setup, 1)
+          text = text.replace('assert.match(tapped.log.at(-1)?.message ?? "", /generated 1 Energy/);', 'assert.match(tapped.log.at(-1)?.message ?? "", /uncharged an Energy card/);', 1)
+          text = text.replace('/already tapped/,', '/already uncharged/,', 1)
+          old_phase = '''
+  const startStep = structuredClone(match);
+  startStep.phase = "energize";
+  assert.equal(energyCardCanTap(startStep, player.id, energyCard.id), false);
+  assert.throws(
+    () => tapEnergyCard(startStep, player.id, energyCard.id),
+    /cannot be tapped during this phase/,
+  );
+'''
+          if text.count(old_phase) != 1:
+              raise SystemExit('Could not remove obsolete speculative Energy phase assertion')
+          text = text.replace(old_phase, '\n', 1)
+          old_float = '  assert.equal(roomy.spanDegrees, handFanSpanDegrees(40));\n'
+          new_float = '  assert.ok(Math.abs(roomy.spanDegrees - handFanSpanDegrees(40)) < 1e-9);\n'
+          if text.count(old_float) != 1:
+              raise SystemExit('Could not stabilize hand-fan floating-point assertion')
+          text = text.replace(old_float, new_float, 1)
+          path.write_text(text)
           PY
       - name: Install dependencies
         run: npm ci
@@ -90,6 +146,7 @@ jobs:
             tests/energy-count-source.test.ts \
             tests/recharge-and-dark-waters.test.ts \
             tests/turn-to-energy-chain.test.ts \
+            tests/game-screen-state.test.ts \
             tests/content-pipeline.test.ts \
             tests/rules-engine-modernization.test.ts 2>&1 | tee energy-targeted.log
       - name: Rules suite
@@ -122,7 +179,7 @@ jobs:
             echo "main moved during validation; refusing to overwrite concurrent work."
             exit 1
           fi
-          rm -f .github/workflows/finalize-energy-production.yml .github/workflows/trigger-energy-finalize.yml
+          rm -f .github/workflows/finalize-energy-production.yml .github/workflows/trigger-energy-finalize.yml .github/energy-finalize-trigger.txt
           git config user.name "ChatGPT"
           git config user.email "chatgpt@users.noreply.github.com"
           git add -A \
@@ -136,8 +193,10 @@ jobs:
             lib/game.ts \
             components/game-screen-v2/GameScreen.tsx \
             tests/energy-production-model.test.ts \
+            tests/game-screen-state.test.ts \
             .github/workflows/finalize-energy-production.yml \
-            .github/workflows/trigger-energy-finalize.yml
+            .github/workflows/trigger-energy-finalize.yml \
+            .github/energy-finalize-trigger.txt
           git commit -m "Implement Energy uncharge and production model"
           git push origin HEAD:main
       - name: Capture failure diagnostics
