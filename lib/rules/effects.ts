@@ -20,8 +20,48 @@ export type RuleAction = TypedRuleAction | {
 export type { RuleCondition, RuleInstruction, RuleProgram, RulesDuration };
 export type Duration = RulesDuration;
 
+function normalizeRuntimeAction(action: TypedRuleAction, sourceText: string): TypedRuleAction {
+  if (action.kind === "discard" && /discard (?:their|your) entire hand/i.test(sourceText)) {
+    // Entire-hand discards are deterministic rather than selections. A
+    // positive minimum makes the existing discard executor consume its printed
+    // amount (99 = all available cards) when no discardCardIds were selected.
+    return { ...action, minimum: 1 };
+  }
+  if (action.kind === "conditional") {
+    return {
+      ...action,
+      whenTrue: action.whenTrue.map((nested) => normalizeRuntimeAction(nested, sourceText)),
+      whenFalse: action.whenFalse?.map((nested) => normalizeRuntimeAction(nested, sourceText)),
+    };
+  }
+  if (action.kind === "replacement") {
+    return {
+      ...action,
+      replaceWith: action.replaceWith.map((nested) => normalizeRuntimeAction(nested, sourceText)),
+    };
+  }
+  if (action.kind === "sequence") {
+    return {
+      ...action,
+      effects: action.effects.map((nested) => normalizeRuntimeAction(nested, sourceText)),
+    };
+  }
+  return action;
+}
+
+function normalizeRuntimeProgram(program: RuleProgram): RuleProgram {
+  return {
+    ...program,
+    instructions: program.instructions.map((instruction) => {
+      if (!/discard (?:their|your) entire hand/i.test(instruction.sourceText)) return instruction;
+      const actions = instruction.actions.map((action) => normalizeRuntimeAction(action, instruction.sourceText));
+      return { ...instruction, effects: actions, actions };
+    }),
+  };
+}
+
 export function compileCardEffect(card: GameCard, source = card.effect): RuleProgram {
-  return programForCard(card, source);
+  return normalizeRuntimeProgram(programForCard(card, source));
 }
 
 export function cardProgramIsExecutable(program: RuleProgram) {
