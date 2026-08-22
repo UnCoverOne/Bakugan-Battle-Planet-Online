@@ -1,12 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useApp } from "../application/AppProvider";
-import {
-  ConfirmationDialog,
-  SyncConflictPanel,
-} from "../application/SystemState";
+import { ConfirmationDialog } from "../application/SystemState";
 import { downloadTextFile } from "../application/ui";
 import {
   ActionButton,
@@ -30,7 +26,6 @@ type Section = (typeof SECTIONS)[number];
 type ConfirmAction = "local" | "account" | null;
 
 export function SettingsScreen() {
-  const router = useRouter();
   const {
     settings,
     setSettings,
@@ -40,8 +35,6 @@ export function SettingsScreen() {
     selectedDeckId,
     authUser,
     syncStatus,
-    syncConflict,
-    resolveSyncConflict,
     authError,
     storageHealth,
     signOutAccount,
@@ -430,22 +423,10 @@ export function SettingsScreen() {
               title="Data & sync"
               description={
                 authUser
-                  ? "Review account-cloud state and resolve revision conflicts."
+                  ? "Review account-cloud state. The newest saved version is selected automatically."
                   : "Review storage health and keep a portable backup."
               }
             >
-              {syncConflict && (
-                <SyncConflictPanel
-                  conflict={syncConflict}
-                  busy={accountBusy}
-                  onResolve={(preference) => {
-                    setAccountBusy(true);
-                    void resolveSyncConflict(preference).finally(() =>
-                      setAccountBusy(false),
-                    );
-                  }}
-                />
-              )}
               <Surface
                 className={`${styles.syncCard} ${storageHealth.status === "error" ? styles.failed : ""}`}
               >
@@ -487,9 +468,7 @@ export function SettingsScreen() {
                   <ActionButton
                     tone="secondary"
                     onClick={() => void syncNow()}
-                    disabled={
-                      syncStatus === "saving" || syncStatus === "conflict"
-                    }
+                    disabled={syncStatus === "saving"}
                   >
                     Sync now
                   </ActionButton>

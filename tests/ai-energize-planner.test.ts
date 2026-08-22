@@ -319,7 +319,7 @@ test("one Energy with several two- and three-cost Actions develops instead of pl
   assert.ok(plan.cardId && actions.some((card) => card.id === plan.cardId));
 });
 
-test("low-Energy development continues across rounds toward the hand cost curve", () => {
+test("low-Energy development weighs future capacity against sacrificed-card value", () => {
   const actions = CARDS
     .filter((card) => card.type === "Action" && (card.cost === 2 || card.cost === 3))
     .slice(4, 8)
@@ -339,8 +339,14 @@ test("low-Energy development continues across rounds toward the hand cost curve"
   const second = planOpponentEnergize(match, ai.id);
   const hasThreeCostDemand = developed.hand.some((card) => card.cost === 3);
   if (hasThreeCostDemand && developed.hand.length >= 3) {
-    assert.equal(second.shouldEnergize, true);
     assert.equal(second.goalSource, "development");
+    const bestCandidate = second.candidates
+      ?.filter((candidate) => !candidate.protected)
+      .sort((left, right) => left.opportunityCost - right.opportunityCost)[0];
+    assert.ok(bestCandidate);
+    const worthwhile = bestCandidate.opportunityCost <= (second.developmentBenefit ?? 0) + 1;
+    assert.equal(second.shouldEnergize, worthwhile);
+    if (!worthwhile) assert.equal(second.reason, "no-expendable-card");
   }
 });
 

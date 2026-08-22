@@ -273,6 +273,14 @@ test("incidental Reroll wording cannot masquerade as a printed intrinsic ability
 });
 
 test("Bakugan Resurgence Strata does not inherit Battle Brawlers Strata's draw effect", () => {
+  const advanceToDraw = (initial: ReturnType<typeof matchWith>) => {
+    let state = initial;
+    for (let step = 0; step < 4 && state.phase !== "draw"; step += 1) {
+      state = nextTurn(state);
+    }
+    assert.equal(state.phase, "draw");
+    return state;
+  };
   const ai = player("ai", [bakugan("ai-b", "Aquos")]);
   const human = player("human", [bakugan("human-b", "Pyrus")]);
   const match = matchWith(ai, human, "draw");
@@ -297,7 +305,7 @@ test("Bakugan Resurgence Strata does not inherit Battle Brawlers Strata's draw e
     "endPlay",
   );
   resurgenceTurn.players[0].heroes = [resurgenceStrata];
-  const nextResurgenceTurn = nextTurn(resurgenceTurn);
+  const nextResurgenceTurn = advanceToDraw(resurgenceTurn);
   assert.equal(nextResurgenceTurn.drawRemainingByPlayer?.resurgence, 1);
   assert.equal(nextResurgenceTurn.drawRemainingByPlayer?.opponent, 1);
 
@@ -307,7 +315,7 @@ test("Bakugan Resurgence Strata does not inherit Battle Brawlers Strata's draw e
     "endPlay",
   );
   battleBrawlersTurn.players[0].heroes = [battleBrawlersStrata];
-  const nextBattleBrawlersTurn = nextTurn(battleBrawlersTurn);
+  const nextBattleBrawlersTurn = advanceToDraw(battleBrawlersTurn);
   assert.equal(nextBattleBrawlersTurn.drawRemainingByPlayer?.["battle-brawlers"], 2);
   assert.equal(nextBattleBrawlersTurn.drawRemainingByPlayer?.other, 2);
 });

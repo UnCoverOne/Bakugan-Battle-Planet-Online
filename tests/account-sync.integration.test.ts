@@ -178,7 +178,7 @@ test("the outbox sends only entities changed since the cloud acknowledgement", (
   assert.equal(request.entities.some((entity) => entity.type === "profile"), false);
 });
 
-test("automatic conflict resolution keeps the pending entity and adopts unrelated cloud updates", () => {
+test("automatic conflict resolution selects the newest durable snapshot", () => {
   const local = snapshot("Old profile");
   local.settings.sound = false;
   const remote = snapshot("Updated on another device");
@@ -186,7 +186,12 @@ test("automatic conflict resolution keeps the pending entity and adopts unrelate
 
   const resolved = resolveEntityConflicts(local, remote, ["settings:main"]);
   assert.equal(resolved.profile.name, "Updated on another device");
-  assert.equal(resolved.settings.sound, false);
+  assert.equal(resolved.settings.sound, true);
+
+  local.updatedAt = 4;
+  const localResolved = resolveEntityConflicts(local, remote, ["settings:main"]);
+  assert.equal(localResolved.profile.name, "Old profile");
+  assert.equal(localResolved.settings.sound, false);
 });
 
 test("a delayed write drains an edit made while the first request is in flight", async () => {

@@ -122,7 +122,7 @@ test("Save Deck dialog owns metadata, featured card choice, and permits invalid 
     read("components/routes/DeckRoutes.tsx"),
     read("lib/data.ts"),
     read("lib/persistence.ts"),
-    read("app/api/user-data/route.ts"),
+    read("lib/user-data-server.ts"),
     read("components/routes/DeckRoutes.module.css"),
   ]);
   assert.doesNotMatch(route, /<input aria-label="Deck name"/);
@@ -179,7 +179,7 @@ test("public deck details expose creator identity through the established Brawle
   assert.match(identity, /ProfileAvatar/);
   assert.match(identity, /PlayerPreview/);
   assert.match(identity, /\/api\/profile\?userId=/);
-  assert.match(preview, />VIEW PROFILE</);
+  assert.match(preview, />\s*VIEW PROFILE\s*</);
   assert.match(preview, /\/brawlers\/\$\{encodeURIComponent\(summary\.userId\)\}/);
 });
 
@@ -187,7 +187,7 @@ test("all legality boundaries delegate to the centralized engine", async () => {
   const [data, play, server, decks] = await Promise.all([
     read("lib/data.ts"),
     read("components/routes/PlayRoutes.tsx"),
-    read("app/api/user-data/route.ts"),
+    read("lib/user-data-server.ts"),
     read("components/routes/DeckRoutes.tsx"),
   ]);
   assert.match(data, /validateDeckConstruction/);

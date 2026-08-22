@@ -12,7 +12,7 @@ export const GOLDEN_MATCH_PHASES = Object.freeze([
   { phase: "damage", area: "brawl", step: "damage", label: "Brawl Phase • Damage Step" },
   { phase: "postDamage", area: "brawl", step: "post-damage", label: "Brawl Phase • Post-damage" },
   { phase: "retract", area: "brawl", step: "retract", label: "Brawl Phase • Retracting Step" },
-  { phase: "endPlay", area: "brawl", step: "end-play", label: "End Phase • Play Step" },
-  { phase: "handLimit", area: "brawl", step: "hand-limit", label: "End Phase • Hand limit" },
+  { phase: "endPlay", area: "end", step: "play", label: "End Phase • Play Step" },
+  { phase: "handLimit", area: "end", step: "hand-limit", label: "End Phase • Hand limit" },
   { phase: "result", area: "result", step: "match-result", label: "Match result" }
 ] as const);

@@ -23,7 +23,7 @@ import {
   tagLobbyPlayerDeck,
   type LobbyRulesFormat,
 } from "../../lib/lobby-config";
-import { roomOwnerId } from "../../lib/lobby";
+import { lobbyCanStart, roomOwnerId } from "../../lib/lobby";
 import { trainingBotLobbyCommands } from "../../lib/training-lobby";
 import { dispatchLocalGameAction, dispatchLocalGameCommand } from "../../lib/engine/local-command-dispatcher";
 import { eligibleRankedDecks, rankedSeries } from "../../lib/ranked-lobby";
@@ -166,7 +166,7 @@ export function LobbyRoomScreen() {
   const me = match?.players.find((player) => player.id === localPlayerId);
   const ownerId = match ? roomOwnerId(match) : "";
   const isOwner = Boolean(ownerId && ownerId === localPlayerId);
-  const bothReady = Boolean(match && match.players.length === 2 && match.players.every((player) => player.ready));
+  const bothReady = Boolean(match && lobbyCanStart(match));
   const requiredFormat = config ? requiredDeckFormat(config.rulesFormat) : "standard";
   const playerDecks = decks as DeckRecord[];
   const compatibleDecks = playerDecks.filter((deck) => {

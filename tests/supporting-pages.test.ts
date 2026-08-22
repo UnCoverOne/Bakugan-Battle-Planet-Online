@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
-import {
-  deriveSyncIndicator,
-  hasClientVersionMismatch,
-} from "../lib/client-status";
+import { hasClientVersionMismatch } from "../lib/client-status";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
@@ -24,7 +21,11 @@ test("Profile and Settings own their presentation through shared primitives", ()
 });
 
 test("Profile presents customizable identity, reliable statistics, and selected showcases", () => {
-  const profile = source("components/routes/ProfileScreen.tsx");
+  const profile = [
+    source("components/routes/ProfileScreen.tsx"),
+    source("components/profile/BrawlerProfileView.tsx"),
+    source("lib/public-profile.ts"),
+  ].join("\n");
   for (const contract of [
     "Edit picture",
     "Edit title",
@@ -36,7 +37,7 @@ test("Profile presents customizable identity, reliable statistics, and selected 
     "Public Decks",
   ])
     assert.match(profile, new RegExp(contract));
-  assert.match(profile, /validateDeck\(deck\)/);
+  assert.match(profile, /validateDeck\(deck\)\.isLegal/);
   assert.match(profile, /profile\.showcaseAchievementIds/);
   assert.match(profile, /profile\.showcaseDeckIds/);
   assert.doesNotMatch(profile, />Edit identity</);
@@ -59,7 +60,7 @@ test("Settings uses immediate feedback and isolates destructive actions", () => 
   assert.match(settings, /Reduced motion/);
   assert.match(settings, /Export local data/);
   assert.match(settings, /ConfirmationDialog/);
-  assert.match(settings, /SyncConflictPanel/);
+  assert.doesNotMatch(settings, /SyncConflictPanel/);
   assert.doesNotMatch(settings, /window\.confirm/);
   assert.doesNotMatch(settings, /localStorage\.clear/);
 });
@@ -78,10 +79,8 @@ test("system states cover route and distributed-data failures", () => {
     assert.match(states, new RegExp(`${tone}:`));
   }
   assert.match(states, /data-ui="system-state"/);
-  assert.match(states, /data-ui="sync-conflict"/);
-  assert.match(states, /This device/);
-  assert.match(states, /Cloud copy/);
-  assert.match(states, /Merge safely/);
+  assert.doesNotMatch(states, /data-ui="sync-conflict"/);
+  assert.doesNotMatch(states, /Choose which account data to keep/);
   assert.match(states, /Cancel/);
   assert.match(
     source("components/AssetFreshness.tsx"),
@@ -106,16 +105,16 @@ test("workspace boundaries use the shared system-state composition", () => {
   assert.match(source("app/(workspace)/not-found.tsx"), /Return home/);
 });
 
-test("cloud conflicts pause automatic overwrite until a user resolves them", () => {
+test("cloud conflicts automatically reconcile to the newest saved version", () => {
   if (!existsSync("components/application/AppProvider.jsx")) return;
   const provider = source("components/application/AppProvider.jsx");
-  assert.match(provider, /syncConflict/);
-  assert.match(provider, /setSyncStatus\("conflict"\)/);
-  assert.match(provider, /resolveSyncConflict/);
-  assert.match(
-    provider,
-    /selectSnapshot\(pending\.local, pending\.cloud, preference\)/,
-  );
+  const sync = source("lib/account-sync.ts");
+  const settings = source("components/routes/SettingsScreen.tsx");
+  assert.match(provider, /resolveEntityConflicts/);
+  assert.doesNotMatch(provider, /syncConflict|resolveSyncConflict/);
+  assert.match(sync, /selectSnapshot\(local, remote, "merge"\)/);
+  assert.match(settings, /newest saved version is selected automatically/);
+  assert.doesNotMatch(settings, /SyncConflictPanel/);
 });
 
 
@@ -138,58 +137,11 @@ test("client freshness compares authoritative build identities without duplicate
   assert.match(versionApi, /no-store, no-cache, must-revalidate/);
 });
 
-test("sync indicator distinguishes healthy, working, warning, and error states", () => {
-  assert.deepEqual(
-    deriveSyncIndicator({
-      authenticated: false,
-      syncStatus: "local",
-      storageStatus: "ready",
-      storageMessage: "Local storage is ready.",
-    }),
-    { tone: "synced", title: "Device data ready" },
-  );
-  assert.equal(
-    deriveSyncIndicator({
-      authenticated: false,
-      syncStatus: "local",
-      storageStatus: "saved",
-      storageMessage: "Saved.",
-    }).tone,
-    "synced",
-  );
-  assert.equal(
-    deriveSyncIndicator({
-      authenticated: true,
-      syncStatus: "loading",
-      storageStatus: "ready",
-      storageMessage: "Ready.",
-    }).tone,
-    "working",
-  );
-  assert.equal(
-    deriveSyncIndicator({
-      authenticated: true,
-      syncStatus: "offline",
-      storageStatus: "ready",
-      storageMessage: "Ready.",
-    }).tone,
-    "warning",
-  );
-  assert.equal(
-    deriveSyncIndicator({
-      authenticated: true,
-      syncStatus: "conflict",
-      storageStatus: "ready",
-      storageMessage: "Ready.",
-    }).tone,
-    "error",
-  );
-
+test("the site header intentionally omits synchronization status", () => {
   const shell = source("components/application/AppShell.jsx");
   const css = source("app/website-overhaul.css");
-  assert.match(shell, /deriveSyncIndicator/);
-  assert.match(shell, /syncIndicator\.tone/);
-  assert.match(shell, /syncIndicator\.title/);
-  assert.match(css, /\.sync-dot\.working/);
-  assert.match(css, /\.sync-dot\.warning/);
+  const status = source("lib/client-status.ts");
+  assert.doesNotMatch(shell, /sync-dot|syncIndicator|deriveSyncIndicator/);
+  assert.doesNotMatch(css, /\.sync-dot/);
+  assert.doesNotMatch(status, /deriveSyncIndicator/);
 });

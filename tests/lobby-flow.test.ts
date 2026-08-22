@@ -11,6 +11,7 @@ import {
 import {
   lobbyCanStart,
   replaceLobbyDeck,
+  roomOwnerId,
   setLobbyReady,
   startLobbyMatch,
   updateLobbySettings,
@@ -28,10 +29,10 @@ test("lobby configuration defaults to Standard Battle Brawlers and the first pla
   const state = createMatch("ABC123", "bo1", [taggedPlayer(0), taggedPlayer(1)]);
   assert.deepEqual(lobbyConfig(state), {
     mode: "casual",
-    ownerId: "player-1",
     rulesFormat: "standard",
     meta: "battle-brawlers",
   });
+  assert.equal(roomOwnerId(state), "player-1");
 });
 
 test("canonical lobby players carry approved profile avatars", () => {
@@ -52,7 +53,7 @@ test("only the owner can change lobby settings and a change un-readies both seat
 
   assert.throws(
     () => updateLobbySettings(state, "player-2", "singleton", "battle-brawlers"),
-    /Only the lobby owner/,
+    /Only the room owner/,
   );
 
   state = updateLobbySettings(state, "player-1", "singleton", "battle-brawlers");
@@ -64,7 +65,7 @@ test("competitive lobby format is rejected for Casual rooms", () => {
   const state = createMatch("ABC123", "bo1", [taggedPlayer(0), taggedPlayer(1)]);
   assert.throws(
     () => updateLobbySettings(state, "player-1", "competitive", "battle-brawlers"),
-    /only available for Ranked/,
+    /only available in Ranked/,
   );
 });
 
@@ -87,9 +88,9 @@ test("ready and start are separate owner-controlled actions", () => {
   assert.equal(state.phase, "lobby");
   assert.equal(lobbyCanStart(state), true);
 
-  assert.throws(() => startLobbyMatch(state, "player-2"), /Only the lobby owner/);
+  assert.throws(() => startLobbyMatch(state, "player-2"), /Only the room owner/);
   state = startLobbyMatch(state, "player-1");
-  assert.equal(state.phase, "placement");
+  assert.equal(state.phase, "startingPlayer");
 });
 
 test("Training creates a lobby first and keeps the AI ready", () => {
@@ -108,7 +109,7 @@ test("streamlined Match Creation and Lobby source contracts stay in place", asyn
     readFile(new URL("../app/(workspace)/play/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/(workspace)/play/lobby/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../components/application/AppProvider.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../components/game-screen-v2/MatchRuntime.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/game-screen-v2/GameplayClient.tsx", import.meta.url), "utf8"),
   ]);
 
   for (const contract of [

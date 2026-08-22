@@ -143,10 +143,10 @@ test("server replay finalization uses recorded authoritative transitions instead
     archive.playback?.initialFrame.state.players[0].deckCards[0].displayName,
     "Runtime Snapshot Definition",
   );
-  assert.equal(buildReplayFrames(archive).frames.at(-1)?.winner, first.id);
+  assert.equal(buildReplayFrames(archive).frames.at(-1)?.state.winner, first.id);
   assert.notEqual(buildReplayFrames(archive).frames[0]?.label, "Recovered final battlefield");
 
   // Frozen playback, not the compact catalogue recipe, is the permanent viewer source.
   archive.recording.genesis.players[0].d[0].c = "catalogue-entry-that-does-not-exist";
-  assert.equal(buildReplayFrames(archive).frames.at(-1)?.winner, first.id);
+  assert.equal(buildReplayFrames(archive).frames.at(-1)?.state.winner, first.id);
 });
