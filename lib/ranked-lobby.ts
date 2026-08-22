@@ -5,7 +5,7 @@ import {
   type DeckRecord,
 } from "./data";
 import type { DeckRestriction } from "./deck-validation";
-import { cloneMatch, startNextSeriesGame, type MatchState, type PlayerState } from "./game";
+import { cloneMatch, startNextSeriesGame, type MatchState } from "./game";
 import { applyLobbyConfig, tagLobbyPlayerDeck } from "./lobby-config";
 import type { RankedSettlement } from "./ranked";
 

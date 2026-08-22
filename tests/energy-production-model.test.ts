@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, energizeCard, type GameCard, type PlayerState } from "../lib/game";
+import { createMatch, energizeCard, type GameCard } from "../lib/game";
 import { energyZoneView } from "../lib/energy";
 import { authorRuleDefinitionForCard } from "../lib/rules/catalogue";
 import {
@@ -58,7 +58,7 @@ test("Energy production can overproduce and leave the remainder in the Energy in
     effect: "All Energy cards make 2 [Energy] instead of 1 [Energy].",
   };
   normalizeEnergyCardState(player, match.turn);
-  assert.equal(energyProductionValue(match, player.id, player.energyZone[0].id), 2);
+  assert.equal(energyProductionValue(match, player.id), 2);
   assert.equal(maximumPayableEnergy(match, player.id), 4);
 
   const card = actionCard(3);

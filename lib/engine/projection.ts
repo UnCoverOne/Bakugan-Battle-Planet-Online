@@ -43,7 +43,9 @@ export function projectMatchForPlayer(state: MatchState, playerId: string, now =
 
 function clientEventPayload(event: GameEvent) {
   if (event.type === "CARD_MOVED" && event.payload.to === "energy") {
-    const { cardName: _cardName, cardType: _cardType, ...safe } = event.payload;
+    const safe = { ...event.payload };
+    Reflect.deleteProperty(safe, "cardName");
+    Reflect.deleteProperty(safe, "cardType");
     return { ...safe, cardName: "Face-down Energy card" };
   }
   return event.payload;

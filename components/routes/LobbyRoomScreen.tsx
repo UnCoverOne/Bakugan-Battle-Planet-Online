@@ -64,7 +64,6 @@ export function LobbyRoomScreen() {
   }));
   const match = room.match;
   const messages = useMemo(() => chatEntries(match), [match]);
-  const me = match?.players.find((player) => player.id === room.playerId);
   const owner = match?.players[0];
   const isOwner = Boolean(owner && owner.id === room.playerId);
   const bothReady = Boolean(match && match.players.length === 2 && match.players.every((player) => player.ready));

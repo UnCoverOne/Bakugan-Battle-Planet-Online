@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BAKUGAN, CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
+import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   CENTER_CELL,
   completeCoinFlip,

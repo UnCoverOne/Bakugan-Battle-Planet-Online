@@ -1,4 +1,3 @@
-import { setPhysicalEnergy } from "./helpers/energy";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";

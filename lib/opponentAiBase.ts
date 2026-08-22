@@ -1036,8 +1036,6 @@ function rechargeEnergyValue(
 function temporaryPowerChangesVictor(
   match: MatchState,
   playerId: string,
-  _choices: CardChoices,
-  _entries: ReturnType<typeof activeCardActionEntries>,
 ) {
   if (match.phase !== "power" || match.victorByDamage) return true;
   const opponent = opponentOf(match, playerId);
@@ -1072,7 +1070,7 @@ function cardValue(
     choices,
     { execution: "play" },
   ).filter(({ instruction }) => card.type !== "Evo" || evoInstructionOccursOnPlay(instruction));
-  const powerChangesVictor = temporaryPowerChangesVictor(match, playerId, choices, entries);
+  const powerChangesVictor = temporaryPowerChangesVictor(match, playerId);
   let value = entries.reduce((sum, entry) => {
     if (card.type === "Evo" && isPersistentEvoAction(entry.action)) return sum;
     if (card.type === "Evo" && entry.action.kind === "draw") {

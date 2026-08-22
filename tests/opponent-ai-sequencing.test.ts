@@ -9,7 +9,6 @@ import {
   type Core,
   type Faction,
   type GameCard,
-  type MatchState,
   type PlayerState,
   type RollOutcome,
 } from "../lib/game";

@@ -45,7 +45,7 @@ export function cardEnergyPaymentState(
   const player = playerById(state, playerId) as EnergyTrackedPlayer | undefined;
   if (!player) return null;
   const cost = effectiveCardEnergyCost(state, playerId, card, choices);
-  const current = availableEnergy(player, state.turn);
+  const current = availableEnergy(player);
   const uncharged = new Set(activeUnchargedEnergyIds(player, state.turn));
   const charged = player.energyZone.filter((energyCard) => !uncharged.has(energyCard.id));
   const plan = energyPaymentPlan(state, playerId, cost);

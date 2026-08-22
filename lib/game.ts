@@ -2549,7 +2549,6 @@ case "swap-bakucore": {
       return;
     }
     case "reveal": {
-      const revealAmount = Math.max(0, Math.floor(resolveNumber(action.amount)));
       if (action.object === "bakucore") {
         const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell && !candidate.attachedTo);
         if (placement) {

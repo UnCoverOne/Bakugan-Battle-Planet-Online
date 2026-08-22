@@ -283,12 +283,12 @@ export function activeTappedEnergyIds(player: EnergyTrackedPlayer, turn: number)
 }
 
 /** Produced but unspent Energy; this is the value shown by the Energy indicator. */
-export function availableEnergy(player: EnergyTrackedPlayer, _turn?: number) {
+export function availableEnergy(player: EnergyTrackedPlayer) {
   return Math.max(0, Math.floor(player.energy));
 }
 
 /** Printed/continuous replacement for how much Energy one charged Energy card makes when uncharged. */
-export function energyProductionValue(state: MatchState, playerId: string, _cardId?: string) {
+export function energyProductionValue(state: MatchState, playerId: string) {
   const player = playerById(state, playerId);
   const activeSources = [
     ...player.heroes,
@@ -313,20 +313,20 @@ export function chargedEnergyCards(state: MatchState, playerId: string) {
 
 export function maximumPayableEnergy(state: MatchState, playerId: string) {
   const player = playerById(state, playerId) as EnergyTrackedPlayer;
-  return availableEnergy(player, state.turn) + chargedEnergyCards(state, playerId)
-    .reduce((sum, card) => sum + energyProductionValue(state, playerId, card.id), 0);
+  return availableEnergy(player) + chargedEnergyCards(state, playerId)
+    .reduce((sum) => sum + energyProductionValue(state, playerId), 0);
 }
 
 export function energyPaymentPlan(state: MatchState, playerId: string, amount: number) {
   const player = playerById(state, playerId) as EnergyTrackedPlayer;
   const target = Math.max(0, Math.floor(amount));
-  const current = availableEnergy(player, state.turn);
+  const current = availableEnergy(player);
   const selectedEnergyIds: string[] = [];
   let projected = current;
   for (const card of chargedEnergyCards(state, playerId)) {
     if (projected >= target) break;
     selectedEnergyIds.push(card.id);
-    projected += energyProductionValue(state, playerId, card.id);
+    projected += energyProductionValue(state, playerId);
   }
   return {
     current,
@@ -351,7 +351,7 @@ export function unchargeEnergyCards(
   let produced = 0;
   for (const id of cardIds) {
     uncharged.add(id);
-    if (options.producesEnergy) produced += energyProductionValue(state, playerId, id);
+    if (options.producesEnergy) produced += energyProductionValue(state, playerId);
     if (options.preventChargeStepRecharge) {
       player.energyRechargeLocks = { ...(player.energyRechargeLocks ?? {}), [id]: state.turn };
     }

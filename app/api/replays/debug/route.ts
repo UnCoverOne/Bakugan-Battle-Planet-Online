@@ -450,7 +450,11 @@ export async function GET(request: Request) {
       } : null,
       engineHistory: {
         commands,
-        acceptedCommands: accepted.map(({ patch: _patch, ...entry }) => entry),
+        acceptedCommands: accepted.map((entry) => {
+          const safeEntry = { ...entry };
+          Reflect.deleteProperty(safeEntry, "patch");
+          return safeEntry;
+        }),
         events: events.map((event) => ({
           sequence: event.sequence,
           commandId: event.command_id,
@@ -464,7 +468,11 @@ export async function GET(request: Request) {
           payload: reportJson(event.payload_json),
         })),
       },
-      snapshots: snapshotDiagnostics.map(({ parsedState: _parsedState, ...snapshot }) => snapshot),
+      snapshots: snapshotDiagnostics.map((snapshot) => {
+        const safeSnapshot = { ...snapshot };
+        Reflect.deleteProperty(safeSnapshot, "parsedState");
+        return safeSnapshot;
+      }),
     };
 
     const safeReplayId = replayId.replace(/[^A-Za-z0-9._-]/g, "_");
