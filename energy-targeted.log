@@ -1,0 +1,514 @@
+TAP version 13
+# Subtest: a card uses already generated Energy without tapping extra cards
+ok 1 - a card uses already generated Energy without tapping extra cards
+  ---
+  duration_ms: 11.214555
+  type: 'test'
+  ...
+# Subtest: a card automatically taps only the Energy cards needed for its shortfall
+ok 2 - a card automatically taps only the Energy cards needed for its shortfall
+  ---
+  duration_ms: 3.417611
+  type: 'test'
+  ...
+# Subtest: a card cannot be played when generated and untapped Energy are insufficient
+ok 3 - a card cannot be played when generated and untapped Energy are insufficient
+  ---
+  duration_ms: 2.656812
+  type: 'test'
+  ...
+# Subtest: the four-set schema-controlled catalogue is complete and unique
+ok 4 - the four-set schema-controlled catalogue is complete and unique
+  ---
+  duration_ms: 7.510342
+  type: 'test'
+  ...
+# Subtest: EX cards retain their supplied definitions and dedicated artwork
+ok 5 - EX cards retain their supplied definitions and dedicated artwork
+  ---
+  duration_ms: 1.127713
+  type: 'test'
+  ...
+# Subtest: newly supplied card scans resolve to full and thumbnail assets
+ok 6 - newly supplied card scans resolve to full and thumbnail assets
+  ---
+  duration_ms: 4.221976
+  type: 'test'
+  ...
+# Subtest: every printing has fingerprinted text and an executable typed definition
+ok 7 - every printing has fingerprinted text and an executable typed definition
+  ---
+  duration_ms: 10.07884
+  type: 'test'
+  ...
+# Subtest: non-obvious rules implementations have machine-readable provenance
+ok 8 - non-obvious rules implementations have machine-readable provenance
+  ---
+  duration_ms: 5.393635
+  type: 'test'
+  ...
+# Subtest: physical Energy cards are the only Energy-card count source
+ok 9 - physical Energy cards are the only Energy-card count source
+  ---
+  duration_ms: 6.763593
+  type: 'test'
+  ...
+# Subtest: printed Energy-card thresholds compile to the canonical count expression
+ok 10 - printed Energy-card thresholds compile to the canonical count expression
+  ---
+  duration_ms: 0.958057
+  type: 'test'
+  ...
+# Subtest: Wynton scales from physical Energy cards and ignores generated Energy
+ok 11 - Wynton scales from physical Energy cards and ignores generated Energy
+  ---
+  duration_ms: 14.446285
+  type: 'test'
+  ...
+# Subtest: runtime views and replay encoding derive Energy-card count from the zone
+ok 12 - runtime views and replay encoding derive Energy-card count from the zone
+  ---
+  duration_ms: 2.076385
+  type: 'test'
+  ...
+# Subtest: production source contains no cached Energy-count compatibility path
+ok 13 - production source contains no cached Energy-count compatibility path
+  ---
+  duration_ms: 9.246974
+  type: 'test'
+  ...
+# Subtest: ordinary Energize adds a charged card without producing Energy
+ok 14 - ordinary Energize adds a charged card without producing Energy
+  ---
+  duration_ms: 7.74774
+  type: 'test'
+  ...
+# Subtest: Energy production can overproduce and leave the remainder in the Energy indicator pool
+not ok 15 - Energy production can overproduce and leave the remainder in the Energy indicator pool
+  ---
+  duration_ms: 5.926921
+  type: 'test'
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/energy-production-model.test.ts:1:1773'
+  failureType: 'testCodeFailure'
+  error: 'BEE does not match the reviewed rules text for bb-187.'
+  code: 'CARD_TEXT_MISMATCH'
+  name: 'UnsupportedCardTextError'
+  stack: |-
+    ruleDefinitionForCard (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/catalogue.ts:205:52)
+    <anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/costs.ts:94:5)
+    Array.flatMap (<anonymous>)
+    cardCostBreakdown (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/costs.ts:93:45)
+    beginCardPayment (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/lib/rules/costs.ts:426:21)
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/energy-production-model.test.ts:68:3)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+  ...
+# Subtest: forced uncharge does not produce Energy and Charge-Step locks affect only automatic recharge
+ok 16 - forced uncharge does not produce Energy and Charge-Step locks affect only automatic recharge
+  ---
+  duration_ms: 4.976525
+  type: 'test'
+  ...
+# Subtest: Energize-uncharged state does not itself generate Energy and the zone view reports charged/total
+ok 17 - Energize-uncharged state does not itself generate Energy and the zone view reports charged/total
+  ---
+  duration_ms: 1.508147
+  type: 'test'
+  ...
+# Subtest: Uncharge grammar compiles opponent selection, no production, and Charge-Step prevention
+not ok 18 - Uncharge grammar compiles opponent selection, no production, and Charge-Step prevention
+  ---
+  duration_ms: 6.764905
+  type: 'test'
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/energy-production-model.test.ts:1:4100'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/energy-production-model.test.ts:126:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: deck card backs scale from zero to ten assets
+ok 19 - deck card backs scale from zero to ten assets
+  ---
+  duration_ms: 8.512705
+  type: 'test'
+  ...
+# Subtest: Hero cards compress their spacing as the stack grows
+ok 20 - Hero cards compress their spacing as the stack grows
+  ---
+  duration_ms: 0.277579
+  type: 'test'
+  ...
+# Subtest: held BakuCore zones compress the Core fan as they fill
+ok 21 - held BakuCore zones compress the Core fan as they fill
+  ---
+  duration_ms: 0.199421
+  type: 'test'
+  ...
+# Subtest: the player hand uses an exact symmetric radial fan at any card count
+ok 22 - the player hand uses an exact symmetric radial fan at any card count
+  ---
+  duration_ms: 4.667127
+  type: 'test'
+  ...
+# Subtest: the radial hand keeps every card the same size and compresses only spacing
+not ok 23 - the radial hand keeps every card the same size and compresses only spacing
+  ---
+  duration_ms: 12.952671
+  type: 'test'
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/game-screen-state.test.ts:1:3163'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 41.99999999992724
+    - 42
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 42
+  actual: 41.99999999992724
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/game-screen-state.test.ts:144:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: tall viewports move the hand with the playmat instead of below it
+ok 24 - tall viewports move the hand with the playmat instead of below it
+  ---
+  duration_ms: 0.274014
+  type: 'test'
+  ...
+# Subtest: card previews recognise card artwork without calculating a viewport side
+ok 25 - card previews recognise card artwork without calculating a viewport side
+  ---
+  duration_ms: 0.40379
+  type: 'test'
+  ...
+# Subtest: draw transitions require a matching deck loss and hand gain
+ok 26 - draw transitions require a matching deck loss and hand gain
+  ---
+  duration_ms: 6.240624
+  type: 'test'
+  ...
+# Subtest: discard flip transitions require a main-deck loss and a new discard card
+ok 27 - discard flip transitions require a main-deck loss and a new discard card
+  ---
+  duration_ms: 3.737494
+  type: 'test'
+  ...
+# Subtest: discard flip transitions work with redacted deck order
+ok 28 - discard flip transitions work with redacted deck order
+  ---
+  duration_ms: 3.667668
+  type: 'test'
+  ...
+# Subtest: tapping a face-down Energy card generates exactly one available Energy
+not ok 29 - tapping a face-down Energy card generates exactly one available Energy
+  ---
+  duration_ms: 2.576761
+  type: 'test'
+  location: '/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/game-screen-state.test.ts:1:8219'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/Bakugan-Battle-Planet-Online/Bakugan-Battle-Planet-Online/tests/game-screen-state.test.ts:262:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: the opponent hand exposes its card count without exposing card faces
+ok 30 - the opponent hand exposes its card count without exposing card faces
+  ---
+  duration_ms: 1.630953
+  type: 'test'
+  ...
+# Subtest: live match state populates both players' card zones
+ok 31 - live match state populates both players' card zones
+  ---
+  duration_ms: 2.161254
+  type: 'test'
+  ...
+# Subtest: picked-up BakuCores leave the Hide Matrix and attach to their Bakugan
+ok 32 - picked-up BakuCores leave the Hide Matrix and attach to their Bakugan
+  ---
+  duration_ms: 1.269186
+  type: 'test'
+  ...
+# Subtest: Energize transitions report only cards newly added to the Energy Zone
+ok 33 - Energize transitions report only cards newly added to the Energy Zone
+  ---
+  duration_ms: 3.157167
+  type: 'test'
+  ...
+# Subtest: Recharge text compiles for Serpenteze and generic Recharge cards
+ok 34 - Recharge text compiles for Serpenteze and generic Recharge cards
+  ---
+  duration_ms: 1.810985
+  type: 'test'
+  ...
+# Subtest: up-to Recharge choices expose only the controller's uncharged Energy
+ok 35 - up-to Recharge choices expose only the controller's uncharged Energy
+  ---
+  duration_ms: 3.561318
+  type: 'test'
+  ...
+# Subtest: Recharge charges Energy without creating spendable Energy pool
+ok 36 - Recharge charges Energy without creating spendable Energy pool
+  ---
+  duration_ms: 0.782321
+  type: 'test'
+  ...
+# Subtest: Titan Serpenteze Ultra open trigger resolves Recharge all through the engine
+ok 37 - Titan Serpenteze Ultra open trigger resolves Recharge all through the engine
+  ---
+  duration_ms: 8.718957
+  type: 'test'
+  ...
+# Subtest: AI keeps Dark Waters when +200 B is redundant
+ok 38 - AI keeps Dark Waters when +200 B is redundant
+  ---
+  duration_ms: 20.490375
+  type: 'test'
+  ...
+# Subtest: AI still uses Dark Waters when +200 B changes the Brawl result
+ok 39 - AI still uses Dark Waters when +200 B changes the Brawl result
+  ---
+  duration_ms: 5.079611
+  type: 'test'
+  ...
+# Subtest: the reviewed typed catalogue covers every Battle Planet card exactly
+ok 40 - the reviewed typed catalogue covers every Battle Planet card exactly
+  ---
+  duration_ms: 9.171551
+  type: 'test'
+  ...
+# Subtest: unknown or modified card text is rejected rather than resolving partially
+ok 41 - unknown or modified card text is rejected rather than resolving partially
+  ---
+  duration_ms: 0.67549
+  type: 'test'
+  ...
+# Subtest: instead clauses are single typed replacement branches, not additive actions
+ok 42 - instead clauses are single typed replacement branches, not additive actions
+  ---
+  duration_ms: 0.749602
+  type: 'test'
+  ...
+# Subtest: Flow replacement clauses resolve the enhanced effect instead of the base effect
+ok 43 - Flow replacement clauses resolve the enhanced effect instead of the base effect
+  ---
+  duration_ms: 1.032128
+  type: 'test'
+  ...
+# Subtest: Light's Courage replaces +400 B with +800 B under Domination
+ok 44 - Light's Courage replaces +400 B with +800 B under Domination
+  ---
+  duration_ms: 3.600207
+  type: 'test'
+  ...
+# Subtest: replacement conditions cover sacrifice, held Core, faction, and turn-history families
+ok 45 - replacement conditions cover sacrifice, held Core, faction, and turn-history families
+  ---
+  duration_ms: 0.343619
+  type: 'test'
+  ...
+# Subtest: Sacrifice replacements choose exactly one branch
+ok 46 - Sacrifice replacements choose exactly one branch
+  ---
+  duration_ms: 0.425913
+  type: 'test'
+  ...
+# Subtest: played-card faction history is distinct, turn-scoped rules state
+ok 47 - played-card faction history is distinct, turn-scoped rules state
+  ---
+  duration_ms: 1.566826
+  type: 'test'
+  ...
+# Subtest: triggered replacement bonuses retain their trigger ownership
+ok 48 - triggered replacement bonuses retain their trigger ownership
+  ---
+  duration_ms: 0.460366
+  type: 'test'
+  ...
+# Subtest: open Bakugan count parser emits generalized boolean comparisons
+ok 49 - open Bakugan count parser emits generalized boolean comparisons
+  ---
+  duration_ms: 0.620988
+  type: 'test'
+  ...
+# Subtest: Ice Elation and Solitude resolve only with exactly one open Bakugan
+ok 50 - Ice Elation and Solitude resolve only with exactly one open Bakugan
+  ---
+  duration_ms: 1.620818
+  type: 'test'
+  ...
+# Subtest: rule objects are serializable resumable objects with stable definition identity
+ok 51 - rule objects are serializable resumable objects with stable definition identity
+  ---
+  duration_ms: 1.394827
+  type: 'test'
+  ...
+# Subtest: continuous layers apply ShadowStrike as negative-modifier filtering
+ok 52 - continuous layers apply ShadowStrike as negative-modifier filtering
+  ---
+  duration_ms: 12.102858
+  type: 'test'
+  ...
+# Subtest: typed cost reductions scale Everett Ray and active Hero reducers without discounting themselves
+ok 53 - typed cost reductions scale Everett Ray and active Hero reducers without discounting themselves
+  ---
+  duration_ms: 2.135665
+  type: 'test'
+  ...
+# Subtest: source-bound stat modifiers are parsed per symbol and derived exactly once from active cards
+ok 54 - source-bound stat modifiers are parsed per symbol and derived exactly once from active cards
+  ---
+  duration_ms: 2.268596
+  type: 'test'
+  ...
+# Subtest: source-bound parsing keeps unrelated cost scaling off Everett and evaluates real scaling dynamically
+ok 55 - source-bound parsing keeps unrelated cost scaling off Everett and evaluates real scaling dynamically
+  ---
+  duration_ms: 1.125209
+  type: 'test'
+  ...
+# Subtest: triggered open bonuses are not treated as continuous active-card modifiers
+ok 56 - triggered open bonuses are not treated as continuous active-card modifiers
+  ---
+  duration_ms: 1.040561
+  type: 'test'
+  ...
+# Subtest: active FrostStrike from the layered modifier system increases Flip costs
+ok 57 - active FrostStrike from the layered modifier system increases Flip costs
+  ---
+  duration_ms: 0.921833
+  type: 'test'
+  ...
+# Subtest: opponent-caused declarative triggers create typed rule objects
+ok 58 - opponent-caused declarative triggers create typed rule objects
+  ---
+  duration_ms: 1.782552
+  type: 'test'
+  ...
+# Subtest: choice timing is explicit for announce, pay, and resolve
+ok 59 - choice timing is explicit for announce, pay, and resolve
+  ---
+  duration_ms: 1.685085
+  type: 'test'
+  ...
+# Subtest: trigger resolution never infers announce timing from full printed card text
+ok 60 - trigger resolution never infers announce timing from full printed card text
+  ---
+  duration_ms: 4.365923
+  type: 'test'
+  ...
+# Subtest: Dan Kouzo's real open trigger pauses for the manual reveal before playing the top card
+ok 61 - Dan Kouzo's real open trigger pauses for the manual reveal before playing the top card
+  ---
+  duration_ms: 10.626688
+  type: 'test'
+  ...
+# Subtest: additional costs are separate from spell effects
+ok 62 - additional costs are separate from spell effects
+  ---
+  duration_ms: 0.192511
+  type: 'test'
+  ...
+# Subtest: Evo targeting uses canonical Character identity rather than display names
+ok 63 - Evo targeting uses canonical Character identity rather than display names
+  ---
+  duration_ms: 0.953981
+  type: 'test'
+  ...
+# Subtest: the game reducer has no card-resolution compatibility adapter
+ok 64 - the game reducer has no card-resolution compatibility adapter
+  ---
+  duration_ms: 28.968248
+  type: 'test'
+  ...
+# Subtest: Character and Evo held-Core bonuses are active only for their printed Core types
+ok 65 - Character and Evo held-Core bonuses are active only for their printed Core types
+  ---
+  duration_ms: 2.345843
+  type: 'test'
+  ...
+# Subtest: EX Dragonoid Maximus compiles a named-control alternate win condition
+ok 66 - EX Dragonoid Maximus compiles a named-control alternate win condition
+  ---
+  duration_ms: 0.414156
+  type: 'test'
+  ...
+# Subtest: Turn to Energy resolves from the batch into the Energy Zone uncharged
+ok 67 - Turn to Energy resolves from the batch into the Energy Zone uncharged
+  ---
+  duration_ms: 12.916006
+  type: 'test'
+  ...
+# Subtest: Turn to Energy resolves through the production rules-command path
+ok 68 - Turn to Energy resolves through the production rules-command path
+  ---
+  duration_ms: 4.034973
+  type: 'test'
+  ...
+# Subtest: Turn to Energy resolves through the deterministic server reducer
+ok 69 - Turn to Energy resolves through the deterministic server reducer
+  ---
+  duration_ms: 15.564265
+  type: 'test'
+  ...
+# Subtest: the Training AI passes and resolves Turn to Energy after the player passes
+ok 70 - the Training AI passes and resolves Turn to Energy after the player passes
+  ---
+  duration_ms: 6.020883
+  type: 'test'
+  ...
+# Subtest: normalization removes a completed Turn to Energy object stranded in the batch
+ok 71 - normalization removes a completed Turn to Energy object stranded in the batch
+  ---
+  duration_ms: 2.394987
+  type: 'test'
+  ...
+1..71
+# tests 71
+# suites 0
+# pass 67
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2444.451212

@@ -1,0 +1,14 @@
+ M components/game-screen-v2/GameScreen.tsx
+ M lib/cardPayment.ts
+ M lib/energy.ts
+ M lib/game.ts
+ M lib/rules/catalogue-primitives.ts
+ M lib/rules/catalogue-structure.ts
+ M lib/rules/choices.ts
+ M lib/rules/costs.ts
+ M lib/rules/model.ts
+?? energy-apply.log
+?? energy-production-failure-status.txt
+?? energy-production-failure.diff
+?? energy-targeted.log
+?? tests/energy-production-model.test.ts

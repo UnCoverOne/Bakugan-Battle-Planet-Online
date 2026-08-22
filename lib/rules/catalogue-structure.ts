@@ -61,6 +61,9 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   const normalized = source.replace(/\s*\n\s*/g, " ").trim().replace(
     /(\bNegate an Action card\.)\s+(You may copy its effect(?: and make your own selections for it)?\.)/gi,
     "$1 $2",
+  ).replace(
+    /(Uncharge\s+(?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+Energy cards?[^.]*\.)\s+(They do not recharge at the end of the turn\.)/gi,
+    "$1 $2",
   );
   const clauses = normalized
     ? normalized.split(/(?<=\.)\s+/).map((clause) => clause.trim()).filter(Boolean)
@@ -245,7 +248,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     : defaultTiming;
   const discardPaysPlayCost = /\bdiscard\s+(?:a|an|one|two|three|\d+)\s+cards?\s+to play this for free\b/i.test(text);
   const takeControlHero = /take control of a hero/i.test(text);
-  const targetOwner = takeControlHero || /enemy|opposing|opponent(?:'s|’s)/i.test(text)
+  const targetOwner = takeControlHero || /enemy|opposing|\bopponent\b/i.test(text)
     ? "opponent" as const
     : /(?:one of )?your (?:open )?(?:Bakugan|Hero|Evo|Energy)/i.test(text)
       ? "controller" as const
@@ -341,6 +344,18 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     const amount = amountText === "two" ? 2 : amountText === "three" ? 3 : Number(amountText) || 1;
     selected.minimum = cardId === "bb-97" ? 1 : amount;
     selected.maximum = cardId === "bb-97" ? 2 : amount;
+    result.push(selected);
+  }
+  const unchargeChoice = text.match(/\buncharge\s+(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+Energy cards?\b/i);
+  if (unchargeChoice) {
+    const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+    const amount = words[unchargeChoice[1].toLowerCase()] ?? Math.max(1, Number(unchargeChoice[1]) || 1);
+    const selected = choice("targetEnergyIds", "resolve", "energy-card", `Choose ${amount} charged Energy cards`);
+    selected.owner = targetOwner;
+    selected.targetOwner = selected.owner;
+    selected.energyState = "charged";
+    selected.minimum = amount;
+    selected.maximum = amount;
     result.push(selected);
   }
   const rechargeChoice = text.match(/\brecharge\s+up to\s+(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+Energy cards?\b/i);

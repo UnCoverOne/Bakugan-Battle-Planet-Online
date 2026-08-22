@@ -1,0 +1,687 @@
+diff --git a/components/game-screen-v2/GameScreen.tsx b/components/game-screen-v2/GameScreen.tsx
+index c79e728..05b17a9 100644
+--- a/components/game-screen-v2/GameScreen.tsx
++++ b/components/game-screen-v2/GameScreen.tsx
+@@ -395,7 +395,7 @@ function EnergyCardStack({
+ }) {
+   if (!energy.cards.length) return null;
+   const layout = heroCardLayout(energy.cards.length);
+-  const tappedIds = new Set(energy.tappedEnergyIds);
++  const tappedIds = new Set(energy.unchargedEnergyIds);
+ 
+   return (
+     <div className={styles.energyCardStack}>
+@@ -466,8 +466,9 @@ function EnergyZone({
+       data-zone-owner={owner}
+       data-zone-id={`${owner}-energy`}
+       data-card-count={energy.cards.length}
++      data-charged-card-count={energy.chargedEnergyCount}
+       data-available-energy={energy.availableEnergy}
+-      aria-label={`${ownerLabel(owner)} Energy Card zone, ${energy.availableEnergy} available Energy from ${energy.cards.length} cards`}
++      aria-label={`${ownerLabel(owner)} Energy Card zone, ${energy.chargedEnergyCount} charged of ${energy.cards.length} cards, ${energy.availableEnergy} produced Energy available`}
+     >
+       {!energy.cards.length && <ZoneLabel lines={["Energy", "Card Zone"]} />}
+       <EnergyCardStack
+@@ -487,7 +488,7 @@ function EnergyZone({
+         <img src={ENERGY_SYMBOL_ART} alt="Energy" draggable={false} />
+       </strong>
+       <strong className={styles.zoneCount} aria-hidden="true">
+-        {safeCardCount(energy.cards.length)}
++        {safeCardCount(energy.chargedEnergyCount)}/{safeCardCount(energy.cards.length)}
+       </strong>
+     </div>
+   );
+diff --git a/lib/cardPayment.ts b/lib/cardPayment.ts
+index 7dc03d2..cb786e4 100644
+--- a/lib/cardPayment.ts
++++ b/lib/cardPayment.ts
+@@ -8,9 +8,9 @@ import {
+ } from "./game";
+ import { hasPendingDraws } from "./drawQueue";
+ import { legalEvoTargets } from "./evo";
+-import { activeTappedEnergyIds, availableEnergy, cardCostBreakdown, prepareDeclaredEnergyPayment } from "./rules/costs";
++import { activeUnchargedEnergyIds, availableEnergy, cardCostBreakdown, energyPaymentPlan, prepareDeclaredEnergyPayment } from "./rules/costs";
+ 
+-type EnergyTrackedPlayer = PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
++type EnergyTrackedPlayer = PlayerState & { unchargedEnergyIds?: string[]; tappedEnergyIds?: string[]; energyTapTurn?: number };
+ export type CardEnergyPaymentKind = "ready" | "auto-tap" | "insufficient";
+ export type CardEnergyPaymentState = {
+   kind: CardEnergyPaymentKind;
+@@ -46,19 +46,20 @@ export function cardEnergyPaymentState(
+   if (!player) return null;
+   const cost = effectiveCardEnergyCost(state, playerId, card, choices);
+   const current = availableEnergy(player, state.turn);
+-  const tapped = new Set(activeTappedEnergyIds(player, state.turn));
+-  const untapped = player.energyZone.filter((energyCard) => !tapped.has(energyCard.id));
++  const uncharged = new Set(activeUnchargedEnergyIds(player, state.turn));
++  const charged = player.energyZone.filter((energyCard) => !uncharged.has(energyCard.id));
++  const plan = energyPaymentPlan(state, playerId, cost);
+   const shortfall = Math.max(0, cost - current);
+-  const totalEnergy = current + untapped.length;
+-  const kind: CardEnergyPaymentKind = cost <= current ? "ready" : cost <= totalEnergy ? "auto-tap" : "insufficient";
++  const totalEnergy = plan.payable;
++  const kind: CardEnergyPaymentKind = cost <= current ? "ready" : plan.sufficient ? "auto-tap" : "insufficient";
+   return {
+     kind,
+     cost,
+     availableEnergy: current,
+-    untappedEnergy: untapped.length,
++    untappedEnergy: charged.length,
+     totalEnergy,
+     shortfall,
+-    autoTapCardIds: kind === "auto-tap" ? untapped.slice(0, shortfall).map((energyCard) => energyCard.id) : [],
++    autoTapCardIds: kind === "auto-tap" ? plan.selectedEnergyIds : [],
+   };
+ }
+ 
+diff --git a/lib/energy.ts b/lib/energy.ts
+index 88c528a..e67e68b 100644
+--- a/lib/energy.ts
++++ b/lib/energy.ts
+@@ -1,22 +1,42 @@
+ import { cloneMatch, type GameCard, type MatchState, type PlayerState } from "./game";
+-import { activeTappedEnergyIds, availableEnergy } from "./rules/costs";
++import {
++  activeUnchargedEnergyIds,
++  availableEnergy,
++  unchargeEnergyCards,
++} from "./rules/costs";
+ import { ensureRulesState } from "./rules/state";
+ 
+-type EnergyPlayerState = PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
++type EnergyPlayerState = PlayerState & {
++  unchargedEnergyIds?: string[];
++  tappedEnergyIds?: string[];
++  energyTapTurn?: number;
++};
+ export type EnergyZoneView = {
+   cards: readonly GameCard[];
++  unchargedEnergyIds: readonly string[];
++  /** @deprecated Compatibility alias for existing orientation presentation. */
+   tappedEnergyIds: readonly string[];
++  chargedEnergyCount: number;
+   availableEnergy: number;
+ };
+ export type EnergyZoneViews = { player: EnergyZoneView; opponent: EnergyZoneView };
+-const EMPTY_ENERGY_ZONE_VIEW: EnergyZoneView = { cards: [], tappedEnergyIds: [], availableEnergy: 0 };
++const EMPTY_ENERGY_ZONE_VIEW: EnergyZoneView = {
++  cards: [],
++  unchargedEnergyIds: [],
++  tappedEnergyIds: [],
++  chargedEnergyCount: 0,
++  availableEnergy: 0,
++};
+ 
+ export function energyZoneView(player: PlayerState | null | undefined, turn: number): EnergyZoneView {
+   if (!player) return EMPTY_ENERGY_ZONE_VIEW;
+   const tracked = player as EnergyPlayerState;
++  const unchargedEnergyIds = activeUnchargedEnergyIds(tracked, turn);
+   return {
+     cards: player.energyZone,
+-    tappedEnergyIds: activeTappedEnergyIds(tracked, turn),
++    unchargedEnergyIds,
++    tappedEnergyIds: unchargedEnergyIds,
++    chargedEnergyCount: Math.max(0, player.energyZone.length - unchargedEnergyIds.length),
+     availableEnergy: availableEnergy(tracked, turn),
+   };
+ }
+@@ -36,14 +56,11 @@ export function energyCardCanTap(match: MatchState | null | undefined, playerId:
+   if (!payment || payment.playerId !== playerId || payment.status !== "declared") return false;
+   const player = match.players.find((candidate) => candidate.id === playerId) as EnergyPlayerState | undefined;
+   return Boolean(player?.energyZone.some((card) => card.id === cardId)
+-    && !activeTappedEnergyIds(player, match.turn).includes(cardId)
++    && !activeUnchargedEnergyIds(player, match.turn).includes(cardId)
+     && availableEnergy(player, match.turn) < payment.calculatedCost);
+ }
+ 
+-/**
+- * Uncharge one Energy card for the currently declared payment. Energy cannot be
+- * generated speculatively or outside a card/ability payment transaction.
+- */
++/** Uncharge one Energy card for the currently declared payment. */
+ export function tapEnergyCard(input: MatchState, playerId: string, cardId: string): MatchState {
+   const state = cloneMatch(input);
+   const rules = ensureRulesState(state);
+@@ -53,18 +70,12 @@ export function tapEnergyCard(input: MatchState, playerId: string, cardId: strin
+   }
+   const player = state.players.find((candidate) => candidate.id === playerId) as EnergyPlayerState | undefined;
+   if (!player) throw new Error("Unknown player.");
+-  const card = player.energyZone.find((candidate) => candidate.id === cardId);
+-  if (!card) throw new Error("That card is not in your Energy Card zone.");
+-  if (player.energyTapTurn !== state.turn) {
+-    player.energyTapTurn = state.turn;
+-    player.tappedEnergyIds = [];
+-    player.energy = 0;
+-  } else player.tappedEnergyIds = activeTappedEnergyIds(player, state.turn);
+-  if (player.tappedEnergyIds.includes(cardId)) throw new Error("That Energy card is already uncharged.");
+-  if (player.energy >= payment.calculatedCost) throw new Error("The declared payment already has enough Energy.");
+-  player.tappedEnergyIds.push(cardId);
+-  payment.selectedEnergyIds.push(cardId);
+-  player.energy += 1;
++  if (!player.energyZone.some((candidate) => candidate.id === cardId)) throw new Error("That card is not in your Energy Card zone.");
++  if (activeUnchargedEnergyIds(player, state.turn).includes(cardId)) throw new Error("That Energy card is already uncharged.");
++  if (availableEnergy(player, state.turn) >= payment.calculatedCost) throw new Error("The declared payment already has enough Energy.");
++  const result = unchargeEnergyCards(state, playerId, [cardId], { producesEnergy: true });
++  if (!result.count) throw new Error("That Energy card cannot be uncharged.");
++  payment.selectedEnergyIds = [...new Set([...payment.selectedEnergyIds, ...result.cardIds])];
+   state.version += 1;
+   state.log.push({
+     id: `${Date.now()}-energy-${state.log.length}`,
+diff --git a/lib/game.ts b/lib/game.ts
+index 78ac15e..a107681 100644
+--- a/lib/game.ts
++++ b/lib/game.ts
+@@ -9,7 +9,7 @@ import {
+ import { executeRuleProgram } from "./rules/executor";
+ import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
+ import { ruleDefinitionForCard } from "./rules/catalogue";
+-import { activeTappedEnergyIds, beginCardPayment, cardPaymentModes, commitCardPayment, prepareDeclaredEnergyPayment, rechargeEnergyCards } from "./rules/costs";
++import { activeUnchargedEnergyIds, beginCardPayment, cardPaymentModes, commitCardPayment, normalizeEnergyCardState, prepareDeclaredEnergyPayment, rechargeEnergyCards, setEnergyCardChargeState, unchargeEnergyCards } from "./rules/costs";
+ import { canonicalEvoTargetAllowed } from "./rules/identity";
+ import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
+ import { turnDrawCounts } from "./rules/turn-draw";
+@@ -115,7 +115,15 @@ export type PlayerState = {
+   discard: GameCard[];
+   energyZone: GameCard[];
+   heroes: GameCard[];
++  /** Produced but unspent Energy; shown by the Energy indicator. */
+   energy: number;
++  /** Energy cards currently horizontal / uncharged. */
++  unchargedEnergyIds?: string[];
++  /** Automatic Charge Step recharge prevention keyed by card id and turn. */
++  energyRechargeLocks?: Record<string, number>;
++  /** @deprecated Legacy orientation aliases retained for snapshot compatibility. */
++  tappedEnergyIds?: string[];
++  energyTapTurn?: number;
+   ready: boolean;
+   connected: boolean;
+   lastSeen: number;
+@@ -439,6 +447,7 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
+   state.placements = Array.isArray(state.placements) ? state.placements : [];
+   state.pendingBrawlRetracts = Array.isArray(state.pendingBrawlRetracts) ? state.pendingBrawlRetracts : [];
+   for (const player of state.players) {
++    normalizeEnergyCardState(player, state.turn);
+     const legacyIds = new Map<string, Core[]>();
+     player.cores = player.cores.map((core, index) => {
+       const catalogId = core.catalogId ?? core.id;
+@@ -645,6 +654,8 @@ const beginTurn = (state: MatchState) => {
+   state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.pendingBrawlRetracts = []; state.delayedRetracts = []; state.winner = "";
+   state.collectedEventKeys = [];
+   for (const player of state.players) {
++    player.energy = 0;
++    normalizeEnergyCardState(player, state.turn);
+     player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0;
+     player.playedCardCostsThisTurn = []; player.factionsPlayedThisTurn = [];
+   }
+@@ -672,7 +683,7 @@ export const energizeCard = (input: MatchState, playerId: string, cardId?: strin
+     const [card] = player.hand.splice(index, 1);
+     applyEnergyEntryVisibility([card], "hand");
+     player.energyZone.push(card);
+-    player.energy += 1;
++    setEnergyCardChargeState(state, player.id, [card.id], "charged");
+     entry(state, "game", `${player.name} Energized a card face down.`);
+   } else entry(state, "game", `${player.name} declined to Energize.`);
+   player.energizedThisTurn = true;
+@@ -1906,13 +1917,12 @@ const destroyEnergy = (state: MatchState, amount: number, selectedIds: string[])
+     const selectedSet = new Set(selected.map((card) => card.id));
+     owner.energyZone = owner.energyZone.filter((card) => !selectedSet.has(card.id));
+     owner.discard.push(...selected);
++    normalizeEnergyCardState(owner, state.turn);
+   }
+   state.informationEpoch += 1;
+   state.undoWindow = undefined;
+ };
+ 
+-type EffectEnergyPlayer = PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
+-
+ function applyEnergizedEntryState(
+   state: MatchState,
+   player: PlayerState,
+@@ -1920,23 +1930,7 @@ function applyEnergizedEntryState(
+   enters: "charged" | "uncharged",
+ ) {
+   if (!cards.length) return;
+-  const tracked = player as EffectEnergyPlayer;
+-  const newIds = new Set(cards.map((card) => card.id));
+-  if (tracked.energyTapTurn !== state.turn) {
+-    tracked.energyTapTurn = state.turn;
+-    const existing = player.energyZone.filter((card) => !newIds.has(card.id));
+-    const legacyGenerated = Math.min(Math.max(0, Math.floor(player.energy)), existing.length);
+-    tracked.tappedEnergyIds = existing.slice(0, legacyGenerated).map((card) => card.id);
+-    player.energy = legacyGenerated;
+-  } else {
+-    tracked.tappedEnergyIds = activeTappedEnergyIds(tracked, state.turn);
+-  }
+-  const uncharged = new Set(tracked.tappedEnergyIds ?? []);
+-  for (const card of cards) {
+-    if (enters === "uncharged") uncharged.add(card.id);
+-    else uncharged.delete(card.id);
+-  }
+-  tracked.tappedEnergyIds = [...uncharged];
++  setEnergyCardChargeState(state, player.id, cards.map((card) => card.id), enters);
+ }
+ 
+ const instructionChoices = (pending: PendingEffect, instructionIndex: number) => Object.entries(pending.resolvedChoices ?? {})
+@@ -2337,6 +2331,26 @@ const executeRuleAction = (
+       }
+       return;
+     }
++    case "uncharge-energy": {
++      const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
++      for (const recipientId of recipientIds) {
++        const recipient = playerById(state, recipientId);
++        const uncharged = new Set(activeUnchargedEnergyIds(recipient, state.turn));
++        const charged = recipient.energyZone.filter((energyCard) => !uncharged.has(energyCard.id));
++        const amount = action.amount === "all"
++? charged.length
++: Math.max(0, Math.floor(resolveNumber(action.amount, choices, recipientId)));
++        const requested = (choices.targetEnergyIds ?? []).filter((id) => charged.some((energyCard) => energyCard.id === id));
++        const selected = requested.length
++? requested.slice(0, amount)
++: charged.slice(0, amount).map((energyCard) => energyCard.id);
++        unchargeEnergyCards(state, recipientId, selected, {
++producesEnergy: action.producesEnergy,
++preventChargeStepRecharge: action.preventChargeStepRecharge,
++        });
++      }
++      return;
++    }
+     case "recharge-energy": {
+       if (choices.confirmed === false) return;
+       const selected = action.amount === "all" ? undefined : (choices.targetEnergyIds ?? []).slice(0, Math.max(0, Math.floor(resolveNumber(action.amount))));
+@@ -2388,6 +2402,10 @@ return;
+       state.pendingDamage = 0;
+       state.revealedFlip = undefined;
+       state.batch = [];
++      for (const owner of state.players) {
++        if (action.recharge) rechargeEnergyCards(state, owner.id, undefined, { respectChargeStepLocks: true });
++        owner.energy = 0;
++      }
+       beginTurn(state);
+       entry(state, "game", `${card.name} ended the turn${action.recharge ? "" : " without recharging Energy"}.`);
+       return;
+@@ -3210,8 +3228,6 @@ function finishDamage(state: MatchState) {
+   setPhase(state, "postDamage", "Damage Step • Post-damage priority", state.startingPlayer);
+ }
+ 
+-type EndPhaseEnergyPlayer = PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
+-
+ function beginChargeStep(state: MatchState) {
+   emitGameEvent(state, { id: `${state.turn}:end-turn`, type: "end-turn", playerId: state.startingPlayer });
+   if (state.batch.length || state.triggerOrders.length) return;
+@@ -3219,11 +3235,9 @@ function beginChargeStep(state: MatchState) {
+     if (state.delayedRetracts.includes(bakugan.id)) retractBakugan(state, bakugan);
+   }
+   for (const player of state.players) {
+-    const tracked = player as EndPhaseEnergyPlayer;
+-    tracked.tappedEnergyIds = [];
+-    tracked.energyTapTurn = state.turn;
++    rechargeEnergyCards(state, player.id, undefined, { respectChargeStepLocks: true });
+     player.energy = 0;
+-    }
++  }
+   setPhase(state, "charge", "End Phase • Charge Step", state.startingPlayer);
+   entry(state, "game", "Both players charged all Energy cards.");
+ }
+@@ -3361,7 +3375,7 @@ export const startNextSeriesGame = (input: MatchState) => {
+   for (const player of state.players) {
+     const all = [...player.deckCards, ...player.hand, ...player.discard, ...player.energyZone, ...player.heroes];
+     player.deckCards = all.filter((card) => card.type !== "Character"); shuffle(player.deckCards); player.hand = []; player.discard = []; player.energyZone = []; player.heroes = [];
+-    player.energy = 0; player.ready = true; player.bakugan.forEach((bakugan) => { bakugan.open = false; bakugan.heldCoreCells = []; bakugan.evoStack = []; });
++    player.energy = 0; player.unchargedEnergyIds = []; player.energyRechargeLocks = {}; player.tappedEnergyIds = []; player.energyTapTurn = state.turn; player.ready = true; player.bakugan.forEach((bakugan) => { bakugan.open = false; bakugan.heldCoreCells = []; bakugan.evoStack = []; });
+     drawCards(state, player, 5);
+   }
+   setPhase(state, "startingPlayer", `Game ${state.gameNumber} • Selecting the first BakuCore player`, selected.id);
+diff --git a/lib/rules/catalogue-primitives.ts b/lib/rules/catalogue-primitives.ts
+index 5eebed3..2f6012e 100644
+--- a/lib/rules/catalogue-primitives.ts
++++ b/lib/rules/catalogue-primitives.ts
+@@ -312,6 +312,14 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
+     enters: energizeEntryState,
+   });
+ 
++  const uncharge = text.match(/\buncharge\s+(?:(all)\s+)?(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)?\s*Energy cards?\b/i);
++  if (uncharge) actions.push({
++    kind: "uncharge-energy",
++    amount: uncharge[1] ? "all" : numberValue(uncharge[2]),
++    playerScope: /\bopponent\b/i.test(text) ? "opponent" : playerScopeForText(text),
++    producesEnergy: false,
++    preventChargeStepRecharge: /do not recharge at the end of the turn|does not recharge at the end of the turn/i.test(text),
++  });
+   const recharge = text.match(/\brecharge\s+(?:(?:all\s+of\s+)?your\s+)?(?:(up to)\s+)?(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)?\s*Energy cards?\b/i);
+   if (recharge) actions.push({
+     kind: "recharge-energy",
+diff --git a/lib/rules/catalogue-structure.ts b/lib/rules/catalogue-structure.ts
+index a622a1b..3d30384 100644
+--- a/lib/rules/catalogue-structure.ts
++++ b/lib/rules/catalogue-structure.ts
+@@ -61,6 +61,9 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
+   const normalized = source.replace(/\s*\n\s*/g, " ").trim().replace(
+     /(\bNegate an Action card\.)\s+(You may copy its effect(?: and make your own selections for it)?\.)/gi,
+     "$1 $2",
++  ).replace(
++    /(Uncharge\s+(?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+Energy cards?[^.]*\.)\s+(They do not recharge at the end of the turn\.)/gi,
++    "$1 $2",
+   );
+   const clauses = normalized
+     ? normalized.split(/(?<=\.)\s+/).map((clause) => clause.trim()).filter(Boolean)
+@@ -245,7 +248,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
+     : defaultTiming;
+   const discardPaysPlayCost = /\bdiscard\s+(?:a|an|one|two|three|\d+)\s+cards?\s+to play this for free\b/i.test(text);
+   const takeControlHero = /take control of a hero/i.test(text);
+-  const targetOwner = takeControlHero || /enemy|opposing|opponent(?:'s|’s)/i.test(text)
++  const targetOwner = takeControlHero || /enemy|opposing|\bopponent\b/i.test(text)
+     ? "opponent" as const
+     : /(?:one of )?your (?:open )?(?:Bakugan|Hero|Evo|Energy)/i.test(text)
+       ? "controller" as const
+@@ -343,6 +346,18 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
+     selected.maximum = cardId === "bb-97" ? 2 : amount;
+     result.push(selected);
+   }
++  const unchargeChoice = text.match(/\buncharge\s+(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+Energy cards?\b/i);
++  if (unchargeChoice) {
++    const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
++    const amount = words[unchargeChoice[1].toLowerCase()] ?? Math.max(1, Number(unchargeChoice[1]) || 1);
++    const selected = choice("targetEnergyIds", "resolve", "energy-card", `Choose ${amount} charged Energy cards`);
++    selected.owner = targetOwner;
++    selected.targetOwner = selected.owner;
++    selected.energyState = "charged";
++    selected.minimum = amount;
++    selected.maximum = amount;
++    result.push(selected);
++  }
+   const rechargeChoice = text.match(/\brecharge\s+up to\s+(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+Energy cards?\b/i);
+   if (rechargeChoice) {
+     const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+diff --git a/lib/rules/choices.ts b/lib/rules/choices.ts
+index db0c0b2..3dbd046 100644
+--- a/lib/rules/choices.ts
++++ b/lib/rules/choices.ts
+@@ -1,7 +1,7 @@
+ import type { CardChoices, GameCard, MatchState } from "../game";
+ import { ruleDefinitionForCard } from "./catalogue";
+ import { canonicalEvoTargetAllowed } from "./identity";
+-import { activeTappedEnergyIds, cardPaymentModes } from "./costs";
++import { activeUnchargedEnergyIds, cardPaymentModes } from "./costs";
+ import type { ChoiceSpec, ChoiceTiming } from "./model";
+ import { chooserIdsFor, zoneOwnerIdsFor } from "./primitives";
+ import { evaluateNumberValue, type NumberValue } from "./values";
+@@ -272,12 +272,12 @@ function optionsFor(
+       ]);
+     case "energy-card":
+       return targetOwners(match, controllerId, spec, chooserId, priorChoices).flatMap((owner) => {
+-        const uncharged = new Set(activeTappedEnergyIds(owner, match.turn));
++        const uncharged = new Set(activeUnchargedEnergyIds(owner, match.turn));
+         return owner.energyZone
+           .filter((energy) => cardMatchesSpec(energy, spec))
+           .filter((energy) => !spec.energyState
+             || (spec.energyState === "uncharged" ? uncharged.has(energy.id) : !uncharged.has(energy.id)))
+-          .map((energy) => option(energy.id, spec.energyState === "uncharged" ? "Uncharged Energy" : "Face-down Energy", owner.id));
++          .map((energy) => option(energy.id, spec.energyState === "uncharged" ? "Uncharged Energy" : spec.energyState === "charged" ? "Charged Energy" : "Face-down Energy", owner.id));
+       });
+     case "bakucore": {
+       const ownerIds = new Set(targetOwners(match, controllerId, spec, chooserId, priorChoices).map((owner) => owner.id));
+diff --git a/lib/rules/costs.ts b/lib/rules/costs.ts
+index 8af353c..f1df727 100644
+--- a/lib/rules/costs.ts
++++ b/lib/rules/costs.ts
+@@ -35,7 +35,15 @@ export type CardPaymentMode = {
+   reason?: string;
+ };
+ 
+-type EnergyTrackedPlayer = PlayerState & { tappedEnergyIds?: string[]; energyTapTurn?: number };
++type EnergyTrackedPlayer = PlayerState & {
++  /** Canonical horizontal/uncharged Energy-card state. */
++  unchargedEnergyIds?: string[];
++  /** Cards blocked from the automatic Charge Step for the keyed turn. */
++  energyRechargeLocks?: Record<string, number>;
++  /** @deprecated Legacy snapshot/UI aliases. */
++  tappedEnergyIds?: string[];
++  energyTapTurn?: number;
++};
+ 
+ function playerById(state: MatchState, playerId: string) {
+   const player = state.players.find((candidate) => candidate.id === playerId);
+@@ -71,7 +79,7 @@ export function cardCostBreakdown(
+ ): CardCostBreakdown {
+   const player = playerById(state, playerId);
+   const definition = ruleDefinitionForCard(card);
+-  const capacity = player.energyZone.length + Math.max(0, player.energy);
++  const capacity = maximumPayableEnergy(state, playerId);
+   const xValue = card.cost === "X" ? Math.max(0, Math.min(capacity, choices.xValue ?? 0)) : 0;
+   const printed = card.cost === "X" ? xValue : card.cost;
+   let reductions = 0;
+@@ -226,22 +234,151 @@ export function cardPaymentModes(
+   return modes;
+ }
+ 
+-export function activeTappedEnergyIds(player: EnergyTrackedPlayer, turn: number) {
+-  if (player.energyTapTurn !== turn || !Array.isArray(player.tappedEnergyIds)) return [];
++const ENERGY_WORDS: Record<string, number> = {
++  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
++};
++
++function energyNumber(value: string) {
++  return ENERGY_WORDS[value.toLowerCase()] ?? Math.max(0, Number(value) || 0);
++}
++
++function mirrorLegacyEnergyState(player: EnergyTrackedPlayer, turn: number) {
++  player.tappedEnergyIds = [...(player.unchargedEnergyIds ?? [])];
++  player.energyTapTurn = turn;
++}
++
++/** Upgrade legacy tap-per-turn snapshots to persistent Energy-card orientation. */
++export function normalizeEnergyCardState(player: PlayerState, turn: number) {
++  const tracked = player as EnergyTrackedPlayer;
++  const legal = new Set(player.energyZone.map((card) => card.id));
++  const canonical = Array.isArray(tracked.unchargedEnergyIds);
++  const source = canonical
++    ? tracked.unchargedEnergyIds!
++    : tracked.energyTapTurn === turn && Array.isArray(tracked.tappedEnergyIds)
++      ? tracked.tappedEnergyIds
++      : [];
++  if (!canonical && tracked.energyTapTurn != null && tracked.energyTapTurn !== turn) player.energy = 0;
++  tracked.unchargedEnergyIds = [...new Set(source.filter((id) => legal.has(id)))];
++  tracked.energyRechargeLocks = Object.fromEntries(Object.entries(tracked.energyRechargeLocks ?? {})
++    .filter(([id, lockedTurn]) => legal.has(id) && Number.isFinite(lockedTurn) && lockedTurn >= turn));
++  player.energy = Math.max(0, Math.floor(player.energy));
++  mirrorLegacyEnergyState(tracked, turn);
++  return tracked;
++}
++
++/** Canonical list of horizontal/uncharged Energy cards; legacy snapshots are read without mutation. */
++export function activeUnchargedEnergyIds(player: EnergyTrackedPlayer, turn: number) {
+   const legal = new Set(player.energyZone.map((card) => card.id));
+-  return player.tappedEnergyIds.filter((id) => legal.has(id));
++  const source = Array.isArray(player.unchargedEnergyIds)
++    ? player.unchargedEnergyIds
++    : player.energyTapTurn === turn && Array.isArray(player.tappedEnergyIds)
++      ? player.tappedEnergyIds
++      : [];
++  return [...new Set(source.filter((id) => legal.has(id)))];
++}
++
++/** @deprecated Compatibility alias used by existing presentation/tests. */
++export function activeTappedEnergyIds(player: EnergyTrackedPlayer, turn: number) {
++  return activeUnchargedEnergyIds(player, turn);
++}
++
++/** Produced but unspent Energy; this is the value shown by the Energy indicator. */
++export function availableEnergy(player: EnergyTrackedPlayer, _turn?: number) {
++  return Math.max(0, Math.floor(player.energy));
++}
++
++/** Printed/continuous replacement for how much Energy one charged Energy card makes when uncharged. */
++export function energyProductionValue(state: MatchState, playerId: string, _cardId?: string) {
++  const player = playerById(state, playerId);
++  const activeSources = [
++    ...player.heroes,
++    ...player.bakugan.map((bakugan) => bakugan.evoStack.at(-1) ?? bakugan.character),
++  ];
++  let production = 1;
++  for (const source of activeSources) {
++    const match = source.effect.match(/Energy cards make\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+\[Energy\]\s+instead of\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+\[Energy\]/i);
++    if (!match) continue;
++    const replacement = energyNumber(match[1]);
++    const replaced = energyNumber(match[2]);
++    if (replaced === 1 && replacement > 0) production = replacement;
++  }
++  return production;
+ }
+ 
+-export function availableEnergy(player: EnergyTrackedPlayer, turn: number) {
+-  return player.energyTapTurn === turn ? Math.max(0, Math.floor(player.energy)) : 0;
++export function chargedEnergyCards(state: MatchState, playerId: string) {
++  const player = playerById(state, playerId) as EnergyTrackedPlayer;
++  const uncharged = new Set(activeUnchargedEnergyIds(player, state.turn));
++  return player.energyZone.filter((card) => !uncharged.has(card.id));
+ }
+ 
+-/** Maximum Energy that can be paid now, including currently untapped Energy cards. */
+ export function maximumPayableEnergy(state: MatchState, playerId: string) {
+   const player = playerById(state, playerId) as EnergyTrackedPlayer;
+-  const tapped = new Set(activeTappedEnergyIds(player, state.turn));
+-  const untapped = player.energyZone.filter((card) => !tapped.has(card.id)).length;
+-  return availableEnergy(player, state.turn) + untapped;
++  return availableEnergy(player, state.turn) + chargedEnergyCards(state, playerId)
++    .reduce((sum, card) => sum + energyProductionValue(state, playerId, card.id), 0);
++}
++
++export function energyPaymentPlan(state: MatchState, playerId: string, amount: number) {
++  const player = playerById(state, playerId) as EnergyTrackedPlayer;
++  const target = Math.max(0, Math.floor(amount));
++  const current = availableEnergy(player, state.turn);
++  const selectedEnergyIds: string[] = [];
++  let projected = current;
++  for (const card of chargedEnergyCards(state, playerId)) {
++    if (projected >= target) break;
++    selectedEnergyIds.push(card.id);
++    projected += energyProductionValue(state, playerId, card.id);
++  }
++  return {
++    current,
++    target,
++    selectedEnergyIds,
++    projected,
++    payable: maximumPayableEnergy(state, playerId),
++    sufficient: projected >= target,
++  };
++}
++
++export function unchargeEnergyCards(
++  state: MatchState,
++  playerId: string,
++  selectedIds: readonly string[],
++  options: { producesEnergy?: boolean; preventChargeStepRecharge?: boolean } = {},
++) {
++  const player = normalizeEnergyCardState(playerById(state, playerId), state.turn);
++  const uncharged = new Set(player.unchargedEnergyIds ?? []);
++  const charged = new Set(player.energyZone.filter((card) => !uncharged.has(card.id)).map((card) => card.id));
++  const cardIds = [...new Set(selectedIds)].filter((id) => charged.has(id));
++  let produced = 0;
++  for (const id of cardIds) {
++    uncharged.add(id);
++    if (options.producesEnergy) produced += energyProductionValue(state, playerId, id);
++    if (options.preventChargeStepRecharge) {
++      player.energyRechargeLocks = { ...(player.energyRechargeLocks ?? {}), [id]: state.turn };
++    }
++  }
++  player.unchargedEnergyIds = [...uncharged];
++  if (options.producesEnergy) player.energy += produced;
++  mirrorLegacyEnergyState(player, state.turn);
++  return { count: cardIds.length, produced, cardIds };
++}
++
++export function setEnergyCardChargeState(
++  state: MatchState,
++  playerId: string,
++  cardIds: readonly string[],
++  chargeState: "charged" | "uncharged",
++) {
++  const player = normalizeEnergyCardState(playerById(state, playerId), state.turn);
++  const legal = new Set(player.energyZone.map((card) => card.id));
++  const uncharged = new Set(player.unchargedEnergyIds ?? []);
++  for (const id of cardIds) {
++    if (!legal.has(id)) continue;
++    if (chargeState === "uncharged") uncharged.add(id);
++    else uncharged.delete(id);
++  }
++  player.unchargedEnergyIds = [...uncharged];
++  mirrorLegacyEnergyState(player, state.turn);
++  return player;
+ }
+ 
+ /**
+@@ -258,20 +395,24 @@ export function cardCostAfterFreeBase(
+   return cardCostBreakdown(state, playerId, card, choices, { forcedFreeBase: true }).total;
+ }
+ 
+-/** Charge selected uncharged Energy cards, or every uncharged Energy card when no selection is supplied. */
++/** Charge selected uncharged Energy cards, or every legal uncharged Energy card. */
+ export function rechargeEnergyCards(
+   state: MatchState,
+   playerId: string,
+   selectedIds?: readonly string[],
++  options: { respectChargeStepLocks?: boolean } = {},
+ ) {
+-  const player = playerById(state, playerId) as EnergyTrackedPlayer;
+-  const tapped = activeTappedEnergyIds(player, state.turn);
++  const player = normalizeEnergyCardState(playerById(state, playerId), state.turn);
+   const requested = selectedIds ? new Set(selectedIds) : undefined;
+-  const recharged = tapped.filter((id) => !requested || requested.has(id));
++  const locks = player.energyRechargeLocks ?? {};
++  const recharged = (player.unchargedEnergyIds ?? []).filter((id) => (
++    (!requested || requested.has(id))
++    && (!options.respectChargeStepLocks || locks[id] !== state.turn)
++  ));
+   if (!recharged.length) return 0;
+   const rechargedSet = new Set(recharged);
+-  player.energyTapTurn = state.turn;
+-  player.tappedEnergyIds = tapped.filter((id) => !rechargedSet.has(id));
++  player.unchargedEnergyIds = (player.unchargedEnergyIds ?? []).filter((id) => !rechargedSet.has(id));
++  mirrorLegacyEnergyState(player, state.turn);
+   return recharged.length;
+ }
+ 
+@@ -301,25 +442,14 @@ export function beginCardPayment(
+ }
+ 
+ export function prepareDeclaredEnergyPayment(state: MatchState, playerId: string, amount: number) {
+-  const player = playerById(state, playerId) as EnergyTrackedPlayer;
+   const rules = ensureRulesState(state);
+   const payment = rules.pendingPayment;
+   if (!payment || payment.playerId !== playerId || payment.status !== "declared") throw new Error("Energy can only be uncharged for a declared card payment.");
+   if (payment.calculatedCost !== amount) throw new Error("The declared payment amount changed before payment completed.");
+-  if (player.energyTapTurn !== state.turn) {
+-    player.energyTapTurn = state.turn;
+-    player.tappedEnergyIds = [];
+-    player.energy = 0;
+-  } else player.tappedEnergyIds = activeTappedEnergyIds(player, state.turn);
+-  const current = availableEnergy(player, state.turn);
+-  const required = Math.max(0, amount - current);
+-  const tapped = new Set(player.tappedEnergyIds);
+-  const untapped = player.energyZone.filter((card) => !tapped.has(card.id));
+-  if (untapped.length < required) throw new Error(`Not enough Energy. ${amount} required, ${current + untapped.length} available.`);
+-  const selected = untapped.slice(0, required);
+-  player.tappedEnergyIds.push(...selected.map((card) => card.id));
+-  player.energy = current + selected.length;
+-  payment.selectedEnergyIds = selected.map((card) => card.id);
++  const plan = energyPaymentPlan(state, playerId, amount);
++  if (!plan.sufficient) throw new Error(`Not enough Energy. ${amount} required, ${plan.payable} available.`);
++  const result = unchargeEnergyCards(state, playerId, plan.selectedEnergyIds, { producesEnergy: true });
++  payment.selectedEnergyIds = [...new Set([...payment.selectedEnergyIds, ...result.cardIds])];
+   return state;
+ }
+ 
+diff --git a/lib/rules/model.ts b/lib/rules/model.ts
+index b245c41..0e230a9 100644
+--- a/lib/rules/model.ts
++++ b/lib/rules/model.ts
+@@ -139,6 +139,7 @@ export type RuleAction =
+   | { kind: "discard"; amount: NumberValue; minimum: NumberValue; maximum: NumberValue; repeated?: boolean; playerScope?: PlayerScope }
+   | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "hero" | "self"; enters: "charged" | "uncharged" }
+   | { kind: "generate-energy"; amount: NumberValue; playerScope?: PlayerScope }
++  | { kind: "uncharge-energy"; amount: NumberValue | "all"; playerScope?: PlayerScope; producesEnergy: boolean; preventChargeStepRecharge?: boolean }
+   | { kind: "recharge-energy"; amount: NumberValue | "all" }
+   | SwapBakucoreEffect
+   | { kind: "set-stat"; stat: "power" | "damage"; value: NumberValue }

@@ -312,6 +312,14 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     enters: energizeEntryState,
   });
 
+  const uncharge = text.match(/\buncharge\s+(?:(all)\s+)?(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)?\s*Energy cards?\b/i);
+  if (uncharge) actions.push({
+    kind: "uncharge-energy",
+    amount: uncharge[1] ? "all" : numberValue(uncharge[2]),
+    playerScope: /\bopponent\b/i.test(text) ? "opponent" : playerScopeForText(text),
+    producesEnergy: false,
+    preventChargeStepRecharge: /do not recharge at the end of the turn|does not recharge at the end of the turn/i.test(text),
+  });
   const recharge = text.match(/\brecharge\s+(?:(?:all\s+of\s+)?your\s+)?(?:(up to)\s+)?(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)?\s*Energy cards?\b/i);
   if (recharge) actions.push({
     kind: "recharge-energy",
