@@ -253,35 +253,18 @@ export function resolveEntityConflicts(
   remote: UserSnapshot,
   conflicts: string[],
 ) {
-  const resolved = selectSnapshot(local, remote, "cloud");
+  // Keep the server-reported keys in the API contract for telemetry and
+  // forward compatibility even though recency now resolves them uniformly.
+  void conflicts;
+  // Conflicts resolve without pausing the UI. The newer durable snapshot wins
+  // for singleton entities, while mergeSnapshots' per-deck timestamps retain
+  // the newest edit or deletion for each deck independently.
+  const resolved = selectSnapshot(local, remote, "merge");
   const history = new Map(remote.history.map((record) => [record.id, record]));
   for (const record of local.history) history.set(record.id, record);
   resolved.history = [...history.values()]
     .sort((left, right) => Date.parse(right.at) - Date.parse(left.at))
     .slice(0, MAX_MATCH_RECORDS);
-  for (const key of conflicts) {
-    if (key === "profile:main") resolved.profile = local.profile;
-    if (key === "settings:main") resolved.settings = local.settings;
-    if (key === "preferences:main") {
-      resolved.selectedDeckId = local.selectedDeckId;
-      resolved.format = local.format;
-      resolved.matchMode = local.matchMode;
-    }
-    if (key === "draft:main") resolved.builderDeck = local.builderDeck;
-    if (key.startsWith("deck:")) {
-      const id = key.slice("deck:".length);
-      const localDeck = local.decks.find((deck) => deck.id === id);
-      const localDeletion = (local.deletedDecks ?? []).find(
-        (deletion) => deletion.id === id,
-      );
-      resolved.decks = resolved.decks.filter((deck) => deck.id !== id);
-      resolved.deletedDecks = (resolved.deletedDecks ?? []).filter(
-        (deletion) => deletion.id !== id,
-      );
-      if (localDeck) resolved.decks.push(localDeck);
-      if (localDeletion) resolved.deletedDecks.push(localDeletion);
-    }
-  }
   resolved.updatedAt = Math.max(local.updatedAt, remote.updatedAt);
   return resolved;
 }

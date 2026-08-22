@@ -34,5 +34,11 @@ test("renders production metadata and security headers", async () => {
   const contentSecurityPolicy = response.headers.get("content-security-policy") ?? "";
   assert.match(contentSecurityPolicy, /frame-ancestors 'none'/);
   assert.match(contentSecurityPolicy, /img-src 'self' data: blob:/);
-  assert.doesNotMatch(contentSecurityPolicy, /https?:\/\//);
+  const externalOrigins = [...contentSecurityPolicy.matchAll(/https:\/\/[^\s;]+/g)]
+    .map(([origin]) => origin)
+    .sort();
+  assert.deepEqual(externalOrigins, [
+    "https://fonts.googleapis.com",
+    "https://fonts.gstatic.com",
+  ]);
 });

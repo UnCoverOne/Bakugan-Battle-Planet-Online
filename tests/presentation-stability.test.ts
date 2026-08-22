@@ -119,6 +119,7 @@ test("board target choices use the existing Tips and Action HUDs with accessible
   const tips = read("components/game-screen-v2/SelectionInteractionLayer.tsx");
   const actions = read("components/game-screen-v2/MatchHudLayer.tsx");
   const placement = read("components/game-screen-v2/CorePlacementLayer.tsx");
+  const placementLayout = read("components/game-screen-v2/corePlacementLayout.ts");
   const placementCss = read("components/game-screen-v2/CorePlacementLayer.module.css");
 
   assert.match(choices, /publishBoardChoiceHud/);
@@ -133,11 +134,11 @@ test("board target choices use the existing Tips and Action HUDs with accessible
   assert.match(actions, /label=\{activeBoardChoice\?\.busy \? "Locking…" : "Confirm Target"\}/);
   assert.match(actions, /disabled=\{!activeBoardChoice\?\.canConfirm\}/);
 
-  assert.match(placement, /MATRIX_BASE_WIDTH_REM = 38/);
-  assert.match(placement, /MATRIX_BASE_HEIGHT_REM = 42\.6/);
-  assert.match(placement, /new ResizeObserver\(measure\)/);
-  assert.match(placement, /availableWidth \/ \(MATRIX_BASE_WIDTH_REM \* rootFontSize\)/);
-  assert.match(placement, /availableHeight \/ \(MATRIX_BASE_HEIGHT_REM \* rootFontSize\)/);
+  assert.match(placement, /<CorePlacementMatrix/);
+  assert.match(placementLayout, /CORE_PLACEMENT_MATRIX_BASE_WIDTH_REM = 38/);
+  assert.match(placementLayout, /CORE_PLACEMENT_MATRIX_BASE_HEIGHT_REM = 42\.6/);
+  assert.match(placementLayout, /availableWidth \/ \(CORE_PLACEMENT_MATRIX_BASE_WIDTH_REM \* rootFontSizePx\)/);
+  assert.match(placementLayout, /availableHeight \/ \(CORE_PLACEMENT_MATRIX_BASE_HEIGHT_REM \* rootFontSizePx\)/);
   assert.match(placementCss, /\.matrixGrid \{[^}]*scale\(var\(--matrix-scale, 1\)\)/);
   assert.match(placementCss, /grid-template-rows: 7\.2rem minmax\(0, 1fr\)/);
   assert.doesNotMatch(placementCss, /\.matrix \{[^}]*min-height:\s*28rem/);

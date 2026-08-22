@@ -14,6 +14,16 @@ export function roomOwnerId(state: MatchState) {
   return state.players[0]?.id ?? "";
 }
 
+/** A lobby is startable only after both occupied seats have locked legal decks. */
+export function lobbyCanStart(state: MatchState) {
+  return Boolean(
+    state.phase === "lobby"
+      && state.players.length === 2
+      && state.players.every((player) => player.ready)
+      && (!rankedSeries(state) || rankedSeries(state)?.stage === "ready"),
+  );
+}
+
 /**
  * Online lobby SET_READY semantics retained for older clients:
  * - first press marks a player ready and always keeps the room in the lobby;
@@ -51,7 +61,7 @@ export function setLobbyReadyOrStart(input: MatchState, playerId: string) {
   if (input.players.length !== 2) {
     throw new Error("Wait for another Brawler to join before starting the match.");
   }
-  if (!input.players.every((candidate) => candidate.ready)) {
+  if (!lobbyCanStart(input)) {
     throw new Error("Both players must be ready before the room owner can start the match.");
   }
 
@@ -166,7 +176,7 @@ export function startLobbyMatch(input: MatchState, playerId: string) {
   if (rankedSeries(input) && rankedSeries(input)?.stage !== "ready") throw new Error("Complete Ranked deck bans and round selection before starting.");
   if (roomOwnerId(input) !== playerId) throw new Error("Only the room owner can start the match.");
   if (input.players.length !== 2) throw new Error("Wait for another Brawler to join before starting the match.");
-  if (!input.players.every((candidate) => candidate.ready)) throw new Error("Both players must be ready before the match can start.");
+  if (!lobbyCanStart(input)) throw new Error("Both players must be ready before the match can start.");
 
   const owner = input.players[0];
   const next = setReady(input, playerId);

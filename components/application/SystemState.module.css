@@ -64,8 +64,7 @@
   font-size: clamp(1.75rem, 4vw, 3rem);
 }
 
-.copy p,
-.conflictPanel p {
+.copy p {
   margin: 0;
   color: var(--text-secondary);
   line-height: 1.6;
@@ -156,8 +155,7 @@
   line-height: 1.55;
 }
 
-.dialogActions,
-.conflictActions {
+.dialogActions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
@@ -165,49 +163,6 @@
 
 .dialogActions {
   justify-content: flex-end;
-}
-
-.conflictPanel {
-  display: grid;
-  gap: var(--space-5);
-  padding: var(--space-5);
-  border-color: rgba(255, 210, 92, 0.45);
-}
-
-.conflictPanel header {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.conflictPanel h3 {
-  margin: 0;
-  font-size: 1.35rem;
-}
-
-.comparison {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: rgba(255, 210, 92, 0.28);
-}
-
-.comparison article {
-  min-width: 0;
-  display: grid;
-  gap: 0.35rem;
-  padding: var(--space-4);
-  background: rgba(3, 17, 23, 0.98);
-}
-
-.comparison span,
-.comparison small,
-.conflictPanel > small {
-  color: var(--text-muted);
-  font-size: var(--type-meta);
-}
-
-.comparison strong {
-  overflow-wrap: anywhere;
 }
 
 @keyframes skeleton-sweep {
@@ -232,12 +187,7 @@
     grid-column: 1;
   }
 
-  .comparison {
-    grid-template-columns: 1fr;
-  }
-
-  .dialogActions,
-  .conflictActions {
+  .dialogActions {
     display: grid;
   }
 }

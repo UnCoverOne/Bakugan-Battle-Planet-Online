@@ -3067,6 +3067,11 @@ const applyEffect = (state: MatchState, pending: PendingEffect) => resolvePendin
 export const resolveStructuredEffect = (input: MatchState, pending: PendingEffect) => {
   const state = cloneMatch(input);
   if (!state.batch.some((candidate) => candidate.id === pending.id)) state.batch.push(pending);
+  // cloneMatch normalizes the existing batch, but callers of this public
+  // helper may provide a legacy PendingEffect after that normalization has
+  // happened. Normalize again so result snapshots and previous-result values
+  // are recorded on a RuleObject just as they are in the production reducer.
+  normalizeRuleObjects(state);
   const live = state.batch.find((candidate) => candidate.id === pending.id)!;
   if (resolvePendingEffect(state, live)) state.batch = state.batch.filter((candidate) => candidate.id !== live.id);
   return withVersion(state);

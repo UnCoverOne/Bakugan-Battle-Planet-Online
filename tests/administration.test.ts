@@ -154,7 +154,7 @@ test("administrators can edit and delete any public deck from its View screen", 
   assert.match(decks, /Delete Deck/);
   assert.match(decks, /admin-public:/);
   assert.match(decks, /action: adminPublicId \? "public-update" : adminOfflineId \? "offline-update" : "ai-update"/);
-  assert.match(publicApi, /listPublicDecks/);
+  assert.match(publicApi, /listManagedPublicDecks/);
   assert.match(server, /deletePublicDeck/);
   assert.match(server, /updatePublicDeck/);
   assert.match(server, /FROM user_data_entities/);

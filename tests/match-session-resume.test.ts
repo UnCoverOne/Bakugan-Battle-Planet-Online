@@ -134,7 +134,7 @@ test("active-match discovery is authenticated and returns metadata without contr
 });
 
 test("authenticated legacy seats are associated from every controlling transport", () => {
-  const archive = source("lib/replay-archive-server.ts");
+  const archive = source("lib/replay-archive-server-legacy.ts");
   const game = source("app/api/game/route.ts");
   const worker = source("worker/index.ts");
   const provider = source("components/application/AppProvider.jsx");

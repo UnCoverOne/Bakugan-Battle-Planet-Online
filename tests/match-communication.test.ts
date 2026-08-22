@@ -30,7 +30,6 @@ const route = readFileSync(
   "utf8",
 );
 const game = readFileSync(new URL("../lib/game.ts", import.meta.url), "utf8");
-const manualDamage = readFileSync(new URL("../lib/manualDamage.ts", import.meta.url), "utf8");
 
 test("chat messages are sanitized, attributed, synchronized, and excluded from the Event Log", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
@@ -153,12 +152,11 @@ test("saved legacy matches derive card plays and resolutions without showing unr
 });
 
 test("paid, free, revealed, and Flip plays record structured card identities", () => {
-  assert.match(game, /added \$\{card\.name\} to the batch[\s\S]*card, "played"/);
-  assert.match(game, /played \$\{selected\.name\} from hand for free[\s\S]*selected, "played"/);
-  assert.match(game, /played discarded \$\{card\.name\} for free[\s\S]*card, "played"/);
-  assert.match(game, /played the revealed \$\{revealed\.name\} for free[\s\S]*revealed, "played"/);
+  assert.match(game, /function commitCardPlayMutable/);
+  assert.match(game, /entry\(state, "game", `\$\{controller\.name\} added \$\{played\.name\} to the batch[\s\S]*played, "played", request\.controllerId\)/);
+  assert.match(game, /type: "card-play"[\s\S]*sourceCards: \[played\]/);
   assert.match(game, /finished resolving its typed rule program[\s\S]*pending\.card, "effect", pending\.controllerId/);
-  assert.match(manualDamage, /added \$\{stateFlip\.name\} to the batch[\s\S]*stateFlip, "played", playerId/);
+  assert.match(game, /request\.origin === "damage"/);
 });
 
 test("online chat uses the authoritative match endpoint without replacing gameplay undo history", () => {

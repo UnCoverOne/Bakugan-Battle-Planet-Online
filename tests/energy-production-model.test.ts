@@ -52,13 +52,11 @@ test("ordinary Energize adds a charged card without producing Energy", () => {
 test("Energy production can overproduce and leave the remainder in the Energy indicator pool", () => {
   const { match, player } = matchWithPlayers();
   setPhysicalEnergy(player, 2);
-  const hero = CARDS.find((card) => card.type === "Hero");
-  assert.ok(hero);
-  player.heroes = [{
-    ...hero,
-    id: "double-energy-hero",
+  player.bakugan[0].character = {
+    ...player.bakugan[0].character,
+    id: "double-energy-character",
     effect: "All Energy cards make 2 [Energy] instead of 1 [Energy].",
-  }];
+  };
   normalizeEnergyCardState(player, match.turn);
   assert.equal(energyProductionValue(match, player.id, player.energyZone[0].id), 2);
   assert.equal(maximumPayableEnergy(match, player.id), 4);
