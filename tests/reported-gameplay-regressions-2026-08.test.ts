@@ -881,3 +881,68 @@ test("Flip-discard Victor abilities offer only Flips and require successful paym
   assert.equal(unavailable.state.damageBoost[unavailable.bakuganId] ?? 0, 0);
   assert.equal(unavailable.state.batch.some((effect) => effect.id === unavailable.pendingId), false);
 });
+
+test("Cyndeous Victor discard abilities make the opponent choose from their own hand", () => {
+  const beginVictor = (catalogId: string, suffix: string, opponentHandSize = 2) => {
+    const player = makePlayer(`cyndeous-player-${suffix}`, "Cyndeous Player", STARTER_DECKS[0]);
+    const opponent = makePlayer(`cyndeous-opponent-${suffix}`, "Cyndeous Opponent", STARTER_DECKS[1]);
+    const state = createMatch(`CYNDEOUSDISCARD-${suffix}`, "bo1", [player, opponent]);
+    const live = state.players.find((candidate) => candidate.id === player.id)!;
+    const victim = state.players.find((candidate) => candidate.id === opponent.id)!;
+    const source = card(catalogId, `cyndeous-source-${suffix}`);
+    victim.hand = [
+      card("bb-10", `cyndeous-victim-one-${suffix}`),
+      card("bb-17", `cyndeous-victim-two-${suffix}`),
+    ].slice(0, opponentHandSize);
+    live.bakugan[0].open = true;
+    if (source.type === "Character") live.bakugan[0].character = source;
+    else live.bakugan[0].evoStack = [source];
+    state.selected[live.id] = live.bakugan[0].id;
+    state.brawlWinner = live.id;
+    state.phase = "victor";
+    state.priority = live.id;
+    const ability = ruleDefinitionForCard(source).abilities.find((candidate) => (
+      candidate.kind === "triggered" && candidate.trigger?.event === "VICTOR_DECLARED"
+    ));
+    assert.ok(ability);
+    const pending = createRuleObject({
+      controllerId: live.id,
+      card: source,
+      ability,
+      kind: "trigger",
+      sourceId: source.id,
+      choices: { sourceBakuganId: live.bakugan[0].id },
+    });
+    return {
+      state: resolveStructuredEffect(state, pending),
+      controllerId: live.id,
+      opponentId: victim.id,
+      pendingId: pending.id,
+      handIds: victim.hand.map((candidate) => candidate.id),
+    };
+  };
+
+  for (const catalogId of ["bb-311", "br-109"]) {
+    const setup = beginVictor(catalogId, catalogId);
+    const field = setup.state.pendingChoice?.schema.fields.find((candidate) => candidate.id === "discardCardIds");
+    assert.equal(field?.chooserId, setup.opponentId);
+    assert.equal(field?.minimum, 1);
+    assert.equal(field?.maximum, 1);
+    assert.deepEqual(field?.options.map((option) => option.id), setup.handIds);
+    assert.equal(field?.options.every((option) => option.ownerId === setup.opponentId), true);
+    assert.throws(
+      () => submitCardChoice(setup.state, setup.controllerId, { discardCardIds: [setup.handIds[0]] }),
+      /belongs to another player/i,
+    );
+
+    const resolved = submitCardChoice(setup.state, setup.opponentId, { discardCardIds: [setup.handIds[0]] });
+    const opponent = resolved.players.find((candidate) => candidate.id === setup.opponentId)!;
+    assert.deepEqual(opponent.hand.map((candidate) => candidate.id), [setup.handIds[1]]);
+    assert.equal(opponent.discard.some((candidate) => candidate.id === setup.handIds[0]), true);
+    assert.equal(resolved.batch.some((effect) => effect.id === setup.pendingId), false);
+  }
+
+  const empty = beginVictor("br-109", "br-109-empty", 0);
+  assert.equal(empty.state.pendingChoice, undefined);
+  assert.equal(empty.state.batch.some((effect) => effect.id === empty.pendingId), false);
+});

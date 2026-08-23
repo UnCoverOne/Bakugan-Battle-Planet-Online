@@ -233,3 +233,35 @@ test("Flip-discard Victor abilities compile restricted payment before payoff", (
     )));
   }
 });
+
+test("third-person opponent discard text compiles an exact mandatory choice", () => {
+  for (const catalogId of ["bb-311", "br-109"]) {
+    const card = CARDS.find((candidate) => candidate.catalogId === catalogId);
+    assert.ok(card, `Missing ${catalogId}`);
+    const ability = ruleDefinitionForCard(card).abilities.find((candidate) => (
+      candidate.kind === "triggered" && candidate.trigger?.event === "VICTOR_DECLARED"
+    ));
+    assert.ok(ability);
+    const instruction = ability.instructions.find((candidate) => (
+      candidate.actions.some((action) => action.kind === "discard")
+    ));
+    assert.ok(instruction, `${catalogId} should compile “discards a card”`);
+    const discard = instruction.actions.find((action) => action.kind === "discard");
+    assert.deepEqual(discard, {
+      kind: "discard",
+      amount: 1,
+      minimum: 1,
+      maximum: 1,
+      repeated: false,
+      playerScope: "opponent",
+    });
+    assert.ok(instruction.choices.some((choice) => (
+      choice.id === "discardCardIds"
+      && choice.chooser === "opponent"
+      && choice.owner === "opponent"
+      && choice.minimum === 1
+      && choice.maximum === 1
+      && !choice.optional
+    )));
+  }
+});

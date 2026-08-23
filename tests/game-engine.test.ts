@@ -16,6 +16,12 @@ const passWindow = (state: MatchState) => {
   state = passPriority(state, state.priority); return passPriority(state, state.priority);
 };
 
+const resolveMandatoryVictorDiscard = (state: MatchState) => {
+  const field = state.pendingChoice?.schema.fields.find((candidate) => candidate.id === "discardCardIds");
+  assert.ok(field?.options[0], "Victor discard must expose a legal opponent hand card");
+  return submitCardChoice(state, field.chooserId, { discardCardIds: [field.options[0].id] });
+};
+
 const settleDamage = (input: MatchState) => {
   let state = input;
   while (state.phase === "damage") {
@@ -184,8 +190,7 @@ test("a Team Attack combines open Bakugan, then all attackers retract", () => {
   loserBeforeDamage.deckCards = [CARDS.find((card) => card.type !== "Flip")!, ...loserBeforeDamage.deckCards];
   loserBeforeDamage.deck = loserBeforeDamage.deckCards.length;
   for (let guard = 0; state.phase === "victor" && guard < 10; guard += 1) {
-    assert.equal(state.pendingChoice, undefined, "Team Attack fixture reached an unexpected Victor choice");
-    state = passWindow(state);
+    state = state.pendingChoice ? resolveMandatoryVictorDiscard(state) : passWindow(state);
   }
   assert.equal(state.phase, "damage");
   assert.equal(state.teamAttack, true);
@@ -212,8 +217,7 @@ test("a Team Attack consumes its retraction list once after a played Flip", () =
   state = passWindow(state);
   const loserId = state.players.find((player) => player.id !== winnerId)!.id;
   for (let guard = 0; state.phase === "victor" && guard < 10; guard += 1) {
-    assert.equal(state.pendingChoice, undefined);
-    state = passWindow(state);
+    state = state.pendingChoice ? resolveMandatoryVictorDiscard(state) : passWindow(state);
   }
   assert.equal(state.phase, "damage");
   assert.equal(state.teamAttack, true);
