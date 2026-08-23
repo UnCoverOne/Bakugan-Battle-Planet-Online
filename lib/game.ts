@@ -131,6 +131,8 @@ export type PlayerState = {
   cardsPlayedThisTurn: number;
   /** Printed Energy costs of cards this player has played during the current turn. */
   playedCardCostsThisTurn?: number[];
+  /** Printed card types played this turn, in event order. */
+  playedCardTypesThisTurn?: CardType[];
   /** Distinct factions represented by cards this player has played this turn. */
   factionsPlayedThisTurn?: Faction[];
   /** Publicly revealed top-deck card awaiting a linked free-play decision. */
@@ -198,6 +200,8 @@ export type CardChoices = {
   handCardIds?: string[];
   orderedCardIds?: string[];
   deckCardId?: string;
+  /** Physical event card used by generic play-triggered copy effects. */
+  eventCardId?: string;
   xValue?: number;
   mode?: string;
   /** Selected normal/alternative payment route for the current card play. */
@@ -487,6 +491,7 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
       ...playedCards.flatMap((card) => card.factions?.length ? card.factions : [card.faction]),
     ])];
     player.playedCardCostsThisTurn = playedCards.map((card) => card.cost === "X" ? 0 : card.cost);
+    player.playedCardTypesThisTurn = playedCards.map((card) => card.type);
   }
   state.selected = state.selected && typeof state.selected === "object" ? state.selected : {};
   state.targets = state.targets && typeof state.targets === "object" ? state.targets : {};
@@ -524,6 +529,7 @@ export const recordCardPlayedForTurn = (player: PlayerState, card: GameCard, tur
   card.playedTurn = turn;
   player.cardsPlayedThisTurn += 1;
   player.playedCardCostsThisTurn = [...(player.playedCardCostsThisTurn ?? []), card.cost === "X" ? 0 : card.cost];
+  player.playedCardTypesThisTurn = [...(player.playedCardTypesThisTurn ?? []), card.type];
   player.factionsPlayedThisTurn = [...new Set([
     ...(player.factionsPlayedThisTurn ?? []),
     ...(card.factions?.length ? card.factions : [card.faction]),
@@ -657,7 +663,7 @@ const beginTurn = (state: MatchState) => {
     player.energy = 0;
     normalizeEnergyCardState(player, state.turn);
     player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0;
-    player.playedCardCostsThisTurn = []; player.factionsPlayedThisTurn = [];
+    player.playedCardCostsThisTurn = []; player.playedCardTypesThisTurn = []; player.factionsPlayedThisTurn = [];
   }
   const now = Date.now();
   const drawCounts = turnDrawCounts(state);
@@ -1139,8 +1145,9 @@ const conditionActive = (state: MatchState, player: PlayerState, text: string, c
   if (controlledHero) return player.heroes.some((hero) => hero.name.toLowerCase() === controlledHero);
   const inspectedType = text.match(/if (?:one|any) of (?:them|those cards) (?:is|are) (?:a|an) (Action|Flip|Hero|Evo|Character) card/i)?.[1] as CardType | undefined;
   if (inspectedType) {
-    const inspectedId = choices.deckCardId ?? player.revealedDeckCardId;
-    return player.deckCards.some((candidate) => candidate.id === inspectedId && candidate.type === inspectedType);
+    const inspectedId = choices.deckCardId ?? choices.orderedCardIds?.[0]
+      ?? state.players.map((owner) => owner.revealedDeckCardId).find(Boolean);
+    return state.players.some((owner) => owner.deckCards.some((candidate) => candidate.id === inspectedId && candidate.type === inspectedType));
   }
   if (/(?:not|isn['’]t) a Flip card/i.test(text)) {
     const revealedId = (player as PlayerState & { revealedDeckCardId?: string }).revealedDeckCardId;
@@ -1525,8 +1532,6 @@ function commitCardPlayMutable(state: MatchState, request: PendingCardPlay) {
   state.batch.push(batchObject);
   state.passes = [];
   if (played.type === "Action") {
-    const toshi = controller.heroes.find((hero) => hero.name === "Toshi");
-    if (toshi && controller.cardsPlayedThisTurn === 1) state.batch.push(copyRuleObject(batchObject, request.controllerId));
     if ((state.copyNextAction[request.controllerId] ?? 0) > 0) {
       state.copyNextAction[request.controllerId] -= 1;
       state.batch.push(copyRuleObject(batchObject, request.controllerId));
@@ -2291,7 +2296,7 @@ const executeRuleAction = (
       return;
     }
     case "energize": {
-      if (action.source === "hand" || action.source === "deck") {
+      if (action.source === "hand" || action.source === "deck" || action.source === "discard") {
         const affectedIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices });
         for (const affectedId of affectedIds) {
           const scopedChoices = choices.simultaneousAnswers?.[affectedId] ?? choices;
@@ -2321,7 +2326,7 @@ const executeRuleAction = (
             applyEnergyEntryVisibility(energized, "hand");
             destination.energyZone.push(...energized);
             applyEnergizedEntryState(state, destination, energized, action.enters);
-          } else {
+          } else if (action.source === "deck") {
             const energized: GameCard[] = [];
             for (let index = 0; index < amount; index += 1) {
               const energyCard = source.deckCards.shift();
@@ -2331,6 +2336,11 @@ const executeRuleAction = (
             destination.energyZone.push(...energized);
             applyEnergizedEntryState(state, destination, energized, action.enters);
             syncDeck(source);
+          } else {
+            const energized = source.discard.splice(0, amount);
+            applyEnergyEntryVisibility(energized, "discard");
+            destination.energyZone.push(...energized);
+            applyEnergizedEntryState(state, destination, energized, action.enters);
           }
         }
       } else if (choices.confirmed === false) return;
@@ -2507,10 +2517,22 @@ case "swap-bakucore": {
         } else destroyHero(state, controllerId, choices, actionAmount > 2);
       } else if (action.verb === "destroy" && action.object === "evo") destroyEvo(state, controllerId, choices, actionAmount > 2);
       else if (action.verb === "destroy" && action.object === "energy") {
-        const amount = card.catalogId === "bb-97"
-          ? choices.targetEnergyIds?.length ?? 0
-          : actionAmount;
-        destroyEnergy(state, amount, choices.targetEnergyIds ?? []);
+        if (action.retainChoiceId && action.playerScope === "each-player") {
+          for (const owner of state.players) {
+            const scopedChoices = choices.simultaneousAnswers?.[owner.id] ?? choices;
+            const selectedValue = scopedChoices[action.retainChoiceId];
+            const keptIds = new Set(Array.isArray(selectedValue) ? selectedValue.map(String) : []);
+            if (!keptIds.size || [...keptIds].some((id) => !owner.energyZone.some((energy) => energy.id === id))) continue;
+            const destroyed = owner.energyZone.filter((energy) => !keptIds.has(energy.id));
+            owner.energyZone = owner.energyZone.filter((energy) => keptIds.has(energy.id));
+            owner.discard.push(...destroyed);
+          }
+        } else {
+          const amount = card.catalogId === "bb-97"
+            ? choices.targetEnergyIds?.length ?? 0
+            : actionAmount;
+          destroyEnergy(state, amount, choices.targetEnergyIds ?? []);
+        }
       } else if (action.verb === "control" && action.object === "hero") {
         const index = opponent.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
         if (index >= 0) player.heroes.push(...opponent.heroes.splice(index, 1));
@@ -2605,7 +2627,8 @@ case "swap-bakucore": {
           entry(state, "game", `${player.name} turned ${placement.core.name} face up in the Hide Matrix.`);
         }
       } else {
-        const revealed = revealTopDeckCard(state, player);
+        const revealOwnerId = zoneOwnerIdsFor(state, action.sourceOwner ?? "controller", { controllerId, choices })[0] ?? controllerId;
+        const revealed = revealTopDeckCard(state, playerById(state, revealOwnerId));
         recordResult({
           amount: revealed ? 1 : 0,
           ...(revealed ? { cardCost: revealed.cost === "X" ? 0 : revealed.cost } : {}),
@@ -2792,6 +2815,33 @@ case "swap-bakucore": {
       if (action.target === "next-action") {
         for (const copyControllerId of copyControllers) {
           state.copyNextAction[copyControllerId] = (state.copyNextAction[copyControllerId] ?? 0) + count;
+        }
+        return;
+      }
+      if (action.target === "played-action") {
+        const selected = state.batch.find((effect) => effect.card.id === choices.eventCardId && effect.card.type === "Action" && !effect.negated);
+        if (!selected) return;
+        const normalized = isRuleObject(selected) ? selected : normalizeRuleObjects({ ...state, batch: [selected] }).batch[0];
+        if (!isRuleObject(normalized)) return;
+        for (const copyControllerId of copyControllers) {
+          for (let copyIndex = 0; copyIndex < count; copyIndex += 1) {
+            state.batch.push(copyRuleObject(normalized, copyControllerId, { independentChoices: action.independentChoices }));
+          }
+        }
+        return;
+      }
+      if (action.target === "revealed-action") {
+        const ownerId = zoneOwnerIdsFor(state, action.sourceOwner ?? "controller", { controllerId, choices })[0] ?? controllerId;
+        const owner = playerById(state, ownerId);
+        const revealed = owner.deckCards.find((candidate) => candidate.id === owner.revealedDeckCardId && candidate.type === "Action");
+        if (!revealed) return;
+        const definition = ruleDefinitionForCard(revealed);
+        const ability = definition.abilities.find((candidate) => candidate.kind === "spell") ?? definition.abilities[0];
+        if (!ability) return;
+        for (const copyControllerId of copyControllers) {
+          for (let copyIndex = 0; copyIndex < count; copyIndex += 1) {
+            state.batch.push(createRuleObject({ controllerId: copyControllerId, cardOwnerId: ownerId, card: revealed, ability, choices: {}, kind: "copy", sourceId: revealed.id }));
+          }
         }
         return;
       }
@@ -3071,7 +3121,9 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
     && !player.energyZone.some((card) => card.id === pending.card.id)) {
     cardOwner.discard.push(pending.card);
   }
-  delete player.revealedDeckCardId;
+  for (const owner of state.players) {
+    if (owner.id === player.id || choices.orderedCardIds?.includes(owner.revealedDeckCardId ?? "")) delete owner.revealedDeckCardId;
+  }
   if (isRuleObject(pending)) completeRuleObject(pending);
   // Completion and removal are one transaction. Self-moving effects such as
   // Turn to Energy must never leave a terminal rule object stranded in the

@@ -8,6 +8,7 @@ import {
   emitGameEvent,
   passPriority,
   recordCardPlayedForTurn,
+  resolveStructuredEffect,
   submitCardChoice,
   type Core,
 } from "../lib/game";
@@ -633,4 +634,134 @@ test("EX Dragonoid Maximus compiles a named-control alternate win condition", ()
     parseAtomicEffects(maximus, maximus.effect),
     [{ kind: "win-game", reason: "Dragonoid Maximus's alternate win condition" }],
   );
+});
+
+test("Groups 11-15 compile shared state, modal, zone, reveal, and interception primitives", () => {
+  const definition = (catalogId: string) => {
+    const source = CARDS.find((card) => card.catalogId === catalogId);
+    assert.ok(source, `missing ${catalogId}`);
+    return ruleDefinitionForCard(source);
+  };
+  const instructions = (catalogId: string) => definition(catalogId).abilities.flatMap((ability) => ability.instructions);
+
+  assert.deepEqual(instructions("aa-40")[1].condition, { kind: "card-type-played", cardType: "Flip", owner: "opponent" });
+  assert.equal(instructions("aa-109")[0].condition.kind, "expression");
+  assert.equal(definition("aa-152").abilities.find((ability) => ability.kind === "triggered")?.trigger?.minimumPrintedCost, 5);
+  assert.match(definition("aa-208").sourceText, /no cards in hand/i);
+
+  for (const catalogId of ["aa-12", "bb-115", "br-106"]) {
+    const modes = instructions(catalogId).flatMap((instruction) => instruction.choices).filter((choice) => choice.id === "mode");
+    assert.ok(modes.some((choice) => choice.options?.length === 2), `${catalogId} must expose two exclusive modes`);
+  }
+  const endless = instructions("bb-115").filter((instruction) => instruction.condition.kind === "mode-selected");
+  assert.equal(endless.length, 2);
+  assert.ok(endless.every((instruction) => instruction.effects.length === 1));
+
+  assert.equal(instructions("br-50")[0].effects.some((effect) => effect.kind === "energize" && effect.source === "discard"), true);
+  assert.equal(instructions("br-120").flatMap((instruction) => instruction.effects).some((effect) => effect.kind === "discard" && effect.amount === 99), true);
+  assert.equal(instructions("br-164").flatMap((instruction) => instruction.choices).some((choice) => choice.id === "handCardIds" && choice.maximum === 99), true);
+  const keepEnergy = instructions("aa-101").flatMap((instruction) => instruction.choices).find((choice) => choice.id === "targetEnergyIds");
+  assert.equal(keepEnergy?.chooser, "each-player");
+  assert.equal(keepEnergy?.onlyIfAvailableMoreThan, 3);
+
+  for (const catalogId of ["br-19", "br-65"]) {
+    const viewer = instructions(catalogId).flatMap((instruction) => instruction.choices).find((choice) => choice.viewerOnly);
+    assert.equal(viewer?.owner, "opponent");
+    assert.equal(viewer?.minimum, 0);
+    assert.equal(viewer?.maximum, 0);
+  }
+  const shun = instructions("aa-67");
+  assert.ok(shun.flatMap((instruction) => instruction.effects).some((effect) => effect.kind === "reveal" && effect.sourceOwner === "opponent"));
+  assert.ok(shun.flatMap((instruction) => instruction.effects).some((effect) => effect.kind === "copy" && effect.target === "revealed-action"));
+
+  const cubbo = instructions("aa-59");
+  assert.ok(cubbo.flatMap((instruction) => instruction.effects).some((effect) => effect.kind === "play" && !effect.free && effect.cardType === "Hero" && effect.maximumCost === 6));
+  const toshi = definition("bb-193").abilities.find((ability) => ability.trigger?.limit?.kind === "first-each-turn");
+  assert.equal(toshi?.trigger?.cardType, "Action");
+  assert.ok(toshi?.instructions.flatMap((instruction) => instruction.effects).some((effect) => effect.kind === "copy" && effect.target === "played-action"));
+  assert.equal(definition("aa-68").abilities.find((ability) => ability.kind === "triggered")?.trigger?.cardMechanic, "Battle Mastery");
+});
+
+test("Titan Nobilious requests secret keep-three answers only from players above three Energy", () => {
+  const state = match();
+  const source = CARDS.find((card) => card.catalogId === "aa-101")!;
+  const instruction = ruleDefinitionForCard(source).abilities
+    .flatMap((ability) => ability.instructions)
+    .find((candidate) => candidate.choices.some((choice) => choice.id === "targetEnergyIds"))!;
+  state.players[0].energyZone = Array.from({ length: 5 }, (_, index) => ({ ...CARDS[0], id: `first-energy-${index}` }));
+  state.players[1].energyZone = Array.from({ length: 3 }, (_, index) => ({ ...CARDS[0], id: `second-energy-${index}` }));
+  const schema = buildChoiceSchemaFromSpecs(state, state.players[0].id, source, instruction.choices, "resolve");
+  assert.equal(schema.fields.length, 1);
+  assert.equal(schema.fields[0].chooserId, state.players[0].id);
+  assert.equal(schema.fields[0].visibility, "secret-until-reveal");
+  assert.equal(schema.fields[0].minimum, 3);
+  assert.equal(schema.fields[0].maximum, 3);
+
+  const ability = ruleDefinitionForCard(source).abilities.find((candidate) => candidate.kind === "triggered")!;
+  let resolved = resolveStructuredEffect(state, createRuleObject({ controllerId: state.players[0].id, card: source, ability, kind: "trigger" }));
+  const keepIds = state.players[0].energyZone.slice(0, 3).map((card) => card.id);
+  resolved = submitCardChoice(resolved, state.players[0].id, { targetEnergyIds: keepIds });
+  assert.deepEqual(resolved.players[0].energyZone.map((card) => card.id), keepIds);
+  assert.equal(resolved.players[0].discard.length, 2);
+  assert.equal(resolved.players[1].energyZone.length, 3);
+});
+
+test("zone-wide Energize and first-Action triggers execute through generic runtime paths", () => {
+  const state = match();
+  const player = state.players[0];
+  const hugeKnowledge = CARDS.find((card) => card.catalogId === "br-50")!;
+  const discarded = [
+    { ...CARDS[0], id: "discard-energy-a" },
+    { ...CARDS[1], id: "discard-energy-b" },
+  ];
+  player.discard = discarded;
+  const hugeAbility = ruleDefinitionForCard(hugeKnowledge).abilities.find((ability) => ability.kind === "spell")!;
+  const energized = resolveStructuredEffect(state, createRuleObject({ controllerId: player.id, card: hugeKnowledge, ability: hugeAbility, kind: "card" }));
+  assert.deepEqual(energized.players[0].discard.map((card) => card.catalogId), ["br-50"]);
+  assert.deepEqual(new Set(energized.players[0].energyZone.map((card) => card.id)), new Set(discarded.map((card) => card.id)));
+
+  const triggerState = match();
+  const triggerPlayer = triggerState.players[0];
+  const toshi = { ...CARDS.find((card) => card.catalogId === "bb-193")!, id: "toshi-live" };
+  triggerPlayer.heroes = [toshi];
+  const firstAction = { ...CARDS.find((card) => card.type === "Action")!, id: "first-action" };
+  recordCardPlayedForTurn(triggerPlayer, firstAction, triggerState.turn);
+  let triggers = emitRuleEvent(triggerState, { id: "first-action-event", name: "CARD_PLAYED", actorId: triggerPlayer.id, controllerId: triggerPlayer.id, card: firstAction, cardType: "Action", createdAt: 1 });
+  assert.ok(triggers.some((object) => object.card.id === toshi.id && object.choices.eventCardId === firstAction.id));
+  triggerState.batch = [];
+  const secondAction = { ...firstAction, id: "second-action" };
+  recordCardPlayedForTurn(triggerPlayer, secondAction, triggerState.turn);
+  triggers = emitRuleEvent(triggerState, { id: "second-action-event", name: "CARD_PLAYED", actorId: triggerPlayer.id, controllerId: triggerPlayer.id, card: secondAction, cardType: "Action", createdAt: 2 });
+  assert.equal(triggers.some((object) => object.card.id === toshi.id), false);
+});
+
+test("continuous hand-size and printed-play filters re-evaluate from authoritative state", () => {
+  const state = match();
+  const player = state.players[0];
+  const opponent = state.players[1];
+  const skorporos = { ...CARDS.find((card) => card.catalogId === "aa-109")!, id: "skorporos-live" };
+  player.bakugan[0].evoStack = [skorporos];
+  const baseDamage = skorporos.damage!;
+  opponent.hand = [{ ...CARDS[0], id: "opponent-hand-card" }];
+  assert.equal(evaluateBakuganCharacteristics(state, player.bakugan[0], player).damage, baseDamage);
+  opponent.hand = [];
+  assert.equal(evaluateBakuganCharacteristics(state, player.bakugan[0], player).damage, baseDamage + 10);
+
+  const lupitheon = { ...CARDS.find((card) => card.catalogId === "aa-152")!, id: "lupitheon-live" };
+  player.bakugan[0].evoStack = [lupitheon];
+  const low = { ...CARDS.find((card) => card.type === "Action" && card.cost !== "X")!, id: "low-card", cost: 4 as const };
+  let triggers = emitRuleEvent(state, { id: "printed-cost-four", name: "CARD_PLAYED", actorId: player.id, controllerId: player.id, card: low, cardType: low.type, createdAt: 3 });
+  assert.equal(triggers.some((object) => object.card.id === lupitheon.id), false);
+  const high = { ...low, id: "printed-cost-five", cost: 5 as const };
+  triggers = emitRuleEvent(state, { id: "printed-cost-five", name: "CARD_PLAYED", actorId: player.id, controllerId: player.id, card: high, cardType: high.type, createdAt: 4 });
+  assert.equal(triggers.some((object) => object.card.id === lupitheon.id), true);
+
+  player.bakugan[0].evoStack = [];
+  const magnus = { ...CARDS.find((card) => card.catalogId === "aa-68")!, id: "magnus-live-filter" };
+  player.heroes = [magnus];
+  triggers = emitRuleEvent(state, { id: "ordinary-play", name: "CARD_PLAYED", actorId: player.id, controllerId: player.id, card: high, cardType: high.type, createdAt: 5 });
+  assert.equal(triggers.some((object) => object.card.id === magnus.id), false);
+  const mastery = { ...CARDS.find((card) => card.catalogId === "aa-12")!, id: "mastery-play" };
+  triggers = emitRuleEvent(state, { id: "mastery-play", name: "CARD_PLAYED", actorId: player.id, controllerId: player.id, card: mastery, cardType: mastery.type, createdAt: 6 });
+  assert.equal(triggers.some((object) => object.card.id === magnus.id), true);
 });

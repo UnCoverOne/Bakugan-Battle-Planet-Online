@@ -107,6 +107,7 @@ function captureTriggerValues(
 ) {
   if (!trigger) return;
   captureNumber(state, trigger.minimumEventAmount, moment, context, snapshots);
+  captureNumber(state, trigger.minimumPrintedCost, moment, context, snapshots);
   captureRuleConditionValues(state, trigger.interveningCondition, moment, context, snapshots);
 }
 

@@ -41,6 +41,7 @@ export type RuleCondition =
   | { kind: "controls-named-cards"; names: string[] }
   | { kind: "discard-count"; comparison: "at-least"; amount: NumberValue }
   | { kind: "played-card-cost"; comparison: "at-least"; amount: NumberValue }
+  | { kind: "card-type-played"; cardType: CardType; owner: "controller" | "opponent" }
   | { kind: "card-count"; catalogId: RulesCardId; comparison: "at-least"; amount: NumberValue }
   | { kind: "core-count"; relationship: "more-than-opponent" | "at-least"; amount?: NumberValue }
   | { kind: "held-core-type"; coreTypes: CoreType[]; subject?: "target" | "controller-team" | "opponent-active" | "attacker" }
@@ -90,6 +91,10 @@ export type ChoiceSpec = {
   excludeSourceBakugan?: boolean;
   /** This selector is choosing a card that an effect will play with base Energy cost 0. */
   playForFree?: boolean;
+  /** Omit this choice entirely unless its legal pool exceeds the threshold. */
+  onlyIfAvailableMoreThan?: number;
+  /** Display-only hidden-zone viewer paired with a separately validated selection. */
+  viewerOnly?: boolean;
 };
 
 export type TriggerEventName =
@@ -112,6 +117,10 @@ export type TriggerDefinition = {
   cardType?: CardType;
   /** Effective faction(s) the played card must have. */
   factions?: Faction[];
+  /** Printed Energy cost of the event card, before reductions or alternative costs. */
+  minimumPrintedCost?: NumberValue;
+  /** Printed mechanic/keyword that the event card must carry. */
+  cardMechanic?: string;
   optional?: boolean;
   /** Minimum amount carried by the triggering event. */
   minimumEventAmount?: NumberValue;
@@ -139,7 +148,7 @@ export type RuleAction =
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: NumberValue; duration: RulesDuration }
   | { kind: "draw"; amount: NumberValue; playerScope?: PlayerScope }
   | { kind: "discard"; amount: NumberValue; minimum: NumberValue; maximum: NumberValue; repeated?: boolean; playerScope?: PlayerScope }
-  | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "hero" | "self"; enters: "charged" | "uncharged"; playerScope?: PlayerScope; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
+  | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "discard" | "hero" | "self"; enters: "charged" | "uncharged"; playerScope?: PlayerScope; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "generate-energy"; amount: NumberValue; playerScope?: PlayerScope }
   | { kind: "uncharge-energy"; amount: NumberValue | "all"; playerScope?: PlayerScope; producesEnergy: boolean; preventChargeStepRecharge?: boolean }
   | { kind: "recharge-energy"; amount: NumberValue | "all" }
@@ -150,14 +159,14 @@ export type RuleAction =
   | { kind: "damage-to-hand" }
   | { kind: "end-turn"; recharge: boolean }
   | { kind: "shuffle-deck" }
-  | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope; subject?: "self" | "chosen"; destination?: "owner-hand" | "owner-deck-bottom" }
-  | { kind: "reveal"; object: "bakucore" | "deck-top"; amount: NumberValue }
+  | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope; subject?: "self" | "chosen"; destination?: "owner-hand" | "owner-deck-bottom"; retainChoiceId?: keyof CardChoices }
+  | { kind: "reveal"; object: "bakucore" | "deck-top"; amount: NumberValue; sourceOwner?: ZoneOwner }
   | { kind: "reorder-deck"; amount: NumberValue }
   | { kind: "play"; source: "revealed-deck" | "hand" | "self"; free: boolean; cardType?: CardType; factions?: Faction[]; cardName?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "attack"; amount: NumberValue; faction?: Faction }
   | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: NumberValue; targetKinds?: Array<"card" | "trigger" | "copy"> }
   | { kind: "search"; cardType?: string; amount: NumberValue }
-  | { kind: "copy"; target: "next-action" | "batch-action" | "chosen-batch-object"; independentChoices: boolean; targetChoiceId?: keyof CardChoices; count?: NumberValue; controller?: PlayerScope }
+  | { kind: "copy"; target: "next-action" | "batch-action" | "chosen-batch-object" | "played-action" | "revealed-action"; independentChoices: boolean; targetChoiceId?: keyof CardChoices; count?: NumberValue; controller?: PlayerScope; sourceOwner?: ZoneOwner }
   | { kind: "cost"; amount: NumberValue; operation: "reduce" | "increase" | "free"; duration: RulesDuration; cardType?: CardType; playerScope?: PlayerScope }
   | { kind: "reroll"; target: "controller" | "opponent"; mandatory: boolean; requiresDiscard: boolean }
   | { kind: "coin-flip" }

@@ -113,7 +113,10 @@ test("every catalogue self-entry trigger is source-scoped without narrowing gene
       ability.kind === "triggered" && ability.trigger?.event === "CARD_PLAYED"
     ));
     assert.ok(triggers.length > 0, `${candidate.catalogId} ${candidate.name} must retain its entry trigger`);
-    assert.ok(triggers.every((ability) => ability.trigger?.source === "self"), `${candidate.catalogId} ${candidate.name} must match only its own play event`);
+    const selfEntryTriggers = triggers.filter((ability) => ability.instructions.some((instruction) => (
+      /when you play this(?: card)?|when this is played/i.test(instruction.sourceText)
+    )));
+    assert.ok(selfEntryTriggers.every((ability) => ability.trigger?.source === "self"), `${candidate.catalogId} ${candidate.name} entry trigger must match only its own play event`);
   }
 
   const genericPlayCards = CARDS.filter((candidate) => (

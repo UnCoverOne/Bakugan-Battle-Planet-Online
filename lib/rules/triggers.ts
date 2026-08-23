@@ -122,9 +122,25 @@ function triggerMatches(
     event: { amount: event.amount, playerId: event.actorId, sourceId: event.card?.id, targetId: event.targetBakuganId },
     moment: "event",
   })) return false;
+  if (trigger.minimumPrintedCost != null) {
+    const printedCost = event.card?.cost === "X" ? 0 : event.card?.cost ?? 0;
+    if (printedCost < evaluateNumberValue(state, trigger.minimumPrintedCost, {
+      controllerId: owner.id,
+      choices: event.choices,
+      sourceCardId: source.id,
+      sourceBakuganId: sourceBakuganFor(owner, source)?.id,
+      event: { amount: event.amount, playerId: event.actorId, sourceId: event.card?.id, targetId: event.targetBakuganId },
+      moment: "event",
+    })) return false;
+  }
   if (!relationshipMatches(trigger, owner.id, event)) return false;
   if (trigger.source === "self" && source.id !== event.card?.id) return false;
   if (trigger.cardType && trigger.cardType !== event.cardType) return false;
+  if (trigger.cardMechanic && !event.card?.mechanics.some((mechanic) => mechanic.toLowerCase() === trigger.cardMechanic!.toLowerCase())) return false;
+  if (trigger.limit?.kind === "first-each-turn" && trigger.cardType) {
+    const occurrences = (owner.playedCardTypesThisTurn ?? []).filter((cardType) => cardType === trigger.cardType).length;
+    if (occurrences !== 1) return false;
+  }
   if (trigger.factions?.length) {
     const playedFactions = event.card?.factions?.length
       ? event.card.factions
@@ -163,6 +179,7 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
           ...(ability.trigger.source === "self" ? event.choices ?? {} : {}),
           ...(sourceBakuganId ? { sourceBakuganId } : {}),
           ...(controllerTargetBakuganId ? { targetBakuganId: controllerTargetBakuganId } : {}),
+          ...(event.card?.id ? { eventCardId: event.card.id } : {}),
         };
         const object = createRuleObject({
           controllerId: owner.id,

@@ -18,6 +18,7 @@ import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
 import { enhanceDeckInspectionAbilities } from "../lib/rules/deck-inspection";
 import { compileCardEffect } from "../lib/rules/effects";
+import { createRuleObject } from "../lib/rules/objects";
 import type { AbilityDefinition } from "../lib/rules/model";
 
 function catalogueCard(catalogId: string, instance = `test-${catalogId}`) {
@@ -408,6 +409,27 @@ test("Toshi opens a private full-deck browser while limiting selection to Action
   const opponentView = redactForPlayer(state, "b");
   assert.equal(opponentView.pendingChoice?.schema.fields.find((field) => field.id === "orderedCardIds")?.options.length, 0);
   assert.equal(opponentView.pendingChoice?.schema.fields.find((field) => field.id === "deckCardId")?.options.length, 0);
+});
+
+test("Shun reveals and copies the opponent's top Action without moving the physical card", () => {
+  const state = matchWithKnownDeck();
+  const shun = catalogueCard("aa-67", "shun-opponent-deck");
+  const action = { ...catalogueCardOfType("Action", 2), id: "opponent-top-action" };
+  state.players[1].deckCards = [action];
+  state.players[1].deck = 1;
+  const ability = ruleDefinitionForCard(shun).abilities.find((candidate) => candidate.kind === "triggered");
+  assert.ok(ability);
+
+  let next = resolveStructuredEffect(state, createRuleObject({ controllerId: "a", card: shun, ability, kind: "trigger" }));
+  const reveal = next.pendingChoice?.schema.fields.find((field) => field.id === "orderedCardIds");
+  assert.deepEqual(reveal?.options.map((option) => option.id), [action.id]);
+  next = submitCardChoice(next, "a", { orderedCardIds: [action.id] });
+  assert.equal(next.players[1].revealedDeckCardId, action.id);
+  assert.ok(next.pendingChoice?.schema.fields.some((field) => field.id === "confirmed"));
+  next = submitCardChoice(next, "a", { confirmed: true });
+  assert.equal(next.players[1].revealedDeckCardId, undefined);
+  assert.ok(next.players[1].deckCards.some((card) => card.id === action.id));
+  assert.ok(next.batch.some((object) => object.kind === "copy" && object.card.id === action.id && object.controllerId === "a"));
 });
 
 test("Lia search moves the selected Hero to hand and leaves every other card in the shuffled deck", () => {

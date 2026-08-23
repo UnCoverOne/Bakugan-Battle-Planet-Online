@@ -388,6 +388,7 @@ export function buildChoiceSchemaFromSpecs(
     const chooserIds = chooserIdsFor(match, spec.chooser, { controllerId, choices: priorChoices });
     return chooserIds.map((chooserId) => {
       const options = optionsFor(match, controllerId, card, spec, priorChoices, chooserId);
+      if (spec.onlyIfAvailableMoreThan != null && options.length <= spec.onlyIfAvailableMoreThan) return null;
       const range = rangeFor(match, controllerId, spec, options.length, priorChoices, chooserId);
       return {
         id: spec.id,
@@ -404,7 +405,7 @@ export function buildChoiceSchemaFromSpecs(
           ? { requestedWindowSize: topDeckCount(match, controllerId, spec, priorChoices, chooserId) }
           : {}),
       };
-    });
+    }).filter((field): field is ChoiceField => field !== null);
   });
   return {
     id: `${match.id}:${match.version}:${card.id}:${timing}:choices`,

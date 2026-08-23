@@ -57,6 +57,21 @@ function battleMasteryBranches(text: string): BattleMasteryBranch[] | null {
   }));
 }
 
+function chooseOneBranches(text: string): BattleMasteryBranch[] | null {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const match = normalized.match(/\bChoose one\s*:\s*(.+?)\s*,?\s+or\s+(.+?)\.?$/i);
+  if (!match) return null;
+  const clean = (value: string) => {
+    const trimmed = value.trim().replace(/^Victor\s*:\s*/i, "").replace(/\.$/, "");
+    return /^[a-z]/.test(trimmed) ? trimmed[0].toUpperCase() + trimmed.slice(1) : trimmed;
+  };
+  return [match[1], match[2]].map((value, index) => ({
+    id: `choose-one-${index + 1}`,
+    label: clean(value),
+    text: clean(value),
+  }));
+}
+
 function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   const normalized = source.replace(/\s*\n\s*/g, " ").trim().replace(
     /(\bNegate an Action card\.)\s+(You may copy its effect(?: and make your own selections for it)?\.)/gi,
@@ -241,6 +256,65 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
       },
     );
     index += 1;
+  }
+
+  // Generic printed choose-one clauses use the same modal primitive as Battle
+  // Mastery, without granting Magnus's additional Both option.
+  for (let index = 0; index < instructions.length; index += 1) {
+    const current = instructions[index];
+    const branches = chooseOneBranches(current.sourceText);
+    if (!branches) continue;
+    const modeChoice = current.choices.find((candidate) => candidate.id === "mode");
+    if (!modeChoice) continue;
+    const noOp: RuleAction = { kind: "cost", amount: 0, operation: "reduce", duration: "instant" };
+    const triggerEffects = current.effects.filter((effect) => effect.kind === "trigger");
+    const chooserEffects = [...triggerEffects, noOp];
+    const chooser: RuleInstruction = {
+      ...current,
+      id: `${ruleCardId(card)}:choose-one-choice`,
+      condition: current.condition,
+      effects: chooserEffects,
+      actions: chooserEffects,
+      choices: [{ ...modeChoice, options: branches.map((branch) => ({ id: branch.id, label: branch.label })) }],
+    };
+    const branchInstructions = branches.map((branch): RuleInstruction => {
+      const effects = parseAtomicEffects(card, branch.text).filter((effect) => effect.kind !== "trigger");
+      const actions = effects.length ? effects : [{ kind: "sequence", effects: [] } as RuleAction];
+      return {
+        id: `${ruleCardId(card)}:${branch.id}`,
+        condition: { kind: "mode-selected", mode: branch.id },
+        effects: actions,
+        actions,
+        choices: choicesForText(card, branch.text, "resolve").filter((candidate) => candidate.id !== "mode"),
+        sourceText: branch.text,
+      };
+    });
+    instructions.splice(index, 1, chooser, ...branchInstructions);
+    index += branchInstructions.length;
+  }
+
+  // X-cost two-stat cards choose one scaling branch; paying X does not grant
+  // both bonuses. The selected X is captured by the existing pay-time choice.
+  for (let index = 0; index < instructions.length; index += 1) {
+    const current = instructions[index];
+    if (!/For each \[Energy\] used, give a Bakugan \+\d+ \[B\] or \+\d+ \[Damage Rating\]/i.test(current.sourceText)) continue;
+    const power = Number(current.sourceText.match(/\+(\d+) \[B\]/i)?.[1] ?? 0);
+    const damage = Number(current.sourceText.match(/\+(\d+) \[Damage Rating\]/i)?.[1] ?? 0);
+    const mode = current.choices.find((choice) => choice.id === "mode");
+    if (!mode) continue;
+    const target = current.choices.find((choice) => choice.id === "targetBakuganId");
+    const xValue = { kind: "choice-value", choiceId: "xValue" as const } as const;
+    const makeBranch = (id: string, stat: "power" | "damage", base: number): RuleInstruction => {
+      const effects: RuleAction[] = [{ kind: "modify-stat", stat, amount: { kind: "product", factors: [base, xValue] }, duration: "instant", scope: "target" }];
+      return { id: `${ruleCardId(card)}:${id}`, condition: { kind: "mode-selected", mode: id }, effects, actions: effects, choices: target ? [target] : [], sourceText: stat === "power" ? `+${power} [B] for each Energy used` : `+${damage} [Damage Rating] for each Energy used` };
+    };
+    const noOp: RuleAction = { kind: "cost", amount: 0, operation: "reduce", duration: "instant" };
+    instructions.splice(index, 1,
+      { ...current, id: `${ruleCardId(card)}:x-mode`, effects: [noOp], actions: [noOp], choices: [{ ...mode, options: [{ id: "x-power", label: `+${power} [B] per Energy` }, { id: "x-damage", label: `+${damage} [Damage Rating] per Energy` }] }] },
+      makeBranch("x-power", "power", power),
+      makeBranch("x-damage", "damage", damage),
+    );
+    index += 2;
   }
 
   // “Use this any number of times” repeats the immediately preceding paid
@@ -597,6 +671,26 @@ if (swapsBakucore) {
     selected.maximum = amount;
     result.push(selected);
   }
+  if (/Energize any number of cards in your hand/i.test(text)) {
+    const selected = choice("handCardIds", "resolve", "hand-card", "Choose any number of cards to Energize", true, "controller", "private");
+    selected.owner = "controller";
+    selected.targetOwner = "controller";
+    selected.minimum = 0;
+    selected.maximum = 99;
+    result.push(selected);
+  }
+  const keepEnergy = text.match(/both players must destroy all but (one|two|three|four|five|\d+) Energy cards they have/i);
+  if (keepEnergy) {
+    const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+    const amount = words[keepEnergy[1].toLowerCase()] ?? Number(keepEnergy[1]);
+    const selected = choice("targetEnergyIds", "resolve", "energy-card", `Choose ${amount} Energy cards to keep`, false, "each-player", "secret-until-reveal");
+    selected.owner = "chooser";
+    selected.targetOwner = "chooser";
+    selected.minimum = amount;
+    selected.maximum = amount;
+    selected.onlyIfAvailableMoreThan = amount;
+    result.push(selected);
+  }
   if (/search your deck/i.test(text)) result.push(choice("deckCardId", timing, "deck-card", "Choose a card from your deck", false, "controller", "private"));
   if (/top .*cards?.*any order/i.test(text)) result.push(choice("orderedCardIds", timing, "deck-card", "Order the revealed cards", false, "controller", "private"));
   const persistentFreePermission = /for the rest of the turn,\s*both players may play Evo cards from their hand for free/i.test(text);
@@ -640,7 +734,20 @@ if (swapsBakucore) {
     selected.playForFree = true;
     result.push(selected);
   }
+  const paidHandPlay = text.match(/play\s+an?\s+(Action|Hero|Evo)\s+card\s+that costs?\s+(\d+)\s+\[Energy\]\s+or less(?!\s+for free)/i);
+  if (paidHandPlay) {
+    const selected = choice("handCardIds", "resolve", "hand-card", `Choose a ${paidHandPlay[1]} card to play`, true, "controller", "private");
+    selected.cardType = paidHandPlay[1] as GameCard["type"];
+    selected.maximumCost = Number(paidHandPlay[2]);
+    selected.owner = "controller";
+    selected.targetOwner = "controller";
+    selected.minimum = 0;
+    selected.maximum = 1;
+    result.push(selected);
+  }
   if (/Battle Mastery:.*Choose one|choose one of the following/i.test(text)) result.push(choice("mode", timing, "mode", "Choose a Battle Mastery mode"));
+  else if (/\bChoose one\s*:/i.test(text)) result.push(choice("mode", targetTiming, "mode", "Choose one effect"));
+  else if (/For each \[Energy\] used, give a Bakugan \+\d+ \[B\] or \+\d+ \[Damage Rating\]/i.test(text)) result.push(choice("mode", "resolve", "mode", "Choose a scaling bonus"));
   if (card.cost === "X" || /choose (?:a value for )?x/i.test(text)) result.push(choice("xValue", "pay", "number", "Choose X"));
   if ((/\bmay\b/i.test(text) || /\byou can play\b/i.test(text))
     && !persistentFreePermission

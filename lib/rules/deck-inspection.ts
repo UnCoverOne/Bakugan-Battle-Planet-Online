@@ -25,6 +25,7 @@ const NUMBER_WORDS: Record<string, number> = {
 type DeckWindow = {
   mode: "look" | "reveal";
   count: number;
+  owner: "controller" | "opponent";
 };
 
 type DeckSearch = {
@@ -55,6 +56,7 @@ function deckWindowFor(text: string): DeckWindow | null {
   return {
     mode: /^reveal$/i.test(match[1]) ? "reveal" : "look",
     count: numberValue(match[2], 1),
+    owner: /opponent/i.test(match[0]) ? "opponent" : "controller",
   };
 }
 
@@ -87,7 +89,7 @@ function emptySequence(action: RuleAction) {
 
 function normalizedDeckEffect(action: RuleAction, window: DeckWindow): RuleAction {
   if (action.kind === "reveal" && action.object === "deck-top") {
-    return { ...action, amount: window.count };
+    return { ...action, amount: window.count, sourceOwner: window.owner };
   }
   return action;
 }
@@ -113,7 +115,7 @@ function mergeEffects(group: readonly InstructionEntry[], window: DeckWindow, al
   if (window.mode === "reveal" && !effects.some((action) => (
     action.kind === "reveal" && action.object === "deck-top"
   ))) {
-    effects.unshift({ kind: "reveal", object: "deck-top", amount: window.count });
+    effects.unshift({ kind: "reveal", object: "deck-top", amount: window.count, sourceOwner: window.owner });
   }
   if (allowReorder && !effects.some((action) => action.kind === "reorder-deck")) {
     effects.push({ kind: "reorder-deck", amount: window.count });
@@ -140,6 +142,8 @@ function topDeckChoice(
     visibility: window.mode === "reveal" ? "public" : "private",
     minimum: window.count,
     maximum: window.count,
+    owner: window.owner,
+    targetOwner: window.owner,
   };
 }
 
@@ -155,6 +159,8 @@ function selectionChoice(window: DeckWindow, cardType?: GameCard["type"]): Choic
     minimum: 1,
     maximum: 1,
     cardType,
+    owner: window.owner,
+    targetOwner: window.owner,
   };
 }
 

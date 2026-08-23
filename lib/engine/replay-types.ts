@@ -47,6 +47,7 @@ export type CompactPlayerState = {
   ls?: number;
   et?: 1;
   cp?: number;
+  pt?: PlayerState["playedCardTypesThisTurn"];
   fp?: PlayerState["factionsPlayedThisTurn"];
   rv?: string;
 };

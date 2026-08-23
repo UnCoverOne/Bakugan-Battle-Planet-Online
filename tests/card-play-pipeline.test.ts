@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CARD_BY_ID, CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, passPriority, resolveStructuredEffect, submitCardChoice } from "../lib/game";
+import { createMatch, passPriority, redactForPlayer, resolveStructuredEffect, submitCardChoice } from "../lib/game";
 import { resolveManualDamage } from "../lib/manualDamage";
 import { cardCostBreakdown, cardPaymentModes } from "../lib/rules/costs";
 import { createRuleObject } from "../lib/rules/objects";
+import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { compileCardEffect } from "../lib/rules/effects";
 import type { RuleAction } from "../lib/rules/model";
@@ -191,6 +192,41 @@ test("free-play compiler preserves Mind Control source and physical destination 
   assert.equal(play.source, "hand");
   assert.equal(play.sourceOwner, "opponent");
   assert.equal(play.destinationOwner, "opponent");
+});
+
+test("Mind Control temporarily reveals the whole opponent hand while selecting only Actions", () => {
+  const { state, first, second } = baseMatch("MIND-VIEW");
+  const mind = card("br-19", "mind-control-view");
+  const action = card("br-1", "opponent-action");
+  const heroTemplate = CARDS.find((candidate) => candidate.type === "Hero")!;
+  const hero = { ...heroTemplate, id: "opponent-hero" };
+  second.hand = [action, hero];
+  const ability = ruleDefinitionForCard(mind).abilities.find((candidate) => candidate.kind === "spell")!;
+  const next = resolveStructuredEffect(state, createRuleObject({ controllerId: first.id, card: mind, ability, kind: "card" }));
+  const viewer = next.pendingChoice?.schema.fields.find((field) => field.id === "orderedCardIds");
+  const selection = next.pendingChoice?.schema.fields.find((field) => field.id === "handCardIds");
+  assert.deepEqual(new Set(viewer?.options.map((option) => option.id)), new Set([action.id, hero.id]));
+  assert.deepEqual(selection?.options.map((option) => option.id), [action.id]);
+  assert.equal(redactForPlayer(next, second.id).pendingChoice?.schema.fields.find((field) => field.id === "orderedCardIds")?.options.length, 0);
+});
+
+test("Cubbo Gaze offers only controller Heroes with printed cost 6 or less and pays normally", () => {
+  const { state, first } = baseMatch("CUBBO-GAZE");
+  const cubbo = card("aa-59", "cubbo-gaze-model");
+  const legalTemplate = CARDS.find((candidate) => candidate.type === "Hero" && candidate.cost !== "X" && candidate.cost <= 6)!;
+  const expensiveTemplate = CARDS.find((candidate) => candidate.type === "Hero" && candidate.cost !== "X" && candidate.cost > 6)!;
+  const legal = { ...legalTemplate, id: "legal-hero" };
+  const expensive = { ...expensiveTemplate, id: "expensive-hero" };
+  const action = card("br-1", "wrong-type-action");
+  first.hand = [legal, expensive, action];
+  const instruction = ruleDefinitionForCard(cubbo).abilities.flatMap((ability) => ability.instructions)
+    .find((candidate) => candidate.effects.some((effect) => effect.kind === "play" && !effect.free))!;
+  const schema = buildChoiceSchemaFromSpecs(state, first.id, cubbo, instruction.choices, "resolve");
+  assert.deepEqual(schema.fields.find((field) => field.id === "handCardIds")?.options.map((option) => option.id), [legal.id]);
+  const play = instruction.effects.find((effect): effect is Extract<RuleAction, { kind: "play" }> => effect.kind === "play")!;
+  assert.equal(play.free, false);
+  assert.equal(play.cardType, "Hero");
+  assert.equal(play.maximumCost, 6);
 });
 
 test("Trick Trap's shared free-play selector retains Hero type and printed-cost ceiling", () => {

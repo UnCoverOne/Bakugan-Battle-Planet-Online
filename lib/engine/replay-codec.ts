@@ -115,6 +115,7 @@ export function compactReplayPlayer(player: PlayerState): CompactPlayerState {
     ...(player.lastSeen ? { ls: player.lastSeen } : {}),
     ...(player.energizedThisTurn ? { et: 1 as const } : {}),
     ...(player.cardsPlayedThisTurn ? { cp: player.cardsPlayedThisTurn } : {}),
+    ...(player.playedCardTypesThisTurn?.length ? { pt: [...player.playedCardTypesThisTurn] } : {}),
     ...(player.factionsPlayedThisTurn?.length ? { fp: [...player.factionsPlayedThisTurn] } : {}),
     ...(player.revealedDeckCardId ? { rv: player.revealedDeckCardId } : {}),
   };
@@ -142,6 +143,7 @@ export function expandReplayPlayer(player: CompactPlayerState): PlayerState {
     lastSeen: player.ls ?? 0,
     energizedThisTurn: player.et === 1,
     cardsPlayedThisTurn: player.cp ?? 0,
+    ...(player.pt ? { playedCardTypesThisTurn: [...player.pt] } : {}),
     factionsPlayedThisTurn: [...(player.fp ?? [])],
     ...(player.rv ? { revealedDeckCardId: player.rv } : {}),
   };

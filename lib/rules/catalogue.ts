@@ -143,9 +143,83 @@ function normalizeSingularNonFactionTargets(
   return { play: normalizedPlay, abilities: normalizedAbilities };
 }
 
+function revealedOpponentHandViewer(): ChoiceSpec {
+  return {
+    id: "orderedCardIds",
+    timing: "resolve",
+    selector: "hand-card",
+    label: "Revealed opponent hand",
+    minimum: 0,
+    maximum: 0,
+    optional: true,
+    chooser: "controller",
+    visibility: "private",
+    owner: "opponent",
+    targetOwner: "opponent",
+    viewerOnly: true,
+  };
+}
+
+/** Reconnect hand-reveal prose to its linked typed selection and operation. */
+function normalizeRevealedHandWorkflows(abilities: AbilityDefinition[]) {
+  return abilities.map((ability) => {
+    const instructions = [...ability.instructions];
+    for (let index = 0; index < instructions.length; index += 1) {
+      const current = instructions[index];
+      if (!/opponent reveals (?:their|his or her) hand/i.test(current.sourceText)) continue;
+      const next = instructions[index + 1];
+      const mindControl = next && /play an Action card from it for free/i.test(next.sourceText);
+      const darkusBlitz = /choose an Action card/i.test(current.sourceText)
+        && Boolean(next && /(?:they|your opponent) must discard it/i.test(next.sourceText));
+      if (!mindControl && !darkusBlitz) continue;
+
+      if (mindControl) {
+        const selection = next.choices.find((choice) => choice.id === "handCardIds");
+        if (selection) {
+          selection.minimum = 0;
+          selection.maximum = 1;
+          selection.optional = true;
+        }
+        const effects = next.effects.filter((effect) => effect.kind !== "trigger");
+        instructions.splice(index, 2, {
+          ...current,
+          sourceText: `${current.sourceText} ${next.sourceText}`,
+          effects,
+          actions: effects,
+          choices: [revealedOpponentHandViewer(), ...next.choices.filter((choice) => choice.id !== "confirmed")],
+        });
+      } else {
+        const selection: ChoiceSpec = {
+          id: "handCardIds",
+          timing: "resolve",
+          selector: "hand-card",
+          label: "Choose an Action card to discard",
+          minimum: 1,
+          maximum: 1,
+          optional: false,
+          chooser: "controller",
+          visibility: "private",
+          cardType: "Action",
+          owner: "opponent",
+          targetOwner: "opponent",
+        };
+        const effects: RuleAction[] = [{ kind: "discard", amount: 1, minimum: 1, maximum: 1, playerScope: "opponent" }];
+        instructions.splice(index, 2, {
+          ...current,
+          sourceText: `${current.sourceText} ${next!.sourceText}`,
+          effects,
+          actions: effects,
+          choices: [revealedOpponentHandViewer(), selection],
+        });
+      }
+    }
+    return { ...ability, instructions };
+  });
+}
+
 function definitionForCard(card: GameCard, useReviewedNormalizations = true): RuleDefinition {
   const rulesCard = useReviewedNormalizations ? cardForRules(card) : card;
-  const rawAbilities = enhanceDeckInspectionAbilities(rulesCard, abilityDefinitionsForCard(rulesCard));
+  const rawAbilities = normalizeRevealedHandWorkflows(enhanceDeckInspectionAbilities(rulesCard, abilityDefinitionsForCard(rulesCard)));
   const rawPlay = enhanceDeckInspectionPlayDefinition(rulesCard, playDefinitionForCard(rulesCard));
   const normalized = normalizeSingularNonFactionTargets(rulesCard, rawPlay, rawAbilities);
   return {

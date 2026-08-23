@@ -99,6 +99,16 @@ export function conditionFor(text: string): RuleCondition {
   };
   if (/\bUnderdog\b|if it has lower \[B\] than the opposing Bakugan/i.test(text)) return { kind: "underdog" };
   if (/\bFury\b/i.test(text)) return { kind: "fury" };
+  if (/if your opponent plays a Flip card this turn/i.test(text)) return { kind: "card-type-played", cardType: "Flip", owner: "opponent" };
+  if (/if your opponent has no cards in (?:their|his or her) hand/i.test(text)) return {
+    kind: "expression",
+    expression: {
+      kind: "compare-number",
+      left: { kind: "property", subject: { kind: "player", owner: "opponent" }, property: "hand-size" },
+      operator: "==",
+      right: 0,
+    },
+  };
   if (/\bTurbo\b/i.test(text)) return { kind: "turbo" };
   if (/\bDomination\b/i.test(text)) return { kind: "domination" };
   if (/\bFlow\b/i.test(text)) return { kind: "flow" };
@@ -160,6 +170,7 @@ function triggerFor(text: string): TriggerDefinition | undefined {
     };
   }
   const table: Array<[RegExp, TriggerEventName, TriggerDefinition["relationship"], TriggerDefinition["source"]?]> = [
+    [/copy the first Action card you play each turn/i, "CARD_PLAYED", "controller"],
     [/when (?:your |an )?opponent plays/i, "CARD_PLAYED", "opponent"],
     [/when you play this(?: card)?|when this is played/i, "CARD_PLAYED", "controller", "self"],
     [/when you play/i, "CARD_PLAYED", "controller"],
@@ -189,6 +200,14 @@ function triggerFor(text: string): TriggerDefinition | undefined {
       relationship,
       source,
       cardType,
+      ...(/copy the first Action card you play each turn/i.test(text) ? {
+        cardType: "Action" as const,
+        limit: { kind: "first-each-turn" as const, key: "first-action" },
+      } : {}),
+      ...(text.match(/costs? (\d+) \[Energy\] or more/i)?.[1]
+        ? { minimumPrintedCost: Number(text.match(/costs? (\d+) \[Energy\] or more/i)![1]) }
+        : {}),
+      ...(/with Battle Mastery/i.test(text) ? { cardMechanic: "Battle Mastery" } : {}),
       ...(factions.length ? { factions } : {}),
       optional: /\bmay\b/i.test(text),
       interveningCondition: /\bif\b/i.test(text) ? conditionFor(text) : undefined,
@@ -334,6 +353,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     actions.push({ kind: "discard", amount, minimum: optional ? 0 : amount, maximum: /any number/i.test(text) ? 99 : amount, repeated: /repeat|again|any number/i.test(text), playerScope: playerScopeForText(text) });
   }
   if (/discard (?:their|your) entire hand/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99, playerScope: playerScopeForText(text) });
+  if (/\bdiscard your hand\b/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99, playerScope: "controller" });
 
   const energizeEntryState = /\buncharged\b/i.test(text) ? "uncharged" as const : "charged" as const;
   const energize = text.match(/energize (?:the top )?(a|an|one|two|three|\d+)?\s*cards?/i);
@@ -360,6 +380,24 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     amount: 1,
     source: "self",
     enters: energizeEntryState,
+  });
+  if (/Energize each card in your discard pile/i.test(text)) actions.push({
+    kind: "energize",
+    amount: { kind: "count", source: "discard", owner: "controller" },
+    source: "discard",
+    enters: energizeEntryState,
+    playerScope: "controller",
+    sourceOwner: "controller",
+    destinationOwner: "controller",
+  });
+  if (/Energize any number of cards in your hand/i.test(text)) actions.push({
+    kind: "energize",
+    amount: { kind: "choice-count", choiceId: "handCardIds" },
+    source: "hand",
+    enters: energizeEntryState,
+    playerScope: "controller",
+    sourceOwner: "controller",
+    destinationOwner: "controller",
   });
 
   const uncharge = text.match(/\buncharge\s+(?:(all)\s+)?(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)?\s*Energy cards?\b/i);
@@ -415,6 +453,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   }
   for (const [pattern, verb, object] of movement) {
     if (!pattern.test(text)) continue;
+    if (verb === "destroy" && object === "energy" && /destroy all but/i.test(text)) continue;
     const amount: NumberValue = /any number/i.test(text)
       ? { kind: "choice-count", choiceId: /from your hand/i.test(text) ? "handCardIds" : "discardCardIds" }
       : /three|two|all/i.test(text) ? (/three/i.test(text) ? 3 : /two/i.test(text) ? 2 : 99) : 1;
@@ -423,11 +462,27 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       : undefined;
     actions.push({ kind: "move", verb, object, amount, ...(playerScope ? { playerScope } : {}) });
   }
+  const destroyAllButEnergy = text.match(/both players must destroy all but (one|two|three|four|five|\d+) Energy cards they have/i);
+  if (destroyAllButEnergy) {
+    actions.push({
+      kind: "move",
+      verb: "destroy",
+      object: "energy",
+      amount: 99,
+      playerScope: "each-player",
+      retainChoiceId: "targetEnergyIds",
+    });
+  }
   if (/destroy this/i.test(text)) actions.push({ kind: "move", verb: "destroy", object: "hero", amount: 1 });
   if (/turn a BakuCore .*face up/i.test(text)) actions.push({ kind: "reveal", object: "bakucore", amount: 1 });
   const reorder = text.match(/(?:look at|reveal) the top (a|an|one|two|three|four|five|\d+) cards?.*put them on top.*any order/i);
   if (reorder) actions.push({ kind: "reorder-deck", amount: numberValue(reorder[1]) });
-  if (/reveal the top card of (?:your|an opponent's|your opponent's) deck/i.test(text)) actions.push({ kind: "reveal", object: "deck-top", amount: 1 });
+  if (/reveal the top card of (?:your|an opponent's|your opponent's) deck/i.test(text)) actions.push({
+    kind: "reveal",
+    object: "deck-top",
+    amount: 1,
+    sourceOwner: /opponent['’]s deck/i.test(text) ? "opponent" : "controller",
+  });
   if (/play (?:it|this card) for free/i.test(text)) actions.push({
     kind: "play",
     source: /(?:this is discarded|discard this card)/i.test(text) ? "self" : "revealed-deck",
@@ -465,6 +520,15 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     sourceOwner: /from it|opponent(?:'s|’s) hand/i.test(text) ? "opponent" : "controller",
     destinationOwner: /opponent(?:'s|’s) discard pile/i.test(text) ? "opponent" : undefined,
   });
+  const paidHandPlay = text.match(/play\s+an?\s+(Action|Hero|Evo)\s+card\s+that costs?\s+(\d+)\s+\[Energy\]\s+or less(?!\s+for free)/i);
+  if (paidHandPlay) actions.push({
+    kind: "play",
+    source: "hand",
+    free: false,
+    cardType: paidHandPlay[1] as CardType,
+    maximumCost: Number(paidHandPlay[2]),
+    sourceOwner: "controller",
+  });
   if (persistentFreePermission) actions.push({
     kind: "cost", amount: 0, operation: "free", duration: "turn", cardType: "Evo", playerScope: "all-players",
   });
@@ -489,6 +553,8 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   });
   if (/search your deck/i.test(text)) actions.push({ kind: "search", cardType: text.match(/for an? (Action|Hero|Evo|Flip)/i)?.[1], amount: 1 });
   if (/copy the next action/i.test(text)) actions.push({ kind: "copy", target: "next-action", independentChoices: true, count: { kind: "constant", value: 1 }, controller: "controller" });
+  if (/copy the first Action card you play each turn/i.test(text)) actions.push({ kind: "copy", target: "played-action", independentChoices: true, count: 1, controller: "controller" });
+  if (/Action card is revealed this way, you may copy its effect/i.test(text)) actions.push({ kind: "copy", target: "revealed-action", independentChoices: true, count: 1, controller: "controller", sourceOwner: "opponent" });
   if (/copy the effect of an Action card|copy an? Action card(?:'s|’s) effect/i.test(text)) actions.push({ kind: "copy", target: "batch-action", independentChoices: true, targetChoiceId: "targetEffectId", count: { kind: "constant", value: 1 }, controller: "controller" });
 
   const nextCardReduction = text.match(/next card you play(?: this turn)? costs? (\d+) \[Energy\] less/i);

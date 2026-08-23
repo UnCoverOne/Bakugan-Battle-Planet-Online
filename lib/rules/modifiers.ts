@@ -108,6 +108,10 @@ export function ruleConditionActive(
     }
     case "discard-count": return player.discard.length >= conditionValue(condition.amount);
     case "played-card-cost": return Math.max(0, ...(player.playedCardCostsThisTurn ?? [])) >= conditionValue(condition.amount);
+    case "card-type-played": {
+      const tracked = condition.owner === "controller" ? player : opponent;
+      return Boolean(tracked?.playedCardTypesThisTurn?.includes(condition.cardType));
+    }
     case "card-count": return player.heroes.filter((hero) => hero.catalogId === condition.catalogId).length >= conditionValue(condition.amount);
     case "core-count": {
       const held = player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
