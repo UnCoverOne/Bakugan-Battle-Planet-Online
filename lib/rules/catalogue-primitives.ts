@@ -116,7 +116,7 @@ export function conditionFor(text: string): RuleCondition {
   if (/\bVictor\s*[-:]/i.test(text)) return { kind: "victor" };
   if (/\bSacrifice\b/i.test(text)) return { kind: "selection-made", choiceId: "discardCardIds" };
   if (/two or more cards this turn/i.test(text)) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "cards-played", owner: "controller" }, operator: ">=", right: 2 } };
-  const playedFactionCount = text.match(/played a card from (no|a|an|one|two|three|four|five|six|\d+) different factions? this turn/i);
+  const playedFactionCount = text.match(/(?:played a card|play cards) from (no|a|an|one|two|three|four|five|six|\d+) different factions? (?:in the same turn|this turn)/i);
   if (playedFactionCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "factions-played", owner: "controller" }, operator: ">=", right: numberValue(playedFactionCount[1], 1) } };
   const heroCount = text.match(/if you (?:have|control) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Hero cards? in play/i);
   if (heroCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "hero", owner: "controller" }, operator: ">=", right: numberValue(heroCount[1], 1) } };
@@ -324,7 +324,22 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const drawScope = drawPlayerScopeForText(text);
   const drawThatMany = /\bdraws?\s+that many(?:\s+cards?)?\b/i.test(text);
   const draw = text.match(/draws? (a|an|one|two|three|four|five|six|seven|eight|nine|ten|x|\d+) cards?/i);
-  if (drawThatMany) {
+  const drawToOpponentHandSize = /draw cards until you have as many as your opponent/i.test(text);
+  if (drawToOpponentHandSize) {
+    actions.push({
+      kind: "draw",
+      amount: {
+        kind: "clamp",
+        value: {
+          kind: "subtract",
+          left: { kind: "property", subject: { kind: "player", owner: "opponent" }, property: "hand-size" },
+          right: { kind: "property", subject: { kind: "player", owner: "controller" }, property: "hand-size" },
+        },
+        minimum: 0,
+      },
+      playerScope: "controller",
+    });
+  } else if (drawThatMany) {
     actions.push({
       kind: "draw",
       amount: {
@@ -438,7 +453,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       const movement: Array<[RegExp, Extract<RuleAction, { kind: "move" }>["verb"], Extract<RuleAction, { kind: "move" }>["object"]]> = [
     [/destroy .*hero/i, "destroy", "hero"], [/destroy .*evo/i, "destroy", "evo"], [/destroy .*energy/i, "destroy", "energy"],
     [/return .*hand/i, "return", "card"], [/retract .*bakugan/i, "retract", "bakugan"], [/attach .*bakucore/i, "attach", "bakucore"],
-    [/remove .*bakucore/i, "remove", "bakucore"], [/return .*bakucore.*field face down/i, "return", "bakucore"],
+    [/remove .*bakucore/i, "remove", "bakucore"], [/(?:return|place) .*bakucore.*field face down/i, "return", "bakucore"],
     [/shuffle .*?(?:discard|from your hand into your deck)/i, "shuffle", "card"], [/take control .*hero/i, "control", "hero"], [/put this into .*hand/i, "return", "card"],
   ];
   if (/(?:return|put|place)\s+this\s+(?:to|on)\s+the\s+bottom\s+of\s+(?:your|its owner['’]s)\s+deck/i.test(text)) {
@@ -459,8 +474,20 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       : /three|two|all/i.test(text) ? (/three/i.test(text) ? 3 : /two/i.test(text) ? 2 : 99) : 1;
     const playerScope = verb === "destroy" && object === "hero" && /destroy all Hero cards? in play/i.test(text)
       ? "all-players" as const
-      : undefined;
-    actions.push({ kind: "move", verb, object, amount, ...(playerScope ? { playerScope } : {}) });
+      : verb === "destroy" && object === "evo" && /destroy all other Evos/i.test(text)
+        ? "all-players" as const
+        : undefined;
+    const movementAction: Extract<RuleAction, { kind: "move" }> = {
+      kind: "move",
+      verb,
+      object,
+      amount,
+      ...(playerScope ? { playerScope } : {}),
+      ...(/destroy all other Evos/i.test(text) ? { excludeSource: true } : {}),
+    };
+    actions.push(/after this attack/i.test(text)
+      ? { kind: "schedule", timing: "after-attack", effects: [movementAction] }
+      : movementAction);
   }
   const destroyAllButEnergy = text.match(/both players must destroy all but (one|two|three|four|five|\d+) Energy cards they have/i);
   if (destroyAllButEnergy) {

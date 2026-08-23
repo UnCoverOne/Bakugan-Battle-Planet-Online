@@ -1,6 +1,7 @@
 import {
   alternateWinEffectPending,
   cloneMatch,
+  completeScheduledAttackActions,
   completeMatch,
   prepareRevealedFlipPlay,
   revealedFlipCanBePlayed,
@@ -86,6 +87,7 @@ function emitCompletedAttackDamage(state: MatchState) {
 
 function enterPostDamage(state: MatchState) {
   emitCompletedAttackDamage(state);
+  completeScheduledAttackActions(state);
   if (resumePendingEffectAfterDamage(state)) return;
   state.phase = "postDamage";
   state.stepLabel = "Damage Step • Post-damage priority";

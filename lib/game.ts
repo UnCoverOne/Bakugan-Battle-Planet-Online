@@ -21,6 +21,7 @@ import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
 import type { ContinuousModifier, PendingCardPlay, RuleActionResult, RulesCardId } from "./rules/model";
 import { collectRuleTriggers } from "./rules/triggers";
+import { effectiveCardFactions } from "./rules/derived-characteristics";
 import { applyEnergyEntryVisibility } from "./energyVisibility";
 import {
   BATTLE_PLANET_PHYSICAL_SIMULATION_PROFILE,
@@ -488,7 +489,7 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
     ].filter((card) => card.playedTurn === state.turn);
     player.factionsPlayedThisTurn = [...new Set([
       ...(Array.isArray(player.factionsPlayedThisTurn) ? player.factionsPlayedThisTurn : []),
-      ...playedCards.flatMap((card) => card.factions?.length ? card.factions : [card.faction]),
+      ...playedCards.flatMap(effectiveCardFactions),
     ])];
     player.playedCardCostsThisTurn = playedCards.map((card) => card.cost === "X" ? 0 : card.cost);
     player.playedCardTypesThisTurn = playedCards.map((card) => card.type);
@@ -532,7 +533,7 @@ export const recordCardPlayedForTurn = (player: PlayerState, card: GameCard, tur
   player.playedCardTypesThisTurn = [...(player.playedCardTypesThisTurn ?? []), card.type];
   player.factionsPlayedThisTurn = [...new Set([
     ...(player.factionsPlayedThisTurn ?? []),
-    ...(card.factions?.length ? card.factions : [card.faction]),
+    ...effectiveCardFactions(card),
   ])];
 };
 const drawCards = (state: MatchState, player: PlayerState, amount: number) => {
@@ -656,6 +657,7 @@ export const placeCore = (input: MatchState, playerId: string, coreId: string, c
 const beginTurn = (state: MatchState) => {
   state.turn += 1; state.startingPlayer = state.brawlWinner || state.startingPlayer; state.priority = state.startingPlayer;
   ensureRulesState(state).delayedCardTriggers = [];
+  ensureRulesState(state).scheduledActions = [];
   state.selected = {}; state.targets = {}; state.rolls = {}; state.pendingReroll = undefined; state.pendingCoinFlip = undefined; state.coinFlipResults = {}; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.temporaryVictorDiscards = {}; state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {};
   state.doubleStrike = {}; state.shadowStrike = {}; state.batch = []; state.victorByDamage = false; state.pendingDamage = 0;
   state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.pendingBrawlRetracts = []; state.delayedRetracts = []; state.winner = "";
@@ -1902,10 +1904,19 @@ const destroyHero = (state: MatchState, controllerId: string, choices: CardChoic
   }
 };
 
-const destroyEvo = (state: MatchState, controllerId: string, choices: CardChoices, allEnemy: boolean) => {
-  const owners = allEnemy ? [otherPlayer(state, controllerId)] : state.players;
+const destroyEvo = (
+  state: MatchState,
+  controllerId: string,
+  choices: CardChoices,
+  options: { allEnemy?: boolean; allPlayers?: boolean; excludeSourceId?: string } = {},
+) => {
+  const owners = options.allPlayers
+    ? state.players
+    : options.allEnemy ? [otherPlayer(state, controllerId)] : state.players;
   for (const owner of owners) for (const bakugan of owner.bakugan) {
-    const selected = allEnemy ? [...bakugan.evoStack] : bakugan.evoStack.filter((evo) => evo.id === choices.targetEvoId);
+    const selected = options.allEnemy || options.allPlayers
+      ? bakugan.evoStack.filter((evo) => evo.id !== options.excludeSourceId)
+      : bakugan.evoStack.filter((evo) => evo.id === choices.targetEvoId);
     if (!selected.length) continue;
     const ids = new Set(selected.map((evo) => evo.id));
     bakugan.evoStack = bakugan.evoStack.filter((evo) => !ids.has(evo.id));
@@ -2132,6 +2143,24 @@ const executeRuleAction = (
         card: structuredClone(card),
         definition: structuredClone(action.definition),
         effectText: action.effectText,
+        createdTurn: state.turn,
+      });
+      return;
+    }
+    case "schedule": {
+      const rules = ensureRulesState(state);
+      const scheduledId = `${pending.id}:${instructionIndex}:${actionIndex}:${action.timing}`;
+      rules.scheduledActions = rules.scheduledActions.filter((scheduled) => (
+        scheduled.id !== scheduledId && scheduled.createdTurn === state.turn
+      ));
+      rules.scheduledActions.push({
+        id: scheduledId,
+        timing: action.timing,
+        controllerId,
+        cardOwnerId: pending.cardOwnerId ?? controllerId,
+        card: structuredClone(card),
+        sourceId: pending.sourceId ?? card.id,
+        effects: structuredClone(action.effects),
         createdTurn: state.turn,
       });
       return;
@@ -2537,7 +2566,11 @@ case "swap-bakucore": {
             owner.discard.push(...destroyed);
           }
         } else destroyHero(state, controllerId, choices, actionAmount > 2);
-      } else if (action.verb === "destroy" && action.object === "evo") destroyEvo(state, controllerId, choices, actionAmount > 2);
+      } else if (action.verb === "destroy" && action.object === "evo") destroyEvo(state, controllerId, choices, {
+        allEnemy: actionAmount > 2 && action.playerScope !== "all-players",
+        allPlayers: action.playerScope === "all-players",
+        excludeSourceId: action.excludeSource ? pending.sourceId ?? card.id : undefined,
+      });
       else if (action.verb === "destroy" && action.object === "energy") {
         if (action.retainChoiceId && action.playerScope === "each-player") {
           for (const owner of state.players) {
@@ -2558,7 +2591,12 @@ case "swap-bakucore": {
       } else if (action.verb === "control" && action.object === "hero") {
         const index = opponent.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
         if (index >= 0) player.heroes.push(...opponent.heroes.splice(index, 1));
-      } else if (action.verb === "retract" && action.object === "bakugan" && target) retractBakugan(state, target);
+      } else if (action.verb === "retract" && action.object === "bakugan") {
+        const targets = actionAmount > 2
+          ? state.players.flatMap((owner) => owner.bakugan).filter((bakugan) => bakugan.open)
+          : target ? [target] : [];
+        for (const candidate of targets) retractBakugan(state, candidate);
+      }
       else if (action.verb === "attach" && action.object === "bakucore" && target) {
         const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell && !candidate.attachedTo);
         if (placement) {
@@ -2700,7 +2738,7 @@ case "swap-bakucore": {
         selected = player.deckCards.find((candidate) => candidate.id === revealedId);
       }
       if (!selected || (action.cardType && selected.type !== action.cardType)) return;
-      if (action.factions?.length && !selected.factions.some((faction) => action.factions!.includes(faction))) return;
+      if (action.factions?.length && !effectiveCardFactions(selected).some((faction) => action.factions!.includes(faction))) return;
       if (action.cardName) {
         const normalize = (value: string) => value
           .replace(/[\[\]]/g, "")
@@ -2900,6 +2938,43 @@ case "swap-bakucore": {
   }
 };
 
+/** Execute and consume deterministic effects promised for the end of an attack. */
+export function completeScheduledAttackActions(state: MatchState) {
+  const rules = ensureRulesState(state);
+  const due = rules.scheduledActions.filter((scheduled) => (
+    scheduled.timing === "after-attack" && scheduled.createdTurn === state.turn
+  ));
+  if (!due.length) return;
+  const dueIds = new Set(due.map((scheduled) => scheduled.id));
+  rules.scheduledActions = rules.scheduledActions.filter((scheduled) => !dueIds.has(scheduled.id));
+  for (const scheduled of due) {
+    const instruction: RuleInstruction = {
+      id: `${scheduled.id}:instruction`,
+      condition: { kind: "always" },
+      effects: scheduled.effects,
+      actions: scheduled.effects,
+      choices: [],
+      sourceText: `After this attack: ${scheduled.card.effect}`,
+    };
+    const ability = {
+      id: `${scheduled.id}:ability`,
+      kind: "spell" as const,
+      instructions: [instruction],
+    };
+    const object = createRuleObject({
+      controllerId: scheduled.controllerId,
+      cardOwnerId: scheduled.cardOwnerId,
+      card: scheduled.card,
+      ability,
+      kind: "trigger",
+      sourceId: scheduled.sourceId,
+    });
+    for (const [index, effect] of scheduled.effects.entries()) {
+      executeRuleAction(state, object, instruction, effect, 0, index);
+    }
+  }
+}
+
 function ruleActionIsExecutable(action: RuleAction): boolean {
   if (action.kind === "choice") return false;
   if (action.kind === "sequence") return action.effects.some(ruleActionIsExecutable);
@@ -2919,6 +2994,7 @@ function ruleActionMatches(
   if (action.kind === "conditional") return action.whenTrue.some((nested) => ruleActionMatches(nested, predicate))
     || Boolean(action.whenFalse?.some((nested) => ruleActionMatches(nested, predicate)));
   if (action.kind === "replacement") return action.replaceWith.some((nested) => ruleActionMatches(nested, predicate));
+  if (action.kind === "schedule") return action.effects.some((nested) => ruleActionMatches(nested, predicate));
   return false;
 }
 
@@ -3401,6 +3477,7 @@ export function revealedFlipCanBePlayed(
 
 function finishDamage(state: MatchState) {
   state.revealedFlip = undefined;
+  completeScheduledAttackActions(state);
   if (resumePendingEffectAfterDamage(state)) return;
   setPhase(state, "postDamage", "Damage Step • Post-damage priority", state.startingPlayer);
 }

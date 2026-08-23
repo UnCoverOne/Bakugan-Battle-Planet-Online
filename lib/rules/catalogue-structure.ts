@@ -876,7 +876,10 @@ function evoIdentities(card: GameCard): RulesCardId[] {
 }
 
 export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
-  const choices = choicesForText(card, card.effect, "announce");
+  // Quoted abilities are granted to the permanent; their optional choices do
+  // not belong to the card's enter-play announcement.
+  const announcementText = card.effect.replace(/["“]Victor\s*:[\s\S]*?["”]/gi, "");
+  const choices = choicesForText(card, announcementText, "announce");
   // A later trigger on the same card must not move a When-you-play target
   // from announcement to resolution. Parse each When-you-play clause in
   // isolation and merge its announcement selections into the card play.
@@ -911,6 +914,31 @@ function cardEntryInstruction(card: GameCard, trigger: RuleInstruction): RuleIns
 }
 
 export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
+  const normalizedText = card.effect.replace(/\s+/g, " ").trim();
+  const grantedVictor = normalizedText.match(
+    /^(If you play cards from (?:no|a|an|one|two|three|four|five|six|\d+) different Factions in the same turn),\s*(this gets [\s\S]+?)\s+and\s+["“]Victor\s*:\s*([\s\S]+?)["”]\.?$/i,
+  );
+  if (grantedVictor) {
+    const conditionText = grantedVictor[1];
+    const staticText = `${conditionText}, ${grantedVictor[2].replace(/[,.]\s*$/, "")}.`;
+    const victorText = `Victor: ${grantedVictor[3].replace(/[,.]\s*$/, "")}.`;
+    const staticInstructions = splitInstructions(card, staticText);
+    const victorInstructions = splitInstructions(card, victorText);
+    const condition = conditionFor(conditionText);
+    const trigger = victorInstructions[0]?.effects.find(
+      (effect): effect is Extract<RuleAction, { kind: "trigger" }> => effect.kind === "trigger",
+    );
+    if (trigger) trigger.definition.interveningCondition = condition;
+    return [
+      { id: `${ruleCardId(card)}:spell`, kind: "spell", instructions: staticInstructions },
+      {
+        id: `${ruleCardId(card)}:trigger:1`,
+        kind: "triggered",
+        trigger: trigger?.definition,
+        instructions: victorInstructions,
+      },
+    ];
+  }
   const instructions = splitInstructions(card, card.effect);
   const triggered: RuleInstruction[][] = [];
   const ordinary: RuleInstruction[] = [];

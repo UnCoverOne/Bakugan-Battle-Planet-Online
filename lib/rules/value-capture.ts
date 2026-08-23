@@ -190,6 +190,9 @@ export function captureRuleActionValues(
     case "watch-turn-event":
       captureTriggerValues(state, action.definition, moment, context, snapshots);
       break;
+    case "schedule":
+      action.effects.forEach((nested) => captureRuleActionValues(state, nested, moment, context, snapshots));
+      break;
     case "conditional":
       captureRuleConditionValues(state, action.condition, moment, context, snapshots);
       action.whenTrue.forEach((nested) => captureRuleActionValues(state, nested, moment, context, snapshots));

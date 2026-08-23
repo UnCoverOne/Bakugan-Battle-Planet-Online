@@ -5,6 +5,7 @@ import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   createMatch,
+  completeScheduledAttackActions,
   emitGameEvent,
   passPriority,
   recordCardPlayedForTurn,
@@ -12,6 +13,7 @@ import {
   submitCardChoice,
   type Core,
 } from "../lib/game";
+import { captureCoreReturns, pendingCoreReturnsForPlayer } from "../lib/coreReturns";
 import {
   allRuleDefinitions,
   cardCostBreakdown,
@@ -28,6 +30,11 @@ import { createRuleObject } from "../lib/rules/objects";
 import { emitRuleEvent } from "../lib/rules/triggers";
 import { executeRuleProgram } from "../lib/rules/executor";
 import { conditionFor, parseAtomicEffects } from "../lib/rules/catalogue-primitives";
+import {
+  ALL_FACTIONS,
+  effectiveBakucoreCells,
+  effectiveCardFactions,
+} from "../lib/rules/derived-characteristics";
 
 function match() {
   const first = makePlayer("first", "First", STARTER_DECKS[0]);
@@ -721,6 +728,200 @@ test("same-turn Flip promises trigger after their Action has resolved", () => {
   const returned = resolveStructuredEffect(armed, promise);
   assert.ok(returned.players[0].hand.some((card) => card.id === regrowth.id));
   assert.equal(returned.players[0].discard.some((card) => card.id === regrowth.id), false);
+});
+
+test("Groups 16-20 compile delayed, global, identity, relative, granted, and face-down primitives", () => {
+  const definition = (catalogId: string) => ruleDefinitionForCard(CARDS.find((card) => card.catalogId === catalogId)!);
+  const effects = (catalogId: string) => definition(catalogId).abilities
+    .flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.effects);
+
+  const powerRoll = effects("aa-52").find((effect) => effect.kind === "schedule");
+  assert.equal(powerRoll?.timing, "after-attack");
+  assert.ok(powerRoll?.effects.some((effect) => effect.kind === "move" && effect.verb === "retract" && effect.amount === 99));
+
+  const gorthion = effects("br-130").find((effect) => effect.kind === "move" && effect.object === "evo");
+  assert.equal(gorthion?.playerScope, "all-players");
+  assert.equal(gorthion?.excludeSource, true);
+  assert.deepEqual(effectiveCardFactions(CARDS.find((card) => card.catalogId === "br-104")!), [...ALL_FACTIONS]);
+
+  const garganoidDraw = effects("br-140").find((effect) => effect.kind === "draw");
+  assert.equal(typeof garganoidDraw?.amount === "object" ? garganoidDraw.amount.kind : undefined, "clamp");
+
+  const vicerox = definition("aa-96");
+  assert.equal(vicerox.play.choices.some((choice) => choice.id === "confirmed"), false);
+  const staticAbility = vicerox.abilities.find((ability) => ability.kind === "spell")!;
+  assert.deepEqual(staticAbility.instructions[0].effects.map((effect) => effect.kind), ["modify-stat", "modify-stat"]);
+  const victorAbility = vicerox.abilities.find((ability) => ability.kind === "triggered")!;
+  assert.equal(victorAbility.trigger?.interveningCondition?.kind, "expression");
+  assert.deepEqual(victorAbility.instructions[0].effects.filter((effect) => effect.kind !== "trigger").map((effect) => effect.kind), ["draw"]);
+
+  assert.ok(effects("br-47").some((effect) => effect.kind === "move"
+    && effect.object === "bakucore" && effect.verb === "return"));
+});
+
+test("Power Roll schedules one deterministic all-Bakugan retraction after the attack", () => {
+  const state = match();
+  for (const player of state.players) for (const bakugan of player.bakugan) bakugan.open = true;
+  const powerRoll = { ...CARDS.find((card) => card.catalogId === "aa-52")!, id: "power-roll-scheduled" };
+  const ability = ruleDefinitionForCard(powerRoll).abilities.find((candidate) => candidate.kind === "spell")!;
+  const armed = resolveStructuredEffect(state, createRuleObject({
+    controllerId: state.players[0].id,
+    cardOwnerId: state.players[0].id,
+    card: powerRoll,
+    ability,
+    kind: "card",
+  }));
+  assert.equal(ensureRulesState(armed).scheduledActions.length, 1);
+  assert.equal(armed.players.flatMap((player) => player.bakugan).every((bakugan) => bakugan.open), true);
+
+  completeScheduledAttackActions(armed);
+  assert.equal(ensureRulesState(armed).scheduledActions.length, 0);
+  assert.equal(armed.players.flatMap((player) => player.bakugan).every((bakugan) => !bakugan.open), true);
+});
+
+test("Titan Gorthion Ultra destroys every other Evo across both players", () => {
+  const state = match();
+  const source = { ...CARDS.find((card) => card.catalogId === "br-130")!, id: "gorthion-source" };
+  const friendlyOther = { ...CARDS.find((card) => card.type === "Evo" && card.catalogId !== "br-130")!, id: "friendly-other-evo" };
+  const enemyOne = { ...friendlyOther, id: "enemy-evo-one" };
+  const enemyTwo = { ...friendlyOther, id: "enemy-evo-two" };
+  state.players[0].bakugan[0].evoStack = [source];
+  state.players[0].bakugan[1].evoStack = [friendlyOther];
+  state.players[1].bakugan[0].evoStack = [enemyOne];
+  state.players[1].bakugan[1].evoStack = [enemyTwo];
+  const ability = ruleDefinitionForCard(source).abilities.find((candidate) => candidate.kind === "triggered")!;
+  const resolved = resolveStructuredEffect(state, createRuleObject({
+    controllerId: state.players[0].id,
+    cardOwnerId: state.players[0].id,
+    card: source,
+    ability,
+    kind: "trigger",
+    sourceId: source.id,
+  }));
+
+  assert.deepEqual(resolved.players[0].bakugan[0].evoStack.map((card) => card.id), [source.id]);
+  assert.equal(resolved.players.flatMap((player) => player.bakugan).flatMap((bakugan) => bakugan.evoStack).length, 1);
+  assert.deepEqual(
+    new Set(resolved.players.flatMap((player) => player.discard).map((card) => card.id)),
+    new Set([friendlyOther.id, enemyOne.id, enemyTwo.id]),
+  );
+});
+
+test("all-Faction identity and Pandoxx virtual BakuCore membership are live derived characteristics", () => {
+  const state = match();
+  const player = state.players[0];
+  const dragonoid = { ...CARDS.find((card) => card.catalogId === "br-104")!, id: "all-faction-dragonoid" };
+  recordCardPlayedForTurn(player, dragonoid, state.turn);
+  assert.deepEqual(new Set(player.factionsPlayedThisTurn), new Set(ALL_FACTIONS));
+
+  const pandoxx = { ...CARDS.find((card) => card.catalogId === "aa-130")!, id: "pandoxx-virtual" };
+  const sourceBakugan = player.bakugan[0];
+  const otherBakugan = player.bakugan[1];
+  sourceBakugan.evoStack = [pandoxx];
+  const core = { ...player.cores.find((candidate) => candidate.bonus > 0)!, id: "pandoxx-shared-core" };
+  state.placements = [{ playerId: player.id, core, cell: "pandoxx-cell", order: 1, attachedTo: otherBakugan.id, revealed: true }];
+  otherBakugan.heldCoreCells = ["pandoxx-cell"];
+
+  assert.deepEqual(effectiveBakucoreCells(state, sourceBakugan, player), ["pandoxx-cell"]);
+  assert.deepEqual(otherBakugan.heldCoreCells, ["pandoxx-cell"]);
+  assert.equal(
+    evaluateBakuganCharacteristics(state, sourceBakugan, player).power,
+    (pandoxx.bPower ?? sourceBakugan.bPower) + core.bonus + (core.conditionalFactions?.includes(pandoxx.faction) ? core.conditionalBonus ?? 0 : 0),
+  );
+});
+
+test("Hyper Garganoid draws only the live hand-size deficit", () => {
+  const state = match();
+  const player = state.players[0];
+  const opponent = state.players[1];
+  const garganoid = { ...CARDS.find((card) => card.catalogId === "br-140")!, id: "garganoid-parity" };
+  player.hand = [{ ...CARDS[0], id: "one-card" }];
+  opponent.hand = Array.from({ length: 4 }, (_, index) => ({ ...CARDS[index + 1], id: `opponent-${index}` }));
+  state.brawlWinner = player.id;
+  const ability = ruleDefinitionForCard(garganoid).abilities.find((candidate) => candidate.kind === "triggered")!;
+  const resolved = resolveStructuredEffect(state, createRuleObject({
+    controllerId: player.id,
+    card: garganoid,
+    ability,
+    kind: "trigger",
+  }));
+  const queue = (resolved as typeof resolved & { pendingDrawQueue?: Array<{ total: number }> }).pendingDrawQueue;
+  assert.equal(queue?.[0]?.total, 3);
+
+  const ahead = match();
+  ahead.brawlWinner = ahead.players[0].id;
+  ahead.players[0].hand = Array.from({ length: 4 }, (_, index) => ({ ...CARDS[index], id: `ahead-${index}` }));
+  ahead.players[1].hand = [{ ...CARDS[5], id: "behind" }];
+  const clamped = resolveStructuredEffect(ahead, createRuleObject({
+    controllerId: ahead.players[0].id,
+    card: garganoid,
+    ability,
+    kind: "trigger",
+  }));
+  assert.equal((clamped as typeof clamped & { pendingDrawQueue?: unknown[] }).pendingDrawQueue, undefined);
+});
+
+test("Hyper Vicerox gains stats and its Victor draw only after three played Factions", () => {
+  const state = match();
+  const player = state.players[0];
+  const vicerox = { ...CARDS.find((card) => card.catalogId === "aa-96")!, id: "vicerox-granted-victor" };
+  player.bakugan[0].evoStack = [vicerox];
+  player.factionsPlayedThisTurn = ["Aquos", "Pyrus"];
+  assert.equal(evaluateBakuganCharacteristics(state, player.bakugan[0], player).power, vicerox.bPower);
+
+  player.factionsPlayedThisTurn.push("Haos");
+  const enhanced = evaluateBakuganCharacteristics(state, player.bakugan[0], player);
+  assert.equal(enhanced.power, (vicerox.bPower ?? 0) + 300);
+  assert.equal(enhanced.damage, (vicerox.damage ?? 0) + 3);
+  state.brawlWinner = player.id;
+  const triggers = emitRuleEvent(state, {
+    id: "vicerox-qualified-victor",
+    name: "VICTOR_DECLARED",
+    actorId: player.id,
+    controllerId: player.id,
+    targetBakuganId: player.bakugan[0].id,
+    createdAt: 11,
+  });
+  const trigger = triggers.find((object) => object.card.id === vicerox.id);
+  assert.ok(trigger);
+  assert.equal(trigger.effect, "Victor: You may draw 3 cards.");
+});
+
+test("Twisting Inferno returns the chosen physical BakuCore face down through normal placement", () => {
+  const state = match();
+  const controller = state.players[0];
+  const opponent = state.players[1];
+  const twisting = { ...CARDS.find((card) => card.catalogId === "br-47")!, id: "twisting-inferno" };
+  const enemyCore = { ...opponent.cores[0], id: "twisting-enemy-core" };
+  const friendlyFist = { ...controller.cores.find((core) => core.type === "Fist")!, id: "twisting-friendly-fist" };
+  state.placements = [
+    { playerId: opponent.id, core: enemyCore, cell: "enemy-core-cell", order: 1, attachedTo: opponent.bakugan[0].id, revealed: true },
+    { playerId: controller.id, core: friendlyFist, cell: "friendly-fist-cell", order: 2, attachedTo: controller.bakugan[0].id, revealed: true },
+  ];
+  opponent.bakugan[0].heldCoreCells = ["enemy-core-cell"];
+  controller.bakugan[0].heldCoreCells = ["friendly-fist-cell"];
+  const ability = ruleDefinitionForCard(twisting).abilities.find((candidate) => candidate.kind === "spell")!;
+  const object = createRuleObject({
+    controllerId: controller.id,
+    cardOwnerId: controller.id,
+    card: twisting,
+    ability,
+    kind: "card",
+    choices: { coreCell: "enemy-core-cell" },
+  });
+  object.resolvedChoices = { "0": { coreCell: "enemy-core-cell" } };
+  const resolved = resolveStructuredEffect(state, object);
+  const returnedPlacement = resolved.placements.find((placement) => placement.core.id === enemyCore.id);
+  assert.equal(returnedPlacement?.attachedTo, undefined);
+  assert.equal(returnedPlacement?.revealed, false);
+  assert.equal(resolved.players[1].bakugan[0].heldCoreCells.includes("enemy-core-cell"), false);
+  assert.equal((resolved as typeof resolved & { pendingDrawQueue?: Array<{ total: number }> }).pendingDrawQueue?.[0]?.total, 1);
+
+  const placementState = captureCoreReturns(state, resolved);
+  assert.equal(placementState.phase, "retract");
+  assert.equal(pendingCoreReturnsForPlayer(placementState, opponent.id)[0]?.core.id, enemyCore.id);
+  assert.equal(placementState.placements.some((placement) => placement.core.id === enemyCore.id), false);
 });
 
 test("Titan Nobilious requests secret keep-three answers only from players above three Energy", () => {

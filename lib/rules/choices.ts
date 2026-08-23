@@ -5,6 +5,7 @@ import { activeUnchargedEnergyIds, cardPaymentModes } from "./costs";
 import type { ChoiceSpec, ChoiceTiming } from "./model";
 import { chooserIdsFor, zoneOwnerIdsFor } from "./primitives";
 import { evaluateNumberValue, type NumberValue } from "./values";
+import { bakuganHasFaction, effectiveCardFactions } from "./derived-characteristics";
 
 export type ChoiceKind =
   | "confirm" | "bakugan" | "player" | "hero" | "evo" | "energy" | "core" | "card"
@@ -168,7 +169,7 @@ function cardMatchesSpecValue(
 ) {
   const types = spec.cardTypes?.length ? spec.cardTypes : spec.cardType ? [spec.cardType] : [];
   if (types.length && !types.includes(candidate.type)) return false;
-  if (spec.factions?.length && !candidate.factions.some((faction) => spec.factions!.includes(faction))) return false;
+  if (spec.factions?.length && !effectiveCardFactions(candidate).some((faction) => spec.factions!.includes(faction))) return false;
   if (spec.cardName) {
     const normalize = (value: string) => value
       .replace(/[\[\]]/g, "")
@@ -236,7 +237,7 @@ function optionsFor(
         .filter((bakugan) => !spec.openState || (spec.openState === "open" ? bakugan.open : !bakugan.open))
         .filter((bakugan) => !spec.notOpenedThisTurn || bakugan.openedTurn !== match.turn)
         .filter((bakugan) => !spec.excludeSourceBakugan || bakugan.id !== priorChoices.sourceBakuganId)
-        .filter((bakugan) => !spec.factions?.length || spec.factions.includes(bakugan.faction))
+        .filter((bakugan) => !spec.factions?.length || spec.factions.some((faction) => bakuganHasFaction(bakugan, faction)))
         .map((bakugan) => option(bakugan.id, `${bakugan.name} • ${bakugan.open ? "Open" : "Closed"}`, owner.id)));
     }
     case "player":

@@ -7,6 +7,7 @@ import { createRuleObject } from "./objects";
 import { ensureRulesState } from "./state";
 import { evaluateNumberValue } from "./values";
 import { captureInstructionValues } from "./value-capture";
+import { effectiveCardFactions } from "./derived-characteristics";
 
 export type RuleEvent = {
   id: string;
@@ -142,9 +143,7 @@ function triggerMatches(
     if (occurrences !== 1) return false;
   }
   if (trigger.factions?.length) {
-    const playedFactions = event.card?.factions?.length
-      ? event.card.factions
-      : event.card ? [event.card.faction] : [];
+    const playedFactions = event.card ? effectiveCardFactions(event.card) : [];
     if (!trigger.factions.some((faction) => playedFactions.includes(faction))) return false;
   }
   if (!sourceTargetMatches(source, owner, event, triggerText)) return false;

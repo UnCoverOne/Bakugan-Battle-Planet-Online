@@ -159,7 +159,7 @@ export type RuleAction =
   | { kind: "damage-to-hand" }
   | { kind: "end-turn"; recharge: boolean }
   | { kind: "shuffle-deck" }
-  | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope; subject?: "self" | "chosen"; destination?: "owner-hand" | "owner-deck-bottom"; retainChoiceId?: keyof CardChoices }
+  | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope; subject?: "self" | "chosen"; destination?: "owner-hand" | "owner-deck-bottom"; retainChoiceId?: keyof CardChoices; excludeSource?: boolean }
   | { kind: "reveal"; object: "bakucore" | "deck-top"; amount: NumberValue; sourceOwner?: ZoneOwner }
   | { kind: "reorder-deck"; amount: NumberValue }
   | { kind: "play"; source: "revealed-deck" | "hand" | "self"; free: boolean; cardType?: CardType; factions?: Faction[]; cardName?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
@@ -172,6 +172,7 @@ export type RuleAction =
   | { kind: "coin-flip" }
   | { kind: "trigger"; event: TriggerEventName; definition: TriggerDefinition }
   | { kind: "watch-turn-event"; definition: TriggerDefinition; effectText: string }
+  | { kind: "schedule"; timing: "after-attack"; effects: RuleAction[] }
   | { kind: "continuous"; modifier: ContinuousModifier }
   | { kind: "conditional"; condition: RuleCondition; whenTrue: RuleAction[]; whenFalse?: RuleAction[]; replacement?: boolean }
   | { kind: "replacement"; event: ProposedEvent["kind"]; replaceWith: RuleAction[]; condition?: RuleCondition }
@@ -366,6 +367,16 @@ export type RulesState = {
     card: GameCard;
     definition: TriggerDefinition;
     effectText: string;
+    createdTurn: number;
+  }>;
+  scheduledActions: Array<{
+    id: string;
+    timing: "after-attack";
+    controllerId: string;
+    cardOwnerId: string;
+    card: GameCard;
+    sourceId: string;
+    effects: RuleAction[];
     createdTurn: number;
   }>;
   pendingPayment?: RulesPayment;

@@ -4,6 +4,7 @@ import type { ContinuousModifier, RuleAction, RuleCondition, RulesCardId } from 
 import { ensureRulesState } from "./state";
 import { evaluateBooleanValue, evaluateNumberValue } from "./values";
 import type { CardChoices } from "../game";
+import { bakuganHasFaction, effectiveBakucoreCells } from "./derived-characteristics";
 
 export type AppliedModifier = {
   id: string;
@@ -78,8 +79,8 @@ export function ruleConditionActive(
       > opponent.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0));
     case "victor": return state.brawlWinner === player.id;
     case "faction": return condition.subject === "target"
-      ? bakugan?.faction === condition.faction
-      : player.bakugan.some((candidate) => candidate.faction === condition.faction);
+      ? Boolean(bakugan && bakuganHasFaction(bakugan, condition.faction))
+      : player.bakugan.some((candidate) => bakuganHasFaction(candidate, condition.faction));
     case "cards-played": return condition.comparison === "at-least"
       ? player.cardsPlayedThisTurn >= conditionValue(condition.amount)
       : player.cardsPlayedThisTurn > conditionValue(condition.amount);
@@ -120,7 +121,7 @@ export function ruleConditionActive(
       return held > opposing;
     }
     case "held-core-type": {
-      const hasRequiredCore = (candidate?: Bakugan) => Boolean(candidate && candidate.heldCoreCells.some((cell) => {
+      const hasRequiredCore = (candidate?: Bakugan, candidateOwner: PlayerState = player) => Boolean(candidate && effectiveBakucoreCells(state, candidate, candidateOwner).some((cell) => {
         const core = state.placements.find((placement) => placement.cell === cell)?.core;
         return Boolean(core && condition.coreTypes.includes(core.type));
       }));
@@ -128,12 +129,13 @@ export function ruleConditionActive(
       if (condition.subject === "opponent-active") {
         const opposing = opponent?.bakugan.find((candidate) => candidate.id === state.selected[opponent.id])
 ?? opponent?.bakugan.find((candidate) => candidate.open);
-        return hasRequiredCore(opposing);
+        return hasRequiredCore(opposing, opponent ?? player);
       }
       if (condition.subject === "attacker") {
         const attacker = state.players.flatMap((candidate) => candidate.bakugan)
 .find((candidate) => candidate.id === state.damageOrigin);
-        return hasRequiredCore(attacker);
+        const attackerOwner = state.players.find((candidate) => candidate.bakugan.some((item) => item.id === attacker?.id)) ?? player;
+        return hasRequiredCore(attacker, attackerOwner);
       }
       return hasRequiredCore(bakugan);
     }
@@ -164,8 +166,8 @@ export function ruleConditionActive(
 
 function targetMatches(state: MatchState, modifier: ContinuousModifier, bakugan: Bakugan, player: PlayerState) {
   if (modifier.targetBakuganId) return modifier.targetBakuganId === bakugan.id;
-  if (modifier.targetFaction && modifier.targetFaction !== bakugan.faction) return false;
-  if (modifier.excludedTargetFaction && modifier.excludedTargetFaction === bakugan.faction) return false;
+  if (modifier.targetFaction && !bakuganHasFaction(bakugan, modifier.targetFaction)) return false;
+  if (modifier.excludedTargetFaction && bakuganHasFaction(bakugan, modifier.excludedTargetFaction)) return false;
   if (modifier.target === "all-bakugan") return true;
   if (modifier.controllerId === player.id) return ["active-friendly", "chosen-bakugan", "all-friendly", "self"].includes(modifier.target);
   return ["active-enemy", "all-enemy"].includes(modifier.target);
@@ -272,10 +274,10 @@ export function evaluateBakuganCharacteristics(
   const applied: AppliedModifier[] = [];
   const prevented: AppliedModifier[] = [];
 
-  const coreModifiers: ContinuousModifier[] = bakugan.heldCoreCells.flatMap((cell) => {
+  const coreModifiers: ContinuousModifier[] = effectiveBakucoreCells(state, bakugan, owner).flatMap((cell) => {
     const core = state.placements.find((placement) => placement.cell === cell)?.core;
     if (!core) return [];
-    const factionActive = !core.conditionalFactions?.length || core.conditionalFactions.includes(bakugan.faction);
+    const factionActive = !core.conditionalFactions?.length || core.conditionalFactions.some((faction) => bakuganHasFaction(bakugan, faction));
     const source = { kind: "bakucore" as const, id: core.id, coreType: core.type };
     const result: ContinuousModifier[] = [
       { id: `${core.id}:power`, source, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, stat: "power", amount: core.bonus + (factionActive ? core.conditionalBonus ?? 0 : 0), layer: "core", duration: "while-source-active", createdTurn: state.turn, sourceCategory: "bakucore" },

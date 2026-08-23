@@ -19,13 +19,14 @@ export function ensureRulesState(input: MatchState): RulesState {
   const state = input as RulesBackedMatchState;
   migrateVerifiedCardValues(state);
   if (!state.rules || state.rules.version !== 3) {
-    state.rules = { version: 3, modifiers: [], replacements: [], triggerUsage: {}, costModifiers: [], delayedCardTriggers: [] };
+    state.rules = { version: 3, modifiers: [], replacements: [], triggerUsage: {}, costModifiers: [], delayedCardTriggers: [], scheduledActions: [] };
   }
   state.rules.modifiers = Array.isArray(state.rules.modifiers) ? state.rules.modifiers : [];
   state.rules.replacements = Array.isArray(state.rules.replacements) ? state.rules.replacements : [];
   state.rules.triggerUsage = state.rules.triggerUsage && typeof state.rules.triggerUsage === "object" ? state.rules.triggerUsage : {};
   state.rules.costModifiers = Array.isArray(state.rules.costModifiers) ? state.rules.costModifiers : [];
   state.rules.delayedCardTriggers = Array.isArray(state.rules.delayedCardTriggers) ? state.rules.delayedCardTriggers : [];
+  state.rules.scheduledActions = Array.isArray(state.rules.scheduledActions) ? state.rules.scheduledActions : [];
   return state.rules;
 }
 

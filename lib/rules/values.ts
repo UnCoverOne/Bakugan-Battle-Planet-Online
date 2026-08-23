@@ -8,6 +8,11 @@ import type {
   PlayerState,
 } from "../game";
 import type { ZoneOwner } from "./primitives";
+import {
+  bakuganHasFaction as bakuganHasFactionEffective,
+  effectiveBakucoreCells,
+  effectiveCardFactions,
+} from "./derived-characteristics";
 
 /** The engine moment at which a dynamic value is being interpreted. */
 export type EvaluationMoment = "announce" | "pay" | "resolve" | "continuous" | "event";
@@ -215,14 +220,13 @@ function resolveEntity(state: MatchState, subject: EntityExpression, context: Va
 
 function cardMatches(card: GameCard, expression: Extract<NumberExpression, { kind: "count" }>) {
   return (!expression.cardType || card.type === expression.cardType)
-    && (!expression.faction || card.factions.includes(expression.faction));
+    && (!expression.faction || effectiveCardFactions(card).includes(expression.faction));
 }
 
 function countForPlayer(state: MatchState, player: PlayerState, expression: Extract<NumberExpression, { kind: "count" }>) {
   const bakuganHasFaction = (bakugan: Bakugan) => {
     if (!expression.faction) return true;
-    const top = bakugan.evoStack.at(-1) ?? bakugan.character;
-    return (top.factions?.length ? top.factions : [bakugan.faction]).includes(expression.faction);
+    return bakuganHasFactionEffective(bakugan, expression.faction);
   };
   switch (expression.source) {
     case "hand": return player.hand.filter((card) => cardMatches(card, expression)).length;
@@ -263,7 +267,7 @@ function evaluateProperty(state: MatchState, expression: Extract<NumberExpressio
     if (expression.property !== "printed-cost") return 0;
     return entity.card.cost === "X" ? Math.max(0, Number(context.choices?.xValue ?? 0)) : entity.card.cost;
   }
-  if (expression.property === "held-bakucore-count") return entity.bakugan.heldCoreCells.length;
+  if (expression.property === "held-bakucore-count") return effectiveBakucoreCells(state, entity.bakugan, entity.owner).length;
   const characteristics = context.characteristics?.(entity.bakugan, entity.owner);
   if (expression.property === "power") {
     return characteristics?.power
@@ -368,10 +372,10 @@ export function evaluateBooleanValue(state: MatchState, value: BooleanValue, con
     case "has-faction": {
       const entity = resolveEntity(state, value.subject, context);
       if (!entity) return false;
-      if (entity.kind === "card") return entity.card.factions.includes(value.faction);
-      if (entity.kind === "bakugan") return entity.bakugan.faction === value.faction;
-      return entity.player.bakugan.some((bakugan) => bakugan.faction === value.faction)
-        || entity.player.heroes.some((card) => card.factions.includes(value.faction));
+      if (entity.kind === "card") return effectiveCardFactions(entity.card).includes(value.faction);
+      if (entity.kind === "bakugan") return bakuganHasFactionEffective(entity.bakugan, value.faction);
+      return entity.player.bakugan.some((bakugan) => bakuganHasFactionEffective(bakugan, value.faction))
+        || entity.player.heroes.some((card) => effectiveCardFactions(card).includes(value.faction));
     }
   }
 }

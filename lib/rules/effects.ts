@@ -90,6 +90,7 @@ function actionValue(action: TypedRuleAction, match: MatchState) {
       (action.whenFalse ?? []).reduce((sum, nested) => sum + actionValue(nested, match), 0),
     );
     case "replacement": return action.replaceWith.reduce((sum, nested) => sum + actionValue(nested, match), 0);
+    case "schedule": return action.effects.reduce((sum, nested) => sum + actionValue(nested, match), 0);
     case "sequence": return action.effects.reduce((sum, nested) => sum + actionValue(nested, match), 0);
     case "unsupported": return -Infinity;
     default: return 0;
