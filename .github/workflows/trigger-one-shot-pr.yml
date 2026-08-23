@@ -35,6 +35,14 @@ jobs:
               "replace_once('lib/rules/catalogue-structure.ts', old_copy_choice, new_copy_choice)",
               "text = read('lib/rules/catalogue-structure.ts')\nstart_choice = text.index('  if (!negateMatch && /copy ')\nend_choice = text.index('\\n  }\\n', start_choice) + len('\\n  }\\n')\nwrite('lib/rules/catalogue-structure.ts', text[:start_choice] + new_copy_choice + text[end_choice:])",
           )
+          script = script.replace(
+              "text = read('lib/rules/choices.ts')\nif 'case \"discarded-card-this-turn\"' not in text:\n    if insert_after not in text:\n        raise SystemExit('lib/rules/choices.ts: batch-object insertion anchor changed')\n    text = text.replace(insert_after, insert_after + nova_case, 1)\n    write('lib/rules/choices.ts', text)",
+              "text = read('lib/rules/choices.ts')\nif 'case \"discarded-card-this-turn\"' not in text:\n    batch_start = text.index('    case \"batch-object\": {')\n    next_case = text.index('    case \"chosen-bakugan\":', batch_start)\n    text = text[:next_case] + nova_case + text[next_case:]\n    write('lib/rules/choices.ts', text)",
+          )
+          script = script.replace(
+              "replace_once('lib/game.ts', old_stop, new_stop)",
+              "text = read('lib/game.ts')\nstop_start = text.index('  const faction = state.damageFaction ?? attackingBakugan?.faction;')\nstop_end = text.index('\\n};', stop_start)\nwrite('lib/game.ts', text[:stop_start] + new_stop + text[stop_end:])",
+          )
           exec(compile(script, 'embedded-card-fix.py', 'exec'))
           PY
       - name: Install dependencies
