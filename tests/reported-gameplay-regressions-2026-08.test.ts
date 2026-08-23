@@ -746,3 +746,76 @@ test("coin flip completion remains controller-authoritative", () => {
   state = dispatchRulesCommand(state, attacker.id, { type: "PASS_PRIORITY" });
   assert.throws(() => completeCoinFlip(state, attacker.id), /controller can finish/i);
 });
+
+test("Night Lightning draws once and repeats its paid Damage bonus with refreshed choices", () => {
+  const setup = cyclingPowerState("bb-41");
+  const live = setup.state.players.find((player) => player.id === setup.controllerId)!;
+  const first = card("bb-17", "night-lightning-fodder-one");
+  const second = card("bb-18", "night-lightning-fodder-two");
+  live.hand = [setup.cycling, first, second];
+
+  let state = playCard(setup.state, setup.controllerId, setup.cycling.id);
+  state = resolveTopBatchObject(state);
+  assert.equal(activePendingDraw(state)?.remaining, 1);
+  state = drawPendingCard(state, setup.controllerId);
+
+  const firstField = state.pendingChoice?.schema.fields.find((field) => field.id === "discardCardIds");
+  assert.ok(firstField?.options.some((option) => option.id === first.id));
+  state = submitCardChoice(state, setup.controllerId, { discardCardIds: [first.id] });
+  assert.equal(state.damageBoost[state.selected[setup.controllerId]], 3);
+
+  const secondField = state.pendingChoice?.schema.fields.find((field) => field.id === "discardCardIds");
+  assert.equal(secondField?.options.some((option) => option.id === first.id), false);
+  assert.ok(secondField?.options.some((option) => option.id === second.id));
+  state = submitCardChoice(state, setup.controllerId, { discardCardIds: [second.id] });
+  assert.equal(state.damageBoost[state.selected[setup.controllerId]], 6);
+
+  state = submitCardChoice(state, setup.controllerId, { discardCardIds: [] });
+  const after = state.players.find((player) => player.id === setup.controllerId)!;
+  assert.equal(state.pendingChoice, undefined);
+  assert.equal(state.batch.some((effect) => effect.card.id === setup.cycling.id), false);
+  assert.equal(after.discard.some((discarded) => discarded.id === first.id), true);
+  assert.equal(after.discard.some((discarded) => discarded.id === second.id), true);
+});
+
+test("Darkus Hyper Nillious repeats only inside its Victor trigger and requires each discard", () => {
+  const player = makePlayer("nillious-player", "Nillious Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("nillious-opponent", "Opponent", STARTER_DECKS[1]);
+  const state = createMatch("NILLIOUSLOOP", "bo1", [player, opponent]);
+  const live = state.players.find((candidate) => candidate.id === player.id)!;
+  const nillious = card("bb-244", "repeatable-nillious");
+  const first = card("bb-17", "nillious-fodder-one");
+  const second = card("bb-18", "nillious-fodder-two");
+  live.hand = [first, second];
+  live.bakugan[0].open = true;
+  live.bakugan[0].evoStack = [nillious];
+  state.selected[live.id] = live.bakugan[0].id;
+  state.brawlWinner = live.id;
+  state.phase = "victor";
+
+  const ability = ruleDefinitionForCard(nillious).abilities.find((candidate) => (
+    candidate.kind === "triggered" && candidate.trigger?.event === "VICTOR_DECLARED"
+  ));
+  assert.ok(ability);
+  const pending = createRuleObject({
+    controllerId: live.id,
+    card: nillious,
+    ability,
+    kind: "trigger",
+    sourceId: nillious.id,
+    choices: { sourceBakuganId: live.bakugan[0].id },
+  });
+
+  let resolving = resolveStructuredEffect(state, pending);
+  assert.ok(resolving.pendingChoice?.schema.fields.some((field) => field.id === "discardCardIds"));
+  resolving = submitCardChoice(resolving, live.id, { discardCardIds: [first.id] });
+  assert.equal(resolving.damageBoost[live.bakugan[0].id], 2);
+  assert.ok(resolving.pendingChoice?.schema.fields.some((field) => (
+    field.id === "discardCardIds" && field.options.some((option) => option.id === second.id)
+  )));
+
+  resolving = submitCardChoice(resolving, live.id, { discardCardIds: [] });
+  assert.equal(resolving.damageBoost[live.bakugan[0].id], 2, "declining must not grant another bonus");
+  assert.equal(resolving.pendingChoice, undefined);
+  assert.equal(resolving.batch.some((effect) => effect.id === pending.id), false);
+});

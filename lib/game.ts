@@ -1999,11 +1999,12 @@ const ruleConditionIsActive = (
   state: MatchState,
   pending: PendingEffect,
   instruction: RuleInstruction,
+  instructionIndex = pending.instructionIndex ?? 0,
 ) => {
   const player = playerById(state, pending.controllerId);
-  const choices = instructionChoices(pending, pending.instructionIndex ?? 0);
+  const choices = instructionChoices(pending, instructionIndex);
   if (instruction.condition.kind === "selection-made") {
-    const selected = choices[instruction.condition.choiceId];
+    const selected = pending.resolvedChoices?.[String(instructionIndex)]?.[instruction.condition.choiceId];
     return Array.isArray(selected) ? selected.length > 0 : Boolean(selected);
   }
   if (instruction.condition.kind === "mode-selected") {
@@ -2256,7 +2257,6 @@ const executeRuleAction = (
       return;
     }
     case "discard": {
-      if (/\bVictor\s*:/i.test(text)) return;
       const affectedIds = choices.targetPlayerId
         ? [choices.targetPlayerId]
         : playerIdsForScope(state, action.playerScope ?? (/your opponent|opponent discards/i.test(text) ? "opponent" : "controller"), { controllerId, choices });
@@ -2851,13 +2851,109 @@ function stageMandatoryDeckReveal(
   if (confirmation) confirmation.options = confirmation.options.filter((option) => option.id === "no");
 }
 
+function captureResolvedInstructionValues(
+  state: MatchState,
+  pending: PendingEffect,
+  instruction: RuleInstruction,
+  instructionIndex: number,
+) {
+  if (!isRuleObject(pending)) return;
+  const scopedChoices = instructionChoices(pending, instructionIndex);
+  pending.valueSnapshots = captureInstructionValues(state, instruction, "resolve", {
+    controllerId: pending.controllerId,
+    chosenPlayerId: scopedChoices.targetPlayerId,
+    choices: scopedChoices,
+    sourceCardId: pending.sourceId ?? pending.card.id,
+    sourceBakuganId: scopedChoices.sourceBakuganId,
+  }, pending.valueSnapshots ?? {});
+}
+
+function stageResolutionInstructionChoice(
+  state: MatchState,
+  pending: PendingEffect,
+  instruction: RuleInstruction,
+  instructionIndex: number,
+  stopWhenEmpty?: keyof CardChoices,
+): "continue" | "suspend" | "skip" {
+  const existing = pending.resolvedChoices?.[String(instructionIndex)];
+  if (existing) {
+    captureResolvedInstructionValues(state, pending, instruction, instructionIndex);
+    return existing.confirmed === false ? "skip" : "continue";
+  }
+  if (!instruction.effects.some(ruleActionIsExecutable)) {
+    captureResolvedInstructionValues(state, pending, instruction, instructionIndex);
+    return "continue";
+  }
+  const schema = buildChoiceSchema(
+    state,
+    pending.controllerId,
+    pending.card,
+    instruction.sourceText,
+    instructionChoices(pending, instructionIndex),
+    "resolve",
+  );
+  schema.fields = schema.fields.filter((field) => !(field.id === "xValue" && pending.choices.xValue != null));
+  if (!schema.fields.length) {
+    captureResolvedInstructionValues(state, pending, instruction, instructionIndex);
+    return "continue";
+  }
+  stageMandatoryDeckReveal(state, pending, instruction, schema);
+  const topDeckSelection = schema.fields.find((field) => field.id === "deckCardId");
+  if (
+    schema.fields.some((field) => field.kind === "deck-order" && field.requestedWindowSize)
+    && topDeckSelection
+    && topDeckSelection.options.length === 0
+  ) {
+    const confirmation = schema.fields.find((field) => field.id === "confirmed");
+    if (confirmation) confirmation.options = confirmation.options.filter((option) => option.id === "no");
+  }
+  const emptyTopDeckWindow = schema.fields.some((field) => (
+    field.kind === "deck-order"
+    && field.requestedWindowSize
+    && field.options.length === 0
+  ));
+  if (emptyTopDeckWindow) {
+    entry(state, "game", `${pending.card.name}: there were no cards to inspect, so the clause did nothing.`);
+    return "skip";
+  }
+  const repeatField = stopWhenEmpty
+    ? schema.fields.find((field) => field.id === stopWhenEmpty)
+    : undefined;
+  if (repeatField && repeatField.options.length === 0) return "skip";
+  if (!schemaHasLegalCompletion(schema)) {
+    entry(state, "game", `${pending.card.name}: the clause had no legal choice and did nothing.`);
+    return "skip";
+  }
+  state.pendingChoice = {
+    id: uid(),
+    kind: "resolution",
+    controllerId: pending.controllerId,
+    cardId: pending.card.id,
+    schema,
+    answers: {},
+    createdVersion: state.version,
+    pendingEffectId: pending.id,
+    instructionIndex,
+    resumePriority: state.priority,
+    resumeDeadline: state.deadline,
+    resumeStepLabel: state.stepLabel,
+    irreversibleInformation: false,
+  };
+  state.priority = schema.fields[0]?.chooserId ?? pending.controllerId;
+  state.stepLabel = `${pending.card.displayName || pending.card.name} • Resolve clause ${instructionIndex + 1}`;
+  state.deadline = Date.now() + 35_000;
+  pending.instructionIndex = instructionIndex;
+  if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex;
+  return "suspend";
+}
+
 function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
   if (isRuleObject(pending)) beginRuleObjectResolution(pending);
   const program = compileCardEffect(pending.card, pending.effect ?? pending.card.effect);
   let result: ReturnType<typeof executeRuleProgram>;
   try {
     result = executeRuleProgram(program, {
-      conditionIsActive: (instruction) => {
+      conditionIsActive: (instruction, instructionIndex) => {
         if (isRuleObject(pending)) {
           pending.valueSnapshots = captureRuleConditionValues(state, instruction.condition, "resolve", {
             controllerId: pending.controllerId,
@@ -2867,94 +2963,35 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
             sourceBakuganId: pending.choices.sourceBakuganId,
           }, pending.valueSnapshots ?? {});
         }
-        return ruleConditionIsActive(state, pending, instruction);
+        return ruleConditionIsActive(state, pending, instruction, instructionIndex);
       },
       beforeInstruction: (instruction, instructionIndex) => {
-      if (hasQueuedEffectDraw(state)) {
-        pending.instructionIndex = instructionIndex;
-        if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex;
-        return "suspend";
-      }
-      const captureResolvedInstruction = () => {
-        if (!isRuleObject(pending)) return;
-        const scopedChoices = instructionChoices(pending, instructionIndex);
-        pending.valueSnapshots = captureInstructionValues(state, instruction, "resolve", {
-          controllerId: pending.controllerId,
-          chosenPlayerId: scopedChoices.targetPlayerId,
-          choices: scopedChoices,
-          sourceCardId: pending.sourceId ?? pending.card.id,
-          sourceBakuganId: scopedChoices.sourceBakuganId,
-        }, pending.valueSnapshots ?? {});
-      };
-      const existing = pending.resolvedChoices?.[String(instructionIndex)];
-      if (existing) {
-        captureResolvedInstruction();
-        return existing.confirmed === false ? "skip" : "continue";
-      }
-      if (!instruction.effects.some(ruleActionIsExecutable)) {
-        captureResolvedInstruction();
-        return "continue";
-      }
-      const schema = buildChoiceSchema(
-        state,
-        pending.controllerId,
-        pending.card,
-        instruction.sourceText,
-        instructionChoices(pending, instructionIndex),
-        "resolve",
-      );
-      schema.fields = schema.fields.filter((field) => !(field.id === "xValue" && pending.choices.xValue != null));
-      if (!schema.fields.length) {
-        captureResolvedInstruction();
-        return "continue";
-      }
-      stageMandatoryDeckReveal(state, pending, instruction, schema);
-      const topDeckSelection = schema.fields.find((field) => field.id === "deckCardId");
-      if (
-        schema.fields.some((field) => field.kind === "deck-order" && field.requestedWindowSize)
-        && topDeckSelection
-        && topDeckSelection.options.length === 0
-      ) {
-        const confirmation = schema.fields.find((field) => field.id === "confirmed");
-        if (confirmation) confirmation.options = confirmation.options.filter((option) => option.id === "no");
-      }
-      const emptyTopDeckWindow = schema.fields.some((field) => (
-        field.kind === "deck-order"
-        && field.requestedWindowSize
-        && field.options.length === 0
-      ));
-      if (emptyTopDeckWindow) {
-        entry(state, "game", `${pending.card.name}: there were no cards to inspect, so the clause did nothing.`);
-        return "skip";
-      }
-      if (!schemaHasLegalCompletion(schema)) {
-        entry(state, "game", `${pending.card.name}: the clause had no legal choice and did nothing.`);
-        return "skip";
-      }
-      state.pendingChoice = {
-        id: uid(),
-        kind: "resolution",
-        controllerId: pending.controllerId,
-        cardId: pending.card.id,
-        schema,
-        answers: {},
-        createdVersion: state.version,
-        pendingEffectId: pending.id,
-        instructionIndex,
-        resumePriority: state.priority,
-        resumeDeadline: state.deadline,
-        resumeStepLabel: state.stepLabel,
-        irreversibleInformation: false,
-      };
-      state.priority = schema.fields[0]?.chooserId ?? pending.controllerId;
-      state.stepLabel = `${pending.card.displayName || pending.card.name} • Resolve clause ${instructionIndex + 1}`;
-      state.deadline = Date.now() + 35_000;
-      pending.instructionIndex = instructionIndex;
-      return "suspend";
-    },
+        if (hasQueuedEffectDraw(state)) {
+          pending.instructionIndex = instructionIndex;
+          if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex;
+          return "suspend";
+        }
+        return stageResolutionInstructionChoice(state, pending, instruction, instructionIndex);
+      },
       execute: (action, instruction, cursor) => {
         executeRuleAction(state, pending, instruction, action, cursor.instructionIndex, cursor.effectIndex);
         pending.instructionIndex = cursor.instructionIndex;
+      },
+      afterInstruction: (instruction, instructionIndex) => {
+        const choiceId = instruction.repeatWhileSelected;
+        if (!choiceId) return "continue";
+        const selected = pending.resolvedChoices?.[String(instructionIndex)]?.[choiceId];
+        const madeSelection = Array.isArray(selected) ? selected.length > 0 : Boolean(selected);
+        if (!madeSelection) return "continue";
+        delete pending.resolvedChoices?.[String(instructionIndex)];
+        const readiness = stageResolutionInstructionChoice(
+          state,
+          pending,
+          instruction,
+          instructionIndex,
+          choiceId,
+        );
+        return readiness === "suspend" ? "suspend" : "continue";
       },
     }, pending.instructionIndex ?? 0);
   } catch (error) {

@@ -90,6 +90,7 @@ export function conditionFor(text: string): RuleCondition {
   if (/\bTurbo\b/i.test(text)) return { kind: "turbo" };
   if (/\bDomination\b/i.test(text)) return { kind: "domination" };
   if (/\bFlow\b/i.test(text)) return { kind: "flow" };
+  if (/\bmay discard\b[^.]*\bfor\s+\+/i.test(text)) return { kind: "selection-made", choiceId: "discardCardIds" };
   if (/\bVictor\s*[-:]/i.test(text)) return { kind: "victor" };
   if (/\bSacrifice\b/i.test(text)) return { kind: "selection-made", choiceId: "discardCardIds" };
   if (/two or more cards this turn/i.test(text)) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "cards-played", owner: "controller" }, operator: ">=", right: 2 } };

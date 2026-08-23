@@ -174,6 +174,8 @@ export type RuleInstruction = {
   /** Alias retained for the generic execution loop used by the game kernel. */
   actions: RuleAction[];
   choices: ChoiceSpec[];
+  /** Re-offer this instruction after a successful optional selection. */
+  repeatWhileSelected?: keyof CardChoices;
   sourceText: string;
 };
 

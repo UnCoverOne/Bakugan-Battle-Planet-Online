@@ -185,3 +185,25 @@ test("Cycling Actions compile ordered effects and return themselves to the owner
     choice.id === "discardCardIds" && choice.chooser === "opponent" && choice.owner === "opponent"
   )));
 });
+
+test("repeatable discard-for-bonus cards compile as one paid loop", () => {
+  for (const [catalogId, amount] of [["bb-41", 3], ["bb-244", 2]] as const) {
+    const card = CARDS.find((candidate) => candidate.catalogId === catalogId);
+    assert.ok(card, `Missing ${catalogId}`);
+    const definition = ruleDefinitionForCard(card);
+    const instructions = definition.abilities.flatMap((ability) => ability.instructions);
+    const repeated = instructions.find((instruction) => instruction.repeatWhileSelected === "discardCardIds");
+    assert.ok(repeated, `${catalogId} should compile a repeatable instruction`);
+    assert.deepEqual(repeated.condition, { kind: "selection-made", choiceId: "discardCardIds" });
+    assert.equal(repeated.actions[0]?.kind, "discard", `${catalogId} should pay before granting its bonus`);
+    assert.ok(repeated.actions.some((action) => (
+      action.kind === "modify-stat" && action.stat === "damage" && action.amount === amount
+    )));
+    assert.equal(instructions.some((instruction) => /^You may use this any number/i.test(instruction.sourceText)), false);
+  }
+
+  const nillious = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "bb-244")!);
+  const victor = nillious.abilities.find((ability) => ability.kind === "triggered");
+  assert.equal(victor?.trigger?.event, "VICTOR_DECLARED");
+  assert.equal(victor?.instructions.some((instruction) => instruction.repeatWhileSelected === "discardCardIds"), true);
+});

@@ -156,6 +156,25 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     };
   });
 
+  // “Use this any number of times” repeats the immediately preceding paid
+  // clause, not the whole card. Keep the payment and benefit together so each
+  // iteration obtains a fresh legal hand selection and resolves independently.
+  for (let index = 1; index < instructions.length; index += 1) {
+    const repeatClause = instructions[index];
+    if (!/^You may use this any number of times\.?$/i.test(repeatClause.sourceText.trim())) continue;
+    const repeated = instructions[index - 1];
+    if (!repeated.effects.some((effect) => effect.kind === "discard")) continue;
+    repeated.repeatWhileSelected = "discardCardIds";
+    repeated.sourceText = `${repeated.sourceText} ${repeatClause.sourceText}`.trim();
+    const discardFirst = repeated.effects.find((effect) => effect.kind === "discard");
+    if (discardFirst) {
+      repeated.effects = [discardFirst, ...repeated.effects.filter((effect) => effect !== discardFirst)];
+      repeated.actions = repeated.effects;
+    }
+    instructions.splice(index, 1);
+    index -= 1;
+  }
+
   for (const instruction of instructions) {
     if (!/\bSacrifice\b[\s\S]*\bmay discard\b[\s\S]*\bto Reroll\b/i.test(instruction.sourceText)) continue;
     instruction.condition = { kind: "always" };

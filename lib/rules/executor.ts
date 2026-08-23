@@ -11,9 +11,10 @@ export type RuleExecutionCursor = {
 };
 
 export type RuleExecutionContext = {
-  conditionIsActive(instruction: RuleInstruction): boolean;
+  conditionIsActive(instruction: RuleInstruction, instructionIndex: number): boolean;
   beforeInstruction(instruction: RuleInstruction, instructionIndex: number): "continue" | "suspend" | "skip";
   execute(action: RuleAction, instruction: RuleInstruction, cursor: RuleExecutionCursor): void;
+  afterInstruction?(instruction: RuleInstruction, instructionIndex: number): "continue" | "suspend";
 };
 
 function nestedInstruction(parent: RuleInstruction, condition: RuleInstruction["condition"], effects: RuleAction[]): RuleInstruction {
@@ -41,14 +42,17 @@ function executeAction(
   consumeEffectStep();
   if (action.kind === "conditional") {
     const branchInstruction = nestedInstruction(instruction, action.condition, action.whenTrue);
-    const selected = context.conditionIsActive(branchInstruction) ? action.whenTrue : (action.whenFalse ?? []);
+    const selected = context.conditionIsActive(branchInstruction, cursor.instructionIndex) ? action.whenTrue : (action.whenFalse ?? []);
     for (let index = 0; index < selected.length; index += 1) {
       executeAction(selected[index], instruction, nestedCursor(cursor, index), context, nextEffectIndex);
     }
     return;
   }
   if (action.kind === "replacement") {
-    if (!action.condition || context.conditionIsActive(nestedInstruction(instruction, action.condition, action.replaceWith))) {
+    if (!action.condition || context.conditionIsActive(
+      nestedInstruction(instruction, action.condition, action.replaceWith),
+      cursor.instructionIndex,
+    )) {
       for (let index = 0; index < action.replaceWith.length; index += 1) {
         executeAction(action.replaceWith[index], instruction, nestedCursor(cursor, index), context, nextEffectIndex);
       }
@@ -78,10 +82,13 @@ export function executeRuleProgram(
 ) {
   for (let instructionIndex = startInstruction; instructionIndex < program.instructions.length; instructionIndex += 1) {
     const instruction = program.instructions[instructionIndex];
-    if (!context.conditionIsActive(instruction)) continue;
+    const selectionCondition = instruction.condition.kind === "selection-made"
+      && instruction.choices.some((choice) => choice.id === instruction.condition.choiceId);
+    if (!selectionCondition && !context.conditionIsActive(instruction, instructionIndex)) continue;
     const readiness = context.beforeInstruction(instruction, instructionIndex);
     if (readiness === "suspend") return { completed: false, instructionIndex };
     if (readiness === "skip") continue;
+    if (selectionCondition && !context.conditionIsActive(instruction, instructionIndex)) continue;
     let effectIndex = 0;
     const nextEffectIndex = () => effectIndex++;
     for (let actionIndex = 0; actionIndex < instruction.actions.length; actionIndex += 1) {
@@ -92,6 +99,9 @@ export function executeRuleProgram(
         context,
         nextEffectIndex,
       );
+    }
+    if (context.afterInstruction?.(instruction, instructionIndex) === "suspend") {
+      return { completed: false, instructionIndex };
     }
   }
   return { completed: true, instructionIndex: program.instructions.length };
