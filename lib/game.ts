@@ -1771,7 +1771,9 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
       ? compileCardEffect(effect.card, effect.effect ?? effect.card.effect).instructions[pending.instructionIndex]
       : undefined;
     const targetPlayerId = merged.targetPlayerId;
-    if (effect && instruction && targetPlayerId && /choose a player to discard a card/i.test(instruction.sourceText)
+    if (effect && instruction && targetPlayerId
+      && instruction.actions.some((action) => action.kind === "discard")
+      && /choose a player to discard a card/i.test(instruction.sourceText)
       && !merged.discardCardIds?.length) {
       const targetPlayer = playerById(state, targetPlayerId);
       effect.resolvedChoices = {
@@ -1961,6 +1963,7 @@ function storeActionResult(pending: PendingEffect, instructionIndex: number, act
     ...(result.amountByPlayer ? {
       amountByPlayer: Object.fromEntries(Object.entries(result.amountByPlayer).map(([id, amount]) => [id, Math.max(0, Math.floor(amount))])),
     } : {}),
+    ...(result.cardCost != null ? { cardCost: Math.max(0, Math.floor(result.cardCost)) } : {}),
   };
 }
 
@@ -2083,6 +2086,7 @@ const executeRuleAction = (
     moment: "resolve",
     capturedValues: isRuleObject(pending) ? pending.valueSnapshots : undefined,
     previousResult: previousActionResult(pending, instructionIndex, actionIndex),
+    characteristics: (candidate, owner) => evaluateBakuganCharacteristics(state, candidate, owner),
   });
   const recordResult = (result: RuleActionResult) => storeActionResult(pending, instructionIndex, actionIndex, result);
 
@@ -2261,8 +2265,10 @@ const executeRuleAction = (
         ? [choices.targetPlayerId]
         : playerIdsForScope(state, action.playerScope ?? (/your opponent|opponent discards/i.test(text) ? "opponent" : "controller"), { controllerId, choices });
       const amountByPlayer: Record<string, number> = {};
+      const discardedCards: GameCard[] = [];
       for (const affectedId of affectedIds) {
         const affected = playerById(state, affectedId);
+        const beforeCards = [...affected.hand];
         const before = affected.hand.length;
         const scopedChoices = choices.simultaneousAnswers?.[affectedId] ?? choices;
         const selected = scopedChoices.discardCardIds ?? scopedChoices.handCardIds ?? [];
@@ -2272,37 +2278,63 @@ const executeRuleAction = (
         const amount = minimum === 0 ? selected.length : selected.length || expressionAmount;
         if (amount > 0) discardFromHand(state, affected, Math.min(maximum, amount), selected);
         amountByPlayer[affectedId] = Math.max(0, before - affected.hand.length);
+        const remainingIds = new Set(affected.hand.map((candidate) => candidate.id));
+        discardedCards.push(...beforeCards.filter((candidate) => !remainingIds.has(candidate.id)));
       }
       recordResult({
         amount: Object.values(amountByPlayer).reduce((sum, amount) => sum + amount, 0),
         amountByPlayer,
+        ...(discardedCards.length === 1 ? {
+          cardCost: discardedCards[0].cost === "X" ? 0 : discardedCards[0].cost,
+        } : {}),
       });
       return;
     }
     case "energize": {
-      if (choices.confirmed === false) return;
-      const amount = Math.max(0, Math.floor(resolveNumber(action.amount)));
-      if (action.source === "hand") {
-        const selectedIds = choices.handCardIds?.slice(0, amount) ?? [];
-        if (selectedIds.length !== amount || new Set(selectedIds).size !== amount) return;
-        const selected = new Set(selectedIds);
-        const energized = player.hand.filter((candidate) => selected.has(candidate.id));
-        if (energized.length !== amount) return;
-        player.hand = player.hand.filter((candidate) => !selected.has(candidate.id));
-        applyEnergyEntryVisibility(energized, "hand");
-        player.energyZone.push(...energized);
-        applyEnergizedEntryState(state, player, energized, action.enters);
-      } else if (action.source === "deck") {
-        const energized: GameCard[] = [];
-        for (let index = 0; index < amount; index += 1) {
-          const energyCard = player.deckCards.shift();
-          if (energyCard) energized.push(energyCard);
+      if (action.source === "hand" || action.source === "deck") {
+        const affectedIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices });
+        for (const affectedId of affectedIds) {
+          const scopedChoices = choices.simultaneousAnswers?.[affectedId] ?? choices;
+          if (scopedChoices.confirmed === false) continue;
+          const ownership = {
+            controllerId,
+            chooserId: affectedId,
+            chosenPlayerId: scopedChoices.targetPlayerId,
+            choices: scopedChoices,
+          };
+          const destinationId = zoneOwnerIdsFor(
+            state,
+            action.destinationOwner ?? (action.playerScope === "each-player" ? "each-player" : "controller"),
+            ownership,
+          )[0] ?? affectedId;
+          const sourceId = zoneOwnerIdsFor(state, action.sourceOwner ?? "controller", ownership)[0] ?? destinationId;
+          const destination = playerById(state, destinationId);
+          const source = playerById(state, sourceId);
+          const amount = Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));
+          if (action.source === "hand") {
+            const selectedIds = scopedChoices.handCardIds?.slice(0, amount) ?? [];
+            if (selectedIds.length !== amount || new Set(selectedIds).size !== amount) continue;
+            const selected = new Set(selectedIds);
+            const energized = source.hand.filter((candidate) => selected.has(candidate.id));
+            if (energized.length !== amount) continue;
+            source.hand = source.hand.filter((candidate) => !selected.has(candidate.id));
+            applyEnergyEntryVisibility(energized, "hand");
+            destination.energyZone.push(...energized);
+            applyEnergizedEntryState(state, destination, energized, action.enters);
+          } else {
+            const energized: GameCard[] = [];
+            for (let index = 0; index < amount; index += 1) {
+              const energyCard = source.deckCards.shift();
+              if (energyCard) energized.push(energyCard);
+            }
+            applyEnergyEntryVisibility(energized, "deck");
+            destination.energyZone.push(...energized);
+            applyEnergizedEntryState(state, destination, energized, action.enters);
+            syncDeck(source);
+          }
         }
-        applyEnergyEntryVisibility(energized, "deck");
-        player.energyZone.push(...energized);
-        applyEnergizedEntryState(state, player, energized, action.enters);
-        syncDeck(player);
-      } else if (action.source === "hero") {
+      } else if (choices.confirmed === false) return;
+      else if (action.source === "hero") {
         for (const owner of state.players) {
           const index = owner.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
           if (index >= 0) {
@@ -2573,7 +2605,11 @@ case "swap-bakucore": {
           entry(state, "game", `${player.name} turned ${placement.core.name} face up in the Hide Matrix.`);
         }
       } else {
-        revealTopDeckCard(state, player);
+        const revealed = revealTopDeckCard(state, player);
+        recordResult({
+          amount: revealed ? 1 : 0,
+          ...(revealed ? { cardCost: revealed.cost === "X" ? 0 : revealed.cost } : {}),
+        });
       }
       return;
     }

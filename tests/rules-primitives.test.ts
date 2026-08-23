@@ -280,3 +280,152 @@ test("third-person opponent discard text compiles an exact mandatory choice", ()
     )));
   }
 });
+
+test("Group 6 faction-qualified card-play triggers retain every printed faction", () => {
+  const expected = new Map<string, GameCard["faction"][]>([
+    ["aa-79", ["Darkus", "Ventus"]],
+    ["aa-142", ["Haos", "Darkus"]],
+    ["aa-164", ["Aquos"]],
+    ["aa-168", ["Aurelus"]],
+    ["aa-180", ["Darkus"]],
+    ["aa-187", ["Haos"]],
+    ["aa-206", ["Pyrus"]],
+    ["aa-218", ["Ventus"]],
+  ]);
+  for (const [catalogId, factions] of expected) {
+    const source = CARDS.find((card) => card.catalogId === catalogId)!;
+    const trigger = ruleDefinitionForCard(source).abilities.find((ability) => (
+      ability.kind === "triggered" && ability.trigger?.event === "CARD_PLAYED"
+    ))?.trigger;
+    assert.deepEqual(trigger?.factions, factions, `${catalogId} should filter the played card's faction`);
+  }
+});
+
+test("Group 7 Energize cards preserve chooser, source owner, and destination owner", () => {
+  for (const [catalogId, amount, enters] of [
+    ["aa-42", 1, "uncharged"],
+    ["bb-175", 2, "charged"],
+  ] as const) {
+    const definition = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === catalogId)!);
+    const instruction = definition.abilities.flatMap((ability) => ability.instructions)
+      .find((candidate) => candidate.actions.some((action) => action.kind === "energize" && action.source === "deck"))!;
+    assert.ok(instruction.choices.some((choice) => choice.id === "confirmed" && choice.chooser === "each-player"));
+    assert.deepEqual(instruction.actions.find((action) => action.kind === "energize"), {
+      kind: "energize",
+      amount,
+      source: "deck",
+      enters,
+      playerScope: "each-player",
+      sourceOwner: "each-player",
+      destinationOwner: "each-player",
+    });
+  }
+
+  const pandoxx = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "aa-212")!);
+  const instruction = pandoxx.abilities.flatMap((ability) => ability.instructions)[0];
+  assert.ok(instruction.choices.some((choice) => (
+    choice.id === "handCardIds" && choice.chooser === "opponent"
+    && choice.owner === "controller" && choice.targetOwner === "controller"
+  )));
+  assert.ok(instruction.choices.some((choice) => choice.id === "confirmed" && choice.chooser === "opponent"));
+  assert.deepEqual(instruction.actions.find((action) => action.kind === "energize"), {
+    kind: "energize",
+    amount: 1,
+    source: "hand",
+    enters: "charged",
+    playerScope: "controller",
+    sourceOwner: "controller",
+    destinationOwner: "controller",
+  });
+});
+
+test("Group 8 attached-BakuCore bonuses compile as source-Bakugan thresholds", () => {
+  for (const catalogId of ["br-123", "br-126", "br-127"]) {
+    const instruction = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === catalogId)!)
+      .abilities.flatMap((ability) => ability.instructions)[0];
+    assert.deepEqual(instruction.condition, {
+      kind: "expression",
+      expression: {
+        kind: "compare-number",
+        operator: ">=",
+        left: {
+          kind: "property",
+          subject: { kind: "bakugan", selector: "source" },
+          property: "held-bakucore-count",
+        },
+        right: 2,
+      },
+    });
+  }
+});
+
+test("Group 9 live scaling cards compile typed board-state expressions", () => {
+  const amountFor = (catalogId: string, actionIndex = 0) => {
+    const actions = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === catalogId)!)
+      .abilities.flatMap((ability) => ability.instructions)
+      .flatMap((instruction) => instruction.actions)
+      .filter((action) => action.kind === "modify-stat");
+    return actions[actionIndex]?.amount;
+  };
+  assert.deepEqual(amountFor("bb-31"), {
+    kind: "product",
+    factors: [100, {
+      kind: "property",
+      subject: { kind: "bakugan", selector: "active", owner: "controller" },
+      property: "damage",
+    }],
+  });
+  assert.deepEqual(amountFor("bb-60", 1), {
+    kind: "product",
+    factors: [1, {
+      kind: "property",
+      subject: { kind: "bakugan", selector: "active", owner: "controller" },
+      property: "frost",
+    }],
+  });
+  assert.deepEqual(amountFor("bb-98"), {
+    kind: "product",
+    factors: [2, { kind: "count", source: "bakugan", owner: "controller", faction: "Pyrus" }],
+  });
+  assert.deepEqual(amountFor("aa-73"), {
+    kind: "product",
+    factors: [1, { kind: "count", source: "hero", owner: "controller" }],
+  });
+
+  const rite = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "bb-44")!);
+  const discardInstruction = rite.abilities.flatMap((ability) => ability.instructions)
+    .find((instruction) => instruction.actions.some((action) => action.kind === "discard"))!;
+  const count = { kind: "count", source: "bakugan", owner: "controller", faction: "Darkus" } as const;
+  assert.ok(discardInstruction.choices.some((choice) => (
+    choice.id === "discardCardIds" && choice.chooser === "chosen-player" && choice.owner === "chosen-player"
+    && JSON.stringify(choice.minimum) === JSON.stringify(count)
+    && JSON.stringify(choice.maximum) === JSON.stringify(count)
+  )));
+  assert.deepEqual(discardInstruction.actions.find((action) => action.kind === "discard"), {
+    kind: "discard",
+    amount: count,
+    minimum: count,
+    maximum: count,
+    repeated: false,
+    playerScope: "chosen-player",
+  });
+});
+
+test("Group 10 discarded and revealed card costs feed the following stat modifier", () => {
+  const magnus = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "bb-199")!);
+  const magnusInstruction = magnus.abilities.find((ability) => ability.trigger?.event === "VICTOR_DECLARED")!.instructions[0];
+  assert.deepEqual(magnusInstruction.condition, { kind: "selection-made", choiceId: "discardCardIds" });
+  assert.equal(magnusInstruction.actions[0]?.kind, "discard");
+  assert.deepEqual(magnusInstruction.actions.find((action) => action.kind === "modify-stat")?.amount, {
+    kind: "product",
+    factors: [1, { kind: "previous-result", property: "card-cost" }],
+  });
+
+  const pegatrix = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "br-97")!);
+  const victor = pegatrix.abilities.find((ability) => ability.trigger?.event === "VICTOR_DECLARED")!;
+  assert.equal(victor.instructions[0]?.actions[0]?.kind, "reveal");
+  assert.deepEqual(victor.instructions[1]?.actions.find((action) => action.kind === "modify-stat")?.amount, {
+    kind: "product",
+    factors: [2, { kind: "previous-result", property: "card-cost" }],
+  });
+});

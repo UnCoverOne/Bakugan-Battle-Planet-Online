@@ -85,6 +85,18 @@ export function conditionFor(text: string): RuleCondition {
     const subject = /opposing|enemy/i.test(heldCoreCondition[1]) ? "opponent-active" : "target";
     return { kind: "held-core-type", coreTypes: coreTypesFor(heldCoreCondition[2]), subject };
   }
+  const attachedCoreCount = text.match(
+    /\bif this has (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)(?:\s+(or more))?\s+BakuCores? attached to it\b/i,
+  );
+  if (attachedCoreCount) return {
+    kind: "expression",
+    expression: {
+      kind: "compare-number",
+      left: { kind: "property", subject: { kind: "bakugan", selector: "source" }, property: "held-bakucore-count" },
+      operator: attachedCoreCount[2] ? ">=" : "==",
+      right: numberValue(attachedCoreCount[1], 0),
+    },
+  };
   if (/\bUnderdog\b|if it has lower \[B\] than the opposing Bakugan/i.test(text)) return { kind: "underdog" };
   if (/\bFury\b/i.test(text)) return { kind: "fury" };
   if (/\bTurbo\b/i.test(text)) return { kind: "turbo" };
@@ -166,11 +178,18 @@ function triggerFor(text: string): TriggerDefinition | undefined {
     const cardType = printedCardType
       ? `${printedCardType[0].toUpperCase()}${printedCardType.slice(1).toLowerCase()}` as CardType
       : undefined;
+    const triggerClause = text.split(",", 1)[0] ?? text;
+    const factions = event === "CARD_PLAYED"
+      ? [...triggerClause.matchAll(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/gi)]
+        .map((match) => `${match[1][0].toUpperCase()}${match[1].slice(1).toLowerCase()}` as Faction)
+        .filter((faction, index, values) => values.indexOf(faction) === index)
+      : [];
     return {
       event,
       relationship,
       source,
       cardType,
+      ...(factions.length ? { factions } : {}),
       optional: /\bmay\b/i.test(text),
       interveningCondition: /\bif\b/i.test(text) ? conditionFor(text) : undefined,
     };
@@ -213,10 +232,21 @@ function numberValueForDynamicAmount(text: string, baseAmount: number, dynamicSo
     return multiplyValue(baseAmount, { kind: "previous-result", property: "amount", scope: "total" });
   }
   if (/other-card-played/i.test(dynamicSource) || /other card.*played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "cards-played", owner: "controller", offset: -1, minimum: 0 });
-  const faction = grammar.match(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1] as Faction | undefined;
+  const faction = grammar.match(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\](?:\s+Bakugan)?/i)?.[1] as Faction | undefined;
   if (faction && /Bakugan on your team/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "bakugan", owner: "controller", faction });
+  if (faction && /\[[^\]]+\]\s+on your team/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "bakugan", owner: "controller", faction });
+  if (/\[FrostStrike\].*Bakugan has|point of \[FrostStrike\]/i.test(grammar)) return multiplyValue(baseAmount, {
+    kind: "property",
+    subject: { kind: "bakugan", selector: "active", owner: "controller" },
+    property: "frost",
+  });
+  if (/\[Damage Rating\].*Bakugan has|Damage Rating\] your Bakugan has/i.test(grammar)) return multiplyValue(baseAmount, {
+    kind: "property",
+    subject: { kind: "bakugan", selector: "active", owner: "controller" },
+    property: "damage",
+  });
   if (/Flip card.*discard/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "discard", owner: "controller", cardType: "Flip" });
-  if (/Hero(?: card)?s? (?:you )?(?:have|control)?\s*in play|Hero you have in play/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "hero", owner: "controller" });
+  if (/Hero(?: card)?s? (?:you )?(?:have|control)?\s*in play|Hero you have in play|Hero cards? you control/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "hero", owner: "controller" });
   if (/Energy card.*you have|Energy cards? in play/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "energy", owner: "controller" });
   if (/BakuCore.*your Bakugan hold/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "held-bakucore", owner: "controller" });
   if (/open Bakugan/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "open-bakugan", owner: "controller" });
@@ -253,6 +283,16 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       targetChoiceId: ruleCardId(card) === "aa-50" ? "secondaryTargetBakuganId" : undefined,
     });
   }
+  const previousCardCostDamage = text.match(
+    /\+\[Damage (?:Rating|Power)\]\s+equal to\s+(?:(twice)\s+)?the\s+(?:discarded|revealed)\s+card(?:'s|’s)\s+(?:\[Energy\]|Energy)\s+cost/i,
+  );
+  if (previousCardCostDamage) actions.push({
+    kind: "modify-stat",
+    stat: "damage",
+    amount: multiplyValue(previousCardCostDamage[1] ? 2 : 1, { kind: "previous-result", property: "card-cost" }),
+    duration,
+    scope,
+  });
   for (const match of text.matchAll(/\+?(\d+)\s*\[FrostStrike\]/gi)) {
     const frostScale = dynamicSourceForStat(text, match);
     actions.push({ kind: "modify-stat", stat: "frost", amount: numberValueForDynamicAmount(text, Number(match[1]), frostScale), duration, scope });
@@ -297,12 +337,18 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
 
   const energizeEntryState = /\buncharged\b/i.test(text) ? "uncharged" as const : "charged" as const;
   const energize = text.match(/energize (?:the top )?(a|an|one|two|three|\d+)?\s*cards?/i);
-  if (energize) actions.push({
-    kind: "energize",
-    amount: numberValue(energize[1]),
-    source: /top/i.test(energize[0]) ? "deck" : "hand",
-    enters: energizeEntryState,
-  });
+  if (energize) {
+    const eachPlayer = /\beach player\b|\ball players\b|\bboth players\b/i.test(text);
+    actions.push({
+      kind: "energize",
+      amount: numberValue(energize[1]),
+      source: /top/i.test(energize[0]) ? "deck" : "hand",
+      enters: energizeEntryState,
+      playerScope: eachPlayer ? "each-player" : "controller",
+      sourceOwner: eachPlayer ? "each-player" : "controller",
+      destinationOwner: eachPlayer ? "each-player" : "controller",
+    });
+  }
   if (/Energize (?:it|that Hero)/i.test(text)) actions.push({
     kind: "energize",
     amount: 1,

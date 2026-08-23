@@ -635,6 +635,9 @@ test("unqualified Energize effects add Energy cards charged", () => {
   let resolving = resolveStructuredEffect(state, pending);
   assert.ok(resolving.pendingChoice);
   resolving = submitCardChoice(resolving, live.id, { confirmed: true });
+  if (resolving.pendingChoice?.schema.fields.some((field) => field.chooserId === opponent.id)) {
+    resolving = submitCardChoice(resolving, opponent.id, { confirmed: false });
+  }
 
   const after = resolving.players.find((candidate) => candidate.id === live.id)!;
   assert.deepEqual(after.energyZone.map((candidate) => candidate.id), [oldEnergy.id, first.id, second.id]);
@@ -988,4 +991,253 @@ test("opponent Flip triggers draw for Bill Kouzo and Titan Trunkanious Ultra's c
   resolving = resolveStructuredEffect(titan.state, titan.pending);
   assert.equal(activePendingDraw(resolving)?.playerId, titan.controllerId);
   assert.notEqual(activePendingDraw(resolving)?.playerId, titan.opponentId);
+});
+
+test("Group 6 card-play triggers fire only for their printed factions", () => {
+  const player = makePlayer("faction-trigger-player", "Faction Trigger", STARTER_DECKS[0]);
+  const opponent = makePlayer("faction-trigger-opponent", "Opponent", STARTER_DECKS[1]);
+  const state = createMatch("FACTION-TRIGGER", "bo1", [player, opponent]);
+  const live = state.players[0];
+  const source = card("aa-164", "aquos-goreene-source");
+  live.bakugan[0].character = source;
+  live.bakugan[0].open = true;
+  state.selected[live.id] = live.bakugan[0].id;
+  const eventCard = card("bb-10", "played-faction-card");
+
+  assert.equal(emitRuleEvent(state, {
+    id: "wrong-faction-play",
+    name: "CARD_PLAYED",
+    actorId: live.id,
+    controllerId: live.id,
+    card: { ...eventCard, faction: "Pyrus", factions: ["Pyrus"] },
+    cardType: "Action",
+    createdAt: Date.now(),
+  }).length, 0);
+  assert.equal(emitRuleEvent(state, {
+    id: "matching-faction-play",
+    name: "CARD_PLAYED",
+    actorId: live.id,
+    controllerId: live.id,
+    card: { ...eventCard, faction: "Aquos", factions: ["Aquos"] },
+    cardType: "Action",
+    createdAt: Date.now(),
+  }).length, 1);
+});
+
+test("Group 7 Energize resolution follows each chooser without changing zone ownership", () => {
+  const player = makePlayer("energize-player", "Energize Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("energize-opponent", "Energize Opponent", STARTER_DECKS[1]);
+  let state = createMatch("EACH-PLAYER-ENERGIZE", "bo1", [player, opponent]);
+  const hyperdrive = card("bb-175", "hyperdrive-source");
+  const hyperdriveAbility = ruleDefinitionForCard(hyperdrive).abilities.find((ability) => ability.kind === "spell")!;
+  const hyperdriveObject = createRuleObject({
+    controllerId: player.id,
+    card: hyperdrive,
+    ability: hyperdriveAbility,
+    kind: "spell",
+    sourceId: hyperdrive.id,
+    choices: {},
+  });
+  const decksBefore = state.players.map((candidate) => candidate.deckCards.length);
+  state = resolveStructuredEffect(state, hyperdriveObject);
+  assert.equal(state.pendingChoice?.schema.simultaneous, true);
+  assert.deepEqual(state.pendingChoice?.schema.fields.map((field) => field.chooserId), [player.id, opponent.id]);
+  state = submitCardChoice(state, player.id, { confirmed: true });
+  state = submitCardChoice(state, opponent.id, { confirmed: false });
+  assert.equal(state.players[0].deckCards.length, decksBefore[0] - 2);
+  assert.equal(state.players[0].energyZone.length, 2);
+  assert.equal(state.players[1].deckCards.length, decksBefore[1]);
+  assert.equal(state.players[1].energyZone.length, 0);
+
+  const controller = state.players[0];
+  const chooser = state.players[1];
+  const pandoxx = card("aa-212", "pandoxx-source");
+  const offered = card("bb-17", "pandoxx-offered-card");
+  controller.hand = [offered];
+  controller.bakugan[0].character = pandoxx;
+  controller.bakugan[0].open = true;
+  state.selected[controller.id] = controller.bakugan[0].id;
+  state.brawlWinner = controller.id;
+  state.phase = "victor";
+  const victor = ruleDefinitionForCard(pandoxx).abilities.find((ability) => ability.trigger?.event === "VICTOR_DECLARED")!;
+  state = resolveStructuredEffect(state, createRuleObject({
+    controllerId: controller.id,
+    card: pandoxx,
+    ability: victor,
+    kind: "trigger",
+    sourceId: pandoxx.id,
+    choices: { sourceBakuganId: controller.bakugan[0].id },
+  }));
+  const handChoice = state.pendingChoice?.schema.fields.find((field) => field.id === "handCardIds");
+  assert.equal(handChoice?.chooserId, chooser.id);
+  assert.deepEqual(handChoice?.options.map((option) => [option.id, option.ownerId]), [[offered.id, controller.id]]);
+  state = submitCardChoice(state, chooser.id, { confirmed: true, handCardIds: [offered.id] });
+  assert.equal(state.players[0].hand.some((candidate) => candidate.id === offered.id), false);
+  assert.equal(state.players[0].energyZone.some((candidate) => candidate.id === offered.id), true);
+  assert.equal(state.players[1].energyZone.some((candidate) => candidate.id === offered.id), false);
+});
+
+test("Group 8 printed bonuses turn on at two attached BakuCores", () => {
+  for (const [catalogId, stat, amount] of [
+    ["br-123", "power", 1000],
+    ["br-126", "power", 500],
+    ["br-127", "damage", 10],
+  ] as const) {
+    const player = makePlayer(`${catalogId}-player`, "Core Threshold", STARTER_DECKS[0]);
+    const opponent = makePlayer(`${catalogId}-opponent`, "Opponent", STARTER_DECKS[1]);
+    const state = createMatch(`CORE-THRESHOLD-${catalogId}`, "bo1", [player, opponent]);
+    const live = state.players[0];
+    const bakugan = live.bakugan[0];
+    const source = card(catalogId, `${catalogId}-source`);
+    bakugan.evoStack = [source];
+    bakugan.open = true;
+    state.selected[live.id] = bakugan.id;
+    bakugan.heldCoreCells = ["threshold-one"];
+    assert.equal(evaluateBakuganCharacteristics(state, bakugan, live).applied.some((modifier) => (
+      modifier.sourceId === source.id && modifier.stat === stat && modifier.amount === amount
+    )), false);
+    bakugan.heldCoreCells.push("threshold-two");
+    assert.equal(evaluateBakuganCharacteristics(state, bakugan, live).applied.some((modifier) => (
+      modifier.sourceId === source.id && modifier.stat === stat && modifier.amount === amount
+    )), true);
+  }
+});
+
+test("Group 9 scaling reads live stats, team factions, Heroes, and the chosen player's hand", () => {
+  const resolveSpell = (catalogId: string, configure: (state: MatchState) => void) => {
+    const player = makePlayer(`${catalogId}-player`, "Scaling Player", STARTER_DECKS[0]);
+    const opponent = makePlayer(`${catalogId}-opponent`, "Scaling Opponent", STARTER_DECKS[1]);
+    let state = createMatch(`LIVE-SCALING-${catalogId}`, "bo1", [player, opponent]);
+    state.players[0].bakugan[0].open = true;
+    state.selected[player.id] = state.players[0].bakugan[0].id;
+    configure(state);
+    const source = card(catalogId, `${catalogId}-source`);
+    const ability = ruleDefinitionForCard(source).abilities.find((candidate) => candidate.kind === "spell")!;
+    state = resolveStructuredEffect(state, createRuleObject({
+      controllerId: player.id,
+      card: source,
+      ability,
+      kind: "spell",
+      sourceId: source.id,
+      choices: {},
+    }));
+    return state;
+  };
+
+  let state = resolveSpell("bb-31", (candidate) => {
+    candidate.damageBoost[candidate.players[0].bakugan[0].id] = 2;
+  });
+  assert.equal(state.powerBoost[state.players[0].bakugan[0].id], 700);
+
+  state = resolveSpell("bb-60", (candidate) => {
+    candidate.frostStrike[candidate.players[0].bakugan[0].id] = 2;
+  });
+  assert.equal(state.frostStrike[state.players[0].bakugan[0].id], 3);
+  assert.equal(state.damageBoost[state.players[0].bakugan[0].id], 3);
+
+  state = resolveSpell("bb-98", (candidate) => {
+    const live = candidate.players[0];
+    for (let index = 0; index < 2; index += 1) {
+      live.bakugan[index].character = { ...live.bakugan[index].character, faction: "Pyrus", factions: ["Pyrus"] };
+    }
+    live.bakugan[2].character = { ...live.bakugan[2].character, faction: "Aquos", factions: ["Aquos"] };
+  });
+  assert.equal(state.damageBoost[state.players[0].bakugan[0].id], 4);
+
+  const bentonPlayer = makePlayer("benton-player", "Benton Player", STARTER_DECKS[0]);
+  const bentonOpponent = makePlayer("benton-opponent", "Opponent", STARTER_DECKS[1]);
+  state = createMatch("BENTON-LIVE-HEROES", "bo1", [bentonPlayer, bentonOpponent]);
+  const benton = card("aa-73", "benton-source");
+  state.players[0].heroes = [benton, card("bb-199", "second-hero")];
+  const bentonBakugan = state.players[0].bakugan[0];
+  const baseDamage = bentonBakugan.character.damage ?? bentonBakugan.damage;
+  assert.equal(evaluateBakuganCharacteristics(state, bentonBakugan, state.players[0]).damage, baseDamage + 2);
+  state.players[0].heroes.pop();
+  assert.equal(evaluateBakuganCharacteristics(state, bentonBakugan, state.players[0]).damage, baseDamage + 1);
+
+  const ritePlayer = makePlayer("rite-player", "Rite Player", STARTER_DECKS[0]);
+  const riteOpponent = makePlayer("rite-opponent", "Rite Opponent", STARTER_DECKS[1]);
+  state = createMatch("RITE-DYNAMIC-DISCARD", "bo1", [ritePlayer, riteOpponent]);
+  for (let index = 0; index < 2; index += 1) {
+    state.players[0].bakugan[index].character = {
+      ...state.players[0].bakugan[index].character,
+      faction: "Darkus",
+      factions: ["Darkus"],
+    };
+  }
+  state.players[0].bakugan[2].character = {
+    ...state.players[0].bakugan[2].character,
+    faction: "Aquos",
+    factions: ["Aquos"],
+  };
+  const discarded = [card("bb-10", "rite-one"), card("bb-17", "rite-two")];
+  state.players[1].hand = [...discarded, card("bb-18", "rite-three")];
+  const rite = card("bb-44", "rite-source");
+  const riteAbility = ruleDefinitionForCard(rite).abilities.find((ability) => ability.kind === "spell")!;
+  state = resolveStructuredEffect(state, createRuleObject({
+    controllerId: ritePlayer.id,
+    card: rite,
+    ability: riteAbility,
+    kind: "spell",
+    sourceId: rite.id,
+    choices: {},
+  }));
+  state = submitCardChoice(state, ritePlayer.id, { targetPlayerId: riteOpponent.id });
+  const discardField = state.pendingChoice?.schema.fields.find((field) => field.id === "discardCardIds");
+  assert.equal(discardField?.chooserId, riteOpponent.id);
+  assert.deepEqual([discardField?.minimum, discardField?.maximum], [2, 2]);
+  state = submitCardChoice(state, riteOpponent.id, { discardCardIds: discarded.map((candidate) => candidate.id) });
+  assert.equal(state.players[1].discard.filter((candidate) => discarded.some((item) => item.id === candidate.id)).length, 2);
+});
+
+test("Group 10 resolves a discarded or revealed card's printed Energy cost before scaling", () => {
+  const player = makePlayer("card-cost-player", "Card Cost Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("card-cost-opponent", "Opponent", STARTER_DECKS[1]);
+  let state = createMatch("DISCARDED-CARD-COST", "bo1", [player, opponent]);
+  const magnus = card("bb-199", "magnus-cost-source");
+  const discarded = { ...card("bb-10", "magnus-cost-card"), cost: 4 };
+  state.players[0].heroes = [magnus];
+  state.players[0].hand = [discarded];
+  state.players[0].bakugan[0].open = true;
+  state.selected[player.id] = state.players[0].bakugan[0].id;
+  state.brawlWinner = player.id;
+  state.phase = "victor";
+  const magnusAbility = ruleDefinitionForCard(magnus).abilities.find((ability) => ability.trigger?.event === "VICTOR_DECLARED")!;
+  state = resolveStructuredEffect(state, createRuleObject({
+    controllerId: player.id,
+    card: magnus,
+    ability: magnusAbility,
+    kind: "trigger",
+    sourceId: magnus.id,
+    choices: {},
+  }));
+  state = submitCardChoice(state, player.id, {
+    targetBakuganId: state.players[0].bakugan[0].id,
+    discardCardIds: [discarded.id],
+  });
+  assert.equal(state.damageBoost[state.players[0].bakugan[0].id], 4);
+  assert.equal(state.players[0].discard.some((candidate) => candidate.id === discarded.id), true);
+
+  const pegatrixPlayer = makePlayer("pegatrix-cost-player", "Pegatrix Player", STARTER_DECKS[0]);
+  const pegatrixOpponent = makePlayer("pegatrix-cost-opponent", "Opponent", STARTER_DECKS[1]);
+  state = createMatch("REVEALED-CARD-COST", "bo1", [pegatrixPlayer, pegatrixOpponent]);
+  const pegatrix = card("br-97", "pegatrix-cost-source");
+  const revealed = { ...card("bb-17", "pegatrix-revealed-card"), cost: 3 };
+  state.players[0].deckCards = [revealed, ...state.players[0].deckCards];
+  state.players[0].bakugan[0].evoStack = [pegatrix];
+  state.players[0].bakugan[0].open = true;
+  state.selected[pegatrixPlayer.id] = state.players[0].bakugan[0].id;
+  state.brawlWinner = pegatrixPlayer.id;
+  state.phase = "victor";
+  const pegatrixAbility = ruleDefinitionForCard(pegatrix).abilities.find((ability) => ability.trigger?.event === "VICTOR_DECLARED")!;
+  state = resolveStructuredEffect(state, createRuleObject({
+    controllerId: pegatrixPlayer.id,
+    card: pegatrix,
+    ability: pegatrixAbility,
+    kind: "trigger",
+    sourceId: pegatrix.id,
+    choices: { sourceBakuganId: state.players[0].bakugan[0].id },
+  }));
+  state = submitCardChoice(state, pegatrixPlayer.id, { orderedCardIds: [revealed.id] });
+  assert.equal(state.damageBoost[state.players[0].bakugan[0].id], 6);
 });

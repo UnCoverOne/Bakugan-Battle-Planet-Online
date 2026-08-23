@@ -40,7 +40,7 @@ export type PlayerNumericProperty =
   | "payable-energy"
   | "maximum-played-card-cost";
 
-export type BakuganNumericProperty = "power" | "damage" | "held-bakucore-count";
+export type BakuganNumericProperty = "power" | "damage" | "frost" | "held-bakucore-count";
 export type CardNumericProperty = "printed-cost";
 export type NumericProperty = PlayerNumericProperty | BakuganNumericProperty | CardNumericProperty;
 
@@ -73,7 +73,7 @@ export type NumberExpression =
     }
   | { kind: "property"; subject: EntityExpression; property: NumericProperty }
   | { kind: "event-value"; property: "amount"; fallback?: number }
-  | { kind: "previous-result"; property: "amount"; scope?: "total" | "chooser" }
+  | { kind: "previous-result"; property: "amount" | "card-cost"; scope?: "total" | "chooser" }
   | { kind: "sum"; terms: NumberValue[] }
   | { kind: "subtract"; left: NumberValue; right: NumberValue }
   | { kind: "product"; factors: NumberValue[] }
@@ -129,10 +129,10 @@ export type ValueEvaluationContext = {
   moment?: EvaluationMoment;
   event?: EventValueContext;
   /** Most recent earlier result-bearing action in the same resolving rules object. */
-  previousResult?: { amount: number; amountByPlayer?: Record<string, number> };
+  previousResult?: { amount: number; amountByPlayer?: Record<string, number>; cardCost?: number };
   capturedValues?: Record<string, number>;
   /** Optional final-characteristic resolver supplied by the modifier engine. */
-  characteristics?: (bakugan: Bakugan, owner: PlayerState) => { power: number; damage: number };
+  characteristics?: (bakugan: Bakugan, owner: PlayerState) => { power: number; damage: number; frostStrike?: number };
 };
 
 type ResolvedEntity =
@@ -219,14 +219,19 @@ function cardMatches(card: GameCard, expression: Extract<NumberExpression, { kin
 }
 
 function countForPlayer(state: MatchState, player: PlayerState, expression: Extract<NumberExpression, { kind: "count" }>) {
+  const bakuganHasFaction = (bakugan: Bakugan) => {
+    if (!expression.faction) return true;
+    const top = bakugan.evoStack.at(-1) ?? bakugan.character;
+    return (top.factions?.length ? top.factions : [bakugan.faction]).includes(expression.faction);
+  };
   switch (expression.source) {
     case "hand": return player.hand.filter((card) => cardMatches(card, expression)).length;
     case "deck": return player.deckCards.filter((card) => cardMatches(card, expression)).length;
     case "discard": return player.discard.filter((card) => cardMatches(card, expression)).length;
     case "energy": return player.energyZone.filter((card) => cardMatches(card, expression)).length;
     case "hero": return player.heroes.filter((card) => cardMatches(card, expression)).length;
-    case "bakugan": return player.bakugan.filter((bakugan) => !expression.faction || bakugan.faction === expression.faction).length;
-    case "open-bakugan": return player.bakugan.filter((bakugan) => bakugan.open && (!expression.faction || bakugan.faction === expression.faction)).length;
+    case "bakugan": return player.bakugan.filter(bakuganHasFaction).length;
+    case "open-bakugan": return player.bakugan.filter((bakugan) => bakugan.open && bakuganHasFaction(bakugan)).length;
     case "held-bakucore": return player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
     case "cards-played": return player.cardsPlayedThisTurn;
     case "factions-played": return new Set(player.factionsPlayedThisTurn ?? []).size;
@@ -270,6 +275,7 @@ function evaluateProperty(state: MatchState, expression: Extract<NumberExpressio
       ?? (entity.bakugan.evoStack.at(-1)?.damage ?? entity.bakugan.character.damage ?? entity.bakugan.damage)
         + (state.damageBoost[entity.bakugan.id] ?? 0);
   }
+  if (expression.property === "frost") return characteristics?.frostStrike ?? state.frostStrike[entity.bakugan.id] ?? 0;
   return 0;
 }
 
@@ -300,6 +306,7 @@ export function evaluateNumberValue(state: MatchState, value: NumberValue, conte
     case "property": return finite(evaluateProperty(state, value, context));
     case "event-value": return finite(context.event?.[value.property] ?? value.fallback ?? 0);
     case "previous-result": {
+      if (value.property === "card-cost") return finite(context.previousResult?.cardCost ?? 0);
       if (value.scope === "chooser" && context.chooserId) {
         return finite(context.previousResult?.amountByPlayer?.[context.chooserId] ?? 0);
       }

@@ -181,13 +181,66 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   }
 
   // Optional discard-for-benefit clauses pay before applying their payoff.
-  // The selection-made condition then guarantees that declining is a no-op.
+  // Some cards put the payment and payoff in one sentence (for example,
+  // "may discard ... to give ..."); bind those clauses to the discard choice
+  // here instead of relying on the card's unrelated Victor/Fury condition.
   for (const instruction of instructions) {
+    const paidDiscardBenefit = /\bmay discard\b[^.]*?(?:\bfor\s+\+|\bto give\b[^.]*?\+)/i.test(instruction.sourceText);
+    if (paidDiscardBenefit && instruction.effects.some((effect) => effect.kind === "discard")) {
+      instruction.condition = { kind: "selection-made", choiceId: "discardCardIds" };
+    }
     if (instruction.condition.kind !== "selection-made") continue;
     const discard = instruction.effects.find((effect) => effect.kind === "discard");
     if (!discard || instruction.effects[0] === discard) continue;
     instruction.effects = [discard, ...instruction.effects.filter((effect) => effect !== discard)];
     instruction.actions = instruction.effects;
+  }
+
+  // The controller first chooses a player, then that chosen player privately
+  // chooses the cards they must discard. Splitting the printed sentence lets
+  // the second choice resolve its chooser and zone owner from targetPlayerId.
+  for (let index = 0; index < instructions.length; index += 1) {
+    const current = instructions[index];
+    const chosenPlayerDiscard = current.sourceText.match(
+      /^Choose a player to discard a card for each \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan on your team\.?$/i,
+    );
+    if (!chosenPlayerDiscard) continue;
+    const faction = `${chosenPlayerDiscard[1][0].toUpperCase()}${chosenPlayerDiscard[1].slice(1).toLowerCase()}` as GameCard["faction"];
+    const amount = { kind: "count", source: "bakugan", owner: "controller", faction } as const;
+    const playerChoice = current.choices.find((candidate) => candidate.id === "targetPlayerId");
+    if (!playerChoice) continue;
+    const chooserAction: RuleAction = { kind: "cost", amount: 0, operation: "reduce", duration: "instant" };
+    const discardChoice = choice("discardCardIds", "resolve", "hand-card", "Choose cards to discard", false, "chosen-player", "private");
+    discardChoice.owner = "chosen-player";
+    discardChoice.targetOwner = "chosen-player";
+    discardChoice.minimum = amount;
+    discardChoice.maximum = amount;
+    const discardAction: RuleAction = {
+      kind: "discard",
+      amount,
+      minimum: amount,
+      maximum: amount,
+      repeated: false,
+      playerScope: "chosen-player",
+    };
+    instructions.splice(index, 1,
+      {
+        ...current,
+        id: `${ruleCardId(card)}:choose-discard-player`,
+        effects: [chooserAction],
+        actions: [chooserAction],
+        choices: [playerChoice],
+      },
+      {
+        id: `${ruleCardId(card)}:chosen-player-discard`,
+        condition: { kind: "always" },
+        effects: [discardAction],
+        actions: [discardAction],
+        choices: [discardChoice],
+        sourceText: `That player discards a card for each [${faction}] Bakugan on your team.`,
+      },
+    );
+    index += 1;
   }
 
   // “Use this any number of times” repeats the immediately preceding paid
@@ -528,15 +581,18 @@ if (swapsBakucore) {
     const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3 };
     const printed = energizeFromHand[1]?.toLowerCase();
     const amount = printed ? words[printed] ?? Math.max(1, Number(printed) || 1) : 1;
+    const opponentChooses = /\byour opponent may Energize\b/i.test(text);
     const selected = choice(
       "handCardIds",
       "resolve",
       "hand-card",
       `Choose ${amount === 1 ? "a card" : `${amount} cards`} to Energize`,
       false,
-      "controller",
+      opponentChooses ? "opponent" : "controller",
       "private",
     );
+    selected.owner = "controller";
+    selected.targetOwner = "controller";
     selected.minimum = amount;
     selected.maximum = amount;
     result.push(selected);
@@ -589,7 +645,10 @@ if (swapsBakucore) {
   if ((/\bmay\b/i.test(text) || /\byou can play\b/i.test(text))
     && !persistentFreePermission
     && !/may discard|may recharge up to/i.test(text)) {
-    result.push(choice("confirmed", "resolve", "mode", "Use this optional effect?", false));
+    const optionalChooser = /\beach player may\b/i.test(text)
+      ? "each-player" as const
+      : /\byour opponent may\b/i.test(text) ? "opponent" as const : "controller" as const;
+    result.push(choice("confirmed", "resolve", "mode", "Use this optional effect?", false, optionalChooser));
   }
   return result.filter((item, index, values) => values.findIndex((candidate) => candidate.id === item.id && candidate.timing === item.timing) === index);
 }
@@ -739,7 +798,7 @@ export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
     // preceding trigger and therefore share that trigger's event timing.
     const continuesTrigger = Boolean(activeTrigger) && (
       instruction.condition.kind === "mode-selected"
-      || /^(?:then\b|shuffle\s+your\s+deck\b|you\s+may\s+(?:put|play|attach)\s+(?:it|that\s+card|the\s+(?:chosen|revealed)\s+card|an?\s+\[(?:FT|FF|SD|MS|HE)\])\b|if\s+(?:it(?:['’]?s|\b)|they\b|you do\b|an?\s+[^,.]+\s+cards?\s+is\s+revealed\s+this\s+way\b|one\s+of\s+(?:them|those\s+cards)\b|the\s+revealed\s+card\b))/i.test(
+      || /^(?:then\b|shuffle\s+your\s+deck\b|this\s+gets\b[^.]*\brevealed\s+card\b|you\s+may\s+(?:put|play|attach)\s+(?:it|that\s+card|the\s+(?:chosen|revealed)\s+card|an?\s+\[(?:FT|FF|SD|MS|HE)\])\b|if\s+(?:it(?:['’]?s|\b)|they\b|you do\b|an?\s+[^,.]+\s+cards?\s+is\s+revealed\s+this\s+way\b|one\s+of\s+(?:them|those\s+cards)\b|the\s+revealed\s+card\b))/i.test(
         instruction.sourceText.trim(),
       )
     );

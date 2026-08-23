@@ -110,6 +110,8 @@ export type TriggerDefinition = {
   /** Restrict a trigger such as "When you play this" to its own card-play event. */
   source?: "self";
   cardType?: CardType;
+  /** Effective faction(s) the played card must have. */
+  factions?: Faction[];
   optional?: boolean;
   /** Minimum amount carried by the triggering event. */
   minimumEventAmount?: NumberValue;
@@ -137,7 +139,7 @@ export type RuleAction =
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: NumberValue; duration: RulesDuration }
   | { kind: "draw"; amount: NumberValue; playerScope?: PlayerScope }
   | { kind: "discard"; amount: NumberValue; minimum: NumberValue; maximum: NumberValue; repeated?: boolean; playerScope?: PlayerScope }
-  | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "hero" | "self"; enters: "charged" | "uncharged" }
+  | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "hero" | "self"; enters: "charged" | "uncharged"; playerScope?: PlayerScope; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "generate-energy"; amount: NumberValue; playerScope?: PlayerScope }
   | { kind: "uncharge-energy"; amount: NumberValue | "all"; playerScope?: PlayerScope; producesEnergy: boolean; preventChargeStepRecharge?: boolean }
   | { kind: "recharge-energy"; amount: NumberValue | "all" }
@@ -228,6 +230,8 @@ export type RuleActionResult = {
   amount: number;
   /** Per-player counts support text such as “all players ... then draw that many.” */
   amountByPlayer?: Record<string, number>;
+  /** Printed Energy cost of a single card successfully moved or revealed. */
+  cardCost?: number;
 };
 
 export type RuleObject = {

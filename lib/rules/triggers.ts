@@ -125,6 +125,12 @@ function triggerMatches(
   if (!relationshipMatches(trigger, owner.id, event)) return false;
   if (trigger.source === "self" && source.id !== event.card?.id) return false;
   if (trigger.cardType && trigger.cardType !== event.cardType) return false;
+  if (trigger.factions?.length) {
+    const playedFactions = event.card?.factions?.length
+      ? event.card.factions
+      : event.card ? [event.card.faction] : [];
+    if (!trigger.factions.some((faction) => playedFactions.includes(faction))) return false;
+  }
   if (!sourceTargetMatches(source, owner, event, triggerText)) return false;
   const target = event.targetBakuganId
     ? state.players.flatMap((player) => player.bakugan).find((candidate) => candidate.id === event.targetBakuganId)
