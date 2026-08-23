@@ -21,7 +21,7 @@ import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
 import type { ContinuousModifier, PendingCardPlay, RuleActionResult, RulesCardId } from "./rules/model";
 import { collectRuleTriggers } from "./rules/triggers";
-import { effectiveCardFactions } from "./rules/derived-characteristics";
+import { effectiveBakuganFactions, effectiveCardFactions } from "./rules/derived-characteristics";
 import { applyEnergyEntryVisibility } from "./energyVisibility";
 import {
   BATTLE_PLANET_PHYSICAL_SIMULATION_PROFILE,
@@ -136,6 +136,8 @@ export type PlayerState = {
   playedCardTypesThisTurn?: CardType[];
   /** Distinct factions represented by cards this player has played this turn. */
   factionsPlayedThisTurn?: Faction[];
+  /** Physical cards actually discarded from hand this turn (not merely put into discard). */
+  discardedCardIdsThisTurn?: string[];
   /** Publicly revealed top-deck card awaiting a linked free-play decision. */
   revealedDeckCardId?: string;
 };
@@ -555,7 +557,12 @@ const discardFromHand = (state: MatchState, player: PlayerState, amount: number,
   const discarded: GameCard[] = [];
   for (const id of ids.slice(0, amount)) {
     const index = player.hand.findIndex((card) => card.id === id);
-    if (index >= 0) { const [card]=player.hand.splice(index,1); player.discard.push(card); discarded.push(card); }
+    if (index >= 0) {
+      const [card] = player.hand.splice(index, 1);
+      player.discard.push(card);
+      discarded.push(card);
+      player.discardedCardIdsThisTurn = [...new Set([...(player.discardedCardIdsThisTurn ?? []), card.id])];
+    }
   }
   entry(state, "game", `${player.name} discarded ${Math.min(amount, ids.length)} card${amount === 1 ? "" : "s"}.`);
   const active = activeBakugan(state, player.id);
@@ -666,7 +673,7 @@ const beginTurn = (state: MatchState) => {
     player.energy = 0;
     normalizeEnergyCardState(player, state.turn);
     player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0;
-    player.playedCardCostsThisTurn = []; player.playedCardTypesThisTurn = []; player.factionsPlayedThisTurn = [];
+    player.playedCardCostsThisTurn = []; player.playedCardTypesThisTurn = []; player.factionsPlayedThisTurn = []; player.discardedCardIdsThisTurn = [];
   }
   const now = Date.now();
   const drawCounts = turnDrawCounts(state);
@@ -2894,6 +2901,33 @@ case "swap-bakucore": {
         }
         return;
       }
+      if (action.target === "discarded-action-this-turn") {
+      const selectedId = choices.targetCardId;
+      if (typeof selectedId !== "string") return;
+      const owner = state.players.find((candidate) => (
+        (candidate.discardedCardIdsThisTurn ?? []).includes(selectedId)
+        && candidate.discard.some((discarded) => discarded.id === selectedId && discarded.type === "Action")
+      ));
+      const selected = owner?.discard.find((discarded) => discarded.id === selectedId && discarded.type === "Action");
+      if (!owner || !selected) return;
+      const definition = ruleDefinitionForCard(selected);
+      const ability = definition.abilities.find((candidate) => candidate.kind === "spell") ?? definition.abilities[0];
+      if (!ability) return;
+      for (const copyControllerId of copyControllers) {
+        for (let copyIndex = 0; copyIndex < count; copyIndex += 1) {
+          state.batch.push(createRuleObject({
+            controllerId: copyControllerId,
+            cardOwnerId: owner.id,
+            card: selected,
+            ability,
+            choices: {},
+            kind: "copy",
+            sourceId: selected.id,
+          }));
+        }
+      }
+      return;
+    }
       if (action.target === "revealed-action") {
         const ownerId = zoneOwnerIdsFor(state, action.sourceOwner ?? "controller", { controllerId, choices })[0] ?? controllerId;
         const owner = playerById(state, ownerId);
@@ -3454,15 +3488,18 @@ export const flipStopsDamage = (state: MatchState, card: GameCard) => {
   if (/\[Stop\] an attack/i.test(text)) return true;
   const attackingBakugan = state.players.flatMap((player) => player.bakugan)
     .find((bakugan) => bakugan.id === state.damageOrigin);
-  const faction = state.damageFaction ?? attackingBakugan?.faction;
+  const factions = attackingBakugan
+    ? effectiveBakuganFactions(attackingBakugan)
+    : state.damageFaction ? [state.damageFaction] : [];
   // Legacy and hand-built snapshots may omit the attack source. Normal games
   // always carry it; preserve those snapshots rather than rejecting every Flip.
-  if (!faction) return true;
+  if (!factions.length) return true;
   const non = text.match(/\[Stop\] non-\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/i);
-  if (non) return faction !== non[1];
+  if (non) return !factions.includes(non[1] as Faction);
   const listed = [...text.matchAll(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/gi)]
-    .map((match) => match[1]);
-  return /\[Stop\]/i.test(text) && listed.includes(faction);
+    .map((match) => match[1] as Faction);
+  return /\[Stop\]/i.test(text) && listed.some((faction) => factions.includes(faction));
+
 };
 
 export function revealedFlipCanBePlayed(

@@ -128,6 +128,7 @@ export function conditionFor(text: string): RuleCondition {
   if (playedCost) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "property", subject: { kind: "player", owner: "controller" }, property: "maximum-played-card-cost" }, operator: ">=", right: numberValue(playedCost[1], 1) } };
   const requiredCards = controlledCardNames(text);
   if (requiredCards.length) return { kind: "controls-named-cards", names: requiredCards };
+  if (/\bif this is your only open Bakugan\b/i.test(text)) return { kind: "source-only-open-bakugan" };
   const openBakuganCount = text.match(
     /\bif you\s+(only have|have only|have exactly|have at least|have at most|have more than|have fewer than|have)\s+(no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)(\s+or more)?\s+open Bakugan\b/i,
   );
@@ -582,7 +583,8 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   if (/copy the next action/i.test(text)) actions.push({ kind: "copy", target: "next-action", independentChoices: true, count: { kind: "constant", value: 1 }, controller: "controller" });
   if (/copy the first Action card you play each turn/i.test(text)) actions.push({ kind: "copy", target: "played-action", independentChoices: true, count: 1, controller: "controller" });
   if (/Action card is revealed this way, you may copy its effect/i.test(text)) actions.push({ kind: "copy", target: "revealed-action", independentChoices: true, count: 1, controller: "controller", sourceOwner: "opponent" });
-  if (/copy the effect of an Action card|copy an? Action card(?:'s|’s) effect/i.test(text)) actions.push({ kind: "copy", target: "batch-action", independentChoices: true, targetChoiceId: "targetEffectId", count: { kind: "constant", value: 1 }, controller: "controller" });
+  if (/copy the effect of an Action card that was discarded this turn/i.test(text)) actions.push({ kind: "copy", target: "discarded-action-this-turn", independentChoices: true, targetChoiceId: "targetCardId", count: { kind: "constant", value: 1 }, controller: "controller" });
+  else if (/copy the effect of an Action card|copy an? Action card(?:'s|’s) effect/i.test(text)) actions.push({ kind: "copy", target: "batch-action", independentChoices: true, targetChoiceId: "targetEffectId", count: { kind: "constant", value: 1 }, controller: "controller" });
 
   const nextCardReduction = text.match(/next card you play(?: this turn)? costs? (\d+) \[Energy\] less/i);
   if (nextCardReduction) actions.push({

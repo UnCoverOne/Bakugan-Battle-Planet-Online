@@ -522,14 +522,20 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     result.push(selected);
   }
 
-  if (!negateMatch && /copy (?:the effect of )?an? Action card|copy an? Action card(?:'s|’s) effect/i.test(text)) {
-    const selected = choice("targetEffectId", targetTiming, "batch-object", "Choose an Action effect to copy");
-    selected.cardTypes = ["Action"];
-    selected.objectKinds = ["card", "copy"];
-    selected.owner = "any";
-    selected.targetOwner = selected.owner;
-    result.push(selected);
-  }
+  if (/copy the effect of an Action card that was discarded this turn/i.test(text)) {
+  const selected = choice("targetCardId", targetTiming, "discarded-card-this-turn", "Choose an Action discarded this turn");
+  selected.cardTypes = ["Action"];
+  selected.owner = "any";
+  selected.targetOwner = selected.owner;
+  result.push(selected);
+} else if (!negateMatch && /copy (?:the effect of )?an? Action card|copy an? Action card(?:'s|’s) effect/i.test(text)) {
+  const selected = choice("targetEffectId", targetTiming, "batch-object", "Choose an Action effect to copy");
+  selected.cardTypes = ["Action"];
+  selected.objectKinds = ["card", "copy"];
+  selected.owner = "any";
+  selected.targetOwner = selected.owner;
+  result.push(selected);
+}
 
   if (cardId === "aa-50") {
     const enemy = choice("targetBakuganId", "announce", "chosen-bakugan", "Choose the enemy Bakugan");

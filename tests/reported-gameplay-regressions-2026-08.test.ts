@@ -6,6 +6,7 @@ import {
   completeCoinFlip,
   createMatch,
   emitGameEvent,
+  flipStopsDamage,
   passPriority,
   playCard,
   resolveStructuredEffect,
@@ -1240,4 +1241,127 @@ test("Group 10 resolves a discarded or revealed card's printed Energy cost befor
   }));
   state = submitCardChoice(state, pegatrixPlayer.id, { orderedCardIds: [revealed.id] });
   assert.equal(state.damageBoost[state.players[0].bakugan[0].id], 6);
+});
+
+test("AA-84 Hyper Pyravian Ultra grants FrostStrike only while it is the controller's sole open Bakugan", () => {
+  const player = makePlayer("pyravian", "Pyravian", STARTER_DECKS[0]);
+  const opponent = makePlayer("pyravian-opponent", "Opponent", STARTER_DECKS[1]);
+  const state = createMatch("PYRAVIAN-ONLY-OPEN", "bo1", [player, opponent]);
+  const livePlayer = state.players.find((candidate) => candidate.id === player.id)!;
+  const source = livePlayer.bakugan[0];
+  const other = livePlayer.bakugan[1];
+  const evo = card("aa-84", "aa-84-regression");
+  source.evoStack = [evo];
+  source.open = true;
+  other.open = false;
+
+  const instruction = compileCardEffect(evo).instructions.find((candidate) => /only open Bakugan/i.test(candidate.sourceText));
+  assert.ok(instruction);
+  assert.deepEqual(instruction.condition, { kind: "source-only-open-bakugan" });
+  assert.equal(evaluateBakuganCharacteristics(state, source, livePlayer).frostStrike, 3);
+
+  other.open = true;
+  assert.equal(evaluateBakuganCharacteristics(state, source, livePlayer).frostStrike, 0);
+
+  source.open = false;
+  other.open = true;
+  assert.equal(evaluateBakuganCharacteristics(state, source, livePlayer).frostStrike, 0);
+});
+
+test("AA-19 Nova Burst selects and copies only an Action actually discarded this turn", () => {
+  const player = makePlayer("nova", "Nova", STARTER_DECKS[0]);
+  const opponent = makePlayer("nova-opponent", "Opponent", STARTER_DECKS[1]);
+  const nova = card("aa-19", "aa-19-regression");
+  const eligible = card("aa-19", "nova-eligible-action");
+  const stale = card("aa-19", "nova-stale-action");
+  player.hand = [nova];
+  player.discard = [eligible, stale];
+  player.discardedCardIdsThisTurn = [eligible.id];
+  addUntappedEnergy(player, 3);
+
+  let state = createMatch("NOVA-BURST-DISCARD", "bo1", [player, opponent]);
+  const livePlayer = state.players.find((candidate) => candidate.id === player.id)!;
+  const liveOpponent = state.players.find((candidate) => candidate.id === opponent.id)!;
+  livePlayer.hand = [nova];
+  livePlayer.discard = [eligible, stale];
+  livePlayer.discardedCardIdsThisTurn = [eligible.id];
+  addUntappedEnergy(livePlayer, 3);
+  state.turn = 2;
+  state.phase = "power";
+  state.stepLabel = "Brawl Phase • Power Step";
+  state.startingPlayer = livePlayer.id;
+  state.initialStartingPlayer = livePlayer.id;
+  state.priority = livePlayer.id;
+  livePlayer.bakugan[0].open = true;
+  liveOpponent.bakugan[0].open = true;
+  state.selected[livePlayer.id] = livePlayer.bakugan[0].id;
+  state.selected[liveOpponent.id] = liveOpponent.bakugan[0].id;
+  state.rolls[livePlayer.id] = successfulRoll(livePlayer.id, livePlayer.bakugan[0].id);
+  state.rolls[liveOpponent.id] = successfulRoll(liveOpponent.id, liveOpponent.bakugan[0].id);
+
+  const definition = ruleDefinitionForCard(nova);
+  const targetChoice = definition.play.choices.find((choice) => choice.id === "targetCardId");
+  assert.equal(targetChoice?.selector, "discarded-card-this-turn");
+  assert.equal(targetChoice?.timing, "announce");
+  const copyAction = definition.abilities.flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.effects)
+    .find((action) => action.kind === "copy");
+  assert.equal(copyAction?.kind === "copy" ? copyAction.target : undefined, "discarded-action-this-turn");
+
+  state = playCard(state, livePlayer.id, nova.id, { targetCardId: eligible.id });
+  state = resolveTopBatchObject(state);
+  assert.ok(state.batch.some((object) => object.kind === "copy" && object.card.id === eligible.id));
+
+  const illegalState = structuredClone(state);
+  illegalState.batch = [];
+  const spell = definition.abilities.find((ability) => ability.kind === "spell")!;
+  illegalState.batch = [createRuleObject({
+    controllerId: livePlayer.id,
+    card: nova,
+    ability: spell,
+    choices: { targetCardId: stale.id },
+    kind: "card",
+    sourceId: nova.id,
+  })];
+  illegalState.priority = livePlayer.id;
+  const afterIllegal = resolveTopBatchObject(illegalState);
+  assert.equal(afterIllegal.batch.some((object) => object.kind === "copy" && object.card.id === stale.id), false);
+});
+
+test("BR-104 Titan Dragonoid Ultra counts as every faction for faction and non-faction Stops", () => {
+  const attacker = makePlayer("titan-attacker", "Attacker", STARTER_DECKS[0]);
+  const defender = makePlayer("titan-defender", "Defender", STARTER_DECKS[1]);
+  const state = createMatch("TITAN-STOP-FACTIONS", "bo1", [attacker, defender]);
+  const liveAttacker = state.players.find((candidate) => candidate.id === attacker.id)!;
+  const liveDefender = state.players.find((candidate) => candidate.id === defender.id)!;
+  const titan = card("br-104", "br-104-regression");
+  const attacking = liveAttacker.bakugan[0];
+  attacking.evoStack = [titan];
+  attacking.open = true;
+  state.phase = "damage";
+  state.pendingLoser = liveDefender.id;
+  state.pendingDamage = 5;
+  state.damageOrigin = attacking.id;
+  state.damageFaction = "Aurelus";
+
+  for (const faction of ["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"] as const) {
+    const positive = {
+      ...card("bb-140", `positive-stop-${faction}`),
+      effect: `[Stop] [${faction}].`,
+    };
+    assert.equal(flipStopsDamage(state, positive), true, `${faction} Stop should match Titan Dragonoid Ultra`);
+
+    const negative = {
+      ...card("bb-140", `negative-stop-${faction}`),
+      effect: `[Stop] non-[${faction}].`,
+    };
+    assert.equal(flipStopsDamage(state, negative), false, `non-${faction} Stop should not match Titan Dragonoid Ultra`);
+  }
+
+  state.damageOrigin = "card-generated-attack";
+  state.damageFaction = "Pyrus";
+  const pyrusStop = { ...card("bb-140", "pyrus-card-attack-stop"), effect: "[Stop] [Pyrus]." };
+  const aquosStop = { ...card("bb-140", "aquos-card-attack-stop"), effect: "[Stop] [Aquos]." };
+  assert.equal(flipStopsDamage(state, pyrusStop), true);
+  assert.equal(flipStopsDamage(state, aquosStop), false);
 });

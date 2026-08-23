@@ -220,6 +220,19 @@ function optionsFor(
           cardPreview(object.card),
         ));
     }
+    case "discarded-card-this-turn":
+    return targetOwners(match, controllerId, spec, chooserId, priorChoices).flatMap((owner) => {
+      const discardedThisTurn = new Set(owner.discardedCardIdsThisTurn ?? []);
+      return owner.discard
+        .filter((candidate) => discardedThisTurn.has(candidate.id) && cardMatchesSpec(candidate, spec))
+        .map((candidate) => option(
+          candidate.id,
+          candidate.displayName || candidate.name,
+          owner.id,
+          `Discarded this turn • ${candidate.type} • ${candidate.cost === "X" ? "X" : candidate.cost} Energy`,
+          cardPreview(candidate),
+        ));
+    });
     case "chosen-bakugan":
     case "active-friendly":
     case "active-enemy":
@@ -354,6 +367,7 @@ function optionsFor(
 
 function kindFor(spec: ChoiceSpec): ChoiceKind {
   if (spec.selector === "batch-object") return "batch-object";
+  if (spec.selector === "discarded-card-this-turn") return "card";
   if (["chosen-bakugan", "active-friendly", "active-enemy", "all-friendly", "all-enemy"].includes(spec.selector)) return "bakugan";
   if (spec.selector === "player" || spec.selector === "controller" || spec.selector === "opponent") return "player";
   if (spec.selector === "hero") return "hero";

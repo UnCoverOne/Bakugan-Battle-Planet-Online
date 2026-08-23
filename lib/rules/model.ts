@@ -22,6 +22,7 @@ export type EntitySelector =
   | "controller"
   | "opponent"
   | "batch-object"
+  | "discarded-card-this-turn"
   | "player"
   | "chosen-card"
   | "self";
@@ -46,6 +47,7 @@ export type RuleCondition =
   | { kind: "core-count"; relationship: "more-than-opponent" | "at-least"; amount?: NumberValue }
   | { kind: "held-core-type"; coreTypes: CoreType[]; subject?: "target" | "controller-team" | "opponent-active" | "attacker" }
   | { kind: "open-bakugan-count"; comparison: "exactly" | "at-least" | "at-most" | "more-than" | "fewer-than"; amount: NumberValue }
+  | { kind: "source-only-open-bakugan" }
   | { kind: "selection-made"; choiceId: keyof CardChoices }
   | { kind: "mode-selected"; mode: string }
   | { kind: "reroll-opened" }
@@ -166,7 +168,7 @@ export type RuleAction =
   | { kind: "attack"; amount: NumberValue; faction?: Faction }
   | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: NumberValue; targetKinds?: Array<"card" | "trigger" | "copy"> }
   | { kind: "search"; cardType?: string; amount: NumberValue }
-  | { kind: "copy"; target: "next-action" | "batch-action" | "chosen-batch-object" | "played-action" | "revealed-action"; independentChoices: boolean; targetChoiceId?: keyof CardChoices; count?: NumberValue; controller?: PlayerScope; sourceOwner?: ZoneOwner }
+  | { kind: "copy"; target: "next-action" | "batch-action" | "chosen-batch-object" | "played-action" | "revealed-action" | "discarded-action-this-turn"; independentChoices: boolean; targetChoiceId?: keyof CardChoices; count?: NumberValue; controller?: PlayerScope; sourceOwner?: ZoneOwner }
   | { kind: "cost"; amount: NumberValue; operation: "reduce" | "increase" | "free"; duration: RulesDuration; cardType?: CardType; playerScope?: PlayerScope }
   | { kind: "reroll"; target: "controller" | "opponent"; mandatory: boolean; requiresDiscard: boolean }
   | { kind: "coin-flip" }

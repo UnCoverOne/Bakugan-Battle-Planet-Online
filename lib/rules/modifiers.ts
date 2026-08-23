@@ -139,6 +139,7 @@ export function ruleConditionActive(
       }
       return hasRequiredCore(bakugan);
     }
+    case "source-only-open-bakugan": return Boolean(bakugan?.open && player.bakugan.filter((candidate) => candidate.open).length === 1);
     case "open-bakugan-count": {
       const open = player.bakugan.filter((bakugan) => bakugan.open).length;
       if (condition.comparison === "exactly") return open === conditionValue(condition.amount);
