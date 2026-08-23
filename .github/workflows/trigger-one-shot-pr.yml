@@ -31,6 +31,10 @@ jobs:
           end = workflow.index("\n          PY", start)
           script = workflow[start:end]
           script = "\n".join(line[10:] if line.startswith("          ") else line for line in script.splitlines())
+          script = script.replace(
+              "replace_once('lib/rules/catalogue-structure.ts', old_copy_choice, new_copy_choice)",
+              "text = read('lib/rules/catalogue-structure.ts')\nstart_choice = text.index('  if (!negateMatch && /copy ')\nend_choice = text.index('\\n  }\\n', start_choice) + len('\\n  }\\n')\nwrite('lib/rules/catalogue-structure.ts', text[:start_choice] + new_copy_choice + text[end_choice:])",
+          )
           exec(compile(script, 'embedded-card-fix.py', 'exec'))
           PY
       - name: Install dependencies
