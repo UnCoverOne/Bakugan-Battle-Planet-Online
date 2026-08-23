@@ -45,6 +45,10 @@ jobs:
           )
           script = script.replace('const eligible = card("bb-2", "nova-eligible-action");', 'const eligible = card("bb-1", "nova-eligible-action");')
           script = script.replace('const stale = card("bb-3", "nova-stale-action");', 'const stale = card("bb-1", "nova-stale-action");')
+          script = script.replace(
+              'state = playCard(state, livePlayer.id, nova.id);\n            const field = state.pendingChoice?.schema.fields.find((candidate) => candidate.id === "targetCardId");\n            assert.deepEqual(field?.options.map((option) => option.id), [eligible.id]);\n            state = submitCardChoice(state, livePlayer.id, { targetCardId: eligible.id });',
+              'state = playCard(state, livePlayer.id, nova.id, { targetCardId: eligible.id });',
+          )
           exec(compile(script, 'embedded-card-fix.py', 'exec'))
           PY
       - name: Install dependencies
