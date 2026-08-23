@@ -25,6 +25,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           workflow = Path('.github/workflows/one-shot-card-fixes.yml').read_text()
           marker = "          python3 - <<'PY'\n"
           start = workflow.index(marker) + len(marker)
@@ -43,12 +44,20 @@ jobs:
               "replace_once('lib/game.ts', old_stop, new_stop)",
               "text = read('lib/game.ts')\nstop_start = text.index('  const faction = state.damageFaction ?? attackingBakugan?.faction;')\nstop_end = text.index('\\n};', stop_start)\nwrite('lib/game.ts', text[:stop_start] + new_stop + text[stop_end:])",
           )
-          script = script.replace('const eligible = card("bb-2", "nova-eligible-action");', 'const eligible = card("bb-1", "nova-eligible-action");')
-          script = script.replace('const stale = card("bb-3", "nova-stale-action");', 'const stale = card("bb-1", "nova-stale-action");')
-          script = script.replace(
-              'state = playCard(state, livePlayer.id, nova.id);\n            const field = state.pendingChoice?.schema.fields.find((candidate) => candidate.id === "targetCardId");\n            assert.deepEqual(field?.options.map((option) => option.id), [eligible.id]);\n            state = submitCardChoice(state, livePlayer.id, { targetCardId: eligible.id });',
+          script = script.replace('const eligible = card("bb-2", "nova-eligible-action");', 'const eligible = card("aa-19", "nova-eligible-action");')
+          script = script.replace('const stale = card("bb-3", "nova-stale-action");', 'const stale = card("aa-19", "nova-stale-action");')
+          script = script.replace('const eligible = card("bb-1", "nova-eligible-action");', 'const eligible = card("aa-19", "nova-eligible-action");')
+          script = script.replace('const stale = card("bb-1", "nova-stale-action");', 'const stale = card("aa-19", "nova-stale-action");')
+          play_pattern = r'state = playCard\(state, livePlayer\.id, nova\.id\);\n.*?state = submitCardChoice\(state, livePlayer\.id, \{ targetCardId: eligible\.id \}\);'
+          script, replacements = re.subn(
+              play_pattern,
               'state = playCard(state, livePlayer.id, nova.id, { targetCardId: eligible.id });',
+              script,
+              count=1,
+              flags=re.S,
           )
+          if replacements != 1:
+              raise SystemExit(f'Nova Burst regression play-flow rewrite matched {replacements} times')
           exec(compile(script, 'embedded-card-fix.py', 'exec'))
           PY
       - name: Install dependencies
