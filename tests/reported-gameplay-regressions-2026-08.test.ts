@@ -819,3 +819,65 @@ test("Darkus Hyper Nillious repeats only inside its Victor trigger and requires 
   assert.equal(resolving.pendingChoice, undefined);
   assert.equal(resolving.batch.some((effect) => effect.id === pending.id), false);
 });
+
+test("Flip-discard Victor abilities offer only Flips and require successful payment", () => {
+  const beginVictor = (catalogId: string, suffix: string, includeFlip = true) => {
+    const player = makePlayer(`flip-cost-player-${suffix}`, "Flip Cost Player", STARTER_DECKS[0]);
+    const opponent = makePlayer(`flip-cost-opponent-${suffix}`, "Opponent", STARTER_DECKS[1]);
+    const state = createMatch(`FLIPCOST-${suffix}`, "bo1", [player, opponent]);
+    const live = state.players.find((candidate) => candidate.id === player.id)!;
+    const source = card(catalogId, `flip-cost-source-${suffix}`);
+    const flipTemplate = CARDS.find((candidate) => candidate.type === "Flip")!;
+    const flip = { ...flipTemplate, id: `legal-flip-${suffix}` };
+    const action = card("bb-10", `illegal-action-${suffix}`);
+    live.hand = includeFlip ? [flip, action] : [action];
+    live.bakugan[0].open = true;
+    live.bakugan[0].evoStack = [source];
+    state.selected[live.id] = live.bakugan[0].id;
+    state.brawlWinner = live.id;
+    state.phase = "victor";
+    state.priority = live.id;
+    const ability = ruleDefinitionForCard(source).abilities.find((candidate) => (
+      candidate.kind === "triggered" && candidate.trigger?.event === "VICTOR_DECLARED"
+    ));
+    assert.ok(ability);
+    const pending = createRuleObject({
+      controllerId: live.id,
+      card: source,
+      ability,
+      kind: "trigger",
+      sourceId: source.id,
+      choices: { sourceBakuganId: live.bakugan[0].id },
+    });
+    return {
+      state: resolveStructuredEffect(state, pending),
+      playerId: live.id,
+      bakuganId: live.bakugan[0].id,
+      pendingId: pending.id,
+      flip,
+      action,
+    };
+  };
+
+  for (const [catalogId, amount] of [["br-112", 4], ["aa-111", 5]] as const) {
+    const paying = beginVictor(catalogId, `${catalogId}-pay`);
+    const field = paying.state.pendingChoice?.schema.fields.find((candidate) => candidate.id === "discardCardIds");
+    assert.deepEqual(field?.options.map((option) => option.id), [paying.flip.id]);
+    let resolved = submitCardChoice(paying.state, paying.playerId, { discardCardIds: [paying.flip.id] });
+    const after = resolved.players.find((candidate) => candidate.id === paying.playerId)!;
+    assert.equal(after.hand.some((candidate) => candidate.id === paying.flip.id), false);
+    assert.equal(after.discard.some((candidate) => candidate.id === paying.flip.id), true);
+    assert.equal(after.hand.some((candidate) => candidate.id === paying.action.id), true);
+    assert.equal(resolved.damageBoost[paying.bakuganId], amount);
+
+    const declining = beginVictor(catalogId, `${catalogId}-decline`);
+    resolved = submitCardChoice(declining.state, declining.playerId, { discardCardIds: [] });
+    assert.equal(resolved.damageBoost[declining.bakuganId] ?? 0, 0);
+    assert.equal(resolved.players.find((candidate) => candidate.id === declining.playerId)?.hand.length, 2);
+  }
+
+  const unavailable = beginVictor("aa-111", "aa-111-no-flip", false);
+  assert.equal(unavailable.state.pendingChoice, undefined);
+  assert.equal(unavailable.state.damageBoost[unavailable.bakuganId] ?? 0, 0);
+  assert.equal(unavailable.state.batch.some((effect) => effect.id === unavailable.pendingId), false);
+});

@@ -2920,6 +2920,10 @@ function stageResolutionInstructionChoice(
     ? schema.fields.find((field) => field.id === stopWhenEmpty)
     : undefined;
   if (repeatField && repeatField.options.length === 0) return "skip";
+  const selectionField = instruction.condition.kind === "selection-made"
+    ? schema.fields.find((field) => field.id === instruction.condition.choiceId)
+    : undefined;
+  if (selectionField && selectionField.options.length === 0) return "skip";
   if (!schemaHasLegalCompletion(schema)) {
     entry(state, "game", `${pending.card.name}: the clause had no legal choice and did nothing.`);
     return "skip";

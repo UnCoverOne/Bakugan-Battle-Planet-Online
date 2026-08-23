@@ -282,7 +282,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       playerScope: drawScope,
     });
   }
-  const discard = text.match(/discard (a|an|one|two|three|any|up to|\d+) cards?/i);
+  const discard = text.match(/discard (a|an|one|two|three|any|up to|\d+)(?:\s+(?:Action|Evo|Flip|Hero|Character))?\s+cards?/i);
   const delayedVictorDiscard = /if you open on the Reroll/i.test(text) && /\bVictor\s*:/i.test(text);
   const discardPaysPlayCost = /\bdiscard\s+(?:a|an|one|two|three|\d+)\s+cards?\s+to play this for free\b/i.test(text);
   if (discard && !delayedVictorDiscard && !discardPaysPlayCost) {

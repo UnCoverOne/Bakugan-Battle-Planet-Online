@@ -156,6 +156,40 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     };
   });
 
+  // Bind “If you do” to the optional discard that immediately precedes it.
+  // This keeps payment and payoff in one instruction, so the benefit cannot
+  // resolve when the player declines or has no legal card to discard.
+  for (let index = 0; index < instructions.length - 1; index += 1) {
+    const payment = instructions[index];
+    const payoff = instructions[index + 1];
+    const discard = payment.effects.find((effect) => effect.kind === "discard");
+    if (!discard || !/\bmay discard\b/i.test(payment.sourceText) || !/^If you do\b/i.test(payoff.sourceText)) continue;
+    const triggers = payment.effects.filter((effect) => effect.kind === "trigger");
+    const effects = [
+      discard,
+      ...payment.effects.filter((effect) => effect !== discard && effect.kind !== "trigger"),
+      ...payoff.effects,
+      ...triggers,
+    ];
+    instructions.splice(index, 2, {
+      ...payment,
+      condition: { kind: "selection-made", choiceId: "discardCardIds" },
+      effects,
+      actions: effects,
+      sourceText: `${payment.sourceText} ${payoff.sourceText}`.trim(),
+    });
+  }
+
+  // Optional discard-for-benefit clauses pay before applying their payoff.
+  // The selection-made condition then guarantees that declining is a no-op.
+  for (const instruction of instructions) {
+    if (instruction.condition.kind !== "selection-made") continue;
+    const discard = instruction.effects.find((effect) => effect.kind === "discard");
+    if (!discard || instruction.effects[0] === discard) continue;
+    instruction.effects = [discard, ...instruction.effects.filter((effect) => effect !== discard)];
+    instruction.actions = instruction.effects;
+  }
+
   // “Use this any number of times” repeats the immediately preceding paid
   // clause, not the whole card. Keep the payment and benefit together so each
   // iteration obtains a fresh legal hand selection and resolves independently.
@@ -458,7 +492,7 @@ if (swapsBakucore) {
     selected.maximum = 99;
     result.push(selected);
   }
-  if (/\bsacrifice\b|\bdiscard\s+(?:a|an|one|two|three|any|up to|\d+)\s+cards?\b|\bdiscard\s+cards?\s+from your hand\b/i.test(text)
+  if (/\bsacrifice\b|\bdiscard\s+(?:a|an|one|two|three|any|up to|\d+)(?:\s+(?:Action|Evo|Flip|Hero|Character))?\s+cards?\b|\bdiscard\s+cards?\s+from your hand\b/i.test(text)
     && !discardPaysPlayCost
     && !/choose a player to discard/i.test(text)
     && !(/if you open on the Reroll/i.test(text) && /\bVictor\s*:/i.test(text))) {
@@ -477,7 +511,12 @@ if (swapsBakucore) {
     );
     selected.owner = eachPlayerChooses ? "chooser" : opponentOwnsZone ? "opponent" : "controller";
     selected.targetOwner = selected.owner;
-    const printedAmount = text.match(/discard (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?/i)?.[1];
+    const typedDiscard = text.match(/discard (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(Action|Evo|Flip|Hero|Character)\s+cards?/i);
+    if (typedDiscard) {
+      const normalizedType = `${typedDiscard[1][0].toUpperCase()}${typedDiscard[1].slice(1).toLowerCase()}` as GameCard["type"];
+      selected.cardTypes = [normalizedType];
+    }
+    const printedAmount = text.match(/discard (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)(?:\s+(?:Action|Evo|Flip|Hero|Character))?\s+cards?/i)?.[1];
     const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
     const amount = printedAmount ? words[printedAmount.toLowerCase()] ?? Number(printedAmount) : 1;
     selected.minimum = optional ? 0 : amount;

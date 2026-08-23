@@ -207,3 +207,29 @@ test("repeatable discard-for-bonus cards compile as one paid loop", () => {
   assert.equal(victor?.trigger?.event, "VICTOR_DECLARED");
   assert.equal(victor?.instructions.some((instruction) => instruction.repeatWhileSelected === "discardCardIds"), true);
 });
+
+test("Flip-discard Victor abilities compile restricted payment before payoff", () => {
+  for (const [catalogId, amount] of [["br-112", 4], ["aa-111", 5]] as const) {
+    const card = CARDS.find((candidate) => candidate.catalogId === catalogId);
+    assert.ok(card, `Missing ${catalogId}`);
+    const ability = ruleDefinitionForCard(card).abilities.find((candidate) => (
+      candidate.kind === "triggered" && candidate.trigger?.event === "VICTOR_DECLARED"
+    ));
+    assert.ok(ability, `${catalogId} should remain a Victor trigger`);
+    assert.equal(ability.instructions.length, 1, `${catalogId} should bind payment and payoff`);
+    const instruction = ability.instructions[0];
+    assert.deepEqual(instruction.condition, { kind: "selection-made", choiceId: "discardCardIds" });
+    assert.equal(instruction.actions[0]?.kind, "discard");
+    assert.ok(instruction.actions.some((action) => (
+      action.kind === "modify-stat" && action.stat === "damage" && action.amount === amount
+    )));
+    assert.ok(instruction.choices.some((choice) => (
+      choice.id === "discardCardIds"
+      && choice.optional
+      && choice.owner === "controller"
+      && choice.maximum === 1
+      && choice.cardTypes?.length === 1
+      && choice.cardTypes[0] === "Flip"
+    )));
+  }
+});
