@@ -83,3 +83,17 @@ export function playerScopeForText(text: string): PlayerScope {
   if (/\b(?:your )?opponent\b|\bopposing player\b/i.test(text)) return "opponent";
   return "controller";
 }
+
+/**
+ * Resolve the recipient of a draw independently from actors mentioned by a
+ * trigger or condition. For example, in “When an opponent plays ..., you may
+ * draw”, the opponent is the trigger actor rather than the draw recipient.
+ */
+export function drawPlayerScopeForText(text: string): PlayerScope {
+  if (/\beach player\b/i.test(text)) return "each-player";
+  if (/\ball players\b|\bboth players\b/i.test(text)) return "all-players";
+  if (/\b(?:(?:your )?opponent|opposing player)\s+(?:may\s+|must\s+|can\s+|will\s+)?draws?\b/i.test(text)) {
+    return "opponent";
+  }
+  return "controller";
+}

@@ -946,3 +946,46 @@ test("Cyndeous Victor discard abilities make the opponent choose from their own 
   assert.equal(empty.state.pendingChoice, undefined);
   assert.equal(empty.state.batch.some((effect) => effect.id === empty.pendingId), false);
 });
+
+test("opponent Flip triggers draw for Bill Kouzo and Titan Trunkanious Ultra's controller", () => {
+  const setup = (catalogId: "bb-206" | "aa-159") => {
+    const player = makePlayer(`${catalogId}-controller`, "Draw Controller", STARTER_DECKS[0]);
+    const opponent = makePlayer(`${catalogId}-opponent`, "Flip Player", STARTER_DECKS[1]);
+    const state = createMatch(`OPPONENTFLIPDRAW-${catalogId}`, "bo1", [player, opponent]);
+    const live = state.players.find((candidate) => candidate.id === player.id)!;
+    const rival = state.players.find((candidate) => candidate.id === opponent.id)!;
+    const source = card(catalogId, `${catalogId}-source`);
+    const flip = { ...CARDS.find((candidate) => candidate.type === "Flip")!, id: `${catalogId}-played-flip` };
+    if (source.type === "Hero") live.heroes = [source];
+    else {
+      live.bakugan[0].open = true;
+      live.bakugan[0].evoStack = [source];
+      state.selected[live.id] = live.bakugan[0].id;
+      state.brawlWinner = live.id;
+    }
+    const created = emitRuleEvent(state, {
+      id: `${catalogId}-opponent-flip-event`,
+      name: "CARD_PLAYED",
+      actorId: rival.id,
+      controllerId: rival.id,
+      card: flip,
+      cardType: "Flip",
+      createdAt: Date.now(),
+    });
+    assert.equal(created.length, 1);
+    return { state, controllerId: live.id, opponentId: rival.id, pending: created[0] };
+  };
+
+  const bill = setup("bb-206");
+  let resolving = resolveStructuredEffect(bill.state, bill.pending);
+  assert.equal(resolving.pendingChoice?.controllerId, bill.controllerId);
+  assert.ok(resolving.pendingChoice?.schema.fields.some((field) => field.id === "confirmed"));
+  resolving = submitCardChoice(resolving, bill.controllerId, { confirmed: true });
+  assert.equal(activePendingDraw(resolving)?.playerId, bill.controllerId);
+  assert.notEqual(activePendingDraw(resolving)?.playerId, bill.opponentId);
+
+  const titan = setup("aa-159");
+  resolving = resolveStructuredEffect(titan.state, titan.pending);
+  assert.equal(activePendingDraw(resolving)?.playerId, titan.controllerId);
+  assert.notEqual(activePendingDraw(resolving)?.playerId, titan.opponentId);
+});

@@ -1,6 +1,6 @@
 import type { CardType, CoreType, Faction, GameCard } from "../game";
 import type { RuleAction, RuleCondition, RulesCardId, RulesDuration, TriggerDefinition, TriggerEventName } from "./model";
-import { playerScopeForText } from "./primitives";
+import { drawPlayerScopeForText, playerScopeForText } from "./primitives";
 import type { NumberValue } from "./values";
 
 const NUMBER_WORDS: Record<string, number> = {
@@ -162,7 +162,10 @@ function triggerFor(text: string): TriggerDefinition | undefined {
   ];
   for (const [pattern, event, relationship, source] of table) {
     if (!pattern.test(text)) continue;
-    const cardType = text.match(/plays? an? (Action|Hero|Evo|Flip)/i)?.[1] as CardType | undefined;
+    const printedCardType = text.match(/plays? an? (Action|Hero|Evo|Flip)/i)?.[1];
+    const cardType = printedCardType
+      ? `${printedCardType[0].toUpperCase()}${printedCardType.slice(1).toLowerCase()}` as CardType
+      : undefined;
     return {
       event,
       relationship,
@@ -259,7 +262,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   if (/\bflip a coin\b/i.test(text)) actions.push({ kind: "coin-flip" });
   if (/\[Stop\]|\bstop the attack\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "Stop", duration });
 
-  const drawScope = playerScopeForText(text);
+  const drawScope = drawPlayerScopeForText(text);
   const drawThatMany = /\bdraws?\s+that many(?:\s+cards?)?\b/i.test(text);
   const draw = text.match(/draws? (a|an|one|two|three|four|five|six|seven|eight|nine|ten|x|\d+) cards?/i);
   if (drawThatMany) {

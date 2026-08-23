@@ -43,6 +43,21 @@ test("zone ownership can follow the chooser or a separately chosen player", () =
   assert.deepEqual(zoneOwnerIdsFor(state, "opponent", { controllerId: "first" }), ["second", "third"]);
 });
 
+test("opponent card-play triggers do not change the recipient of controller draws", () => {
+  for (const catalogId of ["bb-206", "aa-159"]) {
+    const source = CARDS.find((card) => card.catalogId === catalogId);
+    assert.ok(source);
+    const ability = ruleDefinitionForCard(source).abilities.find((candidate) => candidate.kind === "triggered");
+    assert.equal(ability?.trigger?.event, "CARD_PLAYED");
+    assert.equal(ability?.trigger?.relationship, "opponent");
+    assert.equal(ability?.trigger?.cardType, "Flip");
+    const draws = ability.instructions
+      .flatMap((instruction) => instruction.effects)
+      .filter((effect) => effect.kind === "draw");
+    assert.deepEqual(draws, [{ kind: "draw", amount: 1, playerScope: "controller" }]);
+  }
+});
+
 test("dynamic number expressions evaluate typed counts and arithmetic", () => {
   const state = stateWithPlayers();
   state.players[0].heroes = [instance(CARDS.find((card) => card.type === "Hero")!, "hero-a"), instance(CARDS.find((card) => card.type === "Hero")!, "hero-b")];
