@@ -642,6 +642,15 @@
   text-shadow: none;
 }
 
+.energyZone .zoneCount {
+  width: auto;
+  min-width: clamp(2.2rem, 3.4vw, 3.6rem);
+  min-height: clamp(1.3rem, 2.15vw, 2rem);
+  aspect-ratio: auto;
+  padding-inline: clamp(0.25rem, 0.45vw, 0.48rem);
+  border-radius: 999px;
+}
+
 .characterCardImage,
 .heroCardImage,
 .deckBackStack,
