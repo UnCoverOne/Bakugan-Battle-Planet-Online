@@ -72,6 +72,87 @@ function resolveTopBatchObject(state: MatchState) {
   return passPriority(state, state.priority);
 }
 
+function cyclingPowerState(catalogId: string) {
+  const controller = makePlayer(`cycling-${catalogId}-controller`, "Cycling Controller", STARTER_DECKS[0]);
+  const opponent = makePlayer(`cycling-${catalogId}-opponent`, "Cycling Opponent", STARTER_DECKS[1]);
+  const cycling = card(catalogId, `cycling-${catalogId}-instance`);
+  const state = createMatch(`CYCLING-${catalogId}`, "bo1", [controller, opponent]);
+  const liveController = state.players.find((player) => player.id === controller.id)!;
+  const liveOpponent = state.players.find((player) => player.id === opponent.id)!;
+  liveController.hand = [cycling];
+  liveController.energy = 10;
+  state.turn = 2;
+  state.phase = "power";
+  state.stepLabel = "Brawl Phase • Power Step";
+  state.startingPlayer = liveController.id;
+  state.initialStartingPlayer = liveController.id;
+  state.priority = liveController.id;
+  state.selected[liveController.id] = liveController.bakugan[0].id;
+  state.selected[liveOpponent.id] = liveOpponent.bakugan[0].id;
+  liveController.bakugan[0].open = true;
+  liveOpponent.bakugan[0].open = true;
+  state.rolls[liveController.id] = successfulRoll(liveController.id, liveController.bakugan[0].id);
+  state.rolls[liveOpponent.id] = successfulRoll(liveOpponent.id, liveOpponent.bakugan[0].id);
+  return { state, controllerId: liveController.id, opponentId: liveOpponent.id, cycling };
+}
+
+test("Cycling stat Actions resolve their primary effect and return to the owner deck bottom", () => {
+  for (const [catalogId, stat, amount] of [
+    ["bb-64", "power", 200],
+    ["bb-85", "damage", 2],
+    ["bb-113", "damage", -8],
+  ] as const) {
+    const setup = cyclingPowerState(catalogId);
+    const targetId = setup.state.selected[catalogId === "bb-113" ? setup.opponentId : setup.controllerId];
+    let state = playCard(setup.state, setup.controllerId, setup.cycling.id);
+    state = resolveTopBatchObject(state);
+    const owner = state.players.find((player) => player.id === setup.controllerId)!;
+    assert.equal(owner.deckCards.at(-1)?.id, setup.cycling.id, `${catalogId} should be the bottom card`);
+    assert.equal(owner.discard.some((card) => card.id === setup.cycling.id), false);
+    assert.equal(stat === "power" ? state.powerBoost[targetId] : state.damageBoost[targetId], amount);
+    assert.ok(state.log.some((entry) => entry.message.includes("returned to the bottom")));
+  }
+});
+
+test("Cycling Thoughts finishes its queued draws before returning to the owner deck bottom", () => {
+  const setup = cyclingPowerState("bb-5");
+  const handBefore = setup.state.players.find((player) => player.id === setup.controllerId)!.hand.length;
+  let state = playCard(setup.state, setup.controllerId, setup.cycling.id);
+  state = resolveTopBatchObject(state);
+  assert.equal(activePendingDraw(state)?.playerId, setup.controllerId);
+  assert.equal(activePendingDraw(state)?.remaining, 2);
+  state = drawPendingCard(state, setup.controllerId);
+  state = drawPendingCard(state, setup.controllerId);
+  const owner = state.players.find((player) => player.id === setup.controllerId)!;
+  assert.equal(activePendingDraw(state), null);
+  assert.equal(owner.hand.length, handBefore - 1 + 2);
+  assert.equal(owner.deckCards.at(-1)?.id, setup.cycling.id);
+  assert.equal(owner.discard.some((card) => card.id === setup.cycling.id), false);
+  assert.equal(state.batch.some((effect) => effect.card.id === setup.cycling.id), false);
+});
+
+test("Cycling Madness draws for its controller, makes the opponent discard, then recycles", () => {
+  const setup = cyclingPowerState("bb-33");
+  const opponentBefore = setup.state.players.find((player) => player.id === setup.opponentId)!.hand.length;
+  let state = playCard(setup.state, setup.controllerId, setup.cycling.id);
+  state = resolveTopBatchObject(state);
+  assert.equal(activePendingDraw(state)?.playerId, setup.controllerId);
+  state = drawPendingCard(state, setup.controllerId);
+
+  const discardField = state.pendingChoice?.schema.fields.find((field) => field.id === "discardCardIds");
+  assert.equal(discardField?.chooserId, setup.opponentId);
+  assert.equal(discardField?.options.every((option) => option.ownerId === setup.opponentId), true);
+  assert.ok(discardField?.options[0]);
+  state = submitCardChoice(state, setup.opponentId, { discardCardIds: [discardField.options[0].id] });
+
+  const owner = state.players.find((player) => player.id === setup.controllerId)!;
+  const opponent = state.players.find((player) => player.id === setup.opponentId)!;
+  assert.equal(opponent.hand.length, opponentBefore - 1);
+  assert.equal(owner.deckCards.at(-1)?.id, setup.cycling.id);
+  assert.equal(owner.discard.some((card) => card.id === setup.cycling.id), false);
+  assert.equal(state.batch.some((effect) => effect.card.id === setup.cycling.id), false);
+});
+
 test("AI does not play Tides after the Victor has already been declared", () => {
   const ai = makePlayer("training-bot", "Opponent", STARTER_DECKS[0]);
   const human = makePlayer("human", "Player", STARTER_DECKS[1]);

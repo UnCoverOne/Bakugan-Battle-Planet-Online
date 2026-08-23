@@ -20,7 +20,9 @@ function controllerFor(state: MatchState, controllerId: string) {
 function eventFromActions(state: MatchState, controllerId: string, event: ProposedEvent, actions: RuleAction[]) {
   let next = structuredClone(event);
   for (const action of actions) {
-    if (action.kind === "move" && action.verb === "return") next.destination = action.object === "card" ? "owner-hand" : next.destination;
+    if (action.kind === "move" && action.verb === "return") {
+      next.destination = action.object === "card" ? action.destination ?? "owner-hand" : next.destination;
+    }
     else if (action.kind === "damage-to-hand" && next.kind === "DAMAGE") next.metadata = { ...(next.metadata ?? {}), damageDestination: "hand" };
     else if (action.kind === "prevention" && action.event === next.kind) {
       const amount = action.amount == null ? next.amount ?? 0 : evaluateNumberValue(state, action.amount, {

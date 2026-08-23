@@ -88,6 +88,18 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
         if (reroll && reroll[1].trim()) {
           return [reroll[1].trim().replace(/[,;:]$/, "") + ".", reroll[2].trim()];
         }
+        // A resolving Action that moves itself to the bottom of its owner's
+        // deck must finish its earlier effects first. Treat the comma before
+        // that self-movement as the same ordering boundary as printed “then”.
+        const selfRecycle = clause.match(
+          /^(.*?),\s*((?:return|put|place)\s+this\s+(?:to|on)\s+the\s+bottom\s+of\s+(?:your|its owner['’]s)\s+deck)\.?$/i,
+        );
+        if (selfRecycle?.[1].trim() && selfRecycle[2].trim()) {
+          return [
+            `${selfRecycle[1].trim().replace(/[,;:]$/, "")}.`,
+            `Then ${selfRecycle[2].trim()}.`,
+          ];
+        }
         // A printed "then" is an ordering boundary. Keeping both halves in
         // one instruction requests all choices before either action runs,
         // which reverses effects such as "Draw two cards, then discard two
@@ -107,6 +119,21 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
           ];
         }
         return [clause];
+      })
+      // Coordinated clauses can change grammatical subject. Parsing the full
+      // sentence at once previously let “opponent” retarget an earlier “you
+      // draw” action. Split only at an explicit you/opponent handoff.
+      .flatMap((clause) => {
+        const subjectHandoff = clause.match(/^(You\s+.+?)\s+and\s+(your opponent\s+.+)$/i);
+        if (!subjectHandoff?.[1].trim() || !subjectHandoff[2].trim()) return [clause];
+        const opponentClause = subjectHandoff[2].trim().replace(
+          /^your opponent\s+discards\b/i,
+          "Your opponent must discard",
+        );
+        return [
+          `${subjectHandoff[1].trim().replace(/[,;:.]$/, "")}.`,
+          `${opponentClause.replace(/[,;:.]$/, "")}.`,
+        ];
       })
     : [""];
   const instructions = clauses.map((clause, index) => {

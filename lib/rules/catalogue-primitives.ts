@@ -353,6 +353,16 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     [/remove .*bakucore/i, "remove", "bakucore"], [/return .*bakucore.*field face down/i, "return", "bakucore"],
     [/shuffle .*?(?:discard|from your hand into your deck)/i, "shuffle", "card"], [/take control .*hero/i, "control", "hero"], [/put this into .*hand/i, "return", "card"],
   ];
+  if (/(?:return|put|place)\s+this\s+(?:to|on)\s+the\s+bottom\s+of\s+(?:your|its owner['’]s)\s+deck/i.test(text)) {
+    actions.push({
+      kind: "move",
+      verb: "return",
+      object: "card",
+      amount: 1,
+      subject: "self",
+      destination: "owner-deck-bottom",
+    });
+  }
   for (const [pattern, verb, object] of movement) {
     if (!pattern.test(text)) continue;
     const amount: NumberValue = /any number/i.test(text)

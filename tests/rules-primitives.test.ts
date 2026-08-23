@@ -152,3 +152,36 @@ test("Absorb compiles its optional negate-and-copy sentence as one generalized o
   assert.ok(instruction.choices.some((choice) => choice.id === "targetEffectId"));
   assert.ok(instruction.choices.some((choice) => choice.id === "confirmed"));
 });
+
+test("Cycling Actions compile ordered effects and return themselves to the owner deck bottom", () => {
+  const cyclingIds = ["bb-5", "bb-33", "bb-64", "bb-85", "bb-113"];
+  for (const catalogId of cyclingIds) {
+    const card = CARDS.find((candidate) => candidate.catalogId === catalogId);
+    assert.ok(card, `Missing ${catalogId}`);
+    const instructions = ruleDefinitionForCard(card).abilities.flatMap((ability) => ability.instructions);
+    const move = instructions.flatMap((instruction) => instruction.actions).find((action) => (
+      action.kind === "move" && action.subject === "self" && action.destination === "owner-deck-bottom"
+    ));
+    assert.deepEqual(move, {
+      kind: "move",
+      verb: "return",
+      object: "card",
+      amount: 1,
+      subject: "self",
+      destination: "owner-deck-bottom",
+    }, `${catalogId} should recycle only after its primary effect`);
+    assert.equal(instructions.at(-1)?.actions.includes(move!), true);
+  }
+
+  const madness = CARDS.find((card) => card.catalogId === "bb-33")!;
+  const instructions = ruleDefinitionForCard(madness).abilities.flatMap((ability) => ability.instructions);
+  const draw = instructions.flatMap((instruction) => instruction.actions).find((action) => action.kind === "draw");
+  const discardInstruction = instructions.find((instruction) => instruction.actions.some((action) => action.kind === "discard"));
+  const discard = discardInstruction?.actions.find((action) => action.kind === "discard");
+  assert.ok(draw?.kind === "draw" && discard?.kind === "discard" && discardInstruction);
+  assert.equal(draw.playerScope, "controller");
+  assert.equal(discard.playerScope, "opponent");
+  assert.ok(discardInstruction.choices.some((choice) => (
+    choice.id === "discardCardIds" && choice.chooser === "opponent" && choice.owner === "opponent"
+  )));
+});

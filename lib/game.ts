@@ -2505,6 +2505,23 @@ case "swap-bakucore": {
           delete placement.attachedTo;
           placement.revealed = false;
         }
+      } else if (action.verb === "return" && action.object === "card"
+        && action.subject === "self" && action.destination === "owner-deck-bottom") {
+        if (pending.kind === "card") {
+          const cardOwner = playerById(state, pending.cardOwnerId ?? controllerId);
+          if (!cardOwner.deckCards.some((candidate) => candidate.id === card.id)) {
+            cardOwner.deckCards.push(card);
+            syncDeck(cardOwner);
+            entry(
+              state,
+              "game",
+              `${card.displayName || card.name} returned to the bottom of ${cardOwner.name}'s deck.`,
+              card,
+              "effect",
+              controllerId,
+            );
+          }
+        }
       } else if (action.verb === "return" && action.object === "card") {
         if (choices.targetCardId) {
           for (const owner of state.players) {
@@ -2969,7 +2986,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
     && !player.hand.some((card) => card.id === pending.card.id)
     && !player.discard.some((card) => card.id === pending.card.id)
     && !player.energyZone.some((card) => card.id === pending.card.id)) {
-    cardOwner.discard.push(pending.card);
+    if (!cardOwner.deckCards.some((card) => card.id === pending.card.id)) cardOwner.discard.push(pending.card);
   } else if (pending.kind === "card" && pending.card.type === "Flip"
     && !player.hand.some((card) => card.id === pending.card.id)
     && !player.discard.some((card) => card.id === pending.card.id)
