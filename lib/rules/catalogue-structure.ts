@@ -171,6 +171,29 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     };
   });
 
+  // A conditional turn promise can be satisfied by an event that happens
+  // after this Action leaves the Batch. Install a one-shot listener as its own
+  // always-on instruction; the payoff clause still handles an event that
+  // already occurred earlier in the same turn.
+  for (let index = 0; index < instructions.length; index += 1) {
+    const payoff = instructions[index];
+    if (!/If your opponent plays a Flip card this turn/i.test(payoff.sourceText)) continue;
+    const watch: RuleAction = {
+      kind: "watch-turn-event",
+      definition: { event: "CARD_PLAYED", relationship: "opponent", cardType: "Flip" },
+      effectText: payoff.sourceText,
+    };
+    instructions.splice(index, 0, {
+      id: `${ruleCardId(card)}:watch-turn-flip:${index}`,
+      condition: { kind: "always" },
+      effects: [watch],
+      actions: [watch],
+      choices: [],
+      sourceText: `Watch this turn for: ${payoff.sourceText}`,
+    });
+    index += 1;
+  }
+
   // Bind “If you do” to the optional discard that immediately precedes it.
   // This keeps payment and payoff in one instruction, so the benefit cannot
   // resolve when the player declines or has no legal card to discard.

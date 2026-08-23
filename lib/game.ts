@@ -655,6 +655,7 @@ export const placeCore = (input: MatchState, playerId: string, coreId: string, c
 
 const beginTurn = (state: MatchState) => {
   state.turn += 1; state.startingPlayer = state.brawlWinner || state.startingPlayer; state.priority = state.startingPlayer;
+  ensureRulesState(state).delayedCardTriggers = [];
   state.selected = {}; state.targets = {}; state.rolls = {}; state.pendingReroll = undefined; state.pendingCoinFlip = undefined; state.coinFlipResults = {}; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.temporaryVictorDiscards = {}; state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {};
   state.doubleStrike = {}; state.shadowStrike = {}; state.batch = []; state.victorByDamage = false; state.pendingDamage = 0;
   state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.pendingBrawlRetracts = []; state.delayedRetracts = []; state.winner = "";
@@ -2114,6 +2115,27 @@ const executeRuleAction = (
       }
       return;
     }
+    case "watch-turn-event": {
+      const candidates = action.definition.relationship === "opponent"
+        ? state.players.filter((owner) => owner.id !== controllerId)
+        : action.definition.relationship === "controller"
+          ? [player]
+          : state.players;
+      if (action.definition.cardType && candidates.some((owner) => owner.playedCardTypesThisTurn?.includes(action.definition.cardType!))) return;
+      const rules = ensureRulesState(state);
+      const watchId = `${pending.id}:${instructionIndex}:${actionIndex}:watch`;
+      rules.delayedCardTriggers = rules.delayedCardTriggers.filter((watch) => watch.id !== watchId && watch.createdTurn === state.turn);
+      rules.delayedCardTriggers.push({
+        id: watchId,
+        controllerId,
+        cardOwnerId: pending.cardOwnerId ?? controllerId,
+        card: structuredClone(card),
+        definition: structuredClone(action.definition),
+        effectText: action.effectText,
+        createdTurn: state.turn,
+      });
+      return;
+    }
     case "cost":
       if (action.duration === "next-card") {
         if (action.operation === "reduce") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) + resolveNumber(action.amount);
@@ -2591,7 +2613,11 @@ case "swap-bakucore": {
               break;
             }
           }
-        } else if (!player.hand.some((candidate) => candidate.id === card.id)) player.hand.push(card);
+        } else if (!player.hand.some((candidate) => candidate.id === card.id)) {
+          const owner = playerById(state, pending.cardOwnerId ?? controllerId);
+          owner.discard = owner.discard.filter((candidate) => candidate.id !== card.id);
+          owner.hand.push(card);
+        }
       } else if (action.verb === "shuffle" && action.object === "card") {
         const ids = choices.handCardIds ?? choices.discardCardIds ?? [];
         const fromHand = /from your hand into your deck/i.test(text);

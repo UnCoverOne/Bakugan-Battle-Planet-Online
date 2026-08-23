@@ -209,6 +209,55 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
       }
     }
   }
+
+  // Actions such as AtmosFEAR and Regrowth create a promise that survives the
+  // Action object: if the opponent plays a Flip later in the same turn, the
+  // promised clause becomes a new triggered object. These listeners are
+  // deliberately one-shot and expire at the next turn boundary.
+  const consumedWatchIds = new Set<string>();
+  for (const watch of rules.delayedCardTriggers) {
+    if (watch.createdTurn !== state.turn) continue;
+    const owner = state.players.find((candidate) => candidate.id === watch.controllerId);
+    if (!owner || !triggerMatches(watch.definition, watch.card, owner, event, state, watch.effectText)) continue;
+    const definition = ruleDefinitionForCard(watch.card);
+    const ability = definition.abilities.find((candidate) => (
+      candidate.instructions.some((instruction) => instruction.sourceText === watch.effectText)
+    ));
+    if (!ability) continue;
+    const instruction = ability.instructions.find((candidate) => candidate.sourceText === watch.effectText);
+    if (!instruction) continue;
+    const choices: CardChoices = event.card?.id ? { eventCardId: event.card.id } : {};
+    const object = createRuleObject({
+      controllerId: watch.controllerId,
+      cardOwnerId: watch.cardOwnerId,
+      card: watch.card,
+      ability,
+      kind: "trigger",
+      choices,
+      sourceId: watch.card.id,
+      createdByEventId: event.id,
+    });
+    // Limit compilation and resolution to the promised payoff clause rather
+    // than replaying the Action's complete spell ability.
+    object.effect = watch.effectText;
+    object.valueSnapshots = captureInstructionValues(state, instruction, "event", {
+      controllerId: watch.controllerId,
+      choices,
+      sourceCardId: watch.card.id,
+      event: {
+        amount: event.amount,
+        playerId: event.actorId,
+        sourceId: event.card?.id,
+        targetId: event.targetBakuganId,
+      },
+    }, object.valueSnapshots ?? {});
+    collected.push({ owner, object });
+    consumedWatchIds.add(watch.id);
+  }
+  rules.delayedCardTriggers = rules.delayedCardTriggers.filter((watch) => (
+    watch.createdTurn === state.turn && !consumedWatchIds.has(watch.id)
+  ));
+
   const objects = collected
     .sort((left, right) => {
       const leftActive = Number(left.owner.id === state.startingPlayer);

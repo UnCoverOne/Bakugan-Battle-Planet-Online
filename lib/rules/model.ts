@@ -171,6 +171,7 @@ export type RuleAction =
   | { kind: "reroll"; target: "controller" | "opponent"; mandatory: boolean; requiresDiscard: boolean }
   | { kind: "coin-flip" }
   | { kind: "trigger"; event: TriggerEventName; definition: TriggerDefinition }
+  | { kind: "watch-turn-event"; definition: TriggerDefinition; effectText: string }
   | { kind: "continuous"; modifier: ContinuousModifier }
   | { kind: "conditional"; condition: RuleCondition; whenTrue: RuleAction[]; whenFalse?: RuleAction[]; replacement?: boolean }
   | { kind: "replacement"; event: ProposedEvent["kind"]; replaceWith: RuleAction[]; condition?: RuleCondition }
@@ -358,5 +359,14 @@ export type RulesState = {
   replacements: Array<{ id: string; source: RuleSourceReference; controllerId: string; effect: Extract<RuleAction, { kind: "replacement" | "prevention" }> }>;
   triggerUsage: Record<string, number>;
   costModifiers: StoredCostModifier[];
+  delayedCardTriggers: Array<{
+    id: string;
+    controllerId: string;
+    cardOwnerId: string;
+    card: GameCard;
+    definition: TriggerDefinition;
+    effectText: string;
+    createdTurn: number;
+  }>;
   pendingPayment?: RulesPayment;
 };

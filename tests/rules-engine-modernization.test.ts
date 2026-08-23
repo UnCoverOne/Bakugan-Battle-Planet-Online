@@ -644,7 +644,10 @@ test("Groups 11-15 compile shared state, modal, zone, reveal, and interception p
   };
   const instructions = (catalogId: string) => definition(catalogId).abilities.flatMap((ability) => ability.instructions);
 
-  assert.deepEqual(instructions("aa-40")[1].condition, { kind: "card-type-played", cardType: "Flip", owner: "opponent" });
+  assert.deepEqual(
+    instructions("aa-40").find((instruction) => instruction.condition.kind === "card-type-played")?.condition,
+    { kind: "card-type-played", cardType: "Flip", owner: "opponent" },
+  );
   assert.equal(instructions("aa-109")[0].condition.kind, "expression");
   assert.equal(definition("aa-152").abilities.find((ability) => ability.kind === "triggered")?.trigger?.minimumPrintedCost, 5);
   assert.match(definition("aa-208").sourceText, /no cards in hand/i);
@@ -680,6 +683,44 @@ test("Groups 11-15 compile shared state, modal, zone, reveal, and interception p
   assert.equal(toshi?.trigger?.cardType, "Action");
   assert.ok(toshi?.instructions.flatMap((instruction) => instruction.effects).some((effect) => effect.kind === "copy" && effect.target === "played-action"));
   assert.equal(definition("aa-68").abilities.find((ability) => ability.kind === "triggered")?.trigger?.cardMechanic, "Battle Mastery");
+});
+
+test("same-turn Flip promises trigger after their Action has resolved", () => {
+  const state = match();
+  const player = state.players[0];
+  const opponent = state.players[1];
+  const regrowth = { ...CARDS.find((card) => card.catalogId === "aa-44")!, id: "regrowth-promise" };
+  const ability = ruleDefinitionForCard(regrowth).abilities.find((candidate) => candidate.kind === "spell")!;
+
+  const armed = resolveStructuredEffect(state, createRuleObject({
+    controllerId: player.id,
+    cardOwnerId: player.id,
+    card: regrowth,
+    ability,
+    kind: "card",
+  }));
+  assert.equal(ensureRulesState(armed).delayedCardTriggers.length, 1);
+  assert.ok(armed.players[0].discard.some((card) => card.id === regrowth.id));
+
+  const flip = { ...CARDS.find((card) => card.type === "Flip")!, id: "later-opponent-flip" };
+  recordCardPlayedForTurn(armed.players[1], flip, armed.turn);
+  const triggers = emitRuleEvent(armed, {
+    id: "later-opponent-flip-event",
+    name: "CARD_PLAYED",
+    actorId: opponent.id,
+    controllerId: opponent.id,
+    card: flip,
+    cardType: "Flip",
+    createdAt: 10,
+  });
+  const promise = triggers.find((object) => object.card.id === regrowth.id);
+  assert.ok(promise);
+  assert.equal(promise.effect, "If your opponent plays a Flip card this turn, return this to your hand.");
+  assert.equal(ensureRulesState(armed).delayedCardTriggers.length, 0);
+
+  const returned = resolveStructuredEffect(armed, promise);
+  assert.ok(returned.players[0].hand.some((card) => card.id === regrowth.id));
+  assert.equal(returned.players[0].discard.some((card) => card.id === regrowth.id), false);
 });
 
 test("Titan Nobilious requests secret keep-three answers only from players above three Energy", () => {

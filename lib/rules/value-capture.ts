@@ -187,6 +187,7 @@ export function captureRuleActionValues(
       captureModifierValues(state, action.modifier, moment, context, snapshots);
       break;
     case "trigger":
+    case "watch-turn-event":
       captureTriggerValues(state, action.definition, moment, context, snapshots);
       break;
     case "conditional":
