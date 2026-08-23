@@ -43,6 +43,8 @@ jobs:
               "replace_once('lib/game.ts', old_stop, new_stop)",
               "text = read('lib/game.ts')\nstop_start = text.index('  const faction = state.damageFaction ?? attackingBakugan?.faction;')\nstop_end = text.index('\\n};', stop_start)\nwrite('lib/game.ts', text[:stop_start] + new_stop + text[stop_end:])",
           )
+          script = script.replace('const eligible = card("bb-2", "nova-eligible-action");', 'const eligible = card("bb-1", "nova-eligible-action");')
+          script = script.replace('const stale = card("bb-3", "nova-stale-action");', 'const stale = card("bb-1", "nova-stale-action");')
           exec(compile(script, 'embedded-card-fix.py', 'exec'))
           PY
       - name: Install dependencies
