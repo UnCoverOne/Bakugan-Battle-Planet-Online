@@ -71,3 +71,12 @@ test("automatic action scheduling wakes on reconnect and visible-tab resume", ()
   assert.match(source, /Math\.max\(0, match\.deadline - Date\.now\(\)\)/);
   assert.match(source, /automaticPassSchedule\.current\.dueAt - Date\.now\(\)/);
 });
+
+test("new account match records force cloud sync outside the durable dirty window", () => {
+  const source = readFileSync(new URL("../components/application/AccountHistorySync.tsx", import.meta.url), "utf8");
+  assert.match(source, /pendingHistoryPush\.current = true/);
+  assert.match(source, /saved = await syncNow\(\)/);
+  assert.match(source, /window\.setTimeout\(\(\) => \{[\s\S]*void pushPendingHistory\(\);[\s\S]*\}, 0\)/);
+  assert.match(source, /addEventListener\("online", retryPendingHistory\)/);
+  assert.match(source, /observedHistoryIds\.current = new Set\(merged\.map\(\(record\) => record\.id\)\)/);
+});
