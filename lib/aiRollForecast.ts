@@ -104,10 +104,13 @@ function projectedBakuganMetrics(
 
 function combatObjective(match: MatchState, playerId: string, forceCombat = false): RollObjective {
   const opponent = opponentOf(match, playerId);
-  const opponentRoll = opponent ? match.rolls[opponent.id] : undefined;
-  if (!opponent || !opponentRoll || opponentRoll.result === "miss-closed") return "development";
-  if (!forceCombat && match.phase !== "reroll") return "development";
-  return match.victorByDamage ? "damage" : "power";
+  if (!opponent) return "development";
+  if (forceCombat || match.phase === "target" || match.phase === "reroll") {
+    return match.victorByDamage ? "damage" : "power";
+  }
+  const opponentRoll = match.rolls[opponent.id];
+  if (!opponentRoll || opponentRoll.result === "miss-closed") return "development";
+  return "development";
 }
 
 function combatStateUtility(
@@ -121,7 +124,15 @@ function combatStateUtility(
   if (!participates) return -9;
   const opponent = opponentOf(match, playerId);
   const opponentRoll = opponent ? match.rolls[opponent.id] : undefined;
-  if (!opponent || !opponentRoll || opponentRoll.result === "miss-closed") return 8;
+  if (!opponent || !opponentRoll || opponentRoll.result === "miss-closed") {
+    // Secret initial targets are simultaneous, so the opponent's resolved roll
+    // is unavailable here. Optimize the stat that will decide the Brawl rather
+    // than the generic development mix, which can otherwise trade away B-Power
+    // for Damage before a normal B-Power Victor check.
+    const own = objective === "damage" ? damage : power;
+    const scale = objective === "damage" ? 3 : 400;
+    return 8 + clamp(own / scale, 0, 4);
+  }
   const own = objective === "damage" ? damage : power;
   const enemy = objective === "damage"
     ? totalDamage(match, opponent.id)
@@ -224,9 +235,9 @@ function forecastAiRollForObjective(
 /**
  * Forecast through the authoritative roll resolver and then evaluate the
  * resulting Bakugan through the authoritative continuous-modifier system.
- * Ordinary rolls retain the long-term development score; rerolls inside an
- * established Brawl instead optimize the stat that is actually deciding the
- * Victor, with generic board value used only as a secondary tiebreaker.
+ * Initial secret target selection and established-Brawl rerolls optimize the
+ * stat that actually decides Victor; generic board value remains a secondary
+ * tiebreaker. Other non-combat forecasts retain the development score.
  */
 export function forecastAiRoll(
   match: MatchState,
