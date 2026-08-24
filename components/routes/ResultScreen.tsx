@@ -7,21 +7,10 @@ import { useMatchSelector } from "../game-screen-v2/matchStore";
 import { AppButton, Badge, Metric } from "../application/ui";
 import { MatchResultSocial } from "../social/MatchResultSocial";
 import { completedMatchKey, isCompletedSeriesResult } from "../../lib/match-result-navigation";
+import { matchRoundCount } from "../../lib/match-result-summary";
 
 const MATCH_CAPABILITY_STORAGE_KEY = "bbp-match-capability-v2";
 const MATCH_CONTROLLER_STORAGE_KEY = "bbp-match-controller-v1";
-
-export function matchRoundCount(match: any) {
-  const loggedRounds = Array.isArray(match?.log)
-    ? match.log.filter((event: any) => (
-      typeof event?.message === "string" && /^Turn \d+ began\./.test(event.message)
-    )).length
-    : 0;
-  const currentGameRounds = Number.isFinite(Number(match?.turn))
-    ? Math.max(0, Number(match.turn))
-    : 0;
-  return Math.max(loggedRounds, currentGameRounds);
-}
 
 function clearCompletedMatchSession(setMatch: (match: null) => void, setOnline: (online: boolean) => void) {
   setMatch(null);
