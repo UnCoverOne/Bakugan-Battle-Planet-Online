@@ -45,6 +45,9 @@ function replaceLegacyTriggeredObjects(before: MatchState, next: MatchState, act
   const played = before.players.find((player) => player.id === actorId)?.hand.find((card) => card.id === command.cardId);
   if (!played) return next;
   next.batch = next.batch.filter((object) => existing.has(object.id) || object.kind !== "trigger");
+  const targetBakuganId = played.type === "Evo"
+    ? (command.choices.sourceBakuganId ?? command.choices.targetBakuganId)
+    : next.selected[actorId];
   emitRuleEvent(next, {
     id: `${next.turn}:typed-card-play:${played.id}`,
     name: "CARD_PLAYED",
@@ -52,7 +55,8 @@ function replaceLegacyTriggeredObjects(before: MatchState, next: MatchState, act
     controllerId: actorId,
     card: played,
     cardType: played.type,
-    targetBakuganId: command.choices.targetBakuganId,
+    targetBakuganId,
+    choices: command.choices,
     createdAt: Date.now(),
   });
   return next;
