@@ -13,6 +13,7 @@ import "./guest-experience.css";
 import "./guest-avatar.css";
 import "./guest-overrides.css";
 import "./recovery-code.css";
+import { AccountHistorySync } from "../components/application/AccountHistorySync";
 import { AppProvider } from "../components/application/AppProvider";
 import { AppShell } from "../components/application/AppShell";
 import { DisplayFontLoader } from "../components/application/DisplayFontLoader";
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <WebVitalsReporter />
         <PublicDeckFallbackSync />
         <AppProvider>
+          <AccountHistorySync />
           <GuestExperienceController />
           <AppShell>{children}</AppShell>
         </AppProvider>
