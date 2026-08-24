@@ -173,7 +173,13 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
         const sourceBakugan = sourceBakuganFor(owner, source);
         const sourceBakuganId = sourceBakugan?.id
           ?? (ability.trigger.source === "self" && event.card?.type === "Evo" ? event.targetBakuganId : undefined);
-        const controllerTargetBakuganId = event.actorId === owner.id ? event.targetBakuganId : undefined;
+        const actionOnThis = /\bwhen you play an Action(?: card)? on this\b/i.test(triggerText);
+        // The CARD_PLAYED event's targetBakuganId is contextual: it is normally
+        // the controller's selected Bakugan. For "Action on this" abilities,
+        // resolution must instead target the Bakugan carrying the trigger.
+        const controllerTargetBakuganId = event.actorId === owner.id
+          ? (actionOnThis ? sourceBakuganId : event.targetBakuganId)
+          : undefined;
         const choices: CardChoices = {
           ...(ability.trigger.source === "self" ? event.choices ?? {} : {}),
           ...(sourceBakuganId ? { sourceBakuganId } : {}),
