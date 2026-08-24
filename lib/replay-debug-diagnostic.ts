@@ -40,7 +40,7 @@ export function buildLocalReplayJournalDiagnostic(journal: StoredLocalReplayJour
       transitionCount: journal.recording.commands.length,
       integrityFault: null,
       headStateHash: null,
-      genesisVersion: journal.recording.genesis.v,
+      genesisVersion: journal.recording.genesis.state.version,
       finalVersion: journal.finalState?.version ?? null,
       completedAt: journal.completedAt ?? null,
       firstTransitions: [],
