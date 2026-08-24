@@ -72,3 +72,38 @@ test("Training AI hand and Energy faces render only through the protected visibi
   assert.match(screen, /faceVisible = revealFaces \|\| temporaryRevealCardIds\?\.has\(card\.id\) === true/);
   assert.match(screen, /faceVisible \? card\.art : CARD_BACK_ART/);
 });
+
+
+test("match engine-history download is exposed only to Administrators and uses the protected server stream", async () => {
+  const [menu, client, api, exporter] = await Promise.all([
+    read("components/game-screen-v2/GameMenuHud.tsx"),
+    read("components/game-screen-v2/GameplayClient.tsx"),
+    read("app/api/admin/route.ts"),
+    read("lib/admin-engine-history-server.ts"),
+  ]);
+  assert.match(menu, /administrator && onDownloadLog/);
+  assert.match(menu, /Download Log/);
+  assert.match(client, /accountIsAdministrator\(authUser\)/);
+  assert.match(client, /section=match-engine-history/);
+  assert.match(api, /const administrator = await requireAdministrator\(request\)/);
+  assert.match(api, /section === "match-engine-history"/);
+  assert.match(api, /loadAdministratorMatchEngineHistory\(db, code\.toUpperCase\(\), administrator\.id\)/);
+  assert.match(exporter, /FROM match_commands WHERE code = \?/);
+  assert.match(exporter, /FROM match_events WHERE code = \?/);
+  assert.match(exporter, /FROM engine_observations WHERE code = \? OR code = \?/);
+  assert.match(exporter, /FROM match_snapshots WHERE code = \?/);
+});
+
+test("local Download Log waits for queued engine transitions before reading the journal", async () => {
+  const [client, journal, worker] = await Promise.all([
+    read("components/game-screen-v2/GameplayClient.tsx"),
+    read("lib/replay-journal.ts"),
+    read("lib/replay-journal.worker.ts"),
+  ]);
+  assert.match(client, /await flushLocalReplayJournalAndWait\(\)/);
+  assert.match(client, /loadLocalReplayHistory\(match\.id\)/);
+  assert.match(journal, /type: "flush"; requestId\?: number/);
+  assert.match(journal, /pendingFlushes/);
+  assert.match(worker, /message\.requestId != null/);
+  assert.match(worker, /type: "flush", requestId: message\.requestId, ok: true/);
+});

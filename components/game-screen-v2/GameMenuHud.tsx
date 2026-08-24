@@ -10,28 +10,33 @@ export function GameMenuHud({
   automaticPass,
   soundEnabled,
   completed = false,
+  administrator = false,
   undoAvailable,
   onAutomaticDrawChange,
   onAutomaticPassChange,
   onSoundEnabledChange,
   onUndo,
   onConcede,
+  onDownloadLog,
   onOpenSettings,
 }: {
   automaticDraw: boolean;
   automaticPass: boolean;
   soundEnabled: boolean;
   completed?: boolean;
+  administrator?: boolean;
   undoAvailable: boolean;
   onAutomaticDrawChange: (enabled: boolean) => void;
   onAutomaticPassChange: (enabled: boolean) => void;
   onSoundEnabledChange: (enabled: boolean) => void;
   onUndo: AsyncAction;
   onConcede: AsyncAction;
+  onDownloadLog?: AsyncAction;
   onOpenSettings: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [downloadingLog, setDownloadingLog] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -52,6 +57,19 @@ export function GameMenuHud({
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The game could not be conceded.");
       setBusy(false);
+    }
+  };
+
+  const downloadLog = async () => {
+    if (!onDownloadLog || downloadingLog) return;
+    setDownloadingLog(true);
+    setError("");
+    try {
+      await onDownloadLog();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The engine history could not be downloaded.");
+    } finally {
+      setDownloadingLog(false);
     }
   };
 
@@ -128,6 +146,11 @@ export function GameMenuHud({
         </div>
 
         <div className={styles.menuActions}>
+          {administrator && onDownloadLog ? (
+            <button type="button" disabled={downloadingLog} onClick={() => void downloadLog()}>
+              {downloadingLog ? "Downloading Log…" : "Download Log"}
+            </button>
+          ) : null}
           {!completed ? (
             <button type="button" disabled={busy || !undoAvailable} onClick={() => void onUndo()}>
               Undo Latest Card

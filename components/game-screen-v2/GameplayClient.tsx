@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type CardChoices, type MatchState } from "../../lib/game";
+import { accountIsAdministrator } from "../../lib/admin-ai-visibility";
 import { dispatchLocalGameAction, dispatchLocalGameCommand } from "../../lib/engine/local-command-dispatcher";
 import type { ApiAction } from "../../lib/engine/commands";
 import type { GameCommand } from "../../lib/engine/types";
@@ -12,6 +13,8 @@ import {
 } from "../../lib/opponentAiCanAct";
 import { canUndoLatest } from "../../lib/undo";
 import { isCompletedSeriesResult } from "../../lib/match-result-navigation";
+import { loadLocalReplayHistory } from "../../lib/replay-local-store";
+import { flushLocalReplayJournalAndWait } from "../../lib/replay-journal";
 import {
   playerCanFlipTieBreak,
   shouldStartManualTieBreak,
@@ -22,6 +25,7 @@ import {
   playerHasDrawnTurnCard,
   type TurnStartMatchState,
 } from "../../lib/turnStart";
+import { useApp } from "../application/AppProvider";
 import { BakuCoreLayer } from "./BakuCoreLayer";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
 import { CardHandLayer } from "./CardHandLayer";
@@ -53,6 +57,24 @@ import {
 
 const SETTINGS_KEY = "bbp-settings";
 const OPPONENT_AI_DECISION_TIMEOUT_MS = 8_000;
+
+function downloadJsonFile(filename: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function engineHistoryFilename(match: MatchState, exportedAt: number) {
+  const identity = (match.code || match.id).replace(/[^A-Za-z0-9_-]+/g, "-");
+  const timestamp = new Date(exportedAt).toISOString().replace(/[:.]/g, "-");
+  return `bakugan-engine-history-${identity}-${timestamp}.json`;
+}
 
 type StoredGameScreenState = {
   route: string;
@@ -89,6 +111,8 @@ function readSettings(): GameplaySettings {
 
 export function GameplayClient() {
   const router = useRouter();
+  const { authUser } = useApp();
+  const administrator = accountIsAdministrator(authUser);
   const storedState = useMatchSelector((state): StoredGameScreenState => ({
     route: state.route,
     automaticDraw: Boolean(state.settings.automaticDraw),
@@ -351,6 +375,46 @@ export function GameplayClient() {
     writeGameRoute("settings");
     window.location.reload();
   };
+
+  const downloadMatchEngineHistory = useCallback(async () => {
+    if (!administrator) throw new Error("Administrator access is required.");
+    const current = readMatchStore();
+    const match = current.match;
+    if (!match) throw new Error("No active match is available.");
+    const exportedAt = Date.now();
+    let history: unknown;
+
+    if (current.online) {
+      const response = await fetch(
+        `/api/admin?section=match-engine-history&code=${encodeURIComponent(match.code)}`,
+        { cache: "no-store" },
+      );
+      const result = await response.json() as { history?: unknown; error?: string };
+      if (!response.ok || !result.history) {
+        throw new Error(result.error ?? "The engine history could not be downloaded.");
+      }
+      history = result.history;
+    } else {
+      await flushLocalReplayJournalAndWait();
+      const journal = await loadLocalReplayHistory(match.id);
+      history = {
+        format: "bakugan-engine-history",
+        schemaVersion: 1,
+        source: "local",
+        exportedAt,
+        exportedByAdministratorId: authUser?.id,
+        match: {
+          id: match.id,
+          code: match.code,
+          updatedAt: exportedAt,
+          currentState: match,
+        },
+        journal,
+      };
+    }
+
+    downloadJsonFile(engineHistoryFilename(match, exportedAt), history);
+  }, [administrator, authUser?.id]);
 
   useEffect(() => {
     const match = storedState.match;
@@ -742,12 +806,14 @@ export function GameplayClient() {
           automaticPass={storedState.automaticPass}
           soundEnabled={storedState.soundEnabled}
           completed={completed}
+          administrator={administrator}
           onAutomaticDrawChange={(enabled) => updatePreference("automaticDraw", enabled)}
           onAutomaticPassChange={(enabled) => updatePreference("automaticPass", enabled)}
           onSoundEnabledChange={(enabled) => updatePreference("soundEnabled", enabled)}
           undoAvailable={canUndoLatest(storedState.match, storedState.playerId ?? storedState.match?.players[0]?.id)}
           onUndo={undo}
           onConcede={concede}
+          onDownloadLog={administrator ? downloadMatchEngineHistory : undefined}
           onOpenSettings={openSettings}
         />
         <BakuCoreLayer

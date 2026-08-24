@@ -25,7 +25,7 @@ type WorkerRequest =
     transition: LocalEngineHistoryTransition;
   }
   | { type: "complete"; requestId: number; replayId: string; ownerId: string; state: MatchState; completedAt: number }
-  | { type: "flush" };
+  | { type: "flush"; requestId?: number };
 
 const LOCAL_HISTORY_RETENTION = 10;
 const drafts = new Map<string, StoredLocalReplayJournal>();
@@ -134,6 +134,9 @@ async function handleMessage(message: WorkerRequest) {
 
   if (message.type === "flush") {
     await flush();
+    if (message.requestId != null) {
+      self.postMessage({ type: "flush", requestId: message.requestId, ok: true });
+    }
     return;
   }
 
@@ -175,6 +178,8 @@ self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
         commandId: message.transition.envelope.commandId,
         error,
       });
+    } else if (message.type === "flush" && message.requestId != null) {
+      self.postMessage({ type: "flush", requestId: message.requestId, ok: false, error });
     }
     return undefined;
   });

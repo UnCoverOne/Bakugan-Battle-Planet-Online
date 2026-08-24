@@ -15,10 +15,11 @@ type JournalWorkerRequest =
     transition: LocalEngineHistoryTransition;
   }
   | { type: "complete"; requestId: number; replayId: string; ownerId: string; state: MatchState; completedAt: number }
-  | { type: "flush" };
+  | { type: "flush"; requestId?: number };
 
 type JournalWorkerResponse =
   | { type: "complete"; requestId: number; replayId: string; ok: boolean; error?: string }
+  | { type: "flush"; requestId: number; ok: boolean; error?: string }
   | { type: "append-error"; replayId: string; commandId: string; error: string };
 
 type PendingFinalization = {
@@ -30,11 +31,18 @@ type PendingFinalization = {
 };
 
 const REPLAY_FINALIZATION_TIMEOUT_MS = 12_000;
+const REPLAY_FLUSH_TIMEOUT_MS = 4_000;
+type PendingFlush = {
+  resolve: () => void;
+  reject: (error: Error) => void;
+  timeoutId: ReturnType<typeof setTimeout>;
+};
 
 let worker: Worker | null = null;
 let requestSequence = 0;
 const initialized = new Set<string>();
 const pending = new Map<number, PendingFinalization>();
+const pendingFlushes = new Map<number, PendingFlush>();
 let lifecycleListenersInstalled = false;
 
 async function sealCompletedStateFallback(state: MatchState, ownerId: string) {
@@ -78,6 +86,15 @@ function journalWorker(): Worker | null {
       console.error(`[local-replay] ${event.data.error}`);
       return;
     }
+    if (event.data.type === "flush") {
+      const waiter = pendingFlushes.get(event.data.requestId);
+      if (!waiter) return;
+      pendingFlushes.delete(event.data.requestId);
+      clearTimeout(waiter.timeoutId);
+      if (event.data.ok) waiter.resolve();
+      else waiter.reject(new Error(event.data.error ?? "Local engine-history flush failed."));
+      return;
+    }
     const waiter = pending.get(event.data.requestId);
     if (!waiter) return;
     if (!event.data.ok) {
@@ -98,6 +115,11 @@ function journalWorker(): Worker | null {
     worker?.terminate();
     worker = null;
     for (const requestId of requestIds) recoverPendingFinalization(requestId, cause);
+    for (const waiter of pendingFlushes.values()) {
+      clearTimeout(waiter.timeoutId);
+      waiter.reject(cause);
+    }
+    pendingFlushes.clear();
   });
   return worker;
 }
@@ -156,4 +178,20 @@ export function finalizeLocalReplayJournal(state: MatchState, ownerId: string) {
 
 export function flushLocalReplayJournal() {
   worker?.postMessage({ type: "flush" } satisfies JournalWorkerRequest);
+}
+
+/** Wait until every queued local transition has been persisted before diagnostics read IndexedDB. */
+export function flushLocalReplayJournalAndWait() {
+  if (typeof Worker === "undefined") return Promise.resolve();
+  const activeWorker = journalWorker();
+  if (!activeWorker) return Promise.resolve();
+  const requestId = ++requestSequence;
+  return new Promise<void>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      pendingFlushes.delete(requestId);
+      reject(new Error("Local engine-history flush timed out."));
+    }, REPLAY_FLUSH_TIMEOUT_MS);
+    pendingFlushes.set(requestId, { resolve, reject, timeoutId });
+    activeWorker.postMessage({ type: "flush", requestId } satisfies JournalWorkerRequest);
+  });
 }

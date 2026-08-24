@@ -31,6 +31,7 @@ import {
   updateOfflinePublicDeckSlot,
   updatePublicDeck,
 } from "../../../lib/administration-server";
+import { loadAdministratorMatchEngineHistory } from "../../../lib/admin-engine-history-server";
 import { CARDS } from "../../../lib/data";
 import {
   getRankedRulesAdministration,
@@ -116,6 +117,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const section = url.searchParams.get("section") ?? "overview";
     const id = url.searchParams.get("id");
+    const code = url.searchParams.get("code");
     if (section === "users") return json({ users: await listUsers(db), roles: ACCOUNT_ROLES, correlationId });
     if (section === "cards") {
       await applyDatabaseCardOverrides(db);
@@ -123,6 +125,12 @@ export async function GET(request: Request) {
     }
     if (section === "ai-visibility") {
       return json({ ...(await getAdministratorAiVisibility(db, administrator.id)), correlationId });
+    }
+    if (section === "match-engine-history") {
+      if (!code || !/^[A-Z2-9]{6}$/i.test(code)) throw new ValidationError("A valid match code is required.");
+      const history = await loadAdministratorMatchEngineHistory(db, code.toUpperCase(), administrator.id);
+      if (!history) throw new ConflictError("The selected match is no longer available.");
+      return json({ history, correlationId });
     }
     if (section === "ai-decks") {
       const decks = await listAiDecks(db);
