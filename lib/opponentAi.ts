@@ -858,6 +858,52 @@ function currentEnergyCapacity(match: MatchState, playerId: string) {
   return Math.max(0, Math.floor(player.energy)) + untapped;
 }
 
+function shouldReserveOffBrawlEvo(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  if (!["preRoll", "power"].includes(match.phase) || card.type !== "Evo") return false;
+  const player = playerById(match, playerId);
+  const selectedId = match.selected[playerId];
+  if (!player || !selectedId) return false;
+
+  let choices: CardChoices;
+  try {
+    choices = chooseBaseCardChoices(match, playerId, card);
+  } catch {
+    return false;
+  }
+  const targetId = choices.sourceBakuganId ?? choices.targetBakuganId;
+  const target = targetId ? player.bakugan.find((bakugan) => bakugan.id === targetId) : undefined;
+  if (!target || !target.open || target.id === selectedId) return false;
+
+  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  if (!payment || payment.kind === "insufficient") return false;
+  const capacity = currentEnergyCapacity(match, playerId);
+  if (capacity <= 0 || payment.cost < capacity) return false;
+
+  // A durable Evo on a Bakugan outside this Brawl can wait. Do not exhaust the
+  // current tactical budget while an affordable Action can still affect this
+  // Brawl or provide a meaningful independent payoff.
+  return player.hand.some((candidate) => {
+    if (candidate.id === card.id || candidate.type !== "Action") return false;
+    let candidateChoices: CardChoices;
+    try {
+      candidateChoices = chooseBaseCardChoices(match, playerId, candidate);
+    } catch {
+      return false;
+    }
+    const candidatePayment = cardEnergyPaymentState(match, playerId, candidate, candidateChoices);
+    if (!candidatePayment || candidatePayment.kind === "insufficient" || candidatePayment.cost > capacity) {
+      return false;
+    }
+    if (cardHasOptionalSelfReroll(candidate)) return true;
+    if (candidateHasTemporaryPower(match, playerId, candidate, candidateChoices)) return true;
+    return candidateIndependentValue(match, playerId, candidate, candidateChoices) >= 0.75;
+  });
+}
+
 function temporaryPowerSwing(
   match: MatchState,
   playerId: string,
@@ -1072,7 +1118,8 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
           || shouldSuppressUnnecessaryVictorStatSwitch(input, playerId, card)
           || shouldReserveOptionalRerollCard(input, card)
           || shouldWaitForRerollOutcome(input, playerId, card)
-          || shouldReservePostBrawlOptionalRerollCard(input, playerId, card);
+          || shouldReservePostBrawlOptionalRerollCard(input, playerId, card)
+          || shouldReserveOffBrawlEvo(input, playerId, card);
       })
       .map((card) => card.id),
   );
@@ -1117,7 +1164,8 @@ function chooseWithCombatPolicy(input: MatchState, playerId: string): GameComman
           || shouldSuppressUnnecessaryVictorStatSwitch(input, playerId, card)
           || shouldReserveOptionalRerollCard(input, card)
           || shouldWaitForRerollOutcome(input, playerId, card)
-          || shouldReservePostBrawlOptionalRerollCard(input, playerId, card);
+          || shouldReservePostBrawlOptionalRerollCard(input, playerId, card)
+          || shouldReserveOffBrawlEvo(input, playerId, card);
       })
       .map((card) => card.id),
   );
