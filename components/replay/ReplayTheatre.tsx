@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MatchResultRecord } from "../../lib/persistence";
 import type { ReplayBundle, ReplayTransportBundle } from "../../lib/engine/replay-types";
 import { accountIsAdministrator } from "../../lib/admin-ai-visibility";
+import { buildLocalReplayJournalDiagnostic } from "../../lib/replay-debug-diagnostic";
 import { firstGameplayReplayFrameIndex } from "../../lib/replay-view";
-import { loadLocalReplayWhenReady } from "../../lib/replay-local-store";
+import { loadLocalReplayHistory, loadLocalReplayWhenReady } from "../../lib/replay-local-store";
 import { reconstructLocalReplay, reconstructServerReplay } from "../../lib/replay-playback-client";
+import { flushLocalReplayJournalAndWait } from "../../lib/replay-journal";
 import { useApp } from "../application/AppProvider";
 import { BakuCoreLayer } from "../game-screen-v2/BakuCoreLayer";
 import { CardHandLayer } from "../game-screen-v2/CardHandLayer";
@@ -105,15 +107,27 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
     setDebugDownloadError("");
     try {
       if (record.replayStorage === "local") {
-        const archive = await loadLocalReplayWhenReady(replayId);
+        let journalFlushError: string | null = null;
+        try {
+          await flushLocalReplayJournalAndWait();
+        } catch (cause) {
+          journalFlushError = cause instanceof Error ? cause.message : String(cause);
+        }
+        const [archive, localJournal] = await Promise.all([
+          loadLocalReplayWhenReady(replayId),
+          loadLocalReplayHistory(replayId),
+        ]);
         if (!archive) throw new Error("This local replay is no longer available on this device.");
         downloadDebugText(`${JSON.stringify({
-          schemaVersion: 1,
+          schemaVersion: 2,
           generatedAt: new Date().toISOString(),
           source: "local",
-          notice: "Administrator replay diagnostic generated from this device's local replay archive.",
+          notice: "Administrator replay diagnostic generated from this device's local replay archive and raw engine-history journal.",
+          journalFlushError,
+          localJournalSummary: buildLocalReplayJournalDiagnostic(localJournal),
           record,
           archive,
+          localJournal,
         }, null, 2)}\n`, replayId);
         return;
       }
