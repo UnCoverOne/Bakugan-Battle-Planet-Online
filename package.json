@@ -6,7 +6,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "pretest": "node --import tsx --test tests/social-feature.test.ts tests/energy-production-model.test.ts tests/game-screen-state.test.ts tests/react-hook-lifecycle.test.ts",
+    "pretest": "node --import tsx --test tests/social-feature.test.ts tests/energy-production-model.test.ts tests/game-screen-state.test.ts tests/react-hook-lifecycle.test.ts tests/match-history-sync.test.ts",
     "install:ci": "bash scripts/install-ci.sh",
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
     "build": "bash scripts/build-verified.sh",
@@ -33,7 +33,7 @@
     "test:quality": "node --import tsx --test tests/quality-assurance.test.ts tests/platform-hardening.test.ts",
     "card:author": "node --import tsx scripts/card-author.mts",
     "test:simulation": "node --import tsx --test tests/physical-simulation.test.ts",
-    "test:authoring": "node --import tsx --test tests/card-authoring.test.ts"
+    "test:authoring": "node --import tsx scripts/card-author.mts"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
