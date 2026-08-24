@@ -33,7 +33,7 @@
     "test:quality": "node --import tsx --test tests/quality-assurance.test.ts tests/platform-hardening.test.ts",
     "card:author": "node --import tsx scripts/card-author.mts",
     "test:simulation": "node --import tsx --test tests/physical-simulation.test.ts",
-    "test:authoring": "node --import tsx scripts/card-author.mts"
+    "test:authoring": "node --import tsx --test tests/card-authoring.test.ts"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
