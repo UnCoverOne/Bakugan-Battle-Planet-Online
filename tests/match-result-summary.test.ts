@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { matchRoundCount } from "../lib/match-result-summary";
 
@@ -30,4 +31,23 @@ test("match result round count ignores unrelated log entries", () => {
       { message: "Turn 1 began" },
     ],
   }), 0);
+});
+
+test("Match Complete opens the exact record after clearing the active match", () => {
+  const source = readFileSync("components/routes/ResultScreen.tsx", "utf8");
+  const route = readFileSync("app/(workspace)/play/result/page.tsx", "utf8");
+
+  assert.match(route, /components\/routes\/ResultScreen/);
+  assert.match(source, /completedMatchKey\(match\)/);
+  assert.match(source, /history\.find\(\(record: any\) => record\.id === recordId\)/);
+  assert.match(source, /clearCompletedMatchSession\(setMatch, setOnline\)/);
+  assert.match(source, /router\.replace\(`\/profile\/records\/\$\{encodeURIComponent\(exactRecord\.id\)\}`\)/);
+});
+
+test("Match Complete shows rounds instead of internal event statistics", () => {
+  const source = readFileSync("components/routes/ResultScreen.tsx", "utf8");
+
+  assert.match(source, /<Metric label="Rounds" value=\{rounds\} \/>/);
+  assert.doesNotMatch(source, /<Metric label="Events"/);
+  assert.doesNotMatch(source, /<Metric label="Random results"/);
 });
