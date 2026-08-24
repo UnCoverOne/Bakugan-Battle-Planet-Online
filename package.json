@@ -6,7 +6,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "pretest": "node --import tsx --test tests/social-feature.test.ts tests/energy-production-model.test.ts tests/game-screen-state.test.ts tests/react-hook-lifecycle.test.ts tests/match-history-sync.test.ts",
+    "pretest": "node --import tsx --test tests/social-feature.test.ts tests/energy-production-model.test.ts tests/game-screen-state.test.ts tests/react-hook-lifecycle.test.ts tests/match-history-sync.test.ts tests/match-result-summary.test.ts",
     "install:ci": "bash scripts/install-ci.sh",
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
     "build": "bash scripts/build-verified.sh",
