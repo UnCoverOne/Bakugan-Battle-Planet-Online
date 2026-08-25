@@ -4,6 +4,10 @@ import {
   requireAdministrator,
 } from "../../../../lib/account-server";
 import {
+  loadAchievementDefinitions,
+  saveAchievementDefinitions,
+} from "../../../../lib/achievement-configuration-server";
+import {
   loadAchievementRewardAssignments,
   saveAchievementRewardAssignments,
 } from "../../../../lib/achievement-rewards-server";
@@ -27,15 +31,18 @@ export async function GET(request: Request) {
     await requireAdministrator(request);
     const db = await getDatabase();
     await ensureAdministrationSchema(db);
+    const achievements = await loadAchievementDefinitions(db);
+    const activeAchievementIds = new Set(achievements.map((item) => item.id));
     return json({
-      assignments: await loadAchievementRewardAssignments(db),
+      achievements,
+      assignments: await loadAchievementRewardAssignments(db, activeAchievementIds),
       correlationId,
     });
   } catch (error) {
     return serverErrorResponse(
       error,
       correlationId,
-      "Achievement rewards are unavailable.",
+      "Achievements are unavailable.",
       { route: "/api/admin/achievement-rewards", method: "GET" },
     );
   }
@@ -56,27 +63,32 @@ export async function POST(request: Request) {
     );
     const raw = await request.text();
     if (new TextEncoder().encode(raw).byteLength > MAX_REWARD_BYTES) {
-      return json({ error: "Achievement reward request is too large.", correlationId }, 413);
+      return json({ error: "Achievement administration request is too large.", correlationId }, 413);
     }
     let body: Record<string, unknown>;
     try {
       body = JSON.parse(raw) as Record<string, unknown>;
     } catch {
-      throw new ValidationError("Achievement reward request is not valid JSON.");
+      throw new ValidationError("Achievement administration request is not valid JSON.");
     }
-    return json({
-      assignments: await saveAchievementRewardAssignments(
-        db,
-        body.assignments,
-        administrator.id,
-      ),
-      correlationId,
-    });
+    const achievements = body.achievements === undefined
+      ? await loadAchievementDefinitions(db)
+      : await saveAchievementDefinitions(db, body.achievements, administrator.id);
+    const activeAchievementIds = new Set(achievements.map((item) => item.id));
+    const assignments = body.assignments === undefined
+      ? await loadAchievementRewardAssignments(db, activeAchievementIds)
+      : await saveAchievementRewardAssignments(
+          db,
+          body.assignments,
+          administrator.id,
+          activeAchievementIds,
+        );
+    return json({ achievements, assignments, correlationId });
   } catch (error) {
     return serverErrorResponse(
       error,
       correlationId,
-      "Achievement rewards could not be updated.",
+      "Achievements could not be updated.",
       { route: "/api/admin/achievement-rewards", method: "POST" },
     );
   }

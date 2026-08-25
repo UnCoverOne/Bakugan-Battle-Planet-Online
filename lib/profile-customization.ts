@@ -1,4 +1,7 @@
-import { profileRewardRequirement } from "./profile-reward-runtime";
+import {
+  profileRewardRequirement,
+  runtimeProfileRewardAvailable,
+} from "./profile-reward-runtime";
 
 export const PROFILE_SHOWCASE_LIMIT = 3;
 
@@ -57,7 +60,7 @@ const titleReward = (
   },
 });
 
-export const PROFILE_TITLES: readonly ProfileReward[] = [
+export const PROFILE_TITLE_CATALOGUE: readonly ProfileReward[] = [
   titleReward("battle-planet-brawler", "Battle Planet Brawler", null),
   titleReward("battle-ready", "Battle Ready", "first-deck"),
   titleReward("arsenal-architect", "Arsenal Architect", "deck-builder"),
@@ -83,7 +86,7 @@ const coverReward = (
   src,
 });
 
-export const PROFILE_COVERS: readonly ProfileCoverReward[] = [
+export const PROFILE_COVER_CATALOGUE: readonly ProfileCoverReward[] = [
   // Preserve the historical default id so existing profiles migrate cleanly.
   coverReward("battle-planet", "Ventus Hyper Turtonium Ultra", "Ventus", "/assets/profile/covers/battle-planet.png"),
   coverReward("ventus-maximus-gorthion-ultra", "Ventus Maximus Gorthion Ultra", "Ventus", "/assets/profile/covers/ventus-maximus-gorthion-ultra.png"),
@@ -96,6 +99,31 @@ export const PROFILE_COVERS: readonly ProfileCoverReward[] = [
   coverReward("pyrus-hyper-trox-ultra", "Pyrus Hyper Trox Ultra", "Pyrus", "/assets/profile/covers/pyrus-hyper-trox-ultra.png"),
   coverReward("pyrus-webam-ultra", "Pyrus Webam Ultra", "Pyrus", "/assets/profile/covers/pyrus-webam-ultra.png"),
 ];
+
+function availableCatalogue<T extends ProfileReward>(
+  group: "titles" | "covers",
+  catalogue: readonly T[],
+): readonly T[] {
+  return new Proxy(catalogue, {
+    get(target, property, receiver) {
+      if (property === "map") {
+        return <R>(
+          callback: (item: T, index: number, items: T[]) => R,
+          thisArg?: unknown,
+        ) => {
+          const available = target.filter((item) =>
+            runtimeProfileRewardAvailable(group, item.id, item.achievementId),
+          );
+          return available.map(callback, thisArg);
+        };
+      }
+      return Reflect.get(target, property, receiver);
+    },
+  });
+}
+
+export const PROFILE_TITLES = availableCatalogue("titles", PROFILE_TITLE_CATALOGUE);
+export const PROFILE_COVERS = availableCatalogue("covers", PROFILE_COVER_CATALOGUE);
 
 const uniqueIds = (value: unknown) =>
   Array.isArray(value)
@@ -122,15 +150,15 @@ export function normalizeProfileAvatar(value: unknown) {
 
 export function normalizeProfileTitle(value: unknown) {
   return (
-    PROFILE_TITLES.find((item) => item.id === value)?.id ??
-    PROFILE_TITLES[0].id
+    PROFILE_TITLE_CATALOGUE.find((item) => item.id === value)?.id ??
+    PROFILE_TITLE_CATALOGUE[0].id
   );
 }
 
 export function normalizeProfileCover(value: unknown) {
   return (
-    PROFILE_COVERS.find((item) => item.id === value)?.id ??
-    PROFILE_COVERS[0].id
+    PROFILE_COVER_CATALOGUE.find((item) => item.id === value)?.id ??
+    PROFILE_COVER_CATALOGUE[0].id
   );
 }
 

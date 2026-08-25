@@ -1,4 +1,6 @@
 import { achievementsFor } from "./achievements";
+import { loadAchievementDefinitions } from "./achievement-configuration-server";
+import { loadAchievementRewardAssignments } from "./achievement-rewards-server";
 import { loadAccountDataPayload } from "./account-data-server";
 import type { AccountDatabase } from "./account-server";
 import { accountStatMatches } from "./match-statistics";
@@ -7,6 +9,8 @@ import {
   type BrawlerProfile,
 } from "./persistence";
 import {
+  PROFILE_COVERS,
+  PROFILE_TITLES,
   normalizeProfileAvatar,
   normalizeProfileCover,
   normalizeProfileTitle,
@@ -86,7 +90,28 @@ export async function publicBrawlerProfile(
     displayName: String(row.display_name),
     faction: String(row.faction),
   });
-  const achievements = achievementsFor(decks, history, lifetimeStats);
+  const achievementDefinitions = await loadAchievementDefinitions(db);
+  const activeAchievementIds = new Set(achievementDefinitions.map((item) => item.id));
+  const assignments = await loadAchievementRewardAssignments(db, activeAchievementIds);
+  const achievements = achievementsFor(decks, history, lifetimeStats, achievementDefinitions);
+  const completedAchievementIds = new Set(
+    achievements.filter((item) => item.unlocked).map((item) => item.id),
+  );
+  const titleRequirement = assignments.titles[profile.titleId] ?? null;
+  if (titleRequirement && !completedAchievementIds.has(titleRequirement)) {
+    profile.titleId = PROFILE_TITLES[0].id;
+  }
+  const coverRequirement = assignments.covers[profile.coverId] ?? null;
+  if (coverRequirement && !completedAchievementIds.has(coverRequirement)) {
+    profile.coverId = PROFILE_COVERS[0].id;
+  }
+  const avatarMatch = /^preset:([a-z0-9-]{1,120})$/i.exec(profile.avatar ?? "");
+  if (avatarMatch) {
+    const avatarRequirement = assignments.avatars[avatarMatch[1]] ?? null;
+    if (avatarRequirement && !completedAchievementIds.has(avatarRequirement)) {
+      profile.avatar = "";
+    }
+  }
   const completedGames = accountStatMatches(history);
   const gamesPlayed = Math.max(
     completedGames.length,

@@ -10,8 +10,31 @@ export const ACHIEVEMENT_CATEGORIES = [
   "Online Play",
 ] as const;
 
+export const ACHIEVEMENT_METRICS = [
+  "decks",
+  "completeDecks",
+  "publicDecks",
+  "privateDecks",
+  "favouriteDecks",
+  "describedDecks",
+  "singletonDecks",
+  "deckFactions",
+  "matches",
+  "wins",
+  "trainingGames",
+  "bo1Games",
+  "bo3Games",
+  "onlineGames",
+  "onlineWins",
+  "onlineOpponents",
+  "uniqueMainCards",
+  "uniqueCharacters",
+  "uniqueCores",
+] as const;
+
 export type AchievementCategory = (typeof ACHIEVEMENT_CATEGORIES)[number];
 export type AchievementStatus = "completed" | "in-progress" | "locked";
+export type AchievementMetricKey = (typeof ACHIEVEMENT_METRICS)[number];
 
 export type Achievement = {
   id: string;
@@ -25,33 +48,12 @@ export type Achievement = {
   completedAt: string | null;
 };
 
-type MetricKey =
-  | "decks"
-  | "completeDecks"
-  | "publicDecks"
-  | "privateDecks"
-  | "favouriteDecks"
-  | "describedDecks"
-  | "singletonDecks"
-  | "deckFactions"
-  | "matches"
-  | "wins"
-  | "trainingGames"
-  | "bo1Games"
-  | "bo3Games"
-  | "onlineGames"
-  | "onlineWins"
-  | "onlineOpponents"
-  | "uniqueMainCards"
-  | "uniqueCharacters"
-  | "uniqueCores";
-
-type AchievementDefinition = {
+export type AchievementDefinition = {
   id: string;
   name: string;
   description: string;
   category: AchievementCategory;
-  metric: MetricKey;
+  metric: AchievementMetricKey;
   target: number;
 };
 
@@ -60,7 +62,7 @@ const definition = (
   name: string,
   description: string,
   category: AchievementCategory,
-  metric: MetricKey,
+  metric: AchievementMetricKey,
   target: number,
 ): AchievementDefinition => ({ id, name, description, category, metric, target });
 
@@ -134,6 +136,50 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   definition("faction-catalogue", "Faction Field Guide", "Represent all six factions across saved decks.", "Compendium", "deckFactions", 6),
 ];
 
+const achievementCategorySet = new Set<string>(ACHIEVEMENT_CATEGORIES);
+const achievementMetricSet = new Set<string>(ACHIEVEMENT_METRICS);
+let runtimeAchievementDefinitions: readonly AchievementDefinition[] | null = null;
+
+export function normalizeAchievementDefinitions(value: unknown): AchievementDefinition[] {
+  if (!Array.isArray(value)) return ACHIEVEMENT_DEFINITIONS.map((item) => ({ ...item }));
+  const candidates = new Map<string, Record<string, unknown>>();
+  for (const raw of value) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const item = raw as Record<string, unknown>;
+    if (typeof item.id === "string" && !candidates.has(item.id)) candidates.set(item.id, item);
+  }
+  return ACHIEVEMENT_DEFINITIONS.flatMap((base) => {
+    const item = candidates.get(base.id);
+    if (!item) return [];
+    const name = typeof item.name === "string" && item.name.trim()
+      ? item.name.trim().slice(0, 80)
+      : base.name;
+    const description = typeof item.description === "string" && item.description.trim()
+      ? item.description.trim().slice(0, 300)
+      : base.description;
+    const category = typeof item.category === "string" && achievementCategorySet.has(item.category)
+      ? item.category as AchievementCategory
+      : base.category;
+    const metric = typeof item.metric === "string" && achievementMetricSet.has(item.metric)
+      ? item.metric as AchievementMetricKey
+      : base.metric;
+    const requestedTarget = Number(item.target);
+    const target = Number.isInteger(requestedTarget) && requestedTarget > 0
+      ? Math.min(requestedTarget, 1_000_000)
+      : base.target;
+    return [{ id: base.id, name, description, category, metric, target }];
+  });
+}
+
+export function setAchievementDefinitionRuntime(value: unknown) {
+  runtimeAchievementDefinitions = normalizeAchievementDefinitions(value);
+  return runtimeAchievementDefinitions;
+}
+
+export function resetAchievementDefinitionRuntime() {
+  runtimeAchievementDefinitions = null;
+}
+
 type Metric = {
   value: number;
   completedAt: (target: number) => string | null;
@@ -199,6 +245,7 @@ export function achievementsFor(
   decks: DeckRecord[],
   history: Array<Partial<MatchResultRecord>>,
   lifetimeStats?: LifetimeMatchStats,
+  definitions: readonly AchievementDefinition[] = runtimeAchievementDefinitions ?? ACHIEVEMENT_DEFINITIONS,
 ): Achievement[] {
   const matches = history.filter(
     (record) => !/disconnect|abandon/i.test(record.reason ?? ""),
@@ -214,7 +261,7 @@ export function achievementsFor(
   const recentWins = countMetric(wins, (record) => record.at);
   const recentTraining = countMetric(matches.filter((record) => record.mode === "training"), (record) => record.at);
   const recentOnline = countMetric(onlineGames, (record) => record.at);
-  const metrics: Record<MetricKey, Metric> = {
+  const metrics: Record<AchievementMetricKey, Metric> = {
     decks: countMetric(decks, (deck) => deck.updatedAt),
     completeDecks: countMetric(decks.filter(legalSized), (deck) => deck.updatedAt),
     publicDecks: countMetric(decks.filter((deck) => deck.visibility === "Public"), (deck) => deck.publishedAt ?? deck.updatedAt),
@@ -240,7 +287,7 @@ export function achievementsFor(
     uniqueCores: uniqueMetric(decks, (deck) => deck.coreIds, (deck) => deck.updatedAt),
   };
 
-  return ACHIEVEMENT_DEFINITIONS.map((item) => {
+  return definitions.map((item) => {
     const metric = metrics[item.metric];
     const status = achievementStatus(metric.value, item.target);
     return {

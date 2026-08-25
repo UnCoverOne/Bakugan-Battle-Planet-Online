@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import {
   DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS,
+  PROFILE_REWARD_UNAVAILABLE,
   normalizeAchievementRewardAssignments,
 } from "../lib/achievement-rewards";
 import {
@@ -103,26 +104,49 @@ test("administrator reward assignments cover Titles, Covers, and Avatars", () =>
   assert.equal(configured.covers["aquos-hyper-trox-ultra"], "online");
   assert.equal(configured.avatars["shun-kazami"], "first-win");
 
+  const exclusive = normalizeAchievementRewardAssignments({
+    titles: { "first-victor": "first-win" },
+    covers: { "aquos-hyper-trox-ultra": "first-win" },
+    avatars: { "shun-kazami": PROFILE_REWARD_UNAVAILABLE },
+  });
+  assert.equal(exclusive.titles["first-victor"], "first-win");
+  assert.equal(exclusive.covers["aquos-hyper-trox-ultra"], null);
+  assert.equal(exclusive.avatars["shun-kazami"], PROFILE_REWARD_UNAVAILABLE);
+
   setProfileRewardRuntime(configured, new Set(["online"]));
   assert.equal(PROFILE_TITLES.find((item) => item.id === "first-victor")?.achievementId, null);
   assert.equal(PROFILE_COVERS.find((item) => item.id === "aquos-hyper-trox-ultra")?.achievementId, "online");
   resetProfileRewardRuntime();
 });
 
-test("achievement reward administrator UI and APIs are wired into the profile runtime", () => {
+test("achievement administrator UI and APIs are wired into the profile runtime", () => {
   const router = readFileSync("components/routes/AdminRewardRouter.tsx", "utf8");
   const management = readFileSync("components/routes/AchievementRewardManagement.tsx", "utf8");
   const adminApi = readFileSync("app/api/admin/achievement-rewards/route.ts", "utf8");
   const publicApi = readFileSync("app/api/profile-rewards/route.ts", "utf8");
   const provider = readFileSync("components/routes/ProfileRewardRuntimeProvider.tsx", "utf8");
-  for (const contract of ["Achievement Rewards", "Titles", "Covers", "Avatars", "Save Rewards"]) {
+  for (const contract of [
+    "Achievements",
+    "Search achievements",
+    "Unassigned Rewards",
+    "Titles",
+    "Covers",
+    "Avatars",
+    "Clear reward",
+    "Delete Achievement",
+  ]) {
     assert.match(`${router}\n${management}`, new RegExp(contract));
   }
+  assert.match(management, /PROFILE_REWARD_UNAVAILABLE/);
+  assert.match(management, /rewardAssignmentIsAchievement/);
   assert.match(adminApi, /requireAdministrator/);
   assert.match(adminApi, /assertSameOrigin/);
+  assert.match(adminApi, /loadAchievementDefinitions/);
   assert.match(publicApi, /loadAchievementRewardAssignments/);
+  assert.match(publicApi, /loadAchievementDefinitions/);
   assert.match(provider, /\/api\/profile-rewards/);
   assert.match(provider, /assignments\.avatars/);
+  assert.match(provider, /setAchievementDefinitionRuntime/);
 });
 
 test("public profile contract normalizes canonical customization and ranked data", () => {

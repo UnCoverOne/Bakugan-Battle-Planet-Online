@@ -1,9 +1,12 @@
 import { ACHIEVEMENT_DEFINITIONS } from "./achievements";
 import {
   PROFILE_AVATARS,
-  PROFILE_COVERS,
-  PROFILE_TITLES,
+  PROFILE_COVER_CATALOGUE,
+  PROFILE_TITLE_CATALOGUE,
 } from "./profile-customization";
+import { PROFILE_REWARD_UNAVAILABLE } from "./profile-reward-runtime";
+
+export { PROFILE_REWARD_UNAVAILABLE } from "./profile-reward-runtime";
 
 export type AchievementRewardKind = "title" | "cover" | "avatar";
 export type AchievementRewardAssignments = {
@@ -22,70 +25,123 @@ export const ALWAYS_AVAILABLE_PROFILE_REWARDS = {
 
 export const DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS: AchievementRewardAssignments = {
   titles: Object.fromEntries(
-    PROFILE_TITLES.map((item) => [item.id, item.achievementId]),
+    PROFILE_TITLE_CATALOGUE.map((item) => [item.id, item.achievementId]),
   ),
   covers: Object.fromEntries(
-    PROFILE_COVERS.map((item) => [item.id, item.achievementId]),
+    PROFILE_COVER_CATALOGUE.map((item) => [item.id, item.achievementId]),
   ),
   avatars: Object.fromEntries(PROFILE_AVATARS.map((item) => [item.id, null])),
 };
 
-function normalizeGroup(
-  value: unknown,
-  ids: readonly string[],
-  fallback: Record<string, string | null>,
-  alwaysAvailable: ReadonlySet<string>,
-) {
-  const input = value && typeof value === "object" && !Array.isArray(value)
+type RewardGroupConfig = {
+  key: keyof AchievementRewardAssignments;
+  ids: readonly string[];
+  fallback: Record<string, string | null>;
+  alwaysAvailable: ReadonlySet<string>;
+};
+
+const REWARD_GROUPS: readonly RewardGroupConfig[] = [
+  {
+    key: "titles",
+    ids: PROFILE_TITLE_CATALOGUE.map((item) => item.id),
+    fallback: DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.titles,
+    alwaysAvailable: ALWAYS_AVAILABLE_PROFILE_REWARDS.titles,
+  },
+  {
+    key: "covers",
+    ids: PROFILE_COVER_CATALOGUE.map((item) => item.id),
+    fallback: DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.covers,
+    alwaysAvailable: ALWAYS_AVAILABLE_PROFILE_REWARDS.covers,
+  },
+  {
+    key: "avatars",
+    ids: PROFILE_AVATARS.map((item) => item.id),
+    fallback: DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.avatars,
+    alwaysAvailable: ALWAYS_AVAILABLE_PROFILE_REWARDS.avatars,
+  },
+];
+
+function recordValue(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
-  return Object.fromEntries(ids.map((id) => {
-    if (alwaysAvailable.has(id)) return [id, null];
-    const candidate = input[id];
-    if (candidate === null || candidate === "") return [id, null];
-    if (typeof candidate === "string" && achievementIds.has(candidate)) {
-      return [id, candidate];
-    }
-    return [id, fallback[id] ?? null];
-  }));
 }
 
 export function normalizeAchievementRewardAssignments(
   value: unknown,
+  allowedAchievementIds: ReadonlySet<string> = achievementIds,
 ): AchievementRewardAssignments {
-  const input = value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
-  return {
-    titles: normalizeGroup(
-      input.titles,
-      PROFILE_TITLES.map((item) => item.id),
-      DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.titles,
-      ALWAYS_AVAILABLE_PROFILE_REWARDS.titles,
-    ),
-    covers: normalizeGroup(
-      input.covers,
-      PROFILE_COVERS.map((item) => item.id),
-      DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.covers,
-      ALWAYS_AVAILABLE_PROFILE_REWARDS.covers,
-    ),
-    avatars: normalizeGroup(
-      input.avatars,
-      PROFILE_AVATARS.map((item) => item.id),
-      DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.avatars,
-      ALWAYS_AVAILABLE_PROFILE_REWARDS.avatars,
-    ),
+  const input = recordValue(value);
+  const result: AchievementRewardAssignments = {
+    titles: {},
+    covers: {},
+    avatars: {},
   };
+  const claimedAchievementIds = new Set<string>();
+  const fallbackQueue: Array<{ group: RewardGroupConfig; id: string }> = [];
+
+  // Explicit administrator choices win before bundled defaults are considered.
+  // This also makes uniqueness deterministic when an old payload contains a
+  // duplicate assignment: the first explicit reward in catalogue order wins.
+  for (const group of REWARD_GROUPS) {
+    const groupInput = recordValue(input[group.key]);
+    for (const id of group.ids) {
+      if (group.alwaysAvailable.has(id)) {
+        result[group.key][id] = null;
+        continue;
+      }
+      const candidate = groupInput[id];
+      if (candidate === PROFILE_REWARD_UNAVAILABLE) {
+        result[group.key][id] = PROFILE_REWARD_UNAVAILABLE;
+        continue;
+      }
+      if (candidate === null || candidate === "") {
+        result[group.key][id] = null;
+        continue;
+      }
+      if (typeof candidate === "string" && allowedAchievementIds.has(candidate)) {
+        if (!claimedAchievementIds.has(candidate)) {
+          claimedAchievementIds.add(candidate);
+          result[group.key][id] = candidate;
+        } else {
+          result[group.key][id] = null;
+        }
+        continue;
+      }
+      result[group.key][id] = null;
+      fallbackQueue.push({ group, id });
+    }
+  }
+
+  // Fill omitted or invalid entries from the bundled catalogue only after all
+  // explicit choices have claimed their achievements.
+  for (const { group, id } of fallbackQueue) {
+    const fallbackCandidate = group.fallback[id] ?? null;
+    if (
+      fallbackCandidate &&
+      allowedAchievementIds.has(fallbackCandidate) &&
+      !claimedAchievementIds.has(fallbackCandidate)
+    ) {
+      claimedAchievementIds.add(fallbackCandidate);
+      result[group.key][id] = fallbackCandidate;
+    }
+  }
+
+  return result;
+}
+
+export function rewardAssignmentIsAchievement(value: string | null | undefined) {
+  return Boolean(value && value !== PROFILE_REWARD_UNAVAILABLE);
 }
 
 export function configuredProfileRewardCatalogues(value: unknown) {
   const assignments = normalizeAchievementRewardAssignments(value);
   return {
-    titles: PROFILE_TITLES.map((item) => ({
+    titles: PROFILE_TITLE_CATALOGUE.map((item) => ({
       ...item,
       achievementId: assignments.titles[item.id] ?? null,
     })),
-    covers: PROFILE_COVERS.map((item) => ({
+    covers: PROFILE_COVER_CATALOGUE.map((item) => ({
       ...item,
       achievementId: assignments.covers[item.id] ?? null,
     })),
