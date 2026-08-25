@@ -570,7 +570,7 @@ function RewardPickerModal({
             : assignedElsewhere
               ? `Used by ${achievementNames.get(assignment as string) ?? "another achievement"}`
               : permanent
-                ? "Available by default"
+                ? "Required profile fallback"
                 : assignment === PROFILE_REWARD_UNAVAILABLE
                   ? "Currently not available"
                   : "Available by default";
@@ -578,7 +578,7 @@ function RewardPickerModal({
             <button
               type="button"
               key={reward.id}
-              disabled={saving || assignedElsewhere}
+              disabled={saving || assignedElsewhere || permanent}
               aria-pressed={selected}
               onClick={() => onSelect(group.key, reward.id)}
             >
@@ -586,7 +586,15 @@ function RewardPickerModal({
                 <strong>{reward.label}</strong>
                 <small>{state}</small>
               </span>
-              {selected ? <StatusChip tone="success">CURRENT</StatusChip> : assignedElsewhere ? <StatusChip tone="warning">IN USE</StatusChip> : <span aria-hidden="true">→</span>}
+              {selected ? (
+                <StatusChip tone="success">CURRENT</StatusChip>
+              ) : assignedElsewhere ? (
+                <StatusChip tone="warning">IN USE</StatusChip>
+              ) : permanent ? (
+                <StatusChip tone="success">DEFAULT</StatusChip>
+              ) : (
+                <span aria-hidden="true">→</span>
+              )}
             </button>
           );
         })}
