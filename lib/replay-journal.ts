@@ -12,6 +12,7 @@ type JournalWorkerRequest =
   | {
     type: "append";
     replayId: string;
+    state: MatchState;
     transition: LocalEngineHistoryTransition;
   }
   | { type: "complete"; requestId: number; replayId: string; ownerId: string; state: MatchState; completedAt: number }
@@ -81,8 +82,8 @@ function journalWorker(): Worker | null {
   }
   worker.addEventListener("message", (event: MessageEvent<JournalWorkerResponse>) => {
     if (event.data.type === "append-error") {
-      // Recording must never stall live Training gameplay, but a broken hash
-      // chain is surfaced immediately rather than remaining latent until watch.
+      // Recording must never stall live Training gameplay, but storage or
+      // serialization failures are still surfaced immediately for diagnostics.
       console.error(`[local-replay] ${event.data.error}`);
       return;
     }
@@ -150,6 +151,9 @@ export function journalLocalEngineTransition(
   journalWorker()?.postMessage({
     type: "append",
     replayId: before.id,
+    // The worker persists this full authoritative state only at sparse periodic
+    // checkpoints or when a hash gap requires an exact resynchronization anchor.
+    state: before,
     transition,
   } satisfies JournalWorkerRequest);
 }
