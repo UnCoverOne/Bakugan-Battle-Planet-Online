@@ -1,4 +1,5 @@
 import { achievementsFor } from "./achievements";
+import { loadAchievementDefinitions } from "./achievement-configuration-server";
 import { loadAccountDataPayload } from "./account-data-server";
 import type { AccountDatabase } from "./account-server";
 import { accountStatMatches } from "./match-statistics";
@@ -86,7 +87,8 @@ export async function publicBrawlerProfile(
     displayName: String(row.display_name),
     faction: String(row.faction),
   });
-  const achievements = achievementsFor(decks, history, lifetimeStats);
+  const achievementDefinitions = await loadAchievementDefinitions(db);
+  const achievements = achievementsFor(decks, history, lifetimeStats, achievementDefinitions);
   const completedGames = accountStatMatches(history);
   const gamesPlayed = Math.max(
     completedGames.length,
