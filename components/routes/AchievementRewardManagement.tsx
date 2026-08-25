@@ -19,8 +19,8 @@ import {
 } from "../../lib/achievement-rewards";
 import {
   PROFILE_AVATARS,
-  PROFILE_COVERS,
-  PROFILE_TITLES,
+  PROFILE_COVER_CATALOGUE,
+  PROFILE_TITLE_CATALOGUE,
 } from "../../lib/profile-customization";
 import { useApp } from "../application/AppProvider";
 import {
@@ -59,14 +59,14 @@ const GROUPS: Array<{
     key: "titles",
     label: "Titles",
     singular: "Title",
-    items: PROFILE_TITLES,
+    items: PROFILE_TITLE_CATALOGUE,
     alwaysAvailable: ALWAYS_AVAILABLE_PROFILE_REWARDS.titles,
   },
   {
     key: "covers",
     label: "Covers",
     singular: "Cover",
-    items: PROFILE_COVERS,
+    items: PROFILE_COVER_CATALOGUE,
     alwaysAvailable: ALWAYS_AVAILABLE_PROFILE_REWARDS.covers,
   },
   {
