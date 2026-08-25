@@ -1,8 +1,8 @@
 import { ACHIEVEMENT_DEFINITIONS } from "./achievements";
 import {
   PROFILE_AVATARS,
-  PROFILE_COVERS,
-  PROFILE_TITLES,
+  PROFILE_COVER_CATALOGUE,
+  PROFILE_TITLE_CATALOGUE,
 } from "./profile-customization";
 import { PROFILE_REWARD_UNAVAILABLE } from "./profile-reward-runtime";
 
@@ -25,10 +25,10 @@ export const ALWAYS_AVAILABLE_PROFILE_REWARDS = {
 
 export const DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS: AchievementRewardAssignments = {
   titles: Object.fromEntries(
-    PROFILE_TITLES.map((item) => [item.id, item.achievementId]),
+    PROFILE_TITLE_CATALOGUE.map((item) => [item.id, item.achievementId]),
   ),
   covers: Object.fromEntries(
-    PROFILE_COVERS.map((item) => [item.id, item.achievementId]),
+    PROFILE_COVER_CATALOGUE.map((item) => [item.id, item.achievementId]),
   ),
   avatars: Object.fromEntries(PROFILE_AVATARS.map((item) => [item.id, null])),
 };
@@ -43,13 +43,13 @@ type RewardGroupConfig = {
 const REWARD_GROUPS: readonly RewardGroupConfig[] = [
   {
     key: "titles",
-    ids: PROFILE_TITLES.map((item) => item.id),
+    ids: PROFILE_TITLE_CATALOGUE.map((item) => item.id),
     fallback: DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.titles,
     alwaysAvailable: ALWAYS_AVAILABLE_PROFILE_REWARDS.titles,
   },
   {
     key: "covers",
-    ids: PROFILE_COVERS.map((item) => item.id),
+    ids: PROFILE_COVER_CATALOGUE.map((item) => item.id),
     fallback: DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.covers,
     alwaysAvailable: ALWAYS_AVAILABLE_PROFILE_REWARDS.covers,
   },
@@ -137,11 +137,11 @@ export function rewardAssignmentIsAchievement(value: string | null | undefined) 
 export function configuredProfileRewardCatalogues(value: unknown) {
   const assignments = normalizeAchievementRewardAssignments(value);
   return {
-    titles: PROFILE_TITLES.map((item) => ({
+    titles: PROFILE_TITLE_CATALOGUE.map((item) => ({
       ...item,
       achievementId: assignments.titles[item.id] ?? null,
     })),
-    covers: PROFILE_COVERS.map((item) => ({
+    covers: PROFILE_COVER_CATALOGUE.map((item) => ({
       ...item,
       achievementId: assignments.covers[item.id] ?? null,
     })),
