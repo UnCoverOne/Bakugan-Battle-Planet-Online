@@ -33,6 +33,10 @@ export type CoreReturnMatchState = MatchState & {
   drawDeadline?: number;
 };
 
+type EngineStampedMatchState = MatchState & {
+  __engine?: { lastCommandId?: string };
+};
+
 const RETURN_WINDOW_MS = 45_000;
 const RESUME_WINDOW_MS = 35_000;
 
@@ -203,6 +207,12 @@ function autoPlaceTrainingBotReturns(state: CoreReturnMatchState) {
   return state;
 }
 
+function alreadyReconciledByEngine(before: MatchState, after: MatchState) {
+  const beforeCommandId = (before as EngineStampedMatchState).__engine?.lastCommandId;
+  const afterCommandId = (after as EngineStampedMatchState).__engine?.lastCommandId;
+  return Boolean(afterCommandId && afterCommandId !== beforeCommandId);
+}
+
 /**
  * Convert the legacy "detach in the old hex" behaviour into an explicit return
  * decision. The completed game action is retained as a suspended continuation,
@@ -210,6 +220,12 @@ function autoPlaceTrainingBotReturns(state: CoreReturnMatchState) {
  */
 export function captureCoreReturns(before: MatchState | null, after: MatchState): MatchState {
   if (!before || before.id !== after.id || before.gameNumber !== after.gameNumber) return after;
+  // reduceMatch performs core-return reconciliation before it stamps the newly
+  // accepted command receipt. Any later coordinator call sees a different
+  // lastCommandId and must treat that state as already authoritative. This keeps
+  // one engine version mapped to one battlefield state and prevents a second
+  // Date.now()-driven reconciliation from diverging replay hashes.
+  if (alreadyReconciledByEngine(before, after)) return after;
   if (["startingPlayer", "placement"].includes(after.phase)) return after;
 
   const current = asCoreReturnState(after);

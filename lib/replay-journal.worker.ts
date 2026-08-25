@@ -22,6 +22,7 @@ type WorkerRequest =
   | {
     type: "append";
     replayId: string;
+    state: MatchState;
     transition: LocalEngineHistoryTransition;
   }
   | { type: "complete"; requestId: number; replayId: string; ownerId: string; state: MatchState; completedAt: number }
@@ -114,10 +115,10 @@ async function handleMessage(message: WorkerRequest) {
     if (!draft) throw new Error("Local engine history was not initialized.");
     if (isLocalEngineHistoryDraft(draft)) {
       try {
-        appendLocalEngineHistoryTransition(draft, message.transition);
+        appendLocalEngineHistoryTransition(draft, message.transition, message.state);
       } catch (cause) {
-        // The helper records the integrity fault on the draft before throwing.
-        // Persist that diagnostic before surfacing the append error to the page.
+        // Persist any diagnostic/checkpoint changes made before a non-integrity
+        // storage/serialization failure is surfaced to the page.
         await persistDraft(draft).catch(() => undefined);
         throw cause;
       }
