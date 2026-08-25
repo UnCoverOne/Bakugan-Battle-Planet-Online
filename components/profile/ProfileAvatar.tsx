@@ -1,12 +1,30 @@
 import { OriginalImage } from "@/components/media/OriginalImage";
 import type { BrawlerProfile } from "../../lib/persistence";
 import { PROFILE_AVATARS } from "../../lib/profile-customization";
+import { runtimeProfileRewardUnlocked } from "../../lib/profile-reward-runtime";
 
-export const PROFILE_AVATAR_PRESETS = PROFILE_AVATARS.map((item) => ({
+const ALL_PROFILE_AVATAR_PRESETS = PROFILE_AVATARS.map((item) => ({
   id: item.id,
   name: item.label,
   src: item.src,
 }));
+
+export const PROFILE_AVATAR_PRESETS = new Proxy(ALL_PROFILE_AVATAR_PRESETS, {
+  get(target, property, receiver) {
+    if (property === "map") {
+      return <T,>(
+        callback: (item: (typeof target)[number], index: number, items: (typeof target)[number][]) => T,
+        thisArg?: unknown,
+      ) => {
+        const available = target.filter((item) =>
+          runtimeProfileRewardUnlocked("avatars", item.id),
+        );
+        return available.map(callback, thisArg);
+      };
+    }
+    return Reflect.get(target, property, receiver);
+  },
+});
 
 function profileAvatarPreset(avatar?: string) {
   if (!avatar?.startsWith("preset:")) return null;

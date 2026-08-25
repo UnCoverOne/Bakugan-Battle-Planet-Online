@@ -3,9 +3,14 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS,
+  normalizeAchievementRewardAssignments,
+} from "../lib/achievement-rewards";
+import {
   PROFILE_AVATARS,
   PROFILE_COVERS,
   PROFILE_SHOWCASE_LIMIT,
+  PROFILE_TITLES,
   normalizeProfileAvatar,
   normalizeProfileCover,
   normalizeProfileTitle,
@@ -13,6 +18,10 @@ import {
   profileRewardUnlocked,
   toggleShowcaseId,
 } from "../lib/profile-customization";
+import {
+  resetProfileRewardRuntime,
+  setProfileRewardRuntime,
+} from "../lib/profile-reward-runtime";
 import { normalizePublicBrawlerProfile } from "../lib/public-profile";
 
 function pngDimensions(path: string) {
@@ -76,6 +85,44 @@ test("profile rewards honor achievement-based unlocks", () => {
   assert.equal(profileRewardUnlocked(reward, new Set()), false);
   assert.equal(profileRewardUnlocked(reward, new Set(["first-win"])), true);
   assert.equal(profileRewardUnlocked({ ...reward, achievementId: null }, new Set()), true);
+});
+
+test("administrator reward assignments cover Titles, Covers, and Avatars", () => {
+  assert.equal(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.titles["first-victor"], "first-win");
+  assert.equal(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.covers["aquos-hyper-trox-ultra"], null);
+  assert.equal(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.avatars["shun-kazami"], null);
+
+  const configured = normalizeAchievementRewardAssignments({
+    titles: { "battle-planet-brawler": "first-win", "first-victor": null },
+    covers: { "battle-planet": "first-win", "aquos-hyper-trox-ultra": "online" },
+    avatars: { "shun-kazami": "first-win" },
+  });
+  assert.equal(configured.titles["battle-planet-brawler"], null);
+  assert.equal(configured.covers["battle-planet"], null);
+  assert.equal(configured.titles["first-victor"], null);
+  assert.equal(configured.covers["aquos-hyper-trox-ultra"], "online");
+  assert.equal(configured.avatars["shun-kazami"], "first-win");
+
+  setProfileRewardRuntime(configured, new Set(["online"]));
+  assert.equal(PROFILE_TITLES.find((item) => item.id === "first-victor")?.achievementId, null);
+  assert.equal(PROFILE_COVERS.find((item) => item.id === "aquos-hyper-trox-ultra")?.achievementId, "online");
+  resetProfileRewardRuntime();
+});
+
+test("achievement reward administrator UI and APIs are wired into the profile runtime", () => {
+  const router = readFileSync("components/routes/AdminRewardRouter.tsx", "utf8");
+  const management = readFileSync("components/routes/AchievementRewardManagement.tsx", "utf8");
+  const adminApi = readFileSync("app/api/admin/achievement-rewards/route.ts", "utf8");
+  const publicApi = readFileSync("app/api/profile-rewards/route.ts", "utf8");
+  const provider = readFileSync("components/routes/ProfileRewardRuntimeProvider.tsx", "utf8");
+  for (const contract of ["Achievement Rewards", "Titles", "Covers", "Avatars", "Save Rewards"]) {
+    assert.match(`${router}\n${management}`, new RegExp(contract));
+  }
+  assert.match(adminApi, /requireAdministrator/);
+  assert.match(adminApi, /assertSameOrigin/);
+  assert.match(publicApi, /loadAchievementRewardAssignments/);
+  assert.match(provider, /\/api\/profile-rewards/);
+  assert.match(provider, /assignments\.avatars/);
 });
 
 test("public profile contract normalizes canonical customization and ranked data", () => {

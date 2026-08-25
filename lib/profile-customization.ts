@@ -1,3 +1,5 @@
+import { profileRewardRequirement } from "./profile-reward-runtime";
+
 export const PROFILE_SHOWCASE_LIMIT = 3;
 
 export type ProfileReward = {
@@ -43,108 +45,56 @@ export const PROFILE_AVATARS: readonly ProfileAvatarPreset[] = [
   { id: "aay", label: "AAY", src: "/assets/profile/icons/aay.png" },
 ];
 
+const titleReward = (
+  id: string,
+  label: string,
+  achievementId: string | null,
+): ProfileReward => ({
+  id,
+  label,
+  get achievementId() {
+    return profileRewardRequirement("titles", id, achievementId);
+  },
+});
+
 export const PROFILE_TITLES: readonly ProfileReward[] = [
-  {
-    id: "battle-planet-brawler",
-    label: "Battle Planet Brawler",
-    achievementId: null,
-  },
-  { id: "battle-ready", label: "Battle Ready", achievementId: "first-deck" },
-  {
-    id: "arsenal-architect",
-    label: "Arsenal Architect",
-    achievementId: "deck-builder",
-  },
-  { id: "first-victor", label: "First Victor", achievementId: "first-win" },
-  {
-    id: "seasoned-brawler",
-    label: "Seasoned Brawler",
-    achievementId: "veteran",
-  },
-  {
-    id: "strategy-publisher",
-    label: "Strategy Publisher",
-    achievementId: "publisher",
-  },
-  {
-    id: "connected-brawler",
-    label: "Connected Brawler",
-    achievementId: "online",
-  },
+  titleReward("battle-planet-brawler", "Battle Planet Brawler", null),
+  titleReward("battle-ready", "Battle Ready", "first-deck"),
+  titleReward("arsenal-architect", "Arsenal Architect", "deck-builder"),
+  titleReward("first-victor", "First Victor", "first-win"),
+  titleReward("seasoned-brawler", "Seasoned Brawler", "veteran"),
+  titleReward("strategy-publisher", "Strategy Publisher", "publisher"),
+  titleReward("connected-brawler", "Connected Brawler", "online"),
 ];
 
+const coverReward = (
+  id: string,
+  label: string,
+  faction: string | null,
+  src: string,
+  achievementId: string | null = null,
+): ProfileCoverReward => ({
+  id,
+  label,
+  get achievementId() {
+    return profileRewardRequirement("covers", id, achievementId);
+  },
+  faction,
+  src,
+});
+
 export const PROFILE_COVERS: readonly ProfileCoverReward[] = [
-  {
-    // Preserve the historical default id so existing profiles migrate cleanly.
-    id: "battle-planet",
-    label: "Ventus Hyper Turtonium Ultra",
-    achievementId: null,
-    faction: "Ventus",
-    src: "/assets/profile/covers/battle-planet.png",
-  },
-  {
-    id: "ventus-maximus-gorthion-ultra",
-    label: "Ventus Maximus Gorthion Ultra",
-    achievementId: null,
-    faction: "Ventus",
-    src: "/assets/profile/covers/ventus-maximus-gorthion-ultra.png",
-  },
-  {
-    id: "aquos-hyper-trox-ultra",
-    label: "Aquos Hyper Trox Ultra",
-    achievementId: null,
-    faction: "Aquos",
-    src: "/assets/profile/covers/aquos-hyper-trox-ultra.png",
-  },
-  {
-    id: "darkus-hyper-serpenteze-ultra",
-    label: "Darkus Hyper Serpenteze Ultra",
-    achievementId: null,
-    faction: "Darkus",
-    src: "/assets/profile/covers/darkus-hyper-serpenteze-ultra.png",
-  },
-  {
-    id: "darkus-turtonium",
-    label: "Darkus Turtonium",
-    achievementId: null,
-    faction: "Darkus",
-    src: "/assets/profile/covers/darkus-turtonium.png",
-  },
-  {
-    id: "haos-hyper-turtonium-ultra",
-    label: "Haos Hyper Turtonium Ultra",
-    achievementId: null,
-    faction: "Haos",
-    src: "/assets/profile/covers/haos-hyper-turtonium-ultra.png",
-  },
-  {
-    id: "haos-hyper-turtonium",
-    label: "Haos Hyper Turtonium",
-    achievementId: null,
-    faction: "Haos",
-    src: "/assets/profile/covers/haos-hyper-turtonium.png",
-  },
-  {
-    id: "haos-turtonium-ultra",
-    label: "Haos Turtonium Ultra",
-    achievementId: null,
-    faction: "Haos",
-    src: "/assets/profile/covers/haos-turtonium-ultra.png",
-  },
-  {
-    id: "pyrus-hyper-trox-ultra",
-    label: "Pyrus Hyper Trox Ultra",
-    achievementId: null,
-    faction: "Pyrus",
-    src: "/assets/profile/covers/pyrus-hyper-trox-ultra.png",
-  },
-  {
-    id: "pyrus-webam-ultra",
-    label: "Pyrus Webam Ultra",
-    achievementId: null,
-    faction: "Pyrus",
-    src: "/assets/profile/covers/pyrus-webam-ultra.png",
-  },
+  // Preserve the historical default id so existing profiles migrate cleanly.
+  coverReward("battle-planet", "Ventus Hyper Turtonium Ultra", "Ventus", "/assets/profile/covers/battle-planet.png"),
+  coverReward("ventus-maximus-gorthion-ultra", "Ventus Maximus Gorthion Ultra", "Ventus", "/assets/profile/covers/ventus-maximus-gorthion-ultra.png"),
+  coverReward("aquos-hyper-trox-ultra", "Aquos Hyper Trox Ultra", "Aquos", "/assets/profile/covers/aquos-hyper-trox-ultra.png"),
+  coverReward("darkus-hyper-serpenteze-ultra", "Darkus Hyper Serpenteze Ultra", "Darkus", "/assets/profile/covers/darkus-hyper-serpenteze-ultra.png"),
+  coverReward("darkus-turtonium", "Darkus Turtonium", "Darkus", "/assets/profile/covers/darkus-turtonium.png"),
+  coverReward("haos-hyper-turtonium-ultra", "Haos Hyper Turtonium Ultra", "Haos", "/assets/profile/covers/haos-hyper-turtonium-ultra.png"),
+  coverReward("haos-hyper-turtonium", "Haos Hyper Turtonium", "Haos", "/assets/profile/covers/haos-hyper-turtonium.png"),
+  coverReward("haos-turtonium-ultra", "Haos Turtonium Ultra", "Haos", "/assets/profile/covers/haos-turtonium-ultra.png"),
+  coverReward("pyrus-hyper-trox-ultra", "Pyrus Hyper Trox Ultra", "Pyrus", "/assets/profile/covers/pyrus-hyper-trox-ultra.png"),
+  coverReward("pyrus-webam-ultra", "Pyrus Webam Ultra", "Pyrus", "/assets/profile/covers/pyrus-webam-ultra.png"),
 ];
 
 const uniqueIds = (value: unknown) =>
