@@ -95,7 +95,7 @@ export const PROFILE_COVER_CATALOGUE: readonly ProfileCoverReward[] = [
   coverReward("darkus-turtonium", "Darkus Turtonium", "Darkus", "/assets/profile/covers/darkus-turtonium.png"),
   coverReward("haos-hyper-turtonium-ultra", "Haos Hyper Turtonium Ultra", "Haos", "/assets/profile/covers/haos-hyper-turtonium-ultra.png"),
   coverReward("haos-hyper-turtonium", "Haos Hyper Turtonium", "Haos", "/assets/profile/covers/haos-hyper-turtonium.png"),
-  coverReward("haos-turtonium-ultra", "Haos Turtonium Ultra", "Haos", "/assets/profile/covers/haos-hyper-turtonium-ultra.png".replace("hyper-", "")),
+  coverReward("haos-turtonium-ultra", "Haos Turtonium Ultra", "Haos", "/assets/profile/covers/haos-turtonium-ultra.png"),
   coverReward("pyrus-hyper-trox-ultra", "Pyrus Hyper Trox Ultra", "Pyrus", "/assets/profile/covers/pyrus-hyper-trox-ultra.png"),
   coverReward("pyrus-webam-ultra", "Pyrus Webam Ultra", "Pyrus", "/assets/profile/covers/pyrus-webam-ultra.png"),
 ];
