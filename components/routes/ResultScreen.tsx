@@ -1,6 +1,7 @@
 "use client";
 
 import { OriginalImage } from "@/components/media/OriginalImage";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "../application/AppProvider";
 import { useMatchSelector } from "../game-screen-v2/matchStore";
@@ -94,7 +95,7 @@ function ResultUnavailable() {
       <OriginalImage src="/assets/logo.png" alt="" />
       <h1>RESULT UNAVAILABLE</h1>
       <p>Return to the dashboard and start a new match.</p>
-      <a className="hex-button ghost" href="/dashboard">DASHBOARD</a>
+      <Link className="hex-button ghost" href="/dashboard">DASHBOARD</Link>
     </section>
   );
 }
