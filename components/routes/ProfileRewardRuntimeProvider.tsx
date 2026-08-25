@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { achievementsFor } from "../../lib/achievements";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  ACHIEVEMENT_DEFINITIONS,
+  achievementsFor,
+  normalizeAchievementDefinitions,
+  resetAchievementDefinitionRuntime,
+  setAchievementDefinitionRuntime,
+  type AchievementDefinition,
+} from "../../lib/achievements";
 import {
   DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS,
   normalizeAchievementRewardAssignments,
@@ -22,9 +29,12 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
   const [assignments, setAssignments] = useState<AchievementRewardAssignments>(
     () => normalizeAchievementRewardAssignments(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS),
   );
+  const [definitions, setDefinitions] = useState<AchievementDefinition[]>(
+    () => normalizeAchievementDefinitions(ACHIEVEMENT_DEFINITIONS),
+  );
   const achievements = useMemo(
-    () => achievementsFor(decks, history, lifetimeStats),
-    [decks, history, lifetimeStats],
+    () => achievementsFor(decks, history, lifetimeStats, definitions),
+    [decks, definitions, history, lifetimeStats],
   );
   const completedAchievementIds = useMemo(
     () => new Set(
@@ -35,6 +45,7 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
     [achievements],
   );
 
+  setAchievementDefinitionRuntime(definitions);
   setProfileRewardRuntime(assignments, completedAchievementIds);
 
   useEffect(() => {
@@ -43,16 +54,27 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error ?? "Profile rewards unavailable.");
-        setAssignments(normalizeAchievementRewardAssignments(result.assignments));
+        const nextDefinitions = normalizeAchievementDefinitions(result.achievements);
+        const activeAchievementIds = new Set(nextDefinitions.map((item) => item.id));
+        setDefinitions(nextDefinitions);
+        setAssignments(normalizeAchievementRewardAssignments(result.assignments, activeAchievementIds));
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setAssignments(normalizeAchievementRewardAssignments(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS));
+        const fallbackDefinitions = normalizeAchievementDefinitions(ACHIEVEMENT_DEFINITIONS);
+        setDefinitions(fallbackDefinitions);
+        setAssignments(normalizeAchievementRewardAssignments(
+          DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS,
+          new Set(fallbackDefinitions.map((item) => item.id)),
+        ));
       });
     return () => controller.abort();
   }, []);
 
-  useEffect(() => () => resetProfileRewardRuntime(), []);
+  useEffect(() => () => {
+    resetAchievementDefinitionRuntime();
+    resetProfileRewardRuntime();
+  }, []);
 
   useEffect(() => {
     const next = { ...profile };
@@ -82,5 +104,5 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
     if (changed) setProfile(next);
   }, [assignments, completedAchievementIds, profile, setProfile]);
 
-  return children;
+  return <Fragment key={JSON.stringify(definitions)}>{children}</Fragment>;
 }
