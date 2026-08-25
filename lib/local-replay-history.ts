@@ -247,9 +247,14 @@ export function appendLocalEngineHistoryTransition(
       recordedBeforeStateHash: recordedBeforeStateHash!,
       detectedAt: timestamp,
     });
-    if (beforeState && checkpointMatchesTransition) {
-      rememberCheckpoint(draft, beforeState, transition.envelope.issuedAt, "integrity-resync");
+    if (!beforeState || !checkpointMatchesTransition) {
+      draft.updatedAt = timestamp;
+      throw new Error(
+        `Local replay history integrity mismatch before ${transition.envelope.commandId}: `
+        + `expected ${expectedBeforeStateHash}, received ${recordedBeforeStateHash}.`,
+      );
     }
+    rememberCheckpoint(draft, beforeState, transition.envelope.issuedAt, "integrity-resync");
   } else if (
     beforeState
     && checkpointMatchesTransition
