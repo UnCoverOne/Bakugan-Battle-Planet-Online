@@ -4,6 +4,9 @@ import {
   PROFILE_COVERS,
   PROFILE_TITLES,
 } from "./profile-customization";
+import { PROFILE_REWARD_UNAVAILABLE } from "./profile-reward-runtime";
+
+export { PROFILE_REWARD_UNAVAILABLE } from "./profile-reward-runtime";
 
 export type AchievementRewardKind = "title" | "cover" | "avatar";
 export type AchievementRewardAssignments = {
@@ -11,8 +14,6 @@ export type AchievementRewardAssignments = {
   covers: Record<string, string | null>;
   avatars: Record<string, string | null>;
 };
-
-export const PROFILE_REWARD_UNAVAILABLE = "__unavailable__";
 
 const achievementIds = new Set(ACHIEVEMENT_DEFINITIONS.map((item) => item.id));
 
