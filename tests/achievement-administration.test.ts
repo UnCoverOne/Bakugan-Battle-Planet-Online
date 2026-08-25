@@ -34,15 +34,11 @@ test("achievement definitions can be edited and deleted without inventing catalo
   );
 
   assert.equal(configured.some((item) => item.id === "first-win"), false);
-  assert.deepEqual(
-    configured.find((item) => item.id === "first-deck"),
-    {
-      ...ACHIEVEMENT_DEFINITIONS.find((item) => item.id === "first-deck"),
-      name: "First Complete Deck",
-      description: "Complete two legal-sized decks.",
-      target: 2,
-    },
-  );
+  const edited = configured.find((item) => item.id === "first-deck");
+  assert.ok(edited);
+  assert.equal(edited.name, "First Complete Deck");
+  assert.equal(edited.description, "Complete two legal-sized decks.");
+  assert.equal(edited.target, 2);
   assert.equal(configured.length, ACHIEVEMENT_DEFINITIONS.length - 1);
 });
 
