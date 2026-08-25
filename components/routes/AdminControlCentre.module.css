@@ -1,0 +1,7 @@
+.rewardsMode :global(nav[aria-label="Administrator sections"]) ~ section {
+  display: none;
+}
+
+.embeddedRewards > div > p:last-child {
+  display: none;
+}
