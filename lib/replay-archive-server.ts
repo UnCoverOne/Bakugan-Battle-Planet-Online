@@ -16,13 +16,18 @@ import { isCompletedSeriesResult } from "./match-result-navigation";
 import type { MatchResultRecord } from "./persistence";
 import {
   associateMatchSeatAccount,
-  buildReplayArchiveFromEventStore,
+  buildReplayArchiveFromEventStore as buildLegacyReplayArchiveFromEventStore,
   ensureReplayArchiveSchema,
   loadRecentReplaySummaries,
 } from "./replay-archive-server-legacy";
+import {
+  buildSegmentedReplayArchiveFromRows,
+  type SegmentedReplayCommandRow,
+  type SegmentedReplaySnapshotRow,
+} from "./replay-segmented-archive";
 
 export * from "./replay-archive-server-legacy";
-export { associateMatchSeatAccount, buildReplayArchiveFromEventStore, ensureReplayArchiveSchema, loadRecentReplaySummaries };
+export { associateMatchSeatAccount, ensureReplayArchiveSchema, loadRecentReplaySummaries };
 
 export const MATCH_RECORD_RETENTION = 10;
 export const PENDING_REPLAY_ARCHIVE_KIND = "pending-engine-history" as const;
@@ -253,6 +258,77 @@ export async function loadReplayForUser(database: D1Database, replayId: string, 
     WHERE match_replays.replay_id = ? AND match_replay_participants.user_id = ?`)
     .bind(replayId, userId)
     .first<StoredReplayForUser>();
+}
+
+/**
+ * Compile a replay from the canonical server engine history. Periodic full
+ * snapshots are resynchronization anchors only: exact accepted-command patches
+ * remain the primary replay evidence, and a damaged range no longer discards
+ * trustworthy command history that follows the next checkpoint.
+ */
+export async function buildReplayArchiveFromEventStore(
+  database: D1Database,
+  state: EngineBackedMatchState,
+  completedAt = Date.now(),
+): Promise<ReplayArchive> {
+  const snapshotResponse = await database.prepare(`SELECT version, state_json, created_at FROM match_snapshots
+    WHERE code = ? AND json_extract(state_json, '$.phase') <> 'lobby'
+    ORDER BY version ASC, created_at ASC`)
+    .bind(state.code)
+    .all<SegmentedReplaySnapshotRow>();
+  const snapshots = snapshotResponse.results ?? [];
+  const genesisRow = snapshots[0];
+  if (!genesisRow) {
+    return buildLegacyReplayArchiveFromEventStore(database, state, completedAt);
+  }
+
+  let genesis: MatchState;
+  try {
+    genesis = JSON.parse(genesisRow.state_json) as MatchState;
+  } catch {
+    return buildLegacyReplayArchiveFromEventStore(database, state, completedAt);
+  }
+  if (genesis.id !== state.id || genesis.code !== state.code || genesis.version !== genesisRow.version) {
+    return buildLegacyReplayArchiveFromEventStore(database, state, completedAt);
+  }
+
+  const commandResponse = await database.prepare(`SELECT
+      match_events.command_id,
+      match_events.actor_id,
+      match_commands.expected_version,
+      match_commands.result_version,
+      match_events.payload_json,
+      match_events.created_at
+    FROM match_events
+    JOIN match_commands
+      ON match_commands.code = match_events.code
+      AND match_commands.command_id = match_events.command_id
+    WHERE match_events.code = ?
+      AND match_events.event_type = 'COMMAND_ACCEPTED'
+      AND match_commands.result_version > ?
+    ORDER BY match_events.sequence ASC`)
+    .bind(state.code, genesisRow.version)
+    .all<SegmentedReplayCommandRow>();
+
+  try {
+    return buildSegmentedReplayArchiveFromRows(
+      genesis,
+      commandResponse.results ?? [],
+      snapshots.slice(1),
+      state,
+      completedAt,
+      genesisRow.created_at,
+    );
+  } catch (error) {
+    console.error("Segmented replay reconstruction failed; using legacy recovery.", {
+      replayId: state.id,
+      matchCode: state.code,
+      finalVersion: state.version,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return buildLegacyReplayArchiveFromEventStore(database, state, completedAt);
+  }
 }
 
 /** Compile and cache a pending server replay from the canonical engine history. */
