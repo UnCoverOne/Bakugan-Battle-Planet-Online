@@ -4,6 +4,8 @@ export type RuntimeRewardAssignments = Record<
   Record<string, string | null>
 >;
 
+export const PROFILE_REWARD_UNAVAILABLE = "__unavailable__";
+
 let activeAssignments: RuntimeRewardAssignments | null = null;
 let activeCompletedAchievementIds: ReadonlySet<string> = new Set();
 
@@ -29,11 +31,20 @@ export function profileRewardRequirement(
   return configured === undefined ? fallback : configured;
 }
 
+export function runtimeProfileRewardAvailable(
+  group: RuntimeRewardGroup,
+  rewardId: string,
+  fallback: string | null = null,
+) {
+  return profileRewardRequirement(group, rewardId, fallback) !== PROFILE_REWARD_UNAVAILABLE;
+}
+
 export function runtimeProfileRewardUnlocked(
   group: RuntimeRewardGroup,
   rewardId: string,
   fallback: string | null = null,
 ) {
   const achievementId = profileRewardRequirement(group, rewardId, fallback);
-  return achievementId === null || activeCompletedAchievementIds.has(achievementId);
+  return achievementId === null ||
+    (achievementId !== PROFILE_REWARD_UNAVAILABLE && activeCompletedAchievementIds.has(achievementId));
 }
