@@ -1,3 +1,10 @@
-.tabs {
-  margin: 1rem var(--space-page, 1.5rem) .25rem;
+.route{width:min(100% - 2rem,var(--content-wide));margin:0 auto;padding:1.5rem 0 5rem}
+.tabs{position:sticky;z-index:20;top:4.25rem;margin:1rem 0 0;padding:.45rem;background:rgba(2,14,20,.96);border:1px solid var(--border-strong);box-shadow:var(--elevation-2)}
+.tabs a{min-height:3rem;padding:.8rem 1.2rem;text-decoration:none}
+.adminContent>div{width:100%;margin:0;padding:0 0 5rem}
+.adminContent>div>:global([data-ui="route-hero"]),
+.adminContent>div>:global([data-ui="tabs"]){display:none}
+@media(max-width:700px){
+  .route{width:min(100% - 1rem,var(--content-wide));padding-top:.5rem}
+  .tabs{top:.25rem;display:grid;grid-template-columns:1fr}.tabs a{text-align:center}
 }
