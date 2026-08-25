@@ -5,11 +5,14 @@ import {
   createReplayRecording,
   replayStateHash,
 } from "./engine/replay-codec";
-import { buildBestEffortReplayTimeline } from "./engine/replay-best-effort";
 import { normalizeEngineState } from "./engine/events";
 import { buildFrozenReplayPlayback, buildReplayFrames } from "./engine/replay-playback";
-import type { RecordedReplayStep } from "./engine/replay-reconstruction";
-import type { ReplayArchive, ReplayFrame, ReplayJournalDraft } from "./engine/replay-types";
+import {
+  buildSegmentedReplayTimeline,
+  type ReplayRecoveryCheckpoint,
+  type SegmentedReplayStep,
+} from "./engine/replay-segmented";
+import type { ReplayArchive, ReplayJournalDraft } from "./engine/replay-types";
 import {
   createReplayStatePatch,
   isReplayStatePatch,
@@ -19,8 +22,9 @@ import type { CommandEnvelope, GameEvent } from "./engine/types";
 import { normalizeRuleObjects } from "./rules/state";
 import { buildDisplayableReplayArchive } from "./replay-finalization";
 
-export const LOCAL_ENGINE_HISTORY_SCHEMA_VERSION = 3 as const;
+export const LOCAL_ENGINE_HISTORY_SCHEMA_VERSION = 4 as const;
 const LEGACY_LOCAL_ENGINE_HISTORY_SCHEMA_VERSION = 2 as const;
+const HASHED_LOCAL_ENGINE_HISTORY_SCHEMA_VERSION = 3 as const;
 
 export type LocalEngineHistoryTransition = {
   envelope: CommandEnvelope;
@@ -39,8 +43,19 @@ export type LocalEngineHistoryIntegrityFault = {
   detectedAt: number;
 };
 
+export type LocalEngineHistoryCheckpoint = {
+  version: number;
+  at: number;
+  state: MatchState;
+  stateHash: string;
+  reason: "periodic" | "integrity-resync";
+};
+
 export type LocalEngineHistoryDraft = {
-  schemaVersion: typeof LEGACY_LOCAL_ENGINE_HISTORY_SCHEMA_VERSION | typeof LOCAL_ENGINE_HISTORY_SCHEMA_VERSION;
+  schemaVersion:
+    | typeof LEGACY_LOCAL_ENGINE_HISTORY_SCHEMA_VERSION
+    | typeof HASHED_LOCAL_ENGINE_HISTORY_SCHEMA_VERSION
+    | typeof LOCAL_ENGINE_HISTORY_SCHEMA_VERSION;
   replayId: string;
   ownerId: string;
   startedAt: number;
@@ -49,7 +64,12 @@ export type LocalEngineHistoryDraft = {
   transitions: LocalEngineHistoryTransition[];
   /** Persisted chain head lets a restarted worker validate the next append without replaying history. */
   headStateHash?: string;
+  /** Latest fault retained for existing diagnostics. */
   integrityFault?: LocalEngineHistoryIntegrityFault;
+  /** Bounded fault history keeps multiple replay gaps diagnosable. */
+  integrityFaults?: LocalEngineHistoryIntegrityFault[];
+  /** Authoritative engine checkpoints used only to re-anchor after a damaged range. */
+  checkpoints?: LocalEngineHistoryCheckpoint[];
   finalState?: MatchState;
   completedAt?: number;
 };
@@ -66,6 +86,7 @@ export function isLocalEngineHistoryDraft(value: unknown): value is LocalEngineH
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const draft = value as Partial<LocalEngineHistoryDraft>;
   return (draft.schemaVersion === LEGACY_LOCAL_ENGINE_HISTORY_SCHEMA_VERSION
+      || draft.schemaVersion === HASHED_LOCAL_ENGINE_HISTORY_SCHEMA_VERSION
       || draft.schemaVersion === LOCAL_ENGINE_HISTORY_SCHEMA_VERSION)
     && typeof draft.replayId === "string"
     && typeof draft.ownerId === "string"
@@ -102,6 +123,7 @@ export function createLocalEngineHistoryDraft(
     updatedAt: Date.now(),
     genesis,
     transitions: [],
+    checkpoints: [],
     headStateHash: replayStateHash(genesis),
   };
 }
@@ -141,109 +163,149 @@ function expectedDraftHeadHash(draft: LocalEngineHistoryDraft) {
   return undefined;
 }
 
+function rememberCheckpoint(
+  draft: LocalEngineHistoryDraft,
+  state: MatchState,
+  at: number,
+  reason: LocalEngineHistoryCheckpoint["reason"],
+) {
+  const normalized = normalizeLocalReplayState(state);
+  const stateHash = replayStateHash(normalized);
+  const checkpoints = draft.checkpoints ?? (draft.checkpoints = []);
+  const existing = checkpoints.find((checkpoint) => (
+    checkpoint.version === normalized.version && checkpoint.stateHash === stateHash
+  ));
+  if (existing) {
+    if (reason === "integrity-resync") existing.reason = reason;
+    existing.at = Math.min(existing.at, at);
+    return;
+  }
+  checkpoints.push({
+    version: normalized.version,
+    at,
+    state: normalized,
+    stateHash,
+    reason,
+  });
+  checkpoints.sort((left, right) => left.version - right.version || left.at - right.at);
+}
+
+function rememberIntegrityFault(
+  draft: LocalEngineHistoryDraft,
+  fault: LocalEngineHistoryIntegrityFault,
+) {
+  draft.integrityFault = fault;
+  const faults = draft.integrityFaults ?? (draft.integrityFaults = []);
+  if (!faults.some((candidate) => (
+    candidate.commandId === fault.commandId
+    && candidate.expectedBeforeStateHash === fault.expectedBeforeStateHash
+    && candidate.recordedBeforeStateHash === fault.recordedBeforeStateHash
+  ))) {
+    faults.push(fault);
+    if (faults.length > 20) faults.splice(0, faults.length - 20);
+  }
+}
+
 /**
- * Append one transition while the game is still running. A mismatch means the
- * recorder is about to chain a patch onto a different state shape, so reject it
- * immediately and persist diagnostic details instead of discovering it later in
- * Replay Theatre.
+ * Append one authoritative engine transition. A chain mismatch is a replay
+ * segment boundary, not a reason to poison every later command. When the worker
+ * supplies the exact pre-command engine state, persist it as a resynchronization
+ * checkpoint, advance the durable chain head to this transition's result, and
+ * continue recording subsequent history normally.
+ *
+ * The third argument remains number-compatible with schema-v3 unit callers.
  */
 export function appendLocalEngineHistoryTransition(
   draft: LocalEngineHistoryDraft,
   transition: LocalEngineHistoryTransition,
+  beforeStateOrDetectedAt?: MatchState | number,
   detectedAt = Date.now(),
 ) {
+  const beforeState = typeof beforeStateOrDetectedAt === "number" ? undefined : beforeStateOrDetectedAt;
+  const timestamp = typeof beforeStateOrDetectedAt === "number" ? beforeStateOrDetectedAt : detectedAt;
+  draft.schemaVersion = LOCAL_ENGINE_HISTORY_SCHEMA_VERSION;
+  draft.checkpoints ??= [];
+
   const expectedBeforeStateHash = expectedDraftHeadHash(draft);
-  if (
+  const recordedBeforeStateHash = transition.beforeStateHash;
+  const checkpointHash = beforeState ? localReplayStateHash(beforeState) : undefined;
+  const checkpointMatchesTransition = Boolean(
+    beforeState
+    && (!recordedBeforeStateHash || checkpointHash === recordedBeforeStateHash),
+  );
+
+  const chainMismatch = Boolean(
     expectedBeforeStateHash
-    && transition.beforeStateHash
-    && transition.beforeStateHash !== expectedBeforeStateHash
-  ) {
-    draft.integrityFault = {
+    && recordedBeforeStateHash
+    && recordedBeforeStateHash !== expectedBeforeStateHash,
+  );
+
+  if (chainMismatch) {
+    rememberIntegrityFault(draft, {
       commandId: transition.envelope.commandId,
-      expectedBeforeStateHash,
-      recordedBeforeStateHash: transition.beforeStateHash,
-      detectedAt,
-    };
-    draft.updatedAt = detectedAt;
-    throw new Error(
-      `Local replay history integrity mismatch before ${transition.envelope.commandId}: `
-      + `expected ${expectedBeforeStateHash}, received ${transition.beforeStateHash}.`,
-    );
+      expectedBeforeStateHash: expectedBeforeStateHash!,
+      recordedBeforeStateHash: recordedBeforeStateHash!,
+      detectedAt: timestamp,
+    });
+    if (beforeState && checkpointMatchesTransition) {
+      rememberCheckpoint(draft, beforeState, transition.envelope.issuedAt, "integrity-resync");
+    }
+  } else if (
+    beforeState
+    && checkpointMatchesTransition
+    && (
+      beforeState.version % 5 === 0
+      || transition.events.some((event) => event.type === "PHASE_CHANGED" || event.type === "GAME_ENDED")
+    )
+  ) {
+    // Match the online event store's coarse checkpoint cadence so storage
+    // corruption discovered later can skip to a nearby genuine engine state.
+    rememberCheckpoint(draft, beforeState, transition.envelope.issuedAt, "periodic");
   }
 
   draft.transitions.push(transition);
   draft.headStateHash = transition.resultStateHash ?? draft.headStateHash;
-  draft.updatedAt = detectedAt;
-  delete draft.integrityFault;
+  draft.updatedAt = timestamp;
 }
 
-function recordedStep(transition: LocalEngineHistoryTransition): RecordedReplayStep {
+function replayStep(transition: LocalEngineHistoryTransition): SegmentedReplayStep {
   const accepted = transition.events.find((event) => (
     event.type === "COMMAND_ACCEPTED" && event.commandId === transition.envelope.commandId
   ));
   const patch = accepted?.payload?.replayStatePatch;
-  if (!isReplayStatePatch(patch)) {
-    throw new Error(`Local engine history is missing the replay state patch for ${transition.envelope.commandId}.`);
-  }
   return {
     envelope: transition.envelope,
     resultVersion: transition.resultVersion,
-    statePatch: patch,
+    beforeStateHash: transition.beforeStateHash,
+    resultStateHash: transition.resultStateHash,
+    ...(isReplayStatePatch(patch) ? { statePatch: patch } : {}),
   };
 }
 
-function recoverableRecordedSteps(transitions: readonly LocalEngineHistoryTransition[]) {
-  const steps: RecordedReplayStep[] = [];
-  for (const transition of transitions) {
-    try {
-      steps.push(recordedStep(transition));
-    } catch {
-      break;
-    }
+function recoveryCheckpoints(draft: LocalEngineHistoryDraft): ReplayRecoveryCheckpoint[] {
+  const checkpoints = (draft.checkpoints ?? []).map((checkpoint) => ({
+    state: checkpoint.state,
+    at: checkpoint.at,
+    label: checkpoint.reason === "integrity-resync"
+      ? `Replay gap — resumed from engine checkpoint v${checkpoint.version}`
+      : undefined,
+  }));
+  if (draft.finalState && draft.completedAt) {
+    checkpoints.push({
+      state: normalizeLocalReplayState(draft.finalState),
+      at: draft.completedAt,
+      label: "Replay gap — recovered final battlefield",
+    });
   }
-  return steps;
-}
-
-function appendRecoveredFinalFrame(
-  timeline: ReturnType<typeof buildBestEffortReplayTimeline>,
-  finalState: MatchState,
-  completedAt: number,
-) {
-  const lastFrame = timeline.frames.at(-1);
-  const finalPresentation = replayPresentationState(finalState);
-  const finalHash = replayStateHash(finalPresentation);
-  const needsRecovery = !lastFrame
-    || lastFrame.state.version !== finalPresentation.version
-    || replayStateHash(lastFrame.state) !== finalHash;
-  if (!needsRecovery) return;
-
-  const label = "Replay gap — recovered final battlefield";
-  const frame: ReplayFrame = {
-    index: timeline.frames.length,
-    at: completedAt,
-    commandType: "NEXT_TURN",
-    label,
-    state: finalPresentation,
-  };
-  timeline.frames.push(frame);
-  timeline.markers.push({
-    index: frame.index,
-    at: frame.at,
-    type: finalPresentation.phase === "result" ? "result" : "command",
-    label,
-  });
+  return checkpoints;
 }
 
 /**
- * Compile a frozen replay only when the player asks to watch it. New local
- * histories use the exact state patches already carried by COMMAND_ACCEPTED
- * engine events; legacy command journals remain readable as a compatibility
- * path for matches that were already in progress during the migration.
- *
- * Local histories deliberately use best-effort reconstruction. A damaged or
- * inapplicable transition must never make every earlier valid frame disappear:
- * playback stops at the first untrustworthy transition and appends the sealed
- * authoritative final battlefield instead.
+ * Compile a frozen replay only when the player asks to watch it. Replay remains
+ * a projection of engine history: exact transition patches are preferred, while
+ * authoritative engine checkpoints are only used to bridge damaged or missing
+ * ranges. A gap therefore lowers fidelity locally instead of discarding every
+ * trustworthy frame that follows it.
  */
 export function compileLocalReplayHistory(draft: StoredLocalReplayJournal): ReplayArchive {
   if (!draft.finalState || !draft.completedAt) {
@@ -254,9 +316,13 @@ export function compileLocalReplayHistory(draft: StoredLocalReplayJournal): Repl
     return buildDisplayableReplayArchive(draft.recording, draft.finalState, draft.completedAt);
   }
 
-  const steps = recoverableRecordedSteps(draft.transitions);
-  const timeline = buildBestEffortReplayTimeline(draft.genesis, steps, draft.startedAt);
-  appendRecoveredFinalFrame(timeline, draft.finalState, draft.completedAt);
+  const steps = draft.transitions.map(replayStep);
+  const timeline = buildSegmentedReplayTimeline(
+    draft.genesis,
+    steps,
+    draft.startedAt,
+    recoveryCheckpoints(draft),
+  );
 
   const recording = createReplayRecording(draft.genesis);
   recording.commands = timeline.appliedSteps.map((step) => compactReplayCommand(step.envelope));
