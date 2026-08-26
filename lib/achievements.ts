@@ -67,7 +67,7 @@ const definition = (
 ): AchievementDefinition => ({ id, name, description, category, metric, target });
 
 /**
- * The first seven IDs are the original catalogue. The remaining 50 entries
+ * The first seven IDs are the original catalogue. The remaining 38 entries
  * extend it without invalidating existing completion expectations.
  */
 export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
@@ -79,9 +79,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   definition("publisher", "Share the Strategy", "Publish a deck to the Public Deck Library.", "Deck Building", "publicDecks", 1),
   definition("online", "Connected Brawler", "Complete an online game.", "Online Play", "onlineGames", 1),
 
-  // 50 additional achievements, grouped by shared method and theme.
-  definition("private-plan", "Private Plans", "Save a deck with Private visibility.", "Getting Started", "privateDecks", 1),
-  definition("favourite-plan", "Trusted Arsenal", "Mark a deck as a favourite.", "Getting Started", "favouriteDecks", 1),
+  // 38 additional achievements, grouped by shared method and theme.
   definition("first-series", "Best of Three", "Complete a best-of-three match.", "Getting Started", "bo3Games", 1),
   definition("training-day", "Training Day", "Complete a Training AI match.", "Getting Started", "trainingGames", 1),
   definition("singleton-start", "One of a Kind", "Save a Singleton-format deck.", "Getting Started", "singletonDecks", 1),
@@ -90,14 +88,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   definition("decks-ten", "Vault Keeper", "Save ten decks.", "Deck Building", "decks", 10),
   definition("complete-five", "Loadout Specialist", "Complete five legal-sized decks.", "Deck Building", "completeDecks", 5),
   definition("complete-ten", "Master Architect", "Complete ten legal-sized decks.", "Deck Building", "completeDecks", 10),
-  definition("public-three", "Strategy Contributor", "Publish three decks.", "Deck Building", "publicDecks", 3),
   definition("public-five", "Community Architect", "Publish five decks.", "Deck Building", "publicDecks", 5),
-  definition("private-three", "Hidden Laboratory", "Save three Private decks.", "Deck Building", "privateDecks", 3),
-  definition("private-five", "Secret Arsenal", "Save five Private decks.", "Deck Building", "privateDecks", 5),
-  definition("favourite-three", "Go-To Lineups", "Mark three decks as favourites.", "Deck Building", "favouriteDecks", 3),
-  definition("favourite-five", "Curated Arsenal", "Mark five decks as favourites.", "Deck Building", "favouriteDecks", 5),
-  definition("described-one", "Deck Identity", "Add a description to a saved deck.", "Deck Building", "describedDecks", 1),
-  definition("described-three", "Field Notes", "Add descriptions to three saved decks.", "Deck Building", "describedDecks", 3),
   definition("singleton-three", "Singleton Specialist", "Save three Singleton-format decks.", "Deck Building", "singletonDecks", 3),
   definition("all-factions", "Battle Planet Coalition", "Use all six factions across your saved decks.", "Deck Building", "deckFactions", 6),
 
@@ -110,7 +101,6 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   definition("wins-twenty-five", "Dominant Record", "Win twenty-five games.", "Battle", "wins", 25),
   definition("wins-fifty", "Battle Master", "Win fifty games.", "Battle", "wins", 50),
   definition("training-five", "Sparring Partner", "Complete five Training AI games.", "Battle", "trainingGames", 5),
-  definition("training-ten", "Simulation Regular", "Complete ten Training AI games.", "Battle", "trainingGames", 10),
   definition("training-twenty-five", "AI Analyst", "Complete twenty-five Training AI games.", "Battle", "trainingGames", 25),
   definition("bo1-ten", "Quick Brawl Expert", "Complete ten best-of-one games.", "Battle", "bo1Games", 10),
 
@@ -123,7 +113,6 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   definition("opponents-five", "Expanding Rivals", "Face five different online opponents.", "Online Play", "onlineOpponents", 5),
   definition("opponents-ten", "Known Across the Planet", "Face ten different online opponents.", "Online Play", "onlineOpponents", 10),
 
-  definition("cards-ten", "Catalogue Primer", "Use ten different Main Deck cards across saved decks.", "Compendium", "uniqueMainCards", 10),
   definition("cards-twenty-five", "Card Researcher", "Use twenty-five different Main Deck cards across saved decks.", "Compendium", "uniqueMainCards", 25),
   definition("cards-fifty", "Compendium Student", "Use fifty different Main Deck cards across saved decks.", "Compendium", "uniqueMainCards", 50),
   definition("cards-one-hundred", "Compendium Scholar", "Use one hundred different Main Deck cards across saved decks.", "Compendium", "uniqueMainCards", 100),
@@ -133,7 +122,6 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   definition("characters-twelve", "Bakugan Specialist", "Use twelve different Character Cards across saved decks.", "Compendium", "uniqueCharacters", 12),
   definition("cores-six", "Core Sample", "Use six different BakuCores across saved decks.", "Compendium", "uniqueCores", 6),
   definition("cores-twelve", "Core Catalogue", "Use twelve different BakuCores across saved decks.", "Compendium", "uniqueCores", 12),
-  definition("faction-catalogue", "Faction Field Guide", "Represent all six factions across saved decks.", "Compendium", "deckFactions", 6),
 ];
 
 const achievementCategorySet = new Set<string>(ACHIEVEMENT_CATEGORIES);
