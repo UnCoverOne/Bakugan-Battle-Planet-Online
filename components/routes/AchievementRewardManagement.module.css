@@ -1,15 +1,15 @@
 .section {
   display: grid;
-  gap: 1.25rem;
-  margin-top: 1.25rem;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .sectionHeading {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 2rem;
-  padding: 1.35rem 1.5rem;
+  align-items: end;
+  gap: 1.5rem;
+  padding: 1.2rem;
   background: var(--surface-panel);
   border: 1px solid var(--border-subtle);
 }
@@ -26,30 +26,108 @@
 }
 
 .sectionHeading h2 {
-  margin: .25rem 0 0;
+  margin: .2rem 0 0;
   font-size: var(--type-section-title);
 }
 
 .sectionHeading p {
   max-width: 46rem;
-  margin: .45rem 0 0;
+  margin: .35rem 0 0;
   color: var(--text-secondary);
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .headingActions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: .75rem;
+  gap: .6rem;
   flex-wrap: wrap;
 }
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(15rem, 1.4fr) repeat(3, minmax(10rem, .7fr));
-  gap: 1rem;
-  padding: 1.15rem 1.25rem;
+  grid-template-columns: minmax(14rem, 1fr) minmax(8rem, .36fr) minmax(8rem, .36fr) 2.75rem;
+  gap: .55rem;
+  align-items: end;
+  padding: .65rem .75rem;
+}
+
+.toolbar > [data-ui="field"] {
+  gap: .3rem;
+}
+
+.toolbar > [data-ui="field"] > span {
+  font-size: 0;
+  line-height: 1;
+}
+
+.toolbar > [data-ui="field"]:nth-child(1) > span::after,
+.toolbar > [data-ui="field"]:nth-child(2) > span::after,
+.toolbar > [data-ui="field"]:nth-child(3) > span::after {
+  font-size: var(--type-meta);
+}
+
+.toolbar > [data-ui="field"]:nth-child(1) > span::after {
+  content: "Search";
+}
+
+.toolbar > [data-ui="field"]:nth-child(2) > span::after {
+  content: "Category";
+}
+
+.toolbar > [data-ui="field"]:nth-child(3) > span::after {
+  content: "Reward";
+}
+
+.toolbar > [data-ui="field"]:nth-child(4) {
+  position: relative;
+  display: block;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  align-self: end;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-input);
+}
+
+.toolbar > [data-ui="field"]:nth-child(4) > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.toolbar > [data-ui="field"]:nth-child(4)::after {
+  content: "⇅";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-style: normal;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+.toolbar > [data-ui="field"]:nth-child(4):focus-within {
+  border-color: var(--brand-blue-bright);
+  box-shadow: inset 0 -2px 0 var(--brand-blue-bright);
+}
+
+.toolbar > [data-ui="field"]:nth-child(4) select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .state {
@@ -60,8 +138,12 @@
 .catalogue {
   display: grid;
   gap: 0;
-  padding: 1.15rem;
+  padding: 0 !important;
   overflow: visible;
+  border: 0 !important;
+  background: transparent !important;
+  clip-path: none !important;
+  box-shadow: none !important;
 }
 
 .catalogueHeader {
@@ -69,7 +151,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: .1rem .15rem 1rem;
+  padding: 0 .1rem .5rem;
   color: var(--text-muted);
   font-size: var(--type-meta);
   font-weight: 900;
@@ -82,8 +164,8 @@
 
 .rows {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
+  gap: .65rem;
   align-items: stretch;
 }
 
@@ -92,16 +174,16 @@
   grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0;
   overflow: hidden;
-  background: rgba(0, 0, 0, .16);
+  background: var(--surface-panel);
   border: 1px solid var(--border-subtle);
-  border-radius: .7rem;
-  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  border-radius: 0;
+  clip-path: polygon(.45rem 0, 100% 0, 100% calc(100% - .45rem), calc(100% - .45rem) 100%, 0 100%, 0 .45rem);
+  transition: border-color 160ms ease;
 }
 
 .row:hover,
 .row:focus-within {
   border-color: var(--border-strong);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, .2);
 }
 
 .achievementButton,
@@ -114,68 +196,82 @@
 
 .achievementButton {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 1rem;
-  min-height: 13.5rem;
-  padding: 1.15rem;
+  align-content: start;
+  gap: .55rem;
+  min-height: 0;
+  padding: .72rem .78rem .62rem;
   background: transparent;
 }
 
 .achievementButton:hover,
 .achievementButton:focus-visible {
-  background: rgba(0, 174, 239, .07);
-  box-shadow: inset 0 3px 0 var(--brand-blue);
+  background: rgba(0, 174, 239, .06);
+  box-shadow: inset 3px 0 0 var(--brand-blue);
 }
 
 .achievementIdentity {
   display: grid;
   align-content: start;
-  gap: .6rem;
+  gap: .3rem;
   min-width: 0;
 }
 
 .achievementIdentity > [data-ui="status-chip"] {
   justify-self: start;
+  min-height: 1.35rem;
+  padding: .18rem .5rem;
 }
 
 .achievementIdentity strong {
-  font-size: 1.05rem;
-  line-height: 1.3;
+  font-size: .95rem;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
 .achievementIdentity small {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--text-secondary);
-  line-height: 1.5;
+  font-size: .78rem;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .parameters {
   display: flex;
   align-items: center;
-  gap: .5rem;
-  flex-wrap: wrap;
-  padding-top: .85rem;
+  gap: .45rem;
+  min-width: 0;
+  padding-top: .45rem;
   border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .parameters span,
 .parameters strong {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.85rem;
-  padding: .28rem .55rem;
-  border: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, .035);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: .72rem;
 }
 
 .parameters span {
-  color: var(--text-muted);
-  font-size: .75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.parameters span::after {
+  content: "·";
+  margin-left: .45rem;
+  color: var(--border-strong);
 }
 
 .parameters strong {
+  flex: 0 0 auto;
   color: var(--text-primary);
-  font-size: .78rem;
 }
 
 .rewardButton {
@@ -185,24 +281,24 @@
     "type action"
     "name action";
   align-items: center;
-  gap: .2rem .85rem;
-  min-height: 5.25rem;
-  padding: .9rem 1.1rem;
-  background: rgba(0, 0, 0, .24);
+  gap: .08rem .55rem;
+  min-height: 3.3rem;
+  padding: .5rem .72rem;
+  background: rgba(0, 0, 0, .18);
   border-top: 1px solid var(--border-subtle);
 }
 
 .rewardButton:hover,
 .rewardButton:focus-visible {
-  background: rgba(0, 174, 239, .12);
+  background: rgba(0, 174, 239, .1);
 }
 
 .rewardButton small {
   grid-area: type;
   color: var(--brand-blue-bright);
-  font-size: .68rem;
+  font-size: .62rem;
   font-weight: 900;
-  letter-spacing: .08em;
+  letter-spacing: .07em;
   text-transform: uppercase;
 }
 
@@ -212,22 +308,28 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: .82rem;
 }
 
 .rewardButton span {
   grid-area: action;
   color: var(--text-muted);
-  font-size: .76rem;
+  font-size: 0;
   white-space: nowrap;
 }
 
+.rewardButton span::after {
+  content: "→";
+  font-size: .9rem;
+}
+
 .rewardButton.hasReward {
-  box-shadow: inset 0 3px 0 var(--brand-blue);
+  box-shadow: inset 3px 0 0 var(--brand-blue);
 }
 
 .empty {
   grid-column: 1 / -1;
-  padding: 3rem 1.5rem;
+  padding: 2rem 1.25rem;
   border: 1px dashed var(--border-subtle);
   text-align: center;
   color: var(--text-secondary);
@@ -238,7 +340,7 @@
 }
 
 .empty p {
-  margin: .4rem 0 0;
+  margin: .35rem 0 0;
 }
 
 .backdrop {
@@ -467,24 +569,19 @@
 
 @media (max-width: 1000px) {
   .toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(12rem, 1fr) minmax(7.5rem, .42fr) minmax(7.5rem, .42fr) 2.75rem;
   }
 
   .rows {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 14.5rem), 1fr));
   }
 }
 
 @media (max-width: 700px) {
-  .section {
-    gap: 1rem;
-  }
-
   .sectionHeading {
     align-items: stretch;
     flex-direction: column;
     gap: 1rem;
-    padding: 1.1rem;
   }
 
   .headingActions {
@@ -496,42 +593,31 @@
   }
 
   .toolbar {
-    grid-template-columns: 1fr;
-    gap: .8rem;
-    padding: 1rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 2.75rem;
+    gap: .5rem;
+    padding: .65rem;
   }
 
-  .catalogue {
-    padding: .9rem;
+  .toolbar > [data-ui="field"]:first-child {
+    grid-column: 1 / -1;
   }
 
   .catalogueHeader {
-    padding-bottom: .8rem;
+    padding-bottom: .45rem;
   }
 
   .rows {
     grid-template-columns: 1fr;
-    gap: .85rem;
+    gap: .6rem;
   }
 
   .achievementButton {
-    min-height: 0;
-    padding: 1rem;
+    padding: .7rem .75rem .6rem;
   }
 
   .rewardButton {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "type"
-      "name"
-      "action";
-    gap: .18rem;
-    min-height: 0;
-    padding: .85rem 1rem;
-  }
-
-  .rewardButton span {
-    margin-top: .2rem;
+    min-height: 3.1rem;
+    padding: .48rem .7rem;
   }
 
   .dialog {
