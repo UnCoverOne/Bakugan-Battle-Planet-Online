@@ -61,7 +61,7 @@
 }
 @media(max-width:700px){
   .route{width:min(100% - 1rem,var(--content-wide));padding-top:.5rem}
-  .tabs{top:.25rem;display:grid;grid-template-columns:1fr}.tabs a{text-align:center}
+  .tabs{top:.25rem;display:flex;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}.tabs a{flex:0 0 auto;text-align:center;white-space:nowrap}
   .sectionHeading{align-items:stretch;flex-direction:column}.addDeck{display:grid;grid-template-columns:1fr;min-width:0}
   .deckRow,.userRow{grid-template-columns:1fr}.deckRow>*{grid-column:1}.rowActions,.userActions{justify-content:stretch}.rowActions button,.userActions button,.userActions select{flex:1}
   .cardToolbar,.userToolbar{grid-template-columns:1fr}
