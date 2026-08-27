@@ -140,6 +140,52 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   definition("cores-twelve", "Core Catalogue", "Use twelve different BakuCores across legal saved decks.", "Compendium", "uniqueCores", 12),
 ];
 
+type LegacyBundledDefinition = Partial<Pick<
+  AchievementDefinition,
+  "name" | "description" | "metric" | "target"
+>>;
+
+/**
+ * Administrator/D1 catalogues persist complete definition rows. Upgrade only
+ * fields that still equal the old bundled defaults; deliberate Administrator
+ * edits survive while untouched old rows inherit the redesigned semantics.
+ */
+const LEGACY_BUNDLED_DEFINITION_FIELDS: Record<string, LegacyBundledDefinition> = {
+  "first-deck": { description: "Complete your first 40-card, three-Character, six-Core deck." },
+  "deck-builder": { description: "Complete three decks." },
+  "first-brawl": { description: "Finish your first game." },
+  "first-win": { description: "Win your first game." },
+  veteran: { description: "Win ten games." },
+  publisher: { description: "Publish a deck to the Public Deck Library." },
+  "first-series": { description: "Complete a best-of-three match.", metric: "bo3Games" },
+  "singleton-start": { description: "Save a Singleton-format deck." },
+  "decks-five": { name: "Prepared for Anything", description: "Save five decks.", metric: "decks", target: 5 },
+  "decks-ten": { name: "Vault Keeper", description: "Save ten decks.", metric: "decks", target: 10 },
+  "complete-five": { description: "Complete five legal-sized decks." },
+  "complete-ten": { description: "Complete ten legal-sized decks." },
+  "public-five": { description: "Publish five decks.", target: 5 },
+  "singleton-three": { description: "Save three Singleton-format decks." },
+  "all-factions": { description: "Use all six factions across your saved decks." },
+  "games-five": { description: "Finish five games." },
+  "games-ten": { description: "Finish ten games." },
+  "games-twenty-five": { description: "Finish twenty-five games." },
+  "games-fifty": { description: "Finish fifty games." },
+  "games-one-hundred": { description: "Finish one hundred games." },
+  "wins-five": { description: "Win five games." },
+  "wins-twenty-five": { description: "Win twenty-five games." },
+  "wins-fifty": { description: "Win fifty games." },
+  "bo1-ten": { description: "Complete ten best-of-one games.", metric: "bo1Games" },
+  "cards-twenty-five": { description: "Use twenty-five different Main Deck cards across saved decks." },
+  "cards-fifty": { description: "Use fifty different Main Deck cards across saved decks." },
+  "cards-one-hundred": { description: "Use one hundred different Main Deck cards across saved decks." },
+  "cards-two-hundred": { description: "Use two hundred different Main Deck cards across saved decks." },
+  "characters-three": { description: "Use three different Character Cards across saved decks." },
+  "characters-six": { description: "Use six different Character Cards across saved decks." },
+  "characters-twelve": { description: "Use twelve different Character Cards across saved decks." },
+  "cores-six": { description: "Use six different BakuCores across saved decks." },
+  "cores-twelve": { description: "Use twelve different BakuCores across saved decks." },
+};
+
 const achievementCategorySet = new Set<string>(ACHIEVEMENT_CATEGORIES);
 const achievementMetricSet = new Set<string>(ACHIEVEMENT_METRICS);
 let runtimeAchievementDefinitions: readonly AchievementDefinition[] | null = null;
@@ -155,22 +201,37 @@ export function normalizeAchievementDefinitions(value: unknown): AchievementDefi
   return ACHIEVEMENT_DEFINITIONS.flatMap((base) => {
     const item = candidates.get(base.id);
     if (!item) return [];
-    const name = typeof item.name === "string" && item.name.trim()
+    const legacy = LEGACY_BUNDLED_DEFINITION_FIELDS[base.id];
+
+    const requestedName = typeof item.name === "string" && item.name.trim()
       ? item.name.trim().slice(0, 80)
       : base.name;
-    const description = typeof item.description === "string" && item.description.trim()
+    const name = legacy?.name && requestedName === legacy.name ? base.name : requestedName;
+
+    const requestedDescription = typeof item.description === "string" && item.description.trim()
       ? item.description.trim().slice(0, 300)
       : base.description;
+    const description = legacy?.description && requestedDescription === legacy.description
+      ? base.description
+      : requestedDescription;
+
     const category = typeof item.category === "string" && achievementCategorySet.has(item.category)
       ? item.category as AchievementCategory
       : base.category;
-    const metric = typeof item.metric === "string" && achievementMetricSet.has(item.metric)
+
+    const requestedMetric = typeof item.metric === "string" && achievementMetricSet.has(item.metric)
       ? item.metric as AchievementMetricKey
       : base.metric;
+    const metric = legacy?.metric && requestedMetric === legacy.metric
+      ? base.metric
+      : requestedMetric;
+
     const requestedTarget = Number(item.target);
-    const target = Number.isInteger(requestedTarget) && requestedTarget > 0
+    const normalizedTarget = Number.isInteger(requestedTarget) && requestedTarget > 0
       ? Math.min(requestedTarget, 1_000_000)
       : base.target;
+    const target = legacy?.target === normalizedTarget ? base.target : normalizedTarget;
+
     return [{ id: base.id, name, description, category, metric, target }];
   });
 }
