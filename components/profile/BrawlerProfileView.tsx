@@ -4,6 +4,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ACHIEVEMENT_CATEGORY_DETAILS } from "../../lib/achievements";
 import { BAKUGAN } from "../../lib/data";
 import { cardArtSource } from "../../lib/content/card-art";
 import {
@@ -191,16 +192,30 @@ export function BrawlerProfileView({
       >
         {profile.showcaseAchievements.length ? (
           <div className={styles.achievementShowcaseGrid}>
-            {profile.showcaseAchievements.map((achievement) => (
-              <article className={styles.showcaseAchievement} key={achievement.id}>
-                <span aria-hidden="true">★</span>
-                <div>
-                  <strong>{achievement.name}</strong>
-                  <small>{achievement.category}</small>
-                  <p>{achievement.description}</p>
-                </div>
-              </article>
-            ))}
+            {profile.showcaseAchievements.map((achievement) => {
+              const category = ACHIEVEMENT_CATEGORY_DETAILS[achievement.category];
+              return (
+                <article
+                  className={styles.showcaseAchievement}
+                  key={achievement.id}
+                  style={{ borderColor: `${category.color}66`, boxShadow: `inset 0 3px 0 ${category.color}` }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{ borderColor: category.color, color: category.color }}
+                  >
+                    {category.glyph}
+                  </span>
+                  <div>
+                    <strong>{achievement.name}</strong>
+                    <small style={{ color: category.color }}>
+                      <span aria-hidden="true">{category.glyph}</span>{" "}{achievement.category}
+                    </small>
+                    <p>{achievement.description}</p>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         ) : (
           <SystemState
