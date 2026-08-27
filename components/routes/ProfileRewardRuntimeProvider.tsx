@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ACHIEVEMENT_DEFINITIONS,
+  achievementTrainingConfigurable,
   achievementsFor,
   applyAchievementCompletions,
   normalizeAchievementDefinitions,
@@ -48,6 +49,12 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
   );
   const [definitions, setDefinitions] = useState<AchievementDefinition[]>(
     () => normalizeAchievementDefinitions(ACHIEVEMENT_DEFINITIONS),
+  );
+  const trainingEligibleAchievements = useMemo(
+    () => definitions
+      .filter((definition) => achievementTrainingConfigurable(definition) && definition.trainingAllowed)
+      .map((definition) => ({ id: definition.id, metric: definition.metric })),
+    [definitions],
   );
   const liveAchievements = useMemo(
     () => achievementsFor(
@@ -125,12 +132,13 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
             opponentKey: rankedOpponent?.userId ?? opponent?.name,
           },
           selectedDeck ?? null,
+          trainingEligibleAchievements,
         );
       }
       if (JSON.stringify(before) === JSON.stringify(nextProgress)) return current;
       return { ...current, achievementProgress: nextProgress };
     });
-  }, [decks, match, online, playerId, selectedDeck, setProfile]);
+  }, [decks, match, online, playerId, selectedDeck, setProfile, trainingEligibleAchievements]);
 
   // Completion timestamps are permanent. This is intentionally separate from
   // live progress so deleting a deck or changing an Administrator rule never
