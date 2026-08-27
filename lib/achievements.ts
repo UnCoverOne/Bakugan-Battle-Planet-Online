@@ -1,16 +1,29 @@
-import type { DeckRecord } from "./data";
+import { deckIsLegal, type DeckRecord } from "./data";
 import type { LifetimeMatchStats, MatchResultRecord } from "./persistence";
 import { accountStatMatches } from "./match-statistics";
 
 export const ACHIEVEMENT_CATEGORIES = [
-  "Getting Started",
-  "Deck Building",
-  "Battle",
+  "Arsenal",
+  "Arena",
+  "Brawler Network",
   "Compendium",
-  "Online Play",
 ] as const;
 
+export type AchievementCategory = (typeof ACHIEVEMENT_CATEGORIES)[number];
+
+export const ACHIEVEMENT_CATEGORY_DETAILS: Record<
+  AchievementCategory,
+  { glyph: string; color: string }
+> = {
+  Arsenal: { glyph: "▤", color: "#f3b44f" },
+  Arena: { glyph: "⚔", color: "#ef6f61" },
+  "Brawler Network": { glyph: "◎", color: "#5bd7ee" },
+  Compendium: { glyph: "◇", color: "#a88cf2" },
+};
+
 export const ACHIEVEMENT_METRICS = [
+  // Legacy metric keys remain valid so Administrator configurations do not
+  // become unreadable while the bundled catalogue moves away from them.
   "decks",
   "completeDecks",
   "publicDecks",
@@ -24,6 +37,8 @@ export const ACHIEVEMENT_METRICS = [
   "trainingGames",
   "bo1Games",
   "bo3Games",
+  "bo1Wins",
+  "bo3Wins",
   "onlineGames",
   "onlineWins",
   "onlineOpponents",
@@ -32,9 +47,9 @@ export const ACHIEVEMENT_METRICS = [
   "uniqueCores",
 ] as const;
 
-export type AchievementCategory = (typeof ACHIEVEMENT_CATEGORIES)[number];
 export type AchievementStatus = "completed" | "in-progress" | "locked";
 export type AchievementMetricKey = (typeof ACHIEVEMENT_METRICS)[number];
+export type AchievementCompletionMap = Record<string, string>;
 
 export type Achievement = {
   id: string;
@@ -67,61 +82,62 @@ const definition = (
 ): AchievementDefinition => ({ id, name, description, category, metric, target });
 
 /**
- * The first seven IDs are the original catalogue. The remaining 38 entries
- * extend it without invalidating existing completion expectations.
+ * Stable IDs are intentionally retained so existing reward assignments,
+ * showcases, and Administrator configuration rows continue to refer to the
+ * same records while the catalogue is reorganized around four clearer paths.
  */
 export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
-  definition("first-deck", "Battle Ready", "Complete your first 40-card, three-Character, six-Core deck.", "Deck Building", "completeDecks", 1),
-  definition("deck-builder", "Arsenal Architect", "Complete three decks.", "Deck Building", "completeDecks", 3),
-  definition("first-brawl", "Enter the Brawl", "Finish your first game.", "Getting Started", "matches", 1),
-  definition("first-win", "First Victory", "Win your first game.", "Battle", "wins", 1),
-  definition("veteran", "Seasoned Brawler", "Win ten games.", "Battle", "wins", 10),
-  definition("publisher", "Share the Strategy", "Publish a deck to the Public Deck Library.", "Deck Building", "publicDecks", 1),
-  definition("online", "Connected Brawler", "Complete an online game.", "Online Play", "onlineGames", 1),
+  definition("first-deck", "Battle Ready", "Build your first legal deck.", "Arsenal", "completeDecks", 1),
+  definition("deck-builder", "Arsenal Architect", "Build three distinct legal decks.", "Arsenal", "completeDecks", 3),
+  definition("first-brawl", "Enter the Brawl", "Finish your first non-Training game.", "Arena", "matches", 1),
+  definition("first-win", "First Victory", "Win your first non-Training game.", "Arena", "wins", 1),
+  definition("veteran", "Seasoned Brawler", "Win ten non-Training games.", "Arena", "wins", 10),
+  definition("publisher", "Share the Strategy", "Publish one distinct legal deck to the Public Deck Library.", "Arsenal", "publicDecks", 1),
+  definition("online", "Connected Brawler", "Complete an online game.", "Brawler Network", "onlineGames", 1),
 
-  // 38 additional achievements, grouped by shared method and theme.
-  definition("first-series", "Best of Three", "Complete a best-of-three match.", "Getting Started", "bo3Games", 1),
-  definition("training-day", "Training Day", "Complete a Training AI match.", "Getting Started", "trainingGames", 1),
-  definition("singleton-start", "One of a Kind", "Save a Singleton-format deck.", "Getting Started", "singletonDecks", 1),
+  definition("first-series", "Best of Three", "Win a best-of-three match.", "Arena", "bo3Wins", 1),
+  definition("training-day", "Training Day", "Complete a Training AI match.", "Arena", "trainingGames", 1),
+  definition("singleton-start", "One of a Kind", "Build a legal Singleton-format deck.", "Arsenal", "singletonDecks", 1),
 
-  definition("decks-five", "Prepared for Anything", "Save five decks.", "Deck Building", "decks", 5),
-  definition("decks-ten", "Vault Keeper", "Save ten decks.", "Deck Building", "decks", 10),
-  definition("complete-five", "Loadout Specialist", "Complete five legal-sized decks.", "Deck Building", "completeDecks", 5),
-  definition("complete-ten", "Master Architect", "Complete ten legal-sized decks.", "Deck Building", "completeDecks", 10),
-  definition("public-five", "Community Architect", "Publish five decks.", "Deck Building", "publicDecks", 5),
-  definition("singleton-three", "Singleton Specialist", "Save three Singleton-format decks.", "Deck Building", "singletonDecks", 3),
-  definition("all-factions", "Battle Planet Coalition", "Use all six factions across your saved decks.", "Deck Building", "deckFactions", 6),
+  // Repurpose the former saved-deck quantity milestones into a publishing path.
+  definition("decks-five", "Strategy Contributor", "Publish three distinct legal decks.", "Arsenal", "publicDecks", 3),
+  definition("public-five", "Community Architect", "Publish six distinct legal decks.", "Arsenal", "publicDecks", 6),
+  definition("decks-ten", "Planetwide Publisher", "Publish nine distinct legal decks.", "Arsenal", "publicDecks", 9),
+  definition("complete-five", "Loadout Specialist", "Build five distinct legal decks.", "Arsenal", "completeDecks", 5),
+  definition("complete-ten", "Master Architect", "Build ten distinct legal decks.", "Arsenal", "completeDecks", 10),
+  definition("singleton-three", "Singleton Specialist", "Build three distinct legal Singleton-format decks.", "Arsenal", "singletonDecks", 3),
+  definition("all-factions", "Battle Planet Coalition", "Represent all six factions across your legal saved decks.", "Arsenal", "deckFactions", 6),
 
-  definition("games-five", "Finding Your Feet", "Finish five games.", "Battle", "matches", 5),
-  definition("games-ten", "Regular Brawler", "Finish ten games.", "Battle", "matches", 10),
-  definition("games-twenty-five", "Battle Tested", "Finish twenty-five games.", "Battle", "matches", 25),
-  definition("games-fifty", "Arena Veteran", "Finish fifty games.", "Battle", "matches", 50),
-  definition("games-one-hundred", "Century of Brawls", "Finish one hundred games.", "Battle", "matches", 100),
-  definition("wins-five", "Winning Form", "Win five games.", "Battle", "wins", 5),
-  definition("wins-twenty-five", "Dominant Record", "Win twenty-five games.", "Battle", "wins", 25),
-  definition("wins-fifty", "Battle Master", "Win fifty games.", "Battle", "wins", 50),
-  definition("training-five", "Sparring Partner", "Complete five Training AI games.", "Battle", "trainingGames", 5),
-  definition("training-twenty-five", "AI Analyst", "Complete twenty-five Training AI games.", "Battle", "trainingGames", 25),
-  definition("bo1-ten", "Quick Brawl Expert", "Complete ten best-of-one games.", "Battle", "bo1Games", 10),
+  definition("games-five", "Finding Your Feet", "Finish five non-Training games.", "Arena", "matches", 5),
+  definition("games-ten", "Regular Brawler", "Finish ten non-Training games.", "Arena", "matches", 10),
+  definition("games-twenty-five", "Battle Tested", "Finish twenty-five non-Training games.", "Arena", "matches", 25),
+  definition("games-fifty", "Arena Veteran", "Finish fifty non-Training games.", "Arena", "matches", 50),
+  definition("games-one-hundred", "Century of Brawls", "Finish one hundred non-Training games.", "Arena", "matches", 100),
+  definition("wins-five", "Winning Form", "Win five non-Training games.", "Arena", "wins", 5),
+  definition("wins-twenty-five", "Dominant Record", "Win twenty-five non-Training games.", "Arena", "wins", 25),
+  definition("wins-fifty", "Battle Master", "Win fifty non-Training games.", "Arena", "wins", 50),
+  definition("training-five", "Sparring Partner", "Complete five Training AI games.", "Arena", "trainingGames", 5),
+  definition("training-twenty-five", "AI Analyst", "Complete twenty-five Training AI games.", "Arena", "trainingGames", 25),
+  definition("bo1-ten", "Quick Brawl Expert", "Win ten best-of-one games.", "Arena", "bo1Wins", 10),
 
-  definition("online-five", "Network Regular", "Complete five online games.", "Online Play", "onlineGames", 5),
-  definition("online-ten", "Connected Competitor", "Complete ten online games.", "Online Play", "onlineGames", 10),
-  definition("online-twenty-five", "Online Veteran", "Complete twenty-five online games.", "Online Play", "onlineGames", 25),
-  definition("online-fifty", "Global Brawler", "Complete fifty online games.", "Online Play", "onlineGames", 50),
-  definition("online-wins-five", "Network Victor", "Win five online games.", "Online Play", "onlineWins", 5),
-  definition("online-wins-ten", "Online Contender", "Win ten online games.", "Online Play", "onlineWins", 10),
-  definition("opponents-five", "Expanding Rivals", "Face five different online opponents.", "Online Play", "onlineOpponents", 5),
-  definition("opponents-ten", "Known Across the Planet", "Face ten different online opponents.", "Online Play", "onlineOpponents", 10),
+  definition("online-five", "Network Regular", "Complete five online games.", "Brawler Network", "onlineGames", 5),
+  definition("online-ten", "Connected Competitor", "Complete ten online games.", "Brawler Network", "onlineGames", 10),
+  definition("online-twenty-five", "Online Veteran", "Complete twenty-five online games.", "Brawler Network", "onlineGames", 25),
+  definition("online-fifty", "Global Brawler", "Complete fifty online games.", "Brawler Network", "onlineGames", 50),
+  definition("online-wins-five", "Network Victor", "Win five online games.", "Brawler Network", "onlineWins", 5),
+  definition("online-wins-ten", "Online Contender", "Win ten online games.", "Brawler Network", "onlineWins", 10),
+  definition("opponents-five", "Expanding Rivals", "Face five different online opponents.", "Brawler Network", "onlineOpponents", 5),
+  definition("opponents-ten", "Known Across the Planet", "Face ten different online opponents.", "Brawler Network", "onlineOpponents", 10),
 
-  definition("cards-twenty-five", "Card Researcher", "Use twenty-five different Main Deck cards across saved decks.", "Compendium", "uniqueMainCards", 25),
-  definition("cards-fifty", "Compendium Student", "Use fifty different Main Deck cards across saved decks.", "Compendium", "uniqueMainCards", 50),
-  definition("cards-one-hundred", "Compendium Scholar", "Use one hundred different Main Deck cards across saved decks.", "Compendium", "uniqueMainCards", 100),
-  definition("cards-two-hundred", "Living Catalogue", "Use two hundred different Main Deck cards across saved decks.", "Compendium", "uniqueMainCards", 200),
-  definition("characters-three", "Bakugan Research", "Use three different Character Cards across saved decks.", "Compendium", "uniqueCharacters", 3),
-  definition("characters-six", "Expanded Team Data", "Use six different Character Cards across saved decks.", "Compendium", "uniqueCharacters", 6),
-  definition("characters-twelve", "Bakugan Specialist", "Use twelve different Character Cards across saved decks.", "Compendium", "uniqueCharacters", 12),
-  definition("cores-six", "Core Sample", "Use six different BakuCores across saved decks.", "Compendium", "uniqueCores", 6),
-  definition("cores-twelve", "Core Catalogue", "Use twelve different BakuCores across saved decks.", "Compendium", "uniqueCores", 12),
+  definition("cards-twenty-five", "Card Researcher", "Use twenty-five different Main Deck cards across legal saved decks.", "Compendium", "uniqueMainCards", 25),
+  definition("cards-fifty", "Compendium Student", "Use fifty different Main Deck cards across legal saved decks.", "Compendium", "uniqueMainCards", 50),
+  definition("cards-one-hundred", "Compendium Scholar", "Use one hundred different Main Deck cards across legal saved decks.", "Compendium", "uniqueMainCards", 100),
+  definition("cards-two-hundred", "Living Catalogue", "Use two hundred different Main Deck cards across legal saved decks.", "Compendium", "uniqueMainCards", 200),
+  definition("characters-three", "Bakugan Research", "Use three different Character Cards across legal saved decks.", "Compendium", "uniqueCharacters", 3),
+  definition("characters-six", "Expanded Team Data", "Use six different Character Cards across legal saved decks.", "Compendium", "uniqueCharacters", 6),
+  definition("characters-twelve", "Bakugan Specialist", "Use twelve different Character Cards across legal saved decks.", "Compendium", "uniqueCharacters", 12),
+  definition("cores-six", "Core Sample", "Use six different BakuCores across legal saved decks.", "Compendium", "uniqueCores", 6),
+  definition("cores-twelve", "Core Catalogue", "Use twelve different BakuCores across legal saved decks.", "Compendium", "uniqueCores", 12),
 ];
 
 const achievementCategorySet = new Set<string>(ACHIEVEMENT_CATEGORIES);
@@ -219,14 +235,46 @@ const uniqueMetric = <T>(
   };
 };
 
-const legalSized = (deck: DeckRecord) =>
-  deck.cardIds.length === 40 &&
-  deck.bakuganIds.length === 3 &&
-  deck.coreIds.length === 6;
+const deckSignature = (deck: DeckRecord) => [
+  deck.format ?? "standard",
+  [...deck.bakuganIds].sort().join(","),
+  [...deck.coreIds].sort().join(","),
+  [...deck.cardIds].sort().join(","),
+].join("|").toLowerCase();
+
+const distinctDecks = (decks: DeckRecord[]) => {
+  const bySignature = new Map<string, DeckRecord>();
+  const ordered = [...decks].sort(
+    (left, right) => Date.parse(left.updatedAt) - Date.parse(right.updatedAt),
+  );
+  for (const deck of ordered) {
+    const signature = deckSignature(deck);
+    if (!bySignature.has(signature)) bySignature.set(signature, deck);
+  }
+  return [...bySignature.values()];
+};
 
 export function achievementStatus(current: number, target: number): AchievementStatus {
   if (current >= target) return "completed";
   return current > 0 ? "in-progress" : "locked";
+}
+
+export function applyAchievementCompletions(
+  achievements: Achievement[],
+  completions: AchievementCompletionMap | null | undefined,
+): Achievement[] {
+  if (!completions) return achievements;
+  return achievements.map((achievement) => {
+    const completedAt = validDate(completions[achievement.id]);
+    if (!completedAt) return achievement;
+    return {
+      ...achievement,
+      current: achievement.target,
+      unlocked: true,
+      status: "completed",
+      completedAt,
+    };
+  });
 }
 
 export function achievementsFor(
@@ -240,39 +288,65 @@ export function achievementsFor(
   );
   const competitiveMatches = accountStatMatches(matches);
   const wins = competitiveMatches.filter((record) => record.result === "Victor");
-  const onlineGames = matches.filter((record) => record.mode === "online");
+  const onlineGames = matches.filter((record) =>
+    record.mode === "online" || record.mode === "casual" || record.mode === "ranked",
+  );
+  const legalDecks = decks.filter(deckIsLegal);
+  const legalDistinctDecks = distinctDecks(legalDecks);
+  const legalPublicDecks = distinctDecks(
+    legalDecks.filter((deck) => deck.visibility === "Public"),
+  );
+  const legalSingletonDecks = distinctDecks(
+    legalDecks.filter((deck) => deck.format === "singleton"),
+  );
   const lifetimeMetric = (value: number, fallback: Metric): Metric => ({
     value: Math.max(value, fallback.value),
     completedAt: fallback.completedAt,
   });
   const recentMatches = countMetric(competitiveMatches, (record) => record.at);
   const recentWins = countMetric(wins, (record) => record.at);
-  const recentTraining = countMetric(matches.filter((record) => record.mode === "training"), (record) => record.at);
+  const recentTraining = countMetric(
+    matches.filter((record) => record.mode === "training"),
+    (record) => record.at,
+  );
   const recentOnline = countMetric(onlineGames, (record) => record.at);
+  const bo1Games = competitiveMatches.filter((record) => (record.format ?? "bo1") === "bo1");
+  const bo3Games = competitiveMatches.filter((record) => record.format === "bo3");
   const metrics: Record<AchievementMetricKey, Metric> = {
     decks: countMetric(decks, (deck) => deck.updatedAt),
-    completeDecks: countMetric(decks.filter(legalSized), (deck) => deck.updatedAt),
-    publicDecks: countMetric(decks.filter((deck) => deck.visibility === "Public"), (deck) => deck.publishedAt ?? deck.updatedAt),
+    completeDecks: countMetric(legalDistinctDecks, (deck) => deck.updatedAt),
+    publicDecks: countMetric(legalPublicDecks, (deck) => deck.publishedAt ?? deck.updatedAt),
     privateDecks: countMetric(decks.filter((deck) => deck.visibility === "Private"), (deck) => deck.updatedAt),
     favouriteDecks: countMetric(decks.filter((deck) => deck.favourite), (deck) => deck.updatedAt),
     describedDecks: countMetric(decks.filter((deck) => Boolean(deck.description?.trim())), (deck) => deck.updatedAt),
-    singletonDecks: countMetric(decks.filter((deck) => deck.format === "singleton"), (deck) => deck.updatedAt),
-    deckFactions: uniqueMetric(decks, (deck) => deck.factions, (deck) => deck.updatedAt),
-    matches: lifetimeStats ? lifetimeMetric(lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches, recentMatches) : recentMatches,
+    singletonDecks: countMetric(legalSingletonDecks, (deck) => deck.updatedAt),
+    deckFactions: uniqueMetric(legalDecks, (deck) => deck.factions, (deck) => deck.updatedAt),
+    matches: lifetimeStats
+      ? lifetimeMetric(Math.max(0, lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches), recentMatches)
+      : recentMatches,
     wins: lifetimeStats ? lifetimeMetric(lifetimeStats.wins, recentWins) : recentWins,
-    trainingGames: lifetimeStats ? lifetimeMetric(lifetimeStats.trainingMatches, recentTraining) : recentTraining,
-    bo1Games: countMetric(competitiveMatches.filter((record) => (record.format ?? "bo1") === "bo1"), (record) => record.at),
-    bo3Games: countMetric(competitiveMatches.filter((record) => record.format === "bo3"), (record) => record.at),
-    onlineGames: lifetimeStats ? lifetimeMetric(lifetimeStats.casualMatches + lifetimeStats.rankedMatches, recentOnline) : recentOnline,
-    onlineWins: countMetric(onlineGames.filter((record) => record.result === "Victor"), (record) => record.at),
+    trainingGames: lifetimeStats
+      ? lifetimeMetric(lifetimeStats.trainingMatches, recentTraining)
+      : recentTraining,
+    bo1Games: countMetric(bo1Games, (record) => record.at),
+    bo3Games: countMetric(bo3Games, (record) => record.at),
+    bo1Wins: countMetric(bo1Games.filter((record) => record.result === "Victor"), (record) => record.at),
+    bo3Wins: countMetric(bo3Games.filter((record) => record.result === "Victor"), (record) => record.at),
+    onlineGames: lifetimeStats
+      ? lifetimeMetric(lifetimeStats.casualMatches + lifetimeStats.rankedMatches, recentOnline)
+      : recentOnline,
+    onlineWins: countMetric(
+      onlineGames.filter((record) => record.result === "Victor"),
+      (record) => record.at,
+    ),
     onlineOpponents: uniqueMetric(
       onlineGames,
       (record) => (typeof record.opponent === "string" ? [record.opponent] : []),
       (record) => record.at,
     ),
-    uniqueMainCards: uniqueMetric(decks, (deck) => deck.cardIds, (deck) => deck.updatedAt),
-    uniqueCharacters: uniqueMetric(decks, (deck) => deck.bakuganIds, (deck) => deck.updatedAt),
-    uniqueCores: uniqueMetric(decks, (deck) => deck.coreIds, (deck) => deck.updatedAt),
+    uniqueMainCards: uniqueMetric(legalDecks, (deck) => deck.cardIds, (deck) => deck.updatedAt),
+    uniqueCharacters: uniqueMetric(legalDecks, (deck) => deck.bakuganIds, (deck) => deck.updatedAt),
+    uniqueCores: uniqueMetric(legalDecks, (deck) => deck.coreIds, (deck) => deck.updatedAt),
   };
 
   return definitions.map((item) => {
@@ -287,8 +361,7 @@ export function achievementsFor(
       target: item.target,
       unlocked: status === "completed",
       status,
-      completedAt:
-        status === "completed" ? metric.completedAt(item.target) : null,
+      completedAt: status === "completed" ? metric.completedAt(item.target) : null,
     };
   });
 }
