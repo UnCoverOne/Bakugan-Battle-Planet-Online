@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ACHIEVEMENT_CATEGORIES,
+  ACHIEVEMENT_CATEGORY_DETAILS,
   sortAchievements,
   type Achievement,
   type AchievementStatus,
@@ -41,14 +42,6 @@ const STATUS_ORDER: AchievementStatus[] = [
 const routeStatus = (view?: string): AchievementStatus | null =>
   STATUS_ORDER.find((status) => STATUS_CONTENT[status].route === view) ?? null;
 
-const categoryGlyph: Record<string, string> = {
-  "Getting Started": "★",
-  "Deck Building": "▤",
-  Battle: "⚔",
-  Compendium: "◇",
-  "Online Play": "◎",
-};
-
 function formatCompletion(value: string | null) {
   if (!value || !Number.isFinite(Date.parse(value))) return "Completed";
   return `Completed ${new Intl.DateTimeFormat(undefined, {
@@ -70,16 +63,23 @@ function AchievementCard({
   const percentage = Math.round(
     (achievement.current / achievement.target) * 100,
   );
+  const categoryDetails = ACHIEVEMENT_CATEGORY_DETAILS[achievement.category];
   return (
     <Surface
       as="article"
       className={`${styles.card} ${styles[achievement.status.replace("-", "")]}`}
     >
       <div className={styles.cardTop}>
-        <span className={styles.glyph} aria-hidden="true">
-          {achievement.status === "completed"
-            ? "✓"
-            : categoryGlyph[achievement.category]}
+        <span
+          className={styles.glyph}
+          aria-hidden="true"
+          style={
+            achievement.status === "completed"
+              ? undefined
+              : { borderColor: categoryDetails.color, color: categoryDetails.color }
+          }
+        >
+          {achievement.status === "completed" ? "✓" : categoryDetails.glyph}
         </span>
         <StatusChip
           tone={achievement.status === "completed" ? "success" : "neutral"}
