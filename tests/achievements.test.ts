@@ -20,6 +20,7 @@ import {
   recordAchievementMatch,
 } from "../lib/achievement-progress";
 import { STARTER_DECKS, deckIsLegal, type DeckRecord } from "../lib/data";
+import { EMPTY_LIFETIME_MATCH_STATS } from "../lib/persistence";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
@@ -78,6 +79,18 @@ test("Arena generic progression has one participation milestone followed only by
       false,
     );
   }
+});
+
+test("historical lifetime wins remain grandfathered into the generic Arena ladder", () => {
+  const achievements = achievementsFor([], [], {
+    ...EMPTY_LIFETIME_MATCH_STATS,
+    matchesPlayed: 9,
+    wins: 4,
+    trainingMatches: 4,
+  });
+  assert.equal(achievements.find((item) => item.id === "first-win")?.current, 3);
+  assert.equal(achievements.find((item) => item.id === "first-win")?.unlocked, true);
+  assert.equal(achievements.find((item) => item.id === "wins-five")?.current, 4);
 });
 
 test("Arsenal contains Standard, Singleton, Competitive, Character, and BakuCore breadth", () => {
@@ -239,16 +252,39 @@ test("Master of the Elements is the Elemental Mastery capstone reward", () => {
   assert.match(customization, /"complete-ten"/);
 });
 
-test("stored completion evidence keeps an earned achievement unlocked", () => {
+test("equivalent legacy completion evidence remains permanently unlocked", () => {
   const live = achievementsFor([], []);
   const sticky = applyAchievementCompletions(live, {
-    "first-deck": "2026-07-04T10:00:00.000Z",
+    veteran: "2026-07-04T10:00:00.000Z",
   });
-  const achievement = sticky.find((item) => item.id === "first-deck");
+  const achievement = sticky.find((item) => item.id === "veteran");
   assert.equal(achievement?.unlocked, true);
   assert.equal(achievement?.status, "completed");
   assert.equal(achievement?.current, achievement?.target);
   assert.equal(achievement?.completedAt, "2026-07-04T10:00:00.000Z");
+});
+
+test("repurposed legacy completion ids cannot unlock new mastery without new-system evidence", () => {
+  const live = achievementsFor([], []);
+  const migrated = applyAchievementCompletions(live, {
+    "first-deck": "2026-06-01T00:00:00.000Z",
+    "games-five": "2026-06-02T00:00:00.000Z",
+    "complete-ten": "2026-06-03T00:00:00.000Z",
+    "cards-twenty-five": "2026-06-04T00:00:00.000Z",
+    "online-five": "2026-06-05T00:00:00.000Z",
+  });
+  for (const id of ["first-deck", "games-five", "complete-ten", "cards-twenty-five", "online-five"]) {
+    assert.equal(migrated.find((item) => item.id === id)?.unlocked, false, id);
+  }
+});
+
+test("repurposed completion timestamps are honored once the redesigned requirement is actually satisfied", () => {
+  const live = achievementsFor(STARTER_DECKS.slice(0, 1), []);
+  const completedAt = "2026-06-01T00:00:00.000Z";
+  const migrated = applyAchievementCompletions(live, { "first-deck": completedAt });
+  const achievement = migrated.find((item) => item.id === "first-deck");
+  assert.equal(achievement?.unlocked, true);
+  assert.equal(achievement?.completedAt, completedAt);
 });
 
 test("status views use their required deterministic sort orders", () => {
