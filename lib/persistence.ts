@@ -18,6 +18,7 @@ export type BrawlerProfile = {
   coverId?: string;
   showcaseAchievementIds?: string[];
   showcaseDeckIds?: string[];
+  achievementCompletions?: Record<string, string>;
 };
 export type AppSettings = {
   reducedMotion: boolean;
@@ -113,6 +114,7 @@ export const DEFAULT_BRAWLER_PROFILE: BrawlerProfile = {
   coverId: "battle-planet",
   showcaseAchievementIds: [],
   showcaseDeckIds: [],
+  achievementCompletions: {},
 };
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -141,6 +143,33 @@ export function normalizeLifetimeMatchStats(value: unknown): LifetimeMatchStats 
   };
 }
 
+export function normalizeAchievementCompletions(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const normalized: Record<string, string> = {};
+  for (const [rawId, rawDate] of Object.entries(value as Record<string, unknown>).slice(0, 500)) {
+    const id = rawId.trim().slice(0, 120);
+    if (!id || typeof rawDate !== "string") continue;
+    const timestamp = Date.parse(rawDate);
+    if (!Number.isFinite(timestamp)) continue;
+    normalized[id] = new Date(timestamp).toISOString();
+  }
+  return normalized;
+}
+
+export function mergeAchievementCompletions(
+  ...values: Array<Record<string, string> | null | undefined>
+): Record<string, string> {
+  const merged: Record<string, string> = {};
+  for (const value of values) {
+    const normalized = normalizeAchievementCompletions(value);
+    for (const [id, completedAt] of Object.entries(normalized)) {
+      const current = merged[id];
+      if (!current || Date.parse(completedAt) < Date.parse(current)) merged[id] = completedAt;
+    }
+  }
+  return merged;
+}
+
 const validRoutes = new Set<AppRoute>(["entry", "dashboard", "decks", "deck-detail", "builder", "compendium", "play", "lobby", "placement", "match", "result", "history", "profile", "settings"]);
 const validFactions = new Set(["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"]);
 
@@ -150,16 +179,18 @@ function normalizeDeck(value: unknown): DeckRecord | null {
   if (typeof deck.id !== "string" || !deck.id || typeof deck.name !== "string" || !deck.name.trim()) return null;
   if (!Array.isArray(deck.bakuganIds) || !Array.isArray(deck.coreIds) || !Array.isArray(deck.cardIds)) return null;
   const updatedAt = typeof deck.updatedAt === "string" && Number.isFinite(Date.parse(deck.updatedAt)) ? new Date(deck.updatedAt).toISOString() : new Date(0).toISOString();
+  const format = deck.format === "singleton" || deck.format === "competitive" ? deck.format : "standard";
+  const cardLimit = format === "competitive" ? 50 : 40;
   return {
     id: deck.id.slice(0, 120),
     name: deck.name.trim().slice(0, 60),
     factions: Array.isArray(deck.factions) ? deck.factions.filter((faction): faction is string => typeof faction === "string").slice(0, 6) : [],
     bakuganIds: deck.bakuganIds.filter((id): id is string => typeof id === "string").slice(0, 3),
     coreIds: deck.coreIds.filter((id): id is string => typeof id === "string").slice(0, 6),
-    cardIds: deck.cardIds.filter((id): id is string => typeof id === "string").slice(0, 40),
+    cardIds: deck.cardIds.filter((id): id is string => typeof id === "string").slice(0, cardLimit),
     updatedAt,
     visibility: deck.visibility === "Public" ? "Public" : deck.visibility === "Draft" ? "Draft" : "Private",
-    format: deck.format === "singleton" || deck.format === "competitive" ? deck.format : "standard",
+    format,
     revision: Number.isSafeInteger(deck.revision) ? Math.max(1, Number(deck.revision)) : 1,
     favourite: Boolean(deck.favourite),
     tags: Array.isArray(deck.tags) ? deck.tags.filter((tag): tag is string => typeof tag === "string").map((tag) => tag.trim().slice(0, 24)).filter(Boolean).slice(0, 12) : [],
@@ -244,6 +275,9 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
         candidate.profile?.showcaseAchievementIds,
       ),
       showcaseDeckIds: normalizeShowcaseIds(candidate.profile?.showcaseDeckIds),
+      achievementCompletions: normalizeAchievementCompletions(
+        candidate.profile?.achievementCompletions ?? fallback.profile.achievementCompletions,
+      ),
     },
     decks: deckState.decks,
     deletedDecks: deckState.deletedDecks,
@@ -407,6 +441,13 @@ export function mergeSnapshots(local: UserSnapshot, cloud: UserSnapshot): UserSn
     ...primary,
     schemaVersion: 1 as const,
     updatedAt: Math.max(local.updatedAt, cloud.updatedAt),
+    profile: {
+      ...primary.profile,
+      achievementCompletions: mergeAchievementCompletions(
+        primary.profile.achievementCompletions,
+        secondary.profile.achievementCompletions,
+      ),
+    },
     decks: deckState.decks,
     deletedDecks: deckState.deletedDecks,
     history: [...history.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, MAX_MATCH_RECORDS),
