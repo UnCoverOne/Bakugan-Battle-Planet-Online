@@ -30,6 +30,10 @@ export type MatchEvidenceBucket = {
   nonTraining: string[];
 };
 export type MonoFactionEvidence = Record<MonoMasteryFaction, MatchEvidenceBucket>;
+export type TrainingAchievementCredit = {
+  matchIds: string[];
+  values: string[];
+};
 
 export type AchievementProgress = {
   standardDeckIds: string[];
@@ -54,6 +58,13 @@ export type AchievementProgress = {
     nonTraining: Faction[];
   };
   monoFactionWinIds: MonoFactionEvidence;
+  /**
+   * Training credit is stored per achievement, not just per metric. This lets
+   * Administrators independently toggle two Arena achievements that happen to
+   * share a metric, and disabling Training later cannot erase credit that was
+   * legitimately earned while it was enabled.
+   */
+  trainingCredits: Record<string, TrainingAchievementCredit>;
 };
 
 const emptyBucket = (): MatchEvidenceBucket => ({ training: [], nonTraining: [] });
@@ -85,6 +96,7 @@ export const EMPTY_ACHIEVEMENT_PROGRESS: AchievementProgress = {
   onlineOpponentKeys: [],
   winningFactions: { training: [], nonTraining: [] },
   monoFactionWinIds: emptyMonoEvidence(),
+  trainingCredits: {},
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -129,6 +141,20 @@ const normalizeMonoEvidence = (value: unknown): MonoFactionEvidence => {
   ) as MonoFactionEvidence;
 };
 
+const normalizeTrainingCredits = (value: unknown) => {
+  if (!isRecord(value)) return {};
+  const result: Record<string, TrainingAchievementCredit> = {};
+  for (const [rawId, rawCredit] of Object.entries(value).slice(0, 200)) {
+    const id = rawId.trim().slice(0, 120);
+    if (!id || !isRecord(rawCredit)) continue;
+    result[id] = {
+      matchIds: normalizedStrings(rawCredit.matchIds, 200, 180),
+      values: normalizedStrings(rawCredit.values, 200, 120),
+    };
+  }
+  return result;
+};
+
 export function normalizeAchievementProgress(value: unknown): AchievementProgress {
   const input = isRecord(value) ? value : {};
   const winning = isRecord(input.winningFactions) ? input.winningFactions : {};
@@ -155,11 +181,12 @@ export function normalizeAchievementProgress(value: unknown): AchievementProgres
       nonTraining: normalizedFactionList(winning.nonTraining),
     },
     monoFactionWinIds: normalizeMonoEvidence(input.monoFactionWinIds),
+    trainingCredits: normalizeTrainingCredits(input.trainingCredits),
   };
 }
 
-const mergeStrings = (values: string[][], limit: number) =>
-  [...new Set(values.flat())].slice(0, limit);
+const mergeStrings = (values: readonly (readonly string[])[], limit: number) =>
+  [...new Set(values.flatMap((items) => [...items]))].slice(0, limit);
 
 const mergeBucket = (values: MatchEvidenceBucket[], limit = 200): MatchEvidenceBucket => ({
   training: mergeStrings(values.map((item) => item.training), limit),
@@ -176,6 +203,18 @@ export function mergeAchievementProgress(
       mergeBucket(items.map((item) => item.monoFactionWinIds[faction]), 10),
     ]),
   ) as MonoFactionEvidence;
+  const trainingCreditIds = new Set(
+    items.flatMap((item) => Object.keys(item.trainingCredits)),
+  );
+  const trainingCredits = Object.fromEntries(
+    [...trainingCreditIds].map((id) => [
+      id,
+      {
+        matchIds: mergeStrings(items.map((item) => item.trainingCredits[id]?.matchIds ?? []), 200),
+        values: mergeStrings(items.map((item) => item.trainingCredits[id]?.values ?? []), 200),
+      },
+    ]),
+  );
   return normalizeAchievementProgress({
     standardDeckIds: mergeStrings(items.map((item) => item.standardDeckIds), 100),
     standardDeckSignatures: mergeStrings(items.map((item) => item.standardDeckSignatures), 100),
@@ -199,6 +238,7 @@ export function mergeAchievementProgress(
       nonTraining: mergeStrings(items.map((item) => item.winningFactions.nonTraining), 6),
     },
     monoFactionWinIds,
+    trainingCredits,
   });
 }
 
@@ -260,6 +300,11 @@ export type AchievementMatchEvidence = {
   opponentKey?: string;
 };
 
+export type TrainingEligibleAchievement = {
+  id: string;
+  metric: string;
+};
+
 const deckFactionIdentity = (deck: DeckRecord): Faction[] => {
   const factions = new Set<Faction>();
   for (const id of deck.cardIds) {
@@ -273,10 +318,31 @@ const deckFactionIdentity = (deck: DeckRecord): Faction[] => {
   return [...factions];
 };
 
+const monoMetricForFaction = (faction: MonoMasteryFaction) => `mono${faction}Wins`;
+
+const trainingContribution = (
+  metric: string,
+  won: boolean,
+  format: "bo1" | "bo3" | undefined,
+  factions: Faction[],
+  monoFaction: MonoMasteryFaction | null,
+): { contributes: boolean; values: string[] } => {
+  if (metric === "matches") return { contributes: true, values: [] };
+  if (metric === "wins") return { contributes: won, values: [] };
+  if (metric === "bo1Wins") return { contributes: won && (format ?? "bo1") === "bo1", values: [] };
+  if (metric === "bo3Wins") return { contributes: won && format === "bo3", values: [] };
+  if (metric === "winningFactions") return { contributes: won && factions.length > 0, values: factions };
+  if (monoFaction && metric === monoMetricForFaction(monoFaction)) {
+    return { contributes: won, values: [] };
+  }
+  return { contributes: false, values: [] };
+};
+
 export function recordAchievementMatch(
   value: AchievementProgress | null | undefined,
   match: AchievementMatchEvidence,
   deck: DeckRecord | null | undefined,
+  trainingEligibleAchievements: readonly TrainingEligibleAchievement[] = [],
 ): AchievementProgress {
   const progress = normalizeAchievementProgress(value);
   const id = String(match.id ?? "").trim().slice(0, 180);
@@ -294,6 +360,14 @@ export function recordAchievementMatch(
   }
 
   const won = match.result === "Victor";
+  const legalStandardDeck = Boolean(
+    deck && deckIsLegal(deck) && (deck.format ?? "standard") === "standard",
+  );
+  const factions = legalStandardDeck && deck ? deckFactionIdentity(deck) : [];
+  const monoFaction = factions.length === 1 && MONO_MASTERY_FACTIONS.includes(factions[0] as MonoMasteryFaction)
+    ? factions[0] as MonoMasteryFaction
+    : null;
+
   if (won) {
     progress.arenaWinIds[bucket] = addUnique(progress.arenaWinIds[bucket], id, 200);
     if ((match.format ?? "bo1") === "bo1") {
@@ -306,23 +380,41 @@ export function recordAchievementMatch(
     }
   }
 
-  if (deck && deckIsLegal(deck) && (deck.format ?? "standard") === "standard") {
+  if (legalStandardDeck && deck) {
     progress.discoveredMainCardIds = addMany(progress.discoveredMainCardIds, deck.cardIds, 1_500);
     if (won) {
-      const factions = deckFactionIdentity(deck);
       progress.winningFactions[bucket] = addMany(
         progress.winningFactions[bucket],
         factions,
         ACHIEVEMENT_FACTIONS.length,
       ) as Faction[];
-      if (factions.length === 1 && MONO_MASTERY_FACTIONS.includes(factions[0] as MonoMasteryFaction)) {
-        const faction = factions[0] as MonoMasteryFaction;
-        progress.monoFactionWinIds[faction][bucket] = addUnique(
-          progress.monoFactionWinIds[faction][bucket],
+      if (monoFaction) {
+        progress.monoFactionWinIds[monoFaction][bucket] = addUnique(
+          progress.monoFactionWinIds[monoFaction][bucket],
           id,
           10,
         );
       }
+    }
+  }
+
+  if (training) {
+    for (const achievement of trainingEligibleAchievements) {
+      const achievementId = achievement.id.trim().slice(0, 120);
+      if (!achievementId) continue;
+      const contribution = trainingContribution(
+        achievement.metric,
+        won,
+        match.format,
+        factions,
+        monoFaction,
+      );
+      if (!contribution.contributes) continue;
+      const current = progress.trainingCredits[achievementId] ?? { matchIds: [], values: [] };
+      progress.trainingCredits[achievementId] = {
+        matchIds: addUnique(current.matchIds, id, 200),
+        values: addMany(current.values, contribution.values, 200),
+      };
     }
   }
 
