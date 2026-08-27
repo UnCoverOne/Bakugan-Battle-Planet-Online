@@ -5,32 +5,23 @@ import {
   ACHIEVEMENT_CATEGORIES,
   ACHIEVEMENT_CATEGORY_DETAILS,
   ACHIEVEMENT_DEFINITIONS,
+  achievementTrainingConfigurable,
+  achievementTrainingRule,
   achievementsFor,
   applyAchievementCompletions,
   sortAchievements,
   type Achievement,
 } from "../lib/achievements";
+import {
+  ACHIEVEMENT_FACTIONS,
+  MONO_MASTERY_FACTIONS,
+  normalizeAchievementProgress,
+  observeAchievementDecks,
+  recordAchievementMatch,
+} from "../lib/achievement-progress";
 import { STARTER_DECKS, deckIsLegal, type DeckRecord } from "../lib/data";
-import type { MatchResultRecord } from "../lib/persistence";
 
 const source = (path: string) => readFileSync(path, "utf8");
-
-const match = (
-  id: string,
-  at: string,
-  overrides: Partial<MatchResultRecord> = {},
-): MatchResultRecord => ({
-  id,
-  result: "Defeat",
-  opponent: `Opponent ${id}`,
-  score: "0–1",
-  reason: "Match completed",
-  at,
-  format: "bo1",
-  mode: "casual",
-  log: [],
-  ...overrides,
-});
 
 const legalDeck = (
   sourceDeck: DeckRecord,
@@ -46,33 +37,71 @@ const legalDeck = (
   ...overrides,
 });
 
-test("achievement catalogue exposes four progression paths and 45 stable milestones", () => {
+test("achievement catalogue uses four thematic progression paths", () => {
   assert.deepEqual(ACHIEVEMENT_CATEGORIES, [
     "Arsenal",
     "Arena",
     "Brawler Network",
     "Compendium",
   ]);
-  assert.equal(ACHIEVEMENT_DEFINITIONS.length, 45);
-  assert.equal(new Set(ACHIEVEMENT_DEFINITIONS.map((item) => item.id)).size, 45);
+  assert.equal(ACHIEVEMENT_DEFINITIONS.length, 37);
+  assert.equal(new Set(ACHIEVEMENT_DEFINITIONS.map((item) => item.id)).size, 37);
   assert.deepEqual(
     new Set(ACHIEVEMENT_DEFINITIONS.map((item) => item.category)),
     new Set(ACHIEVEMENT_CATEGORIES),
   );
-  assert.deepEqual(
-    Object.keys(ACHIEVEMENT_CATEGORY_DETAILS),
-    ACHIEVEMENT_CATEGORIES,
-  );
+  assert.deepEqual(Object.keys(ACHIEVEMENT_CATEGORY_DETAILS), ACHIEVEMENT_CATEGORIES);
   for (const item of ACHIEVEMENT_DEFINITIONS) {
     assert.ok(item.target > 0);
     assert.ok(item.name.trim());
     assert.ok(item.description.trim());
     assert.ok(ACHIEVEMENT_CATEGORY_DETAILS[item.category].glyph);
     assert.match(ACHIEVEMENT_CATEGORY_DETAILS[item.category].color, /^#[0-9a-f]{6}$/i);
+    assert.ok(ACHIEVEMENT_CATEGORY_DETAILS[item.category].description.trim());
   }
 });
 
-test("deck achievements use authoritative legality rather than size alone", () => {
+test("Arena generic progression has one participation milestone followed only by win milestones", () => {
+  const arenaMatches = ACHIEVEMENT_DEFINITIONS.filter(
+    (item) => item.category === "Arena" && item.metric === "matches",
+  );
+  assert.deepEqual(arenaMatches.map((item) => item.target), [1]);
+
+  const genericWins = ACHIEVEMENT_DEFINITIONS.filter(
+    (item) => item.category === "Arena" && item.metric === "wins",
+  );
+  assert.deepEqual(genericWins.map((item) => item.target), [3, 5, 10, 25, 50]);
+
+  for (const removedTarget of [5, 10, 25, 50, 100]) {
+    assert.equal(
+      ACHIEVEMENT_DEFINITIONS.some((item) => item.metric === "matches" && item.target === removedTarget),
+      false,
+    );
+  }
+});
+
+test("Arsenal contains Standard, Singleton, Competitive, Character, and BakuCore breadth", () => {
+  const arsenal = ACHIEVEMENT_DEFINITIONS.filter((item) => item.category === "Arsenal");
+  assert.deepEqual(
+    arsenal.filter((item) => item.metric === "standardDecks").map((item) => item.target),
+    [1, 3],
+  );
+  assert.equal(arsenal.find((item) => item.metric === "singletonDecks")?.target, 1);
+  assert.equal(arsenal.find((item) => item.metric === "competitiveDecks")?.target, 1);
+  assert.equal(arsenal.find((item) => item.metric === "characterCards")?.target, 9);
+  assert.equal(arsenal.find((item) => item.metric === "coreTypes")?.target, 5);
+});
+
+test("Brawler Network publishing progression is 1, 3, 6, and 9 distinct legal Standard decks", () => {
+  assert.deepEqual(
+    ACHIEVEMENT_DEFINITIONS
+      .filter((item) => item.metric === "publishedDecks")
+      .map((item) => item.target),
+    [1, 3, 6, 9],
+  );
+});
+
+test("deck achievements use authoritative legality and duplicate lists do not inflate progress", () => {
   const sizeOnlyDeck: DeckRecord = {
     id: "invalid-size-only",
     name: "Looks Complete",
@@ -92,75 +121,122 @@ test("deck achievements use authoritative legality rather than size alone", () =
 
   assert.ok(STARTER_DECKS.length >= 3);
   assert.ok(STARTER_DECKS.slice(0, 3).every(deckIsLegal));
-  const achievements = achievementsFor(STARTER_DECKS.slice(0, 3), []);
-  assert.equal(achievements.find((item) => item.id === "first-deck")?.unlocked, true);
-  assert.equal(achievements.find((item) => item.id === "deck-builder")?.unlocked, true);
-});
-
-test("duplicate deck copies do not inflate legal deck milestones", () => {
-  const original = legalDeck(
-    STARTER_DECKS[0],
-    "original",
-    "2026-07-01T10:00:00.000Z",
-  );
-  const copied = legalDeck(
-    STARTER_DECKS[0],
-    "copy",
-    "2026-07-02T10:00:00.000Z",
-  );
+  const original = legalDeck(STARTER_DECKS[0], "original", "2026-07-01T10:00:00.000Z");
+  const copied = legalDeck(STARTER_DECKS[0], "copy", "2026-07-02T10:00:00.000Z");
   const achievements = achievementsFor([original, copied], []);
-
   assert.equal(achievements.find((item) => item.id === "first-deck")?.current, 1);
   assert.equal(achievements.find((item) => item.id === "deck-builder")?.current, 1);
 });
 
-test("publishing progression counts distinct legal public decks at 1, 3, 6, and 9", () => {
-  const publicDecks = STARTER_DECKS.slice(0, 3).map((item, index) =>
-    legalDeck(item, `public-${index}`, `2026-07-0${index + 1}T10:00:00.000Z`, {
-      visibility: "Public",
-      publishedAt: `2026-07-0${index + 1}T10:00:00.000Z`,
-    }),
+test("deck-building evidence remains after qualifying decks leave the current library", () => {
+  const progress = observeAchievementDecks(undefined, STARTER_DECKS.slice(0, 3));
+  const achievements = achievementsFor([], [], undefined, undefined, progress);
+  assert.equal(achievements.find((item) => item.id === "first-deck")?.unlocked, true);
+  assert.equal(achievements.find((item) => item.id === "deck-builder")?.unlocked, true);
+});
+
+test("Compendium discovery comes from a legal Standard deck used in a completed match and persists", () => {
+  const deck = STARTER_DECKS[0];
+  const progress = recordAchievementMatch(
+    undefined,
+    {
+      id: "discovery-match",
+      result: "Defeat",
+      mode: "training",
+      format: "bo1",
+    },
+    deck,
+    [],
   );
-  const achievements = achievementsFor(publicDecks, []);
+  assert.ok(progress.discoveredMainCardIds.length > 0);
+  assert.equal(progress.discoveredMainCardIds.length, new Set(deck.cardIds).size);
 
-  assert.equal(achievements.find((item) => item.id === "publisher")?.current, 1);
-  assert.equal(achievements.find((item) => item.id === "publisher")?.unlocked, true);
-  assert.equal(achievements.find((item) => item.id === "decks-five")?.current, 3);
-  assert.equal(achievements.find((item) => item.id === "decks-five")?.unlocked, true);
-  assert.equal(ACHIEVEMENT_DEFINITIONS.find((item) => item.id === "public-five")?.target, 6);
-  assert.equal(ACHIEVEMENT_DEFINITIONS.find((item) => item.id === "decks-ten")?.target, 9);
+  const achievements = achievementsFor([], [], undefined, undefined, progress);
+  assert.equal(
+    achievements.find((item) => item.id === "cards-twenty-five")?.current,
+    Math.min(25, progress.discoveredMainCardIds.length),
+  );
 });
 
-test("format expertise is based on victories rather than participation", () => {
-  const defeatOnly = achievementsFor([], [
-    match("bo3-loss", "2026-07-01T10:00:00.000Z", { format: "bo3", result: "Defeat" }),
-  ]);
-  assert.equal(defeatOnly.find((item) => item.id === "first-series")?.current, 0);
+test("Training eligibility is configured per Arena achievement and credited progress is frozen", () => {
+  const firstWin = ACHIEVEMENT_DEFINITIONS.find((item) => item.id === "first-win");
+  assert.ok(firstWin);
+  assert.equal(achievementTrainingConfigurable(firstWin), true);
+  assert.equal(achievementTrainingRule(firstWin), "allowed");
 
-  const history = [
-    match("bo3-win", "2026-07-01T10:00:00.000Z", { format: "bo3", result: "Victor" }),
-    ...Array.from({ length: 10 }, (_, index) =>
-      match(`bo1-win-${index}`, `2026-07-${String(index + 2).padStart(2, "0")}T10:00:00.000Z`, {
-        format: "bo1",
-        result: "Victor",
-      }),
+  let progress = recordAchievementMatch(
+    undefined,
+    { id: "training-win-1", result: "Victor", mode: "training", format: "bo1" },
+    STARTER_DECKS[0],
+    [{ id: firstWin.id, metric: firstWin.metric }],
+  );
+  const disabledDefinitions = ACHIEVEMENT_DEFINITIONS.map((item) =>
+    item.id === firstWin.id ? { ...item, trainingAllowed: false } : item,
+  );
+  let achievements = achievementsFor([], [], undefined, disabledDefinitions, progress);
+  assert.equal(achievements.find((item) => item.id === "first-win")?.current, 1);
+  assert.equal(achievements.find((item) => item.id === "first-win")?.trainingRule, "blocked");
+
+  progress = recordAchievementMatch(
+    progress,
+    { id: "training-win-2", result: "Victor", mode: "training", format: "bo1" },
+    STARTER_DECKS[0],
+    [],
+  );
+  achievements = achievementsFor([], [], undefined, disabledDefinitions, progress);
+  assert.equal(achievements.find((item) => item.id === "first-win")?.current, 1);
+});
+
+test("Ranked victory achievements are Arena achievements and cannot be progressed in Training", () => {
+  const ranked = ACHIEVEMENT_DEFINITIONS.filter((item) => item.metric === "rankedWins");
+  assert.ok(ranked.length > 0);
+  assert.equal(ranked[0].target, 1);
+  for (const item of ranked) {
+    assert.equal(item.category, "Arena");
+    assert.equal(achievementTrainingConfigurable(item), false);
+    assert.equal(achievementTrainingRule(item), "ranked");
+  }
+});
+
+test("faction mastery requires all six winning factions, five mono-faction ten-win milestones, and the capstone", () => {
+  const progress = normalizeAchievementProgress({
+    winningFactions: {
+      nonTraining: [...ACHIEVEMENT_FACTIONS],
+      training: [],
+    },
+    monoFactionWinIds: Object.fromEntries(
+      MONO_MASTERY_FACTIONS.map((faction) => [
+        faction,
+        {
+          nonTraining: Array.from({ length: 10 }, (_, index) => `${faction}-${index}`),
+          training: [],
+        },
+      ]),
     ),
-  ];
-  const achievements = achievementsFor([], history);
-  assert.equal(achievements.find((item) => item.id === "first-series")?.unlocked, true);
-  assert.equal(achievements.find((item) => item.id === "bo1-ten")?.unlocked, true);
+  });
+  const achievements = achievementsFor([], [], undefined, undefined, progress);
+
+  assert.equal(achievements.find((item) => item.id === "all-factions")?.unlocked, true);
+  for (const id of ["games-five", "games-ten", "games-twenty-five", "games-fifty", "games-one-hundred"]) {
+    assert.equal(achievements.find((item) => item.id === id)?.unlocked, true, id);
+  }
+  assert.equal(achievements.find((item) => item.id === "complete-ten")?.unlocked, true);
 });
 
-test("practice results remain eligible only for practice-specific achievements", () => {
-  const achievements = achievementsFor([], [
-    { result: "Victor", mode: "training" },
-    { result: "Defeat", mode: "online" },
-  ]);
+test("Aurelus participates in the six-faction exploration achievement but has no mono-faction mastery", () => {
+  assert.deepEqual(ACHIEVEMENT_FACTIONS, ["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"]);
+  assert.deepEqual(MONO_MASTERY_FACTIONS, ["Pyrus", "Aquos", "Ventus", "Haos", "Darkus"]);
+  assert.equal(
+    ACHIEVEMENT_DEFINITIONS.some((item) => /Aurelus Mastery/i.test(item.name)),
+    false,
+  );
+});
 
-  assert.equal(achievements.find((item) => item.id === "first-win")?.unlocked, false);
-  assert.equal(achievements.find((item) => item.id === "training-day")?.unlocked, true);
-  assert.equal(achievements.find((item) => item.id === "online")?.unlocked, true);
-  assert.equal(achievements.find((item) => item.id === "opponents-five")?.current, 0);
+test("Master of the Elements is the Elemental Mastery capstone reward", () => {
+  const customization = source("lib/profile-customization.ts");
+  assert.match(customization, /master-of-the-elements/);
+  assert.match(customization, /Master of the Elements/);
+  assert.match(customization, /"complete-ten"/);
 });
 
 test("stored completion evidence keeps an earned achievement unlocked", () => {
@@ -169,7 +245,6 @@ test("stored completion evidence keeps an earned achievement unlocked", () => {
     "first-deck": "2026-07-04T10:00:00.000Z",
   });
   const achievement = sticky.find((item) => item.id === "first-deck");
-
   assert.equal(achievement?.unlocked, true);
   assert.equal(achievement?.status, "completed");
   assert.equal(achievement?.current, achievement?.target);
@@ -182,6 +257,7 @@ test("status views use their required deterministic sort orders", () => {
     category: "Arena" as const,
     target: 10,
     unlocked: false,
+    trainingRule: "blocked" as const,
   };
   const achievements: Achievement[] = [
     { ...base, id: "old", name: "Old", current: 10, unlocked: true, status: "completed", completedAt: "2026-07-01T00:00:00.000Z" },
@@ -195,6 +271,28 @@ test("status views use their required deterministic sort orders", () => {
   assert.deepEqual(sortAchievements(achievements, "completed").map((item) => item.id), ["new", "old"]);
   assert.deepEqual(sortAchievements(achievements, "in-progress").map((item) => item.id), ["near", "far"]);
   assert.deepEqual(sortAchievements(achievements, "locked").map((item) => item.id), ["a", "z"]);
+});
+
+test("achievement identity and Training rules are visible across player and Administrator surfaces", () => {
+  const achievementsScreen = source("components/routes/AchievementsScreen.tsx");
+  const profile = source("components/profile/BrawlerProfileView.tsx");
+  const admin = source("components/routes/AchievementRewardManagement.tsx");
+
+  for (const contract of [
+    "ACHIEVEMENT_CATEGORY_DETAILS",
+    "Training progress allowed",
+    "Training progress not allowed",
+    "Ranked matches only",
+  ]) {
+    assert.match(achievementsScreen, new RegExp(contract));
+  }
+  assert.match(profile, /ACHIEVEMENT_CATEGORY_DETAILS/);
+  assert.match(profile, /category\.glyph/);
+  assert.match(profile, /category\.color/);
+  assert.match(admin, /achievementTrainingConfigurable/);
+  assert.match(admin, /Training progress/);
+  assert.match(admin, /categoryDetails\.glyph/);
+  assert.match(admin, /categoryDetails\.color/);
 });
 
 test("achievement route provides overview previews, search, categories, and view-all screens", () => {
