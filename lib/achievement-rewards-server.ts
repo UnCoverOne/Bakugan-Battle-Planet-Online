@@ -7,6 +7,12 @@ import { ensureAdministrationSchema, type AccountDatabase } from "./account-serv
 
 const RESOURCE_TYPE = "achievement-rewards";
 const RESOURCE_ID = "profile-customization";
+export const ACHIEVEMENT_REWARD_CATALOGUE_VERSION = 1;
+
+type RewardCataloguePayload = {
+  version: number;
+  assignments: unknown;
+};
 
 function parseJson(value: string | null | undefined) {
   if (!value) return null;
@@ -15,6 +21,17 @@ function parseJson(value: string | null | undefined) {
   } catch {
     return null;
   }
+}
+
+function currentPayload(value: unknown): RewardCataloguePayload | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const payload = value as Record<string, unknown>;
+  if (payload.version !== ACHIEVEMENT_REWARD_CATALOGUE_VERSION) return null;
+  if (!payload.assignments || typeof payload.assignments !== "object" || Array.isArray(payload.assignments)) return null;
+  return {
+    version: ACHIEVEMENT_REWARD_CATALOGUE_VERSION,
+    assignments: payload.assignments,
+  };
 }
 
 export async function loadAchievementRewardAssignments(
@@ -31,7 +48,12 @@ export async function loadAchievementRewardAssignments(
       allowedAchievementIds,
     );
   }
-  return normalizeAchievementRewardAssignments(parseJson(row.data_json), allowedAchievementIds);
+
+  const payload = currentPayload(parseJson(row.data_json));
+  return normalizeAchievementRewardAssignments(
+    payload?.assignments ?? DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS,
+    allowedAchievementIds,
+  );
 }
 
 export async function saveAchievementRewardAssignments(
@@ -47,7 +69,7 @@ export async function saveAchievementRewardAssignments(
   ).bind(
     RESOURCE_TYPE,
     RESOURCE_ID,
-    JSON.stringify(assignments),
+    JSON.stringify({ version: ACHIEVEMENT_REWARD_CATALOGUE_VERSION, assignments }),
     administratorId,
     Date.now(),
   ).run();
