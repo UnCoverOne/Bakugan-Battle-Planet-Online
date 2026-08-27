@@ -1,12 +1,9 @@
 import { CORES, deckIsLegal, type DeckRecord } from "./data";
 import {
-  ACHIEVEMENT_FACTIONS,
-  MONO_MASTERY_FACTIONS,
   distinctDeckEvidence,
   normalizeAchievementProgress,
   observeAchievementDecks,
   type AchievementProgress,
-  type MatchEvidenceBucket,
   type MonoMasteryFaction,
 } from "./achievement-progress";
 import type { LifetimeMatchStats, MatchResultRecord } from "./persistence";
@@ -48,7 +45,6 @@ export const ACHIEVEMENT_CATEGORY_DETAILS: Record<
 };
 
 export const ACHIEVEMENT_METRICS = [
-  // Current catalogue metrics.
   "standardDecks",
   "singletonDecks",
   "competitiveDecks",
@@ -372,22 +368,20 @@ const uniqueMetric = <T>(items: T[], valuesFor: (item: T) => string[], dateFor: 
   return { value: unique.size, completedAt: (target) => milestones.get(target) ?? null };
 };
 
-const evidenceCount = (bucket: MatchEvidenceBucket, trainingAllowed: boolean) =>
-  bucket.nonTraining.length + (trainingAllowed ? bucket.training.length : 0);
+const trainingCredit = (progress: AchievementProgress, achievementId: string) =>
+  progress.trainingCredits[achievementId] ?? { matchIds: [], values: [] };
 
-const factionEvidenceCount = (
-  progress: AchievementProgress,
-  trainingAllowed: boolean,
-) => new Set([
-  ...progress.winningFactions.nonTraining,
-  ...(trainingAllowed ? progress.winningFactions.training : []),
-]).size;
+const factionEvidenceCount = (progress: AchievementProgress, achievementId: string) =>
+  new Set([
+    ...progress.winningFactions.nonTraining,
+    ...trainingCredit(progress, achievementId).values,
+  ]).size;
 
 const monoFactionEvidenceCount = (
   progress: AchievementProgress,
   faction: MonoMasteryFaction,
-  trainingAllowed: boolean,
-) => evidenceCount(progress.monoFactionWinIds[faction], trainingAllowed);
+  achievementId: string,
+) => progress.monoFactionWinIds[faction].nonTraining.length + trainingCredit(progress, achievementId).matchIds.length;
 
 export function achievementStatus(current: number, target: number): AchievementStatus {
   if (current >= target) return "completed";
@@ -423,7 +417,6 @@ export function achievementsFor(
   const nonTrainingMatches = accountStatMatches(matches);
   const trainingMatches = matches.filter((record) => record.mode === "training");
   const nonTrainingWins = nonTrainingMatches.filter((record) => record.result === "Victor");
-  const trainingWins = trainingMatches.filter((record) => record.result === "Victor");
   const onlineGames = matches.filter((record) =>
     record.mode === "online" || record.mode === "casual" || record.mode === "ranked",
   );
@@ -459,31 +452,20 @@ export function achievementsFor(
   );
 
   const recentNonTrainingMatches = countMetric(nonTrainingMatches, (record) => record.at);
-  const recentAllMatches = countMetric(matches, (record) => record.at);
   const recentNonTrainingWins = countMetric(nonTrainingWins, (record) => record.at);
-  const recentAllWins = countMetric([...nonTrainingWins, ...trainingWins], (record) => record.at);
   const nonTrainingMatchTotal = lifetimeStats
     ? Math.max(0, lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches)
     : recentNonTrainingMatches.value;
-  const allMatchTotal = lifetimeStats ? lifetimeStats.matchesPlayed : recentAllMatches.value;
-  const legacyNonTrainingWins = lifetimeStats
-    ? Math.max(0, lifetimeStats.wins - lifetimeStats.trainingMatches)
-    : 0;
+  // Legacy lifetime stats did not separate Training victories from other wins,
+  // so non-Training win progress uses evidence/history while already completed
+  // achievements remain protected by permanent completion timestamps.
   const nonTrainingWinTotal = Math.max(
-    legacyNonTrainingWins,
     progress.arenaWinIds.nonTraining.length,
     recentNonTrainingWins.value,
   );
-  const allWinTotal = Math.max(
-    lifetimeStats?.wins ?? 0,
-    evidenceCount(progress.arenaWinIds, true),
-    recentAllWins.value,
-  );
 
   const recentBo1NonTrainingWins = nonTrainingWins.filter((record) => (record.format ?? "bo1") === "bo1");
-  const recentBo1TrainingWins = trainingWins.filter((record) => (record.format ?? "bo1") === "bo1");
   const recentBo3NonTrainingWins = nonTrainingWins.filter((record) => record.format === "bo3");
-  const recentBo3TrainingWins = trainingWins.filter((record) => record.format === "bo3");
 
   const onlineOpponentKeys = new Set(progress.onlineOpponentKeys);
   for (const record of onlineGames) {
@@ -501,7 +483,7 @@ export function achievementsFor(
     legalStandardDecks.flatMap((deck) => deck.coreIds.flatMap((id) => coreTypeById.get(id) ?? [])),
   );
 
-  const legacyMetrics: Record<AchievementMetricKey, Metric> = {
+  const metrics: Record<AchievementMetricKey, Metric> = {
     standardDecks: valueMetric(standardDecks),
     singletonDecks: valueMetric(singletonDecks),
     competitiveDecks: valueMetric(competitiveDecks),
@@ -516,12 +498,12 @@ export function achievementsFor(
     onlineGames: valueMetric(Math.max(lifetimeStats ? lifetimeStats.casualMatches + lifetimeStats.rankedMatches : 0, onlineGames.length)),
     onlineOpponents: valueMetric(onlineOpponentKeys.size),
     discoveredMainCards: valueMetric(progress.discoveredMainCardIds.length),
-    winningFactions: valueMetric(factionEvidenceCount(progress, false)),
-    monoPyrusWins: valueMetric(monoFactionEvidenceCount(progress, "Pyrus", false)),
-    monoAquosWins: valueMetric(monoFactionEvidenceCount(progress, "Aquos", false)),
-    monoVentusWins: valueMetric(monoFactionEvidenceCount(progress, "Ventus", false)),
-    monoHaosWins: valueMetric(monoFactionEvidenceCount(progress, "Haos", false)),
-    monoDarkusWins: valueMetric(monoFactionEvidenceCount(progress, "Darkus", false)),
+    winningFactions: valueMetric(progress.winningFactions.nonTraining.length),
+    monoPyrusWins: valueMetric(progress.monoFactionWinIds.Pyrus.nonTraining.length),
+    monoAquosWins: valueMetric(progress.monoFactionWinIds.Aquos.nonTraining.length),
+    monoVentusWins: valueMetric(progress.monoFactionWinIds.Ventus.nonTraining.length),
+    monoHaosWins: valueMetric(progress.monoFactionWinIds.Haos.nonTraining.length),
+    monoDarkusWins: valueMetric(progress.monoFactionWinIds.Darkus.nonTraining.length),
     elementalMastery: valueMetric(0),
 
     decks: countMetric(decks, (deck) => deck.updatedAt),
@@ -541,27 +523,21 @@ export function achievementsFor(
   };
 
   const metricFor = (item: AchievementDefinition): Metric => {
-    const trainingAllowed = item.category === "Arena" && achievementTrainingRule(item) === "allowed";
-    if (item.metric === "matches") return valueMetric(trainingAllowed ? allMatchTotal : nonTrainingMatchTotal);
-    if (item.metric === "wins") return valueMetric(trainingAllowed ? allWinTotal : nonTrainingWinTotal);
+    const credit = trainingCredit(progress, item.id);
+    if (item.metric === "matches") return valueMetric(nonTrainingMatchTotal + credit.matchIds.length);
+    if (item.metric === "wins") return valueMetric(nonTrainingWinTotal + credit.matchIds.length);
     if (item.metric === "bo1Wins") {
-      return valueMetric(Math.max(
-        evidenceCount(progress.bo1WinIds, trainingAllowed),
-        recentBo1NonTrainingWins.length + (trainingAllowed ? recentBo1TrainingWins.length : 0),
-      ));
+      return valueMetric(Math.max(progress.bo1WinIds.nonTraining.length, recentBo1NonTrainingWins.length) + credit.matchIds.length);
     }
     if (item.metric === "bo3Wins") {
-      return valueMetric(Math.max(
-        evidenceCount(progress.bo3WinIds, trainingAllowed),
-        recentBo3NonTrainingWins.length + (trainingAllowed ? recentBo3TrainingWins.length : 0),
-      ));
+      return valueMetric(Math.max(progress.bo3WinIds.nonTraining.length, recentBo3NonTrainingWins.length) + credit.matchIds.length);
     }
-    if (item.metric === "winningFactions") return valueMetric(factionEvidenceCount(progress, trainingAllowed));
-    if (item.metric === "monoPyrusWins") return valueMetric(monoFactionEvidenceCount(progress, "Pyrus", trainingAllowed));
-    if (item.metric === "monoAquosWins") return valueMetric(monoFactionEvidenceCount(progress, "Aquos", trainingAllowed));
-    if (item.metric === "monoVentusWins") return valueMetric(monoFactionEvidenceCount(progress, "Ventus", trainingAllowed));
-    if (item.metric === "monoHaosWins") return valueMetric(monoFactionEvidenceCount(progress, "Haos", trainingAllowed));
-    if (item.metric === "monoDarkusWins") return valueMetric(monoFactionEvidenceCount(progress, "Darkus", trainingAllowed));
+    if (item.metric === "winningFactions") return valueMetric(factionEvidenceCount(progress, item.id));
+    if (item.metric === "monoPyrusWins") return valueMetric(monoFactionEvidenceCount(progress, "Pyrus", item.id));
+    if (item.metric === "monoAquosWins") return valueMetric(monoFactionEvidenceCount(progress, "Aquos", item.id));
+    if (item.metric === "monoVentusWins") return valueMetric(monoFactionEvidenceCount(progress, "Ventus", item.id));
+    if (item.metric === "monoHaosWins") return valueMetric(monoFactionEvidenceCount(progress, "Haos", item.id));
+    if (item.metric === "monoDarkusWins") return valueMetric(monoFactionEvidenceCount(progress, "Darkus", item.id));
     if (item.metric === "elementalMastery") {
       const prerequisiteIds = [
         "all-factions",
@@ -577,7 +553,7 @@ export function achievementsFor(
       });
       return valueMetric(complete ? 1 : 0);
     }
-    return legacyMetrics[item.metric];
+    return metrics[item.metric];
   };
 
   return definitions.map((item) => {
