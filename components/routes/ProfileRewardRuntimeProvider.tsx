@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ACHIEVEMENT_DEFINITIONS,
+  achievementCompletionKey,
   achievementTrainingConfigurable,
   achievementsFor,
   applyAchievementCompletions,
@@ -143,21 +144,21 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
     });
   }, [decks, definitionsReady, match, online, playerId, selectedDeck, setProfile, trainingEligibleAchievements]);
 
-  // Completion timestamps are permanent. This is intentionally separate from
-  // live progress so deleting a deck or changing an Administrator rule never
-  // revokes an achievement that was legitimately earned.
+  // Completion timestamps are permanent. The current achievement namespace is
+  // intentionally separate from older catalogues, so obsolete completion ids are
+  // ignored without carrying migration logic into the live system.
   useEffect(() => {
     setProfile((current) => {
       const stored = current.achievementCompletions ?? {};
       const newlyCompleted = liveAchievements.filter(
-        (achievement) => achievement.unlocked && !stored[achievement.id],
+        (achievement) => achievement.unlocked && !stored[achievementCompletionKey(achievement.id)],
       );
       if (!newlyCompleted.length) return current;
 
       const nextCompletions = { ...stored };
       const recordedAt = new Date().toISOString();
       for (const achievement of newlyCompleted) {
-        nextCompletions[achievement.id] = achievement.completedAt ?? recordedAt;
+        nextCompletions[achievementCompletionKey(achievement.id)] = achievement.completedAt ?? recordedAt;
       }
       return { ...current, achievementCompletions: nextCompletions };
     });
