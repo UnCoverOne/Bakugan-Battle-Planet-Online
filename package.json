@@ -33,7 +33,7 @@
     "test:quality": "node --import tsx --test tests/quality-assurance.test.ts tests/platform-hardening.test.ts",
     "card:author": "node --import tsx scripts/card-author.mts",
     "test:simulation": "node --import tsx --test tests/physical-simulation.test.ts",
-    "test:authoring": "node --import tsx scripts/card-author.mts"
+    "test:authoring": "node --import tsx --test tests/card-authoring.test.ts"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
@@ -43,22 +43,22 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
-    "@cloudflare/workers-types": "^4.20260702.1",
     "@playwright/test": "1.61.1",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
+    "@types/react-dom": "19.2.6",
     "@vitejs/plugin-rsc": "^0.5.34",
+    "@cloudflare/workers-types": "^4.20260702.1",
+    "typescript": "5.9.3",
+    "tsx": "^4.23.1",
+    "vite": "8.0.13",
+    "vinext": "0.0.50",
+    "wrangler": "4.92.0",
+    "tailwindcss": "4.2.1",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
-    "react-server-dom-webpack": "19.2.6",
-    "tailwindcss": "4.2.1",
-    "tsx": "^4.23.1",
-    "typescript": "5.9.3",
-    "vinext": "0.0.50",
-    "vite": "8.0.13",
-    "wrangler": "4.92.0"
+    "react-server-dom-webpack": "19.2.6"
   },
   "type": "module",
   "displayName": "Bakugan Battle Planet Online"
