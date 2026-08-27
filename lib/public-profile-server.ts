@@ -115,7 +115,7 @@ export async function publicBrawlerProfile(
   const avatarMatch = /^preset:([a-z0-9-]{1,120})$/i.exec(profile.avatar ?? "");
   if (avatarMatch) {
     const avatarRequirement = assignments.avatars[avatarMatch[1]] ?? null;
-    if (avatarRequirement && !completedAchievementIds.has(avatarMatch[1])) {
+    if (avatarRequirement && !completedAchievementIds.has(avatarRequirement)) {
       profile.avatar = "";
     }
   }
