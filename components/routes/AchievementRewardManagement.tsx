@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ACHIEVEMENT_CATEGORIES,
+  ACHIEVEMENT_CATEGORY_DETAILS,
   ACHIEVEMENT_DEFINITIONS,
   ACHIEVEMENT_METRICS,
+  achievementTrainingConfigurable,
+  achievementTrainingRule,
   normalizeAchievementDefinitions,
   type AchievementDefinition,
   type AchievementMetricKey,
@@ -85,6 +88,15 @@ const catalogueOrder = new Map(
 const metricLabel = (metric: AchievementMetricKey) => metric
   .replace(/([a-z])([A-Z])/g, "$1 $2")
   .replace(/^./, (value) => value.toUpperCase());
+
+const trainingRuleLabel = (achievement: AchievementDefinition) => {
+  const rule = achievementTrainingRule(achievement);
+  if (rule === "allowed") return "Training allowed";
+  if (rule === "blocked") return "Training not allowed";
+  if (rule === "ranked") return "Ranked only";
+  if (rule === "derived") return "Follows prerequisites";
+  return "Not applicable";
+};
 
 function cloneAssignments(assignments: AchievementRewardAssignments): AchievementRewardAssignments {
   return {
@@ -370,21 +382,27 @@ export function AchievementRewardManagement() {
           <div className={styles.rows}>
             {visibleAchievements.map((achievement) => {
               const reward = rewardMap.get(achievement.id);
+              const categoryDetails = ACHIEVEMENT_CATEGORY_DETAILS[achievement.category];
               return (
                 <div className={styles.row} key={achievement.id}>
                   <button
                     className={styles.achievementButton}
                     type="button"
+                    style={{ borderLeftColor: categoryDetails.color }}
                     onClick={() => setModal({ type: "edit", achievementId: achievement.id })}
                   >
                     <span className={styles.achievementIdentity}>
-                      <StatusChip tone="neutral">{achievement.category}</StatusChip>
+                      <StatusChip tone="neutral">
+                        <span aria-hidden="true" style={{ color: categoryDetails.color }}>{categoryDetails.glyph}</span>{" "}
+                        {achievement.category}
+                      </StatusChip>
                       <strong>{achievement.name}</strong>
                       <small>{achievement.description}</small>
                     </span>
                     <span className={styles.parameters}>
                       <span>{metricLabel(achievement.metric)}</span>
                       <strong>Target {achievement.target}</strong>
+                      {achievement.category === "Arena" ? <span>{trainingRuleLabel(achievement)}</span> : null}
                     </span>
                   </button>
                   <button
@@ -467,6 +485,9 @@ function AchievementEditorModal({
   onDelete: () => void;
 }) {
   const [draft, setDraft] = useState<AchievementDefinition>({ ...achievement });
+  const categoryDetails = ACHIEVEMENT_CATEGORY_DETAILS[draft.category];
+  const trainingConfigurable = achievementTrainingConfigurable(draft);
+  const trainingRule = achievementTrainingRule(draft);
   return (
     <AdminModal
       title={achievement.name}
@@ -475,6 +496,10 @@ function AchievementEditorModal({
       onClose={onClose}
     >
       <div className={styles.editorFields}>
+        <StatusChip tone="neutral">
+          <span aria-hidden="true" style={{ color: categoryDetails.color }}>{categoryDetails.glyph}</span>{" "}
+          {draft.category} · {categoryDetails.description}
+        </StatusChip>
         <Field label="Name">
           <input value={draft.name} maxLength={80} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
         </Field>
@@ -502,6 +527,30 @@ function AchievementEditorModal({
             onChange={(event) => setDraft({ ...draft, target: Math.max(1, Number(event.target.value) || 1) })}
           />
         </Field>
+        {draft.category === "Arena" ? (
+          <Field label="Training progress">
+            {trainingConfigurable ? (
+              <select
+                value={draft.trainingAllowed ? "allowed" : "blocked"}
+                onChange={(event) => setDraft({ ...draft, trainingAllowed: event.target.value === "allowed" })}
+              >
+                <option value="allowed">Allowed — qualifying Training matches grant future progress</option>
+                <option value="blocked">Not allowed — Training matches do not grant future progress</option>
+              </select>
+            ) : (
+              <input
+                readOnly
+                value={
+                  trainingRule === "ranked"
+                    ? "Not applicable — this achievement requires Ranked play"
+                    : trainingRule === "derived"
+                      ? "Derived — follows the Training settings of its prerequisite achievements"
+                      : "Not applicable to this achievement"
+                }
+              />
+            )}
+          </Field>
+        ) : null}
       </div>
       <div className={styles.modalActions}>
         <ActionButton tone="danger" disabled={saving} onClick={onDelete}>Delete Achievement</ActionButton>
