@@ -388,6 +388,43 @@ export function achievementStatus(current: number, target: number): AchievementS
   return current > 0 ? "in-progress" : "locked";
 }
 
+// These stable IDs previously represented materially different requirements.
+// Their old completion timestamps are retained in storage for audit/history, but
+// cannot unlock the redesigned achievement until new-system evidence satisfies
+// the current requirement. This prevents, for example, the former "play five
+// games" milestone from silently granting Pyrus Mastery.
+const COMPLETION_REQUIRES_CURRENT_PROGRESS = new Set<string>([
+  "first-deck",
+  "deck-builder",
+  "singleton-start",
+  "complete-five",
+  "characters-twelve",
+  "cores-twelve",
+  "publisher",
+  "decks-five",
+  "public-five",
+  "decks-ten",
+  "first-win",
+  "first-series",
+  "bo1-ten",
+  "online-five",
+  "online-ten",
+  "online-twenty-five",
+  "online-fifty",
+  "online-wins-five",
+  "all-factions",
+  "games-five",
+  "games-ten",
+  "games-twenty-five",
+  "games-fifty",
+  "games-one-hundred",
+  "complete-ten",
+  "cards-twenty-five",
+  "cards-fifty",
+  "cards-one-hundred",
+  "cards-two-hundred",
+]);
+
 export function applyAchievementCompletions(
   achievements: Achievement[],
   completions: AchievementCompletionMap | null | undefined,
@@ -396,6 +433,9 @@ export function applyAchievementCompletions(
   return achievements.map((achievement) => {
     const completedAt = validDate(completions[achievement.id]);
     if (!completedAt) return achievement;
+    if (COMPLETION_REQUIRES_CURRENT_PROGRESS.has(achievement.id) && !achievement.unlocked) {
+      return achievement;
+    }
     return {
       ...achievement,
       current: achievement.target,
@@ -456,12 +496,13 @@ export function achievementsFor(
   const nonTrainingMatchTotal = lifetimeStats
     ? Math.max(0, lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches)
     : recentNonTrainingMatches.value;
-  // Legacy lifetime stats did not separate Training victories from other wins,
-  // so non-Training win progress uses evidence/history while already completed
-  // achievements remain protected by permanent completion timestamps.
+  // Before per-achievement Training eligibility existed, lifetime win totals
+  // could include Training. Grandfather those historical wins into the generic
+  // Arena win ladder; future Training credit is controlled per achievement.
   const nonTrainingWinTotal = Math.max(
     progress.arenaWinIds.nonTraining.length,
     recentNonTrainingWins.value,
+    lifetimeStats?.wins ?? 0,
   );
 
   const recentBo1NonTrainingWins = nonTrainingWins.filter((record) => (record.format ?? "bo1") === "bo1");
