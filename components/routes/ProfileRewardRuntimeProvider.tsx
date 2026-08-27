@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ACHIEVEMENT_DEFINITIONS,
   achievementsFor,
+  applyAchievementCompletions,
   normalizeAchievementDefinitions,
   resetAchievementDefinitionRuntime,
   setAchievementDefinitionRuntime,
@@ -32,9 +33,13 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
   const [definitions, setDefinitions] = useState<AchievementDefinition[]>(
     () => normalizeAchievementDefinitions(ACHIEVEMENT_DEFINITIONS),
   );
-  const achievements = useMemo(
+  const liveAchievements = useMemo(
     () => achievementsFor(decks, history, lifetimeStats, definitions),
     [decks, definitions, history, lifetimeStats],
+  );
+  const achievements = useMemo(
+    () => applyAchievementCompletions(liveAchievements, profile.achievementCompletions),
+    [liveAchievements, profile.achievementCompletions],
   );
   const completedAchievementIds = useMemo(
     () => new Set(
@@ -75,6 +80,21 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
     resetAchievementDefinitionRuntime();
     resetProfileRewardRuntime();
   }, []);
+
+  useEffect(() => {
+    const stored = profile.achievementCompletions ?? {};
+    const newlyCompleted = liveAchievements.filter(
+      (achievement) => achievement.unlocked && !stored[achievement.id],
+    );
+    if (!newlyCompleted.length) return;
+
+    const nextCompletions = { ...stored };
+    const recordedAt = new Date().toISOString();
+    for (const achievement of newlyCompleted) {
+      nextCompletions[achievement.id] = achievement.completedAt ?? recordedAt;
+    }
+    setProfile({ ...profile, achievementCompletions: nextCompletions });
+  }, [liveAchievements, profile, setProfile]);
 
   useEffect(() => {
     const next = { ...profile };
