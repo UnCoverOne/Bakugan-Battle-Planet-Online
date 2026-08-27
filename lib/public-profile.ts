@@ -1,4 +1,8 @@
-import type { Achievement } from "./achievements";
+import {
+  ACHIEVEMENT_CATEGORIES,
+  type Achievement,
+  type AchievementCategory,
+} from "./achievements";
 import { validateDeck, type DeckRecord } from "./data";
 import { deckSetName } from "./deck-set";
 import type { BrawlerProfile } from "./persistence";
@@ -62,6 +66,13 @@ const VALID_FACTIONS = new Set([
   "Ventus",
   "Aurelus",
 ]);
+const VALID_ACHIEVEMENT_CATEGORIES = new Set<string>(ACHIEVEMENT_CATEGORIES);
+const LEGACY_ACHIEVEMENT_CATEGORIES: Record<string, AchievementCategory> = {
+  Battle: "Arena",
+  "Getting Started": "Arena",
+  "Deck Building": "Arsenal",
+  "Online Play": "Brawler Network",
+};
 
 const text = (value: unknown, max: number) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -81,6 +92,12 @@ const strings = (value: unknown, limit: number, itemLimit = 120) =>
         .filter(Boolean)
         .slice(0, limit)
     : [];
+
+const achievementCategory = (value: unknown): AchievementCategory => {
+  const candidate = text(value, 80);
+  if (VALID_ACHIEVEMENT_CATEGORIES.has(candidate)) return candidate as AchievementCategory;
+  return LEGACY_ACHIEVEMENT_CATEGORIES[candidate] ?? "Arena";
+};
 
 export function publicDeckSummary(deck: DeckRecord): PublicProfileDeck {
   return {
@@ -170,7 +187,7 @@ export function normalizePublicBrawlerProfile(
           id: text(item.id, 120),
           name: text(item.name, 120),
           description: text(item.description, 500),
-          category: text(item.category, 80) as PublicProfileAchievement["category"],
+          category: achievementCategory(item.category),
         }))
         .filter((item) => item.id && item.name)
         .slice(0, PROFILE_SHOWCASE_LIMIT)
