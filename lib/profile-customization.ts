@@ -68,6 +68,7 @@ export const PROFILE_TITLE_CATALOGUE: readonly ProfileReward[] = [
   titleReward("seasoned-brawler", "Seasoned Brawler", "veteran"),
   titleReward("strategy-publisher", "Strategy Publisher", "publisher"),
   titleReward("connected-brawler", "Connected Brawler", "online"),
+  titleReward("master-of-the-elements", "Master of the Elements", "complete-ten"),
 ];
 
 const coverReward = (
