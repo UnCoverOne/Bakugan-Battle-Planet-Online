@@ -2,13 +2,18 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
 import {
   ACHIEVEMENT_CATEGORIES,
   ACHIEVEMENT_CATEGORY_DETAILS,
+  achievementsFor,
+  applyAchievementCompletions,
   sortAchievements,
   type Achievement,
   type AchievementStatus,
+  type AchievementTrainingRule,
 } from "../../lib/achievements";
+import { useApp } from "../application/AppProvider";
 import { StatusChip, Surface } from "../design-system/primitives";
 import styles from "./AchievementsScreen.module.css";
 
@@ -51,6 +56,14 @@ function formatCompletion(value: string | null) {
   }).format(new Date(value))}`;
 }
 
+function trainingCopy(rule: AchievementTrainingRule) {
+  if (rule === "allowed") return { label: "Training progress allowed", tone: "info" as const };
+  if (rule === "blocked") return { label: "Training progress not allowed", tone: "neutral" as const };
+  if (rule === "ranked") return { label: "Ranked matches only", tone: "warning" as const };
+  if (rule === "derived") return { label: "Training follows prerequisite achievements", tone: "neutral" as const };
+  return null;
+}
+
 function AchievementCard({
   achievement,
   showcased,
@@ -64,26 +77,25 @@ function AchievementCard({
     (achievement.current / achievement.target) * 100,
   );
   const categoryDetails = ACHIEVEMENT_CATEGORY_DETAILS[achievement.category];
+  const training = trainingCopy(achievement.trainingRule);
   return (
     <Surface
       as="article"
       className={`${styles.card} ${styles[achievement.status.replace("-", "")]}`}
+      style={{ borderTopColor: categoryDetails.color }}
     >
       <div className={styles.cardTop}>
         <span
           className={styles.glyph}
           aria-hidden="true"
-          style={
-            achievement.status === "completed"
-              ? undefined
-              : { borderColor: categoryDetails.color, color: categoryDetails.color }
-          }
+          style={{ borderColor: categoryDetails.color, color: categoryDetails.color }}
         >
           {achievement.status === "completed" ? "✓" : categoryDetails.glyph}
         </span>
         <StatusChip
           tone={achievement.status === "completed" ? "success" : "neutral"}
         >
+          <span aria-hidden="true" style={{ color: categoryDetails.color }}>{categoryDetails.glyph}</span>{" "}
           {achievement.category}
         </StatusChip>
         <button
@@ -107,6 +119,7 @@ function AchievementCard({
       <div className={styles.cardCopy}>
         <h3>{achievement.name}</h3>
         <p>{achievement.description}</p>
+        {training ? <StatusChip tone={training.tone}>{training.label}</StatusChip> : null}
       </div>
       <div className={styles.progressRow}>
         <div>
@@ -140,7 +153,7 @@ function EmptyAchievements({ status }: { status: AchievementStatus }) {
 }
 
 export function AchievementsScreen({
-  achievements,
+  achievements: providedAchievements,
   view,
   showcaseIds = [],
   onToggleShowcase,
@@ -153,6 +166,18 @@ export function AchievementsScreen({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { profile, decks, history, lifetimeStats } = useApp();
+  const achievements = useMemo(() => {
+    const live = achievementsFor(
+      decks,
+      history,
+      lifetimeStats,
+      undefined,
+      profile.achievementProgress,
+    );
+    const resolved = applyAchievementCompletions(live, profile.achievementCompletions);
+    return resolved.length ? resolved : providedAchievements;
+  }, [decks, history, lifetimeStats, profile.achievementCompletions, profile.achievementProgress, providedAchievements]);
   const activeStatus = routeStatus(view);
   const query = searchParams.get("q") ?? "";
   const requestedCategory = searchParams.get("category") ?? "All";
@@ -210,7 +235,7 @@ export function AchievementsScreen({
             <p>
               {activeStatus
                 ? STATUS_CONTENT[activeStatus].description
-                : "Track every earned milestone and see what you are closest to completing next."}
+                : "Build your Arsenal, prove yourself in the Arena, connect through the Brawler Network, and expand your Compendium."}
             </p>
           </div>
           <span className={styles.total}>
