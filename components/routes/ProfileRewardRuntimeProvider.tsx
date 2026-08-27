@@ -11,10 +11,16 @@ import {
   type AchievementDefinition,
 } from "../../lib/achievements";
 import {
+  normalizeAchievementProgress,
+  observeAchievementDecks,
+  recordAchievementMatch,
+} from "../../lib/achievement-progress";
+import {
   DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS,
   normalizeAchievementRewardAssignments,
   type AchievementRewardAssignments,
 } from "../../lib/achievement-rewards";
+import { completedMatchKey } from "../../lib/match-result-navigation";
 import {
   PROFILE_COVERS,
   PROFILE_TITLES,
@@ -26,7 +32,17 @@ import {
 import { useApp } from "../application/AppProvider";
 
 export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode }) {
-  const { profile, setProfile, decks, history, lifetimeStats } = useApp();
+  const {
+    profile,
+    setProfile,
+    decks,
+    history,
+    lifetimeStats,
+    match,
+    online,
+    playerId,
+    selectedDeck,
+  } = useApp();
   const [assignments, setAssignments] = useState<AchievementRewardAssignments>(
     () => normalizeAchievementRewardAssignments(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS),
   );
@@ -34,8 +50,14 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
     () => normalizeAchievementDefinitions(ACHIEVEMENT_DEFINITIONS),
   );
   const liveAchievements = useMemo(
-    () => achievementsFor(decks, history, lifetimeStats, definitions),
-    [decks, definitions, history, lifetimeStats],
+    () => achievementsFor(
+      decks,
+      history,
+      lifetimeStats,
+      definitions,
+      profile.achievementProgress,
+    ),
+    [decks, definitions, history, lifetimeStats, profile.achievementProgress],
   );
   const achievements = useMemo(
     () => applyAchievementCompletions(liveAchievements, profile.achievementCompletions),
@@ -81,20 +103,54 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
     resetProfileRewardRuntime();
   }, []);
 
+  // Deck-building progress is evidence-based rather than derived from the current
+  // library forever. Once a qualifying legal deck has been observed, later edits
+  // or deletion do not take that progress away.
   useEffect(() => {
-    const stored = profile.achievementCompletions ?? {};
-    const newlyCompleted = liveAchievements.filter(
-      (achievement) => achievement.unlocked && !stored[achievement.id],
-    );
-    if (!newlyCompleted.length) return;
+    setProfile((current) => {
+      const before = normalizeAchievementProgress(current.achievementProgress);
+      let nextProgress = observeAchievementDecks(before, decks);
+      const resultId = completedMatchKey(match);
+      if (resultId) {
+        const opponent = match?.players?.find((player: { id: string }) => player.id !== playerId);
+        const rankedOpponent = opponent ? match?.ranked?.players?.[opponent.id] : null;
+        const mode = match?.ranked ? "ranked" : online ? "casual" : "training";
+        nextProgress = recordAchievementMatch(
+          nextProgress,
+          {
+            id: resultId,
+            result: match?.winner === playerId ? "Victor" : "Defeat",
+            mode,
+            format: match?.format,
+            opponentKey: rankedOpponent?.userId ?? opponent?.name,
+          },
+          selectedDeck ?? null,
+        );
+      }
+      if (JSON.stringify(before) === JSON.stringify(nextProgress)) return current;
+      return { ...current, achievementProgress: nextProgress };
+    });
+  }, [decks, match, online, playerId, selectedDeck, setProfile]);
 
-    const nextCompletions = { ...stored };
-    const recordedAt = new Date().toISOString();
-    for (const achievement of newlyCompleted) {
-      nextCompletions[achievement.id] = achievement.completedAt ?? recordedAt;
-    }
-    setProfile({ ...profile, achievementCompletions: nextCompletions });
-  }, [liveAchievements, profile, setProfile]);
+  // Completion timestamps are permanent. This is intentionally separate from
+  // live progress so deleting a deck or changing an Administrator rule never
+  // revokes an achievement that was legitimately earned.
+  useEffect(() => {
+    setProfile((current) => {
+      const stored = current.achievementCompletions ?? {};
+      const newlyCompleted = liveAchievements.filter(
+        (achievement) => achievement.unlocked && !stored[achievement.id],
+      );
+      if (!newlyCompleted.length) return current;
+
+      const nextCompletions = { ...stored };
+      const recordedAt = new Date().toISOString();
+      for (const achievement of newlyCompleted) {
+        nextCompletions[achievement.id] = achievement.completedAt ?? recordedAt;
+      }
+      return { ...current, achievementCompletions: nextCompletions };
+    });
+  }, [liveAchievements, setProfile]);
 
   useEffect(() => {
     const next = { ...profile };
