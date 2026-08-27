@@ -42,6 +42,72 @@ test("achievement definitions can be edited and deleted without inventing catalo
   assert.equal(configured.length, ACHIEVEMENT_DEFINITIONS.length - 1);
 });
 
+test("untouched legacy administrator rows migrate to redesigned semantics", () => {
+  const legacyRows = ACHIEVEMENT_DEFINITIONS.map((item) => {
+    if (item.id === "decks-five") {
+      return {
+        ...item,
+        name: "Prepared for Anything",
+        description: "Save five decks.",
+        category: "Deck Building",
+        metric: "decks",
+        target: 5,
+      };
+    }
+    if (item.id === "first-series") {
+      return {
+        ...item,
+        description: "Complete a best-of-three match.",
+        category: "Getting Started",
+        metric: "bo3Games",
+      };
+    }
+    if (item.id === "bo1-ten") {
+      return {
+        ...item,
+        description: "Complete ten best-of-one games.",
+        category: "Battle",
+        metric: "bo1Games",
+      };
+    }
+    return item;
+  });
+  const migrated = normalizeAchievementDefinitions(legacyRows);
+
+  assert.deepEqual(
+    migrated.find((item) => item.id === "decks-five"),
+    ACHIEVEMENT_DEFINITIONS.find((item) => item.id === "decks-five"),
+  );
+  assert.deepEqual(
+    migrated.find((item) => item.id === "first-series"),
+    ACHIEVEMENT_DEFINITIONS.find((item) => item.id === "first-series"),
+  );
+  assert.deepEqual(
+    migrated.find((item) => item.id === "bo1-ten"),
+    ACHIEVEMENT_DEFINITIONS.find((item) => item.id === "bo1-ten"),
+  );
+});
+
+test("deliberate administrator edits survive legacy migration", () => {
+  const configured = normalizeAchievementDefinitions(
+    ACHIEVEMENT_DEFINITIONS.map((item) => item.id === "decks-five"
+      ? {
+          ...item,
+          name: "Community Triple",
+          description: "Publish four tournament decks.",
+          metric: "publicDecks",
+          target: 4,
+        }
+      : item),
+  );
+  const edited = configured.find((item) => item.id === "decks-five");
+
+  assert.equal(edited?.name, "Community Triple");
+  assert.equal(edited?.description, "Publish four tournament decks.");
+  assert.equal(edited?.metric, "publicDecks");
+  assert.equal(edited?.target, 4);
+});
+
 test("one achievement cannot claim multiple rewards and explicit choices beat defaults", () => {
   const assignments = normalizeAchievementRewardAssignments({
     titles: { "first-victor": "first-win" },
