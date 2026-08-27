@@ -50,6 +50,7 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
   const [definitions, setDefinitions] = useState<AchievementDefinition[]>(
     () => normalizeAchievementDefinitions(ACHIEVEMENT_DEFINITIONS),
   );
+  const [definitionsReady, setDefinitionsReady] = useState(false);
   const trainingEligibleAchievements = useMemo(
     () => definitions
       .filter((definition) => achievementTrainingConfigurable(definition) && definition.trainingAllowed)
@@ -92,6 +93,7 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
         const activeAchievementIds = new Set(nextDefinitions.map((item) => item.id));
         setDefinitions(nextDefinitions);
         setAssignments(normalizeAchievementRewardAssignments(result.assignments, activeAchievementIds));
+        setDefinitionsReady(true);
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -101,6 +103,7 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
           DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS,
           new Set(fallbackDefinitions.map((item) => item.id)),
         ));
+        setDefinitionsReady(true);
       });
     return () => controller.abort();
   }, []);
@@ -117,7 +120,7 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
     setProfile((current) => {
       const before = normalizeAchievementProgress(current.achievementProgress);
       let nextProgress = observeAchievementDecks(before, decks);
-      const resultId = completedMatchKey(match);
+      const resultId = definitionsReady ? completedMatchKey(match) : null;
       if (resultId) {
         const opponent = match?.players?.find((player: { id: string }) => player.id !== playerId);
         const rankedOpponent = opponent ? match?.ranked?.players?.[opponent.id] : null;
@@ -138,7 +141,7 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
       if (JSON.stringify(before) === JSON.stringify(nextProgress)) return current;
       return { ...current, achievementProgress: nextProgress };
     });
-  }, [decks, match, online, playerId, selectedDeck, setProfile, trainingEligibleAchievements]);
+  }, [decks, definitionsReady, match, online, playerId, selectedDeck, setProfile, trainingEligibleAchievements]);
 
   // Completion timestamps are permanent. This is intentionally separate from
   // live progress so deleting a deck or changing an Administrator rule never
