@@ -2,6 +2,12 @@ import type { DeckRecord } from "./data";
 import type { MatchState } from "./game";
 import { isCompletedSeriesResult } from "./match-result-navigation";
 import {
+  EMPTY_ACHIEVEMENT_PROGRESS,
+  mergeAchievementProgress,
+  normalizeAchievementProgress,
+  type AchievementProgress,
+} from "./achievement-progress";
+import {
   normalizeProfileAvatar,
   normalizeProfileCover,
   normalizeProfileTitle,
@@ -19,6 +25,7 @@ export type BrawlerProfile = {
   showcaseAchievementIds?: string[];
   showcaseDeckIds?: string[];
   achievementCompletions?: Record<string, string>;
+  achievementProgress?: AchievementProgress;
 };
 export type AppSettings = {
   reducedMotion: boolean;
@@ -115,6 +122,7 @@ export const DEFAULT_BRAWLER_PROFILE: BrawlerProfile = {
   showcaseAchievementIds: [],
   showcaseDeckIds: [],
   achievementCompletions: {},
+  achievementProgress: EMPTY_ACHIEVEMENT_PROGRESS,
 };
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -271,12 +279,13 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
       avatar: normalizeProfileAvatar(candidate.profile?.avatar),
       titleId: normalizeProfileTitle(candidate.profile?.titleId),
       coverId: normalizeProfileCover(candidate.profile?.coverId),
-      showcaseAchievementIds: normalizeShowcaseIds(
-        candidate.profile?.showcaseAchievementIds,
-      ),
+      showcaseAchievementIds: normalizeShowcaseIds(candidate.profile?.showcaseAchievementIds),
       showcaseDeckIds: normalizeShowcaseIds(candidate.profile?.showcaseDeckIds),
       achievementCompletions: normalizeAchievementCompletions(
         candidate.profile?.achievementCompletions ?? fallback.profile.achievementCompletions,
+      ),
+      achievementProgress: normalizeAchievementProgress(
+        candidate.profile?.achievementProgress ?? fallback.profile.achievementProgress,
       ),
     },
     decks: deckState.decks,
@@ -315,10 +324,7 @@ function retainDeviceState(snapshot: UserSnapshot, device: UserSnapshot): UserSn
         : snapshot.updatedAt > device.updatedAt
     )
   );
-  const useCloudTrainingSession = Boolean(
-    cloudTrainingMatch
-    && (!device.match || cloudTrainingIsNewer)
-  );
+  const useCloudTrainingSession = Boolean(cloudTrainingMatch && (!device.match || cloudTrainingIsNewer));
   const session = useCloudTrainingSession ? snapshot : device;
   return {
     ...snapshot,
@@ -338,18 +344,12 @@ function retainDeviceState(snapshot: UserSnapshot, device: UserSnapshot): UserSn
   };
 }
 
-export function recoverableTrainingMatch(
-  match: MatchState | null,
-  online: boolean,
-): MatchState | null {
+export function recoverableTrainingMatch(match: MatchState | null, online: boolean): MatchState | null {
   if (
     !match
     || online
     || isCompletedSeriesResult(match)
-    || (
-      !match.trainingAiDeck
-      && !match.players?.some((player) => player.id === "training-bot")
-    )
+    || (!match.trainingAiDeck && !match.players?.some((player) => player.id === "training-bot"))
   ) return null;
   return match;
 }
@@ -446,6 +446,10 @@ export function mergeSnapshots(local: UserSnapshot, cloud: UserSnapshot): UserSn
       achievementCompletions: mergeAchievementCompletions(
         primary.profile.achievementCompletions,
         secondary.profile.achievementCompletions,
+      ),
+      achievementProgress: mergeAchievementProgress(
+        primary.profile.achievementProgress,
+        secondary.profile.achievementProgress,
       ),
     },
     decks: deckState.decks,
