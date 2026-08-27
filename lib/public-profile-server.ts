@@ -1,10 +1,11 @@
-import { achievementsFor } from "./achievements";
+import { achievementsFor, applyAchievementCompletions } from "./achievements";
 import { loadAchievementDefinitions } from "./achievement-configuration-server";
 import { loadAchievementRewardAssignments } from "./achievement-rewards-server";
 import { loadAccountDataPayload } from "./account-data-server";
 import type { AccountDatabase } from "./account-server";
 import { accountStatMatches } from "./match-statistics";
 import {
+  normalizeAchievementCompletions,
   normalizeLifetimeMatchStats,
   type BrawlerProfile,
 } from "./persistence";
@@ -59,6 +60,9 @@ function snapshotProfile(
       profile.showcaseAchievementIds,
     ),
     showcaseDeckIds: normalizeShowcaseIds(profile.showcaseDeckIds),
+    achievementCompletions: normalizeAchievementCompletions(
+      profile.achievementCompletions,
+    ),
   };
 }
 
@@ -93,7 +97,10 @@ export async function publicBrawlerProfile(
   const achievementDefinitions = await loadAchievementDefinitions(db);
   const activeAchievementIds = new Set(achievementDefinitions.map((item) => item.id));
   const assignments = await loadAchievementRewardAssignments(db, activeAchievementIds);
-  const achievements = achievementsFor(decks, history, lifetimeStats, achievementDefinitions);
+  const achievements = applyAchievementCompletions(
+    achievementsFor(decks, history, lifetimeStats, achievementDefinitions),
+    profile.achievementCompletions,
+  );
   const completedAchievementIds = new Set(
     achievements.filter((item) => item.unlocked).map((item) => item.id),
   );
@@ -108,7 +115,7 @@ export async function publicBrawlerProfile(
   const avatarMatch = /^preset:([a-z0-9-]{1,120})$/i.exec(profile.avatar ?? "");
   if (avatarMatch) {
     const avatarRequirement = assignments.avatars[avatarMatch[1]] ?? null;
-    if (avatarRequirement && !completedAchievementIds.has(avatarRequirement)) {
+    if (avatarRequirement && !completedAchievementIds.has(avatarMatch[1])) {
       profile.avatar = "";
     }
   }
