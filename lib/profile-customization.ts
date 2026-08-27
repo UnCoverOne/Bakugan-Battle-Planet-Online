@@ -64,10 +64,10 @@ export const PROFILE_TITLE_CATALOGUE: readonly ProfileReward[] = [
   titleReward("battle-planet-brawler", "Battle Planet Brawler", null),
   titleReward("battle-ready", "Battle Ready", "first-deck"),
   titleReward("arsenal-architect", "Arsenal Architect", "deck-builder"),
-  titleReward("first-victor", "First Victor", "first-win"),
+  titleReward("winning-start", "Winning Start", "first-win"),
   titleReward("seasoned-brawler", "Seasoned Brawler", "veteran"),
   titleReward("strategy-publisher", "Strategy Publisher", "publisher"),
-  titleReward("connected-brawler", "Connected Brawler", "online"),
+  titleReward("connected-brawler", "Connected Brawler", "opponents-ten"),
   titleReward("master-of-the-elements", "Master of the Elements", "complete-ten"),
 ];
 
@@ -88,7 +88,6 @@ const coverReward = (
 });
 
 export const PROFILE_COVER_CATALOGUE: readonly ProfileCoverReward[] = [
-  // Preserve the historical default id so existing profiles migrate cleanly.
   coverReward("battle-planet", "Ventus Hyper Turtonium Ultra", "Ventus", "/assets/profile/covers/battle-planet.png"),
   coverReward("ventus-maximus-gorthion-ultra", "Ventus Maximus Gorthion Ultra", "Ventus", "/assets/profile/covers/ventus-maximus-gorthion-ultra.png"),
   coverReward("aquos-hyper-trox-ultra", "Aquos Hyper Trox Ultra", "Aquos", "/assets/profile/covers/aquos-hyper-trox-ultra.png"),

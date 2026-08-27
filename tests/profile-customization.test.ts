@@ -72,49 +72,51 @@ test("showcase toggling enforces the maximum and supports removing items", () =>
   assert.deepEqual(toggleShowcaseId(["a", "b", "c"], "b"), { ids: ["a", "c"], reachedLimit: false });
 });
 
-test("profile normalization rejects removed image sources", () => {
+test("profile normalization rejects removed image and title sources", () => {
   assert.equal(normalizeProfileAvatar("preset:shun-kazami"), "preset:shun-kazami");
   assert.equal(normalizeProfileAvatar("preset:pyrus"), "");
   assert.equal(normalizeProfileAvatar("data:image/png;base64,abc"), "");
   assert.equal(normalizeProfileAvatar("https://example.com/avatar.png"), "");
+  assert.equal(normalizeProfileTitle("first-victor"), "battle-planet-brawler");
   assert.equal(normalizeProfileTitle("missing"), "battle-planet-brawler");
   assert.equal(normalizeProfileCover("missing"), "battle-planet");
 });
 
 test("profile rewards honor achievement-based unlocks", () => {
-  const reward = { id: "win", label: "First Victor", achievementId: "first-win" };
+  const reward = { id: "winning-start", label: "Winning Start", achievementId: "first-win" };
   assert.equal(profileRewardUnlocked(reward, new Set()), false);
   assert.equal(profileRewardUnlocked(reward, new Set(["first-win"])), true);
   assert.equal(profileRewardUnlocked({ ...reward, achievementId: null }, new Set()), true);
 });
 
 test("administrator reward assignments cover Titles, Covers, and Avatars", () => {
-  assert.equal(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.titles["first-victor"], "first-win");
+  assert.equal(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.titles["winning-start"], "first-win");
+  assert.equal(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.titles["connected-brawler"], "opponents-ten");
   assert.equal(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.covers["aquos-hyper-trox-ultra"], null);
   assert.equal(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS.avatars["shun-kazami"], null);
 
   const configured = normalizeAchievementRewardAssignments({
-    titles: { "battle-planet-brawler": "first-win", "first-victor": null },
+    titles: { "battle-planet-brawler": "first-win", "winning-start": null },
     covers: { "battle-planet": "first-win", "aquos-hyper-trox-ultra": "online" },
     avatars: { "shun-kazami": "first-win" },
   });
   assert.equal(configured.titles["battle-planet-brawler"], null);
   assert.equal(configured.covers["battle-planet"], null);
-  assert.equal(configured.titles["first-victor"], null);
+  assert.equal(configured.titles["winning-start"], null);
   assert.equal(configured.covers["aquos-hyper-trox-ultra"], "online");
   assert.equal(configured.avatars["shun-kazami"], "first-win");
 
   const exclusive = normalizeAchievementRewardAssignments({
-    titles: { "first-victor": "first-win" },
+    titles: { "winning-start": "first-win" },
     covers: { "aquos-hyper-trox-ultra": "first-win" },
     avatars: { "shun-kazami": PROFILE_REWARD_UNAVAILABLE },
   });
-  assert.equal(exclusive.titles["first-victor"], "first-win");
+  assert.equal(exclusive.titles["winning-start"], "first-win");
   assert.equal(exclusive.covers["aquos-hyper-trox-ultra"], null);
   assert.equal(exclusive.avatars["shun-kazami"], PROFILE_REWARD_UNAVAILABLE);
 
   setProfileRewardRuntime(configured, new Set(["online"]));
-  assert.equal(PROFILE_TITLES.find((item) => item.id === "first-victor")?.achievementId, null);
+  assert.equal(PROFILE_TITLES.find((item) => item.id === "winning-start")?.achievementId, null);
   assert.equal(PROFILE_COVERS.find((item) => item.id === "aquos-hyper-trox-ultra")?.achievementId, "online");
   resetProfileRewardRuntime();
 });
@@ -147,6 +149,7 @@ test("achievement administrator UI and APIs are wired into the profile runtime",
   assert.match(provider, /\/api\/profile-rewards/);
   assert.match(provider, /assignments\.avatars/);
   assert.match(provider, /setAchievementDefinitionRuntime/);
+  assert.match(provider, /achievementCompletionKey/);
 });
 
 test("public profile contract normalizes canonical customization and ranked data", () => {
@@ -161,7 +164,7 @@ test("public profile contract normalizes canonical customization and ranked data
     stats: { gamesPlayed: 12, gamesWon: 7, winRate: 58 },
     ranked: { rank: "Gold", bp: 1280, wins: 4, losses: 2, winRate: 67 },
     showcaseAchievements: [
-      { id: "first-win", name: "First Victory", description: "Win your first game.", category: "Battle" },
+      { id: "first-win", name: "Winning Start", description: "Win three games.", category: "Arena" },
     ],
     showcaseDecks: [
       { id: "deck-1", name: "Aquos Control", factions: ["Aquos"], bakuganIds: ["a", "b", "c"], setName: "Battle Brawlers", isLegal: true },
