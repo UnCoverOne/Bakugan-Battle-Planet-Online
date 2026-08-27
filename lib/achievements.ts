@@ -1,5 +1,6 @@
 import { CORES, deckIsLegal, type DeckRecord } from "./data";
 import {
+  achievementDeckSignature,
   distinctDeckEvidence,
   normalizeAchievementProgress,
   observeAchievementDecks,
@@ -206,17 +207,22 @@ export function achievementTrainingRule(definition: AchievementDefinition): Achi
   return definition.trainingAllowed ? "allowed" : "blocked";
 }
 
-type LegacyBundledDefinition = Partial<Pick<
-  AchievementDefinition,
-  "name" | "description" | "category" | "metric" | "target"
->>;
+type LegacyBundledDefinition = {
+  name?: string;
+  description?: string;
+  category?: string;
+  metric?: string;
+  target?: number;
+};
 
 /**
- * D1 stores complete definition rows. When a field still matches the previous
- * bundled default, migrate it to the new bundled value. Deliberate Administrator
- * edits survive because values that differ from those defaults are preserved.
+ * D1 stores complete definition rows. Two bundled catalogue generations can be
+ * present in existing accounts: the original five-category catalogue and the
+ * intermediate four-path catalogue. Migration is deliberately whole-row based.
+ * A row is upgraded only when every bundled field still matches a known default;
+ * otherwise it is treated as an Administrator edit and its valid values survive.
  */
-const LEGACY_BUNDLED_DEFINITION_FIELDS: Record<string, LegacyBundledDefinition> = {
+const PREVIOUS_BUNDLED_DEFINITION_FIELDS: Record<string, LegacyBundledDefinition> = {
   "first-deck": { description: "Build your first legal deck.", category: "Arsenal", metric: "completeDecks", target: 1 },
   "deck-builder": { description: "Build three distinct legal decks.", category: "Arsenal", metric: "completeDecks", target: 3 },
   "first-brawl": { description: "Finish your first non-Training game.", category: "Arena", metric: "matches", target: 1 },
@@ -256,9 +262,68 @@ const LEGACY_BUNDLED_DEFINITION_FIELDS: Record<string, LegacyBundledDefinition> 
   "cores-twelve": { name: "Core Catalogue", description: "Use twelve different BakuCores across legal saved decks.", category: "Compendium", metric: "uniqueCores", target: 12 },
 };
 
+const ORIGINAL_BUNDLED_DEFINITION_FIELDS: Record<string, LegacyBundledDefinition> = {
+  "first-deck": { name: "Battle Ready", description: "Complete your first 40-card, three-Character, six-Core deck.", category: "Deck Building", metric: "completeDecks", target: 1 },
+  "deck-builder": { name: "Arsenal Architect", description: "Complete three decks.", category: "Deck Building", metric: "completeDecks", target: 3 },
+  "first-brawl": { name: "Enter the Brawl", description: "Finish your first game.", category: "Getting Started", metric: "matches", target: 1 },
+  "first-win": { name: "First Victory", description: "Win your first game.", category: "Battle", metric: "wins", target: 1 },
+  veteran: { name: "Seasoned Brawler", description: "Win ten games.", category: "Battle", metric: "wins", target: 10 },
+  publisher: { name: "Share the Strategy", description: "Publish a deck to the Public Deck Library.", category: "Deck Building", metric: "publicDecks", target: 1 },
+  online: { name: "Connected Brawler", description: "Complete an online game.", category: "Online Play", metric: "onlineGames", target: 1 },
+  "first-series": { name: "Best of Three", description: "Complete a best-of-three match.", category: "Getting Started", metric: "bo3Games", target: 1 },
+  "singleton-start": { name: "One of a Kind", description: "Save a Singleton-format deck.", category: "Getting Started", metric: "singletonDecks", target: 1 },
+  "decks-five": { name: "Prepared for Anything", description: "Save five decks.", category: "Deck Building", metric: "decks", target: 5 },
+  "decks-ten": { name: "Vault Keeper", description: "Save ten decks.", category: "Deck Building", metric: "decks", target: 10 },
+  "complete-five": { name: "Loadout Specialist", description: "Complete five legal-sized decks.", category: "Deck Building", metric: "completeDecks", target: 5 },
+  "complete-ten": { name: "Master Architect", description: "Complete ten legal-sized decks.", category: "Deck Building", metric: "completeDecks", target: 10 },
+  "public-five": { name: "Community Architect", description: "Publish five decks.", category: "Deck Building", metric: "publicDecks", target: 5 },
+  "all-factions": { name: "Battle Planet Coalition", description: "Use all six factions across your saved decks.", category: "Deck Building", metric: "deckFactions", target: 6 },
+  "games-five": { name: "Finding Your Feet", description: "Finish five games.", category: "Battle", metric: "matches", target: 5 },
+  "games-ten": { name: "Regular Brawler", description: "Finish ten games.", category: "Battle", metric: "matches", target: 10 },
+  "games-twenty-five": { name: "Battle Tested", description: "Finish twenty-five games.", category: "Battle", metric: "matches", target: 25 },
+  "games-fifty": { name: "Arena Veteran", description: "Finish fifty games.", category: "Battle", metric: "matches", target: 50 },
+  "games-one-hundred": { name: "Century of Brawls", description: "Finish one hundred games.", category: "Battle", metric: "matches", target: 100 },
+  "wins-five": { name: "Winning Form", description: "Win five games.", category: "Battle", metric: "wins", target: 5 },
+  "wins-twenty-five": { name: "Dominant Record", description: "Win twenty-five games.", category: "Battle", metric: "wins", target: 25 },
+  "wins-fifty": { name: "Battle Master", description: "Win fifty games.", category: "Battle", metric: "wins", target: 50 },
+  "bo1-ten": { name: "Quick Brawl Expert", description: "Complete ten best-of-one games.", category: "Battle", metric: "bo1Games", target: 10 },
+  "online-five": { name: "Network Regular", description: "Complete five online games.", category: "Online Play", metric: "onlineGames", target: 5 },
+  "online-ten": { name: "Connected Competitor", description: "Complete ten online games.", category: "Online Play", metric: "onlineGames", target: 10 },
+  "online-twenty-five": { name: "Online Veteran", description: "Complete twenty-five online games.", category: "Online Play", metric: "onlineGames", target: 25 },
+  "online-fifty": { name: "Global Brawler", description: "Complete fifty online games.", category: "Online Play", metric: "onlineGames", target: 50 },
+  "online-wins-five": { name: "Network Victor", description: "Win five online games.", category: "Online Play", metric: "onlineWins", target: 5 },
+  "opponents-five": { name: "Expanding Rivals", description: "Face five different online opponents.", category: "Online Play", metric: "onlineOpponents", target: 5 },
+  "opponents-ten": { name: "Known Across the Planet", description: "Face ten different online opponents.", category: "Online Play", metric: "onlineOpponents", target: 10 },
+  "cards-twenty-five": { name: "Card Researcher", description: "Use twenty-five different Main Deck cards across saved decks.", category: "Compendium", metric: "uniqueMainCards", target: 25 },
+  "cards-fifty": { name: "Compendium Student", description: "Use fifty different Main Deck cards across saved decks.", category: "Compendium", metric: "uniqueMainCards", target: 50 },
+  "cards-one-hundred": { name: "Compendium Scholar", description: "Use one hundred different Main Deck cards across saved decks.", category: "Compendium", metric: "uniqueMainCards", target: 100 },
+  "cards-two-hundred": { name: "Living Catalogue", description: "Use two hundred different Main Deck cards across saved decks.", category: "Compendium", metric: "uniqueMainCards", target: 200 },
+  "characters-twelve": { name: "Bakugan Specialist", description: "Use twelve different Character Cards across saved decks.", category: "Compendium", metric: "uniqueCharacters", target: 12 },
+  "cores-twelve": { name: "Core Catalogue", description: "Use twelve different BakuCores across saved decks.", category: "Compendium", metric: "uniqueCores", target: 12 },
+};
+
 const achievementCategorySet = new Set<string>(ACHIEVEMENT_CATEGORIES);
 const achievementMetricSet = new Set<string>(ACHIEVEMENT_METRICS);
 let runtimeAchievementDefinitions: readonly AchievementDefinition[] | null = null;
+
+const rawText = (value: unknown) => typeof value === "string" ? value.trim() : "";
+
+function matchesLegacyBundledDefinition(
+  item: Record<string, unknown>,
+  base: AchievementDefinition,
+  legacy: LegacyBundledDefinition,
+) {
+  const expectedName = legacy.name ?? base.name;
+  const expectedDescription = legacy.description ?? base.description;
+  const expectedCategory = legacy.category ?? base.category;
+  const expectedMetric = legacy.metric ?? base.metric;
+  const expectedTarget = legacy.target ?? base.target;
+  return rawText(item.name) === expectedName
+    && rawText(item.description) === expectedDescription
+    && rawText(item.category) === expectedCategory
+    && rawText(item.metric) === expectedMetric
+    && Number(item.target) === expectedTarget;
+}
 
 export function normalizeAchievementDefinitions(value: unknown): AchievementDefinition[] {
   if (!Array.isArray(value)) return ACHIEVEMENT_DEFINITIONS.map((item) => ({ ...item }));
@@ -272,45 +337,43 @@ export function normalizeAchievementDefinitions(value: unknown): AchievementDefi
   return ACHIEVEMENT_DEFINITIONS.flatMap((base) => {
     const item = candidates.get(base.id);
     if (!item) return [];
-    const legacy = LEGACY_BUNDLED_DEFINITION_FIELDS[base.id];
+    const legacyRows = [
+      PREVIOUS_BUNDLED_DEFINITION_FIELDS[base.id],
+      ORIGINAL_BUNDLED_DEFINITION_FIELDS[base.id],
+    ].filter((row): row is LegacyBundledDefinition => Boolean(row));
+    const untouchedBundledRow = legacyRows.some((legacy) =>
+      matchesLegacyBundledDefinition(item, base, legacy),
+    );
 
-    const requestedName = typeof item.name === "string" && item.name.trim()
+    if (untouchedBundledRow) {
+      const trainingAllowed = achievementTrainingConfigurable(base)
+        && typeof item.trainingAllowed === "boolean"
+        ? item.trainingAllowed
+        : base.trainingAllowed;
+      return [{
+        ...base,
+        ...(trainingAllowed !== undefined ? { trainingAllowed } : {}),
+      }];
+    }
+
+    const name = typeof item.name === "string" && item.name.trim()
       ? item.name.trim().slice(0, 80)
       : base.name;
-    const name = legacy?.name && requestedName === legacy.name ? base.name : requestedName;
-
-    const requestedDescription = typeof item.description === "string" && item.description.trim()
+    const description = typeof item.description === "string" && item.description.trim()
       ? item.description.trim().slice(0, 300)
       : base.description;
-    const description = legacy?.description && requestedDescription === legacy.description
-      ? base.description
-      : requestedDescription;
-
-    const requestedCategory = typeof item.category === "string" && achievementCategorySet.has(item.category)
+    const category = typeof item.category === "string" && achievementCategorySet.has(item.category)
       ? item.category as AchievementCategory
       : base.category;
-    const category = legacy?.category === requestedCategory ? base.category : requestedCategory;
-
-    const requestedMetric = typeof item.metric === "string" && achievementMetricSet.has(item.metric)
+    const metric = typeof item.metric === "string" && achievementMetricSet.has(item.metric)
       ? item.metric as AchievementMetricKey
       : base.metric;
-    const metric = legacy?.metric === requestedMetric ? base.metric : requestedMetric;
-
     const requestedTarget = Number(item.target);
-    const normalizedTarget = Number.isInteger(requestedTarget) && requestedTarget > 0
+    const target = Number.isInteger(requestedTarget) && requestedTarget > 0
       ? Math.min(requestedTarget, 1_000_000)
       : base.target;
-    const target = legacy?.target === normalizedTarget ? base.target : normalizedTarget;
-
-    const trainingAllowed = achievementTrainingConfigurable({
-      id: base.id,
-      name,
-      description,
-      category,
-      metric,
-      target,
-      trainingAllowed: base.trainingAllowed,
-    })
+    const draft = { id: base.id, name, description, category, metric, target, trainingAllowed: base.trainingAllowed };
+    const trainingAllowed = achievementTrainingConfigurable(draft)
       ? (typeof item.trainingAllowed === "boolean" ? item.trainingAllowed : base.trainingAllowed ?? false)
       : base.trainingAllowed;
 
@@ -469,26 +532,28 @@ export function achievementsFor(
   const legalCompetitiveDecks = legalDecks.filter((deck) => deck.format === "competitive");
   const legalPublicStandardDecks = legalStandardDecks.filter((deck) => deck.visibility === "Public");
 
-  const currentStandardIds = new Set(legalStandardDecks.map((deck) => deck.id)).size;
-  const currentSingletonIds = new Set(legalSingletonDecks.map((deck) => deck.id)).size;
-  const currentCompetitiveIds = new Set(legalCompetitiveDecks.map((deck) => deck.id)).size;
-  const currentPublishedIds = new Set(legalPublicStandardDecks.map((deck) => deck.id)).size;
+  const currentDistinctDecks = (items: readonly DeckRecord[]) =>
+    new Set(items.map(achievementDeckSignature)).size;
+  const currentStandardDecks = currentDistinctDecks(legalStandardDecks);
+  const currentSingletonDecks = currentDistinctDecks(legalSingletonDecks);
+  const currentCompetitiveDecks = currentDistinctDecks(legalCompetitiveDecks);
+  const currentPublishedDecks = currentDistinctDecks(legalPublicStandardDecks);
 
   const standardDecks = Math.max(
     distinctDeckEvidence(progress.standardDeckIds, progress.standardDeckSignatures),
-    currentStandardIds,
+    currentStandardDecks,
   );
   const singletonDecks = Math.max(
     distinctDeckEvidence(progress.singletonDeckIds, progress.singletonDeckSignatures),
-    currentSingletonIds,
+    currentSingletonDecks,
   );
   const competitiveDecks = Math.max(
     distinctDeckEvidence(progress.competitiveDeckIds, progress.competitiveDeckSignatures),
-    currentCompetitiveIds,
+    currentCompetitiveDecks,
   );
   const publishedDecks = Math.max(
     distinctDeckEvidence(progress.publishedDeckIds, progress.publishedDeckSignatures),
-    currentPublishedIds,
+    currentPublishedDecks,
   );
 
   const recentNonTrainingMatches = countMetric(nonTrainingMatches, (record) => record.at);
