@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  observeAchievementDecks,
+  recordAchievementMatch,
+} from "../lib/achievement-progress";
+import { STARTER_DECKS } from "../lib/data";
+import {
   DEFAULT_APP_SETTINGS,
   DEFAULT_BRAWLER_PROFILE,
   EMPTY_LIFETIME_MATCH_STATS,
@@ -86,6 +91,52 @@ test("local and cloud snapshots union completion evidence and retain the earlies
     publisher: "2026-07-06T10:00:00.000Z",
     "first-win": "2026-07-05T10:00:00.000Z",
   });
+});
+
+test("permanent deck and match achievement evidence survives normalization", () => {
+  const fallback = snapshot(0);
+  let progress = observeAchievementDecks(undefined, STARTER_DECKS.slice(0, 2));
+  progress = recordAchievementMatch(
+    progress,
+    { id: "match-one", result: "Victor", mode: "casual", format: "bo1", opponentKey: "opponent-a" },
+    STARTER_DECKS[0],
+  );
+
+  const normalized = normalizeSnapshot({
+    ...fallback,
+    profile: {
+      ...fallback.profile,
+      achievementProgress: progress,
+    },
+  }, fallback);
+
+  assert.equal(normalized.profile.achievementProgress?.standardDeckIds.length, 2);
+  assert.ok((normalized.profile.achievementProgress?.discoveredMainCardIds.length ?? 0) > 0);
+  assert.deepEqual(normalized.profile.achievementProgress?.arenaWinIds.nonTraining, ["match-one"]);
+  assert.deepEqual(normalized.profile.achievementProgress?.processedMatchIds, ["match-one"]);
+});
+
+test("local and cloud snapshots union permanent achievement progress", () => {
+  const local = snapshot(20);
+  const cloud = snapshot(10);
+  local.profile.achievementProgress = recordAchievementMatch(
+    observeAchievementDecks(undefined, [STARTER_DECKS[0]]),
+    { id: "local-win", result: "Victor", mode: "casual", format: "bo1", opponentKey: "alice" },
+    STARTER_DECKS[0],
+  );
+  cloud.profile.achievementProgress = recordAchievementMatch(
+    observeAchievementDecks(undefined, [STARTER_DECKS[1]]),
+    { id: "cloud-win", result: "Victor", mode: "ranked", format: "bo3", opponentKey: "bob" },
+    STARTER_DECKS[1],
+  );
+
+  const merged = mergeSnapshots(local, cloud);
+  const progress = merged.profile.achievementProgress!;
+  assert.deepEqual(new Set(progress.processedMatchIds), new Set(["local-win", "cloud-win"]));
+  assert.deepEqual(new Set(progress.onlineOpponentKeys), new Set(["alice", "bob"]));
+  assert.deepEqual(new Set(progress.arenaWinIds.nonTraining), new Set(["local-win", "cloud-win"]));
+  assert.deepEqual(progress.rankedWinIds, ["cloud-win"]);
+  assert.ok(progress.discoveredMainCardIds.length >= new Set(STARTER_DECKS[0].cardIds).size);
 });
 
 test("competitive deck normalization keeps its full fifty-card main deck", () => {
