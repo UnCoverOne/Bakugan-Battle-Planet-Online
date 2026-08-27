@@ -86,13 +86,13 @@ test("every starter and curated public deck resolves a lead card contained in th
   }
 });
 
-test("practice results do not inflate account competition achievements", () => {
+test("raw Training history does not bypass per-achievement Training credit rules", () => {
   const achievements = achievementsFor(STARTER_DECKS, [
     { result: "Victor", mode: "training" },
     { result: "Defeat", mode: "online" },
   ]);
   assert.ok(achievements.some((achievement) => achievement.id === "first-win" && !achievement.unlocked));
-  assert.ok(achievements.some((achievement) => achievement.id === "training-day" && achievement.unlocked));
+  assert.equal(achievements.some((achievement) => achievement.id === "training-day"), false);
   assert.ok(achievements.some((achievement) => achievement.id === "online" && achievement.unlocked));
 });
 
