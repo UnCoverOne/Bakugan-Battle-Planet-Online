@@ -1,0 +1,112 @@
+.heroCardSlamming {
+  transform-origin: center;
+  will-change: transform, opacity, filter;
+  animation: hero-card-slam 500ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
+}
+
+.characterCardSlamming {
+  transform-origin: center;
+  will-change: transform, opacity, filter;
+  animation: character-card-slam 500ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
+}
+
+.boardCardImpact::after {
+  content: "";
+  position: absolute;
+  inset: var(--zone-fill-inset, 4px);
+  z-index: 8;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  box-shadow:
+    0 0 0.32rem rgba(255, 255, 255, 0.78),
+    0 0 0.95rem rgba(255, 91, 74, 0.6),
+    inset 0 0 0.5rem rgba(255, 255, 255, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  animation: board-card-impact 360ms ease-out both;
+}
+
+@keyframes hero-card-slam {
+  0% {
+    transform: translateY(-92%) scale(1.14) rotate(-2.5deg);
+    opacity: 0;
+    filter:
+      brightness(1.14)
+      drop-shadow(0 1rem 0.7rem rgba(0, 0, 0, 0.58));
+  }
+
+  56% {
+    transform: translateY(-48.5%) scaleX(1.04) scaleY(0.95) rotate(0deg);
+    opacity: 1;
+    filter:
+      brightness(1.08)
+      drop-shadow(0 0.18rem 0.22rem rgba(0, 0, 0, 0.62));
+  }
+
+  76% {
+    transform: translateY(-53%) scale(0.99) rotate(0.35deg);
+    opacity: 1;
+    filter: brightness(1.02);
+  }
+
+  100% {
+    transform: translateY(-50%) scale(1) rotate(0deg);
+    opacity: 1;
+    filter: none;
+  }
+}
+
+@keyframes character-card-slam {
+  0% {
+    transform: translate(-50%, -92%) scale(1.14) rotate(-2.5deg);
+    opacity: 0;
+    filter:
+      brightness(1.14)
+      drop-shadow(0 1rem 0.7rem rgba(0, 0, 0, 0.58));
+  }
+
+  56% {
+    transform: translate(-50%, -48.5%) scaleX(1.04) scaleY(0.95) rotate(0deg);
+    opacity: 1;
+    filter:
+      brightness(1.08)
+      drop-shadow(0 0.18rem 0.22rem rgba(0, 0, 0, 0.62));
+  }
+
+  76% {
+    transform: translate(-50%, -53%) scale(0.99) rotate(0.35deg);
+    opacity: 1;
+    filter: brightness(1.02);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    opacity: 1;
+    filter: none;
+  }
+}
+
+@keyframes board-card-impact {
+  0% {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+
+  28% {
+    opacity: 0.9;
+    transform: scale(0.97);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroCardSlamming,
+  .characterCardSlamming,
+  .boardCardImpact::after {
+    animation: none;
+  }
+}
