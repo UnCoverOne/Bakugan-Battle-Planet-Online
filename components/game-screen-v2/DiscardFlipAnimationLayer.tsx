@@ -29,8 +29,16 @@ type DiscardFlight = {
   scaleX: number; scaleY: number; delay: number; phase: FlightPhase;
 };
 type PendingFlight = {
-  id: string; owner: ZoneOwner; card: GameCard; source: HTMLElement;
-  target: HTMLElement; delay: number;
+  id: string; owner: ZoneOwner; card: GameCard; previousTop: GameCard | null;
+  source: HTMLElement; target: HTMLElement; delay: number;
+};
+type DiscardPresentation = {
+  owner: ZoneOwner;
+  card: GameCard | null;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 };
 
 function stackCardRect(zone: HTMLElement) {
@@ -46,6 +54,7 @@ export function DiscardFlipAnimationLayer() {
     active: state.route === "match", match: state.match, playerId: state.playerId,
   }));
   const [flights, setFlights] = useState<DiscardFlight[]>([]);
+  const [presentations, setPresentations] = useState<DiscardPresentation[]>([]);
   const previousMatch = useRef<MatchState | null>(null);
   const flightTargets = useRef(new Map<string, HTMLElement>());
   const hiddenTargetCounts = useRef(new Map<HTMLElement, number>());
@@ -70,22 +79,28 @@ export function DiscardFlipAnimationLayer() {
   };
   const revealTarget = (id: string) => {
     const target = flightTargets.current.get(id);
+    let remaining = 0;
     if (target) {
-      const count = Math.max(0, (hiddenTargetCounts.current.get(target) ?? 1) - 1);
-      if (count) hiddenTargetCounts.current.set(target, count);
+      remaining = Math.max(0, (hiddenTargetCounts.current.get(target) ?? 1) - 1);
+      if (remaining) hiddenTargetCounts.current.set(target, remaining);
       else {
         hiddenTargetCounts.current.delete(target);
         delete target.dataset.discardAnimationTarget;
       }
     }
     flightTargets.current.delete(id);
+    return remaining;
   };
-  const finishFlight = (id: string) => {
-    revealTarget(id);
+  const finishFlight = (flight: DiscardFlight) => {
+    const remaining = revealTarget(flight.id);
     if (!mounted.current) return;
-    setFlights((current) => current.map((flight) => flight.id === id ? { ...flight, phase: "settling" } : flight));
+    setPresentations((current) => {
+      if (!remaining) return current.filter((item) => item.owner !== flight.owner);
+      return current.map((item) => item.owner === flight.owner ? { ...item, card: flight.card } : item);
+    });
+    setFlights((current) => current.map((item) => item.id === flight.id ? { ...item, phase: "settling" } : item));
     window.requestAnimationFrame(() => {
-      if (mounted.current) setFlights((current) => current.filter((flight) => flight.id !== id));
+      if (mounted.current) setFlights((current) => current.filter((item) => item.id !== flight.id));
     });
   };
 
@@ -105,9 +120,11 @@ export function DiscardFlipAnimationLayer() {
       const deckZone = document.querySelector<HTMLElement>(`[data-zone-id="${owner}-deck"]`);
       const discardZone = document.querySelector<HTMLElement>(`[data-zone-id="${owner}-discard-pile"]`);
       if (!deckZone || !discardZone) continue;
+      const previousPlayer = previous?.players.find((candidate) => candidate.id === transition.playerId);
+      const previousTop = previousPlayer?.discard.at(-1) ?? null;
       transition.cards.forEach((card, index) => pending.push({
         id: `${match.id}:${match.version}:${transition.playerId}:discard:${card.id}:${index}`,
-        owner, card, source: deckZone, target: discardZone, delay: index * 105,
+        owner, card, previousTop, source: deckZone, target: discardZone, delay: index * 105,
       }));
     }
     if (!pending.length) return;
@@ -116,17 +133,19 @@ export function DiscardFlipAnimationLayer() {
     let measureFrame = 0;
     let startFrame = 0;
 
-    void prepareAnimationAssets([CARD_BACK_ART, ...pending.map((item) => item.card.art)]).then(() => {
+    void prepareAnimationAssets([CARD_BACK_ART, ...pending.map((item) => item.card.art), ...pending.map((item) => item.previousTop?.art ?? "").filter(Boolean)]).then(() => {
       if (cancelled || !mounted.current) return;
       measureFrame = window.requestAnimationFrame(() => {
         if (cancelled || !mounted.current) return;
-        const measured: Array<{ flight: DiscardFlight; target: HTMLElement }> = [];
+        const measured: Array<{ flight: DiscardFlight; target: HTMLElement; previousTop: GameCard | null; end: ReturnType<typeof stackCardRect> & {} }> = [];
         for (const item of pending) {
           const start = stackCardRect(item.source);
           const end = stackCardRect(item.target);
           if (!start || !end) continue;
           measured.push({
             target: item.target,
+            previousTop: item.previousTop,
+            end,
             flight: {
               id: item.id, owner: item.owner, card: item.card,
               left: start.left, top: start.top, width: start.width, height: start.height,
@@ -138,6 +157,21 @@ export function DiscardFlipAnimationLayer() {
         }
         if (!measured.length) return;
         setFlights((current) => [...current, ...measured.map((item) => item.flight)]);
+        setPresentations((current) => {
+          const next = [...current];
+          for (const item of measured) {
+            if (next.some((presentation) => presentation.owner === item.flight.owner)) continue;
+            next.push({
+              owner: item.flight.owner,
+              card: item.previousTop,
+              left: item.end.left,
+              top: item.end.top,
+              width: item.end.width,
+              height: item.end.height,
+            });
+          }
+          return next;
+        });
         startFrame = window.requestAnimationFrame(() => {
           if (cancelled || !mounted.current) return;
           for (const item of measured) hideTarget(item.flight.id, item.target);
@@ -154,9 +188,28 @@ export function DiscardFlipAnimationLayer() {
     };
   }, [stored.active, stored.match, stored.playerId]);
 
-  if (!stored.active || !flights.length || typeof document === "undefined") return null;
+  if (!stored.active || (!flights.length && !presentations.length) || typeof document === "undefined") return null;
   return createPortal(
     <div className={styles.layer} aria-hidden="true">
+      {presentations.map((presentation) => {
+        if (!presentation.card) return null;
+        const style = {
+          left: presentation.left,
+          top: presentation.top,
+          width: presentation.width,
+          height: presentation.height,
+        } as CSSProperties;
+        return (
+          <div
+            className={styles.discardBase}
+            data-card-type={presentation.card.type}
+            style={style}
+            key={`discard-base:${presentation.owner}`}
+          >
+            <OriginalImage src={presentation.card.art} alt="" draggable={false} />
+          </div>
+        );
+      })}
       {flights.map((flight) => {
         const style = {
           left: flight.left, top: flight.top, width: flight.width, height: flight.height,
@@ -168,7 +221,7 @@ export function DiscardFlipAnimationLayer() {
           <div className={styles.flight} data-owner={flight.owner} data-card-type={flight.card.type}
             data-state={flight.phase} style={style}
             onAnimationEnd={(event) => {
-              if (event.target === event.currentTarget && flight.phase === "running") finishFlight(flight.id);
+              if (event.target === event.currentTarget && flight.phase === "running") finishFlight(flight);
             }} key={flight.id}>
             <div className={styles.cardInner}>
               <OriginalImage className={styles.cardBack} src={CARD_BACK_ART} alt="" draggable={false} />
