@@ -8,6 +8,7 @@ import { ensureRulesState } from "./state";
 import { evaluateNumberValue } from "./values";
 import { captureInstructionValues } from "./value-capture";
 import { effectiveCardFactions } from "./derived-characteristics";
+import { abilityGrantsStaticPermission } from "./permissions";
 
 export type RuleEvent = {
   id: string;
@@ -81,6 +82,17 @@ function actionIsPlayedOnActiveBakugan(card: GameCard | undefined) {
     .filter((ability) => ability.kind === "spell")
     .flatMap((ability) => ability.instructions)
     .some((instruction) => instruction.actions.some(actionUsesImplicitControllerBakugan));
+}
+
+function instructionExplicitlyNamesBakuganTarget(sourceText: string) {
+  return /\b(?:a|another|target|opposing|your)\s+(?:\[[^\]]+\]\s+)?Bakugan\b/i.test(sourceText);
+}
+
+function abilityUsesImplicitSourceBakugan(ability: ReturnType<typeof ruleDefinitionForCard>["abilities"][number]) {
+  return ability.instructions.some((instruction) => (
+    !instructionExplicitlyNamesBakuganTarget(instruction.sourceText)
+    && instruction.actions.some(actionUsesImplicitControllerBakugan)
+  ));
 }
 
 function sourceTargetMatches(
@@ -166,6 +178,9 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
       const definition = ruleDefinitionForCard(source);
       for (const ability of definition.abilities) {
         const triggerText = ability.instructions[0]?.sourceText ?? source.effect;
+        // Static rules permissions are consulted by the systems they modify;
+        // they are never effects that enter or resolve from the Batch.
+        if (abilityGrantsStaticPermission(ability)) continue;
         if (ability.kind !== "triggered" || !ability.trigger || !triggerMatches(ability.trigger, source, owner, event, state, triggerText)) continue;
         const key = usageKey({ source, abilityId: ability.id }, owner.id, state.turn);
         if (ability.trigger.limit && rules.triggerUsage[key]) continue;
@@ -174,11 +189,14 @@ export function collectRuleTriggers(state: MatchState, event: RuleEvent): RuleOb
         const sourceBakuganId = sourceBakugan?.id
           ?? (ability.trigger.source === "self" && event.card?.type === "Evo" ? event.targetBakuganId : undefined);
         const actionOnThis = /\bwhen you play an Action(?: card)? on this\b/i.test(triggerText);
-        // The CARD_PLAYED event's targetBakuganId is contextual: it is normally
-        // the controller's selected Bakugan. For "Action on this" abilities,
-        // resolution must instead target the Bakugan carrying the trigger.
+        const sourceLocalTarget = Boolean(sourceBakuganId && abilityUsesImplicitSourceBakugan(ability));
+        // CARD_PLAYED targetBakuganId is contextual and may identify the active
+        // Bakugan for the card being played. Character/Evo triggers whose text
+        // modifies an implicit Bakugan instead apply to the Bakugan carrying
+        // that source, while explicit "A Bakugan" effects retain event/choice
+        // targeting.
         const controllerTargetBakuganId = event.actorId === owner.id
-          ? (actionOnThis ? sourceBakuganId : event.targetBakuganId)
+          ? (actionOnThis || sourceLocalTarget ? sourceBakuganId : event.targetBakuganId)
           : undefined;
         const choices: CardChoices = {
           ...(ability.trigger.source === "self" ? event.choices ?? {} : {}),
