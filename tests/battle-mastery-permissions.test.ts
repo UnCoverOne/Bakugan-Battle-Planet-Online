@@ -36,6 +36,7 @@ const battleMasteryModeSpec: ChoiceSpec = {
   timing: "resolve",
   minimum: 1,
   maximum: 1,
+  chooser: "controller",
   options: [
     { id: "battle-mastery-1", label: "A Bakugan gets +600 B" },
     { id: "battle-mastery-2", label: "Recharge 6 Energy cards" },
@@ -89,7 +90,7 @@ test("Magnus static permission does not create its own Batch trigger", () => {
 test("implicit Character stat triggers target the Bakugan carrying the source", () => {
   const { state, controller } = matchWithPlayers();
   const goreene = card("aa-164", "goreene-source");
-  const playedAquos = card("bb-10", "aquos-played-card");
+  const playedAquos = card("bb-24", "aquos-played-card");
   const sourceBakugan = controller.bakugan[0];
   const contextualTarget = controller.bakugan[1];
   sourceBakugan.character = goreene;
