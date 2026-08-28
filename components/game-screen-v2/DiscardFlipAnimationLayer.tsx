@@ -21,6 +21,7 @@ const CARD_BACK_ART = "/assets/card-back.png";
 const DISCARD_FLIP_MS = 880;
 type ZoneOwner = "player" | "opponent";
 type FlightPhase = "prepared" | "running" | "settling";
+type CardRect = { left: number; top: number; width: number; height: number };
 
 type StoredDiscardFlipState = { active: boolean; match: MatchState | null; playerId?: string };
 type DiscardFlight = {
@@ -41,7 +42,7 @@ type DiscardPresentation = {
   height: number;
 };
 
-function stackCardRect(zone: HTMLElement) {
+function stackCardRect(zone: HTMLElement): CardRect | null {
   const rect = zone.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return null;
   const insetX = rect.width * 0.05;
@@ -133,11 +134,20 @@ export function DiscardFlipAnimationLayer() {
     let measureFrame = 0;
     let startFrame = 0;
 
-    void prepareAnimationAssets([CARD_BACK_ART, ...pending.map((item) => item.card.art), ...pending.map((item) => item.previousTop?.art ?? "").filter(Boolean)]).then(() => {
+    void prepareAnimationAssets([
+      CARD_BACK_ART,
+      ...pending.map((item) => item.card.art),
+      ...pending.map((item) => item.previousTop?.art ?? "").filter(Boolean),
+    ]).then(() => {
       if (cancelled || !mounted.current) return;
       measureFrame = window.requestAnimationFrame(() => {
         if (cancelled || !mounted.current) return;
-        const measured: Array<{ flight: DiscardFlight; target: HTMLElement; previousTop: GameCard | null; end: ReturnType<typeof stackCardRect> & {} }> = [];
+        const measured: Array<{
+          flight: DiscardFlight;
+          target: HTMLElement;
+          previousTop: GameCard | null;
+          end: CardRect;
+        }> = [];
         for (const item of pending) {
           const start = stackCardRect(item.source);
           const end = stackCardRect(item.target);
