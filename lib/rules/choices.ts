@@ -6,6 +6,7 @@ import type { ChoiceSpec, ChoiceTiming } from "./model";
 import { chooserIdsFor, zoneOwnerIdsFor } from "./primitives";
 import { evaluateNumberValue, type NumberValue } from "./values";
 import { bakuganHasFaction, effectiveCardFactions } from "./derived-characteristics";
+import { hasActiveRulePermission } from "./permissions";
 
 export type ChoiceKind =
   | "confirm" | "bakugan" | "player" | "hero" | "evo" | "energy" | "core" | "card"
@@ -350,14 +351,8 @@ function optionsFor(
     }
     case "mode": {
       if (spec.id === "confirmed") return [option("yes", "Yes"), option("no", "No")];
-      const printed = spec.options?.map((candidate) => option(candidate.id, candidate.label, controller.id, candidate.description))
+      return spec.options?.map((candidate) => option(candidate.id, candidate.label, controller.id, candidate.description))
         ?? [option("power", "B-Power"), option("damage", "Damage")];
-      const magnusAllowsBoth = /\bBattle Mastery\b/i.test(card.effect)
-        && controller.heroes.some((hero) => hero.catalogId === "aa-68");
-      if (magnusAllowsBoth && !printed.some((candidate) => candidate.id === "both")) {
-        printed.push(option("both", "Both effects", controller.id, "Magnus, Living Arm of Tiko"));
-      }
-      return printed;
     }
     case "chosen-card":
     case "self":
@@ -405,18 +400,25 @@ export function buildChoiceSchemaFromSpecs(
       const options = optionsFor(match, controllerId, card, spec, priorChoices, chooserId);
       if (spec.onlyIfAvailableMoreThan != null && options.length <= spec.onlyIfAvailableMoreThan) return null;
       const range = rangeFor(match, controllerId, spec, options.length, priorChoices, chooserId);
+      const kind = kindFor(spec);
+      const permissionMaximum = kind === "mode"
+        && /\bBattle Mastery\b/i.test(card.effect)
+        && hasActiveRulePermission(match, controllerId, "battle-mastery-select-both")
+        ? 2
+        : range.maximum;
+      const maximum = Math.min(options.length, Math.max(range.maximum, permissionMaximum));
       return {
         id: spec.id,
-        kind: kindFor(spec),
+        kind,
         label: spec.label,
         chooserId,
         visibility: spec.chooser === "each-player" ? "secret-until-reveal" : spec.visibility ?? "public",
         timing,
         minimum: range.minimum,
-        maximum: range.maximum,
+        maximum,
         required: range.minimum > 0,
         options,
-        ...(kindFor(spec) === "deck-order" && topDeckCount(match, controllerId, spec, priorChoices, chooserId) > 0
+        ...(kind === "deck-order" && topDeckCount(match, controllerId, spec, priorChoices, chooserId) > 0
           ? { requestedWindowSize: topDeckCount(match, controllerId, spec, priorChoices, chooserId) }
           : {}),
       };
@@ -514,7 +516,17 @@ export function mergeChoiceAnswers(schema: ChoiceSchema, answers: Record<string,
   for (const item of schema.fields) {
     if (schema.simultaneous && item.chooserId !== schema.controllerId) continue;
     const source = answers[item.chooserId];
-    if (source?.[item.id] !== undefined) Object.assign(merged, { [item.id]: source[item.id] });
+    const value = source?.[item.id];
+    if (value === undefined) continue;
+    // Mode choices are represented as separate printed options in the schema.
+    // The resolver currently uses the established "both" mode token to make
+    // both branch predicates true; keep that token internal to the engine and
+    // never expose it as a selectable option.
+    if (item.kind === "mode" && Array.isArray(value) && value.length > 1) {
+      Object.assign(merged, { [item.id]: "both" });
+    } else {
+      Object.assign(merged, { [item.id]: value });
+    }
   }
   return merged;
 }
