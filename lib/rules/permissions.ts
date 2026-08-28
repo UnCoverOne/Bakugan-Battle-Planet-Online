@@ -1,6 +1,6 @@
 import type { MatchState } from "../game";
 import { ruleDefinitionForCard } from "./catalogue";
-import type { RuleAbility } from "./model";
+import type { AbilityDefinition } from "./model";
 
 /**
  * Static rules permissions change what the engine allows while their source is
@@ -19,14 +19,14 @@ const PERMISSION_MATCHERS: ReadonlyArray<{
   },
 ];
 
-export function permissionsGrantedByAbility(ability: RuleAbility): RulePermission[] {
+export function permissionsGrantedByAbility(ability: AbilityDefinition): RulePermission[] {
   const sourceText = ability.instructions.map((instruction) => instruction.sourceText).join(" ");
   return PERMISSION_MATCHERS
     .filter((entry) => entry.matches(sourceText))
     .map((entry) => entry.permission);
 }
 
-export function abilityGrantsStaticPermission(ability: RuleAbility) {
+export function abilityGrantsStaticPermission(ability: AbilityDefinition) {
   return permissionsGrantedByAbility(ability).length > 0;
 }
 
