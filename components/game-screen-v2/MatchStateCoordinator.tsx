@@ -9,6 +9,8 @@ import type { MatchState } from "../../lib/game";
 import { completedMatchKey, isCompletedSeriesResult } from "../../lib/match-result-navigation";
 import { CoreReturnPlacementLayer } from "./CoreReturnPlacementLayer";
 import {
+  DRAGONOID_MAXIMUS_SKIP_EVENT,
+  dragonoidMaximusResultDelay,
   dragonoidMaximusResultRemaining,
   isDragonoidMaximusResult,
 } from "./alternateWinPresentation";
@@ -86,7 +88,7 @@ function resultReasonCopy(
     return {
       title: outcome === "victory" ? "VICTORY BY MAXIMUS" : "DEFEAT BY MAXIMUS",
       detail: outcome === "victory"
-        ? "You controlled Dan, Wynton, Lia, and Dragonoid Maximus when its ultimate effect resolved."
+        ? "You controlled Dan Kouzo, Wynton Styles, Lia Venegas, and Dragonoid Maximus when its ultimate effect resolved."
         : `${match.players.find((player) => player.id === match.winner)?.name ?? "Your opponent"} resolved Dragonoid Maximus's ultimate win effect.`,
     };
   }
@@ -286,15 +288,36 @@ export function MatchStateCoordinator() {
   const retracting = returnState.route === "match" && returnState.match?.phase === "retract";
   const completed = returnState.route === "match" && returnState.match?.phase === "result";
   const [resultReady, setResultReady] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [skippedMaximusResultKey, setSkippedMaximusResultKey] = useState<string | null>(null);
   const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
   const resultKey = completed && returnState.match
     ? `${returnState.match.id}:${returnState.match.gameNumber}:${returnState.match.winner ?? ""}:${returnState.match.resultReason ?? ""}`
     : null;
 
   useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!completed || !returnState.match || !isDragonoidMaximusResult(returnState.match) || !resultKey) return;
+    const revealResult = () => {
+      setSkippedMaximusResultKey(resultKey);
+      setResultReady(true);
+    };
+    window.addEventListener(DRAGONOID_MAXIMUS_SKIP_EVENT, revealResult);
+    return () => window.removeEventListener(DRAGONOID_MAXIMUS_SKIP_EVENT, revealResult);
+  }, [completed, resultKey, returnState.match]);
+
+  useEffect(() => {
     const match = returnState.match;
     if (!completed || !match) {
       setResultReady(false);
+      setSkippedMaximusResultKey(null);
       setDismissedResultKey(null);
       return;
     }
@@ -302,7 +325,12 @@ export function MatchStateCoordinator() {
       setResultReady(true);
       return;
     }
-    const remaining = dragonoidMaximusResultRemaining(match);
+    if (resultKey && skippedMaximusResultKey === resultKey) {
+      setResultReady(true);
+      return;
+    }
+    const delay = dragonoidMaximusResultDelay(reducedMotion);
+    const remaining = dragonoidMaximusResultRemaining(match, Date.now(), delay);
     if (remaining <= 0) {
       setResultReady(true);
       return;
@@ -310,7 +338,7 @@ export function MatchStateCoordinator() {
     setResultReady(false);
     const timeout = window.setTimeout(() => setResultReady(true), remaining);
     return () => window.clearTimeout(timeout);
-  }, [completed, returnState.match]);
+  }, [completed, reducedMotion, resultKey, returnState.match, skippedMaximusResultKey]);
 
   return (
     <>

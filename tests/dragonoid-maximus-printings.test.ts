@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { BAKUGAN, CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
@@ -10,6 +11,19 @@ import {
 import { playCardWithAutoEnergy } from "../lib/cardPayment";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { ruleConditionActive } from "../lib/rules/modifiers";
+import {
+  DRAGONOID_MAXIMUS_HERO_CARD_IDS,
+  DRAGONOID_MAXIMUS_PRESENTATION_MS,
+  DRAGONOID_MAXIMUS_REDUCED_MOTION_PRESENTATION_MS,
+  DRAGONOID_MAXIMUS_REDUCED_MOTION_RESULT_DELAY_MS,
+  DRAGONOID_MAXIMUS_RESULT_DELAY_MS,
+  dragonoidMaximusCard,
+  dragonoidMaximusHeroCards,
+  dragonoidMaximusResolvedAt,
+  dragonoidMaximusResultRemaining,
+} from "../components/game-screen-v2/alternateWinPresentation";
+
+const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 function card(catalogId: string, id: string): GameCard {
   const source = CARDS.find((candidate) => candidate.catalogId === catalogId);
@@ -104,6 +118,50 @@ test("the three exact Battle Brawlers Heroes activate Dragonoid Maximus", () => 
   assert.equal(resolved.winner, player.id);
   assert.equal(resolved.series[player.id], 1);
   assert.equal(resolved.resultReason, "Dragonoid Maximus's alternate win condition");
+  assert.deepEqual(
+    dragonoidMaximusHeroCards(resolved).map((hero) => hero.catalogId),
+    [...DRAGONOID_MAXIMUS_HERO_CARD_IDS],
+  );
+  assert.equal(dragonoidMaximusCard(resolved)?.id, maximus.id);
+
+  const resolvedAt = dragonoidMaximusResolvedAt(resolved);
+  assert.ok(resolvedAt > 0);
+  assert.equal(
+    dragonoidMaximusResultRemaining(resolved, resolvedAt + 100, 500),
+    400,
+  );
+});
+
+test("Dragonoid Maximus presentation overlaps its result handoff and shortens reduced motion", () => {
+  assert.ok(DRAGONOID_MAXIMUS_RESULT_DELAY_MS < DRAGONOID_MAXIMUS_PRESENTATION_MS);
+  assert.ok(
+    DRAGONOID_MAXIMUS_REDUCED_MOTION_RESULT_DELAY_MS
+      < DRAGONOID_MAXIMUS_REDUCED_MOTION_PRESENTATION_MS,
+  );
+  assert.ok(DRAGONOID_MAXIMUS_REDUCED_MOTION_RESULT_DELAY_MS < DRAGONOID_MAXIMUS_RESULT_DELAY_MS);
+  assert.ok(DRAGONOID_MAXIMUS_REDUCED_MOTION_PRESENTATION_MS < DRAGONOID_MAXIMUS_PRESENTATION_MS);
+});
+
+
+test("Dragonoid Maximus presentation is timestamp-synced, skippable, and performance-bounded", () => {
+  const layer = read("components/game-screen-v2/AlternateWinPresentationLayer.tsx");
+  const css = read("components/game-screen-v2/AlternateWinPresentationLayer.module.css");
+  const coordinator = read("components/game-screen-v2/MatchStateCoordinator.tsx");
+  const sound = read("components/game-screen-v2/GameplaySoundLayer.tsx");
+
+  assert.doesNotMatch(layer, /setInterval/);
+  assert.match(layer, /--timeline-offset/);
+  assert.match(layer, /dragonoidMaximusHeroCards/);
+  assert.match(layer, /aria-label="Skip Dragonoid Maximus win animation"/);
+  assert.match(layer, /event\.key === "Tab"/);
+  assert.match(layer, /event\.key === "Escape"/);
+  assert.match(css, /var\(--timeline-offset\)/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?particles i:nth-child\(n\+7\)/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(coordinator, /DRAGONOID_MAXIMUS_SKIP_EVENT/);
+  assert.match(coordinator, /dragonoidMaximusResultDelay\(reducedMotion\)/);
+  assert.match(sound, /MAXIMUS_SEQUENCE/);
+  assert.match(sound, /wins game\.\*Dragonoid Maximus/);
 });
 
 test("other Dan, Wynton, and Lia Hero cards do not activate Dragonoid Maximus", () => {
