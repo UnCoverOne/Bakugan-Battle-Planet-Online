@@ -170,7 +170,17 @@ export function DiscardFlipAnimationLayer() {
         setPresentations((current) => {
           const next = [...current];
           for (const item of measured) {
-            if (next.some((presentation) => presentation.owner === item.flight.owner)) continue;
+            const existingIndex = next.findIndex((presentation) => presentation.owner === item.flight.owner);
+            if (existingIndex >= 0) {
+              next[existingIndex] = {
+                ...next[existingIndex],
+                left: item.end.left,
+                top: item.end.top,
+                width: item.end.width,
+                height: item.end.height,
+              };
+              continue;
+            }
             next.push({
               owner: item.flight.owner,
               card: item.previousTop,
