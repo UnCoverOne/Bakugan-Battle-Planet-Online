@@ -9,12 +9,43 @@ export const DRAGONOID_MAXIMUS_REDUCED_MOTION_RESULT_DELAY_MS = 700;
 export const DRAGONOID_MAXIMUS_REDUCED_MOTION_PRESENTATION_MS = 900;
 export const DRAGONOID_MAXIMUS_SKIP_EVENT = "bakugan:dragonoid-maximus-skip";
 
+const maximusPresentationStartedAt = new Map<string, number>();
+const MAX_PRESENTATION_CLOCKS = 8;
+
 export function isDragonoidMaximusResult(match: MatchState | null | undefined) {
   return Boolean(
     match
     && match.phase === "result"
     && /Dragonoid Maximus/i.test(match.resultReason ?? ""),
   );
+}
+
+export function dragonoidMaximusResultKey(match: MatchState | null | undefined) {
+  if (!isDragonoidMaximusResult(match) || !match) return "";
+  return `${match.id}:${match.gameNumber}:${match.winner ?? ""}:${match.resultReason ?? ""}`;
+}
+
+/**
+ * The spectacle deliberately uses a client-local clock instead of the engine
+ * log timestamp. Mobile clients can receive the result before large card art
+ * has decoded or the overlay has painted; anchoring to the server timestamp
+ * made that rendering delay consume the animation itself.
+ */
+export function dragonoidMaximusPresentationStartedAt(
+  match: MatchState | null | undefined,
+  now = Date.now(),
+) {
+  const key = dragonoidMaximusResultKey(match);
+  if (!key) return 0;
+  const existing = maximusPresentationStartedAt.get(key);
+  if (existing !== undefined) return existing;
+
+  maximusPresentationStartedAt.set(key, now);
+  if (maximusPresentationStartedAt.size > MAX_PRESENTATION_CLOCKS) {
+    const oldest = maximusPresentationStartedAt.keys().next();
+    if (!oldest.done) maximusPresentationStartedAt.delete(oldest.value);
+  }
+  return now;
 }
 
 export function dragonoidMaximusResolvedAt(match: MatchState | null | undefined) {
@@ -72,6 +103,6 @@ export function dragonoidMaximusResultRemaining(
   delayMs = DRAGONOID_MAXIMUS_RESULT_DELAY_MS,
 ) {
   if (!isDragonoidMaximusResult(match)) return 0;
-  const resolvedAt = dragonoidMaximusResolvedAt(match);
-  return resolvedAt ? Math.max(0, resolvedAt + delayMs - now) : 0;
+  const startedAt = dragonoidMaximusPresentationStartedAt(match, now);
+  return startedAt ? Math.max(0, startedAt + delayMs - now) : 0;
 }

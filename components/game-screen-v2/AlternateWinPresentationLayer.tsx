@@ -5,7 +5,6 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -18,11 +17,13 @@ import {
   dragonoidMaximusCard,
   dragonoidMaximusHeroCards,
   dragonoidMaximusPresentationDuration,
-  dragonoidMaximusResolvedAt,
+  dragonoidMaximusPresentationStartedAt,
+  dragonoidMaximusResultKey,
   dragonoidMaximusWinner,
   isDragonoidMaximusResult,
 } from "./alternateWinPresentation";
 import styles from "./AlternateWinPresentationLayer.module.css";
+import mobileStyles from "./AlternateWinPresentationMobile.module.css";
 
 type PresentationState = {
   active: boolean;
@@ -32,6 +33,12 @@ type PresentationState = {
 type TimelineStyle = CSSProperties & {
   "--maximus-duration": string;
   "--timeline-offset": string;
+};
+
+type PresentationClock = {
+  key: string;
+  startedAt: number;
+  offset: number;
 };
 
 const HERO_FALLBACK_NAMES = ["Dan Kouzo", "Wynton Styles", "Lia Venegas"] as const;
@@ -48,13 +55,30 @@ export function AlternateWinPresentationLayer() {
   }));
   const match = presentation.match;
   const active = presentation.active && isDragonoidMaximusResult(match);
-  const resolvedAt = dragonoidMaximusResolvedAt(match);
-  const resultKey = `${match?.id ?? ""}:${match?.gameNumber ?? 0}:${match?.winner ?? ""}:${match?.resultReason ?? ""}:${resolvedAt}`;
-  const fallbackResolvedAt = useRef(Date.now());
+  const resultKey = active ? dragonoidMaximusResultKey(match) : "";
+  const clockRef = useRef<PresentationClock>({ key: "", startedAt: 0, offset: 0 });
   const skipRef = useRef<HTMLButtonElement | null>(null);
   const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
-  const [timelineElapsed, setTimelineElapsed] = useState(0);
   const [finished, setFinished] = useState(false);
+
+  if (resultKey && clockRef.current.key !== resultKey) {
+    const now = Date.now();
+    const startedAt = dragonoidMaximusPresentationStartedAt(match, now);
+    clockRef.current = {
+      key: resultKey,
+      startedAt,
+      offset: Math.max(0, now - startedAt),
+    };
+  } else if (!resultKey && clockRef.current.key) {
+    clockRef.current = { key: "", startedAt: 0, offset: 0 };
+  }
+
+  const presentationStartedAt = clockRef.current.key === resultKey
+    ? clockRef.current.startedAt
+    : 0;
+  const timelineElapsed = clockRef.current.key === resultKey
+    ? clockRef.current.offset
+    : 0;
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -64,23 +88,24 @@ export function AlternateWinPresentationLayer() {
     return () => query.removeEventListener("change", update);
   }, []);
 
-  useLayoutEffect(() => {
-    if (!active) {
+  useEffect(() => {
+    if (!active || !resultKey || !presentationStartedAt) {
       setFinished(false);
-      setTimelineElapsed(0);
       return;
     }
-    const startedAt = resolvedAt || Date.now();
-    if (!resolvedAt) fallbackResolvedAt.current = startedAt;
-    const effectiveStartedAt = resolvedAt || fallbackResolvedAt.current;
+    setFinished(false);
     const duration = dragonoidMaximusPresentationDuration(reducedMotion);
-    const elapsed = Math.max(0, Date.now() - effectiveStartedAt);
-    setTimelineElapsed(Math.min(elapsed, duration));
-    setFinished(elapsed >= duration);
-    if (elapsed >= duration) return;
-    const timeout = window.setTimeout(() => setFinished(true), duration - elapsed);
+    const elapsed = Math.max(0, Date.now() - presentationStartedAt);
+    if (elapsed >= duration) {
+      setFinished(true);
+      return;
+    }
+    const timeout = window.setTimeout(
+      () => setFinished(true),
+      duration - elapsed,
+    );
     return () => window.clearTimeout(timeout);
-  }, [active, reducedMotion, resolvedAt, resultKey]);
+  }, [active, presentationStartedAt, reducedMotion, resultKey]);
 
   const skip = useCallback(() => {
     setFinished(true);
@@ -110,7 +135,9 @@ export function AlternateWinPresentationLayer() {
   const duration = dragonoidMaximusPresentationDuration(reducedMotion);
   const timelineStyle = {
     "--maximus-duration": `${duration}ms`,
-    "--timeline-offset": reducedMotion ? "0ms" : `${-timelineElapsed}ms`,
+    "--timeline-offset": reducedMotion
+      ? "0ms"
+      : `${-Math.min(timelineElapsed, Math.max(0, duration - 1))}ms`,
   } as TimelineStyle;
   const card = dragonoidMaximusCard(match);
   const heroCards = dragonoidMaximusHeroCards(match);
@@ -135,15 +162,18 @@ export function AlternateWinPresentationLayer() {
       >
         SKIP
       </button>
-      <div className={styles.vignette} aria-hidden="true" />
+      <div className={`${styles.vignette} ${mobileStyles.vignette}`} aria-hidden="true" />
       <div className={styles.burst} aria-hidden="true" />
       <div className={styles.energyRings} aria-hidden="true">
-        <span /><span /><span />
+        <span className={mobileStyles.energyRing} />
+        <span className={mobileStyles.energyRing} />
+        <span className={mobileStyles.energyRing} />
       </div>
       <div className={styles.particles} aria-hidden="true">
         {Array.from({ length: 12 }, (_, index) => (
           <i
             key={index}
+            className={mobileStyles.particle}
             style={{ "--particle-index": index } as CSSProperties}
           />
         ))}
@@ -162,12 +192,14 @@ export function AlternateWinPresentationLayer() {
                 data-slot={index + 1}
               >
                 <span className={styles.heroBeam} aria-hidden="true" />
-                <div className={styles.heroCardShell}>
+                <div className={`${styles.heroCardShell} ${mobileStyles.heroCardShell}`}>
                   {hero ? (
                     <OriginalImage
                       src={hero.art}
                       alt={heroName}
                       draggable={false}
+                      loading="eager"
+                      decoding="async"
                     />
                   ) : (
                     <span className={styles.heroPlaceholder}>{heroName}</span>
@@ -186,12 +218,15 @@ export function AlternateWinPresentationLayer() {
         </div>
 
         <span className={styles.kicker}>ULTIMATE WIN EFFECT RESOLVED</span>
-        <div className={styles.cardFrame}>
-          <span className={styles.cardGlow} aria-hidden="true" />
+        <div className={`${styles.cardFrame} ${mobileStyles.cardFrame}`}>
+          <span className={`${styles.cardGlow} ${mobileStyles.cardGlow}`} aria-hidden="true" />
           <OriginalImage
             src={card?.art ?? "/assets/cards/sets/ex/full/ex-2.webp"}
             alt="Dragonoid Maximus"
             draggable={false}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
           />
         </div>
         <div className={styles.copy}>

@@ -19,6 +19,7 @@ import {
   DRAGONOID_MAXIMUS_RESULT_DELAY_MS,
   dragonoidMaximusCard,
   dragonoidMaximusHeroCards,
+  dragonoidMaximusPresentationStartedAt,
   dragonoidMaximusResolvedAt,
   dragonoidMaximusResultRemaining,
 } from "../components/game-screen-v2/alternateWinPresentation";
@@ -126,8 +127,13 @@ test("the three exact Battle Brawlers Heroes activate Dragonoid Maximus", () => 
 
   const resolvedAt = dragonoidMaximusResolvedAt(resolved);
   assert.ok(resolvedAt > 0);
+  const firstSeenAt = resolvedAt + 100;
   assert.equal(
-    dragonoidMaximusResultRemaining(resolved, resolvedAt + 100, 500),
+    dragonoidMaximusPresentationStartedAt(resolved, firstSeenAt),
+    firstSeenAt,
+  );
+  assert.equal(
+    dragonoidMaximusResultRemaining(resolved, firstSeenAt + 100, 500),
     400,
   );
 });
@@ -143,21 +149,31 @@ test("Dragonoid Maximus presentation overlaps its result handoff and shortens re
 });
 
 
-test("Dragonoid Maximus presentation is timestamp-synced, skippable, and performance-bounded", () => {
+test("Dragonoid Maximus presentation uses a client-local clock, remains skippable, and bounds mobile effects", () => {
   const layer = read("components/game-screen-v2/AlternateWinPresentationLayer.tsx");
   const css = read("components/game-screen-v2/AlternateWinPresentationLayer.module.css");
+  const mobileCss = read("components/game-screen-v2/AlternateWinPresentationMobile.module.css");
   const coordinator = read("components/game-screen-v2/MatchStateCoordinator.tsx");
   const sound = read("components/game-screen-v2/GameplaySoundLayer.tsx");
 
   assert.doesNotMatch(layer, /setInterval/);
+  assert.doesNotMatch(layer, /useLayoutEffect/);
+  assert.doesNotMatch(layer, /dragonoidMaximusResolvedAt/);
+  assert.match(layer, /dragonoidMaximusPresentationStartedAt/);
   assert.match(layer, /--timeline-offset/);
   assert.match(layer, /dragonoidMaximusHeroCards/);
   assert.match(layer, /aria-label="Skip Dragonoid Maximus win animation"/);
   assert.match(layer, /event\.key === "Tab"/);
   assert.match(layer, /event\.key === "Escape"/);
+  assert.match(layer, /loading="eager"/);
+  assert.match(layer, /decoding="async"/);
+  assert.match(layer, /fetchPriority="high"/);
   assert.match(css, /var\(--timeline-offset\)/);
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*?particles i:nth-child\(n\+7\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(mobileCss, /cardFrame[\s\S]*?filter:\s*none\s*!important/);
+  assert.match(mobileCss, /energyRing:nth-child\(3\)[\s\S]*?display:\s*none/);
+  assert.match(mobileCss, /particle:nth-child\(n \+ 5\)[\s\S]*?display:\s*none/);
   assert.match(coordinator, /DRAGONOID_MAXIMUS_SKIP_EVENT/);
   assert.match(coordinator, /dragonoidMaximusResultDelay\(reducedMotion\)/);
   assert.match(sound, /MAXIMUS_SEQUENCE/);

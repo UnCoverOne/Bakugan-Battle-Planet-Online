@@ -1,0 +1,26 @@
+@media (max-width: 720px) {
+  .vignette {
+    backdrop-filter: none !important;
+  }
+
+  .cardFrame {
+    filter: none !important;
+  }
+
+  .cardFrame::after,
+  .cardGlow {
+    filter: none !important;
+  }
+
+  .heroCardShell img {
+    filter: none !important;
+  }
+
+  .energyRing:nth-child(3) {
+    display: none;
+  }
+
+  .particle:nth-child(n + 5) {
+    display: none;
+  }
+}
