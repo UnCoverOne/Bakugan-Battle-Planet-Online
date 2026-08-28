@@ -34,12 +34,17 @@ import {
   type HeldCoreZoneView,
   type ZoneOwner,
 } from "./gameScreenState";
+import {
+  boardCardFinalizeTransitions,
+  captureBoardCardFinalizeSnapshot,
+} from "./boardCardFinalizePresentation";
 import gameStyles from "./GameScreen.module.css";
 import discardStyles from "./DiscardPileLayer.module.css";
 import coreStyles from "./HeldBakuCoreZone.module.css";
+import finalizeStyles from "./BoardCardFinalizePresentation.module.css";
 import { ResponsiveCardImage } from "./ResponsiveCardImage";
 
-const styles = { ...gameStyles, ...discardStyles, ...coreStyles };
+const styles = { ...gameStyles, ...discardStyles, ...coreStyles, ...finalizeStyles };
 const GRID_WIDTH = 1800;
 const GRID_HEIGHT = 1000;
 const GRID_CENTER_X = GRID_WIDTH / 2;
@@ -52,6 +57,7 @@ const ROW_RADIUS = Math.ceil(GRID_HEIGHT / (HEX_HEIGHT * 2)) + 3;
 const CARD_BACK_ART = "/assets/card-back.png";
 const ENERGY_SYMBOL_ART = "/assets/symbols/energy.svg";
 const CARD_PREVIEW_CLEAR_EVENT = "bbp-card-preview-clear";
+const BOARD_CARD_SLAM_MS = 520;
 
 type CardStackZoneKind = "discard-pile" | "deck";
 type CardStackZoneDefinition = {
@@ -178,38 +184,47 @@ function HeldCoreZone({
 function CharacterCardZone({
   owner,
   zone,
+  slammingCardIds,
 }: {
   owner: ZoneOwner;
   zone: HeldCoreZoneView;
+  slammingCardIds: ReadonlySet<string>;
 }) {
   const { slot, bakugan } = zone;
-  const card = bakugan?.character;
+  const characterCard = bakugan?.character;
+  const evoCard = bakugan?.evoStack.at(-1);
+  const card = evoCard ?? characterCard;
+  const slamming = Boolean(card && slammingCardIds.has(card.id));
+  const cardKind = evoCard ? "Evo" : "Character";
   const label = card
-    ? `${ownerLabel(owner)} Character Card ${slot}: ${card.displayName || card.name}`
+    ? `${ownerLabel(owner)} ${cardKind} Card ${slot}: ${card.displayName || card.name}`
     : `${ownerLabel(owner)} Character Card ${slot} zone`;
 
   return (
     <li className={styles.characterCardSlot} data-character-slot={slot}>
       <HeldCoreZone owner={owner} zone={zone} />
       <div
-        className={styles.characterCardZone}
+        className={`${styles.characterCardZone} ${slamming ? styles.boardCardImpact : ""}`}
         data-zone-kind="character-card"
         data-zone-owner={owner}
         data-zone-id={`${owner}-character-card-${slot}`}
         data-slot={slot}
         data-bakugan-id={bakugan?.id}
         data-card-id={card?.id}
-        data-evo-card-id={bakugan?.evoStack.at(-1)?.id}
+        data-base-character-card-id={characterCard?.id}
+        data-evo-card-id={evoCard?.id}
         data-character-open={bakugan?.open ? "true" : "false"}
         aria-label={label}
       >
         {card ? (
           <ResponsiveCardImage
-            className={styles.characterCardImage}
+            className={`${styles.characterCardImage} ${slamming ? styles.characterCardSlamming : ""}`}
             src={card.art}
             alt={card.displayName || card.name}
             eager={bakugan?.open}
             draggable={false}
+            dataCardId={card.id}
+            key={card.id}
           />
         ) : <ZoneLabel lines={["Character", `Card ${slot}`]} />}
       </div>
@@ -335,7 +350,13 @@ function CardStackZone({
   );
 }
 
-function HeroStack({ cards }: { cards: readonly GameCard[] }) {
+function HeroStack({
+  cards,
+  slammingCardIds,
+}: {
+  cards: readonly GameCard[];
+  slammingCardIds: ReadonlySet<string>;
+}) {
   if (!cards.length) return null;
   const layout = heroCardLayout(cards.length);
 
@@ -344,9 +365,10 @@ function HeroStack({ cards }: { cards: readonly GameCard[] }) {
       {cards.map((card, index) => {
         const left = layout.startPercent + index * layout.stepPercent;
         const style = { "--hero-left": `${left}%`, "--hero-order": index } as CSSProperties;
+        const slamming = slammingCardIds.has(card.id);
         return (
           <ResponsiveCardImage
-            className={styles.heroCardImage}
+            className={`${styles.heroCardImage} ${slamming ? styles.heroCardSlamming : ""}`}
             src={card.art}
             alt={card.displayName || card.name}
             draggable={false}
@@ -360,11 +382,22 @@ function HeroStack({ cards }: { cards: readonly GameCard[] }) {
   );
 }
 
-function HeroZone({ owner, cards, count }: { owner: ZoneOwner; cards: readonly GameCard[]; count: number }) {
+function HeroZone({
+  owner,
+  cards,
+  count,
+  slammingCardIds,
+}: {
+  owner: ZoneOwner;
+  cards: readonly GameCard[];
+  count: number;
+  slammingCardIds: ReadonlySet<string>;
+}) {
   const cardCount = safeCardCount(count);
+  const impact = cards.some((card) => slammingCardIds.has(card.id));
   return (
     <div
-      className={styles.heroZone}
+      className={`${styles.heroZone} ${impact ? styles.boardCardImpact : ""}`}
       data-zone-kind="hero"
       data-zone-owner={owner}
       data-zone-id={`${owner}-hero`}
@@ -372,7 +405,7 @@ function HeroZone({ owner, cards, count }: { owner: ZoneOwner; cards: readonly G
       aria-label={`${ownerLabel(owner)} Hero zone, ${cardCount} cards`}
     >
       {!cards.length && <ZoneLabel lines={["Hero", "Zone"]} />}
-      <HeroStack cards={cards} />
+      <HeroStack cards={cards} slammingCardIds={slammingCardIds} />
       <strong className={styles.zoneCount} aria-hidden="true">{cardCount}</strong>
     </div>
   );
@@ -502,6 +535,7 @@ function PlayerZoneLayout({
   state,
   coreZones,
   energy,
+  slammingCardIds,
   pendingEnergyCardId,
   onTapEnergyCard,
   canTapEnergyCard,
@@ -518,6 +552,7 @@ function PlayerZoneLayout({
   state: GameScreenOwnerState;
   coreZones: readonly HeldCoreZoneView[];
   energy: EnergyZoneView;
+  slammingCardIds: ReadonlySet<string>;
   pendingEnergyCardId?: string;
   onTapEnergyCard?: EnergyTapHandler;
   canTapEnergyCard?: (cardId: string) => boolean;
@@ -553,6 +588,7 @@ function PlayerZoneLayout({
               key={`${owner}-${slot}`}
               owner={owner}
               zone={coreZones[slot - 1] ?? { slot, bakugan: null, placements: [] }}
+              slammingCardIds={slammingCardIds}
             />
           ))}
         </ol>
@@ -576,7 +612,12 @@ function PlayerZoneLayout({
           temporaryRevealCardIds={temporaryEnergyRevealCardIds}
         />
         <div className={styles.cardStackMain}>
-          <HeroZone owner={owner} cards={state.heroCards} count={counts.hero} />
+          <HeroZone
+            owner={owner}
+            cards={state.heroCards}
+            count={counts.hero}
+            slammingCardIds={slammingCardIds}
+          />
           <ol className={styles.cardStackZones}>
             {cardStackZones.map((zone) => (
               <CardStackZone
@@ -704,6 +745,13 @@ export function GameScreen({
   const [drawClock, setDrawClock] = useState(() => Date.now());
   const [energyRevealClock, setEnergyRevealClock] = useState(() => Date.now());
   const [openDiscardOwner, setOpenDiscardOwner] = useState<ZoneOwner | null>(null);
+  const [slammingCardIds, setSlammingCardIds] = useState<ReadonlySet<string>>(() => new Set());
+  const previousBoardSnapshot = useRef<{
+    matchId: string;
+    viewerId: string;
+    snapshot: ReturnType<typeof captureBoardCardFinalizeSnapshot>;
+  } | null>(null);
+  const boardSlamTimers = useRef<Map<string, number>>(new Map());
   const { hiddenCoreCells } = useBakuCorePresentation();
 
   const zoneState = match
@@ -738,6 +786,64 @@ export function GameScreen({
       },
     }
     : zoneCounts;
+
+  useLayoutEffect(() => {
+    const clearSlamPresentation = () => {
+      for (const timeout of boardSlamTimers.current.values()) {
+        window.clearTimeout(timeout);
+      }
+      boardSlamTimers.current.clear();
+      setSlammingCardIds(new Set());
+    };
+
+    if (!match) {
+      previousBoardSnapshot.current = null;
+      clearSlamPresentation();
+      return;
+    }
+
+    const viewerId = playerId ?? match.players[0]?.id ?? "";
+    const previous = previousBoardSnapshot.current;
+    const snapshot = captureBoardCardFinalizeSnapshot(zoneState);
+    previousBoardSnapshot.current = { matchId: match.id, viewerId, snapshot };
+
+    if (!previous || previous.matchId !== match.id || previous.viewerId !== viewerId) {
+      clearSlamPresentation();
+      return;
+    }
+
+    const transitions = boardCardFinalizeTransitions(previous.snapshot, zoneState);
+    if (!transitions.length) return;
+    const incomingIds = new Set(transitions.map((transition) => transition.cardId));
+
+    setSlammingCardIds((current) => {
+      const next = new Set(current);
+      for (const cardId of incomingIds) next.add(cardId);
+      return next;
+    });
+
+    for (const cardId of incomingIds) {
+      const previousTimeout = boardSlamTimers.current.get(cardId);
+      if (previousTimeout !== undefined) window.clearTimeout(previousTimeout);
+      const timeout = window.setTimeout(() => {
+        boardSlamTimers.current.delete(cardId);
+        setSlammingCardIds((current) => {
+          if (!current.has(cardId)) return current;
+          const next = new Set(current);
+          next.delete(cardId);
+          return next;
+        });
+      }, BOARD_CARD_SLAM_MS);
+      boardSlamTimers.current.set(cardId, timeout);
+    }
+  }, [match, playerId, zoneState]);
+
+  useEffect(() => () => {
+    for (const timeout of boardSlamTimers.current.values()) {
+      window.clearTimeout(timeout);
+    }
+    boardSlamTimers.current.clear();
+  }, []);
 
   useLayoutEffect(() => {
     setEnergyRevealClock(Date.now());
@@ -854,6 +960,7 @@ export function GameScreen({
             state={zoneState.opponent}
             coreZones={heldCoreZones.opponent}
             energy={energyState.opponent}
+            slammingCardIds={slammingCardIds}
             revealEnergyFaces={revealOpponentAiCards}
             openDiscardOwner={openDiscardOwner}
             onOpenDiscard={openDiscard}
@@ -864,6 +971,7 @@ export function GameScreen({
             state={zoneState.player}
             coreZones={heldCoreZones.player}
             energy={energyState.player}
+            slammingCardIds={slammingCardIds}
             pendingEnergyCardId={pendingEnergyCardId}
             onTapEnergyCard={tapEnergy}
             canTapEnergyCard={(cardId) => energyCardCanTap(match, playerId, cardId)}
