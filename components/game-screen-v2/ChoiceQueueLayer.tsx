@@ -23,8 +23,9 @@ function valuesFor(answers: CardChoices, field: ChoiceField) {
 
 function assign(answers: CardChoices, field: ChoiceField, values: string[]) {
   const next = { ...answers };
-  if (["discardCardIds", "handCardIds", "targetEnergyIds", "orderedCardIds"].includes(field.id)) Object.assign(next, { [field.id]: values });
-  else if (field.id === "xValue") next.xValue = Number(values[0] ?? 0);
+  if (field.maximum > 1 || ["discardCardIds", "handCardIds", "targetEnergyIds", "orderedCardIds"].includes(field.id)) {
+    Object.assign(next, { [field.id]: values });
+  } else if (field.id === "xValue") next.xValue = Number(values[0] ?? 0);
   else if (field.id === "confirmed") next.confirmed = values[0] === "yes";
   else Object.assign(next, { [field.id]: values[0] });
   return next;
