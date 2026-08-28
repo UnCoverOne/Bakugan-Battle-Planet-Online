@@ -34,6 +34,13 @@ type ExperienceState = {
   playerId?: string;
 };
 
+type BrawlExperienceLayerProps = {
+  match?: MatchState | null;
+  playerId?: string;
+  presentationMode?: "live" | "replay";
+  playbackRate?: number;
+};
+
 function sameHudPosition(previous: HudPosition | null, next: HudPosition) {
   return Boolean(
     previous
@@ -144,14 +151,25 @@ function BrawlCombatant({
   );
 }
 
-export function BrawlExperienceLayer() {
+export function BrawlExperienceLayer({
+  match: replayMatch,
+  playerId: replayPlayerId,
+  presentationMode = "live",
+  playbackRate = 1,
+}: BrawlExperienceLayerProps = {}) {
   const { rollPresentationPending } = useBakuCorePresentation();
-  const experience = useMatchSelector((state): ExperienceState => ({
+  const liveExperience = useMatchSelector((state): ExperienceState => ({
     active: state.route === "match",
     online: state.online,
     match: state.match,
     playerId: state.playerId,
   }));
+  const experience: ExperienceState = presentationMode === "replay"
+    ? { active: true, online: false, match: replayMatch ?? null, playerId: replayPlayerId }
+    : liveExperience;
+  const rate = presentationMode === "replay"
+    ? Math.max(0.25, Math.min(4, playbackRate || 1))
+    : 1;
   const [hudPosition, setHudPosition] = useState<HudPosition | null>(null);
   const [brawlDocked, setBrawlDocked] = useState(false);
   const [resolutionQueue, setResolutionQueue] = useState<PendingEffect[]>([]);
@@ -249,19 +267,19 @@ export function BrawlExperienceLayer() {
   useEffect(() => {
     if (!resolvingEffect) return;
     setEffectBurst(resolvingEffect);
-    resolutionTimer.current = window.setTimeout(() => setResolvingEffect(null), 760);
+    resolutionTimer.current = window.setTimeout(() => setResolvingEffect(null), 760 / rate);
     return () => {
       if (resolutionTimer.current != null) window.clearTimeout(resolutionTimer.current);
     };
-  }, [resolvingEffect]);
+  }, [rate, resolvingEffect]);
 
   useEffect(() => {
     if (!effectBurst) return;
-    burstTimer.current = window.setTimeout(() => setEffectBurst(null), 1050);
+    burstTimer.current = window.setTimeout(() => setEffectBurst(null), 1050 / rate);
     return () => {
       if (burstTimer.current != null) window.clearTimeout(burstTimer.current);
     };
-  }, [effectBurst]);
+  }, [effectBurst, rate]);
 
   useEffect(() => {
     const nextStats: Record<string, string> = {};
@@ -275,8 +293,8 @@ export function BrawlExperienceLayer() {
     if (!changed.size) return;
     setPulsingBakugan(changed);
     if (pulseTimer.current != null) window.clearTimeout(pulseTimer.current);
-    pulseTimer.current = window.setTimeout(() => setPulsingBakugan(new Set()), 760);
-  }, [combatants]);
+    pulseTimer.current = window.setTimeout(() => setPulsingBakugan(new Set()), 760 / rate);
+  }, [combatants, rate]);
 
   useEffect(() => () => {
     if (resolutionTimer.current != null) window.clearTimeout(resolutionTimer.current);

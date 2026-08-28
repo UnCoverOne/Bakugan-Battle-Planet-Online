@@ -86,7 +86,7 @@
   stroke-dasharray: 13 10;
   transform-box: fill-box;
   transform-origin: center;
-  animation: roll-trace-target 1100ms ease-in-out infinite alternate;
+  animation: roll-trace-target var(--roll-trace-target-duration, 1100ms) ease-in-out infinite alternate;
 }
 
 .rollTraceGlow,
@@ -96,8 +96,8 @@
   stroke-linejoin: round;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: roll-trace-draw 1800ms cubic-bezier(0.2, 0.72, 0.18, 1) both;
-  animation-delay: calc(var(--trace-order) * 250ms);
+  animation: roll-trace-draw var(--roll-trace-draw-duration, 1800ms) cubic-bezier(0.2, 0.72, 0.18, 1) both;
+  animation-delay: calc(var(--trace-order) * var(--roll-trace-stagger, 250ms));
 }
 
 .rollTraceGlow {
@@ -120,8 +120,11 @@
   stroke-width: 4;
   opacity: 0;
   filter: drop-shadow(0 0 12px rgba(var(--trace-color), 0.95));
-  animation: roll-trace-endpoint 260ms ease-out both;
-  animation-delay: calc(var(--trace-order) * 250ms + 1650ms);
+  animation: roll-trace-endpoint var(--roll-trace-endpoint-duration, 260ms) ease-out both;
+  animation-delay: calc(
+    var(--trace-order) * var(--roll-trace-stagger, 250ms)
+    + var(--roll-trace-endpoint-delay, 1650ms)
+  );
 }
 
 .rollTraceLabel {
@@ -136,8 +139,11 @@
   font-weight: 950;
   letter-spacing: 0.06em;
   opacity: 0;
-  animation: roll-trace-label 300ms ease-out both;
-  animation-delay: calc(var(--trace-order) * 250ms + 1800ms);
+  animation: roll-trace-label var(--roll-trace-label-duration, 300ms) ease-out both;
+  animation-delay: calc(
+    var(--trace-order) * var(--roll-trace-stagger, 250ms)
+    + var(--roll-trace-label-delay, 1800ms)
+  );
 }
 
 .transferLayer {
@@ -165,7 +171,7 @@
 }
 
 .transferCore[data-active="true"] {
-  animation: core-transfer 920ms cubic-bezier(0.16, 0.84, 0.22, 1) both;
+  animation: core-transfer var(--core-transfer-duration, 920ms) cubic-bezier(0.16, 0.84, 0.22, 1) both;
 }
 
 .rollActionButton {

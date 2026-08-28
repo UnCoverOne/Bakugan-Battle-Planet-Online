@@ -10,15 +10,55 @@ import { loadLocalReplayHistory, loadLocalReplayWhenReady } from "../../lib/repl
 import { reconstructLocalReplay, reconstructServerReplay } from "../../lib/replay-playback-client";
 import { flushLocalReplayJournalAndWait } from "../../lib/replay-journal";
 import { useApp } from "../application/AppProvider";
-import { BakuCoreLayer } from "../game-screen-v2/BakuCoreLayer";
-import { CardHandLayer } from "../game-screen-v2/CardHandLayer";
-import { GameScreen } from "../game-screen-v2/GameScreen";
+import { ReplayBattlefield } from "./ReplayBattlefield";
 import styles from "./ReplayTheatre.module.css";
 
 const SPEEDS = [0.5, 1, 2, 4] as const;
 
 function legacyLabel(record: MatchResultRecord, index: number) {
   return record.log?.[index]?.message ?? "Legacy match event";
+}
+
+function replayFrameHoldMs(bundle: ReplayBundle | null, index: number) {
+  const frame = bundle?.frames[index];
+  if (!frame) return 900;
+  const previous = index > 0 ? bundle?.frames[index - 1] : undefined;
+  let duration = 900;
+
+  switch (frame.commandType) {
+    case "CONFIRM_ROLL":
+    case "ACTIVATE_REROLL":
+      duration = 7000;
+      break;
+    case "ENERGIZE":
+      duration = 1250;
+      break;
+    case "DRAW_TURN_CARD":
+    case "DRAW_PENDING_CARD":
+      duration = 950;
+      break;
+    case "REVEAL_DAMAGE_FLIP":
+    case "PLAY_DAMAGE_FLIP":
+      duration = 1250;
+      break;
+    case "PLAY_CARD":
+    case "SUBMIT_CARD_CHOICE":
+      duration = 1250;
+      break;
+    case "START_NEXT_SERIES_GAME":
+      duration = 1500;
+      break;
+    default:
+      break;
+  }
+
+  if (previous && previous.state.gameNumber !== frame.state.gameNumber) {
+    duration = Math.max(duration, 1500);
+  } else if (previous && previous.state.phase !== frame.state.phase) {
+    duration = Math.max(duration, 1100);
+  }
+  if (frame.state.phase === "result") duration = Math.max(duration, 1800);
+  return duration;
 }
 
 function downloadDebugText(text: string, replayId: string) {
@@ -41,6 +81,8 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
+  const [presentationEpoch, setPresentationEpoch] = useState(0);
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "legacy" | "error">("loading");
   const [error, setError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -52,6 +94,7 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
     setBundle(null);
     setIndex(0);
     setPlaying(false);
+    setPresentationEpoch(0);
     setError("");
     setStatus("loading");
     setDebugDownloading(false);
@@ -96,9 +139,12 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
   const frameCount = bundle?.frames.length ?? record.log?.length ?? 0;
   const frame = bundle?.frames[Math.min(index, Math.max(0, frameCount - 1))];
   const currentLabel = frame?.label ?? legacyLabel(record, index);
-  const seek = useCallback((next: number) => {
-    setIndex(Math.max(0, Math.min(Math.max(0, frameCount - 1), next)));
-  }, [frameCount]);
+  const seek = useCallback((next: number, animateAdjacentForward = false) => {
+    const clamped = Math.max(0, Math.min(Math.max(0, frameCount - 1), next));
+    const animate = animateAdjacentForward && clamped === index + 1;
+    if (clamped !== index && !animate) setPresentationEpoch((value) => value + 1);
+    setIndex(clamped);
+  }, [frameCount, index]);
 
   const downloadReplayDebugData = useCallback(async () => {
     if (!administrator || debugDownloading) return;
@@ -155,7 +201,11 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
 
   useEffect(() => {
     if (!playing || frameCount < 2) return;
-    const timer = window.setInterval(() => {
+    if (index >= frameCount - 1) {
+      setPlaying(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
       setIndex((current) => {
         if (current >= frameCount - 1) {
           setPlaying(false);
@@ -163,9 +213,9 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
         }
         return current + 1;
       });
-    }, 900 / speed);
-    return () => window.clearInterval(timer);
-  }, [frameCount, playing, speed]);
+    }, replayFrameHoldMs(bundle, index) / speed);
+    return () => window.clearTimeout(timer);
+  }, [bundle, frameCount, index, playing, speed]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -173,7 +223,7 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
       if (event.key === "Escape") onBack();
       else if (event.key === " ") { event.preventDefault(); setPlaying((value) => !value); }
       else if (event.key === "ArrowLeft") seek(index - 1);
-      else if (event.key === "ArrowRight") seek(index + 1);
+      else if (event.key === "ArrowRight") seek(index + 1, true);
       else if (event.key === "Home") seek(0);
       else if (event.key === "End") seek(frameCount - 1);
     };
@@ -186,13 +236,21 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
     && (record.replayStorage === "server" || record.replayStorage === "local");
 
   return (
-    <section className={styles.theatre} aria-label={`Replay of ${record.result} against ${record.opponent}`}>
+    <section
+      ref={setPortalRoot}
+      className={styles.theatre}
+      aria-label={`Replay of ${record.result} against ${record.opponent}`}
+    >
       <div className={styles.board} aria-busy={status === "loading"} aria-live="polite">
-        {frame ? (<>
-          <GameScreen match={frame.state} playerId={bundle?.perspectivePlayerId} presentationMode="replay" />
-          <BakuCoreLayer match={frame.state} playerId={bundle?.perspectivePlayerId} readOnly />
-          <CardHandLayer match={frame.state} playerId={bundle?.perspectivePlayerId} />
-        </>) : (
+        {frame ? (
+          <ReplayBattlefield
+            match={frame.state}
+            playerId={bundle?.perspectivePlayerId}
+            playbackRate={speed}
+            presentationEpoch={presentationEpoch}
+            portalRoot={portalRoot}
+          />
+        ) : (
           <div className={styles.stageStatus} data-status={status} role={status === "error" ? "alert" : "status"}>
             <span aria-hidden="true">{status === "loading" ? "◌" : status === "legacy" ? "≡" : "!"}</span>
             <strong>{status === "loading"
@@ -246,7 +304,7 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
         <button type="button" onClick={() => seek(0)} disabled={!index}>|◀</button>
         <button type="button" onClick={() => seek(index - 1)} disabled={!index}>◀</button>
         <button className={styles.play} type="button" onClick={() => setPlaying((value) => !value)} disabled={frameCount < 2} aria-label={playing ? "Pause replay" : "Play replay"}>{playing ? "Ⅱ" : "▶"}</button>
-        <button type="button" onClick={() => seek(index + 1)} disabled={index >= frameCount - 1}>▶</button>
+        <button type="button" onClick={() => seek(index + 1, true)} disabled={index >= frameCount - 1}>▶</button>
         <input aria-label="Replay position" type="range" min={0} max={Math.max(0, frameCount - 1)} value={Math.min(index, Math.max(0, frameCount - 1))} onChange={(event) => seek(Number(event.target.value))} />
         <div className={styles.markers} aria-label="Replay markers">
           {bundle?.markers.map((marker) => <button type="button" key={`${marker.index}-${marker.type}`} style={{ left: `${frameCount > 1 ? marker.index / (frameCount - 1) * 100 : 0}%` }} onClick={() => seek(marker.index)} title={marker.label} aria-label={`Jump to ${marker.label}`} />)}

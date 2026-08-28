@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -22,6 +23,14 @@ import { useMatchSelector } from "./matchStore";
 type StoredPresentationMatch = {
   match: MatchState | null;
   playerId?: string;
+};
+
+type BakuCorePresentationProviderProps = {
+  children: ReactNode;
+  match?: MatchState | null;
+  playerId?: string;
+  presentationMode?: "live" | "replay";
+  playbackRate?: number;
 };
 
 type BakuCorePresentationValue = {
@@ -42,6 +51,8 @@ const EMPTY_PRESENTATION: BakuCorePresentationValue = {
   hiddenCoreCells: EMPTY_SET,
   dismissRollResult: () => undefined,
 };
+const REPLAY_ROLL_RESULT_HOLD_MS = 4900;
+const REPLAY_INITIAL_PRESENTATION_AGE_MS = 10_000;
 
 const BakuCorePresentationContext = createContext<BakuCorePresentationValue>(EMPTY_PRESENTATION);
 
@@ -59,20 +70,42 @@ function writePresentationRecord(key: string, record: RollPresentationRecord) {
   localStorage.setItem(key, JSON.stringify(record));
 }
 
-export function BakuCorePresentationProvider({ children }: { children: ReactNode }) {
-  const stored = useMatchSelector((state): StoredPresentationMatch => ({ match: state.match, playerId: state.playerId }));
-  const [record, setRecord] = useState<RollPresentationRecord | null>(null);
+export function BakuCorePresentationProvider({
+  children,
+  match: replayMatch,
+  playerId: replayPlayerId,
+  presentationMode = "live",
+  playbackRate = 1,
+}: BakuCorePresentationProviderProps) {
+  const liveStored = useMatchSelector((state): StoredPresentationMatch => ({ match: state.match, playerId: state.playerId }));
+  const stored: StoredPresentationMatch = presentationMode === "replay"
+    ? { match: replayMatch ?? null, playerId: replayPlayerId }
+    : liveStored;
+  const rate = presentationMode === "replay"
+    ? Math.max(0.25, Math.min(4, playbackRate || 1))
+    : 1;
+  const signature = rollResultSignature(stored.match);
+  const cellsKey = rollResultCells(stored.match).join("|");
+  const storageKey = presentationMode === "live" && stored.match?.id
+    ? rollPresentationStorageKey(stored.match.id, stored.playerId)
+    : "";
+  const replaySignature = useRef(presentationMode === "replay" ? signature : "");
+  const [record, setRecord] = useState<RollPresentationRecord | null>(() => (
+    presentationMode === "replay" && signature
+      ? { signature, dismissedAt: Date.now() - REPLAY_INITIAL_PRESENTATION_AGE_MS }
+      : null
+  ));
   const [rollResultOpen, setRollResultOpen] = useState(false);
   const [deferredCoreCells, setDeferredCoreCells] = useState<readonly string[]>([]);
   const [transferringCoreCells, setTransferringCoreCells] = useState<readonly string[]>([]);
 
-  const signature = rollResultSignature(stored.match);
-  const cellsKey = rollResultCells(stored.match).join("|");
-  const storageKey = stored.match?.id
-    ? rollPresentationStorageKey(stored.match.id, stored.playerId)
-    : "";
-
   useEffect(() => {
+    if (presentationMode === "replay") {
+      if (replaySignature.current === signature) return;
+      replaySignature.current = signature;
+      setRecord(signature ? { signature, dismissedAt: null } : null);
+      return;
+    }
     if (!signature || !storageKey) {
       setRecord(null);
       return;
@@ -85,7 +118,22 @@ export function BakuCorePresentationProvider({ children }: { children: ReactNode
     const next: RollPresentationRecord = { signature, dismissedAt: null };
     writePresentationRecord(storageKey, next);
     setRecord(next);
-  }, [signature, storageKey]);
+  }, [presentationMode, signature, storageKey]);
+
+  useEffect(() => {
+    if (
+      presentationMode !== "replay"
+      || !signature
+      || record?.signature !== signature
+      || record.dismissedAt != null
+    ) return;
+    const timeout = window.setTimeout(() => {
+      setRecord((current) => current?.signature === signature && current.dismissedAt == null
+        ? { signature, dismissedAt: Date.now() }
+        : current);
+    }, REPLAY_ROLL_RESULT_HOLD_MS / rate);
+    return () => window.clearTimeout(timeout);
+  }, [presentationMode, rate, record, signature]);
 
   useEffect(() => {
     let delayTimer = 0;
@@ -97,14 +145,18 @@ export function BakuCorePresentationProvider({ children }: { children: ReactNode
       window.clearTimeout(delayTimer);
       window.clearTimeout(endTimer);
       const cells = cellsKey ? cellsKey.split("|") : [];
-      const stage = rollPresentationStage(signature, cells, record, Date.now());
+      const now = Date.now();
+      const stageNow = presentationMode === "replay" && record?.dismissedAt != null
+        ? record.dismissedAt + (now - record.dismissedAt) * rate
+        : now;
+      const stage = rollPresentationStage(signature, cells, record, stageNow);
       setRollResultOpen(stage.open);
       setDeferredCoreCells(stage.deferredCoreCells);
       setTransferringCoreCells(stage.transferringCoreCells);
       if (stage.transferDelayMs != null) {
-        delayTimer = window.setTimeout(synchronize, Math.max(0, stage.transferDelayMs));
+        delayTimer = window.setTimeout(synchronize, Math.max(0, stage.transferDelayMs / rate));
       } else if (stage.transferEndMs != null) {
-        endTimer = window.setTimeout(synchronize, Math.max(0, stage.transferEndMs));
+        endTimer = window.setTimeout(synchronize, Math.max(0, stage.transferEndMs / rate));
       }
     };
 
@@ -114,10 +166,10 @@ export function BakuCorePresentationProvider({ children }: { children: ReactNode
       window.clearTimeout(delayTimer);
       window.clearTimeout(endTimer);
     };
-  }, [signature, cellsKey, record]);
+  }, [signature, cellsKey, record, presentationMode, rate]);
 
   const dismissRollResult = useCallback(() => {
-    if (!signature || !storageKey) {
+    if (!signature) {
       setRollResultOpen(false);
       return;
     }
@@ -125,9 +177,9 @@ export function BakuCorePresentationProvider({ children }: { children: ReactNode
       signature,
       dismissedAt: Date.now(),
     };
-    writePresentationRecord(storageKey, next);
+    if (presentationMode === "live" && storageKey) writePresentationRecord(storageKey, next);
     setRecord(next);
-  }, [signature, storageKey]);
+  }, [presentationMode, signature, storageKey]);
 
   const hiddenCoreCells = useMemo(
     () => new Set([...deferredCoreCells, ...transferringCoreCells]),

@@ -30,6 +30,12 @@ type PresentationState = {
   match: MatchState | null;
 };
 
+type AlternateWinPresentationLayerProps = {
+  match?: MatchState | null;
+  presentationMode?: "live" | "replay";
+  playbackRate?: number;
+};
+
 type TimelineStyle = CSSProperties & {
   "--maximus-duration": string;
   "--timeline-offset": string;
@@ -48,14 +54,34 @@ function prefersReducedMotion() {
     && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function AlternateWinPresentationLayer() {
-  const presentation = useMatchSelector((state): PresentationState => ({
+export function AlternateWinPresentationLayer({
+  match: replayMatch,
+  presentationMode = "live",
+  playbackRate = 1,
+}: AlternateWinPresentationLayerProps = {}) {
+  const livePresentation = useMatchSelector((state): PresentationState => ({
     active: state.route === "match",
     match: state.match,
   }));
+  const presentation: PresentationState = presentationMode === "replay"
+    ? { active: true, match: replayMatch ?? null }
+    : livePresentation;
+  const rate = presentationMode === "replay"
+    ? Math.max(0.25, Math.min(4, playbackRate || 1))
+    : 1;
   const match = presentation.match;
-  const active = presentation.active && isDragonoidMaximusResult(match);
-  const resultKey = active ? dragonoidMaximusResultKey(match) : "";
+  const candidateActive = presentation.active && isDragonoidMaximusResult(match);
+  const candidateResultKey = candidateActive ? dragonoidMaximusResultKey(match) : "";
+  // A direct seek remounts the replay presenters at the destination frame. Do
+  // not replay an alternate-win cinematic just because that destination is a
+  // completed result; only animate when the result appears during adjacent
+  // forward playback.
+  const initialReplayResultKey = useRef(presentationMode === "replay" ? candidateResultKey : "");
+  const suppressInitialReplayResult = presentationMode === "replay"
+    && Boolean(candidateResultKey)
+    && initialReplayResultKey.current === candidateResultKey;
+  const active = candidateActive && !suppressInitialReplayResult;
+  const resultKey = active ? candidateResultKey : "";
   const clockRef = useRef<PresentationClock>({ key: "", startedAt: 0, offset: 0 });
   const skipRef = useRef<HTMLButtonElement | null>(null);
   const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
@@ -63,7 +89,9 @@ export function AlternateWinPresentationLayer() {
 
   if (resultKey && clockRef.current.key !== resultKey) {
     const now = Date.now();
-    const startedAt = dragonoidMaximusPresentationStartedAt(match, now);
+    const startedAt = presentationMode === "replay"
+      ? now
+      : dragonoidMaximusPresentationStartedAt(match, now);
     clockRef.current = {
       key: resultKey,
       startedAt,
@@ -94,7 +122,7 @@ export function AlternateWinPresentationLayer() {
       return;
     }
     setFinished(false);
-    const duration = dragonoidMaximusPresentationDuration(reducedMotion);
+    const duration = dragonoidMaximusPresentationDuration(reducedMotion) / rate;
     const elapsed = Math.max(0, Date.now() - presentationStartedAt);
     if (elapsed >= duration) {
       setFinished(true);
@@ -105,7 +133,7 @@ export function AlternateWinPresentationLayer() {
       duration - elapsed,
     );
     return () => window.clearTimeout(timeout);
-  }, [active, presentationStartedAt, reducedMotion, resultKey]);
+  }, [active, presentationStartedAt, rate, reducedMotion, resultKey]);
 
   const skip = useCallback(() => {
     setFinished(true);
@@ -132,7 +160,7 @@ export function AlternateWinPresentationLayer() {
 
   if (!active || !match || finished) return null;
 
-  const duration = dragonoidMaximusPresentationDuration(reducedMotion);
+  const duration = dragonoidMaximusPresentationDuration(reducedMotion) / rate;
   const timelineStyle = {
     "--maximus-duration": `${duration}ms`,
     "--timeline-offset": reducedMotion

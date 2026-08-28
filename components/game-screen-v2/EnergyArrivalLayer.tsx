@@ -16,10 +16,13 @@ function energyCardElement(zone: HTMLElement, cardId: string) {
 export function EnergyArrivalLayer({
   match,
   playerId,
+  presentationRate = 1,
 }: {
   match: MatchState | null;
   playerId?: string;
+  presentationRate?: number;
 }) {
+  const rate = Math.max(0.25, Math.min(4, presentationRate || 1));
   const previousMatch = useRef<MatchState | null>(null);
   const activeElements = useRef<HTMLElement[]>([]);
   const clearTimer = useRef(0);
@@ -65,8 +68,8 @@ export function EnergyArrivalLayer({
     if (!activated.length) return;
     window.dispatchEvent(new Event("bbp-card-preview-clear"));
     activeElements.current = activated;
-    clearTimer.current = window.setTimeout(clearPresentation, ENERGIZE_ANIMATION_MS);
-  }, [match, playerId]);
+    clearTimer.current = window.setTimeout(clearPresentation, ENERGIZE_ANIMATION_MS / rate);
+  }, [match, playerId, rate]);
 
   return null;
 }

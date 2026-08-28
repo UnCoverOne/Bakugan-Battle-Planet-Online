@@ -24,6 +24,13 @@ type FlightPhase = "prepared" | "running" | "settling";
 type CardRect = { left: number; top: number; width: number; height: number };
 
 type StoredDiscardFlipState = { active: boolean; match: MatchState | null; playerId?: string };
+type DiscardFlipAnimationLayerProps = {
+  match?: MatchState | null;
+  playerId?: string;
+  presentationMode?: "live" | "replay";
+  playbackRate?: number;
+  portalRoot?: HTMLElement | null;
+};
 type DiscardFlight = {
   id: string; owner: ZoneOwner; card: GameCard; left: number; top: number;
   width: number; height: number; deltaX: number; deltaY: number;
@@ -50,10 +57,22 @@ function stackCardRect(zone: HTMLElement): CardRect | null {
   return { left: rect.left + insetX, top: rect.top + insetY, width: rect.width - insetX * 2, height: rect.height - insetY * 2 };
 }
 
-export function DiscardFlipAnimationLayer() {
-  const stored = useMatchSelector((state): StoredDiscardFlipState => ({
+export function DiscardFlipAnimationLayer({
+  match: replayMatch,
+  playerId: replayPlayerId,
+  presentationMode = "live",
+  playbackRate = 1,
+  portalRoot,
+}: DiscardFlipAnimationLayerProps = {}) {
+  const liveStored = useMatchSelector((state): StoredDiscardFlipState => ({
     active: state.route === "match", match: state.match, playerId: state.playerId,
   }));
+  const stored: StoredDiscardFlipState = presentationMode === "replay"
+    ? { active: true, match: replayMatch ?? null, playerId: replayPlayerId }
+    : liveStored;
+  const rate = presentationMode === "replay"
+    ? Math.max(0.25, Math.min(4, playbackRate || 1))
+    : 1;
   const [flights, setFlights] = useState<DiscardFlight[]>([]);
   const [presentations, setPresentations] = useState<DiscardPresentation[]>([]);
   const previousMatch = useRef<MatchState | null>(null);
@@ -125,7 +144,7 @@ export function DiscardFlipAnimationLayer() {
       const previousTop = previousPlayer?.discard.at(-1) ?? null;
       transition.cards.forEach((card, index) => pending.push({
         id: `${match.id}:${match.version}:${transition.playerId}:discard:${card.id}:${index}`,
-        owner, card, previousTop, source: deckZone, target: discardZone, delay: index * 105,
+        owner, card, previousTop, source: deckZone, target: discardZone, delay: index * 105 / rate,
       }));
     }
     if (!pending.length) return;
@@ -206,9 +225,10 @@ export function DiscardFlipAnimationLayer() {
       window.cancelAnimationFrame(measureFrame);
       window.cancelAnimationFrame(startFrame);
     };
-  }, [stored.active, stored.match, stored.playerId]);
+  }, [rate, stored.active, stored.match, stored.playerId]);
 
-  if (!stored.active || (!flights.length && !presentations.length) || typeof document === "undefined") return null;
+  const resolvedPortalRoot = portalRoot ?? (typeof document === "undefined" ? null : document.body);
+  if (!stored.active || (!flights.length && !presentations.length) || !resolvedPortalRoot) return null;
   return createPortal(
     <div className={styles.layer} aria-hidden="true">
       {presentations.map((presentation) => {
@@ -235,7 +255,7 @@ export function DiscardFlipAnimationLayer() {
           left: flight.left, top: flight.top, width: flight.width, height: flight.height,
           "--discard-delta-x": `${flight.deltaX}px`, "--discard-delta-y": `${flight.deltaY}px`,
           "--discard-scale-x": flight.scaleX, "--discard-scale-y": flight.scaleY,
-          "--discard-delay": `${flight.delay}ms`, "--discard-duration": `${DISCARD_FLIP_MS}ms`,
+          "--discard-delay": `${flight.delay}ms`, "--discard-duration": `${DISCARD_FLIP_MS / rate}ms`,
         } as CSSProperties;
         return (
           <div className={styles.flight} data-owner={flight.owner} data-card-type={flight.card.type}
@@ -250,6 +270,6 @@ export function DiscardFlipAnimationLayer() {
           </div>
         );
       })}
-    </div>, document.body,
+    </div>, resolvedPortalRoot,
   );
 }

@@ -105,12 +105,15 @@ function RollTraceLayer({
   localPlayerId,
   signature,
   oppositePerspective,
+  playbackRate,
 }: {
   match: MatchState;
   localPlayerId: string;
   signature: string;
   oppositePerspective: boolean;
+  playbackRate: number;
 }) {
+  const rate = Math.max(0.25, Math.min(4, playbackRate || 1));
   const currentRerollPlayers = new Set(match.players
     .filter((player) => match.rolls[player.id]?.rerollSequence === match.rerollSequence)
     .map((player) => player.id));
@@ -118,6 +121,15 @@ function RollTraceLayer({
     match.players.find((player) => player.id === localPlayerId) ?? match.players[0],
     ...match.players.filter((player) => player.id !== localPlayerId),
   ].filter((player) => !currentRerollPlayers.size || currentRerollPlayers.has(player.id));
+  const traceStyle = {
+    "--roll-trace-target-duration": `${1100 / rate}ms`,
+    "--roll-trace-draw-duration": `${1800 / rate}ms`,
+    "--roll-trace-stagger": `${250 / rate}ms`,
+    "--roll-trace-endpoint-duration": `${260 / rate}ms`,
+    "--roll-trace-endpoint-delay": `${1650 / rate}ms`,
+    "--roll-trace-label-duration": `${300 / rate}ms`,
+    "--roll-trace-label-delay": `${1800 / rate}ms`,
+  } as CSSProperties;
   return (
     <svg
       className={styles.rollTraceLayer}
@@ -125,6 +137,7 @@ function RollTraceLayer({
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="Animated Bakugan roll paths"
+      style={traceStyle}
     >
       <rect
         className={styles.rollTraceVeil}
@@ -208,6 +221,7 @@ function CoreTransferSprite({
   cell,
   oppositePerspective,
   active,
+  playbackRate,
 }: {
   match: MatchState;
   playerId?: string;
@@ -215,6 +229,7 @@ function CoreTransferSprite({
   cell: string;
   oppositePerspective: boolean;
   active: boolean;
+  playbackRate: number;
 }) {
   const [geometry, setGeometry] = useState<TransferGeometry | null>(null);
   const placement = match.placements.find((candidate) => candidate.cell === cell);
@@ -294,11 +309,13 @@ function CoreTransferSprite({
   }, [cell, destinationOwner, destinationSlot, oppositePerspective, placement, playArea]);
 
   if (!placement || !geometry) return null;
+  const rate = Math.max(0.25, Math.min(4, playbackRate || 1));
   const style = {
     "--transfer-source-x": `${geometry.sourceX}px`,
     "--transfer-source-y": `${geometry.sourceY}px`,
     "--transfer-destination-x": `${geometry.destinationX}px`,
     "--transfer-destination-y": `${geometry.destinationY}px`,
+    "--core-transfer-duration": `${920 / rate}ms`,
   } as CSSProperties;
 
   return (
@@ -319,11 +336,16 @@ export function BakuCoreLayer({
   match,
   playerId,
   readOnly = false,
+  allowReadOnlyRollPresentation = false,
+  presentationRate = 1,
 }: {
   match: MatchState | null;
   playerId?: string;
   readOnly?: boolean;
+  allowReadOnlyRollPresentation?: boolean;
+  presentationRate?: number;
 }) {
+  const rate = Math.max(0.25, Math.min(4, presentationRate || 1));
   const [targets, setTargets] = useState<PortalTargets>(EMPTY_TARGETS);
   const [selectedCoreCell, setSelectedCoreCell] = useState("");
   const [busy, setBusy] = useState(false);
@@ -355,10 +377,10 @@ export function BakuCoreLayer({
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const timeout = window.setTimeout(
       () => setCompletedTraceSignature(resultSignature),
-      reducedMotion ? 40 : ROLL_TRACE_DURATION_MS,
+      reducedMotion ? 40 : ROLL_TRACE_DURATION_MS / rate,
     );
     return () => window.clearTimeout(timeout);
-  }, [tracingRoll, resultSignature]);
+  }, [rate, tracingRoll, resultSignature]);
 
   useEffect(() => {
     let frame = 0;
@@ -561,6 +583,7 @@ export function BakuCoreLayer({
               localPlayerId={playerId ?? match.players[0]?.id}
               signature={resultSignature}
               oppositePerspective={oppositePerspective}
+              playbackRate={rate}
             />
           ) : null}
           {match && preparedTransferCells.length ? (
@@ -573,6 +596,7 @@ export function BakuCoreLayer({
                   cell={cell}
                   oppositePerspective={oppositePerspective}
                   active={transferringSet.has(cell)}
+                  playbackRate={rate}
                   key={`${match.id}:${match.turn}:${cell}`}
                 />
               ))}
@@ -599,7 +623,7 @@ export function BakuCoreLayer({
       <RollResultLayer
         match={match}
         playerId={playerId}
-        open={!readOnly && rollResultOpen && !tracingRoll}
+        open={(!readOnly || allowReadOnlyRollPresentation) && rollResultOpen && !tracingRoll}
         onDismiss={dismissRollResult}
       />
       {error ? <p className={styles.visuallyHidden} role="alert">{error}</p> : null}

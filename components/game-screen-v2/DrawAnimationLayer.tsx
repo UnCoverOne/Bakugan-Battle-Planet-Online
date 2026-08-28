@@ -29,6 +29,14 @@ type StoredDrawState = {
   playerId?: string;
 };
 
+type DrawAnimationLayerProps = {
+  match?: MatchState | null;
+  playerId?: string;
+  presentationMode?: "live" | "replay";
+  playbackRate?: number;
+  portalRoot?: HTMLElement | null;
+};
+
 type DrawFlight = {
   id: string;
   owner: HandOwner;
@@ -65,12 +73,24 @@ function cardRect(element: HTMLElement) {
   return rect.width > 0 && rect.height > 0 ? rect : null;
 }
 
-export function DrawAnimationLayer() {
-  const stored = useMatchSelector((state): StoredDrawState => ({
+export function DrawAnimationLayer({
+  match: replayMatch,
+  playerId: replayPlayerId,
+  presentationMode = "live",
+  playbackRate = 1,
+  portalRoot,
+}: DrawAnimationLayerProps = {}) {
+  const liveStored = useMatchSelector((state): StoredDrawState => ({
     active: state.route === "match",
     match: state.match,
     playerId: state.playerId,
   }));
+  const stored: StoredDrawState = presentationMode === "replay"
+    ? { active: true, match: replayMatch ?? null, playerId: replayPlayerId }
+    : liveStored;
+  const rate = presentationMode === "replay"
+    ? Math.max(0.25, Math.min(4, playbackRate || 1))
+    : 1;
   const [flights, setFlights] = useState<DrawFlight[]>([]);
   const previousMatch = useRef<MatchState | null>(null);
   const flightTargets = useRef(new Map<string, HTMLElement>());
@@ -162,7 +182,7 @@ export function DrawAnimationLayer() {
           card: owner === "player" ? card : null,
           source: deckZone,
           target,
-          delay: index * 90,
+          delay: index * 90 / rate,
         });
       }
     }
@@ -222,9 +242,10 @@ export function DrawAnimationLayer() {
       window.cancelAnimationFrame(measureFrame);
       window.cancelAnimationFrame(startFrame);
     };
-  }, [stored.active, stored.match, stored.playerId]);
+  }, [rate, stored.active, stored.match, stored.playerId]);
 
-  if (!stored.active || !flights.length || typeof document === "undefined") return null;
+  const resolvedPortalRoot = portalRoot ?? (typeof document === "undefined" ? null : document.body);
+  if (!stored.active || !flights.length || !resolvedPortalRoot) return null;
 
   return createPortal(
     <div className={styles.layer} aria-hidden="true">
@@ -239,7 +260,7 @@ export function DrawAnimationLayer() {
           "--draw-scale-x": flight.scaleX,
           "--draw-scale-y": flight.scaleY,
           "--draw-delay": `${flight.delay}ms`,
-          "--draw-duration": `${DRAW_ANIMATION_MS}ms`,
+          "--draw-duration": `${DRAW_ANIMATION_MS / rate}ms`,
         } as CSSProperties;
         return (
           <div
@@ -265,6 +286,6 @@ export function DrawAnimationLayer() {
         );
       })}
     </div>,
-    document.body,
+    resolvedPortalRoot,
   );
 }

@@ -17,6 +17,12 @@ type StoredPresentationState = {
   playerId?: string;
 };
 
+type GameplayCardPresentationLayerProps = {
+  match?: MatchState | null;
+  playerId?: string;
+  presentationMode?: "live" | "replay";
+};
+
 type CharacterPortalTarget = {
   key: string;
   element: HTMLElement;
@@ -65,8 +71,15 @@ function setCharacterSlotMetadata(
   slot.dataset.evoCount = String(bakugan.evoStack.length);
 }
 
-export function GameplayCardPresentationLayer() {
-  const stored = useMatchSelector((state): StoredPresentationState => ({ match: state.match, playerId: state.playerId }));
+export function GameplayCardPresentationLayer({
+  match: replayMatch,
+  playerId: replayPlayerId,
+  presentationMode = "live",
+}: GameplayCardPresentationLayerProps = {}) {
+  const liveStored = useMatchSelector((state): StoredPresentationState => ({ match: state.match, playerId: state.playerId }));
+  const stored: StoredPresentationState = presentationMode === "replay"
+    ? { match: replayMatch ?? null, playerId: replayPlayerId }
+    : liveStored;
   const [targets, setTargets] = useState<readonly CharacterPortalTarget[]>([]);
   const storedRef = useRef(stored);
   storedRef.current = stored;

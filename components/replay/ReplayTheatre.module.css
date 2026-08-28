@@ -50,7 +50,7 @@
 .controls,
 .inspector {
   position: fixed;
-  z-index: 13050;
+  z-index: 30000;
   border: 1px solid rgba(121, 224, 246, .28);
   background: rgba(2, 15, 22, .92);
 }
