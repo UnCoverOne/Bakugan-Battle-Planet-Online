@@ -186,8 +186,8 @@
     top: 4.72rem;
     right: .8rem;
     width: calc(100vw - 1.6rem);
-    max-height: 6.8rem;
-    padding: .8rem;
+    max-height: 4.35rem;
+    padding: .38rem .65rem;
   }
 
   .inspector > span {
@@ -205,13 +205,18 @@
   }
 
   .inspector h2 {
-    margin: .4rem 0;
-    font-size: .96rem;
+    margin: .08rem 0 .12rem;
+    overflow: hidden;
+    font-size: .82rem;
+    line-height: 1.12;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .inspector p {
-    margin: .32rem 0;
-    font-size: .624rem;
+    margin: .08rem 0;
+    font-size: .55rem;
+    line-height: 1.2;
   }
 
   .debugDownload {
@@ -242,11 +247,18 @@
     right: .8rem;
     bottom: .8rem;
     min-height: 3.84rem;
-    grid-template-columns: 2rem 2rem 2.4rem 2rem minmax(0, 1fr);
-    gap: .44rem;
+    grid-template-columns: 2rem 2rem 2.4rem 2rem minmax(0, 1fr) 3.15rem;
+    gap: .38rem;
     padding: .56rem .8rem;
   }
 
   .controls button { min-height: 2.16rem; }
   .controls .play { font-size: .92rem; }
+  .controls select {
+    display: block;
+    width: 3.15rem;
+    min-height: 2.16rem;
+    padding: 0 .25rem;
+    font-size: .68rem;
+  }
 }
