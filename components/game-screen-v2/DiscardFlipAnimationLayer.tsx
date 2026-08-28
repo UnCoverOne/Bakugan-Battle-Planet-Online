@@ -85,8 +85,7 @@ export function DiscardFlipAnimationLayer() {
       remaining = Math.max(0, (hiddenTargetCounts.current.get(target) ?? 1) - 1);
       if (remaining) hiddenTargetCounts.current.set(target, remaining);
       else {
-        hiddenTargetCounts.current.delete(target);
-        delete target.dataset.discardAnimationTarget;
+        hiddenTargetCounts.current.delete(target.dataset.discardAnimationTarget;
       }
     }
     flightTargets.current.delete(id);
