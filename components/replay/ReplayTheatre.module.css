@@ -131,3 +131,122 @@
   .controls select { display: none; }
   .markers { display: none; }
 }
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .header {
+    top: .8rem;
+    left: .8rem;
+    right: .8rem;
+    min-height: 3.6rem;
+    grid-template-columns: 2.08rem minmax(0, 1fr) 2.08rem;
+    gap: .8rem;
+    padding: .56rem .8rem;
+  }
+
+  .header button {
+    display: grid;
+    width: 2.08rem;
+    min-width: 2.08rem;
+    height: 2.08rem;
+    min-height: 2.08rem;
+    place-items: center;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+    line-height: 1;
+  }
+
+  .header button::before {
+    content: "←";
+    font-size: 1rem;
+  }
+
+  .header div {
+    min-width: 0;
+    align-self: stretch;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: .2rem;
+    text-align: center;
+  }
+
+  .header div span { display: none; }
+
+  .header strong {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: .92rem;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .inspector {
+    top: 4.72rem;
+    right: .8rem;
+    width: calc(100vw - 1.6rem);
+    max-height: 6.8rem;
+    padding: .8rem;
+  }
+
+  .inspector > span {
+    position: fixed;
+    z-index: 30002;
+    top: 3.15rem;
+    left: 4rem;
+    right: 4rem;
+    color: #72d9ed;
+    font-size: .544rem;
+    line-height: 1;
+    letter-spacing: .096em;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .inspector h2 {
+    margin: .4rem 0;
+    font-size: .96rem;
+  }
+
+  .inspector p {
+    margin: .32rem 0;
+    font-size: .624rem;
+  }
+
+  .debugDownload {
+    position: fixed;
+    z-index: 30003;
+    top: 1.56rem;
+    right: 1.6rem;
+    display: grid;
+    width: 2.08rem;
+    min-width: 2.08rem;
+    height: 2.08rem;
+    min-height: 2.08rem;
+    place-items: center;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+    line-height: 1;
+  }
+
+  .debugDownload::before {
+    content: "↓";
+    font-size: 1rem;
+  }
+
+  .controls {
+    left: .8rem;
+    right: .8rem;
+    bottom: .8rem;
+    min-height: 3.84rem;
+    grid-template-columns: 2rem 2rem 2.4rem 2rem minmax(0, 1fr);
+    gap: .44rem;
+    padding: .56rem .8rem;
+  }
+
+  .controls button { min-height: 2.16rem; }
+  .controls .play { font-size: .92rem; }
+}
