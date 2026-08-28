@@ -88,14 +88,11 @@ export function AlternateWinPresentationLayer({
   const [finished, setFinished] = useState(false);
 
   if (resultKey && clockRef.current.key !== resultKey) {
-    const now = Date.now();
-    const startedAt = presentationMode === "replay"
-      ? now
-      : dragonoidMaximusPresentationStartedAt(match, now);
+    const startedAt = dragonoidMaximusPresentationStartedAt(match);
     clockRef.current = {
       key: resultKey,
       startedAt,
-      offset: Math.max(0, now - startedAt),
+      offset: 0,
     };
   } else if (!resultKey && clockRef.current.key) {
     clockRef.current = { key: "", startedAt: 0, offset: 0 };
