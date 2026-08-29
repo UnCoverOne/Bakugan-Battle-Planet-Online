@@ -51,6 +51,15 @@ function presentationState(input: MatchState): MatchState {
   return state;
 }
 
+function projectReplayStateForPlayer(state: MatchState, playerId: string): MatchState {
+  const projected = projectMatchForPlayer(state, playerId);
+  for (const player of projected.players) {
+    const source = state.players.find((candidate) => candidate.id === player.id);
+    if (source) player.hand = structuredClone(source.hand);
+  }
+  return projected;
+}
+
 /**
  * Freeze already-reconstructed frames into self-contained state deltas.
  * These deltas require neither the historical card catalogue nor the reducer
@@ -103,7 +112,7 @@ function buildFrozenReplayFrames(archive: ReplayArchive) {
     });
   }
   const finalState = frames.at(-1)?.state;
-  if (!finalState) throw new Error("Replay frozen playback contains no final state.");
+  if (!finalState) throw new Error("Frozen replay playback contains no final state.");
   const hash = replayStateHash(finalState);
   if (hash !== playback.finalStateHash || finalState.version !== archive.finalVersion) {
     throw new Error(
@@ -173,7 +182,7 @@ export function buildProjectedReplayBundle(archive: ReplayArchive, playerId: str
   return {
     archive: archiveSummary as Omit<ReplayArchive, "recording" | "playback">,
     perspectivePlayerId: playerId,
-    frames: playback.frames.map((frame) => ({ ...frame, state: projectMatchForPlayer(frame.state, playerId) })),
+    frames: playback.frames.map((frame) => ({ ...frame, state: projectReplayStateForPlayer(frame.state, playerId) })),
     markers: playback.markers,
   };
 }
