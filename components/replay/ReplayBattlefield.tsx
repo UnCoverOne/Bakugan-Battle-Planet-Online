@@ -23,6 +23,8 @@ type ReplayBattlefieldProps = {
   playbackRate: number;
   presentationEpoch: number;
   portalRoot: HTMLElement | null;
+  onRollResultOpen?: () => void;
+  onRollResultDismiss?: () => void;
 };
 
 /**
@@ -36,6 +38,8 @@ export function ReplayBattlefield({
   playbackRate,
   presentationEpoch,
   portalRoot,
+  onRollResultOpen,
+  onRollResultDismiss,
 }: ReplayBattlefieldProps) {
   return (
     <BakuCorePresentationProvider
@@ -44,6 +48,8 @@ export function ReplayBattlefield({
       playerId={playerId}
       presentationMode="replay"
       playbackRate={playbackRate}
+      onReplayRollResultOpen={onRollResultOpen}
+      onReplayRollResultDismiss={onRollResultDismiss}
     >
       <GameScreen
         match={match}
@@ -57,7 +63,7 @@ export function ReplayBattlefield({
         allowReadOnlyRollPresentation
         presentationRate={playbackRate}
       />
-      <CardHandLayer match={match} playerId={playerId} />
+      <CardHandLayer match={match} playerId={playerId} revealOpponentCards />
       <EnergyArrivalLayer
         match={match}
         playerId={playerId}
