@@ -56,15 +56,13 @@ export function AccountHistorySync() {
       }
 
       const remoteHistory = result.history as MatchResultRecord[];
-      const remoteIds = new Set(remoteHistory.map((record) => record.id));
 
-      // Account recovery data can contain a completed match that was created
-      // while the device was offline. Preserve only records the server has not
-      // seen yet, then push those records through the dedicated history API.
-      for (const record of historyRef.current) {
-        if (!remoteIds.has(record.id)) pendingHistory.current.set(record.id, record);
-      }
-
+      // The dedicated history endpoint is the source of truth for a signed-in
+      // account. Only records explicitly observed as new while this account is
+      // active may be overlaid while their direct POST is still pending. Never
+      // infer pending work from historyRef here: during an account switch the
+      // provider can briefly still contain the previous account's in-memory
+      // snapshot, which must never be copied into the newly authenticated user.
       const pending = [...pendingHistory.current.values()];
       const merged = mergeMatchHistories(
         pending,
@@ -114,7 +112,14 @@ export function AccountHistorySync() {
         if (!response.ok) {
           throw new Error(result.error ?? "Could not save match record.");
         }
-        pendingHistory.current.delete(id);
+        if (activeUserId.current !== userId) return;
+        const currentPending = pendingHistory.current.get(id);
+        if (
+          currentPending
+          && recordFingerprint(currentPending) === recordFingerprint(record)
+        ) {
+          pendingHistory.current.delete(id);
+        }
       }
       pushAttempts.current = 0;
       completed = true;
@@ -139,6 +144,7 @@ export function AccountHistorySync() {
       // Re-read the complete server archive immediately. AppProvider keeps a
       // small recovery snapshot, while this component owns the full archive.
       await refreshHistory();
+      if (pendingHistory.current.size > 0) void pushPendingHistory();
     }
   }, [accountDataReady, authUser, refreshHistory]);
 
