@@ -162,6 +162,42 @@ export async function loadAccountDataPayload(
   };
 }
 
+export async function loadAccountMatchHistory(
+  db: AccountDatabase,
+  userId: string,
+): Promise<MatchResultRecord[]> {
+  await ensureAccountDataSchema(db);
+  await migrateLegacyAccountSnapshot(db, userId);
+  const result = await db.prepare(
+    "SELECT event_id, data_json, occurred_at, created_at FROM user_match_history WHERE user_id = ? ORDER BY occurred_at DESC, created_at DESC",
+  ).bind(userId).all<HistoryRow>();
+  return ((result.results ?? []) as HistoryRow[]).flatMap((row) => {
+    try {
+      const record = JSON.parse(row.data_json) as MatchResultRecord;
+      validateHistoryRecord(record);
+      return [record];
+    } catch {
+      return [];
+    }
+  });
+}
+
+export async function saveAccountMatchRecord(
+  db: AccountDatabase,
+  userId: string,
+  candidate: unknown,
+): Promise<MatchResultRecord> {
+  validateHistoryRecord(candidate);
+  await ensureAccountDataSchema(db);
+  await migrateLegacyAccountSnapshot(db, userId);
+  const record = candidate as MatchResultRecord;
+  const recordJson = JSON.stringify(record);
+  await db.prepare(
+    "INSERT INTO user_match_history (user_id, event_id, data_json, occurred_at, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, event_id) DO UPDATE SET data_json = excluded.data_json, occurred_at = excluded.occurred_at",
+  ).bind(userId, record.id, recordJson, record.at, Date.now()).run();
+  return record;
+}
+
 function validateSyncRequest(
   body: Partial<UserDataSyncRequest>,
 ): asserts body is UserDataSyncRequest {
@@ -335,9 +371,6 @@ export async function syncAccountData(
       "DELETE FROM public_deck_favorites WHERE deck_id = ?",
     ).bind(deckId)));
   }
-  await db.prepare(
-    `DELETE FROM user_match_history WHERE user_id = ? AND event_id NOT IN (SELECT event_id FROM user_match_history WHERE user_id = ? ORDER BY occurred_at DESC LIMIT ${MAX_MATCH_RECORDS})`,
-  ).bind(userId, userId).run();
 
   const payload = await loadAccountDataPayload(db, userId);
   const latestRows = (await readAccountDataRows(db, userId)).rows;
