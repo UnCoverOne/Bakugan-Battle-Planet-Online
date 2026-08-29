@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MatchResultRecord } from "../../lib/persistence";
 import type { ReplayBundle, ReplayTransportBundle } from "../../lib/engine/replay-types";
 import { accountIsAdministrator } from "../../lib/admin-ai-visibility";
@@ -14,6 +14,7 @@ import { ReplayBattlefield } from "./ReplayBattlefield";
 import styles from "./ReplayTheatre.module.css";
 
 const SPEEDS = [0.5, 1, 2, 4] as const;
+const POST_ROLL_RESUME_HOLD_MS = 2000;
 
 function legacyLabel(record: MatchResultRecord, index: number) {
   return record.log?.[index]?.message ?? "Legacy match event";
@@ -88,12 +89,24 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [debugDownloading, setDebugDownloading] = useState(false);
   const [debugDownloadError, setDebugDownloadError] = useState("");
+  const [rollResultBlocking, setRollResultBlocking] = useState(false);
+  const [postRollResume, setPostRollResume] = useState(false);
+  const playingRef = useRef(false);
+  const resumeAfterRollResultRef = useRef(false);
+
+  useEffect(() => {
+    playingRef.current = playing;
+  }, [playing]);
 
   useEffect(() => {
     let cancelled = false;
     setBundle(null);
     setIndex(0);
     setPlaying(false);
+    playingRef.current = false;
+    resumeAfterRollResultRef.current = false;
+    setRollResultBlocking(false);
+    setPostRollResume(false);
     setPresentationEpoch(0);
     setError("");
     setStatus("loading");
@@ -142,9 +155,27 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
   const seek = useCallback((next: number, animateAdjacentForward = false) => {
     const clamped = Math.max(0, Math.min(Math.max(0, frameCount - 1), next));
     const animate = animateAdjacentForward && clamped === index + 1;
+    if (clamped !== index) setPostRollResume(false);
     if (clamped !== index && !animate) setPresentationEpoch((value) => value + 1);
     setIndex(clamped);
   }, [frameCount, index]);
+
+  const handleRollResultOpen = useCallback(() => {
+    setRollResultBlocking(true);
+    resumeAfterRollResultRef.current = playingRef.current;
+    if (!playingRef.current) return;
+    playingRef.current = false;
+    setPlaying(false);
+  }, []);
+
+  const handleRollResultDismiss = useCallback(() => {
+    setRollResultBlocking(false);
+    if (!resumeAfterRollResultRef.current) return;
+    resumeAfterRollResultRef.current = false;
+    setPostRollResume(true);
+    playingRef.current = true;
+    setPlaying(true);
+  }, []);
 
   const downloadReplayDebugData = useCallback(async () => {
     if (!administrator || debugDownloading) return;
@@ -200,12 +231,14 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
   }, [administrator, debugDownloading, record]);
 
   useEffect(() => {
-    if (!playing || frameCount < 2) return;
+    if (!playing || rollResultBlocking || frameCount < 2) return;
     if (index >= frameCount - 1) {
       setPlaying(false);
       return;
     }
+    const holdMs = postRollResume ? POST_ROLL_RESUME_HOLD_MS : replayFrameHoldMs(bundle, index);
     const timer = window.setTimeout(() => {
+      setPostRollResume(false);
       setIndex((current) => {
         if (current >= frameCount - 1) {
           setPlaying(false);
@@ -213,13 +246,17 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
         }
         return current + 1;
       });
-    }, replayFrameHoldMs(bundle, index) / speed);
+    }, holdMs / speed);
     return () => window.clearTimeout(timer);
-  }, [bundle, frameCount, index, playing, speed]);
+  }, [bundle, frameCount, index, playing, postRollResume, rollResultBlocking, speed]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
+      if (rollResultBlocking) {
+        if (event.key === "Escape") onBack();
+        return;
+      }
       if (event.key === "Escape") onBack();
       else if (event.key === " ") { event.preventDefault(); setPlaying((value) => !value); }
       else if (event.key === "ArrowLeft") seek(index - 1);
@@ -229,7 +266,7 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [frameCount, index, onBack, seek]);
+  }, [frameCount, index, onBack, rollResultBlocking, seek]);
 
   const nearbyFrames = useMemo(() => bundle?.frames.slice(Math.max(0, index - 4), index + 5) ?? [], [bundle, index]);
   const debugDownloadAvailable = administrator
@@ -249,6 +286,8 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
             playbackRate={speed}
             presentationEpoch={presentationEpoch}
             portalRoot={portalRoot}
+            onRollResultOpen={handleRollResultOpen}
+            onRollResultDismiss={handleRollResultDismiss}
           />
         ) : (
           <div className={styles.stageStatus} data-status={status} role={status === "error" ? "alert" : "status"}>
@@ -303,7 +342,7 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
       <footer className={styles.controls}>
         <button type="button" onClick={() => seek(0)} disabled={!index}>|◀</button>
         <button type="button" onClick={() => seek(index - 1)} disabled={!index}>◀</button>
-        <button className={styles.play} type="button" onClick={() => setPlaying((value) => !value)} disabled={frameCount < 2} aria-label={playing ? "Pause replay" : "Play replay"}>{playing ? "Ⅱ" : "▶"}</button>
+        <button className={styles.play} type="button" onClick={() => setPlaying((value) => !value)} disabled={frameCount < 2 || rollResultBlocking} aria-label={playing ? "Pause replay" : "Play replay"}>{playing ? "Ⅱ" : "▶"}</button>
         <button type="button" onClick={() => seek(index + 1, true)} disabled={index >= frameCount - 1}>▶</button>
         <input aria-label="Replay position" type="range" min={0} max={Math.max(0, frameCount - 1)} value={Math.min(index, Math.max(0, frameCount - 1))} onChange={(event) => seek(Number(event.target.value))} />
         <div className={styles.markers} aria-label="Replay markers">
