@@ -72,11 +72,12 @@ test("automatic action scheduling wakes on reconnect and visible-tab resume", ()
   assert.match(source, /automaticPassSchedule\.current\.dueAt - Date\.now\(\)/);
 });
 
-test("new account match records force cloud sync outside the durable dirty window", () => {
+test("new account match records are pushed directly and retried outside the durable dirty window", () => {
   const source = readFileSync(new URL("../components/application/AccountHistorySync.tsx", import.meta.url), "utf8");
-  assert.match(source, /pendingHistoryPush\.current = true/);
-  assert.match(source, /saved = await syncNow\(\)/);
+  assert.match(source, /pendingHistory\.current\.set\(record\.id, record\)/);
+  assert.match(source, /method: "POST"/);
+  assert.match(source, /body: JSON\.stringify\(\{ record \}\)/);
   assert.match(source, /window\.setTimeout\(\(\) => \{[\s\S]*void pushPendingHistory\(\);[\s\S]*\}, 0\)/);
-  assert.match(source, /addEventListener\("online", retryPendingHistory\)/);
-  assert.match(source, /observedHistoryIds\.current = new Set\(merged\.map\(\(record\) => record\.id\)\)/);
+  assert.match(source, /addEventListener\("online", refreshWhenUsable\)/);
+  assert.match(source, /observedHistory\.current = historyFingerprints\(merged\)/);
 });
