@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   matchHistoriesEqual,
   mergeMatchHistories,
 } from "../lib/match-history-sync";
 import type { MatchResultRecord } from "../lib/persistence";
+
+const source = (path: string) => readFileSync(path, "utf8");
 
 function record(
   id: string,
@@ -66,6 +69,36 @@ test("merged history keeps only the newest configured number of records", () => 
   assert.equal(merged[0]?.id, "local-5");
   assert.equal(merged.some((item) => item.id === "remote-0"), false);
   assert.equal(merged.some((item) => item.id === "remote-1"), false);
+});
+
+test("the server match archive is complete and account-scoped", () => {
+  const route = source("app/api/user-data/history/route.ts");
+  const accountData = source("lib/account-data-server.ts");
+  const fullHistoryLoader = accountData
+    .split("export async function loadAccountMatchHistory")[1]
+    ?.split("export async function saveAccountMatchRecord")[0] ?? "";
+
+  assert.match(route, /loadAccountMatchHistory\(await getDatabase\(\), user\.id\)/);
+  assert.match(route, /saveAccountMatchRecord\([\s\S]*user\.id/);
+  assert.match(route, /assertSameOrigin\(request\)/);
+  assert.match(accountData, /PRIMARY KEY \(user_id, event_id\)/);
+  assert.match(fullHistoryLoader, /FROM user_match_history WHERE user_id = \? ORDER BY occurred_at DESC/);
+  assert.doesNotMatch(fullHistoryLoader, /LIMIT/);
+  assert.doesNotMatch(
+    accountData,
+    /DELETE FROM user_match_history WHERE user_id = \? AND event_id NOT IN/,
+  );
+});
+
+test("signed-in sessions push match records directly and refresh the archive globally", () => {
+  const sync = source("components/application/AccountHistorySync.tsx");
+
+  assert.match(sync, /fetch\("\/api\/user-data\/history", \{/);
+  assert.match(sync, /method: "POST"/);
+  assert.match(sync, /body: JSON\.stringify\(\{ record \}\)/);
+  assert.match(sync, /HISTORY_REFRESH_INTERVAL_MS/);
+  assert.doesNotMatch(sync, /usePathname|recordsRoute/);
+  assert.doesNotMatch(sync, /syncNow/);
 });
 
 test("history equality prevents repeated state writes after convergence", () => {
