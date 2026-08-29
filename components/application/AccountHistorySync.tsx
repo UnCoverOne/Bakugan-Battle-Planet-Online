@@ -176,13 +176,22 @@ export function AccountHistorySync() {
     observedHistory.current = next;
     if (!previous) return;
 
+    const archiveWasTruncated = [...previous.keys()].some(
+      (id) => !next.has(id) && !pendingHistory.current.has(id),
+    );
     let changed = false;
     for (const record of history) {
       if (previous.get(record.id) === recordFingerprint(record)) continue;
       pendingHistory.current.set(record.id, record);
       changed = true;
     }
-    if (!changed) return;
+    if (!changed) {
+      // Generic account recovery responses intentionally contain only a small
+      // recent-history window. If one temporarily replaces the runtime archive,
+      // immediately restore the complete archive from the history endpoint.
+      if (archiveWasTruncated && navigator.onLine) void refreshHistory();
+      return;
+    }
 
     pushAttempts.current = 0;
     if (pushTimer.current !== null) window.clearTimeout(pushTimer.current);
@@ -190,7 +199,7 @@ export function AccountHistorySync() {
       pushTimer.current = null;
       void pushPendingHistory();
     }, 0);
-  }, [accountDataReady, authUser, history, pushPendingHistory]);
+  }, [accountDataReady, authUser, history, pushPendingHistory, refreshHistory]);
 
   useEffect(() => {
     if (!authUser || !accountDataReady) return;
