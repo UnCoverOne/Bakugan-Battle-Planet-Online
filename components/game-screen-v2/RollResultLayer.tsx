@@ -4,7 +4,6 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 
 import { useEffect, useState, type CSSProperties } from "react";
 import type { MatchState, RollOutcome } from "../../lib/game";
-import { useBakuCorePresentation } from "./BakuCorePresentation";
 import styles from "./RollResultLayer.module.css";
 
 function resultLabel(result: RollOutcome["result"]) {
@@ -31,8 +30,6 @@ export function RollResultLayer({
   open: boolean;
   onDismiss: () => void;
 }) {
-  const { presentationMode } = useBakuCorePresentation();
-  const replay = presentationMode === "replay";
   const [displayMatch, setDisplayMatch] = useState<MatchState | null>(open ? match : null);
   const [presence, setPresence] = useState<"visible" | "exiting">("visible");
   useEffect(() => {
@@ -74,16 +71,14 @@ export function RollResultLayer({
         aria-modal="true"
         aria-labelledby="roll-result-title"
       >
-        {!replay ? (
-          <button
-            type="button"
-            className={styles.closeButton}
-            aria-label="Close roll results"
-            onClick={onDismiss}
-          >
-            ×
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className={styles.closeButton}
+          aria-label="Close roll results"
+          onClick={onDismiss}
+        >
+          ×
+        </button>
         <header className={styles.header}>
           <span>{reroll ? "REROLL" : "ROLLING STEP"}</span>
           <h2 id="roll-result-title">{reroll ? "Reroll Result" : "Roll Results"}</h2>
@@ -141,9 +136,7 @@ export function RollResultLayer({
             );
           })}
         </div>
-        <p className={styles.dismissHint}>{replay
-          ? "Click outside this window to continue the replay."
-          : "Click outside this window or press × to continue."}</p>
+        <p className={styles.dismissHint}>Click outside this window or press × to continue.</p>
       </section>
     </div>
   );
