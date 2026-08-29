@@ -25,15 +25,20 @@ type StoredPresentationMatch = {
   playerId?: string;
 };
 
+type PresentationMode = "live" | "replay";
+
 type BakuCorePresentationProviderProps = {
   children: ReactNode;
   match?: MatchState | null;
   playerId?: string;
-  presentationMode?: "live" | "replay";
+  presentationMode?: PresentationMode;
   playbackRate?: number;
+  onReplayRollResultOpen?: () => void;
+  onReplayRollResultDismiss?: () => void;
 };
 
 type BakuCorePresentationValue = {
+  presentationMode: PresentationMode;
   rollResultOpen: boolean;
   rollPresentationPending: boolean;
   deferredCoreCells: readonly string[];
@@ -44,6 +49,7 @@ type BakuCorePresentationValue = {
 
 const EMPTY_SET = new Set<string>();
 const EMPTY_PRESENTATION: BakuCorePresentationValue = {
+  presentationMode: "live",
   rollResultOpen: false,
   rollPresentationPending: false,
   deferredCoreCells: [],
@@ -51,7 +57,6 @@ const EMPTY_PRESENTATION: BakuCorePresentationValue = {
   hiddenCoreCells: EMPTY_SET,
   dismissRollResult: () => undefined,
 };
-const REPLAY_ROLL_RESULT_HOLD_MS = 4900;
 const REPLAY_INITIAL_PRESENTATION_AGE_MS = 10_000;
 
 const BakuCorePresentationContext = createContext<BakuCorePresentationValue>(EMPTY_PRESENTATION);
@@ -76,6 +81,8 @@ export function BakuCorePresentationProvider({
   playerId: replayPlayerId,
   presentationMode = "live",
   playbackRate = 1,
+  onReplayRollResultOpen,
+  onReplayRollResultDismiss,
 }: BakuCorePresentationProviderProps) {
   const liveStored = useMatchSelector((state): StoredPresentationMatch => ({ match: state.match, playerId: state.playerId }));
   const stored: StoredPresentationMatch = presentationMode === "replay"
@@ -90,6 +97,7 @@ export function BakuCorePresentationProvider({
     ? rollPresentationStorageKey(stored.match.id, stored.playerId)
     : "";
   const replaySignature = useRef(presentationMode === "replay" ? signature : "");
+  const replayOpenNotified = useRef(false);
   const [record, setRecord] = useState<RollPresentationRecord | null>(() => (
     presentationMode === "replay" && signature
       ? { signature, dismissedAt: Date.now() - REPLAY_INITIAL_PRESENTATION_AGE_MS }
@@ -119,21 +127,6 @@ export function BakuCorePresentationProvider({
     writePresentationRecord(storageKey, next);
     setRecord(next);
   }, [presentationMode, signature, storageKey]);
-
-  useEffect(() => {
-    if (
-      presentationMode !== "replay"
-      || !signature
-      || record?.signature !== signature
-      || record.dismissedAt != null
-    ) return;
-    const timeout = window.setTimeout(() => {
-      setRecord((current) => current?.signature === signature && current.dismissedAt == null
-        ? { signature, dismissedAt: Date.now() }
-        : current);
-    }, REPLAY_ROLL_RESULT_HOLD_MS / rate);
-    return () => window.clearTimeout(timeout);
-  }, [presentationMode, rate, record, signature]);
 
   useEffect(() => {
     let delayTimer = 0;
@@ -168,6 +161,20 @@ export function BakuCorePresentationProvider({
     };
   }, [signature, cellsKey, record, presentationMode, rate]);
 
+  useEffect(() => {
+    if (presentationMode !== "replay") {
+      replayOpenNotified.current = false;
+      return;
+    }
+    if (!rollResultOpen) {
+      replayOpenNotified.current = false;
+      return;
+    }
+    if (replayOpenNotified.current) return;
+    replayOpenNotified.current = true;
+    onReplayRollResultOpen?.();
+  }, [onReplayRollResultOpen, presentationMode, rollResultOpen]);
+
   const dismissRollResult = useCallback(() => {
     if (!signature) {
       setRollResultOpen(false);
@@ -179,7 +186,8 @@ export function BakuCorePresentationProvider({
     };
     if (presentationMode === "live" && storageKey) writePresentationRecord(storageKey, next);
     setRecord(next);
-  }, [presentationMode, signature, storageKey]);
+    if (presentationMode === "replay") onReplayRollResultDismiss?.();
+  }, [onReplayRollResultDismiss, presentationMode, signature, storageKey]);
 
   const hiddenCoreCells = useMemo(
     () => new Set([...deferredCoreCells, ...transferringCoreCells]),
@@ -192,6 +200,7 @@ export function BakuCorePresentationProvider({
   });
 
   const value = useMemo<BakuCorePresentationValue>(() => ({
+    presentationMode,
     rollResultOpen,
     rollPresentationPending,
     deferredCoreCells,
@@ -199,6 +208,7 @@ export function BakuCorePresentationProvider({
     hiddenCoreCells,
     dismissRollResult,
   }), [
+    presentationMode,
     rollResultOpen,
     rollPresentationPending,
     deferredCoreCells,
