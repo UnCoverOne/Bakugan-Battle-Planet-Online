@@ -4,6 +4,7 @@ import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   createMatch,
   submitCardChoice,
+  type CardChoices,
   type GameCard,
   type MatchState,
 } from "../lib/game";
@@ -72,13 +73,16 @@ test("Battle Mastery uses each card's printed choices instead of the generic B-P
   )));
 });
 
-test("Magnus, Living Arm of Tiko adds Both and both Battle Mastery branches resolve", () => {
+test("Magnus, Living Arm of Tiko permits selecting both Battle Mastery branches", () => {
   const bodybreaker = effectState("aa-11", true);
   let state = resolveStructuredEffect(bodybreaker.state, bodybreaker.object);
   const field = state.pendingChoice?.schema.fields.find((candidate) => candidate.id === "mode");
   assert.ok(field);
-  assert.deepEqual(field.options.map((option) => option.id), ["battle-mastery-1", "battle-mastery-2", "both"]);
-  state = submitCardChoice(state, bodybreaker.player.id, { mode: "both" });
+  assert.equal(field.maximum, 2);
+  assert.deepEqual(field.options.map((option) => option.id), ["battle-mastery-1", "battle-mastery-2"]);
+  state = submitCardChoice(state, bodybreaker.player.id, {
+    mode: ["battle-mastery-1", "battle-mastery-2"],
+  } as unknown as CardChoices);
   const activeId = bodybreaker.player.bakugan[0].id;
   assert.equal(state.powerBoost[activeId], 300);
   assert.equal(state.damageBoost[activeId], 4);
@@ -104,20 +108,29 @@ function pactState(frostStrike: number, energy: number) {
   return { state, payer, attacker, pact };
 }
 
-test("Pact of Darkness does not offer Sacrifice when the post-free FrostStrike cost is unaffordable", () => {
+test("Pact of Darkness disables Sacrifice when the post-free FrostStrike cost is unaffordable", () => {
   const setup = pactState(2, 1);
+  const state = resolveManualDamage(setup.state, setup.payer.id, setup.pact.id);
+  assert.equal(state.pendingChoice?.kind, "card-play");
+  const payment = state.pendingChoice?.schema.fields.find((field) => field.id === "paymentMode");
+  assert.ok(payment);
+  const sacrifice = payment.options.find((option) => option.id.endsWith(":discard-for-free"));
+  assert.equal(sacrifice?.disabled, true);
+  assert.match(sacrifice?.description ?? "", /Not enough Energy.*2 required.*1 available/i);
   assert.throws(
-    () => resolveManualDamage(setup.state, setup.payer.id, setup.pact.id),
-    /cannot be played by Sacrifice.*2 Energy.*1 is available/i,
+    () => submitCardChoice(state, setup.payer.id, { paymentMode: sacrifice!.id }),
+    /illegal selection/i,
   );
-  assert.equal(setup.state.pendingChoice, undefined);
 });
 
 test("paying Pact of Darkness Sacrifice immediately plays it and still pays FrostStrike", () => {
   const setup = pactState(1, 1);
   let state = resolveManualDamage(setup.state, setup.payer.id, setup.pact.id);
-  assert.equal(state.pendingChoice?.kind, "payment");
-  state = submitCardChoice(state, setup.payer.id, { confirmed: true });
+  assert.equal(state.pendingChoice?.kind, "card-play");
+  const payment = state.pendingChoice?.schema.fields.find((field) => field.id === "paymentMode");
+  const sacrifice = payment?.options.find((option) => option.id.endsWith(":discard-for-free"));
+  assert.ok(sacrifice && !sacrifice.disabled);
+  state = submitCardChoice(state, setup.payer.id, { paymentMode: sacrifice.id });
   assert.equal(state.pendingChoice?.schema.fields[0]?.id, "discardCardIds");
   state = submitCardChoice(state, setup.payer.id, { discardCardIds: ["sacrifice-card"] });
 

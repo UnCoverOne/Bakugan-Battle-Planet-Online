@@ -204,8 +204,9 @@ test("the theatre opens on gameplay instead of an empty lobby frame", () => {
 });
 
 test("the replay surface has an embedded board layer, readiness grace, and visible recovery UI", async () => {
-  const [theatre, theatreCss, gameScreen, gameScreenCss, localStore, client, replayRoute] = await Promise.all([
+  const [theatre, battlefield, theatreCss, gameScreen, gameScreenCss, localStore, client, replayRoute] = await Promise.all([
     source("components/replay/ReplayTheatre.tsx"),
+    source("components/replay/ReplayBattlefield.tsx"),
     source("components/replay/ReplayTheatre.module.css"),
     source("components/game-screen-v2/GameScreen.tsx"),
     source("components/game-screen-v2/GameScreen.module.css"),
@@ -214,7 +215,8 @@ test("the replay surface has an embedded board layer, readiness grace, and visib
     source("app/api/replays/route.ts"),
   ]);
 
-  assert.match(theatre, /presentationMode="replay"/);
+  assert.match(theatre, /<ReplayBattlefield/);
+  assert.match(battlefield, /presentationMode="replay"/);
   assert.match(theatre, /Replay could not be displayed/);
   assert.match(theatre, /Retry replay/);
   assert.match(theatreCss, /\.board[\s\S]*z-index:\s*1/);

@@ -95,12 +95,16 @@ test("a self-play trigger fires for Magnus itself but not for later cards", () =
 test("generic card-play triggers remain active after self-play triggers are scoped", () => {
   const state = match();
   const player = state.players[0];
-  const livingArm = card("aa-68", "living-arm-in-play");
-  player.heroes = [livingArm];
-  const laterCard = card("aa-99", "battle-mastery-card");
+  const vicerox = card("aa-142", "vicerox-in-play");
+  player.bakugan[0].evoStack = [vicerox];
+  state.selected[player.id] = player.bakugan[0].id;
+  const laterCard = {
+    ...CARDS.find((candidate) => candidate.type === "Action" && candidate.faction === "Haos")!,
+    id: "later-haos-action",
+  };
 
-  const triggers = emitPlayed(state, player.id, laterCard, "battle-mastery-play");
-  assert.ok(triggers.some((object) => object.card.id === livingArm.id));
+  const triggers = emitPlayed(state, player.id, laterCard, "generic-card-play");
+  assert.ok(triggers.some((object) => object.card.id === vicerox.id));
 });
 
 test("every catalogue self-entry trigger is source-scoped without narrowing generic play triggers", () => {

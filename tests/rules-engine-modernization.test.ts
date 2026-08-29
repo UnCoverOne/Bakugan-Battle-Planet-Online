@@ -27,6 +27,7 @@ import {
 import { buildChoiceSchema, buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
 import { canonicalEvoTargetAllowed } from "../lib/rules/identity";
 import { createRuleObject } from "../lib/rules/objects";
+import { activeRulePermissions } from "../lib/rules/permissions";
 import { emitRuleEvent } from "../lib/rules/triggers";
 import { executeRuleProgram } from "../lib/rules/executor";
 import { conditionFor, parseAtomicEffects } from "../lib/rules/catalogue-primitives";
@@ -977,7 +978,7 @@ test("zone-wide Energize and first-Action triggers execute through generic runti
   assert.equal(triggers.some((object) => object.card.id === toshi.id), false);
 });
 
-test("continuous hand-size and printed-play filters re-evaluate from authoritative state", () => {
+test("continuous hand-size, printed-play filters, and static permissions use authoritative state", () => {
   const state = match();
   const player = state.players[0];
   const opponent = state.players[1];
@@ -1005,5 +1006,6 @@ test("continuous hand-size and printed-play filters re-evaluate from authoritati
   assert.equal(triggers.some((object) => object.card.id === magnus.id), false);
   const mastery = { ...CARDS.find((card) => card.catalogId === "aa-12")!, id: "mastery-play" };
   triggers = emitRuleEvent(state, { id: "mastery-play", name: "CARD_PLAYED", actorId: player.id, controllerId: player.id, card: mastery, cardType: mastery.type, createdAt: 6 });
-  assert.equal(triggers.some((object) => object.card.id === magnus.id), true);
+  assert.equal(triggers.some((object) => object.card.id === magnus.id), false);
+  assert.equal(activeRulePermissions(state, player.id).has("battle-mastery-select-both"), true);
 });

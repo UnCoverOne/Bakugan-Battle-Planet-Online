@@ -52,12 +52,7 @@ function presentationState(input: MatchState): MatchState {
 }
 
 function projectReplayStateForPlayer(state: MatchState, playerId: string): MatchState {
-  const projected = projectMatchForPlayer(state, playerId);
-  for (const player of projected.players) {
-    const source = state.players.find((candidate) => candidate.id === player.id);
-    if (source) player.hand = structuredClone(source.hand);
-  }
-  return projected;
+  return projectMatchForPlayer(state, playerId);
 }
 
 /**

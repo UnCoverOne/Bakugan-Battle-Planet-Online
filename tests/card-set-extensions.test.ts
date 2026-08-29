@@ -4,20 +4,23 @@ import { join } from "node:path";
 import test from "node:test";
 import { CARDS } from "../lib/data";
 import { cardArtSource } from "../lib/content/card-art";
-import { CARD_SET_INFO, cardCollectorLabel, cardSetCode } from "../lib/content/catalogue";
+import { CARD_SET_INFO, CONTENT_MANIFEST, cardCollectorLabel, cardSetCode } from "../lib/content/catalogue";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 
-const bySet = (set: "BB" | "BR" | "AA") => CARDS.filter((card) => cardSetCode(card) === set);
+const bySet = (set: "BB" | "BR" | "AA" | "EX") => CARDS.filter((card) => cardSetCode(card) === set);
 
 const repositoryAssetExists = (assetPath: string) => existsSync(join(process.cwd(), "public", assetPath.replace(/^\//, "")));
 
-test("Bakugan Resurgence and Age of Aurelus are fully addressable", () => {
+test("every supported card set is fully addressable", () => {
   assert.equal(bySet("BB").length, 374);
   assert.equal(bySet("BR").length, 249);
   assert.equal(bySet("AA").length, 220);
-  assert.equal(CARDS.length, 843);
+  assert.equal(bySet("EX").length, 2);
+  assert.equal(CARDS.length, CONTENT_MANIFEST.cardCount);
+  assert.deepEqual(CONTENT_MANIFEST.sets, { BB: 374, BR: 249, AA: 220, EX: 2 });
   assert.equal(CARD_SET_INFO.BR.collectorTotal, 248);
   assert.equal(CARD_SET_INFO.AA.collectorTotal, 220);
+  assert.equal(CARD_SET_INFO.EX.collectorTotal, 2);
 });
 
 test("the duplicate Bakugan Resurgence 221 printings retain separate catalogue identities", () => {
@@ -39,8 +42,7 @@ test("every extension card has rules provenance and a self-hosted art source", (
     assert.equal(definition.sourceText, card.effect);
     assert.ok(definition.provenance.citations.some((citation) => citation.sourceId === "bp-card-printing"));
     if (card.hasProvidedScan) {
-      const set = cardSetCode(card).toLowerCase();
-      assert.equal(card.art, `/assets/cards/sets/${set}/full/${card.catalogId}.webp`);
+      assert.match(card.art, /^\/assets\/cards\/sets\/(?:br|aa|ex)\/full\/.+\.(?:webp|svg)$/);
       assert.ok(repositoryAssetExists(card.art), `${card.catalogId} full scan is missing`);
       assert.ok(repositoryAssetExists(cardArtSource(card, "thumbnail")), `${card.catalogId} thumbnail is missing`);
     } else {
@@ -61,12 +63,19 @@ test("card art resolution preserves set-qualified local scan sources", () => {
 });
 
 test("Evo identities prefer the matching card set and faction", () => {
-  const examples = ["br-90", "aa-77", "aa-125"];
-  for (const id of examples) {
+  for (const id of ["br-90", "aa-77"]) {
     const card = CARDS.find((candidate) => candidate.catalogId === id)!;
     const definition = ruleDefinitionForCard(card);
     assert.equal(card.type, "Evo");
     assert.equal(definition.play.evolvesFrom.length, 1, `${id} should resolve one canonical Character`);
     assert.ok(definition.play.evolvesFrom[0].startsWith(`${id.split("-")[0]}-`));
   }
+
+  const crossSetEvo = CARDS.find((candidate) => candidate.catalogId === "aa-125")!;
+  const [fallbackId] = ruleDefinitionForCard(crossSetEvo).play.evolvesFrom;
+  const fallback = CARDS.find((candidate) => candidate.catalogId === fallbackId);
+  assert.equal(fallbackId, "br-212");
+  assert.equal(fallback?.type, "Character");
+  assert.equal(fallback?.faction, crossSetEvo.faction);
+  assert.equal(fallback?.displayName, "Lupitheon Ultra");
 });

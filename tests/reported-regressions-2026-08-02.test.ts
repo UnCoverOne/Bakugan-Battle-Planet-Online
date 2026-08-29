@@ -7,6 +7,13 @@ import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import type { RuleObject } from "../lib/rules/model";
 import { createRuleObject } from "../lib/rules/objects";
 import { normalizeRuleObjects } from "../lib/rules/state";
+import {
+  DRAGONOID_MAXIMUS_ANIMATION_MS,
+  DRAGONOID_MAXIMUS_PRESENTATION_MS,
+  DRAGONOID_MAXIMUS_REDUCED_MOTION_PRESENTATION_MS,
+  DRAGONOID_MAXIMUS_REDUCED_MOTION_RESULT_DELAY_MS,
+  DRAGONOID_MAXIMUS_RESULT_DELAY_MS,
+} from "../components/game-screen-v2/alternateWinPresentation";
 
 test("the result route does not remount the gameplay runtime", () => {
   const source = readFileSync(
@@ -147,7 +154,7 @@ test("Dragonoid Maximus stages an unrespondable alternate-win effect before the 
   assert.match(next.resultReason, /Dragonoid Maximus/i);
 });
 
-test("Dragonoid Maximus uses a red ultimate-effect treatment and a five-second result reveal", () => {
+test("Dragonoid Maximus uses a red ultimate-effect treatment and ordered presentation timing", () => {
   const runtime = readFileSync(
     new URL("../components/game-screen-v2/GameplayRuntime.tsx", import.meta.url),
     "utf8",
@@ -164,11 +171,6 @@ test("Dragonoid Maximus uses a red ultimate-effect treatment and a five-second r
     new URL("../components/game-screen-v2/AlternateWinPresentationLayer.tsx", import.meta.url),
     "utf8",
   );
-  const timing = readFileSync(
-    new URL("../components/game-screen-v2/alternateWinPresentation.ts", import.meta.url),
-    "utf8",
-  );
-
   assert.match(runtime, /<AlternateWinPresentationLayer\s*\/>/);
   assert.match(experience, /data-alternate-win/);
   assert.match(experience, /NO CARDS MAY BE PLAYED/);
@@ -176,8 +178,10 @@ test("Dragonoid Maximus uses a red ultimate-effect treatment and a five-second r
   assert.match(experienceCss, /alternate-win-batch-pulse/);
   assert.match(presentation, /Dragonoid Maximus/);
   assert.match(presentation, /assets\/cards\/sets\/ex\/full\/ex-2\.webp/);
-  assert.match(timing, /DRAGONOID_MAXIMUS_ANIMATION_MS = 3_000/);
-  assert.match(timing, /DRAGONOID_MAXIMUS_RESULT_DELAY_MS = 5_000/);
+  assert.ok(DRAGONOID_MAXIMUS_ANIMATION_MS < DRAGONOID_MAXIMUS_RESULT_DELAY_MS);
+  assert.ok(DRAGONOID_MAXIMUS_RESULT_DELAY_MS < DRAGONOID_MAXIMUS_PRESENTATION_MS);
+  assert.ok(DRAGONOID_MAXIMUS_REDUCED_MOTION_RESULT_DELAY_MS < DRAGONOID_MAXIMUS_RESULT_DELAY_MS);
+  assert.ok(DRAGONOID_MAXIMUS_REDUCED_MOTION_PRESENTATION_MS < DRAGONOID_MAXIMUS_PRESENTATION_MS);
 });
 
 
