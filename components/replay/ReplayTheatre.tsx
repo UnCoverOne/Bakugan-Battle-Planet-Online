@@ -252,11 +252,12 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
       if (rollResultBlocking) {
         if (event.key === "Escape") onBack();
+        else event.preventDefault();
         return;
       }
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
       if (event.key === "Escape") onBack();
       else if (event.key === " ") { event.preventDefault(); setPlaying((value) => !value); }
       else if (event.key === "ArrowLeft") seek(index - 1);
