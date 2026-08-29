@@ -101,6 +101,21 @@ test("signed-in sessions push match records directly and refresh the archive glo
   assert.doesNotMatch(sync, /syncNow/);
 });
 
+test("account switches cannot seed the new account archive from stale in-memory history", () => {
+  const sync = source("components/application/AccountHistorySync.tsx");
+  const refreshHistory = sync
+    .split("const refreshHistory = useCallback")[1]
+    ?.split("const pushPendingHistory = useCallback")[0] ?? "";
+  const accountSwitch = sync
+    .split("if (activeUserId.current !== authUser.id)")[1]
+    ?.split("void refreshHistory()")[0] ?? "";
+
+  assert.doesNotMatch(refreshHistory, /for \(const record of historyRef\.current\)/);
+  assert.match(refreshHistory, /const pending = \[\.\.\.pendingHistory\.current\.values\(\)\]/);
+  assert.match(accountSwitch, /pendingHistory\.current\.clear\(\)/);
+  assert.match(accountSwitch, /requestSequence\.current \+= 1/);
+});
+
 test("history equality prevents repeated state writes after convergence", () => {
   const history = [record("match", "2026-08-24T10:00:00.000Z")];
   assert.equal(matchHistoriesEqual(history, structuredClone(history)), true);
