@@ -310,7 +310,7 @@ function OpponentHand({
       className={`${styles.handLayer} ${styles.opponentHandLayer}`}
       style={handLayerStyle(bounds)}
       aria-label={revealFaces
-        ? `Training AI hand, ${cardCount} revealed card${cardCount === 1 ? "" : "s"}`
+        ? `Opponent hand, ${cardCount} revealed card${cardCount === 1 ? "" : "s"}`
         : `Opponent hand, ${cardCount} hidden card${cardCount === 1 ? "" : "s"}`}
       data-zone-kind="hand"
       data-zone-owner="opponent"
@@ -354,6 +354,7 @@ export function CardHandLayer({
   actionMode = null,
   selectedCardId = "",
   selectedDiscardCardIds = [],
+  revealOpponentCards = false,
   onCardSelect,
   onDiscardCardSelect,
 }: {
@@ -362,13 +363,15 @@ export function CardHandLayer({
   actionMode?: HandActionMode;
   selectedCardId?: string;
   selectedDiscardCardIds?: readonly string[];
+  revealOpponentCards?: boolean;
   onCardSelect?: (cardId: string) => void;
   onDiscardCardSelect?: (cardId: string) => void;
 }) {
   const cards = playerHandCards(match, playerId);
   const opponentCardCount = opponentHandCardCount(match, playerId);
   const revealOpponentAiCards = useAdministratorAiVisibility(match, playerId);
-  const opponentCards = revealOpponentAiCards
+  const revealOpponentHand = revealOpponentCards || revealOpponentAiCards;
+  const opponentCards = revealOpponentHand
     ? match?.players.find((candidate) => candidate.id !== playerId)?.hand ?? []
     : [];
   const playerBounds = useHandViewportBounds("player", cards.length);
@@ -383,7 +386,7 @@ export function CardHandLayer({
         cards={opponentCards}
         cardCount={opponentCardCount}
         bounds={opponentBounds}
-        revealFaces={revealOpponentAiCards}
+        revealFaces={revealOpponentHand}
       />
       <PlayerHand
         cards={cards}
@@ -399,4 +402,3 @@ export function CardHandLayer({
     </>
   );
 }
-
