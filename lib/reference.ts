@@ -42,6 +42,12 @@ export const SYMBOL_ENTRIES = [
   { token: "[FrostStrike]", name: "FrostStrike", asset: "/assets/symbols/frost-strike.png", description: "Increases Flip-card costs during damage." },
   { token: "[ShadowStrike]", name: "ShadowStrike", asset: "/assets/symbols/shadow-strike.png", description: "Prevents the attack's Damage Rating from being reduced." },
   { token: "[Victor]", name: "Victor", asset: "/assets/symbols/victor.png", description: "Marks an effect related to winning a Brawl." },
+  { token: "[Aquos]", name: "Aquos", asset: "/assets/symbols/factions/aquos.png", description: "Aquos faction." },
+  { token: "[Aurelus]", name: "Aurelus", asset: "/assets/symbols/factions/aurelus.png", description: "Aurelus faction." },
+  { token: "[Darkus]", name: "Darkus", asset: "/assets/symbols/factions/darkus.png", description: "Darkus faction." },
+  { token: "[Haos]", name: "Haos", asset: "/assets/symbols/factions/haos.png", description: "Haos faction." },
+  { token: "[Pyrus]", name: "Pyrus", asset: "/assets/symbols/factions/pyrus.png", description: "Pyrus faction." },
+  { token: "[Ventus]", name: "Ventus", asset: "/assets/symbols/factions/ventus.png", description: "Ventus faction." },
 ];
 
 export const PUBLISHED_RULINGS: ReferenceEntry[] = [
