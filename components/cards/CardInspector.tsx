@@ -37,7 +37,7 @@ const tabLabels: Record<CardInspectorTab, string> = {
 };
 
 function EffectText({ text }: { text: string }) {
-  const pattern = /(\[B\]|\[Damage Rating\]|\[Energy\]|\[DoubleStrike\]|\[FrostStrike\]|\[ShadowStrike\]|\[Victor\])/g;
+  const pattern = /(\[[^\]]+\])/g;
   return (
     <>
       {text.split(pattern).map((part, index) => {
