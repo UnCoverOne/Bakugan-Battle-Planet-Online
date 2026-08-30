@@ -8,15 +8,32 @@ import styles from "./RollResultLayer.module.css";
 
 function resultLabel(result: RollOutcome["result"]) {
   switch (result) {
-    case "intended-core": return "Intended BakuCore";
-    case "overshoot": return "Overshoot";
-    case "undershoot": return "Undershoot";
-    case "skew-left": return "Skewed Left";
-    case "skew-right": return "Skewed Right";
-    case "path-intercept": return "Magnet-Phase Intercept";
-    case "open-no-core": return "Opened — No BakuCore";
-    case "miss-closed": return "Missed — Remained Closed";
+    case "intended-core": return "Hit Target";
+    case "overshoot": return "Overshot";
+    case "undershoot": return "Undershot";
+    case "skew-left": return "Left";
+    case "skew-right": return "Right";
+    case "path-intercept": return "Intercepted";
+    case "open-no-core": return "Opened — No Core";
+    case "miss-closed": return "Missed";
   }
+}
+
+function resultContext(outcome: RollOutcome, match: MatchState) {
+  const collision = outcome.collisionDecisions?.find(
+    (decision) => decision.affectedPlayerId === outcome.playerId,
+  );
+  if (collision?.kind === "primary-contested") {
+    const winner = match.players.find((player) => player.id === collision.winnerPlayerId);
+    return `${winner?.name ?? "Opponent"} won the contested Core.`;
+  }
+  if (collision?.kind === "secondary-yielded") {
+    return "Second Core was already collected.";
+  }
+  if (outcome.result === "path-intercept") {
+    return "Opened on an earlier Core.";
+  }
+  return null;
 }
 
 export function RollResultLayer({
@@ -54,7 +71,6 @@ export function RollResultLayer({
     localPlayer,
     ...renderedMatch.players.filter((player) => player.id !== localPlayer.id),
   ].filter((player) => !currentRerollPlayers.size || currentRerollPlayers.has(player.id));
-  const reroll = currentRerollPlayers.size > 0;
 
   return (
     <div
@@ -80,8 +96,7 @@ export function RollResultLayer({
           ×
         </button>
         <header className={styles.header}>
-          <span>{reroll ? "REROLL" : "ROLLING STEP"}</span>
-          <h2 id="roll-result-title">{reroll ? "Reroll Result" : "Roll Results"}</h2>
+          <h2 id="roll-result-title">Roll Results</h2>
         </header>
         <div className={styles.results}>
           {orderedPlayers.map((player, index) => {
@@ -92,6 +107,7 @@ export function RollResultLayer({
               .map((cell) => renderedMatch.placements.find((placement) => placement.cell === cell))
               .filter(Boolean);
             const local = player.id === localPlayer.id;
+            const context = resultContext(outcome, renderedMatch);
             return (
               <article
                 className={styles.resultCard}
@@ -111,32 +127,35 @@ export function RollResultLayer({
                   ) : null}
                 </div>
                 <div className={styles.resultCopy}>
-                  <small>{outcome.rerollSource ? `REROLL • ${outcome.rerollSource}` : local ? "PLAYER" : "OPPONENT"}</small>
-                  <strong>{player.name}</strong>
-                  <h3>{resultLabel(outcome.result)}</h3>
-                  <p>{bakugan?.name ?? "Bakugan"}</p>
-                  <dl>
-                    <div><dt>Accuracy</dt><dd>{outcome.accuracyRoll} / {bakugan?.rollAccuracy ?? 0}</dd></div>
-                    <div><dt>Double</dt><dd>{outcome.doubleRoll} / {bakugan?.doubleCoreChance ?? 0}</dd></div>
-                  </dl>
-                  {outcome.doubleCore ? (
-                    <span className={styles.doubleCoreBadge}>Second BakuCore picked up</span>
-                  ) : null}
-                  <p className={styles.resultNote}>{outcome.note}</p>
-                  <div className={styles.landedCores} data-empty={landed.length ? "false" : "true"}>
-                    {landed.length ? landed.map((placement) => placement ? (
-                      <figure key={placement.cell}>
-                        <OriginalImage src={placement.core.art} alt="" aria-hidden="true" draggable={false} />
-                        <figcaption>{placement.core.name}</figcaption>
-                      </figure>
-                    ) : null) : <span>No BakuCore collected</span>}
+                  <div className={styles.identity}>
+                    <strong>{player.name}</strong>
+                    <span aria-hidden="true">•</span>
+                    <span>{bakugan?.name ?? "Bakugan"}</span>
+                    {local ? <small>YOU</small> : null}
                   </div>
+                  <h3>{resultLabel(outcome.result)}</h3>
+                  {landed.length ? (
+                    <div className={styles.landedCores}>
+                      {landed.map((placement) => placement ? (
+                        <figure key={placement.cell}>
+                          <OriginalImage src={placement.core.art} alt="" aria-hidden="true" draggable={false} />
+                          <figcaption>{placement.core.name}</figcaption>
+                        </figure>
+                      ) : null)}
+                    </div>
+                  ) : null}
+                  {(outcome.doubleCore || outcome.rerollSource) ? (
+                    <div className={styles.badges}>
+                      {outcome.doubleCore ? <span>Double Core</span> : null}
+                      {outcome.rerollSource ? <span>Reroll · {outcome.rerollSource}</span> : null}
+                    </div>
+                  ) : null}
+                  {context ? <p className={styles.resultContext}>{context}</p> : null}
                 </div>
               </article>
             );
           })}
         </div>
-        <p className={styles.dismissHint}>Click outside this window or press × to continue.</p>
       </section>
     </div>
   );
