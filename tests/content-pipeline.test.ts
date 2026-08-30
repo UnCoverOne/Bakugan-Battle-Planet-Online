@@ -21,13 +21,13 @@ const newlyProvidedCardArt = [
   "aa-52", "aa-54", "aa-55", "aa-70", "aa-71", "aa-72",
 ] as const;
 
-test("the four-set schema-controlled catalogue is complete and unique", () => {
+test("the schema-controlled catalogue is complete and unique", () => {
   assert.deepEqual(validateControlledCatalogue(), []);
-  assert.equal(CONTROLLED_CATALOGUE.length, 845);
-  assert.equal(new Set(CONTROLLED_CATALOGUE.map((card) => card.id)).size, 845);
-  assert.deepEqual(CONTENT_MANIFEST.sets, { BB: 374, BR: 249, AA: 220, EX: 2 });
+  assert.equal(CONTROLLED_CATALOGUE.length, 1734);
+  assert.equal(new Set(CONTROLLED_CATALOGUE.map((card) => card.id)).size, 1734);
+  assert.deepEqual(CONTENT_MANIFEST.sets, { BB: 374, BR: 249, AA: 220, EX: 2, AV: 272, FF: 276, DI: 4, PS1: 21, SV: 310, CP: 6 });
   assert.deepEqual(
-    Object.fromEntries(["BB", "BR", "AA", "EX"].map((set) => [set, CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === set).length])),
+    Object.fromEntries(["BB", "BR", "AA", "EX", "AV", "FF", "DI", "PS1", "SV", "CP"].map((set) => [set, CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === set).length])),
     CONTENT_MANIFEST.sets,
   );
 });
@@ -71,8 +71,8 @@ test("newly supplied card scans resolve to full and thumbnail assets", () => {
 
 test("every printing has fingerprinted text and an executable typed definition", () => {
   const definitions = allRuleDefinitions();
-  assert.equal(definitions.length, 845);
-  assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 845);
+  assert.equal(definitions.length, 1734);
+  assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 1734);
   for (const card of CONTROLLED_CATALOGUE) {
     const runtimeCard = { ...card, id: card.id, catalogId: card.id };
     assert.equal(validateCardAgainstRules(runtimeCard), true);

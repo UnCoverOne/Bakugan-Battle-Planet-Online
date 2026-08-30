@@ -232,8 +232,8 @@ function printedActionModifier(
 }
 
 function activePrintedModifiers(state: MatchState, player: PlayerState, bakugan: Bakugan): ContinuousModifier[] {
-  const top = bakugan.evoStack.at(-1) ?? bakugan.character;
-  const sources = [top, ...player.heroes];
+  const top = bakugan.evoStack.at(-1) ?? (bakugan.fused ? bakugan.fusionCharacter : undefined) ?? bakugan.character;
+  const sources = [top, ...(bakugan.bakuGear ?? []), ...player.heroes];
   return sources.flatMap((source) => {
     const definition = ruleDefinitionForCard(source);
     return definition.abilities.flatMap((ability) => {
@@ -266,7 +266,7 @@ export function evaluateBakuganCharacteristics(
   bakugan: Bakugan,
   owner: PlayerState,
 ): EvaluatedBakuganCharacteristics {
-  const top = bakugan.evoStack.at(-1) ?? bakugan.character;
+  const top = bakugan.evoStack.at(-1) ?? (bakugan.fused ? bakugan.fusionCharacter : undefined) ?? bakugan.character;
   let power = top.bPower ?? bakugan.bPower;
   let damage = top.damage ?? bakugan.damage;
   let frostStrike = 0;
@@ -286,6 +286,13 @@ export function evaluateBakuganCharacteristics(
     ];
     if (core.frostStrike) result.push({ id: `${core.id}:frost`, source, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, keyword: "FrostStrike", amount: core.frostStrike, layer: "core", duration: "while-source-active", createdTurn: state.turn, sourceCategory: "bakucore" });
     if (core.shadowStrike) result.push({ id: `${core.id}:shadow`, source, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, keyword: "ShadowStrike", amount: 1, layer: "protection", duration: "while-source-active", createdTurn: state.turn, sourceCategory: "bakucore" });
+    return result;
+  });
+  const gearModifiers: ContinuousModifier[] = (bakugan.bakuGear ?? []).flatMap((gear) => {
+    const source = { kind: "card" as const, instanceId: gear.id, catalogId: gear.catalogId as RulesCardId };
+    const result: ContinuousModifier[] = [];
+    if (gear.bPower) result.push({ id: `${gear.id}:gear-power`, source, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, stat: "power", amount: gear.bPower, layer: "continuous", duration: "while-source-active", createdTurn: state.turn, sourceCategory: "card" });
+    if (gear.damage) result.push({ id: `${gear.id}:gear-damage`, source, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, stat: "damage", amount: gear.damage, layer: "continuous", duration: "while-source-active", createdTurn: state.turn, sourceCategory: "card" });
     return result;
   });
 
@@ -318,7 +325,7 @@ export function evaluateBakuganCharacteristics(
     { id: `${bakugan.id}:legacy-damage`, source: { kind: "system", id: "temporary-damage" }, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, stat: "damage", amount: (state.damageBoost[bakugan.id] ?? 0) - mirroredDamage, layer: "temporary", duration: "turn", createdTurn: state.turn, sourceCategory: "temporary" },
     { id: `${bakugan.id}:legacy-frost`, source: { kind: "system", id: "temporary-frost" }, controllerId: owner.id, target: "chosen-bakugan", targetBakuganId: bakugan.id, keyword: "FrostStrike", amount: (state.frostStrike[bakugan.id] ?? 0) - mirroredFrost, layer: "temporary", duration: "turn", createdTurn: state.turn, sourceCategory: "temporary" },
   ];
-  const modifiers = [...coreModifiers, ...activePrintedModifiers(state, owner, bakugan), ...storedModifiers, ...temporary]
+  const modifiers = [...coreModifiers, ...gearModifiers, ...activePrintedModifiers(state, owner, bakugan), ...storedModifiers, ...temporary]
     .filter((modifier) => targetMatches(state, modifier, bakugan, owner) && ruleConditionActive(state, owner, modifier.condition, bakugan))
     .map((modifier) => ({ ...modifier, amount: liveModifierAmount(modifier) }))
     .sort((left, right) => LAYER_ORDER[left.layer] - LAYER_ORDER[right.layer] || left.id.localeCompare(right.id));

@@ -64,9 +64,9 @@ const reachPower = () => {
 
 test("the complete supplied Battle Planet catalogue is normalized and playable", () => {
   assert.equal(CARDS.length, CONTENT_MANIFEST.cardCount);
-  assert.equal(BAKUGAN.length, CARDS.filter((card) => card.type === "Character").length);
+  assert.equal(BAKUGAN.length, CARDS.filter((card) => card.type === "Character" && card.fusionFace !== "b" && card.bPower != null && card.damage != null).length);
   assert.equal(CORES.length, 52);
-  const typeCounts = Object.fromEntries(["Action", "Flip", "Hero", "Evo", "Character"].map((type) => [type, CARDS.filter((card) => card.type === type).length]));
+  const typeCounts = Object.fromEntries(["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character"].map((type) => [type, CARDS.filter((card) => card.type === type).length]));
   assert.equal(Object.values(typeCounts).reduce((sum, count) => sum + count, 0), CONTENT_MANIFEST.cardCount);
   assert.equal(new Set(CARDS.map((card) => card.catalogId)).size, CONTENT_MANIFEST.cardCount);
   assert.ok(CARDS.every((card) => card.effect != null && card.mechanics && card.art));
@@ -151,13 +151,38 @@ test("priority is retained, the batch is LIFO, and an Action resolves only after
   assert.equal(state.batch.length, 0); assert.equal(state.phase, "power"); assert.ok((state.damageBoost[target.id] ?? 0) >= 3); assert.ok(state.players.find((candidate) => candidate.id === actor)!.discard.some((card) => card.name === "Fireball"));
 });
 
-test("Hero, Evo, Action, Flip and X-cost cards expose typed announcement and payment paths", () => {
+test("Baku-Gear resolves onto its chosen Bakugan and contributes printed stats", () => {
+  let state = reachPower();
+  const actor = state.priority;
+  const player = state.players.find((candidate) => candidate.id === actor)!;
+  const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
+  const source = CARDS.find((card) => card.type === "Baku-Gear" && typeof card.cost === "number" && !/Reroll/i.test(card.effect))!;
+  const gear = { ...source, id: "test-baku-gear" };
+  player.hand.push(gear);
+  player.energy = 20;
+  target.open = true;
+  state.rolls[actor].result = "open-no-core";
+  const before = totalPower(state, actor);
+
+  state = playCard(state, actor, gear.id, { targetBakuganId: target.id });
+  state = passWindow(state);
+
+  const attached = state.players.find((candidate) => candidate.id === actor)!.bakugan
+    .find((candidate) => candidate.id === target.id)!.bakuGear ?? [];
+  assert.deepEqual(attached.map((card) => card.id), [gear.id]);
+  assert.equal(totalPower(state, actor), before + (gear.bPower ?? 0));
+});
+
+test("Hero, Evo, Action, Flip, Flip Hero, Baku-Gear and X-cost cards expose typed announcement and payment paths", () => {
   const state = reachPower(); const player = state.players[0];
   const evo = CARDS.find((card) => card.type === "Evo" && card.evolvesFrom === player.bakugan[0].name && card.faction === player.bakugan[0].faction);
   const xCard = CARDS.find((card) => card.cost === "X")!; const sacrifice = CARDS.find((card) => card.effect.toLowerCase().includes("sacrifice"))!;
   assert.ok(evo); assert.ok(cardChoiceSpec(state, player.id, evo!).includes("targetBakugan")); assert.ok(cardChoiceSpec(state, player.id, xCard).includes("xValue"));
   assert.equal(cardChoiceSpec(state, player.id, sacrifice).includes("discard"), false, "Sacrifice choices are made during resolution, not announcement.");
-  assert.equal(CARDS.filter((card) => card.type === "Flip").length, 82); assert.equal(CARDS.filter((card) => card.type === "Hero").length, 47);
+  assert.equal(CARDS.filter((card) => card.type === "Flip").length, 128);
+  assert.equal(CARDS.filter((card) => card.type === "Flip Hero").length, 5);
+  assert.equal(CARDS.filter((card) => card.type === "Hero").length, 83);
+  assert.equal(CARDS.filter((card) => card.type === "Baku-Gear").length, 90);
 });
 
 test("B-Power ties use Energy-cost flips and the Victor Step precedes sequential damage", () => {

@@ -25,7 +25,7 @@ import styles from "./CompendiumScreen.module.css";
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const FACTIONS = ["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"];
-const CARD_TYPES = ["Action", "Flip", "Hero", "Evo", "Character"];
+const CARD_TYPES = ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character"];
 const SORT_LABELS: Record<CompendiumState["sort"], string> = {
   collector: "Collector number",
   "name-asc": "Name A–Z",

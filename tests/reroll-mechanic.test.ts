@@ -172,10 +172,14 @@ test("the typed catalogue separates independent effects, Rerolls, and open-on-Re
 
 test("every printed Reroll card maps to exactly one appropriate authoritative ability", () => {
   const printed = CARDS.filter((card) => /\bReroll\b/i.test(card.effect));
-  const actions = printed.filter((card) => card.type === "Action");
-  const intrinsic = printed.filter((card) => card.type !== "Action");
-  assert.equal(actions.length, 18);
-  assert.equal(intrinsic.length, 22);
+  const actions = printed.filter((card) => (
+    !(["Character", "Evo"].includes(card.type)
+      && /(?:once each turn|any time).*miss a Roll|miss a Roll.*(?:once each turn|any time)/i.test(card.effect))
+    || /when[^.]*Reroll/i.test(card.effect)
+  ));
+  const intrinsic = printed.filter((card) => !actions.includes(card));
+  assert.equal(actions.length, 33);
+  assert.equal(intrinsic.length, 27);
   for (const card of actions) {
     const rerolls = compileCardEffect(card).instructions
       .flatMap((instruction) => instruction.effects)

@@ -442,7 +442,7 @@ function CardManagement() {
       <div className={styles.sectionHeading}><div><span>CATALOGUE</span><h2>Card Management</h2><p>Edit card presentation and gameplay properties. Card IDs remain stable so saved decks retain referential integrity.</p></div></div>
       <Surface className={styles.cardToolbar}>
         <Field label="Search cards"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, Card ID, or effect…" /></Field>
-        <Field label="Type"><select value={type} onChange={(event) => setType(event.target.value)}><option>All</option><option>Action</option><option>Flip</option><option>Hero</option><option>Evo</option><option>Character</option></select></Field>
+        <Field label="Type"><select value={type} onChange={(event) => setType(event.target.value)}><option>All</option><option>Action</option><option>Flip</option><option>Flip Hero</option><option>Hero</option><option>Baku-Gear</option><option>Evo</option><option>Character</option></select></Field>
         <Field label="Faction"><select value={faction} onChange={(event) => setFaction(event.target.value)}><option>All</option><option>Pyrus</option><option>Aquos</option><option>Darkus</option><option>Haos</option><option>Ventus</option><option>Aurelus</option></select></Field>
       </Surface>
       <AdminState loading={state.loading} error={state.error} label="cards" />

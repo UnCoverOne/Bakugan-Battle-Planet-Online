@@ -69,8 +69,8 @@ test("singular non-Faction stat effects select one legal Bakugan while plural ef
   const singularCards = CARDS.filter((candidate) => SINGULAR_NON_FACTION_BAKUGAN.test(candidate.effect));
   assert.deepEqual(
     singularCards.map((candidate) => candidate.catalogId).sort(),
-    ["bb-120", "bb-66"],
-    "Fragile to Light and Nature's Power are the current singular non-Faction stat effects",
+    ["bb-120", "bb-66", "sv-29"],
+    "all singular non-Faction stat effects must remain explicitly targeted",
   );
 
   for (const source of singularCards) {

@@ -121,7 +121,7 @@ export function flipDamageCard(input: MatchState, playerId: string) {
   recordDamageCardTaken(state);
   player.discard.push(card);
   log(state, "game", `${player.name} flipped ${card.name} as damage (${state.pendingDamage} remaining).`);
-  if (card.type === "Flip") {
+  if (card.type === "Flip" || card.type === "Flip Hero") {
     state.revealedFlip = card;
     state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
     state.priority = playerId;

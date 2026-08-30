@@ -573,7 +573,7 @@ function bestNextCardFollowUpValue(
 
   let best = 0;
   for (const followUp of player.hand) {
-    if (followUp.id === sourceCard.id || followUp.type === "Character" || followUp.type === "Flip") {
+    if (followUp.id === sourceCard.id || followUp.type === "Character" || followUp.type === "Flip" || followUp.type === "Flip Hero") {
       continue;
     }
     let choices: CardChoices;
@@ -1011,7 +1011,7 @@ function hasAffordableDirectWinningAlternative(match: MatchState, playerId: stri
   const player = playerById(match, playerId);
   if (!player) return false;
   return player.hand.some((card) => {
-    if (card.type === "Character" || card.type === "Flip") return false;
+    if (card.type === "Character" || card.type === "Flip" || card.type === "Flip Hero") return false;
     let choices: CardChoices;
     try {
       choices = chooseBaseCardChoices(match, playerId, card);

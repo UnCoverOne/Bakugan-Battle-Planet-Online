@@ -17,7 +17,7 @@ export function effectiveCardFactions(card: GameCard): Faction[] {
 
 /** Factions the current top Character/Evo makes a Bakugan count as. */
 export function effectiveBakuganFactions(bakugan: Bakugan): Faction[] {
-  return effectiveCardFactions(bakugan.evoStack.at(-1) ?? bakugan.character);
+  return effectiveCardFactions(bakugan.evoStack.at(-1) ?? (bakugan.fused ? bakugan.fusionCharacter : undefined) ?? bakugan.character);
 }
 
 export function bakuganHasFaction(bakugan: Bakugan, faction: Faction) {
@@ -34,7 +34,7 @@ export function effectiveBakucoreCells(
   bakugan: Bakugan,
   owner: PlayerState,
 ): string[] {
-  const top = bakugan.evoStack.at(-1) ?? bakugan.character;
+  const top = bakugan.evoStack.at(-1) ?? (bakugan.fused ? bakugan.fusionCharacter : undefined) ?? bakugan.character;
   const cells = [...bakugan.heldCoreCells];
   const normalizedText = top.effect.replace(/\s+/g, " ");
   if (/Treat all BakuCores attached to your other Bakugan as though they are attached to this/i.test(normalizedText)) {

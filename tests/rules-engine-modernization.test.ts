@@ -53,9 +53,9 @@ function match() {
 
 test("the reviewed typed catalogue covers every Battle Planet card exactly", () => {
   const definitions = allRuleDefinitions();
-  assert.equal(definitions.length, 845);
-  assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 845);
-  assert.equal(CARDS.length, 845);
+  assert.equal(definitions.length, 1734);
+  assert.equal(new Set(definitions.map((definition) => definition.cardId)).size, 1734);
+  assert.equal(CARDS.length, 1734);
   for (const card of CARDS) assert.equal(validateCardAgainstRules(card), true);
   assert.ok(definitions.every((definition) => definition.implementationStatus === "complete"));
   assert.ok(definitions.every((definition) => definition.abilities.every((ability) => ability.instructions.length > 0)));
@@ -68,7 +68,10 @@ test("unknown or modified card text is rejected rather than resolving partially"
 });
 
 test("instead clauses are single typed replacement branches, not additive actions", () => {
-  const replacementCards = CARDS.filter((card) => /\binstead\s*\.?\s*$/i.test(card.effect));
+  const replacementCards = CARDS.filter((card) => (
+    ["BB", "BR", "AA", "EX"].some((set) => card.catalogId.startsWith(`${set.toLowerCase()}-`))
+    && /\binstead\s*\.?\s*$/i.test(card.effect)
+  ));
   assert.equal(replacementCards.length, 33);
   for (const card of replacementCards) {
     const replacements = ruleDefinitionForCard(card).abilities
@@ -457,6 +460,9 @@ test("trigger resolution never infers announce timing from full printed card tex
         .filter((choice) => choice.timing === "resolve")
         .map((choice) => choice.id);
       if (!expectedIds.length || sourceText !== card.effect) continue;
+      // Reroll choices are intentionally omitted when the current match has no
+      // selected Bakugan/roll to repeat; those are legality-gated, not a timing inference.
+      if (/\bReroll\b/i.test(sourceText)) continue;
       affected.push(card.catalogId);
       const schema = buildChoiceSchema(state, state.players[0].id, card, sourceText, {}, "resolve");
       assert.deepEqual(

@@ -18,7 +18,7 @@ import styles from "./CardEditor.module.css";
 
 const STORAGE_KEY = "bbp-card-editor-draft-v1";
 const FACTIONS = ["Aquos", "Pyrus", "Darkus", "Haos", "Ventus", "Aurelus"] as const;
-const CARD_TYPES = ["Action", "Flip", "Hero", "Evo", "Character"] as const;
+const CARD_TYPES = ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character"] as const;
 const CORE_TYPES = ["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"] as const;
 const RARITIES = ["Common", "Rare", "Super Rare", "Awesome Rare", "Bakugan Elite", "N/A"] as const;
 

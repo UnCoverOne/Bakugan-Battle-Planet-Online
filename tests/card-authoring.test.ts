@@ -26,9 +26,9 @@ test("every Battle Brawlers record remains compatible with the existing card edi
 
 test("the extension sets use globally unique, set-qualified catalogue identities", () => {
   const extensions = CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) !== "BB");
-  assert.equal(extensions.length, 471);
+  assert.equal(extensions.length, 1360);
   assert.equal(new Set(extensions.map((card) => card.id)).size, extensions.length);
-  assert.ok(extensions.every((card) => /^(?:br|aa|ex)-/.test(card.id)));
+  assert.ok(extensions.every((card) => /^(?:br|aa|ex|av|ff|di|ps1|sv|cp)-/.test(card.id)));
 });
 
 test("normalization repairs arrays and primary-faction shape without hiding blocking identity errors", () => {

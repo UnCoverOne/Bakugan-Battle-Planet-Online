@@ -31,7 +31,7 @@ function activeSources(state: MatchState, owner: PlayerState, event: RuleEvent) 
   // reroll semantics remain intact, and also include every other open Bakugan.
   const bakuganSources = owner.bakugan
     .filter((bakugan) => bakugan.open || bakugan.id === selectedId)
-    .map((bakugan) => bakugan.evoStack.at(-1) ?? bakugan.character);
+    .flatMap((bakugan) => [bakugan.evoStack.at(-1) ?? (bakugan.fused ? bakugan.fusionCharacter : undefined) ?? bakugan.character, ...(bakugan.bakuGear ?? [])]);
   const playedSource = event.card && (event.controllerId ?? event.actorId) === owner.id ? event.card : undefined;
   const sources = [...bakuganSources, ...owner.heroes, ...(playedSource ? [playedSource] : [])];
   return sources.filter((source, index) => sources.findIndex((candidate) => candidate.id === source.id) === index);
@@ -39,7 +39,7 @@ function activeSources(state: MatchState, owner: PlayerState, event: RuleEvent) 
 
 function sourceBakuganFor(owner: PlayerState, source: GameCard) {
   return owner.bakugan.find((bakugan) => (
-    bakugan.character.id === source.id || bakugan.evoStack.some((candidate) => candidate.id === source.id)
+    bakugan.character.id === source.id || bakugan.fusionCharacter?.id === source.id || bakugan.evoStack.some((candidate) => candidate.id === source.id) || bakugan.bakuGear?.some((candidate) => candidate.id === source.id)
   ));
 }
 

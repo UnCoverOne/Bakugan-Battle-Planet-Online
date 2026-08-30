@@ -135,7 +135,7 @@ export function cardCostBreakdown(
     else increases += costValue(state, playerId, modifier.amount, modifier.choices ?? choices, modifier.valueSnapshots);
   }
 
-  const frostStrike = card.type === "Flip" && state.damageOrigin ? activeFrostStrike(state, state.damageOrigin) : 0;
+  const frostStrike = (card.type === "Flip" || card.type === "Flip Hero") && state.damageOrigin ? activeFrostStrike(state, state.damageOrigin) : 0;
   const base = freeBase ? 0 : printed;
   return {
     printed,
@@ -292,7 +292,7 @@ export function energyProductionValue(state: MatchState, playerId: string) {
   const player = playerById(state, playerId);
   const activeSources = [
     ...player.heroes,
-    ...player.bakugan.map((bakugan) => bakugan.evoStack.at(-1) ?? bakugan.character),
+    ...player.bakugan.flatMap((bakugan) => [bakugan.evoStack.at(-1) ?? (bakugan.fused ? bakugan.fusionCharacter : undefined) ?? bakugan.character, ...(bakugan.bakuGear ?? [])]),
   ];
   let production = 1;
   for (const source of activeSources) {

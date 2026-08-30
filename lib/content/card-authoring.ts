@@ -51,7 +51,7 @@ export type CardAuthoringBundle = {
 };
 
 const FACTIONS = ["Aquos", "Pyrus", "Darkus", "Haos", "Ventus", "Aurelus"] as const;
-const CARD_TYPES = ["Action", "Flip", "Hero", "Evo", "Character"] as const;
+const CARD_TYPES = ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character"] as const;
 const CORE_TYPES = ["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"] as const;
 
 const clone = <T>(value: T): T => structuredClone(value);
@@ -149,6 +149,10 @@ export function normalizeCardDraft(value: unknown): CardDraft {
     source: typeof candidate.source === "string" && candidate.source.trim() ? candidate.source.trim() : "Card editor draft",
     hasProvidedScan: Boolean(candidate.hasProvidedScan),
     slug: typeof candidate.slug === "string" && candidate.slug.trim() ? candidate.slug.trim() : slugify(displayName),
+    ...(typeof candidate.collectorNumber === "string" && candidate.collectorNumber ? { collectorNumber: candidate.collectorNumber } : {}),
+    ...(Number.isFinite(candidate.armorRating) ? { armorRating: Number(candidate.armorRating) } : {}),
+    ...(typeof candidate.fusionPairId === "string" && candidate.fusionPairId ? { fusionPairId: candidate.fusionPairId } : {}),
+    ...(candidate.fusionFace === "a" || candidate.fusionFace === "b" ? { fusionFace: candidate.fusionFace } : {}),
   };
 }
 

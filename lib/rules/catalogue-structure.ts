@@ -886,6 +886,12 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
   // not belong to the card's enter-play announcement.
   const announcementText = card.effect.replace(/["“]Victor\s*:[\s\S]*?["”]/gi, "");
   const choices = choicesForText(card, announcementText, "announce");
+  if (card.type === "Baku-Gear" && !choices.some((choice) => choice.id === "targetBakuganId")) {
+    const target = choice("targetBakuganId", "announce", "chosen-bakugan", "Choose a Bakugan for this Baku-Gear");
+    target.owner = "controller";
+    target.targetOwner = "controller";
+    choices.push(target);
+  }
   // A later trigger on the same card must not move a When-you-play target
   // from announcement to resolution. Parse each When-you-play clause in
   // isolation and merge its announcement selections into the card play.
@@ -898,7 +904,7 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
     choices,
     costModifiers: costModifiersFor(card),
     evolvesFrom: evoIdentities(card),
-    sourceZones: card.type === "Flip"
+    sourceZones: card.type === "Flip" || card.type === "Flip Hero"
       ? ["damage-reveal"]
       : /play this from your discard pile as though it were in your hand/i.test(card.effect)
         ? ["hand", "discard"]

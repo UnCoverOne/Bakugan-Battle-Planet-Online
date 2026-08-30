@@ -31,7 +31,7 @@ export const CORES: Core[] = seeds.map(([number, type, bonus, damageBonus, extra
   art: `/assets/cores/full/${number}.webp`,
 }));
 
-const characterCards = CARDS.filter((card) => card.type === "Character" && card.bPower != null && card.damage != null);
+const characterCards = CARDS.filter((card) => card.type === "Character" && card.fusionFace !== "b" && card.bPower != null && card.damage != null);
 export const BAKUGAN: Bakugan[] = characterCards.map((character) => ({
   id: character.catalogId,
   name: character.displayName,
@@ -45,6 +45,11 @@ export const BAKUGAN: Bakugan[] = characterCards.map((character) => ({
   open: false,
   heldCoreCells: [],
   evoStack: [],
+  bakuGear: [],
+  fusionCharacter: character.fusionPairId
+    ? CARDS.find((candidate) => candidate.fusionPairId === character.fusionPairId && candidate.fusionFace === "b")
+    : undefined,
+  fused: false,
 }));
 
 export type CardOverrideRecord = {

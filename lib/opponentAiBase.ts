@@ -711,14 +711,14 @@ function evaluatedFutureCardValue(
     let value = estimateProgramValue(evaluatedProgram, match, playerId) - printedCost * 0.4;
     value += prospectiveNegateValue(evaluatedProgram, match);
     if (card.type === "Hero") value += 2.2;
-    if (card.type === "Flip" && includeDeckFlipValue) value += 3.2;
+    if ((card.type === "Flip" || card.type === "Flip Hero") && includeDeckFlipValue) value += 3.2;
     return value;
   } catch {
     // A forced discard must never stall because another card cannot be
     // valued. Keep the previous stable fallback for playable cards.
     return printedCost * 0.4
       + (card.type === "Hero" ? 2.2
-        : card.type === "Flip" && includeDeckFlipValue ? 3.2 : 0);
+        : (card.type === "Flip" || card.type === "Flip Hero") && includeDeckFlipValue ? 3.2 : 0);
   }
 }
 
@@ -728,7 +728,7 @@ function evaluatedFutureCardValue(
  * retaining it has no opportunity value for Energize or discard choices.
  */
 export function handCardRetentionValue(match: MatchState, playerId: string, card: GameCard) {
-  if (card.type === "Flip") return 0;
+  if (card.type === "Flip" || card.type === "Flip Hero") return 0;
   return evaluatedFutureCardValue(match, playerId, card, false);
 }
 
@@ -869,7 +869,7 @@ function dominationFlipReserveValue(match: MatchState, playerId: string) {
   if (heldCoreCount(match, playerId) <= heldCoreCount(match, opponent.id)) return 0;
   const capacity = currentEnergyCapacity(match, playerId);
   const candidates = player.deckCards.filter((card) => (
-    card.type === "Flip"
+    (card.type === "Flip" || card.type === "Flip Hero")
     && /\bDomination\b/i.test(card.effect)
     && card.cost !== "X"
     && card.cost <= capacity
@@ -1147,7 +1147,7 @@ function cardValue(
   if (card.type === "Evo") {
     value += evoMarginalValue(match, playerId, card, evoTargetId(choices));
   }
-  if (card.type === "Flip") value += match.pendingDamage > 0 ? 5 : -10;
+  if (card.type === "Flip" || card.type === "Flip Hero") value += match.pendingDamage > 0 ? 5 : -10;
   return value;
 }
 
@@ -1584,7 +1584,7 @@ function futurePlayLikelihood(
   zone: "hand" | "deck",
 ) {
   if (card.type === "Character") return 0;
-  if (card.type === "Flip") return zone === "deck" ? 0.42 : 0;
+  if (card.type === "Flip" || card.type === "Flip Hero") return zone === "deck" ? 0.42 : 0;
   try {
     if (cardLeafActions(card).some((action) => (
       action.kind === "negate" || action.kind === "prevention"
@@ -1736,7 +1736,7 @@ function deckEnergyGoals(match: MatchState, playerId: string, capacity: number) 
 
 function developmentDemandScore(analysis: EnergyCardAnalysis, capacity: number) {
   if (
-    analysis.card.type === "Flip"
+    (analysis.card.type === "Flip" || analysis.card.type === "Flip Hero")
     || analysis.card.type === "Character"
     || analysis.cost <= capacity
     || analysis.cost > 3
@@ -1762,7 +1762,7 @@ function developmentGoal(
       || a.analysis.card.id.localeCompare(b.analysis.card.id)
     ));
   const hasStrandedFodder = analyses.some((analysis) => (
-    analysis.card.type === "Flip"
+    (analysis.card.type === "Flip" || analysis.card.type === "Flip Hero")
     || analysis.card.type === "Character"
     || analysis.playLikelihood <= 0
   ));
@@ -1803,7 +1803,7 @@ function energyCandidateTier(
   capacity: number,
 ) {
   if (
-    analysis.card.type === "Flip"
+    (analysis.card.type === "Flip" || analysis.card.type === "Flip Hero")
     || analysis.card.type === "Character"
     || analysis.playLikelihood <= 0
   ) return 0;
@@ -2205,7 +2205,7 @@ function temporaryResponseProfile(
   playerId: string,
   card: GameCard,
 ): PreRollResponseOption | undefined {
-  if (card.type === "Flip" || card.type === "Character") return undefined;
+  if (card.type === "Flip" || card.type === "Flip Hero" || card.type === "Character") return undefined;
   let choices: CardChoices = {};
   try { choices = chooseCardChoices(match, playerId, card); } catch { choices = {}; }
   let cost = card.cost === "X" ? Math.max(1, currentEnergyCapacity(match, playerId)) : card.cost;
@@ -2657,7 +2657,7 @@ function bestPlayableCard(match: MatchState, playerId: string) {
     ? createPreRollDecisionContext(match, playerId)
     : undefined;
   return player.hand
-    .filter((card) => card.type !== "Flip" && card.type !== "Character")
+    .filter((card) => card.type !== "Flip" && card.type !== "Flip Hero" && card.type !== "Character")
     .filter((card) => cardRerollTimingLegal(match, playerId, card))
     .map((card) => {
       const choices = chooseCardChoices(match, playerId, card);

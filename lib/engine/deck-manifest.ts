@@ -13,7 +13,7 @@ function mainDeckCards(player: PlayerState): GameCard[] {
     ...player.discard,
     ...player.energyZone,
     ...player.heroes,
-    ...player.bakugan.flatMap((bakugan) => bakugan.evoStack),
+    ...player.bakugan.flatMap((bakugan) => [...bakugan.evoStack, ...(bakugan.bakuGear ?? [])]),
   ].filter((card) => card.type !== "Character");
 }
 
@@ -109,7 +109,11 @@ function rebuildPlayerZones(
   player.energyZone = [];
   player.heroes = [];
   player.energy = 0;
-  for (const bakugan of player.bakugan) bakugan.evoStack = [];
+  for (const bakugan of player.bakugan) {
+    bakugan.evoStack = [];
+    bakugan.bakuGear = [];
+    bakugan.fused = false;
+  }
 }
 
 export function restoreOriginalDecksForNextGame(

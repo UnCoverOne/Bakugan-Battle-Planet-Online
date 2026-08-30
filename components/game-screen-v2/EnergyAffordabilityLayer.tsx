@@ -65,6 +65,7 @@ export function EnergyAffordabilityLayer({
         || !player
         || !card
         || card.type === "Flip"
+        || card.type === "Flip Hero"
         || card.type === "Character"
         || !isPriorityWindow(match)
         || match.priority !== player.id
@@ -124,4 +125,3 @@ export function EnergyAffordabilityLayer({
 
   return null;
 }
-

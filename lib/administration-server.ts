@@ -136,7 +136,7 @@ export function normalizeCardEdit(value: unknown) {
     constructionIdentity: original.constructionIdentity,
   } as GameCard;
   if (!merged.displayName.trim() || !merged.name.trim()) throw new Error("Card names cannot be empty.");
-  if (!["Action", "Flip", "Hero", "Evo", "Character"].includes(merged.type)) throw new Error("Card type is invalid.");
+  if (!["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character"].includes(merged.type)) throw new Error("Card type is invalid.");
   if (!["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"].includes(merged.faction)) throw new Error("Card faction is invalid.");
   if (!Array.isArray(merged.factions) || !merged.factions.length) throw new Error("At least one card faction is required.");
   if (!Array.isArray(merged.mechanics) || !Array.isArray(merged.coreTypes)) throw new Error("Mechanics and BakuCore types must be arrays.");

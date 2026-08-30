@@ -271,12 +271,12 @@ function evaluateProperty(state: MatchState, expression: Extract<NumberExpressio
   const characteristics = context.characteristics?.(entity.bakugan, entity.owner);
   if (expression.property === "power") {
     return characteristics?.power
-      ?? (entity.bakugan.evoStack.at(-1)?.bPower ?? entity.bakugan.character.bPower ?? entity.bakugan.bPower)
+      ?? (entity.bakugan.evoStack.at(-1)?.bPower ?? (entity.bakugan.fused ? entity.bakugan.fusionCharacter?.bPower : undefined) ?? entity.bakugan.character.bPower ?? entity.bakugan.bPower)
         + (state.powerBoost[entity.bakugan.id] ?? 0);
   }
   if (expression.property === "damage") {
     return characteristics?.damage
-      ?? (entity.bakugan.evoStack.at(-1)?.damage ?? entity.bakugan.character.damage ?? entity.bakugan.damage)
+      ?? (entity.bakugan.evoStack.at(-1)?.damage ?? (entity.bakugan.fused ? entity.bakugan.fusionCharacter?.damage : undefined) ?? entity.bakugan.character.damage ?? entity.bakugan.damage)
         + (state.damageBoost[entity.bakugan.id] ?? 0);
   }
   if (expression.property === "frost") return characteristics?.frostStrike ?? state.frostStrike[entity.bakugan.id] ?? 0;

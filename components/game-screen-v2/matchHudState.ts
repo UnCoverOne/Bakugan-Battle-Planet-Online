@@ -133,7 +133,7 @@ export function playableHandCards(
   // and select any otherwise legal card; the authoritative payment action then
   // spends generated Energy, auto-taps the shortfall, or reports insufficiency.
   return player.hand.filter((card) => (
-    card.type !== "Flip"
+    card.type !== "Flip" && card.type !== "Flip Hero"
     && card.type !== "Character"
     && cardRerollTimingLegal(match, player.id, card)
     && (card.type !== "Evo" || legalEvoTargets(match, player.id, card).length > 0)

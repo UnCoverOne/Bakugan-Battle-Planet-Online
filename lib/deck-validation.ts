@@ -47,7 +47,7 @@ export type ValidationCard = {
 export type ValidationCharacter = {
   id: string;
   faction: string;
-  character?: { coreTypes?: string[] };
+  character?: { coreTypes?: string[]; factions?: string[] };
   coreTypes?: string[];
 };
 
@@ -193,10 +193,10 @@ export function validateDeckConstruction(
     issues.push(issue("main_deck.unknown_card", "mainDeck", "cardIds", "Every Main Deck ID must identify a card in the catalogue.", { actual: unknownCards }));
   }
 
-  const teamFactions = [...new Set(characters.map((character) => character.faction))];
+  const teamFactions = [...new Set(characters.flatMap((character) => character.character?.factions?.length ? character.character.factions : [character.faction]))];
   const incompatible = cards.find((card) => {
     const factions = card.factions?.length ? card.factions : card.faction ? [card.faction] : [];
-    return !factions.some((faction) => teamFactions.includes(faction));
+    return !factions.every((faction) => teamFactions.includes(faction));
   });
   if (incompatible) {
     issues.push(issue(

@@ -148,7 +148,7 @@ export function DeckInspectionLayer() {
     ? cardOptionById(displayedOptions, selectedId)?.card
     : displayedOptions[0]?.card;
   const inspectedCardPlayable = !inspectedDeckPlay
-    || Boolean(inspectedCard && inspectedCard.type !== "Flip");
+    || Boolean(inspectedCard && inspectedCard.type !== "Flip" && inspectedCard.type !== "Flip Hero");
   const eligibleIds = new Set(selectionField?.options.map((option) => option.id) ?? []);
   const selectionRequired = Boolean(selectionField && selectionField.minimum > 0);
   const orderComplete = searchMode || (

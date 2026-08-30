@@ -7,7 +7,7 @@ import { cardArtSource } from "../lib/content/card-art";
 import { CARD_SET_INFO, CONTENT_MANIFEST, cardCollectorLabel, cardSetCode } from "../lib/content/catalogue";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 
-const bySet = (set: "BB" | "BR" | "AA" | "EX") => CARDS.filter((card) => cardSetCode(card) === set);
+const bySet = (set: keyof typeof CARD_SET_INFO) => CARDS.filter((card) => cardSetCode(card) === set);
 
 const repositoryAssetExists = (assetPath: string) => existsSync(join(process.cwd(), "public", assetPath.replace(/^\//, "")));
 
@@ -16,8 +16,15 @@ test("every supported card set is fully addressable", () => {
   assert.equal(bySet("BR").length, 249);
   assert.equal(bySet("AA").length, 220);
   assert.equal(bySet("EX").length, 2);
+  assert.equal(bySet("AV").length, 272);
+  assert.equal(bySet("FF").length, 276);
+  assert.equal(bySet("SV").length, 310);
+  assert.equal(bySet("PS1").length, 21);
+  assert.equal(bySet("CP").length, 6);
+  assert.equal(bySet("DI").length, 4);
   assert.equal(CARDS.length, CONTENT_MANIFEST.cardCount);
-  assert.deepEqual(CONTENT_MANIFEST.sets, { BB: 374, BR: 249, AA: 220, EX: 2 });
+  assert.equal(CARDS.length, 1734);
+  assert.deepEqual(CONTENT_MANIFEST.sets, { BB: 374, BR: 249, AA: 220, EX: 2, AV: 272, FF: 276, DI: 4, PS1: 21, SV: 310, CP: 6 });
   assert.equal(CARD_SET_INFO.BR.collectorTotal, 248);
   assert.equal(CARD_SET_INFO.AA.collectorTotal, 220);
   assert.equal(CARD_SET_INFO.EX.collectorTotal, 2);
@@ -33,6 +40,7 @@ test("collector labels are set-aware", () => {
   assert.equal(cardCollectorLabel(CARDS.find((card) => card.catalogId === "bb-1")!), "1/374 BB");
   assert.equal(cardCollectorLabel(CARDS.find((card) => card.catalogId === "br-1")!), "1/248 BR");
   assert.equal(cardCollectorLabel(CARDS.find((card) => card.catalogId === "aa-1")!), "1/220 AA");
+  assert.equal(cardCollectorLabel(CARDS.find((card) => card.catalogId === "ff-203a")!), "203a/241 FF");
 });
 
 test("every extension card has rules provenance and a self-hosted art source", () => {
@@ -42,7 +50,7 @@ test("every extension card has rules provenance and a self-hosted art source", (
     assert.equal(definition.sourceText, card.effect);
     assert.ok(definition.provenance.citations.some((citation) => citation.sourceId === "bp-card-printing"));
     if (card.hasProvidedScan) {
-      assert.match(card.art, /^\/assets\/cards\/sets\/(?:br|aa|ex)\/full\/.+\.(?:webp|svg)$/);
+      assert.match(card.art, /^\/assets\/cards\/sets\/(?:br|aa|ex|av|ff|sv|ps1|cp|di)\/full\/.+\.(?:webp|svg)$/);
       assert.ok(repositoryAssetExists(card.art), `${card.catalogId} full scan is missing`);
       assert.ok(repositoryAssetExists(cardArtSource(card, "thumbnail")), `${card.catalogId} thumbnail is missing`);
     } else {
@@ -60,6 +68,24 @@ test("card art resolution preserves set-qualified local scan sources", () => {
   assert.equal(cardArtSource(battleBrawlers, "thumbnail"), "/assets/cards/thumb/1.webp");
   assert.equal(cardArtSource(resurgence, "thumbnail"), "/assets/cards/sets/br/thumb/br-1.webp");
   assert.equal(cardArtSource(ageOfAurelus, "thumbnail"), "/assets/cards/sets/aa/thumb/aa-1.webp");
+});
+
+test("Armored Alliance records preserve modern card characteristics", () => {
+  const fusion = CARDS.find((card) => card.catalogId === "ff-203a")!;
+  const gear = CARDS.find((card) => card.catalogId === "di-1")!;
+  const modernDamage = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "sv-29")!);
+  const reroll = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "av-53")!);
+
+  assert.deepEqual(fusion.factions, ["Ventus", "Aurelus"]);
+  assert.equal(fusion.fusionFace, "a");
+  assert.equal(fusion.fusionPairId, "ff-203");
+  assert.equal(gear.type, "Baku-Gear");
+  assert.equal(gear.armorRating, 0);
+  assert.match(gear.effect, /Armor/);
+  assert.ok(modernDamage.abilities.flatMap((ability) => ability.instructions).flatMap((instruction) => instruction.effects)
+    .some((effect) => effect.kind === "modify-stat" && effect.stat === "damage" && effect.amount === -10));
+  assert.ok(reroll.abilities.flatMap((ability) => ability.instructions).flatMap((instruction) => instruction.effects)
+    .some((effect) => effect.kind === "reroll"));
 });
 
 test("Evo identities prefer the matching card set and faction", () => {

@@ -16,6 +16,11 @@ export type ExtensionCardRow = readonly [
   coreTwo: string,
   evolvesFrom: string,
   scanFilename: string,
+  factionTwo?: ControlledCardRecord["faction"] | "",
+  armorRating?: number | null,
+  collectorNumber?: string,
+  fusionPairId?: string,
+  fusionFace?: "a" | "b" | "",
 ];
 
 const RARITIES: Record<string, string> = {
@@ -25,13 +30,21 @@ const RARITIES: Record<string, string> = {
   SR: "Super Rare",
   AR: "Awesome Rare",
   BE: "Bakugan Elite",
+  EC: "Epic Character",
+  P: "Promo",
 };
 
-type ExtensionSetCode = "BR" | "AA" | "EX";
+type ExtensionSetCode = "BR" | "AA" | "AV" | "FF" | "SV" | "PS1" | "CP" | "DI" | "EX";
 
 const SET_NAMES: Record<ExtensionSetCode, string> = {
   BR: "Bakugan Resurgence",
   AA: "Age of Aurelus",
+  AV: "Armored Elite",
+  FF: "Fusion Force",
+  SV: "Shields of Vestroia",
+  PS1: "Blind Box 1 Exclusives",
+  CP: "Cubbo Promo",
+  DI: "Diamond Baku-Gear",
   EX: "EX",
 };
 
@@ -42,10 +55,15 @@ const CARD_TEXT_ERRATA: Readonly<Record<string, string>> = Object.freeze({
 
 const CORES: Record<string, ControlledCardRecord["coreTypes"][number]> = {
   "[FT]": "Fist",
+  FT: "Fist",
   "[FF]": "Flaming Fist",
+  FF: "Flaming Fist",
   "[SD]": "Shield",
+  SD: "Shield",
   "[MS]": "Magic Shield",
+  MS: "Magic Shield",
   "[HE]": "Helix",
+  HE: "Helix",
 };
 
 function slugify(value: string) {
@@ -56,7 +74,7 @@ function mechanicsFor(effect: string) {
   const mechanics = new Set<string>();
   const checks: Array<[RegExp, string]> = [
     [/[+-]\d+\s*\[B\]/i, "B-Power"],
-    [/[+-]\d+\s*\[Damage Rating\]/i, "Damage"],
+    [/[+-]\d+\s*\[Damage(?: (?:Rating|Power))?\]/i, "Damage"],
     [/\[FrostStrike\]/i, "FrostStrike"],
     [/\[ShadowStrike\]/i, "ShadowStrike"],
     [/\[DoubleStrike\]/i, "DoubleStrike"],
@@ -78,6 +96,13 @@ function mechanicsFor(effect: string) {
     [/\bAurelus Power\b/i, "Aurelus Power"],
     [/\bBattle Mastery\b/i, "Battle Mastery"],
     [/\bUnderdog\b/i, "Underdog"],
+    [/\bBoost\b/i, "Boost"],
+    [/\bSync\b/i, "Sync"],
+    [/\bTrifecta\b/i, "Trifecta"],
+    [/\bRapid Fire\b/i, "Rapid Fire"],
+    [/\bEmpower\b/i, "Empower"],
+    [/\bBaku-Gear\b/i, "Baku-Gear"],
+    [/<Fusion>|\bFusion\b/i, "Fusion"],
     [/\bwin the game\b/i, "Alternate Win"],
     [/\bWhen\b|\bAt the end\b/i, "Triggered"],
     [/\bYour Bakugan\b|\bOpposing Bakugan\b|\bTreat all\b/i, "Static"],
@@ -98,7 +123,7 @@ export function recordsFromRows(
 ): ControlledCardRecord[] {
   const setName = SET_NAMES[setCode];
   return rows.map((row) => {
-    const [id, number, rarityCode, displayName, faction, type, cost, printedEffect, bPower, damage, coreOne, coreTwo, evolvesFrom, scanFilename] = row;
+    const [id, number, rarityCode, displayName, faction, type, cost, printedEffect, bPower, damage, coreOne, coreTwo, evolvesFrom, scanFilename, factionTwo, armorRating, collectorNumber, fusionPairId, fusionFace] = row;
     const effect = CARD_TEXT_ERRATA[id] ?? printedEffect;
     const internalName = type === "Character" || type === "Evo"
       ? `${faction} ${displayName}`
@@ -117,7 +142,7 @@ export function recordsFromRows(
         effect,
       }),
       faction,
-      factions: [faction],
+      factions: factionTwo ? [faction, factionTwo] : [faction],
       type,
       cost,
       rarity: RARITIES[rarityCode] ?? rarityCode,
@@ -127,10 +152,14 @@ export function recordsFromRows(
       damage,
       coreTypes,
       evolvesFrom: evolvesFrom || null,
+      ...(armorRating != null ? { armorRating } : {}),
+      ...(collectorNumber ? { collectorNumber } : {}),
+      ...(fusionPairId ? { fusionPairId } : {}),
+      ...(fusionFace ? { fusionFace } : {}),
       art: scanUrl(setCode, id, scanFilename),
       hasProvidedScan: Boolean(scanFilename),
       source: `${setName} supplied workbook${scanFilename ? " and card scan" : ""}`,
-      slug: `${setCode.toLowerCase()}-${number}-${slugify(displayName)}`,
+      slug: `${setCode.toLowerCase()}-${collectorNumber ?? number}-${slugify(displayName)}${id.startsWith(`${setCode.toLowerCase()}-${collectorNumber ?? number}`) && id !== `${setCode.toLowerCase()}-${collectorNumber ?? number}` ? `-${slugify(id.slice(`${setCode.toLowerCase()}-${collectorNumber ?? number}`.length))}` : ""}`,
     };
   });
 }

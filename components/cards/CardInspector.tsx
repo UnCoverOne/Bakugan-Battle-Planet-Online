@@ -144,6 +144,8 @@ export function CardInspector({
                 <div><dt>Catalogue ID</dt><dd>{card.catalogId}</dd></div>
                 {card.bPower !== null && <div><dt>B-Power</dt><dd>{card.bPower}</dd></div>}
                 {card.damage !== null && <div><dt>Damage</dt><dd>{card.damage}</dd></div>}
+                {card.armorRating !== undefined && <div><dt>Armor</dt><dd>{card.armorRating}</dd></div>}
+                {card.fusionFace && <div><dt>Fusion face</dt><dd>{card.fusionFace.toUpperCase()}</dd></div>}
                 {card.coreTypes.length > 0 && <div><dt>BakuCores</dt><dd>{card.coreTypes.join(" · ")}</dd></div>}
                 {card.evolvesFrom && <div><dt>Evolves from</dt><dd>{card.evolvesFrom}</dd></div>}
                 <div><dt>Source</dt><dd>{card.source ?? "Provided catalogue"}</dd></div>

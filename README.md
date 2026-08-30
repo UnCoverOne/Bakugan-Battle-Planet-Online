@@ -1,6 +1,6 @@
 # Bakugan: Battle Planet Online
 
-A full-stack, browser-playable simulator for the 2019 Bakugan: Battle Planet TCG. It includes the complete **Battle Brawlers**, **Bakugan Resurgence**, and **Age of Aurelus** catalogues, deck building, persistent guest profiles, email/password accounts, cross-device data sync, match setup, training play, room-code multiplayer, the shared BakuCore field, server-authoritative game state, best-of-one/best-of-three matches, reconnect handling, undo restrictions, logs, timers, and the tabletop match interface.
+A full-stack, browser-playable simulator for the 2019 Bakugan: Battle Planet TCG. It includes the complete Battle Planet and Armored Alliance era catalogues, deck building, persistent guest profiles, email/password accounts, cross-device data sync, match setup, training play, room-code multiplayer, the shared BakuCore field, server-authoritative game state, best-of-one/best-of-three matches, reconnect handling, undo restrictions, logs, timers, and the tabletop match interface.
 
 ## Included card sets
 
@@ -9,7 +9,14 @@ A full-stack, browser-playable simulator for the 2019 Bakugan: Battle Planet TCG
 | Battle Brawlers | BB | 374 |
 | Bakugan Resurgence | BR | 249 |
 | Age of Aurelus | AA | 220 |
-| **Total** |  | **843** |
+| Promo Exclusives | EX | 2 |
+| Armored Elite | AV | 272 |
+| Fusion Force | FF | 276 |
+| Shields of Vestroia | SV | 310 |
+| Blind Box 1 | PS1 | 21 |
+| Cubbo Pack | CP | 6 |
+| Diamond Indomitable | DI | 4 |
+| **Total** |  | **1,734** |
 
 Bakugan Resurgence contains two known printings numbered 221, so its 248 collector numbers produce 249 catalogue records.
 
@@ -66,7 +73,7 @@ This is a full-stack application, not a static export. Room-code multiplayer cal
 - `app/` — UI, routes, and server API
 - `lib/engine/` — typed commands, deterministic reduction, phase validation, domain events, idempotency, persistence, and client projections
 - `lib/game.ts` — Battle Planet rules and legacy-compatible state transitions used behind the engine boundary
-- `lib/content/generated/` — generated Bakugan Resurgence and Age of Aurelus card records
+- `lib/content/generated/` — generated card records for all post-Battle Brawlers sets
 - `lib/content/card-set-extensions.ts` — set-row normalization, scan mapping, mechanics tags, and provenance
 - `docs/engine-architecture.md` — command, reducer, event-store, projection, and migration architecture
 - `lib/persistence.ts` — versioned browser/cloud snapshots and conflict merging

@@ -1,14 +1,14 @@
 import battleBrawlersJson from "../catalog.generated.json";
 import type { GameCard } from "../game";
 import { recordsFromRows } from "./card-set-extensions";
-import { AA_CARD_ROWS, BR_CARD_ROWS, EX_CARD_ROWS } from "./card-set-rows";
+import { AA_CARD_ROWS, AV_CARD_ROWS, BR_CARD_ROWS, CP_CARD_ROWS, DI_CARD_ROWS, EX_CARD_ROWS, FF_CARD_ROWS, PS1_CARD_ROWS, SV_CARD_ROWS } from "./card-set-rows";
 import { constructionIdentityForCard } from "./construction-identity";
 import {
   CARD_CATALOGUE_VERSION,
   CONTENT_SCHEMA_VERSION,
 } from "./versions";
 
-export const CARD_SET_CODES = Object.freeze(["BB", "BR", "AA", "EX"] as const);
+export const CARD_SET_CODES = Object.freeze(["BB", "BR", "AA", "AV", "FF", "DI", "PS1", "SV", "CP", "EX"] as const);
 export type CardSetCode = (typeof CARD_SET_CODES)[number];
 
 export type ControlledCardRecord = Omit<GameCard, "id" | "catalogId"> & {
@@ -23,6 +23,12 @@ export const CARD_SET_INFO = Object.freeze({
   BB: Object.freeze({ code: "BB" as const, name: "Battle Brawlers", collectorTotal: 374 }),
   BR: Object.freeze({ code: "BR" as const, name: "Bakugan Resurgence", collectorTotal: 248 }),
   AA: Object.freeze({ code: "AA" as const, name: "Age of Aurelus", collectorTotal: 220 }),
+  AV: Object.freeze({ code: "AV" as const, name: "Armored Elite", collectorTotal: 271 }),
+  FF: Object.freeze({ code: "FF" as const, name: "Fusion Force", collectorTotal: 241 }),
+  DI: Object.freeze({ code: "DI" as const, name: "Diamond Baku-Gear", collectorTotal: 5 }),
+  PS1: Object.freeze({ code: "PS1" as const, name: "Blind Box 1 Exclusives", collectorTotal: 21 }),
+  SV: Object.freeze({ code: "SV" as const, name: "Shields of Vestroia", collectorTotal: 261 }),
+  CP: Object.freeze({ code: "CP" as const, name: "Cubbo Promo", collectorTotal: 6 }),
   EX: Object.freeze({ code: "EX" as const, name: "EX", collectorTotal: 2 }),
 });
 
@@ -30,13 +36,19 @@ export function cardSetCode(card: Pick<GameCard, "catalogId"> | Pick<ControlledC
   const id = "catalogId" in card ? card.catalogId : card.id;
   if (id.startsWith("br-")) return "BR";
   if (id.startsWith("aa-")) return "AA";
+  if (id.startsWith("av-")) return "AV";
+  if (id.startsWith("ff-")) return "FF";
+  if (id.startsWith("di-")) return "DI";
+  if (id.startsWith("ps1-")) return "PS1";
+  if (id.startsWith("sv-")) return "SV";
+  if (id.startsWith("cp-")) return "CP";
   if (id.startsWith("ex-")) return "EX";
   return "BB";
 }
 
-export function cardCollectorLabel(card: Pick<GameCard, "catalogId" | "number">) {
+export function cardCollectorLabel(card: Pick<GameCard, "catalogId" | "number" | "collectorNumber">) {
   const info = CARD_SET_INFO[cardSetCode(card)];
-  return `${card.number}/${info.collectorTotal} ${info.code}`;
+  return `${card.collectorNumber ?? card.number}/${info.collectorTotal} ${info.code}`;
 }
 
 const VERIFIED_CARD_CORRECTIONS: Partial<Record<string, Partial<ControlledCardRecord>>> = {
@@ -61,6 +73,12 @@ export const CONTROLLED_CATALOGUE = Object.freeze(
     ...recordsFromRows("BR", BR_CARD_ROWS),
     ...recordsFromRows("AA", AA_CARD_ROWS),
     ...recordsFromRows("EX", EX_CARD_ROWS),
+    ...recordsFromRows("AV", AV_CARD_ROWS),
+    ...recordsFromRows("FF", FF_CARD_ROWS),
+    ...recordsFromRows("DI", DI_CARD_ROWS),
+    ...recordsFromRows("PS1", PS1_CARD_ROWS),
+    ...recordsFromRows("SV", SV_CARD_ROWS),
+    ...recordsFromRows("CP", CP_CARD_ROWS),
   ].map((record) => Object.freeze({ ...record })),
 );
 
@@ -82,6 +100,12 @@ export const CONTENT_MANIFEST = Object.freeze({
     BR: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "BR").length,
     AA: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "AA").length,
     EX: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "EX").length,
+    AV: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "AV").length,
+    FF: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "FF").length,
+    DI: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "DI").length,
+    PS1: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "PS1").length,
+    SV: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "SV").length,
+    CP: CONTROLLED_CATALOGUE.filter((card) => cardSetCode(card) === "CP").length,
   }),
   textFingerprint: textFingerprint(
     CONTROLLED_CATALOGUE.map((card) => `${card.id}\u001f${card.effect}`).join("\u001e"),
@@ -89,20 +113,22 @@ export const CONTENT_MANIFEST = Object.freeze({
 });
 
 const EXPECTED_TYPE_COUNTS = Object.freeze({
-  Action: 246,
-  Character: 237,
-  Evo: 233,
-  Flip: 82,
-  Hero: 47,
+  Action: 448,
+  Character: 644,
+  Evo: 336,
+  Flip: 128,
+  Hero: 83,
+  "Flip Hero": 5,
+  "Baku-Gear": 90,
 });
 
-const EXPECTED_SET_COUNTS = Object.freeze({ BB: 374, BR: 249, AA: 220, EX: 2 });
+const EXPECTED_SET_COUNTS = Object.freeze({ BB: 374, BR: 249, AA: 220, EX: 2, AV: 272, FF: 276, DI: 4, PS1: 21, SV: 310, CP: 6 });
 
 export function validateControlledCatalogue(
   records: readonly ControlledCardRecord[] = CONTROLLED_CATALOGUE,
 ) {
   const errors: string[] = [];
-  if (records.length !== 845) errors.push(`Expected 845 cards, found ${records.length}.`);
+  if (records.length !== 1734) errors.push(`Expected 1734 cards, found ${records.length}.`);
   const ids = new Set<string>();
   const slugs = new Set<string>();
   const typeCounts = new Map<string, number>();
@@ -110,7 +136,7 @@ export function validateControlledCatalogue(
   const setNumbers = new Map<CardSetCode, Map<number, number>>();
   for (const card of records) {
     const set = cardSetCode(card);
-    if (!/^(?:bb|br|aa|ex)-\d+(?:-[a-z0-9-]+)?$/.test(card.id)) errors.push(`${card.id || "<missing>"}: invalid canonical ID.`);
+    if (!/^(?:bb|br|aa|ex|av|ff|di|ps1|sv|cp)-\d+[ab]?(?:-[a-z0-9-]+)?$/.test(card.id)) errors.push(`${card.id || "<missing>"}: invalid canonical ID.`);
     if (ids.has(card.id)) errors.push(`${card.id}: duplicate canonical ID.`);
     ids.add(card.id);
     if (!Number.isInteger(card.number) || card.number < 1 || card.number > CARD_SET_INFO[set].collectorTotal) errors.push(`${card.id}: invalid collector number.`);
@@ -118,7 +144,7 @@ export function validateControlledCatalogue(
     numbers.set(card.number, (numbers.get(card.number) ?? 0) + 1);
     setNumbers.set(set, numbers);
     if (set === "BB" && card.id !== `bb-${card.number}`) errors.push(`${card.id}: Battle Brawlers ID does not match card number ${card.number}.`);
-    if (set !== "BR" || card.number !== 221) {
+    if (!["AV", "FF", "SV"].includes(set) && (set !== "BR" || card.number !== 221)) {
       if ((numbers.get(card.number) ?? 0) > 1) errors.push(`${card.id}: duplicate ${set} collector number ${card.number}.`);
     }
     if (!card.name?.trim() || !card.displayName?.trim()) errors.push(`${card.id}: missing display name.`);

@@ -1991,8 +1991,8 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
           <BuilderFilterGroup
             title="Card types"
             values={activeMenu.surface === "gallery"
-              ? ["Action", "Flip", "Hero", "Evo", "Character", "Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"]
-              : ["Action", "Flip", "Hero", "Evo"]}
+              ? ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character", "Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"]
+              : ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo"]}
             selected={activeMenu.surface === "gallery" ? galleryTypes : deckTypes}
             onToggle={(value) => activeMenu.surface === "gallery"
               ? toggleFilterValue(galleryTypes, setGalleryTypes, value)

@@ -2,7 +2,7 @@ import type { CardChoices, CardType, CoreType, Faction, GameCard, Phase } from "
 import type { ChooserOwner, PlayerScope, ZoneOwner } from "./primitives";
 import type { BooleanExpression, NumberValue } from "./values";
 
-export type RulesCardId = `${"bb" | "br" | "aa" | "ex"}-${number}${string}`;
+export type RulesCardId = `${"bb" | "br" | "aa" | "av" | "ff" | "sv" | "ps1" | "cp" | "di" | "ex"}-${number}${string}`;
 export type RulesObjectStatus = "pending" | "resolving" | "resolved" | "negated";
 export type ChoiceTiming = "announce" | "pay" | "resolve";
 export type ChoiceVisibility = "public" | "private" | "secret-until-reveal";

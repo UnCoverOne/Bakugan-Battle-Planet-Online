@@ -36,7 +36,7 @@ export function activeRulePermissions(state: MatchState, controllerId: string): 
 
   const activeSources = [
     ...player.heroes,
-    ...player.bakugan.map((bakugan) => bakugan.evoStack.at(-1) ?? bakugan.character),
+    ...player.bakugan.flatMap((bakugan) => [bakugan.evoStack.at(-1) ?? (bakugan.fused ? bakugan.fusionCharacter : undefined) ?? bakugan.character, ...(bakugan.bakuGear ?? [])]),
   ];
   const permissions = new Set<RulePermission>();
   for (const source of activeSources) {

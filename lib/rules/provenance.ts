@@ -57,7 +57,7 @@ export function provenanceForDefinition(card: GameCard, abilities: readonly Abil
   if (kinds.has("continuous") || kinds.has("grant-keyword")) citations.push(citation("bp-complete-rulebook", "Continuous effects and keyword rules", "Characteristic layers and protection are recalculated from active sources."));
   if (kinds.has("cost") || card.cost === "X" || /free|costs? .* less|Sacrifice/i.test(card.effect)) citations.push(citation("bp-complete-rulebook", "Playing cards and paying costs", "Announcement, payment, additional costs and FrostStrike are resolved before the object enters the Batch."));
   if (card.type === "Evo") citations.push(citation("bp-public-rulings", "Evo identity ruling", "Evo legality uses the specific canonical Character identity."));
-  if (card.type === "Flip") citations.push(citation("bp-complete-rulebook", "Damage Step and Flip cards", "A played Flip uses the normal Batch and priority procedure."));
+  if (card.type === "Flip" || card.type === "Flip Hero") citations.push(citation("bp-complete-rulebook", "Damage Step and Flip cards", "A played Flip uses the normal Batch and priority procedure."));
   if (/BakuCore|\[(?:FT|FF|SD|MS|HE)\]/i.test(card.effect)) citations.push(citation("bp-complete-rulebook", "BakuCore attachment and Character abilities"));
   if (/ShadowStrike/i.test(card.effect)) citations.push(citation("bp-complete-rulebook", "ShadowStrike", "Reductions from cards and BakuCores are filtered while ShadowStrike is active."));
   if (/FrostStrike/i.test(card.effect)) citations.push(citation("bp-complete-rulebook", "FrostStrike", "The attacking Bakugan's current FrostStrike modifies Flip costs."));

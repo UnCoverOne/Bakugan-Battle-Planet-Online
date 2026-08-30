@@ -71,6 +71,8 @@ function compactBakugan(bakugan: Bakugan): CompactBakuganInstance {
     ...(bakugan.open ? { o: 1 as const } : {}),
     ...(bakugan.heldCoreCells.length ? { h: [...bakugan.heldCoreCells] } : {}),
     ...(bakugan.evoStack.length ? { e: bakugan.evoStack.map(compactCard) } : {}),
+    ...(bakugan.bakuGear?.length ? { g: bakugan.bakuGear.map(compactCard) } : {}),
+    ...(bakugan.fused ? { f: 1 as const } : {}),
     ...(bakugan.openedTurn == null ? {} : { t: bakugan.openedTurn }),
   };
 }
@@ -85,6 +87,8 @@ function expandBakugan(bakugan: CompactBakuganInstance): Bakugan {
     open: bakugan.o === 1,
     heldCoreCells: [...(bakugan.h ?? [])],
     evoStack: (bakugan.e ?? []).map(expandCard),
+    bakuGear: (bakugan.g ?? []).map(expandCard),
+    fused: bakugan.f === 1,
     ...(bakugan.t == null ? {} : { openedTurn: bakugan.t }),
   };
 }

@@ -24,6 +24,8 @@ export type CompactBakuganInstance = {
   o?: 1;
   h?: string[];
   e?: CompactCardInstance[];
+  g?: CompactCardInstance[];
+  f?: 1;
   t?: number;
 };
 

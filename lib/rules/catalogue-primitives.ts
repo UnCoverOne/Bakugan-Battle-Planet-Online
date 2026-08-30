@@ -293,7 +293,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       targetChoiceId: ruleCardId(card) === "aa-50" ? "targetBakuganId" : undefined,
     });
   }
-  for (const match of text.matchAll(/([+-]\d+)\s*\[Damage (?:Rating|Power)\]/gi)) {
+  for (const match of text.matchAll(/([+-]\d+)\s*\[Damage(?: (?:Rating|Power))?\]/gi)) {
     actions.push({
       kind: "modify-stat",
       stat: "damage",
@@ -596,7 +596,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
 
   const intrinsicReroll = ["Character", "Evo"].includes(card.type)
     && /(?:once each turn|any time).*miss a Roll|miss a Roll.*(?:once each turn|any time)/i.test(text);
-  const rerollDirective = /\b(?:may|must)\s+Reroll\b|\bto\s+Reroll\b/i.test(text);
+  const rerollDirective = /\b(?:may|must)\s+Reroll\b|\bto\s+Reroll\b|^\s*Reroll\b/i.test(text);
   if (rerollDirective && !intrinsicReroll) actions.push({
     kind: "reroll",
     target: /opponent(?:'s)?|opposing Bakugan|their Bakugan/i.test(text) ? "opponent" : "controller",

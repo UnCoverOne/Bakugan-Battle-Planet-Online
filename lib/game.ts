@@ -42,7 +42,7 @@ export { resolveManualDamage as resolveDamage } from "./manualDamage";
 
 export type Faction = "Pyrus" | "Aquos" | "Darkus" | "Haos" | "Ventus" | "Aurelus";
 export type CoreType = "Fist" | "Flaming Fist" | "Shield" | "Magic Shield" | "Helix";
-export type CardType = "Action" | "Flip" | "Hero" | "Evo" | "Character";
+export type CardType = "Action" | "Flip" | "Flip Hero" | "Hero" | "Baku-Gear" | "Evo" | "Character";
 
 export type GameCard = {
   id: string;
@@ -65,6 +65,10 @@ export type GameCard = {
   source?: string;
   hasProvidedScan?: boolean;
   slug?: string;
+  collectorNumber?: string;
+  armorRating?: number;
+  fusionPairId?: string;
+  fusionFace?: "a" | "b";
   /** Turn in which this physical card instance entered play. */
   playedTurn?: number;
   /** Owner-only deadline for a card Energized from the top of the deck. */
@@ -84,6 +88,11 @@ export type Bakugan = {
   open: boolean;
   heldCoreCells: string[];
   evoStack: GameCard[];
+  /** Baku-Gear cards attached to this Bakugan. */
+  bakuGear?: GameCard[];
+  /** Reverse Character face used by a two-card Fusion printing. */
+  fusionCharacter?: GameCard;
+  fused?: boolean;
   /** Turn in which this Bakugan most recently opened. */
   openedTurn?: number;
 };
@@ -834,7 +843,7 @@ export const targetCore = (input: MatchState, playerId: string, cell: string) =>
 };
 
 const activeBakugan = (state: MatchState, playerId: string) => playerById(state, playerId).bakugan.find((bakugan) => bakugan.id === state.selected[playerId]);
-const topCard = (bakugan: Bakugan) => bakugan.evoStack.at(-1) ?? bakugan.character;
+const topCard = (bakugan: Bakugan) => bakugan.evoStack.at(-1) ?? (bakugan.fused ? bakugan.fusionCharacter : undefined) ?? bakugan.character;
 
 const DRAGONOID_MAXIMUS_CARD_ID = "ex-2";
 const DRAGONOID_MAXIMUS_REQUIRED_HEROES = ["Dan", "Wynton", "Lia"];
@@ -1162,7 +1171,7 @@ const conditionActive = (state: MatchState, player: PlayerState, text: string, c
   if (/(?:not|isn['’]t) a Flip card/i.test(text)) {
     const revealedId = (player as PlayerState & { revealedDeckCardId?: string }).revealedDeckCardId;
     const revealed = player.deckCards.find((card) => card.id === revealedId);
-    return Boolean(revealed && revealed.type !== "Flip");
+    return Boolean(revealed && revealed.type !== "Flip" && revealed.type !== "Flip Hero");
   }
   return false;
 };
@@ -1360,15 +1369,22 @@ function validateCardPlayRequest(state: MatchState, request: PendingCardPlay, ch
     if (request.sourceZone !== "hand" || request.sourceOwnerId !== request.controllerId) {
       throw new Error("An ordinary priority play must begin in your hand.");
     }
-    if (card.type === "Flip") throw new Error("Flip cards are played only when revealed by damage.");
+    if (card.type === "Flip" || card.type === "Flip Hero") throw new Error("Flip cards are played only when revealed by damage.");
   }
   if (request.origin === "damage") {
     if (state.phase !== "damage" || state.pendingLoser !== request.controllerId || request.sourceZone !== "damage-reveal") {
       throw new Error("A damage-revealed Flip can only be played during its Damage Step decision.");
     }
-    if (card.type !== "Flip" || !revealedFlipCanBePlayed(state, request.controllerId, card)) {
+    if (!["Flip", "Flip Hero"].includes(card.type) || !revealedFlipCanBePlayed(state, request.controllerId, card)) {
       throw new Error("This revealed Flip cannot legally be played against the current attack.");
     }
+  }
+  if (card.type === "Baku-Gear") {
+    const target = playerById(state, request.controllerId).bakugan.find((candidate) => candidate.id === choices.targetBakuganId);
+    if (!target) throw new Error("Choose one of your Bakugan for this Baku-Gear.");
+    const attached = target.bakuGear ?? [];
+    const dual = /\bDual\b/i.test(card.effect) || attached.some((gear) => /\bDual\b/i.test(gear.effect));
+    if (attached.length >= (dual ? 2 : 1)) throw new Error("That Bakugan has no open Baku-Gear slot.");
   }
   if (card.cost === "X" && !request.forcedFreeBase && !Number.isFinite(choices.xValue)) {
     const definition = ruleDefinitionForCard(card);
@@ -2758,7 +2774,7 @@ case "swap-bakucore": {
       }
       const printedCost = selected.cost === "X" ? Number.POSITIVE_INFINITY : selected.cost;
       if (action.maximumCost != null && printedCost > resolveNumber(action.maximumCost)) return;
-      if (action.source === "revealed-deck" && selected.type === "Flip") {
+      if (action.source === "revealed-deck" && (selected.type === "Flip" || selected.type === "Flip Hero")) {
         delete player.revealedDeckCardId;
         return;
       }
@@ -2852,7 +2868,7 @@ case "swap-bakucore": {
       if (index >= 0) {
         const [negated] = state.batch.splice(index, 1);
         if (isRuleObject(negated)) negateRuleObject(negated);
-        if (negated.kind === "card" && ["Action", "Flip", "Hero", "Evo"].includes(negated.card.type)) {
+        if (negated.kind === "card" && ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo"].includes(negated.card.type)) {
           const owner = playerById(state, negated.cardOwnerId ?? negated.controllerId);
           if (!owner.discard.some((candidate) => candidate.id === negated.card.id)) owner.discard.push(negated.card);
         }
@@ -3068,7 +3084,10 @@ function stageMandatoryDeckReveal(
   ));
   if (!publicReveal || !/reveal the top card of your deck/i.test(instruction.sourceText)) return;
   const revealed = revealTopDeckCard(state, playerById(state, pending.controllerId));
-  if (revealed?.type !== "Flip" || !instructionOffersRevealedDeckPlay(instruction)) return;
+  if (
+    (revealed?.type !== "Flip" && revealed?.type !== "Flip Hero")
+    || !instructionOffersRevealedDeckPlay(instruction)
+  ) return;
   const confirmation = schema.fields.find((field) => field.id === "confirmed");
   if (confirmation) confirmation.options = confirmation.options.filter((option) => option.id === "no");
 }
@@ -3234,7 +3253,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
     ...pending.choices,
     ...Object.values(pending.resolvedChoices ?? {}).reduce<CardChoices>((merged, answer) => ({ ...merged, ...answer }), {}),
   };
-  if (pending.kind === "card" && pending.card.type === "Hero"
+  if (pending.kind === "card" && (pending.card.type === "Hero" || pending.card.type === "Flip Hero")
     && !player.heroes.some((card) => card.id === pending.card.id)
     && !player.energyZone.some((card) => card.id === pending.card.id)) {
     player.heroes.push(pending.card);
@@ -3246,6 +3265,10 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
       (target as Bakugan & { characterFaceUp?: boolean }).characterFaceUp = true;
       if (wasFaceDown) entry(state, "game", `${target.name}'s Character card was turned face up before its Evo entered play.`);
     } else player.discard.push(pending.card);
+  } else if (pending.kind === "card" && pending.card.type === "Baku-Gear") {
+    const target = player.bakugan.find((bakugan) => bakugan.id === choices.targetBakuganId);
+    if (target) target.bakuGear = [...(target.bakuGear ?? []), pending.card];
+    else cardOwner.discard.push(pending.card);
   } else if (pending.kind === "card" && pending.card.type === "Action"
     && !player.hand.some((card) => card.id === pending.card.id)
     && !player.discard.some((card) => card.id === pending.card.id)
@@ -3664,9 +3687,10 @@ export const startNextSeriesGame = (input: MatchState) => {
   state.startingPlayer = selected.id; state.initialStartingPlayer = selected.id; state.priority = selected.id;
   state.startingPlayerRevealedAt = Date.now() + 2_500; state.brawlWinner = ""; state.winner = ""; state.resultReason = "";
   for (const player of state.players) {
-    const all = [...player.deckCards, ...player.hand, ...player.discard, ...player.energyZone, ...player.heroes];
+    const attachedCards = player.bakugan.flatMap((bakugan) => [...bakugan.evoStack, ...(bakugan.bakuGear ?? [])]);
+    const all = [...player.deckCards, ...player.hand, ...player.discard, ...player.energyZone, ...player.heroes, ...attachedCards];
     player.deckCards = all.filter((card) => card.type !== "Character"); shuffle(player.deckCards); player.hand = []; player.discard = []; player.energyZone = []; player.heroes = [];
-    player.energy = 0; player.unchargedEnergyIds = []; player.energyRechargeLocks = {}; player.tappedEnergyIds = []; player.energyTapTurn = state.turn; player.ready = true; player.bakugan.forEach((bakugan) => { bakugan.open = false; bakugan.heldCoreCells = []; bakugan.evoStack = []; });
+    player.energy = 0; player.unchargedEnergyIds = []; player.energyRechargeLocks = {}; player.tappedEnergyIds = []; player.energyTapTurn = state.turn; player.ready = true; player.bakugan.forEach((bakugan) => { bakugan.open = false; bakugan.heldCoreCells = []; bakugan.evoStack = []; bakugan.bakuGear = []; bakugan.fused = false; });
     drawCards(state, player, 5);
   }
   setPhase(state, "startingPlayer", `Game ${state.gameNumber} • Selecting the first BakuCore player`, selected.id);

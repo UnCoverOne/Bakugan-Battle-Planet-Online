@@ -100,7 +100,7 @@ export function drawEffectAmount(
     return player?.heroes.length ?? 0;
   }
   if (/draw a card for each Flip card in your discard pile/i.test(text)) {
-    return player?.discard.filter((candidate) => candidate.type === "Flip").length ?? 0;
+    return player?.discard.filter((candidate) => candidate.type === "Flip" || candidate.type === "Flip Hero").length ?? 0;
   }
   if (/draw a card for each Energy card you have/i.test(text)) {
     return player?.energyZone.length ?? 0;
@@ -175,4 +175,3 @@ export function drawPendingCard(input: MatchState, playerId: string) {
   state.version += 1;
   return state;
 }
-
