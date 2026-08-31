@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 44681)
-Total output lines: 3774
-
 import {
   buildChoiceSchema,
   buildChoiceSchemaFromSpecs,
@@ -1345,7 +1342,1250 @@ function playSourceCard(state: MatchState, request: PendingCardPlay) {
   return { owner, card };
 }
 
-function removePlaySourceCard(state: MatchState, request: PendingCardPlay) {…14681 tokens truncated…ath.max(0, Math.floor(resolveNumber(action.amount)));
+function removePlaySourceCard(state: MatchState, request: PendingCardPlay) {
+  const { owner, card } = playSourceCard(state, request);
+  if (request.sourceZone === "hand") owner.hand = owner.hand.filter((candidate) => candidate.id !== card.id);
+  else if (request.sourceZone === "deck") {
+    owner.deckCards = owner.deckCards.filter((candidate) => candidate.id !== card.id);
+    syncDeck(owner);
+    delete owner.revealedDeckCardId;
+  } else {
+    owner.discard = owner.discard.filter((candidate) => candidate.id !== card.id);
+    if (request.sourceZone === "damage-reveal") state.revealedFlip = undefined;
+  }
+  return card;
+}
+
+function validateCardPlayRequest(state: MatchState, request: PendingCardPlay, choices: CardChoices) {
+  if (alternateWinEffectPending(state)) throw new Error("Dragonoid Maximus's alternate win effect cannot be responded to with cards.");
+  const { card } = playSourceCard(state, request);
+  if (card.type === "Character") throw new Error("Character cards cannot be played from a card zone.");
+  if (!cardRerollTimingLegal(state, request.controllerId, card)) {
+    throw new Error("This mandatory Reroll card can be played only after the first roll and before the Victor Step.");
+  }
+  if (request.origin === "priority") {
+    if (!["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase) || state.priority !== request.controllerId) {
+      throw new Error("You do not have priority in a card-play window.");
+    }
+    if (request.sourceZone !== "hand" || request.sourceOwnerId !== request.controllerId) {
+      throw new Error("An ordinary priority play must begin in your hand.");
+    }
+    if (card.type === "Flip" || card.type === "Flip Hero") throw new Error("Flip cards are played only when revealed by damage.");
+  }
+  if (request.origin === "damage") {
+    if (state.phase !== "damage" || state.pendingLoser !== request.controllerId || request.sourceZone !== "damage-reveal") {
+      throw new Error("A damage-revealed Flip can only be played during its Damage Step decision.");
+    }
+    if (!["Flip", "Flip Hero"].includes(card.type) || !revealedFlipCanBePlayed(state, request.controllerId, card)) {
+      throw new Error("This revealed Flip cannot legally be played against the current attack.");
+    }
+  }
+  if (card.type === "Baku-Gear") {
+    const target = playerById(state, request.controllerId).bakugan.find((candidate) => candidate.id === choices.targetBakuganId);
+    if (!target) throw new Error("Choose one of your Bakugan for this Baku-Gear.");
+    const attached = target.bakuGear ?? [];
+    const dual = /\bDual\b/i.test(card.effect) || attached.some((gear) => /\bDual\b/i.test(gear.effect));
+    if (attached.length >= (dual ? 2 : 1)) throw new Error("That Bakugan has no open Baku-Gear slot.");
+  }
+  if (card.cost === "X" && !request.forcedFreeBase && !Number.isFinite(choices.xValue)) {
+    const definition = ruleDefinitionForCard(card);
+    if (!definition.play.choices.some((choice) => choice.id === "xValue" && choice.timing === "pay")) {
+      throw new Error("Choose X before paying for this card.");
+    }
+  }
+}
+
+function selectedPaymentMode(state: MatchState, request: PendingCardPlay, card: GameCard, choices: CardChoices) {
+  const modes = cardPaymentModes(state, request.controllerId, card, choices, { forcedFreeBase: request.forcedFreeBase, capturedValues: request.valueSnapshots });
+  const inferredAlternative = modes.find((mode) => mode.id !== "normal" && mode.id !== "forced-free"
+    && mode.additionalCosts.some((cost) => choiceValuePresent(choices, cost.choiceId)));
+  const id = request.forcedFreeBase ? "forced-free" : choices.paymentMode ?? inferredAlternative?.id ?? "normal";
+  return { modes, mode: modes.find((candidate) => candidate.id === id) };
+}
+
+function paymentModeField(state: MatchState, request: PendingCardPlay, card: GameCard, choices: CardChoices) {
+  if (request.forcedFreeBase) return undefined;
+  const { modes } = selectedPaymentMode(state, request, card, choices);
+  if (modes.length <= 1) return undefined;
+  return {
+    id: "paymentMode" as const,
+    kind: "mode" as const,
+    label: "Choose how to pay for this card",
+    chooserId: request.controllerId,
+    visibility: "public" as const,
+    timing: "pay" as const,
+    minimum: 1,
+    maximum: 1,
+    required: true,
+    options: modes.map((mode) => ({
+      id: mode.id,
+      label: mode.label,
+      description: mode.legal
+        ? `${mode.energyCost} Energy${mode.additionalCosts.length ? " plus the listed additional cost" : ""}.`
+        : mode.reason ?? "This payment method is unavailable.",
+      disabled: !mode.legal,
+    })),
+  };
+}
+
+function alternativeCostChoiceIds(card: GameCard) {
+  return new Set(ruleDefinitionForCard(card).play.costModifiers.flatMap((modifier) => (
+    modifier.kind === "cost-alternative"
+      ? modifier.components.filter((component): component is Extract<typeof component, { kind: "cost-discard" }> => component.kind === "cost-discard").map((component) => component.choiceId)
+      : []
+  )));
+}
+
+function stageAdditionalCardPlayCosts(state: MatchState, request: PendingCardPlay): MutableCardPlayResult {
+  const { card } = playSourceCard(state, request);
+  const choices = request.choices;
+  const { mode } = selectedPaymentMode(state, request, card, choices);
+  if (!mode) throw new Error("The selected card payment method is no longer available.");
+  if (!mode.legal) throw new Error(mode.reason ?? "The selected card payment method is unavailable.");
+  const missing = mode.additionalCosts.find((cost) => {
+    const value = choices[cost.choiceId];
+    return !Array.isArray(value) || value.length !== cost.amount;
+  });
+  if (missing?.kind === "discard") {
+    const payer = playerById(state, request.controllerId);
+    const options = payer.hand
+      .filter((candidate) => candidate.id !== card.id)
+      .map((candidate) => ({ id: candidate.id, label: candidate.displayName || candidate.name, ownerId: payer.id }));
+    if (options.length < missing.amount) throw new Error(`This payment requires ${missing.amount} discardable card${missing.amount === 1 ? "" : "s"}.`);
+    state.pendingChoice = {
+      id: uid(),
+      kind: "card-play",
+      controllerId: request.controllerId,
+      cardId: request.cardId,
+      schema: {
+        id: `${state.id}:${state.version}:${request.cardId}:additional-cost`,
+        sourceId: request.cardId,
+        sourceName: card.displayName || card.name,
+        controllerId: request.controllerId,
+        timing: "pay",
+        simultaneous: false,
+        fields: [{
+          id: missing.choiceId,
+          kind: "hand-cards",
+          label: `Choose ${missing.amount} card${missing.amount === 1 ? "" : "s"} to discard as an additional cost`,
+          chooserId: request.controllerId,
+          visibility: "private",
+          timing: "pay",
+          minimum: missing.amount,
+          maximum: missing.amount,
+          required: true,
+          options,
+        }],
+      },
+      answers: {},
+      createdVersion: state.version,
+      beforeState: request.beforeState,
+      playRequest: request,
+      playStage: "additional-cost",
+      cancellable: request.origin !== "effect" || Boolean(request.optional),
+      irreversibleInformation: request.irreversibleInformation,
+    };
+    state.priority = request.controllerId;
+    state.stepLabel = `${card.displayName || card.name} • Additional cost`;
+    state.deadline = Date.now() + 35_000;
+    return "staged";
+  }
+  captureCardPlayMoment(state, request, "pay");
+  commitCardPlayMutable(state, request);
+  return "committed";
+}
+
+function emitPaymentDiscardEvents(state: MatchState, controllerId: string, cards: GameCard[]) {
+  if (!cards.length) return;
+  const player = playerById(state, controllerId);
+  emitGameEvent(state, {
+    id: `${state.turn}:discard:${cards.map((card) => card.id).join(",")}:${state.version}:payment`,
+    type: "discard",
+    playerId: controllerId,
+    targetBakuganId: activeBakugan(state, controllerId)?.id,
+    sourceCards: cards,
+  });
+  if (player.hand.length === 0) emitGameEvent(state, {
+    id: `${state.turn}:hand-empty:${controllerId}:${state.version}:payment`,
+    type: "hand-empty",
+    playerId: controllerId,
+  });
+}
+
+function commitCardPlayMutable(state: MatchState, request: PendingCardPlay) {
+  const located = playSourceCard(state, request);
+  const card = located.card;
+  const choices = request.choices;
+  validateCardPlayRequest(state, request, choices);
+  const { mode } = selectedPaymentMode(state, request, card, choices);
+  if (!mode || !mode.legal) throw new Error(mode?.reason ?? "This card has no legal payment method.");
+
+  const discardedBeforePayment = mode.additionalCosts.flatMap((cost) => {
+    const value = choices[cost.choiceId];
+    const ids = new Set(Array.isArray(value) ? value.map(String) : []);
+    return playerById(state, request.controllerId).hand.filter((candidate) => ids.has(candidate.id));
+  });
+  const context = {
+    forcedFreeBase: request.forcedFreeBase,
+    selectedAlternativeId: mode.id === "normal" || mode.id === "forced-free" ? undefined : mode.id,
+    capturedValues: request.valueSnapshots,
+  };
+  const payment = beginCardPayment(state, request.controllerId, card, choices, context);
+  prepareDeclaredEnergyPayment(state, request.controllerId, payment.calculatedCost);
+  commitCardPayment(state, request.controllerId);
+  emitPaymentDiscardEvents(state, request.controllerId, discardedBeforePayment);
+
+  const played = removePlaySourceCard(state, request);
+  const controller = playerById(state, request.controllerId);
+  recordCardPlayedForTurn(controller, played, state.turn);
+  state.nextCardCostReduction[request.controllerId] = 0;
+  ensureRulesState(state).costModifiers = ensureRulesState(state).costModifiers.filter((modifier) => !(
+    modifier.duration === "next-card"
+    && playerIdsForScope(state, modifier.playerScope, { controllerId: modifier.controllerId }).includes(request.controllerId)
+  ));
+
+  const definition = ruleDefinitionForCard(played);
+  const ability = definition.abilities.find((candidate) => candidate.kind !== "triggered") ?? definition.abilities[0];
+  if (!ability) throw new Error(`${played.name} does not have a legal card-play ability.`);
+  const batchObject = createRuleObject({
+    controllerId: request.controllerId,
+    cardOwnerId: request.cardOwnerId,
+    card: played,
+    ability,
+    choices,
+    kind: "card",
+  });
+  batchObject.valueSnapshots = structuredClone(request.valueSnapshots ?? {});
+  state.batch.push(batchObject);
+  state.passes = [];
+  if (played.type === "Action") {
+    if ((state.copyNextAction[request.controllerId] ?? 0) > 0) {
+      state.copyNextAction[request.controllerId] -= 1;
+      state.batch.push(copyRuleObject(batchObject, request.controllerId));
+    }
+  }
+
+  emitGameEvent(state, {
+    id: `${state.turn}:card-play:${played.id}`,
+    type: "card-play",
+    playerId: request.controllerId,
+    cardType: played.type,
+    sourceCards: [played],
+    targetBakuganId: played.type === "Evo"
+      ? (choices.sourceBakuganId ?? choices.targetBakuganId)
+      : activeBakugan(state, request.controllerId)?.id,
+    choices,
+  });
+
+  if (request.origin === "damage") {
+    const rules = ensureRulesState(state) as ReturnType<typeof ensureRulesState> & {
+      damageResume?: { playerId: string; previousPhase: "damage"; revealedFlipId: string };
+    };
+    rules.damageResume = { playerId: request.controllerId, previousPhase: "damage", revealedFlipId: played.id };
+    state.phase = "postDamage";
+    state.stepLabel = `Damage Step • Respond to ${played.displayName || played.name}`;
+    state.priority = request.controllerId;
+    state.deadline = Date.now() + 25_000;
+  }
+
+  const freeWording = mode.freeBase ? " after its base Energy cost became free" : "";
+  entry(state, "game", `${controller.name} added ${played.name} to the batch for ${payment.calculatedCost} Energy${freeWording}.`, played, "played", request.controllerId);
+
+  if (request.origin === "priority") {
+    state.undoWindow = {
+      actorId: request.controllerId,
+      action: "play-card",
+      beforeVersion: state.version,
+      afterVersion: state.version + 1,
+      batchObjectId: batchObject.id,
+      informationEpoch: state.informationEpoch,
+      priorityEpoch: state.priorityEpoch,
+      irreversibleInformation: Boolean(request.irreversibleInformation),
+      snapshot: request.beforeState,
+    };
+  } else state.undoWindow = undefined;
+  return batchObject;
+}
+
+function stageCardPlayMutable(state: MatchState, request: PendingCardPlay): MutableCardPlayResult {
+  const { card } = playSourceCard(state, request);
+  validateCardPlayRequest(state, request, request.choices);
+  const definition = ruleDefinitionForCard(card);
+  const alternativeIds = alternativeCostChoiceIds(card);
+  const alreadyChosen = (id: keyof CardChoices) => choiceValuePresent(request.choices, id);
+  const announce = buildChoiceSchemaFromSpecs(
+    state,
+    request.controllerId,
+    card,
+    definition.play.choices.filter((choice) => !alreadyChosen(choice.id)),
+    "announce",
+    request.choices,
+  );
+  const pay = buildChoiceSchemaFromSpecs(
+    state,
+    request.controllerId,
+    card,
+    definition.play.choices.filter((choice) => !alternativeIds.has(choice.id) && !alreadyChosen(choice.id)),
+    "pay",
+    request.choices,
+  );
+  const mode = paymentModeField(state, request, card, request.choices);
+  const fields = [...announce.fields, ...pay.fields, ...(mode && !alreadyChosen("paymentMode") ? [mode] : [])];
+  if (fields.length) {
+    const schema = { ...announce, timing: "announce" as const, fields, simultaneous: announce.simultaneous || pay.simultaneous };
+    const enabledCompletion = schemaHasLegalCompletion(schema);
+    // A damage-revealed Flip may expose unavailable payment methods so the
+    // player can see why it cannot be paid and choose Skip instead.
+    if (!enabledCompletion && request.origin !== "damage") {
+      throw new Error(`${card.displayName || card.name} has no legal targets, choices, or payment method.`);
+    }
+    state.pendingChoice = {
+      id: uid(),
+      kind: "card-play",
+      controllerId: request.controllerId,
+      cardId: request.cardId,
+      schema,
+      answers: {},
+      createdVersion: state.version,
+      beforeState: request.beforeState,
+      playRequest: request,
+      playStage: "declare",
+      cancellable: request.origin !== "effect" || Boolean(request.optional),
+      irreversibleInformation: request.irreversibleInformation,
+    };
+    state.priority = fields.find((field) => field.options.some((option) => !option.disabled))?.chooserId
+      ?? fields[0]?.chooserId
+      ?? request.controllerId;
+    state.stepLabel = `${card.displayName || card.name} • Declare card play`;
+    state.deadline = Date.now() + 35_000;
+    return "staged";
+  }
+  captureCardPlayMoment(state, request, "announce");
+  return stageAdditionalCardPlayCosts(state, request);
+}
+
+function finishNestedCardPlayContinuation(state: MatchState, request: PendingCardPlay) {
+  if (request.origin !== "effect" || !request.parentEffectId) return;
+  const parent = state.batch.find((candidate) => candidate.id === request.parentEffectId);
+  if (!parent) return;
+  parent.instructionIndex = request.parentNextInstructionIndex ?? parent.instructionIndex ?? 0;
+  if (isRuleObject(parent)) parent.cursor.instructionIndex = parent.instructionIndex;
+  state.priority = request.resumePriority ?? state.startingPlayer;
+  state.deadline = request.resumeDeadline ?? deadlineFor(state.phase);
+  state.stepLabel = request.resumeStepLabel ?? state.stepLabel;
+  const completed = resolvePendingEffect(state, parent);
+  if (completed) {
+    state.batch = state.batch.filter((candidate) => candidate.id !== parent.id);
+    finalizeRerollContinuation(state, parent.id);
+    if (!state.pendingChoice && !state.pendingReroll && !hasQueuedEffectDraw(state)) {
+      state.priority = state.startingPlayer;
+      state.deadline = deadlineFor(state.phase);
+    }
+  }
+}
+
+function cancelNestedCardPlayContinuation(state: MatchState, request: PendingCardPlay) {
+  if (request.origin === "effect") {
+    finishNestedCardPlayContinuation(state, request);
+    return;
+  }
+  if (request.origin === "damage") {
+    state.phase = "damage";
+    state.priority = request.controllerId;
+    state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;
+    state.deadline = Date.now() + 35_000;
+  }
+}
+
+export const prepareRevealedFlipPlay = (input: MatchState, playerId: string, cardId: string, choices: CardChoices = {}) => {
+  const state = cloneMatch(input);
+  if (state.pendingChoice) throw new Error("Complete the current choice before playing the revealed Flip.");
+  const flip = state.revealedFlip;
+  if (!flip || flip.id !== cardId) throw new Error("Only the currently revealed Flip card may be played.");
+  const request: PendingCardPlay = {
+    controllerId: playerId,
+    cardId,
+    sourceZone: "damage-reveal",
+    sourceOwnerId: playerId,
+    cardOwnerId: playerId,
+    origin: "damage",
+    choices: { ...choices },
+    beforeState: undefined,
+  };
+  stageCardPlayMutable(state, request);
+  return withVersion(state);
+};
+
+export const prepareCardPlay = (input: MatchState, playerId: string, cardId: string) => {
+  const state = cloneMatch(input);
+  if (state.pendingChoice) throw new Error("Complete the current choice before starting another action.");
+  const player = playerById(state, playerId);
+  const card = player.hand.find((candidate) => candidate.id === cardId);
+  if (!card) throw new Error("That card is not in your hand.");
+  const request: PendingCardPlay = {
+    controllerId: playerId,
+    cardId,
+    sourceZone: "hand",
+    sourceOwnerId: playerId,
+    cardOwnerId: playerId,
+    origin: "priority",
+    choices: {},
+    beforeState: JSON.stringify({ ...input, pendingChoice: undefined, undoWindow: undefined }),
+  };
+  stageCardPlayMutable(state, request);
+  return withVersion(state);
+};
+
+export const cancelCardChoice = (input: MatchState, playerId: string) => {
+  const state = cloneMatch(input);
+  const pending = state.pendingChoice;
+  if (!pending || ["resolution", "forced-discard"].includes(pending.kind) || pending.controllerId !== playerId || Object.keys(pending.answers).length) {
+    throw new Error("This card choice can no longer be cancelled.");
+  }
+  if (pending.cancellable === false) throw new Error("This card play is mandatory and cannot be cancelled.");
+  const request = pending.playRequest;
+  const card = request ? playSourceCard(state, request).card : playerById(state, playerId).hand.find((candidate) => candidate.id === pending.cardId);
+  state.pendingChoice = undefined;
+  if (request) cancelNestedCardPlayContinuation(state, request);
+  if (!request || request.origin === "priority") {
+    state.priority = playerId;
+    state.stepLabel = `${state.phase} • Priority`;
+  }
+  entry(state, "game", `${playerById(state, playerId).name} cancelled ${card?.name ?? "the pending card"} before playing it.`);
+  return withVersion(state);
+};
+
+export const submitCardChoice = (input: MatchState, playerId: string, choices: CardChoices) => {
+  const state = cloneMatch(input);
+  const pending = state.pendingChoice;
+  if (!pending) throw new Error("There is no pending card choice.");
+  if (!pending.schema.fields.some((field) => field.chooserId === playerId)) throw new Error("This choice belongs to another player.");
+  validateChoices(pending.schema, playerId, choices);
+  pending.answers[playerId] = choices;
+  const irreversible = playerId !== pending.controllerId
+    || pending.schema.fields.some((field) => field.chooserId === playerId && field.visibility === "private");
+  if (irreversible) {
+    pending.irreversibleInformation = true;
+    state.informationEpoch += 1;
+    if (state.undoWindow) state.undoWindow.irreversibleInformation = true;
+    state.undoWindow = undefined;
+  }
+  entry(state, "game", `${playerById(state, playerId).name} locked ${pending.schema.simultaneous ? "a private" : "a"} choice for ${pending.schema.sourceName}.`);
+  if (!schemaIsComplete(pending.schema, pending.answers)) {
+    const next = pending.schema.fields.find((field) => !pending.answers[field.chooserId]);
+    if (next) state.priority = next.chooserId;
+    return withVersion(state);
+  }
+  const merged = mergeChoiceAnswers(pending.schema, pending.answers);
+  if (pending.kind === "card-play" && pending.playRequest) {
+    const request: PendingCardPlay = structuredClone(pending.playRequest);
+    request.choices = { ...request.choices, ...merged };
+    request.irreversibleInformation = Boolean(request.irreversibleInformation || pending.irreversibleInformation);
+    state.pendingChoice = undefined;
+    if (pending.playStage === "declare") captureCardPlayMoment(state, request, "announce");
+    const result = stageAdditionalCardPlayCosts(state, request);
+    if (result === "committed") finishNestedCardPlayContinuation(state, request);
+    return withVersion(state);
+  }
+  if (pending.kind === "forced-discard") {
+    const field = pending.schema.fields.find((candidate) => candidate.id === "discardCardIds" && candidate.chooserId === playerId);
+    const amount = field?.maximum ?? 0;
+    state.pendingChoice = undefined;
+    if (amount > 0) discardFromHand(state, playerById(state, playerId), amount, merged.discardCardIds ?? []);
+    state.priority = pending.resumePriority ?? state.startingPlayer;
+    state.deadline = pending.resumeDeadline ?? deadlineFor(state.phase);
+    state.stepLabel = pending.resumeStepLabel ?? state.stepLabel;
+    return withVersion(state);
+  }
+  if (pending.kind === "resolution" && pending.instructionIndex != null) {
+    const effect = state.batch.find((candidate) => candidate.id === pending.pendingEffectId);
+    const instruction = effect
+      ? compileCardEffect(effect.card, effect.effect ?? effect.card.effect).instructions[pending.instructionIndex]
+      : undefined;
+    const targetPlayerId = merged.targetPlayerId;
+    if (effect && instruction && targetPlayerId
+      && instruction.actions.some((action) => action.kind === "discard")
+      && /choose a player to discard a card/i.test(instruction.sourceText)
+      && !merged.discardCardIds?.length) {
+      const targetPlayer = playerById(state, targetPlayerId);
+      effect.resolvedChoices = {
+        ...(effect.resolvedChoices ?? {}),
+        [String(pending.instructionIndex)]: {
+          ...(effect.resolvedChoices?.[String(pending.instructionIndex)] ?? {}),
+          targetPlayerId,
+        },
+      };
+      if (targetPlayer.hand.length) {
+        state.pendingChoice = {
+          ...pending,
+          id: uid(),
+          schema: {
+            id: `${state.id}:${state.version}:${effect.card.id}:chosen-player-discard`,
+            sourceId: effect.card.id,
+            sourceName: effect.card.displayName || effect.card.name,
+            controllerId: effect.controllerId,
+            timing: "resolve",
+            simultaneous: false,
+            fields: [{
+              id: "discardCardIds",
+              kind: "hand-cards",
+              label: "Choose a card to discard",
+              chooserId: targetPlayerId,
+              visibility: "private",
+              timing: "resolve",
+              minimum: 1,
+              maximum: 1,
+              required: true,
+              options: targetPlayer.hand.map((card) => ({
+                id: card.id,
+                label: card.displayName || card.name,
+                ownerId: targetPlayerId,
+              })),
+            }],
+          },
+          answers: {},
+        };
+        state.priority = targetPlayerId;
+        state.stepLabel = `${effect.card.displayName || effect.card.name} • Choose a discard`;
+        state.deadline = Date.now() + 35_000;
+        return withVersion(state);
+      }
+    }
+  }
+  if (pending.kind === "resolution") {
+    const effect = state.batch.find((candidate) => candidate.id === pending.pendingEffectId);
+    if (!effect || pending.instructionIndex == null) throw new Error("The resolving batch object is no longer available.");
+    effect.resolvedChoices = {
+      ...(effect.resolvedChoices ?? {}),
+      [String(pending.instructionIndex)]: {
+        ...(effect.resolvedChoices?.[String(pending.instructionIndex)] ?? {}),
+        ...merged,
+      },
+    };
+    state.pendingChoice = undefined;
+    state.priority = pending.resumePriority ?? state.startingPlayer;
+    state.deadline = pending.resumeDeadline ?? deadlineFor(state.phase);
+    state.stepLabel = pending.resumeStepLabel ?? state.stepLabel;
+    const completed = resolvePendingEffect(state, effect);
+    if (completed) {
+      state.batch = state.batch.filter((candidate) => candidate.id !== effect.id);
+      if (!hasQueuedEffectDraw(state)) {
+        state.priority = state.startingPlayer;
+        state.deadline = deadlineFor(state.phase);
+      }
+      if (state.phase === "damage" && state.pendingDamage <= 0 && !state.revealedFlip) finishDamage(state);
+      finalizeRerollContinuation(state, effect.id);
+    }
+    return withVersion(state);
+  }
+  return playCard(state, pending.controllerId, pending.cardId, merged);
+};
+
+export const splitWhenPlayedEffect = (effect: string) => {
+  const sentences = effect.split(/(?<=\.)\s+/);
+  const triggerIndex = sentences.findIndex((sentence) => /when you play this(?: card)?/i.test(sentence));
+  if (triggerIndex < 0) return { cardEffect: effect, triggerEffect: "" };
+  const sentence = sentences[triggerIndex];
+  const triggerEffect = sentence.replace(/^.*?when you play this(?: card)?\s*[:,]?\s*/i, "").trim();
+  return {
+    cardEffect: sentences.filter((_, index) => index !== triggerIndex).join(" ").trim(),
+    triggerEffect: triggerEffect || sentence,
+  };
+};
+
+export const playCard = (input: MatchState, playerId: string, cardId: string, choices: CardChoices = {}) => {
+  const state = cloneMatch(input);
+  const request: PendingCardPlay = {
+    controllerId: playerId,
+    cardId,
+    sourceZone: "hand",
+    sourceOwnerId: playerId,
+    cardOwnerId: playerId,
+    origin: "priority",
+    choices: { ...choices },
+    beforeState: JSON.stringify({ ...input, pendingChoice: undefined, undoWindow: undefined }),
+  };
+  commitCardPlayMutable(state, request);
+  return withVersion(state);
+};
+
+const chooseBakugan = (state: MatchState, controllerId: string, choices: CardChoices, preferEnemy = false) => {
+  const all = state.players.flatMap((player) => player.bakugan);
+  if (choices.targetBakuganId) return all.find((bakugan) => bakugan.id === choices.targetBakuganId);
+  if (!preferEnemy && choices.sourceBakuganId) return all.find((bakugan) => bakugan.id === choices.sourceBakuganId);
+  const owner = preferEnemy ? otherPlayer(state, controllerId) : playerById(state, controllerId);
+  return activeBakugan(state, owner.id) ?? owner.bakugan.find((bakugan) => bakugan.open) ?? owner.bakugan[0];
+};
+
+const destroyHero = (state: MatchState, controllerId: string, choices: CardChoices, allEnemy: boolean) => {
+  const owners = allEnemy ? [otherPlayer(state, controllerId)] : state.players;
+  for (const owner of owners) {
+    const selected = allEnemy ? owner.heroes : owner.heroes.filter((hero) => hero.id === choices.targetHeroId);
+    if (!selected.length) continue;
+    const ids = new Set(selected.map((hero) => hero.id));
+    owner.heroes = owner.heroes.filter((hero) => !ids.has(hero.id));
+    owner.discard.push(...selected);
+  }
+};
+
+const destroyEvo = (
+  state: MatchState,
+  controllerId: string,
+  choices: CardChoices,
+  options: { allEnemy?: boolean; allPlayers?: boolean; excludeSourceId?: string } = {},
+) => {
+  const owners = options.allPlayers
+    ? state.players
+    : options.allEnemy ? [otherPlayer(state, controllerId)] : state.players;
+  for (const owner of owners) for (const bakugan of owner.bakugan) {
+    const selected = options.allEnemy || options.allPlayers
+      ? bakugan.evoStack.filter((evo) => evo.id !== options.excludeSourceId)
+      : bakugan.evoStack.filter((evo) => evo.id === choices.targetEvoId);
+    if (!selected.length) continue;
+    const ids = new Set(selected.map((evo) => evo.id));
+    bakugan.evoStack = bakugan.evoStack.filter((evo) => !ids.has(evo.id));
+    owner.discard.push(...selected);
+  }
+};
+
+const destroyEnergy = (state: MatchState, amount: number, selectedIds: string[]) => {
+  const ids = new Set(selectedIds.slice(0, amount));
+  const located = state.players.flatMap((owner) => owner.energyZone
+    .filter((card) => ids.has(card.id))
+    .map((card) => ({ owner, card })));
+  if (amount <= 0 || located.length !== amount) return;
+  for (const owner of state.players) {
+    const selected = located.filter((item) => item.owner.id === owner.id).map((item) => item.card);
+    if (!selected.length) continue;
+    const selectedSet = new Set(selected.map((card) => card.id));
+    owner.energyZone = owner.energyZone.filter((card) => !selectedSet.has(card.id));
+    owner.discard.push(...selected);
+    normalizeEnergyCardState(owner, state.turn);
+  }
+  state.informationEpoch += 1;
+  state.undoWindow = undefined;
+};
+
+function applyEnergizedEntryState(
+  state: MatchState,
+  player: PlayerState,
+  cards: readonly GameCard[],
+  enters: "charged" | "uncharged",
+) {
+  if (!cards.length) return;
+  setEnergyCardChargeState(state, player.id, cards.map((card) => card.id), enters);
+}
+
+function emitEnergizedEvents(
+  state: MatchState,
+  player: PlayerState,
+  cards: readonly GameCard[],
+  eventPrefix: string,
+) {
+  for (const card of cards) {
+    emitGameEvent(state, {
+      id: `${eventPrefix}:${card.id}`,
+      type: "energize",
+      playerId: player.id,
+      targetBakuganId: activeBakugan(state, player.id)?.id,
+      sourceCards: [card],
+    });
+  }
+}
+
+const instructionChoices = (pending: PendingEffect, instructionIndex: number) => Object.entries(pending.resolvedChoices ?? {})
+  .filter(([index]) => Number(index) <= instructionIndex)
+  .sort(([left], [right]) => Number(left) - Number(right))
+  .reduce<CardChoices>((merged, [, answers]) => ({ ...merged, ...answers }), { ...pending.choices });
+
+const actionResultKey = (instructionIndex: number, actionIndex: number) => `${instructionIndex}:${actionIndex}`;
+
+function previousActionResult(pending: PendingEffect, instructionIndex: number, actionIndex: number) {
+  if (!isRuleObject(pending)) return undefined;
+  return Object.entries(pending.actionResults ?? {})
+    .map(([key, result]) => {
+      const [priorInstruction, priorAction] = key.split(":").map(Number);
+      return { priorInstruction, priorAction, result };
+    })
+    .filter(({ priorInstruction, priorAction }) => Number.isFinite(priorInstruction) && Number.isFinite(priorAction)
+      && (priorInstruction < instructionIndex || (priorInstruction === instructionIndex && priorAction < actionIndex)))
+    .sort((left, right) => left.priorInstruction - right.priorInstruction || left.priorAction - right.priorAction)
+    .at(-1)?.result;
+}
+
+function storeActionResult(pending: PendingEffect, instructionIndex: number, actionIndex: number, result: RuleActionResult) {
+  if (!isRuleObject(pending)) return;
+  pending.actionResults = pending.actionResults ?? {};
+  pending.actionResults[actionResultKey(instructionIndex, actionIndex)] = {
+    amount: Math.max(0, Math.floor(result.amount)),
+    ...(result.amountByPlayer ? {
+      amountByPlayer: Object.fromEntries(Object.entries(result.amountByPlayer).map(([id, amount]) => [id, Math.max(0, Math.floor(amount))])),
+    } : {}),
+    ...(result.cardCost != null ? { cardCost: Math.max(0, Math.floor(result.cardCost)) } : {}),
+  };
+}
+
+type EffectDrawState = MatchState & {
+  pendingDrawQueue?: Array<{ id: string; playerId: string; remaining: number; total: number; sourceName: string; sourceEffectId?: string }>;
+  pendingDrawResumePriority?: string;
+  pendingDrawResumeDeadline?: number;
+  pendingDrawResumeStepLabel?: string;
+};
+
+const enqueueEffectDraw = (state: MatchState, player: PlayerState, amount: number, sourceName: string, sourceEffectId?: string) => {
+  if (amount <= 0) return;
+  const queued = state as EffectDrawState;
+  if (!queued.pendingDrawQueue?.length) {
+    queued.pendingDrawResumePriority = state.priority;
+    queued.pendingDrawResumeDeadline = state.deadline;
+    queued.pendingDrawResumeStepLabel = state.stepLabel;
+  }
+  queued.pendingDrawQueue = [...(queued.pendingDrawQueue ?? []), {
+    id: uid(),
+    playerId: player.id,
+    remaining: amount,
+    total: amount,
+    sourceName,
+    sourceEffectId,
+  }];
+  const active = queued.pendingDrawQueue[0];
+  state.priority = active.playerId;
+  state.stepLabel = `${active.sourceName} • Draw ${active.remaining} card${active.remaining === 1 ? "" : "s"}`;
+  state.deadline = Date.now() + 35_000;
+};
+
+const hasQueuedEffectDraw = (state: MatchState) => Boolean((state as EffectDrawState).pendingDrawQueue?.length);
+
+const ruleConditionIsActive = (
+  state: MatchState,
+  pending: PendingEffect,
+  instruction: RuleInstruction,
+  instructionIndex = pending.instructionIndex ?? 0,
+) => {
+  const player = playerById(state, pending.controllerId);
+  const choices = instructionChoices(pending, instructionIndex);
+  if (instruction.condition.kind === "selection-made") {
+    const selected = pending.resolvedChoices?.[String(instructionIndex)]?.[instruction.condition.choiceId];
+    return Array.isArray(selected) ? selected.length > 0 : Boolean(selected);
+  }
+  if (instruction.condition.kind === "mode-selected") {
+    return choices.mode === instruction.condition.mode || choices.mode === "both";
+  }
+  if (instruction.condition.kind === "reroll-opened") return Boolean(state.rerollOpenedByEffect[pending.id]);
+  if (instruction.condition.kind === "coin-result") return state.coinFlipResults[pending.id] === instruction.condition.result;
+  if (instruction.condition.kind === "printed") return conditionActive(state, player, instruction.condition.text, choices);
+  const conditionTarget = pending.kind === "trigger" && choices.sourceBakuganId
+    ? state.players.flatMap((candidate) => candidate.bakugan)
+      .find((bakugan) => bakugan.id === choices.sourceBakuganId)
+    : chooseBakugan(state, pending.controllerId, choices);
+  return ruleConditionActive(state, player, instruction.condition, conditionTarget, choices);
+};
+
+function recordTemporaryCardStatModifier(
+  state: MatchState,
+  pending: PendingEffect,
+  action: Extract<RuleAction, { kind: "modify-stat" }>,
+  targetBakuganId: string,
+  amount: number,
+  instructionIndex: number,
+  actionIndex: number,
+) {
+  const rules = ensureRulesState(state);
+  const id = `${pending.id}:legacy-mirror:${instructionIndex}:${actionIndex}:${targetBakuganId}:${action.stat}`;
+  const base = {
+    id,
+    source: {
+      kind: "card" as const,
+      instanceId: pending.sourceId ?? pending.card.id,
+      catalogId: pending.card.catalogId as RulesCardId,
+    },
+    controllerId: pending.controllerId,
+    target: "chosen-bakugan" as const,
+    targetBakuganId,
+    amount,
+    layer: "temporary" as const,
+    duration: "turn" as const,
+    createdTurn: state.turn,
+    sourceCategory: "card" as const,
+  };
+  const modifier: ContinuousModifier = action.stat === "frost"
+    ? { ...base, keyword: "FrostStrike" }
+    : { ...base, stat: action.stat };
+  rules.modifiers = rules.modifiers.filter((candidate) => candidate.id !== id);
+  rules.modifiers.push(modifier);
+}
+
+const executeRuleAction = (
+  state: MatchState,
+  pending: PendingEffect,
+  instruction: RuleInstruction,
+  action: RuleAction,
+  instructionIndex: number,
+  actionIndex: number,
+) => {
+  const { card, controllerId } = pending;
+  const choices = instructionChoices(pending, instructionIndex);
+  const player = playerById(state, controllerId);
+  const opponent = otherPlayer(state, controllerId);
+  const text = instruction.sourceText;
+  const lower = text.toLowerCase();
+  const preferEnemy = /^-|enemy|opposing|non-\[/.test(lower) && !/one of your/.test(lower);
+  const rerollTargetId = state.rerollTargetByEffect[pending.id];
+  const allBakugan = state.players.flatMap((candidate) => candidate.bakugan);
+  const target = allBakugan.find((bakugan) => bakugan.id === rerollTargetId)
+    ?? chooseBakugan(state, controllerId, choices, preferEnemy);
+  const resolveNumber = (value: NumberValue, scopedChoices: CardChoices = choices, chooserId?: string) => evaluateNumberValue(state, value, {
+    controllerId,
+    chooserId,
+    chosenPlayerId: scopedChoices.targetPlayerId,
+    choices: scopedChoices,
+    sourceBakuganId: scopedChoices.sourceBakuganId,
+    sourceCardId: pending.sourceId ?? pending.card.id,
+    moment: "resolve",
+    capturedValues: isRuleObject(pending) ? pending.valueSnapshots : undefined,
+    previousResult: previousActionResult(pending, instructionIndex, actionIndex),
+    characteristics: (candidate, owner) => evaluateBakuganCharacteristics(state, candidate, owner),
+  });
+  const recordResult = (result: RuleActionResult) => storeActionResult(pending, instructionIndex, actionIndex, result);
+
+  switch (action.kind) {
+    case "choice":
+      return;
+    case "trigger": {
+      if (action.event === "VICTOR_DECLARED" && target) {
+        const amount = Number(text.match(/opponent.*discard\s+(\d+)\s+cards?/i)?.[1] ?? 0);
+        if (amount > 0) {
+          const existing = state.temporaryVictorDiscards[target.id];
+          state.temporaryVictorDiscards[target.id] = {
+            controllerId,
+            sourceName: existing
+              ? `${existing.sourceName} + ${card.displayName || card.name}`
+              : card.displayName || card.name,
+            amount: (existing?.amount ?? 0) + amount,
+          };
+        }
+      }
+      return;
+    }
+    case "watch-turn-event": {
+      const candidates = action.definition.relationship === "opponent"
+        ? state.players.filter((owner) => owner.id !== controllerId)
+        : action.definition.relationship === "controller"
+          ? [player]
+          : state.players;
+      if (action.definition.cardType && candidates.some((owner) => owner.playedCardTypesThisTurn?.includes(action.definition.cardType!))) return;
+      const rules = ensureRulesState(state);
+      const watchId = `${pending.id}:${instructionIndex}:${actionIndex}:watch`;
+      rules.delayedCardTriggers = rules.delayedCardTriggers.filter((watch) => watch.id !== watchId && watch.createdTurn === state.turn);
+      rules.delayedCardTriggers.push({
+        id: watchId,
+        controllerId,
+        cardOwnerId: pending.cardOwnerId ?? controllerId,
+        card: structuredClone(card),
+        definition: structuredClone(action.definition),
+        effectText: action.effectText,
+        createdTurn: state.turn,
+      });
+      return;
+    }
+    case "schedule": {
+      const rules = ensureRulesState(state);
+      const scheduledId = `${pending.id}:${instructionIndex}:${actionIndex}:${action.timing}`;
+      rules.scheduledActions = rules.scheduledActions.filter((scheduled) => (
+        scheduled.id !== scheduledId && scheduled.createdTurn === state.turn
+      ));
+      rules.scheduledActions.push({
+        id: scheduledId,
+        timing: action.timing,
+        controllerId,
+        cardOwnerId: pending.cardOwnerId ?? controllerId,
+        card: structuredClone(card),
+        sourceId: pending.sourceId ?? card.id,
+        effects: structuredClone(action.effects),
+        createdTurn: state.turn,
+      });
+      return;
+    }
+    case "cost":
+      if (action.duration === "next-card") {
+        if (action.operation === "reduce") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) + resolveNumber(action.amount);
+        else if (action.operation === "increase") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) - resolveNumber(action.amount);
+      } else if (action.operation === "free" && action.duration === "turn") {
+        const rules = ensureRulesState(state);
+        rules.costModifiers.push({
+          id: `${pending.id}:${instructionIndex}:${actionIndex}:cost-free`,
+          sourceId: pending.sourceId ?? pending.card.id,
+          controllerId,
+          kind: "free",
+          amount: 0,
+          duration: "turn",
+          cardType: action.cardType,
+          playerScope: action.playerScope ?? "controller",
+          choices: structuredClone(choices),
+          valueSnapshots: isRuleObject(pending) ? structuredClone(pending.valueSnapshots ?? {}) : undefined,
+          createdTurn: state.turn,
+        });
+      }
+      return;
+    case "coin-flip": {
+      const now = Date.now();
+      const result: CoinFlipResult = secureRandomInt(2) === 0 ? "heads" : "tails";
+      state.coinFlipResults[pending.id] = result;
+      pending.instructionIndex = instructionIndex + 1;
+      if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex + 1;
+      state.pendingCoinFlip = {
+        id: uid(),
+        controllerId,
+        sourceEffectId: pending.id,
+        sourceName: card.displayName || card.name,
+        result,
+        createdAt: now,
+        resolveAt: now + 2_200,
+        resumePriority: state.priority,
+        resumeDeadline: state.deadline,
+        resumeStepLabel: state.stepLabel,
+      };
+      state.priority = controllerId;
+      state.stepLabel = `${card.displayName || card.name} • Coin flip`;
+      state.deadline = now + 35_000;
+      state.informationEpoch += 1;
+      state.undoWindow = undefined;
+      entry(state, "random", `${player.name}: ${card.displayName || card.name} coin flip → ${result}.`, card, "effect", controllerId);
+      throw new CoinFlipResolutionSuspended();
+    }
+    case "reroll": {
+      if (!action.mandatory && choices.confirmed === false) return;
+      if (action.requiresDiscard && !choices.discardCardIds?.length) return;
+      if (action.requiresDiscard && choices.discardCardIds!.some((id) => player.hand.some((candidate) => candidate.id === id))) {
+        throw new Error("The selected Sacrifice must be discarded before the Reroll begins.");
+      }
+      const rollerId = rerollTargetPlayerId(state, controllerId, action.target);
+      pending.instructionIndex = instructionIndex + 1;
+      if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex + 1;
+      if (!beginRerollMutable(state, rollerId, {
+        effectId: pending.id,
+        name: card.displayName || card.name,
+        mandatory: action.mandatory,
+      })) return;
+      throw new RerollResolutionSuspended();
+    }
+    case "continuous": {
+      if (pending.kind === "card" && ["Hero", "Evo"].includes(card.type)
+        && action.modifier.duration === "while-source-active") return;
+      const rules = ensureRulesState(state);
+      const modifier = {
+        ...structuredClone(action.modifier),
+        id: `${pending.id}:${action.modifier.id}`,
+        controllerId,
+        source: pending.sourceId
+          ? { kind: "card" as const, instanceId: pending.sourceId, catalogId: pending.card.catalogId as `bb-${number}` }
+          : action.modifier.source,
+        createdTurn: state.turn,
+        choices: structuredClone(choices),
+        valueSnapshots: isRuleObject(pending) ? structuredClone(pending.valueSnapshots ?? {}) : undefined,
+      };
+      rules.modifiers = rules.modifiers.filter((candidate) => candidate.id !== modifier.id);
+      rules.modifiers.push(modifier);
+      return;
+    }
+    case "replacement":
+    case "prevention":
+      registerReplacement(state, {
+        id: `${pending.id}:${instructionIndex}:${action.kind}`,
+        source: pending.sourceId
+          ? { kind: "card", instanceId: pending.sourceId, catalogId: pending.card.catalogId as `bb-${number}` }
+          : { kind: "card", instanceId: pending.card.id, catalogId: pending.card.catalogId as `bb-${number}` },
+        controllerId,
+        effect: action,
+      });
+      return;
+    case "modify-stat": {
+      if (pending.kind === "card" && ["Hero", "Evo"].includes(card.type) && action.duration === "while-source-active") return;
+      if (card.name === "Gravity Shift" && (
+        (choices.mode === "damage" && action.stat === "power")
+        || (choices.mode === "power" && action.stat === "damage")
+      )) return;
+      const amount = resolveNumber(action.amount);
+      const explicitActionTarget = action.targetChoiceId
+        ? choices[action.targetChoiceId]
+        : undefined;
+      const selectedTarget = typeof explicitActionTarget === "string"
+        ? allBakugan.find((bakugan) => bakugan.id === explicitActionTarget)
+        : target;
+      const targets = action.scope === "all-enemy" ? opponent.bakugan
+        : action.scope === "all-friendly" ? player.bakugan
+          : action.scope === "all-bakugan" ? allBakugan
+            : selectedTarget ? [selectedTarget] : [];
+      for (const selected of targets) {
+        // Keep the legacy aggregate maps for snapshot/UI compatibility, but
+        // also retain each card modifier as an independently filterable rules
+        // object. The modifier evaluator subtracts these mirrored entries from
+        // the aggregate before applying them, so positive and negative effects
+        // never collapse into a single number for ShadowStrike.
+        if (action.stat === "power") state.powerBoost[selected.id] = (state.powerBoost[selected.id] ?? 0) + amount;
+        else if (action.stat === "damage") state.damageBoost[selected.id] = (state.damageBoost[selected.id] ?? 0) + amount;
+        else state.frostStrike[selected.id] = (state.frostStrike[selected.id] ?? 0) + amount;
+        recordTemporaryCardStatModifier(
+          state,
+          pending,
+          action,
+          selected.id,
+          amount,
+          instructionIndex,
+          actionIndex,
+        );
+      }
+      return;
+    }
+    case "grant-keyword":
+      if (pending.kind === "card" && ["Hero", "Evo"].includes(card.type) && action.duration === "while-source-active") return;
+      if (!target) return;
+      if (action.keyword === "DoubleStrike") state.doubleStrike[target.id] = true;
+      else if (action.keyword === "ShadowStrike") state.shadowStrike[target.id] = true;
+      else if (action.keyword === "FrostStrike") state.frostStrike[target.id] = (state.frostStrike[target.id] ?? 0) + resolveNumber(action.value ?? 1);
+      else if (action.keyword === "Stop" && flipStopsDamage(state, card)) {
+        state.pendingDamage = 0;
+        state.revealedFlip = undefined;
+      }
+      return;
+    case "draw": {
+      if (/\bmay draw/i.test(text) && choices.confirmed === false) return;
+      const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
+      for (const recipientId of recipientIds) {
+        const amount = Math.max(0, Math.floor(resolveNumber(action.amount, choices, recipientId)));
+        enqueueEffectDraw(state, playerById(state, recipientId), amount, card.displayName || card.name, pending.id);
+      }
+      return;
+    }
+    case "discard": {
+      const affectedIds = choices.targetPlayerId
+        ? [choices.targetPlayerId]
+        : playerIdsForScope(state, action.playerScope ?? (/your opponent|opponent discards/i.test(text) ? "opponent" : "controller"), { controllerId, choices });
+      const amountByPlayer: Record<string, number> = {};
+      const discardedCards: GameCard[] = [];
+      for (const affectedId of affectedIds) {
+        const affected = playerById(state, affectedId);
+        const beforeCards = [...affected.hand];
+        const before = affected.hand.length;
+        const scopedChoices = choices.simultaneousAnswers?.[affectedId] ?? choices;
+        const selected = scopedChoices.discardCardIds ?? scopedChoices.handCardIds ?? [];
+        const expressionAmount = Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));
+        const minimum = Math.max(0, Math.floor(resolveNumber(action.minimum, scopedChoices, affectedId)));
+        const maximum = Math.max(minimum, Math.floor(resolveNumber(action.maximum, scopedChoices, affectedId)));
+        const amount = minimum === 0 ? selected.length : selected.length || expressionAmount;
+        if (amount > 0) discardFromHand(state, affected, Math.min(maximum, amount), selected);
+        amountByPlayer[affectedId] = Math.max(0, before - affected.hand.length);
+        const remainingIds = new Set(affected.hand.map((candidate) => candidate.id));
+        discardedCards.push(...beforeCards.filter((candidate) => !remainingIds.has(candidate.id)));
+      }
+      recordResult({
+        amount: Object.values(amountByPlayer).reduce((sum, amount) => sum + amount, 0),
+        amountByPlayer,
+        ...(discardedCards.length === 1 ? {
+          cardCost: discardedCards[0].cost === "X" ? 0 : discardedCards[0].cost,
+        } : {}),
+      });
+      return;
+    }
+    case "energize": {
+      if (action.source === "hand" || action.source === "deck" || action.source === "discard") {
+        const affectedIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices });
+        for (const affectedId of affectedIds) {
+          const scopedChoices = choices.simultaneousAnswers?.[affectedId] ?? choices;
+          if (scopedChoices.confirmed === false) continue;
+          const ownership = {
+            controllerId,
+            chooserId: affectedId,
+            chosenPlayerId: scopedChoices.targetPlayerId,
+            choices: scopedChoices,
+          };
+          const destinationId = zoneOwnerIdsFor(
+            state,
+            action.destinationOwner ?? (action.playerScope === "each-player" ? "each-player" : "controller"),
+            ownership,
+          )[0] ?? affectedId;
+          const sourceId = zoneOwnerIdsFor(state, action.sourceOwner ?? "controller", ownership)[0] ?? destinationId;
+          const destination = playerById(state, destinationId);
+          const source = playerById(state, sourceId);
+          const amount = Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));
+          if (action.source === "hand") {
+            const selectedIds = scopedChoices.handCardIds?.slice(0, amount) ?? [];
+            if (selectedIds.length !== amount || new Set(selectedIds).size !== amount) continue;
+            const selected = new Set(selectedIds);
+            const energized = source.hand.filter((candidate) => selected.has(candidate.id));
+            if (energized.length !== amount) continue;
+            source.hand = source.hand.filter((candidate) => !selected.has(candidate.id));
+            applyEnergyEntryVisibility(energized, "hand");
+            destination.energyZone.push(...energized);
+            applyEnergizedEntryState(state, destination, energized, action.enters);
+            emitEnergizedEvents(state, destination, energized, `${pending.id}:energize:${actionIndex}`);
+          } else if (action.source === "deck") {
+            const energized: GameCard[] = [];
+            for (let index = 0; index < amount; index += 1) {
+              const energyCard = source.deckCards.shift();
+              if (energyCard) energized.push(energyCard);
+            }
+            applyEnergyEntryVisibility(energized, "deck");
+            destination.energyZone.push(...energized);
+            applyEnergizedEntryState(state, destination, energized, action.enters);
+            emitEnergizedEvents(state, destination, energized, `${pending.id}:energize:${actionIndex}`);
+            syncDeck(source);
+          } else {
+            const energized = source.discard.splice(0, amount);
+            applyEnergyEntryVisibility(energized, "discard");
+            destination.energyZone.push(...energized);
+            applyEnergizedEntryState(state, destination, energized, action.enters);
+            emitEnergizedEvents(state, destination, energized, `${pending.id}:energize:${actionIndex}`);
+          }
+        }
+      } else if (choices.confirmed === false) return;
+      else if (action.source === "hero") {
+        for (const owner of state.players) {
+          const index = owner.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
+          if (index >= 0) {
+            const energized = owner.heroes.splice(index, 1);
+            applyEnergyEntryVisibility(energized, "hero");
+            owner.energyZone.push(...energized);
+            applyEnergizedEntryState(state, owner, energized, action.enters);
+            emitEnergizedEvents(state, owner, energized, `${pending.id}:energize:${actionIndex}`);
+            break;
+          }
+        }
+      } else if (action.source === "self" && !player.energyZone.some((candidate) => candidate.id === card.id)) {
+        for (const owner of state.players) owner.heroes = owner.heroes.filter((candidate) => candidate.id !== card.id);
+        player.discard = player.discard.filter((candidate) => candidate.id !== card.id);
+        applyEnergyEntryVisibility([card], "self");
+        player.energyZone.push(card);
+        applyEnergizedEntryState(state, player, [card], action.enters);
+        emitEnergizedEvents(state, player, [card], `${pending.id}:energize:${actionIndex}`);
+      }
+      return;
+    }
+    case "generate-energy": {
+      const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
+      for (const recipientId of recipientIds) {
+        const recipient = playerById(state, recipientId);
+        const amount = resolveNumber(action.amount, choices, recipientId);
+        recipient.energy += Math.max(0, amount);
+      }
+      return;
+    }
+    case "uncharge-energy": {
+      const recipientIds = playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices, chosenPlayerId: choices.targetPlayerId });
+      for (const recipientId of recipientIds) {
+        const recipient = playerById(state, recipientId);
+        const uncharged = new Set(activeUnchargedEnergyIds(recipient, state.turn));
+        const charged = recipient.energyZone.filter((energyCard) => !uncharged.has(energyCard.id));
+        const amount = action.amount === "all"
+? charged.length
+: Math.max(0, Math.floor(resolveNumber(action.amount, choices, recipientId)));
+        const requested = (choices.targetEnergyIds ?? []).filter((id) => charged.some((energyCard) => energyCard.id === id));
+        const selected = requested.length
+? requested.slice(0, amount)
+: charged.slice(0, amount).map((energyCard) => energyCard.id);
+        unchargeEnergyCards(state, recipientId, selected, {
+producesEnergy: action.producesEnergy,
+preventChargeStepRecharge: action.preventChargeStepRecharge,
+        });
+      }
+      return;
+    }
+    case "recharge-energy": {
+      if (choices.confirmed === false) return;
+      const selected = action.amount === "all" ? undefined : (choices.targetEnergyIds ?? []).slice(0, Math.max(0, Math.floor(resolveNumber(action.amount))));
+      rechargeEnergyCards(state, controllerId, selected);
+      return;
+    }
+    case "set-stat":
+      if (target) {
+        const value = resolveNumber(action.value);
+        if (action.stat === "power") state.powerBoost[target.id] = value - (topCard(target).bPower ?? target.bPower);
+        else state.damageBoost[target.id] = value - (topCard(target).damage ?? target.damage);
+      }
+      return;
+    case "set-rule":
+      if (action.rule === "victor-stat") state.victorByDamage = action.value === "damage";
+      return;
+    case "win-game": {
+      if (card.catalogId === DRAGONOID_MAXIMUS_CARD_ID) {
+        // The printed condition is state-based. Its ordinary Evo program only
+        // checks whether the unique effect should be staged after the Evo has
+        // entered play; the staged object performs the actual game win.
+        if (!pending.alternateWin) return;
+        const sourceStillActive = playerById(state, controllerId).bakugan.some((bakugan) => (
+bakugan.evoStack.at(-1)?.id === (pending.sourceId ?? card.id)
+        ));
+        if (!sourceStillActive) {
+entry(state, "system", `${card.displayName || card.name}'s alternate win effect resolved without an active source.`);
+return;
+        }
+      }
+      completeMatch(state, controllerId, action.reason);
+      return;
+    }
+    case "damage-to-hand": {
+      const amount = state.pendingDamage;
+      for (let index = 0; index < amount; index += 1) {
+        const damageCard = player.deckCards.shift();
+        if (!damageCard) break;
+        player.hand.push(damageCard);
+      }
+      syncDeck(player);
+      state.pendingDamage = 0;
+      state.informationEpoch += 1;
+      state.undoWindow = undefined;
+      entry(state, "game", `${player.name} put all remaining damage into their hand.`);
+      return;
+    }
+    case "end-turn":
+      state.pendingDamage = 0;
+      state.revealedFlip = undefined;
+      state.batch = [];
+      for (const owner of state.players) {
+        if (action.recharge) rechargeEnergyCards(state, owner.id, undefined, { respectChargeStepLocks: true });
+        owner.energy = 0;
+      }
+      beginTurn(state);
+      entry(state, "game", `${card.name} ended the turn${action.recharge ? "" : " without recharging Energy"}.`);
+      return;
+    case "shuffle-deck":
+      shuffle(player.deckCards);
+      syncDeck(player);
+      return;
+case "swap-bakucore": {
+  if (choices.confirmed === false) return;
+  const holderBakugan = (holder: typeof action.leftHolder) => {
+    if (holder === "source-bakugan") return allBakugan.find((candidate) => candidate.id === choices.sourceBakuganId);
+    if (holder === "opponent-active") return activeBakugan(state, opponent.id);
+    return activeBakugan(state, controllerId);
+  };
+  const leftBakugan = holderBakugan(action.leftHolder);
+  const rightBakugan = holderBakugan(action.rightHolder);
+  const leftCell = choices[action.leftCoreChoiceId];
+  const rightCell = choices[action.rightCoreChoiceId];
+  if (!leftBakugan || !rightBakugan || leftBakugan.id === rightBakugan.id
+    || typeof leftCell !== "string" || typeof rightCell !== "string" || leftCell === rightCell) return;
+  const leftPlacement = state.placements.find((placement) => placement.cell === leftCell);
+  const rightPlacement = state.placements.find((placement) => placement.cell === rightCell);
+  if (!leftPlacement || !rightPlacement
+    || leftPlacement.attachedTo !== leftBakugan.id || rightPlacement.attachedTo !== rightBakugan.id
+    || !leftBakugan.heldCoreCells.includes(leftCell) || !rightBakugan.heldCoreCells.includes(rightCell)) return;
+  leftPlacement.attachedTo = rightBakugan.id;
+  rightPlacement.attachedTo = leftBakugan.id;
+  leftBakugan.heldCoreCells = leftBakugan.heldCoreCells.map((cell) => cell === leftCell ? rightCell : cell);
+  rightBakugan.heldCoreCells = rightBakugan.heldCoreCells.map((cell) => cell === rightCell ? leftCell : cell);
+  entry(
+    state,
+    "game",
+    `${card.displayName || card.name} swapped ${leftPlacement.core.name} and ${rightPlacement.core.name}.`,
+    card,
+    "effect",
+    controllerId,
+  );
+  return;
+}
+    case "move": {
+      const actionAmount = Math.max(0, Math.floor(resolveNumber(action.amount)));
       const destroyCount = (owner: PlayerState) => action.object === "hero"
         ? owner.heroes.length
         : action.object === "evo"
