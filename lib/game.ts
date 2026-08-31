@@ -2574,7 +2574,7 @@ return;
       for (let index = 0; index < amount; index += 1) {
         const damageCard = player.deckCards.shift();
         if (!damageCard) break;
-        player.hand.push(damageCard);
+            player.hand.push({ ...damageCard, revealedToOpponents: undefined });
       }
       syncDeck(player);
       state.pendingDamage = 0;
@@ -2748,7 +2748,7 @@ case "swap-bakucore": {
             const index = (bakugan.bakuGear ?? []).findIndex((gear) => gear.id === gearId);
             if (index < 0) continue;
             const [returned] = bakugan.bakuGear!.splice(index, 1);
-            owner.hand.push(returned);
+            owner.hand.push({ ...returned, revealedToOpponents: undefined });
             break;
           }
         }
@@ -2787,7 +2787,7 @@ case "swap-bakucore": {
         } else if (!player.hand.some((candidate) => candidate.id === card.id)) {
           const owner = playerById(state, pending.cardOwnerId ?? controllerId);
           owner.discard = owner.discard.filter((candidate) => candidate.id !== card.id);
-          owner.hand.push(card);
+          owner.hand.push({ ...card, revealedToOpponents: undefined });
         }
       } else if (action.verb === "shuffle" && action.object === "card") {
         const ids = choices.handCardIds ?? choices.discardCardIds ?? [];
@@ -2996,7 +2996,7 @@ case "swap-bakucore": {
       ));
       if (index >= 0) {
         const [found] = player.deckCards.splice(index, 1);
-        player.hand.push(found);
+        player.hand.push({ ...found, revealedToOpponents: undefined });
         shuffle(player.deckCards);
         syncDeck(player);
         state.informationEpoch += 1;
@@ -3088,7 +3088,7 @@ case "swap-bakucore": {
       if (target && setPower) state.powerBoost[target.id] = Number(setPower[1]) - (topCard(target).bPower ?? target.bPower);
       if (/victor is decided by highest \[damage rating\]/i.test(text)) state.victorByDamage = true;
       if (/retract your Bakugan at the end of the turn/i.test(text) && target) state.delayedRetracts.push(target.id);
-      if (/return this to (?:your )?hand|put this into your hand/i.test(text)) player.hand.push(card);
+      if (/return this to (?:your )?hand|put this into your hand/i.test(text)) player.hand.push({ ...card, revealedToOpponents: undefined });
       else if (/bottom of your deck/i.test(text)) {
         player.deckCards.push(card);
         syncDeck(player);
