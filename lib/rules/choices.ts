@@ -171,6 +171,7 @@ function cardMatchesSpecValue(
 ) {
   const types = spec.cardTypes?.length ? spec.cardTypes : spec.cardType ? [spec.cardType] : [];
   if (types.length && !types.includes(candidate.type)) return false;
+  if (spec.excludedCardTypes?.includes(candidate.type)) return false;
   if (spec.factions?.length && !effectiveCardFactions(candidate).some((faction) => spec.factions!.includes(faction))) return false;
   if (spec.cardMechanic && !candidate.mechanics.some((mechanic) => mechanic.toLowerCase() === spec.cardMechanic!.toLowerCase())) return false;
   if (spec.cardName) {
@@ -361,7 +362,11 @@ function optionsFor(
       return targetOwners(match, controllerId, ownerSpec, chooserId, priorChoices).flatMap((owner) => {
         const candidates = (count ? owner.deckCards.slice(0, count) : owner.deckCards)
           .filter((candidate) => cardMatchesSpec(candidate, spec));
-        return candidates.map((candidate, index) => option(
+        const revealedId = (owner as { revealedDeckCardId?: string }).revealedDeckCardId;
+        const revealedCandidates = spec.revealedOnly
+          ? candidates.filter((candidate) => candidate.id === revealedId)
+          : candidates;
+        return revealedCandidates.map((candidate, index) => option(
           candidate.id,
           candidate.displayName || candidate.name,
           owner.id,

@@ -23,7 +23,7 @@ export const AV_ROWS_2 = [
   ["av-75",75,"AR","Well Practiced","Ventus","Flip Hero",5,"[Stop] non-[Ventus] and put this into play.\nWhen your Bakugan opens, each Bakugan reveals the top card of\ntheir deck. If yours costs more, +500 [B].",null,null,"","","","Well_Practiced_ENG_75_AR_AV.png","",null,"75","",""],
   ["av-76",76,"RA","Hydorous, Ultimate Gamer","Aquos","Hero",3,"Boost: If you have seven or more Energy cards in play, when you\nEnergize a card, [Draw] 1.",null,null,"","","","Hydorous,_Ultimate_Gamer_ENG_76_RA_AV.png","",null,"76","",""],
   ["av-77",77,"RA","Lightning, Tail Chaser","Darkus","Hero",3,"Sync: You may reveal a card in your hand with the same name as\nthe card you played to [Draw] 1.",null,null,"","","","Lightning,_Tail_Chaser_ENG_77_RA_AV.png","",null,"77","",""],
-  ["av-78",78,"RA","Pegatrix, Video Star","Haos","Hero",2,"Empower: When you play this, you may pay an additional 3 [Energy\nif you do, [Draw] 2.\nWhen you Team Attack, you may [Draw] 2.",null,null,"","","","Pegatrix,_Video_Star_ENG_78_RA_AV.png","",null,"78","",""],
+  ["av-78",78,"RA","Pegatrix, Video Star","Haos","Hero",2,"Empower: When you play this, you may pay an additional 3 [Energy]. If you do, [Draw] 2.\nWhen you Team Attack, you may [Draw] 2.",null,null,"","","","Pegatrix,_Video_Star_ENG_78_RA_AV.png","",null,"78","",""],
   ["av-79",79,"RA","Dragonoid, Skater Supreme","Pyrus","Hero",2,"Rapid Fire: The second Rapid Fire card you play this turn is free.\nThe third Rapid Fire card you play each turn is free.",null,null,"","","","Dragonoid,_Skater_Supreme_ENG_79_RA_AV.png","",null,"79","",""],
   ["av-80",80,"RA","Wynton, The Hungry","Ventus","Hero",1,"Trifecta: If your Bakugan have three or more BakuCores attached to\nthem, your Bakugan attacks get +3 [Damage] and +[ShadowStrike].",null,null,"","","","Wynton,_The_Hungry_ENG_80_RA_AV.png","",null,"80","",""],
   ["av-81",81,"RA","Fade Ninja, Bakurider","Darkus","Hero",3,"When you reveal a card in your hand, a Bakugan gets +300 [B].",null,null,"","","","Fade_Ninja,_Bakurider_ENG_81_RA_AV.png","Aquos",null,"81","",""],
@@ -55,5 +55,5 @@ export const AV_ROWS_2 = [
   ["av-106",106,"SR","Magma Blaster","Pyrus","Baku-Gear",3,"+[DoubleStrike]",200,0,"","","","Magma_Blaster_ENG_106_SR_AV.png","",null,"106","",""],
   ["av-107",107,"RA","Fire Launcher","Pyrus","Baku-Gear",5,"When you play this, +4 [Energy].",300,0,"","","","Fire_Launcher_ENG_107_RA_AV.png","",null,"107","",""],
   ["av-108",108,"CO","Rocket Bracers","Pyrus","Baku-Gear",4,"When you play this, make a [Pyrus] attack for 1 [Damage].",300,3,"","","","Rocket_Bracers_ENG_108_CO_AV.png","",null,"108","",""],
-  ["av-109",109,"AR","Rage Mask","Pyrus","Baku-Gear",5,"Empower: When you play this, you may pay an additional 3 [Energy\nto make a [Pyrus] attack for 5 [Damage].",400,4,"","","","Rage_Mask_ENG_109_AR_AV.png","",null,"109","",""]
+  ["av-109",109,"AR","Rage Mask","Pyrus","Baku-Gear",5,"Empower: When you play this, you may pay an additional 3 [Energy]\nto make a [Pyrus] attack for 5 [Damage].",400,4,"","","","Rage_Mask_ENG_109_AR_AV.png","",null,"109","",""]
 ] as const satisfies readonly ExtensionCardRow[];

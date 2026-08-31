@@ -3,7 +3,7 @@ import type { ExtensionCardRow } from "../card-set-extensions";
 export const SV_ROWS_3 = [
   ["sv-111",111,"CO","Bakuruiner","Darkus","Baku-Gear",4,"When you play this, give a Bakugan -3 [Damage].",300,3,"","","","Bakuruiner_ENG_111_CO_SV.png","",null,"111","",""],
   ["sv-112",112,"SR","Lightburst Cannon","Haos","Baku-Gear",4,"When you flip this from your deck, you may pay 2 [Energy] to put\nthis into your hand.",300,3,"","","","Lightburst_Cannons_ENG_112_SR_SV.png","",2,"112","",""],
-  ["sv-113",113,"RA","Shining Clubs","Haos","Baku-Gear",2,"When you play this, you may Reroll your Bakugan.\nEmpower: You may pay an additioanl 3 [Energy] for +500 [B].",100,1,"","","","Shining_Clubs_ENG_113_RA_SV.png","",1,"113","",""],
+  ["sv-113",113,"RA","Shining Clubs","Haos","Baku-Gear",2,"When you play this, you may Reroll your Bakugan.\nEmpower: You may pay an additional 3 [Energy] for +500 [B].",100,1,"","","","Shining_Clubs_ENG_113_RA_SV.png","",1,"113","",""],
   ["sv-114",114,"CO","Energy Vortex","Haos","Baku-Gear",3,"When you play this, attach a [Fist] from the Field to an\nopen Bakugan.",300,0,"","","","Energy_Vortex_ENG_114_CO_SV.png","",null,"114","",""],
   ["sv-115",115,"CO","Rainbow Sparkle Cannon of Doom","Haos","Baku-Gear",5,"",400,4,"","","","Rainbow_Sparkle_Cannon_of_Doom_ENG_115_CO_SV.png","",1,"115","",""],
   ["sv-116",116,"CO","Burncutter","Pyrus","Baku-Gear",3,"",100,5,"","","","Burncutter_ENG_116_CO_SV.png","",1,"116","",""],

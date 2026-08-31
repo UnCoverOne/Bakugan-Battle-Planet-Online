@@ -146,6 +146,18 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
             `Trifecta: ${trifecta[2].trim()}`,
           ];
         }
+        // Empower is a payment-time choice. Keep its payoff separate from
+        // the base effect so the resolver can gate it on the announced
+        // payment decision. The replacement pass below handles explicit
+        // printed "instead" wording.
+        const empower = clause.match(/^(.*?)\s+Empower:\s*(.+)$/i);
+        if (empower?.[2].trim()) {
+          const prefix = empower[1].trim().replace(/[,;:]$/, "");
+          return [
+            ...(prefix ? [`${prefix}.`] : []),
+            `Empower: ${empower[2].trim()}`,
+          ];
+        }
         // Boost is a keyword boundary, not part of the preceding effect.
         // Some printings place it after a base effect without a period (for
         // example “+4 Damage Boost: ...”), so split it before compiling the
@@ -291,6 +303,16 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     if (!discard || instruction.effects[0] === discard || /\bSync:/i.test(instruction.sourceText)) continue;
     instruction.effects = [discard, ...instruction.effects.filter((effect) => effect !== discard)];
     instruction.actions = instruction.effects;
+  }
+
+  // Empower payment is selected during card play. Any printed "If you do"
+  // continuation belongs to that same selected Empower branch rather than
+  // becoming an unconditional follow-up instruction.
+  for (let index = 1; index < instructions.length; index += 1) {
+    if (!/^If you do\b/i.test(instructions[index].sourceText.trim())) continue;
+    if (instructions[index - 1].condition.kind === "empower-selected") {
+      instructions[index].condition = { kind: "empower-selected" };
+    }
   }
 
   // The controller first chooses a player, then that chosen player privately
@@ -604,7 +626,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     selected.maximumCost = printedMaximum;
     result.push(selected);
   }
-  if (!negateMatch && /(?:destroy|return|choose|take control)[^.;]*Baku-Gear/i.test(text)) {
+  if (!negateMatch && !/destroy all/i.test(text) && /(?:destroy|return|choose|take control)[^.;]*Baku-Gear/i.test(text)) {
     const selected = choice("targetCardId", targetTiming, "card-in-play", "Choose a Baku-Gear");
     selected.cardTypes = ["Baku-Gear"];
     selected.owner = /your Baku-Gear/i.test(text) ? "controller" : targetOwner;
@@ -852,12 +874,15 @@ if (swapsBakucore) {
     selected.targetOwner = selected.owner;
     result.push(selected);
   }
-  const freeHandPlay = text.match(/play\s+(?:an?|the)?\s*(Action|Hero|Evo|card)(?:\s+card)?(?:\s+that costs?\s+(\d+)\s+\[Energy\]\s+or less)?(?:\s+from\s+(?:your\s+)?hand|\s+from\s+it)?\s+for free|play that Bakugan(?:'s|’s) Evo card for free/i);
+  const freeHandPlay = text.match(/play\s+(?:an?|the|any|another)?\s*(Action|Hero|Evo|non-Flip|card)(?:\s+cards?)?(?:\s+from\s+(?:your\s+)?hand|\s+from\s+it|\s+revealed this way)?(?:\s+(?:that costs?|with cost)\s+(\d+)\s+\[Energy\]\s+or less)?\s+for free|play that Bakugan(?:'s|’s) Evo card for free/i);
   if (freeHandPlay && !persistentFreePermission && !freeFactionPlay && !namedFreePlay) {
-    const selected = choice("handCardIds", "resolve", "hand-card", "Choose a card to play", false, "controller", "private");
+    const revealed = /revealed this way/i.test(text);
+    const selected = choice(revealed ? "deckCardId" : "handCardIds", "resolve", revealed ? "deck-card" : "hand-card", "Choose a card to play", false, "controller", "private");
     if (/that Bakugan(?:'s|’s) Evo/i.test(text)) selected.cardType = "Evo";
-    else if (freeHandPlay[1] && freeHandPlay[1].toLowerCase() !== "card") selected.cardType = freeHandPlay[1] as GameCard["type"];
+    else if (freeHandPlay[1] && !/^(?:card|non-Flip)$/i.test(freeHandPlay[1])) selected.cardType = freeHandPlay[1] as GameCard["type"];
     if (freeHandPlay[2]) selected.maximumCost = Number(freeHandPlay[2]);
+    if (/^non-Flip$/i.test(freeHandPlay[1] ?? "")) selected.excludedCardTypes = ["Flip", "Flip Hero"];
+    if (revealed) selected.revealedOnly = true;
     selected.owner = /from it|opponent(?:'s|’s) hand|opponent(?:'s|’s) discard pile/i.test(text) ? "opponent" : "controller";
     selected.targetOwner = selected.owner;
     selected.playForFree = true;
@@ -882,11 +907,20 @@ if (swapsBakucore) {
     && !persistentFreePermission
     && !/may discard|may recharge up to/i.test(text)
     && !/\bSync:/i.test(text)
+    && !/^Empower\s*:/i.test(text)
     && !syncChoice) {
     const optionalChooser = /\beach player may\b/i.test(text)
       ? "each-player" as const
       : /\byour opponent may\b/i.test(text) ? "opponent" as const : "controller" as const;
     result.push(choice("confirmed", "resolve", "mode", "Use this optional effect?", false, optionalChooser));
+  }
+  if (defaultTiming === "announce" && /\bEmpower\s*:/i.test(card.effect)) {
+    const empower = choice("empower", "pay", "mode", "Use Empower?", false, "controller", "public");
+    empower.options = [
+      { id: "yes", label: "Empower (pay the additional Energy cost)" },
+      { id: "no", label: "Do not Empower" },
+    ];
+    result.push(empower);
   }
   return result.filter((item, index, values) => values.findIndex((candidate) => candidate.id === item.id && candidate.timing === item.timing) === index);
 }

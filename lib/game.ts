@@ -224,6 +224,8 @@ export type CardChoices = {
   mode?: string;
   /** Selected normal/alternative payment route for the current card play. */
   paymentMode?: string;
+  /** Whether the controller chose the card's optional Empower payment. */
+  empower?: boolean | string;
   confirmed?: boolean;
   simultaneousAnswers?: Record<string, CardChoices>;
 };
@@ -353,6 +355,10 @@ export type MatchState = {
   rerollSequence: number;
   repeatRollAfterReroll: boolean;
   nextCardCostReduction: Record<string, number>;
+  /** One-shot reductions that apply only to the next card's Empower cost. */
+  nextCardEmpowerReduction: Record<string, number>;
+  /** One-shot permission that makes the next card's Empower cost free. */
+  nextCardEmpowerFree: Record<string, boolean>;
   temporaryVictorDiscards: Record<string, { controllerId: string; sourceName: string; amount: number }>;
   powerBoost: Record<string, number>;
   damageBoost: Record<string, number>;
@@ -525,6 +531,8 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
   if (state.pendingEffectDamageResume && typeof state.pendingEffectDamageResume !== "object") state.pendingEffectDamageResume = undefined;
   if (state.pendingRerollOpenEvent && typeof state.pendingRerollOpenEvent !== "object") state.pendingRerollOpenEvent = undefined;
   state.nextCardCostReduction = state.nextCardCostReduction && typeof state.nextCardCostReduction === "object" ? state.nextCardCostReduction : {};
+  state.nextCardEmpowerReduction = state.nextCardEmpowerReduction && typeof state.nextCardEmpowerReduction === "object" ? state.nextCardEmpowerReduction : {};
+  state.nextCardEmpowerFree = state.nextCardEmpowerFree && typeof state.nextCardEmpowerFree === "object" ? state.nextCardEmpowerFree : {};
   state.temporaryVictorDiscards = state.temporaryVictorDiscards && typeof state.temporaryVictorDiscards === "object" ? state.temporaryVictorDiscards : {};
   for (const roll of Object.values(state.rolls)) {
     const legacyResult = roll.result as RollOutcome["result"] | "miss" | "target-core" | "adjacent-core" | "double-core";
@@ -614,7 +622,7 @@ export const createMatch = (code: string, format: "bo1" | "bo3", players: Player
     series: Object.fromEntries(players.map((player) => [player.id, 0])), phase: "lobby", stepLabel: "Players ready",
     players, startingPlayer, initialStartingPlayer: startingPlayer, startingPlayerRevealedAt: 0,
     priority: startingPlayer, placementTurn: 0, placements: [], selected: {}, targets: {}, rolls: {},
-    coinFlipResults: {}, rerollOpenedByEffect: {}, rerollTargetByEffect: {}, rerollUsage: {}, rerollSequence: 0, repeatRollAfterReroll: false, nextCardCostReduction: {}, temporaryVictorDiscards: {},
+    coinFlipResults: {}, rerollOpenedByEffect: {}, rerollTargetByEffect: {}, rerollUsage: {}, rerollSequence: 0, repeatRollAfterReroll: false, nextCardCostReduction: {}, nextCardEmpowerReduction: {}, nextCardEmpowerFree: {}, temporaryVictorDiscards: {},
     powerBoost: {}, damageBoost: {}, frostStrike: {}, doubleStrike: {}, shadowStrike: {}, passes: [], batch: [], victorByDamage: false,
     pendingDamage: 0, pendingLoser: "", damageOrigin: "", teamAttack: false, pendingBrawlRetracts: [], delayedRetracts: [], copyNextAction: {}, brawlWinner: "", winner: "", resultReason: "",
     triggerOrders: [], collectedEventKeys: [], informationEpoch: 0, priorityEpoch: 0,
@@ -682,7 +690,7 @@ const beginTurn = (state: MatchState) => {
   state.turn += 1; state.startingPlayer = state.brawlWinner || state.startingPlayer; state.priority = state.startingPlayer;
   ensureRulesState(state).delayedCardTriggers = [];
   ensureRulesState(state).scheduledActions = [];
-  state.selected = {}; state.targets = {}; state.rolls = {}; state.pendingReroll = undefined; state.pendingCoinFlip = undefined; state.coinFlipResults = {}; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.temporaryVictorDiscards = {}; state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {};
+  state.selected = {}; state.targets = {}; state.rolls = {}; state.pendingReroll = undefined; state.pendingCoinFlip = undefined; state.coinFlipResults = {}; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.nextCardEmpowerReduction = {}; state.nextCardEmpowerFree = {}; state.temporaryVictorDiscards = {}; state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {};
   state.doubleStrike = {}; state.shadowStrike = {}; state.batch = []; state.victorByDamage = false; state.pendingDamage = 0;
   state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.pendingBrawlRetracts = []; state.delayedRetracts = []; state.winner = "";
   state.collectedEventKeys = [];
@@ -1207,6 +1215,7 @@ export const cardChoiceSpec = (_state: MatchState, _playerId: string, card: Game
     xValue: "xValue",
     mode: "mode",
     paymentMode: "mode",
+    empower: "mode",
     confirmed: "mode",
   };
   const definition = ruleDefinitionForCard(card);
@@ -1555,7 +1564,11 @@ function commitCardPlayMutable(state: MatchState, request: PendingCardPlay) {
   const played = removePlaySourceCard(state, request);
   const controller = playerById(state, request.controllerId);
   recordCardPlayedForTurn(controller, played, state.turn);
+  state.nextCardEmpowerReduction ??= {};
+  state.nextCardEmpowerFree ??= {};
   state.nextCardCostReduction[request.controllerId] = 0;
+  state.nextCardEmpowerReduction[request.controllerId] = 0;
+  state.nextCardEmpowerFree[request.controllerId] = false;
   ensureRulesState(state).costModifiers = ensureRulesState(state).costModifiers.filter((modifier) => !(
     modifier.duration === "next-card"
     && playerIdsForScope(state, modifier.playerScope, { controllerId: modifier.controllerId }).includes(request.controllerId)
@@ -2121,6 +2134,9 @@ const ruleConditionIsActive = (
   if (instruction.condition.kind === "mode-selected") {
     return choices.mode === instruction.condition.mode || choices.mode === "both";
   }
+  if (instruction.condition.kind === "empower-selected") {
+    return choices.empower === true || choices.empower === "yes" || choices.empower === "true";
+  }
   if (instruction.condition.kind === "reroll-opened") return Boolean(state.rerollOpenedByEffect[pending.id]);
   if (instruction.condition.kind === "coin-result") return state.coinFlipResults[pending.id] === instruction.condition.result;
   if (instruction.condition.kind === "printed") return conditionActive(state, player, instruction.condition.text, choices);
@@ -2258,7 +2274,13 @@ const executeRuleAction = (
     }
     case "cost":
       if (action.duration === "next-card") {
-        if (action.operation === "reduce") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) + resolveNumber(action.amount);
+        state.nextCardEmpowerReduction ??= {};
+        state.nextCardEmpowerFree ??= {};
+        if (action.costScope === "empower") {
+          if (action.operation === "reduce") state.nextCardEmpowerReduction[controllerId] = (state.nextCardEmpowerReduction[controllerId] ?? 0) + resolveNumber(action.amount);
+          else if (action.operation === "increase") state.nextCardEmpowerReduction[controllerId] = (state.nextCardEmpowerReduction[controllerId] ?? 0) - resolveNumber(action.amount);
+          else if (action.operation === "free") state.nextCardEmpowerFree[controllerId] = true;
+        } else if (action.operation === "reduce") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) + resolveNumber(action.amount);
         else if (action.operation === "increase") state.nextCardCostReduction[controllerId] = (state.nextCardCostReduction[controllerId] ?? 0) - resolveNumber(action.amount);
       } else if (action.operation === "free" && action.duration === "turn") {
         const rules = ensureRulesState(state);
@@ -2882,6 +2904,7 @@ case "swap-bakucore": {
         selected = player.deckCards.find((candidate) => candidate.id === revealedId);
       }
       if (!selected || (action.cardType && selected.type !== action.cardType)) return;
+      if (action.excludedCardTypes?.includes(selected.type)) return;
       if (action.factions?.length && !effectiveCardFactions(selected).some((faction) => action.factions!.includes(faction))) return;
       if (action.cardMechanic && !selected.mechanics.some((mechanic) => mechanic.toLowerCase() === action.cardMechanic!.toLowerCase())) return;
       if (action.cardName) {
@@ -3824,7 +3847,7 @@ export const startNextSeriesGame = (input: MatchState) => {
   const state = cloneMatch(input); const needed = state.format === "bo3" ? 2 : 1;
   if (state.phase !== "result" || Math.max(...Object.values(state.series)) >= needed) throw new Error("The match is complete.");
   state.gameNumber += 1; state.turn = 0; state.placements = []; state.placementTurn = 0; state.selected = {}; state.targets = {}; state.rolls = {}; state.batch = [];
-  state.pendingReroll = undefined; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.temporaryVictorDiscards = {};
+  state.pendingReroll = undefined; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.nextCardEmpowerReduction = {}; state.nextCardEmpowerFree = {}; state.temporaryVictorDiscards = {};
   const selected = state.players[secureRandomInt(state.players.length)];
   state.startingPlayer = selected.id; state.initialStartingPlayer = selected.id; state.priority = selected.id;
   state.startingPlayerRevealedAt = Date.now() + 2_500; state.brawlWinner = ""; state.winner = ""; state.resultReason = "";

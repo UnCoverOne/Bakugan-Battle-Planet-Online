@@ -151,6 +151,7 @@ export function ruleConditionActive(
     }
     case "selection-made": return true;
     case "mode-selected": return false;
+    case "empower-selected": return false;
     case "reroll-opened": return false;
     // Coin results are resolution-local and are evaluated by the game kernel.
     case "coin-result": return false;

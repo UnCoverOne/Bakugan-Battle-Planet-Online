@@ -51,6 +51,7 @@ export type RuleCondition =
   | { kind: "source-only-open-bakugan" }
   | { kind: "selection-made"; choiceId: keyof CardChoices }
   | { kind: "mode-selected"; mode: string }
+  | { kind: "empower-selected" }
   | { kind: "reroll-opened" }
   | { kind: "coin-result"; result: "heads" | "tails" }
   | { kind: "expression"; expression: BooleanExpression }
@@ -73,6 +74,10 @@ export type ChoiceSpec = {
   factions?: Faction[];
   /** Restrict a card choice to cards carrying a printed mechanic. */
   cardMechanic?: string;
+  /** Restrict a card choice to cards that do not have these types. */
+  excludedCardTypes?: CardType[];
+  /** Restrict a deck choice to the card currently revealed from the top. */
+  revealedOnly?: boolean;
   /** Exact printed card identity requested by an effect-originated play. */
   cardName?: string;
   /** Preferred ownership primitive for the zone/object pool being selected. */
@@ -171,12 +176,12 @@ export type RuleAction =
   | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "baku-gear" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope; subject?: "self" | "chosen"; destination?: "owner-hand" | "owner-deck-bottom"; retainChoiceId?: keyof CardChoices; excludeSource?: boolean }
   | { kind: "reveal"; object: "bakucore" | "deck-top"; amount: NumberValue; sourceOwner?: ZoneOwner }
   | { kind: "reorder-deck"; amount: NumberValue }
-  | { kind: "play"; source: "revealed-deck" | "hand" | "discard" | "self"; free: boolean; cardType?: CardType; factions?: Faction[]; cardName?: string; cardMechanic?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
+  | { kind: "play"; source: "revealed-deck" | "hand" | "discard" | "self"; free: boolean; cardType?: CardType; excludedCardTypes?: CardType[]; factions?: Faction[]; cardName?: string; cardMechanic?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "attack"; amount: NumberValue; faction?: Faction }
   | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: NumberValue; targetKinds?: Array<"card" | "trigger" | "copy"> }
   | { kind: "search"; cardType?: string; amount: NumberValue }
   | { kind: "copy"; target: "next-action" | "batch-action" | "chosen-batch-object" | "played-action" | "revealed-action" | "discarded-action-this-turn"; independentChoices: boolean; targetChoiceId?: keyof CardChoices; count?: NumberValue; controller?: PlayerScope; sourceOwner?: ZoneOwner }
-  | { kind: "cost"; amount: NumberValue; operation: "reduce" | "increase" | "free"; duration: RulesDuration; cardType?: CardType; playerScope?: PlayerScope }
+  | { kind: "cost"; amount: NumberValue; operation: "reduce" | "increase" | "free"; duration: RulesDuration; cardType?: CardType; playerScope?: PlayerScope; costScope?: "base" | "empower" }
   | { kind: "reroll"; target: "controller" | "opponent"; mandatory: boolean; requiresDiscard: boolean }
   | { kind: "coin-flip" }
   | { kind: "trigger"; event: TriggerEventName; definition: TriggerDefinition }

@@ -2,6 +2,7 @@ import type { CardChoices, GameCard, MatchState, PlayerState } from "../game";
 import { ruleDefinitionForCard } from "./catalogue";
 import { activeFrostStrike, ruleConditionActive } from "./modifiers";
 import type { CostEffect, RulesPayment } from "./model";
+import { hasActiveRulePermission } from "./permissions";
 import { playerIdsForScope } from "./primitives";
 import { ensureRulesState } from "./state";
 import { evaluateNumberValue, type NumberValue } from "./values";
@@ -12,6 +13,8 @@ export type CardCostBreakdown = {
   reductions: number;
   increases: number;
   frostStrike: number;
+  empowerCost: number;
+  empowerSelected: boolean;
   freeBase: boolean;
   additionalCosts: Array<{ kind: "discard"; amount: number; choiceId: keyof CardChoices }>;
   total: number;
@@ -82,6 +85,11 @@ export function cardCostBreakdown(
   const capacity = maximumPayableEnergy(state, playerId);
   const xValue = card.cost === "X" ? Math.max(0, Math.min(capacity, choices.xValue ?? 0)) : 0;
   const printed = card.cost === "X" ? xValue : card.cost;
+  const empowerSelected = choices.empower === true || choices.empower === "yes" || choices.empower === "true";
+  const printedEmpowerCost = card.effect.match(/\bEmpower\s*:[\s\S]*?pay(?: an additional)?\s+(\d+)\s+\[Energy\]/i)?.[1];
+  let empowerCost = empowerSelected && /\bEmpower\s*:/i.test(card.effect)
+    ? Number(printedEmpowerCost ?? 3)
+    : 0;
   let reductions = 0;
   let increases = 0;
   let freeBase = Boolean(context.forcedFreeBase);
@@ -102,6 +110,10 @@ export function cardCostBreakdown(
   ));
 
   reductions += Math.max(0, state.nextCardCostReduction?.[playerId] ?? 0);
+  if (empowerCost > 0) {
+    if (hasActiveRulePermission(state, playerId, "empower-free") || state.nextCardEmpowerFree?.[playerId]) empowerCost = 0;
+    else empowerCost = Math.max(0, empowerCost - Math.max(0, state.nextCardEmpowerReduction?.[playerId] ?? 0));
+  }
 
   for (const modifier of [...selfModifiers, ...controlledModifiers]) {
     if (!modifierActive(state, player, modifier, choices)) continue;
@@ -146,9 +158,11 @@ export function cardCostBreakdown(
     reductions,
     increases,
     frostStrike,
+    empowerCost,
+    empowerSelected,
     freeBase,
     additionalCosts,
-    total: Math.max(0, base - reductions + increases + frostStrike),
+    total: Math.max(0, base - reductions + increases + frostStrike) + empowerCost,
   };
 }
 

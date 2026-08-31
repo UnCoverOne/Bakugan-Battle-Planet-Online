@@ -17,7 +17,7 @@ export const FF_ROWS_1 = [
   ["ff-14",14,"AR","Darkushadow","Darkus","Action",4,"Choose a color: [Aquos], [Darkus], [Haos], [Pyrus], or [Ventus].\nYour opponent reveals their hand and discards all cards of\nthe chosen faction.",null,null,"","","","Darkushadow_ENG_14_AR_FF.png","",null,"14","",""],
   ["ff-15",15,"RA","Punishing Paws","Darkus","Action",5,"+500 [B]\nIf that Bakugan has a Baku-Gear attached to it, +5 [Damage].",null,null,"","","","Punishing_Paws_ENG_15_RA_FF.png","",null,"15","",""],
   ["ff-16",16,"CO","Darkusfist","Darkus","Action",6,"+13 [Damage]",null,null,"","","","Darkusfist_ENG_16_CO_FF.png","",null,"16","",""],
-  ["ff-17",17,"CO","Bakucavalry","Haos","Action",0,"+100 [B]\nEmpower: You may pay an additional 3 [Energy] for +500 [B] instea",null,null,"","","","Bakucavalry_ENG_17_CO_FF.png","",null,"17","",""],
+  ["ff-17",17,"CO","Bakucavalry","Haos","Action",0,"+100 [B]\nEmpower: You may pay an additional 3 [Energy] for +500 [B] instead.",null,null,"","","","Bakucavalry_ENG_17_CO_FF.png","",null,"17","",""],
   ["ff-18",18,"CO","Haostomp","Haos","Action",1,"+3 [Damage]",null,null,"","","","Haostomp_ENG_18_CO_FF.png","",null,"18","",""],
   ["ff-19",19,"CO","Cubboclones","Haos","Action",1,"+2 [Damage]\nYou may Reroll your Bakugan.",null,null,"","","","Cubboclones_ENG_19_CO_FF.png","",null,"19","",""],
   ["ff-20",20,"RA","Haosmax Blast","Haos","Action",2,"+5 [Damage]\nIf that Bakugan has a Baku-Gear attached to it, [Draw] 1.",null,null,"","","","Haosmax_Blast_ENG_20_RA_FF.png","",null,"20","",""],

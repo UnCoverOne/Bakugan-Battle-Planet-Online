@@ -7,7 +7,7 @@ import type { AbilityDefinition } from "./model";
  * active. They do not create Batch objects and therefore never resolve as
  * effects of their own.
  */
-export type RulePermission = "battle-mastery-select-both";
+export type RulePermission = "battle-mastery-select-both" | "empower-free";
 
 const PERMISSION_MATCHERS: ReadonlyArray<{
   permission: RulePermission;
@@ -16,6 +16,10 @@ const PERMISSION_MATCHERS: ReadonlyArray<{
   {
     permission: "battle-mastery-select-both",
     matches: (text) => /when you play a card with Battle Mastery,\s*you may choose both/i.test(text),
+  },
+  {
+    permission: "empower-free",
+    matches: (text) => /\bEmpower cards for free\b/i.test(text),
   },
 ];
 

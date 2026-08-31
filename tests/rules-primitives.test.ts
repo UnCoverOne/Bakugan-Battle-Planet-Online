@@ -565,3 +565,71 @@ test("Rapid Fire trigger counts the card after it is played and survives replay 
     sourceOwner: "controller",
   });
 });
+
+test("Empower is a separate pay-time surcharge and respects Empower-only modifiers", () => {
+  const state = stateWithPlayers();
+  const player = state.players[0];
+  const card = CARDS.find((candidate) => candidate.catalogId === "av-20")!;
+  const definition = playDefinitionForCard(card);
+  const empowerChoice = definition.choices.find((choice) => choice.id === "empower");
+  assert.equal(empowerChoice?.timing, "pay");
+  assert.deepEqual(empowerChoice?.options?.map((option) => option.id), ["yes", "no"]);
+
+  assert.equal(cardCostBreakdown(state, player.id, card).total, 1);
+  assert.equal(cardCostBreakdown(state, player.id, card, { empower: "yes" }).total, 4);
+
+  state.nextCardCostReduction[player.id] = 1;
+  state.nextCardEmpowerReduction[player.id] = 1;
+  assert.equal(cardCostBreakdown(state, player.id, card, { empower: "yes" }).total, 2);
+  assert.equal(cardCostBreakdown(state, player.id, card, { empower: "no" }).total, 0);
+
+  state.nextCardEmpowerFree[player.id] = false;
+  state.nextCardEmpowerReduction[player.id] = 0;
+  assert.equal(cardCostBreakdown(state, player.id, card, { empower: "yes" }, { forcedFreeBase: true }).total, 3);
+
+  const lia = CARDS.find((candidate) => candidate.catalogId === "av-83")!;
+  player.heroes = [instance(lia, "active-lia-and-dan")];
+  state.nextCardCostReduction[player.id] = 0;
+  state.nextCardEmpowerReduction[player.id] = 0;
+  assert.equal(cardCostBreakdown(state, player.id, card, { empower: "yes" }).total, 1);
+});
+
+test("Empower cards compile their non-Flip plays, attacks, replacement wording, and one-shot discount", () => {
+  const pyrusauna = CARDS.find((candidate) => candidate.catalogId === "av-28")!;
+  const pyrusaunaDefinition = ruleDefinitionForCard(pyrusauna);
+  const revealedPlay = pyrusaunaDefinition.abilities.flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.effects)
+    .find((effect) => effect.kind === "play");
+  assert.ok(revealedPlay && revealedPlay.kind === "play");
+  assert.equal(revealedPlay.source, "revealed-deck");
+  assert.deepEqual(revealedPlay.excludedCardTypes, ["Flip", "Flip Hero"]);
+
+  const spiritSpeed = CARDS.find((candidate) => candidate.catalogId === "av-50")!;
+  const spiritPlays = ruleDefinitionForCard(spiritSpeed).abilities.flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.effects)
+    .filter((effect) => effect.kind === "play");
+  assert.equal(spiritPlays.length, 2);
+  assert.ok(spiritPlays.every((effect) => effect.kind === "play" && effect.excludedCardTypes?.includes("Flip")));
+
+  const rageMask = CARDS.find((candidate) => candidate.catalogId === "av-109")!;
+  const rageAttack = ruleDefinitionForCard(rageMask).abilities.flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.effects)
+    .find((effect) => effect.kind === "attack");
+  assert.ok(rageAttack && rageAttack.kind === "attack");
+  assert.equal(rageAttack.amount, 5);
+
+  const replacement = ruleDefinitionForCard(CARDS.find((candidate) => candidate.catalogId === "ff-17")!).abilities
+    .flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.effects)
+    .find((effect) => effect.kind === "conditional");
+  assert.ok(replacement && replacement.kind === "conditional");
+  assert.equal(replacement.replacement, true);
+  assert.deepEqual(replacement.whenFalse, [{ kind: "modify-stat", stat: "power", amount: 100, duration: "instant", scope: "target", targetChoiceId: undefined }]);
+  assert.equal(replacement.whenTrue.some((effect) => effect.kind === "modify-stat" && effect.amount === 500), true);
+
+  const nillious = CARDS.find((candidate) => candidate.catalogId === "ff-233")!;
+  const discount = parseAtomicEffects(nillious, nillious.effect).find((effect) => effect.kind === "cost");
+  assert.ok(discount && discount.kind === "cost");
+  assert.equal(discount.costScope, "empower");
+  assert.equal(discount.duration, "next-card");
+});

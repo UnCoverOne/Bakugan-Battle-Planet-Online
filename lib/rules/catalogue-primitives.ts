@@ -52,6 +52,7 @@ function controlledCardNames(text: string) {
 
 export function conditionFor(text: string): RuleCondition {
   const normalizedText = text.replace(/\s+/g, " ").trim();
+  if (/^Empower\s*:/i.test(normalizedText)) return { kind: "empower-selected" };
   if (/\bif heads\b/i.test(text)) return { kind: "coin-result", result: "heads" };
   if (/\bif tails\b/i.test(text)) return { kind: "coin-result", result: "tails" };
   if (/if you open on the Reroll/i.test(text)) return { kind: "reroll-opened" };
@@ -621,12 +622,13 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   });
   const chosenCardFreePlay = /play that card for free/i.test(text);
   if (chosenCardFreePlay) actions.push({ kind: "play", source: "hand", free: true, sourceOwner: "controller" });
-  const freeHandPlay = text.match(/play\s+(?:an?|the)?\s*(Action|Hero|Evo|card)(?:\s+card)?(?:\s+that costs?\s+(\d+)\s+\[Energy\]\s+or less)?(?:\s+from\s+(?:your\s+)?hand|\s+from\s+it)?\s+for free|play that Bakugan(?:'s|’s) Evo card for free/i);
+  const freeHandPlay = text.match(/play\s+(?:an?|the|any|another)?\s*(Action|Hero|Evo|non-Flip|card)(?:\s+cards?)?(?:\s+from\s+(?:your\s+)?hand|\s+from\s+it|\s+revealed this way)?(?:\s+(?:that costs?|with cost)\s+(\d+)\s+\[Energy\]\s+or less)?\s+for free|play that Bakugan(?:'s|’s) Evo card for free/i);
   if (freeHandPlay && !persistentFreePermission && !freeFactionPlay && !namedFreePlay && !chosenCardFreePlay) actions.push({
     kind: "play",
-    source: "hand",
+    source: /revealed this way/i.test(text) ? "revealed-deck" : "hand",
     free: true,
-    cardType: /that Bakugan(?:'s|’s) Evo/i.test(text) ? "Evo" : (freeHandPlay[1] && freeHandPlay[1].toLowerCase() !== "card" ? freeHandPlay[1] as CardType : undefined),
+    cardType: /that Bakugan(?:'s|’s) Evo/i.test(text) ? "Evo" : (freeHandPlay[1] && !/^(?:card|non-Flip)$/i.test(freeHandPlay[1]) ? freeHandPlay[1] as CardType : undefined),
+    excludedCardTypes: /^non-Flip$/i.test(freeHandPlay[1] ?? "") ? ["Flip", "Flip Hero"] : undefined,
     maximumCost: freeHandPlay[2] ? Number(freeHandPlay[2]) : undefined,
     sourceOwner: /from it|opponent(?:'s|’s) hand/i.test(text) ? "opponent" : "controller",
     destinationOwner: /opponent(?:'s|’s) discard pile/i.test(text) ? "opponent" : undefined,
@@ -643,7 +645,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   if (persistentFreePermission) actions.push({
     kind: "cost", amount: 0, operation: "free", duration: "turn", cardType: "Evo", playerScope: "all-players",
   });
-  const attack = text.match(/makes? an? \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] attack for (\d+) \[Damage Rating\]/i);
+  const attack = text.match(/makes? an? \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] attack for (\d+) \[Damage(?: Rating)?\]/i);
   if (attack) actions.push({ kind: "attack", faction: attack[1] as Faction, amount: Number(attack[2]) });
   if (/draw all remaining damage from an attack/i.test(text)) actions.push({ kind: "damage-to-hand" });
   if (/^end the turn|nothing else can happen this turn/i.test(text)) actions.push({ kind: "end-turn", recharge: false });
@@ -669,12 +671,27 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   if (/copy the effect of an Action card that was discarded this turn/i.test(text)) actions.push({ kind: "copy", target: "discarded-action-this-turn", independentChoices: true, targetChoiceId: "targetCardId", count: { kind: "constant", value: 1 }, controller: "controller" });
   else if (/copy the effect of an Action card|copy an? Action card(?:'s|’s) effect/i.test(text)) actions.push({ kind: "copy", target: "batch-action", independentChoices: true, targetChoiceId: "targetEffectId", count: { kind: "constant", value: 1 }, controller: "controller" });
 
-  const nextCardReduction = text.match(/next card you play(?: this turn)? costs? (\d+) \[Energy\] less/i);
-  if (nextCardReduction) actions.push({
+  const nextEmpowerReduction = text.match(/(?:next card you play(?: this turn)?|your next card) costs? (\d+) \[Energy\] less to Empower/i);
+  if (nextEmpowerReduction) actions.push({
+    kind: "cost",
+    amount: Number(nextEmpowerReduction[1]),
+    operation: "reduce",
+    duration: "next-card",
+    costScope: "empower",
+  });
+  const nextCardReduction = text.match(/(?:next card you play(?: this turn)?|your next card) costs? (\d+) \[Energy\] less/i);
+  if (nextCardReduction && !nextEmpowerReduction) actions.push({
     kind: "cost",
     amount: Number(nextCardReduction[1]),
     operation: "reduce",
     duration: "next-card",
+  });
+  if (/you may Empower the next card you play(?: this turn)? for free/i.test(text)) actions.push({
+    kind: "cost",
+    amount: 0,
+    operation: "free",
+    duration: "next-card",
+    costScope: "empower",
   });
 
   const intrinsicReroll = ["Character", "Evo"].includes(card.type)
@@ -713,10 +730,12 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     scope,
   });
 
-  // Sync owns its timing through the keyword's gated instruction. Do not add
-  // a second nested trigger for phrases such as “When you play this” inside
-  // the Sync reminder text.
-  const trigger = /\bSync:/i.test(text) ? undefined : triggerFor(text);
+  // Sync owns its timing through the keyword's gated instruction when it is
+  // merely part of another event. A printing such as “Sync: When you play
+  // this” still has a real self-entry trigger and must retain it.
+  const syncHasSelfEntry = /\bSync:/i.test(text)
+    && /when you play this(?: card)?|when this is played/i.test(text);
+  const trigger = /\bSync:/i.test(text) && !syncHasSelfEntry ? undefined : triggerFor(text);
   if (trigger) actions.push({ kind: "trigger", event: trigger.event, definition: trigger });
   if (!actions.length) actions.push({ kind: "sequence", effects: [] });
   return actions;
