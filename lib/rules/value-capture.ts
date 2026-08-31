@@ -161,6 +161,8 @@ export function captureRuleActionValues(
     case "grant-keyword":
       captureNumber(state, action.value, moment, context, snapshots);
       break;
+    case "ignore-armor-rating":
+      break;
     case "discard":
       captureNumber(state, action.amount, moment, context, snapshots);
       captureNumber(state, action.minimum, moment, context, snapshots);

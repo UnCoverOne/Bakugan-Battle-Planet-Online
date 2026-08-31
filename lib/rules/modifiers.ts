@@ -63,6 +63,12 @@ export function ruleConditionActive(
     characteristics: (candidate, owner) => evaluateBakuganCharacteristics(state, candidate, owner),
   });
   switch (condition.kind) {
+    case "armor-damage-reduced": {
+      if (condition.subject !== "opponent") return false;
+      const rules = ensureRulesState(state);
+      return state.players.some((candidate) => candidate.id !== player.id
+        && (rules.armorDamageReducedThisTurn?.[candidate.id] ?? 0) > 0);
+    }
     case "fury": return player.hand.length === 0;
     case "flow": return player.cardsPlayedThisTurn > 1;
     case "underdog": {

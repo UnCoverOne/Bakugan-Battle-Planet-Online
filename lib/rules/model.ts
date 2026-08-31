@@ -29,6 +29,7 @@ export type EntitySelector =
 
 export type RuleCondition =
   | { kind: "always" }
+  | { kind: "armor-damage-reduced"; subject: "opponent" }
   | { kind: "fury" }
   | { kind: "turbo" }
   | { kind: "domination" }
@@ -162,6 +163,7 @@ export type SwapBakucoreEffect = {
 
 export type RuleAction =
   | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: NumberValue; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices }
+  | { kind: "ignore-armor-rating"; duration: RulesDuration }
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: NumberValue; duration: RulesDuration }
   | { kind: "draw"; amount: NumberValue; playerScope?: PlayerScope }
   | { kind: "discard"; amount: NumberValue; minimum: NumberValue; maximum: NumberValue; repeated?: boolean; playerScope?: PlayerScope }
@@ -397,5 +399,9 @@ export type RulesState = {
     effects: RuleAction[];
     createdTurn: number;
   }>;
+  /** Attacker-scoped turn effects such as Shieldbreaker and Titan Eenoch. */
+  ignoreArmorRating?: Record<string, boolean>;
+  /** Bonus damage absorbed by Baku-Gear Armor, keyed by the damaged player. */
+  armorDamageReducedThisTurn?: Record<string, number>;
   pendingPayment?: RulesPayment;
 };

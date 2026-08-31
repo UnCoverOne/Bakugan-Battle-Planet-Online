@@ -53,6 +53,9 @@ function controlledCardNames(text: string) {
 export function conditionFor(text: string): RuleCondition {
   const normalizedText = text.replace(/\s+/g, " ").trim();
   if (/^Empower\s*:/i.test(normalizedText)) return { kind: "empower-selected" };
+  if (/if an opposing player reduced damage with Armor Rating this turn/i.test(normalizedText)) {
+    return { kind: "armor-damage-reduced", subject: "opponent" };
+  }
   if (/\bif heads\b/i.test(text)) return { kind: "coin-result", result: "heads" };
   if (/\bif tails\b/i.test(text)) return { kind: "coin-result", result: "tails" };
   if (/\bif that player has no cards in their hand\b/i.test(text)) return {
@@ -432,6 +435,9 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   }
   if (/\+?\[Double\s*Strike\]|\bDouble\s*Strike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "DoubleStrike", duration });
   if (/\+?\[ShadowStrike\]|\bShadowStrike\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "ShadowStrike", duration });
+  // Armor negation is explicitly bounded by the printed “this turn” clause;
+  // do not let intrinsic Evo characteristics widen it to source-active.
+  if (/ignore\s+Armor Rating/i.test(text)) actions.push({ kind: "ignore-armor-rating", duration: "turn" });
   if (/\bflip a coin\b/i.test(text)) actions.push({ kind: "coin-flip" });
   if (/\[Stop\]|\bstop the attack\b/i.test(text)) actions.push({ kind: "grant-keyword", keyword: "Stop", duration });
 

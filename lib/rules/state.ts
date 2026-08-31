@@ -27,6 +27,12 @@ export function ensureRulesState(input: MatchState): RulesState {
   state.rules.costModifiers = Array.isArray(state.rules.costModifiers) ? state.rules.costModifiers : [];
   state.rules.delayedCardTriggers = Array.isArray(state.rules.delayedCardTriggers) ? state.rules.delayedCardTriggers : [];
   state.rules.scheduledActions = Array.isArray(state.rules.scheduledActions) ? state.rules.scheduledActions : [];
+  state.rules.ignoreArmorRating = state.rules.ignoreArmorRating && typeof state.rules.ignoreArmorRating === "object"
+    ? state.rules.ignoreArmorRating
+    : {};
+  state.rules.armorDamageReducedThisTurn = state.rules.armorDamageReducedThisTurn && typeof state.rules.armorDamageReducedThisTurn === "object"
+    ? state.rules.armorDamageReducedThisTurn
+    : {};
   return state.rules;
 }
 

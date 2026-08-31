@@ -42,7 +42,7 @@ export function aiConditionActive(
 
 export function isTemporaryCombatAction(action: RuleAction) {
   if (action.kind === "set-stat" || action.kind === "set-rule") return true;
-  return (action.kind === "modify-stat" || action.kind === "grant-keyword")
+  return (action.kind === "modify-stat" || action.kind === "grant-keyword" || action.kind === "ignore-armor-rating")
     && action.duration !== "while-source-in-play"
     && action.duration !== "next-card";
 }
@@ -214,6 +214,7 @@ function temporaryActionPotential(action: RuleAction): number {
     );
   }
   if (action.kind === "grant-keyword") return action.keyword === "DoubleStrike" ? 4 : 2.5;
+  if (action.kind === "ignore-armor-rating") return 2.5;
   if (action.kind === "set-stat") return action.stat === "power" ? 3 : 2.5;
   if (action.kind === "set-rule") return 2;
   return 0;

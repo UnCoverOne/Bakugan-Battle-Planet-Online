@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, passPriority, type PlayerState } from "../lib/game";
+import { createMatch, passPriority, resolveStructuredEffect, type PlayerState } from "../lib/game";
+import { conditionFor } from "../lib/rules/catalogue-primitives";
+import { ruleConditionActive } from "../lib/rules/modifiers";
+import { ensureRulesState } from "../lib/rules/state";
+import { ruleDefinitionForCard } from "../lib/rules/catalogue";
+import { createRuleObject } from "../lib/rules/objects";
 import {
   flipDamageCard,
   playerCanFlipDamage,
@@ -23,6 +28,99 @@ function damageCards() {
     flip: { ...flip, id: "revealed-damage-flip" },
   };
 }
+
+function armorDamageMatch(pendingDamage = 5) {
+  const loser = makePlayer("armor-loser", "Dan", STARTER_DECKS[0]);
+  const winner = makePlayer("armor-winner", "Magnus", STARTER_DECKS[1]);
+  const armor = CARDS.find((card) => card.catalogId === "sv-105");
+  assert.ok(armor);
+  loser.deckCards = [{ ...armor, id: "armor-damage-card" }];
+  loser.deck = loser.deckCards.length;
+  loser.discard = [];
+  const match = createMatch("ARMOR", "bo1", [loser, winner]);
+  match.turn = 1;
+  match.phase = "damage";
+  match.pendingLoser = loser.id;
+  match.pendingDamage = pendingDamage;
+  match.damageOrigin = winner.bakugan[0].id;
+  match.priority = loser.id;
+  return { match, loser, winner, armor: loser.deckCards[0] };
+}
+
+test("Armor counts as additional damage cards during the Damage Step", () => {
+  const { match, loser, armor } = armorDamageMatch();
+  const next = flipDamageCard(match, loser.id);
+
+  assert.equal(next.pendingDamage, 2);
+  assert.equal(next.players[0].discard[0].id, armor.id);
+  assert.equal(ensureRulesState(next).armorDamageReducedThisTurn?.[loser.id], 2);
+  assert.match(next.log.at(-1)?.message ?? "", /Armor 2.*absorbed 3.*2 remaining/);
+});
+
+test("Armor only applies to Baku-Gear and never reduces below zero", () => {
+  const { match, loser } = armorDamageMatch(1);
+  const ordinary = { ...loser.deckCards[0], id: "ordinary-with-invalid-armor", type: "Action" as const, armorRating: 99 };
+  loser.deckCards = [ordinary];
+  loser.deck = 1;
+  const ordinaryResult = flipDamageCard(match, loser.id);
+  assert.equal(ordinaryResult.pendingDamage, 0);
+  assert.equal(ensureRulesState(ordinaryResult).armorDamageReducedThisTurn?.[loser.id] ?? 0, 0);
+
+  const capped = armorDamageMatch(1);
+  const cappedResult = flipDamageCard(capped.match, capped.loser.id);
+  assert.equal(cappedResult.pendingDamage, 0);
+  assert.equal(ensureRulesState(cappedResult).armorDamageReducedThisTurn?.[capped.loser.id] ?? 0, 0);
+});
+
+test("Ignore Armor Rating removes only the Armor bonus", () => {
+  const { match, loser, winner } = armorDamageMatch();
+  ensureRulesState(match).ignoreArmorRating![winner.id] = true;
+  const next = flipDamageCard(match, loser.id);
+
+  assert.equal(next.pendingDamage, 4);
+  assert.equal(ensureRulesState(next).armorDamageReducedThisTurn?.[loser.id] ?? 0, 0);
+  assert.match(next.log.at(-1)?.message ?? "", /Armor 2 ignored.*absorbed 1.*4 remaining/);
+});
+
+test("Armor Rating printings compile their ignore and trigger conditions", () => {
+  const cards = ["sv-47", "sv-140", "sv-148"].map((catalogId) => {
+    const source = CARDS.find((card) => card.catalogId === catalogId);
+    assert.ok(source);
+    return { ...source, id: `test-${catalogId}` };
+  });
+  const shieldbreaker = ruleDefinitionForCard(cards[0]);
+  const eenoch = ruleDefinitionForCard(cards[1]);
+  const hydorous = ruleDefinitionForCard(cards[2]);
+  assert.ok(shieldbreaker.abilities.flatMap((ability) => ability.instructions).flatMap((instruction) => instruction.effects).some((effect) => effect.kind === "ignore-armor-rating"));
+  assert.ok(eenoch.abilities.flatMap((ability) => ability.instructions).flatMap((instruction) => instruction.effects).some((effect) => effect.kind === "ignore-armor-rating"));
+  assert.deepEqual(hydorous.play.costModifiers.find((effect) => effect.kind === "cost-alternative")?.condition, {
+    kind: "armor-damage-reduced",
+    subject: "opponent",
+  });
+
+  const { match, loser, winner } = armorDamageMatch();
+  const condition = conditionFor("If an opposing player reduced damage with Armor Rating this turn, you may play this for free.");
+  assert.equal(ruleConditionActive(match, winner, condition), false);
+  const afterArmor = flipDamageCard(match, loser.id);
+  assert.equal(ruleConditionActive(afterArmor, winner, condition), true);
+
+  const victorState = armorDamageMatch().match;
+  const victorWinner = victorState.players[1];
+  victorState.phase = "victor";
+  victorState.brawlWinner = victorWinner.id;
+  victorState.selected[victorWinner.id] = victorWinner.bakugan[0].id;
+  victorWinner.bakugan[0].open = true;
+  const eenochCard = cards[1];
+  const eenochAbility = ruleDefinitionForCard(eenochCard).abilities.find((ability) => ability.kind === "triggered");
+  assert.ok(eenochAbility);
+  const resolved = resolveStructuredEffect(victorState, createRuleObject({
+    controllerId: victorWinner.id,
+    card: eenochCard,
+    ability: eenochAbility,
+    kind: "trigger",
+  }));
+  assert.equal(ensureRulesState(resolved).ignoreArmorRating?.[victorWinner.id], true);
+});
 
 test("damage cards move from the deck to discard one click at a time", () => {
   const loser = makePlayer("player-a", "Dan", STARTER_DECKS[0]);

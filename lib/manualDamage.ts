@@ -117,10 +117,27 @@ export function flipDamageCard(input: MatchState, playerId: string) {
     state.version += 1;
     return state;
   }
-  state.pendingDamage = Math.max(0, state.pendingDamage - 1);
+  const pendingBefore = Math.max(0, state.pendingDamage);
+  const rules = ensureRulesState(state);
+  const dealerId = damageDealerId(state);
+  const printedArmor = card.type === "Baku-Gear" && Number.isFinite(card.armorRating)
+    ? Math.max(0, card.armorRating ?? 0)
+    : 0;
+  const armorIgnored = Boolean(dealerId && rules.ignoreArmorRating?.[dealerId]);
+  const effectiveArmor = armorIgnored ? 0 : printedArmor;
+  const cardAbsorbed = Math.min(pendingBefore, 1);
+  const armorAbsorbed = Math.min(Math.max(0, pendingBefore - cardAbsorbed), effectiveArmor);
+  const totalAbsorbed = cardAbsorbed + armorAbsorbed;
+  state.pendingDamage = Math.max(0, pendingBefore - totalAbsorbed);
+  if (armorAbsorbed > 0) {
+    rules.armorDamageReducedThisTurn![playerId] = (rules.armorDamageReducedThisTurn?.[playerId] ?? 0) + armorAbsorbed;
+  }
   recordDamageCardTaken(state);
   player.discard.push(card);
-  log(state, "game", `${player.name} flipped ${card.name} as damage (${state.pendingDamage} remaining).`);
+  const armorNote = printedArmor > 0
+    ? ` • Armor ${printedArmor}${armorIgnored ? " ignored" : ""}`
+    : "";
+  log(state, "game", `${player.name} flipped ${card.name} as damage${armorNote} (absorbed ${totalAbsorbed}; ${state.pendingDamage} remaining).`);
   if (card.type === "Flip" || card.type === "Flip Hero") {
     state.revealedFlip = card;
     state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;

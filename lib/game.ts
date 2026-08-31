@@ -691,6 +691,8 @@ const beginTurn = (state: MatchState) => {
   ensureRulesState(state).delayedCardTriggers = [];
   ensureRulesState(state).scheduledActions = [];
   state.selected = {}; state.targets = {}; state.rolls = {}; state.pendingReroll = undefined; state.pendingCoinFlip = undefined; state.coinFlipResults = {}; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.nextCardEmpowerReduction = {}; state.nextCardEmpowerFree = {}; state.temporaryVictorDiscards = {}; state.powerBoost = {}; state.damageBoost = {}; state.frostStrike = {};
+  ensureRulesState(state).ignoreArmorRating = {};
+  ensureRulesState(state).armorDamageReducedThisTurn = {};
   state.doubleStrike = {}; state.shadowStrike = {}; state.batch = []; state.victorByDamage = false; state.pendingDamage = 0;
   state.pendingLoser = ""; state.damageOrigin = ""; state.revealedFlip = undefined; state.teamAttack = false; state.pendingBrawlRetracts = []; state.delayedRetracts = []; state.winner = "";
   state.collectedEventKeys = [];
@@ -2363,6 +2365,12 @@ const executeRuleAction = (
             amount: (existing?.amount ?? 0) + amount,
           };
         }
+      }
+      return;
+    }
+    case "ignore-armor-rating": {
+      if (action.duration === "turn") {
+        ensureRulesState(state).ignoreArmorRating![controllerId] = true;
       }
       return;
     }
