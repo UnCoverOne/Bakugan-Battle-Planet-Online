@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 13560)
-Total output lines: 1039
-
 import { CARDS } from "../data";
 import type { CardChoices, CoreType, GameCard } from "../game";
 import type { AbilityDefinition, CardPlayDefinition, ChoiceSpec, CostEffect, RuleAction, RuleInstruction, RulesCardId } from "./model";
@@ -487,7 +484,117 @@ function choice(
 function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec["timing"]): ChoiceSpec[] {
   const result: ChoiceSpec[] = [];
   const cardId = ruleCardId(card);
-  const timing = /when you play…1560 tokens truncated…|five|six|seven|eight|nine|ten|\d+)\s+Energy cards?\b/i);
+  const timing = /when you play this|\bmay\b|\bSacrifice\b/i.test(text) ? "resolve" : defaultTiming;
+  const targetTiming = /\bBattle Mastery\b|when this opens|\bVictor\s*[-:]|\bUnderdog\s*:|at (?:the )?end of (?:your |the )?turn/i.test(text)
+    ? "resolve"
+    : defaultTiming;
+  const discardPaysPlayCost = /\bdiscard\s+(?:a|an|one|two|three|\d+)\s+cards?\s+to play this for free\b/i.test(text);
+  const takeControlHero = /take control of a hero/i.test(text);
+  const targetOwner = takeControlHero || /enemy|opposing|\bopponent\b/i.test(text)
+    ? "opponent" as const
+    : /(?:one of )?your (?:open )?(?:Bakugan|Hero|Evo|Energy)/i.test(text)
+      ? "controller" as const
+      : "any" as const;
+  const maximumCost = Number(text.match(/costs? (\d+) \[Energy\] or less/i)?.[1] ?? Number.NaN);
+  const printedMaximum = Number.isFinite(maximumCost) ? maximumCost : undefined;
+  const attachedCoreTypes = singleAttachedCoreTypes(text);
+  const attachesCore = /\battach\s+(?:an?\s+)?(?:additional\s+|another\s+)?bakucore/i.test(text) || attachedCoreTypes.length > 0;
+  const coreAttachmentTarget = attachesCore
+    && /\bto\s+(?:one of\s+)?(?:your\s+)?(?:an?\s+)?(?:open\s+)?Bakugan\b/i.test(text);
+  const explicitBakuganTarget = /choose (?:a|an|one|another)(?:(?!\bplayer\b)[^.;])*?Bakugan|target .*Bakugan|retract (?:(?:one of|another) )?(?:your )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \[[^\]]+\])? Bakugan|(?:a|an|one|another)(?: \[[^\]]+\])? Bakugan gets?|to (?:a|an|one) \[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan/i.test(text)
+    || coreAttachmentTarget;
+  const separateEvoEffectTarget = card.type === "Evo"
+    && defaultTiming === "announce"
+    && /when you play this/i.test(text)
+    && explicitBakuganTarget
+    && cardId !== "aa-99";
+
+  if (card.type === "Evo" && defaultTiming === "announce") {
+    const selected = choice(
+      separateEvoEffectTarget ? "sourceBakuganId" : "targetBakuganId",
+      "announce",
+      "chosen-bakugan",
+      "Choose the matching Character",
+    );
+    selected.owner = "controller";
+    selected.targetOwner = selected.owner;
+    result.push(selected);
+  }
+
+  const negateMatch = text.match(/negate (?:a|an) (Hero or Action|Action|Hero) card/i);
+  if (negateMatch) {
+    const selected = choice("targetEffectId", defaultTiming, "batch-object", "Choose the card effect to negate");
+    selected.cardTypes = /Hero or Action/i.test(negateMatch[1])
+      ? ["Hero", "Action"]
+      : [negateMatch[1] as GameCard["type"]];
+    selected.objectKinds = ["card"];
+    selected.owner = "opponent";
+    selected.targetOwner = selected.owner;
+    selected.maximumCost = printedMaximum;
+    result.push(selected);
+  }
+
+  if (/copy the effect of an Action card that was discarded this turn/i.test(text)) {
+  const selected = choice("targetCardId", targetTiming, "discarded-card-this-turn", "Choose an Action discarded this turn");
+  selected.cardTypes = ["Action"];
+  selected.owner = "any";
+  selected.targetOwner = selected.owner;
+  result.push(selected);
+} else if (!negateMatch && /copy (?:the effect of )?an? Action card|copy an? Action card(?:'s|’s) effect/i.test(text)) {
+  const selected = choice("targetEffectId", targetTiming, "batch-object", "Choose an Action effect to copy");
+  selected.cardTypes = ["Action"];
+  selected.objectKinds = ["card", "copy"];
+  selected.owner = "any";
+  selected.targetOwner = selected.owner;
+  result.push(selected);
+}
+
+  if (cardId === "aa-50") {
+    const enemy = choice("targetBakuganId", "announce", "chosen-bakugan", "Choose the enemy Bakugan");
+    enemy.owner = "opponent";
+    enemy.targetOwner = enemy.owner;
+    const friendly = choice("secondaryTargetBakuganId", "announce", "chosen-bakugan", "Choose one of your Bakugan");
+    friendly.owner = "controller";
+    friendly.targetOwner = friendly.owner;
+    result.push(enemy, friendly);
+  } else if (explicitBakuganTarget && (cardId !== "aa-99" || defaultTiming === "resolve")) {
+    const selected = choice("targetBakuganId", targetTiming, "chosen-bakugan", "Choose a Bakugan");
+    selected.owner = targetOwner;
+    selected.targetOwner = selected.owner;
+    if (/open Bakugan/i.test(text) || attachesCore) selected.openState = "open";
+    if (/didn['’]?t open this turn|did not open this turn/i.test(text)) selected.notOpenedThisTurn = true;
+    if (/another open Bakugan/i.test(text)) selected.excludeSourceBakugan = true;
+    const faction = text.match(/(?:choose|give|to|target)\s+(?:a|an|one|another)?\s*\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1]
+      ?? text.match(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan\s+gets?/i)?.[1];
+    if (faction) selected.factions = [faction as GameCard["faction"]];
+    result.push(selected);
+  }
+  if (/choose a player/i.test(text)) result.push(choice("targetPlayerId", timing, "player", "Choose a player"));
+  if (!/destroy all/i.test(text) && /destroy a hero|choose a hero|take control of a hero/i.test(text)) {
+    const selected = choice("targetHeroId", targetTiming, "hero", "Choose a Hero");
+    selected.owner = takeControlHero ? "opponent" : targetOwner;
+    selected.targetOwner = selected.owner;
+    selected.maximumCost = printedMaximum;
+    result.push(selected);
+  }
+  if (!/destroy all/i.test(text) && /destroy an evo|choose an evo/i.test(text)) {
+    const selected = choice("targetEvoId", targetTiming, "evo", "Choose an Evo");
+    selected.owner = targetOwner;
+    selected.targetOwner = selected.owner;
+    selected.notPlayedThisTurn = /not played this turn/i.test(text);
+    result.push(selected);
+  }
+  if (!/destroy all/i.test(text) && /destroy (?:an?|two|three) (?:enemy )?energy|choose an energy/i.test(text)) {
+    const selected = choice("targetEnergyIds", targetTiming, "energy-card", "Choose Energy");
+    selected.owner = targetOwner;
+    selected.targetOwner = selected.owner;
+    const amountText = text.match(/destroy (an?|one|two|three|\d+) (?:enemy )?energy/i)?.[1]?.toLowerCase();
+    const amount = amountText === "two" ? 2 : amountText === "three" ? 3 : Number(amountText) || 1;
+    selected.minimum = cardId === "bb-97" ? 1 : amount;
+    selected.maximum = cardId === "bb-97" ? 2 : amount;
+    result.push(selected);
+  }
+  const unchargeChoice = text.match(/\buncharge\s+(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+Energy cards?\b/i);
   if (unchargeChoice) {
     const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
     const amount = words[unchargeChoice[1].toLowerCase()] ?? Math.max(1, Number(unchargeChoice[1]) || 1);
