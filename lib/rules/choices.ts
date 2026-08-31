@@ -167,6 +167,7 @@ function cardMatchesSpecValue(
   spec: ChoiceSpec,
   priorChoices: CardChoices,
   chooserId: string,
+  sourceCard?: GameCard,
 ) {
   const types = spec.cardTypes?.length ? spec.cardTypes : spec.cardType ? [spec.cardType] : [];
   if (types.length && !types.includes(candidate.type)) return false;
@@ -180,6 +181,19 @@ function cardMatchesSpecValue(
       .toLowerCase();
     const wanted = normalize(spec.cardName);
     if (![candidate.displayName, candidate.name].some((value) => normalize(value) === wanted)) return false;
+  }
+  if (spec.sameNameAsEvent) {
+    const eventCardId = priorChoices.eventCardId ?? sourceCard?.id;
+    const eventCard = match.batch.find((object) => object.card.id === eventCardId)?.card
+      ?? match.players.flatMap((owner) => [
+        ...owner.hand,
+        ...owner.heroes,
+        ...owner.discard,
+        ...owner.energyZone,
+        ...owner.bakugan.flatMap((bakugan) => [bakugan.character, ...(bakugan.evoStack ?? []), ...(bakugan.bakuGear ?? [])]),
+      ]).find((card) => card.id === eventCardId)
+      ?? (eventCardId === sourceCard?.id ? sourceCard : undefined);
+    if (!eventCard || candidate.name !== eventCard.name) return false;
   }
   const printedCost = candidate.cost === "X" ? Number.POSITIVE_INFINITY : candidate.cost;
   const maximumCost = spec.maximumCost == null ? undefined : choiceNumber(match, controllerId, spec.maximumCost, priorChoices, chooserId);
@@ -200,7 +214,7 @@ function optionsFor(
   const controller = playerById(match, controllerId);
   const opponent = opponentOf(match, controllerId);
   const cardMatchesSpec = (candidate: GameCard, candidateSpec: ChoiceSpec = spec) => cardMatchesSpecValue(
-    match, controllerId, candidate, candidateSpec, priorChoices, chooserId,
+    match, controllerId, candidate, candidateSpec, priorChoices, chooserId, card,
   );
   switch (spec.selector) {
     case "batch-object": {

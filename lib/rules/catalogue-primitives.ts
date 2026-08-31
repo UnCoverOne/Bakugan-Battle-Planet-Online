@@ -54,6 +54,7 @@ export function conditionFor(text: string): RuleCondition {
   if (/\bif heads\b/i.test(text)) return { kind: "coin-result", result: "heads" };
   if (/\bif tails\b/i.test(text)) return { kind: "coin-result", result: "tails" };
   if (/if you open on the Reroll/i.test(text)) return { kind: "reroll-opened" };
+  if (/\bSync:/i.test(text)) return { kind: "selection-made", choiceId: "syncCardId" };
   const heldCorePrefix = text.match(
     /^\s*(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:/i,
   )?.[1];
@@ -642,7 +643,36 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     requiresDiscard: /discard (?:a|an|one|two|three|\d+) cards? to Reroll/i.test(text),
   });
 
-  const trigger = triggerFor(text);
+  // In “Sync ... to Draw, then choose ...” the discard action is discovered
+  // from the trailing choice wording before the draw action is emitted. Put
+  // the executable effects back in the printed order after parsing.
+  if (/\bSync:/i.test(text) && /\bthen choose a player to discard/i.test(text)) {
+    const drawIndex = actions.findIndex((action) => action.kind === "draw");
+    const discardIndex = actions.findIndex((action) => action.kind === "discard");
+    if (drawIndex >= 0 && discardIndex >= 0 && discardIndex < drawIndex) {
+      const [discardAction] = actions.splice(discardIndex, 1);
+      actions.splice(drawIndex - 1, 0, discardAction);
+    }
+  }
+
+  const syncEvoDamage = /\bSync:/i.test(text)
+    && /reveal an? Evo in your hand for \+\[Damage\] equal to that Evo['’]s/i.test(text);
+  if (syncEvoDamage) actions.push({
+    kind: "modify-stat",
+    stat: "damage",
+    amount: {
+      kind: "property",
+      subject: { kind: "card", selector: "chosen", choiceId: "syncCardId" },
+      property: "damage",
+    },
+    duration,
+    scope,
+  });
+
+  // Sync owns its timing through the keyword's gated instruction. Do not add
+  // a second nested trigger for phrases such as “When you play this” inside
+  // the Sync reminder text.
+  const trigger = /\bSync:/i.test(text) ? undefined : triggerFor(text);
   if (trigger) actions.push({ kind: "trigger", event: trigger.event, definition: trigger });
   if (!actions.length) actions.push({ kind: "sequence", effects: [] });
   return actions;

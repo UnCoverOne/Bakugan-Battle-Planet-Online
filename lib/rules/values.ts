@@ -48,7 +48,7 @@ export type PlayerNumericProperty =
   | "maximum-played-card-cost";
 
 export type BakuganNumericProperty = "power" | "damage" | "frost" | "held-bakucore-count" | "baku-gear-count";
-export type CardNumericProperty = "printed-cost";
+export type CardNumericProperty = "printed-cost" | "damage";
 export type NumericProperty = PlayerNumericProperty | BakuganNumericProperty | CardNumericProperty;
 
 export type EntityExpression =
@@ -270,6 +270,7 @@ function evaluateProperty(state: MatchState, expression: Extract<NumberExpressio
   if (!entity) return 0;
   if (entity.kind === "player") return playerProperty(entity.player, expression.property as PlayerNumericProperty);
   if (entity.kind === "card") {
+    if (expression.property === "damage") return entity.card.damage ?? 0;
     if (expression.property !== "printed-cost") return 0;
     return entity.card.cost === "X" ? Math.max(0, Number(context.choices?.xValue ?? 0)) : entity.card.cost;
   }

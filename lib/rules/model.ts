@@ -75,6 +75,8 @@ export type ChoiceSpec = {
   cardName?: string;
   /** Preferred ownership primitive for the zone/object pool being selected. */
   owner?: ZoneOwner;
+  /** Restrict a hand reveal to the name of the triggering/played card. */
+  sameNameAsEvent?: boolean;
   /** @deprecated Compatibility alias. New definitions should use owner. */
   targetOwner?: ZoneOwner;
   maximumCost?: NumberValue;

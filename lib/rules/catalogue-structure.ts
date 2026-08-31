@@ -120,6 +120,21 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
             `Then ${selfRecycle[2].trim()}.`,
           ];
         }
+        // Sync is a reveal-from-hand gate. Keep the base effect separate so
+        // selecting a legal card controls only the Sync bonus or replacement.
+        // Trigger prefixes such as Victor and When this opens must stay on the
+        // Sync instruction so their event timing is preserved.
+        const sync = clause.match(/^(.*?)\s+Sync:\s*(.+)$/i);
+        if (sync?.[2].trim()) {
+          const prefix = sync[1].trim().replace(/[,;:]$/, "");
+          const triggerPrefix = /^(?:\[?Victor\]?|when this opens|when you play this(?: card)?)$/i.test(prefix);
+          return triggerPrefix
+            ? [`${prefix}, Sync: ${sync[2].trim()}`]
+            : [
+              ...(prefix ? [`${prefix}.`] : []),
+              `Sync: ${sync[2].trim()}`,
+            ];
+        }
         // Boost is a keyword boundary, not part of the preceding effect.
         // Some printings place it after a base effect without a period (for
         // example “+4 Damage Boost: ...”), so split it before compiling the
@@ -258,7 +273,7 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     }
     if (instruction.condition.kind !== "selection-made") continue;
     const discard = instruction.effects.find((effect) => effect.kind === "discard");
-    if (!discard || instruction.effects[0] === discard) continue;
+    if (!discard || instruction.effects[0] === discard || /\bSync:/i.test(instruction.sourceText)) continue;
     instruction.effects = [discard, ...instruction.effects.filter((effect) => effect !== discard)];
     instruction.actions = instruction.effects;
   }
@@ -498,8 +513,29 @@ function choice(
   return { id, timing, selector, label, optional, chooser, visibility, minimum: optional ? 0 : 1, maximum: 1 };
 }
 
+function syncChoiceForText(text: string, timing: ChoiceSpec["timing"]): ChoiceSpec | undefined {
+  if (timing !== "resolve") return undefined;
+  const sync = text.match(/\bSync:\s*(.+)$/i)?.[1];
+  if (!sync) return undefined;
+  const optional = /\bmay\b/i.test(sync);
+  const selected = choice("syncCardId", timing, "hand-card", "Reveal a card for Sync", optional, "controller", "public");
+  const cardType = sync.match(/reveal\s+(?:a|an)\s+(Action|Flip Hero|Flip|Hero|Evo|Character|Baku-Gear)\b/i)?.[1] as GameCard["type"] | undefined;
+  if (cardType) selected.cardType = cardType;
+  const exactCost = sync.match(/costs?\s+(\d+)\s+\[Energy\](?!\s+or\s+more)/i)?.[1];
+  const minimumCost = sync.match(/costs?\s+(\d+)\s+\[Energy\]\s+or\s+more/i)?.[1];
+  if (minimumCost) selected.minimumCost = Number(minimumCost);
+  else if (exactCost) {
+    selected.minimumCost = Number(exactCost);
+    selected.maximumCost = Number(exactCost);
+  }
+  if (/same name as the card you played/i.test(sync)) selected.sameNameAsEvent = true;
+  return selected;
+}
+
 function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec["timing"]): ChoiceSpec[] {
   const result: ChoiceSpec[] = [];
+  const syncChoice = syncChoiceForText(text, defaultTiming);
+  if (syncChoice) result.push(syncChoice);
   const cardId = ruleCardId(card);
   const timing = /when you play this|\bmay\b|\bSacrifice\b/i.test(text) ? "resolve" : defaultTiming;
   const targetTiming = /\bBattle Mastery\b|when this opens|\bVictor\s*[-:]|\bUnderdog\s*:|at (?:the )?end of (?:your |the )?turn/i.test(text)
@@ -818,7 +854,9 @@ if (swapsBakucore) {
   if (card.cost === "X" || /choose (?:a value for )?x/i.test(text)) result.push(choice("xValue", "pay", "number", "Choose X"));
   if ((/\bmay\b/i.test(text) || /\byou can play\b/i.test(text))
     && !persistentFreePermission
-    && !/may discard|may recharge up to/i.test(text)) {
+    && !/may discard|may recharge up to/i.test(text)
+    && !/\bSync:/i.test(text)
+    && !syncChoice) {
     const optionalChooser = /\beach player may\b/i.test(text)
       ? "each-player" as const
       : /\byour opponent may\b/i.test(text) ? "opponent" as const : "controller" as const;

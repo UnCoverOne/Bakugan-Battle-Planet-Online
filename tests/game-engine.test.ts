@@ -237,6 +237,91 @@ test("attaching Baku-Gear emits the Character attachment trigger", () => {
   assert.ok(state.log.some((entry) => entry.message.toLowerCase().includes("draw")));
 });
 
+test("Sync reveals only a qualifying hand card and replaces or gates its effect", () => {
+  let state = reachPower();
+  const actor = state.priority;
+  const player = state.players.find((candidate) => candidate.id === actor)!;
+  const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
+  target.open = true;
+  const syncCard = { ...CARDS.find((card) => card.catalogId === "ff-2")!, id: "sync-action" };
+  const tooCheap = { ...CARDS.find((card) => card.catalogId === "bb-1")!, id: "sync-too-cheap" };
+  const qualifying = { ...CARDS.find((card) => card.cost === 6 && card.type === "Action")!, id: "sync-qualifying" };
+  player.hand.push(syncCard, tooCheap, qualifying);
+  player.energy = 20;
+  const before = totalPower(state, actor);
+  state = playCard(state, actor, syncCard.id);
+  state = passWindow(state);
+  const syncField = state.pendingChoice?.schema.fields.find((field) => field.id === "syncCardId");
+  assert.ok(syncField);
+  assert.ok(syncField.options.some((option) => option.id === qualifying.id));
+  assert.ok(!syncField.options.some((option) => option.id === tooCheap.id));
+  state = submitCardChoice(state, actor, { syncCardId: [qualifying.id] });
+  assert.equal(totalPower(state, actor), before + 500, "the Sync branch replaces the base +200 B effect");
+  assert.ok(state.log.some((entry) => entry.message.includes("Sync")));
+});
+
+test("Sync same-name clauses only offer a copy of the played card", () => {
+  let state = reachPower();
+  const actor = state.priority;
+  const player = state.players.find((candidate) => candidate.id === actor)!;
+  const syncCard = { ...CARDS.find((card) => card.catalogId === "av-77")!, id: "same-name-sync" };
+  const matchingCard = { ...syncCard, id: "same-name-reveal" };
+  const otherCard = { ...CARDS.find((card) => card.catalogId === "av-1")!, id: "different-name-reveal" };
+  player.hand.push(syncCard, matchingCard, otherCard);
+  player.energy = 20;
+  state = playCard(state, actor, syncCard.id);
+  state = passWindow(state);
+  const field = state.pendingChoice?.schema.fields.find((candidate) => candidate.id === "syncCardId");
+  assert.ok(field);
+  assert.ok(field.options.some((option) => option.id === matchingCard.id));
+  assert.ok(!field.options.some((option) => option.id === otherCard.id));
+});
+
+test("optional Sync can be declined without applying its bonus", () => {
+  let state = reachPower();
+  const actor = state.priority;
+  const player = state.players.find((candidate) => candidate.id === actor)!;
+  const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
+  target.open = true;
+  const syncCard = { ...CARDS.find((card) => card.catalogId === "av-1")!, id: "optional-sync-action" };
+  const qualifying = { ...CARDS.find((card) => card.cost === 1 && card.type === "Action")!, id: "sync-optional-card" };
+  player.hand.push(syncCard, qualifying);
+  player.energy = 20;
+  const before = totalPower(state, actor);
+  state = playCard(state, actor, syncCard.id);
+  state = passWindow(state);
+  assert.equal(state.pendingChoice?.schema.fields.find((field) => field.id === "syncCardId")?.minimum, 0);
+  state = submitCardChoice(state, actor, { syncCardId: [] });
+  assert.equal(totalPower(state, actor), before + 200);
+});
+
+test("Sync definitions keep played-card identity, follow-up choices, and revealed Evo damage typed", () => {
+  const sameName = CARDS.find((card) => card.catalogId === "av-77")!;
+  const sameNameDefinition = ruleDefinitionForCard(sameName);
+  assert.equal(sameNameDefinition.play.choices.some((choice) => choice.id === "confirmed"), false);
+  const sameNameChoice = sameNameDefinition.abilities.flatMap((ability) => ability.instructions)
+    .find((instruction) => instruction.sourceText.includes("same name"))?.choices.find((choice) => choice.id === "syncCardId");
+  assert.equal(sameNameChoice?.sameNameAsEvent, true);
+
+  const followUp = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "ff-77")!);
+  const syncInstruction = followUp.abilities.flatMap((ability) => ability.instructions)
+    .find((instruction) => instruction.sourceText.includes("Sync:"));
+  assert.deepEqual(syncInstruction?.actions.map((action) => action.kind), ["draw", "discard"]);
+  assert.equal(syncInstruction?.choices.find((choice) => choice.id === "targetPlayerId")?.minimum, 1);
+
+  const evoSync = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "av-136")!);
+  const evoAction = evoSync.abilities.flatMap((ability) => ability.instructions)
+    .find((instruction) => instruction.sourceText.includes("reveal an Evo"))?.actions[0];
+  assert.equal(evoAction?.kind, "modify-stat");
+  if (evoAction?.kind === "modify-stat") {
+    assert.deepEqual(evoAction.amount, {
+      kind: "property",
+      subject: { kind: "card", selector: "chosen", choiceId: "syncCardId" },
+      property: "damage",
+    });
+  }
+});
+
 test("Hero, Evo, Action, Flip, Flip Hero, Baku-Gear and X-cost cards expose typed announcement and payment paths", () => {
   const state = reachPower(); const player = state.players[0];
   const evo = CARDS.find((card) => card.type === "Evo" && card.evolvesFrom === player.bakugan[0].name && card.faction === player.bakugan[0].faction);
