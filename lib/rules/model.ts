@@ -46,6 +46,7 @@ export type RuleCondition =
   | { kind: "card-count"; catalogId: RulesCardId; comparison: "at-least"; amount: NumberValue }
   | { kind: "core-count"; relationship: "more-than-opponent" | "at-least"; amount?: NumberValue }
   | { kind: "held-core-type"; coreTypes: CoreType[]; subject?: "target" | "controller-team" | "opponent-active" | "attacker" }
+  | { kind: "fusion"; subject: "target" | "source" }
   | { kind: "open-bakugan-count"; comparison: "exactly" | "at-least" | "at-most" | "more-than" | "fewer-than"; amount: NumberValue }
   | { kind: "source-only-open-bakugan" }
   | { kind: "selection-made"; choiceId: keyof CardChoices }
@@ -105,6 +106,7 @@ export type TriggerEventName =
   | "BAKUGAN_OPENED"
   | "CARD_DISCARDED"
   | "ENERGY_CARD_ENERGIZED"
+  | "BAKU_GEAR_ATTACHED"
   | "VICTOR_DECLARED"
   | "ATTACK_CREATED"
   | "ATTACK_DAMAGE_DEALT"
@@ -162,7 +164,7 @@ export type RuleAction =
   | { kind: "damage-to-hand" }
   | { kind: "end-turn"; recharge: boolean }
   | { kind: "shuffle-deck" }
-  | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope; subject?: "self" | "chosen"; destination?: "owner-hand" | "owner-deck-bottom"; retainChoiceId?: keyof CardChoices; excludeSource?: boolean }
+  | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "baku-gear" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope; subject?: "self" | "chosen"; destination?: "owner-hand" | "owner-deck-bottom"; retainChoiceId?: keyof CardChoices; excludeSource?: boolean }
   | { kind: "reveal"; object: "bakucore" | "deck-top"; amount: NumberValue; sourceOwner?: ZoneOwner }
   | { kind: "reorder-deck"; amount: NumberValue }
   | { kind: "play"; source: "revealed-deck" | "hand" | "self"; free: boolean; cardType?: CardType; factions?: Faction[]; cardName?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }

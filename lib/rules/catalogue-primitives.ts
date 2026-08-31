@@ -97,6 +97,26 @@ export function conditionFor(text: string): RuleCondition {
       right: numberValue(attachedCoreCount[1], 0),
     },
   };
+  const fusionAttachment = /\bif you attach this to a\s+<Fusion>\s+Bakugan/i.test(text);
+  if (fusionAttachment) return { kind: "fusion", subject: "target" };
+  const attachedGearCount = text.match(
+    /\b(?:if|while)\s+(this(?: Bakugan)?|that Bakugan)\s+has\s+(no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)(?:\s+(or more))?\s+Baku-Gear(?:s)?\s+attached\s+to\s+(?:it|this)\b/i,
+  );
+  if (attachedGearCount) {
+    return {
+      kind: "expression",
+      expression: {
+        kind: "compare-number",
+        left: {
+          kind: "property",
+          subject: { kind: "bakugan", selector: attachedGearCount[1].toLowerCase().startsWith("this") ? "source" : "chosen" },
+          property: "baku-gear-count",
+        },
+        operator: attachedGearCount[3] || /^(?:a|an)$/i.test(attachedGearCount[2]) ? ">=" : "==",
+        right: numberValue(attachedGearCount[2], 0),
+      },
+    };
+  }
   if (/\bUnderdog\b|if it has lower \[B\] than the opposing Bakugan/i.test(text)) return { kind: "underdog" };
   if (/\bFury\b/i.test(text)) return { kind: "fury" };
   if (/if your opponent plays a Flip card this turn/i.test(text)) return { kind: "card-type-played", cardType: "Flip", owner: "opponent" };
@@ -181,6 +201,7 @@ function triggerFor(text: string): TriggerDefinition | undefined {
   }
   const table: Array<[RegExp, TriggerEventName, TriggerDefinition["relationship"], TriggerDefinition["source"]?]> = [
     [/when you\s+Energize\s+a\s+card/i, "ENERGY_CARD_ENERGIZED", "controller"],
+    [/when you attach a Baku-Gear to this/i, "BAKU_GEAR_ATTACHED", "controller"],
     [/copy the first Action card you play each turn/i, "CARD_PLAYED", "controller"],
     [/when (?:your |an )?opponent plays/i, "CARD_PLAYED", "opponent"],
     [/when you play this(?: card)?|when this is played/i, "CARD_PLAYED", "controller", "self"],
@@ -279,6 +300,11 @@ function numberValueForDynamicAmount(text: string, baseAmount: number, dynamicSo
   if (/Hero(?: card)?s? (?:you )?(?:have|control)?\s*in play|Hero you have in play|Hero cards? you control/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "hero", owner: "controller" });
   if (/Energy card.*you have|Energy cards? in play/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "energy", owner: "controller" });
   if (/BakuCore.*your Bakugan hold/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "held-bakucore", owner: "controller" });
+  if (/Baku-Gear.*attached/i.test(grammar)) return multiplyValue(baseAmount, {
+    kind: "property",
+    subject: { kind: "bakugan", selector: /attached to this\b/i.test(grammar) ? "source" : "chosen" },
+    property: "baku-gear-count",
+  });
   if (/open Bakugan/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "open-bakugan", owner: "controller" });
   if (/cards? (?:you have )?played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "cards-played", owner: "controller" });
   if (/different factions?.*played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "factions-played", owner: "controller" });
@@ -389,8 +415,8 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     const eachPlayer = /\beach player\b|\ball players\b|\bboth players\b/i.test(text);
     actions.push({
       kind: "energize",
-      amount: numberValue(energize[1]),
-      source: /top/i.test(energize[0]) ? "deck" : "hand",
+      amount: numberValueForDynamicAmount(text, numberValue(energize[1]), scale),
+      source: /from\s+the\s+top\s+of\s+your\s+deck|the\s+top\s+card\s+of\s+your\s+deck/i.test(text) ? "deck" : /top/i.test(energize[0]) ? "deck" : "hand",
       enters: energizeEntryState,
       playerScope: eachPlayer ? "each-player" : "controller",
       sourceOwner: eachPlayer ? "each-player" : "controller",
@@ -464,10 +490,10 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       });
 
       const movement: Array<[RegExp, Extract<RuleAction, { kind: "move" }>["verb"], Extract<RuleAction, { kind: "move" }>["object"]]> = [
-    [/destroy .*hero/i, "destroy", "hero"], [/destroy .*evo/i, "destroy", "evo"], [/destroy .*energy/i, "destroy", "energy"],
-    [/return .*hand/i, "return", "card"], [/retract .*bakugan/i, "retract", "bakugan"], [/attach .*bakucore/i, "attach", "bakucore"],
+    [/destroy .*hero/i, "destroy", "hero"], [/destroy .*evo/i, "destroy", "evo"], [/destroy .*energy/i, "destroy", "energy"], [/destroy .*Baku-Gear/i, "destroy", "baku-gear"],
+    [/return (?:one of )?(?:your )?Baku-Gear .*hand/i, "return", "baku-gear"], [/return (?!.*Baku-Gear).*hand/i, "return", "card"], [/retract .*bakugan/i, "retract", "bakugan"], [/attach .*bakucore/i, "attach", "bakucore"],
     [/remove .*bakucore/i, "remove", "bakucore"], [/(?:return|place) .*bakucore.*field face down/i, "return", "bakucore"],
-    [/shuffle .*?(?:discard|from your hand into your deck)/i, "shuffle", "card"], [/take control .*hero/i, "control", "hero"], [/put this into .*hand/i, "return", "card"],
+    [/shuffle .*?(?:discard|from your hand into your deck)/i, "shuffle", "card"], [/take control and attach .*Baku-Gear/i, "control", "baku-gear"], [/take control .*hero/i, "control", "hero"], [/put this into .*hand/i, "return", "card"],
   ];
   if (/(?:return|put|place)\s+this\s+(?:to|on)\s+the\s+bottom\s+of\s+(?:your|its owner['’]s)\s+deck/i.test(text)) {
     actions.push({

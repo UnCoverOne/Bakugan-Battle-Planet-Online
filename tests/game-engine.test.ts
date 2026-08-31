@@ -11,6 +11,7 @@ import { drawTurnCard } from "../lib/turnStart";
 import { flipDamageCard, resolveManualDamage } from "../lib/manualDamage";
 import { timeoutChoicesForFields } from "../lib/engine/timeout-policy";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
+import { drawPendingCard, hasPendingDraws } from "../lib/drawQueue";
 
 const passWindow = (state: MatchState) => {
   state = passPriority(state, state.priority); return passPriority(state, state.priority);
@@ -156,6 +157,7 @@ test("Baku-Gear resolves onto its chosen Bakugan and contributes printed stats",
   const actor = state.priority;
   const player = state.players.find((candidate) => candidate.id === actor)!;
   const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
+  target.open = true;
   const source = CARDS.find((card) => card.type === "Baku-Gear" && typeof card.cost === "number" && !/Reroll/i.test(card.effect))!;
   const gear = { ...source, id: "test-baku-gear" };
   player.hand.push(gear);
@@ -171,6 +173,68 @@ test("Baku-Gear resolves onto its chosen Bakugan and contributes printed stats",
     .find((candidate) => candidate.id === target.id)!.bakuGear ?? [];
   assert.deepEqual(attached.map((card) => card.id), [gear.id]);
   assert.equal(totalPower(state, actor), before + (gear.bPower ?? 0));
+});
+
+test("Baku-Gear enforces open and faction-restricted targets", () => {
+  let state = reachPower();
+  const actor = state.priority;
+  const player = state.players.find((candidate) => candidate.id === actor)!;
+  const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
+  const source = { ...CARDS.find((card) => card.catalogId === "ff-99")!, id: "aurelus-gear" };
+  player.hand.push(source);
+  player.energy = 20;
+  target.open = false;
+  assert.throws(() => playCard(state, actor, source.id, { targetBakuganId: target.id }), /open Bakugan/);
+  target.open = true;
+  assert.throws(() => playCard(state, actor, source.id, { targetBakuganId: target.id }), /Aurelus Bakugan/);
+});
+
+test("Baku-Gear count scaling and full-name BakuCore attachments are typed", () => {
+  let state = reachPower();
+  const actor = state.priority;
+  const player = state.players.find((candidate) => candidate.id === actor)!;
+  const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
+  target.open = true;
+  target.bakuGear = [
+    { ...CARDS.find((card) => card.catalogId === "av-87")!, id: "gear-one" },
+    { ...CARDS.find((card) => card.catalogId === "av-88")!, id: "gear-two" },
+  ];
+  const action = { ...CARDS.find((card) => card.catalogId === "ff-44")!, id: "gear-scaling-action" };
+  player.hand.push(action);
+  player.energy = 20;
+  const before = totalPower(state, actor);
+  state = playCard(state, actor, action.id);
+  state = passWindow(state);
+  assert.equal(totalPower(state, actor), before + 1000);
+
+  const gearWithCoreText = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "sv-114")!);
+  const instruction = gearWithCoreText.abilities.flatMap((ability) => ability.instructions)
+    .find((candidate) => /attach a \[Fist\]/i.test(candidate.sourceText));
+  assert.ok(instruction);
+  assert.ok(instruction.effects.some((effect) => effect.kind === "move" && effect.object === "bakucore" && effect.verb === "attach"));
+  assert.deepEqual(instruction.choices.find((choice) => choice.id === "coreCell")?.coreTypes, ["Fist"]);
+});
+
+test("attaching Baku-Gear emits the Character attachment trigger", () => {
+  let state = reachPower();
+  const actor = state.priority;
+  const player = state.players.find((candidate) => candidate.id === actor)!;
+  const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
+  target.open = true;
+  target.character = { ...CARDS.find((card) => card.catalogId === "ff-217")!, id: "howlkor-trigger" };
+  target.evoStack = [];
+  const gear = { ...CARDS.find((card) => card.catalogId === "av-87")!, id: "triggered-gear" };
+  player.hand.push(gear);
+  player.energy = 20;
+  const handBefore = player.hand.length;
+  state = playCard(state, actor, gear.id, { targetBakuganId: target.id });
+  for (let index = 0; index < 8 && state.batch.length; index += 1) state = passPriority(state, state.priority);
+  while (hasPendingDraws(state)) state = drawPendingCard(state, state.priority);
+  const resolvedPlayer = state.players.find((candidate) => candidate.id === actor)!;
+  const resolvedTarget = resolvedPlayer.bakugan.find((candidate) => candidate.id === target.id)!;
+  assert.deepEqual(resolvedTarget.bakuGear?.map((card) => card.id), [gear.id]);
+  assert.equal(resolvedPlayer.hand.length, handBefore, "the played Gear is replaced by Howlkor's attachment draw");
+  assert.ok(state.log.some((entry) => entry.message.toLowerCase().includes("draw")));
 });
 
 test("Hero, Evo, Action, Flip, Flip Hero, Baku-Gear and X-cost cards expose typed announcement and payment paths", () => {

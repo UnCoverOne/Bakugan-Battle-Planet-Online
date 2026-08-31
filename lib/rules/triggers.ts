@@ -108,6 +108,9 @@ function sourceTargetMatches(
   if (event.name === "BAKUGAN_OPENED" && /\bwhen this opens\b/i.test(triggerText)) {
     return Boolean(sourceBakugan && sourceBakugan.id === event.targetBakuganId);
   }
+  if (event.name === "BAKU_GEAR_ATTACHED" && /\bwhen you attach a Baku-Gear to this\b/i.test(triggerText)) {
+    return Boolean(sourceBakugan && sourceBakugan.id === event.targetBakuganId);
+  }
   if (!/\bwhen you play an Action(?: card)? on this\b/i.test(source.effect)) return true;
   if (!sourceBakugan) return false;
   const explicitTargets = [

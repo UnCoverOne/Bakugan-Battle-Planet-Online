@@ -78,6 +78,7 @@ export function ruleConditionActive(
     case "domination": return Boolean(opponent && player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0)
       > opponent.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0));
     case "victor": return state.brawlWinner === player.id;
+    case "fusion": return Boolean(bakugan?.fused);
     case "faction": return condition.subject === "target"
       ? Boolean(bakugan && bakuganHasFaction(bakugan, condition.faction))
       : player.bakugan.some((candidate) => bakuganHasFaction(candidate, condition.faction));

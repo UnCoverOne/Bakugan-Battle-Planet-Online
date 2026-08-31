@@ -28,6 +28,7 @@ export type ValueCountSource =
   | "bakugan"
   | "open-bakugan"
   | "held-bakucore"
+  | "baku-gear"
   | "cards-played"
   | "factions-played";
 
@@ -39,13 +40,14 @@ export type PlayerNumericProperty =
   | "bakugan-count"
   | "open-bakugan-count"
   | "held-bakucore-count"
+  | "baku-gear-count"
   | "cards-played"
   | "factions-played"
   | "energy"
   | "payable-energy"
   | "maximum-played-card-cost";
 
-export type BakuganNumericProperty = "power" | "damage" | "frost" | "held-bakucore-count";
+export type BakuganNumericProperty = "power" | "damage" | "frost" | "held-bakucore-count" | "baku-gear-count";
 export type CardNumericProperty = "printed-cost";
 export type NumericProperty = PlayerNumericProperty | BakuganNumericProperty | CardNumericProperty;
 
@@ -201,7 +203,9 @@ function resolveEntity(state: MatchState, subject: EntityExpression, context: Va
   if (subject.selector === "source") id = context.sourceBakuganId ?? context.choices?.sourceBakuganId;
   else if (subject.selector === "chosen") {
     const selected = context.choices?.[subject.choiceId ?? "targetBakuganId"];
-    id = typeof selected === "string" ? selected : undefined;
+    id = typeof selected === "string"
+      ? selected
+      : state.selected[context.controllerId];
   } else {
     const owner = subject.selector === "opponent-active" ? "opponent" : subject.owner ?? "controller";
     const ownerId = playerIdsForOwner(state, owner, context)[0];
@@ -237,6 +241,7 @@ function countForPlayer(state: MatchState, player: PlayerState, expression: Extr
     case "bakugan": return player.bakugan.filter(bakuganHasFaction).length;
     case "open-bakugan": return player.bakugan.filter((bakugan) => bakugan.open && bakuganHasFaction(bakugan)).length;
     case "held-bakucore": return player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
+    case "baku-gear": return player.bakugan.reduce((sum, bakugan) => sum + (bakugan.bakuGear?.length ?? 0), 0);
     case "cards-played": return player.cardsPlayedThisTurn;
     case "factions-played": return new Set(player.factionsPlayedThisTurn ?? []).size;
   }
@@ -251,6 +256,7 @@ function playerProperty(player: PlayerState, property: PlayerNumericProperty) {
     case "bakugan-count": return player.bakugan.length;
     case "open-bakugan-count": return player.bakugan.filter((bakugan) => bakugan.open).length;
     case "held-bakucore-count": return player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
+    case "baku-gear-count": return player.bakugan.reduce((sum, bakugan) => sum + (bakugan.bakuGear?.length ?? 0), 0);
     case "cards-played": return player.cardsPlayedThisTurn;
     case "factions-played": return new Set(player.factionsPlayedThisTurn ?? []).size;
     case "energy": return player.energy;
@@ -268,6 +274,7 @@ function evaluateProperty(state: MatchState, expression: Extract<NumberExpressio
     return entity.card.cost === "X" ? Math.max(0, Number(context.choices?.xValue ?? 0)) : entity.card.cost;
   }
   if (expression.property === "held-bakucore-count") return effectiveBakucoreCells(state, entity.bakugan, entity.owner).length;
+  if (expression.property === "baku-gear-count") return entity.bakugan.bakuGear?.length ?? 0;
   const characteristics = context.characteristics?.(entity.bakugan, entity.owner);
   if (expression.property === "power") {
     return characteristics?.power

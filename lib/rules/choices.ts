@@ -280,9 +280,14 @@ function optionsFor(
           .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, owner.id, "Hero in play", cardPreview(candidate))),
         ...owner.bakugan.flatMap((bakugan) => {
           const candidate = bakugan.evoStack.at(-1);
-          return candidate && cardMatchesSpec(candidate, spec)
-            ? [option(candidate.id, candidate.displayName || candidate.name, owner.id, "Top Evo in play", cardPreview(candidate))]
-            : [];
+          return [
+            ...(candidate && cardMatchesSpec(candidate, spec)
+              ? [option(candidate.id, candidate.displayName || candidate.name, owner.id, "Top Evo in play", cardPreview(candidate))]
+              : []),
+            ...(bakugan.bakuGear ?? [])
+              .filter((gear) => cardMatchesSpec(gear, spec))
+              .map((gear) => option(gear.id, gear.displayName || gear.name, owner.id, "Baku-Gear attached", cardPreview(gear))),
+          ];
         }),
       ]);
     case "energy-card":

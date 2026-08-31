@@ -9,14 +9,19 @@ const CORE_TYPE_BY_SYMBOL: Record<string, CoreType> = {
   SD: "Shield",
   MS: "Magic Shield",
   HE: "Helix",
+  FIST: "Fist",
+  "FLAMING FIST": "Flaming Fist",
+  SHIELD: "Shield",
+  "MAGIC SHIELD": "Magic Shield",
+  HELIX: "Helix",
 };
 
 function singleAttachedCoreTypes(text: string): CoreType[] {
   const symbols = text.match(
-    /\battach\s+(?:an?\s+)?(?:additional\s+|another\s+)?(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)/i,
+    /\battach\s+(?:an?\s+)?(?:additional\s+|another\s+)?(\[(?:FT|FF|SD|MS|HE|Fist|Flaming Fist|Shield|Magic Shield|Helix)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE|Fist|Flaming Fist|Shield|Magic Shield|Helix)\])*)/i,
   )?.[1];
   if (!symbols) return [];
-  return [...symbols.matchAll(/\[(FT|FF|SD|MS|HE)\]/gi)]
+  return [...symbols.matchAll(/\[(FT|FF|SD|MS|HE|Fist|Flaming Fist|Shield|Magic Shield|Helix)\]/gi)]
     .map((match) => CORE_TYPE_BY_SYMBOL[match[1].toUpperCase()])
     .filter((coreType, index, values) => values.indexOf(coreType) === index);
 }
@@ -125,6 +130,18 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
           return [
             `${boost[1].trim().replace(/[,;:]$/, "")}.`,
             `Boost: ${boost[2].trim()}`,
+          ];
+        }
+        // A conditional Gear bonus is a separate effect from the base bonus
+        // printed before it (for example “+400 B. If that Bakugan has a
+        // Baku-Gear attached to it, +3 FrostStrike”).
+        const gearConditional = clause.match(
+          /^(?!When you play this\b)(.+?)\s+(If (?:that Bakugan|this Bakugan) has [^.]*Baku-Gear[^.]*),\s*(.+)$/i,
+        );
+        if (gearConditional?.[1].trim() && gearConditional[3].trim()) {
+          return [
+            `${gearConditional[1].trim().replace(/[,;:]$/, "")}.`,
+            `${gearConditional[2].trim()}, ${gearConditional[3].trim()}`,
           ];
         }
         // A printed "then" is an ordering boundary. Keeping both halves in
@@ -501,7 +518,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   const attachesCore = /\battach\s+(?:an?\s+)?(?:additional\s+|another\s+)?bakucore/i.test(text) || attachedCoreTypes.length > 0;
   const coreAttachmentTarget = attachesCore
     && /\bto\s+(?:one of\s+)?(?:your\s+)?(?:an?\s+)?(?:open\s+)?Bakugan\b/i.test(text);
-  const explicitBakuganTarget = /choose (?:a|an|one|another)(?:(?!\bplayer\b)[^.;])*?Bakugan|target .*Bakugan|retract (?:(?:one of|another) )?(?:your )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \[[^\]]+\])? Bakugan|(?:a|an|one|another)(?: \[[^\]]+\])? Bakugan gets?|to (?:a|an|one) \[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan/i.test(text)
+  const explicitBakuganTarget = /choose (?:a|an|one|another)(?:(?!\bplayer\b)[^.;])*?Bakugan|target .*Bakugan|retract (?:(?:one of|another) )?(?:your )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \[[^\]]+\])? Bakugan|(?:a|an|one|another)(?: \[[^\]]+\])? Bakugan gets?|to (?:a|an|one) \[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan|attach (?:this|(?:an?|one) (?:opposing )?Baku-Gear) (?:to|on) [^.;]*Bakugan/i.test(text)
     || coreAttachmentTarget;
   const separateEvoEffectTarget = card.type === "Evo"
     && defaultTiming === "announce"
@@ -521,7 +538,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     result.push(selected);
   }
 
-  const negateMatch = text.match(/negate (?:a|an) (Hero or Action|Action|Hero) card/i);
+  const negateMatch = text.match(/negate (?:a|an) (Hero or Action|Action|Hero|Baku-Gear)(?: card)?/i);
   if (negateMatch) {
     const selected = choice("targetEffectId", defaultTiming, "batch-object", "Choose the card effect to negate");
     selected.cardTypes = /Hero or Action/i.test(negateMatch[1])
@@ -531,6 +548,13 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     selected.owner = "opponent";
     selected.targetOwner = selected.owner;
     selected.maximumCost = printedMaximum;
+    result.push(selected);
+  }
+  if (!negateMatch && /(?:destroy|return|choose|take control)[^.;]*Baku-Gear/i.test(text)) {
+    const selected = choice("targetCardId", targetTiming, "card-in-play", "Choose a Baku-Gear");
+    selected.cardTypes = ["Baku-Gear"];
+    selected.owner = /your Baku-Gear/i.test(text) ? "controller" : targetOwner;
+    selected.targetOwner = selected.owner;
     result.push(selected);
   }
 
@@ -559,9 +583,11 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     result.push(enemy, friendly);
   } else if (explicitBakuganTarget && (cardId !== "aa-99" || defaultTiming === "resolve")) {
     const selected = choice("targetBakuganId", targetTiming, "chosen-bakugan", "Choose a Bakugan");
-    selected.owner = targetOwner;
+    selected.owner = /attach (?:this|(?:an?|one) (?:opposing )?Baku-Gear) (?:to|on) [^.;]*\bone of your\s+Bakugan/i.test(text)
+      ? "controller"
+      : targetOwner;
     selected.targetOwner = selected.owner;
-    if (/open Bakugan/i.test(text) || attachesCore) selected.openState = "open";
+    if (/open Bakugan/i.test(text) || attachesCore || card.type === "Baku-Gear" || /attach .*Baku-Gear/i.test(text)) selected.openState = "open";
     if (/didn['’]?t open this turn|did not open this turn/i.test(text)) selected.notOpenedThisTurn = true;
     if (/another open Bakugan/i.test(text)) selected.excludeSourceBakugan = true;
     const faction = text.match(/(?:choose|give|to|target)\s+(?:a|an|one|another)?\s*\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1]
@@ -804,6 +830,14 @@ if (swapsBakucore) {
 function reductionAmountFor(text: string, amount: number): import("./values").NumberValue {
   if (/for each card you (?:have )?played this turn/i.test(text)) return { kind: "product", factors: [amount, { kind: "count", source: "cards-played", owner: "controller" }] };
   if (/for each BakuCore that your Bakugan hold/i.test(text)) return { kind: "product", factors: [amount, { kind: "count", source: "held-bakucore", owner: "controller" }] };
+  if (/for each Baku-Gear attached to\s+(?:this|your)/i.test(text)) return {
+    kind: "product",
+    factors: [amount, {
+      kind: "property",
+      subject: { kind: "bakugan", selector: "source" },
+      property: "baku-gear-count",
+    }],
+  };
   return amount;
 }
 
@@ -898,11 +932,17 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
   // not belong to the card's enter-play announcement.
   const announcementText = card.effect.replace(/["“]Victor\s*:[\s\S]*?["”]/gi, "");
   const choices = choicesForText(card, announcementText, "announce");
-  if (card.type === "Baku-Gear" && !choices.some((choice) => choice.id === "targetBakuganId")) {
-    const target = choice("targetBakuganId", "announce", "chosen-bakugan", "Choose a Bakugan for this Baku-Gear");
+  if (card.type === "Baku-Gear") {
+    let target = choices.find((candidate) => candidate.id === "targetBakuganId");
+    if (!target) {
+      target = choice("targetBakuganId", "announce", "chosen-bakugan", "Choose a Bakugan for this Baku-Gear");
+      choices.push(target);
+    }
     target.owner = "controller";
     target.targetOwner = "controller";
-    choices.push(target);
+    target.openState = "open";
+    const faction = card.effect.match(/only play this on an? \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan/i)?.[1];
+    if (faction) target.factions = [faction as GameCard["faction"]];
   }
   // A later trigger on the same card must not move a When-you-play target
   // from announcement to resolution. Parse each When-you-play clause in
