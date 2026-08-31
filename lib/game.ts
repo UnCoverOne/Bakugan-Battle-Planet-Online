@@ -73,6 +73,8 @@ export type GameCard = {
   playedTurn?: number;
   /** Owner-only deadline for a card Energized from the top of the deck. */
   energyFaceRevealUntil?: number;
+  /** A Sync reveal remains public while this physical card stays in hand. */
+  revealedToOpponents?: boolean;
 };
 
 export type Bakugan = {
@@ -1791,7 +1793,10 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
   const submittedSyncCardId = choices.syncCardId?.[0] ?? merged.syncCardId;
   if (submittedSyncCardId) {
     const revealed = playerById(state, pending.controllerId).hand.find((card) => card.id === submittedSyncCardId);
-    if (revealed) entry(state, "game", `${playerById(state, pending.controllerId).name} revealed ${revealed.name} from hand for Sync.`);
+    if (revealed) {
+      revealed.revealedToOpponents = true;
+      entry(state, "game", `${playerById(state, pending.controllerId).name} revealed ${revealed.name} from hand for Sync.`);
+    }
   }
   if (pending.kind === "resolution" && pending.instructionIndex != null
     && submittedSyncCardId && pending.schema.fields.some((field) => field.id === "syncCardId")) {
@@ -3868,7 +3873,7 @@ export const redactForPlayer = (input: MatchState, playerId: string) => {
   for (const player of state.players) {
     player.deckCards = [];
     if (player.id !== playerId) {
-      player.hand = player.hand.map((_, index) => hiddenCard(`hidden-hand-${index}`));
+      player.hand = player.hand.map((card, index) => card.revealedToOpponents ? card : hiddenCard(`hidden-hand-${index}`));
       player.energyZone = player.energyZone.map((_, index) => hiddenCard(`hidden-energy-${index}`));
     }
   }

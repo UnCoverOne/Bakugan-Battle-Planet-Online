@@ -518,7 +518,7 @@ function syncChoiceForText(text: string, timing: ChoiceSpec["timing"]): ChoiceSp
   const sync = text.match(/\bSync:\s*(.+)$/i)?.[1];
   if (!sync) return undefined;
   const optional = /\bmay\b/i.test(sync);
-  const selected = choice("syncCardId", timing, "hand-card", "Reveal a card for Sync", optional, "controller", "public");
+  const selected = choice("syncCardId", timing, "hand-card", "Choose a card to reveal for Sync", optional, "controller", "private");
   const cardType = sync.match(/reveal\s+(?:a|an)\s+(Action|Flip Hero|Flip|Hero|Evo|Character|Baku-Gear)\b/i)?.[1] as GameCard["type"] | undefined;
   if (cardType) selected.cardType = cardType;
   const exactCost = sync.match(/costs?\s+(\d+)\s+\[Energy\](?!\s+or\s+more)/i)?.[1];
