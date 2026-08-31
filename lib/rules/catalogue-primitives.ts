@@ -120,8 +120,8 @@ export function conditionFor(text: string): RuleCondition {
   if (playedFactionCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "factions-played", owner: "controller" }, operator: ">=", right: numberValue(playedFactionCount[1], 1) } };
   const heroCount = text.match(/if you (?:have|control) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Hero cards? in play/i);
   if (heroCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "hero", owner: "controller" }, operator: ">=", right: numberValue(heroCount[1], 1) } };
-  const energyCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more Energy cards in play/i);
-  if (energyCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "energy", owner: "controller" }, operator: ">=", right: numberValue(energyCount[1], 1) } };
+  const energyCount = text.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)(\s+or more)? Energy cards in play/i);
+  if (energyCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "energy", owner: "controller" }, operator: energyCount[2] ? ">=" : "==", right: numberValue(energyCount[1], 1) } };
   const discardCount = text.match(/if (?:there are|you have) (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) or more cards? in your discard pile/i);
   if (discardCount) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "discard", owner: "controller" }, operator: ">=", right: numberValue(discardCount[1], 1) } };
   const playedCost = text.match(/if you(?: have|\'ve)? played a card that costs? (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) \[Energy\] or more this turn/i);
@@ -157,6 +157,15 @@ export function conditionFor(text: string): RuleCondition {
   if (targetFaction) return { kind: "faction", faction: targetFaction, subject: "target" };
   const teamFaction = text.match(/\bIf\s+(?:you have )?(?:an? )?\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\](?:\s+Bakugan)?/i)?.[1] as Faction | undefined;
   if (teamFaction) return { kind: "faction", faction: teamFaction, subject: "team" };
+  if (/\bBoost\s*:/i.test(text)) return {
+    kind: "expression",
+    expression: {
+      kind: "compare-number",
+      left: { kind: "count", source: "energy", owner: "controller" },
+      operator: ">=",
+      right: 7,
+    },
+  };
   return { kind: "always" };
 }
 
@@ -171,6 +180,7 @@ function triggerFor(text: string): TriggerDefinition | undefined {
     };
   }
   const table: Array<[RegExp, TriggerEventName, TriggerDefinition["relationship"], TriggerDefinition["source"]?]> = [
+    [/when you\s+Energize\s+a\s+card/i, "ENERGY_CARD_ENERGIZED", "controller"],
     [/copy the first Action card you play each turn/i, "CARD_PLAYED", "controller"],
     [/when (?:your |an )?opponent plays/i, "CARD_PLAYED", "opponent"],
     [/when you play this(?: card)?|when this is played/i, "CARD_PLAYED", "controller", "self"],
@@ -324,7 +334,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
 
   const drawScope = drawPlayerScopeForText(text);
   const drawThatMany = /\bdraws?\s+that many(?:\s+cards?)?\b/i.test(text);
-  const draw = text.match(/draws? (a|an|one|two|three|four|five|six|seven|eight|nine|ten|x|\d+) cards?/i);
+  const draw = text.match(/(?:\[Draw\]|\bdraws?)\s+(a|an|one|two|three|four|five|six|seven|eight|nine|ten|x|\d+)(?: cards?)?/i);
   const drawToOpponentHandSize = /draw cards until you have as many as your opponent/i.test(text);
   if (drawToOpponentHandSize) {
     actions.push({
@@ -372,7 +382,9 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   if (/\bdiscard your hand\b/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99, playerScope: "controller" });
 
   const energizeEntryState = /\buncharged\b/i.test(text) ? "uncharged" as const : "charged" as const;
-  const energize = text.match(/energize (?:the top )?(a|an|one|two|three|\d+)?\s*cards?/i);
+  const energize = /when you\s+Energize\s+a\s+card/i.test(text)
+    ? null
+    : text.match(/energize (?:the top )?(a|an|one|two|three|\d+)?\s*cards?/i);
   if (energize) {
     const eachPlayer = /\beach player\b|\ball players\b|\bboth players\b/i.test(text);
     actions.push({

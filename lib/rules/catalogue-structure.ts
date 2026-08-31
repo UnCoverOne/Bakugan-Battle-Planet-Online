@@ -115,6 +115,18 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
             `Then ${selfRecycle[2].trim()}.`,
           ];
         }
+        // Boost is a keyword boundary, not part of the preceding effect.
+        // Some printings place it after a base effect without a period (for
+        // example “+4 Damage Boost: ...”), so split it before compiling the
+        // two independently gated clauses. The replacement pass below then
+        // turns a trailing “instead” into a single conditional branch.
+        const boost = clause.match(/^(.*?)\s+Boost:\s*(.+)$/i);
+        if (boost?.[1].trim() && boost[2].trim()) {
+          return [
+            `${boost[1].trim().replace(/[,;:]$/, "")}.`,
+            `Boost: ${boost[2].trim()}`,
+          ];
+        }
         // A printed "then" is an ordering boundary. Keeping both halves in
         // one instruction requests all choices before either action runs,
         // which reverses effects such as "Draw two cards, then discard two
