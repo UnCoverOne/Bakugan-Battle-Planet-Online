@@ -5,7 +5,7 @@ import { createMatch } from "../lib/game";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { evaluateNumberValue, type NumberExpression } from "../lib/rules/values";
 
-const countSources = new Set(["hand", "deck", "discard", "energy", "hero", "bakugan", "open-bakugan", "held-bakucore", "cards-played", "factions-played"]);
+const countSources = new Set(["hand", "deck", "discard", "energy", "hero", "bakugan", "open-bakugan", "held-bakucore", "cards-played", "cards-played-with-mechanic", "factions-played"]);
 const unaryKinds = new Set(["floor", "ceil", "absolute", "negate"]);
 function isNumberExpression(value: unknown): value is NumberExpression {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;

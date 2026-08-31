@@ -87,13 +87,16 @@ export function cardCostBreakdown(
   let freeBase = Boolean(context.forcedFreeBase);
   const additionalCosts: CardCostBreakdown["additionalCosts"] = [];
 
+  const cardHasMechanic = (modifier: CostEffect) => !("cardMechanic" in modifier) || !modifier.cardMechanic
+    || card.mechanics.some((mechanic) => mechanic.toLowerCase() === modifier.cardMechanic!.toLowerCase());
   const selfModifiers = definition.play.costModifiers.filter((modifier) => (
-    !("appliesTo" in modifier) || modifier.appliesTo !== "controller"
+    cardHasMechanic(modifier) && (!("appliesTo" in modifier) || modifier.appliesTo !== "controller")
   ));
   const controlledModifiers = player.heroes.flatMap((hero) => (
     ruleDefinitionForCard(hero).play.costModifiers.filter((modifier) => (
-      modifier.kind === "cost-reduce"
-      && modifier.appliesTo === "controller"
+      cardHasMechanic(modifier)
+      && ((modifier.kind === "cost-reduce" && modifier.appliesTo === "controller")
+        || (modifier.kind === "cost-free" && modifier.cardMechanic))
       && (!modifier.cardType || modifier.cardType === card.type)
     ))
   ));

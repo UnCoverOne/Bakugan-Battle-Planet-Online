@@ -14,6 +14,7 @@ import {
   playerCanActivateIntrinsicReroll,
   prepareCardPlay,
   passPriority,
+  recordCardPlayedForTurn,
   resolveRollOutcome,
   revealedFlipCanBePlayed,
   rotationPhaseOpenCell,
@@ -1062,7 +1063,7 @@ function cardValue(
   const printedCost = card.cost === "X" ? choices.xValue ?? 0 : card.cost;
   const resolving = cloneMatch(match);
   const resolvingPlayer = playerById(resolving, playerId);
-  if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
+  if (resolvingPlayer) recordCardPlayedForTurn(resolvingPlayer, card, resolving.turn);
   const entries = activeCardActionEntries(
     resolving,
     playerId,
@@ -2225,7 +2226,7 @@ function temporaryResponseProfile(
   try {
     const resolving = cloneProjectedMatch(match);
     const resolvingPlayer = playerById(resolving, playerId);
-    if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
+    if (resolvingPlayer) recordCardPlayedForTurn(resolvingPlayer, card, resolving.turn);
     entries = activeCardActionEntries(
       resolving,
       playerId,
@@ -2549,7 +2550,7 @@ function deferrablePreRollCombatValue(
   let value = 0;
   const resolving = cloneProjectedMatch(match);
   const resolvingPlayer = playerById(resolving, playerId);
-  if (resolvingPlayer) resolvingPlayer.cardsPlayedThisTurn += 1;
+  if (resolvingPlayer) recordCardPlayedForTurn(resolvingPlayer, card, resolving.turn);
   for (const { action, sourceText } of activeCardActionEntries(
     resolving,
     playerId,
@@ -2594,7 +2595,7 @@ function preRollCandidateScore(
   const remainingHand = player.hand.filter((candidate) => candidate.id !== card.id);
   const continued = cloneProjectedMatch(match);
   const continuedPlayer = playerById(continued, playerId);
-  if (continuedPlayer) continuedPlayer.cardsPlayedThisTurn += 1;
+  if (continuedPlayer) recordCardPlayedForTurn(continuedPlayer, card, continued.turn);
   const continuationAfter = expectedPowerResponseContinuation(
     continued,
     playerId,

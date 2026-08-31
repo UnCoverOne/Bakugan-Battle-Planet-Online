@@ -172,6 +172,7 @@ function cardMatchesSpecValue(
   const types = spec.cardTypes?.length ? spec.cardTypes : spec.cardType ? [spec.cardType] : [];
   if (types.length && !types.includes(candidate.type)) return false;
   if (spec.factions?.length && !effectiveCardFactions(candidate).some((faction) => spec.factions!.includes(faction))) return false;
+  if (spec.cardMechanic && !candidate.mechanics.some((mechanic) => mechanic.toLowerCase() === spec.cardMechanic!.toLowerCase())) return false;
   if (spec.cardName) {
     const normalize = (value: string) => value
       .replace(/[\[\]]/g, "")
@@ -348,6 +349,12 @@ function optionsFor(
           .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, owner.id));
       });
     }
+    case "discard-card": {
+      const ownerSpec: ChoiceSpec = { ...spec, owner: spec.owner ?? spec.targetOwner ?? "controller" };
+      return targetOwners(match, controllerId, ownerSpec, chooserId, priorChoices).flatMap((owner) => owner.discard
+        .filter((candidate) => candidate.id !== card.id && cardMatchesSpec(candidate, spec))
+        .map((candidate) => option(candidate.id, candidate.displayName || candidate.name, owner.id, undefined, cardPreview(candidate))));
+    }
     case "deck-card": {
       const count = topDeckCount(match, controllerId, spec, priorChoices, chooserId);
       const ownerSpec: ChoiceSpec = { ...spec, owner: spec.owner ?? spec.targetOwner ?? "controller" };
@@ -390,6 +397,7 @@ function kindFor(spec: ChoiceSpec): ChoiceKind {
   if (spec.selector === "energy-card") return "energy";
   if (spec.selector === "bakucore") return "core";
   if (spec.selector === "hand-card") return "hand-cards";
+  if (spec.selector === "discard-card") return "hand-cards";
   if (spec.selector === "deck-card" && spec.id === "orderedCardIds") return "deck-order";
   if (spec.selector === "deck-card") return "deck-card";
   if (spec.selector === "number") return "number";

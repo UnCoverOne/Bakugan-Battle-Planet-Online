@@ -1,6 +1,6 @@
 import { CARDS } from "../data";
 import type { CardChoices, CoreType, GameCard } from "../game";
-import type { AbilityDefinition, CardPlayDefinition, ChoiceSpec, CostEffect, RuleAction, RuleInstruction, RulesCardId } from "./model";
+import type { AbilityDefinition, CardPlayDefinition, ChoiceSpec, CostEffect, RuleAction, RuleCondition, RuleInstruction, RulesCardId } from "./model";
 import { conditionFor, durationFor, parseAtomicEffects, ruleCardId } from "./catalogue-primitives";
 
 const CORE_TYPE_BY_SYMBOL: Record<string, CoreType> = {
@@ -135,6 +135,17 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
               `Sync: ${sync[2].trim()}`,
             ];
         }
+        // Trifecta is a keyword boundary. Keep its condition and payoff in a
+        // separate instruction so the shared condition evaluator controls
+        // the bonus, replacement, draw, return, or free-play effect.
+        const trifecta = clause.match(/^(.*?)\s+Trifecta:\s*(.+)$/i);
+        if (trifecta?.[2].trim()) {
+          const prefix = trifecta[1].trim().replace(/[,;:]$/, "");
+          return [
+            ...(prefix ? [`${prefix}.`] : []),
+            `Trifecta: ${trifecta[2].trim()}`,
+          ];
+        }
         // Boost is a keyword boundary, not part of the preceding effect.
         // Some printings place it after a base effect without a period (for
         // example “+4 Damage Boost: ...”), so split it before compiling the
@@ -197,7 +208,11 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     : [""];
   const instructions = clauses.map((clause, index) => {
     const condition = conditionFor(clause);
-    let effects = parseAtomicEffects(card, clause);
+    const effectText = clause.replace(
+      /^Trifecta:\s*If your Bakugan have three or more BakuCores? (?:attached|attaced) to them\s*[,;:]\s*/i,
+      "",
+    );
+    let effects = parseAtomicEffects(card, effectText);
     const attachedCoreTypes = singleAttachedCoreTypes(clause);
     if (attachedCoreTypes.length && !effects.some((effect) => effect.kind === "move" && effect.verb === "attach" && effect.object === "bakucore")) {
       effects = [...effects.filter((effect) => effect.kind !== "sequence"), { kind: "move", verb: "attach", object: "bakucore", amount: 1 }];
@@ -483,7 +498,10 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     const effects: RuleAction[] = [...triggerEffects, {
       kind: "conditional",
       condition: current.condition,
-      whenTrue: parseAtomicEffects(card, replacementText),
+      whenTrue: parseAtomicEffects(card, replacementText.replace(
+        /^Trifecta:\s*If your Bakugan have three or more BakuCores? (?:attached|attaced) to them\s*[,;:]\s*/i,
+        "",
+      )),
       whenFalse: baseEffects,
       replacement: true,
     }];
@@ -818,6 +836,14 @@ if (swapsBakucore) {
     selected.playForFree = true;
     result.push(selected);
   }
+  if (/play a Rapid Fire in your discard pile for free/i.test(text)) {
+    const selected = choice("discardCardIds", "resolve", "discard-card", "Choose a Rapid Fire card from your discard pile", false, "controller", "private");
+    selected.cardMechanic = "Rapid Fire";
+    selected.owner = "controller";
+    selected.targetOwner = "controller";
+    selected.playForFree = true;
+    result.push(selected);
+  }
   const chosenOpponentAction = /look at your opponent(?:'s|’s) hand and choose an Action card/i.test(text);
   if (chosenOpponentAction) {
     const selected = choice("handCardIds", "resolve", "hand-card", "Choose an Action card from your opponent's hand", false, "controller", "private");
@@ -882,6 +908,7 @@ function reductionAmountFor(text: string, amount: number): import("./values").Nu
 function costModifiersFor(card: GameCard): CostEffect[] {
   const result: CostEffect[] = [];
   const text = card.effect;
+  const selfPlayCostDuration = /\bTrifecta:/i.test(text) ? "instant" as const : durationFor(text);
   const discardForFree = text.match(/(?:Sacrifice\s*[-:]\s*)?You may discard (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards? to play this for free/i);
   if (discardForFree) {
     const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
@@ -929,6 +956,32 @@ function costModifiersFor(card: GameCard): CostEffect[] {
     });
   }
 
+  const rapidFireCondition = (operator: ">=" | "==", right: number): RuleCondition => ({
+    kind: "expression",
+    expression: {
+      kind: "compare-number",
+      left: { kind: "count", source: "cards-played-with-mechanic", owner: "controller", mechanic: "Rapid Fire" },
+      operator,
+      right,
+    },
+  });
+  if (/\bRapid Fire:\s*The second Rapid Fire card you play this turn\s+(?:is|can be) free|\bRapid Fire:\s*The second Rapid Fire card you play this turn for free/i.test(text)) {
+    result.push({
+      kind: "cost-free",
+      duration: "turn",
+      cardMechanic: "Rapid Fire",
+      condition: rapidFireCondition("==", 1),
+    });
+  }
+  if (/\b(?:Rapid Fire:\s*)?The third Rapid Fire card you play (?:each turn|this turn)\s+(?:is|can be) free|\b(?:Rapid Fire:\s*)?The third Rapid Fire card you play (?:each turn|this turn) for free/i.test(text)) {
+    result.push({
+      kind: "cost-free",
+      duration: "turn",
+      cardMechanic: "Rapid Fire",
+      condition: rapidFireCondition(">=", 2),
+    });
+  }
+
   const optionalSelfFree = !discardForFree && /you may play this(?: card)? for free/i.test(text);
   if (optionalSelfFree) {
     result.push({
@@ -940,7 +993,7 @@ function costModifiersFor(card: GameCard): CostEffect[] {
       condition: conditionFor(text),
     });
   } else if (!discardForFree && /play this for free|this is free/i.test(text)) {
-    result.push({ kind: "cost-free", duration: durationFor(text), condition: conditionFor(text) });
+    result.push({ kind: "cost-free", duration: selfPlayCostDuration, condition: conditionFor(text) });
   }
   if (ruleCardId(card) === "aa-112") {
     result.push({ kind: "cost-alternative", id: "aa-112:discard-two", label: "Discard two cards instead of paying the printed Energy cost", setsBaseFree: true, components: [{ kind: "cost-discard", amount: 2, choiceId: "discardCardIds" }] });

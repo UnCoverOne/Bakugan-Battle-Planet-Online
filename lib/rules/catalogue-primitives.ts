@@ -51,10 +51,22 @@ function controlledCardNames(text: string) {
 }
 
 export function conditionFor(text: string): RuleCondition {
+  const normalizedText = text.replace(/\s+/g, " ").trim();
   if (/\bif heads\b/i.test(text)) return { kind: "coin-result", result: "heads" };
   if (/\bif tails\b/i.test(text)) return { kind: "coin-result", result: "tails" };
   if (/if you open on the Reroll/i.test(text)) return { kind: "reroll-opened" };
   if (/\bSync:/i.test(text)) return { kind: "selection-made", choiceId: "syncCardId" };
+  if (/\bTrifecta:\s*If your Bakugan have three or more BakuCores? (?:attached|attaced) to them\b/i.test(normalizedText)) {
+    return {
+      kind: "expression",
+      expression: {
+        kind: "compare-number",
+        left: { kind: "count", source: "held-bakucore", owner: "controller" },
+        operator: ">=",
+        right: 3,
+      },
+    };
+  }
   const heldCorePrefix = text.match(
     /^\s*(\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:/i,
   )?.[1];
@@ -191,6 +203,22 @@ export function conditionFor(text: string): RuleCondition {
 }
 
 function triggerFor(text: string): TriggerDefinition | undefined {
+  if (/when you play your second card with Rapid Fire this turn/i.test(text)) {
+    return {
+      event: "CARD_PLAYED",
+      relationship: "controller",
+      cardMechanic: "Rapid Fire",
+      interveningCondition: {
+        kind: "expression",
+        expression: {
+          kind: "compare-number",
+          left: { kind: "count", source: "cards-played-with-mechanic", owner: "controller", mechanic: "Rapid Fire" },
+          operator: "==",
+          right: 2,
+        },
+      },
+    };
+  }
   const damageThreshold = text.match(/if you deal (\d+) or more damage in an attack/i);
   if (damageThreshold) {
     return {
@@ -338,6 +366,15 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       duration,
       scope,
       targetChoiceId: ruleCardId(card) === "aa-50" ? "secondaryTargetBakuganId" : undefined,
+    });
+  }
+  for (const match of text.matchAll(/(?:^|[&,]\s*)(\d+)\s*\[Damage(?: (?:Rating|Power))?\]/gi)) {
+    actions.push({
+      kind: "modify-stat",
+      stat: "damage",
+      amount: Number(match[1]),
+      duration,
+      scope,
     });
   }
   const previousCardCostDamage = text.match(
@@ -511,7 +548,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     if (verb === "destroy" && object === "energy" && /destroy all but/i.test(text)) continue;
     const amount: NumberValue = /any number/i.test(text)
       ? { kind: "choice-count", choiceId: /from your hand/i.test(text) ? "handCardIds" : "discardCardIds" }
-      : /three|two|all/i.test(text) ? (/three/i.test(text) ? 3 : /two/i.test(text) ? 2 : 99) : 1;
+      : /\bthree\b|\btwo\b|\ball\b/i.test(text) ? (/\bthree\b/i.test(text) ? 3 : /\btwo\b/i.test(text) ? 2 : 99) : 1;
     const playerScope = verb === "destroy" && object === "hero" && /destroy all Hero cards? in play/i.test(text)
       ? "all-players" as const
       : verb === "destroy" && object === "evo" && /destroy all other Evos/i.test(text)
@@ -554,6 +591,13 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     kind: "play",
     source: /(?:this is discarded|discard this card)/i.test(text) ? "self" : "revealed-deck",
     free: true,
+  });
+  if (/play a Rapid Fire in your discard pile for free/i.test(text)) actions.push({
+    kind: "play",
+    source: "discard",
+    free: true,
+    cardMechanic: "Rapid Fire",
+    sourceOwner: "controller",
   });
   const persistentFreePermission = /for the rest of the turn,\s*both players may play Evo cards from their hand for free/i.test(text);
   const freeFactionPlay = text.match(/play\s+an?\s+\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+card(?:\s+(?:with cost|that costs?)\s+(\d+)\s+\[Energy\]\s+or less)?\s+for free/i);

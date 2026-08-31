@@ -59,7 +59,7 @@ export type RuleCondition =
 export type ChoiceSpec = {
   id: keyof CardChoices;
   timing: ChoiceTiming;
-  selector: EntitySelector | "number" | "mode" | "hand-card" | "deck-card" | "energy-card" | "bakucore" | "hero" | "evo" | "card-in-play";
+  selector: EntitySelector | "number" | "mode" | "hand-card" | "discard-card" | "deck-card" | "energy-card" | "bakucore" | "hero" | "evo" | "card-in-play";
   label: string;
   /** Explicit printed options for semantic mode choices such as Battle Mastery. */
   options?: Array<{ id: string; label: string; description?: string }>;
@@ -71,6 +71,8 @@ export type ChoiceSpec = {
   cardType?: CardType;
   cardTypes?: CardType[];
   factions?: Faction[];
+  /** Restrict a card choice to cards carrying a printed mechanic. */
+  cardMechanic?: string;
   /** Exact printed card identity requested by an effect-originated play. */
   cardName?: string;
   /** Preferred ownership primitive for the zone/object pool being selected. */
@@ -138,7 +140,7 @@ export type TriggerDefinition = {
 export type CostEffect =
   | { kind: "cost-reduce"; amount: NumberValue; duration: RulesDuration; cardType?: CardType; condition?: RuleCondition; appliesTo?: "self" | "controller" }
   | { kind: "cost-increase"; amount: NumberValue; duration: RulesDuration; cardType?: CardType; condition?: RuleCondition }
-  | { kind: "cost-free"; duration: RulesDuration; condition?: RuleCondition; cardType?: CardType; appliesTo?: "self" | "controller" }
+  | { kind: "cost-free"; duration: RulesDuration; condition?: RuleCondition; cardType?: CardType; cardMechanic?: string; appliesTo?: "self" | "controller" }
   | { kind: "cost-discard"; amount: NumberValue; choiceId: keyof CardChoices }
   | { kind: "cost-alternative"; id: string; label: string; setsBaseFree: boolean; components: CostEffect[]; condition?: RuleCondition };
 
@@ -169,7 +171,7 @@ export type RuleAction =
   | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "baku-gear" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope; subject?: "self" | "chosen"; destination?: "owner-hand" | "owner-deck-bottom"; retainChoiceId?: keyof CardChoices; excludeSource?: boolean }
   | { kind: "reveal"; object: "bakucore" | "deck-top"; amount: NumberValue; sourceOwner?: ZoneOwner }
   | { kind: "reorder-deck"; amount: NumberValue }
-  | { kind: "play"; source: "revealed-deck" | "hand" | "self"; free: boolean; cardType?: CardType; factions?: Faction[]; cardName?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
+  | { kind: "play"; source: "revealed-deck" | "hand" | "discard" | "self"; free: boolean; cardType?: CardType; factions?: Faction[]; cardName?: string; cardMechanic?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "attack"; amount: NumberValue; faction?: Faction }
   | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: NumberValue; targetKinds?: Array<"card" | "trigger" | "copy"> }
   | { kind: "search"; cardType?: string; amount: NumberValue }

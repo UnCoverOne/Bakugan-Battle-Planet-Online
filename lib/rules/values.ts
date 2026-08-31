@@ -30,6 +30,7 @@ export type ValueCountSource =
   | "held-bakucore"
   | "baku-gear"
   | "cards-played"
+  | "cards-played-with-mechanic"
   | "factions-played";
 
 export type PlayerNumericProperty =
@@ -75,6 +76,7 @@ export type NumberExpression =
       owner?: ZoneOwner;
       cardType?: CardType;
       faction?: Faction;
+      mechanic?: string;
       offset?: number;
       minimum?: number;
     }
@@ -243,6 +245,8 @@ function countForPlayer(state: MatchState, player: PlayerState, expression: Extr
     case "held-bakucore": return player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
     case "baku-gear": return player.bakugan.reduce((sum, bakugan) => sum + (bakugan.bakuGear?.length ?? 0), 0);
     case "cards-played": return player.cardsPlayedThisTurn;
+    case "cards-played-with-mechanic": return (player.playedCardMechanicsThisTurn ?? [])
+      .filter((mechanic) => !expression.mechanic || mechanic.toLowerCase() === expression.mechanic.toLowerCase()).length;
     case "factions-played": return new Set(player.factionsPlayedThisTurn ?? []).size;
   }
 }

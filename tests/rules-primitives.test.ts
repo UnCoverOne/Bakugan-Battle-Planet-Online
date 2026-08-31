@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, type GameCard, type MatchState } from "../lib/game";
+import { createMatch, recordCardPlayedForTurn, type GameCard, type MatchState } from "../lib/game";
+import { compactReplayPlayer, expandReplayPlayer } from "../lib/engine/replay-codec";
 import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
-import { parseAtomicEffects } from "../lib/rules/catalogue-primitives";
+import { conditionFor, parseAtomicEffects } from "../lib/rules/catalogue-primitives";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
+import { playDefinitionForCard } from "../lib/rules/catalogue-structure";
+import { ruleConditionActive } from "../lib/rules/modifiers";
+import { cardCostBreakdown } from "../lib/rules/costs";
 import { copyRuleObject, createRuleObject } from "../lib/rules/objects";
 import {
   playerIdsForScope,
@@ -359,6 +363,60 @@ test("Group 8 attached-BakuCore bonuses compile as source-Bakugan thresholds", (
   }
 });
 
+test("Trifecta uses the shared team BakuCore count and compiles every printing", () => {
+  const state = stateWithPlayers();
+  const player = state.players[0];
+  const opponent = state.players[1];
+  player.bakugan[0].heldCoreCells = ["first-core-1", "first-core-2"];
+  player.bakugan[1].heldCoreCells = ["first-core-3"];
+  opponent.bakugan[0].heldCoreCells = ["opponent-core-1", "opponent-core-2", "opponent-core-3"];
+  const condition = conditionFor("Trifecta: If your Bakugan have three or more BakuCores attached to them, +5 [Damage].");
+  assert.deepEqual(condition, {
+    kind: "expression",
+    expression: {
+      kind: "compare-number",
+      left: { kind: "count", source: "held-bakucore", owner: "controller" },
+      operator: ">=",
+      right: 3,
+    },
+  });
+  assert.equal(ruleConditionActive(state, player, condition), true);
+  player.bakugan[1].heldCoreCells = [];
+  assert.equal(ruleConditionActive(state, player, condition), false);
+
+  const trifectaCards = CARDS.filter((card) => /\bTrifecta\b/i.test(card.effect));
+  assert.equal(trifectaCards.length, 16);
+  for (const card of trifectaCards) {
+    const instructions = ruleDefinitionForCard(card).abilities.flatMap((ability) => ability.instructions);
+    const direct = instructions.find((instruction) => /\bTrifecta:/i.test(instruction.sourceText)
+      && instruction.condition.kind === "expression");
+    const conditional = instructions.flatMap((instruction) => instruction.effects)
+      .find((effect) => effect.kind === "conditional" && effect.condition.kind === "expression");
+    const compiledCondition = direct?.condition ?? (conditional?.kind === "conditional" ? conditional.condition : undefined);
+    assert.ok(compiledCondition, `${card.catalogId} must retain a Trifecta condition`);
+    assert.deepEqual(compiledCondition, condition, `${card.catalogId} must use the shared three-core count`);
+  }
+});
+
+test("Trifecta replacement, optional free-play, and return effects remain typed", () => {
+  const prism = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "av-18")!);
+  const replacement = prism.abilities.flatMap((ability) => ability.instructions)[0].effects[0];
+  assert.equal(replacement.kind, "conditional");
+  assert.equal(replacement.kind === "conditional" && replacement.replacement, true);
+
+  for (const catalogId of ["av-155", "ff-83", "ps1-9"]) {
+    const cost = playDefinitionForCard(CARDS.find((card) => card.catalogId === catalogId)! ).costModifiers;
+    assert.ok(cost.some((modifier) => "condition" in modifier && modifier.condition?.kind === "expression"), `${catalogId} must gate its free play on Trifecta`);
+  }
+
+  const returnInstruction = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "sv-26")!)
+    .abilities.flatMap((ability) => ability.instructions)
+    .find((instruction) => /\bTrifecta:/i.test(instruction.sourceText));
+  const returnAction = returnInstruction?.actions.find((action) => action.kind === "move");
+  assert.equal(returnAction?.kind, "move");
+  assert.equal(returnAction?.amount, 1);
+});
+
 test("Group 9 live scaling cards compile typed board-state expressions", () => {
   const amountFor = (catalogId: string, actionIndex = 0) => {
     const actions = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === catalogId)!)
@@ -427,5 +485,83 @@ test("Group 10 discarded and revealed card costs feed the following stat modifie
   assert.deepEqual(victor.instructions[1]?.actions.find((action) => action.kind === "modify-stat")?.amount, {
     kind: "product",
     factors: [2, { kind: "previous-result", property: "card-cost" }],
+  });
+});
+
+test("Rapid Fire discounts use the shared printed-mechanic count", () => {
+  const state = stateWithPlayers();
+  const player = state.players[0];
+  const skater = CARDS.find((card) => card.catalogId === "av-79")!;
+  const rapidFireCard = CARDS.find((card) => card.catalogId === "av-26")!;
+  const nonRapidFireCard = CARDS.find((card) => typeof card.cost === "number" && card.cost > 0 && !card.mechanics.includes("Rapid Fire"))!;
+  player.heroes = [instance(skater, "skater")];
+
+  assert.equal(cardCostBreakdown(state, player.id, rapidFireCard).freeBase, false);
+  assert.equal(cardCostBreakdown(state, player.id, rapidFireCard).total, rapidFireCard.cost);
+
+  recordCardPlayedForTurn(player, rapidFireCard, state.turn);
+  assert.ok(player.playedCardMechanicsThisTurn?.includes("Rapid Fire"));
+  assert.equal(cardCostBreakdown(state, player.id, rapidFireCard).freeBase, true);
+  assert.equal(cardCostBreakdown(state, player.id, rapidFireCard).total, 0);
+
+  recordCardPlayedForTurn(player, rapidFireCard, state.turn);
+  assert.equal(cardCostBreakdown(state, player.id, rapidFireCard).freeBase, true);
+  assert.equal(cardCostBreakdown(state, player.id, nonRapidFireCard).freeBase, false);
+
+  const definition = playDefinitionForCard(skater);
+  const rapidFireFreeModifiers = definition.costModifiers.filter((modifier) => (
+    modifier.kind === "cost-free" && modifier.cardMechanic === "Rapid Fire"
+  ));
+  assert.equal(rapidFireFreeModifiers.length, 2);
+});
+
+test("Rapid Fire trigger counts the card after it is played and survives replay encoding", () => {
+  const state = stateWithPlayers();
+  const player = state.players[0];
+  const rapidFireCard = CARDS.find((card) => card.catalogId === "av-26")!;
+  recordCardPlayedForTurn(player, rapidFireCard, state.turn);
+  const replayPlayer = expandReplayPlayer(compactReplayPlayer(player));
+  assert.ok(replayPlayer.playedCardMechanicsThisTurn?.includes("Rapid Fire"));
+
+  const fusionCard = CARDS.find((card) => card.catalogId === "sv-254a")!;
+  const ability = ruleDefinitionForCard(fusionCard).abilities.find((candidate) => candidate.kind === "triggered");
+  assert.deepEqual(ability?.trigger, {
+    event: "CARD_PLAYED",
+    relationship: "controller",
+    cardMechanic: "Rapid Fire",
+    interveningCondition: {
+      kind: "expression",
+      expression: {
+        kind: "compare-number",
+        left: { kind: "count", source: "cards-played-with-mechanic", owner: "controller", mechanic: "Rapid Fire" },
+        operator: "==",
+        right: 2,
+      },
+    },
+  });
+
+  const maximus = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "av-148")!);
+  const maximusInstruction = maximus.abilities.flatMap((candidate) => candidate.instructions)[0];
+  assert.deepEqual(maximusInstruction.choices[0], {
+    id: "discardCardIds",
+    timing: "resolve",
+    selector: "discard-card",
+    label: "Choose a Rapid Fire card from your discard pile",
+    optional: false,
+    chooser: "controller",
+    visibility: "private",
+    minimum: 1,
+    maximum: 1,
+    cardMechanic: "Rapid Fire",
+    owner: "controller",
+    targetOwner: "controller",
+    playForFree: true,
+  });
+  assert.deepEqual(maximusInstruction.actions[0], {
+    kind: "play",
+    source: "discard",
+    free: true,
+    cardMechanic: "Rapid Fire",
+    sourceOwner: "controller",
   });
 });

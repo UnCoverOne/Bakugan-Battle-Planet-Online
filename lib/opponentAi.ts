@@ -7,6 +7,7 @@ import {
   passPriority,
   placeCore,
   playerCanActivateIntrinsicReroll,
+  recordCardPlayedForTurn,
   rotationPhaseOpenCell,
   totalDamage,
   totalPower,
@@ -332,7 +333,7 @@ function applyProjectedCard(
   const resolving = cloneMatch(match);
   if (options.candidate) {
     const controller = playerById(resolving, controllerId);
-    if (controller) controller.cardsPlayedThisTurn += 1;
+    if (controller) recordCardPlayedForTurn(controller, card, resolving.turn);
   }
   let usefulPostVictoryEffect = false;
   for (const { instruction, action } of activeCardActionEntries(
@@ -464,7 +465,7 @@ function activeCandidateEntries(
 ) {
   const resolving = cloneMatch(match);
   const controller = playerById(resolving, playerId);
-  if (controller) controller.cardsPlayedThisTurn += 1;
+  if (controller) recordCardPlayedForTurn(controller, card, resolving.turn);
   return activeCardActionEntries(
     resolving,
     playerId,
@@ -503,6 +504,7 @@ function independentActionValue(
   }
   if (action.kind === "play") {
     if (action.source === "hand") return player.hand.length ? 3 : 0;
+    if (action.source === "discard") return player.discard.some((candidate) => !action.cardMechanic || candidate.mechanics.some((mechanic) => mechanic.toLowerCase() === action.cardMechanic!.toLowerCase())) ? 3 : 0;
     if (action.source === "revealed-deck") return player.revealedDeckCardId ? 3 : 0;
     return 3;
   }

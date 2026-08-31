@@ -145,6 +145,8 @@ export type PlayerState = {
   playedCardCostsThisTurn?: number[];
   /** Printed card types played this turn, in event order. */
   playedCardTypesThisTurn?: CardType[];
+  /** Printed mechanics on cards played this turn, in event order. */
+  playedCardMechanicsThisTurn?: string[];
   /** Distinct factions represented by cards this player has played this turn. */
   factionsPlayedThisTurn?: Faction[];
   /** Physical cards actually discarded from hand this turn (not merely put into discard). */
@@ -508,6 +510,7 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
     ])];
     player.playedCardCostsThisTurn = playedCards.map((card) => card.cost === "X" ? 0 : card.cost);
     player.playedCardTypesThisTurn = playedCards.map((card) => card.type);
+    player.playedCardMechanicsThisTurn = playedCards.flatMap((card) => card.mechanics ?? []);
   }
   state.selected = state.selected && typeof state.selected === "object" ? state.selected : {};
   state.targets = state.targets && typeof state.targets === "object" ? state.targets : {};
@@ -546,6 +549,7 @@ export const recordCardPlayedForTurn = (player: PlayerState, card: GameCard, tur
   player.cardsPlayedThisTurn += 1;
   player.playedCardCostsThisTurn = [...(player.playedCardCostsThisTurn ?? []), card.cost === "X" ? 0 : card.cost];
   player.playedCardTypesThisTurn = [...(player.playedCardTypesThisTurn ?? []), card.type];
+  player.playedCardMechanicsThisTurn = [...(player.playedCardMechanicsThisTurn ?? []), ...(card.mechanics ?? [])];
   player.factionsPlayedThisTurn = [...new Set([
     ...(player.factionsPlayedThisTurn ?? []),
     ...effectiveCardFactions(card),
@@ -686,7 +690,7 @@ const beginTurn = (state: MatchState) => {
     player.energy = 0;
     normalizeEnergyCardState(player, state.turn);
     player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0;
-    player.playedCardCostsThisTurn = []; player.playedCardTypesThisTurn = []; player.factionsPlayedThisTurn = []; player.discardedCardIdsThisTurn = [];
+    player.playedCardCostsThisTurn = []; player.playedCardTypesThisTurn = []; player.playedCardMechanicsThisTurn = []; player.factionsPlayedThisTurn = []; player.discardedCardIdsThisTurn = [];
   }
   const now = Date.now();
   const drawCounts = turnDrawCounts(state);
@@ -2861,6 +2865,13 @@ case "swap-bakucore": {
         selected = owner.hand.find((candidate) => candidate.id === selectedId);
         sourceZone = "hand";
         sourceOwnerId = ownerId;
+      } else if (action.source === "discard") {
+        const ownerId = zoneOwnerIdsFor(state, action.sourceOwner ?? "controller", { controllerId, choices })[0] ?? controllerId;
+        const owner = playerById(state, ownerId);
+        const selectedId = choices.discardCardIds?.[0];
+        selected = owner.discard.find((candidate) => candidate.id === selectedId);
+        sourceZone = "discard";
+        sourceOwnerId = ownerId;
       } else if (action.source === "self") {
         sourceZone = "discard";
         sourceOwnerId = pending.cardOwnerId ?? controllerId;
@@ -2872,6 +2883,7 @@ case "swap-bakucore": {
       }
       if (!selected || (action.cardType && selected.type !== action.cardType)) return;
       if (action.factions?.length && !effectiveCardFactions(selected).some((faction) => action.factions!.includes(faction))) return;
+      if (action.cardMechanic && !selected.mechanics.some((mechanic) => mechanic.toLowerCase() === action.cardMechanic!.toLowerCase())) return;
       if (action.cardName) {
         const normalize = (value: string) => value
           .replace(/[\[\]]/g, "")
