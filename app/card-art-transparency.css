@@ -5,7 +5,7 @@
  * corner wedges. The small inset also removes the one-pixel matte left by
  * scan resampling without noticeably trimming the printed card border.
  */
-img[src*="/assets/cards/full/"],
+img[src*="/assets/cards/"][src*="/full/"],
 img[src$="/assets/card-back.png"] {
   display: block;
   background-color: transparent;
@@ -51,4 +51,3 @@ img[src$="/assets/card-back.png"] {
     transition: none;
   }
 }
-
