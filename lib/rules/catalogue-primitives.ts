@@ -694,6 +694,10 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     kind: "negate", cardType: "any", copy: false, targetChoiceId: "targetEffectId",
     maximumCost: negateLimit, targetKinds: ["card"],
   });
+  else if (/negate a Baku-Gear(?: card)?/i.test(text)) actions.push({
+    kind: "negate", cardType: "Baku-Gear", copy: false, targetChoiceId: "targetEffectId",
+    maximumCost: negateLimit, targetKinds: ["card"],
+  });
   else if (/negate an action/i.test(text)) actions.push({
     kind: "negate", cardType: "Action", copy: /copy/i.test(text), targetChoiceId: "targetEffectId",
     maximumCost: negateLimit, targetKinds: ["card"],

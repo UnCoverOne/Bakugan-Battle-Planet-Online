@@ -172,6 +172,23 @@ test("Absorb compiles its optional negate-and-copy sentence as one generalized o
   assert.ok(instruction.choices.some((choice) => choice.id === "confirmed"));
 });
 
+test("Washed Away compiles Baku-Gear negation through the shared Batch Negate action", () => {
+  const washedAway = CARDS.find((card) => card.catalogId === "ff-6")!;
+  const definition = ruleDefinitionForCard(washedAway);
+  const instruction = definition.abilities.flatMap((ability) => ability.instructions)[0];
+  const negate = instruction.effects.find((action) => action.kind === "negate");
+  assert.deepEqual(negate, {
+    kind: "negate",
+    cardType: "Baku-Gear",
+    copy: false,
+    targetChoiceId: "targetEffectId",
+    maximumCost: undefined,
+    targetKinds: ["card"],
+  });
+  assert.deepEqual(instruction.choices.find((choice) => choice.id === "targetEffectId")?.cardTypes, ["Baku-Gear"]);
+  assert.deepEqual(instruction.choices.find((choice) => choice.id === "targetEffectId")?.objectKinds, ["card"]);
+});
+
 test("Cycling Actions compile ordered effects and return themselves to the owner deck bottom", () => {
   const cyclingIds = ["bb-5", "bb-33", "bb-64", "bb-85", "bb-113"];
   for (const catalogId of cyclingIds) {

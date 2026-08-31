@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { CARD_BY_ID, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, prepareCardPlay, submitCardChoice } from "../lib/game";
+import { createMatch, passPriority, prepareCardPlay, submitCardChoice } from "../lib/game";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { buildChoiceSchema, schemaHasLegalCompletion } from "../lib/rules/choices";
 import { parseAtomicEffects } from "../lib/rules/catalogue-primitives";
@@ -114,6 +114,35 @@ test("Deep Illusion targets only the initial Hero card play before it enters the
   const played = submitCardChoice(prepared, first.id, { targetEffectId: heroPlay.id });
   const object = played.batch.find((effect) => effect.card.id === deepIllusion.id);
   assert.equal(object?.choices.targetEffectId, heroPlay.id);
+});
+
+test("Washed Away targets an opposing Baku-Gear play, not an attached Baku-Gear", () => {
+  const { state, first, second } = priorityState();
+  const washedAway = card("ff-6", "washed-away");
+  const gearPlay = objectFor(second.id, card("ff-111", "gear-play"), "card");
+  const attachedGear = card("ff-112", "attached-gear");
+  second.bakugan[0].open = true;
+  second.bakugan[0].bakuGear = [attachedGear];
+  first.hand = [washedAway];
+  state.batch = [gearPlay];
+
+  const prepared = prepareCardPlay(state, first.id, washedAway.id);
+  const field = prepared.pendingChoice?.schema.fields.find((candidate) => candidate.id === "targetEffectId");
+  assert.deepEqual(field?.options.map((option) => option.id), [gearPlay.id]);
+
+  const played = submitCardChoice(prepared, first.id, { targetEffectId: gearPlay.id });
+  const washedObject = played.batch.find((effect) => effect.card.id === washedAway.id);
+  assert.equal(washedObject?.choices.targetEffectId, gearPlay.id);
+
+  let resolved = passPriority(played, played.priority);
+  resolved = passPriority(resolved, resolved.priority);
+  const resolvedOpponent = resolved.players.find((player) => player.id === second.id)!;
+  assert.equal(resolved.batch.some((effect) => effect.card.id === gearPlay.card.id), false);
+  assert.equal(resolvedOpponent.discard.some((candidate) => candidate.id === gearPlay.card.id), true);
+  assert.deepEqual(
+    resolvedOpponent.bakugan[0].bakuGear?.map((candidate) => candidate.id),
+    [attachedGear.id],
+  );
 });
 
 test("Blinding Ink filters Batch targets by Action type, initial card play, and printed cost", () => {

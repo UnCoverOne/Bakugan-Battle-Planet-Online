@@ -181,7 +181,7 @@ export type RuleAction =
   | { kind: "reorder-deck"; amount: NumberValue }
   | { kind: "play"; source: "revealed-deck" | "hand" | "discard" | "self"; free: boolean; cardType?: CardType; excludedCardTypes?: CardType[]; factions?: Faction[]; cardName?: string; cardMechanic?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "attack"; amount: NumberValue; faction?: Faction }
-  | { kind: "negate"; cardType: "Action" | "Hero" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: NumberValue; targetKinds?: Array<"card" | "trigger" | "copy"> }
+  | { kind: "negate"; cardType: "Action" | "Hero" | "Baku-Gear" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: NumberValue; targetKinds?: Array<"card" | "trigger" | "copy"> }
   | { kind: "search"; cardType?: string; amount: NumberValue }
   | { kind: "copy"; target: "next-action" | "batch-action" | "chosen-batch-object" | "played-action" | "revealed-action" | "discarded-action-this-turn"; independentChoices: boolean; targetChoiceId?: keyof CardChoices; count?: NumberValue; controller?: PlayerScope; sourceOwner?: ZoneOwner }
   | { kind: "cost"; amount: NumberValue; operation: "reduce" | "increase" | "free"; duration: RulesDuration; cardType?: CardType; playerScope?: PlayerScope; costScope?: "base" | "empower" }
