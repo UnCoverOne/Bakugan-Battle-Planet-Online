@@ -18,6 +18,7 @@ export type ApiAction =
   | "target"
   | "roll"
   | "reroll"
+  | "fuse"
   | "prepare-play"
   | "play"
   | "choice"
@@ -72,6 +73,11 @@ export function apiActionToCommand(
     case "target": return { type: "SELECT_ROLL_TARGET", cell: stringValue(payload.cell) };
     case "roll": return { type: "CONFIRM_ROLL" };
     case "reroll": return { type: "ACTIVATE_REROLL" };
+    case "fuse": return {
+      type: "ACTIVATE_FUSION",
+      bakuganId: stringValue(payload.bakuganId),
+      requirement: payload.requirement ? stringValue(payload.requirement) : undefined,
+    };
     case "prepare-play": return { type: "PREPARE_CARD_PLAY", cardId: stringValue(payload.cardId) };
     case "play": return { type: "PLAY_CARD", cardId: stringValue(payload.cardId), choices };
     case "choice": return { type: "SUBMIT_CARD_CHOICE", choices };

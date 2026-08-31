@@ -96,6 +96,8 @@ function summarizeCommand(envelope: CommandEnvelope) {
       return { type: command.type, cardId: command.cardId, choices: command.choices };
     case "PLAY_DAMAGE_FLIP":
       return { type: command.type, cardId: command.cardId, choices: command.choices };
+    case "ACTIVATE_FUSION":
+      return { type: command.type, bakuganId: command.bakuganId, requirement: command.requirement };
     case "SUBMIT_CARD_CHOICE":
       return { type: command.type, choices: command.choices };
     default:
@@ -292,6 +294,27 @@ export function deriveTransitionEvents(
             open: bakugan.open,
           },
         });
+      }
+      if (previousBakugan && previousBakugan.fused !== bakugan.fused) {
+        events.push({
+          type: "BAKUGAN_FUSION_STATE_CHANGED",
+          actorId: envelope.actorId,
+          visibility: "public",
+          payload: {
+            playerId: player.id,
+            bakuganId: bakugan.id,
+            fused: Boolean(bakugan.fused),
+            fusionCardId: bakugan.fused ? bakugan.fusionCharacter?.id : bakugan.character.id,
+          },
+        });
+        if (bakugan.fused) {
+          events.push({
+            type: "FUSION_COMPLETED",
+            actorId: envelope.actorId,
+            visibility: "public",
+            payload: { playerId: player.id, bakuganId: bakugan.id, fusionCardId: bakugan.fusionCharacter?.id },
+          });
+        }
       }
     }
   }

@@ -315,6 +315,11 @@ export function GameplayClient() {
     {},
   );
 
+  const activateFusion = (bakuganId: string, requirementId: string) => submitMatchAction(
+    "fuse",
+    { bakuganId, requirement: requirementId },
+  );
+
   const passTurn = useCallback(() => submitMatchAction(
     "pass",
     {},
@@ -777,6 +782,7 @@ export function GameplayClient() {
           onDrawCard={drawCard}
           onFlipTieBreakCard={flipTieBreak}
           onActivateReroll={activateReroll}
+          onActivateFusion={activateFusion}
           onPlayCard={playHandCard}
           onEnergizeCard={energizeHandCard}
           onDiscardCards={discardSelectedCards}

@@ -90,6 +90,8 @@ export type ChoiceSpec = {
   minimumCost?: NumberValue;
   objectKinds?: Array<"card" | "trigger" | "copy">;
   openState?: "open" | "closed";
+  /** Restrict Bakugan choices to their fused or unfused face. */
+  fusionState?: "fused" | "unfused";
   notOpenedThisTurn?: boolean;
   notPlayedThisTurn?: boolean;
   attachmentState?: "attached" | "unattached";
@@ -121,6 +123,7 @@ export type TriggerEventName =
   | "ATTACK_DAMAGE_DEALT"
   | "DAMAGE_TAKEN"
   | "HAND_EMPTIED"
+  | "FUSION_COMPLETED"
   | "TURN_ENDED";
 
 export type TriggerDefinition = {
@@ -182,6 +185,7 @@ export type RuleAction =
   | { kind: "search"; cardType?: string; amount: NumberValue }
   | { kind: "copy"; target: "next-action" | "batch-action" | "chosen-batch-object" | "played-action" | "revealed-action" | "discarded-action-this-turn"; independentChoices: boolean; targetChoiceId?: keyof CardChoices; count?: NumberValue; controller?: PlayerScope; sourceOwner?: ZoneOwner }
   | { kind: "cost"; amount: NumberValue; operation: "reduce" | "increase" | "free"; duration: RulesDuration; cardType?: CardType; playerScope?: PlayerScope; costScope?: "base" | "empower" }
+  | { kind: "fusion"; operation?: "fuse" | "unfuse"; targetChoiceId?: keyof CardChoices; requirement?: string }
   | { kind: "reroll"; target: "controller" | "opponent"; mandatory: boolean; requiresDiscard: boolean }
   | { kind: "coin-flip" }
   | { kind: "trigger"; event: TriggerEventName; definition: TriggerDefinition }

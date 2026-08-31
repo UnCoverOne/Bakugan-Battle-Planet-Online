@@ -458,6 +458,23 @@ export function beginCardPayment(
   return payment;
 }
 
+/** Declare and pay a non-card Energy cost, such as a Fusion activation. */
+export function payEnergyCost(state: MatchState, playerId: string, amount: number, sourceId: string) {
+  const payment: RulesPayment = {
+    id: `${state.id}:${state.version}:${sourceId}:energy-payment`,
+    playerId,
+    cardId: sourceId,
+    calculatedCost: Math.max(0, Math.floor(amount)),
+    selectedEnergyIds: [],
+    additionalCosts: [],
+    status: "declared",
+  };
+  ensureRulesState(state).pendingPayment = payment;
+  prepareDeclaredEnergyPayment(state, playerId, payment.calculatedCost);
+  commitCardPayment(state, playerId);
+  return state;
+}
+
 export function prepareDeclaredEnergyPayment(state: MatchState, playerId: string, amount: number) {
   const rules = ensureRulesState(state);
   const payment = rules.pendingPayment;

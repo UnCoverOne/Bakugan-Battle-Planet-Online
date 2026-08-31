@@ -110,7 +110,7 @@ export function GameplayCardPresentationLayer({
             clearCharacterSlotMetadata(zone);
             continue;
           }
-          const topCard = bakugan.evoStack.at(-1) ?? bakugan.character;
+          const topCard = bakugan.evoStack.at(-1) ?? (bakugan.fused ? bakugan.fusionCharacter : undefined) ?? bakugan.character;
           const active = match.selected[ownerPlayer.id] === bakugan.id;
           zone.dataset.cardId = topCard.id;
           zone.dataset.cardType = topCard.type;

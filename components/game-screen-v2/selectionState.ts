@@ -1,4 +1,4 @@
-import type { Bakugan, MatchState, PlayerState } from "../../lib/game";
+import { fusionActivationRequirements, type Bakugan, type MatchState, type PlayerState } from "../../lib/game";
 import { legalEvoTargets } from "../../lib/evo";
 import { playerCanConfirmRoll, playerCanSelectRollTarget } from "../../lib/rolling";
 import { playerCanDrawTurnCard } from "../../lib/turnStart";
@@ -41,6 +41,16 @@ export function characterSelectionCanConfirm(
   if (!bakuganId) return false;
   return selectableCharacterBakugan(match, playerId)
     .some((bakugan) => bakugan.id === bakuganId);
+}
+
+export function fusionSelectableCharacterBakugan(
+  match: MatchState | null | undefined,
+  playerId?: string,
+): readonly Bakugan[] {
+  const player = selectionPlayer(match, playerId);
+  if (!match || !player || !PRIORITY_PHASES.has(match.phase) || match.priority !== player.id) return [];
+  if (match.pendingChoice || match.pendingCoinFlip || match.pendingReroll) return [];
+  return player.bakugan.filter((bakugan) => fusionActivationRequirements(match, player.id, bakugan.id).some((requirement) => requirement.legal));
 }
 
 export function activeBakuganId(
@@ -99,6 +109,9 @@ export function playerActionTooltip({
   }
 
   if (PRIORITY_PHASES.has(match.phase) && match.priority === player.id) {
+    const fusionTarget = fusionSelectableCharacterBakugan(match, player.id)
+      .find((bakugan) => bakugan.id === selectedCharacterId);
+    if (fusionTarget) return `Press Fuse to activate ${fusionTarget.name}'s Fusion ability.`;
     const selectedCard = player.hand.find((card) => card.id === selectedHandCardId);
     if (selectedCard?.type === "Evo") {
       const target = legalEvoTargets(match, player.id, selectedCard)
@@ -118,4 +131,3 @@ export function playerActionTooltip({
 
   return "";
 }
-

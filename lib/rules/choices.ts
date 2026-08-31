@@ -265,6 +265,7 @@ function optionsFor(
       return owners.flatMap((owner) => owner.bakugan
         .filter((bakugan) => !evoSourceChoice || canonicalEvoTargetAllowed(ruleDefinitionForCard(card), bakugan))
         .filter((bakugan) => !spec.openState || (spec.openState === "open" ? bakugan.open : !bakugan.open))
+        .filter((bakugan) => !spec.fusionState || (spec.fusionState === "fused" ? Boolean(bakugan.fused) : !bakugan.fused))
         .filter((bakugan) => !spec.notOpenedThisTurn || bakugan.openedTurn !== match.turn)
         .filter((bakugan) => !spec.excludeSourceBakugan || bakugan.id !== priorChoices.sourceBakuganId)
         .filter((bakugan) => !spec.factions?.length || spec.factions.some((faction) => bakuganHasFaction(bakugan, faction)))

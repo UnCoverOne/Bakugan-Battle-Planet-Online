@@ -1,5 +1,6 @@
 import {
   activateIntrinsicReroll,
+  activateFusion,
   beginCorePlacement,
   cloneMatch,
   concedeMatch,
@@ -108,6 +109,7 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
     case "SELECT_ROLL_TARGET": return selectRollTarget(input, actorId, command.cell);
     case "CONFIRM_ROLL": return confirmRoll(input, actorId);
     case "ACTIVATE_REROLL": return activateIntrinsicReroll(input, actorId);
+    case "ACTIVATE_FUSION": return activateFusion(input, actorId, command.bakuganId, command.requirement);
     case "DISCARD_TO_HAND_LIMIT": return discardToHandLimit(input, actorId, command.cardIds);
     case "CHAT": return addChatMessage(input, actorId, command.message);
     case "CONCEDE": {

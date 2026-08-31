@@ -42,6 +42,7 @@ function commandLabel(command: GameCommand, state: MatchState) {
   switch (command.type) {
     case "PLAY_CARD": return `Played ${state.players.flatMap((player) => [...player.heroes, ...player.discard]).find((card) => card.id === command.cardId)?.displayName ?? "a card"}`;
     case "ENERGIZE": return "Energized a card";
+    case "ACTIVATE_FUSION": return "Activated Fusion";
     case "CONFIRM_ROLL": return "Resolved Bakugan rolls";
     case "REVEAL_DAMAGE_FLIP": return "Revealed damage";
     case "PASS_PRIORITY": return `${actor ?? "Player"} passed priority`;
@@ -56,7 +57,7 @@ function markerType(command: GameCommand, before: MatchState, after: MatchState)
   if (after.phase === "result") return "result";
   if (after.gameNumber !== before.gameNumber) return "game";
   if (after.phase !== before.phase) return "phase";
-  if (["PLAY_CARD", "PLAY_DAMAGE_FLIP"].includes(command.type)) return "card";
+  if (["PLAY_CARD", "PLAY_DAMAGE_FLIP", "ACTIVATE_FUSION"].includes(command.type)) return "card";
   if (["CONFIRM_ROLL", "ACTIVATE_REROLL"].includes(command.type)) return "roll";
   if (["REVEAL_DAMAGE_FLIP", "PLAY_DAMAGE_FLIP"].includes(command.type)) return "damage";
   return "command";

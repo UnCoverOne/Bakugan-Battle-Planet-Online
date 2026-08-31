@@ -27,6 +27,7 @@ export type ValueCountSource =
   | "hero"
   | "bakugan"
   | "open-bakugan"
+  | "fusion-bakugan"
   | "held-bakucore"
   | "baku-gear"
   | "cards-played"
@@ -242,6 +243,7 @@ function countForPlayer(state: MatchState, player: PlayerState, expression: Extr
     case "hero": return player.heroes.filter((card) => cardMatches(card, expression)).length;
     case "bakugan": return player.bakugan.filter(bakuganHasFaction).length;
     case "open-bakugan": return player.bakugan.filter((bakugan) => bakugan.open && bakuganHasFaction(bakugan)).length;
+    case "fusion-bakugan": return player.bakugan.filter((bakugan) => bakugan.fused && bakuganHasFaction(bakugan)).length;
     case "held-bakucore": return player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
     case "baku-gear": return player.bakugan.reduce((sum, bakugan) => sum + (bakugan.bakuGear?.length ?? 0), 0);
     case "cards-played": return player.cardsPlayedThisTurn;

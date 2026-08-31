@@ -29,6 +29,7 @@ export type GameCommand =
   | { type: "SELECT_ROLL_TARGET"; cell: string }
   | { type: "CONFIRM_ROLL" }
   | { type: "ACTIVATE_REROLL" }
+  | { type: "ACTIVATE_FUSION"; bakuganId: string; requirement?: string }
   | { type: "PREPARE_CARD_PLAY"; cardId: string }
   | { type: "PLAY_CARD"; cardId: string; choices: CardChoices }
   | { type: "SUBMIT_CARD_CHOICE"; choices: CardChoices }
@@ -68,7 +69,7 @@ export type EventVisibility = "public" | "controller" | "server";
 export type GameEventType =
   | "COMMAND_ACCEPTED" | "COMMAND_COMPLETED" | "MATCH_CREATED" | "PLAYER_JOINED"
   | "PHASE_CHANGED" | "PRIORITY_CHANGED" | "CARD_MOVED" | "ENERGY_CHANGED"
-  | "BAKUGAN_OPEN_STATE_CHANGED" | "BAKUCORE_ATTACHMENT_CHANGED" | "BATCH_OBJECT_ADDED"
+  | "BAKUGAN_OPEN_STATE_CHANGED" | "BAKUGAN_FUSION_STATE_CHANGED" | "FUSION_COMPLETED" | "BAKUCORE_ATTACHMENT_CHANGED" | "BATCH_OBJECT_ADDED"
   | "BATCH_OBJECT_REMOVED" | "PENDING_DAMAGE_CHANGED" | "LOG_ENTRY_ADDED" | "GAME_ENDED"
   | "DEADLINE_RESOLVED" | "ENGINE_FAULT";
 export type UnsequencedGameEvent = {

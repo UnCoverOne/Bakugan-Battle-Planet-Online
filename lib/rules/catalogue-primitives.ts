@@ -55,6 +55,15 @@ export function conditionFor(text: string): RuleCondition {
   if (/^Empower\s*:/i.test(normalizedText)) return { kind: "empower-selected" };
   if (/\bif heads\b/i.test(text)) return { kind: "coin-result", result: "heads" };
   if (/\bif tails\b/i.test(text)) return { kind: "coin-result", result: "tails" };
+  if (/\bif that player has no cards in their hand\b/i.test(text)) return {
+    kind: "expression",
+    expression: {
+      kind: "compare-number",
+      left: { kind: "property", subject: { kind: "player", owner: "chosen-player" }, property: "hand-size" },
+      operator: "==",
+      right: 0,
+    },
+  };
   if (/if you open on the Reroll/i.test(text)) return { kind: "reroll-opened" };
   if (/\bSync:/i.test(text)) return { kind: "selection-made", choiceId: "syncCardId" };
   if (/\bTrifecta:\s*If your Bakugan have three or more BakuCores? (?:attached|attaced) to them\b/i.test(normalizedText)) {
@@ -147,7 +156,16 @@ export function conditionFor(text: string): RuleCondition {
   if (/\bDomination\b/i.test(text)) return { kind: "domination" };
   if (/\bFlow\b/i.test(text)) return { kind: "flow" };
   if (/\bmay discard\b[^.]*\bfor\s+\+/i.test(text)) return { kind: "selection-made", choiceId: "discardCardIds" };
-  if (/\bVictor\s*[-:]/i.test(text)) return { kind: "victor" };
+  if (/\bBoost\s*:/i.test(text) && /(?:\[?Victor\]?)[\s]*[-,:]/i.test(text)) return {
+    kind: "expression",
+    expression: {
+      kind: "compare-number",
+      left: { kind: "count", source: "energy", owner: "controller" },
+      operator: ">=",
+      right: 7,
+    },
+  };
+  if (/(?:\[?Victor\]?)[\s]*[-,:]/i.test(text)) return { kind: "victor" };
   if (/\bSacrifice\b/i.test(text)) return { kind: "selection-made", choiceId: "discardCardIds" };
   if (/two or more cards this turn/i.test(text)) return { kind: "expression", expression: { kind: "compare-number", left: { kind: "count", source: "cards-played", owner: "controller" }, operator: ">=", right: 2 } };
   const playedFactionCount = text.match(/(?:played a card|play cards) from (no|a|an|one|two|three|four|five|six|\d+) different factions? (?:in the same turn|this turn)/i);
@@ -204,6 +222,9 @@ export function conditionFor(text: string): RuleCondition {
 }
 
 function triggerFor(text: string): TriggerDefinition | undefined {
+  if (/when you\s+<Fusion>\s+(?:(?:a|an|another)\s+)?Bakugan/i.test(text)) {
+    return { event: "FUSION_COMPLETED", relationship: "controller" };
+  }
   if (/when you play your second card with Rapid Fire this turn/i.test(text)) {
     return {
       event: "CARD_PLAYED",
@@ -239,7 +260,7 @@ function triggerFor(text: string): TriggerDefinition | undefined {
     [/when you select a Bakugan/i, "BAKUGAN_SELECTED", "controller"],
     [/when this opens|when you open a Bakugan/i, "BAKUGAN_OPENED", "controller"],
     [/when you discard|if this is discarded/i, "CARD_DISCARDED", "controller"],
-    [/\bVictor\s*[-:]/i, "VICTOR_DECLARED", "controller"],
+    [/(?:\[?Victor\]?)[\s]*[-,:]/i, "VICTOR_DECLARED", "controller"],
     [/when one of your Bakugan attacks/i, "ATTACK_CREATED", "controller"],
     [/if you take damage/i, "DAMAGE_TAKEN", "controller"],
     [/when you have no cards in hand|when your hand is empty/i, "HAND_EMPTIED", "controller"],
@@ -335,6 +356,11 @@ function numberValueForDynamicAmount(text: string, baseAmount: number, dynamicSo
     subject: { kind: "bakugan", selector: /attached to this\b/i.test(grammar) ? "source" : "chosen" },
     property: "baku-gear-count",
   });
+  if (/<Fusion>\s+Bakugan on your team/i.test(grammar)) return multiplyValue(baseAmount, {
+    kind: "count",
+    source: "fusion-bakugan",
+    owner: "controller",
+  });
   if (/open Bakugan/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "open-bakugan", owner: "controller" });
   if (/cards? (?:you have )?played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "cards-played", owner: "controller" });
   if (/different factions?.*played this turn/i.test(grammar)) return multiplyValue(baseAmount, { kind: "count", source: "factions-played", owner: "controller" });
@@ -343,11 +369,23 @@ function numberValueForDynamicAmount(text: string, baseAmount: number, dynamicSo
 
 export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const actions: RuleAction[] = [];
+  // In “When you <Fusion> another Bakugan, <Fusion> this”, the first token
+  // describes the trigger. Only the second token is an executable effect.
+  const executableText = text.replace(/^When you\s+<Fusion>[^,]+,\s*/i, "");
   const intrinsicCharacteristic = ["Character", "Evo"].includes(card.type)
     && !/\b(?:when|victor\s*[-:]|at (?:the )?end of|play this)\b/i.test(text);
   const duration = intrinsicCharacteristic ? "while-source-active" : durationFor(text);
   const scale = dynamicSourceFor(text);
   const scope = scopeFor(text);
+  const unfuse = /turn\s+(?:one of your|a|an|one of the)\s+<Fusion>\s+Bakugan\s+face down/i.test(text);
+  const fusionAction = !unfuse && /(?:^|[,;:]|\bthen\b|\bmay\b|\bmust\b)\s*<Fusion>(?!\s+Bakugan)/i.test(executableText);
+  const fusionEffect: RuleAction | undefined = unfuse
+    ? { kind: "fusion", operation: "unfuse", targetChoiceId: "targetBakuganId" }
+    : fusionAction ? {
+    kind: "fusion",
+    operation: "fuse",
+    targetChoiceId: /^<Fusion>\s+this\b/i.test(executableText) ? "sourceBakuganId" : undefined,
+  } : undefined;
 
   for (const match of text.matchAll(/([+-]\d+)\s*\[B\]/gi)) {
     actions.push({
@@ -729,6 +767,8 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     duration,
     scope,
   });
+
+  if (fusionEffect) actions.push(fusionEffect);
 
   // Sync owns its timing through the keyword's gated instruction when it is
   // merely part of another event. A printing such as “Sync: When you play

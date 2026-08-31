@@ -78,7 +78,10 @@ function chooseOneBranches(text: string): BattleMasteryBranch[] | null {
 }
 
 function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
-  const normalized = source.replace(/\s*\n\s*/g, " ").trim().replace(
+  const normalized = source.replace(
+    /\s*\n\s*(?=(?:(?:\d+)\s+\[Energy\]|\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:\s*<Fusion>)/gi,
+    ". ",
+  ).replace(/\s*\n\s*/g, " ").trim().replace(
     /(\bNegate an Action card\.)\s+(You may copy its effect(?: and make your own selections for it)?\.)/gi,
     "$1 $2",
   ).replace(
@@ -165,6 +168,9 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
         // turns a trailing “instead” into a single conditional branch.
         const boost = clause.match(/^(.*?)\s+Boost:\s*(.+)$/i);
         if (boost?.[1].trim() && boost[2].trim()) {
+          if (/^(?:\[?Victor\]?)[\s]*[-,:]?$/i.test(boost[1].trim())) {
+            return [`${boost[1].trim().replace(/[,;:]$/, "")}, Boost: ${boost[2].trim()}`];
+          }
           return [
             `${boost[1].trim().replace(/[,;:]$/, "")}.`,
             `Boost: ${boost[2].trim()}`,
@@ -596,6 +602,8 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     && /\bto\s+(?:one of\s+)?(?:your\s+)?(?:an?\s+)?(?:open\s+)?Bakugan\b/i.test(text);
   const explicitBakuganTarget = /choose (?:a|an|one|another)(?:(?!\bplayer\b)[^.;])*?Bakugan|target .*Bakugan|retract (?:(?:one of|another) )?(?:your )?(?:open )?Bakugan|give (?:a|an|one|another)(?: \[[^\]]+\])? Bakugan|(?:a|an|one|another)(?: \[[^\]]+\])? Bakugan gets?|to (?:a|an|one) \[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan|attach (?:this|(?:an?|one) (?:opposing )?Baku-Gear) (?:to|on) [^.;]*Bakugan/i.test(text)
     || coreAttachmentTarget;
+  const fusionTarget = /<Fusion>\s+(?:a|an|one|another)\s+Bakugan|turn\s+(?:one of your|a|an|one of the)\s+<Fusion>\s+Bakugan\s+face down/i.test(text);
+  const fusionTrigger = /^When you\s+<Fusion>[^,]+,\s*<Fusion>\s+this\b/i.test(text);
   const separateEvoEffectTarget = card.type === "Evo"
     && defaultTiming === "announce"
     && /when you play this/i.test(text)
@@ -657,7 +665,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     friendly.owner = "controller";
     friendly.targetOwner = friendly.owner;
     result.push(enemy, friendly);
-  } else if (explicitBakuganTarget && (cardId !== "aa-99" || defaultTiming === "resolve")) {
+  } else if ((explicitBakuganTarget || fusionTarget) && !fusionTrigger && (cardId !== "aa-99" || defaultTiming === "resolve")) {
     const selected = choice("targetBakuganId", targetTiming, "chosen-bakugan", "Choose a Bakugan");
     selected.owner = /attach (?:this|(?:an?|one) (?:opposing )?Baku-Gear) (?:to|on) [^.;]*\bone of your\s+Bakugan/i.test(text)
       ? "controller"
@@ -666,6 +674,10 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     if (/open Bakugan/i.test(text) || attachesCore || card.type === "Baku-Gear" || /attach .*Baku-Gear/i.test(text)) selected.openState = "open";
     if (/didn['’]?t open this turn|did not open this turn/i.test(text)) selected.notOpenedThisTurn = true;
     if (/another open Bakugan/i.test(text)) selected.excludeSourceBakugan = true;
+    if (fusionTarget) {
+      selected.fusionState = /turn\s+/i.test(text) ? "fused" : "unfused";
+      selected.excludeSourceBakugan = selected.excludeSourceBakugan || /another Bakugan/i.test(text);
+    }
     const faction = text.match(/(?:choose|give|to|target)\s+(?:a|an|one|another)?\s*\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1]
       ?? text.match(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan\s+gets?/i)?.[1];
     if (faction) selected.factions = [faction as GameCard["faction"]];
@@ -1143,7 +1155,11 @@ export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
     // Sentence splitting must not turn a follow-up clause into an enter-play
     // spell. These phrases refer to information or an action created by the
     // preceding trigger and therefore share that trigger's event timing.
+    const fusionContinuation = /^(?:If\s+(?:Heads|Tails)\b|Then\s+if\s+that\s+player\s+has\s+no\s+cards\s+in\s+their\s+hand\b)/i.test(
+      instruction.sourceText.trim(),
+    );
     const continuesTrigger = Boolean(activeTrigger) && (
+      fusionContinuation ||
       instruction.condition.kind === "mode-selected"
       || /^(?:then\b|shuffle\s+your\s+deck\b|this\s+gets\b[^.]*\brevealed\s+card\b|you\s+may\s+(?:put|play|attach)\s+(?:it|that\s+card|the\s+(?:chosen|revealed)\s+card|an?\s+\[(?:FT|FF|SD|MS|HE)\])\b|if\s+(?:it(?:['’]?s|\b)|they\b|you do\b|an?\s+[^,.]+\s+cards?\s+is\s+revealed\s+this\s+way\b|one\s+of\s+(?:them|those\s+cards)\b|the\s+revealed\s+card\b))/i.test(
         instruction.sourceText.trim(),

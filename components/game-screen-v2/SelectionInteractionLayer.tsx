@@ -8,6 +8,7 @@ import { drawStepIsPending } from "../../lib/turnStart";
 import {
   playerActionTooltip,
   selectableCharacterBakugan,
+  fusionSelectableCharacterBakugan,
   selectionPlayer,
 } from "./selectionState";
 import { useBoardChoiceHud } from "./boardChoiceHud";
@@ -145,6 +146,9 @@ export function SelectionInteractionLayer({
     const normalSelectableIds = new Set(
       selectableCharacterBakugan(match, playerId).map((bakugan) => bakugan.id),
     );
+    const fusionSelectableIds = new Set(
+      fusionSelectableCharacterBakugan(match, playerId).map((bakugan) => bakugan.id),
+    );
     const zones = Array.from(document.querySelectorAll<HTMLElement>(CHARACTER_ZONE_SELECTOR));
 
     for (const zone of zones) {
@@ -154,12 +158,14 @@ export function SelectionInteractionLayer({
       const localZone = zone.dataset.zoneOwner === "player";
       const normalSelectable = Boolean(localZone && bakugan && normalSelectableIds.has(bakugan.id));
       const evoSelectable = Boolean(localZone && bakugan && evoTargetIds.has(bakugan.id));
-      const selectable = normalSelectable || evoSelectable;
+      const fusionSelectable = Boolean(localZone && bakugan && fusionSelectableIds.has(bakugan.id));
+      const selectable = normalSelectable || evoSelectable || fusionSelectable;
       const selected = Boolean(
         localZone
         && bakugan
         && (
           (normalSelectable && bakugan.id === selectedCharacterId)
+          || (fusionSelectable && bakugan.id === selectedCharacterId)
           || (evoSelectable && bakugan.id === selectedEvoTargetId)
         ),
       );
@@ -174,6 +180,7 @@ export function SelectionInteractionLayer({
       zone.dataset.characterOpen = open ? "true" : "false";
       zone.dataset.evoTarget = evoSelectable ? "true" : "false";
       zone.dataset.evoTargetSelected = evoSelectable && selected ? "true" : "false";
+      zone.dataset.fusionSelectable = fusionSelectable ? "true" : "false";
       zone.setAttribute("aria-pressed", selected ? "true" : "false");
       if (active) zone.setAttribute("aria-current", "true");
       else zone.removeAttribute("aria-current");
@@ -183,6 +190,8 @@ export function SelectionInteractionLayer({
         zone.setAttribute("role", "button");
         if (evoSelectable && bakugan) {
           zone.setAttribute("aria-label", `${bakugan.name}, legal Evo target${selected ? ", selected" : ""}`);
+        } else if (fusionSelectable && bakugan) {
+          zone.setAttribute("aria-label", `${bakugan.name}, legal Fusion target${selected ? ", selected" : ""}`);
         }
       } else {
         zone.removeAttribute("tabindex");
@@ -240,6 +249,7 @@ export function SelectionInteractionLayer({
         delete zone.dataset.characterOpen;
         delete zone.dataset.evoTarget;
         delete zone.dataset.evoTargetSelected;
+        delete zone.dataset.fusionSelectable;
         zone.removeAttribute("aria-pressed");
         zone.removeAttribute("aria-current");
         zone.removeAttribute("tabindex");

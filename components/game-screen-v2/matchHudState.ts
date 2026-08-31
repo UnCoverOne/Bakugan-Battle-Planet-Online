@@ -9,6 +9,7 @@ import {
   type MatchState,
   type PlayerState,
 } from "../../lib/game";
+import { fusionActivationRequirements } from "../../lib/game";
 import { cardEnergyPaymentState } from "../../lib/cardPayment";
 import { hasPendingDraws } from "../../lib/drawQueue";
 import { playerCanFlipTieBreak } from "../../lib/manualTieBreak";
@@ -23,6 +24,7 @@ export type MatchHudActionKey =
   | "draw-card"
   | "flip-tie-break"
   | "activate-reroll"
+  | "fuse"
   | "discard"
   | "play-card"
   | "energize-card"
@@ -234,6 +236,7 @@ export function visibleMatchHudActions({
   playerId,
   mode,
   selectedCardId,
+  selectedCharacterId,
   selectionPending,
   now = Date.now(),
 }: {
@@ -241,6 +244,7 @@ export function visibleMatchHudActions({
   playerId?: string;
   mode: HandActionMode;
   selectedCardId: string;
+  selectedCharacterId?: string;
   selectionPending: boolean;
   now?: number;
 }): MatchHudActions {
@@ -256,6 +260,16 @@ export function visibleMatchHudActions({
     && match.priority === player.id,
   );
   const selectedPlayable = playCards.some((card) => card.id === selectedCardId);
+  const fusion = Boolean(
+    match && player && selectedCharacterId
+    && isPriorityWindow(match)
+    && match.priority === player.id
+    && !match.pendingChoice
+    && !match.pendingCoinFlip
+    && !match.pendingReroll
+    && !match.triggerOrders.some((request) => !request.orderedIds)
+    && fusionActivationRequirements(match, player.id, selectedCharacterId).some((requirement) => requirement.legal),
+  );
   const flipDecision = revealedFlipDecision(match, player?.id);
   const cardPlayLocked = alternateWinEffectPending(match);
   const discard = handDiscardRequirement(match, player?.id);
@@ -265,6 +279,7 @@ export function visibleMatchHudActions({
     "draw-card": !completed && playerCanDrawTurnCard(match, player?.id, now),
     "flip-tie-break": !completed && playerCanFlipTieBreak(match, player?.id),
     "activate-reroll": !completed && playerCanActivateIntrinsicReroll(match, player?.id),
+    fuse: !completed && fusion,
     discard: !completed && Boolean(discard),
     "play-card": !completed && canPlay,
     "energize-card": !completed && canEnergizeCard(match, player?.id),
@@ -298,6 +313,8 @@ export function compactMatchHudSlots(actions: MatchHudActions): CompactMatchHudS
   }
   const primary: MatchHudActionKey | null = actions.select
     ? "select"
+    : actions.fuse
+      ? "fuse"
     : actions.discard
       ? "discard"
     : actions["draw-card"]

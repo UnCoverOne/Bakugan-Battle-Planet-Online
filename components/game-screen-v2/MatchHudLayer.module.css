@@ -87,6 +87,30 @@
   text-transform: uppercase;
 }
 
+.fusionRequirement {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-width: 0;
+  margin-left: auto;
+  color: rgba(205, 214, 220, 0.78);
+  font-size: clamp(0.44rem, 0.56vw, 0.55rem);
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.fusionRequirement select {
+  min-width: 0;
+  padding: 0.16rem 0.2rem;
+  border: 1px solid rgba(218, 76, 68, 0.45);
+  border-radius: 0.15rem;
+  color: #fff;
+  background: rgba(6, 9, 12, 0.9);
+  font: inherit;
+  text-transform: none;
+}
+
 .playerCopy strong {
   overflow: hidden;
   color: #fff;

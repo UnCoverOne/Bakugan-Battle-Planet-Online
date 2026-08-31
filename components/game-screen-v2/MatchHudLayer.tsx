@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { cardChoiceSpec, type CardChoices, type MatchState, type PlayerState } from "../../lib/game";
+import { cardChoiceSpec, fusionActivationRequirements, type CardChoices, type MatchState, type PlayerState } from "../../lib/game";
 import { cardEnergyPaymentState } from "../../lib/cardPayment";
 import { legalEvoTargets, selectedEvoTargetId } from "../../lib/evo";
 import { drawStepIsPending } from "../../lib/turnStart";
@@ -27,6 +27,7 @@ type MatchActionHandler = () => void | Promise<void>;
 type PlayCardHandler = (cardId: string, choices: CardChoices) => void | Promise<void>;
 type EnergizeCardHandler = (cardId: string) => void | Promise<void>;
 type SelectCharacterHandler = (bakuganId: string) => void | Promise<void>;
+type ActivateFusionHandler = (bakuganId: string, requirementId: string) => void | Promise<void>;
 type DiscardCardsHandler = (cardIds: string[]) => void | Promise<void>;
 
 function PlayerStatusHud({
@@ -118,6 +119,7 @@ export function MatchHudLayer({
   onDrawCard,
   onFlipTieBreakCard,
   onActivateReroll,
+  onActivateFusion,
   onPlayCard,
   onEnergizeCard,
   onDiscardCards,
@@ -141,6 +143,7 @@ export function MatchHudLayer({
   onDrawCard: MatchActionHandler;
   onFlipTieBreakCard: MatchActionHandler;
   onActivateReroll: MatchActionHandler;
+  onActivateFusion: ActivateFusionHandler;
   onPlayCard: PlayCardHandler;
   onEnergizeCard: EnergizeCardHandler;
   onDiscardCards: DiscardCardsHandler;
@@ -156,6 +159,7 @@ export function MatchHudLayer({
   const [flipChoiceOpen, setFlipChoiceOpen] = useState(false);
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  const [fusionRequirementId, setFusionRequirementId] = useState("");
   const boardChoice = useBoardChoiceHud();
   const { player, opponent } = resolveHudPlayers(match, playerId);
   const drawPending = drawStepIsPending(match);
@@ -164,6 +168,7 @@ export function MatchHudLayer({
     setSelectionPending(false);
     setFlipChoiceOpen(false);
     setError("");
+    setFusionRequirementId("");
   }, [match?.phase, match?.version, selectedHandCardId]);
 
   useEffect(() => {
@@ -185,6 +190,7 @@ export function MatchHudLayer({
     playerId: player.id,
     mode: effectiveHandMode,
     selectedCardId: selectedHandCardId,
+    selectedCharacterId,
     selectionPending,
     now,
   });
@@ -206,7 +212,10 @@ export function MatchHudLayer({
     ? [activeBoardChoice.canCancel ? "cancel-choice" as const : null, "confirm-choice" as const]
     : compactMatchHudSlots(actions);
   const displayedError = activeBoardChoice?.error || error;
-
+  const fusionRequirements = fusionActivationRequirements(match, player.id, selectedCharacterId)
+    .filter((requirement) => requirement.legal);
+  const selectedFusionRequirement = fusionRequirements.find((requirement) => requirement.id === fusionRequirementId)
+    ?? fusionRequirements[0];
   const run = async (handler: MatchActionHandler) => {
     if (busy) return;
     setBusy(true);
@@ -283,6 +292,14 @@ export function MatchHudLayer({
     if (!selectedCard || !selectionPending) return;
   };
 
+  const activateSelectedFusion = () => {
+    if (!selectedCharacterId || !selectedFusionRequirement) {
+      setError("Select an eligible Fusion Bakugan first.");
+      return;
+    }
+    void run(() => onActivateFusion(selectedCharacterId, selectedFusionRequirement.id));
+  };
+
   const playRevealedFlip = () => {
     const flip = match.revealedFlip;
     if (!flip) return;
@@ -340,6 +357,11 @@ export function MatchHudLayer({
       active: true,
       onClick: () => void run(onActivateReroll),
     },
+    fuse: {
+      label: selectedFusionRequirement ? `Fuse • ${selectedFusionRequirement.label}` : "Fuse",
+      active: Boolean(selectedFusionRequirement),
+      onClick: activateSelectedFusion,
+    },
     discard: {
       label: discardRequirement
         ? `Discard ${selectedDiscardCardIds.length}/${discardRequirement.maximum}`
@@ -394,6 +416,22 @@ export function MatchHudLayer({
       <section className={styles.actionHud} data-slots={actionSlots.length} aria-label="Available player actions">
         <header>
           <span>ACTIONS</span>
+          {fusionRequirements.length > 1 ? (
+            <label className={styles.fusionRequirement}>
+              <span>Fusion requirement</span>
+              <select
+                value={selectedFusionRequirement?.id ?? ""}
+                onChange={(event) => setFusionRequirementId(event.target.value)}
+                aria-label="Fusion requirement"
+              >
+                {fusionRequirements.map((requirement) => (
+                  <option value={requirement.id} key={requirement.id}>
+                    {requirement.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
         </header>
         <div className={styles.actionGrid} data-slots={actionSlots.length}>
           {actionSlots.map((action, slotIndex) => (

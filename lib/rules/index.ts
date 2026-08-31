@@ -6,7 +6,7 @@ export {
   validateCardAgainstRules,
 } from "./catalogue";
 export { buildChoiceSchema, buildChoiceSchemaFromSpecs } from "./choices";
-export { cardCostBreakdown, beginCardPayment, commitCardPayment, prepareDeclaredEnergyPayment } from "./costs";
+export { cardCostBreakdown, beginCardPayment, commitCardPayment, payEnergyCost, prepareDeclaredEnergyPayment } from "./costs";
 export { canonicalEvoTargetAllowed, cardDefinitionId, cardPrintingId, characterIdentity } from "./identity";
 export { evaluateBakuganCharacteristics, activeFrostStrike, ruleConditionActive } from "./modifiers";
 export { activeExtraTurnDrawModifiers, extraTurnDrawModifiersForCard, extraTurnDrawsForPlayer, turnDrawCountForPlayer, turnDrawCounts } from "./turn-draw";

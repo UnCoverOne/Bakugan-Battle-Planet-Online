@@ -193,9 +193,10 @@ function CharacterCardZone({
   const { slot, bakugan } = zone;
   const characterCard = bakugan?.character;
   const evoCard = bakugan?.evoStack.at(-1);
-  const card = evoCard ?? characterCard;
+  const fusionCard = bakugan?.fused ? bakugan.fusionCharacter : undefined;
+  const card = evoCard ?? fusionCard ?? characterCard;
   const slamming = Boolean(card && slammingCardIds.has(card.id));
-  const cardKind = evoCard ? "Evo" : "Character";
+  const cardKind = evoCard ? "Evo" : fusionCard ? "Fusion Character" : "Character";
   const label = card
     ? `${ownerLabel(owner)} ${cardKind} Card ${slot}: ${card.displayName || card.name}`
     : `${ownerLabel(owner)} Character Card ${slot} zone`;
@@ -212,6 +213,8 @@ function CharacterCardZone({
         data-bakugan-id={bakugan?.id}
         data-card-id={card?.id}
         data-base-character-card-id={characterCard?.id}
+        data-fusion-character-card-id={fusionCard?.id}
+        data-fused={bakugan?.fused ? "true" : "false"}
         data-evo-card-id={evoCard?.id}
         data-character-open={bakugan?.open ? "true" : "false"}
         aria-label={label}

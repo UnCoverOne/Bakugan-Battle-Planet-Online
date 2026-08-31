@@ -9,7 +9,7 @@ import {
 import { executeRuleProgram } from "./rules/executor";
 import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
 import { ruleDefinitionForCard } from "./rules/catalogue";
-import { activeUnchargedEnergyIds, beginCardPayment, cardPaymentModes, commitCardPayment, normalizeEnergyCardState, prepareDeclaredEnergyPayment, rechargeEnergyCards, setEnergyCardChargeState, unchargeEnergyCards } from "./rules/costs";
+import { activeUnchargedEnergyIds, beginCardPayment, cardPaymentModes, commitCardPayment, maximumPayableEnergy, normalizeEnergyCardState, payEnergyCost, prepareDeclaredEnergyPayment, rechargeEnergyCards, setEnergyCardChargeState, unchargeEnergyCards } from "./rules/costs";
 import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
 import { turnDrawCounts } from "./rules/turn-draw";
@@ -19,9 +19,9 @@ import { captureCardPlayValues, captureInstructionValues, captureRuleConditionVa
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
 import { registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
-import type { ContinuousModifier, PendingCardPlay, RuleActionResult, RulesCardId } from "./rules/model";
+import type { AbilityDefinition, ContinuousModifier, PendingCardPlay, RuleActionResult, RuleCondition, RulesCardId } from "./rules/model";
 import { collectRuleTriggers } from "./rules/triggers";
-import { effectiveBakuganFactions, effectiveCardFactions } from "./rules/derived-characteristics";
+import { effectiveBakuganFactions, effectiveBakucoreCells, effectiveCardFactions } from "./rules/derived-characteristics";
 import { applyEnergyEntryVisibility } from "./energyVisibility";
 import {
   BATTLE_PLANET_PHYSICAL_SIMULATION_PROFILE,
@@ -1276,7 +1276,7 @@ export const orderTriggers = (input: MatchState, playerId: string, requestId: st
 
 export type GameEvent = {
   id: string;
-  type: "select" | "open" | "discard" | "energize" | "gear-attach" | "card-play" | "victor" | "attack" | "damage-taken" | "hand-empty" | "end-turn";
+  type: "select" | "open" | "discard" | "energize" | "gear-attach" | "card-play" | "fusion" | "victor" | "attack" | "damage-taken" | "hand-empty" | "end-turn";
   playerId: string;
   playerIds?: string[];
   cardType?: CardType;
@@ -1292,7 +1292,7 @@ export const collectTriggersForEvent = (state: MatchState, event: GameEvent) => 
   const names = {
     select: "BAKUGAN_SELECTED", open: "BAKUGAN_OPENED", discard: "CARD_DISCARDED", energize: "ENERGY_CARD_ENERGIZED",
     "gear-attach": "BAKU_GEAR_ATTACHED",
-    "card-play": "CARD_PLAYED", victor: "VICTOR_DECLARED", attack: "ATTACK_CREATED",
+    "card-play": "CARD_PLAYED", fusion: "FUSION_COMPLETED", victor: "VICTOR_DECLARED", attack: "ATTACK_CREATED",
     "damage-taken": "DAMAGE_TAKEN", "hand-empty": "HAND_EMPTIED", "end-turn": "TURN_ENDED",
   } as const;
   const actorIds = event.type === "open" && event.playerIds
@@ -1972,6 +1972,139 @@ export const playCard = (input: MatchState, playerId: string, cardId: string, ch
   return withVersion(state);
 };
 
+export type FusionActivationRequirement = {
+  id: string;
+  label: string;
+  energyCost: number;
+  coreTypes: CoreType[];
+  sourceText?: string;
+  condition?: RuleCondition;
+  legal: boolean;
+  reason?: string;
+};
+
+const fusionCoreTypes: Record<string, CoreType> = {
+  FT: "Fist",
+  FF: "Flaming Fist",
+  SD: "Shield",
+  MS: "Magic Shield",
+  HE: "Helix",
+};
+
+function fusionRequirementsFromCard(card: GameCard): Array<Pick<FusionActivationRequirement, "id" | "label" | "energyCost" | "coreTypes" | "sourceText" | "condition">> {
+  const requirements: Array<Pick<FusionActivationRequirement, "id" | "label" | "energyCost" | "coreTypes" | "sourceText" | "condition">> = [];
+  for (const line of card.effect.split(/\n|(?<=\.)/)) {
+    const match = line.trim().match(/^(?:(\d+)\s+\[Energy\]|\[((?:FT|FF|SD|MS|HE)(?:\]\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE))*)\])\s*:\s*<Fusion>/i);
+    if (!match) continue;
+    const symbols = match[2]
+      ? [...match[2].matchAll(/(FT|FF|SD|MS|HE)/gi)].map((candidate) => fusionCoreTypes[candidate[1].toUpperCase()])
+      : [];
+    const energyCost = Number(match[1] ?? 0);
+    const coreLabel = symbols.join(" or ");
+    requirements.push({
+      id: match[1] ? `energy:${energyCost}` : `core:${coreLabel}`,
+      label: match[1] ? `Pay ${energyCost} Energy` : `Hold ${coreLabel} Core`,
+      energyCost,
+      coreTypes: symbols,
+      sourceText: line.trim(),
+    });
+  }
+  // A Fusion with no Energy/Core prefix is a zero-cost activated ability when
+  // its own printed condition is satisfied. Triggered text such as
+  // "When you ... <Fusion>" is handled by the normal trigger system instead
+  // and must not become a duplicate manual button.
+  if (!requirements.length && card.type === "Character" && /<Fusion>/i.test(card.effect)
+    && !/^\s*(?:\[?Victor\]?|when\b|if you\b|each player\b)/i.test(card.effect)) {
+    requirements.push({
+      id: "condition",
+      label: "Meet printed condition",
+      energyCost: 0,
+      coreTypes: [],
+      sourceText: card.effect.trim(),
+      condition: ruleDefinitionForCard(card).abilities
+        .flatMap((ability) => ability.instructions)
+        .find((instruction) => instruction.actions.some((action) => action.kind === "fusion"))?.condition,
+    });
+  }
+  return requirements;
+}
+
+export function fusionActivationRequirements(
+  state: MatchState,
+  playerId: string,
+  bakuganId: string,
+): FusionActivationRequirement[] {
+  const owner = state.players.find((candidate) => candidate.id === playerId);
+  const bakugan = owner?.bakugan.find((candidate) => candidate.id === bakuganId);
+  if (!owner || !bakugan?.fusionCharacter) return [];
+  const base = fusionRequirementsFromCard(bakugan.character);
+  const heldTypes = new Set(effectiveBakucoreCells(state, bakugan, owner)
+    .map((cell) => state.placements.find((placement) => placement.cell === cell)?.core?.type)
+    .filter((type): type is CoreType => Boolean(type)));
+  return base.map((requirement) => {
+    if (bakugan.fused) return { ...requirement, legal: false, reason: "This Bakugan is already fused." };
+    if (bakugan.evoStack.length) return { ...requirement, legal: false, reason: "A Bakugan with an Evo cannot fuse." };
+    if (requirement.condition && !ruleConditionActive(state, owner, requirement.condition, bakugan)) {
+      return { ...requirement, legal: false, reason: "The printed Fusion condition is not met." };
+    }
+    if (requirement.coreTypes.length && !requirement.coreTypes.some((type) => heldTypes.has(type))) {
+      return { ...requirement, legal: false, reason: `This Bakugan is not holding a ${requirement.label.replace(/^Hold /, "")}.` };
+    }
+    if (requirement.energyCost > maximumPayableEnergy(state, playerId)) {
+      return { ...requirement, legal: false, reason: `Not enough Energy. ${requirement.energyCost} required.` };
+    }
+    return { ...requirement, legal: true };
+  });
+}
+
+export function activateFusion(
+  input: MatchState,
+  playerId: string,
+  bakuganId: string,
+  requirementId?: string,
+) {
+  const state = cloneMatch(input);
+  if (!["preRoll", "power", "victor", "postDamage", "endPlay"].includes(state.phase) || state.priority !== playerId) {
+    throw new Error("You do not have priority to activate Fusion.");
+  }
+  if (state.pendingChoice || state.pendingCoinFlip || state.pendingReroll || state.triggerOrders.some((request) => !request.orderedIds)) {
+    throw new Error("Fusion cannot be activated while another decision is pending.");
+  }
+  const owner = playerById(state, playerId);
+  const bakugan = owner.bakugan.find((candidate) => candidate.id === bakuganId);
+  if (!bakugan?.fusionCharacter) throw new Error("This Bakugan has no Fusion face.");
+  const legal = fusionActivationRequirements(state, playerId, bakuganId).filter((requirement) => requirement.legal);
+  const requirement = requirementId ? legal.find((candidate) => candidate.id === requirementId) : legal[0];
+  if (!requirement) throw new Error("This Bakugan has no legal Fusion requirement.");
+
+  payEnergyCost(state, playerId, requirement.energyCost, bakugan.character.id);
+  const ability: AbilityDefinition = {
+    id: `${bakugan.character.catalogId}:fusion-activation`,
+    kind: "activated",
+    instructions: [{
+      id: `${bakugan.character.catalogId}:fusion-activation:instruction`,
+      condition: { kind: "always" },
+      effects: [{ kind: "fusion", operation: "fuse", targetChoiceId: "targetBakuganId", requirement: requirement.id }],
+      actions: [{ kind: "fusion", operation: "fuse", targetChoiceId: "targetBakuganId", requirement: requirement.id }],
+      choices: [],
+      sourceText: requirement.sourceText ?? `${requirement.label}: <Fusion>`,
+    }],
+  };
+  const pending = createRuleObject({
+    controllerId: playerId,
+    cardOwnerId: playerId,
+    card: bakugan.character,
+    ability,
+    choices: { targetBakuganId: bakuganId },
+    kind: "card",
+    sourceId: bakugan.character.id,
+  });
+  state.batch.push(pending);
+  state.passes = [];
+  entry(state, "game", `${owner.name} activated Fusion for ${bakugan.name}.`, bakugan.character, "effect", playerId);
+  return withVersion(state);
+}
+
 const chooseBakugan = (state: MatchState, controllerId: string, choices: CardChoices, preferEnemy = false) => {
   const all = state.players.flatMap((player) => player.bakugan);
   if (choices.targetBakuganId) return all.find((bakugan) => bakugan.id === choices.targetBakuganId);
@@ -2231,6 +2364,33 @@ const executeRuleAction = (
           };
         }
       }
+      return;
+    }
+    case "fusion": {
+      const selectedId = action.targetChoiceId ? choices[action.targetChoiceId] : choices.targetBakuganId ?? choices.sourceBakuganId;
+      const fusionTarget = allBakugan.find((candidate) => candidate.id === selectedId)
+        ?? (action.targetChoiceId === "sourceBakuganId" ? allBakugan.find((candidate) => candidate.id === choices.sourceBakuganId) : undefined);
+      if (!fusionTarget?.fusionCharacter) return;
+      if (action.operation === "unfuse") {
+        if (!fusionTarget.fused) return;
+        fusionTarget.fused = false;
+        entry(state, "game", `${fusionTarget.name} was unfused.`, fusionTarget.character, "effect", controllerId);
+        return;
+      }
+      // Fusion is legal only for an unfused, non-Evolved Fusion Bakugan. The
+      // activation requirement was checked when the ability entered the
+      // batch; only the target's continuing legality is checked on resolve.
+      if (fusionTarget.fused || fusionTarget.evoStack.length) return;
+      fusionTarget.fused = true;
+      entry(state, "game", `${fusionTarget.name} fused.`, fusionTarget.fusionCharacter, "effect", controllerId);
+      emitGameEvent(state, {
+        id: `${state.turn}:fusion:${fusionTarget.id}:${pending.id}`,
+        type: "fusion",
+        playerId: controllerId,
+        targetBakuganId: fusionTarget.id,
+        sourceCards: [fusionTarget.character],
+        choices,
+      });
       return;
     }
     case "watch-turn-event": {
