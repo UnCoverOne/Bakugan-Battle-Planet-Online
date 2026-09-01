@@ -927,7 +927,22 @@ if (swapsBakucore) {
     const optionalChooser = /\beach player may\b/i.test(text)
       ? "each-player" as const
       : /\byour opponent may\b/i.test(text) ? "opponent" as const : "controller" as const;
-    result.push(choice("confirmed", "resolve", "mode", "Use this optional effect?", false, optionalChooser));
+    const paidAmount = Number(text.match(/\bpay\s+(\d+)\s+\[Energy\]/i)?.[1] ?? Number.NaN);
+    const confirmation = choice(
+      "confirmed",
+      "resolve",
+      "mode",
+      Number.isFinite(paidAmount) ? `Pay ${paidAmount} Energy?` : "Use this optional effect?",
+      false,
+      optionalChooser,
+    );
+    if (Number.isFinite(paidAmount)) {
+      confirmation.options = [
+        { id: "yes", label: `Pay ${paidAmount} Energy` },
+        { id: "no", label: "Skip" },
+      ];
+    }
+    result.push(confirmation);
   }
   if (defaultTiming === "announce" && /\bEmpower\s*:/i.test(card.effect)) {
     const empower = choice("empower", "pay", "mode", "Use Empower?", false, "controller", "public");

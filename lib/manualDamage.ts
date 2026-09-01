@@ -5,6 +5,7 @@ import {
   completeMatch,
   prepareRevealedFlipPlay,
   revealedFlipCanBePlayed,
+  resolveImmediateRuleObjects,
   resumePendingEffectAfterDamage,
   type CardLogEvent,
   type CardChoices,
@@ -138,6 +139,16 @@ export function flipDamageCard(input: MatchState, playerId: string) {
     ? ` • Armor ${printedArmor}${armorIgnored ? " ignored" : ""}`
     : "";
   log(state, "game", `${player.name} flipped ${card.name} as damage${armorNote} (absorbed ${totalAbsorbed}; ${state.pendingDamage} remaining).`);
+  const deckFlipTriggers = emitRuleEvent(state, {
+    id: `${state.turn}:deck-flip:damage:${playerId}:${card.id}:${state.informationEpoch}`,
+    name: "CARD_FLIPPED_FROM_DECK",
+    actorId: playerId,
+    controllerId: playerId,
+    card,
+    cardType: card.type,
+    createdAt: Date.now(),
+  });
+  resolveImmediateRuleObjects(state, deckFlipTriggers);
   if (card.type === "Flip" || card.type === "Flip Hero") {
     state.revealedFlip = card;
     state.stepLabel = `Damage Step • Flip decision • ${state.pendingDamage} remaining`;

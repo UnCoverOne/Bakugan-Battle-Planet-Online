@@ -1318,6 +1318,17 @@ export const collectTriggersForEvent = (state: MatchState, event: GameEvent) => 
   })) as PendingEffect[];
 };
 
+/** Resolve trigger objects created by an immediate event before its phase can continue. */
+export function resolveImmediateRuleObjects(state: MatchState, objects: PendingEffect[]) {
+  for (const object of objects) {
+    const live = state.batch.find((candidate) => candidate.id === object.id);
+    if (!live) continue;
+    const completed = live.negated || resolvePendingEffect(state, live);
+    if (completed) state.batch = state.batch.filter((candidate) => candidate.id !== live.id);
+    else break;
+  }
+}
+
 export const emitGameEvent = (state: MatchState, event: GameEvent) => {
   const triggers = collectTriggersForEvent(state, event);
   stageSimultaneousTriggers(state, event.type, triggers);
@@ -2404,6 +2415,14 @@ const executeRuleAction = (
   switch (action.kind) {
     case "choice":
       return;
+    case "pay-energy": {
+      if (choices.confirmed === false) return;
+      const amount = Math.max(0, Math.floor(resolveNumber(action.amount)));
+      if (maximumPayableEnergy(state, controllerId) < amount) return;
+      payEnergyCost(state, controllerId, amount, pending.sourceId ?? card.id);
+      recordResult({ amount });
+      return;
+    }
     case "trigger": {
       if (action.event === "VICTOR_DECLARED" && target) {
         const amount = Number(text.match(/opponent.*discard\s+(\d+)\s+cards?/i)?.[1] ?? 0);
@@ -2982,6 +3001,22 @@ case "swap-bakucore": {
           placement.attachedTo = target.id;
           target.heldCoreCells.push(placement.cell);
         }
+      } else if (action.verb === "attach" && action.object === "baku-gear" && target) {
+        const cardOwner = playerById(state, pending.cardOwnerId ?? controllerId);
+        const sourceIndex = cardOwner.discard.findIndex((candidate) => candidate.id === card.id);
+        const dual = /\bDual\b/i.test(card.effect);
+        if (target.open && sourceIndex >= 0 && (target.bakuGear?.length ?? 0) < (dual ? 2 : 1)) {
+          const [gear] = cardOwner.discard.splice(sourceIndex, 1);
+          target.bakuGear = [...(target.bakuGear ?? []), gear];
+          emitGameEvent(state, {
+            id: `${pending.id}:gear-attach:${target.id}:${gear.id}`,
+            type: "gear-attach",
+            playerId: controllerId,
+            targetBakuganId: target.id,
+            sourceCards: [gear],
+            choices,
+          });
+        }
       } else if (action.verb === "remove" && action.object === "bakucore") {
         const owners = actionAmount > 2 ? [opponent] : state.players;
         for (const owner of owners) for (const bakugan of owner.bakugan) {
@@ -3521,6 +3556,30 @@ function stageResolutionInstructionChoice(
     schema.fields = schema.fields.map((field) => field.id === "syncCardId"
       ? field
       : { ...field, minimum: 0, required: false });
+  }
+  const payAction = instruction.actions.find((action): action is Extract<RuleAction, { kind: "pay-energy" }> => action.kind === "pay-energy");
+  if (payAction) {
+    const payAmount = evaluateNumberValue(state, payAction.amount, {
+      controllerId: pending.controllerId,
+      choices: instructionChoices(pending, instructionIndex),
+      sourceCardId: pending.sourceId ?? pending.card.id,
+      moment: "resolve",
+    });
+    const confirmation = schema.fields.find((field) => field.id === "confirmed");
+    if (confirmation) {
+      const paymentUnavailable = maximumPayableEnergy(state, pending.controllerId) < payAmount;
+      const targetUnavailable = schema.fields.some((field) => (
+        field.id !== "confirmed"
+        && field.minimum > 0
+        && field.options.filter((option) => !option.disabled).length < field.minimum
+      ));
+      const reason = paymentUnavailable
+        ? `Requires ${payAmount} available Energy`
+        : targetUnavailable ? "No legal target or card is available" : undefined;
+      if (reason) confirmation.options = confirmation.options.map((option) => (
+        option.id === "yes" ? { ...option, disabled: true, description: reason } : option
+      ));
+    }
   }
   if (!schema.fields.length) {
     captureResolvedInstructionValues(state, pending, instruction, instructionIndex);

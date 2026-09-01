@@ -382,7 +382,8 @@ function optionsFor(
       return Array.from({ length: maximum + 1 }, (_, value) => option(String(value), String(value), chooser.id));
     }
     case "mode": {
-      if (spec.id === "confirmed") return [option("yes", "Yes"), option("no", "No")];
+      if (spec.id === "confirmed") return spec.options?.map((candidate) => option(candidate.id, candidate.label, controller.id, candidate.description))
+        ?? [option("yes", "Yes"), option("no", "No")];
       return spec.options?.map((candidate) => option(candidate.id, candidate.label, controller.id, candidate.description))
         ?? [option("power", "B-Power"), option("damage", "Damage")];
     }

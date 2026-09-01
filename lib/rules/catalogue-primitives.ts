@@ -253,6 +253,14 @@ function triggerFor(text: string): TriggerDefinition | undefined {
       minimumEventAmount: Number(damageThreshold[1]),
     };
   }
+  if (/when (?:you flip this|this flips) from your deck/i.test(text)) {
+    return {
+      event: "CARD_FLIPPED_FROM_DECK",
+      relationship: "controller",
+      source: "self",
+      optional: /\bmay\b/i.test(text),
+    };
+  }
   const table: Array<[RegExp, TriggerEventName, TriggerDefinition["relationship"], TriggerDefinition["source"]?]> = [
     [/when you\s+Energize\s+a\s+card/i, "ENERGY_CARD_ENERGIZED", "controller"],
     [/when you attach a Baku-Gear to this/i, "BAKU_GEAR_ATTACHED", "controller"],
@@ -558,6 +566,8 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
 
   const generatedEnergy = text.match(/\+(\d+) \[Energy\]/i);
   if (generatedEnergy) actions.push({ kind: "generate-energy", amount: numberValueForDynamicAmount(text, Number(generatedEnergy[1]), scale), playerScope: playerScopeForText(text) });
+  const paidEnergy = text.match(/\bpay\s+(\d+)\s+\[Energy\]/i);
+  if (paidEnergy) actions.unshift({ kind: "pay-energy", amount: Number(paidEnergy[1]) });
   const setPower = text.match(/\[B\] becomes (\d+)/i);
   if (setPower) actions.push({ kind: "set-stat", stat: "power", value: Number(setPower[1]) });
   const setDamage = text.match(/\[Damage Rating\] becomes (\d+)/i);
@@ -579,7 +589,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
 
       const movement: Array<[RegExp, Extract<RuleAction, { kind: "move" }>["verb"], Extract<RuleAction, { kind: "move" }>["object"]]> = [
     [/destroy .*hero/i, "destroy", "hero"], [/destroy .*evo/i, "destroy", "evo"], [/destroy .*energy/i, "destroy", "energy"], [/destroy .*Baku-Gear/i, "destroy", "baku-gear"],
-    [/return (?:one of )?(?:your )?Baku-Gear .*hand/i, "return", "baku-gear"], [/return (?!.*Baku-Gear).*hand/i, "return", "card"], [/retract .*bakugan/i, "retract", "bakugan"], [/attach .*bakucore/i, "attach", "bakucore"],
+    [/return (?:one of )?(?:your )?Baku-Gear .*hand/i, "return", "baku-gear"], [/return (?!.*Baku-Gear).*hand/i, "return", "card"], [/retract .*bakugan/i, "retract", "bakugan"], [/attach .*bakucore/i, "attach", "bakucore"], [/attach (?:this|a|an|one) .*Bakugan/i, "attach", "baku-gear"],
     [/remove .*bakucore/i, "remove", "bakucore"], [/(?:return|place) .*bakucore.*field face down/i, "return", "bakucore"],
     [/shuffle .*?(?:discard|from your hand into your deck)/i, "shuffle", "card"], [/take control and attach .*Baku-Gear/i, "control", "baku-gear"], [/take control .*hero/i, "control", "hero"], [/put this into .*hand/i, "return", "card"],
   ];

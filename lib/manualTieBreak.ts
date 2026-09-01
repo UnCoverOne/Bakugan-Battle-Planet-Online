@@ -2,12 +2,14 @@ import {
   cloneMatch,
   completeMatch,
   passPriority,
+  resolveImmediateRuleObjects,
   totalDamage,
   totalPower,
   type GameCard,
   type MatchState,
 } from "./game";
 import { ensureRulesState } from "./rules/state";
+import { emitRuleEvent } from "./rules/triggers";
 
 const TIE_BREAK_DECISION_MS = 120_000;
 const RESULT_MS = 120_000;
@@ -77,6 +79,7 @@ export function playerCanFlipTieBreak(
     input && playerId && player
     && tieBreak?.status === "waiting"
     && !tieBreak.current[playerId]
+    && !input.pendingChoice
     && player.deck > 0,
   );
 }
@@ -234,6 +237,7 @@ export function flipTieBreakCard(input: MatchState, playerId: string) {
   if (!tieBreak || tieBreak.status !== "waiting") {
     throw new Error("There is no active tie-break to resolve.");
   }
+  if (input.pendingChoice) throw new Error("Complete the pending deck-flip choice before flipping again.");
   if (tieBreak.current[playerId]) throw new Error("You already flipped for this tie-break round.");
 
   const state = cloneMatch(input);
@@ -254,6 +258,16 @@ export function flipTieBreakCard(input: MatchState, playerId: string) {
   const reveal = { card, cost: tieBreakCardCost(card) };
   liveTieBreak.current[playerId] = reveal;
   appendLog(state, "random", `${player.name} flipped ${card.displayName || card.name} for the ${liveTieBreak.decidingStat} tie-break (${reveal.cost} Energy).`);
+  const deckFlipTriggers = emitRuleEvent(state, {
+    id: `${state.turn}:deck-flip:tiebreak:${playerId}:${card.id}:${state.informationEpoch}`,
+    name: "CARD_FLIPPED_FROM_DECK",
+    actorId: playerId,
+    controllerId: playerId,
+    card,
+    cardType: card.type,
+    createdAt: Date.now(),
+  });
+  resolveImmediateRuleObjects(state, deckFlipTriggers);
 
   const reveals = state.players.map((candidate) => liveTieBreak.current[candidate.id]);
   if (reveals.some((candidate) => !candidate)) {

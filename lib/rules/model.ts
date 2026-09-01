@@ -114,6 +114,7 @@ export type ChoiceSpec = {
 
 export type TriggerEventName =
   | "CARD_PLAYED"
+  | "CARD_FLIPPED_FROM_DECK"
   | "BAKUGAN_SELECTED"
   | "BAKUGAN_OPENED"
   | "CARD_DISCARDED"
@@ -169,6 +170,7 @@ export type RuleAction =
   | { kind: "discard"; amount: NumberValue; minimum: NumberValue; maximum: NumberValue; repeated?: boolean; playerScope?: PlayerScope }
   | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "discard" | "hero" | "self"; enters: "charged" | "uncharged"; playerScope?: PlayerScope; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "generate-energy"; amount: NumberValue; playerScope?: PlayerScope }
+  | { kind: "pay-energy"; amount: NumberValue }
   | { kind: "uncharge-energy"; amount: NumberValue | "all"; playerScope?: PlayerScope; producesEnergy: boolean; preventChargeStepRecharge?: boolean }
   | { kind: "recharge-energy"; amount: NumberValue | "all" }
   | SwapBakucoreEffect
