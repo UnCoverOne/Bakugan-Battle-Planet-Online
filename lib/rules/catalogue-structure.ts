@@ -126,6 +126,18 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
             `Then ${selfRecycle[2].trim()}.`,
           ];
         }
+        // “If another card causes you to reveal this from your hand” is a
+        // separate triggered ability even when the printing omits a period
+        // before the clause (for example, “+5 Damage If another card ...”).
+        const handRevealTrigger = clause.match(
+          /^(?!If another card causes you to reveal this(?: card)? from your hand)(.+?)\s+(If another card causes you to reveal this(?: card)? from your hand,\s*.+)$/i,
+        );
+        if (handRevealTrigger?.[1].trim() && handRevealTrigger[2].trim()) {
+          return [
+            `${handRevealTrigger[1].trim().replace(/[,;:]$/, "")}.`,
+            handRevealTrigger[2].trim(),
+          ];
+        }
         // Sync is a reveal-from-hand gate. Keep the base effect separate so
         // selecting a legal card controls only the Sync bonus or replacement.
         // Trigger prefixes such as Victor and When this opens must stay on the

@@ -20,7 +20,7 @@ import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRu
 import { applyReplacements, registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
 import type { AbilityDefinition, ContinuousModifier, PendingCardPlay, RuleActionResult, RuleCondition, RulesCardId } from "./rules/model";
-import { collectRuleTriggers } from "./rules/triggers";
+import { collectRuleTriggers, emitRuleEvent } from "./rules/triggers";
 import { effectiveBakuganFactions, effectiveBakucoreCells, effectiveCardFactions } from "./rules/derived-characteristics";
 import { applyEnergyEntryVisibility } from "./energyVisibility";
 import {
@@ -1834,30 +1834,51 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
   }
   const merged = mergeChoiceAnswers(pending.schema, pending.answers);
   const submittedSyncCardId = choices.syncCardId?.[0] ?? merged.syncCardId;
+  const syncCauseCard = pending.kind === "resolution" && pending.pendingEffectId
+    ? state.batch.find((candidate) => candidate.id === pending.pendingEffectId)?.card
+    : undefined;
+  let revealTriggers: PendingEffect[] = [];
   if (submittedSyncCardId) {
     const revealed = playerById(state, pending.controllerId).hand.find((card) => card.id === submittedSyncCardId);
     if (revealed) {
       revealed.revealedToOpponents = true;
       entry(state, "game", `${playerById(state, pending.controllerId).name} revealed ${revealed.name} from hand for Sync.`);
+      revealTriggers = syncCauseCard ? emitHandRevealEvents(
+        state,
+        pending.controllerId,
+        [revealed],
+        syncCauseCard,
+        `${pending.id}:hand-reveal:sync`,
+      ) : [];
     }
   }
   if (pending.kind === "resolution" && pending.instructionIndex != null
     && submittedSyncCardId && pending.schema.fields.some((field) => field.id === "syncCardId")) {
+    const effect = state.batch.find((candidate) => candidate.id === pending.pendingEffectId);
+    if (!effect) throw new Error("The resolving batch object is no longer available.");
+    effect.resolvedChoices = {
+      ...(effect.resolvedChoices ?? {}),
+      [String(pending.instructionIndex)]: {
+        ...(effect.resolvedChoices?.[String(pending.instructionIndex)] ?? {}),
+        syncCardId: choices.syncCardId,
+      },
+    };
+    if (revealTriggers.length) {
+      state.pendingChoice = undefined;
+      resolveImmediateRuleObjects(state, revealTriggers);
+      if (!state.pendingChoice && !state.pendingReroll && !state.pendingCoinFlip) {
+        state.priority = pending.resumePriority ?? state.startingPlayer;
+        state.deadline = pending.resumeDeadline ?? deadlineFor(state.phase);
+        state.stepLabel = pending.resumeStepLabel ?? state.stepLabel;
+      }
+      return withVersion(state);
+    }
     const remainingFields = pending.schema.fields.filter((field) => {
       if (field.id === "syncCardId") return false;
       const value = choices[field.id];
       return value === undefined || (Array.isArray(value) && value.length === 0);
     }).map((field) => ({ ...field, minimum: Math.max(1, field.minimum), required: true }));
     if (remainingFields.length) {
-      const effect = state.batch.find((candidate) => candidate.id === pending.pendingEffectId);
-      if (!effect) throw new Error("The resolving batch object is no longer available.");
-      effect.resolvedChoices = {
-        ...(effect.resolvedChoices ?? {}),
-        [String(pending.instructionIndex)]: {
-          ...(effect.resolvedChoices?.[String(pending.instructionIndex)] ?? {}),
-          syncCardId: choices.syncCardId,
-        },
-      };
       pending.schema = { ...pending.schema, fields: remainingFields };
       pending.answers = {};
       state.priority = remainingFields[0].chooserId;
@@ -2252,6 +2273,26 @@ function emitEnergizedEvents(
       sourceCards: [card],
     });
   }
+}
+
+/** Queue triggers caused by an effect revealing one or more hand cards. */
+function emitHandRevealEvents(
+  state: MatchState,
+  handOwnerId: string,
+  cards: readonly GameCard[],
+  causeCard: GameCard,
+  eventPrefix: string,
+) {
+  return cards.flatMap((revealed, index) => emitRuleEvent(state, {
+    id: `${eventPrefix}:${index}:${revealed.id}`,
+    name: "CARD_REVEALED_FROM_HAND",
+    actorId: handOwnerId,
+    controllerId: handOwnerId,
+    card: revealed,
+    cardType: revealed.type,
+    causeCard,
+    createdAt: Date.now(),
+  }));
 }
 
 const instructionChoices = (pending: PendingEffect, instructionIndex: number) => Object.entries(pending.resolvedChoices ?? {})
@@ -3166,6 +3207,10 @@ case "swap-bakucore": {
         sourceZone = "discard";
         sourceOwnerId = pending.cardOwnerId ?? controllerId;
         selected = playerById(state, sourceOwnerId).discard.find((candidate) => candidate.id === card.id);
+      } else if (action.source === "revealed-hand") {
+        sourceZone = "hand";
+        sourceOwnerId = pending.cardOwnerId ?? controllerId;
+        selected = playerById(state, sourceOwnerId).hand.find((candidate) => candidate.id === card.id);
       } else {
         sourceZone = "deck";
         const revealedId = player.revealedDeckCardId ?? choices.deckCardId;
@@ -3530,7 +3575,8 @@ function stageResolutionInstructionChoice(
   stopWhenEmpty?: keyof CardChoices,
 ): "continue" | "suspend" | "skip" {
   const existing = pending.resolvedChoices?.[String(instructionIndex)];
-  if (existing) {
+  const partialSync = Boolean(existing?.syncCardId && instruction.choices.some((choice) => choice.id === "syncCardId"));
+  if (existing && !partialSync) {
     captureResolvedInstructionValues(state, pending, instruction, instructionIndex);
     return existing.confirmed === false ? "skip" : "continue";
   }
@@ -3552,7 +3598,11 @@ function stageResolutionInstructionChoice(
   // clause; a successful reveal promotes the remaining choices to required
   // and asks for them before the gated effects execute.
   const syncField = schema.fields.find((field) => field.id === "syncCardId");
-  if (syncField?.minimum === 0) {
+  if (partialSync) {
+    schema.fields = schema.fields
+      .filter((field) => field.id !== "syncCardId")
+      .map((field) => ({ ...field, minimum: Math.max(1, field.minimum), required: true }));
+  } else if (syncField?.minimum === 0) {
     schema.fields = schema.fields.map((field) => field.id === "syncCardId"
       ? field
       : { ...field, minimum: 0, required: false });
@@ -3616,6 +3666,23 @@ function stageResolutionInstructionChoice(
   if (!schemaHasLegalCompletion(schema)) {
     entry(state, "game", `${pending.card.name}: the clause had no legal choice and did nothing.`);
     return "skip";
+  }
+  const handViewer = schema.fields.find((field) => field.viewerOnly);
+  if (handViewer) {
+    const revealedIds = new Set(handViewer.options.map((option) => option.id));
+    const revealedCards = state.players.flatMap((owner) => owner.hand)
+      .filter((candidate) => revealedIds.has(candidate.id));
+    const revealTriggers = emitHandRevealEvents(
+      state,
+      handViewer.options[0]?.ownerId ?? pending.controllerId,
+      revealedCards,
+      pending.card,
+      `${pending.id}:hand-reveal:${instructionIndex}`,
+    );
+    if (revealTriggers.length) {
+      resolveImmediateRuleObjects(state, revealTriggers);
+      if (state.pendingChoice || state.pendingReroll || state.pendingCoinFlip) return "suspend";
+    }
   }
   state.pendingChoice = {
     id: uid(),

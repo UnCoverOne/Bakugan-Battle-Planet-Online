@@ -38,6 +38,8 @@ export type ChoiceField = {
   options: ChoiceOption[];
   /** Printed size of a top-deck inspection window before deck scarcity is applied. */
   requestedWindowSize?: number;
+  /** This field exposes a hidden-zone viewer but does not select a card. */
+  viewerOnly?: boolean;
 };
 export type ChoiceSchema = {
   id: string;
@@ -452,6 +454,7 @@ export function buildChoiceSchemaFromSpecs(
         maximum,
         required: range.minimum > 0,
         options,
+        ...(spec.viewerOnly ? { viewerOnly: true } : {}),
         ...(kind === "deck-order" && topDeckCount(match, controllerId, spec, priorChoices, chooserId) > 0
           ? { requestedWindowSize: topDeckCount(match, controllerId, spec, priorChoices, chooserId) }
           : {}),

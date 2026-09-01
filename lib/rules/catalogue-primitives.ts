@@ -225,6 +225,15 @@ export function conditionFor(text: string): RuleCondition {
 }
 
 function triggerFor(text: string): TriggerDefinition | undefined {
+  if (/if another card causes you to reveal this(?: card)? from your hand/i.test(text)) {
+    return {
+      event: "CARD_REVEALED_FROM_HAND",
+      relationship: "controller",
+      source: "self",
+      causedByCard: true,
+      optional: /\bmay\b/i.test(text),
+    };
+  }
   if (/when you\s+<Fusion>\s+(?:(?:a|an|another)\s+)?Bakugan/i.test(text)) {
     return { event: "FUSION_COMPLETED", relationship: "controller" };
   }
@@ -647,7 +656,13 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     amount: 1,
     sourceOwner: /opponent['’]s deck/i.test(text) ? "opponent" : "controller",
   });
-  if (/play (?:it|this card) for free/i.test(text)) actions.push({
+  if (/if another card causes you to reveal this(?: card)? from your hand[\s\S]*play this for free/i.test(text)) actions.push({
+    kind: "play",
+    source: "revealed-hand",
+    free: true,
+  });
+  if (/play (?:it|this card) for free/i.test(text)
+    && !/if another card causes you to reveal this(?: card)? from your hand/i.test(text)) actions.push({
     kind: "play",
     source: /(?:this is discarded|discard this card)/i.test(text) ? "self" : "revealed-deck",
     free: true,

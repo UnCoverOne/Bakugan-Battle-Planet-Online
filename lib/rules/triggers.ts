@@ -16,6 +16,8 @@ export type RuleEvent = {
   actorId: string;
   controllerId?: string;
   card?: GameCard;
+  /** Card whose effect caused the event card to be revealed. */
+  causeCard?: GameCard;
   cardType?: CardType;
   targetBakuganId?: string;
   choices?: CardChoices;
@@ -151,6 +153,7 @@ function triggerMatches(
   }
   if (!relationshipMatches(trigger, owner.id, event)) return false;
   if (trigger.source === "self" && source.id !== event.card?.id) return false;
+  if (trigger.causedByCard && (!event.causeCard || event.causeCard.id === source.id)) return false;
   if (trigger.cardType && trigger.cardType !== event.cardType) return false;
   if (trigger.cardMechanic && !event.card?.mechanics.some((mechanic) => mechanic.toLowerCase() === trigger.cardMechanic!.toLowerCase())) return false;
   if (trigger.limit?.kind === "first-each-turn" && trigger.cardType) {

@@ -115,6 +115,7 @@ export type ChoiceSpec = {
 export type TriggerEventName =
   | "CARD_PLAYED"
   | "CARD_FLIPPED_FROM_DECK"
+  | "CARD_REVEALED_FROM_HAND"
   | "BAKUGAN_SELECTED"
   | "BAKUGAN_OPENED"
   | "CARD_DISCARDED"
@@ -133,6 +134,8 @@ export type TriggerDefinition = {
   relationship: "controller" | "opponent" | "any";
   /** Restrict a trigger such as "When you play this" to its own card-play event. */
   source?: "self";
+  /** The event must have been caused by a different card. */
+  causedByCard?: boolean;
   cardType?: CardType;
   /** Effective faction(s) the played card must have. */
   factions?: Faction[];
@@ -183,7 +186,7 @@ export type RuleAction =
   | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "baku-gear" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope; subject?: "self" | "chosen"; destination?: "owner-hand" | "owner-deck-bottom"; retainChoiceId?: keyof CardChoices; excludeSource?: boolean }
   | { kind: "reveal"; object: "bakucore" | "deck-top"; amount: NumberValue; sourceOwner?: ZoneOwner }
   | { kind: "reorder-deck"; amount: NumberValue }
-  | { kind: "play"; source: "revealed-deck" | "hand" | "discard" | "self"; free: boolean; cardType?: CardType; excludedCardTypes?: CardType[]; factions?: Faction[]; cardName?: string; cardMechanic?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
+  | { kind: "play"; source: "revealed-deck" | "hand" | "discard" | "self" | "revealed-hand"; free: boolean; cardType?: CardType; excludedCardTypes?: CardType[]; factions?: Faction[]; cardName?: string; cardMechanic?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "attack"; amount: NumberValue; faction?: Faction }
   | { kind: "negate"; cardType: "Action" | "Hero" | "Baku-Gear" | "any"; copy: boolean; targetChoiceId?: keyof CardChoices; maximumCost?: NumberValue; targetKinds?: Array<"card" | "trigger" | "copy"> }
   | { kind: "search"; cardType?: string; amount: NumberValue }
