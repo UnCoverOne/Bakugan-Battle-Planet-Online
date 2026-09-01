@@ -79,6 +79,9 @@ function chooseOneBranches(text: string): BattleMasteryBranch[] | null {
 
 function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   const normalized = source.replace(
+    /\s*Instabrawl\s*:\s*For\s+\d+\s+\[Energy\]\s*\([^)]*\)\.?/gi,
+    "",
+  ).replace(
     /\s*\n\s*(?=(?:(?:\d+)\s+\[Energy\]|\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:\s*<Fusion>)/gi,
     ". ",
   ).replace(/\s*\n\s*/g, " ").trim().replace(

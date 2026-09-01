@@ -479,6 +479,11 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       playerScope: drawScope,
     });
   }
+  const heroEvoProtection = /\bYour\s+(?:Evo cards?\s+and\s+Hero cards?|Hero cards?\s+and\s+Evo cards?)\s+(?:can't|cannot)\s+be\s+destroyed\s+this\s+turn\b/i.test(text);
+  if (heroEvoProtection) {
+    actions.push({ kind: "prevention", event: "DESTROY", object: "evo", playerScope: "controller" });
+    actions.push({ kind: "prevention", event: "DESTROY", object: "hero", playerScope: "controller" });
+  }
   const discard = text.match(/\bdiscards?\s+(a|an|one|two|three|any|up to|\d+)(?:\s+(?:Action|Evo|Flip|Hero|Character))?\s+cards?/i);
   const delayedVictorDiscard = /if you open on the Reroll/i.test(text) && /\bVictor\s*:/i.test(text);
   const discardPaysPlayCost = /\bdiscard\s+(?:a|an|one|two|three|\d+)\s+cards?\s+to play this for free\b/i.test(text);

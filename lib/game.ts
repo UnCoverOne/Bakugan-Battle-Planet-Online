@@ -9,7 +9,7 @@ import {
 import { executeRuleProgram } from "./rules/executor";
 import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rules/effects";
 import { ruleDefinitionForCard } from "./rules/catalogue";
-import { activeUnchargedEnergyIds, beginCardPayment, cardPaymentModes, commitCardPayment, maximumPayableEnergy, normalizeEnergyCardState, payEnergyCost, prepareDeclaredEnergyPayment, rechargeEnergyCards, setEnergyCardChargeState, unchargeEnergyCards } from "./rules/costs";
+import { activeUnchargedEnergyIds, beginCardPayment, cardPaymentModes, commitCardPayment, instabrawlCostFor, maximumPayableEnergy, normalizeEnergyCardState, payEnergyCost, prepareDeclaredEnergyPayment, rechargeEnergyCards, setEnergyCardChargeState, unchargeEnergyCards } from "./rules/costs";
 import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
 import { turnDrawCounts } from "./rules/turn-draw";
@@ -17,7 +17,7 @@ import { playerIdsForScope, zoneOwnerIdsFor } from "./rules/primitives";
 import { evaluateNumberValue, type EvaluationMoment, type NumberValue } from "./rules/values";
 import { captureCardPlayValues, captureInstructionValues, captureRuleConditionValues } from "./rules/value-capture";
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
-import { registerReplacement } from "./rules/replacements";
+import { applyReplacements, registerReplacement } from "./rules/replacements";
 import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
 import type { AbilityDefinition, ContinuousModifier, PendingCardPlay, RuleActionResult, RuleCondition, RulesCardId } from "./rules/model";
 import { collectRuleTriggers } from "./rules/triggers";
@@ -71,6 +71,8 @@ export type GameCard = {
   fusionFace?: "a" | "b";
   /** Turn in which this physical card instance entered play. */
   playedTurn?: number;
+  /** This Hero was played through its temporary InstaBrawl payment route. */
+  instabrawl?: boolean;
   /** Owner-only deadline for a card Energized from the top of the deck. */
   energyFaceRevealUntil?: number;
   /** A Sync reveal remains public while this physical card stays in hand. */
@@ -1221,10 +1223,12 @@ export const cardChoiceSpec = (_state: MatchState, _playerId: string, card: Game
     confirmed: "mode",
   };
   const definition = ruleDefinitionForCard(card);
-  return [...new Set(definition.play.choices
+  const result = [...new Set(definition.play.choices
     .filter((choice) => choice.timing === "announce" || choice.timing === "pay")
     .map((choice) => mapping[choice.id])
     .filter((value): value is string => Boolean(value)))];
+  if (instabrawlCostFor(card) != null && !result.includes("mode")) result.push("mode");
+  return result;
 };
 
 const stageSimultaneousTriggers = (state: MatchState, event: string, triggers: PendingEffect[]) => {
@@ -1380,6 +1384,9 @@ function validateCardPlayRequest(state: MatchState, request: PendingCardPlay, ch
   if (alternateWinEffectPending(state)) throw new Error("Dragonoid Maximus's alternate win effect cannot be responded to with cards.");
   const { card } = playSourceCard(state, request);
   if (card.type === "Character") throw new Error("Character cards cannot be played from a card zone.");
+  if (request.instabrawl && (request.origin !== "priority" || card.type !== "Hero" || instabrawlCostFor(card) == null)) {
+    throw new Error("Only a Hero with a printed InstaBrawl cost can use InstaBrawl.");
+  }
   if (!cardRerollTimingLegal(state, request.controllerId, card)) {
     throw new Error("This mandatory Reroll card can be played only after the first roll and before the Victor Step.");
   }
@@ -1547,6 +1554,10 @@ function commitCardPlayMutable(state: MatchState, request: PendingCardPlay) {
   validateCardPlayRequest(state, request, choices);
   const { mode } = selectedPaymentMode(state, request, card, choices);
   if (!mode || !mode.legal) throw new Error(mode?.reason ?? "This card has no legal payment method.");
+  if (mode.instabrawl && request.origin !== "priority") {
+    throw new Error("InstaBrawl can only be declared when playing a Hero from your hand.");
+  }
+  request.instabrawl = Boolean(mode.instabrawl);
 
   const discardedBeforePayment = mode.additionalCosts.flatMap((cost) => {
     const value = choices[cost.choiceId];
@@ -1555,6 +1566,7 @@ function commitCardPlayMutable(state: MatchState, request: PendingCardPlay) {
   });
   const context = {
     forcedFreeBase: request.forcedFreeBase,
+    instabrawlBaseCost: mode.instabrawl ? instabrawlCostFor(card) ?? undefined : undefined,
     selectedAlternativeId: mode.id === "normal" || mode.id === "forced-free" ? undefined : mode.id,
     capturedValues: request.valueSnapshots,
   };
@@ -1564,6 +1576,7 @@ function commitCardPlayMutable(state: MatchState, request: PendingCardPlay) {
   emitPaymentDiscardEvents(state, request.controllerId, discardedBeforePayment);
 
   const played = removePlaySourceCard(state, request);
+  if (request.instabrawl) played.instabrawl = true;
   const controller = playerById(state, request.controllerId);
   recordCardPlayedForTurn(controller, played, state.turn);
   state.nextCardEmpowerReduction ??= {};
@@ -2115,14 +2128,49 @@ const chooseBakugan = (state: MatchState, controllerId: string, choices: CardCho
   return activeBakugan(state, owner.id) ?? owner.bakugan.find((bakugan) => bakugan.open) ?? owner.bakugan[0];
 };
 
-const destroyHero = (state: MatchState, controllerId: string, choices: CardChoices, allEnemy: boolean) => {
+function destroyHeroCard(state: MatchState, owner: PlayerState, hero: GameCard, sourceId: string) {
+  const result = applyReplacements(state, {
+    id: `${state.turn}:destroy:hero:${owner.id}:${hero.id}:${state.version}`,
+    kind: "DESTROY",
+    actorId: owner.id,
+    sourceId,
+    targetId: hero.id,
+    metadata: { object: "hero", ownerId: owner.id, cardType: hero.type },
+  });
+  if (!result.event) return false;
+  const discarded = { ...hero };
+  delete discarded.instabrawl;
+  owner.discard.push(discarded);
+  return true;
+}
+
+function destroyEvoCard(state: MatchState, owner: PlayerState, evo: GameCard, sourceId: string) {
+  const result = applyReplacements(state, {
+    id: `${state.turn}:destroy:evo:${owner.id}:${evo.id}:${state.version}`,
+    kind: "DESTROY",
+    actorId: owner.id,
+    sourceId,
+    targetId: evo.id,
+    metadata: { object: "evo", ownerId: owner.id, cardType: evo.type },
+  });
+  if (!result.event) return false;
+  const discarded = { ...evo };
+  delete discarded.instabrawl;
+  owner.discard.push(discarded);
+  return true;
+}
+
+const destroyHero = (state: MatchState, controllerId: string, choices: CardChoices, allEnemy: boolean, sourceId = "system") => {
   const owners = allEnemy ? [otherPlayer(state, controllerId)] : state.players;
   for (const owner of owners) {
     const selected = allEnemy ? owner.heroes : owner.heroes.filter((hero) => hero.id === choices.targetHeroId);
     if (!selected.length) continue;
     const ids = new Set(selected.map((hero) => hero.id));
-    owner.heroes = owner.heroes.filter((hero) => !ids.has(hero.id));
-    owner.discard.push(...selected);
+    const remaining: GameCard[] = [];
+    for (const hero of owner.heroes) {
+      if (!ids.has(hero.id) || !destroyHeroCard(state, owner, hero, sourceId)) remaining.push(hero);
+    }
+    owner.heroes = remaining;
   }
 };
 
@@ -2131,6 +2179,7 @@ const destroyEvo = (
   controllerId: string,
   choices: CardChoices,
   options: { allEnemy?: boolean; allPlayers?: boolean; excludeSourceId?: string } = {},
+  sourceId = "system",
 ) => {
   const owners = options.allPlayers
     ? state.players
@@ -2141,8 +2190,11 @@ const destroyEvo = (
       : bakugan.evoStack.filter((evo) => evo.id === choices.targetEvoId);
     if (!selected.length) continue;
     const ids = new Set(selected.map((evo) => evo.id));
-    bakugan.evoStack = bakugan.evoStack.filter((evo) => !ids.has(evo.id));
-    owner.discard.push(...selected);
+    const remaining: GameCard[] = [];
+    for (const evo of bakugan.evoStack) {
+      if (!ids.has(evo.id) || !destroyEvoCard(state, owner, evo, sourceId)) remaining.push(evo);
+    }
+    bakugan.evoStack = remaining;
   }
 };
 
@@ -2531,7 +2583,7 @@ const executeRuleAction = (
     case "replacement":
     case "prevention":
       registerReplacement(state, {
-        id: `${pending.id}:${instructionIndex}:${action.kind}`,
+        id: `${pending.id}:${instructionIndex}:${actionIndex}:${action.kind}`,
         source: pending.sourceId
           ? { kind: "card", instanceId: pending.sourceId, catalogId: pending.card.catalogId as `bb-${number}` }
           : { kind: "card", instanceId: pending.card.id, catalogId: pending.card.catalogId as `bb-${number}` },
@@ -2684,6 +2736,7 @@ const executeRuleAction = (
           const index = owner.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
           if (index >= 0) {
             const energized = owner.heroes.splice(index, 1);
+            for (const moved of energized) delete moved.instabrawl;
             applyEnergyEntryVisibility(energized, "hero");
             owner.energyZone.push(...energized);
             applyEnergizedEntryState(state, owner, energized, action.enters);
@@ -2841,22 +2894,28 @@ case "swap-bakucore": {
       if (action.verb === "destroy" && action.object === "hero" && /destroy this/i.test(text)) {
         for (const owner of state.players) {
           const destroyed = owner.heroes.filter((hero) => hero.id === pending.sourceId || hero.id === card.id);
-          owner.heroes = owner.heroes.filter((hero) => !destroyed.some((candidate) => candidate.id === hero.id));
-          owner.discard.push(...destroyed);
+          const destroyedIds = new Set(destroyed.map((hero) => hero.id));
+          const remaining: GameCard[] = [];
+          for (const hero of owner.heroes) {
+            if (!destroyedIds.has(hero.id) || !destroyHeroCard(state, owner, hero, pending.sourceId ?? card.id)) remaining.push(hero);
+          }
+          owner.heroes = remaining;
         }
       } else if (action.verb === "destroy" && action.object === "hero") {
         if (action.playerScope === "all-players") {
           for (const owner of state.players) {
-            const destroyed = [...owner.heroes];
-            owner.heroes = [];
-            owner.discard.push(...destroyed);
+            const remaining: GameCard[] = [];
+            for (const hero of owner.heroes) {
+              if (!destroyHeroCard(state, owner, hero, pending.sourceId ?? card.id)) remaining.push(hero);
+            }
+            owner.heroes = remaining;
           }
-        } else destroyHero(state, controllerId, choices, actionAmount > 2);
+        } else destroyHero(state, controllerId, choices, actionAmount > 2, pending.sourceId ?? card.id);
       } else if (action.verb === "destroy" && action.object === "evo") destroyEvo(state, controllerId, choices, {
         allEnemy: actionAmount > 2 && action.playerScope !== "all-players",
         allPlayers: action.playerScope === "all-players",
         excludeSourceId: action.excludeSource ? pending.sourceId ?? card.id : undefined,
-      });
+      }, pending.sourceId ?? card.id);
       else if (action.verb === "destroy" && action.object === "energy") {
         if (action.retainChoiceId && action.playerScope === "each-player") {
           for (const owner of state.players) {
@@ -2887,7 +2946,11 @@ case "swap-bakucore": {
         }
       } else if (action.verb === "control" && action.object === "hero") {
         const index = opponent.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
-        if (index >= 0) player.heroes.push(...opponent.heroes.splice(index, 1));
+        if (index >= 0) {
+          const moved = opponent.heroes.splice(index, 1);
+          for (const hero of moved) delete hero.instabrawl;
+          player.heroes.push(...moved);
+        }
       } else if (action.verb === "control" && action.object === "baku-gear") {
         const gearId = choices.targetCardId;
         const destination = target;
@@ -2968,7 +3031,9 @@ case "swap-bakucore": {
           for (const owner of state.players) {
             const heroIndex = owner.heroes.findIndex((candidate) => candidate.id === choices.targetCardId);
             if (heroIndex >= 0) {
-              owner.hand.push(...owner.heroes.splice(heroIndex, 1));
+              const returned = owner.heroes.splice(heroIndex, 1);
+              for (const hero of returned) delete hero.instabrawl;
+              owner.hand.push(...returned);
               break;
             }
             const bakugan = owner.bakugan.find((candidate) => candidate.evoStack.at(-1)?.id === choices.targetCardId);
@@ -3875,9 +3940,31 @@ function finishDamage(state: MatchState) {
   setPhase(state, "postDamage", "Damage Step • Post-damage priority", state.startingPlayer);
 }
 
+function resolveInstabrawlCleanup(state: MatchState) {
+  for (const owner of state.players) {
+    const remaining: GameCard[] = [];
+    for (const hero of owner.heroes) {
+      if (!hero.instabrawl) {
+        remaining.push(hero);
+        continue;
+      }
+      if (destroyHeroCard(state, owner, hero, `instabrawl:${hero.id}`)) {
+        entry(state, "game", `${hero.displayName || hero.name} was destroyed by InstaBrawl at the end of the turn.`, hero, "effect", owner.id);
+      } else {
+        // The temporary status is consumed even when a destruction-prevention
+        // effect such as Honey Trap keeps the Hero in play.
+        delete hero.instabrawl;
+        remaining.push(hero);
+      }
+    }
+    owner.heroes = remaining;
+  }
+}
+
 function beginChargeStep(state: MatchState) {
   emitGameEvent(state, { id: `${state.turn}:end-turn`, type: "end-turn", playerId: state.startingPlayer });
   if (state.batch.length || state.triggerOrders.length) return;
+  resolveInstabrawlCleanup(state);
   for (const player of state.players) for (const bakugan of player.bakugan) {
     if (state.delayedRetracts.includes(bakugan.id)) retractBakugan(state, bakugan);
   }

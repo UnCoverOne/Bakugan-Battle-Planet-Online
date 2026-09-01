@@ -13,6 +13,8 @@ export type CompactCardInstance = {
   p?: number;
   /** Temporary owner-only Energy reveal deadline. */
   r?: number;
+  /** This Hero was played through InstaBrawl and awaits end-of-turn cleanup. */
+  ib?: 1;
 };
 
 export type CompactCoreInstance = { i: string; c: string };

@@ -23,6 +23,8 @@ export type CardCostBreakdown = {
 export type CardCostContext = {
   /** External “play ... for free” effects set the base to zero before all modifiers. */
   forcedFreeBase?: boolean;
+  /** InstaBrawl replaces the printed base cost before normal reductions apply. */
+  instabrawlBaseCost?: number;
   selectedAlternativeId?: string;
   /** Captured announce/pay values from the shared card-play transaction. */
   capturedValues?: Record<string, number>;
@@ -35,8 +37,15 @@ export type CardPaymentMode = {
   energyCost: number;
   additionalCosts: CardCostBreakdown["additionalCosts"];
   legal: boolean;
+  instabrawl?: boolean;
   reason?: string;
 };
+
+export function instabrawlCostFor(card: GameCard) {
+  if (card.type !== "Hero") return null;
+  const match = card.effect.match(/\bInstabrawl\s*:\s*For\s+(\d+)\s+\[Energy\]/i);
+  return match ? Number(match[1]) : null;
+}
 
 type EnergyTrackedPlayer = PlayerState & {
   /** Canonical horizontal/uncharged Energy-card state. */
@@ -151,7 +160,7 @@ export function cardCostBreakdown(
   }
 
   const frostStrike = (card.type === "Flip" || card.type === "Flip Hero") && state.damageOrigin ? activeFrostStrike(state, state.damageOrigin) : 0;
-  const base = freeBase ? 0 : printed;
+  const base = freeBase ? 0 : context.instabrawlBaseCost ?? printed;
   return {
     printed,
     xValue,
@@ -232,6 +241,25 @@ export function cardPaymentModes(
     additionalCosts: normal.additionalCosts,
     ...paymentLegality(state, playerId, card, choices, normal),
   });
+
+  const instabrawlCost = instabrawlCostFor(card);
+  if (instabrawlCost != null) {
+    const instabrawlChoices = { ...choices, paymentMode: `instabrawl:${instabrawlCost}` };
+    const breakdown = cardCostBreakdown(state, playerId, card, instabrawlChoices, {
+      instabrawlBaseCost: instabrawlCost,
+      capturedValues: context.capturedValues,
+    });
+    const legality = paymentLegality(state, playerId, card, choices, breakdown);
+    modes.push({
+      id: `instabrawl:${instabrawlCost}`,
+      label: `InstaBrawl — pay ${instabrawlCost} Energy`,
+      freeBase: breakdown.freeBase,
+      energyCost: breakdown.total,
+      additionalCosts: breakdown.additionalCosts,
+      instabrawl: true,
+      ...legality,
+    });
+  }
 
   for (const alternative of definition.play.costModifiers.filter((modifier): modifier is Extract<CostEffect, { kind: "cost-alternative" }> => (
     modifier.kind === "cost-alternative" && modifierActive(state, player, modifier, choices)

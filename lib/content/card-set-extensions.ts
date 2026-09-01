@@ -103,6 +103,7 @@ function mechanicsFor(effect: string) {
     [/\bEmpower\b/i, "Empower"],
     [/\bBaku-Gear\b/i, "Baku-Gear"],
     [/<Fusion>|\bFusion\b/i, "Fusion"],
+    [/\bInstabrawl\b/i, "Instabrawl"],
     [/\bwin the game\b/i, "Alternate Win"],
     [/\bWhen\b|\bAt the end\b/i, "Triggered"],
     [/\bYour Bakugan\b|\bOpposing Bakugan\b|\bTreat all\b/i, "Static"],

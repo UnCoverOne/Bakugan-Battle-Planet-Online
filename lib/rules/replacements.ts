@@ -4,6 +4,7 @@ import { ruleConditionActive } from "./modifiers";
 import type { ProposedEvent, RuleAction, RuleSourceReference } from "./model";
 import { ensureRulesState } from "./state";
 import { evaluateNumberValue } from "./values";
+import { playerIdsForScope } from "./primitives";
 
 export type ReplacementApplication = {
   event: ProposedEvent | null;
@@ -74,6 +75,13 @@ export function applyReplacements(state: MatchState, proposed: ProposedEvent): R
     consumeReplacementIteration();
     const applicable = rules.replacements
       .filter((replacement) => !appliedIds.includes(replacement.id) && replacement.effect.event === event!.kind)
+      .filter((replacement) => !replacement.effect.object || replacement.effect.object === event!.metadata?.object)
+      .filter((replacement) => {
+        const ownerId = event!.metadata?.ownerId;
+        const scope = replacement.effect.playerScope;
+        return typeof ownerId !== "string" || !scope
+          || playerIdsForScope(state, scope, { controllerId: replacement.controllerId }).includes(ownerId);
+      })
       .filter((replacement) => ruleConditionActive(state, controllerFor(state, replacement.controllerId), replacement.effect.condition))
       .sort((left, right) => {
         const leftActive = Number(left.controllerId === state.startingPlayer);

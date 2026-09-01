@@ -195,8 +195,8 @@ export type RuleAction =
   | { kind: "schedule"; timing: "after-attack"; effects: RuleAction[] }
   | { kind: "continuous"; modifier: ContinuousModifier }
   | { kind: "conditional"; condition: RuleCondition; whenTrue: RuleAction[]; whenFalse?: RuleAction[]; replacement?: boolean }
-  | { kind: "replacement"; event: ProposedEvent["kind"]; replaceWith: RuleAction[]; condition?: RuleCondition }
-  | { kind: "prevention"; event: ProposedEvent["kind"]; amount?: NumberValue; condition?: RuleCondition }
+  | { kind: "replacement"; event: ProposedEvent["kind"]; replaceWith: RuleAction[]; condition?: RuleCondition; object?: "hero" | "evo"; playerScope?: PlayerScope }
+  | { kind: "prevention"; event: ProposedEvent["kind"]; amount?: NumberValue; condition?: RuleCondition; object?: "hero" | "evo"; playerScope?: PlayerScope }
   | { kind: "sequence"; effects: RuleAction[] }
   | { kind: "unsupported"; code: string; text: string };
 
@@ -316,7 +316,7 @@ export type ContinuousModifier = {
 
 export type ProposedEvent = {
   id: string;
-  kind: "DAMAGE" | "MOVE_ZONE" | "STAT_CHANGE" | "CARD_RESOLUTION" | "DRAW";
+  kind: "DAMAGE" | "DESTROY" | "MOVE_ZONE" | "STAT_CHANGE" | "CARD_RESOLUTION" | "DRAW";
   actorId?: string;
   sourceId?: string;
   targetId?: string;
@@ -336,6 +336,8 @@ export type PendingCardPlay = {
   cardOwnerId: string;
   /** External effects that say “play ... for free” set only the base Energy cost to 0. */
   forcedFreeBase?: boolean;
+  /** The card is being played through its InstaBrawl alternate payment route. */
+  instabrawl?: boolean;
   origin: "priority" | "effect" | "damage";
   parentEffectId?: string;
   parentNextInstructionIndex?: number;

@@ -38,6 +38,7 @@ function compactCard(card: GameCard): CompactCardInstance {
     c: card.catalogId,
     ...(card.playedTurn == null ? {} : { p: card.playedTurn }),
     ...(card.energyFaceRevealUntil == null ? {} : { r: card.energyFaceRevealUntil }),
+    ...(card.instabrawl ? { ib: 1 as const } : {}),
   };
 }
 
@@ -49,6 +50,7 @@ function expandCard(card: CompactCardInstance): GameCard {
     id: card.i,
     ...(card.p == null ? {} : { playedTurn: card.p }),
     ...(card.r == null ? {} : { energyFaceRevealUntil: card.r }),
+    ...(card.ib === 1 ? { instabrawl: true } : {}),
   };
 }
 
