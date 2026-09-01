@@ -85,6 +85,9 @@ export function resolveExpiredDeadline(input: MatchState, now = Date.now()) {
   }
   const triggerOrder = state.triggerOrders.find((request) => request.controllerId === actorId && !request.orderedIds);
   if (triggerOrder) return orderTriggers(state, actorId, triggerOrder.id, triggerOrder.triggerIds);
+  if (state.phase === "draw" && state.turn === 1 && state.batch.length && state.priority === actorId) {
+    return passPriorityWithTieBreak(state, actorId);
+  }
   if (state.phase === "retract") {
     const core = pendingCoreReturnsForPlayer(state, actorId)[0]?.core;
     const cell = legalCoreReturnCells(state)[0];

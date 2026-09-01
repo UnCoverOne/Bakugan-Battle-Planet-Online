@@ -47,6 +47,7 @@ export function opponentAiCanAct(match: MatchState, playerId: string) {
   if (match.triggerOrders.some(
     (request) => request.controllerId === playerId && !request.orderedIds,
   )) return true;
+  if (match.phase === "draw" && match.turn === 1 && match.batch.length > 0 && match.priority === playerId) return true;
   if (
     match.phase === "startingPlayer"
     && Date.now() >= match.startingPlayerRevealedAt
@@ -113,6 +114,9 @@ export function recoverOpponentAiCommand(match: MatchState, playerId: string): G
   const triggerOrder = match.triggerOrders.find((request) => request.controllerId === playerId && !request.orderedIds);
   if (triggerOrder) {
     return { type: "ORDER_TRIGGERS", requestId: triggerOrder.id, orderedIds: triggerOrder.triggers.map((trigger) => trigger.id) };
+  }
+  if (match.phase === "draw" && match.turn === 1 && match.batch.length > 0 && match.priority === playerId) {
+    return { type: "PASS_PRIORITY" };
   }
   if (match.phase === "startingPlayer" && Date.now() >= match.startingPlayerRevealedAt) return { type: "BEGIN_CORE_PLACEMENT" };
   if (match.phase === "placement" && match.priority === playerId) {
@@ -239,6 +243,9 @@ export function recoverOpponentAiFailure(
       && match.batch.length > 0
       && match.priority === playerId
     ) return passPriority(match, playerId);
+    if (match.phase === "draw" && match.turn === 1 && match.batch.length > 0 && match.priority === playerId) {
+      return passPriority(match, playerId);
+    }
     if (PRIORITY_PHASES.has(match.phase) && match.priority === playerId) {
       return passPriority(match, playerId);
     }

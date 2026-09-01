@@ -252,11 +252,14 @@ export function visibleMatchHudActions({
   const playCards = playableHandCards(match, player?.id);
   const canPlay = Boolean(playCards.length);
   const resetResolutionWindow = Boolean(match?.phase === "reset" && match.batch.length);
+  const startEffectResolutionWindow = Boolean(
+    match?.phase === "draw" && match.turn === 1 && match.batch.length > 0,
+  );
   const canPass = Boolean(
     match
     && player
     && !hasPendingDraws(match)
-    && (isPriorityWindow(match) || resetResolutionWindow)
+    && (isPriorityWindow(match) || resetResolutionWindow || startEffectResolutionWindow)
     && match.priority === player.id,
   );
   const selectedPlayable = playCards.some((card) => card.id === selectedCardId);

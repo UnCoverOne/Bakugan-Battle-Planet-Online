@@ -63,6 +63,7 @@ export function ruleConditionActive(
     characteristics: (candidate, owner) => evaluateBakuganCharacteristics(state, candidate, owner),
   });
   switch (condition.kind) {
+    case "first-turn": return state.turn === 1;
     case "armor-damage-reduced": {
       if (condition.subject !== "opponent") return false;
       const rules = ensureRulesState(state);

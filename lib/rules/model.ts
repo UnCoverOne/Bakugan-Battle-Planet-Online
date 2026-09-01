@@ -29,6 +29,7 @@ export type EntitySelector =
 
 export type RuleCondition =
   | { kind: "always" }
+  | { kind: "first-turn" }
   | { kind: "armor-damage-reduced"; subject: "opponent" }
   | { kind: "fury" }
   | { kind: "turbo" }
@@ -113,6 +114,7 @@ export type ChoiceSpec = {
 };
 
 export type TriggerEventName =
+  | "GAME_STARTED"
   | "CARD_PLAYED"
   | "CARD_FLIPPED_FROM_DECK"
   | "CARD_REVEALED_FROM_HAND"

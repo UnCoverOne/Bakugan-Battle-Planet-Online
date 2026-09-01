@@ -682,10 +682,13 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     result.push(enemy, friendly);
   } else if ((explicitBakuganTarget || fusionTarget) && !fusionTrigger && (cardId !== "aa-99" || defaultTiming === "resolve")) {
     const selected = choice("targetBakuganId", targetTiming, "chosen-bakugan", "Choose a Bakugan");
-    selected.owner = /attach (?:this|(?:an?|one) (?:opposing )?Baku-Gear) (?:to|on) [^.;]*\bone of your\s+Bakugan/i.test(text)
+    selected.owner = /^At the start of the game,\s+a Bakugan gets/i.test(text)
+      ? "controller"
+      : /attach (?:this|(?:an?|one) (?:opposing )?Baku-Gear) (?:to|on) [^.;]*\bone of your\s+Bakugan/i.test(text)
       ? "controller"
       : targetOwner;
     selected.targetOwner = selected.owner;
+    if (/^At the start of the game,\s+a Bakugan gets/i.test(text)) selected.visibility = "private";
     if (/open Bakugan/i.test(text) || attachesCore || card.type === "Baku-Gear" || /attach .*Baku-Gear/i.test(text)) selected.openState = "open";
     if (/didn['’]?t open this turn|did not open this turn/i.test(text)) selected.notOpenedThisTurn = true;
     if (/another open Bakugan/i.test(text)) selected.excludeSourceBakugan = true;

@@ -278,6 +278,8 @@ export type PendingEffect = {
   kind: "card" | "trigger" | "copy";
   effect?: string;
   sourceId?: string;
+  /** Event that created this trigger, used for timing and information redaction. */
+  createdByEventId?: string;
   negated?: boolean;
   /** Next compiled instruction to execute. Persisted so a choice can suspend resolution. */
   instructionIndex?: number;
@@ -372,6 +374,8 @@ export type MatchState = {
   pendingChoice?: import("./rules/choices").PendingCardChoice;
   triggerOrders: TriggerOrderRequest[];
   collectedEventKeys: string[];
+  /** Game number whose start-of-game event has already been staged. */
+  gameStartEventedGame?: number;
   informationEpoch: number;
   priorityEpoch: number;
   undoWindow?: UndoWindow;
@@ -466,6 +470,7 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
   normalizeRuleObjects(state);
   state.triggerOrders = Array.isArray(state.triggerOrders) ? state.triggerOrders : [];
   state.collectedEventKeys = Array.isArray(state.collectedEventKeys) ? state.collectedEventKeys : [];
+  state.gameStartEventedGame = Number.isFinite(state.gameStartEventedGame) ? Number(state.gameStartEventedGame) : 0;
   state.informationEpoch = Number.isFinite(state.informationEpoch) ? Number(state.informationEpoch) : 0;
   state.priorityEpoch = Number.isFinite(state.priorityEpoch) ? Number(state.priorityEpoch) : 0;
   state.initialStartingPlayer = state.initialStartingPlayer || state.startingPlayer || state.players[0]?.id || "";
@@ -627,7 +632,7 @@ export const createMatch = (code: string, format: "bo1" | "bo3", players: Player
     coinFlipResults: {}, rerollOpenedByEffect: {}, rerollTargetByEffect: {}, rerollUsage: {}, rerollSequence: 0, repeatRollAfterReroll: false, nextCardCostReduction: {}, nextCardEmpowerReduction: {}, nextCardEmpowerFree: {}, temporaryVictorDiscards: {},
     powerBoost: {}, damageBoost: {}, frostStrike: {}, doubleStrike: {}, shadowStrike: {}, passes: [], batch: [], victorByDamage: false,
     pendingDamage: 0, pendingLoser: "", damageOrigin: "", teamAttack: false, pendingBrawlRetracts: [], delayedRetracts: [], copyNextAction: {}, brawlWinner: "", winner: "", resultReason: "",
-    triggerOrders: [], collectedEventKeys: [], informationEpoch: 0, priorityEpoch: 0,
+    triggerOrders: [], collectedEventKeys: [], gameStartEventedGame: 0, informationEpoch: 0, priorityEpoch: 0,
     deadline: deadlineFor("lobby"),
     log: [{ id: "start", at: Date.now(), kind: "system", message: `Match ${code} created • ${format.toUpperCase()} • complete Battle Planet rules` }],
   };
@@ -718,6 +723,15 @@ const beginTurn = (state: MatchState) => {
     return `${player.name} has ${count} explicit Draw action${count === 1 ? "" : "s"}`;
   }).join("; ");
   entry(state, "game", `Turn ${state.turn} began. ${drawSummary}.`);
+  if (state.turn === 1 && state.gameStartEventedGame !== state.gameNumber) {
+    state.gameStartEventedGame = state.gameNumber;
+    emitGameEvent(state, {
+      id: `game-start:${state.gameNumber}`,
+      type: "game-started",
+      playerId: "*",
+      playerIds: state.players.map((player) => player.id),
+    });
+  }
 };
 
 export const energizeCard = (input: MatchState, playerId: string, cardId?: string) => {
@@ -1282,7 +1296,7 @@ export const orderTriggers = (input: MatchState, playerId: string, requestId: st
 
 export type GameEvent = {
   id: string;
-  type: "select" | "open" | "discard" | "energize" | "gear-attach" | "card-play" | "fusion" | "victor" | "attack" | "damage-taken" | "hand-empty" | "end-turn";
+  type: "select" | "open" | "discard" | "energize" | "gear-attach" | "card-play" | "fusion" | "victor" | "attack" | "damage-taken" | "hand-empty" | "end-turn" | "game-started";
   playerId: string;
   playerIds?: string[];
   cardType?: CardType;
@@ -1296,12 +1310,12 @@ export const collectTriggersForEvent = (state: MatchState, event: GameEvent) => 
   if (state.collectedEventKeys.includes(event.id)) return [];
   state.collectedEventKeys.push(event.id);
   const names = {
-    select: "BAKUGAN_SELECTED", open: "BAKUGAN_OPENED", discard: "CARD_DISCARDED", energize: "ENERGY_CARD_ENERGIZED",
+    "game-started": "GAME_STARTED", select: "BAKUGAN_SELECTED", open: "BAKUGAN_OPENED", discard: "CARD_DISCARDED", energize: "ENERGY_CARD_ENERGIZED",
     "gear-attach": "BAKU_GEAR_ATTACHED",
     "card-play": "CARD_PLAYED", fusion: "FUSION_COMPLETED", victor: "VICTOR_DECLARED", attack: "ATTACK_CREATED",
     "damage-taken": "DAMAGE_TAKEN", "hand-empty": "HAND_EMPTIED", "end-turn": "TURN_ENDED",
   } as const;
-  const actorIds = event.type === "open" && event.playerIds
+  const actorIds = (event.type === "open" || event.type === "game-started") && event.playerIds
     ? [...new Set(event.playerIds)]
     : [event.playerId === "*" ? state.startingPlayer : event.playerId];
   return actorIds.flatMap((actorId) => collectRuleTriggers(state, {
@@ -4152,7 +4166,8 @@ export const passPriority = (input: MatchState, playerId: string) => {
   if (state.pendingCoinFlip) throw new Error("Wait for the pending coin flip to finish before passing priority.");
   if (state.pendingChoice) throw new Error("Complete the pending player choice before passing priority.");
   if (state.triggerOrders.some((request) => !request.orderedIds)) throw new Error("Order every simultaneous trigger before passing priority.");
-  if (!["preRoll", "power", "victor", "postDamage", "endPlay", "reset"].includes(state.phase) || state.priority !== playerId) throw new Error("You do not have priority.");
+  const startEffectPriority = state.phase === "draw" && state.turn === 1 && state.batch.length > 0;
+  if ((!startEffectPriority && !["preRoll", "power", "victor", "postDamage", "endPlay", "reset"].includes(state.phase)) || state.priority !== playerId) throw new Error("You do not have priority.");
   state.priorityEpoch += 1;
   state.undoWindow = undefined;
   state.passes.push(playerId); entry(state, "game", `${playerById(state, playerId).name} passed priority.`); const other = otherPlayer(state, playerId);
@@ -4227,7 +4242,7 @@ export const nextTurn = (input: MatchState) => {
 export const startNextSeriesGame = (input: MatchState) => {
   const state = cloneMatch(input); const needed = state.format === "bo3" ? 2 : 1;
   if (state.phase !== "result" || Math.max(...Object.values(state.series)) >= needed) throw new Error("The match is complete.");
-  state.gameNumber += 1; state.turn = 0; state.placements = []; state.placementTurn = 0; state.selected = {}; state.targets = {}; state.rolls = {}; state.batch = [];
+  state.gameNumber += 1; state.turn = 0; state.gameStartEventedGame = 0; state.placements = []; state.placementTurn = 0; state.selected = {}; state.targets = {}; state.rolls = {}; state.batch = [];
   state.pendingReroll = undefined; state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined; state.rerollOpenedByEffect = {}; state.rerollTargetByEffect = {}; state.rerollUsage = {}; state.rerollSequence = 0; state.repeatRollAfterReroll = false; state.nextCardCostReduction = {}; state.nextCardEmpowerReduction = {}; state.nextCardEmpowerFree = {}; state.temporaryVictorDiscards = {};
   const selected = state.players[secureRandomInt(state.players.length)];
   state.startingPlayer = selected.id; state.initialStartingPlayer = selected.id; state.priority = selected.id;
@@ -4267,6 +4282,32 @@ export const redactForPlayer = (input: MatchState, playerId: string) => {
     effect: "", mechanics: [], bPower: null, damage: null, coreTypes: [], evolvesFrom: null,
     art: "/assets/cards/card-missing.svg",
   });
+  const hiddenCharacter = (id: string): GameCard => ({
+    ...hiddenCard(id),
+    name: "Face-down Character",
+    displayName: "Face-down Character",
+    type: "Character",
+  });
+  const startTriggerIds = new Set([
+    ...state.batch,
+    ...state.triggerOrders.flatMap((request) => request.triggers),
+  ].filter((effect) => effect.createdByEventId?.startsWith("game-start:")).map((effect) => effect.id));
+  const startTriggerCardIds = new Set([
+    ...state.batch,
+    ...state.triggerOrders.flatMap((request) => request.triggers),
+  ].filter((effect) => effect.createdByEventId?.startsWith("game-start:")).map((effect) => effect.card.id));
+  const pendingStartTrigger = state.pendingChoice && (
+    (state.pendingChoice.pendingEffectId && startTriggerIds.has(state.pendingChoice.pendingEffectId))
+    || startTriggerCardIds.has(state.pendingChoice.cardId)
+  );
+  if (pendingStartTrigger && state.pendingChoice?.controllerId !== playerId) {
+    state.pendingChoice.cardId = "hidden-start-of-game";
+    state.pendingChoice.schema.sourceId = "hidden-start-of-game";
+    state.pendingChoice.schema.sourceName = "Hidden start-of-game effect";
+  }
+  if (pendingStartTrigger && state.pendingChoice?.controllerId !== playerId) {
+    state.stepLabel = "Start-of-game effect resolving";
+  }
   for (const placement of state.placements) {
     if (!placement.attachedTo && !placement.revealed && placement.playerId !== playerId) {
       const type = placement.core.type;
@@ -4291,7 +4332,30 @@ export const redactForPlayer = (input: MatchState, playerId: string) => {
     if (player.id !== playerId) {
       player.hand = player.hand.map((card, index) => card.revealedToOpponents ? card : hiddenCard(`hidden-hand-${index}`));
       player.energyZone = player.energyZone.map((_, index) => hiddenCard(`hidden-energy-${index}`));
+      if (state.batch.length || state.triggerOrders.length) {
+        for (const bakugan of player.bakugan) {
+          if (bakugan.open) continue;
+          bakugan.character = hiddenCharacter(`hidden-character-${player.id}-${bakugan.id}`);
+          bakugan.fusionCharacter = bakugan.fusionCharacter ? hiddenCharacter(`hidden-fusion-character-${player.id}-${bakugan.id}`) : undefined;
+          bakugan.evoStack = [];
+          bakugan.name = "Face-down Bakugan";
+          bakugan.faction = "Aquos";
+          bakugan.bPower = 0;
+          bakugan.damage = 0;
+          bakugan.art = "/assets/cards/card-missing.svg";
+        }
+      }
     }
   }
+  const redactStartTrigger = (effect: PendingEffect) => (
+    effect.createdByEventId?.startsWith("game-start:") && effect.controllerId !== playerId
+      ? { ...effect, card: hiddenCard(`hidden-start-effect-${effect.id}`), effect: "Start-of-game effect", sourceId: undefined }
+      : effect
+  );
+  state.batch = state.batch.map(redactStartTrigger);
+  state.triggerOrders = state.triggerOrders.map((request) => ({
+    ...request,
+    triggers: request.triggers.map(redactStartTrigger),
+  }));
   return state;
 };

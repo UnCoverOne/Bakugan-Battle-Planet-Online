@@ -45,7 +45,7 @@ export const FF_ROWS_5 = [
   ["ff-236",236,"EC","Cycloid","Ventus","Character",0,"When you attach a Baku-Gear to this, give a Bakugan +3 [Damage]",600,2,"FF","SD","","","",null,"236","",""],
   ["ff-237",237,"EC","Hydorous","Ventus","Character",0,"When this opens, each player reveals the top card of their deck. If\nyours costs more, this gets +300 [B] and +3 [Damage].",400,1,"HE","FF","","Hydorous_ENG_237_EC_FF.png","",null,"237","",""],
   ["ff-238",238,"EC","Nillious","Ventus","Character",0,"You may reroll this once each turn if you miss a roll with it.",400,5,"SD","FT","","Nillious_ENG_238_EC_FF.png","",null,"238","",""],
-  ["ff-239",239,"EC","Pegatrix","Ventus","Character",0,"At the start of the game, each player Energizes the top card of their",600,2,"FT","FT","","Pegatrix_ENG_239_EC_FF.png","",null,"239","",""],
+  ["ff-239",239,"EC","Pegatrix","Ventus","Character",0,"At the start of the game, each player Energizes the top card of their deck uncharged.",600,2,"FT","FT","","Pegatrix_ENG_239_EC_FF.png","",null,"239","",""],
   ["ff-206a",206,"CC","Howlkor & Ramparian","Haos","Character",5,"+1 [FrostStrike].",600,1,"HE","FT","","Howlkor_x_Ramparian_(Haos_Card)_ENG_206a_CC_FF.png","Pyrus",null,"206a","ff-206","a"],
   ["ff-206b",206,"CC","Howlkor & Ramparian","Haos","Character",5,"",900,3,"HE","FT","","Howlkor_x_Ramparian_(Haos_Card)_ENG_206b_CC_FF.png","Pyrus",null,"206b","ff-206","b"],
   ["ff-155a",155,"CC","Hydorous & Trhyno Ultra","Aquos","Character",2,"",500,2,"MS","FT","","Hydorous_x_Trhyno_Ultra_(Aquos_Card)_ENG_155a_CC_FF.png","Aurelus",null,"155a","ff-155","a"],

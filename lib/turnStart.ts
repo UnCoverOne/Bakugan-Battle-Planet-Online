@@ -46,6 +46,12 @@ function grantsAdditionalTurnDraw(card: GameCard) {
     || /all players draw an additional card each turn/i.test(card.effect);
 }
 
+function startOfGameResolutionPending(match: MatchState | null | undefined) {
+  return Boolean(match?.phase === "draw" && (
+    match.batch.length > 0 || match.triggerOrders.length > 0 || match.pendingChoice
+  ));
+}
+
 /**
  * Battle Brawlers Strata is a global ongoing Hero effect. Every copy in play
  * adds one card to every player's normal Draw Step. Each individual card still
@@ -91,6 +97,7 @@ export function playerCanDrawTurnCard(
 ) {
   if (playerCanResolvePendingDraw(match, playerId)) return true;
   if (activePendingDraw(match)) return false;
+  if (startOfGameResolutionPending(match)) return false;
   return Boolean(
     match
     && playerId
@@ -132,6 +139,7 @@ export function drawTurnCard(
   }
   if (!playerCanDrawTurnCard(input, playerId, now)) {
     if (drawStepIsWaiting(input, now)) throw new Error("The Draw Step has not begun yet.");
+    if (startOfGameResolutionPending(input)) throw new Error("Resolve the start-of-game effects before the Draw Step.");
     if (activePendingDraw(input)) throw new Error("The other player must complete their effect draws first.");
     throw new Error("You cannot draw a turn card now.");
   }

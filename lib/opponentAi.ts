@@ -1303,6 +1303,9 @@ function advanceOpponentAiStep(input: MatchState, playerId: string): MatchState 
   if (playerCanResolvePendingDraw(input, playerId)) {
     return drawPendingCard(input, playerId);
   }
+  if (input.phase === "draw" && input.turn === 1 && input.batch.length > 0 && input.priority === playerId) {
+    return passPriority(input, playerId);
+  }
   if (
     (input.phase === "target" || input.phase === "reroll")
     && playerCanSelectRollTarget(input, playerId)
@@ -1329,6 +1332,9 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
   if (input.pendingCoinFlip?.controllerId === playerId) return { type: "COMPLETE_COIN_FLIP" };
   if (playerCanResolvePendingDraw(input, playerId)) {
     return { type: "DRAW_PENDING_CARD" };
+  }
+  if (input.phase === "draw" && input.turn === 1 && input.batch.length > 0 && input.priority === playerId) {
+    return { type: "PASS_PRIORITY" };
   }
   if (
     (input.phase === "target" || input.phase === "reroll")

@@ -26,6 +26,11 @@ export type RuleEvent = {
 };
 
 function activeSources(state: MatchState, owner: PlayerState, event: RuleEvent) {
+  if (event.name === "GAME_STARTED") {
+    return owner.bakugan
+      .flatMap((bakugan) => [bakugan.character, ...(bakugan.evoStack ?? []), ...(bakugan.bakuGear ?? [])])
+      .filter((source, index, sources) => sources.findIndex((candidate) => candidate.id === source.id) === index);
+  }
   const selectedId = state.selected[owner.id];
   // Triggered abilities belong to the top card of every Bakugan that is
   // currently participating in play, not only the Bakugan selected this turn.

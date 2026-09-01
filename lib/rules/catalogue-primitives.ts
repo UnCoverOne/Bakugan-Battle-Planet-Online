@@ -18,6 +18,7 @@ export function ruleCardId(card: GameCard): RulesCardId {
 }
 
 export function durationFor(text: string): RulesDuration {
+  if (/for the\s+first turn/i.test(text)) return "turn";
   if (/next (?:Action|card|Gear)/i.test(text)) return "next-card";
   if (/this turn|until end of turn|rest of the turn/i.test(text)) return "turn";
   if (/your (?:\[[^\]]+\]\s+)?Bakugan (?:have|get)|opposing Bakugan|to your (?:\[[^\]]+\]\s+)?Bakugan|to your attacks|your attacks have|\bthis (?:has|gets)\b|while|as long as|Treat all BakuCores/i.test(text)) return "while-source-active";
@@ -52,6 +53,7 @@ function controlledCardNames(text: string) {
 
 export function conditionFor(text: string): RuleCondition {
   const normalizedText = text.replace(/\s+/g, " ").trim();
+  if (/\bplay this(?: card)? for free on the first turn of the game\b/i.test(normalizedText)) return { kind: "first-turn" };
   if (/^Empower\s*:/i.test(normalizedText)) return { kind: "empower-selected" };
   if (/if an opposing player reduced damage with Armor Rating this turn/i.test(normalizedText)) {
     return { kind: "armor-damage-reduced", subject: "opponent" };
@@ -225,6 +227,9 @@ export function conditionFor(text: string): RuleCondition {
 }
 
 function triggerFor(text: string): TriggerDefinition | undefined {
+  if (/^at the start of the game\b/i.test(text)) {
+    return { event: "GAME_STARTED", relationship: "controller" };
+  }
   if (/if another card causes you to reveal this(?: card)? from your hand/i.test(text)) {
     return {
       event: "CARD_REVEALED_FROM_HAND",
@@ -394,7 +399,9 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const executableText = text.replace(/^When you\s+<Fusion>[^,]+,\s*/i, "");
   const intrinsicCharacteristic = ["Character", "Evo"].includes(card.type)
     && !/\b(?:when|victor\s*[-:]|at (?:the )?end of|play this)\b/i.test(text);
-  const duration = intrinsicCharacteristic ? "while-source-active" : durationFor(text);
+  const duration = /^at the start of the game\b/i.test(text)
+    ? durationFor(text)
+    : intrinsicCharacteristic ? "while-source-active" : durationFor(text);
   const scale = dynamicSourceFor(text);
   const scope = scopeFor(text);
   const unfuse = /turn\s+(?:one of your|a|an|one of the)\s+<Fusion>\s+Bakugan\s+face down/i.test(text);
@@ -515,7 +522,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const energizeEntryState = /\buncharged\b/i.test(text) ? "uncharged" as const : "charged" as const;
   const energize = /when you\s+Energize\s+a\s+card/i.test(text)
     ? null
-    : text.match(/energize (?:the top )?(a|an|one|two|three|\d+)?\s*cards?/i);
+    : text.match(/energize(?:s)? (?:the top )?(a|an|one|two|three|\d+)?\s*cards?/i);
   if (energize) {
     const eachPlayer = /\beach player\b|\ball players\b|\bboth players\b/i.test(text);
     actions.push({
