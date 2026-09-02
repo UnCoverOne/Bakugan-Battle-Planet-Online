@@ -1,6 +1,7 @@
 "use client";
 
 import { OriginalImage } from "@/components/media/OriginalImage";
+import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -157,7 +158,7 @@ function CoreInspector({
         </div>
       </header>
       <div className={styles.coreInspectorBody}>
-        <div className={styles.coreInspectorArt}><OriginalImage src={core.art} alt={`${core.name} front`} width={240} height={209} /></div>
+        <div className={styles.coreInspectorArt}><BakuCoreArt core={core} alt={`${core.name} front`} /></div>
         <div className={styles.cardBadges}>
           <StatusChip tone="info">{core.type}</StatusChip>
           <StatusChip>{core.set ?? "Battle Brawlers"}</StatusChip>
@@ -498,7 +499,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                       key={core.id}
                       onClick={(event) => selectCore(core, event.currentTarget)}
                     >
-                      <span className={styles.coreArt}><OriginalImage src={core.art} alt={`${core.name} front`} width={240} height={209} /></span>
+                      <span className={styles.coreArt}><BakuCoreArt core={core} alt={`${core.name} front`} /></span>
                       <span className={styles.cardCopy}>
                         <span className={styles.cardBadges}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{core.set === "Armored Alliance" ? "AA" : "BB"}</StatusChip></span>
                         <strong>{core.name}</strong>

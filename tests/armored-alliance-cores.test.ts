@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CARDS, CORES, STARTER_DECKS, makePlayer } from "../lib/data";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { ARMORED_ALLIANCE_CORE_SCAN_NUMBERS, CARDS, CORES, STARTER_DECKS, makePlayer } from "../lib/data";
 import { createMatch } from "../lib/game";
 import { cardCostBreakdown } from "../lib/rules/costs";
 import { evaluateBakuganCharacteristics } from "../lib/rules/modifiers";
@@ -19,10 +21,26 @@ test("only the 28 non-reprint Armored Alliance BakuCores are catalogued", () => 
   assert.equal(aaCores.find((core) => core.number === 79)?.fusionBonus, 500);
 });
 
-test("Armored Alliance fronts and placeholders are wired by core number", () => {
-  assert.ok(aaCores.slice(0, 17).every((core) => core.art.endsWith(`/aa-${String(core.number).padStart(2, "0")}.png`)));
-  assert.ok(aaCores.slice(17).every((core) => core.art.includes("placeholder")));
+test("Armored Alliance fronts use supplied scans and retain explicit placeholders only when needed", () => {
+  assert.deepEqual([...ARMORED_ALLIANCE_CORE_SCAN_NUMBERS], [2, 7, 15, 16, 17, 73, 75, 76, 78, 79]);
+  assert.ok(aaCores.filter((core) => core.number <= 17 || ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(core.number)).every((core) => core.art.endsWith(`/aa-${String(core.number).padStart(2, "0")}.png`)));
+  assert.ok(aaCores.filter((core) => core.number > 17 && !ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(core.number)).every((core) => core.art.includes("placeholder")));
   assert.ok(aaCores.every((core) => core.type && core.art));
+});
+
+test("supplied AA scan files exist for every scan-backed catalogue core", () => {
+  for (const number of ARMORED_ALLIANCE_CORE_SCAN_NUMBERS) {
+    const asset = fileURLToPath(new URL(`../public/assets/cores/armored-alliance/aa-${String(number).padStart(2, "0")}.png`, import.meta.url));
+    assert.equal(existsSync(asset), true, `missing supplied scan for AA core ${number}`);
+  }
+});
+
+test("placeholder core art renders the same effect vocabulary used by the inspector", () => {
+  const source = readFileSync(new URL("../components/bakucore/BakuCoreArt.tsx", import.meta.url), "utf8");
+  assert.match(source, /core\.art\.includes\("-placeholder"\)/);
+  assert.match(source, /frost-strike\.png/);
+  assert.match(source, /fusionDamageBonus/);
+  assert.match(source, /bakuGearCostReduction/);
 });
 
 test("AA Baku-Gear reductions and Fusion bonuses affect runtime calculations", () => {

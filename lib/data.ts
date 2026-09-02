@@ -70,7 +70,13 @@ const baseCores = seeds.map(([number, type, bonus, damageBonus, extra = {}]) => 
   name: coreName(type, bonus, damageBonus, extra),
   art: `/assets/cores/full/${number}.webp`,
 }));
-const armoredAllianceArt = (number: number) => number <= 52
+/**
+ * The supplied Armored Alliance fronts are keyed by BakuCore collector number.
+ * The old threshold here incorrectly assumed every number above 52 was missing,
+ * which hid the supplied fronts for 73, 75, 76, 78, and 79 behind placeholders.
+ */
+export const ARMORED_ALLIANCE_CORE_SCAN_NUMBERS = new Set([2, 7, 15, 16, 17, 73, 75, 76, 78, 79]);
+const armoredAllianceArt = (number: number) => number <= 17 || ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(number)
   ? `/assets/cores/armored-alliance/aa-${String(number).padStart(2, "0")}.png`
   : `/assets/cores/armored-alliance/aa-${number}-placeholder.png`;
 const armoredAllianceCores = armoredAllianceSeeds.map(([number, type, bonus, damageBonus, extra = {}]) => ({
