@@ -6,6 +6,7 @@ import { hasActiveRulePermission } from "./permissions";
 import { playerIdsForScope } from "./primitives";
 import { ensureRulesState } from "./state";
 import { evaluateNumberValue, type NumberValue } from "./values";
+import { effectiveBakucoreCells } from "./derived-characteristics";
 
 export type CardCostBreakdown = {
   printed: number;
@@ -157,6 +158,14 @@ export function cardCostBreakdown(
     if (modifier.kind === "free") freeBase = true;
     else if (modifier.kind === "reduce") reductions += costValue(state, playerId, modifier.amount, modifier.choices ?? choices, modifier.valueSnapshots);
     else increases += costValue(state, playerId, modifier.amount, modifier.choices ?? choices, modifier.valueSnapshots);
+  }
+
+  if (card.type === "Baku-Gear") {
+    const attachedCoreCells = new Set(player.bakugan.flatMap((bakugan) => effectiveBakucoreCells(state, bakugan, player)));
+    for (const cell of attachedCoreCells) {
+      const core = state.placements.find((placement) => placement.cell === cell)?.core;
+      reductions += core?.bakuGearCostReduction ?? 0;
+    }
   }
 
   const frostStrike = (card.type === "Flip" || card.type === "Flip Hero") && state.damageOrigin ? activeFrostStrike(state, state.damageOrigin) : 0;

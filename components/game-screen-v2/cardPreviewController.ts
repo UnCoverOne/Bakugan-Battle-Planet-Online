@@ -136,6 +136,12 @@ function detailsForCore(core: Core): CardPreviewDetails {
     signed(core.damageBonus, "Damage"),
     core.frostStrike ? `+${core.frostStrike} FrostStrike` : "",
     core.shadowStrike ? "ShadowStrike" : "",
+    core.bakuGearCostReduction ? `Baku-Gear costs ${core.bakuGearCostReduction} less Energy` : "",
+  ].filter(Boolean);
+  const fusionStats = [
+    signed(core.fusionBonus ?? 0, "B-Power"),
+    signed(core.fusionDamageBonus ?? 0, "Damage"),
+    core.fusionFrostStrike ? `+${core.fusionFrostStrike} FrostStrike` : "",
   ].filter(Boolean);
   const conditionalStats = [
     signed(core.conditionalBonus ?? 0, "B-Power"),
@@ -144,13 +150,14 @@ function detailsForCore(core: Core): CardPreviewDetails {
   const condition = core.conditionalFactions?.length
     ? `When attached to ${core.conditionalFactions.join(" or ")}: ${conditionalStats.join(" • ") || "conditional bonus"}.`
     : "";
+  const fusion = fusionStats.length ? `While fused: ${fusionStats.join(" • ")}.` : "";
   return {
     name: core.name,
     type: `${core.type} BakuCore`,
     faction: core.conditionalFactions?.join(" / ") ?? "",
     cost: "",
-    effect: condition || baseStats.join(" • ") || "This BakuCore has a conditional printed modifier.",
-    mechanics: core.shadowStrike ? "ShadowStrike" : core.frostStrike ? "FrostStrike" : "",
+    effect: [condition, fusion, baseStats.join(" • ")].filter(Boolean).join(" ") || "This BakuCore has a conditional printed modifier.",
+    mechanics: [core.shadowStrike ? "ShadowStrike" : "", core.frostStrike || core.fusionFrostStrike ? "FrostStrike" : "", core.fusionBonus || core.fusionDamageBonus ? "Fusion" : ""].filter(Boolean).join(" • "),
     stats: baseStats.join(" • "),
     cores: core.type,
   };

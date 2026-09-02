@@ -166,6 +166,24 @@ function normalizeRevealedHandWorkflows(abilities: AbilityDefinition[]) {
     const instructions = [...ability.instructions];
     for (let index = 0; index < instructions.length; index += 1) {
       const current = instructions[index];
+      if (!/^Choose a color:\s*\[Aquos\].*\[Ventus\]/i.test(current.sourceText)) continue;
+      const factionChoice: ChoiceSpec = {
+        id: "mode",
+        timing: "resolve",
+        selector: "mode",
+        label: "Choose a faction",
+        minimum: 1,
+        maximum: 1,
+        optional: false,
+        chooser: "controller",
+        visibility: "public",
+        options: ["Aquos", "Darkus", "Haos", "Pyrus", "Ventus"].map((faction) => ({ id: faction, label: faction })),
+      };
+      const noOp: RuleAction = { kind: "cost", amount: 0, operation: "reduce", duration: "instant" };
+      instructions[index] = { ...current, effects: [noOp], actions: [noOp], choices: [...current.choices, factionChoice] };
+    }
+    for (let index = 0; index < instructions.length; index += 1) {
+      const current = instructions[index];
       if (!/opponent reveals (?:their|his or her) hand/i.test(current.sourceText)) continue;
       const next = instructions[index + 1];
       if (/discards? all cards of the chosen faction/i.test(current.sourceText)) {

@@ -77,12 +77,12 @@ function signed(value: number) {
   return value > 0 ? `+${value}` : String(value);
 }
 
-function coreBonuses(core: Core, faction: Faction) {
+function coreBonuses(core: Core, faction: Faction, fused: boolean) {
   const conditional = !core.conditionalFactions?.length
     || core.conditionalFactions.includes(faction);
   return {
-    power: core.bonus + (conditional ? core.conditionalBonus ?? 0 : 0),
-    damage: core.damageBonus + (conditional ? core.conditionalDamage ?? 0 : 0),
+    power: core.bonus + (conditional ? core.conditionalBonus ?? 0 : 0) + (fused ? core.fusionBonus ?? 0 : 0),
+    damage: core.damageBonus + (conditional ? core.conditionalDamage ?? 0 : 0) + (fused ? core.fusionDamageBonus ?? 0 : 0),
   };
 }
 
@@ -125,7 +125,7 @@ export function brawlCombatantView(
   const card = topCard(bakugan);
   const cores = heldCores(match, bakugan);
   const coreTotals = cores.reduce((totals, core) => {
-    const bonus = coreBonuses(core, bakugan.faction);
+    const bonus = coreBonuses(core, bakugan.faction, Boolean(bakugan.fused));
     return {
       power: totals.power + bonus.power,
       damage: totals.damage + bonus.damage,
@@ -149,12 +149,14 @@ export function brawlCombatantView(
     modifiers.push("Roll result • Missed and remained closed");
   }
   for (const core of cores) {
-    const bonus = coreBonuses(core, bakugan.faction);
+    const bonus = coreBonuses(core, bakugan.faction, Boolean(bakugan.fused));
     const values = [
       bonus.power ? `${signed(bonus.power)} B` : "",
       bonus.damage ? `${signed(bonus.damage)} Damage` : "",
       core.frostStrike ? `+${core.frostStrike} FrostStrike` : "",
+      bakugan.fused && core.fusionFrostStrike ? `+${core.fusionFrostStrike} Fusion FrostStrike` : "",
       core.shadowStrike ? "ShadowStrike" : "",
+      core.bakuGearCostReduction ? `Baku-Gear -${core.bakuGearCostReduction} Energy` : "",
     ].filter(Boolean);
     modifiers.push(`${core.name}${values.length ? ` • ${values.join(" • ")}` : ""}`);
   }

@@ -66,7 +66,8 @@ const reachPower = () => {
 test("the complete supplied Battle Planet catalogue is normalized and playable", () => {
   assert.equal(CARDS.length, CONTENT_MANIFEST.cardCount);
   assert.equal(BAKUGAN.length, CARDS.filter((card) => card.type === "Character" && card.fusionFace !== "b" && card.bPower != null && card.damage != null).length);
-  assert.equal(CORES.length, 52);
+  assert.equal(CORES.filter((core) => core.set === "Battle Brawlers").length, 52);
+  assert.equal(CORES.filter((core) => core.set === "Armored Alliance").length, 28);
   const typeCounts = Object.fromEntries(["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character"].map((type) => [type, CARDS.filter((card) => card.type === type).length]));
   assert.equal(Object.values(typeCounts).reduce((sum, count) => sum + count, 0), CONTENT_MANIFEST.cardCount);
   assert.equal(new Set(CARDS.map((card) => card.catalogId)).size, CONTENT_MANIFEST.cardCount);

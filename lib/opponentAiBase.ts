@@ -326,8 +326,13 @@ function coreValueForBakugan(core: Core, bakugan: Bakugan) {
     || core.conditionalFactions.includes(bakugan.faction);
   const power = core.bonus + (conditional ? core.conditionalBonus ?? 0 : 0);
   const damage = core.damageBonus + (conditional ? core.conditionalDamage ?? 0 : 0);
-  return power * 0.01 + damage * 0.9
-    + (core.frostStrike ?? 0) * 0.55 + (core.shadowStrike ? 1.2 : 0);
+  const fusionPower = bakugan.fused ? core.fusionBonus ?? 0 : 0;
+  const fusionDamage = bakugan.fused ? core.fusionDamageBonus ?? 0 : 0;
+  const fusionFrost = bakugan.fused ? core.fusionFrostStrike ?? 0 : 0;
+  return (power + fusionPower) * 0.01 + (damage + fusionDamage) * 0.9
+    + ((core.frostStrike ?? 0) + fusionFrost) * 0.55
+    + (core.bakuGearCostReduction ?? 0) * 0.35
+    + (core.shadowStrike ? 1.2 : 0);
 }
 
 function averageCoreValue(core: Core, bakugan: readonly Bakugan[]) {

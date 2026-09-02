@@ -2365,7 +2365,7 @@ function BuilderCoreInspector({ coreId, onClose }: { coreId: string; onClose: ()
     <div className={styles.builderInspectorOverlay}>
       <section className={styles.builderCoreInspector} role="dialog" aria-modal="true" aria-label={`${core.name} BakuCore`}>
         <header><span>BakuCore</span><h2>{core.name}</h2><button type="button" onClick={onClose}>Close</button></header>
-        <div><OriginalImage src={core.art} alt={core.name} /><dl><div><dt>Type</dt><dd>{core.type}</dd></div><div><dt>B-Power</dt><dd>{core.bonus > 0 ? "+" : ""}{core.bonus}</dd></div><div><dt>Damage</dt><dd>{core.damageBonus > 0 ? "+" : ""}{core.damageBonus}</dd></div></dl><p>BakuCore types must match the six indicators printed across the three selected Character cards.</p></div>
+        <div><OriginalImage src={core.art} alt={core.name} /><dl><div><dt>Set</dt><dd>{core.set ?? "Battle Brawlers"}</dd></div><div><dt>Type</dt><dd>{core.type}</dd></div><div><dt>B-Power</dt><dd>{core.bonus > 0 ? "+" : ""}{core.bonus}{core.fusionBonus ? ` / +${core.fusionBonus} fused` : ""}</dd></div><div><dt>Damage</dt><dd>{core.damageBonus > 0 ? "+" : ""}{core.damageBonus}{core.fusionDamageBonus ? ` / +${core.fusionDamageBonus} fused` : ""}</dd></div></dl><p>{core.bakuGearCostReduction ? `Baku-Gear costs ${core.bakuGearCostReduction} less Energy while this Core is held. ` : ""}{core.fusionFrostStrike ? `While fused, this Core grants +${core.fusionFrostStrike} FrostStrike. ` : ""}BakuCore types must match the six indicators printed across the three selected Character cards.</p></div>
       </section>
     </div>
   );

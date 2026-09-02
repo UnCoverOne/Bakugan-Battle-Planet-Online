@@ -24,12 +24,61 @@ const seeds: CoreSeed[] = [
   [37,"Magic Shield",500,0],[38,"Magic Shield",550,0],[39,"Magic Shield",600,0],[40,"Magic Shield",650,0],[41,"Magic Shield",-400,0],[42,"Magic Shield",-500,0],
   [43,"Helix",500,-1],[44,"Helix",-100,4],[45,"Helix",-200,5],[46,"Helix",600,-3],[47,"Helix",300,3],[48,"Helix",-100,-3],[49,"Helix",-200,-2],[50,"Helix",-300,-1],[51,"Helix",0,0,{frostStrike:5}],[52,"Helix",0,0,{shadowStrike:true}],
 ];
+const armoredAllianceSeeds: CoreSeed[] = [
+  [1,"Fist",0,1,{bakuGearCostReduction:2}],
+  [2,"Fist",0,2,{bakuGearCostReduction:2}],
+  [3,"Fist",0,3,{bakuGearCostReduction:1}],
+  [4,"Fist",50,1,{bakuGearCostReduction:2}],
+  [5,"Fist",100,1,{bakuGearCostReduction:1}],
+  [6,"Flaming Fist",200,3,{bakuGearCostReduction:2}],
+  [7,"Flaming Fist",0,5,{bakuGearCostReduction:1}],
+  [8,"Shield",100,0,{bakuGearCostReduction:2}],
+  [9,"Shield",150,0,{bakuGearCostReduction:2}],
+  [10,"Shield",200,0,{bakuGearCostReduction:2}],
+  [11,"Shield",250,0,{bakuGearCostReduction:1}],
+  [12,"Shield",300,0,{bakuGearCostReduction:1}],
+  [13,"Magic Shield",400,0,{bakuGearCostReduction:2}],
+  [14,"Magic Shield",500,0,{bakuGearCostReduction:1}],
+  [15,"Helix",400,-1,{bakuGearCostReduction:1}],
+  [16,"Helix",-100,3,{bakuGearCostReduction:2}],
+  [17,"Helix",0,0,{shadowStrike:true,bakuGearCostReduction:2}],
+  [69,"Helix",0,0,{frostStrike:1}],
+  [70,"Fist",0,0,{fusionDamageBonus:5}],
+  [71,"Fist",0,2,{fusionDamageBonus:2}],
+  [72,"Flaming Fist",0,0,{fusionDamageBonus:8}],
+  [73,"Flaming Fist",0,3,{fusionDamageBonus:4}],
+  [74,"Shield",0,0,{fusionBonus:500}],
+  [75,"Shield",200,0,{fusionBonus:200}],
+  [76,"Magic Shield",0,0,{fusionBonus:800}],
+  [77,"Magic Shield",300,0,{fusionBonus:400}],
+  [78,"Helix",0,0,{fusionBonus:300,fusionFrostStrike:2}],
+  [79,"Helix",500,2,{fusionBonus:500}],
+];
 const sign = (value: number, suffix: string) => value ? `${value > 0 ? "+" : ""}${value}${suffix}` : "";
-export const CORES: Core[] = seeds.map(([number, type, bonus, damageBonus, extra = {}]) => ({
-  id: `core-${number}`, catalogId: `core-${number}`, number, type, bonus, damageBonus, ...extra,
-  name: `${type} ${[sign(bonus, "B"), sign(damageBonus, "D"), extra.frostStrike ? `+${extra.frostStrike} FrostStrike` : "", extra.shadowStrike ? "ShadowStrike" : ""].filter(Boolean).join(" / ") || "conditional"}`,
+const coreName = (type: CoreType, bonus: number, damageBonus: number, extra: Partial<Core>) => `${type} ${[
+  sign(bonus, "B"),
+  sign(damageBonus, "D"),
+  extra.frostStrike ? `+${extra.frostStrike} FrostStrike` : "",
+  extra.shadowStrike ? "ShadowStrike" : "",
+  extra.bakuGearCostReduction ? `Baku-Gear -${extra.bakuGearCostReduction} Energy` : "",
+  extra.fusionBonus ? `Fusion ${sign(extra.fusionBonus, "B")}` : "",
+  extra.fusionDamageBonus ? `Fusion ${sign(extra.fusionDamageBonus, "D")}` : "",
+  extra.fusionFrostStrike ? `Fusion +${extra.fusionFrostStrike} FrostStrike` : "",
+].filter(Boolean).join(" / ") || "conditional"}`;
+const baseCores = seeds.map(([number, type, bonus, damageBonus, extra = {}]) => ({
+  id: `core-${number}`, catalogId: `core-${number}`, set: "Battle Brawlers" as const, number, type, bonus, damageBonus, ...extra,
+  name: coreName(type, bonus, damageBonus, extra),
   art: `/assets/cores/full/${number}.webp`,
 }));
+const armoredAllianceArt = (number: number) => number <= 52
+  ? `/assets/cores/armored-alliance/aa-${String(number).padStart(2, "0")}.png`
+  : `/assets/cores/armored-alliance/aa-${number}-placeholder.png`;
+const armoredAllianceCores = armoredAllianceSeeds.map(([number, type, bonus, damageBonus, extra = {}]) => ({
+  id: `aa-core-${number}`, catalogId: `aa-core-${number}`, set: "Armored Alliance" as const, number, type, bonus, damageBonus, ...extra,
+  name: `AA ${number} ${coreName(type, bonus, damageBonus, extra)}`,
+  art: armoredAllianceArt(number),
+}));
+export const CORES: Core[] = [...baseCores, ...armoredAllianceCores];
 
 const characterCards = CARDS.filter((card) => card.type === "Character" && card.fusionFace !== "b" && card.bPower != null && card.damage != null);
 export const BAKUGAN: Bakugan[] = characterCards.map((character) => ({

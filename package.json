@@ -31,7 +31,7 @@
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
     "content:lock": "node --import tsx scripts/content-lock.mts --write",
     "validate:content": "node --import tsx scripts/validate-content.mts",
-    "test:content": "node --import tsx --test tests/content-pipeline.test.ts tests/card-set-extensions.test.ts",
+    "test:content": "node --import tsx --test tests/content-pipeline.test.ts tests/card-set-extensions.test.ts tests/armored-alliance-cores.test.ts",
     "test:quality": "node --import tsx --test tests/quality-assurance.test.ts tests/platform-hardening.test.ts",
     "card:author": "node --import tsx scripts/card-author.mts",
     "test:simulation": "node --import tsx --test tests/physical-simulation.test.ts",
