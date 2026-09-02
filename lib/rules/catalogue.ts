@@ -295,6 +295,9 @@ export function validateCardAgainstRules(card: GameCard) {
 
 export function programForCard(card: GameCard, source = card.effect): RuleProgram {
   const definition = ruleDefinitionForCard(card);
+  // The card-entry batch object for a trigger-only card deliberately carries
+  // an empty effect; do not fall back to the card's printed self-trigger.
+  if (!source.trim()) return { cardId: definition.cardId, source, instructions: [] };
   const instructions = definition.abilities.flatMap((ability) => ability.instructions);
   const selected = source === card.effect
     ? instructions

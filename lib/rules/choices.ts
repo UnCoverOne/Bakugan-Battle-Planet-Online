@@ -7,6 +7,7 @@ import { chooserIdsFor, zoneOwnerIdsFor } from "./primitives";
 import { evaluateNumberValue, type NumberValue } from "./values";
 import { bakuganHasFaction, effectiveCardFactions } from "./derived-characteristics";
 import { hasActiveRulePermission } from "./permissions";
+import { cardHasMechanic } from "./baku-gear";
 
 export type ChoiceKind =
   | "confirm" | "bakugan" | "player" | "hero" | "evo" | "energy" | "core" | "card"
@@ -52,7 +53,7 @@ export type ChoiceSchema = {
 };
 export type PendingCardChoice = {
   id: string;
-  kind: "card-play" | "trigger" | "resolution" | "payment" | "forced-discard";
+  kind: "card-play" | "trigger" | "resolution" | "payment" | "forced-discard" | "gear-replacement";
   controllerId: string;
   cardId: string;
   schema: ChoiceSchema;
@@ -68,6 +69,7 @@ export type PendingCardChoice = {
   playRequest?: import("./model").PendingCardPlay;
   playStage?: "declare" | "additional-cost";
   cancellable?: boolean;
+  gearReplacement?: { bakuganId: string; gearIds: string[] };
 };
 
 function playerById(match: MatchState, playerId: string) {
@@ -175,7 +177,7 @@ function cardMatchesSpecValue(
   if (types.length && !types.includes(candidate.type)) return false;
   if (spec.excludedCardTypes?.includes(candidate.type)) return false;
   if (spec.factions?.length && !effectiveCardFactions(candidate).some((faction) => spec.factions!.includes(faction))) return false;
-  if (spec.cardMechanic && !candidate.mechanics.some((mechanic) => mechanic.toLowerCase() === spec.cardMechanic!.toLowerCase())) return false;
+  if (spec.cardMechanic && !cardHasMechanic(candidate, spec.cardMechanic)) return false;
   if (spec.cardName) {
     const normalize = (value: string) => value
       .replace(/[\[\]]/g, "")

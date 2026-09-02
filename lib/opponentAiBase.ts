@@ -2716,7 +2716,7 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
     && !pending.answers[playerId]
   ) {
     const source = pendingSource(input, pending);
-    if (!source && !["resolution", "forced-discard"].includes(pending.kind)) {
+    if (!source && !["resolution", "forced-discard", "gear-replacement"].includes(pending.kind)) {
       return { type: "CANCEL_CARD_CHOICE" };
     }
     const card = source?.card ?? fallbackChoiceCard(pending);

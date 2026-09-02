@@ -683,6 +683,14 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   });
   const persistentFreePermission = /for the rest of the turn,\s*both players may play Evo cards from their hand for free/i.test(text);
   const freeFactionPlay = text.match(/play\s+an?\s+\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+card(?:\s+(?:with cost|that costs?)\s+(\d+)\s+\[Energy\]\s+or less)?\s+for free/i);
+  if (/play a \[Dual\] Baku-Gear for free/i.test(text)) actions.push({
+    kind: "play",
+    source: "hand",
+    free: true,
+    cardType: "Baku-Gear",
+    cardMechanic: "Dual Wield",
+    sourceOwner: "controller",
+  });
   if (freeFactionPlay) actions.push({
     kind: "play",
     source: "hand",

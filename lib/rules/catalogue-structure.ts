@@ -867,6 +867,15 @@ if (swapsBakucore) {
   if (/search your deck/i.test(text)) result.push(choice("deckCardId", timing, "deck-card", "Choose a card from your deck", false, "controller", "private"));
   if (/top .*cards?.*any order/i.test(text)) result.push(choice("orderedCardIds", timing, "deck-card", "Order the revealed cards", false, "controller", "private"));
   const persistentFreePermission = /for the rest of the turn,\s*both players may play Evo cards from their hand for free/i.test(text);
+  if (/play a \[Dual\] Baku-Gear for free/i.test(text)) {
+    const selected = choice("handCardIds", "resolve", "hand-card", "Choose a Dual Wield Baku-Gear to play", false, "controller", "private");
+    selected.cardType = "Baku-Gear";
+    selected.cardMechanic = "Dual Wield";
+    selected.owner = "controller";
+    selected.targetOwner = "controller";
+    selected.playForFree = true;
+    result.push(selected);
+  }
   const freeFactionPlay = text.match(/play\s+an?\s+\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+card(?:\s+(?:with cost|that costs?)\s+(\d+)\s+\[Energy\]\s+or less)?\s+for free/i);
   if (freeFactionPlay) {
     const selected = choice("handCardIds", "resolve", "hand-card", "Choose a card to play", false, "controller", "private");
