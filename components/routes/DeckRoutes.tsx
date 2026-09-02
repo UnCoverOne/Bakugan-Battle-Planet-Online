@@ -1086,6 +1086,7 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
     <DeckDetailPresentation
       deck={deck}
       publicView
+      notify={notify}
       sharePanel={(
         <DeckSharePanel
           deck={deck}
@@ -1127,6 +1128,7 @@ export function DeckDetailScreen({ id }: { id: string }) {
   return (
     <DeckDetailPresentation
       deck={deck}
+      notify={notify}
       actions={(
         <>
           <ActionButton onClick={() => {
@@ -1151,11 +1153,13 @@ export function DeckDetailScreen({ id }: { id: string }) {
 function DeckDetailPresentation({
   deck,
   publicView = false,
+  notify,
   actions,
   sharePanel,
 }: {
   deck: DeckRecord;
   publicView?: boolean;
+  notify: (message: string) => void;
   actions: ReactNode;
   sharePanel?: ReactNode;
 }) {
@@ -1170,6 +1174,14 @@ function DeckDetailPresentation({
   const cardSections = ["Action", "Hero", "Evo", "Flip"]
     .map((type) => ({ type, cards: cards.filter((entry) => entry.card.type === type) }))
     .filter((section) => section.cards.length);
+  const [inspection, setInspection] = useState<GameCard | null>(null);
+  const [inspectorTab, setInspectorTab] = useState<CardInspectorTab>("overview");
+  const inspectorTrigger = useRef<HTMLElement | null>(null);
+  const inspectCard = (card: GameCard, trigger?: HTMLElement | null) => {
+    inspectorTrigger.current = trigger ?? inspectorTrigger.current;
+    setInspectorTab("overview");
+    setInspection(card);
+  };
   return (
     <div className={styles.route}>
       <RouteHero
@@ -1202,13 +1214,20 @@ function DeckDetailPresentation({
             <div className={styles.detailTeam}>
               {bakugan.map((item) => (
                 <article key={item!.id}>
-                  <OriginalImage src={cardArtSource(item!.character, "full")} alt={item!.name} />
-                  <strong>{item!.name}</strong>
-                  <span className={styles.characterStats}>
-                    <span><OriginalImage src={FACTION_SYMBOLS[item!.faction]} alt="" aria-hidden="true" />{item!.faction}</span>
-                    <span>{item!.bPower}B</span>
-                    <span>{item!.damage}D</span>
-                  </span>
+                  <button
+                    type="button"
+                    className={styles.detailCharacterButton}
+                    aria-label={`Inspect ${item!.name} character card`}
+                    onClick={(event) => inspectCard(item!.character, event.currentTarget)}
+                  >
+                    <OriginalImage src={cardArtSource(item!.character, "full")} alt={item!.name} />
+                    <strong>{item!.name}</strong>
+                    <span className={styles.characterStats}>
+                      <span><OriginalImage src={FACTION_SYMBOLS[item!.faction]} alt="" aria-hidden="true" />{item!.faction}</span>
+                      <span>{item!.bPower}B</span>
+                      <span>{item!.damage}D</span>
+                    </span>
+                  </button>
                 </article>
               ))}
             </div>
@@ -1231,12 +1250,19 @@ function DeckDetailPresentation({
                   <div className={styles.detailCardList}>
                     {section.cards.map(({ card, count }) => (
                       <article key={card.catalogId}>
-                        <div className={styles.detailCardArt}>
-                          <OriginalImage src={cardArtSource(card, "thumbnail")} alt={card.displayName} />
-                          <span className={styles.copyCount} aria-label={`${count} copies`}>×{count}</span>
-                        </div>
-                        <strong>{card.displayName}</strong>
-                        <span>{card.faction} · {card.cost} Energy</span>
+                        <button
+                          type="button"
+                          className={styles.detailCardButton}
+                          aria-label={`Inspect ${card.displayName}`}
+                          onClick={(event) => inspectCard(card, event.currentTarget)}
+                        >
+                          <div className={styles.detailCardArt}>
+                            <OriginalImage src={cardArtSource(card, "thumbnail")} alt={card.displayName} />
+                            <span className={styles.copyCount} aria-label={`${count} copies`}>×{count}</span>
+                          </div>
+                          <strong>{card.displayName}</strong>
+                          <span>{card.faction} · {card.cost} Energy</span>
+                        </button>
                       </article>
                     ))}
                   </div>
@@ -1258,6 +1284,19 @@ function DeckDetailPresentation({
           </Surface>
         </aside>
       </section>
+      {inspection && (
+        <CardInspector
+          card={inspection}
+          allCards={CARDS}
+          rules={BUILDER_RULE_REFERENCES}
+          rulings={PUBLISHED_RULINGS}
+          tab={inspectorTab}
+          onTabChange={setInspectorTab}
+          onClose={() => setInspection(null)}
+          returnFocusRef={inspectorTrigger}
+          onShare={() => void copyText(`${globalThis.location?.origin ?? ""}/compendium?card=${encodeURIComponent(inspection.catalogId)}`).then(() => notify("Card link copied."))}
+        />
+      )}
     </div>
   );
 }

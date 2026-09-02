@@ -178,6 +178,7 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "CORE_COMPENDIUM_PAGE_SIZE",
     "CoreInspector",
     "filterAndSortCompendiumCores",
+    "returnFocusRef",
   ]) assert.match(route, new RegExp(contract));
   assert.match(route, /value=\{searchQuery\}/);
   assert.match(route, /onChange=\{\(event\) => setSearchQuery\(event\.target\.value\)\}/);
@@ -191,7 +192,12 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s);
   assert.match(css, /\.filterRail\s*\{[^}]*position:\s*sticky/s);
   assert.match(css, /\.filterSheet/);
-  assert.match(inspectorCss, /width:\s*clamp\(400px,\s*29vw,\s*440px\)/);
-  assert.match(inspectorCss, /@media \(max-width:\s*900px\)[\s\S]*position:\s*fixed/);
+  assert.match(inspectorCss, /\.backdrop\s*\{[^}]*position:\s*fixed/s);
+  assert.match(inspectorCss, /\.modal\s*\{[^}]*width:\s*min\(66rem/s);
+  assert.doesNotMatch(inspectorCss, /\.adaptive\s*\{/);
+  assert.match(inspector, /data-ui="card-inspector-backdrop"/);
+  assert.match(inspector, /createPortal/);
+  assert.match(inspector, /role=\{mode === "modal" \? "dialog"/);
+  assert.match(inspectorCss, /@media \(max-width:\s*900px\)[\s\S]*\.modal\s*\{[\s\S]*width:\s*100vw/s);
   assert.match(inspectorCss, /height:\s*100dvh/);
 });

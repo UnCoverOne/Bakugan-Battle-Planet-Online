@@ -1995,11 +1995,6 @@ h2{line-height:1}
 .catalog-piece-actions button{min-width:32px;min-height:32px}
 .selected-card-inspect{border:0;background:transparent;padding:0}
 .selected-card-inspect img{display:block}
-.card-inspector-backdrop{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:1rem;background:rgba(0,5,8,.9)}
-.card-inspector{position:relative;display:grid;grid-template-columns:minmax(260px,520px) minmax(280px,480px);gap:1.2rem;width:min(100%,1050px);max-height:94vh;overflow:auto;padding:1.25rem;background:#061923;border:1px solid #55cce8;box-shadow:0 20px 80px #000}
-.card-inspector img{width:100%;height:min(72vh,720px);object-fit:contain}
-.card-inspector article{padding:1rem}
-.inspector-close{position:absolute;z-index:2;right:.6rem;top:.6rem;width:42px;height:42px;background:#711317;border:1px solid #ff797c;font-weight:900}
 .deck-analysis{margin-top:1rem}
 .analysis-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}
 .analysis-grid article{padding:.75rem;background:#061923;border:1px solid rgba(255,255,255,.1)}
@@ -2058,8 +2053,6 @@ h2{line-height:1}
   .builder-mobile-switch{display:grid}
   .builder-catalog-column.mobile-pane-deck{display:none}
   .builder-deck-column.mobile-pane-catalogue{display:none}
-  .card-inspector{grid-template-columns:1fr}
-  .card-inspector img{height:min(58vh,600px)}
   .reference-art img{width:120px;height:168px}
   .deck-detail-list ol{columns:1}
 }

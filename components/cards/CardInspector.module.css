@@ -8,12 +8,32 @@
   clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
 }
 
-.adaptive {
+.backdrop {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: rgba(0, 5, 8, .84);
+  backdrop-filter: blur(8px);
+}
+
+.modal {
+  position: relative;
+  width: min(66rem, calc(100vw - (2 * var(--space-5))));
+  height: min(92dvh, 56rem);
+  max-height: calc(100dvh - (2 * var(--space-5)));
+}
+
+.modal .overview {
+  grid-template-columns: minmax(18rem, .86fr) minmax(0, 1.14fr);
+  align-items: start;
+}
+
+.modal .artWell {
   position: sticky;
-  top: 10.25rem;
-  width: clamp(400px, 29vw, 440px);
-  height: calc(100dvh - 11.5rem);
-  min-height: 34rem;
+  top: var(--space-5);
 }
 
 .embedded {
@@ -301,9 +321,12 @@
     position: static;
   }
 
-  .adaptive {
-    position: fixed;
-    inset: 0;
+  .backdrop {
+    padding: 0;
+  }
+
+  .modal {
+    position: relative;
     z-index: 1200;
     width: 100vw;
     height: 100dvh;
@@ -312,11 +335,11 @@
     clip-path: none;
   }
 
-  .adaptive .header {
+  .modal .header {
     padding-top: max(var(--space-4), env(safe-area-inset-top));
   }
 
-  .adaptive .body {
+  .modal .body {
     height: calc(100dvh - 8.4rem - env(safe-area-inset-top));
     padding-bottom: env(safe-area-inset-bottom);
   }

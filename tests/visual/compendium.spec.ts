@@ -22,7 +22,7 @@ test("search accepts spaces immediately and debounces its shareable URL", async 
   await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("Light's Courage");
 });
 
-test("selected cards preserve result state and use the responsive inspector", async ({ page }) => {
+test("selected cards preserve result state and use the modal inspector", async ({ page }) => {
   await page.goto("/compendium?faction=Pyrus&sort=name-asc&density=compact&card=bb-1&tab=overview");
   await waitForCompendium(page);
   const inspector = page.locator('[data-ui="card-inspector"]');
@@ -41,15 +41,35 @@ test("selected cards preserve result state and use the responsive inspector", as
     const rect = element.getBoundingClientRect();
     return { position: getComputedStyle(element).position, width: rect.width, height: rect.height };
   });
+  const backdrop = page.locator('[data-ui="card-inspector-backdrop"]');
+  await expect(backdrop).toBeVisible();
+  const backdropGeometry = await backdrop.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { position: getComputedStyle(element).position, width: rect.width, height: rect.height };
+  });
+  expect(backdropGeometry.position).toBe("fixed");
+  expect(Math.abs(backdropGeometry.width - viewport.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(backdropGeometry.height - viewport.height)).toBeLessThanOrEqual(1);
   if (viewport.width <= 900) {
-    expect(geometry.position).toBe("fixed");
+    expect(geometry.position).toBe("relative");
     expect(Math.abs(geometry.width - viewport.width)).toBeLessThanOrEqual(1);
     expect(Math.abs(geometry.height - viewport.height)).toBeLessThanOrEqual(1);
   } else {
-    expect(geometry.position).toBe("sticky");
-    expect(geometry.width).toBeGreaterThanOrEqual(399);
-    expect(geometry.width).toBeLessThanOrEqual(441);
+    expect(geometry.position).toBe("relative");
+    expect(geometry.width).toBeGreaterThan(900);
+    expect(geometry.width).toBeLessThanOrEqual(1056);
   }
+});
+
+test("opening an inspector preserves the current result scroll position", async ({ page }) => {
+  await page.goto("/compendium?page=2");
+  await waitForCompendium(page);
+  await page.evaluate(() => window.scrollTo(0, 1200));
+  const scrollBefore = await page.evaluate(() => window.scrollY);
+  expect(scrollBefore).toBeGreaterThan(0);
+  await page.locator('[data-ui="card-grid"] > button').first().click();
+  await expect(page.locator('[data-ui="card-inspector"]')).toBeVisible();
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 });
 
 test("mobile filtering opens an accessible full-width sheet", async ({ page }) => {

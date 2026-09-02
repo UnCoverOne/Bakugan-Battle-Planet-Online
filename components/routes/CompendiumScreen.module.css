@@ -99,10 +99,6 @@
   gap: var(--space-4);
 }
 
-.workspaceSelected {
-  grid-template-columns: 13.75rem minmax(0, 1fr) auto;
-}
-
 .filterRail {
   position: sticky;
   top: 10.25rem;
@@ -464,12 +460,7 @@
 }
 
 @media (max-width: 1180px) {
-  .workspace,
-  .workspaceSelected {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .workspace:not(.workspaceSelected) {
+  .workspace {
     grid-template-columns: 1fr;
   }
 
@@ -515,8 +506,7 @@
     display: none;
   }
 
-  .workspace,
-  .workspaceSelected {
+  .workspace {
     grid-template-columns: 1fr;
   }
 

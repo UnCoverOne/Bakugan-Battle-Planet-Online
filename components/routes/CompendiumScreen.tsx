@@ -219,7 +219,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     return query ? `${path}?${query}` : path;
   }, []);
 
-  const navigate = useCallback((patch: StatePatch, options: { push?: boolean; resetPage?: boolean } = {}) => {
+  const navigate = useCallback((patch: StatePatch, options: { push?: boolean; resetPage?: boolean; scroll?: boolean } = {}) => {
     const next = {
       ...state,
       q: searchQuery,
@@ -227,10 +227,10 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       page: options.resetPage ? 1 : patch.page ?? state.page,
     };
     const method = options.push ? "push" : "replace";
-    router[method](urlFor(next));
+    router[method](urlFor(next), { scroll: options.scroll ?? false });
   }, [router, searchQuery, state, urlFor]);
 
-  const navigateCore = useCallback((patch: Partial<CoreCompendiumState>, options: { push?: boolean; resetPage?: boolean } = {}) => {
+  const navigateCore = useCallback((patch: Partial<CoreCompendiumState>, options: { push?: boolean; resetPage?: boolean; scroll?: boolean } = {}) => {
     const next = {
       ...coreState,
       q: searchQuery,
@@ -238,13 +238,11 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       page: options.resetPage ? 1 : patch.page ?? coreState.page,
     };
     const method = options.push ? "push" : "replace";
-    router[method](coreUrlFor(next));
+    router[method](coreUrlFor(next), { scroll: options.scroll ?? false });
   }, [coreState, coreUrlFor, router, searchQuery]);
 
   const closeInspector = useCallback(() => {
-    const trigger = inspectorTrigger.current;
     navigate({ card: "", tab: "overview" });
-    setTimeout(() => trigger?.focus(), 0);
   }, [navigate]);
 
   useEffect(() => { setCompendiumTab(section); }, [section, setCompendiumTab]);
@@ -262,7 +260,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   }, [coreState, coreUrlFor, router, searchQuery, section, state, urlFor]);
   useEffect(() => {
     if (legacyDetail && !state.card) {
-      router.replace(urlFor({ ...state, card: legacyDetail, tab: "overview" }));
+      router.replace(urlFor({ ...state, card: legacyDetail, tab: "overview" }), { scroll: false });
     }
   }, [legacyDetail, router, state, urlFor]);
   useEffect(() => {
@@ -277,7 +275,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     const closeOverlays = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (filterSheetOpen) setFilterSheetOpen(false);
-      else if (selected) closeInspector();
       else if (selectedCore) navigateCore({ core: "" });
     };
     addEventListener("keydown", closeOverlays);
@@ -351,10 +348,10 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
           />
         </Field>
         <Tabs label="Compendium sections">
-          <button className={section === "cards" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium"))}>CARDS</button>
-          <button className={section === "cores" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/cores"))}>BAKUCORES</button>
-          <button className={section === "rules" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/rules"))}>RULES & GLOSSARY</button>
-          <button className={section === "rulings" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/rulings"))}>RULINGS</button>
+          <button type="button" className={section === "cards" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium"), { scroll: false })}>CARDS</button>
+          <button type="button" className={section === "cores" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/cores"), { scroll: false })}>BAKUCORES</button>
+          <button type="button" className={section === "rules" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/rules"), { scroll: false })}>RULES & GLOSSARY</button>
+          <button type="button" className={section === "rulings" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/rulings"), { scroll: false })}>RULINGS</button>
         </Tabs>
       </section>
 
@@ -379,7 +376,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             </Tabs>
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("Filtered results")}>Share results</button>
           </section>
-          <div className={`${styles.workspace} ${selected ? styles.workspaceSelected : ""}`}>
+          <div className={styles.workspace}>
             <Surface as="aside" className={styles.filterRail}>
               <FilterControls state={state} rarities={rarities} keywords={keywords} onChange={setFilter} onClear={clearFilters} />
             </Surface>
@@ -428,6 +425,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 onTabChange={(tab: CardInspectorTab) => navigate({ tab }, { push: true })}
                 onSelectCard={(card) => selectCard(card)}
                 onClose={closeInspector}
+                returnFocusRef={inspectorTrigger}
                 onShare={() => void copyCurrentLink(selected.displayName)}
               />
             )}
