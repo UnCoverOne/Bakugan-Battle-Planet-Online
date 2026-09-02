@@ -168,6 +168,16 @@ function normalizeRevealedHandWorkflows(abilities: AbilityDefinition[]) {
       const current = instructions[index];
       if (!/opponent reveals (?:their|his or her) hand/i.test(current.sourceText)) continue;
       const next = instructions[index + 1];
+      if (/discards? all cards of the chosen faction/i.test(current.sourceText)) {
+        const effects = current.effects.filter((effect) => effect.kind !== "sequence");
+        instructions[index] = {
+          ...current,
+          effects,
+          actions: effects,
+          choices: [revealedOpponentHandViewer(), ...current.choices],
+        };
+        continue;
+      }
       const mindControl = next && /play an Action card from it for free/i.test(next.sourceText);
       const darkusBlitz = /choose an Action card/i.test(current.sourceText)
         && Boolean(next && /(?:they|your opponent) must discard it/i.test(next.sourceText));

@@ -516,6 +516,16 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     const optional = /may discard|any number|up to/i.test(text);
     actions.push({ kind: "discard", amount, minimum: optional ? 0 : amount, maximum: /any number/i.test(text) ? 99 : amount, repeated: /repeat|again|any number/i.test(text), playerScope: playerScopeForText(text) });
   }
+  if (/discard(?:s)? all cards of the chosen faction/i.test(text)) {
+    actions.push({
+      kind: "discard",
+      amount: 99,
+      minimum: 0,
+      maximum: 99,
+      playerScope: "opponent",
+      factionChoiceId: "mode",
+    });
+  }
   if (/discard (?:their|your) entire hand/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99, playerScope: playerScopeForText(text) });
   if (/\bdiscard your hand\b/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99, playerScope: "controller" });
 

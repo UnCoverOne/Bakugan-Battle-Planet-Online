@@ -172,7 +172,7 @@ export type RuleAction =
   | { kind: "ignore-armor-rating"; duration: RulesDuration }
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: NumberValue; duration: RulesDuration }
   | { kind: "draw"; amount: NumberValue; playerScope?: PlayerScope }
-  | { kind: "discard"; amount: NumberValue; minimum: NumberValue; maximum: NumberValue; repeated?: boolean; playerScope?: PlayerScope }
+  | { kind: "discard"; amount: NumberValue; minimum: NumberValue; maximum: NumberValue; repeated?: boolean; playerScope?: PlayerScope; factionChoiceId?: keyof CardChoices }
   | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "discard" | "hero" | "self"; enters: "charged" | "uncharged"; playerScope?: PlayerScope; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "generate-energy"; amount: NumberValue; playerScope?: PlayerScope }
   | { kind: "pay-energy"; amount: NumberValue }
