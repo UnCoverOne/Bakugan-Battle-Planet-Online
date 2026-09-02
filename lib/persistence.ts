@@ -96,7 +96,7 @@ export type UserSnapshot = {
   builderDeck: DeckRecord | null;
   deckQuery: string;
   compendiumQuery: string;
-  compendiumTab: "cards" | "rules" | "rulings";
+  compendiumTab: "cards" | "cores" | "rules" | "rulings";
   format: "bo1" | "bo3";
   matchMode: "solo" | "online" | "join";
   joinCode: string;
@@ -298,7 +298,7 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
     builderDeck: normalizeDeck(candidate.builderDeck),
     deckQuery: typeof candidate.deckQuery === "string" ? candidate.deckQuery : "",
     compendiumQuery: typeof candidate.compendiumQuery === "string" ? candidate.compendiumQuery : "",
-    compendiumTab: ["cards", "rules", "rulings"].includes(candidate.compendiumTab ?? "") ? candidate.compendiumTab! : fallback.compendiumTab,
+    compendiumTab: ["cards", "cores", "rules", "rulings"].includes(candidate.compendiumTab ?? "") ? candidate.compendiumTab! : fallback.compendiumTab,
     format: candidate.format === "bo3" ? "bo3" : "bo1",
     matchMode: ["solo", "online", "join"].includes(candidate.matchMode ?? "") ? candidate.matchMode! : "solo",
     joinCode: typeof candidate.joinCode === "string" ? candidate.joinCode.slice(0, 6) : "",

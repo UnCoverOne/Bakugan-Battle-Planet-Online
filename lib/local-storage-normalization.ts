@@ -171,6 +171,6 @@ export const normalizeStoredBoolean = (value: unknown) => value === true;
 export const normalizeStoredNumber = (value: unknown) => Number.isFinite(value) ? Math.max(0, Number(value)) : 0;
 export const normalizeStoredFormat = (value: unknown) => value === "bo3" ? "bo3" : "bo1";
 export const normalizeStoredMatchMode = (value: unknown) => ["solo", "online", "join"].includes(String(value)) ? value as "solo" | "online" | "join" : "solo";
-export const normalizeStoredCompendiumTab = (value: unknown) => ["cards", "rules", "rulings"].includes(String(value)) ? value as "cards" | "rules" | "rulings" : "cards";
+export const normalizeStoredCompendiumTab = (value: unknown) => ["cards", "cores", "rules", "rulings"].includes(String(value)) ? value as "cards" | "cores" | "rules" | "rulings" : "cards";
 export const normalizeStoredJoinCode = (value: unknown) => typeof value === "string" ? value.slice(0, 6) : "";
 export const normalizeStoredPlayerId = (value: unknown) => typeof value === "string" && value ? value : "player";

@@ -8,14 +8,20 @@ import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import {
   COMPENDIUM_PAGE_SIZE,
+  CORE_COMPENDIUM_PAGE_SIZE,
+  coreCompendiumSearchParams,
   compendiumSearchParams,
+  filterAndSortCompendiumCores,
   filterAndSortCompendiumCards,
+  parseCoreCompendiumState,
   parseCompendiumState,
+  selectedCompendiumCore,
   selectedCompendiumCard,
   type CardInspectorTab,
+  type CoreCompendiumState,
   type CompendiumState,
 } from "../../lib/compendium";
-import { CARDS, RULE_ENTRIES } from "../../lib/data";
+import { CARDS, CORES, RULE_ENTRIES } from "../../lib/data";
 import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT, SYMBOL_ENTRIES } from "../../lib/reference";
 import { useApp } from "../application/AppProvider";
@@ -33,6 +39,14 @@ const SORT_LABELS: Record<CompendiumState["sort"], string> = {
   "cost-asc": "Energy low–high",
   "cost-desc": "Energy high–low",
 };
+const CORE_TYPES = ["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"] as const;
+const CORE_SORT_LABELS: Record<CoreCompendiumState["sort"], string> = {
+  collector: "Collector number",
+  type: "Core type",
+  bonus: "B-Power high–low",
+  damage: "Damage high–low",
+};
+const CORE_SET_LABELS = ["Battle Brawlers", "Armored Alliance"] as const;
 
 type FilterKey = "set" | "type" | "faction" | "cost" | "rarity" | "keyword";
 type StatePatch = Partial<CompendiumState>;
@@ -108,14 +122,62 @@ function FilterControls({
   );
 }
 
+function CoreInspector({
+  core,
+  onClose,
+  onShare,
+}: {
+  core: (typeof CORES)[number];
+  onClose: () => void;
+  onShare: () => void;
+}) {
+  const signed = (value: number) => `${value > 0 ? "+" : ""}${value}`;
+  return (
+    <aside data-ui="core-inspector" className={styles.coreInspector} aria-label={`${core.name} BakuCore inspector`}>
+      <header className={styles.coreInspectorHeader}>
+        <div>
+          <span>{core.set ?? "Battle Brawlers"} · #{core.number}</span>
+          <h2>{core.name}</h2>
+        </div>
+        <div className={styles.coreInspectorActions}>
+          <button type="button" onClick={onShare} aria-label={`Copy link to ${core.name}`}>Share</button>
+          <button type="button" onClick={onClose} aria-label="Close BakuCore inspector">Close</button>
+        </div>
+      </header>
+      <div className={styles.coreInspectorBody}>
+        <div className={styles.coreInspectorArt}><OriginalImage src={core.art} alt={`${core.name} front`} width={240} height={209} /></div>
+        <div className={styles.cardBadges}>
+          <StatusChip tone="info">{core.type}</StatusChip>
+          <StatusChip>{core.set ?? "Battle Brawlers"}</StatusChip>
+        </div>
+        <dl className={styles.coreInspectorMetadata}>
+          <div><dt>Collector</dt><dd>{core.set === "Armored Alliance" ? "AA" : "BB"} #{core.number}</dd></div>
+          <div><dt>B-Power</dt><dd>{signed(core.bonus)}{core.fusionBonus ? ` / ${signed(core.fusionBonus)} fused` : ""}</dd></div>
+          <div><dt>Damage</dt><dd>{signed(core.damageBonus)}{core.fusionDamageBonus ? ` / ${signed(core.fusionDamageBonus)} fused` : ""}</dd></div>
+          <div><dt>Catalogue ID</dt><dd>{core.catalogId ?? core.id}</dd></div>
+        </dl>
+        <div className={styles.coreRules}>
+          {core.bakuGearCostReduction && <p>Baku-Gear costs {core.bakuGearCostReduction} less Energy while this Core is held.</p>}
+          {core.frostStrike && <p>Grants +{core.frostStrike} FrostStrike.</p>}
+          {core.shadowStrike && <p>Grants ShadowStrike.</p>}
+          {core.fusionFrostStrike && <p>While fused, grants +{core.fusionFrostStrike} FrostStrike.</p>}
+          {core.conditionalFactions && <p>Conditional bonus for {core.conditionalFactions.join(" and ")} BakuGan.</p>}
+          {!core.bakuGearCostReduction && !core.frostStrike && !core.shadowStrike && !core.fusionFrostStrike && !core.conditionalFactions && !core.fusionBonus && !core.fusionDamageBonus && <p className={styles.coreInspectorMuted}>This BakuCore has no additional rules text.</p>}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 
 export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setCompendiumTab, authUser, notify } = useApp();
-  const section = segments[0] === "rules" ? "rules" : segments[0] === "rulings" ? "rulings" : "cards";
+  const section = segments[0] === "cores" ? "cores" : segments[0] === "rules" ? "rules" : segments[0] === "rulings" ? "rulings" : "cards";
   const legacyDetail = section === "cards" && segments[0] === "cards" ? decodeURIComponent(segments[1] ?? "") : "";
   const state = useMemo(() => parseCompendiumState(searchParams.toString()), [searchParams]);
+  const coreState = useMemo(() => parseCoreCompendiumState(searchParams.toString()), [searchParams]);
   const [searchQuery, setSearchQuery] = useState(state.q);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
@@ -132,10 +194,15 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     [deferredSearchQuery, state],
   );
   const cards = useMemo(() => filterAndSortCompendiumCards(CARDS, searchState), [searchState]);
+  const cores = useMemo(() => filterAndSortCompendiumCores(CORES, { ...coreState, q: deferredSearchQuery }), [coreState, deferredSearchQuery]);
   const pages = Math.max(1, Math.ceil(cards.length / COMPENDIUM_PAGE_SIZE));
   const page = Math.min(state.page, pages);
   const visible = cards.slice((page - 1) * COMPENDIUM_PAGE_SIZE, page * COMPENDIUM_PAGE_SIZE);
-  const selected = selectedCompendiumCard(CARDS, state.card || legacyDetail);
+  const corePages = Math.max(1, Math.ceil(cores.length / CORE_COMPENDIUM_PAGE_SIZE));
+  const corePage = Math.min(coreState.page, corePages);
+  const visibleCores = cores.slice((corePage - 1) * CORE_COMPENDIUM_PAGE_SIZE, corePage * CORE_COMPENDIUM_PAGE_SIZE);
+  const selected = section === "cards" ? selectedCompendiumCard(CARDS, state.card || legacyDetail) : null;
+  const selectedCore = section === "cores" ? selectedCompendiumCore(CORES, coreState.core) : null;
   const normalized = deferredSearchQuery.trim().toLowerCase();
   const rules = useMemo(
     () => ruleReferences.filter((entry) => !normalized || `${entry.title} ${entry.body} ${entry.category}`.toLowerCase().includes(normalized)),
@@ -144,6 +211,11 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
 
   const urlFor = useCallback((next: CompendiumState, path = "/compendium") => {
     const query = compendiumSearchParams(next).toString();
+    return query ? `${path}?${query}` : path;
+  }, []);
+
+  const coreUrlFor = useCallback((next: CoreCompendiumState, path = "/compendium/cores") => {
+    const query = coreCompendiumSearchParams(next).toString();
     return query ? `${path}?${query}` : path;
   }, []);
 
@@ -158,6 +230,17 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     router[method](urlFor(next));
   }, [router, searchQuery, state, urlFor]);
 
+  const navigateCore = useCallback((patch: Partial<CoreCompendiumState>, options: { push?: boolean; resetPage?: boolean } = {}) => {
+    const next = {
+      ...coreState,
+      q: searchQuery,
+      ...patch,
+      page: options.resetPage ? 1 : patch.page ?? coreState.page,
+    };
+    const method = options.push ? "push" : "replace";
+    router[method](coreUrlFor(next));
+  }, [coreState, coreUrlFor, router, searchQuery]);
+
   const closeInspector = useCallback(() => {
     const trigger = inspectorTrigger.current;
     navigate({ card: "", tab: "overview" });
@@ -165,14 +248,18 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   }, [navigate]);
 
   useEffect(() => { setCompendiumTab(section); }, [section, setCompendiumTab]);
-  useEffect(() => { setSearchQuery(state.q); }, [state.q]);
+  useEffect(() => { setSearchQuery(section === "cores" ? coreState.q : state.q); }, [coreState.q, section, state.q]);
   useEffect(() => {
-    if (searchQuery === state.q) return;
+    const currentQuery = section === "cores" ? coreState.q : state.q;
+    if (searchQuery === currentQuery) return;
     const timeout = window.setTimeout(() => {
-      router.replace(urlFor({ ...state, q: searchQuery, page: 1 }), { scroll: false });
+      const path = section === "cores"
+        ? coreUrlFor({ ...coreState, q: searchQuery, page: 1 })
+        : urlFor({ ...state, q: searchQuery, page: 1 });
+      router.replace(path, { scroll: false });
     }, 180);
     return () => window.clearTimeout(timeout);
-  }, [router, searchQuery, state, urlFor]);
+  }, [coreState, coreUrlFor, router, searchQuery, section, state, urlFor]);
   useEffect(() => {
     if (legacyDetail && !state.card) {
       router.replace(urlFor({ ...state, card: legacyDetail, tab: "overview" }));
@@ -183,14 +270,19 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     if (state.page > pages) navigate({ page: pages });
   }, [navigate, pages, searchQuery, state.page, state.q]);
   useEffect(() => {
+    if (section !== "cores" || searchQuery !== coreState.q) return;
+    if (coreState.page > corePages) navigateCore({ page: corePages });
+  }, [corePage, corePages, coreState.page, coreState.q, navigateCore, searchQuery, section]);
+  useEffect(() => {
     const closeOverlays = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (filterSheetOpen) setFilterSheetOpen(false);
       else if (selected) closeInspector();
+      else if (selectedCore) navigateCore({ core: "" });
     };
     addEventListener("keydown", closeOverlays);
     return () => removeEventListener("keydown", closeOverlays);
-  }, [closeInspector, filterSheetOpen, selected]);
+  }, [closeInspector, filterSheetOpen, navigateCore, selected, selectedCore]);
 
   const activeFilterCount = (["set", "type", "faction", "cost", "rarity", "keyword"] as FilterKey[])
     .filter((key) => state[key] !== "All").length;
@@ -208,8 +300,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
     navigate({ card: card.slug ?? card.catalogId, tab: "overview" }, { push: true });
   };
+  const selectCore = (core: typeof CORES[number]) => navigateCore({ core: core.catalogId ?? core.id }, { push: true });
   const copyCurrentLink = async (label: string) => {
-    await copyText(`${location.origin}${urlFor({ ...state, q: searchQuery })}`);
+    const path = section === "cores"
+      ? coreUrlFor({ ...coreState, q: searchQuery })
+      : urlFor({ ...state, q: searchQuery });
+    await copyText(`${location.origin}${path}`);
     notify(`${label} link copied.`);
   };
   const sectionUrl = (path: string) => searchQuery ? `${path}?q=${encodeURIComponent(searchQuery)}` : path;
@@ -243,8 +339,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       <RouteHero
         eyebrow="AUTHORITATIVE REFERENCE"
         title="Compendium"
-        description="Browse every supported card, inspect its complete record, and follow connected rules and published rulings."
-        aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards</strong><span>Sources reviewed {REFERENCE_REVIEWED_AT}</span></div>}
+        description="Browse every supported card and BakuCore, inspect complete records, and follow connected rules and published rulings."
+        aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORES.length} BakuCores</strong><span>Sources reviewed {REFERENCE_REVIEWED_AT}</span></div>}
       />
       <section className={`compendium-toolbar ${styles.toolbar}`}>
         <Field className={styles.search} label="Search the archive">
@@ -256,6 +352,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         </Field>
         <Tabs label="Compendium sections">
           <button className={section === "cards" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium"))}>CARDS</button>
+          <button className={section === "cores" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/cores"))}>BAKUCORES</button>
           <button className={section === "rules" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/rules"))}>RULES & GLOSSARY</button>
           <button className={section === "rulings" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/rulings"))}>RULINGS</button>
         </Tabs>
@@ -343,6 +440,74 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               </Surface>
             </div>
           )}
+        </>
+      )}
+
+      {section === "cores" && (
+        <>
+          <section className={styles.resultsToolbar}>
+            <div>
+              <strong>{cores.length.toLocaleString()} BakuCores</strong>
+              <span>Page {corePage} of {corePages}</span>
+            </div>
+            <Field label="Set">
+              <select value={coreState.set} onChange={(event) => navigateCore({ set: event.target.value }, { resetPage: true })}>
+                <option>All</option>
+                {CORE_SET_LABELS.map((value) => <option value={value} key={value}>{value}</option>)}
+              </select>
+            </Field>
+            <Field label="Core type">
+              <select value={coreState.type} onChange={(event) => navigateCore({ type: event.target.value }, { resetPage: true })}>
+                <option>All</option>
+                {CORE_TYPES.map((value) => <option value={value} key={value}>{value}</option>)}
+              </select>
+            </Field>
+            <Field label="Sort">
+              <select value={coreState.sort} onChange={(event) => navigateCore({ sort: event.target.value as CoreCompendiumState["sort"] }, { resetPage: true })}>
+                {Object.entries(CORE_SORT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+              </select>
+            </Field>
+            <Tabs className={styles.densityTabs} label="BakuCore gallery density">
+              <button className={coreState.density === "gallery" ? "active" : ""} onClick={() => navigateCore({ density: "gallery" })}>Gallery</button>
+              <button className={coreState.density === "compact" ? "active" : ""} onClick={() => navigateCore({ density: "compact" })}>Compact</button>
+            </Tabs>
+            <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("BakuCore results")}>Share results</button>
+          </section>
+          <div className={`${styles.coreWorkspace} ${selectedCore ? styles.coreWorkspaceSelected : ""}`}>
+            <main className={styles.gallery}>
+              {visibleCores.length ? (
+                <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
+                  {visibleCores.map((core) => (
+                    <button
+                      className={`${styles.cardTile} ${styles.coreTile} ${selectedCore?.id === core.id ? styles.cardTileSelected : ""}`}
+                      type="button"
+                      aria-pressed={selectedCore?.id === core.id}
+                      key={core.id}
+                      onClick={() => selectCore(core)}
+                    >
+                      <span className={styles.coreArt}><OriginalImage src={core.art} alt={`${core.name} front`} width={240} height={209} /></span>
+                      <span className={styles.cardCopy}>
+                        <span className={styles.cardBadges}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{core.set === "Armored Alliance" ? "AA" : "BB"}</StatusChip></span>
+                        <strong>{core.name}</strong>
+                        <small>#{core.number} · {core.bonus >= 0 ? "+" : ""}{core.bonus} B · {core.damageBonus >= 0 ? "+" : ""}{core.damageBonus} D</small>
+                      </span>
+                    </button>
+                  ))}
+                </CardGrid>
+              ) : (
+                <Surface className={styles.emptyResults} role="status">
+                  <span>◇</span><h2>No BakuCores match</h2><p>Adjust the search or clear the active BakuCore filters to return to the full archive.</p>
+                  <ActionButton tone="secondary" onClick={() => navigateCore({ q: "", set: "All", type: "All", sort: "collector", density: "gallery", page: 1, core: "" })}>Clear filters</ActionButton>
+                </Surface>
+              )}
+              <nav className={styles.pagination} aria-label="BakuCore result pages">
+                <button disabled={corePage === 1} onClick={() => navigateCore({ page: corePage - 1 }, { push: true })}>← Previous</button>
+                <span>Page {corePage} of {corePages}</span>
+                <button disabled={corePage === corePages} onClick={() => navigateCore({ page: corePage + 1 }, { push: true })}>Next →</button>
+              </nav>
+            </main>
+            {selectedCore && <CoreInspector core={selectedCore} onClose={() => navigateCore({ core: "" })} onShare={() => void copyCurrentLink(selectedCore.name)} />}
+          </div>
         </>
       )}
 

@@ -3,12 +3,17 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   compendiumSearchParams,
+  coreCompendiumSearchParams,
   DEFAULT_COMPENDIUM_STATE,
+  DEFAULT_CORE_COMPENDIUM_STATE,
+  filterAndSortCompendiumCores,
   filterAndSortCompendiumCards,
+  parseCoreCompendiumState,
   parseCompendiumState,
   relatedCompendiumCards,
+  selectedCompendiumCore,
 } from "../lib/compendium";
-import type { GameCard } from "../lib/game";
+import type { Core, GameCard } from "../lib/game";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -29,6 +34,15 @@ const card = (overrides: Partial<GameCard> & Pick<GameCard, "catalogId" | "displ
   evolvesFrom: null,
   art: "/assets/cards/card-missing.svg",
   slug: overrides.catalogId,
+  ...overrides,
+});
+
+const core = (overrides: Partial<Core> & Pick<Core, "id" | "number" | "name">): Core => ({
+  catalogId: overrides.id,
+  type: "Fist",
+  bonus: 0,
+  damageBonus: 1,
+  art: "/assets/cores/full/1.webp",
   ...overrides,
 });
 
@@ -117,6 +131,28 @@ test("related cards connect evolutions and alternate identities", () => {
   assert.deepEqual(relatedCompendiumCards(base, [base, evo, unrelated]).map((candidate) => candidate.catalogId), ["bb-2"]);
 });
 
+test("BakuCore compendium state filters, sorts, and selects both sets", () => {
+  const state = parseCoreCompendiumState("q=fusion&coreSet=Armored+Alliance&coreType=Fist&coreSort=bonus&coreDensity=compact&corePage=2&core=aa-core-70");
+  assert.deepEqual(state, {
+    q: "fusion",
+    set: "Armored Alliance",
+    type: "Fist",
+    sort: "bonus",
+    density: "compact",
+    page: 2,
+    core: "aa-core-70",
+  });
+  assert.deepEqual(parseCoreCompendiumState(coreCompendiumSearchParams(state)), state);
+  assert.deepEqual(parseCoreCompendiumState("coreSort=unknown&coreDensity=huge&corePage=-1"), DEFAULT_CORE_COMPENDIUM_STATE);
+  const candidates = [
+    core({ id: "core-1", number: 1, name: "Fist +0 B / +1 D", set: "Battle Brawlers" }),
+    core({ id: "aa-core-70", number: 70, name: "AA 70 Fist / Fusion +5 D", set: "Armored Alliance", fusionDamageBonus: 5 }),
+    core({ id: "aa-core-71", number: 71, name: "AA 71 Fist / Fusion +2 D", set: "Armored Alliance", fusionDamageBonus: 2 }),
+  ];
+  assert.deepEqual(filterAndSortCompendiumCores(candidates, state).map((candidate) => candidate.id), ["aa-core-70", "aa-core-71"]);
+  assert.equal(selectedCompendiumCore(candidates, "aa-core-70")?.number, 70);
+});
+
 test("Compendium renders the complete gallery and reusable inspector contracts", async () => {
   const [route, css, inspector, inspectorCss, image] = await Promise.all([
     read("components/routes/CompendiumScreen.tsx"),
@@ -138,6 +174,10 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "setSearchQuery",
     "window.setTimeout",
     "scroll: false",
+    "BAKUCORES",
+    "CORE_COMPENDIUM_PAGE_SIZE",
+    "CoreInspector",
+    "filterAndSortCompendiumCores",
   ]) assert.match(route, new RegExp(contract));
   assert.match(route, /value=\{searchQuery\}/);
   assert.match(route, /onChange=\{\(event\) => setSearchQuery\(event\.target\.value\)\}/);

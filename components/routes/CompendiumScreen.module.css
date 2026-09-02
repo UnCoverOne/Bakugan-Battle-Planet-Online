@@ -153,6 +153,132 @@
   min-width: 0;
 }
 
+.coreWorkspace {
+  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.coreWorkspaceSelected {
+  grid-template-columns: minmax(0, 1fr) clamp(20rem, 29vw, 27.5rem);
+}
+
+.coreTile .coreArt {
+  aspect-ratio: 240 / 209;
+  padding: var(--space-4);
+}
+
+.coreArt img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.coreInspector {
+  position: sticky;
+  top: 10.25rem;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(91, 196, 226, .24);
+  background: rgba(3, 16, 22, .97);
+  box-shadow: var(--elevation-2);
+  clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
+}
+
+.coreInspectorHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid rgba(91, 196, 226, .18);
+}
+
+.coreInspectorHeader span,
+.coreInspectorMetadata dt {
+  color: var(--text-muted);
+  font-size: var(--type-meta);
+}
+
+.coreInspectorHeader h2 {
+  margin: var(--space-1) 0 0;
+  font-size: 1.2rem;
+  line-height: 1.15;
+}
+
+.coreInspectorActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.coreInspectorActions button {
+  min-height: 2.25rem;
+  padding-inline: var(--space-2);
+  border: 0;
+  color: var(--text-muted);
+  background: transparent;
+  font-weight: 800;
+}
+
+.coreInspectorActions button:hover,
+.coreInspectorActions button:focus-visible {
+  color: var(--brand-blue-bright);
+}
+
+.coreInspectorBody {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.coreInspectorArt {
+  display: grid;
+  place-items: center;
+  padding: var(--space-3);
+  background: radial-gradient(circle at 50% 40%, rgba(20, 116, 148, .2), transparent 68%), #01070a;
+}
+
+.coreInspectorArt img {
+  width: min(100%, 15rem);
+  height: auto;
+}
+
+.coreInspectorMetadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.coreInspectorMetadata div {
+  display: grid;
+  gap: .2rem;
+  min-width: 0;
+}
+
+.coreInspectorMetadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.coreRules {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.coreRules p {
+  margin: 0;
+}
+
+.coreInspectorMuted {
+  color: var(--text-muted);
+}
+
 .cardGrid {
   width: 100%;
   max-width: none;
@@ -347,6 +473,11 @@
     grid-template-columns: 1fr;
   }
 
+  .coreWorkspace,
+  .coreWorkspaceSelected {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
   .filterRail {
     display: none;
   }
@@ -389,6 +520,11 @@
     grid-template-columns: 1fr;
   }
 
+  .coreWorkspace,
+  .coreWorkspaceSelected {
+    grid-template-columns: 1fr;
+  }
+
   .filterBackdrop {
     display: flex;
   }
@@ -397,7 +533,8 @@
 @media (max-width: 700px) {
   .toolbar,
   .resultsToolbar,
-  .workspace {
+  .workspace,
+  .coreWorkspace {
     width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
   }
 
@@ -407,6 +544,11 @@
 
   .sourceSummary {
     min-width: 0;
+  }
+
+  .coreInspector {
+    position: relative;
+    top: auto;
   }
 
   .densityTabs {

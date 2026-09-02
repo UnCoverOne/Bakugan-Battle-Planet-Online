@@ -106,6 +106,7 @@ export type Core = {
   id: string;
   /** Immutable catalogue identity shared by physically separate copies. */
   catalogId?: string;
+  set?: "Battle Brawlers" | "Armored Alliance";
   number: number;
   name: string;
   type: CoreType;
@@ -113,6 +114,10 @@ export type Core = {
   damageBonus: number;
   frostStrike?: number;
   shadowStrike?: boolean;
+  bakuGearCostReduction?: number;
+  fusionBonus?: number;
+  fusionDamageBonus?: number;
+  fusionFrostStrike?: number;
   conditionalFactions?: Faction[];
   conditionalBonus?: number;
   conditionalDamage?: number;

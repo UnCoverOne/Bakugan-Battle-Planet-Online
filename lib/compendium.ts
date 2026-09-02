@@ -1,5 +1,5 @@
 import { CARD_SET_CODES, cardSetCode } from "./content/catalogue";
-import type { GameCard } from "./game";
+import type { Core, GameCard } from "./game";
 
 export const COMPENDIUM_PAGE_SIZE = 24;
 
@@ -154,4 +154,92 @@ export function relatedCompendiumCards(card: GameCard, cards: readonly GameCard[
       || Boolean(card.evolvesFrom && candidate.displayName.toLowerCase().includes(card.evolvesFrom.toLowerCase()))
       || Boolean(candidate.evolvesFrom && card.displayName.toLowerCase().includes(candidate.evolvesFrom.toLowerCase()));
   }).slice(0, 12);
+}
+
+export const CORE_COMPENDIUM_PAGE_SIZE = 24;
+export const CORE_COMPENDIUM_SORTS = ["collector", "type", "bonus", "damage"] as const;
+export const CORE_COMPENDIUM_DENSITIES = ["gallery", "compact"] as const;
+
+export type CoreCompendiumSort = (typeof CORE_COMPENDIUM_SORTS)[number];
+export type CoreCompendiumDensity = (typeof CORE_COMPENDIUM_DENSITIES)[number];
+export type CoreCompendiumState = {
+  q: string;
+  set: string;
+  type: string;
+  sort: CoreCompendiumSort;
+  density: CoreCompendiumDensity;
+  page: number;
+  core: string;
+};
+
+export const DEFAULT_CORE_COMPENDIUM_STATE: CoreCompendiumState = Object.freeze({
+  q: "",
+  set: "All",
+  type: "All",
+  sort: "collector",
+  density: "gallery",
+  page: 1,
+  core: "",
+});
+
+export function parseCoreCompendiumState(input: URLSearchParams | string): CoreCompendiumState {
+  const params = typeof input === "string" ? new URLSearchParams(input) : input;
+  const requestedPage = Number.parseInt(params.get("corePage") ?? "1", 10);
+  return {
+    q: params.get("q") ?? "",
+    set: choice(params.get("coreSet")),
+    type: choice(params.get("coreType")),
+    sort: oneOf(params.get("coreSort"), CORE_COMPENDIUM_SORTS, DEFAULT_CORE_COMPENDIUM_STATE.sort),
+    density: oneOf(params.get("coreDensity"), CORE_COMPENDIUM_DENSITIES, DEFAULT_CORE_COMPENDIUM_STATE.density),
+    page: Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1,
+    core: params.get("core")?.trim() ?? "",
+  };
+}
+
+export function coreCompendiumSearchParams(state: CoreCompendiumState) {
+  const params = new URLSearchParams();
+  if (state.q) params.set("q", state.q);
+  if (state.set !== DEFAULT_CORE_COMPENDIUM_STATE.set) params.set("coreSet", state.set);
+  if (state.type !== DEFAULT_CORE_COMPENDIUM_STATE.type) params.set("coreType", state.type);
+  if (state.sort !== DEFAULT_CORE_COMPENDIUM_STATE.sort) params.set("coreSort", state.sort);
+  if (state.density !== DEFAULT_CORE_COMPENDIUM_STATE.density) params.set("coreDensity", state.density);
+  if (state.page > 1) params.set("corePage", String(state.page));
+  if (state.core) params.set("core", state.core);
+  return params;
+}
+
+const coreSearchableText = (core: Core) => [
+  core.name,
+  core.catalogId ?? core.id,
+  core.set ?? "Battle Brawlers",
+  core.type,
+  core.number,
+  core.bonus,
+  core.damageBonus,
+  core.frostStrike ? "FrostStrike" : "",
+  core.shadowStrike ? "ShadowStrike" : "",
+  core.bakuGearCostReduction ? "Baku-Gear" : "",
+  core.fusionBonus ? "Fusion" : "",
+  core.fusionDamageBonus ? "Fusion" : "",
+].join(" ").toLowerCase();
+
+const coreSetRank = (core: Core) => (core.set ?? "Battle Brawlers") === "Battle Brawlers" ? 0 : 1;
+
+export function filterAndSortCompendiumCores(cores: readonly Core[], state: CoreCompendiumState) {
+  const query = state.q.trim().toLowerCase();
+  return cores.filter((core) => (
+    (!query || coreSearchableText(core).includes(query))
+    && (state.set === "All" || (core.set ?? "Battle Brawlers") === state.set)
+    && (state.type === "All" || core.type === state.type)
+  )).toSorted((left, right) => {
+    if (state.sort === "type") return left.type.localeCompare(right.type) || left.number - right.number;
+    if (state.sort === "bonus") return right.bonus - left.bonus || left.damageBonus - right.damageBonus || left.number - right.number;
+    if (state.sort === "damage") return right.damageBonus - left.damageBonus || left.bonus - right.bonus || left.number - right.number;
+    return coreSetRank(left) - coreSetRank(right) || left.number - right.number || left.id.localeCompare(right.id);
+  });
+}
+
+export function selectedCompendiumCore(cores: readonly Core[], identity: string) {
+  if (!identity) return null;
+  return cores.find((core) => core.id === identity || core.catalogId === identity) ?? null;
 }

@@ -63,3 +63,17 @@ test("mobile filtering opens an accessible full-width sheet", async ({ page }) =
   await expect.poll(() => new URL(page.url()).searchParams.get("faction")).toBe("Aquos");
   await expect(sheet.getByRole("button", { name: /Show \d+ cards/ })).toBeVisible();
 });
+
+test("BakuCore tab exposes set filters and a shareable inspector", async ({ page }) => {
+  await page.goto("/compendium/cores");
+  await waitForCompendium(page);
+  await expect(page.getByText(/\d+ BakuCores/)).toBeVisible();
+  await page.getByLabel("Set").selectOption("Armored Alliance");
+  await expect.poll(() => new URL(page.url()).searchParams.get("coreSet")).toBe("Armored Alliance");
+  const tile = page.locator('[data-ui="card-grid"] > button').first();
+  await tile.click();
+  const inspector = page.locator('[data-ui="core-inspector"]');
+  await expect(inspector).toBeVisible();
+  await expect(inspector.getByText("Armored Alliance", { exact: true }).first()).toBeVisible();
+  await expect.poll(() => new URL(page.url()).searchParams.get("core")).toMatch(/^aa-core-/);
+});
