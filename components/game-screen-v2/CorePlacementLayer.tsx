@@ -1,6 +1,7 @@
 "use client";
 
 import { OriginalImage } from "@/components/media/OriginalImage";
+import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import { useState, type CSSProperties } from "react";
 import { HEX_CELLS, legalPlacementCells, type CoreType, type MatchState } from "../../lib/game";
@@ -89,7 +90,7 @@ export function CorePlacementLayer({
       <aside className={styles.tray} aria-label="Your unused BakuCores">
         <strong>YOUR UNUSED CORES</strong>
         {unused.map((core) => <button type="button" key={core.id} disabled={!mine || busy} data-selected={selectedCoreId === core.id} onClick={() => setSelectedCoreId(core.id)}>
-          <OriginalImage src={core.art} alt={core.name} width="150" height="130" loading="eager" />
+          <BakuCoreArt core={core} alt={core.name} width="150" height="130" loading="eager" />
           <span>{core.name}</span>
         </button>)}
       </aside>

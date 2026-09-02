@@ -1,6 +1,7 @@
 .art {
   position: relative;
   display: inline-block;
+  width: 100%;
   min-width: 0;
   line-height: 0;
 }
@@ -66,8 +67,8 @@
 
 .overlayIcon {
   flex: 0 0 auto;
-  width: 1em;
-  height: 1em;
+  width: 1em !important;
+  height: 1em !important;
   object-fit: contain;
 }
 

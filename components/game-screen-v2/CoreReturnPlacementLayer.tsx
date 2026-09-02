@@ -1,6 +1,7 @@
 "use client";
 
 import { OriginalImage } from "@/components/media/OriginalImage";
+import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import { useState, type CSSProperties } from "react";
 import { HEX_CELLS, type CoreType, type MatchState } from "../../lib/game";
@@ -99,7 +100,7 @@ export function CoreReturnPlacementLayer({
               data-selected={selectedCoreId === item.core.id}
               onClick={() => setSelectedCoreId(item.core.id)}
             >
-              <OriginalImage src={item.core.art} alt={item.core.name} width="150" height="130" loading="eager" />
+              <BakuCoreArt core={item.core} alt={item.core.name} width="150" height="130" loading="eager" />
               <span>{item.core.name}</span>
             </button>
           ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import { OriginalImage } from "@/components/media/OriginalImage";
+import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -1874,7 +1875,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
                 const core = selectedId ? CORES.find((candidate) => candidate.id === selectedId) : null;
                 return core ? (
                   <article className={styles.builderCoreSlot} key={`${core.id}-${index}`}>
-                    <button onClick={() => inspectCore(core.id)}><OriginalImage src={core.art} alt={core.name} /></button>
+                    <button onClick={() => inspectCore(core.id)}><BakuCoreArt core={core} alt={core.name} /></button>
                     <span>{core.type}</span>
                     <button aria-label={`Remove ${core.name}`} onClick={() => adjustCore(core.id, -1)}>−</button>
                   </article>
@@ -2404,7 +2405,7 @@ function BuilderCoreInspector({ coreId, onClose }: { coreId: string; onClose: ()
     <div className={styles.builderInspectorOverlay}>
       <section className={styles.builderCoreInspector} role="dialog" aria-modal="true" aria-label={`${core.name} BakuCore`}>
         <header><span>BakuCore</span><h2>{core.name}</h2><button type="button" onClick={onClose}>Close</button></header>
-        <div><OriginalImage src={core.art} alt={core.name} /><dl><div><dt>Set</dt><dd>{core.set ?? "Battle Brawlers"}</dd></div><div><dt>Type</dt><dd>{core.type}</dd></div><div><dt>B-Power</dt><dd>{core.bonus > 0 ? "+" : ""}{core.bonus}{core.fusionBonus ? ` / +${core.fusionBonus} fused` : ""}</dd></div><div><dt>Damage</dt><dd>{core.damageBonus > 0 ? "+" : ""}{core.damageBonus}{core.fusionDamageBonus ? ` / +${core.fusionDamageBonus} fused` : ""}</dd></div></dl><p>{core.bakuGearCostReduction ? `Baku-Gear costs ${core.bakuGearCostReduction} less Energy while this Core is held. ` : ""}{core.fusionFrostStrike ? `While fused, this Core grants +${core.fusionFrostStrike} FrostStrike. ` : ""}BakuCore types must match the six indicators printed across the three selected Character cards.</p></div>
+        <div><BakuCoreArt core={core} alt={core.name} /><dl><div><dt>Set</dt><dd>{core.set ?? "Battle Brawlers"}</dd></div><div><dt>Type</dt><dd>{core.type}</dd></div><div><dt>B-Power</dt><dd>{core.bonus > 0 ? "+" : ""}{core.bonus}{core.fusionBonus ? ` / +${core.fusionBonus} fused` : ""}</dd></div><div><dt>Damage</dt><dd>{core.damageBonus > 0 ? "+" : ""}{core.damageBonus}{core.fusionDamageBonus ? ` / +${core.fusionDamageBonus} fused` : ""}</dd></div></dl><p>{core.bakuGearCostReduction ? `Baku-Gear costs ${core.bakuGearCostReduction} less Energy while this Core is held. ` : ""}{core.fusionFrostStrike ? `While fused, this Core grants +${core.fusionFrostStrike} FrostStrike. ` : ""}BakuCore types must match the six indicators printed across the three selected Character cards.</p></div>
       </section>
     </div>
   );

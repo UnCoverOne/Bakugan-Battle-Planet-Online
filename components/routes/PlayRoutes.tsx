@@ -1,6 +1,7 @@
 "use client";
 
 import { OriginalImage } from "@/components/media/OriginalImage";
+import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -398,7 +399,7 @@ function LoadoutVisual({ deck }: { deck: DeckRecord }) {
         {Array.from({ length: 6 }, (_, index) => {
           const core = cores[index];
           return core
-            ? <span key={`${core.id}-${index}`}><OriginalImage src={core.art} loading="lazy" alt="" /><small>{core.type}</small></span>
+            ? <span key={`${core.id}-${index}`}><BakuCoreArt core={core} loading="lazy" alt="" /><small>{core.type}</small></span>
             : <span className={styles.emptyCore} key={index}>?</span>;
         })}
       </div>

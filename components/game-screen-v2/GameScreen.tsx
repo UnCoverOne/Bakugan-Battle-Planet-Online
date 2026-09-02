@@ -1,6 +1,7 @@
 "use client";
 
 import { OriginalImage } from "@/components/media/OriginalImage";
+import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -166,9 +167,9 @@ function HeldCoreZone({
           "--held-core-order": index,
         } as CSSProperties;
         return (
-          <OriginalImage
+          <BakuCoreArt
+            core={placement.core}
             className={styles.heldCore}
-            src={placement.core.art}
             alt={placement.core.name}
             draggable={false}
             data-core-cell={placement.cell}

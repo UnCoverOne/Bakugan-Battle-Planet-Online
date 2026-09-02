@@ -1,6 +1,7 @@
 "use client";
 
 import { OriginalImage } from "@/components/media/OriginalImage";
+import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import { useEffect, useState, type CSSProperties } from "react";
 import type { MatchState, RollOutcome } from "../../lib/game";
@@ -138,7 +139,7 @@ export function RollResultLayer({
                     <div className={styles.landedCores}>
                       {landed.map((placement) => placement ? (
                         <figure key={placement.cell}>
-                          <OriginalImage src={placement.core.art} alt="" aria-hidden="true" draggable={false} />
+                          <BakuCoreArt core={placement.core} alt="" aria-hidden="true" draggable={false} />
                           <figcaption>{placement.core.name}</figcaption>
                         </figure>
                       ) : null)}
