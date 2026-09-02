@@ -5,6 +5,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CardInspector } from "../cards/CardInspector";
+import { InspectorModal } from "../cards/InspectorModal";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import {
   COMPENDIUM_PAGE_SIZE,
@@ -126,18 +127,29 @@ function CoreInspector({
   core,
   onClose,
   onShare,
+  returnFocusRef,
 }: {
   core: (typeof CORES)[number];
   onClose: () => void;
   onShare: () => void;
+  returnFocusRef?: { current: HTMLElement | null };
 }) {
   const signed = (value: number) => `${value > 0 ? "+" : ""}${value}`;
+  const panelId = `core-inspector-${core.catalogId ?? core.id}`;
+  const titleId = `${panelId}-title`;
   return (
-    <aside data-ui="core-inspector" className={styles.coreInspector} aria-label={`${core.name} BakuCore inspector`}>
+    <InspectorModal
+      dataUi="core-inspector"
+      titleId={titleId}
+      describedBy={panelId}
+      onClose={onClose}
+      returnFocusRef={returnFocusRef}
+      className={styles.coreInspector}
+    >
       <header className={styles.coreInspectorHeader}>
         <div>
           <span>{core.set ?? "Battle Brawlers"} · #{core.number}</span>
-          <h2>{core.name}</h2>
+          <h2 id={titleId}>{core.name}</h2>
         </div>
         <div className={styles.coreInspectorActions}>
           <button type="button" onClick={onShare} aria-label={`Copy link to ${core.name}`}>Share</button>
@@ -165,7 +177,7 @@ function CoreInspector({
           {!core.bakuGearCostReduction && !core.frostStrike && !core.shadowStrike && !core.fusionFrostStrike && !core.conditionalFactions && !core.fusionBonus && !core.fusionDamageBonus && <p className={styles.coreInspectorMuted}>This BakuCore has no additional rules text.</p>}
         </div>
       </div>
-    </aside>
+    </InspectorModal>
   );
 }
 
@@ -297,7 +309,10 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
     navigate({ card: card.slug ?? card.catalogId, tab: "overview" }, { push: true });
   };
-  const selectCore = (core: typeof CORES[number]) => navigateCore({ core: core.catalogId ?? core.id }, { push: true });
+  const selectCore = (core: typeof CORES[number], trigger?: HTMLElement | null) => {
+    inspectorTrigger.current = trigger ?? inspectorTrigger.current;
+    navigateCore({ core: core.catalogId ?? core.id }, { push: true });
+  };
   const copyCurrentLink = async (label: string) => {
     const path = section === "cores"
       ? coreUrlFor({ ...coreState, q: searchQuery })
@@ -471,7 +486,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             </Tabs>
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("BakuCore results")}>Share results</button>
           </section>
-          <div className={`${styles.coreWorkspace} ${selectedCore ? styles.coreWorkspaceSelected : ""}`}>
+          <div className={styles.coreWorkspace}>
             <main className={styles.gallery}>
               {visibleCores.length ? (
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
@@ -481,7 +496,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                       type="button"
                       aria-pressed={selectedCore?.id === core.id}
                       key={core.id}
-                      onClick={() => selectCore(core)}
+                      onClick={(event) => selectCore(core, event.currentTarget)}
                     >
                       <span className={styles.coreArt}><OriginalImage src={core.art} alt={`${core.name} front`} width={240} height={209} /></span>
                       <span className={styles.cardCopy}>
@@ -504,7 +519,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 <button disabled={corePage === corePages} onClick={() => navigateCore({ page: corePage + 1 }, { push: true })}>Next →</button>
               </nav>
             </main>
-            {selectedCore && <CoreInspector core={selectedCore} onClose={() => navigateCore({ core: "" })} onShare={() => void copyCurrentLink(selectedCore.name)} />}
+            {selectedCore && <CoreInspector core={selectedCore} returnFocusRef={inspectorTrigger} onClose={() => navigateCore({ core: "" })} onShare={() => void copyCurrentLink(selectedCore.name)} />}
           </div>
         </>
       )}

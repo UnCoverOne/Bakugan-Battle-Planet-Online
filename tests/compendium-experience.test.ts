@@ -154,11 +154,12 @@ test("BakuCore compendium state filters, sorts, and selects both sets", () => {
 });
 
 test("Compendium renders the complete gallery and reusable inspector contracts", async () => {
-  const [route, css, inspector, inspectorCss, image] = await Promise.all([
+  const [route, css, inspector, inspectorCss, modalCss, image] = await Promise.all([
     read("components/routes/CompendiumScreen.tsx"),
     read("components/routes/CompendiumScreen.module.css"),
     read("components/cards/CardInspector.tsx"),
     read("components/cards/CardInspector.module.css"),
+    read("components/cards/InspectorModal.module.css"),
     read("components/cards/ResponsiveCardImage.tsx"),
   ]);
   for (const contract of [
@@ -192,12 +193,15 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s);
   assert.match(css, /\.filterRail\s*\{[^}]*position:\s*sticky/s);
   assert.match(css, /\.filterSheet/);
-  assert.match(inspectorCss, /\.backdrop\s*\{[^}]*position:\s*fixed/s);
   assert.match(inspectorCss, /\.modal\s*\{[^}]*width:\s*min\(66rem/s);
   assert.doesNotMatch(inspectorCss, /\.adaptive\s*\{/);
-  assert.match(inspector, /data-ui="card-inspector-backdrop"/);
-  assert.match(inspector, /createPortal/);
-  assert.match(inspector, /role=\{mode === "modal" \? "dialog"/);
-  assert.match(inspectorCss, /@media \(max-width:\s*900px\)[\s\S]*\.modal\s*\{[\s\S]*width:\s*100vw/s);
+  assert.match(inspector, /InspectorModal/);
+  assert.match(modalCss, /\.backdrop\s*\{[^}]*position:\s*fixed/s);
+  assert.match(modalCss, /@media \(max-width:\s*900px\)[\s\S]*\.panel\s*\{[\s\S]*width:\s*100vw/s);
+  assert.match(inspector, /data-ui="card-inspector"/);
+  assert.match(inspectorCss, /@media \(max-width:\s*900px\)[\s\S]*\.modal \.overview\s*\{[\s\S]*grid-template-columns:\s*1fr/s);
+  assert.match(inspectorCss, /@media \(max-width:\s*900px\)[\s\S]*\.modal \.artWell\s*\{[\s\S]*position:\s*static/s);
+  assert.match(route, /InspectorModal/);
+  assert.doesNotMatch(css, /\.coreInspector\s*\{[^}]*position:\s*(?:sticky|relative)/s);
   assert.match(inspectorCss, /height:\s*100dvh/);
 });

@@ -2,8 +2,7 @@
 
 import { OriginalImage } from "@/components/media/OriginalImage";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useMemo } from "react";
 import { cardCollectorLabel, cardSetCode, CARD_SET_INFO } from "../../lib/content/catalogue";
 import {
   CARD_INSPECTOR_TABS,
@@ -13,6 +12,7 @@ import {
 import type { GameCard } from "../../lib/game";
 import { SYMBOL_ENTRIES, type ReferenceEntry } from "../../lib/reference";
 import { StatusChip, Tabs } from "../design-system/primitives";
+import { InspectorModal } from "./InspectorModal";
 import { ResponsiveCardImage } from "./ResponsiveCardImage";
 import styles from "./CardInspector.module.css";
 
@@ -88,9 +88,6 @@ export function CardInspector({
   returnFocusRef,
   className,
 }: CardInspectorProps) {
-  const [mounted, setMounted] = useState(false);
-  const panelRef = useRef<HTMLElement | null>(null);
-  const onCloseRef = useRef(onClose);
   const relevantRules = useMemo(() => matchingReferences(card, rules, 8), [card, rules]);
   const relevantRulings = useMemo(() => matchingReferences(card, rulings, 8), [card, rulings]);
   const related = useMemo(() => relatedCompendiumCards(card, allCards), [allCards, card]);
@@ -98,78 +95,8 @@ export function CardInspector({
   const panelId = `card-inspector-${card.catalogId}-${tab}`;
   const titleId = `card-inspector-title-${card.catalogId}`;
 
-  useEffect(() => setMounted(true), []);
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    if (mode !== "modal" || !mounted) return;
-    const panel = panelRef.current;
-    const activeElement = document.activeElement;
-    const returnFocus = returnFocusRef?.current
-      ?? (activeElement instanceof HTMLElement ? activeElement : null);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const focusableSelector = [
-      "button:not([disabled])",
-      "[href]",
-      'input:not([disabled])',
-      'select:not([disabled])',
-      'textarea:not([disabled])',
-      '[tabindex]:not([tabindex="-1"])',
-    ].join(",");
-    const focusable = () => Array.from(panel?.querySelectorAll<HTMLElement>(focusableSelector) ?? [])
-      .filter((element) => !element.hidden && element.getClientRects().length > 0);
-    const frame = window.requestAnimationFrame(() => {
-      const first = focusable()[0];
-      (first ?? panel)?.focus();
-    });
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        onCloseRef.current?.();
-        return;
-      }
-      if (event.key !== "Tab" || !panel) return;
-      const candidates = focusable();
-      if (!candidates.length) {
-        event.preventDefault();
-        panel.focus();
-        return;
-      }
-      const first = candidates[0];
-      const last = candidates[candidates.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("keydown", onKeyDown, true);
-      document.body.style.overflow = previousOverflow;
-      if (returnFocus?.isConnected) window.requestAnimationFrame(() => returnFocus.focus());
-    };
-  }, [mode, mounted, returnFocusRef]);
-
-  const inspector = (
-    <aside
-      ref={panelRef}
-      data-ui="card-inspector"
-      className={[styles.inspector, styles[mode], className].filter(Boolean).join(" ")}
-      role={mode === "modal" ? "dialog" : undefined}
-      aria-modal={mode === "modal" ? "true" : undefined}
-      aria-labelledby={mode === "modal" ? titleId : undefined}
-      aria-describedby={mode === "modal" ? panelId : undefined}
-      aria-label={mode === "embedded" ? `${card.displayName} card inspector` : undefined}
-      tabIndex={mode === "modal" ? -1 : undefined}
-    >
+  const inspectorContent = (
+    <>
       <header className={styles.header}>
         <div>
           <span>{cardCollectorLabel(card)}</span>
@@ -259,23 +186,32 @@ export function CardInspector({
           ) : <InspectorEmpty message="No evolution, alternate printing, or directly connected card was found." />
         )}
       </div>
-    </aside>
+    </>
   );
 
-  if (mode === "embedded") return inspector;
-  if (!mounted) return null;
-  return createPortal(
-    <div
-      data-ui="card-inspector-backdrop"
-      className={styles.backdrop}
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCloseRef.current?.();
-      }}
+  if (mode === "embedded") {
+    return (
+      <aside
+        data-ui="card-inspector"
+        className={[styles.inspector, styles.embedded, className].filter(Boolean).join(" ")}
+        aria-label={`${card.displayName} card inspector`}
+      >
+        {inspectorContent}
+      </aside>
+    );
+  }
+
+  return (
+    <InspectorModal
+      dataUi="card-inspector"
+      titleId={titleId}
+      describedBy={panelId}
+      onClose={onClose}
+      returnFocusRef={returnFocusRef}
+      className={[styles.inspector, styles.modal, className].filter(Boolean).join(" ")}
     >
-      {inspector}
-    </div>,
-    document.body,
+      {inspectorContent}
+    </InspectorModal>
   );
 }
 

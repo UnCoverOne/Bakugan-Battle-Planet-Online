@@ -94,6 +94,23 @@ test("BakuCore tab exposes set filters and a shareable inspector", async ({ page
   await tile.click();
   const inspector = page.locator('[data-ui="core-inspector"]');
   await expect(inspector).toBeVisible();
+  const backdrop = page.locator('[data-ui="core-inspector-backdrop"]');
+  await expect(backdrop).toBeVisible();
   await expect(inspector.getByText("Armored Alliance", { exact: true }).first()).toBeVisible();
   await expect.poll(() => new URL(page.url()).searchParams.get("core")).toMatch(/^aa-core-/);
+
+  const viewport = page.viewportSize()!;
+  const geometry = await inspector.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { position: getComputedStyle(element).position, width: rect.width, height: rect.height };
+  });
+  if (viewport.width <= 900) {
+    expect(geometry.position).toBe("relative");
+    expect(Math.abs(geometry.width - viewport.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.height - viewport.height)).toBeLessThanOrEqual(1);
+  } else {
+    expect(geometry.position).toBe("relative");
+    expect(geometry.width).toBeGreaterThan(900);
+    expect(geometry.width).toBeLessThanOrEqual(1056);
+  }
 });
