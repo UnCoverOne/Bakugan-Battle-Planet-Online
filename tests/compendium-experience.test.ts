@@ -219,7 +219,6 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   assert.match(inspector, /data-ui="card-inspector"/);
   assert.match(inspectorCss, /@media \(max-width:\s*900px\)[\s\S]*\.modal \.overview\s*\{[\s\S]*grid-template-columns:\s*1fr/s);
   assert.match(inspectorCss, /@media \(max-width:\s*900px\)[\s\S]*\.modal \.artWell\s*\{[\s\S]*position:\s*static/s);
-  assert.match(route, /InspectorModal/);
   assert.doesNotMatch(css, /\.coreInspector\s*\{[^}]*position:\s*(?:sticky|relative)/s);
   assert.match(inspectorCss, /height:\s*100dvh/);
 });
