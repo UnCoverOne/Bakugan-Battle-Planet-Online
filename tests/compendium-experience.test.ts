@@ -192,7 +192,7 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   assert.match(route, /coreAlternate/);
   assert.doesNotMatch(route, /reprintOf/);
   assert.doesNotMatch(css, /\.coreEffects span/);
-  assert.match(marker, /value=\{searchQuery\}/);
+  assert.match(route, /value=\{searchQuery\}/);
   assert.match(route, /onChange=\{\(event\) => setSearchQuery\(event\.target\.value\)\}/);
   assert.doesNotMatch(route, /onChange=\{\(event\) => navigate\(\{ q: event\.target\.value \}/);
   for (const tab of ["Overview", "Rules", "Rulings", "Related"]) assert.match(inspector, new RegExp(tab));
