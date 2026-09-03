@@ -56,9 +56,11 @@ test("placeholder core art renders the same effect vocabulary used by the inspec
   assert.match(source, /data-core-scan/);
   assert.match(source, /hasProvidedScan/);
   assert.match(source, /baku-gear\.svg/);
+  assert.match(source, /bakuGearIcon/);
   assert.match(source, /text: `: -\$\{core\.bakuGearCostReduction\}`/);
   assert.doesNotMatch(source, /Baku-Gear −\$\{core\.bakuGearCostReduction\} Energy/);
   assert.doesNotMatch(source, /overlayHeader/);
+  assert.match(source, /only add rules that are absent/);
   assert.doesNotMatch(source, /placeholder\.png/);
   assert.match(source, /frost-strike\.png/);
   assert.match(source, /fusionDamageBonus/);
