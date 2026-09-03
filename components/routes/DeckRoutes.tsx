@@ -2262,15 +2262,15 @@ function BuilderGalleryCard({
 }) {
   const core = item.kind === "core" ? CORES.find((candidate) => candidate.id === item.id) : null;
   const metadata = item.kind === "core"
-    ? core?.type
+    ? `${core?.set === "Armored Alliance" ? "AA" : "BB"} #${core?.number ?? ""} · ${core?.type ?? ""}`
     : item.kind === "character"
       ? `${item.card.faction} · Character`
       : `${item.card.faction} · ${item.card.type} · ${item.card.cost} Energy`;
   return (
     <article className={`${styles.builderGalleryCard} ${item.kind === "core" ? styles.builderGalleryCore : ""}`}>
       <button className={styles.builderCardArtButton} type="button" onClick={onInspect} aria-label={`Inspect ${item.name}`}>
-        {item.kind === "core"
-          ? <OriginalImage src={core?.art} alt={item.name} />
+        {item.kind === "core" && core
+          ? <BakuCoreArt core={core} alt={item.name} />
           : <ResponsiveCardImage card={item.card} presentation="tile" />}
       </button>
       <div className={styles.builderGalleryIdentity}>
