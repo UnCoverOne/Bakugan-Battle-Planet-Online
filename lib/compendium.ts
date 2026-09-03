@@ -119,7 +119,10 @@ export function filterAndSortCompendiumCards(
 ) {
   const query = state.q.trim().toLowerCase();
   return cards.filter((card) => (
-    (!query || searchableText(card).includes(query))
+    // The unfused face is the single Compendium representative. The reverse
+    // face remains available to the shared inspector and gameplay systems.
+    card.fusionFace !== "b"
+    && (!query || searchableText(card).includes(query))
     && (state.set === "All" || setCodeFor(card) === state.set)
     && (state.type === "All" || card.type === state.type)
     && (state.faction === "All" || card.factions.includes(state.faction as GameCard["faction"]))
@@ -140,13 +143,16 @@ export function filterAndSortCompendiumCards(
 
 export function selectedCompendiumCard(cards: readonly GameCard[], identity: string) {
   if (!identity) return null;
-  return cards.find((card) => card.catalogId === identity || card.slug === identity) ?? null;
+  const selected = cards.find((card) => card.catalogId === identity || card.slug === identity) ?? null;
+  if (!selected?.fusionPairId || selected.fusionFace !== "b") return selected;
+  return cards.find((card) => card.fusionPairId === selected.fusionPairId && card.fusionFace === "a") ?? selected;
 }
 
 export function relatedCompendiumCards(card: GameCard, cards: readonly GameCard[]) {
   const names = new Set([card.name, card.displayName, card.evolvesFrom].filter(Boolean).map((value) => value!.toLowerCase()));
   return cards.filter((candidate) => {
     if (candidate.catalogId === card.catalogId) return false;
+    if (candidate.fusionPairId && candidate.fusionPairId === card.fusionPairId) return false;
     const candidateNames = [candidate.name, candidate.displayName, candidate.evolvesFrom]
       .filter(Boolean)
       .map((value) => value!.toLowerCase());
