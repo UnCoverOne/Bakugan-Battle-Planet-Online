@@ -178,6 +178,8 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "BAKUCORES",
     "CORE_COMPENDIUM_PAGE_SIZE",
     "CoreInspector",
+    "coreSpecialEffects",
+    "BakuCore effects",
     "filterAndSortCompendiumCores",
     "returnFocusRef",
   ]) assert.match(route, new RegExp(contract));

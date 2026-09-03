@@ -50,6 +50,18 @@ const CORE_SORT_LABELS: Record<CoreCompendiumState["sort"], string> = {
 };
 const CORE_SET_LABELS = ["Battle Brawlers", "Armored Alliance"] as const;
 
+const coreSpecialEffects = (core: (typeof CORES)[number]) => [
+  core.bakuGearCostReduction ? `Baku-Gear −${core.bakuGearCostReduction} Energy` : "",
+  core.frostStrike ? `+${core.frostStrike} FrostStrike` : "",
+  core.shadowStrike ? "ShadowStrike" : "",
+  core.fusionBonus ? `Fusion ${core.fusionBonus > 0 ? "+" : ""}${core.fusionBonus} B` : "",
+  core.fusionDamageBonus ? `Fusion ${core.fusionDamageBonus > 0 ? "+" : ""}${core.fusionDamageBonus} D` : "",
+  core.fusionFrostStrike ? `Fusion +${core.fusionFrostStrike} FrostStrike` : "",
+  core.conditionalFactions?.length
+    ? `${core.conditionalFactions.join(" / ")}: ${core.conditionalBonus ? `+${core.conditionalBonus} B` : `+${core.conditionalDamage ?? 0} D`}`
+    : "",
+].filter(Boolean);
+
 type FilterKey = "set" | "type" | "faction" | "cost" | "rarity" | "keyword";
 type StatePatch = Partial<CompendiumState>;
 
@@ -504,6 +516,11 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                         <span className={styles.cardBadges}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{core.set === "Armored Alliance" ? "AA" : "BB"}</StatusChip></span>
                         <strong>{core.name}</strong>
                         <small>#{core.number} · {core.bonus >= 0 ? "+" : ""}{core.bonus} B · {core.damageBonus >= 0 ? "+" : ""}{core.damageBonus} D</small>
+                        {coreSpecialEffects(core).length > 0 && (
+                          <span className={styles.coreEffects} aria-label="BakuCore effects">
+                            {coreSpecialEffects(core).map((effect) => <span key={effect}>{effect}</span>)}
+                          </span>
+                        )}
                       </span>
                     </button>
                   ))}
