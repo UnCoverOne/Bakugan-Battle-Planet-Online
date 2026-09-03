@@ -124,12 +124,35 @@ const coreRules = (core: Core) => [
     : "",
 ].filter((value): value is string => Boolean(value));
 
-function CardOverview({ card }: { card: GameCard }) {
+function CardOverview({
+  card,
+  hasFusion,
+  fusionFace,
+  onToggleFusion,
+}: {
+  card: GameCard;
+  hasFusion: boolean;
+  fusionFace: "a" | "b";
+  onToggleFusion: () => void;
+}) {
   const set = CARD_SET_INFO[cardSetCode(card)];
   return (
     <div className={styles.overview}>
       <div className={styles.artWell}>
-        <ResponsiveCardImage card={card} presentation="inspector" />
+        <div className={styles.artFrame}>
+          <ResponsiveCardImage card={card} presentation="inspector" />
+          {hasFusion && (
+            <button
+              type="button"
+              className={styles.fusionToggle}
+              aria-label={fusionFace === "a" ? "Show fused side" : "Show unfused side"}
+              aria-pressed={fusionFace === "b"}
+              onClick={onToggleFusion}
+            >
+              <OriginalImage src="/assets/symbols/fusion.svg" alt="" width="32" height="32" />
+            </button>
+          )}
+        </div>
       </div>
       <div className={styles.identity}>
         <div className={styles.chips}>
@@ -240,24 +263,38 @@ export function CardInspector(props: InspectorProps) {
   const core = "core" in props ? props.core : undefined;
   const allCards = "card" in props ? props.allCards : null;
   const onSelectCard = "card" in props ? props.onSelectCard : undefined;
-  const label = card?.displayName ?? core?.name ?? "Inspector";
-  const itemKey = card?.catalogId ?? core?.catalogId ?? core?.id ?? "item";
-  const isCore = Boolean(core);
+  const baseCard = useMemo(() => {
+    if (!card?.fusionPairId || !allCards) return card;
+    return allCards.find((candidate) => candidate.fusionPairId === card.fusionPairId && candidate.fusionFace === "a") ?? card;
+  }, [allCards, card]);
+  const fusedCard = useMemo(() => {
+    if (!baseCard?.fusionPairId || !allCards) return null;
+    return allCards.find((candidate) => candidate.fusionPairId === baseCard.fusionPairId && candidate.fusionFace === "b") ?? null;
+  }, [allCards, baseCard]);
+  const [fusionFace, setFusionFace] = useState<"a" | "b">("a");
   const [activePrintingId, setActivePrintingId] = useState("primary");
+  const itemKey = baseCard?.fusionPairId
+    ? "fusion-" + baseCard.fusionPairId
+    : baseCard?.catalogId ?? core?.catalogId ?? core?.id ?? "item";
+  const displayedCard = fusionFace === "b" && fusedCard ? fusedCard : baseCard;
+  const hasFusion = Boolean(baseCard?.fusionPairId && fusedCard);
+  const label = displayedCard?.displayName ?? core?.name ?? "Inspector";
+  const isCore = Boolean(core);
 
   useEffect(() => {
+    setFusionFace("a");
     setActivePrintingId("primary");
   }, [itemKey]);
 
   const relevantRules = useMemo(
-    () => card ? matchingReferences(card, rules, 8) : core ? matchingCoreReferences(core, rules, 8) : [],
-    [card, core, rules],
+    () => displayedCard ? matchingReferences(displayedCard, rules, 8) : core ? matchingCoreReferences(core, rules, 8) : [],
+    [displayedCard, core, rules],
   );
   const relevantRulings = useMemo(
-    () => card ? matchingReferences(card, rulings, 8) : core ? matchingCoreReferences(core, rulings, 8) : [],
-    [card, core, rulings],
+    () => displayedCard ? matchingReferences(displayedCard, rulings, 8) : core ? matchingCoreReferences(core, rulings, 8) : [],
+    [displayedCard, core, rulings],
   );
-  const relatedCards = useMemo(() => card ? relatedCompendiumCards(card, allCards) : [], [allCards, card]);
+  const relatedCards = useMemo(() => displayedCard ? relatedCompendiumCards(displayedCard, allCards) : [], [allCards, displayedCard]);
   const activePrinting = core?.printings?.find((printing) => printing.id === activePrintingId);
   const displayedCore = core && activePrinting
     ? { ...core, set: activePrinting.set, number: activePrinting.number, art: activePrinting.art, hasProvidedScan: true }
@@ -269,7 +306,7 @@ export function CardInspector(props: InspectorProps) {
     <>
       <header className={styles.header}>
         <div>
-          <span>{core ? `${displayedCore?.set ?? "Battle Brawlers"} · #${displayedCore?.number}` : card ? cardCollectorLabel(card) : ""}</span>
+          <span>{core ? `${displayedCore?.set ?? "Battle Brawlers"} · #${displayedCore?.number}` : displayedCard ? cardCollectorLabel(displayedCard) : ""}</span>
           <h2 id={titleId}>{label}</h2>
         </div>
         <div className={styles.headerActions}>
@@ -293,7 +330,7 @@ export function CardInspector(props: InspectorProps) {
         ))}
       </Tabs>
       <div className={styles.body} id={panelId} role="tabpanel" aria-live="polite">
-        {tab === "overview" && card && <CardOverview card={card} />}
+        {tab === "overview" && displayedCard && <CardOverview card={displayedCard} hasFusion={hasFusion} fusionFace={fusionFace} onToggleFusion={() => setFusionFace((face) => face === "a" ? "b" : "a")} />}
         {tab === "overview" && core && displayedCore && <CoreOverview core={core} displayedCore={displayedCore} />}
         {tab === "rules" && (
           <ReferenceList
@@ -312,7 +349,7 @@ export function CardInspector(props: InspectorProps) {
             ruling
           />
         )}
-        {tab === "related" && card && (
+        {tab === "related" && displayedCard && (
           relatedCards.length ? (
             <div className={styles.relatedGrid}>
               {relatedCards.map((candidate) => (
