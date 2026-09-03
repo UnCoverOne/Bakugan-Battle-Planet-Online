@@ -102,6 +102,13 @@ export type Bakugan = {
   openedTurn?: number;
 };
 
+export type CorePrinting = {
+  id: string;
+  set: "Battle Brawlers" | "Armored Alliance";
+  number: number;
+  art: string;
+};
+
 export type Core = {
   id: string;
   /** Immutable catalogue identity shared by physically separate copies. */
@@ -121,8 +128,8 @@ export type Core = {
   conditionalFactions?: Faction[];
   conditionalBonus?: number;
   conditionalDamage?: number;
-  /** Armored Alliance artwork printing that reuses another catalogue core's rules. */
-  reprintOf?: string;
+  /** Alternate physical printings that share this catalogue core's rules. */
+  printings?: CorePrinting[];
   /** True only when the supplied archive contains a front scan for this printing. */
   hasProvidedScan?: boolean;
   art: string;
