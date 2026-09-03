@@ -86,7 +86,7 @@ export function BakuCoreArt({
           <span className={styles.overlayItems}>
             {overlayItems(core).map((item, index) => (
               <span className={styles.overlayItem} key={`${item.text}-${index}`}>
-                {item.leadingIcon && <OriginalImage className={styles.overlayIcon} src={item.leadingIcon} alt="" width={20} height={20} />}
+                {item.leadingIcon && <OriginalImage className={`${styles.overlayIcon} ${item.leadingIcon === ICONS.bakuGear ? styles.bakuGearIcon : ""}`} src={item.leadingIcon} alt="" width={20} height={20} />}
                 <span>{item.text}</span>
                 {item.trailingIcon && <OriginalImage className={styles.overlayIcon} src={item.trailingIcon} alt="" width={20} height={20} />}
               </span>
