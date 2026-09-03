@@ -170,6 +170,7 @@ export type CoreCompendiumState = {
   density: CoreCompendiumDensity;
   page: number;
   core: string;
+  tab: CardInspectorTab;
 };
 
 export const DEFAULT_CORE_COMPENDIUM_STATE: CoreCompendiumState = Object.freeze({
@@ -180,6 +181,7 @@ export const DEFAULT_CORE_COMPENDIUM_STATE: CoreCompendiumState = Object.freeze(
   density: "gallery",
   page: 1,
   core: "",
+  tab: "overview",
 });
 
 export function parseCoreCompendiumState(input: URLSearchParams | string): CoreCompendiumState {
@@ -193,6 +195,7 @@ export function parseCoreCompendiumState(input: URLSearchParams | string): CoreC
     density: oneOf(params.get("coreDensity"), CORE_COMPENDIUM_DENSITIES, DEFAULT_CORE_COMPENDIUM_STATE.density),
     page: Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1,
     core: params.get("core")?.trim() ?? "",
+    tab: oneOf(params.get("tab"), CARD_INSPECTOR_TABS, DEFAULT_CORE_COMPENDIUM_STATE.tab),
   };
 }
 
@@ -204,7 +207,10 @@ export function coreCompendiumSearchParams(state: CoreCompendiumState) {
   if (state.sort !== DEFAULT_CORE_COMPENDIUM_STATE.sort) params.set("coreSort", state.sort);
   if (state.density !== DEFAULT_CORE_COMPENDIUM_STATE.density) params.set("coreDensity", state.density);
   if (state.page > 1) params.set("corePage", String(state.page));
-  if (state.core) params.set("core", state.core);
+  if (state.core) {
+    params.set("core", state.core);
+    if (state.tab !== DEFAULT_CORE_COMPENDIUM_STATE.tab) params.set("tab", state.tab);
+  }
   return params;
 }
 
