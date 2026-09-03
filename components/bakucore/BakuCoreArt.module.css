@@ -69,6 +69,38 @@
   filter: invert(1);
 }
 
+/*
+ * The artwork is rendered at different widths in the gallery and inspector.
+ * Keep every overlay dimension relative to this wrapper so its visual scale
+ * follows the image instead of the surrounding card or viewport.
+ */
+.art {
+  container-type: inline-size;
+}
+
+@supports (width: 1cqw) {
+  .overlay {
+    font-size: clamp(.6rem, 6.25cqw, .95rem);
+  }
+
+  .overlayItems {
+    gap: clamp(.2rem, 2cqw, .3rem);
+    max-width: calc(100% - clamp(.65rem, 6.5cqw, 1rem));
+  }
+
+  .overlayItem {
+    gap: clamp(.2rem, 2cqw, .3rem);
+    min-height: clamp(1.35rem, 8.75cqw, 2.1rem);
+    padding: clamp(.2rem, 2.5cqw, .35rem) clamp(.35rem, 4.1cqw, .6rem);
+    border-radius: clamp(.2rem, 2cqw, .3rem);
+  }
+
+  .overlayIcon {
+    width: clamp(.75rem, 8.3cqw, 1.25rem)!important;
+    height: clamp(.75rem, 8.3cqw, 1.25rem)!important;
+  }
+}
+
 .art[data-core-scan="true"] .image {
   clip-path: polygon(24% 0, 76% 0, 100% 50%, 76% 100%, 24% 100%, 0 50%);
 }
