@@ -15,7 +15,7 @@ test("only the 28 unique Armored Alliance BakuCores are playable", () => {
     69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
   ]);
   assert.equal(new Set(aaCores.map((core) => core.catalogId)).size, aaCores.length);
-  assert.ok(aaCores.every((core) => !core.reprintOf));
+  assert.ok(aaCores.every((core) => !core.printings));
   assert.equal(aaCores.find((core) => core.number === 1)?.bakuGearCostReduction, 2);
   assert.equal(aaCores.find((core) => core.number === 69)?.frostStrike, 1);
   assert.equal(aaCores.find((core) => core.number === 78)?.fusionFrostStrike, 2);
@@ -23,16 +23,16 @@ test("only the 28 unique Armored Alliance BakuCores are playable", () => {
   assert.equal(aaCores.find((core) => core.number === 1)?.art, "/assets/cores/full/1.webp");
 });
 
-test("AA artwork references preserve the 25 reprint printings without duplicating gameplay cores", () => {
-  const references = CORE_COMPENDIUM.filter((core) => core.reprintOf);
-  assert.deepEqual(references.map((core) => core.number), [19, 20, 23, 24, 29, 30, 32, 33, 35, 36, 38, 41, 43, 47, 48, 54, 55, 56, 57, 58, 59, 60, 62, 63, 64]);
-  assert.equal(references.length, 25);
+test("AA artwork references stay attached to canonical gameplay cores", () => {
+  const printings = CORE_COMPENDIUM.flatMap((core) => core.printings ?? []);
+  assert.deepEqual(printings.map((printing) => printing.number), [19, 20, 23, 24, 29, 30, 32, 33, 35, 36, 38, 41, 43, 47, 48, 54, 55, 56, 57, 58, 59, 60, 62, 63, 64]);
+  assert.equal(printings.length, 25);
   assert.equal(CORES.length, 80);
-  assert.equal(CORE_COMPENDIUM.length, 105);
-  assert.equal(references.find((core) => core.number === 29)?.reprintOf, "core-12");
-  assert.equal(references.find((core) => core.number === 30)?.reprintOf, "core-13");
-  assert.equal(references.find((core) => core.number === 32)?.reprintOf, "core-15");
-  assert.ok(references.every((core) => core.set === "Armored Alliance" && core.hasProvidedScan && core.art.endsWith(".png")));
+  assert.equal(CORE_COMPENDIUM.length, 80);
+  assert.equal(CORE_COMPENDIUM.some((core) => core.id.startsWith("aa-reprint-")), false);
+  assert.equal(CORE_COMPENDIUM.find((core) => core.number === 12)?.printings?.find((printing) => printing.number === 29)?.set, "Armored Alliance");
+  assert.equal(CORE_COMPENDIUM.find((core) => core.number === 13)?.printings?.find((printing) => printing.number === 30)?.art, "/assets/cores/armored-alliance/aa-30.png");
+  assert.ok(printings.every((printing) => printing.set === "Armored Alliance" && printing.art.endsWith(".png")));
 });
 
 test("Armored Alliance fronts use supplied scans and retain explicit placeholders only when needed", () => {
