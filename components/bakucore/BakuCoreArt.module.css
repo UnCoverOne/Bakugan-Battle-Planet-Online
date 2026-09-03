@@ -1,7 +1,9 @@
 .art {
   position: relative;
-  display: inline-block;
+  display: block;
   width: 100%;
+  height: auto;
+  aspect-ratio: 240 / 209;
   min-width: 0;
   line-height: 0;
 }
