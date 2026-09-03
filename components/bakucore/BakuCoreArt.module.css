@@ -13,17 +13,64 @@
   object-fit: contain;
 }
 
-.overlay { position:absolute; inset:12% 8%; display:flex; flex-wrap:wrap; align-content:center; justify-content:center; gap:.18rem; padding:.2rem; overflow:hidden; color:#111; font-family:var(--font-display); font-size:clamp(.42rem,1vw,.7rem); font-weight:900; line-height:1.1; text-align:center; pointer-events:none; }
-.overlayHeader,.overlayItem { display:inline-flex; align-items:center; justify-content:center; gap:.18rem; max-width:100%; padding:.16rem .3rem; border-radius:.22rem; color:#111; background:rgba(255,255,255,.94); box-shadow:0 1px 2px rgba(0,0,0,.28); text-shadow:none; }
-.overlayHeader { flex-basis:100%; justify-content:space-between; margin-inline:18%; font-size:.8em; }
-.overlayItems { display:contents; }
-.overlayItem > span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.overlayIcon { flex:0 0 auto; width:1em!important; height:1em!important; object-fit:contain; }
+.overlay {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: 5%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: .2rem;
+  padding: 0;
+  overflow: visible;
+  color: #111;
+  font-family: var(--font-display);
+  font-size: clamp(.42rem, 1vw, .7rem);
+  font-weight: 900;
+  line-height: 1.1;
+  text-align: center;
+  pointer-events: none;
+}
+.overlayHeader,
+.overlayItem {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: .18rem;
+  max-width: 100%;
+  padding: .16rem .3rem;
+  border-radius: .22rem;
+  color: #111;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .28);
+  text-shadow: none;
+}
+.overlayHeader {
+  margin: 0;
+  font-size: .8em;
+}
+.overlayItems {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .18rem;
+  max-width: 100%;
+}
+.overlayItem > span:last-child {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.overlayIcon { flex: 0 0 auto; width: 1em!important; height: 1em!important; object-fit: contain; }
 .art[data-core-scan="true"] .image { clip-path:polygon(24% 0,76% 0,100% 50%,76% 100%,24% 100%,0 50%); }
 @media (max-width: 700px) {
   .overlay {
-    inset: 18% 10%;
-    padding: .2rem .25rem;
+    left: 5%;
+    right: 5%;
+    bottom: 5%;
+    gap: .16rem;
     font-size: clamp(.36rem, 1.55vw, .58rem);
   }
 }
