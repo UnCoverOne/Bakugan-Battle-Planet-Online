@@ -110,8 +110,8 @@ const armoredAllianceCores: Core[] = armoredAllianceSeeds.map(([number, type, bo
 
 /**
  * These AA printings share the listed Battle Brawlers rules profile.
- * They are searchable/displayable in the Compendium, but are intentionally
- * excluded from CORES so deck validation and gameplay use one canonical identity.
+ * They attach to the canonical core as alternate artwork, so the Compendium
+ * can expose the printing without creating a second gameplay identity.
  */
 const armoredAllianceReprintSources: Record<number, number> = {
   19: 2,
