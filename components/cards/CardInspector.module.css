@@ -125,6 +125,39 @@
   background: radial-gradient(circle at 50% 42%, rgba(0, 174, 239, .18), transparent 64%), #01070a;
 }
 
+.artFrame {
+  position: relative;
+  width: min(100%, 360px);
+  min-width: 0;
+}
+
+.artFrame > img {
+  width: 100%;
+  height: auto;
+}
+
+.fusionToggle {
+  position: absolute;
+  right: 2.5%;
+  bottom: 2.5%;
+  width: clamp(2.75rem, 16%, 4rem);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  padding: 14%;
+  border: 1px solid rgba(255, 255, 255, .86);
+  border-radius: .35rem;
+  color: var(--text-primary);
+  background: rgba(2, 13, 18, .92);
+  box-shadow: 0 .25rem .7rem rgba(0, 0, 0, .58);
+}
+
+.fusionToggle img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .identity {
   display: grid;
   gap: var(--space-4);
