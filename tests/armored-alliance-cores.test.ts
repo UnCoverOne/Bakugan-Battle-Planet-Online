@@ -20,7 +20,7 @@ test("only the 28 unique Armored Alliance BakuCores are playable", () => {
   assert.equal(aaCores.find((core) => core.number === 69)?.frostStrike, 1);
   assert.equal(aaCores.find((core) => core.number === 78)?.fusionFrostStrike, 2);
   assert.equal(aaCores.find((core) => core.number === 79)?.fusionBonus, 500);
-  assert.equal(aaCores.find((core) => core.number === 1)?.art, "/assets/cores/armored-alliance/aa-1-placeholder.png");
+  assert.equal(aaCores.find((core) => core.number === 1)?.art, "/assets/cores/full/1.webp");
 });
 
 test("AA artwork references preserve the 25 reprint printings without duplicating gameplay cores", () => {
@@ -38,7 +38,7 @@ test("AA artwork references preserve the 25 reprint printings without duplicatin
 test("Armored Alliance fronts use supplied scans and retain explicit placeholders only when needed", () => {
   assert.deepEqual([...ARMORED_ALLIANCE_CORE_SCAN_NUMBERS], [2, 7, 15, 16, 17, 73, 75, 76, 78, 79]);
   assert.ok(aaCores.filter((core) => ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(core.number)).every((core) => core.art.endsWith(`/aa-${String(core.number).padStart(2, "0")}.png`)));
-  assert.ok(aaCores.filter((core) => !ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(core.number)).every((core) => core.art.includes("placeholder")));
+  assert.ok(aaCores.filter((core) => !ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(core.number)).every((core) => core.art.startsWith("/assets/cores/full/")));
   assert.ok(aaCores.every((core) => core.type && core.art));
   for (const number of [2, 7, 15, 16, 17]) assert.equal(aaCores.find((core) => core.number === number)?.hasProvidedScan, true);
 });
@@ -55,6 +55,7 @@ test("placeholder core art renders the same effect vocabulary used by the inspec
   assert.match(source, /data-core-fallback/);
   assert.match(source, /data-core-scan/);
   assert.match(source, /hasProvidedScan/);
+  assert.doesNotMatch(source, /placeholder\.png/);
   assert.match(source, /frost-strike\.png/);
   assert.match(source, /fusionDamageBonus/);
   assert.match(source, /bakuGearCostReduction/);
