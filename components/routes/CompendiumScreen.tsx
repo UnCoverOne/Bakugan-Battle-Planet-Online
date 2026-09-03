@@ -380,7 +380,16 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                       key={card.catalogId}
                       onClick={(event) => selectCard(card, event.currentTarget)}
                     >
-                      <span className={styles.cardArt}><ResponsiveCardImage card={card} presentation="tile" /></span>
+                      <span className={styles.cardArt}>
+                        <span className={styles.cardArtFrame}>
+                          <ResponsiveCardImage card={card} presentation="tile" />
+                          {card.fusionPairId && (
+                            <span className={styles.fusionBadge} aria-label="Fusion Character Card">
+                              <OriginalImage src="/assets/symbols/fusion.svg" alt="" width="24" height="24" />
+                            </span>
+                          )}
+                        </span>
+                      </span>
                       <span className={styles.cardCopy}>
                         <span className={styles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span>
                         <strong>{card.displayName}</strong>
