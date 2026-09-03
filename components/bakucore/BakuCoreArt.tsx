@@ -57,7 +57,7 @@ export function BakuCoreArt({
   core: Core;
   alt?: string;
 }) {
-  const suppliedScan = core.set === "Armored Alliance" && core.art.includes("/assets/cores/armored-alliance/aa-");
+  const suppliedScan = core.hasProvidedScan === true;
   const effectFallback = core.set === "Armored Alliance" && !suppliedScan;
   const wrapperStyle: CSSProperties = {
     ...(width !== undefined ? { width: typeof width === "number" ? `${width}px` : width } : {}),
