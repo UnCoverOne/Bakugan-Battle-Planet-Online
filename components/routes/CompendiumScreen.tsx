@@ -51,17 +51,31 @@ const CORE_SORT_LABELS: Record<CoreCompendiumState["sort"], string> = {
 };
 const CORE_SET_LABELS = ["Battle Brawlers", "Armored Alliance"] as const;
 
+const signedCoreValue = (value: number) => `${value > 0 ? "+" : ""}${value}`;
+
+const coreBaseStats = (core: Core) => [
+  core.bonus !== 0 ? `${signedCoreValue(core.bonus)} B` : "",
+  core.damageBonus !== 0 ? `${signedCoreValue(core.damageBonus)} D` : "",
+].filter(Boolean);
+
 const coreSpecialEffects = (core: Core) => [
   core.bakuGearCostReduction ? `Baku-Gear −${core.bakuGearCostReduction} Energy` : "",
   core.frostStrike ? `+${core.frostStrike} FrostStrike` : "",
   core.shadowStrike ? "ShadowStrike" : "",
-  core.fusionBonus ? `Fusion ${core.fusionBonus > 0 ? "+" : ""}${core.fusionBonus} B` : "",
-  core.fusionDamageBonus ? `Fusion ${core.fusionDamageBonus > 0 ? "+" : ""}${core.fusionDamageBonus} D` : "",
+  core.fusionBonus ? `Fusion ${signedCoreValue(core.fusionBonus)} B` : "",
+  core.fusionDamageBonus ? `Fusion ${signedCoreValue(core.fusionDamageBonus)} D` : "",
   core.fusionFrostStrike ? `Fusion +${core.fusionFrostStrike} FrostStrike` : "",
-  core.conditionalFactions?.length
-    ? `${core.conditionalFactions.join(" / ")}: ${core.conditionalBonus ? `+${core.conditionalBonus} B` : `+${core.conditionalDamage ?? 0} D`}`
+  core.conditionalFactions?.length && (core.conditionalBonus || core.conditionalDamage)
+    ? `${core.conditionalFactions.join(" / ")}: ${signedCoreValue(core.conditionalBonus || core.conditionalDamage || 0)} ${core.conditionalBonus ? "B" : "D"}`
     : "",
 ].filter(Boolean);
+
+const coreForSet = (core: Core, set: string) => {
+  const printing = core.printings?.find((candidate) => candidate.set === set);
+  return printing
+    ? { ...core, set: printing.set, number: printing.number, art: printing.art, hasProvidedScan: true }
+    : core;
+};
 
 type FilterKey = "set" | "type" | "faction" | "cost" | "rarity" | "keyword";
 type StatePatch = Partial<CompendiumState>;
@@ -148,9 +162,18 @@ function CoreInspector({
   onShare: () => void;
   returnFocusRef?: { current: HTMLElement | null };
 }) {
-  const signed = (value: number) => `${value > 0 ? "+" : ""}${value}`;
+  const [activePrintingId, setActivePrintingId] = useState("primary");
+  useEffect(() => { setActivePrintingId("primary"); }, [core.id]);
+
+  const activePrinting = core.printings?.find((printing) => printing.id === activePrintingId);
+  const displayedCore = activePrinting
+    ? { ...core, set: activePrinting.set, number: activePrinting.number, art: activePrinting.art, hasProvidedScan: true }
+    : core;
+  const displayedSet = displayedCore.set ?? "Battle Brawlers";
   const panelId = `core-inspector-${core.catalogId ?? core.id}`;
   const titleId = `${panelId}-title`;
+  const hasAdditionalRules = coreSpecialEffects(core).length > 0;
+
   return (
     <InspectorModal
       dataUi="core-inspector"
@@ -162,7 +185,7 @@ function CoreInspector({
     >
       <header className={styles.coreInspectorHeader}>
         <div>
-          <span>{core.set ?? "Battle Brawlers"} · #{core.number}</span>
+          <span>{displayedSet} · #{displayedCore.number}</span>
           <h2 id={titleId}>{core.name}</h2>
         </div>
         <div className={styles.coreInspectorActions}>
@@ -171,28 +194,62 @@ function CoreInspector({
         </div>
       </header>
       <div className={styles.coreInspectorBody}>
-        <div className={styles.coreInspectorArt}><BakuCoreArt core={core} alt={`${core.name} front`} /></div>
+        <div className={styles.coreInspectorArt}><BakuCoreArt core={displayedCore} alt={`${core.name} front`} /></div>
         <div className={styles.cardBadges}>
           <StatusChip tone="info">{core.type}</StatusChip>
-          <StatusChip>{core.set ?? "Battle Brawlers"}</StatusChip>
-          {core.reprintOf && <StatusChip tone="gold">AA reprint</StatusChip>}
+          <StatusChip>{displayedSet}</StatusChip>
+          {core.printings?.length ? <StatusChip tone="gold">Alternate printing</StatusChip> : null}
         </div>
         <dl className={styles.coreInspectorMetadata}>
-          <div><dt>Collector</dt><dd>{core.set === "Armored Alliance" ? "AA" : "BB"} #{core.number}</dd></div>
-          <div><dt>B-Power</dt><dd>{signed(core.bonus)}{core.fusionBonus ? ` / ${signed(core.fusionBonus)} fused` : ""}</dd></div>
-          <div><dt>Damage</dt><dd>{signed(core.damageBonus)}{core.fusionDamageBonus ? ` / ${signed(core.fusionDamageBonus)} fused` : ""}</dd></div>
+          <div><dt>Collector</dt><dd>{displayedSet === "Armored Alliance" ? "AA" : "BB"} #{displayedCore.number}</dd></div>
+          {(core.bonus !== 0 || core.fusionBonus) && <div><dt>B-Power</dt><dd>{signedCoreValue(core.bonus)}{core.fusionBonus ? ` / ${signedCoreValue(core.fusionBonus)} fused` : ""}</dd></div>}
+          {(core.damageBonus !== 0 || core.fusionDamageBonus) && <div><dt>Damage</dt><dd>{signedCoreValue(core.damageBonus)}{core.fusionDamageBonus ? ` / ${signedCoreValue(core.fusionDamageBonus)} fused` : ""}</dd></div>}
           <div><dt>Catalogue ID</dt><dd>{core.catalogId ?? core.id}</dd></div>
-          {core.reprintOf && <div><dt>Artwork reference</dt><dd>BB #{core.reprintOf.replace(/^core-/, "")}</dd></div>}
+          {activePrinting && <div><dt>Rules profile</dt><dd>BB #{core.number}</dd></div>}
         </dl>
         <div className={styles.coreRules}>
           {core.bakuGearCostReduction && <p>Baku-Gear costs {core.bakuGearCostReduction} less Energy while this Core is held.</p>}
           {core.frostStrike && <p>Grants +{core.frostStrike} FrostStrike.</p>}
           {core.shadowStrike && <p>Grants ShadowStrike.</p>}
+          {core.fusionBonus && <p>While fused, grants {signedCoreValue(core.fusionBonus)} B-Power.</p>}
+          {core.fusionDamageBonus && <p>While fused, grants {signedCoreValue(core.fusionDamageBonus)} Damage.</p>}
           {core.fusionFrostStrike && <p>While fused, grants +{core.fusionFrostStrike} FrostStrike.</p>}
-          {core.conditionalFactions && <p>Conditional bonus for {core.conditionalFactions.join(" and ")} BakuGan.</p>}
-          {core.reprintOf && <p className={styles.coreInspectorMuted}>AA artwork reference. Gameplay rules match Battle Brawlers core #{core.reprintOf.replace(/^core-/, "")}.</p>}
-          {!core.reprintOf && !core.bakuGearCostReduction && !core.frostStrike && !core.shadowStrike && !core.fusionFrostStrike && !core.conditionalFactions && !core.fusionBonus && !core.fusionDamageBonus && <p className={styles.coreInspectorMuted}>This BakuCore has no additional rules text.</p>}
+          {core.conditionalFactions?.length && (core.conditionalBonus || core.conditionalDamage) && (
+            <p>{core.conditionalFactions.join(" and ")} BakuGan: {signedCoreValue(core.conditionalBonus || core.conditionalDamage || 0)} {core.conditionalBonus ? "B-Power" : "Damage"}.</p>
+          )}
+          {!hasAdditionalRules && <p className={styles.coreInspectorMuted}>This BakuCore has no additional rules text.</p>}
         </div>
+        {core.printings?.length ? (
+          <section className={styles.corePrintings} aria-labelledby={`${panelId}-printings`}>
+            <h3 id={`${panelId}-printings`}>Alternate printings</h3>
+            <div className={styles.corePrintingList}>
+              <button
+                type="button"
+                className={`${styles.corePrinting} ${activePrintingId === "primary" ? styles.corePrintingActive : ""}`}
+                aria-pressed={activePrintingId === "primary"}
+                onClick={() => setActivePrintingId("primary")}
+              >
+                <span className={styles.corePrintingArt}><BakuCoreArt core={core} alt="" /></span>
+                <span><strong>{core.set ?? "Battle Brawlers"} #{core.number}</strong><small>Rules profile</small></span>
+              </button>
+              {core.printings.map((printing) => {
+                const printingCore = { ...core, set: printing.set, number: printing.number, art: printing.art, hasProvidedScan: true };
+                return (
+                  <button
+                    type="button"
+                    className={`${styles.corePrinting} ${activePrintingId === printing.id ? styles.corePrintingActive : ""}`}
+                    aria-pressed={activePrintingId === printing.id}
+                    key={printing.id}
+                    onClick={() => setActivePrintingId(printing.id)}
+                  >
+                    <span className={styles.corePrintingArt}><BakuCoreArt core={printingCore} alt="" /></span>
+                    <span><strong>{printing.set} #{printing.number}</strong><small>Alternate artwork</small></span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
       </div>
     </InspectorModal>
   );
@@ -507,27 +564,30 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <main className={styles.gallery}>
               {visibleCores.length ? (
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
-                  {visibleCores.map((core) => (
-                    <button
-                      className={`${styles.cardTile} ${styles.coreTile} ${selectedCore?.id === core.id ? styles.cardTileSelected : ""}`}
-                      type="button"
-                      aria-pressed={selectedCore?.id === core.id}
-                      key={core.id}
-                      onClick={(event) => selectCore(core, event.currentTarget)}
-                    >
-                      <span className={styles.coreArt}><BakuCoreArt core={core} alt={`${core.name} front`} /></span>
-                      <span className={styles.cardCopy}>
-                        <span className={styles.cardBadges}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{core.set === "Armored Alliance" ? "AA" : "BB"}</StatusChip></span>
-                        <strong>{core.name}</strong>
-                        <small>#{core.number} · {core.bonus >= 0 ? "+" : ""}{core.bonus} B · {core.damageBonus >= 0 ? "+" : ""}{core.damageBonus} D</small>
-                        {coreSpecialEffects(core).length > 0 && (
-                          <span className={styles.coreEffects} aria-label="BakuCore effects">
-                            {coreSpecialEffects(core).map((effect) => <span key={effect}>{effect}</span>)}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  ))}
+                  {visibleCores.map((core) => {
+                    const displayedCore = coreForSet(core, coreState.set);
+                    const baseStats = coreBaseStats(core);
+                    const specialEffects = coreSpecialEffects(core);
+                    return (
+                      <button
+                        className={`${styles.cardTile} ${styles.coreTile} ${selectedCore?.id === core.id ? styles.cardTileSelected : ""}`}
+                        type="button"
+                        aria-pressed={selectedCore?.id === core.id}
+                        key={core.id}
+                        onClick={(event) => selectCore(core, event.currentTarget)}
+                      >
+                        <span className={styles.coreArt}><BakuCoreArt core={displayedCore} alt={`${core.name} front`} /></span>
+                        <span className={styles.cardCopy}>
+                          <span className={styles.cardBadges}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{displayedCore.set === "Armored Alliance" ? "AA" : "BB"}</StatusChip>{core.printings?.length ? <StatusChip tone="gold">Alternate</StatusChip> : null}</span>
+                          <strong>{core.name}</strong>
+                          <span className={styles.coreCollector}>{displayedCore.set === "Armored Alliance" ? "AA" : "BB"} #{displayedCore.number}</span>
+                          {baseStats.length > 0 && <span className={styles.coreStats}>{baseStats.join(" · ")}</span>}
+                          {core.printings?.length ? <span className={styles.coreAlternate}>AA alternate printing</span> : null}
+                          {specialEffects.length > 0 && <span className={styles.coreEffects} aria-label="BakuCore effects">{specialEffects.join(" · ")}</span>}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </CardGrid>
               ) : (
                 <Surface className={styles.emptyResults} role="status">
