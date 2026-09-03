@@ -20,7 +20,7 @@ test("only the 28 unique Armored Alliance BakuCores are playable", () => {
   assert.equal(aaCores.find((core) => core.number === 69)?.frostStrike, 1);
   assert.equal(aaCores.find((core) => core.number === 78)?.fusionFrostStrike, 2);
   assert.equal(aaCores.find((core) => core.number === 79)?.fusionBonus, 500);
-  assert.equal(aaCores.find((core) => core.number === 1)?.art, "/assets/cores/armored-alliance/aa-01.png");
+  assert.equal(aaCores.find((core) => core.number === 1)?.art, "/assets/cores/armored-alliance/aa-1-placeholder.png");
 });
 
 test("AA artwork references preserve the 25 reprint printings without duplicating gameplay cores", () => {
