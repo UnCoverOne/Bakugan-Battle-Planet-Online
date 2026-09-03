@@ -4,6 +4,7 @@
   width: 100%;
   min-width: 0;
   line-height: 0;
+  container-type: inline-size;
 }
 
 .image {
@@ -19,21 +20,24 @@
   right: 4%;
   bottom: 5%;
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
   justify-content: center;
-  gap: .2rem;
-  padding: 0;
-  overflow: visible;
+  pointer-events: none;
   color: #111;
   font-family: var(--font-display);
-  font-size: clamp(.42rem, 1vw, .7rem);
+  font-size: clamp(.5rem, 3cqw, .76rem);
   font-weight: 900;
   line-height: 1.1;
   text-align: center;
-  pointer-events: none;
 }
-.overlayHeader,
+
+.overlayItems {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .2rem;
+  max-width: 100%;
+}
+
 .overlayItem {
   display: inline-flex;
   flex: 0 1 auto;
@@ -48,29 +52,19 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, .28);
   text-shadow: none;
 }
-.overlayHeader {
-  margin: 0;
-  font-size: .8em;
-}
-.overlayItems {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: .18rem;
-  max-width: 100%;
-}
-.overlayItem > span:last-child {
+
+.overlayItem > span {
   overflow-wrap: anywhere;
   white-space: normal;
 }
-.overlayIcon { flex: 0 0 auto; width: 1em!important; height: 1em!important; object-fit: contain; }
-.art[data-core-scan="true"] .image { clip-path:polygon(24% 0,76% 0,100% 50%,76% 100%,24% 100%,0 50%); }
-@media (max-width: 700px) {
-  .overlay {
-    left: 5%;
-    right: 5%;
-    bottom: 5%;
-    gap: .16rem;
-    font-size: clamp(.36rem, 1.55vw, .58rem);
-  }
+
+.overlayIcon {
+  flex: 0 0 auto;
+  width: 1em!important;
+  height: 1em!important;
+  object-fit: contain;
+}
+
+.art[data-core-scan="true"] .image {
+  clip-path: polygon(24% 0, 76% 0, 100% 50%, 76% 100%, 24% 100%, 0 50%);
 }
