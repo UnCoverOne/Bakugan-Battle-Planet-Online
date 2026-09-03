@@ -211,8 +211,6 @@ export function coreCompendiumSearchParams(state: CoreCompendiumState) {
 const coreSearchableText = (core: Core) => [
   core.name,
   core.catalogId ?? core.id,
-  core.reprintOf ?? "",
-  core.reprintOf ? "reprint" : "",
   core.set ?? "Battle Brawlers",
   core.type,
   core.number,
@@ -223,21 +221,38 @@ const coreSearchableText = (core: Core) => [
   core.bakuGearCostReduction ? "Baku-Gear" : "",
   core.fusionBonus ? "Fusion" : "",
   core.fusionDamageBonus ? "Fusion" : "",
+  ...(core.printings ?? []).flatMap((printing) => [
+    printing.set,
+    printing.number,
+    "alternate printing",
+    "reprint",
+  ]),
 ].join(" ").toLowerCase();
 
-const coreSetRank = (core: Core) => (core.set ?? "Battle Brawlers") === "Battle Brawlers" ? 0 : 1;
+const coreMatchesSet = (core: Core, set: string) =>
+  set === "All"
+  || (core.set ?? "Battle Brawlers") === set
+  || core.printings?.some((printing) => printing.set === set) === true;
+
+const coreNumberForSet = (core: Core, set: string) =>
+  core.printings?.find((printing) => printing.set === set)?.number ?? core.number;
+
+const coreSetRank = (core: Core, set: string) =>
+  (core.printings?.some((printing) => printing.set === set) || (core.set ?? "Battle Brawlers") === set) ? 0 : 1;
 
 export function filterAndSortCompendiumCores(cores: readonly Core[], state: CoreCompendiumState) {
   const query = state.q.trim().toLowerCase();
   return cores.filter((core) => (
     (!query || coreSearchableText(core).includes(query))
-    && (state.set === "All" || (core.set ?? "Battle Brawlers") === state.set)
+    && coreMatchesSet(core, state.set)
     && (state.type === "All" || core.type === state.type)
   )).toSorted((left, right) => {
-    if (state.sort === "type") return left.type.localeCompare(right.type) || left.number - right.number;
-    if (state.sort === "bonus") return right.bonus - left.bonus || left.damageBonus - right.damageBonus || left.number - right.number;
-    if (state.sort === "damage") return right.damageBonus - left.damageBonus || left.bonus - right.bonus || left.number - right.number;
-    return coreSetRank(left) - coreSetRank(right) || left.number - right.number || left.id.localeCompare(right.id);
+    if (state.sort === "type") return left.type.localeCompare(right.type) || coreNumberForSet(left, state.set) - coreNumberForSet(right, state.set);
+    if (state.sort === "bonus") return right.bonus - left.bonus || left.damageBonus - right.damageBonus || coreNumberForSet(left, state.set) - coreNumberForSet(right, state.set);
+    if (state.sort === "damage") return right.damageBonus - left.damageBonus || left.bonus - right.bonus || coreNumberForSet(left, state.set) - coreNumberForSet(right, state.set);
+    return coreSetRank(left, state.set) - coreSetRank(right, state.set)
+      || coreNumberForSet(left, state.set) - coreNumberForSet(right, state.set)
+      || left.id.localeCompare(right.id);
   });
 }
 
