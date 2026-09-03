@@ -179,12 +179,20 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "CORE_COMPENDIUM_PAGE_SIZE",
     "CORE_COMPENDIUM",
     "CoreInspector",
+    "coreBaseStats",
     "coreSpecialEffects",
+    "corePrintings",
+    "Alternate printings",
     "BakuCore effects",
     "filterAndSortCompendiumCores",
     "returnFocusRef",
   ]) assert.match(route, new RegExp(contract));
-  assert.match(route, /value=\{searchQuery\}/);
+  assert.match(route, /coreCollector/);
+  assert.match(route, /coreStats/);
+  assert.match(route, /coreAlternate/);
+  assert.doesNotMatch(route, /reprintOf/);
+  assert.doesNotMatch(css, /\.coreEffects span/);
+  assert.match(marker, /value=\{searchQuery\}/);
   assert.match(route, /onChange=\{\(event\) => setSearchQuery\(event\.target\.value\)\}/);
   assert.doesNotMatch(route, /onChange=\{\(event\) => navigate\(\{ q: event\.target\.value \}/);
   for (const tab of ["Overview", "Rules", "Rulings", "Related"]) assert.match(inspector, new RegExp(tab));
