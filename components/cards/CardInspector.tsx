@@ -238,7 +238,7 @@ export function CardInspector(props: InspectorProps) {
   const { rules, rulings, tab = "overview", mode = "modal", onTabChange, onClose, onShare, returnFocusRef, className } = props;
   const card = "card" in props ? props.card : undefined;
   const core = "core" in props ? props.core : undefined;
-  const allCards = "card" in props ? props.allCards : [];
+  const allCards = "card" in props ? props.allCards : null;
   const onSelectCard = "card" in props ? props.onSelectCard : undefined;
   const label = card?.displayName ?? core?.name ?? "Inspector";
   const itemKey = card?.catalogId ?? core?.catalogId ?? core?.id ?? "item";
