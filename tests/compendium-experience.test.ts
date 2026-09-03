@@ -141,6 +141,7 @@ test("BakuCore compendium state filters, sorts, and selects both sets", () => {
     density: "compact",
     page: 2,
     core: "aa-core-70",
+    tab: "overview",
   });
   assert.deepEqual(parseCoreCompendiumState(coreCompendiumSearchParams(state)), state);
   assert.deepEqual(parseCoreCompendiumState("coreSort=unknown&coreDensity=huge&corePage=-1"), DEFAULT_CORE_COMPENDIUM_STATE);
