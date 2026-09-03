@@ -124,7 +124,7 @@ const coreRules = (core: Core) => [
     : "",
 ].filter((value): value is string => Boolean(value));
 
-function CardOverview({ card, rules }: { card: GameCard; rules: readonly string[] }) {
+function CardOverview({ card }: { card: GameCard }) {
   const set = CARD_SET_INFO[cardSetCode(card)];
   return (
     <div className={styles.overview}>
@@ -158,7 +158,6 @@ function CardOverview({ card, rules }: { card: GameCard; rules: readonly string[
             {card.mechanics.map((mechanic) => <span key={mechanic}>{mechanic}</span>)}
           </div>
         )}
-        {rules.length > 0 && <span className={styles.screenReaderOnly}>{rules.join(" ")}</span>}
       </div>
     </div>
   );
@@ -294,7 +293,7 @@ export function CardInspector(props: InspectorProps) {
         ))}
       </Tabs>
       <div className={styles.body} id={panelId} role="tabpanel" aria-live="polite">
-        {tab === "overview" && card && <CardOverview card={card} rules={relevantRules.map((entry) => entry.body)} />}
+        {tab === "overview" && card && <CardOverview card={card} />}
         {tab === "overview" && core && displayedCore && <CoreOverview core={core} displayedCore={displayedCore} />}
         {tab === "rules" && (
           <ReferenceList
