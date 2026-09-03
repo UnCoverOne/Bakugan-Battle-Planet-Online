@@ -1,5 +1,5 @@
 import { CONTROLLED_CATALOGUE } from "./content/catalogue";
-import type { Bakugan, Core, CoreType, Faction, GameCard, PlayerState } from "./game";
+import type { Bakugan, Core, CorePrinting, CoreType, Faction, GameCard, PlayerState } from "./game";
 import { deckValidationMessages, validateDeckConstruction, type DeckRestriction } from "./deck-validation";
 import { MATCH_RECONNECT_GRACE_SECONDS } from "./match-constants";
 import { normalizeProfileAvatar } from "./profile-customization";
@@ -140,24 +140,27 @@ const armoredAllianceReprintSources: Record<number, number> = {
   63: 46,
   64: 47,
 };
-const armoredAllianceReprints: Core[] = Object.entries(armoredAllianceReprintSources).map(([number, sourceNumber]) => {
-  const aaNumber = Number(number);
-  const source = baseCores.find((core) => core.number === sourceNumber);
-  if (!source) throw new Error(`Missing Battle Brawlers source core ${sourceNumber} for AA reprint ${aaNumber}`);
-  return {
-    ...source,
-    id: `aa-reprint-${aaNumber}`,
-    catalogId: `aa-reprint-${aaNumber}`,
-    set: "Armored Alliance" as const,
-    number: aaNumber,
-    name: `AA ${aaNumber} Reprint · ${source.name}`,
-    reprintOf: source.catalogId ?? source.id,
-    hasProvidedScan: true,
-    art: `/assets/cores/armored-alliance/aa-${String(aaNumber).padStart(2, "0")}.png`,
-  };
+
+const armoredAlliancePrintingsByCore = new Map<number, CorePrinting[]>();
+for (const [number, sourceNumber] of Object.entries(armoredAllianceReprintSources)) {
+  const printings = armoredAlliancePrintingsByCore.get(sourceNumber) ?? [];
+  printings.push({
+    id: `aa-printing-${number}`,
+    set: "Armored Alliance",
+    number: Number(number),
+    art: `/assets/cores/armored-alliance/aa-${String(number).padStart(2, "0")}.png`,
+  });
+  armoredAlliancePrintingsByCore.set(sourceNumber, printings);
+}
+
+const canonicalBaseCores: Core[] = baseCores.map((core) => {
+  const printings = armoredAlliancePrintingsByCore.get(core.number);
+  return printings?.length ? { ...core, printings } : core;
 });
-export const CORES: Core[] = [...baseCores, ...armoredAllianceCores];
-export const CORE_COMPENDIUM: Core[] = [...CORES, ...armoredAllianceReprints];
+
+export const CORES: Core[] = [...canonicalBaseCores, ...armoredAllianceCores];
+/** Backward-compatible name for the canonical compendium source. */
+export const CORE_COMPENDIUM: Core[] = CORES;
 
 const characterCards = CARDS.filter((card) => card.type === "Character" && card.fusionFace !== "b" && card.bPower != null && card.damage != null);
 export const BAKUGAN: Bakugan[] = characterCards.map((character) => ({
