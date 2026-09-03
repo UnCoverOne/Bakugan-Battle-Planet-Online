@@ -2183,7 +2183,28 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
         </div>
       )}
       {inspection?.kind === "core" && (
-        <BuilderCoreInspector coreId={inspection.coreId} onClose={() => setInspection(null)} />
+        <div className={styles.builderInspectorOverlay} role="presentation">
+          {(() => {
+            const core = CORES.find((candidate) => candidate.id === inspection.coreId);
+            if (!core) return null;
+            return (
+              <CardInspector
+                core={core}
+                allCores={CORES}
+                rules={BUILDER_RULE_REFERENCES}
+                rulings={PUBLISHED_RULINGS}
+                tab={inspectorTab}
+                mode="embedded"
+                onTabChange={setInspectorTab}
+                onClose={() => setInspection(null)}
+                onShare={() => {
+                  const origin = globalThis.location?.origin ?? "";
+                  void copyText(`${origin}/compendium/cores?core=${encodeURIComponent(core.catalogId ?? core.id)}`).then(() => notify("BakuCore link copied."));
+                }}
+              />
+            );
+          })()}
+        </div>
       )}
     </section>
   );
@@ -2395,19 +2416,6 @@ function BuilderFilterGroup({
       <legend>{title}</legend>
       <div>{values.map((value) => <button type="button" className={selected.includes(value) ? styles.builderFilterSelected : ""} onClick={() => onToggle(value)} key={value}>{value}</button>)}</div>
     </fieldset>
-  );
-}
-
-function BuilderCoreInspector({ coreId, onClose }: { coreId: string; onClose: () => void }) {
-  const core = CORES.find((candidate) => candidate.id === coreId);
-  if (!core) return null;
-  return (
-    <div className={styles.builderInspectorOverlay}>
-      <section className={styles.builderCoreInspector} role="dialog" aria-modal="true" aria-label={`${core.name} BakuCore`}>
-        <header><span>BakuCore</span><h2>{core.name}</h2><button type="button" onClick={onClose}>Close</button></header>
-        <div><BakuCoreArt core={core} alt={core.name} /><dl><div><dt>Set</dt><dd>{core.set ?? "Battle Brawlers"}</dd></div><div><dt>Type</dt><dd>{core.type}</dd></div><div><dt>B-Power</dt><dd>{core.bonus > 0 ? "+" : ""}{core.bonus}{core.fusionBonus ? ` / +${core.fusionBonus} fused` : ""}</dd></div><div><dt>Damage</dt><dd>{core.damageBonus > 0 ? "+" : ""}{core.damageBonus}{core.fusionDamageBonus ? ` / +${core.fusionDamageBonus} fused` : ""}</dd></div></dl><p>{core.bakuGearCostReduction ? `Baku-Gear costs ${core.bakuGearCostReduction} less Energy while this Core is held. ` : ""}{core.fusionFrostStrike ? `While fused, this Core grants +${core.fusionFrostStrike} FrostStrike. ` : ""}BakuCore types must match the six indicators printed across the three selected Character cards.</p></div>
-      </section>
-    </div>
   );
 }
 
