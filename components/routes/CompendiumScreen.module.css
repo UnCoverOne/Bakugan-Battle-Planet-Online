@@ -184,19 +184,29 @@
   object-position: center;
 }
 
+.coreCollector,
+.coreStats,
+.coreAlternate {
+  display: block;
+}
+
+.coreCollector {
+  color: var(--text-muted);
+  font-size: var(--type-meta);
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.coreStats,
+.coreAlternate,
 .coreEffects {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .3rem .4rem;
   color: var(--text-secondary);
   font-size: var(--type-meta);
   line-height: 1.35;
 }
 
-.coreEffects span {
-  padding: .22rem .38rem;
-  border: 1px solid rgba(91, 196, 226, .18);
-  background: rgba(4, 23, 31, .72);
+.coreAlternate {
+  color: var(--brand-blue-bright);
 }
 
 .coreInspector {
@@ -309,6 +319,84 @@
 
 .coreInspectorMuted {
   color: var(--text-muted);
+}
+
+.corePrintings {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid rgba(91, 196, 226, .18);
+}
+
+.corePrintings h3 {
+  margin: 0;
+  font-size: var(--type-meta);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.corePrintingList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: var(--space-2);
+}
+
+.corePrinting {
+  display: grid;
+  gap: .45rem;
+  min-width: 0;
+  padding: .5rem;
+  border: 1px solid rgba(91, 196, 226, .2);
+  color: inherit;
+  text-align: left;
+  background: rgba(4, 23, 31, .5);
+}
+
+.corePrinting:hover,
+.corePrinting:focus-visible,
+.corePrintingActive {
+  border-color: var(--brand-blue-bright);
+  background: rgba(4, 42, 56, .7);
+}
+
+.corePrintingArt {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 240 / 209;
+  min-width: 0;
+  overflow: hidden;
+  background: #01070a;
+}
+
+.corePrintingArt > span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.corePrintingArt img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.corePrinting > span:last-child {
+  display: grid;
+  gap: .1rem;
+  min-width: 0;
+}
+
+.corePrinting strong,
+.corePrinting small {
+  overflow-wrap: anywhere;
+}
+
+.corePrinting small {
+  color: var(--text-muted);
+  font-size: var(--type-meta);
 }
 
 .cardGrid {
