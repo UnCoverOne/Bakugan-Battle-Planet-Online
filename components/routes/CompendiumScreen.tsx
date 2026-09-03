@@ -6,7 +6,6 @@ import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CardInspector } from "../cards/CardInspector";
-import { InspectorModal } from "../cards/InspectorModal";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import {
   COMPENDIUM_PAGE_SIZE,
@@ -151,109 +150,7 @@ function FilterControls({
   );
 }
 
-function CoreInspector({
-  core,
-  onClose,
-  onShare,
-  returnFocusRef,
-}: {
-  core: Core;
-  onClose: () => void;
-  onShare: () => void;
-  returnFocusRef?: { current: HTMLElement | null };
-}) {
-  const [activePrintingId, setActivePrintingId] = useState("primary");
-  useEffect(() => { setActivePrintingId("primary"); }, [core.id]);
 
-  const activePrinting = core.printings?.find((printing) => printing.id === activePrintingId);
-  const displayedCore = activePrinting
-    ? { ...core, set: activePrinting.set, number: activePrinting.number, art: activePrinting.art, hasProvidedScan: true }
-    : core;
-  const displayedSet = displayedCore.set ?? "Battle Brawlers";
-  const panelId = `core-inspector-${core.catalogId ?? core.id}`;
-  const titleId = `${panelId}-title`;
-  const hasAdditionalRules = coreSpecialEffects(core).length > 0;
-
-  return (
-    <InspectorModal
-      dataUi="core-inspector"
-      titleId={titleId}
-      describedBy={panelId}
-      onClose={onClose}
-      returnFocusRef={returnFocusRef}
-      className={styles.coreInspector}
-    >
-      <header className={styles.coreInspectorHeader}>
-        <div>
-          <span>{displayedSet} · #{displayedCore.number}</span>
-          <h2 id={titleId}>{core.name}</h2>
-        </div>
-        <div className={styles.coreInspectorActions}>
-          <button type="button" onClick={onShare} aria-label={`Copy link to ${core.name}`}>Share</button>
-          <button type="button" onClick={onClose} aria-label="Close BakuCore inspector">Close</button>
-        </div>
-      </header>
-      <div className={styles.coreInspectorBody}>
-        <div className={styles.coreInspectorArt}><BakuCoreArt core={displayedCore} alt={`${core.name} front`} /></div>
-        <div className={styles.cardBadges}>
-          <StatusChip tone="info">{core.type}</StatusChip>
-          <StatusChip>{displayedSet}</StatusChip>
-          {core.printings?.length ? <StatusChip tone="gold">Alternate printing</StatusChip> : null}
-        </div>
-        <dl className={styles.coreInspectorMetadata}>
-          <div><dt>Collector</dt><dd>{displayedSet === "Armored Alliance" ? "AA" : "BB"} #{displayedCore.number}</dd></div>
-          {(core.bonus !== 0 || core.fusionBonus) && <div><dt>B-Power</dt><dd>{signedCoreValue(core.bonus)}{core.fusionBonus ? ` / ${signedCoreValue(core.fusionBonus)} fused` : ""}</dd></div>}
-          {(core.damageBonus !== 0 || core.fusionDamageBonus) && <div><dt>Damage</dt><dd>{signedCoreValue(core.damageBonus)}{core.fusionDamageBonus ? ` / ${signedCoreValue(core.fusionDamageBonus)} fused` : ""}</dd></div>}
-          <div><dt>Catalogue ID</dt><dd>{core.catalogId ?? core.id}</dd></div>
-          {activePrinting && <div><dt>Rules profile</dt><dd>BB #{core.number}</dd></div>}
-        </dl>
-        <div className={styles.coreRules}>
-          {core.bakuGearCostReduction && <p>Baku-Gear costs {core.bakuGearCostReduction} less Energy while this Core is held.</p>}
-          {core.frostStrike && <p>Grants +{core.frostStrike} FrostStrike.</p>}
-          {core.shadowStrike && <p>Grants ShadowStrike.</p>}
-          {core.fusionBonus && <p>While fused, grants {signedCoreValue(core.fusionBonus)} B-Power.</p>}
-          {core.fusionDamageBonus && <p>While fused, grants {signedCoreValue(core.fusionDamageBonus)} Damage.</p>}
-          {core.fusionFrostStrike && <p>While fused, grants +{core.fusionFrostStrike} FrostStrike.</p>}
-          {core.conditionalFactions?.length && (core.conditionalBonus || core.conditionalDamage) && (
-            <p>{core.conditionalFactions.join(" and ")} BakuGan: {signedCoreValue(core.conditionalBonus || core.conditionalDamage || 0)} {core.conditionalBonus ? "B-Power" : "Damage"}.</p>
-          )}
-          {!hasAdditionalRules && <p className={styles.coreInspectorMuted}>This BakuCore has no additional rules text.</p>}
-        </div>
-        {core.printings?.length ? (
-          <section className={styles.corePrintings} aria-labelledby={`${panelId}-printings`}>
-            <h3 id={`${panelId}-printings`}>Alternate printings</h3>
-            <div className={styles.corePrintingList}>
-              <button
-                type="button"
-                className={`${styles.corePrinting} ${activePrintingId === "primary" ? styles.corePrintingActive : ""}`}
-                aria-pressed={activePrintingId === "primary"}
-                onClick={() => setActivePrintingId("primary")}
-              >
-                <span className={styles.corePrintingArt}><BakuCoreArt core={core} alt="" /></span>
-                <span><strong>{core.set ?? "Battle Brawlers"} #{core.number}</strong><small>Rules profile</small></span>
-              </button>
-              {core.printings.map((printing) => {
-                const printingCore = { ...core, set: printing.set, number: printing.number, art: printing.art, hasProvidedScan: true };
-                return (
-                  <button
-                    type="button"
-                    className={`${styles.corePrinting} ${activePrintingId === printing.id ? styles.corePrintingActive : ""}`}
-                    aria-pressed={activePrintingId === printing.id}
-                    key={printing.id}
-                    onClick={() => setActivePrintingId(printing.id)}
-                  >
-                    <span className={styles.corePrintingArt}><BakuCoreArt core={printingCore} alt="" /></span>
-                    <span><strong>{printing.set} #{printing.number}</strong><small>Alternate artwork</small></span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
-      </div>
-    </InspectorModal>
-  );
-}
 
 
 export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
@@ -601,7 +498,19 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 <button disabled={corePage === corePages} onClick={() => navigateCore({ page: corePage + 1 }, { push: true })}>Next →</button>
               </nav>
             </main>
-            {selectedCore && <CoreInspector core={selectedCore} returnFocusRef={inspectorTrigger} onClose={() => navigateCore({ core: "" })} onShare={() => void copyCurrentLink(selectedCore.name)} />}
+            {selectedCore && (
+              <CardInspector
+                core={selectedCore}
+                allCores={CORE_COMPENDIUM}
+                rules={ruleReferences}
+                rulings={PUBLISHED_RULINGS}
+                tab={coreState.tab}
+                onTabChange={(tab) => navigateCore({ tab }, { push: true })}
+                onClose={() => navigateCore({ core: "", tab: "overview" })}
+                returnFocusRef={inspectorTrigger}
+                onShare={() => void copyCurrentLink(selectedCore.name)}
+              />
+            )}
           </div>
         </>
       )}
