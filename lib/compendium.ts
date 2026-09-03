@@ -211,6 +211,8 @@ export function coreCompendiumSearchParams(state: CoreCompendiumState) {
 const coreSearchableText = (core: Core) => [
   core.name,
   core.catalogId ?? core.id,
+  core.reprintOf ?? "",
+  core.reprintOf ? "reprint" : "",
   core.set ?? "Battle Brawlers",
   core.type,
   core.number,
