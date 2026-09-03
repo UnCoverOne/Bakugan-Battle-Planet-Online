@@ -23,7 +23,8 @@ import {
   type CoreCompendiumState,
   type CompendiumState,
 } from "../../lib/compendium";
-import { CARDS, CORES, RULE_ENTRIES } from "../../lib/data";
+import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
+import type { Core } from "../../lib/game";
 import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT, SYMBOL_ENTRIES } from "../../lib/reference";
 import { useApp } from "../application/AppProvider";
@@ -50,7 +51,7 @@ const CORE_SORT_LABELS: Record<CoreCompendiumState["sort"], string> = {
 };
 const CORE_SET_LABELS = ["Battle Brawlers", "Armored Alliance"] as const;
 
-const coreSpecialEffects = (core: (typeof CORES)[number]) => [
+const coreSpecialEffects = (core: (Core) => [
   core.bakuGearCostReduction ? `Baku-Gear −${core.bakuGearCostReduction} Energy` : "",
   core.frostStrike ? `+${core.frostStrike} FrostStrike` : "",
   core.shadowStrike ? "ShadowStrike" : "",
@@ -142,7 +143,7 @@ function CoreInspector({
   onShare,
   returnFocusRef,
 }: {
-  core: (typeof CORES)[number];
+  core: (Core;
   onClose: () => void;
   onShare: () => void;
   returnFocusRef?: { current: HTMLElement | null };
@@ -174,12 +175,14 @@ function CoreInspector({
         <div className={styles.cardBadges}>
           <StatusChip tone="info">{core.type}</StatusChip>
           <StatusChip>{core.set ?? "Battle Brawlers"}</StatusChip>
+          {core.reprintOf && <StatusChip tone="gold">AA reprint</StatusChip>}
         </div>
         <dl className={styles.coreInspectorMetadata}>
           <div><dt>Collector</dt><dd>{core.set === "Armored Alliance" ? "AA" : "BB"} #{core.number}</dd></div>
           <div><dt>B-Power</dt><dd>{signed(core.bonus)}{core.fusionBonus ? ` / ${signed(core.fusionBonus)} fused` : ""}</dd></div>
           <div><dt>Damage</dt><dd>{signed(core.damageBonus)}{core.fusionDamageBonus ? ` / ${signed(core.fusionDamageBonus)} fused` : ""}</dd></div>
           <div><dt>Catalogue ID</dt><dd>{core.catalogId ?? core.id}</dd></div>
+          {core.reprintOf && <div><dt>Artwork reference</dt><dd>BB #{core.reprintOf.replace(/^core-/, "")}</dd></div>}
         </dl>
         <div className={styles.coreRules}>
           {core.bakuGearCostReduction && <p>Baku-Gear costs {core.bakuGearCostReduction} less Energy while this Core is held.</p>}
@@ -187,7 +190,8 @@ function CoreInspector({
           {core.shadowStrike && <p>Grants ShadowStrike.</p>}
           {core.fusionFrostStrike && <p>While fused, grants +{core.fusionFrostStrike} FrostStrike.</p>}
           {core.conditionalFactions && <p>Conditional bonus for {core.conditionalFactions.join(" and ")} BakuGan.</p>}
-          {!core.bakuGearCostReduction && !core.frostStrike && !core.shadowStrike && !core.fusionFrostStrike && !core.conditionalFactions && !core.fusionBonus && !core.fusionDamageBonus && <p className={styles.coreInspectorMuted}>This BakuCore has no additional rules text.</p>}
+          {core.reprintOf && <p className={styles.coreInspectorMuted}>AA artwork reference. Gameplay rules match Battle Brawlers core #{core.reprintOf.replace(/^core-/, "")}.</p>}
+          {!core.reprintOf && !core.bakuGearCostReduction && !core.frostStrike && !core.shadowStrike && !core.fusionFrostStrike && !core.conditionalFactions && !core.fusionBonus && !core.fusionDamageBonus && <p className={styles.coreInspectorMuted}>This BakuCore has no additional rules text.</p>}
         </div>
       </div>
     </InspectorModal>
@@ -219,7 +223,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     [deferredSearchQuery, state],
   );
   const cards = useMemo(() => filterAndSortCompendiumCards(CARDS, searchState), [searchState]);
-  const cores = useMemo(() => filterAndSortCompendiumCores(CORES, { ...coreState, q: deferredSearchQuery }), [coreState, deferredSearchQuery]);
+  const cores = useMemo(() => filterAndSortCompendiumCores(CORE_COMPENDIUM, { ...coreState, q: deferredSearchQuery }), [coreState, deferredSearchQuery]);
   const pages = Math.max(1, Math.ceil(cards.length / COMPENDIUM_PAGE_SIZE));
   const page = Math.min(state.page, pages);
   const visible = cards.slice((page - 1) * COMPENDIUM_PAGE_SIZE, page * COMPENDIUM_PAGE_SIZE);
@@ -227,7 +231,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const corePage = Math.min(coreState.page, corePages);
   const visibleCores = cores.slice((corePage - 1) * CORE_COMPENDIUM_PAGE_SIZE, corePage * CORE_COMPENDIUM_PAGE_SIZE);
   const selected = section === "cards" ? selectedCompendiumCard(CARDS, state.card || legacyDetail) : null;
-  const selectedCore = section === "cores" ? selectedCompendiumCore(CORES, coreState.core) : null;
+  const selectedCore = section === "cores" ? selectedCompendiumCore(CORE_COMPENDIUM, coreState.core) : null;
   const normalized = deferredSearchQuery.trim().toLowerCase();
   const rules = useMemo(
     () => ruleReferences.filter((entry) => !normalized || `${entry.title} ${entry.body} ${entry.category}`.toLowerCase().includes(normalized)),
@@ -322,7 +326,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
     navigate({ card: card.slug ?? card.catalogId, tab: "overview" }, { push: true });
   };
-  const selectCore = (core: typeof CORES[number], trigger?: HTMLElement | null) => {
+  const selectCore = (core: typeof CORE_COMPENDIUM[number], trigger?: HTMLElement | null) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
     navigateCore({ core: core.catalogId ?? core.id }, { push: true });
   };
@@ -365,7 +369,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         eyebrow="AUTHORITATIVE REFERENCE"
         title="Compendium"
         description="Browse every supported card and BakuCore, inspect complete records, and follow connected rules and published rulings."
-        aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORES.length} BakuCores</strong><span>Sources reviewed {REFERENCE_REVIEWED_AT}</span></div>}
+        aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORE_COMPENDIUM.length} BakuCores</strong><span>Sources reviewed {REFERENCE_REVIEWED_AT}</span></div>}
       />
       <section className={`compendium-toolbar ${styles.toolbar}`}>
         <Field className={styles.search} label="Search the archive">
