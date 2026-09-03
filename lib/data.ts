@@ -71,21 +71,79 @@ const baseCores = seeds.map(([number, type, bonus, damageBonus, extra = {}]) => 
   art: `/assets/cores/full/${number}.webp`,
 }));
 /**
- * The supplied Armored Alliance fronts are keyed by BakuCore collector number.
- * The old threshold here incorrectly assumed every number above 52 was missing,
- * which hid the supplied fronts for 73, 75, 76, 78, and 79 behind placeholders.
+ * Only these Armored Alliance catalogue records have front scans in the supplied archive.
+ * Artwork-only reprints are kept below as compendium references so they never become
+ * additional playable identities or duplicate runtime effects.
  */
-export const ARMORED_ALLIANCE_CORE_SCAN_NUMBERS = new Set([2, 7, 15, 16, 17, 19, 20, 23, 24, 29, 30, 32, 33, 35, 36, 38, 41, 43, 47, 48, 54, 55, 56, 57, 58, 59, 60, 62, 63, 64, 73, 75, 76, 78, 79]);
-const armoredAllianceEffectFallbacks: Record<number, string> = { 69: "/assets/cores/full/51.webp", 70: "/assets/cores/full/47.webp", 71: "/assets/cores/full/17.webp", 72: "/assets/cores/full/18.webp", 74: "/assets/cores/full/37.webp", 77: "/assets/cores/full/38.webp" };
-const armoredAllianceArt = (number: number) => number <= 17 || ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(number)
+export const ARMORED_ALLIANCE_CORE_SCAN_NUMBERS = new Set([2, 7, 15, 16, 17, 73, 75, 76, 78, 79]);
+const armoredAllianceEffectFallbacks: Record<number, string> = {
+  69: "/assets/cores/full/51.webp",
+  70: "/assets/cores/full/47.webp",
+  71: "/assets/cores/full/17.webp",
+  72: "/assets/cores/full/18.webp",
+  74: "/assets/cores/full/37.webp",
+  77: "/assets/cores/full/38.webp",
+};
+const armoredAllianceArt = (number: number) => ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(number)
   ? `/assets/cores/armored-alliance/aa-${String(number).padStart(2, "0")}.png`
   : armoredAllianceEffectFallbacks[number] ?? `/assets/cores/armored-alliance/aa-${number}-placeholder.png`;
-const armoredAllianceCores = armoredAllianceSeeds.map(([number, type, bonus, damageBonus, extra = {}]) => ({
+const armoredAllianceCores: Core[] = armoredAllianceSeeds.map(([number, type, bonus, damageBonus, extra = {}]) => ({
   id: `aa-core-${number}`, catalogId: `aa-core-${number}`, set: "Armored Alliance" as const, number, type, bonus, damageBonus, ...extra,
   name: `AA ${number} ${coreName(type, bonus, damageBonus, extra)}`,
+  hasProvidedScan: ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(number),
   art: armoredAllianceArt(number),
 }));
+
+/**
+ * These AA printings share the listed Battle Brawlers rules profile.
+ * They are searchable/displayable in the Compendium, but are intentionally
+ * excluded from CORES so deck validation and gameplay use one canonical identity.
+ */
+const armoredAllianceReprintSources: Record<number, number> = {
+  19: 2,
+  20: 3,
+  23: 6,
+  24: 7,
+  29: 12,
+  30: 13,
+  32: 15,
+  33: 16,
+  35: 18,
+  36: 19,
+  38: 21,
+  41: 24,
+  43: 26,
+  47: 30,
+  48: 31,
+  54: 37,
+  55: 38,
+  56: 39,
+  57: 40,
+  58: 41,
+  59: 42,
+  60: 43,
+  62: 45,
+  63: 46,
+  64: 47,
+};
+const armoredAllianceReprints: Core[] = Object.entries(armoredAllianceReprintSources).map(([number, sourceNumber]) => {
+  const aaNumber = Number(number);
+  const source = baseCores.find((core) => core.number === sourceNumber);
+  if (!source) throw new Error(`Missing Battle Brawlers source core ${sourceNumber} for AA reprint ${aaNumber}`);
+  return {
+    ...source,
+    id: `aa-reprint-${aaNumber}`,
+    catalogId: `aa-reprint-${aaNumber}`,
+    set: "Armored Alliance" as const,
+    number: aaNumber,
+    name: `AA ${aaNumber} Reprint · ${source.name}`,
+    reprintOf: source.catalogId ?? source.id,
+    hasProvidedScan: true,
+    art: `/assets/cores/armored-alliance/aa-${String(aaNumber).padStart(2, "0")}.png`,
+  };
+});
 export const CORES: Core[] = [...baseCores, ...armoredAllianceCores];
+export const CORE_COMPENDIUM: Core[] = [...CORES, ...armoredAllianceReprints];
 
 const characterCards = CARDS.filter((card) => card.type === "Character" && card.fusionFace !== "b" && card.bPower != null && card.damage != null);
 export const BAKUGAN: Bakugan[] = characterCards.map((character) => ({
