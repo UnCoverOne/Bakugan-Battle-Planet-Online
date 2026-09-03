@@ -57,7 +57,8 @@ export function BakuCoreArt({
   core: Core;
   alt?: string;
 }) {
-  const placeholder = core.art.includes("-placeholder");
+  const suppliedScan = core.set === "Armored Alliance" && core.art.includes("/assets/cores/armored-alliance/aa-");
+  const effectFallback = core.set === "Armored Alliance" && !suppliedScan;
   const wrapperStyle: CSSProperties = {
     ...(width !== undefined ? { width: typeof width === "number" ? `${width}px` : width } : {}),
     ...(height !== undefined ? { height: typeof height === "number" ? `${height}px` : height } : {}),
@@ -65,7 +66,7 @@ export function BakuCoreArt({
   };
 
   return (
-    <span className={`${styles.art} ${className ?? ""}`} style={wrapperStyle} data-core-placeholder={placeholder ? "true" : "false"}>
+    <span className={`${styles.art} ${className ?? ""}`} style={wrapperStyle} data-core-fallback={effectFallback ? "true" : "false"} data-core-scan={suppliedScan ? "true" : "false"}>
       <OriginalImage
         {...imageProps}
         className={styles.image}
@@ -73,7 +74,7 @@ export function BakuCoreArt({
         alt={alt ?? `${core.name} front`}
         {...(width !== undefined && height !== undefined ? { width, height } : {})}
       />
-      {placeholder && (
+      {effectFallback && (
         <span className={styles.overlay} aria-hidden="true">
           <span className={styles.overlayHeader}><b>{core.type}</b><span>#{core.number}</span></span>
           <span className={styles.overlayItems}>

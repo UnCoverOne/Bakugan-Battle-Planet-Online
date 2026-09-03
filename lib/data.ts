@@ -76,9 +76,10 @@ const baseCores = seeds.map(([number, type, bonus, damageBonus, extra = {}]) => 
  * which hid the supplied fronts for 73, 75, 76, 78, and 79 behind placeholders.
  */
 export const ARMORED_ALLIANCE_CORE_SCAN_NUMBERS = new Set([2, 7, 15, 16, 17, 73, 75, 76, 78, 79]);
+const armoredAllianceEffectFallbacks: Record<number, string> = { 69: "/assets/cores/full/51.webp", 70: "/assets/cores/full/47.webp", 71: "/assets/cores/full/17.webp", 72: "/assets/cores/full/18.webp", 74: "/assets/cores/full/37.webp", 77: "/assets/cores/full/38.webp" };
 const armoredAllianceArt = (number: number) => number <= 17 || ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(number)
   ? `/assets/cores/armored-alliance/aa-${String(number).padStart(2, "0")}.png`
-  : `/assets/cores/armored-alliance/aa-${number}-placeholder.png`;
+  : armoredAllianceEffectFallbacks[number] ?? `/assets/cores/armored-alliance/aa-${number}-placeholder.png`;
 const armoredAllianceCores = armoredAllianceSeeds.map(([number, type, bonus, damageBonus, extra = {}]) => ({
   id: `aa-core-${number}`, catalogId: `aa-core-${number}`, set: "Armored Alliance" as const, number, type, bonus, damageBonus, ...extra,
   name: `AA ${number} ${coreName(type, bonus, damageBonus, extra)}`,
