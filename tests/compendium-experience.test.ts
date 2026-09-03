@@ -178,7 +178,6 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "BAKUCORES",
     "CORE_COMPENDIUM_PAGE_SIZE",
     "CORE_COMPENDIUM",
-    "CoreInspector",
     "coreBaseStats",
     "coreSpecialEffects",
     "corePrintings",
@@ -190,6 +189,9 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   assert.match(route, /coreCollector/);
   assert.match(route, /coreStats/);
   assert.match(route, /coreAlternate/);
+  assert.match(route, /core=\{selectedCore\}/);
+  assert.match(route, /tab=\{coreState\.tab\}/);
+  assert.doesNotMatch(route, /function CoreInspector/);
   assert.doesNotMatch(route, /reprintOf/);
   assert.doesNotMatch(css, /\.coreEffects span/);
   assert.match(route, /value=\{searchQuery\}/);
@@ -197,6 +199,10 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   assert.doesNotMatch(route, /onChange=\{\(event\) => navigate\(\{ q: event\.target\.value \}/);
   for (const tab of ["Overview", "Rules", "Rulings", "Related"]) assert.match(inspector, new RegExp(tab));
   assert.match(inspector, /data-ui="card-inspector"/);
+  assert.match(inspector, /CoreOverview/);
+  assert.match(inspector, /CoreRelated/);
+  assert.match(inspector, /const isCore/);
+  assert.match(inspectorCss, /relatedCoreArt/);
   assert.match(image, /<OriginalImage/);
   assert.doesNotMatch(image, /srcSet=\{/);
   assert.doesNotMatch(image, /cardArtSource\(card, "thumbnail"\)/);
