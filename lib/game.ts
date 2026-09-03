@@ -121,6 +121,10 @@ export type Core = {
   conditionalFactions?: Faction[];
   conditionalBonus?: number;
   conditionalDamage?: number;
+  /** Armored Alliance artwork printing that reuses another catalogue core's rules. */
+  reprintOf?: string;
+  /** True only when the supplied archive contains a front scan for this printing. */
+  hasProvidedScan?: boolean;
   art: string;
 };
 
