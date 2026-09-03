@@ -1293,10 +1293,13 @@
   padding: var(--space-4);
 }
 
-.builderGalleryCore .builderCardArtButton > [data-core-fallback],
-.builderGalleryCore .builderCardArtButton > [data-core-scan] {
-  width: auto;
-  height: 100%;
+.builderGalleryCore .builderCardArtButton > span {
+  /*
+   * Let the shared art primitive establish its own frame. A square button
+   * may center that frame, but must not replace its width with height:100%.
+   */
+  width: 100%;
+  height: auto;
   max-width: 100%;
   aspect-ratio: 240 / 209;
 }
