@@ -81,25 +81,30 @@
 }
 
 @supports (width: 1cqw) {
+  /*
+   * All overlay measurements are percentages of the shared BakuCoreArt
+   * frame. Do not cap these values in rem: the inspector, compendium, and
+   * deck builder render the same frame at different physical sizes.
+   */
   .overlay {
-    font-size: clamp(.6rem, 6.25cqw, .95rem);
+    font-size: 6.25cqw;
   }
 
   .overlayItems {
-    gap: clamp(.2rem, 2cqw, .3rem);
-    max-width: calc(100% - clamp(.65rem, 6.5cqw, 1rem));
+    gap: 2cqw;
+    max-width: calc(100% - 6.5cqw);
   }
 
   .overlayItem {
-    gap: clamp(.2rem, 2cqw, .3rem);
-    min-height: clamp(1.35rem, 8.75cqw, 2.1rem);
-    padding: clamp(.2rem, 2.5cqw, .35rem) clamp(.35rem, 4.1cqw, .6rem);
-    border-radius: clamp(.2rem, 2cqw, .3rem);
+    gap: 2cqw;
+    min-height: 8.75cqw;
+    padding: 2.5cqw 4.1cqw;
+    border-radius: 2cqw;
   }
 
   .overlayIcon {
-    width: clamp(.75rem, 8.3cqw, 1.25rem)!important;
-    height: clamp(.75rem, 8.3cqw, 1.25rem)!important;
+    width: 8.3cqw!important;
+    height: 8.3cqw!important;
   }
 }
 
