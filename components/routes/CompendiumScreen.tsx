@@ -51,7 +51,7 @@ const CORE_SORT_LABELS: Record<CoreCompendiumState["sort"], string> = {
 };
 const CORE_SET_LABELS = ["Battle Brawlers", "Armored Alliance"] as const;
 
-const coreSpecialEffects = (core: (Core) => [
+const coreSpecialEffects = (core: Core) => [
   core.bakuGearCostReduction ? `Baku-Gear −${core.bakuGearCostReduction} Energy` : "",
   core.frostStrike ? `+${core.frostStrike} FrostStrike` : "",
   core.shadowStrike ? "ShadowStrike" : "",
@@ -143,7 +143,7 @@ function CoreInspector({
   onShare,
   returnFocusRef,
 }: {
-  core: (Core;
+  core: Core;
   onClose: () => void;
   onShare: () => void;
   returnFocusRef?: { current: HTMLElement | null };
