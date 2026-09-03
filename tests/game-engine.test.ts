@@ -177,7 +177,7 @@ test("Baku-Gear resolves onto its chosen Bakugan and contributes printed stats",
 });
 
 test("Baku-Gear enforces open and faction-restricted targets", () => {
-  let state = reachPower();
+  const state = reachPower();
   const actor = state.priority;
   const player = state.players.find((candidate) => candidate.id === actor)!;
   const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
