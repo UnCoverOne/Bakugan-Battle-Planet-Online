@@ -103,7 +103,7 @@ const armoredAllianceArt = (number: number) => ARMORED_ALLIANCE_CORE_SCAN_NUMBER
   : armoredAllianceEffectFallbacks[number] ?? "/assets/cores/full/1.webp";
 const armoredAllianceCores: Core[] = armoredAllianceSeeds.map(([number, type, bonus, damageBonus, extra = {}]) => ({
   id: `aa-core-${number}`, catalogId: `aa-core-${number}`, set: "Armored Alliance" as const, number, type, bonus, damageBonus, ...extra,
-  name: `AA ${number} ${coreName(type, bonus, damageBonus, extra)}`,
+  name: coreName(type, bonus, damageBonus, extra),
   hasProvidedScan: ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(number),
   art: armoredAllianceArt(number),
 }));
