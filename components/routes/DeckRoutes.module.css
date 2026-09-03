@@ -1293,6 +1293,14 @@
   padding: var(--space-4);
 }
 
+.builderGalleryCore .builderCardArtButton > [data-core-fallback],
+.builderGalleryCore .builderCardArtButton > [data-core-scan] {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  aspect-ratio: 240 / 209;
+}
+
 .builderGalleryIdentity {
   min-height: 4.1rem;
   display: grid;
@@ -1528,10 +1536,18 @@
   background: transparent;
 }
 
-.builderCoreSlot img {
+.builderCoreSlot > button:first-child > img {
   width: 100%;
   aspect-ratio: 1;
   object-fit: contain;
+}
+
+.builderCoreSlot > button:first-child > [data-core-fallback],
+.builderCoreSlot > button:first-child > [data-core-scan] {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 240 / 209;
 }
 
 .builderCoreSlot > span {
