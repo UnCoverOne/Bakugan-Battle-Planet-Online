@@ -2,7 +2,7 @@
 
 import { OriginalImage } from "@/components/media/OriginalImage";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { fingerprintedAsset } from "../../lib/assets";
 
 export function ResponsiveCardImage({
@@ -24,6 +24,12 @@ export function ResponsiveCardImage({
   ariaHidden?: boolean;
   dataCardId?: string;
 }) {
+  const [artOrientation, setArtOrientation] = useState<"portrait" | "landscape" | null>(null);
+
+  useEffect(() => {
+    setArtOrientation(null);
+  }, [src]);
+
   return <OriginalImage
     className={className}
     src={fingerprintedAsset(src)}
@@ -33,6 +39,14 @@ export function ResponsiveCardImage({
     alt={alt}
     aria-hidden={ariaHidden}
     data-card-id={dataCardId}
+    data-art-orientation={artOrientation ?? undefined}
+    onLoad={(event) => {
+      setArtOrientation(
+        event.currentTarget.naturalHeight > event.currentTarget.naturalWidth
+          ? "portrait"
+          : "landscape",
+      );
+    }}
     loading={eager ? "eager" : "lazy"}
     fetchPriority={eager ? "high" : "auto"}
     decoding="async"
