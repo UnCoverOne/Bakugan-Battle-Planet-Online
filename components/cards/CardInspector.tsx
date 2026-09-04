@@ -149,7 +149,7 @@ function CardOverview({
               aria-pressed={fusionFace === "b"}
               onClick={onToggleFusion}
             >
-              <OriginalImage src="/assets/symbols/fusion.svg" alt="" width="32" height="32" />
+              <OriginalImage src="/assets/symbols/fusion.png" alt="" width="32" height="32" />
             </button>
           )}
         </div>

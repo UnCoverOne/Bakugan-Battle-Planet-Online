@@ -385,7 +385,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                           <ResponsiveCardImage card={card} presentation="tile" />
                           {card.fusionPairId && (
                             <span className={styles.fusionBadge} aria-label="Fusion Character Card">
-                              <OriginalImage src="/assets/symbols/fusion.svg" alt="" width="24" height="24" />
+                              <OriginalImage src="/assets/symbols/fusion.png" alt="" width="24" height="24" />
                             </span>
                           )}
                         </span>
