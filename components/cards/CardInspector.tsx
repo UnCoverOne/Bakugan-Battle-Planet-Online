@@ -1,6 +1,7 @@
 "use client";
 
 import { OriginalImage } from "@/components/media/OriginalImage";
+import { FusionSymbol } from "@/components/media/FusionSymbol";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import { useEffect, useMemo, useState } from "react";
@@ -149,7 +150,7 @@ function CardOverview({
               aria-pressed={fusionFace === "b"}
               onClick={onToggleFusion}
             >
-              <OriginalImage src="/assets/symbols/fusion.png" alt="" width="32" height="32" />
+              <FusionSymbol alt="" width={32} height={32} />
             </button>
           )}
         </div>
