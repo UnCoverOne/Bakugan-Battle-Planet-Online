@@ -3,8 +3,8 @@
   width: 100%;
   height: auto;
   max-width: 360px;
-  aspect-ratio: 5 / 7;
   object-fit: contain;
+  object-position: center;
   image-rendering: auto;
 }
 
@@ -19,18 +19,4 @@
 
 .thumbnail {
   width: min(100%, 80px);
-}
-
-.portraitFlip {
-  /*
-   * Some Armored Alliance Flip scans are portrait-oriented even though Flip
-   * cards are presented as landscape artwork. Keep the image's layout box
-   * portrait-sized, then rotate the fitted artwork into that same landscape
-   * footprint so every view uses the same visual scale.
-   */
-  width: 71.4286%;
-  max-width: none;
-  margin-inline: auto;
-  transform: rotate(90deg);
-  transform-origin: center;
 }

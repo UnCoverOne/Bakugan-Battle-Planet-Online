@@ -1,12 +1,11 @@
-/* Flip scans are normally landscape and are rotated into the vertical physical
-   card silhouette used by discard zones. Portrait scans (including affected AA
-   artwork) stay upright after the shared image component reports their source
-   orientation. */
+/* Flip scans are landscape so the printed face is upright. Discard zones still
+   represent physical cards: rotate the complete scan into a vertical 5:7 card
+   silhouette, while the enlarged preview deliberately keeps the scan landscape. */
 [data-zone-kind="discard-pile"][data-card-type="Flip"] {
   overflow: hidden !important;
 }
 
-[data-zone-kind="discard-pile"][data-card-type="Flip"] > img:not([data-art-orientation="portrait"]) {
+[data-zone-kind="discard-pile"][data-card-type="Flip"] > img {
   left: 50% !important;
   top: 50% !important;
   width: 126% !important;
@@ -16,7 +15,7 @@
   object-fit: contain !important;
 }
 
-[data-zone-kind="discard-pile"][data-card-type="Flip"]:hover > img:not([data-art-orientation="portrait"]) {
+[data-zone-kind="discard-pile"][data-card-type="Flip"]:hover > img {
   transform: translate(-50%, -50%) rotate(90deg) translateX(-0.15rem) !important;
 }
 
@@ -24,7 +23,7 @@
   overflow: hidden;
 }
 
-[data-zone-kind="discard-browser"] figure[data-card-type="Flip"] > img:not([data-art-orientation="portrait"]) {
+[data-zone-kind="discard-browser"] figure[data-card-type="Flip"] > img {
   width: 140% !important;
   max-width: none !important;
   height: auto !important;
@@ -40,4 +39,3 @@
     transition: none !important;
   }
 }
-
