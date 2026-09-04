@@ -143,3 +143,23 @@ test("board target choices use the existing Tips and Action HUDs with accessible
   assert.match(placementCss, /grid-template-rows: 7\.2rem minmax\(0, 1fr\)/);
   assert.doesNotMatch(placementCss, /\.matrix \{[^}]*min-height:\s*28rem/);
 });
+
+test("Home display font is build-generated and does not rely on runtime registration", () => {
+  const dashboard = read("components/routes/DashboardScreen.tsx");
+  const layout = read("app/layout.tsx");
+  const css = read("app/display-font.css");
+  const build = read("scripts/build-verified.sh");
+  const generator = read("scripts/build-display-font.mjs");
+  const packageJson = read("package.json");
+
+  assert.doesNotMatch(dashboard, /DISPLAY_FONT_PARTS|FontFace|useHomeDisplayFont|loadDisplayFont/);
+  assert.doesNotMatch(layout, /DisplayFontLoader/);
+  assert.match(layout, /import "\.\/display-font\.css"/);
+  assert.match(css, /@font-face[\s\S]*rbno31-bold-italic\.woff2[\s\S]*font-display:\s*swap/);
+  assert.match(css, /\.bakugan-home-hero-copy h1 span \{[\s\S]*color:\s*#e8ecef[\s\S]*-webkit-text-fill-color:\s*#e8ecef/);
+  assert.match(css, /@supports \(\(-webkit-background-clip: text\) or \(background-clip: text\)\)/);
+  assert.match(generator, /part-02a\.txt[\s\S]*part-02g\.txt/);
+  assert.match(generator, /toString\("ascii"\) !== "wOF2"/);
+  assert.match(build, /build-display-font\.mjs/);
+  assert.match(packageJson, /"font:build": "node scripts\/build-display-font\.mjs"/);
+});

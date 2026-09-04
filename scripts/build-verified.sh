@@ -37,6 +37,8 @@ if [[ ! -x "${vinext}" ]]; then
   exit 69
 fi
 
+node "${script_dir}/build-display-font.mjs"
+
 echo "Running bounded vinext build..."
 # Keep cold Cloudflare builds bounded below the platform limit while allowing
 # enough time for dependency-cold compilation and packaging.

@@ -20,21 +20,7 @@ const HERO_PARTS = Array.from(
   (_, index) => `/assets/home/hero-pyrus-960/part-${String(index + 1).padStart(2, "0")}.txt`,
 );
 
-const DISPLAY_FONT_PARTS = [
-  "/assets/home/rbno31-bold-italic/part-01.txt",
-  "/assets/home/rbno31-bold-italic/part-02a.txt",
-  "/assets/home/rbno31-bold-italic/part-02b.txt",
-  "/assets/home/rbno31-bold-italic/part-02c.txt",
-  "/assets/home/rbno31-bold-italic/part-02d.txt",
-  "/assets/home/rbno31-bold-italic/part-02e.txt",
-  "/assets/home/rbno31-bold-italic/part-02f.txt",
-  "/assets/home/rbno31-bold-italic/part-02g.txt",
-  "/assets/home/rbno31-bold-italic/part-03.txt",
-  "/assets/home/rbno31-bold-italic/part-04.txt",
-];
-
 let highResolutionHeroPromise: Promise<string> | undefined;
-let displayFontPromise: Promise<void> | undefined;
 
 function loadTextParts(paths: string[], label: string) {
   return Promise.all(
@@ -51,43 +37,6 @@ function loadHighResolutionHero() {
     .then((parts) => `data:image/avif;base64,${parts.join("")}`);
 
   return highResolutionHeroPromise;
-}
-
-function decodeBase64(value: string) {
-  const binary = window.atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes.buffer;
-}
-
-function loadDisplayFont() {
-  if (typeof window === "undefined" || typeof FontFace === "undefined") {
-    return Promise.resolve();
-  }
-
-  displayFontPromise ??= loadTextParts(DISPLAY_FONT_PARTS, "RBNo3.1 Bold Italic font")
-    .then((parts) => new FontFace(
-      "RBNo31Display",
-      decodeBase64(parts.join("")),
-      { style: "italic", weight: "700" },
-    ).load())
-    .then((font) => {
-      document.fonts.add(font);
-    })
-    .catch((error) => {
-      displayFontPromise = undefined;
-      throw error;
-    });
-
-  return displayFontPromise;
-}
-
-function useHomeDisplayFont() {
-  useEffect(() => {
-    void loadDisplayFont().catch(() => undefined);
-  }, []);
 }
 
 function useHighResolutionHero() {
@@ -147,7 +96,6 @@ export function DashboardScreen() {
     resumingMatchCode,
     requestAccountAccess,
   } = useApp();
-  useHomeDisplayFont();
   const heroSource = useHighResolutionHero();
   const [remotePublicDecks, setRemotePublicDecks] = useState<DeckRecord[]>([]);
   const isGuest = !authUser;
