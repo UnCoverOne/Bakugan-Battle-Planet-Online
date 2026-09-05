@@ -1,9 +1,8 @@
 "use client";
 
-import { OriginalImage } from "@/components/media/OriginalImage";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MatchState } from "../../lib/game";
+import { CardArt } from "../cards/CardArt";
 import {
   activateCardPreviewTarget,
   cardPreviewRequestIsCurrent,
@@ -220,9 +219,11 @@ export function CardPreviewLayer({ match }: { match?: MatchState | null }) {
       data-card-preview-type={descriptor?.cardType}
     >
       {descriptor && !fallback ? (
-        <OriginalImage
+        <CardArt
           className={styles.previewImage}
           src={descriptor.src}
+          cardType={descriptor.cardType}
+          presentation="readable"
           alt=""
           aria-hidden="true"
           draggable={false}

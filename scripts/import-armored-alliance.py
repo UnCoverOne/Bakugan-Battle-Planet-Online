@@ -14,7 +14,6 @@ import argparse
 import json
 import re
 import shutil
-import subprocess
 import tempfile
 import unicodedata
 import zipfile
@@ -24,6 +23,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import fitz
+from PIL import Image
+
+from card_asset_processing import save_card_variants
 
 
 FACTIONS = {"Aquos", "Pyrus", "Darkus", "Haos", "Ventus", "Aurelus"}
@@ -362,7 +364,7 @@ def convert_scans(repo: Path, code: str, rows: list[dict[str, object]]) -> None:
         scan = row.get("scan")
         if isinstance(scan, dict):
             by_archive[scan["archive"]].append(row)
-    jobs: list[tuple[Path, Path, Path]] = []
+    jobs: list[tuple[Path, Path, Path, bool]] = []
     with tempfile.TemporaryDirectory(prefix=f"bakugan-{code.lower()}-") as temporary:
         temporary_path = Path(temporary)
         for archive, archive_rows in by_archive.items():
@@ -372,11 +374,16 @@ def convert_scans(repo: Path, code: str, rows: list[dict[str, object]]) -> None:
                     extracted = temporary_path / f"{row['id']}{Path(scan['member']).suffix.lower()}"
                     with bundle.open(scan["member"]) as source_file, extracted.open("wb") as target_file:
                         shutil.copyfileobj(source_file, target_file)
-                    jobs.append((extracted, full / f"{row['id']}.webp", thumb / f"{row['id']}.webp"))
-        def convert(job: tuple[Path, Path, Path]) -> None:
-            extracted, full_target, thumb_target = job
-            subprocess.run(["convert", str(extracted), "-auto-orient", "-resize", "359x504^", "-gravity", "center", "-extent", "359x504", "-strip", "-quality", "82", str(full_target)], check=True)
-            subprocess.run(["convert", str(extracted), "-auto-orient", "-resize", "160x224^", "-gravity", "center", "-extent", "160x224", "-strip", "-quality", "76", str(thumb_target)], check=True)
+                    jobs.append((
+                        extracted,
+                        full / f"{row['id']}.webp",
+                        thumb / f"{row['id']}.webp",
+                        row.get("type") in {"Flip", "Flip Hero"},
+                    ))
+        def convert(job: tuple[Path, Path, Path, bool]) -> None:
+            extracted, full_target, thumb_target, flip = job
+            with Image.open(extracted) as image:
+                save_card_variants(image, full_target, thumb_target, flip=flip)
         with ThreadPoolExecutor(max_workers=8) as executor:
             list(executor.map(convert, jobs))
 

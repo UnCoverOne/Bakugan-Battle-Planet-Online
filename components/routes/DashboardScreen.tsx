@@ -12,6 +12,7 @@ import { CARD_BY_ID, PUBLIC_DECKS, deckLeadCard, type DeckRecord } from "../../l
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
 import type { GameCard } from "../../lib/game";
+import { CardArt } from "../cards/CardArt";
 import { useApp } from "../application/AppProvider";
 import { Badge, deckLooksComplete, factionClass } from "../application/ui";
 
@@ -300,7 +301,7 @@ export function DashboardScreen() {
         {featured ? <div className="home-featured-deck-layout">
           <div className={`home-featured-deck-stack ${factionClass(featured.factions[0] ?? "Pyrus")}`} aria-label={`Featured cards from ${featured.name}`}>
             {featuredPreviewCards.length ? featuredPreviewCards.map((card) => <div className="home-featured-deck-card" key={card.catalogId}>
-              <OriginalImage src={cardArtSource(card, "full")} alt={card.displayName}/>
+              <CardArt src={cardArtSource(card, "full")} cardType={card.type} presentation="readable" alt={card.displayName}/>
             </div>) : <OriginalImage className="home-featured-deck-placeholder" src="/assets/cards/card-missing.svg" alt="Featured deck artwork unavailable"/>}
           </div>
           <div className="home-featured-deck-copy">

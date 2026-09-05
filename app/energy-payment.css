@@ -46,25 +46,6 @@
   animation: bbp-energy-needed 720ms ease-in-out infinite alternate;
 }
 
-/* Keep sideways Flip scans upright in the player's physical hand silhouette;
-   portrait scans are already correctly oriented. */
-[data-zone-kind="hand"][data-zone-owner="player"] li[data-card-id] > div {
-  position: relative;
-  overflow: hidden;
-  border-radius: 3px;
-}
-
-[data-zone-kind="hand"][data-zone-owner="player"] img[data-art-orientation="landscape"] {
-  position: absolute !important;
-  left: 50% !important;
-  top: 50% !important;
-  width: 140% !important;
-  height: 71.5% !important;
-  transform: translate(-50%, -50%) rotate(90deg) !important;
-  transform-origin: center !important;
-  object-fit: contain !important;
-}
-
 [role="alertdialog"][aria-label="Action unavailable"] {
   position: fixed;
   left: 50%;

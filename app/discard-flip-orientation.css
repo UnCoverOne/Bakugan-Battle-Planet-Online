@@ -1,41 +1,7 @@
-/* Sideways Flip scans are rotated into the physical vertical card silhouette;
-   portrait Flip scans are left untouched. Enlarged previews use card data to
-   choose the matching orientation. */
 [data-zone-kind="discard-pile"] {
   overflow: hidden !important;
 }
 
-[data-zone-kind="discard-pile"] > img[data-art-orientation="landscape"] {
-  left: 50% !important;
-  top: 50% !important;
-  width: 126% !important;
-  height: 90% !important;
-  transform: translate(-50%, -50%) rotate(90deg) !important;
-  transform-origin: center !important;
-  object-fit: contain !important;
-}
-
-[data-zone-kind="discard-pile"]:hover > img[data-art-orientation="landscape"] {
-  transform: translate(-50%, -50%) rotate(90deg) translateX(-0.15rem) !important;
-}
-
 [data-zone-kind="discard-browser"] figure {
   overflow: hidden;
-}
-
-[data-zone-kind="discard-browser"] figure > img[data-art-orientation="landscape"] {
-  width: 140% !important;
-  max-width: none !important;
-  height: auto !important;
-  aspect-ratio: 7 / 5 !important;
-  margin: 20% -20% !important;
-  transform: rotate(90deg) !important;
-  transform-origin: center !important;
-  object-fit: contain !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-zone-kind="discard-pile"] > img[data-art-orientation="landscape"] {
-    transition: none !important;
-  }
 }

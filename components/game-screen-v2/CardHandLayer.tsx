@@ -278,6 +278,7 @@ function PlayerHand({
                 <ResponsiveCardImage
                   className={styles.handCardImage}
                   src={card.art}
+                  cardType={card.type}
                   alt={card.displayName || card.name}
                   eager
                   draggable={false}
@@ -335,6 +336,7 @@ function OpponentHand({
                 <ResponsiveCardImage
                   className={`${styles.handCardImage} ${faceUp ? "" : styles.opponentCardBack}`}
                   src={faceUp ? card!.art : CARD_BACK_ART}
+                  cardType={faceUp ? card!.type : undefined}
                   alt={faceUp ? card!.displayName || card!.name : ""}
                   ariaHidden={!faceUp}
                   draggable={false}

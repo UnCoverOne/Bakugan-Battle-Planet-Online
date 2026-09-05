@@ -43,6 +43,7 @@ import {
   toggleShowcaseId,
 } from "../../lib/profile-customization";
 import { useApp } from "../application/AppProvider";
+import { CardArt } from "../cards/CardArt";
 import { copyText, downloadTextFile, formatTimestamp } from "../application/ui";
 import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
@@ -627,9 +628,11 @@ function CharacterFan({
       {Array.from({ length: 3 }, (_, index) => {
         const character = characters[index];
         return character ? (
-          <OriginalImage
+          <CardArt
             key={character.id}
             src={cardArtSource(character.character, "full")}
+            cardType={character.character.type}
+            presentation="readable"
             loading="lazy"
             decoding="async"
             alt={character.name}
@@ -639,9 +642,11 @@ function CharacterFan({
         );
       })}
       {featuredPreviewCard && (
-        <OriginalImage
+        <CardArt
           className={styles.featuredPreviewCard}
           src={cardArtSource(featuredPreviewCard, "full")}
+          cardType={featuredPreviewCard.type}
+          presentation="readable"
           loading="lazy"
           decoding="async"
           alt={`Featured card: ${featuredPreviewCard.displayName}`}
@@ -1221,7 +1226,7 @@ function DeckDetailPresentation({
                     aria-label={`Inspect ${item!.name} character card`}
                     onClick={(event) => inspectCard(item!.character, event.currentTarget)}
                   >
-                    <OriginalImage src={cardArtSource(item!.character, "full")} alt={item!.name} />
+                    <CardArt src={cardArtSource(item!.character, "full")} cardType={item!.character.type} presentation="readable" alt={item!.name} />
                     <strong>{item!.name}</strong>
                     <span className={styles.characterStats}>
                       <span><OriginalImage src={FACTION_SYMBOLS[item!.faction]} alt="" aria-hidden="true" />{item!.faction}</span>
@@ -1258,7 +1263,7 @@ function DeckDetailPresentation({
                           onClick={(event) => inspectCard(card, event.currentTarget)}
                         >
                           <div className={styles.detailCardArt}>
-                            <OriginalImage src={cardArtSource(card, "thumbnail")} alt={card.displayName} />
+                            <CardArt src={cardArtSource(card, "thumbnail")} cardType={card.type} presentation="readable" alt={card.displayName} />
                             <span className={styles.copyCount} aria-label={`${count} copies`}>×{count}</span>
                           </div>
                           <strong>{card.displayName}</strong>
@@ -2111,7 +2116,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
                       onClick={() => setSaveLeadCardId(card.catalogId)}
                       key={card.catalogId}
                     >
-                      <OriginalImage src={cardArtSource(card, "thumbnail")} alt="" />
+                      <CardArt src={cardArtSource(card, "thumbnail")} cardType={card.type} presentation="readable" alt="" />
                       <span>
                         <strong>{card.displayName}</strong>
                         <small>{card.faction} · {card.type}</small>

@@ -6,6 +6,17 @@ import { hasClientVersionMismatch } from "../lib/client-status";
 
 export const VERSION_MISMATCH_EVENT = "bbp-version-mismatch";
 const VERSION_CHECK_COOLDOWN_MS = 60_000;
+const SHELL_CACHE_PREFIX = "bbp-shell-";
+
+async function clearOldApplicationCaches() {
+  if (!("caches" in window)) return;
+  const keys = await caches.keys();
+  await Promise.all(
+    keys
+      .filter((key) => key.startsWith(SHELL_CACHE_PREFIX))
+      .map((key) => caches.delete(key)),
+  );
+}
 
 /**
  * Own the single service-worker registration and compare the loaded client
@@ -42,6 +53,11 @@ export function AssetFreshness() {
         const serverBuildId =
           typeof result.buildId === "string" ? result.buildId : "";
         if (!hasClientVersionMismatch(BUILD_ID, serverBuildId)) return;
+
+        // A stale tab may still be controlled by the previous worker. Remove
+        // its CacheStorage entries immediately; the next reload uses the new
+        // build-scoped asset URLs and service-worker script URL.
+        await clearOldApplicationCaches();
 
         const mismatchKey = `bbp-version-mismatch:${BUILD_ID}:${serverBuildId}`;
         let wasShown = announcedBuilds.has(serverBuildId);
@@ -90,7 +106,10 @@ export function AssetFreshness() {
         onControllerChange,
       );
       void navigator.serviceWorker
-        .register("/sw.js", { scope: "/", updateViaCache: "none" })
+        .register(`/sw.js?build=${encodeURIComponent(BUILD_ID)}`, {
+          scope: "/",
+          updateViaCache: "none",
+        })
         .then((registration) => registration.update())
         .catch(() => {
           // Offline support is progressive enhancement; version comparison

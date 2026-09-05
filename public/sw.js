@@ -1,4 +1,10 @@
-const CACHE_NAME = "bbp-shell-v2";
+const BUILD_ID = (
+  new URL(self.location.href).searchParams.get("build") || "development"
+)
+  .replace(/[^a-z0-9._-]/gi, "")
+  .slice(0, 48) || "development";
+const CACHE_PREFIX = "bbp-shell-";
+const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const OFFLINE_URL = "/offline";
 
 self.addEventListener("install", (event) => {
@@ -9,7 +15,11 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(
+        keys
+          .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+          .map((key) => caches.delete(key)),
+      ))
       .then(() => self.clients.claim()),
   );
 });

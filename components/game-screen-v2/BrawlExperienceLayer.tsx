@@ -11,6 +11,7 @@ import {
   type CSSProperties,
 } from "react";
 import type { MatchState, PendingEffect } from "../../lib/game";
+import { CardArt } from "../cards/CardArt";
 import {
   batchHudShouldRender,
   brawlCombatants,
@@ -412,7 +413,7 @@ export function BrawlExperienceLayer({
                 >
                   <div className={styles.batchHex}>
                     <span aria-hidden="true">{(effect.card.displayName || effect.card.name).slice(0, 1)}</span>
-                    <OriginalImage src={effect.card.art} alt={effect.card.displayName || effect.card.name} draggable={false} />
+                    <CardArt src={effect.card.art} cardType={effect.card.type} alt={effect.card.displayName || effect.card.name} draggable={false} />
                   </div>
                   <figcaption>
                     <small>{effectLabel(effect)}</small>

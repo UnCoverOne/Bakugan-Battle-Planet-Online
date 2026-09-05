@@ -5,7 +5,6 @@
 .layer { position: fixed; inset: 0; z-index: 20105; overflow: hidden; pointer-events: none; perspective: 1300px; contain: layout paint style; }
 .discardBase { position: fixed; box-sizing: border-box; z-index: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.7); border-radius: 3.8% / 2.8%; background: #080a0d; filter: drop-shadow(0 0.34rem 0.48rem rgba(0,0,0,.62)); }
 .discardBase > img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center; user-select: none; }
-.discardBase > img[data-art-orientation="landscape"] { position: absolute; left: 50%; top: 50%; width: 126%; height: 90%; max-width: none; transform: translate(-50%,-50%) rotate(90deg); transform-origin: center; }
 .flight { position: fixed; box-sizing: border-box; z-index: 1; opacity: 0; transform-origin: top left; transform-style: preserve-3d; filter: drop-shadow(0 0.5rem 0.68rem rgba(0,0,0,.76)) drop-shadow(0 0 .34rem rgba(255,255,255,.8)); will-change: transform, opacity; }
 .flight[data-owner="opponent"] { filter: drop-shadow(0 .5rem .68rem rgba(0,0,0,.76)) drop-shadow(0 0 .4rem rgba(255,76,61,.74)); }
 .flight[data-state="running"] { animation: discard-card-flight var(--discard-duration) cubic-bezier(.16,.78,.2,1) var(--discard-delay) both; }
@@ -16,7 +15,6 @@
 .cardBack { object-fit:contain;object-position:center; }
 .cardFace { transform:rotateY(180deg); }
 .cardFace img { display:block;width:100%;height:100%;object-fit:contain;object-position:center;user-select:none; }
-.flight .cardFace img[data-art-orientation="landscape"] { position:absolute;left:50%;top:50%;width:126%;height:90%;max-width:none;transform:translate(-50%,-50%) rotate(90deg);transform-origin:center; }
 @keyframes discard-card-flight {
   0% { opacity:.96;transform:translate3d(0,0,0) scale(1) rotateZ(-2deg); }
   18% { opacity:1;transform:translate3d(0,-1.2rem,5.5rem) scale(1.08) rotateZ(6deg); }

@@ -49,5 +49,6 @@ test("deck-to-discard moves mount a face-revealing flight layer", () => {
   assert.match(discardStyles, /@keyframes discard-card-flight/);
   assert.match(discardStyles, /@keyframes discard-card-turn/);
   assert.match(discardStyles, /rotateY\(180deg\)/);
-  assert.match(discardStyles, /data-art-orientation="landscape"/);
+  assert.doesNotMatch(discardStyles, /data-art-orientation/);
+  assert.match(discardLayer, /<CardArt[\s\S]*cardType=\{flight\.card\.type\}/);
 });

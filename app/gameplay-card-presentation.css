@@ -4,27 +4,6 @@
   width: min(54.4rem, calc(80vw - 1.6rem)) !important;
 }
 
-/* Sideways Flip scans still occupy the same physical vertical 5:7 silhouette
-   as every other card. Portrait Flip scans keep their native orientation. */
-[data-zone-kind="hand"] li[data-card-id] > div {
-  position: relative;
-  overflow: hidden;
-}
-
-[data-zone-kind="hand"] img[data-art-orientation="landscape"] {
-  position: absolute !important;
-  left: 50% !important;
-  top: 50% !important;
-  width: 140% !important;
-  max-width: none !important;
-  height: auto !important;
-  aspect-ratio: 7 / 5 !important;
-  transform: translate(-50%, -50%) rotate(90deg) !important;
-  transform-origin: center !important;
-  object-fit: contain !important;
-  object-position: center !important;
-}
-
 /* The Character zone clips its card artwork, so an outer box-shadow on that
    clipped element cannot produce a reliable halo. Draw the active halo on the
    unclipped Character slot instead, sized only to the card row. Character-card

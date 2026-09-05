@@ -1,14 +1,12 @@
 "use client";
 
-import { OriginalImage } from "@/components/media/OriginalImage";
-
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { type CardChoices, type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import type { ChoiceOption } from "../../lib/rules/choices";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchStore";
-import { fingerprintedAsset } from "../../lib/assets";
+import { CardArt } from "../cards/CardArt";
 import deckStyles from "./DeckInspectionLayer.module.css";
 import searchStyles from "./DeckSearchLayer.module.css";
 import {
@@ -292,8 +290,10 @@ export function DeckInspectionLayer() {
                     if (selectable) setSelectedId((current) => current === option.id && !selectionRequired ? "" : option.id);
                   }}
                 >
-                  <OriginalImage
-                    src={fingerprintedAsset(card.art)}
+                  <CardArt
+                    src={card.art}
+                    cardType={card.type}
+                    presentation="readable"
                     alt={card.displayName || card.name}
                     width="744"
                     height="1039"

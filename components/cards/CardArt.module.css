@@ -1,0 +1,17 @@
+.image {
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  image-rendering: auto;
+  transform-origin: center;
+}
+
+/*
+ * Every committed card asset uses the portrait 5:7 physical-card canvas.
+ * Readable Flip views rotate that complete canvas and scale it to fit inside
+ * the same footprint; gameplay zones leave the physical card untouched.
+ */
+.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] {
+  rotate: -90deg;
+  scale: 0.7142857143;
+}

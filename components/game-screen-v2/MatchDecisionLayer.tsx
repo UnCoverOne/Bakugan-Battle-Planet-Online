@@ -1,10 +1,9 @@
 "use client";
 
-import { OriginalImage } from "@/components/media/OriginalImage";
-
 import { useEffect, useMemo, useState } from "react";
 import { type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
+import { CardArt } from "../cards/CardArt";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchStore";
 import styles from "./MatchDecisionLayer.module.css";
@@ -133,7 +132,7 @@ export function MatchDecisionLayer() {
                   disabled={busy || (!isSelected && selectedCardIds.length >= requiredDiscards)}
                   onClick={() => toggleCard(card.id)}
                 >
-                  <OriginalImage src={card.art} alt="" aria-hidden="true" draggable={false} />
+                  <CardArt src={card.art} cardType={card.type} presentation="readable" alt="" aria-hidden="true" draggable={false} />
                   <strong>{card.displayName || card.name}</strong>
                   <span>{isSelected ? "Selected" : "Keep"}</span>
                 </button>

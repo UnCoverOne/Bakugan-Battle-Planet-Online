@@ -83,9 +83,9 @@ export function cardPreviewSideForZone(
 
 export function cardPreviewOrientation(
   cardType: string | null | undefined,
-  artOrientation: "portrait" | "landscape" | null | undefined = "landscape",
 ): CardPreviewOrientation {
-  return cardType === "Flip" && artOrientation !== "portrait" ? "horizontal" : "vertical";
+  void cardType;
+  return "vertical";
 }
 
 /**

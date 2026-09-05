@@ -1,10 +1,9 @@
 "use client";
 
-import { OriginalImage } from "@/components/media/OriginalImage";
-
 import { useEffect } from "react";
 import { fingerprintedAsset } from "../../lib/assets";
-import { cardArtOrientation } from "../../lib/content/card-art";
+import type { CardArtPresentation } from "../../lib/content/card-art";
+import { CardArt } from "../cards/CardArt";
 
 export function ResponsiveCardImage({
   src,
@@ -15,6 +14,8 @@ export function ResponsiveCardImage({
   style,
   ariaHidden,
   dataCardId,
+  cardType,
+  presentation = "physical",
 }: {
   src: string;
   alt: string;
@@ -24,15 +25,18 @@ export function ResponsiveCardImage({
   style?: React.CSSProperties;
   ariaHidden?: boolean;
   dataCardId?: string;
+  cardType?: string | null;
+  presentation?: CardArtPresentation;
 }) {
-  return <OriginalImage
+  return <CardArt
     className={className}
-    src={fingerprintedAsset(src)}
+    src={src}
+    cardType={cardType}
+    presentation={presentation}
     sizes="(max-width: 700px) 80px, (max-width: 1100px) 128px, 192px"
     width="384"
     height="536"
     alt={alt}
-    data-art-orientation={cardArtOrientation(src)}
     aria-hidden={ariaHidden}
     data-card-id={dataCardId}
     loading={eager ? "eager" : "lazy"}

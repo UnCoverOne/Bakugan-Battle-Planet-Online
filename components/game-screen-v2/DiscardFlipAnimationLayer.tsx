@@ -10,8 +10,8 @@ import {
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
-import { cardArtOrientation } from "../../lib/content/card-art";
 import type { GameCard, MatchState } from "../../lib/game";
+import { CardArt } from "../cards/CardArt";
 import { prepareAnimationAssets } from "./animationStability";
 import { discardFlipTransitions } from "./discardFlipAnimationState";
 import { useMatchSelector } from "./matchStore";
@@ -247,7 +247,7 @@ export function DiscardFlipAnimationLayer({
             style={style}
             key={`discard-base:${presentation.owner}`}
           >
-            <OriginalImage src={presentation.card.art} alt="" draggable={false} data-art-orientation={cardArtOrientation(presentation.card.art)} />
+            <CardArt src={presentation.card.art} cardType={presentation.card.type} alt="" draggable={false} />
           </div>
         );
       })}
@@ -266,7 +266,7 @@ export function DiscardFlipAnimationLayer({
             }} key={flight.id}>
             <div className={styles.cardInner}>
               <OriginalImage className={styles.cardBack} src={CARD_BACK_ART} alt="" draggable={false} />
-              <div className={styles.cardFace}><OriginalImage src={flight.card.art} alt="" draggable={false} data-art-orientation={cardArtOrientation(flight.card.art)} /></div>
+              <div className={styles.cardFace}><CardArt src={flight.card.art} cardType={flight.card.type} alt="" draggable={false} /></div>
             </div>
           </div>
         );

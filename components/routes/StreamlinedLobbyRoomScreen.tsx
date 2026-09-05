@@ -33,6 +33,7 @@ import { useApp } from "../application/AppProvider";
 import { Badge, factionClass } from "../application/ui";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { PlayerPreview } from "../profile/PlayerPreview";
+import { CardArt } from "../cards/CardArt";
 import {
   matchCommandHeaders,
   primeMatchStore,
@@ -497,7 +498,7 @@ export function LobbyRoomScreen() {
               {ranked.stage === "ban" && opponentRanked ? <>
                 <p>Deck lists remain hidden. Your ban is revealed only after both Brawlers lock a choice.</p>
                 <div className={styles.rankedDecks}>{opponentRanked.decks.map((deck) => <button type="button" key={deck.id} disabled={Boolean(myRanked?.bannedDeckId) || busy === "ban"} onClick={() => void banRankedDeck(deck.id)}>
-                  <span className={styles.rankedCharacters}>{deckPreviewCards(deck).slice(0, 3).map((card) => <OriginalImage key={card.catalogId} src={cardArtSource(card, "thumbnail")} alt="" />)}</span>
+                  <span className={styles.rankedCharacters}>{deckPreviewCards(deck).slice(0, 3).map((card) => <CardArt key={card.catalogId} src={cardArtSource(card, "thumbnail")} cardType={card.type} presentation="readable" alt="" />)}</span>
                   <strong>{deck.name}</strong><small>{deck.factions.join(" • ")}</small>
                 </button>)}</div>
                 {myRanked?.bannedDeckId ? <p className={styles.rankedLocked}>BAN LOCKED · WAITING FOR OPPONENT</p> : null}
@@ -505,7 +506,7 @@ export function LobbyRoomScreen() {
               {ranked.stage === "select" ? <>
                 <p>Choose simultaneously. A deck that has already won for you is no longer eligible; a losing deck may be selected again.</p>
                 <div className={styles.rankedDecks}>{eligibleRankedDecks(match, localPlayerId).map((deck) => <button type="button" key={deck.id} disabled={Boolean(myRanked?.selectedDeckId) || busy === "select"} onClick={() => void selectRankedRoundDeck(deck.id)}>
-                  <span className={styles.rankedCharacters}>{deckPreviewCards(deck).slice(0, 3).map((card) => <OriginalImage key={card.catalogId} src={cardArtSource(card, "thumbnail")} alt="" />)}</span>
+                  <span className={styles.rankedCharacters}>{deckPreviewCards(deck).slice(0, 3).map((card) => <CardArt key={card.catalogId} src={cardArtSource(card, "thumbnail")} cardType={card.type} presentation="readable" alt="" />)}</span>
                   <strong>{deck.name}</strong><small>{deck.factions.join(" • ")}</small>
                 </button>)}</div>
                 {myRanked?.selectedDeckId ? <p className={styles.rankedLocked}>DECK LOCKED · WAITING FOR OPPONENT</p> : null}
@@ -526,7 +527,7 @@ export function LobbyRoomScreen() {
                   <div className={`${styles.featuredDeckStack} ${factionClass(currentDeck.factions[0] ?? "Pyrus")}`} aria-label={`Cards from ${currentDeck.name}`}>
                     {currentDeckCards.length ? currentDeckCards.map((card) => (
                       <div className={styles.featuredDeckCard} key={card.catalogId}>
-                        <OriginalImage src={cardArtSource(card, "full")} alt={card.displayName} />
+                        <CardArt src={cardArtSource(card, "full")} cardType={card.type} presentation="readable" alt={card.displayName} />
                       </div>
                     )) : <OriginalImage className={styles.featuredDeckPlaceholder} src="/assets/cards/card-missing.svg" alt="Deck artwork unavailable" />}
                   </div>
@@ -635,7 +636,7 @@ export function LobbyRoomScreen() {
                     title={selectable ? deck.name : `Requires a legal ${requiredFormat === "singleton" ? "Singleton" : requiredFormat === "competitive" ? "Competitive" : "Standard"} deck`}
                   >
                     <span className={styles.deckChoiceArt}>
-                      <OriginalImage src={lead ? cardArtSource(lead, "full") : "/assets/cards/card-missing.svg"} alt={lead?.displayName ?? "Deck featured card unavailable"} />
+                      <CardArt src={lead ? cardArtSource(lead, "full") : "/assets/cards/card-missing.svg"} cardType={lead?.type} presentation="readable" alt={lead?.displayName ?? "Deck featured card unavailable"} />
                     </span>
                     <span className={styles.deckChoiceTags} aria-label={tags.length ? `Tags: ${tags.join(", ")}` : "No deck tags"}>
                       {tags.map((tag) => <span key={tag}>{tag}</span>)}

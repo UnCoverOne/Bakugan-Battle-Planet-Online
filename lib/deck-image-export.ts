@@ -1,5 +1,6 @@
 import { BAKUGAN, CORES, type DeckRecord } from "./data";
-import { cardArtSource } from "./content/card-art";
+import { fingerprintedAsset } from "./assets";
+import { cardArtSource, isFlipCardType } from "./content/card-art";
 import { deckExportFilename, groupedDeckCards } from "./deck-presentation";
 
 const WIDTH = 1600;
@@ -14,7 +15,7 @@ function loadImage(source: string): Promise<LoadedImage> {
     image.decoding = "async";
     image.onload = () => resolve(image);
     image.onerror = () => resolve(null);
-    image.src = source;
+    image.src = fingerprintedAsset(source);
   });
 }
 
@@ -25,6 +26,7 @@ function drawContainedImage(
   y: number,
   width: number,
   height: number,
+  readableFlip = false,
 ) {
   context.fillStyle = "#061820";
   context.fillRect(x, y, width, height);
@@ -36,7 +38,15 @@ function drawContainedImage(
   const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
   const drawWidth = image.naturalWidth * scale;
   const drawHeight = image.naturalHeight * scale;
+  if (readableFlip) {
+    context.save();
+    context.translate(x + width / 2, y + height / 2);
+    context.rotate(-Math.PI / 2);
+    context.scale(5 / 7, 5 / 7);
+    context.translate(-(x + width / 2), -(y + height / 2));
+  }
   context.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+  if (readableFlip) context.restore();
 }
 
 function fitText(context: CanvasRenderingContext2D, value: string, maximumWidth: number) {
@@ -157,7 +167,7 @@ export async function exportDeckImage(deck: DeckRecord) {
     const row = Math.floor(index / columns);
     const x = OUTER + column * (cardWidth + cardGap);
     const y = mainDeckTop + 44 + row * cardCellHeight;
-    drawContainedImage(context, cardImages[index], x, y, cardWidth, cardImageHeight);
+    drawContainedImage(context, cardImages[index], x, y, cardWidth, cardImageHeight, isFlipCardType(card.type));
     if (count > 1) {
       const badgeSize = 48;
       roundedRect(context, x + cardWidth - badgeSize - 8, y + cardImageHeight - badgeSize - 8, badgeSize, badgeSize, 8);

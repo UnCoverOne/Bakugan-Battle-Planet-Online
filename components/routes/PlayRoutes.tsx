@@ -31,6 +31,7 @@ import {
 } from "../../lib/play-setup-machine";
 import styles from "./PlayRoutes.module.css";
 import { MatchResultSocial } from "../social/MatchResultSocial";
+import { CardArt } from "../cards/CardArt";
 
 const SETUP_STORAGE_KEY = "bbp-play-setup-machine-v1";
 const STEP_LABELS: Record<PlaySetupStep, string> = {
@@ -391,7 +392,7 @@ function LoadoutVisual({ deck }: { deck: DeckRecord }) {
         {Array.from({ length: 3 }, (_, index) => {
           const character = characters[index];
           return character
-            ? <OriginalImage key={character.id} src={cardArtSource(character.character, "full")} loading="lazy" decoding="async" alt={character.name} />
+            ? <CardArt key={character.id} src={cardArtSource(character.character, "full")} cardType={character.character.type} presentation="readable" loading="lazy" decoding="async" alt={character.name} />
             : <span key={index} aria-label="Empty Character slot">?</span>;
         })}
       </div>

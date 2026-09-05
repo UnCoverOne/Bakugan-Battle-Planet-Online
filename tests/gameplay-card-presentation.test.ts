@@ -16,6 +16,18 @@ const layer = readFileSync(
   new URL("../components/game-screen-v2/GameplayCardPresentationLayer.tsx", import.meta.url),
   "utf8",
 );
+const layerCss = readFileSync(
+  new URL("../components/game-screen-v2/GameplayCardPresentationLayer.module.css", import.meta.url),
+  "utf8",
+);
+const cardArt = readFileSync(
+  new URL("../components/cards/CardArt.tsx", import.meta.url),
+  "utf8",
+);
+const cardArtCss = readFileSync(
+  new URL("../components/cards/CardArt.module.css", import.meta.url),
+  "utf8",
+);
 
 test("discard browser is approximately twenty percent narrower at desktop and mobile scales", () => {
   assert.match(css, /width:\s*min\(54\.4rem,\s*calc\(80vw\s*-\s*1\.6rem\)\)\s*!important/);
@@ -23,9 +35,12 @@ test("discard browser is approximately twenty percent narrower at desktop and mo
 });
 
 test("Flip cards fill the same vertical hand silhouette as regular cards", () => {
-  assert.match(css, /img\[data-art-orientation="landscape"\][\s\S]*width:\s*140%\s*!important/);
-  assert.match(css, /aspect-ratio:\s*7\s*\/\s*5\s*!important/);
-  assert.match(css, /rotate\(90deg\)\s*!important/);
+  assert.match(cardArt, /presentation\s*=\s*"physical"/);
+  assert.match(cardArt, /data-card-art-presentation=\{presentation\}/);
+  assert.match(cardArtCss, /data-card-art-presentation="readable"/);
+  assert.match(cardArtCss, /rotate:\s*-90deg/);
+  assert.match(cardArtCss, /scale:\s*0\.7142857143/);
+  assert.doesNotMatch(css, /data-art-orientation/);
   assert.match(layer, /element\.dataset\.cardType\s*=\s*card\.type/);
 });
 
@@ -57,10 +72,10 @@ test("Haos uses a light-blue active Character glow", () => {
 });
 
 test("Evo presentation hides the base Character and owns the top layer", () => {
-  assert.match(layer, /bakugan\.evoStack\.at\(-1\)\s*\?\?\s*bakugan\.character/);
+  assert.match(layer, /bakugan\.evoStack\.at\(-1\)\s*\?\?[\s\S]*bakugan\.fusionCharacter[\s\S]*\?\?\s*bakugan\.character/);
   assert.match(layer, /zone\.dataset\.cardId\s*=\s*topCard\.id/);
   assert.match(layer, /zone\.dataset\.evoCount\s*=\s*String\(bakugan\.evoStack\.length\)/);
   assert.match(layer, /bakugan\.evoStack\.map/);
   assert.match(css, /data-evo-count\]:not\(\[data-evo-count="0"\]\)\s*>\s*img[\s\S]*visibility:\s*hidden\s*!important/);
-  assert.match(css, /data-evo-stack="true"\][\s\S]*z-index:\s*120\s*!important/);
+  assert.match(layerCss, /\.evoStack[\s\S]*z-index:\s*var\(--character-evo-layer,\s*120\)/);
 });

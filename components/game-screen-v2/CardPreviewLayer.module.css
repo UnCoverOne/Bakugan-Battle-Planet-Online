@@ -54,17 +54,6 @@
   background: transparent;
 }
 
-.preview[data-card-preview-orientation="horizontal"] .previewImage,
-.preview[data-card-preview-orientation="horizontal"] .placeholder {
-  width: min(27rem, 39vw);
-  max-height: min(72dvh, 19rem);
-  border-radius: 3.3% / 4.6%;
-}
-
-.preview[data-card-preview-orientation="horizontal"] .placeholder {
-  aspect-ratio: 7 / 5;
-}
-
 .preview[data-card-preview-orientation="core"] .previewImage,
 .preview[data-card-preview-orientation="core"] .placeholder {
   width: min(23rem, 32vw);
@@ -179,11 +168,6 @@
     width: min(10.5rem, 36vw);
   }
 
-  .preview[data-card-preview-orientation="horizontal"] .previewImage,
-  .preview[data-card-preview-orientation="horizontal"] .placeholder {
-    width: min(16rem, 58vw);
-  }
-
   .preview[data-card-preview-orientation="core"] .previewImage,
   .preview[data-card-preview-orientation="core"] .placeholder {
     width: min(13.5rem, 48vw);
@@ -200,4 +184,3 @@
     transition: none;
   }
 }
-

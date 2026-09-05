@@ -224,6 +224,7 @@ function CharacterCardZone({
           <ResponsiveCardImage
             className={`${styles.characterCardImage} ${slamming ? styles.characterCardSlamming : ""}`}
             src={card.art}
+            cardType={card.type}
             alt={card.displayName || card.name}
             eager={bakugan?.open}
             draggable={false}
@@ -271,6 +272,7 @@ function DiscardCard({ card }: { card: GameCard | null }) {
     <ResponsiveCardImage
       className={styles.discardCardImage}
       src={card.art}
+      cardType={card.type}
       alt={card.displayName || card.name}
       draggable={false}
     />
@@ -374,6 +376,7 @@ function HeroStack({
           <ResponsiveCardImage
             className={`${styles.heroCardImage} ${slamming ? styles.heroCardSlamming : ""}`}
             src={card.art}
+            cardType={card.type}
             alt={card.displayName || card.name}
             draggable={false}
             dataCardId={card.id}
@@ -709,6 +712,7 @@ function DiscardPileModal({
             >
               <ResponsiveCardImage
                 src={card.art}
+                cardType={card.type}
                 alt={card.displayName || card.name}
                 draggable={false}
               />

@@ -491,7 +491,7 @@ test("the gameplay runtime mounts distinct draggable, reveal, and full-deck sear
   assert.match(layer, /PUBLIC DECK REVEAL/);
   assert.match(layer, /inspectedDeckPlay/);
   assert.match(layer, /inspectedDeckPlay \? "Skip"/);
-  assert.match(layer, /fingerprintedAsset\(card\.art\)/);
+  assert.match(layer, /<CardArt[\s\S]*src=\{card\.art\}[\s\S]*presentation="readable"/);
   assert.doesNotMatch(layer, /<ResponsiveCardImage/);
   assert.match(layer, /"Play card"/);
   assert.match(layer, /PRIVATE DECK VIEW/);

@@ -1,5 +1,5 @@
 import type { CardType, Core, GameCard, MatchState } from "../../lib/game";
-import { cardArtOrientation } from "../../lib/content/card-art";
+import { fingerprintedAsset } from "../../lib/assets";
 import {
   cardPreviewOrientation,
   cardPreviewSideForZone,
@@ -280,7 +280,7 @@ export function describePreviewElement(
   const card = resolveCard(match, element, metadata);
   if (!card) return null;
   const side = cardPreviewSideForZone(metadata.zoneKind, metadata.zoneOwner);
-  const orientation = cardPreviewOrientation(card.type, cardArtOrientation(card.art));
+  const orientation = cardPreviewOrientation(card.type);
   const identity = [card.id, card.art, card.type, card.effect, side, orientation].join("\u0000");
   return {
     targetId: `${elementToken}:${identity}`,
@@ -336,7 +336,7 @@ export function decodePreviewArtwork(source: string): Promise<boolean> {
     image.decoding = "async";
     image.onload = () => finish(image.naturalWidth > 0);
     image.onerror = () => finish(false);
-    image.src = source;
+    image.src = fingerprintedAsset(source);
     if (image.complete) queueMicrotask(() => finish(image.naturalWidth > 0));
   });
 }

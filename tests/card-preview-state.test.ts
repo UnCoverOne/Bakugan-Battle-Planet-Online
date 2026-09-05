@@ -14,7 +14,6 @@ import {
   canonicalPreviewPath,
   corePreviewSourceIsRevealed,
 } from "../components/game-screen-v2/cardPreviewController";
-import { cardArtOrientation } from "../lib/content/card-art";
 
 test("card previews accept only explicit card and revealed-Core zones", () => {
   for (const zone of [
@@ -52,12 +51,9 @@ test("preview sides follow hard zone rules without geometry", () => {
   assert.equal(cardPreviewSideForZone("bakucore", "opponent"), "left");
 });
 
-test("Flip previews follow the supplied artwork orientation", () => {
-  assert.equal(cardArtOrientation("/assets/cards/full/171.webp"), "landscape");
-  assert.equal(cardArtOrientation("/assets/cards/sets/av/full/av-64.webp"), "portrait");
-  assert.equal(cardPreviewOrientation("Flip", "landscape"), "horizontal");
-  assert.equal(cardPreviewOrientation("Flip", "portrait"), "vertical");
-  assert.equal(cardPreviewOrientation("Flip"), "horizontal");
+test("all card previews retain the canonical physical-card footprint", () => {
+  assert.equal(cardPreviewOrientation("Flip"), "vertical");
+  assert.equal(cardPreviewOrientation("Flip Hero"), "vertical");
   assert.equal(cardPreviewOrientation("Action"), "vertical");
   assert.equal(cardPreviewOrientation("Character"), "vertical");
 });

@@ -128,7 +128,9 @@ test("client freshness compares authoritative build identities without duplicate
   const versionApi = source("app/api/version/route.ts");
 
   assert.match(freshness, /fetch\(\s*`\/api\/version\?client=/);
-  assert.match(freshness, /\.register\("\/sw\.js"/);
+  assert.match(freshness, /\.register\(`\/sw\.js\?build=\$\{encodeURIComponent\(BUILD_ID\)\}`/);
+  assert.match(freshness, /clearOldApplicationCaches\(\)/);
+  assert.match(source("public/sw.js"), /CACHE_NAME = `\$\{CACHE_PREFIX\}\$\{BUILD_ID\}`/);
   assert.match(freshness, /hasClientVersionMismatch\(BUILD_ID, serverBuildId\)/);
   assert.doesNotMatch(freshness, /existingBrowserData|notifyAfterClaim/);
   assert.doesNotMatch(layout, /ServiceWorkerRegistration/);
