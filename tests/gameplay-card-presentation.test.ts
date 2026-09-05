@@ -23,7 +23,7 @@ test("discard browser is approximately twenty percent narrower at desktop and mo
 });
 
 test("Flip cards fill the same vertical hand silhouette as regular cards", () => {
-  assert.match(css, /li\[data-card-type="Flip"\][\s\S]*width:\s*140%\s*!important/);
+  assert.match(css, /img\[data-art-orientation="landscape"\][\s\S]*width:\s*140%\s*!important/);
   assert.match(css, /aspect-ratio:\s*7\s*\/\s*5\s*!important/);
   assert.match(css, /rotate\(90deg\)\s*!important/);
   assert.match(layer, /element\.dataset\.cardType\s*=\s*card\.type/);

@@ -49,5 +49,5 @@ test("deck-to-discard moves mount a face-revealing flight layer", () => {
   assert.match(discardStyles, /@keyframes discard-card-flight/);
   assert.match(discardStyles, /@keyframes discard-card-turn/);
   assert.match(discardStyles, /rotateY\(180deg\)/);
-  assert.match(discardStyles, /data-card-type="Flip"/);
+  assert.match(discardStyles, /data-art-orientation="landscape"/);
 });

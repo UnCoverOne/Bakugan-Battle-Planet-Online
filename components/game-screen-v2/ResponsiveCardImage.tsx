@@ -4,6 +4,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 
 import { useEffect } from "react";
 import { fingerprintedAsset } from "../../lib/assets";
+import { cardArtOrientation } from "../../lib/content/card-art";
 
 export function ResponsiveCardImage({
   src,
@@ -31,6 +32,7 @@ export function ResponsiveCardImage({
     width="384"
     height="536"
     alt={alt}
+    data-art-orientation={cardArtOrientation(src)}
     aria-hidden={ariaHidden}
     data-card-id={dataCardId}
     loading={eager ? "eager" : "lazy"}

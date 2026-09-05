@@ -4,6 +4,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { cardArtOrientation } from "../../lib/content/card-art";
 import type { Bakugan, MatchState } from "../../lib/game";
 import styles from "./GameplayCardPresentationLayer.module.css";
 import { useMatchSelector } from "./matchStore";
@@ -178,6 +179,7 @@ export function GameplayCardPresentationLayer({
                     alt={card.displayName || card.name}
                     draggable={false}
                     data-card-id={card.id}
+                    data-art-orientation={cardArtOrientation(card.art)}
                     style={style}
                     key={card.id}
                   />

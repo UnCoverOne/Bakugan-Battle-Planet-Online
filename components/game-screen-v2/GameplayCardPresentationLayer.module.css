@@ -32,6 +32,18 @@
   user-select: none;
 }
 
+.evoCard[data-art-orientation="landscape"] {
+  width: 140%;
+  height: 71.5%;
+  max-width: none;
+  transform:
+    translate(
+      calc(-50% + var(--evo-offset-x)),
+      calc(-50% + var(--evo-offset-y))
+    )
+    rotate(90deg);
+}
+
 .evoBadge {
   position: absolute;
   right: 4%;

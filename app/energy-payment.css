@@ -46,16 +46,15 @@
   animation: bbp-energy-needed 720ms ease-in-out infinite alternate;
 }
 
-/* Flip artwork is printed horizontally. Rotate only the hand artwork so every
-   physical card keeps the same vertical hand silhouette; enlarged previews use
-   the unrotated horizontal face. */
-[data-zone-kind="hand"][data-zone-owner="player"] [data-card-type="Flip"] > div {
+/* Keep sideways Flip scans upright in the player's physical hand silhouette;
+   portrait scans are already correctly oriented. */
+[data-zone-kind="hand"][data-zone-owner="player"] li[data-card-id] > div {
   position: relative;
   overflow: hidden;
   border-radius: 3px;
 }
 
-[data-zone-kind="hand"][data-zone-owner="player"] [data-card-type="Flip"] img {
+[data-zone-kind="hand"][data-zone-owner="player"] img[data-art-orientation="landscape"] {
   position: absolute !important;
   left: 50% !important;
   top: 50% !important;
@@ -130,4 +129,3 @@
     animation: none;
   }
 }
-

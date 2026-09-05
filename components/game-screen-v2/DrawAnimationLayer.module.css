@@ -69,6 +69,19 @@
 
 .cardFace { transform: rotateY(180deg); }
 
+.cardFace[data-art-orientation="landscape"] {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  width: 140%;
+  height: 71.5%;
+  max-width: none;
+  transform: translate(-50%, -50%) rotate(90deg) rotateY(180deg);
+  transform-origin: center;
+}
+
 @keyframes draw-card-flight {
   0% { opacity: 0.94; transform: translate3d(0, 0, 0) scale(1) rotateZ(-1deg); }
   20% { opacity: 1; transform: translate3d(0, -1.35rem, 5rem) scale(1.08) rotateZ(4deg); }

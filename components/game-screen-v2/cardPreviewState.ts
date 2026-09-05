@@ -81,8 +81,11 @@ export function cardPreviewSideForZone(
   return "left";
 }
 
-export function cardPreviewOrientation(cardType: string | null | undefined): CardPreviewOrientation {
-  return cardType === "Flip" ? "horizontal" : "vertical";
+export function cardPreviewOrientation(
+  cardType: string | null | undefined,
+  artOrientation: "portrait" | "landscape" | null | undefined = "landscape",
+): CardPreviewOrientation {
+  return cardType === "Flip" && artOrientation !== "portrait" ? "horizontal" : "vertical";
 }
 
 /**
@@ -127,4 +130,3 @@ export function cardPreviewRequestIsCurrent(
 ): boolean {
   return ownership.targetId === targetId && ownership.generation === generation;
 }
-

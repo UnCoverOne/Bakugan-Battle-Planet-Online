@@ -4,16 +4,14 @@
   width: min(54.4rem, calc(80vw - 1.6rem)) !important;
 }
 
-/* Flip scans are landscape, but a card in hand still occupies the same physical
-   vertical 5:7 silhouette as every other card. Rotate and crop the scan inside
-   that fixed silhouette rather than shrinking it with object-fit: contain. */
-[data-zone-kind="hand"] li[data-card-type="Flip"] .handCardSurface,
-[data-zone-kind="hand"] li[data-card-type="Flip"] > div {
+/* Sideways Flip scans still occupy the same physical vertical 5:7 silhouette
+   as every other card. Portrait Flip scans keep their native orientation. */
+[data-zone-kind="hand"] li[data-card-id] > div {
   position: relative;
   overflow: hidden;
 }
 
-[data-zone-kind="hand"] li[data-card-type="Flip"] img {
+[data-zone-kind="hand"] img[data-art-orientation="landscape"] {
   position: absolute !important;
   left: 50% !important;
   top: 50% !important;

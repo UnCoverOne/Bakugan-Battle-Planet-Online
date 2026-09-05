@@ -10,6 +10,7 @@ import {
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
+import { cardArtOrientation } from "../../lib/content/card-art";
 import type { GameCard, MatchState } from "../../lib/game";
 import { prepareAnimationAssets } from "./animationStability";
 import { drawTransitions } from "./drawAnimationState";
@@ -279,7 +280,7 @@ export function DrawAnimationLayer({
             <div className={styles.cardInner}>
               <OriginalImage className={styles.cardBack} src={CARD_BACK_ART} alt="" draggable={false} />
               {flight.card ? (
-                <OriginalImage className={styles.cardFace} src={flight.card.art} alt="" draggable={false} />
+                <OriginalImage className={styles.cardFace} src={flight.card.art} alt="" draggable={false} data-art-orientation={cardArtOrientation(flight.card.art)} />
               ) : null}
             </div>
           </div>

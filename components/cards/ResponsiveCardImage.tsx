@@ -3,7 +3,7 @@
 import { OriginalImage } from "@/components/media/OriginalImage";
 
 import type { ImgHTMLAttributes } from "react";
-import { CARD_ART_PLACEHOLDER, cardArtSource } from "../../lib/content/card-art";
+import { CARD_ART_PLACEHOLDER, cardArtOrientation, cardArtSource } from "../../lib/content/card-art";
 import type { GameCard } from "../../lib/game";
 import styles from "./ResponsiveCardImage.module.css";
 
@@ -33,6 +33,7 @@ export function ResponsiveCardImage({
       {...props}
       className={[styles.image, styles[presentation], className].filter(Boolean).join(" ")}
       src={full}
+      data-art-orientation={cardArtOrientation(full)}
       sizes={presentationSizes[presentation]}
       alt={alt ?? card.displayName}
       width={360}
