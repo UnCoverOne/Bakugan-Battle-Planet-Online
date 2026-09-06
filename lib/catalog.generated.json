@@ -659,7 +659,7 @@
     "damage": null,
     "coreTypes": [],
     "evolvesFrom": null,
-    "art": "/assets/cards/full/26.webp",
+    "art": "/assets/cards/full/26.svg",
     "hasProvidedScan": true,
     "source": "Provided card scan",
     "slug": "water-slash"
@@ -817,7 +817,7 @@
     "damage": null,
     "coreTypes": [],
     "evolvesFrom": null,
-    "art": "/assets/cards/full/32.webp",
+    "art": "/assets/cards/full/32.svg",
     "hasProvidedScan": true,
     "source": "Provided card scan",
     "slug": "curse-of-darkus"
@@ -5349,7 +5349,7 @@
     "damage": null,
     "coreTypes": [],
     "evolvesFrom": null,
-    "art": "/assets/cards/full/207.webp",
+    "art": "/assets/cards/full/207.svg",
     "hasProvidedScan": true,
     "source": "Provided card scan",
     "slug": "dan-kouzo"
@@ -5566,7 +5566,7 @@
     "damage": null,
     "coreTypes": [],
     "evolvesFrom": null,
-    "art": "/assets/cards/full/215.webp",
+    "art": "/assets/cards/full/215.svg",
     "hasProvidedScan": true,
     "source": "Provided card scan",
     "slug": "wynton-styles"
@@ -5889,7 +5889,7 @@
     "damage": 6,
     "coreTypes": [],
     "evolvesFrom": "Garganoid Ultra",
-    "art": "/assets/cards/full/228.webp",
+    "art": "/assets/cards/full/228.svg",
     "hasProvidedScan": true,
     "source": "Provided card scan",
     "slug": "aquos-titan-garganoid-ultra"
@@ -7820,7 +7820,7 @@
       "Shield"
     ],
     "evolvesFrom": null,
-    "art": "/assets/cards/full/302.webp",
+    "art": "/assets/cards/full/302.svg",
     "hasProvidedScan": true,
     "source": "Provided card scan",
     "slug": "aurelus-howlkor-ultra"
@@ -9016,7 +9016,7 @@
       "Fist"
     ],
     "evolvesFrom": null,
-    "art": "/assets/cards/full/346.webp",
+    "art": "/assets/cards/full/346.svg",
     "hasProvidedScan": true,
     "source": "Provided card scan",
     "slug": "pyrus-garganoid-ultra"
@@ -9560,7 +9560,7 @@
       "Helix"
     ],
     "evolvesFrom": null,
-    "art": "/assets/cards/full/366.webp",
+    "art": "/assets/cards/full/366.svg",
     "hasProvidedScan": true,
     "source": "Provided card scan",
     "slug": "ventus-mantonoid-ultra"
@@ -9612,7 +9612,7 @@
       "Fist"
     ],
     "evolvesFrom": null,
-    "art": "/assets/cards/full/368.webp",
+    "art": "/assets/cards/full/368.svg",
     "hasProvidedScan": true,
     "source": "Provided card scan",
     "slug": "ventus-nillious"
@@ -9777,7 +9777,7 @@
       "Fist"
     ],
     "evolvesFrom": null,
-    "art": "/assets/cards/full/374.webp",
+    "art": "/assets/cards/full/374.svg",
     "hasProvidedScan": true,
     "source": "Provided card scan",
     "slug": "aurelus-serpenteze"
