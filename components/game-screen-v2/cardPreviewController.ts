@@ -68,7 +68,7 @@ export function canonicalPreviewPath(source: string): string {
       const original = url.searchParams.get("url");
       if (original && original !== source) return canonicalPreviewPath(original);
     }
-    return url.pathname;
+    return url.pathname.replace("/thumb/", "/full/");
   } catch {
     return source.split(/[?#]/, 1)[0] ?? "";
   }

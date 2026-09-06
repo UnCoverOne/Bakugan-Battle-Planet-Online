@@ -28,9 +28,10 @@ export function ResponsiveCardImage({
   cardType?: string | null;
   presentation?: CardArtPresentation;
 }) {
+  const renderedSrc = presentation === "physical" ? src.replace("/full/", "/thumb/") : src;
   return <CardArt
     className={className}
-    src={src}
+    src={renderedSrc}
     cardType={cardType}
     presentation={presentation}
     sizes="(max-width: 700px) 80px, (max-width: 1100px) 128px, 192px"

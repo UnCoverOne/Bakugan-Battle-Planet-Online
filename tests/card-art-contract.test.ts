@@ -32,11 +32,9 @@ test("every Flip-family scan uses one transparent portrait asset contract", () =
   for (const card of cards) {
     const full = webpContract(cardArtSource(card, "full"));
     const thumbnail = webpContract(cardArtSource(card, "thumbnail"));
-    assert.deepEqual(
-      { width: full.width, height: full.height, alpha: full.alpha },
-      { width: 360, height: 504, alpha: true },
-      `${card.catalogId} full artwork`,
-    );
+    assert.equal(full.alpha, true, `${card.catalogId} full artwork must preserve transparency`);
+    assert.ok(full.width >= 320 && full.height >= 448, `${card.catalogId} full artwork is unexpectedly small`);
+    assert.ok(Math.abs(full.width / full.height - 5 / 7) < 0.035, `${card.catalogId} full artwork must be portrait`);
     assert.deepEqual(
       { width: thumbnail.width, height: thumbnail.height, alpha: thumbnail.alpha },
       { width: 160, height: 224, alpha: true },

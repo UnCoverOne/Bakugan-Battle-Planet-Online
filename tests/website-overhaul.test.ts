@@ -179,7 +179,7 @@ test("large secondary-route card scans use lossless full assets", () => {
   assert.match(responsiveCardImage, /const full = cardArtSource\(card,\s*"full"\)/);
   assert.match(responsiveCardImage, /<CardArt/);
   assert.match(responsiveCardImage, /presentation="readable"/);
-  assert.doesNotMatch(responsiveCardImage, /cardArtSource\(card,\s*"thumbnail"\)/);
+  assert.match(responsiveCardImage, /cardArtSource\(card,\s*"thumbnail"\)/);
   assert.doesNotMatch(responsiveCardImage, /srcSet=\{/);
   assert.match(gameplayCardImage, /<CardArt/);
   assert.match(gameplayCardImage, /presentation=\{presentation\}/);

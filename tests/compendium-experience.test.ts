@@ -207,7 +207,7 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   assert.match(image, /<CardArt/);
   assert.match(image, /presentation="readable"/);
   assert.doesNotMatch(image, /srcSet=\{/);
-  assert.doesNotMatch(image, /cardArtSource\(card, "thumbnail"\)/);
+  assert.match(image, /cardArtSource\(card, "thumbnail"\)/);
   assert.match(image, /cardArtSource\(card, "full"\)/);
   assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s);
   assert.match(css, /\.filterRail\s*\{[^}]*position:\s*sticky/s);

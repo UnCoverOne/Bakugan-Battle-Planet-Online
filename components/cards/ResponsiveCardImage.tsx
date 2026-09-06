@@ -27,11 +27,12 @@ export function ResponsiveCardImage({
   ...props
 }: ResponsiveCardImageProps) {
   const full = cardArtSource(card, "full");
+  const source = presentation === "inspector" ? full : cardArtSource(card, "thumbnail");
   return (
     <CardArt
       {...props}
       className={[styles.image, styles[presentation], className].filter(Boolean).join(" ")}
-      src={full}
+      src={source}
       cardType={card.type}
       presentation="readable"
       sizes={presentationSizes[presentation]}
