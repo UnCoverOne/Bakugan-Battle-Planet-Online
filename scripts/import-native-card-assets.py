@@ -37,6 +37,7 @@ ARCHIVE_SET_ALIASES = {
     "cp": "CP",
     "diamond ignition": "DI",
     "diamond": "DI",
+    "di": "DI",
     "ex": "EX",
     "fusion force": "FF",
     "geogan generations": "GG",
