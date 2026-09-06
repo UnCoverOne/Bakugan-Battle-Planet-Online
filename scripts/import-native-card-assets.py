@@ -95,7 +95,22 @@ def parse_member(member: str, archive_code: str | None) -> tuple[str, int, str] 
     return None
 
 
-def target(repo: Path, set_code: str, number: int, printing: str, name: str) -> tuple[Path, Path]:
+def source_slug(name: str) -> str:
+    """Turn the human-readable part of a scan filename into an asset slug."""
+    stem = name.rsplit("_ENG_", 1)[0]
+    stem = re.sub(r"\([^)]*\)", "", stem)
+    stem = stem.replace("_", " ")
+    return re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-")
+
+
+def target(
+    repo: Path,
+    set_code: str,
+    number: int,
+    printing: str,
+    name: str,
+    asset_stem: str | None = None,
+) -> tuple[Path, Path]:
     code = set_code.lower()
     if set_code == "BB":
         stem = str(number)
@@ -104,7 +119,7 @@ def target(repo: Path, set_code: str, number: int, printing: str, name: str) -> 
         stem = "br-221-pyravian-ultra" if "Pyravian" in name else "br-221-artulean-ultra"
         root = repo / "public/assets/cards/sets/br"
     else:
-        stem = f"{code}-{number}{printing}"
+        stem = asset_stem or f"{code}-{number}{printing}"
         root = repo / "public/assets/cards/sets" / code
     return root / "full" / f"{stem}.webp", root / "thumb" / f"{stem}.webp"
 
@@ -133,30 +148,45 @@ def import_archives(repo: Path, archives: list[Path], flip_ranges: dict[str, set
     for archive in archives:
         archive_code = archive_set_code(archive)
         with zipfile.ZipFile(archive) as bundle:
+            entries: list[tuple[str, tuple[str, int, str]]] = []
+            groups: Counter[tuple[str, str]] = Counter()
             for member in bundle.namelist():
                 parsed = parse_member(member, archive_code)
                 if parsed is None:
                     continue
                 set_code, number, printing = parsed
                 key = (set_code, f"{number}{printing}")
+                entries.append((member, parsed))
+                groups[key] += 1
+
+            for member, parsed in entries:
+                set_code, number, printing = parsed
+                key = (set_code, f"{number}{printing}")
                 with bundle.open(member) as source_file:
                     source_bytes = source_file.read()
                 digest = hashlib.sha256(source_bytes).hexdigest()
-                previous = seen.get(key)
+                # Some sets legitimately reuse a collector number for two
+                # different cards (for example FF-209). Their catalogue IDs
+                # use a name suffix, so resolve the same suffix here.
+                asset_stem = None
+                if groups[key] > 1 and not (set_code == "BB"):
+                    asset_stem = f"{set_code.lower()}-{number}{printing}-{source_slug(Path(member).name)}"
+                identity = (set_code, asset_stem or f"{number}{printing}")
+                previous = seen.get(identity)
                 if previous:
                     duplicates += 1
                     if previous[0] != digest:
                         raise SystemExit(
-                            f"Conflicting assets for {set_code}-{number}{printing}: "
+                            f"Conflicting assets for {identity[0]}-{identity[1]}: "
                             f"{previous[1]} and {archive}:{member}"
                         )
                     continue
 
-                full, thumb = target(repo, set_code, number, printing, Path(member).name)
+                full, thumb = target(repo, set_code, number, printing, Path(member).name, asset_stem)
                 flip = number in flip_ranges.get(set_code, set()) or "flip" in Path(member).name.lower()
                 with Image.open(io.BytesIO(source_bytes)) as source:
                     save_card_variants(source, full, thumb, flip=flip)
-                seen[key] = (digest, f"{archive}:{member}")
+                seen[identity] = (digest, f"{archive}:{member}")
                 counts[set_code] += 1
                 imported += 1
 
