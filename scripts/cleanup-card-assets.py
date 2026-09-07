@@ -28,7 +28,11 @@ PUBLIC_REFERENCE = re.compile(
     re.IGNORECASE,
 )
 ROW_ID = re.compile(r'\["(?P<id>[a-z0-9-]+)",', re.IGNORECASE)
-SCAN_FILENAME = re.compile(r'(?P<scan>[A-Za-z0-9_!+\-(). ]+_ENG_\d+[ab]?_[A-Z0-9]+_[A-Z0-9]+\.(?:png|jpe?g))', re.IGNORECASE)
+SCAN_FILENAME = re.compile(
+    r'(?P<svg>@svg/)?(?P<scan>[A-Za-z0-9_!+\-(). ]+_ENG_\d+[ab]?_[A-Z0-9]+_[A-Z0-9]+'
+    r'(?:\([^)]*\))?\.(?:png|jpe?g))',
+    re.IGNORECASE,
+)
 DEFAULT_KEEP = {"card-missing.svg"}
 
 
@@ -79,7 +83,8 @@ def referenced_assets(repo: Path) -> set[str]:
                     else:
                         continue
                 else:
-                    full = f"sets/{set_code}/full/{card_id}.webp"
+                    extension = "svg" if scan_match.group("svg") else "webp"
+                    full = f"sets/{set_code}/full/{card_id}.{extension}"
                 references.add(full)
                 references.add(full.replace("/full/", "/thumb/", 1) if "/full/" in full else full.replace("full/", "thumb/", 1))
     return references
