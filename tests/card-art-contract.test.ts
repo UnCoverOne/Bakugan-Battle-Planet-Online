@@ -43,7 +43,7 @@ test("every Flip-family scan uses one transparent portrait asset contract", () =
   }
 });
 
-test("card-art presentation has one semantic physical/readable transform", () => {
+test("card-art presentation keeps the compact readable Flip fallback", () => {
   const component = readFileSync(
     new URL("../components/cards/CardArt.tsx", import.meta.url),
     "utf8",
@@ -58,4 +58,35 @@ test("card-art presentation has one semantic physical/readable transform", () =>
   assert.match(css, /data-card-art-kind="flip"/);
   assert.match(css, /rotate:\s*-90deg/);
   assert.match(css, /scale:\s*0\.7142857143/);
+});
+
+test("large responsive card presentations avoid thumbnail upscaling and transform scaling", () => {
+  const responsive = readFileSync(
+    new URL("../components/cards/ResponsiveCardImage.tsx", import.meta.url),
+    "utf8",
+  );
+  const css = readFileSync(
+    new URL("../components/cards/CardArt.module.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    responsive,
+    /presentation === "thumbnail"\s*\? cardArtSource\(card, "thumbnail"\)\s*:\s*cardArtSource\(card, "full"\)/,
+  );
+  assert.match(responsive, /data-responsive-card-presentation=\{presentation\}/);
+
+  assert.match(
+    css,
+    /data-responsive-card-presentation="tile"[\s\S]*?width:\s*71\.8%;[\s\S]*?scale:\s*1;/,
+  );
+  assert.match(
+    css,
+    /data-responsive-card-presentation="inspector"[\s\S]*?aspect-ratio:\s*500\s*\/\s*359;[\s\S]*?scale:\s*1;/,
+  );
+  assert.match(
+    css,
+    /aria-label\$=" copies"[\s\S]*?aspect-ratio:\s*500\s*\/\s*359;[\s\S]*?scale:\s*1;/,
+  );
+  assert.doesNotMatch(css, /translate:\s*-50%\s+-50%/);
 });

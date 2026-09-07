@@ -26,8 +26,9 @@ export function ResponsiveCardImage({
   onError,
   ...props
 }: ResponsiveCardImageProps) {
-  const full = cardArtSource(card, "full");
-  const source = presentation === "inspector" ? full : cardArtSource(card, "thumbnail");
+  const source = presentation === "thumbnail"
+    ? cardArtSource(card, "thumbnail")
+    : cardArtSource(card, "full");
   return (
     <CardArt
       {...props}
@@ -35,6 +36,7 @@ export function ResponsiveCardImage({
       src={source}
       cardType={card.type}
       presentation="readable"
+      data-responsive-card-presentation={presentation}
       sizes={presentationSizes[presentation]}
       alt={alt ?? card.displayName}
       width={360}
