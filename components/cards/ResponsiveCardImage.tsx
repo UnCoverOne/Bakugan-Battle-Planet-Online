@@ -36,6 +36,7 @@ export function ResponsiveCardImage({
       src={source}
       cardType={card.type}
       presentation="readable"
+      data-responsive-card-presentation={presentation}
       sizes={presentationSizes[presentation]}
       alt={alt ?? card.displayName}
       width={360}
