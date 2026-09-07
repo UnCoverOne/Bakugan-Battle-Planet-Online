@@ -48,7 +48,14 @@ def referenced_assets(repo: Path) -> set[str]:
             continue
         for pattern in (ASSET_REFERENCE, PUBLIC_REFERENCE):
             for match in pattern.finditer(text):
-                references.add(normalise_reference(match.group("path")))
+                reference = normalise_reference(match.group("path"))
+                references.add(reference)
+                # CardArt derives thumbnail URLs from the referenced full URL
+                # with a runtime ``/full/`` -> ``/thumb/`` replacement.
+                if reference.startswith("full/"):
+                    references.add(reference.replace("full/", "thumb/", 1))
+                elif "/full/" in reference:
+                    references.add(reference.replace("/full/", "/thumb/", 1))
     return references
 
 
