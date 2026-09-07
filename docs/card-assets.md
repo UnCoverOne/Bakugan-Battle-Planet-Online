@@ -3,9 +3,10 @@
 Card scans are stored in two variants:
 
 - `full/` preserves the supplied scan's native pixel dimensions (with EXIF
-  orientation normalized and a transparent rounded-corner mask).
+  orientation normalized and a transparent rounded-corner mask). Full images
+  use quality-90 lossy WebP to keep repository and download sizes practical.
 - `thumb/` is a proportional 160x224 canvas for hands, catalogues and other
-  repeated small surfaces.
+  repeated small surfaces (quality 84 WebP).
 
 Use `cardArtSource(card, "thumbnail")` (or the shared responsive card image)
 for dense surfaces and `cardArtSource(card, "full")` for inspectors, enlarged
