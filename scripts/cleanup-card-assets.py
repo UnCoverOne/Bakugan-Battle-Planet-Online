@@ -8,6 +8,7 @@ The default mode is a read-only report. Pass ``--apply`` to remove files under
 from __future__ import annotations
 
 import argparse
+import bisect
 import re
 from pathlib import Path
 from urllib.parse import unquote
@@ -26,6 +27,8 @@ PUBLIC_REFERENCE = re.compile(
     r"public(?:/|\\)assets(?:/|\\)cards(?:/|\\)(?P<path>[A-Za-z0-9_@().%+\-/\\]+)",
     re.IGNORECASE,
 )
+ROW_ID = re.compile(r'\["(?P<id>[a-z0-9-]+)",', re.IGNORECASE)
+SCAN_FILENAME = re.compile(r'(?P<scan>[A-Za-z0-9_!+\-(). ]+_ENG_\d+[ab]?_[A-Z0-9]+_[A-Z0-9]+\.(?:png|jpe?g))', re.IGNORECASE)
 DEFAULT_KEEP = {"card-missing.svg"}
 
 
@@ -56,6 +59,29 @@ def referenced_assets(repo: Path) -> set[str]:
                     references.add(reference.replace("full/", "thumb/", 1))
                 elif "/full/" in reference:
                     references.add(reference.replace("/full/", "/thumb/", 1))
+
+        # Extension-set records construct their URLs at runtime from the row
+        # ID (for example ``aa-1``) and scan filename, so there is no literal
+        # ``/assets/cards/...`` string for the text scanner to find. Pair each
+        # generated row ID with its scan filename and mark both variants.
+        if "lib/content/generated" in path.relative_to(repo).as_posix():
+            row_positions = [(match.start(), match.group("id")) for match in ROW_ID.finditer(text)]
+            for scan_match in SCAN_FILENAME.finditer(text):
+                index = bisect.bisect_right([position for position, _ in row_positions], scan_match.start()) - 1
+                if index < 0:
+                    continue
+                card_id = row_positions[index][1]
+                set_code = card_id.split("-", 1)[0].lower()
+                if set_code == "bb":
+                    number_match = re.match(r"bb-(\d+)", card_id)
+                    if number_match:
+                        full = f"full/{number_match.group(1)}.webp"
+                    else:
+                        continue
+                else:
+                    full = f"sets/{set_code}/full/{card_id}.webp"
+                references.add(full)
+                references.add(full.replace("/full/", "/thumb/", 1) if "/full/" in full else full.replace("full/", "thumb/", 1))
     return references
 
 
