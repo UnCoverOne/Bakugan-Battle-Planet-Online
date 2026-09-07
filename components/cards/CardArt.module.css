@@ -7,9 +7,9 @@
 }
 
 /*
- * Every committed card asset uses the portrait 5:7 physical-card canvas.
- * Readable Flip views rotate that complete canvas and scale it to fit inside
- * the same footprint; gameplay zones leave the physical card untouched.
+ * Compact/decorative readable Flip views preserve the portrait-card footprint.
+ * Larger responsive surfaces below opt out of transform scaling and size the
+ * image in layout instead, so the browser only has to apply the 90° rotation.
  */
 .image[data-card-art-presentation="readable"][data-card-art-kind="flip"] {
   rotate: -90deg;
@@ -17,29 +17,66 @@
 }
 
 /*
- * Deck-detail card previews place the copy-count badge directly after the
- * card image. That gives this surface a stable hook without changing the
- * shared readable Flip treatment used by inspectors, galleries, or gameplay.
- *
- * A Flip scan is still stored on the portrait 359:500 canvas. In the detail
- * grid we give it a 500:359 landscape frame and remove the readable-view
- * shrink so the rotated card has approximately the same physical scale as
- * the portrait cards beside the Flip section.
+ * Responsive card tiles use the full scan. Size Flip art to its target visual
+ * width before rotation instead of shrinking the already-rendered bitmap with
+ * a transform. The surrounding card button remains the portrait tile frame.
+ */
+button:has(> img.image[data-responsive-card-presentation="tile"][data-card-art-kind="flip"]) {
+  display: grid;
+  place-items: center;
+}
+
+button:has(> img.image[data-responsive-card-presentation="tile"][data-card-art-kind="flip"])
+  > img.image[data-responsive-card-presentation="tile"][data-card-art-kind="flip"] {
+  width: 71.8%;
+  height: auto;
+  max-width: none;
+  margin: 0;
+  scale: 1;
+}
+
+/*
+ * Inspectors can devote a true landscape frame to readable Flip cards. At a
+ * 504px maximum width this matches the physical scale of the 360×504 portrait
+ * inspector card without any transform-scale pass.
+ */
+div:has(> img.image[data-responsive-card-presentation="inspector"][data-card-art-kind="flip"]) {
+  width: min(100%, 504px);
+  aspect-ratio: 500 / 359;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+div:has(> img.image[data-responsive-card-presentation="inspector"][data-card-art-kind="flip"])
+  > img.image[data-responsive-card-presentation="inspector"][data-card-art-kind="flip"] {
+  width: 71.8%;
+  height: auto;
+  max-width: none;
+  margin: 0;
+  scale: 1;
+}
+
+/*
+ * Deck-detail previews are identifiable by the adjacent copy-count badge.
+ * Their Flip section gets a landscape frame and a wider grid while the image
+ * itself is layout-sized before rotation. This also removes the old 50% /
+ * translate centering that could land fine card text on fractional pixels.
  */
 div:has(> img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] + span[aria-label$=" copies"]) {
   position: relative;
   aspect-ratio: 500 / 359;
+  display: grid;
+  place-items: center;
   overflow: hidden;
 }
 
-img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"]:has(+ span[aria-label$=" copies"]) {
-  position: absolute;
-  top: 50%;
-  left: 50%;
+div:has(> img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] + span[aria-label$=" copies"])
+  > img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] {
   width: 71.8%;
+  height: auto;
   max-width: none;
-  aspect-ratio: 359 / 500;
-  translate: -50% -50%;
+  margin: 0;
   scale: 1;
 }
 
