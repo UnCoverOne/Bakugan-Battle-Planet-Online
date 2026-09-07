@@ -29,7 +29,7 @@ PUBLIC_REFERENCE = re.compile(
 )
 ROW_ID = re.compile(r'\["(?P<id>[a-z0-9-]+)",', re.IGNORECASE)
 SCAN_FILENAME = re.compile(
-    r'(?P<svg>@svg/)?(?P<scan>[A-Za-z0-9_!+\-(). ]+_ENG_\d+[ab]?_[A-Z0-9]+_[A-Z0-9]+'
+    r'(?P<svg>@svg/)?(?P<scan>[A-Za-z0-9_!+\-(). ]+_(?:ENG_)?\d+[ab]?_[A-Z0-9]+_[A-Z0-9]+'
     r'(?:\([^)]*\))?\.(?:png|jpe?g))',
     re.IGNORECASE,
 )
