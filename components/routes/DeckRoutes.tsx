@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
-import { cardArtSource } from "../../lib/content/card-art";
+import { cardArtSource, isFlipCardType } from "../../lib/content/card-art";
 import {
   BAKUGAN,
   CARD_BY_ID,
@@ -1135,6 +1135,7 @@ export function DeckDetailScreen({ id }: { id: string }) {
     <DeckDetailPresentation
       deck={deck}
       notify={notify}
+      sharePanel={<DeckSharePanel deck={deck} notify={notify} showCopyAction={false} />}
       actions={(
         <>
           <ActionButton onClick={() => {
@@ -1174,12 +1175,17 @@ function DeckDetailPresentation({
   const cards = groupedDeckCards(deck);
   const cores = deck.coreIds.map((key) => CORES.find((item) => item.id === key)).filter(Boolean);
   const typeCounts = cards.reduce<Record<string, number>>((counts, entry) => {
-    counts[entry.card.type] = (counts[entry.card.type] ?? 0) + entry.count;
+    const type = isFlipCardType(entry.card.type) ? "Flip" : entry.card.type;
+    counts[type] = (counts[type] ?? 0) + entry.count;
     return counts;
   }, {});
-  const cardSections = ["Action", "Hero", "Evo", "Flip"]
-    .map((type) => ({ type, cards: cards.filter((entry) => entry.card.type === type) }))
-    .filter((section) => section.cards.length);
+  const cardSections = [
+    { type: "Action", cards: cards.filter((entry) => entry.card.type === "Action") },
+    { type: "Hero", cards: cards.filter((entry) => entry.card.type === "Hero") },
+    { type: "Evo", cards: cards.filter((entry) => entry.card.type === "Evo") },
+    { type: "Baku-Gear", cards: cards.filter((entry) => entry.card.type === "Baku-Gear") },
+    { type: "Flip", cards: cards.filter((entry) => isFlipCardType(entry.card.type)) },
+  ].filter((section) => section.cards.length);
   const [inspection, setInspection] = useState<GameCard | null>(null);
   const [inspectorTab, setInspectorTab] = useState<CardInspectorTab>("overview");
   const inspectorTrigger = useRef<HTMLElement | null>(null);
@@ -1263,7 +1269,7 @@ function DeckDetailPresentation({
                           onClick={(event) => inspectCard(card, event.currentTarget)}
                         >
                           <div className={styles.detailCardArt}>
-                            <CardArt src={cardArtSource(card, "thumbnail")} cardType={card.type} presentation="readable" alt={card.displayName} />
+                            <CardArt src={cardArtSource(card, "full")} cardType={card.type} presentation="readable" alt={card.displayName} />
                             <span className={styles.copyCount} aria-label={`${count} copies`}>×{count}</span>
                           </div>
                           <strong>{card.displayName}</strong>
@@ -1309,14 +1315,16 @@ function DeckDetailPresentation({
 
 function DeckSharePanel({
   deck,
-  copyAvailable,
+  copyAvailable = false,
   onCopy,
   notify,
+  showCopyAction = true,
 }: {
   deck: DeckRecord;
-  copyAvailable: boolean;
-  onCopy: () => void;
+  copyAvailable?: boolean;
+  onCopy?: () => void;
   notify: (message: string) => void;
+  showCopyAction?: boolean;
 }) {
   const [imagePending, setImagePending] = useState(false);
   const copyValue = async (value: string, success: string) => {
@@ -1344,7 +1352,9 @@ function DeckSharePanel({
       <div className={styles.panelHeading}>
         <div><span>Sharing</span><h2>Share this deck</h2></div>
       </div>
-      <ActionButton className={styles.sharePrimary} onClick={onCopy} disabled={!copyAvailable}>Copy to My Decks</ActionButton>
+      {showCopyAction && onCopy && (
+        <ActionButton className={styles.sharePrimary} onClick={onCopy} disabled={!copyAvailable}>Copy to My Decks</ActionButton>
+      )}
       <div className={styles.shareActionGrid}>
         <button type="button" onClick={() => void copyValue(window.location.href, "Deck link copied.")}><span aria-hidden="true">↗</span>Copy Link</button>
         <button type="button" onClick={() => void copyValue(encodeDeckCode(deck), "Deck code copied.")}><span aria-hidden="true">⌘</span>Copy Code</button>
