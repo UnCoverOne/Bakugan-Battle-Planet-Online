@@ -48,3 +48,25 @@ and SV. For a new set, add its range without changing the importer, for example:
 ```sh
 npm run assets:native -- --archive "path/to/new-set.zip" --flip-range GG:1-20
 ```
+
+
+## Cleaning unused files
+
+The cleanup tool scans repository source files for references under
+`public/assets/cards`. It is read-only by default and always preserves the
+shared `card-missing.svg` fallback.
+
+Preview the files and total size that would be removed:
+
+```sh
+npm run assets:clean -- --repo .
+```
+
+Review the list, then remove exactly those files with:
+
+```sh
+npm run assets:clean -- --repo . --apply
+```
+
+Run this only after the catalogue references have been regenerated. The tool
+never removes ZIP archives or files outside `public/assets/cards`.
