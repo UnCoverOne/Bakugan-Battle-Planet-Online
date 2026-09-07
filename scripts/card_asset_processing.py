@@ -7,9 +7,11 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw, ImageOps
 
 
-# Full assets preserve the source scan's native dimensions.  The dimensions
+# Full assets preserve the source scan's native dimensions. The dimensions
 # below are only the stable presentation contract for catalogue/tile assets.
 THUMB_SIZE = (160, 224)
+FULL_QUALITY = 90
+THUMB_QUALITY = 84
 
 
 def _rounded_alpha(size: tuple[int, int]) -> Image.Image:
@@ -27,11 +29,7 @@ def canonical_card(
     flip: bool,
     size: tuple[int, int] | None = None,
 ) -> Image.Image:
-    """Return one RGBA portrait canvas representing the physical card.
-
-    A full asset keeps the original scan resolution.  ``size`` remains an
-    optional escape hatch for callers that explicitly need a fixed canvas.
-    """
+    """Return one RGBA portrait canvas representing the physical card."""
     image = ImageOps.exif_transpose(source).convert("RGBA")
     if flip and image.width > image.height:
         image = image.transpose(Image.Transpose.ROTATE_270)
@@ -45,11 +43,11 @@ def canonical_card(
     return canvas
 
 
-def save_webp(image: Image.Image, target: Path, quality: int, *, lossless: bool = False) -> None:
+def save_webp(image: Image.Image, target: Path, quality: int) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_suffix(target.suffix + ".tmp")
     temporary.unlink(missing_ok=True)
-    image.save(temporary, "WEBP", quality=quality, method=0 if lossless else 4, exact=True, lossless=lossless)
+    image.save(temporary, "WEBP", quality=quality, method=4, exact=True, lossless=False)
     if not temporary.exists() or temporary.stat().st_size == 0:
         raise RuntimeError(f"WebP encoder produced an empty file: {target}")
     temporary.replace(target)
@@ -58,5 +56,6 @@ def save_webp(image: Image.Image, target: Path, quality: int, *, lossless: bool 
 def save_card_variants(source: Image.Image, full: Path, thumb: Path, *, flip: bool) -> None:
     full_image = canonical_card(source, flip=flip)
     thumb_image = canonical_card(full_image, flip=False, size=THUMB_SIZE)
-    save_webp(full_image, full, 100, lossless=True)
-    save_webp(thumb_image, thumb, 84)
+    save_webp(full_image, full, FULL_QUALITY)
+    save_webp(thumb_image, thumb, THUMB_QUALITY)
+
