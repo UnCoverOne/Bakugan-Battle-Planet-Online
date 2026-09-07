@@ -15,3 +15,46 @@
   rotate: -90deg;
   scale: 0.7142857143;
 }
+
+/*
+ * Deck-detail card previews place the copy-count badge directly after the
+ * card image. That gives this surface a stable hook without changing the
+ * shared readable Flip treatment used by inspectors, galleries, or gameplay.
+ *
+ * A Flip scan is still stored on the portrait 359:500 canvas. In the detail
+ * grid we give it a 500:359 landscape frame and remove the readable-view
+ * shrink so the rotated card has approximately the same physical scale as
+ * the portrait cards beside the Flip section.
+ */
+div:has(> img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] + span[aria-label$=" copies"]) {
+  position: relative;
+  aspect-ratio: 500 / 359;
+  overflow: hidden;
+}
+
+img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"]:has(+ span[aria-label$=" copies"]) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 71.8%;
+  max-width: none;
+  aspect-ratio: 359 / 500;
+  translate: -50% -50%;
+  scale: 1;
+}
+
+div:has(> article img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] + span[aria-label$=" copies"]) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 800px) {
+  div:has(> article img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] + span[aria-label$=" copies"]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 540px) {
+  div:has(> article img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] + span[aria-label$=" copies"]) {
+    grid-template-columns: 1fr;
+  }
+}
