@@ -36,6 +36,7 @@
     "card:author": "node --import tsx scripts/card-author.mts",
     "assets:flips": "python3 scripts/import-flip-card-assets.py",
     "assets:native": "python3 scripts/import-native-card-assets.py",
+    "assets:clean": "python3 scripts/cleanup-card-assets.py",
     "test:simulation": "node --import tsx --test tests/physical-simulation.test.ts",
     "test:authoring": "node --import tsx --test tests/card-authoring.test.ts"
   },
