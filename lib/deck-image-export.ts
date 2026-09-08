@@ -169,17 +169,20 @@ export async function exportDeckImage(deck: DeckRecord) {
     const y = mainDeckTop + 44 + row * cardCellHeight;
     drawContainedImage(context, cardImages[index], x, y, cardWidth, cardImageHeight, isFlipCardType(card.type));
     if (count > 1) {
-      const badgeSize = 48;
-      roundedRect(context, x + cardWidth - badgeSize - 8, y + cardImageHeight - badgeSize - 8, badgeSize, badgeSize, 8);
-      context.fillStyle = "#df1f2d";
+      const badgeWidth = 58;
+      const badgeHeight = 32;
+      const badgeX = x + (cardWidth - badgeWidth) / 2;
+      const badgeY = y + cardImageHeight - badgeHeight / 2;
+      roundedRect(context, badgeX, badgeY, badgeWidth, badgeHeight, 6);
+      context.fillStyle = "rgba(0, 0, 0, .72)";
       context.fill();
-      context.strokeStyle = "#ff7b84";
+      context.strokeStyle = "rgba(255, 255, 255, .32)";
       context.stroke();
       context.fillStyle = "#ffffff";
       context.font = "900 22px Arial, sans-serif";
       context.textAlign = "center";
       context.textBaseline = "middle";
-      context.fillText(`×${count}`, x + cardWidth - badgeSize / 2 - 8, y + cardImageHeight - badgeSize / 2 - 8);
+      context.fillText(`×${count}`, x + cardWidth / 2, y + cardImageHeight);
       context.textAlign = "left";
       context.textBaseline = "alphabetic";
     }
