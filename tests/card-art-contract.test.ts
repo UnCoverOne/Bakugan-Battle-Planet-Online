@@ -105,4 +105,8 @@ test("deck-detail Flip cards are explicitly centered and copy badges straddle th
     />\s*span\[aria-label\$=" copies"\][\s\S]*?left:\s*50%;[\s\S]*?right:\s*auto;[\s\S]*?bottom:\s*0;[\s\S]*?translate:\s*-50%\s+50%;/,
   );
   assert.match(css, /background:\s*rgba\(0,\s*0,\s*0,\s*\.72\);/);
+  assert.match(
+    css,
+    />\s*span\[aria-label\$=" copies"\][\s\S]*?height:\s*1\.5rem;[\s\S]*?min-height:\s*1\.5rem;[\s\S]*?padding:\s*0\s+\.55rem;[\s\S]*?border-radius:\s*\.3rem;/,
+  );
 });
