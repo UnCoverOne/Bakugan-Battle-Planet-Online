@@ -49,10 +49,22 @@ test("public preview exposes the complete sharing and export surface", async () 
     assert.match(route, new RegExp(label));
   }
   assert.match(exporter, /Created by/);
-  assert.match(exporter, /CHARACTER CARDS/);
-  assert.match(exporter, /BAKUCORES/);
+  assert.match(exporter, /const WIDTH = 2200;/);
+  assert.match(exporter, /const TEAM_RAIL_WIDTH = 460;/);
+  assert.match(exporter, /const CONTENT_LEFT = OUTER \+ TEAM_RAIL_WIDTH \+ CONTENT_GUTTER;/);
+  assert.match(exporter, /context\.fillText\("TEAM", OUTER, 78\);/);
   assert.match(exporter, /MAIN DECK/);
   assert.match(exporter, /FLIP CARDS/);
+  assert.doesNotMatch(exporter, /CHARACTER CARDS/);
+  assert.doesNotMatch(exporter, /BAKUCORES/);
+  assert.doesNotMatch(exporter, /Multiple copies are grouped into a single card\./);
+  assert.doesNotMatch(exporter, /Shown at full card size in landscape orientation\./);
+  assert.match(exporter, /const unusedCores = \[\.\.\.cores\];/);
+  assert.match(exporter, /item\?\.character\.coreTypes/);
+  assert.match(exporter, /unusedCores\.findIndex\(\(core\) => core\?\.type === type\)/);
+  assert.match(exporter, /const teamGroupX = OUTER \+ \(TEAM_RAIL_WIDTH - teamGroupWidth\) \/ 2;/);
+  assert.match(exporter, /const coreX = characterX \+ teamCharacterWidth \+ teamImageGap;/);
+  assert.match(exporter, /const coreY = y \+ coreIndex \* \(teamCoreSize \+ teamCoreGap\);/);
   assert.match(exporter, /const mainDeckCards = cards\.filter\(\(\{ card \}\) => !isFlipCardType\(card\.type\)\);/);
   assert.match(exporter, /const flipCards = cards\.filter\(\(\{ card \}\) => isFlipCardType\(card\.type\)\);/);
   assert.match(exporter, /const flipCardWidth = cardImageHeight;/);

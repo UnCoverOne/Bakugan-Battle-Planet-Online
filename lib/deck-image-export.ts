@@ -3,9 +3,13 @@ import { fingerprintedAsset } from "./assets";
 import { cardArtSource, isFlipCardType } from "./content/card-art";
 import { deckExportFilename, groupedDeckCards } from "./deck-presentation";
 
-const WIDTH = 1600;
+const WIDTH = 2200;
 const OUTER = 72;
 const CARD_RATIO = 359 / 500;
+const TEAM_RAIL_WIDTH = 460;
+const CONTENT_GUTTER = 44;
+const CONTENT_LEFT = OUTER + TEAM_RAIL_WIDTH + CONTENT_GUTTER;
+const CONTENT_WIDTH = WIDTH - CONTENT_LEFT - OUTER;
 
 type LoadedImage = HTMLImageElement | null;
 
@@ -110,35 +114,61 @@ export async function exportDeckImage(deck: DeckRecord) {
   const cards = groupedDeckCards(deck);
   const mainDeckCards = cards.filter(({ card }) => !isFlipCardType(card.type));
   const flipCards = cards.filter(({ card }) => isFlipCardType(card.type));
+
+  const unusedCores = [...cores];
+  const teamCores = team.map((item) => {
+    const assigned = (item?.character.coreTypes ?? []).slice(0, 2).map((type) => {
+      const coreIndex = unusedCores.findIndex((core) => core?.type === type);
+      if (coreIndex < 0) return undefined;
+      return unusedCores.splice(coreIndex, 1)[0];
+    });
+    while (assigned.length < 2) assigned.push(unusedCores.shift());
+    return assigned;
+  });
+
   const columns = 8;
-  const cardGap = 20;
-  const cardWidth = (WIDTH - OUTER * 2 - cardGap * (columns - 1)) / columns;
+  const cardGap = 18;
+  const cardWidth = (CONTENT_WIDTH - cardGap * (columns - 1)) / columns;
   const cardImageHeight = cardWidth / CARD_RATIO;
   const cardCellHeight = cardImageHeight + 64;
   const mainDeckRows = Math.ceil(mainDeckCards.length / columns);
   const flipCardWidth = cardImageHeight;
   const flipCardHeight = cardWidth;
-  const flipColumns = Math.max(1, Math.floor((WIDTH - OUTER * 2 + cardGap) / (flipCardWidth + cardGap)));
+  const flipColumns = Math.max(1, Math.floor((CONTENT_WIDTH + cardGap) / (flipCardWidth + cardGap)));
   const flipCellHeight = flipCardHeight + 64;
   const flipRows = Math.ceil(flipCards.length / flipColumns);
-  const mainDeckTop = 760;
-  const mainDeckCardsTop = mainDeckTop + 44;
+
+  const teamCharacterWidth = 205;
+  const teamCharacterHeight = teamCharacterWidth / CARD_RATIO;
+  const teamCoreSize = 126;
+  const teamCoreGap = 14;
+  const teamImageGap = 20;
+  const teamGroupWidth = teamCharacterWidth + teamImageGap + teamCoreSize;
+  const teamGroupX = OUTER + (TEAM_RAIL_WIDTH - teamGroupWidth) / 2;
+  const teamRowContentHeight = Math.max(teamCharacterHeight + 34, teamCoreSize * 2 + teamCoreGap);
+  const teamRowHeight = teamRowContentHeight + 30;
+  const teamCardsTop = 112;
+  const teamBottom = teamCardsTop + team.length * teamRowHeight;
+
+  const mainDeckTitleY = 306;
+  const mainDeckCardsTop = 332;
   const mainDeckBottom = mainDeckCardsTop + mainDeckRows * cardCellHeight;
-  const flipSectionTop = mainDeckBottom + 42;
-  const flipCardsTop = flipSectionTop + 34;
-  const contentBottom = flipCards.length > 0
+  const flipSectionTitleY = mainDeckBottom + 48;
+  const flipCardsTop = flipSectionTitleY + 26;
+  const deckBottom = flipCards.length > 0
     ? flipCardsTop + flipRows * flipCellHeight
     : mainDeckBottom;
-  const height = Math.max(mainDeckTop + 190, contentBottom + 100);
+  const height = Math.max(900, teamBottom + 100, deckBottom + 100);
+
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas export is unavailable in this browser.");
 
-  const [teamImages, coreImages, mainDeckImages, flipCardImages] = await Promise.all([
+  const [teamImages, teamCoreImages, mainDeckImages, flipCardImages] = await Promise.all([
     Promise.all(team.map((item) => loadImage(cardArtSource(item!.character, "full")))),
-    Promise.all(cores.map((core) => loadImage(core!.art))),
+    Promise.all(teamCores.map((pair) => Promise.all(pair.map((core) => core ? loadImage(core.art) : Promise.resolve(null))))),
     Promise.all(mainDeckCards.map(({ card }) => loadImage(cardArtSource(card, "full")))),
     Promise.all(flipCards.map(({ card }) => loadImage(cardArtSource(card, "full")))),
   ]);
@@ -156,61 +186,68 @@ export async function exportDeckImage(deck: DeckRecord) {
   context.fillStyle = "#18c7f4";
   context.fillRect(0, 0, WIDTH, 10);
 
+  roundedRect(context, OUTER - 24, 42, TEAM_RAIL_WIDTH + 48, height - 112, 24);
+  context.fillStyle = "rgba(0, 12, 18, .42)";
+  context.fill();
+  context.strokeStyle = "rgba(91, 220, 255, .18)";
+  context.stroke();
+
+  context.fillStyle = "#5bdcff";
+  context.font = "italic 800 25px Arial, sans-serif";
+  context.fillText("TEAM", OUTER, 78);
+
+  team.forEach((item, index) => {
+    const y = teamCardsTop + index * teamRowHeight;
+    const characterX = teamGroupX;
+    const coreX = characterX + teamCharacterWidth + teamImageGap;
+    drawContainedImage(context, teamImages[index], characterX, y, teamCharacterWidth, teamCharacterHeight);
+    context.fillStyle = "#ffffff";
+    context.font = "700 19px Arial, sans-serif";
+    context.fillText(fitText(context, item!.name, teamCharacterWidth), characterX, y + teamCharacterHeight + 27);
+
+    teamCores[index]?.slice(0, 2).forEach((core, coreIndex) => {
+      const coreY = y + coreIndex * (teamCoreSize + teamCoreGap);
+      drawContainedImage(
+        context,
+        teamCoreImages[index]?.[coreIndex] ?? null,
+        coreX,
+        coreY,
+        teamCoreSize,
+        teamCoreSize,
+      );
+    });
+  });
+
+  context.strokeStyle = "rgba(91, 220, 255, .28)";
+  context.beginPath();
+  context.moveTo(CONTENT_LEFT - CONTENT_GUTTER / 2, 42);
+  context.lineTo(CONTENT_LEFT - CONTENT_GUTTER / 2, height - 70);
+  context.stroke();
+
   context.fillStyle = "#5bdcff";
   context.font = "italic 700 24px Arial, sans-serif";
-  context.fillText("BAKUGAN BATTLE PLANET · DECK PROFILE", OUTER, 78);
+  context.fillText("BAKUGAN BATTLE PLANET · DECK PROFILE", CONTENT_LEFT, 78);
   context.fillStyle = "#ffffff";
   context.font = "italic 900 72px Arial, sans-serif";
-  context.fillText(fitText(context, deck.name.toUpperCase(), WIDTH - OUTER * 2), OUTER, 160);
+  context.fillText(fitText(context, deck.name.toUpperCase(), CONTENT_WIDTH), CONTENT_LEFT, 160);
   context.fillStyle = "#b8ccd4";
   context.font = "30px Arial, sans-serif";
-  context.fillText(`Created by ${deck.creator ?? "Community Brawler"}`, OUTER, 210);
-  context.fillText(`${deck.factions.join(" · ") || "No factions"}   •   ${deck.cardIds.length} Main Deck cards`, OUTER, 254);
-
-  context.fillStyle = "#5bdcff";
-  context.font = "italic 800 23px Arial, sans-serif";
-  context.fillText("CHARACTER CARDS", OUTER, 318);
-  const characterWidth = 188;
-  const characterHeight = characterWidth / CARD_RATIO;
-  team.forEach((item, index) => {
-    const x = OUTER + index * (characterWidth + 34);
-    drawContainedImage(context, teamImages[index], x, 340, characterWidth, characterHeight);
-    context.fillStyle = "#ffffff";
-    context.font = "700 21px Arial, sans-serif";
-    context.fillText(fitText(context, item!.name, characterWidth), x, 340 + characterHeight + 30);
-  });
-
-  context.fillStyle = "#5bdcff";
-  context.font = "italic 800 23px Arial, sans-serif";
-  context.fillText("BAKUCORES", 780, 318);
-  cores.forEach((core, index) => {
-    const x = 780 + (index % 3) * 242;
-    const y = 340 + Math.floor(index / 3) * 156;
-    drawContainedImage(context, coreImages[index], x, y, 112, 112);
-    context.fillStyle = "#ffffff";
-    context.font = "700 18px Arial, sans-serif";
-    context.fillText(fitText(context, core!.type, 118), x + 124, y + 42);
-    context.fillStyle = "#9fb7c0";
-    context.font = "16px Arial, sans-serif";
-    context.fillText(fitText(context, core!.name, 118), x + 124, y + 70);
-  });
+  context.fillText(`Created by ${deck.creator ?? "Community Brawler"}`, CONTENT_LEFT, 210);
+  context.fillText(`${deck.factions.join(" · ") || "No factions"}   •   ${deck.cardIds.length} Main Deck cards`, CONTENT_LEFT, 254);
 
   context.strokeStyle = "rgba(91, 220, 255, .35)";
   context.beginPath();
-  context.moveTo(OUTER, 712);
-  context.lineTo(WIDTH - OUTER, 712);
+  context.moveTo(CONTENT_LEFT, 278);
+  context.lineTo(WIDTH - OUTER, 278);
   context.stroke();
   context.fillStyle = "#5bdcff";
   context.font = "italic 800 23px Arial, sans-serif";
-  context.fillText("MAIN DECK", OUTER, 770);
-  context.fillStyle = "#9fb7c0";
-  context.font = "18px Arial, sans-serif";
-  context.fillText("Multiple copies are grouped into a single card.", OUTER + 180, 770);
+  context.fillText("MAIN DECK", CONTENT_LEFT, mainDeckTitleY);
 
   mainDeckCards.forEach(({ card, count }, index) => {
     const column = index % columns;
     const row = Math.floor(index / columns);
-    const x = OUTER + column * (cardWidth + cardGap);
+    const x = CONTENT_LEFT + column * (cardWidth + cardGap);
     const y = mainDeckCardsTop + row * cardCellHeight;
     drawContainedImage(context, mainDeckImages[index], x, y, cardWidth, cardImageHeight);
     drawCopyCountBadge(context, count, x, y, cardWidth, cardImageHeight);
@@ -225,20 +262,17 @@ export async function exportDeckImage(deck: DeckRecord) {
   if (flipCards.length > 0) {
     context.strokeStyle = "rgba(91, 220, 255, .24)";
     context.beginPath();
-    context.moveTo(OUTER, flipSectionTop - 22);
-    context.lineTo(WIDTH - OUTER, flipSectionTop - 22);
+    context.moveTo(CONTENT_LEFT, flipSectionTitleY - 22);
+    context.lineTo(WIDTH - OUTER, flipSectionTitleY - 22);
     context.stroke();
     context.fillStyle = "#5bdcff";
     context.font = "italic 800 23px Arial, sans-serif";
-    context.fillText("FLIP CARDS", OUTER, flipSectionTop);
-    context.fillStyle = "#9fb7c0";
-    context.font = "18px Arial, sans-serif";
-    context.fillText("Shown at full card size in landscape orientation.", OUTER + 145, flipSectionTop);
+    context.fillText("FLIP CARDS", CONTENT_LEFT, flipSectionTitleY);
 
     flipCards.forEach(({ card, count }, index) => {
       const column = index % flipColumns;
       const row = Math.floor(index / flipColumns);
-      const x = OUTER + column * (flipCardWidth + cardGap);
+      const x = CONTENT_LEFT + column * (flipCardWidth + cardGap);
       const y = flipCardsTop + row * flipCellHeight;
       drawContainedImage(context, flipCardImages[index], x, y, flipCardWidth, flipCardHeight, true);
       drawCopyCountBadge(context, count, x, y, flipCardWidth, flipCardHeight);
