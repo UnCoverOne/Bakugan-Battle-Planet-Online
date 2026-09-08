@@ -257,6 +257,7 @@ export type DeckRecord = {
   publishedAt?: string;
   sourceDeckId?: string;
   sourceCreator?: string;
+  sourceCreatorUserId?: string;
 };
 
 const buildDeck = (factions: Faction[]) => {

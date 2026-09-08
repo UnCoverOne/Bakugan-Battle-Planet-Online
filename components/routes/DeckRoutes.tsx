@@ -413,6 +413,7 @@ export function DeckLibraryScreen() {
     notify,
     profile,
     setProfile,
+    authUser,
   } = useApp();
   const [faction, setFaction] = useState("All");
   const [legality, setLegality] = useState("All");
@@ -586,6 +587,8 @@ export function DeckLibraryScreen() {
                 deck.visibility === "Public" &&
                 (profile.showcaseDeckIds ?? []).includes(deck.id)
               }
+              creatorUserId={deck.sourceDeckId ? deck.sourceCreatorUserId : authUser?.id}
+              creatorDisplayName={deck.sourceDeckId ? deck.sourceCreator ?? "Community Brawler" : profile.name}
               view={view}
               onOpen={() => router.push(`/decks/${encodeURIComponent(deck.id)}`)}
               onSelect={() => {
@@ -694,6 +697,8 @@ function DeckTile({
   report,
   selected,
   showcased,
+  creatorUserId,
+  creatorDisplayName,
   view,
   onOpen,
   onSelect,
@@ -706,6 +711,8 @@ function DeckTile({
   report: DeckValidationResult;
   selected: boolean;
   showcased: boolean;
+  creatorUserId?: string;
+  creatorDisplayName: string;
   view: LibraryView;
   onOpen: () => void;
   onSelect: () => void;
@@ -746,6 +753,10 @@ function DeckTile({
             <h2 data-deck-name>{deck.name}</h2>
             <StatusChip>{deck.visibility}</StatusChip>
           </div>
+          <p>
+            Created by{" "}
+            <DeckCreatorIdentity userId={creatorUserId} displayName={creatorDisplayName} />
+          </p>
           <div className={styles.chipRow}>
             <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
             <StatusChip tone={report.isLegal ? "success" : "danger"}>
@@ -877,6 +888,7 @@ export function PublicDeckLibraryScreen() {
       publishedAt: undefined,
       sourceDeckId: deck.id,
       sourceCreator: deck.creator ?? "Community Brawler",
+      sourceCreatorUserId: (deck as DeckRecord & { creatorUserId?: string }).creatorUserId,
       updatedAt: new Date().toISOString(),
       revision: 1,
     };
@@ -1060,6 +1072,7 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
       publishedAt: undefined,
       sourceDeckId: deck.id,
       sourceCreator: deck.creator ?? "Community Brawler",
+      sourceCreatorUserId: (deck as DeckRecord & { creatorUserId?: string }).creatorUserId,
       updatedAt: new Date().toISOString(),
       revision: 1,
     };
@@ -1127,7 +1140,7 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
 
 export function DeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
-  const { decks, setBuilderDeck, setSelectedDeckId, notify } = useApp();
+  const { decks, setBuilderDeck, setSelectedDeckId, notify, profile, authUser } = useApp();
   const deck = decks.find((item: DeckRecord) => item.id === id);
   if (!deck) return <MissingDeck id={id} />;
   const report = validateDeck(deck);
@@ -1135,6 +1148,10 @@ export function DeckDetailScreen({ id }: { id: string }) {
     <DeckDetailPresentation
       deck={deck}
       notify={notify}
+      creatorIdentity={{
+        userId: deck.sourceDeckId ? deck.sourceCreatorUserId : authUser?.id,
+        displayName: deck.sourceDeckId ? deck.sourceCreator ?? "Community Brawler" : profile.name,
+      }}
       sharePanel={<DeckSharePanel deck={deck} notify={notify} showCopyAction={false} />}
       actions={(
         <>
@@ -1163,12 +1180,14 @@ function DeckDetailPresentation({
   notify,
   actions,
   sharePanel,
+  creatorIdentity,
 }: {
   deck: DeckRecord;
   publicView?: boolean;
   notify: (message: string) => void;
   actions: ReactNode;
   sharePanel?: ReactNode;
+  creatorIdentity?: { userId?: string; displayName: string };
 }) {
   const report = validateDeck(deck);
   const bakugan = deck.bakuganIds.map((key) => BAKUGAN.find((item) => item.id === key)).filter(Boolean);
@@ -1217,7 +1236,12 @@ function DeckDetailPresentation({
             />
           </span>
         )}
-        {!publicView && deck.sourceDeckId && <span>Copied from {deck.sourceCreator ?? "a public deck"}</span>}
+        {!publicView && creatorIdentity && (
+          <span>
+            Created by{" "}
+            <DeckCreatorIdentity userId={creatorIdentity.userId} displayName={creatorIdentity.displayName} />
+          </span>
+        )}
       </div>
       <section className={styles.detailLayout}>
         <main>

@@ -210,6 +210,7 @@ function normalizeDeck(value: unknown): DeckRecord | null {
     publishedAt: typeof deck.publishedAt === "string" && Number.isFinite(Date.parse(deck.publishedAt)) ? new Date(deck.publishedAt).toISOString() : undefined,
     sourceDeckId: typeof deck.sourceDeckId === "string" ? deck.sourceDeckId.slice(0, 120) : undefined,
     sourceCreator: typeof deck.sourceCreator === "string" ? deck.sourceCreator.trim().slice(0, 40) : undefined,
+    sourceCreatorUserId: typeof deck.sourceCreatorUserId === "string" ? deck.sourceCreatorUserId.trim().slice(0, 160) : undefined,
   };
 }
 
