@@ -1,0 +1,134 @@
+name: Apply deck creator attribution fix
+
+on:
+  push:
+    branches:
+      - chore/fix-deck-creators
+    paths:
+      - .github/workflows/apply-deck-creator-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[creator-fix-applied]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: chore/fix-deck-creators
+      - name: Apply creator attribution changes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path: str, old: str, new: str, expected: int = 1) -> None:
+              target = Path(path)
+              text = target.read_text()
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f"{path}: expected {expected} occurrence(s), found {count}: {old[:80]!r}")
+              target.write_text(text.replace(old, new))
+
+          replace_exact(
+              "lib/data.ts",
+              "  creator?: string;\n  description?: string;",
+              "  creator?: string;\n  creatorUserId?: string;\n  description?: string;",
+          )
+          replace_exact(
+              "lib/data.ts",
+              "  sourceCreator?: string;\n};",
+              "  sourceCreator?: string;\n  sourceCreatorUserId?: string;\n};",
+          )
+
+          replace_exact(
+              "lib/persistence.ts",
+              '    creator: typeof deck.creator === "string" ? deck.creator.trim().slice(0, 40) : undefined,\n    description:',
+              '    creator: typeof deck.creator === "string" ? deck.creator.trim().slice(0, 40) : undefined,\n    creatorUserId: typeof deck.creatorUserId === "string" && deck.creatorUserId.trim() ? deck.creatorUserId.trim().slice(0, 120) : undefined,\n    description:',
+          )
+          replace_exact(
+              "lib/persistence.ts",
+              '    sourceCreator: typeof deck.sourceCreator === "string" ? deck.sourceCreator.trim().slice(0, 40) : undefined,\n  };',
+              '    sourceCreator: typeof deck.sourceCreator === "string" ? deck.sourceCreator.trim().slice(0, 40) : undefined,\n    sourceCreatorUserId: typeof deck.sourceCreatorUserId === "string" && deck.sourceCreatorUserId.trim() ? deck.sourceCreatorUserId.trim().slice(0, 120) : undefined,\n  };',
+          )
+
+          routes = "components/routes/DeckRoutes.tsx"
+          replace_exact(
+              routes,
+              'import { deckSetName } from "../../lib/deck-set";\n',
+              'import { deckSetName } from "../../lib/deck-set";\nimport { resolveOwnedDeckCreator, resolvePublicDeckCreator, type DeckCreatorAttribution } from "../../lib/deck-creator";\n',
+          )
+          replace_exact(
+              routes,
+              "    notify,\n    profile,\n    setProfile,\n  } = useApp();",
+              "    notify,\n    profile,\n    setProfile,\n    authUser,\n  } = useApp();",
+          )
+          replace_exact(
+              routes,
+              "              view={view}\n              onOpen={() => router.push(`/decks/${encodeURIComponent(deck.id)}`)}",
+              "              view={view}\n              creator={resolveOwnedDeckCreator(deck, { userId: authUser?.id, displayName: profile.name })}\n              onOpen={() => router.push(`/decks/${encodeURIComponent(deck.id)}`)}",
+          )
+          replace_exact(
+              routes,
+              "  showcased,\n  view,\n  onOpen,",
+              "  showcased,\n  view,\n  creator,\n  onOpen,",
+          )
+          replace_exact(
+              routes,
+              "  showcased: boolean;\n  view: LibraryView;\n  onOpen: () => void;",
+              "  showcased: boolean;\n  view: LibraryView;\n  creator: DeckCreatorAttribution;\n  onOpen: () => void;",
+          )
+          replace_exact(
+              routes,
+              "          <div className={styles.deckTitleRow}>\n            <h2 data-deck-name>{deck.name}</h2>\n            <StatusChip>{deck.visibility}</StatusChip>\n          </div>\n          <div className={styles.chipRow}>",
+              "          <div className={styles.deckTitleRow}>\n            <h2 data-deck-name>{deck.name}</h2>\n            <StatusChip>{deck.visibility}</StatusChip>\n          </div>\n          <p>Created by{\" \"}<DeckCreatorIdentity userId={creator.userId} displayName={creator.displayName} /></p>\n          <div className={styles.chipRow}>",
+          )
+          replace_exact(
+              routes,
+              '      visibility: "Private" as const,\n      creator: undefined,\n      publishedAt: undefined,\n      sourceDeckId: deck.id,\n      sourceCreator: deck.creator ?? "Community Brawler",\n      updatedAt:',
+              '      visibility: "Private" as const,\n      creator: undefined,\n      creatorUserId: undefined,\n      publishedAt: undefined,\n      sourceDeckId: deck.id,\n      sourceCreator: deck.creator ?? "Community Brawler",\n      sourceCreatorUserId: deck.creatorUserId,\n      updatedAt:',
+              expected=2,
+          )
+          replace_exact(
+              routes,
+              '          <p>by {deck.creator ?? "Community Brawler"}</p>',
+              '          <p>by{\" \"}<DeckCreatorIdentity {...resolvePublicDeckCreator(deck)} /></p>',
+          )
+          replace_exact(
+              routes,
+              "  sharePanel?: ReactNode;\n}) {\n  const report = validateDeck(deck);",
+              "  sharePanel?: ReactNode;\n}) {\n  const { authUser, profile } = useApp();\n  const creator = publicView\n    ? resolvePublicDeckCreator(deck)\n    : resolveOwnedDeckCreator(deck, { userId: authUser?.id, displayName: profile.name });\n  const report = validateDeck(deck);",
+          )
+          replace_exact(
+              routes,
+              '''        {publicView && (\n          <span>\n            Created by{\" \"}\n            <DeckCreatorIdentity\n              userId={(deck as DeckRecord & { creatorUserId?: string }).creatorUserId}\n              displayName={deck.creator ?? \"Community Brawler\"}\n            />\n          </span>\n        )}\n        {!publicView && deck.sourceDeckId && <span>Copied from {deck.sourceCreator ?? \"a public deck\"}</span>}''',
+              '''        <span>\n          Created by{\" \"}\n          <DeckCreatorIdentity userId={creator.userId} displayName={creator.displayName} />\n        </span>\n        {!publicView && deck.sourceDeckId && <span>Copied from Public Decks</span>}''',
+          )
+
+          Path("lib/deck-creator.ts").write_text('''import type { DeckRecord } from "./data";\n\nexport type DeckCreatorAttribution = {\n  userId?: string;\n  displayName: string;\n};\n\nconst clean = (value: string | null | undefined) => {\n  const normalized = value?.trim();\n  return normalized || undefined;\n};\n\nexport function resolvePublicDeckCreator(\n  deck: Pick<DeckRecord, "creator" | "creatorUserId">,\n): DeckCreatorAttribution {\n  return {\n    userId: clean(deck.creatorUserId),\n    displayName: clean(deck.creator) ?? "Community Brawler",\n  };\n}\n\nexport function resolveOwnedDeckCreator(\n  deck: Pick<DeckRecord, "creator" | "creatorUserId" | "sourceDeckId" | "sourceCreator" | "sourceCreatorUserId">,\n  owner: DeckCreatorAttribution,\n): DeckCreatorAttribution {\n  if (clean(deck.sourceDeckId)) {\n    return {\n      userId: clean(deck.sourceCreatorUserId),\n      displayName: clean(deck.sourceCreator) ?? "Community Brawler",\n    };\n  }\n  return {\n    userId: clean(deck.creatorUserId) ?? clean(owner.userId),\n    displayName: clean(deck.creator) ?? clean(owner.displayName) ?? "Community Brawler",\n  };\n}\n''')
+
+          Path("tests/deck-creator-attribution.test.ts").write_text('''import assert from "node:assert/strict";\nimport test from "node:test";\nimport { resolveOwnedDeckCreator, resolvePublicDeckCreator } from "../lib/deck-creator";\nimport { STARTER_DECKS, type DeckRecord } from "../lib/data";\nimport { normalizeStoredDecks } from "../lib/local-storage-normalization";\n\nconst deck = (overrides: Partial<DeckRecord> = {}): DeckRecord => ({\n  ...STARTER_DECKS[0],\n  id: "creator-test",\n  ...overrides,\n});\n\ntest("My Decks attributes locally authored decks to the current brawler", () => {\n  assert.deepEqual(\n    resolveOwnedDeckCreator(deck(), { userId: "owner-user", displayName: "Owner Brawler" }),\n    { userId: "owner-user", displayName: "Owner Brawler" },\n  );\n});\n\ntest("My Decks attributes copied public decks to their original creator", () => {\n  assert.deepEqual(\n    resolveOwnedDeckCreator(deck({\n      sourceDeckId: "public-deck",\n      sourceCreator: "Original Brawler",\n      sourceCreatorUserId: "original-user",\n    }), { userId: "owner-user", displayName: "Owner Brawler" }),\n    { userId: "original-user", displayName: "Original Brawler" },\n  );\n});\n\ntest("public deck creator attribution retains profile identity", () => {\n  assert.deepEqual(\n    resolvePublicDeckCreator(deck({ creator: "Public Brawler", creatorUserId: "public-user" })),\n    { userId: "public-user", displayName: "Public Brawler" },\n  );\n});\n\ntest("creator profile IDs survive deck persistence normalization", () => {\n  const [normalized] = normalizeStoredDecks([deck({\n    creator: "Public Brawler",\n    creatorUserId: "public-user",\n    sourceDeckId: "public-deck",\n    sourceCreator: "Original Brawler",\n    sourceCreatorUserId: "original-user",\n  })]);\n  assert.equal(normalized.creatorUserId, "public-user");\n  assert.equal(normalized.sourceCreatorUserId, "original-user");\n});\n''')
+          PY
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/routes/DeckRoutes.tsx lib/data.ts lib/persistence.ts lib/deck-creator.ts tests/deck-creator-attribution.test.ts
+          git commit -m "Fix My Decks creator attribution [creator-fix-applied]"
+          git push origin HEAD:chore/fix-deck-creators
