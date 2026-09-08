@@ -35,18 +35,21 @@ function drawContainedImage(
     context.strokeRect(x, y, width, height);
     return;
   }
-  const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
-  const drawWidth = image.naturalWidth * scale;
-  const drawHeight = image.naturalHeight * scale;
   if (readableFlip) {
+    const scale = Math.min(width / image.naturalHeight, height / image.naturalWidth);
+    const drawWidth = image.naturalWidth * scale;
+    const drawHeight = image.naturalHeight * scale;
     context.save();
     context.translate(x + width / 2, y + height / 2);
     context.rotate(-Math.PI / 2);
-    context.scale(5 / 7, 5 / 7);
-    context.translate(-(x + width / 2), -(y + height / 2));
+    context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    context.restore();
+    return;
   }
+  const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+  const drawWidth = image.naturalWidth * scale;
+  const drawHeight = image.naturalHeight * scale;
   context.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
-  if (readableFlip) context.restore();
 }
 
 function fitText(context: CanvasRenderingContext2D, value: string, maximumWidth: number) {
@@ -68,6 +71,33 @@ function roundedRect(
   context.roundRect(x, y, width, height, radius);
 }
 
+function drawCopyCountBadge(
+  context: CanvasRenderingContext2D,
+  count: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  if (count <= 1) return;
+  const badgeWidth = 58;
+  const badgeHeight = 32;
+  const badgeX = x + (width - badgeWidth) / 2;
+  const badgeY = y + height - badgeHeight / 2;
+  roundedRect(context, badgeX, badgeY, badgeWidth, badgeHeight, 6);
+  context.fillStyle = "rgba(0, 0, 0, .72)";
+  context.fill();
+  context.strokeStyle = "rgba(255, 255, 255, .32)";
+  context.stroke();
+  context.fillStyle = "#ffffff";
+  context.font = "900 22px Arial, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(`×${count}`, x + width / 2, y + height);
+  context.textAlign = "left";
+  context.textBaseline = "alphabetic";
+}
+
 function canvasBlob(canvas: HTMLCanvasElement) {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("The deck image could not be created.")), "image/png");
@@ -78,24 +108,39 @@ export async function exportDeckImage(deck: DeckRecord) {
   const team = deck.bakuganIds.map((id) => BAKUGAN.find((candidate) => candidate.id === id)).filter(Boolean);
   const cores = deck.coreIds.map((id) => CORES.find((candidate) => candidate.id === id)).filter(Boolean);
   const cards = groupedDeckCards(deck);
+  const mainDeckCards = cards.filter(({ card }) => !isFlipCardType(card.type));
+  const flipCards = cards.filter(({ card }) => isFlipCardType(card.type));
   const columns = 8;
   const cardGap = 20;
   const cardWidth = (WIDTH - OUTER * 2 - cardGap * (columns - 1)) / columns;
   const cardImageHeight = cardWidth / CARD_RATIO;
   const cardCellHeight = cardImageHeight + 64;
-  const rows = Math.max(1, Math.ceil(cards.length / columns));
+  const mainDeckRows = Math.ceil(mainDeckCards.length / columns);
+  const flipCardWidth = cardImageHeight;
+  const flipCardHeight = cardWidth;
+  const flipColumns = Math.max(1, Math.floor((WIDTH - OUTER * 2 + cardGap) / (flipCardWidth + cardGap)));
+  const flipCellHeight = flipCardHeight + 64;
+  const flipRows = Math.ceil(flipCards.length / flipColumns);
   const mainDeckTop = 760;
-  const height = mainDeckTop + 90 + rows * cardCellHeight + 100;
+  const mainDeckCardsTop = mainDeckTop + 44;
+  const mainDeckBottom = mainDeckCardsTop + mainDeckRows * cardCellHeight;
+  const flipSectionTop = mainDeckBottom + 42;
+  const flipCardsTop = flipSectionTop + 34;
+  const contentBottom = flipCards.length > 0
+    ? flipCardsTop + flipRows * flipCellHeight
+    : mainDeckBottom;
+  const height = Math.max(mainDeckTop + 190, contentBottom + 100);
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas export is unavailable in this browser.");
 
-  const [teamImages, coreImages, cardImages] = await Promise.all([
+  const [teamImages, coreImages, mainDeckImages, flipCardImages] = await Promise.all([
     Promise.all(team.map((item) => loadImage(cardArtSource(item!.character, "full")))),
     Promise.all(cores.map((core) => loadImage(core!.art))),
-    Promise.all(cards.map(({ card }) => loadImage(cardArtSource(card, "full")))),
+    Promise.all(mainDeckCards.map(({ card }) => loadImage(cardArtSource(card, "full")))),
+    Promise.all(flipCards.map(({ card }) => loadImage(cardArtSource(card, "full")))),
   ]);
 
   const background = context.createLinearGradient(0, 0, WIDTH, height);
@@ -162,30 +207,13 @@ export async function exportDeckImage(deck: DeckRecord) {
   context.font = "18px Arial, sans-serif";
   context.fillText("Multiple copies are grouped into a single card.", OUTER + 180, 770);
 
-  cards.forEach(({ card, count }, index) => {
+  mainDeckCards.forEach(({ card, count }, index) => {
     const column = index % columns;
     const row = Math.floor(index / columns);
     const x = OUTER + column * (cardWidth + cardGap);
-    const y = mainDeckTop + 44 + row * cardCellHeight;
-    drawContainedImage(context, cardImages[index], x, y, cardWidth, cardImageHeight, isFlipCardType(card.type));
-    if (count > 1) {
-      const badgeWidth = 58;
-      const badgeHeight = 32;
-      const badgeX = x + (cardWidth - badgeWidth) / 2;
-      const badgeY = y + cardImageHeight - badgeHeight / 2;
-      roundedRect(context, badgeX, badgeY, badgeWidth, badgeHeight, 6);
-      context.fillStyle = "rgba(0, 0, 0, .72)";
-      context.fill();
-      context.strokeStyle = "rgba(255, 255, 255, .32)";
-      context.stroke();
-      context.fillStyle = "#ffffff";
-      context.font = "900 22px Arial, sans-serif";
-      context.textAlign = "center";
-      context.textBaseline = "middle";
-      context.fillText(`×${count}`, x + cardWidth / 2, y + cardImageHeight);
-      context.textAlign = "left";
-      context.textBaseline = "alphabetic";
-    }
+    const y = mainDeckCardsTop + row * cardCellHeight;
+    drawContainedImage(context, mainDeckImages[index], x, y, cardWidth, cardImageHeight);
+    drawCopyCountBadge(context, count, x, y, cardWidth, cardImageHeight);
     context.fillStyle = "#ffffff";
     context.font = "700 17px Arial, sans-serif";
     context.fillText(fitText(context, card.displayName, cardWidth), x, y + cardImageHeight + 25);
@@ -193,6 +221,35 @@ export async function exportDeckImage(deck: DeckRecord) {
     context.font = "15px Arial, sans-serif";
     context.fillText(`${card.type} · ${card.cost} Energy`, x, y + cardImageHeight + 49);
   });
+
+  if (flipCards.length > 0) {
+    context.strokeStyle = "rgba(91, 220, 255, .24)";
+    context.beginPath();
+    context.moveTo(OUTER, flipSectionTop - 22);
+    context.lineTo(WIDTH - OUTER, flipSectionTop - 22);
+    context.stroke();
+    context.fillStyle = "#5bdcff";
+    context.font = "italic 800 23px Arial, sans-serif";
+    context.fillText("FLIP CARDS", OUTER, flipSectionTop);
+    context.fillStyle = "#9fb7c0";
+    context.font = "18px Arial, sans-serif";
+    context.fillText("Shown at full card size in landscape orientation.", OUTER + 145, flipSectionTop);
+
+    flipCards.forEach(({ card, count }, index) => {
+      const column = index % flipColumns;
+      const row = Math.floor(index / flipColumns);
+      const x = OUTER + column * (flipCardWidth + cardGap);
+      const y = flipCardsTop + row * flipCellHeight;
+      drawContainedImage(context, flipCardImages[index], x, y, flipCardWidth, flipCardHeight, true);
+      drawCopyCountBadge(context, count, x, y, flipCardWidth, flipCardHeight);
+      context.fillStyle = "#ffffff";
+      context.font = "700 17px Arial, sans-serif";
+      context.fillText(fitText(context, card.displayName, flipCardWidth), x, y + flipCardHeight + 25);
+      context.fillStyle = "#8ca6af";
+      context.font = "15px Arial, sans-serif";
+      context.fillText(`${card.type} · ${card.cost} Energy`, x, y + flipCardHeight + 49);
+    });
+  }
 
   context.fillStyle = "#708991";
   context.font = "16px Arial, sans-serif";
