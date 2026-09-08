@@ -2,6 +2,7 @@ import { BAKUGAN, CORES, type DeckRecord } from "./data";
 import { fingerprintedAsset } from "./assets";
 import { cardArtSource, isFlipCardType } from "./content/card-art";
 import { deckExportFilename, groupedDeckCards } from "./deck-presentation";
+import type { Core } from "./game";
 
 const WIDTH = 2200;
 const OUTER = 72;
@@ -11,7 +12,31 @@ const CONTENT_GUTTER = 44;
 const CONTENT_LEFT = OUTER + TEAM_RAIL_WIDTH + CONTENT_GUTTER;
 const CONTENT_WIDTH = WIDTH - CONTENT_LEFT - OUTER;
 
+const FACTION_SYMBOLS: Record<string, string> = {
+  Aquos: "/assets/symbols/factions/aquos.png",
+  Aurelus: "/assets/symbols/factions/aurelus.png",
+  Darkus: "/assets/symbols/factions/darkus.png",
+  Haos: "/assets/symbols/factions/haos.png",
+  Pyrus: "/assets/symbols/factions/pyrus.png",
+  Ventus: "/assets/symbols/factions/ventus.png",
+};
+
+const CORE_OVERLAY_ICONS = {
+  power: "/assets/symbols/b-power.png",
+  damage: "/assets/symbols/damage.png",
+  energy: "/assets/symbols/energy.png",
+  bakuGear: "/assets/symbols/baku-gear.svg",
+  frost: "/assets/symbols/frost-strike.png",
+  shadow: "/assets/symbols/shadow-strike.png",
+} as const;
+
 type LoadedImage = HTMLImageElement | null;
+type CoreOverlayIcon = keyof typeof CORE_OVERLAY_ICONS;
+type CoreOverlayItem = {
+  leadingIcon?: CoreOverlayIcon;
+  text: string;
+  trailingIcon?: CoreOverlayIcon;
+};
 
 function loadImage(source: string): Promise<LoadedImage> {
   return new Promise((resolve) => {
@@ -31,9 +56,12 @@ function drawContainedImage(
   width: number,
   height: number,
   readableFlip = false,
+  drawBackdrop = true,
 ) {
-  context.fillStyle = "#061820";
-  context.fillRect(x, y, width, height);
+  if (drawBackdrop) {
+    context.fillStyle = "#061820";
+    context.fillRect(x, y, width, height);
+  }
   if (!image) {
     context.strokeStyle = "rgba(117, 209, 236, .28)";
     context.strokeRect(x, y, width, height);
@@ -73,6 +101,146 @@ function roundedRect(
 ) {
   context.beginPath();
   context.roundRect(x, y, width, height, radius);
+}
+
+function signed(value: number) {
+  return `${value > 0 ? "+" : ""}${value}`;
+}
+
+function coreOverlayItems(core: Core): CoreOverlayItem[] {
+  const items: CoreOverlayItem[] = [];
+  if (core.bakuGearCostReduction) {
+    items.push({
+      leadingIcon: "bakuGear",
+      text: `: -${core.bakuGearCostReduction}`,
+      trailingIcon: "energy",
+    });
+  }
+  if (core.frostStrike) items.push({ leadingIcon: "frost", text: `: +${core.frostStrike}` });
+  if (core.shadowStrike) items.push({ leadingIcon: "shadow", text: ": ShadowStrike" });
+  if (core.fusionBonus) items.push({ leadingIcon: "power", text: `: ${signed(core.fusionBonus)}` });
+  if (core.fusionDamageBonus) items.push({ leadingIcon: "damage", text: `: ${signed(core.fusionDamageBonus)}` });
+  if (core.fusionFrostStrike) items.push({ leadingIcon: "frost", text: `: +${core.fusionFrostStrike}` });
+  if (core.conditionalFactions?.length) {
+    const conditional = core.conditionalBonus
+      ? `${signed(core.conditionalBonus)} B`
+      : core.conditionalDamage
+        ? `${signed(core.conditionalDamage)} D`
+        : "conditional";
+    items.push({ text: `${core.conditionalFactions.join(" / ")}: ${conditional}` });
+  }
+  return items;
+}
+
+function drawCoreOverlayIcon(
+  context: CanvasRenderingContext2D,
+  image: LoadedImage,
+  source: CoreOverlayIcon,
+  x: number,
+  y: number,
+  size: number,
+) {
+  if (!image) return;
+  context.save();
+  if (source === "bakuGear") context.filter = "invert(1)";
+  context.drawImage(image, x, y, size, size);
+  context.restore();
+}
+
+function drawCoreFallbackOverlay(
+  context: CanvasRenderingContext2D,
+  core: Core,
+  icons: Record<CoreOverlayIcon, LoadedImage>,
+  x: number,
+  y: number,
+  size: number,
+) {
+  if (core.set !== "Armored Alliance" || core.hasProvidedScan === true) return;
+  const items = coreOverlayItems(core);
+  if (!items.length) return;
+
+  const maxChipWidth = size * .92;
+  const paddingX = 6;
+  const iconSize = 12;
+  const iconGap = 3;
+  const chipHeight = 20;
+  const rowGap = 3;
+  let rowBottom = y + size * .95;
+
+  context.font = "900 9px Arial, sans-serif";
+  context.textBaseline = "middle";
+
+  [...items].reverse().forEach((item) => {
+    const iconCount = Number(Boolean(item.leadingIcon)) + Number(Boolean(item.trailingIcon));
+    const iconSpace = iconCount * iconSize + iconCount * iconGap;
+    const text = fitText(context, item.text, maxChipWidth - paddingX * 2 - iconSpace);
+    const textWidth = context.measureText(text).width;
+    const chipWidth = Math.min(maxChipWidth, Math.max(28, paddingX * 2 + iconSpace + textWidth));
+    const chipX = x + (size - chipWidth) / 2;
+    const chipY = rowBottom - chipHeight;
+
+    roundedRect(context, chipX, chipY, chipWidth, chipHeight, 3);
+    context.fillStyle = "rgba(255, 255, 255, .96)";
+    context.shadowColor = "rgba(0, 0, 0, .28)";
+    context.shadowBlur = 2;
+    context.shadowOffsetY = 1;
+    context.fill();
+    context.shadowColor = "transparent";
+    context.shadowBlur = 0;
+    context.shadowOffsetY = 0;
+
+    const contentWidth = iconSpace + textWidth;
+    let cursorX = chipX + (chipWidth - contentWidth) / 2;
+    const iconY = chipY + (chipHeight - iconSize) / 2;
+    if (item.leadingIcon) {
+      drawCoreOverlayIcon(context, icons[item.leadingIcon], item.leadingIcon, cursorX, iconY, iconSize);
+      cursorX += iconSize + iconGap;
+    }
+    context.fillStyle = "#111111";
+    context.fillText(text, cursorX, chipY + chipHeight / 2);
+    cursorX += textWidth;
+    if (item.trailingIcon) {
+      cursorX += iconGap;
+      drawCoreOverlayIcon(context, icons[item.trailingIcon], item.trailingIcon, cursorX, iconY, iconSize);
+    }
+
+    rowBottom = chipY - rowGap;
+  });
+
+  context.textBaseline = "alphabetic";
+}
+
+function drawBakuCore(
+  context: CanvasRenderingContext2D,
+  image: LoadedImage,
+  core: Core | undefined,
+  icons: Record<CoreOverlayIcon, LoadedImage>,
+  x: number,
+  y: number,
+  size: number,
+) {
+  context.save();
+  if (core?.hasProvidedScan === true) {
+    context.beginPath();
+    context.moveTo(x + size * .24, y);
+    context.lineTo(x + size * .76, y);
+    context.lineTo(x + size, y + size * .5);
+    context.lineTo(x + size * .76, y + size);
+    context.lineTo(x + size * .24, y + size);
+    context.lineTo(x, y + size * .5);
+    context.closePath();
+    context.clip();
+  }
+  drawContainedImage(context, image, x, y, size, size, false, false);
+  context.restore();
+  if (core) drawCoreFallbackOverlay(context, core, icons, x, y, size);
+}
+
+function resolveDeckCreator(deck: DeckRecord) {
+  const renderedCreator = typeof document === "undefined"
+    ? ""
+    : document.querySelector<HTMLElement>('[data-deck-creator-identity="true"]')?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+  return renderedCreator || deck.sourceCreator?.trim() || deck.creator?.trim() || "Community Brawler";
 }
 
 function drawCopyCountBadge(
@@ -166,12 +334,19 @@ export async function exportDeckImage(deck: DeckRecord) {
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas export is unavailable in this browser.");
 
-  const [teamImages, teamCoreImages, mainDeckImages, flipCardImages] = await Promise.all([
+  const factionSources = [...new Set(deck.factions)]
+    .map((faction) => FACTION_SYMBOLS[faction])
+    .filter((source): source is string => Boolean(source));
+  const overlayIconEntries = Object.entries(CORE_OVERLAY_ICONS) as [CoreOverlayIcon, string][];
+  const [teamImages, teamCoreImages, mainDeckImages, flipCardImages, factionImages, coreOverlayIconPairs] = await Promise.all([
     Promise.all(team.map((item) => loadImage(cardArtSource(item!.character, "full")))),
     Promise.all(teamCores.map((pair) => Promise.all(pair.map((core) => core ? loadImage(core.art) : Promise.resolve(null))))),
     Promise.all(mainDeckCards.map(({ card }) => loadImage(cardArtSource(card, "full")))),
     Promise.all(flipCards.map(({ card }) => loadImage(cardArtSource(card, "full")))),
+    Promise.all(factionSources.map((source) => loadImage(source))),
+    Promise.all(overlayIconEntries.map(async ([key, source]) => [key, await loadImage(source)] as const)),
   ]);
+  const coreOverlayIcons = Object.fromEntries(coreOverlayIconPairs) as Record<CoreOverlayIcon, LoadedImage>;
 
   const background = context.createLinearGradient(0, 0, WIDTH, height);
   background.addColorStop(0, "#020b10");
@@ -185,12 +360,6 @@ export async function exportDeckImage(deck: DeckRecord) {
   context.fill();
   context.fillStyle = "#18c7f4";
   context.fillRect(0, 0, WIDTH, 10);
-
-  roundedRect(context, OUTER - 24, 42, TEAM_RAIL_WIDTH + 48, height - 112, 24);
-  context.fillStyle = "rgba(0, 12, 18, .42)";
-  context.fill();
-  context.strokeStyle = "rgba(91, 220, 255, .18)";
-  context.stroke();
 
   context.fillStyle = "#5bdcff";
   context.font = "italic 800 25px Arial, sans-serif";
@@ -207,12 +376,13 @@ export async function exportDeckImage(deck: DeckRecord) {
 
     teamCores[index]?.slice(0, 2).forEach((core, coreIndex) => {
       const coreY = y + coreIndex * (teamCoreSize + teamCoreGap);
-      drawContainedImage(
+      drawBakuCore(
         context,
         teamCoreImages[index]?.[coreIndex] ?? null,
+        core,
+        coreOverlayIcons,
         coreX,
         coreY,
-        teamCoreSize,
         teamCoreSize,
       );
     });
@@ -232,8 +402,22 @@ export async function exportDeckImage(deck: DeckRecord) {
   context.fillText(fitText(context, deck.name.toUpperCase(), CONTENT_WIDTH), CONTENT_LEFT, 160);
   context.fillStyle = "#b8ccd4";
   context.font = "30px Arial, sans-serif";
-  context.fillText(`Created by ${deck.creator ?? "Community Brawler"}`, CONTENT_LEFT, 210);
-  context.fillText(`${deck.factions.join(" · ") || "No factions"}   •   ${deck.cardIds.length} Main Deck cards`, CONTENT_LEFT, 254);
+  context.fillText(`Created by ${resolveDeckCreator(deck)}`, CONTENT_LEFT, 210);
+
+  const factionIconSize = 34;
+  const factionIconGap = 14;
+  factionImages.forEach((image, index) => {
+    drawContainedImage(
+      context,
+      image,
+      CONTENT_LEFT + index * (factionIconSize + factionIconGap),
+      226,
+      factionIconSize,
+      factionIconSize,
+      false,
+      false,
+    );
+  });
 
   context.strokeStyle = "rgba(91, 220, 255, .35)";
   context.beginPath();
