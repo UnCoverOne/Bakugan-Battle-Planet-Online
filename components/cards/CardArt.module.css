@@ -58,26 +58,44 @@ div:has(> img.image[data-responsive-card-presentation="inspector"][data-card-art
 }
 
 /*
- * Deck-detail previews are identifiable by the adjacent copy-count badge.
- * Their Flip section gets a landscape frame and a wider grid while the image
- * itself is layout-sized before rotation. This also removes the old 50% /
- * translate centering that could land fine card text on fractional pixels.
+ * Deck-detail Flip previews need an explicit centre point. Their unrotated
+ * portrait layout box is taller than the landscape frame, so grid alignment
+ * can leave the transformed scan displaced downward and clip its lower text.
+ * Absolute centring keeps the full rotated card inside the landscape frame
+ * without transform scaling.
  */
 div:has(> img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] + span[aria-label$=" copies"]) {
   position: relative;
   aspect-ratio: 500 / 359;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
 div:has(> img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] + span[aria-label$=" copies"])
   > img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 71.8%;
   height: auto;
   max-width: none;
   margin: 0;
+  translate: -50% -50%;
   scale: 1;
+}
+
+/*
+ * Deck copy counts sit across the lower art edge rather than inside a corner.
+ * Keep the badge readable while allowing the artwork below to remain visible.
+ */
+div:has(> img.image[data-card-art-presentation="readable"] + span[aria-label$=" copies"])
+  > span[aria-label$=" copies"] {
+  left: 50%;
+  right: auto;
+  bottom: 0;
+  translate: -50% 50%;
+  border-color: rgba(255, 255, 255, .32);
+  background: rgba(0, 0, 0, .72);
+  z-index: 2;
 }
 
 div:has(> article img.image[data-card-art-presentation="readable"][data-card-art-kind="flip"] + span[aria-label$=" copies"]) {
