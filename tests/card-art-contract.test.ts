@@ -88,5 +88,21 @@ test("large responsive card presentations avoid thumbnail upscaling and transfor
     css,
     /aria-label\$=" copies"[\s\S]*?aspect-ratio:\s*500\s*\/\s*359;[\s\S]*?scale:\s*1;/,
   );
-  assert.doesNotMatch(css, /translate:\s*-50%\s+-50%/);
+});
+
+test("deck-detail Flip cards are explicitly centered and copy badges straddle the art edge", () => {
+  const css = readFileSync(
+    new URL("../components/cards/CardArt.module.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    css,
+    /data-card-art-kind="flip"[\s\S]*?aria-label\$=" copies"[\s\S]*?>\s*img\.image[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*50%;[\s\S]*?left:\s*50%;[\s\S]*?translate:\s*-50%\s+-50%;/,
+  );
+  assert.match(
+    css,
+    />\s*span\[aria-label\$=" copies"\][\s\S]*?left:\s*50%;[\s\S]*?right:\s*auto;[\s\S]*?bottom:\s*0;[\s\S]*?translate:\s*-50%\s+50%;/,
+  );
+  assert.match(css, /background:\s*rgba\(0,\s*0,\s*0,\s*\.72\);/);
 });
