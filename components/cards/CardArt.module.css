@@ -85,13 +85,19 @@ div:has(> img.image[data-card-art-presentation="readable"][data-card-art-kind="f
 
 /*
  * Deck copy counts sit across the lower art edge rather than inside a corner.
- * Keep the badge readable while allowing the artwork below to remain visible.
+ * Keep the badge compact and rectangular while allowing the artwork below to
+ * remain visible.
  */
 div:has(> img.image[data-card-art-presentation="readable"] + span[aria-label$=" copies"])
   > span[aria-label$=" copies"] {
   left: 50%;
   right: auto;
   bottom: 0;
+  height: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0 .55rem;
+  line-height: 1;
+  border-radius: .3rem;
   translate: -50% 50%;
   border-color: rgba(255, 255, 255, .32);
   background: rgba(0, 0, 0, .72);
