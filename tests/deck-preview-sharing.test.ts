@@ -52,5 +52,11 @@ test("public preview exposes the complete sharing and export surface", async () 
   assert.match(exporter, /CHARACTER CARDS/);
   assert.match(exporter, /BAKUCORES/);
   assert.match(exporter, /MAIN DECK/);
-  assert.match(exporter, /badgeSize/);
+  assert.match(exporter, /const badgeWidth = 58;/);
+  assert.match(exporter, /const badgeHeight = 32;/);
+  assert.match(exporter, /const badgeX = x \+ \(cardWidth - badgeWidth\) \/ 2;/);
+  assert.match(exporter, /const badgeY = y \+ cardImageHeight - badgeHeight \/ 2;/);
+  assert.match(exporter, /context\.fillStyle = "rgba\(0, 0, 0, \.72\)";/);
+  assert.match(exporter, /context\.strokeStyle = "rgba\(255, 255, 255, \.32\)";/);
+  assert.match(exporter, /context\.fillText\(`×\$\{count\}`, x \+ cardWidth \/ 2, y \+ cardImageHeight\);/);
 });
