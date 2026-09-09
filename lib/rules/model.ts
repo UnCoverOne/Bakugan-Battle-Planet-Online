@@ -29,6 +29,7 @@ export type EntitySelector =
 
 export type RuleCondition =
   | { kind: "always" }
+  | { kind: "team-attack" | "not-team-attack" }
   | { kind: "first-turn" }
   | { kind: "armor-damage-reduced"; subject: "opponent" }
   | { kind: "fury" }
@@ -115,6 +116,8 @@ export type ChoiceSpec = {
 
 export type TriggerEventName =
   | "GAME_STARTED"
+  | "TEAM_ATTACK_STARTED"
+  | "TEAM_ATTACK_COMPLETED"
   | "CARD_PLAYED"
   | "CARD_FLIPPED_FROM_DECK"
   | "CARD_REVEALED_FROM_HAND"
@@ -168,7 +171,7 @@ export type SwapBakucoreEffect = {
 };
 
 export type RuleAction =
-  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: NumberValue; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices }
+  | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: NumberValue; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices; condition?: RuleCondition }
   | { kind: "ignore-armor-rating"; duration: RulesDuration }
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: NumberValue; duration: RulesDuration }
   | { kind: "draw"; amount: NumberValue; playerScope?: PlayerScope }

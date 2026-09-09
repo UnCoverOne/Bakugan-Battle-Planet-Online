@@ -1314,7 +1314,7 @@ export const orderTriggers = (input: MatchState, playerId: string, requestId: st
 
 export type GameEvent = {
   id: string;
-  type: "select" | "open" | "discard" | "energize" | "gear-attach" | "card-play" | "fusion" | "victor" | "attack" | "damage-taken" | "hand-empty" | "end-turn" | "game-started";
+  type: "select" | "open" | "discard" | "energize" | "gear-attach" | "card-play" | "fusion" | "victor" | "attack" | "team-attack-started" | "team-attack-completed" | "damage-taken" | "hand-empty" | "end-turn" | "game-started";
   playerId: string;
   playerIds?: string[];
   cardType?: CardType;
@@ -1331,6 +1331,7 @@ export const collectTriggersForEvent = (state: MatchState, event: GameEvent) => 
     "game-started": "GAME_STARTED", select: "BAKUGAN_SELECTED", open: "BAKUGAN_OPENED", discard: "CARD_DISCARDED", energize: "ENERGY_CARD_ENERGIZED",
     "gear-attach": "BAKU_GEAR_ATTACHED",
     "card-play": "CARD_PLAYED", fusion: "FUSION_COMPLETED", victor: "VICTOR_DECLARED", attack: "ATTACK_CREATED",
+    "team-attack-started": "TEAM_ATTACK_STARTED", "team-attack-completed": "TEAM_ATTACK_COMPLETED",
     "damage-taken": "DAMAGE_TAKEN", "hand-empty": "HAND_EMPTIED", "end-turn": "TURN_ENDED",
   } as const;
   const actorIds = (event.type === "open" || event.type === "game-started") && event.playerIds
@@ -2432,6 +2433,53 @@ const ruleConditionIsActive = (
   return ruleConditionActive(state, player, instruction.condition, conditionTarget, choices);
 };
 
+function returnSelfCardToHand(state: MatchState, owner: PlayerState, card: GameCard) {
+  if (owner.hand.some((candidate) => candidate.id === card.id)) return false;
+  let returned: GameCard | undefined;
+
+  const heroIndex = owner.heroes.findIndex((candidate) => candidate.id === card.id);
+  if (heroIndex >= 0) {
+    [returned] = owner.heroes.splice(heroIndex, 1);
+    if (returned) delete returned.instabrawl;
+  }
+  if (!returned) {
+    for (const bakugan of owner.bakugan) {
+      const evoIndex = bakugan.evoStack.findIndex((candidate) => candidate.id === card.id);
+      if (evoIndex >= 0) {
+        [returned] = bakugan.evoStack.splice(evoIndex, 1);
+        break;
+      }
+      const gearIndex = (bakugan.bakuGear ?? []).findIndex((candidate) => candidate.id === card.id);
+      if (gearIndex >= 0) {
+        [returned] = bakugan.bakuGear!.splice(gearIndex, 1);
+        break;
+      }
+    }
+  }
+  if (!returned) {
+    const deckIndex = owner.deckCards.findIndex((candidate) => candidate.id === card.id);
+    if (deckIndex >= 0) [returned] = owner.deckCards.splice(deckIndex, 1);
+    if (returned) syncDeck(owner);
+  }
+  if (!returned) {
+    const discardIndex = owner.discard.findIndex((candidate) => candidate.id === card.id);
+    if (discardIndex >= 0) [returned] = owner.discard.splice(discardIndex, 1);
+  }
+  if (!returned) {
+    const energyIndex = owner.energyZone.findIndex((candidate) => candidate.id === card.id);
+    if (energyIndex >= 0) [returned] = owner.energyZone.splice(energyIndex, 1);
+  }
+
+  // A damage-revealed card is temporarily detached from every zone. The
+  // pending effect still owns the physical instance, so use it as the
+  // fallback instead of manufacturing a duplicate.
+  returned ??= card;
+  delete returned.revealedToOpponents;
+  owner.hand.push(returned);
+  entry(state, "game", `${returned.displayName || returned.name} returned to ${owner.name}'s hand.`, returned, "effect", owner.id);
+  return true;
+}
+
 function recordTemporaryCardStatModifier(
   state: MatchState,
   pending: PendingEffect,
@@ -2456,6 +2504,7 @@ function recordTemporaryCardStatModifier(
     amount,
     layer: "temporary" as const,
     duration: "turn" as const,
+    condition: action.condition,
     createdTurn: state.turn,
     sourceCategory: "card" as const,
   };
@@ -3154,7 +3203,10 @@ case "swap-bakucore": {
           }
         }
       } else if (action.verb === "return" && action.object === "card") {
-        if (choices.targetCardId) {
+        if (action.subject === "self" && action.destination === "owner-hand") {
+          const owner = playerById(state, pending.cardOwnerId ?? controllerId);
+          returnSelfCardToHand(state, owner, card);
+        } else if (choices.targetCardId) {
           for (const owner of state.players) {
             const heroIndex = owner.heroes.findIndex((candidate) => candidate.id === choices.targetCardId);
             if (heroIndex >= 0) {
@@ -4097,6 +4149,14 @@ const declareVictor = (state: MatchState) => {
 const beginDamage = (state: MatchState) => {
   const winner = playerById(state, state.brawlWinner); const loser = otherPlayer(state, winner.id); const attacking = activeBakugan(state, winner.id)!;
   const openTeam = winner.bakugan.filter((bakugan) => bakugan.open); state.teamAttack = openTeam.length === 3;
+  if (state.teamAttack) emitRuleEvent(state, {
+    id: `${state.turn}:team-attack-started:${winner.id}`,
+    name: "TEAM_ATTACK_STARTED",
+    actorId: winner.id,
+    controllerId: winner.id,
+    targetBakuganId: attacking.id,
+    createdAt: Date.now(),
+  });
   const loserBakugan = activeBakugan(state, loser.id);
   state.pendingBrawlRetracts = [...new Set([
     ...(loserBakugan ? [loserBakugan.id] : []),
@@ -4151,6 +4211,13 @@ export function revealedFlipCanBePlayed(
 
 function finishDamage(state: MatchState) {
   state.revealedFlip = undefined;
+  if (state.teamAttack && state.brawlWinner) emitRuleEvent(state, {
+    id: `${state.turn}:team-attack-completed:${state.brawlWinner}`,
+    name: "TEAM_ATTACK_COMPLETED",
+    actorId: state.brawlWinner,
+    controllerId: state.brawlWinner,
+    createdAt: Date.now(),
+  });
   completeScheduledAttackActions(state);
   if (resumePendingEffectAfterDamage(state)) return;
   setPhase(state, "postDamage", "Damage Step • Post-damage priority", state.startingPlayer);

@@ -88,6 +88,13 @@ function emitCompletedAttackDamage(state: MatchState) {
 
 function enterPostDamage(state: MatchState) {
   emitCompletedAttackDamage(state);
+  if (state.teamAttack && state.brawlWinner) emitRuleEvent(state, {
+    id: `${state.turn}:team-attack-completed:${state.brawlWinner}`,
+    name: "TEAM_ATTACK_COMPLETED",
+    actorId: state.brawlWinner,
+    controllerId: state.brawlWinner,
+    createdAt: Date.now(),
+  });
   completeScheduledAttackActions(state);
   if (resumePendingEffectAfterDamage(state)) return;
   state.phase = "postDamage";

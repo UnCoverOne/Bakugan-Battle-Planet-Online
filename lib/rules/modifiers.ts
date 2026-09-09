@@ -64,6 +64,8 @@ export function ruleConditionActive(
   });
   switch (condition.kind) {
     case "first-turn": return state.turn === 1;
+    case "team-attack": return state.teamAttack;
+    case "not-team-attack": return !state.teamAttack;
     case "armor-damage-reduced": {
       if (condition.subject !== "opponent") return false;
       const rules = ensureRulesState(state);

@@ -221,6 +221,19 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
             `Then ${inheritsAllPlayers ? "all players " : ""}${second}`,
           ];
         }
+        // Team Attack replacement text is sometimes printed on a new line
+        // without a period after the base bonus (for example, Bakubooted!).
+        // Preserve it as a separate conditional instruction so the modifier
+        // can remain live until the attack type is known.
+        const teamAttackReplacement = clause.match(
+          /^(.*?)\s+(If this is a Team Attack,\s*.+)$/i,
+        );
+        if (teamAttackReplacement?.[1].trim() && teamAttackReplacement[2].trim()) {
+          return [
+            `${teamAttackReplacement[1].trim().replace(/[,;:]$/, "")}.`,
+            teamAttackReplacement[2].trim(),
+          ];
+        }
         return [clause];
       })
       // Coordinated clauses can change grammatical subject. Parsing the full
@@ -538,7 +551,7 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     const replacementText = current.sourceText.replace(/\s*\binstead\s*\.?\s*$/i, "");
     const triggerEffects = previous.effects.filter((effect) => effect.kind === "trigger");
     const baseEffects = previous.effects.filter((effect) => effect.kind !== "trigger");
-    const effects: RuleAction[] = [...triggerEffects, {
+    let effects: RuleAction[] = [...triggerEffects, {
       kind: "conditional",
       condition: current.condition,
       whenTrue: parseAtomicEffects(card, replacementText.replace(
@@ -548,6 +561,21 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
       whenFalse: baseEffects,
       replacement: true,
     }];
+    if (current.condition.kind === "team-attack") {
+      const replacementEffects = parseAtomicEffects(card, replacementText.replace(
+        /^Trifecta:\s*If your Bakugan have three or more BakuCores? (?:attached|attaced) to them\s*[,;:]\s*/i,
+        "",
+      ));
+      effects = [
+        ...triggerEffects,
+        ...baseEffects.map((effect) => effect.kind === "modify-stat"
+          ? { ...effect, condition: { kind: "not-team-attack" as const } }
+          : effect),
+        ...replacementEffects.map((effect) => effect.kind === "modify-stat"
+          ? { ...effect, condition: current.condition }
+          : effect),
+      ];
+    }
     const sourceText = `${previous.sourceText} ${current.sourceText}`;
     instructions.splice(index - 1, 2, {
       ...previous,
@@ -572,6 +600,17 @@ function choice(
   visibility: ChoiceSpec["visibility"] = "public",
 ): ChoiceSpec {
   return { id, timing, selector, label, optional, chooser, visibility, minimum: optional ? 0 : 1, maximum: 1 };
+}
+
+function optionalEffectLabel(text: string) {
+  const normalized = text.replace(/\s+/g, " ").trim().replace(/[.]$/, "");
+  const effect = normalized
+    .replace(/^(?:when|after)\s+[^,]+,\s*/i, "")
+    .replace(/^you may\s+/i, "")
+    .replace(/\[Draw\]/gi, "Draw")
+    .trim();
+  if (!effect) return "Use this optional effect?";
+  return `${effect.charAt(0).toUpperCase()}${effect.slice(1)}?`;
 }
 
 function syncChoiceForText(text: string, timing: ChoiceSpec["timing"]): ChoiceSpec | undefined {
@@ -956,7 +995,7 @@ if (swapsBakucore) {
       "confirmed",
       "resolve",
       "mode",
-      Number.isFinite(paidAmount) ? `Pay ${paidAmount} Energy?` : "Use this optional effect?",
+      Number.isFinite(paidAmount) ? `Pay ${paidAmount} Energy?` : optionalEffectLabel(text),
       false,
       optionalChooser,
     );

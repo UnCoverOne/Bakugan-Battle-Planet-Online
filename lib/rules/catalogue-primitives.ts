@@ -54,6 +54,7 @@ function controlledCardNames(text: string) {
 export function conditionFor(text: string): RuleCondition {
   const normalizedText = text.replace(/\s+/g, " ").trim();
   if (/\bplay this(?: card)? for free on the first turn of the game\b/i.test(normalizedText)) return { kind: "first-turn" };
+  if (/\bif this is a team attack\b/i.test(normalizedText)) return { kind: "team-attack" };
   if (/^Empower\s*:/i.test(normalizedText)) return { kind: "empower-selected" };
   if (/if an opposing player reduced damage with Armor Rating this turn/i.test(normalizedText)) {
     return { kind: "armor-damage-reduced", subject: "opponent" };
@@ -274,6 +275,12 @@ function triggerFor(text: string): TriggerDefinition | undefined {
       source: "self",
       optional: /\bmay\b/i.test(text),
     };
+  }
+  if (/after you\s+team attack\b/i.test(text)) {
+    return { event: "TEAM_ATTACK_COMPLETED", relationship: "controller", optional: /\bmay\b/i.test(text) };
+  }
+  if (/when you\s+team attack\b/i.test(text)) {
+    return { event: "TEAM_ATTACK_STARTED", relationship: "controller", optional: /\bmay\b/i.test(text) };
   }
   const table: Array<[RegExp, TriggerEventName, TriggerDefinition["relationship"], TriggerDefinition["source"]?]> = [
     [/when you\s+Energize\s+a\s+card/i, "ENERGY_CARD_ENERGIZED", "controller"],
@@ -617,7 +624,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     [/destroy .*hero/i, "destroy", "hero"], [/destroy .*evo/i, "destroy", "evo"], [/destroy .*energy/i, "destroy", "energy"], [/destroy .*Baku-Gear/i, "destroy", "baku-gear"],
     [/return (?:one of )?(?:your )?Baku-Gear .*hand/i, "return", "baku-gear"], [/return (?!.*Baku-Gear).*hand/i, "return", "card"], [/retract .*bakugan/i, "retract", "bakugan"], [/attach .*bakucore/i, "attach", "bakucore"], [/attach (?:this|a|an|one) .*Bakugan/i, "attach", "baku-gear"],
     [/remove .*bakucore/i, "remove", "bakucore"], [/(?:return|place) .*bakucore.*field face down/i, "return", "bakucore"],
-    [/shuffle .*?(?:discard|from your hand into your deck)/i, "shuffle", "card"], [/take control and attach .*Baku-Gear/i, "control", "baku-gear"], [/take control .*hero/i, "control", "hero"], [/put this into .*hand/i, "return", "card"],
+    [/shuffle .*?(?:discard|from your hand into your deck)/i, "shuffle", "card"], [/take control and attach .*Baku-Gear/i, "control", "baku-gear"], [/take control .*hero/i, "control", "hero"], [/put this(?: card)? into .*hand/i, "return", "card"],
   ];
   if (/(?:return|put|place)\s+this\s+(?:to|on)\s+the\s+bottom\s+of\s+(?:your|its owner['’]s)\s+deck/i.test(text)) {
     actions.push({
@@ -646,6 +653,9 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       object,
       amount,
       ...(playerScope ? { playerScope } : {}),
+      ...(/(?:return|put|place)\s+this(?:\s+card)?\s+(?:to|into)\s+(?:your|its owner['’]s)\s+hand/i.test(text)
+        ? { subject: "self" as const, destination: "owner-hand" as const }
+        : {}),
       ...(/destroy all other Evos/i.test(text) ? { excludeSource: true } : {}),
     };
     actions.push(/after this attack/i.test(text)
