@@ -172,6 +172,7 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "filterRail",
     "Card filters",
     "BakuCore filters",
+    "Filters &amp; sort",
     "Share results",
     "Gallery",
     "Compact",
@@ -203,6 +204,8 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   assert.match(route, /core=\{selectedCore\}/);
   assert.match(route, /tab=\{coreState\.tab\}/);
   assert.doesNotMatch(route, /function CoreInspector/);
+  assert.doesNotMatch(route, /Refine archive/);
+  assert.doesNotMatch(route, /Refine BakuCores/);
   assert.doesNotMatch(route, /reprintOf/);
   assert.doesNotMatch(css, /\.coreEffects span/);
   assert.match(route, /value=\{searchQuery\}/);

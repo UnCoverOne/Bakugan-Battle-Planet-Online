@@ -90,7 +90,8 @@
   display: none;
 }
 
-.workspace {
+.workspace,
+.coreWorkspace {
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   margin-inline: auto;
   display: grid;
@@ -149,14 +150,7 @@
   min-width: 0;
 }
 
-.coreWorkspace {
-  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
-  margin-inline: auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-4);
-}
+
 
 .coreGrid {
   align-items: stretch;

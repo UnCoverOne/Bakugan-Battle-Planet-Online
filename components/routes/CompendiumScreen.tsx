@@ -111,7 +111,7 @@ function FilterControls({
   return (
     <>
       <div className={styles.filterHeading}>
-        <div><span>Refine archive</span><h2>Filters &amp; sort</h2></div>
+        <div><h2>Filters &amp; sort</h2></div>
         <button type="button" onClick={onClear}>Clear</button>
       </div>
       <Field label="Set">
@@ -174,7 +174,7 @@ function CoreFilterControls({
   return (
     <>
       <div className={styles.filterHeading}>
-        <div><span>Refine BakuCores</span><h2>Filters &amp; sort</h2></div>
+        <div><h2>Filters &amp; sort</h2></div>
         <button type="button" onClick={onClear}>Clear</button>
       </div>
       <Field label="Set">
