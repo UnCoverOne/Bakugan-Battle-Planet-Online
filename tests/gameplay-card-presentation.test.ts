@@ -20,6 +20,14 @@ const layerCss = readFileSync(
   new URL("../components/game-screen-v2/GameplayCardPresentationLayer.module.css", import.meta.url),
   "utf8",
 );
+const gameScreen = readFileSync(
+  new URL("../components/game-screen-v2/GameScreen.tsx", import.meta.url),
+  "utf8",
+);
+const previewController = readFileSync(
+  new URL("../components/game-screen-v2/cardPreviewController.ts", import.meta.url),
+  "utf8",
+);
 const cardArt = readFileSync(
   new URL("../components/cards/CardArt.tsx", import.meta.url),
   "utf8",
@@ -78,4 +86,12 @@ test("Evo presentation hides the base Character and owns the top layer", () => {
   assert.match(layer, /bakugan\.evoStack\.map/);
   assert.match(css, /data-evo-count\]:not\(\[data-evo-count="0"\]\)\s*>\s*img[\s\S]*visibility:\s*hidden\s*!important/);
   assert.match(layerCss, /\.evoStack[\s\S]*z-index:\s*var\(--character-evo-layer,\s*120\)/);
+});
+
+test("attached Baku-Gear is rendered beneath its Character slot and remains previewable", () => {
+  assert.match(gameScreen, /data-zone-kind="baku-gear"/);
+  assert.match(gameScreen, /bakugan\?\.bakuGear/);
+  assert.match(gameScreen, /className=\{styles\.bakuGearCards\}/);
+  assert.match(previewController, /\.\.\.\(bakugan\.bakuGear \?\? \[\]\)/);
+  assert.match(previewController, /case "baku-gear"/);
 });

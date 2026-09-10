@@ -18,6 +18,7 @@ import {
 test("card previews accept only explicit card and revealed-Core zones", () => {
   for (const zone of [
     "character-card",
+    "baku-gear",
     "hand",
     "discard-pile",
     "discard-browser",

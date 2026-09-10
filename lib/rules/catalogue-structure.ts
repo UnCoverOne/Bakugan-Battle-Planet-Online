@@ -1105,7 +1105,7 @@ function costModifiersFor(card: GameCard): CostEffect[] {
       kind: "cost-free",
       duration: "turn",
       cardMechanic: "Rapid Fire",
-      condition: rapidFireCondition(">=", 2),
+      condition: rapidFireCondition("==", 2),
     });
   }
 

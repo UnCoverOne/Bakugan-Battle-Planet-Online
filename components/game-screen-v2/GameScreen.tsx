@@ -182,6 +182,51 @@ function HeldCoreZone({
   );
 }
 
+function BakuGearZone({
+  owner,
+  bakugan,
+}: {
+  owner: ZoneOwner;
+  bakugan: HeldCoreZoneView["bakugan"];
+}) {
+  const gear = bakugan?.bakuGear ?? [];
+  if (!bakugan || !gear.length) return null;
+
+  return (
+    <div
+      className={styles.bakuGearZone}
+      data-zone-kind="baku-gear"
+      data-zone-owner={owner}
+      data-bakugan-id={bakugan.id}
+      data-gear-count={gear.length}
+      aria-label={`${bakugan.name} Baku-Gear zone, ${gear.length} attached Baku-Gear card${gear.length === 1 ? "" : "s"}`}
+    >
+      <span className={styles.bakuGearZoneLabel} aria-hidden="true">BAKU-GEAR</span>
+      <div className={styles.bakuGearCards}>
+        {gear.map((card) => (
+          <figure
+            className={styles.bakuGearCard}
+            data-card-id={card.id}
+            data-card-catalog-id={card.catalogId}
+            data-card-type={card.type}
+            key={card.id}
+          >
+            <ResponsiveCardImage
+              className={styles.bakuGearImage}
+              src={card.art}
+              cardType={card.type}
+              alt={card.displayName || card.name}
+              eager={bakugan.open}
+              draggable={false}
+              dataCardId={card.id}
+            />
+          </figure>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CharacterCardZone({
   owner,
   zone,
@@ -233,6 +278,7 @@ function CharacterCardZone({
           />
         ) : <ZoneLabel lines={["Character", `Card ${slot}`]} />}
       </div>
+      <BakuGearZone owner={owner} bakugan={bakugan} />
     </li>
   );
 }

@@ -3,6 +3,7 @@ export type CardPreviewSide = "left" | "right";
 export type CardPreviewOrientation = "vertical" | "horizontal" | "core";
 export type CardPreviewZoneKind =
   | "character-card"
+  | "baku-gear"
   | "hand"
   | "discard-pile"
   | "discard-browser"
@@ -24,6 +25,7 @@ const CARD_FACE_PATH = "/assets/cards/full/";
 const CARD_BACK_PATH = "/assets/card-back.png";
 const ALLOWED_PREVIEW_ZONES = new Set<CardPreviewZoneKind>([
   "character-card",
+  "baku-gear",
   "hand",
   "discard-pile",
   "discard-browser",
@@ -66,7 +68,7 @@ export function cardPreviewSideForZone(
   zoneKind: string | null | undefined,
   zoneOwner: string | null | undefined,
 ): CardPreviewSide {
-  if (zoneKind === "character-card") {
+  if (zoneKind === "character-card" || zoneKind === "baku-gear") {
     return zoneOwner === "player" ? "right" : "left";
   }
   if (zoneKind === "discard-pile" || zoneKind === "discard-browser") {

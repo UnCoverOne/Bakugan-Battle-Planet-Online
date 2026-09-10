@@ -1,7 +1,7 @@
 .characterCardSlot {
   position: relative;
   display: grid;
-  grid-template-rows: clamp(1.3rem, 2.35vw, 2.5rem) auto;
+  grid-template-rows: clamp(1.3rem, 2.35vw, 2.5rem) auto auto;
   gap: clamp(0.18rem, 0.38vw, 0.4rem);
   min-width: 0;
   overflow: visible;
@@ -100,7 +100,7 @@
 
 @media (max-width: 760px) {
   .characterCardSlot {
-    grid-template-rows: clamp(1rem, 5vw, 1.5rem) auto;
+    grid-template-rows: clamp(1rem, 5vw, 1.5rem) auto auto;
     gap: 0.14rem;
   }
 
@@ -114,4 +114,3 @@
     transition: none;
   }
 }
-

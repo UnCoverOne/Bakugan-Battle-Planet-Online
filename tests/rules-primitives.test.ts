@@ -532,6 +532,30 @@ test("Rapid Fire discounts use the shared printed-mechanic count", () => {
   assert.equal(rapidFireFreeModifiers.length, 2);
 });
 
+test("Rapid Fire discounts are limited to the second card without Skater and the third with Skater", () => {
+  const rapidFireCard = CARDS.find((card) => card.catalogId === "av-26")!;
+
+  const withoutSkater = stateWithPlayers();
+  const playerWithoutSkater = withoutSkater.players[0];
+  assert.equal(cardCostBreakdown(withoutSkater, playerWithoutSkater.id, rapidFireCard).freeBase, false);
+  recordCardPlayedForTurn(playerWithoutSkater, { ...rapidFireCard, id: "rapid-no-skater-1" }, withoutSkater.turn);
+  assert.equal(cardCostBreakdown(withoutSkater, playerWithoutSkater.id, rapidFireCard).total, 0);
+  recordCardPlayedForTurn(playerWithoutSkater, { ...rapidFireCard, id: "rapid-no-skater-2" }, withoutSkater.turn);
+  assert.equal(cardCostBreakdown(withoutSkater, playerWithoutSkater.id, rapidFireCard).total, rapidFireCard.cost);
+
+  const withSkater = stateWithPlayers();
+  const playerWithSkater = withSkater.players[0];
+  const skater = CARDS.find((card) => card.catalogId === "av-79")!;
+  playerWithSkater.heroes = [instance(skater, "skater-ordinal")];
+  assert.equal(cardCostBreakdown(withSkater, playerWithSkater.id, rapidFireCard).total, rapidFireCard.cost);
+  recordCardPlayedForTurn(playerWithSkater, { ...rapidFireCard, id: "rapid-skater-1" }, withSkater.turn);
+  assert.equal(cardCostBreakdown(withSkater, playerWithSkater.id, rapidFireCard).total, 0);
+  recordCardPlayedForTurn(playerWithSkater, { ...rapidFireCard, id: "rapid-skater-2" }, withSkater.turn);
+  assert.equal(cardCostBreakdown(withSkater, playerWithSkater.id, rapidFireCard).total, 0);
+  recordCardPlayedForTurn(playerWithSkater, { ...rapidFireCard, id: "rapid-skater-3" }, withSkater.turn);
+  assert.equal(cardCostBreakdown(withSkater, playerWithSkater.id, rapidFireCard).total, rapidFireCard.cost);
+});
+
 test("Rapid Fire trigger counts the card after it is played and survives replay encoding", () => {
   const state = stateWithPlayers();
   const player = state.players[0];
@@ -558,7 +582,9 @@ test("Rapid Fire trigger counts the card after it is played and survives replay 
   });
 
   const maximus = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "av-148")!);
-  const maximusInstruction = maximus.abilities.flatMap((candidate) => candidate.instructions)[0];
+  const maximusInstruction = maximus.abilities
+    .flatMap((candidate) => candidate.instructions)
+    .find((instruction) => instruction.choices.some((choice) => choice.id === "discardCardIds"))!;
   assert.deepEqual(maximusInstruction.choices[0], {
     id: "discardCardIds",
     timing: "resolve",

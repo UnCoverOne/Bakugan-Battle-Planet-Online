@@ -102,7 +102,11 @@ function cardsInMatch(match: MatchState | null): GameCard[] {
     ...player.discard,
     ...player.energyZone,
     ...player.heroes,
-    ...player.bakugan.flatMap((bakugan) => [bakugan.character, ...bakugan.evoStack]),
+    ...player.bakugan.flatMap((bakugan) => [
+      bakugan.character,
+      ...bakugan.evoStack,
+      ...(bakugan.bakuGear ?? []),
+    ]),
   ]);
   cards.push(...match.batch.map((pending) => pending.card));
   if (match.revealedFlip) cards.push(match.revealedFlip);
@@ -187,6 +191,10 @@ export function previewElementFromTarget(target: EventTarget | null): PreviewEle
       return elementData(metadata.zone, "cardId") || elementData(metadata.zone, "topCardId")
         ? metadata.zone
         : null;
+    case "baku-gear": {
+      const card = target.closest("[data-card-id]");
+      return card && isPreviewElement(card) ? card : null;
+    }
     case "hand": {
       const card = target.closest("li[data-card-id]");
       return card && isPreviewElement(card) ? card : null;
