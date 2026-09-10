@@ -203,12 +203,16 @@ function BakuGearZone({
     >
       <span className={styles.bakuGearZoneLabel} aria-hidden="true">BAKU-GEAR</span>
       <div className={styles.bakuGearCards}>
-        {gear.map((card) => (
+        {gear.map((card, index) => (
           <figure
             className={styles.bakuGearCard}
             data-card-id={card.id}
             data-card-catalog-id={card.catalogId}
             data-card-type={card.type}
+            style={{
+              "--gear-order": index,
+              "--gear-stagger": `${index * 15}%`,
+            } as CSSProperties}
             key={card.id}
           >
             <ResponsiveCardImage
@@ -277,8 +281,8 @@ function CharacterCardZone({
             key={card.id}
           />
         ) : <ZoneLabel lines={["Character", `Card ${slot}`]} />}
+        <BakuGearZone owner={owner} bakugan={bakugan} />
       </div>
-      <BakuGearZone owner={owner} bakugan={bakugan} />
     </li>
   );
 }

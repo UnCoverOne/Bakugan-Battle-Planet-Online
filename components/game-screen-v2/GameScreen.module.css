@@ -142,7 +142,7 @@
   box-sizing: border-box;
   aspect-ratio: 5 / 7;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: clamp(0.65rem, 1.15vw, 1.1rem) clamp(0.45rem, 0.9vw, 0.9rem);
   border: 2px solid rgba(148, 152, 158, 0.86);
   border-radius: 5px;
@@ -209,40 +209,36 @@
 }
 
 .bakuGearZone {
-  position: relative;
-  z-index: 2;
-  width: 100%;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   min-width: 0;
   overflow: visible;
-  padding-top: clamp(0.12rem, 0.25vw, 0.28rem);
+  pointer-events: none;
 }
 
 .bakuGearZoneLabel {
-  display: block;
-  margin-bottom: clamp(0.08rem, 0.18vw, 0.18rem);
-  color: rgba(255, 239, 166, 0.8);
-  font-size: clamp(0.28rem, 0.46vw, 0.48rem);
-  font-weight: 950;
-  letter-spacing: 0.12em;
-  line-height: 1;
-  text-align: center;
-  text-shadow: 0 1px 3px #000;
+  display: none;
 }
 
 .bakuGearCards {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(0.12rem, 0.3vw, 0.3rem);
-  width: 100%;
-  min-width: 0;
+  position: absolute;
+  inset: 0;
+  display: block;
 }
 
 .bakuGearCard {
-  position: relative;
+  position: absolute;
+  top: calc(25% + var(--gear-stagger, 0%));
+  left: 5%;
+  z-index: calc(30 - var(--gear-order, 0));
+  box-sizing: border-box;
+  width: 90%;
   min-width: 0;
   margin: 0;
   aspect-ratio: 5 / 7;
   overflow: visible;
+  pointer-events: auto;
   border: 1px solid rgba(255, 225, 126, 0.72);
   border-radius: 2px;
   background: rgba(8, 10, 13, 0.72);
