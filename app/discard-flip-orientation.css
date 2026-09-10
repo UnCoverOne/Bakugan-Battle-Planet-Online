@@ -1,7 +1,3 @@
-[data-zone-kind="discard-pile"] {
-  overflow: hidden !important;
-}
-
 [data-zone-kind="discard-browser"] figure {
   overflow: hidden;
 }

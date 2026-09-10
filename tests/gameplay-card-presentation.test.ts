@@ -28,6 +28,10 @@ const gameScreenCss = readFileSync(
   new URL("../components/game-screen-v2/GameScreen.module.css", import.meta.url),
   "utf8",
 );
+const discardOrientationCss = readFileSync(
+  new URL("../app/discard-flip-orientation.css", import.meta.url),
+  "utf8",
+);
 const previewController = readFileSync(
   new URL("../components/game-screen-v2/cardPreviewController.ts", import.meta.url),
   "utf8",
@@ -110,4 +114,15 @@ test("discard counter keeps its shared placement while its zone paints above adj
     /\.cardStackZone\[data-zone-kind="discard-pile"\]\s+\.zoneCount\s*\{/,
   );
   assert.match(gameScreenCss, /\.zoneCount\s*\{[\s\S]*?transform:\s*translate\(50%,\s*50%\);/);
+});
+
+test("discard animation styling does not clip the counter outside its zone", () => {
+  assert.doesNotMatch(
+    discardOrientationCss,
+    /\[data-zone-kind="discard-pile"\]\s*\{[\s\S]*?overflow:\s*hidden\s*!important;/,
+  );
+  assert.match(
+    gameScreenCss,
+    /\.cardStackZone\s*\{[\s\S]*?overflow:\s*visible;/,
+  );
 });
