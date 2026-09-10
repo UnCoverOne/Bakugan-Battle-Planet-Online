@@ -123,6 +123,13 @@ test("desktop cards and BakuCore controls live in their filter rails", async ({ 
   const cardRail = page.getByRole("complementary", { name: "Card filters" });
   await expect(cardRail).toBeVisible();
   await expect(cardRail.getByLabel("Sort")).toBeVisible();
+  await cardRail.getByLabel("Card type").selectOption("Character");
+  await expect(cardRail.getByLabel("Energy cost")).toHaveCount(0);
+  await expect(cardRail.getByLabel("Rarity")).toHaveCount(0);
+  await expect(cardRail.getByLabel("Core type")).toBeVisible();
+  const characterSorts = await cardRail.getByLabel("Sort").locator("option").allTextContents();
+  expect(characterSorts).toEqual(expect.arrayContaining(["B-Power high–low", "Damage high–low"]));
+  expect(characterSorts).not.toEqual(expect.arrayContaining(["Energy low–high", "Energy high–low"]));
 
   await page.goto("/compendium/cores");
   await waitForCompendium(page);

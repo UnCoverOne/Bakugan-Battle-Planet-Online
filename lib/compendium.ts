@@ -8,6 +8,8 @@ export const COMPENDIUM_SORTS = [
   "name-desc",
   "cost-asc",
   "cost-desc",
+  "bpower-desc",
+  "damage-desc",
   "collector",
 ] as const;
 
@@ -22,6 +24,7 @@ export type CompendiumState = {
   q: string;
   set: string;
   type: string;
+  coreType: string;
   faction: string;
   cost: string;
   rarity: string;
@@ -37,6 +40,7 @@ export const DEFAULT_COMPENDIUM_STATE: CompendiumState = Object.freeze({
   q: "",
   set: "All",
   type: "All",
+  coreType: "All",
   faction: "All",
   cost: "All",
   rarity: "All",
@@ -62,6 +66,7 @@ export function parseCompendiumState(input: URLSearchParams | string): Compendiu
     q: params.get("q") ?? "",
     set: choice(params.get("set")),
     type: choice(params.get("type")),
+    coreType: choice(params.get("coreType")),
     faction: choice(params.get("faction")),
     cost: choice(params.get("cost")),
     rarity: choice(params.get("rarity")),
@@ -83,6 +88,7 @@ export function compendiumSearchParams(state: CompendiumState) {
   setIfChanged("q", state.q, DEFAULT_COMPENDIUM_STATE.q);
   setIfChanged("set", state.set, DEFAULT_COMPENDIUM_STATE.set);
   setIfChanged("type", state.type, DEFAULT_COMPENDIUM_STATE.type);
+  setIfChanged("coreType", state.coreType, DEFAULT_COMPENDIUM_STATE.coreType);
   setIfChanged("faction", state.faction, DEFAULT_COMPENDIUM_STATE.faction);
   setIfChanged("cost", state.cost, DEFAULT_COMPENDIUM_STATE.cost);
   setIfChanged("rarity", state.rarity, DEFAULT_COMPENDIUM_STATE.rarity);
@@ -121,6 +127,7 @@ const searchableText = (card: GameCard) => {
 };
 
 const costRank = (cost: GameCard["cost"]) => cost === "X" ? Number.POSITIVE_INFINITY : cost;
+const statRank = (value: number | null) => value ?? Number.NEGATIVE_INFINITY;
 
 export function filterAndSortCompendiumCards(
   cards: readonly GameCard[],
@@ -133,9 +140,10 @@ export function filterAndSortCompendiumCards(
     card.fusionFace !== "b"
     && (state.set === "All" || setCodeFor(card) === state.set)
     && (state.type === "All" || card.type === state.type)
+    && (state.type !== "Character" || state.coreType === "All" || card.coreTypes.includes(state.coreType as GameCard["coreTypes"][number]))
     && (state.faction === "All" || card.factions.includes(state.faction as GameCard["faction"]))
-    && (state.cost === "All" || String(card.cost) === state.cost)
-    && (state.rarity === "All" || card.rarity === state.rarity)
+    && (state.type === "Character" || state.cost === "All" || String(card.cost) === state.cost)
+    && (state.type === "Character" || state.rarity === "All" || card.rarity === state.rarity)
     && (state.keyword === "All" || card.mechanics.includes(state.keyword))
     && (!query || searchableText(card).includes(query))
   )).toSorted((left, right) => {
@@ -143,6 +151,8 @@ export function filterAndSortCompendiumCards(
     if (state.sort === "name-desc") return right.displayName.localeCompare(left.displayName);
     if (state.sort === "cost-asc") return costRank(left.cost) - costRank(right.cost) || left.displayName.localeCompare(right.displayName);
     if (state.sort === "cost-desc") return costRank(right.cost) - costRank(left.cost) || left.displayName.localeCompare(right.displayName);
+    if (state.sort === "bpower-desc") return statRank(right.bPower) - statRank(left.bPower) || left.displayName.localeCompare(right.displayName);
+    if (state.sort === "damage-desc") return statRank(right.damage) - statRank(left.damage) || left.displayName.localeCompare(right.displayName);
     return (SET_ORDER.get(setCodeFor(left)) ?? Number.MAX_SAFE_INTEGER)
       - (SET_ORDER.get(setCodeFor(right)) ?? Number.MAX_SAFE_INTEGER)
       || left.number - right.number

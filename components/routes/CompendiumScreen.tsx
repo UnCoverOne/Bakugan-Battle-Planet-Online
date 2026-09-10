@@ -43,8 +43,24 @@ const SORT_LABELS: Record<CompendiumState["sort"], string> = {
   "name-desc": "Name Z–A",
   "cost-asc": "Energy low–high",
   "cost-desc": "Energy high–low",
+  "bpower-desc": "B-Power high–low",
+  "damage-desc": "Damage high–low",
 };
 const CORE_TYPES = ["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"] as const;
+const CHARACTER_SORTS = new Set<CompendiumState["sort"]>([
+  "collector",
+  "name-asc",
+  "name-desc",
+  "bpower-desc",
+  "damage-desc",
+]);
+const NON_CHARACTER_SORTS = new Set<CompendiumState["sort"]>([
+  "collector",
+  "name-asc",
+  "name-desc",
+  "cost-asc",
+  "cost-desc",
+]);
 const CORE_SORT_LABELS: Record<CoreCompendiumState["sort"], string> = {
   collector: "Collector number",
   type: "Core type",
@@ -79,7 +95,7 @@ const coreForSet = (core: Core, set: string) => {
     : core;
 };
 
-type FilterKey = "set" | "type" | "faction" | "cost" | "rarity" | "keyword";
+type FilterKey = "set" | "type" | "coreType" | "faction" | "cost" | "rarity" | "keyword";
 type StatePatch = Partial<CompendiumState>;
 
 const ruleReferences = [
@@ -108,6 +124,12 @@ function FilterControls({
   onSortChange: (sort: CompendiumState["sort"]) => void;
   onClear: () => void;
 }) {
+  const isCharacter = state.type === "Character";
+  const sortOptions = Object.entries(SORT_LABELS).filter(([value]) => (
+    (isCharacter ? CHARACTER_SORTS : NON_CHARACTER_SORTS).has(value as CompendiumState["sort"])
+  ));
+  const selectedSort = sortOptions.some(([value]) => value === state.sort) ? state.sort : "collector";
+
   return (
     <>
       <div className={styles.filterHeading}>
@@ -122,8 +144,8 @@ function FilterControls({
       </Field>
       <div className={styles.filterDivider} role="separator" />
       <Field label="Sort">
-        <select value={state.sort} onChange={(event) => onSortChange(event.target.value as CompendiumState["sort"])}>
-          {Object.entries(SORT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+        <select value={selectedSort} onChange={(event) => onSortChange(event.target.value as CompendiumState["sort"])}>
+          {sortOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
         </select>
       </Field>
       <div className={styles.filterDivider} role="separator" />
@@ -139,19 +161,25 @@ function FilterControls({
           {FACTIONS.map((value) => <option key={value}>{value}</option>)}
         </select>
       </Field>
-      <Field label="Energy cost">
+      {!isCharacter && <Field label="Energy cost">
         <select value={state.cost} onChange={(event) => onChange("cost", event.target.value)}>
           <option>All</option>
           {Array.from({ length: 11 }, (_, value) => <option value={String(value)} key={value}>{value}</option>)}
           <option value="X">X</option>
         </select>
-      </Field>
-      <Field label="Rarity">
+      </Field>}
+      {!isCharacter && <Field label="Rarity">
         <select value={state.rarity} onChange={(event) => onChange("rarity", event.target.value)}>
           <option>All</option>
           {rarities.map((value) => <option key={value}>{value}</option>)}
         </select>
-      </Field>
+      </Field>}
+      {isCharacter && <Field label="Core type">
+        <select value={state.coreType} onChange={(event) => onChange("coreType", event.target.value)}>
+          <option>All</option>
+          {CORE_TYPES.map((value) => <option key={value}>{value}</option>)}
+        </select>
+      </Field>}
       <Field label="Keyword">
         <select value={state.keyword} onChange={(event) => onChange("keyword", event.target.value)}>
           <option>All</option>
@@ -338,15 +366,30 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     return () => removeEventListener("keydown", closeOverlays);
   }, [closeInspector, filterSheetOpen, navigateCore, selected, selectedCore]);
 
-  const activeFilterCount = (["set", "type", "faction", "cost", "rarity", "keyword"] as FilterKey[])
+  const activeFilterKeys: FilterKey[] = state.type === "Character"
+    ? ["set", "type", "coreType", "faction", "keyword"]
+    : ["set", "type", "faction", "cost", "rarity", "keyword"];
+  const activeFilterCount = activeFilterKeys
     .filter((key) => state[key] !== "All").length;
   const activeCoreFilterCount = (["set", "type"] as const)
     .filter((key) => coreState[key] !== "All").length;
 
-  const setFilter = (key: FilterKey, value: string) => navigate({ [key]: value } as StatePatch, { resetPage: true });
+  const setFilter = (key: FilterKey, value: string) => {
+    if (key !== "type") return navigate({ [key]: value } as StatePatch, { resetPage: true });
+
+    const nextIsCharacter = value === "Character";
+    const nextSorts = nextIsCharacter ? CHARACTER_SORTS : NON_CHARACTER_SORTS;
+    const patch: StatePatch = {
+      type: value,
+      ...(nextIsCharacter ? { cost: "All", rarity: "All" } : { coreType: "All" }),
+      ...(nextSorts.has(state.sort) ? {} : { sort: "collector" }),
+    };
+    navigate(patch, { resetPage: true });
+  };
   const clearFilters = () => navigate({
     set: "All",
     type: "All",
+    coreType: "All",
     faction: "All",
     cost: "All",
     rarity: "All",

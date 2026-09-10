@@ -48,11 +48,12 @@ const core = (overrides: Partial<Core> & Pick<Core, "id" | "number" | "name">): 
 
 
 test("Compendium URL state round-trips filters, density, selection, and inspector tab", () => {
-  const state = parseCompendiumState("q=dragonoid&set=BB&type=Character&faction=Pyrus&cost=2&rarity=Rare&keyword=Victor&sort=name-desc&density=compact&page=3&card=bb-1&tab=rulings");
+  const state = parseCompendiumState("q=dragonoid&set=BB&type=Character&coreType=Magic+Shield&faction=Pyrus&cost=2&rarity=Rare&keyword=Victor&sort=name-desc&density=compact&page=3&card=bb-1&tab=rulings");
   assert.deepEqual(state, {
     q: "dragonoid",
     set: "BB",
     type: "Character",
+    coreType: "Magic Shield",
     faction: "Pyrus",
     cost: "2",
     rarity: "Rare",
@@ -100,6 +101,30 @@ test("card filtering and sorting use every URL-driven facet", () => {
   assert.deepEqual(
     filterAndSortCompendiumCards(cards, state).map((candidate) => candidate.catalogId),
     ["bb-2", "bb-1"],
+  );
+});
+
+test("Character filtering ignores card-only facets and supports core/stat sorting", () => {
+  const cards = [
+    card({ catalogId: "char-1", displayName: "Alpha", type: "Character", coreTypes: ["Fist"], bPower: 700, damage: 3, cost: 6, rarity: "Rare" }),
+    card({ catalogId: "char-2", displayName: "Beta", type: "Character", coreTypes: ["Magic Shield"], bPower: 500, damage: 7, cost: 1, rarity: "Common" }),
+    card({ catalogId: "char-3", displayName: "Gamma", type: "Character", coreTypes: ["Magic Shield"], bPower: 900, damage: 2, cost: 0, rarity: "Common" }),
+  ];
+  const state = {
+    ...DEFAULT_COMPENDIUM_STATE,
+    type: "Character",
+    coreType: "Magic Shield",
+    cost: "6",
+    rarity: "Rare",
+    sort: "bpower-desc" as const,
+  };
+  assert.deepEqual(
+    filterAndSortCompendiumCards(cards, state).map((candidate) => candidate.catalogId),
+    ["char-3", "char-2"],
+  );
+  assert.deepEqual(
+    filterAndSortCompendiumCards(cards, { ...state, sort: "damage-desc" }).map((candidate) => candidate.catalogId),
+    ["char-2", "char-3"],
   );
 });
 
@@ -166,6 +191,9 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   for (const contract of [
     "parseCompendiumState",
     "filterAndSortCompendiumCards",
+    "coreType",
+    "bpower-desc",
+    "damage-desc",
     "COMPENDIUM_PAGE_SIZE",
     "FilterControls",
     "CoreFilterControls",
