@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, recordCardPlayedForTurn, type GameCard, type MatchState } from "../lib/game";
+import { createMatch, normalizeMatchState, recordCardPlayedForTurn, type GameCard, type MatchState } from "../lib/game";
 import { compactReplayPlayer, expandReplayPlayer } from "../lib/engine/replay-codec";
 import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
 import { conditionFor, parseAtomicEffects } from "../lib/rules/catalogue-primitives";
@@ -607,6 +607,24 @@ test("Rapid Fire trigger counts the card after it is played and survives replay 
     cardMechanic: "Rapid Fire",
     sourceOwner: "controller",
   });
+});
+
+test("attached Rapid Fire Baku-Gear remains in normalized turn history", () => {
+  const state = stateWithPlayers();
+  const player = state.players[0];
+  const twilightAxes = instance(CARDS.find((card) => card.catalogId === "av-95")!, "twilight-axes");
+  twilightAxes.playedTurn = state.turn;
+  player.bakugan[0].bakuGear = [twilightAxes];
+
+  const normalized = normalizeMatchState(state);
+  const normalizedPlayer = normalized.players.find((candidate) => candidate.id === player.id)!;
+  assert.equal(normalizedPlayer.playedCardMechanicsThisTurn?.filter((mechanic) => mechanic === "Rapid Fire").length, 1);
+  assert.equal(evaluateNumberValue(normalized, {
+    kind: "count",
+    source: "cards-played-with-mechanic",
+    owner: "controller",
+    mechanic: "Rapid Fire",
+  }, { controllerId: player.id }), 1);
 });
 
 test("Empower is a separate pay-time surcharge and respects Empower-only modifiers", () => {

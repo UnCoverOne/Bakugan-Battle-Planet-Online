@@ -532,7 +532,11 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
       ...player.discard,
       ...player.energyZone,
       ...player.heroes,
-      ...player.bakugan.flatMap((bakugan) => [bakugan.character, ...bakugan.evoStack]),
+      ...player.bakugan.flatMap((bakugan) => [
+        bakugan.character,
+        ...bakugan.evoStack,
+        ...(bakugan.bakuGear ?? []),
+      ]),
       ...state.batch.filter((object) => object.controllerId === player.id).map((object) => object.card),
     ].filter((card) => card.playedTurn === state.turn);
     player.factionsPlayedThisTurn = [...new Set([
