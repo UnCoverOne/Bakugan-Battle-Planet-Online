@@ -254,34 +254,36 @@ function CharacterCardZone({
   return (
     <li className={styles.characterCardSlot} data-character-slot={slot}>
       <HeldCoreZone owner={owner} zone={zone} />
-      <div
-        className={`${styles.characterCardZone} ${slamming ? styles.boardCardImpact : ""}`}
-        data-zone-kind="character-card"
-        data-zone-owner={owner}
-        data-zone-id={`${owner}-character-card-${slot}`}
-        data-slot={slot}
-        data-bakugan-id={bakugan?.id}
-        data-card-id={card?.id}
-        data-base-character-card-id={characterCard?.id}
-        data-fusion-character-card-id={fusionCard?.id}
-        data-fused={bakugan?.fused ? "true" : "false"}
-        data-evo-card-id={evoCard?.id}
-        data-character-open={bakugan?.open ? "true" : "false"}
-        aria-label={label}
-      >
-        {card ? (
-          <ResponsiveCardImage
-            className={`${styles.characterCardImage} ${slamming ? styles.characterCardSlamming : ""}`}
-            src={card.art}
-            cardType={card.type}
-            alt={card.displayName || card.name}
-            eager={bakugan?.open}
-            draggable={false}
-            dataCardId={card.id}
-            key={card.id}
-          />
-        ) : <ZoneLabel lines={["Character", `Card ${slot}`]} />}
+      <div className={styles.characterCardLayer}>
         <BakuGearZone owner={owner} bakugan={bakugan} />
+        <div
+          className={`${styles.characterCardZone} ${slamming ? styles.boardCardImpact : ""}`}
+          data-zone-kind="character-card"
+          data-zone-owner={owner}
+          data-zone-id={`${owner}-character-card-${slot}`}
+          data-slot={slot}
+          data-bakugan-id={bakugan?.id}
+          data-card-id={card?.id}
+          data-base-character-card-id={characterCard?.id}
+          data-fusion-character-card-id={fusionCard?.id}
+          data-fused={bakugan?.fused ? "true" : "false"}
+          data-evo-card-id={evoCard?.id}
+          data-character-open={bakugan?.open ? "true" : "false"}
+          aria-label={label}
+        >
+          {card ? (
+            <ResponsiveCardImage
+              className={`${styles.characterCardImage} ${slamming ? styles.characterCardSlamming : ""}`}
+              src={card.art}
+              cardType={card.type}
+              alt={card.displayName || card.name}
+              eager={bakugan?.open}
+              draggable={false}
+              dataCardId={card.id}
+              key={card.id}
+            />
+          ) : <ZoneLabel lines={["Character", `Card ${slot}`]} />}
+        </div>
       </div>
     </li>
   );

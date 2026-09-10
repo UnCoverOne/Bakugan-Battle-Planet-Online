@@ -33,9 +33,9 @@
   transition: border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
 }
 
-[data-character-slot] > [data-zone-kind="character-card"] {
+[data-character-slot] [data-zone-kind="character-card"] {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 [data-character-slot][data-character-active="true"]::after {

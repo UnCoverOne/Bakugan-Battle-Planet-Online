@@ -28,6 +28,7 @@ const gameScreenCss = readFileSync(
   new URL("../components/game-screen-v2/GameScreen.module.css", import.meta.url),
   "utf8",
 );
+const bakuGearCss = gameScreenCss.match(/\.bakuGearCard\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
 const heldCoreCss = readFileSync(
   new URL("../components/game-screen-v2/HeldBakuCoreZone.module.css", import.meta.url),
   "utf8",
@@ -104,20 +105,29 @@ test("attached Baku-Gear is rendered beneath its Character slot and remains prev
   assert.match(gameScreen, /data-zone-kind="baku-gear"/);
   assert.match(gameScreen, /bakugan\?\.bakuGear/);
   assert.match(gameScreen, /className=\{styles\.bakuGearCards\}/);
+  assert.match(gameScreen, /gear\.map\(\(card, index\)/);
   assert.match(previewController, /\.\.\.\(bakugan\.bakuGear \?\? \[\]\)/);
   assert.match(previewController, /case "baku-gear"/);
+  assert.match(gameScreenCss, /\.characterCardLayer\s*\{[\s\S]*?--card-art-inset:\s*5%;[\s\S]*?--card-art-size:\s*90%;/);
+  assert.match(gameScreenCss, /\.characterCardImage,[\s\S]*?width:\s*var\(--card-art-size,\s*90%\);[\s\S]*?height:\s*var\(--card-art-size,\s*90%\);/);
   assert.match(gameScreenCss, /\.bakuGearZone\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?z-index:\s*1;/);
   assert.match(gameScreenCss, /\.bakuGearCard\s*\{[\s\S]*?top:\s*calc\(25%\s*\+\s*var\(--gear-stagger/);
-  assert.match(gameScreenCss, /\.bakuGearCard\s*\{[\s\S]*?width:\s*90%;/);
+  assert.match(gameScreenCss, /\.bakuGearCard\s*\{[\s\S]*?left:\s*var\(--card-art-inset,\s*5%\);[\s\S]*?width:\s*var\(--card-art-size,\s*90%\);/);
+  assert.doesNotMatch(bakuGearCss, /clip-path/);
   assert.match(gameScreenCss, /\.characterCardZone\s*\{[\s\S]*?overflow:\s*visible;/);
+  assert.match(gameScreenCss, /\.characterCardZone\s*\{[\s\S]*?z-index:\s*2;/);
   assert.match(gameScreen, /"--gear-stagger":\s*`\$\{index \* 15\}%`/);
   assert.match(heldCoreCss, /\.characterCardSlot\s*\{[\s\S]*?grid-template-rows:\s*clamp\(1\.3rem,\s*2\.35vw,\s*2\.5rem\)\s+auto;/);
 });
 
-test("Baku-Gear overlay does not participate in Character slot flow", () => {
+test("Baku-Gear is a sibling layer inside the existing Character row", () => {
   assert.match(
     gameScreen,
-    /data-zone-kind="character-card"[\s\S]*?<BakuGearZone owner=\{owner\} bakugan=\{bakugan\} \/>\s*<\/div>\s*<\/li>/,
+    /className=\{styles\.characterCardLayer\}[\s\S]*?<BakuGearZone owner=\{owner\} bakugan=\{bakugan\} \/>[\s\S]*?data-zone-kind="character-card"/,
+  );
+  assert.doesNotMatch(
+    gameScreen,
+    /data-zone-kind="character-card"[\s\S]*?<BakuGearZone owner=\{owner\} bakugan=\{bakugan\} \/>/,
   );
 });
 
