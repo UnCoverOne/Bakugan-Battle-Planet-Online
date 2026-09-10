@@ -143,16 +143,24 @@
   position: absolute;
   right: 2.5%;
   bottom: 2.5%;
-  width: clamp(2.75rem, 16%, 4rem);
-  aspect-ratio: 1;
+  width: clamp(4.75rem, 22%, 6.5rem);
+  aspect-ratio: 2048 / 1206;
+  min-height: 2.75rem;
   display: grid;
   place-items: center;
-  padding: 14%;
-  border: 1px solid rgba(255, 255, 255, .86);
-  border-radius: .35rem;
-  color: var(--text-primary);
-  background: rgba(2, 13, 18, .92);
-  box-shadow: 0 .25rem .7rem rgba(0, 0, 0, .58);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  filter: drop-shadow(0 .25rem .6rem rgba(0, 0, 0, .6));
+}
+
+.fusionToggle:hover {
+  filter: brightness(1.12) drop-shadow(0 .25rem .6rem rgba(0, 0, 0, .6));
+}
+
+.fusionToggle:focus-visible {
+  outline: 2px solid var(--brand-blue-bright);
+  outline-offset: 3px;
 }
 
 .fusionToggle img {
