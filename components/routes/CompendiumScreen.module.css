@@ -110,6 +110,11 @@
   overflow-y: auto;
 }
 
+.filterDivider {
+  height: 1px;
+  background: rgba(91, 196, 226, .18);
+}
+
 .filterHeading {
   display: flex;
   align-items: flex-start;

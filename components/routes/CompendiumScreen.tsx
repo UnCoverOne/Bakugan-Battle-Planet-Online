@@ -114,16 +114,23 @@ function FilterControls({
         <div><h2>Filters &amp; sort</h2></div>
         <button type="button" onClick={onClear}>Clear</button>
       </div>
-      <Field label="Set">
-        <select value={state.set} onChange={(event) => onChange("set", event.target.value)}>
-          <option>All</option>
-          {Object.values(CARD_SET_INFO).map((set) => <option value={set.code} key={set.code}>{set.name}</option>)}
-        </select>
-      </Field>
       <Field label="Card type">
         <select value={state.type} onChange={(event) => onChange("type", event.target.value)}>
           <option>All</option>
           {CARD_TYPES.map((value) => <option key={value}>{value}</option>)}
+        </select>
+      </Field>
+      <div className={styles.filterDivider} role="separator" />
+      <Field label="Sort">
+        <select value={state.sort} onChange={(event) => onSortChange(event.target.value as CompendiumState["sort"])}>
+          {Object.entries(SORT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+        </select>
+      </Field>
+      <div className={styles.filterDivider} role="separator" />
+      <Field label="Set">
+        <select value={state.set} onChange={(event) => onChange("set", event.target.value)}>
+          <option>All</option>
+          {Object.values(CARD_SET_INFO).map((set) => <option value={set.code} key={set.code}>{set.name}</option>)}
         </select>
       </Field>
       <Field label="Faction">
@@ -151,11 +158,6 @@ function FilterControls({
           {keywords.map((value) => <option key={value}>{value}</option>)}
         </select>
       </Field>
-      <Field label="Sort">
-        <select value={state.sort} onChange={(event) => onSortChange(event.target.value as CompendiumState["sort"])}>
-          {Object.entries(SORT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-        </select>
-      </Field>
     </>
   );
 }
@@ -177,21 +179,23 @@ function CoreFilterControls({
         <div><h2>Filters &amp; sort</h2></div>
         <button type="button" onClick={onClear}>Clear</button>
       </div>
-      <Field label="Set">
-        <select value={state.set} onChange={(event) => onChange({ set: event.target.value })}>
-          <option>All</option>
-          {CORE_SET_LABELS.map((value) => <option value={value} key={value}>{value}</option>)}
-        </select>
-      </Field>
       <Field label="Core type">
         <select value={state.type} onChange={(event) => onChange({ type: event.target.value })}>
           <option>All</option>
           {CORE_TYPES.map((value) => <option value={value} key={value}>{value}</option>)}
         </select>
       </Field>
+      <div className={styles.filterDivider} role="separator" />
       <Field label="Sort">
         <select value={state.sort} onChange={(event) => onSortChange(event.target.value as CoreCompendiumState["sort"])}>
           {Object.entries(CORE_SORT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+        </select>
+      </Field>
+      <div className={styles.filterDivider} role="separator" />
+      <Field label="Set">
+        <select value={state.set} onChange={(event) => onChange({ set: event.target.value })}>
+          <option>All</option>
+          {CORE_SET_LABELS.map((value) => <option value={value} key={value}>{value}</option>)}
         </select>
       </Field>
     </>
