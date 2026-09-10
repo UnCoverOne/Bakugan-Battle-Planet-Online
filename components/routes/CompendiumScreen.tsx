@@ -172,6 +172,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const [submission, setSubmission] = useState("idle");
   const [showSubmission, setShowSubmission] = useState(false);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
+  const localSearchEditRef = useRef(false);
+
+  const handleSearchChange = useCallback((value: string) => {
+    localSearchEditRef.current = true;
+    setSearchQuery(value);
+  }, []);
 
   const rarities = useMemo(() => [...new Set(CARDS.map((card) => card.rarity))].filter(Boolean).toSorted(), []);
   const keywords = useMemo(() => [...new Set(CARDS.flatMap((card) => card.mechanics))].filter(Boolean).toSorted(), []);
@@ -240,7 +246,15 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   }, [navigate]);
 
   useEffect(() => { setCompendiumTab(section); }, [section, setCompendiumTab]);
-  useEffect(() => { setSearchQuery(section === "cores" ? coreState.q : state.q); }, [coreState.q, section, state.q]);
+  useEffect(() => {
+    const currentQuery = section === "cores" ? coreState.q : state.q;
+    if (searchQuery === currentQuery) {
+      localSearchEditRef.current = false;
+      return;
+    }
+    if (localSearchEditRef.current) return;
+    setSearchQuery(currentQuery);
+  }, [coreState.q, searchQuery, section, state.q]);
   useEffect(() => {
     const currentQuery = section === "cores" ? coreState.q : state.q;
     if (searchQuery === currentQuery) return;
@@ -340,7 +354,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         <Field className={styles.search} label="Search the archive">
           <input
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(event) => handleSearchChange(event.target.value)}
             placeholder="Cards, effects, IDs, mechanics…"
           />
         </Field>

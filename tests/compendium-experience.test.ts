@@ -175,6 +175,8 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "useDeferredValue",
     "startTransition",
     "setSearchQuery",
+    "handleSearchChange",
+    "localSearchEditRef",
     "SEARCH_URL_DEBOUNCE_MS",
     "window.setTimeout",
     "scroll: false",
@@ -198,7 +200,8 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   assert.doesNotMatch(route, /reprintOf/);
   assert.doesNotMatch(css, /\.coreEffects span/);
   assert.match(route, /value=\{searchQuery\}/);
-  assert.match(route, /onChange=\{\(event\) => setSearchQuery\(event\.target\.value\)\}/);
+  assert.match(route, /onChange=\{\(event\) => handleSearchChange\(event\.target\.value\)\}/);
+  assert.match(route, /localSearchEditRef\.current/);
   assert.doesNotMatch(route, /onChange=\{\(event\) => navigate\(\{ q: event\.target\.value \}/);
   for (const tab of ["Overview", "Rules", "Rulings", "Related"]) assert.match(inspector, new RegExp(tab));
   assert.match(inspector, /data-ui="card-inspector"/);
