@@ -168,6 +168,10 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "filterAndSortCompendiumCards",
     "COMPENDIUM_PAGE_SIZE",
     "FilterControls",
+    "CoreFilterControls",
+    "filterRail",
+    "Card filters",
+    "BakuCore filters",
     "Share results",
     "Gallery",
     "Compact",
@@ -192,6 +196,8 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "returnFocusRef",
   ]) assert.match(route, new RegExp(contract));
   assert.match(route, /coreCollector/);
+  assert.match(route, /onSortChange/);
+  assert.match(route, /className=\{styles\.filterRail\}/);
   assert.match(route, /coreStats/);
   assert.match(route, /coreAlternate/);
   assert.match(route, /core=\{selectedCore\}/);

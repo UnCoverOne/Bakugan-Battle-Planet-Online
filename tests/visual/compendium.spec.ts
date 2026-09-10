@@ -114,3 +114,21 @@ test("BakuCore tab exposes set filters and a shareable inspector", async ({ page
     expect(geometry.width).toBeLessThanOrEqual(1056);
   }
 });
+
+
+test("desktop cards and BakuCore controls live in their filter rails", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1000) <= 1180, "Desktop filter rail contract");
+  await page.goto("/compendium");
+  await waitForCompendium(page);
+  const cardRail = page.getByRole("complementary", { name: "Card filters" });
+  await expect(cardRail).toBeVisible();
+  await expect(cardRail.getByLabel("Sort")).toBeVisible();
+
+  await page.goto("/compendium/cores");
+  await waitForCompendium(page);
+  const coreRail = page.getByRole("complementary", { name: "BakuCore filters" });
+  await expect(coreRail).toBeVisible();
+  await expect(coreRail.getByLabel("Set")).toBeVisible();
+  await expect(coreRail.getByLabel("Core type")).toBeVisible();
+  await expect(coreRail.getByLabel("Sort")).toBeVisible();
+});

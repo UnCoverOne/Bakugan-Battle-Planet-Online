@@ -52,7 +52,7 @@
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   margin: var(--space-4) auto;
   display: grid;
-  grid-template-columns: minmax(9rem, 1fr) auto auto auto;
+  grid-template-columns: minmax(9rem, 1fr) auto auto;
   align-items: end;
   gap: var(--space-3);
 }
@@ -456,7 +456,8 @@
 }
 
 @media (max-width: 1180px) {
-  .workspace {
+  .workspace,
+  .coreWorkspace {
     grid-template-columns: 1fr;
   }
 
@@ -469,7 +470,7 @@
   }
 
   .resultsToolbar {
-    grid-template-columns: minmax(8rem, 1fr) auto auto auto auto;
+    grid-template-columns: minmax(8rem, 1fr) auto auto auto;
   }
 }
 
@@ -497,7 +498,8 @@
     display: none;
   }
 
-  .workspace {
+  .workspace,
+  .coreWorkspace {
     grid-template-columns: 1fr;
   }
 

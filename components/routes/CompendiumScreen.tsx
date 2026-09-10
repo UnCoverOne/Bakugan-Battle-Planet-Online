@@ -98,18 +98,20 @@ function FilterControls({
   rarities,
   keywords,
   onChange,
+  onSortChange,
   onClear,
 }: {
   state: CompendiumState;
   rarities: readonly string[];
   keywords: readonly string[];
   onChange: (key: FilterKey, value: string) => void;
+  onSortChange: (sort: CompendiumState["sort"]) => void;
   onClear: () => void;
 }) {
   return (
     <>
       <div className={styles.filterHeading}>
-        <div><span>Refine archive</span><h2>Filters</h2></div>
+        <div><span>Refine archive</span><h2>Filters &amp; sort</h2></div>
         <button type="button" onClick={onClear}>Clear</button>
       </div>
       <Field label="Set">
@@ -147,6 +149,49 @@ function FilterControls({
         <select value={state.keyword} onChange={(event) => onChange("keyword", event.target.value)}>
           <option>All</option>
           {keywords.map((value) => <option key={value}>{value}</option>)}
+        </select>
+      </Field>
+      <Field label="Sort">
+        <select value={state.sort} onChange={(event) => onSortChange(event.target.value as CompendiumState["sort"])}>
+          {Object.entries(SORT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+        </select>
+      </Field>
+    </>
+  );
+}
+
+function CoreFilterControls({
+  state,
+  onChange,
+  onSortChange,
+  onClear,
+}: {
+  state: CoreCompendiumState;
+  onChange: (patch: Partial<CoreCompendiumState>) => void;
+  onSortChange: (sort: CoreCompendiumState["sort"]) => void;
+  onClear: () => void;
+}) {
+  return (
+    <>
+      <div className={styles.filterHeading}>
+        <div><span>Refine BakuCores</span><h2>Filters &amp; sort</h2></div>
+        <button type="button" onClick={onClear}>Clear</button>
+      </div>
+      <Field label="Set">
+        <select value={state.set} onChange={(event) => onChange({ set: event.target.value })}>
+          <option>All</option>
+          {CORE_SET_LABELS.map((value) => <option value={value} key={value}>{value}</option>)}
+        </select>
+      </Field>
+      <Field label="Core type">
+        <select value={state.type} onChange={(event) => onChange({ type: event.target.value })}>
+          <option>All</option>
+          {CORE_TYPES.map((value) => <option value={value} key={value}>{value}</option>)}
+        </select>
+      </Field>
+      <Field label="Sort">
+        <select value={state.sort} onChange={(event) => onSortChange(event.target.value as CoreCompendiumState["sort"])}>
+          {Object.entries(CORE_SORT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
         </select>
       </Field>
     </>
@@ -291,6 +336,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
 
   const activeFilterCount = (["set", "type", "faction", "cost", "rarity", "keyword"] as FilterKey[])
     .filter((key) => state[key] !== "All").length;
+  const activeCoreFilterCount = (["set", "type"] as const)
+    .filter((key) => coreState[key] !== "All").length;
 
   const setFilter = (key: FilterKey, value: string) => navigate({ [key]: value } as StatePatch, { resetPage: true });
   const clearFilters = () => navigate({
@@ -301,6 +348,15 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     rarity: "All",
     keyword: "All",
   }, { resetPage: true });
+  const clearCoreFilters = () => navigateCore({
+    q: "",
+    set: "All",
+    type: "All",
+    sort: "collector",
+    density: "gallery",
+    page: 1,
+    core: "",
+  });
   const selectCard = (card: typeof CARDS[number], trigger?: HTMLElement | null) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
     navigate({ card: card.slug ?? card.catalogId, tab: "overview" }, { push: true });
@@ -376,11 +432,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
               Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
             </ActionButton>
-            <Field label="Sort">
-              <select value={state.sort} onChange={(event) => navigate({ sort: event.target.value as CompendiumState["sort"] }, { resetPage: true })}>
-                {Object.entries(SORT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-              </select>
-            </Field>
             <Tabs className={styles.densityTabs} label="Gallery density">
               <button className={state.density === "gallery" ? "active" : ""} onClick={() => navigate({ density: "gallery" })}>Gallery</button>
               <button className={state.density === "compact" ? "active" : ""} onClick={() => navigate({ density: "compact" })}>Compact</button>
@@ -388,8 +439,15 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("Filtered results")}>Share results</button>
           </section>
           <div className={styles.workspace}>
-            <Surface as="aside" className={styles.filterRail}>
-              <FilterControls state={state} rarities={rarities} keywords={keywords} onChange={setFilter} onClear={clearFilters} />
+            <Surface as="aside" className={styles.filterRail} aria-label="Card filters">
+              <FilterControls
+                state={state}
+                rarities={rarities}
+                keywords={keywords}
+                onChange={setFilter}
+                onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
+                onClear={clearFilters}
+              />
             </Surface>
             <main className={styles.gallery}>
               {visible.length ? (
@@ -453,7 +511,14 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
           {filterSheetOpen && (
             <div className={styles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}>
               <Surface as="aside" className={styles.filterSheet} role="dialog" aria-modal="true" aria-label="Card filters">
-                <FilterControls state={state} rarities={rarities} keywords={keywords} onChange={setFilter} onClear={clearFilters} />
+                <FilterControls
+                  state={state}
+                  rarities={rarities}
+                  keywords={keywords}
+                  onChange={setFilter}
+                  onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
+                  onClear={clearFilters}
+                />
                 <ActionButton onClick={() => setFilterSheetOpen(false)}>Show {cards.length} cards</ActionButton>
               </Surface>
             </div>
@@ -468,23 +533,9 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <strong>{cores.length.toLocaleString()} BakuCores</strong>
               <span>Page {corePage} of {corePages}</span>
             </div>
-            <Field label="Set">
-              <select value={coreState.set} onChange={(event) => navigateCore({ set: event.target.value }, { resetPage: true })}>
-                <option>All</option>
-                {CORE_SET_LABELS.map((value) => <option value={value} key={value}>{value}</option>)}
-              </select>
-            </Field>
-            <Field label="Core type">
-              <select value={coreState.type} onChange={(event) => navigateCore({ type: event.target.value }, { resetPage: true })}>
-                <option>All</option>
-                {CORE_TYPES.map((value) => <option value={value} key={value}>{value}</option>)}
-              </select>
-            </Field>
-            <Field label="Sort">
-              <select value={coreState.sort} onChange={(event) => navigateCore({ sort: event.target.value as CoreCompendiumState["sort"] }, { resetPage: true })}>
-                {Object.entries(CORE_SORT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-              </select>
-            </Field>
+            <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
+              Filters{activeCoreFilterCount ? ` (${activeCoreFilterCount})` : ""}
+            </ActionButton>
             <Tabs className={styles.densityTabs} label="BakuCore gallery density">
               <button className={coreState.density === "gallery" ? "active" : ""} onClick={() => navigateCore({ density: "gallery" })}>Gallery</button>
               <button className={coreState.density === "compact" ? "active" : ""} onClick={() => navigateCore({ density: "compact" })}>Compact</button>
@@ -492,6 +543,14 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("BakuCore results")}>Share results</button>
           </section>
           <div className={styles.coreWorkspace}>
+            <Surface as="aside" className={styles.filterRail} aria-label="BakuCore filters">
+              <CoreFilterControls
+                state={coreState}
+                onChange={(patch) => navigateCore(patch, { resetPage: true })}
+                onSortChange={(sort) => navigateCore({ sort }, { resetPage: true })}
+                onClear={clearCoreFilters}
+              />
+            </Surface>
             <main className={styles.gallery}>
               {visibleCores.length ? (
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
@@ -523,7 +582,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               ) : (
                 <Surface className={styles.emptyResults} role="status">
                   <span>◇</span><h2>No BakuCores match</h2><p>Adjust the search or clear the active BakuCore filters to return to the full archive.</p>
-                  <ActionButton tone="secondary" onClick={() => navigateCore({ q: "", set: "All", type: "All", sort: "collector", density: "gallery", page: 1, core: "" })}>Clear filters</ActionButton>
+                  <ActionButton tone="secondary" onClick={clearCoreFilters}>Clear filters</ActionButton>
                 </Surface>
               )}
               <nav className={styles.pagination} aria-label="BakuCore result pages">
@@ -546,6 +605,19 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               />
             )}
           </div>
+          {filterSheetOpen && (
+            <div className={styles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}>
+              <Surface as="aside" className={styles.filterSheet} role="dialog" aria-modal="true" aria-label="BakuCore filters">
+                <CoreFilterControls
+                  state={coreState}
+                  onChange={(patch) => navigateCore(patch, { resetPage: true })}
+                  onSortChange={(sort) => navigateCore({ sort }, { resetPage: true })}
+                  onClear={clearCoreFilters}
+                />
+                <ActionButton onClick={() => setFilterSheetOpen(false)}>Show {cores.length} BakuCores</ActionButton>
+              </Surface>
+            </div>
+          )}
         </>
       )}
 
