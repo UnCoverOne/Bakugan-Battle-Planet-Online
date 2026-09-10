@@ -698,6 +698,15 @@
   text-shadow: none;
 }
 
+/* Keep the discard count inside its own stacking context. The shared badge
+   placement intentionally overflows other zones, which allows adjacent deck
+   or Energy layers to paint over this counter on compact boards. */
+.cardStackZone[data-zone-kind="discard-pile"] .zoneCount {
+  right: clamp(0.25rem, 0.55vw, 0.55rem);
+  bottom: clamp(0.25rem, 0.55vw, 0.55rem);
+  transform: none;
+}
+
 .energyZone .zoneCount {
   width: auto;
   min-width: clamp(2.2rem, 3.4vw, 3.6rem);

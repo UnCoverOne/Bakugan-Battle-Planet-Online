@@ -24,6 +24,10 @@ const gameScreen = readFileSync(
   new URL("../components/game-screen-v2/GameScreen.tsx", import.meta.url),
   "utf8",
 );
+const gameScreenCss = readFileSync(
+  new URL("../components/game-screen-v2/GameScreen.module.css", import.meta.url),
+  "utf8",
+);
 const previewController = readFileSync(
   new URL("../components/game-screen-v2/cardPreviewController.ts", import.meta.url),
   "utf8",
@@ -94,4 +98,11 @@ test("attached Baku-Gear is rendered beneath its Character slot and remains prev
   assert.match(gameScreen, /className=\{styles\.bakuGearCards\}/);
   assert.match(previewController, /\.\.\.\(bakugan\.bakuGear \?\? \[\]\)/);
   assert.match(previewController, /case "baku-gear"/);
+});
+
+test("discard counter stays inside the discard zone instead of overflowing into adjacent zones", () => {
+  assert.match(
+    gameScreenCss,
+    /\.cardStackZone\[data-zone-kind="discard-pile"\]\s+\.zoneCount\s*\{[\s\S]*?right:\s*clamp\(0\.25rem,\s*0\.55vw,\s*0\.55rem\)[\s\S]*?bottom:\s*clamp\(0\.25rem,\s*0\.55vw,\s*0\.55rem\)[\s\S]*?transform:\s*none;/,
+  );
 });
