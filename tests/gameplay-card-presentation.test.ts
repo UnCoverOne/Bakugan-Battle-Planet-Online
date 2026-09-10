@@ -108,10 +108,10 @@ test("attached Baku-Gear is rendered beneath its Character slot and remains prev
   assert.match(gameScreen, /gear\.map\(\(card, index\)/);
   assert.match(previewController, /\.\.\.\(bakugan\.bakuGear \?\? \[\]\)/);
   assert.match(previewController, /case "baku-gear"/);
-  assert.match(gameScreenCss, /\.characterCardLayer\s*\{[\s\S]*?--card-art-inset:\s*5%;[\s\S]*?--card-art-size:\s*90%;/);
+  assert.match(gameScreenCss, /\.characterCardLayer\s*\{[\s\S]*?--card-art-inset:\s*5%;[\s\S]*?--card-art-size:\s*90%;[\s\S]*?--character-zone-border-width:\s*2px;[\s\S]*?--gear-base-offset:\s*28%;/);
   assert.match(gameScreenCss, /\.characterCardImage,[\s\S]*?width:\s*var\(--card-art-size,\s*90%\);[\s\S]*?height:\s*var\(--card-art-size,\s*90%\);/);
-  assert.match(gameScreenCss, /\.bakuGearZone\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?z-index:\s*1;/);
-  assert.match(gameScreenCss, /\.bakuGearCard\s*\{[\s\S]*?top:\s*calc\(25%\s*\+\s*var\(--gear-stagger/);
+  assert.match(gameScreenCss, /\.bakuGearZone\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?inset:\s*var\(--character-zone-border-width,\s*2px\);[\s\S]*?z-index:\s*1;/);
+  assert.match(gameScreenCss, /\.bakuGearCard\s*\{[\s\S]*?top:\s*calc\(var\(--gear-base-offset,\s*28%\)\s*\+\s*var\(--gear-stagger/);
   assert.match(gameScreenCss, /\.bakuGearCard\s*\{[\s\S]*?left:\s*var\(--card-art-inset,\s*5%\);[\s\S]*?width:\s*var\(--card-art-size,\s*90%\);/);
   assert.doesNotMatch(bakuGearCss, /clip-path/);
   assert.match(gameScreenCss, /\.characterCardZone\s*\{[\s\S]*?overflow:\s*visible;/);

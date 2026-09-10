@@ -133,6 +133,8 @@
 .characterCardLayer {
   --card-art-inset: 5%;
   --card-art-size: 90%;
+  --character-zone-border-width: 2px;
+  --gear-base-offset: 28%;
   position: relative;
   width: 100%;
   aspect-ratio: 5 / 7;
@@ -157,7 +159,7 @@
   height: 100%;
   aspect-ratio: auto;
   padding: clamp(0.65rem, 1.15vw, 1.1rem) clamp(0.45rem, 0.9vw, 0.9rem);
-  border: 2px solid rgba(148, 152, 158, 0.86);
+  border: var(--character-zone-border-width) solid rgba(148, 152, 158, 0.86);
   border-radius: 5px;
   background: transparent;
   box-shadow: none;
@@ -223,7 +225,7 @@
 
 .bakuGearZone {
   position: absolute;
-  inset: 0;
+  inset: var(--character-zone-border-width, 2px);
   z-index: 1;
   min-width: 0;
   overflow: visible;
@@ -242,7 +244,7 @@
 
 .bakuGearCard {
   position: absolute;
-  top: calc(25% + var(--gear-stagger, 0%));
+  top: calc(var(--gear-base-offset, 28%) + var(--gear-stagger, 0%));
   left: var(--card-art-inset, 5%);
   z-index: calc(30 - var(--gear-order, 0));
   box-sizing: border-box;
