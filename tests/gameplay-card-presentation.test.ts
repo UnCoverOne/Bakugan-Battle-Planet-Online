@@ -100,9 +100,14 @@ test("attached Baku-Gear is rendered beneath its Character slot and remains prev
   assert.match(previewController, /case "baku-gear"/);
 });
 
-test("discard counter stays inside the discard zone instead of overflowing into adjacent zones", () => {
+test("discard counter keeps its shared placement while its zone paints above adjacent zones", () => {
   assert.match(
     gameScreenCss,
-    /\.cardStackZone\[data-zone-kind="discard-pile"\]\s+\.zoneCount\s*\{[\s\S]*?right:\s*clamp\(0\.25rem,\s*0\.55vw,\s*0\.55rem\)[\s\S]*?bottom:\s*clamp\(0\.25rem,\s*0\.55vw,\s*0\.55rem\)[\s\S]*?transform:\s*none;/,
+    /\.cardStackZone\[data-zone-kind="discard-pile"\]\s*\{[\s\S]*?z-index:\s*3;/,
   );
+  assert.doesNotMatch(
+    gameScreenCss,
+    /\.cardStackZone\[data-zone-kind="discard-pile"\]\s+\.zoneCount\s*\{/,
+  );
+  assert.match(gameScreenCss, /\.zoneCount\s*\{[\s\S]*?transform:\s*translate\(50%,\s*50%\);/);
 });

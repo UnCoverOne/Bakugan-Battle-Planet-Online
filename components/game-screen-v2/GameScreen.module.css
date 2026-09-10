@@ -586,6 +586,12 @@
   aspect-ratio: 5 / 7;
 }
 
+/* Preserve the shared overflow position of the counter while keeping the
+   discard zone above adjacent stack zones that would otherwise cover it. */
+.cardStackZone[data-zone-kind="discard-pile"] {
+  z-index: 3;
+}
+
 .deckBackStack {
   position: absolute;
   inset: 0;
@@ -696,15 +702,6 @@
   line-height: 1;
   text-align: center;
   text-shadow: none;
-}
-
-/* Keep the discard count inside its own stacking context. The shared badge
-   placement intentionally overflows other zones, which allows adjacent deck
-   or Energy layers to paint over this counter on compact boards. */
-.cardStackZone[data-zone-kind="discard-pile"] .zoneCount {
-  right: clamp(0.25rem, 0.55vw, 0.55rem);
-  bottom: clamp(0.25rem, 0.55vw, 0.55rem);
-  transform: none;
 }
 
 .energyZone .zoneCount {
