@@ -97,19 +97,28 @@ export function compendiumSearchParams(state: CompendiumState) {
   return params;
 }
 
-const searchableText = (card: GameCard) => [
-  card.displayName,
-  card.name,
-  card.effect,
-  card.catalogId,
-  card.type,
-  card.rarity,
-  card.factions.join(" "),
-  card.mechanics.join(" "),
-  card.coreTypes.join(" "),
-  card.evolvesFrom ?? "",
-  setCodeFor(card),
-].join(" ").toLowerCase();
+const cardSearchTextCache = new WeakMap<GameCard, string>();
+
+const searchableText = (card: GameCard) => {
+  const cached = cardSearchTextCache.get(card);
+  if (cached !== undefined) return cached;
+
+  const value = [
+    card.displayName,
+    card.name,
+    card.effect,
+    card.catalogId,
+    card.type,
+    card.rarity,
+    card.factions.join(" "),
+    card.mechanics.join(" "),
+    card.coreTypes.join(" "),
+    card.evolvesFrom ?? "",
+    setCodeFor(card),
+  ].join(" ").toLowerCase();
+  cardSearchTextCache.set(card, value);
+  return value;
+};
 
 const costRank = (cost: GameCard["cost"]) => cost === "X" ? Number.POSITIVE_INFINITY : cost;
 
@@ -122,13 +131,13 @@ export function filterAndSortCompendiumCards(
     // The unfused face is the single Compendium representative. The reverse
     // face remains available to the shared inspector and gameplay systems.
     card.fusionFace !== "b"
-    && (!query || searchableText(card).includes(query))
     && (state.set === "All" || setCodeFor(card) === state.set)
     && (state.type === "All" || card.type === state.type)
     && (state.faction === "All" || card.factions.includes(state.faction as GameCard["faction"]))
     && (state.cost === "All" || String(card.cost) === state.cost)
     && (state.rarity === "All" || card.rarity === state.rarity)
     && (state.keyword === "All" || card.mechanics.includes(state.keyword))
+    && (!query || searchableText(card).includes(query))
   )).toSorted((left, right) => {
     if (state.sort === "name-asc") return left.displayName.localeCompare(right.displayName);
     if (state.sort === "name-desc") return right.displayName.localeCompare(left.displayName);
@@ -220,26 +229,35 @@ export function coreCompendiumSearchParams(state: CoreCompendiumState) {
   return params;
 }
 
-const coreSearchableText = (core: Core) => [
-  core.name,
-  core.catalogId ?? core.id,
-  core.set ?? "Battle Brawlers",
-  core.type,
-  core.number,
-  core.bonus,
-  core.damageBonus,
-  core.frostStrike ? "FrostStrike" : "",
-  core.shadowStrike ? "ShadowStrike" : "",
-  core.bakuGearCostReduction ? "Baku-Gear" : "",
-  core.fusionBonus ? "Fusion" : "",
-  core.fusionDamageBonus ? "Fusion" : "",
-  ...(core.printings ?? []).flatMap((printing) => [
-    printing.set,
-    printing.number,
-    "alternate printing",
-    "reprint",
-  ]),
-].join(" ").toLowerCase();
+const coreSearchTextCache = new WeakMap<Core, string>();
+
+const coreSearchableText = (core: Core) => {
+  const cached = coreSearchTextCache.get(core);
+  if (cached !== undefined) return cached;
+
+  const value = [
+    core.name,
+    core.catalogId ?? core.id,
+    core.set ?? "Battle Brawlers",
+    core.type,
+    core.number,
+    core.bonus,
+    core.damageBonus,
+    core.frostStrike ? "FrostStrike" : "",
+    core.shadowStrike ? "ShadowStrike" : "",
+    core.bakuGearCostReduction ? "Baku-Gear" : "",
+    core.fusionBonus ? "Fusion" : "",
+    core.fusionDamageBonus ? "Fusion" : "",
+    ...(core.printings ?? []).flatMap((printing) => [
+      printing.set,
+      printing.number,
+      "alternate printing",
+      "reprint",
+    ]),
+  ].join(" ").toLowerCase();
+  coreSearchTextCache.set(core, value);
+  return value;
+};
 
 const coreMatchesSet = (core: Core, set: string) =>
   set === "All"
@@ -255,9 +273,9 @@ const coreSetRank = (core: Core, set: string) =>
 export function filterAndSortCompendiumCores(cores: readonly Core[], state: CoreCompendiumState) {
   const query = state.q.trim().toLowerCase();
   return cores.filter((core) => (
-    (!query || coreSearchableText(core).includes(query))
-    && coreMatchesSet(core, state.set)
+    coreMatchesSet(core, state.set)
     && (state.type === "All" || core.type === state.type)
+    && (!query || coreSearchableText(core).includes(query))
   )).toSorted((left, right) => {
     if (state.sort === "type") return left.type.localeCompare(right.type) || coreNumberForSet(left, state.set) - coreNumberForSet(right, state.set);
     if (state.sort === "bonus") return right.bonus - left.bonus || left.damageBonus - right.damageBonus || coreNumberForSet(left, state.set) - coreNumberForSet(right, state.set);

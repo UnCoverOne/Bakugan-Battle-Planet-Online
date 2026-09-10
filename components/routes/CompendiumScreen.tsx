@@ -4,7 +4,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import { FusionSymbol } from "@/components/media/FusionSymbol";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
@@ -31,6 +31,8 @@ import { useApp } from "../application/AppProvider";
 import { AppButton, Badge, copyText } from "../application/ui";
 import { ActionButton, CardGrid, Field, RouteHero, StatusChip, Surface, Tabs } from "../design-system/primitives";
 import styles from "./CompendiumScreen.module.css";
+
+const SEARCH_URL_DEBOUNCE_MS = 450;
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const FACTIONS = ["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"];
@@ -177,8 +179,14 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     () => ({ ...state, q: deferredSearchQuery }),
     [deferredSearchQuery, state],
   );
-  const cards = useMemo(() => filterAndSortCompendiumCards(CARDS, searchState), [searchState]);
-  const cores = useMemo(() => filterAndSortCompendiumCores(CORE_COMPENDIUM, { ...coreState, q: deferredSearchQuery }), [coreState, deferredSearchQuery]);
+  const cards = useMemo(
+    () => section === "cards" ? filterAndSortCompendiumCards(CARDS, searchState) : [],
+    [searchState, section],
+  );
+  const cores = useMemo(
+    () => section === "cores" ? filterAndSortCompendiumCores(CORE_COMPENDIUM, { ...coreState, q: deferredSearchQuery }) : [],
+    [coreState, deferredSearchQuery, section],
+  );
   const pages = Math.max(1, Math.ceil(cards.length / COMPENDIUM_PAGE_SIZE));
   const page = Math.min(state.page, pages);
   const visible = cards.slice((page - 1) * COMPENDIUM_PAGE_SIZE, page * COMPENDIUM_PAGE_SIZE);
@@ -189,8 +197,10 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const selectedCore = section === "cores" ? selectedCompendiumCore(CORE_COMPENDIUM, coreState.core) : null;
   const normalized = deferredSearchQuery.trim().toLowerCase();
   const rules = useMemo(
-    () => ruleReferences.filter((entry) => !normalized || `${entry.title} ${entry.body} ${entry.category}`.toLowerCase().includes(normalized)),
-    [normalized],
+    () => section === "rules"
+      ? ruleReferences.filter((entry) => !normalized || `${entry.title} ${entry.body} ${entry.category}`.toLowerCase().includes(normalized))
+      : [],
+    [normalized, section],
   );
 
   const urlFor = useCallback((next: CompendiumState, path = "/compendium") => {
@@ -238,8 +248,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       const path = section === "cores"
         ? coreUrlFor({ ...coreState, q: searchQuery, page: 1 })
         : urlFor({ ...state, q: searchQuery, page: 1 });
-      router.replace(path, { scroll: false });
-    }, 180);
+      startTransition(() => router.replace(path, { scroll: false }));
+    }, SEARCH_URL_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
   }, [coreState, coreUrlFor, router, searchQuery, section, state, urlFor]);
   useEffect(() => {
