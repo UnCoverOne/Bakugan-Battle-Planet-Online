@@ -4,7 +4,7 @@ import { BAKUGAN, CARDS, CORES, STARTER_DECKS, deckErrors, makePlayer } from "..
 import { CONTENT_MANIFEST } from "../lib/content/catalogue";
 import {
   CENTER_CELL, HEX_CELLS, beginCorePlacement, cardChoiceSpec, createMatch, discardToHandLimit, energizeCard, flipStopsDamage,
-  legalPlacementCells, nextTurn, normalizeMatchState, orderTriggers, passPriority, placeCore, playCard, selectBakugan,
+  legalPlacementCells, nextTurn, normalizeMatchState, orderTriggers, passPriority, placeCore, playCard, prepareCardPlay, selectBakugan,
   setReady, startNextSeriesGame, submitCardChoice, targetCore, totalPower, type MatchState,
 } from "../lib/game";
 import { drawTurnCard } from "../lib/turnStart";
@@ -176,18 +176,29 @@ test("Baku-Gear resolves onto its chosen Bakugan and contributes printed stats",
   assert.equal(totalPower(state, actor), before + (gear.bPower ?? 0));
 });
 
-test("Baku-Gear enforces open and faction-restricted targets", () => {
+test("Baku-Gear can target closed Bakugan while enforcing faction restrictions", () => {
   const state = reachPower();
   const actor = state.priority;
   const player = state.players.find((candidate) => candidate.id === actor)!;
   const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
-  const source = { ...CARDS.find((card) => card.catalogId === "ff-99")!, id: "aurelus-gear" };
+  const source = { ...CARDS.find((card) => card.catalogId === "ff-98")!, id: "aquoburst-gear" };
   player.hand.push(source);
   player.energy = 20;
   target.open = false;
-  assert.throws(() => playCard(state, actor, source.id, { targetBakuganId: target.id }), /open Bakugan/);
+  const prepared = prepareCardPlay(state, actor, source.id);
+  const targetField = prepared.pendingChoice?.schema.fields.find((field) => field.id === "targetBakuganId");
+  assert.ok(targetField?.options.some((option) => option.id === target.id), "closed Bakugan must be selectable for Baku-Gear");
+  const played = playCard(state, actor, source.id, { targetBakuganId: target.id });
+  const resolved = passWindow(played);
+  const attached = resolved.players.find((candidate) => candidate.id === actor)!.bakugan
+    .find((candidate) => candidate.id === target.id)!;
+  assert.deepEqual(attached.bakuGear?.map((card) => card.id), [source.id]);
+  assert.equal(attached.open, false, "attaching Baku-Gear must not open the physical Bakugan");
+
+  const restricted = { ...CARDS.find((card) => card.catalogId === "ff-99")!, id: "aurelus-gear" };
+  player.hand.push(restricted);
   target.open = true;
-  assert.throws(() => playCard(state, actor, source.id, { targetBakuganId: target.id }), /Aurelus Bakugan/);
+  assert.throws(() => playCard(state, actor, restricted.id, { targetBakuganId: target.id }), /Aurelus Bakugan/);
 });
 
 test("Baku-Gear count scaling and full-name BakuCore attachments are typed", () => {

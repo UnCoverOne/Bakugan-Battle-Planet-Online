@@ -728,7 +728,9 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
       : targetOwner;
     selected.targetOwner = selected.owner;
     if (/^At the start of the game,\s+a Bakugan gets/i.test(text)) selected.visibility = "private";
-    if (/open Bakugan/i.test(text) || attachesCore || card.type === "Baku-Gear" || /attach .*Baku-Gear/i.test(text)) selected.openState = "open";
+    // Baku-Gear can be attached to a closed Bakugan. Only effects that
+    // explicitly require an open Bakugan should narrow this target pool.
+    if (/open Bakugan/i.test(text) || attachesCore || /attach .*Baku-Gear/i.test(text)) selected.openState = "open";
     if (/didn['’]?t open this turn|did not open this turn/i.test(text)) selected.notOpenedThisTurn = true;
     if (/another open Bakugan/i.test(text)) selected.excludeSourceBakugan = true;
     if (fusionTarget) {
@@ -1158,7 +1160,8 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
     }
     target.owner = "controller";
     target.targetOwner = "controller";
-    target.openState = "open";
+    // The base Baku-Gear attachment rule allows either an open or closed
+    // Bakugan. Keep any explicit open-state restriction parsed above.
     const faction = card.effect.match(/only play this on an? \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\] Bakugan/i)?.[1];
     if (faction) target.factions = [faction as GameCard["faction"]];
   }
