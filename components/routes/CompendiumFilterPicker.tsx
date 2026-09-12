@@ -18,12 +18,16 @@ export function CompendiumFilterPicker({
   options,
   onChange,
   searchable = false,
+  mode = "multi",
+  clearable = true,
 }: {
   label: string;
   values: readonly string[];
   options: readonly CompendiumFilterOption[];
   onChange: (values: string[]) => void;
   searchable?: boolean;
+  mode?: "multi" | "single";
+  clearable?: boolean;
 }) {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -87,6 +91,11 @@ export function CompendiumFilterPicker({
   };
 
   const toggle = (value: string) => {
+    if (mode === "single") {
+      commit([value]);
+      setOpen(false);
+      return;
+    }
     const next = localValues.includes(value)
       ? localValues.filter((candidate) => candidate !== value)
       : [...localValues, value];
@@ -120,7 +129,7 @@ export function CompendiumFilterPicker({
               />
             </label>
           )}
-          <div className={styles.options} role="listbox" aria-multiselectable="true">
+          <div className={styles.options} role="listbox" aria-multiselectable={mode === "multi"}>
             {visibleOptions.map((option) => {
               const selected = localValues.includes(option.value);
               return (
@@ -143,7 +152,9 @@ export function CompendiumFilterPicker({
             {!visibleOptions.length && <p className={styles.empty}>No matching options.</p>}
           </div>
           <footer className={styles.panelFooter}>
-            <button type="button" disabled={!localValues.length} onClick={() => commit([])}>Clear</button>
+            {clearable
+              ? <button type="button" disabled={!localValues.length} onClick={() => commit([])}>Clear</button>
+              : <span />}
             <button type="button" onClick={() => setOpen(false)}>Done</button>
           </footer>
         </section>
