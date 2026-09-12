@@ -37,6 +37,21 @@ const SEARCH_URL_DEBOUNCE_MS = 450;
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const FACTIONS = ["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"];
 const CARD_TYPES = ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character"];
+const HIDDEN_KEYWORD_FILTERS = new Set([
+  "Alternate Win",
+  "B-Power",
+  "BakuCore",
+  "Copy",
+  "Damage",
+  "Destroy",
+  "Energy",
+  "Fusion",
+  "Return",
+  "Search",
+  "Static",
+  "Stop",
+  "Triggered",
+]);
 const SORT_LABELS: Record<CompendiumState["sort"], string> = {
   collector: "Collector number",
   "name-asc": "Name A–Z",
@@ -257,7 +272,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   }, []);
 
   const rarities = useMemo(() => [...new Set(CARDS.map((card) => card.rarity))].filter(Boolean).toSorted(), []);
-  const keywords = useMemo(() => [...new Set(CARDS.flatMap((card) => card.mechanics))].filter(Boolean).toSorted(), []);
+  const keywords = useMemo(() => [...new Set(CARDS.flatMap((card) => card.mechanics))].filter((value) => value && !HIDDEN_KEYWORD_FILTERS.has(value)).toSorted(), []);
   const searchState = useMemo(
     () => ({ ...state, q: deferredSearchQuery }),
     [deferredSearchQuery, state],
