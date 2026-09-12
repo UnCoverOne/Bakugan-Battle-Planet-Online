@@ -460,6 +460,10 @@
 }
 
 @media (max-width: 1180px) {
+  .filterBackdrop {
+    display: flex;
+  }
+
   .workspace,
   .coreWorkspace {
     grid-template-columns: 1fr;
