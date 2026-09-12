@@ -79,8 +79,13 @@ test("mobile filtering opens an accessible full-width sheet", async ({ page }) =
   await page.getByRole("button", { name: /^Filters/ }).click();
   const sheet = page.getByRole("dialog", { name: "Card filters" });
   await expect(sheet).toBeVisible();
-  await sheet.getByLabel("Faction").selectOption("Aquos");
-  await expect.poll(() => new URL(page.url()).searchParams.get("faction")).toBe("Aquos");
+  await sheet.getByRole("button", { name: /^Faction:/ }).click();
+  const factionPicker = page.getByRole("dialog", { name: "Faction options" });
+  await expect(factionPicker).toBeVisible();
+  await factionPicker.getByRole("option", { name: /Aquos/ }).click();
+  await factionPicker.getByRole("option", { name: /Darkus/ }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.getAll("faction")).toEqual(["Aquos", "Darkus"]);
+  await factionPicker.getByRole("button", { name: "Done" }).click();
   await expect(sheet.getByRole("button", { name: /Show \d+ cards/ })).toBeVisible();
 });
 
@@ -123,10 +128,13 @@ test("desktop cards and BakuCore controls live in their filter rails", async ({ 
   const cardRail = page.getByRole("complementary", { name: "Card filters" });
   await expect(cardRail).toBeVisible();
   await expect(cardRail.getByLabel("Sort")).toBeVisible();
-  await cardRail.getByLabel("Card type").selectOption("Character");
-  await expect(cardRail.getByLabel("Energy cost")).toHaveCount(0);
-  await expect(cardRail.getByLabel("Rarity")).toHaveCount(0);
-  await expect(cardRail.getByLabel("Core type")).toBeVisible();
+  await cardRail.getByRole("button", { name: /^Card type:/ }).click();
+  const cardTypePicker = page.getByRole("dialog", { name: "Card type options" });
+  await cardTypePicker.getByRole("option", { name: /Character/ }).click();
+  await cardTypePicker.getByRole("button", { name: "Done" }).click();
+  await expect(cardRail.getByRole("button", { name: /^Energy cost:/ })).toHaveCount(0);
+  await expect(cardRail.getByRole("button", { name: /^Rarity:/ })).toHaveCount(0);
+  await expect(cardRail.getByRole("button", { name: /^Core type:/ })).toBeVisible();
   const characterSorts = await cardRail.getByLabel("Sort").locator("option").allTextContents();
   expect(characterSorts).toEqual(expect.arrayContaining(["B-Power high–low", "Damage high–low"]));
   expect(characterSorts).not.toEqual(expect.arrayContaining(["Energy low–high", "Energy high–low"]));
