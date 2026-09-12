@@ -93,8 +93,8 @@
   position: fixed;
   z-index: 1401;
   max-height: min(72dvh, 26rem);
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(91, 196, 226, .42);
   background: rgba(2, 14, 19, .985);
@@ -173,6 +173,7 @@
 }
 
 .options {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   padding: var(--space-2);
