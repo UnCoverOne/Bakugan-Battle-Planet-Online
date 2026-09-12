@@ -22,13 +22,13 @@ export type CardInspectorTab = (typeof CARD_INSPECTOR_TABS)[number];
 
 export type CompendiumState = {
   q: string;
-  set: string;
-  type: string;
-  coreType: string;
-  faction: string;
-  cost: string;
-  rarity: string;
-  keyword: string;
+  set: string[];
+  type: string[];
+  coreType: string[];
+  faction: string[];
+  cost: string[];
+  rarity: string[];
+  keyword: string[];
   sort: CompendiumSort;
   density: CompendiumDensity;
   page: number;
@@ -38,13 +38,13 @@ export type CompendiumState = {
 
 export const DEFAULT_COMPENDIUM_STATE: CompendiumState = Object.freeze({
   q: "",
-  set: "All",
-  type: "All",
-  coreType: "All",
-  faction: "All",
-  cost: "All",
-  rarity: "All",
-  keyword: "All",
+  set: [],
+  type: [],
+  coreType: [],
+  faction: [],
+  cost: [],
+  rarity: [],
+  keyword: [],
   sort: "collector",
   density: "gallery",
   page: 1,
@@ -55,6 +55,9 @@ export const DEFAULT_COMPENDIUM_STATE: CompendiumState = Object.freeze({
 const oneOf = <T extends readonly string[]>(value: string | null, values: T, fallback: T[number]) =>
   value && (values as readonly string[]).includes(value) ? value as T[number] : fallback;
 
+const choices = (params: URLSearchParams, key: string) => (
+  [...new Set(params.getAll(key).map((value) => value.trim()).filter((value) => value && value !== "All"))]
+);
 const choice = (value: string | null) => value?.trim() || "All";
 const setCodeFor = (card: Pick<GameCard, "catalogId">) => cardSetCode(card);
 const SET_ORDER = new Map(CARD_SET_CODES.map((code, index) => [code, index]));
@@ -64,13 +67,13 @@ export function parseCompendiumState(input: URLSearchParams | string): Compendiu
   const requestedPage = Number.parseInt(params.get("page") ?? "1", 10);
   return {
     q: params.get("q") ?? "",
-    set: choice(params.get("set")),
-    type: choice(params.get("type")),
-    coreType: choice(params.get("coreType")),
-    faction: choice(params.get("faction")),
-    cost: choice(params.get("cost")),
-    rarity: choice(params.get("rarity")),
-    keyword: choice(params.get("keyword")),
+    set: choices(params, "set"),
+    type: choices(params, "type"),
+    coreType: choices(params, "coreType"),
+    faction: choices(params, "faction"),
+    cost: choices(params, "cost"),
+    rarity: choices(params, "rarity"),
+    keyword: choices(params, "keyword"),
     sort: oneOf(params.get("sort"), COMPENDIUM_SORTS, DEFAULT_COMPENDIUM_STATE.sort),
     density: oneOf(params.get("density"), COMPENDIUM_DENSITIES, DEFAULT_COMPENDIUM_STATE.density),
     page: Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1,
@@ -85,14 +88,17 @@ export function compendiumSearchParams(state: CompendiumState) {
   const setIfChanged = (key: string, value: string, fallback: string) => {
     if (value && value !== fallback) params.set(key, value);
   };
+  const appendChoices = (key: string, values: readonly string[]) => {
+    for (const value of values) if (value) params.append(key, value);
+  };
   setIfChanged("q", state.q, DEFAULT_COMPENDIUM_STATE.q);
-  setIfChanged("set", state.set, DEFAULT_COMPENDIUM_STATE.set);
-  setIfChanged("type", state.type, DEFAULT_COMPENDIUM_STATE.type);
-  setIfChanged("coreType", state.coreType, DEFAULT_COMPENDIUM_STATE.coreType);
-  setIfChanged("faction", state.faction, DEFAULT_COMPENDIUM_STATE.faction);
-  setIfChanged("cost", state.cost, DEFAULT_COMPENDIUM_STATE.cost);
-  setIfChanged("rarity", state.rarity, DEFAULT_COMPENDIUM_STATE.rarity);
-  setIfChanged("keyword", state.keyword, DEFAULT_COMPENDIUM_STATE.keyword);
+  appendChoices("set", state.set);
+  appendChoices("type", state.type);
+  appendChoices("coreType", state.coreType);
+  appendChoices("faction", state.faction);
+  appendChoices("cost", state.cost);
+  appendChoices("rarity", state.rarity);
+  appendChoices("keyword", state.keyword);
   setIfChanged("sort", state.sort, DEFAULT_COMPENDIUM_STATE.sort);
   setIfChanged("density", state.density, DEFAULT_COMPENDIUM_STATE.density);
   if (state.page > 1) params.set("page", String(state.page));
@@ -134,19 +140,38 @@ export function filterAndSortCompendiumCards(
   state: CompendiumState,
 ) {
   const query = state.q.trim().toLowerCase();
-  return cards.filter((card) => (
-    // The unfused face is the single Compendium representative. The reverse
-    // face remains available to the shared inspector and gameplay systems.
-    card.fusionFace !== "b"
-    && (state.set === "All" || setCodeFor(card) === state.set)
-    && (state.type === "All" || card.type === state.type)
-    && (state.type !== "Character" || state.coreType === "All" || card.coreTypes.includes(state.coreType as GameCard["coreTypes"][number]))
-    && (state.faction === "All" || card.factions.includes(state.faction as GameCard["faction"]))
-    && (state.type === "Character" || state.cost === "All" || String(card.cost) === state.cost)
-    && (state.type === "Character" || state.rarity === "All" || card.rarity === state.rarity)
-    && (state.keyword === "All" || card.mechanics.includes(state.keyword))
-    && (!query || searchableText(card).includes(query))
-  )).toSorted((left, right) => {
+  const explicitlyIncludesCharacter = state.type.includes("Character");
+  const explicitlyIncludesNonCharacter = state.type.some((type) => type !== "Character");
+  const mixesCharacterAndNonCharacter = explicitlyIncludesCharacter && explicitlyIncludesNonCharacter;
+  return cards.filter((card) => {
+    const isCharacter = card.type === "Character";
+    const coreTypeMatches = state.coreType.length === 0
+      || (isCharacter
+        ? card.coreTypes.some((coreType) => state.coreType.includes(coreType))
+        : mixesCharacterAndNonCharacter);
+    const costMatches = state.cost.length === 0
+      || (isCharacter
+        ? explicitlyIncludesCharacter
+        : state.cost.includes(String(card.cost)));
+    const rarityMatches = state.rarity.length === 0
+      || (isCharacter
+        ? explicitlyIncludesCharacter
+        : state.rarity.includes(card.rarity));
+
+    return (
+      // The unfused face is the single Compendium representative. The reverse
+      // face remains available to the shared inspector and gameplay systems.
+      card.fusionFace !== "b"
+      && (state.set.length === 0 || state.set.includes(setCodeFor(card)))
+      && (state.type.length === 0 || state.type.includes(card.type))
+      && coreTypeMatches
+      && (state.faction.length === 0 || card.factions.some((faction) => state.faction.includes(faction)))
+      && costMatches
+      && rarityMatches
+      && (state.keyword.length === 0 || card.mechanics.some((mechanic) => state.keyword.includes(mechanic)))
+      && (!query || searchableText(card).includes(query))
+    );
+  }).toSorted((left, right) => {
     if (state.sort === "name-asc") return left.displayName.localeCompare(right.displayName);
     if (state.sort === "name-desc") return right.displayName.localeCompare(left.displayName);
     if (state.sort === "cost-asc") return costRank(left.cost) - costRank(right.cost) || left.displayName.localeCompare(right.displayName);
