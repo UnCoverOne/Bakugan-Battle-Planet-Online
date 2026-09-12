@@ -93,7 +93,9 @@ test("BakuCore tab exposes set filters and a shareable inspector", async ({ page
   await page.goto("/compendium/cores");
   await waitForCompendium(page);
   await expect(page.getByText(/\d+ BakuCores/)).toBeVisible();
-  await page.getByLabel("Set").selectOption("Armored Alliance");
+  await page.getByRole("button", { name: /^Set:/ }).click();
+  const coreSetPicker = page.getByRole("dialog", { name: "Set options" });
+  await coreSetPicker.getByRole("option", { name: /Armored Alliance/ }).click();
   await expect.poll(() => new URL(page.url()).searchParams.get("coreSet")).toBe("Armored Alliance");
   const tile = page.locator('[data-ui="card-grid"] > button').first();
   await tile.click();
@@ -127,7 +129,7 @@ test("desktop cards and BakuCore controls live in their filter rails", async ({ 
   await waitForCompendium(page);
   const cardRail = page.getByRole("complementary", { name: "Card filters" });
   await expect(cardRail).toBeVisible();
-  await expect(cardRail.getByLabel("Sort")).toBeVisible();
+  await expect(cardRail.getByRole("button", { name: /^Sort:/ })).toBeVisible();
   await cardRail.getByRole("button", { name: /^Card type:/ }).click();
   const cardTypePicker = page.getByRole("dialog", { name: "Card type options" });
   await cardTypePicker.getByRole("option", { name: /Character/ }).click();
@@ -135,15 +137,20 @@ test("desktop cards and BakuCore controls live in their filter rails", async ({ 
   await expect(cardRail.getByRole("button", { name: /^Energy cost:/ })).toHaveCount(0);
   await expect(cardRail.getByRole("button", { name: /^Rarity:/ })).toHaveCount(0);
   await expect(cardRail.getByRole("button", { name: /^Core type:/ })).toBeVisible();
-  const characterSorts = await cardRail.getByLabel("Sort").locator("option").allTextContents();
-  expect(characterSorts).toEqual(expect.arrayContaining(["B-Power high–low", "Damage high–low"]));
-  expect(characterSorts).not.toEqual(expect.arrayContaining(["Energy low–high", "Energy high–low"]));
+  await cardRail.getByRole("button", { name: /^Sort:/ }).click();
+  const sortPicker = page.getByRole("dialog", { name: "Sort options" });
+  const characterSorts = await sortPicker.getByRole("option").allTextContents();
+  expect(characterSorts.some((label) => label.includes("B-Power high–low"))).toBe(true);
+  expect(characterSorts.some((label) => label.includes("Damage high–low"))).toBe(true);
+  expect(characterSorts.some((label) => label.includes("Energy low–high"))).toBe(false);
+  expect(characterSorts.some((label) => label.includes("Energy high–low"))).toBe(false);
+  await sortPicker.getByRole("button", { name: "Done" }).click();
 
   await page.goto("/compendium/cores");
   await waitForCompendium(page);
   const coreRail = page.getByRole("complementary", { name: "BakuCore filters" });
   await expect(coreRail).toBeVisible();
-  await expect(coreRail.getByLabel("Set")).toBeVisible();
-  await expect(coreRail.getByLabel("Core type")).toBeVisible();
-  await expect(coreRail.getByLabel("Sort")).toBeVisible();
+  await expect(coreRail.getByRole("button", { name: /^Set:/ })).toBeVisible();
+  await expect(coreRail.getByRole("button", { name: /^Core type:/ })).toBeVisible();
+  await expect(coreRail.getByRole("button", { name: /^Sort:/ })).toBeVisible();
 });
