@@ -51,13 +51,13 @@ test("Compendium URL state round-trips filters, density, selection, and inspecto
   const state = parseCompendiumState("q=dragonoid&set=BB&type=Character&coreType=Magic+Shield&faction=Pyrus&cost=2&rarity=Rare&keyword=Victor&sort=name-desc&density=compact&page=3&card=bb-1&tab=rulings");
   assert.deepEqual(state, {
     q: "dragonoid",
-    set: "BB",
-    type: "Character",
-    coreType: "Magic Shield",
-    faction: "Pyrus",
-    cost: "2",
-    rarity: "Rare",
-    keyword: "Victor",
+    set: ["BB"],
+    type: ["Character"],
+    coreType: ["Magic Shield"],
+    faction: ["Pyrus"],
+    cost: ["2"],
+    rarity: ["Rare"],
+    keyword: ["Victor"],
     sort: "name-desc",
     density: "compact",
     page: 3,
@@ -92,15 +92,37 @@ test("card filtering and sorting use every URL-driven facet", () => {
   ];
   const state = {
     ...DEFAULT_COMPENDIUM_STATE,
-    set: "BB",
-    faction: "Pyrus",
-    rarity: "Rare",
-    keyword: "Victor",
+    set: ["BB"],
+    faction: ["Pyrus"],
+    rarity: ["Rare"],
+    keyword: ["Victor"],
     sort: "cost-desc" as const,
   };
   assert.deepEqual(
     filterAndSortCompendiumCards(cards, state).map((candidate) => candidate.catalogId),
     ["bb-2", "bb-1"],
+  );
+});
+
+test("multi-select card filters round-trip repeated URL params and OR choices within each facet", () => {
+  const state = parseCompendiumState("faction=Pyrus&faction=Aquos&type=Action&type=Hero&keyword=Victor&keyword=Draw");
+  assert.deepEqual(state.faction, ["Pyrus", "Aquos"]);
+  assert.deepEqual(state.type, ["Action", "Hero"]);
+  assert.deepEqual(state.keyword, ["Victor", "Draw"]);
+  const params = compendiumSearchParams(state);
+  assert.deepEqual(params.getAll("faction"), ["Pyrus", "Aquos"]);
+  assert.deepEqual(params.getAll("type"), ["Action", "Hero"]);
+  assert.deepEqual(params.getAll("keyword"), ["Victor", "Draw"]);
+
+  const cards = [
+    card({ catalogId: "bb-1", displayName: "Pyrus Victor", type: "Action", mechanics: ["Victor"] }),
+    card({ catalogId: "bb-2", displayName: "Aquos Draw", faction: "Aquos", factions: ["Aquos"], type: "Hero", mechanics: ["Draw"] }),
+    card({ catalogId: "bb-3", displayName: "Darkus Victor", faction: "Darkus", factions: ["Darkus"], type: "Action", mechanics: ["Victor"] }),
+    card({ catalogId: "bb-4", displayName: "Pyrus Evo", type: "Evo", mechanics: ["Victor"] }),
+  ];
+  assert.deepEqual(
+    filterAndSortCompendiumCards(cards, state).map((candidate) => candidate.catalogId),
+    ["bb-1", "bb-2"],
   );
 });
 
@@ -112,10 +134,10 @@ test("Character filtering ignores card-only facets and supports core/stat sortin
   ];
   const state = {
     ...DEFAULT_COMPENDIUM_STATE,
-    type: "Character",
-    coreType: "Magic Shield",
-    cost: "6",
-    rarity: "Rare",
+    type: ["Character"],
+    coreType: ["Magic Shield"],
+    cost: ["6"],
+    rarity: ["Rare"],
     sort: "bpower-desc" as const,
   };
   assert.deepEqual(
@@ -138,7 +160,7 @@ test("EX participates in set filtering and collector release order", () => {
     card({ catalogId: "ex-1", displayName: "EX One", number: 1 }),
   ];
   assert.deepEqual(
-    filterAndSortCompendiumCards(cards, { ...DEFAULT_COMPENDIUM_STATE, set: "EX" })
+    filterAndSortCompendiumCards(cards, { ...DEFAULT_COMPENDIUM_STATE, set: ["EX"] })
       .map((candidate) => candidate.catalogId),
     ["ex-1", "ex-2"],
   );
@@ -196,6 +218,8 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "damage-desc",
     "COMPENDIUM_PAGE_SIZE",
     "FilterControls",
+    "CompendiumFilterPicker",
+    "FACTION_SYMBOLS",
     "CoreFilterControls",
     "filterRail",
     "Card filters",
