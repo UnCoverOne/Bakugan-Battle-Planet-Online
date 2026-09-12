@@ -341,6 +341,14 @@
   line-height: 1.45;
 }
 
+.cardCopy small {
+  min-height: 2.9em;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .cardBadges {
   display: flex;
   flex-wrap: wrap;
