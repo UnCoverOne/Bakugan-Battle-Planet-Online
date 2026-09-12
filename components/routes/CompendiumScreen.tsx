@@ -30,13 +30,28 @@ import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT, SYMBOL_ENTR
 import { useApp } from "../application/AppProvider";
 import { AppButton, Badge, copyText } from "../application/ui";
 import { ActionButton, CardGrid, Field, RouteHero, StatusChip, Surface, Tabs } from "../design-system/primitives";
+import { CompendiumFilterPicker, type CompendiumFilterOption } from "./CompendiumFilterPicker";
 import styles from "./CompendiumScreen.module.css";
 
 const SEARCH_URL_DEBOUNCE_MS = 450;
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-const FACTIONS = ["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"];
-const CARD_TYPES = ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character"];
+const FACTIONS = ["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"] as const;
+const CARD_TYPES = ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character"] as const;
+const FACTION_SYMBOLS: Record<(typeof FACTIONS)[number], string> = {
+  Aquos: "/assets/symbols/factions/aquos.png",
+  Aurelus: "/assets/symbols/factions/aurelus.png",
+  Darkus: "/assets/symbols/factions/darkus.png",
+  Haos: "/assets/symbols/factions/haos.png",
+  Pyrus: "/assets/symbols/factions/pyrus.png",
+  Ventus: "/assets/symbols/factions/ventus.png",
+};
+const CARD_TYPE_OPTIONS: CompendiumFilterOption[] = CARD_TYPES.map((value) => ({ value, label: value }));
+const FACTION_OPTIONS: CompendiumFilterOption[] = FACTIONS.map((value) => ({ value, label: value, icon: FACTION_SYMBOLS[value] }));
+const COST_OPTIONS: CompendiumFilterOption[] = [
+  ...Array.from({ length: 11 }, (_, value) => ({ value: String(value), label: String(value) })),
+  { value: "X", label: "X" },
+];
 const HIDDEN_KEYWORD_FILTERS = new Set([
   "Alternate Win",
   "B-Power",
@@ -62,6 +77,8 @@ const SORT_LABELS: Record<CompendiumState["sort"], string> = {
   "damage-desc": "Damage high–low",
 };
 const CORE_TYPES = ["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"] as const;
+const CORE_TYPE_OPTIONS: CompendiumFilterOption[] = CORE_TYPES.map((value) => ({ value, label: value }));
+const SET_OPTIONS: CompendiumFilterOption[] = Object.values(CARD_SET_INFO).map((set) => ({ value: set.code, label: set.name }));
 const CHARACTER_SORTS = new Set<CompendiumState["sort"]>([
   "collector",
   "name-asc",
@@ -135,15 +152,18 @@ function FilterControls({
   state: CompendiumState;
   rarities: readonly string[];
   keywords: readonly string[];
-  onChange: (key: FilterKey, value: string) => void;
+  onChange: (key: FilterKey, values: string[]) => void;
   onSortChange: (sort: CompendiumState["sort"]) => void;
   onClear: () => void;
 }) {
-  const isCharacter = state.type === "Character";
+  const isCharacterOnly = state.type.length === 1 && state.type[0] === "Character";
+  const includesCharacter = state.type.includes("Character");
   const sortOptions = Object.entries(SORT_LABELS).filter(([value]) => (
-    (isCharacter ? CHARACTER_SORTS : NON_CHARACTER_SORTS).has(value as CompendiumState["sort"])
+    (isCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS).has(value as CompendiumState["sort"])
   ));
   const selectedSort = sortOptions.some(([value]) => value === state.sort) ? state.sort : "collector";
+  const rarityOptions = rarities.map((value) => ({ value, label: value }));
+  const keywordOptions = keywords.map((value) => ({ value, label: value }));
 
   return (
     <>
@@ -151,12 +171,12 @@ function FilterControls({
         <div><h2>Filters &amp; sort</h2></div>
         <button type="button" onClick={onClear}>Clear</button>
       </div>
-      <Field label="Card type">
-        <select value={state.type} onChange={(event) => onChange("type", event.target.value)}>
-          <option>All</option>
-          {CARD_TYPES.map((value) => <option key={value}>{value}</option>)}
-        </select>
-      </Field>
+      <CompendiumFilterPicker
+        label="Card type"
+        values={state.type}
+        options={CARD_TYPE_OPTIONS}
+        onChange={(values) => onChange("type", values)}
+      />
       <div className={styles.filterDivider} role="separator" />
       <Field label="Sort">
         <select value={selectedSort} onChange={(event) => onSortChange(event.target.value as CompendiumState["sort"])}>
@@ -164,43 +184,49 @@ function FilterControls({
         </select>
       </Field>
       <div className={styles.filterDivider} role="separator" />
-      <Field label="Set">
-        <select value={state.set} onChange={(event) => onChange("set", event.target.value)}>
-          <option>All</option>
-          {Object.values(CARD_SET_INFO).map((set) => <option value={set.code} key={set.code}>{set.name}</option>)}
-        </select>
-      </Field>
-      <Field label="Faction">
-        <select value={state.faction} onChange={(event) => onChange("faction", event.target.value)}>
-          <option>All</option>
-          {FACTIONS.map((value) => <option key={value}>{value}</option>)}
-        </select>
-      </Field>
-      {!isCharacter && <Field label="Energy cost">
-        <select value={state.cost} onChange={(event) => onChange("cost", event.target.value)}>
-          <option>All</option>
-          {Array.from({ length: 11 }, (_, value) => <option value={String(value)} key={value}>{value}</option>)}
-          <option value="X">X</option>
-        </select>
-      </Field>}
-      {!isCharacter && <Field label="Rarity">
-        <select value={state.rarity} onChange={(event) => onChange("rarity", event.target.value)}>
-          <option>All</option>
-          {rarities.map((value) => <option key={value}>{value}</option>)}
-        </select>
-      </Field>}
-      {isCharacter && <Field label="Core type">
-        <select value={state.coreType} onChange={(event) => onChange("coreType", event.target.value)}>
-          <option>All</option>
-          {CORE_TYPES.map((value) => <option key={value}>{value}</option>)}
-        </select>
-      </Field>}
-      <Field label="Keyword">
-        <select value={state.keyword} onChange={(event) => onChange("keyword", event.target.value)}>
-          <option>All</option>
-          {keywords.map((value) => <option key={value}>{value}</option>)}
-        </select>
-      </Field>
+      <CompendiumFilterPicker
+        label="Set"
+        values={state.set}
+        options={SET_OPTIONS}
+        onChange={(values) => onChange("set", values)}
+      />
+      <CompendiumFilterPicker
+        label="Faction"
+        values={state.faction}
+        options={FACTION_OPTIONS}
+        onChange={(values) => onChange("faction", values)}
+      />
+      {!isCharacterOnly && (
+        <CompendiumFilterPicker
+          label="Energy cost"
+          values={state.cost}
+          options={COST_OPTIONS}
+          onChange={(values) => onChange("cost", values)}
+        />
+      )}
+      {!isCharacterOnly && (
+        <CompendiumFilterPicker
+          label="Rarity"
+          values={state.rarity}
+          options={rarityOptions}
+          onChange={(values) => onChange("rarity", values)}
+        />
+      )}
+      {includesCharacter && (
+        <CompendiumFilterPicker
+          label="Core type"
+          values={state.coreType}
+          options={CORE_TYPE_OPTIONS}
+          onChange={(values) => onChange("coreType", values)}
+        />
+      )}
+      <CompendiumFilterPicker
+        label="Keyword"
+        values={state.keyword}
+        options={keywordOptions}
+        onChange={(values) => onChange("keyword", values)}
+        searchable
+      />
     </>
   );
 }
@@ -381,34 +407,34 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     return () => removeEventListener("keydown", closeOverlays);
   }, [closeInspector, filterSheetOpen, navigateCore, selected, selectedCore]);
 
-  const activeFilterKeys: FilterKey[] = state.type === "Character"
-    ? ["set", "type", "coreType", "faction", "keyword"]
-    : ["set", "type", "faction", "cost", "rarity", "keyword"];
+  const activeFilterKeys: FilterKey[] = ["set", "type", "coreType", "faction", "cost", "rarity", "keyword"];
   const activeFilterCount = activeFilterKeys
-    .filter((key) => state[key] !== "All").length;
+    .filter((key) => state[key].length > 0).length;
   const activeCoreFilterCount = (["set", "type"] as const)
     .filter((key) => coreState[key] !== "All").length;
 
-  const setFilter = (key: FilterKey, value: string) => {
-    if (key !== "type") return navigate({ [key]: value } as StatePatch, { resetPage: true });
+  const setFilter = (key: FilterKey, values: string[]) => {
+    if (key !== "type") return navigate({ [key]: values } as StatePatch, { resetPage: true });
 
-    const nextIsCharacter = value === "Character";
-    const nextSorts = nextIsCharacter ? CHARACTER_SORTS : NON_CHARACTER_SORTS;
+    const includesCharacter = values.includes("Character");
+    const nextIsCharacterOnly = values.length === 1 && includesCharacter;
+    const nextSorts = nextIsCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS;
     const patch: StatePatch = {
-      type: value,
-      ...(nextIsCharacter ? { cost: "All", rarity: "All" } : { coreType: "All" }),
+      type: values,
+      ...(!includesCharacter ? { coreType: [] } : {}),
+      ...(nextIsCharacterOnly ? { cost: [], rarity: [] } : {}),
       ...(nextSorts.has(state.sort) ? {} : { sort: "collector" }),
     };
     navigate(patch, { resetPage: true });
   };
   const clearFilters = () => navigate({
-    set: "All",
-    type: "All",
-    coreType: "All",
-    faction: "All",
-    cost: "All",
-    rarity: "All",
-    keyword: "All",
+    set: [],
+    type: [],
+    coreType: [],
+    faction: [],
+    cost: [],
+    rarity: [],
+    keyword: [],
   }, { resetPage: true });
   const clearCoreFilters = () => navigateCore({
     q: "",
