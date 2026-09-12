@@ -99,7 +99,10 @@ const CORE_SORT_LABELS: Record<CoreCompendiumState["sort"], string> = {
   bonus: "B-Power high–low",
   damage: "Damage high–low",
 };
+const CORE_SORT_OPTIONS: CompendiumFilterOption[] = Object.entries(CORE_SORT_LABELS)
+  .map(([value, label]) => ({ value, label }));
 const CORE_SET_LABELS = ["Battle Brawlers", "Armored Alliance"] as const;
+const CORE_SET_OPTIONS: CompendiumFilterOption[] = CORE_SET_LABELS.map((value) => ({ value, label: value }));
 
 const signedCoreValue = (value: number) => `${value > 0 ? "+" : ""}${value}`;
 
@@ -178,11 +181,17 @@ function FilterControls({
         onChange={(values) => onChange("type", values)}
       />
       <div className={styles.filterDivider} role="separator" />
-      <Field label="Sort">
-        <select value={selectedSort} onChange={(event) => onSortChange(event.target.value as CompendiumState["sort"])}>
-          {sortOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-        </select>
-      </Field>
+      <CompendiumFilterPicker
+        label="Sort"
+        values={[selectedSort]}
+        options={sortOptions.map(([value, label]) => ({ value, label }))}
+        onChange={(values) => {
+          const next = values[0] as CompendiumState["sort"] | undefined;
+          if (next) onSortChange(next);
+        }}
+        mode="single"
+        clearable={false}
+      />
       <div className={styles.filterDivider} role="separator" />
       <CompendiumFilterPicker
         label="Set"
@@ -248,29 +257,36 @@ function CoreFilterControls({
         <div><h2>Filters &amp; sort</h2></div>
         <button type="button" onClick={onClear}>Clear</button>
       </div>
-      <Field label="Core type">
-        <select value={state.type} onChange={(event) => onChange({ type: event.target.value })}>
-          <option>All</option>
-          {CORE_TYPES.map((value) => <option value={value} key={value}>{value}</option>)}
-        </select>
-      </Field>
+      <CompendiumFilterPicker
+        label="Core type"
+        values={state.type === "All" ? [] : [state.type]}
+        options={CORE_TYPE_OPTIONS}
+        onChange={(values) => onChange({ type: values[0] ?? "All" })}
+        mode="single"
+      />
       <div className={styles.filterDivider} role="separator" />
-      <Field label="Sort">
-        <select value={state.sort} onChange={(event) => onSortChange(event.target.value as CoreCompendiumState["sort"])}>
-          {Object.entries(CORE_SORT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-        </select>
-      </Field>
+      <CompendiumFilterPicker
+        label="Sort"
+        values={[state.sort]}
+        options={CORE_SORT_OPTIONS}
+        onChange={(values) => {
+          const next = values[0] as CoreCompendiumState["sort"] | undefined;
+          if (next) onSortChange(next);
+        }}
+        mode="single"
+        clearable={false}
+      />
       <div className={styles.filterDivider} role="separator" />
-      <Field label="Set">
-        <select value={state.set} onChange={(event) => onChange({ set: event.target.value })}>
-          <option>All</option>
-          {CORE_SET_LABELS.map((value) => <option value={value} key={value}>{value}</option>)}
-        </select>
-      </Field>
+      <CompendiumFilterPicker
+        label="Set"
+        values={state.set === "All" ? [] : [state.set]}
+        options={CORE_SET_OPTIONS}
+        onChange={(values) => onChange({ set: values[0] ?? "All" })}
+        mode="single"
+      />
     </>
   );
 }
-
 
 
 
