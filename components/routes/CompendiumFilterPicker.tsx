@@ -29,10 +29,15 @@ export function CompendiumFilterPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [anchorStyle, setAnchorStyle] = useState<CSSProperties>({});
+  const [localValues, setLocalValues] = useState<string[]>([...values]);
+
+  useEffect(() => {
+    setLocalValues([...values]);
+  }, [values]);
 
   const selectedOptions = useMemo(
-    () => values.map((value) => options.find((option) => option.value === value)).filter(Boolean) as CompendiumFilterOption[],
-    [options, values],
+    () => localValues.map((value) => options.find((option) => option.value === value)).filter(Boolean) as CompendiumFilterOption[],
+    [localValues, options],
   );
   const visibleOptions = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -70,17 +75,22 @@ export function CompendiumFilterPicker({
     };
   }, [open]);
 
-  const summary = values.length === 0
+  const summary = localValues.length === 0
     ? "All"
-    : values.length <= 2
+    : localValues.length <= 2
       ? selectedOptions.map((option) => option.label).join(", ")
-      : `${values.length} selected`;
+      : `${localValues.length} selected`;
+
+  const commit = (next: string[]) => {
+    setLocalValues(next);
+    onChange(next);
+  };
 
   const toggle = (value: string) => {
-    const next = values.includes(value)
-      ? values.filter((candidate) => candidate !== value)
-      : [...values, value];
-    onChange(next);
+    const next = localValues.includes(value)
+      ? localValues.filter((candidate) => candidate !== value)
+      : [...localValues, value];
+    commit(next);
   };
 
   const panel = open && typeof document !== "undefined"
@@ -96,7 +106,7 @@ export function CompendiumFilterPicker({
           <header className={styles.panelHeader}>
             <div>
               <span>{label}</span>
-              <strong>{values.length ? `${values.length} selected` : "All"}</strong>
+              <strong>{localValues.length ? `${localValues.length} selected` : "All"}</strong>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label={`Close ${label} options`}>×</button>
           </header>
@@ -112,7 +122,7 @@ export function CompendiumFilterPicker({
           )}
           <div className={styles.options} role="listbox" aria-multiselectable="true">
             {visibleOptions.map((option) => {
-              const selected = values.includes(option.value);
+              const selected = localValues.includes(option.value);
               return (
                 <button
                   className={selected ? styles.optionSelected : styles.option}
@@ -133,7 +143,7 @@ export function CompendiumFilterPicker({
             {!visibleOptions.length && <p className={styles.empty}>No matching options.</p>}
           </div>
           <footer className={styles.panelFooter}>
-            <button type="button" disabled={!values.length} onClick={() => onChange([])}>Clear</button>
+            <button type="button" disabled={!localValues.length} onClick={() => commit([])}>Clear</button>
             <button type="button" onClick={() => setOpen(false)}>Done</button>
           </footer>
         </section>
@@ -159,8 +169,8 @@ export function CompendiumFilterPicker({
         }}
       >
         <span className={styles.triggerSummary}>
-          {values.length === 0 && <span>All</span>}
-          {values.length > 0 && values.length <= 2 && selectedOptions.map((option) => (
+          {localValues.length === 0 && <span>All</span>}
+          {localValues.length > 0 && localValues.length <= 2 && selectedOptions.map((option) => (
             <span className={styles.summaryOption} key={option.value}>
               {option.icon && (
                 <OriginalImage className={styles.summaryIcon} src={option.icon} alt="" width={20} height={20} />
@@ -168,7 +178,7 @@ export function CompendiumFilterPicker({
               {option.label}
             </span>
           ))}
-          {values.length > 2 && <span>{values.length} selected</span>}
+          {localValues.length > 2 && <span>{localValues.length} selected</span>}
         </span>
         <span className={styles.chevron} aria-hidden="true">⌄</span>
       </button>
