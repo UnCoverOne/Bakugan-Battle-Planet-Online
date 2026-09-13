@@ -13,6 +13,13 @@ import {
   relatedCompendiumCards,
   selectedCompendiumCore,
 } from "../lib/compendium";
+import {
+  cardMatchesFilters,
+  createCardFilterOptionCatalogue,
+  createEmptyCardFilters,
+  FACTION_SYMBOLS,
+  HIDDEN_KEYWORD_FILTERS,
+} from "../lib/card-filters";
 import type { Core, GameCard } from "../lib/game";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -126,6 +133,26 @@ test("multi-select card filters round-trip repeated URL params and OR choices wi
   );
 });
 
+test("shared card filter authority owns options, symbols, hidden keywords, and matching semantics", () => {
+  const candidates = [
+    card({ catalogId: "bb-1", displayName: "Pyrus Victor", faction: "Pyrus", factions: ["Pyrus"], rarity: "Rare", mechanics: ["Victor", "Damage"] }),
+    card({ catalogId: "bb-2", displayName: "Aquos Draw", faction: "Aquos", factions: ["Aquos"], rarity: "Common", mechanics: ["Draw"] }),
+  ];
+  const options = createCardFilterOptionCatalogue(candidates);
+  assert.equal(options.faction.find((option) => option.value === "Aquos")?.icon, FACTION_SYMBOLS.Aquos);
+  assert.equal(options.keyword.some((option) => option.value === "Damage"), false);
+  assert.equal(options.keyword.some((option) => option.value === "Victor"), true);
+  assert.equal(HIDDEN_KEYWORD_FILTERS.has("Triggered"), true);
+
+  const filters = createEmptyCardFilters({
+    faction: ["Pyrus", "Aquos"],
+    rarity: ["Rare"],
+    keyword: ["Victor", "Draw"],
+  });
+  assert.equal(cardMatchesFilters(candidates[0], filters), true);
+  assert.equal(cardMatchesFilters(candidates[1], filters), false);
+});
+
 test("Character filtering ignores card-only facets and supports core/stat sorting", () => {
   const cards = [
     card({ catalogId: "char-1", displayName: "Alpha", type: "Character", coreTypes: ["Fist"], bPower: 700, damage: 3, cost: 6, rarity: "Rare" }),
@@ -218,8 +245,10 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "damage-desc",
     "COMPENDIUM_PAGE_SIZE",
     "FilterControls",
-    "CompendiumFilterPicker",
-    "FACTION_SYMBOLS",
+    "CardFilterPanel",
+    "FilterPicker",
+    "createCardFilterOptionCatalogue",
+    "activeCardFilterCount",
     "CoreFilterControls",
     "filterRail",
     "Card filters",
