@@ -30,43 +30,21 @@ import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT, SYMBOL_ENTR
 import { useApp } from "../application/AppProvider";
 import { AppButton, Badge, copyText } from "../application/ui";
 import { ActionButton, CardGrid, Field, RouteHero, StatusChip, Surface, Tabs } from "../design-system/primitives";
-import { CompendiumFilterPicker, type CompendiumFilterOption } from "./CompendiumFilterPicker";
+import { CardFilterPanel } from "../filters/CardFilterPanel";
+import { FilterPicker, type FilterOption } from "../filters/FilterPicker";
+import {
+  activeCardFilterCount,
+  CORE_SET_OPTIONS,
+  CORE_TYPE_OPTIONS,
+  createCardFilterOptionCatalogue,
+  type CardFilterFacet,
+  type CardFilterOptionCatalogue,
+} from "../../lib/card-filters";
 import styles from "./CompendiumScreen.module.css";
 
 const SEARCH_URL_DEBOUNCE_MS = 450;
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-const FACTIONS = ["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"] as const;
-const CARD_TYPES = ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character"] as const;
-const FACTION_SYMBOLS: Record<(typeof FACTIONS)[number], string> = {
-  Aquos: "/assets/symbols/factions/aquos.png",
-  Aurelus: "/assets/symbols/factions/aurelus.png",
-  Darkus: "/assets/symbols/factions/darkus.png",
-  Haos: "/assets/symbols/factions/haos.png",
-  Pyrus: "/assets/symbols/factions/pyrus.png",
-  Ventus: "/assets/symbols/factions/ventus.png",
-};
-const CARD_TYPE_OPTIONS: CompendiumFilterOption[] = CARD_TYPES.map((value) => ({ value, label: value }));
-const FACTION_OPTIONS: CompendiumFilterOption[] = FACTIONS.map((value) => ({ value, label: value, icon: FACTION_SYMBOLS[value] }));
-const COST_OPTIONS: CompendiumFilterOption[] = [
-  ...Array.from({ length: 11 }, (_, value) => ({ value: String(value), label: String(value) })),
-  { value: "X", label: "X" },
-];
-const HIDDEN_KEYWORD_FILTERS = new Set([
-  "Alternate Win",
-  "B-Power",
-  "BakuCore",
-  "Copy",
-  "Damage",
-  "Destroy",
-  "Energy",
-  "Fusion",
-  "Return",
-  "Search",
-  "Static",
-  "Stop",
-  "Triggered",
-]);
 const SORT_LABELS: Record<CompendiumState["sort"], string> = {
   collector: "Collector number",
   "name-asc": "Name A–Z",
@@ -76,9 +54,6 @@ const SORT_LABELS: Record<CompendiumState["sort"], string> = {
   "bpower-desc": "B-Power high–low",
   "damage-desc": "Damage high–low",
 };
-const CORE_TYPES = ["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"] as const;
-const CORE_TYPE_OPTIONS: CompendiumFilterOption[] = CORE_TYPES.map((value) => ({ value, label: value }));
-const SET_OPTIONS: CompendiumFilterOption[] = Object.values(CARD_SET_INFO).map((set) => ({ value: set.code, label: set.name }));
 const CHARACTER_SORTS = new Set<CompendiumState["sort"]>([
   "collector",
   "name-asc",
@@ -99,10 +74,8 @@ const CORE_SORT_LABELS: Record<CoreCompendiumState["sort"], string> = {
   bonus: "B-Power high–low",
   damage: "Damage high–low",
 };
-const CORE_SORT_OPTIONS: CompendiumFilterOption[] = Object.entries(CORE_SORT_LABELS)
+const CORE_SORT_OPTIONS: FilterOption[] = Object.entries(CORE_SORT_LABELS)
   .map(([value, label]) => ({ value, label }));
-const CORE_SET_LABELS = ["Battle Brawlers", "Armored Alliance"] as const;
-const CORE_SET_OPTIONS: CompendiumFilterOption[] = CORE_SET_LABELS.map((value) => ({ value, label: value }));
 
 const signedCoreValue = (value: number) => `${value > 0 ? "+" : ""}${value}`;
 
@@ -130,7 +103,7 @@ const coreForSet = (core: Core, set: string) => {
     : core;
 };
 
-type FilterKey = "set" | "type" | "coreType" | "faction" | "cost" | "rarity" | "keyword";
+type FilterKey = CardFilterFacet;
 type StatePatch = Partial<CompendiumState>;
 
 const ruleReferences = [
@@ -146,15 +119,13 @@ const ruleReferences = [
 
 function FilterControls({
   state,
-  rarities,
-  keywords,
+  filterOptions,
   onChange,
   onSortChange,
   onClear,
 }: {
   state: CompendiumState;
-  rarities: readonly string[];
-  keywords: readonly string[];
+  filterOptions: CardFilterOptionCatalogue;
   onChange: (key: FilterKey, values: string[]) => void;
   onSortChange: (sort: CompendiumState["sort"]) => void;
   onClear: () => void;
@@ -165,8 +136,14 @@ function FilterControls({
     (isCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS).has(value as CompendiumState["sort"])
   ));
   const selectedSort = sortOptions.some(([value]) => value === state.sort) ? state.sort : "collector";
-  const rarityOptions = rarities.map((value) => ({ value, label: value }));
-  const keywordOptions = keywords.map((value) => ({ value, label: value }));
+  const secondaryFacets: CardFilterFacet[] = ["set", "faction"];
+  if (!isCharacterOnly) secondaryFacets.push("cost", "rarity");
+  if (includesCharacter) secondaryFacets.push("coreType");
+  secondaryFacets.push("keyword");
+
+  const updateFilters = (next: CompendiumState, facet: CardFilterFacet) => {
+    onChange(facet, next[facet]);
+  };
 
   return (
     <>
@@ -174,14 +151,14 @@ function FilterControls({
         <div><h2>Filters &amp; sort</h2></div>
         <button type="button" onClick={onClear}>Clear</button>
       </div>
-      <CompendiumFilterPicker
-        label="Card type"
-        values={state.type}
-        options={CARD_TYPE_OPTIONS}
-        onChange={(values) => onChange("type", values)}
+      <CardFilterPanel
+        filters={state}
+        facets={["type"]}
+        options={filterOptions}
+        onChange={updateFilters}
       />
       <div className={styles.filterDivider} role="separator" />
-      <CompendiumFilterPicker
+      <FilterPicker
         label="Sort"
         values={[selectedSort]}
         options={sortOptions.map(([value, label]) => ({ value, label }))}
@@ -193,48 +170,11 @@ function FilterControls({
         clearable={false}
       />
       <div className={styles.filterDivider} role="separator" />
-      <CompendiumFilterPicker
-        label="Set"
-        values={state.set}
-        options={SET_OPTIONS}
-        onChange={(values) => onChange("set", values)}
-      />
-      <CompendiumFilterPicker
-        label="Faction"
-        values={state.faction}
-        options={FACTION_OPTIONS}
-        onChange={(values) => onChange("faction", values)}
-      />
-      {!isCharacterOnly && (
-        <CompendiumFilterPicker
-          label="Energy cost"
-          values={state.cost}
-          options={COST_OPTIONS}
-          onChange={(values) => onChange("cost", values)}
-        />
-      )}
-      {!isCharacterOnly && (
-        <CompendiumFilterPicker
-          label="Rarity"
-          values={state.rarity}
-          options={rarityOptions}
-          onChange={(values) => onChange("rarity", values)}
-        />
-      )}
-      {includesCharacter && (
-        <CompendiumFilterPicker
-          label="Core type"
-          values={state.coreType}
-          options={CORE_TYPE_OPTIONS}
-          onChange={(values) => onChange("coreType", values)}
-        />
-      )}
-      <CompendiumFilterPicker
-        label="Keyword"
-        values={state.keyword}
-        options={keywordOptions}
-        onChange={(values) => onChange("keyword", values)}
-        searchable
+      <CardFilterPanel
+        filters={state}
+        facets={secondaryFacets}
+        options={filterOptions}
+        onChange={updateFilters}
       />
     </>
   );
@@ -257,7 +197,7 @@ function CoreFilterControls({
         <div><h2>Filters &amp; sort</h2></div>
         <button type="button" onClick={onClear}>Clear</button>
       </div>
-      <CompendiumFilterPicker
+      <FilterPicker
         label="Core type"
         values={state.type === "All" ? [] : [state.type]}
         options={CORE_TYPE_OPTIONS}
@@ -265,7 +205,7 @@ function CoreFilterControls({
         mode="single"
       />
       <div className={styles.filterDivider} role="separator" />
-      <CompendiumFilterPicker
+      <FilterPicker
         label="Sort"
         values={[state.sort]}
         options={CORE_SORT_OPTIONS}
@@ -277,7 +217,7 @@ function CoreFilterControls({
         clearable={false}
       />
       <div className={styles.filterDivider} role="separator" />
-      <CompendiumFilterPicker
+      <FilterPicker
         label="Set"
         values={state.set === "All" ? [] : [state.set]}
         options={CORE_SET_OPTIONS}
@@ -313,8 +253,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     setSearchQuery(value);
   }, []);
 
-  const rarities = useMemo(() => [...new Set(CARDS.map((card) => card.rarity))].filter(Boolean).toSorted(), []);
-  const keywords = useMemo(() => [...new Set(CARDS.flatMap((card) => card.mechanics))].filter((value) => value && !HIDDEN_KEYWORD_FILTERS.has(value)).toSorted(), []);
+  const filterOptions = useMemo(() => createCardFilterOptionCatalogue(CARDS), []);
   const searchState = useMemo(
     () => ({ ...state, q: deferredSearchQuery }),
     [deferredSearchQuery, state],
@@ -423,9 +362,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     return () => removeEventListener("keydown", closeOverlays);
   }, [closeInspector, filterSheetOpen, navigateCore, selected, selectedCore]);
 
-  const activeFilterKeys: FilterKey[] = ["set", "type", "coreType", "faction", "cost", "rarity", "keyword"];
-  const activeFilterCount = activeFilterKeys
-    .filter((key) => state[key].length > 0).length;
+  const activeFilterCount = activeCardFilterCount(state);
   const activeCoreFilterCount = (["set", "type"] as const)
     .filter((key) => coreState[key] !== "All").length;
 
@@ -546,8 +483,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <Surface as="aside" className={styles.filterRail} aria-label="Card filters">
               <FilterControls
                 state={state}
-                rarities={rarities}
-                keywords={keywords}
+                filterOptions={filterOptions}
                 onChange={setFilter}
                 onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
                 onClear={clearFilters}
@@ -617,8 +553,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <Surface as="aside" className={styles.filterSheet} role="dialog" aria-modal="true" aria-label="Card filters">
                 <FilterControls
                   state={state}
-                  rarities={rarities}
-                  keywords={keywords}
+                  filterOptions={filterOptions}
                   onChange={setFilter}
                   onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
                   onClear={clearFilters}
