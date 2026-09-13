@@ -82,9 +82,19 @@ test("mobile filtering opens an accessible full-width sheet", async ({ page }) =
   await sheet.getByRole("button", { name: /^Faction:/ }).click();
   const factionPicker = page.getByRole("dialog", { name: "Faction options" });
   await expect(factionPicker).toBeVisible();
-  await factionPicker.getByRole("option", { name: /Aquos/ }).click();
-  await factionPicker.getByRole("option", { name: /Darkus/ }).click();
+  const aquosOption = factionPicker.getByRole("option", { name: /Aquos/ });
+  const darkusOption = factionPicker.getByRole("option", { name: /Darkus/ });
+  await aquosOption.click();
+  await darkusOption.click();
   await expect.poll(() => new URL(page.url()).searchParams.getAll("faction")).toEqual(["Aquos", "Darkus"]);
+
+  await darkusOption.click();
+  await aquosOption.click();
+  await expect(aquosOption).toHaveAttribute("aria-selected", "false");
+  await expect.poll(() => new URL(page.url()).searchParams.getAll("faction")).toEqual([]);
+  expect(await aquosOption.evaluate((element) => getComputedStyle(element).backgroundColor))
+    .toBe("rgba(0, 0, 0, 0)");
+
   await factionPicker.getByRole("button", { name: "Done" }).click();
   await expect(sheet.getByRole("button", { name: /Show \d+ cards/ })).toBeVisible();
 });
