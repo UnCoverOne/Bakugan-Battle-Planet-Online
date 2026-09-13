@@ -78,10 +78,11 @@ test("team selection drives a removable faction filter and ordered BakuCore prev
     read("components/routes/DeckRoutes.tsx"),
     read("components/routes/DeckRoutes.module.css"),
   ]);
-  assert.match(route, /if \(adding \|\| factionFilterAuto\) setFactionFilters\(nextFactions\)/);
-  assert.match(route, /\[\.\.\.new Set\(source\?\.factions \?\? \[\]\)\]/);
-  assert.match(route, /item\.kind === "card" \|\| !factionFilterAuto/);
+  assert.match(route, /setGalleryFilters\(\(current\) => \(\{ \.\.\.current, faction: nextFactions \}\)\)/);
+  assert.match(route, /faction:\s*\[\.\.\.new Set\(source\?\.factions \?\? \[\]\)\]/);
+  assert.match(route, /item\.kind === "character" && factionFilterAuto/);
   assert.match(route, /setFactionFilterAuto\(false\)/);
+  assert.match(route, /restrictCardFilters/);
   assert.match(route, /Team faction/);
   assert.match(route, /selectedCoreSlots/);
   assert.match(route, /BakuCoreBack/);
@@ -113,6 +114,14 @@ test("Card Gallery tabs and both card collections provide search, Card ID sortin
   assert.match(route, /surface: "gallery", panel: "filter"/);
   assert.match(route, /surface: "deck", panel: "sort"/);
   assert.match(route, /surface: "deck", panel: "filter"/);
+  assert.match(route, /CardFilterPanel/);
+  assert.match(route, /createCardFilterOptionCatalogue/);
+  assert.match(route, /cardMatchesFilters/);
+  assert.match(route, /coreMatchesFilters/);
+  assert.match(route, /BUILDER_MAIN_DECK_FILTER_FACETS/);
+  assert.match(route, /BUILDER_GALLERY_FILTER_FACETS/);
+  assert.doesNotMatch(route, /function BuilderFilterGroup/);
+  assert.doesNotMatch(route, /builderFilterSelects/);
   assert.match(css, /\.builderMenuDialog\s*\{[^}]*width:\s*min\(100%,\s*34rem\)/s);
   assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builderMenuDialog\s*\{[^}]*width:\s*100vw[^}]*height:\s*100dvh/s);
 });
