@@ -1,3 +1,4 @@
+import { cardMatchesFilters, createEmptyCardFilters, type CardFilterState } from "./card-filters";
 import { CARD_SET_CODES, cardSetCode } from "./content/catalogue";
 import type { Core, GameCard } from "./game";
 
@@ -20,15 +21,8 @@ export type CompendiumSort = (typeof COMPENDIUM_SORTS)[number];
 export type CompendiumDensity = (typeof COMPENDIUM_DENSITIES)[number];
 export type CardInspectorTab = (typeof CARD_INSPECTOR_TABS)[number];
 
-export type CompendiumState = {
+export type CompendiumState = CardFilterState & {
   q: string;
-  set: string[];
-  type: string[];
-  coreType: string[];
-  faction: string[];
-  cost: string[];
-  rarity: string[];
-  keyword: string[];
   sort: CompendiumSort;
   density: CompendiumDensity;
   page: number;
@@ -37,14 +31,8 @@ export type CompendiumState = {
 };
 
 export const DEFAULT_COMPENDIUM_STATE: CompendiumState = Object.freeze({
+  ...createEmptyCardFilters(),
   q: "",
-  set: [],
-  type: [],
-  coreType: [],
-  faction: [],
-  cost: [],
-  rarity: [],
-  keyword: [],
   sort: "collector",
   density: "gallery",
   page: 1,
@@ -140,38 +128,13 @@ export function filterAndSortCompendiumCards(
   state: CompendiumState,
 ) {
   const query = state.q.trim().toLowerCase();
-  const explicitlyIncludesCharacter = state.type.includes("Character");
-  const explicitlyIncludesNonCharacter = state.type.some((type) => type !== "Character");
-  const mixesCharacterAndNonCharacter = explicitlyIncludesCharacter && explicitlyIncludesNonCharacter;
-  return cards.filter((card) => {
-    const isCharacter = card.type === "Character";
-    const coreTypeMatches = state.coreType.length === 0
-      || (isCharacter
-        ? card.coreTypes.some((coreType) => state.coreType.includes(coreType))
-        : mixesCharacterAndNonCharacter);
-    const costMatches = state.cost.length === 0
-      || (isCharacter
-        ? explicitlyIncludesCharacter
-        : state.cost.includes(String(card.cost)));
-    const rarityMatches = state.rarity.length === 0
-      || (isCharacter
-        ? explicitlyIncludesCharacter
-        : state.rarity.includes(card.rarity));
-
-    return (
-      // The unfused face is the single Compendium representative. The reverse
-      // face remains available to the shared inspector and gameplay systems.
-      card.fusionFace !== "b"
-      && (state.set.length === 0 || state.set.includes(setCodeFor(card)))
-      && (state.type.length === 0 || state.type.includes(card.type))
-      && coreTypeMatches
-      && (state.faction.length === 0 || card.factions.some((faction) => state.faction.includes(faction)))
-      && costMatches
-      && rarityMatches
-      && (state.keyword.length === 0 || card.mechanics.some((mechanic) => state.keyword.includes(mechanic)))
-      && (!query || searchableText(card).includes(query))
-    );
-  }).toSorted((left, right) => {
+  return cards.filter((card) => (
+    // The unfused face is the single Compendium representative. The reverse
+    // face remains available to the shared inspector and gameplay systems.
+    card.fusionFace !== "b"
+    && cardMatchesFilters(card, state)
+    && (!query || searchableText(card).includes(query))
+  )).toSorted((left, right) => {
     if (state.sort === "name-asc") return left.displayName.localeCompare(right.displayName);
     if (state.sort === "name-desc") return right.displayName.localeCompare(left.displayName);
     if (state.sort === "cost-asc") return costRank(left.cost) - costRank(right.cost) || left.displayName.localeCompare(right.displayName);
