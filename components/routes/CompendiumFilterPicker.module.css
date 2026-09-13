@@ -193,25 +193,41 @@
   text-align: left;
 }
 
-.option:hover,
-.option:focus-visible,
-.optionSelected:hover,
-.optionSelected:focus-visible {
+.option:hover {
   border-color: rgba(91, 196, 226, .3);
   color: var(--text-primary);
-  background: rgba(0, 174, 239, .08);
+  background: transparent;
 }
 
-.optionSelected {
+.option:focus-visible {
+  border-color: rgba(91, 196, 226, .45);
+  color: var(--text-primary);
+  background: transparent;
+  outline: 2px solid rgba(91, 196, 226, .72);
+  outline-offset: -2px;
+}
+
+.optionSelected,
+.optionSelected:hover,
+.optionSelected:focus-visible {
   border-color: rgba(91, 196, 226, .4);
   color: var(--text-primary);
   background: rgba(0, 174, 239, .13);
 }
 
+.optionSelected:focus-visible {
+  outline: 2px solid rgba(91, 196, 226, .72);
+  outline-offset: -2px;
+}
+
 .selectionMark {
-  color: var(--brand-blue-bright);
+  color: var(--text-muted);
   font-size: .9rem;
   text-align: center;
+}
+
+.optionSelected .selectionMark {
+  color: var(--brand-blue-bright);
 }
 
 .empty {
