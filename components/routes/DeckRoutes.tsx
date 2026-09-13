@@ -6,7 +6,21 @@ import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
+import {
+  activeCardFilterCount,
+  CARD_FILTER_LABELS,
+  cardMatchesFilters,
+  clearCardFilterFacets,
+  coreMatchesFilters,
+  createCardFilterOptionCatalogue,
+  createEmptyCardFilters,
+  FACTIONS,
+  FACTION_SYMBOLS,
+  restrictCardFilters,
+  type CardFilterFacet,
+  type CardFilterOptionCatalogue,
+  type CardFilterState,
+} from "../../lib/card-filters";
 import { cardArtSource, isFlipCardType } from "../../lib/content/card-art";
 import {
   BAKUGAN,
@@ -57,9 +71,9 @@ import {
   Tabs,
 } from "../design-system/primitives";
 import { DeckCreatorIdentity } from "../profile/DeckCreatorIdentity";
+import { CardFilterPanel } from "../filters/CardFilterPanel";
 import styles from "./DeckRoutes.module.css";
 
-const FACTIONS = ["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"];
 
 type LibraryView = "grid" | "list";
 type BuilderView = "gallery" | "deck";
@@ -78,13 +92,19 @@ type BuilderGalleryItem =
   | { kind: "character"; id: string; name: string; card: GameCard; count: number }
   | { kind: "core"; id: string; name: string; count: number };
 
-const FACTION_SYMBOLS: Record<string, string> = {
-  Aquos: "/assets/symbols/factions/aquos.png",
-  Aurelus: "/assets/symbols/factions/aurelus.png",
-  Darkus: "/assets/symbols/factions/darkus.png",
-  Haos: "/assets/symbols/factions/haos.png",
-  Pyrus: "/assets/symbols/factions/pyrus.png",
-  Ventus: "/assets/symbols/factions/ventus.png",
+const BUILDER_MAIN_DECK_FILTER_FACETS: readonly CardFilterFacet[] = [
+  "type",
+  "set",
+  "faction",
+  "cost",
+  "rarity",
+  "keyword",
+];
+
+const BUILDER_GALLERY_FILTER_FACETS: Record<BuilderCategory, readonly CardFilterFacet[]> = {
+  cards: BUILDER_MAIN_DECK_FILTER_FACETS,
+  characters: ["set", "faction", "coreType", "keyword"],
+  cores: ["set", "coreType"],
 };
 
 const CORE_BACK_IMAGES: Record<string, string> = {
@@ -1465,15 +1485,11 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   const [galleryCategory, setGalleryCategory] = useState<BuilderCategory>("characters");
   const [gallerySort, setGallerySort] = useState<BuilderSort>("name-asc");
   const [deckSort, setDeckSort] = useState<BuilderSort>("name-asc");
-  const [factionFilters, setFactionFilters] = useState<string[]>([...new Set(source?.factions ?? [])]);
+  const [galleryFilters, setGalleryFilters] = useState<CardFilterState>(() => createEmptyCardFilters({
+    faction: [...new Set(source?.factions ?? [])],
+  }));
   const [factionFilterAuto, setFactionFilterAuto] = useState(Boolean(source?.bakuganIds.length));
-  const [galleryTypes, setGalleryTypes] = useState<string[]>([]);
-  const [gallerySet, setGallerySet] = useState("All");
-  const [galleryCost, setGalleryCost] = useState("All");
-  const [deckFactionFilters, setDeckFactionFilters] = useState<string[]>([]);
-  const [deckTypes, setDeckTypes] = useState<string[]>([]);
-  const [deckSet, setDeckSet] = useState("All");
-  const [deckCost, setDeckCost] = useState("All");
+  const [deckFilters, setDeckFilters] = useState<CardFilterState>(() => createEmptyCardFilters());
   const [activeMenu, setActiveMenu] = useState<BuilderMenu | null>(null);
   const [inspection, setInspection] = useState<BuilderInspection | null>(null);
   const [inspectorTab, setInspectorTab] = useState<CardInspectorTab>("overview");
@@ -1555,8 +1571,15 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     count: deck.cardIds.filter((candidate) => candidate === key).length,
   })).filter((entry): entry is { card: NonNullable<ReturnType<typeof CARD_BY_ID.get>>; count: number } => Boolean(entry.card)), [deck.cardIds]);
 
+  const cardFilterOptions = useMemo(() => createCardFilterOptionCatalogue(CARDS), []);
+  const galleryFilterFacets = BUILDER_GALLERY_FILTER_FACETS[galleryCategory];
+
   const galleryItems = useMemo(() => {
     const query = galleryQuery.trim().toLowerCase();
+    const effectiveFilters = restrictCardFilters(
+      galleryFilters,
+      BUILDER_GALLERY_FILTER_FACETS[galleryCategory],
+    );
     const items: BuilderGalleryItem[] = [
       ...CARDS.filter((card) => card.type !== "Character").map((card) => ({
         kind: "card" as const,
@@ -1587,49 +1610,37 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       const card = item.kind === "core" ? null : item.card;
       const searchable = item.kind === "core"
         ? `${item.name} ${core?.type ?? ""}`
-        : `${item.name} ${card?.effect ?? ""} ${card?.factions.join(" ") ?? ""}`;
+        : `${item.name} ${card?.effect ?? ""} ${card?.factions.join(" ") ?? ""} ${card?.rarity ?? ""} ${card?.mechanics.join(" ") ?? ""}`;
       if (query && !searchable.toLowerCase().includes(query)) return false;
-      if (
-        factionFilters.length
-        && card
-        && (item.kind === "card" || !factionFilterAuto)
-        && !card.factions.some((faction) => factionFilters.includes(faction))
-      ) return false;
-      if (galleryTypes.length) {
-        const candidateType = item.kind === "core" ? core?.type : card?.type;
-        if (!candidateType || !galleryTypes.includes(candidateType)) return false;
+      if (core && !coreMatchesFilters(core, effectiveFilters)) return false;
+      if (card) {
+        const cardFilters = item.kind === "character" && factionFilterAuto
+          ? { ...effectiveFilters, faction: [] }
+          : effectiveFilters;
+        if (!cardMatchesFilters(card, cardFilters)) return false;
       }
-      if (gallerySet !== "All" && card && cardSetCode(card) !== gallerySet) return false;
-      if (galleryCost !== "All" && card && card.cost !== Number(galleryCost)) return false;
       return true;
     }).sort((left, right) => sortBuilderItems(left, right, gallerySort)).slice(0, 240);
   }, [
     deck.bakuganIds,
     deck.cardIds,
     deck.coreIds,
-    factionFilters,
-    galleryCategory,
-    galleryCost,
-    galleryQuery,
-    gallerySet,
-    gallerySort,
-    galleryTypes,
     factionFilterAuto,
+    galleryCategory,
+    galleryFilters,
+    galleryQuery,
+    gallerySort,
   ]);
 
   const mainDeckCards = useMemo(() => grouped.filter(({ card }) => {
     const query = deckQuery.trim().toLowerCase();
     if (query && !`${card.displayName} ${card.effect}`.toLowerCase().includes(query)) return false;
-    if (deckFactionFilters.length && !card.factions.some((faction) => deckFactionFilters.includes(faction))) return false;
-    if (deckTypes.length && !deckTypes.includes(card.type)) return false;
-    if (deckSet !== "All" && cardSetCode(card) !== deckSet) return false;
-    if (deckCost !== "All" && card.cost !== Number(deckCost)) return false;
-    return true;
+    return cardMatchesFilters(card, deckFilters);
   }).sort((left, right) => sortBuilderItems(
     { kind: "card", id: left.card.catalogId, name: left.card.displayName, card: left.card, count: left.count },
     { kind: "card", id: right.card.catalogId, name: right.card.displayName, card: right.card, count: right.count },
     deckSort,
-  )), [deckCost, deckFactionFilters, deckQuery, deckSet, deckSort, deckTypes, grouped]);
+  )), [deckFilters, deckQuery, deckSort, grouped]);
 
   const requiredCoreTypes = report.requiredCoreTypes;
   const selectedCoreSlots = useMemo(() => {
@@ -1663,7 +1674,9 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       ? deck.bakuganIds.filter((candidate) => candidate !== key)
       : deck.bakuganIds.length < 3 ? [...deck.bakuganIds, key] : deck.bakuganIds;
     const nextFactions = [...new Set(nextIds.map((candidate) => BAKUGAN.find((item) => item.id === candidate)?.faction).filter(Boolean))] as string[];
-    if (adding || factionFilterAuto) setFactionFilters(nextFactions);
+    if (adding || factionFilterAuto) {
+      setGalleryFilters((current) => ({ ...current, faction: nextFactions }));
+    }
     if (adding) setFactionFilterAuto(true);
     commit({ ...deck, bakuganIds: nextIds });
   };
@@ -1696,13 +1709,8 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     const limit = deck.format === "singleton" ? 1 : 3;
     return deck.cardIds.length < mainDeckMaximum && item.count < limit;
   };
-  const toggleFilterValue = (current: string[], setCurrent: (values: string[]) => void, value: string) => {
-    setCurrent(current.includes(value) ? current.filter((candidate) => candidate !== value) : [...current, value]);
-  };
-  const activeGalleryFilterCount = factionFilters.length + galleryTypes.length
-    + (gallerySet === "All" ? 0 : 1) + (galleryCost === "All" ? 0 : 1);
-  const activeDeckFilterCount = deckFactionFilters.length + deckTypes.length
-    + (deckSet === "All" ? 0 : 1) + (deckCost === "All" ? 0 : 1);
+  const activeGalleryFilterCount = activeCardFilterCount(galleryFilters, galleryFilterFacets);
+  const activeDeckFilterCount = activeCardFilterCount(deckFilters, BUILDER_MAIN_DECK_FILTER_FACETS);
 
   const openSaveDialog = () => {
     setSaveName(deck.name);
@@ -1827,17 +1835,17 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
             onFilter={() => setActiveMenu({ surface: "gallery", panel: "filter" })}
             onSort={() => setActiveMenu({ surface: "gallery", panel: "sort" })}
           />
-          <div className={styles.activeFilters} aria-label="Active Card Gallery filters">
-            {factionFilters.map((faction) => (
-              <button key={faction} onClick={() => {
-                setFactionFilterAuto(false);
-                setFactionFilters(factionFilters.filter((candidate) => candidate !== faction));
-              }}>{factionFilterAuto ? "Team faction" : "Faction"}: {faction} ×</button>
-            ))}
-            {galleryTypes.map((value) => <button key={value} onClick={() => setGalleryTypes(galleryTypes.filter((candidate) => candidate !== value))}>Type: {value} ×</button>)}
-            {gallerySet !== "All" && <button onClick={() => setGallerySet("All")}>Set: {gallerySet} ×</button>}
-            {galleryCost !== "All" && <button onClick={() => setGalleryCost("All")}>Cost: {galleryCost} ×</button>}
-          </div>
+          <BuilderActiveFilterChips
+            ariaLabel="Active Card Gallery filters"
+            filters={galleryFilters}
+            facets={galleryFilterFacets}
+            options={cardFilterOptions}
+            factionLabel={factionFilterAuto ? "Team faction" : undefined}
+            onChange={(next, facet) => {
+              if (facet === "faction") setFactionFilterAuto(false);
+              setGalleryFilters(next);
+            }}
+          />
           {galleryItems.length ? (
             <div className={styles.builderGalleryGrid}>
               {galleryItems.map((item) => (
@@ -1857,11 +1865,8 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
               action={<ActionButton tone="quiet" onClick={() => {
                 setGalleryQuery("");
                 setGalleryCategory("characters");
-                setFactionFilters([]);
+                setGalleryFilters(createEmptyCardFilters());
                 setFactionFilterAuto(false);
-                setGalleryTypes([]);
-                setGallerySet("All");
-                setGalleryCost("All");
               }}>Clear filters</ActionButton>}
             />
           )}
@@ -1946,12 +1951,13 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
               onFilter={() => setActiveMenu({ surface: "deck", panel: "filter" })}
               onSort={() => setActiveMenu({ surface: "deck", panel: "sort" })}
             />
-            <div className={styles.activeFilters} aria-label="Active Main Deck filters">
-              {deckFactionFilters.map((faction) => <button key={faction} onClick={() => setDeckFactionFilters(deckFactionFilters.filter((candidate) => candidate !== faction))}>Faction: {faction} ×</button>)}
-              {deckTypes.map((value) => <button key={value} onClick={() => setDeckTypes(deckTypes.filter((candidate) => candidate !== value))}>Type: {value} ×</button>)}
-              {deckSet !== "All" && <button onClick={() => setDeckSet("All")}>Set: {deckSet} ×</button>}
-              {deckCost !== "All" && <button onClick={() => setDeckCost("All")}>Cost: {deckCost} ×</button>}
-            </div>
+            <BuilderActiveFilterChips
+              ariaLabel="Active Main Deck filters"
+              filters={deckFilters}
+              facets={BUILDER_MAIN_DECK_FILTER_FACETS}
+              options={cardFilterOptions}
+              onChange={(next) => setDeckFilters(next)}
+            />
             {mainDeckCards.length ? (
               <div className={styles.builderMainDeckGrid}>
                 {mainDeckCards.map(({ card, count }) => (
@@ -2040,57 +2046,29 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
             <>
               <ActionButton tone="quiet" onClick={() => {
                 if (activeMenu.surface === "gallery") {
-                  setFactionFilters([]);
-                  setFactionFilterAuto(false);
-                  setGalleryTypes([]);
-                  setGallerySet("All");
-                  setGalleryCost("All");
+                  setGalleryFilters((current) => clearCardFilterFacets(current, galleryFilterFacets));
+                  if (galleryFilterFacets.includes("faction")) setFactionFilterAuto(false);
                 } else {
-                  setDeckFactionFilters([]);
-                  setDeckTypes([]);
-                  setDeckSet("All");
-                  setDeckCost("All");
+                  setDeckFilters(createEmptyCardFilters());
                 }
               }}>Reset</ActionButton>
               <ActionButton onClick={() => setActiveMenu(null)}>Show cards</ActionButton>
             </>
           )}
         >
-          <BuilderFilterGroup
-            title="Factions"
-            values={FACTIONS}
-            selected={activeMenu.surface === "gallery" ? factionFilters : deckFactionFilters}
-            onToggle={(value) => {
+          <CardFilterPanel
+            filters={activeMenu.surface === "gallery" ? galleryFilters : deckFilters}
+            facets={activeMenu.surface === "gallery" ? galleryFilterFacets : BUILDER_MAIN_DECK_FILTER_FACETS}
+            options={cardFilterOptions}
+            onChange={(next, facet) => {
               if (activeMenu.surface === "gallery") {
-                setFactionFilterAuto(false);
-                toggleFilterValue(factionFilters, setFactionFilters, value);
-              } else toggleFilterValue(deckFactionFilters, setDeckFactionFilters, value);
+                if (facet === "faction") setFactionFilterAuto(false);
+                setGalleryFilters(next);
+              } else {
+                setDeckFilters(next);
+              }
             }}
           />
-          <BuilderFilterGroup
-            title="Card types"
-            values={activeMenu.surface === "gallery"
-              ? ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character", "Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"]
-              : ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo"]}
-            selected={activeMenu.surface === "gallery" ? galleryTypes : deckTypes}
-            onToggle={(value) => activeMenu.surface === "gallery"
-              ? toggleFilterValue(galleryTypes, setGalleryTypes, value)
-              : toggleFilterValue(deckTypes, setDeckTypes, value)}
-          />
-          <div className={styles.builderFilterSelects}>
-            <Field label="Set">
-              <select value={activeMenu.surface === "gallery" ? gallerySet : deckSet} onChange={(event) => activeMenu.surface === "gallery" ? setGallerySet(event.target.value) : setDeckSet(event.target.value)}>
-                <option>All</option>
-                {(Object.values(CARD_SET_INFO) as Array<{ code: string; name: string }>).map((set) => <option value={set.code} key={set.code}>{set.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Energy">
-              <select value={activeMenu.surface === "gallery" ? galleryCost : deckCost} onChange={(event) => activeMenu.surface === "gallery" ? setGalleryCost(event.target.value) : setDeckCost(event.target.value)}>
-                <option>All</option>
-                {Array.from({ length: 11 }, (_, value) => <option key={value}>{value}</option>)}
-              </select>
-            </Field>
-          </div>
         </BuilderMenuDialog>
       )}
 
@@ -2276,6 +2254,44 @@ function BuilderToolbar({
   );
 }
 
+function BuilderActiveFilterChips({
+  ariaLabel,
+  filters,
+  facets,
+  options,
+  factionLabel,
+  onChange,
+}: {
+  ariaLabel: string;
+  filters: CardFilterState;
+  facets: readonly CardFilterFacet[];
+  options: CardFilterOptionCatalogue;
+  factionLabel?: string;
+  onChange: (next: CardFilterState, facet: CardFilterFacet) => void;
+}) {
+  const visible = restrictCardFilters(filters, facets);
+  return (
+    <div className={styles.activeFilters} aria-label={ariaLabel}>
+      {facets.flatMap((facet) => visible[facet].map((value) => {
+        const option = options[facet].find((candidate) => candidate.value === value);
+        const facetLabel = facet === "faction" && factionLabel ? factionLabel : CARD_FILTER_LABELS[facet];
+        return (
+          <button
+            type="button"
+            key={`${facet}-${value}`}
+            onClick={() => onChange({
+              ...filters,
+              [facet]: filters[facet].filter((candidate) => candidate !== value),
+            }, facet)}
+          >
+            {facetLabel}: {option?.label ?? value} ×
+          </button>
+        );
+      }))}
+    </div>
+  );
+}
+
 function BakuCoreBack({ type }: { type: string }) {
   return (
     <div className={styles.bakuCoreBack}>
@@ -2436,25 +2452,6 @@ function BuilderMenuDialog({
         {footer && <footer>{footer}</footer>}
       </section>
     </div>
-  );
-}
-
-function BuilderFilterGroup({
-  title,
-  values,
-  selected,
-  onToggle,
-}: {
-  title: string;
-  values: string[];
-  selected: string[];
-  onToggle: (value: string) => void;
-}) {
-  return (
-    <fieldset className={styles.builderFilterGroup}>
-      <legend>{title}</legend>
-      <div>{values.map((value) => <button type="button" className={selected.includes(value) ? styles.builderFilterSelected : ""} onClick={() => onToggle(value)} key={value}>{value}</button>)}</div>
-    </fieldset>
   );
 }
 
