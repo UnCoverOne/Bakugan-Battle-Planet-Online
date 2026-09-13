@@ -1571,7 +1571,13 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     count: deck.cardIds.filter((candidate) => candidate === key).length,
   })).filter((entry): entry is { card: NonNullable<ReturnType<typeof CARD_BY_ID.get>>; count: number } => Boolean(entry.card)), [deck.cardIds]);
 
-  const cardFilterOptions = useMemo(() => createCardFilterOptionCatalogue(CARDS), []);
+  const cardFilterOptions = useMemo<CardFilterOptionCatalogue>(() => {
+    const shared = createCardFilterOptionCatalogue(CARDS);
+    return {
+      ...shared,
+      type: shared.type.filter((option) => option.value !== "Character"),
+    };
+  }, []);
   const galleryFilterFacets = BUILDER_GALLERY_FILTER_FACETS[galleryCategory];
 
   const galleryItems = useMemo(() => {
