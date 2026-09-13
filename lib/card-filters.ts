@@ -45,7 +45,7 @@ export const FACTIONS = ["Aquos", "Aurelus", "Darkus", "Haos", "Pyrus", "Ventus"
 export const CARD_TYPES = ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo", "Character"] as const;
 export const CORE_TYPES = ["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"] as const;
 
-export const FACTION_SYMBOLS: Record<(typeof FACTIONS)[number], string> = {
+export const FACTION_SYMBOLS: Record<string, string> = {
   Aquos: "/assets/symbols/factions/aquos.png",
   Aurelus: "/assets/symbols/factions/aurelus.png",
   Darkus: "/assets/symbols/factions/darkus.png",
