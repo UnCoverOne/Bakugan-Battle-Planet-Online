@@ -135,15 +135,25 @@ test("Howlkor's start-of-game attack is a separate attack that can resolve witho
   assert.equal(state.batch.length, 0);
 });
 
-test("first-turn free Hero payment modes are available only during turn one", () => {
+test("first-turn free Heroes automatically have a zero normal Energy cost on turn one", () => {
   const player = makePlayer("a", "Alpha", STARTER_DECKS[0]);
   const opponent = makePlayer("b", "Beta", STARTER_DECKS[1]);
   const state = createMatch("FREE", "bo1", [player, opponent]);
   for (const cardId of FIRST_TURN_FREE_HEROES) {
     const card = CARDS.find((candidate) => candidate.catalogId === cardId)!;
+
     state.turn = 1;
-    assert.ok(cardPaymentModes(state, player.id, card).some((mode) => mode.id === `${cardId}:self-free` && mode.legal), cardId);
+    const turnOneModes = cardPaymentModes(state, player.id, card);
+    const turnOneNormal = turnOneModes.find((mode) => mode.id === "normal");
+    assert.equal(turnOneNormal?.freeBase, true, cardId);
+    assert.equal(turnOneNormal?.energyCost, 0, cardId);
+    assert.ok(!turnOneModes.some((mode) => mode.id === `${cardId}:self-free`), cardId);
+
     state.turn = 2;
-    assert.ok(!cardPaymentModes(state, player.id, card).some((mode) => mode.id === `${cardId}:self-free`), cardId);
+    const turnTwoModes = cardPaymentModes(state, player.id, card);
+    const turnTwoNormal = turnTwoModes.find((mode) => mode.id === "normal");
+    assert.equal(turnTwoNormal?.freeBase, false, cardId);
+    assert.equal(turnTwoNormal?.energyCost, card.cost, cardId);
+    assert.ok(!turnTwoModes.some((mode) => mode.id === `${cardId}:self-free`), cardId);
   }
 });
