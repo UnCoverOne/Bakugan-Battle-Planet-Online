@@ -61,14 +61,6 @@ const tabLabels: Record<CardInspectorTab, string> = {
   collection: "Collection",
 };
 
-const tabSymbols: Record<CardInspectorTab, string> = {
-  overview: "⌂",
-  rules: "⚖",
-  rulings: "§",
-  related: "↔",
-  collection: "▦",
-};
-
 function CollectionPanel({
   ids,
   collection,
@@ -387,7 +379,7 @@ export function CardInspector(props: InspectorProps) {
             onClick={() => onTabChange?.(candidate)}
             key={candidate}
           >
-            <span className={styles.tabSymbol} aria-hidden="true">{tabSymbols[candidate]}</span>
+            {tabLabels[candidate]}
           </button>
         ))}
       </Tabs>
