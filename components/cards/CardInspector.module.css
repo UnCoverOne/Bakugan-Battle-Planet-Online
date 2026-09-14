@@ -82,19 +82,21 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: var(--space-2);
   border-bottom: 1px solid rgba(91, 196, 226, .18);
   background: rgba(2, 13, 18, .98);
 }
 
 .collectionPanel {
+  min-width: 0;
   display: grid;
   gap: var(--space-5);
   padding: var(--space-5);
 }
 
 .collectionVariant {
+  min-width: 0;
   display: grid;
   gap: .4rem;
   color: var(--text-muted);
@@ -104,6 +106,7 @@
 }
 
 .collectionVariant select {
+  min-width: 0;
   min-height: 2.5rem;
   padding: 0 .65rem;
   border: 1px solid rgba(91, 196, 226, .25);
@@ -112,12 +115,14 @@
 }
 
 .collectionCounters {
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
 }
 
 .collectionCounter {
+  min-width: 0;
   display: grid;
   gap: .55rem;
   padding: var(--space-3);
@@ -127,6 +132,7 @@
 }
 
 .collectionCounter > span {
+  min-width: 0;
   color: var(--text-muted);
   font-size: var(--type-meta);
   font-weight: 800;
@@ -134,15 +140,21 @@
 }
 
 .collectionCounter > div {
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: .55rem;
+  gap: .35rem;
 }
 
 .collectionCounter button {
+  box-sizing: border-box;
+  flex: 0 0 2rem;
   width: 2rem;
   height: 2rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
   border: 1px solid rgba(91, 196, 226, .3);
   color: var(--text-primary);
   background: rgba(10, 35, 44, .78);
@@ -156,14 +168,30 @@
 
 .collectionCounter strong {
   min-width: 2ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 1.35rem;
+}
+
+.tabs.tabsWithCollection {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .tabs button {
   min-width: 0;
   min-height: 2.75rem;
-  padding-inline: var(--space-2);
+  display: grid;
+  place-items: center;
+  padding: 0;
   font-size: var(--type-meta);
+}
+
+.tabSymbol {
+  display: block;
+  color: currentColor;
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .body {
@@ -498,6 +526,17 @@
   }
 }
 
+@media (max-width: 600px) {
+  .collectionCounters {
+    grid-template-columns: 1fr;
+  }
+
+  .collectionPanel {
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
+}
+
 @media (max-width: 520px) {
   .header {
     padding-inline: var(--space-4);
@@ -512,8 +551,16 @@
   }
 
   .tabs {
-    overflow-x: auto;
-    grid-template-columns: repeat(4, minmax(5.25rem, 1fr));
+    overflow: hidden;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .tabs.tabsWithCollection {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .tabSymbol {
+    font-size: 1.2rem;
   }
 
   .overview {
