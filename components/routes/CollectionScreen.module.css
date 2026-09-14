@@ -55,9 +55,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: .4rem;
-  padding: .45rem .5rem .5rem;
+  flex-wrap: nowrap;
+  gap: .25rem;
+  padding: .35rem .3rem .4rem;
   border-top: 1px solid rgba(91, 196, 226, .18);
   background: rgba(3, 17, 23, .92);
 }
@@ -65,30 +65,31 @@
 .quickCounter {
   min-width: 0;
   display: grid;
-  grid-template-columns: 1.8rem minmax(0, auto) 1.8rem;
+  grid-template-columns: 1.6rem minmax(1.7rem, auto) 1.6rem;
   align-items: center;
-  gap: .35rem;
+  gap: .2rem;
   text-align: center;
 }
 
 .quickCounter button {
-  width: 1.8rem;
-  min-height: 1.8rem;
+  width: 1.6rem;
+  min-height: 1.7rem;
   border: 1px solid rgba(91, 196, 226, .28);
   color: var(--text-primary);
   background: rgba(10, 35, 44, .78);
-  font-size: 1.1rem;
+  font-size: 1rem;
   line-height: 1;
 }
 
 .quickCounter button:disabled { opacity: .35; }
 
 .collectionBadge {
-  min-height: 1.8rem;
+  min-width: 1.7rem;
+  min-height: 1.7rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 .45rem;
+  padding: 0 .35rem;
   border: 1px solid rgba(91, 196, 226, .28);
   color: var(--text-primary);
   background: rgba(10, 35, 44, .78);
