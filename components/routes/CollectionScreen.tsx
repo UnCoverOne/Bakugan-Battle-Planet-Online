@@ -167,9 +167,9 @@ function CollectionFooter({ label, owned, wishlist, standard, onQuickChange }: {
   return <div className={styles.collectionFooter}>
     <div className={styles.quickCounter} aria-label={`${label} owned copies`}>
       <button type="button" aria-label={`Decrease standard copies for ${label}`} disabled={!standard} onClick={() => onQuickChange("standard", -1)}>−</button>
-      <span className={styles.collectionBadge}>Owned {owned}</span>
+      <span className={styles.collectionBadge}>{owned}</span>
       <button type="button" aria-label={`Increase standard copies for ${label}`} onClick={() => onQuickChange("standard", 1)}>+</button>
     </div>
-    {wishlist > 0 && <span className={styles.collectionBadge} aria-label={`${label} wishlist copies`}>Wishlist {wishlist}</span>}
+    {wishlist > 0 && <span className={styles.collectionBadge} aria-label={`${label} wishlist copies`}>★ {wishlist}</span>}
   </div>;
 }
