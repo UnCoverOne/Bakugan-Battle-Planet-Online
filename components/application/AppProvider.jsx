@@ -795,15 +795,12 @@ export function AppProvider({ children }) {
           acknowledgedSnapshot.current = remote;
           pendingEntityKeys.current = null;
           acknowledgedHistoryIds.current = null;
-          const reconciled = resolveEntityConflicts(
-            latestLocal,
-            remote,
-            localWins,
-          );
-          applySnapshot(
-            { ...reconciled, profile: { ...reconciled.profile, signedIn: true } },
-            true,
-          );
+          // Keep the optimistic local state visible after a successful save.
+          // If another edit landed while the request was in flight, the loop
+          // below sends that newer state without briefly rolling the UI back.
+          if (localWins.length || localVersion.current > targetVersion) {
+            syncRequested.current = true;
+          }
         } else {
           acknowledgedSnapshot.current = toCloudSnapshot(current);
         }
