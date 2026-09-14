@@ -182,16 +182,13 @@
   min-height: 2.75rem;
   display: grid;
   place-items: center;
-  padding: 0;
+  overflow: hidden;
+  padding: 0 .1rem;
+  color: inherit;
   font-size: var(--type-meta);
-}
-
-.tabSymbol {
-  display: block;
-  color: currentColor;
-  font-size: 1.35rem;
-  font-weight: 900;
   line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .body {
@@ -557,10 +554,6 @@
 
   .tabs.tabsWithCollection {
     grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
-  .tabSymbol {
-    font-size: 1.2rem;
   }
 
   .overview {
