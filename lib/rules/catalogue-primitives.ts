@@ -54,6 +54,8 @@ function controlledCardNames(text: string) {
 export function conditionFor(text: string): RuleCondition {
   const normalizedText = text.replace(/\s+/g, " ").trim();
   if (/\bplay this(?: card)? for free on the first turn of the game\b/i.test(normalizedText)) return { kind: "first-turn" };
+  const attackDamageThreshold = normalizedText.match(/\bif this attacks for (\d+) \[Damage(?: (?:Rating|Power))?\] or more\b/i);
+  if (attackDamageThreshold) return { kind: "attack-damage", amount: Number(attackDamageThreshold[1]) };
   if (/\bif this is a team attack\b/i.test(normalizedText)) return { kind: "team-attack" };
   if (/^Empower\s*:/i.test(normalizedText)) return { kind: "empower-selected" };
   if (/if an opposing player reduced damage with Armor Rating this turn/i.test(normalizedText)) {

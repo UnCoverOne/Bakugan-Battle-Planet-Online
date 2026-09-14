@@ -51,6 +51,67 @@ function openBrawl() {
   return { state, first, second, firstBakugan, secondBakugan };
 }
 
+test("Mc Q compiles its granted Victor draw with a 10-Damage intervening condition", () => {
+  const mcq = cardInstance("sv-100", "compile");
+  const definition = ruleDefinitionForCard(mcq);
+  const victor = definition.abilities.find((ability) => ability.kind === "triggered" && ability.trigger?.event === "VICTOR_DECLARED");
+  assert.ok(victor);
+  assert.deepEqual(victor.trigger?.interveningCondition, { kind: "attack-damage", amount: 10 });
+  assert.ok(victor.instructions.some((instruction) => instruction.actions.some((action) => action.kind === "draw")));
+  assert.ok(victor.instructions.some((instruction) => instruction.choices.some((choice) => choice.id === "confirmed" && choice.timing === "resolve")));
+});
+
+function mcqVictorState(baseDamage: number) {
+  const first = makePlayer("mcq-first", "McQ Player", STARTER_DECKS[0]);
+  const second = makePlayer("mcq-second", "Opponent", STARTER_DECKS[1]);
+  const state = createMatch("MCQ-VICTOR", "bo1", [first, second]);
+  const player = state.players.find((candidate) => candidate.id === first.id)!;
+  const opponent = state.players.find((candidate) => candidate.id === second.id)!;
+  const attacking = player.bakugan[0];
+  const defending = opponent.bakugan[0];
+  player.heroes.push(cardInstance("sv-100", `hero-${baseDamage}`));
+  attacking.open = true;
+  defending.open = true;
+  attacking.bPower = 1200;
+  attacking.damage = baseDamage;
+  attacking.character.bPower = 1200;
+  attacking.character.damage = baseDamage;
+  defending.bPower = 100;
+  defending.damage = 1;
+  defending.character.bPower = 100;
+  defending.character.damage = 1;
+  state.turn = 3;
+  state.phase = "power";
+  state.startingPlayer = player.id;
+  state.priority = player.id;
+  state.selected = { [player.id]: attacking.id, [opponent.id]: defending.id };
+  state.rolls = {
+    [player.id]: { result: "intended-core" } as MatchState["rolls"][string],
+    [opponent.id]: { result: "intended-core" } as MatchState["rolls"][string],
+  };
+  return { state, player, opponent };
+}
+
+test("Mc Q only puts its Victor effect on the Batch when the upcoming attack is 10 or more", () => {
+  for (const [baseDamage, shouldTrigger] of [[8, false], [9, true]] as const) {
+    let { state, player, opponent } = mcqVictorState(baseDamage);
+    state = passPriority(state, player.id);
+    state = passPriority(state, opponent.id);
+    assert.equal(state.phase, "victor");
+    const mcqTrigger = state.batch.find((effect) => effect.card.catalogId === "sv-100" && effect.kind === "trigger");
+    assert.equal(Boolean(mcqTrigger), shouldTrigger, `base ${baseDamage} plus Mc Q's +1`);
+    if (!shouldTrigger) continue;
+
+    state = passPriority(state, state.priority);
+    state = passPriority(state, state.priority);
+    assert.ok(state.pendingChoice);
+    const drawChoice = state.pendingChoice.schema.fields.find((field) => field.id === "confirmed");
+    assert.ok(drawChoice);
+    assert.equal(drawChoice.chooserId, player.id);
+    assert.match(drawChoice.label, /Draw.*1/i);
+  }
+});
+
 for (const catalogId of ["bb-104", "bb-210"] as const) {
   test(`${catalogId} makes Damage Rating decide the current Brawl`, () => {
     const { state, first, second } = openBrawl();

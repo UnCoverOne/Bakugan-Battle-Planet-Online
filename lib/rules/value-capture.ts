@@ -71,6 +71,7 @@ export function captureRuleConditionValues(
     case "played-card-cost":
     case "card-count":
     case "open-bakugan-count":
+    case "attack-damage":
       captureNumber(state, condition.amount, moment, context, snapshots);
       break;
     case "core-count":

@@ -38,6 +38,7 @@ export type RuleCondition =
   | { kind: "flow" }
   | { kind: "underdog" }
   | { kind: "victor" }
+  | { kind: "attack-damage"; amount: NumberValue }
   | { kind: "faction"; faction: Faction; subject: "target" | "team" }
   | { kind: "cards-played"; comparison: "at-least" | "more-than"; amount: NumberValue }
   | { kind: "factions-played"; comparison: "at-least"; amount: NumberValue }

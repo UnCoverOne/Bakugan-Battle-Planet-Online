@@ -87,6 +87,7 @@ export function ruleConditionActive(
     case "domination": return Boolean(opponent && player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0)
       > opponent.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0));
     case "victor": return state.brawlWinner === player.id;
+    case "attack-damage": return Boolean(bakugan && prospectiveAttackDamage(state, player, bakugan) >= conditionValue(condition.amount));
     case "fusion": return Boolean(bakugan?.fused);
     case "faction": return condition.subject === "target"
       ? Boolean(bakugan && bakuganHasFaction(bakugan, condition.faction))
@@ -381,6 +382,17 @@ export function evaluateBakuganCharacteristics(
     applied,
     prevented,
   };
+}
+
+/** Effective damage the active Bakugan is about to attack for, including Team Attack and DoubleStrike. */
+export function prospectiveAttackDamage(state: MatchState, player: PlayerState, attacking: Bakugan) {
+  const stats = evaluateBakuganCharacteristics(state, attacking, player);
+  const openTeam = player.bakugan.filter((bakugan) => bakugan.open);
+  let damage = openTeam.length === 3
+    ? openTeam.reduce((sum, bakugan) => sum + evaluateBakuganCharacteristics(state, bakugan, player).damage, 0)
+    : stats.damage;
+  if (stats.doubleStrike) damage *= 2;
+  return Math.max(0, damage);
 }
 
 export function activeFrostStrike(state: MatchState, sourceId: string) {

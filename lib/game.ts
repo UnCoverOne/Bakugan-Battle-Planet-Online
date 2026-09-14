@@ -11,7 +11,7 @@ import { compileCardEffect, type RuleAction, type RuleInstruction } from "./rule
 import { ruleDefinitionForCard } from "./rules/catalogue";
 import { activeUnchargedEnergyIds, beginCardPayment, cardPaymentModes, commitCardPayment, instabrawlCostFor, maximumPayableEnergy, normalizeEnergyCardState, payEnergyCost, prepareDeclaredEnergyPayment, rechargeEnergyCards, setEnergyCardChargeState, unchargeEnergyCards } from "./rules/costs";
 import { canonicalEvoTargetAllowed } from "./rules/identity";
-import { evaluateBakuganCharacteristics, ruleConditionActive } from "./rules/modifiers";
+import { evaluateBakuganCharacteristics, prospectiveAttackDamage, ruleConditionActive } from "./rules/modifiers";
 import { turnDrawCounts } from "./rules/turn-draw";
 import { playerIdsForScope, zoneOwnerIdsFor } from "./rules/primitives";
 import { evaluateNumberValue, type EvaluationMoment, type NumberValue } from "./rules/values";
@@ -4168,8 +4168,7 @@ const beginDamage = (state: MatchState) => {
     ...(loserBakugan ? [loserBakugan.id] : []),
     ...(state.teamAttack ? openTeam.map((bakugan) => bakugan.id) : []),
   ])];
-  const stats = staticModifier(state, attacking, winner); let damage = state.teamAttack ? openTeam.reduce((sum, bakugan) => sum + staticModifier(state, bakugan, winner).damage, 0) : stats.damage;
-  if (stats.double) damage *= 2;
+  const damage = prospectiveAttackDamage(state, winner, attacking);
   state.pendingLoser = loser.id; state.pendingDamage = Math.max(0, damage); state.damageOrigin = attacking.id; state.damageFaction = attacking.faction;
   setPhase(state, "damage", `Damage Step • ${damage} incoming`, loser.id); entry(state, "game", `${winner.name} attacks for ${damage}${state.teamAttack ? " as a Team Attack" : ""}.`);
   emitGameEvent(state, { id: `${state.turn}:attack:${attacking.id}`, type: "attack", playerId: winner.id, targetBakuganId: attacking.id });

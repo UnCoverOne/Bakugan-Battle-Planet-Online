@@ -34,6 +34,9 @@ const RULES_TEXT_NORMALIZATIONS: Partial<Record<string, string>> = {
   // the locked catalogue text intact, but compile the reviewed timing and
   // condition boundaries that are printed on the card.
   "bb-257": "[MS]: +200 [B]. When this opens, you may attach an additional BakuCore from the Field to Haos Titan Nillious. [FF]: +4 [Damage Rating].",
+  // The Shields of Vestroia source row lost the punctuation after Victor.
+  // Preserve the locked catalogue text, but compile the reviewed printed ability.
+  "sv-100": 'You may play this for free on the first turn of the game. +1 [Damage] to your Bakugan attacks. Your Bakugan have, "Victor: If this attacks for 10 [Damage] or more, you may [Draw] 1."',
 };
 
 function cardForRules(card: GameCard): GameCard {
