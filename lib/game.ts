@@ -66,6 +66,8 @@ export type GameCard = {
   source?: string;
   hasProvidedScan?: boolean;
   slug?: string;
+  /** Stable rules identity shared by alternate physical printings. */
+  constructionIdentity?: string;
   collectorNumber?: string;
   armorRating?: number;
   fusionPairId?: string;

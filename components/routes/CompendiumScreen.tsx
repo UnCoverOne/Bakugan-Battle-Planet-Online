@@ -25,6 +25,7 @@ import {
 } from "../../lib/compendium";
 import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
 import type { Core } from "../../lib/game";
+import { updateCollection, type CollectionField } from "../../lib/collection";
 import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT, SYMBOL_ENTRIES } from "../../lib/reference";
 import { useApp } from "../application/AppProvider";
@@ -233,7 +234,11 @@ function CoreFilterControls({
 export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setCompendiumTab, authUser, notify } = useApp();
+  const { setCompendiumTab, authUser, notify, collection, setCollection } = useApp();
+  const changeCollection = useCallback((catalogId: string, field: CollectionField, delta: number) => {
+    if (!authUser) return;
+    setCollection((current) => updateCollection(current, catalogId, field, delta));
+  }, [authUser, setCollection]);
   const section = segments[0] === "cores" ? "cores" : segments[0] === "rules" ? "rules" : segments[0] === "rulings" ? "rulings" : "cards";
   const legacyDetail = section === "cards" && segments[0] === "cards" ? decodeURIComponent(segments[1] ?? "") : "";
   const state = useMemo(() => parseCompendiumState(searchParams.toString()), [searchParams]);
@@ -545,6 +550,9 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 onClose={closeInspector}
                 returnFocusRef={inspectorTrigger}
                 onShare={() => void copyCurrentLink(selected.displayName)}
+                collectionEnabled={Boolean(authUser)}
+                collection={collection}
+                onCollectionChange={changeCollection}
               />
             )}
           </div>
@@ -641,6 +649,9 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 onClose={() => navigateCore({ core: "", tab: "overview" })}
                 returnFocusRef={inspectorTrigger}
                 onShare={() => void copyCurrentLink(selectedCore.name)}
+                collectionEnabled={Boolean(authUser)}
+                collection={collection}
+                onCollectionChange={changeCollection}
               />
             )}
           </div>

@@ -43,6 +43,7 @@ export function SettingsScreen() {
     syncNow,
     changePassword,
     deleteAccount,
+    collection,
   } = useApp();
   const [section, setSection] = useState<Section>("Account");
   const [brawlerName, setBrawlerName] = useState(profile.name);
@@ -151,6 +152,7 @@ export function SettingsScreen() {
       history,
       settings,
       selectedDeckId,
+      collection,
     };
     downloadTextFile(
       `bakugan-brawler-data-${new Date().toISOString().slice(0, 10)}.json`,

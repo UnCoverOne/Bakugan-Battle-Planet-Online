@@ -16,6 +16,7 @@ import {
   selectSnapshot,
   toCloudSnapshot,
 } from "../../lib/persistence";
+import { normalizeCollection } from "../../lib/collection";
 import {
   buildChangedAccountSyncRequests,
   changedAccountEntityKeys,
@@ -62,7 +63,7 @@ const defaults = {
   profile: DEFAULT_BRAWLER_PROFILE,
   settings: DEFAULT_APP_SETTINGS,
 };
-const paths = { entry: "/", dashboard: "/", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/profile/records", profile: "/profile", settings: "/settings", admin: "/admin" };
+const paths = { entry: "/", dashboard: "/", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", collection: "/collection", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/profile/records", profile: "/profile", settings: "/settings", admin: "/admin" };
 
 let storageReportTimer = null;
 let pendingStorageDetail = null;
@@ -80,6 +81,7 @@ export function routeForPath(pathname) {
   if (first === "decks") return second ? "deck-detail" : "decks";
   if (first === "builder") return "builder";
   if (first === "compendium") return "compendium";
+  if (first === "collection") return "collection";
   if (first === "admin") return "admin";
   if (first === "history") return "history";
   if (["dashboard", "profile", "settings"].includes(first)) return first;
@@ -250,6 +252,10 @@ export function AppProvider({ children }) {
   const [replay, setReplay, replayReady] = useStoredState("bbp-open-replay-v1", null, { storage: "session", debounceMs: 300, normalize: normalizeStoredReplay, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
   const [replayIndex, setReplayIndex, replayIndexReady] = useStoredState("bbp-replay-index-v1", 0, { storage: "session", debounceMs: 250, normalize: normalizeStoredNumber, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
   const [playerId, setPlayerId, playerReady] = useStoredState("bbp-player-id", "player", { debounceMs: 300, normalize: normalizeStoredPlayerId, report: false, writeEnabled: writeLocal });
+  const [collection, setCollectionState] = useState({});
+  const setCollection = useCallback((update) => {
+    setCollectionState((current) => normalizeCollection(typeof update === "function" ? update(current) : update));
+  }, []);
   const [matchCapability, setMatchCapability, capabilityReady] = useStoredState(MATCH_CAPABILITY_STORAGE_KEY, "", { storage: "session", debounceMs: 100, normalize: normalizeStoredText, report: false, migrateFromLocal: true, writeEnabled: true });
   const [matchControllerId, setMatchControllerId, controllerReady] = useStoredState(MATCH_CONTROLLER_STORAGE_KEY, "", { storage: "session", debounceMs: 100, normalize: normalizeStoredText, report: false, writeEnabled: true });
   const [modifiedAt, setModifiedAt, modifiedReady] = useStoredState("bbp-local-modified-at-v1", 0, { debounceMs: 500, normalize: normalizeStoredNumber, report: false, writeEnabled: writeLocal });
@@ -365,7 +371,7 @@ export function AppProvider({ children }) {
     }
   }, [authUser, match?.code, matchCapability, matchControllerId, online, playerId]);
 
-  const snapshot = useMemo(() => ({ schemaVersion: 1, updatedAt: modifiedAt, profile, decks, deletedDecks, history: history.slice(0, MAX_MATCH_RECORDS), lifetimeStats, settings, route, selectedDeckId, builderDeck, deckQuery, compendiumQuery, compendiumTab, format, matchMode, joinCode, match, online, selectedCore: "", logFilter: "all", replay, replayIndex, playerId }), [builderDeck, compendiumQuery, compendiumTab, deckQuery, decks, deletedDecks, format, history, joinCode, lifetimeStats, match, matchMode, modifiedAt, online, playerId, profile, replay, replayIndex, route, selectedDeckId, settings]);
+  const snapshot = useMemo(() => ({ schemaVersion: 1, updatedAt: modifiedAt, profile, decks, deletedDecks, history: history.slice(0, MAX_MATCH_RECORDS), lifetimeStats, settings, route, selectedDeckId, builderDeck, deckQuery, compendiumQuery, compendiumTab, format, matchMode, joinCode, match, online, selectedCore: "", logFilter: "all", replay, replayIndex, playerId, collection }), [builderDeck, collection, compendiumQuery, compendiumTab, deckQuery, decks, deletedDecks, format, history, joinCode, lifetimeStats, match, matchMode, modifiedAt, online, playerId, profile, replay, replayIndex, route, selectedDeckId, settings]);
   useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
   const guestData = useMemo(
     () => summarizeGuestData({ profile, decks, history, settings, builderDeck, match }),
@@ -385,7 +391,8 @@ export function AppProvider({ children }) {
     matchMode,
     activeTrainingMatch,
     activeTrainingPlayerId: activeTrainingMatch ? playerId : "",
-  }), [activeTrainingMatch, builderDeck, decks, deletedDecks, format, history, matchMode, playerId, profile, selectedDeckId, settings]);
+    collection,
+  }), [activeTrainingMatch, builderDeck, collection, decks, deletedDecks, format, history, matchMode, playerId, profile, selectedDeckId, settings]);
 
   useEffect(() => {
     mounted.current = true;
@@ -549,8 +556,9 @@ export function AppProvider({ children }) {
     setBuilderDeck(next.builderDeck); setDeckQuery(next.deckQuery); setCompendiumQuery(next.compendiumQuery); setCompendiumTab(next.compendiumTab);
     setFormat(next.format); setMatchMode(next.matchMode); setJoinCode(next.joinCode); setMatch(next.match); setOnline(next.online);
     setReplay(next.replay); setReplayIndex(next.replayIndex); setPlayerId(next.playerId); setModifiedAt(next.updatedAt);
+    setCollection(next.collection);
     setTimeout(() => { applying.current = false; }, 120);
-  }, [setBuilderDeck, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDeletedDecks, setStoredDecks, setFormat, setHistory, setJoinCode, setLifetimeStats, setMatch, setMatchMode, setModifiedAt, setOnline, setPlayerId, setProfile, setReplay, setReplayIndex, setSelectedDeckId, setSettings]);
+  }, [setBuilderDeck, setCollection, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDeletedDecks, setStoredDecks, setFormat, setHistory, setJoinCode, setLifetimeStats, setMatch, setMatchMode, setModifiedAt, setOnline, setPlayerId, setProfile, setReplay, setReplayIndex, setSelectedDeckId, setSettings]);
 
   const persistAccountRecovery = useCallback((userId, data = snapshotRef.current) => {
     if (!userId || !data) return false;
@@ -1206,6 +1214,6 @@ export function AppProvider({ children }) {
     }
   }, [authUser, loadCloud]);
 
-  const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, lifetimeStats, settings, setSettings, selectedDeckId, setSelectedDeckId, selectedDeck, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchCapability, matchControllerId, matchError, toast, notify, authUser, authChecking, accountDataReady, authBusy, authError, syncStatus, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, retryCloudLoad, accountMatchSessions, accountMatchSessionsLoading, accountMatchSessionsError, refreshAccountMatchSessions, resumeAccountMatch, resumingMatchCode, startSolo, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch, catalogueRevision }), [accountAccessMode, accountDataReady, accountMatchSessions, accountMatchSessionsError, accountMatchSessionsLoading, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, catalogueRevision, changePassword, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, createOnline, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, joinCode, guestData, joinOnline, leaveMatch, lifetimeStats, match, matchControllerId, matchError, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, matchCapability, refreshAccountMatchSessions, requestAccountAccess, profile, ready, readyMatch, replay, replayIndex, resumeAccountMatch, resumingMatchCode, retryCloudLoad, route, saveAccountProfile, selectedDeck, selectedDeckId, setBuilderDeck, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDecks, setFormat, setHistory, setJoinCode, setMatch, setMatchMode, setOnline, setProfile, setReplay, setReplayIndex, setSelectedDeckId, setSettings, settings, signOutAccount, startSolo, storageHealth, syncNow, syncStatus, toast]);
+  const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, lifetimeStats, settings, setSettings, collection, setCollection, selectedDeckId, setSelectedDeckId, selectedDeck, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchCapability, matchControllerId, matchError, toast, notify, authUser, authChecking, accountDataReady, authBusy, authError, syncStatus, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, retryCloudLoad, accountMatchSessions, accountMatchSessionsLoading, accountMatchSessionsError, refreshAccountMatchSessions, resumeAccountMatch, resumingMatchCode, startSolo, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch, catalogueRevision }), [accountAccessMode, accountDataReady, accountMatchSessions, accountMatchSessionsError, accountMatchSessionsLoading, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, catalogueRevision, changePassword, collection, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, createOnline, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, joinCode, guestData, joinOnline, leaveMatch, lifetimeStats, match, matchControllerId, matchError, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, matchCapability, refreshAccountMatchSessions, requestAccountAccess, profile, ready, readyMatch, replay, replayIndex, resumeAccountMatch, resumingMatchCode, retryCloudLoad, route, saveAccountProfile, selectedDeck, selectedDeckId, setBuilderDeck, setCollection, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDecks, setFormat, setHistory, setJoinCode, setMatch, setMatchMode, setOnline, setProfile, setReplay, setReplayIndex, setSelectedDeckId, setSettings, settings, signOutAccount, startSolo, storageHealth, syncNow, syncStatus, toast]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

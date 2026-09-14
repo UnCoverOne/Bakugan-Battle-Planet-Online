@@ -38,6 +38,7 @@ const FALLBACK: UserSnapshot = {
   replay: null,
   replayIndex: 0,
   playerId: "player",
+  collection: {},
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

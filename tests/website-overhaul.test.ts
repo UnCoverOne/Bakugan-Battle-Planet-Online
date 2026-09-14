@@ -17,12 +17,13 @@ test("the primary shell uses the approved five-item top navigation and profile m
   assert.match(shell, /profile-popover-title/);
   assert.match(shell, /profile-popover-stat-value/);
   assert.match(shell, /profile-popover-row-icon/);
-  assert.equal(shell.match(/className="profile-popover-row-label"/g)?.length, 4);
+  assert.equal(shell.match(/className="profile-popover-row-label"/g)?.length, 5);
   assert.match(shell, /profile-popover-chevron/);
   assert.match(shell, /profile-popover-logout/);
   assert.match(shell, /View Profile/);
   assert.match(shell, /Achievements/);
   assert.match(shell, /Settings/);
+  assert.match(shell, /Collection/);
   assert.match(shell, /Log out/);
   assert.doesNotMatch(shell, /function SyncGlyph/);
   assert.doesNotMatch(shell, /sync-dot|sync-icon|syncIndicator|deriveSyncIndicator/);

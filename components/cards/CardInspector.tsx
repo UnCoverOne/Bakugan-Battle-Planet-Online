@@ -12,6 +12,7 @@ import {
   type CardInspectorTab,
 } from "../../lib/compendium";
 import type { Core, GameCard } from "../../lib/game";
+import { cardCollectionIds, collectionEntry, coreCollectionIds, type Collection, type CollectionField } from "../../lib/collection";
 import { SYMBOL_ENTRIES, type ReferenceEntry } from "../../lib/reference";
 import { StatusChip, Tabs } from "../design-system/primitives";
 import { InspectorModal } from "./InspectorModal";
@@ -28,6 +29,9 @@ type SharedInspectorProps = {
   onShare?: () => void;
   returnFocusRef?: { current: HTMLElement | null };
   className?: string;
+  collectionEnabled?: boolean;
+  collection?: Collection;
+  onCollectionChange?: (catalogId: string, field: CollectionField, delta: number) => void;
 };
 
 export type InspectorProps = SharedInspectorProps & (
@@ -54,7 +58,49 @@ const tabLabels: Record<CardInspectorTab, string> = {
   rules: "Rules",
   rulings: "Rulings",
   related: "Related",
+  collection: "Collection",
 };
+
+function CollectionPanel({
+  ids,
+  collection,
+  onChange,
+}: {
+  ids: readonly string[];
+  collection: Collection;
+  onChange?: (catalogId: string, field: CollectionField, delta: number) => void;
+}) {
+  const [activeId, setActiveId] = useState(ids[0] ?? "");
+  const idsKey = ids.join("|");
+  const firstId = ids[0] ?? "";
+  useEffect(() => setActiveId(firstId), [firstId, idsKey]);
+  const entry = collectionEntry(collection, activeId);
+  return (
+    <div className={styles.collectionPanel}>
+      {ids.length > 1 && (
+        <label className={styles.collectionVariant}>
+          Printing
+          <select value={activeId} onChange={(event) => setActiveId(event.target.value)}>
+            {ids.map((id, index) => <option value={id} key={id}>{index === 0 ? "Primary printing" : id}</option>)}
+          </select>
+        </label>
+      )}
+      <div className={styles.collectionCounters}>
+        {(["standard", "foil", "wishlist"] as const).map((field) => (
+          <div key={field} className={styles.collectionCounter}>
+            <span>{field[0].toUpperCase() + field.slice(1)}</span>
+            <div>
+              <button type="button" aria-label={`Decrease ${field} copies`} disabled={!entry[field]} onClick={() => onChange?.(activeId, field, -1)}>−</button>
+              <strong>{entry[field]}</strong>
+              <button type="button" aria-label={`Increase ${field} copies`} onClick={() => onChange?.(activeId, field, 1)}>+</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className={styles.muted}>Counts are saved to your account and kept separate for each catalogue printing.</p>
+    </div>
+  );
+}
 
 function EffectText({ text }: { text: string }) {
   const pattern = /(\[[^\]]+\])/g;
@@ -259,7 +305,7 @@ function CoreRelated({
 }
 
 export function CardInspector(props: InspectorProps) {
-  const { rules, rulings, tab = "overview", mode = "modal", onTabChange, onClose, onShare, returnFocusRef, className } = props;
+  const { rules, rulings, tab = "overview", mode = "modal", onTabChange, onClose, onShare, returnFocusRef, className, collectionEnabled = false, collection = {}, onCollectionChange } = props;
   const card = "card" in props ? props.card : undefined;
   const core = "core" in props ? props.core : undefined;
   const allCards = "card" in props ? props.allCards : null;
@@ -281,6 +327,11 @@ export function CardInspector(props: InspectorProps) {
   const hasFusion = Boolean(baseCard?.fusionPairId && fusedCard);
   const label = displayedCard?.displayName ?? core?.name ?? "Inspector";
   const isCore = Boolean(core);
+  const visibleTabs: CardInspectorTab[] = collectionEnabled ? [...CARD_INSPECTOR_TABS] : CARD_INSPECTOR_TABS.filter((candidate) => candidate !== "collection");
+  const effectiveTab = visibleTabs.includes(tab) ? tab : "overview";
+  const collectionIds = card
+    ? cardCollectionIds(baseCard ?? card, allCards ?? [card])
+    : core ? coreCollectionIds(core) : [];
 
   useEffect(() => {
     setFusionFace("a");
@@ -295,12 +346,12 @@ export function CardInspector(props: InspectorProps) {
     () => displayedCard ? matchingReferences(displayedCard, rulings, 8) : core ? matchingCoreReferences(core, rulings, 8) : [],
     [displayedCard, core, rulings],
   );
-  const relatedCards = useMemo(() => displayedCard ? relatedCompendiumCards(displayedCard, allCards) : [], [allCards, displayedCard]);
+  const relatedCards = useMemo(() => displayedCard ? relatedCompendiumCards(displayedCard, allCards ?? []) : [], [allCards, displayedCard]);
   const activePrinting = core?.printings?.find((printing) => printing.id === activePrintingId);
   const displayedCore = core && activePrinting
     ? { ...core, set: activePrinting.set, number: activePrinting.number, art: activePrinting.art, hasProvidedScan: true }
     : core;
-  const panelId = `${isCore ? "core" : "card"}-inspector-${itemKey}-${tab}`;
+  const panelId = `${isCore ? "core" : "card"}-inspector-${itemKey}-${effectiveTab}`;
   const titleId = `${isCore ? "core" : "card"}-inspector-title-${itemKey}`;
 
   const inspectorContent = (
@@ -316,13 +367,13 @@ export function CardInspector(props: InspectorProps) {
         </div>
       </header>
       <Tabs className={styles.tabs} label={`${label} information`}>
-        {CARD_INSPECTOR_TABS.map((candidate) => (
+        {visibleTabs.map((candidate) => (
           <button
             type="button"
             role="tab"
-            aria-selected={tab === candidate}
-            aria-controls={tab === candidate ? panelId : undefined}
-            className={tab === candidate ? "active" : ""}
+            aria-selected={effectiveTab === candidate}
+            aria-controls={effectiveTab === candidate ? panelId : undefined}
+            className={effectiveTab === candidate ? "active" : ""}
             onClick={() => onTabChange?.(candidate)}
             key={candidate}
           >
@@ -331,9 +382,9 @@ export function CardInspector(props: InspectorProps) {
         ))}
       </Tabs>
       <div className={styles.body} id={panelId} role="tabpanel" aria-live="polite">
-        {tab === "overview" && displayedCard && <CardOverview card={displayedCard} hasFusion={hasFusion} fusionFace={fusionFace} onToggleFusion={() => setFusionFace((face) => face === "a" ? "b" : "a")} />}
-        {tab === "overview" && core && displayedCore && <CoreOverview core={core} displayedCore={displayedCore} />}
-        {tab === "rules" && (
+        {effectiveTab === "overview" && displayedCard && <CardOverview card={displayedCard} hasFusion={hasFusion} fusionFace={fusionFace} onToggleFusion={() => setFusionFace((face) => face === "a" ? "b" : "a")} />}
+        {effectiveTab === "overview" && core && displayedCore && <CoreOverview core={core} displayedCore={displayedCore} />}
+        {effectiveTab === "rules" && (
           <ReferenceList
             entries={relevantRules}
             empty={isCore
@@ -342,7 +393,7 @@ export function CardInspector(props: InspectorProps) {
             label="Relevant rule"
           />
         )}
-        {tab === "rulings" && (
+        {effectiveTab === "rulings" && (
           <ReferenceList
             entries={relevantRulings}
             empty={isCore ? "No published ruling is currently linked to this BakuCore." : "No published ruling is currently linked to this card."}
@@ -350,7 +401,7 @@ export function CardInspector(props: InspectorProps) {
             ruling
           />
         )}
-        {tab === "related" && displayedCard && (
+        {effectiveTab === "related" && displayedCard && (
           relatedCards.length ? (
             <div className={styles.relatedGrid}>
               {relatedCards.map((candidate) => (
@@ -362,8 +413,11 @@ export function CardInspector(props: InspectorProps) {
             </div>
           ) : <InspectorEmpty message="No evolution, alternate printing, or directly connected card was found." />
         )}
-        {tab === "related" && core && (
+        {effectiveTab === "related" && core && (
           <CoreRelated core={core} activePrintingId={activePrintingId} onSelectPrinting={setActivePrintingId} />
+        )}
+        {effectiveTab === "collection" && collectionEnabled && (
+          <CollectionPanel ids={collectionIds} collection={collection} onChange={onCollectionChange} />
         )}
       </div>
     </>

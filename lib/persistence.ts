@@ -13,8 +13,9 @@ import {
   normalizeProfileTitle,
   normalizeShowcaseIds,
 } from "./profile-customization";
+import { normalizeCollection, type Collection } from "./collection";
 
-export type AppRoute = "entry" | "dashboard" | "decks" | "deck-detail" | "builder" | "compendium" | "play" | "lobby" | "placement" | "match" | "result" | "history" | "profile" | "settings";
+export type AppRoute = "entry" | "dashboard" | "decks" | "deck-detail" | "builder" | "compendium" | "collection" | "play" | "lobby" | "placement" | "match" | "result" | "history" | "profile" | "settings";
 export type BrawlerProfile = {
   name: string;
   faction: string;
@@ -107,6 +108,8 @@ export type UserSnapshot = {
   replay: MatchResultRecord | null;
   replayIndex: number;
   playerId: string;
+  /** Account-only collection state; optional for backward-compatible imports. */
+  collection?: Collection;
 };
 
 export type SnapshotPreference = "merge" | "local" | "cloud";
@@ -178,7 +181,7 @@ export function mergeAchievementCompletions(
   return merged;
 }
 
-const validRoutes = new Set<AppRoute>(["entry", "dashboard", "decks", "deck-detail", "builder", "compendium", "play", "lobby", "placement", "match", "result", "history", "profile", "settings"]);
+const validRoutes = new Set<AppRoute>(["entry", "dashboard", "decks", "deck-detail", "builder", "compendium", "collection", "play", "lobby", "placement", "match", "result", "history", "profile", "settings"]);
 const validFactions = new Set(["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"]);
 
 function normalizeDeck(value: unknown): DeckRecord | null {
@@ -310,6 +313,7 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
     replay: candidate.replay && typeof candidate.replay === "object" ? candidate.replay : null,
     replayIndex: Number.isFinite(candidate.replayIndex) ? Math.max(0, Number(candidate.replayIndex)) : 0,
     playerId: typeof candidate.playerId === "string" && candidate.playerId ? candidate.playerId : fallback.playerId,
+    collection: normalizeCollection(candidate.collection ?? fallback.collection),
   };
 }
 
@@ -399,6 +403,7 @@ export function createEmptyAccountSnapshot(
     builderDeck: null,
     format: "bo1",
     matchMode: "solo",
+    collection: {},
   };
 }
 

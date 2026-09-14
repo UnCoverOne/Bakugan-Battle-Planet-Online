@@ -57,6 +57,7 @@ function MenuIcon({ name }) {
     sparkle: <><path d="m12 2 1.45 4.05L17.5 7.5l-4.05 1.45L12 13l-1.45-4.05L6.5 7.5l4.05-1.45L12 2Z" /><path d="m18.5 13 .82 2.18L21.5 16l-2.18.82L18.5 19l-.82-2.18L15.5 16l2.18-.82L18.5 13ZM5 13l.65 1.85 1.85.65-1.85.65L5 18l-.65-1.85-1.85-.65 1.85-.65L5 13Z" /></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.55v-.1A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.1 15a1.7 1.7 0 0 0-1.5-1H2.5V10h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.56 4.2l.06.06A1.7 1.7 0 0 0 8.5 4.6a1.7 1.7 0 0 0 1-1.5V3h4v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 18.9 9a1.7 1.7 0 0 0 1.5 1h.1v4h-.1a1.7 1.7 0 0 0-1 .99Z" /></>,
     shield: <path d="M12 2.75 19 5.5v5.25c0 4.3-2.33 7.8-7 10.5-4.67-2.7-7-6.2-7-10.5V5.5l7-2.75Z" />,
+    cards: <><rect x="4" y="5" width="11" height="14" rx="1.5" /><path d="M8 5V3.5h10a2 2 0 0 1 2 2V17h-2M7.5 9h4M7.5 12h4" /></>,
     logout: <><path d="M10 4H5v16h5M14 8l4 4-4 4m4-4H9" /></>,
     chevron: <path d="m9 5 7 7-7 7" />,
   };
@@ -309,6 +310,11 @@ export function AppShell({ children }) {
                     <Link className="profile-popover-row" role="menuitem" href="/profile/achievements">
                       <span className="profile-popover-row-icon"><MenuIcon name="trophy" /></span>
                       <span className="profile-popover-row-label">Achievements</span>
+                      <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
+                    </Link>
+                    <Link className="profile-popover-row" role="menuitem" href="/collection">
+                      <span className="profile-popover-row-icon"><MenuIcon name="cards" /></span>
+                      <span className="profile-popover-row-label">Collection</span>
                       <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
                     </Link>
                     <Link className="profile-popover-row" role="menuitem" href="/settings">

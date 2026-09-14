@@ -1,4 +1,5 @@
 import { validateDeck, type DeckRecord } from "./data";
+import { normalizeCollection } from "./collection";
 
 export const MAX_SYNC_BYTES = 4_000_000;
 
@@ -20,6 +21,7 @@ export function validateUserSnapshot(value: unknown) {
     }
   }
   if (!Array.isArray(snapshot.history) || snapshot.history.length > 200) throw new Error("Sync data may contain at most 200 history records.");
+  if (snapshot.collection !== undefined && JSON.stringify(normalizeCollection(snapshot.collection)) !== JSON.stringify(snapshot.collection)) throw new Error("Collection data is invalid.");
   for (const [index, candidate] of snapshot.decks.entries()) {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error(`Deck ${index + 1} is invalid.`);
     const deck = candidate as Record<string, unknown>;

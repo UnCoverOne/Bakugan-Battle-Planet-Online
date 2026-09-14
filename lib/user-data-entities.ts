@@ -8,12 +8,13 @@ import {
   type MatchResultRecord,
   type UserSnapshot,
 } from "./persistence";
+import { normalizeCollection, type Collection } from "./collection";
 
 export const USER_DATA_SCHEMA_VERSION = 2;
 export const MAX_ENTITY_BYTES = 900_000;
 
 export type EntityRevisionMap = Record<string, number>;
-export type UserDataEntityType = "profile" | "settings" | "preferences" | "deck" | "draft";
+export type UserDataEntityType = "profile" | "settings" | "preferences" | "collection" | "deck" | "draft";
 
 export type UserDataEntityUpdate = {
   type: UserDataEntityType;
@@ -84,6 +85,7 @@ export function snapshotToSyncRequest(
       },
       revisions,
     ),
+    update("collection", "main", snapshot.collection ?? {}, revisions),
     update(
       "draft",
       "main",
@@ -108,7 +110,7 @@ export function validateEntityUpdate(value: unknown): asserts value is UserDataE
     throw new Error("Sync entity must be an object.");
   }
   const entity = value as Partial<UserDataEntityUpdate>;
-  if (!["profile", "settings", "preferences", "deck", "draft"].includes(String(entity.type))) {
+  if (!["profile", "settings", "preferences", "collection", "deck", "draft"].includes(String(entity.type))) {
     throw new Error("Sync entity type is invalid.");
   }
   if (typeof entity.id !== "string" || !entity.id || entity.id.length > 120) {
@@ -138,6 +140,12 @@ export function validateEntityUpdate(value: unknown): asserts value is UserDataE
       !Array.isArray(deck.cardIds)
     ) {
       throw new Error(`Deck ${entity.id} is invalid.`);
+    }
+  }
+  if (entity.type === "collection" && entity.data != null) {
+    const normalized = normalizeCollection(entity.data);
+    if (JSON.stringify(normalized) !== JSON.stringify(entity.data)) {
+      throw new Error("Collection data is invalid.");
     }
   }
 }
@@ -177,6 +185,7 @@ export function assembleEntitySnapshot(
   };
   const profile = parse(active.get("profile:main"), DEFAULT_BRAWLER_PROFILE);
   const settings = parse(active.get("settings:main"), DEFAULT_APP_SETTINGS);
+  const collection = parse<Collection>(active.get("collection:main"), {});
   const preferences = parse(active.get("preferences:main"), {
     selectedDeckId: "",
     format: "bo1",
@@ -246,6 +255,7 @@ export function assembleEntitySnapshot(
     replay: null,
     replayIndex: 0,
     playerId: activeTrainingPlayerId,
+    collection: normalizeCollection(collection),
   };
 }
 

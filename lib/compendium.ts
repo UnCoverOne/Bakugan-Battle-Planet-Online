@@ -15,7 +15,7 @@ export const COMPENDIUM_SORTS = [
 ] as const;
 
 export const COMPENDIUM_DENSITIES = ["gallery", "compact"] as const;
-export const CARD_INSPECTOR_TABS = ["overview", "rules", "rulings", "related"] as const;
+export const CARD_INSPECTOR_TABS = ["overview", "rules", "rulings", "related", "collection"] as const;
 
 export type CompendiumSort = (typeof COMPENDIUM_SORTS)[number];
 export type CompendiumDensity = (typeof COMPENDIUM_DENSITIES)[number];

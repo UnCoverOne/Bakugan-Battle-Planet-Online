@@ -1,0 +1,16 @@
+.guestCta {
+  max-width: 44rem;
+  margin: 3rem auto;
+  padding: 3rem;
+  text-align: center;
+}
+
+.guestGlyph { display: block; margin-bottom: 1rem; color: var(--brand-blue-bright); font-size: 3rem; }
+.guestCta h2 { margin: 0; }
+.guestCta p { color: var(--text-muted); line-height: 1.6; }
+.collectionTile { position: relative; min-width: 0; display: grid; gap: .4rem; }
+.collectionTile > button { min-height: 100%; }
+.unowned img { filter: saturate(.32); }
+.quickCounter { display: grid; grid-template-columns: 2rem minmax(2ch, 1fr) 2rem; align-items: center; justify-content: center; gap: .35rem; margin: 0 .4rem; padding: .25rem; border: 1px solid rgba(91,196,226,.18); background: rgba(3,17,23,.92); text-align: center; }
+.quickCounter button { min-height: 1.8rem; border: 1px solid rgba(91,196,226,.28); color: var(--text-primary); background: rgba(10,35,44,.78); font-size: 1.1rem; line-height: 1; }
+.quickCounter button:disabled { opacity: .35; }

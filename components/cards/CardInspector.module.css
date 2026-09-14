@@ -82,10 +82,81 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   padding: var(--space-2);
   border-bottom: 1px solid rgba(91, 196, 226, .18);
   background: rgba(2, 13, 18, .98);
+}
+
+.collectionPanel {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5);
+}
+
+.collectionVariant {
+  display: grid;
+  gap: .4rem;
+  color: var(--text-muted);
+  font-size: var(--type-meta);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.collectionVariant select {
+  min-height: 2.5rem;
+  padding: 0 .65rem;
+  border: 1px solid rgba(91, 196, 226, .25);
+  color: var(--text-primary);
+  background: rgba(3, 17, 23, .98);
+}
+
+.collectionCounters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.collectionCounter {
+  display: grid;
+  gap: .55rem;
+  padding: var(--space-3);
+  border: 1px solid rgba(91, 196, 226, .2);
+  background: rgba(4, 20, 27, .84);
+  text-align: center;
+}
+
+.collectionCounter > span {
+  color: var(--text-muted);
+  font-size: var(--type-meta);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.collectionCounter > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .55rem;
+}
+
+.collectionCounter button {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(91, 196, 226, .3);
+  color: var(--text-primary);
+  background: rgba(10, 35, 44, .78);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.collectionCounter button:disabled {
+  opacity: .35;
+}
+
+.collectionCounter strong {
+  min-width: 2ch;
+  font-size: 1.35rem;
 }
 
 .tabs button {
