@@ -11,7 +11,7 @@ import { FilterPicker } from "../filters/FilterPicker";
 import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
 import { cardSetCode } from "../../lib/content/catalogue";
 import { createCardFilterOptionCatalogue, type CardFilterFacet } from "../../lib/card-filters";
-import { COMPENDIUM_SORTS, CORE_COMPENDIUM_SORTS, filterAndSortCompendiumCards, filterAndSortCompendiumCores, parseCompendiumState, parseCoreCompendiumState, selectedCompendiumCard, selectedCompendiumCore } from "../../lib/compendium";
+import { COMPENDIUM_SORTS, CORE_COMPENDIUM_SORTS, filterAndSortCompendiumCards, filterAndSortCompendiumCores, parseCompendiumState, parseCoreCompendiumState, selectedCompendiumCard, selectedCompendiumCore, type CardInspectorTab } from "../../lib/compendium";
 import { cardCollectionIds, collectionCards, collectionEntryForIds, coreCollectionIds, COLLECTION_QUANTITY_OPTIONS, COLLECTION_SORT_OPTIONS, type CollectionField } from "../../lib/collection";
 import { PUBLISHED_RULINGS, GLOSSARY_ENTRIES, REFERENCE_REVIEWED_AT, type ReferenceEntry } from "../../lib/reference";
 import { updateCollection } from "../../lib/collection";
@@ -38,6 +38,14 @@ export function CollectionScreen() {
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const activeTab = searchParams.get("collectionTab") === "cores" ? "cores" : "cards";
+  const requestedInspectorTab = searchParams.get("tab");
+  const inspectorTab: CardInspectorTab = requestedInspectorTab === "overview"
+    || requestedInspectorTab === "rules"
+    || requestedInspectorTab === "rulings"
+    || requestedInspectorTab === "related"
+    || requestedInspectorTab === "collection"
+    ? requestedInspectorTab
+    : "collection";
   const cardState = useMemo(() => parseCompendiumState(searchParams.toString()), [searchParams]);
   const coreState = useMemo(() => parseCoreCompendiumState(searchParams.toString()), [searchParams]);
   const filterOptions = useMemo(() => createCardFilterOptionCatalogue(CARDS), []);
@@ -137,8 +145,8 @@ export function CollectionScreen() {
           {!visible.length && <Surface className={compendiumStyles.emptyResults} role="status"><span>◇</span><h2>No collection items match</h2><p>Adjust the search or clear the active filters to return to the full archive.</p><ActionButton tone="secondary" onClick={clearFilters}>Clear filters</ActionButton></Surface>}
           <nav className={compendiumStyles.pagination} aria-label="Collection pages"><button disabled={page === 1} onClick={() => setPage(page - 1)}>← Previous</button><span>Page {page} of {pages}</span><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next →</button></nav>
         </main>
-        {selectedCard && <CardInspector card={selectedCard} allCards={CARDS} rules={[...ruleReferences, ...GLOSSARY_ENTRIES]} rulings={PUBLISHED_RULINGS} tab="collection" collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
-        {selectedCore && <CardInspector core={selectedCore} allCores={CORE_COMPENDIUM} rules={[...ruleReferences, ...GLOSSARY_ENTRIES]} rulings={PUBLISHED_RULINGS} tab="collection" collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
+        {selectedCard && <CardInspector card={selectedCard} allCards={CARDS} rules={[...ruleReferences, ...GLOSSARY_ENTRIES]} rulings={PUBLISHED_RULINGS} tab={inspectorTab} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
+        {selectedCore && <CardInspector core={selectedCore} allCores={CORE_COMPENDIUM} rules={[...ruleReferences, ...GLOSSARY_ENTRIES]} rulings={PUBLISHED_RULINGS} tab={inspectorTab} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
       </div>
       {filterSheetOpen && <div className={compendiumStyles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}><Surface as="aside" className={compendiumStyles.filterSheet} role="dialog" aria-modal="true" aria-label="Collection filters"><div className={compendiumStyles.filterHeading}><h2>Filters &amp; sort</h2><button type="button" onClick={() => setFilterSheetOpen(false)}>Close</button></div>{allCollectionFilters.map((field) => <FilterPicker key={field} label={quantityLabel(field)} values={valuesFor(field)} options={COLLECTION_QUANTITY_OPTIONS.map((option) => ({ ...option }))} onChange={(values) => setQuantityFilter(field, values)} />)}<ActionButton onClick={() => setFilterSheetOpen(false)}>Show {results.length} items</ActionButton></Surface></div>}
     </div>
@@ -147,10 +155,21 @@ export function CollectionScreen() {
 
 function CollectionCard({ card, entry, selected, onSelect, onQuickChange }: { card: typeof CARDS[number]; entry: { standard: number; foil: number; wishlist: number }; selected: boolean; onSelect: (card: typeof CARDS[number]) => void; onQuickChange: (field: CollectionField, delta: number) => void }) {
   const owned = entry.standard + entry.foil;
-  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned}`}><button className={`${compendiumStyles.cardTile} ${selected ? compendiumStyles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(card)}><span className={compendiumStyles.cardArt}><span className={compendiumStyles.cardArtFrame}><ResponsiveCardImage card={card} presentation="tile" /></span></span><span className={compendiumStyles.cardCopy}><span className={compendiumStyles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip>{owned > 0 && <StatusChip tone="success">Owned {owned}</StatusChip>}{entry.wishlist > 0 && <StatusChip tone="warning">Want {entry.wishlist}</StatusChip>}</span><strong>{card.displayName}</strong><small>{card.type} · {card.cost} Energy · {card.rarity}</small></span></button><div className={styles.quickCounter} aria-label={`${card.displayName} standard copies`}><button type="button" aria-label={`Decrease standard copies for ${card.displayName}`} disabled={!entry.standard} onClick={() => onQuickChange("standard", -1)}>−</button><strong>{owned}</strong><button type="button" aria-label={`Increase standard copies for ${card.displayName}`} onClick={() => onQuickChange("standard", 1)}>+</button></div></div>;
+  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned} ${selected ? styles.collectionTileSelected : ""}`}><button className={`${compendiumStyles.cardTile} ${selected ? compendiumStyles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(card)}><span className={compendiumStyles.cardArt}><span className={compendiumStyles.cardArtFrame}><ResponsiveCardImage card={card} presentation="tile" /></span></span><span className={compendiumStyles.cardCopy}><span className={compendiumStyles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span><strong>{card.displayName}</strong><small>{card.type} · {card.cost} Energy · {card.rarity}</small></span></button><CollectionFooter label={card.displayName} owned={owned} wishlist={entry.wishlist} standard={entry.standard} onQuickChange={onQuickChange} /></div>;
 }
 
 function CollectionCore({ core, entry, selected, onSelect, onQuickChange }: { core: typeof CORE_COMPENDIUM[number]; entry: { standard: number; foil: number; wishlist: number }; selected: boolean; onSelect: (core: typeof CORE_COMPENDIUM[number]) => void; onQuickChange: (field: CollectionField, delta: number) => void }) {
   const owned = entry.standard + entry.foil;
-  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned}`}><button className={`${compendiumStyles.cardTile} ${compendiumStyles.coreTile} ${selected ? compendiumStyles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(core)}><span className={compendiumStyles.coreArt}><BakuCoreArt core={core} alt={`${core.name} front`} /></span><span className={compendiumStyles.cardCopy}><span className={compendiumStyles.cardBadges}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{core.set === "Armored Alliance" ? "AA" : "BB"}</StatusChip>{owned > 0 && <StatusChip tone="success">Owned {owned}</StatusChip>}{entry.wishlist > 0 && <StatusChip tone="warning">Want {entry.wishlist}</StatusChip>}</span><strong>{core.name}</strong><small>{core.set === "Armored Alliance" ? "AA" : "BB"} #{core.number}</small></span></button><div className={styles.quickCounter} aria-label={`${core.name} standard copies`}><button type="button" aria-label={`Decrease standard copies for ${core.name}`} disabled={!entry.standard} onClick={() => onQuickChange("standard", -1)}>−</button><strong>{owned}</strong><button type="button" aria-label={`Increase standard copies for ${core.name}`} onClick={() => onQuickChange("standard", 1)}>+</button></div></div>;
+  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned} ${selected ? styles.collectionTileSelected : ""}`}><button className={`${compendiumStyles.cardTile} ${compendiumStyles.coreTile} ${selected ? compendiumStyles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(core)}><span className={compendiumStyles.coreArt}><BakuCoreArt core={core} alt={`${core.name} front`} /></span><span className={compendiumStyles.cardCopy}><span className={compendiumStyles.cardBadges}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{core.set === "Armored Alliance" ? "AA" : "BB"}</StatusChip></span><strong>{core.name}</strong><small>{core.set === "Armored Alliance" ? "AA" : "BB"} #{core.number}</small></span></button><CollectionFooter label={core.name} owned={owned} wishlist={entry.wishlist} standard={entry.standard} onQuickChange={onQuickChange} /></div>;
+}
+
+function CollectionFooter({ label, owned, wishlist, standard, onQuickChange }: { label: string; owned: number; wishlist: number; standard: number; onQuickChange: (field: CollectionField, delta: number) => void }) {
+  return <div className={styles.collectionFooter}>
+    <div className={styles.quickCounter} aria-label={`${label} owned copies`}>
+      <button type="button" aria-label={`Decrease standard copies for ${label}`} disabled={!standard} onClick={() => onQuickChange("standard", -1)}>−</button>
+      <span className={styles.collectionBadge}>Owned {owned}</span>
+      <button type="button" aria-label={`Increase standard copies for ${label}`} onClick={() => onQuickChange("standard", 1)}>+</button>
+    </div>
+    {wishlist > 0 && <span className={styles.collectionBadge} aria-label={`${label} wishlist copies`}>Wishlist {wishlist}</span>}
+  </div>;
 }
