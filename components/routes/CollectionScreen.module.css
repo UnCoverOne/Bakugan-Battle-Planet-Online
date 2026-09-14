@@ -8,9 +8,92 @@
 .guestGlyph { display: block; margin-bottom: 1rem; color: var(--brand-blue-bright); font-size: 3rem; }
 .guestCta h2 { margin: 0; }
 .guestCta p { color: var(--text-muted); line-height: 1.6; }
-.collectionTile { position: relative; min-width: 0; display: grid; gap: .4rem; }
-.collectionTile > button { min-height: 100%; }
+.collectionTile {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid rgba(91, 196, 226, .2);
+  background: rgba(3, 16, 22, .94);
+  clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.collectionTile:hover,
+.collectionTile:focus-within,
+.collectionTileSelected {
+  border-color: var(--brand-blue-bright);
+  box-shadow: var(--elevation-2), 0 0 24px rgba(0, 174, 239, .2);
+  transform: translateY(-2px);
+}
+
+.collectionTile > button {
+  min-height: 0;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  transform: none;
+}
+
+.collectionTile > button:hover,
+.collectionTile > button:focus-visible,
+.collectionTile > button[aria-pressed="true"] {
+  border: 0;
+  box-shadow: none;
+  transform: none;
+}
+
 .unowned img { filter: saturate(.32); }
-.quickCounter { display: grid; grid-template-columns: 2rem minmax(2ch, 1fr) 2rem; align-items: center; justify-content: center; gap: .35rem; margin: 0 .4rem; padding: .25rem; border: 1px solid rgba(91,196,226,.18); background: rgba(3,17,23,.92); text-align: center; }
-.quickCounter button { min-height: 1.8rem; border: 1px solid rgba(91,196,226,.28); color: var(--text-primary); background: rgba(10,35,44,.78); font-size: 1.1rem; line-height: 1; }
+
+.collectionFooter {
+  min-width: 0;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: .4rem;
+  padding: .45rem .5rem .5rem;
+  border-top: 1px solid rgba(91, 196, 226, .18);
+  background: rgba(3, 17, 23, .92);
+}
+
+.quickCounter {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1.8rem minmax(0, auto) 1.8rem;
+  align-items: center;
+  gap: .35rem;
+  text-align: center;
+}
+
+.quickCounter button {
+  width: 1.8rem;
+  min-height: 1.8rem;
+  border: 1px solid rgba(91, 196, 226, .28);
+  color: var(--text-primary);
+  background: rgba(10, 35, 44, .78);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 .quickCounter button:disabled { opacity: .35; }
+
+.collectionBadge {
+  min-height: 1.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 .45rem;
+  border: 1px solid rgba(91, 196, 226, .28);
+  color: var(--text-primary);
+  background: rgba(10, 35, 44, .78);
+  font-size: var(--type-meta);
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
