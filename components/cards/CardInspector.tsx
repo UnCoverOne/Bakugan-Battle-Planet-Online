@@ -61,6 +61,14 @@ const tabLabels: Record<CardInspectorTab, string> = {
   collection: "Collection",
 };
 
+const tabSymbols: Record<CardInspectorTab, string> = {
+  overview: "⌂",
+  rules: "⚖",
+  rulings: "§",
+  related: "↔",
+  collection: "▦",
+};
+
 function CollectionPanel({
   ids,
   collection,
@@ -366,18 +374,20 @@ export function CardInspector(props: InspectorProps) {
           {onClose && <button type="button" data-inspector-close onClick={onClose} aria-label={`Close ${isCore ? "BakuCore" : "card"} inspector`}>Close</button>}
         </div>
       </header>
-      <Tabs className={styles.tabs} label={`${label} information`}>
+      <Tabs className={`${styles.tabs} ${visibleTabs.length === 5 ? styles.tabsWithCollection : ""}`} label={`${label} information`}>
         {visibleTabs.map((candidate) => (
           <button
             type="button"
             role="tab"
+            aria-label={tabLabels[candidate]}
+            title={tabLabels[candidate]}
             aria-selected={effectiveTab === candidate}
             aria-controls={effectiveTab === candidate ? panelId : undefined}
             className={effectiveTab === candidate ? "active" : ""}
             onClick={() => onTabChange?.(candidate)}
             key={candidate}
           >
-            {tabLabels[candidate]}
+            <span className={styles.tabSymbol} aria-hidden="true">{tabSymbols[candidate]}</span>
           </button>
         ))}
       </Tabs>
