@@ -53,6 +53,7 @@ function controlledCardNames(text: string) {
 
 export function conditionFor(text: string): RuleCondition {
   const normalizedText = text.replace(/\s+/g, " ").trim();
+  if (/\bif you played this(?: card)? for free this turn\b/i.test(normalizedText)) return { kind: "played-for-free-this-turn" };
   if (/\bplay this(?: card)? for free on the first turn of the game\b/i.test(normalizedText)) return { kind: "first-turn" };
   const attackDamageThreshold = normalizedText.match(/\bif this attacks for (\d+) \[Damage(?: (?:Rating|Power))?\] or more\b/i);
   if (attackDamageThreshold) return { kind: "attack-damage", amount: Number(attackDamageThreshold[1]) };
@@ -298,7 +299,8 @@ function triggerFor(text: string): TriggerDefinition | undefined {
     [/when one of your Bakugan attacks/i, "ATTACK_CREATED", "controller"],
     [/if you take damage/i, "DAMAGE_TAKEN", "controller"],
     [/when you have no cards in hand|when your hand is empty/i, "HAND_EMPTIED", "controller"],
-    [/at (?:the )?end of (?:your |the )?turn/i, "TURN_ENDED", "controller"],
+    [/at (?:the )?end of your turn/i, "TURN_ENDED", "controller"],
+    [/at (?:the )?end of (?:the )?turn/i, "TURN_ENDED", "any"],
   ];
   for (const [pattern, event, relationship, source] of table) {
     if (!pattern.test(text)) continue;
