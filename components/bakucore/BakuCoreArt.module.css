@@ -108,6 +108,8 @@
   }
 }
 
-.art[data-core-scan="true"] .image {
+/* Every BakuCore front is hexagonal. Crop the shared art frame so opaque
+ * scan/export backgrounds cannot show rectangular corners in compact views. */
+.image {
   clip-path: polygon(24% 0, 76% 0, 100% 50%, 76% 100%, 24% 100%, 0 50%);
 }

@@ -90,7 +90,7 @@ export function CorePlacementLayer({
       <aside className={styles.tray} aria-label="Your unused BakuCores">
         <strong>YOUR UNUSED CORES</strong>
         {unused.map((core) => <button type="button" key={core.id} disabled={!mine || busy} data-selected={selectedCoreId === core.id} onClick={() => setSelectedCoreId(core.id)}>
-          <BakuCoreArt core={core} alt={core.name} width="150" height="130" loading="eager" />
+          <BakuCoreArt core={core} alt={core.name} className={styles.trayCoreArt} loading="eager" />
           <span>{core.name}</span>
         </button>)}
       </aside>
