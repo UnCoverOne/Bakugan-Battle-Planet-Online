@@ -31,6 +31,7 @@ export type RuleCondition =
   | { kind: "always" }
   | { kind: "team-attack" | "not-team-attack" }
   | { kind: "first-turn" }
+  | { kind: "played-for-free-this-turn" }
   | { kind: "armor-damage-reduced"; subject: "opponent" }
   | { kind: "fury" }
   | { kind: "turbo" }

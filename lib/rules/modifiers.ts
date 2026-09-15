@@ -1,4 +1,4 @@
-import type { Bakugan, MatchState, PlayerState } from "../game";
+import type { Bakugan, GameCard, MatchState, PlayerState } from "../game";
 import { ruleDefinitionForCard } from "./catalogue";
 import type { ContinuousModifier, RuleAction, RuleCondition, RulesCardId } from "./model";
 import { ensureRulesState } from "./state";
@@ -51,6 +51,7 @@ export function ruleConditionActive(
   condition: RuleCondition | undefined,
   bakugan?: Bakugan,
   choices: CardChoices = {},
+  sourceCard?: GameCard,
 ) {
   if (!condition || condition.kind === "always") return true;
   const opponent = opponentOf(state, player);
@@ -64,6 +65,7 @@ export function ruleConditionActive(
   });
   switch (condition.kind) {
     case "first-turn": return state.turn === 1;
+    case "played-for-free-this-turn": return sourceCard?.playedForFreeTurn === state.turn;
     case "team-attack": return state.teamAttack;
     case "not-team-attack": return !state.teamAttack;
     case "armor-damage-reduced": {

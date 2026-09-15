@@ -31,6 +31,16 @@ function activeSources(state: MatchState, owner: PlayerState, event: RuleEvent) 
       .flatMap((bakugan) => [bakugan.character, ...(bakugan.evoStack ?? []), ...(bakugan.bakuGear ?? [])])
       .filter((source, index, sources) => sources.findIndex((candidate) => candidate.id === source.id) === index);
   }
+  if (event.name === "TURN_ENDED") {
+    const sources = [
+      ...owner.bakugan.flatMap((bakugan) => [
+        bakugan.evoStack.at(-1) ?? (bakugan.fused ? bakugan.fusionCharacter : undefined) ?? bakugan.character,
+        ...(bakugan.bakuGear ?? []),
+      ]),
+      ...owner.heroes,
+    ];
+    return sources.filter((source, index) => sources.findIndex((candidate) => candidate.id === source.id) === index);
+  }
   const selectedId = state.selected[owner.id];
   // Triggered abilities belong to the top card of every Bakugan that is
   // currently participating in play, not only the Bakugan selected this turn.
@@ -173,7 +183,7 @@ function triggerMatches(
   const target = event.targetBakuganId
     ? state.players.flatMap((player) => player.bakugan).find((candidate) => candidate.id === event.targetBakuganId)
     : undefined;
-  if (trigger.interveningCondition && !ruleConditionActive(state, owner, trigger.interveningCondition, target, event.choices ?? {})) return false;
+  if (trigger.interveningCondition && !ruleConditionActive(state, owner, trigger.interveningCondition, target, event.choices ?? {}, source)) return false;
   return true;
 }
 
@@ -320,5 +330,5 @@ export function conditionStillValidAtResolution(state: MatchState, object: RuleO
   const target = object.choices.sourceBakuganId
     ? state.players.flatMap((player) => player.bakugan).find((candidate) => candidate.id === object.choices.sourceBakuganId)
     : undefined;
-  return Boolean(owner && ruleConditionActive(state, owner, ability.trigger.interveningCondition, target, object.choices));
+  return Boolean(owner && ruleConditionActive(state, owner, ability.trigger.interveningCondition, target, object.choices, object.card));
 }
