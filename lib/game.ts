@@ -74,6 +74,8 @@ export type GameCard = {
   fusionFace?: "a" | "b";
   /** Turn in which this physical card instance entered play. */
   playedTurn?: number;
+  /** Turn in which this physical card instance was played with a free base Energy cost. */
+  playedForFreeTurn?: number;
   /** This Hero was played through its temporary InstaBrawl payment route. */
   instabrawl?: boolean;
   /** Owner-only deadline for a card Energized from the top of the deck. */
@@ -1626,6 +1628,8 @@ function commitCardPlayMutable(state: MatchState, request: PendingCardPlay) {
 
   const played = removePlaySourceCard(state, request);
   if (request.instabrawl) played.instabrawl = true;
+  if (mode.freeBase) played.playedForFreeTurn = state.turn;
+  else delete played.playedForFreeTurn;
   const controller = playerById(state, request.controllerId);
   recordCardPlayedForTurn(controller, played, state.turn);
   state.nextCardEmpowerReduction ??= {};
@@ -2436,7 +2440,7 @@ const ruleConditionIsActive = (
     ? state.players.flatMap((candidate) => candidate.bakugan)
       .find((bakugan) => bakugan.id === choices.sourceBakuganId)
     : chooseBakugan(state, pending.controllerId, choices);
-  return ruleConditionActive(state, player, instruction.condition, conditionTarget, choices);
+  return ruleConditionActive(state, player, instruction.condition, conditionTarget, choices, pending.card);
 };
 
 function returnSelfCardToHand(state: MatchState, owner: PlayerState, card: GameCard) {
