@@ -280,7 +280,9 @@ test("Wynton, Prank Master gives +1000 B to both Ventus and Aquos Bakugan only",
     .flatMap((ability) => ability.instructions)
     .flatMap((instruction) => instruction.effects)
     .find((effect) => effect.kind === "modify-stat" && effect.stat === "power");
-  assert.ok(power && power.scope === "all-friendly");
+  assert.ok(power);
+  assert.equal(power.scope, "all-friendly");
+  assert.equal(power.duration, "while-source-active");
 });
 
 test("Trick Trap's shared free-play selector retains Hero type and printed-cost ceiling", () => {

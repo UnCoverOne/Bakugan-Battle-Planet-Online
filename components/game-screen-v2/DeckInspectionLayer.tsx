@@ -11,6 +11,7 @@ import deckStyles from "./DeckInspectionLayer.module.css";
 import searchStyles from "./DeckSearchLayer.module.css";
 import {
   isFullDeckSearchField,
+  isInspectedDeckPlayCardPlayable,
   renderableDeckInspectionField,
 } from "./deckInspectionPresentation";
 import { reconcileOrderedIds, retainLegalSelection } from "./choiceSelectionContinuity";
@@ -145,9 +146,12 @@ export function DeckInspectionLayer() {
   const inspectedCard = selectionField
     ? cardOptionById(displayedOptions, selectedId)?.card
     : displayedOptions[0]?.card;
-  const inspectedCardPlayable = !inspectedDeckPlay
-    || Boolean(inspectedCard && inspectedCard.type !== "Flip" && inspectedCard.type !== "Flip Hero");
   const eligibleIds = new Set(selectionField?.options.map((option) => option.id) ?? []);
+  const inspectedCardPlayable = !inspectedDeckPlay
+    || isInspectedDeckPlayCardPlayable(
+      inspectedCard?.type,
+      Boolean(inspectedCard && eligibleIds.has(inspectedCard.id)),
+    );
   const selectionRequired = Boolean(selectionField && selectionField.minimum > 0);
   const orderComplete = searchMode || (
     orderedIds.length >= deckField.minimum

@@ -1307,7 +1307,18 @@ function optionScore(
       && cardHasReduciveStatEffect(card)
       && bakuganHasShadowStrike(match, bakugan.id)) return -100;
     const strength = printedBakuganValue(bakugan) + bakugan.heldCoreCells.length * 1.2;
-    return objectUtilityForChooser(owner?.id, chooserId, polarity, strength);
+    const utility = objectUtilityForChooser(owner?.id, chooserId, polarity, strength);
+    // Temporary reductions matter most on the Bakugan actually contesting the
+    // current brawl. Do not burn Nature's Power-style debuffs on a stronger
+    // bench Bakugan merely because its printed stats score higher.
+    const activeBrawlDebuff = Boolean(
+      owner
+      && match.phase === "power"
+      && owner.id !== controllerId
+      && cardHasReduciveStatEffect(card)
+      && match.selected[owner.id] === bakugan.id,
+    );
+    return utility + (activeBrawlDebuff ? 100 : 0);
   }
   if (field.kind === "hero") {
     const owner = match.players.find((player) => player.heroes.some((hero) => hero.id === id));

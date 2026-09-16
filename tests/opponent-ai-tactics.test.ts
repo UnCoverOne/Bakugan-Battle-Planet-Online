@@ -926,6 +926,20 @@ test("inactive mixed-card utility does not excuse redundant B-Power", () => {
   assert.ok(next.players[0].hand.some((candidate) => candidate.id === shield.id));
 });
 
+test("AI targets the opposing active Bakugan with Nature's Power before a stronger bench Bakugan", () => {
+  const nature = catalogueCard("bb-120", "active-target-natures-power");
+  const ai = player("nature-ai", [bakugan("nature-ai-b", "Ventus", 500, 5)], [], [nature]);
+  const active = bakugan("nature-active", "Aquos", 400, 2);
+  const bench = bakugan("nature-bench", "Haos", 1200, 10);
+  const human = player("nature-human", [active, bench]);
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+
+  const choices = chooseCardChoices(match, ai.id, nature);
+  assert.equal(choices.targetBakuganId, active.id);
+});
+
 test("AI does not spend a debuff whose B-Power reduction is blocked by ShadowStrike", () => {
   const debuff = catalogueCard("aa-45", "shadowstrike-wild-roar"); // -300 B.
   const ai = player("shadow-ai", [bakugan("shadow-ai-b", "Ventus", 500, 5)], [], [debuff]);

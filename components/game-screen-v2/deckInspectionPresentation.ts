@@ -1,3 +1,4 @@
+import type { GameCard } from "../../lib/game";
 import type { ChoiceField } from "../../lib/rules/choices";
 
 export function isTopDeckField(field: ChoiceField) {
@@ -14,6 +15,21 @@ export function isFullDeckSearchField(field: ChoiceField) {
 
 export function isDeckInspectionField(field: ChoiceField) {
   return isTopDeckField(field) || isFullDeckSearchField(field);
+}
+
+/**
+ * Ordinary Flip cards are damage-step only. A Flip Hero may be played by a
+ * top-deck effect when that resolving effect explicitly exposes it as a legal
+ * selection (for example Lia treating it as a Hero card).
+ */
+export function isInspectedDeckPlayCardPlayable(
+  cardType: GameCard["type"] | undefined,
+  selectedIsEligible: boolean,
+) {
+  if (!cardType) return false;
+  if (cardType === "Flip") return false;
+  if (cardType === "Flip Hero") return selectedIsEligible;
+  return true;
 }
 
 /** The specialized layer and its generic fallback share this ownership rule. */

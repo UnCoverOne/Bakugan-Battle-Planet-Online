@@ -21,7 +21,7 @@ export function durationFor(text: string): RulesDuration {
   if (/for the\s+first turn/i.test(text)) return "turn";
   if (/next (?:Action|card|Gear)/i.test(text)) return "next-card";
   if (/this turn|until end of turn|rest of the turn/i.test(text)) return "turn";
-  if (/your (?:\[[^\]]+\]\s+)?Bakugan (?:have|get)|opposing Bakugan|to your (?:\[[^\]]+\]\s+)?Bakugan|to your attacks|your attacks have|\bthis (?:has|gets)\b|while|as long as|Treat all BakuCores/i.test(text)) return "while-source-active";
+  if (/your (?:\[[^\]]+\](?:\s*(?:&|and|or|,)\s*\[[^\]]+\])*\s+)?Bakugan (?:have|get)|opposing Bakugan|to your (?:\[[^\]]+\](?:\s*(?:&|and|or|,)\s*\[[^\]]+\])*\s+)?Bakugan|to your attacks|your attacks have|\bthis (?:has|gets)\b|while|as long as|Treat all BakuCores/i.test(text)) return "while-source-active";
   return "instant";
 }
 

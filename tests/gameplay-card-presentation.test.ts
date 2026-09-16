@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { isInspectedDeckPlayCardPlayable } from "../components/game-screen-v2/deckInspectionPresentation";
 
 const css = readFileSync(
   new URL("../app/gameplay-card-presentation.css", import.meta.url),
@@ -53,6 +54,13 @@ const cardArtCss = readFileSync(
   new URL("../components/cards/CardArt.module.css", import.meta.url),
   "utf8",
 );
+
+test("deck inspection permits a legal Flip Hero play while ordinary Flips remain damage-only", () => {
+  assert.equal(isInspectedDeckPlayCardPlayable("Flip Hero", true), true);
+  assert.equal(isInspectedDeckPlayCardPlayable("Flip Hero", false), false);
+  assert.equal(isInspectedDeckPlayCardPlayable("Flip", true), false);
+  assert.equal(isInspectedDeckPlayCardPlayable("Hero", true), true);
+});
 
 test("discard browser is approximately twenty percent narrower at desktop and mobile scales", () => {
   assert.match(css, /width:\s*min\(54\.4rem,\s*calc\(80vw\s*-\s*1\.6rem\)\)\s*!important/);
