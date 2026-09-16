@@ -344,7 +344,7 @@ function dynamicSourceFor(text: string) {
 function scopeFor(text: string): "target" | "all-enemy" | "all-friendly" | "all-bakugan" {
   if (/non-\[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i.test(text)) return "all-bakugan";
   if (/all enemy Bakugan|(?:enemy|opposing) Bakugan (?:have|get)/i.test(text)) return "all-enemy";
-  if (/all (?:of )?your Bakugan|your (?:\[[^\]]+\]\s+)?Bakugan (?:have|get)|to your (?:\[[^\]]+\]\s+)?Bakugan|to your attacks|your attacks have/i.test(text)) return "all-friendly";
+  if (/all (?:of )?your Bakugan|your (?:\[[^\]]+\](?:\s*(?:&|and|or|,)\s*\[[^\]]+\])*\s+)?Bakugan (?:have|get)|to your (?:\[[^\]]+\](?:\s*(?:&|and|or|,)\s*\[[^\]]+\])*\s+)?Bakugan|to your attacks|your attacks have/i.test(text)) return "all-friendly";
   return "target";
 }
 

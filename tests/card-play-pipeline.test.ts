@@ -8,6 +8,7 @@ import { createRuleObject } from "../lib/rules/objects";
 import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { compileCardEffect } from "../lib/rules/effects";
+import { evaluateBakuganCharacteristics } from "../lib/rules/modifiers";
 import type { RuleAction } from "../lib/rules/model";
 
 function card(id: string, instance: string) {
@@ -227,6 +228,59 @@ test("Cubbo Gaze offers only controller Heroes with printed cost 6 or less and p
   assert.equal(play.free, false);
   assert.equal(play.cardType, "Hero");
   assert.equal(play.maximumCost, 6);
+});
+
+test("Lia can select and play a Flip Hero from the top three cards", () => {
+  const { state, first } = baseMatch("LIA-FLIP-HERO");
+  const lia = card("aa-71", "lia-active");
+  const flipHero = card("av-73", "lia-flip-hero");
+  const fillerA = card("bb-1", "lia-filler-a");
+  const fillerB = card("bb-2", "lia-filler-b");
+  first.deckCards = [flipHero, fillerA, fillerB, ...first.deckCards];
+  first.deck = first.deckCards.length;
+
+  const ability = ruleDefinitionForCard(lia).abilities.find((candidate) => candidate.kind === "triggered");
+  assert.ok(ability);
+  let next = resolveStructuredEffect(state, createRuleObject({ controllerId: first.id, card: lia, ability, kind: "trigger" }));
+  const selection = next.pendingChoice?.schema.fields.find((field) => field.id === "deckCardId");
+  assert.ok(selection?.options.some((option) => option.id === flipHero.id), "Flip Hero must satisfy Lia's printed Hero-card selection.");
+
+  next = submitCardChoice(next, first.id, {
+    orderedCardIds: [flipHero.id, fillerA.id, fillerB.id],
+    deckCardId: flipHero.id,
+    confirmed: true,
+  });
+  assert.equal(next.players[0].deckCards.some((candidate) => candidate.id === flipHero.id), false);
+  assert.ok(next.batch.some((object) => object.card.id === flipHero.id), "Lia must create a normal free card play for the selected Flip Hero.");
+});
+
+test("Wynton, Prank Master gives +1000 B to both Ventus and Aquos Bakugan only", () => {
+  const { state, first } = baseMatch("WYNTON-PRANK-MASTER");
+  const [aquos, ventus, other] = first.bakugan;
+  assert.ok(aquos && ventus && other);
+  aquos.faction = "Aquos";
+  aquos.character.faction = "Aquos";
+  aquos.character.factions = ["Aquos"];
+  ventus.faction = "Ventus";
+  ventus.character.faction = "Ventus";
+  ventus.character.factions = ["Ventus"];
+  other.faction = "Pyrus";
+  other.character.faction = "Pyrus";
+  other.character.factions = ["Pyrus"];
+
+  first.heroes = [];
+  const before = first.bakugan.map((bakugan) => evaluateBakuganCharacteristics(state, bakugan, first).power);
+  first.heroes = [card("ff-96", "wynton-prank-master-active")];
+  const after = first.bakugan.map((bakugan) => evaluateBakuganCharacteristics(state, bakugan, first).power);
+
+  assert.equal(after[0] - before[0], 1000);
+  assert.equal(after[1] - before[1], 1000);
+  assert.equal(after[2] - before[2], 0);
+  const power = ruleDefinitionForCard(first.heroes[0]).abilities
+    .flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.effects)
+    .find((effect) => effect.kind === "modify-stat" && effect.stat === "power");
+  assert.ok(power && power.scope === "all-friendly");
 });
 
 test("Trick Trap's shared free-play selector retains Hero type and printed-cost ceiling", () => {

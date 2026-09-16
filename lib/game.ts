@@ -1,6 +1,7 @@
 import {
   buildChoiceSchema,
   buildChoiceSchemaFromSpecs,
+  cardTypeMatches,
   mergeChoiceAnswers,
   schemaHasLegalCompletion,
   schemaIsComplete,
@@ -1227,7 +1228,7 @@ const conditionActive = (state: MatchState, player: PlayerState, text: string, c
   if (inspectedType) {
     const inspectedId = choices.deckCardId ?? choices.orderedCardIds?.[0]
       ?? state.players.map((owner) => owner.revealedDeckCardId).find(Boolean);
-    return state.players.some((owner) => owner.deckCards.some((candidate) => candidate.id === inspectedId && candidate.type === inspectedType));
+    return state.players.some((owner) => owner.deckCards.some((candidate) => candidate.id === inspectedId && cardTypeMatches(candidate.type, inspectedType)));
   }
   if (/(?:not|isn['’]t) a Flip card/i.test(text)) {
     const revealedId = (player as PlayerState & { revealedDeckCardId?: string }).revealedDeckCardId;
@@ -3329,8 +3330,8 @@ case "swap-bakucore": {
         const revealedId = player.revealedDeckCardId ?? choices.deckCardId;
         selected = player.deckCards.find((candidate) => candidate.id === revealedId);
       }
-      if (!selected || (action.cardType && selected.type !== action.cardType)) return;
-      if (action.excludedCardTypes?.includes(selected.type)) return;
+      if (!selected || (action.cardType && !cardTypeMatches(selected.type, action.cardType))) return;
+      if (action.excludedCardTypes?.some((type) => cardTypeMatches(selected.type, type))) return;
       if (action.factions?.length && !effectiveCardFactions(selected).some((faction) => action.factions!.includes(faction))) return;
       if (action.cardMechanic && !selected.mechanics.some((mechanic) => mechanic.toLowerCase() === action.cardMechanic!.toLowerCase())) return;
       if (action.cardName) {
@@ -3345,7 +3346,8 @@ case "swap-bakucore": {
       }
       const printedCost = selected.cost === "X" ? Number.POSITIVE_INFINITY : selected.cost;
       if (action.maximumCost != null && printedCost > resolveNumber(action.maximumCost)) return;
-      if (action.source === "revealed-deck" && (selected.type === "Flip" || selected.type === "Flip Hero")) {
+      const flipHeroPlayedAsHero = selected.type === "Flip Hero" && action.cardType === "Hero";
+      if (action.source === "revealed-deck" && (selected.type === "Flip" || (selected.type === "Flip Hero" && !flipHeroPlayedAsHero))) {
         delete player.revealedDeckCardId;
         return;
       }

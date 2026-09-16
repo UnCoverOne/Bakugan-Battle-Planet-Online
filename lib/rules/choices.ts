@@ -9,6 +9,12 @@ import { bakuganHasFaction, effectiveCardFactions } from "./derived-characterist
 import { hasActiveRulePermission } from "./permissions";
 import { cardHasMechanic } from "./baku-gear";
 
+/** A Flip Hero has both of its printed card types for rules that name Hero or Flip. */
+export function cardTypeMatches(actual: GameCard["type"], required: GameCard["type"]) {
+  return actual === required
+    || (actual === "Flip Hero" && (required === "Hero" || required === "Flip"));
+}
+
 export type ChoiceKind =
   | "confirm" | "bakugan" | "player" | "hero" | "evo" | "energy" | "core" | "card"
   | "hand-cards" | "deck-card" | "deck-order" | "number" | "mode" | "batch-object";
@@ -174,8 +180,8 @@ function cardMatchesSpecValue(
   sourceCard?: GameCard,
 ) {
   const types = spec.cardTypes?.length ? spec.cardTypes : spec.cardType ? [spec.cardType] : [];
-  if (types.length && !types.includes(candidate.type)) return false;
-  if (spec.excludedCardTypes?.includes(candidate.type)) return false;
+  if (types.length && !types.some((type) => cardTypeMatches(candidate.type, type))) return false;
+  if (spec.excludedCardTypes?.some((type) => cardTypeMatches(candidate.type, type))) return false;
   if (spec.factions?.length && !effectiveCardFactions(candidate).some((faction) => spec.factions!.includes(faction))) return false;
   if (spec.cardMechanic && !cardHasMechanic(candidate, spec.cardMechanic)) return false;
   if (spec.cardName) {

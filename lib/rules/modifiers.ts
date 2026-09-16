@@ -182,6 +182,7 @@ export function ruleConditionActive(
 function targetMatches(state: MatchState, modifier: ContinuousModifier, bakugan: Bakugan, player: PlayerState) {
   if (modifier.targetBakuganId) return modifier.targetBakuganId === bakugan.id;
   if (modifier.targetFaction && !bakuganHasFaction(bakugan, modifier.targetFaction)) return false;
+  if (modifier.targetFactions?.length && !modifier.targetFactions.some((faction) => bakuganHasFaction(bakugan, faction))) return false;
   if (modifier.excludedTargetFaction && bakuganHasFaction(bakugan, modifier.excludedTargetFaction)) return false;
   if (modifier.target === "all-bakugan") return true;
   if (modifier.controllerId === player.id) return ["active-friendly", "chosen-bakugan", "all-friendly", "self"].includes(modifier.target);
@@ -196,6 +197,16 @@ function printedTarget(sourceText: string, action: Extract<RuleAction, { kind: "
   if (/opposing Bakugan/i.test(sourceText)) return "all-enemy" as const;
   if (/your (?:\[[^\]]+\]\s+)?Bakugan|to your attacks|your attacks have/i.test(sourceText)) return "all-friendly" as const;
   return "chosen-bakugan" as const;
+}
+
+function printedTargetFactions(sourceText: string): Bakugan["faction"][] {
+  const group = sourceText.match(
+    /your\s+((?:\[(?:Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\](?:\s*(?:&|and|or|,)\s*)?)+)\s+Bakugan/i,
+  )?.[1];
+  if (!group) return [];
+  return [...group.matchAll(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]/gi)]
+    .map((match) => `${match[1][0].toUpperCase()}${match[1].slice(1).toLowerCase()}` as Bakugan["faction"])
+    .filter((faction, index, values) => values.indexOf(faction) === index);
 }
 
 function printedActionModifier(
@@ -213,7 +224,8 @@ function printedActionModifier(
   if (action.kind !== "modify-stat" && action.kind !== "grant-keyword") return undefined;
   if (!intrinsicCharacteristic && action.duration !== "while-source-active") return undefined;
   const target = printedTarget(sourceText, action);
-  const faction = sourceText.match(/your \[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1] as Bakugan["faction"] | undefined;
+  const targetFactions = printedTargetFactions(sourceText);
+  const faction = targetFactions.length === 1 ? targetFactions[0] : undefined;
   const excludedFaction = sourceText.match(/non-\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1] as Bakugan["faction"] | undefined;
   const copies = sourceText.match(/if you have (\d+) of this in play/i);
   const activeCondition: RuleCondition = copies
@@ -226,6 +238,7 @@ function printedActionModifier(
     target,
     targetBakuganId: target === "chosen-bakugan" ? bakugan.id : undefined,
     targetFaction: faction,
+    targetFactions: targetFactions.length > 1 ? targetFactions : undefined,
     excludedTargetFaction: excludedFaction,
     amount: action.kind === "grant-keyword" ? action.value ?? 1 : action.amount,
     choices: { targetBakuganId: bakugan.id },

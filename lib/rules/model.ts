@@ -313,6 +313,8 @@ export type ContinuousModifier = {
   target: EntitySelector;
   targetBakuganId?: string;
   targetFaction?: Faction;
+  /** Any-of faction restriction for multi-faction printed targets. */
+  targetFactions?: Faction[];
   excludedTargetFaction?: Faction;
   stat?: "power" | "damage";
   keyword?: "DoubleStrike" | "ShadowStrike" | "FrostStrike";
