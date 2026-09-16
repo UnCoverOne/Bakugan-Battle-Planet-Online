@@ -37,6 +37,10 @@ const discardOrientationCss = readFileSync(
   new URL("../app/discard-flip-orientation.css", import.meta.url),
   "utf8",
 );
+const discardPileCss = readFileSync(
+  new URL("../components/game-screen-v2/DiscardPileLayer.module.css", import.meta.url),
+  "utf8",
+);
 const previewController = readFileSync(
   new URL("../components/game-screen-v2/cardPreviewController.ts", import.meta.url),
   "utf8",
@@ -53,6 +57,21 @@ const cardArtCss = readFileSync(
 test("discard browser is approximately twenty percent narrower at desktop and mobile scales", () => {
   assert.match(css, /width:\s*min\(54\.4rem,\s*calc\(80vw\s*-\s*1\.6rem\)\)\s*!important/);
   assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*width:\s*calc\(80vw\s*-\s*0\.8rem\)\s*!important/);
+});
+
+test("discard browser keeps card rows at content height so large piles scroll", () => {
+  const gridRule = discardPileCss.match(
+    /\.discardModalGrid\s*\{([\s\S]*?)\n\}/,
+  )?.[1] ?? "";
+  const imageRule = discardPileCss.match(
+    /\.discardModalCard img\s*\{([\s\S]*?)\n\}/,
+  )?.[1] ?? "";
+
+  assert.match(gridRule, /grid-auto-rows:\s*max-content/);
+  assert.match(gridRule, /align-content:\s*start/);
+  assert.match(gridRule, /overflow:\s*auto/);
+  assert.match(imageRule, /height:\s*auto/);
+  assert.match(imageRule, /aspect-ratio:\s*5\s*\/\s*7/);
 });
 
 test("Flip cards fill the same vertical hand silhouette as regular cards", () => {
