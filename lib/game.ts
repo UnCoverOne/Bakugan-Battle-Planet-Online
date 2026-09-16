@@ -3346,8 +3346,20 @@ case "swap-bakucore": {
       }
       const printedCost = selected.cost === "X" ? Number.POSITIVE_INFINITY : selected.cost;
       if (action.maximumCost != null && printedCost > resolveNumber(action.maximumCost)) return;
-      const flipHeroPlayedAsHero = selected.type === "Flip Hero" && action.cardType === "Hero";
-      if (action.source === "revealed-deck" && (selected.type === "Flip" || (selected.type === "Flip Hero" && !flipHeroPlayedAsHero))) {
+      const flipHeroAllowedByInstruction = selected.type === "Flip Hero" && (
+        (action.cardType ? cardTypeMatches(selected.type, action.cardType) : false)
+        || instruction.choices.some((choice) => (
+          choice.id === "deckCardId"
+          && (
+            (choice.cardType ? cardTypeMatches(selected.type, choice.cardType) : false)
+            || choice.cardTypes?.some((type) => cardTypeMatches(selected.type, type)) === true
+          )
+        ))
+      );
+      if (action.source === "revealed-deck" && (
+        selected.type === "Flip"
+        || (selected.type === "Flip Hero" && !flipHeroAllowedByInstruction)
+      )) {
         delete player.revealedDeckCardId;
         return;
       }
