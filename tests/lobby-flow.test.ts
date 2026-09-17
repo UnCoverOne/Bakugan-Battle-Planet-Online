@@ -16,6 +16,7 @@ import {
   startLobbyMatch,
   updateLobbySettings,
 } from "../lib/lobby";
+import { deckAllowedInMeta, META_DEFINITIONS, metaAllowsCatalogId } from "../lib/meta-formats";
 import { createTrainingLobbyState } from "../lib/training-lobby";
 
 function taggedPlayer(index: number, deck = STARTER_DECKS[index]) {
@@ -33,6 +34,29 @@ test("lobby configuration defaults to Standard Battle Brawlers and the first pla
     meta: "battle-brawlers",
   });
   assert.equal(roomOwnerId(state), "player-1");
+});
+
+test("year-based metas expose the requested cumulative set pools", () => {
+  assert.deepEqual(META_DEFINITIONS["battle-brawlers"].allowedSets, ["BB", "BR", "AA", "EX"]);
+  assert.deepEqual(META_DEFINITIONS["armored-alliance"].allowedSets, ["BB", "BR", "AA", "EX", "AV", "FF", "SV", "DI"]);
+  assert.deepEqual(META_DEFINITIONS["geogan-rising"].allowedSets, ["BB", "BR", "AA", "EX", "AV", "FF", "SV", "DI", "GR", "GG", "CP"]);
+  assert.equal(META_DEFINITIONS.unlimited.allowedSets, "all");
+  assert.equal(metaAllowsCatalogId("geogan-rising", "gr-1"), true);
+  assert.equal(metaAllowsCatalogId("geogan-rising", "gg-1"), true);
+  assert.equal(metaAllowsCatalogId("geogan-rising", "ps1-1"), false);
+  assert.equal(metaAllowsCatalogId("unlimited", "ps1-1"), true);
+  assert.equal(metaAllowsCatalogId("unlimited", "future-set-1"), true);
+});
+
+test("lobby meta can change independently from deck construction format", () => {
+  let state = createMatch("ABC123", "bo1", [taggedPlayer(0), taggedPlayer(1)]);
+  state = updateLobbySettings(state, "player-1", "standard", "armored-alliance");
+  assert.deepEqual(lobbyConfig(state), {
+    mode: "casual",
+    rulesFormat: "standard",
+    meta: "armored-alliance",
+  });
+  assert.equal(deckAllowedInMeta("armored-alliance", STARTER_DECKS[0]), true);
 });
 
 test("canonical lobby players carry approved profile avatars", () => {
@@ -129,6 +153,9 @@ test("streamlined Match Creation and Lobby source contracts stay in place", asyn
     "Singleton",
     "Competitive",
     "Battle Brawlers",
+    "Armored Alliance",
+    "Geogan Rising",
+    "Unlimited",
     "YOUR DECK",
     "SELECT YOUR DECK",
     "LOBBY CHAT",
@@ -145,6 +172,7 @@ test("streamlined Match Creation and Lobby source contracts stay in place", asyn
   assert.doesNotMatch(room, /<select[\s\S]*?Select a deck/);
   assert.match(room, /deckPickerOpen/);
   assert.match(room, /compatibleDeckIds/);
+  assert.match(room, /deckAllowedInMeta/);
   assert.match(room, /setDeckPickerOpen\(false\)/);
   assert.match(provider, /cosmetics:\s*\{\s*avatar:\s*profile\.avatar\s*\}/);
   assert.match(playPage, /MatchCreationScreen/);
