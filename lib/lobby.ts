@@ -7,6 +7,7 @@ import {
   type LobbyMeta,
   type LobbyRulesFormat,
 } from "./lobby-config";
+import { isLobbyMeta, metaAllowsCatalogId, metaName } from "./meta-formats";
 import { rankedSeries } from "./ranked-lobby";
 
 /** The player who created the room always occupies the first seat. */
@@ -24,6 +25,12 @@ export function lobbyCanStart(state: MatchState) {
   );
 }
 
+function playerAllowedInMeta(player: PlayerState, meta: LobbyMeta) {
+  const characterIds = player.bakugan.map((bakugan) => bakugan.character.catalogId);
+  const cardIds = [...player.deckCards, ...player.hand].map((card) => card.catalogId);
+  return [...characterIds, ...cardIds].every((catalogId) => metaAllowsCatalogId(meta, catalogId));
+}
+
 /**
  * Online lobby SET_READY semantics retained for older clients:
  * - first press marks a player ready and always keeps the room in the lobby;
@@ -39,6 +46,8 @@ export function setLobbyReadyOrStart(input: MatchState, playerId: string) {
   if (!player) throw new Error("Unknown player.");
 
   if (!player.ready) {
+    const config = lobbyConfig(input);
+    if (!playerAllowedInMeta(player, config.meta)) throw new Error(`Select a deck legal in ${metaName(config.meta)} before readying.`);
     const otherReady = input.players.find((candidate) => candidate.id !== playerId && candidate.ready);
     if (input.players.length === 2 && otherReady) {
       // game.setReady historically starts as soon as the second player readies.
@@ -82,7 +91,7 @@ export function updateLobbySettings(
   if (input.phase !== "lobby") throw new Error("Lobby settings can only be changed before the match starts.");
   if (roomOwnerId(input) !== playerId) throw new Error("Only the room owner can change lobby settings.");
   if (!(["standard", "singleton", "competitive"] as const).includes(rulesFormat)) throw new Error("Unknown match format.");
-  if (meta !== "battle-brawlers") throw new Error("That meta is not currently available.");
+  if (!isLobbyMeta(meta)) throw new Error("That meta is not currently available.");
   const current = lobbyConfig(input);
   if (rulesFormat === "competitive" && current.mode !== "ranked") {
     throw new Error("Competitive format is only available in Ranked mode.");
@@ -100,7 +109,7 @@ export function updateLobbySettings(
     id: `${Date.now()}-lobby-settings-${state.version}`,
     at: Date.now(),
     kind: "system",
-    message: `${state.players[0]?.name ?? "Room owner"} set ${rulesFormat === "singleton" ? "Singleton" : rulesFormat === "competitive" ? "Competitive" : "Standard"} • Battle Brawlers. Ready status was cleared.`,
+    message: `${state.players[0]?.name ?? "Room owner"} set ${rulesFormat === "singleton" ? "Singleton" : rulesFormat === "competitive" ? "Competitive" : "Standard"} • ${metaName(meta)}. Ready status was cleared.`,
   });
   return state;
 }
@@ -115,6 +124,9 @@ export function replaceLobbyDeck(input: MatchState, playerId: string, replacemen
   if (playerLobbyDeckFormat(replacement) !== required) {
     throw new Error(`${config.rulesFormat === "singleton" ? "Singleton" : config.rulesFormat === "competitive" ? "Competitive" : "Standard"} requires a ${required === "singleton" ? "Singleton" : required === "competitive" ? "Competitive" : "Standard"} deck.`);
   }
+  if (!playerAllowedInMeta(replacement, config.meta)) {
+    throw new Error(`That deck contains cards outside the ${metaName(config.meta)} meta.`);
+  }
 
   const state = cloneMatch(input);
   replacement.ready = false;
@@ -126,7 +138,7 @@ export function replaceLobbyDeck(input: MatchState, playerId: string, replacemen
     id: `${Date.now()}-lobby-deck-${state.version}`,
     at: Date.now(),
     kind: "system",
-    message: `${replacement.name} selected a ${required === "singleton" ? "Singleton" : "Standard"} deck and is not ready.`,
+    message: `${replacement.name} selected a ${required === "singleton" ? "Singleton" : required === "competitive" ? "Competitive" : "Standard"} deck and is not ready.`,
   });
   return state;
 }
@@ -143,6 +155,9 @@ export function setLobbyReady(input: MatchState, playerId: string, ready: boolea
     const required = requiredDeckFormat(config.rulesFormat);
     if (playerLobbyDeckFormat(player) !== required) {
       throw new Error(`Select a ${required === "singleton" ? "Singleton" : required === "competitive" ? "Competitive" : "Standard"} deck before readying.`);
+    }
+    if (!playerAllowedInMeta(player, config.meta)) {
+      throw new Error(`Select a deck legal in ${metaName(config.meta)} before readying.`);
     }
     const otherReady = input.players.find((candidate) => candidate.id !== playerId && candidate.ready);
     if (input.players.length === 2 && otherReady) {
