@@ -18,10 +18,12 @@ export async function GET(request: Request) {
     const requestedMeta = new URL(request.url).searchParams.get("meta");
     const meta = isLobbyMeta(requestedMeta) ? requestedMeta : DEFAULT_META;
     const enabledLegal = (await listAiDecks(database)).filter((item) => (
-      item.enabled && validateDeck(item.deck).isLegal
+      item.enabled
+      && (item.deck.format ?? "standard") === "standard"
+      && validateDeck(item.deck).isLegal
     ));
     const selectedDeck = selectAiDeckForMeta(enabledLegal.map((item) => item.deck), meta);
-    if (!selectedDeck) throw new ServiceUnavailableError("No enabled legal Training AI deck is available for this meta.");
+    if (!selectedDeck) throw new ServiceUnavailableError("No enabled legal Standard Training AI deck is available for this meta.");
     const selected = enabledLegal.find((item) => item.deck.id === selectedDeck.id) ?? enabledLegal[0];
     return Response.json({
       deck: selectedDeck,
