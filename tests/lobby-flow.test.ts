@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { STARTER_DECKS, makeCanonicalPlayer, makePlayer } from "../lib/data";
+import { selectAiDeckForMeta } from "../lib/ai-meta-selection";
+import { STARTER_DECKS, makeCanonicalPlayer, makePlayer, type DeckRecord } from "../lib/data";
 import { createMatch } from "../lib/game";
 import {
   lobbyConfig,
@@ -16,7 +17,6 @@ import {
   startLobbyMatch,
   updateLobbySettings,
 } from "../lib/lobby";
-import { deckAllowedInMeta, META_DEFINITIONS, metaAllowsCatalogId } from "../lib/meta-formats";
 import { createTrainingLobbyState } from "../lib/training-lobby";
 
 function taggedPlayer(index: number, deck = STARTER_DECKS[index]) {
@@ -24,6 +24,20 @@ function taggedPlayer(index: number, deck = STARTER_DECKS[index]) {
     makePlayer(`player-${index + 1}`, `Player ${index + 1}`, deck),
     deck,
   );
+}
+
+function deckWithEraCard(id: string, catalogId: string): DeckRecord {
+  const base = STARTER_DECKS[0];
+  return {
+    ...base,
+    id,
+    name: id,
+    bakuganIds: [...base.bakuganIds],
+    coreIds: [...base.coreIds],
+    cardIds: [catalogId, ...base.cardIds.slice(1)],
+    factions: [...base.factions],
+    tags: [...(base.tags ?? [])],
+  };
 }
 
 test("lobby configuration defaults to Standard Battle Brawlers and the first player owns the room", () => {
@@ -36,27 +50,25 @@ test("lobby configuration defaults to Standard Battle Brawlers and the first pla
   assert.equal(roomOwnerId(state), "player-1");
 });
 
-test("year-based metas expose the requested cumulative set pools", () => {
+test("year metas expose the requested cumulative set pools", async () => {
+  const { META_DEFINITIONS } = await import("../lib/meta-formats");
   assert.deepEqual(META_DEFINITIONS["battle-brawlers"].allowedSets, ["BB", "BR", "AA", "EX"]);
   assert.deepEqual(META_DEFINITIONS["armored-alliance"].allowedSets, ["BB", "BR", "AA", "EX", "AV", "FF", "SV", "DI"]);
   assert.deepEqual(META_DEFINITIONS["geogan-rising"].allowedSets, ["BB", "BR", "AA", "EX", "AV", "FF", "SV", "DI", "GR", "GG", "CP"]);
   assert.equal(META_DEFINITIONS.unlimited.allowedSets, "all");
-  assert.equal(metaAllowsCatalogId("geogan-rising", "gr-1"), true);
-  assert.equal(metaAllowsCatalogId("geogan-rising", "gg-1"), true);
-  assert.equal(metaAllowsCatalogId("geogan-rising", "ps1-1"), false);
-  assert.equal(metaAllowsCatalogId("unlimited", "ps1-1"), true);
-  assert.equal(metaAllowsCatalogId("unlimited", "future-set-1"), true);
 });
 
-test("lobby meta can change independently from deck construction format", () => {
-  let state = createMatch("ABC123", "bo1", [taggedPlayer(0), taggedPlayer(1)]);
-  state = updateLobbySettings(state, "player-1", "standard", "armored-alliance");
-  assert.deepEqual(lobbyConfig(state), {
-    mode: "casual",
-    rulesFormat: "standard",
-    meta: "armored-alliance",
-  });
-  assert.equal(deckAllowedInMeta("armored-alliance", STARTER_DECKS[0]), true);
+test("Training AI prefers a random deck from the newest represented legal era", () => {
+  const battle = deckWithEraCard("battle", "bb-1");
+  const armoredA = deckWithEraCard("armored-a", "av-1");
+  const armoredB = deckWithEraCard("armored-b", "sv-1");
+  const geogan = deckWithEraCard("geogan", "cp-1");
+
+  assert.equal(selectAiDeckForMeta([battle, armoredA, geogan], "battle-brawlers", () => 0)?.id, "battle");
+  assert.equal(selectAiDeckForMeta([battle, armoredA, armoredB], "armored-alliance", () => 1)?.id, "armored-b");
+  assert.equal(selectAiDeckForMeta([battle, armoredA, geogan], "geogan-rising", () => 0)?.id, "geogan");
+  assert.equal(selectAiDeckForMeta([battle, armoredA], "geogan-rising", () => 0)?.id, "armored-a");
+  assert.equal(selectAiDeckForMeta([battle, armoredA, geogan], "unlimited", () => 0)?.id, "geogan");
 });
 
 test("canonical lobby players carry approved profile avatars", () => {
@@ -83,6 +95,16 @@ test("only the owner can change lobby settings and a change un-readies both seat
   state = updateLobbySettings(state, "player-1", "singleton", "battle-brawlers");
   assert.equal(lobbyConfig(state).rulesFormat, "singleton");
   assert.equal(state.players.every((player) => !player.ready), true);
+});
+
+test("lobby owner can switch among supported metas", () => {
+  let state = createMatch("ABC123", "bo1", [taggedPlayer(0), taggedPlayer(1)]);
+  state = updateLobbySettings(state, "player-1", "standard", "armored-alliance");
+  assert.equal(lobbyConfig(state).meta, "armored-alliance");
+  state = updateLobbySettings(state, "player-1", "standard", "geogan-rising");
+  assert.equal(lobbyConfig(state).meta, "geogan-rising");
+  state = updateLobbySettings(state, "player-1", "standard", "unlimited");
+  assert.equal(lobbyConfig(state).meta, "unlimited");
 });
 
 test("competitive lobby format is rejected for Casual rooms", () => {
@@ -152,7 +174,10 @@ test("streamlined Match Creation and Lobby source contracts stay in place", asyn
     "Standard",
     "Singleton",
     "Competitive",
-    "LOBBY_METAS",
+    "Battle Brawlers",
+    "Armored Alliance",
+    "Geogan Rising",
+    "Unlimited",
     "YOUR DECK",
     "SELECT YOUR DECK",
     "LOBBY CHAT",
@@ -169,7 +194,6 @@ test("streamlined Match Creation and Lobby source contracts stay in place", asyn
   assert.doesNotMatch(room, /<select[\s\S]*?Select a deck/);
   assert.match(room, /deckPickerOpen/);
   assert.match(room, /compatibleDeckIds/);
-  assert.match(room, /deckAllowedInMeta/);
   assert.match(room, /setDeckPickerOpen\(false\)/);
   assert.match(provider, /cosmetics:\s*\{\s*avatar:\s*profile\.avatar\s*\}/);
   assert.match(playPage, /MatchCreationScreen/);
