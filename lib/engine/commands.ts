@@ -1,4 +1,5 @@
 import type { CardChoices, PlayerState } from "../game";
+import type { LobbyMeta } from "../meta-formats";
 import type { GameCommand } from "./types";
 
 export type ApiAction =
@@ -55,7 +56,7 @@ export function apiActionToCommand(
     case "lobby-settings": return {
       type: "UPDATE_LOBBY_SETTINGS",
       rulesFormat: stringValue(payload.rulesFormat) as "standard" | "singleton" | "competitive",
-      meta: stringValue(payload.meta) as "battle-brawlers",
+      meta: stringValue(payload.meta) as LobbyMeta,
     };
     case "lobby-deck": return { type: "UPDATE_LOBBY_DECK", player: payload.player as PlayerState };
     case "ranked-ban": return { type: "RANKED_BAN_DECK", deckId: stringValue(payload.deckId) };

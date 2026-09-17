@@ -157,11 +157,13 @@ export function MatchCreationScreen() {
       setJoinCode("");
       try {
         const response = await fetch("/api/ai-decks", { cache: "no-store" });
-        const result = await response.json().catch(() => ({})) as { deck?: DeckRecord; error?: string };
+        const result = await response.json().catch(() => ({})) as { deck?: DeckRecord; availableDecks?: DeckRecord[]; error?: string };
         if (!response.ok || !result.deck) throw new Error(result.error ?? "No Training AI deck is available.");
         if (!validateDeck(result.deck).isLegal) throw new Error("The selected Training AI deck is no longer legal.");
+        const availableAiDecks = (result.availableDecks ?? [result.deck]).filter((deck) => validateDeck(deck).isLegal);
+        if (!availableAiDecks.length) throw new Error("No legal Training AI deck is available.");
         const code = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase();
-        const state = createTrainingLobbyState(code, structure, playerId, profile.name, launchDeck, result.deck);
+        const state = createTrainingLobbyState(code, structure, playerId, profile.name, launchDeck, result.deck, availableAiDecks);
         initializeLocalReplayJournal(state, authUser?.id ?? playerId);
         setOnline(false);
         setMatch(state);

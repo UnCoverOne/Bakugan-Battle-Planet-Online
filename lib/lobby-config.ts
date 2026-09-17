@@ -1,8 +1,9 @@
 import type { MatchState, PlayerState } from "./game";
+import { DEFAULT_META, isLobbyMeta, type LobbyMeta } from "./meta-formats";
 
 export type LobbyMode = "training" | "casual" | "ranked";
 export type LobbyRulesFormat = "standard" | "singleton" | "competitive";
-export type LobbyMeta = "battle-brawlers";
+export type { LobbyMeta } from "./meta-formats";
 export type LobbyDeckFormat = "standard" | "singleton" | "competitive";
 
 export type LobbyConfig = {
@@ -33,7 +34,7 @@ export function lobbyConfig(state: MatchState): LobbyConfig {
   return {
     mode: validMode(configured.lobbyMode) ? configured.lobbyMode : "casual",
     rulesFormat: validRulesFormat(configured.lobbyRulesFormat) ? configured.lobbyRulesFormat : "standard",
-    meta: configured.lobbyMeta === "battle-brawlers" ? configured.lobbyMeta : "battle-brawlers",
+    meta: isLobbyMeta(configured.lobbyMeta) ? configured.lobbyMeta : DEFAULT_META,
   };
 }
 
