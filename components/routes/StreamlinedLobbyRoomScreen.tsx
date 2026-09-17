@@ -26,6 +26,7 @@ import {
   type LobbyRulesFormat,
 } from "../../lib/lobby-config";
 import { lobbyCanStart, roomOwnerId } from "../../lib/lobby";
+import { deckAllowedInMeta, LOBBY_METAS, metaName, type LobbyMeta } from "../../lib/meta-formats";
 import { trainingBotLobbyCommands } from "../../lib/training-lobby";
 import { dispatchLocalGameAction, dispatchLocalGameCommand } from "../../lib/engine/local-command-dispatcher";
 import { eligibleRankedDecks, rankedSeries } from "../../lib/ranked-lobby";
@@ -171,16 +172,18 @@ export function LobbyRoomScreen() {
   const isOwner = Boolean(ownerId && ownerId === localPlayerId);
   const bothReady = Boolean(match && lobbyCanStart(match));
   const requiredFormat = config ? requiredDeckFormat(config.rulesFormat) : "standard";
+  const selectedMeta = config?.meta ?? "battle-brawlers";
   const playerDecks = decks as DeckRecord[];
   const compatibleDecks = playerDecks.filter((deck) => {
     const deckFormat = deck.format === "singleton" || deck.format === "competitive" ? deck.format : "standard";
-    return deckFormat === requiredFormat && validateDeck(deck).isLegal;
+    return deckFormat === requiredFormat && validateDeck(deck).isLegal && deckAllowedInMeta(selectedMeta, deck);
   });
   const compatibleDeckIds = new Set(compatibleDecks.map((deck) => deck.id));
   const currentDeck = playerDecks.find((deck) => deckMatchesPlayer(deck, me)) ?? null;
   const currentDeckCards = currentDeck ? deckPreviewCards(currentDeck) : [];
   const currentDeckTags = currentDeck ? deckTags(currentDeck) : [];
   const myDeckFormatMatches = Boolean(me && playerLobbyDeckFormat(me) === requiredFormat);
+  const myDeckMetaMatches = Boolean(currentDeck && deckAllowedInMeta(selectedMeta, currentDeck));
 
   useEffect(() => {
     if (!match || match.phase === "lobby") return;
@@ -263,17 +266,17 @@ export function LobbyRoomScreen() {
     }
   };
 
-  const changeFormat = async (rulesFormat: LobbyRulesFormat) => {
-    if (!match || !config || !isOwner || rulesFormat === config.rulesFormat) return;
+  const applySettings = async (rulesFormat: LobbyRulesFormat, meta: LobbyMeta) => {
+    if (!match || !config || !isOwner) return;
     if (rulesFormat === "competitive" && config.mode !== "ranked") return;
     if (room.online) {
-      await sendRoomCommand("lobby-settings", { rulesFormat, meta: "battle-brawlers" }, "settings");
+      await sendRoomCommand("lobby-settings", { rulesFormat, meta }, "settings");
       return;
     }
     setBusy("settings");
     setError("");
     try {
-      let next = dispatchLocalGameAction(match, localPlayerId, "lobby-settings", { rulesFormat, meta: "battle-brawlers" });
+      let next = dispatchLocalGameAction(match, localPlayerId, "lobby-settings", { rulesFormat, meta });
       for (const command of trainingBotLobbyCommands(next)) {
         next = dispatchLocalGameCommand(next, "training-bot", command, localPlayerId);
       }
@@ -283,6 +286,16 @@ export function LobbyRoomScreen() {
     } finally {
       setBusy("");
     }
+  };
+
+  const changeFormat = async (rulesFormat: LobbyRulesFormat) => {
+    if (!config || rulesFormat === config.rulesFormat) return;
+    await applySettings(rulesFormat, config.meta);
+  };
+
+  const changeMeta = async (meta: LobbyMeta) => {
+    if (!config || meta === config.meta) return;
+    await applySettings(config.rulesFormat, meta);
   };
 
   const selectDeck = async (deckId: string) => {
@@ -408,7 +421,7 @@ export function LobbyRoomScreen() {
           <div className={styles.heroMeta}>
             <span>{match.format === "bo3" ? "Best of Three" : "Best of One"}</span>
             <span>{formatLabel(config.rulesFormat)}</span>
-            <span>Battle Brawlers</span>
+            <span>{metaName(config.meta)}</span>
           </div>
           <button className={styles.copyButton} type="button" onClick={() => void copyRoomCode()}>{copied ? "COPIED" : "COPY ROOM CODE"}</button>
         </div>
@@ -449,10 +462,14 @@ export function LobbyRoomScreen() {
               </div>
               <label className={styles.metaField}>
                 <span>META</span>
-                <select value="battle-brawlers" disabled={!isOwner || busy === "settings"} onChange={() => undefined}>
-                  <option value="battle-brawlers">Battle Brawlers</option>
+                <select
+                  value={config.meta}
+                  disabled={!isOwner || busy === "settings"}
+                  onChange={(event) => void changeMeta(event.target.value as LobbyMeta)}
+                >
+                  {LOBBY_METAS.map((meta) => <option value={meta.id} key={meta.id}>{meta.name}</option>)}
                 </select>
-                <small>Currently the only available meta.</small>
+                <small>Limits Character and Main Deck cards to the selected era. Unlimited accepts every set.</small>
               </label>
             </div>
           </section>
@@ -549,6 +566,7 @@ export function LobbyRoomScreen() {
               )}
 
               {!myDeckFormatMatches ? <p className={styles.deckWarning}>Your current seat deck does not match this lobby format. Select a compatible deck before readying.</p> : null}
+              {myDeckFormatMatches && !myDeckMetaMatches ? <p className={styles.deckWarning}>Your current deck contains cards outside the {metaName(config.meta)} meta. Select a compatible deck before readying.</p> : null}
               {!compatibleDecks.length ? <Link className={styles.createDeckLink} href="/decks">CREATE A COMPATIBLE DECK</Link> : null}
             </section>
 
@@ -562,7 +580,7 @@ export function LobbyRoomScreen() {
                 <button
                   className={styles.readyButton}
                   type="button"
-                  disabled={!me || busy === "ready" || !myDeckFormatMatches || Boolean(ranked && ranked.stage !== "ready")}
+                  disabled={!me || busy === "ready" || !myDeckFormatMatches || !myDeckMetaMatches || Boolean(ranked && ranked.stage !== "ready")}
                   onClick={() => void toggleReady()}
                 >
                   {busy === "ready" ? "UPDATING…" : me?.ready ? "UNREADY" : "READY"}
@@ -579,7 +597,7 @@ export function LobbyRoomScreen() {
               <div><span>MODE</span><strong>{config.mode.toUpperCase()}</strong></div>
               <div><span>STRUCTURE</span><strong>{match.format === "bo3" ? "BEST OF THREE" : "BEST OF ONE"}</strong></div>
               <div><span>FORMAT</span><strong>{formatLabel(config.rulesFormat).toUpperCase()}</strong></div>
-              <div><span>META</span><strong>BATTLE BRAWLERS</strong></div>
+              <div><span>META</span><strong>{metaName(config.meta).toUpperCase()}</strong></div>
               <button type="button" onClick={leaveMatch}>LEAVE LOBBY</button>
             </footer>
           </section>
@@ -633,7 +651,7 @@ export function LobbyRoomScreen() {
                     disabled={!selectable || busy === "deck"}
                     onClick={() => void selectDeck(deck.id)}
                     aria-label={`${selectable ? "Select" : "Unavailable"} ${deck.name}`}
-                    title={selectable ? deck.name : `Requires a legal ${requiredFormat === "singleton" ? "Singleton" : requiredFormat === "competitive" ? "Competitive" : "Standard"} deck`}
+                    title={selectable ? deck.name : `Requires a legal ${requiredFormat === "singleton" ? "Singleton" : requiredFormat === "competitive" ? "Competitive" : "Standard"} deck in ${metaName(config.meta)}`}
                   >
                     <span className={styles.deckChoiceArt}>
                       <CardArt src={lead ? cardArtSource(lead, "full") : "/assets/cards/card-missing.svg"} cardType={lead?.type} presentation="readable" alt={lead?.displayName ?? "Deck featured card unavailable"} />
