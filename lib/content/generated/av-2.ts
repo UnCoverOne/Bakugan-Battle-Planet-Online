@@ -48,7 +48,7 @@ export const AV_ROWS_2 = [
   ["av-99",99,"CO","Bolt Blow","Haos","Baku-Gear",2,"+2 [FrostStrike]",100,0,"","","","Bolt_Blow_ENG_99_CO_AV.png","",null,"99","",""],
   ["av-100",100,"AR","Lightning Striker","Haos","Baku-Gear",3,"Trifecta: If your Bakugan have three or more BakuCores attached\nto them, +7 [Damage].",200,0,"","","","Lightning_Striker_ENG_100_AR_AV.png","",null,"100","",""],
   ["av-101",101,"CO","Guardian Wings","Haos","Baku-Gear",3,"When you play this, [Draw] 1.",100,3,"","","","Guardian_Wings_ENG_101_CO_AV.png","",null,"101","",""],
-  ["av-102",102,"RA","Glimmering Glaive","Haos","Baku-Gear",4,"When you play this, you may attach a BakuCore from the field to on\nof your Bakugan.",400,0,"","","","Glimmering_Glaive_ENG_102_RA_AV.png","",null,"102","",""],
+  ["av-102",102,"RA","Glimmering Glaive","Haos","Baku-Gear",4,"When you play this, you may attach a BakuCore from the field to one\nof your Bakugan.",400,0,"","","","Glimmering_Glaive_ENG_102_RA_AV.png","",null,"102","",""],
   ["av-103",103,"SR","Brilliant Armor","Haos","Baku-Gear",5,"[Victor]: [Draw] 1.",300,6,"","","","Brilliant_Armor_ENG_103_SR_AV.png","",null,"103","",""],
   ["av-104",104,"CO","Haobracers","Haos","Baku-Gear",6,"",1000,0,"","","","Haobracers_ENG_104_CO_AV.png","",null,"104","",""],
   ["av-105",105,"CO","Pyrucannon","Pyrus","Baku-Gear",2,"",100,2,"","","","Pyrucannon_ENG_105_CO_AV.png","",null,"105","",""],

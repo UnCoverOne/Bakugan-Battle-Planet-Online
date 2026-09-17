@@ -578,13 +578,21 @@ function bestNextCardFollowUpValue(
     if (followUp.id === sourceCard.id || followUp.type === "Character" || followUp.type === "Flip" || followUp.type === "Flip Hero") {
       continue;
     }
+    // Another setup card is not a payoff for this discount.
+    if (nextCardCostModifier(followUp)) continue;
     let choices: CardChoices;
     try {
       choices = chooseBaseCardChoices(match, playerId, followUp);
     } catch {
       continue;
     }
-    const payment = cardEnergyPaymentState(match, playerId, followUp, choices);
+    // The setup card consumes any existing next-card discount.
+    const afterSetup = cloneMatch(match);
+    afterSetup.nextCardCostReduction[playerId] = 0;
+    if (afterSetup.rules) afterSetup.rules.costModifiers = afterSetup.rules.costModifiers.filter(
+      (entry) => !(entry.controllerId === playerId && entry.duration === "next-card"),
+    );
+    const payment = cardEnergyPaymentState(afterSetup, playerId, followUp, choices);
     if (!payment) continue;
     const normalCost = payment.cost;
     const discountedCost = modifier.free
@@ -598,6 +606,7 @@ function bestNextCardFollowUpValue(
     if (retainedValue < 0.75) continue;
     const unlocked = normalCost > remainingCapacity;
     const savedEnergy = Math.max(0, normalCost - discountedCost);
+    if (savedEnergy <= 0) continue;
     const followUpValue = (unlocked ? 2.25 : 0)
       + savedEnergy * 0.55
       + Math.min(3, retainedValue * 0.45);
@@ -627,13 +636,9 @@ function shouldReserveNextCardSetupCard(
   const hasSelfReroll = entries.some(({ action }) => (
     action.kind === "reroll" && action.target === "controller"
   ));
-  const opponent = opponentOf(match, playerId);
-  const opponentParticipates = Boolean(opponent && participatesInBrawl(match, opponent.id));
-  const current = projectCombatAfterBatch(match, playerId);
-  const rerollHasImmediateCombatPurpose = hasSelfReroll && (
-    !participatesInBrawl(match, playerId)
-    || (opponentParticipates && current.gap <= 0)
-  );
+  const opportunity = hasSelfReroll ? bestAiRerollOpportunity(match, playerId) : undefined;
+  const rerollHasImmediateCombatPurpose = Boolean(opportunity
+    && opportunity.utilityGain - payment.cost * 0.9 >= 2.5);
   if (rerollHasImmediateCombatPurpose) return false;
 
   // Do not hide a setup card whose non-setup text is already worth the card.

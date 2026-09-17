@@ -638,7 +638,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
   if (syncChoice) result.push(syncChoice);
   const cardId = ruleCardId(card);
   const timing = /when you play this|\bmay\b|\bSacrifice\b/i.test(text) ? "resolve" : defaultTiming;
-  const targetTiming = /\bBattle Mastery\b|when this opens|\bVictor\s*[-:]|\bUnderdog\s*:|at (?:the )?end of (?:your |the )?turn/i.test(text)
+  const targetTiming = /may attach (?:an? )?BakuCore|\bBattle Mastery\b|when this opens|\bVictor\s*[-:]|\bUnderdog\s*:|at (?:the )?end of (?:your |the )?turn/i.test(text)
     ? "resolve"
     : defaultTiming;
   const discardPaysPlayCost = /\bdiscard\s+(?:a|an|one|two|three|\d+)\s+cards?\s+to play this for free\b/i.test(text);
@@ -720,7 +720,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     friendly.targetOwner = friendly.owner;
     result.push(enemy, friendly);
   } else if ((explicitBakuganTarget || fusionTarget) && !fusionTrigger && (cardId !== "aa-99" || defaultTiming === "resolve")) {
-    const selected = choice("targetBakuganId", targetTiming, "chosen-bakugan", "Choose a Bakugan");
+    const selected = choice(card.type === "Baku-Gear" && coreAttachmentTarget ? "secondaryTargetBakuganId" : "targetBakuganId", targetTiming, "chosen-bakugan", "Choose a Bakugan");
     selected.owner = /^At the start of the game,\s+a Bakugan gets/i.test(text)
       ? "controller"
       : /attach (?:this|(?:an?|one) (?:opposing )?Baku-Gear) (?:to|on) [^.;]*\bone of your\s+Bakugan/i.test(text)
@@ -1283,7 +1283,7 @@ export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
   }
 
   const result: AbilityDefinition[] = [];
-  if (["Hero", "Evo"].includes(card.type) && triggered.length && !ordinary.length) {
+  if (["Hero", "Evo", "Baku-Gear"].includes(card.type) && triggered.length && !ordinary.length) {
     result.push({
       id: `${ruleCardId(card)}:spell`,
       kind: "spell",

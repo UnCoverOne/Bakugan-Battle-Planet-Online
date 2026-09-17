@@ -3149,9 +3149,12 @@ case "swap-bakucore": {
       }
       else if (action.verb === "attach" && action.object === "bakucore" && target) {
         const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell && !candidate.attachedTo);
-        if (placement) {
-          placement.attachedTo = target.id;
-          target.heldCoreCells.push(placement.cell);
+        const recipient = choices.secondaryTargetBakuganId
+          ? player.bakugan.find((bakugan) => bakugan.id === choices.secondaryTargetBakuganId)
+          : target;
+        if (placement && recipient?.open) {
+          placement.attachedTo = recipient.id;
+          recipient.heldCoreCells.push(placement.cell);
         }
       } else if (action.verb === "attach" && action.object === "baku-gear" && target) {
         const cardOwner = playerById(state, pending.cardOwnerId ?? controllerId);
@@ -3703,7 +3706,12 @@ function stageResolutionInstructionChoice(
 ): "continue" | "suspend" | "skip" {
   const existing = pending.resolvedChoices?.[String(instructionIndex)];
   const partialSync = Boolean(existing?.syncCardId && instruction.choices.some((choice) => choice.id === "syncCardId"));
-  if (existing && !partialSync) {
+  const optionalCoreAttachment = instruction.choices.some((choice) => choice.id === "confirmed")
+    && instruction.choices.some((choice) => choice.id === "coreCell")
+    && /may attach/i.test(instruction.sourceText);
+  const partialCoreAttachment = optionalCoreAttachment && existing?.confirmed === true
+    && instruction.choices.some((choice) => choice.timing === "resolve" && existing[choice.id] == null);
+  if (existing && !partialSync && !partialCoreAttachment) {
     captureResolvedInstructionValues(state, pending, instruction, instructionIndex);
     return existing.confirmed === false ? "skip" : "continue";
   }
@@ -3733,6 +3741,9 @@ function stageResolutionInstructionChoice(
     schema.fields = schema.fields.map((field) => field.id === "syncCardId"
       ? field
       : { ...field, minimum: 0, required: false });
+  }
+  if (optionalCoreAttachment && !existing) {
+    schema.fields = schema.fields.filter((field) => field.id === "confirmed");
   }
   const payAction = instruction.actions.find((action): action is Extract<RuleAction, { kind: "pay-energy" }> => action.kind === "pay-energy");
   if (payAction) {

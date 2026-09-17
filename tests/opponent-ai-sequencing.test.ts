@@ -227,3 +227,25 @@ test("Damage-Victor AI spends a reroll card when a high-Damage target is its onl
   assert.equal(command?.type, "PLAY_CARD");
   if (command?.type === "PLAY_CARD") assert.equal(command.cardId, superfuel.id);
 });
+
+test("AI retains chained Superfuel when losing and no available core improves the brawl", () => {
+  const fuel = namedCard("Superfuel", "fuel-first");
+  const otherFuel = namedCard("Superfuel", "fuel-second");
+  const {match, ai} = powerMatch(400, 2, 2100, 7, [fuel, otherFuel]);
+  addEnergy(ai, 1);
+  const weakCore = core("no-improvement", 0, 0);
+  match.placements = [{playerId: ai.id, core: weakCore, cell: CENTER_CELL, order: 1}];
+  assert.equal(chooseOpponentAiCommand(match, ai.id)?.type, "PASS_PRIORITY");
+  ai.hand = [otherFuel];
+  match.nextCardCostReduction[ai.id] = 3;
+  assert.equal(chooseOpponentAiCommand(match, ai.id)?.type, "PASS_PRIORITY");
+});
+
+test("AI retains a useful Superfuel reroll that can overcome a B-Power deficit", () => {
+  const fuel = namedCard("Superfuel", "fuel-winning-reroll");
+  const {match, ai} = powerMatch(400, 2, 700, 7, [fuel]);
+  match.placements = [{playerId: ai.id, core: core("winning-core", 1000, 0), cell: CENTER_CELL, order: 1}];
+  const command = chooseOpponentAiCommand(match, ai.id);
+  assert.equal(command?.type, "PLAY_CARD");
+  if (command?.type === "PLAY_CARD") assert.equal(command.cardId, fuel.id);
+});
