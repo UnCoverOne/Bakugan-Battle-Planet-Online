@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { matchHistoriesEqual, mergeMatchHistories } from "../../lib/match-history-sync";
+import { lifetimeMatchStatsFromHistory } from "../../lib/match-statistics";
 import type { MatchResultRecord } from "../../lib/persistence";
 import { readJsonResponse } from "../../lib/json-response";
 import { useApp } from "./AppProvider";
@@ -19,7 +20,7 @@ function historyFingerprints(history: MatchResultRecord[]) {
 }
 
 export function AccountHistorySync() {
-  const { authUser, accountDataReady, history, setHistory } = useApp();
+  const { authUser, accountDataReady, history, setHistory, setLifetimeStats } = useApp();
   const historyRef = useRef<MatchResultRecord[]>(history);
   const observedHistory = useRef<Map<string, string> | null>(null);
   const pendingHistory = useRef<Map<string, MatchResultRecord>>(new Map());
@@ -74,13 +75,19 @@ export function AccountHistorySync() {
         historyRef.current = merged;
         setHistory(merged);
       }
+      const repairedStats = lifetimeMatchStatsFromHistory(merged);
+      setLifetimeStats((current) => (
+        JSON.stringify(current) === JSON.stringify(repairedStats)
+          ? current
+          : repairedStats
+      ));
       return true;
     } catch {
       // The account sync surface already owns user-facing connectivity state.
       // Keep the last in-memory archive until the server can be reached again.
       return false;
     }
-  }, [accountDataReady, authUser, setHistory]);
+  }, [accountDataReady, authUser, setHistory, setLifetimeStats]);
 
   const pushPendingHistory = useCallback(async () => {
     if (

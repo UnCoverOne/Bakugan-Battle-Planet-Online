@@ -5,6 +5,7 @@ import {
   matchHistoriesEqual,
   mergeMatchHistories,
 } from "../lib/match-history-sync";
+import { lifetimeMatchStatsFromHistory } from "../lib/match-statistics";
 import type { MatchResultRecord } from "../lib/persistence";
 
 const source = (path: string) => readFileSync(path, "utf8");
@@ -126,4 +127,48 @@ test("history equality prevents repeated state writes after convergence", () => 
     ),
     false,
   );
+});
+
+
+test("history-derived lifetime stats are idempotent and ignore abandoned results", () => {
+  const win = { ...record("win", "2026-08-24T10:00:00.000Z"), mode: "casual" as const };
+  const training = { ...record("training", "2026-08-24T10:30:00.000Z"), mode: "training" as const };
+  const loss = {
+    ...record("loss", "2026-08-24T11:00:00.000Z"),
+    result: "Defeat",
+    mode: "ranked" as const,
+  };
+  const abandoned = {
+    ...record("abandoned", "2026-08-24T11:30:00.000Z"),
+    result: "Defeat",
+    mode: "casual" as const,
+    reason: "disconnect",
+  };
+
+  assert.deepEqual(
+    lifetimeMatchStatsFromHistory([win, win, training, loss, abandoned]),
+    {
+      matchesPlayed: 3,
+      wins: 2,
+      losses: 1,
+      draws: 0,
+      trainingMatches: 1,
+      casualMatches: 1,
+      rankedMatches: 1,
+    },
+  );
+});
+
+test("signed-in history refresh repairs lifetime counters instead of incrementing them in the client", () => {
+  const sync = source("components/application/AccountHistorySync.tsx");
+  const provider = source("components/application/AppProvider.jsx");
+  const dashboard = source("components/routes/DashboardScreen.tsx");
+  const publicProfile = source("lib/public-profile-server.ts");
+
+  assert.match(sync, /const repairedStats = lifetimeMatchStatsFromHistory\(merged\);[\s\S]*setLifetimeStats\(\(current\)/);
+  assert.match(provider, /if \(!authUser\) \{[\s\S]*setLifetimeStats\(\(current\) => \(\{/);
+  assert.match(dashboard, /const gamesPlayed = authUser[\s\S]*completedGames\.length/);
+  assert.match(dashboard, /<strong>\{gamesPlayed\}<\/strong><span>Games played<\/span>/);
+  assert.match(publicProfile, /loadAccountMatchHistory\(db, userId\)/);
+  assert.match(publicProfile, /const gamesWon = completedGames\.filter/);
 });

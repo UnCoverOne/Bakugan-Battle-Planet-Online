@@ -12,6 +12,7 @@ import { CARD_BY_ID, PUBLIC_DECKS, deckLeadCard, type DeckRecord } from "../../l
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
 import type { GameCard } from "../../lib/game";
+import { accountStatMatches, lifetimeMatchStatsFromHistory } from "../../lib/match-statistics";
 import { CardArt } from "../cards/CardArt";
 import { useApp } from "../application/AppProvider";
 import { Badge, deckLooksComplete, factionClass } from "../application/ui";
@@ -152,7 +153,11 @@ export function DashboardScreen() {
   const heroSource = useHighResolutionHero();
   const [remotePublicDecks, setRemotePublicDecks] = useState<DeckRecord[]>([]);
   const isGuest = !authUser;
-  const achievements = achievementsFor(decks, history, lifetimeStats);
+  const completedGames = accountStatMatches(history);
+  const effectiveLifetimeStats = authUser
+    ? lifetimeMatchStatsFromHistory(history)
+    : lifetimeStats;
+  const achievements = achievementsFor(decks, history, effectiveLifetimeStats);
   const unlockedAchievements = achievements.filter((achievement) => achievement.unlocked);
   const incompleteAchievements = achievements
     .filter((achievement) => !achievement.unlocked)
@@ -161,8 +166,12 @@ export function DashboardScreen() {
     ...incompleteAchievements,
     ...achievements.filter((achievement) => achievement.unlocked).reverse(),
   ].slice(0, 3);
-  const wins = Math.max(lifetimeStats.wins, history.filter((item: { result?: string }) => item.result === "Victor").length);
-  const gamesPlayed = Math.max(lifetimeStats.matchesPlayed, history.length);
+  const wins = authUser
+    ? completedGames.filter((item: { result?: string }) => item.result === "Victor").length
+    : Math.max(lifetimeStats.wins, history.filter((item: { result?: string }) => item.result === "Victor").length);
+  const gamesPlayed = authUser
+    ? completedGames.length
+    : Math.max(lifetimeStats.matchesPlayed, history.length);
   const winRate = gamesPlayed ? Math.round((wins / gamesPlayed) * 100) : 0;
   const completeDecks = decks.filter(deckLooksComplete);
 
@@ -329,7 +338,7 @@ export function DashboardScreen() {
         <span className={`home-profile-avatar ${factionClass(profile.faction)}`}>{profile.name.slice(0, 2).toUpperCase()}</span>
         <span><strong>{profile.name}</strong><small>{profile.faction} Brawler</small></span>
       </Link>
-      <div className="home-profile-stat"><strong>{history.length}</strong><span>Games played</span></div>
+      <div className="home-profile-stat"><strong>{gamesPlayed}</strong><span>Games played</span></div>
       <div className="home-profile-stat"><strong>{wins}</strong><span>Games won</span></div>
       <div className="home-profile-stat"><strong>{winRate}%</strong><span>Win rate</span></div>
       <div className="home-profile-stat"><strong>{completeDecks.length}</strong><span>Complete decks</span></div>

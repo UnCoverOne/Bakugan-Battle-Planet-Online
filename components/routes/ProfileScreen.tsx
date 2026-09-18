@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { achievementsFor, applyAchievementCompletions } from "../../lib/achievements";
-import { accountStatMatches } from "../../lib/match-statistics";
+import { accountStatMatches, lifetimeMatchStatsFromHistory } from "../../lib/match-statistics";
 import {
   buildPublicBrawlerProfile,
   normalizePublicBrawlerProfile,
@@ -84,22 +84,30 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
   const [recordFilter, setRecordFilter] = useState("all");
   const [rankedProfile, setRankedProfile] =
     useState<PublicRankedProfile | null>(null);
+  const effectiveLifetimeStats = useMemo(
+    () => authUser ? lifetimeMatchStatsFromHistory(history) : lifetimeStats,
+    [authUser, history, lifetimeStats],
+  );
   const achievements = useMemo(
     () => applyAchievementCompletions(
-      achievementsFor(decks, history, lifetimeStats),
+      achievementsFor(decks, history, effectiveLifetimeStats),
       profile.achievementCompletions,
     ),
-    [decks, history, lifetimeStats, profile.achievementCompletions],
+    [decks, effectiveLifetimeStats, history, profile.achievementCompletions],
   );
   const completedGames = accountStatMatches(history);
-  const gamesPlayed = Math.max(
-    completedGames.length,
-    lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches,
-  );
-  const wins = Math.max(
-    completedGames.filter((item: any) => item.result === "Victor").length,
-    lifetimeStats.wins,
-  );
+  const gamesPlayed = authUser
+    ? completedGames.length
+    : Math.max(
+        completedGames.length,
+        lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches,
+      );
+  const wins = authUser
+    ? completedGames.filter((item: any) => item.result === "Victor").length
+    : Math.max(
+        completedGames.filter((item: any) => item.result === "Victor").length,
+        lifetimeStats.wins,
+      );
   const winRate = gamesPlayed ? Math.round((wins / gamesPlayed) * 100) : 0;
   const completedAchievementIds = useMemo(
     () =>

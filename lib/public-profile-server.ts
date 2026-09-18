@@ -2,12 +2,11 @@ import { normalizeAchievementProgress } from "./achievement-progress";
 import { achievementsFor, applyAchievementCompletions } from "./achievements";
 import { loadAchievementDefinitions } from "./achievement-configuration-server";
 import { loadAchievementRewardAssignments } from "./achievement-rewards-server";
-import { loadAccountDataPayload } from "./account-data-server";
+import { loadAccountDataPayload, loadAccountMatchHistory } from "./account-data-server";
 import type { AccountDatabase } from "./account-server";
-import { accountStatMatches } from "./match-statistics";
+import { accountStatMatches, lifetimeMatchStatsFromHistory } from "./match-statistics";
 import {
   normalizeAchievementCompletions,
-  normalizeLifetimeMatchStats,
   type BrawlerProfile,
 } from "./persistence";
 import {
@@ -90,10 +89,13 @@ export async function publicBrawlerProfile(
     .first<Record<string, unknown>>();
   if (!row) return null;
 
-  const snapshot = (await loadAccountDataPayload(db, userId)).data;
+  const [payload, history] = await Promise.all([
+    loadAccountDataPayload(db, userId),
+    loadAccountMatchHistory(db, userId),
+  ]);
+  const snapshot = payload.data;
   const decks = snapshot?.decks ?? [];
-  const history = snapshot?.history ?? [];
-  const lifetimeStats = normalizeLifetimeMatchStats(snapshot?.lifetimeStats);
+  const lifetimeStats = lifetimeMatchStatsFromHistory(history);
   const profile = snapshotProfile(snapshot?.profile, {
     displayName: String(row.display_name),
     faction: String(row.faction),
@@ -130,14 +132,8 @@ export async function publicBrawlerProfile(
     }
   }
   const completedGames = accountStatMatches(history);
-  const gamesPlayed = Math.max(
-    completedGames.length,
-    lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches,
-  );
-  const gamesWon = Math.max(
-    completedGames.filter((record) => record.result === "Victor").length,
-    lifetimeStats.wins,
-  );
+  const gamesPlayed = completedGames.length;
+  const gamesWon = completedGames.filter((record) => record.result === "Victor").length;
   const rankedWins = Number(row.ranked_wins ?? 0);
   const rankedLosses = Number(row.ranked_losses ?? 0);
   const bp = Number(row.bp ?? 0);

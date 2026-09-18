@@ -110,6 +110,45 @@ test("incomplete Training matches are durable account state and recover on a fre
   assert.equal(restored.route, "dashboard");
 });
 
+test("cloud Training recovery replaces a completed stale match on another device", () => {
+  const trainingMatch = {
+    id: "training-match",
+    version: 9,
+    phase: "draw",
+    players: [{ id: "device-player" }, { id: "training-bot" }],
+    trainingAiDeck: { resourceId: "training-default", configurationRevision: 3 },
+  } as UserSnapshot["match"];
+  const cloud = toCloudSnapshot(snapshot({
+    updatedAt: 200,
+    match: trainingMatch,
+    online: false,
+    playerId: "device-player",
+  }));
+  const staleCompletedMatch = {
+    id: "old-online-match",
+    version: 12,
+    phase: "result",
+    winner: "old-player",
+    format: "bo1",
+    series: { "old-player": 1, opponent: 0 },
+    players: [{ id: "old-player" }, { id: "opponent" }],
+  } as UserSnapshot["match"];
+  const otherDevice = snapshot({
+    updatedAt: 300,
+    route: "dashboard",
+    match: staleCompletedMatch,
+    online: true,
+    playerId: "old-player",
+  });
+
+  const restored = selectSnapshot(otherDevice, cloud, "cloud");
+
+  assert.equal(restored.match?.id, "training-match");
+  assert.equal(restored.online, false);
+  assert.equal(restored.playerId, "device-player");
+  assert.equal(restored.route, "dashboard");
+});
+
 test("online sessions never enter account cloud state", () => {
   const trainingMatch = {
     id: "training-match",

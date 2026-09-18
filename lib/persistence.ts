@@ -329,7 +329,13 @@ function retainDeviceState(snapshot: UserSnapshot, device: UserSnapshot): UserSn
         : snapshot.updatedAt > device.updatedAt
     )
   );
-  const useCloudTrainingSession = Boolean(cloudTrainingMatch && (!device.match || cloudTrainingIsNewer));
+  const deviceHasActiveSession = Boolean(
+    deviceTrainingMatch
+    || (device.match && device.online && !isCompletedSeriesResult(device.match))
+  );
+  const useCloudTrainingSession = Boolean(
+    cloudTrainingMatch && (!deviceHasActiveSession || cloudTrainingIsNewer)
+  );
   const session = useCloudTrainingSession ? snapshot : device;
   return {
     ...snapshot,
