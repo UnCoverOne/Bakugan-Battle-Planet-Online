@@ -67,6 +67,20 @@ test("batch rows remain mounted, docking is transform-only, and modal exits are 
 });
 
 
+test("BakuCore effect choices hide the Batch behind an explicit reveal control", () => {
+  const brawl = read("components/game-screen-v2/BrawlExperienceLayer.tsx");
+  const css = read("components/game-screen-v2/BrawlExperienceLayer.module.css");
+
+  assert.match(brawl, /field\.chooserId === localChoicePlayerId && field\.kind === "core"/);
+  assert.match(brawl, /setBatchRevealOpen\(false\);[\s\S]*\[coreTargetChoiceId\]/);
+  assert.match(brawl, /coreTargetingBatchControl[\s\S]*batchVisible/);
+  assert.match(brawl, /SHOW BATCH \(\$\{combinedBatch\.length\}\)/);
+  assert.match(brawl, /HIDE BATCH/);
+  assert.match(brawl, /aria-expanded=\{batchRevealOpen\}/);
+  assert.match(css, /\.batchVisibilityToggle \{/);
+  assert.match(css, /pointer-events:\s*auto/);
+});
+
 test("completed match dialog separates board inspection from exiting the match", () => {
   const coordinator = read("components/game-screen-v2/MatchStateCoordinator.tsx");
   const css = read("components/game-screen-v2/MatchResultDialog.module.css");

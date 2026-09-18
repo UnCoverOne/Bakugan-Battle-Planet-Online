@@ -306,6 +306,42 @@
     0 0 0.6rem rgba(222, 33, 33, 0.38);
 }
 
+.batchVisibilityToggle {
+  position: fixed;
+  top: max(0.65rem, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 10069;
+  min-height: 2rem;
+  margin: 0;
+  padding: 0.38rem 0.78rem;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 92, 78, 0.86);
+  border-radius: 0.18rem;
+  background: rgba(7, 10, 14, 0.94);
+  box-shadow:
+    0 0.35rem 0.9rem rgba(0, 0, 0, 0.55),
+    0 0 0.45rem rgba(222, 39, 39, 0.2);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(0.58rem, 0.72vw, 0.76rem);
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.batchVisibilityToggle:hover,
+.batchVisibilityToggle:focus-visible,
+.batchVisibilityToggle[aria-expanded="true"] {
+  border-color: rgba(255, 151, 137, 0.98);
+  background: rgba(72, 13, 19, 0.96);
+  box-shadow:
+    0 0.35rem 0.9rem rgba(0, 0, 0, 0.55),
+    0 0 0.7rem rgba(255, 74, 62, 0.34);
+  outline: none;
+}
+
 .batchHud {
   position: fixed;
   left: 50%;

@@ -173,6 +173,7 @@ export function BrawlExperienceLayer({
     : 1;
   const [hudPosition, setHudPosition] = useState<HudPosition | null>(null);
   const [brawlDocked, setBrawlDocked] = useState(false);
+  const [batchRevealOpen, setBatchRevealOpen] = useState(false);
   const [resolutionQueue, setResolutionQueue] = useState<PendingEffect[]>([]);
   const [resolvingEffect, setResolvingEffect] = useState<PendingEffect | null>(null);
   const [effectBurst, setEffectBurst] = useState<PendingEffect | null>(null);
@@ -193,6 +194,19 @@ export function BrawlExperienceLayer({
   );
   const status = powerStepStatus(experience.match);
   const decidingStat = brawlVictorStat(experience.match);
+  const localChoicePlayerId = experience.playerId ?? experience.match?.players[0]?.id;
+  const pendingChoice = experience.match?.pendingChoice;
+  const coreTargetChoiceId = pendingChoice
+    && localChoicePlayerId
+    && pendingChoice.schema.fields.some((field) => (
+      field.chooserId === localChoicePlayerId && field.kind === "core"
+    ))
+    ? pendingChoice.id
+    : "";
+
+  useEffect(() => {
+    setBatchRevealOpen(false);
+  }, [coreTargetChoiceId]);
 
   useLayoutEffect(() => {
     if (!experience.active || rollPresentationPending || combatants.length !== 2) {
@@ -331,6 +345,8 @@ export function BrawlExperienceLayer({
   const alternateWinActive = combinedBatch.some((effect) => effect.alternateWin);
   const showBatchHud = combinedBatch.length > 0
     && batchHudShouldRender(experience.match);
+  const coreTargetingBatchControl = Boolean(coreTargetChoiceId && showBatchHud);
+  const batchVisible = showBatchHud && (!coreTargetingBatchControl || batchRevealOpen);
   const hudStyle = hudPosition ? {
     left: hudPosition.left,
     top: hudPosition.top,
@@ -384,8 +400,21 @@ export function BrawlExperienceLayer({
         </aside>
       ) : null}
 
-      {showBatchHud ? (
+      {coreTargetingBatchControl ? (
+        <button
+          type="button"
+          className={styles.batchVisibilityToggle}
+          aria-expanded={batchRevealOpen}
+          aria-controls="active-batch-hud"
+          onClick={() => setBatchRevealOpen((open) => !open)}
+        >
+          {batchRevealOpen ? "HIDE BATCH" : `SHOW BATCH (${combinedBatch.length})`}
+        </button>
+      ) : null}
+
+      {batchVisible ? (
         <aside
+          id="active-batch-hud"
           className={styles.batchHud}
           aria-label={`${combinedBatch.length} effects in the batch`}
           data-zone-kind="batch"
