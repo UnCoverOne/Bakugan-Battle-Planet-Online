@@ -122,7 +122,7 @@ export function DeckInspectionLayer() {
   if (snapshot.route !== "match" || !match || !playerId || !pending || !deckField) return null;
 
   const mode = searchMode ? "search" : deckField.visibility === "public" ? "reveal" : "look";
-  const allowReorder = !searchMode && /^Order\b/i.test(deckField.label);
+  const allowReorder = !searchMode && deckField.id === "orderedCardIds";
   const isChooser = deckField.chooserId === playerId;
   const chooser = match.players.find((player) => player.id === deckField.chooserId);
   const orderedOptions = orderedIds

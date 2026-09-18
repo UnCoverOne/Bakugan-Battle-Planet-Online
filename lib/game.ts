@@ -877,6 +877,10 @@ const performRolls = (state: MatchState) => {
     state.rolls[roll.playerId] = roll;
     const player = playerById(state, roll.playerId);
     const bakugan = player.bakugan.find((candidate) => candidate.id === roll.bakuganId)!;
+    // A fresh roll replaces the selected Bakugan's prior physical Core state.
+    // This keeps an open-without-a-Core result from retaining stale Core
+    // membership and incorrectly satisfying printed [MS]/[FF]/etc. abilities.
+    retractBakugan(state, bakugan);
     bakugan.open = roll.result !== "miss-closed";
     if (bakugan.open) {
       openedPlayerIds.push(player.id);

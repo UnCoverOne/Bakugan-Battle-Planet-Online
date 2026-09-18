@@ -97,6 +97,32 @@ export function ChoiceQueueLayer() {
   )) ?? [], [pending, playerId]);
   const boardFields = useMemo(() => fields.filter((field) => BOARD_TARGET_KINDS.has(field.kind)), [fields]);
   const modalFields = useMemo(() => fields.filter((field) => !BOARD_TARGET_KINDS.has(field.kind)), [fields]);
+  const empowerField = modalFields.find((field) => field.id === "empower");
+  const pendingCard = useMemo(() => {
+    if (!match || !pending) return undefined;
+    const cards = match.players.flatMap((player) => [
+      ...player.hand,
+      ...player.deckCards,
+      ...player.discard,
+      ...player.energyZone,
+      ...player.heroes,
+      ...player.bakugan.flatMap((bakugan) => [
+        bakugan.character,
+        ...(bakugan.fusionCharacter ? [bakugan.fusionCharacter] : []),
+        ...bakugan.evoStack,
+        ...(bakugan.bakuGear ?? []),
+      ]),
+    ]);
+    return cards.find((card) => card.id === pending.cardId)
+      ?? (match.revealedFlip?.id === pending.cardId ? match.revealedFlip : undefined);
+  }, [match, pending]);
+  const empowerEffect = pendingCard?.effect
+    .match(/\bEmpower\s*:\s*([\s\S]+)$/i)?.[1]
+    ?.replace(/\s+/g, " ")
+    .trim() ?? "";
+  const empowerCost = Number(
+    pendingCard?.effect.match(/\bEmpower\s*:[\s\S]*?pay(?: an additional)?\s+(\d+)\s+\[Energy\]/i)?.[1] ?? 3,
+  );
   const triggerOrder = match?.triggerOrders.find((request) => request.controllerId === playerId && !request.orderedIds);
   const [answers, setAnswers] = useState<CardChoices>({});
   const [orderedIds, setOrderedIds] = useState<string[]>([]);
@@ -110,7 +136,13 @@ export function ChoiceQueueLayer() {
   useEffect(() => {
     const isNewChoice = previousPendingChoiceId.current !== pendingChoiceId;
     previousPendingChoiceId.current = pendingChoiceId;
-    setAnswers((current) => isNewChoice ? {} : reconcileChoiceAnswers(current, fields));
+    setAnswers((current) => {
+      const next = isNewChoice ? {} : reconcileChoiceAnswers(current, fields);
+      const empower = fields.find((field) => field.id === "empower");
+      return empower && !valuesFor(next, empower).length
+        ? assign(next, empower, ["no"])
+        : next;
+    });
     if (isNewChoice) setError("");
   }, [fields, pendingChoiceId]);
 
@@ -329,11 +361,40 @@ export function ChoiceQueueLayer() {
         <header>
           <small>{triggerOrder ? "SIMULTANEOUS TRIGGERS" : pending?.schema.simultaneous ? "PRIVATE SIMULTANEOUS CHOICE" : "PLAYER CHOICE"}</small>
           <h2 id="choice-queue-title">{triggerOrder ? `Order ${triggerOrder.event} triggers` : pending?.schema.sourceName}</h2>
-          <p>{triggerOrder ? "The first trigger listed enters the batch first and resolves last." : boardFields.length ? "The target was chosen on the play area. Complete the remaining choice." : "Each required choice is requested and validated at its required timing."}</p>
+          <p>{triggerOrder
+            ? "The first trigger listed enters the batch first and resolves last."
+            : empowerField
+              ? `Prompt to Empower for ${empowerCost} [Energy].`
+              : boardFields.length
+                ? "The target was chosen on the play area. Complete the remaining choice."
+                : "Each required choice is requested and validated at its required timing."}</p>
         </header>
 
         {modalFields.map((field) => {
           const selected = new Set(valuesFor(answers, field));
+          if (field.id === "empower") {
+            const enabled = selected.has("yes");
+            return (
+              <fieldset key={field.id} className={styles.fieldset}>
+                <legend>Empower <span>Optional</span></legend>
+                {empowerEffect ? <p className={styles.empowerEffect}><strong>Empower:</strong> {empowerEffect}</p> : null}
+                <div className={`${styles.options} ${styles.empowerOptions}`}>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={enabled}
+                    aria-pressed={enabled}
+                    data-selected={enabled}
+                    disabled={busy}
+                    onClick={() => setAnswers((current) => assign(current, field, [enabled ? "no" : "yes"]))}
+                  >
+                    <strong>Empower</strong>
+                    <small>{enabled ? `On • Pay ${empowerCost} [Energy]` : "Off • Resolve without Empower"}</small>
+                  </button>
+                </div>
+              </fieldset>
+            );
+          }
           return (
             <fieldset key={field.id} className={styles.fieldset}>
               <legend>{field.label} <span>{field.minimum === field.maximum ? `Select ${field.minimum}` : `Select ${field.minimum}–${field.maximum}`}</span></legend>
@@ -361,7 +422,7 @@ export function ChoiceQueueLayer() {
         <footer>
           {pending?.kind === "card-play" && pending.controllerId === playerId && !Object.keys(pending.answers).length ? <button type="button" className={styles.secondary} disabled={busy} onClick={() => void cancel()}>Cancel card</button> : null}
           <button type="button" disabled={busy || Boolean(fields.some((field) => !fieldComplete(answers, field)))} onClick={() => void (triggerOrder ? submitOrder() : submitChoices())}>
-            {busy ? "Locking…" : triggerOrder ? "Confirm order" : "Lock choices"}
+            {busy ? "Locking…" : triggerOrder ? "Confirm order" : empowerField ? "Confirm choice" : "Lock choices"}
           </button>
         </footer>
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
