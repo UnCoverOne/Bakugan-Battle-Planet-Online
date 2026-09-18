@@ -699,7 +699,6 @@ function shouldSuppressUnnecessaryVictorStatSwitch(
   playerId: string,
   card: GameCard,
 ) {
-  if (match.phase !== "power") return false;
   let choices: CardChoices;
   try {
     choices = chooseBaseCardChoices(match, playerId, card);
@@ -710,6 +709,13 @@ function shouldSuppressUnnecessaryVictorStatSwitch(
   if (!entries.some(({ action }) => (
     action.kind === "set-rule" && action.rule === "victor-stat"
   ))) return false;
+
+  // A victor-stat switch cannot be judged responsibly before the first roll.
+  // Reserve it in pre-roll rather than spending Energy on a blind comparison;
+  // once Power begins, the existing projection can compare the live B-Power
+  // and Damage Rating outcomes and play it only when the switch is useful.
+  if (match.phase === "preRoll") return true;
+  if (match.phase !== "power") return false;
 
   const current = projectCombatAfterBatch(match, playerId);
   const projected = projectCombatAfterBatch(match, playerId, { card, choices });

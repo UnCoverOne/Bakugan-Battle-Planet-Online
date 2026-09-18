@@ -149,6 +149,11 @@ function topDeckChoice(
 
 function selectionChoice(window: DeckWindow, cardType?: GameCard["type"]): ChoiceSpec {
   const cards = window.count === 1 ? "card" : "cards";
+  const dualType = cardType === "Hero"
+    ? ["Hero", "Flip Hero"] as GameCard["type"][]
+    : cardType === "Flip"
+      ? ["Flip", "Flip Hero"] as GameCard["type"][]
+      : undefined;
   return {
     id: "deckCardId",
     timing: "resolve",
@@ -158,7 +163,8 @@ function selectionChoice(window: DeckWindow, cardType?: GameCard["type"]): Choic
     visibility: window.mode === "reveal" ? "public" : "private",
     minimum: 1,
     maximum: 1,
-    cardType,
+    cardType: dualType ? undefined : cardType,
+    cardTypes: dualType,
     owner: window.owner,
     targetOwner: window.owner,
   };

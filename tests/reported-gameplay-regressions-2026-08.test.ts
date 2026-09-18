@@ -363,6 +363,55 @@ test("normal simultaneous opens trigger Lia and Shargo for both players on every
   assert.equal(state.batch.length, 4);
 });
 
+test("Lia can select and free-play a Flip Hero from the top three cards", () => {
+  const player = makePlayer("lia-player", "Lia Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("lia-opponent", "Opponent", STARTER_DECKS[1]);
+  const lia = card("aa-71", "lia-flip-hero-source");
+  const flipHero = card("av-71", "lia-flip-hero-target");
+  const fillerOne = card("ff-57", "lia-filler-one");
+  const fillerTwo = card("av-21", "lia-filler-two");
+
+  let state = createMatch("LIA-FLIP-HERO", "bo1", [player, opponent]);
+  const live = state.players.find((candidate) => candidate.id === player.id)!;
+  live.heroes = [lia];
+  live.deckCards = [fillerOne, flipHero, fillerTwo];
+  live.deck = live.deckCards.length;
+  state.turn = 2;
+  state.phase = "power";
+  state.startingPlayer = live.id;
+  state.priority = live.id;
+  state.selected[live.id] = live.bakugan[0].id;
+  live.bakugan[0].open = true;
+
+  const ability = ruleDefinitionForCard(lia).abilities.find((candidate) => (
+    candidate.kind === "triggered" && candidate.trigger?.event === "BAKUGAN_OPENED"
+  ));
+  assert.ok(ability);
+  const pending = createRuleObject({
+    controllerId: live.id,
+    card: lia,
+    ability,
+    kind: "trigger",
+    sourceId: lia.id,
+    choices: { sourceBakuganId: live.bakugan[0].id },
+  });
+
+  state = resolveStructuredEffect(state, pending);
+  const heroChoice = state.pendingChoice?.schema.fields.find((field) => field.id === "deckCardId");
+  assert.ok(heroChoice?.options.some((option) => option.id === flipHero.id));
+
+  state = submitCardChoice(state, live.id, {
+    orderedCardIds: [fillerOne.id, flipHero.id, fillerTwo.id],
+    deckCardId: flipHero.id,
+    confirmed: true,
+  });
+
+  assert.ok(
+    (state.pendingChoice?.kind === "card-play" && state.pendingChoice.cardId === flipHero.id)
+    || state.batch.some((object) => object.card.id === flipHero.id && object.kind === "card"),
+  );
+});
+
 test("Sifting Ashes completes both manual draws before offering the discard", () => {
   const player = makePlayer("sifting-player", "Player", STARTER_DECKS[0]);
   const opponent = makePlayer("sifting-opponent", "Opponent", STARTER_DECKS[1]);

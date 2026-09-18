@@ -955,6 +955,73 @@ test("AI does not spend a debuff whose B-Power reduction is blocked by ShadowStr
   assert.equal(next.players[0].hand.some((candidate) => candidate.id === debuff.id), true);
 });
 
+test("AI preserves victor-stat switches until roll outcomes are known", () => {
+  const might = catalogueCard("bb-104", "pre-roll-might-of-cyndeus");
+  const ai = player(
+    "ai",
+    [bakugan("might-pre-roll-ai", "Pyrus", 500, 7)],
+    [],
+    [might],
+  );
+  const human = player(
+    "human",
+    [bakugan("might-pre-roll-human", "Aquos", 900, 5)],
+  );
+  addEnergy(ai, 2);
+  const match = matchWith(ai, human, "preRoll");
+  match.selected[ai.id] = ai.bakugan[0].id;
+  match.selected[human.id] = human.bakugan[0].id;
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.ok(next.players[0].hand.some((card) => card.id === might.id));
+});
+
+test("AI plays Might of Cyndeus after the roll when Damage Rating changes a loss into a win", () => {
+  const might = catalogueCard("bb-104", "winning-might-of-cyndeus");
+  const ai = player(
+    "ai",
+    [bakugan("might-winning-ai", "Pyrus", 500, 7)],
+    [],
+    [might],
+  );
+  const human = player(
+    "human",
+    [bakugan("might-winning-human", "Aquos", 900, 5)],
+  );
+  addEnergy(ai, 2);
+  const match = matchWith(ai, human, "power");
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.at(-1)?.card.id, might.id);
+  assert.equal(next.players[0].hand.some((card) => card.id === might.id), false);
+});
+
+test("AI keeps Might of Cyndeus after the roll when the Damage switch still loses", () => {
+  const might = catalogueCard("bb-104", "losing-might-of-cyndeus");
+  const ai = player(
+    "ai",
+    [bakugan("might-losing-ai", "Pyrus", 500, 3)],
+    [],
+    [might],
+  );
+  const human = player(
+    "human",
+    [bakugan("might-losing-human", "Aquos", 900, 7)],
+  );
+  addEnergy(ai, 2);
+  const match = matchWith(ai, human, "power");
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.ok(next.players[0].hand.some((card) => card.id === might.id));
+});
+
 test("AI preserves Quickfire until its optional Reroll can be used", () => {
   const quickfire = catalogueCard("br-44", "pre-roll-quickfire");
   assert.equal(quickfire.displayName || quickfire.name, "Quickfire");
