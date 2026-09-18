@@ -15,6 +15,7 @@ import {
   handCardIsActionable,
   matchRoundTarget,
   playableHandCards,
+  playerHasLegalPriorityAction,
   resolvedHandActionMode,
   resolveHudPlayers,
   shouldAutomaticallyPass,
@@ -55,7 +56,7 @@ test("player HUD details resolve from the local player perspective", () => {
 test("priority immediately enables legal hand cards before Play Card is pressed", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
   const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
-  const actionCard = CARDS.find((card) => card.type === "Action" && card.cost !== "X" && card.cost <= 3);
+  const actionCard = CARDS.find((card) => card.catalogId === "bb-10");
   assert.ok(actionCard);
   player.hand = [{ ...actionCard, id: "playable-action" }];
   player.energy = 3;
@@ -96,7 +97,7 @@ test("priority immediately enables legal hand cards before Play Card is pressed"
 test("otherwise legal cards remain selectable even before enough Energy is generated", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
   const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
-  const expensive = CARDS.find((card) => card.type === "Action" && typeof card.cost === "number" && card.cost >= 4);
+  const expensive = CARDS.find((card) => card.catalogId === "bb-16");
   assert.ok(expensive);
   player.hand = [{ ...expensive, id: "expensive-action" }];
   player.energy = 0;
@@ -108,6 +109,66 @@ test("otherwise legal cards remain selectable even before enough Energy is gener
 
   assert.deepEqual(playableHandCards(match, player.id).map((card) => card.id), ["expensive-action"]);
   assert.equal(handCardIsActionable(match, player.id, player.hand[0], "play"), true);
+  assert.equal(playerHasLegalPriorityAction(match, player.id), false);
+  assert.equal(shouldAutomaticallyPass(match, player.id), true);
+});
+
+test("Automatic Pass waits for engine decisions and passes only with no legal priority action", () => {
+  const player = makePlayer("auto-pass-player", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("auto-pass-opponent", "Magnus", STARTER_DECKS[1]);
+  player.hand = [];
+  const match = createMatch("HUDAUTO", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "power";
+  match.priority = player.id;
+
+  assert.equal(playerHasLegalPriorityAction(match, player.id), false);
+  assert.equal(shouldAutomaticallyPass(match, player.id), true);
+
+  match.pendingChoice = {
+    id: "auto-pass-choice",
+    kind: "resolution",
+    controllerId: player.id,
+    cardId: "choice-source",
+    schema: {
+      id: "auto-pass-choice-schema",
+      sourceId: "choice-source",
+      sourceName: "Pending choice",
+      controllerId: player.id,
+      timing: "resolve",
+      simultaneous: false,
+      fields: [{
+        id: "confirmed",
+        kind: "confirm",
+        label: "Use the effect?",
+        chooserId: player.id,
+        visibility: "public",
+        timing: "resolve",
+        minimum: 1,
+        maximum: 1,
+        required: true,
+        options: [
+          { id: "yes", label: "Yes" },
+          { id: "no", label: "No" },
+        ],
+      }],
+    },
+    answers: {},
+    createdVersion: match.version,
+  };
+  assert.equal(playerHasLegalPriorityAction(match, player.id), true);
+  assert.equal(shouldAutomaticallyPass(match, player.id), false);
+
+  match.pendingChoice = undefined;
+  match.triggerOrders = [{
+    id: "auto-pass-trigger-order",
+    event: "TEST_EVENT",
+    controllerId: player.id,
+    triggerIds: ["trigger-a", "trigger-b"],
+    triggers: [],
+  }];
+  assert.equal(playerHasLegalPriorityAction(match, player.id), true);
+  assert.equal(shouldAutomaticallyPass(match, player.id), false);
 });
 
 test("the compact Action HUD keeps Pass in its permanent second slot", () => {

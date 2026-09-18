@@ -11,6 +11,9 @@ import {
 } from "../../lib/game";
 import { fusionActivationRequirements } from "../../lib/game";
 import { cardEnergyPaymentState } from "../../lib/cardPayment";
+import { ruleDefinitionForCard } from "../../lib/rules/catalogue";
+import { buildChoiceSchemaFromSpecs, schemaHasLegalCompletion } from "../../lib/rules/choices";
+import { cardPaymentModes } from "../../lib/rules/costs";
 import { hasPendingDraws } from "../../lib/drawQueue";
 import { playerCanFlipTieBreak } from "../../lib/manualTieBreak";
 import { legalEvoTargets } from "../../lib/evo";
@@ -340,6 +343,70 @@ export function compactMatchHudSlots(actions: MatchHudActions): CompactMatchHudS
   return [primary, fallback];
 }
 
+function cardHasLegalPriorityPlay(
+  match: MatchState,
+  player: PlayerState,
+  card: GameCard,
+) {
+  if (!playableHandCards(match, player.id).some((candidate) => candidate.id === card.id)) return false;
+
+  const choices = defaultCardChoices(match, player.id, card);
+  const definition = ruleDefinitionForCard(card);
+  const announce = buildChoiceSchemaFromSpecs(
+    match,
+    player.id,
+    card,
+    definition.play.choices,
+    "announce",
+    choices,
+  );
+  const pay = buildChoiceSchemaFromSpecs(
+    match,
+    player.id,
+    card,
+    definition.play.choices,
+    "pay",
+    choices,
+  );
+  const choiceSchema = {
+    ...announce,
+    fields: [...announce.fields, ...pay.fields],
+    simultaneous: announce.simultaneous || pay.simultaneous,
+  };
+  if (!schemaHasLegalCompletion(choiceSchema)) return false;
+
+  return cardPaymentModes(match, player.id, card, choices).some((mode) => mode.legal);
+}
+
+export function playerHasLegalPriorityAction(
+  match: MatchState | null | undefined,
+  playerId?: string,
+) {
+  const { player } = resolveHudPlayers(match, playerId);
+  if (!match || !player || match.priority !== player.id) return false;
+
+  // Automatic passing must never race a decision that the rules engine is
+  // already waiting to resolve, including reset/start-of-game resolution
+  // windows that can legally expose Pass outside the ordinary priority phases.
+  if (
+    match.pendingChoice
+    || match.pendingCoinFlip
+    || match.pendingReroll
+    || match.triggerOrders.some((request) => !request.orderedIds)
+  ) return true;
+
+  if (!isPriorityWindow(match)) return false;
+
+  if (playerCanActivateIntrinsicReroll(match, player.id)) return true;
+
+  if (player.bakugan.some((bakugan) => (
+    fusionActivationRequirements(match, player.id, bakugan.id)
+      .some((requirement) => requirement.legal)
+  ))) return true;
+
+  return player.hand.some((card) => cardHasLegalPriorityPlay(match, player, card));
+}
+
 export function shouldAutomaticallyPass(
   match: MatchState | null | undefined,
   playerId?: string,
@@ -351,10 +418,7 @@ export function shouldAutomaticallyPass(
     selectedCardId: "",
     selectionPending: false,
   });
-  return actions["pass-turn"]
-    && !actions["activate-reroll"]
-    && !actions.discard
-    && !actions["play-card"];
+  return actions["pass-turn"] && !playerHasLegalPriorityAction(match, playerId);
 }
 
 function activeBakuganId(match: MatchState, player: PlayerState) {
