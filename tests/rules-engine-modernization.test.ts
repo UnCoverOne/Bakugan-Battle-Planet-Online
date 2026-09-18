@@ -8,6 +8,7 @@ import {
   completeScheduledAttackActions,
   emitGameEvent,
   passPriority,
+  playCard,
   recordCardPlayedForTurn,
   resolveStructuredEffect,
   submitCardChoice,
@@ -65,6 +66,85 @@ test("unknown or modified card text is rejected rather than resolving partially"
   const source = CARDS.find((card) => card.number === 2)!;
   assert.throws(() => ruleDefinitionForCard({ ...source, effect: `${source.effect} Unsupported text.` }), (error: unknown) => error instanceof UnsupportedCardTextError && error.code === "CARD_TEXT_MISMATCH");
   assert.throws(() => ruleDefinitionForCard({ ...source, catalogId: "custom-card" }), (error: unknown) => error instanceof UnsupportedCardTextError && error.code === "UNKNOWN_CARD_DEFINITION");
+});
+
+test("Poison Sting separates enemy-Core removal from its Empower field-Core attachment", () => {
+  const first = makePlayer("poison-first", "First", STARTER_DECKS[0]);
+  const second = makePlayer("poison-second", "Second", STARTER_DECKS[1]);
+  const state = createMatch("POISON-STING", "bo1", [first, second]);
+  state.phase = "power";
+  state.turn = 2;
+  state.priority = state.startingPlayer = first.id;
+
+  const source = CARDS.find((candidate) => candidate.catalogId === "sv-61");
+  assert.ok(source);
+  const poison = { ...structuredClone(source), id: "poison-sting" };
+  first.hand = [poison];
+  first.energyZone = Array.from(
+    { length: 5 },
+    (_, index) => ({ ...CARDS[0], id: `poison-energy-${index}` }),
+  );
+
+  const enemy = second.bakugan[0];
+  enemy.open = true;
+  enemy.heldCoreCells = ["enemy-held"];
+  state.placements = [
+    {
+      playerId: second.id,
+      core: second.cores[0],
+      cell: "enemy-held",
+      order: 1,
+      attachedTo: enemy.id,
+    },
+    {
+      playerId: first.id,
+      core: first.cores[0],
+      cell: "field-core",
+      order: 2,
+    },
+  ];
+
+  const definition = ruleDefinitionForCard(poison);
+  assert.deepEqual(
+    definition.play.choices.map((candidate) => candidate.id),
+    ["coreCell", "empower"],
+  );
+  const removal = definition.play.choices.find((candidate) => candidate.id === "coreCell");
+  assert.ok(removal);
+  assert.equal(removal.attachmentState, "attached");
+  assert.equal(removal.targetOwner, "opponent");
+
+  const removalSchema = buildChoiceSchemaFromSpecs(
+    state,
+    first.id,
+    poison,
+    [removal],
+    removal.timing,
+  );
+  assert.deepEqual(
+    removalSchema.fields[0].options.map((option) => option.id),
+    ["enemy-held"],
+  );
+
+  let next = playCard(state, first.id, poison.id, {
+    coreCell: "enemy-held",
+    empower: true,
+  });
+  next = passPriority(next, next.priority);
+  next = passPriority(next, next.priority);
+
+  assert.ok(!next.players[1].bakugan[0].heldCoreCells.includes("enemy-held"));
+  const empowerFields = next.pendingChoice?.schema.fields ?? [];
+  assert.deepEqual(
+    empowerFields.map((field) => field.id).sort(),
+    ["secondaryCoreCell", "secondaryTargetBakuganId"].sort(),
+  );
+  assert.deepEqual(
+    empowerFields
+      .find((field) => field.id === "secondaryCoreCell")
+      ?.options.map((option) => option.id),
+    ["field-core"],
+  );
 });
 
 test("instead clauses are single typed replacement branches, not additive actions", () => {

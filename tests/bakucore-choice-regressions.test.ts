@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, passPriority, playCard } from "../lib/game";
+import { createMatch } from "../lib/game";
 import {
   emitRuleEvent,
   evaluateBakuganCharacteristics,
@@ -90,82 +90,6 @@ test("typed BakuCore choices expose only matching Field cores from either player
   assert.ok(field.options.every((option) => state.placements.find((placement) => placement.cell === option.id)?.core.type === "Fist"));
   assert.ok(field.options.some((option) => option.ownerId === state.players[0].id));
   assert.ok(field.options.some((option) => option.ownerId === state.players[1].id));
-});
-
-test("Poison Sting separates enemy-Core removal from its Empower field-Core attachment", () => {
-  const first = makePlayer("poison-first", "First", STARTER_DECKS[0]);
-  const second = makePlayer("poison-second", "Second", STARTER_DECKS[1]);
-  const state = createMatch("POISON-STING", "bo1", [first, second]);
-  state.phase = "power";
-  state.turn = 2;
-  state.priority = state.startingPlayer = first.id;
-
-  const poison = { ...structuredClone(card("sv-61")), id: "poison-sting" };
-  first.hand = [poison];
-  first.energyZone = Array.from(
-    { length: 5 },
-    (_, index) => ({ ...CARDS[0], id: `poison-energy-${index}` }),
-  );
-
-  const enemy = second.bakugan[0];
-  enemy.open = true;
-  enemy.heldCoreCells = ["enemy-held"];
-  state.placements = [
-    {
-      playerId: second.id,
-      core: second.cores[0],
-      cell: "enemy-held",
-      order: 1,
-      attachedTo: enemy.id,
-    },
-    {
-      playerId: first.id,
-      core: first.cores[0],
-      cell: "field-core",
-      order: 2,
-    },
-  ];
-
-  const definition = ruleDefinitionForCard(poison);
-  assert.deepEqual(
-    definition.play.choices.map((candidate) => candidate.id),
-    ["coreCell", "empower"],
-  );
-  const removal = choice(definition, "coreCell");
-  assert.equal(removal.attachmentState, "attached");
-  assert.equal(removal.targetOwner, "opponent");
-
-  const removalSchema = buildChoiceSchemaFromSpecs(
-    state,
-    first.id,
-    poison,
-    [removal],
-    removal.timing,
-  );
-  assert.deepEqual(
-    removalSchema.fields[0].options.map((option) => option.id),
-    ["enemy-held"],
-  );
-
-  let next = playCard(state, first.id, poison.id, {
-    coreCell: "enemy-held",
-    empower: true,
-  });
-  next = passPriority(next, next.priority);
-  next = passPriority(next, next.priority);
-
-  assert.ok(!next.players[1].bakugan[0].heldCoreCells.includes("enemy-held"));
-  const empowerFields = next.pendingChoice?.schema.fields ?? [];
-  assert.deepEqual(
-    empowerFields.map((field) => field.id).sort(),
-    ["secondaryCoreCell", "secondaryTargetBakuganId"].sort(),
-  );
-  assert.deepEqual(
-    empowerFields
-      .find((field) => field.id === "secondaryCoreCell")
-      ?.options.map((option) => option.id),
-    ["field-core"],
-  );
 });
 
 test("other singular Field-core attachment effects share the repaired parser", () => {
