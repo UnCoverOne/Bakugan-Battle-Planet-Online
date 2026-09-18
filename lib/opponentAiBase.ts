@@ -2668,32 +2668,49 @@ function preRollCandidateScore(
   return score;
 }
 
-function bestPlayableCard(match: MatchState, playerId: string) {
-  const player = playerById(match, playerId)!;
+export function evaluatePlayableCard(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  if (card.type === "Flip" || card.type === "Flip Hero" || card.type === "Character") return null;
+  if (!cardRerollTimingLegal(match, playerId, card)) return null;
+  let choices: CardChoices;
+  try {
+    choices = chooseCardChoices(match, playerId, card);
+  } catch {
+    return null;
+  }
+  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  if (!payment || payment.kind === "insufficient") return null;
+  const baseScore = cardValue(match, playerId, card, choices);
   const preRollContext = match.phase === "preRoll"
     ? createPreRollDecisionContext(match, playerId)
     : undefined;
+  const tacticalScore = preRollContext
+    ? preRollCandidateScore(
+      match,
+      playerId,
+      card,
+      choices,
+      baseScore,
+      payment.cost,
+      preRollContext,
+    )
+    : baseScore;
+  // cardValue prices the printed base cost. Reconcile that estimate with the
+  // authoritative payment result so setup effects and existing reductions are
+  // valued exactly the same way during planning and on the next real decision.
+  const printedBaseCost = card.cost === "X" ? choices.xValue ?? payment.cost : card.cost;
+  const score = tacticalScore + (printedBaseCost - payment.cost) * 0.72;
+  return { card, choices, payment, score };
+}
+
+function bestPlayableCard(match: MatchState, playerId: string) {
+  const player = playerById(match, playerId)!;
   return player.hand
-    .filter((card) => card.type !== "Flip" && card.type !== "Flip Hero" && card.type !== "Character")
-    .filter((card) => cardRerollTimingLegal(match, playerId, card))
-    .map((card) => {
-      const choices = chooseCardChoices(match, playerId, card);
-      const payment = cardEnergyPaymentState(match, playerId, card, choices);
-      const baseScore = cardValue(match, playerId, card, choices);
-      const score = preRollContext && payment
-        ? preRollCandidateScore(
-          match,
-          playerId,
-          card,
-          choices,
-          baseScore,
-          payment.cost,
-          preRollContext,
-        )
-        : baseScore;
-      return { card, choices, payment, score };
-    })
-    .filter((candidate) => candidate.payment && candidate.payment.kind !== "insufficient")
+    .map((card) => evaluatePlayableCard(match, playerId, card))
+    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
     .sort((a, b) => b.score - a.score)[0];
 }
 

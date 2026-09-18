@@ -3148,9 +3148,10 @@ case "swap-bakucore": {
         for (const candidate of targets) retractBakugan(state, candidate);
       }
       else if (action.verb === "attach" && action.object === "bakucore" && target) {
-        const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell && !candidate.attachedTo);
+        const selectedCoreCell = choices.secondaryCoreCell ?? choices.coreCell;
+        const placement = state.placements.find((candidate) => candidate.cell === selectedCoreCell && !candidate.attachedTo);
         const recipient = choices.secondaryTargetBakuganId
-          ? player.bakugan.find((bakugan) => bakugan.id === choices.secondaryTargetBakuganId)
+          ? state.players.flatMap((owner) => owner.bakugan).find((bakugan) => bakugan.id === choices.secondaryTargetBakuganId)
           : target;
         if (placement && recipient?.open) {
           placement.attachedTo = recipient.id;

@@ -24,6 +24,7 @@ import {
   advanceOpponentAi as advanceBaseOpponentAi,
   chooseOpponentAiCommand as chooseBaseOpponentAiCommand,
   chooseCardChoices as chooseBaseCardChoices,
+  evaluatePlayableCard,
   handCardRetentionValue,
 } from "./opponentAiBase";
 import { playerCanSelectRollTarget, selectRollTarget } from "./rolling";
@@ -63,6 +64,14 @@ type TacticalRerollCard = {
   choices: CardChoices;
   cost: number;
   netValue: number;
+};
+
+type AiContinuationLine = {
+  setupCard: GameCard;
+  setupChoices: CardChoices;
+  followUpCard: GameCard;
+  followUpChoices: CardChoices;
+  score: number;
 };
 
 function playerById(match: MatchState, playerId: string) {
@@ -552,65 +561,83 @@ function candidateNonSetupIndependentValue(
     .reduce((sum, { action }) => sum + independentActionValue(match, playerId, action), 0);
 }
 
-function bestNextCardFollowUpValue(
+function nextCardSetupHeuristicValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices,
+) {
+  return activeCandidateEntries(match, playerId, card, choices)
+    .filter(({ action }) => action.kind === "cost" && action.duration === "next-card")
+    .reduce((sum, { action }) => sum + independentActionValue(match, playerId, action), 0);
+}
+
+function bestNextCardContinuation(
   match: MatchState,
   playerId: string,
   sourceCard: GameCard,
-  modifier: NextCardCostModifier,
-) {
+): AiContinuationLine | undefined {
+  const modifier = nextCardCostModifier(sourceCard);
   const player = playerById(match, playerId);
-  if (!player) return 0;
-  let sourceChoices: CardChoices;
-  try {
-    sourceChoices = chooseBaseCardChoices(match, playerId, sourceCard);
-  } catch {
-    return 0;
-  }
-  const sourcePayment = cardEnergyPaymentState(match, playerId, sourceCard, sourceChoices);
-  if (!sourcePayment || sourcePayment.kind === "insufficient") return 0;
+  if (!modifier || !player) return undefined;
+
+  const setupEvaluation = evaluatePlayableCard(match, playerId, sourceCard);
+  if (!setupEvaluation) return undefined;
   const remainingCapacity = Math.max(
     0,
-    currentEnergyCapacity(match, playerId) - sourcePayment.cost,
+    currentEnergyCapacity(match, playerId) - setupEvaluation.payment.cost,
   );
 
-  let best = 0;
-  for (const followUp of player.hand) {
-    if (followUp.id === sourceCard.id || followUp.type === "Character" || followUp.type === "Flip" || followUp.type === "Flip Hero") {
-      continue;
-    }
-    // Another setup card is not a payoff for this discount.
-    if (nextCardCostModifier(followUp)) continue;
-    let choices: CardChoices;
-    try {
-      choices = chooseBaseCardChoices(match, playerId, followUp);
-    } catch {
-      continue;
-    }
-    // The setup card consumes any existing next-card discount.
-    const afterSetup = cloneMatch(match);
-    afterSetup.nextCardCostReduction[playerId] = 0;
-    if (afterSetup.rules) afterSetup.rules.costModifiers = afterSetup.rules.costModifiers.filter(
+  // Project only the durable state needed by the next independent play. The
+  // reroll portion is already expected-valued by the normal card evaluator;
+  // the continuation state carries the authoritative next-card cost modifier.
+  const afterSetup = cloneMatch(match);
+  const afterPlayer = playerById(afterSetup, playerId);
+  if (!afterPlayer) return undefined;
+  afterPlayer.hand = afterPlayer.hand.filter((candidate) => candidate.id !== sourceCard.id);
+  afterSetup.nextCardCostReduction[playerId] = modifier.free
+    ? 999
+    : Math.max(0, modifier.reduction);
+  if (afterSetup.rules) {
+    afterSetup.rules.costModifiers = afterSetup.rules.costModifiers.filter(
       (entry) => !(entry.controllerId === playerId && entry.duration === "next-card"),
     );
-    const payment = cardEnergyPaymentState(afterSetup, playerId, followUp, choices);
-    if (!payment) continue;
-    const normalCost = payment.cost;
-    const discountedCost = modifier.free
-      ? 0
-      : Math.max(0, normalCost - modifier.reduction);
-    if (discountedCost > remainingCapacity) continue;
-    if (shouldSuppressTemporaryCombatCard(match, playerId, followUp)) continue;
-    if (shouldSuppressUnnecessaryVictorStatSwitch(match, playerId, followUp)) continue;
+  }
 
-    const retainedValue = Math.max(0, handCardRetentionValue(match, playerId, followUp));
-    if (retainedValue < 0.75) continue;
-    const unlocked = normalCost > remainingCapacity;
-    const savedEnergy = Math.max(0, normalCost - discountedCost);
-    if (savedEnergy <= 0) continue;
-    const followUpValue = (unlocked ? 2.25 : 0)
-      + savedEnergy * 0.55
-      + Math.min(3, retainedValue * 0.45);
-    best = Math.max(best, followUpValue);
+  // Remove the generic "future discount" points from the setup card. The
+  // concrete follow-up below now supplies that value using the same evaluator
+  // that will be used when the AI really receives priority again.
+  const setupIntrinsicScore = setupEvaluation.score
+    - nextCardSetupHeuristicValue(
+      match,
+      playerId,
+      sourceCard,
+      setupEvaluation.choices,
+    );
+
+  let best: AiContinuationLine | undefined;
+  for (const followUpCard of afterPlayer.hand) {
+    // Depth is deliberately bounded at two meaningful plays. Chaining another
+    // setup card belongs to a future decision rather than recursively growing
+    // the search tree.
+    if (nextCardCostModifier(followUpCard)) continue;
+    const followUp = evaluatePlayableCard(afterSetup, playerId, followUpCard);
+    if (!followUp || followUp.payment.cost > remainingCapacity) continue;
+    if (shouldSuppressTemporaryCombatCard(afterSetup, playerId, followUpCard)) continue;
+    if (shouldSuppressUnnecessaryVictorStatSwitch(afterSetup, playerId, followUpCard)) continue;
+    if (shouldReserveOptionalRerollCard(afterSetup, followUpCard)) continue;
+    if (shouldReservePostBrawlOptionalRerollCard(afterSetup, playerId, followUpCard)) continue;
+
+    const score = setupIntrinsicScore + followUp.score;
+    if (!best || score > best.score) {
+      best = {
+        setupCard: sourceCard,
+        setupChoices: setupEvaluation.choices,
+        followUpCard,
+        followUpChoices: followUp.choices,
+        score,
+      };
+    }
   }
   return best;
 }
@@ -641,13 +668,36 @@ function shouldReserveNextCardSetupCard(
     && opportunity.utilityGain - payment.cost * 0.9 >= 2.5);
   if (rerollHasImmediateCombatPurpose) return false;
 
-  // Do not hide a setup card whose non-setup text is already worth the card.
-  // The next-card discount is only required to justify the play when it is the
-  // main source of value.
+  // Independent value can still justify a setup card on its own. Otherwise
+  // require a concrete depth-2 continuation that clears the normal play bar.
   if (candidateNonSetupIndependentValue(match, playerId, card, choices) >= 1.5) {
     return false;
   }
-  return bestNextCardFollowUpValue(match, playerId, card, modifier) < 1.4;
+  return (bestNextCardContinuation(match, playerId, card)?.score ?? Number.NEGATIVE_INFINITY) < 0.75;
+}
+
+function bestSetupContinuationLine(
+  match: MatchState,
+  playerId: string,
+) {
+  if (match.phase !== "power") return undefined;
+  const player = playerById(match, playerId);
+  if (!player) return undefined;
+
+  const bestSingleScore = Math.max(
+    0.75,
+    ...player.hand
+      .filter((card) => !nextCardCostModifier(card))
+      .map((card) => evaluatePlayableCard(match, playerId, card)?.score ?? Number.NEGATIVE_INFINITY),
+  );
+  return player.hand
+    .map((card) => bestNextCardContinuation(match, playerId, card))
+    .filter((line): line is AiContinuationLine => Boolean(line))
+    .filter((line) => line.score > bestSingleScore + 0.15)
+    .sort((left, right) => (
+      right.score - left.score
+      || left.setupCard.id.localeCompare(right.setupCard.id)
+    ))[0];
 }
 
 function candidateNonSwitchIndependentValue(
@@ -1113,6 +1163,23 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
       // rejects the projected reroll play.
     }
   }
+  const continuation = bestSetupContinuationLine(input, playerId);
+  if (continuation) {
+    try {
+      return validateAiTransition(
+        input,
+        playCardWithAutoEnergy(
+          input,
+          playerId,
+          continuation.setupCard.id,
+          continuation.setupChoices,
+        ),
+        playerId,
+      );
+    } catch {
+      // Replan through the normal policy if authoritative legality changed.
+    }
+  }
   const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);
   const suppressed = new Set(
     player.hand
@@ -1157,6 +1224,14 @@ function chooseWithCombatPolicy(input: MatchState, playerId: string): GameComman
       type: "PLAY_CARD",
       cardId: tacticalReroll.card.id,
       choices: tacticalReroll.choices,
+    };
+  }
+  const continuation = bestSetupContinuationLine(input, playerId);
+  if (continuation) {
+    return {
+      type: "PLAY_CARD",
+      cardId: continuation.setupCard.id,
+      choices: continuation.setupChoices,
     };
   }
   const winningPowerPlan = minimumWinningTemporaryPowerCards(input, playerId);

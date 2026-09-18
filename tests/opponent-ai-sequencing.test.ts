@@ -179,6 +179,25 @@ test("AI reserves Superfuel while already winning if its next-card discount has 
   assert.equal(command?.type, "PASS_PRIORITY");
 });
 
+test("AI evaluates Superfuel and its discounted follow-up as one continuation line", () => {
+  const superfuel = namedCard("Superfuel", "superfuel-combo");
+  const payoff = namedCard("McQ, Fusion Brawler", "superfuel-payoff");
+  const { match, ai } = powerMatch(700, 4, 500, 5, [superfuel, payoff]);
+  addEnergy(ai, 1);
+
+  const command = chooseOpponentAiCommand(match, ai.id);
+  assert.equal(command?.type, "PLAY_CARD");
+  if (command?.type === "PLAY_CARD") assert.equal(command.cardId, superfuel.id);
+
+  // The same evaluator used by the planner must select the payoff once the
+  // setup has actually created the next-card reduction.
+  ai.hand = [payoff];
+  match.nextCardCostReduction[ai.id] = 3;
+  const followUp = chooseOpponentAiCommand(match, ai.id);
+  assert.equal(followUp?.type, "PLAY_CARD");
+  if (followUp?.type === "PLAY_CARD") assert.equal(followUp.cardId, payoff.id);
+});
+
 test("AI does not throw away a B-Power lead with an unnecessary Might of Cyndeus switch", () => {
   const might = mightOfCyndeus("might-unneeded");
   const expensivePower = namedCard("Lava Boost", "retained-power-buff");

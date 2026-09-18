@@ -720,7 +720,15 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     friendly.targetOwner = friendly.owner;
     result.push(enemy, friendly);
   } else if ((explicitBakuganTarget || fusionTarget) && !fusionTrigger && (cardId !== "aa-99" || defaultTiming === "resolve")) {
-    const selected = choice(card.type === "Baku-Gear" && coreAttachmentTarget ? "secondaryTargetBakuganId" : "targetBakuganId", targetTiming, "chosen-bakugan", "Choose a Bakugan");
+    const poisonStingEmpower = cardId === "sv-61" && /^\s*Empower\s*:/i.test(text);
+    const selected = choice(
+      poisonStingEmpower || (card.type === "Baku-Gear" && coreAttachmentTarget)
+        ? "secondaryTargetBakuganId"
+        : "targetBakuganId",
+      targetTiming,
+      "chosen-bakugan",
+      "Choose a Bakugan",
+    );
     selected.owner = /^At the start of the game,\s+a Bakugan gets/i.test(text)
       ? "controller"
       : /attach (?:this|(?:an?|one) (?:opposing )?Baku-Gear) (?:to|on) [^.;]*\bone of your\s+Bakugan/i.test(text)
@@ -808,7 +816,12 @@ if (swapsBakucore) {
 }
   if (!/\ball BakuCores?\b|remove all BakuCores?/i.test(text)
     && (attachesCore || /remove .*bakucore|choose a bakucore|turn a bakucore/i.test(text))) {
-    const selected = choice("coreCell", targetTiming, "bakucore", "Choose a BakuCore");
+    const selected = choice(
+      cardId === "sv-61" && /^\s*Empower\s*:/i.test(text) ? "secondaryCoreCell" : "coreCell",
+      targetTiming,
+      "bakucore",
+      "Choose a BakuCore",
+    );
     // Cores on the Field are shared game objects; words such as "your" in an
     // attachment effect qualify the Bakugan target, not ownership of the Core.
     selected.owner = attachesCore ? "any" : targetOwner;
@@ -1151,7 +1164,23 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
   // Quoted abilities are granted to the permanent; their optional choices do
   // not belong to the card's enter-play announcement.
   const announcementText = card.effect.replace(/["“]Victor\s*:[\s\S]*?["”]/gi, "");
-  const choices = choicesForText(card, announcementText, "announce");
+  const cardId = ruleCardId(card);
+  // Poison Sting has two independent BakuCore operations. Parsing its full
+  // text as one announcement lets the Empower "attach from the Field" clause
+  // turn the base enemy-core removal into an unattached-field-core choice.
+  // Compile the mandatory removal separately; Empower keeps only its pay-time
+  // mode here and stages its own attachment choices during resolution.
+  const choices = cardId === "sv-61"
+    ? [
+      ...choicesForText(
+        card,
+        announcementText.split(/\bEmpower\s*:/i)[0].trim(),
+        "announce",
+      ),
+      ...choicesForText(card, announcementText, "announce")
+        .filter((candidate) => candidate.id === "empower"),
+    ]
+    : choicesForText(card, announcementText, "announce");
   if (card.type === "Baku-Gear") {
     let target = choices.find((candidate) => candidate.id === "targetBakuganId");
     if (!target) {
