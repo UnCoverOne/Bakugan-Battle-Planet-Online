@@ -17,6 +17,7 @@ import {
 import { advanceOpponentAi } from "../lib/opponentAi";
 import { advanceOpponentAi as advanceBaseOpponentAi } from "../lib/opponentAiBase";
 import { buildChoiceSchema } from "../lib/rules/choices";
+import { compileCardEffect } from "../lib/rules/effects";
 import { cardCostBreakdown } from "../lib/rules/costs";
 import { additionalTurnDrawCount, turnDrawCount } from "../lib/turnStart";
 
@@ -286,6 +287,26 @@ test("incidental Reroll wording cannot masquerade as a printed intrinsic ability
   assert.equal(next.phase, "power");
   assert.equal(next.pendingReroll, undefined);
   assert.equal(next.priority, human.id);
+});
+
+test("Shun Kazami br-77 asks whether to use its optional open-trigger draw", () => {
+  const shun = catalogueCard("br-77", "shun-kazami-optional-draw");
+  assert.equal(shun.effect, "When you open a Bakugan, you may draw a card.");
+
+  const instruction = compileCardEffect(shun).instructions.find((candidate) => (
+    /when you open a Bakugan/i.test(candidate.sourceText)
+  ));
+  assert.ok(instruction);
+  assert.ok(instruction.effects.some((effect) => effect.kind === "draw"));
+
+  const controller = player("shun-controller", [bakugan("shun-b", "Aquos")]);
+  const opponent = player("shun-opponent", [bakugan("shun-opponent-b", "Pyrus")]);
+  const match = matchWith(controller, opponent, "power");
+  const schema = buildChoiceSchema(match, controller.id, shun, instruction.sourceText, {}, "resolve");
+  const confirmation = schema.fields.find((field) => field.id === "confirmed");
+
+  assert.ok(confirmation);
+  assert.deepEqual(confirmation.options.map((option) => option.id), ["yes", "no"]);
 });
 
 test("Bakugan Resurgence Strata does not inherit Battle Brawlers Strata's draw effect", () => {
