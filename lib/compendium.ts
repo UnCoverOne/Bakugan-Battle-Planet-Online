@@ -1,5 +1,5 @@
 import { cardMatchesFilters, createEmptyCardFilters, type CardFilterState } from "./card-filters";
-import { CARD_SET_CODES, cardSetCode } from "./content/catalogue";
+import { cardSetCode, compareCardCollectorOrder } from "./content/catalogue";
 import type { Core, GameCard } from "./game";
 
 export const COMPENDIUM_PAGE_SIZE = 24;
@@ -48,7 +48,6 @@ const choices = (params: URLSearchParams, key: string) => (
 );
 const choice = (value: string | null) => value?.trim() || "All";
 const setCodeFor = (card: Pick<GameCard, "catalogId">) => cardSetCode(card);
-const SET_ORDER = new Map(CARD_SET_CODES.map((code, index) => [code, index]));
 
 export function parseCompendiumState(input: URLSearchParams | string): CompendiumState {
   const params = typeof input === "string" ? new URLSearchParams(input) : input;
@@ -141,10 +140,7 @@ export function filterAndSortCompendiumCards(
     if (state.sort === "cost-desc") return costRank(right.cost) - costRank(left.cost) || left.displayName.localeCompare(right.displayName);
     if (state.sort === "bpower-desc") return statRank(right.bPower) - statRank(left.bPower) || left.displayName.localeCompare(right.displayName);
     if (state.sort === "damage-desc") return statRank(right.damage) - statRank(left.damage) || left.displayName.localeCompare(right.displayName);
-    return (SET_ORDER.get(setCodeFor(left)) ?? Number.MAX_SAFE_INTEGER)
-      - (SET_ORDER.get(setCodeFor(right)) ?? Number.MAX_SAFE_INTEGER)
-      || left.number - right.number
-      || left.catalogId.localeCompare(right.catalogId);
+    return compareCardCollectorOrder(left, right);
   });
 }
 

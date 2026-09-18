@@ -51,6 +51,18 @@ export function cardCollectorLabel(card: Pick<GameCard, "catalogId" | "number" |
   return `${card.collectorNumber ?? card.number}/${info.collectorTotal} ${info.code}`;
 }
 
+const CARD_SET_ORDER = new Map(CARD_SET_CODES.map((code, index) => [code, index]));
+
+export function compareCardCollectorOrder(
+  left: Pick<GameCard, "catalogId" | "number">,
+  right: Pick<GameCard, "catalogId" | "number">,
+) {
+  return (CARD_SET_ORDER.get(cardSetCode(left)) ?? Number.MAX_SAFE_INTEGER)
+    - (CARD_SET_ORDER.get(cardSetCode(right)) ?? Number.MAX_SAFE_INTEGER)
+    || left.number - right.number
+    || left.catalogId.localeCompare(right.catalogId);
+}
+
 const VERIFIED_CARD_CORRECTIONS: Partial<Record<string, Partial<ControlledCardRecord>>> = {
   "bb-330": { damage: 2 },
   "bb-373": { coreTypes: ["Shield", "Helix"] },

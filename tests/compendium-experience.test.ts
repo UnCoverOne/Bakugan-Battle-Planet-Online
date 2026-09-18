@@ -21,6 +21,7 @@ import {
   HIDDEN_KEYWORD_FILTERS,
 } from "../lib/card-filters";
 import type { Core, GameCard } from "../lib/game";
+import { compareCardCollectorOrder } from "../lib/content/catalogue";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -178,6 +179,19 @@ test("Character filtering ignores card-only facets and supports core/stat sortin
 });
 
 
+test("canonical collector comparator follows release order and numeric collector numbers", () => {
+  const candidates = [
+    card({ catalogId: "aa-1", displayName: "AA One", number: 1 }),
+    card({ catalogId: "bb-10", displayName: "BB Ten", number: 10 }),
+    card({ catalogId: "br-1", displayName: "BR One", number: 1 }),
+    card({ catalogId: "bb-2", displayName: "BB Two", number: 2 }),
+  ];
+  assert.deepEqual(
+    candidates.toSorted(compareCardCollectorOrder).map((candidate) => candidate.catalogId),
+    ["bb-2", "bb-10", "br-1", "aa-1"],
+  );
+});
+
 test("EX participates in set filtering and collector release order", () => {
   const cards = [
     card({ catalogId: "ex-2", displayName: "EX Two", number: 2 }),
@@ -226,6 +240,17 @@ test("BakuCore compendium state filters, sorts, and selects both sets", () => {
   ];
   assert.deepEqual(filterAndSortCompendiumCores(candidates, state).map((candidate) => candidate.id), ["aa-core-70", "aa-core-71"]);
   assert.equal(selectedCompendiumCore(candidates, "aa-core-70")?.number, 70);
+});
+
+test("Collection reuses the complete filter controls in desktop and mobile surfaces", async () => {
+  const route = await read("components/routes/CollectionScreen.tsx");
+  assert.match(route, /const renderCollectionFilterControls = \(\) =>/);
+  assert.equal((route.match(/\{renderCollectionFilterControls\(\)\}/g) ?? []).length, 2);
+  for (const label of ["Archive sort", "Collection sort", "Core type", "Standard", "Foil", "Wishlist"]) {
+    assert.match(route, new RegExp(`label=["']${label}["']|label=\\{quantityLabel`));
+  }
+  assert.match(route, /CardFilterPanel/);
+  assert.match(route, /\["type", "set", "faction", "cost", "rarity", "coreType", "keyword"\]/);
 });
 
 test("Compendium renders the complete gallery and reusable inspector contracts", async () => {

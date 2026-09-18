@@ -122,6 +122,74 @@ export function CollectionScreen() {
   const setPage = (next: number) => navigate({ [pageParam]: next > 1 ? String(next) : null });
   const clearFilters = () => navigate({ q: null, set: null, type: null, coreType: null, faction: null, cost: null, rarity: null, keyword: null, coreSet: null, collectionSort: null, collectionStandard: null, collectionFoil: null, collectionWishlist: null, page: null, corePage: null });
   const setQuantityFilter = (field: CollectionField, values: string[]) => navigate({ [quantityKey(field)]: values, page: null, corePage: null });
+  const renderCollectionFilterControls = () => (
+    <>
+      {activeTab === "cards" ? (
+        <>
+          <CardFilterPanel
+            filters={cardState}
+            facets={["type", "set", "faction", "cost", "rarity", "coreType", "keyword"] as CardFilterFacet[]}
+            options={filterOptions}
+            onChange={(next, facet) => navigate({ [facet]: next[facet], page: null })}
+          />
+          <div className={compendiumStyles.filterDivider} role="separator" />
+          <FilterPicker
+            label="Archive sort"
+            values={[cardState.sort]}
+            options={cardArchiveSortOptions}
+            onChange={(values) => navigate({ sort: values[0] ?? "collector", page: null })}
+            mode="single"
+            clearable={false}
+          />
+        </>
+      ) : (
+        <>
+          <FilterPicker
+            label="Core type"
+            values={coreState.type === "All" ? [] : [coreState.type]}
+            options={["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"].map((value) => ({ value, label: value }))}
+            onChange={(values) => navigate({ coreType: values[0] ?? null, corePage: null })}
+            mode="single"
+          />
+          <FilterPicker
+            label="Set"
+            values={coreState.set === "All" ? [] : [coreState.set]}
+            options={["Battle Brawlers", "Armored Alliance"].map((value) => ({ value, label: value }))}
+            onChange={(values) => navigate({ coreSet: values[0] ?? null, corePage: null })}
+            mode="single"
+          />
+          <div className={compendiumStyles.filterDivider} role="separator" />
+          <FilterPicker
+            label="Archive sort"
+            values={[coreState.sort]}
+            options={coreArchiveSortOptions}
+            onChange={(values) => navigate({ coreSort: values[0] ?? "collector", corePage: null })}
+            mode="single"
+            clearable={false}
+          />
+        </>
+      )}
+      <div className={compendiumStyles.filterDivider} role="separator" />
+      <FilterPicker
+        label="Collection sort"
+        values={[collectionSort]}
+        options={COLLECTION_SORT_OPTIONS.map((option) => ({ ...option }))}
+        onChange={(values) => navigate({ collectionSort: values[0] === "collector" ? null : values[0], page: null, corePage: null })}
+        mode="single"
+        clearable={false}
+      />
+      <div className={compendiumStyles.filterDivider} role="separator" />
+      {allCollectionFilters.map((field) => (
+        <FilterPicker
+          key={field}
+          label={quantityLabel(field)}
+          values={valuesFor(field)}
+          options={COLLECTION_QUANTITY_OPTIONS.map((option) => ({ ...option }))}
+          onChange={(values) => setQuantityFilter(field, values)}
+        />
+      ))}
+    </>
+  );
 
   return (
     <div className={compendiumStyles.route}>
@@ -134,11 +202,7 @@ export function CollectionScreen() {
       <div className={compendiumStyles.workspace}>
         <Surface as="aside" className={compendiumStyles.filterRail} aria-label="Collection filters">
           <div className={compendiumStyles.filterHeading}><div><h2>Filters &amp; sort</h2></div><button type="button" onClick={clearFilters}>Clear</button></div>
-          {activeTab === "cards" ? <><CardFilterPanel filters={cardState} facets={['type', 'set', 'faction', 'cost', 'rarity', 'coreType', 'keyword'] as CardFilterFacet[]} options={filterOptions} onChange={(next, facet) => navigate({ [facet]: next[facet], page: null })} /><div className={compendiumStyles.filterDivider} role="separator" /><FilterPicker label="Archive sort" values={[cardState.sort]} options={cardArchiveSortOptions} onChange={(values) => navigate({ sort: values[0] ?? "collector", page: null })} mode="single" clearable={false} /></> : <><FilterPicker label="Core type" values={coreState.type === "All" ? [] : [coreState.type]} options={["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"].map((value) => ({ value, label: value }))} onChange={(values) => navigate({ coreType: values[0] ?? null, corePage: null })} mode="single" /><FilterPicker label="Set" values={coreState.set === "All" ? [] : [coreState.set]} options={["Battle Brawlers", "Armored Alliance"].map((value) => ({ value, label: value }))} onChange={(values) => navigate({ coreSet: values[0] ?? null, corePage: null })} mode="single" /><div className={compendiumStyles.filterDivider} role="separator" /><FilterPicker label="Archive sort" values={[coreState.sort]} options={coreArchiveSortOptions} onChange={(values) => navigate({ coreSort: values[0] ?? "collector", corePage: null })} mode="single" clearable={false} /></>}
-          <div className={compendiumStyles.filterDivider} role="separator" />
-          <FilterPicker label="Collection sort" values={[collectionSort]} options={COLLECTION_SORT_OPTIONS.map((option) => ({ ...option }))} onChange={(values) => navigate({ collectionSort: values[0] === "collector" ? null : values[0], page: null, corePage: null })} mode="single" clearable={false} />
-          <div className={compendiumStyles.filterDivider} role="separator" />
-          {allCollectionFilters.map((field) => <FilterPicker key={field} label={quantityLabel(field)} values={valuesFor(field)} options={COLLECTION_QUANTITY_OPTIONS.map((option) => ({ ...option }))} onChange={(values) => setQuantityFilter(field, values)} />)}
+          {renderCollectionFilterControls()}
         </Surface>
         <main className={compendiumStyles.gallery}>
           {activeTab === "cards" ? <CardGrid className={`${compendiumStyles.cardGrid} ${cardState.density === "compact" ? compendiumStyles.cardGridCompact : ""}`} minCardWidth={cardState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CARDS).map((card) => { const ids = cardCollectionIds(card, CARDS); const entry = collectionEntryForIds(collection, ids); return <CollectionCard key={card.catalogId} card={card} entry={entry} selected={selected?.catalogId === card.catalogId} onSelect={selectCard} onQuickChange={(field, delta) => changeCollection(card.catalogId, field, delta)} />; })}</CardGrid> : <CardGrid className={`${compendiumStyles.cardGrid} ${compendiumStyles.coreGrid} ${coreState.density === "compact" ? compendiumStyles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CORE_COMPENDIUM).map((core) => { const entry = collectionEntryForIds(collection, coreCollectionIds(core)); return <CollectionCore key={core.id} core={core} entry={entry} selected={selectedCore?.id === core.id} onSelect={selectCore} onQuickChange={(field, delta) => changeCollection(core.catalogId ?? core.id, field, delta)} />; })}</CardGrid>}
@@ -148,7 +212,7 @@ export function CollectionScreen() {
         {selectedCard && <CardInspector card={selectedCard} allCards={CARDS} rules={[...ruleReferences, ...GLOSSARY_ENTRIES]} rulings={PUBLISHED_RULINGS} tab={inspectorTab} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
         {selectedCore && <CardInspector core={selectedCore} allCores={CORE_COMPENDIUM} rules={[...ruleReferences, ...GLOSSARY_ENTRIES]} rulings={PUBLISHED_RULINGS} tab={inspectorTab} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
       </div>
-      {filterSheetOpen && <div className={compendiumStyles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}><Surface as="aside" className={compendiumStyles.filterSheet} role="dialog" aria-modal="true" aria-label="Collection filters"><div className={compendiumStyles.filterHeading}><h2>Filters &amp; sort</h2><button type="button" onClick={() => setFilterSheetOpen(false)}>Close</button></div>{allCollectionFilters.map((field) => <FilterPicker key={field} label={quantityLabel(field)} values={valuesFor(field)} options={COLLECTION_QUANTITY_OPTIONS.map((option) => ({ ...option }))} onChange={(values) => setQuantityFilter(field, values)} />)}<ActionButton onClick={() => setFilterSheetOpen(false)}>Show {results.length} items</ActionButton></Surface></div>}
+      {filterSheetOpen && <div className={compendiumStyles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}><Surface as="aside" className={compendiumStyles.filterSheet} role="dialog" aria-modal="true" aria-label="Collection filters"><div className={compendiumStyles.filterHeading}><h2>Filters &amp; sort</h2><button type="button" onClick={() => setFilterSheetOpen(false)}>Close</button></div>{renderCollectionFilterControls()}<ActionButton onClick={() => setFilterSheetOpen(false)}>Show {results.length} items</ActionButton></Surface></div>}
     </div>
   );
 }

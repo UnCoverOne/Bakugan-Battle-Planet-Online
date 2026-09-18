@@ -22,6 +22,7 @@ import {
   type CardFilterState,
 } from "../../lib/card-filters";
 import { cardArtSource, isFlipCardType } from "../../lib/content/card-art";
+import { compareCardCollectorOrder } from "../../lib/content/catalogue";
 import {
   BAKUGAN,
   CARD_BY_ID,
@@ -134,7 +135,14 @@ const builderItemCost = (item: BuilderGalleryItem) => {
 
 const sortBuilderItems = (left: BuilderGalleryItem, right: BuilderGalleryItem, sort: BuilderSort) => {
   if (sort === "name-desc") return right.name.localeCompare(left.name);
-  if (sort === "id-asc") return left.id.localeCompare(right.id, undefined, { numeric: true }) || left.name.localeCompare(right.name);
+  if (sort === "id-asc") {
+    if (left.kind !== "core" && right.kind !== "core") {
+      return compareCardCollectorOrder(left.card, right.card)
+        || left.name.localeCompare(right.name);
+    }
+    return left.id.localeCompare(right.id, undefined, { numeric: true })
+      || left.name.localeCompare(right.name);
+  }
   if (sort === "cost-asc" || sort === "cost-desc") {
     const difference = builderItemCost(left) - builderItemCost(right);
     return (sort === "cost-desc" ? -difference : difference) || left.name.localeCompare(right.name);
@@ -1483,7 +1491,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   const [galleryQuery, setGalleryQuery] = useState("");
   const [deckQuery, setDeckQuery] = useState("");
   const [galleryCategory, setGalleryCategory] = useState<BuilderCategory>("characters");
-  const [gallerySort, setGallerySort] = useState<BuilderSort>("name-asc");
+  const [gallerySort, setGallerySort] = useState<BuilderSort>("id-asc");
   const [deckSort, setDeckSort] = useState<BuilderSort>("name-asc");
   const [galleryFilters, setGalleryFilters] = useState<CardFilterState>(() => createEmptyCardFilters({
     faction: [...new Set(source?.factions ?? [])],

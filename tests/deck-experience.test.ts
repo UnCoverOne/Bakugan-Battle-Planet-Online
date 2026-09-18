@@ -109,6 +109,8 @@ test("Card Gallery tabs and both card collections provide search, Card ID sortin
   assert.ok((route.match(/<BuilderToolbar/g) ?? []).length >= 2);
   for (const tab of ["Character Cards", "Cores", "Main Deck Cards"]) assert.match(route, new RegExp(tab));
   assert.match(route, /\["id-asc", "Card ID"\]/);
+  assert.match(route, /compareCardCollectorOrder\(left\.card, right\.card\)/);
+  assert.match(route, /useState<BuilderSort>\("id-asc"\)/);
   assert.match(route, /left\.id\.localeCompare\(right\.id/);
   assert.match(route, /surface: "gallery", panel: "sort"/);
   assert.match(route, /surface: "gallery", panel: "filter"/);
