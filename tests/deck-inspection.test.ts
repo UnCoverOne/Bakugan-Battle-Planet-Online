@@ -148,6 +148,7 @@ test("Lia's top-three look is read-only while Clairvoyance retains printed reord
     /look at the top three cards/i.test(candidate.sourceText)
   ));
   assert.ok(clairvoyanceInstruction);
+  assert.match(clairvoyanceInstruction.sourceText, /put them back on top of your deck in any order/i);
   const clairvoyanceSchema = buildChoiceSchemaFromSpecs(
     state,
     "a",

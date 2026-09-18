@@ -282,7 +282,7 @@ function choicesForGroup(
 
 function mergedInstruction(group: readonly InstructionEntry[], window: DeckWindow): RuleInstruction {
   const sourceText = group.map((entry) => normalizeText(entry.instruction.sourceText)).join(" ");
-  const allowReorder = /\bput\s+(?:them|those cards)\s+on top of (?:your|the) deck\s+in any order\b/i.test(sourceText);
+  const allowReorder = /\bput\s+(?:them|those cards)\s+(?:back\s+)?on top of (?:your|the) deck\s+in any order\b/i.test(sourceText);
   const selectionToHand = /\bput\s+(?:(?:one|a card)\s+of\s+(?:them|those cards)|the chosen card)\s+into your hand\b/i.test(sourceText);
   const allowSelection = selectionToHand
     || /\b(?:choose|select)\s+(?:a|an|one)\s+(?:of\s+)?(?:them|those cards)\b|\b(?:play|put)\s+one\s+of\s+(?:them|those cards)\b/i.test(sourceText)
