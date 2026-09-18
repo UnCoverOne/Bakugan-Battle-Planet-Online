@@ -9,3 +9,5 @@
 @keyframes legal-target-pulse{from{filter:drop-shadow(0 0 .18rem #fff) drop-shadow(0 0 .48rem #ff5145)!important}to{filter:drop-shadow(0 0 .34rem #fff) drop-shadow(0 0 1rem #ff5145)!important}}
 
 .empowerEffect{padding:.7rem;border-left:3px solid #ff7766;background:rgba(255,255,255,.035);color:rgba(236,241,244,.9)!important}.empowerEffect strong{color:#fff}.empowerOptions{grid-template-columns:minmax(12rem,18rem);margin-top:.65rem}.empowerOptions button{min-height:3.5rem}
+
+.energyIcon{display:inline-block;width:1em;height:1em;margin-left:.12em;vertical-align:-.16em;object-fit:contain}

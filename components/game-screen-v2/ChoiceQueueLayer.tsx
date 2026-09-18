@@ -1,9 +1,12 @@
 "use client";
 
+import { OriginalImage } from "@/components/media/OriginalImage";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type CardChoices, type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import type { ChoiceField, ChoiceKind } from "../../lib/rules/choices";
+import { cardCostBreakdown } from "../../lib/rules/costs";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchStore";
 import styles from "./ChoiceQueueLayer.module.css";
@@ -29,6 +32,26 @@ function assign(answers: CardChoices, field: ChoiceField, values: string[]) {
   else if (field.id === "confirmed") next.confirmed = values[0] === "yes";
   else Object.assign(next, { [field.id]: values[0] });
   return next;
+}
+
+function EnergyIcon() {
+  return (
+    <OriginalImage
+      className={styles.energyIcon}
+      src="/assets/symbols/energy.svg"
+      alt="Energy"
+      width={16}
+      height={16}
+    />
+  );
+}
+
+function renderEnergyIcons(text: string) {
+  return text.split(/(\[Energy\])/gi).map((part, index) => (
+    /^\[Energy\]$/i.test(part)
+      ? <EnergyIcon key={`energy-${index}`} />
+      : <span key={`text-${index}`}>{part}</span>
+  ));
 }
 
 function boardSelector(field: ChoiceField) {
@@ -120,9 +143,17 @@ export function ChoiceQueueLayer() {
     .match(/\bEmpower\s*:\s*([\s\S]+)$/i)?.[1]
     ?.replace(/\s+/g, " ")
     .trim() ?? "";
-  const empowerCost = Number(
+  const printedEmpowerCost = Number(
     pendingCard?.effect.match(/\bEmpower\s*:[\s\S]*?pay(?: an additional)?\s+(\d+)\s+\[Energy\]/i)?.[1] ?? 3,
   );
+  const empowerCost = match && pending && pendingCard
+    ? cardCostBreakdown(
+        match,
+        pending.controllerId,
+        pendingCard,
+        { ...(pending.playRequest?.choices ?? {}), empower: "yes" },
+      ).empowerCost
+    : printedEmpowerCost;
   const triggerOrder = match?.triggerOrders.find((request) => request.controllerId === playerId && !request.orderedIds);
   const [answers, setAnswers] = useState<CardChoices>({});
   const [orderedIds, setOrderedIds] = useState<string[]>([]);
@@ -361,13 +392,11 @@ export function ChoiceQueueLayer() {
         <header>
           <small>{triggerOrder ? "SIMULTANEOUS TRIGGERS" : pending?.schema.simultaneous ? "PRIVATE SIMULTANEOUS CHOICE" : "PLAYER CHOICE"}</small>
           <h2 id="choice-queue-title">{triggerOrder ? `Order ${triggerOrder.event} triggers` : pending?.schema.sourceName}</h2>
-          <p>{triggerOrder
+          {!empowerField ? <p>{triggerOrder
             ? "The first trigger listed enters the batch first and resolves last."
-            : empowerField
-              ? `Prompt to Empower for ${empowerCost} [Energy].`
-              : boardFields.length
-                ? "The target was chosen on the play area. Complete the remaining choice."
-                : "Each required choice is requested and validated at its required timing."}</p>
+            : boardFields.length
+              ? "The target was chosen on the play area. Complete the remaining choice."
+              : "Each required choice is requested and validated at its required timing."}</p> : null}
         </header>
 
         {modalFields.map((field) => {
@@ -377,7 +406,7 @@ export function ChoiceQueueLayer() {
             return (
               <fieldset key={field.id} className={styles.fieldset}>
                 <legend>Empower <span>Optional</span></legend>
-                {empowerEffect ? <p className={styles.empowerEffect}><strong>Empower:</strong> {empowerEffect}</p> : null}
+                {empowerEffect ? <p className={styles.empowerEffect}><strong>Empower:</strong> {renderEnergyIcons(empowerEffect)}</p> : null}
                 <div className={`${styles.options} ${styles.empowerOptions}`}>
                   <button
                     type="button"
@@ -389,7 +418,9 @@ export function ChoiceQueueLayer() {
                     onClick={() => setAnswers((current) => assign(current, field, [enabled ? "no" : "yes"]))}
                   >
                     <strong>Empower</strong>
-                    <small>{enabled ? `On • Pay ${empowerCost} [Energy]` : "Off • Resolve without Empower"}</small>
+                    <small>{enabled
+                      ? <>On • Pay {empowerCost} <EnergyIcon /></>
+                      : "Off • Resolve without Empower"}</small>
                   </button>
                 </div>
               </fieldset>

@@ -17,6 +17,7 @@ import {
 import { advanceOpponentAi } from "../lib/opponentAi";
 import { advanceOpponentAi as advanceBaseOpponentAi } from "../lib/opponentAiBase";
 import { buildChoiceSchema } from "../lib/rules/choices";
+import { cardCostBreakdown } from "../lib/rules/costs";
 import { additionalTurnDrawCount, turnDrawCount } from "../lib/turnStart";
 
 let serial = 0;
@@ -376,4 +377,30 @@ test("AI conserves Deep Dive while already winning a Double-Core Brawl", () => {
   assert.equal(nextAi.hand.some((card) => card.id === deepDive.id), true);
   assert.equal(next.batch.some((effect) => effect.card.id === deepDive.id), false);
   assert.equal(nextAi.bakugan[0].heldCoreCells.length, 2);
+});
+
+
+test("free Empower effects reduce the payable Empower cost to zero", () => {
+  const controller = player("empower-controller", [bakugan("empower-b", "Haos")]);
+  const opponent = player("empower-opponent", [bakugan("empower-opponent-b", "Pyrus")]);
+  const match = matchWith(controller, opponent, "power");
+  const empowerCard: GameCard = {
+    ...catalogueCard("bb-10", "free-empower-card"),
+    type: "Action",
+    cost: 2,
+    effect: "Empower: You may pay an additional 3 [Energy] for +500 [B].",
+    mechanics: ["Empower"],
+  };
+
+  assert.equal(
+    cardCostBreakdown(match, controller.id, empowerCard, { empower: "yes" }).empowerCost,
+    3,
+  );
+
+  match.nextCardEmpowerFree[controller.id] = true;
+
+  assert.equal(
+    cardCostBreakdown(match, controller.id, empowerCard, { empower: "yes" }).empowerCost,
+    0,
+  );
 });
