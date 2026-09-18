@@ -330,6 +330,11 @@ export function reconcileRemoteAccountState(
     }
   }
 
+  const history = new Map(remote.history.map((record) => [record.id, record]));
+  for (const record of local.history) history.set(record.id, record);
+  resolved.history = [...history.values()]
+    .sort((left, right) => Date.parse(right.at) - Date.parse(left.at))
+    .slice(0, MAX_MATCH_RECORDS);
   if (keys.size) resolved.updatedAt = Math.max(local.updatedAt, remote.updatedAt);
   return resolved;
 }

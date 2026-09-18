@@ -214,6 +214,23 @@ test("successful unrelated sync adopts a newer remote collection instead of re-u
   assert.equal(changed.includes("collection:main"), false);
 });
 
+test("remote reconciliation keeps local history created while a save is in flight", () => {
+  const local = snapshot();
+  local.history = [{
+    id: "local-result",
+    result: "Victor",
+    opponent: "Mira",
+    score: "1–0",
+    reason: "Cards",
+    at: "2026-09-18T08:05:00.000Z",
+    log: [],
+  }];
+  const remote = snapshot();
+
+  const reconciled = reconcileRemoteAccountState(local, remote, []);
+  assert.deepEqual(reconciled.history.map((record) => record.id), ["local-result"]);
+});
+
 test("collection conflicts merge local counter deltas onto the remote collection", () => {
   const baseline = snapshot();
   baseline.collection = {
