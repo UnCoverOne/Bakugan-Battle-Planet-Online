@@ -19,6 +19,17 @@ test("card flights prepare assets and use an overlap handoff instead of blank fr
   }
 });
 
+test("automatic turn draws publish one draw per version so draw flights stay observable", () => {
+  const client = read("components/game-screen-v2/GameplayClient.tsx");
+  const drawLayer = read("components/game-screen-v2/DrawAnimationLayer.tsx");
+  const continuity = read("components/game-screen-v2/presentationContinuity.ts");
+
+  assert.doesNotMatch(client, /dispatchLocalGameAction\(next, trainingBot\.id, "draw"\)/);
+  assert.match(client, /The Training AI[\s\S]*dedicated action loop[\s\S]*deck-to-hand animation/);
+  assert.match(drawLayer, /isLiveMatchTransition\(previous, match, document\.visibilityState\)/);
+  assert.match(continuity, /current\.version === previous\.version \+ 1/);
+});
+
 test("viewport stability ignores scroll and match publication is selector-aware and deferred", () => {
   const viewport = read("components/game-screen-v2/ViewportStabilityGuard.tsx");
   const store = read("components/game-screen-v2/matchStore.ts");

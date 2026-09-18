@@ -21,7 +21,6 @@ import {
 } from "../../lib/manualTieBreak";
 import {
   drawStepIsPending,
-  playerCanDrawTurnCard,
   playerHasDrawnTurnCard,
   type TurnStartMatchState,
 } from "../../lib/turnStart";
@@ -230,13 +229,10 @@ export function GameplayClient() {
     if (!match || !actorId) throw new Error("No active match is available.");
 
     if (!current.online) {
-      let next = dispatchLocalGameAction(match, actorId, action, payload);
-      if (action === "draw") {
-        const trainingBot = next.players.find((player) => player.id === "training-bot");
-        if (trainingBot && playerCanDrawTurnCard(next, trainingBot.id)) {
-          next = dispatchLocalGameAction(next, trainingBot.id, "draw");
-        }
-      }
+      const next = dispatchLocalGameAction(match, actorId, action, payload);
+      // Publish each draw as its own adjacent match version. The Training AI
+      // already has a dedicated action loop for its Draw Step, and collapsing
+      // both draws into one publication skips the deck-to-hand animation.
       publishMatch(next);
       return;
     }
