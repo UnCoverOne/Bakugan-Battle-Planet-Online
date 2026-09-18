@@ -22,6 +22,7 @@ import {
   changedAccountEntityKeys,
   isAccountCacheDirty,
   readAccountCache,
+  reconcileRemoteAccountState,
   removeAccountCache,
   resolveEntityConflicts,
   retryDelayMs,
@@ -765,6 +766,7 @@ export function AppProvider({ children }) {
             ...(pendingEntityKeys.current ?? []),
             ...changedAccountEntityKeys(latestLocal, current),
           ];
+          const baseline = acknowledgedSnapshot.current;
           acknowledgedSnapshot.current = remote;
           pendingEntityKeys.current = null;
           acknowledgedHistoryIds.current = null;
@@ -772,6 +774,7 @@ export function AppProvider({ children }) {
             latestLocal,
             remote,
             [...new Set(localWins)],
+            baseline,
           );
           const resolved = {
             ...reconciled,
@@ -795,9 +798,19 @@ export function AppProvider({ children }) {
           acknowledgedSnapshot.current = remote;
           pendingEntityKeys.current = null;
           acknowledgedHistoryIds.current = null;
-          // Keep the optimistic local state visible after a successful save.
-          // If another edit landed while the request was in flight, the loop
-          // below sends that newer state without briefly rolling the UI back.
+          // Adopt fresh server state for every entity that was not edited while
+          // this request was in flight. Otherwise an already-open stale tab can
+          // later re-upload an old collection using a newly learned revision.
+          const reconciled = reconcileRemoteAccountState(
+            latestLocal,
+            remote,
+            localWins,
+          );
+          const resolved = {
+            ...reconciled,
+            profile: { ...reconciled.profile, signedIn: true },
+          };
+          applySnapshot(resolved, true);
           if (localWins.length || localVersion.current > targetVersion) {
             syncRequested.current = true;
           }

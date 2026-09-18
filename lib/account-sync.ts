@@ -10,6 +10,7 @@ import {
   selectSnapshot,
   type UserSnapshot,
 } from "./persistence";
+import { COLLECTION_FIELDS, normalizeCollection } from "./collection";
 
 const ACCOUNT_CACHE_PREFIX = "bbp-account-cache-v2:";
 
@@ -248,18 +249,98 @@ export function retryDelayMs(attempt: number, retryAfterSeconds = 0) {
   return Math.min(60_000, 1_000 * 2 ** Math.min(6, Math.max(0, attempt)));
 }
 
+function mergeCollectionDelta(
+  baseline: UserSnapshot["collection"],
+  local: UserSnapshot["collection"],
+  remote: UserSnapshot["collection"],
+) {
+  const base = normalizeCollection(baseline ?? {});
+  const localCollection = normalizeCollection(local ?? {});
+  const remoteCollection = normalizeCollection(remote ?? {});
+  const merged = { ...remoteCollection };
+  const ids = new Set([...Object.keys(base), ...Object.keys(localCollection)]);
+
+  for (const id of ids) {
+    const baseEntry = base[id] ?? { standard: 0, foil: 0, wishlist: 0 };
+    const localEntry = localCollection[id] ?? { standard: 0, foil: 0, wishlist: 0 };
+    const remoteEntry = remoteCollection[id] ?? { standard: 0, foil: 0, wishlist: 0 };
+    const next = { ...remoteEntry };
+    let changed = false;
+    for (const field of COLLECTION_FIELDS) {
+      const delta = localEntry[field] - baseEntry[field];
+      if (!delta) continue;
+      next[field] = Math.max(0, remoteEntry[field] + delta);
+      changed = true;
+    }
+    if (!changed) continue;
+    if (COLLECTION_FIELDS.every((field) => next[field] === 0)) delete merged[id];
+    else merged[id] = next;
+  }
+  return normalizeCollection(merged);
+}
+
+export function reconcileRemoteAccountState(
+  local: UserSnapshot,
+  remote: UserSnapshot,
+  localEntityKeys: string[],
+  baseline: UserSnapshot | null = null,
+) {
+  const localCloud = snapshotToSyncRequest(local, {});
+  const localEntities = new Map(
+    localCloud.entities.map((entity) => [entityKey(entity.type, entity.id), entity]),
+  );
+  const localSnapshot = selectSnapshot(local, local, "cloud");
+  const resolved = selectSnapshot(local, remote, "cloud");
+  const keys = new Set(localEntityKeys);
+
+  if (keys.has("profile:main")) {
+    resolved.profile = { ...local.profile, signedIn: resolved.profile.signedIn };
+  }
+  if (keys.has("settings:main")) resolved.settings = local.settings;
+  if (keys.has("preferences:main")) {
+    resolved.selectedDeckId = localSnapshot.selectedDeckId;
+    resolved.format = localSnapshot.format;
+    resolved.matchMode = localSnapshot.matchMode;
+    resolved.lifetimeStats = localSnapshot.lifetimeStats;
+  }
+  if (keys.has("collection:main")) {
+    resolved.collection = baseline
+      ? mergeCollectionDelta(
+          baseline.collection,
+          local.collection,
+          remote.collection,
+        )
+      : normalizeCollection(local.collection ?? {});
+  }
+  if (keys.has("draft:main")) resolved.builderDeck = localSnapshot.builderDeck;
+
+  for (const key of keys) {
+    if (!key.startsWith("deck:")) continue;
+    const id = key.slice("deck:".length);
+    const localEntity = localEntities.get(key);
+    resolved.decks = resolved.decks.filter((deck) => deck.id !== id);
+    resolved.deletedDecks = (resolved.deletedDecks ?? []).filter(
+      (deletion) => deletion.id !== id,
+    );
+    if (localEntity?.data) {
+      const localDeck = localSnapshot.decks.find((deck) => deck.id === id);
+      if (localDeck) resolved.decks.push(localDeck);
+    } else if (localEntity?.deletedAt) {
+      resolved.deletedDecks.push({ id, deletedAt: localEntity.deletedAt });
+    }
+  }
+
+  if (keys.size) resolved.updatedAt = Math.max(local.updatedAt, remote.updatedAt);
+  return resolved;
+}
+
 export function resolveEntityConflicts(
   local: UserSnapshot,
   remote: UserSnapshot,
   conflicts: string[],
+  baseline: UserSnapshot | null = null,
 ) {
-  // Keep the server-reported keys in the API contract for telemetry and
-  // forward compatibility even though recency now resolves them uniformly.
-  void conflicts;
-  // Conflicts resolve without pausing the UI. The newer durable snapshot wins
-  // for singleton entities, while mergeSnapshots' per-deck timestamps retain
-  // the newest edit or deletion for each deck independently.
-  const resolved = selectSnapshot(local, remote, "merge");
+  const resolved = reconcileRemoteAccountState(local, remote, conflicts, baseline);
   const history = new Map(remote.history.map((record) => [record.id, record]));
   for (const record of local.history) history.set(record.id, record);
   resolved.history = [...history.values()]

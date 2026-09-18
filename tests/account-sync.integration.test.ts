@@ -6,6 +6,7 @@ import {
   changedAccountEntityKeys,
   isAccountCacheDirty,
   readAccountCache,
+  reconcileRemoteAccountState,
   resolveEntityConflicts,
   retryDelayMs,
   writeAccountCache,
@@ -178,20 +179,65 @@ test("the outbox sends only entities changed since the cloud acknowledgement", (
   assert.equal(request.entities.some((entity) => entity.type === "profile"), false);
 });
 
-test("automatic conflict resolution selects the newest durable snapshot", () => {
+test("conflict resolution preserves only the locally conflicting entities", () => {
   const local = snapshot("Old profile");
   local.settings.sound = false;
+  local.updatedAt = 4;
   const remote = snapshot("Updated on another device");
+  remote.settings.sound = true;
   remote.updatedAt = 3;
 
   const resolved = resolveEntityConflicts(local, remote, ["settings:main"]);
   assert.equal(resolved.profile.name, "Updated on another device");
-  assert.equal(resolved.settings.sound, true);
+  assert.equal(resolved.settings.sound, false);
+});
 
-  local.updatedAt = 4;
-  const localResolved = resolveEntityConflicts(local, remote, ["settings:main"]);
-  assert.equal(localResolved.profile.name, "Old profile");
-  assert.equal(localResolved.settings.sound, false);
+test("successful unrelated sync adopts a newer remote collection instead of re-uploading stale state", () => {
+  const requestState = snapshot();
+  requestState.collection = {
+    "bb-1": { standard: 1, foil: 0, wishlist: 0 },
+  };
+  requestState.settings.sound = false;
+
+  const remote = structuredClone(requestState);
+  remote.collection = {
+    "bb-1": { standard: 4, foil: 0, wishlist: 0 },
+  };
+  remote.updatedAt = 10;
+
+  const reconciled = reconcileRemoteAccountState(requestState, remote, []);
+  assert.equal(reconciled.collection?.["bb-1"].standard, 4);
+
+  reconciled.profile.name = "Edited after sync";
+  const changed = changedAccountEntityKeys(reconciled, remote);
+  assert.deepEqual(changed, ["profile:main"]);
+  assert.equal(changed.includes("collection:main"), false);
+});
+
+test("collection conflicts merge local counter deltas onto the remote collection", () => {
+  const baseline = snapshot();
+  baseline.collection = {
+    "bb-1": { standard: 1, foil: 0, wishlist: 0 },
+    "bb-2": { standard: 1, foil: 0, wishlist: 0 },
+  };
+
+  const local = structuredClone(baseline);
+  local.collection!["bb-1"].standard = 2;
+  local.updatedAt = 3;
+
+  const remote = structuredClone(baseline);
+  remote.collection!["bb-2"].standard = 2;
+  remote.updatedAt = 4;
+
+  const resolved = resolveEntityConflicts(
+    local,
+    remote,
+    ["collection:main"],
+    baseline,
+  );
+
+  assert.equal(resolved.collection?.["bb-1"].standard, 2);
+  assert.equal(resolved.collection?.["bb-2"].standard, 2);
 });
 
 test("a delayed write drains an edit made while the first request is in flight", async () => {
