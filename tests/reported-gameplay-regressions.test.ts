@@ -213,6 +213,21 @@ function establishWinningDoubleCore(match: MatchState, ai: PlayerState, human: P
   assert.equal(totalPower(match, ai.id) - totalPower(match, human.id), 400);
 }
 
+test("AI holds Greater Water Boost until the initial roll establishes a Brawl", () => {
+  const boost = catalogueCard("bb-10", "greater-water-boost-pre-roll");
+  const ai = player("boost-ai", [bakugan("boost-ai-b", "Aquos")], [boost]);
+  const human = player("boost-human", [bakugan("boost-human-b", "Pyrus")]);
+  const preRoll = matchWith(ai, human, "preRoll");
+
+  const next = advanceOpponentAi(preRoll, ai.id);
+
+  assert.ok(next);
+  assert.equal(next.phase, "preRoll");
+  assert.equal(next.batch.some((effect) => effect.card.id === boost.id), false);
+  assert.equal(next.players[0].hand.some((card) => card.id === boost.id), true);
+  assert.equal(next.priority, human.id);
+});
+
 test("AI reserves Deep Dive until the Brawl can make its optional Reroll relevant", () => {
   const deepDive = catalogueCard("br-6", "deep-dive-pre-roll");
   const ai = player("ai", [bakugan("ai-b", "Aquos")], [deepDive]);

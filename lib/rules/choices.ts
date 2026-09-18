@@ -542,6 +542,18 @@ export function validateChoices(schema: ChoiceSchema, chooserId: string, choices
     const legal = new Set(item.options.filter((candidate) => !candidate.disabled).map((candidate) => candidate.id));
     if (values.some((value) => !legal.has(value))) throw new Error(`${item.label} contains an illegal selection.`);
     if (new Set(values).size !== values.length) throw new Error(`${item.label} cannot contain duplicate selections.`);
+    if (item.viewerOnly) {
+      const visibleOrder = item.options.map((candidate) => candidate.id);
+      const selectedDeckCard = typeof choices.deckCardId === "string" && visibleOrder.includes(choices.deckCardId)
+        ? choices.deckCardId
+        : undefined;
+      const permittedOrder = selectedDeckCard
+        ? [selectedDeckCard, ...visibleOrder.filter((id) => id !== selectedDeckCard)]
+        : visibleOrder;
+      if (values.some((value, index) => value !== permittedOrder[index])) {
+        throw new Error(`${item.label} does not allow changing the inspected card order.`);
+      }
+    }
   }
   return true;
 }

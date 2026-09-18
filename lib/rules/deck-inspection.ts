@@ -144,6 +144,7 @@ function topDeckChoice(
     maximum: window.count,
     owner: window.owner,
     targetOwner: window.owner,
+    viewerOnly: !allowReorder,
   };
 }
 

@@ -15,7 +15,7 @@ import {
   type PendingEffect,
 } from "../lib/game";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
-import { buildChoiceSchemaFromSpecs } from "../lib/rules/choices";
+import { buildChoiceSchemaFromSpecs, validateChoices } from "../lib/rules/choices";
 import { enhanceDeckInspectionAbilities } from "../lib/rules/deck-inspection";
 import { compileCardEffect } from "../lib/rules/effects";
 import { createRuleObject } from "../lib/rules/objects";
@@ -114,6 +114,56 @@ test("The Sky's Hymn opens one private top-three ordering window", () => {
   };
   const opponentView = redactForPlayer(state, "b");
   assert.equal(opponentView.pendingChoice?.schema.fields.find((candidate) => candidate.id === "orderedCardIds")?.options.length, 0);
+});
+
+test("Lia's top-three look is read-only while Clairvoyance retains printed reorder permission", () => {
+  const state = matchWithMixedDeck();
+
+  const lia = catalogueCard("aa-71", "lia-read-only-look");
+  const liaInstruction = compileCardEffect(lia).instructions.find((candidate) => (
+    /look at the top three cards/i.test(candidate.sourceText)
+  ));
+  assert.ok(liaInstruction);
+  const liaSchema = buildChoiceSchemaFromSpecs(state, "a", lia, liaInstruction.choices, "resolve");
+  const liaViewer = liaSchema.fields.find((candidate) => candidate.id === "orderedCardIds");
+  assert.ok(liaViewer);
+  assert.equal(liaViewer.viewerOnly, true);
+  const liaOrder = liaViewer.options.map((option) => option.id);
+  assert.doesNotThrow(() => validateChoices(
+    { ...liaSchema, fields: [liaViewer] },
+    "a",
+    { orderedCardIds: liaOrder },
+  ));
+  assert.throws(
+    () => validateChoices(
+      { ...liaSchema, fields: [liaViewer] },
+      "a",
+      { orderedCardIds: [...liaOrder].reverse() },
+    ),
+    /does not allow changing the inspected card order/i,
+  );
+
+  const clairvoyance = catalogueCard("sv-21", "clairvoyance-reorder");
+  const clairvoyanceInstruction = compileCardEffect(clairvoyance).instructions.find((candidate) => (
+    /look at the top three cards/i.test(candidate.sourceText)
+  ));
+  assert.ok(clairvoyanceInstruction);
+  const clairvoyanceSchema = buildChoiceSchemaFromSpecs(
+    state,
+    "a",
+    clairvoyance,
+    clairvoyanceInstruction.choices,
+    "resolve",
+  );
+  const clairvoyanceOrder = clairvoyanceSchema.fields.find((candidate) => candidate.id === "orderedCardIds");
+  assert.ok(clairvoyanceOrder);
+  assert.notEqual(clairvoyanceOrder.viewerOnly, true);
+  const reversed = [...clairvoyanceOrder.options.map((option) => option.id)].reverse();
+  assert.doesNotThrow(() => validateChoices(
+    { ...clairvoyanceSchema, fields: [clairvoyanceOrder] },
+    "a",
+    { orderedCardIds: reversed },
+  ));
 });
 
 test("top-three ordering effects preserve scarcity while retaining reorder permission", () => {

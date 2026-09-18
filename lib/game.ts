@@ -3950,7 +3950,7 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
             simultaneous: false,
             fields: [{
               id: "keepBakuGearId",
-              kind: "card",
+              kind: "mode",
               label: "Choose the Baku-Gear to keep",
               chooserId: pending.controllerId,
               visibility: "public",
@@ -3958,7 +3958,11 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
               minimum: 1,
               maximum: 1,
               required: true,
-              options: attached.map((gear) => ({ id: gear.id, label: gear.displayName || gear.name })),
+              options: attached.map((gear) => ({
+                id: gear.id,
+                label: gear.displayName || gear.name,
+                description: gear.id === pending.card.id ? "Newly played Baku-Gear" : "Already attached Baku-Gear",
+              })),
             }],
           },
           answers: {},

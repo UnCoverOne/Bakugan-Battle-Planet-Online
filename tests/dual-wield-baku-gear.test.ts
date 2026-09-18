@@ -72,7 +72,16 @@ test("two non-Dual Gear cards resolve the new Play Effect before the keep-one ch
   state = playCard(state, owner.id, played.id, { targetBakuganId: target.id });
   state = resolveBatch(state);
   assert.equal(state.pendingChoice?.kind, "gear-replacement");
-  assert.equal(state.pendingChoice?.schema.fields[0]?.options.length, 2);
+  const replacementField = state.pendingChoice?.schema.fields[0];
+  assert.equal(replacementField?.kind, "mode");
+  assert.equal(replacementField?.options.length, 2);
+  assert.deepEqual(
+    replacementField?.options.map((option) => ({ id: option.id, description: option.description })),
+    [
+      { id: existing.id, description: "Already attached Baku-Gear" },
+      { id: played.id, description: "Newly played Baku-Gear" },
+    ],
+  );
   assert.equal(state.players[0].bakugan[0].bakuGear?.length, 2);
   assert.ok(state.players[0].hand.length > 0, "Aquotomic Payload's Play Effect should draw before the choice.");
 

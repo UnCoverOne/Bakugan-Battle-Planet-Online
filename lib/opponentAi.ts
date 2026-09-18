@@ -838,6 +838,7 @@ function shouldSuppressTemporaryCombatCard(
   const choices = chooseBaseCardChoices(match, playerId, card);
   const entries = activeCandidateEntries(match, playerId, card, choices);
   if (!entries.some(({ action }) => isTemporaryCombatAction(action))) return false;
+  if (match.phase === "preRoll" && hasNonDeferrablePreRollTiming(card.effect)) return false;
   const projection = projectedCombatOutcome(match, playerId, card, choices);
   const independentValue = candidateIndependentValue(match, playerId, card, choices);
   const hasIndependentBenefit = independentValue >= 0.75;
@@ -1189,8 +1190,7 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
           && candidateHasTemporaryPower(input, playerId, card)
           && !winningPowerPlan.has(card.id)
           && candidateIndependentValue(input, playerId, card) < 0.75;
-        const tacticallySuppressed = input.phase !== "preRoll"
-          && !winningPowerPlan.has(card.id)
+        const tacticallySuppressed = !winningPowerPlan.has(card.id)
           && shouldSuppressTemporaryCombatCard(input, playerId, card);
         return unneededPowerAlternative
           || tacticallySuppressed
@@ -1243,8 +1243,7 @@ function chooseWithCombatPolicy(input: MatchState, playerId: string): GameComman
           && candidateHasTemporaryPower(input, playerId, card)
           && !winningPowerPlan.has(card.id)
           && candidateIndependentValue(input, playerId, card) < 0.75;
-        const tacticallySuppressed = input.phase !== "preRoll"
-          && !winningPowerPlan.has(card.id)
+        const tacticallySuppressed = !winningPowerPlan.has(card.id)
           && shouldSuppressTemporaryCombatCard(input, playerId, card);
         return unneededPowerAlternative
           || tacticallySuppressed
