@@ -22,6 +22,10 @@ export type MatchClientSettings = Record<string, unknown> & {
   soundEnabled?: boolean;
   sound?: boolean;
   soundVolume?: number;
+  logDetail?: string;
+  cardScale?: number;
+  reducedMotion?: boolean;
+  highContrast?: boolean;
 };
 
 export type MatchStoreSnapshot = {

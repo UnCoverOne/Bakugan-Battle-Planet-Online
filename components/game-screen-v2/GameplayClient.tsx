@@ -80,15 +80,33 @@ type StoredGameScreenState = {
   automaticDraw: boolean;
   automaticPass: boolean;
   soundEnabled: boolean;
+  logDetail: string;
+  cardScale: number;
+  reducedMotion: boolean;
+  highContrast: boolean;
   match: MatchState | null;
   online: boolean;
   playerId?: string;
 };
 
+type GameplayPreferenceKey =
+  | "automaticDraw"
+  | "automaticPass"
+  | "soundEnabled"
+  | "logDetail"
+  | "cardScale"
+  | "reducedMotion"
+  | "highContrast";
+
 type GameplaySettings = {
   automaticDraw?: boolean;
   automaticPass?: boolean;
   soundEnabled?: boolean;
+  sound?: boolean;
+  logDetail?: string;
+  cardScale?: number;
+  reducedMotion?: boolean;
+  highContrast?: boolean;
   [key: string]: unknown;
 };
 
@@ -110,7 +128,7 @@ function readSettings(): GameplaySettings {
 
 export function GameplayClient() {
   const router = useRouter();
-  const { authUser } = useApp();
+  const { authUser, setSettings } = useApp();
   const administrator = accountIsAdministrator(authUser);
   const storedState = useMatchSelector((state): StoredGameScreenState => ({
     route: state.route,
@@ -119,6 +137,12 @@ export function GameplayClient() {
     soundEnabled: state.settings.soundEnabled == null
       ? state.settings.sound !== false
       : state.settings.soundEnabled !== false,
+    logDetail: typeof state.settings.logDetail === "string" ? state.settings.logDetail : "All events",
+    cardScale: Number.isFinite(state.settings.cardScale)
+      ? Math.min(140, Math.max(80, Number(state.settings.cardScale)))
+      : 100,
+    reducedMotion: state.settings.reducedMotion === true,
+    highContrast: state.settings.highContrast === true,
     match: state.match,
     online: state.online,
     playerId: state.playerId,
@@ -363,18 +387,30 @@ export function GameplayClient() {
     );
   };
 
-  const updatePreference = (key: "automaticDraw" | "automaticPass" | "soundEnabled", enabled: boolean) => {
-    const settings = readSettings();
-    writeGameSettings({
-      ...settings,
-      [key]: enabled,
-      ...(key === "soundEnabled" ? { sound: enabled } : {}),
-    });
-  };
-
-  const openSettings = () => {
-    writeGameRoute("settings");
-    window.location.reload();
+  const updatePreference = (
+    key: GameplayPreferenceKey,
+    value: boolean | number | string,
+  ) => {
+    const mirrored = key === "soundEnabled" && typeof value === "boolean"
+      ? { sound: value }
+      : {};
+    const next = {
+      ...readSettings(),
+      [key]: value,
+      ...mirrored,
+    };
+    writeGameSettings(next);
+    setSettings((current: GameplaySettings) => ({
+      ...current,
+      [key]: value,
+      ...mirrored,
+    }));
+    if (key === "reducedMotion") {
+      document.documentElement.dataset.motion = value ? "reduced" : "full";
+    }
+    if (key === "highContrast") {
+      document.documentElement.dataset.contrast = value ? "high" : "normal";
+    }
   };
 
   const downloadMatchEngineHistory = useCallback(async () => {
@@ -807,16 +843,23 @@ export function GameplayClient() {
           automaticDraw={storedState.automaticDraw}
           automaticPass={storedState.automaticPass}
           soundEnabled={storedState.soundEnabled}
+          logDetail={storedState.logDetail}
+          cardScale={storedState.cardScale}
+          reducedMotion={storedState.reducedMotion}
+          highContrast={storedState.highContrast}
           completed={completed}
           administrator={administrator}
           onAutomaticDrawChange={(enabled) => updatePreference("automaticDraw", enabled)}
           onAutomaticPassChange={(enabled) => updatePreference("automaticPass", enabled)}
           onSoundEnabledChange={(enabled) => updatePreference("soundEnabled", enabled)}
+          onLogDetailChange={(detail) => updatePreference("logDetail", detail)}
+          onCardScaleChange={(scale) => updatePreference("cardScale", scale)}
+          onReducedMotionChange={(enabled) => updatePreference("reducedMotion", enabled)}
+          onHighContrastChange={(enabled) => updatePreference("highContrast", enabled)}
           undoAvailable={canUndoLatest(storedState.match, storedState.playerId ?? storedState.match?.players[0]?.id)}
           onUndo={undo}
           onConcede={concede}
           onDownloadLog={administrator ? downloadMatchEngineHistory : undefined}
-          onOpenSettings={openSettings}
         />
         <BakuCoreLayer
           match={storedState.match}

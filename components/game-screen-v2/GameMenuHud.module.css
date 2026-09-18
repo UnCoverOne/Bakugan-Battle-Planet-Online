@@ -272,3 +272,286 @@
   }
 }
 
+
+
+.settingsOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20100;
+  display: grid;
+  place-items: center;
+  padding: clamp(0.65rem, 2vw, 1.5rem);
+  font-family: var(--font-display);
+}
+
+.settingsBackdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: rgba(0, 0, 0, 0.72);
+  cursor: default;
+}
+
+.settingsDialog {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(58rem, calc(100vw - 2rem));
+  max-height: min(80vh, 46rem);
+  overflow: hidden;
+  border: 1px solid rgba(225, 69, 65, 0.78);
+  clip-path: polygon(0.8rem 0, 100% 0, 100% calc(100% - 0.8rem), calc(100% - 0.8rem) 100%, 0 100%, 0 0.8rem);
+  background:
+    linear-gradient(135deg, rgba(255, 79, 64, 0.06), transparent 30%),
+    linear-gradient(180deg, rgba(18, 13, 17, 0.995), rgba(5, 8, 11, 0.995));
+  color: #fff;
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.7);
+}
+
+.settingsHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 1.3rem;
+  border-bottom: 1px solid rgba(220, 77, 70, 0.32);
+}
+
+.settingsHeader > div {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.settingsHeader small {
+  color: #ff5a4d;
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+}
+
+.settingsHeader h2 {
+  margin: 0;
+  font-size: clamp(1.1rem, 2vw, 1.55rem);
+  letter-spacing: 0.045em;
+}
+
+.settingsHeader p {
+  margin: 0.18rem 0 0;
+  color: rgba(211, 220, 226, 0.7);
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+}
+
+.settingsClose {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(205, 214, 220, 0.3);
+  background: rgba(8, 11, 14, 0.8);
+  color: #fff;
+  font-size: 1.35rem;
+  cursor: pointer;
+}
+
+.settingsClose:hover,
+.settingsClose:focus-visible {
+  border-color: rgba(255, 118, 100, 0.9);
+  outline: none;
+}
+
+.settingsBody {
+  display: grid;
+  grid-template-columns: minmax(10rem, 13rem) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.settingsTabs {
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+  padding: 1rem;
+  border-right: 1px solid rgba(220, 77, 70, 0.24);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.settingsTabs button {
+  min-height: 2.7rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(201, 210, 217, 0.16);
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(210, 218, 224, 0.72);
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.settingsTabs button[data-active="true"] {
+  border-color: rgba(255, 91, 75, 0.74);
+  background: linear-gradient(90deg, rgba(114, 26, 31, 0.9), rgba(44, 15, 20, 0.66));
+  color: #fff;
+}
+
+.settingsTabs button:hover,
+.settingsTabs button:focus-visible {
+  border-color: rgba(255, 118, 100, 0.76);
+  outline: none;
+}
+
+.settingsPanel {
+  min-width: 0;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.settingsSection {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.settingsSectionHeading {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0 0.15rem 0.35rem;
+}
+
+.settingsSectionHeading strong {
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.settingsSectionHeading small {
+  color: rgba(205, 214, 220, 0.68);
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+}
+
+.selectSetting,
+.rangeSetting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.82rem;
+  border: 1px solid rgba(201, 210, 217, 0.18);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.selectSetting > span,
+.rangeSetting > span {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.selectSetting strong,
+.rangeSetting strong {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.selectSetting small,
+.rangeSetting small {
+  color: rgba(205, 214, 220, 0.68);
+  font-family: system-ui, sans-serif;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.selectSetting select {
+  min-width: 10rem;
+  padding: 0.58rem 0.65rem;
+  border: 1px solid rgba(184, 194, 201, 0.42);
+  background: rgba(8, 13, 17, 0.98);
+  color: #fff;
+  font: 700 0.72rem system-ui, sans-serif;
+}
+
+.rangeSetting {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.rangeSetting b {
+  min-width: 3.2rem;
+  color: #ffb0a4;
+  font-size: 0.76rem;
+  text-align: right;
+}
+
+.rangeSetting input {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: #ef4d43;
+}
+
+.selectSetting select:focus-visible,
+.rangeSetting input:focus-visible {
+  outline: 2px solid rgba(255, 109, 92, 0.72);
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .settingsOverlay {
+    padding: 0.45rem;
+  }
+
+  .settingsDialog {
+    width: calc(100vw - 0.9rem);
+    max-height: calc(100vh - 1rem);
+  }
+
+  .settingsHeader {
+    padding: 0.9rem;
+  }
+
+  .settingsHeader p {
+    display: none;
+  }
+
+  .settingsBody {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .settingsTabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.3rem;
+    padding: 0.65rem;
+    border-right: 0;
+    border-bottom: 1px solid rgba(220, 77, 70, 0.24);
+  }
+
+  .settingsTabs button {
+    min-height: 2.4rem;
+    padding: 0.45rem 0.3rem;
+    font-size: 0.55rem;
+    text-align: center;
+  }
+
+  .settingsPanel {
+    padding: 0.65rem;
+  }
+
+  .selectSetting,
+  .rangeSetting {
+    grid-template-columns: 1fr;
+  }
+
+  .selectSetting select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .rangeSetting b {
+    justify-self: end;
+  }
+}

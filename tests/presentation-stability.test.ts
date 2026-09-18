@@ -30,6 +30,30 @@ test("automatic turn draws publish one draw per version so draw flights stay obs
   assert.match(continuity, /current\.version === previous\.version \+ 1/);
 });
 
+test("match Settings opens a gameplay-only tabbed overlay without leaving the match", () => {
+  const menu = read("components/game-screen-v2/GameMenuHud.tsx");
+  const client = read("components/game-screen-v2/GameplayClient.tsx");
+
+  assert.doesNotMatch(client, /writeGameRoute\("settings"\)/);
+  assert.doesNotMatch(menu, /onOpenSettings/);
+  assert.match(menu, /role="dialog"/);
+  assert.match(menu, /aria-modal="true"/);
+  assert.match(menu, /"Gameplay" \| "Audio & visual" \| "Accessibility"/);
+  for (const option of [
+    "Automatic Draw",
+    "Automatic Pass",
+    "Match-log detail",
+    "Gameplay Sounds",
+    "Card scale",
+    "Reduced motion",
+    "High contrast",
+  ]) assert.match(menu, new RegExp(option));
+  for (const unrelated of ["Data & sync", "Privacy", "Danger zone", "Delete cloud account"]) {
+    assert.doesNotMatch(menu, new RegExp(unrelated));
+  }
+  assert.match(menu, /setOpen\(false\);[\s\S]*setSettingsOpen\(true\)/);
+});
+
 test("viewport stability ignores scroll and match publication is selector-aware and deferred", () => {
   const viewport = read("components/game-screen-v2/ViewportStabilityGuard.tsx");
   const store = read("components/game-screen-v2/matchStore.ts");
