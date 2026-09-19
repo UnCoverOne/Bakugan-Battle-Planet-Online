@@ -32,8 +32,23 @@ function formatDuration(durationMs: number) {
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-function trackNameFromFile(file: File) {
-  return file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 120);
+function trackMetadataFromFile(file: File) {
+  const stem = file.name.replace(/\.[^.]+$/, "").trim();
+  const parts = stem.split(/\s*[—–]\s*|\s+-\s+/).map((part) => part.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    return {
+      name: parts[0].slice(0, 120),
+      artist: parts.slice(1).join(" — ").slice(0, 120),
+    };
+  }
+  return {
+    name: stem.replace(/[_-]+/g, " ").trim().slice(0, 120),
+    artist: "",
+  };
+}
+
+function formatBitrate(bitrate: number) {
+  return `${Math.max(1, Math.round(bitrate / 1000))} kbps`;
 }
 
 async function musicJson<T>(response: Response, fallbackMessage: string): Promise<T> {
@@ -91,6 +106,7 @@ export function MusicAdmin() {
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState<File | null>(null);
   const [name, setName] = useState("");
+  const [artist, setArtist] = useState("");
   const [categories, setCategories] = useState<MusicCategory[]>(["battle", "training"]);
   const [enabled, setEnabled] = useState(true);
   const [loop, setLoop] = useState(false);
@@ -144,12 +160,14 @@ export function MusicAdmin() {
           byteLength: converted.blob.size,
           metadata: {
             name: name.trim(),
+            artist: artist.trim(),
             categories,
             enabled,
             loop,
             weight,
             gainDb,
             durationMs: converted.durationMs,
+            bitrate: converted.bitrate,
           },
         }),
       });
@@ -189,6 +207,7 @@ export function MusicAdmin() {
       notify(`${result.track.name} imported as Opus and added to the music library.`);
       setSource(null);
       setName("");
+      setArtist("");
       setProgress({ value: 0, label: "" });
       await refresh();
     } catch (cause) {
@@ -236,12 +255,19 @@ export function MusicAdmin() {
               onChange={(event) => {
                 const file = event.target.files?.[0] ?? null;
                 setSource(file);
-                if (file && !name.trim()) setName(trackNameFromFile(file));
+                if (file) {
+                  const metadata = trackMetadataFromFile(file);
+                  if (!name.trim()) setName(metadata.name);
+                  if (!artist.trim()) setArtist(metadata.artist);
+                }
               }}
             />
           </Field>
           <Field label="Track name">
             <input value={name} maxLength={120} disabled={importing} onChange={(event) => setName(event.target.value)} placeholder="Battle theme" />
+          </Field>
+          <Field label="Artist">
+            <input value={artist} maxLength={120} disabled={importing} onChange={(event) => setArtist(event.target.value)} placeholder="Artist or composer" />
           </Field>
           <Field label="Selection weight" hint="Higher values make the track more likely to be picked.">
             <input type="number" min={1} max={100} value={weight} disabled={importing} onChange={(event) => setWeight(Number(event.target.value))} />
@@ -298,6 +324,7 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
 
   const changed = JSON.stringify({
     name: draft.name,
+    artist: draft.artist,
     enabled: draft.enabled,
     categories: draft.categories,
     weight: draft.weight,
@@ -305,6 +332,7 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
     gainDb: draft.gainDb,
   }) !== JSON.stringify({
     name: track.name,
+    artist: track.artist,
     enabled: track.enabled,
     categories: track.categories,
     weight: track.weight,
@@ -325,6 +353,7 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
         body: JSON.stringify({
           id: track.id,
           name: draft.name,
+          artist: draft.artist,
           enabled: draft.enabled,
           categories: draft.categories,
           weight: draft.weight,
@@ -370,7 +399,7 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
           <div className={styles.trackTitle}>
             <input aria-label="Track name" maxLength={120} value={draft.name} onChange={(event) => patch("name", event.target.value)} />
           </div>
-          <p>{formatDuration(track.durationMs)} · Opus · {formatBytes(track.bytes)}</p>
+          <p>{draft.artist ? `${draft.artist} · ` : ""}{formatDuration(track.durationMs)} · Opus {formatBitrate(track.bitrate)} · {formatBytes(track.bytes)}</p>
         </div>
         <label className={styles.enabledToggle}>
           <input type="checkbox" checked={draft.enabled} onChange={(event) => patch("enabled", event.target.checked)} />
@@ -393,6 +422,9 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
       </div>
 
       <div className={styles.trackControls}>
+        <Field label="Artist">
+          <input maxLength={120} value={draft.artist} onChange={(event) => patch("artist", event.target.value)} placeholder="Artist or composer" />
+        </Field>
         <Field label="Weight">
           <input type="number" min={1} max={100} value={draft.weight} onChange={(event) => patch("weight", Number(event.target.value))} />
         </Field>

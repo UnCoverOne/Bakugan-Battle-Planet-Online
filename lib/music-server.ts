@@ -23,10 +23,12 @@ let musicSchemaReady = false;
 type MusicTrackRow = {
   id: string;
   name: string;
+  artist: string;
   source_name: string;
   mime_type: string;
   byte_length: number;
   duration_ms: number;
+  bitrate_bps: number;
   enabled: number;
   categories_json: string;
   weight: number;
@@ -51,7 +53,7 @@ type MusicUploadRow = {
 export async function ensureMusicSchema(db: AccountDatabase) {
   if (musicSchemaReady) return;
   await db.batch([
-    db.prepare("CREATE TABLE IF NOT EXISTS music_tracks (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, source_name TEXT NOT NULL, mime_type TEXT NOT NULL, byte_length INTEGER NOT NULL, duration_ms INTEGER NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, categories_json TEXT NOT NULL, weight INTEGER NOT NULL DEFAULT 10, loop INTEGER NOT NULL DEFAULT 0, gain_db REAL NOT NULL DEFAULT 0, revision INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, updated_by TEXT)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS music_tracks (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, artist TEXT NOT NULL DEFAULT '', source_name TEXT NOT NULL, mime_type TEXT NOT NULL, byte_length INTEGER NOT NULL, duration_ms INTEGER NOT NULL, bitrate_bps INTEGER NOT NULL DEFAULT 96000, enabled INTEGER NOT NULL DEFAULT 1, categories_json TEXT NOT NULL, weight INTEGER NOT NULL DEFAULT 10, loop INTEGER NOT NULL DEFAULT 0, gain_db REAL NOT NULL DEFAULT 0, revision INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, updated_by TEXT)"),
     db.prepare("CREATE INDEX IF NOT EXISTS music_tracks_enabled_idx ON music_tracks(enabled, updated_at)"),
     db.prepare("CREATE TABLE IF NOT EXISTS music_track_chunks (track_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY (track_id, chunk_index), FOREIGN KEY (track_id) REFERENCES music_tracks(id) ON DELETE CASCADE)"),
     db.prepare("CREATE INDEX IF NOT EXISTS music_track_chunks_track_idx ON music_track_chunks(track_id, chunk_index)"),
@@ -60,6 +62,20 @@ export async function ensureMusicSchema(db: AccountDatabase) {
     db.prepare("CREATE TABLE IF NOT EXISTS music_upload_chunks (upload_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY (upload_id, chunk_index), FOREIGN KEY (upload_id) REFERENCES music_uploads(id) ON DELETE CASCADE)"),
     db.prepare("CREATE INDEX IF NOT EXISTS music_upload_chunks_upload_idx ON music_upload_chunks(upload_id, chunk_index)"),
   ]);
+  const columns = await db.prepare("PRAGMA table_info(music_tracks)").all() as {
+    results?: Array<{ name: string }>;
+  };
+  const names = new Set((columns.results ?? []).map((column) => column.name));
+  const addColumn = async (name: string, sql: string) => {
+    if (names.has(name)) return;
+    try {
+      await db.prepare(sql).run();
+    } catch (error) {
+      if (!/duplicate column/i.test(error instanceof Error ? error.message : String(error))) throw error;
+    }
+  };
+  await addColumn("artist", "ALTER TABLE music_tracks ADD COLUMN artist TEXT NOT NULL DEFAULT ''");
+  await addColumn("bitrate_bps", "ALTER TABLE music_tracks ADD COLUMN bitrate_bps INTEGER NOT NULL DEFAULT 96000");
   musicSchemaReady = true;
 }
 
@@ -75,10 +91,12 @@ function toTrack(row: MusicTrackRow): MusicTrack {
   return {
     id: row.id,
     name: row.name,
+    artist: row.artist ?? "",
     sourceName: row.source_name,
     mimeType: "audio/ogg",
     bytes: row.byte_length,
     durationMs: row.duration_ms,
+    bitrate: Number(row.bitrate_bps) || 96_000,
     enabled: Boolean(row.enabled),
     categories: parseCategories(row.categories_json),
     weight: row.weight,
@@ -94,7 +112,7 @@ function toTrack(row: MusicTrackRow): MusicTrack {
 export async function listMusicTracks(db: AccountDatabase): Promise<MusicTrack[]> {
   await ensureMusicSchema(db);
   const result = await db.prepare(
-    "SELECT id, name, source_name, mime_type, byte_length, duration_ms, enabled, categories_json, weight, loop, gain_db, revision, created_at, updated_at FROM music_tracks ORDER BY updated_at DESC",
+    "SELECT id, name, artist, source_name, mime_type, byte_length, duration_ms, bitrate_bps, enabled, categories_json, weight, loop, gain_db, revision, created_at, updated_at FROM music_tracks ORDER BY updated_at DESC",
   ).all() as { results?: MusicTrackRow[] };
   return (result.results ?? []).map(toTrack);
 }
@@ -110,6 +128,7 @@ export async function getMusicManifest(db: AccountDatabase): Promise<MusicManife
 function normalizeMetadata(value: Partial<MusicTrackMetadata>): MusicTrackMetadata {
   const name = String(value.name ?? "").trim().replace(/\s+/g, " ").slice(0, 120);
   if (!name) throw new ValidationError("Track name is required.");
+  const artist = String(value.artist ?? "").trim().replace(/\s+/g, " ").slice(0, 120);
   const categories = normalizeMusicCategories(value.categories);
   if (!categories.length) throw new ValidationError("Choose at least one music category.");
   const weight = Math.round(Number(value.weight ?? 10));
@@ -124,14 +143,20 @@ function normalizeMetadata(value: Partial<MusicTrackMetadata>): MusicTrackMetada
   if (!Number.isFinite(durationMs) || durationMs < 250 || durationMs > MAX_MUSIC_DURATION_MS) {
     throw new ValidationError("Track duration is invalid.");
   }
+  const bitrate = Math.round(Number(value.bitrate ?? 96_000));
+  if (!Number.isFinite(bitrate) || bitrate < 16_000 || bitrate > 512_000) {
+    throw new ValidationError("Track bitrate is invalid.");
+  }
   return {
     name,
+    artist,
     enabled: value.enabled !== false,
     categories,
     weight,
     loop: Boolean(value.loop),
     gainDb: Math.round(gainDb * 10) / 10,
     durationMs,
+    bitrate,
   };
 }
 
@@ -259,13 +284,15 @@ export async function finalizeMusicUpload(
   const now = Date.now();
   await db.batch([
     db.prepare(
-      "INSERT INTO music_tracks (id, name, source_name, mime_type, byte_length, duration_ms, enabled, categories_json, weight, loop, gain_db, revision, created_at, updated_at, updated_by) VALUES (?, ?, ?, 'audio/ogg', ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)",
+      "INSERT INTO music_tracks (id, name, artist, source_name, mime_type, byte_length, duration_ms, bitrate_bps, enabled, categories_json, weight, loop, gain_db, revision, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, 'audio/ogg', ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)",
     ).bind(
       upload.id,
       metadata.name,
+      metadata.artist,
       upload.source_name,
       upload.byte_length,
       metadata.durationMs,
+      metadata.bitrate,
       metadata.enabled ? 1 : 0,
       JSON.stringify(metadata.categories),
       metadata.weight,
@@ -308,9 +335,10 @@ export async function updateMusicTrack(
   if (!current) throw new ValidationError("The selected music track no longer exists.");
   const normalized = normalizeMetadata({ ...current, ...metadata, durationMs: current.durationMs });
   const result = await db.prepare(
-    "UPDATE music_tracks SET name = ?, enabled = ?, categories_json = ?, weight = ?, loop = ?, gain_db = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE id = ?",
+    "UPDATE music_tracks SET name = ?, artist = ?, enabled = ?, categories_json = ?, weight = ?, loop = ?, gain_db = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE id = ?",
   ).bind(
     normalized.name,
+    normalized.artist,
     normalized.enabled ? 1 : 0,
     JSON.stringify(normalized.categories),
     normalized.weight,
@@ -370,7 +398,7 @@ export async function musicTrackResponse(
 ) {
   await ensureMusicSchema(db);
   const row = await db.prepare(
-    "SELECT music_tracks.id, music_tracks.name, music_tracks.source_name, music_tracks.mime_type, music_tracks.byte_length, music_tracks.duration_ms, music_tracks.enabled, music_tracks.categories_json, music_tracks.weight, music_tracks.loop, music_tracks.gain_db, music_tracks.revision, music_tracks.created_at, music_tracks.updated_at, COALESCE((SELECT length(data) FROM music_track_chunks WHERE track_id = music_tracks.id ORDER BY chunk_index LIMIT 1), 0) AS chunk_bytes FROM music_tracks WHERE music_tracks.id = ?",
+    "SELECT music_tracks.id, music_tracks.name, music_tracks.artist, music_tracks.source_name, music_tracks.mime_type, music_tracks.byte_length, music_tracks.duration_ms, music_tracks.bitrate_bps, music_tracks.enabled, music_tracks.categories_json, music_tracks.weight, music_tracks.loop, music_tracks.gain_db, music_tracks.revision, music_tracks.created_at, music_tracks.updated_at, COALESCE((SELECT length(data) FROM music_track_chunks WHERE track_id = music_tracks.id ORDER BY chunk_index LIMIT 1), 0) AS chunk_bytes FROM music_tracks WHERE music_tracks.id = ?",
   ).bind(id).first<MusicTrackRow>();
   if (!row || !row.enabled) return new Response("Track not found.", { status: 404 });
   const etag = `"${row.id}-${row.revision}"`;

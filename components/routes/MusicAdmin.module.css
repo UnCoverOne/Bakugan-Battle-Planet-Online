@@ -6,7 +6,7 @@
 .importer,.track{padding:1rem}
 .importHeader,.trackTop,.trackTitle,.importOptions,.importActions,.actions{display:flex;align-items:center;justify-content:space-between;gap:1rem}
 .importHeader h3{margin:0}.importHeader p{margin:.25rem 0 0;color:var(--text-secondary)}
-.importGrid{display:grid;grid-template-columns:2fr 1.5fr .65fr .65fr;gap:.8rem;margin-top:1rem}
+.importGrid{display:grid;grid-template-columns:2fr 1.25fr 1.1fr .6fr .6fr;gap:.8rem;margin-top:1rem}
 .categoryGroup{display:grid;gap:.55rem;margin-top:1rem}
 .categoryGroup>div{display:flex;flex-wrap:wrap;gap:.45rem}
 .categoryGroup label,.importOptions label,.loopToggle,.enabledToggle{display:flex;align-items:center;gap:.45rem;padding:.5rem .65rem;background:rgba(255,255,255,.04);border:1px solid var(--border-subtle);font-weight:800}
@@ -17,7 +17,7 @@
 .trackList{display:grid;gap:.75rem}
 .trackTop{align-items:flex-start}.trackTitle{justify-content:flex-start}.trackTitle input{min-width:min(32rem,55vw);font-size:1.05rem;font-weight:900}.trackTop p{margin:.35rem 0 0;color:var(--text-muted)}
 .preview{width:100%;margin-top:1rem}
-.trackControls{display:grid;grid-template-columns:9rem 11rem minmax(12rem,1fr);gap:.8rem;align-items:end;margin-top:1rem}.loopToggle{min-height:2.75rem;align-self:end}
+.trackControls{display:grid;grid-template-columns:minmax(14rem,2fr) 9rem 11rem minmax(12rem,1fr);gap:.8rem;align-items:end;margin-top:1rem}.loopToggle{min-height:2.75rem;align-self:end}
 .actions{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-subtle)}.delete{min-height:2.65rem;padding:.55rem .8rem;background:rgba(121,15,20,.64);border:1px solid #d84a50;color:#ffd5d6;font-weight:900}
 .disabledTrack{opacity:.72}
 @media(max-width:900px){.importGrid{grid-template-columns:1fr 1fr}.trackControls{grid-template-columns:1fr 1fr}.loopToggle{grid-column:1/-1}}

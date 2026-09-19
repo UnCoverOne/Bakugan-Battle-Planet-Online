@@ -25,10 +25,12 @@ export const MUSIC_CATEGORY_LABELS: Record<MusicCategory, string> = {
 export type MusicTrack = {
   id: string;
   name: string;
+  artist: string;
   sourceName: string;
   mimeType: "audio/ogg";
   bytes: number;
   durationMs: number;
+  bitrate: number;
   enabled: boolean;
   categories: MusicCategory[];
   weight: number;
@@ -47,7 +49,7 @@ export type MusicManifest = {
 
 export type MusicTrackMetadata = Pick<
   MusicTrack,
-  "name" | "enabled" | "categories" | "weight" | "loop" | "gainDb" | "durationMs"
+  "name" | "artist" | "enabled" | "categories" | "weight" | "loop" | "gainDb" | "durationMs" | "bitrate"
 >;
 
 export function normalizeMusicCategories(value: unknown): MusicCategory[] {

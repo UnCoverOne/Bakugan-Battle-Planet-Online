@@ -22,10 +22,12 @@ const tracks: MusicTrack[] = [
   {
     id: "a",
     name: "A",
+    artist: "Artist A",
     sourceName: "a.opus",
     mimeType: "audio/ogg",
     bytes: 1000,
     durationMs: 60_000,
+    bitrate: 96_000,
     enabled: true,
     categories: ["battle"],
     weight: 1,
@@ -39,10 +41,12 @@ const tracks: MusicTrack[] = [
   {
     id: "b",
     name: "B",
+    artist: "Artist B",
     sourceName: "b.opus",
     mimeType: "audio/ogg",
     bytes: 1000,
     durationMs: 60_000,
+    bitrate: 96_000,
     enabled: true,
     categories: ["battle", "battle-intense"],
     weight: 9,
@@ -139,14 +143,21 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(admin, /attempt < 3/);
   assert.match(admin, /cf-error-type/);
   assert.match(admin, /readJsonResponse/);
-  assert.match(admin, /formatDuration\(track\.durationMs\).*Opus.*formatBytes\(track\.bytes\)/);
+  assert.match(admin, /draft\.artist.*formatDuration\(track\.durationMs\).*Opus.*formatBitrate\(track\.bitrate\).*formatBytes\(track\.bytes\)/);
+  assert.match(admin, /Field label="Artist"/);
+  assert.match(admin, /trackMetadataFromFile/);
   assert.doesNotMatch(admin, /track\.sourceName}.*revision/);
   assert.doesNotMatch(admin, /draft\.enabled \? "ENABLED" : "DISABLED"/);
   assert.doesNotMatch(admin, /new FormData\(\)/);
   assert.match(adminRoute, /beginMusicUpload/);
+  assert.match(adminRoute, /artist: String\(body\.artist/);
   assert.match(adminRoute, /storeMusicUploadChunk/);
   assert.match(adminRoute, /request\.arrayBuffer\(\)/);
   assert.doesNotMatch(adminRoute, /request\.formData\(\)/);
+  assert.match(server, /ALTER TABLE music_tracks ADD COLUMN artist/);
+  assert.match(server, /ALTER TABLE music_tracks ADD COLUMN bitrate_bps/);
+  assert.match(server, /metadata\.artist/);
+  assert.match(server, /metadata\.bitrate/);
   assert.match(server, /music_upload_chunks/);
   assert.match(server, /MUSIC_UPLOAD_CHUNK_BYTES = 64 \* 1024/);
   assert.match(server, /LEGACY_MUSIC_UPLOAD_CHUNK_BYTES = 256 \* 1024/);
