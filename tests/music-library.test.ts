@@ -116,6 +116,16 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(adminRoute, /assertSameOrigin\(request\)/);
   assert.match(admin, /convertMusicFileToOpus/);
   assert.match(admin, /import\("\.\.\/\.\.\/lib\/music-import-client"\)/);
+  assert.match(admin, /begin-upload/);
+  assert.match(admin, /method: "PUT"/);
+  assert.match(admin, /readJsonResponse/);
+  assert.doesNotMatch(admin, /new FormData\(\)/);
+  assert.match(adminRoute, /beginMusicUpload/);
+  assert.match(adminRoute, /storeMusicUploadChunk/);
+  assert.match(adminRoute, /request\.arrayBuffer\(\)/);
+  assert.doesNotMatch(adminRoute, /request\.formData\(\)/);
+  assert.match(server, /music_upload_chunks/);
+  assert.match(server, /MUSIC_UPLOAD_CHUNK_BYTES = 256 \* 1024/);
   assert.match(server, /music_track_chunks/);
   assert.match(server, /content-range/);
   assert.match(server, /accept-ranges/);

@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         fileName: body.fileName,
         byteLength: body.byteLength,
         metadata: body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata)
-          ? body.metadata as Record<string, unknown>
+          ? body.metadata as never
           : {},
       }, administrator.id);
       return json({ ...upload, correlationId }, 201);
