@@ -1,0 +1,327 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  MUSIC_CATEGORIES,
+  MUSIC_CATEGORY_LABELS,
+  type MusicCategory,
+  type MusicTrack,
+} from "../../lib/music";
+import { ActionButton, Field, StatusChip, Surface } from "../design-system/primitives";
+import { useApp } from "../application/AppProvider";
+import styles from "./MusicAdmin.module.css";
+
+type MusicAdminPayload = {
+  tracks: MusicTrack[];
+  categories: MusicCategory[];
+  maxTrackBytes: number;
+};
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatDuration(durationMs: number) {
+  const seconds = Math.max(0, Math.round(durationMs / 1000));
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function trackNameFromFile(file: File) {
+  return file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 120);
+}
+
+async function readAdminMusic() {
+  const response = await fetch("/api/admin/music", { cache: "no-store" });
+  const result = await response.json() as MusicAdminPayload & { error?: string };
+  if (!response.ok) throw new Error(result.error ?? "Music library could not be loaded.");
+  return result;
+}
+
+export function MusicAdmin() {
+  const { notify } = useApp();
+  const [data, setData] = useState<MusicAdminPayload | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState<File | null>(null);
+  const [name, setName] = useState("");
+  const [categories, setCategories] = useState<MusicCategory[]>(["battle", "training"]);
+  const [enabled, setEnabled] = useState(true);
+  const [loop, setLoop] = useState(false);
+  const [weight, setWeight] = useState(10);
+  const [gainDb, setGainDb] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState({ value: 0, label: "" });
+
+  const refresh = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setData(await readAdminMusic());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Music library could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void refresh(); }, []);
+
+  const toggleCategory = (category: MusicCategory) => {
+    setCategories((current) => current.includes(category)
+      ? current.filter((item) => item !== category)
+      : [...current, category]);
+  };
+
+  const importTrack = async () => {
+    if (!source || !name.trim() || !categories.length) return;
+    setImporting(true);
+    setError("");
+    setProgress({ value: .01, label: "Preparing import…" });
+    try {
+      const { convertMusicFileToOpus } = await import("../../lib/music-import-client");
+      const converted = await convertMusicFileToOpus(source, (value, label) => {
+        setProgress({ value, label });
+      });
+      if (data?.maxTrackBytes && converted.blob.size > data.maxTrackBytes) {
+        throw new Error(`Converted track is ${formatBytes(converted.blob.size)}; the library limit is ${formatBytes(data.maxTrackBytes)}.`);
+      }
+      setProgress({ value: 1, label: "Uploading optimized track…" });
+      const form = new FormData();
+      form.append("file", new File([converted.blob], converted.fileName, { type: "audio/ogg" }));
+      form.append("name", name.trim());
+      form.append("categories", JSON.stringify(categories));
+      form.append("enabled", String(enabled));
+      form.append("loop", String(loop));
+      form.append("weight", String(weight));
+      form.append("gainDb", String(gainDb));
+      form.append("durationMs", String(converted.durationMs));
+      const response = await fetch("/api/admin/music", { method: "POST", body: form });
+      const result = await response.json() as { track?: MusicTrack; error?: string };
+      if (!response.ok || !result.track) throw new Error(result.error ?? "Track import failed.");
+      notify(`${result.track.name} imported as Opus and added to the music library.`);
+      setSource(null);
+      setName("");
+      setProgress({ value: 0, label: "" });
+      await refresh();
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Track import failed.";
+      setError(message);
+      notify(message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const sorted = useMemo(
+    () => [...(data?.tracks ?? [])].sort((left, right) => right.updatedAt - left.updatedAt),
+    [data?.tracks],
+  );
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.heading}>
+        <div>
+          <span>MUSIC LIBRARY</span>
+          <h2>Gameplay soundtrack</h2>
+          <p>Import source audio, convert it to efficient 48 kHz Opus in this browser, and control exactly where each track can play.</p>
+        </div>
+        <StatusChip tone="info">{sorted.filter((track) => track.enabled).length} ENABLED</StatusChip>
+      </div>
+
+      <Surface className={styles.importer}>
+        <div className={styles.importHeader}>
+          <div>
+            <h3>Import Track</h3>
+            <p>Conversion is administrator-only and never ships work into the gameplay render loop. Existing .opus files are preserved without re-encoding.</p>
+          </div>
+          <StatusChip tone="neutral">OPUS · 96 KBPS</StatusChip>
+        </div>
+        <div className={styles.importGrid}>
+          <Field label="Source audio" hint="WAV, FLAC, MP3, AAC/M4A, Ogg, or an existing .opus file supported by this browser.">
+            <input
+              type="file"
+              accept="audio/*,.opus,.wav,.flac,.mp3,.m4a,.aac,.ogg"
+              disabled={importing}
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                setSource(file);
+                if (file && !name.trim()) setName(trackNameFromFile(file));
+              }}
+            />
+          </Field>
+          <Field label="Track name">
+            <input value={name} maxLength={120} disabled={importing} onChange={(event) => setName(event.target.value)} placeholder="Battle theme" />
+          </Field>
+          <Field label="Selection weight" hint="Higher values make the track more likely to be picked.">
+            <input type="number" min={1} max={100} value={weight} disabled={importing} onChange={(event) => setWeight(Number(event.target.value))} />
+          </Field>
+          <Field label="Volume trim" hint="-12 dB to +6 dB. Use this only to balance unusually quiet/loud tracks.">
+            <input type="number" min={-12} max={6} step={.5} value={gainDb} disabled={importing} onChange={(event) => setGainDb(Number(event.target.value))} />
+          </Field>
+        </div>
+        <div className={styles.categoryGroup}>
+          <strong>Playback categories</strong>
+          <div>
+            {MUSIC_CATEGORIES.map((category) => (
+              <label key={category}>
+                <input type="checkbox" checked={categories.includes(category)} disabled={importing} onChange={() => toggleCategory(category)} />
+                <span>{MUSIC_CATEGORY_LABELS[category]}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className={styles.importOptions}>
+          <label><input type="checkbox" checked={enabled} disabled={importing} onChange={(event) => setEnabled(event.target.checked)} /> Enable after import</label>
+          <label><input type="checkbox" checked={loop} disabled={importing} onChange={(event) => setLoop(event.target.checked)} /> Loop this track continuously</label>
+        </div>
+        {importing ? (
+          <div className={styles.progress} role="status">
+            <div><span style={{ width: `${Math.round(progress.value * 100)}%` }} /></div>
+            <p>{progress.label || "Processing…"}</p>
+          </div>
+        ) : null}
+        <div className={styles.importActions}>
+          <ActionButton disabled={!source || !name.trim() || !categories.length || importing} onClick={() => void importTrack()}>
+            {importing ? "Processing…" : "Convert & Import"}
+          </ActionButton>
+        </div>
+      </Surface>
+
+      {error ? <Surface className={styles.error} role="alert">{error}</Surface> : null}
+      {loading ? <Surface className={styles.state} role="status">Loading music library…</Surface> : null}
+      {!loading && !sorted.length ? (
+        <Surface className={styles.state}>No tracks have been imported yet.</Surface>
+      ) : null}
+      <div className={styles.trackList}>
+        {sorted.map((track) => <TrackEditor track={track} key={track.id} onChanged={refresh} />)}
+      </div>
+    </section>
+  );
+}
+
+function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () => Promise<void> }) {
+  const { notify } = useApp();
+  const [draft, setDraft] = useState(track);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setDraft(track), [track]);
+
+  const changed = JSON.stringify({
+    name: draft.name,
+    enabled: draft.enabled,
+    categories: draft.categories,
+    weight: draft.weight,
+    loop: draft.loop,
+    gainDb: draft.gainDb,
+  }) !== JSON.stringify({
+    name: track.name,
+    enabled: track.enabled,
+    categories: track.categories,
+    weight: track.weight,
+    loop: track.loop,
+    gainDb: track.gainDb,
+  });
+
+  const patch = <K extends keyof MusicTrack>(key: K, value: MusicTrack[K]) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const response = await fetch("/api/admin/music", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: track.id,
+          name: draft.name,
+          enabled: draft.enabled,
+          categories: draft.categories,
+          weight: draft.weight,
+          loop: draft.loop,
+          gainDb: draft.gainDb,
+        }),
+      });
+      const result = await response.json() as { track?: MusicTrack; error?: string };
+      if (!response.ok || !result.track) throw new Error(result.error ?? "Track could not be updated.");
+      notify(`${result.track.name} updated.`);
+      await onChanged();
+    } catch (cause) {
+      notify(cause instanceof Error ? cause.message : "Track could not be updated.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!window.confirm(`Permanently delete "${track.name}" and its stored audio?`)) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/admin/music?id=${encodeURIComponent(track.id)}`, { method: "DELETE" });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Track could not be deleted.");
+      notify(`${track.name} deleted from the music library.`);
+      await onChanged();
+    } catch (cause) {
+      notify(cause instanceof Error ? cause.message : "Track could not be deleted.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleCategory = (category: MusicCategory) => {
+    patch("categories", draft.categories.includes(category)
+      ? draft.categories.filter((item) => item !== category)
+      : [...draft.categories, category]);
+  };
+
+  return (
+    <Surface className={`${styles.track} ${draft.enabled ? "" : styles.disabledTrack}`}>
+      <div className={styles.trackTop}>
+        <div>
+          <div className={styles.trackTitle}>
+            <input aria-label="Track name" maxLength={120} value={draft.name} onChange={(event) => patch("name", event.target.value)} />
+            <StatusChip tone={draft.enabled ? "success" : "neutral"}>{draft.enabled ? "ENABLED" : "DISABLED"}</StatusChip>
+          </div>
+          <p>{track.sourceName} · {formatDuration(track.durationMs)} · {formatBytes(track.bytes)} · revision {track.revision}</p>
+        </div>
+        <label className={styles.enabledToggle}>
+          <input type="checkbox" checked={draft.enabled} onChange={(event) => patch("enabled", event.target.checked)} />
+          <span>Enabled</span>
+        </label>
+      </div>
+
+      <audio className={styles.preview} controls preload="none" src={track.url}>Your browser does not support audio preview.</audio>
+
+      <div className={styles.categoryGroup}>
+        <strong>Categories</strong>
+        <div>
+          {MUSIC_CATEGORIES.map((category) => (
+            <label key={category}>
+              <input type="checkbox" checked={draft.categories.includes(category)} onChange={() => toggleCategory(category)} />
+              <span>{MUSIC_CATEGORY_LABELS[category]}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.trackControls}>
+        <Field label="Weight">
+          <input type="number" min={1} max={100} value={draft.weight} onChange={(event) => patch("weight", Number(event.target.value))} />
+        </Field>
+        <Field label="Volume trim">
+          <input type="number" min={-12} max={6} step={.5} value={draft.gainDb} onChange={(event) => patch("gainDb", Number(event.target.value))} />
+        </Field>
+        <label className={styles.loopToggle}><input type="checkbox" checked={draft.loop} onChange={(event) => patch("loop", event.target.checked)} /> Loop continuously</label>
+      </div>
+
+      <div className={styles.actions}>
+        <button className={styles.delete} disabled={busy} onClick={() => void remove()}>Delete</button>
+        <ActionButton tone="secondary" disabled={busy || !changed || !draft.name.trim() || !draft.categories.length} onClick={() => void save()}>
+          {busy ? "Saving…" : "Save Changes"}
+        </ActionButton>
+      </div>
+    </Surface>
+  );
+}
