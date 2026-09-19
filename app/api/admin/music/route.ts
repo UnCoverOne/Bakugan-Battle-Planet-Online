@@ -92,7 +92,7 @@ export async function PUT(request: Request) {
     assertSameOrigin(request);
     const administrator = await requireAdministrator(request);
     const db = await getDatabase();
-    await enforceD1RateLimit(db, `admin-music-chunk:${administrator.id}:${requestClientKey(request)}`, 240, 60_000);
+    await enforceD1RateLimit(db, `admin-music-chunk:${administrator.id}:${requestClientKey(request)}`, 600, 60_000);
     const url = new URL(request.url);
     const uploadId = String(url.searchParams.get("upload") ?? "");
     const chunkIndex = Number(url.searchParams.get("index"));

@@ -37,11 +37,46 @@ function trackNameFromFile(file: File) {
 }
 
 async function musicJson<T>(response: Response, fallbackMessage: string): Promise<T> {
-  const result = await readJsonResponse(response, fallbackMessage) as T & ErrorPayload;
-  if (!response.ok) {
-    throw new Error(typeof result.error === "string" ? result.error : `${fallbackMessage} (HTTP ${response.status}).`);
+  try {
+    const result = await readJsonResponse(response, fallbackMessage) as T & ErrorPayload;
+    if (!response.ok) {
+      throw new Error(typeof result.error === "string" ? result.error : `${fallbackMessage} (HTTP ${response.status}).`);
+    }
+    return result;
+  } catch (cause) {
+    const cloudflareError = response.headers.get("cf-error-type");
+    if (cloudflareError) {
+      throw new Error(`${fallbackMessage} (Cloudflare ${cloudflareError}, HTTP ${response.status}).`);
+    }
+    throw cause;
   }
-  return result;
+}
+
+async function uploadMusicChunk(
+  uploadId: string,
+  index: number,
+  body: Blob,
+) {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(
+        `/api/admin/music?upload=${encodeURIComponent(uploadId)}&index=${index}`,
+        {
+          method: "PUT",
+          headers: { "content-type": "application/octet-stream" },
+          body,
+        },
+      );
+      return await musicJson<{ ok: boolean }>(response, "Music upload chunk failed.");
+    } catch (cause) {
+      lastError = cause;
+      if (attempt < 2) {
+        await new Promise((resolve) => window.setTimeout(resolve, 250 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Music upload chunk failed.");
 }
 
 async function readAdminMusic() {
@@ -123,21 +158,17 @@ export function MusicAdmin() {
         "Music upload could not be started.",
       );
       uploadId = begun.uploadId;
-      const chunkBytes = Math.max(64 * 1024, Number(begun.chunkBytes) || data?.uploadChunkBytes || 256 * 1024);
+      const chunkBytes = Math.max(32 * 1024, Number(begun.chunkBytes) || data?.uploadChunkBytes || 64 * 1024);
       const chunkCount = Math.ceil(converted.blob.size / chunkBytes);
 
       for (let index = 0; index < chunkCount; index += 1) {
         const start = index * chunkBytes;
         const end = Math.min(converted.blob.size, start + chunkBytes);
-        const response = await fetch(
-          `/api/admin/music?upload=${encodeURIComponent(uploadId)}&index=${index}`,
-          {
-            method: "PUT",
-            headers: { "content-type": "application/octet-stream" },
-            body: converted.blob.slice(start, end),
-          },
+        await uploadMusicChunk(
+          uploadId,
+          index,
+          converted.blob.slice(start, end),
         );
-        await musicJson<{ ok: boolean }>(response, "Music upload chunk failed.");
         setProgress({
           value: .7 + .25 * ((index + 1) / Math.max(1, chunkCount)),
           label: `Uploading optimized track… ${index + 1}/${chunkCount}`,

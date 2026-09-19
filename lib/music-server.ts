@@ -8,7 +8,7 @@ import {
 } from "./music";
 import { ValidationError } from "./server-errors";
 
-export const MUSIC_UPLOAD_CHUNK_BYTES = 256 * 1024;
+export const MUSIC_UPLOAD_CHUNK_BYTES = 64 * 1024;
 export const MAX_MUSIC_TRACK_BYTES = 20 * 1024 * 1024;
 const MAX_MUSIC_DURATION_MS = 60 * 60 * 1000;
 const MUSIC_UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
