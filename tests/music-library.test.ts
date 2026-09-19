@@ -118,6 +118,9 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(admin, /import\("\.\.\/\.\.\/lib\/music-import-client"\)/);
   assert.match(admin, /begin-upload/);
   assert.match(admin, /method: "PUT"/);
+  assert.match(admin, /uploadMusicChunk/);
+  assert.match(admin, /attempt < 3/);
+  assert.match(admin, /cf-error-type/);
   assert.match(admin, /readJsonResponse/);
   assert.doesNotMatch(admin, /new FormData\(\)/);
   assert.match(adminRoute, /beginMusicUpload/);
@@ -125,11 +128,15 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(adminRoute, /request\.arrayBuffer\(\)/);
   assert.doesNotMatch(adminRoute, /request\.formData\(\)/);
   assert.match(server, /music_upload_chunks/);
-  assert.match(server, /MUSIC_UPLOAD_CHUNK_BYTES = 256 \* 1024/);
+  assert.match(server, /MUSIC_UPLOAD_CHUNK_BYTES = 64 \* 1024/);
   assert.match(server, /music_track_chunks/);
   assert.match(server, /content-range/);
   assert.match(server, /accept-ranges/);
   assert.match(publicRoute, /getMusicManifest/);
+  const worker = await read("worker/index.ts");
+  assert.match(worker, /url\.pathname === "\/api\/admin\/music" && sanitizedRequest\.method === "PUT"/);
+  assert.match(worker, /storeMusicUploadChunk/);
+  assert.match(worker, /fastPath: true/);
   assert.match(layer, /new Audio\(\)/);
   assert.match(layer, /preload = "none"/);
   assert.match(layer, /requestIdleCallback/);

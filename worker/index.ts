@@ -22,6 +22,9 @@ import {
 import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
 import { archiveCompletedMatch, associateMatchSeatAccount } from "../lib/replay-archive-server";
 import { getSessionUserFromDatabase } from "../lib/account-server";
+import { MUSIC_UPLOAD_CHUNK_BYTES, storeMusicUploadChunk } from "../lib/music-server";
+import { assertSameOrigin } from "../lib/request-security";
+import { AuthorizationError, ValidationError, serverErrorResponse } from "../lib/server-errors";
 import { ensureSocialSchema, loadSocialAccount } from "../lib/social-server";
 import { ensureMatchSessionSchema } from "../lib/match-session-schema";
 import { socialPresenceShard, type SocialAccountSummary } from "../lib/social";
@@ -604,6 +607,54 @@ const worker = {
     sanitizedHeaders.delete(FORWARDED_MATCH_URL_HEADER);
     const sanitizedRequest = new Request(request, { headers: sanitizedHeaders });
     const url = new URL(sanitizedRequest.url);
+
+    if (url.pathname === "/api/admin/music" && sanitizedRequest.method === "PUT") {
+      const correlationId = sanitizedRequest.headers.get("x-correlation-id") ?? crypto.randomUUID();
+      try {
+        assertSameOrigin(sanitizedRequest);
+        const administrator = await getSessionUserFromDatabase(sanitizedRequest, env.DB);
+        if (!administrator) throw new AuthorizationError("Administrator access is required.");
+        if (!administrator.roles.includes("administrator")) {
+          throw new AuthorizationError("Administrator access is required.");
+        }
+        const uploadId = String(url.searchParams.get("upload") ?? "");
+        const chunkIndex = Number(url.searchParams.get("index"));
+        if (!uploadId) throw new ValidationError("Music upload ID is required.");
+        const contentLengthHeader = sanitizedRequest.headers.get("content-length");
+        if (contentLengthHeader) {
+          const contentLength = Number(contentLengthHeader);
+          if (
+            !Number.isSafeInteger(contentLength)
+            || contentLength < 1
+            || contentLength > MUSIC_UPLOAD_CHUNK_BYTES
+          ) {
+            throw new ValidationError("Music upload chunk size is invalid.");
+          }
+        }
+        const data = await sanitizedRequest.arrayBuffer();
+        if (data.byteLength < 1 || data.byteLength > MUSIC_UPLOAD_CHUNK_BYTES) {
+          throw new ValidationError("Music upload chunk size is invalid.");
+        }
+        const result = await storeMusicUploadChunk(
+          env.DB,
+          uploadId,
+          chunkIndex,
+          data,
+          administrator.id,
+        );
+        return withSecurityHeaders(Response.json(
+          { ...result, correlationId },
+          { headers: { "cache-control": "no-store" } },
+        ));
+      } catch (error) {
+        return withSecurityHeaders(serverErrorResponse(
+          error,
+          correlationId,
+          "Music upload chunk could not be stored.",
+          { route: "/api/admin/music", method: "PUT", fastPath: true },
+        ));
+      }
+    }
 
     if (url.pathname === "/api/game" && sanitizedRequest.method === "POST") {
       const body = await sanitizedRequest.clone().json().catch(() => null) as { action?: string; code?: string } | null;
