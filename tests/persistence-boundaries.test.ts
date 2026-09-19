@@ -67,7 +67,6 @@ test("legacy audio settings migrate into the split audio channels", () => {
     soundEnabled: false,
     soundVolume: 0.42,
     cardScale: 125,
-    logDetail: "Gameplay only",
     challenges: "Everyone",
   });
 
@@ -77,7 +76,6 @@ test("legacy audio settings migrate into the split audio channels", () => {
   assert.equal(settings.soundVolume, 0.42);
   assert.equal(settings.masterVolume, 100);
   assert.equal(settings.uiSoundsEnabled, true);
-  assert.equal(settings.musicEnabled, true);
   assert.equal(settings.textScale, 100);
   assert.equal(settings.cardScale, 125);
 });
