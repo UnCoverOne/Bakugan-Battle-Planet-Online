@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { readJsonResponse } from "../../lib/json-response";
 import {
   MUSIC_CATEGORIES,
   MUSIC_CATEGORY_LABELS,
@@ -15,7 +16,10 @@ type MusicAdminPayload = {
   tracks: MusicTrack[];
   categories: MusicCategory[];
   maxTrackBytes: number;
+  uploadChunkBytes: number;
 };
+
+type ErrorPayload = { error?: unknown };
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -32,11 +36,17 @@ function trackNameFromFile(file: File) {
   return file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 120);
 }
 
+async function musicJson<T>(response: Response, fallbackMessage: string): Promise<T> {
+  const result = await readJsonResponse(response, fallbackMessage) as T & ErrorPayload;
+  if (!response.ok) {
+    throw new Error(typeof result.error === "string" ? result.error : `${fallbackMessage} (HTTP ${response.status}).`);
+  }
+  return result;
+}
+
 async function readAdminMusic() {
   const response = await fetch("/api/admin/music", { cache: "no-store" });
-  const result = await response.json() as MusicAdminPayload & { error?: string };
-  if (!response.ok) throw new Error(result.error ?? "Music library could not be loaded.");
-  return result;
+  return musicJson<MusicAdminPayload>(response, "Music library could not be loaded.");
 }
 
 export function MusicAdmin() {
@@ -76,36 +86,84 @@ export function MusicAdmin() {
 
   const importTrack = async () => {
     if (!source || !name.trim() || !categories.length) return;
+    let uploadId = "";
     setImporting(true);
     setError("");
     setProgress({ value: .01, label: "Preparing import…" });
     try {
       const { convertMusicFileToOpus } = await import("../../lib/music-import-client");
       const converted = await convertMusicFileToOpus(source, (value, label) => {
-        setProgress({ value, label });
+        setProgress({ value: .04 + value * .62, label });
       });
       if (data?.maxTrackBytes && converted.blob.size > data.maxTrackBytes) {
         throw new Error(`Converted track is ${formatBytes(converted.blob.size)}; the library limit is ${formatBytes(data.maxTrackBytes)}.`);
       }
-      setProgress({ value: 1, label: "Uploading optimized track…" });
-      const form = new FormData();
-      form.append("file", new File([converted.blob], converted.fileName, { type: "audio/ogg" }));
-      form.append("name", name.trim());
-      form.append("categories", JSON.stringify(categories));
-      form.append("enabled", String(enabled));
-      form.append("loop", String(loop));
-      form.append("weight", String(weight));
-      form.append("gainDb", String(gainDb));
-      form.append("durationMs", String(converted.durationMs));
-      const response = await fetch("/api/admin/music", { method: "POST", body: form });
-      const result = await response.json() as { track?: MusicTrack; error?: string };
-      if (!response.ok || !result.track) throw new Error(result.error ?? "Track import failed.");
+
+      setProgress({ value: .68, label: "Starting optimized upload…" });
+      const beginResponse = await fetch("/api/admin/music", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "begin-upload",
+          fileName: converted.fileName,
+          byteLength: converted.blob.size,
+          metadata: {
+            name: name.trim(),
+            categories,
+            enabled,
+            loop,
+            weight,
+            gainDb,
+            durationMs: converted.durationMs,
+          },
+        }),
+      });
+      const begun = await musicJson<{ uploadId: string; chunkBytes: number }>(
+        beginResponse,
+        "Music upload could not be started.",
+      );
+      uploadId = begun.uploadId;
+      const chunkBytes = Math.max(64 * 1024, Number(begun.chunkBytes) || data?.uploadChunkBytes || 256 * 1024);
+      const chunkCount = Math.ceil(converted.blob.size / chunkBytes);
+
+      for (let index = 0; index < chunkCount; index += 1) {
+        const start = index * chunkBytes;
+        const end = Math.min(converted.blob.size, start + chunkBytes);
+        const response = await fetch(
+          `/api/admin/music?upload=${encodeURIComponent(uploadId)}&index=${index}`,
+          {
+            method: "PUT",
+            headers: { "content-type": "application/octet-stream" },
+            body: converted.blob.slice(start, end),
+          },
+        );
+        await musicJson<{ ok: boolean }>(response, "Music upload chunk failed.");
+        setProgress({
+          value: .7 + .25 * ((index + 1) / Math.max(1, chunkCount)),
+          label: `Uploading optimized track… ${index + 1}/${chunkCount}`,
+        });
+      }
+
+      setProgress({ value: .97, label: "Finalizing track…" });
+      const finalizeResponse = await fetch("/api/admin/music", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "finalize-upload", uploadId }),
+      });
+      const result = await musicJson<{ track: MusicTrack }>(
+        finalizeResponse,
+        "Music track could not be finalized.",
+      );
+      uploadId = "";
       notify(`${result.track.name} imported as Opus and added to the music library.`);
       setSource(null);
       setName("");
       setProgress({ value: 0, label: "" });
       await refresh();
     } catch (cause) {
+      if (uploadId) {
+        void fetch(`/api/admin/music?upload=${encodeURIComponent(uploadId)}`, { method: "DELETE" }).catch(() => undefined);
+      }
       const message = cause instanceof Error ? cause.message : "Track import failed.";
       setError(message);
       notify(message);
@@ -243,8 +301,7 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
           gainDb: draft.gainDb,
         }),
       });
-      const result = await response.json() as { track?: MusicTrack; error?: string };
-      if (!response.ok || !result.track) throw new Error(result.error ?? "Track could not be updated.");
+      const result = await musicJson<{ track: MusicTrack }>(response, "Track could not be updated.");
       notify(`${result.track.name} updated.`);
       await onChanged();
     } catch (cause) {
@@ -259,8 +316,7 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
     setBusy(true);
     try {
       const response = await fetch(`/api/admin/music?id=${encodeURIComponent(track.id)}`, { method: "DELETE" });
-      const result = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Track could not be deleted.");
+      await musicJson<{ ok: boolean }>(response, "Track could not be deleted.");
       notify(`${track.name} deleted from the music library.`);
       await onChanged();
     } catch (cause) {
