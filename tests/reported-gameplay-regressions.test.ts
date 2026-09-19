@@ -19,6 +19,8 @@ import { advanceOpponentAi as advanceBaseOpponentAi } from "../lib/opponentAiBas
 import { buildChoiceSchema } from "../lib/rules/choices";
 import { compileCardEffect } from "../lib/rules/effects";
 import { cardCostBreakdown } from "../lib/rules/costs";
+import { conditionFor } from "../lib/rules/catalogue-primitives";
+import { evaluateBakuganCharacteristics } from "../lib/rules/modifiers";
 import { additionalTurnDrawCount, turnDrawCount } from "../lib/turnStart";
 
 let serial = 0;
@@ -287,6 +289,33 @@ test("incidental Reroll wording cannot masquerade as a printed intrinsic ability
   assert.equal(next.phase, "power");
   assert.equal(next.pendingReroll, undefined);
   assert.equal(next.priority, human.id);
+});
+
+test("Titan Dragonoid bb-270 gets its Dan Kouzo conditional power bonus", () => {
+  const titan = catalogueCard("bb-270", "titan-dragonoid-dan-bonus");
+  const dan = catalogueCard("bb-207", "dan-kouzo-titan-support");
+  const titanBakugan = bakugan("titan-dragonoid", "Pyrus", {
+    evoStack: [titan],
+  });
+  const controller = player("titan-controller", [titanBakugan]);
+  const opponent = player("titan-opponent", [bakugan("titan-opponent-b", "Aquos")]);
+  const match = matchWith(controller, opponent, "power");
+
+  assert.deepEqual(
+    conditionFor("If you control Dan Kouzo, +2000 [B]."),
+    { kind: "controls-named-cards", names: ["Dan Kouzo"] },
+  );
+
+  const basePower = titan.bPower ?? titanBakugan.bPower;
+  assert.equal(evaluateBakuganCharacteristics(match, titanBakugan, controller).power, basePower);
+
+  controller.heroes = [dan];
+  const active = evaluateBakuganCharacteristics(match, titanBakugan, controller);
+  assert.equal(active.power, basePower + 2000);
+  assert.equal(active.doubleStrike, true);
+
+  controller.heroes = [];
+  assert.equal(evaluateBakuganCharacteristics(match, titanBakugan, controller).power, basePower);
 });
 
 test("Shun Kazami br-77 asks whether to use its optional open-trigger draw", () => {

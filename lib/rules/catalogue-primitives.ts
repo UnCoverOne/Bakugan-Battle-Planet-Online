@@ -41,7 +41,7 @@ function coreTypesFor(value: string) {
 
 function controlledCardNames(text: string) {
   const list = text.match(
-    /\bif you control (.+?)(?=,\s*(?:you|this|that|your|the)\b|[.;]|$)/i,
+    /\bif you control (.+?)(?=,\s*(?:(?:you|this|that|your|the)\b|[+-]\d|\[|<)|[.;]|$)/i,
   )?.[1];
   if (!list) return [];
   return list
