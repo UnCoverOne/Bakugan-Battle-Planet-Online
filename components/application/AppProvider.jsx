@@ -517,7 +517,16 @@ export function AppProvider({ children }) {
   useEffect(() => {
     document.documentElement.dataset.contrast = settings.highContrast ? "high" : "normal";
     document.documentElement.dataset.motion = settings.reducedMotion ? "reduced" : "full";
-  }, [settings.highContrast, settings.reducedMotion]);
+    const textScale = Math.min(140, Math.max(80, Number(settings.textScale) || 100));
+    const previewScale = Math.min(140, Math.max(80, Number(settings.cardScale) || 100));
+    document.documentElement.style.fontSize = `${textScale}%`;
+    document.documentElement.style.setProperty("--preview-scale", String(previewScale / 100));
+  }, [
+    settings.cardScale,
+    settings.highContrast,
+    settings.reducedMotion,
+    settings.textScale,
+  ]);
   useEffect(() => {
     if (!toast) return;
     const id = setTimeout(() => setToast(""), 2800);

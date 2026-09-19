@@ -16,7 +16,8 @@ import styles from "./SettingsScreen.module.css";
 const SECTIONS = [
   "Account",
   "Gameplay",
-  "Audio & visual",
+  "Video",
+  "Audio",
   "Accessibility",
   "Data & sync",
   "Privacy",
@@ -67,11 +68,15 @@ export function SettingsScreen() {
     setBrawlerName(profile.name);
   }, [profile.name]);
 
-  const saveSetting = (key: string, value: unknown, label: string) => {
-    setSettings({ ...settings, [key]: value });
+  const saveSettingsPatch = (patch: Record<string, unknown>, label: string) => {
+    setSettings({ ...settings, ...patch });
     setSavedField(`${label} saved`);
     if (savedTimer.current) clearTimeout(savedTimer.current);
     savedTimer.current = setTimeout(() => setSavedField(""), 2200);
+  };
+
+  const saveSetting = (key: string, value: unknown, label: string) => {
+    saveSettingsPatch({ [key]: value }, label);
   };
 
   const submitBrawlerName = async (event: React.FormEvent) => {
@@ -340,35 +345,15 @@ export function SettingsScreen() {
             </SettingsSection>
           )}
 
-          {section === "Audio & visual" && (
+          {section === "Video" && (
             <SettingsSection
-              title="Audio & visual"
-              description="Adjust feedback and card presentation."
+              title="Video"
+              description="Adjust match presentation, preview size, and motion."
             >
-              <SettingToggle
-                label="Interface and match audio"
-                copy="Phase calls, priority, and result cues."
-                checked={settings.sound}
-                onChange={(value) => {
-                  setSettings({
-                    ...settings,
-                    sound: value,
-                    soundEnabled: value,
-                  });
-                  setSavedField("Audio preference saved");
-                  if (savedTimer.current) clearTimeout(savedTimer.current);
-                  savedTimer.current = setTimeout(
-                    () => setSavedField(""),
-                    2200,
-                  );
-                }}
-              />
               <label className={styles.rangeSetting}>
                 <span>
-                  <strong>Card scale</strong>
-                  <small>
-                    Adjust supported card previews from 80% to 140%.
-                  </small>
+                  <strong>Preview scaling</strong>
+                  <small>Adjust supported card and BakuCore previews from 80% to 140%.</small>
                 </span>
                 <b>{settings.cardScale}%</b>
                 <input
@@ -377,22 +362,26 @@ export function SettingsScreen() {
                   max="140"
                   value={settings.cardScale}
                   onChange={(event) =>
-                    saveSetting(
-                      "cardScale",
-                      Number(event.target.value),
-                      "Card scale",
-                    )
+                    saveSetting("cardScale", Number(event.target.value), "Preview scaling")
                   }
                 />
               </label>
-            </SettingsSection>
-          )}
-
-          {section === "Accessibility" && (
-            <SettingsSection
-              title="Accessibility"
-              description="Reduce sensory load and strengthen interface legibility."
-            >
+              <label className={styles.rangeSetting}>
+                <span>
+                  <strong>Text scaling</strong>
+                  <small>Scale interface text from 80% to 140%.</small>
+                </span>
+                <b>{settings.textScale}%</b>
+                <input
+                  type="range"
+                  min="80"
+                  max="140"
+                  value={settings.textScale}
+                  onChange={(event) =>
+                    saveSetting("textScale", Number(event.target.value), "Text scaling")
+                  }
+                />
+              </label>
               <SettingToggle
                 label="Reduced motion"
                 copy="Disable parallax, energy sweeps, card tilt, and non-essential transition travel."
@@ -401,6 +390,119 @@ export function SettingsScreen() {
                   saveSetting("reducedMotion", value, "Reduced motion")
                 }
               />
+            </SettingsSection>
+          )}
+
+          {section === "Audio" && (
+            <SettingsSection
+              title="Audio"
+              description="Control game, interface, and future music channels."
+            >
+              <SettingToggle
+                label="Game Sounds"
+                copy="Cards, rolls, damage, priority, and match-result cues."
+                checked={settings.gameSoundsEnabled}
+                onChange={(value) =>
+                  saveSettingsPatch(
+                    { gameSoundsEnabled: value, soundEnabled: value, sound: value },
+                    "Game Sounds",
+                  )
+                }
+              />
+              <label className={styles.rangeSetting}>
+                <span>
+                  <strong>Game Sounds volume</strong>
+                  <small>Volume for gameplay-event audio.</small>
+                </span>
+                <b>{settings.gameSoundVolume}%</b>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={settings.gameSoundVolume}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    saveSettingsPatch(
+                      { gameSoundVolume: value, soundVolume: value / 100 },
+                      "Game Sounds volume",
+                    );
+                  }}
+                />
+              </label>
+
+              <SettingToggle
+                label="UI Sounds"
+                copy="Interface feedback such as navigation and control cues."
+                checked={settings.uiSoundsEnabled}
+                onChange={(value) => saveSetting("uiSoundsEnabled", value, "UI Sounds")}
+              />
+              <label className={styles.rangeSetting}>
+                <span>
+                  <strong>UI Sounds volume</strong>
+                  <small>Volume reserved for interface feedback.</small>
+                </span>
+                <b>{settings.uiSoundVolume}%</b>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={settings.uiSoundVolume}
+                  onChange={(event) =>
+                    saveSetting("uiSoundVolume", Number(event.target.value), "UI Sounds volume")
+                  }
+                />
+              </label>
+
+              <SettingToggle
+                label="Music"
+                copy="Enable soundtrack playback when music support is added."
+                checked={settings.musicEnabled}
+                onChange={(value) => saveSetting("musicEnabled", value, "Music")}
+              />
+              <label className={styles.rangeSetting}>
+                <span>
+                  <strong>Music volume</strong>
+                  <small>Stored now for future soundtrack support.</small>
+                </span>
+                <b>{settings.musicVolume}%</b>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={settings.musicVolume}
+                  onChange={(event) =>
+                    saveSetting("musicVolume", Number(event.target.value), "Music volume")
+                  }
+                />
+              </label>
+
+              <label className={styles.rangeSetting}>
+                <span>
+                  <strong>Master Volume</strong>
+                  <small>Overall output level applied to implemented audio channels.</small>
+                </span>
+                <b>{settings.masterVolume}%</b>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={settings.masterVolume}
+                  onChange={(event) =>
+                    saveSetting("masterVolume", Number(event.target.value), "Master Volume")
+                  }
+                />
+              </label>
+              <p className={styles.note}>
+                Music playback is not implemented yet; its toggle and volume are saved for future support.
+              </p>
+            </SettingsSection>
+          )}
+
+          {section === "Accessibility" && (
+            <SettingsSection
+              title="Accessibility"
+              description="Strengthen interface legibility and assistive navigation."
+            >
               <SettingToggle
                 label="High contrast"
                 copy="Increase panel, border, selection, and focus contrast."

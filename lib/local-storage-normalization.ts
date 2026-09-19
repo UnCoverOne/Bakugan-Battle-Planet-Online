@@ -151,19 +151,49 @@ export function normalizeStoredSettings(value: unknown): AppSettings {
     typeof candidate[key] === "string" ? candidate[key] as string : fallback;
   const number = (key: keyof AppSettings, fallback: number) =>
     Number.isFinite(candidate[key]) ? Number(candidate[key]) : fallback;
+  const percent = (key: keyof AppSettings, fallback: number) =>
+    Math.min(100, Math.max(0, number(key, fallback)));
+  const scale = (key: keyof AppSettings, fallback: number) =>
+    Math.min(140, Math.max(80, number(key, fallback)));
+
+  const legacyGameSoundsEnabled = typeof candidate.soundEnabled === "boolean"
+    ? candidate.soundEnabled
+    : boolean("sound", DEFAULT_APP_SETTINGS.sound);
+  const gameSoundsEnabled = boolean("gameSoundsEnabled", legacyGameSoundsEnabled);
+  const legacySoundVolume = Number.isFinite(candidate.soundVolume)
+    ? Number(candidate.soundVolume)
+    : (DEFAULT_APP_SETTINGS.gameSoundVolume ?? 55) / 100;
+  const legacyGameSoundPercent = legacySoundVolume <= 1
+    ? legacySoundVolume * 100
+    : legacySoundVolume;
+  const gameSoundVolume = Math.min(
+    100,
+    Math.max(0, Number.isFinite(candidate.gameSoundVolume)
+      ? Number(candidate.gameSoundVolume)
+      : legacyGameSoundPercent),
+  );
+
   return {
     ...DEFAULT_APP_SETTINGS,
     reducedMotion: boolean("reducedMotion", DEFAULT_APP_SETTINGS.reducedMotion),
     highContrast: boolean("highContrast", DEFAULT_APP_SETTINGS.highContrast),
-    sound: boolean("sound", DEFAULT_APP_SETTINGS.sound),
-    cardScale: number("cardScale", DEFAULT_APP_SETTINGS.cardScale),
+    sound: gameSoundsEnabled,
+    cardScale: scale("cardScale", DEFAULT_APP_SETTINGS.cardScale),
+    textScale: scale("textScale", DEFAULT_APP_SETTINGS.textScale ?? 100),
     logDetail: text("logDetail", DEFAULT_APP_SETTINGS.logDetail),
     challenges: text("challenges", DEFAULT_APP_SETTINGS.challenges),
+    gameSoundsEnabled,
+    gameSoundVolume,
+    uiSoundsEnabled: boolean("uiSoundsEnabled", DEFAULT_APP_SETTINGS.uiSoundsEnabled ?? true),
+    uiSoundVolume: percent("uiSoundVolume", DEFAULT_APP_SETTINGS.uiSoundVolume ?? 70),
+    musicEnabled: boolean("musicEnabled", DEFAULT_APP_SETTINGS.musicEnabled ?? true),
+    musicVolume: percent("musicVolume", DEFAULT_APP_SETTINGS.musicVolume ?? 50),
+    masterVolume: percent("masterVolume", DEFAULT_APP_SETTINGS.masterVolume ?? 100),
     replayLinks: boolean("replayLinks", DEFAULT_APP_SETTINGS.replayLinks ?? true),
     ...(typeof candidate.automaticDraw === "boolean" ? { automaticDraw: candidate.automaticDraw } : {}),
     ...(typeof candidate.automaticPass === "boolean" ? { automaticPass: candidate.automaticPass } : {}),
-    ...(typeof candidate.soundEnabled === "boolean" ? { soundEnabled: candidate.soundEnabled } : {}),
-    ...(Number.isFinite(candidate.soundVolume) ? { soundVolume: Number(candidate.soundVolume) } : {}),
+    soundEnabled: gameSoundsEnabled,
+    soundVolume: gameSoundVolume / 100,
   };
 }
 

@@ -19,11 +19,20 @@ export const CONTROLLER_KEY = "bbp-match-controller-v1";
 export type MatchClientSettings = Record<string, unknown> & {
   automaticDraw?: boolean;
   automaticPass?: boolean;
+  gameSoundsEnabled?: boolean;
+  gameSoundVolume?: number;
+  uiSoundsEnabled?: boolean;
+  uiSoundVolume?: number;
+  musicEnabled?: boolean;
+  musicVolume?: number;
+  masterVolume?: number;
+  /** Legacy aliases retained while older snapshots are still readable. */
   soundEnabled?: boolean;
   sound?: boolean;
   soundVolume?: number;
   logDetail?: string;
   cardScale?: number;
+  textScale?: number;
   reducedMotion?: boolean;
   highContrast?: boolean;
 };

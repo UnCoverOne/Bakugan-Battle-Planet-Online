@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   createRegistrationSnapshot,
+  DEFAULT_APP_SETTINGS,
   mergeSnapshots,
   recoverableTrainingMatch,
   selectSnapshot,
@@ -11,6 +12,7 @@ import {
 } from "../lib/persistence";
 import { readJsonResponse } from "../lib/json-response";
 import { completedMatchKey } from "../lib/match-result-navigation";
+import { normalizeStoredSettings } from "../lib/local-storage-normalization";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
@@ -37,7 +39,7 @@ const snapshot = (overrides: Partial<UserSnapshot> = {}): UserSnapshot => ({
   decks: [deck("local-deck", "Local Deck", "2026-01-01T00:00:00.000Z")],
   deletedDecks: [],
   history: [],
-  settings: { reducedMotion: false, highContrast: false, sound: true, cardScale: 100, logDetail: "All events", challenges: "Everyone" },
+  settings: { ...DEFAULT_APP_SETTINGS },
   route: "match",
   selectedDeckId: "local-deck",
   builderDeck: null,
@@ -55,6 +57,29 @@ const snapshot = (overrides: Partial<UserSnapshot> = {}): UserSnapshot => ({
   replayIndex: 12,
   playerId: "device-player",
   ...overrides,
+});
+
+test("legacy audio settings migrate into the split audio channels", () => {
+  const settings = normalizeStoredSettings({
+    reducedMotion: true,
+    highContrast: false,
+    sound: true,
+    soundEnabled: false,
+    soundVolume: 0.42,
+    cardScale: 125,
+    logDetail: "Gameplay only",
+    challenges: "Everyone",
+  });
+
+  assert.equal(settings.gameSoundsEnabled, false);
+  assert.equal(settings.gameSoundVolume, 42);
+  assert.equal(settings.soundEnabled, false);
+  assert.equal(settings.soundVolume, 0.42);
+  assert.equal(settings.masterVolume, 100);
+  assert.equal(settings.uiSoundsEnabled, true);
+  assert.equal(settings.musicEnabled, true);
+  assert.equal(settings.textScale, 100);
+  assert.equal(settings.cardScale, 125);
 });
 
 test("cloud snapshots contain durable account data but no device session state", () => {

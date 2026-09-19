@@ -39,7 +39,7 @@
 .placeholder {
   display: block;
   box-sizing: border-box;
-  width: min(17.5rem, 24vw);
+  width: min(calc(280px * var(--preview-scale, 1)), calc(24vw * var(--preview-scale, 1)));
   max-height: calc(100dvh - 2rem);
   border: 1px solid rgba(255, 255, 255, 0.52);
   border-radius: 4.6% / 3.3%;
@@ -56,7 +56,7 @@
 
 .preview[data-card-preview-orientation="core"] .previewImage,
 .preview[data-card-preview-orientation="core"] .placeholder {
-  width: min(23rem, 32vw);
+  width: min(calc(368px * var(--preview-scale, 1)), calc(32vw * var(--preview-scale, 1)));
   max-height: min(72dvh, 23rem);
   border-radius: 9%;
 }
@@ -165,12 +165,12 @@
 @media (max-width: 760px) {
   .previewImage,
   .placeholder {
-    width: min(10.5rem, 36vw);
+    width: min(calc(168px * var(--preview-scale, 1)), calc(36vw * var(--preview-scale, 1)));
   }
 
   .preview[data-card-preview-orientation="core"] .previewImage,
   .preview[data-card-preview-orientation="core"] .placeholder {
-    width: min(13.5rem, 48vw);
+    width: min(calc(216px * var(--preview-scale, 1)), calc(48vw * var(--preview-scale, 1)));
   }
 
   .placeholder {

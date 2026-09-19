@@ -33,10 +33,19 @@ export type AppSettings = {
   highContrast: boolean;
   sound: boolean;
   cardScale: number;
+  textScale?: number;
   logDetail: string;
   challenges: string;
+  gameSoundsEnabled?: boolean;
+  gameSoundVolume?: number;
+  uiSoundsEnabled?: boolean;
+  uiSoundVolume?: number;
+  musicEnabled?: boolean;
+  musicVolume?: number;
+  masterVolume?: number;
   automaticDraw?: boolean;
   automaticPass?: boolean;
+  /** Legacy aliases retained for older local/account snapshots. */
   soundEnabled?: boolean;
   soundVolume?: number;
   replayLinks?: boolean;
@@ -133,8 +142,16 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   highContrast: false,
   sound: true,
   cardScale: 100,
+  textScale: 100,
   logDetail: "All events",
   challenges: "Everyone",
+  gameSoundsEnabled: true,
+  gameSoundVolume: 55,
+  uiSoundsEnabled: true,
+  uiSoundVolume: 70,
+  musicEnabled: true,
+  musicVolume: 50,
+  masterVolume: 100,
   replayLinks: true,
 };
 

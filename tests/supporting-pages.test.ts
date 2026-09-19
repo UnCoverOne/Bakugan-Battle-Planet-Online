@@ -48,7 +48,8 @@ test("Settings uses immediate feedback and isolates destructive actions", () => 
   for (const category of [
     "Account",
     "Gameplay",
-    "Audio & visual",
+    "Video",
+    "Audio",
     "Accessibility",
     "Data & sync",
     "Privacy",
@@ -57,7 +58,13 @@ test("Settings uses immediate feedback and isolates destructive actions", () => 
     assert.match(settings, new RegExp(category.replace(/[&]/g, "\\&")));
   }
   assert.match(settings, /aria-live="polite"/);
+  assert.match(settings, /Preview scaling/);
+  assert.match(settings, /Text scaling/);
   assert.match(settings, /Reduced motion/);
+  assert.match(settings, /Game Sounds/);
+  assert.match(settings, /UI Sounds/);
+  assert.match(settings, /Music/);
+  assert.match(settings, /Master Volume/);
   assert.match(settings, /Export local data/);
   assert.match(settings, /ConfirmationDialog/);
   assert.doesNotMatch(settings, /SyncConflictPanel/);

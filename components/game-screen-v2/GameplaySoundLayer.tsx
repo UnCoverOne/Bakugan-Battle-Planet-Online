@@ -100,10 +100,18 @@ function queueDragonoidMaximusSequence(
 
 export function GameplaySoundLayer() {
   const match = useMatchSelector((state) => state.match);
-  const enabled = useMatchSelector((state) => state.settings.soundEnabled == null
-    ? state.settings.sound !== false
-    : state.settings.soundEnabled !== false);
-  const volume = useMatchSelector((state) => Number(state.settings.soundVolume ?? .55));
+  const enabled = useMatchSelector((state) => state.settings.gameSoundsEnabled == null
+    ? state.settings.soundEnabled == null
+      ? state.settings.sound !== false
+      : state.settings.soundEnabled !== false
+    : state.settings.gameSoundsEnabled !== false);
+  const volume = useMatchSelector((state) => {
+    const legacy = Number(state.settings.soundVolume ?? .55);
+    const gamePercent = Number(state.settings.gameSoundVolume ?? (legacy <= 1 ? legacy * 100 : legacy));
+    const masterPercent = Number(state.settings.masterVolume ?? 100);
+    return Math.max(0, Math.min(1, gamePercent / 100))
+      * Math.max(0, Math.min(1, masterPercent / 100));
+  });
   const previous = useRef<{ match: MatchState | null; count: number }>({ match: null, count: 0 });
   useEffect(() => {
     if (!match) return;

@@ -4,20 +4,28 @@ import { useEffect, useState } from "react";
 import styles from "./GameMenuHud.module.css";
 
 type AsyncAction = () => void | Promise<void>;
-type SettingsTab = "Gameplay" | "Audio & visual" | "Accessibility";
+type SettingsTab = "Gameplay" | "Video" | "Audio" | "Accessibility";
 
 const SETTINGS_TABS: readonly SettingsTab[] = [
   "Gameplay",
-  "Audio & visual",
+  "Video",
+  "Audio",
   "Accessibility",
 ];
 
 export function GameMenuHud({
   automaticDraw,
   automaticPass,
-  soundEnabled,
+  gameSoundsEnabled,
+  gameSoundVolume,
+  uiSoundsEnabled,
+  uiSoundVolume,
+  musicEnabled,
+  musicVolume,
+  masterVolume,
   logDetail,
   cardScale,
+  textScale,
   reducedMotion,
   highContrast,
   completed = false,
@@ -25,9 +33,16 @@ export function GameMenuHud({
   undoAvailable,
   onAutomaticDrawChange,
   onAutomaticPassChange,
-  onSoundEnabledChange,
+  onGameSoundsEnabledChange,
+  onGameSoundVolumeChange,
+  onUiSoundsEnabledChange,
+  onUiSoundVolumeChange,
+  onMusicEnabledChange,
+  onMusicVolumeChange,
+  onMasterVolumeChange,
   onLogDetailChange,
   onCardScaleChange,
+  onTextScaleChange,
   onReducedMotionChange,
   onHighContrastChange,
   onUndo,
@@ -36,9 +51,16 @@ export function GameMenuHud({
 }: {
   automaticDraw: boolean;
   automaticPass: boolean;
-  soundEnabled: boolean;
+  gameSoundsEnabled: boolean;
+  gameSoundVolume: number;
+  uiSoundsEnabled: boolean;
+  uiSoundVolume: number;
+  musicEnabled: boolean;
+  musicVolume: number;
+  masterVolume: number;
   logDetail: string;
   cardScale: number;
+  textScale: number;
   reducedMotion: boolean;
   highContrast: boolean;
   completed?: boolean;
@@ -46,9 +68,16 @@ export function GameMenuHud({
   undoAvailable: boolean;
   onAutomaticDrawChange: (enabled: boolean) => void;
   onAutomaticPassChange: (enabled: boolean) => void;
-  onSoundEnabledChange: (enabled: boolean) => void;
+  onGameSoundsEnabledChange: (enabled: boolean) => void;
+  onGameSoundVolumeChange: (volume: number) => void;
+  onUiSoundsEnabledChange: (enabled: boolean) => void;
+  onUiSoundVolumeChange: (volume: number) => void;
+  onMusicEnabledChange: (enabled: boolean) => void;
+  onMusicVolumeChange: (volume: number) => void;
+  onMasterVolumeChange: (volume: number) => void;
   onLogDetailChange: (detail: string) => void;
   onCardScaleChange: (scale: number) => void;
+  onTextScaleChange: (scale: number) => void;
   onReducedMotionChange: (enabled: boolean) => void;
   onHighContrastChange: (enabled: boolean) => void;
   onUndo: AsyncAction;
@@ -104,6 +133,29 @@ export function GameMenuHud({
     setSettingsOpen(true);
   };
 
+  const percentageSlider = (
+    label: string,
+    copy: string,
+    value: number,
+    onChange: (value: number) => void,
+  ) => (
+    <label className={styles.rangeSetting}>
+      <span>
+        <strong>{label}</strong>
+        <small>{copy}</small>
+      </span>
+      <b>{value}%</b>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={value}
+        aria-label={label}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </label>
+  );
+
   return (
     <>
       <button
@@ -156,10 +208,15 @@ export function GameMenuHud({
 
           <label className={styles.toggleRow}>
             <span>
-              <strong>Gameplay Sounds</strong>
-              <small>Play lightweight cues for cards, rolls, damage and turns.</small>
+              <strong>Game Sounds</strong>
+              <small>Play audio cues for cards, rolls, damage and turns.</small>
             </span>
-            <input type="checkbox" role="switch" checked={soundEnabled} onChange={(event) => onSoundEnabledChange(event.target.checked)} />
+            <input
+              type="checkbox"
+              role="switch"
+              checked={gameSoundsEnabled}
+              onChange={(event) => onGameSoundsEnabledChange(event.target.checked)}
+            />
           </label>
 
           <label className={styles.toggleRow}>
@@ -218,7 +275,7 @@ export function GameMenuHud({
               <div>
                 <small>MATCH SETTINGS</small>
                 <h2 id="gameplay-settings-title">GAMEPLAY SETTINGS</h2>
-                <p>Adjust match-only preferences without leaving the table.</p>
+                <p>Adjust match preferences without leaving the table.</p>
               </div>
               <button
                 type="button"
@@ -299,7 +356,7 @@ export function GameMenuHud({
                   </div>
                 ) : null}
 
-                {settingsTab === "Audio & visual" ? (
+                {settingsTab === "Video" ? (
                   <div
                     role="tabpanel"
                     id="gameplay-settings-panel-1"
@@ -307,25 +364,13 @@ export function GameMenuHud({
                     className={styles.settingsSection}
                   >
                     <div className={styles.settingsSectionHeading}>
-                      <strong>Audio & visual</strong>
-                      <small>Adjust feedback and card presentation during play.</small>
+                      <strong>Video</strong>
+                      <small>Scale previews and text, or reduce motion during play.</small>
                     </div>
-                    <label className={styles.toggleRow}>
-                      <span>
-                        <strong>Gameplay Sounds</strong>
-                        <small>Play cues for cards, rolls, damage, priority, and turns.</small>
-                      </span>
-                      <input
-                        type="checkbox"
-                        role="switch"
-                        checked={soundEnabled}
-                        onChange={(event) => onSoundEnabledChange(event.target.checked)}
-                      />
-                    </label>
                     <label className={styles.rangeSetting}>
                       <span>
-                        <strong>Card scale</strong>
-                        <small>Adjust supported card previews from 80% to 140%.</small>
+                        <strong>Preview scaling</strong>
+                        <small>Adjust supported card and BakuCore previews from 80% to 140%.</small>
                       </span>
                       <b>{cardScale}%</b>
                       <input
@@ -333,23 +378,25 @@ export function GameMenuHud({
                         min="80"
                         max="140"
                         value={cardScale}
+                        aria-label="Preview scaling"
                         onChange={(event) => onCardScaleChange(Number(event.target.value))}
                       />
                     </label>
-                  </div>
-                ) : null}
-
-                {settingsTab === "Accessibility" ? (
-                  <div
-                    role="tabpanel"
-                    id="gameplay-settings-panel-2"
-                    aria-labelledby="gameplay-settings-tab-2"
-                    className={styles.settingsSection}
-                  >
-                    <div className={styles.settingsSectionHeading}>
-                      <strong>Accessibility</strong>
-                      <small>Reduce sensory load and strengthen match readability.</small>
-                    </div>
+                    <label className={styles.rangeSetting}>
+                      <span>
+                        <strong>Text scaling</strong>
+                        <small>Scale interface text from 80% to 140%.</small>
+                      </span>
+                      <b>{textScale}%</b>
+                      <input
+                        type="range"
+                        min="80"
+                        max="140"
+                        value={textScale}
+                        aria-label="Text scaling"
+                        onChange={(event) => onTextScaleChange(Number(event.target.value))}
+                      />
+                    </label>
                     <label className={styles.toggleRow}>
                       <span>
                         <strong>Reduced motion</strong>
@@ -362,6 +409,94 @@ export function GameMenuHud({
                         onChange={(event) => onReducedMotionChange(event.target.checked)}
                       />
                     </label>
+                  </div>
+                ) : null}
+
+                {settingsTab === "Audio" ? (
+                  <div
+                    role="tabpanel"
+                    id="gameplay-settings-panel-2"
+                    aria-labelledby="gameplay-settings-tab-2"
+                    className={styles.settingsSection}
+                  >
+                    <div className={styles.settingsSectionHeading}>
+                      <strong>Audio</strong>
+                      <small>Control game, interface, and future music channels.</small>
+                    </div>
+                    <label className={styles.toggleRow}>
+                      <span>
+                        <strong>Game Sounds</strong>
+                        <small>Cards, rolls, damage, priority, and match-result cues.</small>
+                      </span>
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        checked={gameSoundsEnabled}
+                        onChange={(event) => onGameSoundsEnabledChange(event.target.checked)}
+                      />
+                    </label>
+                    {percentageSlider(
+                      "Game Sounds volume",
+                      "Volume for gameplay-event audio.",
+                      gameSoundVolume,
+                      onGameSoundVolumeChange,
+                    )}
+                    <label className={styles.toggleRow}>
+                      <span>
+                        <strong>UI Sounds</strong>
+                        <small>Interface feedback such as navigation and control cues.</small>
+                      </span>
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        checked={uiSoundsEnabled}
+                        onChange={(event) => onUiSoundsEnabledChange(event.target.checked)}
+                      />
+                    </label>
+                    {percentageSlider(
+                      "UI Sounds volume",
+                      "Volume reserved for interface feedback.",
+                      uiSoundVolume,
+                      onUiSoundVolumeChange,
+                    )}
+                    <label className={styles.toggleRow}>
+                      <span>
+                        <strong>Music</strong>
+                        <small>Future soundtrack support; this preference is saved now.</small>
+                      </span>
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        checked={musicEnabled}
+                        onChange={(event) => onMusicEnabledChange(event.target.checked)}
+                      />
+                    </label>
+                    {percentageSlider(
+                      "Music volume",
+                      "Stored now for future soundtrack support.",
+                      musicVolume,
+                      onMusicVolumeChange,
+                    )}
+                    {percentageSlider(
+                      "Master Volume",
+                      "Overall output level applied to implemented audio channels.",
+                      masterVolume,
+                      onMasterVolumeChange,
+                    )}
+                  </div>
+                ) : null}
+
+                {settingsTab === "Accessibility" ? (
+                  <div
+                    role="tabpanel"
+                    id="gameplay-settings-panel-3"
+                    aria-labelledby="gameplay-settings-tab-3"
+                    className={styles.settingsSection}
+                  >
+                    <div className={styles.settingsSectionHeading}>
+                      <strong>Accessibility</strong>
+                      <small>Strengthen match readability.</small>
+                    </div>
                     <label className={styles.toggleRow}>
                       <span>
                         <strong>High contrast</strong>

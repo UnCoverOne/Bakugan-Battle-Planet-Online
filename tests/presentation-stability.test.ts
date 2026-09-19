@@ -30,24 +30,38 @@ test("automatic turn draws publish one draw per version so draw flights stay obs
   assert.match(continuity, /current\.version === previous\.version \+ 1/);
 });
 
-test("match Settings opens a gameplay-only tabbed overlay without leaving the match", () => {
+test("settings split Video and Audio controls while match Settings stays gameplay-only", () => {
   const menu = read("components/game-screen-v2/GameMenuHud.tsx");
   const client = read("components/game-screen-v2/GameplayClient.tsx");
+  const fullSettings = read("components/routes/SettingsScreen.tsx");
+  const sound = read("components/game-screen-v2/GameplaySoundLayer.tsx");
 
   assert.doesNotMatch(client, /writeGameRoute\("settings"\)/);
   assert.doesNotMatch(menu, /onOpenSettings/);
   assert.match(menu, /role="dialog"/);
   assert.match(menu, /aria-modal="true"/);
-  assert.match(menu, /"Gameplay" \| "Audio & visual" \| "Accessibility"/);
-  for (const option of [
-    "Automatic Draw",
-    "Automatic Pass",
-    "Match-log detail",
-    "Gameplay Sounds",
-    "Card scale",
-    "Reduced motion",
-    "High contrast",
-  ]) assert.match(menu, new RegExp(option));
+  assert.match(menu, /"Gameplay" \| "Video" \| "Audio" \| "Accessibility"/);
+  assert.doesNotMatch(menu, /Audio & visual/);
+  assert.doesNotMatch(fullSettings, /"Audio & visual"/);
+
+  for (const source of [menu, fullSettings]) {
+    for (const videoOption of ["Preview scaling", "Text scaling", "Reduced motion"]) {
+      assert.match(source, new RegExp(videoOption));
+    }
+    for (const audioOption of [
+      "Game Sounds",
+      "Game Sounds volume",
+      "UI Sounds",
+      "UI Sounds volume",
+      "Music",
+      "Music volume",
+      "Master Volume",
+    ]) assert.match(source, new RegExp(audioOption));
+  }
+
+  assert.match(fullSettings, /Music playback is not implemented yet/);
+  assert.match(sound, /gameSoundVolume/);
+  assert.match(sound, /masterVolume/);
   for (const unrelated of ["Data & sync", "Privacy", "Danger zone", "Delete cloud account"]) {
     assert.doesNotMatch(menu, new RegExp(unrelated));
   }

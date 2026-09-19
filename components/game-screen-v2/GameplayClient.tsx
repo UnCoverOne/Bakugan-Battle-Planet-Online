@@ -79,9 +79,16 @@ type StoredGameScreenState = {
   route: string;
   automaticDraw: boolean;
   automaticPass: boolean;
-  soundEnabled: boolean;
+  gameSoundsEnabled: boolean;
+  gameSoundVolume: number;
+  uiSoundsEnabled: boolean;
+  uiSoundVolume: number;
+  musicEnabled: boolean;
+  musicVolume: number;
+  masterVolume: number;
   logDetail: string;
   cardScale: number;
+  textScale: number;
   reducedMotion: boolean;
   highContrast: boolean;
   match: MatchState | null;
@@ -92,19 +99,35 @@ type StoredGameScreenState = {
 type GameplayPreferenceKey =
   | "automaticDraw"
   | "automaticPass"
-  | "soundEnabled"
+  | "gameSoundsEnabled"
+  | "gameSoundVolume"
+  | "uiSoundsEnabled"
+  | "uiSoundVolume"
+  | "musicEnabled"
+  | "musicVolume"
+  | "masterVolume"
   | "logDetail"
   | "cardScale"
+  | "textScale"
   | "reducedMotion"
   | "highContrast";
 
 type GameplaySettings = {
   automaticDraw?: boolean;
   automaticPass?: boolean;
+  gameSoundsEnabled?: boolean;
+  gameSoundVolume?: number;
+  uiSoundsEnabled?: boolean;
+  uiSoundVolume?: number;
+  musicEnabled?: boolean;
+  musicVolume?: number;
+  masterVolume?: number;
   soundEnabled?: boolean;
+  soundVolume?: number;
   sound?: boolean;
   logDetail?: string;
   cardScale?: number;
+  textScale?: number;
   reducedMotion?: boolean;
   highContrast?: boolean;
   [key: string]: unknown;
@@ -130,23 +153,41 @@ export function GameplayClient() {
   const router = useRouter();
   const { authUser, setSettings } = useApp();
   const administrator = accountIsAdministrator(authUser);
-  const storedState = useMatchSelector((state): StoredGameScreenState => ({
-    route: state.route,
-    automaticDraw: Boolean(state.settings.automaticDraw),
-    automaticPass: Boolean(state.settings.automaticPass),
-    soundEnabled: state.settings.soundEnabled == null
-      ? state.settings.sound !== false
-      : state.settings.soundEnabled !== false,
-    logDetail: typeof state.settings.logDetail === "string" ? state.settings.logDetail : "All events",
-    cardScale: Number.isFinite(state.settings.cardScale)
-      ? Math.min(140, Math.max(80, Number(state.settings.cardScale)))
-      : 100,
-    reducedMotion: state.settings.reducedMotion === true,
-    highContrast: state.settings.highContrast === true,
-    match: state.match,
-    online: state.online,
-    playerId: state.playerId,
-  }));
+  const storedState = useMatchSelector((state): StoredGameScreenState => {
+    const legacyVolume = Number(state.settings.soundVolume ?? .55);
+    const legacyGameVolume = legacyVolume <= 1 ? legacyVolume * 100 : legacyVolume;
+    return {
+      route: state.route,
+      automaticDraw: Boolean(state.settings.automaticDraw),
+      automaticPass: Boolean(state.settings.automaticPass),
+      gameSoundsEnabled: state.settings.gameSoundsEnabled == null
+        ? state.settings.soundEnabled == null
+          ? state.settings.sound !== false
+          : state.settings.soundEnabled !== false
+        : state.settings.gameSoundsEnabled !== false,
+      gameSoundVolume: Math.min(
+        100,
+        Math.max(0, Number(state.settings.gameSoundVolume ?? legacyGameVolume)),
+      ),
+      uiSoundsEnabled: state.settings.uiSoundsEnabled !== false,
+      uiSoundVolume: Math.min(100, Math.max(0, Number(state.settings.uiSoundVolume ?? 70))),
+      musicEnabled: state.settings.musicEnabled !== false,
+      musicVolume: Math.min(100, Math.max(0, Number(state.settings.musicVolume ?? 50))),
+      masterVolume: Math.min(100, Math.max(0, Number(state.settings.masterVolume ?? 100))),
+      logDetail: typeof state.settings.logDetail === "string" ? state.settings.logDetail : "All events",
+      cardScale: Number.isFinite(state.settings.cardScale)
+        ? Math.min(140, Math.max(80, Number(state.settings.cardScale)))
+        : 100,
+      textScale: Number.isFinite(state.settings.textScale)
+        ? Math.min(140, Math.max(80, Number(state.settings.textScale)))
+        : 100,
+      reducedMotion: state.settings.reducedMotion === true,
+      highContrast: state.settings.highContrast === true,
+      match: state.match,
+      online: state.online,
+      playerId: state.playerId,
+    };
+  });
   const [handActionMode, setHandActionMode] = useState<HandActionMode>(null);
   const [selectedHandCardId, setSelectedHandCardId] = useState("");
   const [selectedDiscardCardIds, setSelectedDiscardCardIds] = useState<string[]>([]);
@@ -391,9 +432,11 @@ export function GameplayClient() {
     key: GameplayPreferenceKey,
     value: boolean | number | string,
   ) => {
-    const mirrored = key === "soundEnabled" && typeof value === "boolean"
-      ? { sound: value }
-      : {};
+    const mirrored = key === "gameSoundsEnabled" && typeof value === "boolean"
+      ? { sound: value, soundEnabled: value }
+      : key === "gameSoundVolume" && typeof value === "number"
+        ? { soundVolume: value / 100 }
+        : {};
     const next = {
       ...readSettings(),
       [key]: value,
@@ -410,6 +453,15 @@ export function GameplayClient() {
     }
     if (key === "highContrast") {
       document.documentElement.dataset.contrast = value ? "high" : "normal";
+    }
+    if (key === "textScale" && typeof value === "number") {
+      document.documentElement.style.fontSize = `${Math.min(140, Math.max(80, value))}%`;
+    }
+    if (key === "cardScale" && typeof value === "number") {
+      document.documentElement.style.setProperty(
+        "--preview-scale",
+        String(Math.min(140, Math.max(80, value)) / 100),
+      );
     }
   };
 
@@ -842,18 +894,32 @@ export function GameplayClient() {
         <GameMenuHud
           automaticDraw={storedState.automaticDraw}
           automaticPass={storedState.automaticPass}
-          soundEnabled={storedState.soundEnabled}
+          gameSoundsEnabled={storedState.gameSoundsEnabled}
+          gameSoundVolume={storedState.gameSoundVolume}
+          uiSoundsEnabled={storedState.uiSoundsEnabled}
+          uiSoundVolume={storedState.uiSoundVolume}
+          musicEnabled={storedState.musicEnabled}
+          musicVolume={storedState.musicVolume}
+          masterVolume={storedState.masterVolume}
           logDetail={storedState.logDetail}
           cardScale={storedState.cardScale}
+          textScale={storedState.textScale}
           reducedMotion={storedState.reducedMotion}
           highContrast={storedState.highContrast}
           completed={completed}
           administrator={administrator}
           onAutomaticDrawChange={(enabled) => updatePreference("automaticDraw", enabled)}
           onAutomaticPassChange={(enabled) => updatePreference("automaticPass", enabled)}
-          onSoundEnabledChange={(enabled) => updatePreference("soundEnabled", enabled)}
+          onGameSoundsEnabledChange={(enabled) => updatePreference("gameSoundsEnabled", enabled)}
+          onGameSoundVolumeChange={(volume) => updatePreference("gameSoundVolume", volume)}
+          onUiSoundsEnabledChange={(enabled) => updatePreference("uiSoundsEnabled", enabled)}
+          onUiSoundVolumeChange={(volume) => updatePreference("uiSoundVolume", volume)}
+          onMusicEnabledChange={(enabled) => updatePreference("musicEnabled", enabled)}
+          onMusicVolumeChange={(volume) => updatePreference("musicVolume", volume)}
+          onMasterVolumeChange={(volume) => updatePreference("masterVolume", volume)}
           onLogDetailChange={(detail) => updatePreference("logDetail", detail)}
           onCardScaleChange={(scale) => updatePreference("cardScale", scale)}
+          onTextScaleChange={(scale) => updatePreference("textScale", scale)}
           onReducedMotionChange={(enabled) => updatePreference("reducedMotion", enabled)}
           onHighContrastChange={(enabled) => updatePreference("highContrast", enabled)}
           undoAvailable={canUndoLatest(storedState.match, storedState.playerId ?? storedState.match?.players[0]?.id)}
