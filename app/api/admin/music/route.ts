@@ -120,6 +120,7 @@ export async function PATCH(request: Request) {
     if (!id) throw new ValidationError("Music track ID is required.");
     const track = await updateMusicTrack(db, id, {
       name: String(body.name ?? ""),
+      artist: String(body.artist ?? ""),
       enabled: body.enabled !== false,
       categories: body.categories as never,
       weight: Number(body.weight ?? 10),
