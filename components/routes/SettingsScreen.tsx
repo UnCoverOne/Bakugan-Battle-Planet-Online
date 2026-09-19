@@ -19,9 +19,6 @@ const SECTIONS = [
   "Video",
   "Audio",
   "Accessibility",
-  "Data & sync",
-  "Privacy",
-  "Danger zone",
 ] as const;
 type Section = (typeof SECTIONS)[number];
 type ConfirmAction = "local" | "account" | null;
@@ -36,12 +33,10 @@ export function SettingsScreen() {
     selectedDeckId,
     authUser,
     syncStatus,
-    authError,
     storageHealth,
     signOutAccount,
     saveAccountProfile,
     requestAccountAccess,
-    syncNow,
     changePassword,
     deleteAccount,
     collection,
@@ -309,6 +304,58 @@ export function SettingsScreen() {
                   </ActionButton>
                 </Surface>
               )}
+
+              {authUser && (
+                <Surface className={styles.dangerCard}>
+                  <div>
+                    <h3>Delete cloud account</h3>
+                    <p>
+                      Removes the account and its cloud data. The separate local
+                      guest data remains until deleted explicitly.
+                    </p>
+                    <Field label="Type DELETE to enable">
+                      <input
+                        value={confirmation}
+                        onChange={(event) =>
+                          setConfirmation(event.target.value)
+                        }
+                      />
+                    </Field>
+                  </div>
+                  <ActionButton
+                    tone="danger"
+                    disabled={
+                      accountBusy || confirmation.toUpperCase() !== "DELETE"
+                    }
+                    onClick={() => setConfirmAction("account")}
+                  >
+                    Delete cloud account
+                  </ActionButton>
+                </Surface>
+              )}
+
+              <Surface className={styles.dangerCard}>
+                <div>
+                  <h3>Delete local browser data</h3>
+                  <p>
+                    Removes the separate guest decks, records, settings, drafts,
+                    and active state saved in this browser. Signed-in account
+                    data is unaffected.
+                  </p>
+                </div>
+                <div className={styles.dangerActions}>
+                  <ActionButton tone="secondary" onClick={exportData}>
+                    Export first
+                  </ActionButton>
+                  <ActionButton
+                    tone="danger"
+                    onClick={() => setConfirmAction("local")}
+                  >
+                    Delete local data
+                  </ActionButton>
+                </div>
+              </Surface>
+
               {accountError && (
                 <p className={styles.error} role="alert">
                   {accountError}
@@ -522,162 +569,6 @@ export function SettingsScreen() {
             </SettingsSection>
           )}
 
-          {section === "Data & sync" && (
-            <SettingsSection
-              title="Data & sync"
-              description={
-                authUser
-                  ? "Review account-cloud state. The newest saved version is selected automatically."
-                  : "Review storage health and keep a portable backup."
-              }
-            >
-              <Surface
-                className={`${styles.syncCard} ${storageHealth.status === "error" ? styles.failed : ""}`}
-              >
-                <div>
-                  <StatusChip
-                    tone={
-                      syncStatus === "synced" ||
-                      storageHealth.status === "saved"
-                        ? "success"
-                        : syncStatus === "error" ||
-                            storageHealth.status === "error"
-                          ? "danger"
-                          : syncStatus === "conflict"
-                            ? "warning"
-                            : "info"
-                    }
-                  >
-                    {authUser ? syncStatus : storageHealth.status}
-                  </StatusChip>
-                  <h3>
-                    {authUser ? "Cloud account data" : storageTitle}
-                  </h3>
-                  <p>
-                    {authUser
-                      ? "While logged in, the app uses account data only. Local guest data stays unchanged in this browser and returns after logout."
-                      : storageHealth.message}
-                  </p>
-                  {storageHealth.savedAt && (
-                    <small>
-                      Last device save:{" "}
-                      {new Date(storageHealth.savedAt).toLocaleString()}
-                    </small>
-                  )}
-                  {authError && syncStatus === "error" && (
-                    <p className={styles.error}>{authError}</p>
-                  )}
-                </div>
-                {authUser && (
-                  <ActionButton
-                    tone="secondary"
-                    onClick={() => void syncNow()}
-                    disabled={syncStatus === "saving"}
-                  >
-                    Sync now
-                  </ActionButton>
-                )}
-              </Surface>
-              <Surface className={styles.exportCard}>
-                <div>
-                  <h3>{authUser ? "Export account data" : "Export local data"}</h3>
-                  <p>
-                    Download a readable JSON backup of the data currently in use
-                    before a destructive action.
-                  </p>
-                </div>
-                <ActionButton tone="secondary" onClick={exportData}>
-                  Download export
-                </ActionButton>
-              </Surface>
-            </SettingsSection>
-          )}
-
-          {section === "Privacy" && (
-            <SettingsSection
-              title="Privacy"
-              description="Control what can be shared outside this device."
-            >
-              <SettingToggle
-                label="Allow match-record links"
-                copy="Enable copyable links to locally retained completed match records."
-                checked={settings.replayLinks ?? true}
-                onChange={(value) =>
-                  saveSetting("replayLinks", value, "Match-record links")
-                }
-              />
-              <Surface className={styles.privacyCard}>
-                <h3>Public deck attribution</h3>
-                <p>
-                  Published decks show the creator name captured at publication.
-                  Copies retain source attribution but become private, editable
-                  decks.
-                </p>
-              </Surface>
-            </SettingsSection>
-          )}
-
-          {section === "Danger zone" && (
-            <SettingsSection
-              title="Danger zone"
-              description="Destructive actions are isolated here and never save immediately."
-            >
-              {authUser && (
-                <Surface className={styles.dangerCard}>
-                  <div>
-                    <h3>Delete cloud account</h3>
-                    <p>
-                      Removes the account and its cloud data. The separate local
-                      guest data remains until deleted explicitly.
-                    </p>
-                    <Field label="Type DELETE to enable">
-                      <input
-                        value={confirmation}
-                        onChange={(event) =>
-                          setConfirmation(event.target.value)
-                        }
-                      />
-                    </Field>
-                  </div>
-                  <ActionButton
-                    tone="danger"
-                    disabled={
-                      accountBusy || confirmation.toUpperCase() !== "DELETE"
-                    }
-                    onClick={() => setConfirmAction("account")}
-                  >
-                    Delete cloud account
-                  </ActionButton>
-                </Surface>
-              )}
-              <Surface className={styles.dangerCard}>
-                <div>
-                  <h3>Delete local browser data</h3>
-                  <p>
-                    Removes the separate guest decks, records, settings, drafts,
-                    and active state saved in this browser. Signed-in account
-                    data is unaffected.
-                  </p>
-                </div>
-                <div className={styles.dangerActions}>
-                  <ActionButton tone="secondary" onClick={exportData}>
-                    Export first
-                  </ActionButton>
-                  <ActionButton
-                    tone="danger"
-                    onClick={() => setConfirmAction("local")}
-                  >
-                    Delete local data
-                  </ActionButton>
-                </div>
-              </Surface>
-              {accountError && (
-                <p className={styles.error} role="alert">
-                  {accountError}
-                </p>
-              )}
-            </SettingsSection>
-          )}
         </main>
       </section>
 

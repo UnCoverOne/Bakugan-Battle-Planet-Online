@@ -68,6 +68,24 @@ test("settings split Video and Audio controls while match Settings stays gamepla
   assert.match(menu, /setOpen\(false\);[\s\S]*setSettingsOpen\(true\)/);
 });
 
+test("full Settings keeps account management together and removes non-user-facing tabs", () => {
+  const settings = read("components/routes/SettingsScreen.tsx");
+
+  assert.match(
+    settings,
+    /const SECTIONS = \[\s*"Account",\s*"Gameplay",\s*"Video",\s*"Audio",\s*"Accessibility",\s*\] as const;/,
+  );
+  for (const removedSection of ["Data & sync", "Privacy", "Danger zone"]) {
+    assert.doesNotMatch(settings, new RegExp(`"${removedSection}"`));
+  }
+  assert.doesNotMatch(settings, /Sync now/);
+  assert.doesNotMatch(settings, /Allow match-record links/);
+  assert.doesNotMatch(settings, /Public deck attribution/);
+  assert.match(settings, /section === "Account"[\s\S]*Delete cloud account/);
+  assert.match(settings, /section === "Account"[\s\S]*Delete local browser data/);
+  assert.match(settings, /Delete local browser data[\s\S]*Export first/);
+});
+
 test("viewport stability ignores scroll and match publication is selector-aware and deferred", () => {
   const viewport = read("components/game-screen-v2/ViewportStabilityGuard.tsx");
   const store = read("components/game-screen-v2/matchStore.ts");
