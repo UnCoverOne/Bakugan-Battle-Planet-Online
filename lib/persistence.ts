@@ -39,6 +39,8 @@ export type AppSettings = {
   gameSoundVolume?: number;
   uiSoundsEnabled?: boolean;
   uiSoundVolume?: number;
+  musicEnabled?: boolean;
+  musicVolume?: number;
   masterVolume?: number;
   automaticDraw?: boolean;
   automaticPass?: boolean;
@@ -147,6 +149,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   gameSoundVolume: 55,
   uiSoundsEnabled: true,
   uiSoundVolume: 70,
+  musicEnabled: true,
+  musicVolume: 55,
   masterVolume: 100,
   replayLinks: true,
 };

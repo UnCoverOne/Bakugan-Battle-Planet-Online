@@ -416,10 +416,22 @@ export function SettingsScreen() {
                   saveSetting("uiSoundVolume", value, "UI Sounds volume")
                 }
               />
+              <AudioSetting
+                label="Music"
+                copy="Managed menu, Training, battle, and match-result soundtrack tracks."
+                enabled={settings.musicEnabled !== false}
+                volume={settings.musicVolume ?? 55}
+                onEnabledChange={(value) =>
+                  saveSetting("musicEnabled", value, "Music")
+                }
+                onVolumeChange={(value) =>
+                  saveSetting("musicVolume", value, "Music volume")
+                }
+              />
               <label className={styles.rangeSetting}>
                 <span>
                   <strong>Master Volume</strong>
-                  <small>Overall volume for game and interface sounds.</small>
+                  <small>Overall volume for game sounds, interface sounds, and music.</small>
                 </span>
                 <b>{settings.masterVolume ?? 100}%</b>
                 <input
