@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "../application/AppProvider";
 import { ConfirmationDialog } from "../application/SystemState";
 import { downloadTextFile } from "../application/ui";
@@ -8,7 +8,6 @@ import {
   ActionButton,
   Field,
   RouteHero,
-  StatusChip,
   Surface,
 } from "../design-system/primitives";
 import styles from "./SettingsScreen.module.css";
@@ -32,8 +31,6 @@ export function SettingsScreen() {
     history,
     selectedDeckId,
     authUser,
-    syncStatus,
-    storageHealth,
     saveAccountProfile,
     requestAccountAccess,
     changePassword,
@@ -42,31 +39,22 @@ export function SettingsScreen() {
   } = useApp();
   const [section, setSection] = useState<Section>("Gameplay");
   const [brawlerName, setBrawlerName] = useState(profile.name);
-  const [savedField, setSavedField] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [accountError, setAccountError] = useState("");
   const [accountBusy, setAccountBusy] = useState(false);
-  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(
-    () => () => {
-      if (savedTimer.current) clearTimeout(savedTimer.current);
-    },
-    [],
-  );
 
   useEffect(() => {
     setBrawlerName(profile.name);
   }, [profile.name]);
 
-  const saveSettingsPatch = (patch: Record<string, unknown>, label: string) => {
+  const saveSettingsPatch = (
+    patch: Record<string, unknown>,
+    _label?: string,
+  ) => {
     setSettings({ ...settings, ...patch });
-    setSavedField(`${label} saved`);
-    if (savedTimer.current) clearTimeout(savedTimer.current);
-    savedTimer.current = setTimeout(() => setSavedField(""), 2200);
   };
 
   const saveSetting = (key: string, value: unknown, label: string) => {
@@ -85,9 +73,6 @@ export function SettingsScreen() {
     try {
       await saveAccountProfile({ displayName: normalizedBrawlerName });
       setBrawlerName(normalizedBrawlerName);
-      setSavedField("Brawler Name updated");
-      if (savedTimer.current) clearTimeout(savedTimer.current);
-      savedTimer.current = setTimeout(() => setSavedField(""), 2200);
     } catch (error) {
       setAccountError(
         error instanceof Error
@@ -107,7 +92,6 @@ export function SettingsScreen() {
       await changePassword(currentPassword, newPassword);
       setCurrentPassword("");
       setNewPassword("");
-      setSavedField("Password updated");
     } catch (error) {
       setAccountError(
         error instanceof Error ? error.message : "Could not change password.",
@@ -158,30 +142,12 @@ export function SettingsScreen() {
       JSON.stringify(payload, null, 2),
       "application/json",
     );
-    setSavedField("Data export downloaded");
   };
 
-  const storageTitle =
-    storageHealth.status === "error"
-      ? "Latest changes not saved"
-      : storageHealth.status === "saved"
-        ? "Saved on this device"
-        : "Local storage ready";
 
   return (
     <div className={styles.route}>
-      <RouteHero
-        className={styles.hero}
-        title="Settings"
-        aside={
-          <div className={styles.saveStatus} role="status" aria-live="polite">
-            <StatusChip tone={savedField ? "success" : "neutral"}>
-              {savedField || "Ready"}
-            </StatusChip>
-            <small>{authUser ? `Cloud: ${syncStatus}` : storageTitle}</small>
-          </div>
-        }
-      />
+      <RouteHero className={styles.hero} title="Settings" />
       <section className={styles.layout}>
         <nav className={styles.sectionNav} aria-label="Settings categories">
           {SECTIONS.map((item) => (
@@ -199,6 +165,14 @@ export function SettingsScreen() {
         <main className={styles.content}>
           {section === "Account" && (
             <SettingsSection title="Account">
+              {authUser && (
+                <Surface className={styles.accountSummary}>
+                  <div>
+                    <span>Signed in as</span>
+                    <strong>{authUser.email}</strong>
+                  </div>
+                </Surface>
+              )}
               <form
                 className={styles.passwordForm}
                 onSubmit={submitBrawlerName}
@@ -235,14 +209,7 @@ export function SettingsScreen() {
                 </ActionButton>
               </form>
               {authUser ? (
-                <>
-                  <Surface className={styles.accountSummary}>
-                    <div>
-                      <span>Signed in as</span>
-                      <strong>{authUser.email}</strong>
-                    </div>
-                  </Surface>
-                  <form
+                <form
                     className={styles.passwordForm}
                     onSubmit={submitPassword}
                   >
@@ -277,7 +244,6 @@ export function SettingsScreen() {
                       Update password
                     </ActionButton>
                   </form>
-                </>
               ) : (
                 <Surface className={styles.callout}>
                   <div>
@@ -370,22 +336,6 @@ export function SettingsScreen() {
                   saveSetting("automaticPass", value, "Automatic Pass")
                 }
               />
-              <Field label="Match-log detail">
-                <select
-                  value={settings.logDetail}
-                  onChange={(event) =>
-                    saveSetting(
-                      "logDetail",
-                      event.target.value,
-                      "Match-log detail",
-                    )
-                  }
-                >
-                  <option>All events</option>
-                  <option>Gameplay only</option>
-                  <option>Random results</option>
-                </select>
-              </Field>
             </SettingsSection>
           )}
 
@@ -436,97 +386,53 @@ export function SettingsScreen() {
 
           {section === "Audio" && (
             <SettingsSection title="Audio">
-              <SettingToggle
+              <AudioSetting
                 label="Game Sounds"
                 copy="Cards, rolls, damage, priority, and match-result cues."
-                checked={settings.gameSoundsEnabled}
-                onChange={(value) =>
+                enabled={Boolean(settings.gameSoundsEnabled)}
+                volume={settings.gameSoundVolume ?? 55}
+                onEnabledChange={(value) =>
                   saveSettingsPatch(
                     { gameSoundsEnabled: value, soundEnabled: value, sound: value },
                     "Game Sounds",
                   )
                 }
+                onVolumeChange={(value) =>
+                  saveSettingsPatch(
+                    { gameSoundVolume: value, soundVolume: value / 100 },
+                    "Game Sounds volume",
+                  )
+                }
               />
-              <label className={styles.rangeSetting}>
-                <span>
-                  <strong>Game Sounds volume</strong>
-                  <small>Volume for gameplay-event audio.</small>
-                </span>
-                <b>{settings.gameSoundVolume}%</b>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={settings.gameSoundVolume}
-                  onChange={(event) => {
-                    const value = Number(event.target.value);
-                    saveSettingsPatch(
-                      { gameSoundVolume: value, soundVolume: value / 100 },
-                      "Game Sounds volume",
-                    );
-                  }}
-                />
-              </label>
-
-              <SettingToggle
+              <AudioSetting
                 label="UI Sounds"
                 copy="Interface feedback such as navigation and control cues."
-                checked={settings.uiSoundsEnabled}
-                onChange={(value) => saveSetting("uiSoundsEnabled", value, "UI Sounds")}
+                enabled={Boolean(settings.uiSoundsEnabled)}
+                volume={settings.uiSoundVolume ?? 70}
+                onEnabledChange={(value) =>
+                  saveSetting("uiSoundsEnabled", value, "UI Sounds")
+                }
+                onVolumeChange={(value) =>
+                  saveSetting("uiSoundVolume", value, "UI Sounds volume")
+                }
               />
-              <label className={styles.rangeSetting}>
-                <span>
-                  <strong>UI Sounds volume</strong>
-                  <small>Volume reserved for interface feedback.</small>
-                </span>
-                <b>{settings.uiSoundVolume}%</b>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={settings.uiSoundVolume}
-                  onChange={(event) =>
-                    saveSetting("uiSoundVolume", Number(event.target.value), "UI Sounds volume")
-                  }
-                />
-              </label>
-
-              <SettingToggle
-                label="Music"
-                copy="Enable soundtrack playback when music support is added."
-                checked={settings.musicEnabled}
-                onChange={(value) => saveSetting("musicEnabled", value, "Music")}
-              />
-              <label className={styles.rangeSetting}>
-                <span>
-                  <strong>Music volume</strong>
-                  <small>Stored now for future soundtrack support.</small>
-                </span>
-                <b>{settings.musicVolume}%</b>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={settings.musicVolume}
-                  onChange={(event) =>
-                    saveSetting("musicVolume", Number(event.target.value), "Music volume")
-                  }
-                />
-              </label>
-
               <label className={styles.rangeSetting}>
                 <span>
                   <strong>Master Volume</strong>
-                  <small>Overall output level applied to implemented audio channels.</small>
+                  <small>Overall volume for game and interface sounds.</small>
                 </span>
-                <b>{settings.masterVolume}%</b>
+                <b>{settings.masterVolume ?? 100}%</b>
                 <input
                   type="range"
                   min="0"
                   max="100"
-                  value={settings.masterVolume}
+                  value={settings.masterVolume ?? 100}
                   onChange={(event) =>
-                    saveSetting("masterVolume", Number(event.target.value), "Master Volume")
+                    saveSetting(
+                      "masterVolume",
+                      Number(event.target.value),
+                      "Master Volume",
+                    )
                   }
                 />
               </label>
@@ -596,6 +502,56 @@ function SettingsSection({
       </header>
       <div className={styles.sectionBody}>{children}</div>
     </section>
+  );
+}
+
+function AudioSetting({
+  label,
+  copy,
+  enabled,
+  volume,
+  onEnabledChange,
+  onVolumeChange,
+}: {
+  label: string;
+  copy: string;
+  enabled: boolean;
+  volume: number;
+  onEnabledChange: (value: boolean) => void;
+  onVolumeChange: (value: number) => void;
+}) {
+  const volumeId = `audio-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-volume`;
+
+  return (
+    <div className={styles.audioSetting}>
+      <div className={styles.audioSettingHeader}>
+        <span>
+          <strong>{label}</strong>
+          <small>{copy}</small>
+        </span>
+        <label className={styles.audioToggle} aria-label={`Toggle ${label}`}>
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(event) => onEnabledChange(event.target.checked)}
+          />
+          <i aria-hidden="true" />
+        </label>
+      </div>
+      <div className={styles.audioVolume}>
+        <label htmlFor={volumeId}>Volume</label>
+        <b>{volume}%</b>
+        <input
+          id={volumeId}
+          type="range"
+          min="0"
+          max="100"
+          value={volume}
+          disabled={!enabled}
+          onChange={(event) => onVolumeChange(Number(event.target.value))}
+        />
+      </div>
+    </div>
   );
 }
 

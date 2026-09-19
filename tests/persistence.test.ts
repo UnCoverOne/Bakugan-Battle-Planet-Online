@@ -9,7 +9,7 @@ const base = (updatedAt: number): UserSnapshot => ({
   profile: { name: "DanBrawler", faction: "Pyrus", signedIn: true },
   decks: [STARTER_DECKS[0]],
   history: [],
-  settings: { reducedMotion: false, highContrast: false, sound: true, cardScale: 100, logDetail: "All events", challenges: "Everyone" },
+  settings: { reducedMotion: false, highContrast: false, sound: true, cardScale: 100, challenges: "Everyone" },
   route: "dashboard",
   selectedDeckId: STARTER_DECKS[0].id,
   builderDeck: null,
