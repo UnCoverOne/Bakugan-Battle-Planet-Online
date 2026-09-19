@@ -19,6 +19,7 @@ import {
 import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { useApp } from "./AppProvider";
 import { SocialDrawer, SocialMenuButton, SocialProvider } from "../social/SocialProvider";
+import { MusicLayer } from "./MusicLayer";
 
 const NAV = [
   { href: "/", label: "Home", icon: "⌂" },
@@ -203,6 +204,7 @@ export function AppShell({ children }) {
 
   return (
     <SocialProvider>
+      <MusicLayer />
       <div
         className={`app-shell ${immersiveMatch ? "immersive-match" : ""} ${secondaryRoute ? "secondary-route" : ""}`}
       >

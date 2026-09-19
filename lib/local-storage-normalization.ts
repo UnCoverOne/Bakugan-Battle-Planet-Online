@@ -185,6 +185,8 @@ export function normalizeStoredSettings(value: unknown): AppSettings {
     gameSoundVolume,
     uiSoundsEnabled: boolean("uiSoundsEnabled", DEFAULT_APP_SETTINGS.uiSoundsEnabled ?? true),
     uiSoundVolume: percent("uiSoundVolume", DEFAULT_APP_SETTINGS.uiSoundVolume ?? 70),
+    musicEnabled: boolean("musicEnabled", DEFAULT_APP_SETTINGS.musicEnabled ?? true),
+    musicVolume: percent("musicVolume", DEFAULT_APP_SETTINGS.musicVolume ?? 55),
     masterVolume: percent("masterVolume", DEFAULT_APP_SETTINGS.masterVolume ?? 100),
     replayLinks: boolean("replayLinks", DEFAULT_APP_SETTINGS.replayLinks ?? true),
     ...(typeof candidate.automaticDraw === "boolean" ? { automaticDraw: candidate.automaticDraw } : {}),
