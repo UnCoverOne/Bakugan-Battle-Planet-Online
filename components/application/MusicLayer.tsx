@@ -51,14 +51,20 @@ export function MusicLayer() {
   }, []);
 
   useEffect(() => {
-    const unlock = () => setUnlocked(true);
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
+    const unlock = () => {
+      setUnlocked(true);
+      const audio = audioRef.current;
+      if (audio && currentTrackRef.current && musicEnabled && document.visibilityState !== "hidden") {
+        void audio.play().catch(() => undefined);
+      }
+    };
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
     return () => {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
     };
-  }, []);
+  }, [musicEnabled]);
 
   useEffect(() => {
     if (!musicEnabled || manifest) return;
@@ -124,6 +130,7 @@ export function MusicLayer() {
       audio.loop = next.loop;
       audio.volume = musicGain(targetVolume, masterVolume, next.gainDb);
       currentTrackRef.current = next;
+      if (cycle !== 0) setCycle(0);
       if (unlocked && document.visibilityState !== "hidden") void audio.play().catch(() => undefined);
     }, pathname === "/play/match" ? 900 : 1_400);
 
