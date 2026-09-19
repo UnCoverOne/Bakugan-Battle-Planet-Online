@@ -10,6 +10,7 @@ import {
   type TurnStartMatchState,
 } from "../lib/turnStart";
 import {
+  cardRequiresSelection,
   compactMatchHudSlots,
   defaultCardChoices,
   handCardIsActionable,
@@ -51,6 +52,26 @@ test("player HUD details resolve from the local player perspective", () => {
   assert.equal(resolveHudPlayers(match, opponent.id).player?.id, opponent.id);
   assert.equal(matchRoundTarget(match), 2);
   assert.equal(matchRoundTarget({ format: "bo1" }), 1);
+});
+
+test("first-turn Fusion Brawler free payment is treated as a pre-play choice", () => {
+  const player = makePlayer("mcq-player", "Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("mcq-opponent", "Opponent", STARTER_DECKS[1]);
+  const source = CARDS.find((card) => card.catalogId === "sv-100");
+  assert.ok(source);
+  player.hand = [{ ...source, id: "mcq-fusion-brawler" }];
+  player.energy = 0;
+  player.energyZone = [];
+
+  const match = createMatch("HUDMCQ", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "power";
+  match.priority = player.id;
+
+  assert.equal(cardRequiresSelection(match, player.id, "mcq-fusion-brawler"), true);
+
+  match.turn = 2;
+  assert.equal(cardRequiresSelection(match, player.id, "mcq-fusion-brawler"), false);
 });
 
 test("priority immediately enables legal hand cards before Play Card is pressed", () => {

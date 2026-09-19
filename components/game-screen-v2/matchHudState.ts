@@ -231,7 +231,15 @@ export function cardRequiresSelection(
 ) {
   const { player } = resolveHudPlayers(match, playerId);
   const card = player?.hand.find((candidate) => candidate.id === cardId);
-  return Boolean(match && player && card && cardChoiceSpec(match, player.id, card).length);
+  if (!match || !player || !card) return false;
+
+  // Alternative payment routes are declared through the staged card-play
+  // flow rather than the card's printed target choices. Treat them as a
+  // required pre-play decision so "may play this for free" and Sacrifice-style
+  // payments reach the payment-mode chooser instead of defaulting to normal
+  // Energy payment.
+  return cardChoiceSpec(match, player.id, card).length > 0
+    || cardPaymentModes(match, player.id, card).length > 1;
 }
 
 export function visibleMatchHudActions({

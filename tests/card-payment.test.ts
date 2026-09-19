@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, type PlayerState } from "../lib/game";
+import {
+  createMatch,
+  prepareCardPlay,
+  submitCardChoice,
+  type PlayerState,
+} from "../lib/game";
 import {
   cardEnergyPaymentState,
   playCardWithAutoEnergy,
@@ -34,6 +39,36 @@ function paymentMatch(cost: number, energyCards: number, generated: number) {
   match.startingPlayer = player.id;
   return { match, player, card };
 }
+
+test("McQ, Fusion Brawler can choose its free first-turn payment with no Energy", () => {
+  const player = makePlayer("mcq-player", "Player", STARTER_DECKS[0]);
+  const opponent = makePlayer("mcq-opponent", "Opponent", STARTER_DECKS[1]);
+  const source = CARDS.find((card) => card.catalogId === "sv-100");
+  assert.ok(source);
+  const mcq = { ...source, id: "mcq-free-first-turn" };
+  player.hand = [mcq];
+  player.energy = 0;
+  player.energyZone = [];
+
+  const match = createMatch("PAYMCQ", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "power";
+  match.priority = player.id;
+  match.startingPlayer = player.id;
+
+  const prepared = prepareCardPlay(match, player.id, mcq.id);
+  const paymentMode = prepared.pendingChoice?.schema.fields.find((field) => field.id === "paymentMode");
+  assert.ok(paymentMode);
+  assert.equal(paymentMode.options.find((option) => option.id === "normal")?.disabled, true);
+  assert.equal(paymentMode.options.find((option) => option.id === "sv-100:self-free")?.disabled, false);
+
+  const played = submitCardChoice(prepared, player.id, { paymentMode: "sv-100:self-free" });
+  assert.equal(played.pendingChoice, undefined);
+  assert.equal(played.players[0].hand.some((card) => card.id === mcq.id), false);
+  assert.equal(played.players[0].energy, 0);
+  assert.equal(played.batch.at(-1)?.card.id, mcq.id);
+  assert.equal(played.batch.at(-1)?.card.playedForFreeTurn, 1);
+});
 
 test("a card uses already generated Energy without tapping extra cards", () => {
   const { match, player, card } = paymentMatch(2, 4, 3);
