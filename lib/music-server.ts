@@ -8,9 +8,10 @@ import {
 } from "./music";
 import { ValidationError } from "./server-errors";
 
-const MUSIC_CHUNK_BYTES = 256 * 1024;
+export const MUSIC_UPLOAD_CHUNK_BYTES = 256 * 1024;
 export const MAX_MUSIC_TRACK_BYTES = 20 * 1024 * 1024;
 const MAX_MUSIC_DURATION_MS = 60 * 60 * 1000;
+const MUSIC_UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
 
 let musicSchemaReady = false;
 
@@ -31,6 +32,16 @@ type MusicTrackRow = {
   updated_at: number;
 };
 
+type MusicUploadRow = {
+  id: string;
+  administrator_id: string;
+  source_name: string;
+  byte_length: number;
+  chunk_count: number;
+  metadata_json: string;
+  created_at: number;
+};
+
 export async function ensureMusicSchema(db: AccountDatabase) {
   if (musicSchemaReady) return;
   await db.batch([
@@ -38,6 +49,10 @@ export async function ensureMusicSchema(db: AccountDatabase) {
     db.prepare("CREATE INDEX IF NOT EXISTS music_tracks_enabled_idx ON music_tracks(enabled, updated_at)"),
     db.prepare("CREATE TABLE IF NOT EXISTS music_track_chunks (track_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY (track_id, chunk_index), FOREIGN KEY (track_id) REFERENCES music_tracks(id) ON DELETE CASCADE)"),
     db.prepare("CREATE INDEX IF NOT EXISTS music_track_chunks_track_idx ON music_track_chunks(track_id, chunk_index)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS music_uploads (id TEXT PRIMARY KEY NOT NULL, administrator_id TEXT NOT NULL, source_name TEXT NOT NULL, byte_length INTEGER NOT NULL, chunk_count INTEGER NOT NULL, metadata_json TEXT NOT NULL, created_at INTEGER NOT NULL)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS music_uploads_created_idx ON music_uploads(created_at)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS music_upload_chunks (upload_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY (upload_id, chunk_index), FOREIGN KEY (upload_id) REFERENCES music_uploads(id) ON DELETE CASCADE)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS music_upload_chunks_upload_idx ON music_upload_chunks(upload_id, chunk_index)"),
   ]);
   musicSchemaReady = true;
 }
@@ -119,55 +134,149 @@ function safeSourceName(value: string) {
   return name || "imported-track.opus";
 }
 
-export async function importMusicTrack(
+async function cleanupStaleMusicUploads(db: AccountDatabase) {
+  const cutoff = Date.now() - MUSIC_UPLOAD_TTL_MS;
+  await db.batch([
+    db.prepare("DELETE FROM music_upload_chunks WHERE upload_id IN (SELECT id FROM music_uploads WHERE created_at < ?)").bind(cutoff),
+    db.prepare("DELETE FROM music_uploads WHERE created_at < ?").bind(cutoff),
+  ]);
+}
+
+export async function beginMusicUpload(
   db: AccountDatabase,
-  file: File,
-  metadata: Partial<MusicTrackMetadata>,
+  value: {
+    fileName?: unknown;
+    byteLength?: unknown;
+    metadata?: Partial<MusicTrackMetadata>;
+  },
   administratorId: string,
 ) {
   await ensureMusicSchema(db);
-  const normalized = normalizeMetadata(metadata);
-  const sourceName = safeSourceName(file.name);
-  const extensionLooksOpus = /\.opus$/i.test(sourceName);
-  const supportedMime = file.type === "audio/ogg" || file.type === "audio/opus" || !file.type;
-  if (!extensionLooksOpus || !supportedMime) {
+  await cleanupStaleMusicUploads(db);
+  const sourceName = safeSourceName(String(value.fileName ?? ""));
+  if (!/\.opus$/i.test(sourceName)) {
     throw new ValidationError("Administrator imports must be converted to an .opus file first.");
   }
-  if (file.size < 1_000 || file.size > MAX_MUSIC_TRACK_BYTES) {
+  const byteLength = Math.round(Number(value.byteLength ?? 0));
+  if (!Number.isFinite(byteLength) || byteLength < 1_000 || byteLength > MAX_MUSIC_TRACK_BYTES) {
     throw new ValidationError(`Optimized track must be between 1 KB and ${Math.floor(MAX_MUSIC_TRACK_BYTES / 1024 / 1024)} MB.`);
   }
-
+  const metadata = normalizeMetadata(value.metadata ?? {});
   const id = `music-${crypto.randomUUID()}`;
+  const chunkCount = Math.ceil(byteLength / MUSIC_UPLOAD_CHUNK_BYTES);
+  await db.prepare(
+    "INSERT INTO music_uploads (id, administrator_id, source_name, byte_length, chunk_count, metadata_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  ).bind(
+    id,
+    administratorId,
+    sourceName,
+    byteLength,
+    chunkCount,
+    JSON.stringify(metadata),
+    Date.now(),
+  ).run();
+  return { uploadId: id, chunkBytes: MUSIC_UPLOAD_CHUNK_BYTES, chunkCount };
+}
+
+async function musicUploadById(
+  db: AccountDatabase,
+  uploadId: string,
+  administratorId: string,
+) {
+  const upload = await db.prepare(
+    "SELECT id, administrator_id, source_name, byte_length, chunk_count, metadata_json, created_at FROM music_uploads WHERE id = ?",
+  ).bind(uploadId).first<MusicUploadRow>();
+  if (!upload || upload.administrator_id !== administratorId) {
+    throw new ValidationError("The music upload is no longer available.");
+  }
+  return upload;
+}
+
+export async function storeMusicUploadChunk(
+  db: AccountDatabase,
+  uploadId: string,
+  chunkIndex: number,
+  data: ArrayBuffer,
+  administratorId: string,
+) {
+  await ensureMusicSchema(db);
+  const upload = await musicUploadById(db, uploadId, administratorId);
+  if (!Number.isSafeInteger(chunkIndex) || chunkIndex < 0 || chunkIndex >= upload.chunk_count) {
+    throw new ValidationError("Music upload chunk index is invalid.");
+  }
+  const expectedBytes = chunkIndex === upload.chunk_count - 1
+    ? upload.byte_length - chunkIndex * MUSIC_UPLOAD_CHUNK_BYTES
+    : MUSIC_UPLOAD_CHUNK_BYTES;
+  if (data.byteLength !== expectedBytes) {
+    throw new ValidationError("Music upload chunk size is invalid.");
+  }
+  await db.prepare(
+    "INSERT INTO music_upload_chunks (upload_id, chunk_index, data) VALUES (?, ?, ?) ON CONFLICT(upload_id, chunk_index) DO UPDATE SET data = excluded.data",
+  ).bind(uploadId, chunkIndex, data).run();
+  return { ok: true, chunkIndex };
+}
+
+export async function finalizeMusicUpload(
+  db: AccountDatabase,
+  uploadId: string,
+  administratorId: string,
+) {
+  await ensureMusicSchema(db);
+  const upload = await musicUploadById(db, uploadId, administratorId);
+  const aggregate = await db.prepare(
+    "SELECT COUNT(*) AS chunk_count, COALESCE(SUM(length(data)), 0) AS byte_length FROM music_upload_chunks WHERE upload_id = ?",
+  ).bind(uploadId).first<{ chunk_count: number; byte_length: number }>();
+  if (
+    Number(aggregate?.chunk_count ?? 0) !== upload.chunk_count
+    || Number(aggregate?.byte_length ?? 0) !== upload.byte_length
+  ) {
+    throw new ValidationError("The music upload is incomplete. Retry the import.");
+  }
+  let metadata: MusicTrackMetadata;
+  try {
+    metadata = normalizeMetadata(JSON.parse(upload.metadata_json) as Partial<MusicTrackMetadata>);
+  } catch {
+    throw new ValidationError("The music upload metadata is invalid.");
+  }
   const now = Date.now();
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const statements = [
+  await db.batch([
     db.prepare(
       "INSERT INTO music_tracks (id, name, source_name, mime_type, byte_length, duration_ms, enabled, categories_json, weight, loop, gain_db, revision, created_at, updated_at, updated_by) VALUES (?, ?, ?, 'audio/ogg', ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)",
     ).bind(
-      id,
-      normalized.name,
-      sourceName,
-      bytes.byteLength,
-      normalized.durationMs,
-      normalized.enabled ? 1 : 0,
-      JSON.stringify(normalized.categories),
-      normalized.weight,
-      normalized.loop ? 1 : 0,
-      normalized.gainDb,
+      upload.id,
+      metadata.name,
+      upload.source_name,
+      upload.byte_length,
+      metadata.durationMs,
+      metadata.enabled ? 1 : 0,
+      JSON.stringify(metadata.categories),
+      metadata.weight,
+      metadata.loop ? 1 : 0,
+      metadata.gainDb,
       now,
       now,
       administratorId,
     ),
-  ];
-  for (let offset = 0, index = 0; offset < bytes.byteLength; offset += MUSIC_CHUNK_BYTES, index += 1) {
-    const chunk = bytes.slice(offset, Math.min(bytes.byteLength, offset + MUSIC_CHUNK_BYTES));
-    statements.push(
-      db.prepare("INSERT INTO music_track_chunks (track_id, chunk_index, data) VALUES (?, ?, ?)")
-        .bind(id, index, chunk.buffer),
-    );
-  }
-  await db.batch(statements);
-  return (await listMusicTracks(db)).find((track) => track.id === id)!;
+    db.prepare(
+      "INSERT INTO music_track_chunks (track_id, chunk_index, data) SELECT ?, chunk_index, data FROM music_upload_chunks WHERE upload_id = ? ORDER BY chunk_index",
+    ).bind(upload.id, upload.id),
+    db.prepare("DELETE FROM music_upload_chunks WHERE upload_id = ?").bind(upload.id),
+    db.prepare("DELETE FROM music_uploads WHERE id = ?").bind(upload.id),
+  ]);
+  return (await listMusicTracks(db)).find((track) => track.id === upload.id)!;
+}
+
+export async function abortMusicUpload(
+  db: AccountDatabase,
+  uploadId: string,
+  administratorId: string,
+) {
+  await ensureMusicSchema(db);
+  await musicUploadById(db, uploadId, administratorId);
+  await db.batch([
+    db.prepare("DELETE FROM music_upload_chunks WHERE upload_id = ?").bind(uploadId),
+    db.prepare("DELETE FROM music_uploads WHERE id = ?").bind(uploadId),
+  ]);
 }
 
 export async function updateMusicTrack(
@@ -257,8 +366,8 @@ export async function musicTrackResponse(
       headers: { "content-range": `bytes */${row.byte_length}`, "accept-ranges": "bytes" },
     });
   }
-  const firstChunk = Math.floor(range.start / MUSIC_CHUNK_BYTES);
-  const lastChunk = Math.floor(range.end / MUSIC_CHUNK_BYTES);
+  const firstChunk = Math.floor(range.start / MUSIC_UPLOAD_CHUNK_BYTES);
+  const lastChunk = Math.floor(range.end / MUSIC_UPLOAD_CHUNK_BYTES);
   const result = await db.prepare(
     "SELECT chunk_index, data FROM music_track_chunks WHERE track_id = ? AND chunk_index BETWEEN ? AND ? ORDER BY chunk_index",
   ).bind(id, firstChunk, lastChunk).all() as {
@@ -272,7 +381,7 @@ export async function musicTrackResponse(
     combined.set(piece, cursor);
     cursor += piece.byteLength;
   }
-  const sourceStart = range.start - firstChunk * MUSIC_CHUNK_BYTES;
+  const sourceStart = range.start - firstChunk * MUSIC_UPLOAD_CHUNK_BYTES;
   const requestedLength = range.end - range.start + 1;
   const body = combined.slice(sourceStart, sourceStart + requestedLength);
   if (body.byteLength !== requestedLength) return new Response("Track data is incomplete.", { status: 503 });
