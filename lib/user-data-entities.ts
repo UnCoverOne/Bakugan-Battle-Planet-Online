@@ -3,6 +3,7 @@ import {
   DEFAULT_BRAWLER_PROFILE,
   EMPTY_LIFETIME_MATCH_STATS,
   MAX_MATCH_RECORDS,
+  normalizeCompletedTrainingMatchIds,
   recoverableTrainingMatch,
   toCloudSnapshot,
   type MatchResultRecord,
@@ -81,6 +82,7 @@ export function snapshotToSyncRequest(
         lifetimeStats: snapshot.lifetimeStats ?? EMPTY_LIFETIME_MATCH_STATS,
         activeTrainingMatch: snapshot.match,
         activeTrainingPlayerId: snapshot.playerId,
+        completedTrainingMatchIds: snapshot.completedTrainingMatchIds ?? [],
         updatedAt: snapshot.updatedAt,
       },
       revisions,
@@ -193,15 +195,23 @@ export function assembleEntitySnapshot(
     lifetimeStats: EMPTY_LIFETIME_MATCH_STATS,
     activeTrainingMatch: null,
     activeTrainingPlayerId: "",
+    completedTrainingMatchIds: [],
     updatedAt: 0,
   });
-  const activeTrainingMatch = recoverableTrainingMatch(
+  const completedTrainingMatchIds = normalizeCompletedTrainingMatchIds(
+    preferences.completedTrainingMatchIds,
+  );
+  const candidateTrainingMatch = recoverableTrainingMatch(
     preferences.activeTrainingMatch
     && typeof preferences.activeTrainingMatch === "object"
       ? preferences.activeTrainingMatch as UserSnapshot["match"]
       : null,
     false,
   );
+  const activeTrainingMatch = candidateTrainingMatch
+    && !completedTrainingMatchIds.includes(candidateTrainingMatch.id)
+      ? candidateTrainingMatch
+      : null;
   const activeTrainingPlayerId =
     activeTrainingMatch
     && typeof preferences.activeTrainingPlayerId === "string"
@@ -255,6 +265,7 @@ export function assembleEntitySnapshot(
     replay: null,
     replayIndex: 0,
     playerId: activeTrainingPlayerId,
+    completedTrainingMatchIds,
     collection: normalizeCollection(collection),
   };
 }

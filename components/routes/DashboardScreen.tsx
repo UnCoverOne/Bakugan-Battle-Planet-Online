@@ -147,6 +147,8 @@ export function DashboardScreen() {
     accountMatchSessionsError,
     resumeAccountMatch,
     resumingMatchCode,
+    resumeCurrentMatch,
+    resumingCurrentMatch,
     requestAccountAccess,
   } = useApp();
   useHomeDisplayFont();
@@ -248,7 +250,7 @@ export function DashboardScreen() {
 
     {activeSession && <section className="active-match-card">
       <div><span className="pulse"/><span className="eyebrow">{activeSession.eyebrow}</span><h2>{activeSession.title}</h2><p>{activeSession.detail}</p></div>
-      <Link className="hex-button blue" href={activeSession.href}><span>{activeSession.actionLabel}</span><ChevronArrow/></Link>
+      <button className="hex-button blue" type="button" disabled={resumingCurrentMatch} onClick={() => void resumeCurrentMatch()}><span>{resumingCurrentMatch ? "CHECKING…" : activeSession.actionLabel}</span><ChevronArrow/></button>
     </section>}
 
     {recoverableSessions.map((session) => {

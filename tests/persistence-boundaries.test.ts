@@ -133,6 +133,87 @@ test("incomplete Training matches are durable account state and recover on a fre
   assert.equal(restored.route, "dashboard");
 });
 
+test("completed Training matches leave a tombstone that invalidates stale cross-device resumes", () => {
+  const activeTrainingMatch = {
+    id: "training-series",
+    version: 11,
+    gameNumber: 1,
+    phase: "draw",
+    winner: "",
+    format: "bo1",
+    series: { "device-player": 0, "training-bot": 0 },
+    players: [{ id: "device-player" }, { id: "training-bot" }],
+    trainingAiDeck: { resourceId: "training-default", configurationRevision: 4 },
+  } as UserSnapshot["match"];
+  const completedTrainingMatch = {
+    ...activeTrainingMatch,
+    version: 42,
+    phase: "result",
+    winner: "device-player",
+    series: { "device-player": 1, "training-bot": 0 },
+  } as UserSnapshot["match"];
+
+  const mobileCloud = toCloudSnapshot(snapshot({
+    updatedAt: 300,
+    match: completedTrainingMatch,
+    online: false,
+    playerId: "device-player",
+  }));
+  assert.equal(mobileCloud.match, null);
+  assert.deepEqual(mobileCloud.completedTrainingMatchIds, ["training-series"]);
+
+  const staleDesktop = snapshot({
+    updatedAt: 200,
+    route: "dashboard",
+    match: activeTrainingMatch,
+    online: false,
+    playerId: "device-player",
+  });
+  const restored = selectSnapshot(staleDesktop, mobileCloud, "cloud");
+  assert.equal(restored.match, null);
+  assert.equal(restored.playerId, "");
+  assert.deepEqual(restored.completedTrainingMatchIds, ["training-series"]);
+});
+
+test("a cloud snapshot with no Training tombstone does not erase legitimate offline progress", () => {
+  const activeTrainingMatch = {
+    id: "offline-training",
+    version: 7,
+    phase: "draw",
+    players: [{ id: "device-player" }, { id: "training-bot" }],
+    trainingAiDeck: { resourceId: "training-default", configurationRevision: 3 },
+  } as UserSnapshot["match"];
+  const local = snapshot({
+    updatedAt: 200,
+    match: activeTrainingMatch,
+    online: false,
+    playerId: "device-player",
+  });
+  const cloud = toCloudSnapshot(snapshot({
+    updatedAt: 100,
+    match: null,
+    online: false,
+    playerId: "",
+  }));
+
+  const restored = selectSnapshot(local, cloud, "cloud");
+  assert.equal(restored.match?.id, "offline-training");
+  assert.equal(restored.playerId, "device-player");
+});
+
+test("signed-in local Training resumes revalidate account state before navigation", () => {
+  const provider = source("components/application/AppProvider.jsx");
+  const dashboard = source("components/routes/DashboardScreen.tsx");
+  const shell = source("components/application/AppShell.jsx");
+  assert.match(provider, /const resumeCurrentMatch = useCallback/);
+  assert.match(provider, /await refreshAccountState\(\)/);
+  assert.match(provider, /loadCloud\("cloud", authUser\)/);
+  assert.match(provider, /addEventListener\("focus", resume\)/);
+  assert.match(dashboard, /onClick=\{\(\) => void resumeCurrentMatch\(\)\}/);
+  assert.match(shell, /onClick=\{\(\) => void resumeCurrentMatch\(\)\}/);
+});
+
+
 test("cloud Training recovery replaces a completed stale match on another device", () => {
   const trainingMatch = {
     id: "training-match",
