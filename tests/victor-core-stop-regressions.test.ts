@@ -94,7 +94,9 @@ function mcqVictorState(baseDamage: number) {
 
 test("Mc Q only puts its Victor effect on the Batch when the upcoming attack is 10 or more", () => {
   for (const [baseDamage, shouldTrigger] of [[8, false], [9, true]] as const) {
-    let { state, player, opponent } = mcqVictorState(baseDamage);
+    const setup = mcqVictorState(baseDamage);
+    let { state } = setup;
+    const { player, opponent } = setup;
     state = passPriority(state, player.id);
     state = passPriority(state, opponent.id);
     assert.equal(state.phase, "victor");
