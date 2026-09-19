@@ -369,9 +369,8 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
         <div>
           <div className={styles.trackTitle}>
             <input aria-label="Track name" maxLength={120} value={draft.name} onChange={(event) => patch("name", event.target.value)} />
-            <StatusChip tone={draft.enabled ? "success" : "neutral"}>{draft.enabled ? "ENABLED" : "DISABLED"}</StatusChip>
           </div>
-          <p>{track.sourceName} · {formatDuration(track.durationMs)} · {formatBytes(track.bytes)} · revision {track.revision}</p>
+          <p>{formatDuration(track.durationMs)} · Opus · {formatBytes(track.bytes)}</p>
         </div>
         <label className={styles.enabledToggle}>
           <input type="checkbox" checked={draft.enabled} onChange={(event) => patch("enabled", event.target.checked)} />

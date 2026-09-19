@@ -139,6 +139,9 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(admin, /attempt < 3/);
   assert.match(admin, /cf-error-type/);
   assert.match(admin, /readJsonResponse/);
+  assert.match(admin, /formatDuration\(track\.durationMs\).*Opus.*formatBytes\(track\.bytes\)/);
+  assert.doesNotMatch(admin, /track\.sourceName}.*revision/);
+  assert.doesNotMatch(admin, /draft\.enabled \? "ENABLED" : "DISABLED"/);
   assert.doesNotMatch(admin, /new FormData\(\)/);
   assert.match(adminRoute, /beginMusicUpload/);
   assert.match(adminRoute, /storeMusicUploadChunk/);
