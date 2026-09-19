@@ -9,6 +9,11 @@ import {
 import { ValidationError } from "./server-errors";
 
 export const MUSIC_UPLOAD_CHUNK_BYTES = 64 * 1024;
+export const LEGACY_MUSIC_UPLOAD_CHUNK_BYTES = 256 * 1024;
+export const MAX_MUSIC_UPLOAD_CHUNK_BYTES = Math.max(
+  MUSIC_UPLOAD_CHUNK_BYTES,
+  LEGACY_MUSIC_UPLOAD_CHUNK_BYTES,
+);
 export const MAX_MUSIC_TRACK_BYTES = 20 * 1024 * 1024;
 const MAX_MUSIC_DURATION_MS = 60 * 60 * 1000;
 const MUSIC_UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
@@ -30,6 +35,7 @@ type MusicTrackRow = {
   revision: number;
   created_at: number;
   updated_at: number;
+  chunk_bytes?: number;
 };
 
 type MusicUploadRow = {
@@ -129,6 +135,17 @@ function normalizeMetadata(value: Partial<MusicTrackMetadata>): MusicTrackMetada
   };
 }
 
+export function musicUploadChunkBytes(byteLength: number, chunkCount: number) {
+  const candidates = [
+    MUSIC_UPLOAD_CHUNK_BYTES,
+    LEGACY_MUSIC_UPLOAD_CHUNK_BYTES,
+  ];
+  for (const candidate of candidates) {
+    if (Math.ceil(byteLength / candidate) === chunkCount) return candidate;
+  }
+  return MUSIC_UPLOAD_CHUNK_BYTES;
+}
+
 function safeSourceName(value: string) {
   const name = value.trim().replace(/[\\/]+/g, "-").replace(/[^a-zA-Z0-9._ ()-]+/g, "").slice(0, 160);
   return name || "imported-track.opus";
@@ -204,9 +221,10 @@ export async function storeMusicUploadChunk(
   if (!Number.isSafeInteger(chunkIndex) || chunkIndex < 0 || chunkIndex >= upload.chunk_count) {
     throw new ValidationError("Music upload chunk index is invalid.");
   }
+  const chunkBytes = musicUploadChunkBytes(upload.byte_length, upload.chunk_count);
   const expectedBytes = chunkIndex === upload.chunk_count - 1
-    ? upload.byte_length - chunkIndex * MUSIC_UPLOAD_CHUNK_BYTES
-    : MUSIC_UPLOAD_CHUNK_BYTES;
+    ? upload.byte_length - chunkIndex * chunkBytes
+    : chunkBytes;
   if (data.byteLength !== expectedBytes) {
     throw new ValidationError("Music upload chunk size is invalid.");
   }
@@ -352,7 +370,7 @@ export async function musicTrackResponse(
 ) {
   await ensureMusicSchema(db);
   const row = await db.prepare(
-    "SELECT id, name, source_name, mime_type, byte_length, duration_ms, enabled, categories_json, weight, loop, gain_db, revision, created_at, updated_at FROM music_tracks WHERE id = ?",
+    "SELECT music_tracks.id, music_tracks.name, music_tracks.source_name, music_tracks.mime_type, music_tracks.byte_length, music_tracks.duration_ms, music_tracks.enabled, music_tracks.categories_json, music_tracks.weight, music_tracks.loop, music_tracks.gain_db, music_tracks.revision, music_tracks.created_at, music_tracks.updated_at, COALESCE((SELECT length(data) FROM music_track_chunks WHERE track_id = music_tracks.id ORDER BY chunk_index LIMIT 1), 0) AS chunk_bytes FROM music_tracks WHERE music_tracks.id = ?",
   ).bind(id).first<MusicTrackRow>();
   if (!row || !row.enabled) return new Response("Track not found.", { status: 404 });
   const etag = `"${row.id}-${row.revision}"`;
@@ -366,8 +384,11 @@ export async function musicTrackResponse(
       headers: { "content-range": `bytes */${row.byte_length}`, "accept-ranges": "bytes" },
     });
   }
-  const firstChunk = Math.floor(range.start / MUSIC_UPLOAD_CHUNK_BYTES);
-  const lastChunk = Math.floor(range.end / MUSIC_UPLOAD_CHUNK_BYTES);
+  const storedChunkBytes = Number(row.chunk_bytes ?? 0) > 0
+    ? Number(row.chunk_bytes)
+    : MUSIC_UPLOAD_CHUNK_BYTES;
+  const firstChunk = Math.floor(range.start / storedChunkBytes);
+  const lastChunk = Math.floor(range.end / storedChunkBytes);
   const result = await db.prepare(
     "SELECT chunk_index, data FROM music_track_chunks WHERE track_id = ? AND chunk_index BETWEEN ? AND ? ORDER BY chunk_index",
   ).bind(id, firstChunk, lastChunk).all() as {
@@ -381,7 +402,7 @@ export async function musicTrackResponse(
     combined.set(piece, cursor);
     cursor += piece.byteLength;
   }
-  const sourceStart = range.start - firstChunk * MUSIC_UPLOAD_CHUNK_BYTES;
+  const sourceStart = range.start - firstChunk * storedChunkBytes;
   const requestedLength = range.end - range.start + 1;
   const body = combined.slice(sourceStart, sourceStart + requestedLength);
   if (body.byteLength !== requestedLength) return new Response("Track data is incomplete.", { status: 503 });
