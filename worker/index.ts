@@ -22,7 +22,7 @@ import {
 import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
 import { archiveCompletedMatch, associateMatchSeatAccount } from "../lib/replay-archive-server";
 import { getSessionUserFromDatabase } from "../lib/account-server";
-import { MAX_MAX_MUSIC_UPLOAD_CHUNK_BYTES, storeMusicUploadChunk } from "../lib/music-server";
+import { MAX_MUSIC_UPLOAD_CHUNK_BYTES, storeMusicUploadChunk } from "../lib/music-server";
 import { assertSameOrigin } from "../lib/request-security";
 import { AuthorizationError, ValidationError, serverErrorResponse } from "../lib/server-errors";
 import { ensureSocialSchema, loadSocialAccount } from "../lib/social-server";
