@@ -3,6 +3,11 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { muxOggOpus } from "../lib/music-import-client";
 import {
+  LEGACY_MUSIC_UPLOAD_CHUNK_BYTES,
+  MUSIC_UPLOAD_CHUNK_BYTES,
+  musicUploadChunkBytes,
+} from "../lib/music-server";
+import {
   MUSIC_CATEGORIES,
   musicCategoryForRoute,
   musicGain,
@@ -89,6 +94,18 @@ test("music volume combines channel, master, and per-track trim", () => {
   assert.ok(musicGain(100, 100, -6) > .49 && musicGain(100, 100, -6) < .51);
 });
 
+test("music upload sessions keep their original chunk size across deployments", () => {
+  const bytes = 700_000;
+  assert.equal(
+    musicUploadChunkBytes(bytes, Math.ceil(bytes / MUSIC_UPLOAD_CHUNK_BYTES)),
+    MUSIC_UPLOAD_CHUNK_BYTES,
+  );
+  assert.equal(
+    musicUploadChunkBytes(bytes, Math.ceil(bytes / LEGACY_MUSIC_UPLOAD_CHUNK_BYTES)),
+    LEGACY_MUSIC_UPLOAD_CHUNK_BYTES,
+  );
+});
+
 test("browser converter muxes encoded Opus packets into an Ogg stream", async () => {
   const blob = muxOggOpus(
     [Uint8Array.from([1, 2, 3]), Uint8Array.from([4, 5, 6])],
@@ -129,12 +146,17 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.doesNotMatch(adminRoute, /request\.formData\(\)/);
   assert.match(server, /music_upload_chunks/);
   assert.match(server, /MUSIC_UPLOAD_CHUNK_BYTES = 64 \* 1024/);
+  assert.match(server, /LEGACY_MUSIC_UPLOAD_CHUNK_BYTES = 256 \* 1024/);
+  assert.match(server, /musicUploadChunkBytes\(upload\.byte_length, upload\.chunk_count\)/);
+  assert.match(server, /length\(data\).*AS chunk_bytes/);
+  assert.match(server, /storedChunkBytes/);
   assert.match(server, /music_track_chunks/);
   assert.match(server, /content-range/);
   assert.match(server, /accept-ranges/);
   assert.match(publicRoute, /getMusicManifest/);
   const worker = await read("worker/index.ts");
   assert.match(worker, /url\.pathname === "\/api\/admin\/music" && sanitizedRequest\.method === "PUT"/);
+  assert.match(worker, /MAX_MUSIC_UPLOAD_CHUNK_BYTES/);
   assert.match(worker, /storeMusicUploadChunk/);
   assert.match(worker, /fastPath: true/);
   assert.match(layer, /new Audio\(\)/);

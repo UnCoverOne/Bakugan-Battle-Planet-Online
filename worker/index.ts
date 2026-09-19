@@ -22,7 +22,7 @@ import {
 import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
 import { archiveCompletedMatch, associateMatchSeatAccount } from "../lib/replay-archive-server";
 import { getSessionUserFromDatabase } from "../lib/account-server";
-import { MUSIC_UPLOAD_CHUNK_BYTES, storeMusicUploadChunk } from "../lib/music-server";
+import { MAX_MAX_MUSIC_UPLOAD_CHUNK_BYTES, storeMusicUploadChunk } from "../lib/music-server";
 import { assertSameOrigin } from "../lib/request-security";
 import { AuthorizationError, ValidationError, serverErrorResponse } from "../lib/server-errors";
 import { ensureSocialSchema, loadSocialAccount } from "../lib/social-server";
@@ -626,13 +626,13 @@ const worker = {
           if (
             !Number.isSafeInteger(contentLength)
             || contentLength < 1
-            || contentLength > MUSIC_UPLOAD_CHUNK_BYTES
+            || contentLength > MAX_MUSIC_UPLOAD_CHUNK_BYTES
           ) {
             throw new ValidationError("Music upload chunk size is invalid.");
           }
         }
         const data = await sanitizedRequest.arrayBuffer();
-        if (data.byteLength < 1 || data.byteLength > MUSIC_UPLOAD_CHUNK_BYTES) {
+        if (data.byteLength < 1 || data.byteLength > MAX_MUSIC_UPLOAD_CHUNK_BYTES) {
           throw new ValidationError("Music upload chunk size is invalid.");
         }
         const result = await storeMusicUploadChunk(
