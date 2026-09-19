@@ -59,7 +59,7 @@ test("settings split Video and Audio controls while match Settings stays gamepla
     ]) assert.match(source, new RegExp(audioOption));
   }
 
-  assert.match(fullSettings, /Music playback is not implemented yet/);
+  assert.doesNotMatch(fullSettings, /Music playback is not implemented yet/);
   assert.match(sound, /gameSoundVolume/);
   assert.match(sound, /masterVolume/);
   for (const unrelated of ["Data & sync", "Privacy", "Danger zone", "Delete cloud account"]) {
@@ -68,22 +68,42 @@ test("settings split Video and Audio controls while match Settings stays gamepla
   assert.match(menu, /setOpen\(false\);[\s\S]*setSettingsOpen\(true\)/);
 });
 
-test("full Settings keeps account management together and removes non-user-facing tabs", () => {
+test("full Settings prioritizes gameplay controls and keeps account management minimal", () => {
   const settings = read("components/routes/SettingsScreen.tsx");
+  const primitives = read("components/design-system/primitives.tsx");
+  const menu = read("components/game-screen-v2/GameMenuHud.tsx");
 
   assert.match(
     settings,
-    /const SECTIONS = \[\s*"Account",\s*"Gameplay",\s*"Video",\s*"Audio",\s*"Accessibility",\s*\] as const;/,
+    /const SECTIONS = \[\s*"Gameplay",\s*"Video",\s*"Audio",\s*"Accessibility",\s*"Account",\s*\] as const;/,
   );
+  assert.match(settings, /useState<Section>\("Gameplay"\)/);
+
+  for (const gameplayOption of ["Automatic Draw", "Automatic Pass", "Match-log detail"]) {
+    assert.match(settings, new RegExp(gameplayOption));
+    assert.match(menu, new RegExp(gameplayOption));
+  }
+  assert.doesNotMatch(settings, /Default match-log detail/);
+
   for (const removedSection of ["Data & sync", "Privacy", "Danger zone"]) {
     assert.doesNotMatch(settings, new RegExp(`"${removedSection}"`));
   }
   assert.doesNotMatch(settings, /Sync now/);
   assert.doesNotMatch(settings, /Allow match-record links/);
   assert.doesNotMatch(settings, /Public deck attribution/);
+
+  assert.doesNotMatch(settings, /Client preferences/);
+  assert.doesNotMatch(settings, /Preferences save immediately\. Identity, password, and destructive changes always require an explicit action\./);
+  assert.doesNotMatch(settings, /description="(?:Manage the signed-in account|Control supporting information|Adjust match presentation|Control game, interface|Strengthen interface legibility)/);
+  assert.match(primitives, /eyebrow\?: ReactNode/);
+  assert.match(primitives, /\{eyebrow && <span className=\{styles\.eyebrow\}>\{eyebrow\}<\/span>\}/);
+
+  assert.doesNotMatch(settings, /signOutAccount/);
+  assert.doesNotMatch(settings, />\s*Log out\s*</);
   assert.match(settings, /section === "Account"[\s\S]*Delete cloud account/);
   assert.match(settings, /section === "Account"[\s\S]*Delete local browser data/);
   assert.match(settings, /Delete local browser data[\s\S]*Export first/);
+  assert.doesNotMatch(settings, /Music playback is not implemented yet/);
 });
 
 test("viewport stability ignores scroll and match publication is selector-aware and deferred", () => {

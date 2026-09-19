@@ -14,11 +14,11 @@ import {
 import styles from "./SettingsScreen.module.css";
 
 const SECTIONS = [
-  "Account",
   "Gameplay",
   "Video",
   "Audio",
   "Accessibility",
+  "Account",
 ] as const;
 type Section = (typeof SECTIONS)[number];
 type ConfirmAction = "local" | "account" | null;
@@ -34,14 +34,13 @@ export function SettingsScreen() {
     authUser,
     syncStatus,
     storageHealth,
-    signOutAccount,
     saveAccountProfile,
     requestAccountAccess,
     changePassword,
     deleteAccount,
     collection,
   } = useApp();
-  const [section, setSection] = useState<Section>("Account");
+  const [section, setSection] = useState<Section>("Gameplay");
   const [brawlerName, setBrawlerName] = useState(profile.name);
   const [savedField, setSavedField] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -173,9 +172,7 @@ export function SettingsScreen() {
     <div className={styles.route}>
       <RouteHero
         className={styles.hero}
-        eyebrow="Client preferences"
         title="Settings"
-        description="Preferences save immediately. Identity, password, and destructive changes always require an explicit action."
         aside={
           <div className={styles.saveStatus} role="status" aria-live="polite">
             <StatusChip tone={savedField ? "success" : "neutral"}>
@@ -201,10 +198,7 @@ export function SettingsScreen() {
         </nav>
         <main className={styles.content}>
           {section === "Account" && (
-            <SettingsSection
-              title="Account"
-              description="Manage the signed-in account and credentials."
-            >
+            <SettingsSection title="Account">
               <form
                 className={styles.passwordForm}
                 onSubmit={submitBrawlerName}
@@ -247,12 +241,6 @@ export function SettingsScreen() {
                       <span>Signed in as</span>
                       <strong>{authUser.email}</strong>
                     </div>
-                    <ActionButton
-                      tone="secondary"
-                      onClick={() => void signOutAccount()}
-                    >
-                      Log out
-                    </ActionButton>
                   </Surface>
                   <form
                     className={styles.passwordForm}
@@ -365,11 +353,24 @@ export function SettingsScreen() {
           )}
 
           {section === "Gameplay" && (
-            <SettingsSection
-              title="Gameplay"
-              description="Control supporting information around matches."
-            >
-              <Field label="Default match-log detail">
+            <SettingsSection title="Gameplay">
+              <SettingToggle
+                label="Automatic Draw"
+                copy="Draw immediately when the Draw Step begins, while preserving the normal draw animation."
+                checked={Boolean(settings.automaticDraw)}
+                onChange={(value) =>
+                  saveSetting("automaticDraw", value, "Automatic Draw")
+                }
+              />
+              <SettingToggle
+                label="Automatic Pass"
+                copy="Pass priority only when no other legal action is available."
+                checked={Boolean(settings.automaticPass)}
+                onChange={(value) =>
+                  saveSetting("automaticPass", value, "Automatic Pass")
+                }
+              />
+              <Field label="Match-log detail">
                 <select
                   value={settings.logDetail}
                   onChange={(event) =>
@@ -385,18 +386,11 @@ export function SettingsScreen() {
                   <option>Random results</option>
                 </select>
               </Field>
-              <p className={styles.note}>
-                This changes supporting match information only; the current
-                Match screen composition remains unchanged.
-              </p>
             </SettingsSection>
           )}
 
           {section === "Video" && (
-            <SettingsSection
-              title="Video"
-              description="Adjust match presentation, preview size, and motion."
-            >
+            <SettingsSection title="Video">
               <label className={styles.rangeSetting}>
                 <span>
                   <strong>Preview scaling</strong>
@@ -441,10 +435,7 @@ export function SettingsScreen() {
           )}
 
           {section === "Audio" && (
-            <SettingsSection
-              title="Audio"
-              description="Control game, interface, and future music channels."
-            >
+            <SettingsSection title="Audio">
               <SettingToggle
                 label="Game Sounds"
                 copy="Cards, rolls, damage, priority, and match-result cues."
@@ -539,17 +530,11 @@ export function SettingsScreen() {
                   }
                 />
               </label>
-              <p className={styles.note}>
-                Music playback is not implemented yet; its toggle and volume are saved for future support.
-              </p>
             </SettingsSection>
           )}
 
           {section === "Accessibility" && (
-            <SettingsSection
-              title="Accessibility"
-              description="Strengthen interface legibility and assistive navigation."
-            >
+            <SettingsSection title="Accessibility">
               <SettingToggle
                 label="High contrast"
                 copy="Increase panel, border, selection, and focus contrast."
@@ -599,18 +584,15 @@ export function SettingsScreen() {
 
 function SettingsSection({
   title,
-  description,
   children,
 }: {
   title: string;
-  description: string;
   children: React.ReactNode;
 }) {
   return (
     <section className={styles.settingsSection}>
       <header>
         <h2>{title}</h2>
-        <p>{description}</p>
       </header>
       <div className={styles.sectionBody}>{children}</div>
     </section>

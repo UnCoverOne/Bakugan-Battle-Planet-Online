@@ -33,7 +33,7 @@ export function RouteHero({
   aside,
   className,
 }: {
-  eyebrow: ReactNode;
+  eyebrow?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
@@ -43,7 +43,7 @@ export function RouteHero({
   return (
     <header data-ui="route-hero" className={join(styles.routeHero, className)}>
       <div className={styles.routeHeroCopy}>
-        <span className={styles.eyebrow}>{eyebrow}</span>
+        {eyebrow && <span className={styles.eyebrow}>{eyebrow}</span>}
         <h1>{title}</h1>
         {description && <p>{description}</p>}
         {actions && <div className={styles.heroActions}>{actions}</div>}
