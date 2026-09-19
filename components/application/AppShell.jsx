@@ -88,6 +88,8 @@ export function AppShell({ children }) {
     accountMatchSessions,
     resumeAccountMatch,
     resumingMatchCode,
+    resumeCurrentMatch,
+    resumingCurrentMatch,
     toast,
     accountPrompt,
     dismissAccountPrompt,
@@ -237,12 +239,14 @@ export function AppShell({ children }) {
           </nav>
           <div className="top-actions">
             {activeSession && (
-              <Link
+              <button
                 className="resume-chip"
-                href={activeSession.href}
+                type="button"
+                disabled={resumingCurrentMatch}
+                onClick={() => void resumeCurrentMatch()}
               >
-                <span className="pulse" /> {activeSession.navLabel}
-              </Link>
+                <span className="pulse" /> {resumingCurrentMatch ? "Checking…" : activeSession.navLabel}
+              </button>
             )}
             {remoteSession && remoteSessionPresentation && (
               <button

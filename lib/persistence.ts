@@ -114,6 +114,8 @@ export type UserSnapshot = {
   replay: MatchResultRecord | null;
   replayIndex: number;
   playerId: string;
+  /** Completed Training match IDs act as cross-device tombstones. */
+  completedTrainingMatchIds?: string[];
   /** Account-only collection state; optional for backward-compatible imports. */
   collection?: Collection;
 };
@@ -251,6 +253,44 @@ function normalizeDeletedDecks(value: unknown): DeletedDeckRecord[] {
     .slice(0, 200);
 }
 
+export const MAX_COMPLETED_TRAINING_MATCH_IDS = 200;
+
+export function normalizeCompletedTrainingMatchIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const candidate of value) {
+    if (typeof candidate !== "string") continue;
+    const id = candidate.trim().slice(0, 120);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids.slice(-MAX_COMPLETED_TRAINING_MATCH_IDS);
+}
+
+export function mergeCompletedTrainingMatchIds(
+  ...values: Array<string[] | null | undefined>
+): string[] {
+  return normalizeCompletedTrainingMatchIds(values.flatMap((value) => value ?? []));
+}
+
+function isTrainingMatch(match: MatchState | null | undefined) {
+  return Boolean(
+    match
+    && (
+      match.trainingAiDeck
+      || match.players?.some((player) => player.id === "training-bot")
+    )
+  );
+}
+
+function completedTrainingMatchId(match: MatchState | null, online: boolean) {
+  return !online && isTrainingMatch(match) && isCompletedSeriesResult(match)
+    ? match!.id
+    : "";
+}
+
 function reconcileDeckState(decks: DeckRecord[], deletedDecks: DeletedDeckRecord[]) {
   const byId = new Map<string, DeckRecord>();
   for (const deck of decks) {
@@ -324,13 +364,33 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
     replay: candidate.replay && typeof candidate.replay === "object" ? candidate.replay : null,
     replayIndex: Number.isFinite(candidate.replayIndex) ? Math.max(0, Number(candidate.replayIndex)) : 0,
     playerId: typeof candidate.playerId === "string" && candidate.playerId ? candidate.playerId : fallback.playerId,
+    completedTrainingMatchIds: normalizeCompletedTrainingMatchIds(
+      candidate.completedTrainingMatchIds ?? fallback.completedTrainingMatchIds,
+    ),
     collection: normalizeCollection(candidate.collection ?? fallback.collection),
   };
 }
 
 function retainDeviceState(snapshot: UserSnapshot, device: UserSnapshot): UserSnapshot {
-  const cloudTrainingMatch = recoverableTrainingMatch(snapshot.match, snapshot.online);
-  const deviceTrainingMatch = recoverableTrainingMatch(device.match, device.online);
+  const completedTrainingMatchIds = mergeCompletedTrainingMatchIds(
+    snapshot.completedTrainingMatchIds,
+    device.completedTrainingMatchIds,
+  );
+  const completedTrainingMatches = new Set(completedTrainingMatchIds);
+  const rawCloudTrainingMatch = recoverableTrainingMatch(snapshot.match, snapshot.online);
+  const rawDeviceTrainingMatch = recoverableTrainingMatch(device.match, device.online);
+  const cloudTrainingMatch = rawCloudTrainingMatch
+    && !completedTrainingMatches.has(rawCloudTrainingMatch.id)
+      ? rawCloudTrainingMatch
+      : null;
+  const deviceTrainingMatch = rawDeviceTrainingMatch
+    && !completedTrainingMatches.has(rawDeviceTrainingMatch.id)
+      ? rawDeviceTrainingMatch
+      : null;
+  const deviceTrainingCompletedElsewhere = Boolean(
+    rawDeviceTrainingMatch
+    && completedTrainingMatches.has(rawDeviceTrainingMatch.id)
+  );
   const cloudTrainingIsNewer = Boolean(
     cloudTrainingMatch
     && deviceTrainingMatch
@@ -345,7 +405,8 @@ function retainDeviceState(snapshot: UserSnapshot, device: UserSnapshot): UserSn
     || (device.match && device.online && !isCompletedSeriesResult(device.match))
   );
   const useCloudTrainingSession = Boolean(
-    cloudTrainingMatch && (!deviceHasActiveSession || cloudTrainingIsNewer)
+    deviceTrainingCompletedElsewhere
+    || (cloudTrainingMatch && (!deviceHasActiveSession || cloudTrainingIsNewer))
   );
   const session = useCloudTrainingSession ? snapshot : device;
   return {
@@ -356,13 +417,16 @@ function retainDeviceState(snapshot: UserSnapshot, device: UserSnapshot): UserSn
     compendiumQuery: device.compendiumQuery,
     compendiumTab: device.compendiumTab,
     joinCode: device.joinCode,
-    match: session.match,
-    online: session.online,
+    match: deviceTrainingCompletedElsewhere ? cloudTrainingMatch : session.match,
+    online: deviceTrainingCompletedElsewhere ? false : session.online,
     selectedCore: device.selectedCore,
     logFilter: device.logFilter,
     replay: device.replay,
     replayIndex: device.replayIndex,
-    playerId: session.playerId,
+    playerId: deviceTrainingCompletedElsewhere
+      ? cloudTrainingMatch ? snapshot.playerId : ""
+      : session.playerId,
+    completedTrainingMatchIds,
   };
 }
 
@@ -371,13 +435,22 @@ export function recoverableTrainingMatch(match: MatchState | null, online: boole
     !match
     || online
     || isCompletedSeriesResult(match)
-    || (!match.trainingAiDeck && !match.players?.some((player) => player.id === "training-bot"))
+    || !isTrainingMatch(match)
   ) return null;
   return match;
 }
 
 export function toCloudSnapshot(snapshot: UserSnapshot): UserSnapshot {
-  const trainingMatch = recoverableTrainingMatch(snapshot.match, snapshot.online);
+  const completedMatchId = completedTrainingMatchId(snapshot.match, snapshot.online);
+  const completedTrainingMatchIds = mergeCompletedTrainingMatchIds(
+    snapshot.completedTrainingMatchIds,
+    completedMatchId ? [completedMatchId] : [],
+  );
+  const candidateTrainingMatch = recoverableTrainingMatch(snapshot.match, snapshot.online);
+  const trainingMatch = candidateTrainingMatch
+    && !completedTrainingMatchIds.includes(candidateTrainingMatch.id)
+      ? candidateTrainingMatch
+      : null;
   return {
     ...snapshot,
     profile: { ...snapshot.profile, signedIn: false },
@@ -393,6 +466,7 @@ export function toCloudSnapshot(snapshot: UserSnapshot): UserSnapshot {
     replay: null,
     replayIndex: 0,
     playerId: trainingMatch ? snapshot.playerId : "",
+    completedTrainingMatchIds,
   };
 }
 
@@ -421,6 +495,7 @@ export function createEmptyAccountSnapshot(
     format: "bo1",
     matchMode: "solo",
     collection: {},
+    completedTrainingMatchIds: [],
   };
 }
 
@@ -479,6 +554,10 @@ export function mergeSnapshots(local: UserSnapshot, cloud: UserSnapshot): UserSn
     deletedDecks: deckState.deletedDecks,
     history: [...history.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, MAX_MATCH_RECORDS),
     lifetimeStats: normalizeLifetimeMatchStats(primary.lifetimeStats),
+    completedTrainingMatchIds: mergeCompletedTrainingMatchIds(
+      primary.completedTrainingMatchIds,
+      secondary.completedTrainingMatchIds,
+    ),
   };
   return retainDeviceState(merged, local);
 }

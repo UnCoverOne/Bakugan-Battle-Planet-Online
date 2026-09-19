@@ -15,6 +15,7 @@ import {
   assembleEntitySnapshot,
   entityKey,
   revisionMap,
+  snapshotToSyncRequest,
   type EntityRevisionMap,
   type UserDataEntityRow,
   type UserDataSyncRequest,
@@ -328,6 +329,50 @@ test("an incomplete Training match round-trips through the account preferences e
   assert.equal(recovered?.online, false);
   assert.equal(recovered?.playerId, "training-player");
 });
+
+test("a completed Training tombstone wins a preferences conflict and cannot be resurrected", () => {
+  const activeTrainingMatch = {
+    id: "training-series",
+    version: 11,
+    phase: "draw",
+    players: [{ id: "training-player" }, { id: "training-bot" }],
+    trainingAiDeck: { resourceId: "training-default", configurationRevision: 4 },
+  } as UserSnapshot["match"];
+
+  const staleDesktop = snapshot();
+  staleDesktop.updatedAt = 20;
+  staleDesktop.selectedDeckId = "desktop-choice";
+  staleDesktop.playerId = "training-player";
+  staleDesktop.match = activeTrainingMatch;
+
+  const completedRemote = snapshot();
+  completedRemote.updatedAt = 30;
+  completedRemote.playerId = "";
+  completedRemote.match = null;
+  completedRemote.completedTrainingMatchIds = ["training-series"];
+
+  const resolved = resolveEntityConflicts(
+    staleDesktop,
+    completedRemote,
+    ["preferences:main"],
+  );
+
+  assert.equal(resolved.selectedDeckId, "desktop-choice");
+  assert.equal(resolved.match, null);
+  assert.equal(resolved.playerId, "");
+  assert.deepEqual(resolved.completedTrainingMatchIds, ["training-series"]);
+
+  const preferences = snapshotToSyncRequest(resolved, {}).entities.find(
+    (entity) => entity.type === "preferences" && entity.id === "main",
+  );
+  assert.ok(preferences?.data && typeof preferences.data === "object");
+  assert.equal((preferences.data as Record<string, unknown>).activeTrainingMatch, null);
+  assert.deepEqual(
+    (preferences.data as Record<string, unknown>).completedTrainingMatchIds,
+    ["training-series"],
+  );
+});
+
 
 test("rate-limit retry uses bounded backoff", () => {
   assert.equal(retryDelayMs(0), 1_000);
