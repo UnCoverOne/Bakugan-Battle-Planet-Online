@@ -1067,3 +1067,42 @@ test("batch-aware conservation still plays Dark Waters to recover a missed Roll"
   assert.equal(next.players[0].hand.some((card) => card.id === darkWaters.id), false);
   assert.equal(next.batch.at(-1)?.card.id, darkWaters.id);
 });
+
+
+test("AI reserves Energy for Stop Flips instead of playing a deferrable Evo before damage", () => {
+  const evoSource = CARDS.find((card) => (
+    (card.displayName || card.name) === "Haos Titan Nillious"
+  ));
+  const stopSource = CARDS.find((card) => (
+    (card.displayName || card.name) === "Stand Together"
+  ));
+  assert.ok(evoSource);
+  assert.ok(stopSource);
+  assert.equal(evoSource.type, "Evo");
+  assert.ok(stopSource.mechanics.some((mechanic) => mechanic.toLowerCase() === "stop"));
+
+  const evo = { ...evoSource, id: "reserve-flip-titan-nillious" };
+  const target = evoTarget(evo, "reserve-flip-nillious");
+  const ai = player("reserve-flip-ai", [target], [], [evo]);
+  const human = player(
+    "reserve-flip-human",
+    [bakugan("reserve-flip-attacker", "Pyrus", 1200, 18)],
+  );
+  addEnergy(ai, 4);
+  ai.deckCards = Array.from({ length: 3 }, (_, index) => ({
+    ...stopSource,
+    id: `reserve-flip-stop-${index}`,
+  }));
+  ai.deck = ai.deckCards.length;
+
+  const match = matchWith(ai, human, "victor");
+  setBrawl(match, ai, human, true, true);
+  match.brawlWinner = human.id;
+  match.priority = ai.id;
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.equal(next.players[0].hand.some((card) => card.id === evo.id), true);
+  assert.equal(next.priority, human.id);
+});

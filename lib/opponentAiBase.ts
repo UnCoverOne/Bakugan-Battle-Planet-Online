@@ -32,7 +32,7 @@ import {
   type RollOutcome,
 } from "./game";
 import { cardEnergyPaymentState, playCardWithAutoEnergy } from "./cardPayment";
-import { activeTappedEnergyIds } from "./rules/costs";
+import { activeTappedEnergyIds, maximumPayableEnergy } from "./rules/costs";
 import { flipDamageCard, resolveManualDamage } from "./manualDamage";
 import {
   availableRollTargets,
@@ -1014,6 +1014,52 @@ function winningBrawlResourceConservationPenalty(
   });
   if (hasDurableOrAttackPayoff) return 0;
   return 0.45 + Math.min(1.2, Math.max(0, printedCost) * 0.25);
+}
+
+function imminentDamageFlipReservationPenalty(
+  match: MatchState,
+  playerId: string,
+  paymentCost: number,
+  entries: ReturnType<typeof activeCardActionEntries>,
+) {
+  if (match.phase !== "victor" || paymentCost <= 0 || brawlCurrentlyWon(match, playerId)) {
+    return 0;
+  }
+  const opponent = opponentOf(match, playerId);
+  if (!opponent || !brawlCurrentlyWon(match, opponent.id)) return 0;
+  const incomingDamage = totalDamage(match, opponent.id);
+  if (incomingDamage <= 0) return 0;
+
+  // Do not discourage a play that directly restores defensive capacity or
+  // prevents damage. The reservation penalty is for deferrable development.
+  if (entries.some(({ action }) => (
+    action.kind === "recharge-energy"
+    || action.kind === "generate-energy"
+    || action.kind === "prevention"
+  ))) return 0;
+
+  const player = playerById(match, playerId);
+  if (!player?.deckCards.length) return 0;
+  const beforeCapacity = maximumPayableEnergy(match, playerId);
+  const afterCapacity = Math.max(0, beforeCapacity - paymentCost);
+  if (afterCapacity >= beforeCapacity) return 0;
+
+  const newlyLostStops = player.deckCards.filter((candidate) => {
+    if (candidate.type !== "Flip" && candidate.type !== "Flip Hero") return false;
+    if (!candidate.mechanics.some((mechanic) => mechanic.toLowerCase() === "stop")) return false;
+    const cost = candidate.cost === "X" ? undefined : Number(candidate.cost);
+    return Number.isFinite(cost) && cost! > afterCapacity && cost! <= beforeCapacity;
+  });
+  if (!newlyLostStops.length) return 0;
+
+  // The AI knows its own deck composition but not the shuffled top card. Use
+  // an exposure estimate rather than peeking at future damage cards.
+  const damageCardsSeen = Math.min(incomingDamage, player.deckCards.length);
+  const exposure = Math.min(
+    1,
+    (damageCardsSeen / player.deckCards.length) * newlyLostStops.length,
+  );
+  return exposure * (5 + Math.min(4, incomingDamage * 0.25));
 }
 
 function hasEligibleAttacker(
@@ -2687,7 +2733,7 @@ export function evaluatePlayableCard(
   const preRollContext = match.phase === "preRoll"
     ? createPreRollDecisionContext(match, playerId)
     : undefined;
-  const tacticalScore = preRollContext
+  let tacticalScore = preRollContext
     ? preRollCandidateScore(
       match,
       playerId,
@@ -2698,6 +2744,24 @@ export function evaluatePlayableCard(
       preRollContext,
     )
     : baseScore;
+  if (match.phase === "victor" && payment.cost > 0) {
+    const resolving = cloneMatch(match);
+    const resolvingPlayer = playerById(resolving, playerId);
+    if (resolvingPlayer) recordCardPlayedForTurn(resolvingPlayer, card, resolving.turn);
+    const entries = activeCardActionEntries(
+      resolving,
+      playerId,
+      card,
+      choices,
+      { execution: "play" },
+    ).filter(({ instruction }) => card.type !== "Evo" || evoInstructionOccursOnPlay(instruction));
+    tacticalScore -= imminentDamageFlipReservationPenalty(
+      match,
+      playerId,
+      payment.cost,
+      entries,
+    );
+  }
   // cardValue prices the printed base cost. Reconcile that estimate with the
   // authoritative payment result so setup effects and existing reductions are
   // valued exactly the same way during planning and on the next real decision.
