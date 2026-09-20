@@ -26,6 +26,8 @@ export const DEFAULT_INTENSE_LEAD_IN_MS = 4_000;
 export const BATTLE_TO_INTENSE_CROSSFADE_MS = 6_000;
 export const INTENSE_TO_BATTLE_CROSSFADE_MS = 3_500;
 export const STANDARD_MUSIC_CROSSFADE_MS = 2_500;
+export const MUSIC_GAIN_MIN_DB = -30;
+export const MUSIC_GAIN_MAX_DB = 12;
 
 export type MusicTrack = {
   id: string;
@@ -137,6 +139,6 @@ export function weightedMusicTrack(
 export function musicGain(volumePercent: number, masterPercent: number, gainDb: number) {
   const channel = Math.min(1, Math.max(0, Number(volumePercent) / 100));
   const master = Math.min(1, Math.max(0, Number(masterPercent) / 100));
-  const trim = Math.pow(10, Math.min(6, Math.max(-12, gainDb)) / 20);
+  const trim = Math.pow(10, Math.min(MUSIC_GAIN_MAX_DB, Math.max(MUSIC_GAIN_MIN_DB, gainDb)) / 20);
   return Math.min(1, channel * master * trim);
 }

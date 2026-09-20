@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { readJsonResponse } from "../../lib/json-response";
 import {
   MUSIC_CATEGORIES,
   MUSIC_CATEGORY_LABELS,
+  MUSIC_GAIN_MAX_DB,
+  MUSIC_GAIN_MIN_DB,
+  musicGain,
   type MusicCategory,
   type MusicTrack,
 } from "../../lib/music";
@@ -275,8 +278,8 @@ export function MusicAdmin() {
           <Field label="Selection weight" hint="Higher values make the track more likely to be picked.">
             <input type="number" min={1} max={100} value={weight} disabled={importing} onChange={(event) => setWeight(Number(event.target.value))} />
           </Field>
-          <Field label="Volume trim" hint="-12 dB to +6 dB. Use this only to balance unusually quiet/loud tracks.">
-            <input type="number" min={-12} max={6} step={.5} value={gainDb} disabled={importing} onChange={(event) => setGainDb(Number(event.target.value))} />
+          <Field label="Volume trim" hint={`${MUSIC_GAIN_MIN_DB} dB to +${MUSIC_GAIN_MAX_DB} dB. Preview and gameplay use the same trim curve.`}>
+            <input type="number" min={MUSIC_GAIN_MIN_DB} max={MUSIC_GAIN_MAX_DB} step={.5} value={gainDb} disabled={importing} onChange={(event) => setGainDb(Number(event.target.value))} />
           </Field>
           <Field label="Intense lead-in" hint="Seconds the Intense track plays silently before the 6-second crossfade begins.">
             <input type="number" min={0} max={15} step={.5} value={intenseLeadInSeconds} disabled={importing} onChange={(event) => setIntenseLeadInSeconds(Number(event.target.value))} />
@@ -323,10 +326,19 @@ export function MusicAdmin() {
 }
 
 function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () => Promise<void> }) {
-  const { notify } = useApp();
+  const { notify, settings } = useApp();
   const [draft, setDraft] = useState(track);
   const [busy, setBusy] = useState(false);
+  const previewRef = useRef<HTMLAudioElement | null>(null);
+  const previewVolume = musicGain(
+    settings.musicVolume ?? 55,
+    settings.masterVolume ?? 100,
+    draft.gainDb,
+  );
   useEffect(() => setDraft(track), [track]);
+  useEffect(() => {
+    if (previewRef.current) previewRef.current.volume = previewVolume;
+  }, [previewVolume]);
 
   const changed = JSON.stringify({
     name: draft.name,
@@ -416,7 +428,16 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
         </label>
       </div>
 
-      <audio className={styles.preview} controls preload="none" src={track.url}>Your browser does not support audio preview.</audio>
+      <audio
+        ref={previewRef}
+        className={styles.preview}
+        controls
+        preload="none"
+        src={track.url}
+        title={`Preview at in-game volume: ${Math.round(previewVolume * 100)}%`}
+      >
+        Your browser does not support audio preview.
+      </audio>
 
       <div className={styles.categoryGroup}>
         <strong>Categories</strong>
@@ -437,8 +458,8 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
         <Field label="Weight">
           <input type="number" min={1} max={100} value={draft.weight} onChange={(event) => patch("weight", Number(event.target.value))} />
         </Field>
-        <Field label="Volume trim">
-          <input type="number" min={-12} max={6} step={.5} value={draft.gainDb} onChange={(event) => patch("gainDb", Number(event.target.value))} />
+        <Field label="Volume trim" hint={`Preview uses current Music (${settings.musicVolume ?? 55}%) and Master (${settings.masterVolume ?? 100}%) volume settings.`}>
+          <input type="number" min={MUSIC_GAIN_MIN_DB} max={MUSIC_GAIN_MAX_DB} step={.5} value={draft.gainDb} onChange={(event) => patch("gainDb", Number(event.target.value))} />
         </Field>
         <Field label="Intense lead-in" hint="Silent buildup before the Battle → Intense crossfade.">
           <input type="number" min={0} max={15} step={.5} value={draft.intenseLeadInMs / 1000} onChange={(event) => patch("intenseLeadInMs", Math.round(Number(event.target.value) * 1000))} />

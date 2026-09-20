@@ -12,6 +12,8 @@ import {
   DEFAULT_INTENSE_LEAD_IN_MS,
   INTENSE_TO_BATTLE_CROSSFADE_MS,
   MUSIC_CATEGORIES,
+  MUSIC_GAIN_MAX_DB,
+  MUSIC_GAIN_MIN_DB,
   STANDARD_MUSIC_CROSSFADE_MS,
   musicBattleIntensity,
   musicCategoryForRoute,
@@ -131,10 +133,14 @@ test("weighted selection avoids an immediate repeat when alternatives exist", ()
   assert.equal(weightedMusicTrack(tracks, "battle-intense", "", 0)?.id, "b");
 });
 
-test("music volume combines channel, master, and per-track trim", () => {
+test("music volume combines channel, master, and the full per-track trim range", () => {
+  assert.equal(MUSIC_GAIN_MIN_DB, -30);
+  assert.equal(MUSIC_GAIN_MAX_DB, 12);
   assert.equal(musicGain(50, 50, 0), .25);
-  assert.equal(musicGain(0, 100, 6), 0);
+  assert.equal(musicGain(0, 100, MUSIC_GAIN_MAX_DB), 0);
   assert.ok(musicGain(100, 100, -6) > .49 && musicGain(100, 100, -6) < .51);
+  assert.ok(musicGain(100, 100, MUSIC_GAIN_MIN_DB) > .031 && musicGain(100, 100, MUSIC_GAIN_MIN_DB) < .032);
+  assert.equal(musicGain(25, 100, MUSIC_GAIN_MAX_DB), 0.9952679263837431);
 });
 
 test("music upload sessions keep their original chunk size across deployments", () => {
@@ -185,6 +191,10 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(admin, /draft\.artist.*formatDuration\(track\.durationMs\).*Opus.*formatBitrate\(track\.bitrate\).*formatBytes\(track\.bytes\)/);
   assert.match(admin, /Field label="Artist"/);
   assert.match(admin, /Field label="Intense lead-in"/);
+  assert.match(admin, /musicGain/);
+  assert.match(admin, /previewRef\.current\.volume = previewVolume/);
+  assert.match(admin, /MUSIC_GAIN_MIN_DB/);
+  assert.match(admin, /MUSIC_GAIN_MAX_DB/);
   assert.match(admin, /intenseLeadInMs/);
   assert.doesNotMatch(admin, /"training"/);
   assert.match(admin, /trackMetadataFromFile/);

@@ -1,6 +1,8 @@
 import type { AccountDatabase } from "./account-server";
 import {
   MUSIC_CATEGORIES,
+  MUSIC_GAIN_MAX_DB,
+  MUSIC_GAIN_MIN_DB,
   normalizeMusicCategories,
   type MusicManifest,
   type MusicTrack,
@@ -139,8 +141,8 @@ function normalizeMetadata(value: Partial<MusicTrackMetadata>): MusicTrackMetada
     throw new ValidationError("Track weight must be between 1 and 100.");
   }
   const gainDb = Number(value.gainDb ?? 0);
-  if (!Number.isFinite(gainDb) || gainDb < -12 || gainDb > 6) {
-    throw new ValidationError("Track volume trim must be between -12 dB and +6 dB.");
+  if (!Number.isFinite(gainDb) || gainDb < MUSIC_GAIN_MIN_DB || gainDb > MUSIC_GAIN_MAX_DB) {
+    throw new ValidationError(`Track volume trim must be between ${MUSIC_GAIN_MIN_DB} dB and +${MUSIC_GAIN_MAX_DB} dB.`);
   }
   const durationMs = Math.round(Number(value.durationMs ?? 0));
   if (!Number.isFinite(durationMs) || durationMs < 250 || durationMs > MAX_MUSIC_DURATION_MS) {
