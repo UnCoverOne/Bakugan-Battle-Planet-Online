@@ -210,6 +210,7 @@ export function MusicAdmin() {
       setSource(null);
       setName("");
       setArtist("");
+      setIntenseLeadInSeconds(4);
       setProgress({ value: 0, label: "" });
       await refresh();
     } catch (cause) {

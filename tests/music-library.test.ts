@@ -16,6 +16,7 @@ import {
   musicBattleIntensity,
   musicCategoryForRoute,
   musicGain,
+  normalizeMusicCategories,
   weightedMusicTrack,
   type MusicTrack,
 } from "../lib/music";
@@ -75,6 +76,7 @@ test("offline and online matches share Battle music and intensity follows deck p
     "victory",
     "defeat",
   ]);
+  assert.deepEqual(normalizeMusicCategories(["training"]), ["battle"]);
   const player = (id: string, deck: number) => ({ id, deck, deckCards: Array.from({ length: deck }) }) as never;
   const base = {
     id: "match",
@@ -102,6 +104,14 @@ test("offline and online matches share Battle music and intensity follows deck p
   } as MatchState;
   assert.equal(musicBattleIntensity(lethalPressure), "lethal-pressure");
   assert.equal(musicCategoryForRoute("/play/match", lethalPressure, true, "p1"), "battle-intense");
+  const notQuiteLethal = {
+    ...base,
+    phase: "damage",
+    pendingLoser: "p2",
+    pendingDamage: 8,
+    players: [player("p1", 20), player("p2", 12)],
+  } as MatchState;
+  assert.equal(musicBattleIntensity(notQuiteLethal), null);
   assert.equal(musicCategoryForRoute("/builder/deck", null, false, "p1"), "deck-builder");
   assert.equal(musicCategoryForRoute("/", null, false, "p1"), "menu");
   assert.equal(musicCategoryForRoute("/play/match", { ...base, phase: "result", winner: "p1" } as MatchState, true, "p1"), "victory");

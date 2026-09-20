@@ -1,1 +1,0 @@
-ALTER TABLE music_tracks ADD COLUMN intense_lead_in_ms INTEGER NOT NULL DEFAULT 4000;
