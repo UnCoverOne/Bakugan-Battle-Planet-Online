@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CARD_BY_ID, CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, passPriority, redactForPlayer, resolveStructuredEffect, submitCardChoice } from "../lib/game";
+import { createMatch, passPriority, playCard, redactForPlayer, resolveStructuredEffect, submitCardChoice } from "../lib/game";
 import { resolveManualDamage } from "../lib/manualDamage";
 import { cardCostBreakdown, cardPaymentModes } from "../lib/rules/costs";
 import { createRuleObject } from "../lib/rules/objects";
@@ -172,9 +172,11 @@ test("Luck Aura's free play becomes a normal typed card play without paying the 
   assert.ok(ability);
 
   let next = resolveStructuredEffect(state, createRuleObject({ controllerId: first.id, card: luck, ability, kind: "card" }));
-  const hand = next.pendingChoice?.schema.fields.find((field) => field.id === "handCardIds");
-  assert.ok(hand?.options.some((option) => option.id === played.id));
-  next = submitCardChoice(next, first.id, { handCardIds: [played.id], confirmed: true });
+  assert.equal(next.pendingChoice, undefined);
+  assert.equal(next.pendingEffectPlay?.controllerId, first.id);
+  assert.equal(next.pendingEffectPlay?.free, true);
+  assert.equal(next.pendingEffectPlay?.maximumCost, 4);
+  next = playCard(next, first.id, played.id);
   assert.equal(next.players[0].hand.some((candidate) => candidate.id === played.id), false);
   const object = next.batch.find((candidate) => candidate.card.id === played.id);
   assert.ok(object);
@@ -182,6 +184,63 @@ test("Luck Aura's free play becomes a normal typed card play without paying the 
   assert.equal(object.controllerId, first.id);
   assert.equal(next.players[0].cardsPlayedThisTurn, 1);
   assert.ok(next.log.some((entry) => entry.cardInstanceId === played.id && entry.cardEvent === "played"));
+});
+
+test("Haotic Flare installs its deferred free-Empower permission without a resolution popup", () => {
+  const { state, first } = baseMatch("HAOTIC-FLARE");
+  const flare = card("av-52", "haotic-flare");
+  const ability = ruleDefinitionForCard(flare).abilities.find((candidate) => candidate.kind === "spell");
+  assert.ok(ability);
+  const next = resolveStructuredEffect(state, createRuleObject({ controllerId: first.id, card: flare, ability, kind: "card" }));
+  assert.equal(next.pendingChoice, undefined);
+  assert.equal(next.nextCardEmpowerFree[first.id], true);
+});
+
+test("Empowered Spirit Speed delegates two independent free plays to the Hand HUD", () => {
+  const { state, first } = baseMatch("SPIRIT-SPEED");
+  const spirit = card("av-50", "spirit-speed");
+  const candidates = CARDS.filter((candidate) => (
+    candidate.type !== "Flip"
+    && candidate.type !== "Flip Hero"
+    && candidate.type !== "Character"
+    && candidate.cost !== "X"
+    && candidate.cost <= 5
+    && candidate.catalogId !== spirit.catalogId
+    && ruleDefinitionForCard(candidate).play.choices.every((choice) => !["announce", "pay"].includes(choice.timing))
+  )).slice(0, 2);
+  assert.equal(candidates.length, 2);
+  const firstFree = { ...structuredClone(candidates[0]), id: "spirit-first-free" };
+  const secondFree = { ...structuredClone(candidates[1]), id: "spirit-second-free" };
+  first.hand = [firstFree, secondFree];
+  first.energy = 0;
+  first.energyZone = [];
+  const ability = ruleDefinitionForCard(spirit).abilities.find((candidate) => candidate.kind === "spell");
+  assert.ok(ability);
+
+  let next = resolveStructuredEffect(state, createRuleObject({
+    controllerId: first.id,
+    card: spirit,
+    ability,
+    kind: "card",
+    choices: { empower: "yes" },
+  }));
+  assert.equal(next.pendingChoice, undefined);
+  assert.equal(next.pendingEffectPlay?.optional, false);
+  assert.equal(next.pendingEffectPlay?.maximumCost, 5);
+
+  next = playCard(next, first.id, firstFree.id);
+  assert.equal(next.pendingChoice, undefined);
+  assert.equal(next.pendingEffectPlay?.optional, true);
+  assert.equal(next.players[0].hand.some((candidate) => candidate.id === firstFree.id), false);
+
+  next = playCard(next, first.id, secondFree.id);
+  assert.equal(next.pendingEffectPlay, undefined);
+  assert.equal(next.players[0].hand.some((candidate) => candidate.id === secondFree.id), false);
+  const playedIds = new Set(next.batch.map((object) => object.card.id));
+  assert.equal(playedIds.has(firstFree.id), true);
+  assert.equal(playedIds.has(secondFree.id), true);
+  assert.equal(next.batch.find((object) => object.card.id === firstFree.id)?.card.playedForFreeTurn, state.turn);
+  assert.equal(next.batch.find((object) => object.card.id === secondFree.id)?.card.playedForFreeTurn, state.turn);
 });
 
 test("free-play compiler preserves Mind Control source and physical destination ownership", () => {

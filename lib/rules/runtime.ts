@@ -3,6 +3,7 @@ import {
   completeCoinFlip,
   orderTriggers,
   prepareCardPlay,
+  skipPendingEffectPlay,
   submitCardChoice,
   type MatchState,
 } from "../game";
@@ -85,7 +86,9 @@ export function dispatchRulesCommand(input: MatchState, actorId: string, command
     }
     case "PLAY_DAMAGE_FLIP": next = resolveManualDamage(input, actorId, command.cardId, command.choices); break;
     case "TAP_ENERGY_CARD": next = tapEnergyCard(input, actorId, command.cardId); break;
-    case "PASS_PRIORITY": next = resumeDamageAfterFlipWindow(passPriorityWithTieBreak(input, actorId)); break;
+    case "PASS_PRIORITY": next = input.pendingEffectPlay?.controllerId === actorId
+      ? skipPendingEffectPlay(input, actorId)
+      : resumeDamageAfterFlipWindow(passPriorityWithTieBreak(input, actorId)); break;
     case "COMPLETE_COIN_FLIP": next = resumeDamageAfterFlipWindow(completeCoinFlip(input, actorId)); break;
   }
   replaceLegacyTriggeredObjects(input, next, actorId, command);

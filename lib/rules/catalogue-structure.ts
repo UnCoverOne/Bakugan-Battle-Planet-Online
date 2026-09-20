@@ -997,6 +997,7 @@ if (swapsBakucore) {
   else if (/For each \[Energy\] used, give a Bakugan \+\d+ \[B\] or \+\d+ \[Damage Rating\]/i.test(text)) result.push(choice("mode", "resolve", "mode", "Choose a scaling bonus"));
   if (card.cost === "X" || /choose (?:a value for )?x/i.test(text)) result.push(choice("xValue", "pay", "number", "Choose X"));
   if ((/\bmay\b/i.test(text) || /\byou can play\b/i.test(text))
+    && !/you may Empower the next card you play(?: this turn)? for free/i.test(text)
     && !persistentFreePermission
     && !/may discard|may recharge up to/i.test(text)
     && !/\bSync:/i.test(text)

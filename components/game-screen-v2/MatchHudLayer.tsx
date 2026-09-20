@@ -372,7 +372,9 @@ export function MatchHudLayer({
       onClick: discardSelectedCards,
     },
     "play-card": {
-      label: "Play Card",
+      label: match.pendingEffectPlay?.controllerId === player.id && match.pendingEffectPlay.free
+        ? "Play for Free"
+        : "Play Card",
       active: effectiveHandMode === "play" && !selectionPending,
       onClick: playSelectedCard,
     },
@@ -387,7 +389,9 @@ export function MatchHudLayer({
       onClick: () => void run(onSkipEnergize),
     },
     "pass-turn": {
-      label: "Pass Turn",
+      label: match.pendingEffectPlay?.controllerId === player.id
+        ? (match.pendingEffectPlay.free ? "Skip Free Play" : "Skip Card Play")
+        : "Pass Turn",
       active: false,
       onClick: () => void run(onPassTurn),
     },

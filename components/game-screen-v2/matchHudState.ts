@@ -1,6 +1,7 @@
 import {
   alternateWinEffectPending,
   cardChoiceSpec,
+  effectPlayCardIsLegal,
   cardRerollTimingLegal,
   playerCanActivateIntrinsicReroll,
   revealedFlipCanBePlayed,
@@ -126,14 +127,11 @@ export function playableHandCards(
   playerId?: string,
 ): readonly GameCard[] {
   const { player } = resolveHudPlayers(match, playerId);
-  if (
-    !match
-    || !player
-    || hasPendingDraws(match)
-    || alternateWinEffectPending(match)
-    || !isPriorityWindow(match)
-    || match.priority !== player.id
-  ) return [];
+  if (!match || !player || hasPendingDraws(match) || alternateWinEffectPending(match)) return [];
+  if (match.pendingEffectPlay?.controllerId === player.id) {
+    return player.hand.filter((card) => effectPlayCardIsLegal(match, player.id, card));
+  }
+  if (!isPriorityWindow(match) || match.priority !== player.id) return [];
   // Affordability is deliberately not a selection filter. Players may inspect
   // and select any otherwise legal card; the authoritative payment action then
   // spends generated Energy, auto-taps the shortfall, or reports insufficiency.
@@ -288,6 +286,26 @@ export function visibleMatchHudActions({
   const cardPlayLocked = alternateWinEffectPending(match);
   const discard = handDiscardRequirement(match, player?.id);
   const completed = match?.phase === "result";
+  const effectPlay = match?.pendingEffectPlay?.controllerId === player?.id
+    ? match.pendingEffectPlay
+    : undefined;
+  if (!completed && effectPlay) {
+    return {
+      exit: false,
+      "draw-card": false,
+      "flip-tie-break": false,
+      "activate-reroll": false,
+      fuse: false,
+      discard: false,
+      "play-card": canPlay,
+      "energize-card": false,
+      "skip-energize": false,
+      "pass-turn": effectPlay.optional,
+      "play-flip": false,
+      "skip-flip": false,
+      select: false,
+    };
+  }
   return {
     exit: Boolean(completed),
     "draw-card": !completed && playerCanDrawTurnCard(match, player?.id, now),
@@ -392,6 +410,7 @@ export function playerHasLegalPriorityAction(
 ) {
   const { player } = resolveHudPlayers(match, playerId);
   if (!match || !player || match.priority !== player.id) return false;
+  if (match.pendingEffectPlay?.controllerId === player.id) return true;
 
   // Automatic passing must never race a decision that the rules engine is
   // already waiting to resolve, including reset/start-of-game resolution

@@ -291,6 +291,26 @@ export type PendingEffectDamageResume = {
   stepLabel: string;
 };
 
+export type PendingEffectPlay = {
+  controllerId: string;
+  sourceOwnerId: string;
+  cardOwnerId: string;
+  parentEffectId: string;
+  instructionIndex: number;
+  sourceName: string;
+  free: boolean;
+  optional: boolean;
+  cardType?: CardType;
+  excludedCardTypes?: CardType[];
+  factions?: Faction[];
+  cardMechanic?: string;
+  cardName?: string;
+  maximumCost?: number;
+  resumePriority: string;
+  resumeDeadline: number;
+  resumeStepLabel: string;
+};
+
 export type PendingEffect = {
   id: string;
   controllerId: string;
@@ -375,6 +395,8 @@ export type MatchState = {
   pendingCoinFlip?: PendingCoinFlip;
   coinFlipResults: Record<string, CoinFlipResult>;
   pendingEffectDamageResume?: PendingEffectDamageResume;
+  /** Effect-originated hand play currently delegated to the normal Hand/Action HUD. */
+  pendingEffectPlay?: PendingEffectPlay;
   pendingRerollOpenEvent?: { playerId: string; bakuganId: string; sourceEffectId?: string };
   rerollOpenedByEffect: Record<string, boolean>;
   rerollTargetByEffect: Record<string, string>;
@@ -485,6 +507,53 @@ const entry = (
 };
 const withVersion = (state: MatchState) => { state.version += 1; return state; };
 export const cloneMatch = (state: MatchState): MatchState => JSON.parse(JSON.stringify(state));
+
+function normalizedCardName(value: string) {
+  return value
+    .replace(/[\[\]]/g, "")
+    .replace(/^(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function cardMatchesEffectPlayOpportunity(
+  state: MatchState,
+  opportunity: PendingEffectPlay,
+  card: GameCard,
+) {
+  const owner = state.players.find((candidate) => candidate.id === opportunity.sourceOwnerId);
+  if (!owner?.hand.some((candidate) => candidate.id === card.id)) return false;
+  if (opportunity.cardType && !cardTypeMatches(card.type, opportunity.cardType)) return false;
+  if (opportunity.excludedCardTypes?.some((type) => cardTypeMatches(card.type, type))) return false;
+  if (opportunity.factions?.length && !effectiveCardFactions(card).some((faction) => opportunity.factions!.includes(faction))) return false;
+  if (opportunity.cardMechanic && !card.mechanics.some((mechanic) => mechanic.toLowerCase() === opportunity.cardMechanic!.toLowerCase())) return false;
+  if (opportunity.cardName) {
+    const wanted = normalizedCardName(opportunity.cardName);
+    if (![card.displayName, card.name].some((value) => normalizedCardName(value) === wanted)) return false;
+  }
+  const printedCost = card.cost === "X" ? Number.POSITIVE_INFINITY : card.cost;
+  if (opportunity.maximumCost != null && printedCost > opportunity.maximumCost) return false;
+  if (card.type === "Evo") {
+    const definition = ruleDefinitionForCard(card);
+    if (!owner.bakugan.some((bakugan) => canonicalEvoTargetAllowed(definition, bakugan))) return false;
+  }
+  return true;
+}
+
+export function effectPlayCardIsLegal(
+  state: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  const opportunity = state.pendingEffectPlay;
+  return Boolean(
+    opportunity
+    && opportunity.controllerId === playerId
+    && opportunity.sourceOwnerId === playerId
+    && cardMatchesEffectPlayOpportunity(state, opportunity, card)
+  );
+}
 
 /** Upgrade resumable snapshots created before current engine fields existed. */
 export const normalizeMatchState = (input: MatchState): MatchState => {
@@ -1800,6 +1869,28 @@ function cancelNestedCardPlayContinuation(state: MatchState, request: PendingCar
   }
 }
 
+export const skipPendingEffectPlay = (input: MatchState, playerId: string) => {
+  const state = cloneMatch(input);
+  const opportunity = state.pendingEffectPlay;
+  if (!opportunity || opportunity.controllerId !== playerId) throw new Error("There is no effect card play to skip.");
+  if (!opportunity.optional) throw new Error("This effect requires you to play a legal card if one is available.");
+  delete state.pendingEffectPlay;
+  state.priority = opportunity.resumePriority;
+  state.deadline = opportunity.resumeDeadline;
+  state.stepLabel = opportunity.resumeStepLabel;
+  const parent = state.batch.find((candidate) => candidate.id === opportunity.parentEffectId);
+  if (parent) {
+    parent.instructionIndex = opportunity.instructionIndex + 1;
+    if (isRuleObject(parent)) parent.cursor.instructionIndex = parent.instructionIndex;
+    const completed = resolvePendingEffect(state, parent);
+    if (completed) {
+      state.batch = state.batch.filter((candidate) => candidate.id !== parent.id);
+      finalizeRerollContinuation(state, parent.id);
+    }
+  }
+  return withVersion(state);
+};
+
 export const prepareRevealedFlipPlay = (input: MatchState, playerId: string, cardId: string, choices: CardChoices = {}) => {
   const state = cloneMatch(input);
   if (state.pendingChoice) throw new Error("Complete the current choice before playing the revealed Flip.");
@@ -1819,9 +1910,60 @@ export const prepareRevealedFlipPlay = (input: MatchState, playerId: string, car
   return withVersion(state);
 };
 
+function effectOriginCardPlayRequest(
+  state: MatchState,
+  playerId: string,
+  cardId: string,
+  choices: CardChoices,
+): PendingCardPlay | undefined {
+  const opportunity = state.pendingEffectPlay;
+  if (!opportunity || opportunity.controllerId !== playerId) return undefined;
+  const card = playerById(state, opportunity.sourceOwnerId).hand.find((candidate) => candidate.id === cardId);
+  if (!card || !cardMatchesEffectPlayOpportunity(state, opportunity, card)) {
+    throw new Error("That card is not legal for the pending effect play.");
+  }
+  const childChoices = { ...choices };
+  if (card.type === "Evo" && !childChoices.targetBakuganId && !childChoices.sourceBakuganId) {
+    const definition = ruleDefinitionForCard(card);
+    const owner = playerById(state, playerId);
+    const active = activeBakugan(state, playerId);
+    const candidate = active && canonicalEvoTargetAllowed(definition, active)
+      ? active
+      : owner.bakugan.find((bakugan) => canonicalEvoTargetAllowed(definition, bakugan));
+    if (candidate) {
+      childChoices.sourceBakuganId = candidate.id;
+      childChoices.targetBakuganId = candidate.id;
+    }
+  }
+  delete state.pendingEffectPlay;
+  return {
+    controllerId: playerId,
+    cardId,
+    sourceZone: "hand",
+    sourceOwnerId: opportunity.sourceOwnerId,
+    cardOwnerId: opportunity.cardOwnerId,
+    forcedFreeBase: opportunity.free,
+    origin: "effect",
+    parentEffectId: opportunity.parentEffectId,
+    parentNextInstructionIndex: opportunity.instructionIndex + 1,
+    resumePriority: opportunity.resumePriority,
+    resumeDeadline: opportunity.resumeDeadline,
+    resumeStepLabel: opportunity.resumeStepLabel,
+    resumePhase: state.phase,
+    optional: false,
+    choices: childChoices,
+  };
+}
+
 export const prepareCardPlay = (input: MatchState, playerId: string, cardId: string) => {
   const state = cloneMatch(input);
   if (state.pendingChoice) throw new Error("Complete the current choice before starting another action.");
+  const effectRequest = effectOriginCardPlayRequest(state, playerId, cardId, {});
+  if (effectRequest) {
+    const result = stageCardPlayMutable(state, effectRequest);
+    if (result === "committed") finishNestedCardPlayContinuation(state, effectRequest);
+    return withVersion(state);
+  }
   const player = playerById(state, playerId);
   const card = player.hand.find((candidate) => candidate.id === cardId);
   if (!card) throw new Error("That card is not in your hand.");
@@ -2067,6 +2209,12 @@ export const splitWhenPlayedEffect = (effect: string) => {
 
 export const playCard = (input: MatchState, playerId: string, cardId: string, choices: CardChoices = {}) => {
   const state = cloneMatch(input);
+  const effectRequest = effectOriginCardPlayRequest(state, playerId, cardId, choices);
+  if (effectRequest) {
+    commitCardPlayMutable(state, effectRequest);
+    finishNestedCardPlayContinuation(state, effectRequest);
+    return withVersion(state);
+  }
   const request: PendingCardPlay = {
     controllerId: playerId,
     cardId,
@@ -3315,6 +3463,38 @@ case "swap-bakucore": {
         const ownerId = zoneOwnerIdsFor(state, action.sourceOwner ?? "controller", { controllerId, choices })[0] ?? controllerId;
         const owner = playerById(state, ownerId);
         const selectedId = choices.handCardIds?.[0];
+        if (!selectedId && ownerId === controllerId) {
+          const opportunity: PendingEffectPlay = {
+            controllerId,
+            sourceOwnerId: ownerId,
+            cardOwnerId: zoneOwnerIdsFor(state, action.destinationOwner ?? action.sourceOwner ?? "controller", { controllerId, choices })[0] ?? ownerId,
+            parentEffectId: pending.id,
+            instructionIndex,
+            sourceName: card.displayName || card.name,
+            free: action.free,
+            optional: /\bmay\b/i.test(text),
+            cardType: action.cardType,
+            excludedCardTypes: action.excludedCardTypes,
+            factions: action.factions,
+            cardMechanic: action.cardMechanic,
+            cardName: action.cardName,
+            maximumCost: action.maximumCost == null ? undefined : resolveNumber(action.maximumCost),
+            resumePriority: state.priority,
+            resumeDeadline: state.deadline,
+            resumeStepLabel: state.stepLabel,
+          };
+          if (!owner.hand.some((candidate) => cardMatchesEffectPlayOpportunity(state, opportunity, candidate))) {
+            entry(state, "game", `${card.name} had no legal card to play from hand.`);
+            return;
+          }
+          state.pendingEffectPlay = opportunity;
+          state.priority = controllerId;
+          state.stepLabel = `${card.displayName || card.name} • Play a card from hand`;
+          state.deadline = Date.now() + 35_000;
+          pending.instructionIndex = instructionIndex;
+          if (isRuleObject(pending)) pending.cursor.instructionIndex = instructionIndex;
+          throw new CardPlayResolutionSuspended();
+        }
         selected = owner.hand.find((candidate) => candidate.id === selectedId);
         sourceZone = "hand";
         sourceOwnerId = ownerId;
@@ -3732,7 +3912,15 @@ function stageResolutionInstructionChoice(
     instructionChoices(pending, instructionIndex),
     "resolve",
   );
-  schema.fields = schema.fields.filter((field) => !(field.id === "xValue" && pending.choices.xValue != null));
+  const delegatesHandPlayToHud = instruction.actions.some((action) => (
+    action.kind === "play"
+    && action.source === "hand"
+    && (action.sourceOwner == null || action.sourceOwner === "controller")
+  ));
+  schema.fields = schema.fields.filter((field) => (
+    !(field.id === "xValue" && pending.choices.xValue != null)
+    && !(delegatesHandPlayToHud && (field.id === "handCardIds" || field.id === "confirmed"))
+  ));
   // Optional Sync gates any choices that follow it in the same printed
   // clause. They are initially skippable so declining Sync can resolve the
   // clause; a successful reveal promotes the remaining choices to required
