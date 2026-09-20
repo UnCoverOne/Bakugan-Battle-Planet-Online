@@ -121,6 +121,7 @@ export async function PATCH(request: Request) {
     const track = await updateMusicTrack(db, id, {
       name: String(body.name ?? ""),
       artist: String(body.artist ?? ""),
+      intenseLeadInMs: Number(body.intenseLeadInMs ?? 4_000),
       enabled: body.enabled !== false,
       categories: body.categories as never,
       weight: Number(body.weight ?? 10),

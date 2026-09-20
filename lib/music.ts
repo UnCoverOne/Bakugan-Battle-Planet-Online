@@ -1,9 +1,8 @@
-import type { MatchState } from "./game";
+import type { MatchState, PlayerState } from "./game";
 
 export const MUSIC_CATEGORIES = [
   "menu",
   "deck-builder",
-  "training",
   "battle",
   "battle-intense",
   "victory",
@@ -15,12 +14,18 @@ export type MusicCategory = typeof MUSIC_CATEGORIES[number];
 export const MUSIC_CATEGORY_LABELS: Record<MusicCategory, string> = {
   menu: "Menu",
   "deck-builder": "Deck Builder",
-  training: "Training",
   battle: "Battle",
   "battle-intense": "Battle — Intense",
   victory: "Victory",
   defeat: "Defeat",
 };
+
+export const MUSIC_LOW_LIFE_CARDS = 8;
+export const MUSIC_NEAR_LETHAL_CARDS = 3;
+export const DEFAULT_INTENSE_LEAD_IN_MS = 4_000;
+export const BATTLE_TO_INTENSE_CROSSFADE_MS = 6_000;
+export const INTENSE_TO_BATTLE_CROSSFADE_MS = 3_500;
+export const STANDARD_MUSIC_CROSSFADE_MS = 2_500;
 
 export type MusicTrack = {
   id: string;
@@ -31,6 +36,7 @@ export type MusicTrack = {
   bytes: number;
   durationMs: number;
   bitrate: number;
+  intenseLeadInMs: number;
   enabled: boolean;
   categories: MusicCategory[];
   weight: number;
@@ -49,32 +55,53 @@ export type MusicManifest = {
 
 export type MusicTrackMetadata = Pick<
   MusicTrack,
-  "name" | "artist" | "enabled" | "categories" | "weight" | "loop" | "gainDb" | "durationMs" | "bitrate"
+  "name" | "artist" | "enabled" | "categories" | "weight" | "loop" | "gainDb" | "durationMs" | "bitrate" | "intenseLeadInMs"
 >;
 
 export function normalizeMusicCategories(value: unknown): MusicCategory[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<MusicCategory>();
-  for (const candidate of value) {
+  for (const rawCandidate of value) {
+    // Training used to be a separate category. Preserve existing assignments
+    // by folding legacy Training tracks into the shared Battle playlist.
+    const candidate = rawCandidate === "training" ? "battle" : rawCandidate;
     if (!MUSIC_CATEGORIES.includes(candidate as MusicCategory)) continue;
     seen.add(candidate as MusicCategory);
   }
   return [...seen];
 }
 
+function remainingDeckCards(player: PlayerState) {
+  const publicCount = Number(player.deck);
+  if (Number.isFinite(publicCount) && publicCount >= 0) return publicCount;
+  return Math.max(0, player.deckCards?.length ?? 0);
+}
+
+export type MusicBattleIntensityReason = "low-life" | "lethal-pressure" | null;
+
+export function musicBattleIntensity(match: MatchState | null | undefined): MusicBattleIntensityReason {
+  if (!match || match.phase === "result") return null;
+  if (match.players.some((player) => remainingDeckCards(player) <= MUSIC_LOW_LIFE_CARDS)) {
+    return "low-life";
+  }
+  if (match.phase !== "damage" || !match.pendingLoser || match.pendingDamage <= 0) return null;
+  const defender = match.players.find((player) => player.id === match.pendingLoser);
+  if (!defender) return null;
+  const projectedRemaining = remainingDeckCards(defender) - Math.max(0, match.pendingDamage);
+  return projectedRemaining <= MUSIC_NEAR_LETHAL_CARDS ? "lethal-pressure" : null;
+}
+
 export function musicCategoryForRoute(
   pathname: string,
   match: MatchState | null | undefined,
-  online: boolean,
+  _online: boolean,
   playerId: string,
 ): MusicCategory {
   if (pathname === "/play/match" && match) {
     if (match.phase === "result" && match.winner) {
       return match.winner === playerId ? "victory" : "defeat";
     }
-    if (!online) return "training";
-    if (match.format === "bo3" && Number(match.gameNumber) >= 3) return "battle-intense";
-    return "battle";
+    return musicBattleIntensity(match) ? "battle-intense" : "battle";
   }
   if (pathname.startsWith("/builder") || pathname.startsWith("/decks")) return "deck-builder";
   return "menu";

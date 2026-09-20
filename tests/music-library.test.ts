@@ -8,9 +8,15 @@ import {
   musicUploadChunkBytes,
 } from "../lib/music-server";
 import {
+  BATTLE_TO_INTENSE_CROSSFADE_MS,
+  DEFAULT_INTENSE_LEAD_IN_MS,
+  INTENSE_TO_BATTLE_CROSSFADE_MS,
   MUSIC_CATEGORIES,
+  STANDARD_MUSIC_CROSSFADE_MS,
+  musicBattleIntensity,
   musicCategoryForRoute,
   musicGain,
+  normalizeMusicCategories,
   weightedMusicTrack,
   type MusicTrack,
 } from "../lib/music";
@@ -28,6 +34,7 @@ const tracks: MusicTrack[] = [
     bytes: 1000,
     durationMs: 60_000,
     bitrate: 96_000,
+    intenseLeadInMs: 4_000,
     enabled: true,
     categories: ["battle"],
     weight: 1,
@@ -47,6 +54,7 @@ const tracks: MusicTrack[] = [
     bytes: 1000,
     durationMs: 60_000,
     bitrate: 96_000,
+    intenseLeadInMs: 4_000,
     enabled: true,
     categories: ["battle", "battle-intense"],
     weight: 9,
@@ -59,37 +67,68 @@ const tracks: MusicTrack[] = [
   },
 ];
 
-test("music categories cover menu, Training, battle intensity, and results", () => {
+test("offline and online matches share Battle music and intensity follows deck pressure", () => {
   assert.deepEqual(MUSIC_CATEGORIES, [
     "menu",
     "deck-builder",
-    "training",
     "battle",
     "battle-intense",
     "victory",
     "defeat",
   ]);
+  assert.deepEqual(normalizeMusicCategories(["training"]), ["battle"]);
+  const player = (id: string, deck: number) => ({ id, deck, deckCards: Array.from({ length: deck }) }) as never;
   const base = {
     id: "match",
     phase: "draw",
     winner: "",
-    format: "bo1",
-    gameNumber: 1,
+    format: "bo3",
+    gameNumber: 3,
+    turn: 6,
+    pendingDamage: 0,
+    pendingLoser: "",
+    players: [player("p1", 20), player("p2", 20)],
   } as MatchState;
-  assert.equal(musicCategoryForRoute("/play/match", base, false, "p1"), "training");
+  assert.equal(musicCategoryForRoute("/play/match", base, false, "p1"), "battle");
   assert.equal(musicCategoryForRoute("/play/match", base, true, "p1"), "battle");
+  assert.equal(musicBattleIntensity(base), null);
+  const lowLife = { ...base, players: [player("p1", 8), player("p2", 20)] } as MatchState;
+  assert.equal(musicBattleIntensity(lowLife), "low-life");
+  assert.equal(musicCategoryForRoute("/play/match", lowLife, false, "p1"), "battle-intense");
+  const lethalPressure = {
+    ...base,
+    phase: "damage",
+    pendingLoser: "p2",
+    pendingDamage: 9,
+    players: [player("p1", 20), player("p2", 12)],
+  } as MatchState;
+  assert.equal(musicBattleIntensity(lethalPressure), "lethal-pressure");
+  assert.equal(musicCategoryForRoute("/play/match", lethalPressure, true, "p1"), "battle-intense");
+  const notQuiteLethal = {
+    ...base,
+    phase: "damage",
+    pendingLoser: "p2",
+    pendingDamage: 8,
+    players: [player("p1", 20), player("p2", 12)],
+  } as MatchState;
+  assert.equal(musicBattleIntensity(notQuiteLethal), null);
   assert.equal(musicCategoryForRoute("/builder/deck", null, false, "p1"), "deck-builder");
   assert.equal(musicCategoryForRoute("/", null, false, "p1"), "menu");
   assert.equal(musicCategoryForRoute("/play/match", { ...base, phase: "result", winner: "p1" } as MatchState, true, "p1"), "victory");
   assert.equal(musicCategoryForRoute("/play/match", { ...base, phase: "result", winner: "p2" } as MatchState, true, "p1"), "defeat");
-  assert.equal(musicCategoryForRoute("/play/match", { ...base, format: "bo3", gameNumber: 3 } as MatchState, true, "p1"), "battle-intense");
+});
+
+test("music transition timing uses the agreed lead-in and crossfades", () => {
+  assert.equal(DEFAULT_INTENSE_LEAD_IN_MS, 4_000);
+  assert.equal(BATTLE_TO_INTENSE_CROSSFADE_MS, 6_000);
+  assert.equal(INTENSE_TO_BATTLE_CROSSFADE_MS, 3_500);
+  assert.equal(STANDARD_MUSIC_CROSSFADE_MS, 2_500);
 });
 
 test("weighted selection avoids an immediate repeat when alternatives exist", () => {
   assert.equal(weightedMusicTrack(tracks, "battle", "a", 0)?.id, "b");
   assert.equal(weightedMusicTrack(tracks, "battle", "b", 0)?.id, "a");
   assert.equal(weightedMusicTrack(tracks, "battle-intense", "", 0)?.id, "b");
-  assert.equal(weightedMusicTrack(tracks, "training", "", 0), null);
 });
 
 test("music volume combines channel, master, and per-track trim", () => {
@@ -145,6 +184,9 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(admin, /readJsonResponse/);
   assert.match(admin, /draft\.artist.*formatDuration\(track\.durationMs\).*Opus.*formatBitrate\(track\.bitrate\).*formatBytes\(track\.bytes\)/);
   assert.match(admin, /Field label="Artist"/);
+  assert.match(admin, /Field label="Intense lead-in"/);
+  assert.match(admin, /intenseLeadInMs/);
+  assert.doesNotMatch(admin, /"training"/);
   assert.match(admin, /trackMetadataFromFile/);
   assert.doesNotMatch(admin, /track\.sourceName}.*revision/);
   assert.doesNotMatch(admin, /draft\.enabled \? "ENABLED" : "DISABLED"/);
@@ -156,8 +198,10 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.doesNotMatch(adminRoute, /request\.formData\(\)/);
   assert.match(server, /ALTER TABLE music_tracks ADD COLUMN artist/);
   assert.match(server, /ALTER TABLE music_tracks ADD COLUMN bitrate_bps/);
+  assert.match(server, /ALTER TABLE music_tracks ADD COLUMN intense_lead_in_ms/);
   assert.match(server, /metadata\.artist/);
   assert.match(server, /metadata\.bitrate/);
+  assert.match(server, /metadata\.intenseLeadInMs/);
   assert.match(server, /music_upload_chunks/);
   assert.match(server, /MUSIC_UPLOAD_CHUNK_BYTES = 64 \* 1024/);
   assert.match(server, /LEGACY_MUSIC_UPLOAD_CHUNK_BYTES = 256 \* 1024/);
@@ -173,8 +217,13 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(worker, /MAX_MUSIC_UPLOAD_CHUNK_BYTES/);
   assert.match(worker, /storeMusicUploadChunk/);
   assert.match(worker, /fastPath: true/);
-  assert.match(layer, /new Audio\(\)/);
+  assert.match(layer, /\[new Audio\(\), new Audio\(\)\]/);
   assert.match(layer, /preload = "none"/);
+  assert.match(layer, /requestAnimationFrame/);
+  assert.match(layer, /musicBattleIntensity/);
+  assert.match(layer, /intenseThroughTurn/);
+  assert.match(layer, /BATTLE_TO_INTENSE_CROSSFADE_MS/);
+  assert.match(layer, /outgoingRemainingMs - fadeDurationMs/);
   assert.match(layer, /requestIdleCallback/);
   assert.doesNotMatch(layer, /AudioContext|decodeAudioData|AudioEncoder/);
   assert.match(settings, /label="Music"/);
