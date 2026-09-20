@@ -14,6 +14,7 @@ import {
   MUSIC_CATEGORIES,
   MUSIC_GAIN_MAX_DB,
   MUSIC_GAIN_MIN_DB,
+  MUSIC_LIBRARY_UPDATED_EVENT,
   STANDARD_MUSIC_CROSSFADE_MS,
   musicBattleIntensity,
   musicCategoryForRoute,
@@ -136,6 +137,7 @@ test("weighted selection avoids an immediate repeat when alternatives exist", ()
 test("music volume combines channel, master, and the full per-track trim range", () => {
   assert.equal(MUSIC_GAIN_MIN_DB, -30);
   assert.equal(MUSIC_GAIN_MAX_DB, 12);
+  assert.equal(MUSIC_LIBRARY_UPDATED_EVENT, "bbp-music-library-updated");
   assert.equal(musicGain(50, 50, 0), .25);
   assert.equal(musicGain(0, 100, MUSIC_GAIN_MAX_DB), 0);
   assert.ok(musicGain(100, 100, -6) > .49 && musicGain(100, 100, -6) < .51);
@@ -195,6 +197,8 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(admin, /previewRef\.current\.volume = previewVolume/);
   assert.match(admin, /MUSIC_GAIN_MIN_DB/);
   assert.match(admin, /MUSIC_GAIN_MAX_DB/);
+  assert.match(admin, /MUSIC_LIBRARY_UPDATED_EVENT/);
+  assert.match(admin, /notifyMusicLibraryUpdated\(\)/);
   assert.match(admin, /intenseLeadInMs/);
   assert.doesNotMatch(admin, /"training"/);
   assert.match(admin, /trackMetadataFromFile/);
@@ -235,6 +239,10 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(layer, /BATTLE_TO_INTENSE_CROSSFADE_MS/);
   assert.match(layer, /outgoingRemainingMs - fadeDurationMs/);
   assert.match(layer, /requestIdleCallback/);
+  assert.match(layer, /MUSIC_LIBRARY_UPDATED_EVENT/);
+  assert.match(layer, /fetch\("\/api\/music", \{ cache: "no-store" \}\)/);
+  assert.match(layer, /tracksRef\.current\[index\] = replacement/);
+  assert.match(layer, /applyVolumes\(\);\s*for \(const index of \[0, 1\] as const\)/);
   assert.doesNotMatch(layer, /AudioContext|decodeAudioData|AudioEncoder/);
   assert.match(settings, /label="Music"/);
   assert.match(settings, /musicVolume/);

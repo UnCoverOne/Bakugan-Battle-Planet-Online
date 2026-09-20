@@ -6,6 +6,7 @@ import {
   BATTLE_TO_INTENSE_CROSSFADE_MS,
   DEFAULT_INTENSE_LEAD_IN_MS,
   INTENSE_TO_BATTLE_CROSSFADE_MS,
+  MUSIC_LIBRARY_UPDATED_EVENT,
   STANDARD_MUSIC_CROSSFADE_MS,
   musicBattleIntensity,
   musicCategoryForRoute,
@@ -302,6 +303,7 @@ export function MusicLayer() {
     const unlock = () => {
       unlockedRef.current = true;
       if (!musicEnabledRef.current || document.visibilityState === "hidden") return;
+      applyVolumes();
       for (const index of [0, 1] as const) {
         if (tracksRef.current[index]) {
           void audiosRef.current[index]?.play().catch(() => undefined);
@@ -314,7 +316,7 @@ export function MusicLayer() {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
     };
-  }, []);
+  }, [applyVolumes]);
 
   useEffect(() => {
     if (!musicEnabled || manifest) return;
@@ -340,6 +342,64 @@ export function MusicLayer() {
       if (idle != null) idleWindow.cancelIdleCallback?.(idle);
     };
   }, [manifest, musicEnabled]);
+
+  useEffect(() => {
+    let active = true;
+    const refreshManifest = () => {
+      fetch("/api/music", { cache: "no-store" })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Music manifest is unavailable.");
+          return await response.json() as MusicManifest;
+        })
+        .then((value) => {
+          if (!active) return;
+          const currentById = new Map(value.tracks.map((track) => [track.id, track]));
+          let activeTrackRemoved = false;
+          for (const index of [0, 1] as const) {
+            const current = tracksRef.current[index];
+            if (!current) continue;
+            const replacement = currentById.get(current.id);
+            if (replacement) {
+              tracksRef.current[index] = replacement;
+              const audio = audiosRef.current[index];
+              if (audio) audio.loop = replacement.loop;
+              continue;
+            }
+            const audio = audiosRef.current[index];
+            audio?.pause();
+            if (audio) {
+              audio.removeAttribute("src");
+              audio.load();
+            }
+            tracksRef.current[index] = null;
+            if (index === activeIndexRef.current) activeTrackRemoved = true;
+          }
+          if (
+            transitionRef.current
+            && (
+              !tracksRef.current[transitionRef.current.fromIndex]
+              || !tracksRef.current[transitionRef.current.toIndex]
+            )
+          ) {
+            clearTransitionTimers();
+            transitionRef.current = null;
+          }
+          if (activeTrackRemoved) {
+            activeCategoryRef.current = null;
+            nearEndTriggeredRef.current = false;
+            setCycle((value) => value + 1);
+          }
+          setManifest(value);
+          applyVolumes();
+        })
+        .catch(() => undefined);
+    };
+    window.addEventListener(MUSIC_LIBRARY_UPDATED_EVENT, refreshManifest);
+    return () => {
+      active = false;
+      window.removeEventListener(MUSIC_LIBRARY_UPDATED_EVENT, refreshManifest);
+    };
+  }, [applyVolumes, clearTransitionTimers]);
 
   useEffect(() => {
     applyVolumes();
@@ -451,13 +511,14 @@ export function MusicLayer() {
         return;
       }
       if (!musicEnabledRef.current || !unlockedRef.current) return;
+      applyVolumes();
       for (const index of [0, 1] as const) {
         if (tracksRef.current[index]) void audiosRef.current[index]?.play().catch(() => undefined);
       }
     };
     document.addEventListener("visibilitychange", resume);
     return () => document.removeEventListener("visibilitychange", resume);
-  }, []);
+  }, [applyVolumes]);
 
   return null;
 }

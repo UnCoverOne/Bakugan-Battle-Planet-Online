@@ -28,6 +28,7 @@ export const INTENSE_TO_BATTLE_CROSSFADE_MS = 3_500;
 export const STANDARD_MUSIC_CROSSFADE_MS = 2_500;
 export const MUSIC_GAIN_MIN_DB = -30;
 export const MUSIC_GAIN_MAX_DB = 12;
+export const MUSIC_LIBRARY_UPDATED_EVENT = "bbp-music-library-updated";
 
 export type MusicTrack = {
   id: string;

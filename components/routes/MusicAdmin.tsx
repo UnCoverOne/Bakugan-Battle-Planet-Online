@@ -7,6 +7,7 @@ import {
   MUSIC_CATEGORY_LABELS,
   MUSIC_GAIN_MAX_DB,
   MUSIC_GAIN_MIN_DB,
+  MUSIC_LIBRARY_UPDATED_EVENT,
   musicGain,
   type MusicCategory,
   type MusicTrack,
@@ -100,6 +101,10 @@ async function uploadMusicChunk(
 async function readAdminMusic() {
   const response = await fetch("/api/admin/music", { cache: "no-store" });
   return musicJson<MusicAdminPayload>(response, "Music library could not be loaded.");
+}
+
+function notifyMusicLibraryUpdated() {
+  window.dispatchEvent(new Event(MUSIC_LIBRARY_UPDATED_EVENT));
 }
 
 export function MusicAdmin() {
@@ -215,6 +220,7 @@ export function MusicAdmin() {
       setArtist("");
       setIntenseLeadInSeconds(4);
       setProgress({ value: 0, label: "" });
+      notifyMusicLibraryUpdated();
       await refresh();
     } catch (cause) {
       if (uploadId) {
@@ -384,6 +390,7 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
       });
       const result = await musicJson<{ track: MusicTrack }>(response, "Track could not be updated.");
       notify(`${result.track.name} updated.`);
+      notifyMusicLibraryUpdated();
       await onChanged();
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : "Track could not be updated.");
@@ -399,6 +406,7 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
       const response = await fetch(`/api/admin/music?id=${encodeURIComponent(track.id)}`, { method: "DELETE" });
       await musicJson<{ ok: boolean }>(response, "Track could not be deleted.");
       notify(`${track.name} deleted from the music library.`);
+      notifyMusicLibraryUpdated();
       await onChanged();
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : "Track could not be deleted.");
