@@ -223,6 +223,7 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(layer, /musicBattleIntensity/);
   assert.match(layer, /intenseThroughTurn/);
   assert.match(layer, /BATTLE_TO_INTENSE_CROSSFADE_MS/);
+  assert.match(layer, /outgoingRemainingMs - fadeDurationMs/);
   assert.match(layer, /requestIdleCallback/);
   assert.doesNotMatch(layer, /AudioContext|decodeAudioData|AudioEncoder/);
   assert.match(settings, /label="Music"/);

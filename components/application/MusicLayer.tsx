@@ -241,9 +241,14 @@ export function MusicLayer() {
       frame();
     };
 
+    const fromTrack = tracksRef.current[fromIndex];
+    const outgoingRemainingMs = fromTrack?.loop
+      ? Number.POSITIVE_INFINITY
+      : Math.max(0, (fromTrack?.durationMs ?? 0) - fromAudio.currentTime * 1_000);
     const safeLeadIn = Math.min(
       Math.max(0, leadInMs),
       Math.max(0, next.durationMs - 1_000),
+      Math.max(0, outgoingRemainingMs - fadeDurationMs),
     );
     if (safeLeadIn > 0) {
       leadTimerRef.current = window.setTimeout(startFade, safeLeadIn);
