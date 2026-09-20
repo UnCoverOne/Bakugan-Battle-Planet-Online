@@ -107,11 +107,12 @@ export function MusicAdmin() {
   const [source, setSource] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [artist, setArtist] = useState("");
-  const [categories, setCategories] = useState<MusicCategory[]>(["battle", "training"]);
+  const [categories, setCategories] = useState<MusicCategory[]>(["battle"]);
   const [enabled, setEnabled] = useState(true);
   const [loop, setLoop] = useState(false);
   const [weight, setWeight] = useState(10);
   const [gainDb, setGainDb] = useState(0);
+  const [intenseLeadInSeconds, setIntenseLeadInSeconds] = useState(4);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState({ value: 0, label: "" });
 
@@ -168,6 +169,7 @@ export function MusicAdmin() {
             gainDb,
             durationMs: converted.durationMs,
             bitrate: converted.bitrate,
+            intenseLeadInMs: Math.round(intenseLeadInSeconds * 1_000),
           },
         }),
       });
@@ -275,6 +277,9 @@ export function MusicAdmin() {
           <Field label="Volume trim" hint="-12 dB to +6 dB. Use this only to balance unusually quiet/loud tracks.">
             <input type="number" min={-12} max={6} step={.5} value={gainDb} disabled={importing} onChange={(event) => setGainDb(Number(event.target.value))} />
           </Field>
+          <Field label="Intense lead-in" hint="Seconds the Intense track plays silently before the 6-second crossfade begins.">
+            <input type="number" min={0} max={15} step={.5} value={intenseLeadInSeconds} disabled={importing} onChange={(event) => setIntenseLeadInSeconds(Number(event.target.value))} />
+          </Field>
         </div>
         <div className={styles.categoryGroup}>
           <strong>Playback categories</strong>
@@ -330,6 +335,7 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
     weight: draft.weight,
     loop: draft.loop,
     gainDb: draft.gainDb,
+    intenseLeadInMs: draft.intenseLeadInMs,
   }) !== JSON.stringify({
     name: track.name,
     artist: track.artist,
@@ -338,6 +344,7 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
     weight: track.weight,
     loop: track.loop,
     gainDb: track.gainDb,
+    intenseLeadInMs: track.intenseLeadInMs,
   });
 
   const patch = <K extends keyof MusicTrack>(key: K, value: MusicTrack[K]) => {
@@ -359,6 +366,7 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
           weight: draft.weight,
           loop: draft.loop,
           gainDb: draft.gainDb,
+          intenseLeadInMs: draft.intenseLeadInMs,
         }),
       });
       const result = await musicJson<{ track: MusicTrack }>(response, "Track could not be updated.");
@@ -430,6 +438,9 @@ function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () =>
         </Field>
         <Field label="Volume trim">
           <input type="number" min={-12} max={6} step={.5} value={draft.gainDb} onChange={(event) => patch("gainDb", Number(event.target.value))} />
+        </Field>
+        <Field label="Intense lead-in" hint="Silent buildup before the Battle → Intense crossfade.">
+          <input type="number" min={0} max={15} step={.5} value={draft.intenseLeadInMs / 1000} onChange={(event) => patch("intenseLeadInMs", Math.round(Number(event.target.value) * 1000))} />
         </Field>
         <label className={styles.loopToggle}><input type="checkbox" checked={draft.loop} onChange={(event) => patch("loop", event.target.checked)} /> Loop continuously</label>
       </div>
