@@ -3,6 +3,7 @@ import type { MatchState, PlayerState } from "./game";
 export const MUSIC_CATEGORIES = [
   "menu",
   "deck-builder",
+  "core-placement",
   "battle",
   "battle-intense",
   "victory",
@@ -14,6 +15,7 @@ export type MusicCategory = typeof MUSIC_CATEGORIES[number];
 export const MUSIC_CATEGORY_LABELS: Record<MusicCategory, string> = {
   menu: "Menu",
   "deck-builder": "Deck Builder",
+  "core-placement": "Core Placement",
   battle: "Battle",
   "battle-intense": "Battle — Intense",
   victory: "Victory",
@@ -103,6 +105,9 @@ export function musicCategoryForRoute(
   if (pathname === "/play/match" && match) {
     if (match.phase === "result" && match.winner) {
       return match.winner === playerId ? "victory" : "defeat";
+    }
+    if (match.phase === "startingPlayer" || match.phase === "placement") {
+      return "core-placement";
     }
     return musicBattleIntensity(match) ? "battle-intense" : "battle";
   }

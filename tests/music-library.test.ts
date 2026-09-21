@@ -74,6 +74,7 @@ test("offline and online matches share Battle music and intensity follows deck p
   assert.deepEqual(MUSIC_CATEGORIES, [
     "menu",
     "deck-builder",
+    "core-placement",
     "battle",
     "battle-intense",
     "victory",
@@ -94,6 +95,9 @@ test("offline and online matches share Battle music and intensity follows deck p
   } as MatchState;
   assert.equal(musicCategoryForRoute("/play/match", base, false, "p1"), "battle");
   assert.equal(musicCategoryForRoute("/play/match", base, true, "p1"), "battle");
+  assert.equal(musicCategoryForRoute("/play/match", { ...base, phase: "startingPlayer" } as MatchState, false, "p1"), "core-placement");
+  assert.equal(musicCategoryForRoute("/play/match", { ...base, phase: "placement" } as MatchState, true, "p1"), "core-placement");
+  assert.equal(musicCategoryForRoute("/play/match", { ...base, phase: "retract" } as MatchState, false, "p1"), "battle");
   assert.equal(musicBattleIntensity(base), null);
   const lowLife = { ...base, players: [player("p1", 8), player("p2", 20)] } as MatchState;
   assert.equal(musicBattleIntensity(lowLife), "low-life");
