@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BATTLE_TO_INTENSE_CROSSFADE_MS,
   DEFAULT_INTENSE_LEAD_IN_MS,
+  DEFAULT_MUSIC_LEAD_IN_FADE_MS,
   INTENSE_TO_BATTLE_CROSSFADE_MS,
   MUSIC_LIBRARY_UPDATED_EVENT,
   STANDARD_MUSIC_CROSSFADE_MS,
@@ -33,6 +34,17 @@ type MusicTransition = {
   fadeDurationMs: number;
 };
 
+type MusicFadeIn = {
+  index: 0 | 1;
+  startedAt: number;
+  durationMs: number;
+};
+
+type PendingMusicFadeIn = {
+  index: 0 | 1;
+  durationMs: number;
+};
+
 const clampVolume = (value: number) => Math.min(1, Math.max(0, value));
 
 export function MusicLayer() {
@@ -49,6 +61,9 @@ export function MusicLayer() {
   const startTimerRef = useRef<number | null>(null);
   const leadTimerRef = useRef<number | null>(null);
   const fadeFrameRef = useRef<number | null>(null);
+  const fadeInRef = useRef<MusicFadeIn | null>(null);
+  const pendingFadeInRef = useRef<PendingMusicFadeIn | null>(null);
+  const fadeInFrameRef = useRef<number | null>(null);
   const nearEndTriggeredRef = useRef(false);
   const unlockedRef = useRef(false);
   const musicEnabledRef = useRef(true);
@@ -104,9 +119,23 @@ export function MusicLayer() {
     const transition = transitionRef.current;
     if (!transition) {
       const active = activeIndexRef.current;
+      const fadeIn = fadeInRef.current;
+      const pendingFadeIn = pendingFadeInRef.current;
       for (const index of [0, 1] as const) {
         const audio = audios[index];
-        if (audio) audio.volume = index === active ? gainForTrack(tracks[index]) : 0;
+        if (!audio) continue;
+        if (index !== active) {
+          audio.volume = 0;
+        } else if (pendingFadeIn?.index === index) {
+          audio.volume = 0;
+        } else if (fadeIn?.index === index) {
+          const progress = fadeIn.durationMs <= 0
+            ? 1
+            : Math.min(1, Math.max(0, (performance.now() - fadeIn.startedAt) / fadeIn.durationMs));
+          audio.volume = clampVolume(gainForTrack(tracks[index]) * progress);
+        } else {
+          audio.volume = gainForTrack(tracks[index]);
+        }
       }
       return;
     }
@@ -135,6 +164,62 @@ export function MusicLayer() {
       fadeFrameRef.current = null;
     }
   }, []);
+
+  const clearLeadInFade = useCallback((preservePending = false) => {
+    if (fadeInFrameRef.current != null) {
+      window.cancelAnimationFrame(fadeInFrameRef.current);
+      fadeInFrameRef.current = null;
+    }
+    fadeInRef.current = null;
+    if (!preservePending) pendingFadeInRef.current = null;
+  }, []);
+
+  const beginLeadInFade = useCallback((index: 0 | 1) => {
+    const pending = pendingFadeInRef.current;
+    const audio = audiosRef.current[index];
+    if (
+      !pending
+      || pending.index !== index
+      || !audio
+      || !tracksRef.current[index]
+      || transitionRef.current
+      || !unlockedRef.current
+      || !musicEnabledRef.current
+      || document.visibilityState === "hidden"
+    ) return;
+    void audio.play().then(() => {
+      if (
+        pendingFadeInRef.current !== pending
+        || activeIndexRef.current !== index
+        || transitionRef.current
+        || !musicEnabledRef.current
+        || document.visibilityState === "hidden"
+      ) return;
+      pendingFadeInRef.current = null;
+      if (pending.durationMs <= 0) {
+        applyVolumes();
+        return;
+      }
+      const fadeIn: MusicFadeIn = {
+        index,
+        startedAt: performance.now(),
+        durationMs: pending.durationMs,
+      };
+      fadeInRef.current = fadeIn;
+      const frame = () => {
+        if (fadeInRef.current !== fadeIn) return;
+        applyVolumes();
+        if (performance.now() - fadeIn.startedAt >= fadeIn.durationMs) {
+          fadeInRef.current = null;
+          fadeInFrameRef.current = null;
+          applyVolumes();
+          return;
+        }
+        fadeInFrameRef.current = window.requestAnimationFrame(frame);
+      };
+      frame();
+    }).catch(() => undefined);
+  }, [applyVolumes]);
 
   const finishTransition = useCallback((transition: MusicTransition) => {
     if (transitionRef.current !== transition) return;
@@ -190,6 +275,7 @@ export function MusicLayer() {
     fadeDurationMs: number,
   ) => {
     cancelTransition();
+    clearLeadInFade();
     const fromIndex = activeIndexRef.current;
     const toIndex = (fromIndex === 0 ? 1 : 0) as 0 | 1;
     const fromAudio = audiosRef.current[fromIndex];
@@ -256,7 +342,7 @@ export function MusicLayer() {
     } else {
       startFade();
     }
-  }, [applyVolumes, cancelTransition, finishTransition]);
+  }, [applyVolumes, cancelTransition, clearLeadInFade, finishTransition]);
 
   useEffect(() => {
     const audios = [new Audio(), new Audio()] as [HTMLAudioElement, HTMLAudioElement];
@@ -293,11 +379,12 @@ export function MusicLayer() {
     return () => {
       if (startTimerRef.current != null) window.clearTimeout(startTimerRef.current);
       clearTransitionTimers();
+      clearLeadInFade();
       for (const cleanup of cleanups) cleanup();
       tracksRef.current = [null, null];
       audiosRef.current = [null, null];
     };
-  }, [clearTransitionTimers]);
+  }, [clearLeadInFade, clearTransitionTimers]);
 
   useEffect(() => {
     const unlock = () => {
@@ -306,7 +393,8 @@ export function MusicLayer() {
       applyVolumes();
       for (const index of [0, 1] as const) {
         if (tracksRef.current[index]) {
-          void audiosRef.current[index]?.play().catch(() => undefined);
+          if (pendingFadeInRef.current?.index === index) beginLeadInFade(index);
+          else void audiosRef.current[index]?.play().catch(() => undefined);
         }
       }
     };
@@ -316,7 +404,7 @@ export function MusicLayer() {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
     };
-  }, [applyVolumes]);
+  }, [applyVolumes, beginLeadInFade]);
 
   useEffect(() => {
     if (!musicEnabled || manifest) return;
@@ -385,6 +473,7 @@ export function MusicLayer() {
             transitionRef.current = null;
           }
           if (activeTrackRemoved) {
+            clearLeadInFade();
             activeCategoryRef.current = null;
             nearEndTriggeredRef.current = false;
             setCycle((value) => value + 1);
@@ -399,18 +488,21 @@ export function MusicLayer() {
       active = false;
       window.removeEventListener(MUSIC_LIBRARY_UPDATED_EVENT, refreshManifest);
     };
-  }, [applyVolumes, clearTransitionTimers]);
+  }, [applyVolumes, clearLeadInFade, clearTransitionTimers]);
 
   useEffect(() => {
     applyVolumes();
     if (!musicEnabled) {
+      clearLeadInFade(Boolean(pendingFadeInRef.current));
       for (const audio of audiosRef.current) audio?.pause();
     } else if (unlockedRef.current && document.visibilityState !== "hidden") {
       for (const index of [0, 1] as const) {
-        if (tracksRef.current[index]) void audiosRef.current[index]?.play().catch(() => undefined);
+        if (!tracksRef.current[index]) continue;
+        if (pendingFadeInRef.current?.index === index) beginLeadInFade(index);
+        else void audiosRef.current[index]?.play().catch(() => undefined);
       }
     }
-  }, [applyVolumes, masterVolume, musicEnabled, targetVolume]);
+  }, [applyVolumes, beginLeadInFade, clearLeadInFade, masterVolume, musicEnabled, targetVolume]);
 
   useEffect(() => {
     if (!manifest || !musicEnabled || !category) {
@@ -419,6 +511,7 @@ export function MusicLayer() {
         startTimerRef.current = null;
       }
       cancelTransition();
+      clearLeadInFade();
       for (const audio of audiosRef.current) audio?.pause();
       return;
     }
@@ -441,13 +534,15 @@ export function MusicLayer() {
     ) {
       applyVolumes();
       if (unlockedRef.current && document.visibilityState !== "hidden") {
-        void audio.play().catch(() => undefined);
+        if (pendingFadeInRef.current?.index === activeIndex) beginLeadInFade(activeIndex);
+        else void audio.play().catch(() => undefined);
       }
       return;
     }
 
     const next = weightedMusicTrack(manifest.tracks, category, current?.id ?? "");
     if (!next) {
+      clearLeadInFade();
       audio.pause();
       tracksRef.current[activeIndex] = null;
       activeCategoryRef.current = null;
@@ -465,7 +560,7 @@ export function MusicLayer() {
       startTimerRef.current = null;
     }
 
-    if (current) {
+    if (current && pendingFadeInRef.current?.index !== activeIndex) {
       const battleToIntense = currentCategory === "battle" && category === "battle-intense";
       const intenseToBattle = currentCategory === "battle-intense" && category === "battle";
       const leadInMs = battleToIntense
@@ -480,7 +575,17 @@ export function MusicLayer() {
       return;
     }
 
+    if (current) {
+      clearLeadInFade();
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      tracksRef.current[activeIndex] = null;
+      activeCategoryRef.current = null;
+    }
+
     startTimerRef.current = window.setTimeout(() => {
+      clearLeadInFade();
       audio.pause();
       audio.src = next.url;
       audio.currentTime = 0;
@@ -489,11 +594,13 @@ export function MusicLayer() {
       tracksRef.current[activeIndex] = next;
       activeCategoryRef.current = category;
       nearEndTriggeredRef.current = false;
+      pendingFadeInRef.current = {
+        index: activeIndex,
+        durationMs: manifest.settings?.leadInFadeMs ?? DEFAULT_MUSIC_LEAD_IN_FADE_MS,
+      };
       setCycle(0);
       applyVolumes();
-      if (unlockedRef.current && document.visibilityState !== "hidden") {
-        void audio.play().catch(() => undefined);
-      }
+      beginLeadInFade(activeIndex);
     }, pathname === "/play/match" ? 900 : 1_400);
 
     return () => {
@@ -502,23 +609,26 @@ export function MusicLayer() {
         startTimerRef.current = null;
       }
     };
-  }, [applyVolumes, cancelTransition, category, cycle, manifest, musicEnabled, pathname, startTransition]);
+  }, [applyVolumes, beginLeadInFade, cancelTransition, category, clearLeadInFade, cycle, manifest, musicEnabled, pathname, startTransition]);
 
   useEffect(() => {
     const resume = () => {
       if (document.visibilityState === "hidden") {
+        clearLeadInFade(Boolean(pendingFadeInRef.current));
         for (const audio of audiosRef.current) audio?.pause();
         return;
       }
       if (!musicEnabledRef.current || !unlockedRef.current) return;
       applyVolumes();
       for (const index of [0, 1] as const) {
-        if (tracksRef.current[index]) void audiosRef.current[index]?.play().catch(() => undefined);
+        if (!tracksRef.current[index]) continue;
+        if (pendingFadeInRef.current?.index === index) beginLeadInFade(index);
+        else void audiosRef.current[index]?.play().catch(() => undefined);
       }
     };
     document.addEventListener("visibilitychange", resume);
     return () => document.removeEventListener("visibilitychange", resume);
-  }, [applyVolumes]);
+  }, [applyVolumes, beginLeadInFade, clearLeadInFade]);
 
   return null;
 }

@@ -1,10 +1,13 @@
 import type { AccountDatabase } from "./account-server";
 import {
+  DEFAULT_MUSIC_LEAD_IN_FADE_MS,
+  MAX_MUSIC_LEAD_IN_FADE_MS,
   MUSIC_CATEGORIES,
   MUSIC_GAIN_MAX_DB,
   MUSIC_GAIN_MIN_DB,
   normalizeMusicCategories,
   type MusicManifest,
+  type MusicSettings,
   type MusicTrack,
   type MusicTrackMetadata,
 } from "./music";
@@ -24,6 +27,12 @@ type MusicTrackRow = {
 type MusicUploadRow = {
   id: string; administrator_id: string; source_name: string; byte_length: number;
   metadata_json: string; created_at: number;
+};
+
+type MusicSettingsRow = {
+  lead_in_fade_ms: number;
+  revision: number;
+  updated_at: number;
 };
 
 function parseCategories(value: string) {
@@ -52,9 +61,44 @@ export async function listMusicTracks(db: AccountDatabase): Promise<MusicTrack[]
   return (result.results ?? []).map(toTrack);
 }
 
+export async function getMusicSettings(db: AccountDatabase): Promise<MusicSettings> {
+  const row = await db.prepare(
+    "SELECT lead_in_fade_ms, revision, updated_at FROM music_settings WHERE id = 1",
+  ).first<MusicSettingsRow>();
+  const leadInFadeMs = Math.round(Number(row?.lead_in_fade_ms ?? DEFAULT_MUSIC_LEAD_IN_FADE_MS));
+  return {
+    leadInFadeMs: Number.isFinite(leadInFadeMs)
+      ? Math.min(MAX_MUSIC_LEAD_IN_FADE_MS, Math.max(0, leadInFadeMs))
+      : DEFAULT_MUSIC_LEAD_IN_FADE_MS,
+    revision: Math.max(1, Math.round(Number(row?.revision) || 1)),
+    updatedAt: Math.max(0, Math.round(Number(row?.updated_at) || 0)),
+  };
+}
+
 export async function getMusicManifest(db: AccountDatabase): Promise<MusicManifest> {
-  const tracks = (await listMusicTracks(db)).filter((track) => track.enabled);
-  return { revision: Math.max(0, ...tracks.map((track) => track.updatedAt)), tracks };
+  const [allTracks, settings] = await Promise.all([listMusicTracks(db), getMusicSettings(db)]);
+  const tracks = allTracks.filter((track) => track.enabled);
+  return {
+    revision: Math.max(settings.updatedAt, ...tracks.map((track) => track.updatedAt)),
+    settings,
+    tracks,
+  };
+}
+
+export async function updateMusicSettings(
+  db: AccountDatabase,
+  value: { leadInFadeMs?: unknown },
+  administratorId: string,
+) {
+  const leadInFadeMs = Math.round(Number(value.leadInFadeMs));
+  if (!Number.isFinite(leadInFadeMs) || leadInFadeMs < 0 || leadInFadeMs > MAX_MUSIC_LEAD_IN_FADE_MS) {
+    throw new ValidationError(`Music lead-in fade must be between 0 and ${MAX_MUSIC_LEAD_IN_FADE_MS / 1_000} seconds.`);
+  }
+  const now = Date.now();
+  await db.prepare(
+    "INSERT INTO music_settings (id, lead_in_fade_ms, revision, updated_at, updated_by) VALUES (1, ?, 1, ?, ?) ON CONFLICT(id) DO UPDATE SET lead_in_fade_ms = excluded.lead_in_fade_ms, revision = music_settings.revision + 1, updated_at = excluded.updated_at, updated_by = excluded.updated_by",
+  ).bind(leadInFadeMs, now, administratorId).run();
+  return getMusicSettings(db);
 }
 
 function normalizeMetadata(value: Partial<MusicTrackMetadata>): MusicTrackMetadata {

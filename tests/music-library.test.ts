@@ -5,7 +5,9 @@ import { muxOggOpus } from "../lib/music-import-client";
 import {
   BATTLE_TO_INTENSE_CROSSFADE_MS,
   DEFAULT_INTENSE_LEAD_IN_MS,
+  DEFAULT_MUSIC_LEAD_IN_FADE_MS,
   INTENSE_TO_BATTLE_CROSSFADE_MS,
+  MAX_MUSIC_LEAD_IN_FADE_MS,
   MUSIC_CATEGORIES,
   MUSIC_GAIN_MAX_DB,
   MUSIC_GAIN_MIN_DB,
@@ -122,6 +124,8 @@ test("offline and online matches share Battle music and intensity follows deck p
 
 test("music transition timing uses the agreed lead-in and crossfades", () => {
   assert.equal(DEFAULT_INTENSE_LEAD_IN_MS, 4_000);
+  assert.equal(DEFAULT_MUSIC_LEAD_IN_FADE_MS, 2_500);
+  assert.equal(MAX_MUSIC_LEAD_IN_FADE_MS, 15_000);
   assert.equal(BATTLE_TO_INTENSE_CROSSFADE_MS, 6_000);
   assert.equal(INTENSE_TO_BATTLE_CROSSFADE_MS, 3_500);
   assert.equal(STANDARD_MUSIC_CROSSFADE_MS, 2_500);
@@ -159,13 +163,14 @@ test("browser converter muxes encoded Opus packets into an Ogg stream", async ()
 });
 
 test("music management is admin-only and gameplay playback stays native and deferred", async () => {
-  const [adminRoute, publicRoute, server, admin, layer, settings] = await Promise.all([
+  const [adminRoute, publicRoute, server, admin, layer, settings, migration] = await Promise.all([
     read("app/api/admin/music/route.ts"),
     read("app/api/music/route.ts"),
     read("lib/music-server.ts"),
     read("components/routes/MusicAdmin.tsx"),
     read("components/application/MusicLayer.tsx"),
     read("components/routes/SettingsScreen.tsx"),
+    read("migrations/0012_music_settings.sql"),
   ]);
   assert.match(adminRoute, /requireAdministrator\(request\)/);
   assert.match(adminRoute, /assertSameOrigin\(request\)/);
@@ -180,6 +185,8 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(admin, /draft\.artist.*formatDuration\(track\.durationMs\).*Opus.*formatBitrate\(track\.bitrate\).*formatBytes\(track\.bytes\)/);
   assert.match(admin, /Field label="Artist"/);
   assert.match(admin, /Field label="Intense lead-in"/);
+  assert.match(admin, /Field label="Lead-in fade"/);
+  assert.match(admin, /action: "settings"/);
   assert.match(admin, /musicGain/);
   assert.match(admin, /previewRef\.current\.volume = previewVolume/);
   assert.match(admin, /MUSIC_GAIN_MIN_DB/);
@@ -193,6 +200,8 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.doesNotMatch(admin, /draft\.enabled \? "ENABLED" : "DISABLED"/);
   assert.doesNotMatch(admin, /new FormData\(\)/);
   assert.match(adminRoute, /beginMusicUpload/);
+  assert.match(adminRoute, /getMusicSettings/);
+  assert.match(adminRoute, /updateMusicSettings/);
   assert.match(adminRoute, /artist: String\(body\.artist/);
   assert.match(adminRoute, /storeMusicUploadObject/);
   assert.match(adminRoute, /request\.body/);
@@ -201,6 +210,8 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(server, /metadata\.artist/);
   assert.match(server, /metadata\.bitrate/);
   assert.match(server, /metadata\.intenseLeadInMs/);
+  assert.match(server, /lead_in_fade_ms/);
+  assert.match(server, /MAX_MUSIC_LEAD_IN_FADE_MS/);
   assert.match(server, /bucket\.put\(trackObjectKey\(upload\.id\), data/);
   assert.match(server, /bucket\.get\(row\.object_key/);
   assert.match(server, /new Response\(object\.body/);
@@ -218,6 +229,8 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(layer, /\[new Audio\(\), new Audio\(\)\]/);
   assert.match(layer, /preload = "none"/);
   assert.match(layer, /requestAnimationFrame/);
+  assert.match(layer, /pendingFadeInRef/);
+  assert.match(layer, /manifest\.settings\?\.leadInFadeMs/);
   assert.match(layer, /musicBattleIntensity/);
   assert.match(layer, /intenseThroughTurn/);
   assert.match(layer, /BATTLE_TO_INTENSE_CROSSFADE_MS/);
@@ -230,4 +243,6 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.doesNotMatch(layer, /AudioContext|decodeAudioData|AudioEncoder/);
   assert.match(settings, /label="Music"/);
   assert.match(settings, /musicVolume/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS music_settings/);
+  assert.match(migration, /lead_in_fade_ms INTEGER NOT NULL DEFAULT 2500/);
 });

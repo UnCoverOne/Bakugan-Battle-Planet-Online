@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { readJsonResponse } from "../../lib/json-response";
 import {
+  DEFAULT_MUSIC_LEAD_IN_FADE_MS,
+  MAX_MUSIC_LEAD_IN_FADE_MS,
   MUSIC_CATEGORIES,
   MUSIC_CATEGORY_LABELS,
   MUSIC_GAIN_MAX_DB,
@@ -10,6 +12,7 @@ import {
   MUSIC_LIBRARY_UPDATED_EVENT,
   musicGain,
   type MusicCategory,
+  type MusicSettings,
   type MusicTrack,
 } from "../../lib/music";
 import { ActionButton, Field, StatusChip, Surface } from "../design-system/primitives";
@@ -18,6 +21,7 @@ import styles from "./MusicAdmin.module.css";
 
 type MusicAdminPayload = {
   tracks: MusicTrack[];
+  settings: MusicSettings;
   categories: MusicCategory[];
   maxTrackBytes: number;
 };
@@ -119,6 +123,9 @@ export function MusicAdmin() {
   const [weight, setWeight] = useState(10);
   const [gainDb, setGainDb] = useState(0);
   const [intenseLeadInSeconds, setIntenseLeadInSeconds] = useState(4);
+  const [leadInFadeSeconds, setLeadInFadeSeconds] = useState(DEFAULT_MUSIC_LEAD_IN_FADE_MS / 1_000);
+  const [savedLeadInFadeMs, setSavedLeadInFadeMs] = useState(DEFAULT_MUSIC_LEAD_IN_FADE_MS);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState({ value: 0, label: "" });
 
@@ -126,7 +133,10 @@ export function MusicAdmin() {
     setLoading(true);
     setError("");
     try {
-      setData(await readAdminMusic());
+      const next = await readAdminMusic();
+      setData(next);
+      setLeadInFadeSeconds(next.settings.leadInFadeMs / 1_000);
+      setSavedLeadInFadeMs(next.settings.leadInFadeMs);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Music library could not be loaded.");
     } finally {
@@ -223,6 +233,36 @@ export function MusicAdmin() {
     [data?.tracks],
   );
 
+  const savePlaybackSettings = async () => {
+    const leadInFadeMs = Math.round(leadInFadeSeconds * 1_000);
+    setSavingSettings(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/music", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "settings", leadInFadeMs }),
+      });
+      const result = await musicJson<{ settings: MusicSettings }>(response, "Music playback settings could not be updated.");
+      setData((current) => current ? { ...current, settings: result.settings } : current);
+      setLeadInFadeSeconds(result.settings.leadInFadeMs / 1_000);
+      setSavedLeadInFadeMs(result.settings.leadInFadeMs);
+      notify(`Music lead-in fade set to ${(result.settings.leadInFadeMs / 1_000).toFixed(1)} seconds.`);
+      notifyMusicLibraryUpdated();
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Music playback settings could not be updated.";
+      setError(message);
+      notify(message);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const pendingLeadInFadeMs = Math.round(leadInFadeSeconds * 1_000);
+  const leadInFadeValid = Number.isFinite(pendingLeadInFadeMs)
+    && pendingLeadInFadeMs >= 0
+    && pendingLeadInFadeMs <= MAX_MUSIC_LEAD_IN_FADE_MS;
+
   return (
     <section className={styles.section}>
       <div className={styles.heading}>
@@ -233,6 +273,37 @@ export function MusicAdmin() {
         </div>
         <StatusChip tone="info">{sorted.filter((track) => track.enabled).length} ENABLED</StatusChip>
       </div>
+
+      <Surface className={styles.importer}>
+        <div className={styles.importHeader}>
+          <div>
+            <h3>Playback Settings</h3>
+            <p>Control how the soundtrack enters when there is no outgoing song to crossfade from.</p>
+          </div>
+        </div>
+        <div className={styles.importGrid}>
+          <Field label="Lead-in fade" hint="Seconds to fade from silence to the configured in-game volume. Set to 0 for an immediate start.">
+            <input
+              type="number"
+              min={0}
+              max={MAX_MUSIC_LEAD_IN_FADE_MS / 1_000}
+              step={.5}
+              value={leadInFadeSeconds}
+              disabled={savingSettings}
+              onChange={(event) => setLeadInFadeSeconds(Number(event.target.value))}
+            />
+          </Field>
+        </div>
+        <div className={styles.importActions}>
+          <ActionButton
+            tone="secondary"
+            disabled={savingSettings || !leadInFadeValid || pendingLeadInFadeMs === savedLeadInFadeMs}
+            onClick={() => void savePlaybackSettings()}
+          >
+            {savingSettings ? "Saving…" : "Save Playback Settings"}
+          </ActionButton>
+        </div>
+      </Surface>
 
       <Surface className={styles.importer}>
         <div className={styles.importHeader}>

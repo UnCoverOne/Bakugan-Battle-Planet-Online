@@ -25,6 +25,8 @@ export const MUSIC_CATEGORY_LABELS: Record<MusicCategory, string> = {
 export const MUSIC_LOW_LIFE_CARDS = 8;
 export const MUSIC_NEAR_LETHAL_CARDS = 3;
 export const DEFAULT_INTENSE_LEAD_IN_MS = 4_000;
+export const DEFAULT_MUSIC_LEAD_IN_FADE_MS = 2_500;
+export const MAX_MUSIC_LEAD_IN_FADE_MS = 15_000;
 export const BATTLE_TO_INTENSE_CROSSFADE_MS = 6_000;
 export const INTENSE_TO_BATTLE_CROSSFADE_MS = 3_500;
 export const STANDARD_MUSIC_CROSSFADE_MS = 2_500;
@@ -55,7 +57,14 @@ export type MusicTrack = {
 
 export type MusicManifest = {
   revision: number;
+  settings: MusicSettings;
   tracks: MusicTrack[];
+};
+
+export type MusicSettings = {
+  leadInFadeMs: number;
+  revision: number;
+  updatedAt: number;
 };
 
 export type MusicTrackMetadata = Pick<

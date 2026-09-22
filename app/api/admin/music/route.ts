@@ -4,11 +4,13 @@ import {
   beginMusicUpload,
   deleteMusicTrack,
   finalizeMusicUpload,
+  getMusicSettings,
   listMusicTracks,
   MAX_MUSIC_TRACK_BYTES,
   storeMusicUploadObject,
   SUPPORTED_MUSIC_CATEGORIES,
   updateMusicTrack,
+  updateMusicSettings,
 } from "../../../../lib/music-server";
 import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../../../lib/request-security";
 import { serverErrorResponse, ValidationError } from "../../../../lib/server-errors";
@@ -35,6 +37,7 @@ export async function GET(request: Request) {
     const db = await getDatabase();
     return json({
       tracks: await listMusicTracks(db),
+      settings: await getMusicSettings(db),
       categories: SUPPORTED_MUSIC_CATEGORIES,
       maxTrackBytes: MAX_MUSIC_TRACK_BYTES,
       correlationId,
@@ -119,6 +122,12 @@ export async function PATCH(request: Request) {
     const db = await getDatabase();
     await enforceD1RateLimit(db, `admin-music:${administrator.id}:${requestClientKey(request)}`, 120, 60_000);
     const body = await jsonBody(request);
+    if (body.action === "settings") {
+      const settings = await updateMusicSettings(db, {
+        leadInFadeMs: body.leadInFadeMs,
+      }, administrator.id);
+      return json({ settings, correlationId });
+    }
     const id = String(body.id ?? "");
     if (!id) throw new ValidationError("Music track ID is required.");
     const track = await updateMusicTrack(db, id, {
