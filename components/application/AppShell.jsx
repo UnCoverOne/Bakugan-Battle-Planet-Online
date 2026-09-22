@@ -5,7 +5,6 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { achievementsFor } from "../../lib/achievements";
 import { activeSessionPresentation } from "../../lib/active-session";
 import { accountMatchSessionPresentation } from "../../lib/account-match-session";
 import { accountStatMatches } from "../../lib/match-statistics";
@@ -73,7 +72,6 @@ export function AppShell({ children }) {
     ready,
     route,
     profile,
-    decks,
     history,
     lifetimeStats,
     authUser,
@@ -176,10 +174,7 @@ export function AppShell({ children }) {
       />
     );
   }
-  const achievements = achievementsFor(decks, history, lifetimeStats);
-  const unlocked = achievements.filter(
-    (achievement) => achievement.unlocked,
-  ).length;
+  const unlocked = Object.keys(profile.achievementCompletions ?? {}).length;
   const wins = Math.max(lifetimeStats.wins, accountStatMatches(history).filter(
     (record) => record.result === "Victor",
   ).length);

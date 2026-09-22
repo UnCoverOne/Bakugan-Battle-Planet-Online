@@ -3,11 +3,6 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { muxOggOpus } from "../lib/music-import-client";
 import {
-  LEGACY_MUSIC_UPLOAD_CHUNK_BYTES,
-  MUSIC_UPLOAD_CHUNK_BYTES,
-  musicUploadChunkBytes,
-} from "../lib/music-server";
-import {
   BATTLE_TO_INTENSE_CROSSFADE_MS,
   DEFAULT_INTENSE_LEAD_IN_MS,
   INTENSE_TO_BATTLE_CROSSFADE_MS,
@@ -149,18 +144,6 @@ test("music volume combines channel, master, and the full per-track trim range",
   assert.equal(musicGain(25, 100, MUSIC_GAIN_MAX_DB), 0.9952679263837431);
 });
 
-test("music upload sessions keep their original chunk size across deployments", () => {
-  const bytes = 700_000;
-  assert.equal(
-    musicUploadChunkBytes(bytes, Math.ceil(bytes / MUSIC_UPLOAD_CHUNK_BYTES)),
-    MUSIC_UPLOAD_CHUNK_BYTES,
-  );
-  assert.equal(
-    musicUploadChunkBytes(bytes, Math.ceil(bytes / LEGACY_MUSIC_UPLOAD_CHUNK_BYTES)),
-    LEGACY_MUSIC_UPLOAD_CHUNK_BYTES,
-  );
-});
-
 test("browser converter muxes encoded Opus packets into an Ogg stream", async () => {
   const blob = muxOggOpus(
     [Uint8Array.from([1, 2, 3]), Uint8Array.from([4, 5, 6])],
@@ -190,7 +173,7 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(admin, /import\("\.\.\/\.\.\/lib\/music-import-client"\)/);
   assert.match(admin, /begin-upload/);
   assert.match(admin, /method: "PUT"/);
-  assert.match(admin, /uploadMusicChunk/);
+  assert.match(admin, /uploadMusicObject/);
   assert.match(admin, /attempt < 3/);
   assert.match(admin, /cf-error-type/);
   assert.match(admin, /readJsonResponse/);
@@ -211,29 +194,26 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.doesNotMatch(admin, /new FormData\(\)/);
   assert.match(adminRoute, /beginMusicUpload/);
   assert.match(adminRoute, /artist: String\(body\.artist/);
-  assert.match(adminRoute, /storeMusicUploadChunk/);
-  assert.match(adminRoute, /request\.arrayBuffer\(\)/);
+  assert.match(adminRoute, /storeMusicUploadObject/);
+  assert.match(adminRoute, /request\.body/);
+  assert.doesNotMatch(adminRoute, /request\.arrayBuffer\(\)/);
   assert.doesNotMatch(adminRoute, /request\.formData\(\)/);
-  assert.match(server, /ALTER TABLE music_tracks ADD COLUMN artist/);
-  assert.match(server, /ALTER TABLE music_tracks ADD COLUMN bitrate_bps/);
-  assert.match(server, /ALTER TABLE music_tracks ADD COLUMN intense_lead_in_ms/);
   assert.match(server, /metadata\.artist/);
   assert.match(server, /metadata\.bitrate/);
   assert.match(server, /metadata\.intenseLeadInMs/);
-  assert.match(server, /music_upload_chunks/);
-  assert.match(server, /MUSIC_UPLOAD_CHUNK_BYTES = 64 \* 1024/);
-  assert.match(server, /LEGACY_MUSIC_UPLOAD_CHUNK_BYTES = 256 \* 1024/);
-  assert.match(server, /musicUploadChunkBytes\(upload\.byte_length, upload\.chunk_count\)/);
-  assert.match(server, /length\(data\).*AS chunk_bytes/);
-  assert.match(server, /storedChunkBytes/);
-  assert.match(server, /music_track_chunks/);
+  assert.match(server, /bucket\.put\(trackObjectKey\(upload\.id\), data/);
+  assert.match(server, /bucket\.get\(row\.object_key/);
+  assert.match(server, /new Response\(object\.body/);
+  assert.doesNotMatch(server, /music_upload_chunks|music_track_chunks|arrayBuffer\(\)/);
   assert.match(server, /content-range/);
   assert.match(server, /accept-ranges/);
   assert.match(publicRoute, /getMusicManifest/);
   const worker = await read("worker/index.ts");
   assert.match(worker, /url\.pathname === "\/api\/admin\/music" && sanitizedRequest\.method === "PUT"/);
-  assert.match(worker, /MAX_MUSIC_UPLOAD_CHUNK_BYTES/);
-  assert.match(worker, /storeMusicUploadChunk/);
+  assert.match(worker, /MAX_MUSIC_TRACK_BYTES/);
+  assert.match(worker, /storeMusicUploadObject/);
+  assert.match(worker, /env\.MUSIC_BUCKET/);
+  assert.doesNotMatch(worker, /arrayBuffer\(\)/);
   assert.match(worker, /fastPath: true/);
   assert.match(layer, /\[new Audio\(\), new Audio\(\)\]/);
   assert.match(layer, /preload = "none"/);

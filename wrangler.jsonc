@@ -22,6 +22,12 @@
       "migrations_dir": "migrations"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "MUSIC_BUCKET",
+      "bucket_name": "bakugan-battle-planet-online-music"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       { "name": "MATCHES", "class_name": "MatchRoom" },

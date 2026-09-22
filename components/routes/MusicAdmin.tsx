@@ -20,7 +20,6 @@ type MusicAdminPayload = {
   tracks: MusicTrack[];
   categories: MusicCategory[];
   maxTrackBytes: number;
-  uploadChunkBytes: number;
 };
 
 type ErrorPayload = { error?: unknown };
@@ -71,23 +70,22 @@ async function musicJson<T>(response: Response, fallbackMessage: string): Promis
   }
 }
 
-async function uploadMusicChunk(
+async function uploadMusicObject(
   uploadId: string,
-  index: number,
   body: Blob,
 ) {
   let lastError: unknown = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const response = await fetch(
-        `/api/admin/music?upload=${encodeURIComponent(uploadId)}&index=${index}`,
+        `/api/admin/music?upload=${encodeURIComponent(uploadId)}`,
         {
           method: "PUT",
-          headers: { "content-type": "application/octet-stream" },
+          headers: { "content-type": "audio/ogg" },
           body,
         },
       );
-      return await musicJson<{ ok: boolean }>(response, "Music upload chunk failed.");
+      return await musicJson<{ ok: boolean }>(response, "Music upload failed.");
     } catch (cause) {
       lastError = cause;
       if (attempt < 2) {
@@ -95,7 +93,7 @@ async function uploadMusicChunk(
       }
     }
   }
-  throw lastError instanceof Error ? lastError : new Error("Music upload chunk failed.");
+  throw lastError instanceof Error ? lastError : new Error("Music upload failed.");
 }
 
 async function readAdminMusic() {
@@ -181,27 +179,13 @@ export function MusicAdmin() {
           },
         }),
       });
-      const begun = await musicJson<{ uploadId: string; chunkBytes: number }>(
+      const begun = await musicJson<{ uploadId: string }>(
         beginResponse,
         "Music upload could not be started.",
       );
       uploadId = begun.uploadId;
-      const chunkBytes = Math.max(32 * 1024, Number(begun.chunkBytes) || data?.uploadChunkBytes || 64 * 1024);
-      const chunkCount = Math.ceil(converted.blob.size / chunkBytes);
-
-      for (let index = 0; index < chunkCount; index += 1) {
-        const start = index * chunkBytes;
-        const end = Math.min(converted.blob.size, start + chunkBytes);
-        await uploadMusicChunk(
-          uploadId,
-          index,
-          converted.blob.slice(start, end),
-        );
-        setProgress({
-          value: .7 + .25 * ((index + 1) / Math.max(1, chunkCount)),
-          label: `Uploading optimized track… ${index + 1}/${chunkCount}`,
-        });
-      }
+      setProgress({ value: .72, label: "Streaming optimized track…" });
+      await uploadMusicObject(uploadId, converted.blob);
 
       setProgress({ value: .97, label: "Finalizing track…" });
       const finalizeResponse = await fetch("/api/admin/music", {

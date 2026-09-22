@@ -111,6 +111,25 @@ export async function readAccountDataRows(db: AccountDatabase, userId: string) {
   return { rows, historyRows, records };
 }
 
+async function readAccountEntityRows(db: AccountDatabase, userId: string) {
+  const result = await db.prepare(
+    "SELECT entity_type, entity_id, revision, data_json, deleted_at, updated_at FROM user_data_entities WHERE user_id = ? ORDER BY entity_type, entity_id",
+  ).bind(userId).all<UserDataEntityRow>();
+  return (result.results ?? []) as UserDataEntityRow[];
+}
+
+async function readAccountSyncState(db: AccountDatabase, userId: string) {
+  const entities = await db.prepare(
+    "SELECT entity_type, entity_id, revision, data_json, deleted_at, updated_at FROM user_data_entities WHERE user_id = ? ORDER BY entity_type, entity_id",
+  ).bind(userId).all<UserDataEntityRow>();
+  return {
+    rows: (entities.results ?? []) as UserDataEntityRow[],
+    // Match history is append-only and owned by its dedicated endpoint. Avoid
+    // scanning the full archive during every unrelated entity write.
+    historyBytes: 0,
+  };
+}
+
 export async function migrateLegacyAccountSnapshot(db: AccountDatabase, userId: string) {
   const count = await db.prepare(
     "SELECT COUNT(*) AS count FROM user_data_entities WHERE user_id = ?",
@@ -151,7 +170,6 @@ export async function loadAccountDataPayload(
   db: AccountDatabase,
   userId: string,
 ): Promise<AccountDataPayload> {
-  await ensureAccountDataSchema(db);
   await migrateLegacyAccountSnapshot(db, userId);
   const { rows, records } = await readAccountDataRows(db, userId);
   return {
@@ -166,8 +184,6 @@ export async function loadAccountMatchHistory(
   db: AccountDatabase,
   userId: string,
 ): Promise<MatchResultRecord[]> {
-  await ensureAccountDataSchema(db);
-  await migrateLegacyAccountSnapshot(db, userId);
   const result = await db.prepare(
     "SELECT event_id, data_json, occurred_at, created_at FROM user_match_history WHERE user_id = ? ORDER BY occurred_at DESC, created_at DESC",
   ).bind(userId).all<HistoryRow>();
@@ -187,9 +203,13 @@ export async function saveAccountMatchRecord(
   userId: string,
   candidate: unknown,
 ): Promise<MatchResultRecord> {
-  validateHistoryRecord(candidate);
-  await ensureAccountDataSchema(db);
-  await migrateLegacyAccountSnapshot(db, userId);
+  try {
+    validateHistoryRecord(candidate);
+  } catch (error) {
+    throw new ValidationError(
+      error instanceof Error ? error.message : "History record is invalid.",
+    );
+  }
   const record = candidate as MatchResultRecord;
   const recordJson = JSON.stringify(record);
   await db.prepare(
@@ -218,8 +238,6 @@ export async function syncAccountData(
   body: Partial<UserDataSyncRequest>,
 ): Promise<AccountDataSyncResult> {
   validateSyncRequest(body);
-  await ensureAccountDataSchema(db);
-  await migrateLegacyAccountSnapshot(db, userId);
 
   const errors: Array<{ key: string; error: string }> = [];
   const preparedEntities: PreparedEntity[] = [];
@@ -267,14 +285,14 @@ export async function syncAccountData(
     }
   }
 
-  const { rows: currentRows, historyRows } = await readAccountDataRows(db, userId);
+  const { rows: currentRows, historyBytes } = await readAccountSyncState(db, userId);
   const currentByKey = new Map(
     currentRows.map((row) => [entityKey(row.entity_type, row.entity_id), row]),
   );
   let estimatedBytes = currentRows.reduce(
     (sum, row) => sum + textBytes(row.data_json),
     0,
-  ) + historyRows.reduce((sum, row) => sum + textBytes(row.data_json), 0);
+  ) + historyBytes;
   let deckRows = currentRows.filter((row) => row.entity_type === "deck").length;
   const conflicts = new Set<string>();
   const mutations: D1PreparedStatement[] = [];
@@ -346,7 +364,13 @@ export async function syncAccountData(
     estimatedBytes = nextBytes;
   }
 
-  const existingHistory = new Set(historyRows.map((row) => row.event_id));
+  const existingHistory = new Set<string>();
+  if (validHistory.length) {
+    const historyIds = await db.prepare(
+      "SELECT event_id FROM user_match_history WHERE user_id = ?",
+    ).bind(userId).all<{ event_id: string }>();
+    for (const row of historyIds.results ?? []) existingHistory.add(row.event_id);
+  }
   for (const record of validHistory) {
     if (existingHistory.has(record.id)) continue;
     const recordJson = JSON.stringify(record);
@@ -372,8 +396,9 @@ export async function syncAccountData(
     ).bind(deckId)));
   }
 
-  const payload = await loadAccountDataPayload(db, userId);
-  const latestRows = (await readAccountDataRows(db, userId)).rows;
+  const latestRows = mutations.length
+    ? await readAccountEntityRows(db, userId)
+    : currentRows;
   const latestByKey = new Map(
     latestRows.map((row) => [entityKey(row.entity_type, row.entity_id), row]),
   );
@@ -387,7 +412,24 @@ export async function syncAccountData(
       conflicts.add(key);
     }
   }
-  return { ...payload, conflicts: [...conflicts], errors };
+  let responseRows = latestRows;
+  let data: UserSnapshot | null = null;
+  if (conflicts.size) {
+    const conflictState = await readAccountDataRows(db, userId);
+    responseRows = conflictState.rows;
+    data = assembleEntitySnapshot(conflictState.rows, conflictState.records);
+  }
+  const revisionRows = conflicts.size
+    ? responseRows
+    : responseRows.filter((row) => suppliedKeys.has(entityKey(row.entity_type, row.entity_id)));
+  return {
+    schemaVersion: USER_DATA_SCHEMA_VERSION,
+    revisions: revisionMap(revisionRows),
+    updatedAt: Math.max(0, ...revisionRows.map((row) => row.updated_at)),
+    data,
+    conflicts: [...conflicts],
+    errors,
+  };
 }
 
 export async function resetAccountData(

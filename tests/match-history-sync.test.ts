@@ -98,6 +98,8 @@ test("signed-in sessions push match records directly and refresh the archive glo
   assert.match(sync, /method: "POST"/);
   assert.match(sync, /body: JSON\.stringify\(\{ record \}\)/);
   assert.match(sync, /HISTORY_REFRESH_INTERVAL_MS/);
+  assert.match(sync, /rejectedHistory\.current\.set\(id, fingerprint\)/);
+  assert.match(sync, /response\.status >= 400 && response\.status < 500 && response\.status !== 429/);
   assert.doesNotMatch(sync, /usePathname|recordsRoute/);
   assert.doesNotMatch(sync, /syncNow/);
 });

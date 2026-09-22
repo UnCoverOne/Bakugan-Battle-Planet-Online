@@ -190,15 +190,10 @@ export function buildChangedAccountSyncRequests(
   revisions: EntityRevisionMap,
   maximumBytes = 750_000,
   pendingEntityKeys?: string[] | null,
-  acknowledgedHistoryIds?: string[] | null,
 ) {
   const changedKeys = new Set(
     pendingEntityKeys
       ?? changedAccountEntityKeys(snapshot, acknowledgedSnapshot),
-  );
-  const acknowledgedHistory = new Set(
-    acknowledgedHistoryIds
-      ?? (acknowledgedSnapshot?.history ?? []).map((record) => record.id),
   );
   const full = snapshotToSyncRequest(snapshot, revisions);
   const pending: UserDataSyncRequest = {
@@ -206,9 +201,10 @@ export function buildChangedAccountSyncRequests(
     entities: full.entities.filter((entity) =>
       changedKeys.has(entityKey(entity.type, entity.id)),
     ),
-    history: full.history.filter(
-      (record) => !acknowledgedHistory.has(record.id),
-    ),
+    // Match history has its own append-only endpoint and retry lifecycle.
+    // Including it here caused the small recovery window to repeatedly replace
+    // the complete runtime archive.
+    history: [],
   };
   const batches: UserDataSyncRequest[] = [];
   let current: UserDataSyncRequest = {
@@ -239,9 +235,7 @@ export function buildChangedAccountSyncRequests(
     current.history.push(record);
   }
   pushCurrent();
-  return batches.length
-    ? batches
-    : [{ schemaVersion: pending.schemaVersion, entities: [], history: [] }];
+  return batches;
 }
 
 export function retryDelayMs(attempt: number, retryAfterSeconds = 0) {

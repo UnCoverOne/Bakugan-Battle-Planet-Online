@@ -15,6 +15,19 @@ interface D1Database {
   batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]>;
 }
 
+interface R2Object { size: number; }
+interface R2ObjectBody extends R2Object { body: ReadableStream; }
+interface R2Bucket {
+  put(
+    key: string,
+    value: ReadableStream | ArrayBuffer | ArrayBufferView | Blob | string,
+    options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> },
+  ): Promise<R2Object | null>;
+  head(key: string): Promise<R2Object | null>;
+  get(key: string, options?: { range?: { offset: number; length: number } }): Promise<R2ObjectBody | null>;
+  delete(keys: string | string[]): Promise<void>;
+}
+
 interface Fetcher { fetch(request: Request): Promise<Response>; }
 interface DurableObjectStub { fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>; }
 interface DurableObjectNamespace {
@@ -35,6 +48,7 @@ declare const WebSocketPair: {
 declare module "cloudflare:workers" {
   export const env: {
     DB: D1Database;
+    MUSIC_BUCKET: R2Bucket;
     MATCHES: DurableObjectNamespace;
     SOCIAL_PRESENCE: DurableObjectNamespace;
   };

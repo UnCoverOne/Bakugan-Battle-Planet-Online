@@ -7,8 +7,8 @@ import type { MatchResultRecord } from "../../lib/persistence";
 import { readJsonResponse } from "../../lib/json-response";
 import { useApp } from "./AppProvider";
 
-const HISTORY_REFRESH_INTERVAL_MS = 15_000;
-const HISTORY_PUSH_RETRY_MS = 750;
+const HISTORY_REFRESH_INTERVAL_MS = 60_000;
+const HISTORY_PUSH_RETRY_MS = 1_000;
 const HISTORY_PUSH_RETRY_LIMIT = 6;
 
 function recordFingerprint(record: MatchResultRecord) {
@@ -24,7 +24,8 @@ export function AccountHistorySync() {
   const historyRef = useRef<MatchResultRecord[]>(history);
   const observedHistory = useRef<Map<string, string> | null>(null);
   const pendingHistory = useRef<Map<string, MatchResultRecord>>(new Map());
-  const pushAttempts = useRef(0);
+  const rejectedHistory = useRef<Map<string, string>>(new Map());
+  const pushAttempts = useRef<Map<string, number>>(new Map());
   const pushTimer = useRef<number | null>(null);
   const pushing = useRef(false);
   const requestSequence = useRef(0);
@@ -101,7 +102,6 @@ export function AccountHistorySync() {
     }
     const userId = authUser.id;
     pushing.current = true;
-    let completed = false;
     try {
       for (const [id, record] of [...pendingHistory.current.entries()]) {
         if (activeUserId.current !== userId) return;
@@ -117,7 +117,31 @@ export function AccountHistorySync() {
           "Match record save returned an invalid response.",
         );
         if (!response.ok) {
-          throw new Error(result.error ?? "Could not save match record.");
+          const permanent = response.status >= 400 && response.status < 500 && response.status !== 429;
+          if (permanent) {
+            const fingerprint = recordFingerprint(record);
+            if (recordFingerprint(pendingHistory.current.get(id) ?? record) === fingerprint) {
+              pendingHistory.current.delete(id);
+              rejectedHistory.current.set(id, fingerprint);
+            }
+            pushAttempts.current.delete(id);
+            console.warn("Match history record was rejected and will not be retried.", {
+              id,
+              code: result.code,
+              error: result.error,
+            });
+            continue;
+          }
+          const attempts = (pushAttempts.current.get(id) ?? 0) + 1;
+          pushAttempts.current.set(id, attempts);
+          if (attempts < HISTORY_PUSH_RETRY_LIMIT && navigator.onLine) {
+            if (pushTimer.current !== null) window.clearTimeout(pushTimer.current);
+            pushTimer.current = window.setTimeout(() => {
+              pushTimer.current = null;
+              void pushPendingHistory();
+            }, HISTORY_PUSH_RETRY_MS * 2 ** Math.min(5, attempts - 1));
+          }
+          return;
         }
         if (activeUserId.current !== userId) return;
         const currentPending = pendingHistory.current.get(id);
@@ -127,40 +151,39 @@ export function AccountHistorySync() {
         ) {
           pendingHistory.current.delete(id);
         }
+        pushAttempts.current.delete(id);
+        rejectedHistory.current.delete(id);
       }
-      pushAttempts.current = 0;
-      completed = true;
     } catch {
-      pushAttempts.current += 1;
-      if (
-        pendingHistory.current.size > 0
-        && pushAttempts.current < HISTORY_PUSH_RETRY_LIMIT
-        && navigator.onLine
-      ) {
+      const firstPendingId = pendingHistory.current.keys().next().value as string | undefined;
+      const attempts = firstPendingId
+        ? (pushAttempts.current.get(firstPendingId) ?? 0) + 1
+        : HISTORY_PUSH_RETRY_LIMIT;
+      if (firstPendingId) pushAttempts.current.set(firstPendingId, attempts);
+      if (pendingHistory.current.size > 0 && attempts < HISTORY_PUSH_RETRY_LIMIT && navigator.onLine) {
         if (pushTimer.current !== null) window.clearTimeout(pushTimer.current);
         pushTimer.current = window.setTimeout(() => {
           pushTimer.current = null;
           void pushPendingHistory();
-        }, HISTORY_PUSH_RETRY_MS * pushAttempts.current);
+        }, HISTORY_PUSH_RETRY_MS * 2 ** Math.min(5, attempts - 1));
       }
+      return;
     } finally {
       pushing.current = false;
     }
 
-    if (completed && activeUserId.current === userId) {
-      // Re-read the complete server archive immediately. AppProvider keeps a
-      // small recovery snapshot, while this component owns the full archive.
-      await refreshHistory();
-      if (pendingHistory.current.size > 0) void pushPendingHistory();
+    if (activeUserId.current === userId && pendingHistory.current.size > 0 && pushTimer.current === null) {
+      void pushPendingHistory();
     }
-  }, [accountDataReady, authUser, refreshHistory]);
+  }, [accountDataReady, authUser]);
 
   useEffect(() => {
     if (!authUser || !accountDataReady) {
       activeUserId.current = "";
       observedHistory.current = null;
       pendingHistory.current.clear();
-      pushAttempts.current = 0;
+      rejectedHistory.current.clear();
+      pushAttempts.current.clear();
       requestSequence.current += 1;
       if (pushTimer.current !== null) {
         window.clearTimeout(pushTimer.current);
@@ -173,7 +196,8 @@ export function AccountHistorySync() {
       activeUserId.current = authUser.id;
       observedHistory.current = historyFingerprints(historyRef.current);
       pendingHistory.current.clear();
-      pushAttempts.current = 0;
+      rejectedHistory.current.clear();
+      pushAttempts.current.clear();
       requestSequence.current += 1;
     }
 
@@ -194,7 +218,10 @@ export function AccountHistorySync() {
     );
     let changed = false;
     for (const record of history) {
-      if (previous.get(record.id) === recordFingerprint(record)) continue;
+      const fingerprint = recordFingerprint(record);
+      if (previous.get(record.id) === fingerprint) continue;
+      if (rejectedHistory.current.get(record.id) === fingerprint) continue;
+      rejectedHistory.current.delete(record.id);
       pendingHistory.current.set(record.id, record);
       changed = true;
     }
@@ -206,7 +233,6 @@ export function AccountHistorySync() {
       return;
     }
 
-    pushAttempts.current = 0;
     if (pushTimer.current !== null) window.clearTimeout(pushTimer.current);
     pushTimer.current = window.setTimeout(() => {
       pushTimer.current = null;

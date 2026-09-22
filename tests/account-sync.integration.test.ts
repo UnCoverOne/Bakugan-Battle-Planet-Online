@@ -178,6 +178,12 @@ test("the outbox sends only entities changed since the cloud acknowledgement", (
     ["settings:main"],
   );
   assert.equal(request.entities.some((entity) => entity.type === "profile"), false);
+  assert.deepEqual(request.history, []);
+});
+
+test("an unchanged account snapshot does not send an empty sync request", () => {
+  const current = snapshot("Already saved");
+  assert.deepEqual(buildChangedAccountSyncRequests(current, structuredClone(current), {}), []);
 });
 
 test("conflict resolution preserves only the locally conflicting entities", () => {

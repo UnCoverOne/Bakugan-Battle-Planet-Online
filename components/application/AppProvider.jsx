@@ -57,6 +57,7 @@ import {
 const STORAGE_EVENT = "bbp-storage-status";
 const AUTO_SYNC_DELAY_MS = 500;
 const DURABLE_DIRTY_DELAY_MS = 100;
+const TRAINING_CHECKPOINT_INTERVAL_MS = 15_000;
 const ACCOUNT_MATCH_REFRESH_INTERVAL_MS = 15_000;
 const MATCH_CAPABILITY_STORAGE_KEY = "bbp-match-capability-v2";
 const MATCH_CONTROLLER_STORAGE_KEY = "bbp-match-controller-v1";
@@ -317,6 +318,8 @@ export function AppProvider({ children }) {
   const resumingMatchRef = useRef("");
   const accountRefreshInFlight = useRef(null);
   const durableFingerprint = useRef(null);
+  const trainingCheckpointFingerprint = useRef(null);
+  const trainingCheckpointTimer = useRef(null);
   const promptedAccountMoments = useRef(new Set());
   const ready = [profileReady, decksReady, deletedDecksReady, historyReady, lifetimeStatsReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, replayReady, replayIndexReady, playerReady, capabilityReady, controllerReady, modifiedReady].every(Boolean);
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId) ?? decks[0];
@@ -386,17 +389,26 @@ export function AppProvider({ children }) {
     profile,
     decks,
     deletedDecks,
-    history,
     settings,
     selectedDeckId,
     builderDeck,
     format,
     matchMode,
-    activeTrainingMatch,
+    activeTrainingMatchId: activeTrainingMatch?.id ?? "",
     activeTrainingPlayerId: activeTrainingMatch ? playerId : "",
     completedTrainingMatchIds,
     collection,
-  }), [activeTrainingMatch, builderDeck, collection, completedTrainingMatchIds, decks, deletedDecks, format, history, matchMode, playerId, profile, selectedDeckId, settings]);
+  }), [activeTrainingMatch, builderDeck, collection, completedTrainingMatchIds, decks, deletedDecks, format, matchMode, playerId, profile, selectedDeckId, settings]);
+  const trainingStateFingerprint = useMemo(
+    () => activeTrainingMatch ? JSON.stringify({
+      id: activeTrainingMatch.id,
+      version: activeTrainingMatch.version,
+      phase: activeTrainingMatch.phase,
+      turn: activeTrainingMatch.turn,
+      round: activeTrainingMatch.round,
+    }) : "",
+    [activeTrainingMatch],
+  );
 
   useEffect(() => {
     mounted.current = true;
@@ -623,14 +635,14 @@ export function AppProvider({ children }) {
 
   const putCloud = useCallback(async (data, baseline) => {
     let latest = { revisions: accountRevisions.current, data: null, errors: [] };
-    for (const batch of buildChangedAccountSyncRequests(
+    const batches = buildChangedAccountSyncRequests(
       data,
       baseline,
       accountRevisions.current,
       750_000,
       pendingEntityKeys.current,
-      acknowledgedHistoryIds.current,
-    )) {
+    );
+    for (const batch of batches) {
       const response = await fetch("/api/user-data", {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -654,7 +666,10 @@ export function AppProvider({ children }) {
         ...result,
         errors: [...latest.errors, ...(Array.isArray(result.errors) ? result.errors : [])],
       };
-      accountRevisions.current = result.revisions ?? accountRevisions.current;
+      accountRevisions.current = {
+        ...accountRevisions.current,
+        ...(result.revisions ?? {}),
+      };
     }
     return { ...latest, conflict: false };
   }, []);
@@ -747,6 +762,11 @@ export function AppProvider({ children }) {
 
   const syncToCloud = useCallback(async (force = false) => {
     if (!authUser || !accountDataReady || !ready || applying.current || !cloudLoaded.current) return false;
+    if (!force && retryTimer.current) return false;
+    if (force && retryTimer.current) {
+      clearTimeout(retryTimer.current);
+      retryTimer.current = null;
+    }
     if (force) syncRequested.current = true;
     if (syncing.current) {
       syncRequested.current = true;
@@ -767,7 +787,10 @@ export function AppProvider({ children }) {
         persistAccountRecovery(authUser.id, current);
         setSyncStatus("saving");
         const saved = await putCloud(current, acknowledgedSnapshot.current);
-        accountRevisions.current = saved.revisions ?? accountRevisions.current;
+        accountRevisions.current = {
+          ...accountRevisions.current,
+          ...(saved.revisions ?? {}),
+        };
         if (saved.conflict && saved.data) {
           const remote = {
             ...normalizeSnapshot(saved.data, current),
@@ -857,7 +880,7 @@ export function AppProvider({ children }) {
       return false;
     } finally {
       syncing.current = false;
-      if (syncRequested.current && navigator.onLine) {
+      if (syncRequested.current && navigator.onLine && !retryTimer.current) {
         queueMicrotask(() => { void syncRunner.current?.(); });
       }
     }
@@ -982,6 +1005,41 @@ export function AppProvider({ children }) {
     const id = setTimeout(() => { void syncToCloud(false); }, AUTO_SYNC_DELAY_MS);
     return () => clearTimeout(id);
   }, [accountDataReady, authUser, durableStateFingerprint, persistAccountRecovery, ready, setModifiedAt, syncToCloud]);
+
+  useEffect(() => {
+    if (!authUser || !accountDataReady || !ready || !cloudLoaded.current || applying.current) return;
+    if (!trainingStateFingerprint) {
+      trainingCheckpointFingerprint.current = null;
+      if (trainingCheckpointTimer.current) {
+        clearTimeout(trainingCheckpointTimer.current);
+        trainingCheckpointTimer.current = null;
+      }
+      return;
+    }
+    if (trainingCheckpointFingerprint.current === null) {
+      trainingCheckpointFingerprint.current = trainingStateFingerprint;
+      return;
+    }
+    if (trainingCheckpointFingerprint.current === trainingStateFingerprint) return;
+    trainingCheckpointFingerprint.current = trainingStateFingerprint;
+    if (trainingCheckpointTimer.current) return;
+    trainingCheckpointTimer.current = setTimeout(() => {
+      trainingCheckpointTimer.current = null;
+      const current = snapshotRef.current;
+      if (!current || !activeAccountId.current) return;
+      const dirtySnapshot = { ...current, updatedAt: Date.now() };
+      snapshotRef.current = dirtySnapshot;
+      setModifiedAt(dirtySnapshot.updatedAt);
+      localVersion.current += 1;
+      syncRequested.current = true;
+      persistAccountRecovery(activeAccountId.current, dirtySnapshot);
+      void syncRunner.current?.();
+    }, TRAINING_CHECKPOINT_INTERVAL_MS);
+  }, [accountDataReady, authUser, persistAccountRecovery, ready, setModifiedAt, trainingStateFingerprint]);
+
+  useEffect(() => () => {
+    if (trainingCheckpointTimer.current) clearTimeout(trainingCheckpointTimer.current);
+  }, []);
 
   useEffect(() => {
     if (!authUser) return;

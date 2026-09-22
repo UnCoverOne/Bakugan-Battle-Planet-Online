@@ -23,6 +23,7 @@ interface Fetcher {
 declare module "cloudflare:workers" {
   export const env: {
     DB: D1Database;
+    MUSIC_BUCKET: R2Bucket;
     ASSETS?: Fetcher;
     MATCHES?: DurableObjectNamespace;
     SOCIAL_PRESENCE?: DurableObjectNamespace;

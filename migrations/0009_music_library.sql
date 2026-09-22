@@ -1,10 +1,13 @@
 CREATE TABLE IF NOT EXISTS music_tracks (
   id TEXT PRIMARY KEY NOT NULL,
   name TEXT NOT NULL,
+  artist TEXT NOT NULL DEFAULT '',
   source_name TEXT NOT NULL,
   mime_type TEXT NOT NULL,
   byte_length INTEGER NOT NULL,
   duration_ms INTEGER NOT NULL,
+  bitrate_bps INTEGER NOT NULL DEFAULT 96000,
+  intense_lead_in_ms INTEGER NOT NULL DEFAULT 4000,
   enabled INTEGER NOT NULL DEFAULT 1,
   categories_json TEXT NOT NULL,
   weight INTEGER NOT NULL DEFAULT 10,

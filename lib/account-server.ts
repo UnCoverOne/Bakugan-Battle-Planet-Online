@@ -45,6 +45,17 @@ export async function getDatabase() {
   return env.DB;
 }
 
+export async function getMusicBucket() {
+  const { env } = await import("cloudflare:workers");
+  if (!env.MUSIC_BUCKET) {
+    throw new ServiceUnavailableError(
+      "Music is temporarily unavailable.",
+      "The MUSIC_BUCKET R2 binding was unavailable.",
+    );
+  }
+  return env.MUSIC_BUCKET;
+}
+
 export async function getBootstrapAdministratorUserId() {
   const { env } = await import("cloudflare:workers");
   const configured = (env as typeof env & { BOOTSTRAP_ADMIN_USER_ID?: string }).BOOTSTRAP_ADMIN_USER_ID;

@@ -22,7 +22,7 @@ import {
 import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
 import { archiveCompletedMatch, associateMatchSeatAccount } from "../lib/replay-archive-server";
 import { getSessionUserFromDatabase } from "../lib/account-server";
-import { MAX_MUSIC_UPLOAD_CHUNK_BYTES, storeMusicUploadChunk } from "../lib/music-server";
+import { MAX_MUSIC_TRACK_BYTES, storeMusicUploadObject } from "../lib/music-server";
 import { assertSameOrigin } from "../lib/request-security";
 import { AuthorizationError, ValidationError, serverErrorResponse } from "../lib/server-errors";
 import { ensureSocialSchema, loadSocialAccount } from "../lib/social-server";
@@ -32,6 +32,7 @@ import { socialPresenceShard, type SocialAccountSummary } from "../lib/social";
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+  MUSIC_BUCKET: R2Bucket;
   MATCHES: DurableObjectNamespace;
   SOCIAL_PRESENCE: DurableObjectNamespace;
   IMAGES: {
@@ -618,28 +619,18 @@ const worker = {
           throw new AuthorizationError("Administrator access is required.");
         }
         const uploadId = String(url.searchParams.get("upload") ?? "");
-        const chunkIndex = Number(url.searchParams.get("index"));
         if (!uploadId) throw new ValidationError("Music upload ID is required.");
-        const contentLengthHeader = sanitizedRequest.headers.get("content-length");
-        if (contentLengthHeader) {
-          const contentLength = Number(contentLengthHeader);
-          if (
-            !Number.isSafeInteger(contentLength)
-            || contentLength < 1
-            || contentLength > MAX_MUSIC_UPLOAD_CHUNK_BYTES
-          ) {
-            throw new ValidationError("Music upload chunk size is invalid.");
-          }
+        const contentLength = Number(sanitizedRequest.headers.get("content-length"));
+        if (!Number.isSafeInteger(contentLength) || contentLength < 1 || contentLength > MAX_MUSIC_TRACK_BYTES) {
+          throw new ValidationError("Music upload size is invalid.");
         }
-        const data = await sanitizedRequest.arrayBuffer();
-        if (data.byteLength < 1 || data.byteLength > MAX_MUSIC_UPLOAD_CHUNK_BYTES) {
-          throw new ValidationError("Music upload chunk size is invalid.");
-        }
-        const result = await storeMusicUploadChunk(
+        if (!sanitizedRequest.body) throw new ValidationError("Music upload body is required.");
+        const result = await storeMusicUploadObject(
           env.DB,
+          env.MUSIC_BUCKET,
           uploadId,
-          chunkIndex,
-          data,
+          sanitizedRequest.body,
+          contentLength,
           administrator.id,
         );
         return withSecurityHeaders(Response.json(
@@ -650,7 +641,7 @@ const worker = {
         return withSecurityHeaders(serverErrorResponse(
           error,
           correlationId,
-          "Music upload chunk could not be stored.",
+          "Music upload could not be stored.",
           { route: "/api/admin/music", method: "PUT", fastPath: true },
         ));
       }

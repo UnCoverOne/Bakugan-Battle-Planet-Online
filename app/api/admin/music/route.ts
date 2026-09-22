@@ -1,4 +1,4 @@
-import { getDatabase, requireAdministrator } from "../../../../lib/account-server";
+import { getDatabase, getMusicBucket, requireAdministrator } from "../../../../lib/account-server";
 import {
   abortMusicUpload,
   beginMusicUpload,
@@ -6,8 +6,7 @@ import {
   finalizeMusicUpload,
   listMusicTracks,
   MAX_MUSIC_TRACK_BYTES,
-  MUSIC_UPLOAD_CHUNK_BYTES,
-  storeMusicUploadChunk,
+  storeMusicUploadObject,
   SUPPORTED_MUSIC_CATEGORIES,
   updateMusicTrack,
 } from "../../../../lib/music-server";
@@ -38,7 +37,6 @@ export async function GET(request: Request) {
       tracks: await listMusicTracks(db),
       categories: SUPPORTED_MUSIC_CATEGORIES,
       maxTrackBytes: MAX_MUSIC_TRACK_BYTES,
-      uploadChunkBytes: MUSIC_UPLOAD_CHUNK_BYTES,
       correlationId,
     });
   } catch (error) {
@@ -55,12 +53,13 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     const administrator = await requireAdministrator(request);
     const db = await getDatabase();
+    const bucket = await getMusicBucket();
     await enforceD1RateLimit(db, `admin-music:${administrator.id}:${requestClientKey(request)}`, 60, 60_000);
     const body = await jsonBody(request);
     const action = String(body.action ?? "");
 
     if (action === "begin-upload") {
-      const upload = await beginMusicUpload(db, {
+      const upload = await beginMusicUpload(db, bucket, {
         fileName: body.fileName,
         byteLength: body.byteLength,
         metadata: body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata)
@@ -73,7 +72,7 @@ export async function POST(request: Request) {
     if (action === "finalize-upload") {
       const uploadId = String(body.uploadId ?? "");
       if (!uploadId) throw new ValidationError("Music upload ID is required.");
-      const track = await finalizeMusicUpload(db, uploadId, administrator.id);
+      const track = await finalizeMusicUpload(db, bucket, uploadId, administrator.id);
       return json({ track, correlationId }, 201);
     }
 
@@ -92,16 +91,20 @@ export async function PUT(request: Request) {
     assertSameOrigin(request);
     const administrator = await requireAdministrator(request);
     const db = await getDatabase();
-    await enforceD1RateLimit(db, `admin-music-chunk:${administrator.id}:${requestClientKey(request)}`, 600, 60_000);
+    const bucket = await getMusicBucket();
+    await enforceD1RateLimit(db, `admin-music-upload:${administrator.id}:${requestClientKey(request)}`, 60, 60_000);
     const url = new URL(request.url);
     const uploadId = String(url.searchParams.get("upload") ?? "");
-    const chunkIndex = Number(url.searchParams.get("index"));
     if (!uploadId) throw new ValidationError("Music upload ID is required.");
-    const data = await request.arrayBuffer();
-    const result = await storeMusicUploadChunk(db, uploadId, chunkIndex, data, administrator.id);
+    if (!request.body) throw new ValidationError("Music upload body is required.");
+    const byteLength = Number(request.headers.get("content-length"));
+    if (!Number.isSafeInteger(byteLength) || byteLength < 1 || byteLength > MAX_MUSIC_TRACK_BYTES) {
+      throw new ValidationError("Music upload size is invalid.");
+    }
+    const result = await storeMusicUploadObject(db, bucket, uploadId, request.body, byteLength, administrator.id);
     return json({ ...result, correlationId });
   } catch (error) {
-    return serverErrorResponse(error, correlationId, "Music upload chunk could not be stored.", {
+    return serverErrorResponse(error, correlationId, "Music upload could not be stored.", {
       route: "/api/admin/music",
       method: "PUT",
     });
@@ -143,16 +146,17 @@ export async function DELETE(request: Request) {
     assertSameOrigin(request);
     const administrator = await requireAdministrator(request);
     const db = await getDatabase();
+    const bucket = await getMusicBucket();
     await enforceD1RateLimit(db, `admin-music:${administrator.id}:${requestClientKey(request)}`, 120, 60_000);
     const url = new URL(request.url);
     const uploadId = String(url.searchParams.get("upload") ?? "");
     if (uploadId) {
-      await abortMusicUpload(db, uploadId, administrator.id);
+      await abortMusicUpload(db, bucket, uploadId, administrator.id);
       return json({ ok: true, correlationId });
     }
     const id = String(url.searchParams.get("id") ?? "");
     if (!id) throw new ValidationError("Music track ID is required.");
-    await deleteMusicTrack(db, id);
+    await deleteMusicTrack(db, bucket, id);
     return json({ ok: true, correlationId });
   } catch (error) {
     return serverErrorResponse(error, correlationId, "Music track could not be deleted.", {
