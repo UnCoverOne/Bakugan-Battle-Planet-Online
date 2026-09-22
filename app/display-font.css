@@ -1,0 +1,54 @@
+@font-face {
+  font-family: "RBNo31Display";
+  src: url("/assets/fonts/rbno31-bold-italic.woff2?v=20260727") format("woff2");
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* Keep the Home title readable on the first paint and in browsers that do not
+   support clipped text backgrounds. The metallic treatment is an enhancement,
+   not the only source of the glyph colour. */
+.bakugan-home-hero-copy h1 span {
+  background: none;
+  color: #e8ecef;
+  -webkit-text-fill-color: #e8ecef;
+}
+
+.bakugan-home-hero-copy h1 strong {
+  background: none;
+  color: #f82431;
+  -webkit-text-fill-color: #f82431;
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .bakugan-home-hero-copy h1 span {
+    background: linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #eef1f3 31%,
+      #c8d0d4 48%,
+      #eef1f3 63%,
+      #b8c0c5 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .bakugan-home-hero-copy h1 strong {
+    background: linear-gradient(
+      180deg,
+      #ff727a 0%,
+      #ff3944 30%,
+      #bb101b 48%,
+      #f82431 64%,
+      #8e0811 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
