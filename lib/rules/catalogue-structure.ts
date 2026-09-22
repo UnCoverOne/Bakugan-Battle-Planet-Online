@@ -1125,8 +1125,19 @@ function costModifiersFor(card: GameCard): CostEffect[] {
     });
   }
 
-  const optionalSelfFree = !discardForFree && /you may play this(?: card)? for free/i.test(text);
-  if (optionalSelfFree) {
+  const firstTurnSelfFree = !discardForFree
+    && /\byou may play this(?: card)? for free on the first turn of the game\b/i.test(text);
+  const optionalSelfFree = !discardForFree
+    && !firstTurnSelfFree
+    && /you may play this(?: card)? for free/i.test(text);
+  if (firstTurnSelfFree) {
+    result.push({
+      kind: "cost-free",
+      duration: "turn",
+      condition: { kind: "first-turn" },
+      appliesTo: "self",
+    });
+  } else if (optionalSelfFree) {
     result.push({
       kind: "cost-alternative",
       id: `${ruleCardId(card)}:self-free`,
