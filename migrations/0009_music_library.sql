@@ -16,9 +16,13 @@ CREATE TABLE IF NOT EXISTS music_tracks (
   revision INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
-  updated_by TEXT
+  updated_by TEXT,
+  object_key TEXT
 );
 CREATE INDEX IF NOT EXISTS music_tracks_enabled_idx ON music_tracks(enabled, updated_at);
+CREATE UNIQUE INDEX IF NOT EXISTS music_tracks_object_key_idx
+  ON music_tracks(object_key)
+  WHERE object_key IS NOT NULL;
 CREATE TABLE IF NOT EXISTS music_track_chunks (
   track_id TEXT NOT NULL,
   chunk_index INTEGER NOT NULL,

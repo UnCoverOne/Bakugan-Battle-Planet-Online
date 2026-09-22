@@ -163,7 +163,7 @@ test("browser converter muxes encoded Opus packets into an Ogg stream", async ()
 });
 
 test("music management is admin-only and gameplay playback stays native and deferred", async () => {
-  const [adminRoute, publicRoute, server, admin, layer, settings, migration] = await Promise.all([
+  const [adminRoute, publicRoute, server, admin, layer, settings, migration, r2Migration, baseMigration] = await Promise.all([
     read("app/api/admin/music/route.ts"),
     read("app/api/music/route.ts"),
     read("lib/music-server.ts"),
@@ -171,6 +171,8 @@ test("music management is admin-only and gameplay playback stays native and defe
     read("components/application/MusicLayer.tsx"),
     read("components/routes/SettingsScreen.tsx"),
     read("migrations/0012_music_settings.sql"),
+    read("migrations/0011_music_r2.sql"),
+    read("migrations/0009_music_library.sql"),
   ]);
   assert.match(adminRoute, /requireAdministrator\(request\)/);
   assert.match(adminRoute, /assertSameOrigin\(request\)/);
@@ -211,11 +213,17 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(server, /metadata\.bitrate/);
   assert.match(server, /metadata\.intenseLeadInMs/);
   assert.match(server, /lead_in_fade_ms/);
+  assert.match(server, /ensureMusicStorageSchema/);
+  assert.match(server, /PRAGMA table_info\('music_tracks'\)/);
+  assert.match(server, /ALTER TABLE music_tracks ADD COLUMN object_key TEXT/);
+  assert.match(server, /musicStorageSchemaReady/);
   assert.match(server, /MAX_MUSIC_LEAD_IN_FADE_MS/);
   assert.match(server, /bucket\.put\(trackObjectKey\(upload\.id\), data/);
   assert.match(server, /bucket\.get\(row\.object_key/);
   assert.match(server, /new Response\(object\.body/);
-  assert.doesNotMatch(server, /music_upload_chunks|music_track_chunks|arrayBuffer\(\)/);
+  assert.doesNotMatch(server, /(?:SELECT|INSERT INTO)\s+(?:music_upload_chunks|music_track_chunks)|arrayBuffer\(\)/);
+  assert.match(server, /DROP TABLE IF EXISTS music_upload_chunks/);
+  assert.match(server, /DROP TABLE IF EXISTS music_track_chunks/);
   assert.match(server, /content-range/);
   assert.match(server, /accept-ranges/);
   assert.match(publicRoute, /getMusicManifest/);
@@ -245,4 +253,6 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(settings, /musicVolume/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS music_settings/);
   assert.match(migration, /lead_in_fade_ms INTEGER NOT NULL DEFAULT 2500/);
+  assert.doesNotMatch(r2Migration, /ALTER TABLE music_tracks ADD COLUMN object_key/);
+  assert.match(baseMigration, /object_key TEXT/);
 });

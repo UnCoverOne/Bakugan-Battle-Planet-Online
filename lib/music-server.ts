@@ -35,6 +35,100 @@ type MusicSettingsRow = {
   updated_at: number;
 };
 
+type MusicTrackColumnRow = { name: string };
+
+let musicStorageSchemaReady: Promise<void> | undefined;
+
+async function musicTrackColumns(db: AccountDatabase) {
+  const response = await db.prepare("PRAGMA table_info('music_tracks')").all<MusicTrackColumnRow>();
+  return new Set((response.results ?? []).map((row) => row.name));
+}
+
+async function installMusicStorageSchema(db: AccountDatabase) {
+  await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS music_tracks (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      artist TEXT NOT NULL DEFAULT '',
+      source_name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      byte_length INTEGER NOT NULL,
+      duration_ms INTEGER NOT NULL,
+      bitrate_bps INTEGER NOT NULL DEFAULT 96000,
+      intense_lead_in_ms INTEGER NOT NULL DEFAULT 4000,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      categories_json TEXT NOT NULL,
+      weight INTEGER NOT NULL DEFAULT 10,
+      loop INTEGER NOT NULL DEFAULT 0,
+      gain_db REAL NOT NULL DEFAULT 0,
+      revision INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      updated_by TEXT,
+      object_key TEXT
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS music_uploads (
+      id TEXT PRIMARY KEY NOT NULL,
+      administrator_id TEXT NOT NULL,
+      source_name TEXT NOT NULL,
+      byte_length INTEGER NOT NULL,
+      chunk_count INTEGER NOT NULL,
+      metadata_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS music_settings (
+      id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+      lead_in_fade_ms INTEGER NOT NULL DEFAULT 2500,
+      revision INTEGER NOT NULL DEFAULT 1,
+      updated_at INTEGER NOT NULL DEFAULT 0,
+      updated_by TEXT
+    )`),
+  ]);
+
+  const columns = await musicTrackColumns(db);
+  if (!columns.has("object_key")) {
+    try {
+      // Audio in the legacy chunk tables was intentionally discarded when R2
+      // became authoritative. Keep the reset and ALTER atomic so concurrent
+      // isolates cannot erase an upload created after another isolate migrates.
+      await db.batch([
+        db.prepare("DROP TABLE IF EXISTS music_upload_chunks"),
+        db.prepare("DROP TABLE IF EXISTS music_track_chunks"),
+        db.prepare("DELETE FROM music_uploads"),
+        db.prepare("DELETE FROM music_tracks"),
+        db.prepare("ALTER TABLE music_tracks ADD COLUMN object_key TEXT"),
+      ]);
+      columns.add("object_key");
+    } catch (error) {
+      // Another isolate may have completed the same compatibility migration.
+      if (!(await musicTrackColumns(db)).has("object_key")) throw error;
+      columns.add("object_key");
+    }
+  }
+
+  await db.batch([
+    db.prepare("CREATE INDEX IF NOT EXISTS music_tracks_enabled_idx ON music_tracks(enabled, updated_at)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS music_uploads_created_idx ON music_uploads(created_at)"),
+    db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS music_tracks_object_key_idx ON music_tracks(object_key) WHERE object_key IS NOT NULL"),
+    db.prepare("INSERT OR IGNORE INTO music_settings (id, lead_in_fade_ms, revision, updated_at) VALUES (1, 2500, 1, 0)"),
+  ]);
+}
+
+/**
+ * Keep Git-based Worker deployments compatible when Cloudflare publishes the
+ * Worker before running its D1 migrations. This runs only for music requests
+ * and is cached per isolate after the first successful check.
+ */
+export async function ensureMusicStorageSchema(db: AccountDatabase) {
+  if (!musicStorageSchemaReady) {
+    musicStorageSchemaReady = installMusicStorageSchema(db).catch((error) => {
+      musicStorageSchemaReady = undefined;
+      throw error;
+    });
+  }
+  await musicStorageSchemaReady;
+}
+
 function parseCategories(value: string) {
   try { return normalizeMusicCategories(JSON.parse(value)); } catch { return []; }
 }
@@ -55,6 +149,7 @@ function toTrack(row: MusicTrackRow): MusicTrack {
 }
 
 export async function listMusicTracks(db: AccountDatabase): Promise<MusicTrack[]> {
+  await ensureMusicStorageSchema(db);
   const result = await db.prepare(
     "SELECT id, name, artist, source_name, mime_type, byte_length, duration_ms, bitrate_bps, intense_lead_in_ms, enabled, categories_json, weight, loop, gain_db, revision, created_at, updated_at, object_key FROM music_tracks ORDER BY updated_at DESC",
   ).all() as { results?: MusicTrackRow[] };
@@ -62,6 +157,7 @@ export async function listMusicTracks(db: AccountDatabase): Promise<MusicTrack[]
 }
 
 export async function getMusicSettings(db: AccountDatabase): Promise<MusicSettings> {
+  await ensureMusicStorageSchema(db);
   const row = await db.prepare(
     "SELECT lead_in_fade_ms, revision, updated_at FROM music_settings WHERE id = 1",
   ).first<MusicSettingsRow>();
@@ -90,6 +186,7 @@ export async function updateMusicSettings(
   value: { leadInFadeMs?: unknown },
   administratorId: string,
 ) {
+  await ensureMusicStorageSchema(db);
   const leadInFadeMs = Math.round(Number(value.leadInFadeMs));
   if (!Number.isFinite(leadInFadeMs) || leadInFadeMs < 0 || leadInFadeMs > MAX_MUSIC_LEAD_IN_FADE_MS) {
     throw new ValidationError(`Music lead-in fade must be between 0 and ${MAX_MUSIC_LEAD_IN_FADE_MS / 1_000} seconds.`);
@@ -141,6 +238,7 @@ export async function beginMusicUpload(
   value: { fileName?: unknown; byteLength?: unknown; metadata?: Partial<MusicTrackMetadata> },
   administratorId: string,
 ) {
+  await ensureMusicStorageSchema(db);
   await cleanupStaleMusicUploads(db, bucket);
   const sourceName = safeSourceName(String(value.fileName ?? ""));
   if (!/\.opus$/i.test(sourceName)) throw new ValidationError("Administrator imports must be converted to an .opus file first.");
@@ -157,6 +255,7 @@ export async function beginMusicUpload(
 }
 
 async function musicUploadById(db: AccountDatabase, uploadId: string, administratorId: string) {
+  await ensureMusicStorageSchema(db);
   const upload = await db.prepare(
     "SELECT id, administrator_id, source_name, byte_length, metadata_json, created_at FROM music_uploads WHERE id = ?",
   ).bind(uploadId).first<MusicUploadRow>();
@@ -214,6 +313,7 @@ export async function updateMusicTrack(db: AccountDatabase, id: string, metadata
 }
 
 export async function deleteMusicTrack(db: AccountDatabase, bucket: R2Bucket, id: string) {
+  await ensureMusicStorageSchema(db);
   const row = await db.prepare("SELECT object_key FROM music_tracks WHERE id = ?").bind(id).first<{ object_key: string }>();
   if (row?.object_key) await bucket.delete(row.object_key);
   await db.prepare("DELETE FROM music_tracks WHERE id = ?").bind(id).run();
@@ -237,6 +337,7 @@ function parseRange(range: string | null, length: number) {
 }
 
 export async function musicTrackResponse(db: AccountDatabase, bucket: R2Bucket, id: string, request: Request) {
+  await ensureMusicStorageSchema(db);
   const row = await db.prepare(
     "SELECT id, enabled, byte_length, revision, object_key FROM music_tracks WHERE id = ?",
   ).bind(id).first<Pick<MusicTrackRow, "id" | "enabled" | "byte_length" | "revision" | "object_key">>();
