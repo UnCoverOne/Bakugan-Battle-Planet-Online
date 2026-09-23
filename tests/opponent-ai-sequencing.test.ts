@@ -15,6 +15,7 @@ import {
 import { bestAiRollTarget } from "../lib/aiRollForecast";
 import { chooseOpponentAiCommand } from "../lib/opponentAi";
 import { recoverOpponentAiCommand } from "../lib/opponentAiCanAct";
+import { decideOpponentAiWorkerRequest } from "../lib/opponentAiWorkerProtocol";
 
 let serial = 0;
 
@@ -368,7 +369,14 @@ test("an unaffordable Titan Nillious in hand does not force tactical selection o
     order: 1,
   }];
 
-  const command = chooseOpponentAiCommand(match, ai.id);
+  const serialized = JSON.parse(JSON.stringify(match)) as typeof match;
+  const response = decideOpponentAiWorkerRequest({
+    requestId: 824290,
+    match: serialized,
+    playerId: ai.id,
+  });
+  assert.equal(response.error, undefined);
+  const command = response.command;
   assert.equal(command?.type, "SELECT_BAKUGAN");
   if (command?.type === "SELECT_BAKUGAN") {
     assert.notEqual(command.bakuganId, nillious.id);
