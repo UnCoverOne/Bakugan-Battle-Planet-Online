@@ -7,6 +7,11 @@ import { accountIsAdministrator } from "../../lib/admin-ai-visibility";
 import { dispatchLocalGameAction, dispatchLocalGameCommand } from "../../lib/engine/local-command-dispatcher";
 import type { ApiAction } from "../../lib/engine/commands";
 import type { GameCommand } from "../../lib/engine/types";
+import type {
+  OpponentAiWorkerError,
+  OpponentAiWorkerErrorContext,
+  OpponentAiWorkerResponse,
+} from "../../lib/opponentAiWorkerProtocol";
 import {
   opponentAiCanAct,
   recoverOpponentAiCommand,
@@ -57,6 +62,7 @@ import {
 
 const SETTINGS_KEY = "bbp-settings";
 const OPPONENT_AI_DECISION_TIMEOUT_MS = 8_000;
+const OPPONENT_AI_WORKER_READY_TIMEOUT_MS = 2_500;
 
 function downloadJsonFile(filename: string, value: unknown) {
   const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json;charset=utf-8" });
@@ -134,12 +140,6 @@ type GameplaySettings = {
   [key: string]: unknown;
 };
 
-type OpponentAiWorkerResponse = {
-  requestId: number;
-  command?: GameCommand | null;
-  error?: string;
-};
-
 type OpponentAiDecisionResult = {
   command: GameCommand | null;
   requestId: number;
@@ -148,9 +148,10 @@ type OpponentAiDecisionResult = {
 };
 
 type OpponentAiDecisionFailure = Error & {
-  kind?: "worker-error" | "worker-timeout";
+  kind?: "worker-preflight" | "worker-error" | "worker-timeout";
   requestId?: number;
   elapsedMs?: number;
+  workerError?: OpponentAiWorkerError;
 };
 
 function opponentAiDecisionError(
@@ -158,21 +159,39 @@ function opponentAiDecisionError(
   message: string,
   requestId: number,
   startedAt: number,
+  workerError?: OpponentAiWorkerError,
 ): OpponentAiDecisionFailure {
   const cause = new Error(message) as OpponentAiDecisionFailure;
   cause.kind = kind;
   cause.requestId = requestId;
   cause.elapsedMs = Date.now() - startedAt;
+  cause.workerError = workerError;
   return cause;
+}
+
+function opponentAiFailureContext(context: OpponentAiWorkerErrorContext | undefined) {
+  if (!context) return undefined;
+  return [
+    `stage=${context.stage}`,
+    context.matchId ? `match=${context.matchId}` : "",
+    context.matchVersion == null ? "" : `version=${context.matchVersion}`,
+    context.phase ? `phase=${context.phase}` : "",
+    context.playerId ? `player=${context.playerId}` : "",
+  ].filter(Boolean).join(",");
 }
 
 function opponentAiFailureMetadata(cause: unknown) {
   const error = cause instanceof Error ? cause as OpponentAiDecisionFailure : undefined;
+  const workerError = error?.workerError;
   return {
     reason: error?.kind ?? "worker-error",
     requestId: error?.requestId,
     elapsedMs: error?.elapsedMs,
-    detail: error?.message ?? "The opponent AI worker failed.",
+    detail: workerError
+      ? `${workerError.name}: ${workerError.message}`
+      : error?.message ?? "The opponent AI worker failed.",
+    stack: workerError?.stack,
+    context: opponentAiFailureContext(workerError?.context),
   };
 }
 
@@ -241,109 +260,297 @@ export function GameplayClient() {
     reject: (cause: Error) => void;
     timeoutId: number;
     startedAt: number;
+    context: OpponentAiWorkerErrorContext;
   }>());
   const { rollPresentationPending } = useBakuCorePresentation();
 
-  const requestOpponentAiDecision = useCallback((match: MatchState, playerId: string) => {
+  const botWorkerReadyPromise = useRef<Promise<Worker> | null>(null);
+  const botWorkerReadyPending = useRef<{
+    worker: Worker;
+    resolve: (worker: Worker) => void;
+    reject: (cause: Error) => void;
+    timeoutId: number;
+    startedAt: number;
+  } | null>(null);
+
+  const terminateOpponentAiWorker = useCallback(() => {
+    botWorkerRef.current?.terminate();
+    botWorkerRef.current = null;
+    botWorkerReadyPromise.current = null;
+  }, []);
+
+  const ensureOpponentAiWorker = useCallback((forceFresh = false) => {
+    if (typeof Worker === "undefined") {
+      return Promise.reject(new Error("Web Workers are unavailable."));
+    }
+
+    if (forceFresh) {
+      const cause = new Error("Replacing the opponent AI Worker for a fresh retry.");
+      const ready = botWorkerReadyPending.current;
+      if (ready) {
+        window.clearTimeout(ready.timeoutId);
+        botWorkerReadyPending.current = null;
+        ready.reject(cause);
+      }
+      for (const pending of botWorkerPending.current.values()) {
+        window.clearTimeout(pending.timeoutId);
+        pending.reject(cause);
+      }
+      botWorkerPending.current.clear();
+      terminateOpponentAiWorker();
+    }
+
+    if (botWorkerRef.current && botWorkerReadyPromise.current) {
+      return botWorkerReadyPromise.current;
+    }
+
+    const worker = new Worker(new URL("./opponentAi.worker.ts", import.meta.url), { type: "module" });
+    botWorkerRef.current = worker;
+    const readyStartedAt = Date.now();
+
+    const readyPromise = new Promise<Worker>((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        const pending = botWorkerReadyPending.current;
+        if (!pending || pending.worker !== worker) return;
+        botWorkerReadyPending.current = null;
+        const workerError: OpponentAiWorkerError = {
+          name: "WorkerReadyTimeout",
+          message: "The opponent AI Worker did not complete its READY handshake.",
+          context: { stage: "preflight" },
+        };
+        reject(opponentAiDecisionError(
+          "worker-preflight",
+          workerError.message,
+          0,
+          pending.startedAt,
+          workerError,
+        ));
+        if (botWorkerRef.current === worker) terminateOpponentAiWorker();
+      }, OPPONENT_AI_WORKER_READY_TIMEOUT_MS);
+      botWorkerReadyPending.current = {
+        worker,
+        resolve,
+        reject,
+        timeoutId,
+        startedAt: readyStartedAt,
+      };
+    });
+    botWorkerReadyPromise.current = readyPromise;
+
+    worker.addEventListener("message", (event: MessageEvent<OpponentAiWorkerResponse>) => {
+      if (event.data.ready) {
+        const ready = botWorkerReadyPending.current;
+        if (!ready || ready.worker !== worker) return;
+        window.clearTimeout(ready.timeoutId);
+        botWorkerReadyPending.current = null;
+        ready.resolve(worker);
+        return;
+      }
+
+      const pending = botWorkerPending.current.get(event.data.requestId);
+      if (!pending) return;
+      botWorkerPending.current.delete(event.data.requestId);
+      window.clearTimeout(pending.timeoutId);
+      if (event.data.error) {
+        pending.reject(opponentAiDecisionError(
+          "worker-error",
+          event.data.error.message,
+          event.data.requestId,
+          pending.startedAt,
+          event.data.error,
+        ));
+      } else {
+        pending.resolve({
+          command: event.data.command ?? null,
+          requestId: event.data.requestId,
+          elapsedMs: Date.now() - pending.startedAt,
+          transport: "worker",
+        });
+      }
+    });
+
+    worker.addEventListener("error", (event) => {
+      const errorName = event.error instanceof Error && event.error.name
+        ? event.error.name
+        : "WorkerError";
+      const errorMessage = event.message || (
+        event.error instanceof Error ? event.error.message : "The opponent AI Worker stopped unexpectedly."
+      );
+      const errorStack = event.error instanceof Error ? event.error.stack : undefined;
+
+      const ready = botWorkerReadyPending.current;
+      if (ready?.worker === worker) {
+        window.clearTimeout(ready.timeoutId);
+        botWorkerReadyPending.current = null;
+        const workerError: OpponentAiWorkerError = {
+          name: errorName,
+          message: errorMessage,
+          stack: errorStack,
+          context: { stage: "preflight" },
+        };
+        ready.reject(opponentAiDecisionError(
+          "worker-preflight",
+          errorMessage,
+          0,
+          ready.startedAt,
+          workerError,
+        ));
+      }
+
+      for (const [requestId, pending] of botWorkerPending.current.entries()) {
+        window.clearTimeout(pending.timeoutId);
+        const workerError: OpponentAiWorkerError = {
+          name: errorName,
+          message: errorMessage,
+          stack: errorStack,
+          context: pending.context,
+        };
+        pending.reject(opponentAiDecisionError(
+          "worker-error",
+          errorMessage,
+          requestId,
+          pending.startedAt,
+          workerError,
+        ));
+      }
+      botWorkerPending.current.clear();
+      if (botWorkerRef.current === worker) terminateOpponentAiWorker();
+    });
+
+    try {
+      worker.postMessage({ type: "ping", requestId: 0 });
+    } catch (cause) {
+      const ready = botWorkerReadyPending.current;
+      if (ready?.worker === worker) {
+        window.clearTimeout(ready.timeoutId);
+        botWorkerReadyPending.current = null;
+        const workerError: OpponentAiWorkerError = {
+          name: cause instanceof Error ? cause.name : "WorkerPostMessageError",
+          message: cause instanceof Error
+            ? cause.message
+            : "The opponent AI Worker READY request could not be sent.",
+          stack: cause instanceof Error ? cause.stack : undefined,
+          context: { stage: "preflight" },
+        };
+        ready.reject(opponentAiDecisionError(
+          "worker-preflight",
+          workerError.message,
+          0,
+          ready.startedAt,
+          workerError,
+        ));
+      }
+      if (botWorkerRef.current === worker) terminateOpponentAiWorker();
+    }
+
+    return readyPromise;
+  }, [terminateOpponentAiWorker]);
+
+  const requestOpponentAiDecision = useCallback(async (
+    match: MatchState,
+    playerId: string,
+    forceFreshWorker = false,
+  ) => {
     const startedAt = Date.now();
     if (typeof Worker === "undefined") {
-      return import("../../lib/opponentAi").then(({ chooseOpponentAiCommand }) => ({
+      const { chooseOpponentAiCommand } = await import("../../lib/opponentAi");
+      return {
         command: chooseOpponentAiCommand(match, playerId),
         requestId: 0,
         elapsedMs: Date.now() - startedAt,
         transport: "main-thread" as const,
-      }));
+      };
     }
-    let worker = botWorkerRef.current;
-    if (!worker) {
-      worker = new Worker(new URL("./opponentAi.worker.ts", import.meta.url), { type: "module" });
-      worker.addEventListener("message", (event: MessageEvent<OpponentAiWorkerResponse>) => {
-        const pending = botWorkerPending.current.get(event.data.requestId);
-        if (!pending) return;
-        botWorkerPending.current.delete(event.data.requestId);
-        window.clearTimeout(pending.timeoutId);
-        if (event.data.error) {
-          pending.reject(opponentAiDecisionError(
-            "worker-error",
-            event.data.error,
-            event.data.requestId,
-            pending.startedAt,
-          ));
-        } else {
-          pending.resolve({
-            command: event.data.command ?? null,
-            requestId: event.data.requestId,
-            elapsedMs: Date.now() - pending.startedAt,
-            transport: "worker",
-          });
-        }
-      });
-      worker.addEventListener("error", (event) => {
-        for (const [requestId, pending] of botWorkerPending.current.entries()) {
-          window.clearTimeout(pending.timeoutId);
-          pending.reject(opponentAiDecisionError(
-            "worker-error",
-            event.message || "The opponent AI worker stopped unexpectedly.",
-            requestId,
-            pending.startedAt,
-          ));
-        }
-        botWorkerPending.current.clear();
-        worker?.terminate();
-        botWorkerRef.current = null;
-      });
-      botWorkerRef.current = worker;
-    }
+
+    const worker = await ensureOpponentAiWorker(forceFreshWorker);
     const requestId = ++botWorkerRequestId.current;
     return new Promise<OpponentAiDecisionResult>((resolve, reject) => {
-      const activeWorker = worker!;
       const requestStartedAt = Date.now();
+      const context: OpponentAiWorkerErrorContext = {
+        stage: "decision",
+        matchId: match.id,
+        matchVersion: match.version,
+        phase: match.phase,
+        playerId,
+      };
       const timeoutId = window.setTimeout(() => {
         const pending = botWorkerPending.current.get(requestId);
         if (!pending) return;
         botWorkerPending.current.delete(requestId);
+        const workerError: OpponentAiWorkerError = {
+          name: "WorkerDecisionTimeout",
+          message: "The opponent AI decision timed out.",
+          context: pending.context,
+        };
         pending.reject(opponentAiDecisionError(
           "worker-timeout",
-          "The opponent AI decision timed out.",
+          workerError.message,
           requestId,
           pending.startedAt,
+          workerError,
         ));
-        if (botWorkerRef.current === activeWorker) {
-          activeWorker.terminate();
-          botWorkerRef.current = null;
-        }
+        if (botWorkerRef.current === worker) terminateOpponentAiWorker();
       }, OPPONENT_AI_DECISION_TIMEOUT_MS);
       botWorkerPending.current.set(requestId, {
         resolve,
         reject,
         timeoutId,
         startedAt: requestStartedAt,
+        context,
       });
       try {
-        activeWorker.postMessage({ requestId, match, playerId });
+        worker.postMessage({ type: "decide", requestId, match, playerId });
       } catch (cause) {
         window.clearTimeout(timeoutId);
         botWorkerPending.current.delete(requestId);
+        const workerError: OpponentAiWorkerError = {
+          name: cause instanceof Error ? cause.name : "WorkerPostMessageError",
+          message: cause instanceof Error
+            ? cause.message
+            : "The opponent AI request could not be sent.",
+          stack: cause instanceof Error ? cause.stack : undefined,
+          context,
+        };
         reject(opponentAiDecisionError(
           "worker-error",
-          cause instanceof Error ? cause.message : "The opponent AI request could not be sent.",
+          workerError.message,
           requestId,
           requestStartedAt,
+          workerError,
         ));
+        if (botWorkerRef.current === worker) terminateOpponentAiWorker();
       }
     });
-  }, []);
+  }, [ensureOpponentAiWorker, terminateOpponentAiWorker]);
+
+  const trainingWorkerMatchId = storedState.route === "match"
+    && !storedState.online
+    && storedState.match?.players.some((player) => player.id === "training-bot")
+    ? storedState.match.id
+    : "";
+
+  useEffect(() => {
+    if (!trainingWorkerMatchId || typeof Worker === "undefined") return;
+    void ensureOpponentAiWorker().catch(() => {
+      // A decision request will create one fresh Worker and preserve diagnostics.
+    });
+  }, [ensureOpponentAiWorker, trainingWorkerMatchId]);
 
   useEffect(() => () => {
-    botWorkerRef.current?.terminate();
-    botWorkerRef.current = null;
     const cause = new Error("The gameplay screen closed before the opponent AI finished.");
+    const ready = botWorkerReadyPending.current;
+    if (ready) {
+      window.clearTimeout(ready.timeoutId);
+      botWorkerReadyPending.current = null;
+      ready.reject(cause);
+    }
     for (const pending of botWorkerPending.current.values()) {
       window.clearTimeout(pending.timeoutId);
       pending.reject(cause);
     }
     botWorkerPending.current.clear();
-  }, []);
+    terminateOpponentAiWorker();
+  }, [terminateOpponentAiWorker]);
 
   useEffect(() => {
     const resume = () => {
@@ -699,6 +906,8 @@ export function GameplayClient() {
             requestId?: number;
             elapsedMs?: number;
             detail?: string;
+            stack?: string;
+            context?: string;
           } | null = null;
 
           if (playerCanFlipTieBreak(latest, "training-bot")) {
@@ -706,8 +915,10 @@ export function GameplayClient() {
           } else if (shouldStartManualTieBreak(latest, "training-bot")) {
             decision = { type: "PASS_PRIORITY" };
           } else {
+            let primaryTransport: OpponentAiDecisionResult["transport"] = "worker";
             try {
               const primary = await requestOpponentAiDecision(latest, "training-bot");
+              primaryTransport = primary.transport;
               decision = primary.command;
               if (!decision) {
                 diagnostic = {
@@ -716,30 +927,78 @@ export function GameplayClient() {
                   elapsedMs: primary.elapsedMs,
                   detail: "The tactical planner returned no command while Training could act.",
                 };
-                if (primary.transport === "worker") {
-                  const fallbackStartedAt = Date.now();
-                  try {
-                    const { chooseOpponentAiCommand } = await import("../../lib/opponentAi");
-                    decision = chooseOpponentAiCommand(latest, "training-bot");
-                    diagnostic.elapsedMs += Date.now() - fallbackStartedAt;
-                    if (!decision) diagnostic.reason = "worker-null-main-thread-null";
-                  } catch (cause) {
-                    diagnostic.reason = "worker-null-main-thread-error";
-                    diagnostic.detail += ` Main-thread retry: ${cause instanceof Error ? cause.message : "unknown failure"}`;
-                  }
-                }
               }
             } catch (cause) {
               diagnostic = opponentAiFailureMetadata(cause);
+            }
+
+            if (!decision && primaryTransport === "worker" && typeof Worker !== "undefined") {
+              try {
+                const fresh = await requestOpponentAiDecision(latest, "training-bot", true);
+                decision = fresh.command;
+                diagnostic = {
+                  ...(diagnostic ?? {
+                    reason: "worker-retry",
+                    detail: "The first Worker decision did not produce a command.",
+                  }),
+                  reason: decision
+                    ? `${diagnostic?.reason ?? "worker"}-fresh-worker-recovered`
+                    : `${diagnostic?.reason ?? "worker"}-fresh-worker-null`,
+                  elapsedMs: (diagnostic?.elapsedMs ?? 0) + fresh.elapsedMs,
+                };
+              } catch (freshCause) {
+                const freshDiagnostic = opponentAiFailureMetadata(freshCause);
+                diagnostic = {
+                  ...(diagnostic ?? freshDiagnostic),
+                  reason: `${diagnostic?.reason ?? "worker"}-fresh-worker-error`,
+                  elapsedMs: (diagnostic?.elapsedMs ?? 0) + (freshDiagnostic.elapsedMs ?? 0),
+                  detail: [
+                    diagnostic?.detail,
+                    `Fresh Worker: ${freshDiagnostic.detail}`,
+                  ].filter(Boolean).join(" "),
+                  stack: [
+                    diagnostic?.stack,
+                    freshDiagnostic.stack ? `Fresh Worker: ${freshDiagnostic.stack}` : "",
+                  ].filter(Boolean).join(" | ") || undefined,
+                  context: [
+                    diagnostic?.context,
+                    freshDiagnostic.context ? `fresh(${freshDiagnostic.context})` : "",
+                  ].filter(Boolean).join(" | ") || undefined,
+                };
+              }
+            }
+
+            if (!decision && primaryTransport === "worker") {
               const fallbackStartedAt = Date.now();
               try {
                 const { chooseOpponentAiCommand } = await import("../../lib/opponentAi");
                 decision = chooseOpponentAiCommand(latest, "training-bot");
-                diagnostic.elapsedMs = (diagnostic.elapsedMs ?? 0) + Date.now() - fallbackStartedAt;
-                if (!decision) diagnostic.reason = `${diagnostic.reason}-main-thread-null`;
+                diagnostic = {
+                  ...(diagnostic ?? {
+                    reason: "worker-main-thread-retry",
+                    detail: "Worker retries did not produce a tactical command.",
+                  }),
+                  reason: decision
+                    ? `${diagnostic?.reason ?? "worker"}-main-thread-recovered`
+                    : `${diagnostic?.reason ?? "worker"}-main-thread-null`,
+                  elapsedMs: (diagnostic?.elapsedMs ?? 0) + Date.now() - fallbackStartedAt,
+                };
               } catch (secondaryCause) {
-                diagnostic.reason = `${diagnostic.reason}-main-thread-error`;
-                diagnostic.detail = `${diagnostic.detail ?? ""} Main-thread retry: ${secondaryCause instanceof Error ? secondaryCause.message : "unknown failure"}`.trim();
+                diagnostic = {
+                  ...(diagnostic ?? {
+                    reason: "worker-main-thread-error",
+                    detail: "Worker retries did not produce a tactical command.",
+                  }),
+                  reason: `${diagnostic?.reason ?? "worker"}-main-thread-error`,
+                  elapsedMs: (diagnostic?.elapsedMs ?? 0) + Date.now() - fallbackStartedAt,
+                  detail: `${diagnostic?.detail ?? ""} Main-thread retry: ${secondaryCause instanceof Error ? secondaryCause.message : "unknown failure"}`.trim(),
+                  stack: [
+                    diagnostic?.stack,
+                    secondaryCause instanceof Error && secondaryCause.stack
+                      ? `Main thread: ${secondaryCause.stack}`
+                      : "",
+                  ].filter(Boolean).join(" | ") || undefined,
+                };
               }
             }
           }

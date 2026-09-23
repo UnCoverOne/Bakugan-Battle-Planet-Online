@@ -188,7 +188,11 @@ test("Training AI worker failures are bounded and recover across match steps", (
   const readiness = read("lib/opponentAiCanAct.ts");
 
   assert.match(client, /OPPONENT_AI_DECISION_TIMEOUT_MS = 8_000/);
+  assert.match(client, /OPPONENT_AI_WORKER_READY_TIMEOUT_MS = 2_500/);
+  assert.match(client, /worker\.postMessage\(\{ type: "ping", requestId: 0 \}\)/);
   assert.match(client, /opponentAiDecisionError\([\s\S]*"worker-timeout"[\s\S]*"The opponent AI decision timed out\."/);
+  assert.match(client, /requestOpponentAiDecision\(latest, "training-bot", true\)/);
+  assert.match(client, /fresh-worker-recovered/);
   assert.match(client, /window\.clearTimeout\(pending\.timeoutId\)/);
   assert.match(client, /if \(!requestStarted && botActionKey\.current === key\)/);
   assert.match(client, /await import\("\.\.\/\.\.\/lib\/opponentAi"\)/);

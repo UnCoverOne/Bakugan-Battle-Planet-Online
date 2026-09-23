@@ -371,6 +371,7 @@ test("an unaffordable Titan Nillious in hand does not force tactical selection o
 
   const serialized = JSON.parse(JSON.stringify(match)) as typeof match;
   const response = decideOpponentAiWorkerRequest({
+    type: "decide",
     requestId: 824290,
     match: serialized,
     playerId: ai.id,

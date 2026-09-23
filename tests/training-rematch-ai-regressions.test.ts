@@ -7,6 +7,10 @@ import { archiveReplayRecording, compactReplayCommand, createReplayRecording, re
 import { buildReplayFrames } from "../lib/engine/replay-playback";
 import { reduceMatch } from "../lib/engine/reducer";
 import type { CommandEnvelope, GameCommand } from "../lib/engine/types";
+import {
+  opponentAiWorkerReadyResponse,
+  serializeOpponentAiWorkerError,
+} from "../lib/opponentAiWorkerProtocol";
 
 test("Training lobby uses the administrator-selected AI deck instead of the built-in fallback", () => {
   const selectedAiDeck: DeckRecord = {
@@ -115,10 +119,45 @@ test("AI deck endpoint only chooses enabled legal administrator resources", asyn
 test("Training AI gateway journals Worker failures and retries the tactical planner before primitive recovery", async () => {
   const client = await readFile(new URL("../components/game-screen-v2/GameplayClient.tsx", import.meta.url), "utf8");
   const worker = await readFile(new URL("../components/game-screen-v2/opponentAi.worker.ts", import.meta.url), "utf8");
+  const protocol = await readFile(new URL("../lib/opponentAiWorkerProtocol.ts", import.meta.url), "utf8");
 
   assert.match(client, /withOpponentAiRecoveryDiagnostic/);
+  assert.match(client, /worker-preflight/);
   assert.match(client, /worker-timeout/);
+  assert.match(client, /trainingWorkerMatchId/);
+  assert.match(client, /requestOpponentAiDecision\(latest, "training-bot", true\)/);
+  assert.match(client, /fresh-worker-recovered/);
   assert.match(client, /await import\("\.\.\/\.\.\/lib\/opponentAi"\)/);
   assert.match(client, /decision \? `strategic:\$\{command\.type\}` : `primitive:\$\{command\.type\}`/);
+  assert.match(worker, /event\.data\.type === "ping"/);
+  assert.match(worker, /opponentAiWorkerReadyResponse\(event\.data\.requestId\)/);
   assert.match(worker, /decideOpponentAiWorkerRequest\(event\.data\)/);
+  assert.match(protocol, /stack\?: string/);
+  assert.match(protocol, /matchVersion: match\.version/);
+});
+
+test("Training AI Worker protocol exposes READY and structured failure diagnostics", () => {
+  assert.deepEqual(opponentAiWorkerReadyResponse(17), {
+    requestId: 17,
+    ready: true,
+  });
+
+  const cause = new TypeError("forecast exploded");
+  const failure = serializeOpponentAiWorkerError(cause, {
+    stage: "decision",
+    matchId: "MATCH-17",
+    matchVersion: 42,
+    phase: "selection",
+    playerId: "training-bot",
+  });
+  assert.equal(failure.name, "TypeError");
+  assert.equal(failure.message, "forecast exploded");
+  assert.match(failure.stack ?? "", /TypeError: forecast exploded/);
+  assert.deepEqual(failure.context, {
+    stage: "decision",
+    matchId: "MATCH-17",
+    matchVersion: 42,
+    phase: "selection",
+    playerId: "training-bot",
+  });
 });

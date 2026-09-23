@@ -193,6 +193,8 @@ export type OpponentAiRecoveryDiagnostic = {
   requestId?: number;
   elapsedMs?: number;
   detail?: string;
+  stack?: string;
+  context?: string;
   fallback?: string;
 };
 
@@ -202,7 +204,13 @@ export function withOpponentAiRecoveryDiagnostic(
 ): MatchState {
   const at = Date.now();
   const detail = diagnostic.detail
-    ? diagnostic.detail.replace(/\s+/g, " ").trim().slice(0, 240)
+    ? diagnostic.detail.replace(/\s+/g, " ").trim().slice(0, 480)
+    : "";
+  const stack = diagnostic.stack
+    ? diagnostic.stack.replace(/\s+/g, " ").trim().slice(0, 1200)
+    : "";
+  const context = diagnostic.context
+    ? diagnostic.context.replace(/\s+/g, " ").trim().slice(0, 400)
     : "";
   const fields = [
     `reason=${diagnostic.reason}`,
@@ -211,7 +219,9 @@ export function withOpponentAiRecoveryDiagnostic(
     diagnostic.requestId == null ? "" : `request=${diagnostic.requestId}`,
     diagnostic.elapsedMs == null ? "" : `elapsed=${Math.max(0, Math.round(diagnostic.elapsedMs))}ms`,
     diagnostic.fallback ? `fallback=${diagnostic.fallback}` : "",
+    context ? `context=${context}` : "",
     detail ? `detail=${detail}` : "",
+    stack ? `stack=${stack}` : "",
   ].filter(Boolean);
   return {
     ...match,

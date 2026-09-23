@@ -314,6 +314,7 @@ test("serialized Training Worker planning develops Energy instead of returning a
   match.turn = 1;
   const serialized = JSON.parse(JSON.stringify(match)) as typeof match;
   const response = decideOpponentAiWorkerRequest({
+    type: "decide",
     requestId: 824282,
     match: serialized,
     playerId: ai.id,

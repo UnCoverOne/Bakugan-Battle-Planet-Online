@@ -1,5 +1,6 @@
 import {
   decideOpponentAiWorkerRequest,
+  opponentAiWorkerReadyResponse,
   type OpponentAiWorkerRequest,
   type OpponentAiWorkerResponse,
 } from "../../lib/opponentAiWorkerProtocol";
@@ -12,6 +13,10 @@ type WorkerScope = {
 const workerScope = self as unknown as WorkerScope;
 
 workerScope.onmessage = (event) => {
+  if (event.data.type === "ping") {
+    workerScope.postMessage(opponentAiWorkerReadyResponse(event.data.requestId));
+    return;
+  }
   workerScope.postMessage(decideOpponentAiWorkerRequest(event.data));
 };
 
