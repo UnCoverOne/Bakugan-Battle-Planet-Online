@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { CARDS, CORES } from "../lib/data";
 import {
   createMatch,
+  energizeCard,
   type Bakugan,
   type Faction,
   type GameCard,
@@ -323,6 +324,43 @@ test("serialized Training Worker planning develops Energy instead of returning a
   if (response.command?.type === "ENERGIZE") {
     assert.ok(response.command.cardId);
     assert.ok(ai.hand.some((card) => card.id === response.command?.cardId));
+  }
+});
+
+test("serialized Training Worker develops Energy over successive turns", () => {
+  const cards = [
+    catalogCard("bb-257", "worker-growth-titan-a"),
+    catalogCard("bb-257", "worker-growth-titan-b"),
+    catalogCard("bb-210", "worker-growth-mac"),
+    catalogCard("bb-104", "worker-growth-might"),
+    catalogCard("bb-24", "worker-growth-tides"),
+    catalogCard("br-3", "worker-growth-blinding-ink"),
+    catalogCard("br-6", "worker-growth-deep-dive"),
+  ];
+  const ai = player("training-bot", cards);
+  let match = energizeMatch(ai);
+
+  for (let turn = 1; turn <= 3; turn += 1) {
+    match.turn = turn;
+    match.phase = "energize";
+    match.priority = ai.id;
+    const bot = match.players.find((candidate) => candidate.id === ai.id)!;
+    bot.energizedThisTurn = false;
+    const serialized = JSON.parse(JSON.stringify(match)) as typeof match;
+    const response = decideOpponentAiWorkerRequest({
+      requestId: 824282 + turn,
+      match: serialized,
+      playerId: ai.id,
+    });
+    assert.equal(response.error, undefined);
+    assert.equal(response.command?.type, "ENERGIZE");
+    if (response.command?.type !== "ENERGIZE") continue;
+    assert.ok(response.command.cardId);
+    match = energizeCard(match, ai.id, response.command.cardId);
+    assert.equal(
+      match.players.find((candidate) => candidate.id === ai.id)!.energyZone.length,
+      turn,
+    );
   }
 });
 
