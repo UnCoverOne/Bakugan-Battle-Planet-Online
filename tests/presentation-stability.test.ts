@@ -188,10 +188,14 @@ test("Training AI worker failures are bounded and recover across match steps", (
   const readiness = read("lib/opponentAiCanAct.ts");
 
   assert.match(client, /OPPONENT_AI_DECISION_TIMEOUT_MS = 8_000/);
-  assert.match(client, /pending\.reject\(new Error\("The opponent AI decision timed out\."\)\)/);
+  assert.match(client, /opponentAiDecisionError\([\s\S]*"worker-timeout"[\s\S]*"The opponent AI decision timed out\."/);
   assert.match(client, /window\.clearTimeout\(pending\.timeoutId\)/);
   assert.match(client, /if \(!requestStarted && botActionKey\.current === key\)/);
+  assert.match(client, /await import\("\.\.\/\.\.\/lib\/opponentAi"\)/);
+  assert.match(client, /withOpponentAiRecoveryDiagnostic/);
   assert.match(client, /recoverOpponentAiCommand/);
+  assert.match(readiness, /recoveryEnergizeCardId\(match, playerId\)/);
+  assert.match(readiness, /recoveryBakuganId\(match, playerId\)/);
   assert.match(readiness, /PRIORITY_PHASES\.has\(match\.phase\)[\s\S]*type: "PASS_PRIORITY"/);
   assert.match(readiness, /match\.phase === "handLimit"[\s\S]*type: "DISCARD_TO_HAND_LIMIT"/);
   assert.match(readiness, /match\.phase === "damage"[\s\S]*type: "PLAY_DAMAGE_FLIP"/);
