@@ -8,6 +8,7 @@ import { buildReplayFrames } from "../lib/engine/replay-playback";
 import { reduceMatch } from "../lib/engine/reducer";
 import type { CommandEnvelope, GameCommand } from "../lib/engine/types";
 import {
+  createOpponentAiWorkerAsync,
   opponentAiWorkerReadyResponse,
   serializeOpponentAiWorkerError,
 } from "../lib/opponentAiWorkerProtocol";
@@ -124,7 +125,9 @@ test("Training AI gateway journals Worker failures and retries the tactical plan
   assert.match(client, /withOpponentAiRecoveryDiagnostic/);
   assert.match(client, /worker-preflight/);
   assert.match(client, /worker-timeout/);
-  assert.match(client, /trainingWorkerMatchId/);
+  assert.match(client, /trainingWorkerPlacementId/);
+  assert.match(client, /storedState\.match\?\.phase === "placement"/);
+  assert.match(client, /\|\| match\.phase === "startingPlayer"/);
   assert.match(client, /requestOpponentAiDecision\(latest, "training-bot", true\)/);
   assert.match(client, /fresh-worker-recovered/);
   assert.match(client, /await import\("\.\.\/\.\.\/lib\/opponentAi"\)/);
@@ -160,4 +163,34 @@ test("Training AI Worker protocol exposes READY and structured failure diagnosti
     phase: "selection",
     playerId: "training-bot",
   });
+});
+
+
+test("Training AI Worker construction failures reject instead of escaping startup", async () => {
+  await assert.rejects(
+    createOpponentAiWorkerAsync(() => {
+      throw new DOMException("Worker construction blocked", "SecurityError");
+    }),
+    (cause: unknown) => (
+      cause instanceof DOMException
+      && cause.name === "SecurityError"
+      && cause.message === "Worker construction blocked"
+    ),
+  );
+});
+
+test("Training startup remains independent from Worker preflight and READY timeout", async () => {
+  const client = await readFile(new URL("../components/game-screen-v2/GameplayClient.tsx", import.meta.url), "utf8");
+
+  const startupEffect = client.indexOf('match?.phase !== "startingPlayer"');
+  const placementPrewarm = client.indexOf('storedState.match?.phase === "placement"');
+  const tacticalStartingPlayerGuard = client.indexOf('|| match.phase === "startingPlayer"');
+  const readyTimeout = client.indexOf("OPPONENT_AI_WORKER_READY_TIMEOUT_MS");
+
+  assert.ok(startupEffect >= 0);
+  assert.ok(placementPrewarm >= 0);
+  assert.ok(tacticalStartingPlayerGuard >= 0);
+  assert.ok(readyTimeout >= 0);
+  assert.match(client.slice(startupEffect, placementPrewarm), /await beginPlacement\(\)/);
+  assert.match(client, /WorkerReadyTimeout/);
 });

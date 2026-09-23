@@ -7,10 +7,11 @@ import { accountIsAdministrator } from "../../lib/admin-ai-visibility";
 import { dispatchLocalGameAction, dispatchLocalGameCommand } from "../../lib/engine/local-command-dispatcher";
 import type { ApiAction } from "../../lib/engine/commands";
 import type { GameCommand } from "../../lib/engine/types";
-import type {
-  OpponentAiWorkerError,
-  OpponentAiWorkerErrorContext,
-  OpponentAiWorkerResponse,
+import {
+  createOpponentAiWorkerAsync,
+  type OpponentAiWorkerError,
+  type OpponentAiWorkerErrorContext,
+  type OpponentAiWorkerResponse,
 } from "../../lib/opponentAiWorkerProtocol";
 import {
   opponentAiCanAct,
@@ -279,9 +280,9 @@ export function GameplayClient() {
     botWorkerReadyPromise.current = null;
   }, []);
 
-  const ensureOpponentAiWorker = useCallback((forceFresh = false) => {
+  const ensureOpponentAiWorker = useCallback(async (forceFresh = false) => {
     if (typeof Worker === "undefined") {
-      return Promise.reject(new Error("Web Workers are unavailable."));
+      throw new Error("Web Workers are unavailable.");
     }
 
     if (forceFresh) {
@@ -304,9 +305,30 @@ export function GameplayClient() {
       return botWorkerReadyPromise.current;
     }
 
-    const worker = new Worker(new URL("./opponentAi.worker.ts", import.meta.url), { type: "module" });
-    botWorkerRef.current = worker;
     const readyStartedAt = Date.now();
+    let worker: Worker;
+    try {
+      worker = await createOpponentAiWorkerAsync(() => (
+        new Worker(new URL("./opponentAi.worker.ts", import.meta.url), { type: "module" })
+      ));
+    } catch (cause) {
+      const workerError: OpponentAiWorkerError = {
+        name: cause instanceof Error ? cause.name : "WorkerConstructionError",
+        message: cause instanceof Error
+          ? cause.message
+          : "The opponent AI Worker could not be created.",
+        stack: cause instanceof Error ? cause.stack : undefined,
+        context: { stage: "preflight" },
+      };
+      throw opponentAiDecisionError(
+        "worker-preflight",
+        workerError.message,
+        0,
+        readyStartedAt,
+        workerError,
+      );
+    }
+    botWorkerRef.current = worker;
 
     const readyPromise = new Promise<Worker>((resolve, reject) => {
       const timeoutId = window.setTimeout(() => {
@@ -523,18 +545,20 @@ export function GameplayClient() {
     });
   }, [ensureOpponentAiWorker, terminateOpponentAiWorker]);
 
-  const trainingWorkerMatchId = storedState.route === "match"
+  const trainingWorkerPlacementId = storedState.route === "match"
     && !storedState.online
-    && storedState.match?.players.some((player) => player.id === "training-bot")
+    && storedState.match?.phase === "placement"
+    && storedState.match.players.some((player) => player.id === "training-bot")
     ? storedState.match.id
     : "";
 
   useEffect(() => {
-    if (!trainingWorkerMatchId || typeof Worker === "undefined") return;
+    if (!trainingWorkerPlacementId || typeof Worker === "undefined") return;
     void ensureOpponentAiWorker().catch(() => {
-      // A decision request will create one fresh Worker and preserve diagnostics.
+      // Core-placement startup is independent of Worker preflight. The first
+      // tactical AI request will retry with a fresh Worker and then main thread.
     });
-  }, [ensureOpponentAiWorker, trainingWorkerMatchId]);
+  }, [ensureOpponentAiWorker, trainingWorkerPlacementId]);
 
   useEffect(() => () => {
     const cause = new Error("The gameplay screen closed before the opponent AI finished.");
@@ -870,6 +894,7 @@ export function GameplayClient() {
       storedState.route !== "match"
       || storedState.online
       || !match
+      || match.phase === "startingPlayer"
       || rollPresentationPending
     ) return;
 
