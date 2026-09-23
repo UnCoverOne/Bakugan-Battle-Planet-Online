@@ -7,12 +7,12 @@ import { accountIsAdministrator } from "../../lib/admin-ai-visibility";
 import { dispatchLocalGameAction, dispatchLocalGameCommand } from "../../lib/engine/local-command-dispatcher";
 import type { ApiAction } from "../../lib/engine/commands";
 import type { GameCommand } from "../../lib/engine/types";
-import {
-  createOpponentAiWorkerAsync,
-  type OpponentAiWorkerError,
-  type OpponentAiWorkerErrorContext,
-  type OpponentAiWorkerResponse,
+import type {
+  OpponentAiWorkerError,
+  OpponentAiWorkerErrorContext,
+  OpponentAiWorkerResponse,
 } from "../../lib/opponentAiWorkerProtocol";
+import { createOpponentAiWorkerAsync } from "../../lib/opponentAiWorkerTransport";
 import {
   opponentAiCanAct,
   recoverOpponentAiCommand,

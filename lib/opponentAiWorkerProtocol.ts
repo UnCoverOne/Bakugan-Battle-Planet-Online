@@ -39,15 +39,6 @@ export function opponentAiWorkerReadyResponse(requestId: number): OpponentAiWork
   return { requestId, ready: true };
 }
 
-/**
- * Schedule Worker construction through a Promise boundary so synchronous
- * constructor failures are observable as rejections instead of escaping a
- * React effect before its .catch() handler is attached.
- */
-export function createOpponentAiWorkerAsync<T>(factory: () => T): Promise<T> {
-  return Promise.resolve().then(factory);
-}
-
 export function serializeOpponentAiWorkerError(
   cause: unknown,
   context: OpponentAiWorkerErrorContext,

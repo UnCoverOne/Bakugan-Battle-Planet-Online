@@ -8,10 +8,10 @@ import { buildReplayFrames } from "../lib/engine/replay-playback";
 import { reduceMatch } from "../lib/engine/reducer";
 import type { CommandEnvelope, GameCommand } from "../lib/engine/types";
 import {
-  createOpponentAiWorkerAsync,
   opponentAiWorkerReadyResponse,
   serializeOpponentAiWorkerError,
 } from "../lib/opponentAiWorkerProtocol";
+import { createOpponentAiWorkerAsync } from "../lib/opponentAiWorkerTransport";
 
 test("Training lobby uses the administrator-selected AI deck instead of the built-in fallback", () => {
   const selectedAiDeck: DeckRecord = {
