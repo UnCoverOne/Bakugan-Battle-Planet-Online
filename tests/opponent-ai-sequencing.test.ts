@@ -14,6 +14,7 @@ import {
 } from "../lib/game";
 import { bestAiRollTarget } from "../lib/aiRollForecast";
 import { chooseOpponentAiCommand } from "../lib/opponentAi";
+import { recoverOpponentAiCommand } from "../lib/opponentAiCanAct";
 
 let serial = 0;
 
@@ -67,14 +68,41 @@ function bakugan(
   };
 }
 
-function core(id: string, bonus = 0, damageBonus = 0): Core {
+
+function catalogueBakugan(catalogId: string, id: string): Bakugan {
+  const character = CARDS.find((candidate) => (
+    candidate.catalogId === catalogId && candidate.type === "Character"
+  ));
+  assert.ok(character, `Missing Character ${catalogId}`);
+  return {
+    id,
+    name: character.displayName || character.name,
+    faction: character.faction,
+    bPower: character.bPower ?? 0,
+    damage: character.damage ?? 0,
+    rollAccuracy: catalogId === "br-227" ? 85 : 90,
+    doubleCoreChance: catalogId === "br-227" ? 10 : 5,
+    art: character.art,
+    character: { ...character, id: `${id}-character` },
+    open: false,
+    heldCoreCells: [],
+    evoStack: [],
+  };
+}
+
+function core(
+  id: string,
+  bonus = 0,
+  damageBonus = 0,
+  type: Core["type"] = "Fist",
+): Core {
   serial += 1;
   return {
     id,
     catalogId: id,
     number: 9000 + serial,
     name: id,
-    type: "Fist",
+    type,
     bonus,
     damageBonus,
     art: "",
@@ -270,4 +298,79 @@ test("AI retains a useful Superfuel reroll that can overcome a B-Power deficit",
   const command = chooseOpponentAiCommand(match, ai.id);
   assert.equal(command?.type, "PLAY_CARD");
   if (command?.type === "PLAY_CARD") assert.equal(command.cardId, fuel.id);
+});
+
+
+test("emergency Energize recovery always develops a nonempty hand at zero Energy", () => {
+  const nillious = catalogueBakugan("bb-337", "recovery-nillious");
+  const ai = player("training-bot", [nillious], [
+    namedCard("Haos Titan Nillious", "recovery-titan"),
+    namedCard("Tides", "recovery-tides"),
+  ]);
+  const human = player("human", [bakugan("recovery-human", "Aquos", 500, 5)]);
+  const match = createMatch("AI-RECOVERY-ENERGY", "bo1", [ai, human]);
+  match.turn = 1;
+  match.phase = "energize";
+  match.priority = ai.id;
+  match.startingPlayer = ai.id;
+  match.players.find((candidate) => candidate.id === ai.id)!.energizedThisTurn = false;
+
+  const command = recoverOpponentAiCommand(match, ai.id);
+  assert.equal(command?.type, "ENERGIZE");
+  if (command?.type === "ENERGIZE") {
+    assert.ok(command.cardId);
+    assert.ok(ai.hand.some((card) => card.id === command.cardId));
+  }
+});
+
+test("emergency Bakugan recovery ranks Core-aware strength instead of taking array position zero", () => {
+  const nillious = catalogueBakugan("bb-337", "recovery-haos-nillious");
+  const cubbo = catalogueBakugan("br-167", "recovery-aquos-cubbo");
+  const nobilious = catalogueBakugan("br-227", "recovery-pyrus-nobilious");
+  const ai = player("training-bot", [nillious, cubbo, nobilious]);
+  const human = player("human", [bakugan("recovery-selection-human", "Aquos", 500, 5)]);
+  const match = createMatch("AI-RECOVERY-SELECTION", "bo1", [ai, human]);
+  match.turn = 1;
+  match.phase = "selection";
+  match.priority = ai.id;
+  match.startingPlayer = ai.id;
+  match.placements = [{
+    playerId: ai.id,
+    core: core("recovery-magic-shield", 0, 0, "Magic Shield"),
+    cell: CENTER_CELL,
+    order: 1,
+  }];
+
+  const command = recoverOpponentAiCommand(match, ai.id);
+  assert.equal(command?.type, "SELECT_BAKUGAN");
+  if (command?.type === "SELECT_BAKUGAN") {
+    assert.equal(command.bakuganId, cubbo.id);
+    assert.notEqual(command.bakuganId, nillious.id);
+  }
+});
+
+test("an unaffordable Titan Nillious in hand does not force tactical selection of base Nillious", () => {
+  const nillious = catalogueBakugan("bb-337", "tactical-haos-nillious");
+  const cubbo = catalogueBakugan("br-167", "tactical-aquos-cubbo");
+  const nobilious = catalogueBakugan("br-227", "tactical-pyrus-nobilious");
+  const titan = namedCard("Haos Titan Nillious", "tactical-titan-nillious");
+  const ai = player("training-bot", [nillious, cubbo, nobilious], [titan]);
+  const human = player("human", [bakugan("tactical-selection-human", "Aquos", 500, 5)]);
+  const match = createMatch("AI-TACTICAL-SELECTION", "bo1", [ai, human]);
+  match.turn = 1;
+  match.phase = "selection";
+  match.priority = ai.id;
+  match.startingPlayer = ai.id;
+  match.placements = [{
+    playerId: ai.id,
+    core: core("tactical-magic-shield", 0, 0, "Magic Shield"),
+    cell: CENTER_CELL,
+    order: 1,
+  }];
+
+  const command = chooseOpponentAiCommand(match, ai.id);
+  assert.equal(command?.type, "SELECT_BAKUGAN");
+  if (command?.type === "SELECT_BAKUGAN") {
+    assert.notEqual(command.bakuganId, nillious.id);
+  }
 });

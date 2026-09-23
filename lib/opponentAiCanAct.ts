@@ -9,7 +9,9 @@ import {
   placeCore,
   selectBakugan,
   submitCardChoice,
+  type Bakugan,
   type CardChoices,
+  type GameCard,
   type MatchState,
 } from "./game";
 import { drawPendingCard, playerCanResolvePendingDraw } from "./drawQueue";
@@ -73,6 +75,158 @@ export function opponentAiCanAct(match: MatchState, playerId: string) {
   return match.phase === "handLimit" && match.priority === playerId;
 }
 
+
+function normalizedRecoveryName(value: string | null | undefined) {
+  return String(value ?? "")
+    .replace(/\s*\(Battle Brawlers\)\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function recoveryCardCost(card: GameCard) {
+  return typeof card.cost === "number" ? card.cost : 99;
+}
+
+function recoveryEnergyCapacity(match: MatchState, playerId: string) {
+  const player = match.players.find((candidate) => candidate.id === playerId);
+  if (!player) return 0;
+  return player.energyZone.length + Math.max(0, Math.floor(player.energy));
+}
+
+function recoveryCardRetentionValue(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  const player = match.players.find((candidate) => candidate.id === playerId);
+  if (!player) return Number.POSITIVE_INFINITY;
+  const capacity = recoveryEnergyCapacity(match, playerId);
+  const cost = recoveryCardCost(card);
+  let value = card.type === "Action" ? 4
+    : card.type === "Hero" ? 3.5
+      : card.type === "Evo" ? 2.5
+        : card.type === "Baku-Gear" ? 2
+          : card.type === "Flip" || card.type === "Flip Hero" ? 1
+            : 5;
+
+  if (cost <= capacity) value += 4;
+  else if (cost <= capacity + 1) value += 2;
+  else value -= Math.min(3, (cost - capacity) * 0.6);
+
+  if (/\bdraw\b/i.test(card.effect)) value += 1.5;
+  if (/\bnegate\b|\bprevent\b|\[stop\]/i.test(card.effect)) value += 2.5;
+
+  if (card.type === "Evo") {
+    const hasTarget = player.bakugan.some((bakugan) => (
+      bakugan.faction === card.faction
+      && normalizedRecoveryName(card.evolvesFrom) === normalizedRecoveryName(bakugan.name)
+    ));
+    if (!hasTarget) value -= 4;
+  }
+
+  const copies = player.hand.filter((candidate) => candidate.catalogId === card.catalogId).length;
+  value -= Math.max(0, copies - 1) * 1.5;
+  return value;
+}
+
+function recoveryEnergizeCardId(match: MatchState, playerId: string) {
+  const player = match.players.find((candidate) => candidate.id === playerId);
+  if (!player?.hand.length) return undefined;
+  return [...player.hand]
+    .sort((a, b) => (
+      recoveryCardRetentionValue(match, playerId, a)
+      - recoveryCardRetentionValue(match, playerId, b)
+      || recoveryCardCost(b) - recoveryCardCost(a)
+      || a.id.localeCompare(b.id)
+    ))[0]?.id;
+}
+
+function recoveryBakuganTopCard(bakugan: Bakugan) {
+  return bakugan.evoStack.at(-1)
+    ?? (bakugan.fused ? bakugan.fusionCharacter : undefined)
+    ?? bakugan.character;
+}
+
+function recoveryCoreAbilityValue(match: MatchState, bakugan: Bakugan) {
+  const top = recoveryBakuganTopCard(bakugan);
+  const availableTypes = new Set(
+    match.placements
+      .filter((placement) => !placement.attachedTo)
+      .map((placement) => placement.core.type),
+  );
+  if (!bakugan.character.coreTypes.some((type) => availableTypes.has(type))) return 0;
+  const power = Math.max(
+    0,
+    ...[...top.effect.matchAll(/\+(\d+)\s*\[B\]/gi)].map((match) => Number(match[1])),
+  );
+  const damage = Math.max(
+    0,
+    ...[...top.effect.matchAll(/\+(\d+)\s*\[(?:Damage|Damage Rating)\]/gi)]
+      .map((match) => Number(match[1])),
+  );
+  return power * 0.012 + damage * 0.7;
+}
+
+function recoveryBakuganScore(match: MatchState, bakugan: Bakugan) {
+  const top = recoveryBakuganTopCard(bakugan);
+  return (top.bPower ?? bakugan.bPower) * 0.012
+    + (top.damage ?? bakugan.damage) * 0.6
+    + bakugan.rollAccuracy * 0.01
+    + bakugan.doubleCoreChance * 0.03
+    + recoveryCoreAbilityValue(match, bakugan);
+}
+
+function recoveryBakuganId(match: MatchState, playerId: string) {
+  const player = match.players.find((candidate) => candidate.id === playerId);
+  return player?.bakugan
+    .filter((bakugan) => !bakugan.open)
+    .sort((a, b) => (
+      recoveryBakuganScore(match, b) - recoveryBakuganScore(match, a)
+      || a.id.localeCompare(b.id)
+    ))[0]?.id
+    ?? player?.bakugan[0]?.id;
+}
+
+export type OpponentAiRecoveryDiagnostic = {
+  reason: string;
+  requestId?: number;
+  elapsedMs?: number;
+  detail?: string;
+  fallback?: string;
+};
+
+export function withOpponentAiRecoveryDiagnostic(
+  match: MatchState,
+  diagnostic: OpponentAiRecoveryDiagnostic,
+): MatchState {
+  const at = Date.now();
+  const detail = diagnostic.detail
+    ? diagnostic.detail.replace(/\s+/g, " ").trim().slice(0, 240)
+    : "";
+  const fields = [
+    `reason=${diagnostic.reason}`,
+    `phase=${match.phase}`,
+    `version=${match.version}`,
+    diagnostic.requestId == null ? "" : `request=${diagnostic.requestId}`,
+    diagnostic.elapsedMs == null ? "" : `elapsed=${Math.max(0, Math.round(diagnostic.elapsedMs))}ms`,
+    diagnostic.fallback ? `fallback=${diagnostic.fallback}` : "",
+    detail ? `detail=${detail}` : "",
+  ].filter(Boolean);
+  return {
+    ...match,
+    log: [
+      ...match.log,
+      {
+        id: `ai-recovery-${match.version}-${at}-${diagnostic.reason.replace(/[^a-z0-9-]+/gi, "-")}`,
+        at,
+        kind: "system",
+        message: `Training AI recovery • ${fields.join(" • ")}`,
+      },
+    ],
+  };
+}
+
 function conservativeChoiceAnswers(match: MatchState, playerId: string) {
   const choices: CardChoices = {};
   const pending = match.pendingChoice;
@@ -126,10 +280,13 @@ export function recoverOpponentAiCommand(match: MatchState, playerId: string): G
     return core && cell ? { type: "PLACE_CORE", coreId: core.id, cell } : null;
   }
   if (playerCanDrawTurnCard(match, playerId)) return { type: "DRAW_TURN_CARD" };
-  if (match.phase === "energize" && !player.energizedThisTurn) return { type: "ENERGIZE" };
+  if (match.phase === "energize" && !player.energizedThisTurn) {
+    const cardId = recoveryEnergizeCardId(match, playerId);
+    return { type: "ENERGIZE", cardId };
+  }
   if (match.phase === "selection" && !match.selected[playerId]) {
-    const bakugan = player.bakugan.find((candidate) => !candidate.open) ?? player.bakugan[0];
-    return bakugan ? { type: "SELECT_BAKUGAN", bakuganId: bakugan.id } : null;
+    const bakuganId = recoveryBakuganId(match, playerId);
+    return bakuganId ? { type: "SELECT_BAKUGAN", bakuganId } : null;
   }
   if (match.phase === "target" || match.phase === "reroll") {
     if (playerCanSelectRollTarget(match, playerId)) {
@@ -218,12 +375,11 @@ export function recoverOpponentAiFailure(
       return drawTurnCard(match, playerId);
     }
     if (match.phase === "energize" && !player.energizedThisTurn) {
-      return energizeCard(match, playerId);
+      return energizeCard(match, playerId, recoveryEnergizeCardId(match, playerId));
     }
     if (match.phase === "selection" && !match.selected[playerId]) {
-      const bakugan = player.bakugan.find((candidate) => !candidate.open)
-        ?? player.bakugan[0];
-      return bakugan ? selectBakugan(match, playerId, bakugan.id) : null;
+      const bakuganId = recoveryBakuganId(match, playerId);
+      return bakuganId ? selectBakugan(match, playerId, bakuganId) : null;
     }
     if (match.phase === "target" || match.phase === "reroll") {
       if (playerCanSelectRollTarget(match, playerId)) {

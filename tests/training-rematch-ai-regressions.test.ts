@@ -110,3 +110,15 @@ test("AI deck endpoint only chooses enabled legal administrator resources", asyn
   assert.doesNotMatch(route, /randomAiDeck/);
   assert.doesNotMatch(route, /STARTER_DECKS/);
 });
+
+
+test("Training AI gateway journals Worker failures and retries the tactical planner before primitive recovery", async () => {
+  const client = await readFile(new URL("../components/game-screen-v2/GameplayClient.tsx", import.meta.url), "utf8");
+  const worker = await readFile(new URL("../components/game-screen-v2/opponentAi.worker.ts", import.meta.url), "utf8");
+
+  assert.match(client, /withOpponentAiRecoveryDiagnostic/);
+  assert.match(client, /worker-timeout/);
+  assert.match(client, /await import\("\.\.\/\.\.\/lib\/opponentAi"\)/);
+  assert.match(client, /decision \? `strategic:\$\{command\.type\}` : `primitive:\$\{command\.type\}`/);
+  assert.match(worker, /decideOpponentAiWorkerRequest\(event\.data\)/);
+});

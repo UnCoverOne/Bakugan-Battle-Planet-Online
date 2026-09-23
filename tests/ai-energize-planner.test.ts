@@ -11,8 +11,10 @@ import {
 import {
   advanceOpponentAi,
   estimateFutureRerollValue,
+  evoSelectionAccessibilityFactor,
   planOpponentEnergize,
 } from "../lib/opponentAiBase";
+import { decideOpponentAiWorkerRequest } from "../lib/opponentAiWorkerProtocol";
 
 let serial = 0;
 
@@ -298,6 +300,40 @@ test("zero-Energy first-round planning develops toward multiple low-cost Actions
   assert.ok(ai.hand.some((card) => card.id === plan.cardId));
   assert.ok((plan.goalScore ?? 0) > 0);
   assert.ok((plan.protectedCardIds?.length ?? 0) > 0);
+});
+
+
+test("serialized Training Worker planning develops Energy instead of returning an empty Energize", () => {
+  const titan = catalogCard("bb-257", "worker-titan-nillious");
+  const tides = catalogCard("bb-24", "worker-tides");
+  const blindingInk = catalogCard("br-3", "worker-blinding-ink");
+  const deepDive = catalogCard("br-6", "worker-deep-dive");
+  const ai = player("training-bot", [titan, tides, blindingInk, deepDive]);
+  const match = energizeMatch(ai);
+  match.turn = 1;
+  const serialized = JSON.parse(JSON.stringify(match)) as typeof match;
+  const response = decideOpponentAiWorkerRequest({
+    requestId: 824282,
+    match: serialized,
+    playerId: ai.id,
+  });
+
+  assert.equal(response.error, undefined);
+  assert.equal(response.command?.type, "ENERGIZE");
+  if (response.command?.type === "ENERGIZE") {
+    assert.ok(response.command.cardId);
+    assert.ok(ai.hand.some((card) => card.id === response.command?.cardId));
+  }
+});
+
+test("unaffordable Evos contribute no phantom Bakugan-selection value", () => {
+  const titan = catalogCard("bb-257", "selection-titan-nillious");
+  const ai = player("ai", [titan]);
+  const match = energizeMatch(ai);
+
+  assert.equal(evoSelectionAccessibilityFactor(match, ai.id, titan), 0);
+  addEnergy(match.players.find((candidate) => candidate.id === ai.id)!, 4);
+  assert.equal(evoSelectionAccessibilityFactor(match, ai.id, titan), 1);
 });
 
 test("one Energy with several two- and three-cost Actions develops instead of plateauing", () => {

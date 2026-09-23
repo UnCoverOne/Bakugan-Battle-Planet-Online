@@ -2079,6 +2079,22 @@ function normalizedName(value: string | null | undefined) {
     .toLowerCase();
 }
 
+export function evoSelectionAccessibilityFactor(
+  match: MatchState,
+  playerId: string,
+  evo: GameCard,
+) {
+  const capacity = currentEnergyCapacity(match, playerId);
+  const printedCost = typeof evo.cost === "number" ? evo.cost : capacity + 3;
+  const reduction = Math.max(0, match.nextCardCostReduction[playerId] ?? 0);
+  const effectiveCost = Math.max(0, printedCost - reduction);
+  const gap = effectiveCost - capacity;
+  if (gap <= 0) return 1;
+  if (gap === 1) return 0.5;
+  if (gap === 2) return 0.15;
+  return 0;
+}
+
 function bakuganSynergy(
   match: MatchState,
   playerId: string,
@@ -2102,7 +2118,7 @@ function bakuganSynergy(
       (evo.bPower ?? bakugan.bPower) * 0.01
         + (evo.damage ?? bakugan.damage) * 0.9
         - ((top.bPower ?? bakugan.bPower) * 0.01 + (top.damage ?? bakugan.damage) * 0.9),
-    ) * 0.45;
+    ) * 0.45 * evoSelectionAccessibilityFactor(match, playerId, evo);
   }
   value += player.heroes.filter((hero) => (
     /your Bakugan|your attacks/i.test(hero.effect)

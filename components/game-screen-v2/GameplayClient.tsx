@@ -10,6 +10,7 @@ import type { GameCommand } from "../../lib/engine/types";
 import {
   opponentAiCanAct,
   recoverOpponentAiCommand,
+  withOpponentAiRecoveryDiagnostic,
 } from "../../lib/opponentAiCanAct";
 import { canUndoLatest } from "../../lib/undo";
 import { isCompletedSeriesResult } from "../../lib/match-result-navigation";
@@ -139,6 +140,42 @@ type OpponentAiWorkerResponse = {
   error?: string;
 };
 
+type OpponentAiDecisionResult = {
+  command: GameCommand | null;
+  requestId: number;
+  elapsedMs: number;
+  transport: "worker" | "main-thread";
+};
+
+type OpponentAiDecisionFailure = Error & {
+  kind?: "worker-error" | "worker-timeout";
+  requestId?: number;
+  elapsedMs?: number;
+};
+
+function opponentAiDecisionError(
+  kind: NonNullable<OpponentAiDecisionFailure["kind"]>,
+  message: string,
+  requestId: number,
+  startedAt: number,
+): OpponentAiDecisionFailure {
+  const cause = new Error(message) as OpponentAiDecisionFailure;
+  cause.kind = kind;
+  cause.requestId = requestId;
+  cause.elapsedMs = Date.now() - startedAt;
+  return cause;
+}
+
+function opponentAiFailureMetadata(cause: unknown) {
+  const error = cause instanceof Error ? cause as OpponentAiDecisionFailure : undefined;
+  return {
+    reason: error?.kind ?? "worker-error",
+    requestId: error?.requestId,
+    elapsedMs: error?.elapsedMs,
+    detail: error?.message ?? "The opponent AI worker failed.",
+  };
+}
+
 function parseStoredValue<T>(raw: string | null, fallback: T): T {
   if (raw == null) return fallback;
   try { return JSON.parse(raw) as T; }
@@ -200,17 +237,22 @@ export function GameplayClient() {
   const botWorkerRef = useRef<Worker | null>(null);
   const botWorkerRequestId = useRef(0);
   const botWorkerPending = useRef(new Map<number, {
-    resolve: (command: GameCommand | null) => void;
+    resolve: (decision: OpponentAiDecisionResult) => void;
     reject: (cause: Error) => void;
     timeoutId: number;
+    startedAt: number;
   }>());
   const { rollPresentationPending } = useBakuCorePresentation();
 
   const requestOpponentAiDecision = useCallback((match: MatchState, playerId: string) => {
+    const startedAt = Date.now();
     if (typeof Worker === "undefined") {
-      return import("../../lib/opponentAi").then(({ chooseOpponentAiCommand }) => (
-        chooseOpponentAiCommand(match, playerId)
-      ));
+      return import("../../lib/opponentAi").then(({ chooseOpponentAiCommand }) => ({
+        command: chooseOpponentAiCommand(match, playerId),
+        requestId: 0,
+        elapsedMs: Date.now() - startedAt,
+        transport: "main-thread" as const,
+      }));
     }
     let worker = botWorkerRef.current;
     if (!worker) {
@@ -220,14 +262,31 @@ export function GameplayClient() {
         if (!pending) return;
         botWorkerPending.current.delete(event.data.requestId);
         window.clearTimeout(pending.timeoutId);
-        if (event.data.error) pending.reject(new Error(event.data.error));
-        else pending.resolve(event.data.command ?? null);
+        if (event.data.error) {
+          pending.reject(opponentAiDecisionError(
+            "worker-error",
+            event.data.error,
+            event.data.requestId,
+            pending.startedAt,
+          ));
+        } else {
+          pending.resolve({
+            command: event.data.command ?? null,
+            requestId: event.data.requestId,
+            elapsedMs: Date.now() - pending.startedAt,
+            transport: "worker",
+          });
+        }
       });
       worker.addEventListener("error", (event) => {
-        const cause = new Error(event.message || "The opponent AI worker stopped unexpectedly.");
-        for (const pending of botWorkerPending.current.values()) {
+        for (const [requestId, pending] of botWorkerPending.current.entries()) {
           window.clearTimeout(pending.timeoutId);
-          pending.reject(cause);
+          pending.reject(opponentAiDecisionError(
+            "worker-error",
+            event.message || "The opponent AI worker stopped unexpectedly.",
+            requestId,
+            pending.startedAt,
+          ));
         }
         botWorkerPending.current.clear();
         worker?.terminate();
@@ -236,20 +295,42 @@ export function GameplayClient() {
       botWorkerRef.current = worker;
     }
     const requestId = ++botWorkerRequestId.current;
-    return new Promise<GameCommand | null>((resolve, reject) => {
+    return new Promise<OpponentAiDecisionResult>((resolve, reject) => {
       const activeWorker = worker!;
+      const requestStartedAt = Date.now();
       const timeoutId = window.setTimeout(() => {
         const pending = botWorkerPending.current.get(requestId);
         if (!pending) return;
         botWorkerPending.current.delete(requestId);
-        pending.reject(new Error("The opponent AI decision timed out."));
+        pending.reject(opponentAiDecisionError(
+          "worker-timeout",
+          "The opponent AI decision timed out.",
+          requestId,
+          pending.startedAt,
+        ));
         if (botWorkerRef.current === activeWorker) {
           activeWorker.terminate();
           botWorkerRef.current = null;
         }
       }, OPPONENT_AI_DECISION_TIMEOUT_MS);
-      botWorkerPending.current.set(requestId, { resolve, reject, timeoutId });
-      activeWorker.postMessage({ requestId, match, playerId });
+      botWorkerPending.current.set(requestId, {
+        resolve,
+        reject,
+        timeoutId,
+        startedAt: requestStartedAt,
+      });
+      try {
+        activeWorker.postMessage({ requestId, match, playerId });
+      } catch (cause) {
+        window.clearTimeout(timeoutId);
+        botWorkerPending.current.delete(requestId);
+        reject(opponentAiDecisionError(
+          "worker-error",
+          cause instanceof Error ? cause.message : "The opponent AI request could not be sent.",
+          requestId,
+          requestStartedAt,
+        ));
+      }
     });
   }, []);
 
@@ -612,34 +693,73 @@ export function GameplayClient() {
         try {
           const latest = readMatchStore().match;
           if (!latest || latest.id !== match.id || latest.version !== match.version) return;
-          const decision: GameCommand | null = playerCanFlipTieBreak(latest, "training-bot")
-            ? { type: "REVEAL_DAMAGE_FLIP" }
-            : shouldStartManualTieBreak(latest, "training-bot")
-              ? { type: "PASS_PRIORITY" }
-              : await requestOpponentAiDecision(latest, "training-bot");
+          let decision: GameCommand | null = null;
+          let diagnostic: {
+            reason: string;
+            requestId?: number;
+            elapsedMs?: number;
+            detail?: string;
+          } | null = null;
+
+          if (playerCanFlipTieBreak(latest, "training-bot")) {
+            decision = { type: "REVEAL_DAMAGE_FLIP" };
+          } else if (shouldStartManualTieBreak(latest, "training-bot")) {
+            decision = { type: "PASS_PRIORITY" };
+          } else {
+            try {
+              const primary = await requestOpponentAiDecision(latest, "training-bot");
+              decision = primary.command;
+              if (!decision) {
+                diagnostic = {
+                  reason: `${primary.transport}-null`,
+                  requestId: primary.requestId || undefined,
+                  elapsedMs: primary.elapsedMs,
+                  detail: "The tactical planner returned no command while Training could act.",
+                };
+                if (primary.transport === "worker") {
+                  const fallbackStartedAt = Date.now();
+                  try {
+                    const { chooseOpponentAiCommand } = await import("../../lib/opponentAi");
+                    decision = chooseOpponentAiCommand(latest, "training-bot");
+                    diagnostic.elapsedMs += Date.now() - fallbackStartedAt;
+                    if (!decision) diagnostic.reason = "worker-null-main-thread-null";
+                  } catch (cause) {
+                    diagnostic.reason = "worker-null-main-thread-error";
+                    diagnostic.detail += ` Main-thread retry: ${cause instanceof Error ? cause.message : "unknown failure"}`;
+                  }
+                }
+              }
+            } catch (cause) {
+              diagnostic = opponentAiFailureMetadata(cause);
+              const fallbackStartedAt = Date.now();
+              try {
+                const { chooseOpponentAiCommand } = await import("../../lib/opponentAi");
+                decision = chooseOpponentAiCommand(latest, "training-bot");
+                diagnostic.elapsedMs = (diagnostic.elapsedMs ?? 0) + Date.now() - fallbackStartedAt;
+                if (!decision) diagnostic.reason = `${diagnostic.reason}-main-thread-null`;
+              } catch (secondaryCause) {
+                diagnostic.reason = `${diagnostic.reason}-main-thread-error`;
+                diagnostic.detail = `${diagnostic.detail ?? ""} Main-thread retry: ${secondaryCause instanceof Error ? secondaryCause.message : "unknown failure"}`.trim();
+              }
+            }
+          }
+
           const current = readMatchStore().match;
           if (current?.id !== latest.id || current.version !== latest.version) return;
           const command = decision ?? recoverOpponentAiCommand(latest, "training-bot");
           if (command) {
+            const decisionState = diagnostic
+              ? withOpponentAiRecoveryDiagnostic(latest, {
+                ...diagnostic,
+                fallback: decision ? `strategic:${command.type}` : `primitive:${command.type}`,
+              })
+              : latest;
             publishMatch(dispatchLocalGameCommand(
-              latest,
+              decisionState,
               "training-bot",
               command,
               storedState.playerId ?? latest.players[0]?.id,
             ));
-          }
-        } catch {
-          const latest = readMatchStore().match;
-          if (latest?.id === match.id && latest.version === match.version) {
-            const recovered = recoverOpponentAiCommand(latest, "training-bot");
-            if (recovered) {
-              publishMatch(dispatchLocalGameCommand(
-                latest,
-                "training-bot",
-                recovered,
-                storedState.playerId ?? latest.players[0]?.id,
-              ));
-            }
           }
         } finally {
           if (botActionKey.current === key) botActionKey.current = "";
