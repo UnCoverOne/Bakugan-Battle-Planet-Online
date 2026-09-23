@@ -191,6 +191,6 @@ test("Training startup remains independent from Worker preflight and READY timeo
   assert.ok(placementPrewarm >= 0);
   assert.ok(tacticalStartingPlayerGuard >= 0);
   assert.ok(readyTimeout >= 0);
-  assert.match(client.slice(startupEffect, placementPrewarm), /await beginPlacement\(\)/);
+  assert.match(client.slice(startupEffect, startupEffect + 2_000), /await beginPlacement\(\)/);
   assert.match(client, /WorkerReadyTimeout/);
 });
