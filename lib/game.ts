@@ -3993,6 +3993,15 @@ function stageResolutionInstructionChoice(
     ? schema.fields.find((field) => field.id === instruction.condition.choiceId)
     : undefined;
   if (selectionField && selectionField.options.length === 0) return "skip";
+  // A replacement-style Sync instruction can contain a non-Sync fallback
+  // branch (for example Aquofreeze Beam's base +200 B). If the optional Sync
+  // reveal has no legal cards, that means Sync was not used; continue so the
+  // instruction's conditional can execute its fallback instead of skipping
+  // the whole instruction.
+  if (syncField?.minimum === 0 && syncField.options.length === 0) {
+    captureResolvedInstructionValues(state, pending, instruction, instructionIndex);
+    return "continue";
+  }
   if (schema.fields.every((field) => field.maximum === 0 && field.options.length === 0)) return "skip";
   if (!schemaHasLegalCompletion(schema)) {
     entry(state, "game", `${pending.card.name}: the clause had no legal choice and did nothing.`);
