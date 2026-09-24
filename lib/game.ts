@@ -3509,7 +3509,7 @@ case "swap-bakucore": {
         sourceZone = "discard";
         sourceOwnerId = pending.cardOwnerId ?? controllerId;
         selected = playerById(state, sourceOwnerId).discard.find((candidate) => candidate.id === card.id);
-      } else if (action.source === "revealed-hand") {
+      } else if (action.source === "self-hand" || action.source === "revealed-hand") {
         sourceZone = "hand";
         sourceOwnerId = pending.cardOwnerId ?? controllerId;
         selected = playerById(state, sourceOwnerId).hand.find((candidate) => candidate.id === card.id);

@@ -1125,7 +1125,21 @@ function costModifiersFor(card: GameCard): CostEffect[] {
     });
   }
 
-  const optionalSelfFree = !discardForFree && /you may play this(?: card)? for free/i.test(text);
+  // Self-free text is a payment rule only when its compiled instruction is
+  // ordinary. Triggered clauses such as Howling Shell Bomb and Hyper Howlkor
+  // grant a separate effect-originated play and must never become a normal
+  // zero-Energy payment mode.
+  const paymentSelfFreeInstructions = splitInstructions(card, text).filter((instruction) => (
+    /play this(?: card)? for free|this is free/i.test(instruction.sourceText)
+    && !instruction.effects.some((effect) => effect.kind === "trigger")
+  ));
+  // The compiled instruction decides whether this wording is a payment rule
+  // at all. Once it is, preserve the existing raw-text payment semantics so
+  // ordinary cards keep exactly the same alternative/free mode and condition.
+  const hasPaymentSelfFree = paymentSelfFreeInstructions.length > 0;
+  const optionalSelfFree = hasPaymentSelfFree
+    && !discardForFree
+    && /you may play this(?: card)? for free/i.test(text);
   if (optionalSelfFree) {
     result.push({
       kind: "cost-alternative",
@@ -1135,7 +1149,7 @@ function costModifiersFor(card: GameCard): CostEffect[] {
       components: [],
       condition: conditionFor(text),
     });
-  } else if (!discardForFree && /play this for free|this is free/i.test(text)) {
+  } else if (hasPaymentSelfFree && !discardForFree && /play this for free|this is free/i.test(text)) {
     result.push({ kind: "cost-free", duration: selfPlayCostDuration, condition: conditionFor(text) });
   }
   if (ruleCardId(card) === "aa-112") {

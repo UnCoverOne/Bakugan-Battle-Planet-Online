@@ -50,7 +50,17 @@ function activeSources(state: MatchState, owner: PlayerState, event: RuleEvent) 
     .filter((bakugan) => bakugan.open || bakugan.id === selectedId)
     .flatMap((bakugan) => [bakugan.evoStack.at(-1) ?? (bakugan.fused ? bakugan.fusionCharacter : undefined) ?? bakugan.character, ...(bakugan.bakuGear ?? [])]);
   const playedSource = event.card && (event.controllerId ?? event.actorId) === owner.id ? event.card : undefined;
-  const sources = [...bakuganSources, ...owner.heroes, ...(playedSource ? [playedSource] : [])];
+  // Some printed triggers grant permission to play the source itself from hand
+  // (for example, Hyper Howlkor). Only cards whose compiled triggered ability
+  // contains that explicit self-hand play are active while in the hand; other
+  // in-hand triggered text remains inactive.
+  const handSources = owner.hand.filter((source) => ruleDefinitionForCard(source).abilities.some((ability) => (
+    ability.kind === "triggered"
+    && ability.instructions.some((instruction) => instruction.actions.some((action) => (
+      action.kind === "play" && action.source === "self-hand"
+    )))
+  )));
+  const sources = [...bakuganSources, ...owner.heroes, ...handSources, ...(playedSource ? [playedSource] : [])];
   return sources.filter((source, index) => sources.findIndex((candidate) => candidate.id === source.id) === index);
 }
 
