@@ -162,7 +162,7 @@ test("browser converter muxes encoded Opus packets into an Ogg stream", async ()
   assert.ok(blob.size > 60);
 });
 
-test("music management is admin-only and gameplay playback stays native and deferred", async () => {
+test("music management is admin-only and gameplay playback stays streamed, ambient, and deferred", async () => {
   const [adminRoute, publicRoute, server, admin, layer, settings, migration, r2Migration, baseMigration] = await Promise.all([
     read("app/api/admin/music/route.ts"),
     read("app/api/music/route.ts"),
@@ -236,7 +236,15 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(worker, /fastPath: true/);
   assert.match(layer, /\[new Audio\(\), new Audio\(\)\]/);
   assert.match(layer, /preload = "none"/);
-  assert.match(layer, /requestAnimationFrame/);
+  assert.match(layer, /AudioContext/);
+  assert.match(layer, /createMediaElementSource/);
+  assert.match(layer, /createGain/);
+  assert.match(layer, /linearRampToValueAtTime/);
+  assert.match(layer, /audioSession/);
+  assert.match(layer, /session\.type = "ambient"/);
+  assert.doesNotMatch(layer, /requestAnimationFrame|cancelAnimationFrame/);
+  assert.doesNotMatch(layer, /document\.visibilityState === "hidden"/);
+  assert.doesNotMatch(layer, /decodeAudioData|AudioEncoder/);
   assert.match(layer, /pendingFadeInRef/);
   assert.match(layer, /manifest\.settings\?\.leadInFadeMs/);
   assert.match(layer, /musicBattleIntensity/);
@@ -248,7 +256,6 @@ test("music management is admin-only and gameplay playback stays native and defe
   assert.match(layer, /fetch\("\/api\/music", \{ cache: "no-store" \}\)/);
   assert.match(layer, /tracksRef\.current\[index\] = replacement/);
   assert.match(layer, /applyVolumes\(\);\s*for \(const index of \[0, 1\] as const\)/);
-  assert.doesNotMatch(layer, /AudioContext|decodeAudioData|AudioEncoder/);
   assert.match(settings, /label="Music"/);
   assert.match(settings, /musicVolume/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS music_settings/);
