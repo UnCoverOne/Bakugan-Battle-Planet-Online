@@ -29,7 +29,6 @@ type MusicTransition = {
   toIndex: 0 | 1;
   fromCategory: MusicCategory | null;
   toCategory: MusicCategory;
-  phase: "lead" | "fade";
   fadeStartedAt: number;
   fadeDurationMs: number;
 };
@@ -45,7 +44,27 @@ type PendingMusicFadeIn = {
   durationMs: number;
 };
 
+type AudioContextWindow = typeof window & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
+type NavigatorWithAudioSession = Navigator & {
+  audioSession?: {
+    type: "auto" | "ambient" | "playback" | "transient" | "transient-solo" | "play-and-record";
+  };
+};
+
 const clampVolume = (value: number) => Math.min(1, Math.max(0, value));
+
+const configureAmbientAudioSession = () => {
+  const session = (navigator as NavigatorWithAudioSession).audioSession;
+  if (!session) return;
+  try {
+    session.type = "ambient";
+  } catch {
+    // Audio Session is progressive enhancement; unsupported values must not block playback.
+  }
+};
 
 export function MusicLayer() {
   const pathname = usePathname();
@@ -60,10 +79,12 @@ export function MusicLayer() {
   const transitionRef = useRef<MusicTransition | null>(null);
   const startTimerRef = useRef<number | null>(null);
   const leadTimerRef = useRef<number | null>(null);
-  const fadeFrameRef = useRef<number | null>(null);
   const fadeInRef = useRef<MusicFadeIn | null>(null);
   const pendingFadeInRef = useRef<PendingMusicFadeIn | null>(null);
-  const fadeInFrameRef = useRef<number | null>(null);
+  const fadeInTimerRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const mediaSourcesRef = useRef<[MediaElementAudioSourceNode | null, MediaElementAudioSourceNode | null]>([null, null]);
+  const gainNodesRef = useRef<[GainNode | null, GainNode | null]>([null, null]);
   const nearEndTriggeredRef = useRef(false);
   const unlockedRef = useRef(false);
   const musicEnabledRef = useRef(true);
@@ -113,8 +134,64 @@ export function MusicLayer() {
     track ? musicGain(targetVolumeRef.current, masterVolumeRef.current, track.gainDb) : 0
   ), []);
 
-  const applyVolumes = useCallback(() => {
+  const ensureAudioGraph = useCallback(() => {
     const audios = audiosRef.current;
+    if (!audios[0] || !audios[1]) return null;
+
+    let context = audioContextRef.current;
+    if (!context) {
+      const AudioContextApi = window.AudioContext
+        ?? (window as AudioContextWindow).webkitAudioContext;
+      if (!AudioContextApi) return null;
+      context = new AudioContextApi();
+      audioContextRef.current = context;
+    }
+
+    for (const index of [0, 1] as const) {
+      if (mediaSourcesRef.current[index] && gainNodesRef.current[index]) continue;
+      const source = context.createMediaElementSource(audios[index]);
+      const gain = context.createGain();
+      gain.gain.value = 0;
+      source.connect(gain).connect(context.destination);
+      mediaSourcesRef.current[index] = source;
+      gainNodesRef.current[index] = gain;
+      audios[index].volume = 1;
+    }
+
+    return context;
+  }, []);
+
+  const scheduleChannelGain = useCallback((
+    index: 0 | 1,
+    fromValue: number,
+    toValue: number,
+    delayMs = 0,
+    durationMs = 0,
+  ) => {
+    const audio = audiosRef.current[index];
+    if (!audio) return;
+    const context = audioContextRef.current;
+    const gain = gainNodesRef.current[index];
+    const from = clampVolume(fromValue);
+    const to = clampVolume(toValue);
+
+    if (!context || !gain) {
+      audio.volume = to;
+      return;
+    }
+
+    audio.volume = 1;
+    const now = context.currentTime;
+    const rampStart = now + Math.max(0, delayMs) / 1_000;
+    const rampEnd = rampStart + Math.max(0, durationMs) / 1_000;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(from, now);
+    if (rampStart > now) gain.gain.setValueAtTime(from, rampStart);
+    if (rampEnd > rampStart) gain.gain.linearRampToValueAtTime(to, rampEnd);
+    else gain.gain.setValueAtTime(to, rampStart);
+  }, []);
+
+  const applyVolumes = useCallback(() => {
     const tracks = tracksRef.current;
     const transition = transitionRef.current;
     if (!transition) {
@@ -122,53 +199,68 @@ export function MusicLayer() {
       const fadeIn = fadeInRef.current;
       const pendingFadeIn = pendingFadeInRef.current;
       for (const index of [0, 1] as const) {
-        const audio = audios[index];
-        if (!audio) continue;
-        if (index !== active) {
-          audio.volume = 0;
-        } else if (pendingFadeIn?.index === index) {
-          audio.volume = 0;
-        } else if (fadeIn?.index === index) {
+        if (!audiosRef.current[index]) continue;
+        if (index !== active || pendingFadeIn?.index === index) {
+          scheduleChannelGain(index, 0, 0);
+          continue;
+        }
+        const target = gainForTrack(tracks[index]);
+        if (fadeIn?.index === index) {
+          const elapsedMs = Math.max(0, performance.now() - fadeIn.startedAt);
           const progress = fadeIn.durationMs <= 0
             ? 1
-            : Math.min(1, Math.max(0, (performance.now() - fadeIn.startedAt) / fadeIn.durationMs));
-          audio.volume = clampVolume(gainForTrack(tracks[index]) * progress);
+            : Math.min(1, elapsedMs / fadeIn.durationMs);
+          const current = target * progress;
+          scheduleChannelGain(
+            index,
+            current,
+            target,
+            0,
+            Math.max(0, fadeIn.durationMs - elapsedMs),
+          );
         } else {
-          audio.volume = gainForTrack(tracks[index]);
+          scheduleChannelGain(index, target, target);
         }
       }
       return;
     }
-    const fromAudio = audios[transition.fromIndex];
-    const toAudio = audios[transition.toIndex];
-    if (!fromAudio || !toAudio) return;
-    if (transition.phase === "lead") {
-      fromAudio.volume = gainForTrack(tracks[transition.fromIndex]);
-      toAudio.volume = 0;
-      return;
-    }
+
+    const now = performance.now();
+    const delayMs = Math.max(0, transition.fadeStartedAt - now);
+    const elapsedMs = Math.max(0, now - transition.fadeStartedAt);
     const progress = transition.fadeDurationMs <= 0
       ? 1
-      : Math.min(1, Math.max(0, (performance.now() - transition.fadeStartedAt) / transition.fadeDurationMs));
-    fromAudio.volume = clampVolume(gainForTrack(tracks[transition.fromIndex]) * (1 - progress));
-    toAudio.volume = clampVolume(gainForTrack(tracks[transition.toIndex]) * progress);
-  }, [gainForTrack]);
+      : Math.min(1, elapsedMs / transition.fadeDurationMs);
+    const remainingMs = Math.max(0, transition.fadeDurationMs - elapsedMs);
+    const fromTarget = gainForTrack(tracks[transition.fromIndex]);
+    const toTarget = gainForTrack(tracks[transition.toIndex]);
+    scheduleChannelGain(
+      transition.fromIndex,
+      fromTarget * (1 - progress),
+      0,
+      delayMs,
+      remainingMs,
+    );
+    scheduleChannelGain(
+      transition.toIndex,
+      toTarget * progress,
+      toTarget,
+      delayMs,
+      remainingMs,
+    );
+  }, [gainForTrack, scheduleChannelGain]);
 
   const clearTransitionTimers = useCallback(() => {
     if (leadTimerRef.current != null) {
       window.clearTimeout(leadTimerRef.current);
       leadTimerRef.current = null;
     }
-    if (fadeFrameRef.current != null) {
-      window.cancelAnimationFrame(fadeFrameRef.current);
-      fadeFrameRef.current = null;
-    }
   }, []);
 
   const clearLeadInFade = useCallback((preservePending = false) => {
-    if (fadeInFrameRef.current != null) {
-      window.cancelAnimationFrame(fadeInFrameRef.current);
-      fadeInFrameRef.current = null;
+    if (fadeInTimerRef.current != null) {
+      window.clearTimeout(fadeInTimerRef.current);
+      fadeInTimerRef.current = null;
     }
     fadeInRef.current = null;
     if (!preservePending) pendingFadeInRef.current = null;
@@ -185,7 +277,6 @@ export function MusicLayer() {
       || transitionRef.current
       || !unlockedRef.current
       || !musicEnabledRef.current
-      || document.visibilityState === "hidden"
     ) return;
     void audio.play().then(() => {
       if (
@@ -193,7 +284,6 @@ export function MusicLayer() {
         || activeIndexRef.current !== index
         || transitionRef.current
         || !musicEnabledRef.current
-        || document.visibilityState === "hidden"
       ) return;
       pendingFadeInRef.current = null;
       if (pending.durationMs <= 0) {
@@ -206,18 +296,13 @@ export function MusicLayer() {
         durationMs: pending.durationMs,
       };
       fadeInRef.current = fadeIn;
-      const frame = () => {
+      applyVolumes();
+      fadeInTimerRef.current = window.setTimeout(() => {
         if (fadeInRef.current !== fadeIn) return;
+        fadeInRef.current = null;
+        fadeInTimerRef.current = null;
         applyVolumes();
-        if (performance.now() - fadeIn.startedAt >= fadeIn.durationMs) {
-          fadeInRef.current = null;
-          fadeInFrameRef.current = null;
-          applyVolumes();
-          return;
-        }
-        fadeInFrameRef.current = window.requestAnimationFrame(frame);
-      };
-      frame();
+      }, pending.durationMs);
     }).catch(() => undefined);
   }, [applyVolumes]);
 
@@ -244,14 +329,12 @@ export function MusicLayer() {
     clearTransitionTimers();
     let keepIndex = transition.fromIndex;
     let keepCategory = transition.fromCategory;
-    if (transition.phase === "fade") {
-      const progress = transition.fadeDurationMs <= 0
-        ? 1
-        : Math.min(1, Math.max(0, (performance.now() - transition.fadeStartedAt) / transition.fadeDurationMs));
-      if (progress >= .5) {
-        keepIndex = transition.toIndex;
-        keepCategory = transition.toCategory;
-      }
+    const progress = transition.fadeDurationMs <= 0
+      ? 1
+      : Math.min(1, Math.max(0, (performance.now() - transition.fadeStartedAt) / transition.fadeDurationMs));
+    if (progress >= .5) {
+      keepIndex = transition.toIndex;
+      keepCategory = transition.toCategory;
     }
     const dropIndex = keepIndex === 0 ? 1 : 0;
     const dropAudio = audiosRef.current[dropIndex];
@@ -290,44 +373,6 @@ export function MusicLayer() {
     toAudio.volume = 0;
     tracksRef.current[toIndex] = next;
 
-    const transition: MusicTransition = {
-      fromIndex,
-      toIndex,
-      fromCategory: activeCategoryRef.current,
-      toCategory,
-      phase: "lead",
-      fadeStartedAt: 0,
-      fadeDurationMs,
-    };
-    transitionRef.current = transition;
-    nearEndTriggeredRef.current = false;
-    setCycle(0);
-
-    if (unlockedRef.current && musicEnabledRef.current && document.visibilityState !== "hidden") {
-      void toAudio.play().catch(() => undefined);
-      void fromAudio.play().catch(() => undefined);
-    }
-    applyVolumes();
-
-    const startFade = () => {
-      if (transitionRef.current !== transition) return;
-      transition.phase = "fade";
-      transition.fadeStartedAt = performance.now();
-      const frame = () => {
-        if (transitionRef.current !== transition) return;
-        applyVolumes();
-        const progress = transition.fadeDurationMs <= 0
-          ? 1
-          : (performance.now() - transition.fadeStartedAt) / transition.fadeDurationMs;
-        if (progress >= 1) {
-          finishTransition(transition);
-          return;
-        }
-        fadeFrameRef.current = window.requestAnimationFrame(frame);
-      };
-      frame();
-    };
-
     const fromTrack = tracksRef.current[fromIndex];
     const outgoingRemainingMs = fromTrack?.loop
       ? Number.POSITIVE_INFINITY
@@ -337,11 +382,28 @@ export function MusicLayer() {
       Math.max(0, next.durationMs - 1_000),
       Math.max(0, outgoingRemainingMs - fadeDurationMs),
     );
-    if (safeLeadIn > 0) {
-      leadTimerRef.current = window.setTimeout(startFade, safeLeadIn);
-    } else {
-      startFade();
+    const transition: MusicTransition = {
+      fromIndex,
+      toIndex,
+      fromCategory: activeCategoryRef.current,
+      toCategory,
+      fadeStartedAt: performance.now() + safeLeadIn,
+      fadeDurationMs,
+    };
+    transitionRef.current = transition;
+    nearEndTriggeredRef.current = false;
+    setCycle(0);
+
+    if (unlockedRef.current && musicEnabledRef.current) {
+      void toAudio.play().catch(() => undefined);
+      void fromAudio.play().catch(() => undefined);
     }
+    applyVolumes();
+
+    leadTimerRef.current = window.setTimeout(
+      () => finishTransition(transition),
+      safeLeadIn + fadeDurationMs,
+    );
   }, [applyVolumes, cancelTransition, clearLeadInFade, finishTransition]);
 
   useEffect(() => {
@@ -376,11 +438,19 @@ export function MusicLayer() {
         audio.removeAttribute("src");
       });
     });
+    configureAmbientAudioSession();
     return () => {
       if (startTimerRef.current != null) window.clearTimeout(startTimerRef.current);
       clearTransitionTimers();
       clearLeadInFade();
       for (const cleanup of cleanups) cleanup();
+      mediaSourcesRef.current.forEach((source) => source?.disconnect());
+      gainNodesRef.current.forEach((gain) => gain?.disconnect());
+      mediaSourcesRef.current = [null, null];
+      gainNodesRef.current = [null, null];
+      const context = audioContextRef.current;
+      audioContextRef.current = null;
+      if (context && context.state !== "closed") void context.close().catch(() => undefined);
       tracksRef.current = [null, null];
       audiosRef.current = [null, null];
     };
@@ -389,7 +459,10 @@ export function MusicLayer() {
   useEffect(() => {
     const unlock = () => {
       unlockedRef.current = true;
-      if (!musicEnabledRef.current || document.visibilityState === "hidden") return;
+      configureAmbientAudioSession();
+      const context = ensureAudioGraph();
+      if (context?.state === "suspended") void context.resume().catch(() => undefined);
+      if (!musicEnabledRef.current) return;
       applyVolumes();
       for (const index of [0, 1] as const) {
         if (tracksRef.current[index]) {
@@ -404,7 +477,7 @@ export function MusicLayer() {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
     };
-  }, [applyVolumes, beginLeadInFade]);
+  }, [applyVolumes, beginLeadInFade, ensureAudioGraph]);
 
   useEffect(() => {
     if (!musicEnabled || manifest) return;
@@ -495,14 +568,17 @@ export function MusicLayer() {
     if (!musicEnabled) {
       clearLeadInFade(Boolean(pendingFadeInRef.current));
       for (const audio of audiosRef.current) audio?.pause();
-    } else if (unlockedRef.current && document.visibilityState !== "hidden") {
+    } else if (unlockedRef.current) {
+      configureAmbientAudioSession();
+      const context = ensureAudioGraph();
+      if (context?.state === "suspended") void context.resume().catch(() => undefined);
       for (const index of [0, 1] as const) {
         if (!tracksRef.current[index]) continue;
         if (pendingFadeInRef.current?.index === index) beginLeadInFade(index);
         else void audiosRef.current[index]?.play().catch(() => undefined);
       }
     }
-  }, [applyVolumes, beginLeadInFade, clearLeadInFade, masterVolume, musicEnabled, targetVolume]);
+  }, [applyVolumes, beginLeadInFade, clearLeadInFade, ensureAudioGraph, masterVolume, musicEnabled, targetVolume]);
 
   useEffect(() => {
     if (!manifest || !musicEnabled || !category) {
@@ -533,7 +609,7 @@ export function MusicLayer() {
       && current.categories.includes(category)
     ) {
       applyVolumes();
-      if (unlockedRef.current && document.visibilityState !== "hidden") {
+      if (unlockedRef.current) {
         if (pendingFadeInRef.current?.index === activeIndex) beginLeadInFade(activeIndex);
         else void audio.play().catch(() => undefined);
       }
@@ -612,13 +688,25 @@ export function MusicLayer() {
   }, [applyVolumes, beginLeadInFade, cancelTransition, category, clearLeadInFade, cycle, manifest, musicEnabled, pathname, startTransition]);
 
   useEffect(() => {
-    const resume = () => {
-      if (document.visibilityState === "hidden") {
-        clearLeadInFade(Boolean(pendingFadeInRef.current));
-        for (const audio of audiosRef.current) audio?.pause();
-        return;
+    const recover = () => {
+      if (document.visibilityState !== "visible" || !musicEnabledRef.current || !unlockedRef.current) return;
+
+      const transition = transitionRef.current;
+      if (
+        transition
+        && performance.now() >= transition.fadeStartedAt + transition.fadeDurationMs
+      ) {
+        finishTransition(transition);
       }
-      if (!musicEnabledRef.current || !unlockedRef.current) return;
+
+      const fadeIn = fadeInRef.current;
+      if (fadeIn && performance.now() >= fadeIn.startedAt + fadeIn.durationMs) {
+        clearLeadInFade(true);
+      }
+
+      configureAmbientAudioSession();
+      const context = ensureAudioGraph();
+      if (context?.state === "suspended") void context.resume().catch(() => undefined);
       applyVolumes();
       for (const index of [0, 1] as const) {
         if (!tracksRef.current[index]) continue;
@@ -626,9 +714,9 @@ export function MusicLayer() {
         else void audiosRef.current[index]?.play().catch(() => undefined);
       }
     };
-    document.addEventListener("visibilitychange", resume);
-    return () => document.removeEventListener("visibilitychange", resume);
-  }, [applyVolumes, beginLeadInFade, clearLeadInFade]);
+    document.addEventListener("visibilitychange", recover);
+    return () => document.removeEventListener("visibilitychange", recover);
+  }, [applyVolumes, beginLeadInFade, clearLeadInFade, ensureAudioGraph, finishTransition]);
 
   return null;
 }
