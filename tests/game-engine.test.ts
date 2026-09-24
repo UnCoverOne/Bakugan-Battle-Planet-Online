@@ -307,6 +307,26 @@ test("optional Sync can be declined without applying its bonus", () => {
   assert.equal(totalPower(state, actor), before + 200);
 });
 
+test("Aquofreeze Beam applies its base +200 B when optional Sync has no legal reveal", () => {
+  let state = reachPower();
+  const actor = state.priority;
+  const player = state.players.find((candidate) => candidate.id === actor)!;
+  const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
+  target.open = true;
+  const syncCard = { ...CARDS.find((card) => card.catalogId === "ff-2")!, id: "sync-no-legal-reveal" };
+  const tooCheap = { ...CARDS.find((card) => card.catalogId === "bb-1")!, id: "sync-no-legal-reveal-too-cheap" };
+  player.hand = [syncCard, tooCheap];
+  player.energy = 20;
+  const before = totalPower(state, actor);
+
+  state = playCard(state, actor, syncCard.id);
+  state = passWindow(state);
+
+  assert.equal(state.pendingChoice, undefined, "no Sync prompt should be staged without a legal 5+ Energy reveal");
+  assert.equal(totalPower(state, actor), before + 200, "declining Sync implicitly must preserve Aquofreeze Beam's base effect");
+});
+
+
 test("Sync definitions keep played-card identity, follow-up choices, and revealed Evo damage typed", () => {
   const sameName = CARDS.find((card) => card.catalogId === "av-77")!;
   const sameNameDefinition = ruleDefinitionForCard(sameName);
