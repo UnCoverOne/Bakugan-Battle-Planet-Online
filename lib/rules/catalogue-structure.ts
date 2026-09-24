@@ -1125,18 +1125,31 @@ function costModifiersFor(card: GameCard): CostEffect[] {
     });
   }
 
-  const optionalSelfFree = !discardForFree && /you may play this(?: card)? for free/i.test(text);
-  if (optionalSelfFree) {
+  // Self-free text is a payment rule only when its compiled instruction is
+  // ordinary. Triggered clauses such as Howling Shell Bomb and Hyper Howlkor
+  // grant a separate effect-originated play and must never become a normal
+  // zero-Energy payment mode.
+  const paymentSelfFreeInstructions = splitInstructions(card, text).filter((instruction) => (
+    /play this(?: card)? for free|this is free/i.test(instruction.sourceText)
+    && !instruction.effects.some((effect) => effect.kind === "trigger")
+  ));
+  const optionalSelfFreeInstruction = !discardForFree
+    ? paymentSelfFreeInstructions.find((instruction) => /you may play this(?: card)? for free/i.test(instruction.sourceText))
+    : undefined;
+  if (optionalSelfFreeInstruction) {
     result.push({
       kind: "cost-alternative",
       id: `${ruleCardId(card)}:self-free`,
       label: "Play for free",
       setsBaseFree: true,
       components: [],
-      condition: conditionFor(text),
+      condition: optionalSelfFreeInstruction.condition,
     });
-  } else if (!discardForFree && /play this for free|this is free/i.test(text)) {
-    result.push({ kind: "cost-free", duration: selfPlayCostDuration, condition: conditionFor(text) });
+  } else if (!discardForFree) {
+    const freeSelfInstruction = paymentSelfFreeInstructions.find((instruction) => /play this for free|this is free/i.test(instruction.sourceText));
+    if (freeSelfInstruction) {
+      result.push({ kind: "cost-free", duration: selfPlayCostDuration, condition: freeSelfInstruction.condition });
+    }
   }
   if (ruleCardId(card) === "aa-112") {
     result.push({ kind: "cost-alternative", id: "aa-112:discard-two", label: "Discard two cards instead of paying the printed Energy cost", setsBaseFree: true, components: [{ kind: "cost-discard", amount: 2, choiceId: "discardCardIds" }] });
