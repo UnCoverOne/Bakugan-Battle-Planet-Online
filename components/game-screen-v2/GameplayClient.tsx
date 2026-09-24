@@ -1137,7 +1137,7 @@ export function GameplayClient() {
 
     const key = `pass:${match.version}:${actorId}`;
     if (automaticPassSchedule.current?.key !== key) {
-      automaticPassSchedule.current = { key, dueAt: Date.now() + 180 };
+      automaticPassSchedule.current = { key, dueAt: Date.now() + 550 };
     }
     const delay = Math.max(0, automaticPassSchedule.current.dueAt - Date.now());
     const timeout = window.setTimeout(() => {
