@@ -790,6 +790,8 @@ export function MusicLayer() {
               continue;
             }
             tracksRef.current[index] = replacement;
+            const source = sourcesRef.current[index];
+            if (source) source.loop = replacement.loop;
             if (
               index !== activeIndexRef.current
               && bufferKeysRef.current[index] !== trackBufferKey(replacement)
