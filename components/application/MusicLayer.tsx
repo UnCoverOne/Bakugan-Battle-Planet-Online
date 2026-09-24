@@ -528,9 +528,19 @@ export function MusicLayer() {
       || !musicEnabledRef.current
     ) return;
 
+    const index = (activeIndex === 0 ? 1 : 0) as 0 | 1;
+    const existing = prefetchedRef.current;
+    if (
+      existing
+      && existing.index === index
+      && existing.category === category
+      && existing.previousId === current.id
+      && buffersRef.current[index]
+      && bufferKeysRef.current[index] === `${existing.trackId}:${existing.revision}`
+    ) return;
+
     const next = weightedMusicTrack(currentManifest.tracks, category, current.id);
     if (!next) return;
-    const index = (activeIndex === 0 ? 1 : 0) as 0 | 1;
     const expected: PrefetchedTrack = {
       index,
       category,
@@ -538,17 +548,6 @@ export function MusicLayer() {
       trackId: next.id,
       revision: next.revision,
     };
-    const existing = prefetchedRef.current;
-    if (
-      existing
-      && existing.index === index
-      && existing.category === category
-      && existing.previousId === current.id
-      && existing.trackId === next.id
-      && existing.revision === next.revision
-      && buffersRef.current[index]
-    ) return;
-
     prefetchedRef.current = null;
     void loadTrackBuffer(index, next).then((loaded) => {
       if (!loaded) return;
