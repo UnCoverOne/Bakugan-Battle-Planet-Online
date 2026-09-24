@@ -461,7 +461,7 @@ export function MusicLayer() {
       unlockedRef.current = true;
       configureAmbientAudioSession();
       const context = ensureAudioGraph();
-      if (context?.state === "suspended") void context.resume().catch(() => undefined);
+      if (context && context.state !== "running" && context.state !== "closed") void context.resume().catch(() => undefined);
       if (!musicEnabledRef.current) return;
       applyVolumes();
       for (const index of [0, 1] as const) {
@@ -571,7 +571,7 @@ export function MusicLayer() {
     } else if (unlockedRef.current) {
       configureAmbientAudioSession();
       const context = ensureAudioGraph();
-      if (context?.state === "suspended") void context.resume().catch(() => undefined);
+      if (context && context.state !== "running" && context.state !== "closed") void context.resume().catch(() => undefined);
       for (const index of [0, 1] as const) {
         if (!tracksRef.current[index]) continue;
         if (pendingFadeInRef.current?.index === index) beginLeadInFade(index);
@@ -706,7 +706,7 @@ export function MusicLayer() {
 
       configureAmbientAudioSession();
       const context = ensureAudioGraph();
-      if (context?.state === "suspended") void context.resume().catch(() => undefined);
+      if (context && context.state !== "running" && context.state !== "closed") void context.resume().catch(() => undefined);
       applyVolumes();
       for (const index of [0, 1] as const) {
         if (!tracksRef.current[index]) continue;
