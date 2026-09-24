@@ -289,7 +289,7 @@ function triggerFor(text: string): TriggerDefinition | undefined {
     [/when you\s+Energize\s+a\s+card/i, "ENERGY_CARD_ENERGIZED", "controller"],
     [/when you attach a Baku-Gear to this/i, "BAKU_GEAR_ATTACHED", "controller"],
     [/copy the first Action card you play each turn/i, "CARD_PLAYED", "controller"],
-    [/when (?:your |an )?opponent plays/i, "CARD_PLAYED", "opponent"],
+    [/(?:when (?:your |an )?opponent plays|when another player plays)/i, "CARD_PLAYED", "opponent"],
     [/when you play this(?: card)?|when this is played/i, "CARD_PLAYED", "controller", "self"],
     [/when you play/i, "CARD_PLAYED", "controller"],
     [/when you select a Bakugan/i, "BAKUGAN_SELECTED", "controller"],
@@ -687,13 +687,23 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     amount: 1,
     sourceOwner: /opponent['’]s deck/i.test(text) ? "opponent" : "controller",
   });
-  if (/if another card causes you to reveal this(?: card)? from your hand[\s\S]*play this for free/i.test(text)) actions.push({
+  const revealedHandSelfPlay = /if another card causes you to reveal this(?: card)? from your hand[\s\S]*play this for free/i.test(text);
+  if (revealedHandSelfPlay) actions.push({
     kind: "play",
     source: "revealed-hand",
     free: true,
   });
+  const triggeredSelfHandPlay = !revealedHandSelfPlay
+    && /play this(?: card)? for free/i.test(text)
+    && Boolean(triggerFor(text));
+  if (triggeredSelfHandPlay) actions.push({
+    kind: "play",
+    source: "self-hand",
+    free: true,
+  });
   if (/play (?:it|this card) for free/i.test(text)
-    && !/if another card causes you to reveal this(?: card)? from your hand/i.test(text)) actions.push({
+    && !revealedHandSelfPlay
+    && !triggeredSelfHandPlay) actions.push({
     kind: "play",
     source: /(?:this is discarded|discard this card)/i.test(text) ? "self" : "revealed-deck",
     free: true,
