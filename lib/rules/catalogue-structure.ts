@@ -1133,23 +1133,24 @@ function costModifiersFor(card: GameCard): CostEffect[] {
     /play this(?: card)? for free|this is free/i.test(instruction.sourceText)
     && !instruction.effects.some((effect) => effect.kind === "trigger")
   ));
-  const optionalSelfFreeInstruction = !discardForFree
-    ? paymentSelfFreeInstructions.find((instruction) => /you may play this(?: card)? for free/i.test(instruction.sourceText))
-    : undefined;
-  if (optionalSelfFreeInstruction) {
+  // The compiled instruction decides whether this wording is a payment rule
+  // at all. Once it is, preserve the existing raw-text payment semantics so
+  // ordinary cards keep exactly the same alternative/free mode and condition.
+  const hasPaymentSelfFree = paymentSelfFreeInstructions.length > 0;
+  const optionalSelfFree = hasPaymentSelfFree
+    && !discardForFree
+    && /you may play this(?: card)? for free/i.test(text);
+  if (optionalSelfFree) {
     result.push({
       kind: "cost-alternative",
       id: `${ruleCardId(card)}:self-free`,
       label: "Play for free",
       setsBaseFree: true,
       components: [],
-      condition: optionalSelfFreeInstruction.condition,
+      condition: conditionFor(text),
     });
-  } else if (!discardForFree) {
-    const freeSelfInstruction = paymentSelfFreeInstructions.find((instruction) => /play this for free|this is free/i.test(instruction.sourceText));
-    if (freeSelfInstruction) {
-      result.push({ kind: "cost-free", duration: selfPlayCostDuration, condition: freeSelfInstruction.condition });
-    }
+  } else if (hasPaymentSelfFree && !discardForFree && /play this for free|this is free/i.test(text)) {
+    result.push({ kind: "cost-free", duration: selfPlayCostDuration, condition: conditionFor(text) });
   }
   if (ruleCardId(card) === "aa-112") {
     result.push({ kind: "cost-alternative", id: "aa-112:discard-two", label: "Discard two cards instead of paying the printed Energy cost", setsBaseFree: true, components: [{ kind: "cost-discard", amount: 2, choiceId: "discardCardIds" }] });
