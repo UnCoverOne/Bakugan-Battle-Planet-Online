@@ -422,6 +422,26 @@ export function MusicLayer() {
     if (!preservePending) pendingFadeInRef.current = null;
   }, [clearFadeInTimer]);
 
+  const armFadeInTimer = useCallback((fadeIn: MusicFadeIn) => {
+    clearFadeInTimer();
+    const context = audioContextRef.current;
+    if (
+      !context
+      || fadeInRef.current !== fadeIn
+      || shouldSuspendMusicInBackground()
+    ) return;
+    const remainingMs = Math.max(
+      0,
+      (fadeIn.startedAt + fadeIn.durationSeconds - context.currentTime) * 1_000,
+    );
+    fadeInTimerRef.current = window.setTimeout(() => {
+      if (fadeInRef.current !== fadeIn) return;
+      fadeInRef.current = null;
+      fadeInTimerRef.current = null;
+      applyVolumes();
+    }, remainingMs);
+  }, [applyVolumes, clearFadeInTimer]);
+
   const scheduleNearEnd = useCallback((index: 0 | 1) => {
     clearNearEndTimer(index);
     if (shouldSuspendMusicInBackground()) return;
@@ -522,17 +542,8 @@ export function MusicLayer() {
     };
     fadeInRef.current = fadeIn;
     applyVolumes();
-    const remainingMs = Math.max(
-      0,
-      (fadeIn.startedAt + fadeIn.durationSeconds - context.currentTime) * 1_000,
-    );
-    fadeInTimerRef.current = window.setTimeout(() => {
-      if (fadeInRef.current !== fadeIn) return;
-      fadeInRef.current = null;
-      fadeInTimerRef.current = null;
-      applyVolumes();
-    }, remainingMs);
-  }, [applyVolumes, startSource]);
+    armFadeInTimer(fadeIn);
+  }, [applyVolumes, armFadeInTimer, startSource]);
 
   const invalidatePrefetch = useCallback(() => {
     const prefetched = prefetchedRef.current;
@@ -1069,7 +1080,18 @@ export function MusicLayer() {
         clearTransitionTimer();
         clearFadeInTimer();
         for (const index of [0, 1] as const) clearNearEndTimer(index);
-        if (context?.state === "running") void context.suspend().catch(() => undefined);
+        if (context?.state === "running") {
+          void context.suspend().then(() => {
+            if (
+              !shouldSuspendMusicInBackground()
+              && musicEnabledRef.current
+              && unlockedRef.current
+              && context.state === "suspended"
+            ) {
+              void context.resume().catch(() => undefined);
+            }
+          }).catch(() => undefined);
+        }
         return;
       }
 
@@ -1108,19 +1130,7 @@ export function MusicLayer() {
         }
 
         const currentFadeIn = fadeInRef.current;
-        if (currentFadeIn) {
-          clearFadeInTimer();
-          const remainingMs = Math.max(
-            0,
-            (currentFadeIn.startedAt + currentFadeIn.durationSeconds - resumedContext.currentTime) * 1_000,
-          );
-          fadeInTimerRef.current = window.setTimeout(() => {
-            if (fadeInRef.current !== currentFadeIn) return;
-            fadeInRef.current = null;
-            fadeInTimerRef.current = null;
-            applyVolumes();
-          }, remainingMs);
-        }
+        if (currentFadeIn) armFadeInTimer(currentFadeIn);
       }
       applyVolumes();
     };
@@ -1128,6 +1138,7 @@ export function MusicLayer() {
     return () => document.removeEventListener("visibilitychange", recover);
   }, [
     applyVolumes,
+    armFadeInTimer,
     armTransitionTimer,
     beginLeadInFade,
     clearFadeInTimer,
