@@ -250,8 +250,16 @@ test("music management is admin-only and gameplay playback stays pure Web Audio,
   assert.match(layer, /buffersRef\.current\[index\] = buffersRef\.current\[otherIndex\]/);
   assert.match(layer, /audioSession/);
   assert.match(layer, /session\.type = "ambient"/);
+  assert.match(layer, /isMobileAudioEnvironment/);
+  assert.match(layer, /userAgentData\?\.mobile === true/);
+  assert.match(layer, /Android\|iPhone\|iPad\|iPod/);
+  assert.match(layer, /document\.visibilityState === "hidden" && isMobileAudioEnvironment\(\)/);
+  assert.match(layer, /if \(shouldSuspendMusicInBackground\(\)\) \{/);
+  assert.match(layer, /context\.suspend\(\)/);
+  assert.match(layer, /clearTransitionTimer\(\);\s*clearFadeInTimer\(\);/);
+  assert.match(layer, /for \(const index of \[0, 1\] as const\) clearNearEndTimer\(index\)/);
+  assert.match(layer, /!shouldSuspendMusicInBackground\(\)[\s\S]*context\.resume\(\)/);
   assert.doesNotMatch(layer, /requestAnimationFrame|cancelAnimationFrame/);
-  assert.doesNotMatch(layer, /document\.visibilityState === "hidden"/);
   assert.doesNotMatch(layer, /AudioEncoder/);
   assert.match(layer, /pendingFadeInRef/);
   assert.match(layer, /manifest\.settings\?\.leadInFadeMs/);
