@@ -147,6 +147,30 @@ test("Poison Sting separates enemy-Core removal from its Empower field-Core atta
   );
 });
 
+test("Bakuslumber compiles its linked Energize sentence into the negate destination", () => {
+  const bakuslumber = CARDS.find((candidate) => candidate.catalogId === "ff-63");
+  assert.ok(bakuslumber);
+  const definition = ruleDefinitionForCard(bakuslumber);
+  const spell = definition.abilities.find((ability) => ability.kind === "spell");
+  assert.ok(spell);
+
+  const negateInstruction = spell.instructions.find((instruction) => (
+    instruction.actions.some((action) => action.kind === "negate")
+  ));
+  assert.ok(negateInstruction);
+  assert.match(negateInstruction.sourceText, /Its controller Energizes it uncharged\./i);
+
+  const negate = negateInstruction.actions.find((action) => action.kind === "negate");
+  assert.equal(negate?.kind, "negate");
+  if (negate?.kind === "negate") {
+    assert.deepEqual(negate.destination, {
+      zone: "energy",
+      player: "target-controller",
+      enters: "uncharged",
+    });
+  }
+});
+
 test("instead clauses are single typed replacement branches, not additive actions", () => {
   const replacementCards = CARDS.filter((card) => (
     ["BB", "BR", "AA", "EX"].some((set) => card.catalogId.startsWith(`${set.toLowerCase()}-`))
