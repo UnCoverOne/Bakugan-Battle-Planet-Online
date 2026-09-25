@@ -780,19 +780,23 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     : undefined;
   if (/negate (?:a|an) Hero or Action card/i.test(text)) actions.push({
     kind: "negate", cardType: "any", copy: false, targetChoiceId: "targetEffectId",
-    maximumCost: negateLimit, targetKinds: ["card"], destination: negateDestination,
+    maximumCost: negateLimit, targetKinds: ["card"],
+    ...(negateDestination ? { destination: negateDestination } : {}),
   });
   else if (/negate a Baku-Gear(?: card)?/i.test(text)) actions.push({
     kind: "negate", cardType: "Baku-Gear", copy: false, targetChoiceId: "targetEffectId",
-    maximumCost: negateLimit, targetKinds: ["card"], destination: negateDestination,
+    maximumCost: negateLimit, targetKinds: ["card"],
+    ...(negateDestination ? { destination: negateDestination } : {}),
   });
   else if (/negate an action/i.test(text)) actions.push({
     kind: "negate", cardType: "Action", copy: /copy/i.test(text), targetChoiceId: "targetEffectId",
-    maximumCost: negateLimit, targetKinds: ["card"], destination: negateDestination,
+    maximumCost: negateLimit, targetKinds: ["card"],
+    ...(negateDestination ? { destination: negateDestination } : {}),
   });
   else if (/negate a hero/i.test(text)) actions.push({
     kind: "negate", cardType: "Hero", copy: false, targetChoiceId: "targetEffectId",
-    maximumCost: negateLimit, targetKinds: ["card"], destination: negateDestination,
+    maximumCost: negateLimit, targetKinds: ["card"],
+    ...(negateDestination ? { destination: negateDestination } : {}),
   });
   if (/search your deck/i.test(text)) actions.push({ kind: "search", cardType: text.match(/for an? (Action|Hero|Evo|Flip)/i)?.[1], amount: 1 });
   if (/copy the next action/i.test(text)) actions.push({ kind: "copy", target: "next-action", independentChoices: true, count: { kind: "constant", value: 1 }, controller: "controller" });

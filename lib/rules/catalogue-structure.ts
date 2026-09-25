@@ -95,7 +95,7 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     "$1 $2",
   );
   const clauses = normalized
-    ? normalized.split(/(?<=\.)\s+(?!They do not recharge at the end of the turn\.)/i).map((clause) => clause.trim()).filter(Boolean)
+    ? normalized.split(/(?<=\.)\s+(?!(?:They do not recharge at the end of the turn\.|Its controller Energizes it uncharged\.|You may copy its effect(?: and make your own selections for it)?\.))/i).map((clause) => clause.trim()).filter(Boolean)
       .flatMap((clause) => {
         // "Attach up to N" is modelled as N optional sequential selections.
         // This preserves the printed 0..N choice without requiring one giant
