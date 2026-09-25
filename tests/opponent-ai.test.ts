@@ -13,6 +13,8 @@ import {
   type PlayerState,
 } from "../lib/game";
 import { advanceOpponentAi, chooseCardChoices } from "../lib/opponentAi";
+import { bestAiRollTarget } from "../lib/aiRollForecast";
+import { CARDS } from "../lib/data";
 
 const gameplayClient = readFileSync(
   new URL("../components/game-screen-v2/GameplayClient.tsx", import.meta.url),
@@ -228,6 +230,55 @@ test("roll targeting values the resolved modulo-four Core, not the selected Core
   assert.ok(next);
   assert.equal(next.targets[ai.id], row[3]);
   assert.notEqual(next.targets[ai.id], row[4]);
+});
+
+test("Hydorous prefers an available Helix over Magic Shield when its printed Helix bonus is stronger", () => {
+  const hydorousCard = structuredClone(CARDS.find((candidate) => candidate.catalogId === "av-167")!);
+  hydorousCard.id = "hydorous-character";
+  const aiBakugan = bakugan("av-167-training-bot", "Aquos", 400, 4, {
+    character: hydorousCard,
+  });
+  const ai = player("training-bot", [aiBakugan]);
+  const human = player("mrkxih56-drmlacg4", [bakugan("human-b", "Darkus", 800, 2)]);
+  const match = matchWith(ai, human, "target");
+  match.selected[ai.id] = aiBakugan.id;
+  match.selected[human.id] = human.bakugan[0].id;
+
+  const placement = (
+    cellId: string,
+    type: Core["type"],
+    bonus: number,
+    damageBonus: number,
+    ownerId: string,
+    order: number,
+    attachedTo?: string,
+  ) => ({
+    playerId: ownerId,
+    core: core(`forecast-${cellId}`, bonus, damageBonus, { type }),
+    cell: cellId,
+    order,
+    ...(attachedTo ? { attachedTo } : {}),
+  });
+
+  match.placements = [
+    placement("h3-3", "Shield", 0, 0, ai.id, 1),
+    placement("h3-4", "Magic Shield", 650, 0, human.id, 2),
+    placement("h2-4", "Magic Shield", 650, 0, ai.id, 3),
+    placement("h3-5", "Magic Shield", 650, 0, human.id, 4),
+    placement("h2-5", "Magic Shield", 650, 0, ai.id, 5),
+    placement("h4-4", "Helix", 600, -3, human.id, 6),
+    placement("h4-5", "Helix", 600, -3, human.id, 7, "already-attached"),
+    placement("h2-3", "Helix", 600, -3, ai.id, 8),
+    placement("h2-2", "Shield", 0, 0, human.id, 9),
+    placement("h3-2", "Fist", 150, 2, ai.id, 10),
+    placement("h2-1", "Fist", 150, 2, human.id, 11),
+    placement("h1-1", "Helix", 600, -3, ai.id, 12),
+  ];
+
+  const best = bestAiRollTarget(match, ai.id);
+  assert.ok(best);
+  assert.equal(best.core.type, "Helix");
+  assert.notEqual(best.cell, "h2-4");
 });
 
 test("harmful effects target the strongest enemy Bakugan", () => {
