@@ -2022,7 +2022,13 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
     return withVersion(state);
   }
   const merged = mergeChoiceAnswers(pending.schema, pending.answers);
-  const submittedSyncCardId = choices.syncCardId?.[0] ?? merged.syncCardId;
+  // syncCardId is a single-select field. Older UI/tests sometimes submitted a
+  // one-element array, while the AI submits the canonical scalar string.
+  // Normalize both shapes before revealing the selected physical card.
+  const submittedSyncValue = choices.syncCardId ?? merged.syncCardId;
+  const submittedSyncCardId = Array.isArray(submittedSyncValue)
+    ? submittedSyncValue[0]
+    : submittedSyncValue;
   const syncCauseCard = pending.kind === "resolution" && pending.pendingEffectId
     ? state.batch.find((candidate) => candidate.id === pending.pendingEffectId)?.card
     : undefined;
@@ -2049,7 +2055,7 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
       ...(effect.resolvedChoices ?? {}),
       [String(pending.instructionIndex)]: {
         ...(effect.resolvedChoices?.[String(pending.instructionIndex)] ?? {}),
-        syncCardId: choices.syncCardId,
+        syncCardId: submittedSyncCardId,
       },
     };
     if (revealTriggers.length) {
@@ -3642,8 +3648,18 @@ case "swap-bakucore": {
         const [negated] = state.batch.splice(index, 1);
         if (isRuleObject(negated)) negateRuleObject(negated);
         if (negated.kind === "card" && ["Action", "Flip", "Flip Hero", "Hero", "Baku-Gear", "Evo"].includes(negated.card.type)) {
-          const owner = playerById(state, negated.cardOwnerId ?? negated.controllerId);
-          if (!owner.discard.some((candidate) => candidate.id === negated.card.id)) owner.discard.push(negated.card);
+          if (action.destination?.zone === "energy" && action.destination.player === "target-controller") {
+            const destination = playerById(state, negated.controllerId);
+            if (!destination.energyZone.some((candidate) => candidate.id === negated.card.id)) {
+              applyEnergyEntryVisibility([negated.card], "self");
+              destination.energyZone.push(negated.card);
+              applyEnergizedEntryState(state, destination, [negated.card], action.destination.enters);
+              emitEnergizedEvents(state, destination, [negated.card], `${pending.id}:negate-energize:${actionIndex}`);
+            }
+          } else {
+            const owner = playerById(state, negated.cardOwnerId ?? negated.controllerId);
+            if (!owner.discard.some((candidate) => candidate.id === negated.card.id)) owner.discard.push(negated.card);
+          }
         }
         if (action.copy && choices.confirmed !== false) {
           const typed = isRuleObject(negated) ? negated : normalizeRuleObjects({ ...state, batch: [negated] }).batch[0];
