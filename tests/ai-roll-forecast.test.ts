@@ -11,7 +11,7 @@ import {
 import { bestAiRollTarget, forecastAiRoll } from "../lib/aiRollForecast";
 import { advanceOpponentAi } from "../lib/opponentAi";
 
-function core(id: string, type: Core["type"], bonus: number): Core {
+function core(id: string, type: Core["type"], bonus: number, damageBonus = 0): Core {
   return {
     id,
     catalogId: id,
@@ -19,7 +19,7 @@ function core(id: string, type: Core["type"], bonus: number): Core {
     name: id,
     type,
     bonus,
-    damageBonus: 0,
+    damageBonus,
     art: "",
   };
 }
@@ -84,6 +84,82 @@ test("AI roll forecast includes Character abilities activated by the targeted Ba
   // The Magic Shield itself has no printed bonus here, while the Fist has +500 B.
   assert.ok(magicShieldForecast.value > fistForecast.value);
   assert.equal(bestAiRollTarget(match, ai.id)?.cell, magicShieldCell);
+});
+
+test("Hydorous compares Helix and Magic Shield with the same forecast samples", () => {
+  const ai = makePlayer("training-bot", "Training AI", STARTER_DECKS[0]);
+  const human = makePlayer("mrkxih56-drmlacg4", "Human", STARTER_DECKS[1]);
+  const character = CARDS.find((card) => card.catalogId === "av-167");
+  assert.ok(character);
+  const hydorous: Bakugan = {
+    id: "av-167-training-bot",
+    name: character.displayName || character.name,
+    faction: "Aquos",
+    bPower: character.bPower ?? 400,
+    damage: character.damage ?? 4,
+    rollAccuracy: 90,
+    doubleCoreChance: 5,
+    art: character.art,
+    character: { ...character, id: "hydorous-character" },
+    open: false,
+    heldCoreCells: [],
+    evoStack: [],
+  };
+  ai.bakugan[0] = hydorous;
+
+  const match = createMatch("AICORE-HYDOROUS", "bo1", [ai, human]);
+  match.turn = 2;
+  match.phase = "target";
+  match.stepLabel = "Roll Phase • Rolling Step • Choose BakuCore targets";
+  match.startingPlayer = human.id;
+  match.initialStartingPlayer = human.id;
+  match.priority = ai.id;
+  match.selected[ai.id] = hydorous.id;
+  match.selected[human.id] = human.bakugan[0].id;
+
+  const add = (
+    cell: string,
+    type: Core["type"],
+    bonus: number,
+    damageBonus: number,
+    ownerId: string,
+    order: number,
+    attachedTo?: string,
+  ) => ({
+    playerId: ownerId,
+    core: core(`hydorous-${cell}`, type, bonus, damageBonus),
+    cell,
+    order,
+    ...(attachedTo ? { attachedTo } : {}),
+  });
+
+  match.placements = [
+    add("h3-3", "Shield", 0, 0, ai.id, 1),
+    add("h3-4", "Magic Shield", 650, 0, human.id, 2),
+    add("h2-4", "Magic Shield", 650, 0, ai.id, 3),
+    add("h3-5", "Magic Shield", 650, 0, human.id, 4),
+    add("h2-5", "Magic Shield", 650, 0, ai.id, 5),
+    add("h4-4", "Helix", 600, -3, human.id, 6),
+    add("h4-5", "Helix", 600, -3, human.id, 7, "already-attached"),
+    add("h2-3", "Helix", 600, -3, ai.id, 8),
+    add("h2-2", "Shield", 0, 0, human.id, 9),
+    add("h3-2", "Fist", 150, 2, ai.id, 10),
+    add("h2-1", "Fist", 150, 2, human.id, 11),
+    add("h1-1", "Helix", 600, -3, ai.id, 12),
+  ];
+
+  const magicShield = match.placements.find((placement) => placement.cell === "h2-4");
+  const helix = match.placements.find((placement) => placement.cell === "h2-3");
+  assert.ok(magicShield && helix);
+  assert.ok(
+    forecastAiRoll(match, ai.id, hydorous, helix).value
+      > forecastAiRoll(match, ai.id, hydorous, magicShield).value,
+  );
+
+  const best = bestAiRollTarget(match, ai.id);
+  assert.ok(best);
+  assert.equal(best.core.type, "Helix");
+  assert.notEqual(best.cell, "h2-4");
 });
 
 test("AI target selection uses the ability-aware roll forecast", () => {
