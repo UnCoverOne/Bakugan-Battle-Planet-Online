@@ -85,6 +85,9 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     /\s*\n\s*(?=(?:(?:\d+)\s+\[Energy\]|\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:\s*<Fusion>)/gi,
     ". ",
   ).replace(/\s*\n\s*/g, " ").trim().replace(
+    /(\bNegate (?:a|an) [^.]+ card\.)\s+(Its controller Energizes it uncharged\.)/gi,
+    "$1 $2",
+  ).replace(
     /(\bNegate an Action card\.)\s+(You may copy its effect(?: and make your own selections for it)?\.)/gi,
     "$1 $2",
   ).replace(
