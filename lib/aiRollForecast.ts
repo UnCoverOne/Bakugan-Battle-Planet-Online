@@ -169,7 +169,10 @@ function forecastAiRollForObjective(
   }
 
   const primaryCounts = new Map<string, number>();
-  const seed = stableHash([playerId, bakugan.id, target.cell].join(":"));
+  // Compare every candidate target against the same deterministic physical-roll
+  // samples. Including target.cell in the seed gave each Core a different luck
+  // distribution, so sampling noise could outrank a materially stronger Core.
+  const seed = stableHash([playerId, bakugan.id].join(":"));
   let totalValue = 0;
   let totalCombatUtility = 0;
   let combatWins = 0;
