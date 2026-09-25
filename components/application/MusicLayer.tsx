@@ -34,6 +34,12 @@ type NavigatorWithAudioSession = Navigator & {
   };
 };
 
+type NavigatorWithMobileHint = Navigator & {
+  userAgentData?: {
+    mobile?: boolean;
+  };
+};
+
 type MusicTransition = {
   fromIndex: 0 | 1;
   toIndex: 0 | 1;
@@ -74,6 +80,17 @@ const configureAmbientAudioSession = () => {
     // Audio Session is progressive enhancement; unsupported values must not block playback.
   }
 };
+
+const isMobileAudioEnvironment = () => {
+  const nav = navigator as NavigatorWithMobileHint;
+  if (nav.userAgentData?.mobile === true) return true;
+  if (/Android|iPhone|iPad|iPod/i.test(nav.userAgent)) return true;
+  return nav.platform === "MacIntel" && nav.maxTouchPoints > 1;
+};
+
+const shouldSuspendMusicInBackground = () => (
+  document.visibilityState === "hidden" && isMobileAudioEnvironment()
+);
 
 export function MusicLayer() {
   const pathname = usePathname();
@@ -173,7 +190,12 @@ export function MusicLayer() {
   const resumeAudioContext = useCallback(() => {
     configureAmbientAudioSession();
     const context = ensureAudioGraph();
-    if (context && context.state !== "running" && context.state !== "closed") {
+    if (
+      context
+      && !shouldSuspendMusicInBackground()
+      && context.state !== "running"
+      && context.state !== "closed"
+    ) {
       void context.resume().catch(() => undefined);
     }
     return context;
@@ -387,17 +409,42 @@ export function MusicLayer() {
     }
   }, []);
 
-  const clearLeadInFade = useCallback((preservePending = false) => {
+  const clearFadeInTimer = useCallback(() => {
     if (fadeInTimerRef.current != null) {
       window.clearTimeout(fadeInTimerRef.current);
       fadeInTimerRef.current = null;
     }
+  }, []);
+
+  const clearLeadInFade = useCallback((preservePending = false) => {
+    clearFadeInTimer();
     fadeInRef.current = null;
     if (!preservePending) pendingFadeInRef.current = null;
-  }, []);
+  }, [clearFadeInTimer]);
+
+  const armFadeInTimer = useCallback((fadeIn: MusicFadeIn) => {
+    clearFadeInTimer();
+    const context = audioContextRef.current;
+    if (
+      !context
+      || fadeInRef.current !== fadeIn
+      || shouldSuspendMusicInBackground()
+    ) return;
+    const remainingMs = Math.max(
+      0,
+      (fadeIn.startedAt + fadeIn.durationSeconds - context.currentTime) * 1_000,
+    );
+    fadeInTimerRef.current = window.setTimeout(() => {
+      if (fadeInRef.current !== fadeIn) return;
+      fadeInRef.current = null;
+      fadeInTimerRef.current = null;
+      applyVolumes();
+    }, remainingMs);
+  }, [applyVolumes, clearFadeInTimer]);
 
   const scheduleNearEnd = useCallback((index: 0 | 1) => {
     clearNearEndTimer(index);
+    if (shouldSuspendMusicInBackground()) return;
     const track = tracksRef.current[index];
     const buffer = buffersRef.current[index];
     if (!track || !buffer || track.loop) return;
@@ -470,7 +517,8 @@ export function MusicLayer() {
     const pending = pendingFadeInRef.current;
     const context = audioContextRef.current;
     if (
-      !pending
+      shouldSuspendMusicInBackground()
+      || !pending
       || pending.index !== index
       || !context
       || !buffersRef.current[index]
@@ -494,13 +542,8 @@ export function MusicLayer() {
     };
     fadeInRef.current = fadeIn;
     applyVolumes();
-    fadeInTimerRef.current = window.setTimeout(() => {
-      if (fadeInRef.current !== fadeIn) return;
-      fadeInRef.current = null;
-      fadeInTimerRef.current = null;
-      applyVolumes();
-    }, pending.durationMs);
-  }, [applyVolumes, startSource]);
+    armFadeInTimer(fadeIn);
+  }, [applyVolumes, armFadeInTimer, startSource]);
 
   const invalidatePrefetch = useCallback(() => {
     const prefetched = prefetchedRef.current;
@@ -577,6 +620,24 @@ export function MusicLayer() {
     applyVolumes();
     prefetchNextForActive();
   }, [applyVolumes, clearTransitionTimer, prefetchNextForActive, releaseSlot]);
+
+  const armTransitionTimer = useCallback((transition: MusicTransition) => {
+    clearTransitionTimer();
+    const context = audioContextRef.current;
+    if (
+      !context
+      || transitionRef.current !== transition
+      || shouldSuspendMusicInBackground()
+    ) return;
+    const remainingMs = Math.max(
+      0,
+      (transition.fadeStartedAt + transition.fadeDurationSeconds - context.currentTime) * 1_000,
+    );
+    transitionTimerRef.current = window.setTimeout(
+      () => finishTransition(transition),
+      remainingMs,
+    );
+  }, [clearTransitionTimer, finishTransition]);
 
   const cancelTransition = useCallback(() => {
     const transition = transitionRef.current;
@@ -681,16 +742,13 @@ export function MusicLayer() {
     setCycle(0);
     applyVolumes();
 
-    transitionTimerRef.current = window.setTimeout(
-      () => finishTransition(transition),
-      safeLeadIn + fadeDurationMs,
-    );
+    armTransitionTimer(transition);
   }, [
     applyVolumes,
+    armTransitionTimer,
     cancelTransition,
     clearLeadInFade,
     currentPositionSeconds,
-    finishTransition,
     loadTrackBuffer,
     releaseSlot,
     resumeAudioContext,
@@ -1017,14 +1075,34 @@ export function MusicLayer() {
 
   useEffect(() => {
     const recover = () => {
+      const context = audioContextRef.current;
+      if (shouldSuspendMusicInBackground()) {
+        clearTransitionTimer();
+        clearFadeInTimer();
+        for (const index of [0, 1] as const) clearNearEndTimer(index);
+        if (context?.state === "running") {
+          void context.suspend().then(() => {
+            if (
+              !shouldSuspendMusicInBackground()
+              && musicEnabledRef.current
+              && unlockedRef.current
+              && context.state === "suspended"
+            ) {
+              void context.resume().catch(() => undefined);
+            }
+          }).catch(() => undefined);
+        }
+        return;
+      }
+
       if (document.visibilityState !== "visible" || !musicEnabledRef.current || !unlockedRef.current) return;
-      const context = resumeAudioContext();
-      if (!context) return;
+      const resumedContext = resumeAudioContext();
+      if (!resumedContext) return;
 
       const transition = transitionRef.current;
       if (
         transition
-        && context.currentTime >= transition.fadeStartedAt + transition.fadeDurationSeconds
+        && resumedContext.currentTime >= transition.fadeStartedAt + transition.fadeDurationSeconds
       ) {
         finishTransition(transition);
       }
@@ -1032,7 +1110,7 @@ export function MusicLayer() {
       const fadeIn = fadeInRef.current;
       if (
         fadeIn
-        && context.currentTime >= fadeIn.startedAt + fadeIn.durationSeconds
+        && resumedContext.currentTime >= fadeIn.startedAt + fadeIn.durationSeconds
       ) {
         clearLeadInFade(true);
       }
@@ -1041,10 +1119,18 @@ export function MusicLayer() {
       if (currentTransition) {
         startSource(currentTransition.fromIndex);
         startSource(currentTransition.toIndex);
+        armTransitionTimer(currentTransition);
       } else {
         const activeIndex = activeIndexRef.current;
-        if (pendingFadeInRef.current?.index === activeIndex) beginLeadInFade(activeIndex);
-        else startSource(activeIndex);
+        if (pendingFadeInRef.current?.index === activeIndex) {
+          beginLeadInFade(activeIndex);
+        } else {
+          startSource(activeIndex);
+          scheduleNearEnd(activeIndex);
+        }
+
+        const currentFadeIn = fadeInRef.current;
+        if (currentFadeIn) armFadeInTimer(currentFadeIn);
       }
       applyVolumes();
     };
@@ -1052,10 +1138,16 @@ export function MusicLayer() {
     return () => document.removeEventListener("visibilitychange", recover);
   }, [
     applyVolumes,
+    armFadeInTimer,
+    armTransitionTimer,
     beginLeadInFade,
+    clearFadeInTimer,
     clearLeadInFade,
+    clearNearEndTimer,
+    clearTransitionTimer,
     finishTransition,
     resumeAudioContext,
+    scheduleNearEnd,
     startSource,
   ]);
 
