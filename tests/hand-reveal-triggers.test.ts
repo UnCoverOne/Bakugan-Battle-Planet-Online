@@ -224,13 +224,103 @@ test("Sync hand reveals trigger before the Sync effect resumes", () => {
   next = passPriority(next, next.priority);
   assert.equal(next.pendingChoice?.schema.fields.find((field) => field.id === "syncCardId")?.options.some((option) => option.id === revealed.id), true);
 
-  next = submitCardChoice(next, owner.id, { syncCardId: [revealed.id] });
+  next = submitCardChoice(next, owner.id, { syncCardId: revealed.id });
+  assert.equal(next.players[0].hand.find((candidate) => candidate.id === revealed.id)?.revealedToOpponents, true);
+  assert.ok(next.log.some((entry) => entry.message.includes(`revealed ${revealed.name} from hand for Sync`)));
   assert.equal(next.pendingChoice?.cardId, revealed.id);
   assert.equal(next.pendingChoice?.schema.fields.find((field) => field.id === "confirmed")?.chooserId, owner.id);
 
   next = submitCardChoice(next, owner.id, { confirmed: false });
   assert.equal(next.pendingChoice, undefined);
   assert.equal(next.batch.some((object) => object.card.id === sync.id), true);
+});
+
+test("Bakuslumber energizes the negated Action uncharged while ordinary negates still discard", () => {
+  const controller = makePlayer("controller", "Controller", STARTER_DECKS[0]);
+  const opponent = makePlayer("opponent", "Opponent", STARTER_DECKS[1]);
+  let state = createMatch("BAKUSLUMBER-ENERGY", "bo1", [controller, opponent]);
+  state.turn = 2;
+  state.phase = "power";
+  state.startingPlayer = controller.id;
+  state.priority = opponent.id;
+
+  const fallingStrike = card("ff-9", "bakuslumber-target");
+  const bakuslumber = card("ff-63", "bakuslumber-source");
+  const targetAbility = ruleDefinitionForCard(fallingStrike).abilities.find((candidate) => candidate.kind === "spell");
+  const negateAbility = ruleDefinitionForCard(bakuslumber).abilities.find((candidate) => candidate.kind === "spell");
+  assert.ok(targetAbility);
+  assert.ok(negateAbility);
+
+  const negateAction = negateAbility.instructions.flatMap((instruction) => instruction.actions)
+    .find((action) => action.kind === "negate");
+  assert.equal(negateAction?.kind, "negate");
+  if (negateAction?.kind === "negate") {
+    assert.deepEqual(negateAction.destination, {
+      zone: "energy",
+      player: "target-controller",
+      enters: "uncharged",
+    });
+  }
+
+  const targetObject = createRuleObject({
+    controllerId: controller.id,
+    cardOwnerId: controller.id,
+    card: fallingStrike,
+    ability: targetAbility,
+    kind: "card",
+  });
+  const negateObject = createRuleObject({
+    controllerId: opponent.id,
+    cardOwnerId: opponent.id,
+    card: bakuslumber,
+    ability: negateAbility,
+    kind: "card",
+    choices: { targetEffectId: targetObject.id },
+  });
+  state.batch = [targetObject];
+
+  const resolved = resolveStructuredEffect(state, negateObject);
+  const targetController = resolved.players.find((candidate) => candidate.id === controller.id)!;
+  assert.equal(resolved.batch.some((object) => object.id === targetObject.id), false);
+  assert.equal(targetController.discard.some((candidate) => candidate.id === fallingStrike.id), false);
+  assert.equal(targetController.energyZone.some((candidate) => candidate.id === fallingStrike.id), true);
+  assert.equal(targetController.unchargedEnergyIds?.includes(fallingStrike.id), true);
+
+  const sinkhole = card("aa-9", "ordinary-negate-source");
+  const secondTarget = card("ff-9", "ordinary-negate-target");
+  const sinkholeAbility = ruleDefinitionForCard(sinkhole).abilities.find((candidate) => candidate.kind === "spell");
+  const secondTargetAbility = ruleDefinitionForCard(secondTarget).abilities.find((candidate) => candidate.kind === "spell");
+  assert.ok(sinkholeAbility);
+  assert.ok(secondTargetAbility);
+  const secondTargetObject = createRuleObject({
+    controllerId: controller.id,
+    cardOwnerId: controller.id,
+    card: secondTarget,
+    ability: secondTargetAbility,
+    kind: "card",
+  });
+  const sinkholeObject = createRuleObject({
+    controllerId: opponent.id,
+    cardOwnerId: opponent.id,
+    card: sinkhole,
+    ability: sinkholeAbility,
+    kind: "card",
+    choices: { targetEffectId: secondTargetObject.id },
+  });
+  const ordinaryState = createMatch("ORDINARY-NEGATE", "bo1", [
+    makePlayer("controller", "Controller", STARTER_DECKS[0]),
+    makePlayer("opponent", "Opponent", STARTER_DECKS[1]),
+  ]);
+  ordinaryState.turn = 2;
+  ordinaryState.phase = "power";
+  ordinaryState.startingPlayer = "controller";
+  ordinaryState.priority = "opponent";
+  ordinaryState.batch = [secondTargetObject];
+
+  const ordinaryResolved = resolveStructuredEffect(ordinaryState, sinkholeObject);
+  const ordinaryController = ordinaryResolved.players.find((candidate) => candidate.id === "controller")!;
+  assert.equal(ordinaryController.discard.some((candidate) => candidate.id === secondTarget.id), true);
+  assert.equal(ordinaryController.energyZone.some((candidate) => candidate.id === secondTarget.id), false);
 });
 
 test("full-hand effects trigger each revealed card before their follow-up choice", () => {
