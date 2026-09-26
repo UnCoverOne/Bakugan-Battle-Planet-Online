@@ -139,6 +139,38 @@ test("Automatic Pass uses a 1.5 second presentation delay", () => {
   assert.equal(AUTOMATIC_PASS_DELAY_MS, 1_500);
 });
 
+test("Automatic Pass is disabled during Victor and post-damage priority", () => {
+  const player = makePlayer("auto-pass-excluded-player", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("auto-pass-excluded-opponent", "Magnus", STARTER_DECKS[1]);
+  player.hand = [];
+  const match = createMatch("HUDAUTX", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.priority = player.id;
+
+  match.phase = "victor";
+  assert.equal(visibleMatchHudActions({
+    match,
+    playerId: player.id,
+    mode: null,
+    selectedCardId: "",
+    selectionPending: false,
+  })["pass-turn"], true);
+  assert.equal(shouldAutomaticallyPass(match, player.id), false);
+
+  match.phase = "postDamage";
+  assert.equal(visibleMatchHudActions({
+    match,
+    playerId: player.id,
+    mode: null,
+    selectedCardId: "",
+    selectionPending: false,
+  })["pass-turn"], true);
+  assert.equal(shouldAutomaticallyPass(match, player.id), false);
+
+  match.phase = "power";
+  assert.equal(shouldAutomaticallyPass(match, player.id), true);
+});
+
 test("Automatic Pass waits for engine decisions and passes only with no legal priority action", () => {
   const player = makePlayer("auto-pass-player", "Dan", STARTER_DECKS[0]);
   const opponent = makePlayer("auto-pass-opponent", "Magnus", STARTER_DECKS[1]);

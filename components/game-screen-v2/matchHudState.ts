@@ -438,6 +438,7 @@ export function shouldAutomaticallyPass(
   match: MatchState | null | undefined,
   playerId?: string,
 ) {
+  if (match?.phase === "victor" || match?.phase === "postDamage") return false;
   const actions = visibleMatchHudActions({
     match,
     playerId,
