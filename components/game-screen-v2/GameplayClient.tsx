@@ -64,6 +64,7 @@ import {
 const SETTINGS_KEY = "bbp-settings";
 const OPPONENT_AI_DECISION_TIMEOUT_MS = 8_000;
 const OPPONENT_AI_WORKER_READY_TIMEOUT_MS = 2_500;
+export const AUTOMATIC_PASS_DELAY_MS = 1_500;
 
 function downloadJsonFile(filename: string, value: unknown) {
   const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json;charset=utf-8" });
@@ -1137,7 +1138,7 @@ export function GameplayClient() {
 
     const key = `pass:${match.version}:${actorId}`;
     if (automaticPassSchedule.current?.key !== key) {
-      automaticPassSchedule.current = { key, dueAt: Date.now() + 550 };
+      automaticPassSchedule.current = { key, dueAt: Date.now() + AUTOMATIC_PASS_DELAY_MS };
     }
     const delay = Math.max(0, automaticPassSchedule.current.dueAt - Date.now());
     const timeout = window.setTimeout(() => {

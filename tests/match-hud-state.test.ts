@@ -9,6 +9,7 @@ import {
   playerCanDrawTurnCard,
   type TurnStartMatchState,
 } from "../lib/turnStart";
+import { AUTOMATIC_PASS_DELAY_MS } from "../components/game-screen-v2/GameplayClient";
 import {
   cardRequiresSelection,
   compactMatchHudSlots,
@@ -132,6 +133,10 @@ test("otherwise legal cards remain selectable even before enough Energy is gener
   assert.equal(handCardIsActionable(match, player.id, player.hand[0], "play"), true);
   assert.equal(playerHasLegalPriorityAction(match, player.id), false);
   assert.equal(shouldAutomaticallyPass(match, player.id), true);
+});
+
+test("Automatic Pass uses a 1.5 second presentation delay", () => {
+  assert.equal(AUTOMATIC_PASS_DELAY_MS, 1_500);
 });
 
 test("Automatic Pass waits for engine decisions and passes only with no legal priority action", () => {
