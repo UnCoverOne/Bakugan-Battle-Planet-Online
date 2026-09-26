@@ -267,8 +267,13 @@ test("Sync reveals only a qualifying hand card and replaces or gates its effect"
   assert.ok(syncField);
   assert.ok(syncField.options.some((option) => option.id === qualifying.id));
   assert.ok(!syncField.options.some((option) => option.id === tooCheap.id));
+  const revealStartedAt = Date.now();
   state = submitCardChoice(state, actor, { syncCardId: [qualifying.id] });
   assert.equal(totalPower(state, actor), before + 500, "the Sync branch replaces the base +200 B effect");
+  const revealed = state.players.find((candidate) => candidate.id === actor)!.hand.find((card) => card.id === qualifying.id);
+  assert.ok(revealed?.revealedToOpponentsUntil);
+  assert.ok(revealed.revealedToOpponentsUntil >= revealStartedAt + 9_900);
+  assert.ok(revealed.revealedToOpponentsUntil <= Date.now() + 10_000);
   assert.ok(state.log.some((entry) => entry.message.includes("Sync")));
 });
 

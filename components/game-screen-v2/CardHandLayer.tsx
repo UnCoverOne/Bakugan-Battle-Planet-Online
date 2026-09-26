@@ -8,6 +8,8 @@ import {
   handCardLayout,
   handViewportEdgeOffset,
   opponentHandCardCount,
+  opponentHandCardIsRevealed,
+  opponentHandCards,
   playerHandCards,
   type HandFanGeometry,
 } from "./cardHandState";
@@ -297,33 +299,41 @@ function OpponentHand({
   cardCount,
   bounds,
   revealFaces,
+  now,
 }: {
   cards: readonly GameCard[];
   cardCount: number;
   bounds: HandViewportBounds | null;
   revealFaces: boolean;
+  now: number;
 }) {
   if (!cardCount) return null;
   const layout = handCardLayout(cardCount, bounds?.geometry.spanDegrees);
+  const revealedCount = revealFaces
+    ? cardCount
+    : cards.filter((card) => opponentHandCardIsRevealed(card, now)).length;
 
   return (
     <section
       className={`${styles.handLayer} ${styles.opponentHandLayer}`}
       style={handLayerStyle(bounds)}
-      aria-label={revealFaces
-        ? `Opponent hand, ${cardCount} revealed card${cardCount === 1 ? "" : "s"}`
-        : `Opponent hand, ${cardCount} hidden card${cardCount === 1 ? "" : "s"}`}
+      aria-label={revealedCount === 0
+        ? `Opponent hand, ${cardCount} hidden card${cardCount === 1 ? "" : "s"}`
+        : revealedCount === cardCount
+          ? `Opponent hand, ${cardCount} revealed card${cardCount === 1 ? "" : "s"}`
+          : `Opponent hand, ${revealedCount} revealed and ${cardCount - revealedCount} hidden cards`}
       data-zone-kind="hand"
       data-zone-owner="opponent"
       data-card-count={cardCount}
-      data-hidden={revealFaces ? "false" : "true"}
+      data-hidden={revealedCount === cardCount ? "false" : "true"}
+      data-revealed-count={revealedCount}
       data-safe-width={bounds ? Math.round(bounds.safeWidth) : undefined}
       data-rendered-width={bounds ? Math.round(bounds.geometry.renderedWidth) : undefined}
     >
       <ol className={styles.handCards}>
         {layout.map((position, index) => {
           const card = cards[index];
-          const faceUp = revealFaces && Boolean(card);
+          const faceUp = Boolean(card) && (revealFaces || opponentHandCardIsRevealed(card, now));
           return (
             <li
               className={styles.handCard}
@@ -370,12 +380,23 @@ export function CardHandLayer({
   onDiscardCardSelect?: (cardId: string) => void;
 }) {
   const cards = playerHandCards(match, playerId);
+  const opponentCards = opponentHandCards(match, playerId);
   const opponentCardCount = opponentHandCardCount(match, playerId);
   const revealOpponentAiCards = useAdministratorAiVisibility(match, playerId);
   const revealOpponentHand = revealOpponentCards || revealOpponentAiCards;
-  const opponentCards = revealOpponentHand
-    ? match?.players.find((candidate) => candidate.id !== playerId)?.hand ?? []
-    : [];
+  const [revealClock, setRevealClock] = useState(() => Date.now());
+  useEffect(() => {
+    if (revealOpponentHand) return;
+    const now = Date.now();
+    const deadline = opponentCards.reduce((earliest, card) => {
+      const until = Number(card.revealedToOpponentsUntil ?? 0);
+      if (until <= now) return earliest;
+      return earliest === 0 ? until : Math.min(earliest, until);
+    }, 0);
+    if (!deadline) return;
+    const timer = window.setTimeout(() => setRevealClock(Date.now()), Math.max(0, deadline - now + 25));
+    return () => window.clearTimeout(timer);
+  }, [opponentCards, revealOpponentHand, revealClock]);
   const playerBounds = useHandViewportBounds("player", cards.length);
   const opponentBounds = useHandViewportBounds("opponent", opponentCardCount);
   const effectiveActionMode = resolvedHandActionMode(match, playerId, actionMode);
@@ -389,6 +410,7 @@ export function CardHandLayer({
         cardCount={opponentCardCount}
         bounds={opponentBounds}
         revealFaces={revealOpponentHand}
+        now={revealClock}
       />
       <PlayerHand
         cards={cards}

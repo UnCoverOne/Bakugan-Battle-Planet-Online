@@ -81,7 +81,9 @@ export type GameCard = {
   instabrawl?: boolean;
   /** Owner-only deadline for a card Energized from the top of the deck. */
   energyFaceRevealUntil?: number;
-  /** A Sync reveal remains public while this physical card stays in hand. */
+  /** Deadline for a temporary Sync reveal to remain public to opponents. */
+  revealedToOpponentsUntil?: number;
+  /** @deprecated Legacy persistent Sync visibility marker; ignored by current presentation/redaction. */
   revealedToOpponents?: boolean;
 };
 
@@ -475,6 +477,8 @@ const secureRandomInt = (maximum: number) => {
 export const uid = () => globalThis.crypto?.randomUUID?.()
   ?? `${Date.now().toString(36)}-${secureRandomInt(0x1_0000_0000).toString(36)}`;
 
+export const SYNC_REVEAL_DURATION_MS = 10_000;
+
 const PHASE_TIMERS: Record<Phase, number> = {
   lobby: 60, startingPlayer: 8, placement: 45, draw: 35, energize: 35, selection: 35, preRoll: 30, target: 30, reroll: 30,
   power: 40, victor: 30, damage: 35, postDamage: 25, retract: 10, endPlay: 35, charge: 2, reset: 2,
@@ -654,6 +658,17 @@ export const normalizeMatchState = (input: MatchState): MatchState => {
 
 const otherPlayer = (state: MatchState, playerId: string) => state.players.find((player) => player.id !== playerId)!;
 const playerById = (state: MatchState, playerId: string) => state.players.find((player) => player.id === playerId)!;
+export const syncRevealIsActive = (card: GameCard, now = Date.now()) => (
+  Number.isFinite(card.revealedToOpponentsUntil) && Number(card.revealedToOpponentsUntil) > now
+);
+export const clearSyncReveals = (state: MatchState) => {
+  for (const player of state.players) {
+    for (const card of player.hand) {
+      delete card.revealedToOpponentsUntil;
+      delete card.revealedToOpponents;
+    }
+  }
+};
 const syncDeck = (player: PlayerState) => { player.deck = player.deckCards.length; };
 export const recordCardPlayedForTurn = (player: PlayerState, card: GameCard, turn: number) => {
   card.playedTurn = turn;
@@ -715,6 +730,7 @@ const shuffle = <T,>(values: T[]) => {
 };
 
 const setPhase = (state: MatchState, phase: Phase, label: string, priority = state.startingPlayer) => {
+  if (phase === "energize") clearSyncReveals(state);
   state.phase = phase; state.stepLabel = label; state.priority = priority; state.passes = []; state.deadline = deadlineFor(phase);
 };
 
@@ -2036,7 +2052,8 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
   if (submittedSyncCardId) {
     const revealed = playerById(state, pending.controllerId).hand.find((card) => card.id === submittedSyncCardId);
     if (revealed) {
-      revealed.revealedToOpponents = true;
+      revealed.revealedToOpponentsUntil = Date.now() + SYNC_REVEAL_DURATION_MS;
+      delete revealed.revealedToOpponents;
       entry(state, "game", `${playerById(state, pending.controllerId).name} revealed ${revealed.name} from hand for Sync.`);
       revealTriggers = syncCauseCard ? emitHandRevealEvents(
         state,
@@ -2643,6 +2660,7 @@ function returnSelfCardToHand(state: MatchState, owner: PlayerState, card: GameC
   // pending effect still owns the physical instance, so use it as the
   // fallback instead of manufacturing a duplicate.
   returned ??= card;
+  delete returned.revealedToOpponentsUntil;
   delete returned.revealedToOpponents;
   owner.hand.push(returned);
   entry(state, "game", `${returned.displayName || returned.name} returned to ${owner.name}'s hand.`, returned, "effect", owner.id);
@@ -3150,7 +3168,7 @@ return;
       for (let index = 0; index < amount; index += 1) {
         const damageCard = player.deckCards.shift();
         if (!damageCard) break;
-            player.hand.push({ ...damageCard, revealedToOpponents: undefined });
+            player.hand.push({ ...damageCard, revealedToOpponentsUntil: undefined, revealedToOpponents: undefined });
       }
       syncDeck(player);
       state.pendingDamage = 0;
@@ -3354,7 +3372,7 @@ case "swap-bakucore": {
             const index = (bakugan.bakuGear ?? []).findIndex((gear) => gear.id === gearId);
             if (index < 0) continue;
             const [returned] = bakugan.bakuGear!.splice(index, 1);
-            owner.hand.push({ ...returned, revealedToOpponents: undefined });
+            owner.hand.push({ ...returned, revealedToOpponentsUntil: undefined, revealedToOpponents: undefined });
             break;
           }
         }
@@ -3398,7 +3416,7 @@ case "swap-bakucore": {
         } else if (!player.hand.some((candidate) => candidate.id === card.id)) {
           const owner = playerById(state, pending.cardOwnerId ?? controllerId);
           owner.discard = owner.discard.filter((candidate) => candidate.id !== card.id);
-          owner.hand.push({ ...card, revealedToOpponents: undefined });
+          owner.hand.push({ ...card, revealedToOpponentsUntil: undefined, revealedToOpponents: undefined });
         }
       } else if (action.verb === "shuffle" && action.object === "card") {
         const ids = choices.handCardIds ?? choices.discardCardIds ?? [];
@@ -3675,7 +3693,7 @@ case "swap-bakucore": {
       ));
       if (index >= 0) {
         const [found] = player.deckCards.splice(index, 1);
-        player.hand.push({ ...found, revealedToOpponents: undefined });
+        player.hand.push({ ...found, revealedToOpponentsUntil: undefined, revealedToOpponents: undefined });
         shuffle(player.deckCards);
         syncDeck(player);
         state.informationEpoch += 1;
@@ -3767,7 +3785,7 @@ case "swap-bakucore": {
       if (target && setPower) state.powerBoost[target.id] = Number(setPower[1]) - (topCard(target).bPower ?? target.bPower);
       if (/victor is decided by highest \[damage rating\]/i.test(text)) state.victorByDamage = true;
       if (/retract your Bakugan at the end of the turn/i.test(text) && target) state.delayedRetracts.push(target.id);
-      if (/return this to (?:your )?hand|put this into your hand/i.test(text)) player.hand.push({ ...card, revealedToOpponents: undefined });
+      if (/return this to (?:your )?hand|put this into your hand/i.test(text)) player.hand.push({ ...card, revealedToOpponentsUntil: undefined, revealedToOpponents: undefined });
       else if (/bottom of your deck/i.test(text)) {
         player.deckCards.push(card);
         syncDeck(player);
@@ -4729,7 +4747,7 @@ export const redactForPlayer = (input: MatchState, playerId: string) => {
   for (const player of state.players) {
     player.deckCards = [];
     if (player.id !== playerId) {
-      player.hand = player.hand.map((card, index) => card.revealedToOpponents ? card : hiddenCard(`hidden-hand-${index}`));
+      player.hand = player.hand.map((card, index) => syncRevealIsActive(card) ? card : hiddenCard(`hidden-hand-${index}`));
       player.energyZone = player.energyZone.map((_, index) => hiddenCard(`hidden-energy-${index}`));
       if (state.batch.length || state.triggerOrders.length) {
         for (const bakugan of player.bakugan) {

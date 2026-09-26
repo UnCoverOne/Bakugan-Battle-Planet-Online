@@ -43,12 +43,23 @@ export function playerHandCards(
   return Array.isArray(player?.hand) ? player.hand : [];
 }
 
+export function opponentHandCards(
+  match: MatchState | null | undefined,
+  playerId: string | undefined,
+): readonly GameCard[] {
+  const { opponent } = handPlayers(match, playerId);
+  return Array.isArray(opponent?.hand) ? opponent.hand : [];
+}
+
 export function opponentHandCardCount(
   match: MatchState | null | undefined,
   playerId: string | undefined,
 ): number {
-  const { opponent } = handPlayers(match, playerId);
-  return Array.isArray(opponent?.hand) ? opponent.hand.length : 0;
+  return opponentHandCards(match, playerId).length;
+}
+
+export function opponentHandCardIsRevealed(card: GameCard | undefined, now = Date.now()) {
+  return Boolean(card && Number.isFinite(card.revealedToOpponentsUntil) && Number(card.revealedToOpponentsUntil) > now);
 }
 
 export function handFanSpanDegrees(cardCount: number): number {

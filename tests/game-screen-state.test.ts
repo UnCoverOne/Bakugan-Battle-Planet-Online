@@ -22,6 +22,8 @@ import {
   handFanSpanDegrees,
   handViewportEdgeOffset,
   opponentHandCardCount,
+  opponentHandCardIsRevealed,
+  opponentHandCards,
   playerHandCards,
 } from "../components/game-screen-v2/cardHandState";
 import {
@@ -290,6 +292,21 @@ test("the opponent hand exposes its card count without exposing card faces", () 
   assert.equal(opponentHandCardCount(null, player.id), 0);
 });
 
+test("temporary opponent hand reveals expire at their deadline", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const now = 1_000_000;
+  opponent.hand[0].revealedToOpponentsUntil = now + 10_000;
+  const match = createMatch("REVEAL", "bo1", [player, opponent]);
+
+  const cards = opponentHandCards(match, player.id);
+  assert.equal(cards.length, opponent.hand.length);
+  assert.equal(opponentHandCardIsRevealed(cards[0], now), true);
+  assert.equal(opponentHandCardIsRevealed(cards[0], now + 9_999), true);
+  assert.equal(opponentHandCardIsRevealed(cards[0], now + 10_000), false);
+  assert.equal(opponentHandCardIsRevealed(cards[1], now), false);
+});
+
 test("live match state populates both players' card zones", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
   const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
@@ -381,4 +398,26 @@ test("Energize transitions report only cards newly added to the Energy Zone", ()
   const differentMatch = structuredClone(after);
   differentMatch.id = "DIFFERENT-ENERGY-MATCH";
   assert.deepEqual(energizeTransitions(before, differentMatch), []);
+});
+
+
+test("reaching the Energize Step clears active Sync reveals immediately", async () => {
+  const { drawTurnCard } = await import("../lib/turnStart");
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  let match = createMatch("SYNCEN", "bo1", [player, opponent]);
+  match.turn = 1;
+  match.phase = "draw";
+  match.drawPreparedTurn = 1;
+  match.drawReadyAt = 0;
+  match.drawRemainingByPlayer = { [player.id]: 1, [opponent.id]: 1 };
+  match.priority = player.id;
+  player.hand[0].revealedToOpponentsUntil = 999_999_999_999_999;
+
+  match = drawTurnCard(match, player.id, 1000);
+  assert.equal(match.phase, "draw");
+  assert.ok(match.players[0].hand.some((card) => card.revealedToOpponentsUntil));
+  match = drawTurnCard(match, opponent.id, 1001);
+  assert.equal(match.phase, "energize");
+  assert.equal(match.players.flatMap((candidate) => candidate.hand).some((card) => card.revealedToOpponentsUntil), false);
 });

@@ -1,4 +1,4 @@
-import { cloneMatch, type GameCard, type MatchState } from "./game";
+import { clearSyncReveals, cloneMatch, type GameCard, type MatchState } from "./game";
 import {
   activePendingDraw,
   drawPendingCard,
@@ -178,6 +178,7 @@ export function drawTurnCard(
   }
 
   if (state.players.every((candidate) => remainingDraws(state, candidate.id) <= 0)) {
+    clearSyncReveals(state);
     state.phase = "energize";
     state.priority = state.startingPlayer;
     state.passes = [];
