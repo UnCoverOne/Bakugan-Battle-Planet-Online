@@ -2182,10 +2182,9 @@
   }
 
   .builderHeader {
-    grid-template-columns: auto minmax(12rem, 1fr) auto auto auto;
+    grid-template-columns: auto minmax(12rem, 1fr) auto auto minmax(8rem, auto) auto;
   }
 
-  .builderHeader > label,
   .builderHeader > [data-ui="status-chip"]:first-of-type {
     display: none;
   }
@@ -2268,11 +2267,10 @@
 
   .builderHeader {
     top: 76px;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) minmax(7rem, auto) auto;
     padding: var(--space-2) var(--space-4);
   }
 
-  .builderHeader > label,
   .builderHeader > [data-ui="status-chip"],
   .saveState {
     display: none;
@@ -2411,7 +2409,19 @@
   }
 
   .builderHeader {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) minmax(5.5rem, 6.5rem) auto;
+    gap: var(--space-2);
+  }
+
+  .builderFormat span {
+    display: none;
+  }
+
+  .builderFormat select {
+    width: 100%;
+    min-height: 2.4rem;
+    padding: .4rem .45rem;
+    font-size: var(--type-meta);
   }
 
   .builderHeader > [data-ui="action-button"] {
