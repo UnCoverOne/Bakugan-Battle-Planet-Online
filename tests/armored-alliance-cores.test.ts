@@ -78,13 +78,18 @@ test("AA Baku-Gear reductions and Fusion bonuses affect runtime calculations", (
   ]);
   const owner = state.players[0];
   const bakugan = owner.bakugan.find((candidate) => candidate.fusionCharacter) ?? owner.bakugan[0];
+  const otherBakugan = owner.bakugan.find((candidate) => candidate.id !== bakugan.id)!;
   const gear = CARDS.find((card) => card.type === "Baku-Gear" && typeof card.cost === "number")!;
-  const baseline = cardCostBreakdown(state, owner.id, gear);
+  const baseline = cardCostBreakdown(state, owner.id, gear, { targetBakuganId: bakugan.id });
   const gearCore = { ...aaCores.find((core) => core.number === 1)!, id: "aa-1-held" };
   state.placements.push({ playerId: owner.id, core: gearCore, cell: "aa-1-cell", order: 1, attachedTo: bakugan.id });
   bakugan.heldCoreCells = ["aa-1-cell"];
-  const reduced = cardCostBreakdown(state, owner.id, gear);
+  const reduced = cardCostBreakdown(state, owner.id, gear, { targetBakuganId: bakugan.id });
+  const unrelatedTarget = cardCostBreakdown(state, owner.id, gear, { targetBakuganId: otherBakugan.id });
+  const undeclaredTarget = cardCostBreakdown(state, owner.id, gear);
   assert.equal(reduced.reductions - baseline.reductions, 2);
+  assert.equal(unrelatedTarget.reductions, baseline.reductions);
+  assert.equal(undeclaredTarget.reductions, baseline.reductions);
 
   bakugan.fused = true;
   const beforeFusion = evaluateBakuganCharacteristics(state, bakugan, owner);
