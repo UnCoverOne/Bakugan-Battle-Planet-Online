@@ -1,5 +1,6 @@
 import {
   canonicalDeckRecord,
+  canonicalSelectionForFormat,
   makeCanonicalPlayerWithRestrictions,
   type CanonicalPlayerSelection,
   type DeckRecord,
@@ -41,9 +42,9 @@ export function rankedSeries(state: MatchState) {
 }
 
 function cleanSubmission(selection: CanonicalPlayerSelection, restrictions: readonly DeckRestriction[], deckSize: number) {
-  makeCanonicalPlayerWithRestrictions(selection, restrictions, deckSize);
-  const deck = canonicalDeckRecord(selection);
-  if (deck.format !== "competitive") throw new Error("Ranked requires Competitive decks.");
+  const competitiveSelection = canonicalSelectionForFormat(selection, "competitive");
+  makeCanonicalPlayerWithRestrictions(competitiveSelection, restrictions, deckSize);
+  const deck = canonicalDeckRecord(competitiveSelection);
   return { ...deck, submittedAt: Date.now() } satisfies RankedDeckSnapshot;
 }
 
@@ -139,11 +140,15 @@ function replaceRankedPlayer(state: RankedMatchState, playerId: string, deck: Ra
   const index = state.players.findIndex((player) => player.id === playerId);
   if (index < 0) throw new Error("Unknown Ranked seat.");
   const previous = state.players[index];
-  const replacement = tagLobbyPlayerDeck(makeCanonicalPlayerWithRestrictions({
+  const competitiveSelection = canonicalSelectionForFormat({
     playerId,
     name: previous.name,
     deck,
-  }, restrictions, deckSize), deck);
+  }, "competitive");
+  const replacement = tagLobbyPlayerDeck(
+    makeCanonicalPlayerWithRestrictions(competitiveSelection, restrictions, deckSize),
+    competitiveSelection.deck,
+  );
   replacement.connected = previous.connected;
   replacement.lastSeen = previous.lastSeen;
   replacement.ready = false;
