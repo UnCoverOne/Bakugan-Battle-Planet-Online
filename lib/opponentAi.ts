@@ -1494,7 +1494,7 @@ export function chooseOpponentAiCommandWithMetrics(
 }
 
 
-export function advanceOpponentAi(input: MatchState, playerId: string): MatchState | null {
+function advanceOpponentAiInternal(input: MatchState, playerId: string): MatchState | null {
   let current = input;
   let advanced = false;
   for (let step = 0; step < 4; step += 1) {
@@ -1511,4 +1511,12 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
     if (!anotherAiChoice) return current;
   }
   return current;
+}
+
+export function advanceOpponentAi(input: MatchState, playerId: string): MatchState | null {
+  return runOpponentAiDecision(
+    input,
+    playerId,
+    () => advanceOpponentAiInternal(input, playerId),
+  ).result;
 }
