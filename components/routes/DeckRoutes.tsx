@@ -117,6 +117,22 @@ const CORE_BACK_IMAGES: Record<string, string> = {
 };
 
 const referenceSlug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+function useCompetitiveDeckSize() {
+  const [deckSize, setDeckSize] = useState(50);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/ranked?action=rules", { cache: "no-store" })
+      .then(async (response) => {
+        const result = await response.json();
+        const next = Number(result.ruleset?.deckSize);
+        if (active && response.ok && Number.isInteger(next) && next > 0) setDeckSize(next);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+  return deckSize;
+}
 const BUILDER_RULE_REFERENCES = [
   ...RULE_ENTRIES.map((entry) => ({
     ...entry,
@@ -449,12 +465,13 @@ export function DeckLibraryScreen() {
   const [view, setView] = useState<LibraryView>("grid");
   const [importCode, setImportCode] = useState("");
   const [importError, setImportError] = useState("");
+  const competitiveDeckSize = useCompetitiveDeckSize();
 
   const reports = useMemo(
     () => new Map<string, DeckValidationResult>(
-      decks.map((deck: DeckRecord): [string, DeckValidationResult] => [deck.id, validateDeck(deck)]),
+      decks.map((deck: DeckRecord): [string, DeckValidationResult] => [deck.id, validateDeck(deck, [], competitiveDeckSize)]),
     ),
-    [decks],
+    [competitiveDeckSize, decks],
   );
   const legalCount = [...reports.values()].filter((report) => report.isLegal).length;
   const visible = useMemo(() => decks.filter((deck: DeckRecord) => {
@@ -489,7 +506,7 @@ export function DeckLibraryScreen() {
       imported.leadCardId = imported.leadCardId && imported.cardIds.includes(imported.leadCardId)
         ? imported.leadCardId
         : imported.cardIds[0];
-      const report = validateDeck(imported);
+      const report = validateDeck(imported, [], competitiveDeckSize);
       if (!report.isLegal) throw new Error(report.issues[0].message);
       setDecks((items: DeckRecord[]) => [imported, ...items]);
       setSelectedDeckId(imported.id);
@@ -594,7 +611,7 @@ export function DeckLibraryScreen() {
       {decks.length === 0 ? (
         <DeckState
           title="Build your first battle deck"
-          copy="Choose three Character cards, their six BakuCores, and a legal 40-card Standard or 50-card Competitive Main Deck."
+          copy={`Choose three Character cards, their six BakuCores, and a legal 40-card Standard or ${competitiveDeckSize}-card Competitive Main Deck.`}
           action={<ActionButton onClick={create}>Create Deck</ActionButton>}
         />
       ) : visible.length === 0 ? (
@@ -610,6 +627,7 @@ export function DeckLibraryScreen() {
               key={deck.id}
               deck={deck}
               report={reports.get(deck.id)!}
+              competitiveDeckSize={competitiveDeckSize}
               selected={selectedDeckId === deck.id}
               showcased={
                 deck.visibility === "Public" &&
@@ -723,6 +741,7 @@ function DeckFactionTags({ factions }: { factions: string[] }) {
 function DeckTile({
   deck,
   report,
+  competitiveDeckSize = 50,
   selected,
   showcased,
   creatorUserId,
@@ -737,6 +756,7 @@ function DeckTile({
 }: {
   deck: DeckRecord;
   report: DeckValidationResult;
+  competitiveDeckSize?: number;
   selected: boolean;
   showcased: boolean;
   creatorUserId?: string;
@@ -792,7 +812,7 @@ function DeckTile({
             </StatusChip>
           </div>
           <DeckFactionSymbols factions={deck.factions} />
-          <small>{deck.cardIds.length}/{deck.format === "competitive" ? 50 : 40} cards · {deck.bakuganIds.length}/3 Character · {deck.coreIds.length}/6 BakuCores</small>
+          <small>{deck.cardIds.length}/{deck.format === "competitive" ? competitiveDeckSize : 40} cards · {deck.bakuganIds.length}/3 Character · {deck.coreIds.length}/6 BakuCores</small>
           <small>Updated {formatTimestamp(deck.updatedAt)}</small>
         </div>
       </button>
@@ -1456,7 +1476,7 @@ function ValidationPanel({ report, compact = false }: { report: DeckValidationRe
         <StatusChip tone={report.isLegal ? "success" : "danger"}>{report.isLegal ? "Legal" : `${report.issues.length} issues`}</StatusChip>
       </div>
       {report.isLegal ? (
-        <p>Team, BakuCores, factions, copy limits, and all 40 Main Deck cards pass.</p>
+        <p>Team, BakuCores, factions, copy limits, and Main Deck size pass.</p>
       ) : (
         <ul>{report.issues.map((candidate) => <li key={candidate.code}><code>{candidate.code}</code>{candidate.message}</li>)}</ul>
       )}
@@ -1479,6 +1499,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     notify,
     promptAccount,
   } = useApp();
+  const competitiveDeckSize = useCompetitiveDeckSize();
   const adminPublicId = id.startsWith("admin-public:") ? id.slice("admin-public:".length) : null;
   const adminAiId = id.startsWith("admin-ai:") ? id.slice("admin-ai:".length) : null;
   const adminOfflineId = id.startsWith("admin-offline:") ? id.slice("admin-offline:".length) : null;
@@ -1572,8 +1593,8 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       factions: [...new Set(next.bakuganIds.map((key) => BAKUGAN.find((item) => item.id === key)?.faction).filter(Boolean))] as string[],
     });
   };
-  const report = useMemo(() => validateDeck(deck), [deck]);
-  const mainDeckMaximum = deck.format === "competitive" ? 50 : 40;
+  const report = useMemo(() => validateDeck(deck, [], competitiveDeckSize), [competitiveDeckSize, deck]);
+  const mainDeckMaximum = deck.format === "competitive" ? competitiveDeckSize : 40;
   const grouped = useMemo(() => [...new Set(deck.cardIds)].map((key) => ({
     card: CARD_BY_ID.get(key),
     count: deck.cardIds.filter((candidate) => candidate === key).length,
@@ -1735,7 +1756,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   };
 
   const save = async () => {
-    const latest = validateDeck(deck);
+    const latest = validateDeck(deck, [], competitiveDeckSize);
     const name = saveName.trim();
     if (!name) {
       notify("Enter a deck name before saving.");

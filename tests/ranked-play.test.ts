@@ -28,13 +28,16 @@ function competitiveDeck(): ValidatableDeck {
   return { name: "Competitive", format: "competitive", bakuganIds: ["c1", "c2", "c3"], coreIds: [...cores.keys()], cardIds: Array.from({ length: 50 }, (_, index) => `p${index % 20}`) };
 }
 
-test("Competitive requires exactly 50 cards and applies construction-identity restrictions", () => {
+test("Competitive uses the configured deck size and applies construction-identity restrictions", () => {
   const deck = competitiveDeck();
   assert.equal(validateDeckConstruction(deck, catalogue).isLegal, true);
   const restricted = validateDeckConstruction(deck, catalogue, { restrictions: [{ constructionIdentity: "pyrus-0", limit: 1 }] });
   assert.ok(restricted.issues.some((issue) => issue.code === "main_deck.ranked_restriction" && issue.expected === 1));
-  deck.cardIds.pop();
-  assert.ok(validateDeckConstruction(deck, catalogue).issues.some((issue) => issue.code === "main_deck.exactly_fifty"));
+
+  deck.cardIds = Array.from({ length: 60 }, (_, index) => `p${index % 20}`);
+  assert.equal(validateDeckConstruction(deck, catalogue, { competitiveDeckSize: 60 }).isLegal, true);
+  const wrongSize = validateDeckConstruction(deck, catalogue, { competitiveDeckSize: 55 });
+  assert.ok(wrongSize.issues.some((issue) => issue.code === "main_deck.competitive_size" && issue.expected === 55 && issue.actual === 60));
 });
 
 test("Ranked Elo is a single zero-sum transfer that accounts for rating difference", () => {

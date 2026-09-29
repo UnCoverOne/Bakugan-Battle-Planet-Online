@@ -61,6 +61,7 @@ export function MatchCreationScreen() {
   const [error, setError] = useState("");
   const [rankedDeckIds, setRankedDeckIds] = useState<string[]>([]);
   const [rankedRestrictions, setRankedRestrictions] = useState<DeckRestriction[]>([]);
+  const [rankedDeckSize, setRankedDeckSize] = useState(50);
 
   const legalDecks = useMemo(
     () => (decks as DeckRecord[]).filter((deck) => validateDeck(deck).isLegal),
@@ -72,8 +73,8 @@ export function MatchCreationScreen() {
     return legalDecks.find((deck) => deck.id === selectedDeckId) ?? legalDecks[0] ?? null;
   }, [legalDecks, selectedDeck, selectedDeckId]);
   const competitiveDecks = useMemo(
-    () => (decks as DeckRecord[]).filter((deck) => deck.format === "competitive" && validateDeck(deck, rankedRestrictions).isLegal),
-    [decks, rankedRestrictions],
+    () => (decks as DeckRecord[]).filter((deck) => deck.format === "competitive" && validateDeck(deck, rankedRestrictions, rankedDeckSize).isLegal),
+    [decks, rankedDeckSize, rankedRestrictions],
   );
   const rankedDecks = competitiveDecks.filter((deck) => rankedDeckIds.includes(deck.id));
 
@@ -85,7 +86,14 @@ export function MatchCreationScreen() {
     if (mode !== "ranked") return;
     let active = true;
     fetch("/api/ranked?action=rules", { cache: "no-store" })
-      .then(async (response) => { const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Ranked rules are unavailable."); if (active) setRankedRestrictions(result.ruleset?.restrictions ?? []); })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Ranked rules are unavailable.");
+        if (active) {
+          setRankedRestrictions(result.ruleset?.restrictions ?? []);
+          setRankedDeckSize(Number(result.ruleset?.deckSize) || 50);
+        }
+      })
       .catch((cause) => active && setError(cause instanceof Error ? cause.message : "Ranked rules are unavailable."));
     return () => { active = false; };
   }, [mode]);
@@ -248,7 +256,7 @@ export function MatchCreationScreen() {
                   <strong>{deck.name}</strong><span>{deck.cardIds.length} cards · {deck.factions.join(" • ")}</span>
                 </label>;
               })}
-              {!competitiveDecks.length ? <p>No legal Competitive decks yet. Create three 50-card Competitive decks in Deck Builder.</p> : null}
+              {!competitiveDecks.length ? <p>No legal Competitive decks yet. Create three {rankedDeckSize}-card Competitive decks in Deck Builder.</p> : null}
             </div>
           </section> : null}
 

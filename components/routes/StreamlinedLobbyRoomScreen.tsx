@@ -176,7 +176,9 @@ export function LobbyRoomScreen() {
   const playerDecks = decks as DeckRecord[];
   const compatibleDecks = playerDecks.filter((deck) => {
     const deckFormat = deck.format === "singleton" || deck.format === "competitive" ? deck.format : "standard";
-    return deckFormat === requiredFormat && validateDeck(deck).isLegal && deckAllowedInMeta(selectedMeta, deck);
+    return deckFormat === requiredFormat
+      && validateDeck(deck, ranked?.restrictions ?? [], ranked?.deckSize ?? 50).isLegal
+      && deckAllowedInMeta(selectedMeta, deck);
   });
   const compatibleDeckIds = new Set(compatibleDecks.map((deck) => deck.id));
   const currentDeck = playerDecks.find((deck) => deckMatchesPlayer(deck, me)) ?? null;
@@ -555,7 +557,7 @@ export function LobbyRoomScreen() {
                     </div>
                     <h3>{currentDeck.name}</h3>
                     {currentDeckTags.length ? <div className={styles.deckTags}>{currentDeckTags.map((tag) => <span key={tag}>{tag}</span>)}</div> : null}
-                    <p>{formatLabel(config.rulesFormat)} requires a {requiredFormat === "singleton" ? "40-card Singleton" : requiredFormat === "competitive" ? "50-card Competitive" : "40-card Standard"} deck. Changing deck makes you unready.</p>
+                    <p>{formatLabel(config.rulesFormat)} requires a {requiredFormat === "singleton" ? "40-card Singleton" : requiredFormat === "competitive" ? `${ranked?.deckSize ?? 50}-card Competitive` : "40-card Standard"} deck. Changing deck makes you unready.</p>
                   </div>
                 </div>
               ) : (

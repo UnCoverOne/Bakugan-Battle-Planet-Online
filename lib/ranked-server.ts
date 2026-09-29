@@ -1,9 +1,25 @@
 import type { AccountDatabase, AccountUser } from "./account-server";
 import { CARDS } from "./data";
 import type { DeckRestriction } from "./deck-validation";
-import { eloTransfer, rankForBp, RANKED_STARTING_BP, type RankedRuleset, type RankedSettlement } from "./ranked";
+import {
+  eloTransfer,
+  rankForBp,
+  RANKED_DEFAULT_DECK_SIZE,
+  RANKED_MAX_DECK_SIZE,
+  RANKED_MIN_DECK_SIZE,
+  RANKED_STARTING_BP,
+  type RankedRuleset,
+  type RankedSettlement,
+} from "./ranked";
 
 let rankedSchemaReady = false;
+
+function normalizeRankedDeckSize(value: unknown, fallback = RANKED_DEFAULT_DECK_SIZE) {
+  const deckSize = Number(value);
+  return Number.isInteger(deckSize) && deckSize >= RANKED_MIN_DECK_SIZE && deckSize <= RANKED_MAX_DECK_SIZE
+    ? deckSize
+    : fallback;
+}
 
 export async function ensureRankedSchema(db: AccountDatabase) {
   if (rankedSchemaReady) return;
@@ -42,6 +58,7 @@ function parseRuleset(value: string | null | undefined): RankedRuleset | null {
     if (!Number.isInteger(raw.version) || Number(raw.version) < 1 || !Array.isArray(raw.restrictions)) return null;
     return {
       version: Number(raw.version),
+      deckSize: normalizeRankedDeckSize(raw.deckSize),
       restrictions: raw.restrictions.map(normalizeRestriction).filter((item): item is DeckRestriction => Boolean(item)),
       publishedAt: Number(raw.publishedAt) || 0,
       publishedBy: raw.publishedBy ? String(raw.publishedBy) : undefined,
@@ -55,7 +72,7 @@ export async function getActiveRankedRuleset(db: AccountDatabase): Promise<Ranke
   await ensureRankedSchema(db);
   const row = await db.prepare("SELECT data_json FROM admin_resources WHERE resource_type = 'ranked-ruleset' AND resource_id = 'active'")
     .first<{ data_json: string }>();
-  return parseRuleset(row?.data_json) ?? { version: 1, restrictions: [], publishedAt: 0 };
+  return parseRuleset(row?.data_json) ?? { version: 1, deckSize: RANKED_DEFAULT_DECK_SIZE, restrictions: [], publishedAt: 0 };
 }
 
 export async function getRankedRulesAdministration(db: AccountDatabase) {
@@ -111,17 +128,22 @@ async function writeAdminResource(db: AccountDatabase, type: string, id: string,
     .bind(type, id, JSON.stringify(value), administratorId, Date.now()).run();
 }
 
-export async function saveRankedRulesDraft(db: AccountDatabase, restrictions: unknown, administratorId: string) {
+export async function saveRankedRulesDraft(db: AccountDatabase, restrictions: unknown, deckSize: unknown, administratorId: string) {
   const active = await getActiveRankedRuleset(db);
-  const draft: RankedRuleset = { ...active, restrictions: normalizedRestrictions(restrictions) };
+  const draft: RankedRuleset = {
+    ...active,
+    deckSize: normalizeRankedDeckSize(deckSize, active.deckSize),
+    restrictions: normalizedRestrictions(restrictions),
+  };
   await writeAdminResource(db, "ranked-ruleset", "draft", draft, administratorId);
   return draft;
 }
 
-export async function publishRankedRules(db: AccountDatabase, restrictions: unknown, administratorId: string) {
+export async function publishRankedRules(db: AccountDatabase, restrictions: unknown, deckSize: unknown, administratorId: string) {
   const active = await getActiveRankedRuleset(db);
   const ruleset: RankedRuleset = {
     version: active.version + 1,
+    deckSize: normalizeRankedDeckSize(deckSize, active.deckSize),
     restrictions: normalizedRestrictions(restrictions),
     publishedAt: Date.now(),
     publishedBy: administratorId,
@@ -141,7 +163,7 @@ export async function rollbackRankedRules(db: AccountDatabase, sourceVersion: nu
     .bind(`v${sourceVersion}`).first<{ data_json: string }>();
   const source = parseRuleset(row?.data_json);
   if (!source) throw new Error("That Ranked ruleset version is unavailable.");
-  return publishRankedRules(db, source.restrictions, administratorId);
+  return publishRankedRules(db, source.restrictions, source.deckSize, administratorId);
 }
 
 type RatingEventRow = {

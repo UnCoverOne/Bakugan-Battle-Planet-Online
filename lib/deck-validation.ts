@@ -11,6 +11,7 @@ export type DeckValidationIssueCode =
   | "cores.copy_limit"
   | "main_deck.exactly_forty"
   | "main_deck.exactly_fifty"
+  | "main_deck.competitive_size"
   | "main_deck.unknown_card"
   | "main_deck.faction_mismatch"
   | "main_deck.copy_limit"
@@ -80,6 +81,7 @@ export type DeckRestriction = {
 
 export type DeckValidationOptions = {
   restrictions?: readonly DeckRestriction[];
+  competitiveDeckSize?: number;
 };
 
 const sectionOrder: DeckValidationSection[] = ["identity", "team", "cores", "mainDeck"];
@@ -179,10 +181,13 @@ export function validateDeckConstruction(
     .map((id) => catalogue.cards.get(id))
     .filter((value): value is ValidationCard => Boolean(value));
   const unknownCards = deck.cardIds.filter((id) => !catalogue.cards.has(id));
-  const requiredCardCount = format === "competitive" ? 50 : 40;
+  const configuredCompetitiveDeckSize = Number(options.competitiveDeckSize);
+  const requiredCardCount = format === "competitive"
+    ? Number.isInteger(configuredCompetitiveDeckSize) && configuredCompetitiveDeckSize > 0 ? configuredCompetitiveDeckSize : 50
+    : 40;
   if (deck.cardIds.length !== requiredCardCount) {
     issues.push(issue(
-      format === "competitive" ? "main_deck.exactly_fifty" : "main_deck.exactly_forty",
+      format === "competitive" ? "main_deck.competitive_size" : "main_deck.exactly_forty",
       "mainDeck",
       "cardIds",
       `Main Deck must contain exactly ${requiredCardCount} cards.`,

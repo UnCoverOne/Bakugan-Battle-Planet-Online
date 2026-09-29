@@ -116,7 +116,7 @@ export function AdminScreen() {
 }
 
 type RankedRestriction = { catalogId?: string; constructionIdentity: string; limit: 0 | 1 | 2; reason?: string };
-type RankedRulesetAdmin = { version: number; restrictions: RankedRestriction[]; publishedAt: number };
+type RankedRulesetAdmin = { version: number; deckSize: number; restrictions: RankedRestriction[]; publishedAt: number };
 type RankedAdminData = {
   active: RankedRulesetAdmin;
   draft: RankedRulesetAdmin;
@@ -129,10 +129,13 @@ function RankedManagement() {
   const { notify } = useApp();
   const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState("");
+  const [deckSize, setDeckSize] = useState(50);
   const [restrictions, setRestrictions] = useState<RankedRestriction[]>([]);
   const state = useAdminData<RankedAdminData>("ranked", refresh);
   useEffect(() => {
-    if (state.data) setRestrictions(state.data.draft.restrictions.map((item) => ({ ...item })));
+    if (!state.data) return;
+    setDeckSize(state.data.draft.deckSize ?? 50);
+    setRestrictions(state.data.draft.restrictions.map((item) => ({ ...item })));
   }, [state.data]);
   const restrictionByIdentity = useMemo(() => new Map(restrictions.map((item) => [item.constructionIdentity, item])), [restrictions]);
   const cards = useMemo(() => (state.data?.cards ?? []).filter((card) => `${card.catalogId} ${card.name}`.toLowerCase().includes(query.toLowerCase())).slice(0, 120), [query, state.data?.cards]);
@@ -156,16 +159,19 @@ function RankedManagement() {
   return (
     <section className={styles.section}>
       <div className={styles.sectionHeading}>
-        <div><span>RANKED PLAY</span><h2>Competitive restrictions</h2><p>Competitive decks contain exactly 50 cards. Publish bans and one- or two-copy limits as an immutable version used by every Ranked series.</p></div>
+        <div><span>RANKED PLAY</span><h2>Competitive settings</h2><p>Set the required Competitive deck size and publish bans or copy limits as an immutable version used by every Ranked series.</p></div>
         <StatusChip tone="info">ACTIVE VERSION {state.data?.active.version ?? "…"}</StatusChip>
       </div>
       <AdminState loading={state.loading} error={state.error} label="Ranked rules" />
       <Surface className={styles.rankedToolbar}>
+        <Field label="Required Competitive deck size">
+          <input type="number" min={1} max={200} step={1} value={deckSize} onChange={(event) => setDeckSize(Number(event.target.value))} />
+        </Field>
         <Field label="Search cards"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Card name or catalogue ID…" /></Field>
         <div className={styles.rowActions}>
-          <button onClick={() => void mutate({ action: "ranked-save-draft", restrictions }, "Ranked restrictions saved as a draft.")}>Save Draft</button>
-          <ActionButton onClick={() => {
-            if (confirm(`Publish ${restrictions.length} Ranked restriction${restrictions.length === 1 ? "" : "s"} as a new ruleset version?`)) void mutate({ action: "ranked-publish", restrictions }, "A new Ranked ruleset version was published.");
+          <button disabled={!Number.isInteger(deckSize) || deckSize < 1 || deckSize > 200} onClick={() => void mutate({ action: "ranked-save-draft", restrictions, deckSize }, "Ranked settings saved as a draft.")}>Save Draft</button>
+          <ActionButton disabled={!Number.isInteger(deckSize) || deckSize < 1 || deckSize > 200} onClick={() => {
+            if (confirm(`Publish a ${deckSize}-card Competitive format with ${restrictions.length} Ranked restriction${restrictions.length === 1 ? "" : "s"} as a new ruleset version?`)) void mutate({ action: "ranked-publish", restrictions, deckSize }, "A new Ranked ruleset version was published.");
           }}>Publish</ActionButton>
         </div>
       </Surface>
@@ -193,7 +199,7 @@ function RankedManagement() {
       {state.data?.history.length ? <Surface className={styles.rankedHistory}>
         <h3>Version history</h3>
         {state.data.history.map((version) => <div key={version.version}>
-          <span>Version {version.version}</span><small>{version.restrictions.length} restrictions · {new Date(version.publishedAt).toLocaleString()}</small>
+          <span>Version {version.version}</span><small>{version.deckSize}-card Competitive · {version.restrictions.length} restrictions · {new Date(version.publishedAt).toLocaleString()}</small>
           <button onClick={() => {
             if (confirm(`Republish version ${version.version} as a new active version?`)) void mutate({ action: "ranked-rollback", version: version.version }, `Version ${version.version} was restored as a new Ranked ruleset.`);
           }}>Restore</button>

@@ -430,7 +430,7 @@ export async function POST(request: Request) {
       const effectiveSelection = requestedRanked ? { ...body.selection, name: account!.displayName } : body.selection;
       const player = tagLobbyPlayerDeck(
         requestedRanked
-          ? makeCanonicalPlayerWithRestrictions(effectiveSelection, ruleset!.restrictions)
+          ? makeCanonicalPlayerWithRestrictions(effectiveSelection, ruleset!.restrictions, ruleset!.deckSize)
           : makeCanonicalPlayer(effectiveSelection),
         effectiveSelection.deck,
       );
@@ -460,6 +460,7 @@ export async function POST(request: Request) {
             body.rankedDecks ?? [],
             ruleset!.version,
             ruleset!.restrictions,
+            ruleset!.deckSize,
           ) as EngineBackedMatchState;
           result.state = rankedLobby;
         }
@@ -552,7 +553,7 @@ export async function POST(request: Request) {
       if (!ranked && body.rankedDecks) throw new ValidationError("This is not a Ranked lobby.");
       const effectiveSelection = ranked ? { ...body.selection, name: account!.displayName } : body.selection;
       const player = tagLobbyPlayerDeck(
-        ranked ? makeCanonicalPlayerWithRestrictions(effectiveSelection, ranked.restrictions) : makeCanonicalPlayer(effectiveSelection),
+        ranked ? makeCanonicalPlayerWithRestrictions(effectiveSelection, ranked.restrictions, ranked.deckSize ?? 50) : makeCanonicalPlayer(effectiveSelection),
         effectiveSelection.deck,
       );
       if (account) {

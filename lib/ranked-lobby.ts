@@ -26,6 +26,7 @@ export type RankedPlayerSeries = {
 
 export type RankedSeriesState = {
   rulesetVersion: number;
+  deckSize: number;
   restrictions: DeckRestriction[];
   stage: RankedStage;
   players: Record<string, RankedPlayerSeries>;
@@ -39,14 +40,14 @@ export function rankedSeries(state: MatchState) {
   return (state as RankedMatchState).ranked;
 }
 
-function cleanSubmission(selection: CanonicalPlayerSelection, restrictions: readonly DeckRestriction[]) {
-  makeCanonicalPlayerWithRestrictions(selection, restrictions);
+function cleanSubmission(selection: CanonicalPlayerSelection, restrictions: readonly DeckRestriction[], deckSize: number) {
+  makeCanonicalPlayerWithRestrictions(selection, restrictions, deckSize);
   const deck = canonicalDeckRecord(selection);
   if (deck.format !== "competitive") throw new Error("Ranked requires Competitive decks.");
   return { ...deck, submittedAt: Date.now() } satisfies RankedDeckSnapshot;
 }
 
-function validateThreeDecks(selections: CanonicalPlayerSelection[], restrictions: readonly DeckRestriction[]) {
+function validateThreeDecks(selections: CanonicalPlayerSelection[], restrictions: readonly DeckRestriction[], deckSize: number) {
   if (selections.length !== 3) throw new Error("Select exactly three Competitive decks.");
   if (new Set(selections.map((selection) => selection.deck.id)).size !== 3) {
     throw new Error("Select three different saved decks.");
@@ -57,7 +58,7 @@ function validateThreeDecks(selections: CanonicalPlayerSelection[], restrictions
     [...selection.deck.cardIds].sort().join(","),
   ].join("|"));
   if (new Set(fingerprints).size !== 3) throw new Error("Select three different deck lists, not duplicate copies of one deck.");
-  return selections.map((selection) => cleanSubmission(selection, restrictions));
+  return selections.map((selection) => cleanSubmission(selection, restrictions, deckSize));
 }
 
 export function initializeRankedLobby(
@@ -68,16 +69,18 @@ export function initializeRankedLobby(
   selections: CanonicalPlayerSelection[],
   rulesetVersion: number,
   restrictions: readonly DeckRestriction[],
+  deckSize = 50,
 ) {
   const state = cloneMatch(input) as RankedMatchState;
   applyLobbyConfig(state, { mode: "ranked", rulesFormat: "competitive", meta: "battle-brawlers" });
   state.format = "bo3";
   state.ranked = {
     rulesetVersion,
+    deckSize,
     restrictions: restrictions.map((restriction) => ({ ...restriction })),
     stage: "deck-lock",
     players: {
-      [playerId]: { userId, displayName, decks: validateThreeDecks(selections, restrictions), wonDeckIds: [] },
+      [playerId]: { userId, displayName, decks: validateThreeDecks(selections, restrictions, deckSize), wonDeckIds: [] },
     },
     currentDeckIds: {},
   };
@@ -96,7 +99,7 @@ export function joinRankedLobby(
   const ranked = state.ranked;
   if (!ranked) throw new Error("This is not a Ranked lobby.");
   if (Object.values(ranked.players).some((player) => player.userId === userId)) throw new Error("An account cannot occupy both Ranked seats.");
-  ranked.players[playerId] = { userId, displayName, decks: validateThreeDecks(selections, restrictions), wonDeckIds: [] };
+  ranked.players[playerId] = { userId, displayName, decks: validateThreeDecks(selections, restrictions, ranked.deckSize ?? 50), wonDeckIds: [] };
   ranked.stage = "ban";
   return state;
 }
@@ -132,7 +135,7 @@ export function eligibleRankedDecks(state: MatchState, playerId: string) {
   return player.decks.filter((deck) => deck.id !== banned && !player.wonDeckIds.includes(deck.id));
 }
 
-function replaceRankedPlayer(state: RankedMatchState, playerId: string, deck: RankedDeckSnapshot, restrictions: readonly DeckRestriction[]) {
+function replaceRankedPlayer(state: RankedMatchState, playerId: string, deck: RankedDeckSnapshot, restrictions: readonly DeckRestriction[], deckSize: number) {
   const index = state.players.findIndex((player) => player.id === playerId);
   if (index < 0) throw new Error("Unknown Ranked seat.");
   const previous = state.players[index];
@@ -140,7 +143,7 @@ function replaceRankedPlayer(state: RankedMatchState, playerId: string, deck: Ra
     playerId,
     name: previous.name,
     deck,
-  }, restrictions), deck);
+  }, restrictions, deckSize), deck);
   replacement.connected = previous.connected;
   replacement.lastSeen = previous.lastSeen;
   replacement.ready = false;
@@ -166,7 +169,7 @@ export function selectRankedDeck(
 
   for (const [seatId, seriesPlayer] of Object.entries(ranked.players)) {
     const selected = seriesPlayer.decks.find((candidate) => candidate.id === seriesPlayer.selectedDeckId)!;
-    replaceRankedPlayer(state, seatId, selected, restrictions);
+    replaceRankedPlayer(state, seatId, selected, restrictions, ranked.deckSize ?? 50);
     ranked.currentDeckIds[seatId] = selected.id;
   }
   if (state.gameNumber > 1 || (state.gameNumber === 1 && state.series && Object.values(state.series).some((wins) => wins > 0))) {

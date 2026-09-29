@@ -49,6 +49,15 @@ import {
 
 export const dynamic = "force-dynamic";
 const MAX_ADMIN_BYTES = 1_000_000;
+
+function rankedDeckSizeInput(value: unknown) {
+  if (value == null) return undefined;
+  const deckSize = Number(value);
+  if (!Number.isInteger(deckSize) || deckSize < 1 || deckSize > 200) {
+    throw new ValidationError("Competitive deck size must be a whole number between 1 and 200.");
+  }
+  return deckSize;
+}
 const json = (value: unknown, status = 200) => Response.json(value, {
   status,
   headers: { "cache-control": "no-store" },
@@ -283,10 +292,10 @@ export async function POST(request: Request) {
       return json({ slot: await resetOfflinePublicDeckSlot(db, String(body.id ?? "")), correlationId });
     }
     if (action === "ranked-save-draft") {
-      return json({ draft: await saveRankedRulesDraft(db, body.restrictions, administrator.id), correlationId });
+      return json({ draft: await saveRankedRulesDraft(db, body.restrictions, rankedDeckSizeInput(body.deckSize), administrator.id), correlationId });
     }
     if (action === "ranked-publish") {
-      return json({ ruleset: await publishRankedRules(db, body.restrictions, administrator.id), correlationId });
+      return json({ ruleset: await publishRankedRules(db, body.restrictions, rankedDeckSizeInput(body.deckSize), administrator.id), correlationId });
     }
     if (action === "ranked-rollback") {
       const version = Number(body.version);

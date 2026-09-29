@@ -2,11 +2,15 @@ import type { DeckRestriction } from "./deck-validation";
 
 export const RANKED_STARTING_BP = 1_000;
 export const RANKED_ELO_K = 24;
+export const RANKED_DEFAULT_DECK_SIZE = 50;
+export const RANKED_MIN_DECK_SIZE = 1;
+export const RANKED_MAX_DECK_SIZE = 200;
 
 export type BrawlerRank = "Bronze" | "Silver" | "Gold" | "Diamond" | "Awesome Brawler";
 
 export type RankedRuleset = {
   version: number;
+  deckSize: number;
   restrictions: DeckRestriction[];
   publishedAt: number;
   publishedBy?: string;

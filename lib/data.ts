@@ -314,8 +314,11 @@ const deckValidationCatalogue = {
   cores: new Map(CORES.map((core) => [core.id, core])),
 };
 
-export const validateDeck = (deck: DeckRecord, restrictions: readonly DeckRestriction[] = []) =>
-  validateDeckConstruction(deck, deckValidationCatalogue, { restrictions });
+export const validateDeck = (
+  deck: DeckRecord,
+  restrictions: readonly DeckRestriction[] = [],
+  competitiveDeckSize = 50,
+) => validateDeckConstruction(deck, deckValidationCatalogue, { restrictions, competitiveDeckSize });
 export const deckErrors = (deck: DeckRecord) => deckValidationMessages(validateDeck(deck));
 export const deckIsLegal = (deck: DeckRecord) => validateDeck(deck).isLegal;
 
@@ -376,12 +379,13 @@ function applyCanonicalCosmetics(player: PlayerState, selection: CanonicalPlayer
 export function makeCanonicalPlayerWithRestrictions(
   selection: CanonicalPlayerSelection,
   restrictions: readonly DeckRestriction[],
+  competitiveDeckSize = 50,
 ): PlayerState {
   const playerId = String(selection.playerId ?? "").trim().slice(0, 80);
   const name = String(selection.name ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 40);
   if (!playerId || !name) throw new Error("A valid player ID and display name are required.");
   const deck = canonicalDeckRecord(selection);
-  const validation = validateDeck(deck, restrictions);
+  const validation = validateDeck(deck, restrictions, competitiveDeckSize);
   if (!validation.isLegal) throw new Error(deckValidationMessages(validation).join(" "));
   return applyCanonicalCosmetics(makePlayerUnchecked(playerId, name, deck), selection);
 }
