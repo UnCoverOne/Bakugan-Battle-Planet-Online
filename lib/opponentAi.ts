@@ -26,6 +26,7 @@ import {
   chooseCardChoices as chooseBaseCardChoices,
   evaluatePlayableCard,
   handCardRetentionValue,
+  opponentAiActiveCardEntries,
   opponentAiCardPaymentState,
 } from "./opponentAiBase";
 import { playerCanSelectRollTarget, selectRollTarget } from "./rolling";
@@ -490,23 +491,7 @@ function activeCandidateEntries(
   card: GameCard,
   choices: CardChoices,
 ) {
-  return memoOpponentAiDecision(
-    match,
-    "active-card-actions",
-    `${playerId}:${card.id}:${opponentAiChoicesKey(choices)}`,
-    () => {
-      const resolving = cloneMatch(match);
-      const controller = playerById(resolving, playerId);
-      if (controller) recordCardPlayedForTurn(controller, card, resolving.turn);
-      return activeCardActionEntries(
-        resolving,
-        playerId,
-        card,
-        choices,
-        { execution: "play" },
-      );
-    },
-  );
+  return opponentAiActiveCardEntries(match, playerId, card, choices);
 }
 
 function independentActionValue(
