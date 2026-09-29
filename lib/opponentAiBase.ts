@@ -51,7 +51,6 @@ import {
   type PendingCardChoice,
 } from "./rules/choices";
 import {
-  compileCardEffect,
   estimateProgramValue,
   type RuleAction,
   type RuleCondition,
@@ -63,6 +62,7 @@ import { evaluateBakuganCharacteristics } from "./rules/modifiers";
 import {
   activeCardActionEntries,
   allInstructionLeafActions,
+  compiledAiCardProgram,
   cardLeafActions,
   estimateRuleActionValue,
   hasNonDeferrablePreRollTiming,
@@ -70,6 +70,10 @@ import {
   temporaryCombatPotential,
 } from "./aiCardSemantics";
 import type { GameCommand } from "./engine/types";
+import {
+  memoOpponentAiDecision,
+  opponentAiChoicesKey,
+} from "./opponentAiDecisionCache";
 
 const PRIORITY_PHASES = new Set<MatchState["phase"]>([
   "preRoll", "power", "victor", "postDamage", "endPlay",
@@ -612,7 +616,7 @@ function repeatableOnOpenValue(match: MatchState, playerId: string) {
   if (!player) return 0;
   return player.heroes.reduce((sum, hero) => {
     try {
-      const program = compileCardEffect(hero);
+      const program = compiledAiCardProgram(hero);
       const instructions = program.instructions.filter((instruction) => (
         instruction.actions.some((action) => (
           action.kind === "trigger" && action.definition.event === "BAKUGAN_OPENED"
@@ -632,7 +636,7 @@ function repeatableOnOpenValue(match: MatchState, playerId: string) {
 
 function rerollSuccessValue(match: MatchState, playerId: string, card: GameCard) {
   try {
-    const program = compileCardEffect(card);
+    const program = compiledAiCardProgram(card);
     const instructions = program.instructions.filter(
       (instruction) => instruction.condition.kind === "reroll-opened",
     );
@@ -712,7 +716,7 @@ function evaluatedFutureCardValue(
     return bestEvoPlayBenefit(match, playerId, card) - printedCost * 0.4;
   }
   try {
-    const program = compileCardEffect(card);
+    const program = compiledAiCardProgram(card);
     const evaluatedProgram = /\bReroll\b/i.test(card.effect)
       ? withoutRerollSuccessInstructions(program)
       : program;
@@ -736,8 +740,15 @@ function evaluatedFutureCardValue(
  * retaining it has no opportunity value for Energize or discard choices.
  */
 export function handCardRetentionValue(match: MatchState, playerId: string, card: GameCard) {
-  if (card.type === "Flip" || card.type === "Flip Hero") return 0;
-  return evaluatedFutureCardValue(match, playerId, card, false);
+  return memoOpponentAiDecision(
+    match,
+    "retention",
+    `${playerId}:${card.id}`,
+    () => {
+      if (card.type === "Flip" || card.type === "Flip Hero") return 0;
+      return evaluatedFutureCardValue(match, playerId, card, false);
+    },
+  );
 }
 
 function deckCardFutureValue(match: MatchState, playerId: string, card: GameCard) {
@@ -965,7 +976,7 @@ function negateValue(match: MatchState, playerId: string, program: RuleProgram) 
   const target = negateTarget(match, playerId, program);
   if (!target || target.controllerId === playerId) return -8;
   const targetValue = estimateProgramValue(
-    compileCardEffect(target.card, target.effect ?? target.card.effect),
+    compiledAiCardProgram(target.card, target.effect ?? target.card.effect),
     match,
     target.controllerId,
     target.choices,
@@ -1112,7 +1123,12 @@ function cardValue(
   card: GameCard,
   choices: CardChoices = {},
 ) {
-  const program = compileCardEffect(card);
+  return memoOpponentAiDecision(
+    match,
+    "card-value",
+    `${playerId}:${card.id}:${opponentAiChoicesKey(choices)}`,
+    () => {
+      const program = compiledAiCardProgram(card);
   const printedCost = card.cost === "X" ? choices.xValue ?? 0 : card.cost;
   const resolving = cloneMatch(match);
   const resolvingPlayer = playerById(resolving, playerId);
@@ -1201,8 +1217,10 @@ function cardValue(
   if (card.type === "Evo") {
     value += evoMarginalValue(match, playerId, card, evoTargetId(choices));
   }
-  if (card.type === "Flip" || card.type === "Flip Hero") value += match.pendingDamage > 0 ? 5 : -10;
-  return value;
+      if (card.type === "Flip" || card.type === "Flip Hero") value += match.pendingDamage > 0 ? 5 : -10;
+      return value;
+    },
+  );
 }
 
 function setChoice(choices: CardChoices, field: ChoiceField, values: string[]) {
@@ -1292,7 +1310,7 @@ function optionalEffectValue(
       continue;
     }
     if (action.kind === "negate") {
-      value += negateValue(match, playerId, compileCardEffect(card));
+      value += negateValue(match, playerId, compiledAiCardProgram(card));
       continue;
     }
     if (action.kind === "recharge-energy") {
@@ -1373,7 +1391,7 @@ function optionScore(
     const hero = owner?.heroes.find((candidate) => candidate.id === id);
     const strength = hero
       ? (hero.cost === "X" ? 0 : hero.cost) + Math.max(0, estimateProgramValue(
-        compileCardEffect(hero), match, owner?.id ?? controllerId,
+        compiledAiCardProgram(hero), match, owner?.id ?? controllerId,
       ))
       : 0;
     return objectUtilityForChooser(owner?.id ?? option?.ownerId, chooserId, polarity, strength);
@@ -1506,12 +1524,17 @@ export function chooseCardChoices(
   card: GameCard,
   chooserId = playerId,
 ): CardChoices {
-  return chooseChoicesFromSchema(
+  return memoOpponentAiDecision(
     match,
-    playerId,
-    card,
-    buildChoiceSchema(match, playerId, card),
-    chooserId,
+    "choices",
+    `${playerId}:${chooserId}:${card.id}`,
+    () => chooseChoicesFromSchema(
+      match,
+      playerId,
+      card,
+      buildChoiceSchema(match, playerId, card),
+      chooserId,
+    ),
   );
 }
 
@@ -1545,7 +1568,7 @@ function pendingSource(
     ?? (match.revealedFlip?.id === pending.cardId ? match.revealedFlip : undefined);
   if (!card) return undefined;
   const instruction = effect && pending.instructionIndex != null
-    ? compileCardEffect(effect.card, effect.effect ?? effect.card.effect)
+    ? compiledAiCardProgram(effect.card, effect.effect ?? effect.card.effect)
       .instructions[pending.instructionIndex]
     : undefined;
   return {
@@ -2265,7 +2288,7 @@ function preRollCombatForecast(match: MatchState, playerId: string): PreRollComb
 
 function repeatableOpenDrawAmount(card: GameCard) {
   try {
-    return compileCardEffect(card).instructions.reduce((sum, instruction) => {
+    return compiledAiCardProgram(card).instructions.reduce((sum, instruction) => {
       const actions = allInstructionLeafActions(instruction);
       const opens = actions.some((action) => (
         action.kind === "trigger"
@@ -2805,7 +2828,12 @@ export function evaluatePlayableCard(
   playerId: string,
   card: GameCard,
 ) {
-  if (card.type === "Flip" || card.type === "Flip Hero" || card.type === "Character") return null;
+  return memoOpponentAiDecision(
+    match,
+    "playable-card",
+    `${playerId}:${card.id}`,
+    () => {
+      if (card.type === "Flip" || card.type === "Flip Hero" || card.type === "Character") return null;
   if (!cardRerollTimingLegal(match, playerId, card)) return null;
   let choices: CardChoices;
   try {
@@ -2863,8 +2891,10 @@ export function evaluatePlayableCard(
   // authoritative payment result so setup effects and existing reductions are
   // valued exactly the same way during planning and on the next real decision.
   const printedBaseCost = card.cost === "X" ? choices.xValue ?? payment.cost : card.cost;
-  const score = tacticalScore + (printedBaseCost - payment.cost) * 0.72;
-  return { card, choices, payment, score };
+      const score = tacticalScore + (printedBaseCost - payment.cost) * 0.72;
+      return { card, choices, payment, score };
+    },
+  );
 }
 
 function bestPlayableCard(match: MatchState, playerId: string) {
@@ -2939,8 +2969,8 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
   );
   if (triggerOrder) {
     const ids = [...triggerOrder.triggers].sort((a, b) => (
-      estimateProgramValue(compileCardEffect(a.card, a.effect), input, playerId, a.choices)
-      - estimateProgramValue(compileCardEffect(b.card, b.effect), input, playerId, b.choices)
+      estimateProgramValue(compiledAiCardProgram(a.card, a.effect), input, playerId, a.choices)
+      - estimateProgramValue(compiledAiCardProgram(b.card, b.effect), input, playerId, b.choices)
     )).map((trigger) => trigger.id);
     return { type: "ORDER_TRIGGERS", requestId: triggerOrder.id, orderedIds: ids };
   }
