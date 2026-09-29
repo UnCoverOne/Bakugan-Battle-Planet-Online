@@ -602,7 +602,12 @@ function bestNextCardContinuation(
   playerId: string,
   sourceCard: GameCard,
 ): AiContinuationLine | undefined {
-  const modifier = nextCardCostModifier(sourceCard);
+  return memoOpponentAiDecision(
+    match,
+    "continuation-line",
+    `${playerId}:${sourceCard.id}`,
+    () => {
+      const modifier = nextCardCostModifier(sourceCard);
   const player = playerById(match, playerId);
   if (!modifier || !player) return undefined;
 
@@ -664,8 +669,10 @@ function bestNextCardContinuation(
         score,
       };
     }
-  }
-  return best;
+      }
+      return best;
+    },
+  );
 }
 
 function shouldReserveNextCardSetupCard(
