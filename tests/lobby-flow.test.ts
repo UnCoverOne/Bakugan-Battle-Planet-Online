@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { selectAiDeckForMeta } from "../lib/ai-meta-selection";
-import { STARTER_DECKS, makeCanonicalPlayer, makePlayer, type DeckRecord } from "../lib/data";
+import { STARTER_DECKS, canonicalSelectionForFormat, makeCanonicalPlayer, makePlayer, type DeckRecord } from "../lib/data";
 import { createMatch } from "../lib/game";
 import {
   lobbyConfig,
@@ -17,7 +17,7 @@ import {
   startLobbyMatch,
   updateLobbySettings,
 } from "../lib/lobby";
-import { createTrainingLobbyState } from "../lib/training-lobby";
+import { createTrainingLobbyState, trainingOpponentDeck } from "../lib/training-lobby";
 
 function taggedPlayer(index: number, deck = STARTER_DECKS[index]) {
   return tagLobbyPlayerDeck(
@@ -125,6 +125,24 @@ test("deck replacement stays in the lobby and un-readies the player", () => {
   assert.equal(state.players[0].ready, false);
   assert.equal(playerLobbyDeckFormat(state.players[0]), "standard");
   assert.equal(state.players[0].bakugan[0].character.catalogId, STARTER_DECKS[1].bakuganIds[0]);
+});
+
+test("lobby deck compatibility is based on the requested format, not the saved label", () => {
+  const singletonList = trainingOpponentDeck("singleton", STARTER_DECKS[0]);
+  const savedAsStandard: DeckRecord = { ...singletonList, format: "standard" };
+  let state = createMatch("ABC123", "bo1", [taggedPlayer(0), taggedPlayer(1)]);
+  state = updateLobbySettings(state, "player-1", "singleton", "battle-brawlers");
+
+  const selection = canonicalSelectionForFormat({
+    playerId: "player-1",
+    name: "Player 1",
+    deck: savedAsStandard,
+  }, "singleton");
+  const replacement = tagLobbyPlayerDeck(makeCanonicalPlayer(selection), selection.deck);
+  state = replaceLobbyDeck(state, "player-1", replacement);
+
+  assert.equal(playerLobbyDeckFormat(state.players[0]), "singleton");
+  assert.equal(state.players[0].ready, false);
 });
 
 test("ready and start are separate owner-controlled actions", () => {
