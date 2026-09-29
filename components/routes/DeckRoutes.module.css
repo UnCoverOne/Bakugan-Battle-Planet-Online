@@ -21,7 +21,7 @@
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   margin: var(--space-5) auto;
   display: grid;
-  grid-template-columns: minmax(16rem, 2fr) repeat(3, minmax(8rem, .7fr)) auto;
+  grid-template-columns: minmax(16rem, 2fr) repeat(4, minmax(8rem, .7fr)) auto;
   align-items: end;
   gap: var(--space-3);
   padding: var(--space-4);
