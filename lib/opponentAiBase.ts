@@ -33,6 +33,7 @@ import {
 } from "./game";
 import { cardEnergyPaymentState, playCardWithAutoEnergy } from "./cardPayment";
 import { activeTappedEnergyIds, maximumPayableEnergy } from "./rules/costs";
+import { evaluateNumberValue } from "./rules/values";
 import { flipDamageCard, resolveManualDamage } from "./manualDamage";
 import {
   availableRollTargets,
@@ -2619,6 +2620,56 @@ function createPreRollDecisionContext(match: MatchState, playerId: string): PreR
   return context;
 }
 
+function preRollConditionalCostImprovementChance(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices,
+  forecast: RollForecast | undefined,
+) {
+  if (match.phase !== "preRoll" || !forecast?.samples.length || hasNonDeferrablePreRollTiming(card.effect)) return 0;
+  const player = playerById(match, playerId);
+  const selectedId = match.selected[playerId];
+  if (!player || !selectedId) return 0;
+  const selected = player.bakugan.find((bakugan) => bakugan.id === selectedId);
+  if (!selected || selected.open) return 0;
+
+  const modifiers = ruleDefinitionForCard(card).play.costModifiers.filter((modifier) => {
+    const condition = "condition" in modifier ? modifier.condition : undefined;
+    if (condition?.kind !== "core-count" || condition.relationship !== "at-least") return false;
+    if (modifier.kind === "cost-free") return true;
+    if (modifier.kind !== "cost-reduce") return false;
+    return evaluateNumberValue(match, modifier.amount, {
+      controllerId: playerId,
+      choices,
+      moment: "pay",
+    }) > 0;
+  });
+  if (!modifiers.length) return 0;
+
+  const currentHeld = player.bakugan.reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
+  const otherHeld = player.bakugan
+    .filter((bakugan) => bakugan.id !== selected.id)
+    .reduce((sum, bakugan) => sum + bakugan.heldCoreCells.length, 0);
+
+  let bestChance = 0;
+  for (const modifier of modifiers) {
+    const condition = "condition" in modifier ? modifier.condition : undefined;
+    if (condition?.kind !== "core-count" || condition.relationship !== "at-least") continue;
+    const threshold = Math.max(0, Math.floor(evaluateNumberValue(match, condition.amount ?? 0, {
+      controllerId: playerId,
+      choices,
+      moment: "pay",
+    })));
+    if (currentHeld >= threshold) continue;
+    const successful = forecast.samples.filter((sample) => (
+      otherHeld + sample.outcome.cores.length >= threshold
+    )).length;
+    bestChance = Math.max(bestChance, successful / forecast.samples.length);
+  }
+  return bestChance;
+}
+
 function deferrablePreRollCombatValue(
   match: MatchState,
   playerId: string,
@@ -2749,6 +2800,17 @@ export function evaluatePlayableCard(
   const preRollContext = match.phase === "preRoll"
     ? createPreRollDecisionContext(match, playerId)
     : undefined;
+  if (
+    preRollContext
+    && payment.cost > 0
+    && preRollConditionalCostImprovementChance(
+      match,
+      playerId,
+      card,
+      choices,
+      preRollContext.forecast.own,
+    ) > 0
+  ) return null;
   let tacticalScore = preRollContext
     ? preRollCandidateScore(
       match,
