@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { validateDeck, type DeckRecord } from "../../lib/data";
+import { deckIsLegalForFormat, validateDeck, type DeckRecord } from "../../lib/data";
 import type { DeckRestriction } from "../../lib/deck-validation";
 import { normalizeRoomCode } from "../../lib/play-setup-machine";
 import { initializeLocalReplayJournal } from "../../lib/replay-journal";
@@ -64,16 +64,16 @@ export function MatchCreationScreen() {
   const [rankedDeckSize, setRankedDeckSize] = useState(50);
 
   const legalDecks = useMemo(
-    () => (decks as DeckRecord[]).filter((deck) => validateDeck(deck).isLegal),
+    () => (decks as DeckRecord[]).filter((deck) => deckIsLegalForFormat(deck, "standard")),
     [decks],
   );
   const preferredDeck = useMemo(() => {
     const current = selectedDeck as DeckRecord | null;
-    if (current && validateDeck(current).isLegal) return current;
+    if (current && deckIsLegalForFormat(current, "standard")) return current;
     return legalDecks.find((deck) => deck.id === selectedDeckId) ?? legalDecks[0] ?? null;
   }, [legalDecks, selectedDeck, selectedDeckId]);
   const competitiveDecks = useMemo(
-    () => (decks as DeckRecord[]).filter((deck) => deck.format === "competitive" && validateDeck(deck, rankedRestrictions, rankedDeckSize).isLegal),
+    () => (decks as DeckRecord[]).filter((deck) => deckIsLegalForFormat(deck, "competitive", rankedRestrictions, rankedDeckSize)),
     [decks, rankedDeckSize, rankedRestrictions],
   );
   const rankedDecks = competitiveDecks.filter((deck) => rankedDeckIds.includes(deck.id));
