@@ -16,7 +16,7 @@ import {
   type MatchState,
 } from "./game";
 import { bestAiRerollOpportunity, bestAiRollTarget } from "./aiRollForecast";
-import { cardEnergyPaymentState, playCardWithAutoEnergy } from "./cardPayment";
+import { playCardWithAutoEnergy } from "./cardPayment";
 import { drawPendingCard, playerCanResolvePendingDraw } from "./drawQueue";
 import { evaluateBakuganCharacteristics } from "./rules/modifiers";
 import { activeTappedEnergyIds } from "./rules/costs";
@@ -26,6 +26,7 @@ import {
   chooseCardChoices as chooseBaseCardChoices,
   evaluatePlayableCard,
   handCardRetentionValue,
+  opponentAiCardPaymentState,
 } from "./opponentAiBase";
 import { playerCanSelectRollTarget, selectRollTarget } from "./rolling";
 import {
@@ -37,6 +38,13 @@ import {
 } from "./aiCardSemantics";
 import type { RuleAction, RuleInstruction } from "./rules/effects";
 import type { GameCommand } from "./engine/types";
+import {
+  memoOpponentAiDecision,
+  opponentAiChoicesKey,
+  runOpponentAiDecision,
+  takeOpponentAiOptionalWork,
+  type OpponentAiPlannerMetrics,
+} from "./opponentAiDecisionCache";
 
 export { chooseCardChoices } from "./opponentAiBase";
 export { opponentAiCanAct } from "./opponentAiCanAct";
@@ -391,7 +399,15 @@ function projectCombatAfterBatch(
   playerId: string,
   candidate?: { card: GameCard; choices: CardChoices },
 ) {
-  const opponent = opponentOf(match, playerId);
+  const candidateKey = candidate
+    ? `${candidate.card.id}:${opponentAiChoicesKey(candidate.choices)}`
+    : "baseline";
+  return memoOpponentAiDecision(
+    match,
+    "batch-projection",
+    `${playerId}:${candidateKey}`,
+    () => {
+      const opponent = opponentOf(match, playerId);
   const combat: ProjectedCombatState = {
     power: {
       own: totalPower(match, playerId),
@@ -434,10 +450,12 @@ function projectCombatAfterBatch(
       },
     );
   }
-  const gap = combat.deciding.stat === "power"
-    ? combat.power.own - combat.power.enemy
-    : combat.damage.own - combat.damage.enemy;
-  return { combat, gap, usefulPostVictoryEffect };
+      const gap = combat.deciding.stat === "power"
+        ? combat.power.own - combat.power.enemy
+        : combat.damage.own - combat.damage.enemy;
+      return { combat, gap, usefulPostVictoryEffect };
+    },
+  );
 }
 
 function projectedCombatOutcome(
@@ -472,15 +490,22 @@ function activeCandidateEntries(
   card: GameCard,
   choices: CardChoices,
 ) {
-  const resolving = cloneMatch(match);
-  const controller = playerById(resolving, playerId);
-  if (controller) recordCardPlayedForTurn(controller, card, resolving.turn);
-  return activeCardActionEntries(
-    resolving,
-    playerId,
-    card,
-    choices,
-    { execution: "play" },
+  return memoOpponentAiDecision(
+    match,
+    "active-card-actions",
+    `${playerId}:${card.id}:${opponentAiChoicesKey(choices)}`,
+    () => {
+      const resolving = cloneMatch(match);
+      const controller = playerById(resolving, playerId);
+      if (controller) recordCardPlayedForTurn(controller, card, resolving.turn);
+      return activeCardActionEntries(
+        resolving,
+        playerId,
+        card,
+        choices,
+        { execution: "play" },
+      );
+    },
   );
 }
 
@@ -617,6 +642,7 @@ function bestNextCardContinuation(
 
   let best: AiContinuationLine | undefined;
   for (const followUpCard of afterPlayer.hand) {
+    if (!takeOpponentAiOptionalWork("continuation-follow-up")) break;
     // Depth is deliberately bounded at two meaningful plays. Chaining another
     // setup card belongs to a future decision rather than recursively growing
     // the search tree.
@@ -657,7 +683,7 @@ function shouldReserveNextCardSetupCard(
   } catch {
     return false;
   }
-  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  const payment = opponentAiCardPaymentState(match, playerId, card, choices);
   if (!payment || payment.kind === "insufficient") return false;
   const entries = activeCandidateEntries(match, playerId, card, choices);
   const hasSelfReroll = entries.some(({ action }) => (
@@ -789,7 +815,7 @@ function shouldSuppressUnnecessaryVictorStatSwitch(
 
   const independentValue = candidateNonSwitchIndependentValue(match, playerId, card, choices);
   if (independentValue >= 1.5) return false;
-  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  const payment = opponentAiCardPaymentState(match, playerId, card, choices);
   const cost = payment?.kind === "insufficient"
     ? Number.POSITIVE_INFINITY
     : payment?.cost ?? (card.cost === "X" ? 0 : card.cost);
@@ -810,7 +836,7 @@ function shouldReservePostBrawlOptionalRerollCard(
   if (!player || !player.bakugan.some((bakugan) => !bakugan.open)) return false;
   const choices = chooseBaseCardChoices(match, playerId, card);
   const immediate = candidateIndependentValue(match, playerId, card, choices);
-  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  const payment = opponentAiCardPaymentState(match, playerId, card, choices);
   const cost = payment?.kind === "insufficient" ? 0 : payment?.cost ?? 0;
   const retained = Math.max(0, handCardRetentionValue(match, playerId, card));
   const futureRerollReserve = Math.max(3.2, retained * 0.55 + 1.25);
@@ -942,7 +968,7 @@ function shouldReserveOffBrawlEvo(
   const target = targetId ? player.bakugan.find((bakugan) => bakugan.id === targetId) : undefined;
   if (!target || !target.open || target.id === selectedId) return false;
 
-  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  const payment = opponentAiCardPaymentState(match, playerId, card, choices);
   if (!payment || payment.kind === "insufficient") return false;
   const capacity = currentEnergyCapacity(match, playerId);
   if (capacity <= 0 || payment.cost < capacity) return false;
@@ -958,7 +984,7 @@ function shouldReserveOffBrawlEvo(
     } catch {
       return false;
     }
-    const candidatePayment = cardEnergyPaymentState(match, playerId, candidate, candidateChoices);
+    const candidatePayment = opponentAiCardPaymentState(match, playerId, candidate, candidateChoices);
     if (!candidatePayment || candidatePayment.kind === "insufficient" || candidatePayment.cost > capacity) {
       return false;
     }
@@ -1005,7 +1031,7 @@ function minimumWinningTemporaryPowerCards(
     .filter((card) => candidateHasTemporaryPower(match, playerId, card))
     .map((card) => {
       const choices = chooseBaseCardChoices(match, playerId, card);
-      const payment = cardEnergyPaymentState(match, playerId, card, choices);
+      const payment = opponentAiCardPaymentState(match, playerId, card, choices);
       const cost = payment?.kind === "insufficient" ? budget + 1 : payment?.cost ?? budget + 1;
       const retention = Math.max(0, handCardRetentionValue(match, playerId, card));
       const independentValue = candidateIndependentValue(match, playerId, card, choices);
@@ -1086,7 +1112,7 @@ function hasAffordableDirectWinningAlternative(match: MatchState, playerId: stri
     if (entries.some(({ action }) => (
       action.kind === "reroll" && action.target === "controller"
     ))) return false;
-    const payment = cardEnergyPaymentState(match, playerId, card, choices);
+    const payment = opponentAiCardPaymentState(match, playerId, card, choices);
     if (!payment || payment.kind === "insufficient") return false;
     const projection = projectedCombatOutcome(match, playerId, card, choices);
     return !projection.currentWin && projection.projectedWin;
@@ -1127,7 +1153,7 @@ function bestTacticalRerollCard(
     if (!entries.some(({ action }) => (
       action.kind === "reroll" && action.target === "controller"
     ))) continue;
-    const payment = cardEnergyPaymentState(match, playerId, card, choices);
+    const payment = opponentAiCardPaymentState(match, playerId, card, choices);
     if (!payment || payment.kind === "insufficient") continue;
     const retention = Math.max(0, handCardRetentionValue(match, playerId, card));
     const netValue = opportunity.utilityGain
@@ -1413,7 +1439,7 @@ function advanceOpponentAiStep(input: MatchState, playerId: string): MatchState 
 }
 
 /** Pure one-step decision for the Training worker; the main reducer applies it. */
-export function chooseOpponentAiCommand(input: MatchState, playerId: string): GameCommand | null {
+function chooseOpponentAiCommandInternal(input: MatchState, playerId: string): GameCommand | null {
   if (input.pendingCoinFlip?.controllerId === playerId) return { type: "COMPLETE_COIN_FLIP" };
   if (playerCanResolvePendingDraw(input, playerId)) {
     return { type: "DRAW_PENDING_CARD" };
@@ -1444,6 +1470,26 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
     && !hasPendingDecision
   ) return chooseWithCombatPolicy(input, playerId);
   return chooseBaseOpponentAiCommand(input, playerId);
+}
+
+export function chooseOpponentAiCommand(input: MatchState, playerId: string): GameCommand | null {
+  return runOpponentAiDecision(
+    input,
+    playerId,
+    () => chooseOpponentAiCommandInternal(input, playerId),
+  ).result;
+}
+
+export function chooseOpponentAiCommandWithMetrics(
+  input: MatchState,
+  playerId: string,
+): { command: GameCommand | null; metrics: OpponentAiPlannerMetrics } {
+  const decision = runOpponentAiDecision(
+    input,
+    playerId,
+    () => chooseOpponentAiCommandInternal(input, playerId),
+  );
+  return { command: decision.result, metrics: decision.metrics };
 }
 
 
