@@ -859,11 +859,12 @@ function DeckTile({
           </p>
           <div className={styles.chipRow}>
             <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
-            <StatusChip tone={report.isLegal ? "success" : "danger"}>
-              {report.isLegal ? "Legal" : `${report.issues.length} issues`}
+            <StatusChip tone={legalFormats.length ? "success" : "danger"}>
+              {legalFormats.length ? "Legal" : `${report.issues.length} issues`}
             </StatusChip>
           </div>
           <DeckFactionSymbols factions={deck.factions} />
+          <small>{legalFormats.length ? `Legal formats: ${legalFormats.map(deckFormatLabel).join(" · ")}` : `Preferred format: ${deckFormatLabel(deck.format ?? "standard")}`}</small>
           <small>{deck.cardIds.length}/{deck.format === "competitive" ? competitiveDeckSize : 40} cards · {deck.bakuganIds.length}/3 Character · {deck.coreIds.length}/6 BakuCores</small>
           <small>Updated {formatTimestamp(deck.updatedAt)}</small>
         </div>
@@ -894,11 +895,13 @@ export function PublicDeckLibraryScreen() {
   const [query, setQuery] = useState("");
   const [faction, setFaction] = useState("All");
   const [legality, setLegality] = useState("All");
+  const [formatFilter, setFormatFilter] = useState<DeckFormatFilter>("all");
   const [sort, setSort] = useState("Updated");
   const [view, setView] = useState<LibraryView>("grid");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [pendingFavoriteIds, setPendingFavoriteIds] = useState<Set<string>>(() => new Set());
   const catalogue = usePublicDeckCatalogue(online, authUser?.id);
+  const competitiveRules = useCompetitiveRules();
   const allPublic = catalogue.decks;
   useEffect(() => {
     if (!authUser || catalogue.status !== "online") setFavoritesOnly(false);
@@ -914,14 +917,25 @@ export function PublicDeckLibraryScreen() {
   }
 
   const reports = new Map<string, DeckValidationResult>(
-    allPublic.map((deck): [string, DeckValidationResult] => [deck.id, validateDeck(deck)]),
+    allPublic.map((deck): [string, DeckValidationResult] => [
+      deck.id,
+      validateDeck(deck, competitiveRules.restrictions, competitiveRules.deckSize),
+    ]),
+  );
+  const compatibility = new Map<string, DeckFormat[]>(
+    allPublic.map((deck): [string, DeckFormat[]] => [
+      deck.id,
+      legalDeckFormats(deck, competitiveRules.restrictions, competitiveRules.deckSize),
+    ]),
   );
   const visible = allPublic.filter((deck) => {
-    const report = reports.get(deck.id)!;
+    const legalFormats = compatibility.get(deck.id) ?? [];
+    const legal = legalFormats.length > 0;
     const matchesQuery = !query || `${deck.name} ${deck.creator} ${deck.description} ${deck.factions.join(" ")} ${deckSetName(deck)}`.toLowerCase().includes(query.toLowerCase());
     const matchesFaction = faction === "All" || deck.factions.includes(faction);
+    const matchesFormat = formatFilter === "all" || legalFormats.includes(formatFilter);
     const matchesFavorite = !favoritesOnly || Boolean(catalogue.favorites[deck.id]?.viewerHasFavorited);
-    return matchesQuery && matchesFaction && matchesFavorite && (legality === "All" || (legality === "Legal" ? report.isLegal : !report.isLegal));
+    return matchesQuery && matchesFaction && matchesFormat && matchesFavorite && (legality === "All" || (legality === "Legal" ? legal : !legal));
   }).sort((a, b) => {
     if (sort === "Name") return a.name.localeCompare(b.name);
     if (sort === "Set") return deckSetName(a).localeCompare(deckSetName(b));
@@ -977,8 +991,8 @@ export function PublicDeckLibraryScreen() {
   };
   const copyDeck = (deck: DeckRecord) => {
     if (decks.length >= DECK_LIMIT) return notify(`Deck limit reached (${DECK_LIMIT}).`);
-    const validation = validateDeck(deck);
-    if (!validation.isLegal) return notify(`This public deck cannot be copied: ${validation.issues[0].message}`);
+    const legalFormats = compatibility.get(deck.id) ?? [];
+    if (!legalFormats.length) return notify("This public deck is not legal in any supported format.");
     const copy = {
       ...clone(deck),
       id: globalThis.crypto.randomUUID(),
@@ -1002,7 +1016,7 @@ export function PublicDeckLibraryScreen() {
       <DeckAreaHeader
         section="public"
         count={allPublic.length}
-        legalCount={[...reports.values()].filter((report) => report.isLegal).length}
+        legalCount={[...compatibility.values()].filter((formats) => formats.length > 0).length}
       />
       {catalogue.status === "offline" && (
         <DeckState
@@ -1019,6 +1033,8 @@ export function PublicDeckLibraryScreen() {
         setFaction={setFaction}
         legality={legality}
         setLegality={setLegality}
+        formatFilter={formatFilter}
+        setFormatFilter={setFormatFilter}
         sort={sort}
         setSort={setSort}
         view={view}
@@ -1036,6 +1052,7 @@ export function PublicDeckLibraryScreen() {
               key={deck.id}
               deck={deck}
               report={reports.get(deck.id)!}
+              legalFormats={compatibility.get(deck.id) ?? []}
               view={view}
               favorite={catalogue.favorites[deck.id] ?? { favoriteCount: 0, viewerHasFavorited: false }}
               favoriteAvailable={catalogue.status === "online"}
@@ -1056,6 +1073,7 @@ export function PublicDeckLibraryScreen() {
 function PublicDeckTile({
   deck,
   report,
+  legalFormats,
   view,
   favorite,
   favoriteAvailable,
@@ -1066,6 +1084,7 @@ function PublicDeckTile({
 }: {
   deck: DeckRecord;
   report: DeckValidationResult;
+  legalFormats: DeckFormat[];
   view: LibraryView;
   favorite: PublicDeckFavoriteMetadata;
   favoriteAvailable: boolean;
@@ -1083,15 +1102,16 @@ function PublicDeckTile({
           <p>by {deck.creator ?? "Community Brawler"}</p>
           <div className={styles.chipRow}>
             <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
-            <StatusChip tone={report.isLegal ? "success" : "danger"}>{report.isLegal ? "Legal" : "Invalid"}</StatusChip>
+            <StatusChip tone={legalFormats.length ? "success" : "danger"}>{legalFormats.length ? "Legal" : `${report.issues.length} issues`}</StatusChip>
           </div>
           <DeckFactionSymbols factions={deck.factions} />
+          <small>{legalFormats.length ? `Legal formats: ${legalFormats.map(deckFormatLabel).join(" · ")}` : "No legal formats"}</small>
           <small>Published {formatTimestamp(deck.publishedAt ?? deck.updatedAt)}</small>
         </div>
       </button>
       <div className={`${styles.deckCardActions} ${styles.publicDeckActions}`}>
         <button onClick={onOpen}>View Deck</button>
-        <button onClick={onCopy} disabled={!report.isLegal} title="Copy to My Decks">Copy</button>
+        <button onClick={onCopy} disabled={!legalFormats.length} title="Copy to My Decks">Copy</button>
         {favoriteAvailable && (
           <button
             className={styles.favoriteButton}
