@@ -102,6 +102,44 @@ export function opponentAiCardPaymentState(
   );
 }
 
+export function opponentAiProjectedPlayState(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+) {
+  return memoOpponentAiDecision(
+    match,
+    "projected-play-state",
+    `${playerId}:${card.id}`,
+    () => {
+      const resolving = cloneMatch(match);
+      const controller = playerById(resolving, playerId);
+      if (controller) recordCardPlayedForTurn(controller, card, resolving.turn);
+      return resolving;
+    },
+  );
+}
+
+export function opponentAiActiveCardEntries(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices = {},
+) {
+  return memoOpponentAiDecision(
+    match,
+    "active-card-actions",
+    `${playerId}:${card.id}:${opponentAiChoicesKey(choices)}`,
+    () => activeCardActionEntries(
+      opponentAiProjectedPlayState(match, playerId, card),
+      playerId,
+      card,
+      choices,
+      { execution: "play" },
+    ),
+  );
+}
+
 function topBakuganCard(bakugan: Bakugan) {
   return bakugan.evoStack.at(-1) ?? bakugan.character;
 }
@@ -1144,15 +1182,13 @@ function cardValue(
     () => {
       const program = compiledAiCardProgram(card);
   const printedCost = card.cost === "X" ? choices.xValue ?? 0 : card.cost;
-  const resolving = cloneMatch(match);
+  const resolving = opponentAiProjectedPlayState(match, playerId, card);
   const resolvingPlayer = playerById(resolving, playerId);
-  if (resolvingPlayer) recordCardPlayedForTurn(resolvingPlayer, card, resolving.turn);
-  const entries = activeCardActionEntries(
-    resolving,
+  const entries = opponentAiActiveCardEntries(
+    match,
     playerId,
     card,
     choices,
-    { execution: "play" },
   ).filter(({ instruction }) => card.type !== "Evo" || evoInstructionOccursOnPlay(instruction));
   const powerChangesVictor = temporaryPowerChangesVictor(match, playerId);
   let value = entries.reduce((sum, entry) => {
