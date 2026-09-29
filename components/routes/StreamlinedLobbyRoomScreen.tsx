@@ -8,9 +8,10 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { chatEntries, normalizeChatMessage } from "../../lib/chat";
 import {
   CARD_BY_ID,
+  canonicalSelectionForFormat,
+  deckIsLegalForFormat,
   deckLeadCard,
   makeCanonicalPlayer,
-  validateDeck,
   type CanonicalPlayerSelection,
   type DeckRecord,
 } from "../../lib/data";
@@ -174,12 +175,10 @@ export function LobbyRoomScreen() {
   const requiredFormat = config ? requiredDeckFormat(config.rulesFormat) : "standard";
   const selectedMeta = config?.meta ?? "battle-brawlers";
   const playerDecks = decks as DeckRecord[];
-  const compatibleDecks = playerDecks.filter((deck) => {
-    const deckFormat = deck.format === "singleton" || deck.format === "competitive" ? deck.format : "standard";
-    return deckFormat === requiredFormat
-      && validateDeck(deck, ranked?.restrictions ?? [], ranked?.deckSize ?? 50).isLegal
-      && deckAllowedInMeta(selectedMeta, deck);
-  });
+  const compatibleDecks = playerDecks.filter((deck) => (
+    deckIsLegalForFormat(deck, requiredFormat, ranked?.restrictions ?? [], ranked?.deckSize ?? 50)
+      && deckAllowedInMeta(selectedMeta, deck)
+  ));
   const compatibleDeckIds = new Set(compatibleDecks.map((deck) => deck.id));
   const currentDeck = playerDecks.find((deck) => deckMatchesPlayer(deck, me)) ?? null;
   const currentDeckCards = currentDeck ? deckPreviewCards(currentDeck) : [];
@@ -305,7 +304,10 @@ export function LobbyRoomScreen() {
     const deck = playerDecks.find((candidate) => candidate.id === deckId);
     if (!deck || !compatibleDeckIds.has(deck.id)) return;
     const playerAvatar = (me as PlayerState & { avatar?: string }).avatar ?? profile.avatar ?? "";
-    const selection = canonicalSelection(localPlayerId, me.name, deck, playerAvatar);
+    const selection = canonicalSelectionForFormat(
+      canonicalSelection(localPlayerId, me.name, deck, playerAvatar),
+      requiredFormat,
+    );
     if (room.online) {
       const result = await sendRoomCommand("lobby-deck", undefined, "deck", selection);
       if (result) setDeckPickerOpen(false);
