@@ -710,6 +710,8 @@ function bestSetupContinuationLine(
   if (match.phase !== "power") return undefined;
   const player = playerById(match, playerId);
   if (!player) return undefined;
+  const setupCards = player.hand.filter((card) => Boolean(nextCardCostModifier(card)));
+  if (!setupCards.length) return undefined;
 
   const bestSingleScore = Math.max(
     0.75,
@@ -717,7 +719,7 @@ function bestSetupContinuationLine(
       .filter((card) => !nextCardCostModifier(card))
       .map((card) => evaluatePlayableCard(match, playerId, card)?.score ?? Number.NEGATIVE_INFINITY),
   );
-  return player.hand
+  return setupCards
     .map((card) => bestNextCardContinuation(match, playerId, card))
     .filter((line): line is AiContinuationLine => Boolean(line))
     .filter((line) => line.score > bestSingleScore + 0.15)
