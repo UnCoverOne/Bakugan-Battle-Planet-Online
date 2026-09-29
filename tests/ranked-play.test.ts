@@ -73,6 +73,27 @@ function selections(playerId: string, source: DeckRecord): CanonicalPlayerSelect
   return ["a", "b", "c"].map((suffix, index) => ({ playerId, name: playerId, deck: competitiveSavedDeck(source, `${playerId}-${suffix}`, index * 4) }));
 }
 
+test("Ranked accepts decks by Competitive legality rather than saved format label", () => {
+  const owner = makePlayer("owner", "Owner", STARTER_DECKS[0]);
+  const submitted = selections("owner", STARTER_DECKS[0]).map((selection) => ({
+    ...selection,
+    deck: { ...selection.deck, format: "standard" as const },
+  }));
+  const match = initializeRankedLobby(
+    createMatch("RANK02", "bo3", [owner]),
+    "owner",
+    "account-owner",
+    "Owner",
+    submitted,
+    5,
+    [],
+  );
+  const ranked = rankedSeries(match);
+  assert.ok(ranked);
+  assert.equal(ranked.players.owner.decks.length, 3);
+  assert.equal(ranked.players.owner.decks.every((deck) => deck.format === "competitive"), true);
+});
+
 test("Ranked Conquest hides simultaneous choices and retires only winning decks", () => {
   const ownerSelections = selections("owner", STARTER_DECKS[0]);
   const guestSelections = selections("guest", STARTER_DECKS[1]);
