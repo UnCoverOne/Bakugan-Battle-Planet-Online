@@ -2920,15 +2920,11 @@ export function evaluatePlayableCard(
     )
     : baseScore;
   if (match.phase === "victor" && payment.cost > 0) {
-    const resolving = cloneMatch(match);
-    const resolvingPlayer = playerById(resolving, playerId);
-    if (resolvingPlayer) recordCardPlayedForTurn(resolvingPlayer, card, resolving.turn);
-    const entries = activeCardActionEntries(
-      resolving,
+    const entries = opponentAiActiveCardEntries(
+      match,
       playerId,
       card,
       choices,
-      { execution: "play" },
     ).filter(({ instruction }) => card.type !== "Evo" || evoInstructionOccursOnPlay(instruction));
     tacticalScore -= imminentDamageFlipReservationPenalty(
       match,
