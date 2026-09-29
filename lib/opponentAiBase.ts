@@ -31,7 +31,7 @@ import {
   type Placement,
   type RollOutcome,
 } from "./game";
-import { cardEnergyPaymentState, playCardWithAutoEnergy } from "./cardPayment";
+import { cardEnergyPaymentState as rawCardEnergyPaymentState, playCardWithAutoEnergy } from "./cardPayment";
 import { activeTappedEnergyIds, maximumPayableEnergy } from "./rules/costs";
 import { evaluateNumberValue } from "./rules/values";
 import { flipDamageCard, resolveManualDamage } from "./manualDamage";
@@ -86,6 +86,20 @@ function playerById(match: MatchState, playerId: string) {
 
 function opponentOf(match: MatchState, playerId: string) {
   return match.players.find((player) => player.id !== playerId);
+}
+
+export function opponentAiCardPaymentState(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  choices: CardChoices = {},
+) {
+  return memoOpponentAiDecision(
+    match,
+    "payment",
+    `${playerId}:${card.id}:${opponentAiChoicesKey(choices)}`,
+    () => rawCardEnergyPaymentState(match, playerId, card, choices),
+  );
 }
 
 function topBakuganCard(bakugan: Bakugan) {
@@ -1704,7 +1718,7 @@ function analyzeEnergyCard(
   try { choices = chooseCardChoices(planningMatch, playerId, card); } catch { choices = {}; }
   let cost = card.cost === "X" ? Math.max(1, capacity) : card.cost;
   try {
-    cost = cardEnergyPaymentState(planningMatch, playerId, card, choices)?.cost ?? cost;
+    cost = opponentAiCardPaymentState(planningMatch, playerId, card, choices)?.cost ?? cost;
   } catch {
     // Keep the printed planning cost when a future conditional choice is not
     // constructible. Its reduced likelihood handles uncertainty.
@@ -2313,7 +2327,7 @@ function temporaryResponseProfile(
   let choices: CardChoices = {};
   try { choices = chooseCardChoices(match, playerId, card); } catch { choices = {}; }
   let cost = card.cost === "X" ? Math.max(1, currentEnergyCapacity(match, playerId)) : card.cost;
-  try { cost = cardEnergyPaymentState(match, playerId, card, choices)?.cost ?? cost; } catch { /* printed cost */ }
+  try { cost = opponentAiCardPaymentState(match, playerId, card, choices)?.cost ?? cost; } catch { /* printed cost */ }
   const opponent = opponentOf(match, playerId);
   const power = {
     own: totalPower(match, playerId),
@@ -2841,7 +2855,7 @@ export function evaluatePlayableCard(
   } catch {
     return null;
   }
-  const payment = cardEnergyPaymentState(match, playerId, card, choices);
+  const payment = opponentAiCardPaymentState(match, playerId, card, choices);
   if (!payment || payment.kind === "insufficient") return null;
   const baseScore = cardValue(match, playerId, card, choices);
   const preRollContext = match.phase === "preRoll"
@@ -3001,7 +3015,7 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
       return input.pendingDamage > 0 ? { type: "REVEAL_DAMAGE_FLIP" } : null;
     }
     const choices = chooseCardChoices(input, playerId, input.revealedFlip);
-    const payment = cardEnergyPaymentState(input, playerId, input.revealedFlip, choices);
+    const payment = opponentAiCardPaymentState(input, playerId, input.revealedFlip, choices);
     const useful = cardValue(input, playerId, input.revealedFlip, choices) > 0;
     return {
       type: "PLAY_DAMAGE_FLIP",
