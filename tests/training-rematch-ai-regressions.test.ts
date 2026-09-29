@@ -130,7 +130,8 @@ test("Training AI gateway journals Worker failures and falls straight back to de
   assert.match(client, /\|\| match\.phase === "startingPlayer"/);
   assert.doesNotMatch(client, /requestOpponentAiDecision\(latest, "training-bot", true\)/);
   assert.doesNotMatch(client, /fresh-worker-recovered/);
-  assert.doesNotMatch(client, /await import\("\.\.\/\.\.\/lib\/opponentAi"\)/);
+  assert.doesNotMatch(client, /worker-main-thread-retry|main-thread-recovered|main-thread-null/);
+  assert.equal((client.match(/await import\("\.\.\/\.\.\/lib\/opponentAi"\)/g) ?? []).length, 1);
   assert.match(client, /decision \? `strategic:\$\{command\.type\}` : `primitive:\$\{command\.type\}`/);
   assert.match(client, /const command = decision \?\? recoverOpponentAiCommand\(latest, "training-bot"\)/);
   assert.match(worker, /event\.data\.type === "ping"/);
