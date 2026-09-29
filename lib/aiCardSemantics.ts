@@ -21,7 +21,7 @@ const NON_SUBSTANTIVE_ACTIONS = new Set<RuleAction["kind"]>([
 const compiledProgramCache = new Map<string, RuleProgram>();
 
 export function compiledAiCardProgram(card: GameCard, source = card.effect) {
-  const key = `${card.catalogId}\u0000${card.effect}\u0000${source}`;
+  const key = `${card.catalogId}\u0000${card.name}\u0000${card.type}\u0000${card.effect}\u0000${source}`;
   const cached = compiledProgramCache.get(key);
   if (cached) return cached;
   const program = compileCardEffect(card, source);
