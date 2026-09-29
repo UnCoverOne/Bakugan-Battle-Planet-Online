@@ -54,6 +54,7 @@ import {
   compileCardEffect,
   estimateProgramValue,
   type RuleAction,
+  type RuleCondition,
   type RuleProgram,
 } from "./rules/effects";
 import { ruleDefinitionForCard } from "./rules/catalogue";
@@ -2620,6 +2621,29 @@ function createPreRollDecisionContext(match: MatchState, playerId: string): PreR
   return context;
 }
 
+function heldCoreThresholdForCondition(
+  match: MatchState,
+  playerId: string,
+  choices: CardChoices,
+  condition: RuleCondition | undefined,
+) {
+  const context = { controllerId: playerId, choices, moment: "pay" as const };
+  if (condition?.kind === "core-count" && condition.relationship === "at-least") {
+    return Math.max(0, Math.floor(evaluateNumberValue(match, condition.amount ?? 0, context)));
+  }
+  if (condition?.kind !== "expression") return undefined;
+  const expression = condition.expression;
+  if (expression.kind !== "compare-number" || expression.operator !== ">=") return undefined;
+  const left = expression.left;
+  if (
+    typeof left === "number"
+    || left.kind !== "count"
+    || left.source !== "held-bakucore"
+    || (left.owner ?? "controller") !== "controller"
+  ) return undefined;
+  return Math.max(0, Math.floor(evaluateNumberValue(match, expression.right, context)));
+}
+
 function preRollConditionalCostImprovementChance(
   match: MatchState,
   playerId: string,
@@ -2636,7 +2660,7 @@ function preRollConditionalCostImprovementChance(
 
   const modifiers = ruleDefinitionForCard(card).play.costModifiers.filter((modifier) => {
     const condition = "condition" in modifier ? modifier.condition : undefined;
-    if (condition?.kind !== "core-count" || condition.relationship !== "at-least") return false;
+    if (heldCoreThresholdForCondition(match, playerId, choices, condition) == null) return false;
     if (modifier.kind === "cost-free") return true;
     if (modifier.kind !== "cost-reduce") return false;
     return evaluateNumberValue(match, modifier.amount, {
@@ -2655,13 +2679,8 @@ function preRollConditionalCostImprovementChance(
   let bestChance = 0;
   for (const modifier of modifiers) {
     const condition = "condition" in modifier ? modifier.condition : undefined;
-    if (condition?.kind !== "core-count" || condition.relationship !== "at-least") continue;
-    const threshold = Math.max(0, Math.floor(evaluateNumberValue(match, condition.amount ?? 0, {
-      controllerId: playerId,
-      choices,
-      moment: "pay",
-    })));
-    if (currentHeld >= threshold) continue;
+    const threshold = heldCoreThresholdForCondition(match, playerId, choices, condition);
+    if (threshold == null || currentHeld >= threshold) continue;
     const successful = forecast.samples.filter((sample) => (
       otherHeld + sample.outcome.cores.length >= threshold
     )).length;
