@@ -1,12 +1,10 @@
 "use client";
 
-import { OriginalImage } from "@/components/media/OriginalImage";
-
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { cardEventLogEntries, chatEntries, eventLogEntries, matchTimeLabel, normalizeChatMessage } from "../../lib/chat";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
-import { cardArtSource } from "../../lib/content/card-art";
 import type { MatchState } from "../../lib/game";
+import { CardArt } from "../cards/CardArt";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
 import { matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchStore";
 import batchStyles from "./BrawlExperienceLayer.module.css";
@@ -244,8 +242,9 @@ export function MatchCommunicationLayer() {
                 >
                   <div className={`${batchStyles.batchHex} ${styles.cardPreview}`}>
                     <span aria-hidden="true">{(entry.card.displayName || entry.card.name).slice(0, 1)}</span>
-                    <OriginalImage
-                      src={cardArtSource(entry.card, "thumbnail")}
+                    <CardArt
+                      src={entry.card.art}
+                      cardType={entry.card.type}
                       alt={entry.card.displayName || entry.card.name}
                       draggable={false}
                     />
