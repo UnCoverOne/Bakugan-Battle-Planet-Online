@@ -230,6 +230,42 @@ test("AI evaluates Superfuel and its discounted follow-up as one continuation li
   if (followUp?.type === "PLAY_CARD") assert.equal(followUp.cardId, payoff.id);
 });
 
+test("AI waits for a roll that can make a Trifecta Evo free", () => {
+  const maximus = namedCard("Ventus Maximus Dragonoid", "trifecta-maximus");
+  const selected = catalogueBakugan("av-254", "trifecta-dragonoid");
+  const benchOne = bakugan("trifecta-bench-one", "Aquos", 400, 4);
+  const benchTwo = bakugan("trifecta-bench-two", "Haos", 400, 4);
+  const ai = player("training-bot", [selected, benchOne, benchTwo], [maximus]);
+  const human = player("human", [bakugan("trifecta-human", "Pyrus", 500, 5)]);
+  addEnergy(ai, 5);
+  const match = createMatch("AI-TRIFECTA-DEFER", "bo1", [ai, human]);
+  const matchAi = match.players.find((candidate) => candidate.id === ai.id)!;
+  const matchHuman = match.players.find((candidate) => candidate.id === human.id)!;
+  match.turn = 6;
+  match.phase = "preRoll";
+  match.stepLabel = "Roll Phase • Pre-roll priority";
+  match.priority = matchAi.id;
+  match.startingPlayer = matchAi.id;
+  match.selected[matchAi.id] = matchAi.bakugan[0].id;
+  match.selected[matchHuman.id] = matchHuman.bakugan[0].id;
+
+  const heldOne = core("trifecta-held-one");
+  const heldTwo = core("trifecta-held-two");
+  const rollTarget = core("trifecta-roll-target", 300, 0, "Magic Shield");
+  match.placements = [
+    { playerId: matchAi.id, core: heldOne, cell: "h2-2", order: 1, attachedTo: matchAi.bakugan[1].id },
+    { playerId: matchAi.id, core: heldTwo, cell: "h2-3", order: 2, attachedTo: matchAi.bakugan[2].id },
+    { playerId: matchHuman.id, core: rollTarget, cell: CENTER_CELL, order: 3 },
+  ];
+  matchAi.bakugan[1].open = true;
+  matchAi.bakugan[1].heldCoreCells = ["h2-2"];
+  matchAi.bakugan[2].open = true;
+  matchAi.bakugan[2].heldCoreCells = ["h2-3"];
+
+  const command = chooseOpponentAiCommand(match, matchAi.id);
+  assert.equal(command?.type, "PASS_PRIORITY");
+});
+
 test("AI does not throw away a B-Power lead with an unnecessary Might of Cyndeus switch", () => {
   const might = mightOfCyndeus("might-unneeded");
   const expensivePower = namedCard("Lava Boost", "retained-power-buff");
