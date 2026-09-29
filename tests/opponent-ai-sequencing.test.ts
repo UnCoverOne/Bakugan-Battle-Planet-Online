@@ -13,7 +13,7 @@ import {
   type RollOutcome,
 } from "../lib/game";
 import { bestAiRollTarget } from "../lib/aiRollForecast";
-import { chooseOpponentAiCommand } from "../lib/opponentAi";
+import { chooseOpponentAiCommand, chooseOpponentAiCommandWithMetrics } from "../lib/opponentAi";
 import { recoverOpponentAiCommand } from "../lib/opponentAiCanAct";
 import { decideOpponentAiWorkerRequest } from "../lib/opponentAiWorkerProtocol";
 
@@ -204,8 +204,11 @@ test("AI reserves Superfuel while already winning if its next-card discount has 
   const superfuel = namedCard("Superfuel", "superfuel-no-follow-up");
   const { match, ai } = powerMatch(800, 4, 500, 7, [superfuel]);
 
-  const command = chooseOpponentAiCommand(match, ai.id);
-  assert.equal(command?.type, "PASS_PRIORITY");
+  const decision = chooseOpponentAiCommandWithMetrics(match, ai.id);
+  assert.equal(decision.command?.type, "PASS_PRIORITY");
+  assert.ok((decision.metrics.byCategory["continuation-line"]?.hits ?? 0) >= 1);
+  assert.equal(decision.metrics.byCategory["continuation-line"]?.misses, 1);
+  assert.equal(decision.metrics.optionalBudgetExhausted, false);
 });
 
 test("AI evaluates Superfuel and its discounted follow-up as one continuation line", () => {
@@ -337,6 +340,37 @@ test("AI retains a useful Superfuel reroll that can overcome a B-Power deficit",
   if (command?.type === "PLAY_CARD") assert.equal(command.cardId, fuel.id);
 });
 
+
+test("complex pending Batch planning reuses projections without changing the tactical pass", () => {
+  const hand = [
+    namedCard("Aquofreeze Beam", "perf-aquofreeze"),
+    namedCard("Nature's Power", "perf-natures-power"),
+    namedCard("Bakuslumber", "perf-bakuslumber"),
+    namedCard("Sinkhole", "perf-sinkhole"),
+    namedCard("Howling Shell Bomb", "perf-shell-bomb"),
+    namedCard("Tusk Guard", "perf-tusk-guard-one"),
+    namedCard("Tusk Guard", "perf-tusk-guard-two"),
+    namedCard("Ventus Maximus Dragonoid", "perf-maximus"),
+  ];
+  const { match, ai, human } = powerMatch(900, 4, 500, 5, hand);
+  const launcher = namedCard("Fire Launcher", "perf-fire-launcher");
+  match.batch = [{
+    id: "perf-fire-launcher-batch",
+    controllerId: human.id,
+    cardOwnerId: human.id,
+    card: launcher,
+    choices: { targetBakuganId: human.bakugan[0].id },
+    kind: "card",
+    effect: "When you play this",
+    status: "pending",
+  } as (typeof match)["batch"][number]];
+
+  const decision = chooseOpponentAiCommandWithMetrics(match, ai.id);
+  assert.equal(decision.command?.type, "PASS_PRIORITY");
+  assert.ok(decision.metrics.cacheHits > 0);
+  assert.ok((decision.metrics.byCategory["batch-projection"]?.hits ?? 0) > 0);
+  assert.equal(decision.metrics.optionalBudgetExhausted, false);
+});
 
 test("emergency priority recovery passes a pending batch instead of stranding resolution", () => {
   const { match, ai, human } = powerMatch(700, 4, 800, 5, []);
