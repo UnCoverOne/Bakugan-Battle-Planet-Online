@@ -23,7 +23,7 @@ type DecisionScope = {
   values: WeakMap<MatchState, Map<string, unknown>>;
 };
 
-const OPTIONAL_WORK_BUDGET = 1_024;
+const OPTIONAL_WORK_BUDGET = 50_000;
 let activeScope: DecisionScope | null = null;
 
 function categoryMetrics(scope: DecisionScope, category: string) {
