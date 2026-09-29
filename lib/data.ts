@@ -235,6 +235,7 @@ export function applyCardOverrides(overrides: CardOverrideRecord[]) {
 }
 
 export type DeckFormat = "standard" | "singleton" | "competitive";
+export const DECK_FORMATS: readonly DeckFormat[] = ["standard", "singleton", "competitive"];
 
 export type DeckRecord = {
   id: string;
@@ -319,6 +320,27 @@ export const validateDeck = (
   restrictions: readonly DeckRestriction[] = [],
   competitiveDeckSize = 50,
 ) => validateDeckConstruction(deck, deckValidationCatalogue, { restrictions, competitiveDeckSize });
+
+export const validateDeckForFormat = (
+  deck: DeckRecord,
+  format: DeckFormat,
+  restrictions: readonly DeckRestriction[] = [],
+  competitiveDeckSize = 50,
+) => validateDeck({ ...deck, format }, restrictions, competitiveDeckSize);
+
+export const legalDeckFormats = (
+  deck: DeckRecord,
+  restrictions: readonly DeckRestriction[] = [],
+  competitiveDeckSize = 50,
+) => DECK_FORMATS.filter((format) => validateDeckForFormat(deck, format, restrictions, competitiveDeckSize).isLegal);
+
+export const deckIsLegalForFormat = (
+  deck: DeckRecord,
+  format: DeckFormat,
+  restrictions: readonly DeckRestriction[] = [],
+  competitiveDeckSize = 50,
+) => validateDeckForFormat(deck, format, restrictions, competitiveDeckSize).isLegal;
+
 export const deckErrors = (deck: DeckRecord) => deckValidationMessages(validateDeck(deck));
 export const deckIsLegal = (deck: DeckRecord) => validateDeck(deck).isLegal;
 
@@ -353,6 +375,16 @@ export type CanonicalPlayerSelection = {
     Partial<Pick<DeckRecord, "id" | "factions" | "leadCardId">>;
   cosmetics?: { avatar?: string; playmat?: string; cardBack?: string };
 };
+
+export function canonicalSelectionForFormat(
+  selection: CanonicalPlayerSelection,
+  format: DeckFormat,
+): CanonicalPlayerSelection {
+  return {
+    ...selection,
+    deck: { ...selection.deck, format },
+  };
+}
 
 export function canonicalDeckRecord(selection: CanonicalPlayerSelection): DeckRecord {
   const playerId = String(selection.playerId ?? "").trim().slice(0, 80);
