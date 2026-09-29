@@ -1824,7 +1824,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       <header className={styles.builderHeader}>
         <Link href={returnTo ?? "/decks"}>{administratorEdit ? "← Administrator" : returnTo ? "← Match setup" : "← My Decks"}</Link>
         <div className={styles.builderDeckIdentity}><span>{administratorEdit ? "Administrator Edit" : "Edit Deck"}</span><strong>{deck.name}</strong></div>
-        <label>Format<select value={deck.format ?? "standard"} onChange={(event) => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}><option value="standard">Standard</option><option value="singleton">Singleton</option><option value="competitive">Competitive</option></select></label>
+        <label className={styles.builderFormat}><span>Format</span><select aria-label="Deck format" value={deck.format ?? "standard"} onChange={(event) => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}><option value="standard">Standard</option><option value="singleton">Singleton</option><option value="competitive">Competitive</option></select></label>
         <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
         <StatusChip tone={report.isLegal ? "success" : "danger"}>{report.isLegal ? "Legal" : `${report.issues.length} issues`}</StatusChip>
         <span className={`${styles.saveState} ${styles[`saveState_${saveState}`]}`}>
