@@ -57,7 +57,7 @@ export function opponentAiChoicesKey(choices: CardChoices) {
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([key, value]) => [
         key,
-        Array.isArray(value) ? [...value].sort() : value,
+        Array.isArray(value) ? [...value] : value,
       ]),
   );
 }
