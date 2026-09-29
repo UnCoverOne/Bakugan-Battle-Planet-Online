@@ -1,5 +1,6 @@
 import type { MatchState } from "./game";
-import { chooseOpponentAiCommand } from "./opponentAi";
+import { chooseOpponentAiCommandWithMetrics } from "./opponentAi";
+import type { OpponentAiPlannerMetrics } from "./opponentAiDecisionCache";
 import type { GameCommand } from "./engine/types";
 
 export type OpponentAiWorkerErrorContext = {
@@ -32,6 +33,7 @@ export type OpponentAiWorkerResponse = {
   requestId: number;
   ready?: true;
   command?: GameCommand | null;
+  plannerMetrics?: OpponentAiPlannerMetrics;
   error?: OpponentAiWorkerError;
 };
 
@@ -73,9 +75,11 @@ export function decideOpponentAiWorkerRequest(
     playerId,
   };
   try {
+    const decision = chooseOpponentAiCommandWithMetrics(match, playerId);
     return {
       requestId,
-      command: chooseOpponentAiCommand(match, playerId),
+      command: decision.command,
+      plannerMetrics: decision.metrics,
     };
   } catch (cause) {
     return {
