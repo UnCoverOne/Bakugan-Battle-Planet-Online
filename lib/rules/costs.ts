@@ -160,11 +160,13 @@ export function cardCostBreakdown(
     else increases += costValue(state, playerId, modifier.amount, modifier.choices ?? choices, modifier.valueSnapshots);
   }
 
-  if (card.type === "Baku-Gear") {
-    const attachedCoreCells = new Set(player.bakugan.flatMap((bakugan) => effectiveBakucoreCells(state, bakugan, player)));
-    for (const cell of attachedCoreCells) {
-      const core = state.placements.find((placement) => placement.cell === cell)?.core;
-      reductions += core?.bakuGearCostReduction ?? 0;
+  if (card.type === "Baku-Gear" && choices.targetBakuganId) {
+    const target = player.bakugan.find((bakugan) => bakugan.id === choices.targetBakuganId);
+    if (target) {
+      for (const cell of new Set(effectiveBakucoreCells(state, target, player))) {
+        const core = state.placements.find((placement) => placement.cell === cell)?.core;
+        reductions += core?.bakuGearCostReduction ?? 0;
+      }
     }
   }
 
