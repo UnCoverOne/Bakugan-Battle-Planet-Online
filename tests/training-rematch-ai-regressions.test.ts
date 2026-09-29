@@ -117,7 +117,7 @@ test("AI deck endpoint only chooses enabled legal administrator resources", asyn
 });
 
 
-test("Training AI gateway journals Worker failures and retries the tactical planner before primitive recovery", async () => {
+test("Training AI gateway journals Worker failures and falls straight back to deterministic recovery", async () => {
   const client = await readFile(new URL("../components/game-screen-v2/GameplayClient.tsx", import.meta.url), "utf8");
   const worker = await readFile(new URL("../components/game-screen-v2/opponentAi.worker.ts", import.meta.url), "utf8");
   const protocol = await readFile(new URL("../lib/opponentAiWorkerProtocol.ts", import.meta.url), "utf8");
@@ -128,10 +128,11 @@ test("Training AI gateway journals Worker failures and retries the tactical plan
   assert.match(client, /trainingWorkerPlacementId/);
   assert.match(client, /storedState\.match\?\.phase === "placement"/);
   assert.match(client, /\|\| match\.phase === "startingPlayer"/);
-  assert.match(client, /requestOpponentAiDecision\(latest, "training-bot", true\)/);
-  assert.match(client, /fresh-worker-recovered/);
-  assert.match(client, /await import\("\.\.\/\.\.\/lib\/opponentAi"\)/);
+  assert.doesNotMatch(client, /requestOpponentAiDecision\(latest, "training-bot", true\)/);
+  assert.doesNotMatch(client, /fresh-worker-recovered/);
+  assert.doesNotMatch(client, /await import\("\.\.\/\.\.\/lib\/opponentAi"\)/);
   assert.match(client, /decision \? `strategic:\$\{command\.type\}` : `primitive:\$\{command\.type\}`/);
+  assert.match(client, /const command = decision \?\? recoverOpponentAiCommand\(latest, "training-bot"\)/);
   assert.match(worker, /event\.data\.type === "ping"/);
   assert.match(worker, /opponentAiWorkerReadyResponse\(event\.data\.requestId\)/);
   assert.match(worker, /decideOpponentAiWorkerRequest\(event\.data\)/);
