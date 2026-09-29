@@ -87,6 +87,15 @@ function playerById(match: MatchState, playerId: string) {
   return match.players.find((player) => player.id === playerId);
 }
 
+function cachedAiRerollOpportunity(match: MatchState, playerId: string) {
+  return memoOpponentAiDecision(
+    match,
+    "reroll-opportunity",
+    playerId,
+    () => bestAiRerollOpportunity(match, playerId),
+  );
+}
+
 function opponentOf(match: MatchState, playerId: string) {
   return match.players.find((player) => player.id !== playerId);
 }
@@ -681,7 +690,7 @@ function shouldReserveNextCardSetupCard(
   const hasSelfReroll = entries.some(({ action }) => (
     action.kind === "reroll" && action.target === "controller"
   ));
-  const opportunity = hasSelfReroll ? bestAiRerollOpportunity(match, playerId) : undefined;
+  const opportunity = hasSelfReroll ? cachedAiRerollOpportunity(match, playerId) : undefined;
   const rerollHasImmediateCombatPurpose = Boolean(opportunity
     && opportunity.utilityGain - payment.cost * 0.9 >= 2.5);
   if (rerollHasImmediateCombatPurpose) return false;
@@ -1127,7 +1136,7 @@ function bestTacticalRerollCard(
   if (participatesInBrawl(match, playerId) && current.gap > 0) return undefined;
   if (hasAffordableDirectWinningAlternative(match, playerId)) return undefined;
 
-  const opportunity = bestAiRerollOpportunity(match, playerId);
+  const opportunity = cachedAiRerollOpportunity(match, playerId);
   if (!opportunity || opportunity.winProbability < 0.45 || opportunity.utilityGain < 3.5) {
     return undefined;
   }
