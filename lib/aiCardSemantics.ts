@@ -3,6 +3,7 @@ import {
   compileCardEffect,
   type RuleAction,
   type RuleInstruction,
+  type RuleProgram,
 } from "./rules/effects";
 import { ruleConditionActive } from "./rules/modifiers";
 
@@ -16,6 +17,17 @@ const NON_SUBSTANTIVE_ACTIONS = new Set<RuleAction["kind"]>([
   "choice",
   "trigger",
 ]);
+
+const compiledProgramCache = new Map<string, RuleProgram>();
+
+export function compiledAiCardProgram(card: GameCard, source = card.effect) {
+  const key = `${card.catalogId}\u0000${card.effect}\u0000${source}`;
+  const cached = compiledProgramCache.get(key);
+  if (cached) return cached;
+  const program = compileCardEffect(card, source);
+  compiledProgramCache.set(key, program);
+  return program;
+}
 
 function playerById(match: MatchState, playerId: string) {
   return match.players.find((player) => player.id === playerId);
@@ -66,7 +78,7 @@ function substantiveLeafActions(action: RuleAction): RuleAction[] {
 }
 
 export function cardLeafActions(card: GameCard, source = card.effect) {
-  return compileCardEffect(card, source).instructions
+  return compiledAiCardProgram(card, source).instructions
     .flatMap((instruction) => instruction.actions)
     .flatMap(substantiveLeafActions);
 }
@@ -122,7 +134,7 @@ export function activeCardActionEntries(
   const execution = options.execution ?? "play";
   void _choices;
   const entries: AiCardActionEntry[] = [];
-  const instructions = compileCardEffect(card, options.source ?? card.effect).instructions;
+  const instructions = compiledAiCardProgram(card, options.source ?? card.effect).instructions;
   for (const instruction of instructions.slice(options.startInstructionIndex ?? 0)) {
     if (!aiConditionActive(match, playerId, instruction.condition)) continue;
     const leaves = instruction.actions.flatMap((action) => (
@@ -222,7 +234,7 @@ function temporaryActionPotential(action: RuleAction): number {
 
 export function temporaryCombatPotential(card: GameCard) {
   try {
-    const total = compileCardEffect(card).instructions.reduce((sum, instruction) => (
+    const total = compiledAiCardProgram(card).instructions.reduce((sum, instruction) => (
       sum + instruction.actions.reduce(
         (instructionSum, action) => instructionSum + temporaryActionPotential(action),
         0,
