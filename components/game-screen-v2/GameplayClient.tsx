@@ -941,10 +941,8 @@ export function GameplayClient() {
           } else if (shouldStartManualTieBreak(latest, "training-bot")) {
             decision = { type: "PASS_PRIORITY" };
           } else {
-            let primaryTransport: OpponentAiDecisionResult["transport"] = "worker";
             try {
               const primary = await requestOpponentAiDecision(latest, "training-bot");
-              primaryTransport = primary.transport;
               decision = primary.command;
               if (!decision) {
                 diagnostic = {
@@ -958,75 +956,10 @@ export function GameplayClient() {
               diagnostic = opponentAiFailureMetadata(cause);
             }
 
-            if (!decision && primaryTransport === "worker" && typeof Worker !== "undefined") {
-              try {
-                const fresh = await requestOpponentAiDecision(latest, "training-bot", true);
-                decision = fresh.command;
-                diagnostic = {
-                  ...(diagnostic ?? {
-                    reason: "worker-retry",
-                    detail: "The first Worker decision did not produce a command.",
-                  }),
-                  reason: decision
-                    ? `${diagnostic?.reason ?? "worker"}-fresh-worker-recovered`
-                    : `${diagnostic?.reason ?? "worker"}-fresh-worker-null`,
-                  elapsedMs: (diagnostic?.elapsedMs ?? 0) + fresh.elapsedMs,
-                };
-              } catch (freshCause) {
-                const freshDiagnostic = opponentAiFailureMetadata(freshCause);
-                diagnostic = {
-                  ...(diagnostic ?? freshDiagnostic),
-                  reason: `${diagnostic?.reason ?? "worker"}-fresh-worker-error`,
-                  elapsedMs: (diagnostic?.elapsedMs ?? 0) + (freshDiagnostic.elapsedMs ?? 0),
-                  detail: [
-                    diagnostic?.detail,
-                    `Fresh Worker: ${freshDiagnostic.detail}`,
-                  ].filter(Boolean).join(" "),
-                  stack: [
-                    diagnostic?.stack,
-                    freshDiagnostic.stack ? `Fresh Worker: ${freshDiagnostic.stack}` : "",
-                  ].filter(Boolean).join(" | ") || undefined,
-                  context: [
-                    diagnostic?.context,
-                    freshDiagnostic.context ? `fresh(${freshDiagnostic.context})` : "",
-                  ].filter(Boolean).join(" | ") || undefined,
-                };
-              }
-            }
-
-            if (!decision && primaryTransport === "worker") {
-              const fallbackStartedAt = Date.now();
-              try {
-                const { chooseOpponentAiCommand } = await import("../../lib/opponentAi");
-                decision = chooseOpponentAiCommand(latest, "training-bot");
-                diagnostic = {
-                  ...(diagnostic ?? {
-                    reason: "worker-main-thread-retry",
-                    detail: "Worker retries did not produce a tactical command.",
-                  }),
-                  reason: decision
-                    ? `${diagnostic?.reason ?? "worker"}-main-thread-recovered`
-                    : `${diagnostic?.reason ?? "worker"}-main-thread-null`,
-                  elapsedMs: (diagnostic?.elapsedMs ?? 0) + Date.now() - fallbackStartedAt,
-                };
-              } catch (secondaryCause) {
-                diagnostic = {
-                  ...(diagnostic ?? {
-                    reason: "worker-main-thread-error",
-                    detail: "Worker retries did not produce a tactical command.",
-                  }),
-                  reason: `${diagnostic?.reason ?? "worker"}-main-thread-error`,
-                  elapsedMs: (diagnostic?.elapsedMs ?? 0) + Date.now() - fallbackStartedAt,
-                  detail: `${diagnostic?.detail ?? ""} Main-thread retry: ${secondaryCause instanceof Error ? secondaryCause.message : "unknown failure"}`.trim(),
-                  stack: [
-                    diagnostic?.stack,
-                    secondaryCause instanceof Error && secondaryCause.stack
-                      ? `Main thread: ${secondaryCause.stack}`
-                      : "",
-                  ].filter(Boolean).join(" | ") || undefined,
-                };
-              }
-            }
+            // A timed-out, failed, or empty tactical decision must never be
+            // retried synchronously on the gameplay thread. The deterministic
+            // recovery command below can safely pass optional priority or take
+            // the simplest legal action so a Training match cannot be stranded.
           }
 
           const current = readMatchStore().match;
