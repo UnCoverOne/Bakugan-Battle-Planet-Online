@@ -338,6 +338,23 @@ test("AI retains a useful Superfuel reroll that can overcome a B-Power deficit",
 });
 
 
+test("emergency priority recovery passes a pending batch instead of stranding resolution", () => {
+  const { match, ai, human } = powerMatch(700, 4, 800, 5, []);
+  match.priority = ai.id;
+  match.batch = [{
+    id: "pending-fire-launcher",
+    controllerId: human.id,
+    cardOwnerId: human.id,
+    card: namedCard("Fire Launcher", "pending-fire-launcher-card"),
+    choices: { targetBakuganId: human.bakugan[0].id },
+    kind: "card",
+    status: "pending",
+  } as (typeof match)["batch"][number]];
+
+  const command = recoverOpponentAiCommand(match, ai.id);
+  assert.equal(command?.type, "PASS_PRIORITY");
+});
+
 test("emergency Energize recovery always develops a nonempty hand at zero Energy", () => {
   const nillious = catalogueBakugan("bb-337", "recovery-nillious");
   const ai = player("training-bot", [nillious], [
