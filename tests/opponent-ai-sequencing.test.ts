@@ -369,6 +369,7 @@ test("complex pending Batch planning reuses projections without changing the tac
   assert.equal(decision.command?.type, "PASS_PRIORITY");
   assert.ok(decision.metrics.cacheHits > 0);
   assert.ok((decision.metrics.byCategory["batch-projection"]?.hits ?? 0) > 0);
+  assert.equal(decision.metrics.byCategory["continuation-line"], undefined);
   assert.equal(decision.metrics.optionalBudgetExhausted, false);
 });
 
