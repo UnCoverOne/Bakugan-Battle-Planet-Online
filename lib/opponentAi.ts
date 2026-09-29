@@ -1496,11 +1496,15 @@ export function chooseOpponentAiCommandWithMetrics(
 }
 
 
-function advanceOpponentAiInternal(input: MatchState, playerId: string): MatchState | null {
+export function advanceOpponentAi(input: MatchState, playerId: string): MatchState | null {
   let current = input;
   let advanced = false;
   for (let step = 0; step < 4; step += 1) {
-    const next = advanceOpponentAiStep(current, playerId);
+    const next = runOpponentAiDecision(
+      current,
+      playerId,
+      () => advanceOpponentAiStep(current, playerId),
+    ).result;
     if (!next) return advanced ? current : null;
     advanced = true;
     current = next;
@@ -1513,12 +1517,4 @@ function advanceOpponentAiInternal(input: MatchState, playerId: string): MatchSt
     if (!anotherAiChoice) return current;
   }
   return current;
-}
-
-export function advanceOpponentAi(input: MatchState, playerId: string): MatchState | null {
-  return runOpponentAiDecision(
-    input,
-    playerId,
-    () => advanceOpponentAiInternal(input, playerId),
-  ).result;
 }
