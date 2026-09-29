@@ -13,6 +13,7 @@ import type {
   OpponentAiWorkerResponse,
 } from "../../lib/opponentAiWorkerProtocol";
 import { createOpponentAiWorkerAsync } from "../../lib/opponentAiWorkerTransport";
+import type { OpponentAiPlannerMetrics } from "../../lib/opponentAiDecisionCache";
 import {
   opponentAiCanAct,
   recoverOpponentAiCommand,
@@ -147,6 +148,7 @@ type OpponentAiDecisionResult = {
   requestId: number;
   elapsedMs: number;
   transport: "worker" | "main-thread";
+  plannerMetrics?: OpponentAiPlannerMetrics;
 };
 
 type OpponentAiDecisionFailure = Error & {
@@ -388,6 +390,7 @@ export function GameplayClient() {
           requestId: event.data.requestId,
           elapsedMs: Date.now() - pending.startedAt,
           transport: "worker",
+          plannerMetrics: event.data.plannerMetrics,
         });
       }
     });
@@ -476,12 +479,14 @@ export function GameplayClient() {
   ) => {
     const startedAt = Date.now();
     if (typeof Worker === "undefined") {
-      const { chooseOpponentAiCommand } = await import("../../lib/opponentAi");
+      const { chooseOpponentAiCommandWithMetrics } = await import("../../lib/opponentAi");
+      const decision = chooseOpponentAiCommandWithMetrics(match, playerId);
       return {
-        command: chooseOpponentAiCommand(match, playerId),
+        command: decision.command,
         requestId: 0,
         elapsedMs: Date.now() - startedAt,
         transport: "main-thread" as const,
+        plannerMetrics: decision.metrics,
       };
     }
 
