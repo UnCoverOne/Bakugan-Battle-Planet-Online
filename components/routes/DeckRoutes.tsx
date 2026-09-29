@@ -32,10 +32,12 @@ import {
   RULE_ENTRIES,
   STARTER_DECKS,
   deckLeadCard,
+  legalDeckFormats,
   validateDeck,
+  type DeckFormat,
   type DeckRecord,
 } from "../../lib/data";
-import type { DeckValidationResult } from "../../lib/deck-validation";
+import type { DeckRestriction, DeckValidationResult } from "../../lib/deck-validation";
 import type { GameCard } from "../../lib/game";
 import type { CardInspectorTab } from "../../lib/compendium";
 import {
@@ -77,6 +79,7 @@ import styles from "./DeckRoutes.module.css";
 
 
 type LibraryView = "grid" | "list";
+type DeckFormatFilter = "all" | DeckFormat;
 type BuilderView = "gallery" | "deck";
 type BuilderCategory = "cards" | "characters" | "cores";
 type BuilderSort = "name-asc" | "name-desc" | "id-asc" | "cost-asc" | "cost-desc" | "count-desc";
@@ -118,20 +121,36 @@ const CORE_BACK_IMAGES: Record<string, string> = {
 
 const referenceSlug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-function useCompetitiveDeckSize() {
-  const [deckSize, setDeckSize] = useState(50);
+const deckFormatLabel = (format: DeckFormat) => (
+  format === "singleton" ? "Singleton" : format === "competitive" ? "Competitive" : "Standard"
+);
+
+function useCompetitiveRules() {
+  const [rules, setRules] = useState<{ deckSize: number; restrictions: DeckRestriction[] }>({
+    deckSize: 50,
+    restrictions: [],
+  });
   useEffect(() => {
     let active = true;
     fetch("/api/ranked?action=rules", { cache: "no-store" })
       .then(async (response) => {
         const result = await response.json();
-        const next = Number(result.ruleset?.deckSize);
-        if (active && response.ok && Number.isInteger(next) && next > 0) setDeckSize(next);
+        const deckSize = Number(result.ruleset?.deckSize);
+        if (active && response.ok) {
+          setRules({
+            deckSize: Number.isInteger(deckSize) && deckSize > 0 ? deckSize : 50,
+            restrictions: Array.isArray(result.ruleset?.restrictions) ? result.ruleset.restrictions : [],
+          });
+        }
       })
       .catch(() => {});
     return () => { active = false; };
   }, []);
-  return deckSize;
+  return rules;
+}
+
+function useCompetitiveDeckSize() {
+  return useCompetitiveRules().deckSize;
 }
 const BUILDER_RULE_REFERENCES = [
   ...RULE_ENTRIES.map((entry) => ({
@@ -367,6 +386,8 @@ function DeckToolbar({
   setFaction,
   legality,
   setLegality,
+  formatFilter,
+  setFormatFilter,
   sort,
   setSort,
   view,
@@ -383,6 +404,8 @@ function DeckToolbar({
   setFaction: (value: string) => void;
   legality: string;
   setLegality: (value: string) => void;
+  formatFilter: DeckFormatFilter;
+  setFormatFilter: (value: DeckFormatFilter) => void;
   sort: string;
   setSort: (value: string) => void;
   view: LibraryView;
@@ -411,6 +434,14 @@ function DeckToolbar({
       <Field label="Legality">
         <select value={legality} onChange={(event) => setLegality(event.target.value)}>
           <option>All</option><option>Legal</option><option>Issues</option>
+        </select>
+      </Field>
+      <Field label="Format">
+        <select value={formatFilter} onChange={(event) => setFormatFilter(event.target.value as DeckFormatFilter)}>
+          <option value="all">All formats</option>
+          <option value="standard">Standard</option>
+          <option value="singleton">Singleton</option>
+          <option value="competitive">Competitive</option>
         </select>
       </Field>
       <Field label="Sort">
@@ -461,30 +492,46 @@ export function DeckLibraryScreen() {
   } = useApp();
   const [faction, setFaction] = useState("All");
   const [legality, setLegality] = useState("All");
+  const [formatFilter, setFormatFilter] = useState<DeckFormatFilter>("all");
   const [sort, setSort] = useState("Updated");
   const [view, setView] = useState<LibraryView>("grid");
   const [importCode, setImportCode] = useState("");
   const [importError, setImportError] = useState("");
-  const competitiveDeckSize = useCompetitiveDeckSize();
+  const competitiveRules = useCompetitiveRules();
+  const competitiveDeckSize = competitiveRules.deckSize;
 
   const reports = useMemo(
     () => new Map<string, DeckValidationResult>(
-      decks.map((deck: DeckRecord): [string, DeckValidationResult] => [deck.id, validateDeck(deck, [], competitiveDeckSize)]),
+      decks.map((deck: DeckRecord): [string, DeckValidationResult] => [
+        deck.id,
+        validateDeck(deck, competitiveRules.restrictions, competitiveRules.deckSize),
+      ]),
     ),
-    [competitiveDeckSize, decks],
+    [competitiveRules.deckSize, competitiveRules.restrictions, decks],
   );
-  const legalCount = [...reports.values()].filter((report) => report.isLegal).length;
+  const compatibility = useMemo(
+    () => new Map<string, DeckFormat[]>(
+      decks.map((deck: DeckRecord): [string, DeckFormat[]] => [
+        deck.id,
+        legalDeckFormats(deck, competitiveRules.restrictions, competitiveRules.deckSize),
+      ]),
+    ),
+    [competitiveRules.deckSize, competitiveRules.restrictions, decks],
+  );
+  const legalCount = [...compatibility.values()].filter((formats) => formats.length > 0).length;
   const visible = useMemo(() => decks.filter((deck: DeckRecord) => {
     const text = `${deck.name} ${deck.factions.join(" ")} ${deck.tags?.join(" ") ?? ""} ${deckSetName(deck)}`.toLowerCase();
     const queryMatch = !deckQuery.trim() || text.includes(deckQuery.trim().toLowerCase());
     const factionMatch = faction === "All" || deck.factions.includes(faction);
-    const legal = reports.get(deck.id)?.isLegal ?? false;
-    return queryMatch && factionMatch && (legality === "All" || (legality === "Legal" ? legal : !legal));
+    const legalFormats = compatibility.get(deck.id) ?? [];
+    const legal = legalFormats.length > 0;
+    const formatMatch = formatFilter === "all" || legalFormats.includes(formatFilter);
+    return queryMatch && factionMatch && formatMatch && (legality === "All" || (legality === "Legal" ? legal : !legal));
   }).sort((a: DeckRecord, b: DeckRecord) => {
     if (sort === "Name") return a.name.localeCompare(b.name);
     if (sort === "Set") return deckSetName(a).localeCompare(deckSetName(b));
     return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
-  }), [deckQuery, decks, faction, legality, reports, sort]);
+  }), [compatibility, deckQuery, decks, faction, formatFilter, legality, sort]);
 
   if (!ready) return <DeckLibrarySkeleton />;
 
@@ -589,6 +636,8 @@ export function DeckLibraryScreen() {
         setFaction={setFaction}
         legality={legality}
         setLegality={setLegality}
+        formatFilter={formatFilter}
+        setFormatFilter={setFormatFilter}
         sort={sort}
         setSort={setSort}
         view={view}
@@ -617,8 +666,8 @@ export function DeckLibraryScreen() {
       ) : visible.length === 0 ? (
         <DeckState
           title="No decks match these filters"
-          copy="Change the search, faction, legality, or sort controls to return to your arsenal."
-          action={<ActionButton tone="quiet" onClick={() => { setDeckQuery(""); setFaction("All"); setLegality("All"); }}>Clear filters</ActionButton>}
+          copy="Change the search, faction, format, legality, or sort controls to return to your arsenal."
+          action={<ActionButton tone="quiet" onClick={() => { setDeckQuery(""); setFaction("All"); setFormatFilter("all"); setLegality("All"); }}>Clear filters</ActionButton>}
         />
       ) : (
         <CardGrid className={`${styles.deckGrid} ${styles[`deckGrid_${view}`]}`} minCardWidth="20rem">
@@ -627,6 +676,7 @@ export function DeckLibraryScreen() {
               key={deck.id}
               deck={deck}
               report={reports.get(deck.id)!}
+              legalFormats={compatibility.get(deck.id) ?? []}
               competitiveDeckSize={competitiveDeckSize}
               selected={selectedDeckId === deck.id}
               showcased={
@@ -741,6 +791,7 @@ function DeckFactionTags({ factions }: { factions: string[] }) {
 function DeckTile({
   deck,
   report,
+  legalFormats,
   competitiveDeckSize = 50,
   selected,
   showcased,
@@ -756,6 +807,7 @@ function DeckTile({
 }: {
   deck: DeckRecord;
   report: DeckValidationResult;
+  legalFormats: DeckFormat[];
   competitiveDeckSize?: number;
   selected: boolean;
   showcased: boolean;
@@ -817,8 +869,8 @@ function DeckTile({
         </div>
       </button>
       <div className={styles.deckCardActions}>
-        <button onClick={onSelect} disabled={!report.isLegal || selected}>
-          {selected ? "Selected" : report.isLegal ? "Select for Play" : "Fix to select"}
+        <button onClick={onSelect} disabled={!legalFormats.length || selected}>
+          {selected ? "Selected" : legalFormats.length ? "Select for Play" : "Fix to select"}
         </button>
         <button onClick={onEdit}>Edit</button>
         <details>
