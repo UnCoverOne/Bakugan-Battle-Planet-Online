@@ -41,6 +41,26 @@ const DRAGONOID_MAXIMUS_REQUIRED_HEROES = [
   "bb-202",
 ] as const satisfies readonly RulesCardId[];
 
+const PRINTED_COUNT_WORDS: Record<string, number> = {
+  no: 0,
+  a: 1,
+  an: 1,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+};
+
+function printedCount(value: string) {
+  return PRINTED_COUNT_WORDS[value.toLowerCase()] ?? Math.max(0, Number(value) || 0);
+}
+
 function opponentOf(state: MatchState, player: PlayerState) {
   return state.players.find((candidate) => candidate.id !== player.id);
 }
@@ -227,9 +247,9 @@ function printedActionModifier(
   const targetFactions = printedTargetFactions(sourceText);
   const faction = targetFactions.length === 1 ? targetFactions[0] : undefined;
   const excludedFaction = sourceText.match(/non-\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1] as Bakugan["faction"] | undefined;
-  const copies = sourceText.match(/if you have (\d+) of this in play/i);
+  const copies = sourceText.match(/if you have (no|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) of this in play/i);
   const activeCondition: RuleCondition = copies
-    ? { kind: "card-count", catalogId, comparison: "at-least", amount: Number(copies[1]) }
+    ? { kind: "card-count", catalogId, comparison: "at-least", amount: printedCount(copies[1]) }
     : condition;
   const base = {
     id: `${sourceId}:printed:${actionId}`,

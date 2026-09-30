@@ -28,6 +28,57 @@ function baseMatch(code = "PLAYPIPE") {
   return { state, first, second };
 }
 
+test("Maximus Mantonoid Ultra exposes its free payment route with three Heroes in play", () => {
+  const { state, first } = baseMatch("MAXIMUS-FREE");
+  const maximus = card("br-128", "maximus-mantonoid-free");
+  first.hand = [maximus];
+  first.energy = 0;
+  first.energyZone = [];
+
+  first.heroes = [
+    card("aa-68", "maximus-hero-one"),
+    card("aa-70", "maximus-hero-two"),
+  ];
+  assert.equal(
+    cardPaymentModes(state, first.id, maximus).some((mode) => mode.id.endsWith(":self-free")),
+    false,
+  );
+
+  first.heroes.push(card("aa-71", "maximus-hero-three"));
+  const free = cardPaymentModes(state, first.id, maximus)
+    .find((mode) => mode.id.endsWith(":self-free"));
+  assert.ok(free);
+  assert.equal(free.legal, true);
+  assert.equal(free.freeBase, true);
+  assert.equal(free.energyCost, 0);
+});
+
+test("Magnus, Ultimate Rival grants no bonus before three copies are in play", () => {
+  const { state, first } = baseMatch("MAGNUS-COUNT");
+  const bakugan = first.bakugan[0];
+  const base = evaluateBakuganCharacteristics(state, bakugan, first);
+  const copies = [
+    card("aa-69", "magnus-copy-one"),
+    card("aa-69", "magnus-copy-two"),
+    card("aa-69", "magnus-copy-three"),
+  ];
+
+  first.heroes = copies.slice(0, 1);
+  let evaluated = evaluateBakuganCharacteristics(state, bakugan, first);
+  assert.equal(evaluated.power, base.power);
+  assert.equal(evaluated.damage, base.damage);
+
+  first.heroes = copies.slice(0, 2);
+  evaluated = evaluateBakuganCharacteristics(state, bakugan, first);
+  assert.equal(evaluated.power, base.power);
+  assert.equal(evaluated.damage, base.damage);
+
+  first.heroes = copies;
+  evaluated = evaluateBakuganCharacteristics(state, bakugan, first);
+  assert.equal(evaluated.power, base.power + 900);
+  assert.equal(evaluated.damage, base.damage + 9);
+});
+
 test("Pact of Darkness exposes an unaffordable Sacrifice route instead of allowing a late failed discard", () => {
   const { state, first, second } = baseMatch("PACTFROST");
   state.phase = "damage";

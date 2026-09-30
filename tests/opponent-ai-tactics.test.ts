@@ -910,6 +910,28 @@ test("AI accounts for an opponent boost already waiting on the batch", () => {
   assert.equal(next.batch.at(-1)?.card.id, response.id);
 });
 
+test("AI does not spend Falling Strike for redundant B-Power when Sync is unavailable", () => {
+  const fallingStrike = catalogueCard("ff-9", "redundant-falling-strike");
+  const ai = player(
+    "falling-strike-ai",
+    [bakugan("falling-strike-ai-b", "Darkus", 900, 5)],
+    [],
+    [fallingStrike],
+  );
+  const human = player(
+    "falling-strike-human",
+    [bakugan("falling-strike-human-b", "Pyrus", 700, 5)],
+  );
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.length, 0);
+  assert.equal(next.priority, human.id);
+  assert.equal(next.players[0].hand.some((candidate) => candidate.id === fallingStrike.id), true);
+});
+
 test("inactive mixed-card utility does not excuse redundant B-Power", () => {
   const shield = catalogueCard("bb-2", "empty-deck-aquos-shield");
   const ai = player("mixed-ai", [bakugan("mixed-ai-b", "Aquos", 900, 5)], [], [shield]);

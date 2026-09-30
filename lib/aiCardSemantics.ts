@@ -42,14 +42,26 @@ export function aiConditionActive(
   match: MatchState,
   playerId: string,
   condition: Parameters<typeof ruleConditionActive>[2],
+  choices: CardChoices = {},
 ) {
   const player = playerById(match, playerId);
-  return Boolean(player && ruleConditionActive(
+  if (!player) return false;
+  // Resolution-only optional selections such as Sync are not automatically
+  // active during planning. Only project their gated effects after the AI has
+  // actually selected the required card/option.
+  if (condition?.kind === "selection-made") {
+    const selected = choices[condition.choiceId];
+    return Array.isArray(selected)
+      ? selected.length > 0
+      : selected !== undefined && selected !== null && selected !== false && selected !== "";
+  }
+  return ruleConditionActive(
     match,
     player,
     condition,
     activeBakugan(match, playerId),
-  ));
+    choices,
+  );
 }
 
 export function isTemporaryCombatAction(action: RuleAction) {
@@ -94,19 +106,20 @@ function activeLeafActions(
   match: MatchState,
   playerId: string,
   action: RuleAction,
+  choices: CardChoices,
 ): RuleAction[] {
   if (action.kind === "conditional") {
-    const branch = aiConditionActive(match, playerId, action.condition)
+    const branch = aiConditionActive(match, playerId, action.condition, choices)
       ? action.whenTrue
       : action.whenFalse ?? [];
-    return branch.flatMap((nested) => activeLeafActions(match, playerId, nested));
+    return branch.flatMap((nested) => activeLeafActions(match, playerId, nested, choices));
   }
   if (action.kind === "replacement") {
-    if (action.condition && !aiConditionActive(match, playerId, action.condition)) return [];
-    return action.replaceWith.flatMap((nested) => activeLeafActions(match, playerId, nested));
+    if (action.condition && !aiConditionActive(match, playerId, action.condition, choices)) return [];
+    return action.replaceWith.flatMap((nested) => activeLeafActions(match, playerId, nested, choices));
   }
   if (action.kind === "sequence") {
-    return action.effects.flatMap((nested) => activeLeafActions(match, playerId, nested));
+    return action.effects.flatMap((nested) => activeLeafActions(match, playerId, nested, choices));
   }
   return [action];
 }
@@ -128,17 +141,16 @@ export function activeCardActionEntries(
   match: MatchState,
   playerId: string,
   card: GameCard,
-  _choices: CardChoices = {},
+  choices: CardChoices = {},
   options: ActiveCardActionOptions = {},
 ): AiCardActionEntry[] {
   const execution = options.execution ?? "play";
-  void _choices;
   const entries: AiCardActionEntry[] = [];
   const instructions = compiledAiCardProgram(card, options.source ?? card.effect).instructions;
   for (const instruction of instructions.slice(options.startInstructionIndex ?? 0)) {
-    if (!aiConditionActive(match, playerId, instruction.condition)) continue;
+    if (!aiConditionActive(match, playerId, instruction.condition, choices)) continue;
     const leaves = instruction.actions.flatMap((action) => (
-      activeLeafActions(match, playerId, action)
+      activeLeafActions(match, playerId, action, choices)
     ));
     const triggers = leaves.filter((action): action is Extract<RuleAction, { kind: "trigger" }> => (
       action.kind === "trigger"
