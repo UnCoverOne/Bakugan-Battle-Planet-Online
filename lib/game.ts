@@ -4677,6 +4677,100 @@ export const nextTurn = (input: MatchState) => {
   throw new Error("The turn advances through priority and the End Phase.");
 };
 
+export const prepareNextSeriesGameLobby = (input: MatchState) => {
+  const state = cloneMatch(input);
+  const needed = state.format === "bo3" ? 2 : 1;
+  const wins = Math.max(0, ...Object.values(state.series));
+  if (!["result", "lobby"].includes(state.phase) || wins <= 0 || wins >= needed) {
+    throw new Error("There is no next game to prepare.");
+  }
+
+  state.gameNumber += 1;
+  state.turn = 0;
+  state.gameStartEventedGame = 0;
+  state.placements = [];
+  state.placementTurn = 0;
+  state.selected = {};
+  state.targets = {};
+  state.rolls = {};
+  state.batch = [];
+  state.passes = [];
+  state.triggerOrders = [];
+  state.pendingChoice = undefined;
+  state.pendingReroll = undefined;
+  state.pendingEffectDamageResume = undefined;
+  state.pendingRerollOpenEvent = undefined;
+  state.pendingEffectPlay = undefined;
+  state.revealedFlip = undefined;
+  state.rerollOpenedByEffect = {};
+  state.rerollTargetByEffect = {};
+  state.rerollUsage = {};
+  state.rerollSequence = 0;
+  state.repeatRollAfterReroll = false;
+  state.nextCardCostReduction = {};
+  state.nextCardEmpowerReduction = {};
+  state.nextCardEmpowerFree = {};
+  state.temporaryVictorDiscards = {};
+  state.powerBoost = {};
+  state.damageBoost = {};
+  state.frostStrike = {};
+  state.doubleStrike = {};
+  state.shadowStrike = {};
+  state.pendingDamage = 0;
+  state.pendingLoser = "";
+  state.damageOrigin = "";
+  state.teamAttack = false;
+  state.pendingBrawlRetracts = [];
+  state.delayedRetracts = [];
+  state.copyNextAction = {};
+  state.brawlWinner = "";
+  state.winner = "";
+  state.resultReason = "";
+  state.undoWindow = undefined;
+
+  for (const player of state.players) {
+    const attachedCards = player.bakugan.flatMap((bakugan) => [...bakugan.evoStack, ...(bakugan.bakuGear ?? [])]);
+    const all = [...player.deckCards, ...player.hand, ...player.discard, ...player.energyZone, ...player.heroes, ...attachedCards];
+    player.deckCards = all.filter((card) => card.type !== "Character");
+    shuffle(player.deckCards);
+    player.hand = [];
+    player.discard = [];
+    player.energyZone = [];
+    player.heroes = [];
+    player.energy = 0;
+    player.unchargedEnergyIds = [];
+    player.energyRechargeLocks = {};
+    player.tappedEnergyIds = [];
+    player.energyTapTurn = state.turn;
+    player.ready = false;
+    player.energizedThisTurn = false;
+    player.cardsPlayedThisTurn = 0;
+    player.playedCardCostsThisTurn = [];
+    player.playedCardTypesThisTurn = [];
+    player.playedCardMechanicsThisTurn = [];
+    player.factionsPlayedThisTurn = [];
+    player.discardedCardIdsThisTurn = [];
+    player.bakugan.forEach((bakugan) => {
+      bakugan.open = false;
+      bakugan.heldCoreCells = [];
+      bakugan.evoStack = [];
+      bakugan.bakuGear = [];
+      bakugan.fused = false;
+    });
+    drawCards(state, player, 5);
+  }
+
+  const lobbyOwner = state.players[0]?.id ?? "";
+  state.startingPlayer = lobbyOwner;
+  state.initialStartingPlayer = lobbyOwner;
+  state.priority = lobbyOwner;
+  state.startingPlayerRevealedAt = 0;
+  setPhase(state, "lobby", `Game ${state.gameNumber} • Ready check`, lobbyOwner);
+  state.informationEpoch += 1;
+  entry(state, "system", `Game ${state.gameNumber} is ready for the series lobby. Match settings and series decks remain locked.`);
+  return withVersion(state);
+};
+
 export const startNextSeriesGame = (input: MatchState) => {
   const state = cloneMatch(input); const needed = state.format === "bo3" ? 2 : 1;
   if (state.phase !== "result" || Math.max(...Object.values(state.series)) >= needed) throw new Error("The match is complete.");

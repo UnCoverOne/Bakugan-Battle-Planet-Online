@@ -26,7 +26,7 @@ import {
   tagLobbyPlayerDeck,
   type LobbyRulesFormat,
 } from "../../lib/lobby-config";
-import { lobbyCanStart, roomOwnerId } from "../../lib/lobby";
+import { lobbyCanStart, roomOwnerId, seriesMatchOptionsLocked } from "../../lib/lobby";
 import { deckAllowedInMeta, LOBBY_METAS, metaName, type LobbyMeta } from "../../lib/meta-formats";
 import { trainingBotLobbyCommands } from "../../lib/training-lobby";
 import { dispatchLocalGameAction, dispatchLocalGameCommand } from "../../lib/engine/local-command-dispatcher";
@@ -171,6 +171,7 @@ export function LobbyRoomScreen() {
   const me = match?.players.find((player) => player.id === localPlayerId);
   const ownerId = match ? roomOwnerId(match) : "";
   const isOwner = Boolean(ownerId && ownerId === localPlayerId);
+  const seriesLocked = Boolean(match && seriesMatchOptionsLocked(match));
   const bothReady = Boolean(match && lobbyCanStart(match));
   const requiredFormat = config ? requiredDeckFormat(config.rulesFormat) : "standard";
   const selectedMeta = config?.meta ?? "battle-brawlers";
@@ -268,7 +269,7 @@ export function LobbyRoomScreen() {
   };
 
   const applySettings = async (rulesFormat: LobbyRulesFormat, meta: LobbyMeta) => {
-    if (!match || !config || !isOwner) return;
+    if (!match || !config || !isOwner || seriesLocked) return;
     if (rulesFormat === "competitive" && config.mode !== "ranked") return;
     if (room.online) {
       await sendRoomCommand("lobby-settings", { rulesFormat, meta }, "settings");
@@ -300,7 +301,7 @@ export function LobbyRoomScreen() {
   };
 
   const selectDeck = async (deckId: string) => {
-    if (!match || !me) return;
+    if (!match || !me || seriesLocked) return;
     const deck = playerDecks.find((candidate) => candidate.id === deckId);
     if (!deck || !compatibleDeckIds.has(deck.id)) return;
     const playerAvatar = (me as PlayerState & { avatar?: string }).avatar ?? profile.avatar ?? "";
@@ -439,7 +440,7 @@ export function LobbyRoomScreen() {
         <section className={styles.mainColumn}>
           <section className={styles.configPanel}>
             <header>
-              <div><span>LOBBY SETTINGS</span><h2>{isOwner ? "Configure the match" : "Owner-selected rules"}</h2></div>
+              <div><span>LOBBY SETTINGS</span><h2>{seriesLocked ? "Locked for this series" : isOwner ? "Configure the match" : "Owner-selected rules"}</h2></div>
               <Badge tone={room.online ? "blue" : "gold"}>{room.online ? "ONLINE" : "TRAINING"}</Badge>
             </header>
             <div className={styles.configGrid}>
@@ -454,7 +455,7 @@ export function LobbyRoomScreen() {
                         key={candidate}
                         className={config.rulesFormat === candidate ? styles.selected : ""}
                         aria-pressed={config.rulesFormat === candidate}
-                        disabled={!isOwner || busy === "settings" || rankedOnly || config.mode === "ranked"}
+                        disabled={seriesLocked || !isOwner || busy === "settings" || rankedOnly || config.mode === "ranked"}
                         onClick={() => void changeFormat(candidate)}
                       >
                         <strong>{formatLabel(candidate)}</strong>
@@ -468,12 +469,12 @@ export function LobbyRoomScreen() {
                 <span>META</span>
                 <select
                   value={config.meta}
-                  disabled={!isOwner || busy === "settings"}
+                  disabled={seriesLocked || !isOwner || busy === "settings"}
                   onChange={(event) => void changeMeta(event.target.value as LobbyMeta)}
                 >
                   {LOBBY_METAS.map((meta) => <option value={meta.id} key={meta.id}>{meta.name}</option>)}
                 </select>
-                <small>Limits Character and Main Deck cards to the selected era. Unlimited accepts every set.</small>
+                <small>{seriesLocked ? "Match options remain fixed until this Best of Three series is complete." : "Limits Character and Main Deck cards to the selected era. Unlimited accepts every set."}</small>
               </label>
             </div>
           </section>
@@ -538,8 +539,8 @@ export function LobbyRoomScreen() {
             <section className={styles.loadoutPanel}>
               <div className={styles.loadoutHeading}>
                 <div><span>YOUR DECK</span><h2>Battle loadout</h2></div>
-                <button type="button" onClick={() => setDeckPickerOpen(true)} disabled={busy === "deck" || !me || Boolean(ranked)}>
-                  <span>SELECT YOUR DECK</span><ChevronArrow />
+                <button type="button" onClick={() => setDeckPickerOpen(true)} disabled={seriesLocked || busy === "deck" || !me || Boolean(ranked)}>
+                  <span>{seriesLocked ? "SERIES DECK LOCKED" : "SELECT YOUR DECK"}</span><ChevronArrow />
                 </button>
               </div>
 

@@ -16,7 +16,7 @@ import {
   type LobbyDeckFormat,
 } from "./lobby-config";
 import { DEFAULT_META, metaAllowsCatalogId, type LobbyMeta } from "./meta-formats";
-import { replaceLobbyDeck, setLobbyReady } from "./lobby";
+import { replaceLobbyDeck, seriesMatchOptionsLocked, setLobbyReady } from "./lobby";
 import type { GameCommand } from "./engine/types";
 
 type TrainingMatchState = MatchState & {
@@ -129,6 +129,9 @@ export function syncTrainingBotForLobby(input: MatchState) {
   if (config.mode !== "training" || input.phase !== "lobby") return input;
   const bot = input.players.find((player) => player.id === "training-bot");
   if (!bot) return input;
+  if (seriesMatchOptionsLocked(input)) {
+    return bot.ready ? input : setLobbyReady(input, bot.id, true);
+  }
   const deckFormat = requiredDeckFormat(config.rulesFormat);
   const selectedAiDeck = chooseTrainingAiDeck(input);
   const deck = trainingOpponentDeck(deckFormat, selectedAiDeck, config.meta);
@@ -147,6 +150,9 @@ export function trainingBotLobbyCommands(input: MatchState): GameCommand[] {
   if (config.mode !== "training" || input.phase !== "lobby") return [];
   const bot = input.players.find((player) => player.id === "training-bot");
   if (!bot) return [];
+  if (seriesMatchOptionsLocked(input)) {
+    return bot.ready ? [] : [{ type: "SET_LOBBY_READY", ready: true }];
+  }
   const selectedAiDeck = chooseTrainingAiDeck(input);
   (input as TrainingMatchState).trainingAiDeck = cloneDeck(selectedAiDeck);
   const deck = trainingOpponentDeck(requiredDeckFormat(config.rulesFormat), selectedAiDeck, config.meta);

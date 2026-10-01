@@ -9,7 +9,7 @@ import {
   energizeCard,
   nextTurn,
   selectBakugan,
-  startNextSeriesGame,
+  prepareNextSeriesGameLobby,
   type MatchState,
   type PlayerState,
 } from "../game";
@@ -128,7 +128,7 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
     case "NEXT_TURN": return nextTurn(input);
     case "START_NEXT_SERIES_GAME": return rankedSeries(input)
       ? beginRankedIntermission(input)
-      : startNextSeriesGame(restoreOriginalDecksForNextGame(input));
+      : prepareNextSeriesGameLobby(restoreOriginalDecksForNextGame(input));
     case "UNDO": return undoLatestAction(input, actorId);
     case "JOIN_PLAYER": return joinPlayer(input, command.player, issuedAt);
     case "RESOLVE_DEADLINE": return resolveExpiredDeadline(input, issuedAt);

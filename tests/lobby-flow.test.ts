@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { selectAiDeckForMeta } from "../lib/ai-meta-selection";
 import { STARTER_DECKS, canonicalSelectionForFormat, makeCanonicalPlayer, makePlayer, type DeckRecord } from "../lib/data";
-import { createMatch } from "../lib/game";
+import { createMatch, prepareNextSeriesGameLobby } from "../lib/game";
 import {
   lobbyConfig,
   playerLobbyDeckFormat,
@@ -13,6 +13,7 @@ import {
   lobbyCanStart,
   replaceLobbyDeck,
   roomOwnerId,
+  seriesMatchOptionsLocked,
   setLobbyReady,
   startLobbyMatch,
   updateLobbySettings,
@@ -155,6 +156,54 @@ test("ready and start are separate owner-controlled actions", () => {
   assert.throws(() => startLobbyMatch(state, "player-2"), /Only the room owner/);
   state = startLobbyMatch(state, "player-1");
   assert.equal(state.phase, "startingPlayer");
+});
+
+test("Best of Three intermissions return to a locked lobby ready check", () => {
+  let state = createMatch("SERIES", "bo3", [taggedPlayer(0), taggedPlayer(1)]);
+  state.phase = "result";
+  state.winner = "player-1";
+  state.resultReason = "Game one complete";
+  state.series["player-1"] = 1;
+
+  state = prepareNextSeriesGameLobby(state);
+
+  assert.equal(state.phase, "lobby");
+  assert.equal(state.gameNumber, 2);
+  assert.equal(state.stepLabel, "Game 2 • Ready check");
+  assert.equal(seriesMatchOptionsLocked(state), true);
+  assert.equal(state.players.every((player) => !player.ready), true);
+  assert.equal(state.players.every((player) => player.hand.length === 5), true);
+  assert.equal(state.players.every((player) => player.deckCards.length === 35), true);
+
+  assert.throws(
+    () => updateLobbySettings(state, "player-1", "singleton", "battle-brawlers"),
+    /locked for the rest of this Best of Three series/,
+  );
+  assert.throws(
+    () => replaceLobbyDeck(state, "player-1", taggedPlayer(0, STARTER_DECKS[1])),
+    /Series decks are locked/,
+  );
+
+  state = setLobbyReady(state, "player-1", true);
+  state = setLobbyReady(state, "player-2", true);
+  assert.equal(state.phase, "lobby");
+  assert.equal(lobbyCanStart(state), true);
+
+  state = startLobbyMatch(state, "player-1");
+  assert.equal(state.phase, "startingPlayer");
+  assert.equal(state.gameNumber, 2);
+});
+
+test("Training intermissions keep the AI deck locked and only ready the AI", () => {
+  let state = createTrainingLobbyState("TRAIN3", "bo3", "player-1", "Player 1", STARTER_DECKS[0]);
+  state.phase = "result";
+  state.winner = "player-1";
+  state.resultReason = "Game one complete";
+  state.series["player-1"] = 1;
+  state = prepareNextSeriesGameLobby(state);
+
+  const commands = trainingBotLobbyCommands(state);
+  assert.deepEqual(commands, [{ type: "SET_LOBBY_READY", ready: true }]);
 });
 
 test("Training creates a lobby first and keeps the AI ready", () => {

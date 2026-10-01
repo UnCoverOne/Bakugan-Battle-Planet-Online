@@ -16,6 +16,7 @@ import {
 } from "./alternateWinPresentation";
 import styles from "./MatchResultDialog.module.css";
 import { MatchResultSocial } from "../social/MatchResultSocial";
+import { useApp } from "../application/AppProvider";
 import {
   MATCH_UPDATE_EVENT,
   finalizeCompletedMatchExit,
@@ -279,6 +280,7 @@ export function writeGameSettings(settings: Record<string, unknown>) {
 
 export function MatchStateCoordinator() {
   const router = useRouter();
+  const { nextSeriesGame } = useApp();
   useMatchTransport();
   const returnState = useMatchSelector((state) => ({
     match: state.match,
@@ -294,6 +296,12 @@ export function MatchStateCoordinator() {
   const resultKey = completed && returnState.match
     ? `${returnState.match.id}:${returnState.match.gameNumber}:${returnState.match.winner ?? ""}:${returnState.match.resultReason ?? ""}`
     : null;
+
+  useEffect(() => {
+    if (returnState.route !== "match" || returnState.match?.phase !== "lobby") return;
+    writeGameRoute("lobby");
+    router.replace("/play/lobby");
+  }, [returnState.match?.phase, returnState.route, router]);
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -361,8 +369,7 @@ export function MatchStateCoordinator() {
               if (finalizeCompletedMatchExit()) router.replace("/play/result");
               return;
             }
-            writeGameRoute("result");
-            router.push("/play/result");
+            void nextSeriesGame();
           }}
         />
       ) : null}

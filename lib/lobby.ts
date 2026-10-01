@@ -15,6 +15,11 @@ export function roomOwnerId(state: MatchState) {
   return state.players[0]?.id ?? "";
 }
 
+export function seriesMatchOptionsLocked(state: MatchState) {
+  return state.format === "bo3"
+    && Math.max(0, ...Object.values(state.series).map(Number)) > 0;
+}
+
 /** A lobby is startable only after both occupied seats have locked legal decks. */
 export function lobbyCanStart(state: MatchState) {
   return Boolean(
@@ -89,6 +94,7 @@ export function updateLobbySettings(
   meta: LobbyMeta,
 ) {
   if (input.phase !== "lobby") throw new Error("Lobby settings can only be changed before the match starts.");
+  if (seriesMatchOptionsLocked(input)) throw new Error("Match options are locked for the rest of this Best of Three series.");
   if (roomOwnerId(input) !== playerId) throw new Error("Only the room owner can change lobby settings.");
   if (!(["standard", "singleton", "competitive"] as const).includes(rulesFormat)) throw new Error("Unknown match format.");
   if (!isLobbyMeta(meta)) throw new Error("That meta is not currently available.");
@@ -116,6 +122,7 @@ export function updateLobbySettings(
 
 export function replaceLobbyDeck(input: MatchState, playerId: string, replacement: PlayerState) {
   if (input.phase !== "lobby") throw new Error("Decks can only be changed before the match starts.");
+  if (seriesMatchOptionsLocked(input)) throw new Error("Series decks are locked until this Best of Three is complete.");
   if (replacement.id !== playerId) throw new Error("A player can only change their own lobby deck.");
   const index = input.players.findIndex((candidate) => candidate.id === playerId);
   if (index < 0) throw new Error("Unknown player.");

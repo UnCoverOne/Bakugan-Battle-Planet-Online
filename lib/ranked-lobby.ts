@@ -6,7 +6,7 @@ import {
   type DeckRecord,
 } from "./data";
 import type { DeckRestriction } from "./deck-validation";
-import { cloneMatch, startNextSeriesGame, type MatchState } from "./game";
+import { cloneMatch, prepareNextSeriesGameLobby, type MatchState } from "./game";
 import { applyLobbyConfig, tagLobbyPlayerDeck } from "./lobby-config";
 import type { RankedSettlement } from "./ranked";
 
@@ -177,9 +177,9 @@ export function selectRankedDeck(
     replaceRankedPlayer(state, seatId, selected, restrictions, ranked.deckSize ?? 50);
     ranked.currentDeckIds[seatId] = selected.id;
   }
-  if (state.gameNumber > 1 || (state.gameNumber === 1 && state.series && Object.values(state.series).some((wins) => wins > 0))) {
-    ranked.stage = "playing";
-    return startNextSeriesGame(state) as RankedMatchState;
+  if (Object.values(state.series ?? {}).some((wins) => wins > 0)) {
+    ranked.stage = "ready";
+    return prepareNextSeriesGameLobby(state) as RankedMatchState;
   }
   ranked.stage = "ready";
   return state;
@@ -199,7 +199,11 @@ export function beginRankedIntermission(input: MatchState) {
   const winner = winningPlayerId ? ranked.players[winningPlayerId] : undefined;
   if (winningDeckId && winner && !winner.wonDeckIds.includes(winningDeckId)) winner.wonDeckIds.push(winningDeckId);
   for (const player of Object.values(ranked.players)) delete player.selectedDeckId;
+  for (const player of state.players) player.ready = false;
   ranked.stage = "select";
+  state.phase = "lobby";
+  state.stepLabel = `Game ${state.gameNumber + 1} • Ranked deck selection`;
+  state.priority = state.players[0]?.id ?? "";
   state.version += 1;
   return state;
 }

@@ -211,7 +211,7 @@ function readSettings(): GameplaySettings {
 
 export function GameplayClient() {
   const router = useRouter();
-  const { authUser, setSettings } = useApp();
+  const { authUser, nextSeriesGame, setSettings } = useApp();
   const administrator = accountIsAdministrator(authUser);
   const storedState = useMatchSelector((state): StoredGameScreenState => {
     const legacyVolume = Number(state.settings.soundVolume ?? .55);
@@ -1136,11 +1136,11 @@ export function GameplayClient() {
   const exitCompletedMatch = () => {
     const match = readMatchStore().match;
     if (!match || match.phase !== "result" || !match.winner) return;
-    if (isCompletedSeriesResult(match)) {
-      if (!finalizeCompletedMatchExit()) return;
-    } else {
-      writeGameRoute("result");
+    if (!isCompletedSeriesResult(match)) {
+      void nextSeriesGame();
+      return;
     }
+    if (!finalizeCompletedMatchExit()) return;
     router.replace("/play/result");
   };
 

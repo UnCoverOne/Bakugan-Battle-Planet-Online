@@ -118,7 +118,17 @@ test("Ranked Conquest hides simultaneous choices and retires only winning decks"
   match.winner = "owner";
   match.series.owner = 1;
   match = beginRankedIntermission(match);
+  assert.equal(match.phase, "lobby");
+  assert.equal(match.players.every((player) => !player.ready), true);
   assert.equal(rankedSeries(match)?.stage, "select");
   assert.deepEqual(eligibleRankedDecks(match, "owner").map((deck) => deck.id), ["owner-b"]);
   assert.deepEqual(eligibleRankedDecks(match, "guest").map((deck) => deck.id).sort(), ["guest-a", "guest-b"]);
+
+  match = selectRankedDeck(match, "owner", "owner-b", []);
+  assert.equal(rankedSeries(match)?.stage, "select");
+  match = selectRankedDeck(match, "guest", "guest-a", []);
+  assert.equal(match.phase, "lobby");
+  assert.equal(match.gameNumber, 2);
+  assert.equal(rankedSeries(match)?.stage, "ready");
+  assert.equal(match.players.every((player) => !player.ready), true);
 });
