@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { captureCoreReturns } from "../../lib/coreReturns";
 import type { MatchState } from "../../lib/game";
-import { completedMatchKey, isCompletedSeriesResult } from "../../lib/match-result-navigation";
+import { completedMatchKey, isCompletedSeriesResult, isSeriesIntermissionResult } from "../../lib/match-result-navigation";
 import { CoreReturnPlacementLayer } from "./CoreReturnPlacementLayer";
 import {
   DRAGONOID_MAXIMUS_SKIP_EVENT,
@@ -289,6 +289,8 @@ export function MatchStateCoordinator() {
   }));
   const retracting = returnState.route === "match" && returnState.match?.phase === "retract";
   const completed = returnState.route === "match" && returnState.match?.phase === "result";
+  const seriesIntermission = completed && isSeriesIntermissionResult(returnState.match);
+  const intermissionAdvanceKey = useRef("");
   const [resultReady, setResultReady] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [skippedMaximusResultKey, setSkippedMaximusResultKey] = useState<string | null>(null);
@@ -304,6 +306,29 @@ export function MatchStateCoordinator() {
   }, [returnState.match?.phase, returnState.route, router]);
 
   useEffect(() => {
+    const match = returnState.match;
+    if (returnState.route !== "match" || !isSeriesIntermissionResult(match)) {
+      intermissionAdvanceKey.current = "";
+      return;
+    }
+    const key = `${match!.id}:${match!.gameNumber}:${match!.winner}`;
+    if (intermissionAdvanceKey.current === key) return;
+    intermissionAdvanceKey.current = key;
+    // The completed-game snapshot remains observable for records/stats, but
+    // unfinished Best of Three games never present the result dialog. Advancing
+    // immediately prepares the locked lobby/ready check for the next game.
+    void nextSeriesGame();
+  }, [
+    nextSeriesGame,
+    returnState.match,
+    returnState.match?.gameNumber,
+    returnState.match?.id,
+    returnState.match?.phase,
+    returnState.match?.winner,
+    returnState.route,
+  ]);
+
+  useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReducedMotion(query.matches);
     update();
@@ -312,18 +337,18 @@ export function MatchStateCoordinator() {
   }, []);
 
   useEffect(() => {
-    if (!completed || !returnState.match || !isDragonoidMaximusResult(returnState.match) || !resultKey) return;
+    if (!completed || seriesIntermission || !returnState.match || !isDragonoidMaximusResult(returnState.match) || !resultKey) return;
     const revealResult = () => {
       setSkippedMaximusResultKey(resultKey);
       setResultReady(true);
     };
     window.addEventListener(DRAGONOID_MAXIMUS_SKIP_EVENT, revealResult);
     return () => window.removeEventListener(DRAGONOID_MAXIMUS_SKIP_EVENT, revealResult);
-  }, [completed, resultKey, returnState.match]);
+  }, [completed, resultKey, returnState.match, seriesIntermission]);
 
   useEffect(() => {
     const match = returnState.match;
-    if (!completed || !match) {
+    if (!completed || !match || seriesIntermission) {
       setResultReady(false);
       setSkippedMaximusResultKey(null);
       setDismissedResultKey(null);
@@ -346,14 +371,14 @@ export function MatchStateCoordinator() {
     setResultReady(false);
     const timeout = window.setTimeout(() => setResultReady(true), remaining);
     return () => window.clearTimeout(timeout);
-  }, [completed, reducedMotion, resultKey, returnState.match, skippedMaximusResultKey]);
+  }, [completed, reducedMotion, resultKey, returnState.match, seriesIntermission, skippedMaximusResultKey]);
 
   return (
     <>
       {retracting ? (
         <CoreReturnPlacementLayer match={returnState.match!} playerId={returnState.playerId} />
       ) : null}
-      {completed && resultReady && resultKey !== dismissedResultKey ? (
+      {completed && !seriesIntermission && resultReady && resultKey !== dismissedResultKey ? (
         <MatchResultDialog
           match={returnState.match!}
           playerId={returnState.playerId}

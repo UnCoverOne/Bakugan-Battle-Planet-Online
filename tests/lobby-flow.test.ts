@@ -4,6 +4,7 @@ import test from "node:test";
 import { selectAiDeckForMeta } from "../lib/ai-meta-selection";
 import { STARTER_DECKS, canonicalSelectionForFormat, makeCanonicalPlayer, makePlayer, type DeckRecord } from "../lib/data";
 import { createMatch, prepareNextSeriesGameLobby } from "../lib/game";
+import { isCompletedSeriesResult, isSeriesIntermissionResult } from "../lib/match-result-navigation";
 import {
   lobbyConfig,
   playerLobbyDeckFormat,
@@ -158,6 +159,20 @@ test("ready and start are separate owner-controlled actions", () => {
   assert.equal(state.phase, "startingPlayer");
 });
 
+test("Best of Three result navigation distinguishes intermissions from series completion", () => {
+  const state = createMatch("SERIESNAV", "bo3", [taggedPlayer(0), taggedPlayer(1)]);
+  state.phase = "result";
+  state.winner = "player-1";
+  state.series["player-1"] = 1;
+
+  assert.equal(isSeriesIntermissionResult(state), true);
+  assert.equal(isCompletedSeriesResult(state), false);
+
+  state.series["player-1"] = 2;
+  assert.equal(isSeriesIntermissionResult(state), false);
+  assert.equal(isCompletedSeriesResult(state), true);
+});
+
 test("Best of Three intermissions return to a locked lobby ready check", () => {
   let state = createMatch("SERIES", "bo3", [taggedPlayer(0), taggedPlayer(1)]);
   state.phase = "result";
@@ -224,6 +239,7 @@ test("streamlined Match Creation and Lobby source contracts stay in place", asyn
     readFile(new URL("../components/application/AppProvider.jsx", import.meta.url), "utf8"),
     readFile(new URL("../components/game-screen-v2/GameplayClient.tsx", import.meta.url), "utf8"),
   ]);
+  const coordinator = await readFile(new URL("../components/game-screen-v2/MatchStateCoordinator.tsx", import.meta.url), "utf8");
 
   for (const contract of [
     "Training",
@@ -270,4 +286,7 @@ test("streamlined Match Creation and Lobby source contracts stay in place", asyn
   assert.match(provider, /router\.push\("\/play\/lobby"\)/);
   assert.match(provider, /router\.push\("\/play\/match"\)/);
   assert.match(runtime, /router\.replace\("\/play\/result"\)/);
+  assert.match(coordinator, /isSeriesIntermissionResult\(returnState\.match\)/);
+  assert.match(coordinator, /void nextSeriesGame\(\)/);
+  assert.match(coordinator, /completed && !seriesIntermission && resultReady/);
 });

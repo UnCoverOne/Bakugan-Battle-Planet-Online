@@ -14,6 +14,12 @@ export function isCompletedSeriesResult(match: MatchResultSnapshot | null | unde
   return Math.max(0, ...Object.values(match.series ?? {}).map(Number)) >= target;
 }
 
+export function isSeriesIntermissionResult(match: MatchResultSnapshot | null | undefined) {
+  if (match?.phase !== "result" || !match.winner || match.format !== "bo3") return false;
+  const wins = Math.max(0, ...Object.values(match.series ?? {}).map(Number));
+  return wins > 0 && wins < 2;
+}
+
 /** Stable identity for a fully completed match series. */
 export function completedSeriesResultKey(match: MatchResultSnapshot | null | undefined) {
   return isCompletedSeriesResult(match) ? match!.id : "";
