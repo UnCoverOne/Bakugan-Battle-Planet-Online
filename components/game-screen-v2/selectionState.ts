@@ -1,5 +1,4 @@
 import { fusionActivationRequirements, type Bakugan, type MatchState, type PlayerState } from "../../lib/game";
-import { legalEvoTargets } from "../../lib/evo";
 import { playerCanConfirmRoll, playerCanSelectRollTarget } from "../../lib/rolling";
 import { playerCanDrawTurnCard } from "../../lib/turnStart";
 
@@ -66,14 +65,12 @@ export function playerActionTooltip({
   playerId,
   selectedCharacterId,
   selectedHandCardId,
-  selectedEvoTargetId,
   now = Date.now(),
 }: {
   match: MatchState | null | undefined;
   playerId?: string;
   selectedCharacterId?: string;
   selectedHandCardId?: string;
-  selectedEvoTargetId?: string;
   now?: number;
 }): string {
   const player = selectionPlayer(match, playerId);
@@ -112,14 +109,6 @@ export function playerActionTooltip({
     const fusionTarget = fusionSelectableCharacterBakugan(match, player.id)
       .find((bakugan) => bakugan.id === selectedCharacterId);
     if (fusionTarget) return `Press Fuse to activate ${fusionTarget.name}'s Fusion ability.`;
-    const selectedCard = player.hand.find((card) => card.id === selectedHandCardId);
-    if (selectedCard?.type === "Evo") {
-      const target = legalEvoTargets(match, player.id, selectedCard)
-        .find((bakugan) => bakugan.id === selectedEvoTargetId);
-      return target
-        ? `Press Play Card to evolve ${target.name}.`
-        : `Select the matching ${selectedCard.evolvesFrom ?? "Bakugan"} Character Card for this Evo.`;
-    }
     return selectedHandCardId
       ? "Press Play Card to use the selected card, or deselect it to choose another action."
       : "Select a playable card from your hand, or press Pass Turn.";

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { cardChoiceSpec, fusionActivationRequirements, type CardChoices, type MatchState, type PlayerState } from "../../lib/game";
 import { cardEnergyPaymentState } from "../../lib/cardPayment";
-import { legalEvoTargets, selectedEvoTargetId } from "../../lib/evo";
 import { drawStepIsPending } from "../../lib/turnStart";
 import {
   compactMatchHudSlots,
@@ -240,18 +239,6 @@ export function MatchHudLayer({
       : null;
     if (!card) {
       setError("Select a highlighted card from your hand, then press Play Card.");
-      return;
-    }
-
-    if (card.type === "Evo") {
-      const targetId = selectedEvoTargetId();
-      const target = legalEvoTargets(match, player.id, card)
-        .find((candidate) => candidate.id === targetId);
-      if (!target) {
-        setError(`Select your matching ${card.evolvesFrom ?? "Bakugan"} Character Card, then press Play Card.`);
-        return;
-      }
-      void run(() => onPlayCard(card.id, { targetBakuganId: target.id }));
       return;
     }
 

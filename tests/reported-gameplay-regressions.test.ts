@@ -218,7 +218,7 @@ function establishWinningDoubleCore(match: MatchState, ai: PlayerState, human: P
   assert.equal(totalPower(match, ai.id) - totalPower(match, human.id), 400);
 }
 
-test("Maximus Mantonoid Ultra preserves its selected Evo target while offering free play with six Heroes", () => {
+test("Maximus Mantonoid Ultra auto-selects its sole legal Evo recipient and proceeds to payment", () => {
   const maximus = catalogueCard("br-128", "maximus-six-heroes");
   const character = CARDS.find((card) => (
     card.type === "Character"
@@ -242,11 +242,11 @@ test("Maximus Mantonoid Ultra preserves its selected Evo target while offering f
 
   const command = apiActionToCommand("prepare-play", {
     cardId: maximus.id,
-    choices: { targetBakuganId: target.id },
+    choices: {},
   });
   assert.equal(command.type, "PREPARE_CARD_PLAY");
   if (command.type !== "PREPARE_CARD_PLAY") assert.fail("Expected a prepared card-play command.");
-  assert.equal(command.choices.targetBakuganId, target.id);
+  assert.equal(command.choices.targetBakuganId, undefined);
 
   const next = dispatchRulesCommand(state, controller.id, command);
   const pending = next.pendingChoice;
@@ -255,14 +255,60 @@ test("Maximus Mantonoid Ultra preserves its selected Evo target while offering f
   assert.equal(
     pending.schema.fields.some((field) => field.id === "targetBakuganId"),
     false,
-    "the already selected Evo target must not be requested again",
+    "a sole legal Evo recipient should be filled automatically",
   );
   const payment = pending.schema.fields.find((field) => field.id === "paymentMode");
-  assert.ok(payment, "Maximus should stage a payment-mode choice");
+  assert.ok(payment, "Maximus should proceed directly to its payment-mode choice");
   const free = payment.options.find((option) => option.id === "br-128:self-free");
   assert.ok(free);
   assert.equal(free.disabled, false);
   assert.match(free.description ?? "", /^0 Energy/);
+});
+
+test("an Evo with multiple legal recipients stages the recipient choice after Play Card", () => {
+  const maximus = catalogueCard("br-128", "maximus-multiple-targets");
+  const character = CARDS.find((card) => (
+    card.type === "Character"
+    && card.faction === "Haos"
+    && [card.name, card.displayName].includes(maximus.evolvesFrom ?? "")
+  ));
+  assert.ok(character, "Missing Haos Mantonoid Ultra Character");
+  const firstTarget = bakugan("maximus-target-a", "Haos", {
+    name: character.displayName || character.name,
+    bPower: character.bPower ?? 0,
+    damage: character.damage ?? 0,
+    character: { ...character, id: "maximus-target-character-a" },
+  });
+  const secondTarget = bakugan("maximus-target-b", "Haos", {
+    name: character.displayName || character.name,
+    bPower: character.bPower ?? 0,
+    damage: character.damage ?? 0,
+    character: { ...character, id: "maximus-target-character-b" },
+  });
+  const opponent = player("maximus-multiple-opponent", [bakugan("maximus-multiple-opponent-b", "Aquos")]);
+  const controller = player("maximus-multiple-controller", [firstTarget, secondTarget], [maximus]);
+  addEnergy(controller, 6);
+  const state = matchWith(controller, opponent, "power");
+
+  const command = apiActionToCommand("prepare-play", { cardId: maximus.id, choices: {} });
+  assert.equal(command.type, "PREPARE_CARD_PLAY");
+  if (command.type !== "PREPARE_CARD_PLAY") assert.fail("Expected a prepared card-play command.");
+
+  const next = dispatchRulesCommand(state, controller.id, command);
+  const pending = next.pendingChoice;
+  assert.ok(pending);
+  assert.equal(pending.kind, "card-play");
+  assert.equal(pending.cancellable, true);
+  assert.equal(pending.playRequest?.choices.targetBakuganId, undefined);
+  const recipient = pending.schema.fields.find((field) => field.id === "targetBakuganId");
+  assert.ok(recipient, "multiple legal Evo recipients should remain a player choice");
+  assert.equal(recipient.kind, "bakugan");
+  assert.deepEqual(
+    new Set(recipient.options.map((option) => option.id)),
+    new Set([firstTarget.id, secondTarget.id]),
+  );
+  assert.equal(recipient.minimum, 1);
+  assert.equal(recipient.maximum, 1);
 });
 
 test("AI holds Greater Water Boost until the initial roll establishes a Brawl", () => {

@@ -1799,6 +1799,21 @@ function stageCardPlayMutable(state: MatchState, request: PendingCardPlay): Muta
   const { card } = playSourceCard(state, request);
   validateCardPlayRequest(state, request, request.choices);
   const definition = ruleDefinitionForCard(card);
+  if (card.type === "Evo") {
+    const recipientChoice = definition.play.choices.find((choice) => (
+      choice.timing === "announce"
+      && choice.selector === "chosen-bakugan"
+      && choice.label === "Choose the matching Character"
+      && (choice.id === "sourceBakuganId" || choice.id === "targetBakuganId")
+    ));
+    if (recipientChoice && !choiceValuePresent(request.choices, recipientChoice.id)) {
+      const legalRecipients = playerById(state, request.controllerId).bakugan
+        .filter((bakugan) => canonicalEvoTargetAllowed(definition, bakugan));
+      if (legalRecipients.length === 1) {
+        Object.assign(request.choices, { [recipientChoice.id]: legalRecipients[0].id });
+      }
+    }
+  }
   const alternativeIds = alternativeCostChoiceIds(card);
   const alreadyChosen = (id: keyof CardChoices) => choiceValuePresent(request.choices, id);
   const announce = buildChoiceSchemaFromSpecs(
