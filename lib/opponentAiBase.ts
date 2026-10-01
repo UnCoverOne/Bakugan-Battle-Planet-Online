@@ -32,7 +32,12 @@ import {
   type RollOutcome,
 } from "./game";
 import { cardEnergyPaymentState as rawCardEnergyPaymentState, playCardWithAutoEnergy } from "./cardPayment";
-import { activeTappedEnergyIds, maximumPayableEnergy } from "./rules/costs";
+import {
+  activeTappedEnergyIds,
+  cardPaymentModes,
+  maximumPayableEnergy,
+  type CardPaymentMode,
+} from "./rules/costs";
 import { evaluateNumberValue } from "./rules/values";
 import { flipDamageCard, resolveManualDamage } from "./manualDamage";
 import {
@@ -99,6 +104,79 @@ export function opponentAiCardPaymentState(
     "payment",
     `${playerId}:${card.id}:${opponentAiChoicesKey(choices)}`,
     () => rawCardEnergyPaymentState(match, playerId, card, choices),
+  );
+}
+
+type OpponentAiPaymentPlan = {
+  mode: CardPaymentMode;
+  choices: CardChoices;
+  payment: NonNullable<ReturnType<typeof rawCardEnergyPaymentState>>;
+  resourceCost: number;
+};
+
+function planOpponentAiPayment(
+  match: MatchState,
+  playerId: string,
+  card: GameCard,
+  baseChoices: CardChoices = {},
+): OpponentAiPaymentPlan | null {
+  return memoOpponentAiDecision(
+    match,
+    "payment-plan",
+    `${playerId}:${card.id}:${opponentAiChoicesKey(baseChoices)}`,
+    () => {
+      const player = playerById(match, playerId);
+      if (!player) return null;
+
+      const plans = cardPaymentModes(match, playerId, card, baseChoices)
+        .filter((mode) => mode.legal)
+        .flatMap((mode): OpponentAiPaymentPlan[] => {
+          const choices: CardChoices = {
+            ...baseChoices,
+            paymentMode: mode.id,
+          };
+          let discardOpportunityCost = 0;
+
+          for (const additional of mode.additionalCosts) {
+            if (additional.kind !== "discard") continue;
+            const candidates = player.hand
+              .filter((candidate) => candidate.id !== card.id)
+              .sort((left, right) => (
+                handCardRetentionValue(match, playerId, left)
+                - handCardRetentionValue(match, playerId, right)
+              ))
+              .slice(0, additional.amount);
+            if (candidates.length !== additional.amount) return [];
+            Object.assign(choices, {
+              [additional.choiceId]: candidates.map((candidate) => candidate.id),
+            });
+            discardOpportunityCost += candidates.reduce(
+              (sum, candidate) => sum + Math.max(0, handCardRetentionValue(match, playerId, candidate)),
+              0,
+            );
+          }
+
+          const resolvedMode = cardPaymentModes(match, playerId, card, choices)
+            .find((candidate) => candidate.id === mode.id);
+          if (!resolvedMode?.legal) return [];
+          const payment = opponentAiCardPaymentState(match, playerId, card, choices);
+          if (!payment || payment.kind === "insufficient") return [];
+
+          return [{
+            mode: resolvedMode,
+            choices,
+            payment,
+            resourceCost: payment.cost * 0.72
+              + discardOpportunityCost
+              + resolvedMode.additionalCosts.reduce((sum, cost) => sum + cost.amount * 0.1, 0),
+          }];
+        });
+
+      return plans.sort((left, right) => (
+        left.resourceCost - right.resourceCost
+        || (left.mode.id === "normal" ? -1 : right.mode.id === "normal" ? 1 : 0)
+      ))[0] ?? null;
+    },
   );
 }
 
@@ -1545,11 +1623,12 @@ function chooseChoicesFromSchema(
 ): CardChoices {
   const choices: CardChoices = {};
   for (const field of schema.fields.filter((candidate) => candidate.chooserId === chooserId)) {
-    const scores = new Map(field.options.map((option) => [
+    const enabled = field.options.filter((option) => !option.disabled);
+    const scores = new Map(enabled.map((option) => [
       option.id,
       optionScore(match, controllerId, chooserId, card, field, option.id, sourceText),
     ]));
-    const ranked = [...field.options].sort(
+    const ranked = [...enabled].sort(
       (a, b) => (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0),
     );
     let count = field.minimum;
@@ -2885,14 +2964,15 @@ export function evaluatePlayableCard(
     () => {
       if (card.type === "Flip" || card.type === "Flip Hero" || card.type === "Character") return null;
   if (!cardRerollTimingLegal(match, playerId, card)) return null;
-  let choices: CardChoices;
+  let baseChoices: CardChoices;
   try {
-    choices = chooseCardChoices(match, playerId, card);
+    baseChoices = chooseCardChoices(match, playerId, card);
   } catch {
     return null;
   }
-  const payment = opponentAiCardPaymentState(match, playerId, card, choices);
-  if (!payment || payment.kind === "insufficient") return null;
+  const paymentPlan = planOpponentAiPayment(match, playerId, card, baseChoices);
+  if (!paymentPlan) return null;
+  const { choices, payment } = paymentPlan;
   const baseScore = cardValue(match, playerId, card, choices);
   const preRollContext = match.phase === "preRoll"
     ? createPreRollDecisionContext(match, playerId)
@@ -3004,8 +3084,9 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
     } catch {
       choices = {};
       for (const field of pending.schema.fields.filter((candidate) => candidate.chooserId === playerId)) {
+        const enabled = field.options.filter((option) => !option.disabled);
         const count = Math.max(field.minimum, ["number", "mode", "confirm"].includes(field.kind) ? 1 : 0);
-        setChoice(choices, field, field.options.slice(0, count).map((option) => option.id));
+        setChoice(choices, field, enabled.slice(0, count).map((option) => option.id));
       }
     }
     return { type: "SUBMIT_CARD_CHOICE", choices };
@@ -3046,19 +3127,21 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
     if (!input.revealedFlip) {
       return input.pendingDamage > 0 ? { type: "REVEAL_DAMAGE_FLIP" } : null;
     }
-    const choices = chooseCardChoices(input, playerId, input.revealedFlip);
-    const payment = opponentAiCardPaymentState(input, playerId, input.revealedFlip, choices);
-    const useful = cardValue(input, playerId, input.revealedFlip, choices) > 0;
+    const flip = input.revealedFlip;
+    const baseChoices = chooseCardChoices(input, playerId, flip);
+    const paymentPlan = planOpponentAiPayment(input, playerId, flip, baseChoices);
+    const legal = !alternateWinEffectPending(input)
+      && revealedFlipCanBePlayed(input, playerId, flip);
+    const stopsDamage = legal && /\[Stop\]|stop the attack/i.test(flip.effect);
+    const lethalWithoutStop = input.pendingDamage > player.deckCards.length;
+    const useful = Boolean(paymentPlan) && (
+      (stopsDamage && lethalWithoutStop)
+      || cardValue(input, playerId, flip, paymentPlan!.choices) > 0
+    );
     return {
       type: "PLAY_DAMAGE_FLIP",
-      cardId: !alternateWinEffectPending(input)
-        && revealedFlipCanBePlayed(input, playerId, input.revealedFlip)
-        && payment
-        && payment.kind !== "insufficient"
-        && useful
-        ? input.revealedFlip.id
-        : undefined,
-      choices,
+      cardId: legal && useful ? flip.id : undefined,
+      choices: paymentPlan?.choices ?? baseChoices,
     };
   }
   if (input.phase === "reset" && input.batch.length && input.priority === playerId) {
@@ -3074,7 +3157,7 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
     if (best && best.score > confidenceMargin) {
       const schema = buildChoiceSchema(input, playerId, best.card);
       return schema.fields.length
-        ? { type: "PREPARE_CARD_PLAY", cardId: best.card.id }
+        ? { type: "PREPARE_CARD_PLAY", cardId: best.card.id, choices: best.choices }
         : { type: "PLAY_CARD", cardId: best.card.id, choices: best.choices };
     }
     return { type: "PASS_PRIORITY" };
@@ -3107,7 +3190,7 @@ export function advanceOpponentAi(input: MatchState, playerId: string): MatchSta
     case "REVEAL_DAMAGE_FLIP": return flipDamageCard(input, playerId);
     case "PLAY_DAMAGE_FLIP": return resolveManualDamage(input, playerId, command.cardId, command.choices);
     case "ACTIVATE_REROLL": return activateIntrinsicReroll(input, playerId);
-    case "PREPARE_CARD_PLAY": return prepareCardPlay(input, playerId, command.cardId);
+    case "PREPARE_CARD_PLAY": return prepareCardPlay(input, playerId, command.cardId, command.choices);
     case "PLAY_CARD": return playCardWithAutoEnergy(input, playerId, command.cardId, command.choices);
     case "PASS_PRIORITY": return passPriority(input, playerId);
     case "DISCARD_TO_HAND_LIMIT": return discardToHandLimit(input, playerId, command.cardIds);

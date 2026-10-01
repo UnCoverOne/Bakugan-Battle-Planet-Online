@@ -16,8 +16,11 @@ import {
   type PlayerState,
   type RollOutcome,
 } from "../lib/game";
+import { resolveManualDamage } from "../lib/manualDamage";
 import { advanceOpponentAi, chooseCardChoices } from "../lib/opponentAi";
 import {
+  chooseOpponentAiCommand,
+  evaluatePlayableCard,
   evoMarginalValue,
   handCardRetentionValue,
   planOpponentEnergize,
@@ -596,6 +599,147 @@ function catalogueCard(catalogId: string, id: string): GameCard {
   assert.ok(source, `Missing catalogue card ${catalogId}`);
   return { ...source, id };
 }
+
+function damageFlipMatch(input: {
+  attackFaction?: Faction;
+  hand?: GameCard[];
+  deckCards?: GameCard[];
+  pendingDamage?: number;
+}) {
+  const ai = player(
+    "damage-payment-ai",
+    [bakugan("damage-payment-defender", "Aquos", 500, 5)],
+    [],
+    input.hand ?? [],
+  );
+  const human = player(
+    "damage-payment-human",
+    [bakugan("damage-payment-attacker", input.attackFaction ?? "Haos", 900, 7)],
+  );
+  ai.deckCards = input.deckCards ?? [];
+  ai.deck = ai.deckCards.length;
+  const match = matchWith(ai, human, "damage");
+  match.pendingLoser = ai.id;
+  match.pendingDamage = input.pendingDamage ?? 2;
+  match.priority = ai.id;
+  match.damageOrigin = human.bakugan[0].id;
+  human.bakugan[0].open = true;
+  return { match, ai, human };
+}
+
+test("AI uses Pact of Darkness Sacrifice to stop lethal damage when normal Energy payment is unavailable", () => {
+  const pact = catalogueCard("bb-152", "lethal-pact");
+  const strandedFlip = catalogueCard("ff-78", "lethal-pact-fodder");
+  const deckCard = catalogueCard("bb-1", "lethal-pact-last-deck-card");
+  const { match, ai } = damageFlipMatch({
+    attackFaction: "Haos",
+    hand: [strandedFlip],
+    deckCards: [deckCard],
+    pendingDamage: 2,
+  });
+  match.revealedFlip = pact;
+  ai.discard = [pact];
+  ai.energy = 0;
+  ai.energyZone = [];
+
+  const command = chooseOpponentAiCommand(match, ai.id);
+  assert.ok(command);
+  assert.equal(command.type, "PLAY_DAMAGE_FLIP");
+  if (command.type !== "PLAY_DAMAGE_FLIP") assert.fail("Expected a damage Flip decision.");
+  assert.equal(command.cardId, pact.id);
+  assert.equal(command.choices.paymentMode, "bb-152:discard-for-free");
+  assert.deepEqual(command.choices.discardCardIds, [strandedFlip.id]);
+});
+
+test("AI skips Pact of Darkness when Sacrifice cannot be paid", () => {
+  const pact = catalogueCard("bb-152", "unpayable-pact");
+  const { match, ai } = damageFlipMatch({
+    attackFaction: "Haos",
+    hand: [],
+    deckCards: [catalogueCard("bb-1", "unpayable-pact-last-card")],
+    pendingDamage: 2,
+  });
+  match.revealedFlip = pact;
+  ai.discard = [pact];
+  ai.energy = 0;
+  ai.energyZone = [];
+
+  const command = chooseOpponentAiCommand(match, ai.id);
+  assert.ok(command);
+  assert.equal(command.type, "PLAY_DAMAGE_FLIP");
+  if (command.type !== "PLAY_DAMAGE_FLIP") assert.fail("Expected a damage Flip decision.");
+  assert.equal(command.cardId, undefined);
+});
+
+test("AI does not play Pact of Darkness against a Darkus attack", () => {
+  const pact = catalogueCard("bb-152", "wrong-faction-pact");
+  const fodder = catalogueCard("ff-78", "wrong-faction-pact-fodder");
+  const { match, ai } = damageFlipMatch({
+    attackFaction: "Darkus",
+    hand: [fodder],
+    deckCards: [catalogueCard("bb-1", "wrong-faction-pact-last-card")],
+    pendingDamage: 2,
+  });
+  match.revealedFlip = pact;
+  ai.discard = [pact];
+
+  const command = chooseOpponentAiCommand(match, ai.id);
+  assert.ok(command);
+  assert.equal(command.type, "PLAY_DAMAGE_FLIP");
+  if (command.type !== "PLAY_DAMAGE_FLIP") assert.fail("Expected a damage Flip decision.");
+  assert.equal(command.cardId, undefined);
+});
+
+test("AI payment planning is generic for non-Pact discard-for-free cards", () => {
+  const vicerox = catalogueCard("aa-112", "ai-free-vicerox");
+  const viceroxCharacter = CARDS.find((candidate) => (
+    candidate.type === "Character"
+    && candidate.faction === "Darkus"
+    && /Vicerox/i.test(candidate.displayName || candidate.name)
+  ));
+  assert.ok(viceroxCharacter, "Missing Darkus Vicerox Character");
+  const target = bakugan("ai-vicerox-target", "Darkus", viceroxCharacter.bPower ?? 500, viceroxCharacter.damage ?? 5, {
+    name: viceroxCharacter.displayName || viceroxCharacter.name,
+    character: { ...viceroxCharacter, id: "ai-vicerox-character" },
+  });
+  const fodderA = catalogueCard("ff-78", "ai-vicerox-fodder-a");
+  const fodderB = catalogueCard("ff-78", "ai-vicerox-fodder-b");
+  const ai = player("ai-vicerox-controller", [target], [], [vicerox, fodderA, fodderB]);
+  const human = player("ai-vicerox-human", [bakugan("ai-vicerox-enemy", "Pyrus", 500, 5)]);
+  const match = matchWith(ai, human, "power");
+
+  const candidate = evaluatePlayableCard(match, ai.id, vicerox);
+  assert.ok(candidate, "The AI should find the legal discard-for-free payment route.");
+  assert.equal(candidate.choices.paymentMode, "aa-112:discard-two");
+  assert.deepEqual(new Set(candidate.choices.discardCardIds), new Set([fodderA.id, fodderB.id]));
+});
+
+test("AI never selects a disabled payment option from a staged card-play choice", () => {
+  const pact = catalogueCard("bb-152", "staged-pact");
+  const fodder = catalogueCard("ff-78", "staged-pact-fodder");
+  const { match, ai } = damageFlipMatch({
+    attackFaction: "Haos",
+    hand: [fodder],
+    deckCards: [catalogueCard("bb-1", "staged-pact-deck")],
+    pendingDamage: 1,
+  });
+  match.revealedFlip = pact;
+  ai.discard = [pact];
+  ai.energy = 0;
+  ai.energyZone = [];
+
+  const prepared = resolveManualDamage(match, ai.id, pact.id);
+  const payment = prepared.pendingChoice?.schema.fields.find((field) => field.id === "paymentMode");
+  assert.ok(payment);
+  assert.equal(payment.options.find((option) => option.id === "normal")?.disabled, true);
+  assert.equal(payment.options.find((option) => option.id === "bb-152:discard-for-free")?.disabled, false);
+
+  const command = chooseOpponentAiCommand(prepared, ai.id);
+  assert.ok(command);
+  assert.equal(command.type, "SUBMIT_CARD_CHOICE");
+  if (command.type !== "SUBMIT_CARD_CHOICE") assert.fail("Expected a staged payment choice.");
+  assert.equal(command.choices.paymentMode, "bb-152:discard-for-free");
+});
 
 function preRollReservationMatch(input: {
   energy: number;
