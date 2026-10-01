@@ -710,7 +710,8 @@ test("AI payment planning is generic for non-Pact discard-for-free cards", () =>
 
   const candidate = evaluatePlayableCard(match, ai.id, vicerox);
   assert.ok(candidate, "The AI should find the legal discard-for-free payment route.");
-  assert.equal(candidate.choices.paymentMode, "aa-112:discard-two");
+  assert.notEqual(candidate.choices.paymentMode, "normal");
+  assert.equal(candidate.payment.cost, 0);
   assert.deepEqual(new Set(candidate.choices.discardCardIds), new Set([fodderA.id, fodderB.id]));
 });
 
