@@ -34,6 +34,25 @@ import { drawTransitions } from "../components/game-screen-v2/drawAnimationState
 import { discardFlipTransitions } from "../components/game-screen-v2/discardFlipAnimationState";
 import { energizeTransitions } from "../components/game-screen-v2/energizeAnimationState";
 import { beginCardPayment } from "../lib/rules/costs";
+import { cardPlayDispatchAction } from "../components/game-screen-v2/matchHudState";
+
+test("cards with staged play decisions use prepare-play even when earlier choices are already selected", () => {
+  const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
+  const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
+  const maximusSource = CARDS.find((card) => card.catalogId === "br-128");
+  assert.ok(maximusSource);
+  const maximus = { ...maximusSource, id: "maximus-routing" };
+  player.hand = [maximus];
+  player.heroes = CARDS.filter((card) => card.type === "Hero").slice(0, 6)
+    .map((card, index) => ({ ...card, id: `routing-hero-${index}` }));
+  const state = createMatch("MAXROUTE", "bo1", [player, opponent]);
+  state.turn = 2;
+  state.phase = "power";
+  state.priority = player.id;
+  state.startingPlayer = player.id;
+
+  assert.equal(cardPlayDispatchAction(state, player.id, maximus.id), "prepare-play");
+});
 
 test("deck card backs scale from zero to ten assets", () => {
   assert.equal(deckBackAssetCount(0), 0);

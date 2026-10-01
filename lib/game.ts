@@ -1971,10 +1971,16 @@ function effectOriginCardPlayRequest(
   };
 }
 
-export const prepareCardPlay = (input: MatchState, playerId: string, cardId: string) => {
+export const prepareCardPlay = (
+  input: MatchState,
+  playerId: string,
+  cardId: string,
+  choices: CardChoices = {},
+) => {
   const state = cloneMatch(input);
   if (state.pendingChoice) throw new Error("Complete the current choice before starting another action.");
-  const effectRequest = effectOriginCardPlayRequest(state, playerId, cardId, {});
+  const preparedChoices = structuredClone(choices);
+  const effectRequest = effectOriginCardPlayRequest(state, playerId, cardId, preparedChoices);
   if (effectRequest) {
     const result = stageCardPlayMutable(state, effectRequest);
     if (result === "committed") finishNestedCardPlayContinuation(state, effectRequest);
@@ -1990,7 +1996,7 @@ export const prepareCardPlay = (input: MatchState, playerId: string, cardId: str
     sourceOwnerId: playerId,
     cardOwnerId: playerId,
     origin: "priority",
-    choices: {},
+    choices: preparedChoices,
     beforeState: JSON.stringify({ ...input, pendingChoice: undefined, undoWindow: undefined }),
   };
   stageCardPlayMutable(state, request);

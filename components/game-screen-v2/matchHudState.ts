@@ -240,6 +240,14 @@ export function cardRequiresSelection(
     || cardPaymentModes(match, player.id, card).length > 1;
 }
 
+export function cardPlayDispatchAction(
+  match: MatchState | null | undefined,
+  playerId: string | undefined,
+  cardId: string,
+): "prepare-play" | "play" {
+  return cardRequiresSelection(match, playerId, cardId) ? "prepare-play" : "play";
+}
+
 export function visibleMatchHudActions({
   match,
   playerId,

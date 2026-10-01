@@ -56,7 +56,7 @@ import { SelectionInteractionLayer } from "./SelectionInteractionLayer";
 import { TieBreakLayer } from "./TieBreakLayer";
 import { TurnProgressTracker } from "./TurnProgressTracker";
 import {
-  cardRequiresSelection,
+  cardPlayDispatchAction,
   handDiscardRequirement,
   shouldAutomaticallyPass,
   type HandActionMode,
@@ -660,11 +660,8 @@ export function GameplayClient() {
   const playHandCard = (cardId: string, choices: CardChoices) => {
     const current = readMatchStore();
     const actorId = current.playerId ?? current.match?.players[0]?.id;
-    const requiresChoice = Boolean(current.match && actorId && cardRequiresSelection(current.match, actorId, cardId));
-    return submitMatchAction(
-      requiresChoice && !Object.keys(choices).length ? "prepare-play" : "play",
-      { cardId, choices },
-    );
+    const action = cardPlayDispatchAction(current.match, actorId, cardId);
+    return submitMatchAction(action, { cardId, choices });
   };
 
   const energizeHandCard = (cardId: string) => submitMatchAction(

@@ -22,6 +22,8 @@ import { cardCostBreakdown } from "../lib/rules/costs";
 import { conditionFor } from "../lib/rules/catalogue-primitives";
 import { evaluateBakuganCharacteristics } from "../lib/rules/modifiers";
 import { additionalTurnDrawCount, turnDrawCount } from "../lib/turnStart";
+import { apiActionToCommand } from "../lib/engine/commands";
+import { dispatchRulesCommand } from "../lib/rules/runtime";
 
 let serial = 0;
 
@@ -215,6 +217,53 @@ function establishWinningDoubleCore(match: MatchState, ai: PlayerState, human: P
   match.rolls[human.id].cores = ["h2-3"];
   assert.equal(totalPower(match, ai.id) - totalPower(match, human.id), 400);
 }
+
+test("Maximus Mantonoid Ultra preserves its selected Evo target while offering free play with six Heroes", () => {
+  const maximus = catalogueCard("br-128", "maximus-six-heroes");
+  const character = CARDS.find((card) => (
+    card.type === "Character"
+    && card.faction === "Haos"
+    && [card.name, card.displayName].includes(maximus.evolvesFrom ?? "")
+  ));
+  assert.ok(character, "Missing Haos Mantonoid Ultra Character");
+  const target = bakugan("maximus-target", "Haos", {
+    name: character.displayName || character.name,
+    bPower: character.bPower ?? 0,
+    damage: character.damage ?? 0,
+    character: { ...character, id: "maximus-target-character" },
+  });
+  const opponent = player("maximus-opponent", [bakugan("maximus-opponent-b", "Aquos")]);
+  const controller = player("maximus-controller", [target], [maximus]);
+  controller.heroes = CARDS.filter((card) => card.type === "Hero").slice(0, 6)
+    .map((card, index) => ({ ...card, id: `maximus-hero-${index}` }));
+  addEnergy(controller, 3);
+  const state = matchWith(controller, opponent, "power");
+  target.open = true;
+
+  const command = apiActionToCommand("prepare-play", {
+    cardId: maximus.id,
+    choices: { targetBakuganId: target.id },
+  });
+  assert.equal(command.type, "PREPARE_CARD_PLAY");
+  if (command.type !== "PREPARE_CARD_PLAY") assert.fail("Expected a prepared card-play command.");
+  assert.equal(command.choices.targetBakuganId, target.id);
+
+  const next = dispatchRulesCommand(state, controller.id, command);
+  const pending = next.pendingChoice;
+  assert.ok(pending);
+  assert.equal(pending.playRequest?.choices.targetBakuganId, target.id);
+  assert.equal(
+    pending.schema.fields.some((field) => field.id === "targetBakuganId"),
+    false,
+    "the already selected Evo target must not be requested again",
+  );
+  const payment = pending.schema.fields.find((field) => field.id === "paymentMode");
+  assert.ok(payment, "Maximus should stage a payment-mode choice");
+  const free = payment.options.find((option) => option.id === "br-128:self-free");
+  assert.ok(free);
+  assert.equal(free.disabled, false);
+  assert.match(free.description ?? "", /^0 Energy/);
+});
 
 test("AI holds Greater Water Boost until the initial roll establishes a Brawl", () => {
   const boost = catalogueCard("bb-10", "greater-water-boost-pre-roll");

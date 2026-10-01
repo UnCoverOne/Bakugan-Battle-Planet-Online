@@ -79,7 +79,7 @@ export function apiActionToCommand(
       bakuganId: stringValue(payload.bakuganId),
       requirement: payload.requirement ? stringValue(payload.requirement) : undefined,
     };
-    case "prepare-play": return { type: "PREPARE_CARD_PLAY", cardId: stringValue(payload.cardId) };
+    case "prepare-play": return { type: "PREPARE_CARD_PLAY", cardId: stringValue(payload.cardId), choices };
     case "play": return { type: "PLAY_CARD", cardId: stringValue(payload.cardId), choices };
     case "choice": return { type: "SUBMIT_CARD_CHOICE", choices };
     case "cancel-choice": return { type: "CANCEL_CARD_CHOICE" };

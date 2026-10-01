@@ -31,7 +31,7 @@ export type GameCommand =
   | { type: "CONFIRM_ROLL" }
   | { type: "ACTIVATE_REROLL" }
   | { type: "ACTIVATE_FUSION"; bakuganId: string; requirement?: string }
-  | { type: "PREPARE_CARD_PLAY"; cardId: string }
+  | { type: "PREPARE_CARD_PLAY"; cardId: string; choices: CardChoices }
   | { type: "PLAY_CARD"; cardId: string; choices: CardChoices }
   | { type: "SUBMIT_CARD_CHOICE"; choices: CardChoices }
   | { type: "CANCEL_CARD_CHOICE" }

@@ -70,7 +70,7 @@ export function dispatchRulesCommand(input: MatchState, actorId: string, command
   }
   let next: MatchState;
   switch (command.type) {
-    case "PREPARE_CARD_PLAY": next = prepareCardPlay(input, actorId, command.cardId); break;
+    case "PREPARE_CARD_PLAY": next = prepareCardPlay(input, actorId, command.cardId, command.choices); break;
     case "PLAY_CARD": next = playCardWithAutoEnergy(input, actorId, command.cardId, command.choices); break;
     case "SUBMIT_CARD_CHOICE": next = submitCardChoice(input, actorId, command.choices); break;
     case "CANCEL_CARD_CHOICE": next = cancelCardChoice(input, actorId); break;
