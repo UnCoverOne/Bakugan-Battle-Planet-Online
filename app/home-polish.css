@@ -4,7 +4,7 @@
   font-size: clamp(5.25rem, 6.2vw, 7.25rem);
   font-style: normal;
   font-weight: 900;
-  line-height: .78;
+  line-height: 1;
   letter-spacing: -.03em;
   filter: none;
 }
