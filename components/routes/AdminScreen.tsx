@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { validateDeck, type DeckRecord } from "../../lib/data";
-import type { GameCard } from "../../lib/game";
 import { notifyOfflinePublicDecksUpdated } from "../../lib/public-deck-cache";
 import { useApp } from "../application/AppProvider";
 import { notifyAdministratorAiVisibilityChanged } from "../application/useAdministratorAiVisibility";
 import { MusicAdmin } from "./MusicAdmin";
+import { AdministratorCardManagement } from "./AdministratorCardManagement";
 import {
   ActionButton,
   Field,
@@ -107,7 +107,7 @@ export function AdminScreen() {
       </Tabs>
       {tab === "ai" && <AiManagement />}
       {tab === "offline" && <OfflineDeckManagement />}
-      {tab === "cards" && <CardManagement />}
+      {tab === "cards" && <AdministratorCardManagement />}
       {tab === "music" && <MusicAdmin />}
       {tab === "ranked" && <RankedManagement />}
       {tab === "users" && <UserManagement />}
@@ -411,85 +411,6 @@ function OfflineDeckManagement() {
             </Surface>
           );
         })}
-      </div>
-    </section>
-  );
-}
-
-function CardManagement() {
-  const { notify } = useApp();
-  const [refresh, setRefresh] = useState(0);
-  const state = useAdminData<{ cards: GameCard[] }>("cards", refresh);
-  const [query, setQuery] = useState("");
-  const [type, setType] = useState("All");
-  const [faction, setFaction] = useState("All");
-  const [selectedId, setSelectedId] = useState("");
-  const [editor, setEditor] = useState("");
-  const cards = useMemo(() => (state.data?.cards ?? []).filter((card) => {
-    const text = `${card.catalogId} ${card.displayName} ${card.effect}`.toLowerCase();
-    return (!query || text.includes(query.toLowerCase()))
-      && (type === "All" || card.type === type)
-      && (faction === "All" || card.factions.includes(faction as never));
-  }), [faction, query, state.data?.cards, type]);
-  const selected = state.data?.cards.find((card) => card.catalogId === selectedId);
-  useEffect(() => {
-    if (selected) setEditor(JSON.stringify(selected, null, 2));
-  }, [selected]);
-  const save = async () => {
-    try {
-      const card = JSON.parse(editor);
-      await adminRequest({ action: "card-save", card });
-      window.dispatchEvent(new Event("bbp-card-overrides-updated"));
-      notify(`${card.displayName ?? card.catalogId} updated.`);
-      setRefresh((value) => value + 1);
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "Card update failed.");
-    }
-  };
-  return (
-    <section className={styles.section}>
-      <div className={styles.sectionHeading}><div><span>CATALOGUE</span><h2>Card Management</h2><p>Edit card presentation and gameplay properties. Card IDs remain stable so saved decks retain referential integrity.</p></div></div>
-      <Surface className={styles.cardToolbar}>
-        <Field label="Search cards"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, Card ID, or effect…" /></Field>
-        <Field label="Type"><select value={type} onChange={(event) => setType(event.target.value)}><option>All</option><option>Action</option><option>Flip</option><option>Flip Hero</option><option>Hero</option><option>Baku-Gear</option><option>Evo</option><option>Character</option></select></Field>
-        <Field label="Faction"><select value={faction} onChange={(event) => setFaction(event.target.value)}><option>All</option><option>Pyrus</option><option>Aquos</option><option>Darkus</option><option>Haos</option><option>Ventus</option><option>Aurelus</option></select></Field>
-      </Surface>
-      <AdminState loading={state.loading} error={state.error} label="cards" />
-      <div className={styles.cardManagement}>
-        <Surface className={styles.cardList}>
-          <header><strong>{cards.length} cards</strong><span>Select a card to edit</span></header>
-          <div>
-            {cards.map((card) => (
-              <button className={selectedId === card.catalogId ? styles.selected : ""} onClick={() => setSelectedId(card.catalogId)} key={card.catalogId}>
-                <span>{card.catalogId}</span><strong>{card.displayName}</strong><small>{card.factions.join(" · ")} · {card.type}</small>
-              </button>
-            ))}
-          </div>
-        </Surface>
-        <Surface className={styles.cardEditor}>
-          {selected ? (
-            <>
-              <header><div><span>{selected.catalogId}</span><h3>{selected.displayName}</h3></div><StatusChip>{selected.type}</StatusChip></header>
-              <Field label="All card details and properties (JSON)">
-                <textarea value={editor} spellCheck={false} onChange={(event) => setEditor(event.target.value)} />
-              </Field>
-              <p>Arrays such as <code>factions</code>, <code>mechanics</code>, and <code>coreTypes</code> can be edited directly. The immutable <code>id</code> and <code>catalogId</code> are preserved by the server.</p>
-              <div className={styles.rowActions}>
-                <ActionButton onClick={save}>Save Card</ActionButton>
-                <button onClick={() => selected && setEditor(JSON.stringify(selected, null, 2))}>Discard changes</button>
-                <button className={styles.danger} onClick={async () => {
-                  if (!confirm(`Restore ${selected.displayName} to its repository values?`)) return;
-                  try {
-                    await adminRequest({ action: "card-reset", catalogId: selected.catalogId });
-                    window.dispatchEvent(new Event("bbp-card-overrides-updated"));
-                    notify(`${selected.displayName} restored.`);
-                    setRefresh((value) => value + 1);
-                  } catch (error) { notify(error instanceof Error ? error.message : "Card restore failed."); }
-                }}>Restore original</button>
-              </div>
-            </>
-          ) : <div className={styles.emptyEditor}><strong>Select a card</strong><p>Its complete editable record will appear here.</p></div>}
-        </Surface>
       </div>
     </section>
   );
