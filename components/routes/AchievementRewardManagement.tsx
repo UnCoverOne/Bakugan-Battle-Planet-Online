@@ -25,7 +25,7 @@ import {
   PROFILE_COVER_CATALOGUE,
   PROFILE_TITLE_CATALOGUE,
 } from "../../lib/profile-customization";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import {
   ActionButton,
   Field,
@@ -139,7 +139,7 @@ function clearAchievementReward(
 }
 
 export function AchievementRewardManagement() {
-  const { notify } = useApp();
+  const { notify } = useAppFields(["notify"]);
   const [assignments, setAssignments] = useState<AchievementRewardAssignments>(
     () => normalizeAchievementRewardAssignments(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS),
   );

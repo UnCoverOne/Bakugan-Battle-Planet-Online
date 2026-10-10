@@ -1,9 +1,11 @@
 "use client";
 
+import "../../app/gameplay-foundation.css";
+
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { primeMatchStore } from "../game-screen-v2/matchStore";
 
 function RuntimeLoading({ message = "Preparing the rules engine and tabletop presentation…" }: { message?: string }) {
@@ -27,7 +29,7 @@ const GameplayRuntime = dynamic(
  * heavyweight runtime so navigation cannot race localStorage persistence.
  */
 export function MatchRuntime() {
-  const { ready, match, online, playerId, matchCapability, matchControllerId, settings } = useApp();
+  const { ready, match, online, playerId, matchCapability, matchControllerId, settings } = useAppFields(["ready", "match", "online", "playerId", "matchCapability", "matchControllerId", "settings"]);
   const [bootstrappedMatchId, setBootstrappedMatchId] = useState("");
   const [missingMatch, setMissingMatch] = useState(false);
 

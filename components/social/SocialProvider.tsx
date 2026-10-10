@@ -17,7 +17,7 @@ import type { LobbyInviteSummary, SocialAccountSummary, SocialSnapshot } from ".
 import { socialTitleLabel } from "../../lib/social";
 import { readJsonResponse } from "../../lib/json-response";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import styles from "./SocialProvider.module.css";
 
 const EMPTY_SNAPSHOT: SocialSnapshot = {
@@ -55,13 +55,16 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     setFormat,
     setJoinCode,
     setMatchMode,
-  } = useApp();
+  } = useAppFields(["authUser", "notify", "requestAccountAccess", "setFormat", "setJoinCode", "setMatchMode"]);
   const router = useRouter();
   const [snapshot, setSnapshot] = useState<SocialSnapshot>(EMPTY_SNAPSHOT);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const requestId = useRef(0);
   const openRef = useRef(false);
+  const refreshing = useRef(false);
+  const refreshQueued = useRef(false);
+  const refreshLatest = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => { openRef.current = open; }, [open]);
 
@@ -70,10 +73,12 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       setSnapshot(EMPTY_SNAPSHOT);
       return;
     }
+    if (refreshing.current) { refreshQueued.current = true; return; }
+    refreshing.current = true;
     const current = ++requestId.current;
     setLoading(true);
     try {
-      const response = await fetch("/api/social?action=snapshot", { cache: "no-store" });
+      const response = await fetch("/api/social?action=snapshot", { cache: "no-store", signal: AbortSignal.timeout(12_000) });
       const result = await readJsonResponse(response, "Social data returned an invalid response.") as { snapshot?: SocialSnapshot; error?: string };
       if (!response.ok || !result.snapshot) throw new Error(result.error ?? "Social data is unavailable.");
       if (current === requestId.current) setSnapshot(result.snapshot);
@@ -81,14 +86,28 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       if (current === requestId.current && openRef.current) notify(error instanceof Error ? error.message : "Social data is unavailable.");
     } finally {
       if (current === requestId.current) setLoading(false);
+      refreshing.current = false;
+      if (refreshQueued.current) {
+        refreshQueued.current = false;
+        void refreshLatest.current();
+      }
     }
   }, [authUser, notify]);
+  useEffect(() => {
+    refreshLatest.current = refresh;
+    requestId.current += 1;
+    if (!authUser) setSnapshot(EMPTY_SNAPSHOT);
+  }, [authUser, refresh]);
 
   useEffect(() => {
     if (!authUser) return;
     void refresh();
-    const interval = window.setInterval(() => void refresh(), open ? 20_000 : 60_000);
-    return () => window.clearInterval(interval);
+    const refreshVisible = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) void refresh();
+    };
+    const interval = window.setInterval(refreshVisible, open ? 20_000 : 60_000);
+    document.addEventListener("visibilitychange", refreshVisible);
+    return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", refreshVisible); };
   }, [authUser, open, refresh]);
 
   useEffect(() => {
@@ -197,7 +216,7 @@ export function SocialMenuButton() {
 const socialButtonRef = { current: null as HTMLButtonElement | null };
 
 export function SocialDrawer() {
-  const { authUser, notify, requestAccountAccess } = useApp();
+  const { authUser, notify, requestAccountAccess } = useAppFields(["authUser", "notify", "requestAccountAccess"]);
   const { snapshot, open, setOpen, loading, perform } = useSocial();
   const drawerRef = useRef<HTMLElement | null>(null);
   const [selected, setSelected] = useState<SocialAccountSummary | null>(null);
@@ -400,7 +419,7 @@ export function SocialAccountPreview({ account, onClose }: { account: SocialAcco
 
 export function SocialAccountActions({ account, compact = false }: { account: SocialAccountSummary; compact?: boolean }) {
   const { snapshot, perform } = useSocial();
-  const { notify } = useApp();
+  const { notify } = useAppFields(["notify"]);
   const currentAccount = [
     ...snapshot.friends,
     ...snapshot.incomingRequests,

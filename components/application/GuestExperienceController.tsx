@@ -8,7 +8,7 @@ import {
   readAccountIntent,
   rememberAccountIntent,
 } from "../../lib/account-intent";
-import { useApp } from "./AppProvider";
+import { useAppFields } from "./AppProvider";
 
 export const GUEST_BRAWLER_NAME = "Guest Brawler";
 const RECOVERY_DISPLAY_KEY = "bbp-pending-recovery-code-display-v1";
@@ -28,7 +28,7 @@ export function GuestExperienceController() {
     promptAccount,
     requestAccountAccess,
     notify,
-  } = useApp();
+  } = useAppFields(["ready", "authChecking", "authUser", "accountDataReady", "profile", "setProfile", "decks", "setDecks", "promptAccount", "requestAccountAccess", "notify"]);
   const publicStateBootstrapped = useRef(false);
   const [recoveryCode, setRecoveryCode] = useState("");
   const [recoveryNotice, setRecoveryNotice] = useState("");

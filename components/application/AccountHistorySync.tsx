@@ -5,7 +5,7 @@ import { matchHistoriesEqual, mergeMatchHistories } from "../../lib/match-histor
 import { lifetimeMatchStatsFromHistory } from "../../lib/match-statistics";
 import type { MatchResultRecord } from "../../lib/persistence";
 import { readJsonResponse } from "../../lib/json-response";
-import { useApp } from "./AppProvider";
+import { useAppFields } from "./AppProvider";
 
 const HISTORY_REFRESH_INTERVAL_MS = 60_000;
 const HISTORY_PUSH_RETRY_MS = 1_000;
@@ -20,7 +20,7 @@ function historyFingerprints(history: MatchResultRecord[]) {
 }
 
 export function AccountHistorySync() {
-  const { authUser, accountDataReady, history, setHistory, setLifetimeStats } = useApp();
+  const { authUser, accountDataReady, history, setHistory, setLifetimeStats } = useAppFields(["authUser", "accountDataReady", "history", "setHistory", "setLifetimeStats"]);
   const historyRef = useRef<MatchResultRecord[]>(history);
   const observedHistory = useRef<Map<string, string> | null>(null);
   const pendingHistory = useRef<Map<string, MatchResultRecord>>(new Map());
@@ -242,8 +242,10 @@ export function AccountHistorySync() {
 
   useEffect(() => {
     if (!authUser || !accountDataReady) return;
+    let lastRefreshAt = 0;
     const refreshWhenUsable = () => {
-      if (document.visibilityState === "visible" && navigator.onLine) {
+      if (document.visibilityState === "visible" && navigator.onLine && Date.now() - lastRefreshAt >= HISTORY_REFRESH_INTERVAL_MS) {
+        lastRefreshAt = Date.now();
         void refreshHistory().then(() => {
           if (pendingHistory.current.size > 0) void pushPendingHistory();
         });

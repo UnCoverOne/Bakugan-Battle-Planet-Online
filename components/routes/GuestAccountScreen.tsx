@@ -8,7 +8,7 @@ import {
   rememberAccountIntent,
   type AccountIntentReason,
 } from "../../lib/account-intent";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 
 const BENEFITS = [
   ["★", "Unlock achievements", "Turn completed local milestones into permanent achievements and profile rewards."],
@@ -24,7 +24,7 @@ export function GuestAccountScreen() {
     accountDataReady,
     guestData,
     requestAccountAccess,
-  } = useApp();
+  } = useAppFields(["authUser", "accountDataReady", "guestData", "requestAccountAccess"]);
   const intent = useMemo(() => readAccountIntent(), []);
   const reason = (intent?.reason ?? "generic") as AccountIntentReason;
   const copy = accountIntentCopy(reason);

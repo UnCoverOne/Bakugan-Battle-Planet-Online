@@ -52,7 +52,7 @@ test("guest identity is generic and the avatar menu exposes only account access 
 
 test("guest shell consumes storage health from the application context", () => {
   const shell = source("components/application/AppShell.jsx");
-  const appContext = shell.match(/const \{([\s\S]*?)\} = useApp\(\);/);
+  const appContext = shell.match(/const \{([\s\S]*?)\} = useAppFields\(\[[^\]]+\]\);/);
   assert.ok(appContext);
   assert.match(appContext[1], /\bstorageHealth\b/);
   assert.match(shell, /!authUser && storageHealth\.status === "error"/);

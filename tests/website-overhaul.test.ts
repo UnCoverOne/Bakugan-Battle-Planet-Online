@@ -110,11 +110,11 @@ test("Home uses the upgraded Pyrus hero, card fan, and intended desktop proporti
   assert.match(dashboard, /home-featured-deck-card/);
   assert.match(dashboard, /featured\.bakuganIds\.map/);
   assert.match(dashboard, /CARD_BY_ID/);
-  assert.match(dashboard, /hero-pyrus\.svg/);
+  assert.match(dashboard, /hero-pyrus-960\.avif/);
   assert.match(dashboard, /ChevronArrow/);
   assert.match(dashboard, /HeroSpeedLines/);
   assert.match(dashboard, /useHighResolutionHero/);
-  assert.match(dashboard, /data:image\/avif;base64/);
+  assert.doesNotMatch(dashboard, /data:image\/avif;base64|loadTextParts/);
   assert.match(dashboard, /home-profile-strip/);
   assert.match(dashboard, /AchievementGlyph/);
   assert.match(dashboard, /\.filter\(\(achievement\) => achievement\.unlocked\)\.reverse\(\)/);

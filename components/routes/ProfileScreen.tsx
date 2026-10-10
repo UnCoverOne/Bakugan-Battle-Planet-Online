@@ -19,7 +19,7 @@ import {
   profileRewardUnlocked,
   toggleShowcaseId,
 } from "../../lib/profile-customization";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { SystemState } from "../application/SystemState";
 import { formatTimestamp } from "../application/ui";
 import { PROFILE_AVATAR_PRESETS } from "../profile/ProfileAvatar";
@@ -70,7 +70,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
     replay,
     setReplay,
     authUser,
-  } = useApp();
+  } = useAppFields(["profile", "setProfile", "history", "lifetimeStats", "decks", "notify", "replay", "setReplay", "authUser"]);
   const section: ProfileSection =
     segments[0] === "achievements"
       ? "achievements"

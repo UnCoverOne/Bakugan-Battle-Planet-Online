@@ -17,7 +17,7 @@ import {
   type MusicManifest,
   type MusicTrack,
 } from "../../lib/music";
-import { useApp } from "./AppProvider";
+import { useAppFields } from "./AppProvider";
 
 type IdleWindow = typeof window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
@@ -94,7 +94,7 @@ const shouldSuspendMusicInBackground = () => (
 
 export function MusicLayer() {
   const pathname = usePathname();
-  const { settings, match, online, playerId } = useApp();
+  const { settings, match, online, playerId } = useAppFields(["settings", "match", "online", "playerId"]);
   const [manifest, setManifest] = useState<MusicManifest | null>(null);
   const [cycle, setCycle] = useState(0);
   const [intenseThroughTurn, setIntenseThroughTurn] = useState<number | null>(null);

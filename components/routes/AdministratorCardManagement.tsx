@@ -10,7 +10,7 @@ import { FilterPicker } from "../filters/FilterPicker";
 import { InspectorModal } from "../cards/InspectorModal";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import { ActionButton, CardGrid, Field, StatusChip, Surface } from "../design-system/primitives";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import styles from "./AdministratorCardManagement.module.css";
 
 type Restriction = { catalogId?: string; constructionIdentity: string; limit: 0 | 1 | 2; reason?: string };
@@ -40,7 +40,7 @@ function AdministratorInspector({ card, restriction, activeRestriction, onClose,
   onClose: () => void; onSaved: () => Promise<void>;
   onRankedSaved: (card: GameCard, limit: number | null, reason: string) => Promise<void>;
 }) {
-  const { notify } = useApp();
+  const { notify } = useAppFields(["notify"]);
   const [editor, setEditor] = useState(() => JSON.stringify(card, null, 2));
   const [limit, setLimit] = useState(String(restriction?.limit ?? "none"));
   const [reason, setReason] = useState(restriction?.reason ?? "");
@@ -132,7 +132,7 @@ function AdministratorInspector({ card, restriction, activeRestriction, onClose,
 }
 
 export function AdministratorCardManagement() {
-  const { notify } = useApp();
+  const { notify } = useAppFields(["notify"]);
   const [cards, setCards] = useState<GameCard[]>([]);
   const [ranked, setRanked] = useState<RankedData | null>(null);
   const [loading, setLoading] = useState(true);

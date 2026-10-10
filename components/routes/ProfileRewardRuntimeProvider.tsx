@@ -31,7 +31,7 @@ import {
   resetProfileRewardRuntime,
   setProfileRewardRuntime,
 } from "../../lib/profile-reward-runtime";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 
 export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode }) {
   const {
@@ -44,7 +44,7 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
     online,
     playerId,
     selectedDeck,
-  } = useApp();
+  } = useAppFields(["profile", "setProfile", "decks", "history", "lifetimeStats", "match", "online", "playerId", "selectedDeck"]);
   const [assignments, setAssignments] = useState<AchievementRewardAssignments>(
     () => normalizeAchievementRewardAssignments(DEFAULT_ACHIEVEMENT_REWARD_ASSIGNMENTS),
   );

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { validateDeck, type DeckRecord } from "../../lib/data";
 import { notifyOfflinePublicDecksUpdated } from "../../lib/public-deck-cache";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { notifyAdministratorAiVisibilityChanged } from "../application/useAdministratorAiVisibility";
 import { MusicAdmin } from "./MusicAdmin";
 import { AdministratorCardManagement } from "./AdministratorCardManagement";
@@ -74,7 +74,7 @@ function useAdminData<T>(section: string, refresh: number) {
 
 export function AdminScreen() {
   const searchParams = useSearchParams();
-  const { authUser } = useApp();
+  const { authUser } = useAppFields(["authUser"]);
   const requested = searchParams.get("tab");
   const tab: AdminTab = requested === "offline" || requested === "cards" || requested === "music" || requested === "ranked" || requested === "users" ? requested : "ai";
   if (!authUser?.roles?.includes("administrator")) {
@@ -126,7 +126,7 @@ type RankedAdminData = {
 };
 
 function RankedManagement() {
-  const { notify } = useApp();
+  const { notify } = useAppFields(["notify"]);
   const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState("");
   const [deckSize, setDeckSize] = useState(50);
@@ -217,7 +217,7 @@ function AdminState({ loading, error, label }: { loading: boolean; error: string
 
 function AiManagement() {
   const router = useRouter();
-  const { decks: localDecks, setBuilderDeck, notify } = useApp();
+  const { decks: localDecks, setBuilderDeck, notify } = useAppFields(["decks", "setBuilderDeck", "notify"]);
   const [refresh, setRefresh] = useState(0);
   const [selection, setSelection] = useState("");
   const state = useAdminData<{ decks: AiDeckItem[] }>("ai-decks", refresh);
@@ -322,7 +322,7 @@ function AiManagement() {
 
 function OfflineDeckManagement() {
   const router = useRouter();
-  const { decks: localDecks, setBuilderDeck, notify } = useApp();
+  const { decks: localDecks, setBuilderDeck, notify } = useAppFields(["decks", "setBuilderDeck", "notify"]);
   const [refresh, setRefresh] = useState(0);
   const [selection, setSelection] = useState<Record<string, string>>({});
   const state = useAdminData<{ slots: OfflineDeckSlot[] }>("offline-decks", refresh);
@@ -417,7 +417,7 @@ function OfflineDeckManagement() {
 }
 
 function UserManagement() {
-  const { authUser, notify } = useApp();
+  const { authUser, notify } = useAppFields(["authUser", "notify"]);
   const [refresh, setRefresh] = useState(0);
   const state = useAdminData<{ users: AdminUser[]; roles: string[] }>("users", refresh);
   const [query, setQuery] = useState("");

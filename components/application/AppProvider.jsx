@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   createEmptyAccountSnapshot,
@@ -16,6 +16,7 @@ import {
   selectSnapshot,
   toCloudSnapshot,
 } from "../../lib/persistence";
+import { createAppStateStore, selectAppFields } from "../../lib/app-state-store";
 import { normalizeCollection } from "../../lib/collection";
 import {
   buildChangedAccountSyncRequests,
@@ -220,10 +221,19 @@ function useStoredState(key, initial, options = {}) {
 }
 
 const Context = createContext(null);
+export function useAppFields(fields) {
+  const store = useContext(Context);
+  if (!store) throw new Error("useAppFields must be used inside AppProvider.");
+  const fieldKey = fields?.join("|") ?? "*";
+  const getSelection = useMemo(() => {
+    const keys = fieldKey === "*" ? null : fieldKey.split("|");
+    return keys ? selectAppFields(store.getSnapshot, keys) : store.getSnapshot;
+  }, [fieldKey, store]);
+  return useSyncExternalStore(store.subscribe, getSelection, getSelection);
+}
+
 export function useApp() {
-  const value = useContext(Context);
-  if (!value) throw new Error("useApp must be used inside AppProvider.");
-  return value;
+  return useAppFields();
 }
 
 export function AppProvider({ children }) {
@@ -494,8 +504,10 @@ export function AppProvider({ children }) {
       }
       return;
     }
+    let lastRefreshAt = 0;
     const refresh = () => {
-      if (document.visibilityState === "visible" && navigator.onLine) {
+      if (document.visibilityState === "visible" && navigator.onLine && Date.now() - lastRefreshAt >= ACCOUNT_MATCH_REFRESH_INTERVAL_MS) {
+        lastRefreshAt = Date.now();
         void refreshAccountMatchSessions();
       }
     };
@@ -1343,5 +1355,7 @@ export function AppProvider({ children }) {
   }, [authUser, loadCloud]);
 
   const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, lifetimeStats, setLifetimeStats, settings, setSettings, collection, setCollection, selectedDeckId, setSelectedDeckId, selectedDeck, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchCapability, matchControllerId, matchError, toast, notify, authUser, authChecking, accountDataReady, authBusy, authError, syncStatus, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, retryCloudLoad, accountMatchSessions, accountMatchSessionsLoading, accountMatchSessionsError, refreshAccountMatchSessions, resumeAccountMatch, resumingMatchCode, resumeCurrentMatch, resumingCurrentMatch, startSolo, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch, catalogueRevision }), [accountAccessMode, accountDataReady, accountMatchSessions, accountMatchSessionsError, accountMatchSessionsLoading, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, catalogueRevision, changePassword, collection, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, createOnline, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, joinCode, guestData, joinOnline, leaveMatch, lifetimeStats, match, matchControllerId, matchError, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, matchCapability, refreshAccountMatchSessions, requestAccountAccess, profile, ready, readyMatch, replay, replayIndex, resumeAccountMatch, resumeCurrentMatch, resumingCurrentMatch, resumingMatchCode, retryCloudLoad, route, saveAccountProfile, selectedDeck, selectedDeckId, setBuilderDeck, setCollection, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDecks, setFormat, setHistory, setJoinCode, setMatch, setMatchMode, setOnline, setProfile, setReplay, setReplayIndex, setSelectedDeckId, setSettings, settings, signOutAccount, startSolo, storageHealth, syncNow, syncStatus, toast]);
-  return <Context.Provider value={value}>{children}</Context.Provider>;
+  const [store] = useState(() => createAppStateStore(value));
+  useLayoutEffect(() => { store.publish(value); }, [store, value]);
+  return <Context.Provider value={store}>{children}</Context.Provider>;
 }

@@ -31,7 +31,7 @@ import { deckAllowedInMeta, LOBBY_METAS, metaName, type LobbyMeta } from "../../
 import { trainingBotLobbyCommands } from "../../lib/training-lobby";
 import { dispatchLocalGameAction, dispatchLocalGameCommand } from "../../lib/engine/local-command-dispatcher";
 import { eligibleRankedDecks, rankedSeries } from "../../lib/ranked-lobby";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { Badge, factionClass } from "../application/ui";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { PlayerPreview } from "../profile/PlayerPreview";
@@ -133,7 +133,7 @@ export function LobbyRoomScreen() {
     decks,
     setMatch,
     leaveMatch,
-  } = useApp();
+  } = useAppFields(["ready", "match", "online", "playerId", "matchCapability", "matchControllerId", "profile", "settings", "decks", "setMatch", "leaveMatch"]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<BusyAction>("");
   const [error, setError] = useState("");

@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { AppButton, Badge, Metric, PageHeader, formatTimestamp } from "../application/ui";
 import { ReplayTheatre } from "../replay/ReplayTheatre";
 
 export function HistoryScreen({ recordId: id }: { recordId?: string }) {
   const router = useRouter();
-  const { history, replay, setReplay } = useApp();
+  const { history, replay, setReplay } = useAppFields(["history", "replay", "setReplay"]);
   const [formatFilter, setFormatFilter] = useState<"all" | "bo1" | "bo3">("all");
   const visibleHistory = history.filter((item: any) => formatFilter === "all" || item.format === formatFilter);
 

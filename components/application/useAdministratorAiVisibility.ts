@@ -6,7 +6,7 @@ import {
   accountIsAdministrator,
   canRevealOpponentAiCards,
 } from "../../lib/admin-ai-visibility";
-import { useApp } from "./AppProvider";
+import { useAppFields } from "./AppProvider";
 
 const VISIBILITY_EVENT = "bbp-administrator-ai-visibility-updated";
 let cachedAdministratorId = "";
@@ -48,7 +48,7 @@ export function useAdministratorAiVisibility(
   match: MatchState | null | undefined,
   playerId: string | undefined,
 ) {
-  const { authUser } = useApp();
+  const { authUser } = useAppFields(["authUser"]);
   const administrator = accountIsAdministrator(authUser);
   const [enabled, setEnabled] = useState(() => (
     administrator

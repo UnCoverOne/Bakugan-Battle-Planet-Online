@@ -43,14 +43,31 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/_next/") || url.pathname === "/favicon.svg") {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        const updated = fetch(request).then((response) => {
-          if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
-          return response;
-        }).catch(() => cached);
-        return cached ?? updated;
-      }),
-    );
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(request);
+      const immutable = /^\/_next\/static\//.test(url.pathname)
+        || /[.-][a-f0-9]{8,}\./i.test(url.pathname)
+        || url.searchParams.has("v");
+      const savedAt = cached ? Number(cached.headers.get("x-bbp-cached-at") || 0) : 0;
+      const maxAge = /\/assets\/(cards|cores)\//.test(url.pathname) ? 7 * 86400_000 : 86400_000;
+      if (cached && (immutable || Date.now() - savedAt < maxAge)) return cached;
+      const update = fetch(request).then(async (response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          const headers = new Headers(copy.headers);
+          headers.set("x-bbp-cached-at", String(Date.now()));
+          await cache.put(request, new Response(await copy.arrayBuffer(), {
+            status: copy.status, statusText: copy.statusText, headers,
+          }));
+        }
+        return response;
+      });
+      if (cached) {
+        event.waitUntil(update.then(() => undefined).catch(() => undefined));
+        return cached;
+      }
+      return update;
+    })());
   }
 });

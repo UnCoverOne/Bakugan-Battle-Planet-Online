@@ -32,7 +32,7 @@ import {
   playerHasDrawnTurnCard,
   type TurnStartMatchState,
 } from "../../lib/turnStart";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { BakuCoreLayer } from "./BakuCoreLayer";
 import { useBakuCorePresentation } from "./BakuCorePresentation";
 import { CardHandLayer } from "./CardHandLayer";
@@ -211,7 +211,7 @@ function readSettings(): GameplaySettings {
 
 export function GameplayClient() {
   const router = useRouter();
-  const { authUser, nextSeriesGame, setSettings } = useApp();
+  const { authUser, nextSeriesGame, setSettings } = useAppFields(["authUser", "nextSeriesGame", "setSettings"]);
   const administrator = accountIsAdministrator(authUser);
   const storedState = useMatchSelector((state): StoredGameScreenState => {
     const legacyVolume = Number(state.settings.soundVolume ?? .55);
