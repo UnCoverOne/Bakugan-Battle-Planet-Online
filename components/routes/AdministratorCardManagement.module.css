@@ -1,0 +1,42 @@
+.management{display:grid;gap:1rem;margin-top:1rem}
+.heading{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.2rem;background:var(--surface-panel);border:1px solid var(--border-subtle)}
+.heading small,.inspectorHeader small{color:var(--brand-blue-bright);font-weight:900;letter-spacing:.08em}
+.heading h2,.inspectorHeader h2{margin:.25rem 0}
+.heading p,.editorSection p,.preview p{color:var(--text-secondary);line-height:1.5}
+.toolbar{display:flex;justify-content:space-between;align-items:end;gap:1rem;padding:1rem}
+.toolbar>label{flex:1}
+.density{display:flex;gap:.35rem}
+.density button,.filterHeading button,.pagination button,.actions button,.inspectorHeader button{min-height:2.5rem;padding:.5rem .85rem;background:#073244;border:1px solid var(--border-strong);color:var(--text-primary);cursor:pointer}
+.density button[aria-pressed=true]{box-shadow:inset 0 -3px 0 var(--brand-blue-bright)}
+.workspace{display:grid;grid-template-columns:14rem minmax(0,1fr);align-items:start;gap:1rem}
+.filterRail{position:sticky;top:8rem;display:grid;gap:.85rem;max-height:calc(100dvh - 9rem);overflow-y:auto;padding:1rem}
+.filterHeading{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.results{min-width:0}
+.count{display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:1rem}
+.count span,.cardDetails small{color:var(--text-secondary);font-size:.85rem}
+.grid,.compact{width:100%}
+.tile{display:flex;flex-direction:column;gap:.5rem;min-width:0;text-align:left;padding:.5rem;background:rgba(4,24,33,.85);border:1px solid var(--border-subtle);color:var(--text-primary);cursor:pointer}
+.tile:hover,.tile:focus-visible{border-color:var(--brand-blue-bright);background:rgba(0,174,239,.11)}
+.art{display:block;width:100%;aspect-ratio:5 / 7;overflow:hidden}
+.art img{width:100%;height:100%;object-fit:contain}
+.cardDetails{display:grid;gap:.35rem;padding:.2rem}
+.cardDetails>span{display:flex;flex-wrap:wrap;gap:.3rem}
+.cardDetails strong{overflow-wrap:anywhere}
+.compact .cardDetails small{font-size:.75rem}
+.pagination{display:flex;justify-content:center;align-items:center;gap:1rem;margin:1.5rem 0}
+.pagination button:disabled{opacity:.45;cursor:default}
+.message{padding:2rem;text-align:center}
+.inspector{display:grid;gap:1rem;padding:1.2rem}
+.inspectorHeader{display:flex;align-items:start;justify-content:space-between;gap:1rem;border-bottom:1px solid var(--border-subtle);padding-bottom:.9rem}
+.inspectorBody{display:grid;grid-template-columns:minmax(12rem,.65fr) minmax(0,1.35fr);gap:1.2rem}
+.preview{display:grid;align-content:start;gap:1rem;min-width:0}
+.preview img{width:100%;height:auto;object-fit:contain}
+.badges{display:flex;flex-wrap:wrap;gap:.4rem}
+.controls{min-width:0;display:grid;align-content:start;gap:1rem}
+.editorSection{display:grid;gap:.75rem;padding:1rem;background:rgba(2,19,27,.82);border:1px solid var(--border-subtle)}
+.editorSection h3,.editorSection p{margin:0}
+.editorSection textarea{width:100%;min-height:17rem;resize:vertical;font:12px/1.55 ui-monospace,Consolas,monospace;tab-size:2}
+.actions{display:flex;flex-wrap:wrap;gap:.5rem}
+.danger{border-color:#d84a50!important;color:#ffd5d6!important}
+@media(max-width:850px){.workspace{grid-template-columns:1fr}.filterRail{position:static;max-height:none;grid-template-columns:repeat(2,minmax(0,1fr))}.filterHeading{grid-column:1/-1}.inspectorBody{grid-template-columns:1fr}.preview{max-width:18rem}}
+@media(max-width:550px){.toolbar,.heading,.count{align-items:stretch;flex-direction:column}.filterRail{grid-template-columns:1fr}.filterHeading{grid-column:auto}}
