@@ -157,7 +157,7 @@ export function AdministratorCardManagement() {
     return () => { active = false; };
   }, []);
   const options = useMemo(() => createCardFilterOptionCatalogue(cards), [cards]);
-  const filtered = useMemo(() => filterAndSortCompendiumCards(cards, { ...DEFAULT_COMPENDIUM_STATE, ...filters, q: query, sort, density }), [cards, filters, query, sort, density]);
+  const filtered = useMemo(() => filterAndSortCompendiumCards(cards, { ...DEFAULT_COMPENDIUM_STATE, ...filters, q: query, sort, density }, { includeFusionBack: true }), [cards, filters, query, sort, density]);
   const pages = Math.max(1, Math.ceil(filtered.length / COMPENDIUM_PAGE_SIZE));
   const visible = filtered.slice((Math.min(page, pages) - 1) * COMPENDIUM_PAGE_SIZE, Math.min(page, pages) * COMPENDIUM_PAGE_SIZE);
   const selected = cards.find((card) => card.catalogId === selectedId);
