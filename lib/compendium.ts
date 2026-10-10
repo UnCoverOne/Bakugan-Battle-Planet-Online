@@ -125,12 +125,13 @@ const statRank = (value: number | null) => value ?? Number.NEGATIVE_INFINITY;
 export function filterAndSortCompendiumCards(
   cards: readonly GameCard[],
   state: CompendiumState,
+  options: { includeFusionBack?: boolean } = {},
 ) {
   const query = state.q.trim().toLowerCase();
   return cards.filter((card) => (
     // The unfused face is the single Compendium representative. The reverse
     // face remains available to the shared inspector and gameplay systems.
-    card.fusionFace !== "b"
+    (options.includeFusionBack || card.fusionFace !== "b")
     && cardMatchesFilters(card, state)
     && (!query || searchableText(card).includes(query))
   )).toSorted((left, right) => {
