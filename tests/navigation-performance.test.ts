@@ -28,7 +28,12 @@ test("unrelated account and match updates retain the browser subscription snapsh
 });
 
 function serviceWorkerHarness() {
-  const handlers = new Map<string, (event: any) => void>();
+  type FetchEvent = {
+    request: Request;
+    respondWith: (response: Promise<Response>) => void;
+    waitUntil: (pending: Promise<unknown>) => void;
+  };
+  const handlers = new Map<string, (event: FetchEvent) => void>();
   const entries = new Map<string, Response>();
   let fetches = 0;
   let fail = false;
@@ -38,7 +43,7 @@ function serviceWorkerHarness() {
   };
   vm.runInNewContext(source("public/sw.js"), {
     URL, Headers, Response, Date,
-    self: { location: new URL("https://game.test/sw.js?build=test"), addEventListener: (name: string, callback: any) => handlers.set(name, callback) },
+    self: { location: new URL("https://game.test/sw.js?build=test"), addEventListener: (name: string, callback: (event: FetchEvent) => void) => handlers.set(name, callback) },
     caches: { open: async () => cache },
     fetch: async () => {
       fetches++;
