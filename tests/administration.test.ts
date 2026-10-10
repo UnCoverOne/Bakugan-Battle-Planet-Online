@@ -1,3 +1,4 @@
+import { deckRouteSource } from "./route-source";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -145,7 +146,7 @@ test("user management supports roles, entity-backed scoped resets, bans, and del
 
 test("administrators can edit and delete any public deck from its View screen", async () => {
   const [decks, publicApi, server, builderPage] = await Promise.all([
-    read("components/routes/DeckRoutes.tsx"),
+    deckRouteSource(),
     read("app/api/public-decks/route.ts"),
     read("lib/administration-server.ts"),
     read("app/(workspace)/builder/[id]/page.tsx"),

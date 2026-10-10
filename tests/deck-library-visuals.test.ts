@@ -1,3 +1,4 @@
+import { deckRouteSource } from "./route-source";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -5,7 +6,7 @@ import test from "node:test";
 const read = (path: string) => readFile(path, "utf8");
 
 test("Deck Library previews use three Characters plus the deck Featured card", async () => {
-  const route = await read("components/routes/DeckRoutes.tsx");
+  const route = await deckRouteSource();
   assert.match(route, /deckLeadCard/);
   assert.match(route, /featuredPreviewCard/);
   assert.match(route, /data-featured-preview=\{featuredPreviewCard \? "true"/);
@@ -13,7 +14,7 @@ test("Deck Library previews use three Characters plus the deck Featured card", a
 });
 
 test("Deck Library faction metadata is symbol-first and remains accessible", async () => {
-  const route = await read("components/routes/DeckRoutes.tsx");
+  const route = await deckRouteSource();
   assert.match(route, /function DeckFactionSymbols/);
   assert.match(route, /src=\{FACTION_SYMBOLS\[faction\]\}/);
   assert.match(route, /aria-label=\{`Factions: \$/);
@@ -22,7 +23,7 @@ test("Deck Library faction metadata is symbol-first and remains accessible", asy
 });
 
 test("Public Deck actions keep Favorite compact while preserving count and accessibility", async () => {
-  const route = await read("components/routes/DeckRoutes.tsx");
+  const route = await deckRouteSource();
   const start = route.indexOf("function PublicDeckTile");
   const end = route.indexOf("export function PublicDeckDetailScreen", start);
   const tile = route.slice(start, end);

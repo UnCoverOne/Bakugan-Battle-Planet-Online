@@ -1,3 +1,4 @@
+import { deckRouteSource } from "./route-source";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -25,7 +26,7 @@ test("public deck favorites are account-backed one-per-user social metadata", as
 });
 
 test("public deck UI supports optimistic Favorite state, ranking and personal filtering only online", async () => {
-  const route = await read("components/routes/DeckRoutes.tsx");
+  const route = await deckRouteSource();
   assert.match(route, /Most Favorited/);
   assert.match(route, /My Favorites/);
   assert.match(route, /viewerHasFavorited/);

@@ -56,7 +56,8 @@ export function AssetFreshness() {
 
         // A stale tab may still be controlled by the previous worker. Remove
         // its CacheStorage entries immediately; the next reload uses the new
-        // build-scoped asset URLs and service-worker script URL.
+        // build-scoped shell URLs and service-worker script URL. Content-revision
+        // artwork remains safe in the separate persistent cache.
         await clearOldApplicationCaches();
 
         const mismatchKey = `bbp-version-mismatch:${BUILD_ID}:${serverBuildId}`;

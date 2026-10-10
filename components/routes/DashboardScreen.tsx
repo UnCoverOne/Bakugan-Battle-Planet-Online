@@ -1,5 +1,7 @@
 "use client";
 
+import { cachedResponse, publicDeckResponseKey } from "../../lib/response-cache";
+
 import { OriginalImage } from "@/components/media/OriginalImage";
 
 import Link from "next/link";
@@ -86,17 +88,16 @@ export function DashboardScreen() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/public-decks", { cache: "no-store" })
-      .then(async (response) => {
-        const result = await response.json() as { decks?: DeckRecord[]; error?: string };
-        if (!response.ok || !Array.isArray(result.decks)) throw new Error(result.error ?? "Public decks are unavailable.");
+    cachedResponse<{ decks?: DeckRecord[]; error?: string }>(publicDeckResponseKey(authUser?.id), "/api/public-decks")
+      .then((result) => {
+        if (!Array.isArray(result.decks)) throw new Error(result.error ?? "Public decks are unavailable.");
         if (active) setRemotePublicDecks(result.decks);
       })
       .catch(() => undefined);
     return () => {
       active = false;
     };
-  }, []);
+  }, [authUser?.id]);
 
   const publicDecks = [...remotePublicDecks, ...PUBLIC_DECKS]
     .filter((deck, index, all) => all.findIndex((candidate) => candidate.id === deck.id) === index)

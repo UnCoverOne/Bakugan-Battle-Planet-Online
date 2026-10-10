@@ -1,3 +1,4 @@
+import { deckRouteSource } from "./route-source";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -42,7 +43,7 @@ test("deck export filenames are safe and predictable", () => {
 
 test("public preview exposes the complete sharing and export surface", async () => {
   const [route, exporter] = await Promise.all([
-    readFile(new URL("../components/routes/DeckRoutes.tsx", import.meta.url), "utf8"),
+    Promise.resolve(deckRouteSource()),
     readFile(new URL("../lib/deck-image-export.ts", import.meta.url), "utf8"),
   ]);
   for (const label of ["Copy to My Decks", "Copy Link", "Copy Code", "As a Text List", "As an Image", "Energy curve"]) {

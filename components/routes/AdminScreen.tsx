@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { invalidateResponse } from "../../lib/response-cache";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { validateDeck, type DeckRecord } from "../../lib/data";
@@ -46,6 +47,8 @@ async function adminRequest(body: Record<string, unknown>) {
   });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error ?? "Administrator action failed.");
+  if (body.action === "ranked-publish" || body.action === "ranked-rollback") invalidateResponse("competitive-rules");
+  if (typeof body.action === "string" && /^(public|offline)-/.test(body.action)) invalidateResponse("public-decks:");
   return result;
 }
 

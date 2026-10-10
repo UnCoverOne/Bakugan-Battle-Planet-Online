@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { useAppFields } from "./AppProvider";
+import { cachedResponse, invalidateResponse, publicDeckResponseKey } from "../../lib/response-cache";
 import type { DeckRecord } from "../../lib/data";
 import {
   OFFLINE_PUBLIC_DECKS_UPDATED_EVENT,
@@ -13,7 +15,9 @@ type PublicDeckResponse = {
 };
 
 export function PublicDeckFallbackSync() {
+  const { authUser, authChecking } = useAppFields(["authUser", "authChecking"]);
   useEffect(() => {
+    if (authChecking) return;
     let active = true;
     let inFlight = false;
     let lastSyncedAt = 0;
@@ -21,9 +25,9 @@ export function PublicDeckFallbackSync() {
       if (!navigator.onLine || inFlight || (!force && Date.now() - lastSyncedAt < 60_000)) return;
       inFlight = true;
       try {
-        const response = await fetch("/api/public-decks", { cache: "no-store", signal: AbortSignal.timeout(12_000) });
-        const result = await response.json() as PublicDeckResponse;
-        if (!response.ok || !Array.isArray(result.offlineFallbackDecks) || !active) return;
+        if (force) invalidateResponse("public-decks:");
+        const result = await cachedResponse<PublicDeckResponse>(publicDeckResponseKey(authUser?.id), "/api/public-decks");
+        if (!Array.isArray(result.offlineFallbackDecks) || !active) return;
         lastSyncedAt = Date.now();
         writeOfflinePublicDeckCache(
           localStorage,
@@ -51,6 +55,6 @@ export function PublicDeckFallbackSync() {
       removeEventListener(OFFLINE_PUBLIC_DECKS_UPDATED_EVENT, onUpdated);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [authChecking, authUser?.id]);
   return null;
 }

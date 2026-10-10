@@ -1,3 +1,4 @@
+import { deckRouteSource } from "./route-source";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -7,7 +8,7 @@ const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), 
 
 test("Deck Library includes the complete responsive library composition", async () => {
   const [route, css] = await Promise.all([
-    read("components/routes/DeckRoutes.tsx"),
+    deckRouteSource(),
     read("components/routes/DeckRoutes.module.css"),
   ]);
   for (const contract of [
@@ -29,7 +30,7 @@ test("Deck Library includes the complete responsive library composition", async 
 
 test("Deck Builder uses independently scrolling desktop columns and two mobile tabs", async () => {
   const [route, css] = await Promise.all([
-    read("components/routes/DeckRoutes.tsx"),
+    deckRouteSource(),
     read("components/routes/DeckRoutes.module.css"),
   ]);
   for (const contract of [
@@ -52,7 +53,7 @@ test("Deck Builder uses independently scrolling desktop columns and two mobile t
 
 test("Deck Builder cards expose quantities, responsive shared inspection, and section issue dialogs", async () => {
   const [route, css, inspectorCss] = await Promise.all([
-    read("components/routes/DeckRoutes.tsx"),
+    deckRouteSource(),
     read("components/routes/DeckRoutes.module.css"),
     read("components/cards/CardInspector.module.css"),
   ]);
@@ -75,7 +76,7 @@ test("Deck Builder cards expose quantities, responsive shared inspection, and se
 
 test("team selection drives a removable faction filter and ordered BakuCore previews", async () => {
   const [route, css] = await Promise.all([
-    read("components/routes/DeckRoutes.tsx"),
+    deckRouteSource(),
     read("components/routes/DeckRoutes.module.css"),
   ]);
   assert.match(route, /setGalleryFilters\(\(current\) => \(\{ \.\.\.current, faction: nextFactions \}\)\)/);
@@ -103,7 +104,7 @@ test("team selection drives a removable faction filter and ordered BakuCore prev
 
 test("Card Gallery tabs and both card collections provide search, Card ID sorting, filters, and responsive dialogs", async () => {
   const [route, css] = await Promise.all([
-    read("components/routes/DeckRoutes.tsx"),
+    deckRouteSource(),
     read("components/routes/DeckRoutes.module.css"),
   ]);
   assert.ok((route.match(/<BuilderToolbar/g) ?? []).length >= 2);
@@ -130,7 +131,7 @@ test("Card Gallery tabs and both card collections provide search, Card ID sortin
 
 test("Save Deck dialog owns metadata, featured card choice, and permits invalid non-public decks", async () => {
   const [route, data, persistence, server, css] = await Promise.all([
-    read("components/routes/DeckRoutes.tsx"),
+    deckRouteSource(),
     read("lib/data.ts"),
     read("lib/persistence.ts"),
     read("lib/user-data-server.ts"),
@@ -164,7 +165,7 @@ test("Save Deck dialog owns metadata, featured card choice, and permits invalid 
 
 test("public copying and read-only details reuse validation and preserve attribution", async () => {
   const [route, persistence] = await Promise.all([
-    read("components/routes/DeckRoutes.tsx"),
+    deckRouteSource(),
     read("lib/persistence.ts"),
   ]);
   assert.match(route, /DeckDetailPresentation/);
@@ -178,7 +179,7 @@ test("public copying and read-only details reuse validation and preserve attribu
 
 test("public deck details expose creator identity through the established Brawler preview", async () => {
   const [route, publicDeckApi, identity, preview] = await Promise.all([
-    read("components/routes/DeckRoutes.tsx"),
+    deckRouteSource(),
     read("app/api/public-decks/route.ts"),
     read("components/profile/DeckCreatorIdentity.tsx"),
     read("components/profile/PlayerPreview.tsx"),
@@ -199,7 +200,7 @@ test("all legality boundaries delegate to the centralized engine", async () => {
     read("lib/data.ts"),
     read("components/routes/PlayRoutes.tsx"),
     read("lib/user-data-server.ts"),
-    read("components/routes/DeckRoutes.tsx"),
+    deckRouteSource(),
   ]);
   assert.match(data, /validateDeckConstruction/);
   assert.match(play, /validateDeck\(chosenDeck\)/);

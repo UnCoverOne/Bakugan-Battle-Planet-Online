@@ -1,3 +1,4 @@
+import { deckRouteSource } from "./route-source";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -98,7 +99,7 @@ test("the Play route distinguishes starting training from creating or joining a 
   const [route, css, decks] = await Promise.all([
     readFile(new URL("../components/routes/PlayRoutes.tsx", import.meta.url), "utf8"),
     readFile(new URL("../components/routes/PlayRoutes.module.css", import.meta.url), "utf8"),
-    readFile(new URL("../components/routes/DeckRoutes.tsx", import.meta.url), "utf8"),
+    Promise.resolve(deckRouteSource()),
   ]);
   for (const contract of [
     "Mode",

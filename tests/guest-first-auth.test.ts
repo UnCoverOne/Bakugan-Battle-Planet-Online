@@ -1,3 +1,4 @@
+import { deckRouteSource } from "./route-source";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
@@ -174,7 +175,7 @@ test("guest Public deck saves are converted to Private and resumed after registr
 });
 
 test("deck saves and completed matches trigger contextual dismissible account prompts", () => {
-  const decks = source("components/routes/DeckRoutes.tsx");
+  const decks = deckRouteSource();
   const provider = source("components/application/AppProvider.jsx");
   const prompt = source("components/application/AccountAccessModal.tsx");
   assert.match(decks, /promptAccount\("deck-saved"\)/);

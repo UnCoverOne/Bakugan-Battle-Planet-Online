@@ -1,5 +1,7 @@
 "use client";
 
+import { cachedResponse, invalidateResponse } from "../../lib/response-cache";
+
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -159,15 +161,25 @@ function readGuestSnapshot(fallback) {
 }
 
 function useStoredState(key, initial, options = {}) {
-  const { storage = "local", debounceMs = 500, report = true, migrateFromLocal = false, writeEnabled = true, normalize = identityStoredValue } = options;
+  const { restoreEnabled = true, storage = "local", debounceMs = 500, report = true, migrateFromLocal = false, writeEnabled = true, normalize = identityStoredValue } = options;
   const initialRef = useRef(initial);
   const [value, setValue] = useState(initial);
   const [ready, setReady] = useState(false);
   const lastSerialized = useRef(null);
   const blocked = useRef(false);
+  const restored = useRef(false);
+  const pendingWrite = useRef(null);
+  const updateValue = useCallback((update) => {
+    restored.current = true;
+    setReady(true);
+    setValue(update);
+  }, []);
 
   useEffect(() => {
+    if (!restoreEnabled || restored.current) return;
     const id = setTimeout(() => {
+      if (restored.current) return;
+      restored.current = true;
       try {
         const store = storage === "session" ? sessionStorage : localStorage;
         let saved = store.getItem(key);
@@ -192,20 +204,16 @@ function useStoredState(key, initial, options = {}) {
       setReady(true);
     }, 0);
     return () => clearTimeout(id);
-  }, [key, migrateFromLocal, normalize, storage]);
+  }, [key, migrateFromLocal, normalize, restoreEnabled, storage]);
 
   useEffect(() => {
+    pendingWrite.current = null;
     if (!ready || blocked.current || !writeEnabled) return;
-    let serialized;
-    try {
-      serialized = JSON.stringify(value);
-    } catch {
-      reportStorage({ status: "error", message: "The latest browser changes could not be prepared for storage.", savedAt: null });
-      return;
-    }
-    if (serialized === lastSerialized.current) return;
-    const id = setTimeout(() => {
+    const write = () => {
       try {
+        // Serialize only the latest settled value, including an immediate lifecycle flush.
+        const serialized = JSON.stringify(value);
+        if (serialized === lastSerialized.current) return;
         const store = storage === "session" ? sessionStorage : localStorage;
         store.setItem(key, serialized);
         lastSerialized.current = serialized;
@@ -213,12 +221,23 @@ function useStoredState(key, initial, options = {}) {
       } catch {
         reportStorage({ status: "error", message: "The latest browser changes could not be saved.", savedAt: null });
       }
-    }, debounceMs);
-    return () => clearTimeout(id);
+    };
+    const id = setTimeout(() => { write(); pendingWrite.current = null; }, debounceMs);
+    pendingWrite.current = () => { clearTimeout(id); write(); pendingWrite.current = null; };
+    return () => { clearTimeout(id); };
   }, [debounceMs, key, ready, report, storage, value, writeEnabled]);
+  useEffect(() => {
+    const flush = () => pendingWrite.current?.();
+    const onVisibility = () => { if (document.visibilityState === "hidden") flush(); };
+    addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => { flush(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onVisibility); };
+  }, []);
 
-  return [value, setValue, ready];
+  return [value, updateValue, ready];
 }
+
+let appliedOverrideSignature = "[]";
 
 const Context = createContext(null);
 export function useAppFields(fields) {
@@ -242,13 +261,14 @@ export function AppProvider({ children }) {
   const route = routeForPath(pathname);
   const [authUser, setAuthUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
+  const [initialAuth, setInitialAuth] = useState(null);
+  const [historyRequested, setHistoryRequested] = useState(false);
   const [persistenceScope, setPersistenceScope] = useState("checking");
   const [accountDataReady, setAccountDataReady] = useState(false);
   const writeLocal = persistenceScope === "local";
   const [profile, setProfile, profileReady] = useStoredState("bbp-profile", defaults.profile, { normalize: normalizeStoredProfile, writeEnabled: writeLocal });
   const [decks, setStoredDecks, decksReady] = useStoredState("bbp-decks-complete-set-v4", [], { debounceMs: 750, normalize: normalizeStoredDecks, writeEnabled: writeLocal });
   const [deletedDecks, setDeletedDecks, deletedDecksReady] = useStoredState("bbp-deleted-decks-v1", [], { debounceMs: 750, normalize: normalizeStoredDeletedDecks, report: false, writeEnabled: writeLocal });
-  const [history, setHistory, historyReady] = useStoredState("bbp-history", [], { debounceMs: 750, normalize: normalizeStoredHistory, writeEnabled: writeLocal });
   const [lifetimeStats, setLifetimeStats, lifetimeStatsReady] = useStoredState("bbp-lifetime-match-stats-v1", EMPTY_LIFETIME_MATCH_STATS, { debounceMs: 500, normalize: normalizeLifetimeMatchStats, writeEnabled: writeLocal });
   const [settings, setSettings, settingsReady] = useStoredState("bbp-settings", defaults.settings, { normalize: normalizeStoredSettings, writeEnabled: writeLocal });
   const [selectedDeckId, setSelectedDeckId, selectedDeckReady] = useStoredState("bbp-selected-deck-v1", "", { debounceMs: 300, normalize: normalizeStoredText, writeEnabled: writeLocal });
@@ -260,8 +280,11 @@ export function AppProvider({ children }) {
   const [matchMode, setMatchMode, matchModeReady] = useStoredState("bbp-match-mode-v1", "solo", { debounceMs: 300, normalize: normalizeStoredMatchMode, writeEnabled: writeLocal });
   const [joinCode, setJoinCode, joinCodeReady] = useStoredState("bbp-join-code-v1", "", { storage: "session", debounceMs: 300, normalize: normalizeStoredJoinCode, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
   const [match, setMatch, matchReady] = useStoredState("bbp-active-match-v1", null, { debounceMs: 300, normalize: normalizeStoredMatch, report: false, writeEnabled: writeLocal });
+  const restoreHistory = historyRequested || Boolean(initialAuth?.result?.user) || Boolean(match) || ["dashboard", "history", "profile", "play", "lobby", "match", "result"].includes(route);
+  const [history, setHistory, historyReady] = useStoredState("bbp-history", [], { debounceMs: 750, normalize: normalizeStoredHistory, restoreEnabled: restoreHistory, writeEnabled: writeLocal });
   const [online, setOnline, onlineReady] = useStoredState("bbp-active-match-online-v1", false, { debounceMs: 300, normalize: normalizeStoredBoolean, report: false, writeEnabled: writeLocal });
-  const [replay, setReplay, replayReady] = useStoredState("bbp-open-replay-v1", null, { storage: "session", debounceMs: 300, normalize: normalizeStoredReplay, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
+  const restoreReplay = pathname.startsWith("/history");
+  const [replay, setReplay, replayReady] = useStoredState("bbp-open-replay-v1", null, { storage: "session", debounceMs: 300, normalize: normalizeStoredReplay, restoreEnabled: restoreReplay, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
   const [replayIndex, setReplayIndex, replayIndexReady] = useStoredState("bbp-replay-index-v1", 0, { storage: "session", debounceMs: 250, normalize: normalizeStoredNumber, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
   const [playerId, setPlayerId, playerReady] = useStoredState("bbp-player-id", "player", { debounceMs: 300, normalize: normalizeStoredPlayerId, report: false, writeEnabled: writeLocal });
   const [collection, setCollectionState] = useState({});
@@ -308,6 +331,7 @@ export function AppProvider({ children }) {
   const [catalogueRevision, setCatalogueRevision] = useState(0);
   const snapshotRef = useRef(null);
   const booted = useRef(false);
+  const initialAuthRequest = useRef(null);
   const mounted = useRef(false);
   const applying = useRef(false);
   const cloudLoaded = useRef(false);
@@ -331,7 +355,7 @@ export function AppProvider({ children }) {
   const trainingCheckpointFingerprint = useRef(null);
   const trainingCheckpointTimer = useRef(null);
   const promptedAccountMoments = useRef(new Set());
-  const ready = [profileReady, decksReady, deletedDecksReady, historyReady, lifetimeStatsReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, replayReady, replayIndexReady, playerReady, capabilityReady, controllerReady, modifiedReady].every(Boolean);
+  const ready = [profileReady, decksReady, deletedDecksReady, (!restoreHistory || historyReady), lifetimeStatsReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, (!restoreReplay || replayReady), replayIndexReady, playerReady, capabilityReady, controllerReady, modifiedReady].every(Boolean);
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId) ?? decks[0];
   const notify = useCallback((message) => setToast(message), []);
   const promptAccount = useCallback((reason) => {
@@ -339,6 +363,7 @@ export function AppProvider({ children }) {
   }, [authUser]);
   const dismissAccountPrompt = useCallback(() => setAccountPrompt(null), []);
   const requestAccountAccess = useCallback((mode) => {
+    setHistoryRequested(true);
     setAccountPrompt(null);
     setAccountAccessMode(mode);
   }, []);
@@ -395,7 +420,9 @@ export function AppProvider({ children }) {
   );
 
   const activeTrainingMatch = recoverableTrainingMatch(match, online);
-  const durableStateFingerprint = useMemo(() => JSON.stringify({
+  const activeTrainingMatchId = activeTrainingMatch?.id ?? "";
+  const activeTrainingPlayerId = activeTrainingMatch ? playerId : "";
+  const durableStateFingerprint = useMemo(() => ({
     profile,
     decks,
     deletedDecks,
@@ -404,11 +431,11 @@ export function AppProvider({ children }) {
     builderDeck,
     format,
     matchMode,
-    activeTrainingMatchId: activeTrainingMatch?.id ?? "",
-    activeTrainingPlayerId: activeTrainingMatch ? playerId : "",
+    activeTrainingMatchId,
+    activeTrainingPlayerId,
     completedTrainingMatchIds,
     collection,
-  }), [activeTrainingMatch, builderDeck, collection, completedTrainingMatchIds, decks, deletedDecks, format, matchMode, playerId, profile, selectedDeckId, settings]);
+  }), [activeTrainingMatchId, builderDeck, collection, completedTrainingMatchIds, decks, deletedDecks, format, matchMode, activeTrainingPlayerId, profile, selectedDeckId, settings]);
   const trainingStateFingerprint = useMemo(
     () => activeTrainingMatch ? JSON.stringify({
       id: activeTrainingMatch.id,
@@ -560,26 +587,29 @@ export function AppProvider({ children }) {
     return () => clearTimeout(id);
   }, [toast]);
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !["dashboard", "decks", "deck-detail", "builder", "compendium", "collection", "play", "lobby", "match", "result", "admin"].includes(route)) return;
     let active = true;
     const refreshCatalogue = async () => {
       try {
-        const response = await fetch("/api/card-overrides", { cache: "no-store" });
-        const result = await response.json();
-        if (!response.ok || !Array.isArray(result.overrides)) return;
+        const result = await cachedResponse("card-overrides", "/api/card-overrides");
+        if (!active || !Array.isArray(result.overrides)) return;
+        const signature = JSON.stringify(result.overrides);
+        if (signature === appliedOverrideSignature) return;
         const data = await import("../../lib/data");
+        if (!active) return;
         data.applyCardOverrides(result.overrides);
+        appliedOverrideSignature = signature;
         if (active) setCatalogueRevision((value) => value + 1);
       } catch {}
     };
     void refreshCatalogue();
-    const listener = () => { void refreshCatalogue(); };
+    const listener = () => { invalidateResponse("card-overrides"); void refreshCatalogue(); };
     addEventListener("bbp-card-overrides-updated", listener);
     return () => {
       active = false;
       removeEventListener("bbp-card-overrides-updated", listener);
     };
-  }, [ready]);
+  }, [ready, route]);
 
   const applySnapshot = useCallback((incoming, signedIn = false) => {
     const fallback = snapshotRef.current;
@@ -592,11 +622,12 @@ export function AppProvider({ children }) {
     setStoredDecks(next.decks); setDeletedDecks(next.deletedDecks ?? []); setHistory(next.history); setLifetimeStats(normalizeLifetimeMatchStats(next.lifetimeStats)); setSettings(next.settings); setSelectedDeckId(next.selectedDeckId);
     setBuilderDeck(next.builderDeck); setDeckQuery(next.deckQuery); setCompendiumQuery(next.compendiumQuery); setCompendiumTab(next.compendiumTab);
     setFormat(next.format); setMatchMode(next.matchMode); setJoinCode(next.joinCode); setMatch(next.match); setOnline(next.online);
-    setReplay(next.replay); setReplayIndex(next.replayIndex); setPlayerId(next.playerId); setModifiedAt(next.updatedAt);
+    if (restoreReplay || replayReady || next.replay) setReplay(next.replay);
+    setReplayIndex(next.replayIndex); setPlayerId(next.playerId); setModifiedAt(next.updatedAt);
     setCompletedTrainingMatchIds(next.completedTrainingMatchIds ?? []);
     setCollection(next.collection);
     setTimeout(() => { applying.current = false; }, 120);
-  }, [setBuilderDeck, setCollection, setCompendiumQuery, setCompendiumTab, setCompletedTrainingMatchIds, setDeckQuery, setDeletedDecks, setStoredDecks, setFormat, setHistory, setJoinCode, setLifetimeStats, setMatch, setMatchMode, setModifiedAt, setOnline, setPlayerId, setProfile, setReplay, setReplayIndex, setSelectedDeckId, setSettings]);
+  }, [replayReady, restoreReplay, setBuilderDeck, setCollection, setCompendiumQuery, setCompendiumTab, setCompletedTrainingMatchIds, setDeckQuery, setDeletedDecks, setStoredDecks, setFormat, setHistory, setJoinCode, setLifetimeStats, setMatch, setMatchMode, setModifiedAt, setOnline, setPlayerId, setProfile, setReplay, setReplayIndex, setSelectedDeckId, setSettings]);
 
   const persistAccountRecovery = useCallback((userId, data = snapshotRef.current) => {
     if (!userId || !data) return false;
@@ -796,6 +827,7 @@ export function AppProvider({ children }) {
         const current = snapshotRef.current;
         if (!current) return false;
         const targetVersion = localVersion.current;
+        const publicDecksChanged = changedAccountEntityKeys(current, acknowledgedSnapshot.current).some(key => key.startsWith("deck:"));
         persistAccountRecovery(authUser.id, current);
         setSyncStatus("saving");
         const saved = await putCloud(current, acknowledgedSnapshot.current);
@@ -836,6 +868,7 @@ export function AppProvider({ children }) {
         if (Array.isArray(saved.errors) && saved.errors.length) {
           throw new Error(saved.errors.map((item) => item.error).join(" "));
         }
+        if (publicDecksChanged) invalidateResponse("public-decks:");
         if (saved.data) {
           const remote = {
             ...normalizeSnapshot(saved.data, current),
@@ -945,15 +978,21 @@ export function AppProvider({ children }) {
   }, [authUser, notify, refreshAccountState, router]);
 
   useEffect(() => {
-    if (!ready || booted.current) return;
+    if (!initialAuthRequest.current) {
+      initialAuthRequest.current = fetch("/api/auth", { cache: "no-store", signal: AbortSignal.timeout(12_000) })
+        .then(async response => ({ response, result: await readJsonResponse(response, "Account session returned an invalid response.") }))
+        .catch(error => ({ error }))
+        .then(auth => { if (mounted.current) setInitialAuth(auth); return auth; });
+    }
+  }, []);
+  useEffect(() => {
+    if (!ready || !initialAuth || booted.current) return;
     booted.current = true;
     (async () => {
       try {
-        const response = await fetch("/api/auth", {
-          cache: "no-store",
-          signal: AbortSignal.timeout(12_000),
-        });
-        const result = await readJsonResponse(response, "Account session returned an invalid response.");
+        const auth = initialAuth;
+        if (auth.error) throw auth.error;
+        const { response, result } = auth;
         if (mounted.current && response.ok && result.user) {
           let skippedSession = "";
           try { skippedSession = localStorage.getItem("bbp-skipped-account-session-v1") || ""; } catch {}
@@ -991,7 +1030,7 @@ export function AppProvider({ children }) {
       }
       finally { if (mounted.current) setAuthChecking(false); }
     })();
-  }, [loadCloud, ready, setProfile]);
+  }, [initialAuth, loadCloud, ready, setProfile]);
 
   useEffect(() => {
     if (!ready) return;

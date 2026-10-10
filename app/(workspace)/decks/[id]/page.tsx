@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DeckDetailScreen } from "../../../../components/routes/DeckRoutes";
+import { DeckDetailScreen } from "../../../../components/routes/DeckDetailScreen";
 
 export const metadata: Metadata = { title: "Deck Details" };
 export default async function DeckDetailPage({ params }: { params: Promise<{ id: string }> }) {

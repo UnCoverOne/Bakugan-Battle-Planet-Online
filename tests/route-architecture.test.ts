@@ -1,3 +1,4 @@
+import { deckRouteSource } from "./route-source";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
@@ -47,7 +48,7 @@ test("the root graph has no static catalogue, reference, or gameplay imports", (
 });
 
 test("catalogue and reference data are route-local and gameplay is dynamically isolated", () => {
-  assert.match(source("components/routes/DeckRoutes.tsx"), /from ["']\.\.\/\.\.\/lib\/data["']/);
+  assert.match(deckRouteSource(), /from ["']\.\.\/\.\.\/lib\/data["']/);
   assert.match(source("components/routes/CompendiumScreen.tsx"), /from ["']\.\.\/\.\.\/lib\/reference["']/);
   const runtime = source("components/routes/MatchRuntime.tsx");
   assert.match(runtime, /dynamic\(/);

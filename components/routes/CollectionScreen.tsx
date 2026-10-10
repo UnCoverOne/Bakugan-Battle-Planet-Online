@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import { CardInspector } from "../cards/CardInspector";
@@ -12,12 +12,14 @@ import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
 import { cardSetCode } from "../../lib/content/catalogue";
 import { createCardFilterOptionCatalogue, type CardFilterFacet } from "../../lib/card-filters";
 import { COMPENDIUM_SORTS, CORE_COMPENDIUM_SORTS, filterAndSortCompendiumCards, filterAndSortCompendiumCores, parseCompendiumState, parseCoreCompendiumState, selectedCompendiumCard, selectedCompendiumCore, type CardInspectorTab } from "../../lib/compendium";
-import { cardCollectionIds, collectionCards, collectionEntryForIds, coreCollectionIds, COLLECTION_QUANTITY_OPTIONS, COLLECTION_SORT_OPTIONS, type CollectionField } from "../../lib/collection";
+import { collectionEntryForIds, coreCollectionIds, COLLECTION_QUANTITY_OPTIONS, COLLECTION_SORT_OPTIONS, type CollectionField } from "../../lib/collection";
 import { PUBLISHED_RULINGS, GLOSSARY_ENTRIES, REFERENCE_REVIEWED_AT, type ReferenceEntry } from "../../lib/reference";
 import { updateCollection } from "../../lib/collection";
 import { useAppFields } from "../application/AppProvider";
 import compendiumStyles from "./CompendiumScreen.module.css";
 import styles from "./CollectionScreen.module.css";
+
+import { collectionIdentityIndex } from "../../lib/catalogue-index";
 
 const quantityKey = (field: CollectionField) => `collection${field[0].toUpperCase()}${field.slice(1)}`;
 const quantityLabel = (field: CollectionField) => field[0].toUpperCase() + field.slice(1);
@@ -32,9 +34,8 @@ function countMatches(count: number, values: readonly string[]) {
 }
 
 export function CollectionScreen() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { authUser, requestAccountAccess, collection, setCollection } = useAppFields(["authUser", "requestAccountAccess", "collection", "setCollection"]);
+  const { authUser, requestAccountAccess, collection, setCollection, catalogueRevision } = useAppFields(["authUser", "requestAccountAccess", "collection", "setCollection", "catalogueRevision"]);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const activeTab = searchParams.get("collectionTab") === "cores" ? "cores" : "cards";
@@ -46,39 +47,62 @@ export function CollectionScreen() {
     || requestedInspectorTab === "collection"
     ? requestedInspectorTab
     : "collection";
-  const cardState = useMemo(() => parseCompendiumState(searchParams.toString()), [searchParams]);
-  const coreState = useMemo(() => parseCoreCompendiumState(searchParams.toString()), [searchParams]);
-  const filterOptions = useMemo(() => createCardFilterOptionCatalogue(CARDS), []);
+  const urlQuery = searchParams.get("q") ?? "";
+  const [query, setQuery] = useState(urlQuery);
+  const deferredQuery = useDeferredValue(query);
+  useEffect(() => { setQuery(urlQuery); }, [urlQuery]);
+  const localParams = useMemo(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (deferredQuery) params.set("q", deferredQuery); else params.delete("q");
+    if (deferredQuery !== urlQuery) { params.delete("page"); params.delete("corePage"); }
+    return params;
+  }, [deferredQuery, searchParams, urlQuery]);
+  const cardState = useMemo(() => parseCompendiumState(localParams.toString()), [localParams]);
+  const coreState = useMemo(() => parseCoreCompendiumState(localParams.toString()), [localParams]);
+  const identityIndex = useMemo(() => { void catalogueRevision; return collectionIdentityIndex(CARDS); }, [catalogueRevision]);
+  const cardEntries = useMemo(() => new Map(identityIndex.representatives.map(card => [card.catalogId, collectionEntryForIds(collection, identityIndex.idsFor(card))])), [collection, identityIndex]);
+  const filterOptions = useMemo(() => { void catalogueRevision; return createCardFilterOptionCatalogue(CARDS); }, [catalogueRevision]);
   const valuesFor = useCallback((field: CollectionField) => searchParams.getAll(quantityKey(field)), [searchParams]);
   const collectionSort = searchParams.get("collectionSort") ?? "collector";
 
   const navigate = useCallback((changes: Record<string, string | string[] | null>, path = "/collection") => {
-    const next = new URLSearchParams(searchParams.toString());
+    if ("q" in changes) setQuery(typeof changes.q === "string" ? changes.q : "");
+    const next = new URLSearchParams(window.location.search);
     for (const [key, value] of Object.entries(changes)) {
       next.delete(key);
       if (Array.isArray(value)) value.forEach((item) => next.append(key, item));
       else if (value) next.set(key, value);
     }
     const query = next.toString();
-    router.replace(`${path}${query ? `?${query}` : ""}`, { scroll: false });
-  }, [router, searchParams]);
+    window.history.pushState(null, "", `${path}${query ? `?${query}` : ""}`);
+  }, []);
+  useEffect(() => {
+    if (query === urlQuery) return;
+    const timer = setTimeout(() => {
+      const next = new URLSearchParams(window.location.search);
+      if (query) next.set("q", query); else next.delete("q");
+      next.delete("page"); next.delete("corePage");
+      window.history.replaceState(null, "", `/collection${next.size ? `?${next}` : ""}`);
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [query, urlQuery]);
 
   const cardResults = useMemo(() => {
-    const representatives = collectionCards(CARDS);
+    const representatives = identityIndex.representatives;
     const filtered = filterAndSortCompendiumCards(representatives, cardState);
     const selected = Object.fromEntries(allCollectionFilters.map((field) => [field, valuesFor(field)])) as Record<CollectionField, string[]>;
     const visible = filtered.filter((card) => {
-      const entry = collectionEntryForIds(collection, cardCollectionIds(card, CARDS));
+      const entry = cardEntries.get(card.catalogId)!;
       return allCollectionFilters.every((field) => countMatches(entry[field], selected[field]));
     });
     if (collectionSort === "collector") return visible;
     const [field, direction] = collectionSort.split("-") as [CollectionField, "asc" | "desc"];
     return visible.toSorted((left, right) => {
-      const a = collectionEntryForIds(collection, cardCollectionIds(left, CARDS))[field];
-      const b = collectionEntryForIds(collection, cardCollectionIds(right, CARDS))[field];
+      const a = cardEntries.get(left.catalogId)![field];
+      const b = cardEntries.get(right.catalogId)![field];
       return (direction === "asc" ? a - b : b - a) || left.displayName.localeCompare(right.displayName);
     });
-  }, [cardState, collection, collectionSort, valuesFor]);
+  }, [cardState, cardEntries, identityIndex, collectionSort, valuesFor]);
 
   const coreResults = useMemo(() => {
     const filtered = filterAndSortCompendiumCores(CORE_COMPENDIUM, coreState);
@@ -107,7 +131,7 @@ export function CollectionScreen() {
 
   const changeCollection = useCallback((catalogId: string, field: CollectionField, delta: number) => {
     if (!authUser) return;
-    setCollection((current) => updateCollection(current, catalogId, field, delta));
+    setCollection((current: import("../../lib/collection").Collection) => updateCollection(current, catalogId, field, delta));
   }, [authUser, setCollection]);
 
   if (!authUser) {
@@ -195,7 +219,7 @@ export function CollectionScreen() {
     <div className={compendiumStyles.route}>
       <RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" description="Track every supported card and BakuCore outside the simulator. Alternate printings share a tile but retain separate catalogue counts." aside={<div className={compendiumStyles.sourceSummary}><strong>{cardResults.length.toLocaleString()} cards · {coreResults.length.toLocaleString()} BakuCores</strong><span>Synced to your account</span></div>} />
       <section className={`compendium-toolbar ${compendiumStyles.toolbar}`}>
-        <Field className={compendiumStyles.search} label="Search your archive"><input defaultValue={searchParams.get("q") ?? ""} placeholder="Cards, effects, IDs, mechanics…" onChange={(event) => navigate({ q: event.target.value || null, page: null, corePage: null })} /></Field>
+        <Field className={compendiumStyles.search} label="Search your archive"><input value={query} placeholder="Cards, effects, IDs, mechanics…" onChange={(event) => setQuery(event.target.value)} /></Field>
         <Tabs label="Collection sections"><button type="button" className={activeTab === "cards" ? "active" : ""} onClick={() => navigate({ collectionTab: "cards", core: null, tab: null })}>CARDS</button><button type="button" className={activeTab === "cores" ? "active" : ""} onClick={() => navigate({ collectionTab: "cores", card: null, tab: null })}>BAKUCORES</button></Tabs>
       </section>
       <section className={compendiumStyles.resultsToolbar}><div><strong>{results.length.toLocaleString()} {activeTab === "cards" ? "cards" : "BakuCores"}</strong><span>Page {page} of {pages}</span></div><ActionButton className={compendiumStyles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>Filters</ActionButton><Tabs className={compendiumStyles.densityTabs} label="Gallery density"><button className={(activeTab === "cards" ? cardState.density : coreState.density) === "gallery" ? "active" : ""} onClick={() => navigate({ [activeTab === "cards" ? "density" : "coreDensity"]: "gallery" })}>Gallery</button><button className={(activeTab === "cards" ? cardState.density : coreState.density) === "compact" ? "active" : ""} onClick={() => navigate({ [activeTab === "cards" ? "density" : "coreDensity"]: "compact" })}>Compact</button></Tabs></section>
@@ -205,7 +229,7 @@ export function CollectionScreen() {
           {renderCollectionFilterControls()}
         </Surface>
         <main className={compendiumStyles.gallery}>
-          {activeTab === "cards" ? <CardGrid className={`${compendiumStyles.cardGrid} ${cardState.density === "compact" ? compendiumStyles.cardGridCompact : ""}`} minCardWidth={cardState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CARDS).map((card) => { const ids = cardCollectionIds(card, CARDS); const entry = collectionEntryForIds(collection, ids); return <CollectionCard key={card.catalogId} card={card} entry={entry} selected={selected?.catalogId === card.catalogId} onSelect={selectCard} onQuickChange={(field, delta) => changeCollection(card.catalogId, field, delta)} />; })}</CardGrid> : <CardGrid className={`${compendiumStyles.cardGrid} ${compendiumStyles.coreGrid} ${coreState.density === "compact" ? compendiumStyles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CORE_COMPENDIUM).map((core) => { const entry = collectionEntryForIds(collection, coreCollectionIds(core)); return <CollectionCore key={core.id} core={core} entry={entry} selected={selectedCore?.id === core.id} onSelect={selectCore} onQuickChange={(field, delta) => changeCollection(core.catalogId ?? core.id, field, delta)} />; })}</CardGrid>}
+          {activeTab === "cards" ? <CardGrid className={`${compendiumStyles.cardGrid} ${cardState.density === "compact" ? compendiumStyles.cardGridCompact : ""}`} minCardWidth={cardState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CARDS).map((card) => { const entry = cardEntries.get(card.catalogId)!; return <CollectionCard key={card.catalogId} card={card} entry={entry} selected={selected?.catalogId === card.catalogId} onSelect={selectCard} onQuickChange={(field, delta) => changeCollection(card.catalogId, field, delta)} />; })}</CardGrid> : <CardGrid className={`${compendiumStyles.cardGrid} ${compendiumStyles.coreGrid} ${coreState.density === "compact" ? compendiumStyles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CORE_COMPENDIUM).map((core) => { const entry = collectionEntryForIds(collection, coreCollectionIds(core)); return <CollectionCore key={core.id} core={core} entry={entry} selected={selectedCore?.id === core.id} onSelect={selectCore} onQuickChange={(field, delta) => changeCollection(core.catalogId ?? core.id, field, delta)} />; })}</CardGrid>}
           {!visible.length && <Surface className={compendiumStyles.emptyResults} role="status"><span>◇</span><h2>No collection items match</h2><p>Adjust the search or clear the active filters to return to the full archive.</p><ActionButton tone="secondary" onClick={clearFilters}>Clear filters</ActionButton></Surface>}
           <nav className={compendiumStyles.pagination} aria-label="Collection pages"><button disabled={page === 1} onClick={() => setPage(page - 1)}>← Previous</button><span>Page {page} of {pages}</span><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next →</button></nav>
         </main>
