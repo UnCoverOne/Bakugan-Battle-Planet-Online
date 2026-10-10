@@ -131,7 +131,6 @@ type RankedAdminData = {
 function RankedManagement() {
   const { notify } = useAppFields(["notify"]);
   const [refresh, setRefresh] = useState(0);
-  const [query, setQuery] = useState("");
   const [deckSize, setDeckSize] = useState(50);
   const [restrictions, setRestrictions] = useState<RankedRestriction[]>([]);
   const state = useAdminData<RankedAdminData>("ranked", refresh);
@@ -140,16 +139,6 @@ function RankedManagement() {
     setDeckSize(state.data.draft.deckSize ?? 50);
     setRestrictions(state.data.draft.restrictions.map((item) => ({ ...item })));
   }, [state.data]);
-  const restrictionByIdentity = useMemo(() => new Map(restrictions.map((item) => [item.constructionIdentity, item])), [restrictions]);
-  const cards = useMemo(() => (state.data?.cards ?? []).filter((card) => `${card.catalogId} ${card.name}`.toLowerCase().includes(query.toLowerCase())).slice(0, 120), [query, state.data?.cards]);
-  const update = (card: RankedAdminData["cards"][number], value: string) => {
-    const limit = value === "none" ? null : Number(value) as 0 | 1 | 2;
-    setRestrictions((current) => {
-      const rest = current.filter((item) => item.constructionIdentity !== card.constructionIdentity);
-      return limit == null ? rest : [...rest, { catalogId: card.catalogId, constructionIdentity: card.constructionIdentity, limit, reason: "" }];
-    });
-  };
-  const setReason = (identity: string, reason: string) => setRestrictions((current) => current.map((item) => item.constructionIdentity === identity ? { ...item, reason } : item));
   const mutate = async (body: Record<string, unknown>, message: string) => {
     try {
       await adminRequest(body);
@@ -162,7 +151,7 @@ function RankedManagement() {
   return (
     <section className={styles.section}>
       <div className={styles.sectionHeading}>
-        <div><span>RANKED PLAY</span><h2>Competitive settings</h2><p>Set the required Competitive deck size and publish bans or copy limits as an immutable version used by every Ranked series.</p></div>
+        <div><span>RANKED PLAY</span><h2>Competitive settings</h2><p>Set the Competitive deck size, publish draft rulesets, and review ranked activity. Adjust individual card limits and bans in Card Management’s Administrator Inspector.</p></div>
         <StatusChip tone="info">ACTIVE VERSION {state.data?.active.version ?? "…"}</StatusChip>
       </div>
       <AdminState loading={state.loading} error={state.error} label="Ranked rules" />
@@ -170,25 +159,12 @@ function RankedManagement() {
         <Field label="Required Competitive deck size">
           <input type="number" min={1} max={200} step={1} value={deckSize} onChange={(event) => setDeckSize(Number(event.target.value))} />
         </Field>
-        <Field label="Search cards"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Card name or catalogue ID…" /></Field>
         <div className={styles.rowActions}>
           <button disabled={!Number.isInteger(deckSize) || deckSize < 1 || deckSize > 200} onClick={() => void mutate({ action: "ranked-save-draft", restrictions, deckSize }, "Ranked settings saved as a draft.")}>Save Draft</button>
           <ActionButton disabled={!Number.isInteger(deckSize) || deckSize < 1 || deckSize > 200} onClick={() => {
             if (confirm(`Publish a ${deckSize}-card Competitive format with ${restrictions.length} Ranked restriction${restrictions.length === 1 ? "" : "s"} as a new ruleset version?`)) void mutate({ action: "ranked-publish", restrictions, deckSize }, "A new Ranked ruleset version was published.");
           }}>Publish</ActionButton>
         </div>
-      </Surface>
-      <Surface className={styles.rankedRules}>
-        {cards.map((card) => {
-          const restriction = restrictionByIdentity.get(card.constructionIdentity);
-          return <div className={styles.rankedRuleRow} key={card.catalogId}>
-            <div><strong>{card.name}</strong><small>{card.catalogId}</small></div>
-            <select aria-label={`Restriction for ${card.name}`} value={restriction?.limit ?? "none"} onChange={(event) => update(card, event.target.value)}>
-              <option value="none">Normal · 3 copies</option><option value="2">Restricted · 2 copies</option><option value="1">Restricted · 1 copy</option><option value="0">Banned</option>
-            </select>
-            <input aria-label={`Reason for ${card.name}`} disabled={!restriction} value={restriction?.reason ?? ""} onChange={(event) => setReason(card.constructionIdentity, event.target.value)} placeholder="Public reason (optional)" />
-          </div>;
-        })}
       </Surface>
       <Surface className={styles.rankedHistory}>
         <h3>Suspicious activity indicators</h3>
