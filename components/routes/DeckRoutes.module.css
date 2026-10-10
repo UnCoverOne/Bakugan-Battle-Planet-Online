@@ -1251,6 +1251,8 @@
 }
 
 .builderGalleryCard {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 24rem;
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgba(91, 196, 226, .25);

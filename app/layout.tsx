@@ -42,8 +42,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <DisplayFontLoader />
         <AssetFreshness />
         <WebVitalsReporter />
-        <PublicDeckFallbackSync />
         <AppProvider>
+          <PublicDeckFallbackSync />
           <AccountHistorySync />
           <GuestExperienceController />
           <AppShell>{children}</AppShell>

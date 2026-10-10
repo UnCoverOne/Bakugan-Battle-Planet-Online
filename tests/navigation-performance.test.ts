@@ -40,6 +40,8 @@ function serviceWorkerHarness() {
   const cache = {
     match: async (request: Request) => entries.get(request.url)?.clone(),
     put: async (request: Request, response: Response) => { entries.set(request.url, response); },
+    keys: async () => [...entries.keys()].map(url => new Request(url)),
+    delete: async (request: Request) => entries.delete(request.url),
   };
   vm.runInNewContext(source("public/sw.js"), {
     URL, Headers, Response, Date,

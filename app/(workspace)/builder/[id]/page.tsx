@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { DeckBuilderPresentationBridge } from "../../../../components/routes/DeckBuilderPresentationBridge";
-import { DeckBuilderScreen } from "../../../../components/routes/DeckRoutes";
+import { DeckBuilderScreen } from "../../../../components/routes/DeckBuilderScreen";
 import { getSessionUser } from "../../../../lib/account-server";
 import styles from "./presentation-fix.module.css";
 

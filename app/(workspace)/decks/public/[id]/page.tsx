@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PublicDeckDetailScreen } from "../../../../../components/routes/DeckRoutes";
+import { PublicDeckDetailScreen } from "../../../../../components/routes/PublicDeckDetailScreen";
 
 export const metadata: Metadata = { title: "Public Deck" };
 export default async function PublicDeckPage({ params }: { params: Promise<{ id: string }> }) {

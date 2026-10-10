@@ -1,5 +1,7 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
+import { assetRevisions } from "./scripts/asset-revisions.mjs";
+import { fileURLToPath } from "node:url";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
@@ -53,6 +55,7 @@ export default defineConfig(async () => {
   return {
     define: {
       __BBP_BUILD_ID__: JSON.stringify(buildId),
+      __BBP_ASSET_REVISIONS__: JSON.stringify(assetRevisions(fileURLToPath(new URL("./public/assets", import.meta.url)))),
     },
     server: {
       host: "0.0.0.0",

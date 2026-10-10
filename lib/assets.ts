@@ -1,4 +1,5 @@
 import { BUILD_ID } from "./build";
+declare const __BBP_ASSET_REVISIONS__: Record<string, string>;
 
 function shortHash(value: string) {
   let hash = 2166136261;
@@ -12,5 +13,8 @@ function shortHash(value: string) {
 export function fingerprintedAsset(source: string) {
   if (!source.startsWith("/") || source.startsWith("//") || source.includes("?v=")) return source;
   const separator = source.includes("?") ? "&" : "?";
-  return `${source}${separator}v=${shortHash(`${BUILD_ID}:${source}`)}`;
+  const path = source.split("?")[0];
+  const directory = path.slice(0, path.lastIndexOf("/"));
+  const revision = typeof __BBP_ASSET_REVISIONS__ === "object" ? __BBP_ASSET_REVISIONS__[directory] : undefined;
+  return `${source}${separator}v=${revision ?? shortHash(`${BUILD_ID}:${source}`)}`;
 }
