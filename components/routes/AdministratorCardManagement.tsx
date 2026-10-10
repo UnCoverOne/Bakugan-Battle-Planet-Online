@@ -46,6 +46,7 @@ function AdministratorInspector({ card, restriction, activeRestriction, onClose,
   const [reason, setReason] = useState(restriction?.reason ?? "");
   const [saving, setSaving] = useState(false);
   const [rankedSaving, setRankedSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<"properties" | "ranked">("properties");
   useEffect(() => { setEditor(JSON.stringify(card, null, 2)); }, [card]);
   useEffect(() => { setLimit(String(restriction?.limit ?? "none")); setReason(restriction?.reason ?? ""); }, [card.catalogId, restriction?.limit, restriction?.reason]);
   const changed = editor !== JSON.stringify(card, null, 2);
@@ -90,7 +91,11 @@ function AdministratorInspector({ card, restriction, activeRestriction, onClose,
           <p>{card.effect || "No printed effect."}</p>
         </div>
         <div className={styles.controls}>
-          <section className={styles.editorSection}>
+          <div className={styles.inspectorTabs} role="tablist" aria-label="Administrator inspector sections">
+            <button type="button" role="tab" id="administrator-tab-properties" aria-controls="administrator-panel-properties" aria-selected={activeTab === "properties"} onClick={() => setActiveTab("properties")}>Card Properties{changed ? " •" : ""}</button>
+            <button type="button" role="tab" id="administrator-tab-ranked" aria-controls="administrator-panel-ranked" aria-selected={activeTab === "ranked"} onClick={() => setActiveTab("ranked")}>Ranked Restrictions{rankedChanged ? " •" : ""}</button>
+          </div>
+          {activeTab === "properties" && <section role="tabpanel" id="administrator-panel-properties" aria-labelledby="administrator-tab-properties" className={styles.editorSection}>
             <h3>Card properties</h3>
             <p>Edit the complete card record. Card IDs are immutable and validated before saving.</p>
             <Field label="Card record (JSON)">
@@ -101,8 +106,8 @@ function AdministratorInspector({ card, restriction, activeRestriction, onClose,
               <button type="button" disabled={saving || !changed} onClick={() => setEditor(JSON.stringify(card, null, 2))}>Discard edits</button>
               <button type="button" disabled={saving} className={styles.danger} onClick={() => void restore()}>Restore original</button>
             </div>
-          </section>
-          <section className={styles.editorSection}>
+          </section>}
+          {activeTab === "ranked" && <section role="tabpanel" id="administrator-panel-ranked" aria-labelledby="administrator-tab-ranked" className={styles.editorSection}>
             <h3>Ranked restrictions</h3>
             <p>Restrictions apply to all printings with this card's construction identity. Save to the Ranked draft; publishing the draft activates the changes.</p>
             <p>Active: <strong>{activeRestriction ? activeRestriction.limit === 0 ? "Banned" : `Limited to ${activeRestriction.limit}` : "Normal · 3 copies"}</strong></p>
@@ -124,7 +129,7 @@ function AdministratorInspector({ card, restriction, activeRestriction, onClose,
                 finally { setRankedSaving(false); }
               }}>{rankedSaving ? "Saving…" : "Save Ranked draft"}</ActionButton>
             </div>
-          </section>
+          </section>}
         </div>
       </div>
     </div>
