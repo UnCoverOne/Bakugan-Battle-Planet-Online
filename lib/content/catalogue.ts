@@ -25,7 +25,7 @@ export const CARD_SET_INFO = Object.freeze({
   AA: Object.freeze({ code: "AA" as const, name: "Age of Aurelus", collectorTotal: 220 }),
   AV: Object.freeze({ code: "AV" as const, name: "Armored Elite", collectorTotal: 271 }),
   FF: Object.freeze({ code: "FF" as const, name: "Fusion Force", collectorTotal: 241 }),
-  DI: Object.freeze({ code: "DI" as const, name: "Diamond Baku-Gear", collectorTotal: 5 }),
+  DI: Object.freeze({ code: "DI" as const, name: "Dragonoid Infinity", collectorTotal: 5 }),
   PS1: Object.freeze({ code: "PS1" as const, name: "Blind Box 1 Exclusives", collectorTotal: 21 }),
   SV: Object.freeze({ code: "SV" as const, name: "Shields of Vestroia", collectorTotal: 261 }),
   CP: Object.freeze({ code: "CP" as const, name: "Cubbo Promo", collectorTotal: 6 }),
