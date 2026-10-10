@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { chatEntries, normalizeChatMessage } from "../../lib/chat";
 import type { MatchState } from "../../lib/game";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { Badge, PageHeader } from "../application/ui";
 import {
   matchCommandHeaders,
@@ -35,7 +35,7 @@ export function LobbyRoomScreen() {
     matchControllerId: appMatchControllerId,
     settings,
     leaveMatch,
-  } = useApp();
+  } = useAppFields(["ready", "match", "online", "playerId", "matchCapability", "matchControllerId", "settings", "leaveMatch"]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<BusyAction>("");
   const [error, setError] = useState("");

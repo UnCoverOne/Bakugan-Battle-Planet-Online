@@ -14,103 +14,11 @@ import { cardArtSource } from "../../lib/content/card-art";
 import type { GameCard } from "../../lib/game";
 import { accountStatMatches, lifetimeMatchStatsFromHistory } from "../../lib/match-statistics";
 import { CardArt } from "../cards/CardArt";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { Badge, deckLooksComplete, factionClass } from "../application/ui";
 
-const HERO_PARTS = Array.from(
-  { length: 6 },
-  (_, index) => `/assets/home/hero-pyrus-960/part-${String(index + 1).padStart(2, "0")}.txt`,
-);
-
-const DISPLAY_FONT_PARTS = [
-  "/assets/home/rbno31-bold-italic/part-01.txt",
-  "/assets/home/rbno31-bold-italic/part-02a.txt",
-  "/assets/home/rbno31-bold-italic/part-02b.txt",
-  "/assets/home/rbno31-bold-italic/part-02c.txt",
-  "/assets/home/rbno31-bold-italic/part-02d.txt",
-  "/assets/home/rbno31-bold-italic/part-02e.txt",
-  "/assets/home/rbno31-bold-italic/part-02f.txt",
-  "/assets/home/rbno31-bold-italic/part-02g.txt",
-  "/assets/home/rbno31-bold-italic/part-03.txt",
-  "/assets/home/rbno31-bold-italic/part-04.txt",
-];
-
-let highResolutionHeroPromise: Promise<string> | undefined;
-let displayFontPromise: Promise<void> | undefined;
-
-function loadTextParts(paths: string[], label: string) {
-  return Promise.all(
-    paths.map(async (path) => {
-      const response = await fetch(path, { cache: "force-cache" });
-      if (!response.ok) throw new Error(`Unable to load ${label} segment: ${path}`);
-      return (await response.text()).trim();
-    }),
-  );
-}
-
-function loadHighResolutionHero() {
-  highResolutionHeroPromise ??= loadTextParts(HERO_PARTS, "Home hero")
-    .then((parts) => `data:image/avif;base64,${parts.join("")}`);
-
-  return highResolutionHeroPromise;
-}
-
-function decodeBase64(value: string) {
-  const binary = window.atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes.buffer;
-}
-
-function loadDisplayFont() {
-  if (typeof window === "undefined" || typeof FontFace === "undefined") {
-    return Promise.resolve();
-  }
-
-  displayFontPromise ??= loadTextParts(DISPLAY_FONT_PARTS, "RBNo3.1 Bold Italic font")
-    .then((parts) => new FontFace(
-      "RBNo31Display",
-      decodeBase64(parts.join("")),
-      { style: "italic", weight: "700" },
-    ).load())
-    .then((font) => {
-      document.fonts.add(font);
-    })
-    .catch((error) => {
-      displayFontPromise = undefined;
-      throw error;
-    });
-
-  return displayFontPromise;
-}
-
-function useHomeDisplayFont() {
-  useEffect(() => {
-    void loadDisplayFont().catch(() => undefined);
-  }, []);
-}
-
 function useHighResolutionHero() {
-  const [source, setSource] = useState("/assets/home/hero-pyrus.svg");
-
-  useEffect(() => {
-    let active = true;
-    loadHighResolutionHero()
-      .then((heroSource) => {
-        if (active) setSource(heroSource);
-      })
-      .catch(() => {
-        if (active) setSource("/assets/home/hero-pyrus.svg");
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  return source;
+  return "/assets/home/hero-pyrus-960.avif";
 }
 
 function AchievementGlyph({ category, unlocked }: { category: string; unlocked: boolean }) {
@@ -150,8 +58,7 @@ export function DashboardScreen() {
     resumeCurrentMatch,
     resumingCurrentMatch,
     requestAccountAccess,
-  } = useApp();
-  useHomeDisplayFont();
+  } = useAppFields(["profile", "decks", "history", "lifetimeStats", "match", "online", "matchCapability", "matchControllerId", "authUser", "accountMatchSessions", "accountMatchSessionsError", "resumeAccountMatch", "resumingMatchCode", "resumeCurrentMatch", "resumingCurrentMatch", "requestAccountAccess"]);
   const heroSource = useHighResolutionHero();
   const [remotePublicDecks, setRemotePublicDecks] = useState<DeckRecord[]>([]);
   const isGuest = !authUser;

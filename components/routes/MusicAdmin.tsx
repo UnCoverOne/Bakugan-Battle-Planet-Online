@@ -16,7 +16,7 @@ import {
   type MusicTrack,
 } from "../../lib/music";
 import { ActionButton, Field, StatusChip, Surface } from "../design-system/primitives";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import styles from "./MusicAdmin.module.css";
 
 type MusicAdminPayload = {
@@ -110,7 +110,7 @@ function notifyMusicLibraryUpdated() {
 }
 
 export function MusicAdmin() {
-  const { notify } = useApp();
+  const { notify } = useAppFields(["notify"]);
   const [data, setData] = useState<MusicAdminPayload | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -387,7 +387,7 @@ export function MusicAdmin() {
 }
 
 function TrackEditor({ track, onChanged }: { track: MusicTrack; onChanged: () => Promise<void> }) {
-  const { notify, settings } = useApp();
+  const { notify, settings } = useAppFields(["notify", "settings"]);
   const [draft, setDraft] = useState(track);
   const [busy, setBusy] = useState(false);
   const previewRef = useRef<HTMLAudioElement | null>(null);

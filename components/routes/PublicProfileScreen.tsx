@@ -7,13 +7,13 @@ import {
   normalizePublicBrawlerProfile,
   type PublicBrawlerProfile,
 } from "../../lib/public-profile";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { BrawlerProfileView } from "../profile/BrawlerProfileView";
 import styles from "./ProfileScreen.module.css";
 
 export function PublicProfileScreen({ userId }: { userId: string }) {
   const router = useRouter();
-  const { authUser } = useApp();
+  const { authUser } = useAppFields(["authUser"]);
   const [profile, setProfile] = useState<PublicBrawlerProfile | null>(null);
   const [error, setError] = useState("");
   const ownProfile = Boolean(authUser?.id && authUser.id === userId);

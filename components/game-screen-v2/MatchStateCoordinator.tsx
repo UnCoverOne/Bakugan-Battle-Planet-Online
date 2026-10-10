@@ -16,7 +16,7 @@ import {
 } from "./alternateWinPresentation";
 import styles from "./MatchResultDialog.module.css";
 import { MatchResultSocial } from "../social/MatchResultSocial";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import {
   MATCH_UPDATE_EVENT,
   finalizeCompletedMatchExit,
@@ -280,7 +280,7 @@ export function writeGameSettings(settings: Record<string, unknown>) {
 
 export function MatchStateCoordinator() {
   const router = useRouter();
-  const { nextSeriesGame } = useApp();
+  const { nextSeriesGame } = useAppFields(["nextSeriesGame"]);
   useMatchTransport();
   const returnState = useMatchSelector((state) => ({
     match: state.match,

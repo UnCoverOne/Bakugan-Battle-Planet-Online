@@ -16,7 +16,7 @@ import {
   GuestAccountPrompt,
 } from "./AccountAccessModal";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
-import { useApp } from "./AppProvider";
+import { useAppFields } from "./AppProvider";
 import { SocialDrawer, SocialMenuButton, SocialProvider } from "../social/SocialProvider";
 import { MusicLayer } from "./MusicLayer";
 
@@ -96,7 +96,7 @@ export function AppShell({ children }) {
     requestAccountAccess,
     closeAccountAccess,
     signOutAccount,
-  } = useApp();
+  } = useAppFields(["ready", "route", "profile", "history", "lifetimeStats", "authUser", "authChecking", "accountDataReady", "authError", "storageHealth", "retryCloudLoad", "match", "online", "matchCapability", "matchControllerId", "accountMatchSessions", "resumeAccountMatch", "resumingMatchCode", "resumeCurrentMatch", "resumingCurrentMatch", "toast", "accountPrompt", "dismissAccountPrompt", "accountAccessMode", "requestAccountAccess", "closeAccountAccess", "signOutAccount"]);
   const immersiveMatch = pathname === "/play/match";
   const homeRoute = pathname === "/" || pathname.startsWith("/dashboard");
   const secondaryRoute = !immersiveMatch && !homeRoute;

@@ -9,7 +9,7 @@ import { firstGameplayReplayFrameIndex } from "../../lib/replay-view";
 import { loadLocalReplayHistory, loadLocalReplayWhenReady } from "../../lib/replay-local-store";
 import { reconstructLocalReplay, reconstructServerReplay } from "../../lib/replay-playback-client";
 import { flushLocalReplayJournalAndWait } from "../../lib/replay-journal";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { ReplayBattlefield } from "./ReplayBattlefield";
 import styles from "./ReplayTheatre.module.css";
 
@@ -76,7 +76,7 @@ function downloadDebugText(text: string, replayId: string) {
 }
 
 export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; onBack: () => void }) {
-  const { authUser } = useApp();
+  const { authUser } = useAppFields(["authUser"]);
   const administrator = accountIsAdministrator(authUser);
   const [bundle, setBundle] = useState<ReplayBundle | null>(null);
   const [index, setIndex] = useState(0);

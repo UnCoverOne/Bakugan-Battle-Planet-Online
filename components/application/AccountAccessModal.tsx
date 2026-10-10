@@ -8,7 +8,7 @@ import {
   rememberAccountIntent,
   type AccountIntentReason,
 } from "../../lib/account-intent";
-import { useApp } from "./AppProvider";
+import { useAppFields } from "./AppProvider";
 import styles from "./AccountAccessModal.module.css";
 
 export type AccountAccessMode = "login" | "signup";
@@ -56,7 +56,7 @@ export function AccountAccessModal({
     authError,
     authenticate,
     requestAccountAccess,
-  } = useApp();
+  } = useAppFields(["profile", "guestData", "authBusy", "authChecking", "authError", "authenticate", "requestAccountAccess"]);
   const intent = useMemo(() => readAccountIntent(), []);
   const intentCopy = accountIntentCopy(intent?.reason);
   const [view, setView] = useState<AccessView>(mode);

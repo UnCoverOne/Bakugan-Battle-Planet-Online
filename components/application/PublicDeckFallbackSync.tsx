@@ -15,12 +15,16 @@ type PublicDeckResponse = {
 export function PublicDeckFallbackSync() {
   useEffect(() => {
     let active = true;
-    const sync = async () => {
-      if (!navigator.onLine) return;
+    let inFlight = false;
+    let lastSyncedAt = 0;
+    const sync = async (force = false) => {
+      if (!navigator.onLine || inFlight || (!force && Date.now() - lastSyncedAt < 60_000)) return;
+      inFlight = true;
       try {
-        const response = await fetch("/api/public-decks", { cache: "no-store" });
+        const response = await fetch("/api/public-decks", { cache: "no-store", signal: AbortSignal.timeout(12_000) });
         const result = await response.json() as PublicDeckResponse;
         if (!response.ok || !Array.isArray(result.offlineFallbackDecks) || !active) return;
+        lastSyncedAt = Date.now();
         writeOfflinePublicDeckCache(
           localStorage,
           result.offlineFallbackDecks,
@@ -28,10 +32,12 @@ export function PublicDeckFallbackSync() {
         );
       } catch {
         // Offline fallback synchronization is best-effort and never blocks application startup.
+      } finally {
+        inFlight = false;
       }
     };
     const onOnline = () => { void sync(); };
-    const onUpdated = () => { void sync(); };
+    const onUpdated = () => { void sync(true); };
     const onVisibility = () => {
       if (document.visibilityState === "visible") void sync();
     };

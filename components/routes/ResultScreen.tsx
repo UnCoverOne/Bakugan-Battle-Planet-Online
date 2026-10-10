@@ -3,7 +3,7 @@
 import { OriginalImage } from "@/components/media/OriginalImage";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { useMatchSelector } from "../game-screen-v2/matchStore";
 import { AppButton, Badge, Metric } from "../application/ui";
 import { MatchResultSocial } from "../social/MatchResultSocial";
@@ -32,7 +32,7 @@ export function ResultScreen() {
     setReplayIndex,
     setMatch,
     setOnline,
-  } = useApp();
+  } = useAppFields(["history", "nextSeriesGame", "leaveMatch", "setReplay", "setReplayIndex", "setMatch", "setOnline"]);
   const { match, playerId } = useMatchSelector((state) => ({
     match: state.match,
     playerId: state.playerId,

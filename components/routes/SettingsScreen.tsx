@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { ConfirmationDialog } from "../application/SystemState";
 import { downloadTextFile } from "../application/ui";
 import {
@@ -36,7 +36,7 @@ export function SettingsScreen() {
     changePassword,
     deleteAccount,
     collection,
-  } = useApp();
+  } = useAppFields(["settings", "setSettings", "profile", "decks", "history", "selectedDeckId", "authUser", "saveAccountProfile", "requestAccountAccess", "changePassword", "deleteAccount", "collection"]);
   const [section, setSection] = useState<Section>("Gameplay");
   const [brawlerName, setBrawlerName] = useState(profile.name);
   const [currentPassword, setCurrentPassword] = useState("");

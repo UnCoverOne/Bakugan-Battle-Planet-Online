@@ -8,7 +8,7 @@ import { normalizeRoomCode } from "../../lib/play-setup-machine";
 import { initializeLocalReplayJournal } from "../../lib/replay-journal";
 import { createTrainingLobbyState } from "../../lib/training-lobby";
 import { primeMatchStore } from "../game-screen-v2/matchStore";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import styles from "./MatchCreationScreen.module.css";
 
 type MatchModeChoice = "training" | "casual" | "ranked";
@@ -51,7 +51,7 @@ export function MatchCreationScreen() {
     profile,
     playerId,
     authUser,
-  } = useApp();
+  } = useAppFields(["format", "setFormat", "matchMode", "setMatchMode", "decks", "selectedDeck", "selectedDeckId", "setSelectedDeckId", "joinCode", "setJoinCode", "createOnline", "joinOnline", "setMatch", "setOnline", "profile", "playerId", "authUser"]);
   const [mode, setMode] = useState<MatchModeChoice>(() => modeFromProvider(matchMode));
   const [structure, setStructure] = useState<"bo1" | "bo3">(format === "bo3" ? "bo3" : "bo1");
   const [action, setAction] = useState<LobbyAction>(matchMode === "join" ? "join" : "create");

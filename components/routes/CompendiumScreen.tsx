@@ -28,7 +28,7 @@ import type { Core } from "../../lib/game";
 import { updateCollection, type CollectionField } from "../../lib/collection";
 import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT, SYMBOL_ENTRIES } from "../../lib/reference";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { AppButton, Badge, copyText } from "../application/ui";
 import { ActionButton, CardGrid, Field, RouteHero, StatusChip, Surface, Tabs } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
@@ -234,7 +234,7 @@ function CoreFilterControls({
 export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setCompendiumTab, authUser, notify, collection, setCollection } = useApp();
+  const { setCompendiumTab, authUser, notify, collection, setCollection } = useAppFields(["setCompendiumTab", "authUser", "notify", "collection", "setCollection"]);
   const changeCollection = useCallback((catalogId: string, field: CollectionField, delta: number) => {
     if (!authUser) return;
     setCollection((current) => updateCollection(current, catalogId, field, delta));
@@ -305,7 +305,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       page: options.resetPage ? 1 : patch.page ?? state.page,
     };
     const method = options.push ? "push" : "replace";
-    router[method](urlFor(next), { scroll: options.scroll ?? false });
+    window.history[method === "push" ? "pushState" : "replaceState"](null, "", urlFor(next));
+    if (options.scroll) window.scrollTo({ top: 0 });
   }, [router, searchQuery, state, urlFor]);
 
   const navigateCore = useCallback((patch: Partial<CoreCompendiumState>, options: { push?: boolean; resetPage?: boolean; scroll?: boolean } = {}) => {
@@ -316,7 +317,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       page: options.resetPage ? 1 : patch.page ?? coreState.page,
     };
     const method = options.push ? "push" : "replace";
-    router[method](coreUrlFor(next), { scroll: options.scroll ?? false });
+    window.history[method === "push" ? "pushState" : "replaceState"](null, "", coreUrlFor(next));
+    if (options.scroll) window.scrollTo({ top: 0 });
   }, [coreState, coreUrlFor, router, searchQuery]);
 
   const closeInspector = useCallback(() => {
@@ -340,7 +342,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       const path = section === "cores"
         ? coreUrlFor({ ...coreState, q: searchQuery, page: 1 })
         : urlFor({ ...state, q: searchQuery, page: 1 });
-      startTransition(() => router.replace(path, { scroll: false }));
+      startTransition(() => window.history.replaceState(null, "", path));
     }, SEARCH_URL_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
   }, [coreState, coreUrlFor, router, searchQuery, section, state, urlFor]);

@@ -13,7 +13,7 @@ import {
   type AchievementStatus,
   type AchievementTrainingRule,
 } from "../../lib/achievements";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { StatusChip, Surface } from "../design-system/primitives";
 import styles from "./AchievementsScreen.module.css";
 
@@ -166,7 +166,7 @@ export function AchievementsScreen({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { profile, decks, history, lifetimeStats } = useApp();
+  const { profile, decks, history, lifetimeStats } = useAppFields(["profile", "decks", "history", "lifetimeStats"]);
   const achievements = useMemo(() => {
     const live = achievementsFor(
       decks,

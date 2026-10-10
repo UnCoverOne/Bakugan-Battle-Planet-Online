@@ -1,12 +1,14 @@
 "use client";
 
+import "../../app/gameplay-foundation.css";
+
 import { OriginalImage } from "@/components/media/OriginalImage";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useReducer } from "react";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { completedMatchKey, isCompletedSeriesResult } from "../../lib/match-result-navigation";
 import { useMatchSelector } from "../game-screen-v2/matchStore";
 import { BAKUGAN, CORES, validateDeck, type DeckRecord } from "../../lib/data";
@@ -78,7 +80,7 @@ export function PlayScreen() {
     authChecking,
     authError,
     profile,
-  } = useApp();
+  } = useAppFields(["format", "setFormat", "matchMode", "setMatchMode", "decks", "selectedDeck", "selectedDeckId", "setSelectedDeckId", "joinCode", "setJoinCode", "startSolo", "createOnline", "joinOnline", "matchError", "authUser", "authChecking", "authError", "profile"]);
   const initial = createPlaySetupState({
     mode: matchMode,
     format,
@@ -515,7 +517,7 @@ function SetupLaunchBar({
 }
 
 export function LobbyScreen() {
-  const { match, playerId, matchError, readyMatch, leaveMatch } = useApp();
+  const { match, playerId, matchError, readyMatch, leaveMatch } = useAppFields(["match", "playerId", "matchError", "readyMatch", "leaveMatch"]);
   if (!match) return <Empty title="NO ACTIVE ROOM" />;
   return <>
     <PageHeader eyebrow="PRIVATE MATCH ROOM" title={`ROOM ${match.code}`} copy={`${match.format.toUpperCase()} • Original Battle Planet • Server-authoritative`} art="/assets/brawlers-group.png" actions={<AppButton tone="ghost" onClick={() => navigator.clipboard?.writeText(match.code)}>COPY ROOM CODE</AppButton>} />
@@ -530,7 +532,7 @@ export function MatchHostScreen() {
 
 export function ResultScreen() {
   const router = useRouter();
-  const { history, nextSeriesGame, leaveMatch, setReplay, setReplayIndex } = useApp();
+  const { history, nextSeriesGame, leaveMatch, setReplay, setReplayIndex } = useAppFields(["history", "nextSeriesGame", "leaveMatch", "setReplay", "setReplayIndex"]);
   const { match, playerId } = useMatchSelector((state) => ({
     match: state.match,
     playerId: state.playerId,

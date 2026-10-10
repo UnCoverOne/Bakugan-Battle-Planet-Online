@@ -15,7 +15,7 @@ import { COMPENDIUM_SORTS, CORE_COMPENDIUM_SORTS, filterAndSortCompendiumCards, 
 import { cardCollectionIds, collectionCards, collectionEntryForIds, coreCollectionIds, COLLECTION_QUANTITY_OPTIONS, COLLECTION_SORT_OPTIONS, type CollectionField } from "../../lib/collection";
 import { PUBLISHED_RULINGS, GLOSSARY_ENTRIES, REFERENCE_REVIEWED_AT, type ReferenceEntry } from "../../lib/reference";
 import { updateCollection } from "../../lib/collection";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import compendiumStyles from "./CompendiumScreen.module.css";
 import styles from "./CollectionScreen.module.css";
 
@@ -34,7 +34,7 @@ function countMatches(count: number, values: readonly string[]) {
 export function CollectionScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { authUser, requestAccountAccess, collection, setCollection } = useApp();
+  const { authUser, requestAccountAccess, collection, setCollection } = useAppFields(["authUser", "requestAccountAccess", "collection", "setCollection"]);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const activeTab = searchParams.get("collectionTab") === "cores" ? "cores" : "cards";

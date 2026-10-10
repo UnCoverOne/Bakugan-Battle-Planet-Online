@@ -59,7 +59,7 @@ test("the match route primes live provider state before gameplay mounts", () => 
   const runtime = source("components/routes/MatchRuntime.tsx");
   const store = source("components/game-screen-v2/matchStore.ts");
 
-  assert.match(runtime, /useApp\(\)/);
+  assert.match(runtime, /useAppFields\(\["ready", "match"/);
   assert.match(runtime, /primeMatchStore\(\{/);
   assert.match(runtime, /bootstrappedMatchId !== match\.id/);
   assert.match(runtime, /MATCH COULD NOT BE RESTORED/);

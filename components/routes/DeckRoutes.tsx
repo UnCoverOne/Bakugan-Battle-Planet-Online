@@ -59,7 +59,7 @@ import {
   PROFILE_SHOWCASE_LIMIT,
   toggleShowcaseId,
 } from "../../lib/profile-customization";
-import { useApp } from "../application/AppProvider";
+import { useAppFields } from "../application/AppProvider";
 import { CardArt } from "../cards/CardArt";
 import { copyText, downloadTextFile, formatTimestamp } from "../application/ui";
 import { CardInspector } from "../cards/CardInspector";
@@ -489,7 +489,7 @@ export function DeckLibraryScreen() {
     profile,
     setProfile,
     authUser,
-  } = useApp();
+  } = useAppFields(["ready", "decks", "setDecks", "deckQuery", "setDeckQuery", "selectedDeckId", "setSelectedDeckId", "setBuilderDeck", "storageHealth", "notify", "profile", "setProfile", "authUser"]);
   const [faction, setFaction] = useState("All");
   const [legality, setLegality] = useState("All");
   const [formatFilter, setFormatFilter] = useState<DeckFormatFilter>("all");
@@ -889,7 +889,7 @@ function DeckTile({
 }
 
 export function PublicDeckLibraryScreen() {
-  const { ready, decks, setDecks, notify, authUser, promptAccount } = useApp();
+  const { ready, decks, setDecks, notify, authUser, promptAccount } = useAppFields(["ready", "decks", "setDecks", "notify", "authUser", "promptAccount"]);
   const router = useRouter();
   const online = useOnlineStatus();
   const [query, setQuery] = useState("");
@@ -1133,7 +1133,7 @@ function PublicDeckTile({
 export function PublicDeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
   const online = useOnlineStatus();
-  const { decks, setDecks, setBuilderDeck, notify, authUser, promptAccount } = useApp();
+  const { decks, setDecks, setBuilderDeck, notify, authUser, promptAccount } = useAppFields(["decks", "setDecks", "setBuilderDeck", "notify", "authUser", "promptAccount"]);
   const [favoritePending, setFavoritePending] = useState(false);
   const catalogue = usePublicDeckCatalogue(online, authUser?.id);
   if (catalogue.status === "loading") {
@@ -1260,7 +1260,7 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
 
 export function DeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
-  const { decks, setBuilderDeck, setSelectedDeckId, notify, profile, authUser } = useApp();
+  const { decks, setBuilderDeck, setSelectedDeckId, notify, profile, authUser } = useAppFields(["decks", "setBuilderDeck", "setSelectedDeckId", "notify", "profile", "authUser"]);
   const deck = decks.find((item: DeckRecord) => item.id === id);
   if (!deck) return <MissingDeck id={id} />;
   const report = validateDeck(deck);
@@ -1570,7 +1570,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     storageHealth,
     notify,
     promptAccount,
-  } = useApp();
+  } = useAppFields(["decks", "setDecks", "builderDeck", "setBuilderDeck", "setSelectedDeckId", "storageHealth", "notify", "promptAccount"]);
   const competitiveDeckSize = useCompetitiveDeckSize();
   const adminPublicId = id.startsWith("admin-public:") ? id.slice("admin-public:".length) : null;
   const adminAiId = id.startsWith("admin-ai:") ? id.slice("admin-ai:".length) : null;
