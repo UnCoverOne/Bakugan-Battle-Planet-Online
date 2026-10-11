@@ -43,9 +43,9 @@ test("the primary shell uses the approved five-item top navigation and profile m
   const homeLayoutCss = source("app/home-layout.css");
   const homeFidelityCss = source("app/home-fidelity.css");
   const mobileHeaderCss = shellCss.split("@media (max-width:820px){")[1]?.split("@media (max-width:390px){")[0] ?? "";
-  assert.match(mobileHeaderCss, /\\.top-actions \\.resume-chip\\{[^}]*position:static;[^}]*display:inline-flex;[^}]*width:auto;[^}]*font-size:\\.7rem/);
-  assert.doesNotMatch(mobileHeaderCss, /\\.top-actions \\.resume-chip\\{[^}]*position:fixed/);
-  assert.match(mobileHeaderCss, /\\.overhaul-topbar \\.top-actions\\{[^}]*gap:\\.45rem/);
+  assert.match(mobileHeaderCss, /\.top-actions \.resume-chip\{[^}]*position:static;[^}]*display:inline-flex;[^}]*width:auto;[^}]*font-size:\.7rem/);
+  assert.doesNotMatch(mobileHeaderCss, /\.top-actions \.resume-chip\{[^}]*position:fixed/);
+  assert.match(mobileHeaderCss, /\.overhaul-topbar \.top-actions\{[^}]*gap:\.45rem/);
   assert.match(
     shellCss,
     /\.mobile-bottom-nav\{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/,
