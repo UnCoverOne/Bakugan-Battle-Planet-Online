@@ -337,8 +337,10 @@
   .mobile-bottom-nav a i{font-style:normal;font-size:1rem}
   .mobile-bottom-nav a.active{color:#fff;background:linear-gradient(0deg,rgba(0,174,234,.15),transparent)}
   .mobile-bottom-nav a.active::before{content:"";position:absolute;top:0;left:50%;width:35px;height:3px;transform:translateX(-50%);background:var(--cyan)}
-  .top-actions .resume-chip{position:fixed;left:1rem;right:1rem;bottom:76px;z-index:75;width:auto;min-height:42px;font-size:.7rem;background:#0a4c66;box-shadow:0 8px 24px rgba(0,0,0,.45)}
-  .top-actions .resume-chip .pulse{margin-right:.45rem}
+  /* Keep active-match actions in the mobile header, not floating above the bottom nav. */
+  .app-shell:not(.immersive-match) .overhaul-topbar .top-actions{min-width:0;gap:.45rem}
+  .top-actions .resume-chip{position:static;display:inline-flex;flex:0 1 auto;min-width:0;width:auto;min-height:42px;padding:0 .6rem;font-size:.7rem;line-height:1.2;white-space:nowrap;background:#0a4c66;box-shadow:0 3px 12px rgba(0,0,0,.35)}
+  .top-actions .resume-chip .pulse{margin-right:.4rem}
   .profile-popover{position:absolute;left:auto;right:0;top:calc(100% + 8px);bottom:auto;width:min(360px,calc(100vw - 1.5rem));max-height:calc(100dvh - 88px);overflow-y:auto}
   .compact-page-heading{padding:1.55rem 1rem 1rem;align-items:flex-start;flex-direction:column}
   .compact-page-heading h1{font-size:2.4rem}
@@ -408,6 +410,15 @@
   .settings-layout-v2{grid-template-columns:1fr;padding:0 1rem}
   .settings-section-nav{position:static;display:flex;overflow-x:auto}
   .settings-section-nav button{white-space:nowrap}
+}
+
+/* Narrow phones still have room for Resume, Social and Profile in one row. */
+@media (max-width:390px){
+  .app-shell:not(.immersive-match) .overhaul-topbar{padding:0 .5rem}
+  .app-shell:not(.immersive-match) .overhaul-topbar .brand img{width:50px}
+  .app-shell:not(.immersive-match) .overhaul-topbar .top-actions{gap:.35rem}
+  .top-actions .resume-chip{padding:0 .4rem;font-size:.66rem}
+  .top-actions .resume-chip .pulse{margin-right:.25rem}
 }
 
 @media (max-width:520px){
