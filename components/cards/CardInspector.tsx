@@ -4,7 +4,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import { FusionSymbol } from "@/components/media/FusionSymbol";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cardCollectorLabel, cardSetCode, CARD_SET_INFO } from "../../lib/content/catalogue";
 import {
   CARD_INSPECTOR_TABS,
@@ -329,6 +329,16 @@ export function CardInspector(props: InspectorProps) {
   const isCore = Boolean(core);
   const visibleTabs: CardInspectorTab[] = collectionEnabled ? [...CARD_INSPECTOR_TABS] : CARD_INSPECTOR_TABS.filter((candidate) => candidate !== "collection");
   const effectiveTab = visibleTabs.includes(tab) ? tab : "overview";
+  const activeTabRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const button = activeTabRef.current;
+    const strip = button?.parentElement;
+    if (!button || !strip || strip.scrollWidth <= strip.clientWidth) return;
+    const bounds = button.getBoundingClientRect();
+    const viewport = strip.getBoundingClientRect();
+    if (bounds.left < viewport.left) strip.scrollLeft += bounds.left - viewport.left;
+    else if (bounds.right > viewport.right) strip.scrollLeft += bounds.right - viewport.right;
+  }, [collectionEnabled, effectiveTab, itemKey]);
   const collectionIds = card
     ? cardCollectionIds(baseCard ?? card, allCards ?? [card])
     : core ? coreCollectionIds(core) : [];
@@ -371,6 +381,7 @@ export function CardInspector(props: InspectorProps) {
           <button
             type="button"
             role="tab"
+            ref={effectiveTab === candidate ? activeTabRef : undefined}
             aria-label={tabLabels[candidate]}
             title={tabLabels[candidate]}
             aria-selected={effectiveTab === candidate}

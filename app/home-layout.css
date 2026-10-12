@@ -401,6 +401,7 @@
 .home-achievement-row.complete progress::-moz-progress-bar { background: linear-gradient(90deg, #2bae4a, #75ed91); }
 
 .home-featured-deck {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
 }
@@ -670,4 +671,35 @@
   .home-featured-deck-copy h3 { font-size: 1.8rem; }
   .home-profile-strip { padding: .72rem; }
   .home-profile-stat { padding: .72rem .35rem; }
+}
+
+/* Size the fan against its panel, including intermediate desktop widths. */
+.home-featured-deck-layout {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, .85fr);
+}
+.home-featured-deck-stack {
+  min-width: 0;
+  width: 100%;
+  max-width: 470px;
+  height: auto;
+  aspect-ratio: 470 / 276;
+}
+.home-featured-deck-card {
+  width: min(190px, 39%);
+  height: auto;
+  aspect-ratio: 359 / 500;
+}
+.home-featured-deck-card:nth-child(1) { left: 0; }
+.home-featured-deck-card:nth-child(2) { left: 18.5%; }
+.home-featured-deck-card:nth-child(3) { left: 37%; }
+.home-featured-deck-card:nth-child(4) { left: 60%; }
+
+@container (max-width: 700px) {
+  .home-featured-deck-layout { grid-template-columns: minmax(0, 1fr); }
+  .home-featured-deck-stack { margin-inline: auto; }
+  .home-featured-deck-copy { padding: .4rem .2rem .2rem; }
+}
+/* Also stack on small screens in browsers without container-query support. */
+@media (max-width: 680px) {
+  .home-featured-deck-layout { grid-template-columns: minmax(0, 1fr); }
 }

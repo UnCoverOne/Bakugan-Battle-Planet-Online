@@ -454,7 +454,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         description="Browse every supported card and BakuCore, inspect complete records, and follow connected rules and published rulings."
         aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORE_COMPENDIUM.length} BakuCores</strong><span>Sources reviewed {REFERENCE_REVIEWED_AT}</span></div>}
       />
-      <section className={`compendium-toolbar ${styles.toolbar}`}>
+      <section className={styles.toolbar}>
         <Field className={styles.search} label="Search the archive">
           <input
             value={searchQuery}

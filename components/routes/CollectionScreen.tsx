@@ -218,7 +218,7 @@ export function CollectionScreen() {
   return (
     <div className={compendiumStyles.route}>
       <RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" description="Track every supported card and BakuCore outside the simulator. Alternate printings share a tile but retain separate catalogue counts." aside={<div className={compendiumStyles.sourceSummary}><strong>{cardResults.length.toLocaleString()} cards · {coreResults.length.toLocaleString()} BakuCores</strong><span>Synced to your account</span></div>} />
-      <section className={`compendium-toolbar ${compendiumStyles.toolbar}`}>
+      <section className={compendiumStyles.toolbar}>
         <Field className={compendiumStyles.search} label="Search your archive"><input value={query} placeholder="Cards, effects, IDs, mechanics…" onChange={(event) => setQuery(event.target.value)} /></Field>
         <Tabs label="Collection sections"><button type="button" className={activeTab === "cards" ? "active" : ""} onClick={() => navigate({ collectionTab: "cards", core: null, tab: null })}>CARDS</button><button type="button" className={activeTab === "cores" ? "active" : ""} onClick={() => navigate({ collectionTab: "cores", card: null, tab: null })}>BAKUCORES</button></Tabs>
       </section>

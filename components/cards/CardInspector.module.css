@@ -547,13 +547,18 @@
     padding-inline: var(--space-2);
   }
 
-  .tabs {
-    overflow: hidden;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .tabs,
+  .tabs.tabsWithCollection {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
   }
 
-  .tabs.tabsWithCollection {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+  .tabs button {
+    flex: 1 0 auto;
+    min-width: max-content;
+    padding-inline: .65rem;
   }
 
   .overview {

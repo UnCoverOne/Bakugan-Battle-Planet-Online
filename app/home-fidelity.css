@@ -218,8 +218,10 @@
     font-size: clamp(4.6rem, 6.2vw, 6.5rem);
   }
 
-  .bakugan-home-hero-copy .hex-button.red { min-width: 220px; }
-  .bakugan-home-hero-copy .hex-button.ghost { min-width: 192px; }
+  @media (min-width: 521px) {
+    .bakugan-home-hero-copy .hex-button.red { min-width: 220px; }
+    .bakugan-home-hero-copy .hex-button.ghost { min-width: 192px; }
+  }
 }
 
 @media (max-width: 820px) {
@@ -229,4 +231,15 @@
 
   .home-kicker { font-size: .8rem; }
   .bakugan-home-hero-copy > p:last-of-type { font-size: 1rem; }
+}
+
+/* Stacked featured content must be allowed to grow beyond the viewport-fit rows. */
+@media (max-width: 1320px) {
+  .bakugan-home,
+  .bakugan-home.has-active-match {
+    height: auto;
+    grid-template-rows: none;
+  }
+
+  .home-feature-grid > .panel { height: auto; }
 }
