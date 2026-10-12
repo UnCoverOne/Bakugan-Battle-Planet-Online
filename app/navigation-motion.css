@@ -23,7 +23,8 @@
   :root:not([data-motion="reduced"]) [data-motion-surface="filter-sheet"] {
     animation: bbp-motion-sheet 160ms ease-out;
   }
-  :root:not([data-motion="reduced"]) [data-ui="inspector-tab-content"] {
+  :root:not([data-motion="reduced"]) [data-ui="inspector-tab-content"],
+  :root:not([data-motion="reduced"]) [data-ui="compendium-section-content"] {
     animation: bbp-motion-fade 120ms ease-out;
   }
   :root:not([data-motion="reduced"]) .toast {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import test from "node:test";
+import { compendiumLocation, compendiumSectionHref, isCompendiumSectionChange } from "../lib/compendium-navigation";
 import { createAppStateStore, selectAppFields } from "../lib/app-state-store";
 
 const source = (path: string) => readFileSync(path, "utf8");
@@ -101,10 +102,41 @@ test("binary hero and font reproduce the exact original asset bytes", () => {
   }
 });
 
-test("local compendium interactions avoid server navigation while section links retain routing", () => {
+test("local compendium controls and section tabs avoid server navigation", () => {
   const browser = source("components/routes/CompendiumScreen.tsx");
   assert.match(browser, /window\.history\[method === "push" \? "pushState" : "replaceState"\]/);
   assert.match(browser, /startTransition\(\(\) => window\.history\.replaceState/);
   assert.doesNotMatch(browser, /router\[method\]/);
-  assert.match(browser, /router\.push\(sectionUrl/);
+  assert.match(browser, /window\.history\.pushState\(null, "", compendiumSectionHref/);
+  assert.doesNotMatch(browser, /router\.(push|replace)/);
+  assert.match(browser, /compendiumLocation\(pathname, segments\)/);
+});
+
+
+test("Compendium pathname overrides stale server segments across direct links and history entries", () => {
+  for (const section of ["cards", "cores", "rules", "rulings"] as const) {
+    const href = compendiumSectionHref(section, "Fire & Ice / 水");
+    const url = new URL(href, "https://game.test");
+    assert.equal(compendiumLocation(url.pathname, ["cards", "old-inspector"]).section, section);
+    assert.equal(new URLSearchParams(url.search).get("q"), "Fire & Ice / 水");
+    assert.deepEqual([...url.searchParams.keys()], ["q"]);
+  }
+  assert.deepEqual(compendiumLocation(null, ["cores"]), { section: "cores", legacyDetail: "" });
+  assert.equal(compendiumLocation("/compendium/cards/ice%20wall").legacyDetail, "ice wall");
+  assert.doesNotThrow(() => compendiumLocation("/compendium/cards/bad%escape"));
+  assert.equal(compendiumSectionHref("cards", ""), "/compendium");
+});
+
+test("local section transitions retain focus while genuine workspace navigation still receives focus", () => {
+  assert.equal(isCompendiumSectionChange("/compendium", "/compendium/cores"), true);
+  assert.equal(isCompendiumSectionChange("/compendium/rules", "/compendium/rulings"), true);
+  assert.equal(isCompendiumSectionChange("/decks", "/compendium"), false);
+  assert.equal(isCompendiumSectionChange("/compendium", "/decks"), false);
+  assert.equal(isCompendiumSectionChange(null, "/compendium"), false);
+  assert.equal(isCompendiumSectionChange("/compendium", "/compendium"), false);
+  const browser = source("components/routes/CompendiumScreen.tsx");
+  assert.match(browser, /if \(next === section\) return/);
+  assert.match(browser, /window\.clearTimeout\(searchTimerRef\.current\)/);
+  assert.match(browser, /if \(section !== "cards" \|\| searchQuery !== state\.q\) return/);
+  assert.match(browser, /if \(!localSearchEditRef\.current \|\| searchQuery === currentQuery\) return/);
 });

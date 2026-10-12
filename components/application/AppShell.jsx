@@ -4,6 +4,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { isCompendiumSectionChange } from "../../lib/compendium-navigation";
 import { useEffect, useRef, useState } from "react";
 import { activeSessionPresentation } from "../../lib/active-session";
 import { accountMatchSessionPresentation } from "../../lib/account-match-session";
@@ -68,6 +69,7 @@ function MenuIcon({ name }) {
 
 export function AppShell({ children }) {
   const pathname = usePathname();
+  const focusPathRef = useRef(null);
   const {
     ready,
     route,
@@ -144,7 +146,9 @@ export function AppShell({ children }) {
 
   useEffect(() => {
     setProfileOpen(false);
-    if (immersiveMatch || !ready) return;
+    const internalSectionChange = isCompendiumSectionChange(focusPathRef.current, pathname);
+    focusPathRef.current = pathname;
+    if (immersiveMatch || !ready || internalSectionChange) return;
     const frame = window.requestAnimationFrame(() => {
       const target = mainRef.current?.querySelector("h1") ?? mainRef.current;
       target?.setAttribute("tabindex", "-1");

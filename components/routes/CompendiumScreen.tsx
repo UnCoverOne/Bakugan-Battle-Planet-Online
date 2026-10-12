@@ -5,7 +5,8 @@ import { FusionSymbol } from "@/components/media/FusionSymbol";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { compendiumLocation, compendiumSectionHref, type CompendiumSection } from "../../lib/compendium-navigation";
 import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import {
@@ -232,26 +233,28 @@ function CoreFilterControls({
 
 
 export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
-  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { setCompendiumTab, authUser, notify, collection, setCollection } = useAppFields(["setCompendiumTab", "authUser", "notify", "collection", "setCollection"]);
   const changeCollection = useCallback((catalogId: string, field: CollectionField, delta: number) => {
     if (!authUser) return;
     setCollection((current) => updateCollection(current, catalogId, field, delta));
   }, [authUser, setCollection]);
-  const section = segments[0] === "cores" ? "cores" : segments[0] === "rules" ? "rules" : segments[0] === "rulings" ? "rulings" : "cards";
-  const legacyDetail = section === "cards" && segments[0] === "cards" ? decodeURIComponent(segments[1] ?? "") : "";
+  const { section, legacyDetail } = compendiumLocation(pathname, segments);
   const state = useMemo(() => parseCompendiumState(searchParams.toString()), [searchParams]);
   const coreState = useMemo(() => parseCoreCompendiumState(searchParams.toString()), [searchParams]);
   const [searchQuery, setSearchQuery] = useState(state.q);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [rulingCardId, setRulingCardId] = useState(section === "rulings" ? searchParams.get("card") ?? "" : "");
+  const requestedRulingCard = section === "rulings" ? searchParams.get("card") ?? "" : "";
+  useEffect(() => { if (section === "rulings") setRulingCardId(requestedRulingCard); }, [requestedRulingCard, section]);
   const [question, setQuestion] = useState("");
   const [submission, setSubmission] = useState("idle");
   const [showSubmission, setShowSubmission] = useState(false);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const localSearchEditRef = useRef(false);
+  const searchTimerRef = useRef<number | null>(null);
 
   const handleSearchChange = useCallback((value: string) => {
     localSearchEditRef.current = true;
@@ -307,7 +310,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     const method = options.push ? "push" : "replace";
     window.history[method === "push" ? "pushState" : "replaceState"](null, "", urlFor(next));
     if (options.scroll) window.scrollTo({ top: 0 });
-  }, [router, searchQuery, state, urlFor]);
+  }, [searchQuery, state, urlFor]);
 
   const navigateCore = useCallback((patch: Partial<CoreCompendiumState>, options: { push?: boolean; resetPage?: boolean; scroll?: boolean } = {}) => {
     const next = {
@@ -319,13 +322,25 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     const method = options.push ? "push" : "replace";
     window.history[method === "push" ? "pushState" : "replaceState"](null, "", coreUrlFor(next));
     if (options.scroll) window.scrollTo({ top: 0 });
-  }, [coreState, coreUrlFor, router, searchQuery]);
+  }, [coreState, coreUrlFor, searchQuery]);
 
   const closeInspector = useCallback(() => {
     navigate({ card: "", tab: "overview" });
   }, [navigate]);
 
-  useEffect(() => { setCompendiumTab(section); }, [section, setCompendiumTab]);
+  useEffect(() => {
+    setCompendiumTab(section);
+    setFilterSheetOpen(false);
+    setShowSubmission(false);
+  }, [section, setCompendiumTab]);
+  useEffect(() => {
+    const onPopState = () => {
+      localSearchEditRef.current = false;
+      if (searchTimerRef.current !== null) window.clearTimeout(searchTimerRef.current);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
   useEffect(() => {
     const currentQuery = section === "cores" ? coreState.q : state.q;
     if (searchQuery === currentQuery) {
@@ -337,24 +352,28 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   }, [coreState.q, searchQuery, section, state.q]);
   useEffect(() => {
     const currentQuery = section === "cores" ? coreState.q : state.q;
-    if (searchQuery === currentQuery) return;
-    const timeout = window.setTimeout(() => {
+    if (!localSearchEditRef.current || searchQuery === currentQuery) return;
+    searchTimerRef.current = window.setTimeout(() => {
+      if (!localSearchEditRef.current || compendiumLocation(window.location.pathname).section !== section) return;
+      const params = new URLSearchParams(window.location.search);
+      if (searchQuery) params.set("q", searchQuery); else params.delete("q");
       const path = section === "cores"
         ? coreUrlFor({ ...coreState, q: searchQuery, page: 1 })
-        : urlFor({ ...state, q: searchQuery, page: 1 });
+        : section === "cards" ? urlFor({ ...state, q: searchQuery, page: 1 })
+        : `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`;
       startTransition(() => window.history.replaceState(null, "", path));
     }, SEARCH_URL_DEBOUNCE_MS);
-    return () => window.clearTimeout(timeout);
-  }, [coreState, coreUrlFor, router, searchQuery, section, state, urlFor]);
+    return () => { if (searchTimerRef.current !== null) window.clearTimeout(searchTimerRef.current); };
+  }, [coreState, coreUrlFor, searchQuery, section, state, urlFor]);
   useEffect(() => {
     if (legacyDetail && !state.card) {
-      router.replace(urlFor({ ...state, card: legacyDetail, tab: "overview" }), { scroll: false });
+      window.history.replaceState(null, "", urlFor({ ...state, card: legacyDetail, tab: "overview" }));
     }
-  }, [legacyDetail, router, state, urlFor]);
+  }, [legacyDetail, state, urlFor]);
   useEffect(() => {
-    if (searchQuery !== state.q) return;
+    if (section !== "cards" || searchQuery !== state.q) return;
     if (state.page > pages) navigate({ page: pages });
-  }, [navigate, pages, searchQuery, state.page, state.q]);
+  }, [navigate, pages, searchQuery, section, state.page, state.q]);
   useEffect(() => {
     if (section !== "cores" || searchQuery !== coreState.q) return;
     if (coreState.page > corePages) navigateCore({ page: corePages });
@@ -420,7 +439,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     await copyText(`${location.origin}${path}`);
     notify(`${label} link copied.`);
   };
-  const sectionUrl = (path: string) => searchQuery ? `${path}?q=${encodeURIComponent(searchQuery)}` : path;
+  const switchSection = (next: CompendiumSection) => {
+    if (next === section) return;
+    if (searchTimerRef.current !== null) window.clearTimeout(searchTimerRef.current);
+    localSearchEditRef.current = false;
+    window.history.pushState(null, "", compendiumSectionHref(next, searchQuery));
+  };
   const copyLink = async (path: string, label: string) => {
     await copyText(`${location.origin}${path}`);
     notify(`${label} link copied.`);
@@ -463,13 +487,14 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
           />
         </Field>
         <Tabs label="Compendium sections">
-          <button type="button" className={section === "cards" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium"), { scroll: false })}>CARDS</button>
-          <button type="button" className={section === "cores" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/cores"), { scroll: false })}>BAKUCORES</button>
-          <button type="button" className={section === "rules" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/rules"), { scroll: false })}>RULES & GLOSSARY</button>
-          <button type="button" className={section === "rulings" ? "active" : ""} onClick={() => router.push(sectionUrl("/compendium/rulings"), { scroll: false })}>RULINGS</button>
+          <button type="button" className={section === "cards" ? "active" : ""} onClick={() => switchSection("cards")}>CARDS</button>
+          <button type="button" className={section === "cores" ? "active" : ""} onClick={() => switchSection("cores")}>BAKUCORES</button>
+          <button type="button" className={section === "rules" ? "active" : ""} onClick={() => switchSection("rules")}>RULES & GLOSSARY</button>
+          <button type="button" className={section === "rulings" ? "active" : ""} onClick={() => switchSection("rulings")}>RULINGS</button>
         </Tabs>
       </section>
 
+      <div key={section} data-ui="compendium-section-content">
       {section === "cards" && (
         <>
           <section className={styles.resultsToolbar}>
@@ -689,6 +714,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
           <section className="ruling-list modern-rulings">{PUBLISHED_RULINGS.filter((ruling) => !normalized || `${ruling.title} ${ruling.body}`.toLowerCase().includes(normalized)).map((ruling) => <article className="panel" key={ruling.slug}><div className="hero-actions"><Badge tone="gold">PUBLISHED</Badge><Badge>DEVELOPER RESPONSE</Badge></div><h2>{ruling.title}</h2><p>{ruling.body}</p><footer><small>{ruling.sourceSection} · Reviewed {ruling.reviewedAt}</small><button onClick={() => void copyLink(`/compendium/rulings/${ruling.slug}`, ruling.title)}>COPY LINK</button></footer></article>)}</section>
         </>
       )}
+
+      </div>
 
       {showSubmission && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowSubmission(false); }}>
