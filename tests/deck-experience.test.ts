@@ -80,7 +80,7 @@ test("team selection drives a removable faction filter and ordered BakuCore prev
     read("components/routes/DeckRoutes.module.css"),
   ]);
   assert.match(route, /setGalleryFilters\(\(current\) => \(\{ \.\.\.current, faction: nextFactions \}\)\)/);
-  assert.match(route, /faction:\s*\[\.\.\.new Set\(source\?\.factions \?\? \[\]\)\]/);
+  assert.match(route, /faction:\s*\[\.\.\.new Set\(deck\.factions \?\? \[\]\)\]/);
   assert.match(route, /item\.kind === "character" && factionFilterAuto/);
   assert.match(route, /setFactionFilterAuto\(false\)/);
   assert.match(route, /restrictCardFilters/);
@@ -111,7 +111,7 @@ test("Card Gallery tabs and both card collections provide search, Card ID sortin
   for (const tab of ["Character Cards", "Cores", "Main Deck Cards"]) assert.match(route, new RegExp(tab));
   assert.match(route, /\["id-asc", "Card ID"\]/);
   assert.match(route, /compareCardCollectorOrder\(left\.card, right\.card\)/);
-  assert.match(route, /useState<BuilderSort>\("id-asc"\)/);
+  assert.match(route, /restoredChoice\("gallerySort",.*"id-asc"\)/);
   assert.match(route, /left\.id\.localeCompare\(right\.id/);
   assert.match(route, /surface: "gallery", panel: "sort"/);
   assert.match(route, /surface: "gallery", panel: "filter"/);
@@ -207,5 +207,5 @@ test("all legality boundaries delegate to the centralized engine", async () => {
   assert.match(play, /playSetupStartBlockers/);
   assert.match(server, /validateDeck\(deck as unknown as DeckRecord\)/);
   assert.match(server, /firstIssue\.code/);
-  assert.match(decks, /const report = useMemo\(\(\) => validateDeck\(deck\)/);
+  assert.match(decks, /const report = useMemo\(\(\) => validateDeck\(deck(?:,|\))/);
 });

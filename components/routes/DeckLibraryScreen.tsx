@@ -1,5 +1,7 @@
 "use client";
 
+import { builderScope, clearBuilderDraft } from "../../lib/builder-session";
+
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { legalDeckFormats, validateDeck, type DeckFormat, type DeckRecord } from "../../lib/data";
@@ -80,6 +82,7 @@ export function DeckLibraryScreen() {
 
   const create = () => {
     if (decks.length >= DECK_LIMIT) return notify(`Deck limit reached (${DECK_LIMIT}).`);
+    clearBuilderDraft(builderScope(authUser?.id), "new");
     const draft = blankDraft(decks);
     setBuilderDeck(draft);
     router.push("/builder/new");

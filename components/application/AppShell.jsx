@@ -5,7 +5,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { isCompendiumSectionChange } from "../../lib/compendium-navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { activeSessionPresentation } from "../../lib/active-session";
 import { accountMatchSessionPresentation } from "../../lib/account-match-session";
 import { accountStatMatches } from "../../lib/match-statistics";
@@ -20,6 +20,8 @@ import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { useAppFields } from "./AppProvider";
 import { SocialDrawer, SocialMenuButton, SocialProvider } from "../social/SocialProvider";
 import { MusicLayer } from "./MusicLayer";
+
+import { activeBuilder, builderNavigationHref, builderScope, subscribeBuilder } from "../../lib/builder-session";
 
 const NAV = [
   { href: "/", label: "Home", icon: "⌂" },
@@ -72,6 +74,7 @@ export function AppShell({ children }) {
   const focusPathRef = useRef(null);
   const {
     ready,
+    decks,
     route,
     profile,
     history,
@@ -98,7 +101,10 @@ export function AppShell({ children }) {
     requestAccountAccess,
     closeAccountAccess,
     signOutAccount,
-  } = useAppFields(["ready", "route", "profile", "history", "lifetimeStats", "authUser", "authChecking", "accountDataReady", "authError", "storageHealth", "retryCloudLoad", "match", "online", "matchCapability", "matchControllerId", "accountMatchSessions", "resumeAccountMatch", "resumingMatchCode", "resumeCurrentMatch", "resumingCurrentMatch", "toast", "accountPrompt", "dismissAccountPrompt", "accountAccessMode", "requestAccountAccess", "closeAccountAccess", "signOutAccount"]);
+  } = useAppFields(["ready", "decks", "route", "profile", "history", "lifetimeStats", "authUser", "authChecking", "accountDataReady", "authError", "storageHealth", "retryCloudLoad", "match", "online", "matchCapability", "matchControllerId", "accountMatchSessions", "resumeAccountMatch", "resumingMatchCode", "resumeCurrentMatch", "resumingCurrentMatch", "toast", "accountPrompt", "dismissAccountPrompt", "accountAccessMode", "requestAccountAccess", "closeAccountAccess", "signOutAccount"]);
+  const resumeScope = builderScope(authUser?.id);
+  const resumeId = useSyncExternalStore(subscribeBuilder, () => activeBuilder(resumeScope), () => null);
+  const decksHref = builderNavigationHref(resumeId, decks);
   const immersiveMatch = pathname === "/play/match";
   const homeRoute = pathname === "/" || pathname.startsWith("/dashboard");
   const secondaryRoute = !immersiveMatch && !homeRoute;
@@ -225,13 +231,13 @@ export function AppShell({ children }) {
               const active =
                 item.href === "/"
                   ? homeRoute
-                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`) || (item.href === "/decks" && pathname.startsWith("/builder/") && !pathname.startsWith("/builder/admin-"));
               return (
                 <Link
                   key={item.href}
                   className={active ? "active" : ""}
                   aria-current={active ? "page" : undefined}
-                  href={item.href}
+                  href={item.href === "/decks" ? decksHref : item.href}
                 >
                   {item.label}
                 </Link>
@@ -377,11 +383,11 @@ export function AppShell({ children }) {
             const active =
               item.href === "/"
                 ? homeRoute
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                : pathname === item.href || pathname.startsWith(`${item.href}/`) || (item.href === "/decks" && pathname.startsWith("/builder/") && !pathname.startsWith("/builder/admin-"));
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={item.href === "/decks" ? decksHref : item.href}
                 aria-current={active ? "page" : undefined}
                 className={active ? "active" : ""}
               >

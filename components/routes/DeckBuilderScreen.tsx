@@ -4,7 +4,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { activeCardFilterCount, CARD_FILTER_LABELS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, FACTION_SYMBOLS, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
 import { cardArtSource } from "../../lib/content/card-art";
 import { compareCardCollectorOrder } from "../../lib/content/catalogue";
@@ -27,6 +27,7 @@ import { ActionButton, Field, StatusChip, Tabs } from "../design-system/primitiv
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import styles from "./DeckRoutes.module.css";
 import { MotionValue } from "../design-system/MotionValue";
+import { builderScope, builderBase, readBuilderDraft, writeBuilderDraft, setActiveBuilder, clearBuilderDraft, type BuilderDraft } from "../../lib/builder-session";
 import { useCompetitiveRules, clone, blankDraft, DeckState } from "./DeckRouteShared";
 import { BUILDER_RULE_REFERENCES } from "./DeckInspectorReferences";
 
@@ -100,7 +101,20 @@ const sortBuilderItems = (left: BuilderGalleryItem, right: BuilderGalleryItem, s
   return left.name.localeCompare(right.name);
 };
 
-export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: string; returnTo?: string }) {
+export function DeckBuilderScreen({ id, returnTo }: { id: string; returnTo?: string }) {
+  const { authUser } = useAppFields(["authUser"]);
+  const scope = builderScope(authUser?.id);
+  return <BuilderSessionLoader key={`${scope}:${id}`} id={id} returnTo={returnTo} scope={scope} />;
+}
+
+function BuilderSessionLoader({ id, returnTo, scope }: { id: string; returnTo?: string; scope: string }) {
+  const [session, setSession] = useState<{ draft: BuilderDraft | null } | null>(null);
+  useLayoutEffect(() => { setSession({ draft: id.startsWith("admin-") ? null : readBuilderDraft(scope, id) }); }, [scope, id]);
+  if (!session) return <div role="status">Restoring deck…</div>;
+  return <DeckBuilderEditor id={id} returnTo={returnTo} scope={scope} recovered={session.draft} />;
+}
+
+function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: { id: string; returnTo?: string; scope: string; recovered: BuilderDraft | null }) {
   const router = useRouter();
   const returnTo = requestedReturn?.startsWith("/") && !requestedReturn.startsWith("//")
     ? requestedReturn
@@ -123,29 +137,44 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   const adminResourceId = adminPublicId ?? adminAiId ?? adminOfflineId;
   const administratorEdit = Boolean(adminResourceId);
   const source = administratorEdit ? builderDeck : id === "new" ? builderDeck : decks.find((item: DeckRecord) => item.id === id);
-  const [deck, setDeck] = useState<DeckRecord>(() => clone(source ?? blankDraft(decks)));
+  const [deck, setDeck] = useState<DeckRecord>(() => clone(recovered?.deck ?? source ?? blankDraft(decks)));
+  const baseline = useRef(recovered?.base ?? builderBase(id === "new" ? undefined : source));
+  const recoveredConflict = useRef(Boolean(recovered && id !== "new" && recovered.base !== builderBase(source))).current;
+  const ui = recovered?.ui ?? {};
+  const restoredText = (key: string, fallback: string) => typeof ui[key] === "string" ? ui[key] as string : fallback;
+  const restoredChoice = <T extends string,>(key: string, values: readonly T[], fallback: T): T => values.includes(ui[key] as T) ? ui[key] as T : fallback;
+  const restoredFilters = (key: string, fallback: CardFilterState) => {
+    const value = ui[key];
+    if (!value || typeof value !== "object") return fallback;
+    const filters = createEmptyCardFilters();
+    for (const facet of Object.keys(filters) as Array<keyof CardFilterState>) {
+      const saved = (value as CardFilterState)[facet];
+      if (Array.isArray(saved) && saved.every(item => typeof item === "string")) filters[facet] = saved;
+    }
+    return filters;
+  };
   const [remoteLoading, setRemoteLoading] = useState(administratorEdit && !source);
-  const [builderView, setBuilderView] = useState<BuilderView>("gallery");
-  const [galleryQuery, setGalleryQuery] = useState("");
+  const [builderView, setBuilderView] = useState<BuilderView>(() => restoredChoice("builderView", ["gallery", "deck"], "gallery"));
+  const [galleryQuery, setGalleryQuery] = useState(() => restoredText("galleryQuery", ""));
   const deferredGalleryQuery = useDeferredValue(galleryQuery);
-  const [deckQuery, setDeckQuery] = useState("");
-  const [galleryCategory, setGalleryCategory] = useState<BuilderCategory>("characters");
-  const [gallerySort, setGallerySort] = useState<BuilderSort>("id-asc");
-  const [deckSort, setDeckSort] = useState<BuilderSort>("name-asc");
-  const [galleryFilters, setGalleryFilters] = useState<CardFilterState>(() => createEmptyCardFilters({
-    faction: [...new Set(source?.factions ?? [])],
-  }));
-  const [factionFilterAuto, setFactionFilterAuto] = useState(Boolean(source?.bakuganIds.length));
-  const [deckFilters, setDeckFilters] = useState<CardFilterState>(() => createEmptyCardFilters());
+  const [deckQuery, setDeckQuery] = useState(() => restoredText("deckQuery", ""));
+  const [galleryCategory, setGalleryCategory] = useState<BuilderCategory>(() => restoredChoice("galleryCategory", ["cards", "characters", "cores"], "characters"));
+  const [gallerySort, setGallerySort] = useState<BuilderSort>(() => restoredChoice("gallerySort", ["name-asc", "name-desc", "id-asc", "cost-asc", "cost-desc", "count-desc"], "id-asc"));
+  const [deckSort, setDeckSort] = useState<BuilderSort>(() => restoredChoice("deckSort", ["name-asc", "name-desc", "id-asc", "cost-asc", "cost-desc", "count-desc"], "name-asc"));
+  const [galleryFilters, setGalleryFilters] = useState<CardFilterState>(() => restoredFilters("galleryFilters", createEmptyCardFilters({
+    faction: [...new Set(deck.factions ?? [])],
+  })));
+  const [factionFilterAuto, setFactionFilterAuto] = useState(typeof ui.factionFilterAuto === "boolean" ? ui.factionFilterAuto : Boolean(deck.bakuganIds.length));
+  const [deckFilters, setDeckFilters] = useState<CardFilterState>(() => restoredFilters("deckFilters", createEmptyCardFilters()));
   const [activeMenu, setActiveMenu] = useState<BuilderMenu | null>(null);
   const [inspection, setInspection] = useState<BuilderInspection | null>(null);
   const [inspectorTab, setInspectorTab] = useState<CardInspectorTab>("overview");
   const [saveState, setSaveState] = useState<"saved" | "dirty" | "error">("saved");
-  const [saveName, setSaveName] = useState(deck.name);
-  const [saveDescription, setSaveDescription] = useState(deck.description ?? "");
-  const [saveVisibility, setSaveVisibility] = useState<DeckRecord["visibility"]>(deck.visibility);
+  const [saveName, setSaveName] = useState(() => restoredText("saveName", deck.name));
+  const [saveDescription, setSaveDescription] = useState(() => restoredText("saveDescription", deck.description ?? ""));
+  const [saveVisibility, setSaveVisibility] = useState<DeckRecord["visibility"]>(() => restoredChoice("saveVisibility", ["Draft", "Private", "Public"], deck.visibility));
   const [saveLeadCardId, setSaveLeadCardId] = useState(
-    deck.leadCardId && deck.cardIds.includes(deck.leadCardId) ? deck.leadCardId : deck.cardIds[0] ?? "",
+    () => restoredText("saveLeadCardId", deck.leadCardId && deck.cardIds.includes(deck.leadCardId) ? deck.leadCardId : deck.cardIds[0] ?? ""),
   );
 
   useEffect(() => {
@@ -181,10 +210,50 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
     return () => { active = false; };
   }, [adminOfflineId, adminPublicId, adminResourceId, administratorEdit, notify, setBuilderDeck, source]);
 
+  const latestDraft = useRef<BuilderDraft | null>(null);
+  const sessionEnded = useRef(false);
+  useEffect(() => {
+    if (administratorEdit || sessionEnded.current) return;
+    setActiveBuilder(scope, id);
+    if (recoveredConflict) notify("A newer saved version exists. Your draft is restored; saving it will create a separate copy.");
+  }, [administratorEdit, scope, id, notify, recoveredConflict]);
+
   useEffect(() => {
     setBuilderDeck(deck);
-    setSaveState(storageHealth.status === "error" ? "error" : "saved");
-  }, [deck, setBuilderDeck, storageHealth.status]);
+    if (administratorEdit) {
+      setSaveState(storageHealth.status === "error" ? "error" : "saved");
+      return;
+    }
+    latestDraft.current = {
+      version: 1, routeId: id, deck, base: baseline.current,
+      ui: { builderView, galleryQuery, deckQuery, galleryCategory, gallerySort, deckSort,
+        galleryFilters, deckFilters, factionFilterAuto, saveName, saveDescription, saveVisibility, saveLeadCardId },
+    };
+    setSaveState("dirty");
+    const timer = window.setTimeout(() => {
+      if (!sessionEnded.current && latestDraft.current) setSaveState(writeBuilderDraft(scope, latestDraft.current) ? "saved" : "error");
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [administratorEdit, scope, id, deck, builderView, galleryQuery, deckQuery, galleryCategory, gallerySort, deckSort, galleryFilters, deckFilters, factionFilterAuto, saveName, saveDescription, saveVisibility, saveLeadCardId, setBuilderDeck, storageHealth.status]);
+
+  useEffect(() => {
+    if (administratorEdit) return;
+    const flush = () => { if (!sessionEnded.current && latestDraft.current) writeBuilderDraft(scope, latestDraft.current); };
+    const onVisibility = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      flush();
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [administratorEdit, scope]);
+
+  const exitBuilder = () => {
+    if (administratorEdit) return;
+    if (latestDraft.current) writeBuilderDraft(scope, latestDraft.current);
+    setActiveBuilder(scope, null);
+  };
 
   useEffect(() => {
     if (!activeMenu && !inspection) return;
@@ -372,10 +441,8 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   const activeDeckFilterCount = activeCardFilterCount(deckFilters, BUILDER_MAIN_DECK_FILTER_FACETS);
 
   const openSaveDialog = () => {
-    setSaveName(deck.name);
-    setSaveDescription(deck.description ?? "");
-    setSaveVisibility(adminPublicId || adminOfflineId ? "Public" : adminAiId ? "Private" : report.isLegal ? deck.visibility : deck.visibility === "Public" ? "Draft" : deck.visibility);
-    setSaveLeadCardId(deck.leadCardId && deck.cardIds.includes(deck.leadCardId) ? deck.leadCardId : deck.cardIds[0] ?? "");
+    if (administratorEdit) setSaveVisibility(adminPublicId || adminOfflineId ? "Public" : "Private");
+    else if (!report.isLegal && saveVisibility === "Public") setSaveVisibility("Draft");
     setActiveMenu({ surface: "deck", panel: "save" });
   };
 
@@ -390,13 +457,15 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       notify(`${adminAiId ? "AI" : adminOfflineId ? "Offline fallback" : "Public"} decks must be valid: ${latest.issues[0].message}`);
       return;
     }
-    if (decks.length >= DECK_LIMIT && id === "new" && !administratorEdit) {
+    const savedSource = decks.find((item: DeckRecord) => item.id === id);
+    const saveAsCopy = !administratorEdit && id !== "new" && baseline.current !== builderBase(savedSource);
+    if (decks.length >= DECK_LIMIT && (id === "new" || saveAsCopy) && !administratorEdit) {
       notify(`Deck limit reached (${DECK_LIMIT}).`);
       return;
     }
     const next = {
       ...deck,
-      id: adminOfflineId ? `offline-${adminOfflineId}` : administratorEdit ? adminResourceId! : id === "new" ? deck.id : id,
+      id: adminOfflineId ? `offline-${adminOfflineId}` : administratorEdit ? adminResourceId! : saveAsCopy ? crypto.randomUUID() : id === "new" ? deck.id : id,
       name,
       description: saveDescription.trim() || undefined,
       visibility: adminPublicId || adminOfflineId ? "Public" as const : adminAiId ? "Private" as const : saveVisibility,
@@ -430,12 +499,14 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
       }
       return;
     }
+    sessionEnded.current = true;
+    clearBuilderDraft(scope, id);
     setDecks((items: DeckRecord[]) => [next, ...items.filter((item) => item.id !== next.id)]);
     setSelectedDeckId(next.id);
     setBuilderDeck(null);
     setSaveState("saved");
     setActiveMenu(null);
-    notify(latest.isLegal ? `${saveVisibility} deck saved.` : `Deck saved with ${latest.issues.length} legality issues.`);
+    notify(saveAsCopy ? "Draft saved as a separate copy; the newer saved deck is preserved." : latest.isLegal ? `${saveVisibility} deck saved.` : `Deck saved with ${latest.issues.length} legality issues.`);
     promptAccount("deck-saved");
     router.push(returnTo ?? `/decks/${encodeURIComponent(next.id)}`);
   };
@@ -447,7 +518,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
   return (
     <section className={styles.builder}>
       <header className={styles.builderHeader}>
-        <Link href={returnTo ?? "/decks"}>{administratorEdit ? "← Administrator" : returnTo ? "← Match setup" : "← My Decks"}</Link>
+        <Link href={returnTo ?? "/decks"} onClick={exitBuilder}>{administratorEdit ? "← Administrator" : returnTo ? "← Match setup" : "← My Decks"}</Link>
         <div className={styles.builderDeckIdentity}><span>{administratorEdit ? "Administrator Edit" : "Edit Deck"}</span><strong>{deck.name}</strong></div>
         <label className={styles.builderFormat}><span>Format</span><select aria-label="Deck format" value={deck.format ?? "standard"} onChange={(event) => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}><option value="standard">Standard</option><option value="singleton">Singleton</option><option value="competitive">Competitive</option></select></label>
         <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
@@ -455,7 +526,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
         <span className={`${styles.saveState} ${styles[`saveState_${saveState}`]}`}>
           <MotionValue value={saveState} kind="status">{saveState === "error" ? "Draft not saved" : saveState === "dirty" ? "Saving draft…" : "Draft saved locally"}</MotionValue>
         </span>
-        <ActionButton disabled={saveState === "error"} onClick={openSaveDialog}>Save Deck</ActionButton>
+        <ActionButton onClick={openSaveDialog}>Save Deck</ActionButton>
       </header>
       <Tabs className={styles.builderMobileTabs} label="Deck Builder sections">
         {(["gallery", "deck"] as BuilderView[]).map((value) => (
