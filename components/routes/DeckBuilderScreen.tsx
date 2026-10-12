@@ -4,7 +4,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
 import { activeCardFilterCount, CARD_FILTER_LABELS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, FACTION_SYMBOLS, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
 import { cardArtSource } from "../../lib/content/card-art";
 import { compareCardCollectorOrder } from "../../lib/content/catalogue";
@@ -27,7 +27,7 @@ import { ActionButton, Field, StatusChip, Tabs } from "../design-system/primitiv
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import styles from "./DeckRoutes.module.css";
 import { MotionValue } from "../design-system/MotionValue";
-import { builderScope, builderBase, readBuilderDraft, writeBuilderDraft, setActiveBuilder, clearBuilderDraft, type BuilderDraft } from "../../lib/builder-session";
+import { builderScope, builderBase, readBuilderDraft, writeBuilderDraft, setActiveBuilder, clearBuilderDraft, shouldConfirmBuilderExit, type BuilderDraft } from "../../lib/builder-session";
 import { useCompetitiveRules, clone, blankDraft, DeckState } from "./DeckRouteShared";
 import { BUILDER_RULE_REFERENCES } from "./DeckInspectorReferences";
 
@@ -40,7 +40,7 @@ type BuilderSort = "name-asc" | "name-desc" | "id-asc" | "cost-asc" | "cost-desc
 type BuilderMenu =
   | { surface: "gallery" | "deck"; panel: "filter" | "sort" }
   | { surface: "team" | "cores" | "mainDeck"; panel: "issues" }
-  | { surface: "deck"; panel: "save" };
+  | { surface: "deck"; panel: "save" | "leave" };
 
 type BuilderInspection =
   | { kind: "card"; card: GameCard }
@@ -166,6 +166,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   })));
   const [factionFilterAuto, setFactionFilterAuto] = useState(typeof ui.factionFilterAuto === "boolean" ? ui.factionFilterAuto : Boolean(deck.bakuganIds.length));
   const [deckFilters, setDeckFilters] = useState<CardFilterState>(() => restoredFilters("deckFilters", createEmptyCardFilters()));
+  const [exitAfterSave, setExitAfterSave] = useState(false);
   const [activeMenu, setActiveMenu] = useState<BuilderMenu | null>(null);
   const [inspection, setInspection] = useState<BuilderInspection | null>(null);
   const [inspectorTab, setInspectorTab] = useState<CardInspectorTab>("overview");
@@ -249,8 +250,19 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     };
   }, [administratorEdit, scope]);
 
-  const exitBuilder = () => {
+  const exitBuilder = (event: MouseEvent<HTMLAnchorElement>) => {
     if (administratorEdit) return;
+    const saved = id === "new" ? undefined : decks.find((item: DeckRecord) => item.id === id);
+    const workingDeck = {
+      ...deck, name: saveName.trim(), description: saveDescription.trim() || undefined,
+      visibility: saveVisibility,
+      leadCardId: saveLeadCardId && deck.cardIds.includes(saveLeadCardId) ? saveLeadCardId : deck.cardIds[0],
+    };
+    if ((!returnTo || returnTo === "/decks") && shouldConfirmBuilderExit(workingDeck, saved)) {
+      event.preventDefault();
+      setActiveMenu({ surface: "deck", panel: "leave" });
+      return;
+    }
     if (latestDraft.current) writeBuilderDraft(scope, latestDraft.current);
     setActiveBuilder(scope, null);
   };
@@ -262,6 +274,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     const close = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setActiveMenu(null);
+        setExitAfterSave(false);
         setInspection(null);
       }
     };
@@ -508,7 +521,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     setActiveMenu(null);
     notify(saveAsCopy ? "Draft saved as a separate copy; the newer saved deck is preserved." : latest.isLegal ? `${saveVisibility} deck saved.` : `Deck saved with ${latest.issues.length} legality issues.`);
     promptAccount("deck-saved");
-    router.push(returnTo ?? `/decks/${encodeURIComponent(next.id)}`);
+    router.push(exitAfterSave ? "/decks" : returnTo ?? `/decks/${encodeURIComponent(next.id)}`);
   };
 
   if (remoteLoading) {
@@ -518,7 +531,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   return (
     <section className={styles.builder}>
       <header className={styles.builderHeader}>
-        <Link href={returnTo ?? "/decks"} onClick={exitBuilder}>{administratorEdit ? "← Administrator" : returnTo ? "← Match setup" : "← My Decks"}</Link>
+        <Link href={returnTo ?? "/decks"} onClick={exitBuilder}>{administratorEdit ? "← Administrator" : returnTo ? "← Match setup" : "← Back to decks"}</Link>
         <div className={styles.builderDeckIdentity}><span>{administratorEdit ? "Administrator Edit" : "Edit Deck"}</span><strong>{deck.name}</strong></div>
         <label className={styles.builderFormat}><span>Format</span><select aria-label="Deck format" value={deck.format ?? "standard"} onChange={(event) => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}><option value="standard">Standard</option><option value="singleton">Singleton</option><option value="competitive">Competitive</option></select></label>
         <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
@@ -803,11 +816,37 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         </BuilderMenuDialog>
       )}
 
+      {activeMenu?.panel === "leave" && (
+        <BuilderMenuDialog
+          title="Save this deck before leaving?"
+          eyebrow="Unsaved changes"
+          onClose={() => setActiveMenu(null)}
+          footer={(
+            <>
+              <ActionButton tone="quiet" onClick={() => {
+                sessionEnded.current = true;
+                clearBuilderDraft(scope, id);
+                setBuilderDeck(null);
+                setActiveMenu(null);
+                router.push("/decks");
+              }}>Don’t Save</ActionButton>
+              <ActionButton onClick={() => {
+                setExitAfterSave(true);
+                openSaveDialog();
+                setSaveVisibility("Draft");
+              }}>Save Draft</ActionButton>
+            </>
+          )}
+        >
+          <p>Your deck has unsaved changes. Save a draft before returning to your deck library.</p>
+        </BuilderMenuDialog>
+      )}
+
       {activeMenu?.panel === "save" && (
         <BuilderMenuDialog
           title="Save Deck"
           eyebrow={report.isLegal ? "Ready to save" : `Saving with ${report.issues.length} legality issues`}
-          onClose={() => setActiveMenu(null)}
+          onClose={() => { setActiveMenu(null); setExitAfterSave(false); }}
           footer={(
             <>
               <ActionButton tone="quiet" onClick={() => setActiveMenu(null)}>Cancel</ActionButton>

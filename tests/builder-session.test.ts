@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { activeBuilder, builderBase, builderNavigationHref, builderScope, clearBuilderDraft, readBuilderDraft, setActiveBuilder, subscribeBuilder, writeBuilderDraft, type BuilderDraft } from "../lib/builder-session";
+import { activeBuilder, builderBase, builderNavigationHref, builderScope, clearBuilderDraft, readBuilderDraft, setActiveBuilder, subscribeBuilder, shouldConfirmBuilderExit, writeBuilderDraft, type BuilderDraft } from "../lib/builder-session";
 import type { DeckRecord } from "../lib/data";
 
 const values = new Map<string, string>();
@@ -70,4 +70,16 @@ test("storage failure retains same-tab progress and reports failure", () => {
     setActiveBuilder("quota", "one");
     assert.equal(activeBuilder("quota"), "one");
   } finally { localStorage.setItem = original; }
+});
+
+test("exit confirmation distinguishes saved decks, empty drafts and unfinished changes", () => {
+  assert.equal(shouldConfirmBuilderExit(deck, { ...deck }), false);
+  assert.equal(shouldConfirmBuilderExit(deck), true);
+  assert.equal(shouldConfirmBuilderExit({ ...deck, cardIds: [] }), false);
+  assert.equal(shouldConfirmBuilderExit({ ...deck, cardIds: [], coreIds: ["core"] }), true);
+  assert.equal(shouldConfirmBuilderExit({ ...deck, cardIds: [], bakuganIds: ["bakugan"] }), true);
+  assert.equal(shouldConfirmBuilderExit({ ...deck, name: "Edited name" }, deck), true);
+  assert.equal(shouldConfirmBuilderExit({ ...deck, description: "Edited description" }, deck), true);
+  assert.equal(shouldConfirmBuilderExit({ ...deck, format: "singleton" }, deck), true);
+  assert.equal(shouldConfirmBuilderExit({ ...deck, cardIds: ["different"] }, deck), true);
 });

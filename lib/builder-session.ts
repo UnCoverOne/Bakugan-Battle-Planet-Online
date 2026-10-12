@@ -21,6 +21,11 @@ export const builderBase = (deck?: DeckRecord) => deck ? JSON.stringify({
   leadCardId: deck.leadCardId, notes: deck.notes, tags: deck.tags,
 }) : "";
 
+export function shouldConfirmBuilderExit(deck: DeckRecord, saved?: DeckRecord) {
+  const nonEmpty = deck.cardIds.length > 0 || deck.bakuganIds.length > 0 || deck.coreIds.length > 0;
+  return nonEmpty && builderBase(deck) !== builderBase(saved);
+}
+
 export function readBuilderDraft(scope: string, id: string): BuilderDraft | null {
   const key = draftKey(scope, id);
   if (memory.has(key)) return memory.get(key)!;
