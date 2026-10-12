@@ -10,6 +10,7 @@ import { invalidateResponse } from "../../lib/response-cache";
 import { useAppFields } from "../application/AppProvider";
 import { ActionButton } from "../design-system/primitives";
 import styles from "./DeckRoutes.module.css";
+import { MotionValue } from "../design-system/MotionValue";
 import { clone, useOnlineStatus, DeckState } from "./DeckRouteShared";
 import { usePublicDeckCatalogue } from "./PublicDeckCatalogue";
 import { DeckDetailPresentation, DeckSharePanel, MissingDeck } from "./DeckDetailPresentation";
@@ -128,7 +129,7 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
               disabled={favoritePending}
               onClick={() => void toggleFavorite()}
             >
-              {favorite.viewerHasFavorited ? "★ Favorited" : "☆ Favorite"} · {favorite.favoriteCount} {favorite.favoriteCount === 1 ? "Favorite" : "Favorites"}
+              <MotionValue value={favorite.viewerHasFavorited}>{favorite.viewerHasFavorited ? "★ Favorited" : "☆ Favorite"}</MotionValue> · <MotionValue value={favorite.favoriteCount} /> {favorite.favoriteCount === 1 ? "Favorite" : "Favorites"}
             </ActionButton>
           )}
           {catalogue.status === "online" && authUser?.roles?.includes("administrator") && (

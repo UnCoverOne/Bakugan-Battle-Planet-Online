@@ -1,0 +1,68 @@
+/* Short, finite feedback; no route delays, grid entrances, or persistent layers. */
+@keyframes bbp-motion-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bbp-motion-menu { from { opacity: 0; translate: 0 -4px; } to { opacity: 1; translate: 0 0; } }
+@keyframes bbp-motion-panel { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+@keyframes bbp-motion-sheet { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: 0 0; } }
+@keyframes bbp-motion-toast { from { opacity: 0; translate: 0 4px; } to { opacity: 1; translate: 0 0; } }
+@keyframes bbp-motion-value { from { scale: .94; } 60% { scale: 1.04; } to { scale: 1; } }
+
+[data-ui="motion-value"] { display: inline-block; }
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduced"]) .profile-popover,
+  :root:not([data-motion="reduced"]) [data-ui="filter-popover"] {
+    animation: bbp-motion-menu 140ms ease-out;
+  }
+  :root:not([data-motion="reduced"]) [data-ui="card-inspector-backdrop"],
+  :root:not([data-motion="reduced"]) [data-ui="filter-backdrop"] {
+    animation: bbp-motion-fade 140ms ease-out;
+  }
+  :root:not([data-motion="reduced"]) [data-ui="card-inspector"][role="dialog"] {
+    animation: bbp-motion-panel 180ms ease-out;
+  }
+  :root:not([data-motion="reduced"]) [data-motion-surface="filter-sheet"] {
+    animation: bbp-motion-sheet 160ms ease-out;
+  }
+  :root:not([data-motion="reduced"]) [data-ui="inspector-tab-content"] {
+    animation: bbp-motion-fade 120ms ease-out;
+  }
+  :root:not([data-motion="reduced"]) .toast {
+    animation: bbp-motion-toast 150ms ease-out;
+  }
+  :root:not([data-motion="reduced"]) [data-ui="motion-value"][data-changed="true"][data-kind="count"] {
+    animation: bbp-motion-value 120ms ease-out;
+  }
+  :root:not([data-motion="reduced"]) [data-ui="motion-value"][data-changed="true"][data-kind="status"] {
+    animation: bbp-motion-fade 140ms ease-out;
+  }
+  :root:not([data-motion="reduced"]) .topbar > nav a.active::after,
+  :root:not([data-motion="reduced"]) .mobile-bottom-nav a.active::before {
+    animation: bbp-motion-fade 125ms ease-out;
+  }
+  :root:not([data-motion="reduced"]) [data-ui="tabs"] > :is(button, a) {
+    position: relative;
+  }
+  :root:not([data-motion="reduced"]) [data-ui="tabs"] > :is(.active, [aria-selected="true"])::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    height: 3px;
+    background: var(--brand-blue-bright);
+    pointer-events: none;
+    animation: bbp-motion-fade 120ms ease-out;
+  }
+  :root:not([data-motion="reduced"]) :is([data-ui="action-button"], [data-ui="favorite-button"], .hex-button, [data-ui="quantity-control"] button, [data-ui="card-inspector"] button, .profile-popover-row) {
+    transition: transform 100ms ease-out, scale 100ms ease-out;
+  }
+  :root:not([data-motion="reduced"]) :is([data-ui="action-button"], [data-ui="favorite-button"], .hex-button, [data-ui="quantity-control"] button, [data-ui="card-inspector"] button, .profile-popover-row):active:not(:disabled) {
+    scale: .97;
+  }
+  :root:not([data-motion="reduced"]) .mobile-bottom-nav a > i { transition: transform 100ms ease-out; }
+  :root:not([data-motion="reduced"]) .mobile-bottom-nav a:active > i { transform: scale(.96); }
+}
+
+@media (max-width: 800px) and (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduced"]) [data-ui="builder-panel"][data-active="true"] {
+    animation: bbp-motion-fade 120ms ease-out;
+  }
+}

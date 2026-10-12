@@ -104,6 +104,7 @@ export function FilterPicker({
       <div className={styles.backdrop} role="presentation" onMouseDown={() => setOpen(false)}>
         <section
           className={styles.panel}
+          data-ui="filter-popover"
           role="dialog"
           aria-label={`${label} options`}
           style={anchorStyle}

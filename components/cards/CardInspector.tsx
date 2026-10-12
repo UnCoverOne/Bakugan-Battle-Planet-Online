@@ -18,6 +18,7 @@ import { StatusChip, Tabs } from "../design-system/primitives";
 import { InspectorModal } from "./InspectorModal";
 import { ResponsiveCardImage } from "./ResponsiveCardImage";
 import styles from "./CardInspector.module.css";
+import { MotionValue } from "../design-system/MotionValue";
 
 type SharedInspectorProps = {
   rules: readonly ReferenceEntry[];
@@ -91,7 +92,7 @@ function CollectionPanel({
             <span>{field[0].toUpperCase() + field.slice(1)}</span>
             <div>
               <button type="button" aria-label={`Decrease ${field} copies`} disabled={!entry[field]} onClick={() => onChange?.(activeId, field, -1)}>−</button>
-              <strong>{entry[field]}</strong>
+              <strong><MotionValue value={entry[field]} /></strong>
               <button type="button" aria-label={`Increase ${field} copies`} onClick={() => onChange?.(activeId, field, 1)}>+</button>
             </div>
           </div>
@@ -395,6 +396,7 @@ export function CardInspector(props: InspectorProps) {
         ))}
       </Tabs>
       <div className={styles.body} id={panelId} role="tabpanel" aria-live="polite">
+        <div key={effectiveTab} data-ui="inspector-tab-content">
         {effectiveTab === "overview" && displayedCard && <CardOverview card={displayedCard} hasFusion={hasFusion} fusionFace={fusionFace} onToggleFusion={() => setFusionFace((face) => face === "a" ? "b" : "a")} />}
         {effectiveTab === "overview" && core && displayedCore && <CoreOverview core={core} displayedCore={displayedCore} />}
         {effectiveTab === "rules" && (
@@ -432,6 +434,7 @@ export function CardInspector(props: InspectorProps) {
         {effectiveTab === "collection" && collectionEnabled && (
           <CollectionPanel ids={collectionIds} collection={collection} onChange={onCollectionChange} />
         )}
+        </div>
       </div>
     </>
   );

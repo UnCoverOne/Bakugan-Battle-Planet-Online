@@ -18,6 +18,7 @@ import { updateCollection } from "../../lib/collection";
 import { useAppFields } from "../application/AppProvider";
 import compendiumStyles from "./CompendiumScreen.module.css";
 import styles from "./CollectionScreen.module.css";
+import { MotionValue } from "../design-system/MotionValue";
 
 import { collectionIdentityIndex } from "../../lib/catalogue-index";
 
@@ -236,7 +237,7 @@ export function CollectionScreen() {
         {selectedCard && <CardInspector card={selectedCard} allCards={CARDS} rules={[...ruleReferences, ...GLOSSARY_ENTRIES]} rulings={PUBLISHED_RULINGS} tab={inspectorTab} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
         {selectedCore && <CardInspector core={selectedCore} allCores={CORE_COMPENDIUM} rules={[...ruleReferences, ...GLOSSARY_ENTRIES]} rulings={PUBLISHED_RULINGS} tab={inspectorTab} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
       </div>
-      {filterSheetOpen && <div className={compendiumStyles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}><Surface as="aside" className={compendiumStyles.filterSheet} role="dialog" aria-modal="true" aria-label="Collection filters"><div className={compendiumStyles.filterHeading}><h2>Filters &amp; sort</h2><button type="button" onClick={() => setFilterSheetOpen(false)}>Close</button></div>{renderCollectionFilterControls()}<ActionButton onClick={() => setFilterSheetOpen(false)}>Show {results.length} items</ActionButton></Surface></div>}
+      {filterSheetOpen && <div data-ui="filter-backdrop" className={compendiumStyles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}><Surface as="aside" data-motion-surface="filter-sheet" className={compendiumStyles.filterSheet} role="dialog" aria-modal="true" aria-label="Collection filters"><div className={compendiumStyles.filterHeading}><h2>Filters &amp; sort</h2><button type="button" onClick={() => setFilterSheetOpen(false)}>Close</button></div>{renderCollectionFilterControls()}<ActionButton onClick={() => setFilterSheetOpen(false)}>Show {results.length} items</ActionButton></Surface></div>}
     </div>
   );
 }
@@ -253,11 +254,11 @@ function CollectionCore({ core, entry, selected, onSelect, onQuickChange }: { co
 
 function CollectionFooter({ label, owned, wishlist, standard, onQuickChange }: { label: string; owned: number; wishlist: number; standard: number; onQuickChange: (field: CollectionField, delta: number) => void }) {
   return <div className={styles.collectionFooter}>
-    <div className={styles.quickCounter} aria-label={`${label} owned copies`}>
+    <div data-ui="quantity-control" className={styles.quickCounter} aria-label={`${label} owned copies`}>
       <button type="button" aria-label={`Decrease standard copies for ${label}`} disabled={!standard} onClick={() => onQuickChange("standard", -1)}>−</button>
-      <span className={styles.collectionBadge}>{owned}</span>
+      <span className={styles.collectionBadge}><MotionValue value={owned} /></span>
       <button type="button" aria-label={`Increase standard copies for ${label}`} onClick={() => onQuickChange("standard", 1)}>+</button>
     </div>
-    {wishlist > 0 && <span className={styles.collectionBadge} aria-label={`${label} wishlist copies`}>★ {wishlist}</span>}
+    {wishlist > 0 && <span className={styles.collectionBadge} aria-label={`${label} wishlist copies`}>★ <MotionValue value={wishlist} /></span>}
   </div>;
 }

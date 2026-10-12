@@ -559,8 +559,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             )}
           </div>
           {filterSheetOpen && (
-            <div className={styles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}>
-              <Surface as="aside" className={styles.filterSheet} role="dialog" aria-modal="true" aria-label="Card filters">
+            <div data-ui="filter-backdrop" className={styles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}>
+              <Surface as="aside" data-motion-surface="filter-sheet" className={styles.filterSheet} role="dialog" aria-modal="true" aria-label="Card filters">
                 <FilterControls
                   state={state}
                   filterOptions={filterOptions}
@@ -658,8 +658,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             )}
           </div>
           {filterSheetOpen && (
-            <div className={styles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}>
-              <Surface as="aside" className={styles.filterSheet} role="dialog" aria-modal="true" aria-label="BakuCore filters">
+            <div data-ui="filter-backdrop" className={styles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}>
+              <Surface as="aside" data-motion-surface="filter-sheet" className={styles.filterSheet} role="dialog" aria-modal="true" aria-label="BakuCore filters">
                 <CoreFilterControls
                   state={coreState}
                   onChange={(patch) => navigateCore(patch, { resetPage: true })}

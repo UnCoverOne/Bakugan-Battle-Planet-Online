@@ -12,6 +12,7 @@ import { useAppFields } from "../application/AppProvider";
 import { formatTimestamp } from "../application/ui";
 import { CardGrid, StatusChip, Surface } from "../design-system/primitives";
 import styles from "./DeckRoutes.module.css";
+import { MotionValue } from "../design-system/MotionValue";
 import { type LibraryView, type DeckFormatFilter, DeckAreaHeader, DeckLibrarySkeleton, DeckToolbar, CharacterFan, DeckFactionSymbols } from "./DeckLibraryPresentation";
 import { deckFormatLabel, useCompetitiveRules, clone, useOnlineStatus, DeckState } from "./DeckRouteShared";
 import { type PublicDeckFavoriteMetadata, usePublicDeckCatalogue } from "./PublicDeckCatalogue";
@@ -243,6 +244,7 @@ function PublicDeckTile({
         <button onClick={onCopy} disabled={!legalFormats.length} title="Copy to My Decks">Copy</button>
         {favoriteAvailable && (
           <button
+            data-ui="favorite-button"
             className={styles.favoriteButton}
             aria-label={`${favorite.viewerHasFavorited ? "Remove" : "Add"} ${deck.name} ${favorite.viewerHasFavorited ? "from" : "to"} Favorites. ${favorite.favoriteCount} ${favorite.favoriteCount === 1 ? "favorite" : "favorites"}.`}
             aria-pressed={favorite.viewerHasFavorited}
@@ -250,8 +252,8 @@ function PublicDeckTile({
             title={`${favorite.viewerHasFavorited ? "Favorited" : "Favorite"} · ${favorite.favoriteCount}`}
             onClick={onFavorite}
           >
-            <span aria-hidden="true">{favorite.viewerHasFavorited ? "★" : "☆"}</span>
-            <span>{favorite.favoriteCount}</span>
+            <MotionValue value={favorite.viewerHasFavorited}><span aria-hidden="true">{favorite.viewerHasFavorited ? "★" : "☆"}</span></MotionValue>
+            <MotionValue value={favorite.favoriteCount}><span>{favorite.favoriteCount}</span></MotionValue>
           </button>
         )}
       </div>

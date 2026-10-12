@@ -26,6 +26,7 @@ import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import { ActionButton, Field, StatusChip, Tabs } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import styles from "./DeckRoutes.module.css";
+import { MotionValue } from "../design-system/MotionValue";
 import { useCompetitiveRules, clone, blankDraft, DeckState } from "./DeckRouteShared";
 import { BUILDER_RULE_REFERENCES } from "./DeckInspectorReferences";
 
@@ -452,7 +453,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
         <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
         <StatusChip tone={report.isLegal ? "success" : "danger"}>{report.isLegal ? "Legal" : `${report.issues.length} issues`}</StatusChip>
         <span className={`${styles.saveState} ${styles[`saveState_${saveState}`]}`}>
-          {saveState === "error" ? "Draft not saved" : saveState === "dirty" ? "Saving draft…" : "Draft saved locally"}
+          <MotionValue value={saveState} kind="status">{saveState === "error" ? "Draft not saved" : saveState === "dirty" ? "Saving draft…" : "Draft saved locally"}</MotionValue>
         </span>
         <ActionButton disabled={saveState === "error"} onClick={openSaveDialog}>Save Deck</ActionButton>
       </header>
@@ -464,7 +465,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
         ))}
       </Tabs>
       <div className={styles.builderLayout}>
-        <section className={`${styles.builderGallery} ${builderView !== "gallery" ? styles.mobileHidden : ""}`}>
+        <section data-ui="builder-panel" data-active={builderView === "gallery"} className={`${styles.builderGallery} ${builderView !== "gallery" ? styles.mobileHidden : ""}`}>
           <div className={styles.builderSideTitle}>
             <div><span>Collection</span><h2>Card Gallery</h2></div>
             <StatusChip>{galleryItems.length} shown</StatusChip>
@@ -531,7 +532,7 @@ export function DeckBuilderScreen({ id, returnTo: requestedReturn }: { id: strin
           )}
         </section>
 
-        <aside className={`${styles.builderCurrentDeck} ${builderView !== "deck" ? styles.mobileHidden : ""}`}>
+        <aside data-ui="builder-panel" data-active={builderView === "deck"} className={`${styles.builderCurrentDeck} ${builderView !== "deck" ? styles.mobileHidden : ""}`}>
           <section className={styles.builderDeckSection}>
             <BuilderRequirementHeader
               title="Bakugan Character Cards"
@@ -991,9 +992,9 @@ function BuilderGalleryCard({
         <strong>{item.name}</strong>
         <span>{metadata}</span>
       </div>
-      <div className={styles.builderQuantity}>
+      <div data-ui="quantity-control" className={styles.builderQuantity}>
         <button type="button" disabled={item.count === 0} onClick={() => onAdjust(-1)} aria-label={`Remove ${item.name}`}>−</button>
-        <strong aria-label={`${item.count} copies in deck`}>{item.count}</strong>
+        <strong aria-label={`${item.count} copies in deck`}><MotionValue value={item.count} /></strong>
         <button type="button" disabled={!canAdd} onClick={() => onAdjust(1)} aria-label={`Add ${item.name}`}>+</button>
       </div>
     </article>

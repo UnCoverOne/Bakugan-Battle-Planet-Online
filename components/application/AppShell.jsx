@@ -410,7 +410,7 @@ export function AppShell({ children }) {
         />
       )}
       {toast && (
-        <div className="toast" role="status">
+        <div key={toast} className="toast" role="status">
           {toast}
         </div>
       )}
