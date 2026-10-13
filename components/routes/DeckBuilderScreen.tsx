@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
 import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, FACTION_SYMBOLS, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
 import { cardArtSource } from "../../lib/content/card-art";
+import { createCoreAdditionGuard } from "../../lib/builder-core-selection";
 import { builderSortOptions, normalizeBuilderSort, sortBuilderItems, type BuilderCategory, type BuilderSort, type BuilderGalleryItem } from "../../lib/builder-sorting";
 import { BAKUGAN, CARD_BY_ID, CARDS, CORES, validateDeck, type DeckRecord } from "../../lib/data";
 import type { DeckValidationResult } from "../../lib/deck-validation";
@@ -366,6 +367,9 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   )), [deckFilters, deckQuery, deckSort, grouped]);
 
   const requiredCoreTypes = report.requiredCoreTypes;
+  const canAddCore = useMemo(() => createCoreAdditionGuard(
+    deck.coreIds, requiredCoreTypes, deck.bakuganIds.length > 0, deck.format === "singleton", CORES,
+  ), [deck.coreIds, requiredCoreTypes, deck.bakuganIds.length, deck.format]);
   const selectedCoreSlots = useMemo(() => {
     const remaining = [...deck.coreIds];
     const slots = requiredCoreTypes.map((type) => {
@@ -405,8 +409,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   };
   const adjustCore = (key: string, amount: number) => {
     const next = [...deck.coreIds];
-    const limit = deck.format === "singleton" ? 1 : 6;
-    if (amount > 0 && next.length < 6 && next.filter((candidate) => candidate === key).length < limit) next.push(key);
+    if (amount > 0 && canAddCore(key)) next.push(key);
     if (amount < 0) {
       const index = next.lastIndexOf(key);
       if (index >= 0) next.splice(index, 1);
@@ -425,10 +428,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   };
   const canAddGalleryItem = (item: BuilderGalleryItem) => {
     if (item.kind === "character") return item.count === 0 && deck.bakuganIds.length < 3;
-    if (item.kind === "core") {
-      const limit = deck.format === "singleton" ? 1 : 6;
-      return deck.coreIds.length < 6 && item.count < limit;
-    }
+    if (item.kind === "core") return canAddCore(item.id);
     const limit = deck.format === "singleton" ? 1 : 3;
     return deck.cardIds.length < mainDeckMaximum && item.count < limit;
   };
