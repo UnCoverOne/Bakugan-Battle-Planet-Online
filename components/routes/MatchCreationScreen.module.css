@@ -413,6 +413,11 @@
 }
 
 @media (max-width: 900px) {
+  /* Keep the artwork and gradients, but avoid fixed-background repaints on mobile. */
+  .route {
+    background-attachment: scroll;
+  }
+
   .hero {
     min-height: 0;
     grid-template-columns: 1fr;
