@@ -1332,6 +1332,16 @@
   font-size: var(--type-meta);
 }
 
+.builderGalleryIdentity .builderRestriction {
+  max-width: 100%;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  color: var(--text-primary);
+  font-size: .7rem;
+  line-height: 1.4;
+}
+
 .builderQuantity {
   display: grid;
   grid-template-columns: 2.8rem minmax(2.8rem, 1fr) 2.8rem;

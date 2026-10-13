@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
 import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, FACTION_SYMBOLS, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
 import { cardArtSource } from "../../lib/content/card-art";
+import { createBuilderCardControls } from "../../lib/builder-card-selection";
 import { createCoreAdditionGuard } from "../../lib/builder-core-selection";
 import { builderSortOptions, normalizeBuilderSort, sortBuilderItems, type BuilderCategory, type BuilderSort, type BuilderGalleryItem } from "../../lib/builder-sorting";
 import { BAKUGAN, CARD_BY_ID, CARDS, CORES, validateDeck, type DeckRecord } from "../../lib/data";
@@ -66,9 +67,6 @@ const CORE_BACK_IMAGES: Record<string, string> = {
   Helix: "/assets/bakucores/backs/helix.png",
 };
 
-function useCompetitiveDeckSize() {
-  return useCompetitiveRules().deckSize;
-}
 
 export function DeckBuilderScreen({ id, returnTo }: { id: string; returnTo?: string }) {
   const { authUser } = useAppFields(["authUser"]);
@@ -99,7 +97,9 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     promptAccount,
     catalogueRevision,
   } = useAppFields(["decks", "setDecks", "builderDeck", "setBuilderDeck", "setSelectedDeckId", "storageHealth", "notify", "promptAccount", "catalogueRevision"]);
-  const competitiveDeckSize = useCompetitiveDeckSize();
+  const competitiveRules = useCompetitiveRules();
+  const { deckSize: competitiveDeckSize, restrictions: competitiveRestrictions } = competitiveRules;
+  const competitiveRulesReady = !competitiveRules.loading && !competitiveRules.error;
   const adminPublicId = id.startsWith("admin-public:") ? id.slice("admin-public:".length) : null;
   const adminAiId = id.startsWith("admin-ai:") ? id.slice("admin-ai:".length) : null;
   const adminOfflineId = id.startsWith("admin-offline:") ? id.slice("admin-offline:".length) : null;
@@ -262,8 +262,11 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
       factions: [...new Set(next.bakuganIds.map((key) => BAKUGAN.find((item) => item.id === key)?.faction).filter(Boolean))] as string[],
     });
   };
-  const report = useMemo(() => validateDeck(deck, [], competitiveDeckSize), [competitiveDeckSize, deck]);
+  const report = useMemo(() => validateDeck(deck, competitiveRestrictions, competitiveDeckSize), [competitiveDeckSize, competitiveRestrictions, deck]);
   const mainDeckMaximum = deck.format === "competitive" ? competitiveDeckSize : 40;
+  const cardControls = useMemo(() => createBuilderCardControls(
+    deck.cardIds, CARD_BY_ID, deck.format, competitiveRestrictions, mainDeckMaximum, competitiveRulesReady,
+  ), [deck.cardIds, deck.format, competitiveRestrictions, mainDeckMaximum, competitiveRulesReady]);
   const cardCounts = useMemo(() => frequencyMap(deck.cardIds), [deck.cardIds]);
   const coreCounts = useMemo(() => frequencyMap(deck.coreIds), [deck.coreIds]);
   const grouped = useMemo(() => [...cardCounts].map(([key, count]) => ({
@@ -387,8 +390,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
 
   const adjustCard = (key: string, amount: number) => {
     const next = [...deck.cardIds];
-    const limit = deck.format === "singleton" ? 1 : 3;
-    if (amount > 0 && next.length < mainDeckMaximum && next.filter((candidate) => candidate === key).length < limit) next.push(key);
+    if (amount > 0 && cardControls.canAdd(key)) next.push(key);
     if (amount < 0) {
       const index = next.lastIndexOf(key);
       if (index >= 0) next.splice(index, 1);
@@ -429,8 +431,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   const canAddGalleryItem = (item: BuilderGalleryItem) => {
     if (item.kind === "character") return item.count === 0 && deck.bakuganIds.length < 3;
     if (item.kind === "core") return canAddCore(item.id);
-    const limit = deck.format === "singleton" ? 1 : 3;
-    return deck.cardIds.length < mainDeckMaximum && item.count < limit;
+    return cardControls.canAdd(item.id);
   };
   const activeGalleryFilterCount = activeCardFilterCount(galleryFilters, galleryFilterFacets);
   const activeDeckFilterCount = activeCardFilterCount(deckFilters, BUILDER_MAIN_DECK_FILTER_FACETS);
@@ -442,7 +443,11 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   };
 
   const save = async () => {
-    const latest = validateDeck(deck, [], competitiveDeckSize);
+    if (deck.format === "competitive" && !competitiveRulesReady) {
+      notify(competitiveRules.error ?? "Wait for competitive rules to finish loading before saving.");
+      return;
+    }
+    const latest = validateDeck(deck, competitiveRestrictions, competitiveDeckSize);
     const name = saveName.trim();
     if (!name) {
       notify("Enter a deck name before saving.");
@@ -517,7 +522,10 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         <div className={styles.builderDeckIdentity}><span>{administratorEdit ? "Administrator Edit" : "Edit Deck"}</span><strong>{deck.name}</strong></div>
         <label className={styles.builderFormat}><span>Format</span><select aria-label="Deck format" value={deck.format ?? "standard"} onChange={(event) => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}><option value="standard">Standard</option><option value="singleton">Singleton</option><option value="competitive">Competitive</option></select></label>
         <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
-        <StatusChip tone={report.isLegal ? "success" : "danger"}>{report.isLegal ? "Legal" : `${report.issues.length} issues`}</StatusChip>
+        <StatusChip tone={deck.format === "competitive" && !competitiveRulesReady ? "info" : report.isLegal ? "success" : "danger"}>
+          {deck.format === "competitive" && !competitiveRulesReady ? competitiveRules.error ? "Competitive rules unavailable" : "Checking competitive rules…" : report.isLegal ? "Legal" : `${report.issues.length} issues`}
+        </StatusChip>
+        {deck.format === "competitive" && competitiveRules.error && <ActionButton tone="quiet" onClick={competitiveRules.retry}>Retry rules</ActionButton>}
         <span className={`${styles.saveState} ${styles[`saveState_${saveState}`]}`}>
           <MotionValue value={saveState} kind="status">{saveState === "error" ? "Draft not saved" : saveState === "dirty" ? "Saving draft…" : "Draft saved locally"}</MotionValue>
         </span>
@@ -579,6 +587,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                   key={`${item.kind}-${item.id}`}
                   item={item}
                   canAdd={canAddGalleryItem(item)}
+                  restriction={item.kind === "card" ? cardControls.restrictionLabel(item.id) : undefined}
                   onInspect={() => item.kind === "core" ? inspectCore(item.id) : inspectCard(item.card)}
                   onAdjust={(amount) => adjustGalleryItem(item, amount)}
                 />
@@ -690,7 +699,8 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                   <BuilderGalleryCard
                     key={card.catalogId}
                     item={{ kind: "card", id: card.catalogId, name: card.displayName, card, count }}
-                    canAdd={count < (deck.format === "singleton" ? 1 : 3) && deck.cardIds.length < mainDeckMaximum}
+                    canAdd={cardControls.canAdd(card.catalogId)}
+                    restriction={cardControls.restrictionLabel(card.catalogId)}
                     onInspect={() => inspectCard(card)}
                     onAdjust={(amount) => adjustCard(card.catalogId, amount)}
                   />
@@ -1052,11 +1062,13 @@ function BakuCoreBack({ type }: { type: string }) {
 function BuilderGalleryCard({
   item,
   canAdd,
+  restriction,
   onInspect,
   onAdjust,
 }: {
   item: BuilderGalleryItem;
   canAdd: boolean;
+  restriction?: string;
   onInspect: () => void;
   onAdjust: (amount: number) => void;
 }) {
@@ -1076,6 +1088,7 @@ function BuilderGalleryCard({
       <div className={styles.builderGalleryIdentity}>
         <strong>{item.name}</strong>
         <span>{metadata}</span>
+        {restriction && <StatusChip className={styles.builderRestriction} tone={restriction.startsWith("Banned") ? "danger" : "info"} title={restriction}>{restriction}</StatusChip>}
       </div>
       <div data-ui="quantity-control" className={styles.builderQuantity}>
         <button type="button" disabled={item.count === 0} onClick={() => onAdjust(-1)} aria-label={`Remove ${item.name}`}>−</button>

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { STARTER_DECKS, type DeckFormat, type DeckRecord } from "../../lib/data";
 import type { DeckRestriction } from "../../lib/deck-validation";
 import { uniqueDeckName } from "../../lib/deck-transfer";
-import { cachedResponse } from "../../lib/response-cache";
+import { cachedResponse, invalidateResponse } from "../../lib/response-cache";
 import { Surface } from "../design-system/primitives";
 import styles from "./DeckRoutes.module.css";
 
@@ -13,26 +13,37 @@ export const deckFormatLabel = (format: DeckFormat) => (
 );
 
 export function useCompetitiveRules() {
-  const [rules, setRules] = useState<{ deckSize: number; restrictions: DeckRestriction[] }>({
+  const [attempt, setAttempt] = useState(0);
+  const [rules, setRules] = useState<{ deckSize: number; restrictions: DeckRestriction[]; loading: boolean; error: string | null }>({
     deckSize: 50,
     restrictions: [],
+    loading: true,
+    error: null,
   });
   useEffect(() => {
     let active = true;
     cachedResponse<{ ruleset?: { deckSize?: number; restrictions?: DeckRestriction[] } }>("competitive-rules", "/api/ranked?action=rules")
       .then((result) => {
-        const deckSize = Number(result.ruleset?.deckSize);
+        if (!result.ruleset || !Array.isArray(result.ruleset.restrictions)) throw new Error("Competitive rules could not be loaded.");
+        const deckSize = Number(result.ruleset.deckSize);
         if (active) {
           setRules({
             deckSize: Number.isInteger(deckSize) && deckSize > 0 ? deckSize : 50,
-            restrictions: Array.isArray(result.ruleset?.restrictions) ? result.ruleset.restrictions : [],
+            restrictions: result.ruleset.restrictions,
+            loading: false,
+            error: null,
           });
         }
       })
-      .catch(() => {});
+      .catch(() => { if (active) setRules(current => ({ ...current, loading: false, error: "Competitive rules unavailable. Retry before adding cards or saving." })); });
     return () => { active = false; };
+  }, [attempt]);
+  const retry = useCallback(() => {
+    invalidateResponse("competitive-rules");
+    setRules(current => ({ ...current, loading: true, error: null }));
+    setAttempt(current => current + 1);
   }, []);
-  return rules;
+  return { ...rules, retry };
 }
 
 export const clone = (deck: DeckRecord): DeckRecord => ({

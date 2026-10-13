@@ -1,5 +1,8 @@
 export type DeckValidationSection = "identity" | "team" | "cores" | "mainDeck";
 
+export const deckConstructionIdentity = (card: ValidationCard) => card.constructionIdentity
+  ?? `${card.name ?? card.displayName ?? card.catalogId}|${card.effect ?? ""}`;
+
 export type DeckValidationIssueCode =
   | "identity.name_required"
   | "team.exactly_three"
@@ -213,10 +216,7 @@ export function validateDeckConstruction(
     ));
   }
 
-  const constructionKeys = cards.map((card) => (
-    card.constructionIdentity
-    ?? `${card.name ?? card.displayName ?? card.catalogId}|${card.effect ?? ""}`
-  ));
+  const constructionKeys = cards.map(deckConstructionIdentity);
   const overCardLimit = [...frequencies(constructionKeys)].find(([, count]) => count > cardCopyLimit);
   if (overCardLimit) {
     const offendingIndex = constructionKeys.indexOf(overCardLimit[0]);
