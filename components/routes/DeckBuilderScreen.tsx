@@ -4,7 +4,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
+import { memo, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
 import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, FACTION_SYMBOLS, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
 import { cardArtSource } from "../../lib/content/card-art";
 import { createBuilderCardControls } from "../../lib/builder-card-selection";
@@ -12,7 +12,7 @@ import { createCoreAdditionGuard } from "../../lib/builder-core-selection";
 import { builderSortOptions, normalizeBuilderSort, sortBuilderItems, type BuilderCategory, type BuilderSort, type BuilderGalleryItem } from "../../lib/builder-sorting";
 import { BAKUGAN, CARD_BY_ID, CARDS, CORES, validateDeck, type DeckRecord } from "../../lib/data";
 import type { DeckValidationResult } from "../../lib/deck-validation";
-import type { GameCard } from "../../lib/game";
+import type { Core, GameCard } from "../../lib/game";
 import type { CardInspectorTab } from "../../lib/compendium";
 import { PUBLISHED_RULINGS } from "../../lib/reference";
 import { DECK_LIMIT } from "../../lib/deck-transfer";
@@ -586,6 +586,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                 <BuilderGalleryCard
                   key={`${item.kind}-${item.id}`}
                   item={item}
+                  catalogueRevision={catalogueRevision}
                   canAdd={canAddGalleryItem(item)}
                   restriction={item.kind === "card" ? cardControls.restrictionLabel(item.id) : undefined}
                   onInspect={() => item.kind === "core" ? inspectCore(item.id) : inspectCard(item.card)}
@@ -1059,14 +1060,38 @@ function BakuCoreBack({ type }: { type: string }) {
   );
 }
 
+/*
+ * Keep full-resolution card and BakuCore art mounted while deck quantity
+ * controls update. Admin overrides mutate shared catalogue objects, so
+ * catalogueRevision is included in the memo's shallow-comparison props.
+ */
+const MemoizedBuilderGalleryArtwork = memo(function BuilderGalleryArtwork({
+  kind,
+  card,
+  core,
+  name,
+}: {
+  kind: BuilderGalleryItem["kind"];
+  card?: GameCard;
+  core?: Core;
+  name: string;
+  catalogueRevision: number;
+}) {
+  if (kind === "core" && core) return <BakuCoreArt core={core} alt={name} loading="lazy" decoding="async" />;
+  if (card) return <ResponsiveCardImage card={card} presentation="tile" />;
+  return null;
+});
+
 function BuilderGalleryCard({
   item,
+  catalogueRevision,
   canAdd,
   restriction,
   onInspect,
   onAdjust,
 }: {
   item: BuilderGalleryItem;
+  catalogueRevision: number;
   canAdd: boolean;
   restriction?: string;
   onInspect: () => void;
@@ -1081,9 +1106,13 @@ function BuilderGalleryCard({
   return (
     <article className={`${styles.builderGalleryCard} ${item.kind === "core" ? styles.builderGalleryCore : ""}`}>
       <button className={styles.builderCardArtButton} type="button" onClick={onInspect} aria-label={`Inspect ${item.name}`}>
-        {item.kind === "core"
-          ? <BakuCoreArt core={item.core} alt={item.name} />
-          : <ResponsiveCardImage card={item.card} presentation="tile" />}
+        <MemoizedBuilderGalleryArtwork
+          kind={item.kind}
+          card={item.kind === "core" ? undefined : item.card}
+          core={item.kind === "core" ? item.core : undefined}
+          name={item.name}
+          catalogueRevision={catalogueRevision}
+        />
       </button>
       <div className={styles.builderGalleryIdentity}>
         <strong>{item.name}</strong>

@@ -140,3 +140,19 @@ test("local section transitions retain focus while genuine workspace navigation 
   assert.match(browser, /if \(section !== "cards" \|\| searchQuery !== state\.q\) return/);
   assert.match(browser, /if \(!localSearchEditRef\.current \|\| searchQuery === currentQuery\) return/);
 });
+
+test("mobile scroll treatment avoids fixed background repaints and bottom-bar blurring", () => {
+  const css = source("app/navigation-motion.css");
+  assert.match(css, /background-attachment:\s*scroll/);
+  assert.match(css, /\.mobile-bottom-nav[\s\S]*backdrop-filter:\s*none/);
+});
+
+test("builder artwork memo invalidates on catalogue updates and retains full scans", () => {
+  const builder = source("components/routes/DeckBuilderScreen.tsx");
+  const cardArt = source("components/cards/ResponsiveCardImage.tsx");
+  assert.match(builder, /const MemoizedBuilderGalleryArtwork = memo/);
+  assert.match(builder, /catalogueRevision=\{catalogueRevision\}/);
+  assert.match(builder, /<ResponsiveCardImage card=\{card\} presentation="tile"/);
+  assert.match(cardArt, /const full = cardArtSource\(card, "full"\)/);
+  assert.match(cardArt, /: full;/);
+});

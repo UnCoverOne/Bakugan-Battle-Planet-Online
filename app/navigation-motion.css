@@ -67,3 +67,20 @@
     animation: bbp-motion-fade 120ms ease-out;
   }
 }
+
+/*
+ * Mobile scrolling: the app shell uses layered images, and the bottom bar
+ * is already 97% opaque. Avoid viewport-fixed background repaints and an
+ * unnecessary always-on blur without changing the artwork or layout.
+ */
+@media (max-width: 820px) {
+  .app-shell,
+  .app-shell.secondary-route {
+    background-attachment: scroll;
+  }
+
+  .app-shell:not(.immersive-match) .mobile-bottom-nav {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

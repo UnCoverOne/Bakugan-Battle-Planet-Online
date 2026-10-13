@@ -5,7 +5,7 @@ import { cachedResponse, publicDeckResponseKey } from "../../lib/response-cache"
 import { OriginalImage } from "@/components/media/OriginalImage";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { achievementsFor } from "../../lib/achievements";
 import { rememberAccountIntent } from "../../lib/account-intent";
 import { activeSessionPresentation } from "../../lib/active-session";
@@ -64,11 +64,15 @@ export function DashboardScreen() {
   const heroSource = useHighResolutionHero();
   const [remotePublicDecks, setRemotePublicDecks] = useState<DeckRecord[]>([]);
   const isGuest = !authUser;
-  const completedGames = accountStatMatches(history);
-  const effectiveLifetimeStats = authUser
-    ? lifetimeMatchStatsFromHistory(history)
-    : lifetimeStats;
-  const achievements = achievementsFor(decks, history, effectiveLifetimeStats);
+  const completedGames = useMemo(() => accountStatMatches(history), [history]);
+  const effectiveLifetimeStats = useMemo(
+    () => authUser ? lifetimeMatchStatsFromHistory(history) : lifetimeStats,
+    [authUser, history, lifetimeStats],
+  );
+  const achievements = useMemo(
+    () => achievementsFor(decks, history, effectiveLifetimeStats),
+    [decks, history, effectiveLifetimeStats],
+  );
   const unlockedAchievements = achievements.filter((achievement) => achievement.unlocked);
   const incompleteAchievements = achievements
     .filter((achievement) => !achievement.unlocked)
@@ -99,9 +103,12 @@ export function DashboardScreen() {
     };
   }, [authUser?.id]);
 
-  const publicDecks = [...remotePublicDecks, ...PUBLIC_DECKS]
-    .filter((deck, index, all) => all.findIndex((candidate) => candidate.id === deck.id) === index)
-    .sort((a, b) => Date.parse(b.publishedAt ?? b.updatedAt) - Date.parse(a.publishedAt ?? a.updatedAt));
+  const publicDecks = useMemo(
+    () => [...remotePublicDecks, ...PUBLIC_DECKS]
+      .filter((deck, index, all) => all.findIndex((candidate) => candidate.id === deck.id) === index)
+      .sort((a, b) => Date.parse(b.publishedAt ?? b.updatedAt) - Date.parse(a.publishedAt ?? a.updatedAt)),
+    [remotePublicDecks],
+  );
   const featured = publicDecks[0];
   const featuredLead = featured ? deckLeadCard(featured) : undefined;
   const previewSeen = new Set<string>();
