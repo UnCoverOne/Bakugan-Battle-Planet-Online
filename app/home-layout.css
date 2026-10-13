@@ -618,6 +618,8 @@
   .bakugan-home-hero-copy .hero-actions { margin-top: 1rem; }
   .bakugan-home-hero-art {
     min-height: 285px;
+    /* Let both the artwork and its background reach the viewport edge. */
+    margin-right: -1rem;
     clip-path: polygon(0 14px, 14px 0, 100% 0, 100% 100%, 0 100%);
   }
   .bakugan-home-hero-art img { top: -3%; right: -6%; height: 150%; }
@@ -645,10 +647,26 @@
 }
 
 @media (max-width: 520px) {
-  .bakugan-home-hero-copy .hero-actions { display: grid; grid-template-columns: 1.18fr .82fr; }
-  .bakugan-home-hero-copy .hex-button,
-  .bakugan-home-hero-copy .hex-button.red,
-  .bakugan-home-hero-copy .hex-button.ghost { min-width: 0; }
+  .bakugan-home-hero-copy .hero-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1.18fr) minmax(0, .82fr);
+    gap: .5rem;
+  }
+  .bakugan-home-hero-copy .hero-actions .play-button-glow {
+    display: flex;
+    min-width: 0;
+    width: 100%;
+  }
+  /* Override the later desktop min-width and padding declarations on both CTAs. */
+  .bakugan-home-hero-copy .hero-actions .hex-button.red,
+  .bakugan-home-hero-copy .hero-actions .hex-button.ghost {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    gap: .4rem;
+    padding-inline: .75rem 1.15rem;
+    font-size: clamp(.85rem, 4vw, 1.05rem);
+  }
   .bakugan-home-hero-art { min-height: 235px; }
   .bakugan-home-hero-art img { right: -30%; height: 142%; }
   .home-feature-grid > .panel { min-height: 0; padding: .9rem; }
