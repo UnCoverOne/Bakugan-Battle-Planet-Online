@@ -102,17 +102,16 @@ test("team selection drives a removable faction filter and ordered BakuCore prev
   assert.match(route, /FACTION_SYMBOLS/);
 });
 
-test("Card Gallery tabs and both card collections provide search, Card ID sorting, filters, and responsive dialogs", async () => {
+test("Card Gallery tabs and both card collections provide search, category sorting, filters, and responsive dialogs", async () => {
   const [route, css] = await Promise.all([
     deckRouteSource(),
     read("components/routes/DeckRoutes.module.css"),
   ]);
   assert.ok((route.match(/<BuilderToolbar/g) ?? []).length >= 2);
   for (const tab of ["Character Cards", "Cores", "Main Deck Cards"]) assert.match(route, new RegExp(tab));
-  assert.match(route, /\["id-asc", "Card ID"\]/);
-  assert.match(route, /compareCardCollectorOrder\(left\.card, right\.card\)/);
-  assert.match(route, /restoredChoice\("gallerySort",.*"id-asc"\)/);
-  assert.match(route, /left\.id\.localeCompare\(right\.id/);
+  assert.match(route, /builderSortOptions\(activeMenu.surface/);
+  assert.match(route, /normalizeBuilderSort\(galleryCategory, restoredText\("gallerySort", "collector"\)\)/);
+  assert.match(route, /sortBuilderItems\(left, right, effectiveGallerySort/);
   assert.match(route, /surface: "gallery", panel: "sort"/);
   assert.match(route, /surface: "gallery", panel: "filter"/);
   assert.match(route, /surface: "deck", panel: "sort"/);

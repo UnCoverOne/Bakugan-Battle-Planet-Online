@@ -122,6 +122,16 @@ const searchableText = (card: GameCard) => {
 const costRank = (cost: GameCard["cost"]) => cost === "X" ? Number.POSITIVE_INFINITY : cost;
 const statRank = (value: number | null) => value ?? Number.NEGATIVE_INFINITY;
 
+export function compareCompendiumCards(left: GameCard, right: GameCard, sort: CompendiumSort) {
+  if (sort === "name-asc") return left.displayName.localeCompare(right.displayName);
+  if (sort === "name-desc") return right.displayName.localeCompare(left.displayName);
+  if (sort === "cost-asc") return costRank(left.cost) - costRank(right.cost) || left.displayName.localeCompare(right.displayName);
+  if (sort === "cost-desc") return costRank(right.cost) - costRank(left.cost) || left.displayName.localeCompare(right.displayName);
+  if (sort === "bpower-desc") return statRank(right.bPower) - statRank(left.bPower) || left.displayName.localeCompare(right.displayName);
+  if (sort === "damage-desc") return statRank(right.damage) - statRank(left.damage) || left.displayName.localeCompare(right.displayName);
+  return compareCardCollectorOrder(left, right);
+}
+
 export function filterAndSortCompendiumCards(
   cards: readonly GameCard[],
   state: CompendiumState,
@@ -134,15 +144,7 @@ export function filterAndSortCompendiumCards(
     (options.includeFusionBack || card.fusionFace !== "b")
     && cardMatchesFilters(card, state)
     && (!query || searchableText(card).includes(query))
-  )).toSorted((left, right) => {
-    if (state.sort === "name-asc") return left.displayName.localeCompare(right.displayName);
-    if (state.sort === "name-desc") return right.displayName.localeCompare(left.displayName);
-    if (state.sort === "cost-asc") return costRank(left.cost) - costRank(right.cost) || left.displayName.localeCompare(right.displayName);
-    if (state.sort === "cost-desc") return costRank(right.cost) - costRank(left.cost) || left.displayName.localeCompare(right.displayName);
-    if (state.sort === "bpower-desc") return statRank(right.bPower) - statRank(left.bPower) || left.displayName.localeCompare(right.displayName);
-    if (state.sort === "damage-desc") return statRank(right.damage) - statRank(left.damage) || left.displayName.localeCompare(right.displayName);
-    return compareCardCollectorOrder(left, right);
-  });
+  )).toSorted((left, right) => compareCompendiumCards(left, right, state.sort));
 }
 
 export function selectedCompendiumCard(cards: readonly GameCard[], identity: string) {
@@ -265,20 +267,22 @@ const coreNumberForSet = (core: Core, set: string) =>
 const coreSetRank = (core: Core, set: string) =>
   (core.printings?.some((printing) => printing.set === set) || (core.set ?? "Battle Brawlers") === set) ? 0 : 1;
 
+export function compareCompendiumCores(left: Core, right: Core, sort: CoreCompendiumSort, set = "All") {
+  if (sort === "type") return left.type.localeCompare(right.type) || coreNumberForSet(left, set) - coreNumberForSet(right, set);
+  if (sort === "bonus") return right.bonus - left.bonus || left.damageBonus - right.damageBonus || coreNumberForSet(left, set) - coreNumberForSet(right, set);
+  if (sort === "damage") return right.damageBonus - left.damageBonus || left.bonus - right.bonus || coreNumberForSet(left, set) - coreNumberForSet(right, set);
+  return coreSetRank(left, set) - coreSetRank(right, set)
+    || coreNumberForSet(left, set) - coreNumberForSet(right, set)
+    || left.id.localeCompare(right.id);
+}
+
 export function filterAndSortCompendiumCores(cores: readonly Core[], state: CoreCompendiumState) {
   const query = state.q.trim().toLowerCase();
   return cores.filter((core) => (
     coreMatchesSet(core, state.set)
     && (state.type === "All" || core.type === state.type)
     && (!query || coreSearchableText(core).includes(query))
-  )).toSorted((left, right) => {
-    if (state.sort === "type") return left.type.localeCompare(right.type) || coreNumberForSet(left, state.set) - coreNumberForSet(right, state.set);
-    if (state.sort === "bonus") return right.bonus - left.bonus || left.damageBonus - right.damageBonus || coreNumberForSet(left, state.set) - coreNumberForSet(right, state.set);
-    if (state.sort === "damage") return right.damageBonus - left.damageBonus || left.bonus - right.bonus || coreNumberForSet(left, state.set) - coreNumberForSet(right, state.set);
-    return coreSetRank(left, state.set) - coreSetRank(right, state.set)
-      || coreNumberForSet(left, state.set) - coreNumberForSet(right, state.set)
-      || left.id.localeCompare(right.id);
-  });
+  )).toSorted((left, right) => compareCompendiumCores(left, right, state.sort, state.set));
 }
 
 export function selectedCompendiumCore(cores: readonly Core[], identity: string) {

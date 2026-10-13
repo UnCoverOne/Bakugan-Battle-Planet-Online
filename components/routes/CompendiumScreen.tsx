@@ -42,40 +42,12 @@ import {
   type CardFilterFacet,
   type CardFilterOptionCatalogue,
 } from "../../lib/card-filters";
+import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS, CORE_SORT_LABELS } from "../../lib/catalogue-sorting";
 import styles from "./CompendiumScreen.module.css";
 
 const SEARCH_URL_DEBOUNCE_MS = 450;
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-const SORT_LABELS: Record<CompendiumState["sort"], string> = {
-  collector: "Collector number",
-  "name-asc": "Name A–Z",
-  "name-desc": "Name Z–A",
-  "cost-asc": "Energy low–high",
-  "cost-desc": "Energy high–low",
-  "bpower-desc": "B-Power high–low",
-  "damage-desc": "Damage high–low",
-};
-const CHARACTER_SORTS = new Set<CompendiumState["sort"]>([
-  "collector",
-  "name-asc",
-  "name-desc",
-  "bpower-desc",
-  "damage-desc",
-]);
-const NON_CHARACTER_SORTS = new Set<CompendiumState["sort"]>([
-  "collector",
-  "name-asc",
-  "name-desc",
-  "cost-asc",
-  "cost-desc",
-]);
-const CORE_SORT_LABELS: Record<CoreCompendiumState["sort"], string> = {
-  collector: "Collector number",
-  type: "Core type",
-  bonus: "B-Power high–low",
-  damage: "Damage high–low",
-};
 const CORE_SORT_OPTIONS: FilterOption[] = Object.entries(CORE_SORT_LABELS)
   .map(([value, label]) => ({ value, label }));
 

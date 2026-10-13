@@ -5,9 +5,9 @@ import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
-import { activeCardFilterCount, CARD_FILTER_LABELS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, FACTION_SYMBOLS, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
+import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, FACTION_SYMBOLS, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
 import { cardArtSource } from "../../lib/content/card-art";
-import { compareCardCollectorOrder } from "../../lib/content/catalogue";
+import { builderSortOptions, normalizeBuilderSort, sortBuilderItems, type BuilderCategory, type BuilderSort, type BuilderGalleryItem } from "../../lib/builder-sorting";
 import { BAKUGAN, CARD_BY_ID, CARDS, CORES, validateDeck, type DeckRecord } from "../../lib/data";
 import type { DeckValidationResult } from "../../lib/deck-validation";
 import type { GameCard } from "../../lib/game";
@@ -33,10 +33,6 @@ import { BUILDER_RULE_REFERENCES } from "./DeckInspectorReferences";
 
 type BuilderView = "gallery" | "deck";
 
-type BuilderCategory = "cards" | "characters" | "cores";
-
-type BuilderSort = "name-asc" | "name-desc" | "id-asc" | "cost-asc" | "cost-desc" | "count-desc";
-
 type BuilderMenu =
   | { surface: "gallery" | "deck"; panel: "filter" | "sort" }
   | { surface: "team" | "cores" | "mainDeck"; panel: "issues" }
@@ -45,11 +41,6 @@ type BuilderMenu =
 type BuilderInspection =
   | { kind: "card"; card: GameCard }
   | { kind: "core"; coreId: string };
-
-type BuilderGalleryItem =
-  | { kind: "card"; id: string; name: string; card: GameCard; count: number }
-  | { kind: "character"; id: string; name: string; card: GameCard; count: number }
-  | { kind: "core"; id: string; name: string; count: number };
 
 const BUILDER_MAIN_DECK_FILTER_FACETS: readonly CardFilterFacet[] = [
   "type",
@@ -77,29 +68,6 @@ const CORE_BACK_IMAGES: Record<string, string> = {
 function useCompetitiveDeckSize() {
   return useCompetitiveRules().deckSize;
 }
-
-const builderItemCost = (item: BuilderGalleryItem) => {
-  if (item.kind === "core" || typeof item.card.cost !== "number") return Number.MAX_SAFE_INTEGER;
-  return item.card.cost;
-};
-
-const sortBuilderItems = (left: BuilderGalleryItem, right: BuilderGalleryItem, sort: BuilderSort) => {
-  if (sort === "name-desc") return right.name.localeCompare(left.name);
-  if (sort === "id-asc") {
-    if (left.kind !== "core" && right.kind !== "core") {
-      return compareCardCollectorOrder(left.card, right.card)
-        || left.name.localeCompare(right.name);
-    }
-    return left.id.localeCompare(right.id, undefined, { numeric: true })
-      || left.name.localeCompare(right.name);
-  }
-  if (sort === "cost-asc" || sort === "cost-desc") {
-    const difference = builderItemCost(left) - builderItemCost(right);
-    return (sort === "cost-desc" ? -difference : difference) || left.name.localeCompare(right.name);
-  }
-  if (sort === "count-desc") return right.count - left.count || left.name.localeCompare(right.name);
-  return left.name.localeCompare(right.name);
-};
 
 export function DeckBuilderScreen({ id, returnTo }: { id: string; returnTo?: string }) {
   const { authUser } = useAppFields(["authUser"]);
@@ -159,8 +127,8 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   const deferredGalleryQuery = useDeferredValue(galleryQuery);
   const [deckQuery, setDeckQuery] = useState(() => restoredText("deckQuery", ""));
   const [galleryCategory, setGalleryCategory] = useState<BuilderCategory>(() => restoredChoice("galleryCategory", ["cards", "characters", "cores"], "characters"));
-  const [gallerySort, setGallerySort] = useState<BuilderSort>(() => restoredChoice("gallerySort", ["name-asc", "name-desc", "id-asc", "cost-asc", "cost-desc", "count-desc"], "id-asc"));
-  const [deckSort, setDeckSort] = useState<BuilderSort>(() => restoredChoice("deckSort", ["name-asc", "name-desc", "id-asc", "cost-asc", "cost-desc", "count-desc"], "name-asc"));
+  const [gallerySort, setGallerySort] = useState<BuilderSort>(() => normalizeBuilderSort(galleryCategory, restoredText("gallerySort", "collector")));
+  const [deckSort, setDeckSort] = useState<BuilderSort>(() => normalizeBuilderSort("cards", restoredText("deckSort", "name-asc")));
   const [galleryFilters, setGalleryFilters] = useState<CardFilterState>(() => restoredFilters("galleryFilters", createEmptyCardFilters({
     faction: [...new Set(deck.factions ?? [])],
   })));
@@ -310,6 +278,19 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
       type: shared.type.filter((option) => option.value !== "Character"),
     };
   }, [catalogueRevision]);
+  const galleryFilterOptions = useMemo<CardFilterOptionCatalogue>(() => galleryCategory === "cores"
+    ? { ...cardFilterOptions, set: CORE_SET_OPTIONS }
+    : cardFilterOptions, [cardFilterOptions, galleryCategory]);
+  const changeGalleryCategory = (next: BuilderCategory) => {
+    const nextSets = next === "cores" ? CORE_SET_OPTIONS : cardFilterOptions.set;
+    setGalleryFilters(current => ({ ...current, set: [...new Set(current.set.flatMap(value => {
+      const label = galleryFilterOptions.set.find(option => option.value === value)?.label;
+      const matching = nextSets.find(option => option.value === value || option.label === label);
+      return matching ? [matching.value] : [];
+    }))] }));
+    setGalleryCategory(next);
+  };
+  const effectiveGallerySort = normalizeBuilderSort(galleryCategory, gallerySort);
   const galleryFilterFacets = BUILDER_GALLERY_FILTER_FACETS[galleryCategory];
 
   const searchIndex = useMemo(() => {
@@ -340,13 +321,14 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         kind: "core" as const,
         id: core.id,
         name: core.name,
+        core,
         count: coreCounts.get(core.id) ?? 0,
       }));
     return items.filter((item) => {
       if (galleryCategory === "cards" && item.kind !== "card") return false;
       if (galleryCategory === "characters" && item.kind !== "character") return false;
       if (galleryCategory === "cores" && item.kind !== "core") return false;
-      const core = item.kind === "core" ? CORES.find((candidate) => candidate.id === item.id) : null;
+      const core = item.kind === "core" ? item.core : null;
       const card = item.kind === "core" ? null : item.card;
       const searchable = item.kind === "core"
         ? `${item.name} ${core?.type ?? ""}`
@@ -360,7 +342,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         if (!cardMatchesFilters(card, cardFilters)) return false;
       }
       return true;
-    }).sort((left, right) => sortBuilderItems(left, right, gallerySort)).slice(0, 240);
+    }).sort((left, right) => sortBuilderItems(left, right, effectiveGallerySort, galleryFilters.set.length === 1 ? galleryFilters.set[0] : "All")).slice(0, 240);
   }, [
     deck.bakuganIds,
     cardCounts,
@@ -370,7 +352,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     galleryCategory,
     galleryFilters,
     deferredGalleryQuery,
-    gallerySort,
+    effectiveGallerySort,
   ]);
 
   const mainDeckCards = useMemo(() => grouped.filter(({ card }) => {
@@ -564,7 +546,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                 type="button"
                 className={galleryCategory === value ? "active" : ""}
                 aria-pressed={galleryCategory === value}
-                onClick={() => setGalleryCategory(value)}
+                onClick={() => changeGalleryCategory(value)}
                 key={value}
               >
                 {label}
@@ -583,7 +565,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
             ariaLabel="Active Card Gallery filters"
             filters={galleryFilters}
             facets={galleryFilterFacets}
-            options={cardFilterOptions}
+            options={galleryFilterOptions}
             factionLabel={factionFilterAuto ? "Team faction" : undefined}
             onChange={(next, facet) => {
               if (facet === "faction") setFactionFilterAuto(false);
@@ -754,15 +736,8 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
           onClose={() => setActiveMenu(null)}
         >
           <div className={styles.builderOptionList}>
-            {([
-              ["name-asc", "Name A–Z"],
-              ["name-desc", "Name Z–A"],
-              ["id-asc", "Card ID"],
-              ["cost-asc", "Energy low–high"],
-              ["cost-desc", "Energy high–low"],
-              ["count-desc", "Copies high–low"],
-            ] as Array<[BuilderSort, string]>).map(([value, label]) => {
-              const selected = activeMenu.surface === "gallery" ? gallerySort === value : deckSort === value;
+            {builderSortOptions(activeMenu.surface === "gallery" ? galleryCategory : "cards").map(([value, label]) => {
+              const selected = activeMenu.surface === "gallery" ? effectiveGallerySort === value : deckSort === value;
               return (
                 <button
                   className={selected ? styles.builderOptionSelected : ""}
@@ -803,7 +778,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
           <CardFilterPanel
             filters={activeMenu.surface === "gallery" ? galleryFilters : deckFilters}
             facets={activeMenu.surface === "gallery" ? galleryFilterFacets : BUILDER_MAIN_DECK_FILTER_FACETS}
-            options={cardFilterOptions}
+            options={activeMenu.surface === "gallery" ? galleryFilterOptions : cardFilterOptions}
             onChange={(next, facet) => {
               if (activeMenu.surface === "gallery") {
                 if (facet === "faction") setFactionFilterAuto(false);
@@ -1085,7 +1060,7 @@ function BuilderGalleryCard({
   onInspect: () => void;
   onAdjust: (amount: number) => void;
 }) {
-  const core = item.kind === "core" ? CORES.find((candidate) => candidate.id === item.id) : null;
+  const core = item.kind === "core" ? item.core : null;
   const metadata = item.kind === "core"
     ? `${core?.set === "Armored Alliance" ? "AA" : "BB"} #${core?.number ?? ""} · ${core?.type ?? ""}`
     : item.kind === "character"
@@ -1094,8 +1069,8 @@ function BuilderGalleryCard({
   return (
     <article className={`${styles.builderGalleryCard} ${item.kind === "core" ? styles.builderGalleryCore : ""}`}>
       <button className={styles.builderCardArtButton} type="button" onClick={onInspect} aria-label={`Inspect ${item.name}`}>
-        {item.kind === "core" && core
-          ? <BakuCoreArt core={core} alt={item.name} />
+        {item.kind === "core"
+          ? <BakuCoreArt core={item.core} alt={item.name} />
           : <ResponsiveCardImage card={item.card} presentation="tile" />}
       </button>
       <div className={styles.builderGalleryIdentity}>

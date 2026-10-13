@@ -255,7 +255,7 @@ test("Collection reuses the complete filter controls in desktop and mobile surfa
 
 test("Compendium renders the complete gallery and reusable inspector contracts", async () => {
   const [route, css, inspector, inspectorCss, modalCss, image] = await Promise.all([
-    read("components/routes/CompendiumScreen.tsx"),
+    Promise.all([read("components/routes/CompendiumScreen.tsx"), read("lib/catalogue-sorting.ts")]).then(parts => parts.join("\n")),
     read("components/routes/CompendiumScreen.module.css"),
     read("components/cards/CardInspector.tsx"),
     read("components/cards/CardInspector.module.css"),
