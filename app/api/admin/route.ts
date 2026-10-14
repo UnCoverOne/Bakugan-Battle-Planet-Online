@@ -19,11 +19,14 @@ import {
   deleteAiDeck,
   deletePublicDeck,
   getAdministratorAiVisibility,
+  listBakuganRollingSettings,
   listAiDecks,
   listManagedPublicDecks,
   listOfflinePublicDeckSlots,
+  resetBakuganRollingOverride,
   resetCardOverride,
   resetOfflinePublicDeckSlot,
+  saveBakuganRollingOverride,
   saveCardOverride,
   setAdministratorAiVisibility,
   setAiDeckEnabled,
@@ -130,7 +133,7 @@ export async function GET(request: Request) {
     if (section === "users") return json({ users: await listUsers(db), roles: ACCOUNT_ROLES, correlationId });
     if (section === "cards") {
       await applyDatabaseCardOverrides(db);
-      return json({ cards: CARDS, correlationId });
+      return json({ cards: CARDS, rollingSettings: listBakuganRollingSettings(), correlationId });
     }
     if (section === "ai-visibility") {
       return json({ ...(await getAdministratorAiVisibility(db, administrator.id)), correlationId });
@@ -256,6 +259,13 @@ export async function POST(request: Request) {
       return json({ ok: true, correlationId });
     }
 
+    if (action === "bakugan-roll-save") {
+      return json({ rolling: await saveBakuganRollingOverride(db, body.rolling, administrator.id), correlationId });
+    }
+    if (action === "bakugan-roll-reset") {
+      await resetBakuganRollingOverride(db, String(body.catalogId ?? ""));
+      return json({ ok: true, correlationId });
+    }
     if (action === "card-save") return json({ card: await saveCardOverride(db, body.card, administrator.id), correlationId });
     if (action === "card-reset") {
       await resetCardOverride(db, String(body.catalogId ?? ""));
