@@ -183,6 +183,42 @@ export const BAKUGAN: Bakugan[] = characterCards.map((character) => ({
   fused: false,
 }));
 
+export type BakuganRollingOverride = {
+  catalogId: string;
+  rollAccuracy: number;
+  doubleCoreChance: number;
+};
+
+// Capture repository defaults before any Administrator overrides are applied.
+const DEFAULT_BAKUGAN_ROLLING = new Map(BAKUGAN.map((bakugan) => [
+  bakugan.id,
+  { rollAccuracy: bakugan.rollAccuracy, doubleCoreChance: bakugan.doubleCoreChance },
+] as const));
+
+export function defaultBakuganRollingProperties(catalogId: string) {
+  const defaults = DEFAULT_BAKUGAN_ROLLING.get(catalogId);
+  return defaults ? { ...defaults } : undefined;
+}
+
+/** Replace, rather than merge, the current rolling overrides so resets take effect. */
+export function applyBakuganRollingOverrides(overrides: readonly BakuganRollingOverride[]) {
+  const byId = new Map(BAKUGAN.map((bakugan) => [bakugan.id, bakugan]));
+  for (const bakugan of BAKUGAN) {
+    const defaults = DEFAULT_BAKUGAN_ROLLING.get(bakugan.id)!;
+    bakugan.rollAccuracy = defaults.rollAccuracy;
+    bakugan.doubleCoreChance = defaults.doubleCoreChance;
+  }
+  for (const override of overrides) {
+    const bakugan = byId.get(override.catalogId);
+    if (!bakugan) continue;
+    if (!Number.isInteger(override.rollAccuracy) || override.rollAccuracy < 0 || override.rollAccuracy > 100
+      || !Number.isInteger(override.doubleCoreChance) || override.doubleCoreChance < 0 || override.doubleCoreChance > 100) continue;
+    bakugan.rollAccuracy = override.rollAccuracy;
+    bakugan.doubleCoreChance = override.doubleCoreChance;
+  }
+  return BAKUGAN;
+}
+
 export type CardOverrideRecord = {
   catalogId: string;
   card: Partial<GameCard> & Record<string, unknown>;
