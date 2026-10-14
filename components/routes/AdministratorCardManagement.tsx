@@ -337,10 +337,10 @@ export function AdministratorCardManagement() {
       <Surface className={styles.toolbar}>
         <Field label="Search cards"><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Name, ID, effect, mechanics…" /></Field>
         <div className={styles.density}><button type="button" aria-pressed={density === "gallery"} onClick={() => setDensity("gallery")}>Gallery</button><button type="button" aria-pressed={density === "compact"} onClick={() => setDensity("compact")}>Compact</button></div>
-        <ActionButton ref={filterButtonRef} className={styles.mobileFilterButton} tone="secondary"
+        <button type="button" ref={filterButtonRef} className={styles.mobileFilterButton}
           aria-haspopup="dialog" aria-expanded={filterSheetOpen} onClick={() => setFilterSheetOpen(true)}>
           Filters &amp; sort{activeFilters ? ` · ${activeFilters}` : ""}
-        </ActionButton>
+        </button>
       </Surface>
       <div className={styles.workspace}>
         <Surface className={styles.filterRail}>{filterControls}</Surface>
