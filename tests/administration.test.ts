@@ -305,7 +305,7 @@ test("Replay genesis preserves configured roll values and decodes legacy default
       ...genesis,
       players: genesis.players.map((player) => ({
         ...player,
-        b: player.b.map(({ ra, dc, ...historic }) => historic),
+        b: player.b.map((value) => { const historic = { ...value }; delete historic.ra; delete historic.dc; return historic; }),
       })),
     };
     const historicBakugan = expandReplayGenesis(legacy).players[0].bakugan.find((item) => item.character.catalogId === catalogId);
