@@ -15,6 +15,13 @@ import styles from "./AdministratorCardManagement.module.css";
 
 type Restriction = { catalogId?: string; constructionIdentity: string; limit: 0 | 1 | 2; reason?: string };
 type RankedData = { active: { version: number; restrictions: Restriction[] }; draft: { deckSize: number; restrictions: Restriction[] } };
+type RollingSettings = {
+  catalogId: string;
+  rollAccuracy: number;
+  doubleCoreChance: number;
+  defaultRollAccuracy: number;
+  defaultDoubleCoreChance: number;
+};
 const SORTS: { value: CompendiumSort; label: string }[] = [
   { value: "collector", label: "Collector number" }, { value: "name-asc", label: "Name A–Z" },
   { value: "name-desc", label: "Name Z–A" }, { value: "cost-asc", label: "Energy low–high" },
@@ -35,8 +42,8 @@ async function mutate(body: Record<string, unknown>) {
   return json;
 }
 
-function AdministratorInspector({ card, restriction, activeRestriction, onClose, onSaved, onRankedSaved }: {
-  card: GameCard; restriction?: Restriction; activeRestriction?: Restriction;
+function AdministratorInspector({ card, restriction, activeRestriction, rolling, onClose, onSaved, onRankedSaved }: {
+  card: GameCard; restriction?: Restriction; activeRestriction?: Restriction; rolling?: RollingSettings;
   onClose: () => void; onSaved: () => Promise<void>;
   onRankedSaved: (card: GameCard, limit: number | null, reason: string) => Promise<void>;
 }) {
@@ -44,15 +51,25 @@ function AdministratorInspector({ card, restriction, activeRestriction, onClose,
   const [editor, setEditor] = useState(() => JSON.stringify(card, null, 2));
   const [limit, setLimit] = useState(String(restriction?.limit ?? "none"));
   const [reason, setReason] = useState(restriction?.reason ?? "");
+  const [rollAccuracy, setRollAccuracy] = useState(String(rolling?.rollAccuracy ?? ""));
+  const [doubleCoreChance, setDoubleCoreChance] = useState(String(rolling?.doubleCoreChance ?? ""));
+  const [rollingSaving, setRollingSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [rankedSaving, setRankedSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<"properties" | "ranked">("properties");
+  const [activeTab, setActiveTab] = useState<"properties" | "rolling" | "ranked">("properties");
   useEffect(() => { setEditor(JSON.stringify(card, null, 2)); }, [card]);
   useEffect(() => { setLimit(String(restriction?.limit ?? "none")); setReason(restriction?.reason ?? ""); }, [card.catalogId, restriction?.limit, restriction?.reason]);
+  useEffect(() => {
+    setRollAccuracy(String(rolling?.rollAccuracy ?? ""));
+    setDoubleCoreChance(String(rolling?.doubleCoreChance ?? ""));
+  }, [card.catalogId, rolling?.rollAccuracy, rolling?.doubleCoreChance]);
   const changed = editor !== JSON.stringify(card, null, 2);
   const rankedChanged = limit !== String(restriction?.limit ?? "none") || reason !== (restriction?.reason ?? "");
+  const rollingChanged = Boolean(rolling) && (rollAccuracy !== String(rolling?.rollAccuracy) || doubleCoreChance !== String(rolling?.doubleCoreChance));
+  const validPercentage = (value: string) => /^(?:100|[1-9]?\\d)$/.test(value);
+  const rollingValid = validPercentage(rollAccuracy) && validPercentage(doubleCoreChance);
   const close = () => {
-    if ((changed || rankedChanged) && !window.confirm("Discard unsaved administrator changes?")) return;
+    if ((changed || rankedChanged || rollingChanged) && !window.confirm("Discard unsaved administrator changes?")) return;
     onClose();
   };
   const saveCard = async () => {
@@ -78,6 +95,32 @@ function AdministratorInspector({ card, restriction, activeRestriction, onClose,
     } catch (error) { notify(error instanceof Error ? error.message : "Restore failed."); }
     finally { setSaving(false); }
   };
+  const saveRolling = async () => {
+    if (!rolling || !rollingValid) return;
+    setRollingSaving(true);
+    try {
+      await mutate({ action: "bakugan-roll-save", rolling: {
+        catalogId: card.catalogId,
+        rollAccuracy: Number(rollAccuracy),
+        doubleCoreChance: Number(doubleCoreChance),
+      } });
+      window.dispatchEvent(new Event("bbp-card-overrides-updated"));
+      notify(`${card.displayName} rolling properties updated.`);
+      await onSaved();
+    } catch (error) { notify(error instanceof Error ? error.message : "Rolling properties could not be saved."); }
+    finally { setRollingSaving(false); }
+  };
+  const restoreRolling = async () => {
+    if (!rolling || !window.confirm(`Restore ${card.displayName}'s original rolling probabilities?`)) return;
+    setRollingSaving(true);
+    try {
+      await mutate({ action: "bakugan-roll-reset", catalogId: card.catalogId });
+      window.dispatchEvent(new Event("bbp-card-overrides-updated"));
+      notify(`${card.displayName} rolling properties restored to defaults.`);
+      await onSaved();
+    } catch (error) { notify(error instanceof Error ? error.message : "Rolling properties could not be reset."); }
+    finally { setRollingSaving(false); }
+  };
   return <InspectorModal dataUi="administrator-card-inspector" titleId="administrator-card-inspector-title" onClose={close}>
     <div className={styles.inspector}>
       <header className={styles.inspectorHeader}>
@@ -93,6 +136,7 @@ function AdministratorInspector({ card, restriction, activeRestriction, onClose,
         <div className={styles.controls}>
           <div className={styles.inspectorTabs} role="tablist" aria-label="Administrator inspector sections">
             <button type="button" role="tab" id="administrator-tab-properties" aria-controls="administrator-panel-properties" aria-selected={activeTab === "properties"} onClick={() => setActiveTab("properties")}>Card Properties{changed ? " •" : ""}</button>
+            {card.type === "Character" && rolling && <button type="button" role="tab" id="administrator-tab-rolling" aria-controls="administrator-panel-rolling" aria-selected={activeTab === "rolling"} onClick={() => setActiveTab("rolling")}>Rolling Properties{rollingChanged ? " •" : ""}</button>}
             <button type="button" role="tab" id="administrator-tab-ranked" aria-controls="administrator-panel-ranked" aria-selected={activeTab === "ranked"} onClick={() => setActiveTab("ranked")}>Ranked Restrictions{rankedChanged ? " •" : ""}</button>
           </div>
           {activeTab === "properties" && <section role="tabpanel" id="administrator-panel-properties" aria-labelledby="administrator-tab-properties" className={styles.editorSection}>
@@ -105,6 +149,24 @@ function AdministratorInspector({ card, restriction, activeRestriction, onClose,
               <ActionButton disabled={saving || !changed} onClick={() => void saveCard()}>{saving ? "Saving…" : "Save card"}</ActionButton>
               <button type="button" disabled={saving || !changed} onClick={() => setEditor(JSON.stringify(card, null, 2))}>Discard edits</button>
               <button type="button" disabled={saving} className={styles.danger} onClick={() => void restore()}>Restore original</button>
+            </div>
+          </section>}
+          {activeTab === "rolling" && card.type === "Character" && rolling && <section role="tabpanel" id="administrator-panel-rolling" aria-labelledby="administrator-tab-rolling" className={styles.editorSection}>
+            <h3>Rolling properties</h3>
+            <p>Adjust this Bakugan's probability checks for newly created matches. Existing match snapshots and replays are unchanged.</p>
+            <Field label="Roll accuracy (%)">
+              <input type="number" min={0} max={100} step={1} value={rollAccuracy} onChange={(event) => setRollAccuracy(event.target.value)} />
+            </Field>
+            <p>Default: {rolling.defaultRollAccuracy}%. The chance of passing the initial accuracy check; the simulation may still affect which BakuCore is collected.</p>
+            <Field label="Double Core chance (%)">
+              <input type="number" min={0} max={100} step={1} value={doubleCoreChance} onChange={(event) => setDoubleCoreChance(event.target.value)} />
+            </Field>
+            <p>Default: {rolling.defaultDoubleCoreChance}%. Chance of attempting a second Core pickup when an eligible second Core is present.</p>
+            {!rollingValid && <p role="alert">Enter whole-number percentages between 0 and 100 for both properties.</p>}
+            <div className={styles.actions}>
+              <ActionButton disabled={rollingSaving || !rollingChanged || !rollingValid} onClick={() => void saveRolling()}>{rollingSaving ? "Saving…" : "Save rolling properties"}</ActionButton>
+              <button type="button" disabled={rollingSaving || !rollingChanged} onClick={() => { setRollAccuracy(String(rolling.rollAccuracy)); setDoubleCoreChance(String(rolling.doubleCoreChance)); }}>Discard edits</button>
+              <button type="button" disabled={rollingSaving || (rolling.rollAccuracy === rolling.defaultRollAccuracy && rolling.doubleCoreChance === rolling.defaultDoubleCoreChance)} className={styles.danger} onClick={() => void restoreRolling()}>Restore defaults</button>
             </div>
           </section>}
           {activeTab === "ranked" && <section role="tabpanel" id="administrator-panel-ranked" aria-labelledby="administrator-tab-ranked" className={styles.editorSection}>
@@ -139,6 +201,7 @@ function AdministratorInspector({ card, restriction, activeRestriction, onClose,
 export function AdministratorCardManagement() {
   const { notify } = useAppFields(["notify"]);
   const [cards, setCards] = useState<GameCard[]>([]);
+  const [rollingSettings, setRollingSettings] = useState<RollingSettings[]>([]);
   const [ranked, setRanked] = useState<RankedData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -152,12 +215,13 @@ export function AdministratorCardManagement() {
   const reload = async () => {
     const [cardData, rankedData] = await Promise.all([request("cards"), request("ranked")]);
     setCards(cardData.cards);
+    setRollingSettings(cardData.rollingSettings ?? []);
     setRanked(rankedData);
   };
   useEffect(() => {
     let active = true;
     Promise.all([request("cards"), request("ranked")]).then(([cardData, rankedData]) => {
-      if (active) { setCards(cardData.cards); setRanked(rankedData); setLoading(false); }
+      if (active) { setCards(cardData.cards); setRollingSettings(cardData.rollingSettings ?? []); setRanked(rankedData); setLoading(false); }
     }).catch((e) => { if (active) { setError(e instanceof Error ? e.message : "Could not load cards."); setLoading(false); } });
     return () => { active = false; };
   }, []);
@@ -205,7 +269,7 @@ export function AdministratorCardManagement() {
           <nav className={styles.pagination} aria-label="Card browser pages"><button type="button" disabled={page <= 1} onClick={() => setPage((n) => n - 1)}>← Previous</button><span>{Math.min(page, pages)} / {pages}</span><button type="button" disabled={page >= pages} onClick={() => setPage((n) => n + 1)}>Next →</button></nav>
         </div>
       </div>
-      {selected && <AdministratorInspector key={selected.catalogId} card={selected} restriction={restriction} activeRestriction={activeRestriction} onClose={() => setSelectedId("")} onSaved={reload} onRankedSaved={saveRanked} />}
+      {selected && <AdministratorInspector key={selected.catalogId} card={selected} restriction={restriction} activeRestriction={activeRestriction} rolling={rollingSettings.find((item) => item.catalogId === selected.catalogId)} onClose={() => setSelectedId("")} onSaved={reload} onRankedSaved={saveRanked} />}
     </>}
   </section>;
 }
