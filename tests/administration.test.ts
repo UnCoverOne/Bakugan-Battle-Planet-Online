@@ -316,3 +316,26 @@ test("Replay genesis preserves configured roll values and decodes legacy default
     applyBakuganRollingOverrides([]);
   }
 });
+
+
+test("Administrator Card Management shares the Compendium mobile grid and filter-sheet behavior", async () => {
+  const [admin, adminCss, compendiumCss] = await Promise.all([
+    read("components/routes/AdministratorCardManagement.tsx"),
+    read("components/routes/AdministratorCardManagement.module.css"),
+    read("components/routes/CompendiumScreen.module.css"),
+  ]);
+  assert.match(compendiumCss, /\.cardGrid\s*\{\s*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(adminCss, /@media\(max-width:700px\)\s*\{\s*\.grid\s*\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(adminCss, /\.compact\s*\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(adminCss, /@media\(max-width:420px\)\s*\{\s*\.compact\s*\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(adminCss, /@media\(max-width:850px\)\s*\{\s*\.filterRail\{display:none\}/);
+  assert.match(adminCss, /\.mobileFilterButton\{display:inline-flex/);
+  assert.match(admin, /createPortal\(/);
+  assert.match(admin, /aria-modal="true"/);
+  assert.match(admin, /role="dialog"/);
+  assert.match(admin, /event\.key === "Escape"/);
+  assert.match(admin, /returnFocusRef\.current/);
+  assert.match(admin, /aria-haspopup="dialog"/);
+  assert.match(admin, /\{filterControls\}/);
+  assert.match(admin, /Show \{filtered\.length\} cards/);
+});
