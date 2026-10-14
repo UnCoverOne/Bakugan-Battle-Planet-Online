@@ -363,4 +363,7 @@ test("Administrator Card Management remains within narrow and zoomed panel width
   assert.match(routeCss, /\.tabs\{min-width:0;max-width:100%\}/);
   assert.match(adminScreen, /Filters &amp; sort/);
   assert.match(adminScreen, /Search cards/);
+  assert.match(adminScreen, /const observer = new ResizeObserver\(closeIfWide\)/);
+  assert.match(adminScreen, /container\.clientWidth > 850/);
+  assert.doesNotMatch(adminScreen, /window\.matchMedia\("\(max-width: 850px\)"\)/);
 });
