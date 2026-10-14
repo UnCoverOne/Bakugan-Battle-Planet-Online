@@ -44,3 +44,79 @@
 .danger{border-color:#d84a50!important;color:#ffd5d6!important}
 @media(max-width:850px){.workspace{grid-template-columns:1fr}.filterRail{position:static;max-height:none;grid-template-columns:repeat(2,minmax(0,1fr))}.filterHeading{grid-column:1/-1}.inspectorBody{grid-template-columns:1fr}.preview{max-width:18rem}}
 @media(max-width:550px){.toolbar,.heading,.count{align-items:stretch;flex-direction:column}.filterRail{grid-template-columns:1fr}.filterHeading{grid-column:auto}}
+
+/* The mobile filter sheet mirrors the Compendium; desktop filters stay in the rail. */
+.mobileFilterButton{
+  display:none;
+  min-height:2.75rem;
+  padding:.65rem 1rem;
+  background:var(--brand-blue-deep);
+  color:var(--text-primary);
+  border:1px solid var(--border-strong);
+  font-weight:800;
+  cursor:pointer;
+}
+.mobileFilterButton:focus-visible,.filterSheetHeading button:focus-visible{
+  outline:2px solid var(--brand-blue-bright);
+  outline-offset:2px;
+}
+.filterBackdrop{
+  position:fixed;
+  inset:0;
+  z-index:1300;
+  display:flex;
+  align-items:flex-end;
+  background:rgba(0,5,8,.78);
+  backdrop-filter:blur(10px);
+}
+.filterSheet{
+  box-sizing:border-box;
+  width:100%;
+  max-height:min(88dvh,52rem);
+  min-height:0;
+  display:grid;
+  align-content:start;
+  gap:var(--space-4);
+  padding:var(--space-5);
+  padding-bottom:max(var(--space-5),env(safe-area-inset-bottom));
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  border:1px solid var(--border-strong);
+  background:var(--surface-panel-raised);
+  color:var(--text-primary);
+  clip-path:polygon(var(--chamfer-panel) 0,100% 0,100% 100%,0 100%,0 var(--chamfer-panel));
+}
+.filterSheetHeading{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:var(--space-3);
+}
+.filterSheetHeading h3{margin:0;font-size:1.2rem}
+.filterSheetHeading button{
+  min-width:2.75rem;
+  min-height:2.75rem;
+  background:#073244;
+  color:var(--text-primary);
+  border:1px solid var(--border-strong);
+  cursor:pointer;
+}
+.showResultsButton{width:100%}
+@media(max-width:850px){
+  .filterRail{display:none}
+  .toolbar{flex-wrap:wrap}
+  .toolbar>label{flex:1 1 100%}
+  .mobileFilterButton{display:inline-flex;align-items:center;justify-content:center}
+}
+@media(max-width:700px){
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3)}
+  .compact{grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-2)}
+}
+@media(max-width:550px){
+  .density{width:100%}
+  .density button{flex:1}
+  .mobileFilterButton{width:100%}
+}
+@media(max-width:420px){
+  .compact{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
