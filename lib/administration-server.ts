@@ -1,16 +1,21 @@
 import {
+  BAKUGAN,
   BUNDLED_OFFLINE_PUBLIC_DECKS,
   CARDS,
   OFFLINE_PUBLIC_DECK_SLOT_IDS,
   STARTER_DECKS,
+  applyBakuganRollingOverrides,
   applyCardOverrides,
+  defaultBakuganRollingProperties,
   validateDeck,
+  type BakuganRollingOverride,
   type CardOverrideRecord,
   type DeckRecord,
   type OfflinePublicDeckSlotId,
 } from "./data";
 import { ensureAdministrationSchema, type AccountDatabase } from "./account-server";
 import type { GameCard } from "./game";
+import { ValidationError } from "./server-errors";
 
 type Database = AccountDatabase;
 type ManagedDeck = {
@@ -103,8 +108,80 @@ export async function loadCardOverrides(db: Database): Promise<CardOverrideRecor
   });
 }
 
+const BAKUGAN_ROLL_RESOURCE_TYPE = "bakugan-roll";
+
+export function normalizeBakuganRollingEdit(value: unknown): BakuganRollingOverride {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new ValidationError("Rolling properties must be an object.");
+  }
+  const candidate = value as Record<string, unknown>;
+  const catalogId = typeof candidate.catalogId === "string" ? candidate.catalogId : "";
+  if (!defaultBakuganRollingProperties(catalogId)) {
+    throw new ValidationError("Rolling properties can only be edited for playable Bakugan Character cards.");
+  }
+  for (const key of ["rollAccuracy", "doubleCoreChance"] as const) {
+    const value = candidate[key];
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 100) {
+      throw new ValidationError(`${key} must be a whole number between 0 and 100.`);
+    }
+  }
+  return {
+    catalogId,
+    rollAccuracy: candidate.rollAccuracy as number,
+    doubleCoreChance: candidate.doubleCoreChance as number,
+  };
+}
+
+export async function loadBakuganRollingOverrides(db: Database): Promise<BakuganRollingOverride[]> {
+  const rows = await resourceRows(db, BAKUGAN_ROLL_RESOURCE_TYPE);
+  return rows.flatMap((row) => {
+    if (!row.enabled) return [];
+    try {
+      return [normalizeBakuganRollingEdit(parseJson<unknown>(row.data_json, null))].filter(
+        (value) => value.catalogId === row.resource_id,
+      );
+    } catch {
+      return [];
+    }
+  });
+}
+
 export async function applyDatabaseCardOverrides(db: Database) {
-  return applyCardOverrides(await loadCardOverrides(db));
+  const cards = await loadCardOverrides(db);
+  const rolling = await loadBakuganRollingOverrides(db);
+  applyCardOverrides(cards);
+  applyBakuganRollingOverrides(rolling);
+  return CARDS;
+}
+
+export function listBakuganRollingSettings() {
+  return BAKUGAN.map((bakugan) => {
+    const defaults = defaultBakuganRollingProperties(bakugan.id)!;
+    return {
+      catalogId: bakugan.id,
+      rollAccuracy: bakugan.rollAccuracy,
+      doubleCoreChance: bakugan.doubleCoreChance,
+      defaultRollAccuracy: defaults.rollAccuracy,
+      defaultDoubleCoreChance: defaults.doubleCoreChance,
+    };
+  });
+}
+
+export async function saveBakuganRollingOverride(db: Database, value: unknown, administratorId: string) {
+  const rolling = normalizeBakuganRollingEdit(value);
+  await upsertResource(db, BAKUGAN_ROLL_RESOURCE_TYPE, rolling.catalogId, rolling, true, administratorId);
+  await applyDatabaseCardOverrides(db);
+  return rolling;
+}
+
+export async function resetBakuganRollingOverride(db: Database, catalogId: string) {
+  if (!defaultBakuganRollingProperties(catalogId)) {
+    throw new ValidationError("The selected Bakugan does not have rolling properties.");
+  }
+  await ensureAdministrationSchema(db);
+  await db.prepare("DELETE FROM admin_resources WHERE resource_type = ? AND resource_id = ?")
+    .bind(BAKUGAN_ROLL_RESOURCE_TYPE, catalogId).run();
+  await applyDatabaseCardOverrides(db);
 }
 
 const forbiddenCardKeys = new Set([
@@ -114,6 +191,8 @@ const forbiddenCardKeys = new Set([
   "id",
   "catalogId",
   "constructionIdentity",
+  "rollAccuracy",
+  "doubleCoreChance",
 ]);
 
 export function normalizeCardEdit(value: unknown) {
