@@ -13,6 +13,8 @@ import {
   makePlayer,
 } from "../lib/data";
 import { normalizeBakuganRollingEdit } from "../lib/administration-server";
+import { createMatch } from "../lib/game";
+import { captureReplayGenesis, expandReplayGenesis } from "../lib/engine/replay-codec";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -276,4 +278,41 @@ test("Administrator rolling editor, APIs, and Training AI share the persisted co
   assert.match(publicApi, /rollingOverrides/);
   assert.match(provider, /applyBakuganRollingOverrides\(rollingOverrides\)/);
   assert.match(game, /applyDatabaseCardOverrides/);
+});
+
+test("Replay genesis preserves configured roll values and decodes legacy defaults", () => {
+  const catalogId = STARTER_DECKS[0].bakuganIds[0];
+  const defaults = defaultBakuganRollingProperties(catalogId);
+  assert.ok(defaults);
+  try {
+    applyBakuganRollingOverrides([{ catalogId, rollAccuracy: 47, doubleCoreChance: 29 }]);
+    const match = createMatch("ROLL-REPLAY-TEST", "bo1", [
+      makePlayer("replay-a", "Replay A", STARTER_DECKS[0]),
+      makePlayer("replay-b", "Replay B", STARTER_DECKS[1]),
+    ]);
+    const genesis = captureReplayGenesis(match);
+    const compact = genesis.players[0].b.find((bakugan) => bakugan.c === catalogId);
+    assert.ok(compact);
+    assert.equal(compact.ra, 47);
+    assert.equal(compact.dc, 29);
+    applyBakuganRollingOverrides([{ catalogId, rollAccuracy: 80, doubleCoreChance: 8 }]);
+    const restored = expandReplayGenesis(genesis);
+    const bakugan = restored.players[0].bakugan.find((item) => item.character.catalogId === catalogId);
+    assert.ok(bakugan);
+    assert.equal(bakugan.rollAccuracy, 47);
+    assert.equal(bakugan.doubleCoreChance, 29);
+    const legacy = {
+      ...genesis,
+      players: genesis.players.map((player) => ({
+        ...player,
+        b: player.b.map(({ ra, dc, ...historic }) => historic),
+      })),
+    };
+    const historicBakugan = expandReplayGenesis(legacy).players[0].bakugan.find((item) => item.character.catalogId === catalogId);
+    assert.ok(historicBakugan);
+    assert.equal(historicBakugan.rollAccuracy, defaults.rollAccuracy);
+    assert.equal(historicBakugan.doubleCoreChance, defaults.doubleCoreChance);
+  } finally {
+    applyBakuganRollingOverrides([]);
+  }
 });
