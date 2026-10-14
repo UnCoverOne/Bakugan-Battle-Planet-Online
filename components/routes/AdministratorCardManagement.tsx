@@ -66,7 +66,7 @@ function AdministratorInspector({ card, restriction, activeRestriction, rolling,
   const changed = editor !== JSON.stringify(card, null, 2);
   const rankedChanged = limit !== String(restriction?.limit ?? "none") || reason !== (restriction?.reason ?? "");
   const rollingChanged = Boolean(rolling) && (rollAccuracy !== String(rolling?.rollAccuracy) || doubleCoreChance !== String(rolling?.doubleCoreChance));
-  const validPercentage = (value: string) => /^(?:100|[1-9]?\\d)$/.test(value);
+  const validPercentage = (value: string) => /^(?:100|[1-9]?\d)$/.test(value);
   const rollingValid = validPercentage(rollAccuracy) && validPercentage(doubleCoreChance);
   const close = () => {
     if ((changed || rankedChanged || rollingChanged) && !window.confirm("Discard unsaved administrator changes?")) return;
