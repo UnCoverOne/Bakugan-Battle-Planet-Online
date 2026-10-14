@@ -339,3 +339,31 @@ test("Administrator Card Management shares the Compendium mobile grid and filter
   assert.match(admin, /\{filterControls\}/);
   assert.match(admin, /Show \{filtered\.length\} cards/);
 });
+
+
+test("Administrator Card Management remains within narrow and zoomed panel widths", async () => {
+  const [adminCss, routeCss, adminScreen] = await Promise.all([
+    read("components/routes/AdministratorCardManagement.module.css"),
+    read("components/routes/AdminScreen.module.css"),
+    read("components/routes/AdministratorCardManagement.tsx"),
+  ]);
+  assert.match(adminCss, /\.management\{[\s\S]*?container-type:inline-size;/);
+  assert.match(adminCss, /\.management\{[\s\S]*?grid-template-columns:minmax\(0,1fr\);/);
+  assert.match(adminCss, /\.toolbar\{[\s\S]*?display:grid;/);
+  assert.match(adminCss, /\.toolbar>label\{grid-column:1;min-width:0;width:100%\}/);
+  assert.match(adminCss, /\.toolbar input\{min-width:0;width:100%;max-width:100%\}/);
+  assert.match(adminCss, /@container \(max-width:850px\)/);
+  assert.match(adminCss, /\.toolbar>label\{grid-column:1 \/ -1\}/);
+  assert.match(adminCss, /@container \(max-width:700px\)/);
+  assert.match(adminCss, /\.heading\{display:none\}/);
+  assert.match(adminCss, /@container \(max-width:420px\)/);
+  assert.match(adminCss, /\.grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(adminCss, /\.compact\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(routeCss, /\.route\{max-width:100%;min-width:0;overflow-x:clip\}/);
+  assert.match(routeCss, /\.tabs\{min-width:0;max-width:100%\}/);
+  assert.match(adminScreen, /Filters &amp; sort/);
+  assert.match(adminScreen, /Search cards/);
+  assert.match(adminScreen, /const observer = new ResizeObserver\(closeIfWide\)/);
+  assert.match(adminScreen, /container\.clientWidth > 850/);
+  assert.doesNotMatch(adminScreen, /window\.matchMedia\("\(max-width: 850px\)"\)/);
+});

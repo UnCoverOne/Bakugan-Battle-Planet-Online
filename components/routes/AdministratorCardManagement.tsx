@@ -280,6 +280,7 @@ export function AdministratorCardManagement() {
   const [density, setDensity] = useState<"gallery" | "compact">("gallery");
   const [page, setPage] = useState(1);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const managementRef = useRef<HTMLElement | null>(null);
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const closeFilters = useCallback(() => setFilterSheetOpen(false), []);
   const [selectedId, setSelectedId] = useState("");
@@ -299,11 +300,15 @@ export function AdministratorCardManagement() {
   }, []);
   useEffect(() => {
     if (!filterSheetOpen) return;
-    const breakpoint = window.matchMedia("(max-width: 850px)");
-    const closeOnDesktop = () => { if (!breakpoint.matches) closeFilters(); };
-    breakpoint.addEventListener("change", closeOnDesktop);
-    closeOnDesktop();
-    return () => breakpoint.removeEventListener("change", closeOnDesktop);
+    const container = managementRef.current;
+    if (!container) return;
+    // Match the CSS container query, not the viewport: zoom and narrow split
+    // windows can give Card Management less room than window.innerWidth.
+    const closeIfWide = () => { if (container.clientWidth > 850) closeFilters(); };
+    const observer = new ResizeObserver(closeIfWide);
+    observer.observe(container);
+    closeIfWide();
+    return () => observer.disconnect();
   }, [filterSheetOpen, closeFilters]);
   const options = useMemo(() => createCardFilterOptionCatalogue(cards), [cards]);
   const filtered = useMemo(() => filterAndSortCompendiumCards(cards, { ...DEFAULT_COMPENDIUM_STATE, ...filters, q: query, sort, density }, { includeFusionBack: true }), [cards, filters, query, sort, density]);
@@ -331,7 +336,7 @@ export function AdministratorCardManagement() {
     <FilterPicker label="Sort" values={[sort]} options={SORTS} mode="single" clearable={false} onChange={(values) => { if (values[0]) { setSort(values[0] as CompendiumSort); setPage(1); } }} />
     <CardFilterPanel filters={filters} facets={["set", "faction", "cost", "rarity", "coreType", "keyword"]} options={options} onChange={updateFilters} />
   </>;
-  return <section className={styles.management}>
+  return <section ref={managementRef} className={styles.management}>
     <div className={styles.heading}><div><small>CATALOGUE</small><h2>Card Management</h2><p>Browse the shared card catalogue, edit a card in the Administrator Inspector, and manage Ranked restrictions.</p></div><StatusChip tone="info">{cards.length} CARDS</StatusChip></div>
     {loading ? <Surface className={styles.message} role="status">Loading card browser…</Surface> : error ? <Surface className={styles.message} role="alert">{error}</Surface> : <>
       <Surface className={styles.toolbar}>

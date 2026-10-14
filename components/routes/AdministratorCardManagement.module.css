@@ -120,3 +120,74 @@
 @media(max-width:420px){
   .compact{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/*
+ * Use the Card Management panel's actual width rather than the browser viewport.
+ * A narrow split view or zoomed browser can otherwise retain the desktop flex
+ * toolbar even when only a phone-sized area is available.
+ */
+.management{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  grid-template-columns:minmax(0,1fr);
+  container-type:inline-size;
+}
+.heading,.workspace,.results,.count,.toolbar,.grid,.compact{min-width:0;max-width:100%}
+.heading>div{min-width:0}
+.heading p{overflow-wrap:anywhere}
+.toolbar{
+  width:100%;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:end;
+  gap:.75rem;
+}
+.toolbar>label{grid-column:1;min-width:0;width:100%}
+.toolbar input{min-width:0;width:100%;max-width:100%}
+.density{min-width:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.density button{min-width:0;white-space:nowrap}
+.workspace{grid-template-columns:14rem minmax(0,1fr)}
+.results{width:100%}
+.count{flex-wrap:wrap}
+.grid,.compact{width:100%;min-width:0}
+.pagination{min-width:0;flex-wrap:wrap}
+
+@container (max-width:850px){
+  .workspace{grid-template-columns:minmax(0,1fr)}
+  .filterRail{display:none}
+  .toolbar{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    align-items:stretch;
+    gap:.65rem;
+    padding:.85rem;
+  }
+  .toolbar>label{grid-column:1 / -1}
+  .density{grid-column:1;width:100%}
+  .density button{padding:.55rem .25rem;font-size:.75rem}
+  .mobileFilterButton{
+    display:inline-flex;
+    grid-column:2;
+    min-width:0;
+    width:100%;
+    align-items:center;
+    justify-content:center;
+    padding:.55rem .35rem;
+    font-size:.75rem;
+    white-space:nowrap;
+  }
+  .count{align-items:flex-start;gap:.4rem}
+}
+@container (max-width:700px){
+  /* The Administrator route hero and active tab already identify the page. */
+  .heading{display:none}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3)}
+  .compact{grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-2)}
+}
+@container (max-width:420px){
+  .compact{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@container (max-width:340px){
+  .toolbar{grid-template-columns:minmax(0,1fr)}
+  .density,.mobileFilterButton{grid-column:1}
+}

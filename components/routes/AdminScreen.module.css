@@ -78,3 +78,7 @@
 
 .rankedToolbar{display:flex;gap:1rem;align-items:end;justify-content:space-between;padding:1rem}.rankedToolbar>label{flex:1}.rankedRules{display:grid;max-height:680px;overflow:auto}.rankedRuleRow{display:grid;grid-template-columns:minmax(220px,1fr) 220px minmax(220px,1fr);gap:.8rem;align-items:center;padding:.75rem;border-bottom:1px solid rgba(255,255,255,.1)}.rankedRuleRow>div{display:grid}.rankedRuleRow small{opacity:.65}.rankedRuleRow select,.rankedRuleRow input{min-height:42px}.rankedHistory{display:grid;gap:.5rem;padding:1rem}.rankedHistory>div{display:grid;grid-template-columns:140px 1fr auto;gap:1rem;align-items:center;padding:.65rem;border-top:1px solid rgba(255,255,255,.1)}
 @media(max-width:760px){.rankedToolbar{align-items:stretch;flex-direction:column}.rankedRuleRow{grid-template-columns:1fr}.rankedHistory>div{grid-template-columns:1fr}}
+
+/* Keep Administrator content inside the usable viewport; tabs scroll internally. */
+.route{max-width:100%;min-width:0;overflow-x:clip}
+.tabs{min-width:0;max-width:100%}
