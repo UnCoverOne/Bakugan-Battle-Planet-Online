@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { GameCard } from "../../lib/game";
 import { cardSetCode } from "../../lib/content/catalogue";
 import { createCardFilterOptionCatalogue, createEmptyCardFilters, activeCardFilterCount, type CardFilterState } from "../../lib/card-filters";
@@ -40,6 +41,74 @@ async function mutate(body: Record<string, unknown>) {
   const json = await response.json();
   if (!response.ok) throw new Error(json.error ?? "Administrator change failed.");
   return json;
+}
+
+function MobileCardFilterSheet({ children, onClose, returnFocusRef }: {
+  children: ReactNode;
+  onClose: () => void;
+  returnFocusRef: { current: HTMLButtonElement | null };
+}) {
+  const [mounted, setMounted] = useState(false);
+  const panelRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (!mounted) return;
+    const panel = panelRef.current;
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement;
+    const returnFocus = returnFocusRef.current ?? (previousFocus instanceof HTMLElement ? previousFocus : null);
+    document.body.style.overflow = "hidden";
+
+    const focusable = () => Array.from(panel?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    ) ?? []).filter((element) => element.getClientRects().length > 0);
+    const frame = window.requestAnimationFrame(() => (focusable()[0] ?? panel)?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) {
+        event.preventDefault();
+        panel?.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", onKeyDown, true);
+      document.body.style.overflow = previousOverflow;
+      if (returnFocus?.isConnected) window.requestAnimationFrame(() => returnFocus.focus());
+    };
+  }, [mounted, onClose, returnFocusRef]);
+
+  if (!mounted) return null;
+  return createPortal(
+    <div data-ui="admin-card-filter-backdrop" className={styles.filterBackdrop} role="presentation"
+      onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <aside data-ui="admin-card-filter-sheet" data-motion-surface="filter-sheet" ref={panelRef}
+        className={styles.filterSheet} role="dialog" aria-modal="true"
+        aria-label="Card management filters and sort" tabIndex={-1}>
+        {children}
+      </aside>
+    </div>,
+    document.body,
+  );
 }
 
 function AdministratorInspector({ card, restriction, activeRestriction, rolling, onClose, onSaved, onRankedSaved }: {
@@ -210,6 +279,9 @@ export function AdministratorCardManagement() {
   const [sort, setSort] = useState<CompendiumSort>("collector");
   const [density, setDensity] = useState<"gallery" | "compact">("gallery");
   const [page, setPage] = useState(1);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const filterButtonRef = useRef<HTMLButtonElement | null>(null);
+  const closeFilters = useCallback(() => setFilterSheetOpen(false), []);
   const [selectedId, setSelectedId] = useState("");
   const triggerRef = useRef<HTMLElement | null>(null);
   const reload = async () => {
@@ -225,6 +297,14 @@ export function AdministratorCardManagement() {
     }).catch((e) => { if (active) { setError(e instanceof Error ? e.message : "Could not load cards."); setLoading(false); } });
     return () => { active = false; };
   }, []);
+  useEffect(() => {
+    if (!filterSheetOpen) return;
+    const breakpoint = window.matchMedia("(max-width: 850px)");
+    const closeOnDesktop = () => { if (!breakpoint.matches) closeFilters(); };
+    breakpoint.addEventListener("change", closeOnDesktop);
+    closeOnDesktop();
+    return () => breakpoint.removeEventListener("change", closeOnDesktop);
+  }, [filterSheetOpen, closeFilters]);
   const options = useMemo(() => createCardFilterOptionCatalogue(cards), [cards]);
   const filtered = useMemo(() => filterAndSortCompendiumCards(cards, { ...DEFAULT_COMPENDIUM_STATE, ...filters, q: query, sort, density }, { includeFusionBack: true }), [cards, filters, query, sort, density]);
   const pages = Math.max(1, Math.ceil(filtered.length / COMPENDIUM_PAGE_SIZE));
@@ -243,20 +323,27 @@ export function AdministratorCardManagement() {
     } catch (error) { notify(error instanceof Error ? error.message : "Ranked draft save failed."); }
   };
   const updateFilters = (next: CardFilterState) => { setFilters(next); setPage(1); };
+  const clearFilters = () => { updateFilters(createEmptyCardFilters()); setSort("collector"); };
+  const activeFilters = activeCardFilterCount(filters);
+  const filterControls = <>
+    <div className={styles.filterHeading}><strong>Filters &amp; sort</strong><button type="button" onClick={clearFilters}>Clear</button></div>
+    <CardFilterPanel filters={filters} facets={["type"]} options={options} onChange={updateFilters} />
+    <FilterPicker label="Sort" values={[sort]} options={SORTS} mode="single" clearable={false} onChange={(values) => { if (values[0]) { setSort(values[0] as CompendiumSort); setPage(1); } }} />
+    <CardFilterPanel filters={filters} facets={["set", "faction", "cost", "rarity", "coreType", "keyword"]} options={options} onChange={updateFilters} />
+  </>;
   return <section className={styles.management}>
     <div className={styles.heading}><div><small>CATALOGUE</small><h2>Card Management</h2><p>Browse the shared card catalogue, edit a card in the Administrator Inspector, and manage Ranked restrictions.</p></div><StatusChip tone="info">{cards.length} CARDS</StatusChip></div>
     {loading ? <Surface className={styles.message} role="status">Loading card browser…</Surface> : error ? <Surface className={styles.message} role="alert">{error}</Surface> : <>
       <Surface className={styles.toolbar}>
         <Field label="Search cards"><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Name, ID, effect, mechanics…" /></Field>
         <div className={styles.density}><button type="button" aria-pressed={density === "gallery"} onClick={() => setDensity("gallery")}>Gallery</button><button type="button" aria-pressed={density === "compact"} onClick={() => setDensity("compact")}>Compact</button></div>
+        <ActionButton ref={filterButtonRef} className={styles.mobileFilterButton} tone="secondary"
+          aria-haspopup="dialog" aria-expanded={filterSheetOpen} onClick={() => setFilterSheetOpen(true)}>
+          Filters &amp; sort{activeFilters ? ` · ${activeFilters}` : ""}
+        </ActionButton>
       </Surface>
       <div className={styles.workspace}>
-        <Surface className={styles.filterRail}>
-          <div className={styles.filterHeading}><strong>Filters &amp; sort</strong><button type="button" onClick={() => { updateFilters(createEmptyCardFilters()); setSort("collector"); }}>Clear</button></div>
-          <CardFilterPanel filters={filters} facets={["type"]} options={options} onChange={updateFilters} />
-          <FilterPicker label="Sort" values={[sort]} options={SORTS} mode="single" clearable={false} onChange={(values) => { if (values[0]) { setSort(values[0] as CompendiumSort); setPage(1); } }} />
-          <CardFilterPanel filters={filters} facets={["set", "faction", "cost", "rarity", "coreType", "keyword"]} options={options} onChange={updateFilters} />
-        </Surface>
+        <Surface className={styles.filterRail}>{filterControls}</Surface>
         <div className={styles.results}>
           <div className={styles.count}><strong>{filtered.length} cards</strong><span>Page {Math.min(page, pages)} of {pages} · {activeCardFilterCount(filters)} active filters</span></div>
           <CardGrid className={density === "compact" ? styles.compact : styles.grid} minCardWidth={density === "compact" ? "9.25rem" : "11.5rem"}>
@@ -269,6 +356,14 @@ export function AdministratorCardManagement() {
           <nav className={styles.pagination} aria-label="Card browser pages"><button type="button" disabled={page <= 1} onClick={() => setPage((n) => n - 1)}>← Previous</button><span>{Math.min(page, pages)} / {pages}</span><button type="button" disabled={page >= pages} onClick={() => setPage((n) => n + 1)}>Next →</button></nav>
         </div>
       </div>
+      {filterSheetOpen && <MobileCardFilterSheet onClose={closeFilters} returnFocusRef={filterButtonRef}>
+        <div className={styles.filterSheetHeading}>
+          <h3>Filter cards</h3>
+          <button type="button" aria-label="Close card filters" onClick={closeFilters}>✕</button>
+        </div>
+        {filterControls}
+        <ActionButton className={styles.showResultsButton} onClick={closeFilters}>Show {filtered.length} cards</ActionButton>
+      </MobileCardFilterSheet>}
       {selected && <AdministratorInspector key={selected.catalogId} card={selected} restriction={restriction} activeRestriction={activeRestriction} rolling={rollingSettings.find((item) => item.catalogId === selected.catalogId)} onClose={() => setSelectedId("")} onSaved={reload} onRankedSaved={saveRanked} />}
     </>}
   </section>;
