@@ -1,4 +1,4 @@
-import { BAKUGAN, CARD_BY_ID, CORES } from "../data";
+import { BAKUGAN, CARD_BY_ID, CORES, defaultBakuganRollingProperties } from "../data";
 import type { Bakugan, Core, GameCard, MatchState, PlayerState } from "../game";
 import { cloneMatch } from "../game";
 import {
@@ -70,6 +70,8 @@ function compactBakugan(bakugan: Bakugan): CompactBakuganInstance {
     i: bakugan.id,
     c: catalogueId,
     ci: bakugan.character.id,
+    ra: bakugan.rollAccuracy,
+    dc: bakugan.doubleCoreChance,
     ...(bakugan.open ? { o: 1 as const } : {}),
     ...(bakugan.heldCoreCells.length ? { h: [...bakugan.heldCoreCells] } : {}),
     ...(bakugan.evoStack.length ? { e: bakugan.evoStack.map(compactCard) } : {}),
@@ -85,6 +87,9 @@ function expandBakugan(bakugan: CompactBakuganInstance): Bakugan {
   return {
     ...clone(definition),
     id: bakugan.i,
+    // Older archives have no explicit rolling fields and predate Administrator overrides.
+    rollAccuracy: bakugan.ra ?? defaultBakuganRollingProperties(bakugan.c)?.rollAccuracy ?? definition.rollAccuracy,
+    doubleCoreChance: bakugan.dc ?? defaultBakuganRollingProperties(bakugan.c)?.doubleCoreChance ?? definition.doubleCoreChance,
     character: { ...clone(definition.character), id: bakugan.ci },
     open: bakugan.o === 1,
     heldCoreCells: [...(bakugan.h ?? [])],
