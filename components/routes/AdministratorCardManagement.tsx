@@ -153,7 +153,7 @@ function AdministratorInspector({ card, restriction, activeRestriction, rolling,
           </section>}
           {activeTab === "rolling" && card.type === "Character" && rolling && <section role="tabpanel" id="administrator-panel-rolling" aria-labelledby="administrator-tab-rolling" className={styles.editorSection}>
             <h3>Rolling properties</h3>
-            <p>Adjust this Bakugan's probability checks for newly created matches. Existing match snapshots and replays are unchanged.</p>
+            <p>Adjust this Bakugan&apos;s probability checks for newly created matches. Existing match snapshots and replays are unchanged.</p>
             <Field label="Roll accuracy (%)">
               <input type="number" min={0} max={100} step={1} value={rollAccuracy} onChange={(event) => setRollAccuracy(event.target.value)} />
             </Field>
@@ -171,7 +171,7 @@ function AdministratorInspector({ card, restriction, activeRestriction, rolling,
           </section>}
           {activeTab === "ranked" && <section role="tabpanel" id="administrator-panel-ranked" aria-labelledby="administrator-tab-ranked" className={styles.editorSection}>
             <h3>Ranked restrictions</h3>
-            <p>Restrictions apply to all printings with this card's construction identity. Save to the Ranked draft; publishing the draft activates the changes.</p>
+            <p>Restrictions apply to all printings with this card&apos;s construction identity. Save to the Ranked draft; publishing the draft activates the changes.</p>
             <p>Active: <strong>{activeRestriction ? activeRestriction.limit === 0 ? "Banned" : `Limited to ${activeRestriction.limit}` : "Normal · 3 copies"}</strong></p>
             <Field label="Draft copy limit">
               <select value={limit} onChange={(event) => setLimit(event.target.value)}>
