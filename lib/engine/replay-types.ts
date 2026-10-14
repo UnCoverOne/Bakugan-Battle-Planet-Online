@@ -23,6 +23,9 @@ export type CompactBakuganInstance = {
   i: string;
   c: string;
   ci: string;
+  /** Match-specific rolling thresholds, retained even if Administrator values later change. */
+  ra?: number;
+  dc?: number;
   o?: 1;
   h?: string[];
   e?: CompactCardInstance[];
