@@ -4,6 +4,15 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { requireTrainingAiDeckSelection } from "../lib/training-ai-deck-selection";
 import { readOfflinePublicDeckCache, writeOfflinePublicDeckCache } from "../lib/public-deck-cache";
+import {
+  BAKUGAN,
+  CARDS,
+  STARTER_DECKS,
+  applyBakuganRollingOverrides,
+  defaultBakuganRollingProperties,
+  makePlayer,
+} from "../lib/data";
+import { normalizeBakuganRollingEdit } from "../lib/administration-server";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -208,4 +217,63 @@ test("offline public deck cache preserves an intentionally empty managed snapsho
   assert.equal(readOfflinePublicDeckCache(storage), null);
   writeOfflinePublicDeckCache(storage, [], 17);
   assert.deepEqual(readOfflinePublicDeckCache(storage), []);
+});
+
+test("Bakugan rolling overrides validate Character identity and integer percentages", () => {
+  const catalogId = BAKUGAN[0].id;
+  const valid = { catalogId, rollAccuracy: 76, doubleCoreChance: 21 };
+  assert.deepEqual(normalizeBakuganRollingEdit(valid), valid);
+  assert.deepEqual(normalizeBakuganRollingEdit({ ...valid, rollAccuracy: 0, doubleCoreChance: 100 }), {
+    ...valid, rollAccuracy: 0, doubleCoreChance: 100,
+  });
+  const actionCard = CARDS.find((card) => card.type === "Action");
+  assert.ok(actionCard);
+  assert.throws(() => normalizeBakuganRollingEdit({ ...valid, catalogId: actionCard.catalogId }), /playable Bakugan/i);
+  for (const badValue of [-1, 101, 33.5, "85", null, Number.NaN]) {
+    assert.throws(() => normalizeBakuganRollingEdit({ ...valid, rollAccuracy: badValue }), /rollAccuracy/);
+    assert.throws(() => normalizeBakuganRollingEdit({ ...valid, doubleCoreChance: badValue }), /doubleCoreChance/);
+  }
+});
+
+test("Bakugan rolling overrides apply to new match copies and reset without changing old copies", () => {
+  const catalogId = STARTER_DECKS[0].bakuganIds[0];
+  const defaults = defaultBakuganRollingProperties(catalogId);
+  assert.ok(defaults);
+  try {
+    applyBakuganRollingOverrides([{ catalogId, rollAccuracy: 63, doubleCoreChance: 27 }]);
+    assert.equal(BAKUGAN.find((bakugan) => bakugan.id === catalogId)?.rollAccuracy, 63);
+    const existing = makePlayer("rolling-test", "Rolling tester", STARTER_DECKS[0]);
+    const instance = existing.bakugan.find((bakugan) => bakugan.character.catalogId === catalogId);
+    assert.ok(instance);
+    assert.equal(instance.rollAccuracy, 63);
+    assert.equal(instance.doubleCoreChance, 27);
+    applyBakuganRollingOverrides([]);
+    assert.equal(BAKUGAN.find((bakugan) => bakugan.id === catalogId)?.rollAccuracy, defaults.rollAccuracy);
+    assert.equal(BAKUGAN.find((bakugan) => bakugan.id === catalogId)?.doubleCoreChance, defaults.doubleCoreChance);
+    assert.equal(instance.rollAccuracy, 63);
+    assert.equal(instance.doubleCoreChance, 27);
+  } finally {
+    applyBakuganRollingOverrides([]);
+  }
+});
+
+test("Administrator rolling editor, APIs, and Training AI share the persisted configuration", async () => {
+  const [editor, server, adminApi, publicApi, provider, game] = await Promise.all([
+    read("components/routes/AdministratorCardManagement.tsx"),
+    read("lib/administration-server.ts"),
+    read("app/api/admin/route.ts"),
+    read("app/api/card-overrides/route.ts"),
+    read("components/application/AppProvider.jsx"),
+    read("app/api/game/route.ts"),
+  ]);
+  assert.match(editor, /card\.type === "Character" && rolling/);
+  assert.match(editor, /Rolling Properties/);
+  assert.match(editor, /Restore defaults/);
+  assert.match(server, /BAKUGAN_ROLL_RESOURCE_TYPE = "bakugan-roll"/);
+  assert.match(server, /applyBakuganRollingOverrides\(rolling\)/);
+  assert.match(adminApi, /action === "bakugan-roll-save"/);
+  assert.match(adminApi, /action === "bakugan-roll-reset"/);
+  assert.match(publicApi, /rollingOverrides/);
+  assert.match(provider, /applyBakuganRollingOverrides\(rollingOverrides\)/);
+  assert.match(game, /applyDatabaseCardOverrides/);
 });
