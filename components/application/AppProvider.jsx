@@ -593,11 +593,13 @@ export function AppProvider({ children }) {
       try {
         const result = await cachedResponse("card-overrides", "/api/card-overrides");
         if (!active || !Array.isArray(result.overrides)) return;
-        const signature = JSON.stringify(result.overrides);
+        const rollingOverrides = Array.isArray(result.rollingOverrides) ? result.rollingOverrides : [];
+        const signature = JSON.stringify([result.overrides, rollingOverrides]);
         if (signature === appliedOverrideSignature) return;
         const data = await import("../../lib/data");
         if (!active) return;
         data.applyCardOverrides(result.overrides);
+        data.applyBakuganRollingOverrides(rollingOverrides);
         appliedOverrideSignature = signature;
         if (active) setCatalogueRevision((value) => value + 1);
       } catch {}
