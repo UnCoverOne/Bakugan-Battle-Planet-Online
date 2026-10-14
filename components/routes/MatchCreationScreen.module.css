@@ -228,7 +228,6 @@
   text-align: left;
   clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
   cursor: pointer;
-  transition: transform .16s ease, border-color .16s ease, filter .16s ease;
 }
 
 .modeGrid button::after,
@@ -245,12 +244,22 @@
   box-shadow: 0 0 14px rgba(18, 195, 255, .72);
 }
 
-.modeGrid button:hover:not(:disabled),
-.actionGrid button:hover:not(:disabled),
-.segmented button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  border-color: rgba(88, 220, 255, .72);
-  filter: brightness(1.08);
+/* Hover feedback is useful on pointers, but touchscreen browsers can keep
+   a synthetic hover state active after taps and do unnecessary filter work. */
+@media (hover: hover) and (pointer: fine) {
+  .modeGrid button,
+  .actionGrid button,
+  .segmented button {
+    transition: transform .16s ease, border-color .16s ease, filter .16s ease;
+  }
+
+  .modeGrid button:hover:not(:disabled),
+  .actionGrid button:hover:not(:disabled),
+  .segmented button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: rgba(88, 220, 255, .72);
+    filter: brightness(1.08);
+  }
 }
 
 .modeGrid strong,
@@ -413,9 +422,32 @@
 }
 
 @media (max-width: 900px) {
-  /* Keep the artwork and gradients, but avoid fixed-background repaints on mobile. */
+  /* Keep every artwork/gradient layer and isolate this route's layout work
+     from the rest of the page without introducing a new composited layer. */
   .route {
     background-attachment: scroll;
+    contain: layout;
+  }
+
+  /* Only predictable-height form sections are skipped outside the viewport.
+     Browsers retain the measured height after first paint; Ranked's variable
+     deck list is deliberately excluded to avoid scroll-position jumps. */
+  .section[aria-labelledby="match-mode-heading"],
+  .section[aria-labelledby="structure-heading"],
+  .section[aria-labelledby="lobby-action-heading"] {
+    content-visibility: auto;
+  }
+
+  .section[aria-labelledby="match-mode-heading"] {
+    contain-intrinsic-size: auto 32rem;
+  }
+
+  .section[aria-labelledby="structure-heading"] {
+    contain-intrinsic-size: auto 19rem;
+  }
+
+  .section[aria-labelledby="lobby-action-heading"] {
+    contain-intrinsic-size: auto 25rem;
   }
 
   .hero {

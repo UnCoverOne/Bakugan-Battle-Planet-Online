@@ -156,3 +156,32 @@ test("builder artwork memo invalidates on catalogue updates and retains full sca
   assert.match(cardArt, /const full = cardArtSource\(card, "full"\)/);
   assert.match(cardArt, /: full;/);
 });
+
+test("Brawl Setup memoizes legality only when needed and refreshes after catalogue edits", () => {
+  const screen = source("components/routes/MatchCreationScreen.tsx");
+  assert.match(screen, /"authUser", "catalogueRevision"\]/);
+  assert.match(screen, /\[decks, catalogueRevision\]/);
+  assert.match(screen, /legalDecks\.includes\(current\)/);
+  assert.match(screen, /\(\) => mode === "ranked"\s*\?/);
+  assert.match(screen, /\[decks, mode, rankedDeckSize, rankedRestrictions, catalogueRevision\]/);
+  assert.match(screen, /const candidates = mode === "ranked"/);
+  assert.match(screen, /candidates\.slice\(0, 3\)/);
+});
+
+test("Brawl Setup avoids touchscreen hover filters and limits off-screen mobile paint", () => {
+  const css = source("components/routes/MatchCreationScreen.module.css");
+  const hoverStart = css.indexOf("@media (hover: hover) and (pointer: fine)");
+  const hoverEnd = css.indexOf(".modeGrid strong,", hoverStart);
+  assert.ok(hoverStart > 0 && hoverEnd > hoverStart);
+  const hoverRules = css.slice(hoverStart, hoverEnd);
+  assert.match(hoverRules, /\.modeGrid button:hover:not\(:disabled\)/);
+  assert.match(hoverRules, /filter: brightness\(1\.08\)/);
+  assert.doesNotMatch(css.slice(0, hoverStart), /\.modeGrid button:hover:not\(:disabled\)/);
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]*background-attachment: scroll;[\s\S]*contain: layout;/);
+  assert.match(css, /content-visibility: auto;/);
+  for (const name of ["match-mode-heading", "structure-heading", "lobby-action-heading"]) {
+    assert.match(css, new RegExp('\\.section\\[aria-labelledby="' + name + '"\\]'));
+  }
+  assert.doesNotMatch(css, /\.section\[aria-labelledby="ranked-decks-heading"\][\s\S]*?content-visibility:/);
+  assert.match(css, /url\('\/assets\/burst\.jpg'\) center\/cover fixed;/);
+});

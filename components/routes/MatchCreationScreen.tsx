@@ -51,7 +51,8 @@ export function MatchCreationScreen() {
     profile,
     playerId,
     authUser,
-  } = useAppFields(["format", "setFormat", "matchMode", "setMatchMode", "decks", "selectedDeck", "selectedDeckId", "setSelectedDeckId", "joinCode", "setJoinCode", "createOnline", "joinOnline", "setMatch", "setOnline", "profile", "playerId", "authUser"]);
+    catalogueRevision,
+  } = useAppFields(["format", "setFormat", "matchMode", "setMatchMode", "decks", "selectedDeck", "selectedDeckId", "setSelectedDeckId", "joinCode", "setJoinCode", "createOnline", "joinOnline", "setMatch", "setOnline", "profile", "playerId", "authUser", "catalogueRevision"]);
   const [mode, setMode] = useState<MatchModeChoice>(() => modeFromProvider(matchMode));
   const [structure, setStructure] = useState<"bo1" | "bo3">(format === "bo3" ? "bo3" : "bo1");
   const [action, setAction] = useState<LobbyAction>(matchMode === "join" ? "join" : "create");
@@ -63,20 +64,28 @@ export function MatchCreationScreen() {
   const [rankedRestrictions, setRankedRestrictions] = useState<DeckRestriction[]>([]);
   const [rankedDeckSize, setRankedDeckSize] = useState(50);
 
+  // Card overrides mutate catalogue records in place, so their revision must
+  // invalidate memoized legality checks even when the saved decks are unchanged.
   const legalDecks = useMemo(
     () => (decks as DeckRecord[]).filter((deck) => deckIsLegalForFormat(deck, "standard")),
-    [decks],
+    [decks, catalogueRevision],
   );
   const preferredDeck = useMemo(() => {
     const current = selectedDeck as DeckRecord | null;
-    if (current && deckIsLegalForFormat(current, "standard")) return current;
+    // selectedDeck comes from decks; reuse the Standard legality pass above.
+    if (current && legalDecks.includes(current)) return current;
     return legalDecks.find((deck) => deck.id === selectedDeckId) ?? legalDecks[0] ?? null;
   }, [legalDecks, selectedDeck, selectedDeckId]);
   const competitiveDecks = useMemo(
-    () => (decks as DeckRecord[]).filter((deck) => deckIsLegalForFormat(deck, "competitive", rankedRestrictions, rankedDeckSize)),
-    [decks, rankedDeckSize, rankedRestrictions],
+    () => mode === "ranked"
+      ? (decks as DeckRecord[]).filter((deck) => deckIsLegalForFormat(deck, "competitive", rankedRestrictions, rankedDeckSize))
+      : [],
+    [decks, mode, rankedDeckSize, rankedRestrictions, catalogueRevision],
   );
-  const rankedDecks = competitiveDecks.filter((deck) => rankedDeckIds.includes(deck.id));
+  const rankedDecks = useMemo(
+    () => mode === "ranked" ? competitiveDecks.filter((deck) => rankedDeckIds.includes(deck.id)) : [],
+    [competitiveDecks, mode, rankedDeckIds],
+  );
 
   useEffect(() => {
     if (mode === "training" && action !== "create") setAction("create");
@@ -124,7 +133,12 @@ export function MatchCreationScreen() {
     if (next === "training") setAction("create");
     if (next === "ranked") {
       setStructure("bo3");
-      setRankedDeckIds((current) => current.length ? current : competitiveDecks.slice(0, 3).map((deck) => deck.id));
+      // Calculate candidates only when Ranked is entered, rather than on
+      // every Training/Casual update. Preserve the existing three-deck default.
+      const candidates = mode === "ranked"
+        ? competitiveDecks
+        : (decks as DeckRecord[]).filter((deck) => deckIsLegalForFormat(deck, "competitive", rankedRestrictions, rankedDeckSize));
+      setRankedDeckIds((current) => current.length ? current : candidates.slice(0, 3).map((deck) => deck.id));
     }
     setError("");
   };
