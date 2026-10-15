@@ -60,7 +60,6 @@ function matches(node: OfficialRuleNode, query: string): boolean {
   return node.text.toLowerCase().includes(query) || node.children.some((child) => matches(child, query));
 }
 export function OfficialRulebook({ query = "" }: { query?: string }) {
-  const [localQuery, setLocalQuery] = useState("");
   const [term, setTerm] = useState<IndexedRule | null>(null);
   useEffect(() => {
     const reveal = () => {
@@ -76,7 +75,7 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
     window.addEventListener("hashchange", reveal);
     return () => window.removeEventListener("hashchange", reveal);
   }, []);
-  const filter = (query || localQuery).trim().toLowerCase();
+  const filter = query.trim().toLowerCase();
   const hits = useMemo(() => indexed.filter((rule) => rule.depth >= 3 && rule.text.toLowerCase().includes(filter)).length, [filter]);
   useEffect(() => {
     if (!term) return;
@@ -100,10 +99,6 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
       <a href="#rulebook-errata">Errata</a>
     </nav>
     <main className={styles.main}>
-      <div className={styles.header}>
-        <label className={styles.search}>Search rule text<input value={localQuery} onChange={(event) => setLocalQuery(event.target.value)} placeholder="Find a rule, number, or keyword…" type="search" /></label>
-        {filter && <p role="status">{hits} matching rule paragraphs</p>}
-      </div>
       {OFFICIAL_RULEBOOK.map((chapter, i) => (!filter || matches(chapter, filter)) && <section className={styles.chapter} id={`chapter-${i + 1}`} key={i}>
         <h2>{i + 1}. {chapter.text}</h2>
         {chapter.children.map((section, j) => (!filter || matches(section, filter)) && <section id={`section-${i + 1}.${j + 1}`} className={styles.section} key={j}>
