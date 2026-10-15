@@ -19,7 +19,7 @@ test("rulebook integration exposes keyword explanations, anchors, searchable rul
   const screen = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
   const parent = readFileSync("components/routes/CompendiumScreen.tsx", "utf8");
   assert.match(parent, /<OfficialRulebook query=/);
-  for (const feature of ["rulebook-introduction", "rulebook-icons", "rule-", "section-", "chapter-", "Card errata", "onTerm"]) {
+  for (const feature of ["rulebook-icons", "rule-", "section-", "chapter-", "Card errata", "onTerm"]) {
     assert.ok(screen.includes(feature), `Missing ${feature}`);
   }
 });
@@ -27,7 +27,7 @@ test("rulebook integration exposes keyword explanations, anchors, searchable rul
 test("Printed Icons remain visible first and the reader inherits the Compendium theme", () => {
   const reader = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
   const css = readFileSync("components/routes/OfficialRulebook.module.css", "utf8");
-  assert.ok(reader.indexOf('id="rulebook-icons"') < reader.indexOf('id="rulebook-introduction"'));
+  assert.ok(reader.indexOf('id="rulebook-icons"') < reader.indexOf('id={`chapter-${i + 1}`}'));
   assert.ok(reader.includes('SYMBOL_ENTRIES.map((symbol)'));
   assert.ok(!reader.includes("showIcons"));
   for (const token of ["--brand-blue-bright", "--text-primary", "--text-secondary", "--chamfer-panel", "--content-wide"]) {
@@ -63,4 +63,12 @@ test("glossary has its own Compendium tab and deep-linkable thematic reference",
     const frame = readFileSync("components/routes/CompendiumScreen.module.css", "utf8");
     assert.ok((css + frame).includes(token), token);
   }
+});
+
+test("Rules navigation has no glossary link or introduction, and errata follows all chapters", () => {
+  const screen = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
+  assert.ok(!screen.includes('id="rulebook-introduction"'));
+  assert.ok(!screen.includes('<a href="/compendium/glossary"'));
+  assert.ok(screen.indexOf('id="rulebook-errata"') > screen.indexOf('id={`chapter-${i + 1}`}'));
+  assert.ok(screen.includes('href="#rulebook-errata"'));
 });
