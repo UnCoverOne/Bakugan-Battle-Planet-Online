@@ -22,7 +22,7 @@ const termRules = indexed
   .sort((a, b) => b.label.length - a.label.length);
 const excludedTerms = new Set(["name", "art", "text", "cards", "general", "type line", "legal text", "collection number", "set indicator", "hero id", "evo id", "card types", "numbers"]);
 const terms = [...new Map(termRules.filter((rule) => !excludedTerms.has(rule.label.toLowerCase())).map((rule) => [rule.label.toLowerCase(), rule])).values()];
-const termPattern = new RegExp(`\\\\b(${terms.map((term) => term.label.replace(/[.*+?^\\$\\{\\}()|[\\]\\\\]/g, "\\\\const terms = [...new Map(termRules.map((rule) => [rule.label.toLowerCase(), rule])).values()];")).join("|")})\\\\b`, "gi");
+const termPattern = new RegExp("\\b(" + terms.map((term) => term.label.replace(/[^a-z0-9 -]/gi, "")).join("|") + ")\\b", "gi");
 const glossary = GLOSSARY_ENTRIES.map((entry) => ({ title: entry.title, body: entry.body }));
 function linkedText(text: string, currentId: string, onTerm: (rule: IndexedRule) => void) {
   const references = /\b(?:see )?(?:rule|section)\s+(\d+(?:\.\d+)*)(?:\.)?/gi;
