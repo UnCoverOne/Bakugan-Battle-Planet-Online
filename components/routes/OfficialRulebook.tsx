@@ -22,7 +22,8 @@ const termRules = indexed
   .sort((a, b) => b.label.length - a.label.length);
 const excludedTerms = new Set(["name", "art", "text", "cards", "general", "type line", "legal text", "collection number", "set indicator", "hero id", "evo id", "card types", "numbers"]);
 const terms = [...new Map(termRules.filter((rule) => !excludedTerms.has(rule.label.toLowerCase())).map((rule) => [rule.label.toLowerCase(), rule])).values()];
-const termPattern = new RegExp("\\b(" + terms.map((term) => term.label.replace(/[^a-z0-9 -]/gi, "")).join("|") + ")\\b", "gi");
+const aliases = new Map([["faction", "1.6"], ["bakucore", "1.12"], ["bakugan", "1.11"], ["priority", "1.14"], ["energy", "1.7"], ["damage", "1.16"], ["reroll", "1.18"]]);
+const termPattern = new RegExp("\\b(" + [...aliases.keys(), ...terms.map((term) => term.label.replace(/[^a-z0-9 -]/gi, ""))].join("|") + ")\\b", "gi");
 const glossary = GLOSSARY_ENTRIES.map((entry) => ({ title: entry.title, body: entry.body }));
 function linkedText(text: string, currentId: string, onTerm: (rule: IndexedRule) => void) {
   const references = /\b(?:see )?(?:rule|section)\s+(\d+(?:\.\d+)*)(?:\.)?/gi;
@@ -33,7 +34,7 @@ function linkedText(text: string, currentId: string, onTerm: (rule: IndexedRule)
     let start = 0, found: RegExpExecArray | null;
     while ((found = pattern.exec(fragment))) {
       if (found.index > start) chunks.push(fragment.slice(start, found.index));
-      const term = terms.find((candidate) => candidate.label.toLowerCase() === found![0].toLowerCase());
+      const term = byId.get(aliases.get(found[0].toLowerCase()) ?? "") || terms.find((candidate) => candidate.label.toLowerCase() === found![0].toLowerCase());
       if (term && term.id !== currentId) chunks.push(<button type="button" key={key + found.index} className={styles.term} onClick={() => onTerm(term)} title={`Explain ${term.label}`}>{found[0]}</button>);
       else chunks.push(found[0]);
       start = pattern.lastIndex;
@@ -43,7 +44,7 @@ function linkedText(text: string, currentId: string, onTerm: (rule: IndexedRule)
   while ((match = references.exec(text))) {
     linkTerms(text.slice(pos, match.index), String(pos));
     const target = byId.get(match[1]);
-    if (target) chunks.push(<a key={match.index} href={`#rule-${target.id}`} className={styles.crossref}>{match[0]}</a>);
+    if (target) chunks.push(<a key={match.index} href={target.depth === 1 ? `#chapter-${target.id}` : target.depth === 2 ? `#section-${target.id}` : `#rule-${target.id}`} className={styles.crossref}>{match[0]}</a>);
     else chunks.push(match[0]);
     pos = references.lastIndex;
   }
