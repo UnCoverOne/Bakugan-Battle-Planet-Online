@@ -5,7 +5,6 @@ import { OFFICIAL_RULEBOOK, type OfficialRuleNode } from "../../lib/official-rul
 import { GLOSSARY_ENTRIES, SYMBOL_ENTRIES } from "../../lib/reference";
 import { OriginalImage } from "../media/OriginalImage";
 import styles from "./GlossaryScreen.module.css";
-import chrome from "./ReferenceChrome.module.css";
 
 type Term = {
   title: string;
@@ -69,8 +68,8 @@ export function GlossaryScreen({ query = "" }: { query?: string }) {
     return () => removeEventListener("keydown",dismiss);
   }, [selected]);
   const byLetter = letters.map((letter) => ({letter,items:filtered.filter((item)=>item.title.toUpperCase().startsWith(letter))})).filter((group)=>group.items.length);
-  return <div className={`${styles.layout} ${chrome.layout}`}>
-    <aside className={`${styles.rail} ${chrome.contents}`} aria-label="Glossary navigation">
+  return <div className={styles.layout}>
+    <aside className={styles.rail} aria-label="Glossary navigation">
       <h2>Contents</h2>
       <a href="#glossary-icons">Printed icons</a>
       <div className={styles.alphabet} aria-label="Jump to letter">
@@ -80,8 +79,8 @@ export function GlossaryScreen({ query = "" }: { query?: string }) {
       <button type="button" aria-pressed={category==="All"} onClick={()=>setCategory("All")}>All terms</button>
       {sections.map((section)=><button key={section} type="button" aria-pressed={category===section} onClick={()=>setCategory(section)}>{section}</button>)}
     </aside>
-    <main className={`${styles.main} ${chrome.main}`}>
-      <section className={`${styles.introduction} ${chrome.searchPanel}`}>
+    <main className={styles.main}>
+      <section className={styles.introduction}>
         <label className={styles.search}>Search glossary<input type="search" value={localQuery} onChange={(event)=>setLocalQuery(event.target.value)} placeholder="Search terms, explanations, and rule numbers…" /></label>
         <p className={styles.count} role="status">{filtered.length} of {fullTerms.length} entries</p>
       </section>
