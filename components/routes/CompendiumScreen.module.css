@@ -611,3 +611,62 @@
     transition: none;
   }
 }
+
+
+/* Full-width, responsive printed-icon catalogue, separate from the rules sidebar. */
+.printedIcons {
+  display: block;
+  width: calc(100% - 3rem);
+  max-width: 1322px;
+  margin: 0 auto 1.5rem;
+  padding: 1.25rem;
+}
+
+.printedIconsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 205px), 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.printedIconCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1rem;
+  text-align: center;
+  background: #071b25;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.printedIconCard .printedIconArtwork {
+  display: block;
+  width: 54px;
+  height: 54px;
+  margin: 0;
+  object-fit: contain;
+}
+
+.printedIconCard strong {
+  line-height: 1.35;
+}
+
+.printedIconCard p {
+  margin: 0;
+  color: #b8cbd2;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 700px) {
+  .printedIcons {
+    width: calc(100% - 2rem);
+    padding: 1rem;
+  }
+
+  .printedIconsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+  }
+}
