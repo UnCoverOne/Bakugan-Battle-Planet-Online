@@ -11,7 +11,6 @@ type Term = {
   category: string;
   definition: string;
   rule: string;
-  related: string[];
   editorial: boolean;
 };
 const makeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -20,14 +19,13 @@ OFFICIAL_RULEBOOK.forEach((chapter, i) => chapter.children.forEach((section, j) 
   if (section.text === "General" || !section.children.length) return;
   const id = `${i + 1}.${j + 1}`;
   // The section's first numbered paragraph supplies the wording, without inventing a new definition.
-  sourceTerms.push({ title: section.text, key: makeKey(section.text), category: chapter.text, definition: section.children[0].text, rule: id, related: [], editorial: false });
+  sourceTerms.push({ title: section.text, key: makeKey(section.text), category: chapter.text, definition: section.children[0].text, rule: id, editorial: false });
 }));
-const overrides = new Map(GLOSSARY_ENTRIES.map((entry) => [makeKey(entry.title), entry]));
 const aliases = new Map<string,string>([
   ["b-power", "2.9"], ["bakucore", "1.12"], ["character-card", "3.2"],
   ["evo", "3.3"], ["hero", "3.4"], ["flip", "3.6"], ["faction", "1.6"],
   ["priority", "1.14"], ["reroll", "1.18"], ["selection", "1.13"],
-  ["starting-player", "7.5"], ["free", "1.15"], ["team-attack", "5.12"],
+  ["starting-player", "1.14"], ["free", "1.15"], ["team-attack", "5.12"],
   ["energy-cost", "2.3"], ["batch", "4.4"], ["damage", "1.16"],
   ["damage-rating", "2.10"], ["energy", "1.7"],
 ]);
@@ -42,7 +40,7 @@ const fullTerms: Term[] = (() => {
     indexed.set(key, {
       title: entry.title, key, category: entry.category,
       definition: original?.definition || existing?.definition || entry.body,
-      rule, related: [], editorial: !(original || existing),
+      rule, editorial: !(original || existing),
     });
   });
   return [...indexed.values()].sort((a,b) => a.title.localeCompare(b.title));
