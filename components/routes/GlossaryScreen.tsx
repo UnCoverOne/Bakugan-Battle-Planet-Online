@@ -88,7 +88,7 @@ export function GlossaryScreen({ query = "" }: { query?: string }) {
       </section>
       {byLetter.length ? byLetter.map(({letter,items})=><section key={letter} className={styles.group} id={`glossary-letter-${letter}`}>
         <h2>{letter}</h2><div className={styles.entries}>{items.map((item)=><article key={item.key} className={styles.entry} id={`glossary-${item.key}`}>
-          <div className={styles.entryHeading}><h3>{item.title}</h3><button type="button" onClick={()=>void navigator.clipboard?.writeText(`${location.origin}/compendium/glossary#glossary-${item.key}`)}>Copy link</button></div>
+          <div className={styles.entryHeading}><h3>{item.title}</h3></div>
           <p>{item.definition}</p>
           <footer><span>{item.category}</span>{item.editorial && <span>Site reference</span>}{item.rule && <a href={`/compendium/rules#section-${item.rule}`}>Rule {item.rule} →</a>}<button type="button" onClick={()=>setSelected(item)}>Details</button></footer>
         </article>)}</div>
