@@ -664,7 +664,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         </>
       )}
 
-      {section === "rules" && <OfficialRulebook query={deferredSearchQuery} />}
+      {section === "rules" && <div className={styles.rulebookFrame}><OfficialRulebook query={deferredSearchQuery} /></div>}
 
       {section === "rulings" && (
         <>
