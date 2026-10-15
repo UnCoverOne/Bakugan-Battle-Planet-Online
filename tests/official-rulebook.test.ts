@@ -7,7 +7,7 @@ test("official Battle Planet rulebook retains all nine numbered chapters and the
   assert.equal(OFFICIAL_RULEBOOK.length, 9);
   assert.deepEqual(OFFICIAL_RULEBOOK.map((chapter) => chapter.text), [
     "Game Concepts", "Parts of a Card", "Card Types", "Zones", "Turn Structure",
-    "Playing Cards, Abilities, and Effects", "Additional Rules", "Multiplayer Rules", "Cardless Rules (Basic Rules)",
+    "Playing Cards, Abilities, and Effects", "Additional Rules", "Multiplayer Rules", "Cardless Rules (basic game)",
   ]);
   assert.equal(OFFICIAL_RULEBOOK[0].children[1].text, "Deck Construction");
   assert.equal(OFFICIAL_RULEBOOK[0].children[1].children[0].children[0].text,
