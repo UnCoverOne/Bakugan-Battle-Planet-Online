@@ -93,3 +93,13 @@ test("glossary hides Copy Link and keeps lone entries in uniform grid columns", 
   assert.ok(!view.includes("Copy link"));
   assert.match(css, /\.entries\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(min\(100%,280px\),1fr\)\)/);
 });
+
+test("glossary curates previews without shortening Details and excludes retired terms", () => {
+  const view = readFileSync("components/routes/GlossaryScreen.tsx", "utf8");
+  assert.ok(view.includes('entry.title === "Costs" ? "Cost"'));
+  assert.ok(view.includes("excludedTitles.has(entry.title)"));
+  assert.ok(view.includes("keepComplete.has(entry.title)"));
+  assert.ok(view.includes("item.preview"));
+  assert.ok(view.includes("selected.definition"));
+  assert.ok(view.includes('"B-Power","Bakugan","Legal Text"'));
+});
