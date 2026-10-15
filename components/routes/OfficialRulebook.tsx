@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { OFFICIAL_RULEBOOK, type OfficialRuleNode } from "../../lib/official-rulebook";
-import { SYMBOL_ENTRIES } from "../../lib/reference";
-import { OriginalImage } from "../media/OriginalImage";
 import styles from "./OfficialRulebook.module.css";
 
 type IndexedRule = { id: string; label: string; text: string; chapter: number; depth: number };
@@ -98,15 +96,10 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
   return <div className={styles.reader} data-rulebook-reader>
     <nav className={styles.contents} aria-label="Rulebook contents">
       <h2>Contents</h2>
-      <a href="#rulebook-icons">Printed icons</a>
       {OFFICIAL_RULEBOOK.map((chapter, i) => <details key={i} open={i === 0 || Boolean(filter)}><summary><a href={`#chapter-${i + 1}`}>{i + 1}. {chapter.text}</a></summary><div className={styles.sectionLinks}>{chapter.children.map((section, j) => <a key={j} href={`#section-${i + 1}.${j + 1}`}>{i + 1}.{j + 1} {section.text}</a>)}</div></details>)}
       <a href="#rulebook-errata">Errata</a>
     </nav>
     <main className={styles.main}>
-      <section className={`panel ${styles.printedIcons}`} data-rulebook-icons id="rulebook-icons" aria-labelledby="printed-icons-heading">
-        <div className="panel-heading"><h2 id="printed-icons-heading">Printed icons</h2><span className={styles.iconCount}>{SYMBOL_ENTRIES.length}</span></div>
-        <div className={styles.icons} data-icon-grid>{SYMBOL_ENTRIES.map((symbol) => <article data-icon-card key={symbol.token}><OriginalImage src={symbol.asset} alt="" /><strong>{symbol.name}</strong><p>{symbol.description}</p></article>)}</div>
-      </section>
       <div className={styles.header}>
         <label className={styles.search}>Search rule text<input value={localQuery} onChange={(event) => setLocalQuery(event.target.value)} placeholder="Find a rule, number, or keyword…" type="search" /></label>
         {filter && <p role="status">{hits} matching rule paragraphs</p>}
