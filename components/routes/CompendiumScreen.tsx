@@ -1,6 +1,7 @@
 "use client";
 
 import { OfficialRulebook } from "./OfficialRulebook";
+import { GlossaryScreen } from "./GlossaryScreen";
 import { FusionSymbol } from "@/components/media/FusionSymbol";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
@@ -455,7 +456,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         <Tabs label="Compendium sections">
           <button type="button" className={section === "cards" ? "active" : ""} onClick={() => switchSection("cards")}>CARDS</button>
           <button type="button" className={section === "cores" ? "active" : ""} onClick={() => switchSection("cores")}>BAKUCORES</button>
-          <button type="button" className={section === "rules" ? "active" : ""} onClick={() => switchSection("rules")}>RULES & GLOSSARY</button>
+          <button type="button" className={section === "rules" ? "active" : ""} onClick={() => switchSection("rules")}>RULES</button>
+          <button type="button" className={section === "glossary" ? "active" : ""} onClick={() => switchSection("glossary")}>GLOSSARY</button>
           <button type="button" className={section === "rulings" ? "active" : ""} onClick={() => switchSection("rulings")}>RULINGS</button>
         </Tabs>
       </section>
@@ -665,6 +667,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       )}
 
       {section === "rules" && <div className={styles.rulebookFrame}><OfficialRulebook query={deferredSearchQuery} /></div>}
+      {section === "glossary" && <div className={styles.rulebookFrame}><GlossaryScreen query={deferredSearchQuery} /></div>}
 
       {section === "rulings" && (
         <>
