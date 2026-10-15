@@ -35,15 +35,15 @@ export const GLOSSARY_ENTRIES: ReferenceEntry[] = [
 ];
 
 export const SYMBOL_ENTRIES = [
-  { token: "[B]", name: "B-Power", asset: "/assets/symbols/b-power.png", description: "Bakugan power." },
-  { token: "[Damage Rating]", name: "Damage Rating", asset: "/assets/symbols/damage.png", description: "Damage dealt by an attack." },
-  { token: "[Energy]", name: "Energy", asset: "/assets/symbols/energy.png", description: "Resource used to pay costs." },
-  { token: "[DoubleStrike]", name: "DoubleStrike", asset: "/assets/symbols/double-strike.png", description: "Adds the attacking Bakugan's Damage Rating again." },
-  { token: "[FrostStrike]", name: "FrostStrike", asset: "/assets/symbols/frost-strike.png", description: "Increases Flip-card costs during damage." },
-  { token: "[ShadowStrike]", name: "ShadowStrike", asset: "/assets/symbols/shadow-strike.png", description: "Prevents the attack's Damage Rating from being reduced." },
+  { token: "[B]", name: "B-Power", asset: "/assets/symbols/b-power.svg", description: "Bakugan power." },
+  { token: "[Damage Rating]", name: "Damage Rating", asset: "/assets/symbols/damage.svg", description: "Damage dealt by an attack." },
+  { token: "[Energy]", name: "Energy", asset: "/assets/symbols/energy.svg", description: "Resource used to pay costs." },
+  { token: "[DoubleStrike]", name: "DoubleStrike", asset: "/assets/symbols/double-strike.svg", description: "Adds the attacking Bakugan's Damage Rating again." },
+  { token: "[FrostStrike]", name: "FrostStrike", asset: "/assets/symbols/frost-strike.svg", description: "Increases Flip-card costs during damage." },
+  { token: "[ShadowStrike]", name: "ShadowStrike", asset: "/assets/symbols/shadow-strike.svg", description: "Prevents the attack's Damage Rating from being reduced." },
   { token: "[BakuGear]", name: "Baku-Gear", asset: "/assets/symbols/baku-gear.svg", description: "Baku-Gear symbol used on gear-related card and BakuCore effects." },
   { token: "[Fusion]", name: "Fusion", asset: "/assets/symbols/fusion.png", description: "Fusion symbol used on Fusion Bakugan cards and related effects." },
-  { token: "[Victor]", name: "Victor", asset: "/assets/symbols/victor.png", description: "Marks an effect related to winning a Brawl." },
+  { token: "[Victor]", name: "Victor", asset: "/assets/symbols/victor.svg", description: "Marks an effect related to winning a Brawl." },
   { token: "[Roll]", name: "Roll", asset: "/assets/symbols/roll.svg", description: "Indicates rolling a Bakugan." },
   { token: "[DoubleCore]", name: "Double Core", asset: "/assets/symbols/double-core.svg", description: "Indicates two BakuCores." },
   { token: "[AddCore]", name: "Add Core", asset: "/assets/symbols/add-core.svg", description: "Symbol for adding a BakuCore." },

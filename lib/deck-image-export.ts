@@ -22,12 +22,12 @@ const FACTION_SYMBOLS: Record<string, string> = {
 };
 
 const CORE_OVERLAY_ICONS = {
-  power: "/assets/symbols/b-power.png",
-  damage: "/assets/symbols/damage.png",
-  energy: "/assets/symbols/energy.png",
+  power: "/assets/symbols/b-power.svg",
+  damage: "/assets/symbols/damage.svg",
+  energy: "/assets/symbols/energy.svg",
   bakuGear: "/assets/symbols/baku-gear.svg",
-  frost: "/assets/symbols/frost-strike.png",
-  shadow: "/assets/symbols/shadow-strike.png",
+  frost: "/assets/symbols/frost-strike.svg",
+  shadow: "/assets/symbols/shadow-strike.svg",
 } as const;
 
 type LoadedImage = HTMLImageElement | null;
@@ -135,14 +135,12 @@ function coreOverlayItems(core: Core): CoreOverlayItem[] {
 function drawCoreOverlayIcon(
   context: CanvasRenderingContext2D,
   image: LoadedImage,
-  source: CoreOverlayIcon,
   x: number,
   y: number,
   size: number,
 ) {
   if (!image) return;
   context.save();
-  if (source === "bakuGear") context.filter = "invert(1)";
   context.drawImage(image, x, y, size, size);
   context.restore();
 }
@@ -193,7 +191,7 @@ function drawCoreFallbackOverlay(
     let cursorX = chipX + (chipWidth - contentWidth) / 2;
     const iconY = chipY + (chipHeight - iconSize) / 2;
     if (item.leadingIcon) {
-      drawCoreOverlayIcon(context, icons[item.leadingIcon], item.leadingIcon, cursorX, iconY, iconSize);
+      drawCoreOverlayIcon(context, icons[item.leadingIcon], cursorX, iconY, iconSize);
       cursorX += iconSize + iconGap;
     }
     context.fillStyle = "#111111";
@@ -201,7 +199,7 @@ function drawCoreFallbackOverlay(
     cursorX += textWidth;
     if (item.trailingIcon) {
       cursorX += iconGap;
-      drawCoreOverlayIcon(context, icons[item.trailingIcon], item.trailingIcon, cursorX, iconY, iconSize);
+      drawCoreOverlayIcon(context, icons[item.trailingIcon], cursorX, iconY, iconSize);
     }
 
     rowBottom = chipY - rowGap;

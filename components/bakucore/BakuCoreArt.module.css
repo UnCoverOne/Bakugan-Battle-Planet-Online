@@ -67,9 +67,6 @@
   object-fit: contain;
 }
 
-.bakuGearIcon {
-  filter: invert(1);
-}
 
 /*
  * The artwork is rendered at different widths in the gallery and inspector.
