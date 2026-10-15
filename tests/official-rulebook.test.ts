@@ -103,3 +103,16 @@ test("glossary curates previews without shortening Details and excludes retired 
   assert.ok(view.includes("selected.definition"));
   assert.ok(view.includes('"B-Power","Bakugan","Legal Text"'));
 });
+
+test("glossary includes combat keywords, all tag-words and gameplay terms", () => {
+  const view = readFileSync("components/routes/GlossaryScreen.tsx", "utf8");
+  const extras = readFileSync("lib/extended-glossary.ts", "utf8");
+  assert.ok(view.includes('[[1, "Gameplay Terms"], [2, "Keyword Abilities"], [3, "Tag-Word Abilities"]]'));
+  assert.ok(view.includes("rule.children[0]?.text"));
+  assert.ok(view.includes('title + " (game action)"'));
+  assert.ok(view.includes("EXTENDED_TAG_WORDS.forEach"));
+  for (const keyword of ["Victor","InstaBrawl","Battle Mastery","Aurelus Power","Underdog","Boost","Sync","Empower","Rapid Fire","Trifecta","Rally","Flex","Scrounge","Inspire","Stoke"]) {
+    assert.ok(extras.includes('"title": "' + keyword + '"'), keyword);
+  }
+  assert.ok(view.includes("selected.definition"));
+});
