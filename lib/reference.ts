@@ -41,6 +41,8 @@ export const SYMBOL_ENTRIES = [
   { token: "[DoubleStrike]", name: "DoubleStrike", asset: "/assets/symbols/double-strike.png", description: "Adds the attacking Bakugan's Damage Rating again." },
   { token: "[FrostStrike]", name: "FrostStrike", asset: "/assets/symbols/frost-strike.png", description: "Increases Flip-card costs during damage." },
   { token: "[ShadowStrike]", name: "ShadowStrike", asset: "/assets/symbols/shadow-strike.png", description: "Prevents the attack's Damage Rating from being reduced." },
+  { token: "[BakuGear]", name: "Baku-Gear", asset: "/assets/symbols/baku-gear.svg", description: "Baku-Gear symbol used on gear-related card and BakuCore effects." },
+  { token: "[Fusion]", name: "Fusion", asset: "/assets/symbols/fusion.png", description: "Fusion symbol used on Fusion Bakugan cards and related effects." },
   { token: "[Victor]", name: "Victor", asset: "/assets/symbols/victor.png", description: "Marks an effect related to winning a Brawl." },
   { token: "[Roll]", name: "Roll", asset: "/assets/symbols/roll.svg", description: "Roll symbol. Available for display; no gameplay effect is implemented yet." },
   { token: "[DoubleCore]", name: "Double Core", asset: "/assets/symbols/double-core.svg", description: "Double Core symbol. Available for display; no gameplay effect is implemented yet." },
