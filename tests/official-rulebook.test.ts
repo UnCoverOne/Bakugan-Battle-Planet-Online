@@ -86,3 +86,10 @@ test("one global archive search powers every Compendium tab", () => {
     assert.match(parent, new RegExp("<" + tag + " query=\\{deferredSearchQuery\\}"));
   }
 });
+
+test("glossary hides Copy Link and keeps lone entries in uniform grid columns", () => {
+  const view = readFileSync("components/routes/GlossaryScreen.tsx", "utf8");
+  const css = readFileSync("components/routes/GlossaryScreen.module.css", "utf8");
+  assert.ok(!view.includes("Copy link"));
+  assert.match(css, /\.entries\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(min\(100%,280px\),1fr\)\)/);
+});
