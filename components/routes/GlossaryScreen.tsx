@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { OFFICIAL_RULEBOOK, type OfficialRuleNode } from "../../lib/official-rulebook";
-import { GLOSSARY_ENTRIES } from "../../lib/reference";
+import { GLOSSARY_ENTRIES, SYMBOL_ENTRIES } from "../../lib/reference";
+import { OriginalImage } from "../media/OriginalImage";
 import styles from "./GlossaryScreen.module.css";
 
 type Term = {
@@ -70,7 +71,7 @@ export function GlossaryScreen({ query = "" }: { query?: string }) {
   return <div className={styles.layout}>
     <aside className={styles.rail} aria-label="Glossary navigation">
       <h2>Contents</h2>
-      <a href="#glossary-introduction">Introduction</a>
+      <a href="#glossary-icons">Printed icons</a>
       <div className={styles.alphabet} aria-label="Jump to letter">
         {letters.map((letter)=><a key={letter} href={`#glossary-letter-${letter}`} aria-label={`Jump to ${letter}`}>{letter}</a>)}
       </div>
@@ -79,12 +80,16 @@ export function GlossaryScreen({ query = "" }: { query?: string }) {
       {sections.map((section)=><button key={section} type="button" aria-pressed={category===section} onClick={()=>setCategory(section)}>{section}</button>)}
     </aside>
     <main className={styles.main}>
-      <section className={styles.introduction} id="glossary-introduction">
-        <span className={styles.eyebrow}>BAKUGAN BATTLE PLANET · REFERENCE</span>
-        <h2>Glossary</h2>
-        <p>Browse terms from the official advanced rulebook, alongside the site’s existing glossary entries. Definitions originating in numbered rules retain their original wording and link to the full rulebook. Terms added by the site are identified separately.</p>
+      <section className={styles.introduction}>
         <label className={styles.search}>Search glossary<input type="search" value={localQuery} onChange={(event)=>setLocalQuery(event.target.value)} placeholder="Search terms, explanations, and rule numbers…" /></label>
         <p className={styles.count} role="status">{filtered.length} of {fullTerms.length} entries</p>
+      </section>
+      <section className={styles.printedIcons} id="glossary-icons" aria-labelledby="glossary-icons-heading">
+        <div className={styles.iconHeading}><h2 id="glossary-icons-heading">Printed Icons</h2><span className={styles.iconCount}>{SYMBOL_ENTRIES.length}</span></div>
+        <div className={styles.iconGrid}>{SYMBOL_ENTRIES.map((symbol) => <article className={styles.iconCard} key={symbol.token}>
+          <OriginalImage className={styles.iconArtwork} src={symbol.asset} alt="" />
+          <strong>{symbol.name}</strong><p>{symbol.description}</p>
+        </article>)}</div>
       </section>
       {byLetter.length ? byLetter.map(({letter,items})=><section key={letter} className={styles.group} id={`glossary-letter-${letter}`}>
         <h2>{letter}</h2><div className={styles.entries}>{items.map((item)=><article key={item.key} className={styles.entry} id={`glossary-${item.key}`}>
