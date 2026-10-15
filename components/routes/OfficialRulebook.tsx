@@ -99,29 +99,17 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
     <nav className={styles.contents} aria-label="Rulebook contents">
       <h2>Contents</h2>
       <a href="#rulebook-icons">Printed icons</a>
-      <a href="#rulebook-introduction">Introduction & errata</a>
       {OFFICIAL_RULEBOOK.map((chapter, i) => <details key={i} open={i === 0 || Boolean(filter)}><summary><a href={`#chapter-${i + 1}`}>{i + 1}. {chapter.text}</a></summary><div className={styles.sectionLinks}>{chapter.children.map((section, j) => <a key={j} href={`#section-${i + 1}.${j + 1}`}>{i + 1}.{j + 1} {section.text}</a>)}</div></details>)}
-      <a href="/compendium/glossary">Glossary →</a>
+      <a href="#rulebook-errata">Errata</a>
     </nav>
     <main className={styles.main}>
       <section className={`panel ${styles.printedIcons}`} data-rulebook-icons id="rulebook-icons" aria-labelledby="printed-icons-heading">
         <div className="panel-heading"><h2 id="printed-icons-heading">Printed icons</h2><span className={styles.iconCount}>{SYMBOL_ENTRIES.length}</span></div>
         <div className={styles.icons} data-icon-grid>{SYMBOL_ENTRIES.map((symbol) => <article data-icon-card key={symbol.token}><OriginalImage src={symbol.asset} alt="" /><strong>{symbol.name}</strong><p>{symbol.description}</p></article>)}</div>
       </section>
-      <div className={styles.header} id="rulebook-introduction">
-        <span className={styles.eyebrow}>BAKUGAN BATTLE PLANET · OFFICIAL COMPLETE RULEBOOK</span>
-        <h2>Rules & Glossary</h2>
-        <p>The official advanced TCG rulebook, preserving its original wording, rule order and nested paragraphs. Select underlined terms for explanations; select rule numbers to jump to the referenced passage.</p>
+      <div className={styles.header}>
         <label className={styles.search}>Search rule text<input value={localQuery} onChange={(event) => setLocalQuery(event.target.value)} placeholder="Find a rule, number, or keyword…" type="search" /></label>
         {filter && <p role="status">{hits} matching rule paragraphs</p>}
-        <details className={styles.errata}><summary>Card errata from the official rulebook</summary><ul>
-          <li>All Flow text is changed from “Flow: If you played another card this turn,” to “Flow: If this is not the first card you played this turn,”</li>
-          <li>Diamond Fangzor, despite the toy paint, is intended to be played with the Pyrus Fangzor Character card.</li>
-          <li>Hyper Gortion Ultra’s name is intended to be “Hyper Gorthion Ultra” and played with the Darkus Gorthion Ultra Character card.</li>
-          <li>Titan Nillious text is changed from “Titan Haos Fangzor.” to “this.”</li>
-          <li>Titan Nillious Ultra in some cases is missing a “3” before the Energy icon in its text. In all cases, the text should read “this costs 3 (Energy icon) less to play.”</li>
-          <li>Maximus Dragonoid – “If you control Dan Kouzo, Wynton Styles, and Lia Venegas, you win the game.”</li>
-        </ul></details>
       </div>
       {OFFICIAL_RULEBOOK.map((chapter, i) => (!filter || matches(chapter, filter)) && <section className={styles.chapter} id={`chapter-${i + 1}`} key={i}>
         <h2>{i + 1}. {chapter.text}</h2>
@@ -130,6 +118,17 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
           <ol className={styles.paragraphs}>{section.children.map((node, k) => <RuleParagraph key={k} node={node} id={`${i + 1}.${j + 1}.${k + 1}`} depth={3} onTerm={setTerm} filter={filter} />)}</ol>
         </section>)}
       </section>)}
+
+      <section className={styles.appendix} id="rulebook-errata"><h2>Errata</h2>
+        <details className={styles.errata}><summary>Card errata from the official rulebook</summary><ul>
+          <li>All Flow text is changed from “Flow: If you played another card this turn,” to “Flow: If this is not the first card you played this turn,”</li>
+          <li>Diamond Fangzor, despite the toy paint, is intended to be played with the Pyrus Fangzor Character card.</li>
+          <li>Hyper Gortion Ultra’s name is intended to be “Hyper Gorthion Ultra” and played with the Darkus Gorthion Ultra Character card.</li>
+          <li>Titan Nillious text is changed from “Titan Haos Fangzor.” to “this.”</li>
+          <li>Titan Nillious Ultra in some cases is missing a “3” before the Energy icon in its text. In all cases, the text should read “this costs 3 (Energy icon) less to play.”</li>
+          <li>Maximus Dragonoid – “If you control Dan Kouzo, Wynton Styles, and Lia Venegas, you win the game.”</li>
+        </ul></details>
+      </section>
 
     </main>
     {term && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) setTerm(null); }} role="presentation"><section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="rule-term-heading">
