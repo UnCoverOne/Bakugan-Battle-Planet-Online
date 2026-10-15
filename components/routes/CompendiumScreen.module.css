@@ -727,7 +727,7 @@
 }
 @media(max-width:900px) {
   .rulebookFrame :global([data-rulebook-reader]) {grid-template-columns:minmax(0,1fr)}
-  .rulebookFrame :global([data-rulebook-reader] > nav) {position:static;max-height:18rem}
+  .rulebookFrame :global([data-rulebook-reader] > nav[data-reference-contents]) {position:fixed;top:0;left:0;width:min(20rem,calc(100vw - 3.5rem));max-height:100dvh}
 }
 @media(max-width:700px) {
   .rulebookFrame {width:min(calc(100% - (2 * var(--space-4))),var(--content-wide))}

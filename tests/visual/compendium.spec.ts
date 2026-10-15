@@ -164,3 +164,34 @@ test("desktop cards and BakuCore controls live in their filter rails", async ({ 
   await expect(coreRail.getByRole("button", { name: /^Core type:/ })).toBeVisible();
   await expect(coreRail.getByRole("button", { name: /^Sort:/ })).toBeVisible();
 });
+
+test("mobile reference contents slide in from the left and collapse after navigation", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1000) > 900, "Mobile reference navigation");
+  for (const section of ["rules", "glossary", "rulings"]) {
+    await page.goto(`/compendium/${section}`);
+    await waitForCompendium(page);
+    const contents = page.locator("[data-reference-contents]");
+    const toggle = page.getByRole("button", { name: "Open contents" });
+    await expect(toggle).toBeVisible();
+    await expect(contents).toBeHidden();
+    await toggle.click();
+    await expect(contents).toBeVisible();
+    expect(await contents.evaluate((element) => getComputedStyle(element).position)).toBe("fixed");
+    expect((await contents.boundingBox())?.x).toBeGreaterThanOrEqual(0);
+    await page.keyboard.press("Escape");
+    await expect(contents).toBeHidden();
+    await toggle.click();
+    await contents.getByRole("link").first().click();
+    await expect(contents).toBeHidden();
+  }
+});
+
+test("mobile glossary terms render in two columns", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1000) > 700, "Portrait mobile glossary layout");
+  await page.goto("/compendium/glossary");
+  await waitForCompendium(page);
+  const grid = page.locator('[id^="glossary-letter-"] > div').first();
+  await expect(grid).toBeVisible();
+  const columns = await grid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length);
+  expect(columns).toBe(2);
+});

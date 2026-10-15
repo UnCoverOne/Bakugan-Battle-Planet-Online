@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { PUBLISHED_RULINGS } from "../../lib/reference";
 import chrome from "./ReferenceChrome.module.css";
 import styles from "./RulingsReference.module.css";
+import { ReferenceContentsDrawer } from "./ReferenceContentsDrawer";
 
 export function RulingsReference({ query = "", onSubmit, onCopy }: {query?:string;onSubmit:()=>void;onCopy:(path:string,label:string)=>Promise<void>}) {
   const [category,setCategory]=useState("All");
@@ -10,14 +11,14 @@ export function RulingsReference({ query = "", onSubmit, onCopy }: {query?:strin
   const normalized=query.trim().toLowerCase();
   const matches=useMemo(()=>PUBLISHED_RULINGS.filter(r=>(category==="All"||r.category===category)&&(!normalized||[r.title,r.body,r.category,r.sourceSection].join(" ").toLowerCase().includes(normalized))),[category,normalized]);
   return <div className={chrome.layout}>
-    <nav className={chrome.contents} aria-label="Rulings contents">
+    <ReferenceContentsDrawer className={chrome.contents} label="Rulings contents">
       <h2>Contents</h2>
       <h3>Categories</h3>
       <button type="button" aria-pressed={category==="All"} onClick={()=>setCategory("All")}>All rulings</button>
       {categories.map(c=><button type="button" key={c} aria-pressed={category===c} onClick={()=>setCategory(c)}>{c}</button>)}
       <h3>Rulings</h3>
       {matches.map(r=><a key={r.slug} href={`#ruling-${r.slug}`}>{r.title}</a>)}
-    </nav>
+    </ReferenceContentsDrawer>
     <main className={chrome.main}>
       <section className={styles.heading}><h2>Rulings</h2><button type="button" onClick={onSubmit}>Submit a question</button></section>
       <div className={styles.list}>

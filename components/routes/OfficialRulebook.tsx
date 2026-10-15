@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { OFFICIAL_RULEBOOK, type OfficialRuleNode } from "../../lib/official-rulebook";
 import styles from "./OfficialRulebook.module.css";
+import { ReferenceContentsDrawer } from "./ReferenceContentsDrawer";
 
 type IndexedRule = { id: string; label: string; text: string; chapter: number; depth: number };
 const indexed: IndexedRule[] = [];
@@ -93,11 +94,11 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
     window.location.hash = id.split(".").length === 2 ? `section-${id}` : `rule-${id}`;
   };
   return <div className={styles.reader} data-rulebook-reader>
-    <nav className={styles.contents} aria-label="Rulebook contents">
+    <ReferenceContentsDrawer className={styles.contents} label="Rulebook contents">
       <h2>Contents</h2>
       {OFFICIAL_RULEBOOK.map((chapter, i) => <details key={i} open={i === 0 || Boolean(filter)}><summary><a href={`#chapter-${i + 1}`}>{i + 1}. {chapter.text}</a></summary><div className={styles.sectionLinks}>{chapter.children.map((section, j) => <a key={j} href={`#section-${i + 1}.${j + 1}`}>{i + 1}.{j + 1} {section.text}</a>)}</div></details>)}
       <a href="#rulebook-errata">Errata</a>
-    </nav>
+    </ReferenceContentsDrawer>
     <main className={styles.main}>
       {OFFICIAL_RULEBOOK.map((chapter, i) => (!filter || matches(chapter, filter)) && <section className={styles.chapter} id={`chapter-${i + 1}`} key={i}>
         <h2>{i + 1}. {chapter.text}</h2>

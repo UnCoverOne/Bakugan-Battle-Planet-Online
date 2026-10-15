@@ -1,0 +1,79 @@
+/* Desktop navigation stays in the reference page's two-column grid. */
+.tab,.scrim,.close{display:none}
+
+@media(max-width:900px){
+  .tab{
+    display:block;
+    position:fixed;
+    z-index:1030;
+    left:0;
+    top:50%;
+    transform:translateY(-50%) rotate(180deg);
+    writing-mode:vertical-rl;
+    padding:.85rem .45rem;
+    border:1px solid rgba(91,196,226,.55);
+    border-left:0;
+    background:#092633;
+    color:var(--brand-blue-bright);
+    box-shadow:var(--elevation-2);
+    font-size:.8rem;
+    font-weight:800;
+    letter-spacing:.07em;
+    text-transform:uppercase;
+    cursor:pointer;
+  }
+  .tab[data-open="true"]{visibility:hidden;pointer-events:none}
+  .scrim{
+    display:block;
+    position:fixed;
+    z-index:1035;
+    inset:0;
+    background:rgba(0,5,8,.7);
+  }
+  nav.panel{
+    display:block;
+    position:fixed;
+    z-index:1040;
+    inset:0 auto 0 0;
+    top:0;
+    left:0;
+    width:min(20rem,calc(100vw - 3.5rem));
+    height:100dvh;
+    max-height:100dvh;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding:calc(var(--space-4) + env(safe-area-inset-top)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+    border-left:0;
+    border-radius:0;
+    clip-path:none;
+    background:linear-gradient(160deg,#0a2632,#03121a);
+    box-shadow:var(--elevation-2);
+    transform:translateX(-105%);
+    visibility:hidden;
+    pointer-events:none;
+    transition:transform .24s ease,visibility 0s linear .24s;
+  }
+  nav.panel[data-open="true"]{
+    transform:translateX(0);
+    visibility:visible;
+    pointer-events:auto;
+    transition:transform .24s ease,visibility 0s;
+  }
+  .close{
+    display:block;
+    float:right;
+    margin:-.3rem -.3rem .4rem .5rem;
+    padding:.1rem .6rem;
+    border:1px solid rgba(91,196,226,.4);
+    background:rgba(4,23,31,.86);
+    color:var(--text-primary);
+    font-size:1.6rem;
+    line-height:1.4;
+    cursor:pointer;
+  }
+  .close:focus-visible,.tab:focus-visible{outline:2px solid var(--brand-blue-bright);outline-offset:2px}
+}
+@media(max-width:900px) and (prefers-reduced-motion:reduce){
+  nav.panel{transition:none}
+  nav.panel[data-open="true"]{transition:none}
+}
