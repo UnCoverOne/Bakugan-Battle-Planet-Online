@@ -1,6 +1,6 @@
-export type CompendiumSection = "cards" | "cores" | "rules" | "rulings";
+export type CompendiumSection = "cards" | "cores" | "rules" | "glossary" | "rulings";
 const sectionPaths: Record<CompendiumSection, string> = {
-  cards: "/compendium", cores: "/compendium/cores", rules: "/compendium/rules", rulings: "/compendium/rulings",
+  cards: "/compendium", cores: "/compendium/cores", rules: "/compendium/rules", glossary: "/compendium/glossary", rulings: "/compendium/rulings",
 };
 
 /** Pathname remains authoritative after native history writes and back/forward. */
@@ -9,7 +9,7 @@ export function compendiumLocation(pathname: string | null, initialSegments: rea
     ? pathname.slice("/compendium".length).split("/").filter(Boolean)
     : initialSegments;
   const first = segments[0];
-  const section: CompendiumSection = first === "cores" || first === "rules" || first === "rulings" ? first : "cards";
+  const section: CompendiumSection = first === "cores" || first === "rules" || first === "glossary" || first === "rulings" ? first : "cards";
   let legacyDetail = section === "cards" && first === "cards" ? segments[1] ?? "" : "";
   try { legacyDetail = decodeURIComponent(legacyDetail); } catch { /* Malformed legacy links keep their literal identifier. */ }
   return { section, legacyDetail };
