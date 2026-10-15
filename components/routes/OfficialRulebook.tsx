@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { OFFICIAL_RULEBOOK, type OfficialRuleNode } from "../../lib/official-rulebook";
-import { GLOSSARY_ENTRIES, SYMBOL_ENTRIES } from "../../lib/reference";
+import { SYMBOL_ENTRIES } from "../../lib/reference";
 import { OriginalImage } from "../media/OriginalImage";
 import styles from "./OfficialRulebook.module.css";
 
@@ -24,7 +24,6 @@ const excludedTerms = new Set(["name", "art", "text", "cards", "general", "type 
 const terms = [...new Map(termRules.filter((rule) => !excludedTerms.has(rule.label.toLowerCase())).map((rule) => [rule.label.toLowerCase(), rule])).values()];
 const aliases = new Map([["faction", "1.6"], ["bakucore", "1.12"], ["bakugan", "1.11"], ["priority", "1.14"], ["energy", "1.7"], ["damage", "1.16"], ["reroll", "1.18"]]);
 const termPattern = new RegExp("\\b(" + [...aliases.keys(), ...terms.map((term) => term.label.replace(/[^a-z0-9 -]/gi, ""))].join("|") + ")\\b", "gi");
-const glossary = GLOSSARY_ENTRIES.map((entry) => ({ title: entry.title, body: entry.body }));
 function linkedText(text: string, currentId: string, onTerm: (rule: IndexedRule) => void) {
   const references = /\b(?:see )?(?:rule|section)\s+(\d+(?:\.\d+)*)(?:\.)?/gi;
   const chunks: React.ReactNode[] = [];
@@ -65,7 +64,6 @@ function matches(node: OfficialRuleNode, query: string): boolean {
 export function OfficialRulebook({ query = "" }: { query?: string }) {
   const [localQuery, setLocalQuery] = useState("");
   const [term, setTerm] = useState<IndexedRule | null>(null);
-  const [showGlossary, setShowGlossary] = useState(false);
   useEffect(() => {
     const reveal = () => {
       const match = window.location.hash.match(/^#rule-(\d+(?:\.\d+)*)$/);
@@ -103,7 +101,7 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
       <a href="#rulebook-icons">Printed icons</a>
       <a href="#rulebook-introduction">Introduction & errata</a>
       {OFFICIAL_RULEBOOK.map((chapter, i) => <details key={i} open={i === 0 || Boolean(filter)}><summary><a href={`#chapter-${i + 1}`}>{i + 1}. {chapter.text}</a></summary><div className={styles.sectionLinks}>{chapter.children.map((section, j) => <a key={j} href={`#section-${i + 1}.${j + 1}`}>{i + 1}.{j + 1} {section.text}</a>)}</div></details>)}
-      <a href="#rulebook-glossary" onClick={() => setShowGlossary(true)}>Glossary</a>
+      <a href="/compendium/glossary">Glossary →</a>
     </nav>
     <main className={styles.main}>
       <section className={`panel ${styles.printedIcons}`} data-rulebook-icons id="rulebook-icons" aria-labelledby="printed-icons-heading">
@@ -132,7 +130,6 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
           <ol className={styles.paragraphs}>{section.children.map((node, k) => <RuleParagraph key={k} node={node} id={`${i + 1}.${j + 1}.${k + 1}`} depth={3} onTerm={setTerm} filter={filter} />)}</ol>
         </section>)}
       </section>)}
-      <section className={styles.appendix} id="rulebook-glossary"><h2>Glossary</h2><button type="button" onClick={() => setShowGlossary(!showGlossary)} aria-expanded={showGlossary}>{showGlossary ? "Hide glossary entries" : `Show ${glossary.length} glossary entries`}</button>{showGlossary && <dl>{glossary.map((entry) => <div key={entry.title}><dt>{entry.title}</dt><dd>{entry.body}</dd></div>)}</dl>}</section>
 
     </main>
     {term && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) setTerm(null); }} role="presentation"><section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="rule-term-heading">
