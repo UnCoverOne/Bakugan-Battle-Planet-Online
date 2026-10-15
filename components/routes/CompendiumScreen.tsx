@@ -1,6 +1,5 @@
 "use client";
 
-import { OriginalImage } from "@/components/media/OriginalImage";
 import { OfficialRulebook } from "./OfficialRulebook";
 import { FusionSymbol } from "@/components/media/FusionSymbol";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
@@ -29,7 +28,7 @@ import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
 import type { Core } from "../../lib/game";
 import { updateCollection, type CollectionField } from "../../lib/collection";
 import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
-import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT, SYMBOL_ENTRIES } from "../../lib/reference";
+import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
 import { AppButton, Badge, copyText } from "../application/ui";
 import { ActionButton, CardGrid, Field, RouteHero, StatusChip, Surface, Tabs } from "../design-system/primitives";
@@ -256,12 +255,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const selected = section === "cards" ? selectedCompendiumCard(CARDS, state.card || legacyDetail) : null;
   const selectedCore = section === "cores" ? selectedCompendiumCore(CORE_COMPENDIUM, coreState.core) : null;
   const normalized = deferredSearchQuery.trim().toLowerCase();
-  const rules = useMemo(
-    () => section === "rules"
-      ? ruleReferences.filter((entry) => !normalized || `${entry.title} ${entry.body} ${entry.category}`.toLowerCase().includes(normalized))
-      : [],
-    [normalized, section],
-  );
 
   const urlFor = useCallback((next: CompendiumState, path = "/compendium") => {
     const query = compendiumSearchParams(next).toString();
