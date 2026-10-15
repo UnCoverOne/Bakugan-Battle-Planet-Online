@@ -53,10 +53,9 @@ const getRule = (id: string): OfficialRuleNode | undefined => {
 };
 const sections = [...new Set(fullTerms.map((entry) => entry.category))].sort();
 export function GlossaryScreen({ query = "" }: { query?: string }) {
-  const [localQuery, setLocalQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [selected, setSelected] = useState<Term | null>(null);
-  const normalized = (localQuery || query).trim().toLowerCase();
+  const normalized = query.trim().toLowerCase();
   const filtered = useMemo(() => fullTerms.filter((term) =>
     (category === "All" || term.category === category)
     && (!normalized || [term.title,term.definition,term.category,term.rule].some((part) => part.toLowerCase().includes(normalized)))
@@ -80,10 +79,6 @@ export function GlossaryScreen({ query = "" }: { query?: string }) {
       {sections.map((section)=><button key={section} type="button" aria-pressed={category===section} onClick={()=>setCategory(section)}>{section}</button>)}
     </aside>
     <main className={styles.main}>
-      <section className={styles.introduction}>
-        <label className={styles.search}>Search glossary<input type="search" value={localQuery} onChange={(event)=>setLocalQuery(event.target.value)} placeholder="Search terms, explanations, and rule numbers…" /></label>
-        <p className={styles.count} role="status">{filtered.length} of {fullTerms.length} entries</p>
-      </section>
       <section className={styles.printedIcons} id="glossary-icons" aria-labelledby="glossary-icons-heading">
         <div className={styles.iconHeading}><h2 id="glossary-icons-heading">Printed Icons</h2><span className={styles.iconCount}>{SYMBOL_ENTRIES.length}</span></div>
         <div className={styles.iconGrid}>{SYMBOL_ENTRIES.map((symbol) => <article className={styles.iconCard} key={symbol.token}>
@@ -97,7 +92,7 @@ export function GlossaryScreen({ query = "" }: { query?: string }) {
           <p>{item.definition}</p>
           <footer><span>{item.category}</span>{item.editorial && <span>Site reference</span>}{item.rule && <a href={`/compendium/rules#section-${item.rule}`}>Rule {item.rule} →</a>}<button type="button" onClick={()=>setSelected(item)}>Details</button></footer>
         </article>)}</div>
-      </section>) : <section className={styles.empty} role="status"><h2>No matching glossary entries</h2><p>Try a different term or clear the category filter.</p><button type="button" onClick={()=>{setCategory("All");setLocalQuery("");}}>Clear filters</button></section>}
+      </section>) : <section className={styles.empty} role="status"><h2>No matching glossary entries</h2><p>Try a different term or clear the category filter.</p><button type="button" onClick={()=>{setCategory("All");}}>Clear filters</button></section>}
     </main>
     {selected && <div role="presentation" className={styles.backdrop} onMouseDown={(event)=>{if(event.target===event.currentTarget)setSelected(null);}}><section role="dialog" aria-modal="true" aria-labelledby="glossary-dialog-title" className={styles.modal}>
       <button className={styles.close} type="button" aria-label="Close definition" onClick={()=>setSelected(null)}>×</button>
