@@ -106,7 +106,7 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
       <a href="#rulebook-glossary" onClick={() => setShowGlossary(true)}>Glossary</a>
     </nav>
     <main className={styles.main}>
-      <section className={`panel ${styles.printedIcons}`} id="rulebook-icons" aria-labelledby="printed-icons-heading">
+      <section className={`panel ${styles.printedIcons}`} data-rulebook-icons id="rulebook-icons" aria-labelledby="printed-icons-heading">
         <div className="panel-heading"><h2 id="printed-icons-heading">Printed icons</h2><span className={styles.iconCount}>{SYMBOL_ENTRIES.length}</span></div>
         <div className={styles.icons} data-icon-grid>{SYMBOL_ENTRIES.map((symbol) => <article data-icon-card key={symbol.token}><OriginalImage src={symbol.asset} alt="" /><strong>{symbol.name}</strong><p>{symbol.description}</p></article>)}</div>
       </section>
