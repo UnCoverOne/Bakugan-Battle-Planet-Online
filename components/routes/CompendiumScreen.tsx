@@ -2,6 +2,7 @@
 
 import { OfficialRulebook } from "./OfficialRulebook";
 import { GlossaryScreen } from "./GlossaryScreen";
+import { RulingsReference } from "./RulingsReference";
 import { FusionSymbol } from "@/components/media/FusionSymbol";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
@@ -446,13 +447,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORE_COMPENDIUM.length} BakuCores</strong><span>Sources reviewed {REFERENCE_REVIEWED_AT}</span></div>}
       />
       <section className={styles.toolbar}>
-        <Field className={styles.search} label="Search the archive">
-          <input
-            value={searchQuery}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            placeholder="Cards, effects, IDs, mechanics…"
-          />
-        </Field>
         <Tabs label="Compendium sections">
           <button type="button" className={section === "cards" ? "active" : ""} onClick={() => switchSection("cards")}>CARDS</button>
           <button type="button" className={section === "cores" ? "active" : ""} onClick={() => switchSection("cores")}>BAKUCORES</button>
@@ -465,6 +459,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       <div key={section} data-ui="compendium-section-content">
       {section === "cards" && (
         <>
+          <Field className={styles.catalogueSearch} label="Search cards"><input type="search" value={searchQuery} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Find cards, effects, IDs…" /></Field>
           <section className={styles.resultsToolbar}>
             <div>
               <strong>{cards.length.toLocaleString()} cards</strong>
@@ -570,6 +565,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
 
       {section === "cores" && (
         <>
+          <Field className={styles.catalogueSearch} label="Search BakuCores"><input type="search" value={searchQuery} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Find BakuCores…" /></Field>
           <section className={styles.resultsToolbar}>
             <div>
               <strong>{cores.length.toLocaleString()} BakuCores</strong>
@@ -669,12 +665,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       {section === "rules" && <div className={styles.rulebookFrame}><OfficialRulebook query={deferredSearchQuery} /></div>}
       {section === "glossary" && <div className={styles.rulebookFrame}><GlossaryScreen query={deferredSearchQuery} /></div>}
 
-      {section === "rulings" && (
-        <>
-          <section className="rulings-heading"><div><span className="eyebrow">PUBLISHED RESPONSES</span><h2>Rulings</h2></div><AppButton tone="red" onClick={() => setShowSubmission(true)}>SUBMIT A QUESTION</AppButton></section>
-          <section className="ruling-list modern-rulings">{PUBLISHED_RULINGS.filter((ruling) => !normalized || `${ruling.title} ${ruling.body}`.toLowerCase().includes(normalized)).map((ruling) => <article className="panel" key={ruling.slug}><div className="hero-actions"><Badge tone="gold">PUBLISHED</Badge><Badge>DEVELOPER RESPONSE</Badge></div><h2>{ruling.title}</h2><p>{ruling.body}</p><footer><small>{ruling.sourceSection} · Reviewed {ruling.reviewedAt}</small><button onClick={() => void copyLink(`/compendium/rulings/${ruling.slug}`, ruling.title)}>COPY LINK</button></footer></article>)}</section>
-        </>
-      )}
+      {section === "rulings" && <div className={styles.rulebookFrame}><RulingsReference onSubmit={() => setShowSubmission(true)} onCopy={copyLink} /></div>}
 
       </div>
 
