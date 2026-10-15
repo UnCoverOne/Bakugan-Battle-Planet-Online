@@ -19,7 +19,7 @@ test("rulebook integration exposes keyword explanations, anchors, searchable rul
   const screen = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
   const parent = readFileSync("components/routes/CompendiumScreen.tsx", "utf8");
   assert.match(parent, /<OfficialRulebook query=/);
-  for (const feature of ["rulebook-introduction", "rulebook-glossary", "rulebook-icons", "rule-", "section-", "chapter-", "Card errata", "onTerm"]) {
+  for (const feature of ["rulebook-introduction", "rulebook-icons", "rule-", "section-", "chapter-", "Card errata", "onTerm"]) {
     assert.ok(screen.includes(feature), `Missing ${feature}`);
   }
 });
@@ -46,4 +46,21 @@ test("rulebook stays inside centred Compendium reference layout", () => {
   assert.match(layout, /\.rulebookFrame\s*\{/);
   assert.match(layout, /grid-template-columns:\s*minmax\(12rem,\s*13\.75rem\) minmax\(0,\s*1fr\)/);
   assert.match(layout, /\[data-rulebook-icons\] \[data-icon-grid\]/);
+});
+
+test("glossary has its own Compendium tab and deep-linkable thematic reference", () => {
+  const route = readFileSync("lib/compendium-navigation.ts", "utf8");
+  const compendium = readFileSync("components/routes/CompendiumScreen.tsx", "utf8");
+  const glossary = readFileSync("components/routes/GlossaryScreen.tsx", "utf8");
+  const css = readFileSync("components/routes/GlossaryScreen.module.css", "utf8");
+  const rules = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
+  assert.match(route, /glossary: "\/compendium\/glossary"/);
+  assert.match(compendium, /<GlossaryScreen query=/);
+  assert.match(compendium, />GLOSSARY<\/button>/);
+  assert.ok(!rules.includes('id="rulebook-glossary"'));
+  for (const feature of ["OFFICIAL_RULEBOOK", "GLOSSARY_ENTRIES", "glossary-letter-", "glossary-", "/compendium/rules#section-", 'role="dialog"']) assert.ok(glossary.includes(feature), feature);
+  for (const token of ["--content-wide", "--brand-blue-bright", "--chamfer-panel"]) {
+    const frame = readFileSync("components/routes/CompendiumScreen.module.css", "utf8");
+    assert.ok((css + frame).includes(token), token);
+  }
 });
