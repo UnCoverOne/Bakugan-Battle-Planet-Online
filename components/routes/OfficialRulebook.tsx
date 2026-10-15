@@ -20,14 +20,16 @@ const byId = new Map(indexed.map((rule) => [rule.id, rule]));
 const termRules = indexed
   .filter((rule) => rule.depth === 2 && rule.label !== "General" && rule.label.length >= 4)
   .sort((a, b) => b.label.length - a.label.length);
-const terms = [...new Map(termRules.map((rule) => [rule.label.toLowerCase(), rule])).values()];
+const excludedTerms = new Set(["name", "art", "text", "cards", "general", "type line", "legal text", "collection number", "set indicator", "hero id", "evo id", "card types", "numbers"]);
+const terms = [...new Map(termRules.filter((rule) => !excludedTerms.has(rule.label.toLowerCase())).map((rule) => [rule.label.toLowerCase(), rule])).values()];
+const termPattern = new RegExp(`\\\\b(${terms.map((term) => term.label.replace(/[.*+?^\\$\\{\\}()|[\\]\\\\]/g, "\\\\const terms = [...new Map(termRules.map((rule) => [rule.label.toLowerCase(), rule])).values()];")).join("|")})\\\\b`, "gi");
 const glossary = GLOSSARY_ENTRIES.map((entry) => ({ title: entry.title, body: entry.body }));
 function linkedText(text: string, currentId: string, onTerm: (rule: IndexedRule) => void) {
   const references = /\b(?:see )?(?:rule|section)\s+(\d+(?:\.\d+)*)(?:\.)?/gi;
   const chunks: React.ReactNode[] = [];
   let pos = 0, match: RegExpExecArray | null;
   const linkTerms = (fragment: string, key: string) => {
-    const pattern = new RegExp(`\\b(${terms.map((term) => term.label.replace(/[.*+?^\$\{\}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "gi");
+    const pattern = new RegExp(termPattern.source, "gi");
     let start = 0, found: RegExpExecArray | null;
     while ((found = pattern.exec(fragment))) {
       if (found.index > start) chunks.push(fragment.slice(start, found.index));
@@ -64,6 +66,20 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
   const [term, setTerm] = useState<IndexedRule | null>(null);
   const [showGlossary, setShowGlossary] = useState(false);
   const [showIcons, setShowIcons] = useState(false);
+  useEffect(() => {
+    const reveal = () => {
+      const match = window.location.hash.match(/^#rule-(\\d+(?:\\.\\d+)*)$/);
+      if (!match) return;
+      const id = match[1];
+      document.querySelectorAll(`[id^="rule-"] details`).forEach((element) => {
+        const owner = element.closest("[id]");
+        if (owner && id.startsWith(owner.id.replace("rule-", "") + ".")) (element as HTMLDetailsElement).open = true;
+      });
+    };
+    reveal();
+    window.addEventListener("hashchange", reveal);
+    return () => window.removeEventListener("hashchange", reveal);
+  }, []);
   const filter = (query || localQuery).trim().toLowerCase();
   const hits = useMemo(() => indexed.filter((rule) => rule.depth >= 3 && rule.text.toLowerCase().includes(filter)).length, [filter]);
   useEffect(() => {
@@ -79,7 +95,7 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
       const owner = element.closest("[id]");
       if (owner && id.startsWith(owner.id.replace("rule-", "") + ".")) (element as HTMLDetailsElement).open = true;
     });
-    window.location.hash = `rule-${id}`;
+    window.location.hash = id.split(".").length === 2 ? `section-${id}` : `rule-${id}`;
   };
   return <div className={styles.reader}>
     <nav className={styles.contents} aria-label="Rulebook contents">
