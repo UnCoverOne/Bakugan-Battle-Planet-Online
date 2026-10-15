@@ -97,7 +97,7 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
     });
     window.location.hash = id.split(".").length === 2 ? `section-${id}` : `rule-${id}`;
   };
-  return <div className={styles.reader}>
+  return <div className={styles.reader} data-rulebook-reader>
     <nav className={styles.contents} aria-label="Rulebook contents">
       <h2>Contents</h2>
       <a href="#rulebook-icons">Printed icons</a>
@@ -108,7 +108,7 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
     <main className={styles.main}>
       <section className={`panel ${styles.printedIcons}`} id="rulebook-icons" aria-labelledby="printed-icons-heading">
         <div className="panel-heading"><h2 id="printed-icons-heading">Printed icons</h2><span className={styles.iconCount}>{SYMBOL_ENTRIES.length}</span></div>
-        <div className={styles.icons}>{SYMBOL_ENTRIES.map((symbol) => <article key={symbol.token}><OriginalImage src={symbol.asset} alt="" /><strong>{symbol.name}</strong><p>{symbol.description}</p></article>)}</div>
+        <div className={styles.icons} data-icon-grid>{SYMBOL_ENTRIES.map((symbol) => <article data-icon-card key={symbol.token}><OriginalImage src={symbol.asset} alt="" /><strong>{symbol.name}</strong><p>{symbol.description}</p></article>)}</div>
       </section>
       <div className={styles.header} id="rulebook-introduction">
         <span className={styles.eyebrow}>BAKUGAN BATTLE PLANET · OFFICIAL COMPLETE RULEBOOK</span>
