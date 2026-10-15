@@ -23,3 +23,14 @@ test("rulebook integration exposes keyword explanations, anchors, searchable rul
     assert.ok(screen.includes(feature), `Missing ${feature}`);
   }
 });
+
+test("Printed Icons remain visible first and the reader inherits the Compendium theme", () => {
+  const reader = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
+  const css = readFileSync("components/routes/OfficialRulebook.module.css", "utf8");
+  assert.ok(reader.indexOf('id="rulebook-icons"') < reader.indexOf('id="rulebook-introduction"'));
+  assert.ok(reader.includes('SYMBOL_ENTRIES.map((symbol)'));
+  assert.ok(!reader.includes("showIcons"));
+  for (const token of ["--brand-blue-bright", "--text-primary", "--text-secondary", "--chamfer-panel", "--content-wide"]) {
+    assert.ok(css.includes(token), `Expected shared theme token: ${token}`);
+  }
+});
