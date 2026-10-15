@@ -669,3 +669,67 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
   }
 }
+
+/* Rulebook uses the same centred content width and two-column reference layout
+   as the original Compendium. Keep these layout constraints with the route,
+   not only in the independently bundled reader stylesheet. */
+.rulebookFrame {
+  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
+  max-width: var(--content-wide);
+  margin-inline: auto;
+  min-width: 0;
+}
+.rulebookFrame :global([data-rulebook-reader]) {
+  display: grid;
+  grid-template-columns: minmax(12rem, 13.75rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 100%;
+  margin-inline: 0;
+  min-width: 0;
+}
+.rulebookFrame :global([data-rulebook-reader] > nav) {
+  min-width: 0;
+  width: 100%;
+  max-height: calc(100dvh - 11.5rem);
+  overflow-y: auto;
+  position: sticky;
+  top: 10.25rem;
+  background: linear-gradient(160deg,rgba(10,38,50,.96),rgba(3,18,26,.96));
+  border: 1px solid var(--line);
+  border-radius: 0;
+  clip-path: polygon(var(--chamfer-panel) 0,100% 0,100% calc(100% - var(--chamfer-panel)),calc(100% - var(--chamfer-panel)) 100%,0 100%,0 var(--chamfer-panel));
+}
+.rulebookFrame :global([data-rulebook-reader] > main) {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+.rulebookFrame :global([data-rulebook-icons]) {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 var(--space-4);
+  min-width: 0;
+  background: linear-gradient(160deg,rgba(10,38,50,.96),rgba(3,18,26,.96));
+}
+.rulebookFrame :global([data-rulebook-icons] [data-icon-grid]) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(min(100%,205px),1fr));
+  width: 100%;
+  gap: .75rem;
+}
+.rulebookFrame :global([data-rulebook-icons] [data-icon-card]) {
+  background: #071b25;
+  border: 1px solid rgba(255,255,255,.1);
+  min-width: 0;
+  text-align: center;
+}
+@media(max-width:900px) {
+  .rulebookFrame :global([data-rulebook-reader]) {grid-template-columns:minmax(0,1fr)}
+  .rulebookFrame :global([data-rulebook-reader] > nav) {position:static;max-height:18rem}
+}
+@media(max-width:700px) {
+  .rulebookFrame {width:min(calc(100% - (2 * var(--space-4))),var(--content-wide))}
+  .rulebookFrame :global([data-rulebook-icons] [data-icon-grid]) {grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr))}
+}
