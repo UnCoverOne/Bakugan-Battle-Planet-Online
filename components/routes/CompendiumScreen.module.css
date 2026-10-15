@@ -613,12 +613,12 @@
 }
 
 
-/* Full-width, responsive printed-icon catalogue, separate from the rules sidebar. */
+/* Responsive printed-icon grid within the Rules & Glossary content column. */
 .printedIcons {
   display: block;
-  width: calc(100% - 3rem);
-  max-width: 1322px;
-  margin: 0 auto 1.5rem;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 1.5rem;
   padding: 1.25rem;
 }
 
@@ -662,7 +662,6 @@
 
 @media (max-width: 700px) {
   .printedIcons {
-    width: calc(100% - 2rem);
     padding: 1rem;
   }
 
