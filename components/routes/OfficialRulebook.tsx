@@ -66,7 +66,6 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
   const [localQuery, setLocalQuery] = useState("");
   const [term, setTerm] = useState<IndexedRule | null>(null);
   const [showGlossary, setShowGlossary] = useState(false);
-  const [showIcons, setShowIcons] = useState(false);
   useEffect(() => {
     const reveal = () => {
       const match = window.location.hash.match(/^#rule-(\d+(?:\.\d+)*)$/);
@@ -101,12 +100,16 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
   return <div className={styles.reader}>
     <nav className={styles.contents} aria-label="Rulebook contents">
       <h2>Contents</h2>
+      <a href="#rulebook-icons">Printed icons</a>
       <a href="#rulebook-introduction">Introduction & errata</a>
       {OFFICIAL_RULEBOOK.map((chapter, i) => <details key={i} open={i === 0 || Boolean(filter)}><summary><a href={`#chapter-${i + 1}`}>{i + 1}. {chapter.text}</a></summary><div className={styles.sectionLinks}>{chapter.children.map((section, j) => <a key={j} href={`#section-${i + 1}.${j + 1}`}>{i + 1}.{j + 1} {section.text}</a>)}</div></details>)}
       <a href="#rulebook-glossary" onClick={() => setShowGlossary(true)}>Glossary</a>
-      <a href="#rulebook-icons" onClick={() => setShowIcons(true)}>Printed icons</a>
     </nav>
     <main className={styles.main}>
+      <section className={`panel ${styles.printedIcons}`} id="rulebook-icons" aria-labelledby="printed-icons-heading">
+        <div className="panel-heading"><h2 id="printed-icons-heading">Printed icons</h2><span className={styles.iconCount}>{SYMBOL_ENTRIES.length}</span></div>
+        <div className={styles.icons}>{SYMBOL_ENTRIES.map((symbol) => <article key={symbol.token}><OriginalImage src={symbol.asset} alt="" /><strong>{symbol.name}</strong><p>{symbol.description}</p></article>)}</div>
+      </section>
       <div className={styles.header} id="rulebook-introduction">
         <span className={styles.eyebrow}>BAKUGAN BATTLE PLANET · OFFICIAL COMPLETE RULEBOOK</span>
         <h2>Rules & Glossary</h2>
@@ -130,7 +133,7 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
         </section>)}
       </section>)}
       <section className={styles.appendix} id="rulebook-glossary"><h2>Glossary</h2><button type="button" onClick={() => setShowGlossary(!showGlossary)} aria-expanded={showGlossary}>{showGlossary ? "Hide glossary entries" : `Show ${glossary.length} glossary entries`}</button>{showGlossary && <dl>{glossary.map((entry) => <div key={entry.title}><dt>{entry.title}</dt><dd>{entry.body}</dd></div>)}</dl>}</section>
-      <section className={styles.appendix} id="rulebook-icons"><h2>Printed icons</h2><button type="button" aria-expanded={showIcons} onClick={() => setShowIcons(!showIcons)}>{showIcons ? "Hide printed icons" : `Show ${SYMBOL_ENTRIES.length} printed icons`}</button>{showIcons && <div className={styles.icons}>{SYMBOL_ENTRIES.map((symbol) => <article key={symbol.token}><OriginalImage src={symbol.asset} alt="" /><strong>{symbol.name}</strong><p>{symbol.description}</p></article>)}</div>}</section>
+
     </main>
     {term && <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) setTerm(null); }} role="presentation"><section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="rule-term-heading">
       <button type="button" className={styles.close} onClick={() => setTerm(null)} aria-label="Close explanation">×</button>
