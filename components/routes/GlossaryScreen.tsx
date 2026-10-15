@@ -93,7 +93,7 @@ const fullTerms: Term[] = (() => {
     const subsection = additional.children[sectionIndex];
     subsection?.children.forEach((rule, i) => {
       const title = category === "Keyword Abilities"
-        ? rule.text.replace(/^\\([^)]*\\)\\s*/, "").trim()
+        ? rule.text.slice(rule.text.indexOf(")") + 1).trim()
         : rule.text;
       const disambiguated = category === "Gameplay Terms" && (title === "Flip" || title === "Victor")
         ? title + " (game action)" : title;
