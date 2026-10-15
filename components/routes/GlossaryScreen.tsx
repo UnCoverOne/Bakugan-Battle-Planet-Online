@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { OFFICIAL_RULEBOOK, type OfficialRuleNode } from "../../lib/official-rulebook";
 import { GLOSSARY_ENTRIES, SYMBOL_ENTRIES } from "../../lib/reference";
+import { EXTENDED_TAG_WORDS } from "../../lib/extended-glossary";
 import { OriginalImage } from "../media/OriginalImage";
 import styles from "./GlossaryScreen.module.css";
 
@@ -84,6 +85,28 @@ const fullTerms: Term[] = (() => {
       definition: original?.definition || existing?.definition || entry.body,
       rule, editorial: !(original || existing), preview: "",
     });
+  });
+  // Read individual nested definitions from the original rulebook, rather than
+  // indexing only chapter section headings.
+  const additional = OFFICIAL_RULEBOOK[6];
+  for (const [sectionIndex, category] of [[1, "Gameplay Terms"], [2, "Keyword Abilities"], [3, "Tag-Word Abilities"]] as const) {
+    const subsection = additional.children[sectionIndex];
+    subsection?.children.forEach((rule, i) => {
+      const title = category === "Keyword Abilities"
+        ? rule.text.replace(/^\\([^)]*\\)\\s*/, "").trim()
+        : rule.text;
+      const disambiguated = category === "Gameplay Terms" && (title === "Flip" || title === "Victor")
+        ? title + " (game action)" : title;
+      const key = makeKey(disambiguated);
+      const definition = rule.children[0]?.text || rule.text;
+      indexed.set(key, {title: disambiguated, key, category, definition,
+        rule: `7.${sectionIndex + 1}.${i + 1}`, editorial: false, preview: ""});
+    });
+  }
+  EXTENDED_TAG_WORDS.forEach((entry) => {
+    const key = makeKey(entry.title);
+    indexed.set(key, {title: entry.title, key, category: entry.category,
+      definition: entry.definition, rule: "", editorial: true, preview: ""});
   });
   return [...indexed.values()].filter((entry) => !excludedTitles.has(entry.title)).map((entry) => ({...entry, title: entry.title === "Costs" ? "Cost" : entry.title, key: entry.title === "Costs" ? "cost" : entry.key, preview: previewFor(entry)})).sort((a,b) => a.title.localeCompare(b.title));
 })();
