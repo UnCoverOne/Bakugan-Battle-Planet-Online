@@ -68,7 +68,7 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
   const [showIcons, setShowIcons] = useState(false);
   useEffect(() => {
     const reveal = () => {
-      const match = window.location.hash.match(/^#rule-(\\d+(?:\\.\\d+)*)$/);
+      const match = window.location.hash.match(/^#rule-(\d+(?:\.\d+)*)$/);
       if (!match) return;
       const id = match[1];
       document.querySelectorAll(`[id^="rule-"] details`).forEach((element) => {
