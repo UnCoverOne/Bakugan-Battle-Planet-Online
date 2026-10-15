@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { OFFICIAL_RULEBOOK, type OfficialRuleNode } from "../../lib/official-rulebook";
 import styles from "./OfficialRulebook.module.css";
-import chrome from "./ReferenceChrome.module.css";
 
 type IndexedRule = { id: string; label: string; text: string; chapter: number; depth: number };
 const indexed: IndexedRule[] = [];
@@ -94,14 +93,14 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
     });
     window.location.hash = id.split(".").length === 2 ? `section-${id}` : `rule-${id}`;
   };
-  return <div className={`${styles.reader} ${chrome.layout}`} data-rulebook-reader>
-    <nav className={`${styles.contents} ${chrome.contents}`} aria-label="Rulebook contents">
+  return <div className={styles.reader} data-rulebook-reader>
+    <nav className={styles.contents} aria-label="Rulebook contents">
       <h2>Contents</h2>
       {OFFICIAL_RULEBOOK.map((chapter, i) => <details key={i} open={i === 0 || Boolean(filter)}><summary><a href={`#chapter-${i + 1}`}>{i + 1}. {chapter.text}</a></summary><div className={styles.sectionLinks}>{chapter.children.map((section, j) => <a key={j} href={`#section-${i + 1}.${j + 1}`}>{i + 1}.{j + 1} {section.text}</a>)}</div></details>)}
       <a href="#rulebook-errata">Errata</a>
     </nav>
-    <main className={`${styles.main} ${chrome.main}`}>
-      <div className={`${styles.header} ${chrome.searchPanel}`}>
+    <main className={styles.main}>
+      <div className={styles.header}>
         <label className={styles.search}>Search rule text<input value={localQuery} onChange={(event) => setLocalQuery(event.target.value)} placeholder="Find a rule, number, or keyword…" type="search" /></label>
         {filter && <p role="status">{hits} matching rule paragraphs</p>}
       </div>
