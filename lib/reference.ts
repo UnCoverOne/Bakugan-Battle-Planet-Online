@@ -42,6 +42,8 @@ export const SYMBOL_ENTRIES = [
   { token: "[FrostStrike]", name: "FrostStrike", asset: "/assets/symbols/frost-strike.png", description: "Increases Flip-card costs during damage." },
   { token: "[ShadowStrike]", name: "ShadowStrike", asset: "/assets/symbols/shadow-strike.png", description: "Prevents the attack's Damage Rating from being reduced." },
   { token: "[Victor]", name: "Victor", asset: "/assets/symbols/victor.png", description: "Marks an effect related to winning a Brawl." },
+  { token: "[Roll]", name: "Roll", asset: "/assets/symbols/roll.svg", description: "Roll symbol. Available for display; no gameplay effect is implemented yet." },
+  { token: "[DoubleCore]", name: "Double Core", asset: "/assets/symbols/double-core.svg", description: "Double Core symbol. Available for display; no gameplay effect is implemented yet." },
   { token: "[Aquos]", name: "Aquos", asset: "/assets/symbols/factions/aquos.png", description: "Aquos faction." },
   { token: "[Aurelus]", name: "Aurelus", asset: "/assets/symbols/factions/aurelus.png", description: "Aurelus faction." },
   { token: "[Darkus]", name: "Darkus", asset: "/assets/symbols/factions/darkus.png", description: "Darkus faction." },
