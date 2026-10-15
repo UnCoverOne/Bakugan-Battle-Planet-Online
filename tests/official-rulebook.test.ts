@@ -24,14 +24,13 @@ test("rulebook integration exposes keyword explanations, anchors, searchable rul
   }
 });
 
-test("Printed Icons follow Glossary search and keep Compendium styling", () => {
+test("Printed Icons remain in Glossary and keep Compendium styling", () => {
   const reader = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
   const glossary = readFileSync("components/routes/GlossaryScreen.tsx", "utf8");
   const css = readFileSync("components/routes/GlossaryScreen.module.css", "utf8");
   assert.ok(!reader.includes("SYMBOL_ENTRIES"));
   assert.ok(!reader.includes('href="#rulebook-icons"'));
   assert.ok(!glossary.includes('id="glossary-introduction"'));
-  assert.ok(glossary.indexOf('Search glossary') < glossary.indexOf('id="glossary-icons"'));
   assert.ok(glossary.indexOf('id="glossary-icons"') < glossary.indexOf('{byLetter.length'));
   assert.ok(glossary.includes('SYMBOL_ENTRIES.map((symbol)'));
   for (const token of ["--brand-blue-bright", "--text-primary", "--chamfer-panel", ".iconGrid"]) {
@@ -45,11 +44,8 @@ test("rulebook stays inside centred Compendium reference layout", () => {
   const layout = readFileSync("components/routes/CompendiumScreen.module.css", "utf8");
   assert.match(screen, /className=\{styles\.rulebookFrame\}><OfficialRulebook/);
   assert.match(reader, /data-rulebook-reader/);
-  assert.match(reader, /data-rulebook-icons/);
-  assert.match(reader, /data-icon-grid/);
   assert.match(layout, /\.rulebookFrame\s*\{/);
   assert.match(layout, /grid-template-columns:\s*minmax\(12rem,\s*13\.75rem\) minmax\(0,\s*1fr\)/);
-  assert.match(layout, /\[data-rulebook-icons\] \[data-icon-grid\]/);
 });
 
 test("glossary has its own Compendium tab and deep-linkable thematic reference", () => {
@@ -75,4 +71,18 @@ test("Rules navigation has no glossary link or introduction, and errata follows 
   assert.ok(!screen.includes('<a href="/compendium/glossary"'));
   assert.ok(screen.indexOf('id="rulebook-errata"') > screen.indexOf('id={`chapter-${i + 1}`}'));
   assert.ok(screen.includes('href="#rulebook-errata"'));
+});
+
+test("one global archive search powers every Compendium tab", () => {
+  const parent = readFileSync("components/routes/CompendiumScreen.tsx","utf8");
+  const rules = readFileSync("components/routes/OfficialRulebook.tsx","utf8");
+  const glossary = readFileSync("components/routes/GlossaryScreen.tsx","utf8");
+  const rulings = readFileSync("components/routes/RulingsReference.tsx","utf8");
+  assert.equal(parent.split('label="Search the archive"').length - 1, 1);
+  for (const component of [rules,glossary,rulings]) {
+    assert.ok(!component.includes('type="search"'));
+  }
+  for (const tag of ["OfficialRulebook","GlossaryScreen","RulingsReference"]) {
+    assert.match(parent, new RegExp("<" + tag + " query=\\{deferredSearchQuery\\}"));
+  }
 });
