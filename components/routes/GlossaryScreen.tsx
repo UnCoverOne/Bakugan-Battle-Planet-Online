@@ -92,13 +92,16 @@ const getRule = (id: string): OfficialRuleNode | undefined => {
   const indexes = id.split(".").map((value) => Number(value)-1);
   return indexes.reduce<OfficialRuleNode | undefined>((node, i, position) => position === 0 ? OFFICIAL_RULEBOOK[i] : node?.children[i], undefined);
 };
-const sections = [...new Set(fullTerms.map((entry) => entry.category))].sort();
+// These source chapters are not useful as glossary filters; their entries remain in All terms.
+const hiddenCategories = new Set(["Additional Rules", "Cardless Rules (basic game)"]);
+const displayCategory = (value: string) => value.toLowerCase() === "turn structure" ? "Turn Structure" : value;
+const sections = [...new Set(fullTerms.map((entry) => displayCategory(entry.category)).filter((value) => !hiddenCategories.has(value)))].sort();
 export function GlossaryScreen({ query = "" }: { query?: string }) {
   const [category, setCategory] = useState("All");
   const [selected, setSelected] = useState<Term | null>(null);
   const normalized = query.trim().toLowerCase();
   const filtered = useMemo(() => fullTerms.filter((term) =>
-    (category === "All" || term.category === category)
+    (category === "All" || displayCategory(term.category) === category)
     && (!normalized || [term.title,term.definition,term.category,term.rule].some((part) => part.toLowerCase().includes(normalized)))
   ),[category,normalized]);
   useEffect(() => {
