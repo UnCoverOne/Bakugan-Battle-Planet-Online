@@ -34,3 +34,16 @@ test("Printed Icons remain visible first and the reader inherits the Compendium 
     assert.ok(css.includes(token), `Expected shared theme token: ${token}`);
   }
 });
+
+test("rulebook stays inside centred Compendium reference layout", () => {
+  const screen = readFileSync("components/routes/CompendiumScreen.tsx", "utf8");
+  const reader = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
+  const layout = readFileSync("components/routes/CompendiumScreen.module.css", "utf8");
+  assert.match(screen, /className=\{styles\.rulebookFrame\}><OfficialRulebook/);
+  assert.match(reader, /data-rulebook-reader/);
+  assert.match(reader, /data-rulebook-icons/);
+  assert.match(reader, /data-icon-grid/);
+  assert.match(layout, /\.rulebookFrame\s*\{/);
+  assert.match(layout, /grid-template-columns:\s*minmax\(12rem,\s*13\.75rem\) minmax\(0,\s*1fr\)/);
+  assert.match(layout, /\[data-rulebook-icons\] \[data-icon-grid\]/);
+});
