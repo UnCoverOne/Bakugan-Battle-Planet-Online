@@ -13,14 +13,55 @@ type Term = {
   definition: string;
   rule: string;
   editorial: boolean;
+  preview: string;
 };
 const makeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+// Only the initial card is abbreviated. Details always renders the unmodified rule text.
+const excludedTitles = new Set(["Completing Effects","Copying Cards and Abilities","Deck Construction","Ending the Game","Energy Abilities","Evo ID","Free","Gameplay Terms","Handling Mis-rolls","Hero ID","Keyword Abilities","Making Selections","Modifications","Priority and Timing","Setup","Starting the Game","Tag-Word Abilities","The Ultimate Rules","Type Line","Winning","BakuCores","BPower","Character Cards","Evo Cards","Factions","Flip Cards","Hero Cards","Reroll effects","Selection"]);
+const previewBreaks: Record<string,string> = {
+  "Acting Player": " Once that player passes priority",
+  "Art Credit": " It has no game function.",
+  "BakuCore": " On the top side",
+  "BakuCore Field": " This is the zone",
+  "BakuCore Indicator": " It is indicated",
+  "Cards": " Only Bakugan Character",
+  "Character Card": " Character cards begin",
+  "Collection Number": " It has no game function.",
+  "Continuous Effects": " They read as",
+  "Costs": " Most costs are",
+  "Damage": " When damage is",
+  "Damage Rating": " It is indicated",
+  "Damage Step": " Cards flipped",
+  "Deck": " There can be",
+  "Discard Pile": " In addition,",
+  "Drawing a Card": " Once per turn,",
+  "Evo Rating": " It is shown",
+  "Flip": " If a player is dealt",
+  "Hand": " There are additional",
+  "Legal Text": " It is listed",
+  "Play Area": " These cards consist",
+  "Play Step": " This is the last",
+  "Roll Phase": " During this phase",
+  "Set Indicator": " It is located",
+  "Start Phase": " During this phase",
+  "Static Abilities": " They appear",
+  "Triggered Abilities": " They typically"
+};
+const keepComplete = new Set(["B-Power","Bakugan","Legal Text"]);
+const previewFor = (entry: Term) => {
+  if (keepComplete.has(entry.title)) return entry.definition;
+  let preview = entry.definition.replace(/\s*\(see rules?\s+[^)]*\)/gi, "").replace(/\s*\(see\s+\d+(?:\.\d+)+[^)]*\)/gi, "");
+  const marker = previewBreaks[entry.title];
+  if (marker && preview.includes(marker)) preview = preview.slice(0, preview.indexOf(marker));
+  if (entry.title === "Play Step" || entry.title === "Power Step") preview = preview.replace(/\s*\(see rules?\s+[^)]*\)/gi, "");
+  return preview.trim();
+};
 const sourceTerms: Term[] = [];
 OFFICIAL_RULEBOOK.forEach((chapter, i) => chapter.children.forEach((section, j) => {
   if (section.text === "General" || !section.children.length) return;
   const id = `${i + 1}.${j + 1}`;
   // The section's first numbered paragraph supplies the wording, without inventing a new definition.
-  sourceTerms.push({ title: section.text, key: makeKey(section.text), category: chapter.text, definition: section.children[0].text, rule: id, editorial: false });
+  sourceTerms.push({ title: section.text, key: makeKey(section.text), category: chapter.text, definition: section.children[0].text, rule: id, editorial: false, preview: "" });
 }));
 const aliases = new Map<string,string>([
   ["b-power", "2.9"], ["bakucore", "1.12"], ["character-card", "3.2"],
@@ -41,10 +82,10 @@ const fullTerms: Term[] = (() => {
     indexed.set(key, {
       title: entry.title, key, category: entry.category,
       definition: original?.definition || existing?.definition || entry.body,
-      rule, editorial: !(original || existing),
+      rule, editorial: !(original || existing), preview: "",
     });
   });
-  return [...indexed.values()].sort((a,b) => a.title.localeCompare(b.title));
+  return [...indexed.values()].filter((entry) => !excludedTitles.has(entry.title)).map((entry) => ({...entry, title: entry.title === "Costs" ? "Cost" : entry.title, key: entry.title === "Costs" ? "cost" : entry.key, preview: previewFor(entry)})).sort((a,b) => a.title.localeCompare(b.title));
 })();
 const letters = [...new Set(fullTerms.map((entry) => entry.title[0].toUpperCase()))].sort();
 const getRule = (id: string): OfficialRuleNode | undefined => {
@@ -89,7 +130,7 @@ export function GlossaryScreen({ query = "" }: { query?: string }) {
       {byLetter.length ? byLetter.map(({letter,items})=><section key={letter} className={styles.group} id={`glossary-letter-${letter}`}>
         <h2>{letter}</h2><div className={styles.entries}>{items.map((item)=><article key={item.key} className={styles.entry} id={`glossary-${item.key}`}>
           <div className={styles.entryHeading}><h3>{item.title}</h3></div>
-          <p>{item.definition}</p>
+          <p>{item.preview}</p>
           <footer><span>{item.category}</span>{item.editorial && <span>Site reference</span>}{item.rule && <a href={`/compendium/rules#section-${item.rule}`}>Rule {item.rule} →</a>}<button type="button" onClick={()=>setSelected(item)}>Details</button></footer>
         </article>)}</div>
       </section>) : <section className={styles.empty} role="status"><h2>No matching glossary entries</h2><p>Try a different term or clear the category filter.</p><button type="button" onClick={()=>{setCategory("All");}}>Clear filters</button></section>}
