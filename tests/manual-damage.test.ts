@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
-import { createMatch, passPriority, resolveStructuredEffect, type PlayerState } from "../lib/game";
+import { createMatch, flipStopsDamage, passPriority, revealedFlipCanBePlayed, resolveStructuredEffect, type PlayerState } from "../lib/game";
 import { conditionFor } from "../lib/rules/catalogue-primitives";
 import { ruleConditionActive } from "../lib/rules/modifiers";
 import { ensureRulesState } from "../lib/rules/state";
@@ -220,4 +220,42 @@ test("the Victor window enters manual damage without consuming the loser deck", 
   assert.equal(damage.revealedFlip, undefined);
   assert.deepEqual(damage.players[1].deckCards.map((card) => card.id), deckBefore);
   assert.deepEqual(damage.players[1].discard, []);
+});
+
+test("Golden Wall stops a non-Fusion attacker even in a Team Attack", () => {
+  const defendingPlayer = makePlayer("golden-wall-defender", "Defender", STARTER_DECKS[0]);
+  const attackingPlayer = makePlayer("golden-wall-attacker", "Attacker", STARTER_DECKS[1]);
+  const original = CARDS.find((card) => card.catalogId === "sv-87");
+  assert.ok(original, "Golden Wall must exist in the catalogue");
+  const wall = { ...original, id: "revealed-golden-wall" };
+  const state = createMatch("GOLDEN", "bo3", [defendingPlayer, attackingPlayer]);
+  const attacker = attackingPlayer.bakugan[0];
+  attacker.fused = false;
+  state.turn = 3;
+  state.phase = "damage";
+  state.pendingLoser = defendingPlayer.id;
+  state.pendingDamage = 8;
+  state.damageOrigin = attacker.id;
+  state.damageFaction = "Ventus";
+  state.teamAttack = true;
+  state.revealedFlip = wall;
+
+  assert.equal(flipStopsDamage(state, wall), true);
+  assert.equal(revealedFlipCanBePlayed(state, defendingPlayer.id), true);
+  attacker.fused = true;
+  assert.equal(flipStopsDamage(state, wall), false);
+  assert.equal(revealedFlipCanBePlayed(state, defendingPlayer.id), false);
+  attacker.fused = false;
+  state.damageOrigin = "missing-attacker";
+  assert.equal(flipStopsDamage(state, wall), false);
+});
+
+test("Golden Wall also recognizes bracketed Fusion notation", () => {
+  const defender = makePlayer("bracket-defender", "Defender", STARTER_DECKS[0]);
+  const attacker = makePlayer("bracket-attacker", "Attacker", STARTER_DECKS[1]);
+  const wall = CARDS.find((card) => card.catalogId === "sv-87");
+  assert.ok(wall);
+  const state = createMatch("GOLDEN2", "bo1", [defender, attacker]);
+  state.damageOrigin = attacker.bakugan[0].id;
+  assert.equal(flipStopsDamage(state, { ...wall, effect: "[Stop] a non-[Fusion] Bakugan." }), true);
 });

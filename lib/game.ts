@@ -4480,6 +4480,11 @@ export const flipStopsDamage = (state: MatchState, card: GameCard) => {
   if (/\[Stop\] an attack/i.test(text)) return true;
   const attackingBakugan = state.players.flatMap((player) => player.bakugan)
     .find((bakugan) => bakugan.id === state.damageOrigin);
+  // Fusion is a Bakugan state, not a Faction. Golden Wall stops a non-Fusion
+  // attacker even when its Faction is otherwise unrestricted.
+  if (/\[Stop\]\s+(?:an?\s+)?non-(?:<Fusion>|\[Fusion\])\s+Bakugan/i.test(text)) {
+    return Boolean(attackingBakugan && !attackingBakugan.fused);
+  }
   const factions = attackingBakugan
     ? effectiveBakuganFactions(attackingBakugan)
     : state.damageFaction ? [state.damageFaction] : [];
