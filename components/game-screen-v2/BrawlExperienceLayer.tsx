@@ -145,6 +145,17 @@ function BrawlCombatant({
             {view.modifiers.map((modifier, index) => (
               <li title={modifier} key={`${view.bakuganId}-modifier-${index}`}>{modifier}</li>
             ))}
+            {view.keywords.map((keyword) => (
+              <li key={`${view.bakuganId}-keyword-${keyword.name}`} className={styles.keywordModifier}>
+                {keyword.amount ? <span>{keyword.amount}</span> : null}
+                <OriginalImage
+                  src={keyword.name === "FrostStrike" ? "/assets/symbols/frost-strike.svg"
+                    : keyword.name === "ShadowStrike" ? "/assets/symbols/shadow-strike.svg"
+                    : "/assets/symbols/double-strike.svg"}
+                  width={18} height={18} alt={keyword.name} title={keyword.name}
+                />
+              </li>
+            ))}
           </ul>
         </section>
       </div>

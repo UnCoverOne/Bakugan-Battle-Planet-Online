@@ -52,6 +52,7 @@ export type BrawlCombatantView = {
   baseDamage: number;
   effects: string[];
   modifiers: string[];
+  keywords: { name: "FrostStrike" | "ShadowStrike" | "DoubleStrike"; amount?: number }[];
   participating: boolean;
   rollResult: RollOutcome["result"] | null;
   rollLabel: string;
@@ -143,34 +144,71 @@ export function brawlCombatantView(
   const continuousDamage = participating
     ? damage - baseDamage - coreTotals.damage - temporaryDamage
     : 0;
+  const characteristics = evaluateBakuganCharacteristics(match, bakugan, player);
   const modifiers: string[] = [];
 
-  if (!participating) {
-    modifiers.push("Roll result • Missed and remained closed");
-  }
+  if (!participating) modifiers.push("Roll result • Missed and remained closed");
+
+  // Report each physical Core separately; its generated name can already contain
+  // its numerical bonuses, so use the Core type as the label instead.
   for (const core of cores) {
     const bonus = coreBonuses(core, bakugan.faction, Boolean(bakugan.fused));
     const values = [
       bonus.power ? `${signed(bonus.power)} B` : "",
       bonus.damage ? `${signed(bonus.damage)} Damage` : "",
-      core.frostStrike ? `+${core.frostStrike} FrostStrike` : "",
-      bakugan.fused && core.fusionFrostStrike ? `+${core.fusionFrostStrike} Fusion FrostStrike` : "",
-      core.shadowStrike ? "ShadowStrike" : "",
-      core.bakuGearCostReduction ? `Baku-Gear -${core.bakuGearCostReduction} Energy` : "",
+      core.bakuGearCostReduction ? `-${core.bakuGearCostReduction} Baku-Gear Energy` : "",
     ].filter(Boolean);
-    modifiers.push(`${core.name}${values.length ? ` • ${values.join(" • ")}` : ""}`);
+    modifiers.push(`${core.type}: ${values.join(", ") || "No stat bonus"}`);
   }
-  if (temporaryPower) modifiers.push(`Power modifier ${signed(temporaryPower)} B`);
-  if (temporaryDamage) modifiers.push(`Damage modifier ${signed(temporaryDamage)}`);
-  if (continuousPower) modifiers.push(`Continuous modifier ${signed(continuousPower)} B`);
-  if (continuousDamage) modifiers.push(`Continuous modifier ${signed(continuousDamage)} Damage`);
-  const frost = match.frostStrike[bakugan.id] ?? 0;
-  if (frost) modifiers.push(`FrostStrike ${frost}`);
-  if (match.doubleStrike[bakugan.id]) modifiers.push("DoubleStrike");
-  if (match.shadowStrike[bakugan.id]) modifiers.push("ShadowStrike");
-  if (!modifiers.length) modifiers.push("No active modifiers");
 
-  const characteristics = evaluateBakuganCharacteristics(match, bakugan, player);
+  // Source IDs in applied characteristics are card-instance IDs, not card
+  // names. Resolve them from the match and combine Power and Damage for each
+  // individual source, including active Character, Gear, Hero and Action cards.
+  const sourceCards = match.players.flatMap((owner) => [
+    ...owner.bakugan.flatMap((entry) => [
+      entry.character, ...(entry.fusionCharacter ? [entry.fusionCharacter] : []),
+      ...entry.evoStack, ...(entry.bakuGear ?? []),
+    ]),
+    ...owner.heroes, ...owner.hand, ...owner.discard,
+    ...owner.deckCards, ...owner.energyZone,
+  ]);
+  const sourceNames = new Map(sourceCards.map((source) => [
+    source.id, source.displayName || source.name,
+  ]));
+  const grouped = new Map<string, { name: string; power: number; damage: number }>();
+  for (const modifier of characteristics.applied) {
+    if (modifier.sourceCategory === "bakucore"
+      || modifier.stat === "frost" || modifier.stat === "shadow" || modifier.stat === "double"
+      || (modifier.stat !== "power" && modifier.stat !== "damage")) continue;
+    const name = sourceNames.get(modifier.sourceId);
+    if (!name) continue;
+    const entry = grouped.get(modifier.sourceId) ?? { name, power: 0, damage: 0 };
+    entry[modifier.stat] += modifier.amount;
+    grouped.set(modifier.sourceId, entry);
+  }
+  for (const entry of grouped.values()) {
+    const values = [
+      entry.power ? `${signed(entry.power)} B` : "",
+      entry.damage ? `${signed(entry.damage)} Damage` : "",
+    ].filter(Boolean);
+    if (values.length) modifiers.push(`${entry.name}: ${values.join(", ")}`);
+  }
+
+  // Preserve visibility of unattributed values (for example legacy temporary
+  // state) without assigning them to an unrelated card.
+  const attributedPower = [...grouped.values()].reduce((sum, entry) => sum + entry.power, 0);
+  const attributedDamage = [...grouped.values()].reduce((sum, entry) => sum + entry.damage, 0);
+  const remainingPower = power - basePower - coreTotals.power - attributedPower;
+  const remainingDamage = damage - baseDamage - coreTotals.damage - attributedDamage;
+  if (participating && remainingPower) modifiers.push(`Other modifier: ${signed(remainingPower)} B`);
+  if (participating && remainingDamage) modifiers.push(`Other modifier: ${signed(remainingDamage)} Damage`);
+
+  const keywords: BrawlCombatantView["keywords"] = [];
+  if (characteristics.frostStrike > 0) keywords.push({ name: "FrostStrike", amount: characteristics.frostStrike });
+  if (characteristics.shadowStrike) keywords.push({ name: "ShadowStrike" });
+  if (characteristics.doubleStrike) keywords.push({ name: "DoubleStrike" });
+  if (!modifiers.length && !keywords.length) modifiers.push("No active modifiers");
+
   const appliedCardSourceIds = new Set(
     characteristics.applied.map((modifier) => modifier.sourceId),
   );
@@ -197,6 +235,7 @@ export function brawlCombatantView(
     baseDamage,
     effects: effects.length ? effects : ["No printed or continuous effects"],
     modifiers,
+    keywords,
     participating,
     rollResult: roll?.result ?? null,
     rollLabel: brawlRollLabel(roll?.result),

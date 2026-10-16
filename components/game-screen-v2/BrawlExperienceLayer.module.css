@@ -679,3 +679,7 @@
     animation: none;
   }
 }
+
+/* Native rulebook keyword symbols in the Brawl Preview modifiers list. */
+.keywordModifier{display:flex;align-items:center;gap:.35rem}
+.keywordModifier img{width:18px;height:18px;object-fit:contain}
