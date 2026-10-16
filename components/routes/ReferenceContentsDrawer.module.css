@@ -1,7 +1,6 @@
 /* Desktop navigation stays in the reference page's two-column grid. */
-.tab,.scrim{display:none}
-/* The desktop sidebar's general button styles must not expose the mobile close control. */
-nav.panel > button.close{display:none}
+/* Keep the mobile-only control separate from page-specific sidebar button styles. */
+.tab,.scrim,.closeControl{display:none}
 
 @media(max-width:900px){
   .tab{
@@ -61,15 +60,24 @@ nav.panel > button.close{display:none}
     pointer-events:auto;
     transition:transform .24s ease,visibility 0s;
   }
-  nav.panel > button.close{
+  nav.panel > .closeControl{
+    display:flex;
+    justify-content:flex-end;
+    position:sticky;
+    top:0;
+    z-index:1;
+    margin-bottom:.75rem;
+    background:linear-gradient(160deg,#0a2632,#03121a);
+  }
+  nav.panel > .closeControl > button.close{
     display:grid;
     place-items:center;
-    float:right;
+    flex:0 0 48px;
     width:48px;
     height:48px;
     min-width:48px;
     min-height:48px;
-    margin:0 0 .75rem .75rem;
+    margin:0;
     padding:0;
     border:1px solid rgba(91,196,226,.65);
     background:#103746;
@@ -80,7 +88,7 @@ nav.panel > button.close{display:none}
     cursor:pointer;
     touch-action:manipulation;
   }
-  nav.panel > button.close:hover{
+  nav.panel > .closeControl > button.close:hover{
     border-color:var(--brand-blue-bright);
     background:#175166;
   }
