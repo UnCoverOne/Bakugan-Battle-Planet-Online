@@ -317,7 +317,7 @@ test("Competitive deck screens never validate against an unpublished fallback si
   assert.match(rules, /fetch\("\/api\/ranked\?action=rules", \{ cache: "no-store" \}\)/);
   assert.match(rules, /deckSize: 0/);
   assert.doesNotMatch(rules, /deckSize: 50/);
-  assert.match(creation, /rankedDeckSize\] = useState<number \| null>\(null\)/);
+  assert.match(creation, /setRankedDeckSize\] = useState<number \| null>\(null\)/);
   assert.match(creation, /rankedRulesReady && !competitiveDecks.length/);
   assert.match(creation, /!rankedRulesReady \|\| rankedDecks.length !== 3/);
   assert.match(builder, /deck.format === "competitive" && !competitiveRulesReady/);
