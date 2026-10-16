@@ -19,7 +19,7 @@ type Term = {
 };
 const makeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 // Only the initial card is abbreviated. Details always renders the unmodified rule text.
-const excludedTitles = new Set(["Completing Effects","Copying Cards and Abilities","Deck Construction","Ending the Game","Energy Abilities","Evo ID","Free","Gameplay Terms","Handling Mis-rolls","Hero ID","Keyword Abilities","Making Selections","Modifications","Priority and Timing","Setup","Starting the Game","Tag-Word Abilities","The Ultimate Rules","Type Line","Winning","BakuCores","BPower","Character Cards","Evo Cards","Factions","Flip Cards","Hero Cards","Reroll effects","Selection"]);
+const excludedTitles = new Set(["Completing Effects","Copying Cards and Abilities","Deck Construction","Ending the Game","Energy Abilities","Evo ID","Free","Gameplay Terms","Handling Mis-rolls","Hero ID","Keyword Abilities","Making Selections","Modifications","Priority and Timing","Setup","Starting the Game","Tag-Word Abilities","The Ultimate Rules","Type Line","Winning","BakuCores","BPower","Character Cards","Evo Cards","Factions","Flip Cards","Hero Cards","Reroll effects","Selection","Evo Rating","Illegal Actions"]);
 const previewBreaks: Record<string,string> = {
   "Acting Player": " Once that player passes priority",
   "Art Credit": " It has no game function.",
@@ -50,7 +50,40 @@ const previewBreaks: Record<string,string> = {
   "Triggered Abilities": " They typically"
 };
 const keepComplete = new Set(["B-Power","Bakugan","Legal Text"]);
+// Card preview copy only; Details and Rules continue to use the original definitions.
+const previewOverrides: Record<string, string> = {
+  "Action Cards": "An Action card may be played when a player has priority. After its text is followed, it is put into the discard pile.",
+  "Art Credit": "Art credit may be listed on the bottom left of a card. It has no game function.",
+  "BakuCore": "BakuCores are hexagon-shaped discs with an icon identifier on top and modifying abilities on the bottom that affect Bakugan that pick them up.",
+  "BakuCore Field": "The BakuCore Field is the area in the center of the play area where players place BakuCores before the game begins.",
+  "BakuCore Indicator": "The BakuCore indicator consists of two hexagonal symbols on a Character card. Players must use BakuCores matching these symbols.",
+  "Brawl Phase": "The Brawl Phase consists of four steps: the Power Step, Victor Step, Damage Step, and Retracting Step.",
+  "Collection Number": "The collection number is shown at the bottom right of a card. It has no game function.",
+  "Damage": "When taking damage, a player flips that many cards from the top of their deck, one at a time, and places them into their discard pile.",
+  "Damage Rating": "Damage Rating is the number on Character and Evo cards that determines how much damage the Bakugan deals when attacking.",
+  "Draw Step": "During the Draw Step, each player simultaneously draws a card from their deck and puts it into their hand.",
+  "Energy Cards": "Energy cards have the card type Energy card while in play, but have their printed card type while in any other zone.",
+  "Energy Cost": "A card’s Energy Cost is the amount a player must spend from their Energy pool to play it, listed in the top right corner.",
+  "Evo": "Evo cards are played on matching Character cards, replacing that Bakugan’s stats and abilities with those of the topmost Evo card.",
+  "Faction": "A card’s Faction is indicated by the Faction icons on its type line. The six Factions are Aquos, Aurelus, Darkus, Haos, Pyrus, and Ventus.",
+  "Flip (game action)": "Flipping a card means turning the top card of a player’s deck face up. Cards are flipped one at a time.",
+  "FrostStrike": "A Bakugan with FrostStrike increases the Energy an opponent must pay to play a Flip card by its FrostStrike amount.",
+  "Hero": "A Hero card may be played when a player has priority and remains in the play area until otherwise directed by a card or destroy effect.",
+  "Name": "A card’s name is printed in the upper-left corner and identifies the card in rules and effects.",
+  "Negate Effects": "Negate effects remove effects from the batch, preventing those effects from happening.",
+  "Numbers": "Additive (+) numbers add to a total, negative (-) numbers subtract from it, and the letter X represents a variable value.",
+  "Play Step": "During the Play Step, players may play cards and use abilities. This is the last opportunity to do so during the turn.",
+  "Power Step": "During the Power Step, players may play cards and use abilities. If B-Power is tied when both players pass, a B-Power tiebreak takes place.",
+  "Priority": "When a player has priority, they may choose to play cards and use abilities. After playing a card or using an ability, that player retains priority.",
+  "Reroll": "Reroll effects allow a player to roll their selected Bakugan again after the first roll of the turn and before the Victor Step begins.",
+  "Retracting Step": "During the Retracting Step, the non-Victor player retracts their participating Bakugan. After a Team Attack, the Victor player retracts all their Bakugan.",
+  "Team Attack": "A Team Attack occurs when all Bakugan on a player's team are open and that player wins the Power Step. Their Damage Ratings are combined for the attack.",
+  "Text": "A card’s text is printed on its lower half and may include italicized flavor text, which has no game function.",
+  "Trigger": "A trigger occurs when a specified event, such as a card being played or a phase beginning, causes an ability to enter the batch."
+};
 const previewFor = (entry: Term) => {
+  const override = previewOverrides[entry.title];
+  if (override !== undefined) return override;
   if (keepComplete.has(entry.title)) return entry.definition;
   let preview = entry.definition.replace(/\s*\(see rules?\s+[^)]*\)/gi, "").replace(/\s*\(see\s+\d+(?:\.\d+)+[^)]*\)/gi, "");
   const marker = previewBreaks[entry.title];
