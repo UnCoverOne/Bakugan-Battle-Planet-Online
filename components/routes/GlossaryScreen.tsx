@@ -91,6 +91,152 @@ const previewFor = (entry: Term) => {
   if (entry.title === "Play Step" || entry.title === "Power Step") preview = preview.replace(/\s*\(see rules?\s+[^)]*\)/gi, "");
   return preview.trim();
 };
+// Player-facing groups; source rulebook and full definitions remain unchanged.
+const glossaryCategories = [
+  {
+    "name": "Fundamentals",
+    "entries": [
+      "Bakugan",
+      "BakuCore",
+      "Cards",
+      "Deck",
+      "Drawing a Card",
+      "Faction",
+      "Numbers",
+      "Symbols"
+    ]
+  },
+  {
+    "name": "Card Types",
+    "entries": [
+      "Action Cards",
+      "Character Card",
+      "Energy Cards",
+      "Evo",
+      "Flip",
+      "Hero"
+    ]
+  },
+  {
+    "name": "Parts of a Card",
+    "entries": [
+      "Art",
+      "Art Credit",
+      "BakuCore Indicator",
+      "Collection Number",
+      "Legal Text",
+      "Name",
+      "Set Indicator",
+      "Text"
+    ]
+  },
+  {
+    "name": "Energy",
+    "entries": [
+      "Charge",
+      "Cost",
+      "Energize",
+      "Energy",
+      "Energy Cost",
+      "Spend",
+      "Uncharge"
+    ]
+  },
+  {
+    "name": "Zones",
+    "entries": [
+      "BakuCore Field",
+      "Discard Pile",
+      "Hand",
+      "Play Area"
+    ]
+  },
+  {
+    "name": "Turns & Phases",
+    "entries": [
+      "Brawl Phase",
+      "Charge Step",
+      "Damage Step",
+      "Draw Step",
+      "End Phase",
+      "Energize Step",
+      "Play Step",
+      "Power Step",
+      "Reset Step",
+      "Retracting Step",
+      "Roll Phase",
+      "Rolling Step",
+      "Selection Step",
+      "Start Phase",
+      "Starting Player",
+      "Victor Step"
+    ]
+  },
+  {
+    "name": "Battle & Rolling",
+    "entries": [
+      "B-Power",
+      "Damage",
+      "Damage Rating",
+      "Flip (game action)",
+      "Open",
+      "Reroll",
+      "Retract",
+      "Stop",
+      "Team Attack",
+      "Victor (game action)"
+    ]
+  },
+  {
+    "name": "Timing & Effects",
+    "entries": [
+      "Acting Player",
+      "Activated Abilities",
+      "Batch",
+      "Continuous Effects",
+      "Effects",
+      "Negate Effects",
+      "Playing Cards",
+      "Priority",
+      "Static Abilities",
+      "Taking Control of a Card",
+      "Trigger",
+      "Triggered Abilities"
+    ]
+  },
+  {
+    "name": "Keywords & Tag-Words",
+    "entries": [
+      "Aurelus Power",
+      "Battle Mastery",
+      "Boost",
+      "Domination",
+      "DoubleStrike",
+      "Empower",
+      "Flex",
+      "Flow",
+      "FrostStrike",
+      "Fury",
+      "Inspire",
+      "InstaBrawl",
+      "Rally",
+      "Rapid Fire",
+      "Sacrifice",
+      "Scrounge",
+      "ShadowStrike",
+      "Stoke",
+      "Sync",
+      "Trifecta",
+      "Turbo",
+      "Underdog",
+      "Victor"
+    ]
+  }
+] as const;
+const categoryByTitle = new Map<string, string>(
+  glossaryCategories.flatMap(({ name, entries }) => entries.map((title) => [title, name] as const)),
+);
+
 const sourceTerms: Term[] = [];
 OFFICIAL_RULEBOOK.forEach((chapter, i) => chapter.children.forEach((section, j) => {
   if (section.text === "General" || !section.children.length) return;
@@ -142,58 +288,60 @@ const fullTerms: Term[] = (() => {
     indexed.set(key, {title: entry.title, key, category: entry.category,
       definition: entry.definition, rule: "", editorial: true, preview: ""});
   });
-  return [...indexed.values()].filter((entry) => !excludedTitles.has(entry.title)).map((entry) => ({...entry, title: entry.title === "Costs" ? "Cost" : entry.title, key: entry.title === "Costs" ? "cost" : entry.key, preview: previewFor(entry)})).sort((a,b) => a.title.localeCompare(b.title));
+  return [...indexed.values()].filter((entry) => !excludedTitles.has(entry.title)).map((entry) => {
+    const title = entry.title === "Costs" ? "Cost" : entry.title;
+    return {...entry, title, key: title === "Cost" ? "cost" : entry.key,
+      category: categoryByTitle.get(title) ?? "Other Terms", preview: previewFor(entry)};
+  }).sort((a,b) => a.title.localeCompare(b.title));
 })();
-const letters = [...new Set(fullTerms.map((entry) => entry.title[0].toUpperCase()))].sort();
 const getRule = (id: string): OfficialRuleNode | undefined => {
   const indexes = id.split(".").map((value) => Number(value)-1);
   return indexes.reduce<OfficialRuleNode | undefined>((node, i, position) => position === 0 ? OFFICIAL_RULEBOOK[i] : node?.children[i], undefined);
 };
-// These source chapters are not useful as glossary filters; their entries remain in All terms.
-const hiddenCategories = new Set(["Additional Rules", "Cardless Rules (basic game)"]);
-const displayCategory = (value: string) => value.toLowerCase() === "turn structure" ? "Turn Structure" : value;
-const sections = [...new Set(fullTerms.map((entry) => displayCategory(entry.category)).filter((value) => !hiddenCategories.has(value)))].sort();
+const sections = [...glossaryCategories.map(({ name }) => name),
+  ...(fullTerms.some((term) => term.category === "Other Terms") ? ["Other Terms"] : [])];
 export function GlossaryScreen({ query = "" }: { query?: string }) {
   const [category, setCategory] = useState("All");
   const [selected, setSelected] = useState<Term | null>(null);
   const normalized = query.trim().toLowerCase();
   const filtered = useMemo(() => fullTerms.filter((term) =>
-    (category === "All" || displayCategory(term.category) === category)
+    (category === "All" || term.category === category)
     && (!normalized || [term.title,term.definition,term.category,term.rule].some((part) => part.toLowerCase().includes(normalized)))
   ),[category,normalized]);
+  const filteredIcons = useMemo(() => SYMBOL_ENTRIES.filter((symbol) =>
+    !normalized || [symbol.name, symbol.token, symbol.description].some((part) => part.toLowerCase().includes(normalized))
+  ), [normalized]);
   useEffect(() => {
     if (!selected) return;
     const dismiss = (event:KeyboardEvent) => {if(event.key === "Escape") setSelected(null);};
     addEventListener("keydown",dismiss);
     return () => removeEventListener("keydown",dismiss);
   }, [selected]);
-  const byLetter = letters.map((letter) => ({letter,items:filtered.filter((item)=>item.title.toUpperCase().startsWith(letter))})).filter((group)=>group.items.length);
+  const byCategory = sections.map((name) => ({name,items:filtered.filter((item)=>item.category===name)})).filter((group)=>group.items.length);
   return <div className={styles.layout}>
     <ReferenceContentsDrawer className={styles.rail} label="Glossary navigation">
       <h2>Contents</h2>
-      <a href="#glossary-icons">Printed icons</a>
-      <div className={styles.alphabet} aria-label="Jump to letter">
-        {letters.map((letter)=><a key={letter} href={`#glossary-letter-${letter}`} aria-label={`Jump to ${letter}`}>{letter}</a>)}
-      </div>
+      {filteredIcons.length > 0 && <a href="#glossary-icons">Printed icons</a>}
       <h3>Categories</h3>
       <button type="button" aria-pressed={category==="All"} onClick={()=>setCategory("All")}>All terms</button>
       {sections.map((section)=><button key={section} type="button" aria-pressed={category===section} onClick={()=>setCategory(section)}>{section}</button>)}
     </ReferenceContentsDrawer>
     <main className={styles.main}>
-      <section className={styles.printedIcons} id="glossary-icons" aria-labelledby="glossary-icons-heading">
-        <div className={styles.iconHeading}><h2 id="glossary-icons-heading">Printed Icons</h2><span className={styles.iconCount}>{SYMBOL_ENTRIES.length}</span></div>
-        <div className={styles.iconGrid}>{SYMBOL_ENTRIES.map((symbol) => <article className={styles.iconCard} key={symbol.token}>
+      {filteredIcons.length > 0 && <section className={styles.printedIcons} id="glossary-icons" aria-labelledby="glossary-icons-heading">
+        <div className={styles.iconHeading}><h2 id="glossary-icons-heading">Printed Icons</h2><span className={styles.iconCount}>{filteredIcons.length}</span></div>
+        <div className={styles.iconGrid}>{filteredIcons.map((symbol) => <article className={styles.iconCard} key={symbol.token}>
           <OriginalImage className={styles.iconArtwork} src={symbol.asset} alt="" />
           <strong>{symbol.name}</strong><p>{symbol.description}</p>
         </article>)}</div>
-      </section>
-      {byLetter.length ? byLetter.map(({letter,items})=><section key={letter} className={styles.group} id={`glossary-letter-${letter}`}>
-        <h2>{letter}</h2><div className={styles.entries}>{items.map((item)=><article key={item.key} className={styles.entry} id={`glossary-${item.key}`}>
+      </section>}
+      {byCategory.map(({name,items})=><section key={name} className={styles.group} id={`glossary-category-${makeKey(name)}`}>
+        <h2>{name}</h2><div className={styles.entries}>{items.map((item)=><article key={item.key} className={styles.entry} id={`glossary-${item.key}`}>
           <div className={styles.entryHeading}><h3>{item.title}</h3></div>
           <p>{item.preview}</p>
           <footer><span>{item.category}</span>{item.editorial && <span>Site reference</span>}{item.rule && <a href={`/compendium/rules#section-${item.rule}`}>Rule {item.rule} →</a>}<button type="button" onClick={()=>setSelected(item)}>Details</button></footer>
         </article>)}</div>
-      </section>) : <section className={styles.empty} role="status"><h2>No matching glossary entries</h2><p>Try a different term or clear the category filter.</p><button type="button" onClick={()=>{setCategory("All");}}>Clear filters</button></section>}
+      </section>)}
+      {byCategory.length === 0 && filteredIcons.length === 0 && <section className={styles.empty} role="status"><h2>No matching glossary entries or printed icons</h2><p>Try a different search or category filter.</p><button type="button" onClick={()=>setCategory("All")}>All categories</button></section>}
     </main>
     {selected && <div role="presentation" className={styles.backdrop} onMouseDown={(event)=>{if(event.target===event.currentTarget)setSelected(null);}}><section role="dialog" aria-modal="true" aria-labelledby="glossary-dialog-title" className={styles.modal}>
       <button className={styles.close} type="button" aria-label="Close definition" onClick={()=>setSelected(null)}>×</button>
