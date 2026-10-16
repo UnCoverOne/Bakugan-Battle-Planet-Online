@@ -90,7 +90,9 @@ export function ReferenceContentsDrawer({
         if (window.matchMedia(MOBILE_QUERY).matches && event.target instanceof Element && event.target.closest("a[href], button")) close();
       }}
     >
-      <button ref={closeRef} type="button" className={styles.close} aria-label="Close contents" onClick={close}>×</button>
+      <div className={styles.closeControl}>
+        <button ref={closeRef} type="button" className={styles.close} aria-label="Close contents" onClick={close}>×</button>
+      </div>
       {children}
     </nav>
   </>;
