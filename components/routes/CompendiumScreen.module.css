@@ -801,3 +801,17 @@
     min-height: 2.5rem;
   }
 }
+
+/* The desktop Compendium hero must not leave its border or spacing above
+   the archive toolbar on small screens. The fixed site header is 70px tall
+   below 850px (76px at tablet widths), so sticky content meets it flush. */
+@media (max-width: 900px) {
+  .route :global([data-ui="route-hero"]) {
+    display: none;
+  }
+}
+@media (max-width: 850px) {
+  .toolbar {
+    top: 70px;
+  }
+}
