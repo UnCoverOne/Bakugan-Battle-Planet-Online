@@ -62,7 +62,11 @@ export function MatchCreationScreen() {
   const [error, setError] = useState("");
   const [rankedDeckIds, setRankedDeckIds] = useState<string[]>([]);
   const [rankedRestrictions, setRankedRestrictions] = useState<DeckRestriction[]>([]);
-  const [rankedDeckSize, setRankedDeckSize] = useState(50);
+  const [rankedDeckSize, setRankedDeckSize] = useState<number | null>(null);
+  const [rankedRulesLoading, setRankedRulesLoading] = useState(false);
+  const [rankedRulesError, setRankedRulesError] = useState("");
+  const [rankedRulesAttempt, setRankedRulesAttempt] = useState(0);
+  const rankedRulesReady = mode === "ranked" && !rankedRulesLoading && !rankedRulesError && rankedDeckSize !== null;
 
   // Card overrides mutate catalogue records in place, so their revision must
   // invalidate memoized legality checks even when the saved decks are unchanged.
@@ -77,10 +81,10 @@ export function MatchCreationScreen() {
     return legalDecks.find((deck) => deck.id === selectedDeckId) ?? legalDecks[0] ?? null;
   }, [legalDecks, selectedDeck, selectedDeckId]);
   const competitiveDecks = useMemo(
-    () => mode === "ranked"
-      ? (decks as DeckRecord[]).filter((deck) => deckIsLegalForFormat(deck, "competitive", rankedRestrictions, rankedDeckSize))
+    () => rankedRulesReady
+      ? (decks as DeckRecord[]).filter((deck) => deckIsLegalForFormat(deck, "competitive", rankedRestrictions, rankedDeckSize!))
       : [],
-    [decks, mode, rankedDeckSize, rankedRestrictions, catalogueRevision],
+    [decks, rankedRulesReady, rankedDeckSize, rankedRestrictions, catalogueRevision],
   );
   const rankedDecks = useMemo(
     () => mode === "ranked" ? competitiveDecks.filter((deck) => rankedDeckIds.includes(deck.id)) : [],
@@ -94,18 +98,31 @@ export function MatchCreationScreen() {
   useEffect(() => {
     if (mode !== "ranked") return;
     let active = true;
+    setRankedRulesLoading(true);
+    setRankedRulesError("");
+    setRankedDeckSize(null);
     fetch("/api/ranked?action=rules", { cache: "no-store" })
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error ?? "Ranked rules are unavailable.");
+        const size = Number(result.ruleset?.deckSize);
+        if (!Number.isInteger(size) || size <= 0 || !Array.isArray(result.ruleset?.restrictions)) {
+          throw new Error("The published Ranked ruleset is invalid.");
+        }
         if (active) {
-          setRankedRestrictions(result.ruleset?.restrictions ?? []);
-          setRankedDeckSize(Number(result.ruleset?.deckSize) || 50);
+          setRankedRestrictions(result.ruleset.restrictions);
+          setRankedDeckSize(size);
+          setRankedRulesLoading(false);
         }
       })
-      .catch((cause) => active && setError(cause instanceof Error ? cause.message : "Ranked rules are unavailable."));
+      .catch((cause) => {
+        if (!active) return;
+        setRankedDeckSize(null);
+        setRankedRulesError(cause instanceof Error ? cause.message : "Ranked rules are unavailable.");
+        setRankedRulesLoading(false);
+      });
     return () => { active = false; };
-  }, [mode]);
+  }, [mode, rankedRulesAttempt]);
 
   useEffect(() => {
     if (!pending || !preferredDeck) return;
@@ -133,12 +150,13 @@ export function MatchCreationScreen() {
     if (next === "training") setAction("create");
     if (next === "ranked") {
       setStructure("bo3");
+      setRankedRulesLoading(true);
+      setRankedRulesError("");
+      setRankedDeckSize(null);
+      setRankedDeckIds([]);
       // Calculate candidates only when Ranked is entered, rather than on
       // every Training/Casual update. Preserve the existing three-deck default.
-      const candidates = mode === "ranked"
-        ? competitiveDecks
-        : (decks as DeckRecord[]).filter((deck) => deckIsLegalForFormat(deck, "competitive", rankedRestrictions, rankedDeckSize));
-      setRankedDeckIds((current) => current.length ? current : candidates.slice(0, 3).map((deck) => deck.id));
+
     }
     setError("");
   };
@@ -150,6 +168,10 @@ export function MatchCreationScreen() {
   };
 
   const launch = async () => {
+    if (mode === "ranked" && !rankedRulesReady) {
+      setError(rankedRulesError || "Wait for the published Ranked rules before creating a lobby.");
+      return;
+    }
     if (mode === "ranked" && !authUser) {
       setError("Sign in before creating or joining a Ranked lobby.");
       return;
@@ -270,7 +292,9 @@ export function MatchCreationScreen() {
                   <strong>{deck.name}</strong><span>{deck.cardIds.length} cards · {deck.factions.join(" • ")}</span>
                 </label>;
               })}
-              {!competitiveDecks.length ? <p>No legal Competitive decks yet. Create three {rankedDeckSize}-card Competitive decks in Deck Builder.</p> : null}
+              {rankedRulesLoading || (rankedDeckSize === null && !rankedRulesError) ? <p role="status">Loading published Ranked rules…</p> : null}
+              {rankedRulesError ? <p role="alert">Ranked rules unavailable: {rankedRulesError} <button type="button" onClick={() => setRankedRulesAttempt((value) => value + 1)}>Retry</button></p> : null}
+              {rankedRulesReady && !competitiveDecks.length ? <p>No legal Competitive decks yet. Create three {rankedDeckSize}-card Competitive decks in Deck Builder.</p> : null}
             </div>
           </section> : null}
 
@@ -317,7 +341,7 @@ export function MatchCreationScreen() {
               <div><span>STRUCTURE</span><strong>{structure === "bo3" ? "BEST OF THREE" : "BEST OF ONE"}</strong></div>
               <div><span>ACTION</span><strong>{mode === "training" || action === "create" ? "CREATE" : "JOIN"}</strong></div>
             </div>
-            <button className={styles.launchButton} disabled={busy || (mode === "ranked" ? rankedDecks.length !== 3 || !authUser : !preferredDeck)} onClick={() => void launch()}>
+            <button className={styles.launchButton} disabled={busy || (mode === "ranked" ? !rankedRulesReady || rankedDecks.length !== 3 || !authUser : !preferredDeck)} onClick={() => void launch()}>
               <span>{busy ? "OPENING LOBBY…" : actionLabel}</span><ChevronArrow />
             </button>
           </footer>

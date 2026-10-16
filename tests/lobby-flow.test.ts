@@ -307,3 +307,19 @@ test("Online lobby selection serializes Standard versus Competitive formats by m
   const route = await readFile(new URL("../app/api/game/route.ts", import.meta.url), "utf8");
   assert.match(route, /canonicalSelectionForFormat\(submittedSelection, requestedRanked \? "competitive" : "standard"\)/);
 });
+
+test("Competitive deck screens never validate against an unpublished fallback size", async () => {
+  const [rules, creation, builder] = await Promise.all([
+    readFile(new URL("../components/routes/DeckRouteShared.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/routes/MatchCreationScreen.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/routes/DeckBuilderScreen.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(rules, /fetch\("\/api\/ranked\?action=rules", \{ cache: "no-store" \}\)/);
+  assert.match(rules, /deckSize: 0/);
+  assert.doesNotMatch(rules, /deckSize: 50/);
+  assert.match(creation, /rankedDeckSize\] = useState<number \| null>\(null\)/);
+  assert.match(creation, /rankedRulesReady && !competitiveDecks.length/);
+  assert.match(creation, /!rankedRulesReady \|\| rankedDecks.length !== 3/);
+  assert.match(builder, /deck.format === "competitive" && !competitiveRulesReady/);
+  assert.match(builder, /onClick=\{competitiveRules.retry\}/);
+});

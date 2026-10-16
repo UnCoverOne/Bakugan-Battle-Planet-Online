@@ -514,6 +514,15 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   if (remoteLoading) {
     return <div className={styles.route}><DeckState tone="loading" role="status" title="Loading administrator deck" copy="Retrieving the server-owned deck record…" /></div>;
   }
+  if (deck.format === "competitive" && !competitiveRulesReady) {
+    return <div className={styles.route}><DeckState
+      tone={competitiveRules.error ? "error" : "loading"}
+      role={competitiveRules.error ? "alert" : "status"}
+      title={competitiveRules.error ? "Competitive rules unavailable" : "Loading published Competitive rules"}
+      copy={competitiveRules.error ?? "Fetching the administrator's active deck size and restrictions before validating this deck."}
+      action={competitiveRules.error ? <button type="button" onClick={competitiveRules.retry}>Retry</button> : undefined}
+    /></div>;
+  }
 
   return (
     <section className={styles.builder}>
