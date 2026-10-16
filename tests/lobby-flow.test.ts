@@ -290,3 +290,20 @@ test("streamlined Match Creation and Lobby source contracts stay in place", asyn
   assert.match(coordinator, /void nextSeriesGame\(\)/);
   assert.match(coordinator, /completed && !seriesIntermission && resultReady/);
 });
+
+test("Training accepts a 40-card Standard-legal deck saved with Competitive format", () => {
+  const deck = { ...STARTER_DECKS[0], format: "competitive" as const };
+  const state = createTrainingLobbyState("TRAIN4", "bo3", "player-1", "Player 1", deck);
+  assert.equal(lobbyConfig(state).rulesFormat, "standard");
+  assert.equal(state.players.length, 2);
+  assert.equal(state.players[0].ready, false);
+});
+
+test("Online lobby selection serializes Standard versus Competitive formats by mode", async () => {
+  const provider = await readFile(new URL("../components/application/AppProvider.jsx", import.meta.url), "utf8");
+  assert.match(provider, /const selection = useCallback\(\(deck, rulesFormat = "standard"\)/);
+  assert.match(provider, /format: rulesFormat/);
+  assert.equal((provider.match(/options\.decks\.map\(\(deck\) => selection\(deck, "competitive"\)\)/g) ?? []).length, 2);
+  const route = await readFile(new URL("../app/api/game/route.ts", import.meta.url), "utf8");
+  assert.match(route, /canonicalSelectionForFormat\(submittedSelection, requestedRanked \? "competitive" : "standard"\)/);
+});
