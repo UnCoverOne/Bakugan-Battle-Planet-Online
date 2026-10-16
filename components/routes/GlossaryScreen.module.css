@@ -10,3 +10,13 @@
 .iconCard strong{line-height:1.35}
 .iconCard p{margin:0;color:#b8cbd2;font-size:.82rem;line-height:1.45}
 @media(max-width:700px){.printedIcons{padding:var(--space-4)}.iconGrid{grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr))}}
+/* Portrait phones: compact printed symbols, readable single-column term cards. */
+@media (max-width:700px) and (orientation:portrait){
+  .iconGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}
+  .iconCard{padding:.5rem;overflow-wrap:anywhere}
+  .iconCard strong{font-size:.8rem}
+  .iconCard p{font-size:.72rem;line-height:1.35}
+  .entries{grid-template-columns:minmax(0,1fr)}
+  .entry h3{font-size:.9rem}
+  .entry p{font-size:.88rem;line-height:1.5}
+}
