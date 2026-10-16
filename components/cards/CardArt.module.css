@@ -28,10 +28,14 @@ button:has(> img.image[data-responsive-card-presentation="tile"][data-card-art-k
 
 button:has(> img.image[data-responsive-card-presentation="tile"][data-card-art-kind="flip"])
   > img.image[data-responsive-card-presentation="tile"][data-card-art-kind="flip"] {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 71.8%;
   height: auto;
   max-width: none;
   margin: 0;
+  translate: -50% -50%;
   scale: 1;
 }
 
@@ -41,6 +45,7 @@ button:has(> img.image[data-responsive-card-presentation="tile"][data-card-art-k
  * inspector card without any transform-scale pass.
  */
 div:has(> img.image[data-responsive-card-presentation="inspector"][data-card-art-kind="flip"]) {
+  position: relative;
   width: min(100%, 504px);
   aspect-ratio: 500 / 359;
   display: grid;
@@ -50,10 +55,14 @@ div:has(> img.image[data-responsive-card-presentation="inspector"][data-card-art
 
 div:has(> img.image[data-responsive-card-presentation="inspector"][data-card-art-kind="flip"])
   > img.image[data-responsive-card-presentation="inspector"][data-card-art-kind="flip"] {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 71.8%;
   height: auto;
   max-width: none;
   margin: 0;
+  translate: -50% -50%;
   scale: 1;
 }
 
