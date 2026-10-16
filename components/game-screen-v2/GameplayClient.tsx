@@ -209,6 +209,26 @@ function readSettings(): GameplaySettings {
   return parseStoredValue<GameplaySettings>(localStorage.getItem(SETTINGS_KEY), {});
 }
 
+
+/** Diagnostic-only trace persisted for support inspection; no gameplay changes. */
+function traceTrainingAi(stage: string, match: MatchState, detail: Record<string, unknown> = {}) {
+  if (typeof window === "undefined") return;
+  try {
+    const key = "bakugan-training-ai-trace";
+    const previous = JSON.parse(window.sessionStorage.getItem(key) || "[]") as unknown[];
+    const record = {
+      time: new Date().toISOString(), stage,
+      code: match.code, version: match.version, phase: match.phase,
+      priority: match.priority, batchSize: match.batch.length,
+      pendingChoiceId: match.pendingChoice?.id ?? null,
+      eligible: opponentAiCanAct(match, "training-bot"),
+      ...detail,
+    };
+    window.sessionStorage.setItem(key, JSON.stringify([...previous.slice(-79), record]));
+    console.info("[Training AI trace]", record);
+  } catch { /* Diagnostics must never interrupt gameplay. */ }
+}
+
 export function GameplayClient() {
   const router = useRouter();
   const { authUser, nextSeriesGame, setSettings } = useAppFields(["authUser", "nextSeriesGame", "setSettings"]);
@@ -915,6 +935,7 @@ export function GameplayClient() {
     const key = `${match.id}:${match.version}:${match.phase}:${match.pendingChoice?.id ?? ""}:${match.pendingCoinFlip?.id ?? ""}`;
     if (botActionKey.current === key) return;
     botActionKey.current = key;
+    traceTrainingAi("scheduled", match, { key });
     const drawDelay = waitingForDrawWindow
       ? Math.max(0, (match.drawReadyAt ?? 0) - Date.now())
       : 0;
@@ -928,6 +949,7 @@ export function GameplayClient() {
         try {
           const latest = readMatchStore().match;
           if (!latest || latest.id !== match.id || latest.version !== match.version) return;
+          traceTrainingAi("worker-request", latest);
           let decision: GameCommand | null = null;
           let diagnostic: {
             reason: string;
@@ -946,6 +968,7 @@ export function GameplayClient() {
             try {
               const primary = await requestOpponentAiDecision(latest, "training-bot");
               decision = primary.command;
+              traceTrainingAi("worker-response", latest, { transport: primary.transport, decision: decision?.type ?? null, elapsedMs: primary.elapsedMs });
               if (!decision) {
                 diagnostic = {
                   reason: `${primary.transport}-null`,
@@ -956,6 +979,7 @@ export function GameplayClient() {
               }
             } catch (cause) {
               diagnostic = opponentAiFailureMetadata(cause);
+              traceTrainingAi("worker-error", latest, { reason: diagnostic.reason, detail: diagnostic.detail });
             }
 
             // A timed-out, failed, or empty tactical decision must never be
@@ -967,6 +991,7 @@ export function GameplayClient() {
           const current = readMatchStore().match;
           if (current?.id !== latest.id || current.version !== latest.version) return;
           const command = decision ?? recoverOpponentAiCommand(latest, "training-bot");
+          traceTrainingAi("decision", latest, { command: command?.type ?? null, recovery: !decision, diagnostic: diagnostic?.reason });
           if (command) {
             const decisionState = diagnostic
               ? withOpponentAiRecoveryDiagnostic(latest, {
@@ -974,12 +999,17 @@ export function GameplayClient() {
                 fallback: decision ? `strategic:${command.type}` : `primitive:${command.type}`,
               })
               : latest;
-            publishMatch(dispatchLocalGameCommand(
-              decisionState,
-              "training-bot",
-              command,
-              storedState.playerId ?? latest.players[0]?.id,
-            ));
+            try {
+              const next = dispatchLocalGameCommand(
+                decisionState, "training-bot", command,
+                storedState.playerId ?? latest.players[0]?.id,
+              );
+              traceTrainingAi("dispatch-success", next, { command: command.type, previousVersion: latest.version });
+              publishMatch(next);
+            } catch (cause) {
+              traceTrainingAi("dispatch-error", latest, { command: command.type, message: cause instanceof Error ? cause.message : String(cause) });
+              throw cause;
+            }
           }
         } finally {
           if (botActionKey.current === key) botActionKey.current = "";

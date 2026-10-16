@@ -14,7 +14,7 @@ import {
 } from "../lib/game";
 import { bestAiRollTarget } from "../lib/aiRollForecast";
 import { chooseOpponentAiCommand, chooseOpponentAiCommandWithMetrics } from "../lib/opponentAi";
-import { recoverOpponentAiCommand } from "../lib/opponentAiCanAct";
+import { opponentAiCanAct, recoverOpponentAiCommand } from "../lib/opponentAiCanAct";
 import { decideOpponentAiWorkerRequest } from "../lib/opponentAiWorkerProtocol";
 
 let serial = 0;
@@ -470,4 +470,22 @@ test("an unaffordable Titan Nillious in hand does not force tactical selection o
   if (command?.type === "SELECT_BAKUGAN") {
     assert.notEqual(command.bakuganId, nillious.id);
   }
+});
+
+test("Guardian Wings multi-effect Power Step gives Training AI a pass/recovery path", () => {
+  const { match, ai, human } = powerMatch(900, 2, 600, 1, []);
+  match.turn = 4;
+  match.code = "6294FE";
+  match.stepLabel = "Guardian Wings • Declare card play";
+  match.batch = ["Guardian Wings", "Guardian Wings", "Shun Kazami"].map((name, index) => ({
+    id: `pending-guardian-wings-${index}`,
+    controllerId: human.id, cardOwnerId: human.id,
+    card: name === "Guardian Wings" ? namedCard(name, `guardian-${index}`) : namedCard("Guardian Wings", "shun-placeholder"),
+    choices: {}, kind: "trigger", status: "pending",
+  })) as typeof match.batch;
+  match.pendingChoice = undefined;
+  assert.equal(opponentAiCanAct(match, ai.id), true);
+  assert.equal(recoverOpponentAiCommand(match, ai.id)?.type, "PASS_PRIORITY");
+  const decision = chooseOpponentAiCommandWithMetrics(match, ai.id);
+  assert.ok(decision.command?.type, "AI must either play or pass with pending Guardian Wings triggers");
 });
