@@ -1,5 +1,7 @@
 /* Desktop navigation stays in the reference page's two-column grid. */
-.tab,.scrim,.close{display:none}
+.tab,.scrim{display:none}
+/* The desktop sidebar's general button styles must not expose the mobile close control. */
+nav.panel > button.close{display:none}
 
 @media(max-width:900px){
   .tab{
@@ -59,17 +61,28 @@
     pointer-events:auto;
     transition:transform .24s ease,visibility 0s;
   }
-  .close{
-    display:block;
+  nav.panel > button.close{
+    display:grid;
+    place-items:center;
     float:right;
-    margin:-.3rem -.3rem .4rem .5rem;
-    padding:.1rem .6rem;
-    border:1px solid rgba(91,196,226,.4);
-    background:rgba(4,23,31,.86);
+    width:48px;
+    height:48px;
+    min-width:48px;
+    min-height:48px;
+    margin:0 0 .75rem .75rem;
+    padding:0;
+    border:1px solid rgba(91,196,226,.65);
+    background:#103746;
     color:var(--text-primary);
-    font-size:1.6rem;
-    line-height:1.4;
+    font-size:2rem;
+    line-height:1;
+    text-align:center;
     cursor:pointer;
+    touch-action:manipulation;
+  }
+  nav.panel > button.close:hover{
+    border-color:var(--brand-blue-bright);
+    background:#175166;
   }
   .close:focus-visible,.tab:focus-visible{outline:2px solid var(--brand-blue-bright);outline-offset:2px}
 }
