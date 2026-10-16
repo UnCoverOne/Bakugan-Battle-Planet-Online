@@ -783,3 +783,21 @@
     overflow-wrap: anywhere;
   }
 }
+
+/* Mobile Compendium: edge-to-edge sticky archive search and shorter tabs. */
+@media (max-width: 900px) {
+  .toolbar {
+    position: sticky;
+    top: 76px;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    clip-path: none;
+  }
+  .toolbar :global([data-ui="tabs"]),
+  .toolbar :global([data-ui="tabs"] > button) {
+    height: 2.5rem;
+    min-height: 2.5rem;
+  }
+}
