@@ -450,6 +450,11 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         <Field className={styles.search} label="Search the archive">
           <input type="search" value={searchQuery} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Cards, effects, IDs, mechanics…" />
         </Field>
+        {(section === "cards" || section === "cores") && (
+          <ActionButton className={styles.toolbarFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
+            Filters{section === "cards" ? (activeFilterCount ? ` (${activeFilterCount})` : "") : (activeCoreFilterCount ? ` (${activeCoreFilterCount})` : "")}
+          </ActionButton>
+        )}
         <Tabs label="Compendium sections">
           <button type="button" className={section === "cards" ? "active" : ""} onClick={() => switchSection("cards")}>CARDS</button>
           <button type="button" className={section === "cores" ? "active" : ""} onClick={() => switchSection("cores")}>BAKUCORES</button>
@@ -558,6 +563,13 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
                   onClear={clearFilters}
                 />
+                <div className={styles.sheetDensity}>
+                  <strong>Display</strong>
+                  <Tabs label="Card gallery density">
+                    <button type="button" className={state.density === "gallery" ? "active" : ""} onClick={() => navigate({ density: "gallery" })}>Gallery</button>
+                    <button type="button" className={state.density === "compact" ? "active" : ""} onClick={() => navigate({ density: "compact" })}>Compact</button>
+                  </Tabs>
+                </div>
                 <ActionButton onClick={() => setFilterSheetOpen(false)}>Show {cards.length} cards</ActionButton>
               </Surface>
             </div>
@@ -656,6 +668,13 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   onSortChange={(sort) => navigateCore({ sort }, { resetPage: true })}
                   onClear={clearCoreFilters}
                 />
+                <div className={styles.sheetDensity}>
+                  <strong>Display</strong>
+                  <Tabs label="BakuCore gallery density">
+                    <button type="button" className={coreState.density === "gallery" ? "active" : ""} onClick={() => navigateCore({ density: "gallery" })}>Gallery</button>
+                    <button type="button" className={coreState.density === "compact" ? "active" : ""} onClick={() => navigateCore({ density: "compact" })}>Compact</button>
+                  </Tabs>
+                </div>
                 <ActionButton onClick={() => setFilterSheetOpen(false)}>Show {cores.length} BakuCores</ActionButton>
               </Surface>
             </div>

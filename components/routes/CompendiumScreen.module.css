@@ -805,13 +805,41 @@
 /* The desktop Compendium hero must not leave its border or spacing above
    the archive toolbar on small screens. The fixed site header is 70px tall
    below 850px (76px at tablet widths), so sticky content meets it flush. */
-@media (max-width: 900px) {
-  .route :global([data-ui="route-hero"]) {
-    display: none;
-  }
-}
 @media (max-width: 850px) {
   .toolbar {
     top: 70px;
   }
+}
+
+/* Keep Filters beside mobile search and the density switch inside its sheet. */
+.toolbarFilterButton,
+.sheetDensity { display: none; }
+@media (max-width: 900px) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+  .toolbarFilterButton {
+    display: inline-flex;
+    align-items: center;
+    min-height: 3rem;
+    align-self: end;
+    white-space: nowrap;
+  }
+  .toolbar :global([data-ui="tabs"]) {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .resultsToolbar .mobileFilterButton,
+  .resultsToolbar .densityTabs { display: none; }
+  .sheetDensity {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .sheetDensity > strong {
+    font-size: var(--type-label);
+    text-transform: uppercase;
+  }
+  .sheetDensity :global([data-ui="tabs"]) { width: 100%; }
+  .sheetDensity :global([data-ui="tabs"] > button) { flex: 1; }
 }
