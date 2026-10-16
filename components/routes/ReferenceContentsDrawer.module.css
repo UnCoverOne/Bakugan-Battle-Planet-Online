@@ -66,28 +66,28 @@
     display:flex;
     justify-content:flex-end;
     position:absolute;
-    top:calc(var(--space-4) + env(safe-area-inset-top));
+    top:calc(var(--space-4) + env(safe-area-inset-top) - 3px);
     right:var(--space-4);
     z-index:1;
     margin:0;
   }
   nav.panel > h2:first-of-type{
-    padding-right:2.75rem;
+    padding-right:2.25rem;
   }
   nav.panel > .closeControl > button.close{
     display:grid;
     place-items:center;
-    flex:0 0 36px;
-    width:36px;
-    height:36px;
-    min-width:36px;
-    min-height:36px;
+    flex:0 0 30px;
+    width:30px;
+    height:30px;
+    min-width:30px;
+    min-height:30px;
     margin:0;
     padding:0;
     border:1px solid rgba(91,196,226,.65);
     background:#103746;
     color:var(--text-primary);
-    font-size:1.5rem;
+    font-size:1.25rem;
     line-height:1;
     text-align:center;
     cursor:pointer;
