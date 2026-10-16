@@ -1119,3 +1119,26 @@ test("continuous hand-size, printed-play filters, and static permissions use aut
   assert.equal(triggers.some((object) => object.card.id === magnus.id), false);
   assert.equal(activeRulePermissions(state, player.id).has("battle-mastery-select-both"), true);
 });
+
+test("Vestroyer continuously grants FrostStrike and ShadowStrike to its wearer", () => {
+  const gear = CARDS.find((card) => card.catalogId === "di-5");
+  assert.ok(gear);
+  assert.match(gear.effect, /\[Victor\]: \[Draw\] 1/);
+  const owner = makePlayer("vest-owner", "Owner", STARTER_DECKS[0]);
+  const opponent = makePlayer("vest-opponent", "Opponent", STARTER_DECKS[1]);
+  const match = createMatch("VEST", "bo1", [owner, opponent]);
+  const attached = { ...gear, id: "vest-attached" };
+  owner.bakugan[0].bakuGear = [attached];
+  const active = evaluateBakuganCharacteristics(match, owner.bakugan[0], owner);
+  assert.equal(active.frostStrike, 2);
+  assert.equal(active.shadowStrike, true);
+  const another = evaluateBakuganCharacteristics(match, owner.bakugan[1], owner);
+  assert.equal(another.frostStrike, 0);
+  assert.equal(another.shadowStrike, false);
+  const victor = ruleDefinitionForCard(attached).abilities.find((ability) => ability.kind === "triggered");
+  assert.equal(victor?.trigger?.event, "VICTOR_DECLARED");
+  const event = { id: "vest-win", name: "VICTOR_DECLARED" as const, actorId: owner.id, controllerId: owner.id, targetBakuganId: owner.bakugan[0].id, createdAt: Date.now() };
+  assert.ok(emitRuleEvent(match, event).some((object) => object.card.id === attached.id));
+  const unrelated = { ...event, id: "other-win", targetBakuganId: owner.bakugan[1].id };
+  assert.equal(emitRuleEvent(match, unrelated).some((object) => object.card.id === attached.id), false);
+});

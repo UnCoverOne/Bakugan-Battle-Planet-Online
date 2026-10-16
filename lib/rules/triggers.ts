@@ -189,6 +189,9 @@ function triggerMatches(
     const playedFactions = event.card ? effectiveCardFactions(event.card) : [];
     if (!trigger.factions.some((faction) => playedFactions.includes(faction))) return false;
   }
+  // Gear Victor triggers belong only to the Bakugan carrying the Gear.
+  if (event.name === "VICTOR_DECLARED" && source.type === "Baku-Gear"
+    && sourceBakuganFor(owner, source)?.id !== event.targetBakuganId) return false;
   if (!sourceTargetMatches(source, owner, event, triggerText)) return false;
   const target = event.targetBakuganId
     ? state.players.flatMap((player) => player.bakugan).find((candidate) => candidate.id === event.targetBakuganId)
