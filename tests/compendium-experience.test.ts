@@ -344,3 +344,21 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
   assert.doesNotMatch(css, /\.coreInspector\s*\{[^}]*position:\s*(?:sticky|relative)/s);
   assert.match(inspectorCss, /height:\s*100dvh/);
 });
+
+test("Reference contents drawers share a mobile-only, touch-sized close control", async () => {
+  const [drawer, styles, rules, glossary, rulings] = await Promise.all([
+    read("components/routes/ReferenceContentsDrawer.tsx"),
+    read("components/routes/ReferenceContentsDrawer.module.css"),
+    read("components/routes/OfficialRulebook.tsx"),
+    read("components/routes/GlossaryScreen.tsx"),
+    read("components/routes/RulingsReference.tsx"),
+  ]);
+  for (const view of [rules, glossary, rulings]) {
+    assert.match(view, /<ReferenceContentsDrawer className=/);
+  }
+  assert.match(drawer, /<div className=\{styles\.closeControl\}>\s*<button[^>]+className=\{styles\.close\}/);
+  assert.match(styles, /\.tab,\.scrim,\.closeControl\{display:none\}/);
+  assert.match(styles, /@media\(max-width:900px\)\{[\s\S]*nav\.panel > \.closeControl\{[^}]*display:flex;/);
+  assert.match(styles, /nav\.panel > \.closeControl > button\.close\{[^}]*width:48px;[^}]*height:48px;/);
+  assert.doesNotMatch(styles, /nav\.panel > button\.close/);
+});
