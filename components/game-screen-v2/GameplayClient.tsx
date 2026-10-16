@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type CardChoices, type MatchState } from "../../lib/game";
+import { recordTrainingAiTrace, trainingAiTraceForExport } from "../../lib/training-ai-trace";
 import { accountIsAdministrator } from "../../lib/admin-ai-visibility";
 import { dispatchLocalGameAction, dispatchLocalGameCommand } from "../../lib/engine/local-command-dispatcher";
 import type { ApiAction } from "../../lib/engine/commands";
@@ -817,6 +818,11 @@ export function GameplayClient() {
       };
     }
 
+    // Augment either the local journal or authoritative server history at download
+    // time. AI trace data is never written to match state or the database.
+    if (history && typeof history === "object" && !Array.isArray(history)) {
+      history = { ...history, aiTrace: trainingAiTraceForExport(match.id) };
+    }
     downloadJsonFile(engineHistoryFilename(match, exportedAt), history);
   }, [administrator, authUser?.id]);
 
@@ -915,6 +921,7 @@ export function GameplayClient() {
     const key = `${match.id}:${match.version}:${match.phase}:${match.pendingChoice?.id ?? ""}:${match.pendingCoinFlip?.id ?? ""}`;
     if (botActionKey.current === key) return;
     botActionKey.current = key;
+    recordTrainingAiTrace(match, "scheduled");
     const drawDelay = waitingForDrawWindow
       ? Math.max(0, (match.drawReadyAt ?? 0) - Date.now())
       : 0;
@@ -928,6 +935,7 @@ export function GameplayClient() {
         try {
           const latest = readMatchStore().match;
           if (!latest || latest.id !== match.id || latest.version !== match.version) return;
+          recordTrainingAiTrace(latest, "request");
           let decision: GameCommand | null = null;
           let diagnostic: {
             reason: string;
@@ -946,6 +954,7 @@ export function GameplayClient() {
             try {
               const primary = await requestOpponentAiDecision(latest, "training-bot");
               decision = primary.command;
+              recordTrainingAiTrace(latest, "worker-response", { command: decision?.type, transport: primary.transport, elapsedMs: primary.elapsedMs });
               if (!decision) {
                 diagnostic = {
                   reason: `${primary.transport}-null`,
@@ -956,6 +965,7 @@ export function GameplayClient() {
               }
             } catch (cause) {
               diagnostic = opponentAiFailureMetadata(cause);
+              recordTrainingAiTrace(latest, "worker-error", { detail: `${diagnostic.reason}: ${diagnostic.detail ?? ""}`.slice(0, 300), elapsedMs: diagnostic.elapsedMs });
             }
 
             // A timed-out, failed, or empty tactical decision must never be
@@ -965,8 +975,12 @@ export function GameplayClient() {
           }
 
           const current = readMatchStore().match;
-          if (current?.id !== latest.id || current.version !== latest.version) return;
+          if (current?.id !== latest.id || current.version !== latest.version) {
+            recordTrainingAiTrace(latest, "stale-response");
+            return;
+          }
           const command = decision ?? recoverOpponentAiCommand(latest, "training-bot");
+          recordTrainingAiTrace(latest, "decision", { command: command?.type, detail: decision ? "planner" : "recovery" });
           if (command) {
             const decisionState = diagnostic
               ? withOpponentAiRecoveryDiagnostic(latest, {
@@ -974,12 +988,22 @@ export function GameplayClient() {
                 fallback: decision ? `strategic:${command.type}` : `primitive:${command.type}`,
               })
               : latest;
-            publishMatch(dispatchLocalGameCommand(
-              decisionState,
-              "training-bot",
-              command,
-              storedState.playerId ?? latest.players[0]?.id,
-            ));
+            try {
+              const next = dispatchLocalGameCommand(
+                decisionState,
+                "training-bot",
+                command,
+                storedState.playerId ?? latest.players[0]?.id,
+              );
+              recordTrainingAiTrace(latest, "dispatch-success", { command: command.type, nextVersion: next.version });
+              publishMatch(next);
+            } catch (cause) {
+              recordTrainingAiTrace(latest, "dispatch-error", {
+                command: command.type,
+                detail: (cause instanceof Error ? cause.message : String(cause)).slice(0, 300),
+              });
+              throw cause;
+            }
           }
         } finally {
           if (botActionKey.current === key) botActionKey.current = "";
