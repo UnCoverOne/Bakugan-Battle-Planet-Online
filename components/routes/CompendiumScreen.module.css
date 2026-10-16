@@ -676,7 +676,7 @@
 .rulebookFrame {
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   max-width: var(--content-wide);
-  margin-inline: auto;
+  margin: var(--space-4) auto 0;
   min-width: 0;
 }
 .rulebookFrame :global([data-rulebook-reader]) {
