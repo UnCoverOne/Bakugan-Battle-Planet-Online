@@ -475,7 +475,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
   grid-auto-rows: max-content;
-  gap: .65rem .75rem;
+  gap: .5rem .75rem;
   padding: 1rem;
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
   overflow: visible;
