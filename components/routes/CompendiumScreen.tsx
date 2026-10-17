@@ -443,8 +443,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       <RouteHero
         eyebrow="AUTHORITATIVE REFERENCE"
         title="Compendium"
-        description="Browse every supported card and BakuCore, inspect complete records, and follow connected rules and published rulings."
-        aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORE_COMPENDIUM.length} BakuCores</strong><span>Sources reviewed {REFERENCE_REVIEWED_AT}</span></div>}
+        aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORE_COMPENDIUM.length} BakuCores</strong></div>}
       />
       <section className={styles.toolbar}>
         <Field className={styles.search} label="Search the archive">
