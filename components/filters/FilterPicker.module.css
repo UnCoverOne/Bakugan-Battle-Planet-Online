@@ -1,6 +1,11 @@
 .picker {
+  /* Grid auto tracks otherwise grow to the min-content width of long
+     selections, expanding the entire trigger outside its parent. */
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
 }
 
@@ -16,6 +21,8 @@
 
 .trigger {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 2.75rem;
   display: flex;
   align-items: center;
@@ -29,6 +36,7 @@
   font-family: var(--font-body);
   font-size: var(--type-body);
   text-align: left;
+  overflow: hidden;
   clip-path: polygon(.45rem 0, 100% 0, 100% calc(100% - .45rem), calc(100% - .45rem) 100%, 0 100%, 0 .45rem);
 }
 
