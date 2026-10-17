@@ -9,6 +9,7 @@ import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatche
 import { cardArtSource } from "../../lib/content/card-art";
 import { createBuilderCardControls } from "../../lib/builder-card-selection";
 import { createCoreAdditionGuard } from "../../lib/builder-core-selection";
+import { coreForSet, corePreviewStats } from "../../lib/core-preview";
 import { builderSortOptions, normalizeBuilderSort, sortBuilderItems, type BuilderCategory, type BuilderSort, type BuilderGalleryItem } from "../../lib/builder-sorting";
 import { BAKUGAN, CARD_BY_ID, CARDS, CORES, validateDeck, type DeckRecord } from "../../lib/data";
 import type { DeckValidationResult } from "../../lib/deck-validation";
@@ -590,12 +591,13 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
             }}
           />
           {galleryItems.length ? (
-            <div className={styles.builderGalleryGrid}>
+            <div className={`${styles.builderGalleryGrid} ${galleryCategory === "cores" ? styles.builderCoreGalleryGrid : ""}`}>
               {galleryItems.map((item) => (
                 <BuilderGalleryCard
                   key={`${item.kind}-${item.id}`}
                   item={item}
                   catalogueRevision={catalogueRevision}
+                  selectedCoreSet={galleryFilters.set.length === 1 ? galleryFilters.set[0] : "All"}
                   canAdd={canAddGalleryItem(item)}
                   restriction={item.kind === "card" ? cardControls.restrictionLabel(item.id) : undefined}
                   onInspect={() => item.kind === "core" ? inspectCore(item.id) : inspectCard(item.card)}
@@ -1086,7 +1088,7 @@ const MemoizedBuilderGalleryArtwork = memo(function BuilderGalleryArtwork({
   name: string;
   catalogueRevision: number;
 }) {
-  if (kind === "core" && core) return <BakuCoreArt core={core} alt={name} loading="lazy" decoding="async" />;
+  if (kind === "core" && core) return <BakuCoreArt core={core} alt="" loading="lazy" decoding="async" />;
   if (card) return <ResponsiveCardImage card={card} presentation="tile" />;
   return null;
 });
@@ -1094,6 +1096,7 @@ const MemoizedBuilderGalleryArtwork = memo(function BuilderGalleryArtwork({
 function BuilderGalleryCard({
   item,
   catalogueRevision,
+  selectedCoreSet,
   canAdd,
   restriction,
   onInspect,
@@ -1101,33 +1104,45 @@ function BuilderGalleryCard({
 }: {
   item: BuilderGalleryItem;
   catalogueRevision: number;
+  selectedCoreSet: string;
   canAdd: boolean;
   restriction?: string;
   onInspect: () => void;
   onAdjust: (amount: number) => void;
 }) {
   const core = item.kind === "core" ? item.core : null;
-  const metadata = item.kind === "core"
-    ? `${core?.set === "Armored Alliance" ? "AA" : "BB"} #${core?.number ?? ""} · ${core?.type ?? ""}`
-    : item.kind === "character"
-      ? `${item.card.faction} · Character`
-      : `${item.card.faction} · ${item.card.type} · ${item.card.cost} Energy`;
+  const displayedCore = core ? coreForSet(core, selectedCoreSet) : null;
+  const metadata = item.kind === "character"
+    ? `${item.card.faction} · Character`
+    : item.kind === "card" ? `${item.card.faction} · ${item.card.type} · ${item.card.cost} Energy` : "";
   return (
     <article className={`${styles.builderGalleryCard} ${item.kind === "core" ? styles.builderGalleryCore : ""}`}>
       <button className={styles.builderCardArtButton} type="button" onClick={onInspect} aria-label={`Inspect ${item.name}`}>
         <MemoizedBuilderGalleryArtwork
           kind={item.kind}
           card={item.kind === "core" ? undefined : item.card}
-          core={item.kind === "core" ? item.core : undefined}
+          core={displayedCore ?? undefined}
           name={item.name}
           catalogueRevision={catalogueRevision}
         />
       </button>
-      <div className={styles.builderGalleryIdentity}>
-        <strong>{item.name}</strong>
-        <span>{metadata}</span>
-        {restriction && <StatusChip className={styles.builderRestriction} tone={restriction.startsWith("Banned") ? "danger" : "info"} title={restriction}>{restriction}</StatusChip>}
-      </div>
+      {core && displayedCore ? (
+        <div className={`${styles.builderGalleryIdentity} ${styles.builderCoreIdentity}`}>
+          <strong>{core.type}</strong>
+          <div className={styles.builderCoreStatList} aria-label="BakuCore stats">
+            {corePreviewStats(core).map((stat) => <span key={stat}>{stat}</span>)}
+          </div>
+          <span className={styles.builderCoreSetLabel} aria-label={`${displayedCore.set ?? "Battle Brawlers"}, collector number ${displayedCore.number}`}>
+            {displayedCore.set === "Armored Alliance" ? "AA" : "BB"} #{displayedCore.number}
+          </span>
+        </div>
+      ) : (
+        <div className={styles.builderGalleryIdentity}>
+          <strong>{item.name}</strong>
+          <span>{metadata}</span>
+          {restriction && <StatusChip className={styles.builderRestriction} tone={restriction.startsWith("Banned") ? "danger" : "info"} title={restriction}>{restriction}</StatusChip>}
+        </div>
+      )}
       <div data-ui="quantity-control" className={styles.builderQuantity}>
         <button type="button" disabled={item.count === 0} onClick={() => onAdjust(-1)} aria-label={`Remove ${item.name}`}>−</button>
         <strong aria-label={`${item.count} copies in deck`}><MotionValue value={item.count} /></strong>
