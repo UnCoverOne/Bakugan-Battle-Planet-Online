@@ -380,6 +380,11 @@
   font-size: .9rem;
 }
 
+/* Core types are short labels, not two-line card names. */
+.cardGridCompact .coreTile .cardCopy > strong {
+  min-height: 0;
+}
+
 .cardGridCompact .cardCopy small {
   display: none;
 }
