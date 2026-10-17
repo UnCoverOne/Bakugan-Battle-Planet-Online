@@ -41,17 +41,30 @@
 
 .triggerSummary {
   min-width: 0;
+  max-width: 100%;
+  flex: 1 1 0;
   display: flex;
   align-items: center;
   gap: .45rem;
   overflow: hidden;
+  white-space: nowrap;
 }
 
 .summaryOption {
   min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
   display: inline-flex;
   align-items: center;
   gap: .35rem;
+  overflow: hidden;
+}
+
+.summaryLabel {
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
