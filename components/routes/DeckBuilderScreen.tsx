@@ -1080,12 +1080,10 @@ const MemoizedBuilderGalleryArtwork = memo(function BuilderGalleryArtwork({
   kind,
   card,
   core,
-  name,
 }: {
   kind: BuilderGalleryItem["kind"];
   card?: GameCard;
   core?: Core;
-  name: string;
   catalogueRevision: number;
 }) {
   if (kind === "core" && core) return <BakuCoreArt core={core} alt="" loading="lazy" decoding="async" />;
@@ -1122,7 +1120,6 @@ function BuilderGalleryCard({
           kind={item.kind}
           card={item.kind === "core" ? undefined : item.card}
           core={displayedCore ?? undefined}
-          name={item.name}
           catalogueRevision={catalogueRevision}
         />
       </button>
