@@ -201,6 +201,34 @@ test("long selected filter values truncate inside the trigger at every breakpoin
   expect(bounds.clippedLabels).toBeGreaterThan(0);
   expect(bounds.summaryRight).toBeLessThanOrEqual(bounds.chevronLeft + 1);
   expect(bounds.chevronRight).toBeLessThanOrEqual(bounds.buttonRight + 1);
+
+  // The whole dropdown box must stay within its picker and its containing
+  // rail/sheet, not merely clip the selected text or hide the right border.
+  const fieldBoxes = await surface.locator('[data-ui="filter-picker"]').evaluateAll((pickers) =>
+    pickers.map((picker) => {
+      const button = picker.querySelector('button[aria-haspopup="dialog"]')!;
+      const pickerRect = picker.getBoundingClientRect();
+      const buttonRect = button.getBoundingClientRect();
+      const containerRect = picker.parentElement!.getBoundingClientRect();
+      return {
+        pickerWidth: pickerRect.width,
+        buttonWidth: buttonRect.width,
+        pickerLeft: pickerRect.left,
+        pickerRight: pickerRect.right,
+        buttonLeft: buttonRect.left,
+        buttonRight: buttonRect.right,
+        containerRight: containerRect.right,
+      };
+    }),
+  );
+  expect(fieldBoxes.length).toBeGreaterThan(0);
+  for (const field of fieldBoxes) {
+    expect(field.pickerWidth).toBeGreaterThan(0);
+    expect(field.buttonWidth).toBeLessThanOrEqual(field.pickerWidth + 1);
+    expect(field.buttonLeft).toBeGreaterThanOrEqual(field.pickerLeft - 1);
+    expect(field.buttonRight).toBeLessThanOrEqual(field.pickerRight + 1);
+    expect(field.buttonRight).toBeLessThanOrEqual(field.containerRight + 1);
+  }
 });
 
 test("mobile filtering opens an accessible sheet", async ({ page }) => {
