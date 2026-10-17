@@ -107,6 +107,60 @@ test("Compendium filter rail and sheet stay compact and usable", async ({ page }
   expect(triggerHeight).toBeGreaterThanOrEqual(44);
 });
 
+test("card and BakuCore filter surfaces stay fixed-size and never scroll internally", async ({ page }) => {
+  const viewport = page.viewportSize()!;
+  for (const [url, accessibleName, height, lastFacet] of [
+    ["/compendium", "Card filters", 576, "Keyword"],
+    ["/compendium/cores", "BakuCore filters", viewport.width > 1180 ? 288 : 368, "Set"],
+  ] as const) {
+    await page.goto(url);
+    await waitForCompendium(page);
+    if (viewport.width <= 1180) {
+      await page.getByRole("button", { name: /^Filters/ }).click();
+    }
+    const surface = viewport.width > 1180
+      ? page.getByRole("complementary", { name: accessibleName })
+      : page.getByRole("dialog", { name: accessibleName });
+    await expect(surface).toBeVisible();
+
+    const check = async () => {
+      const layout = await surface.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const css = getComputedStyle(element);
+        return {
+          width: box.width,
+          height: box.height,
+          overflowY: css.overflowY,
+          clientHeight: element.clientHeight,
+          scrollHeight: element.scrollHeight,
+        };
+      });
+      expect(layout.height).toBe(viewport.width > 1180 ? height : (url === "/compendium" ? 512 : 368));
+      expect(layout.width).toBeLessThanOrEqual(viewport.width);
+      if (viewport.width > 1180) expect(layout.width).toBe(200);
+      expect(layout.overflowY).not.toMatch(/auto|scroll/);
+      expect(layout.scrollHeight).toBeLessThanOrEqual(layout.clientHeight + 1);
+      const finalField = surface.getByRole("button", { name: new RegExp(`^${lastFacet}:`) });
+      const bounds = await Promise.all([
+        surface.boundingBox(),
+        finalField.boundingBox(),
+      ]);
+      expect(bounds[0]).not.toBeNull();
+      expect(bounds[1]).not.toBeNull();
+      expect(bounds[1]!.y + bounds[1]!.height).toBeLessThanOrEqual(bounds[0]!.y + bounds[0]!.height);
+    };
+    await check();
+
+    if (url === "/compendium") {
+      await surface.getByRole("button", { name: /^Card type:/ }).click();
+      const picker = page.getByRole("dialog", { name: "Card type options" });
+      await picker.getByRole("option", { name: /^◇?\s*Character$/ }).click();
+      await picker.getByRole("button", { name: "Done" }).click();
+      await check();
+    }
+  }
+});
+
 test("long selected filter values truncate inside the trigger at every breakpoint", async ({ page }) => {
   await page.goto("/compendium?set=BB&set=BR&faction=Pyrus&faction=Haos");
   await waitForCompendium(page);
