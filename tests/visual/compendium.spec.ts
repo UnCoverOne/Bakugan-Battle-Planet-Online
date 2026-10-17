@@ -107,6 +107,48 @@ test("Compendium filter rail and sheet stay compact and usable", async ({ page }
   expect(triggerHeight).toBeGreaterThanOrEqual(44);
 });
 
+test("long selected filter values truncate inside the trigger at every breakpoint", async ({ page }) => {
+  await page.goto("/compendium?set=BB&set=BR&faction=Pyrus&faction=Haos");
+  await waitForCompendium(page);
+
+  const viewport = page.viewportSize()!;
+  let surface;
+  if (viewport.width > 1180) {
+    surface = page.getByRole("complementary", { name: "Card filters" });
+  } else {
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    surface = page.getByRole("dialog", { name: "Card filters" });
+  }
+
+  const trigger = surface.getByRole("button", { name: /^Set: Battle Brawlers, Bakugan Resurgence$/ });
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toHaveAttribute("title", "Battle Brawlers, Bakugan Resurgence");
+
+  const bounds = await trigger.evaluate((button) => {
+    const summary = button.querySelector('[class*="triggerSummary"]')!;
+    const chevron = button.querySelector('[class*="chevron"]')!;
+    const labels = [...button.querySelectorAll('[class*="summaryLabel"]')];
+    const buttonBounds = button.getBoundingClientRect();
+    const summaryBounds = summary.getBoundingClientRect();
+    const chevronBounds = chevron.getBoundingClientRect();
+    return {
+      buttonWidth: buttonBounds.width,
+      scrollWidth: button.scrollWidth,
+      clippedLabels: labels.filter((label) => label.scrollWidth > label.clientWidth + 1).length,
+      ellipsis: labels.every((label) => getComputedStyle(label).textOverflow === "ellipsis"),
+      summaryRight: summaryBounds.right,
+      chevronLeft: chevronBounds.left,
+      chevronRight: chevronBounds.right,
+      buttonRight: buttonBounds.right,
+    };
+  });
+  expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.buttonWidth + 1);
+  expect(bounds.ellipsis).toBe(true);
+  expect(bounds.clippedLabels).toBeGreaterThan(0);
+  expect(bounds.summaryRight).toBeLessThanOrEqual(bounds.chevronLeft + 1);
+  expect(bounds.chevronRight).toBeLessThanOrEqual(bounds.buttonRight + 1);
+});
+
 test("mobile filtering opens an accessible sheet", async ({ page }) => {
   test.skip((page.viewportSize()?.width ?? 1000) > 900, "Mobile and tablet contract");
   await page.goto("/compendium");
