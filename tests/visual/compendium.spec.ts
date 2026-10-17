@@ -72,7 +72,42 @@ test("opening an inspector preserves the current result scroll position", async 
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 });
 
-test("mobile filtering opens an accessible full-width sheet", async ({ page }) => {
+test("Compendium filter rail and sheet stay compact and usable", async ({ page }) => {
+  await page.goto("/compendium");
+  await waitForCompendium(page);
+  const viewport = page.viewportSize()!;
+
+  if (viewport.width > 1180) {
+    const rail = page.getByRole("complementary", { name: "Card filters" });
+    await expect(rail).toBeVisible();
+    const width = await rail.evaluate((element) => element.getBoundingClientRect().width);
+    expect(width).toBeLessThanOrEqual(210);
+    const triggerHeight = await rail.getByRole("button", { name: /^Faction:/ })
+      .evaluate((element) => element.getBoundingClientRect().height);
+    expect(triggerHeight).toBeGreaterThanOrEqual(40);
+    return;
+  }
+
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  const sheet = page.getByRole("dialog", { name: "Card filters" });
+  await expect(sheet).toBeVisible();
+  const dimensions = await sheet.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      width: rect.width,
+      height: rect.height,
+      columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
+    };
+  });
+  expect(dimensions.width).toBeLessThanOrEqual(Math.min(viewport.width, 608) + 1);
+  expect(dimensions.height).toBeLessThanOrEqual(Math.min(viewport.height * .8, 672) + 2);
+  expect(dimensions.columns).toBe(2);
+  const triggerHeight = await sheet.getByRole("button", { name: /^Faction:/ })
+    .evaluate((element) => element.getBoundingClientRect().height);
+  expect(triggerHeight).toBeGreaterThanOrEqual(44);
+});
+
+test("mobile filtering opens an accessible sheet", async ({ page }) => {
   test.skip((page.viewportSize()?.width ?? 1000) > 900, "Mobile and tablet contract");
   await page.goto("/compendium");
   await waitForCompendium(page);
