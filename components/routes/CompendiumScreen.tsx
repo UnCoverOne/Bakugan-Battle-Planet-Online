@@ -567,7 +567,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("BakuCore results")}>Share results</button>
           </section>
           <div className={styles.coreWorkspace}>
-            <Surface as="aside" className={styles.filterRail} aria-label="BakuCore filters">
+            <Surface as="aside" className={`${styles.filterRail} ${styles.coreFilterRail}`} aria-label="BakuCore filters">
               <CoreFilterControls
                 state={coreState}
                 onChange={(patch) => navigateCore(patch, { resetPage: true })}
@@ -635,7 +635,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
           </div>
           {filterSheetOpen && (
             <div data-ui="filter-backdrop" className={styles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}>
-              <Surface as="aside" data-motion-surface="filter-sheet" className={styles.filterSheet} role="dialog" aria-modal="true" aria-label="BakuCore filters">
+              <Surface as="aside" data-motion-surface="filter-sheet" className={`${styles.filterSheet} ${styles.coreFilterSheet}`} role="dialog" aria-modal="true" aria-label="BakuCore filters">
                 <CoreFilterControls
                   state={coreState}
                   onChange={(patch) => navigateCore(patch, { resetPage: true })}
