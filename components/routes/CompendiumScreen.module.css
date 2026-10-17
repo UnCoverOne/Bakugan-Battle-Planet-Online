@@ -108,6 +108,7 @@
   width: 12.5rem;
   height: 36rem;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   grid-auto-rows: max-content;
   gap: .45rem;
