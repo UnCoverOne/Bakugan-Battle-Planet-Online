@@ -246,7 +246,6 @@ function CoreOverview({ core, displayedCore }: { core: Core; displayedCore: Core
         <div className={styles.chips}>
           <StatusChip tone="info">{core.type}</StatusChip>
           <StatusChip>{displayedSet}</StatusChip>
-          {core.printings?.length ? <StatusChip tone="gold">Alternate printing</StatusChip> : null}
         </div>
         {rules.length
           ? <p className={styles.effect}>{rules.join(" ")}</p>
