@@ -1293,8 +1293,8 @@
 }
 
 .builderGalleryCore .builderCardArtButton {
-  aspect-ratio: 1;
-  padding: var(--space-4);
+  aspect-ratio: 240 / 209;
+  padding: var(--space-3);
 }
 
 .builderGalleryCore .builderCardArtButton > span {
@@ -1330,6 +1330,54 @@
 .builderGalleryIdentity span {
   color: var(--text-muted);
   font-size: var(--type-meta);
+}
+
+/* BakuCore gallery uses the Compendium's type → stats → set hierarchy. */
+.builderCoreIdentity {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  min-height: 8rem;
+  gap: .4rem;
+}
+
+.builderCoreIdentity > strong {
+  font-size: .95rem;
+  line-height: 1.2;
+}
+
+.builderCoreIdentity > strong,
+.builderCoreIdentity .builderCoreStatList > span,
+.builderCoreIdentity .builderCoreSetLabel {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.builderCoreStatList {
+  display: grid;
+  align-content: start;
+  gap: .2rem;
+  color: var(--text-secondary);
+  font-size: var(--type-meta);
+  line-height: 1.35;
+}
+
+.builderCoreIdentity .builderCoreStatList > span {
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.builderCoreIdentity .builderCoreSetLabel {
+  margin-top: auto;
+  padding-top: .45rem;
+  border-top: 1px solid rgba(91, 196, 226, .18);
+  color: var(--text-muted);
+  font-size: var(--type-meta);
+  font-weight: 800;
+  letter-spacing: .04em;
 }
 
 .builderGalleryIdentity .builderRestriction {
@@ -2458,6 +2506,40 @@
   .builderGalleryGrid,
   .builderMainDeckGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Only the Cores gallery becomes three-across on phones. */
+  .builderCoreGalleryGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .4rem;
+  }
+
+  .builderCoreGalleryGrid .builderGalleryCore .builderCardArtButton {
+    padding: var(--space-2);
+  }
+
+  .builderCoreGalleryGrid .builderCoreIdentity {
+    min-height: 7rem;
+    padding: .45rem .4rem;
+    gap: .3rem;
+  }
+
+  .builderCoreGalleryGrid .builderCoreIdentity > strong {
+    font-size: .82rem;
+  }
+
+  .builderCoreGalleryGrid .builderCoreStatList {
+    font-size: .7rem;
+    line-height: 1.25;
+  }
+
+  .builderCoreGalleryGrid .builderQuantity {
+    grid-template-columns: minmax(0, 1fr) minmax(1.15rem, auto) minmax(0, 1fr);
+  }
+
+  .builderCoreGalleryGrid .builderQuantity > button {
+    min-height: 2.75rem;
+    padding-inline: 0;
   }
 
   .builderToolbar > button span {
