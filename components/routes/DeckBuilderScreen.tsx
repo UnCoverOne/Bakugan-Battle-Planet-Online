@@ -1109,7 +1109,7 @@ function BuilderGalleryCard({
   onAdjust: (amount: number) => void;
 }) {
   const core = item.kind === "core" ? item.core : null;
-  const displayedCore = core ? coreForSet(core, selectedCoreSet) : null;
+  const displayedCore = useMemo(() => core ? coreForSet(core, selectedCoreSet) : null, [core, selectedCoreSet]);
   const metadata = item.kind === "character"
     ? `${item.card.faction} · Character`
     : item.kind === "card" ? `${item.card.faction} · ${item.card.type} · ${item.card.cost} Energy` : "";
