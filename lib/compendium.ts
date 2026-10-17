@@ -264,14 +264,17 @@ const coreMatchesSet = (core: Core, set: string) =>
 const coreNumberForSet = (core: Core, set: string) =>
   core.printings?.find((printing) => printing.set === set)?.number ?? core.number;
 
-const coreSetRank = (core: Core, set: string) =>
-  (core.printings?.some((printing) => printing.set === set) || (core.set ?? "Battle Brawlers") === set) ? 0 : 1;
+// Group the default collector view by release set before comparing numbers.
+// A selected set can also include alternate artwork tied to a canonical core,
+// so use that printing's collector number for the selected-set view.
+const coreCollectorSetRank = (core: Core) =>
+  (core.set ?? "Battle Brawlers") === "Battle Brawlers" ? 0 : 1;
 
 export function compareCompendiumCores(left: Core, right: Core, sort: CoreCompendiumSort, set = "All") {
   if (sort === "type") return left.type.localeCompare(right.type) || coreNumberForSet(left, set) - coreNumberForSet(right, set);
   if (sort === "bonus") return right.bonus - left.bonus || left.damageBonus - right.damageBonus || coreNumberForSet(left, set) - coreNumberForSet(right, set);
   if (sort === "damage") return right.damageBonus - left.damageBonus || left.bonus - right.bonus || coreNumberForSet(left, set) - coreNumberForSet(right, set);
-  return coreSetRank(left, set) - coreSetRank(right, set)
+  return (set === "All" ? coreCollectorSetRank(left) - coreCollectorSetRank(right) : 0)
     || coreNumberForSet(left, set) - coreNumberForSet(right, set)
     || left.id.localeCompare(right.id);
 }
