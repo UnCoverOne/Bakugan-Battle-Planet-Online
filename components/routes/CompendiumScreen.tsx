@@ -606,8 +606,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
                   {visibleCores.map((core) => {
                     const displayedCore = coreForSet(core, coreState.set);
-                    const baseStats = coreBaseStats(core);
-                    const specialEffects = coreSpecialEffects(core);
+                    const stats = [...coreBaseStats(core), ...coreSpecialEffects(core)];
+                    const printedSet = displayedCore.set ?? "Battle Brawlers";
                     return (
                       <button
                         className={`${styles.cardTile} ${styles.coreTile} ${selectedCore?.id === core.id ? styles.cardTileSelected : ""}`}
@@ -616,14 +616,15 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                         key={core.id}
                         onClick={(event) => selectCore(core, event.currentTarget)}
                       >
-                        <span className={styles.coreArt}><BakuCoreArt core={displayedCore} alt={`${core.name} front`} /></span>
+                        <span className={styles.coreArt}><BakuCoreArt core={displayedCore} alt="" /></span>
                         <span className={styles.cardCopy}>
-                          <span className={styles.cardBadges}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{displayedCore.set === "Armored Alliance" ? "AA" : "BB"}</StatusChip>{core.printings?.length ? <StatusChip tone="gold">Alternate</StatusChip> : null}</span>
-                          <strong>{core.name}</strong>
-                          <span className={styles.coreCollector}>{displayedCore.set === "Armored Alliance" ? "AA" : "BB"} #{displayedCore.number}</span>
-                          {baseStats.length > 0 && <span className={styles.coreStats}>{baseStats.join(" · ")}</span>}
-                          {core.printings?.length ? <span className={styles.coreAlternate}>AA alternate printing</span> : null}
-                          {specialEffects.length > 0 && <span className={styles.coreEffects} aria-label="BakuCore effects">{specialEffects.join(" · ")}</span>}
+                          <strong>{core.type}</strong>
+                          <span className={styles.coreStatList} aria-label="BakuCore stats">
+                            {stats.map((stat) => <span key={stat}>{stat}</span>)}
+                          </span>
+                          <span className={styles.coreSetLabel} aria-label={`${printedSet}, collector number ${displayedCore.number}`}>
+                            {printedSet === "Armored Alliance" ? "AA" : "BB"} #{displayedCore.number}
+                          </span>
                         </span>
                       </button>
                     );
