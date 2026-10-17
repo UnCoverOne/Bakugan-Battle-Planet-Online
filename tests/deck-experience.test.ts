@@ -128,6 +128,27 @@ test("Card Gallery tabs and both card collections provide search, category sorti
   assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builderMenuDialog\s*\{[^}]*width:\s*100vw[^}]*height:\s*100dvh/s);
 });
 
+test("deck builder Cores use Compendium preview hierarchy and a three-column phone gallery", async () => {
+  const [builder, css] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/routes/DeckRoutes.module.css"),
+  ]);
+  assert.match(builder, /corePreviewStats\(core\)\.map/);
+  assert.match(builder, /coreForSet\(core, selectedCoreSet\)/);
+  assert.match(builder, /galleryCategory === "cores" \? styles\.builderCoreGalleryGrid/);
+  assert.match(builder, /builderCoreStatList/);
+  assert.match(builder, /builderCoreSetLabel/);
+  const start = builder.indexOf("{core && displayedCore ? (");
+  assert.ok(start > 0, "Missing simplified BakuCore identity");
+  const coreIdentity = builder.slice(start, builder.indexOf(") : (", start));
+  assert.match(coreIdentity, /<strong>\{core\.type\}<\/strong>/);
+  assert.doesNotMatch(coreIdentity, /item\.name|metadata|Alternate/);
+  assert.match(css, /\.builderCoreIdentity[\s\S]*?\.builderCoreStatList[\s\S]*?\.builderCoreSetLabel/);
+  assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.builderCoreGalleryGrid\s*\{\s*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.builderGalleryGrid,\s*\.builderMainDeckGrid\s*\{\s*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /\.builderCoreGalleryGrid \.builderQuantity\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+});
+
 test("Save Deck dialog owns metadata, featured card choice, and permits invalid non-public decks", async () => {
   const [route, data, persistence, server, css] = await Promise.all([
     deckRouteSource(),
