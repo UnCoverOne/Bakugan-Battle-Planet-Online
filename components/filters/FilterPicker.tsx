@@ -162,7 +162,7 @@ export function FilterPicker({
     : null;
 
   return (
-    <div className={styles.picker}>
+    <div className={styles.picker} data-ui="filter-picker">
       <span className={styles.label}>{label}</span>
       <button
         ref={triggerRef}
