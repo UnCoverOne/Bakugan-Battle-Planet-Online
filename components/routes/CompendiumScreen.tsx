@@ -45,6 +45,7 @@ import {
   type CardFilterOptionCatalogue,
 } from "../../lib/card-filters";
 import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS, CORE_SORT_LABELS } from "../../lib/catalogue-sorting";
+import { coreForSet, corePreviewStats } from "../../lib/core-preview";
 import styles from "./CompendiumScreen.module.css";
 
 const SEARCH_URL_DEBOUNCE_MS = 450;
@@ -52,32 +53,6 @@ const SEARCH_URL_DEBOUNCE_MS = 450;
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const CORE_SORT_OPTIONS: FilterOption[] = Object.entries(CORE_SORT_LABELS)
   .map(([value, label]) => ({ value, label }));
-
-const signedCoreValue = (value: number) => `${value > 0 ? "+" : ""}${value}`;
-
-const coreBaseStats = (core: Core) => [
-  core.bonus !== 0 ? `${signedCoreValue(core.bonus)} B` : "",
-  core.damageBonus !== 0 ? `${signedCoreValue(core.damageBonus)} D` : "",
-].filter(Boolean);
-
-const coreSpecialEffects = (core: Core) => [
-  core.bakuGearCostReduction ? `Baku-Gear −${core.bakuGearCostReduction} Energy` : "",
-  core.frostStrike ? `+${core.frostStrike} FrostStrike` : "",
-  core.shadowStrike ? "ShadowStrike" : "",
-  core.fusionBonus ? `Fusion ${signedCoreValue(core.fusionBonus)} B` : "",
-  core.fusionDamageBonus ? `Fusion ${signedCoreValue(core.fusionDamageBonus)} D` : "",
-  core.fusionFrostStrike ? `Fusion +${core.fusionFrostStrike} FrostStrike` : "",
-  core.conditionalFactions?.length && (core.conditionalBonus || core.conditionalDamage)
-    ? `${core.conditionalFactions.join(" / ")}: ${signedCoreValue(core.conditionalBonus || core.conditionalDamage || 0)} ${core.conditionalBonus ? "B" : "D"}`
-    : "",
-].filter(Boolean);
-
-const coreForSet = (core: Core, set: string) => {
-  const printing = core.printings?.find((candidate) => candidate.set === set);
-  return printing
-    ? { ...core, set: printing.set, number: printing.number, art: printing.art, hasProvidedScan: true }
-    : core;
-};
 
 type FilterKey = CardFilterFacet;
 type StatePatch = Partial<CompendiumState>;
@@ -606,7 +581,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
                   {visibleCores.map((core) => {
                     const displayedCore = coreForSet(core, coreState.set);
-                    const stats = [...coreBaseStats(core), ...coreSpecialEffects(core)];
+                    const stats = corePreviewStats(core);
                     const printedSet = displayedCore.set ?? "Battle Brawlers";
                     return (
                       <button
