@@ -1129,6 +1129,9 @@ test("Vestroyer continuously grants FrostStrike and ShadowStrike to its wearer",
   const match = createMatch("VEST", "bo1", [owner, opponent]);
   const attached = { ...gear, id: "vest-attached" };
   owner.bakugan[0].bakuGear = [attached];
+  // Only a participating (open/selected) Bakugan's printed triggers are active.
+  owner.bakugan[0].open = true;
+  match.selected[owner.id] = owner.bakugan[0].id;
   const active = evaluateBakuganCharacteristics(match, owner.bakugan[0], owner);
   assert.equal(active.frostStrike, 2);
   assert.equal(active.shadowStrike, true);
