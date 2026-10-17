@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createCoreAdditionGuard } from "../lib/builder-core-selection";
+import { coreForSet, corePreviewStats } from "../lib/core-preview";
+import type { Core } from "../lib/game";
 
 const cores = [
   { id: "shield-a", type: "Shield" as const },
@@ -51,4 +53,33 @@ test("singleton copy limits still apply even when the team requires repeated typ
   assert.equal(canAdd("shield-a"), false);
   assert.equal(canAdd("shield-b"), true);
   assert.equal(guard(["shield-a"], [], false, true)("shield-a"), false);
+});
+
+test("builder and Compendium share the same non-repeating BakuCore preview stats", () => {
+  const source: Core = {
+    id: "core-2",
+    number: 2,
+    name: "Fist +150 B / -1 D",
+    set: "Battle Brawlers",
+    type: "Fist",
+    bonus: 150,
+    damageBonus: -1,
+    bakuGearCostReduction: 2,
+    art: "/assets/cores/full/2.webp",
+    printings: [{
+      id: "aa-printing-19",
+      set: "Armored Alliance",
+      number: 19,
+      art: "/assets/cores/armored-alliance/aa-19.png",
+    }],
+  };
+  assert.deepEqual(corePreviewStats(source), ["+150 B", "-1 D", "Baku-Gear −2 Energy"]);
+
+  const aa = coreForSet(source, "Armored Alliance");
+  assert.equal(aa.set, "Armored Alliance");
+  assert.equal(aa.number, 19);
+  assert.equal(aa.art, "/assets/cores/armored-alliance/aa-19.png");
+  assert.deepEqual(corePreviewStats(aa), corePreviewStats(source));
+  assert.equal(source.number, 2);
+  assert.strictEqual(coreForSet(source, "All"), source);
 });
