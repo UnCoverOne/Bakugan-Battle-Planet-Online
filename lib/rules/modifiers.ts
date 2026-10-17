@@ -243,8 +243,10 @@ function printedActionModifier(
 ): ContinuousModifier | undefined {
   if (action.kind !== "modify-stat" && action.kind !== "grant-keyword") return undefined;
   // Vestroyer's unconditional keywords stay active while its Gear is attached.
-  const vestroyerStatic = catalogId === "di-5" && action.kind === "grant-keyword"
-    && ["FrostStrike", "ShadowStrike"].includes(action.keyword);
+  const vestroyerStatic = catalogId === "di-5" && (
+    (action.kind === "modify-stat" && action.stat === "frost")
+    || (action.kind === "grant-keyword" && action.keyword === "ShadowStrike")
+  );
   if (!intrinsicCharacteristic && action.duration !== "while-source-active" && !vestroyerStatic) return undefined;
   const target = printedTarget(sourceText, action);
   const targetFactions = printedTargetFactions(sourceText);

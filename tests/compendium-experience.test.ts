@@ -359,6 +359,7 @@ test("Reference contents drawers share a mobile-only, touch-sized close control"
   assert.match(drawer, /<div className=\{styles\.closeControl\}>\s*<button[^>]+className=\{styles\.close\}/);
   assert.match(styles, /\.tab,\.scrim,\.closeControl\{display:none\}/);
   assert.match(styles, /@media\(max-width:900px\)\{[\s\S]*nav\.panel > \.closeControl\{[^}]*display:flex;/);
-  assert.match(styles, /nav\.panel > \.closeControl > button\.close\{[^}]*width:48px;[^}]*height:48px;/);
+  assert.match(styles, /nav\.panel > \.closeControl > button\.close\{[^}]*width:30px;[^}]*height:30px;/);
+  assert.match(styles, /nav\.panel > \.closeControl\{[^}]*top:calc\(var\(--space-4\) \+ env\(safe-area-inset-top\) - 6px\)/);
   assert.doesNotMatch(styles, /nav\.panel > button\.close/);
 });
