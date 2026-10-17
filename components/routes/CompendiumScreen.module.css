@@ -95,7 +95,7 @@
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   margin-inline: auto;
   display: grid;
-  grid-template-columns: 13.75rem minmax(0, 1fr);
+  grid-template-columns: 12.5rem minmax(0, 1fr);
   align-items: start;
   gap: var(--space-4);
 }
@@ -104,8 +104,8 @@
   position: sticky;
   top: 10.25rem;
   display: grid;
-  gap: var(--space-4);
-  padding: var(--space-4);
+  gap: .65rem;
+  padding: .75rem;
   max-height: calc(100dvh - 11.5rem);
   overflow-y: auto;
 }
@@ -119,8 +119,9 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-3);
-  padding-bottom: var(--space-3);
+  gap: .5rem;
+  align-items: center;
+  padding-bottom: .4rem;
   border-bottom: 1px solid rgba(91, 196, 226, .18);
 }
 
@@ -133,8 +134,9 @@
 }
 
 .filterHeading h2 {
-  margin: .15rem 0 0;
-  font-size: 1.25rem;
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.2;
 }
 
 .filterHeading button {
@@ -440,12 +442,14 @@
 }
 
 .filterSheet {
-  width: 100%;
-  max-height: min(88dvh, 52rem);
+  width: min(100%, 38rem);
+  max-height: min(80dvh, 42rem);
+  margin-inline: auto;
   display: grid;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
+  grid-template-columns: minmax(0, 1fr);
+  gap: .65rem;
+  padding: 1rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
   overflow-y: auto;
   clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% 100%, 0 100%, 0 var(--chamfer-panel));
 }
@@ -841,4 +845,39 @@
   }
   .sheetDensity :global([data-ui="tabs"]) { width: 100%; }
   .sheetDensity :global([data-ui="tabs"] > button) { flex: 1; }
+}
+
+/* Compact Compendium filters without changing pickers elsewhere on the site. */
+.filterRail :global([data-ui="filter-picker"]),
+.filterSheet :global([data-ui="filter-picker"]) {
+  gap: .25rem;
+}
+
+.filterRail :global([data-ui="filter-picker"] > button) {
+  min-height: 2.5rem;
+  padding: .4rem .55rem;
+  font-size: .92rem;
+}
+
+.filterSheet :global([data-ui="filter-picker"] > button) {
+  min-height: 2.75rem; /* Retain a 44px touch target. */
+  padding: .45rem .6rem;
+  font-size: .94rem;
+}
+
+.filterSheet > .filterDivider {
+  display: none;
+}
+
+.filterSheet > .filterHeading,
+.filterSheet > .sheetDensity,
+.filterSheet > :global([data-ui="action-button"]) {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 360px) and (max-width: 1180px) {
+  .filterSheet {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: .75rem;
+  }
 }
