@@ -171,6 +171,7 @@ export function FilterPicker({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={`${label}: ${summary}`}
+        title={summary}
         onClick={() => {
           setQuery("");
           updateAnchor();
@@ -184,7 +185,7 @@ export function FilterPicker({
               {option.icon && (
                 <OriginalImage className={styles.summaryIcon} src={option.icon} alt="" width={20} height={20} />
               )}
-              {option.label}
+              <span className={styles.summaryLabel}>{option.label}</span>
             </span>
           ))}
           {localValues.length > 2 && <span>{localValues.length} selected</span>}
