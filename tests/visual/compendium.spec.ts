@@ -168,6 +168,29 @@ test("BakuCore tab exposes set filters and a shareable inspector", async ({ page
 });
 
 
+test("BakuCore previews have one type, individual stats, and one set identifier", async ({ page }) => {
+  await page.goto("/compendium/cores");
+  await waitForCompendium(page);
+  const tile = page.locator('[data-ui="card-grid"] > button').first();
+  await expect(tile.locator("strong")).toHaveText("Fist");
+  await expect(tile.locator('[class*="coreStatList"] > span')).toHaveCount(1);
+  await expect(tile.locator('[class*="coreSetLabel"]')).toHaveText("BB #1");
+  await expect(tile).not.toContainText(/Alternate|Fist \+0/);
+
+  // The set boundary must come after the complete Battle Brawlers run.
+  await page.goto("/compendium/cores?corePage=3");
+  await waitForCompendium(page);
+  const setLabels = page.locator('[data-ui="card-grid"] > button [class*="coreSetLabel"]');
+  await expect(setLabels.nth(0)).toHaveText("BB #49");
+  await expect(setLabels.nth(3)).toHaveText("BB #52");
+  await expect(setLabels.nth(4)).toHaveText("AA #1");
+
+  // Alternate artwork remains discoverable by set without exposing a badge.
+  await page.goto("/compendium/cores?coreSet=Armored+Alliance");
+  await waitForCompendium(page);
+  await expect(page.locator('[data-ui="card-grid"]')).not.toContainText(/Alternate printing/i);
+});
+
 test("desktop cards and BakuCore controls live in their filter rails", async ({ page }) => {
   test.skip((page.viewportSize()?.width ?? 1000) <= 1180, "Desktop filter rail contract");
   await page.goto("/compendium");
