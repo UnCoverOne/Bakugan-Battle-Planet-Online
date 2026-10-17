@@ -242,6 +242,27 @@ test("BakuCore compendium state filters, sorts, and selects both sets", () => {
   assert.equal(selectedCompendiumCore(candidates, "aa-core-70")?.number, 70);
 });
 
+test("BakuCore collector ordering groups sets and sorts each set numerically", () => {
+  const candidates = [
+    core({ id: "aa-core-10", name: "AA 10", number: 10, set: "Armored Alliance" }),
+    core({ id: "core-11", name: "BB 11", number: 11, set: "Battle Brawlers", printings: [
+      { id: "aa-printing-4", set: "Armored Alliance", number: 4, art: "/assets/cores/armored-alliance/aa-04.png" },
+    ] }),
+    core({ id: "aa-core-2", name: "AA 2", number: 2, set: "Armored Alliance" }),
+    core({ id: "core-2", name: "BB 2", number: 2, set: "Battle Brawlers" }),
+  ];
+
+  assert.deepEqual(
+    filterAndSortCompendiumCores(candidates, DEFAULT_CORE_COMPENDIUM_STATE).map((item) => item.id),
+    ["core-2", "core-11", "aa-core-2", "aa-core-10"],
+  );
+  assert.deepEqual(
+    filterAndSortCompendiumCores(candidates, { ...DEFAULT_CORE_COMPENDIUM_STATE, set: "Armored Alliance" })
+      .map((item) => item.id),
+    ["aa-core-2", "core-11", "aa-core-10"],
+  );
+});
+
 test("Collection reuses the complete filter controls in desktop and mobile surfaces", async () => {
   const route = await read("components/routes/CollectionScreen.tsx");
   assert.match(route, /const renderCollectionFilterControls = \(\) =>/);
@@ -298,18 +319,21 @@ test("Compendium renders the complete gallery and reusable inspector contracts",
     "coreBaseStats",
     "coreSpecialEffects",
     "coreForSet",
-    "Alternate",
-    "BakuCore effects",
+    "coreStatList",
+    "coreSetLabel",
     "filterAndSortCompendiumCores",
     "returnFocusRef",
   ]) assert.match(route, new RegExp(contract));
-  assert.match(route, /coreCollector/);
   assert.match(route, /onSortChange/);
   assert.match(route, /className=\{styles\.filterRail\}/);
-  assert.match(route, /coreStats/);
-  assert.match(route, /coreAlternate/);
   assert.match(route, /core=\{selectedCore\}/);
   assert.match(route, /tab=\{coreState\.tab\}/);
+  const coreTiles = route.slice(route.indexOf("visibleCores.map((core) => {"), route.indexOf("</CardGrid>", route.indexOf("visibleCores.map((core) => {")));
+  assert.match(coreTiles, /<strong>\{core\.type\}<\/strong>/);
+  assert.match(coreTiles, /stats\.map\(\(stat\) => <span key=\{stat\}>\{stat\}<\/span>\)/);
+  assert.match(coreTiles, /coreSetLabel/);
+  assert.doesNotMatch(coreTiles, /core\.name|coreAlternate|coreCollector|coreStats|cardBadges|Alternate/);
+  assert.doesNotMatch(inspector, /<StatusChip[^>]*>Alternate printing<\/StatusChip>/);
   assert.doesNotMatch(route, /function CoreInspector/);
   assert.doesNotMatch(route, /Refine archive/);
   assert.doesNotMatch(route, /Refine BakuCores/);
