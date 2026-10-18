@@ -129,8 +129,11 @@ test("Home uses the upgraded Pyrus hero, card fan, and intended desktop proporti
   assert.match(layout, /home-layout\.css/);
   assert.match(layout, /home-fidelity\.css/);
   assert.match(css, /--home-max: 1470px/);
-  assert.match(css, /height: calc\(100dvh - 76px\)/);
-  assert.match(css, /grid-template-rows: minmax\(360px, 1\.08fr\) minmax\(330px, \.92fr\) 84px/);
+  assert.match(css, /min-height: max\(704px, calc\(100dvh - 76px\)\)/);
+  assert.match(css, /grid-template-rows:\s*minmax\(max-content, 1\.08fr\)\s*minmax\(max-content, \.92fr\)\s*minmax\(84px, max-content\)/);
+  assert.match(css, /\.home-featured-deck-layout\s*\{[\s\S]*?flex: 1 0 auto;\s*min-height: max-content/);
+  assert.match(css, /\.home-feature-grid > \.panel \{ height: auto; \}/);
+  assert.match(fidelity, /grid-template-rows:\s*minmax\(max-content, 1\.08fr\)\s*minmax\(max-content, \.94fr\)/);
   assert.match(css, /grid-template-columns: minmax\(390px, \.59fr\) minmax\(720px, 1fr\)/);
   assert.match(css, /\.home-featured-deck-card:nth-child\(4\)/);
   assert.match(css, /\.bakugan-home-hero-art img[\s\S]*height: 174%/);
