@@ -86,3 +86,52 @@ test("phone gallery pager stays on one row without extra padding below it", asyn
     expect(padding).toBeLessThanOrEqual(130);
   }
 });
+
+test("phone deck header shares a compact control height, full-width tabs and themed format menu", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "Responsive phone header contract");
+  await page.goto("/builder/deck-pyrus");
+  const header = page.locator('header[class*="builderHeader"]');
+  const picker = header.locator('[data-ui="filter-picker"] > button');
+  const save = header.getByRole("button", { name: "Save Deck" });
+  const tabs = header.getByRole("navigation", { name: "Deck Builder sections" });
+  await expect(picker).toBeVisible({ timeout: 20_000 });
+
+  for (const width of [320, 375, 390, 540, 768]) {
+    await page.setViewportSize({ width, height: 844 });
+    const positions = await page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>('header[class*="builderHeader"]')!;
+      const box = (selector: string) => {
+        const element = header.querySelector<HTMLElement>(selector)!;
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height };
+      };
+      const format = box('[data-ui="filter-picker"] > button');
+      const save = box('[data-ui="action-button"]');
+      const tabs = box('[aria-label="Deck Builder sections"]');
+      const title = box('[class*="builderDeckIdentity"]');
+      return { format, save, tabs, title };
+    });
+    expect(Math.abs(positions.format.height - positions.save.height)).toBeLessThanOrEqual(1);
+    expect(positions.format.height).toBeGreaterThanOrEqual(44);
+    expect(Math.abs(positions.format.top - positions.save.top)).toBeLessThanOrEqual(1);
+    expect(positions.title.right).toBeLessThanOrEqual(positions.format.left + 1);
+    expect(positions.tabs.left).toBeGreaterThanOrEqual(-1);
+    expect(positions.tabs.right).toBeLessThanOrEqual(width + 1);
+    expect(positions.tabs.left).toBeLessThanOrEqual(1);
+    expect(width - positions.tabs.right).toBeLessThanOrEqual(1);
+    expect(positions.tabs.height).toBe(44);
+    await expect(tabs.locator("button")).toHaveCount(2);
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(picker).toHaveAttribute("aria-label", /^Deck format: Standard$/);
+  await picker.click();
+  const choices = page.getByRole("dialog", { name: "Deck format options" });
+  await expect(choices).toBeVisible();
+  await choices.getByRole("option", { name: /Singleton/ }).click();
+  await expect(picker).toHaveAttribute("aria-label", /^Deck format: Singleton$/);
+  await picker.click();
+  await choices.getByRole("option", { name: /Standard/ }).click();
+  await expect(picker).toHaveAttribute("aria-label", /^Deck format: Standard$/);
+  await expect(save).toBeVisible();
+});
