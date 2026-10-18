@@ -103,7 +103,7 @@ test("mobile Deck Builder header uses full-width compact tabs, aligned controls 
   const header = route.slice(start, route.indexOf("</header>", start));
   assert.match(header, /<FilterPicker[\s\S]*?label="Deck format"[\s\S]*?mode="single"[\s\S]*?clearable=\{false\}/);
   assert.match(header, /DECK_FORMAT_OPTIONS/);
-  assert.match(header, /format: format/);
+  assert.match(header, /commit\(\{ \.\.\.deck, format \}\)/);
   assert.doesNotMatch(header, /<select|<option/);
   assert.match(header, /title=\{deck.name\}/);
   assert.match(css, /\.builderHeader \.builderDeckIdentity strong\s*\{[^}]*-webkit-line-clamp:\s*2/s);
