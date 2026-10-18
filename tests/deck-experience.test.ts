@@ -94,6 +94,20 @@ test("Deck Builder keeps gallery/deck switching inside the mobile header and onl
   assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builderHeader\s*\{[^}]*position:\s*relative/s);
 });
 
+test("phone Card Gallery pagination uses one row and avoids unnecessary bottom padding", async () => {
+  const [css, layoutCss, route] = await Promise.all([
+    read("components/routes/DeckRoutes.module.css"),
+    read("app/deck-builder-layout.css"),
+    deckRouteSource(),
+  ]);
+  assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.builderGalleryPageControls\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*2\.75rem 2\.75rem minmax\(0, 1fr\) 2\.75rem 2\.75rem/s);
+  assert.match(css, /\.builderGalleryPageControls > button\s*\{[^}]*min-height:\s*2\.75rem/s);
+  assert.match(css, /\.builderGalleryPageLong\s*\{\s*display:\s*none/s);
+  assert.match(css, /\.builderGalleryPageShort\s*\{\s*display:\s*inline/s);
+  assert.match(route, /builderGalleryPageIndicator/);
+  assert.match(layoutCss, /--deck-builder-bottom-offset:\s*4\.2rem;[\s\S]*?padding-bottom:\s*calc\(\s*var\(--deck-builder-status-height\)\s*\+ var\(--deck-builder-bottom-offset\)\s*\)/);
+});
+
 test("Deck Builder cards expose quantities, responsive shared inspection, and section issue dialogs", async () => {
   const [route, css, inspectorCss] = await Promise.all([
     deckRouteSource(),
