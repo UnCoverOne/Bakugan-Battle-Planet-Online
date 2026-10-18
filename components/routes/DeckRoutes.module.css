@@ -2474,6 +2474,13 @@
     white-space: nowrap;
   }
 
+  /* If competitive rules fail, keep Retry below the main header controls. */
+  .builderHeader .builderRulesRetry {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    margin-block: .25rem;
+  }
+
   .builderHeader > [data-ui="status-chip"],
   .saveState {
     display: none;
