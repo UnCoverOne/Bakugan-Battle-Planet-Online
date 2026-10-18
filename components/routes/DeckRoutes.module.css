@@ -1172,6 +1172,11 @@
   clip-path: none; /* Rectangular section tabs, unlike shared chamfered tabs. */
 }
 
+/* Outrank the shared Tabs primitive even if its stylesheet is loaded later. */
+.builderGalleryTabs[data-ui="tabs"] {
+  clip-path: none;
+}
+
 .builderGalleryTabs button {
   min-width: 0;
   min-height: 2.85rem;
