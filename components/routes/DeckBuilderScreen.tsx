@@ -10,6 +10,7 @@ import { cardArtSource } from "../../lib/content/card-art";
 import { createBuilderCardControls } from "../../lib/builder-card-selection";
 import { createCoreAdditionGuard } from "../../lib/builder-core-selection";
 import { coreForSet, corePreviewStats } from "../../lib/core-preview";
+import { paginateBuilderGallery } from "../../lib/builder-gallery-pagination";
 import { builderSortOptions, normalizeBuilderSort, sortBuilderItems, type BuilderCategory, type BuilderSort, type BuilderGalleryItem } from "../../lib/builder-sorting";
 import { BAKUGAN, CARD_BY_ID, CARDS, CORES, validateDeck, type DeckRecord } from "../../lib/data";
 import type { DeckValidationResult } from "../../lib/deck-validation";
@@ -129,6 +130,8 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   const deferredGalleryQuery = useDeferredValue(galleryQuery);
   const [deckQuery, setDeckQuery] = useState(() => restoredText("deckQuery", ""));
   const [galleryCategory, setGalleryCategory] = useState<BuilderCategory>(() => restoredChoice("galleryCategory", ["cards", "characters", "cores"], "characters"));
+  const [galleryPage, setGalleryPage] = useState(1);
+  const galleryPanelRef = useRef<HTMLElement | null>(null);
   const [gallerySort, setGallerySort] = useState<BuilderSort>(() => normalizeBuilderSort(galleryCategory, restoredText("gallerySort", "collector")));
   const [deckSort, setDeckSort] = useState<BuilderSort>(() => normalizeBuilderSort("cards", restoredText("deckSort", "name-asc")));
   const [galleryFilters, setGalleryFilters] = useState<CardFilterState>(() => restoredFilters("galleryFilters", createEmptyCardFilters({
@@ -297,6 +300,10 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   };
   const effectiveGallerySort = normalizeBuilderSort(galleryCategory, gallerySort);
   const galleryFilterFacets = BUILDER_GALLERY_FILTER_FACETS[galleryCategory];
+  // Page back to the beginning whenever the results or their ordering change.
+  useEffect(() => {
+    setGalleryPage(1);
+  }, [galleryCategory, galleryQuery, galleryFilters, effectiveGallerySort, factionFilterAuto]);
 
   const searchIndex = useMemo(() => {
     void catalogueRevision;
@@ -347,7 +354,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         if (!cardMatchesFilters(card, cardFilters)) return false;
       }
       return true;
-    }).sort((left, right) => sortBuilderItems(left, right, effectiveGallerySort, galleryFilters.set.length === 1 ? galleryFilters.set[0] : "All")).slice(0, 240);
+    }).sort((left, right) => sortBuilderItems(left, right, effectiveGallerySort, galleryFilters.set.length === 1 ? galleryFilters.set[0] : "All"));
   }, [
     deck.bakuganIds,
     cardCounts,
@@ -359,6 +366,18 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     deferredGalleryQuery,
     effectiveGallerySort,
   ]);
+
+  const galleryPagination = useMemo(() => paginateBuilderGallery(galleryItems, galleryPage), [galleryItems, galleryPage]);
+  const changeGalleryPage = (nextPage: number) => {
+    setGalleryPage(nextPage);
+    const panel = galleryPanelRef.current;
+    if (!panel) return;
+    if (window.matchMedia("(max-width: 800px)").matches) {
+      panel.querySelector<HTMLElement>('[role="search"]')?.scrollIntoView({ block: "start", behavior: "auto" });
+    } else {
+      panel.scrollTo({ top: 0, behavior: "auto" });
+    }
+  };
 
   const mainDeckCards = useMemo(() => grouped.filter(({ card }) => {
     const query = deckQuery.trim().toLowerCase();
@@ -540,19 +559,20 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
           <MotionValue value={saveState} kind="status">{saveState === "error" ? "Draft not saved" : saveState === "dirty" ? "Saving draft…" : "Draft saved locally"}</MotionValue>
         </span>
         <ActionButton onClick={openSaveDialog}>Save Deck</ActionButton>
+        <Tabs className={styles.builderMobileTabs} label="Deck Builder sections">
+          {(["gallery", "deck"] as BuilderView[]).map((value) => (
+            <button key={value} className={builderView === value ? "active" : ""} onClick={() => setBuilderView(value)}>
+              {value === "gallery" ? "Card Gallery" : `Current Deck ${deck.cardIds.length}/${mainDeckMaximum}`}
+            </button>
+          ))}
+        </Tabs>
       </header>
-      <Tabs className={styles.builderMobileTabs} label="Deck Builder sections">
-        {(["gallery", "deck"] as BuilderView[]).map((value) => (
-          <button key={value} className={builderView === value ? "active" : ""} onClick={() => setBuilderView(value)}>
-            {value === "gallery" ? "Card Gallery" : `Current Deck ${deck.cardIds.length}/${mainDeckMaximum}`}
-          </button>
-        ))}
-      </Tabs>
+
       <div className={styles.builderLayout}>
-        <section data-ui="builder-panel" data-active={builderView === "gallery"} className={`${styles.builderGallery} ${builderView !== "gallery" ? styles.mobileHidden : ""}`}>
+        <section ref={galleryPanelRef} data-ui="builder-panel" data-active={builderView === "gallery"} className={`${styles.builderGallery} ${builderView !== "gallery" ? styles.mobileHidden : ""}`}>
           <div className={styles.builderSideTitle}>
             <div><span>Collection</span><h2>Card Gallery</h2></div>
-            <StatusChip>{galleryItems.length} shown</StatusChip>
+            <StatusChip>{galleryItems.length} matches</StatusChip>
           </div>
           <Tabs className={styles.builderGalleryTabs} label="Card Gallery sections">
             {([
@@ -592,7 +612,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
           />
           {galleryItems.length ? (
             <div className={`${styles.builderGalleryGrid} ${galleryCategory === "cores" ? styles.builderCoreGalleryGrid : ""}`}>
-              {galleryItems.map((item) => (
+              {galleryPagination.items.map((item) => (
                 <BuilderGalleryCard
                   key={`${item.kind}-${item.id}`}
                   item={item}
@@ -616,6 +636,20 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                 setFactionFilterAuto(false);
               }}>Clear filters</ActionButton>}
             />
+          )}
+          {galleryItems.length > 0 && (
+            <nav className={styles.builderGalleryPagination} aria-label="Card Gallery pages">
+              <span className={styles.builderGalleryPageSummary} aria-live="polite">
+                {galleryPagination.start}–{galleryPagination.end} of {galleryItems.length}
+              </span>
+              <div className={styles.builderGalleryPageControls}>
+                <button type="button" disabled={galleryPagination.page === 1} onClick={() => changeGalleryPage(1)} aria-label="First gallery page">«</button>
+                <button type="button" disabled={galleryPagination.page === 1} onClick={() => changeGalleryPage(galleryPagination.page - 1)}>Previous</button>
+                <span>Page {galleryPagination.page} of {galleryPagination.pageCount}</span>
+                <button type="button" disabled={galleryPagination.page === galleryPagination.pageCount} onClick={() => changeGalleryPage(galleryPagination.page + 1)}>Next</button>
+                <button type="button" disabled={galleryPagination.page === galleryPagination.pageCount} onClick={() => changeGalleryPage(galleryPagination.pageCount)} aria-label="Last gallery page">»</button>
+              </div>
+            </nav>
           )}
         </section>
 
