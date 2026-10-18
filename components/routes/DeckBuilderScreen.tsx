@@ -573,7 +573,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         <StatusChip tone={deck.format === "competitive" && !competitiveRulesReady ? "info" : report.isLegal ? "success" : "danger"}>
           {deck.format === "competitive" && !competitiveRulesReady ? competitiveRules.error ? "Competitive rules unavailable" : "Checking competitive rules…" : report.isLegal ? "Legal" : `${report.issues.length} issues`}
         </StatusChip>
-        {deck.format === "competitive" && competitiveRules.error && <ActionButton tone="quiet" onClick={competitiveRules.retry}>Retry rules</ActionButton>}
+        {deck.format === "competitive" && competitiveRules.error && <ActionButton className={styles.builderRulesRetry} tone="quiet" onClick={competitiveRules.retry}>Retry rules</ActionButton>}
         <span className={`${styles.saveState} ${styles[`saveState_${saveState}`]}`}>
           <MotionValue value={saveState} kind="status">{saveState === "error" ? "Draft not saved" : saveState === "dirty" ? "Saving draft…" : "Draft saved locally"}</MotionValue>
         </span>
