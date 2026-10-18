@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { BUILDER_GALLERY_PAGE_SIZE, paginateBuilderGallery } from "../lib/builder-gallery-pagination";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -49,6 +50,47 @@ test("Deck Builder uses independently scrolling desktop columns and two mobile t
   assert.match(css, /\.builderMobileTabs\s*\{[^}]*display:\s*none/s);
   assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builder\s*\{[^}]*height:\s*auto[^}]*overflow:\s*visible/s);
   assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builderMobileTabs\s*\{[^}]*display:\s*grid/s);
+});
+
+test("Deck Builder paginates the complete sorted gallery without dropping results", () => {
+  const cards = Array.from({ length: 257 }, (_, index) => index + 1);
+  assert.equal(BUILDER_GALLERY_PAGE_SIZE, 24);
+  assert.deepEqual(paginateBuilderGallery(cards, 1), {
+    items: cards.slice(0, 24), page: 1, pageCount: 11, start: 1, end: 24,
+  });
+  assert.deepEqual(paginateBuilderGallery(cards, 2), {
+    items: cards.slice(24, 48), page: 2, pageCount: 11, start: 25, end: 48,
+  });
+  assert.deepEqual(paginateBuilderGallery(cards, 99), {
+    items: cards.slice(240), page: 11, pageCount: 11, start: 241, end: 257,
+  });
+  assert.deepEqual(paginateBuilderGallery([], 8), {
+    items: [], page: 1, pageCount: 1, start: 0, end: 0,
+  });
+  assert.equal(paginateBuilderGallery(cards.slice(0, 8), 5).page, 1);
+});
+
+test("Deck Builder keeps gallery/deck switching inside the mobile header and only the search tools sticky", async () => {
+  const [route, css] = await Promise.all([
+    deckRouteSource(),
+    read("components/routes/DeckRoutes.module.css"),
+  ]);
+  const headerStart = route.indexOf('<header className={styles.builderHeader}>');
+  const headerEnd = route.indexOf("</header>", headerStart);
+  const header = route.slice(headerStart, headerEnd);
+  assert.ok(headerStart > 0 && headerEnd > headerStart);
+  assert.match(header, /builderDeckIdentity/);
+  assert.match(header, /builderFormat/);
+  assert.match(header, /Save Deck/);
+  assert.match(header, /builderMobileTabs/);
+  assert.match(route, /paginateBuilderGallery\(galleryItems, galleryPage\)/);
+  assert.match(route, /galleryPagination\.items\.map/);
+  assert.match(route, /Card Gallery pages/);
+  assert.match(route, /setGalleryPage\(1\)/);
+  assert.doesNotMatch(route, /\.slice\(0, 240\)/);
+  assert.match(css, /\.builderGalleryTabs\s*\{[^}]*clip-path:\s*none/s);
+  assert.match(css, /\.builderHeader \.builderMobileTabs\s*\{[^}]*position:\s*static/s);
+  assert.match(css, /\.builderGallery \.builderToolbar\s*\{[^}]*top:\s*calc\(64px \+ 7\.1rem\)/s);
 });
 
 test("Deck Builder cards expose quantities, responsive shared inspection, and section issue dialogs", async () => {
