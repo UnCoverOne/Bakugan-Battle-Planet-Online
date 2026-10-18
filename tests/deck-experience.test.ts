@@ -106,7 +106,7 @@ test("mobile Deck Builder header uses full-width compact tabs, aligned controls 
   assert.match(header, /commit\(\{ \.\.\.deck, format \}\)/);
   assert.doesNotMatch(header, /<select|<option/);
   assert.match(header, /title=\{deck.name\}/);
-  assert.match(css, /\.builderHeader \.builderDeckIdentity strong\s*\{[^}]*-webkit-line-clamp:\s*2/s);
+  assert.match(css, /\.builderHeader \.builderDeckIdentity strong\s*\{[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap/s);
   assert.match(css, /\.builderHeader \.builderFormat \[data-ui="filter-picker"\] > button\s*\{[^}]*height:\s*2\.75rem/s);
   assert.match(css, /\.builderHeader > \[data-ui="action-button"\]\s*\{[^}]*height:\s*2\.75rem[^}]*clip-path:\s*none/s);
   assert.match(css, /\.builderHeader \.builderMobileTabs\s*\{[^}]*width:\s*calc\(100% \+ 2 \* var\(--builder-header-gutter\)\)[^}]*height:\s*2\.75rem/s);
