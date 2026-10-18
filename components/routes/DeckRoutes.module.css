@@ -1697,7 +1697,8 @@
   bottom: 0;
   left: 0;
   min-height: 3.6rem;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, auto)) minmax(0, 1fr);
   align-items: center;
   justify-content: center;
   gap: var(--space-6);
@@ -1709,9 +1710,12 @@
 }
 
 .builderStatus div {
+  min-width: 0;
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: var(--space-2);
+  white-space: nowrap;
 }
 
 .builderStatus span {
@@ -2569,9 +2573,30 @@
 
   .builderStatus {
     bottom: 4.2rem;
-    justify-content: space-between;
-    gap: var(--space-3);
-    overflow-x: auto;
+    width: 100%;
+    min-height: 3.25rem;
+    box-sizing: border-box;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: .25rem;
+    padding: .4rem .35rem;
+    overflow: hidden;
+  }
+
+  .builderStatus div {
+    min-width: 0;
+    gap: .3rem;
+    justify-content: center;
+  }
+
+  .builderStatus div span {
+    font-size: clamp(.62rem, 2.4vw, .78rem);
+    white-space: nowrap;
+  }
+
+  .builderStatus div strong {
+    font-size: clamp(.72rem, 2.75vw, .93rem);
+    white-space: nowrap;
   }
 
   .builderStatus > span {
