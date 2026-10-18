@@ -94,6 +94,26 @@ test("Deck Builder keeps gallery/deck switching inside the mobile header and onl
   assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builderHeader\s*\{[^}]*position:\s*relative/s);
 });
 
+test("mobile Deck Builder header uses full-width compact tabs, aligned controls and site-styled format options", async () => {
+  const [route, css] = await Promise.all([
+    deckRouteSource(),
+    read("components/routes/DeckRoutes.module.css"),
+  ]);
+  const start = route.indexOf('<header className={styles.builderHeader}>');
+  const header = route.slice(start, route.indexOf("</header>", start));
+  assert.match(header, /<FilterPicker[\s\S]*?label="Deck format"[\s\S]*?mode="single"[\s\S]*?clearable=\{false\}/);
+  assert.match(header, /DECK_FORMAT_OPTIONS/);
+  assert.match(header, /format: format/);
+  assert.doesNotMatch(header, /<select|<option/);
+  assert.match(header, /title=\{deck.name\}/);
+  assert.match(css, /\.builderHeader \.builderDeckIdentity strong\s*\{[^}]*-webkit-line-clamp:\s*2/s);
+  assert.match(css, /\.builderHeader \.builderFormat \[data-ui="filter-picker"\] > button\s*\{[^}]*height:\s*2\.75rem/s);
+  assert.match(css, /\.builderHeader > \[data-ui="action-button"\]\s*\{[^}]*height:\s*2\.75rem[^}]*clip-path:\s*none/s);
+  assert.match(css, /\.builderHeader \.builderMobileTabs\s*\{[^}]*width:\s*calc\(100% \+ 2 \* var\(--builder-header-gutter\)\)[^}]*height:\s*2\.75rem/s);
+  assert.match(css, /\.builderHeader \.builderMobileTabs > button\s*\{[^}]*height:\s*2\.75rem/s);
+  assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.builderHeader\s*\{[^}]*grid-template-columns:\s*1\.875rem minmax\(0, 1fr\) 5\.85rem 5\.8rem/s);
+});
+
 test("phone Card Gallery pagination uses one row and avoids unnecessary bottom padding", async () => {
   const [css, layoutCss, route] = await Promise.all([
     read("components/routes/DeckRoutes.module.css"),
