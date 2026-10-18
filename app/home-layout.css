@@ -406,8 +406,10 @@
   flex-direction: column;
 }
 .home-featured-deck-layout {
-  flex: 1;
-  min-height: 0;
+  /* The featured artwork and copy define the minimum panel height;
+     they must not shrink below their content to fit a viewport row. */
+  flex: 1 0 auto;
+  min-height: max-content;
   padding: .15rem 0 0;
   display: grid;
   grid-template-columns: minmax(470px, 1.4fr) minmax(280px, .85fr);
@@ -557,19 +559,25 @@
 @media (min-width: 1101px) and (min-height: 780px) {
   .app-shell:not(.immersive-match) .main-stage:has(.bakugan-home) { min-height: 0; }
   .bakugan-home {
-    height: calc(100dvh - 76px);
-    min-height: 704px;
-    grid-template-rows: minmax(360px, 1.08fr) minmax(330px, .92fr) 84px;
+    /* Fill tall desktop windows when there is room, but allow the document
+       to grow when the hero or featured deck needs more than its share. */
+    height: auto;
+    min-height: max(704px, calc(100dvh - 76px));
+    grid-template-rows:
+      minmax(max-content, 1.08fr)
+      minmax(max-content, .92fr)
+      minmax(84px, max-content);
     align-content: stretch;
     overflow: visible;
   }
   .bakugan-home.has-active-match {
-    grid-template-rows: minmax(300px, .96fr) 52px minmax(305px, .9fr) 78px;
+    grid-template-rows:
+      minmax(max-content, .96fr)
+      minmax(52px, max-content)
+      minmax(max-content, .9fr)
+      minmax(78px, max-content);
   }
-  .bakugan-home-hero,
-  .home-feature-grid,
-  .home-profile-strip { min-height: 0; }
-  .home-feature-grid > .panel { height: 100%; }
+  .home-feature-grid > .panel { height: auto; }
   .bakugan-home.has-active-match .bakugan-home-hero-copy h1 { font-size: clamp(3.75rem, 5vw, 5.6rem); }
   .bakugan-home.has-active-match .bakugan-home-hero-art img { height: 164%; }
   .bakugan-home.has-active-match .bakugan-home-hero-copy > p:last-of-type { margin-top: .65rem; font-size: .9rem; }
