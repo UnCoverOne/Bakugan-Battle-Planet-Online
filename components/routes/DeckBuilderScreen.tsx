@@ -644,9 +644,9 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
               </span>
               <div className={styles.builderGalleryPageControls}>
                 <button type="button" disabled={galleryPagination.page === 1} onClick={() => changeGalleryPage(1)} aria-label="First gallery page">«</button>
-                <button type="button" disabled={galleryPagination.page === 1} onClick={() => changeGalleryPage(galleryPagination.page - 1)}>Previous</button>
-                <span>Page {galleryPagination.page} of {galleryPagination.pageCount}</span>
-                <button type="button" disabled={galleryPagination.page === galleryPagination.pageCount} onClick={() => changeGalleryPage(galleryPagination.page + 1)}>Next</button>
+                <button type="button" disabled={galleryPagination.page === 1} onClick={() => changeGalleryPage(galleryPagination.page - 1)} aria-label="Previous"><span className={styles.builderGalleryPageLong}>Previous</span><span className={styles.builderGalleryPageShort} aria-hidden="true">‹</span></button>
+                <span className={styles.builderGalleryPageIndicator} aria-label={`Page ${galleryPagination.page} of ${galleryPagination.pageCount}`}><span className={styles.builderGalleryPageLong}>Page {galleryPagination.page} of {galleryPagination.pageCount}</span><span className={styles.builderGalleryPageShort} aria-hidden="true">{galleryPagination.page} / {galleryPagination.pageCount}</span></span>
+                <button type="button" disabled={galleryPagination.page === galleryPagination.pageCount} onClick={() => changeGalleryPage(galleryPagination.page + 1)} aria-label="Next"><span className={styles.builderGalleryPageLong}>Next</span><span className={styles.builderGalleryPageShort} aria-hidden="true">›</span></button>
                 <button type="button" disabled={galleryPagination.page === galleryPagination.pageCount} onClick={() => changeGalleryPage(galleryPagination.pageCount)} aria-label="Last gallery page">»</button>
               </div>
             </nav>
