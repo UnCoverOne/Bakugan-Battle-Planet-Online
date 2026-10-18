@@ -784,7 +784,6 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         <div><span>Characters</span><strong>{deck.bakuganIds.length}/3</strong></div>
         <div><span>BakuCores</span><strong>{deck.coreIds.length}/6</strong></div>
         <div><span>Main Deck</span><strong>{deck.cardIds.length}/{mainDeckMaximum}</strong></div>
-        <div><span>Legality</span><strong>{report.isLegal ? "Legal" : `${report.issues.length} issues`}</strong></div>
         <span>{saveState === "error" ? storageHealth.message : "Draft persists on this device while you build."}</span>
       </footer>
 
