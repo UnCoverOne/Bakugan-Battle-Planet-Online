@@ -41,3 +41,48 @@ test("Builder gallery pages every category and keeps mobile navigation in the de
     }
   }
 });
+
+test("phone gallery pager stays on one row without extra padding below it", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "Phone-only pagination layout");
+  await page.goto("/builder/deck-pyrus");
+  const gallery = page.locator('[data-ui="builder-panel"][data-active="true"]');
+  const pager = gallery.getByRole("navigation", { name: "Card Gallery pages" });
+  await expect(pager).toBeVisible({ timeout: 20_000 });
+
+  for (const width of [320, 375, 390, 540]) {
+    await page.setViewportSize({ width, height: 844 });
+    const layout = await pager.evaluate((nav) => {
+      const controls = nav.querySelector('[class*="builderGalleryPageControls"]')!;
+      const buttons = [...controls.querySelectorAll("button")];
+      const indicator = controls.querySelector('[class*="builderGalleryPageIndicator"]')!;
+      const elements = [...buttons, indicator];
+      const rect = controls.getBoundingClientRect();
+      return {
+        width: rect.width,
+        navHeight: nav.getBoundingClientRect().height,
+        positions: elements.map((element) => {
+          const box = element.getBoundingClientRect();
+          return { top: box.top, bottom: box.bottom, left: box.left, right: box.right, height: box.height };
+        }),
+      };
+    });
+    expect(layout.positions).toHaveLength(5);
+    const rows = layout.positions.map(({ top }) => top);
+    expect(Math.max(...rows) - Math.min(...rows), `pager row at ${width}px`).toBeLessThanOrEqual(1);
+    expect(layout.navHeight, `pager height at ${width}px`).toBeLessThanOrEqual(100);
+    for (const item of layout.positions) {
+      expect(item.left).toBeGreaterThanOrEqual(-1);
+      expect(item.right).toBeLessThanOrEqual(width + 1);
+    }
+    for (const item of layout.positions.filter((_, index) => index < 4)) {
+      expect(item.height).toBeGreaterThanOrEqual(44);
+    }
+
+    const padding = await page.locator('section[class*="builder"]').first().evaluate(
+      (builder) => parseFloat(getComputedStyle(builder).paddingBottom),
+    );
+    // Only the status bar (3.75rem) and mobile navigation (4.2rem) are reserved.
+    expect(padding).toBeGreaterThanOrEqual(120);
+    expect(padding).toBeLessThanOrEqual(130);
+  }
+});
