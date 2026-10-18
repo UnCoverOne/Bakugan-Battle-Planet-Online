@@ -2247,6 +2247,11 @@
   opacity: .4;
 }
 
+/* Full labels on desktop, compact symbols on phones. */
+.builderGalleryPageShort {
+  display: none;
+}
+
 .heroSkeleton,
 .toolbarSkeleton,
 .deckSkeleton {
@@ -2642,12 +2647,56 @@
 
 @media (max-width: 540px) {
   .builderGalleryPagination {
-    justify-content: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: .4rem;
+    padding: .6rem 0 .35rem;
     text-align: center;
   }
-  .builderGalleryPageSummary { width: 100%; }
-  .builderGalleryPageControls { justify-content: center; }
-  .builderGalleryPageControls > button { padding-inline: .55rem; }
+
+  .builderGalleryPageSummary {
+    width: 100%;
+  }
+
+  .builderGalleryPageControls {
+    width: 100%;
+    max-width: 24rem;
+    min-width: 0;
+    margin-inline: auto;
+    display: grid;
+    grid-template-columns: 2.75rem 2.75rem minmax(0, 1fr) 2.75rem 2.75rem;
+    align-items: center;
+    justify-content: stretch;
+    gap: .25rem;
+  }
+
+  .builderGalleryPageControls > button {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    font-size: 1.15rem;
+  }
+
+  .builderGalleryPageControls > .builderGalleryPageIndicator {
+    min-width: 0;
+    padding: 0 .1rem;
+    font-size: .85rem;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .builderGalleryPageLong {
+    display: none;
+  }
+
+  .builderGalleryPageShort {
+    display: inline;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
