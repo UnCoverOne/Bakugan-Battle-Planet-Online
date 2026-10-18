@@ -204,13 +204,17 @@
 
 @media (min-width: 1101px) and (min-height: 900px) {
   .bakugan-home {
-    min-height: 900px;
-    grid-template-rows: minmax(405px, 1.08fr) minmax(350px, .94fr) 96px;
+    min-height: max(900px, calc(100dvh - 76px));
+    grid-template-rows:
+      minmax(max-content, 1.08fr)
+      minmax(max-content, .94fr)
+      minmax(96px, max-content);
   }
 
-  .home-profile-strip {
-    min-height: 96px;
-  }
+  /* Preserve the spacious desktop composition without capping content. */
+  .bakugan-home-hero { min-height: 405px; }
+  .home-feature-grid { min-height: 350px; }
+  .home-profile-strip { min-height: 96px; }
 }
 
 @media (max-width: 1320px) {
