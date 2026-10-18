@@ -109,12 +109,25 @@ test("phone deck header shares a compact control height, full-width tabs and the
       const save = box('[data-ui="action-button"]');
       const tabs = box('[aria-label="Deck Builder sections"]');
       const title = box('[class*="builderDeckIdentity"]');
-      return { format, save, tabs, title };
+      const titleText = header.querySelector<HTMLElement>('[class*="builderDeckIdentity"] strong')!;
+      const titleStyle = getComputedStyle(titleText);
+      return {
+        format, save, tabs, title,
+        titleLine: {
+          height: titleText.getBoundingClientRect().height,
+          lineHeight: parseFloat(titleStyle.lineHeight),
+          whiteSpace: titleStyle.whiteSpace,
+          textOverflow: titleStyle.textOverflow,
+        },
+      };
     });
     expect(Math.abs(positions.format.height - positions.save.height)).toBeLessThanOrEqual(1);
     expect(positions.format.height).toBeGreaterThanOrEqual(44);
     expect(Math.abs(positions.format.top - positions.save.top)).toBeLessThanOrEqual(1);
     expect(positions.title.right).toBeLessThanOrEqual(positions.format.left + 1);
+    expect(positions.titleLine.whiteSpace).toBe("nowrap");
+    expect(positions.titleLine.textOverflow).toBe("ellipsis");
+    expect(positions.titleLine.height).toBeLessThanOrEqual(positions.titleLine.lineHeight + 1);
     expect(positions.tabs.left).toBeGreaterThanOrEqual(-1);
     expect(positions.tabs.right).toBeLessThanOrEqual(width + 1);
     expect(positions.tabs.left).toBeLessThanOrEqual(1);
