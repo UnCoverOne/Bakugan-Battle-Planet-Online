@@ -2374,7 +2374,10 @@
   }
 
   .builderHeader {
-    top: 64px;
+    /* On mobile the deck header and view-switch buttons scroll away together;
+       only the gallery's search/sort/filter toolbar remains sticky. */
+    position: relative;
+    top: auto;
     min-height: 0;
     grid-template-columns: auto minmax(0, 1fr) minmax(7rem, auto) auto;
     grid-template-rows: 4.1rem 3rem;
@@ -2400,8 +2403,8 @@
   }
 
   .builderGallery .builderToolbar {
-    top: calc(64px + 7.1rem);
-    scroll-margin-top: calc(64px + 7.1rem + .5rem);
+    top: 64px;
+    scroll-margin-top: calc(64px + .5rem);
   }
 
   .builderLayout {
