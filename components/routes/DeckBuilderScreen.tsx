@@ -29,6 +29,7 @@ import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import { ActionButton, Field, StatusChip, Tabs } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
+import { FilterPicker } from "../filters/FilterPicker";
 import styles from "./DeckRoutes.module.css";
 import { MotionValue } from "../design-system/MotionValue";
 import { builderScope, builderBase, readBuilderDraft, writeBuilderDraft, setActiveBuilder, clearBuilderDraft, shouldConfirmBuilderExit, type BuilderDraft } from "../../lib/builder-session";
@@ -60,6 +61,12 @@ const BUILDER_GALLERY_FILTER_FACETS: Record<BuilderCategory, readonly CardFilter
   characters: ["set", "faction", "coreType", "keyword"],
   cores: ["set", "coreType"],
 };
+
+const DECK_FORMAT_OPTIONS = [
+  { value: "standard", label: "Standard" },
+  { value: "singleton", label: "Singleton" },
+  { value: "competitive", label: "Competitive" },
+] as const;
 
 const CORE_BACK_IMAGES: Record<string, string> = {
   Fist: "/assets/bakucores/backs/fist.png",
@@ -548,8 +555,20 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     <section className={styles.builder}>
       <header className={styles.builderHeader}>
         <Link href={returnTo ?? "/decks"} onClick={exitBuilder}>{administratorEdit ? "← Administrator" : returnTo ? "← Match setup" : "← Back to decks"}</Link>
-        <div className={styles.builderDeckIdentity}><span>{administratorEdit ? "Administrator Edit" : "Edit Deck"}</span><strong>{deck.name}</strong></div>
-        <label className={styles.builderFormat}><span>Format</span><select aria-label="Deck format" value={deck.format ?? "standard"} onChange={(event) => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}><option value="standard">Standard</option><option value="singleton">Singleton</option><option value="competitive">Competitive</option></select></label>
+        <div className={styles.builderDeckIdentity}><span>{administratorEdit ? "Administrator Edit" : "Edit Deck"}</span><strong title={deck.name}>{deck.name}</strong></div>
+        <div className={styles.builderFormat}>
+          <FilterPicker
+            label="Deck format"
+            mode="single"
+            clearable={false}
+            values={[deck.format ?? "standard"]}
+            options={DECK_FORMAT_OPTIONS}
+            onChange={(values) => {
+              const format = values[0] as DeckRecord["format"] | undefined;
+              if (format && format !== deck.format) commit({ ...deck, format });
+            }}
+          />
+        </div>
         <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
         <StatusChip tone={deck.format === "competitive" && !competitiveRulesReady ? "info" : report.isLegal ? "success" : "danger"}>
           {deck.format === "competitive" && !competitiveRulesReady ? competitiveRules.error ? "Competitive rules unavailable" : "Checking competitive rules…" : report.isLegal ? "Legal" : `${report.issues.length} issues`}
