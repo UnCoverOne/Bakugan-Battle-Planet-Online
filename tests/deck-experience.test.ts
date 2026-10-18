@@ -90,7 +90,8 @@ test("Deck Builder keeps gallery/deck switching inside the mobile header and onl
   assert.doesNotMatch(route, /\.slice\(0, 240\)/);
   assert.match(css, /\.builderGalleryTabs\s*\{[^}]*clip-path:\s*none/s);
   assert.match(css, /\.builderHeader \.builderMobileTabs\s*\{[^}]*position:\s*static/s);
-  assert.match(css, /\.builderGallery \.builderToolbar\s*\{[^}]*top:\s*calc\(64px \+ 7\.1rem\)/s);
+  assert.match(css, /\.builderGallery \.builderToolbar\s*\{[^}]*top:\s*64px/s);
+  assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builderHeader\s*\{[^}]*position:\s*relative/s);
 });
 
 test("Deck Builder cards expose quantities, responsive shared inspection, and section issue dialogs", async () => {
