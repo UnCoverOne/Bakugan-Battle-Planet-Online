@@ -114,6 +114,18 @@ test("mobile Deck Builder header uses full-width compact tabs, aligned controls 
   assert.match(css, /@media \(max-width: 540px\)[\s\S]*?\.builderHeader\s*\{[^}]*grid-template-columns:\s*1\.875rem minmax\(0, 1fr\) 5\.85rem 5\.8rem/s);
 });
 
+test("builder status rail has three single-line totals without legality or mobile scrolling", async () => {
+  const [route, css] = await Promise.all([deckRouteSource(), read("components/routes/DeckRoutes.module.css")]);
+  const start = route.indexOf('<footer className={styles.builderStatus}>');
+  const footer = route.slice(start, route.indexOf("</footer>", start));
+  assert.ok(start > -1);
+  for (const label of ["Characters", "BakuCores", "Main Deck"]) assert.match(footer, new RegExp(label));
+  assert.doesNotMatch(footer, /Legality|report\.issues/);
+  assert.match(css, /@media \(max-width: 800px\)[\s\S]*?\.builderStatus\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /@media \(max-width: 800px\)[\s\S]*?\.builderStatus\s*\{[^}]*overflow:\s*hidden/);
+  assert.doesNotMatch(css, /\.builderStatus\s*\{[^}]*overflow-x:\s*auto/);
+});
+
 test("phone Card Gallery pagination uses one row and avoids unnecessary bottom padding", async () => {
   const [css, layoutCss, route] = await Promise.all([
     read("components/routes/DeckRoutes.module.css"),
