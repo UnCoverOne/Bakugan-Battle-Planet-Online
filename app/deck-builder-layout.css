@@ -28,7 +28,9 @@ section:has(> footer[class*="builderStatus"])
   max-height: calc(
     100dvh
     - 76px
-    - 6.5rem
+    - var(--builder-header-height, 4.25rem)
+    - var(--space-4)
+    - var(--space-4)
     - var(--deck-builder-status-height)
   );
   scroll-padding-bottom: var(--space-4);

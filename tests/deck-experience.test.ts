@@ -52,6 +52,20 @@ test("Deck Builder uses independently scrolling desktop columns and two mobile t
   assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?\.builderMobileTabs\s*\{[^}]*display:\s*grid/s);
 });
 
+test("Deck Builder desktop header fits one aligned row and grants recovered space to the gallery", async () => {
+  const [css, galleryCss] = await Promise.all([
+    read("components/routes/DeckRoutes.module.css"),
+    read("app/deck-builder-layout.css"),
+  ]);
+  assert.match(css, /\.builder\s*\{[^}]*--builder-header-height:\s*4\.25rem/s);
+  assert.match(css, /\.builderHeader\s*\{[^}]*min-height:\s*var\(--builder-header-height\)/s);
+  assert.match(css, /\.builderFormat \[data-ui="filter-picker"\]\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*center/s);
+  assert.match(css, /\.builderLayout\s*\{[^}]*height:\s*calc\(100dvh - 76px - var\(--builder-header-height\)/s);
+  assert.match(galleryCss, /max-height:\s*calc\([\s\S]*?var\(--builder-header-height, 4\.25rem\)/);
+  assert.match(css, /@media \(max-width:\s*1000px\)[\s\S]*?\.saveState\s*\{\s*display:\s*none/s);
+  assert.match(css, /@media \(max-width:\s*800px\)[\s\S]*?grid-template-rows:\s*3\.5rem 2\.75rem/s);
+});
+
 test("Deck Builder paginates the complete sorted gallery without dropping results", () => {
   const cards = Array.from({ length: 257 }, (_, index) => index + 1);
   assert.equal(BUILDER_GALLERY_PAGE_SIZE, 24);

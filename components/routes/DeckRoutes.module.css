@@ -1015,6 +1015,7 @@
 }
 
 .builder {
+  --builder-header-height: 4.25rem;
   height: calc(100dvh - 76px);
   min-height: 0;
   overflow: hidden;
@@ -1028,12 +1029,13 @@
   position: sticky;
   z-index: 30;
   top: 76px;
-  min-height: 5rem;
+  min-height: var(--builder-header-height);
+  box-sizing: border-box;
   display: grid;
-  grid-template-columns: auto minmax(13rem, 1fr) auto auto auto minmax(8rem, auto) auto;
+  grid-template-columns: auto minmax(10rem, 1fr) 13rem auto auto minmax(8rem, auto) auto;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-5);
+  padding: .5rem var(--space-5);
   border-bottom: 1px solid var(--border-strong);
   background: rgba(2, 14, 20, .97);
   box-shadow: var(--elevation-2);
@@ -1057,12 +1059,17 @@
 .builderFormat [data-ui="filter-picker"] {
   width: 100%;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .builderFormat [data-ui="filter-picker"] > button {
+  flex: 1 1 0;
   width: 100%;
   min-width: 0;
-  min-height: 2.65rem;
+  min-height: 2.5rem;
+  padding: .45rem .6rem;
   border-color: var(--border-strong);
   background: var(--surface-input);
 }
@@ -1092,11 +1099,19 @@
 }
 
 .builderFormat [data-ui="filter-picker"] > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
   color: var(--text-muted);
   font-family: var(--font-display);
   font-size: var(--type-meta);
   font-style: italic;
   text-transform: uppercase;
+}
+
+.builderHeader > [data-ui="action-button"] {
+  min-height: 2.5rem;
+  padding-block: .45rem;
+  white-space: nowrap;
 }
 
 .saveState {
@@ -1114,7 +1129,7 @@
 
 .builderLayout {
   width: min(calc(100% - (2 * var(--space-4))), 112rem);
-  height: calc(100dvh - 76px - 5rem - 3.75rem - (2 * var(--space-4)));
+  height: calc(100dvh - 76px - var(--builder-header-height) - 3.75rem - (2 * var(--space-4)));
   min-height: 0;
   margin: var(--space-4) auto;
   display: grid;
@@ -2310,7 +2325,7 @@
   }
 
   .builderHeader {
-    grid-template-columns: auto minmax(12rem, 1fr) auto auto minmax(8rem, auto) auto;
+    grid-template-columns: auto minmax(9rem, 1fr) 13rem auto minmax(8rem, auto) auto;
   }
 
   .builderHeader > [data-ui="status-chip"]:first-of-type {
@@ -2329,6 +2344,18 @@
 
   .builderLayout {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* At narrow desktop widths, keep the key controls in one row without overflow. */
+@media (max-width: 1000px) {
+  .builderHeader {
+    grid-template-columns: auto minmax(0, 1fr) minmax(8rem, 10rem) auto auto;
+  }
+
+  .builderFormat [data-ui="filter-picker"] > span,
+  .saveState {
+    display: none;
   }
 }
 
