@@ -79,7 +79,7 @@ export function AdminFeedbackManagement() {
     ));
   }, [submissions, type, statusFilter, fromDate, toDate, search, player]);
 
-  const selected = submissions.find((entry) => `${entry.kind}:${entry.id}` === selectedKey)
+  const selected = filtered.find((entry) => `${entry.kind}:${entry.id}` === selectedKey)
     ?? filtered[0] ?? null;
   const selectedId = selected ? `${selected.kind}:${selected.id}` : "";
   useEffect(() => {

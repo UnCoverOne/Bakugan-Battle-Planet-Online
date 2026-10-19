@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { CARDS } from "../lib/data";
+import { isSubmissionKind, isSubmissionStatus, normalizedSubmissionStatus, sourceSubmissionStatus } from "../lib/submission-moderation";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -78,4 +79,22 @@ test("Players can read resolved administrator replies in their feedback history"
   assert.match(rulingsApi, /v\.response/);
   assert.match(feedbackApi, /CASE WHEN COALESCE\(v\.status, f\.status\) IN \('resolved', 'closed'\)/);
   assert.match(rulingsApi, /CASE WHEN COALESCE\(v\.status, r\.status\) IN \('resolved', 'closed'/);
+});
+
+test("Moderation statuses preserve legacy ruling and feedback semantics", () => {
+  assert.equal(isSubmissionKind("question"), true);
+  assert.equal(isSubmissionKind("bug"), true);
+  assert.equal(isSubmissionKind("other"), false);
+  assert.equal(isSubmissionStatus("in_review"), true);
+  assert.equal(isSubmissionStatus("published"), false);
+  assert.equal(sourceSubmissionStatus("question", "in_review"), "pending");
+  assert.equal(sourceSubmissionStatus("question", "resolved"), "answered");
+  assert.equal(sourceSubmissionStatus("question", "closed"), "withdrawn");
+  assert.equal(sourceSubmissionStatus("bug", "in_review"), "reviewed");
+  assert.equal(sourceSubmissionStatus("issue", "resolved"), "resolved");
+  for (const [legacy, status] of [
+    ["answered", "resolved"], ["published", "resolved"],
+    ["withdrawn", "closed"], ["reviewed", "in_review"],
+    ["pending", "pending"],
+  ]) assert.equal(normalizedSubmissionStatus(legacy), status);
 });
