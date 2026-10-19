@@ -2574,12 +2574,13 @@
   .builderStatus {
     bottom: 4.2rem;
     width: 100%;
-    min-height: 3.25rem;
+    height: 2.5rem;
+    min-height: 2.5rem;
     box-sizing: border-box;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     justify-content: stretch;
     gap: .25rem;
-    padding: .4rem .35rem;
+    padding: .2rem .35rem;
     overflow: hidden;
   }
 
