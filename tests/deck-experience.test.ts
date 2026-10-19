@@ -124,6 +124,9 @@ test("builder status rail has three single-line totals without legality or mobil
   assert.match(css, /@media \(max-width: 800px\)[\s\S]*?\.builderStatus\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(css, /@media \(max-width: 800px\)[\s\S]*?\.builderStatus\s*\{[^}]*overflow:\s*hidden/);
   assert.doesNotMatch(css, /\.builderStatus\s*\{[^}]*overflow-x:\s*auto/);
+  assert.match(css, /@media \(max-width: 800px\)[\s\S]*?\.builderStatus\s*\{[^}]*height:\s*2\.5rem;\s*min-height:\s*2\.5rem/);
+  const layoutCss = await read("app/deck-builder-layout.css");
+  assert.match(layoutCss, /@media \(max-width: 800px\)[\s\S]*?--deck-builder-status-height:\s*2\.5rem/);
 });
 
 test("phone Card Gallery pagination uses one row and avoids unnecessary bottom padding", async () => {
