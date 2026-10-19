@@ -41,6 +41,7 @@ section:has(> footer[class*="builderStatus"]) > footer[class*="builderStatus"] {
 
 @media (max-width: 800px) {
   section:has(> footer[class*="builderStatus"]) {
+    --deck-builder-status-height: 2.5rem;
     --deck-builder-bottom-offset: 4.2rem;
     /* Reserve only the fixed status rail and bottom navigation. An extra
        spacing token used to leave a visibly empty band below the pager. */
