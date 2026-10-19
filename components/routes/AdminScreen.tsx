@@ -9,6 +9,7 @@ import { notifyOfflinePublicDecksUpdated } from "../../lib/public-deck-cache";
 import { useAppFields } from "../application/AppProvider";
 import { notifyAdministratorAiVisibilityChanged } from "../application/useAdministratorAiVisibility";
 import { MusicAdmin } from "./MusicAdmin";
+import { AdminFeedbackManagement } from "./AdminFeedbackManagement";
 import { AdministratorCardManagement } from "./AdministratorCardManagement";
 import {
   ActionButton,
@@ -20,7 +21,7 @@ import {
 } from "../design-system/primitives";
 import styles from "./AdminScreen.module.css";
 
-type AdminTab = "ai" | "offline" | "cards" | "music" | "ranked" | "users";
+type AdminTab = "ai" | "offline" | "cards" | "music" | "ranked" | "users" | "feedback";
 type AiDeckItem = { id: string; deck: DeckRecord; enabled: boolean; updatedAt: number };
 type OfflineDeckSlot = { id: string; deck: DeckRecord | null; source: "bundled" | "managed"; updatedAt: number };
 type AdminUser = {
@@ -79,7 +80,7 @@ export function AdminScreen() {
   const searchParams = useSearchParams();
   const { authUser } = useAppFields(["authUser"]);
   const requested = searchParams.get("tab");
-  const tab: AdminTab = requested === "offline" || requested === "cards" || requested === "music" || requested === "ranked" || requested === "users" ? requested : "ai";
+  const tab: AdminTab = requested === "offline" || requested === "cards" || requested === "music" || requested === "ranked" || requested === "users" || requested === "feedback" ? requested : "ai";
   if (!authUser?.roles?.includes("administrator")) {
     return (
       <div className={styles.route}>
@@ -97,7 +98,7 @@ export function AdminScreen() {
       <RouteHero
         eyebrow="ADMINISTRATOR"
         title="Control Centre"
-        description="Manage AI loadouts, the live card catalogue, soundtrack, public content, and player accounts."
+        description="Manage AI loadouts, cards, player submissions, soundtrack, public content, and accounts."
         aside={<StatusChip tone="danger">Restricted</StatusChip>}
       />
       <Tabs className={styles.tabs} label="Administrator sections">
@@ -107,6 +108,7 @@ export function AdminScreen() {
         <Link className={tab === "music" ? "active" : ""} aria-current={tab === "music" ? "page" : undefined} href="/admin?tab=music">Music</Link>
         <Link className={tab === "ranked" ? "active" : ""} aria-current={tab === "ranked" ? "page" : undefined} href="/admin?tab=ranked">Ranked Play</Link>
         <Link className={tab === "users" ? "active" : ""} aria-current={tab === "users" ? "page" : undefined} href="/admin?tab=users">User Management</Link>
+        <Link className={tab === "feedback" ? "active" : ""} aria-current={tab === "feedback" ? "page" : undefined} href="/admin?tab=feedback">Feedback &amp; Reports</Link>
       </Tabs>
       {tab === "ai" && <AiManagement />}
       {tab === "offline" && <OfflineDeckManagement />}
@@ -114,6 +116,7 @@ export function AdminScreen() {
       {tab === "music" && <MusicAdmin />}
       {tab === "ranked" && <RankedManagement />}
       {tab === "users" && <UserManagement />}
+      {tab === "feedback" && <AdminFeedbackManagement />}
     </div>
   );
 }

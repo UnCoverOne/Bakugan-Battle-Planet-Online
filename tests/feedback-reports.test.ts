@@ -32,3 +32,31 @@ test("Feedback & Reports exposes four choices and a searchable cross-set card pi
   assert.ok(CARDS.some((card) => card.catalogId.startsWith("aa-")));
   assert.ok(CARDS.some((card) => card.catalogId.startsWith("ff-")));
 });
+
+test("Administrator control centre offers a permissioned unified inbox", async () => {
+  const [admin, view, api, moderation, migration] = await Promise.all([
+    read("components/routes/AdminScreen.tsx"),
+    read("components/routes/AdminFeedbackManagement.tsx"),
+    read("app/api/admin/submissions/route.ts"),
+    read("lib/submission-moderation.ts"),
+    read("migrations/0014_submission_reviews.sql"),
+  ]);
+  assert.match(admin, /tab === "feedback"/);
+  assert.match(admin, /href="\/admin\?tab=feedback"/);
+  assert.match(admin, /<AdminFeedbackManagement \/>/);
+  assert.match(api, /await requireAdministrator\(request\)/);
+  assert.match(api, /assertSameOrigin\(request\)/);
+  assert.match(api, /enforceD1RateLimit\(/);
+  assert.match(api, /UNION ALL/);
+  assert.match(api, /ON CONFLICT\(kind, submission_id\) DO UPDATE/);
+  assert.match(api, /UPDATE ruling_requests SET status = \?, answer = \?/);
+  assert.match(api, /UPDATE feedback_reports SET status = \?/);
+  assert.match(view, /Search messages \/ cards/);
+  assert.match(view, /From date/);
+  assert.match(view, /To date/);
+  assert.match(view, /Player/);
+  assert.match(view, /Review status/);
+  assert.match(view, /Administrator response/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS submission_reviews/);
+  assert.match(moderation, /in_review/);
+});
