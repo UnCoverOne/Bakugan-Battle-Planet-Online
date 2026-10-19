@@ -81,9 +81,12 @@ test("phone gallery pager stays on one row without extra padding below it", asyn
     const padding = await page.locator('section[class*="builder"]').first().evaluate(
       (builder) => parseFloat(getComputedStyle(builder).paddingBottom),
     );
-    // Only the status bar (3.75rem) and mobile navigation (4.2rem) are reserved.
-    expect(padding).toBeGreaterThanOrEqual(120);
-    expect(padding).toBeLessThanOrEqual(130);
+    // The shortened 2.5rem status rail and 4.2rem mobile navigation are reserved.
+    expect(padding).toBeGreaterThanOrEqual(105);
+    expect(padding).toBeLessThanOrEqual(110);
+    const status = page.locator('footer[class*="builderStatus"]');
+    await expect(status).toHaveCSS("height", "40px");
+    await expect(status).toHaveCSS("overflow", "hidden");
   }
 });
 
