@@ -166,7 +166,7 @@ export default function FeedbackReportsDialog({
         </label>
         <div className={styles.counter}>{details.trim().length}/2,000</div>
         {error && <p className={styles.error} role="alert">{error}</p>}
-        {!signedIn && <p className={styles.signInNote}>Sign in to send your feedback. Unsaved drafts won't be kept when you leave this dialog.</p>}
+        {!signedIn && <p className={styles.signInNote}>Sign in to send your feedback. Your draft is not saved when you leave this dialog.</p>}
         <div className={styles.actions}>
           <button type={signedIn ? "submit" : "button"} className={styles.primary}
             disabled={status === "submitting" || (signedIn && details.trim().length < 20)}
