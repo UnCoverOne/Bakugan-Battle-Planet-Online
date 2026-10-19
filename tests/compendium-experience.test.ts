@@ -21,7 +21,7 @@ import {
   HIDDEN_KEYWORD_FILTERS,
 } from "../lib/card-filters";
 import type { Core, GameCard } from "../lib/game";
-import { compareCardCollectorOrder } from "../lib/content/catalogue";
+import { compareCardCollectorOrder, CONTROLLED_CATALOGUE } from "../lib/content/catalogue";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -152,6 +152,35 @@ test("shared card filter authority owns options, symbols, hidden keywords, and m
   });
   assert.equal(cardMatchesFilters(candidates[0], filters), true);
   assert.equal(cardMatchesFilters(candidates[1], filters), false);
+});
+
+test("Energize keyword matches every printed Energize effect, not Energy costs or symbols", () => {
+  const catalogue = CONTROLLED_CATALOGUE.map((record) => ({ ...record, catalogId: record.id }));
+  const printedEnergize = /\\benergiz(?:e|es|ed|ing)\\b/i;
+  for (const candidate of catalogue) {
+    assert.equal(
+      candidate.mechanics.includes("Energize"),
+      printedEnergize.test(candidate.effect),
+      `${candidate.catalogId}: Energize classification must follow printed card text`,
+    );
+  }
+
+  const filtered = filterAndSortCompendiumCards(catalogue, {
+    ...DEFAULT_COMPENDIUM_STATE,
+    keyword: ["Energize"],
+  }).map((candidate) => candidate.catalogId).toSorted();
+  const expected = catalogue
+    .filter((candidate) => candidate.fusionFace !== "b" && printedEnergize.test(candidate.effect))
+    .map((candidate) => candidate.catalogId).toSorted();
+  assert.deepEqual(filtered, expected);
+
+  // Real examples from the original set and subsequent expansions.
+  assert.ok(filtered.includes("bb-119")); // Mulch: Energize the top card.
+  assert.ok(filtered.includes("aa-42")); // Gaia Force: Energize the top card.
+  assert.ok(!filtered.includes("bb-109")); // Song of Fire: +5 [Energy].
+  assert.ok(!filtered.includes("bb-97")); // Implosion: destroys Energy cards.
+  assert.ok(!filtered.includes("aa-74")); // Dan Kouzo: Energy production.
+  assert.ok(createCardFilterOptionCatalogue(catalogue).keyword.some((option) => option.value === "Energize"));
 });
 
 test("Character filtering ignores card-only facets and supports core/stat sorting", () => {

@@ -79,6 +79,18 @@ const battleBrawlers = (battleBrawlersJson as unknown as Array<
     ?? constructionIdentityForCard(record),
 }));
 
+// The printed Energize keyword is not interchangeable with Energy cards,
+// Energy costs, or the [Energy] icon. The original BB import conflates them,
+// while later set imports can omit Energize from their inferred mechanics.
+const ENERGIZE_WORD = /\benergiz(?:e|es|ed|ing)\b/i;
+
+function accurateEnergizeMechanics(effect: string, mechanics: readonly string[]) {
+  return [
+    ...mechanics.filter((mechanic) => mechanic !== "Energize"),
+    ...(ENERGIZE_WORD.test(effect) ? ["Energize"] : []),
+  ];
+}
+
 export const CONTROLLED_CATALOGUE = Object.freeze(
   [
     ...battleBrawlers,
@@ -91,7 +103,10 @@ export const CONTROLLED_CATALOGUE = Object.freeze(
     ...recordsFromRows("PS1", PS1_CARD_ROWS),
     ...recordsFromRows("SV", SV_CARD_ROWS),
     ...recordsFromRows("CP", CP_CARD_ROWS),
-  ].map((record) => Object.freeze({ ...record })),
+  ].map((record) => Object.freeze({
+    ...record,
+    mechanics: accurateEnergizeMechanics(record.effect, record.mechanics),
+  })),
 );
 
 export function textFingerprint(value: string) {
