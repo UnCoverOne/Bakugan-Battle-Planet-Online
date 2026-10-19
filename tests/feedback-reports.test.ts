@@ -60,3 +60,22 @@ test("Administrator control centre offers a permissioned unified inbox", async (
   assert.match(migration, /CREATE TABLE IF NOT EXISTS submission_reviews/);
   assert.match(moderation, /in_review/);
 });
+
+test("Players can read resolved administrator replies in their feedback history", async () => {
+  const [dialog, history, feedbackApi, rulingsApi] = await Promise.all([
+    read("components/application/FeedbackReportsDialog.tsx"),
+    read("components/application/MySubmissionHistory.tsx"),
+    read("app/api/feedback/route.ts"),
+    read("app/api/rulings/route.ts"),
+  ]);
+  assert.match(dialog, /<MySubmissionHistory \/>/);
+  assert.match(history, /fetch\(path, \{ cache: "no-store" \}\)/);
+  assert.match(history, /Administrator response/);
+  assert.match(history, /review_status/);
+  assert.match(history, /api\/rulings/);
+  assert.match(history, /api\/feedback/);
+  assert.match(feedbackApi, /v\.response/);
+  assert.match(rulingsApi, /v\.response/);
+  assert.match(feedbackApi, /CASE WHEN COALESCE\(v\.status, f\.status\) IN \('resolved', 'closed'\)/);
+  assert.match(rulingsApi, /CASE WHEN COALESCE\(v\.status, r\.status\) IN \('resolved', 'closed'/);
+});

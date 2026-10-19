@@ -16,6 +16,7 @@ async function database() {
     db.prepare("CREATE TABLE IF NOT EXISTS feedback_reports (id TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK (kind IN ('suggestion', 'bug', 'issue')), card_id TEXT, message TEXT NOT NULL, source_url TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved', 'closed')), submitted_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
     db.prepare("CREATE INDEX IF NOT EXISTS feedback_reports_user_submitted_idx ON feedback_reports (user_id, submitted_at)"),
     db.prepare("CREATE INDEX IF NOT EXISTS feedback_reports_status_submitted_idx ON feedback_reports (status, submitted_at)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS submission_reviews (kind TEXT NOT NULL CHECK (kind IN ('question', 'suggestion', 'bug', 'issue')), submission_id TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('pending', 'in_review', 'resolved', 'closed')), response TEXT NOT NULL DEFAULT '', administrator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, updated_at INTEGER NOT NULL, PRIMARY KEY (kind, submission_id))"),
   ]);
   return db;
 }
@@ -28,8 +29,8 @@ export async function GET(request: Request) {
     const isAdmin = user.roles.includes("administrator");
     const all = isAdmin && new URL(request.url).searchParams.get("scope") === "all";
     const rows = all
-      ? await db.prepare("SELECT id, user_id, kind, card_id, message, source_url, status, submitted_at, updated_at FROM feedback_reports ORDER BY submitted_at DESC LIMIT 200").all()
-      : await db.prepare("SELECT id, kind, card_id, message, status, submitted_at, updated_at FROM feedback_reports WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 100").bind(user.id).all();
+      ? await db.prepare("SELECT f.id, f.user_id, f.kind, f.card_id, f.message, f.source_url, f.status, COALESCE(v.status, CASE WHEN f.status = 'reviewed' THEN 'in_review' ELSE f.status END) AS review_status, CASE WHEN COALESCE(v.status, f.status) IN ('resolved', 'closed') THEN COALESCE(v.response, '') ELSE '' END AS response, f.submitted_at, f.updated_at FROM feedback_reports f LEFT JOIN submission_reviews v ON v.kind = f.kind AND v.submission_id = f.id ORDER BY f.submitted_at DESC LIMIT 200").all()
+      : await db.prepare("SELECT f.id, f.kind, f.card_id, f.message, f.status, COALESCE(v.status, CASE WHEN f.status = 'reviewed' THEN 'in_review' ELSE f.status END) AS review_status, CASE WHEN COALESCE(v.status, f.status) IN ('resolved', 'closed') THEN COALESCE(v.response, '') ELSE '' END AS response, f.submitted_at, f.updated_at FROM feedback_reports f LEFT JOIN submission_reviews v ON v.kind = f.kind AND v.submission_id = f.id WHERE f.user_id = ? ORDER BY f.submitted_at DESC LIMIT 100").bind(user.id).all();
     return json({ reports: rows.results ?? [] });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Could not load feedback reports." }, 400);

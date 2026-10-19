@@ -21,6 +21,7 @@ async function getRulingsDatabase() {
     db.prepare(
       "CREATE INDEX IF NOT EXISTS ruling_requests_status_submitted_idx ON ruling_requests (status, submitted_at)",
     ),
+    db.prepare("CREATE TABLE IF NOT EXISTS submission_reviews (kind TEXT NOT NULL CHECK (kind IN ('question', 'suggestion', 'bug', 'issue')), submission_id TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('pending', 'in_review', 'resolved', 'closed')), response TEXT NOT NULL DEFAULT '', administrator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, updated_at INTEGER NOT NULL, PRIMARY KEY (kind, submission_id))"),
   ]);
   return db;
 }
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
     if (!user) return json({ error: "Sign in is required." }, 401);
     const db = await getRulingsDatabase();
     const rows = await db.prepare(
-      "SELECT id, card_id, question, status, answer, submitted_at, updated_at FROM ruling_requests WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 100",
+      "SELECT r.id, r.card_id, r.question, r.status, r.answer, COALESCE(v.status, CASE WHEN r.status IN ('answered', 'published') THEN 'resolved' WHEN r.status = 'withdrawn' THEN 'closed' ELSE 'pending' END) AS review_status, CASE WHEN COALESCE(v.status, r.status) IN ('resolved', 'closed', 'answered', 'published', 'withdrawn') THEN COALESCE(v.response, r.answer, '') ELSE '' END AS response, r.submitted_at, r.updated_at FROM ruling_requests r LEFT JOIN submission_reviews v ON v.kind = 'question' AND v.submission_id = r.id WHERE r.user_id = ? ORDER BY r.submitted_at DESC LIMIT 100",
     ).bind(user.id).all();
     return json({ requests: rows.results ?? [] });
   } catch (error) {

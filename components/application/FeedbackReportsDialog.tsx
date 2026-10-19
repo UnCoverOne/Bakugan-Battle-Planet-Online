@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { CARDS } from "../../lib/data";
 import { cardSetCode } from "../../lib/content/catalogue";
 import styles from "./FeedbackReportsDialog.module.css";
+import { MySubmissionHistory } from "./MySubmissionHistory";
 
 type FeedbackKind = "question" | "suggestion" | "bug" | "issue";
 type FeedbackOption = {
@@ -143,6 +144,7 @@ export default function FeedbackReportsDialog({
       {status === "sent" ? <div className={styles.success} role="status">
         <strong>Submission received</strong>
         <p>Thank you! Your {active.title.toLowerCase()} has been sent for review.</p>
+        {signedIn && <MySubmissionHistory />}
         <div className={styles.actions}>
           <button type="button" className={styles.primary} onClick={() => {
             setDetails(""); setCardId(""); setStatus("idle"); setError("");
@@ -167,6 +169,7 @@ export default function FeedbackReportsDialog({
         <div className={styles.counter}>{details.trim().length}/2,000</div>
         {error && <p className={styles.error} role="alert">{error}</p>}
         {!signedIn && <p className={styles.signInNote}>Sign in to send your feedback. Your draft is not saved when you leave this dialog.</p>}
+        {signedIn && <MySubmissionHistory />}
         <div className={styles.actions}>
           <button type={signedIn ? "submit" : "button"} className={styles.primary}
             disabled={status === "submitting" || (signedIn && details.trim().length < 20)}

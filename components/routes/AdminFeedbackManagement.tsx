@@ -119,7 +119,7 @@ export function AdminFeedbackManagement() {
         reviewed_at: result.reviewedAt ?? Date.now(),
       };
       setSubmissions((items) => items.map((item) => item.id === selected.id && item.kind === selected.kind ? updated : item));
-      setSaveMessage("Saved. The updated status and response are available in the player's submission history.");
+      setSaveMessage("Review saved. Replies become visible to the player when the submission is resolved or closed.");
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Could not save changes.");
     } finally {
