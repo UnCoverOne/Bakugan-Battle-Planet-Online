@@ -5,7 +5,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { isCompendiumSectionChange } from "../../lib/compendium-navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { activeSessionPresentation } from "../../lib/active-session";
 import { accountMatchSessionPresentation } from "../../lib/account-match-session";
 import { accountStatMatches } from "../../lib/match-statistics";
@@ -20,6 +20,8 @@ import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { useAppFields } from "./AppProvider";
 import { SocialDrawer, SocialMenuButton, SocialProvider } from "../social/SocialProvider";
 import { MusicLayer } from "./MusicLayer";
+
+const FeedbackReportsDialog = lazy(() => import("./FeedbackReportsDialog"));
 
 import { activeBuilder, builderNavigationHref, builderScope, subscribeBuilder } from "../../lib/builder-session";
 
@@ -62,6 +64,7 @@ function MenuIcon({ name }) {
     shield: <path d="M12 2.75 19 5.5v5.25c0 4.3-2.33 7.8-7 10.5-4.67-2.7-7-6.2-7-10.5V5.5l7-2.75Z" />,
     cards: <><rect x="4" y="5" width="11" height="14" rx="1.5" /><path d="M8 5V3.5h10a2 2 0 0 1 2 2V17h-2M7.5 9h4M7.5 12h4" /></>,
     logout: <><path d="M10 4H5v16h5M14 8l4 4-4 4m4-4H9" /></>,
+    feedback: <><path d="M4 5h16v11H9l-5 4V5Z" /><path d="M8 9h8m-8 3h5" /></>,
     chevron: <path d="m9 5 7 7-7 7" />,
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">{paths[name]}</svg>;
@@ -112,6 +115,7 @@ export function AppShell({ children }) {
   const menuRef = useRef(null);
   const [isOnline, setIsOnline] = useState(true);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [versionMismatch, setVersionMismatch] = useState(false);
 
   useEffect(() => {
@@ -328,6 +332,12 @@ export function AppShell({ children }) {
                       <span className="profile-popover-row-label">Collection</span>
                       <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
                     </Link>
+                    <button className="profile-popover-row" role="menuitem" type="button"
+                      onClick={() => { setProfileOpen(false); setFeedbackOpen(true); }}>
+                      <span className="profile-popover-row-icon"><MenuIcon name="feedback" /></span>
+                      <span className="profile-popover-row-label">Feedback &amp; Reports</span>
+                      <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
+                    </button>
                     <Link className="profile-popover-row" role="menuitem" href="/settings">
                       <span className="profile-popover-row-icon"><MenuIcon name="settings" /></span>
                       <span className="profile-popover-row-label">Settings</span>
@@ -423,6 +433,18 @@ export function AppShell({ children }) {
         <div key={toast} className="toast" role="status">
           {toast}
         </div>
+      )}
+      {feedbackOpen && !immersiveMatch && (
+        <Suspense fallback={null}>
+          <FeedbackReportsDialog
+            signedIn={Boolean(authUser)}
+            onSignIn={() => { setFeedbackOpen(false); requestAccountAccess("login"); }}
+            onClose={() => {
+              setFeedbackOpen(false);
+              menuRef.current?.querySelector(".profile-avatar-button")?.focus();
+            }}
+          />
+        </Suspense>
       )}
       {versionMismatch && (
         <VersionMismatchScreen onRefresh={() => window.location.reload()} />

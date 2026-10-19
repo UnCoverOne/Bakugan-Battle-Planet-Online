@@ -194,12 +194,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const [searchQuery, setSearchQuery] = useState(state.q);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
-  const [rulingCardId, setRulingCardId] = useState(section === "rulings" ? searchParams.get("card") ?? "" : "");
-  const requestedRulingCard = section === "rulings" ? searchParams.get("card") ?? "" : "";
-  useEffect(() => { if (section === "rulings") setRulingCardId(requestedRulingCard); }, [requestedRulingCard, section]);
-  const [question, setQuestion] = useState("");
-  const [submission, setSubmission] = useState("idle");
-  const [showSubmission, setShowSubmission] = useState(false);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const localSearchEditRef = useRef(false);
   const searchTimerRef = useRef<number | null>(null);
@@ -391,27 +385,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     await copyText(`${location.origin}${path}`);
     notify(`${label} link copied.`);
   };
-  const submitRuling = async () => {
-    if (!authUser) return notify("Sign in before submitting a ruling request.");
-    if (question.trim().length < 20) return notify("Describe the interaction in at least 20 characters.");
-    setSubmission("submitting");
-    try {
-      const response = await fetch("/api/rulings", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ cardId: rulingCardId || null, question: question.trim(), sourceUrl: location.href }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Submission failed.");
-      setQuestion("");
-      setSubmission("sent");
-      notify(`Ruling request ${result.id ?? ""} submitted.`);
-    } catch (error) {
-      setSubmission("idle");
-      notify(error instanceof Error ? error.message : "Submission failed.");
-    }
-  };
-
   return (
     <div className={styles.route}>
       <RouteHero
@@ -659,22 +632,10 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       {section === "rules" && <div className={styles.rulebookFrame}><OfficialRulebook query={deferredSearchQuery} /></div>}
       {section === "glossary" && <div className={styles.rulebookFrame}><GlossaryScreen query={deferredSearchQuery} /></div>}
 
-      {section === "rulings" && <div className={styles.rulebookFrame}><RulingsReference query={deferredSearchQuery} onSubmit={() => setShowSubmission(true)} onCopy={copyLink} /></div>}
+      {section === "rulings" && <div className={styles.rulebookFrame}><RulingsReference query={deferredSearchQuery} onCopy={copyLink} /></div>}
 
       </div>
 
-      {showSubmission && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowSubmission(false); }}>
-          <section className="panel ruling-submission-modal" role="dialog" aria-modal="true" aria-labelledby="ruling-question-title">
-            <h2 id="ruling-question-title">Submit an unanswered interaction</h2>
-            <p>Questions enter the administrator review queue. Published responses remain clearly attributed in the Compendium.</p>
-            <label>Card<select value={rulingCardId} onChange={(event) => setRulingCardId(event.target.value)}><option value="">General rules question</option>{CARDS.map((card) => <option value={card.catalogId} key={card.catalogId}>{cardSetCode(card)} · {card.displayName}</option>)}</select></label>
-            <label>Question<textarea value={question} onChange={(event) => setQuestion(event.target.value)} minLength={20} maxLength={2000} /></label>
-            {submission === "sent" && <p className="success-message">Request submitted.</p>}
-            <div className="hero-actions"><AppButton tone="red" disabled={submission === "submitting" || question.trim().length < 20} onClick={() => void submitRuling()}>{submission === "submitting" ? "SUBMITTING…" : "SUBMIT RULING REQUEST"}</AppButton><AppButton tone="ghost" onClick={() => setShowSubmission(false)}>CLOSE</AppButton></div>
-          </section>
-        </div>
-      )}
     </div>
   );
 }

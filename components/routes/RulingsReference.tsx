@@ -36,9 +36,8 @@ function linkOriginalReferences(value: string): ReactNode[] {
   return tokens;
 }
 
-export function RulingsReference({ query = "", onSubmit, onCopy }: {
+export function RulingsReference({ query = "", onCopy }: {
   query?: string;
-  onSubmit: () => void;
   onCopy: (path: string, label: string) => Promise<void>;
 }) {
   const [category, setCategory] = useState("All");
@@ -107,10 +106,6 @@ export function RulingsReference({ query = "", onSubmit, onCopy }: {
         aria-pressed={category === name} onClick={() => setCategory(name)}>{name}</button>)}
     </ReferenceContentsDrawer>
     <main className={chrome.main}>
-      <section className={styles.heading}>
-        <h2>Rulings</h2>
-        <button type="button" onClick={onSubmit}>Submit a question</button>
-      </section>
       {groups.map(({ name, entries }) => <section className={styles.group} key={name}>
         <h2>{name}</h2>
         <div className={styles.list}>

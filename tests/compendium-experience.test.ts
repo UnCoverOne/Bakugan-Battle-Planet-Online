@@ -415,3 +415,16 @@ test("Reference contents drawers share a mobile-only, touch-sized close control"
   assert.match(styles, /nav\.panel > \.closeControl\{[^}]*top:calc\(var\(--space-4\) \+ env\(safe-area-inset-top\) - 6px\)/);
   assert.doesNotMatch(styles, /nav\.panel > button\.close/);
 });
+
+test("Compendium Rulings leaves submission and heading to the global feedback menu", async () => {
+  const [compendium, rulings, shell] = await Promise.all([
+    read("components/routes/CompendiumScreen.tsx"),
+    read("components/routes/RulingsReference.tsx"),
+    read("components/application/AppShell.jsx"),
+  ]);
+  assert.match(rulings, /<ReferenceContentsDrawer/);
+  assert.doesNotMatch(rulings, /<h2>Rulings<\/h2>|Submit a question|onSubmit/);
+  assert.doesNotMatch(compendium, /showSubmission|submitRuling|rulingCardId/);
+  assert.match(shell, /Feedback &amp; Reports/);
+  assert.match(shell, /<FeedbackReportsDialog/);
+});

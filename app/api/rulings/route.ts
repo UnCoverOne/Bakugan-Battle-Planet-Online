@@ -1,4 +1,5 @@
 import { getDatabase, getSessionUser } from "../../../lib/account-server";
+import { CARD_BY_ID } from "../../../lib/data";
 import { assertSameOrigin, enforceD1RateLimit, RateLimitError, requestClientKey } from "../../../lib/request-security";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     const question = typeof body.question === "string" ? body.question.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim() : "";
     const sourceUrl = typeof body.sourceUrl === "string" ? body.sourceUrl.slice(0, 500) : "";
     if (question.length < 20 || question.length > 2_000) return json({ error: "The question must be between 20 and 2,000 characters." }, 422);
-    if (cardId && !/^bb-\d{1,4}$/.test(cardId)) return json({ error: "The selected card ID is invalid." }, 422);
+    if (cardId && !CARD_BY_ID.has(cardId)) return json({ error: "The selected card ID is invalid." }, 422);
     const id = crypto.randomUUID();
     const now = Date.now();
     await db.prepare(
