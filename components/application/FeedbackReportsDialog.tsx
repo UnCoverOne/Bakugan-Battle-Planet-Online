@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { CARDS } from "../../lib/data";
 import { cardSetCode } from "../../lib/content/catalogue";
-import type { GameCard } from "../../lib/game";
 import styles from "./FeedbackReportsDialog.module.css";
 
 type FeedbackKind = "question" | "suggestion" | "bug" | "issue";
@@ -167,7 +166,7 @@ export default function FeedbackReportsDialog({
         </label>
         <div className={styles.counter}>{details.trim().length}/2,000</div>
         {error && <p className={styles.error} role="alert">{error}</p>}
-        {!signedIn && <p className={styles.signInNote}>Sign in to submit. You can choose a category and write your message first.</p>}
+        {!signedIn && <p className={styles.signInNote}>Sign in to send your feedback. Unsaved drafts won't be kept when you leave this dialog.</p>}
         <div className={styles.actions}>
           <button type={signedIn ? "submit" : "button"} className={styles.primary}
             disabled={status === "submitting" || (signedIn && details.trim().length < 20)}
