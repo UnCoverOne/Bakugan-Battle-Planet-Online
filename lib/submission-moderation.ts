@@ -5,7 +5,7 @@ export type SubmissionKind = (typeof SUBMISSION_KINDS)[number];
 export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 export const SUBMISSION_KIND_LABELS: Record<SubmissionKind, string> = {
   question: "Question",
-  suggestion: "Suggestion",
+  suggestion: "Feature request",
   bug: "Bug report",
   issue: "Issue report",
 };

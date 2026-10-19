@@ -6,19 +6,11 @@ import { cardSetCode } from "../../lib/content/catalogue";
 import styles from "./FeedbackReportsDialog.module.css";
 import { MySubmissionHistory } from "./MySubmissionHistory";
 
-type FeedbackKind = "question" | "suggestion" | "bug" | "issue";
-type FeedbackOption = {
-  kind: FeedbackKind;
-  title: string;
-  description: string;
-  prompt: string;
-  placeholder: string;
-};
+type FeedbackKind = "issue" | "suggestion";
+type FeedbackOption = { kind: FeedbackKind; title: string; placeholder: string };
 const OPTIONS: readonly FeedbackOption[] = [
-  { kind: "question", title: "Ask a Question", description: "Ask about cards, rules or gameplay.", prompt: "Your question", placeholder: "Describe the card interaction or question you need answered…" },
-  { kind: "suggestion", title: "Suggest an Improvement", description: "Share an idea for the website or game.", prompt: "Your suggestion", placeholder: "What would you change, and why would it help?" },
-  { kind: "bug", title: "Report a Bug", description: "Tell us what stopped working.", prompt: "Bug details", placeholder: "What happened? What did you expect? How can we reproduce it?" },
-  { kind: "issue", title: "Report an Issue", description: "Flag incorrect card data or other concerns.", prompt: "Issue details", placeholder: "Where is the issue, and what needs correcting?" },
+  { kind: "issue", title: "Report an issue", placeholder: "Describe the issue, where it happened, and what you expected…" },
+  { kind: "suggestion", title: "Request a feature", placeholder: "Describe the feature you would like to see and how it would help…" },
 ];
 const SEARCHABLE_CARDS = CARDS.filter((card) => card.fusionFace !== "b")
   .map((card) => ({
@@ -85,7 +77,7 @@ export default function FeedbackReportsDialog({
   onSignIn: () => void;
   onClose: () => void;
 }) {
-  const [kind, setKind] = useState<FeedbackKind>("question");
+  const [kind, setKind] = useState<FeedbackKind>("issue");
   const [cardId, setCardId] = useState("");
   const [details, setDetails] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "sent">("idle");
@@ -103,7 +95,7 @@ export default function FeedbackReportsDialog({
     if (event.key === "Escape") { event.preventDefault(); onClose(); return; }
     if (event.key !== "Tab") return;
     const nodes = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
+      'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
     ) ?? []).filter((node) => node.getClientRects().length > 0);
     if (!nodes.length) return;
     if (event.shiftKey && document.activeElement === nodes[0]) { event.preventDefault(); nodes.at(-1)?.focus(); }
@@ -116,12 +108,10 @@ export default function FeedbackReportsDialog({
     setStatus("submitting");
     setError("");
     try {
-      const endpoint = kind === "question" ? "/api/rulings" : "/api/feedback";
-      const body = kind === "question"
-        ? { cardId: cardId || null, question: details.trim(), sourceUrl: window.location.href }
-        : { kind, cardId: cardId || null, message: details.trim(), sourceUrl: window.location.href };
-      const response = await fetch(endpoint, {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind, cardId: cardId || null, message: details.trim(), sourceUrl: window.location.href }),
       });
       const result = await response.json() as { error?: string; id?: string };
       if (!response.ok) throw new Error(result.error ?? "Could not submit your message.");
@@ -152,16 +142,16 @@ export default function FeedbackReportsDialog({
           <button type="button" className={styles.secondary} onClick={onClose}>Done</button>
         </div>
       </div> : <form className={styles.form} onSubmit={(event) => void submit(event)}>
-        <span className={styles.fieldLabel}>What would you like to do?</span>
-        <div className={styles.options} role="group" aria-label="Feedback type">
-          {OPTIONS.map((option) => <button key={option.kind} type="button" className={styles.option}
-            aria-pressed={kind === option.kind} disabled={status === "submitting"} onClick={() => { setKind(option.kind); setError(""); }}>
-            <strong>{option.title}</strong><small>{option.description}</small>
-          </button>)}
-        </div>
+        <label className={styles.feedbackType}>
+          <span className={styles.fieldLabel}>What would you like to do?</span>
+          <select value={kind} disabled={status === "submitting"}
+            onChange={(event) => { setKind(event.target.value as FeedbackKind); setError(""); }}>
+            {OPTIONS.map((option) => <option key={option.kind} value={option.kind}>{option.title}</option>)}
+          </select>
+        </label>
         <SearchableCardPicker value={cardId} onChange={setCardId} />
         <label className={styles.details}>
-          <span className={styles.fieldLabel}>{active.prompt} <small>(20–2,000 characters)</small></span>
+          <span className={styles.fieldLabel}>Details <small>(20–2,000 characters)</small></span>
           <textarea required minLength={20} maxLength={2000} rows={5} value={details}
             disabled={status === "submitting"} placeholder={active.placeholder}
             onChange={(event) => setDetails(event.target.value)} />

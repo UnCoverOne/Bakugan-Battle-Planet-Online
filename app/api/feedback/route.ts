@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     const message = typeof body.message === "string"
       ? body.message.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim() : "";
     const sourceUrl = typeof body.sourceUrl === "string" ? body.sourceUrl.slice(0, 500) : "";
-    if (!CATEGORIES.has(kind)) return json({ error: "Choose Suggest an Improvement, Report a Bug, or Report an Issue." }, 422);
+    if (!CATEGORIES.has(kind)) return json({ error: "Choose Report an issue or Request a feature." }, 422);
     if (message.length < 20 || message.length > 2000) return json({ error: "Please write between 20 and 2,000 characters." }, 422);
     if (cardId && !CARD_BY_ID.has(cardId)) return json({ error: "The selected card does not exist." }, 422);
     const db = await database();

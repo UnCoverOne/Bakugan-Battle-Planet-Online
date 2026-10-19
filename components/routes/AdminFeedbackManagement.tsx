@@ -132,7 +132,7 @@ export function AdminFeedbackManagement() {
       <div>
         <span>PLAYER SUBMISSIONS</span>
         <h2>Feedback &amp; Reports</h2>
-        <p>Review rules questions, suggestions, bug reports and issues in one place.</p>
+        <p>Review issues and feature requests, including previously submitted rules questions, suggestions and bug reports.</p>
       </div>
       <button type="button" className={styles.refresh} onClick={() => setRefresh((n) => n + 1)}
         disabled={loading || saving}>Refresh inbox</button>

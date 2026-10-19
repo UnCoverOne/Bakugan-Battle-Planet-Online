@@ -6,25 +6,34 @@ import { isSubmissionKind, isSubmissionStatus, normalizedSubmissionStatus, sourc
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("Feedback & Reports exposes four choices and a searchable cross-set card picker", async () => {
+test("Feedback & Reports offers a two-option dropdown, fixed Details label, and searchable cards", async () => {
   const [dialog, styles, questionApi, feedbackApi] = await Promise.all([
     read("components/application/FeedbackReportsDialog.tsx"),
     read("components/application/FeedbackReportsDialog.module.css"),
     read("app/api/rulings/route.ts"),
     read("app/api/feedback/route.ts"),
   ]);
-  for (const title of ["Ask a Question", "Suggest an Improvement", "Report a Bug", "Report an Issue"]) {
-    assert.ok(dialog.includes(title), `Missing ${title}`);
+  assert.match(dialog, /type FeedbackKind = "issue" \| "suggestion"/);
+  assert.match(dialog, /<select value=\{kind\}/);
+  assert.match(dialog, /<option key=\{option.kind\} value=\{option.kind\}>\{option.title\}<\/option>/);
+  assert.match(dialog, /Report an issue/);
+  assert.match(dialog, /Request a feature/);
+  for (const oldTitle of ["Ask a Question", "Suggest an Improvement", "Report a Bug", "Report an Issue"]) {
+    assert.ok(!dialog.includes(oldTitle), `Old action still shown: ${oldTitle}`);
   }
+  assert.match(dialog, /<span className=\{styles.fieldLabel\}>Details <small>/);
+  assert.doesNotMatch(dialog, /active\.prompt/);
   assert.match(dialog, /type="search"/);
   assert.match(dialog, /SEARCHABLE_CARDS\.filter/);
   assert.match(dialog, /role="listbox"/);
-  assert.match(dialog, /aria-pressed=\{kind === option.kind\}/);
   assert.match(dialog, /cardSetCode\(card\)/);
-  assert.match(dialog, /kind === "question" \? "\/api\/rulings" : "\/api\/feedback"/);
+  assert.match(dialog, /fetch\("\/api\/feedback"/);
+  assert.doesNotMatch(dialog, /fetch\("\/api\/rulings"/);
   assert.match(dialog, /minLength=\{20\} maxLength=\{2000\}/);
   assert.match(dialog, /aria-modal="true"/);
   assert.match(styles, /\.cardResults\{max-height:/);
+  assert.match(styles, /\.feedbackType select\{/);
+  assert.doesNotMatch(styles, /\.options\{|\.option\{/);
   assert.match(questionApi, /CARD_BY_ID\.has\(cardId\)/);
   assert.match(feedbackApi, /CARD_BY_ID\.has\(cardId\)/);
   assert.match(feedbackApi, /assertSameOrigin\(request\)/);

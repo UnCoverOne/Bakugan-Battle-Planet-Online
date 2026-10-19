@@ -8,12 +8,9 @@
 .form,.success{display:grid;gap:.8rem;padding:1.15rem 1.35rem 1.3rem}
 .fieldLabel{display:block;color:#dcecf0;font-size:.82rem;font-weight:800;letter-spacing:.02em}
 .fieldLabel small{color:var(--text-muted);font-weight:500}
-.options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}
-.option{min-height:4.1rem;display:grid;align-content:center;gap:.32rem;padding:.7rem .9rem;border:1px solid rgba(91,196,226,.24);background:rgba(2,20,30,.7);color:var(--text-primary);text-align:left;cursor:pointer}
-.option strong{font-size:.85rem}
-.option small{color:var(--text-secondary);font-size:.74rem;line-height:1.35}
-.option[aria-pressed="true"]{border-color:var(--brand-blue-bright);background:rgba(0,174,239,.14);box-shadow:inset 3px 0 var(--brand-blue-bright)}
-.option:hover:not(:disabled),.cardOption:hover{border-color:var(--brand-blue-bright);background:rgba(0,174,239,.12)}
+.feedbackType{display:grid;gap:.4rem;min-width:0}
+.feedbackType select{width:100%;min-height:2.7rem;padding:.6rem .8rem;border:1px solid rgba(91,196,226,.36);border-radius:0;background:#041b26;color:var(--text-primary);font:inherit;font-size:.89rem;cursor:pointer}
+.cardOption:hover{border-color:var(--brand-blue-bright);background:rgba(0,174,239,.12)}
 .cardField{position:relative;display:grid;gap:.35rem;min-width:0}
 .cardTrigger{min-height:2.7rem;width:100%;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.6rem .8rem;border:1px solid rgba(91,196,226,.34);background:#041b26;color:var(--text-primary);text-align:left;cursor:pointer}
 .cardTrigger>span:first-child{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -28,7 +25,7 @@
 .cardHint,.noCards{padding:.25rem .4rem}
 .details{display:grid;gap:.4rem}
 .details textarea{width:100%;min-height:7.5rem;resize:vertical;padding:.75rem;border:1px solid rgba(91,196,226,.36);border-radius:0;background:#041b26;color:var(--text-primary);font:inherit;font-size:.89rem;line-height:1.5}
-.details textarea:focus-visible,.cardSearch:focus-visible,.cardTrigger:focus-visible,.close:focus-visible,.option:focus-visible,.cardOption:focus-visible{outline:2px solid var(--brand-blue-bright);outline-offset:1px}
+.details textarea:focus-visible,.feedbackType select:focus-visible,.cardSearch:focus-visible,.cardTrigger:focus-visible,.close:focus-visible,.cardOption:focus-visible{outline:2px solid var(--brand-blue-bright);outline-offset:1px}
 .counter{text-align:right;font-size:.72rem;color:var(--text-muted)}
 .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.65rem;margin-top:.25rem}
 .actions button{min-height:2.65rem;padding:.5rem 1.25rem;font-family:var(--font-display);font-style:italic;font-weight:800;text-transform:uppercase;cursor:pointer}
@@ -39,4 +36,4 @@
 .signInNote{margin:0;color:var(--text-secondary);font-size:.84rem}
 .success strong{font-size:1.15rem;color:#a5efcf}
 .success p{margin:0;color:var(--text-secondary);line-height:1.6}
-@media(max-width:600px){.backdrop{padding:.5rem}.dialog{max-height:calc(100dvh - 1rem)}.header{padding:.95rem}.form,.success{padding:.9rem}.options{grid-template-columns:1fr 1fr}.option{padding:.6rem;min-height:4.75rem}.option strong{font-size:.78rem}.option small{font-size:.7rem}.actions button{flex:1;padding-inline:.6rem}}
+@media(max-width:600px){.backdrop{padding:.5rem}.dialog{max-height:calc(100dvh - 1rem)}.header{padding:.95rem}.form,.success{padding:.9rem}.actions button{flex:1;padding-inline:.6rem}}
