@@ -26,6 +26,7 @@ import {
   isAccountCacheDirty,
   readAccountCache,
   reconcileRemoteAccountState,
+  recoverCachedCollectionWithoutServerEntity,
   removeAccountCache,
   resolveEntityConflicts,
   retryDelayMs,
@@ -737,7 +738,8 @@ export function AppProvider({ children }) {
       };
       applySnapshot(cachedCopy, true);
       cloudLoaded.current = true;
-      setAccountDataReady(true);
+      // Cache is a preview while the server loads; editing it before the GET
+      // completes allows the response to overwrite newly-entered quantities.
     }
     let result = null;
     let loadError = null;
@@ -762,6 +764,7 @@ export function AppProvider({ children }) {
     }
     const emptyAccount = createEmptyAccountSnapshot(device, user, result?.updatedAt || Date.now());
     const remote = result?.data ? normalizeSnapshot(result.data, emptyAccount) : null;
+    const recoveredCollection = recoverCachedCollectionWithoutServerEntity(cached, result);
     const cachedDirty = isAccountCacheDirty(cached);
     accountRevisions.current = cachedDirty
       ? cached?.revisions ?? {}
@@ -782,7 +785,19 @@ export function AppProvider({ children }) {
     const restored = strategy === "merge" && remote
       ? selectSnapshot(device, mergeSnapshots(durableAccount, remote), "cloud")
       : selectSnapshot(device, durableAccount, "cloud");
-    const accountCopy = { ...restored, profile: { ...restored.profile, signedIn: true } };
+    const accountCopy = {
+      ...restored,
+      ...(recoveredCollection ? { collection: recoveredCollection } : {}),
+      profile: { ...restored.profile, signedIn: true },
+    };
+    if (recoveredCollection) {
+      // A missing server entity is not proof that a previously saved collection
+      // was cleared. Re-send the cached value under this account's revision.
+      localVersion.current = Math.max(localVersion.current, acknowledgedVersion.current) + 1;
+      if (pendingEntityKeys.current) {
+        pendingEntityKeys.current = [...new Set([...pendingEntityKeys.current, "collection:main"])];
+      }
+    }
     applySnapshot(accountCopy, true);
     if (!remote && !cached) {
       localVersion.current = 1;

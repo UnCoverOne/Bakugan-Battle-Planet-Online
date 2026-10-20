@@ -36,7 +36,7 @@ function countMatches(count: number, values: readonly string[]) {
 
 export function CollectionScreen() {
   const searchParams = useSearchParams();
-  const { authUser, requestAccountAccess, collection, setCollection, catalogueRevision } = useAppFields(["authUser", "requestAccountAccess", "collection", "setCollection", "catalogueRevision"]);
+  const { authUser, accountDataReady, syncStatus, requestAccountAccess, collection, setCollection, catalogueRevision } = useAppFields(["authUser", "accountDataReady", "syncStatus", "requestAccountAccess", "collection", "setCollection", "catalogueRevision"]);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const activeTab = searchParams.get("collectionTab") === "cores" ? "cores" : "cards";
@@ -139,6 +139,10 @@ export function CollectionScreen() {
     return <div className={compendiumStyles.route}><RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" description="Track the physical cards and BakuCores you own, including foil copies and wishlist targets." /><Surface className={styles.guestCta}><span className={styles.guestGlyph}>◇</span><h2>Sign in to track your collection</h2><p>Your collection is private account data and is available across devices after you create an account or log in.</p><div className="hero-actions"><ActionButton onClick={() => requestAccountAccess("signup")}>Create account</ActionButton><ActionButton tone="secondary" onClick={() => requestAccountAccess("login")}>Log in</ActionButton></div></Surface></div>;
   }
 
+  if (!accountDataReady) {
+    return <div className={compendiumStyles.route}><RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" description="Restoring your saved card and BakuCore quantities from your account." /><Surface className={styles.guestCta} role="status"><h2>Loading your collection…</h2><p>Collection editing will be available after account data has finished loading.</p></Surface></div>;
+  }
+
   const selectedCard = selected ?? undefined;
   const closeInspector = () => navigate({ card: null, core: null, tab: null });
   const selectCard = (card: typeof CARDS[number]) => { inspectorTrigger.current = document.activeElement as HTMLElement; navigate({ collectionTab: "cards", card: card.slug ?? card.catalogId, core: null, tab: "collection" }); };
@@ -218,7 +222,7 @@ export function CollectionScreen() {
 
   return (
     <div className={compendiumStyles.route}>
-      <RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" description="Track every supported card and BakuCore outside the simulator. Alternate printings share a tile but retain separate catalogue counts." aside={<div className={compendiumStyles.sourceSummary}><strong>{cardResults.length.toLocaleString()} cards · {coreResults.length.toLocaleString()} BakuCores</strong><span>Synced to your account</span></div>} />
+      <RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" description="Track every supported card and BakuCore outside the simulator. Alternate printings share a tile but retain separate catalogue counts." aside={<div className={compendiumStyles.sourceSummary}><strong>{cardResults.length.toLocaleString()} cards · {coreResults.length.toLocaleString()} BakuCores</strong><span role={syncStatus === "error" || syncStatus === "offline" ? "status" : undefined}>{syncStatus === "synced" ? "Synced to your account" : syncStatus === "saving" ? "Saving to your account…" : syncStatus === "error" ? "Collection sync failed — your changes remain on this device" : syncStatus === "offline" ? "Offline — awaiting account sync" : "Checking account sync…"}</span></div>} />
       <section className={compendiumStyles.toolbar}>
         <Field className={compendiumStyles.search} label="Search your archive"><input value={query} placeholder="Cards, effects, IDs, mechanics…" onChange={(event) => setQuery(event.target.value)} /></Field>
         <Tabs label="Collection sections"><button type="button" className={activeTab === "cards" ? "active" : ""} onClick={() => navigate({ collectionTab: "cards", core: null, tab: null })}>CARDS</button><button type="button" className={activeTab === "cores" ? "active" : ""} onClick={() => navigate({ collectionTab: "cores", card: null, tab: null })}>BAKUCORES</button></Tabs>
