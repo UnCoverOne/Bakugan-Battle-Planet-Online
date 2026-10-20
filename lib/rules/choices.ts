@@ -17,7 +17,7 @@ export function cardTypeMatches(actual: GameCard["type"], required: GameCard["ty
 
 export type ChoiceKind =
   | "confirm" | "bakugan" | "player" | "hero" | "evo" | "energy" | "core" | "card"
-  | "hand-cards" | "deck-card" | "deck-order" | "number" | "mode" | "batch-object";
+  | "hand-cards" | "permanent-cards" | "deck-card" | "deck-order" | "number" | "mode" | "batch-object";
 export type ChoiceVisibility = "public" | "private" | "secret-until-reveal";
 export type ChoiceCardPreview = Pick<
   GameCard,
@@ -47,6 +47,8 @@ export type ChoiceField = {
   requestedWindowSize?: number;
   /** This field exposes a hidden-zone viewer but does not select a card. */
   viewerOnly?: boolean;
+  /** Reject selecting more than this many in-play cards of any one type. */
+  maxPerCardType?: number;
 };
 export type ChoiceSchema = {
   id: string;
@@ -410,6 +412,7 @@ function kindFor(spec: ChoiceSpec): ChoiceKind {
   if (spec.selector === "player" || spec.selector === "controller" || spec.selector === "opponent") return "player";
   if (spec.selector === "hero") return "hero";
   if (spec.selector === "evo") return "evo";
+  if (spec.id === "targetCardIds" && spec.selector === "card-in-play") return "permanent-cards";
   if (spec.selector === "card-in-play") return "card";
   if (spec.selector === "energy-card") return "energy";
   if (spec.selector === "bakucore") return "core";
@@ -463,6 +466,7 @@ export function buildChoiceSchemaFromSpecs(
         required: range.minimum > 0,
         options,
         ...(spec.viewerOnly ? { viewerOnly: true } : {}),
+        ...(spec.maxPerCardType != null ? { maxPerCardType: spec.maxPerCardType } : {}),
         ...(kind === "deck-order" && topDeckCount(match, controllerId, spec, priorChoices, chooserId) > 0
           ? { requestedWindowSize: topDeckCount(match, controllerId, spec, priorChoices, chooserId) }
           : {}),
@@ -542,6 +546,18 @@ export function validateChoices(schema: ChoiceSchema, chooserId: string, choices
     const legal = new Set(item.options.filter((candidate) => !candidate.disabled).map((candidate) => candidate.id));
     if (values.some((value) => !legal.has(value))) throw new Error(`${item.label} contains an illegal selection.`);
     if (new Set(values).size !== values.length) throw new Error(`${item.label} cannot contain duplicate selections.`);
+    if (item.maxPerCardType != null) {
+      const selectedOptions = item.options.filter((candidate) => values.includes(candidate.id));
+      const counts = new Map<string, number>();
+      for (const selected of selectedOptions) {
+        const type = selected.card?.type;
+        if (!type) throw new Error(`${item.label} is missing a card type.`);
+        counts.set(type, (counts.get(type) ?? 0) + 1);
+        if (counts.get(type)! > item.maxPerCardType) {
+          throw new Error(`${item.label} allows at most ${item.maxPerCardType} ${type} card per choice.`);
+        }
+      }
+    }
     if (item.viewerOnly) {
       const visibleOrder = item.options.map((candidate) => candidate.id);
       const selectedDeckCard = typeof choices.deckCardId === "string" && visibleOrder.includes(choices.deckCardId)

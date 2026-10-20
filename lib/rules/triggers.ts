@@ -132,7 +132,7 @@ function sourceTargetMatches(
   // "When this opens" belongs to the Bakugan carrying the Character/Evo
   // source. It is not the same controller-wide event as "When you open a
   // Bakugan" on Heroes such as Shun Kazami.
-  if (event.name === "BAKUGAN_OPENED" && /\bwhen this opens\b/i.test(triggerText)) {
+  if (event.name === "BAKUGAN_OPENED" && /\bwhen this opens\b|\bwhen you turn this face up\b/i.test(triggerText)) {
     return Boolean(sourceBakugan && sourceBakugan.id === event.targetBakuganId);
   }
   if (event.name === "BAKU_GEAR_ATTACHED" && /\bwhen you attach a Baku-Gear to this\b/i.test(triggerText)) {

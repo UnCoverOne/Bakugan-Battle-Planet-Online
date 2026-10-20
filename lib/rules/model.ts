@@ -107,6 +107,8 @@ export type ChoiceSpec = {
   coreTypes?: CoreType[];
   /** Restrict Energy-card choices by their charged state for Recharge effects. */
   energyState?: "charged" | "uncharged";
+  /** Limit multi-select in-play choices to one of each printed card type. */
+  maxPerCardType?: number;
   /** Exclude the Bakugan that created the trigger ("another Bakugan"). */
   excludeSourceBakugan?: boolean;
   /** This selector is choosing a card that an effect will play with base Energy cost 0. */
@@ -179,7 +181,7 @@ export type RuleAction =
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: NumberValue; duration: RulesDuration }
   | { kind: "draw"; amount: NumberValue; playerScope?: PlayerScope }
   | { kind: "discard"; amount: NumberValue; minimum: NumberValue; maximum: NumberValue; repeated?: boolean; playerScope?: PlayerScope; factionChoiceId?: keyof CardChoices }
-  | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "discard" | "hero" | "self"; enters: "charged" | "uncharged"; playerScope?: PlayerScope; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
+  | { kind: "energize"; amount: NumberValue; source: "hand" | "deck" | "discard" | "hero" | "permanent" | "self"; enters: "charged" | "uncharged"; playerScope?: PlayerScope; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner; all?: boolean; targetChoiceId?: keyof CardChoices }
   | { kind: "generate-energy"; amount: NumberValue; playerScope?: PlayerScope }
   | { kind: "pay-energy"; amount: NumberValue }
   | { kind: "uncharge-energy"; amount: NumberValue | "all"; playerScope?: PlayerScope; producesEnergy: boolean; preventChargeStepRecharge?: boolean }
