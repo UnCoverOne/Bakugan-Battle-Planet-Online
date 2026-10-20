@@ -343,8 +343,12 @@ test("Sync definitions keep played-card identity, follow-up choices, and reveale
   const followUp = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "ff-77")!);
   const syncInstruction = followUp.abilities.flatMap((ability) => ability.instructions)
     .find((instruction) => instruction.sourceText.includes("Sync:"));
-  assert.deepEqual(syncInstruction?.actions.map((action) => action.kind), ["draw", "discard"]);
-  assert.equal(syncInstruction?.choices.find((choice) => choice.id === "targetPlayerId")?.minimum, 1);
+  assert.deepEqual(syncInstruction?.actions.map((action) => action.kind), ["draw"]);
+  const delayedDiscard = followUp.abilities.flatMap((ability) => ability.instructions)
+    .find((instruction) => /^Then choose a player to discard/i.test(instruction.sourceText));
+  assert.deepEqual(delayedDiscard?.actions.map((action) => action.kind), ["discard"]);
+  assert.deepEqual(delayedDiscard?.condition, syncInstruction?.condition);
+  assert.equal(delayedDiscard?.choices.find((choice) => choice.id === "targetPlayerId")?.minimum, 1);
 
   const evoSync = ruleDefinitionForCard(CARDS.find((card) => card.catalogId === "av-136")!);
   const evoAction = evoSync.abilities.flatMap((ability) => ability.instructions)
