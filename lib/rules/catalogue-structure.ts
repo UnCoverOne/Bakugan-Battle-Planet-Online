@@ -272,6 +272,20 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
           `${opponentClause.replace(/[,;:.]$/, "")}.`,
         ];
       })
+      // Other clause boundaries (such as a conditional Gear modifier
+      // following a base B-Power boost) can expose a nested "then" after
+      // the first split. Its discard still belongs to the printed Gear
+      // condition and must be chosen only after the conditional Draw.
+      .flatMap((clause) => {
+        const gatedDrawThenDiscard = clause.match(
+          /^(If (?:that|this) Bakugan has a Baku-Gear attached to it),\s*(.*?\[Draw\]\s*\d+),\s+then\s+(discard\b.+)$/i,
+        );
+        if (!gatedDrawThenDiscard) return [clause];
+        return [
+          `${gatedDrawThenDiscard[1]}, ${gatedDrawThenDiscard[2]}.`,
+          `Then ${gatedDrawThenDiscard[1]}, ${gatedDrawThenDiscard[3]}`,
+        ];
+      })
     : [""];
   const instructions = clauses.map((clause, index) => {
     const condition = conditionFor(clause);

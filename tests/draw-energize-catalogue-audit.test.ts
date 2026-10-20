@@ -124,6 +124,13 @@ for(const catalogId of ["bb-108", "bb-174", "ff-26", "ff-105"]) {
     const discardIndex = instructions.findIndex((instruction) => instruction.actions.some((action) => action.kind === "discard"));
     assert.ok(drawIndex >= 0 && discardIndex > drawIndex, `${catalogId} must stage discard only after Draw`);
     assert.ok(instructions[discardIndex].choices.some((choice) => choice.id === "discardCardIds"));
+    if (catalogId === "ff-26") {
+      assert.deepEqual(
+        instructions[discardIndex].condition,
+        instructions[drawIndex].condition,
+        "Instabakugear must not discard when the Gear-dependent draw is inactive",
+      );
+    }
   });
 }
 
