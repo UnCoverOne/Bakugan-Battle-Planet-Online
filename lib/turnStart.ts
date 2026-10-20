@@ -1,4 +1,5 @@
-import { clearSyncReveals, cloneMatch, type GameCard, type MatchState } from "./game";
+import { clearSyncReveals, cloneMatch, type MatchState } from "./game";
+import { extraTurnDrawsForPlayer, turnDrawCountForPlayer } from "./rules/turn-draw";
 import {
   activePendingDraw,
   drawPendingCard,
@@ -35,15 +36,7 @@ function remainingDraws(
   const state = withTurnStartMetadata(match);
   const stored = state.drawRemainingByPlayer?.[playerId];
   if (stored != null) return Math.max(0, stored);
-  return drawIds(state).includes(playerId) ? 0 : turnDrawCount(state);
-}
-
-function grantsAdditionalTurnDraw(card: GameCard) {
-  // Strata has separate printings with separate rules text. The global Draw
-  // Step modifier belongs only to Battle Brawlers 192, never to BR 80 merely
-  // because both cards share the display name "Strata".
-  return card.catalogId === "bb-192"
-    || /all players draw an additional card each turn/i.test(card.effect);
+  return drawIds(state).includes(playerId) ? 0 : turnDrawCountForPlayer(state, playerId);
 }
 
 function startOfGameResolutionPending(match: MatchState | null | undefined) {
@@ -53,18 +46,16 @@ function startOfGameResolutionPending(match: MatchState | null | undefined) {
 }
 
 /**
- * Battle Brawlers Strata is a global ongoing Hero effect. Every copy in play
- * adds one card to every player's normal Draw Step. Each individual card still
- * requires its own Draw confirmation in the Action HUD.
+ * Legacy shared Draw Step helpers delegate to the same per-player modifiers as
+ * beginTurn. This includes Strata and Sophie, while respecting asymmetric draws.
  */
-export function additionalTurnDrawCount(match: MatchState | null | undefined) {
-  return match?.players.reduce((total, player) => (
-    total + player.heroes.filter(grantsAdditionalTurnDraw).length
-  ), 0) ?? 0;
+export function additionalTurnDrawCount(match: MatchState | null | undefined, playerId?: string) {
+  const targetId = playerId ?? match?.players[0]?.id;
+  return match && targetId ? extraTurnDrawsForPlayer(match, targetId) : 0;
 }
 
-export function turnDrawCount(match: MatchState | null | undefined) {
-  return 1 + additionalTurnDrawCount(match);
+export function turnDrawCount(match: MatchState | null | undefined, playerId?: string) {
+  return 1 + additionalTurnDrawCount(match, playerId);
 }
 
 export function drawStepIsPending(match: MatchState | null | undefined) {

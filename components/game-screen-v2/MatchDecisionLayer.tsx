@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { type MatchState } from "../../lib/game";
+import { maximumHandSizeForPlayer } from "../../lib/rules/hand-limit";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
 import { CardArt } from "../cards/CardArt";
 import { writeCoordinatedMatch } from "./MatchStateCoordinator";
@@ -33,12 +34,13 @@ export function MatchDecisionLayer() {
   const match = decision.match;
   const player = match?.players.find((candidate) => candidate.id === decision.playerId)
     ?? match?.players[0];
+  const handLimit = match && player ? maximumHandSizeForPlayer(match, player.id) : 7;
   const requiredDiscards = decision.active
     && match
     && player
     && match.phase === "handLimit"
     && match.priority === player.id
-    ? Math.max(0, player.hand.length - 7)
+    ? Math.max(0, player.hand.length - handLimit)
     : 0;
   const handSignature = useMemo(
     () => player?.hand.map((card) => card.id).join("|") ?? "",
@@ -116,7 +118,7 @@ export function MatchDecisionLayer() {
       >
         <header className={styles.header}>
           <small>END PHASE • HAND LIMIT</small>
-          <h2 id="hand-limit-title">Discard to seven cards</h2>
+          <h2 id="hand-limit-title">Discard to {handLimit} cards</h2>
           <p>Select exactly {requiredDiscards} card{requiredDiscards === 1 ? "" : "s"}. The turn advances after the discard is confirmed.</p>
         </header>
         <ul className={styles.cards} aria-label="Cards available to discard">
