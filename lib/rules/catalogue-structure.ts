@@ -891,13 +891,13 @@ if (swapsBakucore) {
       "resolve",
       "hand-card",
       `Choose ${amount === 1 ? "a card" : `${amount} cards`} to Energize`,
-      false,
+      /\bmay\s+Energize\b/i.test(text),
       opponentChooses ? "opponent" : "controller",
       "private",
     );
     selected.owner = "controller";
     selected.targetOwner = "controller";
-    selected.minimum = amount;
+    selected.minimum = /\bmay\s+Energize\b/i.test(text) ? 0 : amount;
     selected.maximum = amount;
     result.push(selected);
   }
