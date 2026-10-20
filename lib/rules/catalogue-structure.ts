@@ -85,6 +85,11 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     /\s*\n\s*(?=(?:(?:\d+)\s+\[Energy\]|\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:\s*<Fusion>)/gi,
     ". ",
   ).replace(/\s*\n\s*/g, " ").replace(
+    // Some Draw printings omit a period or use "&" before the next
+    // instruction. Create the boundary before scheduling resolution choices.
+    /(\[Draw\]\s*\d+)\s*(?:&\s*|\s+)(Choose a player to discard\b)/gi,
+    "$1. $2",
+  ).replace(
     // A number of card scans put Draw and the next optional Energize on
     // separate lines without punctuation. Preserve their ordering boundary
     // before normalizing whitespace and asking for resolution choices.
@@ -230,16 +235,17 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
         // cards." Splitting here lets the resolver finish (and, for manual
         // draws, suspend for) the first action before it builds the second
         // action's choice schema.
-        const sequential = clause.match(/^(.*?),\s+then\s+(.+)$/i);
+        const sequential = clause.match(/^(.*?)(?:,\s*|\s+)then\s+(.+)$/i);
         if (sequential?.[1].trim() && sequential[2].trim()) {
           const first = sequential[1].trim().replace(/[,;:]$/, "");
           const second = sequential[2].trim();
-          const inheritsAllPlayers = /^all players\b/i.test(first)
-            && /\bthat many\b/i.test(second)
-            && !/\b(?:all|both|each) players\b/i.test(second);
+          const pluralSubject = first.match(/^(all players|each player|both players)\b/i)?.[1];
+          const inheritsSubject = pluralSubject
+            && (/\bthat many\b/i.test(second) || /^(?:draws?|may draw)\b/i.test(second))
+            && !/^(?:all|both|each) players\b/i.test(second);
           return [
             `${first}.`,
-            `Then ${inheritsAllPlayers ? "all players " : ""}${second}`,
+            `Then ${inheritsSubject ? `${pluralSubject} ` : ""}${second}`,
           ];
         }
         // Team Attack replacement text is sometimes printed on a new line
@@ -341,6 +347,19 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
       sourceText: `Watch this turn for: ${payoff.sourceText}`,
     });
     index += 1;
+  }
+
+  // "You may Draw, then discard" is one optional operation: declining
+  // the Draw must also decline its dependent discard. Keep the decision
+  // across the manual Draw suspension instead of prompting to discard.
+  for (let index = 1; index < instructions.length; index += 1) {
+    const prior = instructions[index - 1];
+    const next = instructions[index];
+    if (/^You may\s+(?:\[Draw\]|draw\b)/i.test(prior.sourceText)
+      && prior.choices.some((choice) => choice.id === "confirmed")
+      && /^Then\s+discard\b/i.test(next.sourceText)) {
+      next.condition = { kind: "previous-optional-accepted" };
+    }
   }
 
   // The next instruction in a printed Sync/Empower "Draw, then ..."

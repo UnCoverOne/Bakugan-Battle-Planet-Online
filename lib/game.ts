@@ -2162,11 +2162,18 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
       ? compileCardEffect(effect.card, effect.effect ?? effect.card.effect).instructions[pending.instructionIndex]
       : undefined;
     const targetPlayerId = merged.targetPlayerId;
+    const chosenPlayerDiscard = instruction?.sourceText.match(
+      /choose a player to discard (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?\b/i,
+    );
     if (effect && instruction && targetPlayerId
       && instruction.actions.some((action) => action.kind === "discard")
-      && /choose a player to discard a card/i.test(instruction.sourceText)
+      && chosenPlayerDiscard
       && !merged.discardCardIds?.length) {
+      const printed = chosenPlayerDiscard[1].toLowerCase();
+      const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+      const requested = words[printed] ?? Number(printed);
       const targetPlayer = playerById(state, targetPlayerId);
+      const amount = Math.min(requested, targetPlayer.hand.length);
       effect.resolvedChoices = {
         ...(effect.resolvedChoices ?? {}),
         [String(pending.instructionIndex)]: {
@@ -2174,7 +2181,7 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
           targetPlayerId,
         },
       };
-      if (targetPlayer.hand.length) {
+      if (amount > 0) {
         state.pendingChoice = {
           ...pending,
           id: uid(),
@@ -2188,12 +2195,12 @@ export const submitCardChoice = (input: MatchState, playerId: string, choices: C
             fields: [{
               id: "discardCardIds",
               kind: "hand-cards",
-              label: "Choose a card to discard",
+              label: `Choose ${amount} card${amount === 1 ? "" : "s"} to discard`,
               chooserId: targetPlayerId,
               visibility: "private",
               timing: "resolve",
-              minimum: 1,
-              maximum: 1,
+              minimum: amount,
+              maximum: amount,
               required: true,
               options: targetPlayer.hand.map((card) => ({
                 id: card.id,
@@ -2625,6 +2632,10 @@ const ruleConditionIsActive = (
     const selected = pending.resolvedChoices?.[String(instructionIndex)]?.[instruction.condition.choiceId];
     return Array.isArray(selected) ? selected.length > 0 : Boolean(selected);
   }
+  if (instruction.condition.kind === "previous-optional-accepted") {
+    return instructionIndex > 0
+      && pending.resolvedChoices?.[String(instructionIndex - 1)]?.confirmed === true;
+  }
   if (instruction.condition.kind === "mode-selected") {
     return choices.mode === instruction.condition.mode || choices.mode === "both";
   }
@@ -3033,7 +3044,8 @@ const executeRuleAction = (
         const expressionAmount = Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));
         const minimum = Math.max(0, Math.floor(resolveNumber(action.minimum, scopedChoices, affectedId)));
         const maximum = Math.max(minimum, Math.floor(resolveNumber(action.maximum, scopedChoices, affectedId)));
-        const amount = chosenFaction ? factionSelected.length : minimum === 0 ? selected.length : selected.length || expressionAmount;
+        const entireHandDiscard = /\bdiscard (?:their|your) entire hand\b|\bdiscard your hand\b/i.test(text);
+        const amount = entireHandDiscard ? before : chosenFaction ? factionSelected.length : minimum === 0 ? selected.length : selected.length || expressionAmount;
         if (amount > 0) discardFromHand(state, affected, Math.min(maximum, amount), factionSelected);
         amountByPlayer[affectedId] = Math.max(0, before - affected.hand.length);
         const remainingIds = new Set(affected.hand.map((candidate) => candidate.id));
