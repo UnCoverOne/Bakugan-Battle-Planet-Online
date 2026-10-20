@@ -182,6 +182,8 @@ export function ruleConditionActive(
       return open < conditionValue(condition.amount);
     }
     case "selection-made": return true;
+    // Requires a prior instruction's answer from the resolving Batch object.
+    case "previous-optional-accepted": return false;
     case "mode-selected": return false;
     case "empower-selected": return false;
     case "reroll-opened": return false;

@@ -55,6 +55,7 @@ export type RuleCondition =
   | { kind: "open-bakugan-count"; comparison: "exactly" | "at-least" | "at-most" | "more-than" | "fewer-than"; amount: NumberValue }
   | { kind: "source-only-open-bakugan" }
   | { kind: "selection-made"; choiceId: keyof CardChoices }
+  | { kind: "previous-optional-accepted" }
   | { kind: "mode-selected"; mode: string }
   | { kind: "empower-selected" }
   | { kind: "reroll-opened" }

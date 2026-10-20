@@ -6,6 +6,7 @@ import {
   type GameCard, type MatchState,
 } from "../lib/game";
 import { activePendingDraw, drawPendingCard } from "../lib/drawQueue";
+import { flipDamageCard, resolveManualDamage } from "../lib/manualDamage";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 
 function card(catalogId: string, id = catalogId): GameCard {
@@ -200,3 +201,141 @@ for(const catalogId of ["ff-33", "av-39", "av-57", "ff-123"]) {
     assert.equal(energize[0].enters, catalogId === "ff-123" ? "charged" : "uncharged");
   });
 }
+
+function runToNextDecision(state: MatchState) {
+  let next = state;
+  for (let n = 0; n < 10 && next.batch.length && !next.pendingChoice && !activePendingDraw(next); n++) {
+    next = passPriority(next, next.priority);
+  }
+  return next;
+}
+function completeAllEffectDraws(state: MatchState) {
+  let next = state;
+  for (let n = 0; n < 12 && activePendingDraw(next); n++) {
+    next = drawPendingCard(next, activePendingDraw(next)!.playerId);
+  }
+  assert.equal(activePendingDraw(next), null);
+  return next;
+}
+
+test("aa-36 Hypno Flash declining Draw 2 also declines the dependent discard", () => {
+  const { match, owner, source } = setup("aa-36");
+  const first = runToNextDecision(playCard(match, owner.id, source.id));
+  assert.ok(first.pendingChoice?.schema.fields.some((field) => field.id === "confirmed"));
+  assert.equal(activePendingDraw(first), null);
+  const done = settle(submitCardChoice(first, owner.id, { confirmed: false }));
+  assert.equal(activePendingDraw(done), null);
+  assert.equal(done.pendingChoice, undefined, "declining Draw must not prompt a mandatory discard");
+  assert.deepEqual(done.players[0].hand.map((entry) => entry.id), ["owner-held"]);
+  assert.equal(done.players[0].discard.some((entry) => entry.id === "owner-held"), false);
+});
+
+test("aa-36 Hypno Flash accepts Draw 2 before offering the new cards for discard", () => {
+  const { match, owner, source, ownerDrawn } = setup("aa-36");
+  let next = runToNextDecision(playCard(match, owner.id, source.id));
+  next = runToNextDecision(submitCardChoice(next, owner.id, { confirmed: true }));
+  assert.ok(activePendingDraw(next), "Draw must be queued before discard selection");
+  assert.equal(next.pendingChoice, undefined);
+  next = completeAllEffectDraws(next);
+  const field = next.pendingChoice?.schema.fields.find((candidate) => candidate.id === "discardCardIds");
+  assert.ok(field, "accepting optional Draw must lead to a discard choice");
+  assert.equal(field.minimum, 2);
+  assert.equal(field.maximum, 2);
+  assert.ok(field.options.some((option) => option.id === ownerDrawn.id));
+  const done = settle(submitCardChoice(next, owner.id, { discardCardIds: ["owner-held", ownerDrawn.id] }));
+  assert.ok(done.players[0].discard.some((entry) => entry.id === ownerDrawn.id));
+  assert.ok(done.players[0].discard.some((entry) => entry.id === "owner-held"));
+  assert.equal(done.pendingChoice, undefined);
+});
+
+test("av-30 Molten Stomp discards both complete hands before either player draws three", () => {
+  const { match, owner, opponent, source, ownerDrawn, opponentDrawn } = setup("av-30");
+  opponent.deckCards.push(card("bb-10", "opponent-third-draw"));
+  opponent.deck = opponent.deckCards.length;
+  let next = runToNextDecision(playCard(match, owner.id, source.id));
+  assert.ok(activePendingDraw(next), "the Draw should be queued after both discards");
+  assert.deepEqual(next.players[0].hand, []);
+  assert.deepEqual(next.players[1].hand, []);
+  assert.ok(next.players[0].discard.some((entry) => entry.id === "owner-held"));
+  assert.ok(next.players[1].discard.some((entry) => entry.id === "opponent-held"));
+  next = completeAllEffectDraws(next);
+  assert.deepEqual(next.players[0].hand.map((entry) => entry.id), [
+    ownerDrawn.id, "owner-second-draw", "owner-third-draw",
+  ]);
+  assert.deepEqual(next.players[1].hand.map((entry) => entry.id), [
+    opponentDrawn.id, "opponent-second-draw", "opponent-third-draw",
+  ]);
+  assert.equal(next.pendingChoice, undefined);
+});
+
+test("av-42 Dark Water Ambush draws before offering its chosen-player discard", () => {
+  const { match, owner, opponent, source, ownerDrawn } = setup("av-42");
+  let next = runToNextDecision(playCard(match, owner.id, source.id));
+  assert.ok(activePendingDraw(next));
+  assert.equal(next.pendingChoice, undefined);
+  next = completeAllEffectDraws(next);
+  assert.ok(next.players[0].hand.some((entry) => entry.id === ownerDrawn.id));
+  assert.ok(next.pendingChoice?.schema.fields.some((field) => field.id === "targetPlayerId"));
+  next = submitCardChoice(next, owner.id, { targetPlayerId: opponent.id });
+  const field = next.pendingChoice?.schema.fields.find((entry) => entry.id === "discardCardIds");
+  assert.ok(field, "chosen player selects their own card to discard");
+  assert.equal(field.chooserId, opponent.id);
+  const done = settle(submitCardChoice(next, opponent.id, { discardCardIds: ["opponent-held"] }));
+  assert.ok(done.players[1].discard.some((entry) => entry.id === "opponent-held"));
+  assert.equal(done.pendingChoice, undefined);
+});
+
+test("sv-88 Bakutelepathy waits until Draw 2, then lets the chosen player discard two", () => {
+  const { match, owner, opponent, source, ownerDrawn } = setup("sv-88");
+  owner.hand = [card("bb-3", "owner-held")];
+  owner.deckCards = [source, ownerDrawn, card("bb-5", "owner-second-draw"), card("bb-6", "owner-third-draw")];
+  owner.deck = owner.deckCards.length;
+  opponent.hand.push(card("bb-11", "opponent-held-second"), card("bb-12", "opponent-held-third"));
+  match.phase = "damage";
+  match.pendingLoser = owner.id;
+  match.pendingDamage = 2;
+  match.damageOrigin = opponent.bakugan[0].id;
+  match.priority = owner.id;
+  let next = flipDamageCard(match, owner.id);
+  assert.equal(next.revealedFlip?.id, source.id);
+  next = runToNextDecision(resolveManualDamage(next, owner.id, source.id));
+  assert.ok(activePendingDraw(next), "the Flip must Draw before choosing a discarder");
+  assert.equal(next.pendingChoice, undefined);
+  next = completeAllEffectDraws(next);
+  assert.ok(next.players[0].hand.some((entry) => entry.id === ownerDrawn.id));
+  assert.ok(next.pendingChoice?.schema.fields.some((field) => field.id === "targetPlayerId"));
+  next = submitCardChoice(next, owner.id, { targetPlayerId: opponent.id });
+  const field = next.pendingChoice?.schema.fields.find((entry) => entry.id === "discardCardIds");
+  assert.ok(field);
+  assert.equal(field.chooserId, opponent.id);
+  assert.equal(field.minimum, 2);
+  assert.equal(field.maximum, 2);
+  next = settle(submitCardChoice(next, opponent.id, {
+    discardCardIds: ["opponent-held", "opponent-held-second"],
+  }));
+  assert.equal(next.pendingChoice, undefined);
+  assert.ok(next.players[1].discard.some((entry) => entry.id === "opponent-held"));
+  assert.ok(next.players[1].discard.some((entry) => entry.id === "opponent-held-second"));
+  assert.ok(next.players[1].hand.some((entry) => entry.id === "opponent-held-third"));
+});
+
+test("the four Batch 1 cards retain distinct typed Draw and follow-up instructions", () => {
+  for (const [id, followUp] of [
+    ["aa-36", "discard"],
+    ["av-30", "draw"],
+    ["av-42", "discard"],
+    ["sv-88", "discard"],
+  ] as const) {
+    const instructions = ruleDefinitionForCard(card(id)).abilities.flatMap((ability) => ability.instructions);
+    const drawIndex = instructions.findIndex((instruction) => instruction.actions.some((action) => action.kind === "draw"));
+    const discardIndex = instructions.findIndex((instruction) => instruction.actions.some((action) => action.kind === "discard"));
+    assert.ok(drawIndex >= 0 && discardIndex >= 0 && drawIndex !== discardIndex, id);
+    assert.ok(followUp === "draw" ? discardIndex < drawIndex : drawIndex < discardIndex, id);
+    if (id === "aa-36") assert.equal(instructions[discardIndex].condition.kind, "previous-optional-accepted");
+    if (id === "av-30") {
+      const draw = instructions[drawIndex].actions.find((action) => action.kind === "draw");
+      assert.ok(draw && draw.kind === "draw");
+      assert.equal(draw.playerScope, "each-player");
+    }
+  }
+});
