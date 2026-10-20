@@ -294,7 +294,7 @@ function triggerFor(text: string): TriggerDefinition | undefined {
     [/when you play this(?: card)?|when this is played/i, "CARD_PLAYED", "controller", "self"],
     [/when you play/i, "CARD_PLAYED", "controller"],
     [/when you select a Bakugan/i, "BAKUGAN_SELECTED", "controller"],
-    [/when this opens|when you open a Bakugan/i, "BAKUGAN_OPENED", "controller"],
+    [/when this opens|when you turn this face up|when you open a Bakugan/i, "BAKUGAN_OPENED", "controller"],
     [/when you discard|if this is discarded/i, "CARD_DISCARDED", "controller"],
     [/(?:\[?Victor\]?)[\s]*[-,:]/i, "VICTOR_DECLARED", "controller"],
     [/when one of your Bakugan attacks/i, "ATTACK_CREATED", "controller"],
@@ -554,13 +554,28 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     actions.push({
       kind: "energize",
       amount: numberValueForDynamicAmount(text, numberValue(energize[1]), scale),
-      source: /from\s+the\s+top\s+of\s+your\s+deck|the\s+top\s+card\s+of\s+your\s+deck/i.test(text) ? "deck" : /top/i.test(energize[0]) ? "deck" : "hand",
+      source: /\b(?:in|from)\s+(?:your|their)\s+discard\s+pile\b/i.test(text) ? "discard"
+        : /from\s+the\s+top\s+of\s+your\s+deck|the\s+top\s+card\s+of\s+your\s+deck/i.test(text) ? "deck"
+        : /top/i.test(energize[0]) ? "deck" : "hand",
       enters: energizeEntryState,
       playerScope: eachPlayer ? "each-player" : "controller",
       sourceOwner: eachPlayer ? "each-player" : "controller",
       destinationOwner: eachPlayer ? "each-player" : "controller",
     });
   }
+  // Compound instructions must retain every distinct source, not infer a
+  // single hand-card operation from their first "Energize" token.
+  if (/\b(?:your opponent must )?Energize all of their Hero cards\b/i.test(text)) actions.push({
+    kind: "energize", amount: 99, source: "hero", enters: energizeEntryState,
+    playerScope: "opponent", all: true,
+  });
+  if (/\bYour opponent must Energize them\b/i.test(text) && /Baku-Gear and\/or Hero/i.test(text)) actions.push({
+    kind: "energize",
+    amount: { kind: "choice-count", choiceId: "targetCardIds" },
+    source: "permanent", enters: energizeEntryState,
+    sourceOwner: "opponent", destinationOwner: "opponent",
+    targetChoiceId: "targetCardIds",
+  });
   if (/Energize (?:it|that Hero)/i.test(text)) actions.push({
     kind: "energize",
     amount: 1,
@@ -572,6 +587,16 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     amount: 1,
     source: "self",
     enters: energizeEntryState,
+  });
+  if (/\bEnergize this and the top card of your deck\b/i.test(text)) actions.push({
+    kind: "energize", amount: 1, source: "deck", enters: energizeEntryState,
+    sourceOwner: "controller", destinationOwner: "controller",
+  });
+  if (/\bEnergize this and up to (?:one|two|three|\d+) cards? in your hand\b/i.test(text)) actions.push({
+    kind: "energize",
+    amount: { kind: "choice-count", choiceId: "handCardIds" },
+    source: "hand", enters: energizeEntryState,
+    sourceOwner: "controller", destinationOwner: "controller",
   });
   if (/Energize each card in your discard pile/i.test(text)) actions.push({
     kind: "energize",

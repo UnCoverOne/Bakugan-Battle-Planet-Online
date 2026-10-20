@@ -106,7 +106,7 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
     "$1 $2",
   );
   const clauses = normalized
-    ? normalized.split(/(?<=\.)\s+(?!(?:They do not recharge at the end of the turn\.|Its controller Energizes it uncharged\.|You may copy its effect(?: and make your own selections for it)?\.))/i).map((clause) => clause.trim()).filter(Boolean)
+    ? normalized.split(/(?<=\.)\s+(?!(?:They do not recharge at the end of the turn\.|Its controller Energizes it uncharged\.|Its controller must Energize it\.|Your opponent must Energize them uncharged\.|You may copy its effect(?: and make your own selections for it)?\.))/i).map((clause) => clause.trim()).filter(Boolean)
       .flatMap((clause) => {
         // "Attach up to N" is modelled as N optional sequential selections.
         // This preserves the printed 0..N choice without requiring one giant
@@ -764,7 +764,7 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     selected.maximumCost = printedMaximum;
     result.push(selected);
   }
-  if (!negateMatch && !/destroy all/i.test(text) && /(?:destroy|return|choose|take control)[^.;]*Baku-Gear/i.test(text)) {
+  if (!negateMatch && !/destroy all/i.test(text) && !/Baku-Gear and\/or Hero/i.test(text) && /(?:destroy|return|choose|take control)[^.;]*Baku-Gear/i.test(text)) {
     const selected = choice("targetCardId", targetTiming, "card-in-play", "Choose a Baku-Gear");
     selected.cardTypes = ["Baku-Gear"];
     selected.owner = /your Baku-Gear/i.test(text) ? "controller" : targetOwner;
@@ -824,6 +824,17 @@ function choicesForText(card: GameCard, text: string, defaultTiming: ChoiceSpec[
     const faction = text.match(/(?:choose|give|to|target)\s+(?:a|an|one|another)?\s*\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan/i)?.[1]
       ?? text.match(/\[(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\]\s+Bakugan\s+gets?/i)?.[1];
     if (faction) selected.factions = [faction as GameCard["faction"]];
+    result.push(selected);
+  }
+  // An opposing Hero and/or Baku-Gear can be selected together, at most one of each.
+  if (/choose an opponent['’]s Baku-Gear and\/or Hero/i.test(text)) {
+    const selected = choice("targetCardIds", "resolve", "card-in-play", "Choose opposing Baku-Gear and/or Hero to Energize", false, "controller", "public");
+    selected.owner = "opponent";
+    selected.targetOwner = "opponent";
+    selected.cardTypes = ["Baku-Gear", "Hero"];
+    selected.minimum = 1;
+    selected.maximum = 2;
+    selected.maxPerCardType = 1;
     result.push(selected);
   }
   if (/choose a player/i.test(text)) result.push(choice("targetPlayerId", timing, "player", "Choose a player"));
@@ -951,6 +962,29 @@ if (swapsBakucore) {
     const amount = printedAmount ? words[printedAmount.toLowerCase()] ?? Number(printedAmount) : 1;
     selected.minimum = optional ? 0 : amount;
     selected.maximum = /any number/i.test(text) ? 99 : Math.max(1, amount);
+    result.push(selected);
+  }
+  const energizeFromDiscard = text.match(/\benergize\s+(?:(a|an|one|two|three|\d+)\s+)?cards?\s+(?:in|from)\s+(?:your|their)\s+discard\s+pile\b/i);
+  if (energizeFromDiscard) {
+    const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3 };
+    const printed = energizeFromDiscard[1]?.toLowerCase();
+    const amount = printed ? words[printed] ?? Math.max(1, Number(printed) || 1) : 1;
+    const selected = choice("discardCardIds", "resolve", "discard-card", `Choose ${amount} discard-pile card${amount === 1 ? "" : "s"} to Energize`, false, "controller", "private");
+    selected.owner = "controller";
+    selected.targetOwner = "controller";
+    selected.minimum = amount;
+    selected.maximum = amount;
+    result.push(selected);
+  }
+  const optionalSelfHand = text.match(/\bEnergize this and up to (one|two|three|\d+) cards? in your hand\b/i);
+  if (optionalSelfHand) {
+    const words: Record<string, number> = { one: 1, two: 2, three: 3 };
+    const maximum = words[optionalSelfHand[1].toLowerCase()] ?? Number(optionalSelfHand[1]);
+    const selected = choice("handCardIds", "resolve", "hand-card", `Choose up to ${maximum} hand card${maximum === 1 ? "" : "s"} to Energize`, true, "controller", "private");
+    selected.owner = "controller";
+    selected.targetOwner = "controller";
+    selected.minimum = 0;
+    selected.maximum = maximum;
     result.push(selected);
   }
   const energizeFromHand = text.match(/\benergize\s+(?:(a|an|one|two|three|\d+)\s+)?cards?\s+(?:(?:uncharged|charged)\s+)?(?:in|from)\s+(?:your|their)\s+hand\b/i);

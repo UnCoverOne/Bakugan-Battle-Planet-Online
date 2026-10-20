@@ -232,6 +232,8 @@ export type CardChoices = {
   secondaryTargetBakuganId?: string;
   targetEffectId?: string;
   targetCardId?: string;
+  /** Multiple selected in-play cards for mixed Hero/Baku-Gear operations. */
+  targetCardIds?: string[];
   targetPlayerId?: string;
   targetHeroId?: string;
   targetEvoId?: string;
@@ -3104,7 +3106,17 @@ const executeRuleAction = (
             emitEnergizedEvents(state, destination, energized, `${pending.id}:energize:${actionIndex}`);
             syncDeck(source);
           } else {
-            const energized = source.discard.splice(0, amount);
+            // Selected discard cards are physical identities, not the first N
+            // entries of the pile. Whole-pile effects retain their old behavior.
+            const selectedIds = scopedChoices.discardCardIds;
+            const selected = selectedIds && new Set(selectedIds.slice(0, amount));
+            if (selected && (selected.size !== amount || selectedIds!.length !== amount)) continue;
+            const energized = selected
+              ? source.discard.filter((candidate) => selected.has(candidate.id))
+              : source.discard.slice(0, amount);
+            if (selected && energized.length !== amount) continue;
+            const movedIds = new Set(energized.map((candidate) => candidate.id));
+            source.discard = source.discard.filter((candidate) => !movedIds.has(candidate.id));
             applyEnergyEntryVisibility(energized, "discard");
             destination.energyZone.push(...energized);
             applyEnergizedEntryState(state, destination, energized, action.enters);
@@ -3112,18 +3124,51 @@ const executeRuleAction = (
           }
         }
       } else if (choices.confirmed === false) return;
-      else if (action.source === "hero") {
-        for (const owner of state.players) {
-          const index = owner.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
-          if (index >= 0) {
-            const energized = owner.heroes.splice(index, 1);
-            for (const moved of energized) delete moved.instabrawl;
-            applyEnergyEntryVisibility(energized, "hero");
-            owner.energyZone.push(...energized);
-            applyEnergizedEntryState(state, owner, energized, action.enters);
-            emitEnergizedEvents(state, owner, energized, `${pending.id}:energize:${actionIndex}`);
-            break;
+      else if (action.source === "permanent") {
+        const selectedIds = action.targetChoiceId ? choices[action.targetChoiceId] : choices.targetCardIds;
+        const ids = Array.isArray(selectedIds) ? selectedIds.map(String) : [];
+        const amount = Math.max(0, Math.floor(resolveNumber(action.amount)));
+        if (ids.length !== amount || new Set(ids).size !== amount) return;
+        const allowedOwners = new Set(zoneOwnerIdsFor(state, action.sourceOwner ?? "controller", { controllerId, choices }));
+        const selected = ids.map((id) => {
+          for (const owner of state.players) {
+            if (!allowedOwners.has(owner.id)) continue;
+            const hero = owner.heroes.find((candidate) => candidate.id === id);
+            if (hero) return { owner, card: hero, zone: "hero" as const };
+            for (const bakugan of owner.bakugan) {
+              const gear = bakugan.bakuGear?.find((candidate) => candidate.id === id);
+              if (gear) return { owner, card: gear, zone: "baku-gear" as const, bakugan };
+            }
           }
+          return undefined;
+        });
+        if (selected.some((entry) => !entry)) return;
+        for (const item of selected) {
+          if (!item) continue;
+          const { owner, card: moved } = item;
+          if (item.zone === "hero") owner.heroes = owner.heroes.filter((candidate) => candidate.id !== moved.id);
+          else if (item.zone === "baku-gear") item.bakugan.bakuGear = (item.bakugan.bakuGear ?? []).filter((candidate) => candidate.id !== moved.id);
+          delete moved.instabrawl;
+          applyEnergyEntryVisibility([moved], item.zone === "hero" ? "hero" : "self");
+          owner.energyZone.push(moved);
+          applyEnergizedEntryState(state, owner, [moved], action.enters);
+          emitEnergizedEvents(state, owner, [moved], `${pending.id}:energize:${actionIndex}`);
+        }
+      } else if (action.source === "hero") {
+        const owners = action.all
+          ? state.players.filter((owner) => playerIdsForScope(state, action.playerScope ?? "controller", { controllerId, choices }).includes(owner.id))
+          : state.players;
+        for (const owner of owners) {
+          const heroIndex = action.all ? 0 : owner.heroes.findIndex((hero) => hero.id === choices.targetHeroId);
+          if (!action.all && heroIndex < 0) continue;
+          const energized = action.all ? owner.heroes.splice(0) : owner.heroes.splice(heroIndex, 1);
+          if (!energized.length) continue;
+          for (const moved of energized) delete moved.instabrawl;
+          applyEnergyEntryVisibility(energized, "hero");
+          owner.energyZone.push(...energized);
+          applyEnergizedEntryState(state, owner, energized, action.enters);
+          emitEnergizedEvents(state, owner, energized, `${pending.id}:energize:${actionIndex}`);
+          if (!action.all) break;
         }
       } else if (action.source === "self" && !player.energyZone.some((candidate) => candidate.id === card.id)) {
         for (const owner of state.players) owner.heroes = owner.heroes.filter((candidate) => candidate.id !== card.id);
