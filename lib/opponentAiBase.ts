@@ -1,4 +1,5 @@
 import { maximumHandSizeForPlayer } from "./rules/hand-limit";
+import { playsFreeWhenRevealedFromHand } from "./aiHandReveal";
 import {
   HEX_CELLS,
   activateIntrinsicReroll,
@@ -1555,6 +1556,11 @@ function optionScore(
     const selected = owner?.hand.find((candidate) => candidate.id === id);
     if (!selected) return -100;
     const future = handCardRetentionValue(match, owner?.id ?? chooserId, selected);
+    // An actual Sync reveal can immediately play a triggered self-free card.
+    // Prefer that tactical payoff over merely retaining a costly inert card.
+    if (field.id === "syncCardId" && playsFreeWhenRevealedFromHand(selected)) {
+      return future + (match.phase === "power" ? 100 : 8);
+    }
     if (/play a card from your hand for free/i.test(card.effect)) {
       return owner?.id === chooserId ? future : -future;
     }

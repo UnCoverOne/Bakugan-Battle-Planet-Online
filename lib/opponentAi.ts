@@ -38,6 +38,9 @@ import {
   isTemporaryCombatAction,
 } from "./aiCardSemantics";
 import type { RuleAction, RuleInstruction } from "./rules/effects";
+import { buildChoiceSchema } from "./rules/choices";
+import { ruleDefinitionForCard } from "./rules/catalogue";
+import { playsFreeWhenRevealedFromHand } from "./aiHandReveal";
 import type { GameCommand } from "./engine/types";
 import {
   memoOpponentAiDecision,
@@ -408,10 +411,12 @@ function projectCombatAfterBatch(
   match: MatchState,
   playerId: string,
   candidate?: { card: GameCard; choices: CardChoices },
+  revealedFollowUp?: { card: GameCard; choices: CardChoices },
 ) {
-  const candidateKey = candidate
-    ? `${candidate.card.id}:${opponentAiChoicesKey(candidate.choices)}`
-    : "baseline";
+  const candidateKey = [
+    candidate ? `${candidate.card.id}:${opponentAiChoicesKey(candidate.choices)}` : "baseline",
+    revealedFollowUp ? `${revealedFollowUp.card.id}:${opponentAiChoicesKey(revealedFollowUp.choices)}` : "",
+  ].join(":");
   return memoOpponentAiDecision(
     match,
     "batch-projection",
@@ -443,6 +448,18 @@ function projectCombatAfterBatch(
       combat,
       { execution: "play", candidate: true },
     );
+  }
+  // A Sync reveal can trigger a second, effect-originated free card play.
+  if (revealedFollowUp) {
+    usefulPostVictoryEffect = applyProjectedCard(
+      match,
+      playerId,
+      playerId,
+      revealedFollowUp.card,
+      revealedFollowUp.choices,
+      combat,
+      { execution: "play", candidate: true },
+    ) || usefulPostVictoryEffect;
   }
   for (const effect of [...match.batch].reverse()) {
     if (effect.negated) continue;
@@ -1100,6 +1117,75 @@ function minimumWinningTemporaryPowerCards(
   return result;
 }
 
+type SyncRevealWinningLine = {
+  card: GameCard;
+  choices: CardChoices;
+  cost: number;
+  projectedGap: number;
+};
+
+/**
+ * Bounded tactical lookahead for an affordable Sync reveal which itself
+ * triggers a printed, effect-originated free play from the revealed hand.
+ * Use the canonical choice schema to enforce the Sync card's cost and type
+ * restrictions without inventing extra play or payment permissions.
+ */
+function bestSyncRevealWinningLine(
+  match: MatchState,
+  playerId: string,
+): SyncRevealWinningLine | undefined {
+  if (match.phase !== "power") return undefined;
+  const player = playerById(match, playerId);
+  const opponent = opponentOf(match, playerId);
+  if (!player || !opponent || !participatesInBrawl(match, playerId)
+    || !participatesInBrawl(match, opponent.id)) return undefined;
+
+  if (projectCombatAfterBatch(match, playerId).gap > 0) return undefined;
+
+  let best: SyncRevealWinningLine | undefined;
+  for (const source of player.hand) {
+    if (!takeOpponentAiOptionalWork("sync-reveal-source")) break;
+    const instructions = ruleDefinitionForCard(source).abilities
+      .filter((ability) => ability.kind === "spell")
+      .flatMap((ability) => ability.instructions)
+      .filter((instruction) => instruction.choices.some((choice) => choice.id === "syncCardId"));
+    if (!instructions.length) continue;
+
+    const playable = evaluatePlayableCard(match, playerId, source);
+    if (!playable) continue;
+    for (const instruction of instructions) {
+      const schema = buildChoiceSchema(
+        match, playerId, source, instruction.sourceText, {}, "resolve",
+      );
+      const revealOptions = schema.fields.find((field) => field.id === "syncCardId")?.options ?? [];
+      for (const option of revealOptions) {
+        if (!takeOpponentAiOptionalWork("sync-reveal-follow-up")) break;
+        if (option.disabled || option.id === source.id) continue;
+        const revealed = player.hand.find((card) => card.id === option.id);
+        if (!revealed || !playsFreeWhenRevealedFromHand(revealed)) continue;
+        const projection = projectCombatAfterBatch(
+          match,
+          playerId,
+          { card: source, choices: { ...playable.choices, syncCardId: revealed.id } },
+          { card: revealed, choices: {} },
+        );
+        if (projection.gap <= 0) continue;
+        const line: SyncRevealWinningLine = {
+          card: source,
+          choices: playable.choices,
+          cost: playable.payment.cost,
+          projectedGap: projection.gap,
+        };
+        // Prefer the lowest paid Energy needed to secure the Victor,
+        // not the largest unnecessary winning margin.
+        if (!best || line.cost < best.cost
+          || (line.cost === best.cost && line.projectedGap < best.projectedGap)) best = line;
+      }
+    }
+  }
+  return best;
+}
+
 function hasAffordableDirectWinningAlternative(match: MatchState, playerId: string) {
   const player = playerById(match, playerId);
   if (!player) return false;
@@ -1193,6 +1279,18 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
       // rejects the projected reroll play.
     }
   }
+  const syncWin = bestSyncRevealWinningLine(input, playerId);
+  if (syncWin) {
+    try {
+      return validateAiTransition(
+        input,
+        playCardWithAutoEnergy(input, playerId, syncWin.card.id, syncWin.choices),
+        playerId,
+      );
+    } catch {
+      // Replan if payment or timing changed before executing the play.
+    }
+  }
   const continuation = bestSetupContinuationLine(input, playerId);
   if (continuation) {
     try {
@@ -1254,6 +1352,10 @@ function chooseWithCombatPolicy(input: MatchState, playerId: string): GameComman
       cardId: tacticalReroll.card.id,
       choices: tacticalReroll.choices,
     };
+  }
+  const syncWin = bestSyncRevealWinningLine(input, playerId);
+  if (syncWin) {
+    return { type: "PLAY_CARD", cardId: syncWin.card.id, choices: syncWin.choices };
   }
   const continuation = bestSetupContinuationLine(input, playerId);
   if (continuation) {
