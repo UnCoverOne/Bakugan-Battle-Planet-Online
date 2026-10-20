@@ -280,11 +280,20 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
         const gatedDrawThenDiscard = clause.match(
           /^(If (?:that|this) Bakugan has a Baku-Gear attached to it),\s*(.*?\[Draw\]\s*\d+),\s+then\s+(discard\b.+)$/i,
         );
-        if (!gatedDrawThenDiscard) return [clause];
-        return [
+        if (gatedDrawThenDiscard) return [
           `${gatedDrawThenDiscard[1]}, ${gatedDrawThenDiscard[2]}.`,
           `Then ${gatedDrawThenDiscard[1]}, ${gatedDrawThenDiscard[3]}`,
         ];
+        // A Sync or Empower prefix is decomposed before the generic "then"
+        // splitter. Preserve its delayed Draw -> choice ordering as well:
+        // Nocturnal Shift and Righteous Defenses must not ask for a discard
+        // target or free hand play before the player has drawn.
+        const keywordDrawThen = clause.match(
+          /^((?:Sync|Empower):.*?\[Draw\]\s*\d+),\s+then\s+(.+)$/i,
+        );
+        return keywordDrawThen
+          ? [`${keywordDrawThen[1]}.`, `Then ${keywordDrawThen[2]}`]
+          : [clause];
       })
     : [""];
   const instructions = clauses.map((clause, index) => {
@@ -332,6 +341,19 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
       sourceText: `Watch this turn for: ${payoff.sourceText}`,
     });
     index += 1;
+  }
+
+  // The next instruction in a printed Sync/Empower "Draw, then ..."
+  // depends on the same optional gate, even though its choice is deliberately
+  // staged only after the Draw queue has completed.
+  for (let index = 1; index < instructions.length; index += 1) {
+    const prior = instructions[index - 1];
+    const current = instructions[index];
+    if (!/^Then\b/i.test(current.sourceText)) continue;
+    if (prior.condition.kind === "empower-selected"
+      || (prior.condition.kind === "selection-made" && prior.condition.choiceId === "syncCardId")) {
+      current.condition = prior.condition;
+    }
   }
 
   // Bind “If you do” to the optional discard that immediately precedes it.

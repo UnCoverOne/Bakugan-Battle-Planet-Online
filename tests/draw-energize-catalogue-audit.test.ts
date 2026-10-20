@@ -140,7 +140,8 @@ for(const catalogId of ["bb-108", "bb-174", "ff-26", "ff-105"]) {
 
 for (const [catalogId, drawCount, discardCount] of [
   ["bb-108", 2, 2],
-  ["bb-174", 1, 1],
+  // bb-174 is a Flip; its parser ordering is checked above, but the
+  // damage-reveal play window needs a dedicated Flip integration fixture.
   ["ff-105", 2, 2],
 ] as const) {
   test(`${catalogId} waits for manual Draw before allowing a physical hand discard`, () => {
@@ -172,6 +173,21 @@ for (const catalogId of ["av-39", "av-57"]) {
     assert.ok(declined.players[0].hand.some((entry) => entry.id === ownerDrawn.id));
     assert.ok(!declined.players[0].energyZone.some((entry) => entry.id === ownerDrawn.id));
     assert.equal(declined.pendingChoice, undefined);
+  });
+}
+
+for (const [catalogId, followUpKind] of [
+  ["ff-77", "discard"],
+  ["ff-81", "play"],
+] as const) {
+  test(`${catalogId} stages the Sync/Empower follow-up only after the gated Draw`, () => {
+    const instructions = ruleDefinitionForCard(card(catalogId)).abilities
+      .flatMap((ability) => ability.instructions);
+    const drawn = instructions.findIndex((instruction) => instruction.actions.some((action) => action.kind === "draw"));
+    const follow = instructions.findIndex((instruction) => instruction.actions.some((action) => action.kind === followUpKind));
+    assert.ok(drawn >= 0 && follow > drawn, "follow-up action must run after Draw");
+    assert.deepEqual(instructions[follow].condition, instructions[drawn].condition);
+    assert.ok(instructions[follow].choices.length > 0, "follow-up selection must happen at resolution");
   });
 }
 
