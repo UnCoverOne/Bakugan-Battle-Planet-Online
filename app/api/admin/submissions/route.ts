@@ -30,7 +30,6 @@ export async function GET(request: Request) {
           COALESCE(v.status, CASE
             WHEN r.status IN ('answered', 'published') THEN 'resolved'
             WHEN r.status = 'withdrawn' THEN 'closed' ELSE 'pending' END) AS status,
-          COALESCE(v.response, r.answer, '') AS response,
           r.submitted_at, r.updated_at, v.administrator_id AS reviewed_by, v.updated_at AS reviewed_at
         FROM ruling_requests r JOIN users u ON u.id = r.user_id
         LEFT JOIN submission_reviews v ON v.kind = 'question' AND v.submission_id = r.id
@@ -39,7 +38,6 @@ export async function GET(request: Request) {
           u.email AS player_email, f.card_id, f.message, f.source_url,
           COALESCE(v.status, CASE
             WHEN f.status = 'reviewed' THEN 'in_review' ELSE f.status END) AS status,
-          COALESCE(v.response, '') AS response,
           f.submitted_at, f.updated_at, v.administrator_id AS reviewed_by, v.updated_at AS reviewed_at
         FROM feedback_reports f JOIN users u ON u.id = f.user_id
         LEFT JOIN submission_reviews v ON v.kind = f.kind AND v.submission_id = f.id
@@ -61,15 +59,10 @@ export async function POST(request: Request) {
     if (raw.length > 8_000) return json({ error: "Request is too large." }, 413);
     const body = JSON.parse(raw) as Record<string, unknown>;
     const { kind, id, status } = body;
-    const response = typeof body.response === "string"
-      ? body.response.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim() : "";
     if (!isSubmissionKind(kind) || !isSubmissionStatus(status)
       || typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)
-      || typeof body.response !== "string" || response.length > 2000) {
-      return json({ error: "Invalid submission, status, or response (maximum 2,000 characters)." }, 422);
-    }
-    if (kind === "question" && status === "resolved" && response.length < 5) {
-      return json({ error: "Answer the question before marking it resolved." }, 422);
+      || Object.prototype.hasOwnProperty.call(body, "response")) {
+      return json({ error: "Invalid submission or status. Administrator replies are not supported." }, 422);
     }
     const db = await ensureSubmissionTables(await getDatabase());
     await enforceD1RateLimit(db, `admin-submissions:${admin.id}:${requestClientKey(request)}`, 60, 60_000);
@@ -80,19 +73,18 @@ export async function POST(request: Request) {
     const sourceStatus = sourceSubmissionStatus(kind, status);
     await db.batch([
       kind === "question"
-        ? db.prepare("UPDATE ruling_requests SET status = ?, answer = ?, administrator_id = ?, updated_at = ? WHERE id = ?")
-          .bind(status === "resolved" && existing.status === "published" ? "published" : sourceStatus,
-            status === "resolved" ? response : null, admin.id, now, id)
+        ? db.prepare("UPDATE ruling_requests SET status = ?, administrator_id = ?, updated_at = ? WHERE id = ?")
+          .bind(status === "resolved" && existing.status === "published" ? "published" : sourceStatus, admin.id, now, id)
         : db.prepare("UPDATE feedback_reports SET status = ?, updated_at = ? WHERE id = ?")
           .bind(sourceStatus, now, id),
-      db.prepare(`INSERT INTO submission_reviews (kind, submission_id, status, response, administrator_id, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+      db.prepare(`INSERT INTO submission_reviews (kind, submission_id, status, administrator_id, updated_at)
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(kind, submission_id) DO UPDATE SET
-          status = excluded.status, response = excluded.response,
+          status = excluded.status,
           administrator_id = excluded.administrator_id, updated_at = excluded.updated_at`)
-        .bind(kind, id, status, response, admin.id, now),
+        .bind(kind, id, status, admin.id, now),
     ]);
-    return json({ id, kind, status, response, reviewedAt: now });
+    return json({ id, kind, status, reviewedAt: now });
   } catch (error) {
     if (error instanceof RateLimitError) return Response.json(
       { error: error.message, retryAfter: error.retryAfterSeconds },

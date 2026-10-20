@@ -10,8 +10,8 @@
 .notice{padding:1rem}.notice button{margin-left:.5rem;color:var(--brand-blue-bright);border:0;background:none;cursor:pointer}
 .filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;padding:1rem;align-items:end}
 .filters label,.editorField{display:grid;gap:.35rem;min-width:0;color:var(--text-secondary);font-size:.8rem;font-weight:800}
-.filters input,.filters select,.editorField select,.editorField textarea{min-width:0;width:100%;min-height:2.6rem;padding:.55rem .7rem;border:1px solid var(--border-strong);background:#061f2b;color:var(--text-primary);font:inherit}
-.filters input:focus-visible,.filters select:focus-visible,.editorField textarea:focus-visible,.editorField select:focus-visible{outline:2px solid var(--brand-blue-bright);outline-offset:1px}
+.filters input,.filters select,.editorField select{min-width:0;width:100%;min-height:2.6rem;padding:.55rem .7rem;border:1px solid var(--border-strong);background:#061f2b;color:var(--text-primary);font:inherit}
+.filters input:focus-visible,.filters select:focus-visible,.editorField select:focus-visible{outline:2px solid var(--brand-blue-bright);outline-offset:1px}
 .workspace{display:grid;grid-template-columns:minmax(290px,.9fr) minmax(0,1.45fr);gap:1rem;min-width:0;align-items:start}
 .inbox,.detail{min-width:0;overflow:hidden}
 .inbox>header{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:1rem;border-bottom:1px solid var(--border-subtle)}
@@ -36,8 +36,6 @@
 .source{word-break:break-all;color:var(--text-secondary)}
 .mono{font-family:ui-monospace,Consolas,monospace;font-size:.76rem!important}
 .message{margin:0;padding:1rem;white-space:pre-wrap;overflow-wrap:anywhere;background:rgba(0,10,19,.55);border-left:2px solid var(--brand-blue-bright);line-height:1.6}
-.editorField textarea{min-height:9rem;resize:vertical;font-size:.88rem;line-height:1.55;font-weight:400}
-.editorField small{font-weight:400;color:var(--text-muted)}
 .actions{display:flex;flex-wrap:wrap;gap:.65rem}
 .actions button{min-height:2.7rem;padding:.6rem 1rem;border:1px solid var(--border-strong);background:#073244;color:var(--text-primary);font-weight:800;cursor:pointer}
 .actions button:first-child{background:var(--brand-red);border-color:rgba(255,255,255,.2)}

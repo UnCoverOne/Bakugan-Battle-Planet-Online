@@ -59,35 +59,35 @@ test("Administrator control centre offers a permissioned unified inbox", async (
   assert.match(api, /enforceD1RateLimit\(/);
   assert.match(api, /UNION ALL/);
   assert.match(api, /ON CONFLICT\(kind, submission_id\) DO UPDATE/);
-  assert.match(api, /UPDATE ruling_requests SET status = \?, answer = \?/);
+  assert.match(api, /UPDATE ruling_requests SET status = \?, administrator_id = \?/);
   assert.match(api, /UPDATE feedback_reports SET status = \?/);
   assert.match(view, /Search messages \/ cards/);
   assert.match(view, /From date/);
   assert.match(view, /To date/);
   assert.match(view, /Player/);
   assert.match(view, /Review status/);
-  assert.match(view, /Administrator response/);
+  assert.doesNotMatch(view, /Administrator response|<textarea|reply to the player|submission history/i);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS submission_reviews/);
   assert.match(moderation, /in_review/);
 });
 
-test("Players can read resolved administrator replies in their feedback history", async () => {
-  const [dialog, history, feedbackApi, rulingsApi] = await Promise.all([
+test("Feedback is submit-only for players, with no history or administrator replies", async () => {
+  const [dialog, admin, api, feedbackApi, rulingsApi] = await Promise.all([
     read("components/application/FeedbackReportsDialog.tsx"),
-    read("components/application/MySubmissionHistory.tsx"),
+    read("components/routes/AdminFeedbackManagement.tsx"),
+    read("app/api/admin/submissions/route.ts"),
     read("app/api/feedback/route.ts"),
     read("app/api/rulings/route.ts"),
   ]);
-  assert.match(dialog, /<MySubmissionHistory \/>/);
-  assert.match(history, /fetch\(path, \{ cache: "no-store" \}\)/);
-  assert.match(history, /Administrator response/);
-  assert.match(history, /review_status/);
-  assert.match(history, /api\/rulings/);
-  assert.match(history, /api\/feedback/);
-  assert.match(feedbackApi, /v\.response/);
-  assert.match(rulingsApi, /v\.response/);
-  assert.match(feedbackApi, /CASE WHEN COALESCE\(v\.status, f\.status\) IN \('resolved', 'closed'\)/);
-  assert.match(rulingsApi, /CASE WHEN COALESCE\(v\.status, r\.status\) IN \('resolved', 'closed'/);
+  assert.doesNotMatch(dialog, /MySubmissionHistory|My submissions|submission history/i);
+  assert.doesNotMatch(admin, /Administrator response|<textarea|reply to the player|editor\.response/i);
+  assert.doesNotMatch(api, /AS response|answer = \?|v\.response|r\.answer|body\.response|response: now/i);
+  assert.match(api, /Object\.prototype\.hasOwnProperty\.call\(body, "response"\)/);
+  assert.match(api, /UPDATE ruling_requests SET status = \?, administrator_id = \?/);
+  assert.doesNotMatch(feedbackApi, /export async function GET\(/);
+  assert.doesNotMatch(rulingsApi, /export async function GET\(/);
+  assert.match(feedbackApi, /export async function POST\(/);
+  assert.match(rulingsApi, /export async function POST\(/);
 });
 
 test("Moderation statuses preserve legacy ruling and feedback semantics", () => {

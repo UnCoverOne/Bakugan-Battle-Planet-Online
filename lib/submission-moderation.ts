@@ -1,4 +1,4 @@
-/** Stable moderation states shared by the administrator queue and submission history. */
+/** Stable moderation states for administrator-only status tracking. */
 export const SUBMISSION_KINDS = ["question", "suggestion", "bug", "issue"] as const;
 export const SUBMISSION_STATUSES = ["pending", "in_review", "resolved", "closed"] as const;
 export type SubmissionKind = (typeof SUBMISSION_KINDS)[number];

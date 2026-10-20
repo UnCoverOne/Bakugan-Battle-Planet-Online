@@ -19,14 +19,13 @@ type Submission = {
   message: string;
   source_url: string;
   status: SubmissionStatus;
-  response: string;
   submitted_at: number;
   updated_at: number;
   reviewed_by: string | null;
   reviewed_at: number | null;
 };
 type SubmissionList = { submissions: Submission[]; total: number; error?: string };
-type Editor = { key: string; status: SubmissionStatus; response: string };
+type Editor = { key: string; status: SubmissionStatus };
 const dateLabel = (stamp: number) => new Date(stamp).toLocaleString();
 
 export function AdminFeedbackManagement() {
@@ -42,7 +41,7 @@ export function AdminFeedbackManagement() {
   const [player, setPlayer] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [editor, setEditor] = useState<Editor>({ key: "", status: "pending", response: "" });
+  const [editor, setEditor] = useState<Editor>({ key: "", status: "pending" });
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveError, setSaveError] = useState("");
@@ -75,7 +74,7 @@ export function AdminFeedbackManagement() {
       && (statusFilter === "all" || entry.status === statusFilter)
       && entry.submitted_at >= from && entry.submitted_at <= to
       && (!playerTerm || [entry.player_name, entry.player_email, entry.user_id].some((s) => s.toLowerCase().includes(playerTerm)))
-      && (!searchTerm || [entry.message, entry.card_id ?? "", entry.id, entry.response].some((s) => s.toLowerCase().includes(searchTerm)))
+      && (!searchTerm || [entry.message, entry.card_id ?? "", entry.id].some((s) => s.toLowerCase().includes(searchTerm)))
     ));
   }, [submissions, type, statusFilter, fromDate, toDate, search, player]);
 
@@ -83,14 +82,10 @@ export function AdminFeedbackManagement() {
     ?? filtered[0] ?? null;
   const selectedId = selected ? `${selected.kind}:${selected.id}` : "";
   useEffect(() => {
-    setEditor({
-      key: selectedId,
-      status: selected?.status ?? "pending",
-      response: selected?.response ?? "",
-    });
+    setEditor({ key: selectedId, status: selected?.status ?? "pending" });
     setSaveError("");
     setSaveMessage("");
-  }, [selectedId, selected?.status, selected?.response]);
+  }, [selectedId, selected?.status]);
 
   const counts = useMemo(() => ({
     total: submissions.length,
@@ -99,7 +94,7 @@ export function AdminFeedbackManagement() {
     resolved: submissions.filter((entry) => entry.status === "resolved").length,
   }), [submissions]);
   const unsaved = selected !== null && editor.key === selectedId
-    && (editor.status !== selected.status || editor.response !== (selected.response ?? ""));
+    && editor.status !== selected.status;
   const save = async () => {
     if (!selected || saving || !unsaved) return;
     setSaving(true);
@@ -109,17 +104,17 @@ export function AdminFeedbackManagement() {
       const response = await fetch("/api/admin/submissions", {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          kind: selected.kind, id: selected.id, status: editor.status, response: editor.response,
+          kind: selected.kind, id: selected.id, status: editor.status,
         }),
       });
-      const result = await response.json() as { error?: string; status?: SubmissionStatus; response?: string; reviewedAt?: number };
+      const result = await response.json() as { error?: string; status?: SubmissionStatus; reviewedAt?: number };
       if (!response.ok) throw new Error(result.error || "Could not save changes.");
       const updated = {
-        ...selected, status: result.status ?? editor.status, response: result.response ?? editor.response,
+        ...selected, status: result.status ?? editor.status,
         reviewed_at: result.reviewedAt ?? Date.now(),
       };
       setSubmissions((items) => items.map((item) => item.id === selected.id && item.kind === selected.kind ? updated : item));
-      setSaveMessage("Review saved. Replies become visible to the player when the submission is resolved or closed.");
+      setSaveMessage("Review status saved.");
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Could not save changes.");
     } finally {
@@ -219,21 +214,14 @@ export function AdminFeedbackManagement() {
               {SUBMISSION_STATUSES.map((status) => <option key={status} value={status}>{SUBMISSION_STATUS_LABELS[status]}</option>)}
             </select>
           </label>
-          <label className={styles.editorField}>Administrator response
-            <textarea rows={6} maxLength={2000} disabled={saving}
-              value={editor.key === selectedId ? editor.response : selected.response}
-              onChange={(e) => setEditor((v) => ({ ...v, response: e.target.value }))}
-              placeholder={selected.kind === "question" ? "Write an answer to this question…" : "Optional reply to the player…"} />
-            <small>{editor.response.length}/2,000 characters. {selected.kind === "question" ? "An answer is required before resolving a question." : "Replies appear in the player's submission history."}</small>
-          </label>
           {saveError && <p className={styles.error} role="alert">{saveError}</p>}
           {saveMessage && <p className={styles.saved} role="status">{saveMessage}</p>}
           <div className={styles.actions}>
-            <button type="button" disabled={!unsaved || saving || (selected.kind === "question" && editor.status === "resolved" && editor.response.trim().length < 5)}
+            <button type="button" disabled={!unsaved || saving}
               onClick={() => void save()}>{saving ? "Saving…" : "Save review"}</button>
-            <button type="button" disabled={!unsaved || saving} onClick={() => setEditor({ key: selectedId, status: selected.status, response: selected.response || "" })}>Discard edits</button>
+            <button type="button" disabled={!unsaved || saving} onClick={() => setEditor({ key: selectedId, status: selected.status })}>Discard edits</button>
           </div>
-        </> : <div className={styles.emptyDetail}>Select a submission to review its details and reply.</div>}
+        </> : <div className={styles.emptyDetail}>Select a submission to review its details and status.</div>}
       </Surface>
     </div>
   </section>;
