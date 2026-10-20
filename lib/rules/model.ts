@@ -144,6 +144,8 @@ export type TriggerDefinition = {
   relationship: "controller" | "opponent" | "any";
   /** Restrict a trigger such as "When you play this" to its own card-play event. */
   source?: "self";
+  /** Only the stated source zone may cause this Energize-triggered ability. */
+  energizeSourceZone?: "hand";
   /** The event must have been caused by a different card. */
   causedByCard?: boolean;
   cardType?: CardType;

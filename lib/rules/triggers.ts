@@ -19,6 +19,8 @@ export type RuleEvent = {
   /** Card whose effect caused the event card to be revealed. */
   causeCard?: GameCard;
   cardType?: CardType;
+  /** Physical zone the Energized card came from, before entering Energy. */
+  energizeSourceZone?: "hand" | "deck" | "discard" | "hero" | "permanent" | "self";
   targetBakuganId?: string;
   choices?: CardChoices;
   amount?: number;
@@ -178,6 +180,7 @@ function triggerMatches(
   }
   if (!relationshipMatches(trigger, owner.id, event)) return false;
   if (trigger.source === "self" && source.id !== event.card?.id) return false;
+  if (trigger.energizeSourceZone && trigger.energizeSourceZone !== event.energizeSourceZone) return false;
   if (trigger.causedByCard && (!event.causeCard || event.causeCard.id === source.id)) return false;
   if (trigger.cardType && trigger.cardType !== event.cardType) return false;
   if (trigger.cardMechanic && !event.card?.mechanics.some((mechanic) => mechanic.toLowerCase() === trigger.cardMechanic!.toLowerCase())) return false;

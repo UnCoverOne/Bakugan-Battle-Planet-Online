@@ -79,6 +79,12 @@ function chooseOneBranches(text: string): BattleMasteryBranch[] | null {
 
 function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   const normalized = source.replace(
+    // Some printed Actions omit a period between their combat modifier and
+    // a distinct self-Energize trigger. Respect the source line break before
+    // the generic whitespace normalizer flattens it.
+    /(\[(?:B|Damage(?: Rating)?)\])\s*\n\s*(If you Energize this from your hand\b)/gi,
+    "$1. $2",
+  ).replace(
     /\s*Instabrawl\s*:\s*For\s+\d+\s+\[Energy\]\s*\([^)]*\)\.?/gi,
     "",
   ).replace(
@@ -1114,6 +1120,9 @@ if (swapsBakucore) {
   if ((/\bmay\b/i.test(text) || /\byou can play\b/i.test(text))
     && !/you may Empower the next card you play(?: this turn)? for free/i.test(text)
     && !persistentFreePermission
+    // The ongoing extra Energize allowance is a static Hero permission, not an
+    // optional enter-play effect requesting a yes/no confirmation.
+    && !/\bmay Energize an additional card from your hand each turn\b/i.test(text)
     && !/may discard|may recharge up to/i.test(text)
     // Optional selection of a card to Energize already offers a zero-card skip.
     // Do not add a second required confirmation to the same resolution prompt.
