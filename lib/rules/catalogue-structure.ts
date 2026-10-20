@@ -1280,6 +1280,14 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
         .filter((candidate) => candidate.id === "empower"),
     ]
     : choicesForText(card, announcementText, "announce");
+  // A player choice after a Draw is a resolution decision, not an
+  // announcement requirement. This also matters for damage-revealed Flips,
+  // whose play pipeline does stage announcement choices before the Batch.
+  if (/\[Draw\]\s*\d+\s*(?:&\s*|\s+)choose a player to discard\b/i.test(announcementText)) {
+    for (const selected of choices) {
+      if (selected.id === "targetPlayerId" && selected.timing === "announce") selected.timing = "resolve";
+    }
+  }
   if (card.type === "Baku-Gear") {
     let target = choices.find((candidate) => candidate.id === "targetBakuganId");
     if (!target) {
