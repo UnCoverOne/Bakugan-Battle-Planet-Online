@@ -1003,6 +1003,9 @@ if (swapsBakucore) {
     && !/you may Empower the next card you play(?: this turn)? for free/i.test(text)
     && !persistentFreePermission
     && !/may discard|may recharge up to/i.test(text)
+    // Optional selection of a card to Energize already offers a zero-card skip.
+    // Do not add a second required confirmation to the same resolution prompt.
+    && !(energizeFromHand && /\bmay\s+Energize\b/i.test(text))
     && !/\bSync:/i.test(text)
     && !/^Empower\s*:/i.test(text)
     && !syncChoice) {
