@@ -38,7 +38,11 @@ function setup(catalogId: string) {
   return { match, owner, opponent, source, ownerDrawn, opponentDrawn };
 }
 function beginAndCompleteDraws(match: MatchState, sourceId: string, ownerId: string) {
-  let next = playCard(match, ownerId, sourceId);
+  const owner = match.players.find((player) => player.id === ownerId)!;
+  const source = owner.hand.find((entry) => entry.id === sourceId)!;
+  let next = playCard(match, ownerId, sourceId, source.type === "Baku-Gear"
+    ? { targetBakuganId: owner.bakugan[0].id }
+    : {});
   assert.equal(next.pendingChoice, undefined, "Draw choice must not be requested at announcement");
   for (let step = 0; step < 5 && !activePendingDraw(next) && !next.pendingChoice && next.batch.length; step++) {
     next = passPriority(next, next.priority);
@@ -131,6 +135,43 @@ for(const catalogId of ["bb-108", "bb-174", "ff-26", "ff-105"]) {
         "Instabakugear must not discard when the Gear-dependent draw is inactive",
       );
     }
+  });
+}
+
+for (const [catalogId, drawCount, discardCount] of [
+  ["bb-108", 2, 2],
+  ["bb-174", 1, 1],
+  ["ff-105", 2, 2],
+] as const) {
+  test(`${catalogId} waits for manual Draw before allowing a physical hand discard`, () => {
+    const { match, owner, source, ownerDrawn } = setup(catalogId);
+    let next = beginAndCompleteDraws(match, source.id, owner.id);
+    const selection = next.pendingChoice?.schema.fields.find((field) => field.id === "discardCardIds");
+    assert.ok(selection, "Discard selector must be staged after new cards are drawn");
+    assert.equal(selection.minimum, discardCount);
+    assert.equal(selection.maximum, discardCount);
+    assert.ok(selection.options.some((option) => option.id === ownerDrawn.id));
+    const toDiscard = [ownerDrawn.id, ...next.players[0].hand
+      .filter((entry) => entry.id !== ownerDrawn.id)
+      .slice(0, discardCount - 1).map((entry) => entry.id)];
+    next = settle(submitCardChoice(next, owner.id, { discardCardIds: toDiscard }));
+    assert.ok(!next.players[0].hand.some((entry) => entry.id === ownerDrawn.id));
+    assert.ok(next.players[0].discard.some((entry) => entry.id === ownerDrawn.id));
+    assert.ok(!activePendingDraw(next));
+    assert.equal(next.pendingChoice, undefined);
+    assert.equal(drawCount >= discardCount, true);
+  });
+}
+
+for (const catalogId of ["av-39", "av-57"]) {
+  test(`${catalogId} can decline the optional Energize after drawing`, () => {
+    const { match, owner, source, ownerDrawn } = setup(catalogId);
+    const waiting = beginAndCompleteDraws(match, source.id, owner.id);
+    assert.ok(waiting.pendingChoice?.schema.fields.some((field) => field.id === "confirmed"));
+    const declined = settle(submitCardChoice(waiting, owner.id, { confirmed: false }));
+    assert.ok(declined.players[0].hand.some((entry) => entry.id === ownerDrawn.id));
+    assert.ok(!declined.players[0].energyZone.some((entry) => entry.id === ownerDrawn.id));
+    assert.equal(declined.pendingChoice, undefined);
   });
 }
 
