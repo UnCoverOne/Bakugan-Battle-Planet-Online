@@ -38,7 +38,7 @@ test("Feedback & Reports offers a two-option dropdown, fixed Details label, and 
   assert.match(feedbackApi, /CARD_BY_ID\.has\(cardId\)/);
   assert.match(feedbackApi, /assertSameOrigin\(request\)/);
   assert.match(feedbackApi, /enforceD1RateLimit\(/);
-  assert.match(feedbackApi, /user\.roles\.includes\("administrator"\)/);
+  assert.doesNotMatch(feedbackApi, /export async function GET\(/);
   assert.ok(CARDS.some((card) => card.catalogId.startsWith("aa-")));
   assert.ok(CARDS.some((card) => card.catalogId.startsWith("ff-")));
 });
