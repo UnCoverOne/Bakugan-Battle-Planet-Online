@@ -7,6 +7,7 @@ import {
   isAccountCacheDirty,
   readAccountCache,
   reconcileRemoteAccountState,
+  recoverCachedCollectionWithoutServerEntity,
   resolveEntityConflicts,
   retryDelayMs,
   writeAccountCache,
@@ -143,6 +144,46 @@ async function drainLatest(
   }
   return acknowledged;
 }
+
+test("standard, foil and wishlist counts round-trip through account entities", async () => {
+  const server = new EntityServer();
+  const account = snapshot("Collector");
+  account.collection = {
+    "bb-283": { standard: 2, foil: 1, wishlist: 3 },
+    "core-2": { standard: 6, foil: 0, wishlist: 2 },
+  };
+  const result = await server.put(buildAccountSyncRequests(account, {})[0]);
+  assert.equal(result.status, 200);
+  assert.deepEqual(server.payload().data?.collection, account.collection);
+});
+
+test("missing cloud collection entity recovers cached counts without overriding an intentional empty revision", () => {
+  const storage = new MemoryStorage();
+  const local = snapshot("Collector");
+  local.collection = { "bb-283": { standard: 2, foil: 1, wishlist: 3 } };
+  writeAccountCache(storage, {
+    userId: "collector",
+    snapshot: local,
+    revisions: {},
+    version: 3,
+    acknowledgedVersion: 3,
+  });
+  const cache = readAccountCache(storage, "collector", snapshot());
+  const emptyServer = { data: snapshot("Collector"), revisions: {} };
+  assert.deepEqual(
+    recoverCachedCollectionWithoutServerEntity(cache, emptyServer),
+    local.collection,
+  );
+  assert.equal(recoverCachedCollectionWithoutServerEntity(
+    cache,
+    { ...emptyServer, revisions: { "collection:main": 1 } },
+  ), null);
+  assert.equal(recoverCachedCollectionWithoutServerEntity(
+    cache,
+    { data: { ...emptyServer.data, collection: local.collection }, revisions: {} },
+  ), null);
+  assert.equal(recoverCachedCollectionWithoutServerEntity(cache, null), null);
+});
 
 test("offline account edits survive a browser close in a user-namespaced outbox", () => {
   const storage = new MemoryStorage();
