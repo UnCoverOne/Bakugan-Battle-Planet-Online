@@ -97,6 +97,25 @@ export function isAccountCacheDirty(cache: AccountCache | null) {
   return Boolean(cache && cache.version > cache.acknowledgedVersion);
 }
 
+/**
+ * Older server schemas or incomplete migrations may have no collection row.
+ * Recover a browser's last known collection only when the server has no
+ * collection entity at all. A revisioned empty collection is an intentional
+ * server value and must never be replaced by potentially stale browser data.
+ */
+export function recoverCachedCollectionWithoutServerEntity(
+  cached: AccountCache | null,
+  cloud: { data: UserSnapshot | null; revisions: EntityRevisionMap } | null,
+) {
+  if (!cached || !cloud || Object.hasOwn(cloud.revisions ?? {}, "collection:main")) {
+    return null;
+  }
+  const local = normalizeCollection(cached.snapshot.collection);
+  const remote = normalizeCollection(cloud.data?.collection);
+  if (!Object.keys(local).length || Object.keys(remote).length) return null;
+  return local;
+}
+
 export function buildAccountSyncRequest(
   snapshot: UserSnapshot,
   revisions: EntityRevisionMap,
