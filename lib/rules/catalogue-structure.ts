@@ -886,18 +886,22 @@ if (swapsBakucore) {
     const printed = energizeFromHand[1]?.toLowerCase();
     const amount = printed ? words[printed] ?? Math.max(1, Number(printed) || 1) : 1;
     const opponentChooses = /\byour opponent may Energize\b/i.test(text);
+    // Sequential "Then you may..." already exposes an optional hand
+    // selection; other printed optional Energize effects retain their
+    // established separate yes/no confirmation.
+    const directOptionalSelection = /^Then\s+you\s+may\s+Energize\b/i.test(text.trim());
     const selected = choice(
       "handCardIds",
       "resolve",
       "hand-card",
       `Choose ${amount === 1 ? "a card" : `${amount} cards`} to Energize`,
-      false,
+      directOptionalSelection,
       opponentChooses ? "opponent" : "controller",
       "private",
     );
     selected.owner = "controller";
     selected.targetOwner = "controller";
-    selected.minimum = amount;
+    selected.minimum = directOptionalSelection ? 0 : amount;
     selected.maximum = amount;
     result.push(selected);
   }
@@ -1003,6 +1007,9 @@ if (swapsBakucore) {
     && !/you may Empower the next card you play(?: this turn)? for free/i.test(text)
     && !persistentFreePermission
     && !/may discard|may recharge up to/i.test(text)
+    // Optional selection of a card to Energize already offers a zero-card skip.
+    // Do not add a second required confirmation to the same resolution prompt.
+    && !(energizeFromHand && /^Then\s+you\s+may\s+Energize\b/i.test(text.trim()))
     && !/\bSync:/i.test(text)
     && !/^Empower\s*:/i.test(text)
     && !syncChoice) {
