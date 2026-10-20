@@ -267,7 +267,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   useEffect(() => {
     setCompendiumTab(section);
     setFilterSheetOpen(false);
-    setShowSubmission(false);
   }, [section, setCompendiumTab]);
   useEffect(() => {
     const onPopState = () => {

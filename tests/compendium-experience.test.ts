@@ -424,7 +424,9 @@ test("Compendium Rulings leaves submission and heading to the global feedback me
   ]);
   assert.match(rulings, /<ReferenceContentsDrawer/);
   assert.doesNotMatch(rulings, /<h2>Rulings<\/h2>|Submit a question|onSubmit/);
-  assert.doesNotMatch(compendium, /showSubmission|submitRuling|rulingCardId/);
+  // The ruling-submission UI lives in Feedback & Reports, not Compendium.
+  // Referencing its removed setter caused a ReferenceError on every tab load.
+  assert.doesNotMatch(compendium, /\b(?:setShowSubmission|showSubmission|submitRuling|rulingCardId)\b/);
   assert.match(shell, /Feedback &amp; Reports/);
   assert.match(shell, /<FeedbackReportsDialog/);
 });
