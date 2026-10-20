@@ -84,7 +84,13 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
   ).replace(
     /\s*\n\s*(?=(?:(?:\d+)\s+\[Energy\]|\[(?:FT|FF|SD|MS|HE)\](?:\s*(?:or|and)\s*\[(?:FT|FF|SD|MS|HE)\])*)\s*:\s*<Fusion>)/gi,
     ". ",
-  ).replace(/\s*\n\s*/g, " ").trim().replace(
+  ).replace(/\s*\n\s*/g, " ").replace(
+    // A number of card scans put Draw and the next optional Energize on
+    // separate lines without punctuation. Preserve their ordering boundary
+    // before normalizing whitespace and asking for resolution choices.
+    /(\[Draw\]\s*\d+)\s+(You may Energize\b)/gi,
+    "$1. $2",
+  ).trim().replace(
     /(\bNegate (?:a|an) [^.]+ card\.)\s+(Its controller Energizes it uncharged\.)/gi,
     "$1 $2",
   ).replace(
@@ -206,6 +212,18 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
             `${gearConditional[2].trim()}, ${gearConditional[3].trim()}`,
           ];
         }
+        // Both players draw before choosing whether to Energize the cards
+        // in their *new* hands. A coordinated "and may" sentence has the
+        // same ordering semantics as a printed "then".
+        const everyoneDrawThenEnergize = clause.match(
+          /^(Each player draws? (?:a|an|one|two|three|four|five|\d+) cards?)\s+and\s+(may Energize\b.+)$/i,
+        );
+        if (everyoneDrawThenEnergize) {
+          return [
+            `${everyoneDrawThenEnergize[1].trim()}.`,
+            `Then each player ${everyoneDrawThenEnergize[2].trim()}`,
+          ];
+        }
         // A printed "then" is an ordering boundary. Keeping both halves in
         // one instruction requests all choices before either action runs,
         // which reverses effects such as "Draw two cards, then discard two
@@ -254,6 +272,29 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
           `${opponentClause.replace(/[,;:.]$/, "")}.`,
         ];
       })
+      // Other clause boundaries (such as a conditional Gear modifier
+      // following a base B-Power boost) can expose a nested "then" after
+      // the first split. Its discard still belongs to the printed Gear
+      // condition and must be chosen only after the conditional Draw.
+      .flatMap((clause) => {
+        const gatedDrawThenDiscard = clause.match(
+          /^(If (?:that|this) Bakugan has a Baku-Gear attached to it),\s*(.*?\[Draw\]\s*\d+),\s+then\s+(discard\b.+)$/i,
+        );
+        if (gatedDrawThenDiscard) return [
+          `${gatedDrawThenDiscard[1]}, ${gatedDrawThenDiscard[2]}.`,
+          `Then ${gatedDrawThenDiscard[1]}, ${gatedDrawThenDiscard[3]}`,
+        ];
+        // A Sync or Empower prefix is decomposed before the generic "then"
+        // splitter. Preserve its delayed Draw -> choice ordering as well:
+        // Nocturnal Shift and Righteous Defenses must not ask for a discard
+        // target or free hand play before the player has drawn.
+        const keywordDrawThen = clause.match(
+          /^((?:Sync|Empower):.*?\[Draw\]\s*\d+),\s+then\s+(.+)$/i,
+        );
+        return keywordDrawThen
+          ? [`${keywordDrawThen[1]}.`, `Then ${keywordDrawThen[2]}`]
+          : [clause];
+      })
     : [""];
   const instructions = clauses.map((clause, index) => {
     const condition = conditionFor(clause);
@@ -300,6 +341,19 @@ function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
       sourceText: `Watch this turn for: ${payoff.sourceText}`,
     });
     index += 1;
+  }
+
+  // The next instruction in a printed Sync/Empower "Draw, then ..."
+  // depends on the same optional gate, even though its choice is deliberately
+  // staged only after the Draw queue has completed.
+  for (let index = 1; index < instructions.length; index += 1) {
+    const prior = instructions[index - 1];
+    const current = instructions[index];
+    if (!/^Then\b/i.test(current.sourceText)) continue;
+    if (prior.condition.kind === "empower-selected"
+      || (prior.condition.kind === "selection-made" && prior.condition.choiceId === "syncCardId")) {
+      current.condition = prior.condition;
+    }
   }
 
   // Bind “If you do” to the optional discard that immediately precedes it.
@@ -880,27 +934,28 @@ if (swapsBakucore) {
     selected.maximum = /any number/i.test(text) ? 99 : Math.max(1, amount);
     result.push(selected);
   }
-  const energizeFromHand = text.match(/\benergize\s+(?:(a|an|one|two|three|\d+)\s+)?cards?\s+(?:in|from)\s+your\s+hand\b/i);
+  const energizeFromHand = text.match(/\benergize\s+(?:(a|an|one|two|three|\d+)\s+)?cards?\s+(?:(?:uncharged|charged)\s+)?(?:in|from)\s+(?:your|their)\s+hand\b/i);
   if (energizeFromHand) {
     const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3 };
     const printed = energizeFromHand[1]?.toLowerCase();
     const amount = printed ? words[printed] ?? Math.max(1, Number(printed) || 1) : 1;
     const opponentChooses = /\byour opponent may Energize\b/i.test(text);
-    // Sequential "Then you may..." already exposes an optional hand
-    // selection; other printed optional Energize effects retain their
-    // established separate yes/no confirmation.
-    const directOptionalSelection = /^Then\s+you\s+may\s+Energize\b/i.test(text.trim());
+    const eachPlayerChooses = /\beach player may Energize\b/i.test(text);
+    // Sequential "Then you may..." and "Then each player may..." already
+    // provide a zero-or-one selection. Other optional Energize cards retain
+    // their established yes/no confirmation.
+    const directOptionalSelection = /^Then\s+(?:you|each player)\s+may\s+Energize\b/i.test(text.trim());
     const selected = choice(
       "handCardIds",
       "resolve",
       "hand-card",
       `Choose ${amount === 1 ? "a card" : `${amount} cards`} to Energize`,
       directOptionalSelection,
-      opponentChooses ? "opponent" : "controller",
+      opponentChooses ? "opponent" : eachPlayerChooses ? "each-player" : "controller",
       "private",
     );
-    selected.owner = "controller";
-    selected.targetOwner = "controller";
+    selected.owner = eachPlayerChooses ? "chooser" : "controller";
+    selected.targetOwner = selected.owner;
     selected.minimum = directOptionalSelection ? 0 : amount;
     selected.maximum = amount;
     result.push(selected);
@@ -1009,7 +1064,7 @@ if (swapsBakucore) {
     && !/may discard|may recharge up to/i.test(text)
     // Optional selection of a card to Energize already offers a zero-card skip.
     // Do not add a second required confirmation to the same resolution prompt.
-    && !(energizeFromHand && /^Then\s+you\s+may\s+Energize\b/i.test(text.trim()))
+    && !(energizeFromHand && /^Then\s+(?:you|each player)\s+may\s+Energize\b/i.test(text.trim()))
     && !/\bSync:/i.test(text)
     && !/^Empower\s*:/i.test(text)
     && !syncChoice) {
