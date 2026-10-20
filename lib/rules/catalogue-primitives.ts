@@ -542,7 +542,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
       factionChoiceId: "mode",
     });
   }
-  if (/discard (?:their|your) entire hand/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99, playerScope: playerScopeForText(text) });
+  if (/\bdiscards?\s+(?:their|your) entire hand\b/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99, playerScope: playerScopeForText(text) });
   if (/\bdiscard your hand\b/i.test(text)) actions.push({ kind: "discard", amount: 99, minimum: 0, maximum: 99, playerScope: "controller" });
 
   const energizeEntryState = /\buncharged\b/i.test(text) ? "uncharged" as const : "charged" as const;

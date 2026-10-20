@@ -3044,7 +3044,7 @@ const executeRuleAction = (
         const expressionAmount = Math.max(0, Math.floor(resolveNumber(action.amount, scopedChoices, affectedId)));
         const minimum = Math.max(0, Math.floor(resolveNumber(action.minimum, scopedChoices, affectedId)));
         const maximum = Math.max(minimum, Math.floor(resolveNumber(action.maximum, scopedChoices, affectedId)));
-        const entireHandDiscard = /\bdiscard (?:their|your) entire hand\b|\bdiscard your hand\b/i.test(text);
+        const entireHandDiscard = /\bdiscards?\s+(?:their|your) entire hand\b|\bdiscard your hand\b/i.test(text);
         const amount = entireHandDiscard ? before : chosenFaction ? factionSelected.length : minimum === 0 ? selected.length : selected.length || expressionAmount;
         if (amount > 0) discardFromHand(state, affected, Math.min(maximum, amount), factionSelected);
         amountByPlayer[affectedId] = Math.max(0, before - affected.hand.length);
