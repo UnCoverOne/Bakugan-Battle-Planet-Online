@@ -17,7 +17,7 @@ export function cardTypeMatches(actual: GameCard["type"], required: GameCard["ty
 
 export type ChoiceKind =
   | "confirm" | "bakugan" | "player" | "hero" | "evo" | "energy" | "core" | "card"
-  | "hand-cards" | "permanent-cards" | "deck-card" | "deck-order" | "number" | "mode" | "batch-object";
+  | "hand-cards" | "discard-pile-cards" | "permanent-cards" | "deck-card" | "deck-order" | "number" | "mode" | "batch-object";
 export type ChoiceVisibility = "public" | "private" | "secret-until-reveal";
 export type ChoiceCardPreview = Pick<
   GameCard,
@@ -417,7 +417,7 @@ function kindFor(spec: ChoiceSpec): ChoiceKind {
   if (spec.selector === "energy-card") return "energy";
   if (spec.selector === "bakucore") return "core";
   if (spec.selector === "hand-card") return "hand-cards";
-  if (spec.selector === "discard-card") return "hand-cards";
+  if (spec.selector === "discard-card") return "discard-pile-cards";
   if (spec.selector === "deck-card" && spec.id === "orderedCardIds") return "deck-order";
   if (spec.selector === "deck-card") return "deck-card";
   if (spec.selector === "number") return "number";

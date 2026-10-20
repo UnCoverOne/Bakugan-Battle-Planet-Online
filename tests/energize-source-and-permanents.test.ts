@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
@@ -189,7 +190,8 @@ test("Bakuassist! Energizes its chosen Hero and all opposing Heroes only with Bo
 
 test("Bakuassist! without seven Energy leaves unchosen opposing Heroes in play", () => {
   const { match, owner, opponent, source } = matchFor("ff-38");
-  owner.energyZone = owner.energyZone.slice(0, 6);
+  // The first mandatory Hero Energize also counts towards Boost.
+  owner.energyZone = owner.energyZone.slice(0, 5);
   owner.heroes = [card("bb-187", "owner-hero")];
   opponent.heroes = [card("bb-188", "opponent-hero")];
   let state = pendingOrSettled(playCard(match, owner.id, source.id));
@@ -238,4 +240,14 @@ test("Prismatic Power-Up accepts a single opposing Hero without any Gear", () =>
   assert.equal(field.options.length, 1);
   state = pendingOrSettled(submitCardChoice(state, owner.id, { targetCardIds: ["only-target"] }));
   checkUncharged(state, opponent.id, ["only-target"]);
+});
+
+test("Energize discard piles remain visible to their controller in the choice UI", () => {
+  const queue = readFileSync(new URL("../components/game-screen-v2/ChoiceQueueLayer.tsx", import.meta.url), "utf8");
+  assert.match(queue, /field\.kind === "discard-pile-cards"/);
+  assert.match(queue, /field\.maxPerCardType/);
+  const source = card("ps1-16");
+  const clause = ruleDefinitionForCard(source).abilities.flatMap((ability) => ability.instructions)
+    .find((instruction) => instruction.choices.some((choice) => choice.id === "discardCardIds"));
+  assert.ok(clause?.choices.some((choice) => choice.id === "discardCardIds" && choice.selector === "discard-card"));
 });

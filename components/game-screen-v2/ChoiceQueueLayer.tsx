@@ -115,7 +115,7 @@ export function ChoiceQueueLayer() {
     // Controller-owned discards retain the in-hand interaction. A discard
     // delegated to the other player needs a modal fallback on that player's
     // client; otherwise the private chooser transition can be visually silent.
-    && (field.id !== "discardCardIds" || pending?.controllerId !== playerId)
+    && (field.id !== "discardCardIds" || field.kind === "discard-pile-cards" || pending?.controllerId !== playerId)
     && !isTopDeckField(field)
   )) ?? [], [pending, playerId]);
   const boardFields = useMemo(() => fields.filter((field) => BOARD_TARGET_KINDS.has(field.kind)), [fields]);
@@ -194,6 +194,11 @@ export function ChoiceQueueLayer() {
     if (field.options.find((option) => option.id === id)?.disabled) return;
     setAnswers((current) => {
       const selected = valuesFor(current, field);
+      const candidateType = field.options.find((option) => option.id === id)?.card?.type;
+      if (!selected.includes(id) && field.maxPerCardType != null && candidateType
+        && field.options.filter((option) => selected.includes(option.id) && option.card?.type === candidateType).length >= field.maxPerCardType) {
+        return current;
+      }
       const next = selected.includes(id)
         ? selected.filter((candidate) => candidate !== id)
         : field.maximum === 1 ? [id] : [...selected, id].slice(0, field.maximum);
@@ -431,7 +436,7 @@ export function ChoiceQueueLayer() {
               <legend>{field.label} <span>{field.minimum === field.maximum ? `Select ${field.minimum}` : `Select ${field.minimum}–${field.maximum}`}</span></legend>
               <div className={styles.options}>
                 {field.options.map((item) => (
-                  <button key={item.id} type="button" aria-pressed={selected.has(item.id)} data-selected={selected.has(item.id)} disabled={busy || item.disabled} onClick={() => toggle(field, item.id)}>
+                  <button key={item.id} type="button" aria-pressed={selected.has(item.id)} data-selected={selected.has(item.id)} disabled={busy || item.disabled || (!selected.has(item.id) && field.maxPerCardType != null && Boolean(item.card?.type) && field.options.filter((option) => selected.has(option.id) && option.card?.type === item.card?.type).length >= field.maxPerCardType)} onClick={() => toggle(field, item.id)}>
                     <strong>{item.label}</strong>{item.description ? <small>{item.description}</small> : null}
                   </button>
                 ))}
