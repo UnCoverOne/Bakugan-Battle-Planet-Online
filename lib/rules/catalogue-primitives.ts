@@ -603,7 +603,8 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     source: "hero",
     enters: energizeEntryState,
   });
-  if (/Energize this(?: uncharged|\b)/i.test(text)) actions.push({
+  if (!/^If you Energize this from your hand\b/i.test(text)
+    && /Energize this(?: uncharged|\b)/i.test(text)) actions.push({
     kind: "energize",
     amount: 1,
     source: "self",

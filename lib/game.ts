@@ -4425,6 +4425,13 @@ export function resumePendingEffectAfterDraw(state: MatchState, sourceEffectId?:
     state.priority = state.startingPlayer;
     state.deadline = deadlineFor(state.phase);
   }
+  // Manual Draw completion bypasses withVersion; finish the Energize Step
+  // here too, once the paid Energize trigger and any other Batch effects end.
+  if (state.phase === "energize" && state.players.every((player) => player.energizedThisTurn)
+    && state.batch.length === 0 && state.triggerOrders.length === 0
+    && !state.pendingChoice && !hasQueuedEffectDraw(state)) {
+    setPhase(state, "selection", "Roll Phase • Selection Step", state.startingPlayer);
+  }
 }
 
 const applyEffect = (state: MatchState, pending: PendingEffect) => resolvePendingEffect(state, pending);

@@ -74,6 +74,7 @@ for (const id of SELF_TRIGGERS) {
     next = submitCardChoice(next, first.id, { confirmed: true });
     assert.ok(activePendingDraw(next), id + " did not queue the Draw");
     next = drawPendingCard(next, first.id);
+    assert.equal(next.phase, "selection", "the Energize Step must end once the pending paid Draw resolves");
     assert.ok(next.players[0].hand.some((entry) => entry.id === "drawn-card"));
     assert.equal(next.players[0].discard.some((entry) => entry.id === source.id), false);
     assert.ok(activeUnchargedEnergyIds(next.players[0], next.turn).length >= 2);
