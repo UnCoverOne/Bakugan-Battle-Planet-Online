@@ -41,6 +41,14 @@ function setup() {
   return { state, ownerId: owner.id, opponentId: opponent.id, source, drawn, held };
 }
 
+function finishRemainingBatch(input: MatchState) {
+  let state = input;
+  for (let step = 0; step < 8 && state.batch.length && !state.pendingChoice; step += 1) {
+    state = passPriority(state, state.priority);
+  }
+  return state;
+}
+
 function throughDraw(state: MatchState, ownerId: string, sourceId: string) {
   const owner = state.players.find((player) => player.id === ownerId)!;
   let next = playCard(state, ownerId, sourceId, { targetBakuganId: owner.bakugan[0].id });
@@ -91,7 +99,7 @@ test("Terran Vitalizer prompts for an optional hand Energize only after its manu
 test("Terran Vitalizer can Energize the card just drawn, charged and face down", () => {
   const { state, ownerId, source, drawn, held } = setup();
   const waiting = throughDraw(state, ownerId, source.id);
-  const resolved = submitCardChoice(waiting, ownerId, { handCardIds: [drawn.id] });
+  const resolved = finishRemainingBatch(submitCardChoice(waiting, ownerId, { handCardIds: [drawn.id] }));
   const owner = resolved.players.find((player) => player.id === ownerId)!;
   assert.equal(resolved.pendingChoice, undefined);
   assert.equal(resolved.batch.length, 0);
@@ -104,7 +112,7 @@ test("Terran Vitalizer can Energize the card just drawn, charged and face down",
 test("Terran Vitalizer permits declining the optional Energize after drawing", () => {
   const { state, ownerId, source, drawn, held } = setup();
   const waiting = throughDraw(state, ownerId, source.id);
-  const resolved = submitCardChoice(waiting, ownerId, { handCardIds: [] });
+  const resolved = finishRemainingBatch(submitCardChoice(waiting, ownerId, { handCardIds: [] }));
   const owner = resolved.players.find((player) => player.id === ownerId)!;
   assert.equal(resolved.pendingChoice, undefined);
   assert.equal(resolved.batch.length, 0);
