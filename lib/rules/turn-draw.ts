@@ -25,7 +25,12 @@ const NUMBER_WORDS: Record<string, number> = {
   ten: 10,
 };
 
-const EXTRA_TURN_DRAW = /\b(all players|each player|you|your opponent)\s+draws?\s+(?:(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+)?additional cards?\s+each turn\b/gi;
+const EXTRA_TURN_DRAW = /\b(all players|each player|you|your opponent)\s+draws?\s+(?:(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+)?additional cards?\s+(?:each turn|at (?:the )?(?:start|beginning) of each turn)\b/gi;
+
+/** Persistent draw text must not also compile into an immediate Draw action. */
+export function isOngoingTurnDrawText(text: string) {
+  return [...text.replace(/\s+/g, " ").matchAll(EXTRA_TURN_DRAW)].length > 0;
+}
 
 function amountFor(value: string | undefined) {
   if (!value) return 1;

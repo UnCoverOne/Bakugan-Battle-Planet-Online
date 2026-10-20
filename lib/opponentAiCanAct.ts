@@ -1,3 +1,4 @@
+import { maximumHandSizeForPlayer } from "./rules/hand-limit";
 import {
   beginCorePlacement,
   completeCoinFlip,
@@ -314,7 +315,7 @@ export function recoverOpponentAiCommand(match: MatchState, playerId: string): G
     return { type: "PASS_PRIORITY" };
   }
   if (match.phase === "handLimit" && match.priority === playerId) {
-    const amount = Math.max(0, player.hand.length - 7);
+    const amount = Math.max(0, player.hand.length - maximumHandSizeForPlayer(match, playerId));
     return { type: "DISCARD_TO_HAND_LIMIT", cardIds: player.hand.slice(0, amount).map((card) => card.id) };
   }
   return null;
@@ -416,7 +417,7 @@ export function recoverOpponentAiFailure(
       return passPriority(match, playerId);
     }
     if (match.phase === "handLimit" && match.priority === playerId) {
-      const amount = Math.max(0, player.hand.length - 7);
+      const amount = Math.max(0, player.hand.length - maximumHandSizeForPlayer(match, playerId));
       return discardToHandLimit(
         match,
         playerId,

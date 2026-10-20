@@ -1,6 +1,7 @@
 import type { CardType, CoreType, Faction, GameCard } from "../game";
 import type { RuleAction, RuleCondition, RulesCardId, RulesDuration, TriggerDefinition, TriggerEventName } from "./model";
 import { drawPlayerScopeForText, playerScopeForText } from "./primitives";
+import { isOngoingTurnDrawText } from "./turn-draw";
 import type { NumberValue } from "./values";
 
 const NUMBER_WORDS: Record<string, number> = {
@@ -478,7 +479,11 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
 
   const drawScope = drawPlayerScopeForText(text);
   const drawThatMany = /\bdraws?\s+that many(?:\s+cards?)?\b/i.test(text);
-  const draw = text.match(/(?:\[Draw\]|\bdraws?)\s+(a|an|one|two|three|four|five|six|seven|eight|nine|ten|x|\d+)(?: cards?)?/i);
+  // "Draw an additional card each turn" is a static Hero modifier, not a
+  // one-shot effect when the Hero enters play.
+  const draw = isOngoingTurnDrawText(text)
+    ? null
+    : text.match(/(?:\[Draw\]|\bdraws?)\s+(a|an|one|two|three|four|five|six|seven|eight|nine|ten|x|\d+)(?: cards?)?/i);
   const drawToOpponentHandSize = /draw cards until you have as many as your opponent/i.test(text);
   if (drawToOpponentHandSize) {
     actions.push({

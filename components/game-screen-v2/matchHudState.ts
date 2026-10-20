@@ -13,6 +13,7 @@ import {
 import { fusionActivationRequirements } from "../../lib/game";
 import { cardEnergyPaymentState } from "../../lib/cardPayment";
 import { ruleDefinitionForCard } from "../../lib/rules/catalogue";
+import { maximumHandSizeForPlayer } from "../../lib/rules/hand-limit";
 import { buildChoiceSchemaFromSpecs, schemaHasLegalCompletion } from "../../lib/rules/choices";
 import { cardPaymentModes } from "../../lib/rules/costs";
 import { hasPendingDraws } from "../../lib/drawQueue";
@@ -83,8 +84,9 @@ export function handDiscardRequirement(
     optionIds: field.options.map((option) => option.id),
     source: "choice",
   };
-  if (match.phase === "handLimit" && match.priority === player.id && player.hand.length > 7) {
-    const amount = player.hand.length - 7;
+  const limit = maximumHandSizeForPlayer(match, player.id);
+  if (match.phase === "handLimit" && match.priority === player.id && player.hand.length > limit) {
+    const amount = player.hand.length - limit;
     return {
       minimum: amount,
       maximum: amount,

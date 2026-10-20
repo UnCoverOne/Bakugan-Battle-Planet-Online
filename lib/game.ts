@@ -14,6 +14,7 @@ import { activeUnchargedEnergyIds, beginCardPayment, cardPaymentModes, commitCar
 import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, prospectiveAttackDamage, ruleConditionActive } from "./rules/modifiers";
 import { turnDrawCounts } from "./rules/turn-draw";
+import { maximumHandSizeForPlayer } from "./rules/hand-limit";
 import { playerIdsForScope, zoneOwnerIdsFor } from "./rules/primitives";
 import { evaluateNumberValue, type EvaluationMoment, type NumberValue } from "./rules/values";
 import { captureCardPlayValues, captureInstructionValues, captureRuleConditionValues } from "./rules/value-capture";
@@ -4575,8 +4576,8 @@ function beginResetStep(state: MatchState) {
 }
 
 function finishResetStep(state: MatchState) {
-  const over = state.players.find((player) => player.hand.length > 7);
-  if (over) setPhase(state, "handLimit", "End of turn • Discard to seven", over.id);
+  const over = state.players.find((player) => player.hand.length > maximumHandSizeForPlayer(state, player.id));
+  if (over) setPhase(state, "handLimit", `End of turn • Discard to ${maximumHandSizeForPlayer(state, over.id)}`, over.id);
   else beginTurn(state);
 }
 
@@ -4632,10 +4633,13 @@ export const passPriority = (input: MatchState, playerId: string) => {
 
 export const discardToHandLimit = (input: MatchState, playerId: string, cardIds: string[]) => {
   const state = cloneMatch(input); const player = playerById(state, playerId);
-  if (state.phase !== "handLimit" || state.priority !== playerId || cardIds.length !== player.hand.length - 7) throw new Error("Select exactly enough cards to keep seven.");
-  discardFromHand(state, player, cardIds.length, cardIds); const next = state.players.find((candidate) => candidate.hand.length > 7);
-  if (next) state.priority = next.id;
-  else if (state.batch.length || state.triggerOrders.length) setPhase(state, "reset", "End Phase • Reset Step • Resolve discard triggers", state.startingPlayer);
+  const limit = maximumHandSizeForPlayer(state, playerId);
+  if (state.phase !== "handLimit" || state.priority !== playerId || cardIds.length !== Math.max(0, player.hand.length - limit)) throw new Error(`Select exactly enough cards to keep ${limit}.`);
+  discardFromHand(state, player, cardIds.length, cardIds); const next = state.players.find((candidate) => candidate.hand.length > maximumHandSizeForPlayer(state, candidate.id));
+  if (next) {
+    state.priority = next.id;
+    state.stepLabel = `End of turn • Discard to ${maximumHandSizeForPlayer(state, next.id)}`;
+  } else if (state.batch.length || state.triggerOrders.length) setPhase(state, "reset", "End Phase • Reset Step • Resolve discard triggers", state.startingPlayer);
   else beginTurn(state);
   return withVersion(state);
 };
@@ -4674,7 +4678,7 @@ export const nextTurn = (input: MatchState) => {
     return withVersion(state);
   }
   if (state.phase === "handLimit") {
-    if (state.players.some((player) => player.hand.length > 7)) throw new Error("Complete every hand-limit discard before advancing the turn.");
+    if (state.players.some((player) => player.hand.length > maximumHandSizeForPlayer(state, player.id))) throw new Error("Complete every hand-limit discard before advancing the turn.");
     if (state.batch.length || state.triggerOrders.length) setPhase(state, "reset", "End Phase • Reset Step • Resolve discard triggers", state.startingPlayer);
     else beginTurn(state);
     return withVersion(state);

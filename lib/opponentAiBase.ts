@@ -1,3 +1,4 @@
+import { maximumHandSizeForPlayer } from "./rules/hand-limit";
 import {
   HEX_CELLS,
   activateIntrinsicReroll,
@@ -3163,7 +3164,7 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
     return { type: "PASS_PRIORITY" };
   }
   if (input.phase === "handLimit" && input.priority === playerId) {
-    const amount = Math.max(0, player.hand.length - 7);
+    const amount = Math.max(0, player.hand.length - maximumHandSizeForPlayer(input, playerId));
     const cards = [...player.hand].sort(
       (a, b) => handCardRetentionValue(input, playerId, a)
         - handCardRetentionValue(input, playerId, b),
