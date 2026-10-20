@@ -38,7 +38,7 @@ export const AV_ROWS_1 = [
   ["av-35",35,"CO","Bakubite","Ventus","Action",4,"-9 [Damage]",null,null,"","","","Bakubite_ENG_35_CO_AV.png","",null,"35","",""],
   ["av-36",36,"CO","Wind Storm","Ventus","Action",0,"-100 [B]\nBoost: If you have seven or more Energy cards in play, -500 [B]\ninstead.",null,null,"","","","Wind_Storm_ENG_36_CO_AV.png","",null,"36","",""],
   ["av-37",37,"AR","Entropic Touch","Ventus","Action",4,"Destroy all enemy Baku-Gear cards.",null,null,"","","","Entropic_Touch_ENG_37_AR_AV.png","",null,"37","",""],
-  ["av-38",38,"RA","Ventus Fort","Ventus","Action",2,"You can only play this before rolling.\nThis turn, your Bakugan gets, \"[Victor]: Energize the top two cards o\nyour deck uncharged.\"",null,null,"","","","Ventus_Fort_ENG_38_RA_AV.png","",null,"38","",""],
+  ["av-38",38,"RA","Ventus Fort","Ventus","Action",2,"You can only play this before rolling.\nThis turn, your Bakugan gets, \"[Victor]: Energize the top two cards of\nyour deck uncharged.\"",null,null,"","","","Ventus_Fort_ENG_38_RA_AV.png","",null,"38","",""],
   ["av-39",39,"RA","Ultrasonic Speed","Ventus","Action",3,"[Draw] 1\nYou may Energize a card in your hand uncharged.",null,null,"","","","Ultrasonic_Speed_ENG_39_RA_AV.png","",null,"39","",""],
   ["av-40",40,"CO","Ventustink","Ventus","Action",3,"-600 [B]",null,null,"","","","Ventustink_ENG_40_CO_AV.png","",null,"40","",""],
   ["av-41",41,"SR","Corruption","Darkus","Action",4,"[Draw] 3\nSync: You may reveal a card in your hand that costs 4 [Energy], if\nyou do, your opponent discards a card.",null,null,"","","","Corruption_ENG_41_SR_AV.png","Aquos",null,"41","",""],

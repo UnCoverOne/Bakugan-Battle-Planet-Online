@@ -14,6 +14,7 @@ import { activeUnchargedEnergyIds, beginCardPayment, cardPaymentModes, commitCar
 import { canonicalEvoTargetAllowed } from "./rules/identity";
 import { evaluateBakuganCharacteristics, prospectiveAttackDamage, ruleConditionActive } from "./rules/modifiers";
 import { turnDrawCounts } from "./rules/turn-draw";
+import { additionalTurnEnergizesForPlayer, actionCardsEnergizeUnchargedForPlayer } from "./rules/energize-permissions";
 import { maximumHandSizeForPlayer } from "./rules/hand-limit";
 import { playerIdsForScope, zoneOwnerIdsFor } from "./rules/primitives";
 import { evaluateNumberValue, type EvaluationMoment, type NumberValue } from "./rules/values";
@@ -167,6 +168,10 @@ export type PlayerState = {
   connected: boolean;
   lastSeen: number;
   energizedThisTurn: boolean;
+  /** Number of ordinary Energize Step card moves completed this turn. */
+  energizeStepActionsThisTurn?: number;
+  /** All actual Energize events this turn, including card effects. */
+  energizedCardCountThisTurn?: number;
   cardsPlayedThisTurn: number;
   /** Printed Energy costs of cards this player has played during the current turn. */
   playedCardCostsThisTurn?: number[];
@@ -512,7 +517,18 @@ const entry = (
     ...(playerId ? { playerId } : {}),
   });
 };
-const withVersion = (state: MatchState) => { state.version += 1; return state; };
+const withVersion = (state: MatchState) => {
+  // Energize-triggered abilities enter the Batch during the Energize Step.
+  // Do not advance to Selection until all players finish their decisions AND
+  // the pending Batch, choice and effect-Draw queue have finished resolving.
+  if (state.phase === "energize" && state.players.every((player) => player.energizedThisTurn)
+    && state.batch.length === 0 && state.triggerOrders.length === 0
+    && !state.pendingChoice && !hasQueuedEffectDraw(state)) {
+    setPhase(state, "selection", "Roll Phase • Selection Step", state.startingPlayer);
+  }
+  state.version += 1;
+  return state;
+};
 export const cloneMatch = (state: MatchState): MatchState => JSON.parse(JSON.stringify(state));
 
 function normalizedCardName(value: string) {
@@ -821,7 +837,7 @@ const beginTurn = (state: MatchState) => {
   for (const player of state.players) {
     player.energy = 0;
     normalizeEnergyCardState(player, state.turn);
-    player.energizedThisTurn = false; player.cardsPlayedThisTurn = 0;
+    player.energizedThisTurn = false; player.energizeStepActionsThisTurn = 0; player.energizedCardCountThisTurn = 0; player.cardsPlayedThisTurn = 0;
     player.playedCardCostsThisTurn = []; player.playedCardTypesThisTurn = []; player.playedCardMechanicsThisTurn = []; player.factionsPlayedThisTurn = []; player.discardedCardIdsThisTurn = [];
   }
   const now = Date.now();
@@ -858,11 +874,17 @@ export const energizeCard = (input: MatchState, playerId: string, cardId?: strin
     applyEnergyEntryVisibility([card], "hand");
     player.energyZone.push(card);
     setEnergyCardChargeState(state, player.id, [card.id], "charged");
-    emitEnergizedEvents(state, player, [card], `${state.turn}:energize:${player.id}:${card.id}`);
+    player.energizeStepActionsThisTurn = (player.energizeStepActionsThisTurn ?? 0) + 1;
+    emitEnergizedEvents(state, player, [card], `${state.turn}:energize:${player.id}:${card.id}`, "hand");
     entry(state, "game", `${player.name} Energized a card face down.`);
-  } else entry(state, "game", `${player.name} declined to Energize.`);
-  player.energizedThisTurn = true;
-  if (state.players.every((candidate) => candidate.energizedThisTurn)) setPhase(state, "selection", "Roll Phase • Selection Step", state.startingPlayer);
+    const allowedMoves = 1 + additionalTurnEnergizesForPlayer(state, player.id);
+    // A live extra-Energize Hero grants another optional decision. Declining
+    // that decision finishes the Step; leaving no hand cards also finishes it.
+    player.energizedThisTurn = player.energizeStepActionsThisTurn >= allowedMoves || player.hand.length === 0;
+  } else {
+    entry(state, "game", `${player.name} declined to Energize.`);
+    player.energizedThisTurn = true;
+  }
   return withVersion(state);
 };
 
@@ -1422,6 +1444,10 @@ export type GameEvent = {
   targetBakuganId?: string;
   sourceCards?: GameCard[];
   choices?: CardChoices;
+  /** The physical zone left by an Energized card. */
+  energizeSourceZone?: "hand" | "deck" | "discard" | "hero" | "permanent" | "self";
+  /** Per-turn Energize count for threshold effects. */
+  amount?: number;
 };
 
 /** Collect typed triggered abilities for one authoritative game event. */
@@ -1447,7 +1473,8 @@ export const collectTriggersForEvent = (state: MatchState, event: GameEvent) => 
     cardType: event.cardType,
     targetBakuganId: event.targetBakuganId ?? (event.type === "open" ? state.selected[actorId] : undefined),
     choices: event.choices,
-    amount: event.type === "attack" ? state.pendingDamage : undefined,
+    energizeSourceZone: event.energizeSourceZone,
+    amount: event.type === "attack" ? state.pendingDamage : event.amount,
     createdAt: Date.now(),
   })) as PendingEffect[];
 };
@@ -2527,14 +2554,18 @@ function emitEnergizedEvents(
   player: PlayerState,
   cards: readonly GameCard[],
   eventPrefix: string,
+  sourceZone: "hand" | "deck" | "discard" | "hero" | "permanent" | "self",
 ) {
   for (const card of cards) {
+    player.energizedCardCountThisTurn = (player.energizedCardCountThisTurn ?? 0) + 1;
     emitGameEvent(state, {
       id: `${eventPrefix}:${card.id}`,
       type: "energize",
       playerId: player.id,
       targetBakuganId: activeBakugan(state, player.id)?.id,
       sourceCards: [card],
+      energizeSourceZone: sourceZone,
+      amount: player.energizedCardCountThisTurn,
     });
   }
 }
@@ -3093,7 +3124,7 @@ const executeRuleAction = (
             applyEnergyEntryVisibility(energized, "hand");
             destination.energyZone.push(...energized);
             applyEnergizedEntryState(state, destination, energized, action.enters);
-            emitEnergizedEvents(state, destination, energized, `${pending.id}:energize:${actionIndex}`);
+            emitEnergizedEvents(state, destination, energized, `${pending.id}:energize:${actionIndex}`, "hand");
           } else if (action.source === "deck") {
             const energized: GameCard[] = [];
             for (let index = 0; index < amount; index += 1) {
@@ -3103,7 +3134,7 @@ const executeRuleAction = (
             applyEnergyEntryVisibility(energized, "deck");
             destination.energyZone.push(...energized);
             applyEnergizedEntryState(state, destination, energized, action.enters);
-            emitEnergizedEvents(state, destination, energized, `${pending.id}:energize:${actionIndex}`);
+            emitEnergizedEvents(state, destination, energized, `${pending.id}:energize:${actionIndex}`, "deck");
             syncDeck(source);
           } else {
             // Selected discard cards are physical identities, not the first N
@@ -3120,7 +3151,7 @@ const executeRuleAction = (
             applyEnergyEntryVisibility(energized, "discard");
             destination.energyZone.push(...energized);
             applyEnergizedEntryState(state, destination, energized, action.enters);
-            emitEnergizedEvents(state, destination, energized, `${pending.id}:energize:${actionIndex}`);
+            emitEnergizedEvents(state, destination, energized, `${pending.id}:energize:${actionIndex}`, "discard");
           }
         }
       } else if (choices.confirmed === false) return;
@@ -3152,7 +3183,7 @@ const executeRuleAction = (
           applyEnergyEntryVisibility([moved], item.zone === "hero" ? "hero" : "self");
           owner.energyZone.push(moved);
           applyEnergizedEntryState(state, owner, [moved], action.enters);
-          emitEnergizedEvents(state, owner, [moved], `${pending.id}:energize:${actionIndex}`);
+          emitEnergizedEvents(state, owner, [moved], `${pending.id}:energize:${actionIndex}`, "permanent");
         }
       } else if (action.source === "hero") {
         const owners = action.all
@@ -3167,7 +3198,7 @@ const executeRuleAction = (
           applyEnergyEntryVisibility(energized, "hero");
           owner.energyZone.push(...energized);
           applyEnergizedEntryState(state, owner, energized, action.enters);
-          emitEnergizedEvents(state, owner, energized, `${pending.id}:energize:${actionIndex}`);
+          emitEnergizedEvents(state, owner, energized, `${pending.id}:energize:${actionIndex}`, "hero");
           if (!action.all) break;
         }
       } else if (action.source === "self" && !player.energyZone.some((candidate) => candidate.id === card.id)) {
@@ -3176,7 +3207,7 @@ const executeRuleAction = (
         applyEnergyEntryVisibility([card], "self");
         player.energyZone.push(card);
         applyEnergizedEntryState(state, player, [card], action.enters);
-        emitEnergizedEvents(state, player, [card], `${pending.id}:energize:${actionIndex}`);
+        emitEnergizedEvents(state, player, [card], `${pending.id}:energize:${actionIndex}`, "self");
       }
       return;
     }
@@ -3751,7 +3782,7 @@ case "swap-bakucore": {
               applyEnergyEntryVisibility([negated.card], "self");
               destination.energyZone.push(negated.card);
               applyEnergizedEntryState(state, destination, [negated.card], action.destination.enters);
-              emitEnergizedEvents(state, destination, [negated.card], `${pending.id}:negate-energize:${actionIndex}`);
+              emitEnergizedEvents(state, destination, [negated.card], `${pending.id}:negate-energize:${actionIndex}`, "self");
             }
           } else {
             const owner = playerById(state, negated.cardOwnerId ?? negated.controllerId);
@@ -4293,7 +4324,17 @@ function resolvePendingEffect(state: MatchState, pending: PendingEffect) {
     && !player.hand.some((card) => card.id === pending.card.id)
     && !player.discard.some((card) => card.id === pending.card.id)
     && !player.energyZone.some((card) => card.id === pending.card.id)) {
-    if (!cardOwner.deckCards.some((card) => card.id === pending.card.id)) cardOwner.discard.push(pending.card);
+    if (!cardOwner.deckCards.some((card) => card.id === pending.card.id)) {
+      if (actionCardsEnergizeUnchargedForPlayer(state, player.id)) {
+        // Redirect the Action's normal post-resolution discard destination.
+        // Self-moving Actions that already entered another zone are excluded
+        // by the enclosing presence guards.
+        applyEnergyEntryVisibility([pending.card], "self");
+        player.energyZone.push(pending.card);
+        applyEnergizedEntryState(state, player, [pending.card], "uncharged");
+        emitEnergizedEvents(state, player, [pending.card], `${pending.id}:action-to-energy`, "self");
+      } else cardOwner.discard.push(pending.card);
+    }
   } else if (pending.kind === "card" && pending.card.type === "Flip"
     && !player.hand.some((card) => card.id === pending.card.id)
     && !player.discard.some((card) => card.id === pending.card.id)
@@ -4668,7 +4709,9 @@ export const passPriority = (input: MatchState, playerId: string) => {
   if (state.pendingChoice) throw new Error("Complete the pending player choice before passing priority.");
   if (state.triggerOrders.some((request) => !request.orderedIds)) throw new Error("Order every simultaneous trigger before passing priority.");
   const startEffectPriority = state.phase === "draw" && state.turn === 1 && state.batch.length > 0;
-  if ((!startEffectPriority && !["preRoll", "power", "victor", "postDamage", "endPlay", "reset"].includes(state.phase)) || state.priority !== playerId) throw new Error("You do not have priority.");
+  const energizeTriggerPriority = state.phase === "energize" && state.batch.length > 0
+    && state.players.every((player) => player.energizedThisTurn);
+  if ((!startEffectPriority && !energizeTriggerPriority && !["preRoll", "power", "victor", "postDamage", "endPlay", "reset"].includes(state.phase)) || state.priority !== playerId) throw new Error("You do not have priority.");
   state.priorityEpoch += 1;
   state.undoWindow = undefined;
   state.passes.push(playerId); entry(state, "game", `${playerById(state, playerId).name} passed priority.`); const other = otherPlayer(state, playerId);
@@ -4810,6 +4853,8 @@ export const prepareNextSeriesGameLobby = (input: MatchState) => {
     player.energyTapTurn = state.turn;
     player.ready = false;
     player.energizedThisTurn = false;
+    player.energizeStepActionsThisTurn = 0;
+    player.energizedCardCountThisTurn = 0;
     player.cardsPlayedThisTurn = 0;
     player.playedCardCostsThisTurn = [];
     player.playedCardTypesThisTurn = [];

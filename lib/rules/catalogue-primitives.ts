@@ -232,6 +232,26 @@ export function conditionFor(text: string): RuleCondition {
 }
 
 function triggerFor(text: string): TriggerDefinition | undefined {
+  // A card Energized from the hand can trigger from its new Energy Zone;
+  // this is not an effect that Energizes a second card.
+  if (/^If you Energize this from your hand\b/i.test(text)) {
+    return {
+      event: "ENERGY_CARD_ENERGIZED",
+      relationship: "controller",
+      source: "self",
+      energizeSourceZone: "hand",
+    };
+  }
+  // A source-active Hero triggers once when the second card of the turn
+  // enters Energy, regardless of which Energize effect moved either card.
+  if (/^If you Energize two cards in a turn\b/i.test(text)) {
+    return {
+      event: "ENERGY_CARD_ENERGIZED",
+      relationship: "controller",
+      minimumEventAmount: 2,
+      limit: { kind: "once-per-turn", key: "two-energized-cards" },
+    };
+  }
   if (/^at the start of the game\b/i.test(text)) {
     return { event: "GAME_STARTED", relationship: "controller" };
   }
@@ -547,6 +567,7 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
 
   const energizeEntryState = /\buncharged\b/i.test(text) ? "uncharged" as const : "charged" as const;
   const energize = /when you\s+Energize\s+a\s+card/i.test(text)
+    || /^If you Energize (?:this from your hand|two cards in a turn)\b/i.test(text)
     ? null
     : text.match(/energize(?:s)? (?:the top )?(a|an|one|two|three|\d+)?\s*cards?/i);
   if (energize) {
