@@ -1,7 +1,7 @@
 /* Final Home hero treatment using the supplied RBNo3.1 family and 960 × 920 artwork. */
 .bakugan-home-hero-copy h1 {
   font-family: "RBNo31Display", "Arial Narrow", Arial, sans-serif;
-  font-size: clamp(5.25rem, 6.2vw, 7.25rem);
+  font-size: clamp(4.2rem, 5.2vw, 5.8rem);
   font-style: normal;
   font-weight: 900;
   line-height: 1;
@@ -78,12 +78,12 @@
 
 @media (max-width: 1320px) {
   .bakugan-home-hero-copy h1 {
-    font-size: clamp(4.7rem, 6.5vw, 6.25rem);
+    font-size: clamp(3.8rem, 5.4vw, 5.1rem);
   }
 }
 
 @media (max-width: 820px) {
   .bakugan-home-hero-copy h1 {
-    font-size: clamp(3.9rem, 14vw, 5.2rem);
+    font-size: clamp(3.1rem, 11vw, 4.2rem);
   }
 }

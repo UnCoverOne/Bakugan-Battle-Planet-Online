@@ -234,7 +234,6 @@ export function MatchCreationScreen() {
     <div className={styles.route}>
       <header className={styles.hero}>
         <div className={styles.heroCopy}>
-          <p className={styles.kicker}>MATCH CREATION</p>
           <h1><span>BRAWL</span><strong>SETUP</strong></h1>
           <p>Choose your battle mode, match structure, and lobby action. Final deck selection and ready checks happen inside the lobby.</p>
         </div>

@@ -51,7 +51,7 @@
 .titleRow h1 {
   margin: 0;
   color: #fff;
-  font-size: clamp(2rem, 4vw, 3.8rem);
+  font-size: clamp(1.8rem, 3.2vw, 3.1rem);
   letter-spacing: -0.04em;
 }
 

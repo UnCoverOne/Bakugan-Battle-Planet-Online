@@ -146,7 +146,6 @@ export function DashboardScreen() {
   >
     <section className="bakugan-home-hero">
       <div className="bakugan-home-hero-copy">
-        <p className="home-kicker">{isGuest ? "Welcome to Battle Planet" : `Welcome back, ${profile.name}`}</p>
         <h1><span>Battle</span><strong>Planet</strong></h1>
         <p>{isGuest
           ? "Train with a starter strategy, explore the complete card catalogue, or build your first Battle Planet deck."

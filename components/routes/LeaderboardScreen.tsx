@@ -22,7 +22,7 @@ export function LeaderboardScreen() {
   }, [page, search]);
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / (data?.pageSize ?? 25)));
   return <div className={styles.route}>
-    <header><span>RANKED PLAY</span><h1>BRAWLER LEADERBOARD</h1><p>Players ranked by Brawler Points. BP is transferred zero-sum after each completed Best-of-Three Ranked series.</p></header>
+    <header><h1>BRAWLER LEADERBOARD</h1><p>Players ranked by Brawler Points. BP is transferred zero-sum after each completed Best-of-Three Ranked series.</p></header>
     <form onSubmit={(event) => { event.preventDefault(); setPage(1); setSearch(query.trim()); }}><input aria-label="Search Brawlers" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search Brawlers…" /><button>SEARCH</button></form>
     {data?.viewerPosition ? <p className={styles.position}>YOUR POSITION · #{data.viewerPosition}</p> : null}
     {error ? <p className={styles.error}>{error}</p> : null}

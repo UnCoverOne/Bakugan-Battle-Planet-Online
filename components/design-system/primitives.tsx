@@ -26,7 +26,6 @@ export function Surface({
 }
 
 export function RouteHero({
-  eyebrow,
   title,
   description,
   actions,
@@ -43,7 +42,6 @@ export function RouteHero({
   return (
     <header data-ui="route-hero" className={join(styles.routeHero, className)}>
       <div className={styles.routeHeroCopy}>
-        {eyebrow && <span className={styles.eyebrow}>{eyebrow}</span>}
         <h1>{title}</h1>
         {description && <p>{description}</p>}
         {actions && <div className={styles.heroActions}>{actions}</div>}

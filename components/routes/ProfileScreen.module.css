@@ -253,7 +253,7 @@
   margin: 0;
   overflow: hidden;
   color: white;
-  font-size: clamp(1.6rem, 4vw, 3.4rem);
+  font-size: clamp(1.45rem, 3.2vw, 2.8rem);
   letter-spacing: -.04em;
   line-height: .96;
   text-overflow: ellipsis;
@@ -1072,7 +1072,7 @@
   }
 
   .identityCopy h1 {
-    font-size: clamp(1.05rem, 5vw, 1.9rem);
+    font-size: clamp(1rem, 4.5vw, 1.6rem);
   }
 
   .titleLine,

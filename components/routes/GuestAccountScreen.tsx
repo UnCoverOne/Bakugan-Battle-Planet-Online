@@ -45,7 +45,6 @@ export function GuestAccountScreen() {
     <main className="account-gateway-route">
       <section className="account-gateway-card">
         <header className="account-gateway-hero">
-          <span className="account-gateway-eyebrow">{copy.eyebrow}</span>
           <h1>{copy.title}</h1>
           <p>{copy.copy}</p>
         </header>

@@ -234,8 +234,8 @@ html[data-account-scope="guest"] label:has(input[value="Public"])::after {
 
 .account-gateway-hero h1 {
   max-width: 780px;
-  margin: .45rem 0 .8rem;
-  font-size: clamp(2.6rem, 7vw, 5.7rem);
+  margin: 0 0 .8rem;
+  font-size: clamp(2.1rem, 5vw, 4.4rem);
   line-height: .9;
   text-transform: uppercase;
 }

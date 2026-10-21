@@ -226,7 +226,6 @@ export function AchievementsScreen({
             <Link className={styles.backLink} href={activeStatus ? "/profile/achievements" : "/profile"}>
               ← {activeStatus ? "Achievement overview" : "Brawler profile"}
             </Link>
-            <span className={styles.eyebrow}>Brawler progression</span>
             <h1>
               {activeStatus
                 ? `${STATUS_CONTENT[activeStatus].title} Achievements`
