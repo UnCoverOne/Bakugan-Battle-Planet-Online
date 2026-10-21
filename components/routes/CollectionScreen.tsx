@@ -10,7 +10,8 @@ import { CardFilterPanel } from "../filters/CardFilterPanel";
 import { FilterPicker } from "../filters/FilterPicker";
 import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
 import { cardSetCode } from "../../lib/content/catalogue";
-import { createCardFilterOptionCatalogue, type CardFilterFacet } from "../../lib/card-filters";
+import { activeCardFilterCount, CORE_SET_OPTIONS, CORE_TYPE_OPTIONS, createCardFilterOptionCatalogue, type CardFilterFacet } from "../../lib/card-filters";
+import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS, CORE_SORT_LABELS } from "../../lib/catalogue-sorting";
 import { COMPENDIUM_SORTS, CORE_COMPENDIUM_SORTS, filterAndSortCompendiumCards, filterAndSortCompendiumCores, parseCompendiumState, parseCoreCompendiumState, selectedCompendiumCard, selectedCompendiumCore, type CardInspectorTab } from "../../lib/compendium";
 import { collectionEntryForIds, coreCollectionIds, COLLECTION_QUANTITY_OPTIONS, COLLECTION_SORT_OPTIONS, type CollectionField } from "../../lib/collection";
 import { PUBLISHED_RULINGS, GLOSSARY_ENTRIES, REFERENCE_REVIEWED_AT, type ReferenceEntry } from "../../lib/reference";
@@ -26,8 +27,7 @@ const quantityKey = (field: CollectionField) => `collection${field[0].toUpperCas
 const quantityLabel = (field: CollectionField) => field[0].toUpperCase() + field.slice(1);
 const allCollectionFilters = ["standard", "foil", "wishlist"] as const;
 const ruleReferences: ReferenceEntry[] = RULE_ENTRIES.map((entry) => ({ ...entry, slug: entry.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"), source: "Digital adaptation reference", sourceSection: entry.category, reviewedAt: REFERENCE_REVIEWED_AT }));
-const cardArchiveSortOptions = COMPENDIUM_SORTS.map((value) => ({ value, label: value.replaceAll("-", " ") }));
-const coreArchiveSortOptions = CORE_COMPENDIUM_SORTS.map((value) => ({ value, label: value.replaceAll("-", " ") }));
+const coreArchiveSortOptions = CORE_COMPENDIUM_SORTS.map((value) => ({ value, label: CORE_SORT_LABELS[value] }));
 
 function countMatches(count: number, values: readonly string[]) {
   if (!values.length) return true;
@@ -64,7 +64,15 @@ export function CollectionScreen() {
   const cardEntries = useMemo(() => new Map(identityIndex.representatives.map(card => [card.catalogId, collectionEntryForIds(collection, identityIndex.idsFor(card))])), [collection, identityIndex]);
   const filterOptions = useMemo(() => { void catalogueRevision; return createCardFilterOptionCatalogue(CARDS); }, [catalogueRevision]);
   const valuesFor = useCallback((field: CollectionField) => searchParams.getAll(quantityKey(field)), [searchParams]);
-  const collectionSort = searchParams.get("collectionSort") ?? "collector";
+  const requestedCollectionSort = searchParams.get("collectionSort");
+  const collectionSort = COLLECTION_SORT_OPTIONS.some(({ value }) => value === requestedCollectionSort) ? requestedCollectionSort! : "collector";
+  const isCharacterOnly = cardState.type.length === 1 && cardState.type[0] === "Character";
+  const includesCharacter = cardState.type.includes("Character");
+  const cardSortOptions = Object.entries(SORT_LABELS).filter(([value]) => (isCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS).has(value as typeof cardState.sort));
+  const selectedCardSort = cardSortOptions.some(([value]) => value === cardState.sort) ? cardState.sort : "collector";
+  const secondaryCardFacets: CardFilterFacet[] = ["set", "faction", ...(!isCharacterOnly ? ["cost", "rarity"] as CardFilterFacet[] : []), ...(includesCharacter ? ["coreType"] as CardFilterFacet[] : []), "keyword"];
+  const activeFilterCount = (activeTab === "cards" ? activeCardFilterCount(cardState) : Number(coreState.type !== "All") + Number(coreState.set !== "All"))
+    + allCollectionFilters.reduce((total, field) => total + valuesFor(field).length, 0);
 
   const navigate = useCallback((changes: Record<string, string | string[] | null>, path = "/collection") => {
     if ("q" in changes) setQuery(typeof changes.q === "string" ? changes.q : "");
@@ -149,7 +157,7 @@ export function CollectionScreen() {
   const selectCore = (core: typeof CORE_COMPENDIUM[number]) => { inspectorTrigger.current = document.activeElement as HTMLElement; navigate({ collectionTab: "cores", core: core.catalogId ?? core.id, card: null, tab: "collection" }); };
   const pageParam = activeTab === "cards" ? "page" : "corePage";
   const setPage = (next: number) => navigate({ [pageParam]: next > 1 ? String(next) : null });
-  const clearFilters = () => navigate({ q: null, set: null, type: null, coreType: null, faction: null, cost: null, rarity: null, keyword: null, coreSet: null, collectionSort: null, collectionStandard: null, collectionFoil: null, collectionWishlist: null, page: null, corePage: null });
+  const clearFilters = () => navigate({ q: null, set: null, type: null, coreType: null, faction: null, cost: null, rarity: null, keyword: null, coreSet: null, collectionSort: null, collectionStandard: null, collectionFoil: null, collectionWishlist: null, sort: null, coreSort: null, page: null, corePage: null });
   const setQuantityFilter = (field: CollectionField, values: string[]) => navigate({ [quantityKey(field)]: values, page: null, corePage: null });
   const renderCollectionFilterControls = () => (
     <>
@@ -157,18 +165,25 @@ export function CollectionScreen() {
         <>
           <CardFilterPanel
             filters={cardState}
-            facets={["type", "set", "faction", "cost", "rarity", "coreType", "keyword"] as CardFilterFacet[]}
+            facets={["type"]}
             options={filterOptions}
             onChange={(next, facet) => navigate({ [facet]: next[facet], page: null })}
           />
           <div className={compendiumStyles.filterDivider} role="separator" />
           <FilterPicker
-            label="Archive sort"
-            values={[cardState.sort]}
-            options={cardArchiveSortOptions}
+            label="Sort"
+            values={[selectedCardSort]}
+            options={cardSortOptions.map(([value, label]) => ({ value, label }))}
             onChange={(values) => navigate({ sort: values[0] ?? "collector", page: null })}
             mode="single"
             clearable={false}
+          />
+          <div className={compendiumStyles.filterDivider} role="separator" />
+          <CardFilterPanel
+            filters={cardState}
+            facets={secondaryCardFacets}
+            options={filterOptions}
+            onChange={(next, facet) => navigate({ [facet]: next[facet], page: null })}
           />
         </>
       ) : (
@@ -176,25 +191,26 @@ export function CollectionScreen() {
           <FilterPicker
             label="Core type"
             values={coreState.type === "All" ? [] : [coreState.type]}
-            options={["Fist", "Flaming Fist", "Shield", "Magic Shield", "Helix"].map((value) => ({ value, label: value }))}
+            options={CORE_TYPE_OPTIONS}
             onChange={(values) => navigate({ coreType: values[0] ?? null, corePage: null })}
-            mode="single"
-          />
-          <FilterPicker
-            label="Set"
-            values={coreState.set === "All" ? [] : [coreState.set]}
-            options={["Battle Brawlers", "Armored Alliance"].map((value) => ({ value, label: value }))}
-            onChange={(values) => navigate({ coreSet: values[0] ?? null, corePage: null })}
             mode="single"
           />
           <div className={compendiumStyles.filterDivider} role="separator" />
           <FilterPicker
-            label="Archive sort"
+            label="Sort"
             values={[coreState.sort]}
             options={coreArchiveSortOptions}
             onChange={(values) => navigate({ coreSort: values[0] ?? "collector", corePage: null })}
             mode="single"
             clearable={false}
+          />
+          <div className={compendiumStyles.filterDivider} role="separator" />
+          <FilterPicker
+            label="Set"
+            values={coreState.set === "All" ? [] : [coreState.set]}
+            options={CORE_SET_OPTIONS}
+            onChange={(values) => navigate({ coreSet: values[0] ?? null, corePage: null })}
+            mode="single"
           />
         </>
       )}
@@ -227,7 +243,7 @@ export function CollectionScreen() {
         <Field className={compendiumStyles.search} label="Search your archive"><input value={query} placeholder="Cards, effects, IDs, mechanics…" onChange={(event) => setQuery(event.target.value)} /></Field>
         <Tabs label="Collection sections"><button type="button" className={activeTab === "cards" ? "active" : ""} onClick={() => navigate({ collectionTab: "cards", core: null, tab: null })}>CARDS</button><button type="button" className={activeTab === "cores" ? "active" : ""} onClick={() => navigate({ collectionTab: "cores", card: null, tab: null })}>BAKUCORES</button></Tabs>
       </section>
-      <section className={compendiumStyles.resultsToolbar}><div><strong>{results.length.toLocaleString()} {activeTab === "cards" ? "cards" : "BakuCores"}</strong><span>Page {page} of {pages}</span></div><ActionButton className={compendiumStyles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>Filters</ActionButton><Tabs className={compendiumStyles.densityTabs} label="Gallery density"><button className={(activeTab === "cards" ? cardState.density : coreState.density) === "gallery" ? "active" : ""} onClick={() => navigate({ [activeTab === "cards" ? "density" : "coreDensity"]: "gallery" })}>Gallery</button><button className={(activeTab === "cards" ? cardState.density : coreState.density) === "compact" ? "active" : ""} onClick={() => navigate({ [activeTab === "cards" ? "density" : "coreDensity"]: "compact" })}>Compact</button></Tabs></section>
+      <section className={compendiumStyles.resultsToolbar}><div><strong>{results.length.toLocaleString()} {activeTab === "cards" ? "cards" : "BakuCores"}</strong><span>Page {page} of {pages}</span></div><ActionButton className={compendiumStyles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}</ActionButton><Tabs className={compendiumStyles.densityTabs} label="Gallery density"><button className={(activeTab === "cards" ? cardState.density : coreState.density) === "gallery" ? "active" : ""} onClick={() => navigate({ [activeTab === "cards" ? "density" : "coreDensity"]: "gallery" })}>Gallery</button><button className={(activeTab === "cards" ? cardState.density : coreState.density) === "compact" ? "active" : ""} onClick={() => navigate({ [activeTab === "cards" ? "density" : "coreDensity"]: "compact" })}>Compact</button></Tabs></section>
       <div className={compendiumStyles.workspace}>
         <Surface as="aside" className={compendiumStyles.filterRail} aria-label="Collection filters">
           <div className={compendiumStyles.filterHeading}><div><h2>Filters &amp; sort</h2></div><button type="button" onClick={clearFilters}>Clear</button></div>
