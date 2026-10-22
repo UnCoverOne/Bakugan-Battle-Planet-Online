@@ -23,6 +23,7 @@ export type AccountCache = {
   revisions: EntityRevisionMap;
   version: number;
   acknowledgedVersion: number;
+  resetVersion?: number;
   savedAt: number;
 };
 
@@ -73,6 +74,7 @@ export function readAccountCache(
           : {},
       version: Math.max(0, Number(parsed.version)),
       acknowledgedVersion: Math.max(0, Number(parsed.acknowledgedVersion)),
+      resetVersion: Number.isInteger(parsed.resetVersion) && Number(parsed.resetVersion) >= 0 ? Number(parsed.resetVersion) : 0,
       savedAt: Number(parsed.savedAt) || 0,
     };
   } catch {
@@ -91,6 +93,13 @@ export function writeAccountCache(
   };
   storage.setItem(accountCacheKey(cache.userId), JSON.stringify(value));
   return value;
+}
+
+export function isAccountCacheStaleAfterReset(
+  cache: AccountCache | null,
+  serverResetVersion: number,
+) {
+  return Boolean(cache && (cache.resetVersion ?? 0) !== serverResetVersion);
 }
 
 export function isAccountCacheDirty(cache: AccountCache | null) {
