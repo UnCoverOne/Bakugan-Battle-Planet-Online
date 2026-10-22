@@ -471,7 +471,7 @@ function UserManagement() {
                 {user.banReason && <small>{user.banReason}</small>}
               </div>
               <div className={styles.userActions}>
-                <select aria-label={`Reset data for ${user.displayName}`} defaultValue="" onChange={(event) => {
+                <select aria-label={`Reset data for ${user.displayName}`} defaultValue="" disabled={protectedUser && user.id !== authUser?.id} onChange={(event) => {
                   const scope = event.target.value;
                   event.target.value = "";
                   if (scope && confirm(`Reset ${scope === "all" ? "all synced account data" : scope} for ${user.displayName}?`)) {
