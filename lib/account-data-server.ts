@@ -25,11 +25,13 @@ export type AccountDataPayload = {
   revisions: Record<string, number>;
   updatedAt: number;
   data: UserSnapshot | null;
+  resetVersion: number;
 };
 
 export type AccountDataSyncResult = AccountDataPayload & {
   conflicts: string[];
   errors: Array<{ key: string; error: string }>;
+  resetMismatch?: boolean;
 };
 
 export type AccountDataStats = {
@@ -87,7 +89,18 @@ export async function ensureAccountDataSchema(db: AccountDatabase) {
     db.prepare(
       "CREATE INDEX IF NOT EXISTS user_match_history_user_occurred_idx ON user_match_history(user_id, occurred_at DESC)",
     ),
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS account_data_reset_versions (user_id TEXT PRIMARY KEY NOT NULL, version INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    ),
   ]);
+}
+
+export async function getAccountResetVersion(db: AccountDatabase, userId: string) {
+  await ensureAccountDataSchema(db);
+  const row = await db.prepare(
+    "SELECT version FROM account_data_reset_versions WHERE user_id = ?",
+  ).bind(userId).first<{ version: number }>();
+  return Number(row?.version ?? 0);
 }
 
 export async function readAccountDataRows(db: AccountDatabase, userId: string) {
@@ -171,12 +184,16 @@ export async function loadAccountDataPayload(
   userId: string,
 ): Promise<AccountDataPayload> {
   await migrateLegacyAccountSnapshot(db, userId);
-  const { rows, records } = await readAccountDataRows(db, userId);
+  const [{ rows, records }, resetVersion] = await Promise.all([
+    readAccountDataRows(db, userId),
+    getAccountResetVersion(db, userId),
+  ]);
   return {
     schemaVersion: USER_DATA_SCHEMA_VERSION,
     revisions: revisionMap(rows),
     updatedAt: Math.max(0, ...rows.map((row) => row.updated_at)),
     data: assembleEntitySnapshot(rows, records),
+    resetVersion,
   };
 }
 
@@ -238,6 +255,17 @@ export async function syncAccountData(
   body: Partial<UserDataSyncRequest>,
 ): Promise<AccountDataSyncResult> {
   validateSyncRequest(body);
+  const resetVersion = await getAccountResetVersion(db, userId);
+  if ((body.resetVersion ?? 0) !== resetVersion) {
+    // The account was intentionally reset. Do not accept a stale browser
+    // snapshot just because the old entities and revisions were deleted.
+    return {
+      ...(await loadAccountDataPayload(db, userId)),
+      conflicts: [],
+      errors: [],
+      resetMismatch: true,
+    };
+  }
 
   const errors: Array<{ key: string; error: string }> = [];
   const preparedEntities: PreparedEntity[] = [];
@@ -429,6 +457,7 @@ export async function syncAccountData(
     data,
     conflicts: [...conflicts],
     errors,
+    resetVersion,
   };
 }
 
@@ -441,11 +470,15 @@ export async function resetAccountData(
   await ensureAccountDataSchema(db);
   if (scope !== "all") await migrateLegacyAccountSnapshot(db, userId);
   const now = Date.now();
+  const bumpResetVersion = db.prepare(
+    "INSERT INTO account_data_reset_versions (user_id, version, updated_at) VALUES (?, 1, ?) ON CONFLICT(user_id) DO UPDATE SET version = version + 1, updated_at = excluded.updated_at",
+  ).bind(userId, now);
   if (scope === "all") {
     await db.batch([
       db.prepare("DELETE FROM user_data_entities WHERE user_id = ?").bind(userId),
       db.prepare("DELETE FROM user_match_history WHERE user_id = ?").bind(userId),
       db.prepare("DELETE FROM user_data WHERE user_id = ?").bind(userId),
+      bumpResetVersion,
     ]);
     return;
   }
@@ -463,13 +496,15 @@ export async function resetAccountData(
       db.prepare(
         "INSERT INTO user_data_entities (user_id, entity_type, entity_id, revision, data_json, deleted_at, updated_at) VALUES (?, 'preferences', 'main', 1, ?, NULL, ?) ON CONFLICT(user_id, entity_type, entity_id) DO UPDATE SET revision = revision + 1, data_json = excluded.data_json, deleted_at = NULL, updated_at = excluded.updated_at",
       ).bind(userId, preferences, now),
+      bumpResetVersion,
     ]);
     return;
   }
   if (scope === "history") {
-    await db.prepare(
-      "DELETE FROM user_match_history WHERE user_id = ?",
-    ).bind(userId).run();
+    await db.batch([
+      db.prepare("DELETE FROM user_match_history WHERE user_id = ?").bind(userId),
+      bumpResetVersion,
+    ]);
     return;
   }
   const type: UserDataEntityType = scope === "settings" ? "settings" : "profile";
@@ -480,14 +515,12 @@ export async function resetAccountData(
       faction: profile?.faction ?? "Pyrus",
       signedIn: false,
     };
-  await db.prepare(
-    "INSERT INTO user_data_entities (user_id, entity_type, entity_id, revision, data_json, deleted_at, updated_at) VALUES (?, ?, 'main', 1, ?, NULL, ?) ON CONFLICT(user_id, entity_type, entity_id) DO UPDATE SET revision = revision + 1, data_json = excluded.data_json, deleted_at = NULL, updated_at = excluded.updated_at",
-  ).bind(
-    userId,
-    type,
-    data == null ? null : JSON.stringify(data),
-    now,
-  ).run();
+  await db.batch([
+    db.prepare(
+      "INSERT INTO user_data_entities (user_id, entity_type, entity_id, revision, data_json, deleted_at, updated_at) VALUES (?, ?, 'main', 1, ?, NULL, ?) ON CONFLICT(user_id, entity_type, entity_id) DO UPDATE SET revision = revision + 1, data_json = excluded.data_json, deleted_at = NULL, updated_at = excluded.updated_at",
+    ).bind(userId, type, data == null ? null : JSON.stringify(data), now),
+    bumpResetVersion,
+  ]);
 }
 
 export async function deleteAccountData(db: AccountDatabase, userId: string) {
