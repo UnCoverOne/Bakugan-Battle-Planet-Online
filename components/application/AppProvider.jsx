@@ -24,6 +24,7 @@ import {
   buildChangedAccountSyncRequests,
   changedAccountEntityKeys,
   isAccountCacheDirty,
+  isAccountCacheStaleAfterReset,
   readAccountCache,
   reconcileRemoteAccountState,
   recoverCachedCollectionWithoutServerEntity,
@@ -337,6 +338,7 @@ export function AppProvider({ children }) {
   const applying = useRef(false);
   const cloudLoaded = useRef(false);
   const accountRevisions = useRef({});
+  const accountResetVersion = useRef(0);
   const guestSnapshot = useRef(null);
   const syncing = useRef(false);
   const syncRequested = useRef(false);
@@ -646,6 +648,7 @@ export function AppProvider({ children }) {
           (record) => record.id,
         ),
         revisions: accountRevisions.current,
+        resetVersion: accountResetVersion.current,
         version: localVersion.current,
         acknowledgedVersion: acknowledgedVersion.current,
       });
@@ -692,13 +695,16 @@ export function AppProvider({ children }) {
       const response = await fetch("/api/user-data", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(batch),
+        body: JSON.stringify({ ...batch, resetVersion: accountResetVersion.current }),
       });
       const result = await readJsonResponse(response, "Cloud save returned an invalid response.");
       if (response.status === 401) {
         const error = new Error("Your account session expired. Unsynced changes remain saved in this browser.");
         error.code = "SESSION_EXPIRED";
         throw error;
+      }
+      if (response.status === 409 && result.resetMismatch) {
+        return { ...result, resetMismatch: true };
       }
       if (response.status === 409 && result.data) {
         return { ...result, conflict: true };
@@ -762,25 +768,31 @@ export function AppProvider({ children }) {
       }
       loadError = error;
     }
+    // A data reset invalidates even a dirty local account cache. Its data
+    // must never be used to recreate deleted server entities.
+    const validCache = result && isAccountCacheStaleAfterReset(cached, Number(result.resetVersion ?? 0))
+      ? null
+      : cached;
+    accountResetVersion.current = Number(result?.resetVersion ?? validCache?.resetVersion ?? 0);
     const emptyAccount = createEmptyAccountSnapshot(device, user, result?.updatedAt || Date.now());
     const remote = result?.data ? normalizeSnapshot(result.data, emptyAccount) : null;
-    const recoveredCollection = recoverCachedCollectionWithoutServerEntity(cached, result);
-    const cachedDirty = isAccountCacheDirty(cached);
+    const recoveredCollection = recoverCachedCollectionWithoutServerEntity(validCache, result);
+    const cachedDirty = isAccountCacheDirty(validCache);
     accountRevisions.current = cachedDirty
-      ? cached?.revisions ?? {}
-      : result?.revisions ?? cached?.revisions ?? {};
-    localVersion.current = cached?.version ?? 0;
-    acknowledgedVersion.current = cached?.acknowledgedVersion ?? 0;
-    const durableAccount = cached && cachedDirty
-      ? cached.snapshot
-      : remote ?? cached?.snapshot ?? emptyAccount;
+      ? validCache?.revisions ?? {}
+      : result?.revisions ?? validCache?.revisions ?? {};
+    localVersion.current = validCache?.version ?? 0;
+    acknowledgedVersion.current = validCache?.acknowledgedVersion ?? 0;
+    const durableAccount = validCache && cachedDirty
+      ? validCache.snapshot
+      : remote ?? validCache?.snapshot ?? emptyAccount;
     acknowledgedSnapshot.current = remote
-      ?? (!cachedDirty ? cached?.snapshot ?? null : null);
+      ?? (!cachedDirty ? validCache?.snapshot ?? null : null);
     pendingEntityKeys.current = cachedDirty
-      ? cached?.pendingEntityKeys ?? null
+      ? validCache?.pendingEntityKeys ?? null
       : null;
     acknowledgedHistoryIds.current = cachedDirty
-      ? cached?.acknowledgedHistoryIds ?? null
+      ? validCache?.acknowledgedHistoryIds ?? null
       : null;
     const restored = strategy === "merge" && remote
       ? selectSnapshot(device, mergeSnapshots(durableAccount, remote), "cloud")
@@ -792,14 +804,14 @@ export function AppProvider({ children }) {
     };
     if (recoveredCollection) {
       // A missing server entity is not proof that a previously saved collection
-      // was cleared. Re-send the cached value under this account's revision.
+      // was cleared. Re-send the validCache value under this account's revision.
       localVersion.current = Math.max(localVersion.current, acknowledgedVersion.current) + 1;
       if (pendingEntityKeys.current) {
         pendingEntityKeys.current = [...new Set([...pendingEntityKeys.current, "collection:main"])];
       }
     }
     applySnapshot(accountCopy, true);
-    if (!remote && !cached) {
+    if (!remote && !validCache) {
       localVersion.current = 1;
       acknowledgedVersion.current = 0;
     }
@@ -848,6 +860,28 @@ export function AppProvider({ children }) {
         persistAccountRecovery(authUser.id, current);
         setSyncStatus("saving");
         const saved = await putCloud(current, acknowledgedSnapshot.current);
+        if (saved.resetMismatch) {
+          // Do not let a stale tab's conflict-resolution logic undo the reset.
+          const empty = createEmptyAccountSnapshot(current, authUser, saved.updatedAt || Date.now());
+          const remote = saved.data ? normalizeSnapshot(saved.data, empty) : empty;
+          const latest = {
+            ...selectSnapshot(current, remote, "cloud"),
+            profile: { ...remote.profile, signedIn: true },
+          };
+          accountResetVersion.current = Number(saved.resetVersion ?? 0);
+          accountRevisions.current = saved.revisions ?? {};
+          acknowledgedSnapshot.current = toCloudSnapshot(latest);
+          pendingEntityKeys.current = null;
+          acknowledgedHistoryIds.current = null;
+          syncRequested.current = false;
+          localVersion.current = targetVersion;
+          acknowledgedVersion.current = targetVersion;
+          applySnapshot(latest, true);
+          persistAccountRecovery(authUser.id, latest);
+          setAuthError("");
+          setSyncStatus("synced");
+          return true;
+        }
         accountRevisions.current = {
           ...accountRevisions.current,
           ...(saved.revisions ?? {}),
