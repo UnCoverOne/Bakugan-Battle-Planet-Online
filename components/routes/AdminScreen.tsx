@@ -20,7 +20,8 @@ import {
   Tabs,
 } from "../design-system/primitives";
 import styles from "./AdminScreen.module.css";
-import { removeAccountCache } from "../../lib/account-sync";
+import { markAccountResetReload, removeAccountCache } from "../../lib/account-sync";
+import { isCompletedSeriesResult } from "../../lib/match-result-navigation";
 
 type AdminTab = "ai" | "offline" | "cards" | "music" | "ranked" | "users" | "feedback";
 type AiDeckItem = { id: string; deck: DeckRecord; enabled: boolean; updatedAt: number };
@@ -425,7 +426,21 @@ function UserManagement() {
       if (body.action === "reset-user-data" && body.userId === authUser?.id) {
         // Refresh the signed-in user from the server; a reset must not leave
         // old in-memory account data visible or ready for synchronization.
-        try { removeAccountCache(localStorage, authUser.id); } catch {}
+        try {
+          markAccountResetReload(localStorage, authUser.id, String(body.scope ?? "all"));
+          removeAccountCache(localStorage, authUser.id);
+          if (body.scope === "history" || body.scope === "all") {
+            const savedMatch = JSON.parse(localStorage.getItem("bbp-active-match-v1") ?? "null");
+            // A completed local session must not create a fresh history result
+            // after reloading an intentionally empty archive. Unfinished games
+            // are retained for a history-only reset.
+            if (body.scope === "all" || isCompletedSeriesResult(savedMatch)) {
+              localStorage.removeItem("bbp-active-match-v1");
+            }
+            sessionStorage.removeItem("bbp-open-replay-v1");
+            localStorage.removeItem("bbp-open-replay-v1");
+          }
+        } catch {}
         window.location.reload();
         return;
       }

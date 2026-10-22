@@ -170,6 +170,23 @@ export function validateHistoryRecord(value: unknown): asserts value is MatchRes
   if (jsonBytes(record) > MAX_ENTITY_BYTES) throw new Error(`History record ${record.id} is too large.`);
 }
 
+/**
+ * Strict for new writes only: legacy records can still be viewed even if
+ * older clients omitted display metadata, but new blank wins cannot be saved.
+ */
+export function validateNewMatchHistoryRecord(value: unknown): asserts value is MatchResultRecord {
+  validateHistoryRecord(value);
+  const record = value as MatchResultRecord;
+  if (
+    !["Victor", "Defeat", "Draw"].includes(record.result)
+    || typeof record.opponent !== "string" || !record.opponent.trim()
+    || typeof record.reason !== "string" || !record.reason.trim()
+    || typeof record.score !== "string" || !/\d/.test(record.score)
+  ) {
+    throw new Error("Match result requires a result, opponent, score, and reason.");
+  }
+}
+
 export function assembleEntitySnapshot(
   rows: UserDataEntityRow[],
   history: MatchResultRecord[],

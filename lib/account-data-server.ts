@@ -6,6 +6,7 @@ import {
   USER_DATA_SCHEMA_VERSION,
   validateEntityUpdate,
   validateHistoryRecord,
+  validateNewMatchHistoryRecord,
   type UserDataEntityRow,
   type UserDataEntityType,
   type UserDataSyncRequest,
@@ -222,7 +223,7 @@ export async function saveAccountMatchRecord(
   candidate: unknown,
 ): Promise<MatchResultRecord> {
   try {
-    validateHistoryRecord(candidate);
+    validateNewMatchHistoryRecord(candidate);
   } catch (error) {
     throw new ValidationError(
       error instanceof Error ? error.message : "History record is invalid.",

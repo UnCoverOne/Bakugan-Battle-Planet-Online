@@ -6,6 +6,8 @@ import {
   mergeMatchHistories,
 } from "../lib/match-history-sync";
 import { lifetimeMatchStatsFromHistory } from "../lib/match-statistics";
+import { hasRecordableMatchDetails, isFreshCompletedMatchResult } from "../lib/match-result-navigation";
+import { validateHistoryRecord, validateNewMatchHistoryRecord } from "../lib/user-data-entities";
 import type { MatchResultRecord } from "../lib/persistence";
 
 const source = (path: string) => readFileSync(path, "utf8");
@@ -24,6 +26,38 @@ function record(
     at,
   };
 }
+
+test("a completed match can be recorded only on a new transition, never after history reset or reload", () => {
+  const playing = {
+    id: "training-match", gameNumber: 1, phase: "brawl", winner: "",
+    series: { human: 0, "training-bot": 0 }, resultReason: "",
+  };
+  const completed = {
+    ...playing, phase: "result", winner: "human",
+    series: { human: 1, "training-bot": 0 }, resultReason: "Final Brawl",
+  };
+  assert.equal(isFreshCompletedMatchResult(playing, completed), true);
+  assert.equal(isFreshCompletedMatchResult(null, completed), false);
+  assert.equal(isFreshCompletedMatchResult(completed, completed), false);
+  assert.equal(isFreshCompletedMatchResult({ ...playing, id: "old-match" }, completed), false);
+  assert.equal(hasRecordableMatchDetails(completed), true);
+  assert.equal(hasRecordableMatchDetails({ ...completed, resultReason: "" }), false);
+  assert.equal(hasRecordableMatchDetails({ ...completed, series: {} }), false);
+});
+
+test("new history writes reject empty victories but legacy archive reads remain compatible", () => {
+  const valid = record("complete", "2026-08-24T10:00:00.000Z");
+  assert.doesNotThrow(() => validateNewMatchHistoryRecord(valid));
+  for (const invalid of [
+    { ...valid, reason: "" },
+    { ...valid, score: "" },
+    { ...valid, opponent: "" },
+    { ...valid, result: "" },
+  ]) {
+    assert.doesNotThrow(() => validateHistoryRecord(invalid));
+    assert.throws(() => validateNewMatchHistoryRecord(invalid), /Match result requires/);
+  }
+});
 
 test("cross-device history merges records from both devices by match ID", () => {
   const local = [record("device-a", "2026-08-24T10:00:00.000Z")];
@@ -102,6 +136,20 @@ test("signed-in sessions push match records directly and refresh the archive glo
   assert.match(sync, /response\.status >= 400 && response\.status < 500 && response\.status !== 429/);
   assert.doesNotMatch(sync, /usePathname|recordsRoute/);
   assert.doesNotMatch(sync, /syncNow/);
+});
+
+test("history result recorder is transition-gated rather than history-missing-gated", () => {
+  const provider = source("components/application/AppProvider.jsx");
+  const admin = source("components/routes/AdminScreen.tsx");
+  const cache = source("lib/account-sync.ts");
+  assert.match(provider, /isFreshCompletedMatchResult\(previous, match\)/);
+  assert.match(provider, /hasRecordableMatchDetails\(match\)/);
+  assert.match(provider, /lastObservedResultMatch\.current = match/);
+  assert.match(provider, /readAccountResetReloadScope\(localStorage, userId\)/);
+  assert.match(provider, /clearAccountResetReload\(localStorage, user\.id\)/);
+  assert.match(admin, /markAccountResetReload\(localStorage, authUser\.id/);
+  assert.match(admin, /isCompletedSeriesResult\(savedMatch\)/);
+  assert.match(cache, /ACCOUNT_RESET_RELOAD_PREFIX/);
 });
 
 test("account switches cannot seed the new account archive from stale in-memory history", () => {

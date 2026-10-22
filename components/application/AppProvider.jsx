@@ -23,9 +23,11 @@ import { normalizeCollection } from "../../lib/collection";
 import {
   buildChangedAccountSyncRequests,
   changedAccountEntityKeys,
+  clearAccountResetReload,
   isAccountCacheDirty,
   isAccountCacheStaleAfterReset,
   readAccountCache,
+  readAccountResetReloadScope,
   reconcileRemoteAccountState,
   recoverCachedCollectionWithoutServerEntity,
   removeAccountCache,
@@ -36,7 +38,7 @@ import {
 import { summarizeGuestData } from "../../lib/guest-data";
 import { accountMatchSessionHref } from "../../lib/account-match-session";
 import { readJsonResponse } from "../../lib/json-response";
-import { completedMatchKey, isCompletedSeriesResult } from "../../lib/match-result-navigation";
+import { completedMatchKey, hasRecordableMatchDetails, isCompletedSeriesResult, isFreshCompletedMatchResult } from "../../lib/match-result-navigation";
 import { MATCH_SESSION_REPLACED_EVENT, MATCH_UPDATE_EVENT } from "../../lib/match-state-events";
 import { requireTrainingAiDeckSelection } from "../../lib/training-ai-deck-selection";
 import {
@@ -358,6 +360,7 @@ export function AppProvider({ children }) {
   const trainingCheckpointFingerprint = useRef(null);
   const trainingCheckpointTimer = useRef(null);
   const promptedAccountMoments = useRef(new Set());
+  const lastObservedResultMatch = useRef(null);
   const ready = [profileReady, decksReady, deletedDecksReady, (!restoreHistory || historyReady), lifetimeStatsReady, settingsReady, selectedDeckReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, (!restoreReplay || replayReady), replayIndexReady, playerReady, capabilityReady, controllerReady, modifiedReady].every(Boolean);
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId) ?? decks[0];
   const notify = useCallback((message) => setToast(message), []);
@@ -637,6 +640,7 @@ export function AppProvider({ children }) {
   const persistAccountRecovery = useCallback((userId, data = snapshotRef.current) => {
     if (!userId || !data) return false;
     try {
+      if (readAccountResetReloadScope(localStorage, userId)) return false;
       writeAccountCache(localStorage, {
         userId,
         snapshot: toCloudSnapshot(data),
@@ -733,7 +737,15 @@ export function AppProvider({ children }) {
     setSyncStatus("loading");
     const device = snapshotRef.current;
     if (!device) throw new Error("Browser data is still loading.");
-    const cached = readAccountCache(localStorage, user.id, device);
+    const resetScope = readAccountResetReloadScope(localStorage, user.id);
+    // Match history resets preserve unfinished sessions, but do not restore
+    // a finished Training result or an old replay from device-local storage.
+    const deviceForLoad = resetScope === "all"
+      ? { ...device, match: null, online: false, replay: null, replayIndex: 0 }
+      : resetScope === "history"
+        ? { ...device, match: isCompletedSeriesResult(device.match) ? null : device.match, replay: null, replayIndex: 0 }
+        : device;
+    const cached = resetScope ? null : readAccountCache(localStorage, user.id, deviceForLoad);
     if (cached) {
       accountRevisions.current = cached.revisions;
       localVersion.current = cached.version;
@@ -774,7 +786,7 @@ export function AppProvider({ children }) {
       ? null
       : cached;
     accountResetVersion.current = Number(result?.resetVersion ?? validCache?.resetVersion ?? 0);
-    const emptyAccount = createEmptyAccountSnapshot(device, user, result?.updatedAt || Date.now());
+    const emptyAccount = createEmptyAccountSnapshot(deviceForLoad, user, result?.updatedAt || Date.now());
     const remote = result?.data ? normalizeSnapshot(result.data, emptyAccount) : null;
     const recoveredCollection = recoverCachedCollectionWithoutServerEntity(validCache, result);
     const cachedDirty = isAccountCacheDirty(validCache);
@@ -795,8 +807,8 @@ export function AppProvider({ children }) {
       ? validCache?.acknowledgedHistoryIds ?? null
       : null;
     const restored = strategy === "merge" && remote
-      ? selectSnapshot(device, mergeSnapshots(durableAccount, remote), "cloud")
-      : selectSnapshot(device, durableAccount, "cloud");
+      ? selectSnapshot(deviceForLoad, mergeSnapshots(durableAccount, remote), "cloud")
+      : selectSnapshot(deviceForLoad, durableAccount, "cloud");
     const accountCopy = {
       ...restored,
       ...(recoveredCollection ? { collection: recoveredCollection } : {}),
@@ -811,6 +823,7 @@ export function AppProvider({ children }) {
       }
     }
     applySnapshot(accountCopy, true);
+    if (resetScope && result) clearAccountResetReload(localStorage, user.id);
     if (!remote && !validCache) {
       localVersion.current = 1;
       acknowledgedVersion.current = 0;
@@ -1304,8 +1317,14 @@ export function AppProvider({ children }) {
   const deleteAccount = useCallback(async (confirmation) => { const response = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "delete-account", confirmation }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error ?? "Could not delete account."); if (authUser?.id) { try { removeAccountCache(localStorage, authUser.id); } catch {} } activeAccountId.current = ""; cloudLoaded.current = false; setAccountDataReady(false); setPersistenceScope("local"); setAuthUser(null); if (guestSnapshot.current) applySnapshot(guestSnapshot.current, false); setSyncStatus("local"); router.push("/"); }, [applySnapshot, authUser?.id, router]);
 
   useEffect(() => {
+    // A deleted archive is not proof that a restored result just finished.
+    // Observe the unfinished game first; never recreate records on mount,
+    // hydration, account switching, or a history-reset reload.
+    if (!ready || authChecking || (authUser && !accountDataReady)) return;
+    const previous = lastObservedResultMatch.current;
+    lastObservedResultMatch.current = match;
     const id = completedMatchKey(match);
-    if (!id) return;
+    if (!id || !isFreshCompletedMatchResult(previous, match) || !hasRecordableMatchDetails(match)) return;
     if (!history.some((item) => item.id === id)) {
       const opponentPlayer = match.players.find((player) => player.id !== playerId);
       const rankedPlayer = match.ranked?.players?.[playerId];
@@ -1345,7 +1364,7 @@ export function AppProvider({ children }) {
       promptedAccountMoments.current.add(promptKey);
       setAccountPrompt("match-complete");
     }
-  }, [authUser, history, match, online, playerId, setHistory, setLifetimeStats, setReplay, setReplayIndex]);
+  }, [accountDataReady, authChecking, authUser, history, match, online, playerId, ready, setHistory, setLifetimeStats, setReplay, setReplayIndex]);
 
   const api = useCallback(async (action, payload, code, selection, rankedDecks) => {
     setMatchError("");
