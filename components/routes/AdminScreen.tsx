@@ -432,7 +432,7 @@ function UserManagement() {
       notify(message);
       setRefresh((value) => value + 1);
     } catch (error) { notify(error instanceof Error ? error.message : "Account action failed."); }
-  }, [authUser?.id, notify]);
+  }, [authUser, notify]);
   return (
     <section className={styles.section}>
       <div className={styles.sectionHeading}><div><span>ACCOUNTS</span><h2>User Management</h2><p>Search, sort, filter, assign roles, reset saved data, ban, or remove accounts.</p></div></div>
