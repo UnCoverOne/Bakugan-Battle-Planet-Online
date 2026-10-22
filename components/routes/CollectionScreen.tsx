@@ -144,11 +144,11 @@ export function CollectionScreen() {
   }, [authUser, setCollection]);
 
   if (!authUser) {
-    return <div className={compendiumStyles.route}><RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" description="Track the physical cards and BakuCores you own, including foil copies and wishlist targets." /><Surface className={styles.guestCta}><span className={styles.guestGlyph}>◇</span><h2>Sign in to track your collection</h2><p>Your collection is private account data and is available across devices after you create an account or log in.</p><div className="hero-actions"><ActionButton onClick={() => requestAccountAccess("signup")}>Create account</ActionButton><ActionButton tone="secondary" onClick={() => requestAccountAccess("login")}>Log in</ActionButton></div></Surface></div>;
+    return <div className={compendiumStyles.route}><RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" /><Surface className={styles.guestCta}><span className={styles.guestGlyph}>◇</span><h2>Sign in to track your collection</h2><p>Your collection is private account data and is available across devices after you create an account or log in.</p><div className="hero-actions"><ActionButton onClick={() => requestAccountAccess("signup")}>Create account</ActionButton><ActionButton tone="secondary" onClick={() => requestAccountAccess("login")}>Log in</ActionButton></div></Surface></div>;
   }
 
   if (!accountDataReady) {
-    return <div className={compendiumStyles.route}><RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" description="Restoring your saved card and BakuCore quantities from your account." /><Surface className={styles.guestCta} role="status"><h2>Loading your collection…</h2><p>Collection editing will be available after account data has finished loading.</p></Surface></div>;
+    return <div className={compendiumStyles.route}><RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" /><Surface className={styles.guestCta} role="status"><h2>Loading your collection…</h2><p>Collection editing will be available after account data has finished loading.</p></Surface></div>;
   }
 
   const selectedCard = selected ?? undefined;
@@ -240,7 +240,7 @@ export function CollectionScreen() {
 
   return (
     <div className={compendiumStyles.route}>
-      <RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" description="Track every supported card and BakuCore outside the simulator. Alternate printings share a tile but retain separate catalogue counts." aside={<div className={compendiumStyles.sourceSummary}><strong>{cardResults.length.toLocaleString()} cards · {coreResults.length.toLocaleString()} BakuCores</strong><span role={syncStatus === "error" || syncStatus === "offline" ? "status" : undefined}>{syncStatus === "synced" ? "Synced to your account" : syncStatus === "saving" ? "Saving to your account…" : syncStatus === "error" ? "Collection sync failed — your changes remain on this device" : syncStatus === "offline" ? "Offline — awaiting account sync" : "Checking account sync…"}</span></div>} />
+      <RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" aside={<div className={compendiumStyles.sourceSummary}><strong>{cardResults.length.toLocaleString()} cards · {coreResults.length.toLocaleString()} BakuCores</strong><span role={syncStatus === "error" || syncStatus === "offline" ? "status" : undefined}>{syncStatus === "synced" ? "Synced to your account" : syncStatus === "saving" ? "Saving to your account…" : syncStatus === "error" ? "Collection sync failed — your changes remain on this device" : syncStatus === "offline" ? "Offline — awaiting account sync" : "Checking account sync…"}</span></div>} />
       <section className={compendiumStyles.toolbar}>
         <Field className={compendiumStyles.search} label="Search your archive"><input type="search" value={query} placeholder="Cards, effects, IDs, mechanics…" onChange={(event) => setQuery(event.target.value)} /></Field>
         <ActionButton className={compendiumStyles.toolbarFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
