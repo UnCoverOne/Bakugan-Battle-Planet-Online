@@ -13,6 +13,7 @@ import {
 import { COLLECTION_FIELDS, normalizeCollection } from "./collection";
 
 const ACCOUNT_CACHE_PREFIX = "bbp-account-cache-v2:";
+const ACCOUNT_RESET_RELOAD_PREFIX = "bbp-account-reset-reload-v1:";
 
 export type AccountCache = {
   schemaVersion: 2;
@@ -31,6 +32,33 @@ export type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
 export function accountCacheKey(userId: string) {
   return `${ACCOUNT_CACHE_PREFIX}${userId}`;
+}
+
+/**
+ * A successful self-reset is followed by a full reload. Keep a per-account
+ * marker until the server confirms the new state so pagehide cannot recreate
+ * the deleted cache from pre-reset React state.
+ */
+export function markAccountResetReload(
+  storage: Pick<Storage, "setItem">,
+  userId: string,
+  scope: string,
+) {
+  storage.setItem(`${ACCOUNT_RESET_RELOAD_PREFIX}${userId}`, scope);
+}
+
+export function readAccountResetReloadScope(
+  storage: Pick<Storage, "getItem">,
+  userId: string,
+) {
+  return storage.getItem(`${ACCOUNT_RESET_RELOAD_PREFIX}${userId}`) ?? "";
+}
+
+export function clearAccountResetReload(
+  storage: Pick<Storage, "removeItem">,
+  userId: string,
+) {
+  storage.removeItem(`${ACCOUNT_RESET_RELOAD_PREFIX}${userId}`);
 }
 
 export function removeAccountCache(

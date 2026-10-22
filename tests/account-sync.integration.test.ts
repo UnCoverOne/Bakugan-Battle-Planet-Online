@@ -6,6 +6,9 @@ import {
   changedAccountEntityKeys,
   isAccountCacheDirty,
   isAccountCacheStaleAfterReset,
+  markAccountResetReload,
+  readAccountResetReloadScope,
+  clearAccountResetReload,
   readAccountCache,
   reconcileRemoteAccountState,
   recoverCachedCollectionWithoutServerEntity,
@@ -36,6 +39,9 @@ class MemoryStorage {
   setItem(key: string, value: string) {
     this.values.set(key, value);
   }
+  removeItem(key: string) {
+    this.values.delete(key);
+  }
 }
 
 const snapshot = (name = "Brawler"): UserSnapshot => ({
@@ -62,6 +68,15 @@ const snapshot = (name = "Brawler"): UserSnapshot => ({
   replay: null,
   replayIndex: 0,
   playerId: "browser",
+});
+
+test("self-reset marker survives cache deletion until server state loads", () => {
+  const storage = new MemoryStorage();
+  markAccountResetReload(storage, "admin", "history");
+  assert.equal(readAccountResetReloadScope(storage, "admin"), "history");
+  assert.equal(readAccountResetReloadScope(storage, "other"), "");
+  clearAccountResetReload(storage, "admin");
+  assert.equal(readAccountResetReloadScope(storage, "admin"), "");
 });
 
 test("server data resets invalidate unsynced browser caches", () => {
