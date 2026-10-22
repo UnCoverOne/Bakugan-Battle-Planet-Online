@@ -96,6 +96,7 @@ async function listUsers(db: AccountDatabase) {
       updatedAt: row.updated_at,
       dataUpdatedAt: accountStats.updatedAt,
       roles,
+      protected: Boolean(bootstrapAdministratorId && row.id === bootstrapAdministratorId),
       banned: Boolean(row.banned_at),
       bannedAt: row.banned_at,
       banReason: row.ban_reason ?? "",
@@ -214,7 +215,9 @@ export async function POST(request: Request) {
 
     if (action === "reset-user-data") {
       const userId = String(body.userId ?? "");
-      const target = await assertMutableUser(db, userId);
+      // Account-data resets do not change administrator roles or account access.
+      const target = await userById(db, userId);
+      if (!target) throw new ConflictError("The selected account no longer exists.");
       const scope = String(body.scope ?? "");
       if (!["all", "decks", "history", "settings", "profile"].includes(scope)) {
         throw new ValidationError("Choose a supported account-data type.");
