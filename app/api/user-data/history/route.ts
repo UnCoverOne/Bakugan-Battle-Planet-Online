@@ -1,5 +1,6 @@
 import { getDatabase, getSessionUser } from "../../../../lib/account-server";
 import {
+  getAccountResetVersion,
   loadAccountMatchHistory,
   saveAccountMatchRecord,
 } from "../../../../lib/account-data-server";
@@ -33,11 +34,14 @@ async function readHistoryRequest(request: Request) {
     throw new ValidationError("Match record is too large.");
   }
   try {
-    const body = JSON.parse(raw) as { record?: unknown };
+    const body = JSON.parse(raw) as { record?: unknown; resetVersion?: number };
     if (!body || typeof body !== "object" || !("record" in body)) {
       throw new ValidationError("Match record is required.");
     }
-    return body.record;
+    if (body.resetVersion !== undefined && (!Number.isInteger(body.resetVersion) || body.resetVersion < 0)) {
+      throw new ValidationError("Account reset version is invalid.");
+    }
+    return { record: body.record, resetVersion: body.resetVersion ?? 0 };
   } catch (error) {
     if (error instanceof ValidationError) throw error;
     throw new ValidationError("Match record is not valid JSON.");
@@ -49,8 +53,12 @@ export async function GET(request: Request) {
   try {
     const user = await getSessionUser(request);
     if (!user) throw new AuthenticationError();
-    const history = await loadAccountMatchHistory(await getDatabase(), user.id);
-    return json({ history, correlationId });
+    const db = await getDatabase();
+    const [history, resetVersion] = await Promise.all([
+      loadAccountMatchHistory(db, user.id),
+      getAccountResetVersion(db, user.id),
+    ]);
+    return json({ history, resetVersion, correlationId });
   } catch (error) {
     return serverErrorResponse(
       error,
@@ -74,11 +82,12 @@ export async function POST(request: Request) {
       60,
       60_000,
     );
-    const record = await saveAccountMatchRecord(
-      db,
-      user.id,
-      await readHistoryRequest(request),
-    );
+    const input = await readHistoryRequest(request);
+    const resetVersion = await getAccountResetVersion(db, user.id);
+    if (input.resetVersion !== resetVersion) {
+      return json({ error: "Account history was reset. Refresh the latest history.", code: "CONFLICT_ERROR", resetMismatch: true, resetVersion, correlationId }, 409);
+    }
+    const record = await saveAccountMatchRecord(db, user.id, input.record);
     return json({ record, correlationId });
   } catch (error) {
     return serverErrorResponse(
