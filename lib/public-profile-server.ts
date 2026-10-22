@@ -1,5 +1,5 @@
 import { normalizeAchievementProgress } from "./achievement-progress";
-import { achievementsFor, applyAchievementCompletions } from "./achievements";
+import { achievementsForProfile } from "./achievements";
 import { loadAchievementDefinitions } from "./achievement-configuration-server";
 import { loadAchievementRewardAssignments } from "./achievement-rewards-server";
 import { loadAccountDataPayload, loadAccountMatchHistory } from "./account-data-server";
@@ -66,6 +66,10 @@ function snapshotProfile(
     achievementProgress: normalizeAchievementProgress(
       profile.achievementProgress,
     ),
+    achievementResetAt: typeof profile.achievementResetAt === "string"
+      && Number.isFinite(Date.parse(profile.achievementResetAt))
+      ? new Date(profile.achievementResetAt).toISOString()
+      : null,
   };
 }
 
@@ -103,16 +107,7 @@ export async function publicBrawlerProfile(
   const achievementDefinitions = await loadAchievementDefinitions(db);
   const activeAchievementIds = new Set(achievementDefinitions.map((item) => item.id));
   const assignments = await loadAchievementRewardAssignments(db, activeAchievementIds);
-  const achievements = applyAchievementCompletions(
-    achievementsFor(
-      decks,
-      history,
-      lifetimeStats,
-      achievementDefinitions,
-      profile.achievementProgress,
-    ),
-    profile.achievementCompletions,
-  );
+  const achievements = achievementsForProfile(decks, history, lifetimeStats, profile, achievementDefinitions);
   const completedAchievementIds = new Set(
     achievements.filter((item) => item.unlocked).map((item) => item.id),
   );

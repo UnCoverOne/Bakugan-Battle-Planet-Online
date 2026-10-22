@@ -7,7 +7,7 @@ import {
   type AchievementProgress,
   type MonoMasteryFaction,
 } from "./achievement-progress";
-import type { LifetimeMatchStats, MatchResultRecord } from "./persistence";
+import type { BrawlerProfile, LifetimeMatchStats, MatchResultRecord } from "./persistence";
 import { accountStatMatches } from "./match-statistics";
 
 export const ACHIEVEMENT_CATEGORIES = [
@@ -459,6 +459,39 @@ export function achievementsFor(
       trainingRule: achievementTrainingRule(item),
     };
   });
+}
+
+/**
+ * Evaluate a profile's achievements against its current tracking period.
+ * A reset leaves decks and match archives untouched, but only activities
+ * performed after the reset can earn the achievements again.
+ */
+export function achievementsForProfile(
+  decks: DeckRecord[],
+  history: Array<Partial<MatchResultRecord>>,
+  lifetimeStats: LifetimeMatchStats | undefined,
+  profile: Pick<BrawlerProfile, "achievementResetAt" | "achievementCompletions" | "achievementProgress">,
+  definitions?: readonly AchievementDefinition[],
+): Achievement[] {
+  const resetTime = profile.achievementResetAt
+    ? Date.parse(profile.achievementResetAt)
+    : NaN;
+  const reset = Number.isFinite(resetTime);
+  const eligibleDecks = reset
+    ? decks.filter((deck) => Number.isFinite(Date.parse(deck.updatedAt))
+      && Date.parse(deck.updatedAt) > resetTime)
+    : decks;
+  const eligibleHistory = reset
+    ? history.filter((record) => Number.isFinite(Date.parse(record.at ?? ""))
+      && Date.parse(record.at ?? "") > resetTime)
+    : history;
+  // Lifetime totals include activity from before the reset. Post-reset
+  // achievements instead use new match evidence and stored fresh progress.
+  const applicableStats = reset ? undefined : lifetimeStats;
+  return applyAchievementCompletions(
+    achievementsFor(eligibleDecks, eligibleHistory, applicableStats, definitions, profile.achievementProgress),
+    profile.achievementCompletions,
+  );
 }
 
 export function sortAchievements(achievements: Achievement[], status: AchievementStatus) {

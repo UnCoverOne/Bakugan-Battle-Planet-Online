@@ -5,7 +5,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { achievementsFor, applyAchievementCompletions } from "../../lib/achievements";
+import { achievementsForProfile } from "../../lib/achievements";
 import { accountStatMatches, lifetimeMatchStatsFromHistory } from "../../lib/match-statistics";
 import {
   buildPublicBrawlerProfile,
@@ -89,11 +89,8 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
     [authUser, history, lifetimeStats],
   );
   const achievements = useMemo(
-    () => applyAchievementCompletions(
-      achievementsFor(decks, history, effectiveLifetimeStats),
-      profile.achievementCompletions,
-    ),
-    [decks, effectiveLifetimeStats, history, profile.achievementCompletions],
+    () => achievementsForProfile(decks, history, effectiveLifetimeStats, profile),
+    [decks, effectiveLifetimeStats, history, profile],
   );
   const completedGames = accountStatMatches(history);
   const gamesPlayed = authUser
