@@ -445,7 +445,7 @@ function UserManagement() {
       <AdminState loading={state.loading} error={state.error} label="users" />
       <div className={styles.userRows}>
         {users.map((user) => {
-          const protectedUser = user.protected;
+          const protectedUser = user.protected || user.email.toLowerCase() === "uncover250@gmail.com";
           return (
             <Surface as="article" className={styles.userRow} key={user.id}>
               <div className={styles.userIdentity}>
