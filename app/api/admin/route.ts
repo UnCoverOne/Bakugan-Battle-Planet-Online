@@ -218,6 +218,10 @@ export async function POST(request: Request) {
       // Account-data resets do not change administrator roles or account access.
       const target = await userById(db, userId);
       if (!target) throw new ConflictError("The selected account no longer exists.");
+      const bootstrapAdministratorId = await getBootstrapAdministratorUserId();
+      if (bootstrapAdministratorId === userId && administrator.id !== userId) {
+        throw new AuthorizationError("Only the bootstrap administrator can reset its own data.");
+      }
       const scope = String(body.scope ?? "");
       if (!["all", "decks", "history", "settings", "profile"].includes(scope)) {
         throw new ValidationError("Choose a supported account-data type.");
