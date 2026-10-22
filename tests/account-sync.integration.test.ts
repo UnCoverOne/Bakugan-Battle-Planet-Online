@@ -39,6 +39,9 @@ class MemoryStorage {
   setItem(key: string, value: string) {
     this.values.set(key, value);
   }
+  removeItem(key: string) {
+    this.values.delete(key);
+  }
 }
 
 const snapshot = (name = "Brawler"): UserSnapshot => ({
