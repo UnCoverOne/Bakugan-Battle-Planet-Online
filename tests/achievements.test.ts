@@ -10,6 +10,7 @@ import {
   achievementTrainingConfigurable,
   achievementTrainingRule,
   achievementsFor,
+  achievementsForProfile,
   applyAchievementCompletions,
   normalizeAchievementDefinitions,
   sortAchievements,
@@ -23,7 +24,7 @@ import {
   recordAchievementMatch,
 } from "../lib/achievement-progress";
 import { STARTER_DECKS, deckIsLegal, type DeckRecord } from "../lib/data";
-import { EMPTY_LIFETIME_MATCH_STATS } from "../lib/persistence";
+import { DEFAULT_BRAWLER_PROFILE, EMPTY_LIFETIME_MATCH_STATS } from "../lib/persistence";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
@@ -81,6 +82,29 @@ test("legacy achievement metrics and migration code are gone", () => {
   for (const metric of legacyMetrics) assert.equal((ACHIEVEMENT_METRICS as readonly string[]).includes(metric), false, metric);
   const implementation = source("lib/achievements.ts");
   assert.doesNotMatch(implementation, /PREVIOUS_BUNDLED_DEFINITION_FIELDS|ORIGINAL_BUNDLED_DEFINITION_FIELDS|COMPLETION_REQUIRES_CURRENT_PROGRESS/);
+});
+
+test("reset achievements ignore old matches and decks but recognize new activity", () => {
+  const resetAt = "2026-09-15T12:00:00.000Z";
+  const original = legalDeck(STARTER_DECKS[0], "existing", "2026-09-01T12:00:00.000Z");
+  const oldMatch = {
+    id: "old-win", result: "Victor", opponent: "Rival", score: "1-0",
+    reason: "Won", at: "2026-09-02T12:00:00.000Z", mode: "casual" as const,
+  };
+  const profile = {
+    ...DEFAULT_BRAWLER_PROFILE,
+    achievementResetAt: resetAt,
+    achievementCompletions: {},
+  };
+  const inflatedLifetime = { ...EMPTY_LIFETIME_MATCH_STATS, wins: 50, matchesPlayed: 50 };
+  const reset = achievementsForProfile([original], [oldMatch], inflatedLifetime, profile);
+  assert.equal(reset.find((item) => item.id === "first-deck")?.current, 0);
+  assert.equal(reset.find((item) => item.id === "first-win")?.current, 0);
+  const newDeck = { ...original, updatedAt: "2026-09-16T12:00:00.000Z" };
+  const newMatch = { ...oldMatch, id: "new-win", at: "2026-09-16T12:00:00.000Z" };
+  const resumed = achievementsForProfile([newDeck], [oldMatch, newMatch], inflatedLifetime, profile);
+  assert.equal(resumed.find((item) => item.id === "first-deck")?.current, 1);
+  assert.equal(resumed.find((item) => item.id === "first-win")?.current, 1);
 });
 
 test("Arena generic progression has one participation milestone followed only by win milestones", () => {

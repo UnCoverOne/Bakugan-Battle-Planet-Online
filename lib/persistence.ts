@@ -27,6 +27,7 @@ export type BrawlerProfile = {
   showcaseDeckIds?: string[];
   achievementCompletions?: Record<string, string>;
   achievementProgress?: AchievementProgress;
+  achievementResetAt?: string | null;
 };
 export type AppSettings = {
   reducedMotion: boolean;
@@ -136,6 +137,7 @@ export const DEFAULT_BRAWLER_PROFILE: BrawlerProfile = {
   showcaseDeckIds: [],
   achievementCompletions: {},
   achievementProgress: EMPTY_ACHIEVEMENT_PROGRESS,
+  achievementResetAt: null,
 };
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -346,6 +348,10 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
       achievementProgress: normalizeAchievementProgress(
         candidate.profile?.achievementProgress ?? fallback.profile.achievementProgress,
       ),
+      achievementResetAt: typeof candidate.profile?.achievementResetAt === "string"
+        && Number.isFinite(Date.parse(candidate.profile.achievementResetAt))
+        ? new Date(candidate.profile.achievementResetAt).toISOString()
+        : fallback.profile.achievementResetAt ?? null,
     },
     decks: deckState.decks,
     deletedDecks: deckState.deletedDecks,
@@ -539,19 +545,25 @@ export function mergeSnapshots(local: UserSnapshot, cloud: UserSnapshot): UserSn
   const history = new Map<string, MatchResultRecord>();
   for (const result of secondary.history) history.set(result.id, result);
   for (const result of primary.history) history.set(result.id, result);
+  // Merging across a reset boundary must not restore old completion or
+  // progress evidence. Only evidence from the newest reset period is valid.
+  const resetTime = (profile: BrawlerProfile) =>
+    profile.achievementResetAt ? Date.parse(profile.achievementResetAt) || 0 : 0;
+  const newestReset = Math.max(resetTime(primary.profile), resetTime(secondary.profile));
+  const achievementProfiles = [primary.profile, secondary.profile]
+    .filter((profile) => resetTime(profile) === newestReset);
   const merged = {
     ...primary,
     schemaVersion: 1 as const,
     updatedAt: Math.max(local.updatedAt, cloud.updatedAt),
     profile: {
       ...primary.profile,
+      achievementResetAt: newestReset ? new Date(newestReset).toISOString() : null,
       achievementCompletions: mergeAchievementCompletions(
-        primary.profile.achievementCompletions,
-        secondary.profile.achievementCompletions,
+        ...achievementProfiles.map((profile) => profile.achievementCompletions),
       ),
       achievementProgress: mergeAchievementProgress(
-        primary.profile.achievementProgress,
-        secondary.profile.achievementProgress,
+        ...achievementProfiles.map((profile) => profile.achievementProgress),
       ),
     },
     decks: deckState.decks,

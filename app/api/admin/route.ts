@@ -223,13 +223,13 @@ export async function POST(request: Request) {
         throw new AuthorizationError("Only the bootstrap administrator can reset its own data.");
       }
       const scope = String(body.scope ?? "");
-      if (!["all", "decks", "history", "settings", "profile"].includes(scope)) {
+      if (!["all", "decks", "history", "settings", "profile", "achievements"].includes(scope)) {
         throw new ValidationError("Choose a supported account-data type.");
       }
       await resetAccountData(
         db,
         userId,
-        scope as "all" | "decks" | "history" | "settings" | "profile",
+        scope as "all" | "decks" | "history" | "settings" | "profile" | "achievements",
         { displayName: target.display_name, faction: target.faction },
       );
       return json({ ok: true, correlationId });

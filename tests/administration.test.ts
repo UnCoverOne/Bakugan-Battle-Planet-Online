@@ -144,7 +144,7 @@ test("user management supports roles, entity-backed scoped resets, bans, and del
     "unban-user",
     "delete-user",
   ]) assert.match(api, new RegExp(`action === "${action}"`));
-  for (const scope of ["decks", "history", "settings", "profile", "all"]) {
+  for (const scope of ["decks", "history", "settings", "profile", "achievements", "all"]) {
     assert.match(api, new RegExp(`"${scope}"`));
   }
   assert.match(api, /bootstrap administrator account is protected/i);
@@ -153,6 +153,26 @@ test("user management supports roles, entity-backed scoped resets, bans, and del
   assert.match(accountData, /DELETE FROM user_data_entities/);
   assert.match(accountData, /DELETE FROM user_match_history/);
   assert.match(api, /DELETE FROM sessions WHERE user_id/);
+});
+
+test("achievement resets are scoped to profile evidence and retain account data", async () => {
+  const [screen, api, accountData] = await Promise.all([
+    read("components/routes/AdminScreen.tsx"),
+    read("app/api/admin/route.ts"),
+    read("lib/account-data-server.ts"),
+  ]);
+  assert.match(screen, /<option value="achievements">Achievements<\/option>/);
+  assert.match(api, /"achievements"\.includes\(scope\)/);
+  const start = accountData.indexOf('if (scope === "achievements")');
+  const end = accountData.indexOf('const type: UserDataEntityType', start);
+  const reset = accountData.slice(start, end);
+  for (const field of ["achievementCompletions", "achievementProgress", "achievementResetAt", "showcaseAchievementIds"]) {
+    assert.ok(reset.includes(field));
+  }
+  assert.ok(reset.includes("...previous"));
+  assert.ok(reset.includes("bumpResetVersion"));
+  assert.ok(!reset.includes("DELETE FROM user_match_history"));
+  assert.ok(!reset.includes("DELETE FROM user_data_entities"));
 });
 
 test("protected administrator account can reset data without losing its role or account protections", async () => {

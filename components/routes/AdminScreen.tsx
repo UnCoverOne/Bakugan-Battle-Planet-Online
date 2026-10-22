@@ -481,6 +481,7 @@ function UserManagement() {
                   <option value="" disabled>Reset data…</option>
                   <option value="decks">Decks and draft</option>
                   <option value="history">Match history</option>
+                  <option value="achievements">Achievements</option>
                   <option value="settings">Settings</option>
                   <option value="profile">Local profile</option>
                   <option value="all">All synced data</option>

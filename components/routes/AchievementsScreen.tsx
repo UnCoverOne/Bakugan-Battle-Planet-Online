@@ -6,8 +6,7 @@ import { useMemo } from "react";
 import {
   ACHIEVEMENT_CATEGORIES,
   ACHIEVEMENT_CATEGORY_DETAILS,
-  achievementsFor,
-  applyAchievementCompletions,
+  achievementsForProfile,
   sortAchievements,
   type Achievement,
   type AchievementStatus,
@@ -168,16 +167,9 @@ export function AchievementsScreen({
   const searchParams = useSearchParams();
   const { profile, decks, history, lifetimeStats } = useAppFields(["profile", "decks", "history", "lifetimeStats"]);
   const achievements = useMemo(() => {
-    const live = achievementsFor(
-      decks,
-      history,
-      lifetimeStats,
-      undefined,
-      profile.achievementProgress,
-    );
-    const resolved = applyAchievementCompletions(live, profile.achievementCompletions);
+    const resolved = achievementsForProfile(decks, history, lifetimeStats, profile);
     return resolved.length ? resolved : providedAchievements;
-  }, [decks, history, lifetimeStats, profile.achievementCompletions, profile.achievementProgress, providedAchievements]);
+  }, [decks, history, lifetimeStats, profile, providedAchievements]);
   const activeStatus = routeStatus(view);
   const query = searchParams.get("q") ?? "";
   const requestedCategory = searchParams.get("category") ?? "All";

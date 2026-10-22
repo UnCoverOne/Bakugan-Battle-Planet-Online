@@ -139,6 +139,15 @@ test("local and cloud snapshots union permanent achievement progress", () => {
   assert.ok(progress.discoveredMainCardIds.length >= new Set(STARTER_DECKS[0].cardIds).size);
 });
 
+test("merging profiles across achievement reset periods cannot resurrect old completions", () => {
+  const earlier = snapshot(1, { "achievement:v1:first-win": "2026-07-01T00:00:00.000Z" });
+  const reset = snapshot(2);
+  reset.profile.achievementResetAt = "2026-09-15T12:00:00.000Z";
+  const merged = mergeSnapshots(earlier, reset);
+  assert.deepEqual(merged.profile.achievementCompletions, {});
+  assert.equal(merged.profile.achievementResetAt, reset.profile.achievementResetAt);
+});
+
 test("competitive deck normalization keeps its full fifty-card main deck", () => {
   const fallback = snapshot(0);
   const normalized = normalizeSnapshot({

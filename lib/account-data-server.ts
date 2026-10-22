@@ -11,6 +11,7 @@ import {
   type UserDataSyncRequest,
 } from "./user-data-entities";
 import { MAX_MATCH_RECORDS, type MatchResultRecord, type UserSnapshot } from "./persistence";
+import { EMPTY_ACHIEVEMENT_PROGRESS } from "./achievement-progress";
 import { ensureAdministrationSchema, type AccountDatabase } from "./account-server";
 import { ValidationError } from "./server-errors";
 
@@ -464,7 +465,7 @@ export async function syncAccountData(
 export async function resetAccountData(
   db: AccountDatabase,
   userId: string,
-  scope: "all" | "decks" | "history" | "settings" | "profile",
+  scope: "all" | "decks" | "history" | "settings" | "profile" | "achievements",
   profile?: { displayName: string; faction: string },
 ) {
   await ensureAccountDataSchema(db);
@@ -503,6 +504,42 @@ export async function resetAccountData(
   if (scope === "history") {
     await db.batch([
       db.prepare("DELETE FROM user_match_history WHERE user_id = ?").bind(userId),
+      bumpResetVersion,
+    ]);
+    return;
+  }
+  if (scope === "achievements") {
+    // Keep the existing profile, decks and match history. Clearing only the
+    // completion map is insufficient because achievements can be derived from
+    // historical matches and decks. The reset timestamp establishes a fresh
+    // start for those calculations.
+    const row = await db.prepare(
+      "SELECT data_json FROM user_data_entities WHERE user_id = ? AND entity_type = 'profile' AND entity_id = 'main'",
+    ).bind(userId).first<{ data_json: string | null }>();
+    let previous: Record<string, unknown> = {};
+    try {
+      const decoded: unknown = JSON.parse(row?.data_json ?? "{}");
+      if (decoded && typeof decoded === "object" && !Array.isArray(decoded)) {
+        previous = decoded as Record<string, unknown>;
+      }
+    } catch {
+      // A damaged profile must not prevent resetting its achievement state.
+    }
+    const updatedProfile = {
+      ...previous,
+      name: typeof previous.name === "string" && previous.name.trim()
+        ? previous.name : profile?.displayName ?? "Brawler",
+      faction: typeof previous.faction === "string" && previous.faction.trim()
+        ? previous.faction : profile?.faction ?? "Pyrus",
+      achievementCompletions: {},
+      achievementProgress: EMPTY_ACHIEVEMENT_PROGRESS,
+      showcaseAchievementIds: [],
+      achievementResetAt: new Date(now).toISOString(),
+    };
+    await db.batch([
+      db.prepare(
+        "INSERT INTO user_data_entities (user_id, entity_type, entity_id, revision, data_json, deleted_at, updated_at) VALUES (?, 'profile', 'main', 1, ?, NULL, ?) ON CONFLICT(user_id, entity_type, entity_id) DO UPDATE SET revision = revision + 1, data_json = excluded.data_json, deleted_at = NULL, updated_at = excluded.updated_at",
+      ).bind(userId, JSON.stringify(updatedProfile), now),
       bumpResetVersion,
     ]);
     return;
