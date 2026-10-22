@@ -36,6 +36,7 @@ export type UserDataEntityRow = {
 
 export type UserDataSyncRequest = {
   schemaVersion: typeof USER_DATA_SCHEMA_VERSION;
+  resetVersion?: number;
   entities: UserDataEntityUpdate[];
   history: MatchResultRecord[];
 };
