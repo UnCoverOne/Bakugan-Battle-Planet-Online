@@ -20,6 +20,7 @@ import {
   Tabs,
 } from "../design-system/primitives";
 import styles from "./AdminScreen.module.css";
+import { removeAccountCache } from "../../lib/account-sync";
 
 type AdminTab = "ai" | "offline" | "cards" | "music" | "ranked" | "users" | "feedback";
 type AiDeckItem = { id: string; deck: DeckRecord; enabled: boolean; updatedAt: number };
@@ -33,6 +34,7 @@ type AdminUser = {
   updatedAt: number;
   dataUpdatedAt?: number;
   roles: string[];
+  protected: boolean;
   banned: boolean;
   bannedAt?: number;
   banReason: string;
@@ -420,10 +422,17 @@ function UserManagement() {
   const mutate = useCallback(async (body: Record<string, unknown>, message: string) => {
     try {
       await adminRequest(body);
+      if (body.action === "reset-user-data" && body.userId === authUser?.id) {
+        // Refresh the signed-in user from the server; a reset must not leave
+        // old in-memory account data visible or ready for synchronization.
+        try { removeAccountCache(localStorage, authUser.id); } catch {}
+        window.location.reload();
+        return;
+      }
       notify(message);
       setRefresh((value) => value + 1);
     } catch (error) { notify(error instanceof Error ? error.message : "Account action failed."); }
-  }, [notify]);
+  }, [authUser?.id, notify]);
   return (
     <section className={styles.section}>
       <div className={styles.sectionHeading}><div><span>ACCOUNTS</span><h2>User Management</h2><p>Search, sort, filter, assign roles, reset saved data, ban, or remove accounts.</p></div></div>
@@ -436,7 +445,7 @@ function UserManagement() {
       <AdminState loading={state.loading} error={state.error} label="users" />
       <div className={styles.userRows}>
         {users.map((user) => {
-          const protectedUser = user.email.toLowerCase() === "uncover250@gmail.com";
+          const protectedUser = user.protected;
           return (
             <Surface as="article" className={styles.userRow} key={user.id}>
               <div className={styles.userIdentity}>
@@ -462,7 +471,7 @@ function UserManagement() {
                 {user.banReason && <small>{user.banReason}</small>}
               </div>
               <div className={styles.userActions}>
-                <select aria-label={`Reset data for ${user.displayName}`} defaultValue="" disabled={protectedUser} onChange={(event) => {
+                <select aria-label={`Reset data for ${user.displayName}`} defaultValue="" onChange={(event) => {
                   const scope = event.target.value;
                   event.target.value = "";
                   if (scope && confirm(`Reset ${scope === "all" ? "all synced account data" : scope} for ${user.displayName}?`)) {
