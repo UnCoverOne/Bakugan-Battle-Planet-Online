@@ -167,6 +167,7 @@ test("protected administrator account can reset data without losing its role or 
   assert.ok(reset.includes("await userById(db, userId)"));
   assert.ok(!reset.includes("assertMutableUser"));
   assert.ok(api.includes("protected: Boolean(bootstrapAdministratorId"));
+  assert.ok(reset.includes("Only the bootstrap administrator can reset its own data."));
   for (const action of ["set-role", "ban-user", "unban-user", "delete-user"]) {
     const beginning = api.indexOf(`if (action === "${action}")`);
     assert.ok(beginning >= 0 && api.slice(beginning, beginning + 350).includes("assertMutableUser"));
@@ -180,6 +181,11 @@ test("protected administrator account can reset data without losing its role or 
   assert.ok(data.includes("resetMismatch: true"));
   assert.ok(syncApi.includes("if (result.resetMismatch)"));
   assert.ok(provider.includes("if (saved.resetMismatch)"));
+  const historyApi = await read("app/api/user-data/history/route.ts");
+  const historySync = await read("components/application/AccountHistorySync.tsx");
+  assert.ok(historyApi.includes("getAccountResetVersion"));
+  assert.ok(historyApi.includes("input.resetVersion !== resetVersion"));
+  assert.ok(historySync.includes("resetVersion: resetVersion.current"));
 });
 
 test("administrators can edit and delete any public deck from its View screen", async () => {
