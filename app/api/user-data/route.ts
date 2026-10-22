@@ -73,6 +73,9 @@ export async function PUT(request: Request) {
       throw new ValidationError("Sync batch is not valid JSON.");
     }
     const result = await syncAccountData(db, user.id, body);
+    if (result.resetMismatch) {
+      return json({ ...result, error: "Account data was reset. Reload the latest account state.", code: "CONFLICT_ERROR", correlationId }, 409);
+    }
     if (result.conflicts.length) {
       return json({
         ...result,

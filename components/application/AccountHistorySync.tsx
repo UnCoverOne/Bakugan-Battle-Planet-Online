@@ -30,6 +30,7 @@ export function AccountHistorySync() {
   const pushing = useRef(false);
   const requestSequence = useRef(0);
   const activeUserId = useRef("");
+  const resetVersion = useRef(0);
 
   useEffect(() => {
     historyRef.current = history;
@@ -57,6 +58,15 @@ export function AccountHistorySync() {
         return false;
       }
 
+      const remoteVersion = Number(result.resetVersion ?? 0);
+      if (resetVersion.current !== remoteVersion) {
+        // An administrator reset invalidates pending history written under
+        // the previous account generation.
+        resetVersion.current = remoteVersion;
+        pendingHistory.current.clear();
+        rejectedHistory.current.clear();
+        pushAttempts.current.clear();
+      }
       const remoteHistory = result.history as MatchResultRecord[];
 
       // The dedicated history endpoint is the source of truth for a signed-in
@@ -109,7 +119,7 @@ export function AccountHistorySync() {
           method: "POST",
           headers: { "content-type": "application/json" },
           credentials: "same-origin",
-          body: JSON.stringify({ record }),
+          body: JSON.stringify({ record, resetVersion: resetVersion.current }),
           signal: AbortSignal.timeout(12_000),
         });
         const result = await readJsonResponse(
@@ -117,6 +127,14 @@ export function AccountHistorySync() {
           "Match record save returned an invalid response.",
         );
         if (!response.ok) {
+          if (response.status === 409 && result.resetMismatch) {
+            resetVersion.current = Number(result.resetVersion ?? 0);
+            pendingHistory.current.clear();
+            rejectedHistory.current.clear();
+            pushAttempts.current.clear();
+            void refreshHistory();
+            return;
+          }
           const permanent = response.status >= 400 && response.status < 500 && response.status !== 429;
           if (permanent) {
             const fingerprint = recordFingerprint(record);
@@ -175,11 +193,12 @@ export function AccountHistorySync() {
     if (activeUserId.current === userId && pendingHistory.current.size > 0 && pushTimer.current === null) {
       void pushPendingHistory();
     }
-  }, [accountDataReady, authUser]);
+  }, [accountDataReady, authUser, refreshHistory]);
 
   useEffect(() => {
     if (!authUser || !accountDataReady) {
       activeUserId.current = "";
+      resetVersion.current = 0;
       observedHistory.current = null;
       pendingHistory.current.clear();
       rejectedHistory.current.clear();
@@ -194,6 +213,7 @@ export function AccountHistorySync() {
 
     if (activeUserId.current !== authUser.id) {
       activeUserId.current = authUser.id;
+      resetVersion.current = 0;
       observedHistory.current = historyFingerprints(historyRef.current);
       pendingHistory.current.clear();
       rejectedHistory.current.clear();

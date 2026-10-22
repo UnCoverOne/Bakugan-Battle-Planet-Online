@@ -155,6 +155,40 @@ test("user management supports roles, entity-backed scoped resets, bans, and del
   assert.match(api, /DELETE FROM sessions WHERE user_id/);
 });
 
+test("protected administrator account can reset data without losing its role or account protections", async () => {
+  const [screen, api, data, syncApi, provider] = await Promise.all([
+    read("components/routes/AdminScreen.tsx"),
+    read("app/api/admin/route.ts"),
+    read("lib/account-data-server.ts"),
+    read("app/api/user-data/route.ts"),
+    read("components/application/AppProvider.jsx"),
+  ]);
+  const reset = api.slice(api.indexOf('if (action === "reset-user-data")'), api.indexOf('if (action === "ban-user")'));
+  assert.ok(reset.includes("await userById(db, userId)"));
+  assert.ok(!reset.includes("assertMutableUser"));
+  assert.ok(api.includes("protected: Boolean(bootstrapAdministratorId"));
+  assert.ok(reset.includes("Only the bootstrap administrator can reset its own data."));
+  for (const action of ["set-role", "ban-user", "unban-user", "delete-user"]) {
+    const beginning = api.indexOf(`if (action === "${action}")`);
+    assert.ok(beginning >= 0 && api.slice(beginning, beginning + 350).includes("assertMutableUser"));
+  }
+  assert.ok(screen.includes("const protectedUser = user.protected"));
+  assert.ok(!screen.includes('defaultValue="" disabled={protectedUser}'));
+  assert.ok(screen.includes("disabled={protectedUser && user.id !== authUser?.id}"));
+  assert.ok(screen.includes("removeAccountCache(localStorage, authUser.id)"));
+  assert.ok(screen.includes("window.location.reload()"));
+  assert.ok(data.includes("account_data_reset_versions"));
+  assert.ok(data.includes("bumpResetVersion"));
+  assert.ok(data.includes("resetMismatch: true"));
+  assert.ok(syncApi.includes("if (result.resetMismatch)"));
+  assert.ok(provider.includes("if (saved.resetMismatch)"));
+  const historyApi = await read("app/api/user-data/history/route.ts");
+  const historySync = await read("components/application/AccountHistorySync.tsx");
+  assert.ok(historyApi.includes("getAccountResetVersion"));
+  assert.ok(historyApi.includes("input.resetVersion !== resetVersion"));
+  assert.ok(historySync.includes("resetVersion: resetVersion.current"));
+});
+
 test("administrators can edit and delete any public deck from its View screen", async () => {
   const [decks, publicApi, server, builderPage] = await Promise.all([
     deckRouteSource(),

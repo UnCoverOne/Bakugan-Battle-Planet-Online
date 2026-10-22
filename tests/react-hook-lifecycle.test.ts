@@ -76,7 +76,7 @@ test("new account match records are pushed directly and retried outside the dura
   const source = readFileSync(new URL("../components/application/AccountHistorySync.tsx", import.meta.url), "utf8");
   assert.match(source, /pendingHistory\.current\.set\(record\.id, record\)/);
   assert.match(source, /method: "POST"/);
-  assert.match(source, /body: JSON\.stringify\(\{ record \}\)/);
+  assert.match(source, /body: JSON\.stringify\(\{ record, resetVersion: resetVersion\.current \}\)/);
   assert.match(source, /window\.setTimeout\(\(\) => \{[\s\S]*void pushPendingHistory\(\);[\s\S]*\}, 0\)/);
   assert.match(source, /addEventListener\("online", refreshWhenUsable\)/);
   assert.match(source, /observedHistory\.current = historyFingerprints\(merged\)/);

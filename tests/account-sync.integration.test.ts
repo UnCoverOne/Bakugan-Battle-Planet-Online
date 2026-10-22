@@ -5,6 +5,7 @@ import {
   buildAccountSyncRequests,
   changedAccountEntityKeys,
   isAccountCacheDirty,
+  isAccountCacheStaleAfterReset,
   readAccountCache,
   reconcileRemoteAccountState,
   recoverCachedCollectionWithoutServerEntity,
@@ -61,6 +62,23 @@ const snapshot = (name = "Brawler"): UserSnapshot => ({
   replay: null,
   replayIndex: 0,
   playerId: "browser",
+});
+
+test("server data resets invalidate unsynced browser caches", () => {
+  const storage = new MemoryStorage();
+  writeAccountCache(storage, {
+    userId: "administrator",
+    snapshot: snapshot("Before reset"),
+    revisions: { "profile:main": 4 },
+    resetVersion: 1,
+    version: 9,
+    acknowledgedVersion: 2,
+  });
+  const cached = readAccountCache(storage, "administrator", snapshot());
+  assert.equal(isAccountCacheDirty(cached), true);
+  assert.equal(isAccountCacheStaleAfterReset(cached, 1), false);
+  assert.equal(isAccountCacheStaleAfterReset(cached, 2), true);
+  assert.equal(isAccountCacheStaleAfterReset(null, 2), false);
 });
 
 class EntityServer {
