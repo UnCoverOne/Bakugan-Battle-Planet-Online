@@ -79,7 +79,7 @@ test("the server match archive is complete and account-scoped", () => {
     .split("export async function loadAccountMatchHistory")[1]
     ?.split("export async function saveAccountMatchRecord")[0] ?? "";
 
-  assert.match(route, /loadAccountMatchHistory\(await getDatabase\(\), user\.id\)/);
+  assert.match(route, /loadAccountMatchHistory\(db, user\.id\)/);
   assert.match(route, /saveAccountMatchRecord\([\s\S]*user\.id/);
   assert.match(route, /assertSameOrigin\(request\)/);
   assert.match(accountData, /PRIMARY KEY \(user_id, event_id\)/);
@@ -96,7 +96,7 @@ test("signed-in sessions push match records directly and refresh the archive glo
 
   assert.match(sync, /fetch\("\/api\/user-data\/history", \{/);
   assert.match(sync, /method: "POST"/);
-  assert.match(sync, /body: JSON\.stringify\(\{ record \}\)/);
+  assert.match(sync, /body: JSON\.stringify\(\{ record, resetVersion: resetVersion\.current \}\)/);
   assert.match(sync, /HISTORY_REFRESH_INTERVAL_MS/);
   assert.match(sync, /rejectedHistory\.current\.set\(id, fingerprint\)/);
   assert.match(sync, /response\.status >= 400 && response\.status < 500 && response\.status !== 429/);
