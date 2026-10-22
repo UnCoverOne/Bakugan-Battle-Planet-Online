@@ -162,7 +162,7 @@ test("achievement resets are scoped to profile evidence and retain account data"
     read("lib/account-data-server.ts"),
   ]);
   assert.match(screen, /<option value="achievements">Achievements<\/option>/);
-  assert.match(api, /"achievements"\.includes\(scope\)/);
+  assert.match(api, /"achievements"\]\.includes\(scope\)/);
   const start = accountData.indexOf('if (scope === "achievements")');
   const end = accountData.indexOf('const type: UserDataEntityType', start);
   const reset = accountData.slice(start, end);
