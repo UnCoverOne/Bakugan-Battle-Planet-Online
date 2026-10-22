@@ -174,6 +174,7 @@ test("protected administrator account can reset data without losing its role or 
   }
   assert.ok(screen.includes("const protectedUser = user.protected"));
   assert.ok(!screen.includes('defaultValue="" disabled={protectedUser}'));
+  assert.ok(screen.includes("disabled={protectedUser && user.id !== authUser?.id}"));
   assert.ok(screen.includes("removeAccountCache(localStorage, authUser.id)"));
   assert.ok(screen.includes("window.location.reload()"));
   assert.ok(data.includes("account_data_reset_versions"));
