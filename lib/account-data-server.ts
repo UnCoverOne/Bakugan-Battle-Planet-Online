@@ -13,6 +13,8 @@ import {
 } from "./user-data-entities";
 import { MAX_MATCH_RECORDS, type MatchResultRecord, type UserSnapshot } from "./persistence";
 import { EMPTY_ACHIEVEMENT_PROGRESS } from "./achievement-progress";
+import { completedMatchKey, type MatchResultSnapshot } from "./match-result-navigation";
+import { mergeCompletedTrainingMatchIds } from "./persistence";
 import { ensureAdministrationSchema, type AccountDatabase } from "./account-server";
 import { ValidationError } from "./server-errors";
 
@@ -93,6 +95,9 @@ export async function ensureAccountDataSchema(db: AccountDatabase) {
     ),
     db.prepare(
       "CREATE TABLE IF NOT EXISTS account_data_reset_versions (user_id TEXT PRIMARY KEY NOT NULL, version INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    ),
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS user_match_history_reset_ids (user_id TEXT NOT NULL, event_id TEXT NOT NULL, reset_at INTEGER NOT NULL, PRIMARY KEY (user_id, event_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
     ),
   ]);
 }
