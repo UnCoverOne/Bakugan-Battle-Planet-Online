@@ -235,10 +235,20 @@ export async function saveAccountMatchRecord(
     );
   }
   const record = candidate as MatchResultRecord;
+  const tombstone = await db.prepare(
+    "SELECT 1 AS blocked FROM user_match_history_reset_ids WHERE user_id = ? AND event_id = ?",
+  ).bind(userId, record.id).first<{ blocked: number }>();
+  if (tombstone) {
+    throw new ValidationError("This match was removed by a history reset and cannot be restored.");
+  }
   const recordJson = JSON.stringify(record);
-  await db.prepare(
-    "INSERT INTO user_match_history (user_id, event_id, data_json, occurred_at, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, event_id) DO UPDATE SET data_json = excluded.data_json, occurred_at = excluded.occurred_at",
-  ).bind(userId, record.id, recordJson, record.at, Date.now()).run();
+  // Atomic with respect to concurrent administrator resets on other sessions.
+  const saved = await db.prepare(
+    "INSERT INTO user_match_history (user_id, event_id, data_json, occurred_at, created_at) SELECT ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM user_match_history_reset_ids WHERE user_id = ? AND event_id = ?) ON CONFLICT(user_id, event_id) DO UPDATE SET data_json = excluded.data_json, occurred_at = excluded.occurred_at",
+  ).bind(userId, record.id, recordJson, record.at, Date.now(), userId, record.id).run();
+  if (!saved.meta.changes) {
+    throw new ValidationError("This match was removed by a history reset and cannot be restored.");
+  }
   return record;
 }
 
