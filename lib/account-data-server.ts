@@ -492,6 +492,50 @@ export async function syncAccountData(
   };
 }
 
+async function planHistoryReset(db: AccountDatabase, userId: string, now: number) {
+  const row = await db.prepare(
+    "SELECT data_json FROM user_data_entities WHERE user_id = ? AND entity_type = 'preferences' AND entity_id = 'main'",
+  ).bind(userId).first<{ data_json: string | null }>();
+  let preferences: Record<string, unknown> = {};
+  try {
+    const decoded: unknown = JSON.parse(row?.data_json ?? "{}");
+    if (decoded && typeof decoded === "object" && !Array.isArray(decoded)) {
+      preferences = decoded as Record<string, unknown>;
+    }
+  } catch {
+    // Damaged saved preferences must not prevent a history reset.
+  }
+  const candidate = preferences.activeTrainingMatch;
+  const savedMatch = candidate && typeof candidate === "object" && !Array.isArray(candidate)
+    ? candidate as MatchResultSnapshot : null;
+  // A BO3 1-0 result is finished game one, despite not being a finished series.
+  const finishedGameKey = savedMatch && typeof savedMatch.id === "string"
+    ? completedMatchKey(savedMatch) : "";
+  const tombstones = [
+    db.prepare(
+      "INSERT OR IGNORE INTO user_match_history_reset_ids (user_id, event_id, reset_at) SELECT user_id, event_id, ? FROM user_match_history WHERE user_id = ?",
+    ).bind(now, userId),
+    ...(finishedGameKey ? [
+      db.prepare(
+        "INSERT OR IGNORE INTO user_match_history_reset_ids (user_id, event_id, reset_at) VALUES (?, ?, ?)",
+      ).bind(userId, finishedGameKey, now),
+    ] : []),
+  ];
+  const updatedPreferences = finishedGameKey && savedMatch
+    ? {
+        ...preferences,
+        activeTrainingMatch: null,
+        activeTrainingPlayerId: "",
+        completedTrainingMatchIds: mergeCompletedTrainingMatchIds(
+          preferences.completedTrainingMatchIds as string[] | undefined,
+          [savedMatch.id],
+        ),
+        updatedAt: now,
+      }
+    : null;
+  return { tombstones, updatedPreferences };
+}
+
 export async function resetAccountData(
   db: AccountDatabase,
   userId: string,
@@ -504,6 +548,8 @@ export async function resetAccountData(
   const bumpResetVersion = db.prepare(
     "INSERT INTO account_data_reset_versions (user_id, version, updated_at) VALUES (?, 1, ?) ON CONFLICT(user_id) DO UPDATE SET version = version + 1, updated_at = excluded.updated_at",
   ).bind(userId, now);
+  const historyReset = scope === "history" || scope === "all"
+    ? await planHistoryReset(db, userId, now) : null;
   if (scope === "all") {
     await db.batch([
       db.prepare("DELETE FROM user_data_entities WHERE user_id = ?").bind(userId),
