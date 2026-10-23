@@ -13,6 +13,8 @@ import {
 } from "./user-data-entities";
 import { MAX_MATCH_RECORDS, type MatchResultRecord, type UserSnapshot } from "./persistence";
 import { EMPTY_ACHIEVEMENT_PROGRESS } from "./achievement-progress";
+import { completedMatchKey, type MatchResultSnapshot } from "./match-result-navigation";
+import { mergeCompletedTrainingMatchIds } from "./persistence";
 import { ensureAdministrationSchema, type AccountDatabase } from "./account-server";
 import { ValidationError } from "./server-errors";
 
@@ -93,6 +95,9 @@ export async function ensureAccountDataSchema(db: AccountDatabase) {
     ),
     db.prepare(
       "CREATE TABLE IF NOT EXISTS account_data_reset_versions (user_id TEXT PRIMARY KEY NOT NULL, version INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    ),
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS user_match_history_reset_ids (user_id TEXT NOT NULL, event_id TEXT NOT NULL, reset_at INTEGER NOT NULL, PRIMARY KEY (user_id, event_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
     ),
   ]);
 }
@@ -230,10 +235,20 @@ export async function saveAccountMatchRecord(
     );
   }
   const record = candidate as MatchResultRecord;
+  const tombstone = await db.prepare(
+    "SELECT 1 AS blocked FROM user_match_history_reset_ids WHERE user_id = ? AND event_id = ?",
+  ).bind(userId, record.id).first<{ blocked: number }>();
+  if (tombstone) {
+    throw new ValidationError("This match was removed by a history reset and cannot be restored.");
+  }
   const recordJson = JSON.stringify(record);
-  await db.prepare(
-    "INSERT INTO user_match_history (user_id, event_id, data_json, occurred_at, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, event_id) DO UPDATE SET data_json = excluded.data_json, occurred_at = excluded.occurred_at",
-  ).bind(userId, record.id, recordJson, record.at, Date.now()).run();
+  // Atomic with respect to concurrent administrator resets on other sessions.
+  const saved = await db.prepare(
+    "INSERT INTO user_match_history (user_id, event_id, data_json, occurred_at, created_at) SELECT ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM user_match_history_reset_ids WHERE user_id = ? AND event_id = ?) ON CONFLICT(user_id, event_id) DO UPDATE SET data_json = excluded.data_json, occurred_at = excluded.occurred_at",
+  ).bind(userId, record.id, recordJson, record.at, Date.now(), userId, record.id).run();
+  if (!saved.meta.changes) {
+    throw new ValidationError("This match was removed by a history reset and cannot be restored.");
+  }
   return record;
 }
 
@@ -395,6 +410,13 @@ export async function syncAccountData(
   }
 
   const existingHistory = new Set<string>();
+  const resetHistoryIds = new Set<string>();
+  if (validHistory.length) {
+    const resetIds = await db.prepare(
+      "SELECT event_id FROM user_match_history_reset_ids WHERE user_id = ?",
+    ).bind(userId).all<{ event_id: string }>();
+    for (const row of resetIds.results ?? []) resetHistoryIds.add(row.event_id);
+  }
   if (validHistory.length) {
     const historyIds = await db.prepare(
       "SELECT event_id FROM user_match_history WHERE user_id = ?",
@@ -402,6 +424,13 @@ export async function syncAccountData(
     for (const row of historyIds.results ?? []) existingHistory.add(row.event_id);
   }
   for (const record of validHistory) {
+    if (resetHistoryIds.has(record.id)) {
+      errors.push({
+        key: `history:${record.id}`,
+        error: "This match was removed by a history reset and cannot be restored.",
+      });
+      continue;
+    }
     if (existingHistory.has(record.id)) continue;
     const recordJson = JSON.stringify(record);
     if (estimatedBytes + textBytes(recordJson) > MAX_ACCOUNT_BYTES) {
@@ -412,8 +441,8 @@ export async function syncAccountData(
       continue;
     }
     mutations.push(db.prepare(
-      "INSERT OR IGNORE INTO user_match_history (user_id, event_id, data_json, occurred_at, created_at) VALUES (?, ?, ?, ?, ?)",
-    ).bind(userId, record.id, recordJson, record.at, now));
+      "INSERT OR IGNORE INTO user_match_history (user_id, event_id, data_json, occurred_at, created_at) SELECT ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM user_match_history_reset_ids WHERE user_id = ? AND event_id = ?)",
+    ).bind(userId, record.id, recordJson, record.at, now, userId, record.id));
     existingHistory.add(record.id);
     estimatedBytes += textBytes(recordJson);
   }
@@ -463,6 +492,50 @@ export async function syncAccountData(
   };
 }
 
+async function planHistoryReset(db: AccountDatabase, userId: string, now: number) {
+  const row = await db.prepare(
+    "SELECT data_json FROM user_data_entities WHERE user_id = ? AND entity_type = 'preferences' AND entity_id = 'main'",
+  ).bind(userId).first<{ data_json: string | null }>();
+  let preferences: Record<string, unknown> = {};
+  try {
+    const decoded: unknown = JSON.parse(row?.data_json ?? "{}");
+    if (decoded && typeof decoded === "object" && !Array.isArray(decoded)) {
+      preferences = decoded as Record<string, unknown>;
+    }
+  } catch {
+    // Damaged saved preferences must not prevent a history reset.
+  }
+  const candidate = preferences.activeTrainingMatch;
+  const savedMatch = candidate && typeof candidate === "object" && !Array.isArray(candidate)
+    ? candidate as MatchResultSnapshot : null;
+  // A BO3 1-0 result is finished game one, despite not being a finished series.
+  const finishedGameKey = savedMatch && typeof savedMatch.id === "string"
+    ? completedMatchKey(savedMatch) : "";
+  const tombstones = [
+    db.prepare(
+      "INSERT OR IGNORE INTO user_match_history_reset_ids (user_id, event_id, reset_at) SELECT user_id, event_id, ? FROM user_match_history WHERE user_id = ?",
+    ).bind(now, userId),
+    ...(finishedGameKey ? [
+      db.prepare(
+        "INSERT OR IGNORE INTO user_match_history_reset_ids (user_id, event_id, reset_at) VALUES (?, ?, ?)",
+      ).bind(userId, finishedGameKey, now),
+    ] : []),
+  ];
+  const updatedPreferences = finishedGameKey && savedMatch
+    ? {
+        ...preferences,
+        activeTrainingMatch: null,
+        activeTrainingPlayerId: "",
+        completedTrainingMatchIds: mergeCompletedTrainingMatchIds(
+          preferences.completedTrainingMatchIds as string[] | undefined,
+          [savedMatch.id],
+        ),
+        updatedAt: now,
+      }
+    : null;
+  return { tombstones, updatedPreferences };
+}
+
 export async function resetAccountData(
   db: AccountDatabase,
   userId: string,
@@ -475,8 +548,11 @@ export async function resetAccountData(
   const bumpResetVersion = db.prepare(
     "INSERT INTO account_data_reset_versions (user_id, version, updated_at) VALUES (?, 1, ?) ON CONFLICT(user_id) DO UPDATE SET version = version + 1, updated_at = excluded.updated_at",
   ).bind(userId, now);
+  const historyReset = scope === "history" || scope === "all"
+    ? await planHistoryReset(db, userId, now) : null;
   if (scope === "all") {
     await db.batch([
+      ...historyReset!.tombstones,
       db.prepare("DELETE FROM user_data_entities WHERE user_id = ?").bind(userId),
       db.prepare("DELETE FROM user_match_history WHERE user_id = ?").bind(userId),
       db.prepare("DELETE FROM user_data WHERE user_id = ?").bind(userId),
@@ -504,7 +580,13 @@ export async function resetAccountData(
   }
   if (scope === "history") {
     await db.batch([
+      ...historyReset!.tombstones,
       db.prepare("DELETE FROM user_match_history WHERE user_id = ?").bind(userId),
+      ...(historyReset!.updatedPreferences ? [
+        db.prepare(
+          "INSERT INTO user_data_entities (user_id, entity_type, entity_id, revision, data_json, deleted_at, updated_at) VALUES (?, 'preferences', 'main', 1, ?, NULL, ?) ON CONFLICT(user_id, entity_type, entity_id) DO UPDATE SET revision = revision + 1, data_json = excluded.data_json, deleted_at = NULL, updated_at = excluded.updated_at",
+        ).bind(userId, JSON.stringify(historyReset!.updatedPreferences), now),
+      ] : []),
       bumpResetVersion,
     ]);
     return;

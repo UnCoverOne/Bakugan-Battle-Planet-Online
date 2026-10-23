@@ -6,7 +6,7 @@ import {
   mergeMatchHistories,
 } from "../lib/match-history-sync";
 import { lifetimeMatchStatsFromHistory } from "../lib/match-statistics";
-import { hasRecordableMatchDetails, isFreshCompletedMatchResult } from "../lib/match-result-navigation";
+import { completedMatchKey, hasRecordableMatchDetails, isCompletedSeriesResult, isFreshCompletedMatchResult } from "../lib/match-result-navigation";
 import { validateHistoryRecord, validateNewMatchHistoryRecord } from "../lib/user-data-entities";
 import type { MatchResultRecord } from "../lib/persistence";
 
@@ -26,6 +26,33 @@ function record(
     at,
   };
 }
+
+test("history resets clear a finished BO3 game one even though the series is unfinished", () => {
+  const gameOne = {
+    id: "training-match",
+    gameNumber: 1,
+    format: "bo3" as const,
+    phase: "result",
+    winner: "human",
+    resultReason: "Deck-out damage",
+    series: { human: 1, "training-bot": 0 },
+  };
+  assert.equal(isCompletedSeriesResult(gameOne), false);
+  assert.equal(completedMatchKey(gameOne), "training-match-1");
+  assert.equal(completedMatchKey({ ...gameOne, phase: "brawl" }), "");
+
+  const server = source("lib/account-data-server.ts");
+  const admin = source("components/routes/AdminScreen.tsx");
+  const provider = source("components/application/AppProvider.jsx");
+  assert.match(server, /const finishedGameKey = savedMatch[\s\S]*completedMatchKey\(savedMatch\)/);
+  assert.match(server, /user_match_history_reset_ids/);
+  assert.match(server, /\.\.\.historyReset!\.tombstones/);
+  assert.match(server, /activeTrainingMatch: null/);
+  assert.match(server, /completedTrainingMatchIds: mergeCompletedTrainingMatchIds/);
+  assert.match(server, /WHERE NOT EXISTS \(SELECT 1 FROM user_match_history_reset_ids/);
+  assert.match(admin, /completedMatchKey\(savedMatch\)/);
+  assert.match(provider, /completedMatchKey\(device\.match\) \? null : device\.match/);
+});
 
 test("a completed match can be recorded only on a new transition, never after history reset or reload", () => {
   const playing = {
@@ -148,7 +175,7 @@ test("history result recorder is transition-gated rather than history-missing-ga
   assert.match(provider, /readAccountResetReloadScope\(localStorage, userId\)/);
   assert.match(provider, /clearAccountResetReload\(localStorage, user\.id\)/);
   assert.match(admin, /markAccountResetReload\(localStorage, authUser\.id/);
-  assert.match(admin, /isCompletedSeriesResult\(savedMatch\)/);
+  assert.match(admin, /completedMatchKey\(savedMatch\)/);
   assert.match(cache, /ACCOUNT_RESET_RELOAD_PREFIX/);
 });
 
