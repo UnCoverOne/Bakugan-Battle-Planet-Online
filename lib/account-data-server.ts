@@ -552,6 +552,7 @@ export async function resetAccountData(
     ? await planHistoryReset(db, userId, now) : null;
   if (scope === "all") {
     await db.batch([
+      ...historyReset!.tombstones,
       db.prepare("DELETE FROM user_data_entities WHERE user_id = ?").bind(userId),
       db.prepare("DELETE FROM user_match_history WHERE user_id = ?").bind(userId),
       db.prepare("DELETE FROM user_data WHERE user_id = ?").bind(userId),
@@ -579,7 +580,13 @@ export async function resetAccountData(
   }
   if (scope === "history") {
     await db.batch([
+      ...historyReset!.tombstones,
       db.prepare("DELETE FROM user_match_history WHERE user_id = ?").bind(userId),
+      ...(historyReset!.updatedPreferences ? [
+        db.prepare(
+          "INSERT INTO user_data_entities (user_id, entity_type, entity_id, revision, data_json, deleted_at, updated_at) VALUES (?, 'preferences', 'main', 1, ?, NULL, ?) ON CONFLICT(user_id, entity_type, entity_id) DO UPDATE SET revision = revision + 1, data_json = excluded.data_json, deleted_at = NULL, updated_at = excluded.updated_at",
+        ).bind(userId, JSON.stringify(historyReset!.updatedPreferences), now),
+      ] : []),
       bumpResetVersion,
     ]);
     return;
