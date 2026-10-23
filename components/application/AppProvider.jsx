@@ -743,7 +743,7 @@ export function AppProvider({ children }) {
     const deviceForLoad = resetScope === "all"
       ? { ...device, match: null, online: false, replay: null, replayIndex: 0 }
       : resetScope === "history"
-        ? { ...device, match: isCompletedSeriesResult(device.match) ? null : device.match, replay: null, replayIndex: 0 }
+        ? { ...device, match: completedMatchKey(device.match) ? null : device.match, replay: null, replayIndex: 0 }
         : device;
     const cached = resetScope ? null : readAccountCache(localStorage, user.id, deviceForLoad);
     if (cached) {
