@@ -410,6 +410,13 @@ export async function syncAccountData(
   }
 
   const existingHistory = new Set<string>();
+  const resetHistoryIds = new Set<string>();
+  if (validHistory.length) {
+    const resetIds = await db.prepare(
+      "SELECT event_id FROM user_match_history_reset_ids WHERE user_id = ?",
+    ).bind(userId).all<{ event_id: string }>();
+    for (const row of resetIds.results ?? []) resetHistoryIds.add(row.event_id);
+  }
   if (validHistory.length) {
     const historyIds = await db.prepare(
       "SELECT event_id FROM user_match_history WHERE user_id = ?",
@@ -417,6 +424,13 @@ export async function syncAccountData(
     for (const row of historyIds.results ?? []) existingHistory.add(row.event_id);
   }
   for (const record of validHistory) {
+    if (resetHistoryIds.has(record.id)) {
+      errors.push({
+        key: `history:${record.id}`,
+        error: "This match was removed by a history reset and cannot be restored.",
+      });
+      continue;
+    }
     if (existingHistory.has(record.id)) continue;
     const recordJson = JSON.stringify(record);
     if (estimatedBytes + textBytes(recordJson) > MAX_ACCOUNT_BYTES) {
@@ -427,8 +441,8 @@ export async function syncAccountData(
       continue;
     }
     mutations.push(db.prepare(
-      "INSERT OR IGNORE INTO user_match_history (user_id, event_id, data_json, occurred_at, created_at) VALUES (?, ?, ?, ?, ?)",
-    ).bind(userId, record.id, recordJson, record.at, now));
+      "INSERT OR IGNORE INTO user_match_history (user_id, event_id, data_json, occurred_at, created_at) SELECT ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM user_match_history_reset_ids WHERE user_id = ? AND event_id = ?)",
+    ).bind(userId, record.id, recordJson, record.at, now, userId, record.id));
     existingHistory.add(record.id);
     estimatedBytes += textBytes(recordJson);
   }
