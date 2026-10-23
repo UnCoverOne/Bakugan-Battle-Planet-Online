@@ -21,7 +21,7 @@ import {
 } from "../design-system/primitives";
 import styles from "./AdminScreen.module.css";
 import { markAccountResetReload, removeAccountCache } from "../../lib/account-sync";
-import { isCompletedSeriesResult } from "../../lib/match-result-navigation";
+import { completedMatchKey } from "../../lib/match-result-navigation";
 
 type AdminTab = "ai" | "offline" | "cards" | "music" | "ranked" | "users" | "feedback";
 type AiDeckItem = { id: string; deck: DeckRecord; enabled: boolean; updatedAt: number };
@@ -434,7 +434,7 @@ function UserManagement() {
             // A completed local session must not create a fresh history result
             // after reloading an intentionally empty archive. Unfinished games
             // are retained for a history-only reset.
-            if (body.scope === "all" || isCompletedSeriesResult(savedMatch)) {
+            if (body.scope === "all" || completedMatchKey(savedMatch)) {
               localStorage.removeItem("bbp-active-match-v1");
             }
             sessionStorage.removeItem("bbp-open-replay-v1");
