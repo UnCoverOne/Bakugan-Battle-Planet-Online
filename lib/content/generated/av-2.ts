@@ -34,7 +34,7 @@ export const AV_ROWS_2 = [
   ["av-86",86,"CO","Tempest Generator","Aquos","Baku-Gear",2,"When you play this, you may Reroll this Bakugan.",100,1,"","","","Tempest_Generator_ENG_86_CO_AV.png","",null,"86","",""],
   ["av-87",87,"CO","Aquoplate","Aquos","Baku-Gear",3,"",400,0,"","","","Aquoplate_ENG_87_CO_AV.png","",null,"87","",""],
   ["av-88",88,"AR","Vortex Blaster","Aquos","Baku-Gear",3,"Sync: When you play this, you may reveal a card in your hand that\ncosts 5 [Energy] or more for +500 [B].",100,3,"","","","Vortex_Blaster_ENG_88_AR_AV.png","",null,"88","",""],
-  ["av-89",89,"CO","BakuThrusters","Aquos","Baku-Gear",4,"",300,3,"","","","","",null,"89","",""],
+  ["av-89",89,"CO","BakuThrusters","Aquos","Baku-Gear",4,"",300,3,"","","","BakuThrusters_ENG_89_CO_AV.png","",null,"89","",""],
   ["av-90",90,"RA","Wings of Aquos","Aquos","Baku-Gear",5,"When you play this, [Draw] 2.",100,6,"","","","Wings_of_Aquos_ENG_90_RA_AV.png","",null,"90","",""],
   ["av-91",91,"SR","Aquogreaves","Aquos","Baku-Gear",5,"+4 [FrostStrike]",200,4,"","","","Aquogreaves_ENG_91_SR_AV.png","",null,"91","",""],
   ["av-92-silent-spears",92,"RA","Silent Spears","Aurelus","Baku-Gear",5,"",500,0,"","","","Silent_Spears_ENG_92_RA_AV.png","",null,"92","",""],

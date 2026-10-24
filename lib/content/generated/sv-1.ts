@@ -54,6 +54,6 @@ export const SV_ROWS_1 = [
   ["sv-51",51,"SR","Spinning Waves","Darkus","Action",5,"+900 [B] & +[ShadowStrike]\n+2 [FrostStrike] for each <Fusion> Bakugan on your team.",null,null,"","","","Spinning_Waves_ENG_51_SR_SV.png","Aquos",null,"51","",""],
   ["sv-52",52,"CO","River of Darkness","Darkus","Action",2,"+600 [B] & +2 [Damage]",null,null,"","","","River_of_Darkus_ENG_52_CO_SV.png","Aquos",null,"52","",""],
   ["sv-53",53,"RA","Soul of Storms","Darkus","Action",3,"+300 [B] & +3 [Damage]\nReturn a non-Energy card in play to its owner's hand.",null,null,"","","","Soul_of_Storms_ENG_53_RA_SV.png","Aquos",null,"53","",""],
-  ["sv-54",54,"AR","Darkus Water Spiral","Darkus","Action",4,"Choose a player to discard a card.\n+100 [B] & [Draw] 1 for each card that was discarded this turn.",null,null,"","","","","Aquos",null,"54","",""],
-  ["sv-55",55,"CO","Sweeping Shockwave","Darkus","Action",5,"+700 [B]\nChoose a player to discard two cards.",null,null,"","","","","Aquos",null,"55","",""]
+  ["sv-54",54,"AR","Darkus Water Spiral","Darkus","Action",4,"Choose a player to discard a card.\n+100 [B] & [Draw] 1 for each card that was discarded this turn.",null,null,"","","","Darkus_Water_Spiral_ENG_54_AR_SV.png","Aquos",null,"54","",""],
+  ["sv-55",55,"CO","Sweeping Shockwave","Darkus","Action",5,"+700 [B]\nChoose a player to discard two cards.",null,null,"","","","Sweeping_Shockwave_ENG_55_CO_SV.png","Aquos",null,"55","",""]
 ] as const satisfies readonly ExtensionCardRow[];
