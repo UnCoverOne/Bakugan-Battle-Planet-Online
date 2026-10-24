@@ -4,6 +4,7 @@ import { CARD_BY_ID, CARDS, CORES, STARTER_DECKS, makePlayer } from "../lib/data
 import {
   createMatch,
   flipStopsDamage,
+  orderTriggers,
   passPriority,
   revealedFlipCanBePlayed,
   type GameCard,
@@ -12,7 +13,7 @@ import {
 import { resolveManualDamage } from "../lib/manualDamage";
 import { advanceOpponentAi } from "../lib/opponentAi";
 import { compileCardEffect } from "../lib/rules/effects";
-import { ruleConditionActive } from "../lib/rules/modifiers";
+import { evaluateBakuganCharacteristics, prospectiveAttackDamage, ruleConditionActive } from "../lib/rules/modifiers";
 import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { createRuleObject } from "../lib/rules/objects";
 import { visibleMatchHudActions } from "../components/game-screen-v2/matchHudState";
@@ -54,6 +55,12 @@ function openBrawl() {
 test("Mc Q compiles its granted Victor draw with a 10-Damage intervening condition", () => {
   const mcq = cardInstance("sv-100", "compile");
   const definition = ruleDefinitionForCard(mcq);
+  assert.ok(definition.abilities.some((ability) => ability.kind === "static" && ability.instructions.some((instruction) => (
+    instruction.effects.some((effect) => effect.kind === "modify-attack-damage" && effect.amount === 1)
+  ))));
+  assert.equal(definition.abilities.some((ability) => ability.instructions.some((instruction) => (
+    instruction.effects.some((effect) => effect.kind === "modify-stat" && effect.stat === "damage")
+  ))), false);
   const victor = definition.abilities.find((ability) => ability.kind === "triggered" && ability.trigger?.event === "VICTOR_DECLARED");
   assert.ok(victor);
   assert.deepEqual(victor.trigger?.interveningCondition, { kind: "attack-damage", amount: 10 });
@@ -91,6 +98,53 @@ function mcqVictorState(baseDamage: number) {
   };
   return { state, player, opponent };
 }
+
+test("Mc Q bonuses stack on attack events without changing any Bakugan's Damage Rating", () => {
+  const { state, player, opponent } = mcqVictorState(5);
+  const attacking = player.bakugan[0];
+  for (let copies = 0; copies <= 3; copies += 1) {
+    player.heroes = Array.from({ length: copies }, (_, index) => cardInstance("sv-100", `stack-${index}`));
+    assert.equal(evaluateBakuganCharacteristics(state, attacking, player).damage, 5);
+    assert.equal(evaluateBakuganCharacteristics(state, player.bakugan[1], player).damage,
+      player.bakugan[1].character.damage);
+    assert.equal(prospectiveAttackDamage(state, player, attacking), 5 + copies);
+    assert.equal(prospectiveAttackDamage(state, opponent, opponent.bakugan[0]), 1);
+  }
+
+  player.heroes = [cardInstance("sv-100", "resolved-attack")];
+  let next = passPriority(state, player.id);
+  next = passPriority(next, opponent.id);
+  next = passPriority(next, player.id);
+  next = passPriority(next, opponent.id);
+  assert.equal(next.phase, "damage");
+  assert.equal(next.pendingDamage, 6);
+});
+
+test("Mc Q applies once per Team Attack and independently grants Victor draws per copy", () => {
+  const { state, player, opponent } = mcqVictorState(2);
+  for (const [index, damage] of [2, 3, 4].entries()) {
+    const bakugan = player.bakugan[index];
+    bakugan.open = true;
+    bakugan.damage = damage;
+    bakugan.character.damage = damage;
+  }
+  state.teamAttack = true;
+  for (let copies = 0; copies <= 3; copies += 1) {
+    player.heroes = Array.from({ length: copies }, (_, index) => cardInstance("sv-100", `team-${index}`));
+    assert.equal(prospectiveAttackDamage(state, player, player.bakugan[0]), 9 + copies);
+    assert.deepEqual(player.bakugan.map((bakugan) => evaluateBakuganCharacteristics(state, bakugan, player).damage), [2, 3, 4]);
+  }
+
+  player.heroes = [cardInstance("sv-100", "team-first"), cardInstance("sv-100", "team-second")];
+  let next = passPriority(state, player.id);
+  next = passPriority(next, opponent.id);
+  assert.equal(next.phase, "victor");
+  const pendingOrder = next.triggerOrders.find((order) => order.controllerId === player.id);
+  assert.ok(pendingOrder);
+  assert.equal(pendingOrder.triggers.filter((effect) => effect.card.catalogId === "sv-100").length, 2);
+  next = orderTriggers(next, player.id, pendingOrder.id, pendingOrder.triggerIds);
+  assert.equal(next.batch.filter((effect) => effect.card.catalogId === "sv-100" && effect.kind === "trigger").length, 2);
+});
 
 test("Mc Q only puts its Victor effect on the Batch when the upcoming attack is 10 or more", () => {
   for (const [baseDamage, shouldTrigger] of [[8, false], [9, true]] as const) {

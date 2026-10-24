@@ -457,6 +457,18 @@ export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
     });
   }
   for (const match of text.matchAll(/([+-]\d+)\s*\[Damage(?: (?:Rating|Power))?\]/gi)) {
+    const followingClause = text.slice((match.index ?? 0) + match[0].length).split(/[.;]/, 1)[0] ?? "";
+    // McQ-style wording modifies the attack event, not each Bakugan's Damage
+    // Rating. Keep it out of the general-purpose characteristic modifiers.
+    if (card.type === "Hero" && /^\s+to your Bakugan attacks\b/i.test(followingClause)) {
+      actions.push({
+        kind: "modify-attack-damage",
+        amount: Number(match[1]),
+        duration: "while-source-active",
+        scope: "controller-bakugan-attacks",
+      });
+      continue;
+    }
     actions.push({
       kind: "modify-stat",
       stat: "damage",

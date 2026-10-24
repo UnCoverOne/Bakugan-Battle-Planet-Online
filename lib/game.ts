@@ -3037,6 +3037,10 @@ const executeRuleAction = (
       }
       return;
     }
+    case "modify-attack-damage":
+      // Continuous attack bonuses are read from their active sources when an
+      // attack is calculated. They never modify a Bakugan's Damage Rating.
+      return;
     case "grant-keyword":
       if (pending.kind === "card" && ["Hero", "Evo"].includes(card.type) && action.duration === "while-source-active") return;
       if (!target) return;
