@@ -8,6 +8,8 @@ export const SORT_LABELS: Record<CompendiumState["sort"], string> = {
   "cost-desc": "Energy high–low",
   "bpower-desc": "B-Power high–low",
   "damage-desc": "Damage high–low",
+  "roll-accuracy-desc": "Roll Accuracy high–low",
+  "double-core-chance-desc": "Double Core Chance high–low",
 };
 export const CHARACTER_SORTS = new Set<CompendiumState["sort"]>([
   "collector",
@@ -15,6 +17,8 @@ export const CHARACTER_SORTS = new Set<CompendiumState["sort"]>([
   "name-desc",
   "bpower-desc",
   "damage-desc",
+  "roll-accuracy-desc",
+  "double-core-chance-desc",
 ]);
 export const NON_CHARACTER_SORTS = new Set<CompendiumState["sort"]>([
   "collector",

@@ -170,7 +170,17 @@ export function CollectionScreen() {
             filters={cardState}
             facets={["type"]}
             options={filterOptions}
-            onChange={(next, facet) => navigate({ [facet]: next[facet], page: null })}
+            onChange={(next, facet) => {
+              const nextIsCharacterOnly = next.type.length === 1 && next.type[0] === "Character";
+              const nextSorts = nextIsCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS;
+              navigate({
+                [facet]: next[facet],
+                ...(next.type.includes("Character") ? {} : { coreType: null }),
+                ...(nextIsCharacterOnly ? { cost: null, rarity: null } : {}),
+                ...(nextSorts.has(cardState.sort) ? {} : { sort: "collector" }),
+                page: null,
+              });
+            }}
           />
           <div className={compendiumStyles.filterDivider} role="separator" />
           <FilterPicker

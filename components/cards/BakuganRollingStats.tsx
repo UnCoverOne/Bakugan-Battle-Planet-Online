@@ -1,25 +1,20 @@
 "use client";
 
-import { BAKUGAN } from "../../lib/data";
-import type { Bakugan, GameCard } from "../../lib/game";
+import { bakuganRollingValues, type BakuganRollingValues } from "../../lib/bakugan-rolling";
+import type { GameCard } from "../../lib/game";
 import styles from "./BakuganRollingStats.module.css";
 
-export type BakuganRollingValues = Pick<Bakugan, "rollAccuracy" | "doubleCoreChance">;
+export { bakuganRollingValues } from "../../lib/bakugan-rolling";
 
-const bakuganByCardId = new Map(BAKUGAN.map((bakugan) => [bakugan.character.catalogId, bakugan]));
-
-export function bakuganRollingValues(card: GameCard): BakuganRollingValues | null {
-  return card.type === "Character" ? bakuganByCardId.get(card.catalogId) ?? null : null;
-}
-
-export function BakuganRollingStat({ kind, value }: {
+export function BakuganRollingStat({ kind, value, plain = false }: {
   kind: "rollAccuracy" | "doubleCoreChance";
   value: number;
+  plain?: boolean;
 }) {
   const isRollAccuracy = kind === "rollAccuracy";
   const label = isRollAccuracy ? "Roll Accuracy" : "Double Core Chance";
   return (
-    <span className={styles.stat} role="img" aria-label={`${label}: ${value}%`} title={`${label}: ${value}%`}>
+    <span className={`${styles.stat} ${plain ? styles.plain : ""}`} role="img" aria-label={`${label}: ${value}%`} title={`${label}: ${value}%`}>
       <span className={`${styles.icon} ${isRollAccuracy ? styles.rollIcon : styles.doubleCoreIcon}`} aria-hidden="true" />
       <span aria-hidden="true">{value}%</span>
     </span>

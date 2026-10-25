@@ -6,6 +6,7 @@ import type { GameCard } from "../../lib/game";
 import { cardSetCode } from "../../lib/content/catalogue";
 import { createCardFilterOptionCatalogue, createEmptyCardFilters, activeCardFilterCount, type CardFilterState } from "../../lib/card-filters";
 import { COMPENDIUM_PAGE_SIZE, DEFAULT_COMPENDIUM_STATE, filterAndSortCompendiumCards, type CompendiumSort } from "../../lib/compendium";
+import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS } from "../../lib/catalogue-sorting";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import { FilterPicker } from "../filters/FilterPicker";
 import { InspectorModal } from "../cards/InspectorModal";
@@ -24,13 +25,6 @@ type RollingSettings = {
   defaultRollAccuracy: number;
   defaultDoubleCoreChance: number;
 };
-const SORTS: { value: CompendiumSort; label: string }[] = [
-  { value: "collector", label: "Collector number" }, { value: "name-asc", label: "Name A–Z" },
-  { value: "name-desc", label: "Name Z–A" }, { value: "cost-asc", label: "Energy low–high" },
-  { value: "cost-desc", label: "Energy high–low" }, { value: "bpower-desc", label: "B-Power high–low" },
-  { value: "damage-desc", label: "Damage high–low" },
-];
-
 async function request(section: string) {
   const response = await fetch(`/api/admin?section=${section}`, { cache: "no-store" });
   const json = await response.json();
@@ -201,8 +195,8 @@ function AdministratorInspector({ card, restriction, activeRestriction, rolling,
         <div className={styles.preview}>
           <ResponsiveCardImage card={card} presentation="inspector" />
           {rolling && <div className={styles.rollingSummary} aria-label="Bakugan rolling stats">
-            <BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} />
-            <BakuganRollingStat kind="doubleCoreChance" value={rolling.doubleCoreChance} />
+            <BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} plain />
+            <BakuganRollingStat kind="doubleCoreChance" value={rolling.doubleCoreChance} plain />
           </div>}
           <div className={styles.badges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip><StatusChip>{card.type}</StatusChip></div>
           <p>{card.effect || "No printed effect."}</p>
@@ -316,7 +310,16 @@ export function AdministratorCardManagement() {
     return () => observer.disconnect();
   }, [filterSheetOpen, closeFilters]);
   const options = useMemo(() => createCardFilterOptionCatalogue(cards), [cards]);
-  const filtered = useMemo(() => filterAndSortCompendiumCards(cards, { ...DEFAULT_COMPENDIUM_STATE, ...filters, q: query, sort, density }, { includeFusionBack: true }), [cards, filters, query, sort, density]);
+  const isCharacterOnly = filters.type.length === 1 && filters.type[0] === "Character";
+  const availableSorts = isCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS;
+  const sortOptions = Object.entries(SORT_LABELS)
+    .filter(([value]) => availableSorts.has(value as CompendiumSort))
+    .map(([value, label]) => ({ value, label }));
+  const rollingByCardId = useMemo(() => new Map<string, RollingSettings>(rollingSettings.map((item) => [item.catalogId, item])), [rollingSettings]);
+  const filtered = useMemo(
+    () => filterAndSortCompendiumCards(cards, { ...DEFAULT_COMPENDIUM_STATE, ...filters, q: query, sort, density }, { includeFusionBack: true, rollingByCardId }),
+    [cards, filters, query, sort, density, rollingByCardId],
+  );
   const pages = Math.max(1, Math.ceil(filtered.length / COMPENDIUM_PAGE_SIZE));
   const visible = filtered.slice((Math.min(page, pages) - 1) * COMPENDIUM_PAGE_SIZE, Math.min(page, pages) * COMPENDIUM_PAGE_SIZE);
   const selected = cards.find((card) => card.catalogId === selectedId);
@@ -332,13 +335,18 @@ export function AdministratorCardManagement() {
       notify("Ranked restriction saved to draft. Publish it from Ranked Play to activate.");
     } catch (error) { notify(error instanceof Error ? error.message : "Ranked draft save failed."); }
   };
-  const updateFilters = (next: CardFilterState) => { setFilters(next); setPage(1); };
+  const updateFilters = (next: CardFilterState) => {
+    const nextSorts = next.type.length === 1 && next.type[0] === "Character" ? CHARACTER_SORTS : NON_CHARACTER_SORTS;
+    if (!nextSorts.has(sort)) setSort("collector");
+    setFilters(next);
+    setPage(1);
+  };
   const clearFilters = () => { updateFilters(createEmptyCardFilters()); setSort("collector"); };
   const activeFilters = activeCardFilterCount(filters);
   const filterControls = <>
     <div className={styles.filterHeading}><strong>Filters &amp; sort</strong><button type="button" onClick={clearFilters}>Clear</button></div>
     <CardFilterPanel filters={filters} facets={["type"]} options={options} onChange={updateFilters} />
-    <FilterPicker label="Sort" values={[sort]} options={SORTS} mode="single" clearable={false} onChange={(values) => { if (values[0]) { setSort(values[0] as CompendiumSort); setPage(1); } }} />
+    <FilterPicker label="Sort" values={[sort]} options={sortOptions} mode="single" clearable={false} onChange={(values) => { if (values[0]) { setSort(values[0] as CompendiumSort); setPage(1); } }} />
     <CardFilterPanel filters={filters} facets={["set", "faction", "cost", "rarity", "coreType", "keyword"]} options={options} onChange={updateFilters} />
   </>;
   return <section ref={managementRef} className={styles.management}>

@@ -7,7 +7,7 @@ import { filterAndSortCompendiumCards, filterAndSortCompendiumCores, DEFAULT_COM
 test("builder sort menus match each Compendium category plus copy count", () => {
   const values = (category: "cards" | "characters" | "cores") => builderSortOptions(category).map(([value]) => value);
   assert.deepEqual(values("cards"), ["collector", "name-asc", "name-desc", "cost-asc", "cost-desc", "count-desc"]);
-  assert.deepEqual(values("characters"), ["collector", "name-asc", "name-desc", "bpower-desc", "damage-desc", "count-desc"]);
+  assert.deepEqual(values("characters"), ["collector", "name-asc", "name-desc", "bpower-desc", "damage-desc", "roll-accuracy-desc", "double-core-chance-desc", "count-desc"]);
   assert.deepEqual(values("cores"), ["collector", "type", "bonus", "damage", "count-desc"]);
   assert.equal(builderSortOptions("cards")[0][1], "Collector number");
 });

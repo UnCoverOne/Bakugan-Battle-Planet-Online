@@ -17,7 +17,7 @@ import { SYMBOL_ENTRIES, type ReferenceEntry } from "../../lib/reference";
 import { StatusChip, Tabs } from "../design-system/primitives";
 import { InspectorModal } from "./InspectorModal";
 import { ResponsiveCardImage } from "./ResponsiveCardImage";
-import { BakuganRollingStat, bakuganRollingValues } from "./BakuganRollingStats";
+import { BakuganRollingOverlay, BakuganRollingStat, bakuganRollingValues } from "./BakuganRollingStats";
 import styles from "./CardInspector.module.css";
 import { MotionValue } from "../design-system/MotionValue";
 
@@ -191,6 +191,7 @@ function CardOverview({
       <div className={styles.artWell}>
         <div className={styles.artFrame}>
           <ResponsiveCardImage card={card} presentation="inspector" />
+          <BakuganRollingOverlay card={card} />
           {hasFusion && (
             <button
               type="button"
@@ -220,8 +221,8 @@ function CardOverview({
           <div><dt>Catalogue ID</dt><dd>{card.catalogId}</dd></div>
           {card.bPower !== null && <div><dt>B-Power</dt><dd>{card.bPower}</dd></div>}
           {card.damage !== null && <div><dt>Damage</dt><dd>{card.damage}</dd></div>}
-          {rolling && <div><dt>Roll Accuracy</dt><dd><BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} /></dd></div>}
-          {rolling && <div><dt>Double Core Chance</dt><dd><BakuganRollingStat kind="doubleCoreChance" value={rolling.doubleCoreChance} /></dd></div>}
+          {rolling && <div><dt>Roll Accuracy</dt><dd><BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} plain /></dd></div>}
+          {rolling && <div><dt>Double Core Chance</dt><dd><BakuganRollingStat kind="doubleCoreChance" value={rolling.doubleCoreChance} plain /></dd></div>}
           {card.armorRating !== undefined && <div><dt>Armor</dt><dd>{card.armorRating}</dd></div>}
           {card.fusionFace && <div><dt>Fusion face</dt><dd>{card.fusionFace.toUpperCase()}</dd></div>}
           {card.coreTypes.length > 0 && <div><dt>BakuCores</dt><dd>{card.coreTypes.join(" · ")}</dd></div>}

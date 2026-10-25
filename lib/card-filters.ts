@@ -74,7 +74,9 @@ export const HIDDEN_KEYWORD_FILTERS = new Set([
   "Triggered",
 ]);
 
-export const CARD_TYPE_OPTIONS: readonly CardFilterOption[] = CARD_TYPES.map((value) => ({ value, label: value }));
+export const CARD_TYPE_OPTIONS: readonly CardFilterOption[] = CARD_TYPES
+  .map((value) => ({ value, label: value }))
+  .toSorted((left, right) => left.label.localeCompare(right.label));
 export const FACTION_OPTIONS: readonly CardFilterOption[] = FACTIONS.map((value) => ({
   value,
   label: value,

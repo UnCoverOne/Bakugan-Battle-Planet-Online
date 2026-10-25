@@ -3,8 +3,8 @@
   z-index: 2;
   bottom: 2.5%;
   left: 3%;
-  display: grid;
-  justify-items: start;
+  display: flex;
+  align-items: center;
   gap: 3px;
   pointer-events: none;
 }
@@ -32,6 +32,18 @@
   color: #fff;
   font-size: clamp(.65rem, .85vw, .8rem);
   line-height: 1.1;
+}
+
+.plain {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--text-primary);
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .icon {

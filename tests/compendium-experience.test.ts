@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   compendiumSearchParams,
+  compareCompendiumCards,
   coreCompendiumSearchParams,
   DEFAULT_COMPENDIUM_STATE,
   DEFAULT_CORE_COMPENDIUM_STATE,
@@ -15,6 +16,7 @@ import {
 } from "../lib/compendium";
 import {
   cardMatchesFilters,
+  CARD_TYPE_OPTIONS,
   createCardFilterOptionCatalogue,
   createEmptyCardFilters,
   FACTION_SYMBOLS,
@@ -22,6 +24,9 @@ import {
 } from "../lib/card-filters";
 import type { Core, GameCard } from "../lib/game";
 import { compareCardCollectorOrder, CONTROLLED_CATALOGUE } from "../lib/content/catalogue";
+import { BAKUGAN } from "../lib/data";
+import { CHARACTER_SORTS, NON_CHARACTER_SORTS } from "../lib/catalogue-sorting";
+import { bakuganRollingValues } from "../lib/bakugan-rolling";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -443,17 +448,52 @@ test("Bakugan rolling probabilities appear in every card gallery and the inspect
     read("components/routes/DeckDetailPresentation.tsx"),
     read("components/cards/CardInspector.tsx"),
   ]);
-  assert.match(rolling, /BAKUGAN/);
-  assert.match(rolling, /card\.type === "Character"/);
+  assert.match(rolling, /bakuganRollingValues/);
+  assert.match(rolling, /export function BakuganRollingOverlay/);
   assert.match(rolling, /rollAccuracy/);
   assert.match(rolling, /doubleCoreChance/);
   assert.match(rollingStyles, /\/assets\/symbols\/roll\.svg/);
   assert.match(rollingStyles, /\/assets\/symbols\/double-core\.svg/);
+  assert.match(rollingStyles, /display: flex/);
+  assert.match(rollingStyles, /\.plain\s*\{/);
   for (const gallery of [compendium, collection, builder, administrator, detail]) {
     assert.match(gallery, /<BakuganRollingOverlay card=/);
   }
   assert.match(inspector, /<dt>Roll Accuracy<\/dt>/);
   assert.match(inspector, /<dt>Double Core Chance<\/dt>/);
+  assert.match(inspector, /<BakuganRollingOverlay card=\{card\}/);
+  assert.match(inspector, /kind="rollAccuracy" value=\{rolling\.rollAccuracy\} plain/);
+  assert.match(inspector, /kind="doubleCoreChance" value=\{rolling\.doubleCoreChance\} plain/);
   assert.match(administrator, /<BakuganRollingStat kind="rollAccuracy"/);
   assert.match(administrator, /<BakuganRollingStat kind="doubleCoreChance"/);
+});
+
+test("Card Type filter options are alphabetically ordered", () => {
+  const labels = CARD_TYPE_OPTIONS.map((option) => option.label);
+  assert.deepEqual(labels, [...labels].sort((left, right) => left.localeCompare(right)));
+});
+
+test("Character-only sorting uses the live Bakugan rolling values", () => {
+  const characters = BAKUGAN.filter((item) => item.character.fusionFace !== "b").slice(0, 2);
+  assert.equal(characters.length, 2);
+  const [first, second] = characters;
+  const overrides = new Map<string, { rollAccuracy: number; doubleCoreChance: number }>([
+    [first.character.catalogId, { rollAccuracy: 95, doubleCoreChance: 1 }],
+    [second.character.catalogId, { rollAccuracy: 40, doubleCoreChance: 70 }],
+  ]);
+  const cards = characters.map((item) => item.character);
+
+  assert.equal(bakuganRollingValues(first.character)?.rollAccuracy, first.rollAccuracy);
+  assert.ok(CHARACTER_SORTS.has("roll-accuracy-desc"));
+  assert.ok(CHARACTER_SORTS.has("double-core-chance-desc"));
+  assert.ok(!NON_CHARACTER_SORTS.has("roll-accuracy-desc"));
+  assert.equal(parseCompendiumState("type=Character&sort=roll-accuracy-desc").sort, "roll-accuracy-desc");
+  assert.equal(parseCompendiumState("type=Character&sort=double-core-chance-desc").sort, "double-core-chance-desc");
+
+  const accuracyState = parseCompendiumState("type=Character&sort=roll-accuracy-desc");
+  const doubleCoreState = parseCompendiumState("type=Character&sort=double-core-chance-desc");
+  assert.equal(filterAndSortCompendiumCards(cards, accuracyState, { rollingByCardId: overrides })[0]?.catalogId, first.character.catalogId);
+  assert.equal(filterAndSortCompendiumCards(cards, doubleCoreState, { rollingByCardId: overrides })[0]?.catalogId, second.character.catalogId);
+  assert.ok(compareCompendiumCards(first.character, second.character, "roll-accuracy-desc", overrides) < 0);
+  assert.ok(compareCompendiumCards(first.character, second.character, "double-core-chance-desc", overrides) > 0);
 });

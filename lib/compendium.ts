@@ -1,4 +1,5 @@
 import { cardMatchesFilters, createEmptyCardFilters, type CardFilterState } from "./card-filters";
+import { bakuganRollingValues, type BakuganRollingValues } from "./bakugan-rolling";
 import { cardSetCode, compareCardCollectorOrder } from "./content/catalogue";
 import type { Core, GameCard } from "./game";
 
@@ -11,6 +12,8 @@ export const COMPENDIUM_SORTS = [
   "cost-desc",
   "bpower-desc",
   "damage-desc",
+  "roll-accuracy-desc",
+  "double-core-chance-desc",
   "collector",
 ] as const;
 
@@ -122,20 +125,30 @@ const searchableText = (card: GameCard) => {
 const costRank = (cost: GameCard["cost"]) => cost === "X" ? Number.POSITIVE_INFINITY : cost;
 const statRank = (value: number | null) => value ?? Number.NEGATIVE_INFINITY;
 
-export function compareCompendiumCards(left: GameCard, right: GameCard, sort: CompendiumSort) {
+export function compareCompendiumCards(
+  left: GameCard,
+  right: GameCard,
+  sort: CompendiumSort,
+  rollingByCardId?: ReadonlyMap<string, BakuganRollingValues>,
+) {
   if (sort === "name-asc") return left.displayName.localeCompare(right.displayName);
   if (sort === "name-desc") return right.displayName.localeCompare(left.displayName);
   if (sort === "cost-asc") return costRank(left.cost) - costRank(right.cost) || left.displayName.localeCompare(right.displayName);
   if (sort === "cost-desc") return costRank(right.cost) - costRank(left.cost) || left.displayName.localeCompare(right.displayName);
   if (sort === "bpower-desc") return statRank(right.bPower) - statRank(left.bPower) || left.displayName.localeCompare(right.displayName);
   if (sort === "damage-desc") return statRank(right.damage) - statRank(left.damage) || left.displayName.localeCompare(right.displayName);
+  if (sort === "roll-accuracy-desc" || sort === "double-core-chance-desc") {
+    const field = sort === "roll-accuracy-desc" ? "rollAccuracy" : "doubleCoreChance";
+    const rank = (card: GameCard) => (rollingByCardId?.get(card.catalogId) ?? bakuganRollingValues(card))?.[field] ?? -1;
+    return rank(right) - rank(left) || left.displayName.localeCompare(right.displayName);
+  }
   return compareCardCollectorOrder(left, right);
 }
 
 export function filterAndSortCompendiumCards(
   cards: readonly GameCard[],
   state: CompendiumState,
-  options: { includeFusionBack?: boolean } = {},
+  options: { includeFusionBack?: boolean; rollingByCardId?: ReadonlyMap<string, BakuganRollingValues> } = {},
 ) {
   const query = state.q.trim().toLowerCase();
   return cards.filter((card) => (
@@ -144,7 +157,7 @@ export function filterAndSortCompendiumCards(
     (options.includeFusionBack || card.fusionFace !== "b")
     && cardMatchesFilters(card, state)
     && (!query || searchableText(card).includes(query))
-  )).toSorted((left, right) => compareCompendiumCards(left, right, state.sort));
+  )).toSorted((left, right) => compareCompendiumCards(left, right, state.sort, options.rollingByCardId));
 }
 
 export function selectedCompendiumCard(cards: readonly GameCard[], identity: string) {
