@@ -177,7 +177,7 @@ const ACTIONS = new Set([
   "ranked-ban", "ranked-select",
   "begin-placement", "place", "draw", "energize", "tap-energy", "select", "target", "roll", "reroll",
   "prepare-play", "play", "choice", "cancel-choice", "order-triggers", "pass", "complete-coin-flip", "flip-damage", "damage",
-  "hand-limit", "chat", "concede", "next-turn", "next-game", "undo",
+  "hand-limit", "chat", "concede", "next-turn", "ack-game-result", "undo",
 ]);
 
 function parseBody(value: unknown): Body {
