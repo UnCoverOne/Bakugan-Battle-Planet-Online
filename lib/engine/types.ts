@@ -45,6 +45,7 @@ export type GameCommand =
   | { type: "CONCEDE"; reason?: "disconnect" }
   | { type: "NEXT_TURN" }
   | { type: "START_NEXT_SERIES_GAME" }
+  | { type: "ACK_GAME_RESULT" }
   | { type: "UNDO" }
   | { type: "JOIN_PLAYER"; player: PlayerState }
   | { type: "RESOLVE_DEADLINE" };

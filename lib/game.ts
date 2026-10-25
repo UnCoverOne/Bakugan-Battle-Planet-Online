@@ -454,6 +454,8 @@ export type MatchState = {
   brawlWinner: string;
   winner: string;
   resultReason: string;
+  /** Players who have acknowledged the current completed game before the series lobby opens. */
+  resultAcknowledgedBy?: string[];
   /** Administrator-selected Training AI resource used when this match began. */
   trainingAiDeck?: {
     resourceId: string;
@@ -4754,7 +4756,7 @@ export const discardToHandLimit = (input: MatchState, playerId: string, cardIds:
 export function completeMatch(state: MatchState, winnerId: string, reason: string) {
   if (state.phase === "result") return;
   state.series[winnerId] = (state.series[winnerId] ?? 0) + 1; state.phase = "result"; state.stepLabel = "Game complete";
-  state.winner = winnerId; state.resultReason = reason; state.deadline = deadlineFor("result"); entry(state, "system", `${playerById(state, winnerId).name} wins game ${state.gameNumber}: ${reason}.`);
+  state.winner = winnerId; state.resultReason = reason; state.resultAcknowledgedBy = []; state.deadline = deadlineFor("result"); entry(state, "system", `${playerById(state, winnerId).name} wins game ${state.gameNumber}: ${reason}.`);
   state.priority = ""; state.passes = []; state.batch = []; state.triggerOrders = [];
   state.pendingChoice = undefined; state.pendingReroll = undefined; state.revealedFlip = undefined;
   state.pendingEffectDamageResume = undefined; state.pendingRerollOpenEvent = undefined;

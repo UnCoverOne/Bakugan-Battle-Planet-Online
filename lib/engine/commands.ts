@@ -34,6 +34,7 @@ export type ApiAction =
   | "concede"
   | "next-turn"
   | "next-game"
+  | "ack-game-result"
   | "undo";
 
 function stringValue(value: unknown) {
@@ -101,6 +102,7 @@ export function apiActionToCommand(
     case "concede": return { type: "CONCEDE" };
     case "next-turn": return { type: "NEXT_TURN" };
     case "next-game": return { type: "START_NEXT_SERIES_GAME" };
+    case "ack-game-result": return { type: "ACK_GAME_RESULT" };
     case "undo": return { type: "UNDO" };
   }
 }

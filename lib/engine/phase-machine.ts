@@ -21,6 +21,7 @@ const STRICT_COMMAND_PHASES: Partial<Record<GameCommand["type"], readonly Phase[
   PLAY_DAMAGE_FLIP: ["damage"],
   DISCARD_TO_HAND_LIMIT: ["handLimit"],
   START_NEXT_SERIES_GAME: ["result"],
+  ACK_GAME_RESULT: ["result"],
   JOIN_PLAYER: ["lobby"],
   NEXT_TURN: ["postDamage", "retract", "endPlay", "charge", "reset", "handLimit"],
 };

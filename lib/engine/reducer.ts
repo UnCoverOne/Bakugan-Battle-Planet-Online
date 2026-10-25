@@ -85,6 +85,38 @@ function joinPlayer(input: MatchState, player: PlayerState, issuedAt: number) {
   return state;
 }
 
+/**
+ * A completed game remains visible until every participating human has
+ * acknowledged its result. One authoritative transition then opens the
+ * next series lobby, avoiding two clients racing to start the next game.
+ */
+function acknowledgeGameResult(input: MatchState, actorId: string): MatchState {
+  const state = cloneMatch(input);
+  const targetWins = state.format === "bo3" ? 2 : 1;
+  if (state.phase !== "result" || state.format !== "bo3"
+    || Math.max(0, ...Object.values(state.series)) >= targetWins) {
+    throw new EngineCommandError("SERIES_COMPLETE", "There is no unfinished series game to acknowledge.");
+  }
+  if ((state.resultAcknowledgedBy ?? []).includes(actorId)) {
+    throw new EngineCommandError("RESULT_ALREADY_ACKNOWLEDGED", "You have already acknowledged this game result.");
+  }
+  state.resultAcknowledgedBy = [...(state.resultAcknowledgedBy ?? []), actorId];
+  const requiredPlayers = state.players.filter((player) => (
+    player.id !== "training-bot"
+    // A player whose disconnect ended the game cannot acknowledge it.
+    && !(state.resultReason.toLowerCase().includes("disconnect") && player.id !== state.winner)
+  ));
+  if (requiredPlayers.every((player) => state.resultAcknowledgedBy!.includes(player.id))) {
+    const next = rankedSeries(state)
+      ? beginRankedIntermission(state)
+      : prepareNextSeriesGameLobby(restoreOriginalDecksForNextGame(state));
+    next.resultAcknowledgedBy = [];
+    return next;
+  }
+  state.version += 1;
+  return state;
+}
+
 function dispatchCommand(input: MatchState, actorId: string, command: GameCommand, issuedAt: number): MatchState {
   if (isRulesCommand(command)) return dispatchRulesCommand(input, actorId, command);
   switch (command.type) {
@@ -126,9 +158,15 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
       return state;
     }
     case "NEXT_TURN": return nextTurn(input);
-    case "START_NEXT_SERIES_GAME": return rankedSeries(input)
-      ? beginRankedIntermission(input)
-      : prepareNextSeriesGameLobby(restoreOriginalDecksForNextGame(input));
+    case "ACK_GAME_RESULT": return acknowledgeGameResult(input, actorId);
+    case "START_NEXT_SERIES_GAME": {
+      // Retained for existing replay journals and internal series transitions.
+      const next = rankedSeries(input)
+        ? beginRankedIntermission(input)
+        : prepareNextSeriesGameLobby(restoreOriginalDecksForNextGame(input));
+      next.resultAcknowledgedBy = [];
+      return next;
+    }
     case "UNDO": return undoLatestAction(input, actorId);
     case "JOIN_PLAYER": return joinPlayer(input, command.player, issuedAt);
     case "RESOLVE_DEADLINE": return resolveExpiredDeadline(input, issuedAt);

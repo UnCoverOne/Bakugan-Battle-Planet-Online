@@ -108,8 +108,10 @@ export function GameMenuHud({
     setError("");
     try {
       await onConcede();
+      setOpen(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The game could not be conceded.");
+    } finally {
       setBusy(false);
     }
   };

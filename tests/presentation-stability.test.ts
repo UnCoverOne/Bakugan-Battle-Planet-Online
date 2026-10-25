@@ -172,7 +172,7 @@ test("completed match dialog separates board inspection from exiting the match",
   const coordinator = read("components/game-screen-v2/MatchStateCoordinator.tsx");
   const css = read("components/game-screen-v2/MatchResultDialog.module.css");
 
-  assert.match(coordinator, /complete \? "EXIT MATCH" : "CONTINUE SERIES"/);
+  assert.match(coordinator, /complete \? "EXIT MATCH" : acknowledged \? "WAITING FOR OPPONENT" : "RETURN TO LOBBY"/);
   assert.doesNotMatch(coordinator, /RETURN TO PLAY/);
   assert.match(coordinator, /aria-label="Close match complete window"/);
   assert.match(coordinator, /if \(complete\) \{\s*onDismiss\(\);/);
