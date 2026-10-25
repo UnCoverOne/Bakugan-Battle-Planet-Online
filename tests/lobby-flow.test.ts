@@ -4,6 +4,8 @@ import test from "node:test";
 import { selectAiDeckForMeta } from "../lib/ai-meta-selection";
 import { STARTER_DECKS, canonicalSelectionForFormat, makeCanonicalPlayer, makePlayer, type DeckRecord } from "../lib/data";
 import { createMatch, prepareNextSeriesGameLobby } from "../lib/game";
+import { reduceMatch } from "../lib/engine/reducer";
+import type { CommandEnvelope, GameCommand } from "../lib/engine/types";
 import { isCompletedSeriesResult, isSeriesIntermissionResult } from "../lib/match-result-navigation";
 import {
   lobbyConfig,
@@ -173,6 +175,72 @@ test("Best of Three result navigation distinguishes intermissions from series co
   assert.equal(isCompletedSeriesResult(state), true);
 });
 
+function seriesCommand(state: ReturnType<typeof createMatch>, actorId: string, command: GameCommand) {
+  const envelope: CommandEnvelope = {
+    commandId: `series-result-${state.version}-${actorId}-${command.type}`,
+    gameId: state.id,
+    actorId,
+    expectedVersion: state.version,
+    issuedAt: 1_800_000_000_000 + state.version,
+    randomSeed: `series-seed-${state.version}`,
+    requestHash: `series-result-${state.version}-${actorId}-${command.type}`,
+    command,
+  };
+  return reduceMatch(state, envelope).state;
+}
+
+test("a conceded series game shows both players the result until both acknowledge it", () => {
+  let state = createMatch("SERIES-CONCEDE", "bo3", [taggedPlayer(0), taggedPlayer(1)]);
+  state.phase = "draw";
+  state = seriesCommand(state, "player-1", { type: "CONCEDE" });
+
+  assert.equal(state.phase, "result");
+  assert.equal(state.winner, "player-2");
+  assert.equal(state.resultReason, "Opponent conceded");
+  assert.equal(state.series["player-1"], 0);
+  assert.equal(state.series["player-2"], 1);
+  assert.deepEqual(state.resultAcknowledgedBy, []);
+
+  state = seriesCommand(state, "player-1", { type: "ACK_GAME_RESULT" });
+  assert.equal(state.phase, "result");
+  assert.deepEqual(state.resultAcknowledgedBy, ["player-1"]);
+  assert.throws(
+    () => seriesCommand(state, "player-1", { type: "ACK_GAME_RESULT" }),
+    /already acknowledged/,
+  );
+
+  state = seriesCommand(state, "player-2", { type: "ACK_GAME_RESULT" });
+  assert.equal(state.phase, "lobby");
+  assert.equal(state.gameNumber, 2);
+  assert.equal(state.series["player-2"], 1);
+  assert.deepEqual(state.resultAcknowledgedBy, []);
+  assert.equal(state.players.every((player) => !player.ready), true);
+});
+
+test("Training series results need only the human player's acknowledgement", () => {
+  let state = createTrainingLobbyState("SERIES-TRAINING", "bo3", "player-1", "Player 1", STARTER_DECKS[0]);
+  state.phase = "draw";
+  state = seriesCommand(state, "player-1", { type: "CONCEDE" });
+  assert.equal(state.phase, "result");
+  assert.equal(state.winner, "training-bot");
+
+  state = seriesCommand(state, "player-1", { type: "ACK_GAME_RESULT" });
+  assert.equal(state.phase, "lobby");
+  assert.equal(state.gameNumber, 2);
+  assert.equal(state.series["training-bot"], 1);
+});
+
+test("a completed Best of Three series cannot acknowledge another game", () => {
+  const state = createMatch("SERIES-COMPLETE", "bo3", [taggedPlayer(0), taggedPlayer(1)]);
+  state.phase = "result";
+  state.winner = "player-1";
+  state.series["player-1"] = 2;
+  assert.throws(
+    () => seriesCommand(state, "player-1", { type: "ACK_GAME_RESULT" }),
+    /no unfinished series game/,
+  );
+});
+
 test("Best of Three intermissions return to a locked lobby ready check", () => {
   let state = createMatch("SERIES", "bo3", [taggedPlayer(0), taggedPlayer(1)]);
   state.phase = "result";
@@ -286,9 +354,10 @@ test("streamlined Match Creation and Lobby source contracts stay in place", asyn
   assert.match(provider, /router\.push\("\/play\/lobby"\)/);
   assert.match(provider, /router\.push\("\/play\/match"\)/);
   assert.match(runtime, /router\.replace\("\/play\/result"\)/);
-  assert.match(coordinator, /isSeriesIntermissionResult\(returnState\.match\)/);
-  assert.match(coordinator, /void nextSeriesGame\(\)/);
-  assert.match(coordinator, /completed && !seriesIntermission && resultReady/);
+  assert.doesNotMatch(coordinator, /intermissionAdvanceKey/);
+  assert.match(coordinator, /completed && resultReady/);
+  assert.match(coordinator, /WAITING FOR OPPONENT/);
+  assert.match(provider, /api\("ack-game-result"\)/);
 });
 
 test("Training accepts a 40-card Standard-legal deck saved with Competitive format", () => {
