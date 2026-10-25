@@ -1384,7 +1384,32 @@ export function AppProvider({ children }) {
   const createOnline = useCallback(async (options = {}) => { const activeDeck = options.decks?.[0] ?? selectedDeck; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before creating a room." }; } try { clearBrowserMatchCredentials(); setMatchCapability(""); setMatchControllerId(""); const rankedSelections = options.mode === "ranked" ? options.decks.map((deck) => selection(deck, "competitive")) : undefined; const state = await api("create", options.mode === "ranked" ? { lobbyMode: "ranked" } : undefined, undefined, selection(activeDeck), rankedSelections); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be created."; setMatchError(message); return { ok: false, error: message }; } }, [api, router, selectedDeck, selection, setMatch, setMatchCapability, setMatchControllerId, setOnline]);
   const joinOnline = useCallback(async (options = {}) => { const activeDeck = options.decks?.[0] ?? selectedDeck; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before joining a room." }; } try { const rankedSelections = options.mode === "ranked" ? options.decks.map((deck) => selection(deck, "competitive")) : undefined; const state = await api("join", undefined, joinCode.toUpperCase(), selection(activeDeck), rankedSelections); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be joined."; setMatchError(message); return { ok: false, error: message }; } }, [api, joinCode, router, selectedDeck, selection, setMatch, setOnline]);
   const readyMatch = useCallback(async () => { if (!match) return; try { if (online) await api("ready"); else { const { dispatchLocalGameCommand } = await import("../../lib/engine/local-command-dispatcher"); setMatch(dispatchLocalGameCommand(match, playerId, { type: "SET_READY" }, authUser?.id ?? playerId)); } } catch (error) { setMatchError(error.message); } }, [api, authUser?.id, match, online, playerId, setMatch]);
-  const nextSeriesGame = useCallback(async () => { if (!match) return; try { let state; if (online) state = await api("next-game"); else { const [{ dispatchLocalGameCommand }, { trainingBotLobbyCommands }] = await Promise.all([import("../../lib/engine/local-command-dispatcher"), import("../../lib/training-lobby")]); state = dispatchLocalGameCommand(match, playerId, { type: "START_NEXT_SERIES_GAME" }, authUser?.id ?? playerId); for (const command of trainingBotLobbyCommands(state)) state = dispatchLocalGameCommand(state, "training-bot", command, authUser?.id ?? playerId); setMatch(state); } router.push("/play/lobby"); } catch (error) { setMatchError(error.message); } }, [api, authUser?.id, match, online, playerId, router, setMatch]);
+  const nextSeriesGame = useCallback(async () => {
+    if (!match) return;
+    try {
+      let state;
+      if (online) {
+        state = await api("ack-game-result");
+      } else {
+        const [{ dispatchLocalGameCommand }, { trainingBotLobbyCommands }] = await Promise.all([
+          import("../../lib/engine/local-command-dispatcher"),
+          import("../../lib/training-lobby"),
+        ]);
+        state = dispatchLocalGameCommand(match, playerId, { type: "ACK_GAME_RESULT" }, authUser?.id ?? playerId);
+        if (state.phase === "lobby") {
+          for (const command of trainingBotLobbyCommands(state)) {
+            state = dispatchLocalGameCommand(state, "training-bot", command, authUser?.id ?? playerId);
+          }
+        }
+        setMatch(state);
+      }
+      // The first player to acknowledge remains on the result screen; the
+      // second acknowledgement moves both players to the new lobby.
+      if (state?.phase === "lobby") router.push("/play/lobby");
+    } catch (error) {
+      setMatchError(error instanceof Error ? error.message : "Could not return to the series lobby.");
+    }
+  }, [api, authUser?.id, match, online, playerId, router, setMatch]);
   const leaveMatch = useCallback(() => { clearBrowserMatchCredentials(); setMatch(null); setOnline(false); setMatchCapability(""); setMatchControllerId(""); router.push("/dashboard"); }, [router, setMatch, setMatchCapability, setMatchControllerId, setOnline]);
   const resumeAccountMatch = useCallback(async (session) => {
     if (!authUser || !session?.code || resumingMatchRef.current) return { ok: false };
