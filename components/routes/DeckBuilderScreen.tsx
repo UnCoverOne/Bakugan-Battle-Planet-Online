@@ -27,6 +27,7 @@ import { CardArt } from "../cards/CardArt";
 import { copyText } from "../application/ui";
 import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
+import { BakuganRollingOverlay } from "../cards/BakuganRollingStats";
 import { ActionButton, Field, StatusChip, Tabs } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import { FilterPicker } from "../filters/FilterPicker";
@@ -688,6 +689,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                   <article className={styles.builderCharacterSlot} key={character.id}>
                     <button className={styles.builderCardArtButton} onClick={() => inspectCard(character.character)}>
                       <ResponsiveCardImage card={character.character} presentation="tile" />
+                      <BakuganRollingOverlay card={character.character} />
                     </button>
                     <div><strong>{character.name}</strong><span>{character.faction}</span></div>
                     <button aria-label={`Remove ${character.name}`} onClick={() => toggleCharacter(character.id)}>−</button>
@@ -1174,6 +1176,7 @@ function BuilderGalleryCard({
           core={displayedCore ?? undefined}
           catalogueRevision={catalogueRevision}
         />
+        {item.kind === "character" && <BakuganRollingOverlay card={item.card} />}
       </button>
       {core && displayedCore ? (
         <div className={`${styles.builderGalleryIdentity} ${styles.builderCoreIdentity}`}>

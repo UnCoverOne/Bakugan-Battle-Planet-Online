@@ -11,6 +11,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { compendiumLocation, compendiumSectionHref, type CompendiumSection } from "../../lib/compendium-navigation";
 import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
+import { BakuganRollingOverlay } from "../cards/BakuganRollingStats";
 import {
   COMPENDIUM_PAGE_SIZE,
   CORE_COMPENDIUM_PAGE_SIZE,
@@ -183,7 +184,7 @@ function CoreFilterControls({
 export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { setCompendiumTab, authUser, notify, collection, setCollection } = useAppFields(["setCompendiumTab", "authUser", "notify", "collection", "setCollection"]);
+  const { setCompendiumTab, authUser, notify, collection, setCollection, catalogueRevision } = useAppFields(["setCompendiumTab", "authUser", "notify", "collection", "setCollection", "catalogueRevision"]);
   const changeCollection = useCallback((catalogId: string, field: CollectionField, delta: number) => {
     if (!authUser) return;
     setCollection((current) => updateCollection(current, catalogId, field, delta));
@@ -203,14 +204,14 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     setSearchQuery(value);
   }, []);
 
-  const filterOptions = useMemo(() => createCardFilterOptionCatalogue(CARDS), []);
+  const filterOptions = useMemo(() => createCardFilterOptionCatalogue(CARDS), [catalogueRevision]);
   const searchState = useMemo(
     () => ({ ...state, q: deferredSearchQuery }),
     [deferredSearchQuery, state],
   );
   const cards = useMemo(
     () => section === "cards" ? filterAndSortCompendiumCards(CARDS, searchState) : [],
-    [searchState, section],
+    [searchState, section, catalogueRevision],
   );
   const cores = useMemo(
     () => section === "cores" ? filterAndSortCompendiumCores(CORE_COMPENDIUM, { ...coreState, q: deferredSearchQuery }) : [],
@@ -453,6 +454,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                       <span className={styles.cardArt}>
                         <span className={styles.cardArtFrame}>
                           <ResponsiveCardImage card={card} presentation="tile" />
+                          <BakuganRollingOverlay card={card} />
                           {card.fusionPairId && (
                             <span className={styles.fusionBadge} aria-label="Fusion Character Card">
                               <FusionSymbol alt="" width={24} height={24} />

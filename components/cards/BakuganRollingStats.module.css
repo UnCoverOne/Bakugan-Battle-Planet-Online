@@ -1,0 +1,53 @@
+.overlay {
+  position: absolute;
+  z-index: 2;
+  bottom: 2.5%;
+  left: 3%;
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: .3em;
+  min-height: 1.35rem;
+  padding: .12rem .3rem;
+  border: 1px solid rgba(109, 205, 232, .48);
+  border-radius: .2rem;
+  background: rgba(0, 12, 18, .91);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, .7);
+  color: #fff;
+  font-size: clamp(.65rem, .85vw, .8rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.overlay .stat,
+.overlay .stat > span {
+  color: #fff;
+  font-size: clamp(.65rem, .85vw, .8rem);
+  line-height: 1.1;
+}
+
+.icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.rollIcon {
+  background-image: url("/assets/symbols/roll.svg");
+}
+
+.doubleCoreIcon {
+  background-image: url("/assets/symbols/double-core.svg");
+}

@@ -18,7 +18,8 @@ import { DeckDetailPresentation, DeckSharePanel, MissingDeck } from "./DeckDetai
 export function PublicDeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
   const online = useOnlineStatus();
-  const { decks, setDecks, setBuilderDeck, notify, authUser, promptAccount } = useAppFields(["decks", "setDecks", "setBuilderDeck", "notify", "authUser", "promptAccount"]);
+  const { decks, setDecks, setBuilderDeck, notify, authUser, promptAccount, catalogueRevision } = useAppFields(["decks", "setDecks", "setBuilderDeck", "notify", "authUser", "promptAccount", "catalogueRevision"]);
+  void catalogueRevision;
   const [favoritePending, setFavoritePending] = useState(false);
   const catalogue = usePublicDeckCatalogue(online, authUser?.id);
   if (catalogue.status === "loading") {

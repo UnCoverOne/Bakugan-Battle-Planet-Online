@@ -17,8 +17,9 @@
 .grid,.compact{width:100%}
 .tile{display:flex;flex-direction:column;gap:.5rem;min-width:0;text-align:left;padding:.5rem;background:rgba(4,24,33,.85);border:1px solid var(--border-subtle);color:var(--text-primary);cursor:pointer}
 .tile:hover,.tile:focus-visible{border-color:var(--brand-blue-bright);background:rgba(0,174,239,.11)}
-.art{display:block;width:100%;aspect-ratio:5 / 7;overflow:hidden}
+.art{position:relative;display:block;width:100%;aspect-ratio:5 / 7;overflow:hidden}
 .art img{width:100%;height:100%;object-fit:contain}
+.rollingSummary{display:flex;flex-wrap:wrap;gap:.4rem}
 .cardDetails{display:grid;gap:.35rem;padding:.2rem}
 .cardDetails>span{display:flex;flex-wrap:wrap;gap:.3rem}
 .cardDetails strong{overflow-wrap:anywhere}

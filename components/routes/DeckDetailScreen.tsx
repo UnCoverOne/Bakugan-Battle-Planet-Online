@@ -11,7 +11,8 @@ import { DeckDetailPresentation, DeckSharePanel, MissingDeck } from "./DeckDetai
 
 export function DeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
-  const { decks, setBuilderDeck, setSelectedDeckId, notify, profile, authUser } = useAppFields(["decks", "setBuilderDeck", "setSelectedDeckId", "notify", "profile", "authUser"]);
+  const { decks, setBuilderDeck, setSelectedDeckId, notify, profile, authUser, catalogueRevision } = useAppFields(["decks", "setBuilderDeck", "setSelectedDeckId", "notify", "profile", "authUser", "catalogueRevision"]);
+  void catalogueRevision;
   const deck = decks.find((item: DeckRecord) => item.id === id);
   if (!deck) return <MissingDeck id={id} />;
   const report = validateDeck(deck);

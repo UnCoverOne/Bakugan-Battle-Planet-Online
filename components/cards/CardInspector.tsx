@@ -17,6 +17,7 @@ import { SYMBOL_ENTRIES, type ReferenceEntry } from "../../lib/reference";
 import { StatusChip, Tabs } from "../design-system/primitives";
 import { InspectorModal } from "./InspectorModal";
 import { ResponsiveCardImage } from "./ResponsiveCardImage";
+import { BakuganRollingStat, bakuganRollingValues } from "./BakuganRollingStats";
 import styles from "./CardInspector.module.css";
 import { MotionValue } from "../design-system/MotionValue";
 
@@ -184,6 +185,7 @@ function CardOverview({
   onToggleFusion: () => void;
 }) {
   const set = CARD_SET_INFO[cardSetCode(card)];
+  const rolling = bakuganRollingValues(card);
   return (
     <div className={styles.overview}>
       <div className={styles.artWell}>
@@ -218,6 +220,8 @@ function CardOverview({
           <div><dt>Catalogue ID</dt><dd>{card.catalogId}</dd></div>
           {card.bPower !== null && <div><dt>B-Power</dt><dd>{card.bPower}</dd></div>}
           {card.damage !== null && <div><dt>Damage</dt><dd>{card.damage}</dd></div>}
+          {rolling && <div><dt>Roll Accuracy</dt><dd><BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} /></dd></div>}
+          {rolling && <div><dt>Double Core Chance</dt><dd><BakuganRollingStat kind="doubleCoreChance" value={rolling.doubleCoreChance} /></dd></div>}
           {card.armorRating !== undefined && <div><dt>Armor</dt><dd>{card.armorRating}</dd></div>}
           {card.fusionFace && <div><dt>Fusion face</dt><dd>{card.fusionFace.toUpperCase()}</dd></div>}
           {card.coreTypes.length > 0 && <div><dt>BakuCores</dt><dd>{card.coreTypes.join(" · ")}</dd></div>}

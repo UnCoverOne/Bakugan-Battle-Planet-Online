@@ -14,6 +14,7 @@ import { deckTextList, encodeDeckCode } from "../../lib/deck-transfer";
 import { deckEnergyCurve, deckExportFilename, groupedDeckCards } from "../../lib/deck-presentation";
 import { deckSetName } from "../../lib/deck-set";
 import { CardArt } from "../cards/CardArt";
+import { BakuganRollingOverlay } from "../cards/BakuganRollingStats";
 import { copyText, downloadTextFile, formatTimestamp } from "../application/ui";
 import { CardInspector } from "../cards/CardInspector";
 import { ActionButton, RouteHero, StatusChip, Surface } from "../design-system/primitives";
@@ -105,7 +106,10 @@ export function DeckDetailPresentation({
                     aria-label={`Inspect ${item!.name} character card`}
                     onClick={(event) => inspectCard(item!.character, event.currentTarget)}
                   >
-                    <CardArt src={cardArtSource(item!.character, "full")} cardType={item!.character.type} presentation="readable" alt={item!.name} />
+                    <span className={styles.detailCharacterArt}>
+                      <CardArt src={cardArtSource(item!.character, "full")} cardType={item!.character.type} presentation="readable" alt={item!.name} />
+                      <BakuganRollingOverlay card={item!.character} />
+                    </span>
                     <strong>{item!.name}</strong>
                     <span className={styles.characterStats}>
                       <span><OriginalImage src={FACTION_SYMBOLS[item!.faction]} alt="" aria-hidden="true" />{item!.faction}</span>

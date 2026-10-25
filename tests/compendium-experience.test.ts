@@ -430,3 +430,30 @@ test("Compendium Rulings leaves submission and heading to the global feedback me
   assert.match(shell, /Feedback &amp; Reports/);
   assert.match(shell, /<FeedbackReportsDialog/);
 });
+
+
+test("Bakugan rolling probabilities appear in every card gallery and the inspector", async () => {
+  const [rolling, rollingStyles, compendium, collection, builder, administrator, detail, inspector] = await Promise.all([
+    read("components/cards/BakuganRollingStats.tsx"),
+    read("components/cards/BakuganRollingStats.module.css"),
+    read("components/routes/CompendiumScreen.tsx"),
+    read("components/routes/CollectionScreen.tsx"),
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/routes/AdministratorCardManagement.tsx"),
+    read("components/routes/DeckDetailPresentation.tsx"),
+    read("components/cards/CardInspector.tsx"),
+  ]);
+  assert.match(rolling, /BAKUGAN/);
+  assert.match(rolling, /card\.type === "Character"/);
+  assert.match(rolling, /rollAccuracy/);
+  assert.match(rolling, /doubleCoreChance/);
+  assert.match(rollingStyles, /\/assets\/symbols\/roll\.svg/);
+  assert.match(rollingStyles, /\/assets\/symbols\/double-core\.svg/);
+  for (const gallery of [compendium, collection, builder, administrator, detail]) {
+    assert.match(gallery, /<BakuganRollingOverlay card=/);
+  }
+  assert.match(inspector, /<dt>Roll Accuracy<\/dt>/);
+  assert.match(inspector, /<dt>Double Core Chance<\/dt>/);
+  assert.match(administrator, /<BakuganRollingStat kind="rollAccuracy"/);
+  assert.match(administrator, /<BakuganRollingStat kind="doubleCoreChance"/);
+});

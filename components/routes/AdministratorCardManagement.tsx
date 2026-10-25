@@ -10,6 +10,7 @@ import { CardFilterPanel } from "../filters/CardFilterPanel";
 import { FilterPicker } from "../filters/FilterPicker";
 import { InspectorModal } from "../cards/InspectorModal";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
+import { BakuganRollingOverlay, BakuganRollingStat } from "../cards/BakuganRollingStats";
 import { ActionButton, CardGrid, Field, StatusChip, Surface } from "../design-system/primitives";
 import { useAppFields } from "../application/AppProvider";
 import styles from "./AdministratorCardManagement.module.css";
@@ -199,6 +200,10 @@ function AdministratorInspector({ card, restriction, activeRestriction, rolling,
       <div className={styles.inspectorBody}>
         <div className={styles.preview}>
           <ResponsiveCardImage card={card} presentation="inspector" />
+          {rolling && <div className={styles.rollingSummary} aria-label="Bakugan rolling stats">
+            <BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} />
+            <BakuganRollingStat kind="doubleCoreChance" value={rolling.doubleCoreChance} />
+          </div>}
           <div className={styles.badges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip><StatusChip>{card.type}</StatusChip></div>
           <p>{card.effect || "No printed effect."}</p>
         </div>
@@ -353,7 +358,7 @@ export function AdministratorCardManagement() {
           <div className={styles.count}><strong>{filtered.length} cards</strong><span>Page {Math.min(page, pages)} of {pages} · {activeCardFilterCount(filters)} active filters</span></div>
           <CardGrid className={density === "compact" ? styles.compact : styles.grid} minCardWidth={density === "compact" ? "9.25rem" : "11.5rem"}>
             {visible.map((card) => <button type="button" className={styles.tile} key={card.catalogId} onClick={(event) => { triggerRef.current = event.currentTarget; setSelectedId(card.catalogId); }}>
-              <span className={styles.art}><ResponsiveCardImage card={card} presentation="tile" /></span>
+              <span className={styles.art}><ResponsiveCardImage card={card} presentation="tile" /><BakuganRollingOverlay card={card} values={rollingSettings.find((item) => item.catalogId === card.catalogId)} /></span>
               <span className={styles.cardDetails}><span><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span><strong>{card.displayName}</strong><small>{card.type} · {card.cost} Energy · {card.rarity}</small></span>
             </button>)}
           </CardGrid>

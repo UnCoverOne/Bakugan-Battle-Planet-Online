@@ -4,6 +4,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useSearchParams } from "next/navigation";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
+import { BakuganRollingOverlay } from "../cards/BakuganRollingStats";
 import { CardInspector } from "../cards/CardInspector";
 import { CardGrid, Field, RouteHero, StatusChip, Surface, Tabs, ActionButton } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
@@ -269,7 +270,7 @@ export function CollectionScreen() {
 
 function CollectionCard({ card, entry, selected, onSelect, onQuickChange }: { card: typeof CARDS[number]; entry: { standard: number; foil: number; wishlist: number }; selected: boolean; onSelect: (card: typeof CARDS[number]) => void; onQuickChange: (field: CollectionField, delta: number) => void }) {
   const owned = entry.standard + entry.foil;
-  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned} ${selected ? styles.collectionTileSelected : ""}`}><button className={`${compendiumStyles.cardTile} ${selected ? compendiumStyles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(card)}><span className={compendiumStyles.cardArt}><span className={compendiumStyles.cardArtFrame}><ResponsiveCardImage card={card} presentation="tile" /></span></span><span className={compendiumStyles.cardCopy}><span className={compendiumStyles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span><strong>{card.displayName}</strong><small>{card.type} · {card.cost} Energy · {card.rarity}</small></span></button><CollectionFooter label={card.displayName} owned={owned} wishlist={entry.wishlist} standard={entry.standard} onQuickChange={onQuickChange} /></div>;
+  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned} ${selected ? styles.collectionTileSelected : ""}`}><button className={`${compendiumStyles.cardTile} ${selected ? compendiumStyles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(card)}><span className={compendiumStyles.cardArt}><span className={compendiumStyles.cardArtFrame}><ResponsiveCardImage card={card} presentation="tile" /><BakuganRollingOverlay card={card} /></span></span><span className={compendiumStyles.cardCopy}><span className={compendiumStyles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span><strong>{card.displayName}</strong><small>{card.type} · {card.cost} Energy · {card.rarity}</small></span></button><CollectionFooter label={card.displayName} owned={owned} wishlist={entry.wishlist} standard={entry.standard} onQuickChange={onQuickChange} /></div>;
 }
 
 function CollectionCore({ core, entry, selected, onSelect, onQuickChange }: { core: typeof CORE_COMPENDIUM[number]; entry: { standard: number; foil: number; wishlist: number }; selected: boolean; onSelect: (core: typeof CORE_COMPENDIUM[number]) => void; onQuickChange: (field: CollectionField, delta: number) => void }) {
