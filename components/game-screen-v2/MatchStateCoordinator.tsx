@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { captureCoreReturns } from "../../lib/coreReturns";
 import type { MatchState } from "../../lib/game";
-import { completedMatchKey, isCompletedSeriesResult, isSeriesIntermissionResult } from "../../lib/match-result-navigation";
+import { completedMatchKey, isCompletedSeriesResult } from "../../lib/match-result-navigation";
 import { CoreReturnPlacementLayer } from "./CoreReturnPlacementLayer";
 import {
   DRAGONOID_MAXIMUS_SKIP_EVENT,
@@ -166,7 +166,8 @@ function MatchResultDialog({
   const opponentScore = opponent ? match.series[opponent.id] ?? 0 : 0;
   const scoreLabel = match.format === "bo3" ? "SERIES SCORE" : "FINAL SCORE";
   const eyebrow = complete ? "MATCH COMPLETE" : `GAME ${match.gameNumber} COMPLETE`;
-  const primaryLabel = complete ? "EXIT MATCH" : "CONTINUE SERIES";
+  const acknowledged = !complete && Boolean(localPlayerId && (match.resultAcknowledgedBy ?? []).includes(localPlayerId));
+  const primaryLabel = complete ? "EXIT MATCH" : acknowledged ? "WAITING FOR OPPONENT" : "RETURN TO LOBBY";
 
   useEffect(() => {
     primaryButtonRef.current?.focus();
@@ -177,11 +178,11 @@ function MatchResultDialog({
         onDismiss();
         return;
       }
-      onContinue();
+      if (!acknowledged) onContinue();
     };
     window.addEventListener("keydown", continueOnEscape);
     return () => window.removeEventListener("keydown", continueOnEscape);
-  }, [complete, onContinue, onDismiss]);
+  }, [acknowledged, complete, onContinue, onDismiss]);
 
   return (
     <div
@@ -249,6 +250,7 @@ function MatchResultDialog({
             type="button"
             className={styles.primaryAction}
             onClick={onContinue}
+            disabled={acknowledged}
           >
             {primaryLabel}
           </button>
@@ -289,8 +291,6 @@ export function MatchStateCoordinator() {
   }));
   const retracting = returnState.route === "match" && returnState.match?.phase === "retract";
   const completed = returnState.route === "match" && returnState.match?.phase === "result";
-  const seriesIntermission = completed && isSeriesIntermissionResult(returnState.match);
-  const intermissionAdvanceKey = useRef("");
   const [resultReady, setResultReady] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [skippedMaximusResultKey, setSkippedMaximusResultKey] = useState<string | null>(null);
@@ -306,29 +306,6 @@ export function MatchStateCoordinator() {
   }, [returnState.match?.phase, returnState.route, router]);
 
   useEffect(() => {
-    const match = returnState.match;
-    if (returnState.route !== "match" || !isSeriesIntermissionResult(match)) {
-      intermissionAdvanceKey.current = "";
-      return;
-    }
-    const key = `${match!.id}:${match!.gameNumber}:${match!.winner}`;
-    if (intermissionAdvanceKey.current === key) return;
-    intermissionAdvanceKey.current = key;
-    // The completed-game snapshot remains observable for records/stats, but
-    // unfinished Best of Three games never present the result dialog. Advancing
-    // immediately prepares the locked lobby/ready check for the next game.
-    void nextSeriesGame();
-  }, [
-    nextSeriesGame,
-    returnState.match,
-    returnState.match?.gameNumber,
-    returnState.match?.id,
-    returnState.match?.phase,
-    returnState.match?.winner,
-    returnState.route,
-  ]);
-
-  useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReducedMotion(query.matches);
     update();
@@ -337,18 +314,18 @@ export function MatchStateCoordinator() {
   }, []);
 
   useEffect(() => {
-    if (!completed || seriesIntermission || !returnState.match || !isDragonoidMaximusResult(returnState.match) || !resultKey) return;
+    if (!completed || !returnState.match || !isDragonoidMaximusResult(returnState.match) || !resultKey) return;
     const revealResult = () => {
       setSkippedMaximusResultKey(resultKey);
       setResultReady(true);
     };
     window.addEventListener(DRAGONOID_MAXIMUS_SKIP_EVENT, revealResult);
     return () => window.removeEventListener(DRAGONOID_MAXIMUS_SKIP_EVENT, revealResult);
-  }, [completed, resultKey, returnState.match, seriesIntermission]);
+  }, [completed, resultKey, returnState.match]);
 
   useEffect(() => {
     const match = returnState.match;
-    if (!completed || !match || seriesIntermission) {
+    if (!completed || !match) {
       setResultReady(false);
       setSkippedMaximusResultKey(null);
       setDismissedResultKey(null);
@@ -371,14 +348,14 @@ export function MatchStateCoordinator() {
     setResultReady(false);
     const timeout = window.setTimeout(() => setResultReady(true), remaining);
     return () => window.clearTimeout(timeout);
-  }, [completed, reducedMotion, resultKey, returnState.match, seriesIntermission, skippedMaximusResultKey]);
+  }, [completed, reducedMotion, resultKey, returnState.match, skippedMaximusResultKey]);
 
   return (
     <>
       {retracting ? (
         <CoreReturnPlacementLayer match={returnState.match!} playerId={returnState.playerId} />
       ) : null}
-      {completed && !seriesIntermission && resultReady && resultKey !== dismissedResultKey ? (
+      {completed && resultReady && resultKey !== dismissedResultKey ? (
         <MatchResultDialog
           match={returnState.match!}
           playerId={returnState.playerId}
