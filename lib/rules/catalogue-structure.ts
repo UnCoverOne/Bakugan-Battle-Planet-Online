@@ -1471,7 +1471,7 @@ export function abilityDefinitionsForCard(card: GameCard): AbilityDefinition[] {
   } else if (ordinary.length || !triggered.length) result.push({
     id: `${ruleCardId(card)}:${card.type === "Character" ? "character" : "spell"}`,
     kind: card.type === "Character" ? "character" : card.type === "Hero" && ordinary.some((instruction) => instruction.effects.some((effect) => (
-      (effect.kind === "modify-stat" || effect.kind === "grant-keyword") && effect.duration === "while-source-active"
+      (effect.kind === "modify-stat" || effect.kind === "modify-attack-damage" || effect.kind === "grant-keyword") && effect.duration === "while-source-active"
     ))) ? "static" : "spell",
     instructions: ordinary.length ? ordinary : instructions,
   });

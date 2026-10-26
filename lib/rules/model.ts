@@ -179,6 +179,7 @@ export type SwapBakucoreEffect = {
 
 export type RuleAction =
   | { kind: "modify-stat"; stat: "power" | "damage" | "frost"; amount: NumberValue; duration: RulesDuration; scope?: "target" | "all-enemy" | "all-friendly" | "all-bakugan"; targetChoiceId?: keyof CardChoices; condition?: RuleCondition }
+  | { kind: "modify-attack-damage"; amount: NumberValue; duration: RulesDuration; scope: "controller-bakugan-attacks" }
   | { kind: "ignore-armor-rating"; duration: RulesDuration }
   | { kind: "grant-keyword"; keyword: "DoubleStrike" | "ShadowStrike" | "FrostStrike" | "Victor" | "Stop"; value?: NumberValue; duration: RulesDuration }
   | { kind: "draw"; amount: NumberValue; playerScope?: PlayerScope }

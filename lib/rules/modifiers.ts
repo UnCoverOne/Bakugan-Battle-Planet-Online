@@ -426,6 +426,30 @@ export function evaluateBakuganCharacteristics(
   };
 }
 
+/** Bonuses to an attack event, deliberately separate from Bakugan Damage Ratings. */
+function continuousAttackDamageBonus(state: MatchState, player: PlayerState, attacking: Bakugan) {
+  let bonus = 0;
+  for (const hero of player.heroes) {
+    const definition = ruleDefinitionForCard(hero);
+    for (const ability of definition.abilities) {
+      if (ability.kind !== "static") continue;
+      for (const instruction of ability.instructions) {
+        for (const action of instruction.effects) {
+          if (action.kind !== "modify-attack-damage" || action.duration !== "while-source-active") continue;
+          if (!ruleConditionActive(state, player, instruction.condition, attacking)) continue;
+          bonus += evaluateNumberValue(state, action.amount, {
+            controllerId: player.id,
+            sourceCardId: hero.id,
+            sourceBakuganId: attacking.id,
+            moment: "continuous",
+          });
+        }
+      }
+    }
+  }
+  return bonus;
+}
+
 /** Effective damage the active Bakugan is about to attack for, including Team Attack and DoubleStrike. */
 export function prospectiveAttackDamage(state: MatchState, player: PlayerState, attacking: Bakugan) {
   const stats = evaluateBakuganCharacteristics(state, attacking, player);
@@ -434,7 +458,9 @@ export function prospectiveAttackDamage(state: MatchState, player: PlayerState, 
     ? openTeam.reduce((sum, bakugan) => sum + evaluateBakuganCharacteristics(state, bakugan, player).damage, 0)
     : stats.damage;
   if (stats.doubleStrike) damage *= 2;
-  return Math.max(0, damage);
+  // A Team Attack is one attack by its Victor, even though three Bakugan
+  // contribute their ratings. Apply each active Hero's bonus only once.
+  return Math.max(0, damage + continuousAttackDamageBonus(state, player, attacking));
 }
 
 export function activeFrostStrike(state: MatchState, sourceId: string) {

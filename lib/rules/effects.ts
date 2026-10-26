@@ -74,6 +74,7 @@ export function cardProgramIsExecutable(program: RuleProgram) {
 function actionValue(action: TypedRuleAction, match: MatchState) {
   switch (action.kind) {
     case "modify-stat": return action.amount * (action.stat === "power" ? 0.012 : action.stat === "damage" ? 0.9 : 0.65);
+    case "modify-attack-damage": return typeof action.amount === "number" ? action.amount * 0.9 : 0.9;
     case "draw": return action.amount * 2.4;
     case "discard": return -action.amount * 1.4;
     case "energize": return action.amount * 2;
