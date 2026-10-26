@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAppFields } from "../application/AppProvider";
 import { ConfirmationDialog } from "../application/SystemState";
 import { downloadTextFile } from "../application/ui";
+import { generateRecoveryCode } from "../../lib/recovery-code";
 import {
   ActionButton,
   Field,
@@ -45,6 +46,15 @@ export function SettingsScreen() {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [accountError, setAccountError] = useState("");
   const [accountBusy, setAccountBusy] = useState(false);
+  const [recoveryPassword, setRecoveryPassword] = useState("");
+  const [replacementCode, setReplacementCode] = useState("");
+  const [recoveryNotice, setRecoveryNotice] = useState("");
+
+  useEffect(() => {
+    setRecoveryPassword("");
+    setReplacementCode("");
+    setRecoveryNotice("");
+  }, [authUser?.id, section]);
 
   useEffect(() => {
     setBrawlerName(profile.name);
@@ -98,6 +108,43 @@ export function SettingsScreen() {
       );
     } finally {
       setAccountBusy(false);
+    }
+  };
+
+  const replaceRecoveryCode = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAccountBusy(true);
+    setAccountError("");
+    setRecoveryNotice("");
+    const nextRecoveryCode = generateRecoveryCode();
+    try {
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "replace-recovery-code",
+          currentPassword: recoveryPassword,
+          nextRecoveryCode,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Could not replace recovery code.");
+      setReplacementCode(nextRecoveryCode);
+      setRecoveryPassword("");
+      setRecoveryNotice("Code replaced. Save this new code; your previous one no longer works.");
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : "Could not replace recovery code.");
+    } finally {
+      setAccountBusy(false);
+    }
+  };
+
+  const copyReplacementCode = async () => {
+    try {
+      await navigator.clipboard.writeText(replacementCode);
+      setRecoveryNotice("Recovery code copied. Keep it somewhere private.");
+    } catch {
+      setRecoveryNotice("Copy the recovery code manually and store it somewhere private.");
     }
   };
 
@@ -257,6 +304,40 @@ export function SettingsScreen() {
                     Register or log in
                   </ActionButton>
                 </Surface>
+              )}
+
+              {authUser && (
+                <form className={styles.passwordForm} onSubmit={replaceRecoveryCode}>
+                  <h3>Account recovery code</h3>
+                  <p className={styles.recoveryHelp}>
+                    Your recovery code stays valid across logins. It is stored securely and
+                    cannot be viewed again after you save it. If you lose it, you can
+                    replace it here by confirming your current password.
+                  </p>
+                  <Field label="Current password">
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      value={recoveryPassword}
+                      onChange={(event) => setRecoveryPassword(event.target.value)}
+                      required
+                    />
+                  </Field>
+                  <ActionButton type="submit" tone="secondary" disabled={accountBusy || !recoveryPassword}>
+                    Replace recovery code
+                  </ActionButton>
+                  {replacementCode && (
+                    <div className={styles.recoveryResult} role="status">
+                      <strong>Save your new recovery code</strong>
+                      <code>{replacementCode}</code>
+                      <p>This code replaces your previous one. It will not be displayed after you leave this page.</p>
+                      <ActionButton type="button" tone="secondary" onClick={() => void copyReplacementCode()}>
+                        Copy code
+                      </ActionButton>
+                    </div>
+                  )}
+                  {recoveryNotice && <p className={styles.recoveryNotice} role="status">{recoveryNotice}</p>}
+                </form>
               )}
 
               {authUser && (

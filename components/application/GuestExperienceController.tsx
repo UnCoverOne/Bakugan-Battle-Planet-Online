@@ -114,14 +114,14 @@ export function GuestExperienceController() {
   }, [authChecking, authUser, decks, notify, pathname, promptAccount, ready, setDecks]);
 
   useEffect(() => {
-    if (!authUser || !accountDataReady) return;
+    if (!authUser) return;
     try {
       const code = sessionStorage.getItem(RECOVERY_DISPLAY_KEY) ?? "";
       if (code) setRecoveryCode(code);
     } catch {
       // Recovery-code display is best effort when storage is unavailable.
     }
-  }, [accountDataReady, authUser]);
+  }, [authUser]);
 
   useEffect(() => {
     if (!authUser || !accountDataReady) return;
@@ -203,7 +203,7 @@ export function GuestExperienceController() {
           This code can reset your password if you lose access. It is stored only as a secure hash and will not be shown again after you continue.
         </p>
         <code>{recoveryCode}</code>
-        <p className="recovery-code-warning">Store it in a password manager or another private place. A new login replaces the previous recovery code.</p>
+        <p className="recovery-code-warning">Store it in a password manager or another private place. Your code stays valid when you log in. To replace a lost code while signed in, use Settings → Account.</p>
         {recoveryNotice && <p className="recovery-code-status" role="status">{recoveryNotice}</p>}
         <div>
           <button type="button" onClick={() => void copyRecoveryCode()}>Copy Code</button>

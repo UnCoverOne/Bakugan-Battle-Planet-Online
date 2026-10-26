@@ -66,6 +66,7 @@ This is a full-stack application, not a static export. Room-code multiplayer cal
 - Cloud writes use an optimistic revision number. When two signed-in sessions edit concurrently, the client can merge account revisions, keeps the newest edit for each shared deck, and carries deck deletions with bounded tombstones.
 - Passwords are never stored in plaintext. The server derives a salted PBKDF2-SHA-256 hash and stores only the hash, salt, and iteration count.
 - Login uses an opaque session token in a `HttpOnly`, `SameSite=Lax` cookie; only a SHA-256 hash of the token is stored in D1.
+- Registration issues a recovery code that remains valid across ordinary logins. Signed-in users can replace a lost code in Settings → Account after verifying their password. Codes are only ever shown when issued or replaced, and D1 stores salted hashes, not retrievable plaintext. Password resets rotate the recovery code and revoke all sessions.
 - Deleting an account removes its cloud data and restores the separate guest data saved in that browser.
 
 ## Main project areas
