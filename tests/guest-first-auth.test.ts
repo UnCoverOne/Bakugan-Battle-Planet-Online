@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { summarizeGuestData } from "../lib/guest-data";
+import { generateRecoveryCode } from "../lib/recovery-code";
 import { achievementsFor } from "../lib/achievements";
 import { normalizeStoredDecks, normalizeStoredHistory, normalizeStoredMatch, normalizeStoredProfile } from "../lib/local-storage-normalization";
 import type { UserSnapshot } from "../lib/persistence";
@@ -199,6 +200,35 @@ test("password recovery uses rotating, hashed recovery codes", () => {
   assert.match(route, /DELETE FROM sessions WHERE user_id/);
   assert.match(schema, /recoveryCodeHash/);
   assert.equal(existsSync("drizzle/0004_account_recovery.sql"), true);
+});
+
+test("ordinary login never replaces the recovery code and Account Settings allows deliberate replacement", () => {
+  const modal = source("components/application/AccountAccessModal.tsx");
+  const controller = source("components/application/GuestExperienceController.tsx");
+  const route = source("app/api/auth/route.ts");
+  const settings = source("components/routes/SettingsScreen.tsx");
+  const loginHandler = route.split('if (action === "login")')[1].split('if (action === "recover-password")')[0];
+
+  assert.ok(loginHandler);
+  assert.doesNotMatch(loginHandler, /recovery_code_hash|body\.recoveryCode/);
+  assert.match(modal, /view === "signup" \? generateRecoveryCode\(\) : ""/);
+  assert.match(controller, /Your code stays valid when you log in/);
+  assert.match(settings, /action: "replace-recovery-code"/);
+  assert.match(settings, /currentPassword: recoveryPassword/);
+  assert.match(settings, /Save your new recovery code/);
+  assert.match(route, /if \(action === "replace-recovery-code"\)/);
+  const replaceHandler = route.split('if (action === "replace-recovery-code")')[1].split('if (action === "change-password")')[0];
+  assert.match(replaceHandler, /verifyPassword\(currentPassword, row\)/);
+  assert.match(replaceHandler, /UPDATE users SET recovery_code_hash/);
+  assert.doesNotMatch(replaceHandler, /password_hash =/);
+});
+
+test("recovery codes use 20 cryptographically random base32 characters", () => {
+  const codes = Array.from({ length: 8 }, () => generateRecoveryCode());
+  for (const code of codes) {
+    assert.match(code, /^[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){4}$/);
+  }
+  assert.equal(new Set(codes).size, codes.length);
 });
 
 test("signed-in routes block instead of falling back to guest data", () => {

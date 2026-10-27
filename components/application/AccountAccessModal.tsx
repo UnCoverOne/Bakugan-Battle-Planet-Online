@@ -8,6 +8,7 @@ import {
   rememberAccountIntent,
   type AccountIntentReason,
 } from "../../lib/account-intent";
+import { generateRecoveryCode } from "../../lib/recovery-code";
 import { useAppFields } from "./AppProvider";
 import styles from "./AccountAccessModal.module.css";
 
@@ -15,14 +16,6 @@ export type AccountAccessMode = "login" | "signup";
 type AccessView = AccountAccessMode | "recovery";
 
 const RECOVERY_DISPLAY_KEY = "bbp-pending-recovery-code-display-v1";
-
-function generateRecoveryCode() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = new Uint8Array(20);
-  crypto.getRandomValues(bytes);
-  const characters = Array.from(bytes, (byte) => alphabet[byte % alphabet.length]);
-  return Array.from({ length: 5 }, (_, index) => characters.slice(index * 4, index * 4 + 4).join("")).join("-");
-}
 
 function storeRecoveryCodeForDisplay(code: string) {
   try {
@@ -106,8 +99,8 @@ export function AccountAccessModal({
     const error = validate();
     if (error) return setFormError(error);
 
-    const nextRecoveryCode = generateRecoveryCode();
-    storeRecoveryCodeForDisplay(nextRecoveryCode);
+    const nextRecoveryCode = view === "signup" ? generateRecoveryCode() : "";
+    if (nextRecoveryCode) storeRecoveryCodeForDisplay(nextRecoveryCode);
     const returnTo = intent?.returnTo && intent.returnTo.startsWith("/")
       ? intent.returnTo
       : pathname;
@@ -117,10 +110,10 @@ export function AccountAccessModal({
       displayName: displayName.trim().replace(/\s+/g, " "),
       faction: profile.faction,
       importLocalData: view === "signup" && bringLocalData,
-      recoveryCode: nextRecoveryCode,
+      ...(nextRecoveryCode ? { recoveryCode: nextRecoveryCode } : {}),
       returnTo,
     });
-    if (!result?.ok) clearPendingRecoveryDisplay();
+    if (nextRecoveryCode && !result?.ok && !result?.sessionEstablished) clearPendingRecoveryDisplay();
   };
 
   const submitRecovery = async (event: FormEvent) => {
@@ -208,7 +201,7 @@ export function AccountAccessModal({
         {view === "recovery" ? (
           <form className={styles.form} onSubmit={submitRecovery}>
             <p className={styles.transferIntro}>
-              Enter the recovery code issued when you registered or last logged in. Recovery codes are shown once and are never emailed or stored in readable form.
+              Enter your saved recovery code from registration or your last recovery-code replacement. Codes are shown once, never emailed, and stored only as secure hashes.
             </p>
             <label className={styles.field}>
               Email address

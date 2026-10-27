@@ -112,7 +112,7 @@ export async function POST(request: Request) {
     }
     const db = await getDatabase();
     await ensureRecoverySchema(db);
-    const sensitive = ["signup", "login", "recover-password", "change-password", "delete-account"].includes(action);
+    const sensitive = ["signup", "login", "recover-password", "replace-recovery-code", "change-password", "delete-account"].includes(action);
     await enforceD1RateLimit(db, `auth:${requestClientKey(request)}:${action}`, sensitive ? 12 : 60, 60_000);
 
     if (action === "signup") {
@@ -166,12 +166,6 @@ export async function POST(request: Request) {
         updates.push(db.prepare("UPDATE users SET password_hash = ?, password_salt = ?, password_iterations = ?, updated_at = ? WHERE id = ?")
           .bind(upgraded.hash, upgraded.salt, upgraded.iterations, Date.now(), row.id));
       }
-      if (body.recoveryCode) {
-        const recoveryCode = validateRecoveryCode(body.recoveryCode);
-        const recovery = await createPasswordRecord(recoveryCode);
-        updates.push(db.prepare("UPDATE users SET recovery_code_hash = ?, recovery_code_salt = ?, recovery_code_iterations = ?, updated_at = ? WHERE id = ?")
-          .bind(recovery.hash, recovery.salt, recovery.iterations, Date.now(), row.id));
-      }
       if (updates.length) await db.batch(updates);
       return json({ user: publicUser(row, await getAccountRoles(db, row)), correlationId }, 200, await createSession(request, row.id));
     }
@@ -204,6 +198,18 @@ export async function POST(request: Request) {
 
     const user = await getSessionUser(request);
     if (!user) throw new AuthenticationError();
+    if (action === "replace-recovery-code") {
+      const currentPassword = String(body.currentPassword ?? "");
+      const nextRecoveryCode = validateRecoveryCode(body.nextRecoveryCode);
+      const row = await getUserByEmail(user.email);
+      if (!row || !(await verifyPassword(currentPassword, row))) {
+        throw new AuthorizationError("Current password is incorrect.");
+      }
+      const nextRecovery = await createPasswordRecord(nextRecoveryCode);
+      await db.prepare("UPDATE users SET recovery_code_hash = ?, recovery_code_salt = ?, recovery_code_iterations = ?, updated_at = ? WHERE id = ?")
+        .bind(nextRecovery.hash, nextRecovery.salt, nextRecovery.iterations, Date.now(), user.id).run();
+      return json({ ok: true, correlationId });
+    }
     if (action === "change-password") {
       const current = String(body.currentPassword ?? "");
       const next = String(body.newPassword ?? "");

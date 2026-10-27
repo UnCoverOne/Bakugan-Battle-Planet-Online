@@ -1222,7 +1222,7 @@ export function AppProvider({ children }) {
       const message = error instanceof Error ? error.message : "Account request failed.";
       setAuthError(message);
       setSyncStatus(sessionEstablished ? (navigator.onLine ? "error" : "offline") : "local");
-      return { ok: false, error: message };
+      return { ok: false, error: message, sessionEstablished };
     } finally {
       setAuthBusy(false);
     }
