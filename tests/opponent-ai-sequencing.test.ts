@@ -16,6 +16,8 @@ import { bestAiRollTarget } from "../lib/aiRollForecast";
 import { chooseOpponentAiCommand, chooseOpponentAiCommandWithMetrics } from "../lib/opponentAi";
 import { recoverOpponentAiCommand } from "../lib/opponentAiCanAct";
 import { decideOpponentAiWorkerRequest } from "../lib/opponentAiWorkerProtocol";
+import { buildChoiceSchema, schemaHasLegalCompletion } from "../lib/rules/choices";
+import { evaluatePlayableCard } from "../lib/opponentAiBase";
 
 let serial = 0;
 
@@ -371,6 +373,70 @@ test("complex pending Batch planning reuses projections without changing the tac
   assert.ok((decision.metrics.byCategory["batch-projection"]?.hits ?? 0) > 0);
   assert.equal(decision.metrics.byCategory["continuation-line"], undefined);
   assert.equal(decision.metrics.optionalBudgetExhausted, false);
+});
+
+test("Training AI passes when Sinkhole cannot target the Terran Vitalizer Batch", () => {
+  const sinkhole = namedCard("Sinkhole", "targetless-sinkhole");
+  const terran = namedCard("Terran Vitalizer", "pending-terran-vitalizer");
+  const shun = namedCard("Shun Kazami", "resolved-shun-source");
+  const { match, ai, human } = powerMatch(500, 2, 900, 4, [sinkhole]);
+  match.passes = [human.id];
+  match.batch = [
+    {
+      id: "shun-draw-trigger",
+      controllerId: ai.id,
+      cardOwnerId: ai.id,
+      card: shun,
+      kind: "trigger",
+      status: "pending",
+    },
+    {
+      id: "terran-gear-play",
+      controllerId: human.id,
+      cardOwnerId: human.id,
+      card: terran,
+      kind: "card",
+      status: "pending",
+    },
+    {
+      id: "terran-draw-energize-trigger",
+      controllerId: human.id,
+      cardOwnerId: human.id,
+      card: terran,
+      kind: "trigger",
+      status: "pending",
+    },
+  ] as (typeof match)["batch"];
+
+  const schema = buildChoiceSchema(match, ai.id, sinkhole);
+  const target = schema.fields.find((field) => field.kind === "batch-object");
+  assert.ok(target);
+  assert.equal(target.minimum, 1);
+  assert.deepEqual(target.options, []);
+  assert.equal(schemaHasLegalCompletion(schema), false);
+  assert.equal(evaluatePlayableCard(match, ai.id, sinkhole), null);
+  assert.equal(chooseOpponentAiCommand(match, ai.id)?.type, "PASS_PRIORITY");
+  assert.equal(recoverOpponentAiCommand(match, ai.id)?.type, "PASS_PRIORITY");
+});
+
+test("Sinkhole remains a playable AI response when an opposing Action is in the Batch", () => {
+  const sinkhole = namedCard("Sinkhole", "legal-sinkhole");
+  const action = namedCard("Aquofreeze Beam", "opposing-aquofreeze");
+  const { match, ai, human } = powerMatch(500, 2, 900, 4, [sinkhole]);
+  match.batch = [{
+    id: "aquofreeze-action-play",
+    controllerId: human.id,
+    cardOwnerId: human.id,
+    card: action,
+    kind: "card",
+    status: "pending",
+  }] as (typeof match)["batch"];
+
+  const schema = buildChoiceSchema(match, ai.id, sinkhole);
+  const target = schema.fields.find((field) => field.kind === "batch-object");
+  assert.ok(target?.options.some((option) => option.id === "aquofreeze-action-play"));
+  assert.equal(schemaHasLegalCompletion(schema), true);
+  assert.ok(evaluatePlayableCard(match, ai.id, sinkhole));
 });
 
 test("emergency priority recovery passes a pending batch instead of stranding resolution", () => {

@@ -2973,6 +2973,9 @@ export function evaluatePlayableCard(
   if (!cardRerollTimingLegal(match, playerId, card)) return null;
   let baseChoices: CardChoices;
   try {
+    // The tactical planner must not announce cards whose mandatory choices
+    // have no legal completion (for example, Sinkhole without a target).
+    if (!schemaHasLegalCompletion(buildChoiceSchema(match, playerId, card))) return null;
     baseChoices = chooseCardChoices(match, playerId, card);
   } catch {
     return null;

@@ -998,11 +998,40 @@ export function GameplayClient() {
               recordTrainingAiTrace(latest, "dispatch-success", { command: command.type, nextVersion: next.version });
               publishMatch(next);
             } catch (cause) {
+              const detail = cause instanceof Error ? cause.message : String(cause);
               recordTrainingAiTrace(latest, "dispatch-error", {
                 command: command.type,
-                detail: (cause instanceof Error ? cause.message : String(cause)).slice(0, 300),
+                detail: detail.slice(0, 300),
               });
-              throw cause;
+              // A rejected planner command leaves the match version unchanged.
+              // Fall back to a deterministic legal action so the same invalid
+              // decision cannot strand the Batch or escape as an unhandled rejection.
+              try {
+                const recoveryMatch = readMatchStore().match;
+                if (recoveryMatch?.id !== latest.id || recoveryMatch.version !== latest.version) return;
+                const fallback = recoverOpponentAiCommand(recoveryMatch, "training-bot");
+                if (!fallback || JSON.stringify(fallback) === JSON.stringify(command)) return;
+                const recovered = dispatchLocalGameCommand(
+                  withOpponentAiRecoveryDiagnostic(recoveryMatch, {
+                    reason: "rejected-planner-command",
+                    detail: `${command.type}: ${detail}`,
+                    fallback: `primitive:${fallback.type}`,
+                  }),
+                  "training-bot",
+                  fallback,
+                  storedState.playerId ?? recoveryMatch.players[0]?.id,
+                );
+                recordTrainingAiTrace(recoveryMatch, "dispatch-success", {
+                  command: fallback.type,
+                  nextVersion: recovered.version,
+                  detail: "recovery after rejected planner command",
+                });
+                publishMatch(recovered);
+              } catch (recoveryCause) {
+                recordTrainingAiTrace(latest, "dispatch-error", {
+                  detail: `Recovery failed: ${recoveryCause instanceof Error ? recoveryCause.message : String(recoveryCause)}`.slice(0, 300),
+                });
+              }
             }
           }
         } finally {

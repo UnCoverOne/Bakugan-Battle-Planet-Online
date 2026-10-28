@@ -141,6 +141,17 @@ test("Training AI gateway journals Worker failures and falls straight back to de
   assert.match(protocol, /matchVersion: match\.version/);
 });
 
+test("Training AI falls back to a journaled legal command after the planner dispatch is rejected", async () => {
+  const client = await readFile(new URL("../components/game-screen-v2/GameplayClient.tsx", import.meta.url), "utf8");
+  const rejection = client.indexOf('reason: "rejected-planner-command"');
+  assert.ok(rejection > 0, "Rejected planner commands should be diagnosed");
+  const recovery = client.slice(rejection - 700, rejection + 900);
+  assert.match(recovery, /recoverOpponentAiCommand\(recoveryMatch, "training-bot"\)/);
+  assert.match(recovery, /withOpponentAiRecoveryDiagnostic\(recoveryMatch/);
+  assert.match(recovery, /publishMatch\(recovered\)/);
+  assert.doesNotMatch(recovery, /throw cause/);
+});
+
 test("Training AI Worker protocol exposes READY and structured failure diagnostics", () => {
   assert.deepEqual(opponentAiWorkerReadyResponse(17), {
     requestId: 17,
