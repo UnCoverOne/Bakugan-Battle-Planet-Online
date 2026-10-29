@@ -12,6 +12,9 @@ import {
   legalPlacementCells,
   passPriority,
   placeCore,
+  prepareCardPlay,
+  effectPlayCardIsLegal,
+  skipPendingEffectPlay,
   playerCanActivateIntrinsicReroll,
   playCard,
   resolveStructuredEffect,
@@ -423,16 +426,33 @@ test("Divine Intervention offers only a matching Evo and plays it for free after
   );
   next = chooseRerollTarget(next, "a");
   next = confirmReroll(next, "a", randomSequence(0, 0, 99, 0));
-  const handField = next.pendingChoice?.schema.fields.find((field) => field.id === "handCardIds");
-  assert.deepEqual(handField?.options.map((option) => option.id), [evoInstance.id]);
-  next = submitCardChoice(next, "a", { confirmed: true, handCardIds: [evoInstance.id] });
+  assert.equal(next.pendingChoice, undefined, "free plays now use a hand-play opportunity, not a modal");
+  assert.equal(next.pendingEffectPlay?.controllerId, "a");
+  assert.equal(next.pendingEffectPlay?.sourceOwnerId, "a");
+  assert.equal(next.pendingEffectPlay?.cardType, "Evo");
+  assert.equal(next.pendingEffectPlay?.free, true);
+  assert.equal(next.pendingEffectPlay?.optional, true);
+  assert.equal(effectPlayCardIsLegal(next, "a", evoInstance), true);
+  const nonmatchingEvo = CARDS.find((card) => card.type === "Evo" && !evoCanTarget(card, active));
+  if (nonmatchingEvo) assert.equal(effectPlayCardIsLegal(next, "a", nonmatchingEvo), false);
+  assert.equal(effectPlayCardIsLegal(next, "a", next.players[0].hand.find((card) => card.type !== "Evo")!), false);
+
+  const skipped = skipPendingEffectPlay(next, "a");
+  assert.equal(skipped.pendingEffectPlay, undefined);
+  assert.equal(skipped.players[0].hand.some((card) => card.id === evoInstance.id), true);
+  assert.equal(skipped.batch.some((pending) => pending.card.id === evoInstance.id), false);
+
+  next = prepareCardPlay(next, "a", evoInstance.id);
+  assert.equal(next.pendingEffectPlay, undefined);
   assert.equal(next.players[0].hand.some((card) => card.id === evoInstance.id), false);
   assert.equal(next.batch.some((pending) => pending.card.id === evoInstance.id), true);
 
   next = passPriority(next, next.priority);
   next = passPriority(next, next.priority);
   assert.equal(active.id, next.players[0].bakugan[0].id);
-  assert.equal(next.players[0].bakugan[0].evoStack.some((card) => card.id === evoInstance.id), true);
+  const evolved = next.players[0].bakugan[0].evoStack.find((card) => card.id === evoInstance.id);
+  assert.ok(evolved);
+  assert.equal(evolved.playedForFreeTurn, next.turn);
 });
 
 test("Thunder Storm sacrifices exactly the chosen card before beginning its optional Reroll", () => {

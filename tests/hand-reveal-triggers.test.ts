@@ -3,6 +3,8 @@ import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   createMatch,
+  SYNC_REVEAL_DURATION_MS,
+  syncRevealIsActive,
   passPriority,
   playCard,
   resolveStructuredEffect,
@@ -224,8 +226,17 @@ test("Sync hand reveals trigger before the Sync effect resumes", () => {
   next = passPriority(next, next.priority);
   assert.equal(next.pendingChoice?.schema.fields.find((field) => field.id === "syncCardId")?.options.some((option) => option.id === revealed.id), true);
 
+  const revealStartedAt = Date.now();
   next = submitCardChoice(next, owner.id, { syncCardId: revealed.id });
-  assert.equal(next.players[0].hand.find((candidate) => candidate.id === revealed.id)?.revealedToOpponents, true);
+  const revealedInHand = next.players[0].hand.find((candidate) => candidate.id === revealed.id);
+  assert.ok(revealedInHand);
+  const revealExpiresAt = revealedInHand.revealedToOpponentsUntil;
+  assert.ok(revealExpiresAt !== undefined);
+  assert.ok(revealExpiresAt >= revealStartedAt + SYNC_REVEAL_DURATION_MS);
+  assert.ok(revealExpiresAt <= Date.now() + SYNC_REVEAL_DURATION_MS);
+  assert.equal(revealedInHand.revealedToOpponents, undefined);
+  assert.equal(syncRevealIsActive(revealedInHand, revealStartedAt), true);
+  assert.equal(syncRevealIsActive(revealedInHand, revealExpiresAt), false);
   assert.ok(next.log.some((entry) => entry.message.includes(`revealed ${revealed.name} from hand for Sync`)));
   assert.equal(next.pendingChoice?.cardId, revealed.id);
   assert.equal(next.pendingChoice?.schema.fields.find((field) => field.id === "confirmed")?.chooserId, owner.id);
