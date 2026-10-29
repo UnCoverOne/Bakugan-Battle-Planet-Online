@@ -416,9 +416,10 @@ test("AI Evo with optional unimplemented reminder text resolves after both playe
   addEnergy(ai, Number(evo.cost));
   ai.energy = Number(evo.cost);
   let state = prepareCardPlay(matchWith(ai, human), ai.id, evo.id);
-  assert.equal(state.pendingChoice?.kind, "card-play");
-
-  state = advanceOpponentAi(state, ai.id)!;
+  // A sole legal Evo target can now be announced without an extra choice step.
+  if (state.pendingChoice?.kind === "card-play") {
+    state = advanceOpponentAi(state, ai.id)!;
+  }
   assert.equal(state.batch.at(-1)?.card.id, evo.id);
   assert.equal(state.pendingChoice, undefined);
 
@@ -547,7 +548,9 @@ test("an unresolved Evo suppresses another redundant copy", () => {
   const human = player("pending-evo-human", [bakugan("pending-evo-human-b", "Pyrus", 500, 5)]);
   addEnergy(ai, 2);
   let state = prepareCardPlay(matchWith(ai, human, "preRoll"), ai.id, pending.id);
-  state = advanceOpponentAi(state, ai.id)!;
+  if (state.pendingChoice?.kind === "card-play") {
+    state = advanceOpponentAi(state, ai.id)!;
+  }
   assert.equal(state.batch.at(-1)?.card.id, pending.id);
   assert.equal(state.priority, ai.id);
 

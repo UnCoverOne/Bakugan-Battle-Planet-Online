@@ -589,7 +589,9 @@ test("Age of Aurelus Lia keeps its top-three Hero selection in one optional play
   assert.equal(state.batch.some((object) => object.card.id === hero.id), false);
 
   state = submitCardChoice(state, "a", {
-    orderedCardIds: viewer.options.map((option) => option.id),
+    // Choosing a Hero from a look-only window puts it first without
+    // granting permission to reorder the other inspected cards.
+    orderedCardIds: [hero.id, ...viewer.options.map((option) => option.id).filter((id) => id !== hero.id)],
     deckCardId: hero.id,
     confirmed: true,
   });

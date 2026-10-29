@@ -31,7 +31,7 @@ function card(id: string, type: GameCard["type"] = "Action"): GameCard {
     mechanics: [],
     bPower: type === "Character" ? 500 : null,
     damage: type === "Character" ? 5 : null,
-    coreTypes: [],
+    coreTypes: type === "Character" ? ["Fist", "Fist"] : [],
     evolvesFrom: null,
     art: "",
   };

@@ -25,7 +25,7 @@ import {
 import { GOLDEN_MATCH_PHASES } from "./fixtures/golden-match-phases";
 
 function card(id: string, type: GameCard["type"] = "Action"): GameCard {
-  return { id, catalogId: `fixture-${id}`, number: 1, name: id, displayName: id, faction: "Aquos", factions: ["Aquos"], type, cost: 0, rarity: "Common", effect: "", mechanics: [], bPower: type === "Character" ? 500 : null, damage: type === "Character" ? 5 : null, coreTypes: [], evolvesFrom: null, art: "/assets/cards/card-missing.svg" };
+  return { id, catalogId: `fixture-${id}`, number: 1, name: id, displayName: id, faction: "Aquos", factions: ["Aquos"], type, cost: 0, rarity: "Common", effect: "", mechanics: [], bPower: type === "Character" ? 500 : null, damage: type === "Character" ? 5 : null, coreTypes: type === "Character" ? ["Fist", "Fist"] : [], evolvesFrom: null, art: "/assets/cards/card-missing.svg" };
 }
 function player(id: string): PlayerState {
   const bakugan: Bakugan[] = Array.from({ length: 3 }, (_, index) => ({ id: `${id}-b-${index}`, name: `${id} Bakugan ${index}`, faction: "Aquos", bPower: 500, damage: 5, rollAccuracy: 90, doubleCoreChance: 5, art: "", character: card(`${id}-character-${index}`, "Character"), open: false, heldCoreCells: [], evoStack: [] }));

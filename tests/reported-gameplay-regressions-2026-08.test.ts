@@ -398,10 +398,15 @@ test("Lia can select and free-play a Flip Hero from the top three cards", () => 
 
   state = resolveStructuredEffect(state, pending);
   const heroChoice = state.pendingChoice?.schema.fields.find((field) => field.id === "deckCardId");
+  const inspected = state.pendingChoice?.schema.fields.find((field) => field.id === "orderedCardIds");
   assert.ok(heroChoice?.options.some((option) => option.id === flipHero.id));
+  assert.ok(inspected);
 
   state = submitCardChoice(state, live.id, {
-    orderedCardIds: [fillerOne.id, flipHero.id, fillerTwo.id],
+    orderedCardIds: [
+      flipHero.id,
+      ...inspected.options.map((option) => option.id).filter((id) => id !== flipHero.id),
+    ],
     deckCardId: flipHero.id,
     confirmed: true,
   });

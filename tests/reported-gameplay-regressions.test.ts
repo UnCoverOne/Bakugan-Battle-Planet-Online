@@ -546,6 +546,9 @@ test("free Empower effects reduce the payable Empower cost to zero", () => {
   const match = matchWith(controller, opponent, "power");
   const empowerCard: GameCard = {
     ...catalogueCard("bb-10", "free-empower-card"),
+    // This deliberately synthetic rules-text fixture must not retain bb-10's
+    // canonical catalogue identity, which enforces Greater Water Boost's text.
+    catalogId: "fixture-free-empower",
     type: "Action",
     cost: 2,
     effect: "Empower: You may pay an additional 3 [Energy] for +500 [B].",
