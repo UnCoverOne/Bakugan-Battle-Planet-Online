@@ -3033,9 +3033,14 @@ export function evaluatePlayableCard(
   );
 }
 
-function bestPlayableCard(match: MatchState, playerId: string) {
+function bestPlayableCard(
+  match: MatchState,
+  playerId: string,
+  excludedCardIds?: ReadonlySet<string>,
+) {
   const player = playerById(match, playerId)!;
   return player.hand
+    .filter((card) => !excludedCardIds?.has(card.id))
     .map((card) => evaluatePlayableCard(match, playerId, card))
     .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
     .sort((a, b) => b.score - a.score)[0];
@@ -3066,7 +3071,11 @@ export function opponentAiCanAct(match: MatchState, playerId: string) {
 }
 
 /** Pure tactical decision used by the Training worker. State mutation stays in the engine reducer. */
-export function chooseOpponentAiCommand(input: MatchState, playerId: string): GameCommand | null {
+export function chooseOpponentAiCommand(
+  input: MatchState,
+  playerId: string,
+  excludedCardIds?: ReadonlySet<string>,
+): GameCommand | null {
   const player = playerById(input, playerId);
   if (!player) return null;
   const pending = input.pendingChoice;
@@ -3162,7 +3171,9 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
     if (playerCanActivateIntrinsicReroll(input, playerId)) {
       return { type: "ACTIVATE_REROLL" };
     }
-    const best = bestPlayableCard(input, playerId);
+    // Exclude cards from immediate selection only. Keep the real hand intact
+    // so pre-Roll forecasts can still value reserved Power Step responses.
+    const best = bestPlayableCard(input, playerId, excludedCardIds);
     const confidenceMargin = input.phase === "preRoll" ? 0.4 : 0.75;
     if (best && best.score > confidenceMargin) {
       const schema = buildChoiceSchema(input, playerId, best.card);
@@ -3183,8 +3194,12 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
   return null;
 }
 
-export function advanceOpponentAi(input: MatchState, playerId: string): MatchState | null {
-  const command = chooseOpponentAiCommand(input, playerId);
+export function advanceOpponentAi(
+  input: MatchState,
+  playerId: string,
+  excludedCardIds?: ReadonlySet<string>,
+): MatchState | null {
+  const command = chooseOpponentAiCommand(input, playerId, excludedCardIds);
   if (!command) return null;
   switch (command.type) {
     case "CANCEL_CARD_CHOICE": return cancelCardChoice(input, playerId);
