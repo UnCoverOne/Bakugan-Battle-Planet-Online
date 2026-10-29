@@ -90,12 +90,12 @@ type AiContinuationLine = {
 type CombatPolicyTrace = {
   path?: "tactical-reroll" | "sync-reveal" | "setup-continuation" | "base";
   suppressedCardIds?: string[];
-  scoredMatch?: MatchState;
 };
 
 type OpponentAiSelectionDiagnostics = {
   path: NonNullable<CombatPolicyTrace["path"]>;
   suppressedCardIds: string[];
+  forecastHandCardIds: string[];
   beforeFilter: Array<{ cardId: string; score: number | null; paymentCost: number | null }>;
   afterFilter: Array<{ cardId: string; score: number | null; paymentCost: number | null }>;
   confidenceMargin: number;
@@ -934,36 +934,6 @@ function shouldSuppressTemporaryCombatCard(
   return !projection.projectedWin && !hasIndependentBenefit;
 }
 
-function restoreSuppressedHandCards(
-  original: MatchState,
-  next: MatchState,
-  playerId: string,
-  suppressedIds: ReadonlySet<string>,
-) {
-  const originalPlayer = playerById(original, playerId);
-  const nextPlayer = playerById(next, playerId);
-  if (!originalPlayer || !nextPlayer || !suppressedIds.size) return next;
-  const remaining = new Map(nextPlayer.hand.map((card) => [card.id, card]));
-  const restored: GameCard[] = [];
-  const seen = new Set<string>();
-  for (const card of originalPlayer.hand) {
-    const candidate = remaining.get(card.id);
-    if (candidate) {
-      restored.push(candidate);
-      seen.add(candidate.id);
-    } else if (suppressedIds.has(card.id)) {
-      restored.push(card);
-      seen.add(card.id);
-    }
-  }
-  for (const card of nextPlayer.hand) {
-    if (!seen.has(card.id)) restored.push(card);
-  }
-  nextPlayer.hand = restored;
-  return next;
-}
-
-
 type TemporaryPowerCandidate = {
   card: GameCard;
   cost: number;
@@ -1345,16 +1315,10 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
       })
       .map((card) => card.id),
   );
-  const working = suppressed.size ? cloneMatch(input) : input;
-  if (suppressed.size) {
-    const filteredPlayer = playerById(working, playerId)!;
-    filteredPlayer.hand = filteredPlayer.hand.filter((card) => !suppressed.has(card.id));
-  }
-  const next = advanceBaseOpponentAi(working, playerId);
-  const restored = next && suppressed.size
-    ? restoreSuppressedHandCards(input, next, playerId, suppressed)
-    : next;
-  return validateAiTransition(input, restored, playerId);
+  // Suppress only play candidates, not hand contents: future-response
+  // forecasting must still see cards reserved for the Power Step.
+  const next = advanceBaseOpponentAi(input, playerId, suppressed);
+  return validateAiTransition(input, next, playerId);
 }
 
 function chooseWithCombatPolicy(
@@ -1409,17 +1373,11 @@ function chooseWithCombatPolicy(
       })
       .map((card) => card.id),
   );
-  const working = suppressed.size ? cloneMatch(input) : input;
-  if (suppressed.size) {
-    const filteredPlayer = playerById(working, playerId)!;
-    filteredPlayer.hand = filteredPlayer.hand.filter((card) => !suppressed.has(card.id));
-  }
   if (trace) {
     trace.path = "base";
     trace.suppressedCardIds = [...suppressed];
-    trace.scoredMatch = working;
   }
-  return chooseBaseOpponentAiCommand(working, playerId);
+  return chooseBaseOpponentAiCommand(input, playerId, suppressed);
 }
 
 function cellById(cellId: string) {
@@ -1644,10 +1602,13 @@ export function chooseOpponentAiCommandWithMetrics(
   const diagnostics = trace?.path ? {
     path: trace.path,
     suppressedCardIds: trace.suppressedCardIds ?? [],
+    forecastHandCardIds: playerById(input, playerId)?.hand.map((card) => card.id) ?? [],
     beforeFilter: candidateScores(input, playerById(input, playerId)?.hand ?? []),
     afterFilter: candidateScores(
-      trace.scoredMatch ?? input,
-      playerById(trace.scoredMatch ?? input, playerId)?.hand ?? [],
+      input,
+      (playerById(input, playerId)?.hand ?? []).filter(
+        (card) => !trace.suppressedCardIds?.includes(card.id),
+      ),
     ),
     confidenceMargin: input.phase === "preRoll" ? 0.4 : 0.75,
   } : undefined;
