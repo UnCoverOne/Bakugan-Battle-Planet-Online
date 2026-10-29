@@ -86,7 +86,7 @@ test("completion remains on the gameplay route until the player presses Exit", (
 
   assert.doesNotMatch(provider, /shouldOpenMatchResult|router\.replace\("\/play\/result"\)/);
   assert.doesNotMatch(gameplay, /match\?\.phase !== "result"[\s\S]{0,180}writeGameRoute\("result"\)/);
-  assert.match(gameplay, /const exitCompletedMatch = \(\) => \{[\s\S]*writeGameRoute\("result"\)/);
+  assert.match(gameplay, /const exitCompletedMatch = \(\) => \{[\s\S]*router\.replace\("\/play\/result"\)/);
   assert.match(hud, /exit:\s*\{[\s\S]*label: "Exit"/);
   assert.match(menu, /!completed[\s\S]*Undo Latest Card/);
   assert.match(menu, /!completed[\s\S]*Concede/);

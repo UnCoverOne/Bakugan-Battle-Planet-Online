@@ -1,0 +1,44 @@
+name: Extended Regression and Browser Checks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 6"
+
+permissions:
+  contents: read
+
+jobs:
+  quarantined-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - name: Run quarantined tests (fail visibly until repaired)
+        run: npm run test:quarantine
+
+  browser-visuals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:visual
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-results
+          path: |
+            test-results/visual
+            playwright-report/visual
+          if-no-files-found: ignore

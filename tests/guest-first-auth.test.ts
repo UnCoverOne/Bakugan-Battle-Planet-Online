@@ -61,9 +61,9 @@ test("guest shell consumes storage health from the application context", () => {
 });
 
 test("production CSP permits the configured Google font stylesheet and font hosts", () => {
-  const worker = source("worker/index.ts");
-  assert.match(worker, /font-src 'self' data: https:\/\/fonts\.gstatic\.com/);
-  assert.match(worker, /style-src 'self' 'unsafe-inline' https:\/\/fonts\.googleapis\.com/);
+  const headers = source("lib/security-headers.ts");
+  assert.match(headers, /font-src 'self' data: https:\/\/fonts\.gstatic\.com/);
+  assert.match(headers, /style-src 'self' 'unsafe-inline' https:\/\/fonts\.googleapis\.com/);
 });
 
 test("guest storage sanitizes malformed legacy records before application code sees them", () => {

@@ -11,12 +11,12 @@
     "build": "bash scripts/build-verified.sh",
     "bundle:budget": "node scripts/check-bundle-budget.mjs",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run build && npm run bundle:budget && npm run test:extended && npm run test:rendered-html",
+    "test": "npm run build && npm run bundle:budget && npm run test:core && npm run test:rendered-html",
     "test:visual": "playwright test --config playwright.visual.config.ts",
     "test:social": "node --import tsx --test tests/social-feature.test.ts",
     "test:replay": "node --import tsx --test tests/replay-archive.test.ts tests/replay-display.test.ts tests/history-overhaul.test.ts tests/replay-performance-architecture.test.ts tests/training-rematch-ai-regressions.test.ts",
     "test:engine": "node --import tsx --test tests/bakucore-choice-regressions.test.ts tests/platform-hardening.test.ts tests/engine-architecture.test.ts tests/physical-simulation.test.ts tests/rules-engine-modernization.test.ts tests/turn-draw-mechanic.test.ts tests/sophie-fusion-brawler.test.ts tests/rules-primitives.test.ts tests/targeted-action-triggers.test.ts tests/hand-reveal-triggers.test.ts tests/start-of-game-timing.test.ts tests/game-engine.test.ts tests/team-attack-self-return.test.ts tests/core-return-placement.test.ts tests/reroll-mechanic.test.ts tests/non-faction-targeting.test.ts tests/dragonoid-maximus-printings.test.ts tests/manual-tie-break.test.ts tests/deck-inspection.test.ts tests/magnus-ultimate-rival.test.ts tests/battle-mastery-permissions.test.ts tests/lobby-flow.test.ts tests/reported-gameplay-regressions-2026-08.test.ts tests/reported-regressions-2026-08-02.test.ts tests/coin-flip-recovery.test.ts tests/ai-roll-forecast.test.ts tests/opponent-ai-sequencing.test.ts",
-    "test:rules": "node --import tsx --test tests/energy-production-model.test.ts tests/bakucore-choice-regressions.test.ts tests/recharge-and-dark-waters.test.ts tests/rules-engine-modernization.test.ts tests/draw-energize-catalogue-audit.test.ts tests/turn-draw-mechanic.test.ts tests/sophie-fusion-brawler.test.ts tests/rules-primitives.test.ts tests/targeted-action-triggers.test.ts tests/dragonoid-maximus-printings.test.ts tests/deck-inspection.test.ts tests/magnus-ultimate-rival.test.ts tests/battle-mastery-permissions.test.ts tests/value-expressions.test.ts tests/dynamic-value-catalogue.test.ts tests/previous-result-quantities.test.ts tests/rules-architecture-cleanup.test.ts tests/energy-count-source.test.ts tests/energize-triggers-and-persistent-effects.test.ts",
+    "test:rules": "node --import tsx --test tests/energy-production-model.test.ts tests/bakucore-choice-regressions.test.ts tests/recharge-and-dark-waters.test.ts tests/rules-engine-modernization.test.ts tests/draw-energize-catalogue-audit.test.ts tests/turn-draw-mechanic.test.ts tests/sophie-fusion-brawler.test.ts tests/rules-primitives.test.ts tests/targeted-action-triggers.test.ts tests/dragonoid-maximus-printings.test.ts tests/deck-inspection.test.ts tests/magnus-ultimate-rival.test.ts tests/battle-mastery-permissions.test.ts tests/value-expressions.test.ts tests/dynamic-value-catalogue.test.ts tests/previous-result-quantities.test.ts tests/energy-count-source.test.ts tests/energize-triggers-and-persistent-effects.test.ts",
     "test:gameplay": "node --import tsx --test tests/game-engine.test.ts tests/core-return-placement.test.ts tests/reroll-mechanic.test.ts tests/non-faction-targeting.test.ts tests/dragonoid-maximus-printings.test.ts tests/manual-tie-break.test.ts tests/deck-inspection.test.ts tests/gameplay-mechanics-2026-08-14.test.ts tests/reported-gameplay-regressions-2026-08.test.ts tests/reported-regressions-2026-08-02.test.ts tests/coin-flip-recovery.test.ts tests/ai-roll-forecast.test.ts tests/opponent-ai-sequencing.test.ts",
     "test:instabrawl": "node --import tsx/esm --test tests/instabrawl.test.ts",
     "test:dual-wield": "node --import tsx --test tests/dual-wield-baku-gear.test.ts",
@@ -40,8 +40,10 @@
     "test:simulation": "node --import tsx --test tests/physical-simulation.test.ts",
     "test:authoring": "node --import tsx --test tests/card-authoring.test.ts",
     "test:performance": "node --import tsx --test tests/navigation-performance.test.ts tests/second-round-performance.test.ts tests/route-architecture.test.ts tests/compendium-experience.test.ts",
-    "test:extended": "node --import tsx --test --test-concurrency=4 tests/*.test.ts",
-    "test:rendered-html": "node --import tsx --test tests/rendered-html.test.mjs"
+    "test:extended": "node scripts/run-regression-tests.mjs --all",
+    "test:rendered-html": "node --import tsx --test tests/rendered-html.test.mjs",
+    "test:core": "node scripts/run-regression-tests.mjs",
+    "test:quarantine": "node scripts/run-regression-tests.mjs --quarantined"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

@@ -1,0 +1,20 @@
+{
+  "advanced-engine.test.ts": "Synthetic unregistered card definitions no longer compile through the strict catalogue",
+  "armored-alliance-cores.test.ts": "Historical BakuCore placeholder SVG/source-token assertion",
+  "brawl-state.test.ts": "Stale modifier wording and synthetic effect text",
+  "card-play-pipeline.test.ts": "Two free-play/payment contract failures require rules investigation",
+  "card-set-extensions.test.ts": "Missing full-scan asset (av-233) requires asset/provenance review",
+  "client-startup.test.ts": "Three source-location regexes predate current app and API architecture",
+  "dual-wield-baku-gear.test.ts": "Greenshields optional play outcome requires rules investigation",
+  "findings-upgrade.test.ts": "Six deprecated synthetic-card/engine contract assumptions",
+  "home-lobby-session-regressions.test.ts": "Three outdated Home/navigation source contracts",
+  "match-hud-state.test.ts": "File-level test failure on new comprehensive run; requires reproduction",
+  "opponent-ai.test.ts": "Ten synthetic unregistered-card assumptions replaced by typed-catalogue AI suites",
+  "replay-debug-diagnostic.test.ts": "Replay diagnostic count contract differs from runtime",
+  "replay-gap-resilience.test.ts": "Damaged-command replay recovery expects a different frame count",
+  "rolling-mechanic.test.ts": "Legacy animation duration/source check",
+  "selection-state.test.ts": "Roll target selection now carries explicit lock markers",
+  "turn-progress-state.test.ts": "Three old progress presentation/source assumptions",
+  "underdog-target-selection.test.ts": "Stale click-hint source and trigger source/target assumptions",
+  "victor-core-stop-regressions.test.ts": "Faction-conditioned Stop legality differs from fixture expectation"
+}

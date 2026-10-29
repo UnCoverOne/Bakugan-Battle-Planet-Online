@@ -32,7 +32,7 @@ test("password hashing stays within the Cloudflare Workers PBKDF2 limit", async 
       password_salt: record.salt,
       password_iterations: PASSWORD_ITERATIONS + 1,
     }),
-    /PBKDF2 supports at most 100000 iterations/,
+    /outside the supported range 1-100000/,
   );
 });
 
