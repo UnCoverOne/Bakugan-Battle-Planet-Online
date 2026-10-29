@@ -88,7 +88,7 @@ test("the communication layer provides docked Event Log and responsive chat draw
   assert.match(layer, /matchTimeLabel\(communication\.match, entry\.at\)/);
   assert.doesNotMatch(layer, /dateTime=\{new Date\(entry\.at\)/);
   assert.match(css, /\.cardActor\s*\{/);
-  assert.match(brawlCss, /\.batchHex img[\s\S]*object-position:\s*center 28%[\s\S]*transform:\s*scale\(1\.34\)/);
+  assert.match(brawlCss, /\.batchHex img[\s\S]*object-fit:\s*cover;[\s\S]*object-position:\s*center 28%[\s\S]*transform:\s*scale\(1\.4\)/);
   assert.match(css, /\.cardEntries[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(css, /\.cardEvent[\s\S]*grid-template-columns:\s*clamp\(3\.25rem,\s*7vw,\s*4rem\)\s+minmax\(0,\s*1fr\)/);
   assert.match(css, /\.cardEvent\[data-local="false"\][\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+clamp\(3\.25rem,\s*7vw,\s*4rem\)/);
