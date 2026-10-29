@@ -17,7 +17,7 @@ import {
   type RollOutcome,
 } from "../lib/game";
 import { resolveManualDamage } from "../lib/manualDamage";
-import { advanceOpponentAi, chooseCardChoices } from "../lib/opponentAi";
+import { advanceOpponentAi, chooseCardChoices, chooseOpponentAiCommandWithMetrics } from "../lib/opponentAi";
 import {
   chooseOpponentAiCommand,
   evaluatePlayableCard,
@@ -27,6 +27,7 @@ import {
 } from "../lib/opponentAiBase";
 import { recoverOpponentAiFailure } from "../lib/opponentAiCanAct";
 import { ruleDefinitionForCard } from "../lib/rules";
+import { maximumPayableEnergy } from "../lib/rules/costs";
 
 let serial = 0;
 
@@ -871,7 +872,40 @@ test("AI reserves Energy for an in-hand B-Power response that can swing the fore
   const { match, ai, shun, smokeArmor } = preRollReservationMatch({ energy: 3 });
   const next = advanceOpponentAi(match, ai.id);
   assert.ok(next);
-  assert.equal(next.batch.length, 0);
+  const failureDetails = next.batch.length === 0 ? undefined : (() => {
+    const { command, metrics } = chooseOpponentAiCommandWithMetrics(match, ai.id);
+    const candidates = [shun, smokeArmor].map((card) => {
+      const evaluation = evaluatePlayableCard(match, ai.id, card);
+      return {
+        id: card.id,
+        printedCost: card.cost,
+        evaluatedScore: evaluation?.score ?? null,
+        paymentCost: evaluation?.payment.cost ?? null,
+        paymentMode: evaluation?.choices.paymentMode ?? null,
+      };
+    });
+    return `The AI spent Energy before the Roll instead of preserving Smoke Armor.
+${JSON.stringify({
+      command,
+      requiredPreRollScore: 0.4,
+      candidates,
+      energyBefore: maximumPayableEnergy(match, ai.id),
+      energyAfter: maximumPayableEnergy(next, ai.id),
+      batchCards: next.batch.map((pending) => ({
+        id: pending.card.id,
+        name: pending.card.name,
+      })),
+      handAfter: next.players.find((player) => player.id === ai.id)?.hand.map((card) => card.id),
+      priorityAfter: next.priority,
+      planner: {
+        elapsedMs: metrics.elapsedMs,
+        lastStage: metrics.lastStage,
+        optionalWork: metrics.optionalWork,
+        optionalBudgetExhausted: metrics.optionalBudgetExhausted,
+      },
+    }, null, 2)}`;
+  })();
+  assert.equal(next.batch.length, 0, failureDetails);
   assert.ok(next.players[0].hand.some((card) => card.id === shun.id));
   assert.ok(next.players[0].hand.some((card) => card.id === smokeArmor.id));
   assert.equal(next.priority, "human");
