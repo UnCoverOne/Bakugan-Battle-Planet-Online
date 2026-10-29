@@ -86,6 +86,21 @@ type AiContinuationLine = {
   score: number;
 };
 
+/** Optional, failure-only trace of the *actual* combat-policy selection path. */
+type CombatPolicyTrace = {
+  path?: "tactical-reroll" | "sync-reveal" | "setup-continuation" | "base";
+  suppressedCardIds?: string[];
+  scoredMatch?: MatchState;
+};
+
+type OpponentAiSelectionDiagnostics = {
+  path: NonNullable<CombatPolicyTrace["path"]>;
+  suppressedCardIds: string[];
+  beforeFilter: Array<{ cardId: string; score: number | null; paymentCost: number | null }>;
+  afterFilter: Array<{ cardId: string; score: number | null; paymentCost: number | null }>;
+  confidenceMargin: number;
+};
+
 function playerById(match: MatchState, playerId: string) {
   return match.players.find((player) => player.id === playerId);
 }
@@ -1342,11 +1357,16 @@ function advanceWithCombatPolicy(input: MatchState, playerId: string) {
   return validateAiTransition(input, restored, playerId);
 }
 
-function chooseWithCombatPolicy(input: MatchState, playerId: string): GameCommand | null {
+function chooseWithCombatPolicy(
+  input: MatchState,
+  playerId: string,
+  trace?: CombatPolicyTrace,
+): GameCommand | null {
   const player = playerById(input, playerId);
   if (!player) return null;
   const tacticalReroll = bestTacticalRerollCard(input, playerId);
   if (tacticalReroll) {
+    if (trace) trace.path = "tactical-reroll";
     return {
       type: "PLAY_CARD",
       cardId: tacticalReroll.card.id,
@@ -1355,10 +1375,12 @@ function chooseWithCombatPolicy(input: MatchState, playerId: string): GameComman
   }
   const syncWin = bestSyncRevealWinningLine(input, playerId);
   if (syncWin) {
+    if (trace) trace.path = "sync-reveal";
     return { type: "PLAY_CARD", cardId: syncWin.card.id, choices: syncWin.choices };
   }
   const continuation = bestSetupContinuationLine(input, playerId);
   if (continuation) {
+    if (trace) trace.path = "setup-continuation";
     return {
       type: "PLAY_CARD",
       cardId: continuation.setupCard.id,
@@ -1391,6 +1413,11 @@ function chooseWithCombatPolicy(input: MatchState, playerId: string): GameComman
   if (suppressed.size) {
     const filteredPlayer = playerById(working, playerId)!;
     filteredPlayer.hand = filteredPlayer.hand.filter((card) => !suppressed.has(card.id));
+  }
+  if (trace) {
+    trace.path = "base";
+    trace.suppressedCardIds = [...suppressed];
+    trace.scoredMatch = working;
   }
   return chooseBaseOpponentAiCommand(working, playerId);
 }
@@ -1544,7 +1571,11 @@ function advanceOpponentAiStep(input: MatchState, playerId: string): MatchState 
 }
 
 /** Pure one-step decision for the Training worker; the main reducer applies it. */
-function chooseOpponentAiCommandInternal(input: MatchState, playerId: string): GameCommand | null {
+function chooseOpponentAiCommandInternal(
+  input: MatchState,
+  playerId: string,
+  trace?: CombatPolicyTrace,
+): GameCommand | null {
   if (input.pendingCoinFlip?.controllerId === playerId) return { type: "COMPLETE_COIN_FLIP" };
   if (playerCanResolvePendingDraw(input, playerId)) {
     return { type: "DRAW_PENDING_CARD" };
@@ -1573,7 +1604,7 @@ function chooseOpponentAiCommandInternal(input: MatchState, playerId: string): G
     ["preRoll", "power", "victor", "postDamage", "endPlay"].includes(input.phase)
     && input.priority === playerId
     && !hasPendingDecision
-  ) return chooseWithCombatPolicy(input, playerId);
+  ) return chooseWithCombatPolicy(input, playerId, trace);
   return chooseBaseOpponentAiCommand(input, playerId);
 }
 
@@ -1588,13 +1619,39 @@ export function chooseOpponentAiCommand(input: MatchState, playerId: string): Ga
 export function chooseOpponentAiCommandWithMetrics(
   input: MatchState,
   playerId: string,
-): { command: GameCommand | null; metrics: OpponentAiPlannerMetrics } {
+  includeSelectionDiagnostics = false,
+): {
+  command: GameCommand | null;
+  metrics: OpponentAiPlannerMetrics;
+  diagnostics?: OpponentAiSelectionDiagnostics;
+} {
+  const trace: CombatPolicyTrace | undefined = includeSelectionDiagnostics ? {} : undefined;
   const decision = runOpponentAiDecision(
     input,
     playerId,
-    () => chooseOpponentAiCommandInternal(input, playerId),
+    () => chooseOpponentAiCommandInternal(input, playerId, trace),
   );
-  return { command: decision.result, metrics: decision.metrics };
+  // Deliberately run diagnostic evaluations *after* selection, so gathering
+  // evidence cannot alter the selected command or consume its planning budget.
+  const candidateScores = (state: MatchState, cards: readonly GameCard[]) => cards.map((card) => {
+    const evaluation = evaluatePlayableCard(state, playerId, card);
+    return {
+      cardId: card.id,
+      score: evaluation?.score ?? null,
+      paymentCost: evaluation?.payment.cost ?? null,
+    };
+  });
+  const diagnostics = trace?.path ? {
+    path: trace.path,
+    suppressedCardIds: trace.suppressedCardIds ?? [],
+    beforeFilter: candidateScores(input, playerById(input, playerId)?.hand ?? []),
+    afterFilter: candidateScores(
+      trace.scoredMatch ?? input,
+      playerById(trace.scoredMatch ?? input, playerId)?.hand ?? [],
+    ),
+    confidenceMargin: input.phase === "preRoll" ? 0.4 : 0.75,
+  } : undefined;
+  return { command: decision.result, metrics: decision.metrics, diagnostics };
 }
 
 
