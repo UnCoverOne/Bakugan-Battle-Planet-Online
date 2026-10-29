@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Bakugan, Core, GameCard, PlayerState } from "../lib/game";
+import { applyLobbyConfig } from "../lib/lobby-config";
 import {
   ENGINE_METADATA_KEY,
   EngineCommandError,
@@ -106,7 +107,9 @@ function initialState() {
     randomSeed: "create-seed",
     requestHash: "create-request",
   });
-  return result.state;
+  // Synthetic catalogue IDs are valid for reducer determinism tests, but
+  // intentionally do not belong to any restricted printed-card meta.
+  return applyLobbyConfig(result.state, { mode: "casual", rulesFormat: "standard", meta: "unlimited" });
 }
 
 test("canonicalJson is stable across object key order", () => {

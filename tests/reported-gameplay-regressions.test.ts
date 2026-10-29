@@ -544,16 +544,9 @@ test("free Empower effects reduce the payable Empower cost to zero", () => {
   const controller = player("empower-controller", [bakugan("empower-b", "Haos")]);
   const opponent = player("empower-opponent", [bakugan("empower-opponent-b", "Pyrus")]);
   const match = matchWith(controller, opponent, "power");
-  const empowerCard: GameCard = {
-    ...catalogueCard("bb-10", "free-empower-card"),
-    // This deliberately synthetic rules-text fixture must not retain bb-10's
-    // canonical catalogue identity, which enforces Greater Water Boost's text.
-    catalogId: "fixture-free-empower",
-    type: "Action",
-    cost: 2,
-    effect: "Empower: You may pay an additional 3 [Energy] for +500 [B].",
-    mechanics: ["Empower"],
-  };
+  // Poison Sting has a printed two-Energy cost and an additional
+  // three-Energy Empower cost; use its canonical typed definition.
+  const empowerCard = catalogueCard("sv-61", "free-empower-card");
 
   assert.equal(
     cardCostBreakdown(match, controller.id, empowerCard, { empower: "yes" }).empowerCost,

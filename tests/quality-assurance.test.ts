@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import conformanceJson from "../content/conformance-matrix.json";
 import type { Bakugan, Core, GameCard, MatchState, PlayerState } from "../lib/game";
+import { applyLobbyConfig } from "../lib/lobby-config";
 import {
   ENGINE_METADATA_KEY,
   applyStatePatch,
@@ -33,7 +34,8 @@ function player(id: string): PlayerState {
   return { id, name: id.toUpperCase(), bakugan, cores, deck: 35, deckCards: Array.from({ length: 35 }, (_, index) => card(`${id}-deck-${index}`)), hand: Array.from({ length: 5 }, (_, index) => card(`${id}-hand-${index}`)), discard: [], energyZone: [], heroes: [], energy: 0, ready: false, connected: true, lastSeen: 0, energizedThisTurn: false, cardsPlayedThisTurn: 0 };
 }
 function initial() {
-  return initializeMatch("GOLDEN", "bo1", [player("p1"), player("p2")], { commandId: "golden-create", actorId: "p1", issuedAt: 1_800_000_000_000, randomSeed: "golden-seed", requestHash: "golden-request" }).state;
+  const state = initializeMatch("GOLDEN", "bo1", [player("p1"), player("p2")], { commandId: "golden-create", actorId: "p1", issuedAt: 1_800_000_000_000, randomSeed: "golden-seed", requestHash: "golden-request" }).state;
+  return applyLobbyConfig(state, { mode: "casual", rulesFormat: "standard", meta: "unlimited" });
 }
 function envelope(state: EngineBackedMatchState, commandId: string, actorId: string, command: CommandEnvelope["command"]): CommandEnvelope {
   return { commandId, gameId: state.id, actorId, expectedVersion: state.version, issuedAt: 1_800_000_000_000 + state.version, randomSeed: `seed-${commandId}`, requestHash: canonicalJson(command), command };
