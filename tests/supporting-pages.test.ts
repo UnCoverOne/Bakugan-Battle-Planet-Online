@@ -48,7 +48,7 @@ test("Profile presents customizable identity, reliable statistics, and selected 
   assert.doesNotMatch(profile, />Edit identity</);
 });
 
-test("Settings uses immediate feedback and isolates destructive actions", () => {
+test("Settings applies preferences immediately and isolates destructive actions", () => {
   const settings = source("components/routes/SettingsScreen.tsx");
   for (const category of [
     "Account",
@@ -56,13 +56,12 @@ test("Settings uses immediate feedback and isolates destructive actions", () => 
     "Video",
     "Audio",
     "Accessibility",
-    "Data & sync",
-    "Privacy",
-    "Danger zone",
   ]) {
     assert.match(settings, new RegExp(category.replace(/[&]/g, "\\&")));
   }
-  assert.match(settings, /aria-live="polite"/);
+  assert.match(settings, /const SECTIONS = \[/);
+  assert.match(settings, /setSettings\(\{ \.\.\.settings, \.\.\.patch \}\)/);
+  assert.doesNotMatch(settings, /aria-live="polite"/);
   assert.match(settings, /Preview scaling/);
   assert.match(settings, /Text scaling/);
   assert.match(settings, /Reduced motion/);
@@ -70,7 +69,12 @@ test("Settings uses immediate feedback and isolates destructive actions", () => 
   assert.match(settings, /UI Sounds/);
   assert.match(settings, /Music/);
   assert.match(settings, /Master Volume/);
-  assert.match(settings, /Export local data/);
+  assert.match(settings, /Export first/);
+  assert.match(settings, /downloadTextFile\(/);
+  assert.match(settings, /onClick=\{\(\) => setConfirmAction\("local"\)\}/);
+  assert.match(settings, /onClick=\{\(\) => setConfirmAction\("account"\)\}/);
+  assert.match(settings, /title="Delete local browser data\?"/);
+  assert.match(settings, /title="Delete cloud account\?"/);
   assert.match(settings, /ConfirmationDialog/);
   assert.doesNotMatch(settings, /SyncConflictPanel/);
   assert.doesNotMatch(settings, /window\.confirm/);

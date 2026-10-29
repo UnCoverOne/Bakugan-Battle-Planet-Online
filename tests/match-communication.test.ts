@@ -78,7 +78,10 @@ test("the communication layer provides docked Event Log and responsive chat draw
   assert.match(layer, /className=\{styles\.eventFilters\}\s+aria-label="Event filters"/);
   assert.doesNotMatch(layer, /aria-label="Event Log views"|styles\.eventTabs/);
   assert.match(layer, /cardEventLogEntries\(communication\.match\)/);
-  assert.match(layer, /cardArtSource\(entry\.card, "thumbnail"\)/);
+  // The Event Log deliberately keeps the shared CardArt renderer and original scan.
+  assert.match(layer, /<CardArt\s+src=\{entry\.card\.art\}/);
+  assert.match(layer, /cardType=\{entry\.card\.type\}/);
+  assert.doesNotMatch(layer, /cardArtSource\(entry\.card, "thumbnail"\)/);
   assert.match(layer, /batchStyles\.batchHex/);
   assert.match(layer, /cardEventActor\(communication\.match, entry\.playerId\)/);
   assert.match(layer, /data-local=\{entry\.playerId === actorId/);

@@ -143,8 +143,11 @@ test("Poison Sting separates enemy-Core removal from its Empower field-Core atta
     empowerFields
       .find((field) => field.id === "secondaryCoreCell")
       ?.options.map((option) => option.id),
-    ["field-core"],
+    ["enemy-held", "field-core"],
   );
+  // The Core removed earlier in the same resolution is now unattached on the Field.
+  assert.equal(next.placements.find((candidate) => candidate.cell === "enemy-held")?.attachedTo, undefined);
+  assert.equal(next.placements.find((candidate) => candidate.cell === "field-core")?.attachedTo, undefined);
 });
 
 test("Bakuslumber compiles its linked Energize sentence into the negate destination", () => {
