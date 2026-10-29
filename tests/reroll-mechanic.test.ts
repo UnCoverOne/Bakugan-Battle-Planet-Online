@@ -418,7 +418,13 @@ test("Divine Intervention offers only a matching Evo and plays it for free after
   const evo = CARDS.find((card) => card.type === "Evo" && evoCanTarget(card, active));
   assert.ok(evo);
   const evoInstance = { ...evo, id: "free-reroll-evo" };
-  state.players[0].hand = [evoInstance, ...state.players[0].hand];
+  const nonmatchingEvo = CARDS.find((card) => (
+    card.type === "Evo"
+    && state.players[0].bakugan.every((bakugan) => !evoCanTarget(card, bakugan))
+  ));
+  assert.ok(nonmatchingEvo, "The catalogue needs an Evo incompatible with this team");
+  const invalidEvoInstance = { ...nonmatchingEvo, id: "nonmatching-reroll-evo" };
+  state.players[0].hand = [evoInstance, invalidEvoInstance, ...state.players[0].hand];
 
   let next = resolveStructuredEffect(
     state,
@@ -433,9 +439,11 @@ test("Divine Intervention offers only a matching Evo and plays it for free after
   assert.equal(next.pendingEffectPlay?.free, true);
   assert.equal(next.pendingEffectPlay?.optional, true);
   assert.equal(effectPlayCardIsLegal(next, "a", evoInstance), true);
-  const nonmatchingEvo = CARDS.find((card) => card.type === "Evo" && !evoCanTarget(card, active));
-  if (nonmatchingEvo) assert.equal(effectPlayCardIsLegal(next, "a", nonmatchingEvo), false);
-  assert.equal(effectPlayCardIsLegal(next, "a", next.players[0].hand.find((card) => card.type !== "Evo")!), false);
+  assert.ok(next.players[0].hand.some((card) => card.id === invalidEvoInstance.id));
+  assert.equal(effectPlayCardIsLegal(next, "a", invalidEvoInstance), false);
+  const nonEvo = next.players[0].hand.find((card) => card.type !== "Evo");
+  assert.ok(nonEvo);
+  assert.equal(effectPlayCardIsLegal(next, "a", nonEvo), false);
 
   const skipped = skipPendingEffectPlay(next, "a");
   assert.equal(skipped.pendingEffectPlay, undefined);
