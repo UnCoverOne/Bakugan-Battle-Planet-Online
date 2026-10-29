@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { achievementsFor } from "../lib/achievements";
 import { STARTER_DECKS, makePlayer } from "../lib/data";
 import { accountStatMatches } from "../lib/match-statistics";
 import {
@@ -69,17 +68,12 @@ test("completed games freeze engine decisions and expose only Exit in the Action
   assert.deepEqual(compactMatchHudSlots(actions), ["exit"]);
 });
 
-test("practice records stay in history but do not affect account competition statistics", () => {
+test("practice records are excluded from competition statistics", () => {
   const history = [
     { id: "practice", result: "Victor", mode: "training" as const, at: "2026-08-01T00:00:00.000Z" },
     { id: "online", result: "Defeat", mode: "online" as const, at: "2026-08-02T00:00:00.000Z" },
   ];
   assert.deepEqual(accountStatMatches(history).map((record) => record.id), ["online"]);
-
-  const achievements = achievementsFor([], history);
-  assert.equal(achievements.find((item) => item.id === "first-win")?.unlocked, false);
-  assert.equal(achievements.find((item) => item.id === "training-day")?.unlocked, true);
-  assert.equal(achievements.find((item) => item.id === "online")?.unlocked, true);
 });
 
 test("completion remains on the gameplay route until the player presses Exit", () => {

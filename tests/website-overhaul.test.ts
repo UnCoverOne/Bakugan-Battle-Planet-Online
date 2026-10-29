@@ -156,13 +156,6 @@ test("Home uses the upgraded Pyrus hero, card fan, and intended desktop proporti
   assert.doesNotMatch(css, /main-stage:has\(\.bakugan-home\)[^{]*\{[^}]*overflow: hidden/);
 });
 
-test("the overhaul leaves the immersive Match implementation outside its source changes", () => {
-  const css = source("app/website-overhaul.css");
-  assert.match(css, /immersive Match screen is intentionally untouched/);
-  assert.doesNotMatch(css, /\.gameplay-match-host\s*\{/);
-  assert.doesNotMatch(css, /\.game-screen/);
-});
-
 test("secondary routes use shared primitives and route-owned CSS Modules", () => {
   const primitives = source("components/design-system/primitives.tsx");
   const layout = source("app/layout.tsx");

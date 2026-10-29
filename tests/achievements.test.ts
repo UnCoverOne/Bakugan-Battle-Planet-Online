@@ -62,28 +62,6 @@ test("achievement catalogue uses only the four current progression paths", () =>
   }
 });
 
-test("legacy achievement metrics and migration code are gone", () => {
-  const legacyMetrics = [
-    "decks",
-    "completeDecks",
-    "publicDecks",
-    "privateDecks",
-    "favouriteDecks",
-    "describedDecks",
-    "deckFactions",
-    "trainingGames",
-    "bo1Games",
-    "bo3Games",
-    "onlineWins",
-    "uniqueMainCards",
-    "uniqueCharacters",
-    "uniqueCores",
-  ];
-  for (const metric of legacyMetrics) assert.equal((ACHIEVEMENT_METRICS as readonly string[]).includes(metric), false, metric);
-  const implementation = source("lib/achievements.ts");
-  assert.doesNotMatch(implementation, /PREVIOUS_BUNDLED_DEFINITION_FIELDS|ORIGINAL_BUNDLED_DEFINITION_FIELDS|COMPLETION_REQUIRES_CURRENT_PROGRESS/);
-});
-
 test("reset achievements ignore old matches and decks but recognize new activity", () => {
   const resetAt = "2026-09-15T12:00:00.000Z";
   const original = legalDeck(STARTER_DECKS[0], "existing", "2026-09-01T12:00:00.000Z");

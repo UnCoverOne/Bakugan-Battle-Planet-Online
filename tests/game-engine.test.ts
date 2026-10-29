@@ -300,6 +300,8 @@ test("optional Sync can be declined without applying its bonus", () => {
   const player = state.players.find((candidate) => candidate.id === actor)!;
   const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
   target.open = true;
+  // totalPower ignores stat modifiers for a missed roll; keep this fixture deterministic.
+  state.rolls[actor].result = "open-no-core";
   const syncCard = { ...CARDS.find((card) => card.catalogId === "av-1")!, id: "optional-sync-action" };
   const qualifying = { ...CARDS.find((card) => card.cost === 1 && card.type === "Action")!, id: "sync-optional-card" };
   player.hand.push(syncCard, qualifying);
@@ -318,6 +320,8 @@ test("Aquofreeze Beam applies its base +200 B when optional Sync has no legal re
   const player = state.players.find((candidate) => candidate.id === actor)!;
   const target = player.bakugan.find((candidate) => candidate.id === state.selected[actor])!;
   target.open = true;
+  // totalPower ignores stat modifiers for a missed roll; keep this fixture deterministic.
+  state.rolls[actor].result = "open-no-core";
   const syncCard = { ...CARDS.find((card) => card.catalogId === "ff-2")!, id: "sync-no-legal-reveal" };
   const tooCheap = { ...CARDS.find((card) => card.catalogId === "bb-1")!, id: "sync-no-legal-reveal-too-cheap" };
   player.hand = [syncCard, tooCheap];
