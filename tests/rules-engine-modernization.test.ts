@@ -85,8 +85,12 @@ test("Poison Sting separates enemy-Core removal from its Empower field-Core atta
     (_, index) => ({ ...CARDS[0], id: `poison-energy-${index}` }),
   );
 
+  const ally = first.bakugan[0];
+  ally.open = true;
+  state.selected[first.id] = ally.id;
   const enemy = second.bakugan[0];
   enemy.open = true;
+  state.selected[second.id] = enemy.id;
   enemy.heldCoreCells = ["enemy-held"];
   state.placements = [
     {
@@ -147,6 +151,17 @@ test("Poison Sting separates enemy-Core removal from its Empower field-Core atta
   );
   // The Core removed earlier in the same resolution is now unattached on the Field.
   assert.equal(next.placements.find((candidate) => candidate.cell === "enemy-held")?.attachedTo, undefined);
+  assert.equal(next.placements.find((candidate) => candidate.cell === "field-core")?.attachedTo, undefined);
+  assert.ok(empowerFields.find((field) => field.id === "secondaryTargetBakuganId")?.options.some((option) => option.id === ally.id));
+
+  // Reattaching the freshly removed Core completes Empower as a normal Field attachment.
+  next = submitCardChoice(next, first.id, {
+    secondaryCoreCell: "enemy-held",
+    secondaryTargetBakuganId: ally.id,
+  });
+  assert.equal(next.placements.find((candidate) => candidate.cell === "enemy-held")?.attachedTo, ally.id);
+  assert.ok(next.players[0].bakugan[0].heldCoreCells.includes("enemy-held"));
+  assert.ok(!next.players[1].bakugan[0].heldCoreCells.includes("enemy-held"));
   assert.equal(next.placements.find((candidate) => candidate.cell === "field-core")?.attachedTo, undefined);
 });
 
