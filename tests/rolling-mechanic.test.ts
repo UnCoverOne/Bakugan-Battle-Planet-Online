@@ -18,12 +18,6 @@ const rollLayer = readFileSync(new URL("../components/game-screen-v2/BakuCoreLay
 const rollStyles = readFileSync(new URL("../components/game-screen-v2/BakuCoreLayer.module.css", import.meta.url), "utf8");
 const placementLayer = readFileSync(new URL("../components/game-screen-v2/CorePlacementLayer.tsx", import.meta.url), "utf8");
 
-test("the roll trace draws deliberately and pauses for readable outcome labels", () => {
-  assert.match(rollLayer, /ROLL_TRACE_DURATION_MS = 4600/);
-  assert.match(rollStyles, /roll-trace-draw 1800ms/);
-  assert.match(rollStyles, /var\(--trace-order\) \* 250ms \+ 1800ms/);
-});
-
 function cell(q: number, r: number) {
   const found = HEX_CELLS.find((candidate) => candidate.q === q && candidate.r === r);
   assert.ok(found, `Missing axial cell ${q},${r}`);

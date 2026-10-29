@@ -57,7 +57,7 @@ test("local replay diagnostic exposes engine-history hashes and transition sampl
   const diagnostic = buildLocalReplayJournalDiagnostic(draft);
   assert.ok(diagnostic);
   assert.equal(diagnostic.kind, "engine-history");
-  assert.equal(diagnostic.schemaVersion, 3);
+  assert.equal(diagnostic.schemaVersion, draft.schemaVersion);
   assert.equal(diagnostic.transitionCount, 2);
   assert.equal(diagnostic.genesisVersion, genesisVersion);
   assert.equal(diagnostic.finalVersion, state.version);

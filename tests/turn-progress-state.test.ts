@@ -99,7 +99,7 @@ test("turn progress follows live engine phases and step labels", () => {
     ["damage", "Damage Step • 5 incoming", "brawl", "damage"],
     ["postDamage", "Damage Step • Post-damage priority", "brawl", "retracting"],
     ["endPlay", "End Phase • Play Step", "end", "play"],
-    ["endPlay", "End Phase • Charge Step", "end", "charge"],
+    ["charge", "End Phase • Charge Step", "end", "charge"],
     ["handLimit", "End Phase • Discard to seven", "end", "reset"],
   ] as const;
 
@@ -156,7 +156,7 @@ test("transitions distinguish round, phase and step changes without replaying st
   );
 });
 
-test("the Brawl callout waits for the existing roll presentation to settle", () => {
+test("the Brawl callout follows authoritative Power even while the roll animation is pending", () => {
   const player = makePlayer("player-a", "Dan", STARTER_DECKS[0]);
   const opponent = makePlayer("player-b", "Magnus", STARTER_DECKS[1]);
   const match = createMatch("ROLL-HANDOFF", "bo1", [player, opponent]);
@@ -170,13 +170,13 @@ test("the Brawl callout waits for the existing roll presentation to settle", () 
   match.stepLabel = "Brawl Phase • Power Step";
   const power = turnProgressSnapshot(match);
   assert.ok(power);
-  assert.equal(presentedTurnProgress(power, rolling, true)?.signature, rolling.signature);
+  assert.equal(presentedTurnProgress(power, rolling, true)?.signature, power.signature);
   assert.equal(presentedTurnProgress(power, rolling, false)?.signature, power.signature);
   assert.equal(describeTurnTransition(rolling, power)?.scope, "phase");
 });
 
 test("phase transitions are non-blocking, accessible, and reduced-motion safe", () => {
-  assert.match(transitionLayer, /PHASE_TRANSITION_DURATION_MS = 2100/);
+  assert.match(transitionLayer, /PHASE_TRANSITION_DURATION_MS = 4200/);
   assert.match(transitionLayer, /role="status" aria-live="polite" aria-atomic="true"/);
   assert.match(transitionLayer, /rollPresentationPending/);
   assert.match(transitionStyles, /pointer-events: none/);

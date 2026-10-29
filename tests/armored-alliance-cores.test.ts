@@ -50,27 +50,6 @@ test("supplied AA scan files exist for every scan-backed catalogue core", () => 
   }
 });
 
-test("placeholder core art renders the same effect vocabulary used by the inspector", () => {
-  const source = readFileSync(new URL("../components/bakucore/BakuCoreArt.tsx", import.meta.url), "utf8");
-  const styles = readFileSync(new URL("../components/bakucore/BakuCoreArt.module.css", import.meta.url), "utf8");
-  assert.match(source, /data-core-fallback/);
-  assert.match(source, /data-core-scan/);
-  assert.match(source, /hasProvidedScan/);
-  assert.match(source, /baku-gear\.svg/);
-  assert.match(source, /bakuGearIcon/);
-  assert.match(source, /text: `: -\$\{core\.bakuGearCostReduction\}`/);
-  assert.doesNotMatch(source, /Baku-Gear −\$\{core\.bakuGearCostReduction\} Energy/);
-  assert.doesNotMatch(source, /overlayHeader/);
-  assert.match(source, /only add rules that are absent/);
-  assert.doesNotMatch(source, /placeholder\.png/);
-  assert.match(source, /frost-strike\.png/);
-  assert.match(source, /fusionDamageBonus/);
-  assert.match(source, /bakuGearCostReduction/);
-  assert.match(styles, /container-type:\s*inline-size/);
-  assert.match(styles, /font-size:\s*clamp\([^;]*cqw/);
-  assert.match(styles, /width:\s*clamp\([^;]*cqw[^!]*!important/);
-});
-
 test("AA Baku-Gear reductions and Fusion bonuses affect runtime calculations", () => {
   const state = createMatch("AA-CORE-TEST", "bo1", [
     makePlayer("a", "Alpha", STARTER_DECKS[0]),

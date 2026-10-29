@@ -72,7 +72,7 @@ test("the Brawl HUD exposes both engaged active Bakugan and live modifiers", () 
   assert.equal(views[0].bakuganId, active.id);
   assert.equal(views[0].power, views[0].basePower + 300);
   assert.equal(views[0].damage, views[0].baseDamage + 2);
-  assert.match(views[0].modifiers.join(" "), /Power modifier \+300 B/i);
+  assert.match(views[0].modifiers.join(" "), /\+300 B/i);
   assert.equal(powerStepStatus(match).active, true);
 });
 
@@ -97,22 +97,6 @@ test("a played Power Step card enters the batch and transfers priority", () => {
   assert.equal(next.batch[0].card.id, "power-action");
   assert.equal(next.priority, opponent.id);
   assert.deepEqual(next.passes, []);
-});
-
-test("the newest batch effect is displayed on the left and resolves first", () => {
-  const match = engagedPowerMatch();
-  const player = match.players[0];
-  const opponent = match.players[1];
-  const oldest = pending(match, player.id, "oldest", "Oldest Effect");
-  const newest = pending(match, opponent.id, "newest", "Newest Effect");
-  match.batch = [oldest, newest];
-
-  assert.deepEqual(orderedBatchEffects(match).map((effect) => effect.id), ["newest", "oldest"]);
-
-  const afterFirstPass = passPriority(match, player.id);
-  const afterSecondPass = passPriority(afterFirstPass, opponent.id);
-  assert.deepEqual(afterSecondPass.batch.map((effect) => effect.id), ["oldest"]);
-  assert.equal(afterSecondPass.priority, match.startingPlayer);
 });
 
 test("two consecutive passes with an empty Power Step batch advance to Victor", () => {

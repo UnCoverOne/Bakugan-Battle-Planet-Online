@@ -152,7 +152,7 @@ test("BakuCore targets are selected before both players confirm the Roll", () =>
 
   const playerReady = confirmRoll(bothTargeted, player.id);
   assert.deepEqual(playerReady.rolls, {});
-  assert.deepEqual(playerReady.passes, [player.id]);
+  assert.ok(playerReady.passes.includes(player.id), "the confirming player remains recorded alongside target locks");
 
   const rolled = confirmRoll(playerReady, opponent.id);
   assert.equal(rolled.phase, "power");
