@@ -228,23 +228,32 @@ test("ordinary stat Actions without a printed choice also count as played on the
   assert.equal(state.batch.filter((object) => object.card.id === source.id).length, 1);
 });
 
-test("Action-on-this triggers also recognize a secondary Bakugan target", () => {
-  const { state, player, opponent, source, sourceBakugan } = triggerState("br-190", "secondary");
-  const ventusTrap = card("aa-50", "secondary-ventus-trap");
-  emitRuleEvent(state, {
-    id: "secondary-target-action",
-    name: "CARD_PLAYED",
-    actorId: player.id,
-    controllerId: player.id,
-    card: ventusTrap,
-    cardType: "Action",
-    targetBakuganId: opponent.bakugan[0].id,
-    choices: {
-      targetBakuganId: opponent.bakugan[0].id,
-      secondaryTargetBakuganId: sourceBakugan.id,
-    },
-    createdAt: Date.now(),
-  });
+test("Action-on-this secondary targets resolve on their own source Bakugan", () => {
+  for (const catalogId of ACTION_ON_THIS_SOURCES) {
+    const { state, player, opponent, source, sourceBakugan } = triggerState(catalogId, "secondary-" + catalogId);
+    const selected = player.bakugan[1];
+    selected.open = true;
+    state.selected[player.id] = selected.id;
+    const action = card("aa-50", "secondary-action-" + catalogId);
+    emitRuleEvent(state, {
+      id: "secondary-target-" + catalogId,
+      name: "CARD_PLAYED",
+      actorId: player.id,
+      controllerId: player.id,
+      card: action,
+      cardType: "Action",
+      targetBakuganId: selected.id,
+      choices: {
+        targetBakuganId: opponent.bakugan[0].id,
+        secondaryTargetBakuganId: sourceBakugan.id,
+      },
+      createdAt: Date.now(),
+    });
 
-  assert.equal(state.batch.filter((object) => object.card.id === source.id).length, 1);
+    const trigger = state.batch.find((object) => object.card.id === source.id);
+    assert.ok(trigger, catalogId + " should trigger on its secondary target");
+    assert.equal(trigger.choices.sourceBakuganId, sourceBakugan.id);
+    assert.equal(trigger.choices.targetBakuganId, sourceBakugan.id);
+    assert.notEqual(trigger.choices.targetBakuganId, selected.id);
+  }
 });

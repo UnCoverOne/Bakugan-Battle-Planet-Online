@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { PHASE_TRANSITION_ICON_KEY_BY_STEP } from "../components/game-screen-v2/PhaseTransitionStepIcon";
@@ -120,4 +121,20 @@ test("Transition callouts reject stale, blocked, and already presented steps", (
     phaseTransitionShouldPresent(transition, energize, false, new Set([transition.signature])),
     false,
   );
+});
+
+test("turn progress maps all four phases to shared transition icons", () => {
+  const tracker = readFileSync(
+    new URL("../components/game-screen-v2/TurnProgressTracker.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(tracker, /PhaseTransitionStepIcon/);
+  for (const [phase, step] of Object.entries({
+    start: "draw",
+    roll: "rolling",
+    brawl: "power",
+    end: "charge",
+  })) {
+    assert.ok(tracker.includes(phase + ': "' + step + '"'), phase);
+  }
 });
