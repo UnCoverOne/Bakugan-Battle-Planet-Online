@@ -870,6 +870,9 @@ test("AI may still play a hybrid pre-Roll card for independent draw value", () =
 
 test("AI reserves Energy for an in-hand B-Power response that can swing the forecasted Brawl", () => {
   const { match, ai, shun, smokeArmor } = preRollReservationMatch({ energy: 3 });
+  // Both command selection and state advancement must keep Smoke Armor visible
+  // to the pre-Roll forecast even though it is not yet eligible to be played.
+  const command = chooseOpponentAiCommandWithMetrics(match, ai.id).command;
   const next = advanceOpponentAi(match, ai.id);
   assert.ok(next);
   const failureDetails = next.batch.length === 0 ? undefined : (() => {
@@ -907,8 +910,10 @@ ${JSON.stringify({
     }, null, 2)}`;
   })();
   assert.equal(next.batch.length, 0, failureDetails);
+  assert.equal(command?.type, "PASS_PRIORITY");
   assert.ok(next.players[0].hand.some((card) => card.id === shun.id));
   assert.ok(next.players[0].hand.some((card) => card.id === smokeArmor.id));
+  assert.equal(maximumPayableEnergy(next, ai.id), 3);
   assert.equal(next.priority, "human");
 });
 
@@ -918,6 +923,7 @@ test("AI plays the draw Hero when enough Energy remains for the same B-Power res
   assert.ok(next);
   assert.equal(next.batch.at(-1)?.card.id, shun.id);
   assert.ok(next.players[0].hand.some((card) => card.id === smokeArmor.id));
+  assert.equal(maximumPayableEnergy(next, ai.id), 3);
 });
 
 test("AI values a draw Hero when its deck can produce an affordable missing response", () => {
