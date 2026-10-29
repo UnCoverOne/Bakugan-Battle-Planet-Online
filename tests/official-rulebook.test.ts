@@ -31,8 +31,10 @@ test("Printed Icons remain in Glossary and keep Compendium styling", () => {
   assert.ok(!reader.includes("SYMBOL_ENTRIES"));
   assert.ok(!reader.includes('href="#rulebook-icons"'));
   assert.ok(!glossary.includes('id="glossary-introduction"'));
-  assert.ok(glossary.indexOf('id="glossary-icons"') < glossary.indexOf('{byLetter.length'));
-  assert.ok(glossary.includes('SYMBOL_ENTRIES.map((symbol)'));
+  assert.ok(glossary.indexOf('id="glossary-icons"') >= 0);
+  assert.ok(glossary.indexOf('id="glossary-icons"') < glossary.indexOf('{byCategory.map('));
+  assert.ok(glossary.includes('SYMBOL_ENTRIES.filter((symbol)'));
+  assert.ok(glossary.includes('filteredIcons.map((symbol)'));
   for (const token of ["--brand-blue-bright", "--text-primary", "--chamfer-panel", ".iconGrid"]) {
     assert.ok(css.includes(token), `Expected matching styling: ${token}`);
   }
@@ -58,7 +60,7 @@ test("glossary has its own Compendium tab and deep-linkable thematic reference",
   assert.match(compendium, /<GlossaryScreen query=/);
   assert.match(compendium, />GLOSSARY<\/button>/);
   assert.ok(!rules.includes('id="rulebook-glossary"'));
-  for (const feature of ["OFFICIAL_RULEBOOK", "GLOSSARY_ENTRIES", "glossary-letter-", "glossary-", "/compendium/rules#section-", 'role="dialog"']) assert.ok(glossary.includes(feature), feature);
+  for (const feature of ["OFFICIAL_RULEBOOK", "GLOSSARY_ENTRIES", "glossary-category-", "glossary-", "/compendium/rules#section-", 'role="dialog"']) assert.ok(glossary.includes(feature), feature);
   for (const token of ["--content-wide", "--brand-blue-bright", "--chamfer-panel"]) {
     const frame = readFileSync("components/routes/CompendiumScreen.module.css", "utf8");
     assert.ok((css + frame).includes(token), token);

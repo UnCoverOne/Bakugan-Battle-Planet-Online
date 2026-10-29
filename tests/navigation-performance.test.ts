@@ -163,7 +163,8 @@ test("Brawl Setup memoizes legality only when needed and refreshes after catalog
   assert.match(screen, /\[decks, catalogueRevision\]/);
   assert.match(screen, /legalDecks\.includes\(current\)/);
   assert.match(screen, /\(\) => mode === "ranked"\s*\?/);
-  assert.match(screen, /\[decks, mode, rankedDeckSize, rankedRestrictions, catalogueRevision\]/);
+  assert.match(screen, /\[decks, rankedRulesReady, rankedDeckSize, rankedRestrictions, catalogueRevision\]/);
+  assert.match(screen, /rankedRulesReady = mode === "ranked" && !rankedRulesLoading && !rankedRulesError && rankedDeckSize !== null/);
   assert.match(screen, /const candidates = mode === "ranked"/);
   assert.match(screen, /candidates\.slice\(0, 3\)/);
 });

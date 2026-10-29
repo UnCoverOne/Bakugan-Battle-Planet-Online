@@ -103,14 +103,18 @@ test("Match Creation clears completed-session state before opening another lobby
   assert.match(creation, /primeMatchStore\(\{ route: "play", match: null, online: false/);
   assert.match(creation, /setMatch\(null\)/);
   assert.match(creation, /fetch\("\/api\/ai-decks", \{ cache: "no-store" \}\)/);
-  assert.match(creation, /createTrainingLobbyState\([\s\S]*result\.deck\)/);
+  assert.match(creation, /createTrainingLobbyState\(code, structure, playerId, profile\.name, launchDeck, result\.deck, availableAiDecks\)/);
   assert.doesNotMatch(creation, /matchError/);
 });
 
 test("AI deck endpoint only chooses enabled legal administrator resources", async () => {
   const route = await readFile(new URL("../app/api/ai-decks/route.ts", import.meta.url), "utf8");
   const administration = await readFile(new URL("../lib/administration-server.ts", import.meta.url), "utf8");
-  assert.match(route, /selectEnabledLegalAiDeck\(database\)/);
+  assert.match(route, /const enabledLegal = \(await listAiDecks\(database\)\)\.filter/);
+  assert.match(route, /item\.enabled/);
+  assert.match(route, /validateDeck\(item\.deck\)\.isLegal/);
+  assert.match(route, /selectAiDeckForMeta\(enabledLegal\.map\(\(item\) => item\.deck\), meta\)/);
+  assert.match(route, /if \(!selectedDeck\) throw new ServiceUnavailableError/);
   assert.match(administration, /item\.enabled && validateDeck\(item\.deck\)\.isLegal/);
   assert.doesNotMatch(route, /randomAiDeck/);
   assert.doesNotMatch(route, /STARTER_DECKS/);

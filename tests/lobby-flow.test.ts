@@ -7,6 +7,7 @@ import { createMatch, prepareNextSeriesGameLobby } from "../lib/game";
 import { reduceMatch } from "../lib/engine/reducer";
 import type { CommandEnvelope, GameCommand } from "../lib/engine/types";
 import { isCompletedSeriesResult, isSeriesIntermissionResult } from "../lib/match-result-navigation";
+import { LOBBY_METAS } from "../lib/meta-formats";
 import {
   lobbyConfig,
   playerLobbyDeckFormat,
@@ -21,7 +22,7 @@ import {
   startLobbyMatch,
   updateLobbySettings,
 } from "../lib/lobby";
-import { createTrainingLobbyState, trainingOpponentDeck } from "../lib/training-lobby";
+import { createTrainingLobbyState, trainingBotLobbyCommands, trainingOpponentDeck } from "../lib/training-lobby";
 
 function taggedPlayer(index: number, deck = STARTER_DECKS[index]) {
   return tagLobbyPlayerDeck(
@@ -325,9 +326,6 @@ test("streamlined Match Creation and Lobby source contracts stay in place", asyn
     "Standard",
     "Singleton",
     "Competitive",
-    "Battle Brawlers",
-    "Armored Alliance",
-    "Geogan Rising",
     "Unlimited",
     "YOUR DECK",
     "SELECT YOUR DECK",
@@ -342,6 +340,9 @@ test("streamlined Match Creation and Lobby source contracts stay in place", asyn
     "featuredDeckStack",
     "deck.tags",
   ]) assert.match(room, new RegExp(contract));
+  assert.match(room, /LOBBY_METAS\.map\(\(meta\) => <option value=\{meta\.id\} key=\{meta\.id\}>\{meta\.name\}<\/option>\)/);
+  assert.match(room, /metaName\(config\.meta\)/);
+  assert.deepEqual(LOBBY_METAS.map((meta) => meta.name), ["Battle Brawlers", "Armored Alliance", "Geogan Rising", "Unlimited"]);
   assert.doesNotMatch(room, /<select[\s\S]*?Select a deck/);
   assert.match(room, /deckPickerOpen/);
   assert.match(room, /compatibleDeckIds/);

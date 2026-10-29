@@ -13,9 +13,14 @@ test("Profile and Settings own their presentation through shared primitives", ()
       implementation,
       new RegExp(`import styles from ["']\\.\\/${route}\\.module\\.css["']`),
     );
-    if (route === "SettingsScreen") assert.match(implementation, /RouteHero/);
     assert.match(implementation, /Surface/);
-    assert.match(implementation, /StatusChip/);
+    if (route === "SettingsScreen") {
+      assert.match(implementation, /RouteHero/);
+      assert.match(implementation, /Field/);
+      assert.match(implementation, /ActionButton/);
+    } else {
+      assert.match(implementation, /StatusChip/);
+    }
     assert.doesNotMatch(implementation, /className=["']panel/);
   }
 });
@@ -112,15 +117,19 @@ test("workspace boundaries use the shared system-state composition", () => {
   assert.match(source("app/(workspace)/not-found.tsx"), /Return home/);
 });
 
-test("cloud conflicts automatically reconcile to the newest saved version", () => {
+test("cloud conflicts preserve pending local entities while merging remote and local history", () => {
   if (!existsSync("components/application/AppProvider.jsx")) return;
   const provider = source("components/application/AppProvider.jsx");
   const sync = source("lib/account-sync.ts");
   const settings = source("components/routes/SettingsScreen.tsx");
   assert.match(provider, /resolveEntityConflicts/);
   assert.doesNotMatch(provider, /syncConflict|resolveSyncConflict/);
-  assert.match(sync, /selectSnapshot\(local, remote, "merge"\)/);
-  assert.match(settings, /newest saved version is selected automatically/);
+  assert.match(sync, /export function resolveEntityConflicts\(/);
+  assert.match(sync, /reconcileRemoteAccountState\(local, remote, conflicts, baseline\)/);
+  assert.match(sync, /const keys = new Set\(localEntityKeys\)/);
+  assert.match(sync, /if \(keys\.has\("profile:main"\)\)/);
+  assert.match(sync, /const history = new Map\(remote\.history\.map/);
+  assert.match(sync, /resolved\.updatedAt = Math\.max\(local\.updatedAt, remote\.updatedAt\)/);
   assert.doesNotMatch(settings, /SyncConflictPanel/);
 });
 

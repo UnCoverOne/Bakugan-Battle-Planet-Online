@@ -66,7 +66,9 @@ test("Training AI hand and Energy faces render only through the protected visibi
   ]);
   assert.match(hand, /useAdministratorAiVisibility\(match, playerId\)/);
   assert.match(hand, /src=\{faceUp \? card!\.art : CARD_BACK_ART\}/);
-  assert.match(hand, /data-hidden=\{revealFaces \? "false" : "true"\}/);
+  assert.match(hand, /const revealedCount = revealFaces/);
+  assert.match(hand, /data-hidden=\{revealedCount === cardCount \? "false" : "true"\}/);
+  assert.match(hand, /revealFaces \|\| opponentHandCardIsRevealed\(card, now\)/);
   assert.match(screen, /useAdministratorAiVisibility\(match, playerId\)/);
   assert.match(screen, /revealEnergyFaces=\{revealOpponentAiCards\}/);
   assert.match(screen, /faceVisible = revealFaces \|\| temporaryRevealCardIds\?\.has\(card\.id\) === true/);

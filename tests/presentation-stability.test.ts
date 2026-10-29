@@ -202,8 +202,10 @@ test("Training AI worker failures are bounded and recover across match steps", (
   assert.match(client, /opponentAiDecisionError\([\s\S]*"worker-timeout"[\s\S]*workerError\.message/);
   assert.match(client, /storedState\.match\?\.phase === "placement"/);
   assert.match(client, /match\.phase === "startingPlayer"/);
-  assert.match(client, /requestOpponentAiDecision\(latest, "training-bot", true\)/);
-  assert.match(client, /fresh-worker-recovered/);
+  assert.match(client, /const primary = await requestOpponentAiDecision\(latest, "training-bot"\)/);
+  assert.match(client, /const command = decision \?\? recoverOpponentAiCommand\(latest, "training-bot"\)/);
+  assert.doesNotMatch(client, /fresh-worker-recovered/);
+  assert.doesNotMatch(client, /requestOpponentAiDecision\(latest, "training-bot", true\)/);
   assert.match(client, /window\.clearTimeout\(pending\.timeoutId\)/);
   assert.match(client, /if \(!requestStarted && botActionKey\.current === key\)/);
   assert.match(client, /await import\("\.\.\/\.\.\/lib\/opponentAi"\)/);

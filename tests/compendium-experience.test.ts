@@ -161,7 +161,7 @@ test("shared card filter authority owns options, symbols, hidden keywords, and m
 
 test("Energize keyword matches every printed Energize effect, not Energy costs or symbols", () => {
   const catalogue = CONTROLLED_CATALOGUE.map((record) => ({ ...record, catalogId: record.id }));
-  const printedEnergize = /\\benergiz(?:e|es|ed|ing)\\b/i;
+  const printedEnergize = /\benergiz(?:e|es|ed|ing)\b/i;
   for (const candidate of catalogue) {
     assert.equal(
       candidate.mechanics.includes("Energize"),
@@ -305,7 +305,12 @@ test("Collection reuses the complete filter controls in desktop and mobile surfa
     assert.match(route, new RegExp(`label=["']${label}["']|label=\\{quantityLabel`));
   }
   assert.match(route, /CardFilterPanel/);
-  assert.match(route, /\["type", "set", "faction", "cost", "rarity", "coreType", "keyword"\]/);
+  assert.match(route, /facets=\{\["type"\]\}/);
+  assert.match(route, /facets=\{secondaryCardFacets\}/);
+  assert.match(route, /const secondaryCardFacets: CardFilterFacet\[\] = \["set", "faction"/);
+  assert.match(route, /!isCharacterOnly \? \["cost", "rarity"\]/);
+  assert.match(route, /includesCharacter \? \["coreType"\]/);
+  assert.match(route, /nextIsCharacterOnly \? \{ cost: null, rarity: null \}/);
 });
 
 test("Compendium renders the complete gallery and reusable inspector contracts", async () => {
