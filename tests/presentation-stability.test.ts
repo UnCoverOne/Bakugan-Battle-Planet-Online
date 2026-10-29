@@ -79,11 +79,16 @@ test("full Settings prioritizes gameplay controls and keeps account management m
   );
   assert.match(settings, /useState<Section>\("Gameplay"\)/);
 
-  for (const gameplayOption of ["Automatic Draw", "Automatic Pass", "Match-log detail"]) {
+  for (const gameplayOption of ["Automatic Draw", "Automatic Pass"]) {
     assert.match(settings, new RegExp(gameplayOption));
     assert.match(menu, new RegExp(gameplayOption));
   }
-  assert.doesNotMatch(settings, /Default match-log detail/);
+  // Match-log detail is an in-match preference, not part of full Settings.
+  assert.doesNotMatch(settings, /Match-log detail/);
+  assert.match(menu, /Match-log detail/);
+  for (const detail of ["All events", "Gameplay only", "Random results"]) {
+    assert.match(menu, new RegExp(detail));
+  }
 
   for (const removedSection of ["Data & sync", "Privacy", "Danger zone"]) {
     assert.doesNotMatch(settings, new RegExp(`"${removedSection}"`));
