@@ -17,7 +17,7 @@ import {
 import { advanceOpponentAi } from "../lib/opponentAi";
 import { advanceOpponentAi as advanceBaseOpponentAi } from "../lib/opponentAiBase";
 import { buildChoiceSchema } from "../lib/rules/choices";
-import { compileCardEffect } from "../lib/rules/effects";
+import { ruleDefinitionForCard } from "../lib/rules/catalogue";
 import { cardCostBreakdown } from "../lib/rules/costs";
 import { conditionFor } from "../lib/rules/catalogue-primitives";
 import { evaluateBakuganCharacteristics } from "../lib/rules/modifiers";
@@ -417,11 +417,15 @@ test("Shun Kazami br-77 asks whether to use its optional open-trigger draw", () 
   const shun = catalogueCard("br-77", "shun-kazami-optional-draw");
   assert.equal(shun.effect, "When you open a Bakugan, you may draw a card.");
 
-  const instruction = compileCardEffect(shun).instructions.find((candidate) => (
-    /when you open a Bakugan/i.test(candidate.sourceText)
+  const openedTrigger = ruleDefinitionForCard(shun).abilities.find((ability) => (
+    ability.kind === "triggered" && ability.trigger?.event === "BAKUGAN_OPENED"
+  ));
+  assert.ok(openedTrigger, "Shun's optional draw belongs to the Bakugan-opened trigger");
+  const instruction = openedTrigger.instructions.find((candidate) => (
+    candidate.effects.some((effect) => effect.kind === "draw")
   ));
   assert.ok(instruction);
-  assert.ok(instruction.effects.some((effect) => effect.kind === "draw"));
+  assert.match(instruction.sourceText, /when you open a Bakugan/i);
 
   const controller = player("shun-controller", [bakugan("shun-b", "Aquos")]);
   const opponent = player("shun-opponent", [bakugan("shun-opponent-b", "Pyrus")]);

@@ -139,7 +139,7 @@ test("registration uses one streamlined form with local import selected by defau
 test("Home keeps guest navigation consistent and avoids duplicate account actions", () => {
   const dashboard = source("components/routes/DashboardScreen.tsx");
   const css = source("app/guest-experience.css");
-  assert.match(dashboard, /Welcome to Battle Planet/);
+  assert.match(dashboard, /<h1><span>Battle<\/span><strong>Planet<\/strong><\/h1>/);
   assert.match(dashboard, /<span>PLAY<\/span>/);
   assert.match(dashboard, /<span>DECKS<\/span>/);
   assert.doesNotMatch(dashboard, /START TRAINING/);

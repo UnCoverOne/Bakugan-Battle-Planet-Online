@@ -80,7 +80,12 @@ test("AI deck registry controls Training AI selection", async () => {
   assert.match(server, /listAiDecks/);
   assert.match(server, /setAiDeckEnabled/);
   assert.match(server, /randomAiDeck/);
-  assert.match(endpoint, /selectEnabledLegalAiDeck/);
+  assert.match(endpoint, /const enabledLegal = \(await listAiDecks\(database\)\)\.filter/);
+  assert.match(endpoint, /item\.enabled/);
+  assert.match(endpoint, /validateDeck\(item\.deck\)\.isLegal/);
+  assert.match(endpoint, /selectAiDeckForMeta\(enabledLegal\.map\(\(item\) => item\.deck\), meta\)/);
+  assert.match(endpoint, /availableDecks: enabledLegal\.map/);
+  assert.match(endpoint, /isLobbyMeta\(requestedMeta\)/);
   assert.match(provider, /fetch\("\/api\/ai-decks"/);
   assert.match(provider, /requireTrainingAiDeckSelection/);
   assert.doesNotMatch(provider, /let aiDeck = data\.STARTER_DECKS/);

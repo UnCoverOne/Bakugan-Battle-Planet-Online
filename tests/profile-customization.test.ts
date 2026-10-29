@@ -221,7 +221,10 @@ test("public profile server uses canonical profile fields and exposes only selec
   assert.match(server, /profile\.avatar/);
   assert.doesNotMatch(server, /profile\.avatarId/);
   assert.match(server, /loadAccountDataPayload/);
-  assert.match(server, /const snapshot = \(await loadAccountDataPayload\(db, userId\)\)\.data/);
+  assert.match(server, /const \[payload, history\] = await Promise\.all\(\[/);
+  assert.match(server, /loadAccountDataPayload\(db, userId\)/);
+  assert.match(server, /loadAccountMatchHistory\(db, userId\)/);
+  assert.match(server, /const snapshot = payload\.data/);
   assert.doesNotMatch(server, /user_data\.data_json/);
   assert.doesNotMatch(server, /LEFT JOIN user_data/);
   assert.match(contract, /deck\.visibility === "Public"/);

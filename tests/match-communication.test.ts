@@ -78,14 +78,17 @@ test("the communication layer provides docked Event Log and responsive chat draw
   assert.match(layer, /className=\{styles\.eventFilters\}\s+aria-label="Event filters"/);
   assert.doesNotMatch(layer, /aria-label="Event Log views"|styles\.eventTabs/);
   assert.match(layer, /cardEventLogEntries\(communication\.match\)/);
-  assert.match(layer, /cardArtSource\(entry\.card, "thumbnail"\)/);
+  // The Event Log deliberately keeps the shared CardArt renderer and original scan.
+  assert.match(layer, /<CardArt\s+src=\{entry\.card\.art\}/);
+  assert.match(layer, /cardType=\{entry\.card\.type\}/);
+  assert.doesNotMatch(layer, /cardArtSource\(entry\.card, "thumbnail"\)/);
   assert.match(layer, /batchStyles\.batchHex/);
   assert.match(layer, /cardEventActor\(communication\.match, entry\.playerId\)/);
   assert.match(layer, /data-local=\{entry\.playerId === actorId/);
   assert.match(layer, /matchTimeLabel\(communication\.match, entry\.at\)/);
   assert.doesNotMatch(layer, /dateTime=\{new Date\(entry\.at\)/);
   assert.match(css, /\.cardActor\s*\{/);
-  assert.match(brawlCss, /\.batchHex img[\s\S]*object-position:\s*center 28%[\s\S]*transform:\s*scale\(1\.34\)/);
+  assert.match(brawlCss, /\.batchHex img[\s\S]*object-fit:\s*cover;[\s\S]*object-position:\s*center 28%[\s\S]*transform:\s*scale\(1\.4\)/);
   assert.match(css, /\.cardEntries[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(css, /\.cardEvent[\s\S]*grid-template-columns:\s*clamp\(3\.25rem,\s*7vw,\s*4rem\)\s+minmax\(0,\s*1fr\)/);
   assert.match(css, /\.cardEvent\[data-local="false"\][\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+clamp\(3\.25rem,\s*7vw,\s*4rem\)/);

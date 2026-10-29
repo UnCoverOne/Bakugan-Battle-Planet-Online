@@ -306,6 +306,17 @@ test("Bakugan Resurgence Shun enters play without drawing and draws only after a
   assert.ok(state.batch.some((object) => object.card.id === shun.id && object.kind === "trigger"));
 
   state = resolveTopBatchObject(state);
+  assert.equal(activePendingDraw(state), null, "Shun's optional draw must not happen before confirmation");
+  assert.equal(state.pendingChoice?.schema.sourceName, "Shun Kazami");
+  const confirmation = state.pendingChoice?.schema.fields.find((field) => field.id === "confirmed");
+  assert.deepEqual(confirmation?.options.map((option) => option.id), ["yes", "no"]);
+
+  const declined = submitCardChoice(state, player.id, { confirmed: false });
+  assert.equal(activePendingDraw(declined), null);
+  assert.equal(declined.players[0].deckCards.length, 1);
+  assert.equal(declined.players[0].hand.length, 0);
+
+  state = submitCardChoice(state, player.id, { confirmed: true });
   assert.equal(activePendingDraw(state)?.sourceName, "Shun Kazami");
   state = drawPendingCard(state, player.id);
 

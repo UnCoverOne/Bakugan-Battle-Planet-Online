@@ -163,9 +163,13 @@ test("Brawl Setup memoizes legality only when needed and refreshes after catalog
   assert.match(screen, /\[decks, catalogueRevision\]/);
   assert.match(screen, /legalDecks\.includes\(current\)/);
   assert.match(screen, /\(\) => mode === "ranked"\s*\?/);
-  assert.match(screen, /\[decks, mode, rankedDeckSize, rankedRestrictions, catalogueRevision\]/);
-  assert.match(screen, /const candidates = mode === "ranked"/);
-  assert.match(screen, /candidates\.slice\(0, 3\)/);
+  assert.match(screen, /\[decks, rankedRulesReady, rankedDeckSize, rankedRestrictions, catalogueRevision\]/);
+  assert.match(screen, /rankedRulesReady = mode === "ranked" && !rankedRulesLoading && !rankedRulesError && rankedDeckSize !== null/);
+  assert.match(screen, /const competitiveDecks = useMemo\(/);
+  assert.match(screen, /const rankedDecks = useMemo\(/);
+  assert.match(screen, /competitiveDecks\.filter\(\(deck\) => rankedDeckIds\.includes\(deck\.id\)\)/);
+  assert.match(screen, /disabled=\{!checked && rankedDeckIds\.length >= 3\}/);
+  assert.match(screen, /rankedDecks\.length !== 3/);
 });
 
 test("Brawl Setup avoids touchscreen hover filters and limits off-screen mobile paint", () => {
