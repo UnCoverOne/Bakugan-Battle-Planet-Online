@@ -873,7 +873,7 @@ test("AI reserves Energy for an in-hand B-Power response that can swing the fore
   const next = advanceOpponentAi(match, ai.id);
   assert.ok(next);
   const failureDetails = next.batch.length === 0 ? undefined : (() => {
-    const { command, metrics } = chooseOpponentAiCommandWithMetrics(match, ai.id);
+    const { command, metrics, diagnostics } = chooseOpponentAiCommandWithMetrics(match, ai.id, true);
     const candidates = [shun, smokeArmor].map((card) => {
       const evaluation = evaluatePlayableCard(match, ai.id, card);
       return {
@@ -889,6 +889,7 @@ ${JSON.stringify({
       command,
       requiredPreRollScore: 0.4,
       candidates,
+      selectionPath: diagnostics,
       energyBefore: maximumPayableEnergy(match, ai.id),
       energyAfter: maximumPayableEnergy(next, ai.id),
       batchCards: next.batch.map((pending) => ({
