@@ -1318,7 +1318,7 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
         card,
         announcementText.split(/\bEmpower\s*:/i)[0].trim(),
         "announce",
-      ),
+      ).filter((candidate) => candidate.id !== "empower"),
       ...choicesForText(card, announcementText, "announce")
         .filter((candidate) => candidate.id === "empower"),
     ]
