@@ -37,6 +37,7 @@ type AdminUser = {
   roles: string[];
   protected: boolean;
   banned: boolean;
+  socialHidden: boolean;
   bannedAt?: number;
   banReason: string;
   deckCount: number;
@@ -450,7 +451,7 @@ function UserManagement() {
   }, [authUser, notify]);
   return (
     <section className={styles.section}>
-      <div className={styles.sectionHeading}><div><span>ACCOUNTS</span><h2>User Management</h2><p>Search, sort, filter, assign roles, reset saved data, ban, or remove accounts.</p></div></div>
+      <div className={styles.sectionHeading}><div><span>ACCOUNTS</span><h2>User Management</h2><p>Search, sort, filter, assign roles, control social visibility, reset saved data, ban, or remove accounts.</p></div></div>
       <Surface className={styles.userToolbar}>
         <Field label="Search users"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, email, or user ID…" /></Field>
         <Field label="Role"><select value={role} onChange={(event) => setRole(event.target.value)}><option>All</option><option value="administrator">Administrator</option><option value="moderator">Moderator</option></select></Field>
@@ -482,6 +483,7 @@ function UserManagement() {
                 ))}
               </div>
               <div className={styles.userStatus}>
+                <label className={styles.socialVisibility}><input type="checkbox" checked={user.socialHidden} disabled={protectedUser} onChange={(event) => void mutate({ action: "set-social-hidden", userId: user.id, hidden: event.target.checked }, `${user.displayName} ${event.target.checked ? "hidden from" : "visible in"} the social panel.`)} /> Hide from social panel</label>
                 <StatusChip tone={user.banned ? "danger" : "success"}>{user.banned ? "Banned" : "Active"}</StatusChip>
                 {user.banReason && <small>{user.banReason}</small>}
               </div>
