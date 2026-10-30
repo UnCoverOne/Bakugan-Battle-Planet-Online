@@ -71,3 +71,21 @@ test("server match archives preserve the opponent account association", async ()
   assert.match(replay, /opponentUserId/);
   assert.match(replay, /byPlayer\.get\(opponent\.id\)/);
 });
+
+test("offline directory and hidden-account controls are wired through the social API", async () => {
+  const [drawer, social, admin, migration, schema] = await Promise.all([
+    source("components/social/SocialProvider.tsx"),
+    source("lib/social-server.ts"),
+    source("app/api/admin/route.ts"),
+    source("migrations/0015_social_hidden_accounts.sql"),
+    source("db/schema.ts"),
+  ]);
+  assert.match(drawer, /OFFLINE BRAWLERS/);
+  assert.match(drawer, /snapshot\.offlineBrawlers/);
+  assert.match(social, /offlineBrawlers: sortSocialAccounts\(offlineBrawlers\)/);
+  assert.match(social, /hiddenIds\.has/);
+  assert.match(admin, /action === "set-social-hidden"/);
+  assert.match(admin, /requireAdministrator\(request\)/);
+  assert.match(migration, /social_hidden_accounts/);
+  assert.match(schema, /socialHiddenAccounts/);
+});
