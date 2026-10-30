@@ -45,7 +45,12 @@ type InviteRow = {
   expires_at: number;
 };
 
+export async function ensureSocialVisibilitySchema(db: AccountDatabase) {
+  await db.prepare("CREATE TABLE IF NOT EXISTS social_hidden_accounts (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, updated_at INTEGER NOT NULL)").run();
+}
+
 export async function ensureSocialSchema(db: AccountDatabase) {
+  await ensureSocialVisibilitySchema(db);
   await db.batch([
     db.prepare("CREATE TABLE IF NOT EXISTS social_relationships (user_low TEXT NOT NULL, user_high TEXT NOT NULL, requested_by TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('pending', 'accepted')), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (user_low, user_high), CHECK (user_low < user_high), CHECK (requested_by = user_low OR requested_by = user_high), FOREIGN KEY (user_low) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (user_high) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE CASCADE)"),
     db.prepare("CREATE INDEX IF NOT EXISTS social_relationships_low_status_idx ON social_relationships(user_low, status, updated_at DESC)"),
@@ -332,11 +337,14 @@ export async function buildSocialSnapshot(
       .bind(viewerId, Date.now()).all<InviteRow>(),
     activeSocialLobby(db, viewerId),
   ]);
-  const relationshipRows = relationships.results ?? [];
+  const hiddenRows = await db.prepare("SELECT user_id FROM social_hidden_accounts").all<{ user_id: string }>();
+  const hiddenIds = new Set((hiddenRows.results ?? []).map((row) => row.user_id));
+  const relationshipRows = (relationships.results ?? []).filter((row) => !hiddenIds.has(relationshipTarget(row, viewerId)));
+  const visibleInvites = (inviteRows.results ?? []).filter((row) => !hiddenIds.has(row.inviter_user_id));
   const targetIds = relationshipRows.map((row) => relationshipTarget(row, viewerId));
-  const inviterIds = (inviteRows.results ?? []).map((row) => row.inviter_user_id);
+  const inviterIds = visibleInvites.map((row) => row.inviter_user_id);
   const storedAccounts = await loadSocialAccounts(db, [...targetIds, ...inviterIds]);
-  const inviteCodes = [...new Set((inviteRows.results ?? []).map((row) => row.lobby_code))];
+  const inviteCodes = [...new Set(visibleInvites.map((row) => row.lobby_code))];
   const inviteLobbies = new Map<string, ActiveSocialLobby>();
   if (inviteCodes.length) {
     const placeholders = inviteCodes.map(() => "?").join(", ");
@@ -349,7 +357,7 @@ export async function buildSocialSnapshot(
     }
   }
   const byId = new Map<string, SocialAccountSummary>();
-  for (const account of [...storedAccounts, ...onlineAccounts]) {
+  for (const account of [...storedAccounts, ...onlineAccounts].filter((account) => !hiddenIds.has(account.userId))) {
     const existing = byId.get(account.userId);
     byId.set(account.userId, { ...(existing ?? account), ...account, online: account.online || existing?.online || false });
   }
@@ -372,13 +380,18 @@ export async function buildSocialSnapshot(
       outgoingRequests.push(decorated);
     }
   }
+  const onlineIds = new Set(onlineAccounts.map((account) => account.userId));
+  const directory = await db.prepare("SELECT users.id FROM users LEFT JOIN account_bans ON account_bans.user_id = users.id LEFT JOIN social_hidden_accounts hidden ON hidden.user_id = users.id WHERE account_bans.user_id IS NULL AND hidden.user_id IS NULL AND users.id <> ? ORDER BY users.display_name COLLATE NOCASE")
+    .bind(viewerId).all<{ id: string }>();
+  const offlineIds = (directory.results ?? []).map((row) => row.id).filter((id) => !onlineIds.has(id) && !friendIds.has(id));
+  const offlineBrawlers = (await loadSocialAccounts(db, offlineIds)).map((account) => ({ ...account, online: false, relationship: relationshipFor(relationshipRows.find((row) => relationshipTarget(row, viewerId) === account.userId) ?? null, viewerId) }));
   const onlineBrawlers = onlineAccounts
-    .filter((account) => account.userId !== viewerId && !friendIds.has(account.userId))
+    .filter((account) => account.userId !== viewerId && !friendIds.has(account.userId) && !hiddenIds.has(account.userId))
     .map((account) => {
       const row = relationshipRows.find((candidate) => relationshipTarget(candidate, viewerId) === account.userId) ?? null;
       return { ...account, online: true, relationship: relationshipFor(row, viewerId) };
     });
-  const invitations: LobbyInviteSummary[] = (inviteRows.results ?? []).flatMap((row) => {
+  const invitations: LobbyInviteSummary[] = visibleInvites.flatMap((row) => {
     const inviter = byId.get(row.inviter_user_id);
     const invitedLobby = inviteLobbies.get(row.lobby_code);
     if (!inviter || !invitedLobby) return [];
@@ -400,6 +413,7 @@ export async function buildSocialSnapshot(
     incomingRequests: sortSocialAccounts(incomingRequests),
     outgoingRequests: sortSocialAccounts(outgoingRequests),
     onlineBrawlers: sortSocialAccounts(onlineBrawlers),
+    offlineBrawlers: sortSocialAccounts(offlineBrawlers),
     invitations,
     activeLobby: lobby,
     unreadCount: incomingRequests.length + invitations.length,
