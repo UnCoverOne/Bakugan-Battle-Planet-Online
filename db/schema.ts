@@ -257,6 +257,11 @@ export const socialPreferences = sqliteTable("social_preferences", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+export const socialHiddenAccounts = sqliteTable("social_hidden_accounts", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export const adminResources = sqliteTable("admin_resources", {
   resourceType: text("resource_type").notNull(),
   resourceId: text("resource_id").notNull(),
