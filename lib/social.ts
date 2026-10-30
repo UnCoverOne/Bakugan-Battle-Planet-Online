@@ -40,6 +40,7 @@ export type SocialSnapshot = {
   incomingRequests: SocialAccountSummary[];
   outgoingRequests: SocialAccountSummary[];
   onlineBrawlers: SocialAccountSummary[];
+  offlineBrawlers: SocialAccountSummary[];
   invitations: LobbyInviteSummary[];
   activeLobby: ActiveSocialLobby | null;
   unreadCount: number;

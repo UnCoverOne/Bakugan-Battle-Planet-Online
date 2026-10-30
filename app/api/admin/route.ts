@@ -1,3 +1,4 @@
+import { ensureSocialVisibilitySchema } from "../../../lib/social-server";
 import {
   ACCOUNT_ROLES,
   ensureAdministrationSchema,
@@ -67,9 +68,10 @@ const json = (value: unknown, status = 200) => Response.json(value, {
 });
 
 async function listUsers(db: AccountDatabase) {
+  await ensureSocialVisibilitySchema(db);
   const [usersResult, rolesResult, stats] = await Promise.all([
     db.prepare(
-      "SELECT users.id, users.email, users.display_name, users.faction, users.created_at, users.updated_at, account_bans.reason AS ban_reason, account_bans.banned_at FROM users LEFT JOIN account_bans ON account_bans.user_id = users.id ORDER BY users.created_at DESC",
+      "SELECT users.id, users.email, users.display_name, users.faction, users.created_at, users.updated_at, account_bans.reason AS ban_reason, account_bans.banned_at, CASE WHEN social_hidden_accounts.user_id IS NULL THEN 0 ELSE 1 END AS social_hidden FROM users LEFT JOIN account_bans ON account_bans.user_id = users.id LEFT JOIN social_hidden_accounts ON social_hidden_accounts.user_id = users.id ORDER BY users.created_at DESC",
     ).all(),
     db.prepare("SELECT user_id, role FROM account_roles ORDER BY role").all(),
     accountDataStatsByUser(db),
@@ -98,6 +100,7 @@ async function listUsers(db: AccountDatabase) {
       roles,
       protected: Boolean(bootstrapAdministratorId && row.id === bootstrapAdministratorId),
       banned: Boolean(row.banned_at),
+      socialHidden: Boolean(row.social_hidden),
       bannedAt: row.banned_at,
       banReason: row.ban_reason ?? "",
       deckCount: accountStats.deckCount,
@@ -198,6 +201,19 @@ export async function POST(request: Request) {
       throw new ValidationError("Administrator request is not valid JSON.");
     }
     const action = String(body.action ?? "");
+
+    if (action === "set-social-hidden") {
+      const userId = String(body.userId ?? "");
+      if (typeof body.hidden !== "boolean") throw new ValidationError("Social visibility must be true or false.");
+      await assertMutableUser(db, userId);
+      await ensureSocialVisibilitySchema(db);
+      if (body.hidden) {
+        await db.prepare("INSERT INTO social_hidden_accounts (user_id, updated_at) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET updated_at = excluded.updated_at").bind(userId, Date.now()).run();
+      } else {
+        await db.prepare("DELETE FROM social_hidden_accounts WHERE user_id = ?").bind(userId).run();
+      }
+      return json({ ok: true, correlationId });
+    }
 
     if (action === "set-role") {
       const userId = String(body.userId ?? "");

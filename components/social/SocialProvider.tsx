@@ -25,6 +25,7 @@ const EMPTY_SNAPSHOT: SocialSnapshot = {
   incomingRequests: [],
   outgoingRequests: [],
   onlineBrawlers: [],
+  offlineBrawlers: [],
   invitations: [],
   activeLobby: null,
   unreadCount: 0,
@@ -322,6 +323,16 @@ export function SocialDrawer() {
               ))}
               {!snapshot.onlineBrawlers.length && <EmptyState text={loading ? "Scanning for Brawlers…" : "No other Brawlers are online right now."} />}
             </section>
+            <section aria-labelledby="social-offline-title">
+              <div className={styles.sectionHeading}>
+                <h3 id="social-offline-title">OFFLINE BRAWLERS</h3>
+                <span>{snapshot.offlineBrawlers?.length ?? 0}</span>
+              </div>
+              {(snapshot.offlineBrawlers ?? []).map((account) => (
+                <SocialRow key={account.userId} account={account} menuFor={menuFor} busy={busy} inviteEnabled={Boolean(snapshot.activeLobby)} onMenu={setMenuFor} onSelect={setSelected} onAction={run} />
+              ))}
+              {!snapshot.offlineBrawlers?.length && <EmptyState text={loading ? "Finding offline Brawlers…" : "No offline Brawlers to show."} />}
+            </section>
           </div>
         )}
         {selected && <SocialAccountPreview account={selected} onClose={() => setSelected(null)} />}
@@ -425,6 +436,7 @@ export function SocialAccountActions({ account, compact = false }: { account: So
     ...snapshot.incomingRequests,
     ...snapshot.outgoingRequests,
     ...snapshot.onlineBrawlers,
+    ...(snapshot.offlineBrawlers ?? []),
   ].find((candidate) => candidate.userId === account.userId) ?? account;
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState("");
