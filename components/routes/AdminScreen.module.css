@@ -82,3 +82,5 @@
 /* Keep Administrator content inside the usable viewport; tabs scroll internally. */
 .route{max-width:100%;min-width:0;overflow-x:clip}
 .tabs{min-width:0;max-width:100%}
+
+.socialVisibility{display:flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--text-secondary);white-space:nowrap}.socialVisibility input{accent-color:var(--brand-blue);width:1rem;height:1rem}
