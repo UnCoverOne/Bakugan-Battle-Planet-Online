@@ -121,3 +121,22 @@ test("multiple Sophies stack and opposing copies cancel their limits", () => {
   assert.equal(maximumHandSizeForPlayer(state, "first"), 6);
   assert.equal(maximumHandSizeForPlayer(state, "second"), 8);
 });
+
+test("Calloway Storm SV-103 only requests a Bakugan when its Energize trigger resolves", () => {
+  const calloway = CARDS.find((card) => card.catalogId === "sv-103");
+  assert.ok(calloway);
+  const definition = ruleDefinitionForCard(calloway);
+  assert.equal(
+    definition.play.choices.some((choice) => choice.id === "targetBakuganId"),
+    false,
+    "Playing Calloway must not demand a Bakugan target",
+  );
+  const energizeTrigger = definition.abilities.find((ability) =>
+    ability.kind === "triggered" && ability.trigger?.event === "ENERGY_CARD_ENERGIZED"
+  );
+  assert.ok(energizeTrigger, "Second Energize ability must remain a triggered ability");
+  assert.equal(energizeTrigger.trigger?.minimumEventAmount, 2);
+  assert.ok(energizeTrigger.instructions.some((instruction) =>
+    instruction.choices.some((choice) => choice.id === "targetBakuganId" && choice.timing === "resolve")
+  ), "Choose the +500 B target during trigger resolution");
+});
