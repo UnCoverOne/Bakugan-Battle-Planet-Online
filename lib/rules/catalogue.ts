@@ -1,6 +1,6 @@
 import { textFingerprint } from "../content/catalogue";
 import { CARD_CATALOGUE_VERSION, RULES_PROFILE_VERSION } from "../content/versions";
-import { CARDS } from "../data";
+import { CARDS, CARD_BY_ID } from "../data";
 import type { GameCard } from "../game";
 import type {
   AbilityDefinition,
@@ -290,8 +290,10 @@ export function authorRuleDefinitionForCard(
   };
 }
 
-const DEFINITIONS = Object.freeze(CARDS.map(definitionForCard));
-const BY_ID = new Map(DEFINITIONS.map((definition) => [definition.cardId, definition]));
+// Worker startup must not compile the entire card catalogue. Definitions are
+// deterministic and immutable; cache each canonical printing on first use.
+const BY_ID = new Map<string, RuleDefinition>();
+let DEFINITIONS: readonly RuleDefinition[] | undefined;
 
 export class UnsupportedCardTextError extends Error {
   constructor(public readonly code: "UNKNOWN_CARD_DEFINITION" | "CARD_TEXT_MISMATCH" | "UNSUPPORTED_RULE_NODE", message: string) {
@@ -301,13 +303,23 @@ export class UnsupportedCardTextError extends Error {
 }
 
 export function allRuleDefinitions(): readonly RuleDefinition[] {
-  return DEFINITIONS;
+  // Full compilation remains available for catalogue validation and tooling,
+  // but happens only when those callers explicitly request it.
+  return DEFINITIONS ??= Object.freeze(CARDS.map((card) => ruleDefinitionForCard(card)));
 }
 
 export function ruleDefinitionForCard(card: GameCard): RuleDefinition {
-  const definition = BY_ID.get(ruleCardId(card));
-  if (!definition) throw new UnsupportedCardTextError("UNKNOWN_CARD_DEFINITION", `No typed rule definition exists for ${card.catalogId || card.name}.`);
-  if (definition.sourceText !== card.effect) throw new UnsupportedCardTextError("CARD_TEXT_MISMATCH", `${card.name} does not match the reviewed rules text for ${definition.cardId}.`);
+  const cardId = ruleCardId(card);
+  const canonical = CARD_BY_ID.get(cardId);
+  if (!canonical) throw new UnsupportedCardTextError("UNKNOWN_CARD_DEFINITION", `No typed rule definition exists for ${card.catalogId || card.name}.`);
+  // Reject altered printings before caching anything. Compiling the canonical
+  // card also prevents mutable caller-provided fields from changing the rules.
+  if (canonical.effect !== card.effect) throw new UnsupportedCardTextError("CARD_TEXT_MISMATCH", `${card.name} does not match the reviewed rules text for ${cardId}.`);
+  let definition = BY_ID.get(cardId);
+  if (!definition) {
+    definition = definitionForCard(canonical);
+    BY_ID.set(cardId, definition);
+  }
   return definition;
 }
 
