@@ -59,7 +59,7 @@ export type HandDiscardRequirement = {
   minimum: number;
   maximum: number;
   optionIds: readonly string[];
-  source: "choice" | "hand-limit";
+  source: "choice" | "hand-limit" | "energize-choice";
 };
 
 /**
@@ -78,6 +78,18 @@ export function handDiscardRequirement(
     candidate.id === "discardCardIds" && candidate.chooserId === player.id
     ))
     : undefined;
+  const energizeField = !match.pendingChoice?.answers[player.id] && match.pendingChoice?.controllerId === player.id
+    ? match.pendingChoice?.schema.fields.find((candidate) => candidate.id === "handCardIds"
+      && candidate.kind === "hand-cards" && candidate.chooserId === player.id
+      && candidate.minimum === 0 && candidate.maximum === 1
+      && /Energize/i.test(candidate.label))
+    : undefined;
+  if (energizeField) return {
+    minimum: 0,
+    maximum: 1,
+    optionIds: energizeField.options.map((option) => option.id),
+    source: "energize-choice",
+  };
   if (field) return {
     minimum: field.minimum,
     maximum: field.maximum,
