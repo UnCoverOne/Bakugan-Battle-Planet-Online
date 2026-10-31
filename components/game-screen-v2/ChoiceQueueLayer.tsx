@@ -116,6 +116,7 @@ export function ChoiceQueueLayer() {
     // delegated to the other player needs a modal fallback on that player's
     // client; otherwise the private chooser transition can be visually silent.
     && (field.id !== "discardCardIds" || field.kind === "discard-pile-cards" || pending?.controllerId !== playerId)
+    && !(field.id === "handCardIds" && field.kind === "hand-cards" && pending?.controllerId === playerId && field.minimum === 0 && field.maximum === 1 && /Energize/i.test(field.label))
     && !isTopDeckField(field)
   )) ?? [], [pending, playerId]);
   const boardFields = useMemo(() => fields.filter((field) => BOARD_TARGET_KINDS.has(field.kind)), [fields]);
