@@ -221,3 +221,17 @@ test("Ventus Fort text says 'of your deck' and still compiles two uncharged deck
   assert.ok(actions.some((action) => action.kind === "energize" && action.source === "deck"
     && action.amount === 2 && action.enters === "uncharged"));
 });
+
+test("Swampugan FF-33 presents a skippable single-card hand Energize choice", () => {
+  const definition = ruleDefinitionForCard(card("ff-33"));
+  const selection = definition.abilities.flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.choices)
+    .find((choice) => choice.id === "handCardIds" && choice.timing === "resolve");
+  assert.ok(selection);
+  assert.equal(selection.minimum, 0);
+  assert.equal(selection.maximum, 1);
+  assert.equal(selection.selector, "hand-card");
+  assert.equal(definition.abilities.flatMap((ability) => ability.instructions)
+    .flatMap((instruction) => instruction.choices)
+    .some((choice) => choice.id === "confirmed"), false);
+});

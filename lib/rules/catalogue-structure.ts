@@ -994,6 +994,7 @@ if (swapsBakucore) {
     result.push(selected);
   }
   const energizeFromHand = text.match(/\benergize\s+(?:(a|an|one|two|three|\d+)\s+)?cards?\s+(?:(?:uncharged|charged)\s+)?(?:in|from)\s+(?:your|their)\s+hand\b/i);
+  let directOptionalSelection = false;
   if (energizeFromHand) {
     const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3 };
     const printed = energizeFromHand[1]?.toLowerCase();
@@ -1003,7 +1004,7 @@ if (swapsBakucore) {
     // Sequential "Then you may..." and "Then each player may..." already
     // provide a zero-or-one selection. Other optional Energize cards retain
     // their established yes/no confirmation.
-    const directOptionalSelection = /^Then\s+(?:you|each player)\s+may\s+Energize\b/i.test(text.trim());
+    directOptionalSelection = /^Then\s+(?:you|each player)\s+may\s+Energize\b/i.test(text.trim()) || cardId === "ff-33";
     const selected = choice(
       "handCardIds",
       "resolve",
@@ -1126,7 +1127,7 @@ if (swapsBakucore) {
     && !/may discard|may recharge up to/i.test(text)
     // Optional selection of a card to Energize already offers a zero-card skip.
     // Do not add a second required confirmation to the same resolution prompt.
-    && !(energizeFromHand && /^Then\s+(?:you|each player)\s+may\s+Energize\b/i.test(text.trim()))
+    && !(energizeFromHand && directOptionalSelection)
     && !/\bSync:/i.test(text)
     && !/^Empower\s*:/i.test(text)
     && !syncChoice) {

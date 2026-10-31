@@ -184,6 +184,7 @@ export function MatchHudLayer({
   const playable = playableHandCards(match, player.id);
   const selectedCard = player.hand.find((card) => card.id === selectedHandCardId);
   const discardRequirement = handDiscardRequirement(match, player.id);
+  const optionalHandEnergize = discardRequirement?.source === "energize-choice";
   const baseActions = visibleMatchHudActions({
     match,
     playerId: player.id,
@@ -209,7 +210,7 @@ export function MatchHudLayer({
     : null;
   const actionSlots = activeBoardChoice
     ? [activeBoardChoice.canCancel ? "cancel-choice" as const : null, "confirm-choice" as const]
-    : compactMatchHudSlots(actions);
+    : optionalHandEnergize ? ["discard" as const, "skip-energize" as const] : compactMatchHudSlots(actions);
   const displayedError = activeBoardChoice?.error || error;
   const fusionRequirements = fusionActivationRequirements(match, player.id, selectedCharacterId)
     .filter((requirement) => requirement.legal);
@@ -354,6 +355,7 @@ export function MatchHudLayer({
         ? `Discard ${selectedDiscardCardIds.length}/${discardRequirement.maximum}`
         : "Discard",
       active: Boolean(discardRequirement
+        && (!optionalHandEnergize || selectedDiscardCardIds.length > 0)
         && selectedDiscardCardIds.length >= discardRequirement.minimum
         && selectedDiscardCardIds.length <= discardRequirement.maximum),
       onClick: discardSelectedCards,
@@ -371,9 +373,11 @@ export function MatchHudLayer({
       onClick: energizeSelectedCard,
     },
     "skip-energize": {
-      label: "Skip Energizing",
+      label: optionalHandEnergize ? "Skip" : "Skip Energizing",
       active: false,
-      onClick: () => void run(onSkipEnergize),
+      onClick: optionalHandEnergize
+        ? () => void run(() => onDiscardCards([]))
+        : () => void run(onSkipEnergize),
     },
     "pass-turn": {
       label: match.pendingEffectPlay?.controllerId === player.id
