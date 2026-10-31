@@ -12,7 +12,6 @@ import {
 import { createPortal } from "react-dom";
 import type { GameCard, MatchState } from "../../lib/game";
 import { CardArt } from "../cards/CardArt";
-import { prepareAnimationAssets } from "./animationStability";
 import { drawTransitions } from "./drawAnimationState";
 import styles from "./DrawAnimationLayer.module.css";
 import { useMatchSelector } from "./matchStore";
@@ -190,59 +189,46 @@ export function DrawAnimationLayer({
 
     if (!pending.length) return;
     window.dispatchEvent(new Event("bbp-card-preview-clear"));
-    let cancelled = false;
-    let measureFrame = 0;
-    let startFrame = 0;
 
-    void prepareAnimationAssets([
-      CARD_BACK_ART,
-      ...pending.map((item) => item.card?.art),
-    ]).then(() => {
-      if (cancelled || !mounted.current) return;
-      measureFrame = window.requestAnimationFrame(() => {
-        if (cancelled || !mounted.current) return;
-        const measured: Array<{ flight: DrawFlight; target: HTMLElement }> = [];
-        for (const item of pending) {
-          const start = cardRect(item.source);
-          const end = cardRect(item.target);
-          if (!start || !end) continue;
-          measured.push({
-            target: item.target,
-            flight: {
-              id: item.id,
-              owner: item.owner,
-              card: item.card,
-              left: start.left,
-              top: start.top,
-              width: start.width,
-              height: start.height,
-              deltaX: end.left - start.left,
-              deltaY: end.top - start.top,
-              scaleX: end.width / start.width,
-              scaleY: end.height / start.height,
-              delay: item.delay,
-              phase: "prepared",
-            },
-          });
-        }
-        if (!measured.length) return;
-        setFlights((current) => [...current, ...measured.map((item) => item.flight)]);
-        startFrame = window.requestAnimationFrame(() => {
-          if (cancelled || !mounted.current) return;
-          for (const item of measured) hideTarget(item.flight.id, item.target);
-          const ids = new Set(measured.map((item) => item.flight.id));
-          setFlights((current) => current.map((flight) => (
-            ids.has(flight.id) ? { ...flight, phase: "running" } : flight
-          )));
-        });
-      });
+    // The hand already contains the newly drawn cards at this point. Measure
+    // and hide every destination during the layout effect, before paint, rather
+    // than awaiting artwork decoding (which could let cards flash into view or
+    // be cancelled by a subsequent match snapshot).
+    const measured: DrawFlight[] = [];
+    for (const item of pending) {
+      const start = cardRect(item.source);
+      const end = cardRect(item.target);
+      if (!start || !end) continue;
+      const flight: DrawFlight = {
+        id: item.id,
+        owner: item.owner,
+        card: item.card,
+        left: start.left,
+        top: start.top,
+        width: start.width,
+        height: start.height,
+        deltaX: end.left - start.left,
+        deltaY: end.top - start.top,
+        scaleX: end.width / start.width,
+        scaleY: end.height / start.height,
+        delay: item.delay,
+        phase: "prepared",
+      };
+      hideTarget(flight.id, item.target);
+      measured.push(flight);
+    }
+    if (!measured.length) return;
+
+    setFlights((current) => [...current, ...measured]);
+    const ids = new Set(measured.map((flight) => flight.id));
+    // Do not cancel this frame when another match update arrives: successive
+    // draw events must each be allowed to complete their own flights.
+    window.requestAnimationFrame(() => {
+      if (!mounted.current) return;
+      setFlights((current) => current.map((flight) => (
+        ids.has(flight.id) ? { ...flight, phase: "running" } : flight
+      )));
     });
-
-    return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(measureFrame);
-      window.cancelAnimationFrame(startFrame);
-    };
   }, [rate, stored.active, stored.match, stored.playerId]);
 
   const resolvedPortalRoot = portalRoot ?? (typeof document === "undefined" ? null : document.body);
