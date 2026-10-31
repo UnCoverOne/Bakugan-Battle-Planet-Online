@@ -673,6 +673,10 @@ export function GameplayClient() {
   const discardSelectedCards = (cardIds: string[]) => {
     const current = readMatchStore();
     const actorId = current.playerId ?? current.match?.players[0]?.id;
+    const requirement = handDiscardRequirement(current.match, actorId);
+    if (requirement?.source === "energize-choice") {
+      return submitMatchAction("choice", { choices: { handCardIds: cardIds } });
+    }
     const pendingDiscard = current.match?.pendingChoice?.schema.fields.some((field) => (
       field.id === "discardCardIds" && field.chooserId === actorId
     ));
