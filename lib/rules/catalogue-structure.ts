@@ -1322,7 +1322,10 @@ export function playDefinitionForCard(card: GameCard): CardPlayDefinition {
       ...choicesForText(card, announcementText, "announce")
         .filter((candidate) => candidate.id === "empower"),
     ]
-    : choicesForText(card, announcementText, "announce");
+    : choicesForText(card, announcementText, "announce")
+      // Calloway's Bakugan bonus is chosen when the second Energize event
+      // triggers, not when the Hero is initially played.
+      .filter((selected) => cardId !== "sv-103" || selected.id !== "targetBakuganId");
   // A player choice after a Draw is a resolution decision, not an
   // announcement requirement. This also matters for damage-revealed Flips,
   // whose play pipeline does stage announcement choices before the Batch.
