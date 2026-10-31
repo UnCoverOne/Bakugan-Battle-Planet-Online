@@ -93,3 +93,23 @@ test("completion remains on the gameplay route until the player presses Exit", (
   assert.match(shell, /accountStatMatches\(history\)/);
   assert.match(profile, /const completedGames = accountStatMatches\(history\)/);
 });
+
+
+test("match result dismissal is consistent across completed games and series intermissions", () => {
+  const coordinator = readFileSync(
+    new URL("../components/game-screen-v2/MatchStateCoordinator.tsx", import.meta.url),
+    "utf8",
+  );
+  const dialog = coordinator.slice(
+    coordinator.indexOf("function MatchResultDialog("),
+    coordinator.indexOf("export function writeCoordinatedMatch("),
+  );
+
+  assert.match(dialog, /aria-label="Close match result"/);
+  assert.match(dialog, /className=\{styles\.closeAction\}[\s\S]*?onClick=\{onDismiss\}/);
+  assert.doesNotMatch(dialog, /\{complete \? \(\s*<button[\s\S]*?className=\{styles\.closeAction\}/);
+  assert.match(dialog, /if \(event\.key !== "Escape"\) return;[\s\S]*?onDismiss\(\)/);
+  assert.match(dialog, /addEventListener\("keydown", dismissOnEscape, true\)/);
+  assert.doesNotMatch(dialog, /if \(!acknowledged\) onContinue\(\)/);
+  assert.match(dialog, /onClick=\{onContinue\}/);
+});
