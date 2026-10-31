@@ -171,18 +171,15 @@ function MatchResultDialog({
 
   useEffect(() => {
     primaryButtonRef.current?.focus();
-    const continueOnEscape = (event: KeyboardEvent) => {
+    const dismissOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
-      if (complete) {
-        onDismiss();
-        return;
-      }
-      if (!acknowledged) onContinue();
+      event.stopImmediatePropagation();
+      onDismiss();
     };
-    window.addEventListener("keydown", continueOnEscape);
-    return () => window.removeEventListener("keydown", continueOnEscape);
-  }, [acknowledged, complete, onContinue, onDismiss]);
+    window.addEventListener("keydown", dismissOnEscape, true);
+    return () => window.removeEventListener("keydown", dismissOnEscape, true);
+  }, [onDismiss]);
 
   return (
     <div
@@ -199,16 +196,14 @@ function MatchResultDialog({
         aria-describedby="match-result-description"
       >
         <span className={styles.energyTrace} aria-hidden="true" />
-        {complete ? (
-          <button
-            type="button"
-            className={styles.closeAction}
-            aria-label="Close match complete window"
-            onClick={onDismiss}
-          >
-            ×
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className={styles.closeAction}
+          aria-label="Close match result"
+          onClick={onDismiss}
+        >
+          ×
+        </button>
         <header className={styles.header}>
           <OriginalImage className={styles.logo} src="/assets/logo.png" alt="" aria-hidden="true" />
           <span className={styles.eyebrow}>{eyebrow}</span>
