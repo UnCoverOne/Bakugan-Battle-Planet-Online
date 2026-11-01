@@ -4942,8 +4942,34 @@ export const startNextSeriesGame = (input: MatchState) => {
   for (const player of state.players) {
     const attachedCards = player.bakugan.flatMap((bakugan) => [...bakugan.evoStack, ...(bakugan.bakuGear ?? [])]);
     const all = [...player.deckCards, ...player.hand, ...player.discard, ...player.energyZone, ...player.heroes, ...attachedCards];
-    player.deckCards = all.filter((card) => card.type !== "Character"); shuffle(player.deckCards); player.hand = []; player.discard = []; player.energyZone = []; player.heroes = [];
-    player.energy = 0; player.unchargedEnergyIds = []; player.energyRechargeLocks = {}; player.tappedEnergyIds = []; player.energyTapTurn = state.turn; player.ready = true; player.bakugan.forEach((bakugan) => { bakugan.open = false; bakugan.heldCoreCells = []; bakugan.evoStack = []; bakugan.bakuGear = []; bakugan.fused = false; });
+    player.deckCards = all.filter((card) => card.type !== "Character");
+    shuffle(player.deckCards);
+    player.hand = [];
+    player.discard = [];
+    player.energyZone = [];
+    player.heroes = [];
+    player.energy = 0;
+    player.unchargedEnergyIds = [];
+    player.energyRechargeLocks = {};
+    player.tappedEnergyIds = [];
+    player.energyTapTurn = state.turn;
+    player.ready = true;
+    player.energizedThisTurn = false;
+    player.energizeStepActionsThisTurn = 0;
+    player.energizedCardCountThisTurn = 0;
+    player.cardsPlayedThisTurn = 0;
+    player.playedCardCostsThisTurn = [];
+    player.playedCardTypesThisTurn = [];
+    player.playedCardMechanicsThisTurn = [];
+    player.factionsPlayedThisTurn = [];
+    player.discardedCardIdsThisTurn = [];
+    player.bakugan.forEach((bakugan) => {
+      bakugan.open = false;
+      bakugan.heldCoreCells = [];
+      bakugan.evoStack = [];
+      bakugan.bakuGear = [];
+      bakugan.fused = false;
+    });
     drawCards(state, player, 5);
   }
   setPhase(state, "startingPlayer", `Game ${state.gameNumber} • Selecting the first BakuCore player`, selected.id);
