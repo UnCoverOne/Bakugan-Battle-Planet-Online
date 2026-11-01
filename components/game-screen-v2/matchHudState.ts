@@ -62,6 +62,12 @@ export type HandDiscardRequirement = {
   source: "choice" | "hand-limit" | "energize-choice";
 };
 
+/** Label shared hand selection according to the actual pending effect. */
+export function handChoiceActionLabel(requirement: HandDiscardRequirement | null, selectedCount: number) {
+  const verb = requirement?.source === "energize-choice" ? "Energize" : "Discard";
+  return requirement ? `${verb} ${selectedCount}/${requirement.maximum}` : verb;
+}
+
 /**
  * Describes every discard that is currently owned by the local player's hand.
  * Resolution/payment/forced discards share the typed choice schema; the hand

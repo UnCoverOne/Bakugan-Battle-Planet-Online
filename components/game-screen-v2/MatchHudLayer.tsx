@@ -7,6 +7,7 @@ import { drawStepIsPending } from "../../lib/turnStart";
 import {
   compactMatchHudSlots,
   handDiscardRequirement,
+  handChoiceActionLabel,
   handCardIsActionable,
   matchRoundTarget,
   playableHandCards,
@@ -266,7 +267,7 @@ export function MatchHudLayer({
       const expected = discardRequirement.minimum === discardRequirement.maximum
         ? `exactly ${discardRequirement.minimum}`
         : `${discardRequirement.minimum}–${discardRequirement.maximum}`;
-      setError(`Select ${expected} card${discardRequirement.maximum === 1 ? "" : "s"} from your hand, then press Discard.`);
+      setError(`Select ${expected} card${discardRequirement.maximum === 1 ? "" : "s"} from your hand, then press ${optionalHandEnergize ? "Energize" : "Discard"}.`);
       return;
     }
     void run(() => onDiscardCards(legalIds));
@@ -351,9 +352,7 @@ export function MatchHudLayer({
       onClick: activateSelectedFusion,
     },
     discard: {
-      label: discardRequirement
-        ? `Discard ${selectedDiscardCardIds.length}/${discardRequirement.maximum}`
-        : "Discard",
+      label: handChoiceActionLabel(discardRequirement, selectedDiscardCardIds.length),
       active: Boolean(discardRequirement
         && (!optionalHandEnergize || selectedDiscardCardIds.length > 0)
         && selectedDiscardCardIds.length >= discardRequirement.minimum

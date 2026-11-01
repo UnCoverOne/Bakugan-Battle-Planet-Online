@@ -15,6 +15,7 @@ import {
   compactMatchHudSlots,
   defaultCardChoices,
   handCardIsActionable,
+  handChoiceActionLabel,
   matchRoundTarget,
   playableHandCards,
   playerHasLegalPriorityAction,
@@ -370,4 +371,13 @@ test("legal Evos receive a matching Character default and still expose Select wh
 
   const choices = defaultCardChoices(match, player.id, player.hand[0]);
   assert.equal(choices.targetBakuganId, legalTarget.id);
+});
+
+test("hand-choice action labels distinguish optional Energize from genuine discards", () => {
+  const selection = { minimum: 0, maximum: 1, optionIds: ["card-a"], source: "energize-choice" as const };
+  assert.equal(handChoiceActionLabel(selection, 0), "Energize 0/1");
+  assert.equal(handChoiceActionLabel(selection, 1), "Energize 1/1");
+  assert.equal(handChoiceActionLabel({ ...selection, source: "choice" }, 1), "Discard 1/1");
+  assert.equal(handChoiceActionLabel({ ...selection, source: "hand-limit", minimum: 2, maximum: 2 }, 2), "Discard 2/2");
+  assert.equal(handChoiceActionLabel(null, 0), "Discard");
 });
