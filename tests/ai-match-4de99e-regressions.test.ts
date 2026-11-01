@@ -254,3 +254,20 @@ test("4DE99E: Game 1 temporary rules must not leak into either Game 2 entry path
     assert.deepEqual(next.rules?.triggerUsage ?? {}, {}, "stale once-per-game trigger usage");
   }
 });
+
+
+test("secret simultaneous roll targets cannot affect the AI's own initial target ranking", () => {
+  const { match, ai } = rollCase(1);
+  const humanId = match.players[0].id;
+  const rankings = ["h3-4", "h2-3"].map((opponentSecretTarget) => {
+    const state = structuredClone(match);
+    state.targets[humanId] = opponentSecretTarget;
+    return bestAiRollTarget(state, ai.id)?.cell;
+  });
+  assert.ok(rankings.every(Boolean));
+  assert.equal(
+    rankings[0],
+    rankings[1],
+    `Opponent's undisclosed target must not affect AI decision: ${JSON.stringify(rankings)}`,
+  );
+});
