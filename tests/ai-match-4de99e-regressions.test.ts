@@ -62,7 +62,14 @@ function core(
   };
 }
 
-const board = [
+const board: Array<[
+  cell: string,
+  type: Core["type"],
+  bonus: number,
+  damageBonus: number,
+  conditionalFactions?: Faction[],
+  conditionalBonus?: number,
+]> = [
   ["h3-3", "Fist", 150, 2],
   ["h3-2", "Shield", 0, 0, ["Aquos", "Ventus"], 400],
   ["h3-4", "Magic Shield", 650, 0],
@@ -75,7 +82,7 @@ const board = [
   ["h1-2", "Flaming Fist", 0, 6],
   ["h2-0", "Shield", 0, 0, ["Haos", "Pyrus"], 400],
   ["h1-1", "Flaming Fist", 250, 3],
-] as const;
+];
 
 function rollCase(turn: 1 | 2) {
   const human = makePlayer("human", "Human", STARTER_DECKS[0]);
