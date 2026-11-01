@@ -276,7 +276,11 @@ function rankedForecasts(
   const opponentBakugan = opponent?.bakugan.find(
     (candidate) => candidate.id === match.selected[opponent.id],
   );
-  const opponentTarget = opponent && match.targets[opponent.id]
+  // Initial targets are chosen simultaneously and secretly. The engine
+  // holds both players' targets, but the AI must not use the opponent's
+  // unrevealed selection to alter its own ranking. Rerolls can still consider
+  // a target when it is available in their distinct game phase.
+  const opponentTarget = match.phase !== "target" && opponent && match.targets[opponent.id]
     ? match.placements.find((placement) => placement.cell === match.targets[opponent.id])
     : undefined;
   const opponentForecast = objective === "development" && opponent && opponentBakugan && opponentTarget

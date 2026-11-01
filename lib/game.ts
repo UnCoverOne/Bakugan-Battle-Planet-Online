@@ -21,7 +21,7 @@ import { evaluateNumberValue, type EvaluationMoment, type NumberValue } from "./
 import { captureCardPlayValues, captureInstructionValues, captureRuleConditionValues } from "./rules/value-capture";
 import { beginRuleObjectResolution, completeRuleObject, copyRuleObject, createRuleObject, negateRuleObject } from "./rules/objects";
 import { applyReplacements, registerReplacement } from "./rules/replacements";
-import { ensureRulesState, isRuleObject, normalizeRuleObjects } from "./rules/state";
+import { ensureRulesState, isRuleObject, normalizeRuleObjects, resetRulesStateForNextGame } from "./rules/state";
 import type { AbilityDefinition, ContinuousModifier, PendingCardPlay, RuleActionResult, RuleCondition, RulesCardId } from "./rules/model";
 import { collectRuleTriggers, emitRuleEvent } from "./rules/triggers";
 import { effectiveBakuganFactions, effectiveBakucoreCells, effectiveCardFactions } from "./rules/derived-characteristics";
@@ -4795,6 +4795,44 @@ export const nextTurn = (input: MatchState) => {
   throw new Error("The turn advances through priority and the End Phase.");
 };
 
+/** Clear runtime-only effects when advancing a series. The deck and series
+ * score survive, but no game-scoped rules or transient combat state may. */
+function resetSeriesGameTransientState(state: MatchState) {
+  resetRulesStateForNextGame(state);
+  state.coinFlipResults = {};
+  state.pendingCoinFlip = undefined;
+  state.collectedEventKeys = [];
+  state.victorByDamage = false;
+  state.powerBoost = {};
+  state.damageBoost = {};
+  state.frostStrike = {};
+  state.doubleStrike = {};
+  state.shadowStrike = {};
+  state.pendingEffectPlay = undefined;
+  state.pendingChoice = undefined;
+  state.revealedFlip = undefined;
+  state.passes = [];
+  state.triggerOrders = [];
+  state.drawPreparedTurn = undefined;
+  state.drawReadyAt = undefined;
+  state.drawDeadline = undefined;
+  state.drawnPlayerIds = undefined;
+  state.drawRemainingByPlayer = undefined;
+  state.damageFaction = undefined;
+  state.resultAcknowledgedBy = [];
+  state.undoWindow = undefined;
+  state.pendingDamage = 0;
+  state.pendingLoser = "";
+  state.damageOrigin = "";
+  state.teamAttack = false;
+  state.pendingBrawlRetracts = [];
+  state.delayedRetracts = [];
+  state.copyNextAction = {};
+  state.brawlWinner = "";
+  state.winner = "";
+  state.resultReason = "";
+}
+
 export const prepareNextSeriesGameLobby = (input: MatchState) => {
   const state = cloneMatch(input);
   const needed = state.format === "bo3" ? 2 : 1;
@@ -4845,6 +4883,7 @@ export const prepareNextSeriesGameLobby = (input: MatchState) => {
   state.winner = "";
   state.resultReason = "";
   state.undoWindow = undefined;
+  resetSeriesGameTransientState(state);
 
   for (const player of state.players) {
     const attachedCards = player.bakugan.flatMap((bakugan) => [...bakugan.evoStack, ...(bakugan.bakuGear ?? [])]);
@@ -4899,11 +4938,38 @@ export const startNextSeriesGame = (input: MatchState) => {
   const selected = state.players[secureRandomInt(state.players.length)];
   state.startingPlayer = selected.id; state.initialStartingPlayer = selected.id; state.priority = selected.id;
   state.startingPlayerRevealedAt = Date.now() + 2_500; state.brawlWinner = ""; state.winner = ""; state.resultReason = "";
+  resetSeriesGameTransientState(state);
   for (const player of state.players) {
     const attachedCards = player.bakugan.flatMap((bakugan) => [...bakugan.evoStack, ...(bakugan.bakuGear ?? [])]);
     const all = [...player.deckCards, ...player.hand, ...player.discard, ...player.energyZone, ...player.heroes, ...attachedCards];
-    player.deckCards = all.filter((card) => card.type !== "Character"); shuffle(player.deckCards); player.hand = []; player.discard = []; player.energyZone = []; player.heroes = [];
-    player.energy = 0; player.unchargedEnergyIds = []; player.energyRechargeLocks = {}; player.tappedEnergyIds = []; player.energyTapTurn = state.turn; player.ready = true; player.bakugan.forEach((bakugan) => { bakugan.open = false; bakugan.heldCoreCells = []; bakugan.evoStack = []; bakugan.bakuGear = []; bakugan.fused = false; });
+    player.deckCards = all.filter((card) => card.type !== "Character");
+    shuffle(player.deckCards);
+    player.hand = [];
+    player.discard = [];
+    player.energyZone = [];
+    player.heroes = [];
+    player.energy = 0;
+    player.unchargedEnergyIds = [];
+    player.energyRechargeLocks = {};
+    player.tappedEnergyIds = [];
+    player.energyTapTurn = state.turn;
+    player.ready = true;
+    player.energizedThisTurn = false;
+    player.energizeStepActionsThisTurn = 0;
+    player.energizedCardCountThisTurn = 0;
+    player.cardsPlayedThisTurn = 0;
+    player.playedCardCostsThisTurn = [];
+    player.playedCardTypesThisTurn = [];
+    player.playedCardMechanicsThisTurn = [];
+    player.factionsPlayedThisTurn = [];
+    player.discardedCardIdsThisTurn = [];
+    player.bakugan.forEach((bakugan) => {
+      bakugan.open = false;
+      bakugan.heldCoreCells = [];
+      bakugan.evoStack = [];
+      bakugan.bakuGear = [];
+      bakugan.fused = false;
+    });
     drawCards(state, player, 5);
   }
   setPhase(state, "startingPlayer", `Game ${state.gameNumber} • Selecting the first BakuCore player`, selected.id);

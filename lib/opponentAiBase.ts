@@ -2026,11 +2026,16 @@ function energyCandidateTier(
   analysis: EnergyCardAnalysis,
   capacity: number,
 ) {
+  // Stranded Flips and genuinely redundant Evos are expendable before
+  // ordinary Actions. A zero projected play likelihood alone does not make
+  // an Action equivalent to a Flip, since its value may return next turn.
   if (
-    (analysis.card.type === "Flip" || analysis.card.type === "Flip Hero")
+    analysis.card.type === "Flip"
+    || analysis.card.type === "Flip Hero"
     || analysis.card.type === "Character"
-    || analysis.playLikelihood <= 0
+    || (analysis.card.type === "Evo" && analysis.playLikelihood <= 0)
   ) return 0;
+  if (analysis.playLikelihood <= 0) return 1;
   const player = playerById(match, playerId)!;
   const copies = player.hand.filter((card) => (
     card.catalogId === analysis.card.catalogId
