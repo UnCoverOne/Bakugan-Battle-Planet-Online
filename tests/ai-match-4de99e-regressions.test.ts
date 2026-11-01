@@ -17,7 +17,7 @@ import { decideOpponentAiWorkerRequest } from "../lib/opponentAiWorkerProtocol";
 import { evaluateBakuganCharacteristics } from "../lib/rules/modifiers";
 import { ensureRulesState } from "../lib/rules/state";
 
-// Known engine defects are executable TODO tests until the implementation is fixed.
+// Regressions for the original Training AI and best-of-three defects.
 // Compact, non-identifying reconstructions of match 4DE99E (game 2).
 // No player's exported deck, account identifiers, or complete match history is stored.
 function card(catalogId: string, id: string): GameCard {
@@ -188,7 +188,7 @@ test("4DE99E: core and Aquos Cubbo's printed bonus are both evaluated", () => {
   assert.equal(stats("h3-4"), 1350);
 });
 
-test.todo("4DE99E: zero-play-likelihood Wane must not outrank stranded Flips for Energize", () => {
+test("4DE99E: zero-play-likelihood Wane must not outrank stranded Flips for Energize", () => {
   const ai = makePlayer("training-bot", "Training AI", STARTER_DECKS[0]);
   const human = makePlayer("human", "Human", STARTER_DECKS[1]);
   ai.bakugan[0] = bakugan("br-167", "br-167-training-bot");
@@ -227,7 +227,7 @@ test.todo("4DE99E: zero-play-likelihood Wane must not outrank stranded Flips for
 });
 
 
-test.todo("4DE99E: Game 1 temporary rules must not leak into either Game 2 entry path", () => {
+test("4DE99E: Game 1 temporary rules must not leak into either Game 2 entry path", () => {
   const human = makePlayer("human", "Human", STARTER_DECKS[0]);
   const ai = makePlayer("training-bot", "Training AI", STARTER_DECKS[1]);
   const match = createMatch("AI-4DE99E-SERIES", "bo3", [human, ai]);
@@ -257,7 +257,7 @@ test.todo("4DE99E: Game 1 temporary rules must not leak into either Game 2 entry
 });
 
 
-test.todo("secret simultaneous roll targets cannot affect the AI's own initial target ranking", () => {
+test("secret simultaneous roll targets cannot affect the AI's own initial target ranking", () => {
   const { match, ai } = rollCase(1);
   const humanId = match.players[0].id;
   const rankings = ["h3-4", "h2-3"].map((opponentSecretTarget) => {
