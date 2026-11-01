@@ -36,6 +36,14 @@ export function ensureRulesState(input: MatchState): RulesState {
   return state.rules;
 }
 
+/** Start each game of a series with a clean rules runtime, not the previous
+ * game's temporary modifiers, payments, delayed triggers or usage counters. */
+export function resetRulesStateForNextGame(input: MatchState): void {
+  const state = input as RulesBackedMatchState;
+  delete state.rules;
+  ensureRulesState(input);
+}
+
 export function isRuleObject(value: unknown): value is RuleObject {
   if (!value || typeof value !== "object") return false;
   const object = value as Partial<RuleObject>;
