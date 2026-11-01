@@ -2026,11 +2026,15 @@ function energyCandidateTier(
   analysis: EnergyCardAnalysis,
   capacity: number,
 ) {
+  // A Flip stranded in hand cannot be played normally, so it is always
+  // preferred as Energy fodder over an Action whose current projected play
+  // likelihood merely happens to be zero.
   if (
-    (analysis.card.type === "Flip" || analysis.card.type === "Flip Hero")
+    analysis.card.type === "Flip"
+    || analysis.card.type === "Flip Hero"
     || analysis.card.type === "Character"
-    || analysis.playLikelihood <= 0
   ) return 0;
+  if (analysis.playLikelihood <= 0) return 1;
   const player = playerById(match, playerId)!;
   const copies = player.hand.filter((card) => (
     card.catalogId === analysis.card.catalogId
