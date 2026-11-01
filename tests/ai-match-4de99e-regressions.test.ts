@@ -3,6 +3,8 @@ import test from "node:test";
 import { CARDS, STARTER_DECKS, makePlayer } from "../lib/data";
 import {
   createMatch,
+  prepareNextSeriesGameLobby,
+  startNextSeriesGame,
   type Bakugan,
   type Core,
   type Faction,
@@ -13,6 +15,7 @@ import { bestAiRollTarget, forecastAiRoll } from "../lib/aiRollForecast";
 import { planOpponentEnergize } from "../lib/opponentAiBase";
 import { decideOpponentAiWorkerRequest } from "../lib/opponentAiWorkerProtocol";
 import { evaluateBakuganCharacteristics } from "../lib/rules/modifiers";
+import { ensureRulesState } from "../lib/rules/state";
 
 // Compact, non-identifying reconstructions of match 4DE99E (game 2).
 // No player's exported deck, account identifiers, or complete match history is stored.
@@ -220,4 +223,34 @@ test("4DE99E: zero-play-likelihood Wane must not outrank stranded Flips for Ener
   assert.ok(waneInfo && rockInfo);
   // Card category must precede numerical opportunity cost or identical tiers.
   assert.ok(rockInfo.tier <= waneInfo.tier);
+});
+
+
+test("4DE99E: Game 1 temporary rules must not leak into either Game 2 entry path", () => {
+  const human = makePlayer("human", "Human", STARTER_DECKS[0]);
+  const ai = makePlayer("training-bot", "Training AI", STARTER_DECKS[1]);
+  const match = createMatch("AI-4DE99E-SERIES", "bo3", [human, ai]);
+  match.gameNumber = 1;
+  match.turn = 5;
+  match.phase = "result";
+  match.winner = human.id;
+  match.series[human.id] = 1;
+  const rules = ensureRulesState(match);
+  rules.modifiers.push({ id: "previous-game-temporary-effect" } as never);
+  rules.costModifiers.push({ id: "previous-game-cost-effect" } as never);
+  rules.delayedCardTriggers.push({ id: "previous-game-trigger" } as never);
+  rules.scheduledActions.push({ id: "previous-game-scheduled-action" } as never);
+  rules.triggerUsage["previous-game-trigger"] = 1 as never;
+
+  for (const next of [
+    prepareNextSeriesGameLobby(match),
+    startNextSeriesGame(match),
+  ]) {
+    assert.equal(next.gameNumber, 2);
+    assert.equal(next.rules?.modifiers.length ?? 0, 0, "stale continuous modifiers");
+    assert.equal(next.rules?.costModifiers.length ?? 0, 0, "stale cost modifiers");
+    assert.equal(next.rules?.delayedCardTriggers.length ?? 0, 0, "stale trigger queue");
+    assert.equal(next.rules?.scheduledActions.length ?? 0, 0, "stale scheduled effects");
+    assert.deepEqual(next.rules?.triggerUsage ?? {}, {}, "stale once-per-game trigger usage");
+  }
 });
