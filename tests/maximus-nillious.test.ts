@@ -118,3 +118,50 @@ test("Maximus Nillious does not return when it was not played for free this turn
   });
   assert.equal(triggers.some((object) => object.card.id === maximus.id), false);
 });
+
+test("Titan Haos Nillious only triggers its extra core attachment while holding a Magic Shield", () => {
+  const owner = makePlayer("nillious-owner", "Nillious Owner", STARTER_DECKS[0]);
+  const opponent = makePlayer("nillious-opponent", "Opponent", STARTER_DECKS[1]);
+  const state = createMatch("NILLIOUSMS", "bo1", [owner, opponent]);
+  const nillious = card("bb-257", "titan-haos-nillious");
+  const source = owner.bakugan[0];
+  source.character = nillious;
+  source.name = nillious.displayName;
+  source.faction = nillious.faction;
+  source.evoStack = [];
+  source.open = true;
+  source.heldCoreCells = [];
+  state.selected[owner.id] = source.id;
+
+  const ability = ruleDefinitionForCard(nillious).abilities.find((item) =>
+    item.trigger?.event === "BAKUGAN_OPENED"
+    && item.instructions.some((instruction) => /attach an additional BakuCore/i.test(instruction.sourceText))
+  );
+  assert.ok(ability, "the optional attachment must remain an opening trigger");
+  assert.deepEqual(ability.trigger?.interveningCondition, {
+    kind: "held-core-type",
+    coreTypes: ["Magic Shield"],
+    subject: "target",
+  });
+
+  const open = (id: string) => emitRuleEvent(state, {
+    id,
+    name: "BAKUGAN_OPENED",
+    actorId: owner.id,
+    controllerId: owner.id,
+    targetBakuganId: source.id,
+    createdAt: 0,
+  }).filter((object) => object.card.id === nillious.id);
+
+  assert.equal(open("nillious-no-core").length, 0, "a contested open-no-core must not grant an attachment");
+
+  const placement = state.placements.find((item) => item.core?.type === "Flaming Fist");
+  assert.ok(placement, "fixture should contain a Flaming Fist");
+  source.heldCoreCells = [placement.cell];
+  assert.equal(open("nillious-flaming-fist").length, 0, "Flaming Fist is not Magic Shield");
+
+  const magicShield = state.placements.find((item) => item.core?.type === "Magic Shield");
+  assert.ok(magicShield, "fixture should contain a Magic Shield");
+  source.heldCoreCells = [magicShield.cell];
+  assert.equal(open("nillious-magic-shield").length, 1, "Magic Shield should allow the optional attachment");
+});

@@ -253,6 +253,28 @@ function definitionForCard(card: GameCard, useReviewedNormalizations = true): Ru
   const rawAbilities = normalizeRevealedHandWorkflows(enhanceDeckInspectionAbilities(rulesCard, abilityDefinitionsForCard(rulesCard)));
   const rawPlay = enhanceDeckInspectionPlayDefinition(rulesCard, playDefinitionForCard(rulesCard));
   const normalized = normalizeSingularNonFactionTargets(rulesCard, rawPlay, rawAbilities);
+  // Titan Haos Nillious's extra attachment is an opening trigger, but the
+  // printed [MS] requirement gates that trigger as well as its +200 B bonus.
+  // The reviewed punctuation normalization preserves timing; restore the
+  // Magic Shield condition on the trigger itself.
+  if (useReviewedNormalizations && ruleCardId(card) === "bb-257") {
+    normalized.abilities = normalized.abilities.map((ability) => (
+      ability.trigger?.event === "BAKUGAN_OPENED"
+        && ability.instructions.some((instruction) => /attach an additional BakuCore/i.test(instruction.sourceText))
+        ? {
+          ...ability,
+          trigger: {
+            ...ability.trigger,
+            interveningCondition: {
+              kind: "held-core-type" as const,
+              coreTypes: ["Magic Shield" as const],
+              subject: "target" as const,
+            },
+          },
+        }
+        : ability
+    ));
+  }
   return {
     cardId: ruleCardId(card),
     printingId: ruleCardId(card),
