@@ -27,21 +27,22 @@ const guestSnapshot = (overrides: Partial<UserSnapshot> = {}) => ({
   ...overrides,
 }) as Pick<UserSnapshot, "profile" | "decks" | "history" | "settings" | "builderDeck" | "match">;
 
-test("the root route is guest-first Home with no authentication landing page", () => {
+test("the root route stays an intentionally blank rebuild canvas without changing other routes", () => {
   const root = source("app/page.tsx");
   const shell = source("components/application/AppShell.jsx");
-  assert.match(root, /HomePrototype/);
-  assert.match(shell, /HomePrototypeHeader/);
-  const home = source("components/home/HomePrototype.jsx");
-  assert.match(home, /requestAccountAccess\("login"\)/);
-  assert.match(home, /requestAccountAccess\("signup"\)/);
-  assert.match(home, /href: "\/play"/);
-  assert.match(home, /href: "\/decks"/);
-  assert.doesNotMatch(root, /EntryScreen/);
+  const css = source("app/home-rebuild.css");
+  assert.match(root, /return <div className="home-rebuild-blank" \/>;/);
+  assert.doesNotMatch(root, /DashboardScreen|HomePrototype|EntryScreen/);
+  assert.doesNotMatch(shell, /HomePrototypeHeader/);
+  assert.match(shell, /const redesignHome = pathname === "\/";/);
+  assert.match(shell, /!immersiveMatch && !redesignHome && \(/);
+  assert.match(shell, /<AccountAccessModal/);
+  assert.match(css, /\.app-shell\.home-rebuild-shell/);
+  assert.equal(existsSync("components/home/HomePrototype.jsx"), false);
   assert.equal(existsSync("components/routes/EntryScreen.tsx"), false);
   assert.match(shell, /\{ href: "\/", label: "Home"/);
   assert.doesNotMatch(shell, /const publicEntry/);
-  assert.match(source("app/(workspace)/dashboard/page.tsx"), /redirect\("\/"\)/);
+  assert.match(source("app\/(workspace)\/dashboard\/page.tsx"), /redirect\("\/"\)/);
 });
 
 test("guest identity is generic and the avatar menu exposes only account access and Settings", () => {
