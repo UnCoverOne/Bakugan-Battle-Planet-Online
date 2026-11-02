@@ -27,18 +27,29 @@ const guestSnapshot = (overrides: Partial<UserSnapshot> = {}) => ({
   ...overrides,
 }) as Pick<UserSnapshot, "profile" | "decks" | "history" | "settings" | "builderDeck" | "match">;
 
-test("the root route stays an intentionally blank rebuild canvas without changing other routes", () => {
+test("homepage foundation navigates to existing game routes without changing the other routes", () => {
   const root = source("app/page.tsx");
   const shell = source("components/application/AppShell.jsx");
+  const nav = source("components/home/HomeFoundationHeader.jsx");
   const css = source("app/home-rebuild.css");
-  assert.match(root, /return <div className="home-rebuild-blank" \/>;/);
-  assert.doesNotMatch(root, /DashboardScreen|HomePrototype|EntryScreen/);
-  assert.doesNotMatch(shell, /HomePrototypeHeader/);
+  assert.match(root, /<h1 id="bbp-foundation-title">Bakugan Battle Planet Online<\/h1>/);
+  assert.match(root, /href="\/play"/);
+  assert.match(root, /href="\/decks"/);
+  assert.match(root, /href="\/compendium"/);
   assert.match(shell, /const redesignHome = pathname === "\/";/);
+  assert.match(shell, /<HomeFoundationHeader/);
   assert.match(shell, /!immersiveMatch && !redesignHome && \(/);
   assert.match(shell, /<AccountAccessModal/);
-  assert.match(css, /\.app-shell\.home-rebuild-shell/);
-  assert.equal(existsSync("components/home/HomePrototype.jsx"), false);
+  assert.match(nav, /requestAccountAccess\("login"\)/);
+  assert.match(nav, /requestAccountAccess\("signup"\)/);
+  assert.match(nav, /resumeCurrentMatch\(\)/);
+  assert.match(nav, /<SocialMenuButton/);
+  assert.match(nav, /aria-expanded=\{mobileOpen\}/);
+  assert.match(nav, /aria-label="Mobile navigation"/);
+  assert.match(css, /@media \(max-width: 1080px\)/);
+  assert.match(css, /@media \(max-width: 660px\)/);
+  assert.match(css, /min-height: calc\(100dvh/);
+  assert.doesNotMatch(root, /DashboardScreen|HomePrototype|EntryScreen/);
   assert.equal(existsSync("components/routes/EntryScreen.tsx"), false);
   assert.match(shell, /\{ href: "\/", label: "Home"/);
   assert.doesNotMatch(shell, /const publicEntry/);
