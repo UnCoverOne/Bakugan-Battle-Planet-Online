@@ -298,6 +298,14 @@ function applyProjectedAction(
     ? opponentOf(match, controllerId)
     : playerById(match, controllerId);
   const targetsPerspective = targetPlayer?.id === perspectiveId;
+  // A targeted modifier on a benched Bakugan does not change the active
+  // combatant's B-Power or Damage Rating. Preserve legal off-Brawl targets
+  // without crediting them with a phantom swing in the current Brawl.
+  if ((action.kind === "modify-stat" || action.kind === "set-stat")
+    && (action.kind !== "modify-stat" || action.scope !== "all-enemy")
+    && choices.targetBakuganId
+    && targetPlayer
+    && match.selected[targetPlayer.id] !== choices.targetBakuganId) return;
   if (action.kind === "modify-stat") {
     const target = activeTargetBakugan(match, controllerId, targetsEnemy);
     const prevented = action.amount < 0

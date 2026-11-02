@@ -1317,3 +1317,32 @@ test("AI reserves Energy for Stop Flips instead of playing a deferrable Evo befo
   assert.equal(next.players[0].hand.some((card) => card.id === evo.id), true);
   assert.equal(next.priority, human.id);
 });
+
+test("Nature's Power is conserved against active Ventus when only a closed non-Ventus target is legal", () => {
+  const nature = catalogueCard("bb-120", "bench-only-natures-power");
+  const ai = player("bench-only-ai", [bakugan("bench-only-hydorous", "Aquos", 500, 3)], [], [nature]);
+  const active = bakugan("bench-only-ventus", "Ventus", 800, 3);
+  const bench = bakugan("bench-only-darkus", "Darkus", 1200, 4);
+  const human = player("bench-only-human", [active, bench]);
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+  // The legal non-Ventus choice is closed and cannot change this Brawl.
+  assert.equal(chooseCardChoices(match, ai.id, nature).targetBakuganId, bench.id);
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.ok(next.players[0].hand.some((card) => card.id === nature.id));
+  assert.equal(next.batch.some((effect) => effect.card.id === nature.id), false);
+});
+
+test("Nature's Power remains playable when an open non-Ventus opponent can be defeated", () => {
+  const nature = catalogueCard("bb-120", "active-natures-power");
+  const ai = player("active-nature-ai", [bakugan("active-nature-self", "Aquos", 500, 3)], [], [nature]);
+  const human = player("active-nature-human", [bakugan("active-nature-foe", "Darkus", 800, 3)]);
+  addEnergy(ai, 1);
+  const match = matchWith(ai, human);
+  setBrawl(match, ai, human, true, true);
+  const next = advanceOpponentAi(match, ai.id);
+  assert.ok(next);
+  assert.equal(next.batch.some((effect) => effect.card.id === nature.id), true);
+});
