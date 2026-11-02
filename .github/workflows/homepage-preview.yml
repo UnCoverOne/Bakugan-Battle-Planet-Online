@@ -34,8 +34,8 @@ jobs:
       - name: Build Worker and assets
         run: npm run build
 
-      - name: Install Preview-capable Wrangler
-        run: npm install --no-save wrangler@latest
+      - name: Install Preview-capable Wrangler 4.135.0
+        run: npm install --no-save --legacy-peer-deps wrangler@4.135.0
 
       - name: Deploy isolated branch Preview
         env:
