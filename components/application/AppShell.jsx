@@ -20,7 +20,6 @@ import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { useAppFields } from "./AppProvider";
 import { SocialDrawer, SocialMenuButton, SocialProvider } from "../social/SocialProvider";
 import { MusicLayer } from "./MusicLayer";
-import { HomePrototypeHeader } from "../home/HomePrototype";
 
 const FeedbackReportsDialog = lazy(() => import("./FeedbackReportsDialog"));
 
@@ -222,19 +221,6 @@ export function AppShell({ children }) {
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
-      {redesignHome && (
-        <HomePrototypeHeader
-          authUser={authUser}
-          requestAccountAccess={requestAccountAccess}
-          activeSession={activeSession}
-          remoteSession={remoteSession}
-          remoteSessionPresentation={remoteSessionPresentation}
-          resumingCurrentMatch={resumingCurrentMatch}
-          resumeCurrentMatch={resumeCurrentMatch}
-          resumingMatchCode={resumingMatchCode}
-          resumeAccountMatch={resumeAccountMatch}
-        />
-      )}
       {!immersiveMatch && !redesignHome && (
         <header className="topbar overhaul-topbar">
           <Link
