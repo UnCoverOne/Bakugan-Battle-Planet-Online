@@ -30,7 +30,13 @@ const guestSnapshot = (overrides: Partial<UserSnapshot> = {}) => ({
 test("the root route is guest-first Home with no authentication landing page", () => {
   const root = source("app/page.tsx");
   const shell = source("components/application/AppShell.jsx");
-  assert.match(root, /DashboardScreen/);
+  assert.match(root, /HomePrototype/);
+  assert.match(shell, /HomePrototypeHeader/);
+  const home = source("components/home/HomePrototype.jsx");
+  assert.match(home, /requestAccountAccess\("login"\)/);
+  assert.match(home, /requestAccountAccess\("signup"\)/);
+  assert.match(home, /href: "\/play"/);
+  assert.match(home, /href: "\/decks"/);
   assert.doesNotMatch(root, /EntryScreen/);
   assert.equal(existsSync("components/routes/EntryScreen.tsx"), false);
   assert.match(shell, /\{ href: "\/", label: "Home"/);
