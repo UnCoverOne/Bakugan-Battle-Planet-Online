@@ -42,7 +42,7 @@ const localBindingConfig = {
     : [],
 };
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ command }) => {
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= "false";
@@ -69,7 +69,13 @@ export default defineConfig(async () => {
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
-        config: localBindingConfig,
+        // Build output is merged with wrangler.jsonc by the Cloudflare Vite
+        // plugin. The local placeholder DB must never be included in that
+        // merge, or the generated Wrangler config contains two DB bindings.
+        // Preserve the placeholder for local development only.
+        config: command === "build"
+          ? { main: "./worker/index.ts" }
+          : localBindingConfig,
       }),
     ],
   };
