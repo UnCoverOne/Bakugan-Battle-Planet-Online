@@ -244,8 +244,18 @@
     max-width: 13rem;
     font-size: .9rem;
   }
+  .home-rebuild-shell .bbp-foundation-header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    padding-block: .3rem;
+  }
   .home-rebuild-shell .bbp-foundation-social > button { min-width: 2.5rem; }
-  .home-rebuild-shell .bbp-foundation-resume { max-width: 6.5rem; }
+  /* Active-match actions wrap rather than overflow a narrow phone header. */
+  .home-rebuild-shell .bbp-foundation-resume {
+    flex: 1 1 100%;
+    order: 5;
+    max-width: 100%;
+  }
   .home-rebuild-shell .bbp-foundation-quick-links { grid-template-columns: 1fr; }
   .home-rebuild-shell .bbp-foundation-page {
     min-height: calc(100dvh - 4rem);
