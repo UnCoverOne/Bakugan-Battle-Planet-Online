@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { DashboardScreen } from "../components/routes/DashboardScreen";
+import { HomePrototype } from "../components/home/HomePrototype";
 
 export const metadata: Metadata = {
   title: "Home",
-  description: "Build a Battle Planet deck, construct the Hide Matrix, and play a rules-guided online Bakugan TCG match.",
+  description: "Bakugan Battle Planet Online — home page rebuild prototype.",
 };
 
 export default function HomePage() {
-  return <DashboardScreen />;
+  return <HomePrototype />;
 }
