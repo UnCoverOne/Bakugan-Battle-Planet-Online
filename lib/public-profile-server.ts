@@ -4,7 +4,7 @@ import { loadAchievementDefinitions } from "./achievement-configuration-server";
 import { loadAchievementRewardAssignments } from "./achievement-rewards-server";
 import { loadAccountDataPayload, loadAccountMatchHistory } from "./account-data-server";
 import type { AccountDatabase } from "./account-server";
-import { accountStatMatches, lifetimeMatchStatsFromHistory } from "./match-statistics";
+import { lifetimeMatchStatsFromHistory, playerMatchSummary } from "./match-statistics";
 import {
   normalizeAchievementCompletions,
   type BrawlerProfile,
@@ -126,9 +126,7 @@ export async function publicBrawlerProfile(
       profile.avatar = "";
     }
   }
-  const completedGames = accountStatMatches(history);
-  const gamesPlayed = completedGames.length;
-  const gamesWon = completedGames.filter((record) => record.result === "Victor").length;
+  const { gamesPlayed, gamesWon, winRate } = playerMatchSummary(history, lifetimeStats, true);
   const rankedWins = Number(row.ranked_wins ?? 0);
   const rankedLosses = Number(row.ranked_losses ?? 0);
   const bp = Number(row.bp ?? 0);
@@ -142,7 +140,7 @@ export async function publicBrawlerProfile(
     stats: {
       gamesPlayed,
       gamesWon,
-      winRate: gamesPlayed ? Math.round((gamesWon / gamesPlayed) * 100) : 0,
+      winRate,
     },
     ranked: row.ranked_user_id
       ? {

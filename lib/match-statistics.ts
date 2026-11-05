@@ -44,3 +44,35 @@ export function lifetimeMatchStatsFromHistory(
     rankedMatches: matches.filter((record) => record.mode === "ranked").length,
   };
 }
+
+// All-mode headline totals are shared by the menu, dashboard, own profile and public profile.
+// Signed-in accounts use the deduplicated server archive; guests retain lifetime
+// counters because their device history keeps only a small recent window.
+export function playerMatchSummary(
+  history: readonly MatchRecord[],
+  lifetimeStats: LifetimeMatchStats,
+  signedIn: boolean,
+) {
+  const archived = lifetimeMatchStatsFromHistory(history);
+  const matchesPlayed = signedIn
+    ? archived.matchesPlayed
+    : Math.max(archived.matchesPlayed, lifetimeStats.matchesPlayed);
+  const gamesWon = signedIn
+    ? archived.wins
+    : Math.max(archived.wins, lifetimeStats.wins);
+  // Older guest counters may be incomplete; never show more wins than games.
+  const gamesPlayed = Math.max(matchesPlayed, gamesWon);
+  const trainingGames = signedIn
+    ? archived.trainingMatches
+    : Math.max(archived.trainingMatches, lifetimeStats.trainingMatches);
+  const competitiveGames = signedIn
+    ? accountStatMatches(history).length
+    : Math.max(accountStatMatches(history).length, matchesPlayed - trainingGames);
+  return {
+    gamesPlayed,
+    gamesWon,
+    winRate: gamesPlayed ? Math.round((gamesWon / gamesPlayed) * 100) : 0,
+    trainingGames,
+    competitiveGames,
+  };
+}

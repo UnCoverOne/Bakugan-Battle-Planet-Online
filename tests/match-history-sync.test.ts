@@ -5,7 +5,7 @@ import {
   matchHistoriesEqual,
   mergeMatchHistories,
 } from "../lib/match-history-sync";
-import { lifetimeMatchStatsFromHistory } from "../lib/match-statistics";
+import { accountStatMatches, lifetimeMatchStatsFromHistory, playerMatchSummary } from "../lib/match-statistics";
 import { completedMatchKey, hasRecordableMatchDetails, isCompletedSeriesResult, isFreshCompletedMatchResult } from "../lib/match-result-navigation";
 import { validateHistoryRecord, validateNewMatchHistoryRecord } from "../lib/user-data-entities";
 import type { MatchResultRecord } from "../lib/persistence";
@@ -244,8 +244,39 @@ test("signed-in history refresh repairs lifetime counters instead of incrementin
 
   assert.match(sync, /const repairedStats = lifetimeMatchStatsFromHistory\(merged\);[\s\S]*setLifetimeStats\(\(current\)/);
   assert.match(provider, /if \(!authUser\) \{[\s\S]*setLifetimeStats\(\(current\) => \(\{/);
-  assert.match(dashboard, /const gamesPlayed = authUser[\s\S]*completedGames\.length/);
-  assert.match(dashboard, /<strong>\{gamesPlayed\}<\/strong><span>Games played<\/span>/);
+  assert.match(dashboard, /playerMatchSummary\(history, lifetimeStats, Boolean\(authUser\)\)/);
+  assert.match(dashboard, /achievementsForProfile\(decks, history, effectiveLifetimeStats, profile\)/);
   assert.match(publicProfile, /loadAccountMatchHistory\(db, userId\)/);
-  assert.match(publicProfile, /const gamesWon = completedGames\.filter/);
+  assert.match(publicProfile, /playerMatchSummary\(history, lifetimeStats, true\)/);
+});
+
+test("all player surfaces use the same all-mode statistics and distinguish competitive matches", () => {
+  const training = { ...record("training-win", "2026-08-24T10:00:00.000Z"), mode: "training" as const };
+  const ranked = { ...record("ranked-loss", "2026-08-24T11:00:00.000Z"), mode: "ranked" as const, result: "Defeat" };
+  const abandoned = { ...record("abandoned", "2026-08-24T12:00:00.000Z"), mode: "casual" as const, reason: "disconnect" };
+  const history = [training, training, ranked, abandoned];
+  const stale = { ...lifetimeMatchStatsFromHistory(history), wins: 6, matchesPlayed: 6 };
+
+  assert.deepEqual(playerMatchSummary(history, stale, true), {
+    gamesPlayed: 2, gamesWon: 1, winRate: 50, trainingGames: 1, competitiveGames: 1,
+  });
+  assert.deepEqual(playerMatchSummary([training], stale, false), {
+    gamesPlayed: 6, gamesWon: 6, winRate: 100, trainingGames: 1, competitiveGames: 5,
+  });
+  assert.equal(accountStatMatches([training, training]).length, 0);
+  assert.deepEqual(playerMatchSummary([training, training], stale, true), {
+    gamesPlayed: 1, gamesWon: 1, winRate: 100, trainingGames: 1, competitiveGames: 0,
+  });
+});
+
+test("all statistics surfaces share the same selector and homepage uses profile achievement persistence", () => {
+  const menu = source("components/application/AppShell.jsx");
+  const dashboard = source("components/routes/DashboardScreen.tsx");
+  const ownProfile = source("components/routes/ProfileScreen.tsx");
+  const publicProfile = source("lib/public-profile-server.ts");
+  for (const code of [menu, dashboard, ownProfile]) {
+    assert.match(code, /playerMatchSummary\(history, lifetimeStats, Boolean\(authUser\)\)/);
+  }
+  assert.match(publicProfile, /playerMatchSummary\(history, lifetimeStats, true\)/);
+  assert.match(dashboard, /achievementsForProfile\(decks, history, effectiveLifetimeStats, profile\)/);
 });

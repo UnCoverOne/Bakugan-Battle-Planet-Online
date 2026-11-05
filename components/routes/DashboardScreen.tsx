@@ -6,7 +6,7 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { achievementsFor } from "../../lib/achievements";
+import { achievementsForProfile } from "../../lib/achievements";
 import { rememberAccountIntent } from "../../lib/account-intent";
 import { activeSessionPresentation } from "../../lib/active-session";
 import { accountMatchSessionPresentation, type AccountMatchSessionSummary } from "../../lib/account-match-session";
@@ -14,7 +14,7 @@ import { CARD_BY_ID, PUBLIC_DECKS, deckLeadCard, type DeckRecord } from "../../l
 import { deckSetName } from "../../lib/deck-set";
 import { cardArtSource } from "../../lib/content/card-art";
 import type { GameCard } from "../../lib/game";
-import { accountStatMatches, lifetimeMatchStatsFromHistory } from "../../lib/match-statistics";
+import { lifetimeMatchStatsFromHistory, playerMatchSummary } from "../../lib/match-statistics";
 import { CardArt } from "../cards/CardArt";
 import { useAppFields } from "../application/AppProvider";
 import { Badge, deckLooksComplete, factionClass } from "../application/ui";
@@ -64,14 +64,14 @@ export function DashboardScreen() {
   const heroSource = useHighResolutionHero();
   const [remotePublicDecks, setRemotePublicDecks] = useState<DeckRecord[]>([]);
   const isGuest = !authUser;
-  const completedGames = useMemo(() => accountStatMatches(history), [history]);
+  const { gamesPlayed, gamesWon: wins, winRate } = playerMatchSummary(history, lifetimeStats, Boolean(authUser));
   const effectiveLifetimeStats = useMemo(
     () => authUser ? lifetimeMatchStatsFromHistory(history) : lifetimeStats,
     [authUser, history, lifetimeStats],
   );
   const achievements = useMemo(
-    () => achievementsFor(decks, history, effectiveLifetimeStats),
-    [decks, history, effectiveLifetimeStats],
+    () => achievementsForProfile(decks, history, effectiveLifetimeStats, profile),
+    [decks, history, effectiveLifetimeStats, profile],
   );
   const unlockedAchievements = achievements.filter((achievement) => achievement.unlocked);
   const incompleteAchievements = achievements
@@ -81,13 +81,6 @@ export function DashboardScreen() {
     ...incompleteAchievements,
     ...achievements.filter((achievement) => achievement.unlocked).reverse(),
   ].slice(0, 3);
-  const wins = authUser
-    ? completedGames.filter((item: { result?: string }) => item.result === "Victor").length
-    : Math.max(lifetimeStats.wins, history.filter((item: { result?: string }) => item.result === "Victor").length);
-  const gamesPlayed = authUser
-    ? completedGames.length
-    : Math.max(lifetimeStats.matchesPlayed, history.length);
-  const winRate = gamesPlayed ? Math.round((wins / gamesPlayed) * 100) : 0;
   const completeDecks = decks.filter(deckLooksComplete);
 
   useEffect(() => {
@@ -254,8 +247,8 @@ export function DashboardScreen() {
         <span className={`home-profile-avatar ${factionClass(profile.faction)}`}>{profile.name.slice(0, 2).toUpperCase()}</span>
         <span><strong>{profile.name}</strong><small>{profile.faction} Brawler</small></span>
       </Link>
-      <div className="home-profile-stat"><strong>{gamesPlayed}</strong><span>Games played</span></div>
-      <div className="home-profile-stat"><strong>{wins}</strong><span>Games won</span></div>
+      <div className="home-profile-stat"><strong>{gamesPlayed}</strong><span title="Includes completed Training, Casual and Ranked matches">Games played · all modes</span></div>
+      <div className="home-profile-stat"><strong>{wins}</strong><span title="Includes completed Training, Casual and Ranked matches">Games won · all modes</span></div>
       <div className="home-profile-stat"><strong>{winRate}%</strong><span>Win rate</span></div>
       <div className="home-profile-stat"><strong>{completeDecks.length}</strong><span>Complete decks</span></div>
     </section>}

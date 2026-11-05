@@ -8,7 +8,7 @@ import { isCompendiumSectionChange } from "../../lib/compendium-navigation";
 import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { activeSessionPresentation } from "../../lib/active-session";
 import { accountMatchSessionPresentation } from "../../lib/account-match-session";
-import { accountStatMatches } from "../../lib/match-statistics";
+import { playerMatchSummary } from "../../lib/match-statistics";
 import { PROFILE_TITLES } from "../../lib/profile-customization";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
 import { SystemState, VersionMismatchScreen } from "./SystemState";
@@ -189,9 +189,7 @@ export function AppShell({ children }) {
     );
   }
   const unlocked = Object.keys(profile.achievementCompletions ?? {}).length;
-  const wins = Math.max(lifetimeStats.wins, accountStatMatches(history).filter(
-    (record) => record.result === "Victor",
-  ).length);
+  const { gamesWon: wins } = playerMatchSummary(history, lifetimeStats, Boolean(authUser));
   const selectedProfileTitle =
     PROFILE_TITLES.find((item) => item.id === profile.titleId) ??
     PROFILE_TITLES[0];
@@ -313,7 +311,7 @@ export function AppShell({ children }) {
                     </div>
                     <div>
                       <div className="profile-popover-stat-value"><MenuIcon name="sparkle" /><strong>{wins}</strong></div>
-                      <span>Games won</span>
+                      <span title="Includes completed Training, Casual and Ranked matches">Games won · all modes</span>
                     </div>
                   </div>
                   <nav aria-label="Profile menu">

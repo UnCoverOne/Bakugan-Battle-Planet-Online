@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { achievementsForProfile } from "../../lib/achievements";
-import { accountStatMatches, lifetimeMatchStatsFromHistory } from "../../lib/match-statistics";
+import { lifetimeMatchStatsFromHistory, playerMatchSummary } from "../../lib/match-statistics";
 import {
   buildPublicBrawlerProfile,
   normalizePublicBrawlerProfile,
@@ -92,20 +92,7 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
     () => achievementsForProfile(decks, history, effectiveLifetimeStats, profile),
     [decks, effectiveLifetimeStats, history, profile],
   );
-  const completedGames = accountStatMatches(history);
-  const gamesPlayed = authUser
-    ? completedGames.length
-    : Math.max(
-        completedGames.length,
-        lifetimeStats.matchesPlayed - lifetimeStats.trainingMatches,
-      );
-  const wins = authUser
-    ? completedGames.filter((item: any) => item.result === "Victor").length
-    : Math.max(
-        completedGames.filter((item: any) => item.result === "Victor").length,
-        lifetimeStats.wins,
-      );
-  const winRate = gamesPlayed ? Math.round((wins / gamesPlayed) * 100) : 0;
+  const { gamesPlayed, gamesWon: wins, winRate } = playerMatchSummary(history, lifetimeStats, Boolean(authUser));
   const completedAchievementIds = useMemo(
     () =>
       new Set(
