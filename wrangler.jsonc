@@ -41,6 +41,17 @@
   "triggers": {
     "crons": ["17 */6 * * *"]
   },
+  "previews": {
+    "images": {
+      "binding": "IMAGES"
+    },
+    "durable_objects": {
+      "bindings": [
+        { "name": "MATCHES", "class_name": "MatchRoom" },
+        { "name": "SOCIAL_PRESENCE", "class_name": "SocialPresence" }
+      ]
+    }
+  },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1

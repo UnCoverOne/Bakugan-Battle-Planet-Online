@@ -20,6 +20,7 @@ import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { useAppFields } from "./AppProvider";
 import { SocialDrawer, SocialMenuButton, SocialProvider } from "../social/SocialProvider";
 import { MusicLayer } from "./MusicLayer";
+import { HomeFoundationHeader } from "../home/HomeFoundationHeader";
 
 const FeedbackReportsDialog = lazy(() => import("./FeedbackReportsDialog"));
 
@@ -109,6 +110,7 @@ export function AppShell({ children }) {
   const resumeId = useSyncExternalStore(subscribeBuilder, () => activeBuilder(resumeScope), () => null);
   const decksHref = builderNavigationHref(resumeId, decks);
   const immersiveMatch = pathname === "/play/match";
+  const redesignHome = pathname === "/";
   const homeRoute = pathname === "/" || pathname.startsWith("/dashboard");
   const secondaryRoute = !immersiveMatch && !homeRoute;
   const mainRef = useRef(null);
@@ -213,12 +215,29 @@ export function AppShell({ children }) {
     <SocialProvider>
       <MusicLayer />
       <div
-        className={`app-shell ${immersiveMatch ? "immersive-match" : ""} ${secondaryRoute ? "secondary-route" : ""}`}
+        className={`app-shell ${immersiveMatch ? "immersive-match" : ""} ${secondaryRoute ? "secondary-route" : ""} ${redesignHome ? "home-rebuild-shell" : ""}`}
       >
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
-      {!immersiveMatch && (
+      {redesignHome && (
+        <HomeFoundationHeader
+          authUser={authUser}
+          profile={profile}
+          decksHref={decksHref}
+          requestAccountAccess={requestAccountAccess}
+          onFeedback={() => setFeedbackOpen(true)}
+          onLogout={requestLogout}
+          activeSession={activeSession}
+          remoteSession={remoteSession}
+          remoteSessionPresentation={remoteSessionPresentation}
+          resumeCurrentMatch={resumeCurrentMatch}
+          resumingCurrentMatch={resumingCurrentMatch}
+          resumeAccountMatch={resumeAccountMatch}
+          resumingMatchCode={resumingMatchCode}
+        />
+      )}
+      {!immersiveMatch && !redesignHome && (
         <header className="topbar overhaul-topbar">
           <Link
             className="brand"
@@ -385,7 +404,7 @@ export function AppShell({ children }) {
       <main id="main-content" className="main-stage" ref={mainRef}>
         {children}
       </main>
-      {!immersiveMatch && (
+      {!immersiveMatch && !redesignHome && (
         <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
           {NAV.map((item) => {
             const active =
