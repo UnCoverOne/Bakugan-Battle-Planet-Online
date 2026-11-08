@@ -57,7 +57,7 @@ test("blank black homepage has only the agreed responsive navigation chrome", ()
   assert.match(nav, /requestAccountAccess\("signup"\)/);
   assert.match(nav, /onLogout\(\)/);
   assert.match(css, /background: #000 !important/);
-  assert.match(css, /@media \(max-width: 800px\)/);
+  assert.match(css, /@media \(max-width: 820px\)/);
   assert.match(css, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);
   assert.match(source("app/(workspace)/dashboard/page.tsx"), /redirect\("\/"\)/);
