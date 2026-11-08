@@ -1,272 +1,266 @@
 /*
- * Homepage rebuild, structural pass 01.
- * Neutral wireframe styling only; all selectors are home-route scoped.
- * No images, font downloads, transitions or viewport-height-locked panels.
+ * Prototype navigation: functional layout only.
+ * The four links and two menu controls are the only persistent chrome.
+ * No image, decorative asset, downloaded font, animation or homepage content.
  */
-.app-shell.home-rebuild-shell {
-  --bbp-fg: #20242a;
-  --bbp-muted: #565e69;
-  --bbp-border: #d8dce2;
-  --bbp-bg: #fff;
-  min-height: 100dvh;
-  background: var(--bbp-bg);
-  color: var(--bbp-fg);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+.app-shell.prototype-nav-shell {
+  --prototype-top-height: 56px;
+  --prototype-bottom-height: 64px;
 }
-.app-shell.home-rebuild-shell > .main-stage {
-  min-height: 0;
-  padding: 0;
-  background: var(--bbp-bg);
-}
-.home-rebuild-shell .bbp-foundation-header {
-  position: sticky;
-  top: 0;
-  z-index: 210;
-  background: #fff;
-  color: var(--bbp-fg);
-  border-bottom: 1px solid var(--bbp-border);
-  font-family: inherit;
-}
-.home-rebuild-shell .bbp-foundation-header-inner {
+
+.prototype-nav-shell .prototype-topbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 220;
+  height: var(--prototype-top-height);
   display: flex;
-  align-items: center;
-  gap: clamp(.75rem, 1.5vw, 1.5rem);
-  max-width: 88rem;
-  min-height: 4.25rem;
-  margin-inline: auto;
-  padding-inline: clamp(1rem, 3vw, 2.5rem);
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+  background: #000;
+  color: #fff;
+  border-bottom: 1px solid #444;
+  font: 400 14px/1.3 system-ui, sans-serif;
 }
-.home-rebuild-shell .bbp-foundation-brand {
-  flex: 0 1 auto;
+
+.prototype-nav-shell .prototype-top-links {
+  display: flex;
+  align-items: stretch;
   min-width: 0;
-  color: inherit;
-  text-decoration: none;
-  font-size: clamp(.93rem, 1.2vw, 1.08rem);
-  font-weight: 700;
-  line-height: 1.3;
-  overflow-wrap: break-word;
 }
-.home-rebuild-shell .bbp-foundation-desktop-nav {
+
+.prototype-nav-shell .prototype-top-link {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(.15rem, .6vw, .75rem);
+  padding: 0 16px;
+  color: #fff;
+  text-decoration: none;
+  white-space: nowrap;
+  font: inherit;
+}
+
+.prototype-nav-shell :is(.prototype-top-link, .prototype-bottom-link)[aria-current="page"] {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.prototype-nav-shell .prototype-top-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-left: auto;
 }
-.home-rebuild-shell .bbp-foundation-desktop-nav a,
-.home-rebuild-shell .bbp-foundation-mobile-nav a {
-  color: var(--bbp-fg);
-  font-family: inherit;
-  font-size: .9rem;
-  font-style: normal;
-  font-weight: 500;
-  text-decoration: none;
-  letter-spacing: normal;
-  text-transform: none;
-  border-radius: .25rem;
-}
-.home-rebuild-shell .bbp-foundation-desktop-nav a {
-  padding: .6rem .65rem;
-  white-space: nowrap;
-}
-.home-rebuild-shell .bbp-foundation-desktop-nav a[aria-current="page"],
-.home-rebuild-shell .bbp-foundation-mobile-nav a[aria-current="page"] {
-  font-weight: 800;
-  text-decoration: underline;
-  text-underline-offset: .25em;
-}
-.home-rebuild-shell .bbp-foundation-header-actions {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  min-width: 0;
-}
-.home-rebuild-shell .bbp-foundation-header-actions button,
-.home-rebuild-shell .bbp-foundation-account-panel button {
-  font-family: inherit;
-  font-style: normal;
-  font-size: .875rem;
-  font-weight: 500;
-  letter-spacing: normal;
-  text-transform: none;
-}
-.home-rebuild-shell .bbp-foundation-account-button,
-.home-rebuild-shell .bbp-foundation-menu-button,
-.home-rebuild-shell .bbp-foundation-resume {
-  color: var(--bbp-fg);
-  background: #fff;
-  border: 1px solid var(--bbp-border);
-  border-radius: .25rem;
-  min-height: 2.75rem;
-  padding: .45rem .7rem;
+
+.prototype-nav-shell .prototype-icon-button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  min-width: 44px;
+  padding: 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
 }
-.home-rebuild-shell .bbp-foundation-account-button {
-  max-width: clamp(4.75rem, 12vw, 11rem);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+.prototype-nav-shell .prototype-icon-button svg,
+.prototype-nav-shell .prototype-bottom-link svg {
+  display: block;
+  width: 23px;
+  height: 23px;
+  flex: none;
 }
-.home-rebuild-shell .bbp-foundation-resume {
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+.prototype-nav-shell .prototype-icon-button:disabled {
+  cursor: default;
 }
-.home-rebuild-shell .bbp-foundation-social { display: flex; align-items: center; }
-.home-rebuild-shell .bbp-foundation-social > button {
-  min-height: 2.75rem;
-  min-width: 2.75rem;
-}
-.home-rebuild-shell .bbp-foundation-account-wrap { position: relative; }
-.home-rebuild-shell .bbp-foundation-account-panel {
+
+.prototype-nav-shell .prototype-profile-panel {
   position: absolute;
-  top: calc(100% + .4rem);
+  top: calc(100% + 4px);
   right: 0;
-  width: min(18rem, calc(100vw - 2rem));
-  max-height: min(30rem, calc(100dvh - 5rem));
+  z-index: 230;
+  display: flex;
+  flex-direction: column;
+  width: min(280px, calc(100vw - 24px));
+  max-height: calc(100dvh - var(--prototype-top-height) - 12px);
   overflow-y: auto;
-  display: grid;
-  gap: .125rem;
-  padding: .5rem;
-  background: #fff;
-  border: 1px solid var(--bbp-border);
-  border-radius: .35rem;
-  box-shadow: 0 .65rem 1.8rem #00000018;
+  padding: 12px;
+  background: #000;
+  color: #fff;
+  border: 1px solid #555;
+  font: 400 14px/1.4 system-ui, sans-serif;
 }
-.home-rebuild-shell .bbp-foundation-account-panel nav,
-.home-rebuild-shell .bbp-foundation-auth-actions { display: grid; }
-.home-rebuild-shell .bbp-foundation-account-panel a,
-.home-rebuild-shell .bbp-foundation-account-panel button {
+
+.prototype-nav-shell .prototype-profile-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+
+.prototype-nav-shell .prototype-profile-heading h2 {
+  margin: 0;
+  font: 600 17px/1.4 system-ui, sans-serif;
+  color: #fff;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.prototype-nav-shell .prototype-profile-panel nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.prototype-nav-shell .prototype-profile-panel :is(a,button) {
   display: block;
   width: 100%;
-  padding: .75rem;
+  min-height: 44px;
+  padding: 10px 8px;
   border: 0;
-  border-radius: .25rem;
-  background: transparent;
-  color: var(--bbp-fg);
-  font-size: .875rem;
-  font-weight: 500;
+  border-radius: 0;
+  background: #000;
+  color: #fff;
+  font: inherit;
   text-align: left;
   text-decoration: none;
+  letter-spacing: normal;
+  text-transform: none;
   cursor: pointer;
 }
-.home-rebuild-shell .bbp-foundation-account-panel a:hover,
-.home-rebuild-shell .bbp-foundation-account-panel button:hover,
-.home-rebuild-shell .bbp-foundation-desktop-nav a:hover,
-.home-rebuild-shell .bbp-foundation-mobile-nav a:hover {
-  background: #eff1f4;
-}
-.home-rebuild-shell .bbp-foundation-menu-button { display: none; }
-.home-rebuild-shell .bbp-foundation-mobile-nav { display: none; }
 
-.home-rebuild-shell .bbp-foundation-page {
-  display: flex;
-  align-items: center;
-  min-height: calc(100dvh - 4.25rem);
-  padding: clamp(2.25rem, 8vh, 6rem) clamp(1rem, 4vw, 3rem);
-  background: var(--bbp-bg);
+.prototype-nav-shell .prototype-profile-heading button {
+  width: auto;
+  min-width: 44px;
 }
-.home-rebuild-shell .bbp-foundation-intro {
+
+.prototype-nav-shell .prototype-bottom-rail {
+  display: none;
+}
+
+.prototype-nav-shell .prototype-bottom-rail[hidden] {
+  display: none !important;
+}
+
+/* Fixed rails do not cover the underlying route's content. */
+.prototype-nav-shell > .main-stage {
+  margin-top: var(--prototype-top-height);
+}
+
+.app-shell.home-rebuild-shell,
+.app-shell.home-rebuild-shell > .main-stage,
+.app-shell.home-rebuild-shell .home-rebuild-blank {
+  background: #000 !important;
+  background-image: none !important;
+}
+
+.app-shell.home-rebuild-shell > .main-stage {
+  display: block;
   width: 100%;
-  max-width: 68rem;
-  margin-inline: auto;
+  max-width: none;
+  min-height: calc(100dvh - var(--prototype-top-height));
+  padding: 0 !important;
+  overflow: visible;
 }
-.home-rebuild-shell .bbp-foundation-intro h1 {
-  max-width: 19ch;
-  margin: 0 0 1.2rem;
-  color: var(--bbp-fg);
-  font-family: inherit;
-  font-size: clamp(2rem, 4.8vw, 4.4rem);
-  font-style: normal;
-  font-weight: 750;
-  line-height: 1.12;
-  letter-spacing: -.035em;
-  text-transform: none;
+
+.home-rebuild-shell .home-rebuild-blank {
+  width: 100%;
+  min-height: calc(100dvh - var(--prototype-top-height));
 }
-.home-rebuild-shell .bbp-foundation-intro p {
-  max-width: 54ch;
-  margin: 0;
-  color: var(--bbp-muted);
-  font-family: inherit;
-  font-size: clamp(1rem, 1.5vw, 1.15rem);
-  line-height: 1.65;
+
+/* Keep the existing social functionality, without its legacy panel backdrop. */
+.prototype-nav-shell #social-drawer {
+  background: #000;
+  background-image: none;
+  box-shadow: none;
+  border-color: #555;
+  animation: none;
+  color: #fff;
+  font-family: system-ui, sans-serif;
 }
-.home-rebuild-shell .bbp-foundation-quick-links {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(.6rem, 1.4vw, 1rem);
-  max-width: 52rem;
-  margin-top: clamp(1.5rem, 4vw, 2.75rem);
+.prototype-nav-shell #social-drawer > header {
+  background: #000;
+  background-image: none;
 }
-.home-rebuild-shell .bbp-foundation-quick-links a {
-  display: flex;
-  align-items: center;
-  min-height: 3.75rem;
-  padding: 1rem;
-  border: 1px solid var(--bbp-border);
-  border-radius: .35rem;
-  background: #fff;
-  color: var(--bbp-fg);
-  font-family: inherit;
-  font-size: .96rem;
-  font-style: normal;
-  font-weight: 600;
-  line-height: 1.3;
-  letter-spacing: normal;
-  text-align: left;
-  text-decoration: none;
-  text-transform: none;
-}
-.home-rebuild-shell .bbp-foundation-quick-links a:hover { background: #f4f6f8; }
-.home-rebuild-shell :is(a, button):focus-visible {
-  outline: 3px solid #334a7c;
-  outline-offset: 3px;
-}
-@media (max-width: 1080px) {
-  .home-rebuild-shell .bbp-foundation-desktop-nav { display: none; }
-  .home-rebuild-shell .bbp-foundation-header-actions { margin-left: auto; }
-  .home-rebuild-shell .bbp-foundation-menu-button { display: inline-flex; align-items: center; }
-  .home-rebuild-shell .bbp-foundation-mobile-nav {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
-    gap: .35rem;
-    max-width: 88rem;
-    margin-inline: auto;
-    padding: .6rem clamp(1rem, 3vw, 2.5rem) 1rem;
-    border-top: 1px solid var(--bbp-border);
-  }
-  .home-rebuild-shell .bbp-foundation-mobile-nav a { padding: .8rem; }
-}
-@media (max-width: 660px) {
-  .home-rebuild-shell .bbp-foundation-header-inner { min-height: 4rem; }
-  .home-rebuild-shell .bbp-foundation-brand {
-    max-width: 13rem;
-    font-size: .9rem;
-  }
-  .home-rebuild-shell .bbp-foundation-header-actions {
-    flex-wrap: wrap;
+
+@media (max-width: 800px) {
+  .prototype-nav-shell .prototype-topbar {
     justify-content: flex-end;
-    padding-block: .3rem;
   }
-  .home-rebuild-shell .bbp-foundation-social > button { min-width: 2.5rem; }
-  /* Active-match actions wrap rather than overflow a narrow phone header. */
-  .home-rebuild-shell .bbp-foundation-resume {
-    flex: 1 1 100%;
-    order: 5;
+  .prototype-nav-shell .prototype-top-links {
+    display: none;
+  }
+  .prototype-nav-shell .prototype-bottom-rail:not([hidden]) {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 210;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    height: calc(var(--prototype-bottom-height) + env(safe-area-inset-bottom));
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    border-top: 1px solid #444;
+    background: #000;
+    color: #fff;
+    font-family: system-ui, sans-serif;
+  }
+  .prototype-nav-shell .prototype-bottom-link {
+    display: flex;
+    min-width: 0;
+    min-height: 56px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 2px;
+    color: inherit;
+    font: 400 clamp(10px, 2.7vw, 12px)/1.15 system-ui, sans-serif;
+    text-align: center;
+    text-decoration: none;
+  }
+  .prototype-nav-shell .prototype-bottom-link svg {
+    width: 22px;
+    height: 22px;
+  }
+  .prototype-nav-shell .prototype-bottom-link span {
     max-width: 100%;
+    overflow-wrap: anywhere;
   }
-  .home-rebuild-shell .bbp-foundation-quick-links { grid-template-columns: 1fr; }
-  .home-rebuild-shell .bbp-foundation-page {
-    min-height: calc(100dvh - 4rem);
-    padding-block: clamp(2rem, 7vh, 4.5rem);
+  .prototype-nav-shell .prototype-profile-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    width: 100%;
+    max-height: 100dvh;
+    min-height: 100dvh;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    border: 0;
+  }
+  .prototype-nav-shell > .main-stage {
+    padding-bottom: calc(var(--prototype-bottom-height) + env(safe-area-inset-bottom));
+  }
+  .app-shell.home-rebuild-shell > .main-stage {
+    min-height: calc(100dvh - var(--prototype-top-height));
+    padding-bottom: calc(var(--prototype-bottom-height) + env(safe-area-inset-bottom)) !important;
+  }
+  .home-rebuild-shell .home-rebuild-blank {
+    min-height: calc(100dvh - var(--prototype-top-height) - var(--prototype-bottom-height) - env(safe-area-inset-bottom));
+  }
+  .prototype-nav-shell #social-drawer {
+    width: 100%;
+    height: 100dvh;
+    border: 0;
   }
 }
-@media (max-width: 390px) {
-  .home-rebuild-shell .bbp-foundation-brand { max-width: 7.7rem; }
-  .home-rebuild-shell .bbp-foundation-header-inner { gap: .3rem; padding-inline: .65rem; }
-  .home-rebuild-shell .bbp-foundation-header-actions { gap: .2rem; }
-  .home-rebuild-shell .bbp-foundation-account-button,
-  .home-rebuild-shell .bbp-foundation-menu-button { padding-inline: .42rem; }
-  .home-rebuild-shell .bbp-foundation-account-button { max-width: 4.7rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .prototype-nav-shell * {
+    scroll-behavior: auto;
+  }
 }
