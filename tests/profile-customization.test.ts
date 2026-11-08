@@ -236,5 +236,9 @@ test("shared shell and all profile surfaces consume the same avatar component", 
   const shell = readFileSync("components/application/AppShell.jsx", "utf8");
   const shared = readFileSync("components/profile/BrawlerProfileView.tsx", "utf8");
   const preview = readFileSync("components/profile/PlayerPreview.tsx", "utf8");
-  for (const source of [shell, shared, preview]) assert.match(source, /ProfileAvatar/);
+  // Profile surfaces still share avatar rendering. The bare navigation uses
+  // an icon instead of loading avatar artwork in the global shell.
+  for (const source of [shared, preview]) assert.match(source, /ProfileAvatar/);
+  assert.match(shell, /<PrototypeNavigation/);
+  assert.match(readFileSync("components/navigation/PrototypeNavigation.jsx", "utf8"), /NavIcon name="profile"/);
 });
