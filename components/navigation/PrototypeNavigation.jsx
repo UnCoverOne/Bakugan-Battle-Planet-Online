@@ -121,6 +121,7 @@ export function PrototypeNavigation({
   const railItem = ({ href, label, icon }, isBottom) => (
     <Link
       key={href}
+      prefetch={false}
       href={href === "/decks" ? decksHref : href}
       aria-current={current(href) ? "page" : undefined}
       className={isBottom ? "prototype-bottom-link" : "prototype-top-link"}
@@ -165,10 +166,10 @@ export function PrototypeNavigation({
               </div>
               <nav aria-label="Profile and account">
                 {profileLinks.map(({ href, label }) => (
-                  <Link href={href} key={href} onClick={closeProfile}>{label}</Link>
+                  <Link prefetch={false} href={href} key={href} onClick={closeProfile}>{label}</Link>
                 ))}
                 {authUser?.roles?.includes("administrator") && (
-                  <Link href="/admin" onClick={closeProfile}>Administrator</Link>
+                  <Link prefetch={false} href="/admin" onClick={closeProfile}>Administrator</Link>
                 )}
               </nav>
               <button type="button" onClick={() => { closeProfile(); onFeedback(); }}>
