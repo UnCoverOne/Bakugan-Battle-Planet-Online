@@ -23,7 +23,9 @@ function FeaturedDeck() {
     let lastChecked = 0;
     let pending: AbortController | null = null;
     const refresh = async () => {
-      if (!mounted || !navigator.onLine || Date.now() - lastChecked < 60_000) return;
+      if (!mounted) return;
+      if (!navigator.onLine) { setStatus("error"); return; }
+      if (Date.now() - lastChecked < 60_000) return;
       lastChecked = Date.now();
       pending?.abort();
       const controller = new AbortController();
@@ -107,8 +109,10 @@ export default function HomeDashboard() {
   const activeSession = dataReady
     ? activeSessionPresentation(!online || (matchCapability && matchControllerId) ? match : null)
     : null;
+  // If an old local snapshot lacks controller credentials, its room can still
+  // be recovered via the signed-in session list, including the same code.
   const recoverableSession: AccountMatchSessionSummary | undefined = dataReady && !activeSession
-    ? accountMatchSessions?.find((session: AccountMatchSessionSummary) => session.code !== match?.code)
+    ? accountMatchSessions?.[0]
     : undefined;
   const remoteAction = recoverableSession
     ? accountMatchSessionPresentation(recoverableSession)
