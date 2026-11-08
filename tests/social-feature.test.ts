@@ -52,7 +52,10 @@ test("drawer and both match result surfaces expose the shared social actions", a
     source("components/game-screen-v2/MatchStateCoordinator.tsx"),
     source("components/routes/PlayRoutes.tsx"),
   ]);
-  assert.match(shell, /<SocialMenuButton \/>/);
+  assert.match(shell, /<SocialDrawer \/>/);
+  const nav = await source("components/navigation/PrototypeNavigation.jsx");
+  assert.match(nav, /useSocial\(\)/);
+  assert.match(nav, /setSocialOpen\(!socialOpen\)/);
   assert.match(drawer, /FRIENDS/);
   assert.match(drawer, /ONLINE BRAWLERS/);
   assert.match(drawer, /ADD FRIEND/);
