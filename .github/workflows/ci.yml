@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - main
+      - homepage-rebuild
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
