@@ -2,7 +2,6 @@
 
 import { OriginalImage } from "@/components/media/OriginalImage";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { isCompendiumSectionChange } from "../../lib/compendium-navigation";
 import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -17,6 +16,18 @@ import { SocialDrawer, SocialProvider } from "../social/SocialProvider";
 import { PrototypeNavigation } from "../navigation/PrototypeNavigation";
 
 const MusicLayer = lazy(() => import("./MusicLayer").then((module) => ({ default: module.MusicLayer })));
+
+const ROUTE_TITLES = {
+  dashboard: "Home",
+  play: "Play",
+  decks: "Decks",
+  builder: "Deck Builder",
+  compendium: "Compendium",
+  leaderboard: "Leaderboard",
+  profile: "Profile",
+  account: "Account",
+  settings: "Settings",
+};
 
 const FeedbackReportsDialog = lazy(() => import("./FeedbackReportsDialog"));
 
@@ -112,8 +123,8 @@ export function AppShell({ children }) {
     );
   }
   const title =
-    TITLES[pathname.split("/").filter(Boolean)[0] ?? "dashboard"] ??
-    TITLES[route] ??
+    ROUTE_TITLES[pathname.split("/").filter(Boolean)[0] ?? "dashboard"] ??
+    ROUTE_TITLES[route] ??
     "Bakugan Battle Planet Online";
   return (
     <SocialProvider>
@@ -184,10 +195,7 @@ export function AppShell({ children }) {
           <FeedbackReportsDialog
             signedIn={Boolean(authUser)}
             onSignIn={() => { setFeedbackOpen(false); requestAccountAccess("login"); }}
-            onClose={() => {
-              setFeedbackOpen(false);
-
-            }}
+            onClose={() => setFeedbackOpen(false)}
           />
         </Suspense>
       )}
