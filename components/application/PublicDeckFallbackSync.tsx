@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useAppFields } from "./AppProvider";
 import { cachedResponse, invalidateResponse, publicDeckResponseKey } from "../../lib/response-cache";
 import type { DeckRecord } from "../../lib/data";
@@ -15,9 +16,11 @@ type PublicDeckResponse = {
 };
 
 export function PublicDeckFallbackSync() {
+  const pathname = usePathname();
   const { authUser, authChecking } = useAppFields(["authUser", "authChecking"]);
   useEffect(() => {
-    if (authChecking) return;
+    // The blank home canvas does not need a public deck cache refresh.
+    if (authChecking || pathname === "/") return;
     let active = true;
     let inFlight = false;
     let lastSyncedAt = 0;
@@ -55,6 +58,6 @@ export function PublicDeckFallbackSync() {
       removeEventListener(OFFLINE_PUBLIC_DECKS_UPDATED_EVENT, onUpdated);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [authChecking, authUser?.id]);
+  }, [authChecking, authUser?.id, pathname]);
   return null;
 }
