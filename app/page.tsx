@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DashboardScreen } from "../components/routes/DashboardScreen";
+import { BlankDashboardScreen } from "../components/routes/BlankDashboardScreen";
 
 export const metadata: Metadata = {
   title: "Home",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  return <DashboardScreen />;
+  return <BlankDashboardScreen />;
 }
