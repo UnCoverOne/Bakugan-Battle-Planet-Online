@@ -3,10 +3,6 @@ import { defineConfig } from "vite";
 import { assetRevisions } from "./scripts/asset-revisions.mjs";
 import { fileURLToPath } from "node:url";
 
-const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
-  "00000000-0000-4000-8000-000000000000";
-
-const d1 = "DB";
 const r2: string | null = null;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
@@ -23,15 +19,8 @@ const localBindingConfig = {
   // vinext already enables `nodejs_compat` for the RSC worker. Repeating it
   // here makes recent Miniflare releases reject the local worker before Vite
   // can start ("Compatibility flag specified multiple times").
-  d1_databases: d1
-    ? [
-        {
-          binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
-        },
-      ]
-    : [],
+  // D1 is declared once in wrangler.jsonc. Duplicating DB here causes
+  // wrangler preview to reject the generated dist/server/wrangler.json.
   r2_buckets: r2
     ? [
         {
