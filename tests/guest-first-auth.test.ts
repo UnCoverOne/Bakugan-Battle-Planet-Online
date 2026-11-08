@@ -27,14 +27,14 @@ const guestSnapshot = (overrides: Partial<UserSnapshot> = {}) => ({
   ...overrides,
 }) as Pick<UserSnapshot, "profile" | "decks" | "history" | "settings" | "builderDeck" | "match">;
 
-test("blank black homepage has only the agreed responsive navigation chrome", () => {
+test("functional black homepage retains only approved responsive navigation chrome", () => {
   const root = source("app/page.tsx");
   const shell = source("components/application/AppShell.jsx");
   const nav = source("components/navigation/PrototypeNavigation.jsx");
   const css = source("app/home-rebuild.css");
 
-  assert.match(root, /className="home-rebuild-blank"/);
-  assert.doesNotMatch(root, /<h1|<p|<Link|DashboardScreen|HomePrototype|HomeFoundationHeader/);
+  assert.match(root, /<HomeDashboard \/>/);
+  assert.doesNotMatch(root, /<h1|<p|<Link|DashboardScreen|HomePrototype|HomeFoundationHeader|home-rebuild-blank/);
   assert.equal(existsSync("components/home/HomeFoundationHeader.jsx"), false);
   assert.match(shell, /<PrototypeNavigation/);
   assert.doesNotMatch(shell, /overhaul-topbar|mobile-bottom-nav|HomeFoundationHeader/);
