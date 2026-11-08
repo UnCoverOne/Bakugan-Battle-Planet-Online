@@ -38,6 +38,17 @@
     { "tag": "v1", "new_sqlite_classes": ["MatchRoom"] },
     { "tag": "v2", "new_sqlite_classes": ["SocialPresence"] }
   ],
+  "previews": {
+    "images": {
+      "binding": "IMAGES"
+    },
+    "durable_objects": {
+      "bindings": [
+        { "name": "MATCHES", "class_name": "MatchRoom" },
+        { "name": "SOCIAL_PRESENCE", "class_name": "SocialPresence" }
+      ]
+    }
+  },
   "triggers": {
     "crons": ["17 */6 * * *"]
   },
