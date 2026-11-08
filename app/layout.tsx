@@ -14,6 +14,7 @@ import "./guest-avatar.css";
 import "./guest-overrides.css";
 import "./recovery-code.css";
 import "./navigation-motion.css";
+import "./home-rebuild.css";
 import { AccountHistorySync } from "../components/application/AccountHistorySync";
 import { AppProvider } from "../components/application/AppProvider";
 import { AppShell } from "../components/application/AppShell";
