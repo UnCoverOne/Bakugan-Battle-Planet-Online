@@ -27,33 +27,40 @@ const guestSnapshot = (overrides: Partial<UserSnapshot> = {}) => ({
   ...overrides,
 }) as Pick<UserSnapshot, "profile" | "decks" | "history" | "settings" | "builderDeck" | "match">;
 
-test("homepage foundation navigates to existing game routes without changing the other routes", () => {
+test("blank black homepage has only the agreed responsive navigation chrome", () => {
   const root = source("app/page.tsx");
   const shell = source("components/application/AppShell.jsx");
-  const nav = source("components/home/HomeFoundationHeader.jsx");
+  const nav = source("components/navigation/PrototypeNavigation.jsx");
   const css = source("app/home-rebuild.css");
-  assert.match(root, /<h1 id="bbp-foundation-title">Bakugan Battle Planet Online<\/h1>/);
-  assert.match(root, /href="\/play"/);
-  assert.match(root, /href="\/decks"/);
-  assert.match(root, /href="\/compendium"/);
-  assert.match(shell, /const redesignHome = pathname === "\/";/);
-  assert.match(shell, /<HomeFoundationHeader/);
-  assert.match(shell, /!immersiveMatch && !redesignHome && \(/);
+
+  assert.match(root, /className="home-rebuild-blank"/);
+  assert.doesNotMatch(root, /<h1|<p|<Link|DashboardScreen|HomePrototype|HomeFoundationHeader/);
+  assert.equal(existsSync("components/home/HomeFoundationHeader.jsx"), false);
+  assert.match(shell, /<PrototypeNavigation/);
+  assert.doesNotMatch(shell, /overhaul-topbar|mobile-bottom-nav|HomeFoundationHeader/);
+  assert.match(shell, /!redesignHome && <Suspense fallback=\{null\}><MusicLayer/);
   assert.match(shell, /<AccountAccessModal/);
+  const primary = nav.split("const profileLinks =")[0];
+  assert.equal((primary.match(/href: "\//g) ?? []).length, 4);
+  for (const href of ["/", "/play", "/decks", "/compendium"]) {
+    assert.ok(primary.includes(`href: "${href}"`), `Missing ${href} primary destination`);
+  }
+  assert.doesNotMatch(primary, /leaderboard|More/);
+  assert.match(nav, /aria-label="Primary navigation"/);
+  assert.match(nav, /aria-label="Mobile primary navigation"/);
+  assert.match(nav, /<NavIcon name=\{icon\}/);
+  assert.match(nav, /<NavIcon name="social"/);
+  assert.match(nav, /<NavIcon name="profile"/);
+  assert.match(nav, /setSocialOpen\(false\)/);
+  assert.match(nav, /aria-modal=\{narrow \? "true" : undefined\}/);
   assert.match(nav, /requestAccountAccess\("login"\)/);
   assert.match(nav, /requestAccountAccess\("signup"\)/);
-  assert.match(nav, /resumeCurrentMatch\(\)/);
-  assert.match(nav, /<SocialMenuButton/);
-  assert.match(nav, /aria-expanded=\{mobileOpen\}/);
-  assert.match(nav, /aria-label="Mobile navigation"/);
-  assert.match(css, /@media \(max-width: 1080px\)/);
-  assert.match(css, /@media \(max-width: 660px\)/);
-  assert.match(css, /min-height: calc\(100dvh/);
-  assert.doesNotMatch(root, /DashboardScreen|HomePrototype|EntryScreen/);
-  assert.equal(existsSync("components/routes/EntryScreen.tsx"), false);
-  assert.match(shell, /\{ href: "\/", label: "Home"/);
-  assert.doesNotMatch(shell, /const publicEntry/);
-  assert.match(source("app\/(workspace)\/dashboard\/page.tsx"), /redirect\("\/"\)/);
+  assert.match(nav, /onLogout\(\)/);
+  assert.match(css, /background: #000 !important/);
+  assert.match(css, /@media \(max-width: 800px\)/);
+  assert.match(css, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(css, /env\(safe-area-inset-bottom\)/);
+  assert.match(source("app/(workspace)/dashboard/page.tsx"), /redirect\("\/"\)/);
 });
 
 test("guest identity is generic and the avatar menu exposes only account access and Settings", () => {
@@ -62,8 +69,8 @@ test("guest identity is generic and the avatar menu exposes only account access 
   const css = source("app/guest-experience.css");
   assert.match(controller, /GUEST_BRAWLER_NAME = "Guest Brawler"/);
   assert.match(controller, /setProfile\(\{ \.\.\.profile, name: GUEST_BRAWLER_NAME/);
-  assert.match(shell, /requestAccountAccess\("login"\)/);
-  assert.match(shell, /requestAccountAccess\("signup"\)/);
+  assert.match(source("components/navigation/PrototypeNavigation.jsx"), /requestAccountAccess\("login"\)/);
+  assert.match(source("components/navigation/PrototypeNavigation.jsx"), /requestAccountAccess\("signup"\)/);
   assert.match(css, /profile-popover-stats[\s\S]*display: none/);
   assert.match(css, /a\[href="\/profile"\]/);
   assert.match(css, /a\[href="\/profile\/achievements"\]/);
