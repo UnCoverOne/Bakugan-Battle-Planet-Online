@@ -314,7 +314,7 @@ function triggerFor(text: string): TriggerDefinition | undefined {
     [/when you play this(?: card)?|when this is played/i, "CARD_PLAYED", "controller", "self"],
     [/when you play/i, "CARD_PLAYED", "controller"],
     [/when you select a Bakugan/i, "BAKUGAN_SELECTED", "controller"],
-    [/when this opens|when you turn this face up|when you open a Bakugan/i, "BAKUGAN_OPENED", "controller"],
+    [/when this opens|when you turn this face up|when you open a Bakugan|when your Bakugan opens/i, "BAKUGAN_OPENED", "controller"],
     [/when you discard|if this is discarded/i, "CARD_DISCARDED", "controller"],
     [/(?:\[?Victor\]?)[\s]*[-,:]/i, "VICTOR_DECLARED", "controller"],
     [/when one of your Bakugan attacks/i, "ATTACK_CREATED", "controller"],
@@ -426,6 +426,15 @@ function numberValueForDynamicAmount(text: string, baseAmount: number, dynamicSo
 
 export function parseAtomicEffects(card: GameCard, text: string): RuleAction[] {
   const actions: RuleAction[] = [];
+  // Well Practiced's reveal and cost comparison is one atomic opening effect,
+  // not an unconditional stat modification or a persistent Hero characteristic.
+  if (ruleCardId(card) === "av-75" && /^When your Bakugan opens\b/i.test(text)) {
+    const trigger = triggerFor(text);
+    return [
+      { kind: "compare-revealed-deck-costs", bonus: 500 },
+      ...(trigger ? [{ kind: "trigger" as const, event: trigger.event, definition: trigger }] : []),
+    ];
+  }
   // In “When you <Fusion> another Bakugan, <Fusion> this”, the first token
   // describes the trigger. Only the second token is an executable effect.
   const executableText = text.replace(/^When you\s+<Fusion>[^,]+,\s*/i, "");

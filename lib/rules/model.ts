@@ -197,6 +197,7 @@ export type RuleAction =
   | { kind: "shuffle-deck" }
   | { kind: "move"; object: "card" | "hero" | "evo" | "energy" | "bakucore" | "baku-gear" | "bakugan"; verb: "destroy" | "return" | "retract" | "attach" | "remove" | "shuffle" | "control"; amount: NumberValue; playerScope?: PlayerScope; subject?: "self" | "chosen"; destination?: "owner-hand" | "owner-deck-bottom"; retainChoiceId?: keyof CardChoices; excludeSource?: boolean }
   | { kind: "reveal"; object: "bakucore" | "deck-top"; amount: NumberValue; sourceOwner?: ZoneOwner }
+  | { kind: "compare-revealed-deck-costs"; bonus: number }
   | { kind: "reorder-deck"; amount: NumberValue }
   | { kind: "play"; source: "revealed-deck" | "hand" | "discard" | "self" | "self-hand" | "revealed-hand"; free: boolean; cardType?: CardType; excludedCardTypes?: CardType[]; factions?: Faction[]; cardName?: string; cardMechanic?: string; maximumCost?: NumberValue; sourceOwner?: ZoneOwner; destinationOwner?: ZoneOwner }
   | { kind: "attack"; amount: NumberValue; faction?: Faction }

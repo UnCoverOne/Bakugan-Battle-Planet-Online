@@ -3557,6 +3557,25 @@ case "swap-bakucore": {
       }
       return;
     }
+    case "compare-revealed-deck-costs": {
+      // Reveal both cards even if there is no eligible bonus. The top cards
+      // remain in their decks; revealTopDeckCard maintains public visibility.
+      const ownCard = revealTopDeckCard(state, player);
+      const opposingCard = revealTopDeckCard(state, opponent);
+      const ownCost = ownCard?.cost === "X" ? 0 : ownCard?.cost;
+      const opposingCost = opposingCard?.cost === "X" ? 0 : opposingCard?.cost;
+      const openedBakugan = player.bakugan.find((bakugan) => bakugan.id === choices.targetBakuganId);
+      const winsComparison = ownCost !== undefined && opposingCost !== undefined && ownCost > opposingCost;
+      recordResult({ amount: winsComparison ? action.bonus : 0 });
+      if (winsComparison && openedBakugan) {
+        state.powerBoost[openedBakugan.id] = (state.powerBoost[openedBakugan.id] ?? 0) + action.bonus;
+        recordTemporaryCardStatModifier(state, pending, {
+          kind: "modify-stat", stat: "power", amount: action.bonus, duration: "turn",
+        }, openedBakugan.id, action.bonus, instructionIndex, actionIndex);
+        entry(state, "game", `${card.displayName || card.name} granted ${openedBakugan.name} +${action.bonus} B-Power after winning the revealed-cost comparison.`);
+      }
+      return;
+    }
     case "reveal": {
       if (action.object === "bakucore") {
         const placement = state.placements.find((candidate) => candidate.cell === choices.coreCell && !candidate.attachedTo);

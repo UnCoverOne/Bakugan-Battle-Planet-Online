@@ -78,7 +78,16 @@ function chooseOneBranches(text: string): BattleMasteryBranch[] | null {
 }
 
 function splitInstructions(card: GameCard, source: string): RuleInstruction[] {
-  const normalized = source.replace(
+  // The cost comparison is dependent on the preceding opening trigger.
+  // Preserve both sentences as one instruction rather than treating +500 [B]
+  // as a separate, unconditional spell on entering play.
+  const coupledSource = ruleCardId(card) === "av-75"
+    ? source.replace(
+      /(each Bakugan reveals the top card of\s+their deck)\.\s*(If yours costs more,\s*\+500 \[B\]\.)/i,
+      "$1; $2",
+    )
+    : source;
+  const normalized = coupledSource.replace(
     // Some printed Actions omit a period between their combat modifier and
     // a distinct self-Energize trigger. Respect the source line break before
     // the generic whitespace normalizer flattens it.
