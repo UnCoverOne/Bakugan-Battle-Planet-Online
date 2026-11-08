@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
+import HomeDashboard from "../components/home/HomeDashboard";
 
 export const metadata: Metadata = {
   title: "Home",
-  description: "Bakugan Battle Planet Online.",
+  description: "Bakugan Battle Planet Online player dashboard.",
 };
 
-// Intentionally blank. Navigation is provided by the application shell.
 export default function HomePage() {
-  return <div className="home-rebuild-blank" />;
+  return <HomeDashboard />;
 }
