@@ -41,6 +41,7 @@ export function PrototypeNavigation({
   requestAccountAccess,
   onLogout,
   onFeedback,
+  busy = false,
 }) {
   const pathname = usePathname();
   const { open: socialOpen, setOpen: setSocialOpen, snapshot } = useSocial();
@@ -141,13 +142,13 @@ export function PrototypeNavigation({
           <button type="button" className="prototype-icon-button"
             aria-label={snapshot.unreadCount ? `Open social menu, ${snapshot.unreadCount} unread` : "Open social menu"}
             aria-haspopup="dialog" aria-controls="social-drawer"
-            aria-expanded={socialOpen}
+            aria-expanded={socialOpen} disabled={busy}
             onClick={() => { closeProfile(); setSocialOpen(!socialOpen); }}>
             <NavIcon name="social" />
           </button>
           <button type="button" ref={profileButton} className="prototype-icon-button"
             aria-label="Open profile menu" aria-haspopup="dialog"
-            aria-controls="prototype-profile-panel" aria-expanded={profileOpen}
+            aria-controls="prototype-profile-panel" aria-expanded={profileOpen} disabled={busy}
             onClick={() => { setSocialOpen(false); setProfileOpen((open) => !open); }}>
             <NavIcon name="profile" />
           </button>
@@ -187,7 +188,7 @@ export function PrototypeNavigation({
           )}
         </div>
       </header>
-      <nav className="prototype-bottom-rail" aria-label="Mobile primary navigation">
+      <nav className="prototype-bottom-rail" aria-label="Mobile primary navigation" hidden={socialOpen || (profileOpen && narrow)}>
         {PRIMARY_DESTINATIONS.map((item) => railItem(item, true))}
       </nav>
     </>
