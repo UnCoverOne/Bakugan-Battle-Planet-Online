@@ -39,7 +39,7 @@ test("administrator identity and authorization are server owned", async () => {
 
 test("profile menu exposes Administrator only for administrator roles", async () => {
   const [shell, provider] = await Promise.all([
-    read("components/application/AppShell.jsx"),
+    read("components/navigation/PrototypeNavigation.jsx"),
     read("components/application/AppProvider.jsx"),
   ]);
   assert.match(shell, /authUser\?\.roles\?\.includes\("administrator"\)/);
