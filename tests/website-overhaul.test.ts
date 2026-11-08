@@ -7,78 +7,33 @@ import { achievementsFor } from "../lib/achievements";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
-test("the primary shell uses the approved five-item top navigation and profile menu", () => {
+test("the primary shell uses four text links on desktop and four icon-label links on narrow screens", () => {
   const shell = source("components/application/AppShell.jsx");
-  for (const label of ["Home", "Play", "Decks", "Compendium", "Leaderboard"]) assert.match(shell, new RegExp(`label: "${label}"`));
-  assert.doesNotMatch(shell, /label: "History"/);
-  assert.match(shell, /mobile-bottom-nav/);
-  assert.match(shell, /profile-popover-stats/);
-  assert.match(shell, /PROFILE_TITLES/);
-  assert.match(shell, /FACTION_ICONS\[profile\.faction\]/);
-  assert.match(shell, /profile-popover-title/);
-  assert.match(shell, /profile-popover-stat-value/);
-  assert.match(shell, /profile-popover-row-icon/);
-  // Five top-level navigation items remain unchanged; the profile pop-up now
-  // has an additional Feedback & Reports action.
-  assert.equal(shell.match(/className="profile-popover-row-label"/g)?.length, 6);
-  assert.match(shell, /Feedback &amp; Reports/);
-  assert.match(shell, /profile-popover-chevron/);
-  assert.match(shell, /profile-popover-logout/);
-  assert.match(shell, /View Profile/);
-  assert.match(shell, /Achievements/);
-  assert.match(shell, /Settings/);
-  assert.match(shell, /Collection/);
-  assert.match(shell, /Log out/);
-  assert.doesNotMatch(shell, /function SyncGlyph/);
-  assert.doesNotMatch(shell, /sync-dot|sync-icon|syncIndicator|deriveSyncIndicator/);
-  assert.match(shell, /aria-label="Open profile menu"/);
-  assert.match(shell, /aria-controls="profile-menu"/);
-  assert.match(shell, /id="profile-menu"/);
+  const navigation = source("components/navigation/PrototypeNavigation.jsx");
+  const css = source("app/home-rebuild.css");
+  const primary = navigation.split("const profileLinks =")[0];
 
-  const mobileNavigation = shell.slice(
-    shell.indexOf('<nav className="mobile-bottom-nav"'),
-    shell.indexOf("{toast &&"),
-  );
-  assert.match(mobileNavigation, /NAV\.map/);
-  assert.doesNotMatch(mobileNavigation, /href="\/profile"/);
-  assert.doesNotMatch(mobileNavigation, />Profile<\/span>/);
-  const shellCss = source("app/website-overhaul.css");
-  const homeLayoutCss = source("app/home-layout.css");
-  const homeFidelityCss = source("app/home-fidelity.css");
-  const mobileHeaderCss = shellCss.split("@media (max-width:820px){")[1]?.split("@media (max-width:390px){")[0] ?? "";
-  assert.match(mobileHeaderCss, /\.top-actions \.resume-chip\{[^}]*position:static;[^}]*display:inline-flex;[^}]*width:auto;[^}]*font-size:\.7rem/);
-  assert.doesNotMatch(mobileHeaderCss, /\.top-actions \.resume-chip\{[^}]*position:fixed/);
-  assert.match(mobileHeaderCss, /\.overhaul-topbar \.top-actions\{[^}]*gap:\.45rem/);
-  assert.match(
-    shellCss,
-    /\.mobile-bottom-nav\{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/,
-  );
-  assert.match(
-    shellCss,
-    /@media \(max-width:820px\)\{[\s\S]*?\.profile-popover\{position:absolute;left:auto;right:0;top:calc\(100% \+ 8px\);bottom:auto;/,
-  );
-  assert.match(shellCss, /\.profile-popover\{[^}]*width:clamp\(320px,24vw,360px\)/);
-  assert.match(shellCss, /\.profile-popover-heading\{[^}]*min-height:88px/);
-  assert.match(shellCss, /\.profile-popover-avatar\{[^}]*flex:0 0 14%/);
-  assert.match(shellCss, /\.profile-popover-stats\{[^}]*grid-template-columns:1fr 1fr/);
-  assert.match(shellCss, /\.profile-popover-row\{[^}]*min-height:44px/);
-  assert.match(shellCss, /\.profile-popover>nav\{[^}]*width:100%;[^}]*padding:\.35rem 0/);
-  assert.match(shellCss, /\.profile-popover-row\{[^}]*justify-self:stretch;[^}]*width:100%/);
-  assert.match(shellCss, /\.profile-popover-row-label\{[^}]*justify-self:start;[^}]*text-align:left/);
-  assert.match(shellCss, /\.profile-popover-chevron\{[^}]*justify-self:end/);
-  assert.match(shellCss, /\.app-shell:not\(\.immersive-match\) \.overhaul-topbar\{[^}]*z-index:200/);
-  assert.doesNotMatch(shellCss, /\.sync-dot/);
-  assert.doesNotMatch(homeLayoutCss, /\.sync-dot|\.sync-icon/);
-  for (const css of [shellCss, homeLayoutCss, homeFidelityCss]) {
-    assert.doesNotMatch(css, /\.overhaul-topbar\s+nav(?:\s|\{|a)/);
+  for (const label of ["Home", "Play", "Decks", "Compendium"]) {
+    assert.match(primary, new RegExp(`label: "${label}"`));
   }
-  assert.match(shellCss, /\.profile-popover-logout\{[^}]*min-height:54px/);
-  assert.doesNotMatch(
-    shellCss,
-    /@media \(max-width:820px\)\{[\s\S]*?\.profile-popover\{position:fixed;/,
-  );
+  assert.equal((primary.match(/href: "\//g) ?? []).length, 4);
+  assert.doesNotMatch(primary, /Leaderboard|History|More/);
+  assert.match(shell, /<PrototypeNavigation/);
+  assert.doesNotMatch(shell, /overhaul-topbar|mobile-bottom-nav/);
+  assert.match(navigation, /className="prototype-top-links"/);
+  assert.match(navigation, /className="prototype-bottom-rail"/);
+  assert.match(navigation, /<NavIcon name=\{icon\}/);
+  assert.match(navigation, /<NavIcon name="social"/);
+  assert.match(navigation, /<NavIcon name="profile"/);
+  assert.match(navigation, /Feedback &amp; reports/);
+  assert.match(navigation, /href="\/settings"/);
+  assert.match(navigation, /Log out/);
+  assert.match(navigation, /aria-expanded=\{profileOpen\}/);
+  assert.match(navigation, /aria-modal=\{narrow \? "true" : undefined\}/);
+  assert.match(css, /position: fixed/);
+  assert.match(css, /@media \(max-width: 820px\)/);
+  assert.match(css, /env\(safe-area-inset-bottom\)/);
 });
-
 
 test("history is routed through profile and public deck browsing has dedicated routes", () => {
   assert.equal(existsSync("app/(workspace)/profile/[[...segments]]/page.tsx"), true);
