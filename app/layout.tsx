@@ -1,24 +1,8 @@
 import type { Metadata } from "next";
-import "./globals.css";
-import "./card-art-transparency.css";
-import "./route-shell.css";
-import "./website-overhaul.css";
-import "./home-layout.css";
-import "./home-fidelity.css";
-import "./home-polish.css";
-import "./interface-refinements.css";
-import "./site-consistency.css";
-import "./deck-builder-layout.css";
-import "./guest-experience.css";
-import "./guest-avatar.css";
-import "./guest-overrides.css";
-import "./recovery-code.css";
-import "./navigation-motion.css";
-import "./frontend-clean-slate.css";
+import "./blank-slate.css";
 import { AccountHistorySync } from "../components/application/AccountHistorySync";
 import { AppProvider } from "../components/application/AppProvider";
 import { AppShell } from "../components/application/AppShell";
-import { DisplayFontLoader } from "../components/application/DisplayFontLoader";
 import { GuestExperienceController } from "../components/application/GuestExperienceController";
 import { PublicDeckFallbackSync } from "../components/application/PublicDeckFallbackSync";
 import { AssetFreshness } from "../components/AssetFreshness";
@@ -30,18 +14,12 @@ export const metadata: Metadata = {
     template: "%s | Bakugan Battle Planet Online",
   },
   description: "Build a Battle Planet deck, construct the Hide Matrix, and play a rules-guided online Bakugan TCG match.",
-  icons: {
-    icon: { url: "/assets/logo.png", type: "image/png" },
-    shortcut: "/assets/logo.png",
-    apple: { url: "/assets/logo.png", type: "image/png" },
-  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <body>
-        <DisplayFontLoader />
         <AssetFreshness />
         <WebVitalsReporter />
         <AppProvider>
