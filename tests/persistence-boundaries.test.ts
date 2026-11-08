@@ -210,7 +210,8 @@ test("signed-in local Training resumes revalidate account state before navigatio
   assert.match(provider, /loadCloud\("cloud", authUser\)/);
   assert.match(provider, /addEventListener\("focus", resume\)/);
   assert.match(dashboard, /onClick=\{\(\) => void resumeCurrentMatch\(\)\}/);
-  // The four-link prototype deliberately has no resume chip; the provider still revalidates resumption.\n  assert.match(shell, /<PrototypeNavigation/);
+  // The four-link prototype deliberately has no resume chip; the provider still revalidates resumption.
+  assert.match(shell, /<PrototypeNavigation/);
 });
 
 
