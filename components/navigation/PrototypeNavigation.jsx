@@ -53,7 +53,7 @@ export function PrototypeNavigation({
   const previousPath = useRef(pathname);
 
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 800px)");
+    const media = window.matchMedia("(max-width: 820px)");
     const update = () => setNarrow(media.matches);
     update();
     media.addEventListener("change", update);
