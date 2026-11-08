@@ -26,7 +26,7 @@ test("the primary shell uses four text links on desktop and four icon-label link
   assert.match(navigation, /<NavIcon name="social"/);
   assert.match(navigation, /<NavIcon name="profile"/);
   assert.match(navigation, /Feedback &amp; reports/);
-  assert.match(navigation, /href="\/settings"/);
+  assert.match(navigation, /href: "\/settings"/);
   assert.match(navigation, /Log out/);
   assert.match(navigation, /aria-expanded=\{profileOpen\}/);
   assert.match(navigation, /aria-modal=\{narrow \? "true" : undefined\}/);
