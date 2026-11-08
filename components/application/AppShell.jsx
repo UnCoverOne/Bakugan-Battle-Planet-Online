@@ -1,123 +1,46 @@
 "use client";
 
-import { OriginalImage } from "@/components/media/OriginalImage";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { isCompendiumSectionChange } from "../../lib/compendium-navigation";
-import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { activeSessionPresentation } from "../../lib/active-session";
-import { accountMatchSessionPresentation } from "../../lib/account-match-session";
-import { playerMatchSummary } from "../../lib/match-statistics";
-import { PROFILE_TITLES } from "../../lib/profile-customization";
+import { useEffect, useState } from "react";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
 import { SystemState, VersionMismatchScreen } from "./SystemState";
-import {
-  AccountAccessModal,
-  GuestAccountPrompt,
-} from "./AccountAccessModal";
-import { ProfileAvatar } from "../profile/ProfileAvatar";
+import { AccountAccessModal, GuestAccountPrompt } from "./AccountAccessModal";
 import { useAppFields } from "./AppProvider";
-import { SocialDrawer, SocialMenuButton, SocialProvider } from "../social/SocialProvider";
+import { SocialProvider, SocialDrawer, SocialMenuButton } from "../social/SocialProvider";
 import { MusicLayer } from "./MusicLayer";
 
-const FeedbackReportsDialog = lazy(() => import("./FeedbackReportsDialog"));
-
-import { activeBuilder, builderNavigationHref, builderScope, subscribeBuilder } from "../../lib/builder-session";
-
 const NAV = [
-  { href: "/", label: "Home", icon: "⌂" },
-  { href: "/play", label: "Play", icon: "▶" },
-  { href: "/decks", label: "Decks", icon: "▤" },
-  { href: "/compendium", label: "Compendium", icon: "◇" },
-  { href: "/leaderboard", label: "Leaderboard", icon: "◆" },
+  ["/", "Home"], ["/play", "Play"], ["/decks", "Decks"],
+  ["/collection", "Collection"], ["/compendium", "Compendium"],
+  ["/leaderboard", "Leaderboard"], ["/history", "History"],
+  ["/profile", "Profile"], ["/settings", "Settings"],
 ];
-const TITLES = {
-  dashboard: "Home",
-  play: "Play",
-  decks: "Decks",
-  builder: "Deck Builder",
-  compendium: "Compendium",
-  history: "Match Records",
-  leaderboard: "Ranked Leaderboard",
-  brawlers: "Brawler Profile",
-  profile: "Profile",
-  settings: "Settings",
-  admin: "Administrator",
-};
-
-const FACTION_ICONS = {
-  Aquos: "/assets/symbols/factions/aquos.png",
-  Aurelus: "/assets/symbols/factions/aurelus.png",
-  Darkus: "/assets/symbols/factions/darkus.png",
-  Haos: "/assets/symbols/factions/haos.png",
-  Pyrus: "/assets/symbols/factions/pyrus.png",
-  Ventus: "/assets/symbols/factions/ventus.png",
-};
-
-function MenuIcon({ name }) {
-  const paths = {
-    user: <><circle cx="12" cy="8" r="3.25" /><path d="M5.5 20c.55-4.05 2.72-6.08 6.5-6.08S17.95 15.95 18.5 20" /></>,
-    trophy: <><path d="M8 4h8v4.25c0 3-1.5 5.25-4 5.25s-4-2.25-4-5.25V4Z" /><path d="M8 6H4.75v1.25c0 2.3 1.15 3.45 3.45 3.45M16 6h3.25v1.25c0 2.3-1.15 3.45-3.45 3.45M12 13.5V17m-4 3h8m-6-3h4" /></>,
-    sparkle: <><path d="m12 2 1.45 4.05L17.5 7.5l-4.05 1.45L12 13l-1.45-4.05L6.5 7.5l4.05-1.45L12 2Z" /><path d="m18.5 13 .82 2.18L21.5 16l-2.18.82L18.5 19l-.82-2.18L15.5 16l2.18-.82L18.5 13ZM5 13l.65 1.85 1.85.65-1.85.65L5 18l-.65-1.85-1.85-.65 1.85-.65L5 13Z" /></>,
-    settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.55v-.1A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.1 15a1.7 1.7 0 0 0-1.5-1H2.5V10h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.56 4.2l.06.06A1.7 1.7 0 0 0 8.5 4.6a1.7 1.7 0 0 0 1-1.5V3h4v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 18.9 9a1.7 1.7 0 0 0 1.5 1h.1v4h-.1a1.7 1.7 0 0 0-1 .99Z" /></>,
-    shield: <path d="M12 2.75 19 5.5v5.25c0 4.3-2.33 7.8-7 10.5-4.67-2.7-7-6.2-7-10.5V5.5l7-2.75Z" />,
-    cards: <><rect x="4" y="5" width="11" height="14" rx="1.5" /><path d="M8 5V3.5h10a2 2 0 0 1 2 2V17h-2M7.5 9h4M7.5 12h4" /></>,
-    logout: <><path d="M10 4H5v16h5M14 8l4 4-4 4m4-4H9" /></>,
-    feedback: <><path d="M4 5h16v11H9l-5 4V5Z" /><path d="M8 9h8m-8 3h5" /></>,
-    chevron: <path d="m9 5 7 7-7 7" />,
-  };
-  return <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">{paths[name]}</svg>;
-}
-
-
 
 export function AppShell({ children }) {
   const pathname = usePathname();
-  const focusPathRef = useRef(null);
   const {
-    ready,
-    decks,
-    route,
-    profile,
-    history,
-    lifetimeStats,
-    authUser,
-    authChecking,
-    accountDataReady,
-    authError,
-    storageHealth,
-    retryCloudLoad,
-    match,
-    online,
-    matchCapability,
-    matchControllerId,
-    accountMatchSessions,
-    resumeAccountMatch,
-    resumingMatchCode,
-    resumeCurrentMatch,
-    resumingCurrentMatch,
-    toast,
-    accountPrompt,
-    dismissAccountPrompt,
-    accountAccessMode,
-    requestAccountAccess,
-    closeAccountAccess,
-    signOutAccount,
-  } = useAppFields(["ready", "decks", "route", "profile", "history", "lifetimeStats", "authUser", "authChecking", "accountDataReady", "authError", "storageHealth", "retryCloudLoad", "match", "online", "matchCapability", "matchControllerId", "accountMatchSessions", "resumeAccountMatch", "resumingMatchCode", "resumeCurrentMatch", "resumingCurrentMatch", "toast", "accountPrompt", "dismissAccountPrompt", "accountAccessMode", "requestAccountAccess", "closeAccountAccess", "signOutAccount"]);
-  const resumeScope = builderScope(authUser?.id);
-  const resumeId = useSyncExternalStore(subscribeBuilder, () => activeBuilder(resumeScope), () => null);
-  const decksHref = builderNavigationHref(resumeId, decks);
-  const immersiveMatch = pathname === "/play/match";
-  const homeRoute = pathname === "/" || pathname.startsWith("/dashboard");
-  const secondaryRoute = !immersiveMatch && !homeRoute;
-  const mainRef = useRef(null);
-  const menuRef = useRef(null);
-  const [isOnline, setIsOnline] = useState(true);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
+    ready, authChecking, authUser, accountDataReady, authError,
+    retryCloudLoad, signOutAccount, accountPrompt, dismissAccountPrompt,
+    accountAccessMode, requestAccountAccess, closeAccountAccess,
+    toast, match, online, matchCapability, matchControllerId,
+    resumeCurrentMatch, resumingCurrentMatch, accountMatchSessions,
+    resumeAccountMatch, resumingMatchCode,
+  } = useAppFields([
+    "ready", "authChecking", "authUser", "accountDataReady", "authError",
+    "retryCloudLoad", "signOutAccount", "accountPrompt", "dismissAccountPrompt",
+    "accountAccessMode", "requestAccountAccess", "closeAccountAccess",
+    "toast", "match", "online", "matchCapability", "matchControllerId",
+    "resumeCurrentMatch", "resumingCurrentMatch", "accountMatchSessions",
+    "resumeAccountMatch", "resumingMatchCode",
+  ]);
   const [versionMismatch, setVersionMismatch] = useState(false);
-
+  const [isOnline, setIsOnline] = useState(true);
+  useEffect(() => {
+    const show = () => setVersionMismatch(true);
+    window.addEventListener(VERSION_MISMATCH_EVENT, show);
+    return () => window.removeEventListener(VERSION_MISMATCH_EVENT, show);
+  }, []);
   useEffect(() => {
     const update = () => setIsOnline(navigator.onLine);
     update();
@@ -128,362 +51,74 @@ export function AppShell({ children }) {
       window.removeEventListener("offline", update);
     };
   }, []);
-
-  useEffect(() => {
-    const showMismatch = () => setVersionMismatch(true);
-    window.addEventListener(VERSION_MISMATCH_EVENT, showMismatch);
-    return () =>
-      window.removeEventListener(VERSION_MISMATCH_EVENT, showMismatch);
-  }, []);
-
-  useEffect(() => {
-    if (!profileOpen) return;
-    const close = (event) => {
-      if (
-        event.key === "Escape" ||
-        (event.type === "pointerdown" &&
-          !menuRef.current?.contains(event.target))
-      )
-        setProfileOpen(false);
-    };
-    document.addEventListener("pointerdown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("pointerdown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, [profileOpen]);
-
-  useEffect(() => {
-    setProfileOpen(false);
-    const internalSectionChange = isCompendiumSectionChange(focusPathRef.current, pathname);
-    focusPathRef.current = pathname;
-    if (immersiveMatch || !ready || internalSectionChange) return;
-    const frame = window.requestAnimationFrame(() => {
-      const target = mainRef.current?.querySelector("h1") ?? mainRef.current;
-      target?.setAttribute("tabindex", "-1");
-      target?.focus();
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [immersiveMatch, pathname, ready]);
-
-  const requestLogout = async () => {
+  const logout = async () => {
     if (await signOutAccount()) return;
-    if (
-      window.confirm(
-        "Cloud save could not finish. Log out anyway and keep the unsynced account recovery copy in this browser?",
-      )
-    ) {
+    if (window.confirm("Cloud save did not finish. Sign out and retain the recovery copy in this browser?")) {
       await signOutAccount({ retainUnsynced: true });
     }
   };
-
-  if (!ready || authChecking) return <BootScreen />;
-  if (authUser && !accountDataReady) {
-    return (
-      <AccountDataScreen
-        error={authError}
-        onRetry={() => void retryCloudLoad()}
-        onLogout={() => void requestLogout()}
+  if (!ready || authChecking) return <main><h1>Loading</h1><p>Preparing your data.</p></main>;
+  if (authUser && !accountDataReady) return (
+    <main>
+      <SystemState tone={authError ? "error" : "loading"}
+        eyebrow="Account data"
+        title={authError ? "Account data unavailable" : "Loading account data"}
+        message={authError || "Your guest data remains separate while account data loads."}
+        actions={authError ? <>
+          <button onClick={() => void retryCloudLoad()}>Retry</button>
+          <button onClick={() => void logout()}>Sign out</button>
+        </> : undefined}
       />
-    );
-  }
-  const unlocked = Object.keys(profile.achievementCompletions ?? {}).length;
-  const { gamesWon: wins } = playerMatchSummary(history, lifetimeStats, Boolean(authUser));
-  const selectedProfileTitle =
-    PROFILE_TITLES.find((item) => item.id === profile.titleId) ??
-    PROFILE_TITLES[0];
-  const title =
-    TITLES[pathname.split("/").filter(Boolean)[0] ?? "dashboard"] ??
-    TITLES[route] ??
-    "Bakugan Battle Planet Online";
-  const profileActive =
-    pathname.startsWith("/profile") ||
-    pathname.startsWith("/settings") ||
-    pathname.startsWith("/history") ||
-    pathname.startsWith("/admin");
-  const canControlLocalMatch = !online || Boolean(matchCapability && matchControllerId);
-  const activeSession = activeSessionPresentation(canControlLocalMatch ? match : null);
-  const remoteSession = !activeSession ? accountMatchSessions?.[0] : null;
-  const remoteSessionPresentation = remoteSession
-    ? accountMatchSessionPresentation(remoteSession)
-    : null;
-
+    </main>
+  );
+  const immersiveMatch = pathname === "/play/match";
+  const canResumeLocalMatch = Boolean(match && (!online || (matchCapability && matchControllerId)));
   return (
     <SocialProvider>
       <MusicLayer />
-      <div
-        className={`app-shell ${immersiveMatch ? "immersive-match" : ""} ${secondaryRoute ? "secondary-route" : ""}`}
-      >
-      <a className="skip-link" href="#main-content">
-        Skip to main content
-      </a>
-      {!immersiveMatch && (
-        <header className="topbar overhaul-topbar">
-          <Link
-            className="brand"
-            href="/"
-            aria-label="Bakugan Battle Planet Online home"
-          >
-            <OriginalImage src="/assets/logo.png" alt="Bakugan Battle Planet" />
-            <span>TCG ONLINE</span>
-          </Link>
-          <nav aria-label="Primary navigation">
-            {NAV.map((item) => {
-              const active =
-                item.href === "/"
-                  ? homeRoute
-                  : pathname === item.href || pathname.startsWith(`${item.href}/`) || (item.href === "/decks" && pathname.startsWith("/builder/") && !pathname.startsWith("/builder/admin-"));
-              return (
-                <Link
-                  key={item.href}
-                  className={active ? "active" : ""}
-                  aria-current={active ? "page" : undefined}
-                  href={item.href === "/decks" ? decksHref : item.href}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+      <div className="blank-shell">
+        <a className="skip-link" href="#main-content">Skip to content</a>
+        {!immersiveMatch && <header>
+          <strong>Bakugan Battle Planet Online</strong>
+          <nav aria-label="Main navigation">
+            {NAV.map(([href, label]) => (
+              <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined}>{label}</Link>
+            ))}
           </nav>
-          <div className="top-actions">
-            {activeSession && (
-              <button
-                className="resume-chip"
-                type="button"
-                disabled={resumingCurrentMatch}
-                onClick={() => void resumeCurrentMatch()}
-              >
-                <span className="pulse" /> {resumingCurrentMatch ? "Checking…" : activeSession.navLabel}
-              </button>
-            )}
-            {remoteSession && remoteSessionPresentation && (
-              <button
-                className="resume-chip"
-                type="button"
-                disabled={resumingMatchCode === remoteSession.code}
-                onClick={() => void resumeAccountMatch(remoteSession)}
-              >
-                <span className="pulse" />
-                {resumingMatchCode === remoteSession.code ? "Resuming…" : remoteSessionPresentation.navLabel}
-              </button>
-            )}
-            <SocialMenuButton />
-            <div className="profile-menu-wrap" ref={menuRef}>
-              <button
-                className={`profile-avatar-button ${profileActive ? "active" : ""}`}
-                type="button"
-                aria-label="Open profile menu"
-                aria-haspopup="menu"
-                aria-controls="profile-menu"
-                aria-expanded={profileOpen}
-                onClick={() => setProfileOpen((open) => !open)}
-              >
-                <ProfileAvatar
-                  profile={profile}
-                  className="profile-avatar-control"
-                />
-                <span className="sr-only">Open profile menu</span>
-              </button>
-              {profileOpen && (
-                <div
-                  id="profile-menu"
-                  className="profile-popover"
-                  role="menu"
-                >
-                  <div className="profile-popover-heading">
-                    <ProfileAvatar
-                      profile={profile}
-                      className={`profile-popover-avatar faction-${profile.faction.toLowerCase()}`}
-                    />
-                    <div className="profile-popover-identity">
-                      <strong>{profile.name}</strong>
-                      <div className="profile-popover-title">
-                        <OriginalImage src={FACTION_ICONS[profile.faction]} alt="" />
-                        <span>{selectedProfileTitle.label}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="profile-popover-stats">
-                    <div>
-                      <div className="profile-popover-stat-value"><MenuIcon name="trophy" /><strong>{unlocked}</strong></div>
-                      <span>Achievements</span>
-                    </div>
-                    <div>
-                      <div className="profile-popover-stat-value"><MenuIcon name="sparkle" /><strong>{wins}</strong></div>
-                      <span title="Includes completed Training, Casual and Ranked matches">Games won · all modes</span>
-                    </div>
-                  </div>
-                  <nav aria-label="Profile menu">
-                    <Link className="profile-popover-row" role="menuitem" href="/profile">
-                      <span className="profile-popover-row-icon"><MenuIcon name="user" /></span>
-                      <span className="profile-popover-row-label">View Profile</span>
-                      <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
-                    </Link>
-                    <Link className="profile-popover-row" role="menuitem" href="/profile/achievements">
-                      <span className="profile-popover-row-icon"><MenuIcon name="trophy" /></span>
-                      <span className="profile-popover-row-label">Achievements</span>
-                      <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
-                    </Link>
-                    <Link className="profile-popover-row" role="menuitem" href="/collection">
-                      <span className="profile-popover-row-icon"><MenuIcon name="cards" /></span>
-                      <span className="profile-popover-row-label">Collection</span>
-                      <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
-                    </Link>
-                    <button className="profile-popover-row" role="menuitem" type="button"
-                      onClick={() => { setProfileOpen(false); setFeedbackOpen(true); }}>
-                      <span className="profile-popover-row-icon"><MenuIcon name="feedback" /></span>
-                      <span className="profile-popover-row-label">Feedback &amp; Reports</span>
-                      <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
-                    </button>
-                    <Link className="profile-popover-row" role="menuitem" href="/settings">
-                      <span className="profile-popover-row-icon"><MenuIcon name="settings" /></span>
-                      <span className="profile-popover-row-label">Settings</span>
-                      <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
-                    </Link>
-                    {authUser?.roles?.includes("administrator") && (
-                      <Link className="profile-popover-row" role="menuitem" href="/admin">
-                        <span className="profile-popover-row-icon"><MenuIcon name="shield" /></span>
-                        <span className="profile-popover-row-label">Administrator</span>
-                        <span className="profile-popover-chevron"><MenuIcon name="chevron" /></span>
-                      </Link>
-                    )}
-                  </nav>
-                  {authUser ? (
-                    <button className="profile-popover-logout" role="menuitem" type="button" onClick={() => void requestLogout()}>
-                      <span className="profile-popover-row-icon"><MenuIcon name="logout" /></span>
-                      <span>Log out</span>
-                    </button>
-                  ) : (
-                    <div className="profile-popover-auth">
-                      <button role="menuitem" type="button" onClick={() => { setProfileOpen(false); requestAccountAccess("login"); }}>Log in</button>
-                      <button role="menuitem" type="button" onClick={() => { setProfileOpen(false); requestAccountAccess("signup"); }}>Register</button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-      )}
-      {!immersiveMatch && !isOnline && (
-        <div className="offline-banner" role="status">
-          <strong>Offline.</strong>{" "}
-          {authUser
-            ? "The loaded account session remains available; cloud writes will retry when the connection returns."
-            : "Device-local features remain available; cloud services and public updates are unavailable."}
-        </div>
-      )}
-      {!immersiveMatch && !authUser && storageHealth.status === "error" && (
-        <div className="storage-error-banner" role="alert">
-          {storageHealth.message}
-        </div>
-      )}
-      <div className="route-announcer" aria-live="polite" aria-atomic="true">
-        {title}
-      </div>
-      <main id="main-content" className="main-stage" ref={mainRef}>
-        {children}
-      </main>
-      {!immersiveMatch && (
-        <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
-          {NAV.map((item) => {
-            const active =
-              item.href === "/"
-                ? homeRoute
-                : pathname === item.href || pathname.startsWith(`${item.href}/`) || (item.href === "/decks" && pathname.startsWith("/builder/") && !pathname.startsWith("/builder/admin-"));
-            return (
-              <Link
-                key={item.href}
-                href={item.href === "/decks" ? decksHref : item.href}
-                aria-current={active ? "page" : undefined}
-                className={active ? "active" : ""}
-              >
-                <i>{item.icon}</i>
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      )}
-      {accountPrompt && !authUser && (
-        <GuestAccountPrompt
-          reason={accountPrompt}
-          onLogin={() => {
-            dismissAccountPrompt();
-            requestAccountAccess("login");
-          }}
-          onRegister={() => {
-            dismissAccountPrompt();
-            requestAccountAccess("signup");
-          }}
-          onDismiss={dismissAccountPrompt}
-        />
-      )}
-      {accountAccessMode && !authUser && (
-        <AccountAccessModal
-          key={accountAccessMode}
-          mode={accountAccessMode}
-          onClose={closeAccountAccess}
-        />
-      )}
-      {toast && (
-        <div key={toast} className="toast" role="status">
-          {toast}
-        </div>
-      )}
-      {feedbackOpen && !immersiveMatch && (
-        <Suspense fallback={null}>
-          <FeedbackReportsDialog
-            signedIn={Boolean(authUser)}
-            onSignIn={() => { setFeedbackOpen(false); requestAccountAccess("login"); }}
-            onClose={() => {
-              setFeedbackOpen(false);
-              menuRef.current?.querySelector(".profile-avatar-button")?.focus();
-            }}
-          />
-        </Suspense>
-      )}
-      {versionMismatch && (
-        <VersionMismatchScreen onRefresh={() => window.location.reload()} />
-      )}
-      <SocialDrawer />
+          <SocialMenuButton />
+          {authUser ? (
+            <button type="button" onClick={() => void logout()}>Sign out</button>
+          ) : (
+            <>
+              <button type="button" onClick={() => requestAccountAccess("login")}>Log in</button>
+              <button type="button" onClick={() => requestAccountAccess("signup")}>Register</button>
+            </>
+          )}
+        </header>}
+        {!immersiveMatch && canResumeLocalMatch && (
+          <button type="button" disabled={resumingCurrentMatch} onClick={() => void resumeCurrentMatch()}>
+            {resumingCurrentMatch ? "Resuming match…" : "Resume current match"}
+          </button>
+        )}
+        {!immersiveMatch && accountMatchSessions?.map((session) => (
+          <button key={session.code + ":" + session.playerId} type="button"
+            disabled={resumingMatchCode === session.code}
+            onClick={() => void resumeAccountMatch(session)}>
+            {resumingMatchCode === session.code ? "Resuming…" : "Resume match " + session.code}
+          </button>
+        ))}
+        {!isOnline && <p role="status">Offline: network features are unavailable.</p>}
+        <main id="main-content">{children}</main>
+        {accountPrompt && !authUser && <GuestAccountPrompt reason={accountPrompt}
+          onLogin={() => { dismissAccountPrompt(); requestAccountAccess("login"); }}
+          onRegister={() => { dismissAccountPrompt(); requestAccountAccess("signup"); }}
+          onDismiss={dismissAccountPrompt} />}
+        {accountAccessMode && !authUser && <AccountAccessModal key={accountAccessMode}
+          mode={accountAccessMode} onClose={closeAccountAccess} />}
+        {toast && <p role="status">{toast}</p>}
+        {versionMismatch && <VersionMismatchScreen onRefresh={() => window.location.reload()} />}
+        <SocialDrawer />
       </div>
     </SocialProvider>
-  );
-}
-
-function AccountDataScreen({ error, onRetry, onLogout }) {
-  return (
-    <main className="boot-screen">
-      <SystemState
-        tone={error ? "error" : "loading"}
-        eyebrow="Account data"
-        title={error ? "Cloud data could not be loaded" : "Loading account data"}
-        message={
-          error ||
-          "Your local guest data is isolated while the signed-in account snapshot loads."
-        }
-        actions={
-          error ? (
-            <>
-              <button type="button" onClick={onRetry}>Try again</button>
-              <button type="button" onClick={onLogout}>Log out</button>
-            </>
-          ) : undefined
-        }
-      />
-    </main>
-  );
-}
-
-function BootScreen() {
-  return (
-    <main className="boot-screen">
-      <OriginalImage src="/assets/logo.png" alt="Bakugan Battle Planet" />
-      <span className="pulse" />
-      <h1>LOADING BRAWLER DATA</h1>
-      <p>Checking the session before selecting local or account storage…</p>
-    </main>
   );
 }
