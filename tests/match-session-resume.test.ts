@@ -212,7 +212,10 @@ test("the browser keeps controller credentials session-scoped and stops a displa
   assert.match(provider, /ACCOUNT_MATCH_REFRESH_INTERVAL_MS = 15_000/);
   assert.match(provider, /window\.setInterval\(refresh, ACCOUNT_MATCH_REFRESH_INTERVAL_MS\)/);
   assert.match(provider, /recoverableTrainingMatch\(match, online\)/);
-  // The minimal global rail does not expose a resume action; the provider and\n  // dedicated Play flow retain their session-credential safeguards.\n  assert.match(shell, /<PrototypeNavigation/);\n  assert.doesNotMatch(source("components/navigation/PrototypeNavigation.jsx"), /resumeCurrentMatch\\(/);
+  // The minimal rail has no resume chip. The provider and the Play screen
+  // still own the credential-checked resume flow.
+  assert.match(shell, /<PrototypeNavigation/);
+  assert.doesNotMatch(source("components/navigation/PrototypeNavigation.jsx"), /resumeCurrentMatch\(/);
   assert.match(dashboard, /canControlLocalMatch/);
 });
 
