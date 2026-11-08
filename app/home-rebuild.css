@@ -1,7 +1,7 @@
 /*
  * Prototype navigation: functional layout only.
  * The four links and two menu controls are the only persistent chrome.
- * No image, decorative asset, downloaded font, animation or homepage content.
+ * No decorative assets, downloaded fonts or animations are used on Home.
  */
 .app-shell.prototype-nav-shell {
   --prototype-top-height: 56px;
@@ -155,7 +155,7 @@
 
 .app-shell.home-rebuild-shell,
 .app-shell.home-rebuild-shell > .main-stage,
-.app-shell.home-rebuild-shell .home-rebuild-blank {
+.app-shell.home-rebuild-shell .home-dashboard {
   background: #000 !important;
   background-image: none !important;
 }
@@ -169,8 +169,7 @@
   overflow: visible;
 }
 
-.home-rebuild-shell .home-rebuild-blank {
-  width: 100%;
+.home-rebuild-shell .home-dashboard {
   min-height: calc(100dvh - var(--prototype-top-height));
 }
 
@@ -249,7 +248,7 @@
     min-height: calc(100dvh - var(--prototype-top-height));
     padding-bottom: calc(var(--prototype-bottom-height) + env(safe-area-inset-bottom)) !important;
   }
-  .home-rebuild-shell .home-rebuild-blank {
+  .home-rebuild-shell .home-dashboard {
     min-height: calc(100dvh - var(--prototype-top-height) - var(--prototype-bottom-height) - env(safe-area-inset-bottom));
   }
   .prototype-nav-shell #social-drawer {
@@ -263,4 +262,61 @@
   .prototype-nav-shell * {
     scroll-behavior: auto;
   }
+}
+
+/*
+ * Homepage: only enough spacing to make the four functional sections usable.
+ * Layout, colours beyond the existing black canvas, typography and artwork
+ * remain open design decisions.
+ */
+.home-rebuild-shell .home-dashboard {
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  width: 100%;
+  max-width: 960px;
+  margin-inline: auto;
+  padding: 24px 16px;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+}
+
+.home-rebuild-shell .home-dashboard section { display: grid; align-content: start; gap: 12px; }
+.home-rebuild-shell .home-dashboard section > header { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; align-items: center; }
+.home-rebuild-shell .home-dashboard :is(h2, h3, p, ul, dl) {
+  margin: 0;
+  color: inherit;
+  font-family: inherit;
+  font-style: normal;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.home-rebuild-shell .home-dashboard h2 { font-size: 1.15rem; line-height: 1.4; font-weight: 600; }
+.home-rebuild-shell .home-dashboard h3 { font-size: 1rem; line-height: 1.4; font-weight: 600; }
+.home-rebuild-shell .home-dashboard a { color: inherit; }
+.home-rebuild-shell .home-dashboard-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.home-rebuild-shell .home-dashboard-actions :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #666;
+  border-radius: 0;
+  background: #000;
+  color: #fff;
+  font: inherit;
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.home-rebuild-shell .home-dashboard ul { display: grid; gap: 12px; padding-left: 20px; }
+.home-rebuild-shell .home-dashboard li { padding: 0; }
+.home-rebuild-shell .home-dashboard li p { margin: 3px 0; }
+.home-rebuild-shell .home-dashboard li progress { display: block; width: min(100%, 380px); margin-top: 4px; }
+.home-rebuild-shell .home-dashboard-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.home-rebuild-shell .home-dashboard-stats dt { font-size: .875rem; }
+.home-rebuild-shell .home-dashboard-stats dd { margin: 4px 0 0; font-weight: 600; }
+@media (max-width: 480px) {
+  .home-rebuild-shell .home-dashboard { padding: 16px 12px; gap: 20px; }
 }
