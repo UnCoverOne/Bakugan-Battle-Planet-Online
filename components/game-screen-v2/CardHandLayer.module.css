@@ -1,3 +1,4 @@
+/* Redesign: preserve board geometry and input mechanics, remove decorative visual effects. */
 .handLayer {
   --hand-card-width: 7.25rem;
   --hand-fan-radius: 60rem;
@@ -64,23 +65,14 @@
   width: 100%;
   height: 100%;
   transform-origin: 50% 50%;
-  filter: drop-shadow(0 0.4rem 0.55rem rgba(0, 0, 0, 0.58));
-  transition:
-    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    filter 180ms ease,
-    opacity 160ms ease;
-  will-change: transform, filter;
+
+
+
 }
 
-/* Playability affects interaction only. Cards remain fully visible so the hand
-   never implies that an unplayable card is hidden, disabled, or unavailable for
-   inspection. */
+
 
 .actionableHandCard .handCardSurface {
-  filter:
-    drop-shadow(0 0 0.12rem rgba(255, 255, 255, 0.64))
-    drop-shadow(0 0 0.34rem rgba(255, 88, 68, 0.36))
-    drop-shadow(0 0.4rem 0.55rem rgba(0, 0, 0, 0.58));
 }
 
 .selectedHandCard {
@@ -91,16 +83,10 @@
   transform:
     rotate(var(--hand-counter-rotation))
     translateY(calc(0px - var(--hand-hover-lift)));
-  filter:
-    drop-shadow(0 0 0.2rem rgba(255, 255, 255, 0.9))
-    drop-shadow(0 0 0.66rem rgba(255, 77, 60, 0.68))
-    drop-shadow(0 0.88rem 0.7rem rgba(0, 0, 0, 0.64));
+
 }
 
-/* Inspection is independent from playability. Every card in the local hand
-   lifts, straightens, and glows whenever the browser is actually hovering it.
-   Do not gate this behind primary-input media features: hybrid devices can
-   report a coarse primary pointer while a mouse is producing hover events. */
+
 .playerHandLayer .handCard:hover,
 .playerHandLayer .handCard:focus-visible {
   z-index: 10000 !important;
@@ -109,22 +95,18 @@
 .playerHandLayer .handCard:hover .handCardSurface,
 .playerHandLayer .handCard:focus-visible .handCardSurface,
 .playerHandLayer[data-action-mode] .handCard[data-actionable="false"]:hover .handCardSurface {
-  opacity: 1;
   transform:
     rotate(var(--hand-counter-rotation))
     translateY(calc(0px - var(--hand-hover-lift)));
-  filter:
-    drop-shadow(0 0 0.22rem rgba(255, 255, 255, 0.95))
-    drop-shadow(0 0 0.72rem rgba(255, 255, 255, 0.72))
-    drop-shadow(0 0.85rem 0.7rem rgba(0, 0, 0, 0.62));
+
 }
 
 .handCardImage {
   display: block;
   width: 100%;
   height: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  border-radius: 3px;
+
+
   object-fit: contain;
   object-position: center;
   user-select: none;
@@ -136,7 +118,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .handCardSurface {
-    transition: none;
   }
 }
 
@@ -149,9 +130,7 @@
   }
 }
 
-/* On portrait phones the hands use the whole horizontal lane because the card
-   zones are separated vertically instead of acting as side obstacles. The
-   opponent hand begins directly below the compact Opponent Status HUD. */
+
 @media (max-width: 760px) and (orientation: portrait) {
   .handLayer {
     left: 50% !important;

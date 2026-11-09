@@ -1,24 +1,20 @@
+/* Redesign: preserve board geometry and input mechanics, remove decorative visual effects. */
 .preview {
   position: fixed;
   top: 50%;
   z-index: 20120;
   contain: layout paint style;
-  opacity: 0;
+
   visibility: hidden;
   transform: translateY(-50%) scale(0.97);
   backface-visibility: hidden;
   pointer-events: none;
-  filter:
-    drop-shadow(0 0.45rem 0.7rem rgba(0, 0, 0, 0.72))
-    drop-shadow(0 0 0.3rem rgba(255, 255, 255, 0.35));
-  transition:
-    opacity 100ms ease-out,
-    transform 100ms ease-out;
-  will-change: opacity, transform;
+
+
+
 }
 
 .preview[data-card-preview-visible="true"] {
-  opacity: 1;
   visibility: visible;
   transform: translateY(-50%) scale(1);
 }
@@ -41,8 +37,8 @@
   box-sizing: border-box;
   width: min(calc(280px * var(--preview-scale, 1)), calc(24vw * var(--preview-scale, 1)));
   max-height: calc(100dvh - 2rem);
-  border: 1px solid rgba(255, 255, 255, 0.52);
-  border-radius: 4.6% / 3.3%;
+
+
   backface-visibility: hidden;
   user-select: none;
 }
@@ -51,14 +47,14 @@
   height: auto;
   object-fit: contain;
   object-position: center;
-  background: transparent;
+
 }
 
 .preview[data-card-preview-orientation="core"] .previewImage,
 .preview[data-card-preview-orientation="core"] .placeholder {
   width: min(calc(368px * var(--preview-scale, 1)), calc(32vw * var(--preview-scale, 1)));
   max-height: min(72dvh, 23rem);
-  border-radius: 9%;
+
 }
 
 .preview[data-card-preview-orientation="core"] .placeholder {
@@ -73,31 +69,27 @@
   aspect-ratio: 5 / 7;
   overflow: hidden;
   padding: clamp(1rem, 1.7vw, 1.55rem);
-  background:
-    linear-gradient(145deg, rgba(112, 22, 29, 0.35), transparent 42%),
-    radial-gradient(circle at 70% 12%, rgba(255, 87, 71, 0.14), transparent 28%),
-    linear-gradient(180deg, rgba(19, 21, 25, 0.99), rgba(5, 8, 11, 0.99));
-  color: #f5f7f8;
-  font-family: var(--font-display);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+
+
+
+
 }
 
 .placeholder::before {
-  content: "";
   position: absolute;
   inset: 0.48rem;
-  border: 1px solid rgba(255, 92, 76, 0.2);
-  border-radius: 3.8% / 2.8%;
+
+
   pointer-events: none;
 }
 
 .placeholderLabel {
   position: relative;
-  color: #ff6758;
-  font-size: clamp(0.48rem, 0.66vw, 0.64rem);
-  font-weight: 950;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+
+
+
+
+
 }
 
 .placeholder header {
@@ -105,14 +97,13 @@
   display: grid;
   gap: 0.32rem;
   padding-bottom: 0.62rem;
-  border-bottom: 1px solid rgba(255, 100, 84, 0.28);
+
 }
 
 .placeholder header strong {
-  font-size: clamp(1rem, 1.65vw, 1.55rem);
-  font-weight: 950;
+
   line-height: 1.05;
-  text-transform: uppercase;
+
 }
 
 .placeholder header span,
@@ -120,23 +111,23 @@
 .placeholderCores,
 .placeholderMechanics {
   margin: 0;
-  color: rgba(220, 228, 233, 0.78);
-  font-size: clamp(0.52rem, 0.72vw, 0.7rem);
-  font-weight: 850;
+
+
+
   line-height: 1.35;
-  letter-spacing: 0.045em;
-  text-transform: uppercase;
+
+
 }
 
 .placeholderStats {
   position: relative;
-  color: #fff;
-  font-size: clamp(0.62rem, 0.86vw, 0.82rem);
+
+
 }
 
 .placeholderCores {
   position: relative;
-  color: rgba(255, 207, 123, 0.88);
+
 }
 
 .placeholderEffect {
@@ -144,22 +135,21 @@
   flex: 1 1 auto;
   margin: 0;
   overflow: auto;
-  color: rgba(245, 247, 248, 0.93);
-  font-family: system-ui, sans-serif;
-  font-size: clamp(0.62rem, 0.86vw, 0.82rem);
-  font-weight: 650;
+
+
+
+
   line-height: 1.42;
-  text-shadow: none;
+
 }
 
 .placeholderMechanics {
   position: relative;
   padding-top: 0.55rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.13);
+
 }
 
 :global(html[data-viewport-changing="true"]) .preview {
-  transition: none;
 }
 
 @media (max-width: 760px) {
@@ -181,6 +171,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .preview {
-    transition: none;
   }
 }
