@@ -1,17 +1,16 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .rewardsMode > div {
   padding-bottom: 0;
 }
 
 .rewardsMode :global(nav[aria-label="Administrator sections"] a:not([href="/admin?tab=rewards"])) {
-  background: var(--surface-panel);
-  color: var(--text-secondary);
-  box-shadow: none;
+
+
 }
 
 .rewardsMode :global(nav[aria-label="Administrator sections"] a[href="/admin?tab=rewards"]) {
-  background: var(--brand-blue-deep);
-  color: var(--text-primary);
-  box-shadow: inset 0 -3px 0 var(--brand-blue-bright);
+
+
 }
 
 .rewardsMode :global(nav[aria-label="Administrator sections"]) ~ section {

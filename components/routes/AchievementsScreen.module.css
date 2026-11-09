@@ -1,3 +1,4 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .route {
   display: grid;
   gap: 28px;
@@ -10,11 +11,9 @@
   display: grid;
   gap: 22px;
   padding: clamp(24px, 4vw, 42px);
-  border: 1px solid rgba(84, 218, 244, 0.28);
-  background:
-    linear-gradient(130deg, rgba(7, 34, 45, 0.98), rgba(5, 17, 25, 0.96)),
-    radial-gradient(circle at 90% 0%, rgba(45, 201, 230, 0.18), transparent 38%);
-  clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 28px 100%, 0 calc(100% - 28px));
+
+
+
 }
 
 .titleRow {
@@ -32,34 +31,32 @@
 .backLink,
 .viewAll,
 .sectionHeading > a {
-  color: #71def1;
-  font-weight: 800;
-  text-decoration: none;
+
+
 }
 
 .eyebrow,
 .sectionHeading span,
 .controls label > span,
 .total small {
-  color: #8caab5;
-  font-size: 0.73rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+
+
+
+
 }
 
 .titleRow h1 {
   margin: 0;
-  color: #fff;
-  font-size: clamp(1.8rem, 3.2vw, 3.1rem);
-  letter-spacing: -0.04em;
+
+
+
 }
 
 .titleRow p,
 .sectionHeading p {
   max-width: 720px;
   margin: 0;
-  color: #a9c0c8;
+
   line-height: 1.55;
 }
 
@@ -67,13 +64,12 @@
   display: grid;
   min-width: 150px;
   padding: 18px 22px;
-  border-left: 2px solid #52d7ee;
-  background: rgba(1, 12, 18, 0.58);
+
+
 }
 
 .total strong {
-  color: #fff;
-  font-size: 2.1rem;
+
 }
 
 .summary {
@@ -88,30 +84,25 @@
   justify-content: space-between;
   min-height: 76px;
   padding: 16px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 9, 14, 0.56);
+
+
 }
 
 .summary span {
-  color: #a8bec6;
-  font-weight: 800;
+
 }
 
 .summary strong {
-  color: #fff;
-  font-size: 1.9rem;
+
 }
 
 .summary .completed {
-  border-bottom-color: #63de92;
 }
 
 .summary .inprogress {
-  border-bottom-color: #55d9ef;
 }
 
 .summary .locked {
-  border-bottom-color: #657681;
 }
 
 .controls {
@@ -132,29 +123,28 @@
   gap: 10px;
   min-height: 48px;
   padding: 0 14px;
-  border: 1px solid rgba(124, 191, 207, 0.24);
-  background: #04131b;
+
+
 }
 
 .searchControl span {
-  color: #6edcf0;
-  font-size: 1.35rem;
+
 }
 
 .searchControl input,
 .controls select {
   width: 100%;
   min-height: 46px;
-  border: 0;
-  outline: 0;
-  background: #04131b;
-  color: #f6fbfc;
-  font: inherit;
+
+
+
+
+
 }
 
 .controls select {
   padding: 0 14px;
-  border: 1px solid rgba(124, 191, 207, 0.24);
+
 }
 
 .previewSection,
@@ -165,7 +155,7 @@
 
 .previewSection + .previewSection {
   padding-top: 26px;
-  border-top: 1px solid rgba(116, 173, 188, 0.16);
+
 }
 
 .sectionHeading {
@@ -182,8 +172,8 @@
 
 .sectionHeading h2 {
   margin: 0;
-  color: #f6fbfc;
-  font-size: clamp(1.45rem, 2.6vw, 2rem);
+
+
 }
 
 .viewAll {
@@ -192,8 +182,8 @@
   gap: 10px;
   min-height: 42px;
   padding: 0 16px;
-  border: 1px solid rgba(90, 216, 239, 0.34);
-  background: rgba(4, 29, 39, 0.72);
+
+
 }
 
 .previewGrid,
@@ -213,22 +203,19 @@
   gap: 18px;
   min-height: 250px;
   padding: 20px;
-  border: 1px solid rgba(108, 170, 185, 0.2);
-  border-radius: 0;
-  background: linear-gradient(145deg, rgba(7, 29, 39, 0.96), rgba(3, 16, 23, 0.98));
-  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+
+
+
+
 }
 
 .card.completed {
-  border-color: rgba(93, 222, 143, 0.34);
 }
 
 .card.inprogress {
-  border-color: rgba(82, 216, 239, 0.36);
 }
 
 .card.locked {
-  opacity: 0.76;
 }
 
 .cardTop,
@@ -250,29 +237,27 @@
   min-height: 34px;
   margin-left: auto;
   padding: 0 10px;
-  border: 1px solid rgba(102, 218, 240, 0.34);
-  background: rgba(3, 24, 33, 0.92);
-  color: #d8edf2;
-  font: inherit;
-  font-size: 0.73rem;
-  font-weight: 800;
+
+
+
+
+
+
   cursor: pointer;
 }
 
 .showcaseToggle[aria-pressed="true"] {
-  border-color: rgba(255, 207, 78, 0.62);
-  background: rgba(103, 73, 8, 0.5);
-  color: #ffdf7a;
+
+
 }
 
 .showcaseToggle:disabled {
   cursor: not-allowed;
-  opacity: 0.42;
+
 }
 
 .showcaseToggle span {
-  color: inherit;
-  font-size: 1rem;
+
 }
 
 .glyph {
@@ -280,15 +265,14 @@
   place-items: center;
   width: 42px;
   height: 42px;
-  border: 1px solid rgba(95, 217, 239, 0.42);
-  background: rgba(9, 48, 60, 0.8);
-  color: #75def1;
-  font-size: 1.15rem;
+
+
+
+
 }
 
 .completed .glyph {
-  border-color: rgba(93, 222, 143, 0.48);
-  color: #65e091;
+
 }
 
 .cardCopy {
@@ -297,13 +281,13 @@
 
 .cardCopy h3 {
   margin: 0 0 8px;
-  color: #fff;
-  font-size: 1.15rem;
+
+
 }
 
 .cardCopy p {
   margin: 0;
-  color: #9eb7c0;
+
   line-height: 1.5;
 }
 
@@ -314,41 +298,34 @@
 
 .progressRow span,
 .progressRow strong {
-  color: #b8cbd1;
-  font-size: 0.78rem;
+
 }
 
 .progressRow strong {
-  color: #eef8fa;
 }
 
 .progressRow progress {
   width: 100%;
   height: 8px;
-  border: 0;
-  border-radius: 0;
+
+
   overflow: hidden;
-  background: #102630;
+
 }
 
 .progressRow progress::-webkit-progress-bar {
-  background: #102630;
 }
 
 .progressRow progress::-webkit-progress-value {
-  background: #56d8ee;
 }
 
 .progressRow progress::-moz-progress-bar {
-  background: #56d8ee;
 }
 
 .completed .progressRow progress::-webkit-progress-value {
-  background: #63df91;
 }
 
 .completed .progressRow progress::-moz-progress-bar {
-  background: #63df91;
 }
 
 .empty {
@@ -357,18 +334,16 @@
   gap: 5px;
   min-height: 180px;
   place-content: center;
-  border: 1px dashed rgba(126, 177, 190, 0.22);
-  color: #8da7b0;
+
+
   text-align: center;
 }
 
 .empty > span {
-  color: #5a7b86;
-  font-size: 1.7rem;
+
 }
 
 .empty strong {
-  color: #dce9ed;
 }
 
 .empty p {
@@ -383,7 +358,7 @@
 
   .header {
     padding: 24px 18px;
-    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+
   }
 
   .titleRow {

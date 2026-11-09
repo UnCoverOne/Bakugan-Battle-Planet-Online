@@ -1,16 +1,17 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .route{width:min(100% - 2rem,var(--content-wide));margin:0 auto;padding:1.5rem 0 5rem}
-.tabs{position:sticky;z-index:20;top:4.25rem;margin:1rem 0 0;padding:.45rem;background:rgba(2,14,20,.96);border:1px solid var(--border-strong);box-shadow:var(--elevation-2)}
+.tabs{position:sticky;z-index:20;top:4.25rem;margin:1rem 0 0;padding:.45rem;background:rgba(2,14,20,.96);box-shadow:var(--elevation-2)}
 .tabs a{min-height:3rem;padding:.8rem 1.2rem;text-decoration:none}
 .section{display:grid;gap:1rem;margin-top:1rem}
 .sectionHeading{display:flex;justify-content:space-between;align-items:end;gap:1.5rem;padding:1.2rem;background:var(--surface-panel);border:1px solid var(--border-subtle)}
-.sectionHeading span,.cardEditor header span{color:var(--brand-blue-bright);font-size:var(--type-meta);font-weight:900;letter-spacing:var(--tracking-label)}
+.sectionHeading span,.cardEditor header span{font-size:var(--type-meta);letter-spacing:var(--tracking-label)}
 .sectionHeading h2,.cardEditor h3{margin:.2rem 0 0;font-size:var(--type-section-title)}
 .sectionHeading p,.cardEditor p{margin:.35rem 0 0;color:var(--text-secondary);line-height:1.5}
 .addDeck{display:flex;align-items:end;gap:.6rem;min-width:min(100%,28rem)}
 .addDeck label{flex:1}
 .state,.denied{padding:2rem;text-align:center}
 .denied{display:grid;place-items:center;gap:.7rem;margin:10vh auto;width:min(100%,38rem)}
-.denied>span{display:grid;place-items:center;width:3rem;height:3rem;border:2px solid #ff5057;border-radius:50%;color:#ff8589;font-size:1.5rem;font-weight:900}
+.denied>span{display:grid;place-items:center;width:3rem;height:3rem;border-radius:50%;font-size:1.5rem;font-weight:900}
 .denied h1,.denied p{margin:0}
 .denied p{color:var(--text-secondary)}
 .denied a{color:var(--brand-blue-bright)}
@@ -21,8 +22,8 @@
 .switch{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:.5rem;font-weight:900}
 .switch input{width:1.2rem;height:1.2rem;accent-color:var(--brand-blue)}
 .rowActions,.userActions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:.45rem}
-.rowActions button,.userActions button,.userActions select{min-height:2.5rem;padding:.5rem .7rem;background:#073244;border:1px solid var(--border-strong);color:var(--text-primary);font-weight:800}
-.danger{background:rgba(121,15,20,.64)!important;border-color:#d84a50!important;color:#ffd5d6!important}
+.rowActions button,.userActions button,.userActions select{min-height:2.5rem;padding:.5rem .7rem;border:1px solid var(--border-strong);font-weight:800}
+.danger{border-color:#d84a50!important;color:#ffd5d6!important}
 .cardToolbar,.userToolbar{display:grid;grid-template-columns:minmax(16rem,1.7fr) repeat(2,minmax(10rem,.65fr));gap:.75rem;padding:1rem}
 .userToolbar{grid-template-columns:minmax(16rem,1.7fr) repeat(3,minmax(9rem,.6fr))}
 .cardManagement{display:grid;grid-template-columns:minmax(18rem,.72fr) minmax(0,1.28fr);gap:1rem;min-height:40rem}
@@ -30,26 +31,26 @@
 .cardList>header,.cardEditor>header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem;border-bottom:1px solid var(--border-subtle)}
 .cardList>header span{color:var(--text-muted)}
 .cardList>div{max-height:68vh;overflow:auto}
-.cardList button{display:grid;width:100%;grid-template-columns:7rem minmax(0,1fr);gap:.2rem .65rem;padding:.75rem 1rem;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--border-subtle);color:var(--text-primary)}
-.cardList button:hover,.cardList button.selected{background:rgba(0,174,239,.12);box-shadow:inset 3px 0 0 var(--brand-blue)}
+.cardList button{display:grid;width:100%;grid-template-columns:7rem minmax(0,1fr);gap:.2rem .65rem;padding:.75rem 1rem;text-align:left;border:0;color:var(--text-primary)}
+.cardList button:hover,.cardList button.selected{box-shadow:inset 3px 0 0 var(--brand-blue)}
 .cardList button span{grid-row:1/3;color:var(--brand-blue-bright);font-family:monospace}
 .cardList button small{color:var(--text-secondary)}
 .cardEditor{padding-bottom:1rem}
 .cardEditor>label,.cardEditor>p,.cardEditor>.rowActions{margin:1rem}
-.cardEditor textarea{min-height:48vh;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2;resize:vertical}
+.cardEditor textarea{min-height:48vh;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical}
 .emptyEditor{display:grid;place-content:center;min-height:30rem;text-align:center}
 .emptyEditor p{color:var(--text-secondary)}
 .userRow{display:grid;grid-template-columns:minmax(15rem,1.25fr) auto minmax(14rem,.8fr) minmax(7rem,.45fr);gap:1rem;align-items:center;padding:1rem}
 .userIdentity{display:flex;align-items:center;gap:.8rem;min-width:0}
-.userIdentity>span{display:grid;flex:0 0 auto;place-items:center;width:3rem;height:3rem;background:#0b4d65;border:1px solid var(--brand-blue);font-weight:900}
+.userIdentity>span{display:grid;flex:0 0 auto;place-items:center;width:3rem;height:3rem;background:#0b4d65;font-weight:900}
 .userIdentity div{min-width:0}
 .userIdentity p{overflow:hidden;text-overflow:ellipsis}
 .userIdentity small,.userStatus small{display:block;color:var(--text-muted)}
 .userCounts{display:flex;gap:.8rem}
 .userCounts span{display:grid;text-align:center;color:var(--text-secondary)}
-.userCounts strong{color:var(--text-primary);font-size:1.2rem}
+.userCounts strong{font-size:1.2rem}
 .roles{display:flex;flex-wrap:wrap;gap:.5rem}
-.roles label{display:flex;align-items:center;gap:.35rem;padding:.45rem .55rem;background:rgba(255,255,255,.04);border:1px solid var(--border-subtle)}
+.roles label{display:flex;align-items:center;gap:.35rem;padding:.45rem .55rem;border:1px solid var(--border-subtle)}
 .userStatus{display:grid;gap:.3rem}
 .userActions{grid-column:1/-1;padding-top:.75rem;border-top:1px solid var(--border-subtle)}
 .userActions select{margin-right:auto}
@@ -61,7 +62,7 @@
 }
 @media(max-width:700px){
   .route{width:min(100% - 1rem,var(--content-wide));padding-top:.5rem}
-  .tabs{top:.25rem;display:flex;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}.tabs a{flex:0 0 auto;text-align:center;white-space:nowrap}
+  .tabs{top:.25rem;display:flex;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}.tabs a{flex:0 0 auto;text-align:center;white-space:nowrap}
   .sectionHeading{align-items:stretch;flex-direction:column}.addDeck{display:grid;grid-template-columns:1fr;min-width:0}
   .deckRow,.userRow{grid-template-columns:1fr}.deckRow>*{grid-column:1}.rowActions,.userActions{justify-content:stretch}.rowActions button,.userActions button,.userActions select{flex:1}
   .cardToolbar,.userToolbar{grid-template-columns:1fr}
@@ -70,17 +71,17 @@
 }
 
 .aiVisibilityControl{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;padding:1rem 1.2rem;border-color:rgba(255,78,66,.58);background:linear-gradient(120deg,rgba(89,13,18,.34),rgba(4,25,34,.94) 55%)}
-.aiVisibilityCopy{min-width:0}.aiVisibilityCopy>span{color:#ff7770;font-size:var(--type-meta);font-weight:900;letter-spacing:var(--tracking-label)}
-.aiVisibilityCopy h3{margin:.2rem 0 0;font-size:1.05rem}.aiVisibilityCopy p{max-width:54rem;margin:.35rem 0 0;color:var(--text-secondary);line-height:1.5}
-.featureSwitch{flex:0 0 auto;padding:.65rem .8rem;background:rgba(0,0,0,.28);border:1px solid var(--border-strong)}
+.aiVisibilityCopy{min-width:0}.aiVisibilityCopy>span{font-size:var(--type-meta);letter-spacing:var(--tracking-label)}
+.aiVisibilityCopy h3{margin:.2rem 0 0;font-size:1.05rem}.aiVisibilityCopy p{max-width:54rem;margin:.35rem 0 0;line-height:1.5}
+.featureSwitch{flex:0 0 auto;padding:.65rem .8rem;border:1px solid var(--border-strong)}
 .featureSwitch input{width:2.5rem;height:1.35rem}
 @media(max-width:700px){.aiVisibilityControl{align-items:stretch;flex-direction:column}.featureSwitch{justify-content:space-between}}
 
 .rankedToolbar{display:flex;gap:1rem;align-items:end;justify-content:space-between;padding:1rem}.rankedToolbar>label{flex:1}.rankedRules{display:grid;max-height:680px;overflow:auto}.rankedRuleRow{display:grid;grid-template-columns:minmax(220px,1fr) 220px minmax(220px,1fr);gap:.8rem;align-items:center;padding:.75rem;border-bottom:1px solid rgba(255,255,255,.1)}.rankedRuleRow>div{display:grid}.rankedRuleRow small{opacity:.65}.rankedRuleRow select,.rankedRuleRow input{min-height:42px}.rankedHistory{display:grid;gap:.5rem;padding:1rem}.rankedHistory>div{display:grid;grid-template-columns:140px 1fr auto;gap:1rem;align-items:center;padding:.65rem;border-top:1px solid rgba(255,255,255,.1)}
 @media(max-width:760px){.rankedToolbar{align-items:stretch;flex-direction:column}.rankedRuleRow{grid-template-columns:1fr}.rankedHistory>div{grid-template-columns:1fr}}
 
-/* Keep Administrator content inside the usable viewport; tabs scroll internally. */
+
 .route{max-width:100%;min-width:0;overflow-x:clip}
 .tabs{min-width:0;max-width:100%}
 
-.socialVisibility{display:flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--text-secondary);white-space:nowrap}.socialVisibility input{accent-color:var(--brand-blue);width:1rem;height:1rem}
+.socialVisibility{display:flex;align-items:center;gap:.4rem;font-size:.82rem;white-space:nowrap}.socialVisibility input{width:1rem;height:1rem}
