@@ -1,3 +1,4 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .backdrop {
   position: fixed;
   z-index: 1200;
@@ -5,8 +6,8 @@
   display: grid;
   place-items: center;
   padding: var(--space-5);
-  background: rgba(0, 5, 8, .84);
-  backdrop-filter: blur(8px);
+
+
 }
 
 .panel {
@@ -29,6 +30,6 @@
     width: 100vw;
     height: 100dvh;
     max-height: none;
-    clip-path: none;
+
   }
 }

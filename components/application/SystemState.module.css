@@ -1,3 +1,4 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .state {
   width: min(calc(100% - (2 * var(--space-5))), 54rem);
   min-height: 20rem;
@@ -7,7 +8,7 @@
   align-items: center;
   gap: var(--space-6);
   padding: clamp(var(--space-6), 5vw, var(--space-8));
-  border-color: rgba(91, 196, 226, 0.28);
+
 }
 
 .compact {
@@ -22,51 +23,40 @@
   height: 5rem;
   display: grid;
   place-items: center;
-  border: 1px solid currentColor;
-  color: var(--brand-blue-bright);
-  font-size: 2rem;
-  font-weight: 900;
-  clip-path: polygon(
-    0.75rem 0,
-    100% 0,
-    100% calc(100% - 0.75rem),
-    calc(100% - 0.75rem) 100%,
-    0 100%,
-    0 0.75rem
-  );
+
+
+
+
+
 }
 
 .notFound .icon {
-  font-size: 1.15rem;
-  letter-spacing: 0.08em;
+
 }
 
 .error .icon,
 .version .icon {
-  color: #ff7b7e;
 }
 
 .offline .icon,
 .conflict .icon {
-  color: #ffd25c;
 }
 
 .copy > span {
-  color: var(--brand-blue-bright);
-  font-size: var(--type-meta);
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+
+
+
+
 }
 
 .copy h1 {
   margin: 0.35rem 0 var(--space-3);
-  font-size: clamp(1.75rem, 4vw, 3rem);
+
 }
 
 .copy p {
   margin: 0;
-  color: var(--text-secondary);
+
   line-height: 1.6;
 }
 
@@ -83,11 +73,11 @@
   align-items: center;
   justify-content: center;
   padding: 0 var(--space-5);
-  border: 1px solid rgba(91, 196, 226, 0.4);
-  color: var(--text-primary);
-  background: rgba(6, 35, 46, 0.82);
-  font-weight: 900;
-  text-decoration: none;
+
+
+
+
+
 }
 
 .skeleton {
@@ -98,14 +88,9 @@
 
 .skeleton i {
   height: 0.65rem;
-  background: linear-gradient(
-    90deg,
-    rgba(91, 196, 226, 0.08),
-    rgba(91, 196, 226, 0.3),
-    rgba(91, 196, 226, 0.08)
-  );
-  background-size: 220% 100%;
-  animation: skeleton-sweep 1.25s linear infinite;
+
+
+
 }
 
 .skeleton i:nth-child(2) {
@@ -123,8 +108,8 @@
   display: grid;
   place-items: center;
   padding: var(--space-5);
-  background: rgba(0, 5, 8, 0.9);
-  backdrop-filter: blur(14px);
+
+
 }
 
 .blockingLayer .state {
@@ -145,13 +130,12 @@
 
 .dialog > strong {
   padding: var(--space-3);
-  border-left: 3px solid #ff696d;
-  background: rgba(239, 46, 50, 0.08);
+
+
   overflow-wrap: anywhere;
 }
 
 .dialog p {
-  color: var(--text-secondary);
   line-height: 1.55;
 }
 
@@ -167,7 +151,6 @@
 
 @keyframes skeleton-sweep {
   to {
-    background-position: -220% 0;
   }
 }
 
@@ -194,6 +177,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .skeleton i {
-    animation: none;
   }
 }

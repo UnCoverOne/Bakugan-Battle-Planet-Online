@@ -1,16 +1,16 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .creationScope,
 .lobbyScope {
   min-height: 100%;
 }
 
-/* Match Creation no longer reserves a second hero column for artwork. The
-   header is intentionally unboxed so the copy can use the full route width. */
+
 .creationScope :global(header) {
   min-height: 0;
   grid-template-columns: 1fr;
   overflow: visible;
-  border-block: 0;
-  background: transparent;
+
+
 }
 
 .creationScope :global(header)::before,
@@ -28,9 +28,7 @@
   padding: 2.4rem 0 3rem;
 }
 
-/* Keep the Match Creation kicker and the two-line BRAWL / SETUP display type
-   inside a generous line box. Impact's italic overhang was being clipped by
-   the deliberately tight hero typography and overflow treatment. */
+
 .creationScope :global(header > div:first-child > p:first-child) {
   display: inline-block;
   padding: .12em .32em .16em .06em;
@@ -54,9 +52,7 @@
   overflow: visible;
 }
 
-/* Select Your Deck uses a stable featured-card / metadata composition. Tags,
-   title, and description each own their own row so none of the authored deck
-   metadata can overlap another field. */
+
 .lobbyScope :global([role="dialog"] > header + div) {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: .85rem;
@@ -93,11 +89,10 @@
   max-height: 100%;
   object-fit: contain;
   object-position: center;
-  filter: drop-shadow(0 12px 14px rgba(0, 0, 0, .72));
+
 }
 
-/* These chips intentionally mirror the angular Badge treatment used by the
-   Featured Deck and other Battle Planet metadata surfaces. */
+
 .lobbyScope :global([role="dialog"] > header + div > button > span:nth-child(2)) {
   grid-column: 2;
   grid-row: 1;
@@ -116,19 +111,19 @@
   align-items: center;
   padding: .24rem .52rem;
   overflow: hidden;
-  border: 1px solid rgba(151, 220, 244, .28);
-  background: rgba(7, 83, 108, .68);
-  color: #e6f8ff;
-  font-family: var(--font-display);
-  font-size: .62rem;
-  font-style: italic;
-  font-weight: 700;
-  letter-spacing: .055em;
+
+
+
+
+
+
+
+
   line-height: 1;
   text-overflow: ellipsis;
-  text-transform: uppercase;
+
   white-space: nowrap;
-  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+
 }
 
 .lobbyScope :global([role="dialog"] > header + div > button > strong) {
@@ -138,12 +133,12 @@
   margin: .05rem 0 0;
   display: -webkit-box;
   overflow: hidden;
-  font-size: 1.25rem;
+
   line-height: 1.08;
   text-overflow: clip;
   white-space: normal;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+
+
 }
 
 .lobbyScope :global([role="dialog"] > header + div > button > span:last-child:not(:first-child)) {
@@ -153,23 +148,20 @@
   min-height: 0;
   margin-top: .05rem;
   align-self: start;
-  color: #9fb4bc;
-  font-size: .74rem;
+
+
   line-height: 1.45;
 }
 
 .lobbyScope :global([role="dialog"] > header + div > button:disabled) {
-  opacity: .62;
-  filter: grayscale(.22);
+
 }
 
 .lobbyScope :global([role="dialog"] > header + div > button:disabled > span:first-child img) {
-  opacity: .82;
 }
 
 .lobbyScope :global([role="dialog"] > header + div > button:not(:disabled):focus-visible) {
-  outline: 2px solid #55dcff;
-  outline-offset: 2px;
+
 }
 
 @media (max-width: 1080px) {
@@ -203,6 +195,5 @@
   }
 
   .lobbyScope :global([role="dialog"] > header + div > button > strong) {
-    font-size: 1.12rem;
   }
 }

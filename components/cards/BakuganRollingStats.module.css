@@ -1,3 +1,4 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .overlay {
   position: absolute;
   z-index: 2;
@@ -15,34 +16,33 @@
   gap: .3em;
   min-height: 1.35rem;
   padding: .12rem .3rem;
-  border: 1px solid rgba(109, 205, 232, .48);
-  border-radius: .2rem;
-  background: rgba(0, 12, 18, .91);
-  box-shadow: 0 1px 5px rgba(0, 0, 0, .7);
-  color: #fff;
-  font-size: clamp(.65rem, .85vw, .8rem);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
+
+
+
+
+
+
+
+
   line-height: 1.1;
   white-space: nowrap;
 }
 
 .overlay .stat,
 .overlay .stat > span {
-  color: #fff;
-  font-size: clamp(.65rem, .85vw, .8rem);
+
   line-height: 1.1;
 }
 
 .plain {
   min-height: 0;
   padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  color: var(--text-primary);
-  font-size: inherit;
+
+
+
+
+
+
   line-height: inherit;
 }
 
@@ -51,15 +51,13 @@
   width: 1.2em;
   height: 1.2em;
   flex: none;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
+
+
+
 }
 
 .rollIcon {
-  background-image: url("/assets/symbols/roll.svg");
 }
 
 .doubleCoreIcon {
-  background-image: url("/assets/symbols/double-core.svg");
 }

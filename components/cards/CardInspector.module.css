@@ -1,11 +1,12 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .inspector {
   min-width: 0;
   padding: 0;
   overflow: hidden;
-  border: 1px solid rgba(91, 196, 226, .32);
-  background: linear-gradient(180deg, rgba(5, 22, 29, .99), rgba(1, 9, 13, .99));
-  box-shadow: var(--elevation-2);
-  clip-path: polygon(var(--chamfer-panel) 0, 100% 0, 100% calc(100% - var(--chamfer-panel)), calc(100% - var(--chamfer-panel)) 100%, 0 100%, 0 var(--chamfer-panel));
+
+
+
+
 }
 
 .modal {
@@ -40,8 +41,8 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid rgba(91, 196, 226, .2);
-  background: rgba(2, 13, 18, .96);
+
+
 }
 
 .header > div:first-child {
@@ -49,11 +50,10 @@
 }
 
 .header span {
-  color: var(--brand-blue-bright);
-  font-size: var(--type-meta);
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+
+
+
+
 }
 
 .header h2 {
@@ -61,7 +61,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 1.25rem;
+
 }
 
 .headerActions {
@@ -72,10 +72,10 @@
 .headerActions button {
   min-height: 2.5rem;
   padding: 0 var(--space-3);
-  border: 1px solid rgba(91, 196, 226, .36);
-  color: var(--text-primary);
-  background: rgba(10, 35, 44, .78);
-  font-weight: 800;
+
+
+
+
 }
 
 .tabs {
@@ -84,8 +84,8 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: var(--space-2);
-  border-bottom: 1px solid rgba(91, 196, 226, .18);
-  background: rgba(2, 13, 18, .98);
+
+
 }
 
 .collectionPanel {
@@ -99,19 +99,19 @@
   min-width: 0;
   display: grid;
   gap: .4rem;
-  color: var(--text-muted);
-  font-size: var(--type-meta);
-  font-weight: 800;
-  text-transform: uppercase;
+
+
+
+
 }
 
 .collectionVariant select {
   min-width: 0;
   min-height: 2.5rem;
   padding: 0 .65rem;
-  border: 1px solid rgba(91, 196, 226, .25);
-  color: var(--text-primary);
-  background: rgba(3, 17, 23, .98);
+
+
+
 }
 
 .collectionCounters {
@@ -126,17 +126,17 @@
   display: grid;
   gap: .55rem;
   padding: var(--space-3);
-  border: 1px solid rgba(91, 196, 226, .2);
-  background: rgba(4, 20, 27, .84);
+
+
   text-align: center;
 }
 
 .collectionCounter > span {
   min-width: 0;
-  color: var(--text-muted);
-  font-size: var(--type-meta);
-  font-weight: 800;
-  text-transform: uppercase;
+
+
+
+
 }
 
 .collectionCounter > div {
@@ -155,22 +155,21 @@
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid rgba(91, 196, 226, .3);
-  color: var(--text-primary);
-  background: rgba(10, 35, 44, .78);
-  font-size: 1.2rem;
+
+
+
+
   line-height: 1;
 }
 
 .collectionCounter button:disabled {
-  opacity: .35;
 }
 
 .collectionCounter strong {
   min-width: 2ch;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 1.35rem;
+
 }
 
 .tabs.tabsWithCollection {
@@ -184,8 +183,8 @@
   place-items: center;
   overflow: hidden;
   padding: 0 .1rem;
-  color: inherit;
-  font-size: var(--type-meta);
+
+
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -194,8 +193,8 @@
 .body {
   height: calc(100% - 8.4rem);
   overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+
+
 }
 
 .overview {
@@ -218,7 +217,7 @@
   display: grid;
   place-items: center;
   padding: var(--space-3);
-  background: radial-gradient(circle at 50% 42%, rgba(0, 174, 239, .18), transparent 64%), #01070a;
+
 }
 
 .artFrame {
@@ -245,18 +244,16 @@
   display: grid;
   place-items: center;
   padding: 0;
-  border: 0;
-  background: transparent;
-  filter: drop-shadow(0 .25rem .6rem rgba(0, 0, 0, .6));
+
+
+
 }
 
 .fusionToggle:hover {
-  filter: brightness(1.12) drop-shadow(0 .25rem .6rem rgba(0, 0, 0, .6));
 }
 
 .fusionToggle:focus-visible {
-  outline: 2px solid var(--brand-blue-bright);
-  outline-offset: 3px;
+
 }
 
 .fusionToggle img {
@@ -278,7 +275,7 @@
 
 .effect {
   margin: 0;
-  font-size: .98rem;
+
   line-height: 1.6;
 }
 
@@ -296,32 +293,31 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1px;
   margin: 0;
-  background: rgba(91, 196, 226, .16);
+
 }
 
 .metadata div {
   min-width: 0;
   padding: var(--space-3);
-  background: rgba(3, 17, 23, .98);
+
 }
 
 .metadata dt,
 .metadata dd {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: var(--type-meta);
+
 }
 
 .metadata dt {
   margin-bottom: .25rem;
-  color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
+
+
+
 }
 
 .metadata dd {
-  color: var(--text-primary);
-  font-weight: 800;
+
 }
 
 .keywords {
@@ -332,9 +328,9 @@
 
 .keywords span {
   padding: .35rem .55rem;
-  border: 1px solid rgba(91, 196, 226, .22);
-  color: var(--text-muted);
-  font-size: var(--type-meta);
+
+
+
 }
 
 .references {
@@ -345,8 +341,8 @@
 
 .references article {
   padding: var(--space-4);
-  border: 1px solid rgba(91, 196, 226, .2);
-  background: rgba(4, 20, 27, .84);
+
+
 }
 
 .references article > div {
@@ -358,21 +354,20 @@
 
 .references h3 {
   margin: var(--space-3) 0 var(--space-2);
-  font-size: 1rem;
+
 }
 
 .references p {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: .92rem;
+
+
   line-height: 1.55;
 }
 
 .references small,
 .references footer,
 .relatedGrid small {
-  color: var(--text-muted);
-  font-size: var(--type-meta);
+
 }
 
 .references footer {
@@ -381,8 +376,7 @@
 }
 
 .relatedActive {
-  border-color: var(--brand-blue-bright);
-  background: rgba(8, 42, 54, .9);
+
 }
 
 .relatedCoreArt {
@@ -391,7 +385,7 @@
   width: 4rem;
   aspect-ratio: 240 / 209;
   overflow: hidden;
-  background: #01070a;
+
 }
 
 .relatedCoreArt > span {
@@ -422,16 +416,15 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2);
-  border: 1px solid rgba(91, 196, 226, .18);
-  color: inherit;
+
+
   text-align: left;
-  background: rgba(4, 20, 27, .76);
+
 }
 
 .relatedGrid button:hover,
 .relatedGrid button:focus-visible {
-  border-color: var(--brand-blue-bright);
-  background: rgba(8, 42, 54, .9);
+
 }
 
 .relatedGrid span {
@@ -453,13 +446,12 @@
   justify-items: center;
   gap: var(--space-3);
   padding: var(--space-7);
-  color: var(--text-muted);
+
   text-align: center;
 }
 
 .empty > span {
-  color: var(--brand-blue-bright);
-  font-size: 2rem;
+
 }
 
 .empty h3,
@@ -469,7 +461,6 @@
 
 .empty p,
 .muted {
-  color: var(--text-muted);
   line-height: 1.55;
 }
 
@@ -489,7 +480,7 @@
     height: 100dvh;
     min-height: 0;
     max-width: none;
-    clip-path: none;
+
   }
 
   .modal .header {
@@ -552,7 +543,7 @@
     display: flex;
     overflow-x: auto;
     overflow-y: hidden;
-    overscroll-behavior-x: contain;
+
   }
 
   .tabs button {
