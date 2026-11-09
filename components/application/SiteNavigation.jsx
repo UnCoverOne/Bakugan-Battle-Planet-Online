@@ -9,10 +9,10 @@ import { SocialMenuButton, useSocial } from "../social/SocialProvider";
 import styles from "./SiteNavigation.module.css";
 
 export const PRIMARY_DESTINATIONS = [
-  { href: "/", label: "Home", icon: "home" },
-  { href: "/play", label: "Play", icon: "play" },
-  { href: "/decks", label: "Decks", icon: "decks" },
-  { href: "/compendium", label: "Compendium", icon: "compendium" },
+  { href: "/", label: "HOME", icon: "home" },
+  { href: "/play", label: "PLAY", icon: "play" },
+  { href: "/decks", label: "DECKS", icon: "decks" },
+  { href: "/compendium", label: "COMPENDIUM", icon: "compendium" },
 ];
 
 export function navigationDestination(path) {
@@ -90,8 +90,7 @@ export function SiteNavigation({ onLogout }) {
   return <>
     <header className={styles.topRail}>
       <Link href="/" className={styles.brand} onClick={closeMenus} aria-label="Bakugan Online home">
-        <img src="/assets/logo.png" alt="" width="32" height="32" className={styles.brandImage} />
-        <span>Bakugan Online</span>
+        <img src="/assets/logo.png" alt="" width="52" height="52" className={styles.brandImage} />
       </Link>
       <Destinations onNavigate={closeMenus} />
       <div className={styles.actions}>
