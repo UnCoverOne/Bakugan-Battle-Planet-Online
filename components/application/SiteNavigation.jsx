@@ -52,6 +52,9 @@ export function SiteNavigation({ onLogout }) {
   const avatarRef = useRef(null);
   const menuRef = useRef(null);
   const pathname = usePathname();
+  const avatarFaction = authUser && ["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"].includes(profile?.faction)
+    ? profile.faction
+    : "Pyrus";
 
   useEffect(() => { setProfileOpen(false); }, [pathname]);
   useEffect(() => { if (socialOpen) setProfileOpen(false); }, [socialOpen]);
@@ -90,12 +93,12 @@ export function SiteNavigation({ onLogout }) {
   return <>
     <header className={styles.topRail}>
       <Link href="/" className={styles.brand} onClick={closeMenus} aria-label="Bakugan Online home">
-        <img src="/assets/logo.png" alt="" width="52" height="52" className={styles.brandImage} />
+        <img src="/assets/logo.png" alt="" width="58" height="58" className={styles.brandImage} />
       </Link>
       <Destinations onNavigate={closeMenus} />
       <div className={styles.actions}>
         <div className={styles.socialButtonWrap} onClick={() => setProfileOpen(false)}><SocialMenuButton /></div>
-        <button ref={avatarRef} type="button" className={styles.avatarButton} aria-label="Open profile menu" aria-expanded={profileOpen} aria-haspopup="dialog" aria-controls="site-profile-menu"
+        <button ref={avatarRef} type="button" className={styles.avatarButton} data-faction={avatarFaction} aria-label="Open profile menu" aria-expanded={profileOpen} aria-haspopup="dialog" aria-controls="site-profile-menu"
           onClick={() => { setSocialOpen(false); setProfileOpen(value => !value); }}>
           <ProfileAvatar profile={profile ?? { name: "Guest", avatar: "" }} className={styles.avatar}/>
         </button>
