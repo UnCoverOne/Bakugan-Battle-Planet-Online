@@ -26,7 +26,7 @@ export function navigationDestination(path) {
 function NavIcon({ name }) {
   const paths = {
     home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></>,
-    play: <><path d="m4 20 16-16M4 4l16 16"/><path d="m3 3 4 1-3 4M21 3l-4 1 3 4M3 21l4-1-3-4M21 21l-4-1 3-4"/></>,
+    play: <path d="M8 5.5 19 12 8 18.5V5.5Z"/>,
     decks: <><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></>,
     compendium: <><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1zM12 6v14"/></>,
   };
