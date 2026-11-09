@@ -1,0 +1,84 @@
+/* Bakugan Online — shared Midnight / Pyrus design system.
+   RBNo3.1 can resolve from a locally installed licensed font; when its
+   WOFF2 assets are in the repository, wire @font-face to those assets.
+   Titles have Titillium fallback until the licensed font is deployed. */
+@import url("https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Titillium+Web:wght@400;500;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+  --bb-page: #10151c;
+  --bb-nav: #151b23;
+  --bb-panel: #202832;
+  --bb-panel-hover: #303c4a;
+  --bb-pressed: #131a23;
+  --bb-active: #34252d;
+  --bb-pyrus: #e60012;
+  --bb-pyrus-hover: #fa1728;
+  --bb-pyrus-pressed: #b8000f;
+  --bb-text: #f1f5f9;
+  --bb-muted: #a5b2c2;
+  --bb-border: #34404d;
+  --bb-border-hover: #536173;
+  --bb-focus: #7cc9ff;
+  --bb-radius: 0px;
+  --bb-transition: 150ms ease-out;
+  --bb-font-display: "RBNo3.1", "Titillium Web", Impact, sans-serif;
+  --bb-font-interface: "Titillium Web", "Arial Narrow", Arial, sans-serif;
+  --bb-font-content: "Lato", Arial, sans-serif;
+}
+html, body { font-family: var(--bb-font-content); background-color: var(--bb-page); color: var(--bb-text); }
+body { line-height: 1.5; }
+:where(h1, h2, h3, h4, h5, h6) { color: var(--bb-text); }
+:where(h1, h2) { font-family: var(--bb-font-display); font-weight: 700; line-height: 1.15; }
+:where(h3, h4, h5, h6, legend) { font-family: var(--bb-font-interface); font-weight: 600; line-height: 1.25; }
+:where(button, input, select, textarea, [role="button"], [role="tab"]) { font-family: var(--bb-font-interface); }
+:where(button, input, select, textarea) { font-size: inherit; }
+:where(button, select, input:not([type="checkbox"]):not([type="radio"]), textarea, [role="button"], [role="tab"]) { border-radius: var(--bb-radius); }
+:where(button, [role="button"], [role="tab"], a) {
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--bb-transition), border-color var(--bb-transition), color var(--bb-transition);
+}
+:where(button, [role="button"], [role="tab"]):active:not(:disabled):not([aria-disabled="true"]) { transition-duration: 0ms; }
+:where(button, input, select, textarea, a, [role="button"], [role="tab"]):focus-visible {
+  outline: 2px solid var(--bb-focus);
+  outline-offset: 2px;
+}
+:where(button, input, select, textarea):disabled, :where([aria-disabled="true"]) { cursor: not-allowed; opacity: .55; }
+::selection { background: #087ac7; color: #fff; }
+
+/* Shared semantic component primitives; new screens should opt in to these
+   classes rather than relying on brittle selectors over every game control. */
+.bb-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  min-height: 44px; padding: .625rem 1.1rem;
+  border: 1px solid var(--bb-border); border-radius: 0;
+  background: var(--bb-panel); color: var(--bb-text);
+  font: 600 .925rem/1.2 var(--bb-font-interface);
+  text-align: center; text-decoration: none; cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bb-button:not(:disabled):not([aria-disabled="true"]):hover { background: var(--bb-panel-hover); border-color: var(--bb-border-hover); }
+}
+.bb-button:not(:disabled):active { background: var(--bb-pressed); }
+.bb-button[aria-pressed="true"], .bb-button[aria-selected="true"], .bb-button[aria-current] { background: var(--bb-active); border-color: #664c56; }
+.bb-button--primary { background: var(--bb-pyrus); border-color: var(--bb-pyrus); color: #fff; }
+@media (hover: hover) and (pointer: fine) {
+  .bb-button--primary:not(:disabled):hover { background: var(--bb-pyrus-hover); border-color: var(--bb-pyrus-hover); }
+}
+.bb-button--primary:not(:disabled):active { background: var(--bb-pyrus-pressed); border-color: var(--bb-pyrus-pressed); }
+.bb-button--outline { background: transparent; }
+.bb-field {
+  min-height: 44px; padding: .6rem .75rem; color: var(--bb-text);
+  border: 1px solid var(--bb-border); border-radius: 0; background: var(--bb-nav);
+  font: 400 1rem/1.4 var(--bb-font-content);
+}
+.bb-field::placeholder { color: var(--bb-muted); }
+.bb-field:focus-visible { border-color: var(--bb-focus); }
+.bb-panel { background: var(--bb-panel); border: 1px solid var(--bb-border); border-radius: 0; color: var(--bb-text); }
+.bb-interactive { border-radius: 0; background-color: var(--bb-panel); color: var(--bb-text); }
+@media (hover:hover) and (pointer:fine) { .bb-interactive:hover { background-color: var(--bb-panel-hover); } }
+.bb-interactive:active { background-color: var(--bb-pressed); }
+.bb-interactive:is([aria-selected="true"],[aria-pressed="true"],[data-selected="true"]) { background-color: var(--bb-active); }
+@media (prefers-reduced-motion: reduce) {
+  :where(button, [role="button"], [role="tab"], a) { transition: none; }
+}

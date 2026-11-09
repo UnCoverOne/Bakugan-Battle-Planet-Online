@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./blank-slate.css";
+import "./design-system.css";
 import { AccountHistorySync } from "../components/application/AccountHistorySync";
 import { AppProvider } from "../components/application/AppProvider";
 import { AppShell } from "../components/application/AppShell";
