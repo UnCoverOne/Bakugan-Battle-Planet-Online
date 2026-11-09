@@ -1,3 +1,4 @@
+/* Redesign: preserve board geometry and input mechanics, remove decorative visual effects. */
 .searchPanel {
   width: min(80rem, calc(100vw - 1.5rem));
   max-height: min(92dvh, 58rem);
@@ -11,45 +12,40 @@
 }
 
 .searchPanel [data-eligible="false"] {
-  opacity: .58;
-  filter: saturate(.5);
+
 }
 
 .searchPanel [data-eligible="false"]:hover,
 .searchPanel [data-eligible="false"]:focus-within {
   transform: none;
-  border-color: rgba(255, 255, 255, .15);
-  box-shadow: 0 .4rem .9rem rgba(0, 0, 0, .38);
+
+
 }
 
 .searchPanel [data-eligible="true"] {
-  border-color: rgba(90, 190, 239, .3);
 }
 
 .searchPanel [data-eligible="true"]:not([data-selected="true"]):hover,
 .searchPanel [data-eligible="true"]:not([data-selected="true"]):focus-within {
-  border-color: rgba(103, 202, 255, .9);
 }
 
 .eligible,
 .ineligible {
   display: block;
   margin-top: .18rem;
-  font-family: Arial, sans-serif;
-  font-size: .54rem;
-  font-style: normal;
-  font-weight: 900;
-  letter-spacing: .055em;
+
+
+
+
+
   line-height: 1.2;
-  text-transform: uppercase;
+
 }
 
 .eligible {
-  color: rgba(121, 222, 255, .95);
 }
 
 .ineligible {
-  color: rgba(180, 192, 202, .68);
 }
 
 @media (max-width: 700px) {
@@ -72,6 +68,5 @@
 @media (prefers-reduced-motion: reduce) {
   .searchPanel [data-eligible="false"],
   .searchPanel [data-eligible="true"] {
-    transition: none;
   }
 }

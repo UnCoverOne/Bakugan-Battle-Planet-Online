@@ -1,3 +1,4 @@
+/* Redesign: preserve board geometry and input mechanics, remove decorative visual effects. */
 .communicationButtons {
   display: none;
 }
@@ -10,31 +11,30 @@
   height: 2.65rem;
   margin: 0;
   padding: 0;
-  border: 1px solid rgba(255, 91, 75, 0.9);
-  clip-path: polygon(0.42rem 0, 100% 0, 100% calc(100% - 0.42rem), calc(100% - 0.42rem) 100%, 0 100%, 0 0.42rem);
-  background: linear-gradient(180deg, rgba(129, 25, 33, 0.98), rgba(37, 10, 15, 0.98));
-  color: #fff;
+
+
+
+
   cursor: pointer;
-  filter: drop-shadow(0 0.35rem 0.48rem rgba(0, 0, 0, 0.62));
+
 }
 
 .communicationButton[data-active="true"],
 .communicationButton:hover,
 .communicationButton:focus-visible {
-  border-color: #ff8d7c;
-  background: linear-gradient(180deg, rgba(174, 38, 42, 0.99), rgba(61, 13, 19, 0.99));
-  outline: none;
+
+
 }
 
 .buttonIcon {
   display: block;
   width: 1.2rem;
   height: 1.2rem;
-  fill: none;
-  stroke: currentColor;
+
+
   stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+
+
 }
 
 .eventDock {
@@ -48,8 +48,8 @@
   width: min(24rem, calc(100vw - 0.5rem));
   height: min(72dvh, 39rem);
   transform: translate(calc(-100% + var(--event-tab-width)), -50%);
-  filter: drop-shadow(0 0.7rem 1.4rem rgba(0, 0, 0, 0.68));
-  transition: transform 220ms cubic-bezier(0.2, 0.78, 0.2, 1);
+
+
   pointer-events: none;
 }
 
@@ -64,13 +64,11 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgba(225, 77, 66, 0.78);
-  border-left: 0;
-  background:
-    linear-gradient(145deg, rgba(126, 21, 29, 0.24), transparent 46%),
-    rgba(5, 9, 13, 0.985);
-  color: #fff;
-  font-family: var(--font-display);
+
+
+
+
+
   pointer-events: auto;
 }
 
@@ -79,24 +77,23 @@
   flex-wrap: wrap;
   gap: 0.28rem;
   padding: 0.42rem 0.55rem;
-  border-bottom: 1px solid rgba(217, 77, 67, 0.2);
+
 }
 
 .eventFilters button {
   padding: 0.22rem 0.38rem;
-  border: 1px solid rgba(205, 218, 226, 0.22);
-  border-radius: 999px;
-  background: rgba(255,255,255,.03);
-  color: rgba(233,239,243,.72);
-  font-size: .48rem;
-  font-weight: 900;
-  text-transform: uppercase;
+
+
+
+
+
+
+
 }
 
 .eventFilters button[aria-pressed="true"] {
-  border-color: rgba(255, 102, 85, .8);
-  background: rgba(145, 34, 35, .4);
-  color: #fff;
+
+
 }
 
 .eventPanel > header {
@@ -105,8 +102,8 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.8rem 0.85rem 0.72rem;
-  border-bottom: 1px solid rgba(217, 77, 67, 0.34);
-  background: linear-gradient(90deg, rgba(112, 24, 31, 0.48), rgba(19, 12, 16, 0.18));
+
+
 }
 
 .eventPanel > header div {
@@ -116,18 +113,17 @@
 
 .eventPanel > header span,
 .chatBox > header span {
-  color: #ff6658;
-  font-size: clamp(0.42rem, 0.54vw, 0.56rem);
-  font-weight: 950;
-  letter-spacing: 0.13em;
+
+
+
   line-height: 1;
 }
 
 .eventPanel h2 {
   margin: 0;
-  font-size: clamp(0.86rem, 1.16vw, 1.08rem);
-  font-weight: 950;
-  letter-spacing: 0.075em;
+
+
+
   line-height: 1;
 }
 
@@ -137,12 +133,12 @@
   min-width: 2rem;
   min-height: 1.5rem;
   padding: 0.1rem 0.35rem;
-  border: 1px solid rgba(255, 106, 89, 0.58);
-  border-radius: 999px;
-  background: rgba(5, 8, 11, 0.78);
-  color: #fff;
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
+
+
+
+
+
+
 }
 
 .eventEntries {
@@ -152,8 +148,8 @@
   min-height: 0;
   overflow: auto;
   padding: 0.65rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(221, 76, 65, 0.7) rgba(255, 255, 255, 0.06);
+
+
 }
 
 .cardEntries {
@@ -164,8 +160,8 @@
   min-height: 0;
   overflow: auto;
   padding: 0.65rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(221, 76, 65, 0.7) rgba(255, 255, 255, 0.06);
+
+
 }
 
 .cardEvent {
@@ -177,14 +173,13 @@
   min-width: 0;
   margin: 0;
   padding: 0.42rem 0.5rem;
-  border: 1px solid rgba(211, 222, 229, 0.26);
-  border-radius: 0.32rem;
-  background: rgba(255, 255, 255, 0.035);
-  box-shadow: 0 0.38rem 0.72rem rgba(0, 0, 0, 0.38);
+
+
+
+
 }
 
 .cardEvent[data-event="effect"] {
-  border-color: rgba(194, 124, 255, 0.72);
 }
 
 .cardEvent[data-local="false"] {
@@ -212,9 +207,6 @@
 }
 
 .cardEvent[data-event="effect"] .cardPreview {
-  filter:
-    drop-shadow(0 0.35rem 0.42rem rgba(0, 0, 0, 0.65))
-    drop-shadow(0 0 0.34rem rgba(194, 124, 255, 0.72));
 }
 
 .cardEvent figcaption {
@@ -227,70 +219,66 @@
 
 .cardEvent figcaption small {
   padding: 0.18rem 0.28rem;
-  border: 1px solid rgba(194, 124, 255, 0.82);
-  border-radius: 999px;
-  background: rgba(40, 18, 58, 0.94);
-  color: #fff;
-  font-size: 0.42rem;
-  font-weight: 950;
-  letter-spacing: 0.07em;
+
+
+
+
+
+
+
   line-height: 1;
 }
 
 .cardEvent[data-event="played"] figcaption small {
-  border-color: rgba(255, 128, 111, 0.76);
-  background: rgba(39, 8, 12, 0.92);
+
 }
 
 .cardEvent figcaption strong {
   overflow: hidden;
-  color: rgba(242, 245, 247, 0.92);
-  font-size: clamp(0.58rem, 0.76vw, 0.72rem);
-  font-weight: 900;
+
+
+
   text-overflow: ellipsis;
-  text-transform: uppercase;
+
   white-space: nowrap;
 }
 
 .cardActor {
   grid-column: 1 / -1;
   overflow: hidden;
-  color: rgba(255, 184, 168, 0.86);
-  font-size: 0.48rem;
-  font-weight: 900;
-  letter-spacing: 0.045em;
+
+
+
+
   text-overflow: ellipsis;
-  text-transform: uppercase;
+
   white-space: nowrap;
 }
 
 .cardEvent figcaption time {
   grid-column: 1 / -1;
-  color: rgba(190, 204, 212, 0.55);
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 0.48rem;
-  font-variant-numeric: tabular-nums;
+
+
+
+
 }
 
 .eventEntry {
   display: grid;
   gap: 0.28rem;
   padding: 0.52rem 0.58rem;
-  border: 1px solid rgba(197, 207, 214, 0.15);
-  border-left: 2px solid rgba(223, 78, 67, 0.72);
-  background: rgba(255, 255, 255, 0.025);
+
+
+
 }
 
 .eventEntry[data-kind="system"] {
-  border-left-color: rgba(255, 205, 82, 0.85);
 }
 
 .eventEntry[data-kind="connection"] {
-  border-left-color: rgba(93, 195, 255, 0.88);
 }
 
 .eventEntry[data-kind="random"] {
-  border-left-color: rgba(194, 124, 255, 0.88);
 }
 
 .eventEntry > div,
@@ -302,28 +290,26 @@
 }
 
 .eventEntry span {
-  color: rgba(255, 115, 99, 0.92);
-  font-size: 0.48rem;
-  font-weight: 950;
-  letter-spacing: 0.1em;
+
+
+
 }
 
 .eventEntry time,
 .chatMessage time {
-  color: rgba(186, 198, 207, 0.58);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.48rem;
-  font-variant-numeric: tabular-nums;
+
+
+
 }
 
 .eventEntry p,
 .chatMessage p {
   margin: 0;
   overflow-wrap: anywhere;
-  color: rgba(240, 244, 247, 0.9);
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 0.72rem;
-  font-weight: 650;
+
+
+
+
   line-height: 1.35;
 }
 
@@ -337,11 +323,10 @@
   min-width: 0;
   min-height: 0;
   padding: 0.3rem 0.1rem;
-  border: 1px solid rgba(255, 91, 75, 0.9);
-  border-left: 0;
-  background:
-    linear-gradient(180deg, rgba(129, 25, 33, 0.98), rgba(37, 10, 15, 0.98));
-  color: #fff;
+
+
+
+
   cursor: pointer;
   pointer-events: auto;
   align-self: center;
@@ -351,10 +336,10 @@
 .handleIcon,
 .handleChevron {
   display: block;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+
+
+
+
 }
 
 .handleIcon {
@@ -366,15 +351,14 @@
 .handleChevron {
   width: 0.75rem;
   height: 0.75rem;
-  color: #ffcabf;
+
   stroke-width: 2.5;
 }
 
 .eventToggle:hover,
 .eventToggle:focus-visible {
-  border-color: #ff8d7c;
-  background: linear-gradient(180deg, rgba(174, 38, 42, 0.99), rgba(61, 13, 19, 0.99));
-  outline: none;
+
+
 }
 
 .chatBox {
@@ -391,61 +375,50 @@
   width: clamp(12rem, 17vw, 15.5rem);
   height: clamp(8.2rem, 20dvh, 11.5rem);
   overflow: hidden;
-  border: 1px solid rgba(215, 75, 66, 0.74);
-  clip-path: polygon(0.52rem 0, 100% 0, 100% calc(100% - 0.52rem), calc(100% - 0.52rem) 100%, 0 100%, 0 0.52rem);
-  background:
-    linear-gradient(145deg, rgba(118, 20, 28, 0.26), transparent 48%),
-    rgba(5, 9, 13, 0.975);
-  box-shadow:
-    0 0.55rem 1.2rem rgba(0, 0, 0, 0.66),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.025);
-  color: #fff;
-  font-family: var(--font-display);
+
+
+
+
+
+
   pointer-events: auto;
-  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+
 }
 
 .chatBox[data-focused="false"] {
-  border-color: transparent;
-  background: linear-gradient(0deg, rgba(2,6,9,.78), rgba(2,6,9,.32) 62%, transparent);
-  box-shadow: none;
+
+
   pointer-events: none;
 }
 
 .chatBox[data-focused="false"] > header {
-  opacity: .12;
 }
 
 .chatBox[data-focused="false"] .chatForm {
-  border-top-color: transparent;
-  background: transparent;
-  opacity: 1;
+
+
   pointer-events: none;
 }
 
 .chatBox[data-focused="false"] .chatForm input {
-  border-color: rgba(188, 200, 208, 0.42);
-  background: rgba(2, 6, 9, 0.92);
-  opacity: .78;
+
+
   pointer-events: auto;
 }
 
 .chatBox[data-focused="false"] .chatForm button {
-  opacity: .12;
   pointer-events: none;
 }
 
 .chatBox[data-focused="false"] .chatMessages {
-  mask-image: linear-gradient(to top, #000 64%, transparent);
 }
 
 .chatBox[data-focused="false"] .chatMessage,
 .chatBox[data-focused="false"] .chatMessage p,
 .chatBox[data-focused="false"] .chatMessage strong {
-  border-color: transparent;
-  background: transparent;
-  color: #fff;
-  text-shadow: 0 1px 3px #000;
+
+
+
 }
 
 .chatBox > header {
@@ -454,8 +427,8 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.45rem 0.55rem 0.38rem;
-  border-bottom: 1px solid rgba(215, 75, 65, 0.28);
-  background: rgba(75, 16, 22, 0.24);
+
+
 }
 
 .chatBox > header > div {
@@ -464,17 +437,15 @@
 }
 
 .chatBox > header strong {
-  font-size: clamp(0.67rem, 0.88vw, 0.82rem);
-  font-weight: 950;
-  letter-spacing: 0.07em;
+
+
   line-height: 1;
 }
 
 .chatBox > header small {
-  color: rgba(178, 205, 217, 0.68);
-  font-size: 0.45rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+
+
+
 }
 
 .chatMessages {
@@ -484,35 +455,33 @@
   min-height: 0;
   overflow: auto;
   padding: 0.42rem 0.48rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(211, 72, 63, 0.62) rgba(255, 255, 255, 0.04);
+
+
 }
 
 .chatMessage {
   display: grid;
   gap: 0.18rem;
   padding: 0.32rem 0.38rem;
-  border-left: 2px solid rgba(97, 190, 244, 0.76);
-  background: rgba(71, 130, 165, 0.09);
+
+
 }
 
 .chatMessage[data-local="true"] {
-  border-left-color: rgba(255, 99, 82, 0.84);
-  background: rgba(161, 44, 39, 0.11);
+
 }
 
 .chatMessage strong {
   overflow: hidden;
-  color: #fff;
-  font-size: 0.52rem;
-  font-weight: 950;
-  letter-spacing: 0.035em;
+
+
+
+
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .chatMessage p {
-  font-size: clamp(0.62rem, 0.78vw, 0.72rem);
 }
 
 .chatForm {
@@ -520,8 +489,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.3rem;
   padding: 0.38rem 0.42rem 0.42rem;
-  border-top: 1px solid rgba(211, 73, 63, 0.25);
-  background: rgba(0, 0, 0, 0.18);
+
+
 }
 
 .chatForm input {
@@ -530,41 +499,38 @@
   min-width: 0;
   height: 1.72rem;
   padding: 0.28rem 0.42rem;
-  border: 1px solid rgba(188, 200, 208, 0.28);
-  background: rgba(2, 6, 9, 0.88);
-  color: #fff;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 0.68rem;
-  outline: none;
+
+
+
+
+
+
 }
 
 .chatForm input:focus {
-  border-color: rgba(255, 104, 88, 0.9);
-  box-shadow: 0 0 0.35rem rgba(237, 61, 47, 0.22);
+
 }
 
 .chatForm button {
   min-width: 2.8rem;
   height: 1.72rem;
   padding: 0 0.42rem;
-  border: 1px solid rgba(255, 99, 83, 0.7);
-  background: linear-gradient(180deg, rgba(111, 28, 32, 0.98), rgba(45, 13, 18, 0.98));
-  color: #fff;
-  font-family: var(--font-display);
-  font-size: 0.52rem;
-  font-weight: 950;
+
+
+
+
+
+
   cursor: pointer;
 }
 
 .chatForm button:hover:not(:disabled),
 .chatForm button:focus-visible {
-  border-color: #ff8d7d;
-  filter: drop-shadow(0 0 0.3rem rgba(255, 75, 61, 0.34));
-  outline: none;
+
+
 }
 
 .chatForm button:disabled {
-  opacity: 0.42;
   cursor: default;
 }
 
@@ -575,22 +541,22 @@
   width: min(18rem, 90vw);
   margin: 0;
   padding: 0.42rem 0.52rem;
-  border: 1px solid rgba(255, 81, 68, 0.84);
-  background: rgba(36, 7, 11, 0.98);
-  color: #fff;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 0.7rem;
-  font-weight: 700;
+
+
+
+
+
+
   line-height: 1.3;
 }
 
 .emptyState {
   margin: auto;
   padding: 0.65rem;
-  color: rgba(185, 198, 207, 0.55);
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 0.68rem;
-  font-style: italic;
+
+
+
+
   line-height: 1.3;
   text-align: center;
 }
@@ -632,7 +598,6 @@
   }
 
   .chatMessage p {
-    font-size: 0.58rem;
   }
 
   .chatForm {
@@ -648,19 +613,18 @@
 
   .chatForm input {
     padding: 0.2rem 0.26rem;
-    font-size: 0.58rem;
+
   }
 
   .chatForm button {
     min-width: 0;
     padding: 0;
-    font-size: 0.4rem;
+
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .eventDock {
-    transition: none;
   }
 }
 
@@ -672,8 +636,7 @@
   display: none;
 }
 
-/* Portrait phones place chat in a right-edge drawer. Only its handle occupies
-   the gameplay surface while closed. */
+
 @media (max-width: 760px) and (orientation: portrait) {
   .communicationButtons {
     position: fixed;
@@ -720,8 +683,8 @@
     width: min(18rem, calc(100vw - 0.75rem));
     height: min(56dvh, 24rem);
     transform: translate(100%, -50%);
-    filter: drop-shadow(0 0.7rem 1.4rem rgba(0, 0, 0, 0.68));
-    transition: transform 220ms cubic-bezier(0.2, 0.78, 0.2, 1);
+
+
     pointer-events: none;
   }
 
@@ -740,19 +703,18 @@
     height: 3.5rem;
     min-width: 0;
     padding: 0.3rem 0.1rem;
-    border: 1px solid rgba(255, 91, 75, 0.9);
-    border-right: 0;
-    background: linear-gradient(180deg, rgba(129, 25, 33, 0.98), rgba(37, 10, 15, 0.98));
-    color: #fff;
+
+
+
+
     cursor: pointer;
     pointer-events: auto;
   }
 
   .chatHandle:hover,
   .chatHandle:focus-visible {
-    border-color: #ff8d7c;
-    background: linear-gradient(180deg, rgba(174, 38, 42, 0.99), rgba(61, 13, 19, 0.99));
-    outline: none;
+
+
   }
 
   .chatBox {
@@ -762,31 +724,23 @@
     z-index: auto;
     width: 100%;
     height: 100%;
-    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 0.52rem), calc(100% - 0.52rem) 100%, 0 100%);
+
   }
 
   .chatDock[data-open="true"] .chatBox[data-focused="false"] {
-    border-color: rgba(215, 75, 66, 0.74);
-    background:
-      linear-gradient(145deg, rgba(118, 20, 28, 0.26), transparent 48%),
-      rgba(5, 9, 13, 0.975);
-    box-shadow:
-      0 0.55rem 1.2rem rgba(0, 0, 0, 0.66),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+
+
   }
 
   .chatDock[data-open="true"] .chatBox[data-focused="false"] > header,
   .chatDock[data-open="true"] .chatBox[data-focused="false"] .chatForm {
-    opacity: 1;
   }
 
   .chatDock[data-open="true"] .chatBox[data-focused="false"] .chatMessages {
-    mask-image: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .chatDock {
-    transition: none;
   }
 }

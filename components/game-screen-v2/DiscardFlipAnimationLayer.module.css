@@ -1,26 +1,26 @@
+/* Redesign: preserve board geometry and input mechanics, remove decorative visual effects. */
 :global([data-zone-kind="discard-pile"][data-discard-animation-target="true"] > img) {
-  opacity: 0 !important;
   pointer-events: none !important;
 }
 .layer { position: fixed; inset: 0; z-index: 20105; overflow: hidden; pointer-events: none; perspective: 1300px; contain: layout paint style; }
-.discardBase { position: fixed; box-sizing: border-box; z-index: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.7); border-radius: 3.8% / 2.8%; background: #080a0d; filter: drop-shadow(0 0.34rem 0.48rem rgba(0,0,0,.62)); }
+.discardBase { position: fixed; box-sizing: border-box; z-index: 0; overflow: hidden; border-radius: 3.8% / 2.8%; filter: drop-shadow(0 0.34rem 0.48rem rgba(0,0,0,.62)); }
 .discardBase > img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center; user-select: none; }
-.flight { position: fixed; box-sizing: border-box; z-index: 1; opacity: 0; transform-origin: top left; transform-style: preserve-3d; filter: drop-shadow(0 0.5rem 0.68rem rgba(0,0,0,.76)) drop-shadow(0 0 .34rem rgba(255,255,255,.8)); will-change: transform, opacity; }
-.flight[data-owner="opponent"] { filter: drop-shadow(0 .5rem .68rem rgba(0,0,0,.76)) drop-shadow(0 0 .4rem rgba(255,76,61,.74)); }
-.flight[data-state="running"] { animation: discard-card-flight var(--discard-duration) cubic-bezier(.16,.78,.2,1) var(--discard-delay) both; }
-.flight[data-state="settling"] { opacity: 0; }
+.flight { position: fixed; box-sizing: border-box; z-index: 1; opacity: 0; transform-origin: top left; transform-style: preserve-3d; will-change: transform, opacity; }
+.flight[data-owner="opponent"] { }
+.flight[data-state="running"] { }
+.flight[data-state="settling"] { }
 .cardInner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
-.flight[data-state="running"] .cardInner { animation: discard-card-turn var(--discard-duration) cubic-bezier(.22,.72,.22,1) var(--discard-delay) both; }
-.cardBack,.cardFace { position:absolute;inset:0;display:block;box-sizing:border-box;width:100%;height:100%;overflow:hidden;border:1px solid rgba(255,255,255,.7);border-radius:3.8% / 2.8%;backface-visibility:hidden;background:#080a0d;user-select:none; }
+.flight[data-state="running"] .cardInner { }
+.cardBack,.cardFace { position:absolute;inset:0;display:block;box-sizing:border-box;width:100%;height:100%;overflow:hidden;border:1px solid rgba(255,255,255,.7);backface-visibility:hidden;user-select:none; }
 .cardBack { object-fit:contain;object-position:center; }
 .cardFace { transform:rotateY(180deg); }
 .cardFace img { display:block;width:100%;height:100%;object-fit:contain;object-position:center;user-select:none; }
 @keyframes discard-card-flight {
-  0% { opacity:.96;transform:translate3d(0,0,0) scale(1) rotateZ(-2deg); }
-  18% { opacity:1;transform:translate3d(0,-1.2rem,5.5rem) scale(1.08) rotateZ(6deg); }
-  52% { opacity:1;transform:translate3d(calc(var(--discard-delta-x)*.52),calc(var(--discard-delta-y)*.52 - 2.2rem),6.5rem) scale(1.12) rotateZ(12deg); }
-  86% { opacity:1;transform:translate3d(var(--discard-delta-x),calc(var(--discard-delta-y) - .4rem),0) scale(var(--discard-scale-x),var(--discard-scale-y)) rotateZ(-2deg); }
-  100% { opacity:1;transform:translate3d(var(--discard-delta-x),var(--discard-delta-y),0) scale(var(--discard-scale-x),var(--discard-scale-y)) rotateZ(0); }
+  0% {transform:translate3d(0,0,0) scale(1) rotateZ(-2deg); }
+  18% {transform:translate3d(0,-1.2rem,5.5rem) scale(1.08) rotateZ(6deg); }
+  52% {transform:translate3d(calc(var(--discard-delta-x)*.52),calc(var(--discard-delta-y)*.52 - 2.2rem),6.5rem) scale(1.12) rotateZ(12deg); }
+  86% {transform:translate3d(var(--discard-delta-x),calc(var(--discard-delta-y) - .4rem),0) scale(var(--discard-scale-x),var(--discard-scale-y)) rotateZ(-2deg); }
+  100% {transform:translate3d(var(--discard-delta-x),var(--discard-delta-y),0) scale(var(--discard-scale-x),var(--discard-scale-y)) rotateZ(0); }
 }
 @keyframes discard-card-turn { 0%,24%{transform:rotateY(0)} 72%,100%{transform:rotateY(180deg)} }
-@media (prefers-reduced-motion: reduce) { .flight[data-state="running"],.flight[data-state="running"] .cardInner { animation-duration:1ms;animation-delay:0ms; } }
+@media (prefers-reduced-motion: reduce) { .flight[data-state="running"],.flight[data-state="running"] .cardInner {animation-delay:0ms; } }
