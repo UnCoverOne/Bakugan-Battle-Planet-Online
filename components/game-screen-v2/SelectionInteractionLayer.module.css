@@ -1,3 +1,4 @@
+/* Redesign: preserve board geometry and input mechanics, remove decorative visual effects. */
 .selectionStyleAnchor {
   display: none;
 }
@@ -8,45 +9,30 @@
 
 :global([data-zone-kind="character-card"] .characterCardImage),
 :global([data-zone-kind="character-card"] img) {
-  transition:
-    transform 170ms cubic-bezier(0.2, 0.78, 0.24, 1),
-    filter 160ms ease,
-    box-shadow 160ms ease;
-  will-change: transform, filter;
+
 }
 
 :global([data-zone-kind="character-card"][data-zone-owner="player"][data-character-selectable="true"]) {
   cursor: pointer;
-  outline: none;
+
 }
 
 :global([data-zone-kind="character-card"][data-zone-owner="player"][data-character-selectable="true"]:hover img),
 :global([data-zone-kind="character-card"][data-zone-owner="player"][data-character-selectable="true"]:focus-visible img) {
   transform: translate(-50%, calc(-50% - 0.12rem));
-  filter:
-    brightness(1.06)
-    drop-shadow(0 0.22rem 0.32rem rgba(0, 0, 0, 0.5))
-    drop-shadow(0 0 0.24rem rgba(255, 255, 255, 0.38));
+
 }
 
 :global([data-zone-kind="character-card"][data-zone-owner="player"][data-character-selected="true"] img) {
   z-index: 8;
   transform: translate(-50%, calc(-50% - 0.38rem));
-  filter:
-    brightness(1.1)
-    drop-shadow(0 0.35rem 0.42rem rgba(0, 0, 0, 0.58))
-    drop-shadow(0 0 0.22rem rgba(255, 255, 255, 0.82))
-    drop-shadow(0 0 0.64rem rgba(255, 70, 54, 0.52));
+
 }
 
 :global([data-zone-kind="character-card"][data-character-active="true"] img) {
   z-index: 9;
   transform: translate(-50%, calc(-50% - 0.42rem));
-  filter:
-    brightness(1.12)
-    drop-shadow(0 0.38rem 0.46rem rgba(0, 0, 0, 0.62))
-    drop-shadow(0 0 0.22rem rgba(255, 255, 255, 0.88))
-    drop-shadow(0 0 0.76rem rgba(255, 63, 47, 0.68));
+
 }
 
 .actionTooltip {
@@ -61,40 +47,34 @@
   max-width: min(var(--action-tooltip-max-width), calc(100vw - 1rem));
   padding: clamp(0.46rem, 0.7vw, 0.68rem) clamp(0.68rem, 1vw, 0.96rem);
   transform: translate(-50%, -100%);
-  border: 1px solid rgba(229, 77, 66, 0.58);
-  clip-path: polygon(0.5rem 0, 100% 0, calc(100% - 0.5rem) 100%, 0 100%);
-  background:
-    linear-gradient(110deg, rgba(112, 25, 31, 0.24), transparent 46%),
-    rgba(8, 10, 13, 0.95);
-  color: rgba(246, 248, 249, 0.94);
-  box-shadow:
-    0 0.42rem 0.7rem rgba(0, 0, 0, 0.56),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.035);
-  font-family: var(--font-display);
-  font-size: clamp(0.58rem, 0.78vw, 0.76rem);
-  font-weight: 850;
+
+
+
+
+
+
+
+
   line-height: 1.25;
-  letter-spacing: 0.025em;
+
   text-align: left;
   pointer-events: none;
-  animation: action-tooltip-enter 140ms ease-out both;
+
 }
 
 .actionTooltipMarker {
   flex: 0 0 auto;
-  color: #ff6c58;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 0.72em;
-  filter: drop-shadow(0 0 0.18rem rgba(255, 79, 62, 0.42));
+
+
+
+
 }
 
 @keyframes action-tooltip-enter {
   from {
-    opacity: 0;
     transform: translate(-50%, calc(-100% + 0.18rem));
   }
   to {
-    opacity: 1;
     transform: translate(-50%, -100%);
   }
 }
@@ -103,13 +83,11 @@
   .actionTooltip {
     max-width: min(var(--action-tooltip-max-width), calc(100vw - 0.5rem));
     padding: 0.38rem 0.56rem;
-    font-size: 0.5rem;
+
   }
 }
 
-/* Portrait layouts compress the battlefield vertically, so contextual Tips can
-   overlap presentation windows. Keep Tips above the play surface and hand, but
-   below the Brawl Preview (10074) and Roll Result (10220) layers. */
+
 @media (max-width: 760px) and (orientation: portrait) {
   .actionTooltip {
     z-index: 10060;
@@ -118,10 +96,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   :global([data-zone-kind="character-card"] img) {
-    transition: none;
   }
 
   .actionTooltip {
-    animation: none;
   }
 }

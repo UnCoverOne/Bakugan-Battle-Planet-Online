@@ -1,3 +1,4 @@
+/* Redesign: preserve board geometry and input mechanics, remove decorative visual effects. */
 .overlay {
   position: fixed;
   z-index: 18000;
@@ -5,16 +6,14 @@
   display: grid;
   place-items: center;
   padding: clamp(1rem, 3vw, 2rem);
-  background: rgba(1, 6, 10, 0.58);
-  backdrop-filter: blur(5px);
+
+
   pointer-events: none;
 }
 
 .overlay[data-state="exiting"] {
-  animation: tie-overlay-exit 180ms ease-in both;
 }
 .overlay[data-state="exiting"] .dialog {
-  animation: tie-dialog-exit 180ms ease-in both;
 }
 
 .dialog {
@@ -22,15 +21,11 @@
   max-height: min(92dvh, 52rem);
   overflow: auto;
   padding: clamp(1.15rem, 2.4vw, 2rem);
-  border: 1px solid rgba(93, 211, 244, 0.66);
-  background:
-    radial-gradient(circle at 50% 0, rgba(0, 174, 239, 0.16), transparent 42%),
-    linear-gradient(155deg, rgba(5, 28, 38, 0.99), rgba(1, 10, 15, 0.99));
-  color: #fff;
-  box-shadow:
-    0 2rem 6rem rgba(0, 0, 0, 0.72),
-    inset 0 0 3rem rgba(0, 174, 239, 0.05);
-  clip-path: polygon(1rem 0, 100% 0, 100% calc(100% - 1rem), calc(100% - 1rem) 100%, 0 100%, 0 1rem);
+
+
+
+
+
   pointer-events: auto;
 }
 
@@ -39,28 +34,27 @@
 }
 
 .dialog > header > span {
-  color: #65dcff;
-  font-family: var(--font-display);
-  font-size: clamp(0.62rem, 1.2vw, 0.8rem);
-  font-style: italic;
-  font-weight: 900;
-  letter-spacing: 0.14em;
+
+
+
+
+
 }
 
 .dialog h2 {
   margin: 0.35rem 0 0;
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 5vw, 4rem);
-  font-style: italic;
+
+
+
   line-height: 0.95;
-  letter-spacing: 0.04em;
-  text-shadow: 0 0 1.2rem rgba(53, 201, 255, 0.4);
+
+
 }
 
 .dialog header p {
   max-width: 42rem;
   margin: 0.9rem auto 0;
-  color: rgba(229, 245, 250, 0.78);
+
   line-height: 1.5;
 }
 
@@ -74,22 +68,19 @@
 .cardSlot {
   min-width: 0;
   padding: 0.75rem;
-  border: 1px solid rgba(92, 189, 224, 0.28);
-  background: rgba(1, 12, 17, 0.82);
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+
+
+
 }
 
 .cardSlotWinner {
   transform: translateY(-0.35rem);
-  border-color: #ffd85a;
-  box-shadow:
-    0 0 0 1px rgba(255, 216, 90, 0.44),
-    0 0 2rem rgba(255, 190, 39, 0.32);
+
+
 }
 
 .cardSlotTied {
-  border-color: rgba(128, 216, 255, 0.86);
-  box-shadow: 0 0 1.2rem rgba(66, 191, 239, 0.22);
+
 }
 
 .playerLabel {
@@ -102,18 +93,18 @@
 
 .playerLabel strong {
   overflow: hidden;
-  font-family: var(--font-display);
-  font-style: italic;
+
+
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .playerLabel span {
   flex: 0 0 auto;
-  color: #65dcff;
-  font-size: 0.66rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
+
+
+
+
 }
 
 .cardFrame {
@@ -124,15 +115,15 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(0, 0, 0, 0.38);
+
+
 }
 
 .cardFrame > img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  filter: drop-shadow(0 0.65rem 0.8rem rgba(0, 0, 0, 0.58));
+
 }
 
 .energyBadge {
@@ -143,24 +134,20 @@
   display: grid;
   justify-items: center;
   padding: 0.35rem 0.55rem;
-  border: 2px solid #ffe483;
-  border-radius: 999px;
-  background: rgba(61, 37, 0, 0.94);
-  color: #fff2b5;
-  box-shadow:
-    0 0 0.25rem rgba(255, 255, 255, 0.85),
-    0 0 1.1rem rgba(255, 190, 39, 0.7);
+
+
+
+
+
 }
 
 .energyBadge span {
-  font-size: 0.46rem;
-  font-weight: 950;
-  letter-spacing: 0.14em;
+
+
 }
 
 .energyBadge strong {
-  font-family: var(--font-display);
-  font-size: clamp(1.2rem, 2.2vw, 1.8rem);
+
   line-height: 1;
 }
 
@@ -172,14 +159,14 @@
   transform: translateX(-50%);
   min-width: max-content;
   padding: 0.42rem 0.65rem;
-  border: 1px solid rgba(101, 220, 255, 0.72);
-  background: rgba(1, 18, 25, 0.92);
-  color: #c8f5ff;
-  font-family: var(--font-display);
-  font-size: clamp(0.52rem, 1vw, 0.72rem);
-  font-style: italic;
-  font-weight: 900;
-  letter-spacing: 0.1em;
+
+
+
+
+
+
+
+
   text-align: center;
 }
 
@@ -193,15 +180,13 @@
 }
 
 .higherCost {
-  border-color: #ffe483;
-  background: rgba(74, 43, 0, 0.96);
-  color: #fff1af;
-  box-shadow: 0 0 1rem rgba(255, 190, 39, 0.54);
+
+
+
 }
 
 .equalCost {
-  border-color: #65dcff;
-  color: #d8f8ff;
+
 }
 
 .cardSlot > footer {
@@ -219,12 +204,10 @@
 }
 
 .cardSlot > footer strong {
-  font-size: 0.84rem;
 }
 
 .cardSlot > footer span {
-  color: rgba(207, 229, 236, 0.62);
-  font-size: 0.7rem;
+
 }
 
 .outcome {
@@ -233,25 +216,22 @@
   justify-items: center;
   gap: 0.2rem;
   padding: 0.8rem 1rem;
-  border: 1px solid rgba(92, 189, 224, 0.24);
-  background: rgba(0, 174, 239, 0.07);
+
+
   text-align: center;
 }
 
 .outcome strong {
-  font-family: var(--font-display);
-  font-style: italic;
-  text-transform: uppercase;
+
+
 }
 
 .outcome span {
-  color: rgba(221, 239, 245, 0.66);
-  font-size: 0.76rem;
+
 }
 
 .outcomeResolved {
-  border-color: rgba(255, 216, 90, 0.66);
-  background: rgba(255, 190, 39, 0.1);
+
 }
 
 .deckPrompt {
@@ -265,45 +245,35 @@
   gap: 0.18rem;
   margin: 0;
   padding: 0;
-  border: 2px solid rgba(255, 228, 131, 0.98);
-  border-radius: 0.18rem;
-  background:
-    radial-gradient(circle at center, rgba(116, 66, 0, 0.46), rgba(5, 9, 12, 0.16) 66%),
-    rgba(0, 0, 0, 0.08);
-  color: #fff;
+
+
+
+
   text-align: center;
-  text-shadow: 0 2px 4px #000;
+
   cursor: pointer;
-  box-shadow:
-    inset 0 0 0.9rem rgba(255, 226, 116, 0.24),
-    0 0 0.3rem rgba(255, 255, 255, 0.94),
-    0 0 1.2rem rgba(255, 190, 39, 0.84);
-  animation: tie-deck-pulse 720ms ease-in-out infinite alternate;
+
+
 }
 
 .deckPrompt strong {
-  font-family: var(--font-display);
-  font-size: clamp(1.1rem, 2.1vw, 2rem);
-  font-style: italic;
+
+
   line-height: 0.95;
 }
 
 .deckPrompt span {
-  font-family: var(--font-display);
-  font-size: clamp(0.38rem, 0.58vw, 0.62rem);
-  font-weight: 950;
-  letter-spacing: 0.09em;
+
+
+
 }
 
 .deckPrompt:disabled {
   cursor: wait;
-  opacity: 0.7;
+
 }
 
 :global([data-zone-id="player-deck"][data-tie-break-active="true"]) {
-  box-shadow:
-    0 0 0 2px rgba(255, 228, 131, 0.95),
-    0 0 1.4rem rgba(255, 190, 39, 0.72) !important;
 }
 
 .errorPopup {
@@ -317,10 +287,10 @@
   gap: 0.2rem 0.7rem;
   padding: 0.85rem 1rem;
   transform: translate(-50%, -50%);
-  border: 1px solid rgba(255, 92, 82, 0.94);
-  background: rgba(45, 6, 10, 0.98);
-  color: #fff;
-  box-shadow: 0 1rem 2.4rem rgba(0, 0, 0, 0.72);
+
+
+
+
 }
 
 .errorPopup strong,
@@ -332,16 +302,16 @@
   grid-column: 2;
   grid-row: 1 / span 2;
   align-self: center;
-  border: 0;
-  background: transparent;
-  color: #fff;
-  font-size: 1.4rem;
+
+
+
+
   cursor: pointer;
 }
 
 @keyframes tie-deck-pulse {
-  from { filter: brightness(0.94); }
-  to { filter: brightness(1.18); }
+  from { }
+  to { }
 }
 
 @media (max-width: 680px) {
@@ -380,13 +350,11 @@
 
 @media (prefers-reduced-motion: reduce) {
   .deckPrompt {
-    animation: none;
   }
 
   .cardSlot {
-    transition: none;
   }
 }
 
-@keyframes tie-overlay-exit { from { opacity: 1; } to { opacity: 0; } }
-@keyframes tie-dialog-exit { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.98); } }
+@keyframes tie-overlay-exit { from { } to { } }
+@keyframes tie-dialog-exit { from { transform: scale(1); } to { transform: scale(.98); } }

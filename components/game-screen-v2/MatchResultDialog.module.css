@@ -1,3 +1,4 @@
+/* Redesign: preserve board geometry and input mechanics, remove decorative visual effects. */
 .overlay {
   position: fixed;
   inset: 0;
@@ -6,11 +7,9 @@
   place-items: center;
   box-sizing: border-box;
   padding: clamp(0.75rem, 3vw, 2rem);
-  background:
-    radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--result-accent, #f6c84f) 15%, transparent), transparent 42%),
-    linear-gradient(115deg, rgba(0, 7, 12, 0.76), rgba(1, 12, 18, 0.88));
-  backdrop-filter: brightness(0.28) saturate(0.72) blur(2px);
-  animation: result-overlay-in 220ms ease-out both;
+
+
+
 }
 
 .panel {
@@ -22,50 +21,33 @@
   width: min(42.5rem, calc(100vw - 1.5rem));
   overflow: hidden;
   padding: clamp(1.35rem, 3.5vw, 2.4rem);
-  clip-path: polygon(
-    var(--cut-large) 0,
-    calc(100% - var(--cut-small)) 0,
-    100% var(--cut-small),
-    100% calc(100% - var(--cut-large)),
-    calc(100% - var(--cut-large)) 100%,
-    var(--cut-small) 100%,
-    0 calc(100% - var(--cut-small)),
-    0 var(--cut-large)
-  );
-  background: linear-gradient(135deg, var(--result-accent) 0, rgba(135, 196, 218, 0.56) 8%, rgba(16, 42, 52, 0.96) 22%, rgba(2, 9, 14, 0.99) 74%);
-  color: #f7fbfd;
-  font-family: var(--font-body);
+
+
+
+
   text-align: center;
-  filter: drop-shadow(0 1.6rem 3.2rem rgba(0, 0, 0, 0.72));
-  animation: result-panel-in 680ms cubic-bezier(0.18, 0.86, 0.24, 1) both;
+
+
 }
 
 .panel::before {
-  content: "";
   position: absolute;
   inset: 1px;
   z-index: 0;
-  clip-path: inherit;
-  background:
-    linear-gradient(180deg, rgba(20, 48, 59, 0.94), rgba(2, 11, 17, 0.985) 64%),
-    #031019;
-  box-shadow:
-    inset 0 0 0 1px rgba(180, 225, 239, 0.2),
-    inset 0 0 3rem rgba(0, 0, 0, 0.68);
+
+
+
 }
 
 .panel::after {
-  content: "";
   position: absolute;
   inset: 0;
   z-index: 1;
-  opacity: 0.16;
-  background-image:
-    linear-gradient(30deg, transparent 24%, rgba(126, 220, 248, 0.18) 25%, rgba(126, 220, 248, 0.18) 26%, transparent 27%, transparent 74%, rgba(126, 220, 248, 0.14) 75%, rgba(126, 220, 248, 0.14) 76%, transparent 77%),
-    linear-gradient(150deg, transparent 24%, rgba(126, 220, 248, 0.16) 25%, rgba(126, 220, 248, 0.16) 26%, transparent 27%, transparent 74%, rgba(126, 220, 248, 0.12) 75%, rgba(126, 220, 248, 0.12) 76%, transparent 77%);
-  background-size: 4.5rem 7.8rem;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+
+
+
+
+
   pointer-events: none;
 }
 
@@ -80,10 +62,10 @@
   left: var(--cut-large);
   width: clamp(7rem, 34%, 14rem);
   height: 2px;
-  background: linear-gradient(90deg, var(--result-accent), rgba(128, 216, 255, 0.92), transparent);
-  box-shadow: 0 0 1rem var(--result-accent);
+
+
   transform-origin: left;
-  animation: result-trace 820ms 120ms ease-out both;
+
 }
 
 .closeAction {
@@ -95,27 +77,25 @@
   width: 2.5rem;
   height: 2.5rem;
   padding: 0;
-  border: 1px solid rgba(128, 216, 255, 0.5);
-  clip-path: polygon(0.45rem 0, 100% 0, 100% calc(100% - 0.45rem), calc(100% - 0.45rem) 100%, 0 100%, 0 0.45rem);
-  background: linear-gradient(180deg, rgba(12, 43, 55, 0.92), rgba(3, 17, 24, 0.96));
-  color: #dff7ff;
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  font-weight: 700;
+
+
+
+
+
+
+
   line-height: 1;
   cursor: pointer;
-  transition: filter 150ms ease, transform 150ms ease, border-color 150ms ease;
+
 }
 
 .closeAction:hover,
 .closeAction:focus-visible {
-  filter: brightness(1.2) drop-shadow(0 0 0.45rem color-mix(in srgb, var(--result-accent) 42%, transparent));
   transform: translateY(-1px);
-  outline: none;
+
 }
 
 .closeAction:focus-visible {
-  box-shadow: inset 0 0 0 2px #fff;
 }
 
 .header {
@@ -128,39 +108,37 @@
   height: clamp(2.75rem, 7vw, 4rem);
   margin-bottom: 0.45rem;
   object-fit: contain;
-  filter: drop-shadow(0 0.4rem 0.7rem rgba(0, 0, 0, 0.64));
+
 }
 
 .eyebrow,
 .scoreLabel,
 .scoreSide small,
 .actions button {
-  font-family: var(--font-display);
-  font-weight: 950;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+
+
+
 }
 
 .eyebrow {
-  color: #87dfff;
-  font-size: clamp(0.62rem, 1.4vw, 0.78rem);
+
 }
 
 .title {
   margin: 0.28rem 0 0;
-  background: linear-gradient(180deg, #fffdf0 0%, color-mix(in srgb, var(--result-accent) 86%, #fff) 34%, var(--result-accent) 62%, color-mix(in srgb, var(--result-accent) 58%, #3b2100) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  font-family: var(--font-large);
-  font-size: clamp(4.4rem, 12vw, 7.5rem);
-  font-style: italic;
-  font-weight: 950;
+
+
+
+
+
+
+
+
   line-height: 0.82;
-  letter-spacing: 0.025em;
-  text-transform: uppercase;
-  filter: drop-shadow(0 0.45rem 0.6rem rgba(0, 0, 0, 0.72));
-  animation: result-title-strike 620ms 110ms cubic-bezier(0.16, 0.88, 0.22, 1) both;
+
+
+
+
 }
 
 .reason {
@@ -171,19 +149,18 @@
 }
 
 .reason strong {
-  color: color-mix(in srgb, var(--result-accent) 76%, #fff);
-  font-family: var(--font-display);
-  font-size: clamp(0.82rem, 2vw, 1rem);
-  font-style: italic;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+
+
+
+
+
+
 }
 
 .reason p {
   margin: 0;
-  color: #b9cbd2;
-  font-size: clamp(0.88rem, 1.9vw, 1rem);
+
+
   line-height: 1.45;
 }
 
@@ -194,19 +171,17 @@
   gap: clamp(0.7rem, 2vw, 1.4rem);
   margin-top: clamp(1.25rem, 3vw, 1.8rem);
   padding: clamp(0.8rem, 2vw, 1rem) clamp(0.85rem, 2.2vw, 1.25rem);
-  clip-path: polygon(0.65rem 0, 100% 0, 100% calc(100% - 0.65rem), calc(100% - 0.65rem) 100%, 0 100%, 0 0.65rem);
-  border: 1px solid rgba(140, 208, 232, 0.26);
-  background:
-    linear-gradient(90deg, rgba(18, 52, 65, 0.54), rgba(2, 12, 18, 0.82) 45% 55%, rgba(18, 52, 65, 0.54)),
-    rgba(2, 9, 14, 0.72);
-  box-shadow: inset 0 0 1.2rem rgba(0, 0, 0, 0.46);
-  animation: result-details-in 440ms 300ms ease-out both;
+
+
+
+
+
 }
 
 .scoreLabel {
   grid-column: 1 / -1;
-  color: #75cce8;
-  font-size: 0.62rem;
+
+
 }
 
 .scoreSide {
@@ -221,22 +196,21 @@
 
 .scoreSide strong {
   overflow: hidden;
-  color: #edf7fa;
-  font-family: var(--font-display);
-  font-size: clamp(0.86rem, 2.2vw, 1.08rem);
-  font-weight: 950;
+
+
+
+
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .scoreSide[data-winner="true"] strong {
-  color: color-mix(in srgb, var(--result-accent) 80%, #fff);
 }
 
 .scoreSide small {
   margin-top: 0.12rem;
-  color: #78949f;
-  font-size: clamp(0.5rem, 1.2vw, 0.62rem);
+
+
 }
 
 .scoreValue {
@@ -244,22 +218,21 @@
   align-items: center;
   justify-content: center;
   gap: clamp(0.45rem, 1.5vw, 0.8rem);
-  color: var(--result-accent);
-  font-family: var(--font-display);
-  font-variant-numeric: tabular-nums;
+
+
+
 }
 
 .scoreValue strong {
   min-width: 1ch;
-  font-size: clamp(1.7rem, 5vw, 2.5rem);
-  font-weight: 950;
+
+
   line-height: 1;
 }
 
 .scoreValue i {
-  color: rgba(173, 209, 222, 0.52);
-  font-size: 1rem;
-  font-style: normal;
+
+
 }
 
 .actions {
@@ -267,7 +240,7 @@
   grid-template-columns: 1fr 1.18fr;
   gap: 0.65rem;
   margin-top: clamp(1rem, 2.6vw, 1.4rem);
-  animation: result-details-in 420ms 410ms ease-out both;
+
 }
 
 .actions[data-single="true"] {
@@ -278,64 +251,59 @@
 .actions button {
   min-height: 3.2rem;
   padding: 0.75rem 1rem;
-  clip-path: polygon(0.55rem 0, 100% 0, 100% calc(100% - 0.55rem), calc(100% - 0.55rem) 100%, 0 100%, 0 0.55rem);
-  font-size: clamp(0.65rem, 1.5vw, 0.78rem);
+
+
   cursor: pointer;
-  transition: filter 150ms ease, transform 150ms ease, border-color 150ms ease;
+
 }
 
 .actions button:hover,
 .actions button:focus-visible {
-  filter: brightness(1.14) drop-shadow(0 0 0.45rem color-mix(in srgb, var(--result-accent) 42%, transparent));
   transform: translateY(-1px);
-  outline: none;
+
 }
 
 .actions button:focus-visible {
-  box-shadow: inset 0 0 0 2px #fff;
 }
 
 .secondaryAction {
-  border: 1px solid rgba(128, 216, 255, 0.5);
-  background: linear-gradient(180deg, rgba(12, 43, 55, 0.92), rgba(3, 17, 24, 0.96));
-  color: #dff7ff;
+
+
 }
 
 .primaryAction {
-  border: 1px solid color-mix(in srgb, var(--result-accent) 76%, #fff);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--result-accent) 90%, #fff), var(--result-accent));
-  color: #071017;
-  text-shadow: 0 1px rgba(255, 255, 255, 0.24);
+
+
+
 }
 
 .panel[data-outcome="loss"] .primaryAction {
-  color: #fff;
-  text-shadow: 0 1px rgba(0, 0, 0, 0.36);
+
 }
 
 @keyframes result-overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { }
+  to { }
 }
 
 @keyframes result-panel-in {
-  from { opacity: 0; transform: translateY(1.2rem) scale(0.965); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { transform: translateY(1.2rem) scale(0.965); }
+  to { transform: translateY(0) scale(1); }
 }
 
 @keyframes result-title-strike {
-  from { opacity: 0; transform: translateX(-1.4rem) skewX(-7deg); filter: blur(0.28rem); }
-  to { opacity: 1; transform: translateX(0) skewX(0); filter: drop-shadow(0 0.45rem 0.6rem rgba(0, 0, 0, 0.72)); }
+  from { transform: translateX(-1.4rem) skewX(-7deg); }
+  to { transform: translateX(0) skewX(0); }
 }
 
 @keyframes result-details-in {
-  from { opacity: 0; transform: translateY(0.65rem); }
-  to { opacity: 1; transform: translateY(0); }
+  from { transform: translateY(0.65rem); }
+  to { transform: translateY(0); }
 }
 
 @keyframes result-trace {
-  from { opacity: 0; transform: scaleX(0); }
-  to { opacity: 1; transform: scaleX(1); }
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 @media (max-width: 560px) {
@@ -350,7 +318,6 @@
   }
 
   .title {
-    font-size: clamp(3.65rem, 19vw, 5.4rem);
   }
 
   .score {
@@ -360,11 +327,9 @@
   }
 
   .scoreSide strong {
-    font-size: 0.78rem;
   }
 
   .scoreSide small {
-    font-size: 0.46rem;
   }
 
   .scoreValue {
@@ -372,7 +337,6 @@
   }
 
   .scoreValue strong {
-    font-size: 1.55rem;
   }
 
   .actions {
@@ -391,11 +355,9 @@
   .title,
   .score,
   .actions {
-    animation: none;
   }
 
   .actions button,
   .closeAction {
-    transition: none;
   }
 }
