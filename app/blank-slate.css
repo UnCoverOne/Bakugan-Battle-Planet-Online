@@ -18,3 +18,21 @@ button:disabled { cursor: not-allowed; }
 .blank-home nav { display: flex; flex-wrap: wrap; gap: .75rem; }
 .blank-home button { margin-inline-end: .5rem; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* Mechanical compatibility values for existing route layouts; no visual theme. */
+:root {
+  --space-1: .25rem; --space-2: .5rem; --space-3: .75rem;
+  --space-4: 1rem; --space-5: 1.5rem; --space-6: 2rem;
+  --space-7: 2.5rem; --space-8: 3rem; --space-9: 4rem;
+  --content-compact: 62rem; --content-standard: 78rem; --content-wide: 87.5rem;
+  --chamfer-panel: 0px;
+}
+/* With the decorative toggle tracks gone, expose the real controls. */
+input[type="checkbox"], input[type="radio"] {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  opacity: 1 !important;
+  appearance: auto !important;
+}
+button, input, select, textarea { color: inherit; }
