@@ -1,3 +1,4 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 @media (max-width: 760px) {
   .card.card {
     min-height: 0;
@@ -10,7 +11,6 @@
   }
 
   .card::before {
-    content: "";
     width: 100%;
     aspect-ratio: 4 / 1;
     grid-column: 1;
@@ -52,12 +52,11 @@
     overflow: visible;
     gap: .4rem;
     padding: .8rem 1rem 1rem;
-    border-top: 1px solid color-mix(in srgb, var(--profile-faction) 34%, transparent);
-    background: linear-gradient(135deg, rgba(3, 16, 24, .98), rgba(2, 10, 15, .98));
-    text-shadow: 0 2px 18px rgba(0, 0, 0, .72);
+
+
+
   }
 
   .copy.copy h1 {
-    font-size: clamp(1.35rem, 6vw, 1.9rem);
   }
 }

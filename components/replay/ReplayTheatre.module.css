@@ -1,10 +1,11 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .theatre {
   position: fixed;
   z-index: 12000;
   inset: 0;
   overflow: hidden;
-  background: #01080d;
-  color: #f4fbfd;
+
+
 }
 
 .board {
@@ -13,7 +14,7 @@
   z-index: 1;
   isolation: isolate;
   overflow: hidden;
-  background: radial-gradient(circle at 50% 45%, #163e4d, #01080d 62%);
+
 }
 
 .stageStatus {
@@ -33,16 +34,16 @@
   place-items: center;
   width: 3.5rem;
   height: 3.5rem;
-  border: 1px solid rgba(121, 224, 246, .5);
-  border-radius: 50%;
-  color: #80e5f8;
-  font-size: 1.8rem;
+
+
+
+
 }
 
-.stageStatus[data-status="loading"] > span { animation: replay-loading 900ms linear infinite; }
-.stageStatus strong { font-family: var(--font-display); font-size: 1.15rem; text-transform: uppercase; }
-.stageStatus p { max-width: 34rem; margin: 0; color: #a9bec6; line-height: 1.5; }
-.stageStatus button { min-height: 2.6rem; padding: 0 1rem; border: 1px solid #72d9ed; background: #082834; color: inherit; font-weight: 900; cursor: pointer; }
+.stageStatus[data-status="loading"] > span { }
+.stageStatus strong { font-size: 1.15rem; }
+.stageStatus p { max-width: 34rem; margin: 0; line-height: 1.5; }
+.stageStatus button { min-height: 2.6rem; padding: 0 1rem; background: #082834; font-weight: 900; cursor: pointer; }
 
 @keyframes replay-loading { to { transform: rotate(360deg); } }
 
@@ -51,8 +52,8 @@
 .inspector {
   position: fixed;
   z-index: 30000;
-  border: 1px solid rgba(121, 224, 246, .28);
-  background: rgba(2, 15, 22, .92);
+
+
 }
 
 .header {
@@ -71,16 +72,15 @@
 .controls button,
 .controls select,
 .inspector button {
-  border: 1px solid rgba(118, 222, 245, .4);
-  background: #082834;
-  color: inherit;
+
+
   cursor: pointer;
 }
 
-.header button { min-height: 2.6rem; padding: 0 .9rem; font-weight: 900; }
+.header button { min-height: 2.6rem; padding: 0 .9rem; }
 .header div { display: grid; gap: .15rem; }
-.header div span,.mode { color: #8ddff0; font-size: .7rem; font-weight: 900; text-transform: uppercase; letter-spacing: .1em; }
-.header strong { font-size: 1.15rem; }
+.header div span,.mode { font-size: .7rem; text-transform: uppercase; }
+.header strong { }
 
 .inspector {
   top: 6.35rem;
@@ -91,15 +91,15 @@
   padding: 1rem;
 }
 
-.inspector > span { color: #72d9ed; font-size: .68rem; font-weight: 900; letter-spacing: .12em; }
+.inspector > span { font-size: .68rem; letter-spacing: .12em; }
 .inspector h2 { margin: .5rem 0; font-size: 1.2rem; }
-.inspector p { margin: .4rem 0; color: #a9bec6; font-size: .78rem; line-height: 1.45; }
+.inspector p { margin: .4rem 0; color: #a9bec6; line-height: 1.45; }
 .inspector ol { display: grid; gap: .3rem; margin: 1rem 0 0; padding: 0; list-style: none; }
-.inspector li button { width: 100%; display: grid; grid-template-columns: 2rem 1fr; gap: .4rem; padding: .55rem; text-align: left; font-size: .72rem; }
-.inspector li[data-active="true"] button { border-color: #f5cb4d; background: #47380a; }
-.inspector li span { color: #79dff2; }
-.error { color: #ff8d93 !important; }
-.debugDownload { width: 100%; min-height: 2.7rem; margin-top: .8rem; padding: .55rem .7rem; font-size: .72rem; font-weight: 900; letter-spacing: .03em; }
+.inspector li button { width: 100%; display: grid; grid-template-columns: 2rem 1fr; gap: .4rem; padding: .55rem; text-align: left; }
+.inspector li[data-active="true"] button { background: #47380a; }
+.inspector li span { }
+.error { }
+.debugDownload { width: 100%; min-height: 2.7rem; margin-top: .8rem; padding: .55rem .7rem; font-weight: 900; }
 .debugDownload:disabled { cursor: wait; opacity: .55; }
 
 .controls {
@@ -116,11 +116,11 @@
 
 .controls button { min-height: 2.7rem; }
 .controls button:disabled { cursor: default; opacity: .38; }
-.controls .play { border-color: #f4cf55; background: #af1f28; font-size: 1.15rem; }
+.controls .play { background: #af1f28; }
 .controls input { width: 100%; accent-color: #e52a35; }
 .controls select { min-height: 2.7rem; padding: 0 .6rem; }
 .markers { position: absolute; left: 12.3rem; right: 5.4rem; bottom: .48rem; height: .5rem; pointer-events: none; }
-.markers button { position: absolute; width: .45rem; min-height: .45rem; padding: 0; transform: translateX(-50%); border: 0; border-radius: 50%; background: #f4cf55; pointer-events: auto; }
+.markers button { position: absolute; width: .45rem; min-height: .45rem; padding: 0; transform: translateX(-50%); border: 0; background: #f4cf55; pointer-events: auto; }
 
 @media (max-width: 760px) {
   .header { grid-template-columns: auto 1fr; }
@@ -152,13 +152,12 @@
     place-items: center;
     padding: 0;
     overflow: hidden;
-    font-size: 0;
+
     line-height: 1;
   }
 
   .header button::before {
-    content: "←";
-    font-size: 1rem;
+
   }
 
   .header div {
@@ -176,7 +175,7 @@
   .header strong {
     max-width: 100%;
     overflow: hidden;
-    font-size: .92rem;
+
     line-height: 1.1;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -196,10 +195,10 @@
     top: 3.15rem;
     left: 4rem;
     right: 4rem;
-    color: #72d9ed;
-    font-size: .544rem;
+
+
     line-height: 1;
-    letter-spacing: .096em;
+
     text-align: center;
     pointer-events: none;
   }
@@ -207,7 +206,7 @@
   .inspector h2 {
     margin: .08rem 0 .12rem;
     overflow: hidden;
-    font-size: .82rem;
+
     line-height: 1.12;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -215,7 +214,7 @@
 
   .inspector p {
     margin: .08rem 0;
-    font-size: .55rem;
+
     line-height: 1.2;
   }
 
@@ -233,13 +232,12 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    font-size: 0;
+
     line-height: 1;
   }
 
   .debugDownload::before {
-    content: "↓";
-    font-size: 1rem;
+
   }
 
   .controls {
@@ -253,12 +251,12 @@
   }
 
   .controls button { min-height: 2.16rem; }
-  .controls .play { font-size: .92rem; }
+  .controls .play { }
   .controls select {
     display: block;
     width: 3.15rem;
     min-height: 2.16rem;
     padding: 0 .25rem;
-    font-size: .68rem;
+
   }
 }

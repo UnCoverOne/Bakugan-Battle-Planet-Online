@@ -1,3 +1,4 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .image {
   display: block;
   width: 100%;
@@ -5,7 +6,7 @@
   max-width: 360px;
   object-fit: contain;
   object-position: center;
-  image-rendering: auto;
+
 }
 
 .tile {
