@@ -1,21 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
 import { SystemState, VersionMismatchScreen } from "./SystemState";
 import { AccountAccessModal, GuestAccountPrompt } from "./AccountAccessModal";
 import { useAppFields } from "./AppProvider";
-import { SocialProvider, SocialDrawer, SocialMenuButton } from "../social/SocialProvider";
+import { SocialProvider, SocialDrawer } from "../social/SocialProvider";
+import { SiteNavigation } from "./SiteNavigation";
 import { MusicLayer } from "./MusicLayer";
-
-const NAV = [
-  ["/", "Home"], ["/play", "Play"], ["/decks", "Decks"],
-  ["/collection", "Collection"], ["/compendium", "Compendium"],
-  ["/leaderboard", "Leaderboard"], ["/history", "History"],
-  ["/profile", "Profile"], ["/settings", "Settings"],
-];
 
 export function AppShell({ children }) {
   const pathname = usePathname();
@@ -76,26 +69,9 @@ export function AppShell({ children }) {
   return (
     <SocialProvider>
       <MusicLayer />
-      <div className="blank-shell">
+      <div className={immersiveMatch ? "blank-shell immersive-shell" : "blank-shell"}>
         <a className="skip-link" href="#main-content">Skip to content</a>
-        {!immersiveMatch && <header>
-          <strong>Bakugan Battle Planet Online</strong>
-          <nav aria-label="Main navigation">
-            {NAV.map(([href, label]) => (
-              <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined}>{label}</Link>
-            ))}
-          </nav>
-          <SocialMenuButton />
-          {authUser ? (
-            <button type="button" onClick={() => void logout()}>Sign out</button>
-          ) : (
-            <>
-              <button type="button" onClick={() => requestAccountAccess("login")}>Log in</button>
-              <button type="button" onClick={() => requestAccountAccess("signup")}>Register</button>
-            </>
-          )}
-        </header>}
-        {!immersiveMatch && canResumeLocalMatch && (
+        {!immersiveMatch && <SiteNavigation onLogout={logout} />}\n        {!immersiveMatch && canResumeLocalMatch && (
           <button type="button" disabled={resumingCurrentMatch} onClick={() => void resumeCurrentMatch()}>
             {resumingCurrentMatch ? "Resuming match…" : "Resume current match"}
           </button>

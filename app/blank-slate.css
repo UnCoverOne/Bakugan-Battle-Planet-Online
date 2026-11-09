@@ -10,8 +10,6 @@ button:disabled { cursor: not-allowed; }
 :focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 [hidden] { display: none !important; }
 .sr-only, .route-announcer { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-.blank-shell nav { display: flex; flex-wrap: wrap; gap: .75rem; }
-.blank-shell header { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
 .blank-shell main { min-height: 50vh; }
 .blank-shell .skip-link { display: inline-block; }
 .blank-home section { margin-block: 1rem; }
@@ -36,3 +34,4 @@ input[type="checkbox"], input[type="radio"] {
   appearance: auto !important;
 }
 button, input, select, textarea { color: inherit; }
+\n/* Midnight / Pyrus navigation shell, scoped to the redesign branch. */\n:root{color-scheme:dark;--bb-page:#10151c;--bb-nav:#151b23;--bb-panel:#202832;--bb-active:#34252d;--bb-pyrus:#e5484d;--bb-text:#f1f5f9;--bb-muted:#a5b2c2;--bb-border:#34404d}\nhtml{background:var(--bb-page);color:var(--bb-text)}body{margin:0;min-width:0;background:var(--bb-page);color:var(--bb-text)}.blank-shell:not(.immersive-shell){padding-top:64px}.blank-shell:not(.immersive-shell)>main{min-width:0}.blank-shell .skip-link{position:fixed;z-index:600;top:-100px;left:12px;padding:12px;background:var(--bb-panel);color:var(--bb-text)}.blank-shell .skip-link:focus{top:68px}.blank-shell:not(.immersive-shell)>button,.blank-shell:not(.immersive-shell)>p[role="status"]{margin:12px}.blank-shell :focus-visible{outline:2px solid #f28a8d;outline-offset:2px}@media(max-width:850px){.blank-shell:not(.immersive-shell){padding-top:56px;padding-bottom:calc(68px + env(safe-area-inset-bottom))}}\n
