@@ -1,8 +1,38 @@
 /* Bakugan Online — shared Midnight / Pyrus design system.
-   RBNo3.1 can resolve from a locally installed licensed font; when its
-   WOFF2 assets are in the repository, wire @font-face to those assets.
-   Titles have Titillium fallback until the licensed font is deployed. */
+   Major display headings use locally hosted RBNo3.1 WOFF2 assets. */
 @import url("https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Titillium+Web:wght@400;500;600;700&display=swap");
+
+@font-face {
+  font-family: "RBNo3.1";
+  src: url("/fonts/RBNo3.1-Bold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "RBNo3.1";
+  src: url("/fonts/RBNo3.1-BoldItalic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "RBNo3.1";
+  src: url("/fonts/RBNo3.1-Extrabold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "RBNo3.1";
+  src: url("/fonts/RBNo3.1-ExtraboldItalic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 800;
+  font-display: swap;
+}
 
 :root {
   color-scheme: dark;
@@ -30,6 +60,7 @@ html, body { font-family: var(--bb-font-content); background-color: var(--bb-pag
 body { line-height: 1.5; }
 :where(h1, h2, h3, h4, h5, h6) { color: var(--bb-text); }
 :where(h1, h2) { font-family: var(--bb-font-display); font-weight: 700; line-height: 1.15; }
+.bb-display--heavy { font-family: var(--bb-font-display); font-weight: 800; }
 :where(h3, h4, h5, h6, legend) { font-family: var(--bb-font-interface); font-weight: 600; line-height: 1.25; }
 :where(button, input, select, textarea, [role="button"], [role="tab"]) { font-family: var(--bb-font-interface); }
 :where(button, input, select, textarea) { font-size: inherit; }
