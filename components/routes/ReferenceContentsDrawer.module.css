@@ -1,6 +1,7 @@
 /* Redesign: structural rules only; visual styling intentionally removed. */
 
 
+
 .tab,.scrim,.closeControl{display:none}
 
 @media(max-width:900px){
