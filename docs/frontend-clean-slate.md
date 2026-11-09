@@ -10,9 +10,13 @@ This branch intentionally removes the existing shared visual presentation while 
 - Home uses `components/routes/BlankDashboardScreen.tsx`, with plain links and stored data summaries, not the old branded hero or its artwork.
 - The original `DashboardScreen.tsx` and historical CSS files remain in Git as a reference and are not imported by the shared layout.
 
-## Not yet completed
+## Route-level styling reduction
 
-Route-level CSS Modules and presentation components still exist. The deck builder, compendium, game board, match creation, account dialogs and other feature screens are **not yet blank-slate**. Some may appear partially broken because their legacy layouts rely on removed global styling. Complete feature-preserving refactoring must be done screen by screen. No build or end-to-end verification has been performed for the current reset.
+All **80 CSS Modules** used by application and game components have been rewritten to retain structural mechanics (layout, visibility, geometry, pointer interactions, and scrolling) while removing decorative declarations (colours, gradients, shadows, background imagery, clip-paths, typography overrides, and animation/transition effects). This includes decks, collection, compendium, match creation, lobby, settings, profiles, admin, dialogs, filters, and the gameplay board. This is a bulk CSS-only reduction; state-management and engine files were not changed.
+
+Older, unimported global stylesheets remain in the repository for now as historical references. Individual components can still render decorative image elements, inline style attributes, SVG ornamentation, and visual design embedded directly in JSX. Those are **not** fully stripped by this pass. Some layout elements may also appear broken or visually ambiguous because their former background and decoration were removed.
+
+No build, browser verification, or end-to-end testing has been performed for this latest bulk reset; full feature parity is not yet confirmed.
 
 **Do not merge into main or treat as feature-parity release until route tests pass.**
 
@@ -35,7 +39,7 @@ Cloudflare Worker previews require separate D1/R2 resources before exercising st
 ## Follow-up migration
 
 1. Capture baseline performance and browser screenshots.
-2. Audit route-specific CSS Modules and inline styles for each route.
+2. Audit remaining JSX inline styles, decorative SVGs and image elements per route.
 3. Replace visual components with native HTML controls without removing their state and event handlers.
 4. Keep functional images such as card artwork only where necessary for gameplay; remove decorative-only assets.
 5. Remove unreferenced visual CSS and assets from the branch after each tested migration.
