@@ -1,15 +1,12 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .route {
   --cut: 18px;
   min-height: 100%;
   padding-bottom: 4rem;
-  background:
-    radial-gradient(circle at 88% 30%, rgba(202, 23, 28, .26), transparent 28%),
-    radial-gradient(circle at 8% 78%, rgba(0, 178, 235, .18), transparent 32%),
-    linear-gradient(180deg, rgba(1, 7, 11, .88), rgba(2, 5, 8, .98)),
-    url('/assets/burst.jpg') center/cover fixed;
+
 }
 
-.rankedDeckGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.rankedDeckGrid label{display:grid;gap:.35rem;min-height:92px;padding:1rem;background:rgba(2,25,35,.72);border:1px solid rgba(104,194,222,.28);cursor:pointer}.rankedDeckGrid label.selected{border-color:#ffd45c;box-shadow:inset 0 0 0 1px rgba(255,212,92,.45)}.rankedDeckGrid input{position:absolute;opacity:0}.rankedDeckGrid span{color:var(--text-secondary);font-size:.8rem}.rankedDeckGrid>p{grid-column:1/-1;color:var(--text-secondary)}
+.rankedDeckGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.rankedDeckGrid label{display:grid;gap:.35rem;min-height:92px;padding:1rem;border:1px solid rgba(104,194,222,.28);cursor:pointer}.rankedDeckGrid label.selected{box-shadow:inset 0 0 0 1px rgba(255,212,92,.45)}.rankedDeckGrid input{position:absolute;opacity:0}.rankedDeckGrid span{font-size:.8rem}.rankedDeckGrid>p{grid-column:1/-1;color:var(--text-secondary)}
 @media(max-width:760px){.rankedDeckGrid{grid-template-columns:1fr}}
 
 .hero {
@@ -18,14 +15,12 @@
   display: grid;
   grid-template-columns: minmax(420px, 650px) minmax(0, 1fr);
   overflow: hidden;
-  border-block: 1px solid rgba(139, 220, 248, .18);
-  background:
-    linear-gradient(112deg, rgba(2, 11, 16, .98) 0 42%, rgba(4, 29, 40, .96) 42% 57%, rgba(4, 12, 18, .92) 57% 100%);
+
+
 }
 
 .hero::before,
 .hero::after {
-  content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -33,14 +28,12 @@
 
 .hero::before {
   z-index: 1;
-  background:
-    linear-gradient(109deg, transparent 0 42%, rgba(0, 188, 245, .18) 42.2% 51%, transparent 51.2%),
-    repeating-linear-gradient(153deg, transparent 0 74px, rgba(255, 255, 255, .022) 75px 76px);
+
 }
 
 .hero::after {
   z-index: 2;
-  background: linear-gradient(180deg, transparent 58%, rgba(0, 4, 7, .72));
+
 }
 
 .heroCopy {
@@ -52,22 +45,22 @@
 
 .kicker {
   margin: 0 0 .65rem;
-  color: #52d9ff;
-  font-size: .72rem;
-  font-weight: 950;
-  letter-spacing: .18em;
-  text-transform: uppercase;
+
+
+
+
+
 }
 
 .heroCopy h1 {
   margin: 0;
-  font-family: Impact, "Arial Narrow", Arial, sans-serif;
-  font-size: clamp(3.1rem, 5vw, 4.9rem);
-  font-style: italic;
+
+
+
   line-height: .79;
-  letter-spacing: -.035em;
-  text-transform: uppercase;
-  filter: drop-shadow(0 10px 10px rgba(0, 0, 0, .52));
+
+
+
 }
 
 .heroCopy h1 span,
@@ -76,44 +69,38 @@
 }
 
 .heroCopy h1 span {
-  background: linear-gradient(180deg, #fff 0 50%, #c7d0d5 72%, #f8fbfd 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+
+
+
 }
 
 .heroCopy h1 strong {
-  background: linear-gradient(180deg, #ff6d71 0, #ef3036 48%, #ae1016 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+
+
+
 }
 
 .heroCopy > p:last-child {
   max-width: 570px;
   margin: 1rem 0 0;
-  color: #cedbe0;
-  font-size: 1rem;
+
+
   line-height: 1.55;
 }
 
 .heroArt {
   position: relative;
   min-width: 0;
-  clip-path: polygon(11% 0, 100% 0, 100% 100%, 0 100%, 7% 52%);
-  background:
-    radial-gradient(circle at 70% 42%, rgba(229, 36, 40, .34), transparent 31%),
-    linear-gradient(150deg, rgba(7, 31, 43, .34), rgba(1, 7, 11, .86));
+
+
 }
 
 .heroGrid {
   position: absolute;
   inset: 48% -12% -40% 10%;
-  opacity: .58;
-  background-image:
-    linear-gradient(rgba(54, 192, 236, .12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(54, 192, 236, .12) 1px, transparent 1px);
-  background-size: 42px 42px;
+
+
+
   transform: perspective(420px) rotateX(58deg) scale(1.45);
   transform-origin: bottom;
 }
@@ -126,9 +113,7 @@
   width: min(720px, 88%);
   max-height: 132%;
   object-fit: contain;
-  filter:
-    drop-shadow(0 0 18px rgba(238, 47, 40, .26))
-    drop-shadow(0 22px 22px rgba(0, 0, 0, .72));
+
 }
 
 .shell {
@@ -140,18 +125,16 @@
 
 .panel {
   overflow: hidden;
-  border: 1px solid transparent;
-  background:
-    linear-gradient(160deg, rgba(8, 34, 45, .985), rgba(2, 12, 17, .995) 78%) padding-box,
-    linear-gradient(135deg, rgba(37, 210, 255, .9), rgba(41, 112, 139, .36) 52%, rgba(37, 210, 255, .68)) border-box;
-  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
-  box-shadow: 0 22px 56px rgba(0, 0, 0, .5);
+
+
+
+
 }
 
 .section {
   padding: 1.35rem 1.5rem 1.5rem;
-  border-bottom: 1px solid rgba(95, 201, 236, .14);
-  background: linear-gradient(90deg, rgba(0, 174, 234, .025), transparent 68%);
+
+
 }
 
 .heading {
@@ -167,13 +150,13 @@
   width: 2.6rem;
   height: 2.6rem;
   flex: 0 0 auto;
-  border: 1px solid rgba(71, 212, 255, .65);
-  background: rgba(0, 174, 234, .08);
-  color: #59dcff;
-  font-family: Impact, "Arial Narrow", Arial, sans-serif;
-  font-style: italic;
-  font-size: 1rem;
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+
+
+
+
+
+
+
 }
 
 .heading p,
@@ -181,20 +164,20 @@
 .selectionSummary span,
 .optionIndex {
   margin: 0;
-  color: #78dffc;
-  font-size: .64rem;
-  font-weight: 950;
-  letter-spacing: .15em;
-  text-transform: uppercase;
+
+
+
+
+
 }
 
 .heading h2 {
   margin: .15rem 0 0;
-  font-family: Impact, "Arial Narrow", Arial, sans-serif;
-  font-size: clamp(1.25rem, 2vw, 1.7rem);
-  font-style: italic;
-  letter-spacing: .035em;
-  text-transform: uppercase;
+
+
+
+
+
 }
 
 .modeGrid,
@@ -220,45 +203,41 @@
   min-height: 7rem;
   padding: 1rem 1.05rem;
   overflow: hidden;
-  border: 1px solid rgba(87, 177, 207, .38);
-  border-radius: 0;
-  background:
-    linear-gradient(145deg, rgba(8, 32, 43, .94), rgba(3, 13, 18, .98));
-  color: inherit;
+
+
+
+
   text-align: left;
-  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+
   cursor: pointer;
 }
 
 .modeGrid button::after,
 .actionGrid button::after,
 .segmented button::after {
-  content: "";
   position: absolute;
   left: 0;
   bottom: 0;
   width: 42%;
   height: 3px;
-  background: #12c3ff;
-  opacity: .26;
-  box-shadow: 0 0 14px rgba(18, 195, 255, .72);
+
+
+
 }
 
-/* Hover feedback is useful on pointers, but touchscreen browsers can keep
-   a synthetic hover state active after taps and do unnecessary filter work. */
+
 @media (hover: hover) and (pointer: fine) {
   .modeGrid button,
   .actionGrid button,
   .segmented button {
-    transition: transform .16s ease, border-color .16s ease, filter .16s ease;
   }
 
   .modeGrid button:hover:not(:disabled),
   .actionGrid button:hover:not(:disabled),
   .segmented button:hover:not(:disabled) {
     transform: translateY(-2px);
-    border-color: rgba(88, 220, 255, .72);
-    filter: brightness(1.08);
+
+
   }
 }
 
@@ -267,11 +246,11 @@
 .segmented b {
   display: block;
   margin: .35rem 0 .4rem;
-  font-family: Impact, "Arial Narrow", Arial, sans-serif;
-  font-size: 1.2rem;
-  font-style: italic;
-  letter-spacing: .035em;
-  text-transform: uppercase;
+
+
+
+
+
 }
 
 .modeGrid span:not(.optionIndex),
@@ -279,34 +258,31 @@
 .segmented span,
 .modeGrid small {
   display: block;
-  color: #b7c7cd;
+
   line-height: 1.42;
 }
 
 .modeGrid small {
   margin-top: .35rem;
-  color: #8b9ba2;
+
 }
 
 .selected {
-  border-color: rgba(247, 55, 58, .88) !important;
-  background:
-    radial-gradient(circle at 85% 18%, rgba(234, 41, 45, .2), transparent 38%),
-    linear-gradient(145deg, rgba(36, 19, 24, .96), rgba(8, 17, 22, .98)) !important;
-  box-shadow: inset 0 0 0 1px rgba(245, 47, 51, .16), 0 0 24px rgba(213, 25, 29, .08);
+
+
 }
 
 .selected::after {
   width: 68% !important;
-  background: #ef3036 !important;
-  opacity: .9 !important;
-  box-shadow: 0 0 14px rgba(239, 48, 54, .85) !important;
+
+
+
 }
 
 .disabled {
   cursor: not-allowed !important;
-  opacity: .43;
-  filter: saturate(.55);
+
+
 }
 
 .segmented button {
@@ -316,7 +292,7 @@
 
 .segmented b {
   margin: 0 0 .25rem;
-  font-size: 1.7rem;
+
 }
 
 .codeField {
@@ -329,21 +305,20 @@
 .codeField input {
   width: 100%;
   padding: .9rem 1rem;
-  border: 1px solid rgba(74, 204, 245, .44);
-  border-radius: 0;
-  background: rgba(1, 8, 12, .72);
-  color: #fff;
-  font: inherit;
-  font-size: 1.15rem;
-  font-weight: 900;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+
+
+
+
+
+
+
+
+
+
 }
 
 .codeField input:focus {
-  outline: 1px solid #35d5ff;
-  box-shadow: 0 0 18px rgba(53, 213, 255, .13);
+
 }
 
 .launchArea {
@@ -352,7 +327,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1.2rem 1.5rem;
-  background: linear-gradient(90deg, rgba(0, 174, 234, .06), rgba(232, 38, 42, .05));
+
 }
 
 .selectionSummary {
@@ -365,14 +340,14 @@
   min-width: 8.5rem;
   padding: .35rem 1rem .35rem 0;
   margin-right: 1rem;
-  border-right: 1px solid rgba(104, 194, 222, .18);
+
 }
 
 .selectionSummary strong {
   display: block;
   margin-top: .22rem;
-  font-size: .78rem;
-  letter-spacing: .04em;
+
+
 }
 
 .launchButton {
@@ -383,55 +358,51 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border: 1px solid rgba(255, 255, 255, .46);
-  border-radius: 0;
-  background: linear-gradient(120deg, #b41017, #ef2f34 68%, #9b0b11);
-  color: #fff;
-  font-family: Impact, "Arial Narrow", Arial, sans-serif;
-  font-size: .92rem;
-  font-style: italic;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+
+
+
+
+
+
+
+
+
+
   cursor: pointer;
-  box-shadow: 0 0 24px rgba(230, 38, 43, .18);
+
 }
 
 .buttonArrow {
   width: 1.25rem;
   height: 1.25rem;
-  fill: none;
-  stroke: currentColor;
+
+
   stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+
+
 }
 
 .launchButton:disabled {
   cursor: not-allowed;
-  opacity: .38;
-  filter: grayscale(.45);
+
+
 }
 
 .error {
   margin: 0 1.5rem 1.25rem;
   padding: .9rem 1rem;
-  border: 1px solid rgba(239, 68, 68, .65);
-  background: rgba(127, 29, 29, .16);
-  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+
+
+
 }
 
 @media (max-width: 900px) {
-  /* Keep every artwork/gradient layer and isolate this route's layout work
-     from the rest of the page without introducing a new composited layer. */
+  
   .route {
-    background-attachment: scroll;
     contain: layout;
   }
 
-  /* Only predictable-height form sections are skipped outside the viewport.
-     Browsers retain the measured height after first paint; Ranked's variable
-     deck list is deliberately excluded to avoid scroll-position jumps. */
+  
   .section[aria-labelledby="match-mode-heading"],
   .section[aria-labelledby="structure-heading"],
   .section[aria-labelledby="lobby-action-heading"] {
@@ -439,15 +410,12 @@
   }
 
   .section[aria-labelledby="match-mode-heading"] {
-    contain-intrinsic-size: auto 32rem;
   }
 
   .section[aria-labelledby="structure-heading"] {
-    contain-intrinsic-size: auto 19rem;
   }
 
   .section[aria-labelledby="lobby-action-heading"] {
-    contain-intrinsic-size: auto 25rem;
   }
 
   .hero {
@@ -460,12 +428,11 @@
   }
 
   .heroCopy h1 {
-    font-size: clamp(2.8rem, 10vw, 4.3rem);
   }
 
   .heroArt {
     min-height: 220px;
-    clip-path: polygon(0 12px, 12px 0, 100% 0, 100% 100%, 0 100%);
+
   }
 
   .heroArt img {
@@ -508,7 +475,7 @@
     min-width: 0;
     margin: 0;
     padding: .25rem .6rem;
-    border-right: 1px solid rgba(104, 194, 222, .18);
+
   }
 
   .selectionSummary > div:first-child {
@@ -516,7 +483,6 @@
   }
 
   .selectionSummary > div:last-child {
-    border-right: 0;
   }
 
   .launchButton {

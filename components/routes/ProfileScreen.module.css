@@ -1,3 +1,4 @@
+/* Redesign: structural rules only; visual styling intentionally removed. */
 .route {
   min-height: calc(100dvh - 76px);
   padding-bottom: var(--space-8);
@@ -14,34 +15,20 @@
   place-content: center;
   justify-items: center;
   gap: 0.25rem;
-  border: 1px solid color-mix(in srgb, var(--profile-faction) 74%, white);
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--profile-faction) 30%, transparent),
-    rgba(2, 12, 17, 0.96) 68%
-  );
-  box-shadow: 0 0 2.75rem
-    color-mix(in srgb, var(--profile-faction) 24%, transparent);
-  clip-path: polygon(
-    1rem 0,
-    100% 0,
-    100% calc(100% - 1rem),
-    calc(100% - 1rem) 100%,
-    0 100%,
-    0 1rem
-  );
+
+
+
+
 }
 
 .avatar span {
-  font-size: 2.4rem;
-  font-weight: 900;
+
 }
 
 .avatar small {
-  color: var(--text-muted);
-  font-size: var(--type-meta);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+
+
+
 }
 
 .faction_pyrus {
@@ -66,9 +53,8 @@
 .textAction,
 .panelHeading a,
 .dataStatus > a {
-  color: var(--brand-blue-bright);
-  font-weight: 900;
-  text-decoration: none;
+
+
 }
 
 .tabs {
@@ -81,21 +67,20 @@
   display: grid;
   place-items: center;
   padding: 0 var(--space-4);
-  color: var(--text-secondary);
-  font-weight: 900;
-  text-decoration: none;
+
+
+
 }
 
 .tabs a[class~="active"] {
-  color: var(--text-primary);
 }
 
 .saveAnnouncement {
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   min-height: 1.5rem;
   margin: var(--space-2) auto 0;
-  color: #8ff1a0;
-  font-size: var(--type-meta);
+
+
   text-align: right;
 }
 
@@ -111,24 +96,17 @@
   position: relative;
   isolation: isolate;
   box-sizing: border-box;
-  inline-size: 100%;
+
   min-height: 0;
   aspect-ratio: 4 / 1;
   display: flex;
   align-items: end;
   overflow: hidden;
   padding: clamp(.85rem, 2vw, 1.6rem);
-  border: 1px solid color-mix(in srgb, var(--profile-faction) 64%, white);
-  background-color: #031018;
-  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, .28);
-  clip-path: polygon(
-    1.4rem 0,
-    100% 0,
-    100% calc(100% - 1.4rem),
-    calc(100% - 1.4rem) 100%,
-    0 100%,
-    0 1.4rem
-  );
+
+
+
+
 }
 
 
@@ -173,16 +151,15 @@
   box-sizing: border-box;
   overflow: hidden;
   contain: paint;
-  border: 2px solid color-mix(in srgb, var(--profile-faction) 74%, white);
-  border-radius: 50%;
-  clip-path: circle(50% at 50% 50%);
-  background:
-    radial-gradient(circle, color-mix(in srgb, var(--profile-faction) 42%, #07151d), #020b10 72%);
-  color: white;
+
+
+
+
+
   object-fit: cover;
-  font-size: clamp(1.8rem, 4vw, 3rem);
-  font-weight: 900;
-  box-shadow: 0 0 2.5rem color-mix(in srgb, var(--profile-faction) 32%, transparent);
+
+
+
 }
 
 .editButton {
@@ -193,25 +170,24 @@
   place-items: center;
   flex: 0 0 auto;
   padding: 0;
-  border: 1px solid rgba(132, 226, 245, .56);
-  border-radius: 50%;
-  background: rgba(0, 12, 18, .9);
-  color: #dff8fc;
+
+
+
+
   cursor: pointer;
-  box-shadow: 0 .3rem 1rem rgba(0, 0, 0, .36);
+
 }
 
 .editButton:hover,
 .editButton:focus-visible {
-  border-color: #a8f1ff;
-  background: rgba(8, 48, 62, .96);
+
 }
 
 .editButton svg {
   width: 1.1rem;
   height: 1.1rem;
   display: block;
-  fill: currentColor;
+
 }
 
 .portraitEdit {
@@ -237,24 +213,23 @@
   display: grid;
   gap: .55rem;
   padding-bottom: .25rem;
-  text-shadow: 0 2px 18px rgba(0, 0, 0, .9);
+
 }
 
 .eyebrow {
-  color: #9be7f6;
-  font-size: var(--type-meta);
-  font-weight: 900;
-  letter-spacing: .14em;
-  text-transform: uppercase;
+
+
+
+
 }
 
 .identityCopy h1 {
   max-width: 100%;
   margin: 0;
   overflow: hidden;
-  color: white;
-  font-size: clamp(1.45rem, 3.2vw, 2.8rem);
-  letter-spacing: -.04em;
+
+
+
   line-height: .96;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -271,9 +246,9 @@
 .titleLine strong {
   min-width: 0;
   overflow: hidden;
-  color: #ffe083;
-  font-size: clamp(1rem, 2vw, 1.35rem);
-  letter-spacing: .04em;
+
+
+
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -282,20 +257,19 @@
   width: 2rem;
   height: 2rem;
   object-fit: contain;
-  filter: drop-shadow(0 0 .5rem var(--profile-faction));
+
 }
 
 .factionIdentity span {
-  color: #ecf7f9;
-  font-weight: 900;
+
 }
 
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
-  border: 1px solid rgba(92, 196, 226, .22);
-  background: rgba(92, 196, 226, .18);
+
+
 }
 
 .stats > div {
@@ -304,20 +278,18 @@
   place-content: center;
   justify-items: center;
   gap: .35rem;
-  background: linear-gradient(145deg, rgba(6, 29, 39, .98), rgba(2, 14, 20, .98));
+
 }
 
 .stats span {
-  color: var(--text-muted);
-  font-size: var(--type-meta);
-  font-weight: 900;
-  letter-spacing: .09em;
-  text-transform: uppercase;
+
+
+
+
 }
 
 .stats strong {
-  color: white;
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
+
 }
 
 .showcaseSection {
@@ -339,8 +311,8 @@
   grid-template-columns: 2.6rem minmax(0, 1fr);
   gap: var(--space-3);
   padding: var(--space-4);
-  border: 1px solid rgba(255, 211, 85, .28);
-  background: linear-gradient(145deg, rgba(74, 52, 8, .28), rgba(4, 20, 28, .96));
+
+
 }
 
 .showcaseAchievement > span {
@@ -348,9 +320,9 @@
   place-items: center;
   width: 2.6rem;
   height: 2.6rem;
-  border: 1px solid rgba(255, 211, 85, .48);
-  color: #ffe17b;
-  font-size: 1.25rem;
+
+
+
 }
 
 .showcaseAchievement > div {
@@ -362,8 +334,7 @@
 
 .showcaseAchievement small,
 .showcaseAchievement p {
-  color: var(--text-muted);
-  font-size: var(--type-meta);
+
 }
 
 .showcaseAchievement p {
@@ -378,10 +349,10 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-4);
-  border: 1px solid rgba(91, 196, 226, .18);
-  background: rgba(2, 15, 21, .92);
-  color: inherit;
-  text-decoration: none;
+
+
+
+
 }
 
 .showcaseDeck > div:nth-child(2) {
@@ -393,8 +364,8 @@
 .showcaseDeck span,
 .showcaseDeck small {
   overflow: hidden;
-  color: var(--text-muted);
-  font-size: var(--type-meta);
+
+
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -438,11 +409,10 @@
 .panelHeading > div > span,
 .sectionToolbar > div > span,
 .recordDetail > header > div > span {
-  color: var(--brand-blue-bright);
-  font-size: var(--type-meta);
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+
+
+
+
 }
 
 .panelHeading h2,
@@ -455,7 +425,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1px;
-  background: rgba(91, 196, 226, 0.16);
+
 }
 
 .metrics > div {
@@ -463,22 +433,20 @@
   display: grid;
   gap: 0.35rem;
   padding: var(--space-4);
-  background: rgba(3, 17, 23, 0.96);
+
 }
 
 .metrics span {
-  color: var(--text-muted);
-  font-size: var(--type-meta);
+
 }
 
 .metrics strong {
-  font-size: clamp(1.45rem, 3vw, 2.1rem);
 }
 
 .dataNote {
   margin: var(--space-4) 0 0;
-  color: var(--text-muted);
-  font-size: var(--type-meta);
+
+
   line-height: 1.55;
 }
 
@@ -495,16 +463,15 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3);
-  border-top: 1px solid rgba(91, 196, 226, 0.14);
-  color: inherit;
-  text-decoration: none;
+
+
+
 }
 
 .matchRow:hover,
 .matchRow:focus-visible,
 .deckRow:hover,
 .deckRow:focus-visible {
-  background: rgba(0, 174, 239, 0.08);
 }
 
 .matchRow > div,
@@ -518,8 +485,7 @@
 .matchRow small,
 .deckRow span,
 .deckRow small {
-  color: var(--text-muted);
-  font-size: var(--type-meta);
+
 }
 
 .matchRow > span:nth-child(3) {
@@ -535,9 +501,9 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) 0;
-  border-top: 1px solid rgba(91, 196, 226, 0.14);
-  color: inherit;
-  text-decoration: none;
+
+
+
 }
 
 .characterStack {
@@ -552,7 +518,7 @@
   height: 4.4rem;
   width: auto;
   object-fit: contain;
-  filter: drop-shadow(0 0.3rem 0.4rem #000);
+
 }
 
 .characterStack img:nth-child(1) {
@@ -570,7 +536,7 @@
   margin: 0 0 var(--space-4);
   display: grid;
   gap: 1px;
-  background: rgba(91, 196, 226, 0.16);
+
 }
 
 .dataStatus dl > div,
@@ -580,7 +546,7 @@
   grid-template-columns: 7rem minmax(0, 1fr);
   gap: var(--space-3);
   padding: var(--space-3);
-  background: rgba(3, 17, 23, 0.98);
+
 }
 
 .dataStatus dt,
@@ -589,12 +555,11 @@
 .recordMetadata dd {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: var(--type-meta);
+
 }
 
 .dataStatus dt,
 .recordMetadata dt {
-  color: var(--text-muted);
 }
 
 .section,
@@ -622,12 +587,11 @@
   display: grid;
   gap: var(--space-3);
   padding: var(--space-5);
-  opacity: 0.76;
+
 }
 
 .achievementCard.unlocked {
-  opacity: 1;
-  border-color: rgba(255, 210, 92, 0.45);
+
 }
 
 .achievementTop {
@@ -637,8 +601,7 @@
 }
 
 .achievementTop > span {
-  color: var(--brand-blue-bright);
-  font-size: 1.6rem;
+
 }
 
 .achievementCard h3,
@@ -648,7 +611,7 @@
 
 .achievementCard p {
   min-height: 3rem;
-  color: var(--text-secondary);
+
   line-height: 1.5;
 }
 
@@ -657,8 +620,7 @@
 }
 
 .achievementCard small {
-  color: var(--text-muted);
-  font-size: var(--type-meta);
+
 }
 
 .recordTable {
@@ -674,23 +636,21 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border: 0;
-  border-top: 1px solid rgba(91, 196, 226, 0.14);
-  color: inherit;
+
+
+
   text-align: left;
-  background: transparent;
+
 }
 
 .recordTable > button:hover,
 .recordTable > button:focus-visible {
-  background: rgba(0, 174, 239, 0.08);
 }
 
 .recordTable small,
 .recordTable i {
-  color: var(--text-muted);
-  font-size: var(--type-meta);
-  font-style: normal;
+
+
 }
 
 .recordLayout {
@@ -713,22 +673,21 @@
   grid-template-columns: 2rem minmax(0, 1fr);
   gap: var(--space-3);
   padding: var(--space-3);
-  border: 0;
-  border-top: 1px solid rgba(91, 196, 226, 0.13);
-  color: inherit;
+
+
+
   text-align: left;
-  background: transparent;
+
 }
 
 .eventList > button.active {
-  background: rgba(0, 174, 239, 0.12);
-  box-shadow: inset 3px 0 var(--brand-blue-bright);
+
 }
 
 .eventList p {
   margin: 0.25rem 0 0;
-  color: var(--text-muted);
-  font-size: var(--type-meta);
+
+
   line-height: 1.45;
 }
 
@@ -747,9 +706,9 @@
 .eventFocus button {
   min-height: 2.5rem;
   padding: 0 var(--space-3);
-  border: 1px solid rgba(91, 196, 226, 0.3);
-  color: inherit;
-  background: rgba(6, 35, 46, 0.8);
+
+
+
 }
 
 .backdrop {
@@ -759,8 +718,8 @@
   display: grid;
   place-items: center;
   padding: var(--space-5);
-  background: rgba(0, 5, 8, 0.88);
-  backdrop-filter: blur(12px);
+
+
 }
 
 .editDialog {
@@ -778,7 +737,7 @@
 
 .editDialog p {
   margin: 0;
-  color: var(--text-secondary);
+
   line-height: 1.5;
 }
 
@@ -797,11 +756,11 @@
   width: 2.5rem;
   height: 2.5rem;
   flex: 0 0 auto;
-  border: 1px solid rgba(113, 218, 239, .3);
-  background: rgba(2, 17, 24, .84);
-  color: white;
-  font: inherit;
-  font-size: 1.35rem;
+
+
+
+
+
   cursor: pointer;
 }
 
@@ -817,18 +776,17 @@
   grid-template-rows: auto auto;
   gap: .6rem;
   padding: .5rem;
-  border: 1px solid rgba(107, 181, 198, .24);
-  background: #031219;
-  color: white;
-  font: inherit;
-  font-size: var(--type-meta);
-  font-weight: 800;
+
+
+
+
+
+
   cursor: pointer;
 }
 
 .avatarPresetGrid button[aria-pressed="true"] {
-  border-color: var(--brand-blue-bright);
-  box-shadow: inset 0 0 1.5rem rgba(45, 199, 232, .14);
+
 }
 
 .avatarPresetIcon {
@@ -837,17 +795,17 @@
   aspect-ratio: 1;
   display: block;
   object-fit: contain;
-  background-color: #01080c;
+
 }
 
 .avatarInitialsPreview {
   display: grid;
   place-items: center;
-  color: white;
-  font-size: clamp(1.65rem, 4vw, 2.8rem);
-  font-weight: 900;
-  letter-spacing: .04em;
-  background: radial-gradient(circle, rgba(69, 198, 224, .28), #020b10 72%);
+
+
+
+
+
 }
 
 .avatarPresetGrid span {
@@ -861,7 +819,6 @@
 }
 
 .dialogError {
-  color: #ff999e !important;
 }
 
 .cropPreview {
@@ -869,9 +826,9 @@
   aspect-ratio: 1;
   justify-self: center;
   overflow: hidden;
-  border: 2px solid var(--brand-blue-bright);
-  border-radius: 50%;
-  background: #01080c;
+
+
+
 }
 
 .cropPreview img {
@@ -904,24 +861,23 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: .75rem 1rem;
-  border: 1px solid rgba(101, 180, 198, .22);
-  background: #031219;
-  color: white;
-  font: inherit;
+
+
+
+
   text-align: left;
   cursor: pointer;
 }
 
 .rewardList button[aria-pressed="true"] {
-  border-color: #ffd45e;
-  background: linear-gradient(90deg, rgba(104, 73, 9, .56), #031219);
+
 }
 
 .rewardList button:disabled,
 .coverGrid button:disabled {
   cursor: not-allowed;
-  filter: grayscale(.9);
-  opacity: .48;
+
+
 }
 
 .rewardList button > span {
@@ -931,13 +887,11 @@
 
 .rewardList small,
 .coverGrid small {
-  color: var(--text-muted);
-  font-size: var(--type-meta);
+
 }
 
 .rewardList i {
-  color: #ffdc72;
-  font-style: normal;
+
 }
 
 .coverGrid {
@@ -954,17 +908,16 @@
   align-items: stretch;
   overflow: hidden;
   padding: .5rem;
-  border: 1px solid rgba(103, 181, 198, .28);
-  background: #031219;
-  color: white;
-  font: inherit;
+
+
+
+
   text-align: left;
   cursor: pointer;
 }
 
 .coverGrid button[aria-pressed="true"] {
-  border-color: #ffd45e;
-  box-shadow: inset 0 0 0 2px rgba(255, 212, 94, .28);
+
 }
 
 .coverArt {
@@ -975,7 +928,7 @@
   display: block;
   object-fit: contain;
   object-position: center;
-  opacity: 1;
+
 }
 
 .coverCopy {
@@ -1041,7 +994,7 @@
     min-height: 0;
     aspect-ratio: 4 / 1;
     padding: clamp(.4rem, 1.8vw, .75rem);
-    background-position: 62% 24%;
+
   }
 
 
@@ -1057,7 +1010,6 @@
   }
 
   .profilePortrait {
-    font-size: clamp(1rem, 5vw, 1.65rem);
   }
 
   .identityCopy {
@@ -1067,12 +1019,10 @@
   }
 
   .eyebrow {
-    font-size: clamp(.5rem, 1.8vw, .68rem);
-    letter-spacing: .1em;
+
   }
 
   .identityCopy h1 {
-    font-size: clamp(1rem, 4.5vw, 1.6rem);
   }
 
   .titleLine,
@@ -1081,7 +1031,6 @@
   }
 
   .titleLine strong {
-    font-size: clamp(.7rem, 2.9vw, 1rem);
   }
 
   .factionIdentity img {
@@ -1090,7 +1039,6 @@
   }
 
   .factionIdentity span {
-    font-size: clamp(.62rem, 2.5vw, .86rem);
   }
 
   .editButton {
