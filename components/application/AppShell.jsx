@@ -72,7 +72,8 @@ export function AppShell({ children }) {
       <MusicLayer />
       <div className={immersiveMatch ? "blank-shell immersive-shell" : "blank-shell"}>
         <a className="skip-link" href="#main-content">Skip to content</a>
-        {!immersiveMatch && <SiteNavigation onLogout={logout} />}\n        {!immersiveMatch && !homePage && canResumeLocalMatch && (
+        {!immersiveMatch && <SiteNavigation onLogout={logout} />}
+        {!immersiveMatch && !homePage && canResumeLocalMatch && (
           <button type="button" disabled={resumingCurrentMatch} onClick={() => void resumeCurrentMatch()}>
             {resumingCurrentMatch ? "Resuming match…" : "Resume current match"}
           </button>
