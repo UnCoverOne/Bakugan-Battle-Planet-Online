@@ -65,18 +65,19 @@ export function AppShell({ children }) {
     </main>
   );
   const immersiveMatch = pathname === "/play/match";
+  const homePage = pathname === "/";
   const canResumeLocalMatch = Boolean(match && (!online || (matchCapability && matchControllerId)));
   return (
     <SocialProvider>
       <MusicLayer />
       <div className={immersiveMatch ? "blank-shell immersive-shell" : "blank-shell"}>
         <a className="skip-link" href="#main-content">Skip to content</a>
-        {!immersiveMatch && <SiteNavigation onLogout={logout} />}\n        {!immersiveMatch && canResumeLocalMatch && (
+        {!immersiveMatch && <SiteNavigation onLogout={logout} />}\n        {!immersiveMatch && !homePage && canResumeLocalMatch && (
           <button type="button" disabled={resumingCurrentMatch} onClick={() => void resumeCurrentMatch()}>
             {resumingCurrentMatch ? "Resuming match…" : "Resume current match"}
           </button>
         )}
-        {!immersiveMatch && accountMatchSessions?.map((session) => (
+        {!immersiveMatch && !homePage && accountMatchSessions?.map((session) => (
           <button key={session.code + ":" + session.playerId} type="button"
             disabled={resumingMatchCode === session.code}
             onClick={() => void resumeAccountMatch(session)}>
