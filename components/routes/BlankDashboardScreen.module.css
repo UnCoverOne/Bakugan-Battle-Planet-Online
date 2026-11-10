@@ -1,28 +1,72 @@
 .home{width:100%;min-width:0;overflow:hidden;background:var(--bb-page,#10151c)}
-.hero{position:relative;isolation:isolate;width:100%;height:600px;overflow:hidden;background-color:#052c3e;background-image:linear-gradient(90deg,rgba(2,8,14,.18),transparent 75%),url("/assets/home/background_0.jpg");background-position:center;background-size:cover;background-repeat:no-repeat}
+.hero{position:relative;isolation:isolate;width:100%;height:440px;overflow:hidden;background-color:#052c3e;background-image:linear-gradient(90deg,rgba(2,8,14,.18),transparent 75%),url("/assets/home/Background%20Art%201.webp");background-position:center;background-size:cover;background-repeat:no-repeat}
 .shade{position:absolute;z-index:1;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(1,6,11,.67) 0%,rgba(1,6,11,.50) 35%,rgba(1,6,11,.10) 68%,transparent 100%)}
 .artwork{position:absolute;inset:0;z-index:2;pointer-events:none}
-.artwork img{position:absolute;display:block;right:max(-85px,calc((100vw - 1450px)/2 - 95px));bottom:-105px;width:auto;max-width:none;height:760px;object-fit:contain;object-position:center bottom;pointer-events:none}
+.artwork img{position:absolute;display:block;right:max(-85px,calc((100vw - 1450px)/2 - 95px));bottom:-40px;width:auto;max-width:none;height:520px;object-fit:contain;object-position:center bottom;pointer-events:none}
 .content{position:relative;z-index:3;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;width:min(100%,1440px);height:100%;margin-inline:auto;padding:30px clamp(32px,5vw,88px)}
-.title{display:flex;flex-direction:column;gap:0;margin:0 0 38px;color:#fff;font-family:var(--bb-font-display,"RBNo3.1","Titillium Web",sans-serif);font-size:clamp(60px,6.4vw,96px);font-weight:800;letter-spacing:.012em;line-height:.94;text-transform:uppercase;text-wrap:nowrap}
+.title{display:flex;flex-direction:column;gap:0;margin:0 0 24px;color:#fff;font-family:var(--bb-font-display,"RBNo3.1","Titillium Web",sans-serif);font-size:clamp(52px,5.1vw,68px);font-weight:800;letter-spacing:.012em;line-height:.94;text-transform:uppercase;text-wrap:nowrap}
 .title span{display:block}
-.actions{display:flex;flex-direction:column;gap:12px;width:min(380px,100%);max-width:100%}
-.action{box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;height:92px;min-height:92px;padding:14px 22px;text-align:left;border-radius:0;text-decoration:none;cursor:pointer;font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);transition:background-color 150ms ease-out,border-color 150ms ease-out,color 150ms ease-out}
+.actions{display:flex;flex-direction:column;gap:10px;width:min(300px,100%);max-width:100%}
+.action{box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;height:72px;min-height:72px;padding:10px 17px;text-align:left;border-radius:0;text-decoration:none;cursor:pointer;font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);transition:background-color 150ms ease-out,border-color 150ms ease-out,color 150ms ease-out}
 .actionCopy{display:flex;flex-direction:column;gap:3px;min-width:0}
-.actionTitle{font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-size:30px;line-height:1.1;font-weight:700;letter-spacing:.015em;white-space:nowrap}
-.actionSubtitle{font-family:var(--bb-font-content,Lato,Arial,sans-serif);font-size:15px;line-height:1.35;white-space:nowrap}
-.action svg{display:block;flex:0 0 28px;width:28px;height:28px}
+.actionTitle{font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-size:26px;line-height:1.1;font-weight:700;letter-spacing:.015em;white-space:nowrap}
+.actionSubtitle{font-family:var(--bb-font-content,Lato,Arial,sans-serif);font-size:14px;line-height:1.35;white-space:nowrap}
+.action svg{display:block;flex:0 0 23px;width:23px;height:23px}
 .primary{background:#e60012;border:1px solid #e60012;color:#fff}
 .primary .actionSubtitle{color:#fff}
-.secondary{background:#202832;border:1px solid #536173;color:#f1f5f9}
+.secondary{height:56px;min-height:56px;background:#202832;border:1px solid #536173;color:#f1f5f9}
+.secondary .actionTitle{font-size:20px}
+.secondary .actionSubtitle{font-size:12px}
+.secondary svg{flex-basis:19px;width:19px;height:19px}
 .secondary .actionSubtitle{color:#a5b2c2}
 @media(hover:hover){.primary:not(:disabled):hover{background:#fa1728;border-color:#fa1728}.secondary:hover{background:#303c4a;border-color:#536173}}
 .primary:not(:disabled):active{background:#b8000f;border-color:#b8000f}
 .secondary:active{background:#131a23}
 .action:focus-visible{outline:2px solid #7cc9ff;outline-offset:3px}
 .action:disabled{opacity:.72;cursor:wait}
-@media(max-width:1100px){.title{font-size:clamp(48px,7vw,80px)}.artwork img{right:-155px;height:690px;bottom:-75px}.content{padding-inline:clamp(24px,4vw,52px)}.actions{width:350px}}
-@media(max-width:850px){.hero{height:520px}.title{font-size:clamp(40px,6.5vw,62px);margin-bottom:28px}.actions{width:min(310px,52vw)}.action{height:82px;min-height:82px;padding:12px 16px}.actionTitle{font-size:26px}.actionSubtitle{font-size:13px}.artwork img{height:590px;right:-175px;bottom:-38px}.shade{background:linear-gradient(90deg,rgba(1,6,11,.78),rgba(1,6,11,.50) 43%,rgba(1,6,11,.08) 80%)}}
-@media(max-width:600px){.hero{height:440px;background-position:63% center}.content{padding:18px 12px 22px 16px;width:100%;justify-content:center}.title{font-size:clamp(30px,9.4vw,42px);margin-bottom:24px;line-height:.96}.actions{width:58%;gap:10px}.action{height:76px;min-height:76px;padding:10px 12px;gap:6px}.actionTitle{font-size:clamp(18px,5vw,23px)}.actionSubtitle{font-size:clamp(10px,2.75vw,12px);white-space:normal;line-height:1.12}.action svg{flex-basis:20px;width:20px;height:20px}.artwork img{height:470px;right:-215px;bottom:-22px}.shade{background:linear-gradient(90deg,rgba(1,6,11,.82) 0%,rgba(1,6,11,.45) 56%,transparent 95%)}}
-@media(max-width:389px){.hero{height:410px}.content{padding-left:12px}.title{font-size:clamp(28px,9.1vw,35px);margin-bottom:21px}.actions{width:63%}.action{height:72px;min-height:72px;padding:9px 10px}.action svg{flex-basis:18px;width:18px;height:18px}.artwork img{height:430px;right:-215px;bottom:-17px}}
+@media(max-width:1100px){
+  .title{font-size:clamp(44px,5.7vw,64px)}
+  .artwork img{right:-115px;height:490px;bottom:-36px}
+  .content{padding-inline:clamp(22px,4vw,52px)}
+  .actions{width:300px}
+}
+@media(max-width:850px){
+  .hero{height:390px}
+  .title{font-size:clamp(38px,6.3vw,52px);margin-bottom:20px}
+  .actions{width:min(300px,52vw)}
+  .action{height:68px;min-height:68px;padding:10px 14px}
+  .actionTitle{font-size:23px}
+  .actionSubtitle{font-size:12px}
+  .secondary{height:54px;min-height:54px}
+  .secondary .actionTitle{font-size:19px}
+  .secondary .actionSubtitle{font-size:11px}
+  .artwork img{height:430px;right:-145px;bottom:-29px}
+  .shade{background:linear-gradient(90deg,rgba(1,6,11,.76),rgba(1,6,11,.46) 43%,rgba(1,6,11,.06) 80%)}
+}
+@media(max-width:600px){
+  .hero{height:340px;background-position:63% center}
+  .content{padding:14px 10px 18px 16px;width:100%;justify-content:center}
+  .title{font-size:clamp(29px,8.7vw,36px);margin-bottom:19px;line-height:.96}
+  .actions{width:58%;gap:9px}
+  .action{height:66px;min-height:66px;padding:9px 11px;gap:6px}
+  .actionTitle{font-size:clamp(18px,4.7vw,22px)}
+  .actionSubtitle{font-size:clamp(10px,2.65vw,12px);white-space:normal;line-height:1.12}
+  .action svg{flex-basis:18px;width:18px;height:18px}
+  .secondary{height:52px;min-height:52px}
+  .secondary .actionTitle{font-size:17px}
+  .secondary .actionSubtitle{font-size:10px}
+  .secondary svg{flex-basis:16px;width:16px;height:16px}
+  .artwork img{height:380px;right:-172px;bottom:-25px}
+  .shade{background:linear-gradient(90deg,rgba(1,6,11,.82) 0%,rgba(1,6,11,.44) 56%,transparent 95%)}
+}
+@media(max-width:389px){
+  .hero{height:330px}
+  .content{padding-left:12px}
+  .title{font-size:clamp(28px,8.8vw,33px);margin-bottom:17px}
+  .actions{width:63%}
+  .action{height:64px;min-height:64px;padding:8px 10px}
+  .secondary{height:50px;min-height:50px}
+  .action svg{flex-basis:16px;width:16px;height:16px}
+  .artwork img{height:350px;right:-177px;bottom:-22px}
+}
 @media(prefers-reduced-motion:reduce){.action{transition:none}}

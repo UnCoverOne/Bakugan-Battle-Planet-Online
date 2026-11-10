@@ -59,17 +59,10 @@ export function BlankDashboardScreen() {
         <div className={styles.shade} aria-hidden="true" />
         <div className={styles.artwork} aria-hidden="true">
           <img
-            src="/assets/home/character-evo-3.png"
+            src="/assets/home/Dragonoid%20Hero%20Art.webp"
             alt=""
             width={960}
             height={920}
-            onError={(event) => {
-              const image = event.currentTarget;
-              if (!image.dataset.fallback) {
-                image.dataset.fallback = "true";
-                image.src = "/assets/home/hero-pyrus-960.avif";
-              }
-            }}
           />
         </div>
         <div className={styles.content}>
