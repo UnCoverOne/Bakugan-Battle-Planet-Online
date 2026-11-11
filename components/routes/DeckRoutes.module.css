@@ -2769,3 +2769,8 @@
   .deckSkeleton {
   }
 }
+
+/* Horizontal gallery tiles now size to their contents; reserve space for personal deck controls. */
+.deckCard:has(.deckCardActions){min-height:0}
+.deckCard:has(.showcaseDeckToggle){padding-top:30px}
+.deckCard:has(.selectedBanner){padding-top:38px}
