@@ -14,7 +14,8 @@ import { copyText, downloadTextFile, formatTimestamp } from "../application/ui";
 import { ActionButton, CardGrid, StatusChip, Surface } from "../design-system/primitives";
 import { DeckCreatorIdentity } from "../profile/DeckCreatorIdentity";
 import styles from "./DeckRoutes.module.css";
-import { type LibraryView, type DeckFormatFilter, DeckAreaHeader, DeckLibrarySkeleton, DeckToolbar, CharacterFan, DeckFactionSymbols } from "./DeckLibraryPresentation";
+import { type LibraryView, type DeckFormatFilter, DeckAreaHeader, DeckLibrarySkeleton, DeckToolbar } from "./DeckLibraryPresentation";
+import { DeckGalleryBody } from "./DeckGalleryCard";
 import { deckFormatLabel, useCompetitiveRules, clone, blankDraft, useOnlineStatus, DeckState } from "./DeckRouteShared";
 
 export function DeckLibraryScreen() {
@@ -216,7 +217,7 @@ export function DeckLibraryScreen() {
           action={<ActionButton tone="quiet" onClick={() => { setDeckQuery(""); setFaction("All"); setFormatFilter("all"); setLegality("All"); }}>Clear filters</ActionButton>}
         />
       ) : (
-        <CardGrid className={`${styles.deckGrid} ${styles[`deckGrid_${view}`]}`} minCardWidth="20rem">
+        <CardGrid className={`${styles.deckGrid} ${styles[`deckGrid_${view}`]}`} minCardWidth="30rem">
           {visible.map((deck: DeckRecord) => (
             <DeckTile
               key={deck.id}
@@ -307,29 +308,13 @@ function DeckTile({
         {showcased ? "Showcased" : "Showcase"}
       </button>
       {selected && <div className={styles.selectedBanner}><span /> Selected for Play</div>}
-      <button className={styles.deckCardMain} onClick={onOpen} aria-label={`View ${deck.name}`}>
-        <CharacterFan deck={deck} compact={view === "list"} featured />
-        <div className={styles.deckCardCopy}>
-          <div className={styles.deckTitleRow}>
-            <h2 data-deck-name>{deck.name}</h2>
-            <StatusChip>{deck.visibility}</StatusChip>
-          </div>
-          <p>
-            Created by{" "}
-            <DeckCreatorIdentity userId={creatorUserId} displayName={creatorDisplayName} />
-          </p>
-          <div className={styles.chipRow}>
-            <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
-            <StatusChip tone={legalFormats.length ? "success" : "danger"}>
-              {legalFormats.length ? "Legal" : `${report.issues.length} issues`}
-            </StatusChip>
-          </div>
-          <DeckFactionSymbols factions={deck.factions} />
-          <small>{legalFormats.length ? `Legal formats: ${legalFormats.map(deckFormatLabel).join(" · ")}` : `Preferred format: ${deckFormatLabel(deck.format ?? "standard")}`}</small>
-          <small>{deck.cardIds.length}/{deck.format === "competitive" ? competitiveDeckSize : 40} cards · {deck.bakuganIds.length}/3 Character · {deck.coreIds.length}/6 BakuCores</small>
-          <small>Updated {formatTimestamp(deck.updatedAt)}</small>
-        </div>
-      </button>
+      <DeckGalleryBody
+        deck={deck}
+        href={`/decks/${encodeURIComponent(deck.id)}`}
+        creatorName={creatorDisplayName}
+        creatorUserId={creatorUserId}
+        legalFormats={legalFormats}
+      />
       <div className={styles.deckCardActions}>
         <button onClick={onSelect} disabled={!legalFormats.length || selected}>
           {selected ? "Selected" : legalFormats.length ? "Select for Play" : "Fix to select"}
