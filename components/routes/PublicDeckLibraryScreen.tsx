@@ -13,7 +13,8 @@ import { formatTimestamp } from "../application/ui";
 import { CardGrid, StatusChip, Surface } from "../design-system/primitives";
 import styles from "./DeckRoutes.module.css";
 import { MotionValue } from "../design-system/MotionValue";
-import { type LibraryView, type DeckFormatFilter, DeckAreaHeader, DeckLibrarySkeleton, DeckToolbar, CharacterFan, DeckFactionSymbols } from "./DeckLibraryPresentation";
+import { type LibraryView, type DeckFormatFilter, DeckAreaHeader, DeckLibrarySkeleton, DeckToolbar } from "./DeckLibraryPresentation";
+import { DeckGalleryBody } from "./DeckGalleryCard";
 import { deckFormatLabel, useCompetitiveRules, clone, useOnlineStatus, DeckState } from "./DeckRouteShared";
 import { type PublicDeckFavoriteMetadata, usePublicDeckCatalogue } from "./PublicDeckCatalogue";
 
@@ -176,7 +177,7 @@ export function PublicDeckLibraryScreen() {
         favoritesEnabled={catalogue.status === "online" && Boolean(authUser)}
       />
       {visible.length ? (
-        <CardGrid className={`${styles.deckGrid} ${styles[`deckGrid_${view}`]}`} minCardWidth="20rem">
+        <CardGrid className={`${styles.deckGrid} ${styles[`deckGrid_${view}`]}`} minCardWidth="30rem">
           {visible.map((deck) => (
             <PublicDeckTile
               key={deck.id}
@@ -225,37 +226,21 @@ function PublicDeckTile({
 }) {
   return (
     <Surface as="article" className={`${styles.deckCard} ${styles.publicDeckCard} ${styles[`deckCard_${view}`]}`}>
-      <button className={styles.deckCardMain} onClick={onOpen} aria-label={`View ${deck.name}`}>
-        <CharacterFan deck={deck} compact={view === "list"} featured />
-        <div className={styles.deckCardCopy}>
-          <div className={styles.deckTitleRow}><h2 data-deck-name>{deck.name}</h2></div>
-          <p>by {deck.creator ?? "Community Brawler"}</p>
-          <div className={styles.chipRow}>
-            <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
-            <StatusChip tone={legalFormats.length ? "success" : "danger"}>{legalFormats.length ? "Legal" : `${report.issues.length} issues`}</StatusChip>
-          </div>
-          <DeckFactionSymbols factions={deck.factions} />
-          <small>{legalFormats.length ? `Legal formats: ${legalFormats.map(deckFormatLabel).join(" · ")}` : "No legal formats"}</small>
-          <small>Published {formatTimestamp(deck.publishedAt ?? deck.updatedAt)}</small>
-        </div>
-      </button>
+      <DeckGalleryBody
+        deck={deck}
+        href={`/decks/public/${encodeURIComponent(deck.id)}`}
+        creatorName={deck.creator ?? "Community Brawler"}
+        creatorUserId={(deck as DeckRecord & { creatorUserId?: string }).creatorUserId}
+        legalFormats={legalFormats}
+        likes={favorite.favoriteCount}
+        liked={favorite.viewerHasFavorited}
+        onLike={favoriteAvailable ? onFavorite : undefined}
+        likeDisabled={favoritePending}
+      />
       <div className={`${styles.deckCardActions} ${styles.publicDeckActions}`}>
         <button onClick={onOpen}>View Deck</button>
         <button onClick={onCopy} disabled={!legalFormats.length} title="Copy to My Decks">Copy</button>
-        {favoriteAvailable && (
-          <button
-            data-ui="favorite-button"
-            className={styles.favoriteButton}
-            aria-label={`${favorite.viewerHasFavorited ? "Remove" : "Add"} ${deck.name} ${favorite.viewerHasFavorited ? "from" : "to"} Favorites. ${favorite.favoriteCount} ${favorite.favoriteCount === 1 ? "favorite" : "favorites"}.`}
-            aria-pressed={favorite.viewerHasFavorited}
-            disabled={favoritePending}
-            title={`${favorite.viewerHasFavorited ? "Favorited" : "Favorite"} · ${favorite.favoriteCount}`}
-            onClick={onFavorite}
-          >
-            <MotionValue value={favorite.viewerHasFavorited}><span aria-hidden="true">{favorite.viewerHasFavorited ? "★" : "☆"}</span></MotionValue>
-            <MotionValue value={favorite.favoriteCount}><span>{favorite.favoriteCount}</span></MotionValue>
-          </button>
-        )}
+
       </div>
     </Surface>
   );
