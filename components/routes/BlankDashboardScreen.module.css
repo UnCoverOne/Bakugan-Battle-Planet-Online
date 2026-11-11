@@ -70,3 +70,26 @@
   .artwork img{height:350px;right:-177px;bottom:-22px}
 }
 @media(prefers-reduced-motion:reduce){.action{transition:none}}
+
+/* Homepage dashboard: achievements and a shared horizontal featured-deck card. */
+.dashboard{width:min(1440px,calc(100% - 32px));margin:18px auto 30px;display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);gap:14px;align-items:stretch}
+.achievementPanel,.featuredPanel{min-width:0;background:#141f29;border:1px solid #354958;padding:18px;color:#edf3f8}
+.panelHeader{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-bottom:11px;border-bottom:1px solid #344351;margin-bottom:15px}
+.panelHeader h2{font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-weight:800;font-size:clamp(19px,2vw,26px);margin:0;text-transform:uppercase;white-space:nowrap}
+.panelHeader a{font-size:12px;color:#7bd7f4;text-decoration:none;white-space:nowrap;font-weight:700}
+.panelHeader a:hover{text-decoration:underline}
+.achievementList{display:flex;flex-direction:column;gap:0}
+.achievementRow{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid #293946}
+.achievementRow:last-child{border-bottom:0}
+.achievementGlyph{width:42px;height:42px;display:grid;place-items:center;font-size:24px;background:#253442;border:1px solid #415565}
+.achievementText{min-width:0;display:grid;gap:4px}
+.achievementText strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.achievementText small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#acbdc9;font-size:11px}
+.progressTrack{height:5px;background:#344554;overflow:hidden}
+.progressTrack span{height:100%;display:block;background:#40b9da}
+.progressValue{font-size:11px;white-space:nowrap;color:#c8d8e1;font-variant-numeric:tabular-nums}
+.emptyPanel{margin:24px 0;color:#aabcca;font-size:14px;line-height:1.5}
+.featuredPanel{display:flex;flex-direction:column}
+.featuredPanel > div{flex:1}
+@media(max-width:980px){.dashboard{grid-template-columns:1fr;max-width:760px}}
+@media(max-width:600px){.dashboard{width:calc(100% - 20px);margin-top:10px;gap:10px}.achievementPanel,.featuredPanel{padding:12px}.panelHeader{margin-bottom:9px}.achievementRow{padding:9px 0}}
