@@ -4,9 +4,9 @@
 .artwork{position:absolute;inset:0;z-index:2;pointer-events:none}
 .artwork img{position:absolute;display:block;right:max(-85px,calc((100vw - 1450px)/2 - 95px));bottom:-40px;width:auto;max-width:none;height:520px;object-fit:contain;object-position:center bottom;pointer-events:none}
 .content{position:relative;z-index:3;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;width:min(100%,1440px);height:100%;margin-inline:auto;padding:30px clamp(32px,5vw,88px)}
-.title{display:flex;flex-direction:column;gap:0;margin:0 0 24px;color:#fff;font-family:var(--bb-font-display,"RBNo3.1","Titillium Web",sans-serif);font-size:clamp(52px,5.1vw,68px);font-weight:800;letter-spacing:.012em;line-height:.94;text-transform:uppercase;text-wrap:nowrap}
+.title{display:flex;flex-direction:column;gap:0;margin:0 0 24px;color:#fff;font-family:var(--bb-font-display,"RBNo3.1","Titillium Web",sans-serif);font-size:clamp(52px,5.9vw,80px);font-weight:800;letter-spacing:.012em;line-height:.94;text-transform:uppercase;text-wrap:nowrap}
 .title span{display:block}
-.actions{display:flex;flex-direction:column;gap:10px;width:min(300px,100%);max-width:100%}
+.actions{display:flex;flex-direction:column;gap:10px;width:min(260px,100%);max-width:100%}
 .action{box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;height:72px;min-height:72px;padding:10px 17px;text-align:left;border-radius:0;text-decoration:none;cursor:pointer;font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);transition:background-color 150ms ease-out,border-color 150ms ease-out,color 150ms ease-out}
 .actionCopy{display:flex;flex-direction:column;gap:3px;min-width:0}
 .actionTitle{font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-size:26px;line-height:1.1;font-weight:700;letter-spacing:.015em;white-space:nowrap}
@@ -28,12 +28,12 @@
   .title{font-size:clamp(44px,5.7vw,64px)}
   .artwork img{right:-115px;height:490px;bottom:-36px}
   .content{padding-inline:clamp(22px,4vw,52px)}
-  .actions{width:300px}
+  .actions{width:260px}
 }
 @media(max-width:850px){
   .hero{height:390px}
   .title{font-size:clamp(38px,6.3vw,52px);margin-bottom:20px}
-  .actions{width:min(300px,52vw)}
+  .actions{width:min(260px,52vw)}
   .action{height:68px;min-height:68px;padding:10px 14px}
   .actionTitle{font-size:23px}
   .actionSubtitle{font-size:12px}
