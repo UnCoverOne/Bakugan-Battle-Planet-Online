@@ -1,6 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { achievementsForProfile, ACHIEVEMENT_CATEGORY_DETAILS } from "../../lib/achievements";
+import { legalDeckFormats } from "../../lib/data";
+import { rememberAccountIntent } from "../../lib/account-intent";
+import { invalidateResponse } from "../../lib/response-cache";
+import { usePublicDeckCatalogue } from "./PublicDeckCatalogue";
+import { useCompetitiveRules } from "./DeckRouteShared";
+import { DeckGalleryBody } from "./DeckGalleryCard";
 import { useAppFields } from "../application/AppProvider";
 import styles from "./BlankDashboardScreen.module.css";
 
@@ -23,11 +31,56 @@ export function BlankDashboardScreen() {
     authUser, match, online, matchCapability, matchControllerId,
     accountMatchSessions, resumeCurrentMatch, resumingCurrentMatch,
     resumeAccountMatch, resumingMatchCode,
+    decks, profile, history, lifetimeStats, promptAccount, notify,
   } = useAppFields([
     "authUser", "match", "online", "matchCapability", "matchControllerId",
     "accountMatchSessions", "resumeCurrentMatch", "resumingCurrentMatch",
     "resumeAccountMatch", "resumingMatchCode",
+    "decks", "profile", "history", "lifetimeStats", "promptAccount", "notify",
   ]);
+
+  const catalogue = usePublicDeckCatalogue(Boolean(online), authUser?.id);
+  const rules = useCompetitiveRules();
+  const [likePending, setLikePending] = useState(false);
+  const achievements = achievementsForProfile(decks, history, lifetimeStats, profile);
+  const recentCompleted = achievements.filter(item => item.status === "completed")
+    .sort((a, b) => (Date.parse(b.completedAt ?? "") || 0) - (Date.parse(a.completedAt ?? "") || 0));
+  const nearComplete = achievements.filter(item => item.status === "in-progress")
+    .sort((a, b) => b.current / b.target - a.current / a.target);
+  const displayAchievements = [...recentCompleted.slice(0, 1), ...nearComplete].slice(0, 3);
+  const featuredDeck = catalogue.decks.find(deck => Boolean(deck.description?.trim())) ?? catalogue.decks[0];
+  const favorite = featuredDeck ? catalogue.favorites[featuredDeck.id] ?? { favoriteCount: 0, viewerHasFavorited: false } : null;
+
+  async function toggleFeaturedLike() {
+    if (!featuredDeck || likePending) return;
+    if (!authUser) {
+      rememberAccountIntent("favorite-deck", { deckId: featuredDeck.id, returnTo: window.location.pathname });
+      promptAccount("favorite-deck");
+      return;
+    }
+    if (!favorite || catalogue.status !== "online") return;
+    const nextFavorited = !favorite.viewerHasFavorited;
+    catalogue.updateFavorite(featuredDeck.id, {
+      favoriteCount: Math.max(0, favorite.favoriteCount + (nextFavorited ? 1 : -1)),
+      viewerHasFavorited: nextFavorited,
+    });
+    setLikePending(true);
+    try {
+      const response = await fetch("/api/public-decks", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: nextFavorited ? "favorite" : "unfavorite", deckId: featuredDeck.id }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.favorite) throw new Error(result.error ?? "Unable to update likes.");
+      catalogue.updateFavorite(featuredDeck.id, result.favorite);
+      invalidateResponse("public-decks:");
+    } catch (error) {
+      catalogue.updateFavorite(featuredDeck.id, favorite);
+      notify(error instanceof Error ? error.message : "Unable to update likes.");
+    } finally {
+      setLikePending(false);
+    }
+  }
 
   // Match the app shell's existing resume eligibility so we never advertise
   // a local online match whose seat credentials are no longer available.
@@ -98,6 +151,49 @@ export function BlankDashboardScreen() {
           </div>
         </div>
       </section>
+      <div className={styles.dashboard}>
+        <section className={styles.achievementPanel} aria-labelledby="home-achievements-title">
+          <header className={styles.panelHeader}>
+            <h2 id="home-achievements-title">Achievements</h2>
+            <Link href="/profile/achievements">View All</Link>
+          </header>
+          <div className={styles.achievementList}>
+            {displayAchievements.length ? displayAchievements.map(item => (
+              <div className={styles.achievementRow} key={item.id}>
+                <span className={styles.achievementGlyph} style={{ color: ACHIEVEMENT_CATEGORY_DETAILS[item.category].color }} aria-hidden="true">
+                  {item.unlocked ? "✓" : ACHIEVEMENT_CATEGORY_DETAILS[item.category].glyph}
+                </span>
+                <div className={styles.achievementText}>
+                  <strong>{item.name}</strong>
+                  <small>{item.description}</small>
+                  <div className={styles.progressTrack} role="progressbar" aria-label={item.name} aria-valuemin={0} aria-valuemax={item.target} aria-valuenow={item.current}>
+                    <span style={{ width: `${Math.min(100, 100 * item.current / item.target)}%` }} />
+                  </div>
+                </div>
+                <span className={styles.progressValue}>{item.current}/{item.target}</span>
+              </div>
+            )) : <p className={styles.emptyPanel}>Complete matches and build decks to earn achievements.</p>}
+          </div>
+        </section>
+        <section className={styles.featuredPanel} aria-labelledby="home-featured-title">
+          <header className={styles.panelHeader}>
+            <h2 id="home-featured-title">Featured Deck</h2>
+            <Link href="/decks/public">Browse Decks</Link>
+          </header>
+          {featuredDeck ? <DeckGalleryBody
+            deck={featuredDeck}
+            href={`/decks/public/${encodeURIComponent(featuredDeck.id)}`}
+            legalFormats={legalDeckFormats(featuredDeck, rules.restrictions, rules.deckSize)}
+            creatorName={featuredDeck.creator ?? "Community Brawler"}
+            creatorUserId={(featuredDeck as typeof featuredDeck & { creatorUserId?: string }).creatorUserId}
+            featured
+            likes={favorite?.favoriteCount}
+            liked={favorite?.viewerHasFavorited}
+            onLike={catalogue.status === "online" ? () => void toggleFeaturedLike() : undefined}
+            likeDisabled={likePending}
+          /> : <p className={styles.emptyPanel}>No public decks to feature yet. Explore the deck library to get started.</p>}
+        </section>
+      </div>
     </div>
   );
 }
