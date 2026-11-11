@@ -62,12 +62,12 @@
 @media(max-width:389px){
   .hero{height:330px}
   .content{padding-left:12px}
-  .title{font-size:clamp(28px,8.8vw,33px);margin-bottom:17px}
-  .actions{width:63%}
+  .title{font-size:clamp(33.6px,10.56vw,39.6px);margin-bottom:17px}
+  .actions{width:50.4%}
   .action{height:64px;min-height:64px;padding:8px 10px}
   .secondary{height:50px;min-height:50px}
   .action svg{flex-basis:16px;width:16px;height:16px}
-  .artwork img{height:350px;right:-177px;bottom:-22px}
+  .artwork img{height:350px;right:-157px;bottom:-22px}
 }
 @media(prefers-reduced-motion:reduce){.action{transition:none}}
 
