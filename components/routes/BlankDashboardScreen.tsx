@@ -7,7 +7,7 @@ import { legalDeckFormats } from "../../lib/data";
 import { rememberAccountIntent } from "../../lib/account-intent";
 import { invalidateResponse } from "../../lib/response-cache";
 import { usePublicDeckCatalogue } from "./PublicDeckCatalogue";
-import { useCompetitiveRules } from "./DeckRouteShared";
+import { useCompetitiveRules, useOnlineStatus } from "./DeckRouteShared";
 import { DeckGalleryBody } from "./DeckGalleryCard";
 import { useAppFields } from "../application/AppProvider";
 import styles from "./BlankDashboardScreen.module.css";
@@ -39,7 +39,8 @@ export function BlankDashboardScreen() {
     "decks", "profile", "history", "lifetimeStats", "promptAccount", "notify",
   ]);
 
-  const catalogue = usePublicDeckCatalogue(Boolean(online), authUser?.id);
+  const connectionOnline = useOnlineStatus();
+  const catalogue = usePublicDeckCatalogue(connectionOnline, authUser?.id);
   const rules = useCompetitiveRules();
   const [likePending, setLikePending] = useState(false);
   const achievements = achievementsForProfile(decks, history, lifetimeStats, profile);
