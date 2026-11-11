@@ -33,4 +33,6 @@
 .like[aria-pressed=true] svg{fill:currentColor}
 .like:focus-visible,.name:focus-visible,.previewLink:focus-visible{outline:2px solid #7fd1ff;outline-offset:2px}
 .bodyFeatured{grid-template-columns:minmax(0,36%) minmax(0,1fr);padding:clamp(12px,2vw,22px);gap:clamp(12px,2vw,25px)}
-@container (max-width:420px){.body{grid-template-columns:minmax(0,27%) minmax(0,1fr);padding:9px;gap:8px}.info{gap:5px}.engagement{gap:5px}.footer{gap:3px}.bodyFeatured{grid-template-columns:minmax(0,27%) minmax(0,1fr)}}
+@media (max-width:600px){.body{grid-template-columns:minmax(0,27%) minmax(0,1fr);padding:9px;gap:8px}.info{gap:5px}.engagement{gap:5px}.footer{gap:3px}.bodyFeatured{grid-template-columns:minmax(0,27%) minmax(0,1fr)}}
+
+@media (max-width:360px){.body{grid-template-columns:minmax(0,25%) minmax(0,1fr);padding:7px;gap:6px}.info{gap:4px}.tags{gap:3px}.setTag,.formatTag,.invalidTag{padding-inline:3px}.footer{font-size:9px}}
