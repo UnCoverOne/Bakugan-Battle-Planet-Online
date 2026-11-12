@@ -118,7 +118,10 @@ export async function saveManagedPatch(db:AccountDatabase,input:unknown,administ
   }
   const now=Date.now();
   const next={...patch,revision:oldRevision+1,updatedAt:now,updatedBy:administratorId,
-    publishedAt:patch.status==="published" ? patch.publishedAt || new Date(now).toISOString() : patch.publishedAt};
+    publishedAt:patch.status==="published"
+      ? patch.publishedAt || (!prior && WEBSITE_PATCHES.some(p=>p.version===patch.version)
+        ? null : new Date(now).toISOString())
+      : patch.publishedAt};
   // A conditional update prevents lost work when two administrators save concurrently.
   if(prior) {
     const result=await db.prepare("UPDATE admin_resources SET data_json=?,enabled=?,updated_by=?,updated_at=? WHERE resource_type=? AND resource_id=? AND json_extract(data_json,'$.revision')=?")
