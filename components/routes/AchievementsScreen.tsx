@@ -12,6 +12,7 @@ import {
   type AchievementStatus,
   type AchievementTrainingRule,
 } from "../../lib/achievements";
+import { AchievementCategoryIcon } from "./AchievementCategoryIcon";
 import { useAppFields } from "../application/AppProvider";
 import { StatusChip, Surface } from "../design-system/primitives";
 import styles from "./AchievementsScreen.module.css";
@@ -89,12 +90,12 @@ function AchievementCard({
           aria-hidden="true"
           style={{ borderColor: categoryDetails.color, color: categoryDetails.color }}
         >
-          {achievement.status === "completed" ? "✓" : categoryDetails.glyph}
+          <AchievementCategoryIcon category={achievement.category} />
         </span>
         <StatusChip
           tone={achievement.status === "completed" ? "success" : "neutral"}
         >
-          <span aria-hidden="true" style={{ color: categoryDetails.color }}>{categoryDetails.glyph}</span>{" "}
+          <span aria-hidden="true" style={{ color: categoryDetails.color }}><AchievementCategoryIcon category={achievement.category} width={16} height={16} /></span>{" "}
           {achievement.category}
         </StatusChip>
         <button
