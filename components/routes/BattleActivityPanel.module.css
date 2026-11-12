@@ -6,7 +6,9 @@
 .header a:focus-visible,.match:focus-visible{outline:2px solid #7cc9ff;outline-offset:3px}
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(6px,1.2vw,12px)}
 .stat{min-width:0;background:#202e3a;border:1px solid #344654;padding:clamp(7px,1.5vw,16px);display:flex;flex-direction:column;gap:clamp(7px,1vw,12px)}
-.statTitle{display:flex;flex-wrap:wrap;align-items:center;gap:clamp(5px,1vw,9px);color:#adbdc8;font-size:clamp(10px,1.15vw,12px);font-weight:700;text-transform:uppercase}
+.statTitle{display:flex;flex-wrap:nowrap;align-items:center;gap:clamp(4px,.8vw,9px);color:#adbdc8;font-size:clamp(10px,1.15vw,12px);font-weight:700;text-transform:uppercase}
+.statTitle > span:first-child{flex:none}
+.statTitle > span:last-child{min-width:0}
 .statTitle svg{width:clamp(18px,2vw,21px);height:clamp(18px,2vw,21px);display:block;flex-shrink:0}
 .battleIcon{color:#7bd7f4}.winIcon{color:#48c78e}.rateIcon{color:#e3bd73}
 .stat strong{font-size:clamp(21px,3vw,34px);line-height:1;font-weight:800;color:#f0f5f9;font-variant-numeric:tabular-nums}
