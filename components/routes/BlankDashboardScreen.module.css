@@ -4,10 +4,11 @@
 .artwork{position:absolute;inset:0;z-index:2;pointer-events:none}
 .artwork img{position:absolute;display:block;right:max(-85px,calc((100vw - 1450px)/2 - 95px));bottom:-40px;width:auto;max-width:none;height:520px;object-fit:contain;object-position:center bottom;pointer-events:none}
 .content{position:relative;z-index:3;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;width:min(100%,1440px);height:100%;margin-inline:auto;padding:30px clamp(32px,5vw,88px)}
-.title{display:flex;flex-direction:column;gap:0;margin:0 0 24px;color:#fff;font-family:var(--bb-font-display,"RBNo3.1","Titillium Web",sans-serif);font-size:clamp(52px,5.9vw,80px);font-weight:800;letter-spacing:.012em;line-height:.94;text-transform:uppercase;text-wrap:nowrap}
+.heroControls{width:min(260px,100%);max-width:100%;container-type:inline-size}
+.title{display:flex;flex-direction:column;gap:0;width:100%;margin:0 0 24px;color:#fff;font-family:var(--bb-font-display,"RBNo3.1","Titillium Web",sans-serif);font-size:22cqw;font-weight:800;letter-spacing:.012em;line-height:.94;text-transform:uppercase;text-wrap:nowrap}
 .title span{display:block;background-image:linear-gradient(to bottom,#FFFFFF 0%,#FFFFFF 10%,#DADDE2 70%,#8C949F 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .title span:first-child{letter-spacing:.05em}
-.actions{display:flex;flex-direction:column;gap:10px;width:min(260px,100%);max-width:100%}
+.actions{display:flex;flex-direction:column;gap:10px;width:100%;max-width:100%}
 .action{box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;height:72px;min-height:72px;padding:10px 17px;text-align:left;border-radius:0;text-decoration:none;cursor:pointer;font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);transition:background-color 150ms ease-out,border-color 150ms ease-out,color 150ms ease-out}
 .actionCopy{display:flex;flex-direction:column;gap:3px;min-width:0}
 .actionTitle{font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-size:26px;line-height:1.1;font-weight:700;letter-spacing:.015em;white-space:nowrap}
@@ -25,17 +26,14 @@
 .secondary:active{background:#131a23}
 .action:focus-visible{outline:2px solid #7cc9ff;outline-offset:3px}
 .action:disabled{opacity:.72;cursor:wait}
-/* Fluid hero scaling: shared endpoints avoid jumps between phone and tablet widths. */
+/* Fluid hero sizing: title typography and button widths share the same container. */
 @media(max-width:1100px){
-  .title{font-size:clamp(52px,calc(52px + (100vw - 850px)*.048),64px)}
   .artwork img{right:clamp(-145px,calc(-145px + (100vw - 850px)*.24),-85px);height:clamp(430px,calc(430px + (100vw - 850px)*.24),490px);bottom:-36px}
   .content{padding-inline:clamp(22px,4vw,52px)}
-  .actions{width:260px}
 }
 @media(max-width:850px){
   .hero{height:clamp(340px,calc(340px + (100vw - 600px)*.2),390px)}
-  .title{font-size:clamp(42px,calc(42px + (100vw - 600px)*.04),52px);margin-bottom:20px}
-  .actions{width:min(260px,100%)}
+  .title{margin-bottom:20px}
   .action{height:68px;min-height:68px;padding:10px 14px}
   .actionTitle{font-size:23px}
   .actionSubtitle{font-size:12px}
@@ -48,8 +46,9 @@
 @media(max-width:600px){
   .hero{height:clamp(330px,calc(330px + (100vw - 320px)*.0357143),340px);background-position:63% center}
   .content{padding:14px 10px 18px clamp(12px,calc(12px + (100vw - 320px)*.0142857),16px);width:100%;justify-content:center}
-  .title{font-size:clamp(38.4px,calc(38.4px + (100vw - 320px)*.0128571),42px);margin-bottom:clamp(17px,calc(17px + (100vw - 320px)*.00714286),19px);line-height:.96}
-  .actions{width:clamp(161.28px,calc(161.28px + (100vw - 320px)*.3525714),260px);max-width:100%;gap:9px}
+  .title{margin-bottom:clamp(17px,calc(17px + (100vw - 320px)*.00714286),19px);line-height:.96}
+  .heroControls{width:clamp(161.28px,calc(161.28px + (100vw - 320px)*.3525714),260px)}
+  .actions{gap:9px}
   .action{height:clamp(64px,calc(64px + (100vw - 320px)*.00714286),66px);min-height:0;padding:9px 11px;gap:6px}
   .actionTitle{font-size:clamp(18px,4.7vw,22px)}
   .actionSubtitle{font-size:clamp(10px,2.65vw,12px);white-space:normal;line-height:1.12}
