@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { achievementsForProfile, ACHIEVEMENT_CATEGORY_DETAILS } from "../../lib/achievements";
 import { AchievementCategoryIcon } from "./AchievementCategoryIcon";
+import { BattleActivityPanel } from "./BattleActivityPanel";
 import { legalDeckFormats } from "../../lib/data";
 import { rememberAccountIntent } from "../../lib/account-intent";
 import { invalidateResponse } from "../../lib/response-cache";
@@ -196,6 +197,7 @@ export function BlankDashboardScreen() {
           /> : <p className={styles.emptyPanel}>No public decks to feature yet. Explore the deck library to get started.</p>}
         </section>
       </div>
+      <BattleActivityPanel />
     </div>
   );
 }
