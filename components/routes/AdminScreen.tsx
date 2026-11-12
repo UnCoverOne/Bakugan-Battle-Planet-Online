@@ -9,6 +9,7 @@ import { notifyOfflinePublicDecksUpdated } from "../../lib/public-deck-cache";
 import { useAppFields } from "../application/AppProvider";
 import { notifyAdministratorAiVisibilityChanged } from "../application/useAdministratorAiVisibility";
 import { MusicAdmin } from "./MusicAdmin";
+import { AdminPatchEditor } from "./AdminPatchEditor";
 import { AdminFeedbackManagement } from "./AdminFeedbackManagement";
 import { AdministratorCardManagement } from "./AdministratorCardManagement";
 import {
@@ -23,7 +24,7 @@ import styles from "./AdminScreen.module.css";
 import { markAccountResetReload, removeAccountCache } from "../../lib/account-sync";
 import { completedMatchKey } from "../../lib/match-result-navigation";
 
-type AdminTab = "ai" | "offline" | "cards" | "music" | "ranked" | "users" | "feedback";
+type AdminTab = "patches" | "ai" | "offline" | "cards" | "music" | "ranked" | "users" | "feedback";
 type AiDeckItem = { id: string; deck: DeckRecord; enabled: boolean; updatedAt: number };
 type OfflineDeckSlot = { id: string; deck: DeckRecord | null; source: "bundled" | "managed"; updatedAt: number };
 type AdminUser = {
@@ -84,7 +85,7 @@ export function AdminScreen() {
   const searchParams = useSearchParams();
   const { authUser } = useAppFields(["authUser"]);
   const requested = searchParams.get("tab");
-  const tab: AdminTab = requested === "offline" || requested === "cards" || requested === "music" || requested === "ranked" || requested === "users" || requested === "feedback" ? requested : "ai";
+  const tab: AdminTab = requested === "patches" || requested === "offline" || requested === "cards" || requested === "music" || requested === "ranked" || requested === "users" || requested === "feedback" ? requested : "ai";
   if (!authUser?.roles?.includes("administrator")) {
     return (
       <div className={styles.route}>
@@ -110,6 +111,7 @@ export function AdminScreen() {
         <Link className={tab === "offline" ? "active" : ""} aria-current={tab === "offline" ? "page" : undefined} href="/admin?tab=offline">Offline Decks</Link>
         <Link className={tab === "cards" ? "active" : ""} aria-current={tab === "cards" ? "page" : undefined} href="/admin?tab=cards">Card Management</Link>
         <Link className={tab === "music" ? "active" : ""} aria-current={tab === "music" ? "page" : undefined} href="/admin?tab=music">Music</Link>
+        <Link className={tab === "patches" ? "active" : ""} aria-current={tab === "patches" ? "page" : undefined} href="/admin?tab=patches">Patch Notes</Link>
         <Link className={tab === "ranked" ? "active" : ""} aria-current={tab === "ranked" ? "page" : undefined} href="/admin?tab=ranked">Ranked Play</Link>
         <Link className={tab === "users" ? "active" : ""} aria-current={tab === "users" ? "page" : undefined} href="/admin?tab=users">User Management</Link>
         <Link className={tab === "feedback" ? "active" : ""} aria-current={tab === "feedback" ? "page" : undefined} href="/admin?tab=feedback">Feedback &amp; Reports</Link>
@@ -118,6 +120,7 @@ export function AdminScreen() {
       {tab === "offline" && <OfflineDeckManagement />}
       {tab === "cards" && <AdministratorCardManagement />}
       {tab === "music" && <MusicAdmin />}
+      {tab === "patches" && <AdminPatchEditor />}
       {tab === "ranked" && <RankedManagement />}
       {tab === "users" && <UserManagement />}
       {tab === "feedback" && <AdminFeedbackManagement />}
