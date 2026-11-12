@@ -1,8 +1,14 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { WEBSITE_UPDATE, websitePatchHref } from "../../lib/content/website-updates";
 import styles from "./WebsiteUpdatesStrip.module.css";
 
 export function WebsiteUpdatesStrip() {
+  const [latest,setLatest]=useState<{version:string;title:string;status:string}|null>(null);
+  useEffect(()=>{let active=true;fetch("/api/updates",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>{if(active&&x?.latest)setLatest(x.latest);}).catch(()=>{});return ()=>{active=false;};},[]);
+  const update=latest??WEBSITE_UPDATE;
   return (
     <section className={styles.strip} aria-labelledby="home-updates-title">
       <div className={styles.identity}>
@@ -16,12 +22,12 @@ export function WebsiteUpdatesStrip() {
         </span>
         <div className={styles.summary}>
           <h2 id="home-updates-title">Website Updates</h2>
-          <p>{WEBSITE_UPDATE.title} <span aria-hidden="true">·</span> {WEBSITE_UPDATE.status}</p>
+          <p>{update.title} <span aria-hidden="true">·</span> {update.status}</p>
         </div>
       </div>
       <div className={styles.actions}>
-        <span className={styles.version} aria-label={`Website version ${WEBSITE_UPDATE.version}`}>v{WEBSITE_UPDATE.version}</span>
-        <Link href={websitePatchHref(WEBSITE_UPDATE)}>Patch Notes <span aria-hidden="true">↗</span></Link>
+        <span className={styles.version} aria-label={`Website version ${update.version}`}>v{update.version}</span>
+        <Link href={websitePatchHref(update)}>Patch Notes <span aria-hidden="true">↗</span></Link>
       </div>
     </section>
   );
