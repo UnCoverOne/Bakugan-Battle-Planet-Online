@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { WEBSITE_UPDATE } from "../../../lib/content/website-updates";
+import { WEBSITE_PATCHES, websitePatchHref } from "../../../lib/content/website-updates";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = { title: "Website Updates" };
+
+function releaseDate(value: string | null) {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed)
+    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(parsed))
+    : null;
+}
 
 export default function WebsiteUpdatesPage() {
   return (
@@ -12,18 +20,24 @@ export default function WebsiteUpdatesPage() {
       <header className={styles.heading}>
         <p>Battle Planet Online</p>
         <h1>Website Updates</h1>
-        <div className={styles.metadata}>
-          <span className={styles.version}>v{WEBSITE_UPDATE.version}</span>
-          <span>{WEBSITE_UPDATE.status}</span>
-        </div>
+        <p className={styles.intro}>Patch history and detailed notes for website changes.</p>
       </header>
-      <article className={styles.article}>
-        <h2>{WEBSITE_UPDATE.title}</h2>
-        <p className={styles.notice}>Development notes for the current redesign. A release date has not been announced; these are not published release notes.</p>
-        <ul>
-          {WEBSITE_UPDATE.notes.map((note) => <li key={note}>{note}</li>)}
-        </ul>
-      </article>
+      <section aria-labelledby="patch-history-title">
+        <h2 className={styles.sectionTitle} id="patch-history-title">Patch History</h2>
+        <div className={styles.patchList}>
+          {WEBSITE_PATCHES.map((patch) => (
+            <Link className={styles.patchEntry} href={websitePatchHref(patch)} key={patch.version}>
+              <span className={styles.version}>v{patch.version}</span>
+              <span className={styles.patchText}>
+                <strong>{patch.title}</strong>
+                <span>{patch.summary}</span>
+                <small>{releaseDate(patch.publishedAt) ?? patch.status}</small>
+              </span>
+              <span className={styles.arrow} aria-hidden="true">›</span>
+            </Link>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
