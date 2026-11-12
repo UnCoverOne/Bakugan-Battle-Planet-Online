@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { WEBSITE_UPDATE, websitePatchHref } from "../../lib/content/website-updates";
+import { APPLICATION_VERSION } from "../../lib/content/versions";
 import styles from "./WebsiteUpdatesStrip.module.css";
 
 export function WebsiteUpdatesStrip() {
@@ -26,7 +27,7 @@ export function WebsiteUpdatesStrip() {
         </div>
       </div>
       <div className={styles.actions}>
-        <span className={styles.version} aria-label={`Website version ${update.version}`}>v{update.version}</span>
+        <span className={styles.version} aria-label={`Website version ${APPLICATION_VERSION}`}>v{APPLICATION_VERSION}</span>
         <Link href={websitePatchHref(update)}>Patch Notes <span aria-hidden="true">↗</span></Link>
       </div>
     </section>
