@@ -404,3 +404,6 @@
     min-height: 230px;
   }
 }
+
+.glyph svg{display:block;width:24px;height:24px;flex-shrink:0}
+.cardTop [data-ui="status-chip"] svg{display:inline-block;width:16px;height:16px;vertical-align:-3px}
