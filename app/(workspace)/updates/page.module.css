@@ -11,3 +11,23 @@
 .notice{font-size:13px;color:#a8b8c6;line-height:1.55;margin:0 0 18px}
 .article ul{padding-left:22px;margin:0;display:grid;gap:12px;line-height:1.55;font-size:14px}
 @media(max-width:600px){.page{width:calc(100% - 20px);margin-top:18px}.article{padding:16px}}
+
+
+.intro{font-size:14px;color:#a8b8c6;margin:0;line-height:1.5}
+.sectionTitle{margin:0 0 14px;font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-size:21px;text-transform:uppercase}
+.patchList{display:grid;gap:12px}
+.patchEntry{display:flex;align-items:center;gap:18px;padding:19px 21px;background:#141f29;border:1px solid #354958;color:#edf3f8;text-decoration:none;transition:background-color 150ms ease,border-color 150ms ease}
+.patchEntry:hover{background:#1c2c39;border-color:#658397}
+.patchText{flex:1;min-width:0;display:grid;gap:5px}
+.patchText strong{font-size:18px}
+.patchText>span{font-size:13px;color:#bfccd6;line-height:1.5}
+.patchText small{font-size:12px;color:#a8b8c6}
+.arrow{font-size:30px;color:#7bd7f4}
+.patchEntry:focus-visible,.back:focus-visible,.backBottom:focus-visible{outline:2px solid #7cc9ff;outline-offset:3px}
+.summary{font-size:15px;color:#d6e0e8;line-height:1.55;margin:0 0 14px}
+.notesSection+.notesSection{margin-top:28px}
+.notesSection h2{font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-size:20px;text-transform:uppercase}
+.backBottom{display:inline-block;margin-top:22px;color:#7bd7f4;font-size:13px;font-weight:700;text-decoration:none}
+.backBottom:hover{text-decoration:underline}
+@media(max-width:600px){.patchEntry{padding:14px;gap:10px;align-items:flex-start}.patchEntry .version{font-size:12px;white-space:nowrap}.patchText strong{font-size:16px}.patchText>span{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.patchEntry{transition:none}}
