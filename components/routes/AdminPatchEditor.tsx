@@ -34,7 +34,7 @@ export function AdminPatchEditor() {
   const [error,setError]=useState("");
   const [dirty,setDirty]=useState(false);
   const [search,setSearch]=useState("");
-  const [elementPicker,setElementPicker]=useState(false);
+  const [elementPicker,setElementPicker]=useState<string|false>(false);
   const saveLock=useRef(false);
 
   const load=useCallback(async()=>{
@@ -86,8 +86,9 @@ export function AdminPatchEditor() {
     if(mode==="published"&&!patch.sections.some(s=>s.changes.some(c=>c.title.trim()&&(c.before.trim()||c.after.trim()||c.explanation.trim())))){
       setError("Publishing requires at least one titled, explained change.");return;
     }
-    if(mode==="published"&&!confirm(`Publish v${patch.version} to all visitors?`))return;
+    if(mode==="published" && patch.status!=="published" && !confirm(`Publish v${patch.version} to all visitors?`))return;
     if(mode==="archived"&&!confirm(`Archive v${patch.version} and remove it from the public patch history?`))return;
+    if(mode==="draft"&&patch.status==="published") mode="published";
     saveLock.current=true;setBusy(true);setError("");
     try{
       const response=await fetch("/api/admin/patch-notes",{
@@ -97,7 +98,7 @@ export function AdminPatchEditor() {
       const result=await response.json();
       if(!response.ok)throw new Error(result.error||"Unable to save patch.");
       setPatch(result.patch);setDirty(false);
-      setMessage(mode==="published"?"Patch published.":mode==="archived"?"Patch archived.":"Draft saved.");
+      setMessage(mode==="published"?"Published changes saved.":mode==="archived"?"Patch archived.":"Draft saved.");
       setListing(old=>({...old,patches:[result.patch,...old.patches.filter(p=>p.version!==result.patch.version)]}));
     }catch(e){setError(e instanceof Error?e.message:"Save failed.");}
     finally{saveLock.current=false;setBusy(false);}
@@ -114,7 +115,6 @@ export function AdminPatchEditor() {
     {...c,id:newId(),title:c.title?c.title+" (copy)":""},
     ...x.changes.slice(x.changes.findIndex(v=>v.id===c.id)+1),
   ]}));
-  const hasChanges=Boolean(patch?.sections.some(s=>s.changes.length));
   return <section className={styles.root}>
     {error?<div className={styles.error} role="alert">{error}</div>:null}
     {message?<div className={styles.success} role="status">{message}</div>:null}
