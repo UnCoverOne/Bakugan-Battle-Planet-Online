@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { achievementsForProfile, ACHIEVEMENT_CATEGORY_DETAILS } from "../../lib/achievements";
+import { AchievementCategoryIcon } from "./AchievementCategoryIcon";
 import { legalDeckFormats } from "../../lib/data";
 import { rememberAccountIntent } from "../../lib/account-intent";
 import { invalidateResponse } from "../../lib/response-cache";
@@ -162,7 +163,7 @@ export function BlankDashboardScreen() {
             {displayAchievements.length ? displayAchievements.map(item => (
               <div className={styles.achievementRow} key={item.id}>
                 <span className={styles.achievementGlyph} style={{ color: ACHIEVEMENT_CATEGORY_DETAILS[item.category].color }} aria-hidden="true">
-                  {item.unlocked ? "✓" : ACHIEVEMENT_CATEGORY_DETAILS[item.category].glyph}
+                  <AchievementCategoryIcon category={item.category} />
                 </span>
                 <div className={styles.achievementText}>
                   <strong>{item.name}</strong>
