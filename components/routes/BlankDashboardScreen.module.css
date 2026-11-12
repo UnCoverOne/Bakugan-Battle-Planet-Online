@@ -17,15 +17,15 @@
 .actionTitle{font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-size:clamp(18px,calc(18px + (100vw - 320px)*.012),26px);line-height:1.1;font-weight:700;letter-spacing:.015em;white-space:nowrap}
 .actionSubtitle{font-family:var(--bb-font-content,Lato,Arial,sans-serif);font-size:clamp(10px,calc(10px + (100vw - 320px)*.006),14px);line-height:1.2;white-space:normal}
 .action svg{display:block;flex:0 0 clamp(18px,2.3vw,23px);width:clamp(18px,2.3vw,23px);height:clamp(18px,2.3vw,23px)}
-.primary{background:#e60012;border:1px solid #e60012;color:#fff}
+.primary{background:#e60012;border:1px solid #ff6673;color:#fff}
 .primary .actionSubtitle{color:#fff}
 .secondary{height:clamp(50px,6vw,56px);min-height:0;background:#202832;border:1px solid #536173;color:#f1f5f9}
 .secondary .actionTitle{font-size:clamp(17px,2.1vw,20px)}
 .secondary .actionSubtitle{font-size:clamp(10px,1.3vw,12px)}
 .secondary svg{flex-basis:clamp(16px,2vw,19px);width:clamp(16px,2vw,19px);height:clamp(16px,2vw,19px)}
 .secondary .actionSubtitle{color:#a5b2c2}
-@media(hover:hover){.primary:not(:disabled):hover{background:#fa1728;border-color:#fa1728}.secondary:hover{background:#303c4a;border-color:#536173}}
-.primary:not(:disabled):active{background:#b8000f;border-color:#b8000f}
+@media(hover:hover){.primary:not(:disabled):hover{background:#fa1728;border-color:#ff929a}.secondary:hover{background:#303c4a;border-color:#536173}}
+.primary:not(:disabled):active{background:#b8000f;border-color:#ff6673}
 .secondary:active{background:#131a23}
 .action:focus-visible{outline:2px solid #7cc9ff;outline-offset:3px}
 .action:disabled{opacity:.72;cursor:wait}
