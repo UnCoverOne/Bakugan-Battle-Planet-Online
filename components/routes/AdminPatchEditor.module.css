@@ -1,0 +1,72 @@
+.root{min-width:0;color:#edf3f8;display:grid;gap:15px;padding:12px 0 45px}
+.root button,.root input,.root textarea,.root select{font:inherit}
+.root button{cursor:pointer}
+.toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:15px;background:#141f29;border:1px solid #354958;position:sticky;top:0;z-index:15}
+.toolbar h2{margin:2px 0;font-size:25px}
+.toolbar p{margin:4px 0;color:#a8b8c6}
+.eyebrow{color:#83c9e9;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.toolbarLeft{display:flex;align-items:center;gap:14px}
+.toolbarLeft>button,.toolbarActions>button,.mobileActions>button{padding:9px 13px;border:1px solid #527086;background:#243442;color:#e6eff5;font-weight:700;font-size:13px}
+.toolbarLeft>div{display:grid;gap:4px}.toolbarLeft small{color:#a9bac7;font-size:11px}
+.toolbarActions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.root .primary{background:#e60012;color:#fff;border:1px solid #e60012;padding:10px 16px;font-size:13px;font-weight:800}
+.root button:disabled{opacity:.45;cursor:not-allowed}
+.root button:focus-visible,.root input:focus-visible,.root select:focus-visible,.root textarea:focus-visible{outline:2px solid #7cc9ff;outline-offset:2px}
+.error,.success{padding:12px 15px;border:1px solid #ba6565;color:#ffd3d3;background:#39252a}
+.success{border-color:#48a986;background:#203c33;color:#c3fae2}
+.searchLabel{display:grid;gap:7px;background:#141f29;padding:16px;border:1px solid #354958;font-size:13px}
+.root input,.root textarea,.root select{box-sizing:border-box;width:100%;min-width:0;background:#202e3a;color:#edf3f8;border:1px solid #4a6070;border-radius:0;padding:10px;font-size:14px;line-height:1.45}
+.root textarea{resize:vertical}
+.patchList{display:grid;gap:9px}
+.patchRow{width:100%;display:flex;align-items:center;gap:15px;text-align:left;background:#141f29;color:#edf3f8;border:1px solid #354958;padding:17px}
+.patchRow strong{color:#9edcf2}.patchRow span:nth-child(2){flex:1}
+.patchRow small{text-transform:uppercase;color:#adbdc8}
+.patchRow:hover{background:#223441}
+.editorLayout{display:grid;grid-template-columns:minmax(210px,260px) minmax(0,1fr);align-items:start;gap:14px}
+.outline{position:sticky;top:91px;background:#141f29;border:1px solid #354958;display:grid;padding:14px;gap:8px;max-height:calc(100vh - 110px);overflow:auto}
+.outline>button,.outlineEntry>button{background:transparent;color:#c9d9e3;border:0;padding:9px;text-align:left;font-size:13px}
+.outlineEntry{display:flex;align-items:center;gap:4px;min-width:0}
+.outlineEntry>button:first-child{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.outlineEntry small{color:#9baeba}
+.outline .selected,.outlineEntry .selected{background:#294456;color:#e9f8fc}
+.miniActions{display:flex;gap:4px;flex-shrink:0}
+.miniActions button{border:1px solid #425769;background:#253441;color:#c8d8e3;padding:5px 7px;font-size:12px}
+.outline .addLink{color:#7bd7f4}
+.outline .archive{margin-top:15px;border-top:1px solid #344654;color:#efa5a5}
+.canvas{min-width:0;background:#141f29;border:1px solid #354958;padding:20px}
+.form{display:grid;gap:17px}
+.form h2{margin:0;font-size:22px}
+.form label,.sectionHead label{font-size:12px;color:#acbdc9;font-weight:700;display:grid;gap:7px;min-width:0}
+.form>button,.elementSelect>button{background:#283c4b;border:1px solid #4d6a7b;padding:9px 12px;color:#bfedff;font-weight:700}
+.form .hint{font-size:12px;color:#a8b8c6;line-height:1.5;margin:0}
+.sectionHead{display:flex;gap:12px;align-items:end}
+.sectionHead label{flex:1}
+.root .danger{color:#f2a5a5;background:#39292d;border:1px solid #6c454b;padding:9px 12px}
+.changeEditor{padding:16px;background:#1c2a35;border:1px solid #3a4f5f;display:grid;gap:13px}
+.changeHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.changeHeader strong{font-size:14px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.elementSelect{display:flex;align-items:end;gap:8px}.elementSelect label{flex:1}
+.quickAdd{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding-top:8px;border-top:1px solid #3a4f5f}
+.quickAdd span{font-size:13px;font-weight:800;margin-right:8px}
+.quickAdd button{padding:9px 12px;border:1px solid #4b6980;background:#253b49;color:#bceaff;font-size:12px}
+.preview h2{font-size:29px;margin:10px 0}.preview>p{color:#b8cad7}
+.preview section{border-top:1px solid #3a4f5f;margin-top:25px;padding-top:14px}
+.preview article{margin:15px 0;padding:13px;background:#1e2e39}
+.preview h3{font-size:20px}.preview h4{font-size:16px;margin:0 0 9px}
+.preview small{color:#aabccc}.preview p{white-space:pre-wrap;line-height:1.5}
+.comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.comparison>div{background:#263b49;padding:12px;min-width:0}
+.comparison p{white-space:pre-wrap;overflow-wrap:anywhere}
+.mobileActions{display:none}
+.modalBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:flex;align-items:center;justify-content:center;padding:15px}
+.modal{background:#141f29;border:1px solid #5c7689;width:min(550px,100%);max-height:90vh;padding:20px;display:grid;gap:14px;color:#edf3f8}
+.modalHeader{display:flex;justify-content:space-between;align-items:center;gap:15px}
+.modalHeader button{border:1px solid #506c80;background:#273d4b;color:#edf3f8;padding:8px 12px}
+.catalogResults{overflow:auto;max-height:55vh;display:grid;gap:5px}
+.catalogResults button{display:flex;align-items:center;text-align:left;gap:12px;background:#20313e;border:1px solid #3c5363;color:#edf3f8;padding:7px}
+.catalogResults img{width:39px;height:52px;object-fit:contain}
+.catalogResults span{display:grid;gap:5px;min-width:0}
+.catalogResults small{font-size:11px;color:#9fb2c0;overflow-wrap:anywhere}
+@media(max-width:950px){.editorLayout{grid-template-columns:minmax(0,1fr)}.outline{display:none;position:static;max-height:none}.outlineVisible{display:grid}.canvas{padding:15px}}
+@media(max-width:600px){.toolbar{top:0;padding:10px}.toolbarActions{gap:5px}.toolbarActions>button{padding:7px 9px;font-size:11px}.toolbarActions>.primary,.toolbarActions>button:nth-of-type(3){display:none}.toolbar h2{font-size:19px}.canvas{padding:10px}.two{grid-template-columns:1fr}.changeEditor{padding:10px}.sectionHead{align-items:stretch;flex-direction:column}.mobileActions{display:flex;position:sticky;bottom:0;z-index:20;padding:10px;background:#141f29;border:1px solid #354958;gap:10px}.mobileActions button{flex:1}.patchRow{padding:12px;gap:8px;flex-wrap:wrap}.patchRow small{margin-left:auto}.modal{padding:12px}.comparison{grid-template-columns:1fr}}
