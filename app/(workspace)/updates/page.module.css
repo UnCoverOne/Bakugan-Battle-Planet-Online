@@ -1,0 +1,13 @@
+.page{width:min(900px,calc(100% - 32px));margin:28px auto 64px;color:#edf3f8}
+.back{display:inline-block;margin-bottom:22px;color:#7bd7f4;font-size:13px;font-weight:700;text-decoration:none}
+.back:hover{text-decoration:underline}
+.heading{border-bottom:1px solid #344351;padding-bottom:20px;margin-bottom:20px}
+.heading>p{margin:0 0 6px;color:#a8b8c6;font-size:12px;letter-spacing:.09em;text-transform:uppercase}
+.heading h1{font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-size:clamp(28px,4vw,42px);font-weight:800;text-transform:uppercase;margin:0 0 14px}
+.metadata{display:flex;align-items:center;gap:13px;font-size:13px;color:#a8b8c6}
+.version{display:inline-block;background:#233b4b;color:#a9dff3;font-weight:800;padding:6px 11px}
+.article{background:#141f29;border:1px solid #354958;padding:24px}
+.article h2{font-size:23px;margin:0 0 12px}
+.notice{font-size:13px;color:#a8b8c6;line-height:1.55;margin:0 0 18px}
+.article ul{padding-left:22px;margin:0;display:grid;gap:12px;line-height:1.55;font-size:14px}
+@media(max-width:600px){.page{width:calc(100% - 20px);margin-top:18px}.article{padding:16px}}
