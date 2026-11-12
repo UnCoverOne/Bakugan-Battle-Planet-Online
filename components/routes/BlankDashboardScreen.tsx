@@ -123,7 +123,8 @@ export function BlankDashboardScreen() {
           />
         </div>
         <div className={styles.content}>
-          <h1 id="battle-planet-title" className={styles.title}>
+          <div className={styles.heroControls}>
+            <h1 id="battle-planet-title" className={styles.title}>
             <span>BATTLE</span><span>PLANET</span>
           </h1>
           <div className={styles.actions}>
@@ -152,6 +153,7 @@ export function BlankDashboardScreen() {
               </span>
               <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="0" stroke="currentColor" strokeWidth="1.8"/><path d="M8 7h8M8 11h8M8 15h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
             </Link>
+          </div>
           </div>
         </div>
       </section>
