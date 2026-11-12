@@ -78,8 +78,10 @@ function parseRow(row:Row):ManagedPatch|null {
   } catch { return null; }
 }
 export async function listManagedPatches(db:AccountDatabase) {
-  return (await rows(db,true)).map(parseRow).filter((x):x is ManagedPatch => Boolean(x))
-    .sort((a,b)=>b.updatedAt-a.updatedAt);
+  const saved=(await rows(db,true)).map(parseRow).filter((x):x is ManagedPatch => Boolean(x));
+  const existing=new Set(saved.map(p=>p.version));
+  return [...saved,...WEBSITE_PATCHES.filter(p=>!existing.has(p.version)).map(defaultAsManaged)]
+    .sort((a,b)=>b.version.localeCompare(a.version,undefined,{numeric:true}));
 }
 function defaultAsManaged(p:WebsitePatch):ManagedPatch {
   return {
