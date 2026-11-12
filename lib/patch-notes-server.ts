@@ -25,12 +25,12 @@ function cleanChange(value: unknown, i: number): PatchChange {
   const x = value && typeof value === "object" ? value as Record<string, unknown> : {};
   return {
     id: text(x.id,64) || `change-${i}`,
-    type: types.has(x.type) ? x.type as PatchChange["type"] : "general",
+    type: typeof x.type === "string" && types.has(x.type) ? x.type as PatchChange["type"] : "general",
     title: text(x.title,160),
     elementId: text(x.elementId,160),
     before: text(x.before,4000), after: text(x.after,4000),
     explanation: text(x.explanation,8000),
-    classification: classifications.has(x.classification) ? x.classification as PatchChange["classification"] : "adjustment",
+    classification: typeof x.classification === "string" && classifications.has(x.classification) ? x.classification as PatchChange["classification"] : "adjustment",
   };
 }
 
