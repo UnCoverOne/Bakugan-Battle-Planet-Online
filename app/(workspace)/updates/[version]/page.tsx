@@ -49,7 +49,7 @@ export default async function WebsitePatchDetailPage({params}:Props) {
             {s.changes.map(c=>(
               <div className={styles.change} id={`change-${c.id}`} key={c.id}>
                 <div className={styles.changeHeading}><h3>{c.title}</h3><span className={styles.changeTag}>{c.classification}</span></div>
-                {c.elementId?<span className={styles.elementRef}>Catalogue ID: {c.elementId}</span>:null}
+                {c.elementId?<Link className={styles.elementRef} href={c.type==="core"?`/compendium/cores?core=${encodeURIComponent(c.elementId)}`:`/compendium?card=${encodeURIComponent(c.elementId)}`}>View affected {c.type} in the Compendium ↗</Link>:null}
                 {(c.before||c.after)?<div className={styles.comparison}>
                   <div><small>Before</small><p>{c.before||"—"}</p></div>
                   <div><small>After</small><p>{c.after||"—"}</p></div>
