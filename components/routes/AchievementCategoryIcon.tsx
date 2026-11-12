@@ -1,7 +1,12 @@
 import type { SVGProps } from "react";
 import type { AchievementCategory } from "../../lib/achievements";
 
-/** Shared category artwork for dashboard rows and achievement cards. */
+/**
+ * Exact Lucide SVG paths for the achievement categories:
+ * Arsenal: Layers (formerly Layers3), Arena: Swords,
+ * Brawler Network: Waypoints, Compendium: BookOpenText.
+ * Source: https://github.com/lucide-icons/lucide/tree/main/icons (ISC license).
+ */
 export function AchievementCategoryIcon({
   category,
   ...props
@@ -13,40 +18,54 @@ export function AchievementCategoryIcon({
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: 1.8,
+    strokeWidth: 2,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
   };
   switch (category) {
-    case "Arsenal":
-      // Stacked cards
-      return <svg {...common}>
-        <rect x="3" y="3" width="13" height="13" rx="1.5" />
-        <path d="M7 16v2a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" />
-        <path d="M5.5 7h8M5.5 10h6" />
-      </svg>;
-    case "Arena":
-      // Duel / crossed swords
-      return <svg {...common}>
-        <path d="m14.5 17.5 3-3L6 3 3 6l11.5 11.5Z" />
-        <path d="m13 19 2-2 3 3-2 2-3-3ZM11 5l3-2 7 7-2 3" />
-        <path d="m8 15-5 5 1 2 2-1 5-5" />
-      </svg>;
-    case "Brawler Network":
-      // Network nodes
-      return <svg {...common}>
-        <circle cx="5" cy="6" r="2" />
-        <circle cx="19" cy="5" r="2" />
-        <circle cx="12" cy="13" r="2.5" />
-        <circle cx="5" cy="20" r="2" />
-        <circle cx="20" cy="19" r="2" />
-        <path d="m6.6 7.2 3.5 3.8m4-0.2 3.3-4.1M10.2 15l-3.7 3.5m7.9-3.8 3.8 3" />
-      </svg>;
-    case "Compendium":
-      // Open book
-      return <svg {...common}>
-        <path d="M12 7a8.5 8.5 0 0 0-9-1v13a8.5 8.5 0 0 1 9 1 8.5 8.5 0 0 1 9-1V6a8.5 8.5 0 0 0-9 1Z" />
-        <path d="M12 7v13M5.5 9c1.5-.2 3 .1 4.1.7M14.5 9.7c1.1-.6 2.6-.9 4.1-.7" />
-      </svg>;
+    case "Arsenal": // Lucide layers
+      return (
+        <svg {...common}>
+        <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" />
+        <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
+        <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
+        </svg>
+      );
+    case "Arena": // Lucide swords
+      return (
+        <svg {...common}>
+        <path d="m13 19 6-6" />
+        <path d="M14.5 17.5 3.586 6.586A2 2 0 013 5.172V3h2.172a2 2 0 011.414.586L17.5 14.5" />
+        <path d="m14.828 6.172 2.586-2.586A2 2 0 0118.828 3H21v2.172a2 2 0 01-.586 1.414l-2.586 2.586" />
+        <path d="m16 16 4 4" />
+        <path d="m19 21 2-2" />
+        <path d="m5 14 4 4" />
+        <path d="m5 21-2-2" />
+        <path d="M7.5 16.5 4 20" />
+        </svg>
+      );
+    case "Brawler Network": // Lucide waypoints
+      return (
+        <svg {...common}>
+        <path d="m10.586 5.414-5.172 5.172" />
+        <path d="m18.586 13.414-5.172 5.172" />
+        <path d="M6 12h12" />
+        <circle cx="12" cy="20" r="2" />
+        <circle cx="12" cy="4" r="2" />
+        <circle cx="20" cy="12" r="2" />
+        <circle cx="4" cy="12" r="2" />
+        </svg>
+      );
+    case "Compendium": // Lucide book-open-text
+      return (
+        <svg {...common}>
+        <path d="M12 5v16" />
+        <path d="M16 13h2" />
+        <path d="M16 9h2" />
+        <path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z" />
+        <path d="M6 13h2" />
+        <path d="M6 9h2" />
+        </svg>
+      );
   }
 }
