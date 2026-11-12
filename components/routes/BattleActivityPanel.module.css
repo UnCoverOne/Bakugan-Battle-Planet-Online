@@ -1,0 +1,35 @@
+.panel{width:min(1440px,calc(100% - 32px));margin:-12px auto 30px;padding:18px;background:#141f29;border:1px solid #354958;color:#edf3f8;min-width:0}
+.header{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-bottom:11px;border-bottom:1px solid #344351;margin-bottom:15px}
+.header h2{font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-weight:800;font-size:clamp(19px,2vw,26px);margin:0;text-transform:uppercase}
+.header a{font-size:12px;color:#7bd7f4;text-decoration:none;white-space:nowrap;font-weight:700}
+.header a:hover{text-decoration:underline}
+.header a:focus-visible,.match:focus-visible{outline:2px solid #7cc9ff;outline-offset:3px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.stat{min-width:0;background:#202e3a;border:1px solid #344654;padding:16px;display:flex;flex-direction:column;gap:12px}
+.statTitle{display:flex;align-items:center;gap:9px;color:#adbdc8;font-size:12px;font-weight:700;text-transform:uppercase}
+.statTitle svg{width:21px;height:21px;display:block;flex-shrink:0}
+.battleIcon{color:#7bd7f4}.winIcon{color:#48c78e}.rateIcon{color:#e3bd73}
+.stat strong{font-size:clamp(25px,3vw,34px);line-height:1;font-weight:800;color:#f0f5f9;font-variant-numeric:tabular-nums}
+.latest{margin-top:18px}
+.latest h3{margin:0 0 10px;font-size:12px;color:#a9bac7;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.match{display:flex;align-items:center;gap:13px;min-width:0;padding:13px 14px;background:#202e3a;border:1px solid #344654;color:#edf3f8;text-decoration:none;transition:background-color 140ms ease,border-color 140ms ease}
+.match:hover{background:#263948;border-color:#66869a}
+.resultIcon{width:40px;height:40px;display:grid;place-items:center;flex:0 0 40px;background:#30414c;color:#b7c8d4}
+.resultIcon svg{width:22px;height:22px}
+.victory .resultIcon{background:#234537;color:#68dca8}
+.defeat .resultIcon{background:#4b2e34;color:#ef9290}
+.draw .resultIcon{background:#35424d;color:#a9bac7}
+.matchMain{min-width:0;display:flex;flex-direction:column;gap:3px;flex:1}
+.matchMain strong{font-size:14px;font-weight:800;text-transform:uppercase;color:#b6c5d0}
+.victory .matchMain strong{color:#68dca8}
+.defeat .matchMain strong{color:#ef9290}
+.matchMain>span{font-size:13px;color:#d3dfe7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.matchDetails{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.matchDetails strong{font-size:16px;color:#f0f5f9;font-weight:800;font-variant-numeric:tabular-nums}
+.matchDetails small{font-size:11px;color:#a9bac7;white-space:nowrap}
+.matchArrow{font-size:24px;line-height:1;color:#7bd7f4}
+.noMatch{display:flex;align-items:center;justify-content:center;gap:10px;min-height:66px;padding:14px;color:#a9bac7;background:#202e3a;border:1px solid #344654;font-size:13px;font-weight:600}
+.noMatch svg{display:block;width:23px;height:23px;color:#7a94a5}
+@media(max-width:980px){.panel{max-width:760px}}
+@media(max-width:600px){.panel{width:calc(100% - 20px);padding:12px;margin-top:-20px}.stats{gap:6px}.stat{padding:10px 7px;gap:10px}.statTitle{flex-direction:column;align-items:flex-start;gap:6px;font-size:10px}.statTitle svg{width:18px;height:18px}.stat strong{font-size:clamp(21px,6vw,28px)}.match{gap:8px;padding:10px}.resultIcon{width:34px;height:34px;flex-basis:34px}.resultIcon svg{width:19px;height:19px}.matchDetails strong{font-size:14px}.matchDetails small{font-size:10px}.matchArrow{font-size:20px}}
+@media(prefers-reduced-motion:reduce){.match{transition:none}}
