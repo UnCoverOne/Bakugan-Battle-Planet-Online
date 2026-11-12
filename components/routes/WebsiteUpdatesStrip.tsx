@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { WEBSITE_UPDATE } from "../../lib/content/website-updates";
+import { WEBSITE_UPDATE, websitePatchHref } from "../../lib/content/website-updates";
 import styles from "./WebsiteUpdatesStrip.module.css";
 
 export function WebsiteUpdatesStrip() {
@@ -21,7 +21,7 @@ export function WebsiteUpdatesStrip() {
       </div>
       <div className={styles.actions}>
         <span className={styles.version} aria-label={`Website version ${WEBSITE_UPDATE.version}`}>v{WEBSITE_UPDATE.version}</span>
-        <Link href="/updates">Patch Notes <span aria-hidden="true">↗</span></Link>
+        <Link href={websitePatchHref(WEBSITE_UPDATE)}>Patch Notes <span aria-hidden="true">↗</span></Link>
       </div>
     </section>
   );
