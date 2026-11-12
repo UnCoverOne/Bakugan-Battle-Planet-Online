@@ -114,15 +114,16 @@ export function BlankDashboardScreen() {
     <div className={styles.home}>
       <section className={styles.hero} aria-labelledby="battle-planet-title">
         <div className={styles.shade} aria-hidden="true" />
-        <div className={styles.artwork} aria-hidden="true">
-          <img
-            src="/assets/home/Dragonoid%20Hero%20Art.webp"
-            alt=""
-            width={960}
-            height={920}
-          />
-        </div>
-        <div className={styles.content}>
+        <div className={styles.heroInner}>
+          <div className={styles.artwork} aria-hidden="true">
+            <img
+              src="/assets/home/Dragonoid%20Hero%20Art.webp"
+              alt=""
+              width={960}
+              height={920}
+            />
+          </div>
+          <div className={styles.content}>
           <div className={styles.heroControls}>
             <h1 id="battle-planet-title" className={styles.title}>
               <span>BATTLE</span><span>PLANET</span>
@@ -155,6 +156,7 @@ export function BlankDashboardScreen() {
               </Link>
             </div>
           </div>
+        </div>
         </div>
       </section>
       <div className={styles.dashboard}>
