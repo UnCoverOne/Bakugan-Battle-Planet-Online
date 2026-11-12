@@ -103,13 +103,24 @@ export function AdminPatchEditor() {
     }catch(e){setError(e instanceof Error?e.message:"Save failed.");}
     finally{saveLock.current=false;setBusy(false);}
   };
+  // Saved drafts autosave after the administrator stops typing. Published
+  // patches require an explicit save so public content never changes by surprise.
+  useEffect(()=>{
+    if(!patch||patch.status!=="draft"||patch.revision===0||!dirty||busy||
+      !validVersion(patch.version)||!patch.title.trim())return;
+    const timer=window.setTimeout(()=>{void save("draft");},2500);
+    return ()=>window.clearTimeout(timer);
+  },[patch,dirty,busy]);
+
   const active=patch?.sections.find(s=>s.id===selected)??patch?.sections[0];
   const filtered=useMemo(()=>listing.patches.filter(p=>
     `${p.version} ${p.title} ${p.status}`.toLowerCase().includes(query.toLowerCase())
   ),[listing.patches,query]);
+  const pickerType=patch?.sections.flatMap(s=>s.changes).find(c=>c.id===elementPicker)?.type;
   const catalog=useMemo(()=>listing.elements.filter(e=>
+    (!pickerType||e.kind===pickerType) &&
     `${e.name} ${e.id}`.toLowerCase().includes(search.toLowerCase())
-  ).slice(0,35),[listing.elements,search]);
+  ).slice(0,35),[listing.elements,search,pickerType]);
   const duplicate=(s:PatchSection,c:PatchChange)=>editSection(s.id,x=>({...x,changes:[
     ...x.changes.slice(0,x.changes.findIndex(v=>v.id===c.id)+1),
     {...c,id:newId(),title:c.title?c.title+" (copy)":""},
@@ -142,7 +153,7 @@ export function AdminPatchEditor() {
         <div className={styles.toolbarActions}>
           <button onClick={()=>setOutlineOpen(v=>!v)} className={styles.outlineToggle}>Outline</button>
           <button onClick={()=>setView(v=>v==="edit"?"preview":"edit")}>{view==="edit"?"Preview":"Edit"}</button>
-          <button onClick={()=>void save("draft")} disabled={busy||(!dirty&&patch.revision>0)}>Save Draft</button>
+          <button onClick={()=>void save("draft")} disabled={busy||(!dirty&&patch.revision>0)}>{patch.status==="published"?"Save Changes":"Save Draft"}</button>
           <button className={styles.primary} onClick={()=>void save("published")} disabled={busy}>Publish</button>
         </div>
       </div>
@@ -221,10 +232,7 @@ export function AdminPatchEditor() {
         <div className={styles.modal} role="dialog" aria-modal="true" aria-label="Select a catalogue element">
           <div className={styles.modalHeader}><strong>Select game element</strong><button onClick={()=>setElementPicker(false)}>Close</button></div>
           <input autoFocus placeholder="Search by name or catalogue ID…" value={search} onChange={e=>setSearch(e.target.value)}/>
-          <div className={styles.catalogResults}>{catalog.filter(e=>{
-            const c=active?.changes.find(x=>x.id===elementPicker);
-            return !c||e.kind===c.type;
-          }).map(e=><button key={e.id} onClick={()=>{editChange(active!.id,elementPicker,v=>({...v,elementId:e.id,title:v.title||e.name}));setElementPicker(false);}}>
+          <div className={styles.catalogResults}>{catalog.map(e=><button key={e.id} onClick={()=>{editChange(active!.id,elementPicker,v=>({...v,elementId:e.id,title:v.title||e.name}));setElementPicker(false);}}>
             {e.art?<img src={e.art} alt="" loading="lazy"/>:null}<span><strong>{e.name}</strong><small>{e.id}</small></span>
           </button>)}</div>
         </div>
