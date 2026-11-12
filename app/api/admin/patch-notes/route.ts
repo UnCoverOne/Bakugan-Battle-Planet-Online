@@ -14,9 +14,9 @@ export async function GET(request:Request) {
     const db=await getDatabase();
     const patches=await listManagedPatches(db);
     const elements=[
-      ...CARDS.filter(c=>c.type!=="Character").map(c=>({id:c.catalogId,name:c.displayName||c.name,kind:"card",art:c.art,set:c.set})),
+      ...CARDS.filter(c=>c.type!=="Character").map(c=>({id:c.catalogId,name:c.displayName||c.name,kind:"card",art:c.art})),
       ...BAKUGAN.map(b=>({id:b.id,name:b.name,kind:"bakugan",art:b.art})),
-      ...CORES.map(c=>({id:c.catalogId,name:c.name,kind:"core",art:c.art})),
+      ...CORES.map(c=>({id:c.catalogId||c.id,name:c.name,kind:"core",art:c.art})),
     ];
     return json({patches,elements});
   } catch(error) {
