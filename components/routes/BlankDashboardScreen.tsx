@@ -5,6 +5,7 @@ import { useState } from "react";
 import { achievementsForProfile, ACHIEVEMENT_CATEGORY_DETAILS } from "../../lib/achievements";
 import { AchievementCategoryIcon } from "./AchievementCategoryIcon";
 import { BattleActivityPanel } from "./BattleActivityPanel";
+import { WebsiteUpdatesStrip } from "./WebsiteUpdatesStrip";
 import { legalDeckFormats } from "../../lib/data";
 import { rememberAccountIntent } from "../../lib/account-intent";
 import { invalidateResponse } from "../../lib/response-cache";
@@ -198,6 +199,7 @@ export function BlankDashboardScreen() {
         </section>
       </div>
       <BattleActivityPanel />
+      <WebsiteUpdatesStrip />
     </div>
   );
 }
