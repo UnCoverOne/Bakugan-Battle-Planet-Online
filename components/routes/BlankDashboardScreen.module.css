@@ -85,3 +85,5 @@
 .featuredPanel > div{flex:1}
 @media(max-width:980px){.dashboard{grid-template-columns:1fr;max-width:760px}}
 @media(max-width:600px){.dashboard{width:calc(100% - 20px);margin-top:10px;gap:10px}.achievementPanel,.featuredPanel{padding:12px}.panelHeader{margin-bottom:9px}.achievementRow{padding:9px 0}}
+
+.achievementGlyph svg{display:block;width:24px;height:24px;flex-shrink:0}
