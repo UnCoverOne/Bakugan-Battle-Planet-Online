@@ -21,25 +21,21 @@ export type AchievementCategory = (typeof ACHIEVEMENT_CATEGORIES)[number];
 
 export const ACHIEVEMENT_CATEGORY_DETAILS: Record<
   AchievementCategory,
-  { glyph: string; color: string; description: string }
+  { color: string; description: string }
 > = {
   Arsenal: {
-    glyph: "▤",
     color: "#f3b44f",
     description: "Build legal decks and master the pieces that make them work.",
   },
   Arena: {
-    glyph: "⚔",
     color: "#ef6f61",
     description: "Prove your skill through victories, formats, Ranked play, and faction mastery.",
   },
   "Brawler Network": {
-    glyph: "◎",
     color: "#5bd7ee",
     description: "Share strategies and connect with Brawlers across the Battle Planet.",
   },
   Compendium: {
-    glyph: "◇",
     color: "#a88cf2",
     description: "Discover the Main Deck card pool by bringing cards into completed battles.",
   },
