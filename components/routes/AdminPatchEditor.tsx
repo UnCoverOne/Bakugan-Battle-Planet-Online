@@ -76,14 +76,14 @@ export function AdminPatchEditor() {
   const begin=(p:ManagedPatch)=>{
     if(dirty&&!confirm("Discard unsaved edits?"))return;
     const copy=structuredClone(p);
-    setPatch(copy);setSelected(copy.sections[0]?.id||"");setDirty(false);setError("");setMessage("");
+    setPatch(copy);setSelected("");setDirty(false);setError("");setMessage("");
     setView("edit");setOutlineOpen(false);
   };
   const save=async(mode:"draft"|"published"|"archived")=>{
     if(!patch||saveLock.current)return;
     if(!validVersion(patch.version)){setError("Enter a semantic version (for example, 0.4.1).");return;}
     if(!patch.title.trim()){setError("Give the patch a title.");return;}
-    if(mode==="published"&&!patch.sections.some(s=>s.changes.some(c=>c.title.trim()&&(c.before.trim()||c.after.trim()||c.explanation.trim())))){
+    if(mode==="published" && patch.status!=="published" && !patch.sections.some(s=>s.changes.some(c=>c.title.trim()&&(c.before.trim()||c.after.trim()||c.explanation.trim())))){
       setError("Publishing requires at least one titled, explained change.");return;
     }
     if(mode==="published" && patch.status!=="published" && !confirm(`Publish v${patch.version} to all visitors?`))return;
