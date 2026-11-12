@@ -51,7 +51,8 @@ export function normalizePatch(raw: unknown): ManagedPatch {
     };
   }) : [];
   const status = x.status === "published" || x.status === "archived" ? x.status : "draft";
-  if (status === "published" && !sections.some(s=>s.changes.some(c=>c.title && (c.explanation || c.before || c.after)))) {
+  const bundled = WEBSITE_PATCHES.some(p=>p.version===version);
+  if (status === "published" && !sections.some(s=>s.changes.some(c=>c.title && (c.explanation || c.before || c.after || bundled)))) {
     throw new ValidationError("Add at least one described change before publishing.");
   }
   return {
