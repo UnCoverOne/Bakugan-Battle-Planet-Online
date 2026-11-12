@@ -168,7 +168,7 @@ export function BlankDashboardScreen() {
                 <div className={styles.achievementText}>
                   <strong>{item.name}</strong>
                   <small>{item.description}</small>
-                  <div className={styles.progressTrack} role="progressbar" aria-label={item.name} aria-valuemin={0} aria-valuemax={item.target} aria-valuenow={item.current}>
+                  <div className={`${styles.progressTrack} ${item.status === "completed" ? styles.progressCompleted : ""}`} role="progressbar" aria-label={item.name} aria-valuemin={0} aria-valuemax={item.target} aria-valuenow={item.current}>
                     <span style={{ width: `${Math.min(100, 100 * item.current / item.target)}%` }} />
                   </div>
                 </div>
