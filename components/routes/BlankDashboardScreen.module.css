@@ -79,6 +79,7 @@
 .achievementText small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#acbdc9;font-size:11px}
 .progressTrack{height:5px;background:#344554;overflow:hidden}
 .progressTrack span{height:100%;display:block;background:#40b9da}
+.progressCompleted span{background:#48c78e}
 .progressValue{font-size:11px;white-space:nowrap;color:#c8d8e1;font-variant-numeric:tabular-nums}
 .emptyPanel{margin:24px 0;color:#aabcca;font-size:14px;line-height:1.5}
 .featuredPanel{display:flex;flex-direction:column}
