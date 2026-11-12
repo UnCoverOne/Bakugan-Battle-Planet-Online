@@ -1,9 +1,11 @@
-.home{width:100%;min-width:0;overflow:hidden;background:var(--bb-page,#10151c)}
+.home{--home-content-width:min(1440px,calc(100% - 32px));width:100%;min-width:0;overflow:hidden;background:var(--bb-page,#10151c)}
 .hero{position:relative;isolation:isolate;width:100%;height:440px;overflow:hidden;background-color:#052c3e;background-image:linear-gradient(90deg,rgba(2,8,14,.18),transparent 75%),url("/assets/home/Background%20Art%201.webp");background-position:center;background-size:cover;background-repeat:no-repeat}
 .shade{position:absolute;z-index:1;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(1,6,11,.67) 0%,rgba(1,6,11,.50) 35%,rgba(1,6,11,.10) 68%,transparent 100%)}
+.heroInner{position:relative;width:var(--home-content-width);height:100%;margin-inline:auto}
 .artwork{position:absolute;inset:0;z-index:2;pointer-events:none}
-.artwork img{position:absolute;display:block;right:max(-85px,calc((100vw - 1450px)/2 - 95px));bottom:-40px;width:auto;max-width:none;height:520px;object-fit:contain;object-position:center bottom;pointer-events:none}
-.content{position:relative;z-index:3;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;width:min(100%,1440px);height:100%;margin-inline:auto;padding:30px clamp(32px,5vw,88px)}
+.artwork img{position:absolute;display:block;right:-100px;bottom:-40px;width:auto;max-width:none;height:520px;object-fit:contain;object-position:center bottom;pointer-events:none}
+.content{position:relative;z-index:3;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;width:100%;height:100%;padding:30px 0;pointer-events:none}
+.heroControls{pointer-events:auto}
 .heroControls{width:min(260px,100%);max-width:100%;container-type:inline-size}
 .title{display:flex;flex-direction:column;gap:0;width:100%;margin:0 0 24px;color:#fff;font-family:var(--bb-font-display,"RBNo3.1","Titillium Web",sans-serif);font-size:22cqw;font-weight:800;letter-spacing:.012em;line-height:.94;text-transform:uppercase;text-wrap:nowrap}
 .title span{display:block;background-image:linear-gradient(to bottom,#FFFFFF 0%,#FFFFFF 10%,#DADDE2 70%,#8C949F 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -28,8 +30,7 @@
 .action:disabled{opacity:.72;cursor:wait}
 /* Fluid hero sizing: title typography and button widths share the same container. */
 @media(max-width:1100px){
-  .artwork img{right:clamp(-145px,calc(-145px + (100vw - 850px)*.24),-85px);height:clamp(430px,calc(430px + (100vw - 850px)*.24),490px);bottom:-36px}
-  .content{padding-inline:clamp(22px,4vw,52px)}
+  .artwork img{height:clamp(430px,calc(430px + (100vw - 850px)*.24),490px);bottom:-36px}
 }
 @media(max-width:850px){
   .hero{height:clamp(340px,calc(340px + (100vw - 600px)*.2),390px)}
@@ -40,12 +41,12 @@
   .secondary{height:54px;min-height:54px}
   .secondary .actionTitle{font-size:19px}
   .secondary .actionSubtitle{font-size:11px}
-  .artwork img{height:clamp(380px,calc(380px + (100vw - 600px)*.2),430px);right:clamp(-172px,calc(-172px + (100vw - 600px)*.108),-145px);bottom:-29px}
+  .artwork img{height:clamp(380px,calc(380px + (100vw - 600px)*.2),430px);bottom:-29px}
   .shade{background:linear-gradient(90deg,rgba(1,6,11,.76),rgba(1,6,11,.46) 43%,rgba(1,6,11,.06) 80%)}
 }
 @media(max-width:600px){
   .hero{height:clamp(330px,calc(330px + (100vw - 320px)*.0357143),340px);background-position:63% center}
-  .content{padding:14px 10px 18px clamp(12px,calc(12px + (100vw - 320px)*.0142857),16px);width:100%;justify-content:center}
+  .content{padding:14px 0 18px;justify-content:center}
   .title{margin-bottom:clamp(17px,calc(17px + (100vw - 320px)*.00714286),19px);line-height:.96}
   .heroControls{width:clamp(161.28px,calc(161.28px + (100vw - 320px)*.3525714),260px)}
   .actions{gap:9px}
@@ -57,13 +58,13 @@
   .secondary .actionTitle{font-size:17px}
   .secondary .actionSubtitle{font-size:10px}
   .secondary svg{flex-basis:16px;width:16px;height:16px}
-  .artwork img{height:clamp(350px,calc(350px + (100vw - 320px)*.1071429),380px);right:clamp(-172px,calc(-157px - (100vw - 320px)*.0535714),-157px);bottom:-25px}
+  .artwork img{height:clamp(350px,calc(350px + (100vw - 320px)*.1071429),380px);bottom:-25px}
   .shade{background:linear-gradient(90deg,rgba(1,6,11,.82) 0%,rgba(1,6,11,.44) 56%,transparent 95%)}
 }
 @media(prefers-reduced-motion:reduce){.action{transition:none}}
 
 /* Homepage dashboard: achievements and a shared horizontal featured-deck card. */
-.dashboard{width:min(1440px,calc(100% - 32px));margin:18px auto 30px;display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);gap:14px;align-items:stretch}
+.dashboard{width:var(--home-content-width);margin:18px auto 30px;display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);gap:14px;align-items:stretch}
 .achievementPanel,.featuredPanel{min-width:0;background:#141f29;border:1px solid #354958;padding:18px;color:#edf3f8}
 .panelHeader{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-bottom:11px;border-bottom:1px solid #344351;margin-bottom:15px}
 .panelHeader h2{font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-weight:800;font-size:clamp(19px,2vw,26px);margin:0;text-transform:uppercase;white-space:nowrap}
@@ -83,7 +84,7 @@
 .emptyPanel{margin:24px 0;color:#aabcca;font-size:14px;line-height:1.5}
 .featuredPanel{display:flex;flex-direction:column}
 .featuredPanel > div{flex:1}
-@media(max-width:980px){.dashboard{grid-template-columns:1fr;max-width:760px}}
-@media(max-width:600px){.dashboard{width:calc(100% - 20px);margin-top:10px;gap:10px}.achievementPanel,.featuredPanel{padding:12px}.panelHeader{margin-bottom:9px}.achievementRow{padding:9px 0}}
+@media(max-width:980px){.home{--home-content-width:min(760px,calc(100% - 32px))}.dashboard{grid-template-columns:1fr}}
+@media(max-width:600px){.home{--home-content-width:calc(100% - 20px)}.dashboard{margin-top:10px;gap:10px}.achievementPanel,.featuredPanel{padding:12px}.panelHeader{margin-bottom:9px}.achievementRow{padding:9px 0}}
 
 .achievementGlyph svg{display:block;width:24px;height:24px;flex-shrink:0}
