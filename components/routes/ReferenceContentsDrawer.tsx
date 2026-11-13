@@ -77,7 +77,7 @@ export function ReferenceContentsDrawer({
       aria-label="Open contents"
       data-open={open}
       onClick={() => setOpen(true)}
-    >Contents</button>
+    >{label.toLowerCase().includes("rulebook") ? "Contents" : "Categories"}</button>
     {open && <div className={styles.scrim} role="presentation" onClick={close} data-reference-contents-backdrop />}
     <nav
       id={id}
@@ -87,7 +87,7 @@ export function ReferenceContentsDrawer({
       className={`${className} ${styles.panel}`}
       aria-label={label}
       onClickCapture={(event) => {
-        if (window.matchMedia(MOBILE_QUERY).matches && event.target instanceof Element && event.target.closest("a[href], button")) close();
+        if (window.matchMedia(MOBILE_QUERY).matches && event.target instanceof Element && event.target.closest("a[href], button:not(."+styles.close+")")) setOpen(false);
       }}
     >
       <div className={styles.closeControl}>
