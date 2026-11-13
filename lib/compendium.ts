@@ -51,7 +51,6 @@ const oneOf = <T extends readonly string[]>(value: string | null, values: T, fal
 const choices = (params: URLSearchParams, key: string) => (
   [...new Set(params.getAll(key).map((value) => value.trim()).filter((value) => value && value !== "All"))]
 );
-const choice = (value: string | null) => value?.trim() || "All";
 const setCodeFor = (card: Pick<GameCard, "catalogId">) => cardSetCode(card);
 
 export function parseCompendiumState(input: URLSearchParams | string): CompendiumState {
@@ -200,9 +199,9 @@ export type CoreCompendiumSort = (typeof CORE_COMPENDIUM_SORTS)[number];
 export type CoreCompendiumDensity = (typeof CORE_COMPENDIUM_DENSITIES)[number];
 export type CoreCompendiumState = {
   q: string;
-  set: string;
-  type: string;
-  bonusType: string;
+  set: string[];
+  type: string[];
+  bonusType: string[];
   sort: CoreCompendiumSort;
   direction: "asc" | "desc";
   density: CoreCompendiumDensity;
@@ -213,9 +212,9 @@ export type CoreCompendiumState = {
 
 export const DEFAULT_CORE_COMPENDIUM_STATE: CoreCompendiumState = Object.freeze({
   q: "",
-  set: "All",
-  type: "All",
-  bonusType: "All",
+  set: [],
+  type: [],
+  bonusType: [],
   sort: "collector",
   direction: "asc",
   density: "gallery",
@@ -229,9 +228,9 @@ export function parseCoreCompendiumState(input: URLSearchParams | string): CoreC
   const requestedPage = Number.parseInt(params.get("corePage") ?? "1", 10);
   return {
     q: params.get("q") ?? "",
-    set: choice(params.get("coreSet")),
-    type: choice(params.get("coreType")),
-    bonusType: choice(params.get("coreBonusType")),
+    set: choices(params, "coreSet"),
+    type: choices(params, "coreType"),
+    bonusType: choices(params, "coreBonusType"),
     sort: oneOf(params.get("coreSort"), CORE_COMPENDIUM_SORTS, DEFAULT_CORE_COMPENDIUM_STATE.sort),
     direction: params.get("coreDirection") === "desc" ? "desc" : "asc",
     density: oneOf(params.get("coreDensity"), CORE_COMPENDIUM_DENSITIES, DEFAULT_CORE_COMPENDIUM_STATE.density),
@@ -244,9 +243,9 @@ export function parseCoreCompendiumState(input: URLSearchParams | string): CoreC
 export function coreCompendiumSearchParams(state: CoreCompendiumState) {
   const params = new URLSearchParams();
   if (state.q) params.set("q", state.q);
-  if (state.set !== DEFAULT_CORE_COMPENDIUM_STATE.set) params.set("coreSet", state.set);
-  if (state.type !== DEFAULT_CORE_COMPENDIUM_STATE.type) params.set("coreType", state.type);
-  if (state.bonusType !== DEFAULT_CORE_COMPENDIUM_STATE.bonusType) params.set("coreBonusType", state.bonusType);
+  for (const value of state.set) params.append("coreSet", value);
+  for (const value of state.type) params.append("coreType", value);
+  for (const value of state.bonusType) params.append("coreBonusType", value);
   if (state.sort !== DEFAULT_CORE_COMPENDIUM_STATE.sort) params.set("coreSort", state.sort);
   if (state.direction !== "asc") params.set("coreDirection", state.direction);
   if (state.density !== DEFAULT_CORE_COMPENDIUM_STATE.density) params.set("coreDensity", state.density);
@@ -300,10 +299,11 @@ const coreMatchesBonusType = (core: Core, type: string) => {
   return true;
 };
 
-const coreMatchesSet = (core: Core, set: string) =>
-  set === "All"
-  || (core.set ?? "Battle Brawlers") === set
-  || core.printings?.some((printing) => printing.set === set) === true;
+const coreMatchesSet = (core: Core, sets: readonly string[]) =>
+  sets.length === 0 || sets.some((set) =>
+    (core.set ?? "Battle Brawlers") === set
+    || core.printings?.some((printing) => printing.set === set) === true
+  );
 
 const coreNumberForSet = (core: Core, set: string) =>
   core.printings?.find((printing) => printing.set === set)?.number ?? core.number;
@@ -327,10 +327,10 @@ export function filterAndSortCompendiumCores(cores: readonly Core[], state: Core
   const terms = searchTokens(state.q);
   return cores.filter((core) => (
     coreMatchesSet(core, state.set)
-    && (state.type === "All" || core.type === state.type)
-    && coreMatchesBonusType(core, state.bonusType)
+    && (state.type.length === 0 || state.type.includes(core.type))
+    && (state.bonusType.length === 0 || state.bonusType.some((type) => coreMatchesBonusType(core, type)))
     && terms.every((term) => coreSearchableText(core).includes(term))
-  )).toSorted((left, right) => (state.direction === "desc" ? -1 : 1) * compareCompendiumCores(left, right, state.sort, state.set));
+  )).toSorted((left, right) => (state.direction === "desc" ? -1 : 1) * compareCompendiumCores(left, right, state.sort, state.set.length === 1 ? state.set[0] : "All"));
 }
 
 export function selectedCompendiumCore(cores: readonly Core[], identity: string) {
