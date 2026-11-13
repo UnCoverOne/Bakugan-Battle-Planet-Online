@@ -15,18 +15,28 @@
   display:flex;flex-direction:column;gap:.55rem;
   background:var(--surface-canvas);border-bottom:1px solid var(--border-subtle);
 }
-.sectionNav{display:flex;justify-content:center;gap:.45rem;overflow-x:auto;scrollbar-width:thin;scroll-snap-type:x proximity}
+/* Five large, borderless icon-over-label tiles. The nav itself never animates away. */
+.sectionNav{
+  position:relative;display:flex;align-items:stretch;justify-content:safe center;
+  gap:.5rem;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;
+  scroll-snap-type:x proximity;overscroll-behavior-x:contain;
+}
 .sectionNav button{
-  appearance:none;flex:1 0 auto;min-width:6.4rem;max-width:13rem;min-height:4.65rem;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;
-  padding:.55rem .85rem;border:0;border-bottom:2px solid transparent;
-  background:transparent;color:var(--text-secondary);font:600 .85rem var(--font-display);
+  appearance:none;flex:0 0 8.125rem;width:8.125rem;min-width:8.125rem;min-height:5.5rem;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;
+  padding:.75rem .6rem;border:0;border-bottom:2px solid transparent;
+  background:transparent;color:var(--text-secondary);
+  font:600 .875rem/1.25 var(--font-display);
   white-space:nowrap;cursor:pointer;scroll-snap-align:nearest;
+  transition:background-color .14s ease-out,color .14s ease-out,border-color .14s ease-out;
 }
 .sectionNav button:hover{background:var(--surface-input);color:var(--text-primary)}
 .sectionNav button.sectionActive{background:var(--surface-input);color:var(--text-primary);border-bottom-color:var(--brand-blue)}
+.sectionNav button:focus-visible{outline:2px solid var(--focus-color);outline-offset:-3px}
 .sectionIcon{display:flex;align-items:center;justify-content:center;color:var(--text-secondary)}
-.sectionActive .sectionIcon{color:var(--brand-blue-bright)}
+.sectionIcon svg{display:block;width:1.625rem;height:1.625rem}
+.sectionActive .sectionIcon{color:var(--text-primary)}
+.sectionNav button:hover .sectionIcon{color:var(--text-primary)}
 .search{position:relative;display:flex;align-items:center;width:100%;gap:.6rem;min-width:0;padding:0 .8rem;background:var(--surface-input);border:1px solid var(--border-subtle);border-radius:.35rem}
 .search input{flex:1;min-width:0;width:100%;min-height:2.8rem;border:0;padding:0;background:transparent;color:var(--text-primary);font:inherit;outline:0}
 .search input:focus-visible{outline:0}
@@ -162,8 +172,8 @@
 @media(max-width:700px){
   .route{--compendium-scroll-offset:calc(var(--site-header-height,64px) + var(--compendium-nav-height) + var(--compendium-controls-height) + 1rem)}
   .toolbar{width:100%;top:var(--site-header-height,64px);padding:.45rem var(--space-4) .6rem}
-  .sectionNav{justify-content:flex-start;gap:.15rem}
-  .sectionNav button{min-width:5.7rem;min-height:4rem;max-width:none;padding:.4rem .55rem;font-size:.76rem}
+  .sectionNav{justify-content:flex-start;gap:.25rem}
+  .sectionNav button{flex:0 0 7rem;width:7rem;min-width:7rem;min-height:4.75rem;max-width:none;padding:.55rem .4rem;font-size:.875rem}
   .resultsToolbar{
     position:sticky;top:calc(var(--site-header-height,64px) + var(--compendium-nav-height));
     z-index:79;width:100%;margin:0;padding:.5rem var(--space-4);
@@ -190,6 +200,7 @@
   .referenceReturn{width:calc(100% - 2 * var(--space-4));top:var(--compendium-scroll-offset)}
 }
 @media(prefers-reduced-motion:reduce){
+  .sectionNav button{transition:none}
   .route :global([data-ui="compendium-section-content"]){animation:none}
   .cardArtFrame,.coreArt{transition:none}
 }
