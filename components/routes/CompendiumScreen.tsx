@@ -373,13 +373,13 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const openFilterSheet = () => {setPendingCardFilters({...state});setPendingCoreFilters({...coreState});setFilterSheetOpen(true);};
   const applyMobileCardFilters = () => {if (pendingCardFilters) navigate({set:pendingCardFilters.set,type:pendingCardFilters.type,coreType:pendingCardFilters.coreType,faction:pendingCardFilters.faction,cost:pendingCardFilters.cost,rarity:pendingCardFilters.rarity,keyword:pendingCardFilters.keyword}, {resetPage:true});setFilterSheetOpen(false);};
   const applyMobileCoreFilters = () => {if (pendingCoreFilters) navigateCore({set:pendingCoreFilters.set,type:pendingCoreFilters.type,bonusType:pendingCoreFilters.bonusType}, {resetPage:true});setFilterSheetOpen(false);};
-  const selectCard = (card: typeof CARDS[number], trigger?: HTMLElement | null) => {
+  const selectCard = (card: typeof CARDS[number], trigger?: HTMLElement | null, preserveTab = false) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
-    navigate({ card: card.slug ?? card.catalogId, tab: "overview" }, { push: true });
+    navigate({ card: card.slug ?? card.catalogId, tab: preserveTab ? state.tab : "overview" }, { push: true });
   };
-  const selectCore = (core: typeof CORE_COMPENDIUM[number], trigger?: HTMLElement | null) => {
+  const selectCore = (core: typeof CORE_COMPENDIUM[number], trigger?: HTMLElement | null, preserveTab = false) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
-    navigateCore({ core: core.catalogId ?? core.id }, { push: true });
+    navigateCore({ core: core.catalogId ?? core.id, tab: preserveTab ? coreState.tab : "overview" }, { push: true });
   };
   const copyCurrentLink = async (label: string) => {
     const path = section === "cores"
@@ -494,7 +494,11 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 rulings={PUBLISHED_RULINGS}
                 tab={state.tab}
                 onTabChange={(tab: CardInspectorTab) => navigate({ tab }, { push: true })}
-                onSelectCard={(card) => selectCard(card)}
+                onSelectCard={(card) => selectCard(card, undefined, true)}
+                onPrevious={cards.findIndex((entry) => entry.catalogId === selected.catalogId) > 0 ? () => selectCard(cards[cards.findIndex((entry) => entry.catalogId === selected.catalogId) - 1], undefined, true) : undefined}
+                onNext={cards.findIndex((entry) => entry.catalogId === selected.catalogId) >= 0 && cards.findIndex((entry) => entry.catalogId === selected.catalogId) < cards.length - 1 ? () => selectCard(cards[cards.findIndex((entry) => entry.catalogId === selected.catalogId) + 1], undefined, true) : undefined}
+                position={cards.findIndex((entry) => entry.catalogId === selected.catalogId) + 1}
+                resultCount={cards.length}
                 onClose={closeInspector}
                 returnFocusRef={inspectorTrigger}
                 onShare={() => void copyCurrentLink(selected.displayName)}
@@ -589,6 +593,11 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <CardInspector
                 core={selectedCore}
                 allCores={CORE_COMPENDIUM}
+                onSelectCore={(nextCore) => selectCore(nextCore, undefined, true)}
+                onPrevious={cores.findIndex((entry) => entry.id === selectedCore.id) > 0 ? () => selectCore(cores[cores.findIndex((entry) => entry.id === selectedCore.id) - 1], undefined, true) : undefined}
+                onNext={cores.findIndex((entry) => entry.id === selectedCore.id) >= 0 && cores.findIndex((entry) => entry.id === selectedCore.id) < cores.length - 1 ? () => selectCore(cores[cores.findIndex((entry) => entry.id === selectedCore.id) + 1], undefined, true) : undefined}
+                position={cores.findIndex((entry) => entry.id === selectedCore.id) + 1}
+                resultCount={cores.length}
                 rules={ruleReferences}
                 rulings={PUBLISHED_RULINGS}
                 tab={coreState.tab}
