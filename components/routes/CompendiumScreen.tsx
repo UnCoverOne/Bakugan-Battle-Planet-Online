@@ -42,6 +42,8 @@ import {
   CORE_TYPE_OPTIONS,
   createCardFilterOptionCatalogue,
   FACTION_SYMBOLS,
+  CARD_FILTER_FACETS,
+  CARD_FILTER_LABELS,
   type CardFilterFacet,
   type CardFilterOptionCatalogue,
 } from "../../lib/card-filters";
@@ -413,15 +415,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     rarity: [],
     keyword: [],
   }, { resetPage: true });
-  const clearCoreFilters = () => navigateCore({
-    set: "All",
-    type: "All",
-    bonusType: "All",
-    sort: "collector",
-    density: "gallery",
-    page: 1,
-    core: "",
-  });
+  const clearCoreFilters = () => navigateCore({ set: "All", type: "All", bonusType: "All" }, {resetPage:true});
   const openFilterSheet = () => {setPendingCardFilters({...state});setPendingCoreFilters({...coreState});setFilterSheetOpen(true);};
   const applyMobileCardFilters = () => {if (pendingCardFilters) navigate({set:pendingCardFilters.set,type:pendingCardFilters.type,coreType:pendingCardFilters.coreType,faction:pendingCardFilters.faction,cost:pendingCardFilters.cost,rarity:pendingCardFilters.rarity,keyword:pendingCardFilters.keyword}, {resetPage:true});setFilterSheetOpen(false);};
   const applyMobileCoreFilters = () => {if (pendingCoreFilters) navigateCore({set:pendingCoreFilters.set,type:pendingCoreFilters.type,bonusType:pendingCoreFilters.bonusType}, {resetPage:true});setFilterSheetOpen(false);};
@@ -506,6 +500,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             </Surface>
             <main className={styles.gallery} ref={resultsAnchor}>
 <nav className={styles.pagination} aria-label="Card result pages"><button type="button" disabled={page === 1} onClick={() => navigate({page:page-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:pages},(_,i)=>i+1).filter(v=>v===1||v===pages||Math.abs(v-page)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===page?"page":undefined} onClick={()=>navigate({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={page===pages} onClick={()=>navigate({page:page+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>
+              {activeFilterCount > 0 && <div className={styles.activeFilters} aria-label="Active card filters">
+                {CARD_FILTER_FACETS.flatMap((facet) => state[facet].map((value) =>
+                  <button type="button" key={facet+":"+value} onClick={() => setFilter(facet,state[facet].filter((entry) => entry !== value))}
+                    aria-label={`Remove ${value} ${CARD_FILTER_LABELS[facet]} filter`}>{value}<span aria-hidden="true">×</span></button>))}
+                <button type="button" className={styles.clearChips} onClick={clearFilters}>Clear all</button>
+              </div>}
               {visible.length ? (
                 <CardGrid
                   className={`${styles.cardGrid} ${state.density === "compact" ? styles.cardGridCompact : ""}`}
@@ -620,6 +620,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             </Surface>
             <main className={styles.gallery} ref={resultsAnchor}>
 <nav className={styles.pagination} aria-label="BakuCore result pages"><button type="button" disabled={corePage === 1} onClick={() => navigateCore({page:corePage-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:corePages},(_,i)=>i+1).filter(v=>v===1||v===corePages||Math.abs(v-corePage)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===corePage?"page":undefined} onClick={()=>navigateCore({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={corePage===corePages} onClick={()=>navigateCore({page:corePage+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>
+              {activeCoreFilterCount > 0 && <div className={styles.activeFilters} aria-label="Active BakuCore filters">
+                {(["type","set","bonusType"] as const).filter((key) => coreState[key] !== "All").map((key) =>
+                  <button type="button" key={key} onClick={() => navigateCore({[key]:"All"}, {resetPage:true})}
+                    aria-label={`Remove ${coreState[key]} filter`}>{coreState[key]}<span aria-hidden="true">×</span></button>)}
+                <button type="button" className={styles.clearChips} onClick={clearCoreFilters}>Clear all</button>
+              </div>}
               {visibleCores.length ? (
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "6.75rem" : "10rem"}>
                   {visibleCores.map((core) => {
