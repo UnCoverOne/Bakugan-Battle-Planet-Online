@@ -15,8 +15,8 @@ export function compendiumLocation(pathname: string | null, initialSegments: rea
   return { section, legacyDetail };
 }
 
-/** Transfer only the shared search; filters, paging and inspectors belong to their section. */
-export function compendiumSectionHref(section: CompendiumSection, query: string) {
+/** Each Compendium section owns an independent search query and view state. */
+export function compendiumSectionHref(section: CompendiumSection, query = "") {
   const params = new URLSearchParams();
   if (query) params.set("q", query);
   return sectionPaths[section] + (params.size ? `?${params}` : "");
